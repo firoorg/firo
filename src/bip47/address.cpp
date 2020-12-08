@@ -3,29 +3,16 @@
 
 namespace bip47 {
 
-std::string const & CAddress::getAddress() const
-{
-    return address;
+CAddress::CAddress(CBitcoinAddress const & address, bool isUsed)
+:address(address), isUsed_(isUsed)
+{}
+
+void CAddress::isUsed(bool isUsed) {
+    isUsed_ = isUsed;
 }
 
-int CAddress::getIndex() const 
-{
-    return index;
-}
-
-bool CAddress::isSeen() 
-{
-    return seen;
-}
-
-void CAddress::setSeen(bool v_seen) 
-{
-    seen = v_seen;
-}
-
-std::string CAddress::toString() 
-{
-    return address;
+bool CAddress::isUsed() const {
+    return isUsed_;
 }
 
 }

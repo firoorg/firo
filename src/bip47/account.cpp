@@ -15,6 +15,29 @@ CAccountBase::CAccountBase(CExtKey const & walletKey, size_t accountNum)
     pubkey = privkey.Neuter();
 }
 
+CAccountBase::AddrContT const & CAccountBase::getMyUsedAddresses()
+{
+    return generateMyUsedAddresses();
+}
+
+CAccountBase::AddrContT const & CAccountBase::getMyNextAddresses()
+{
+    return generateMyNextAddresses();
+}
+
+bool CAccountBase::addressUsed(CBitcoinAddress const & address)
+{
+    return markAddressUsed(address);
+}
+
+CPaymentCode const & CAccountBase::getMyPcode() const
+{
+    if(!myPcode) {
+        myPcode.emplace(pubkey.pubkey, pubkey.chaincode);
+    }
+    return *myPcode;
+}
+
 /******************************************************************************/
 
 CAccountSender::CAccountSender(CExtKey const & walletKey, size_t accountNum, CPaymentCode const & theirPcode)
@@ -22,16 +45,35 @@ CAccountSender::CAccountSender(CExtKey const & walletKey, size_t accountNum, CPa
 {
 }
 
-std::vector<unsigned char> CAccountSender::getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret)
-{
+CPaymentChannel & CAccountSender::getPaymentChannel() {
     if(!pchannel)
         pchannel.emplace(theirPcode, privkey);
-    return pchannel->getMaskedPayload(outpoint, outpointSecret);
+    return *pchannel;
+}
+
+std::vector<unsigned char> CAccountSender::getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret)
+{
+    return getPaymentChannel().getMaskedPayload(outpoint, outpointSecret);
 }
 
 CPaymentCode const & CAccountSender::getTheirPcode() const
 {
     return theirPcode;
+}
+
+CAccountBase::AddrContT const & CAccountSender::generateMyUsedAddresses()
+{
+    return getPaymentChannel().generateMyUsedAddresses();
+}
+
+CAccountBase::AddrContT const & CAccountSender::generateMyNextAddresses()
+{
+    return getPaymentChannel().generateMyNextAddresses();
+}
+
+bool CAccountSender::markAddressUsed(CBitcoinAddress const & address)
+{
+    return getPaymentChannel().markAddressUsed(address);
 }
 
 /******************************************************************************/
@@ -40,14 +82,6 @@ CAccountReceiver::CAccountReceiver(CExtKey const & walletKey, size_t accountNum)
 : CAccountBase(walletKey, accountNum)
 {
 
-}
-
-CPaymentCode const & CAccountReceiver::getMyPcode() const
-{
-    if(!myPcode) {
-        myPcode.emplace(pubkey.pubkey, pubkey.chaincode);
-    }
-    return *myPcode;
 }
 
 CBitcoinAddress const & CAccountReceiver::getMyNotificationAddress() const
@@ -61,7 +95,7 @@ CBitcoinAddress const & CAccountReceiver::getMyNotificationAddress() const
 namespace {
     struct CompByPcode {
         CompByPcode(CPaymentCode const & comp): comp(comp){};
-        bool operator()(CPaymentChannel const & other) const {return other.getTheirPcode() == comp;};
+        bool operator()(std::pair<CPaymentChannel, size_t> const & other) const {return other.first.getTheirPcode() == comp;};
         CPaymentCode const & comp;
     };
 }
@@ -69,6 +103,23 @@ namespace {
 bool CAccountReceiver::findTheirPcode(CPaymentCode const & pcode) const
 {
     return std::find_if(pchannels.begin(), pchannels.end(), CompByPcode(pcode)) != pchannels.end();
+}
+
+CAccountBase::AddrContT const & CAccountReceiver::generateMyUsedAddresses()
+{
+    return CAccountBase::AddrContT();
+}
+
+CAccountBase::AddrContT const & CAccountReceiver::generateMyNextAddresses()
+{
+    return CAccountBase::AddrContT();
+}
+
+bool CAccountReceiver::markAddressUsed(CBitcoinAddress const & address)
+{
+    if(address == getMyNotificationAddress())
+        return true;
+
 }
 
 /******************************************************************************/

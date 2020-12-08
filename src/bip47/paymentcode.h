@@ -18,7 +18,7 @@ public:
     std::vector<unsigned char> getMaskedPayload(COutPoint const & outPoint);
 
     CBitcoinAddress getNotificationAddress() const;
-    CBitcoinAddress getNthAddress(int idx) const;
+    CBitcoinAddress getNthAddress(size_t idx) const;
 
     CExtPubKey getNthPubkey(size_t idx) const;
 

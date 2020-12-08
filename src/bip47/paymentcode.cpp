@@ -48,7 +48,7 @@ CBitcoinAddress CPaymentCode::getNotificationAddress() const
     return CBitcoinAddress(getNthPubkey(0).pubkey.GetID());
 }
 
-CBitcoinAddress CPaymentCode::getNthAddress(int idx) const
+CBitcoinAddress CPaymentCode::getNthAddress(size_t idx) const
 {
     return CBitcoinAddress(getNthPubkey(idx).pubkey.GetID());
 }

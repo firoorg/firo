@@ -7,19 +7,15 @@
 
 namespace bip47 {
 
-CPaymentChannel::CPaymentChannel()
-: idxSend(0), idxRecv(0), state(State::created)
-{}
-
 CPaymentChannel::CPaymentChannel(CPaymentCode const & theirPcode, CExtKey const & myChannelKey)
-: theirPcode(theirPcode), idxSend(0), idxRecv(0), state(State::created), myChannelKey(myChannelKey)
+: myChannelKey(myChannelKey), theirPcode(theirPcode), usedAddressCount(0)
 {}
 
-std::vector<CBitcoinAddress> CPaymentChannel::generateTheirAddresses(size_t number) const
+std::vector<CBitcoinAddress> CPaymentChannel::generateTheirAddresses(size_t fromAddr, size_t uptoAddr) const
 {
     static GroupElement const G(GroupElement().set_base_g());
-    std::vector<CBitcoinAddress> result;
-    for(size_t i = 0; i < number; ++i) {
+    std::vector<CBitcoinAddress>  result;
+    for(size_t i = fromAddr; i < uptoAddr; ++i) {
         CPubKey const theirPubkey = theirPcode.getNthPubkey(i).pubkey;
         CSecretPoint sp(myChannelKey.key, theirPubkey);
         std::vector<unsigned char> spBytes = sp.getEcdhSecret();
@@ -40,11 +36,6 @@ std::vector<CBitcoinAddress> CPaymentChannel::generateTheirAddresses(size_t numb
 CPaymentCode const & CPaymentChannel::getTheirPcode() const
 {
     return theirPcode;
-}
-
-CPaymentCode const & CPaymentChannel::getMyPcode() const
-{
-    return payeePcode;
 }
 
 std::vector<unsigned char> CPaymentChannel::getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret) const
@@ -74,66 +65,50 @@ std::vector<unsigned char> CPaymentChannel::getMaskedPayload(COutPoint const & o
     return payload;
 }
 
-std::vector<CAddress> CPaymentChannel::getIncomingAddresses() const
+CPaymentCode const & CPaymentChannel::getMyPcode() const
 {
-    return incomingAddresses;
+    if(!myPcode) {
+        CExtPubKey myChannelPubkey = myChannelKey.Neuter();
+        myPcode.emplace(myChannelPubkey.pubkey, myChannelPubkey.chaincode);
+    }
+    return *myPcode;
 }
 
-int CPaymentChannel::getIdxRecv() const
+
+CPaymentChannel::AddrContT const & CPaymentChannel::generateMyUsedAddresses()
 {
-    return idxRecv;
+    for(size_t i = usedAddresses.size(); i < usedAddressCount; ++i) {
+        usedAddresses.push_back(getMyPcode().getNthAddress(i));
+    }
+    return usedAddresses;
 }
 
-void CPaymentChannel::addTransaction(uint256 hash)
+CPaymentChannel::AddrContT const & CPaymentChannel::generateMyNextAddresses()
 {
-    if (hash.IsNull()) return;
-    if (std::find(transactions.begin(), transactions.end(), hash) != transactions.end()) return;
-    transactions.push_back(hash);
-}
-void CPaymentChannel::getTransactions(std::vector<uint256>& hashes) const
-{
-    hashes.insert(hashes.end(), transactions.begin(), transactions.end());
+    for(size_t i = nextAddresses.size(); i < 10; ++i) {
+        nextAddresses.push_back(getMyPcode().getNthAddress(usedAddressCount + i));
+    }
+    return nextAddresses;
 }
 
-void CPaymentChannel::addNewIncomingAddress(string newAddress, int nextIndex)
+bool CPaymentChannel::markAddressUsed(CBitcoinAddress const & address)
 {
-    incomingAddresses.push_back(CAddress(newAddress, nextIndex));      
-    idxRecv = nextIndex;
+    if(address == getMyPcode().getNotificationAddress()) {
+        return true;
+    }
+    AddrContT::iterator begin = nextAddresses.begin() + 1;
+    AddrContT::iterator iter = std::find(begin, nextAddresses.end(), address);
+    if(iter == nextAddresses.end()) {
+        return false;
+    }
+    iter += 1;
+    usedAddressCount += std::distance(begin, iter);
+    std::copy(begin, iter, std::back_inserter(usedAddresses));
+    nextAddresses.erase(begin, iter);
+    generateMyNextAddresses();
+
+    return true;
 }
 
-std::string const & CPaymentChannel::getLabel() const
-{
-    return label;
-}
-
-void CPaymentChannel::setLabel(std::string const & l)
-{
-    label = l;
-}
-
-std::vector<string> CPaymentChannel::getOutgoingAddresses() const
-{
-    return outgoingAddresses;
-}
-
-int CPaymentChannel::getIdxSend() const
-{
-    return idxSend;
-}
-
-void CPaymentChannel::incrementOutgoingIndex()
-{
-    idxSend++;
-}
-
-void CPaymentChannel::addAddressToOutgoingAddresses(string address)
-{
-    outgoingAddresses.push_back(address);
-}
-
-bool CPaymentChannel::isNotificationTransactionSent() const
-{
-    return false;
-}
 
 }

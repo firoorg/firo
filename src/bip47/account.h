@@ -15,13 +15,26 @@ class CWallet;
 class CAccountBase
 {
 public:
-    CAccountBase(CExtKey const & walletKey, size_t accountNum);
+    CAccountBase(CExtKey const & walletKey, size_t accountNum); 
     virtual ~CAccountBase() = default;
 
+    typedef std::vector<CBitcoinAddress> AddrContT;
+
+    AddrContT const & getMyUsedAddresses();
+    AddrContT const & getMyNextAddresses();
+    bool addressUsed(CBitcoinAddress const & address);
+
+    CPaymentCode const & getMyPcode() const;
 protected:
     size_t const accountNum;
     CExtKey privkey;
     CExtPubKey pubkey;
+private:
+    boost::optional<CPaymentCode> mutable myPcode;
+
+    virtual AddrContT const & generateMyUsedAddresses() = 0;
+    virtual AddrContT const & generateMyNextAddresses() = 0;
+    virtual bool markAddressUsed(CBitcoinAddress const &) = 0;
 };
 
 typedef std::shared_ptr<CAccountBase> CAccountPtr;
@@ -38,12 +51,17 @@ class CAccountSender : public CAccountBase
 public:
     CAccountSender(CExtKey const & walletKey, size_t accountNum, CPaymentCode const & theirPcode);
 
+    CPaymentChannel & getPaymentChannel();
     std::vector<unsigned char> getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret);
 
     CPaymentCode const & getTheirPcode() const;
 private:
     CPaymentCode theirPcode;
     boost::optional<CPaymentChannel> mutable pchannel;
+
+    virtual AddrContT const & generateMyUsedAddresses();
+    virtual AddrContT const & generateMyNextAddresses();
+    virtual bool markAddressUsed(CBitcoinAddress const &);
 };
 
 /******************************************************************************/
@@ -53,20 +71,25 @@ private:
  * Every time a notification tx is received, a new payment channel for this tx's
  * payment code is created.
  */
-class CAccountReceiver  : public CAccountBase
+class CAccountReceiver : public CAccountBase
 {
 public:
     CAccountReceiver(CExtKey const & walletKey, size_t accountNum);
 
-    CPaymentCode const & getMyPcode() const;
     CBitcoinAddress const & getMyNotificationAddress() const;
-    
+
     bool findTheirPcode(CPaymentCode const & pcode) const;
 private:
-    using ContT = std::vector<CPaymentChannel>;
-    ContT pchannels;
-    boost::optional<CPaymentCode> mutable myPcode;
+    using ContT = std::vector<std::pair<CPaymentChannel, size_t>>;
+    ContT mutable pchannels;
     boost::optional<CBitcoinAddress> mutable myNotificationAddress;
+
+    AddrContT usedAddresses;
+    AddrContT nextAddresses;
+
+    virtual AddrContT const & generateMyUsedAddresses();
+    virtual AddrContT const & generateMyNextAddresses();
+    virtual bool markAddressUsed(CBitcoinAddress const &);
 };
 
 /******************************************************************************/

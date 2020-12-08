@@ -261,8 +261,6 @@ public:
     bool ReadCalculatedZCBlock(int& height);
     bool WriteCalculatedZCBlock(int height);
 
-    bool SavePaymentChannels(std::string paymentCode, const std::vector<bip47::CPaymentChannel>& channels);
-
     DBErrors ReorderTransactions(CWallet* pwallet);
     DBErrors LoadWallet(CWallet* pwallet);
     DBErrors FindWalletTx(CWallet* pwallet, std::vector<uint256>& vTxHash, std::vector<CWalletTx>& vWtx);
@@ -303,26 +301,8 @@ public:
     bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
     //bip47 data
-    void ListBIP47PaymentChannels(std::map <string, std::vector<bip47::CPaymentChannel>> &mPchannels);
-
-    void SavePaymentCodes(const std::vector<string>& paymentCodes);
-    void ReadPaymentCodes(std::vector<string>& paymentCodes);
-
-    /// Write destination data key,value tuple to database
-    bool WritePcodeNotificationData(const std::string &rpcodestr, const std::string &key, const std::string &value);
-    bool WriteBip47SeedMaster(const vector<unsigned char> &seedmaster);
-    bool ReadBip47SeedMaster(vector<unsigned char> &seedmaster);
-    /// Erase destination data tuple from wallet database
-    bool ErasePcodeNotificationData(const std::string &rpcodestr, const std::string &key);
-    bool loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions);
-    
     static void IncrementUpdateCounter();
     static unsigned int GetUpdateCounter();    
-
-    bool ReadLastPCodeIndex(int& lastIndex);
-    bool UpdateLastPCodeIndex();
-    std::string ReadPaymentCodeLabel(std::string paymentCode);
-    bool WritePaymentCodeLabel(std::string paymentCode, std::string label);
 
 #ifdef ENABLE_ELYSIUM
 

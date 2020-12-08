@@ -215,7 +215,7 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
         CPaymentChannel paymentChannel(paymentCode_bob, privkey_alice);
 
         std::vector<std::string>::const_iterator iter = sendingaddresses.begin();
-        for (CBitcoinAddress const & addr: paymentChannel.generateTheirAddresses(10)) {
+        for (CBitcoinAddress const & addr: paymentChannel.generateTheirAddresses(0, 10)) {
             BOOST_CHECK_EQUAL(addr.ToString(), *iter++);
         }
     }
@@ -226,7 +226,7 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
         CPaymentChannel paymentChannel(paymentCode_alice, privkey_bob);
 
         std::vector<std::string>::const_iterator iter = sendingaddresses.begin();
-        for (CBitcoinAddress const & addr: paymentChannel.generateTheirAddresses(5)) {
+        for (CBitcoinAddress const & addr: paymentChannel.generateTheirAddresses(0, 5)) {
             BOOST_CHECK_EQUAL(addr.ToString(), *iter++);
         }
     }
@@ -290,9 +290,27 @@ BOOST_AUTO_TEST_CASE(account_for_sending)
         CKey outpoinSecret = vchSecret.GetKey();
 
         BOOST_CHECK_EQUAL(HexStr(account->getMaskedPayload(outpoint, outpoinSecret)), maskedpayload);
+
+        CAccountBase::AddrContT addresses = account->getMyNextAddresses();
+        CBitcoinAddress notifAddr = addresses[0], someAddr = addresses[1];
+        BOOST_CHECK_EQUAL(addresses.size(), 10);
+        BOOST_CHECK_EQUAL(addresses[0].ToString(), notificationaddress);
+        BOOST_CHECK(account->addressUsed(addresses[0]));
+
+        addresses = account->getMyNextAddresses();
+        BOOST_CHECK(addresses[0] == notifAddr);
+        BOOST_CHECK(account->addressUsed(notifAddr));
+
+        BOOST_CHECK(account->addressUsed(someAddr));
+        addresses = account->getMyNextAddresses();
+        BOOST_CHECK(addresses[0] == notifAddr);
+        BOOST_CHECK(addresses.end() == std::find(addresses.begin(), addresses.end(), someAddr));
+
+        addresses = account->getMyUsedAddresses();
+        BOOST_CHECK(addresses == CAccountBase::AddrContT({someAddr}));
+
     }
 }
 
-
-
 BOOST_AUTO_TEST_SUITE_END()
+        
