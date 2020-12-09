@@ -23,6 +23,7 @@
 #include "random.h"
 #include "netaddress.h"
 #include "bls/bls.h"
+#include "lelantus.h"
 
 #include "evo/spork.h"
 
@@ -518,6 +519,8 @@ public:
 
     const setEntries & GetMemPoolParents(txiter entry) const;
     const setEntries & GetMemPoolChildren(txiter entry) const;
+
+    lelantus::CLelantusMempoolState lelantusState;
 private:
     typedef std::map<txiter, setEntries, CompareIteratorByHash> cacheMap;
 
@@ -617,6 +620,8 @@ public:
     void PrioritiseTransaction(const uint256 hash, const std::string strHash, double dPriorityDelta, const CAmount& nFeeDelta);
     void ApplyDeltas(const uint256 hash, double &dPriorityDelta, CAmount &nFeeDelta) const;
     void ClearPrioritisation(const uint256 hash);
+
+    bool IsTransactionAllowed(const CTransaction &tx) const;
 
 public:
     /** Remove a set of transactions from the mempool.

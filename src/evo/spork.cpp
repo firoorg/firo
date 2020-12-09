@@ -208,7 +208,7 @@ void CMempoolSporkManager::RemovedFromMemoryPool(const CTransaction &sporkTx)
     }
 }
 
-bool CMempoolSporkManager::IsFeatureEnabled(const std::string &feature)
+bool CMempoolSporkManager::IsFeatureEnabled(const std::string &feature) const
 {
     if (mempoolSporks.count(feature) > 0)
         return false;
@@ -220,7 +220,7 @@ bool CMempoolSporkManager::IsFeatureEnabled(const std::string &feature)
     return CSporkManager::GetSporkManager()->IsFeatureEnabled(feature, chainTip);
 }
 
-bool CMempoolSporkManager::IsTransactionAllowed(const CTransaction &tx, CValidationState &state)
+bool CMempoolSporkManager::IsTransactionAllowed(const CTransaction &tx, CValidationState &state) const
 {
     if (!::IsTransactionAllowed(tx, mempoolSporks, state))
         return false;

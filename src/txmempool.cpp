@@ -578,6 +578,39 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         sporkManager.RemovedFromMemoryPool(it->GetTx());
     }
 
+    else if (it->GetTx().IsLelantusTransaction()) {
+        // Remove mints and spend serials from lelantus mempool state
+        const CTransaction &tx = it->GetTx();
+        if (tx.IsLelantusJoinSplit()) {
+            std::vector<Scalar> serials;
+            try {
+                serials = lelantus::GetLelantusJoinSplitSerialNumbers(tx, tx.vin[0]);
+                for (const Scalar &serial: serials)
+                    lelantusState.RemoveSpendFromMempool(serial);
+            }
+            catch (CBadTxIn&) {
+            }
+        }
+
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        {
+            if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
+                GroupElement pubCoinValue;
+                try {
+                    if (txout.scriptPubKey.IsLelantusMint()) {
+                        lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
+                    } else {
+                        std::vector<unsigned char> encryptedValue;
+                        lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
+                    }
+                    lelantusState.RemoveMintFromMempool(pubCoinValue);
+                }
+                catch (std::invalid_argument&) {
+                }
+            }
+        }
+    }
+
     totalTxSize -= it->GetTxSize();
     cachedInnerUsage -= it->DynamicMemoryUsage();
     cachedInnerUsage -= memusage::DynamicUsage(mapLinks[it].parents) + memusage::DynamicUsage(mapLinks[it].children);
@@ -1040,6 +1073,7 @@ void CTxMemPool::_clear()
     lastRollingFeeUpdate = GetTime();
     blockSinceLastRollingFeeBump = false;
     rollingMinimumFeeRate = 0;
+    lelantusState.Reset();
     ++nTransactionsUpdated;
 }
 
@@ -1474,6 +1508,12 @@ bool CTxMemPool::HasNoInputsOf(const CTransaction &tx) const
         if (exists(tx.vin[i].prevout.hash))
             return false;
     return true;
+}
+
+bool CTxMemPool::IsTransactionAllowed(const CTransaction &tx) const
+{
+    CValidationState state;
+    return sporkManager.IsTransactionAllowed(tx, state);
 }
 
 CCoinsViewMemPool::CCoinsViewMemPool(CCoinsView* baseIn, const CTxMemPool& mempoolIn) : CCoinsViewBacked(baseIn), mempool(mempoolIn) { }

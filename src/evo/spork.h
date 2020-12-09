@@ -138,8 +138,8 @@ public:
     void RemovedFromMemoryPool(const CTransaction &sporkTx);
 
     // test if the feature is enabled
-    bool IsFeatureEnabled(const std::string &featureName);
-    bool IsTransactionAllowed(const CTransaction &tx, CValidationState &state);
+    bool IsFeatureEnabled(const std::string &featureName) const;
+    bool IsTransactionAllowed(const CTransaction &tx, CValidationState &state) const;
 };
 
 #endif

@@ -799,6 +799,11 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     if (!ContextualCheckTransaction(tx, state, Params().GetConsensus(), chainActive.Tip()))
         return error("%s: ContextualCheckTransaction: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
 
+    if (!pool.IsTransactionAllowed(tx)) {
+        LogPrintf("AcceptToMemoryPool() can't accept transaction because of active mempool spork\n");
+        return false;
+    }
+
     if (tx.nVersion >= 3 && tx.nType == TRANSACTION_QUORUM_COMMITMENT) {
         // quorum commitment is not allowed outside of blocks
         return state.DoS(100, false, REJECT_INVALID, "qc-not-allowed");
@@ -904,7 +909,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         for(const auto& serial : serials) {
             if(!serial.isMember() || serial.isZero())
                 return state.Invalid(false, REJECT_INVALID, "txn-invalid-lelantus-joinsplit-serial");
-            if (!lelantusState->CanAddSpendToMempool(serial) || !sigmaState->CanAddSpendToMempool(serial)) {
+            if (lelantusState->IsUsedCoinSerial(serial) || pool.lelantusState.HasCoinSerial(serial) ||
+                    !sigmaState->CanAddSpendToMempool(serial)) {
                 LogPrintf("AcceptToMemoryPool(): lelantus serial number %s has been used\n", serial.tostring());
                 return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
             }
@@ -989,7 +995,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             } catch (std::invalid_argument&) {
                 return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
             }
-            if (!lelantusState->CanAddMintToMempool(pubCoinValue)) {
+            if (lelantusState->HasCoin(pubCoinValue) || pool.lelantusState.HasMint(pubCoinValue)) {
                 LogPrintf("AcceptToMemoryPool(): lelantus mint with the same value %s is already in the mempool\n", pubCoinValue.tostring());
                 return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
             }
@@ -1440,8 +1446,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     }
 
     if (tx.IsLelantusJoinSplit()) {
-        if(markFiroSpendTransactionSerial)
-            lelantusState->AddSpendToMempool(lelantusSpendSerials, hash);
+        if(markFiroSpendTransactionSerial) {
+            for (const auto &spendSerial: lelantusSpendSerials)
+                pool.lelantusState.AddSpendToMempool(spendSerial, hash);
+        }
         LogPrintf("Updating mint tracker state from Mempool..");
 #ifdef ENABLE_WALLET
         if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
@@ -1454,7 +1462,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     if(markFiroSpendTransactionSerial) {
         sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
-        lelantusState->AddMintsToMempool(lelantusMintPubcoins);
+        for (const auto &pubCoin: lelantusMintPubcoins)
+            pool.lelantusState.AddMintToMempool(pubCoin);
     }
 
 
