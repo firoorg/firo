@@ -11,10 +11,7 @@
 
 #define HARDENED_BIT 0x80000000
 
-class CWallet;
-class CTxOut;
-class CTxIn;
-class CTransaction;
+class COutPoint;
 
 namespace bip47 {
 
@@ -22,14 +19,14 @@ class CPaymentCode;
 class CAccount;
 
 namespace utils {
-bool isValidNotificationTransactionOpReturn(CTxOut txout);
-bool getOpCodeOutput(const CTransaction& tx, CTxOut& txout);
-bool getPaymentCodeInNotificationTransaction(std::vector<unsigned char> const & privKeyBytes, CTransaction const & tx, CPaymentCode &paymentCode);
-bool getOpCodeData(CTxOut const & txout, vector<unsigned char>& op_data);
-bool getScriptSigPubkey(CTxIn const & txin, vector<unsigned char>& pubkeyBytes);
 
+/******************************************************************************/
+bool pcodeFromMaskedPayload(std::vector<unsigned char> payload, COutPoint const & outpoint, CKey const & myPrivkey, CPubKey const & outPubkey, CPaymentCode & pcode);
+
+/******************************************************************************/
 CExtKey derive(CExtKey const & source, std::vector<uint32_t> const & path);
 
+/******************************************************************************/
 GroupElement GeFromPubkey(CPubKey const & pubKey);
 CPubKey PubkeyFromGe(GroupElement const & ge);
 

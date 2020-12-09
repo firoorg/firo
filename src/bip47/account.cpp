@@ -95,7 +95,7 @@ CBitcoinAddress const & CAccountReceiver::getMyNotificationAddress() const
 namespace {
     struct CompByPcode {
         CompByPcode(CPaymentCode const & comp): comp(comp){};
-        bool operator()(std::pair<CPaymentChannel, size_t> const & other) const {return other.first.getTheirPcode() == comp;};
+        bool operator()(CPaymentChannel const & other) const {return other.getTheirPcode() == comp;};
         CPaymentCode const & comp;
     };
 }
@@ -107,18 +107,37 @@ bool CAccountReceiver::findTheirPcode(CPaymentCode const & pcode) const
 
 CAccountBase::AddrContT const & CAccountReceiver::generateMyUsedAddresses()
 {
-    return CAccountBase::AddrContT();
+    usedAddresses.clear();
+    for(CPaymentChannel & pchannel: pchannels) {
+        CPaymentChannel::AddrContT const & addrs = pchannel.generateMyUsedAddresses();
+        usedAddresses.insert(usedAddresses.end(), addrs.begin(), addrs.end());
+    }
+    return usedAddresses;
 }
 
 CAccountBase::AddrContT const & CAccountReceiver::generateMyNextAddresses()
 {
-    return CAccountBase::AddrContT();
+    nextAddresses.clear();
+    nextAddresses.push_back(getMyNotificationAddress());
+    for(CPaymentChannel & pchannel: pchannels) {
+        CPaymentChannel::AddrContT const & addrs = pchannel.generateMyNextAddresses();
+        nextAddresses.insert(nextAddresses.end(), addrs.begin(), addrs.end());
+    }
+    return nextAddresses;
 }
 
 bool CAccountReceiver::markAddressUsed(CBitcoinAddress const & address)
 {
     if(address == getMyNotificationAddress())
         return true;
+
+}
+
+bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, COutPoint const & outpoint)
+{
+    CDataStream ds(SER_NETWORK, 0);
+    ds << outpoint;
+
 
 }
 

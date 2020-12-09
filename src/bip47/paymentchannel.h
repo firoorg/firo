@@ -14,6 +14,8 @@ class CWallet;
 
 namespace bip47 {
 
+static constexpr size_t AddressLookaheadNumber = 10;
+
 class CPaymentChannel
 {
 public:

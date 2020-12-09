@@ -85,7 +85,7 @@ CPaymentChannel::AddrContT const & CPaymentChannel::generateMyUsedAddresses()
 
 CPaymentChannel::AddrContT const & CPaymentChannel::generateMyNextAddresses()
 {
-    for(size_t i = nextAddresses.size(); i < 10; ++i) {
+    for(size_t i = nextAddresses.size(); i < AddressLookaheadNumber; ++i) {
         nextAddresses.push_back(getMyPcode().getNthAddress(usedAddressCount + i));
     }
     return nextAddresses;

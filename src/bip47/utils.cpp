@@ -2,165 +2,43 @@
 #include "bip47/paymentcode.h"
 #include "secretpoint.h"
 #include "primitives/transaction.h"
-#include <vector>
 #include "uint256.h"
-#include "wallet/wallet.h"
-#include "validation.h"
+#include "streams.h"
+#include "utilstrencodings.h"
 
 using namespace std;
 
 namespace bip47 {
 namespace utils {
 
-bool getOpCodeOutput(const CTransaction& tx, CTxOut& txout) {
-    for(size_t i = 0; i < tx.vout.size(); i++) {
-        if (tx.vout[i].scriptPubKey[0] == OP_RETURN) {
-            txout = tx.vout[i];
-            return true;
-        }
-    }
-    return false;
-}
-
-
-bool isValidNotificationTransactionOpReturn(CTxOut txout) {
-    vector<unsigned char> op_date;
-    return getOpCodeData(txout, op_date);
-}
-
-bool getOpCodeData(CTxOut const & txout, vector<unsigned char>& op_data) {
-    CScript::const_iterator pc = txout.scriptPubKey.begin();
-    vector<unsigned char> data;
-    
-    while (pc < txout.scriptPubKey.end())
-    {
-        opcodetype opcode;
-        if (!txout.scriptPubKey.GetOp(pc, opcode, data))
-        {
-            LogPrintf("GetOp false in getOpCodeData\n");
-            return false;
-        }
-        LogPrintf("Data.size() = %d,  opcode = 0x%x\n", data.size(), opcode);
-        if (data.size() > 0 && opcode < OP_PUSHDATA4  )
-        {
-            op_data = data;
-            return true;
-        } 
-        
-    }
-    return false;
-}
-
-bool getPaymentCodeInNotificationTransaction(vector<unsigned char> const & privKeyBytes, CTransaction const & tx, CPaymentCode &paymentCode) {
-    // tx.vin[0].scriptSig
-//     CWalletTx wtx(pwalletMain, tx);
-
-    CTxOut txout;
-    if(!getOpCodeOutput(tx, txout)) {
-        LogPrintf("Cannot Get OpCodeOutput\n");
-        return false;
-    }
-
-    if(!isValidNotificationTransactionOpReturn(txout))
-    {
-        LogPrintf("Error isValidNotificationTransactionOpReturn txout\n");
-        return false;
-    }
-
-    vector<unsigned char> op_data;
-    if(!getOpCodeData(txout, op_data)) {
-        LogPrintf("Cannot Get OpCodeData\n");
-        return false;
-    }
-
-    /**
-     * @Todo Get PubKeyBytes from tx script Sig
-     * */
-    vector<unsigned char> pubKeyBytes;
-
-    if (!getScriptSigPubkey(tx.vin[0], pubKeyBytes))
-    {
-        LogPrintf("Bip47Utiles CPaymentCode ScriptSig GetPubkey error\n");
-        return false;
-    }
-    
-    LogPrintf("pubkeyBytes size = %d\n", pubKeyBytes.size());
-
-
-    vector<unsigned char> outpoint(tx.vin[0].prevout.hash.begin(), tx.vin[0].prevout.hash.end());
-    CKey key; key.Set(privKeyBytes.begin(), privKeyBytes.end(), false);
-    CSecretPoint secretPoint(key, CPubKey(pubKeyBytes));
-    
-    LogPrintf("Generating Secret Point for Decode with \n privekey: %s\n pubkey: %s\n", HexStr(privKeyBytes), HexStr(pubKeyBytes));
-    
-    LogPrintf("output: %s\n", tx.vin[0].prevout.hash.GetHex());
-    uint256 secretPBytes(secretPoint.getEcdhSecret());
-    LogPrintf("secretPoint: %s\n", secretPBytes.GetHex());
-
-//    vector<unsigned char> mask = CPaymentCode::getMask(secretPoint.getEcdhSecret(), outpoint);
-//    vector<unsigned char> payload = CPaymentCode::blind(op_data, mask);
-//bip47
-//    CPaymentCode pcode(payload.data(), payload.size());
-//    paymentCode = pcode;
-    return true;
-}
-
-bool getScriptSigPubkey(CTxIn const & txin, vector<unsigned char>& pubkeyBytes)
+bool pcodeFromMaskedPayload(std::vector<unsigned char> payload, COutPoint const & outpoint, CKey const & myPrivkey, CPubKey const & outPubkey, CPaymentCode & pcode)
 {
-    LogPrintf("ScriptSig size = %d\n", txin.scriptSig.size());
-    CScript::const_iterator pc = txin.scriptSig.begin();
-    vector<unsigned char> chunk0data;
-    vector<unsigned char> chunk1data;
-    
-    opcodetype opcode0, opcode1;
-    if (!txin.scriptSig.GetOp(pc, opcode0, chunk0data))
-    {
-        LogPrintf("Bip47Utiles ScriptSig Chunk0 error != 2\n");
+    if(payload[0] != 1 || payload[1] != 0) {
         return false;
     }
-    LogPrintf("opcode0 = %x, chunk0data.size = %d\n", opcode0, chunk0data.size());
-
-    if (!txin.scriptSig.GetOp(pc, opcode1, chunk1data))
-    {
-        //check whether this is a P2PK redeems cript
-        LogPrintf("A\n");
-        CTransactionRef tx;
-        uint256 hashBlock = uint256();
-        if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock, true))
-            return false;
-        
-        CScript dest = tx->vout[txin.prevout.n].scriptPubKey;
-        LogPrintf("B\n");
-        CScript::const_iterator pc = dest.begin();
-        opcodetype opcode;
-        std::vector<unsigned char> vch;
-        if (!dest.GetOp(pc, opcode, vch) || vch.size() < 33 || vch.size() > 65) 
-            return false;
-        CPubKey pubKeyOut = CPubKey(vch);
-        if (!pubKeyOut.IsFullyValid())
-            return false;
-        if (!dest.GetOp(pc, opcode, vch) || opcode != OP_CHECKSIG || dest.GetOp(pc, opcode, vch))
-            return false;
-
-        pubkeyBytes.clear();
-        std::copy(pubKeyOut.begin(), pubKeyOut.end(), std::back_inserter(pubkeyBytes));
-        return true;
-    } 
-    LogPrintf("opcode1 = %x, chunk1data.size = %d\n", opcode1, chunk1data.size());
-    
-    if(!chunk0data.empty() && chunk0data.size() > 2 && !chunk1data.empty() && chunk1data.size() > 2)
-    {
-        pubkeyBytes = chunk1data;
-        return true;
+    if(payload[2] != 2 && payload[2] != 3) {
+        return false;
     }
-    else if(opcode0 == OP_CHECKSIG && !chunk0data.empty() && chunk0data.size() > 2)
-    {
-        pubkeyBytes = chunk0data;
-        return true;
+    using vector = std::vector<unsigned char>;
+    vector const secretPointData = CSecretPoint(myPrivkey, outPubkey).getEcdhSecret();
+    vector maskData(CHMAC_SHA512::OUTPUT_SIZE);
+
+    CDataStream ds(SER_NETWORK, 0);
+    ds << outpoint;
+
+    CHMAC_SHA512((const unsigned char*)(ds.vch.data()), ds.vch.size())
+        .Write(secretPointData.data(), secretPointData.size())
+        .Finalize(maskData.data());
+
+    vector::iterator plIter = payload.begin()+3;
+    for(vector::iterator iter = maskData.begin(); iter != maskData.end(); ++iter) {
+        *plIter++ ^= *iter;
     }
 
-    LogPrintf("Script did not match expected form: \n");
-    return false;
+    CPubKey pubkey(payload.begin() + 2, payload.begin() + 2 + 33); // pubkey starts at 2, its length is 33
+    ChainCode chaincode({payload.begin() + 2 + 33, payload.begin() + 2 + 33 + 32}); // chain code starts at pubkey end, its length is 32
+    pcode = CPaymentCode(pubkey, chaincode);
+    return true;
 }
 
 CExtKey derive(CExtKey const & source, std::vector<uint32_t> const & path)

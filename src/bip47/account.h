@@ -78,9 +78,11 @@ public:
 
     CBitcoinAddress const & getMyNotificationAddress() const;
 
+    bool acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, COutPoint const & outpoint);
+
     bool findTheirPcode(CPaymentCode const & pcode) const;
 private:
-    using ContT = std::vector<std::pair<CPaymentChannel, size_t>>;
+    using ContT = std::vector<CPaymentChannel>;
     ContT mutable pchannels;
     boost::optional<CBitcoinAddress> mutable myNotificationAddress;
 

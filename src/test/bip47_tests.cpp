@@ -252,21 +252,18 @@ BOOST_AUTO_TEST_CASE(masked_paymentcode)
 
         CBitcoinSecret vchSecret;
         vchSecret.SetString("Kx983SRhAZpAhj7Aac1wUXMJ6XZeyJKqCxJJ49dxEbYCT4a1ozRD");
-        CKey outpoinSecret = vchSecret.GetKey();
+        CKey outpointSecret = vchSecret.GetKey();
 
-        BOOST_CHECK_EQUAL(HexStr(paymentChannel.getMaskedPayload(outpoint, outpoinSecret)), maskedpayload);
-    }
-}
+        std::vector<unsigned char> maskedPayload_alice = paymentChannel.getMaskedPayload(outpoint, outpointSecret);
+        BOOST_CHECK_EQUAL(HexStr(maskedPayload_alice), maskedpayload);
 
-BOOST_AUTO_TEST_CASE(account_for_receiving)
-{
-    ChangeBase58Prefixes _(Params());
-    
-    {using namespace alice;
-        bip47::CWallet wallet(bip32seed);
-        bip47::CAccountReceiver * account = dynamic_cast<CAccountReceiver*>(wallet.createReceivingAccount().get());
-        BOOST_CHECK_EQUAL(account->getMyPcode().toString(), paymentcode);
-        BOOST_CHECK_EQUAL(account->getMyNotificationAddress().ToString(), notificationaddress);
+        // Unmasking at bob's side
+        key.SetMaster(bob::bip32seed.data(), bob::bip32seed.size());
+        CExtKey key_bob = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00});
+
+        CPaymentCode pcode_unmasked;
+        bip47::utils::pcodeFromMaskedPayload(maskedPayload_alice, outpoint, key_bob.key, outpointSecret.GetPubKey(), pcode_unmasked);
+        BOOST_CHECK_EQUAL(pcode_unmasked.toString(), paymentcode);
     }
 }
 
@@ -278,7 +275,7 @@ BOOST_AUTO_TEST_CASE(account_for_sending)
         bip47::CWallet wallet(bip32seed);
         CPaymentCode const paymentCode_bob(bob::paymentcode);
 
-         bip47::CAccountSender * account = dynamic_cast<CAccountSender*>(wallet.provideSendingAccount(paymentCode_bob).get());
+        bip47::CAccountSender * account = dynamic_cast<CAccountSender*>(wallet.provideSendingAccount(paymentCode_bob).get());
 
         std::vector<unsigned char> const outPointSer = ParseHex("86f411ab1c8e70ae8a0795ab7a6757aea6e4d5ae1826fc7b8f00c597d500609c01000000");
         CDataStream ds(outPointSer, SER_NETWORK, 0);
@@ -293,7 +290,7 @@ BOOST_AUTO_TEST_CASE(account_for_sending)
 
         CAccountBase::AddrContT addresses = account->getMyNextAddresses();
         CBitcoinAddress notifAddr = addresses[0], someAddr = addresses[1];
-        BOOST_CHECK_EQUAL(addresses.size(), 10);
+        BOOST_CHECK_EQUAL(addresses.size(), bip47::AddressLookaheadNumber);
         BOOST_CHECK_EQUAL(addresses[0].ToString(), notificationaddress);
         BOOST_CHECK(account->addressUsed(addresses[0]));
 
@@ -303,12 +300,27 @@ BOOST_AUTO_TEST_CASE(account_for_sending)
 
         BOOST_CHECK(account->addressUsed(someAddr));
         addresses = account->getMyNextAddresses();
+        BOOST_CHECK(addresses.size() == bip47::AddressLookaheadNumber);
         BOOST_CHECK(addresses[0] == notifAddr);
         BOOST_CHECK(addresses.end() == std::find(addresses.begin(), addresses.end(), someAddr));
 
         addresses = account->getMyUsedAddresses();
         BOOST_CHECK(addresses == CAccountBase::AddrContT({someAddr}));
+    }
+}
 
+BOOST_AUTO_TEST_CASE(account_for_receiving)
+{
+    ChangeBase58Prefixes _(Params());
+
+    {using namespace bob;
+        bip47::CWallet wallet(bip32seed);
+        CPaymentCode const paymentCode_bob(bob::paymentcode);
+
+        bip47::CAccountReceiver & account = dynamic_cast<bip47::CAccountReceiver&>(*wallet.createReceivingAccount());
+
+        BOOST_CHECK_EQUAL(account.getMyPcode().toString(), paymentcode);
+        BOOST_CHECK_EQUAL(account.getMyNotificationAddress().ToString(), notificationaddress);
     }
 }
 
