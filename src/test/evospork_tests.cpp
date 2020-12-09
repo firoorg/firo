@@ -9,6 +9,7 @@
 #include "netbase.h"
 #include "net.h"
 #include "validation.h"
+#include "txmempool.h"
 #include "messagesigner.h"
 #include "keystore.h"
 
@@ -126,21 +127,28 @@ static bool CommitToMempool(const CTransaction &tx)
     CReserveKey reserveKey(wallet);
     CValidationState state;
     wallet->CommitTransaction(walletTx, reserveKey, g_connman.get(), state);
-    return !!mempool.get(tx.GetHash());
+    return mempool.exists(tx.GetHash());
 }
 
 BOOST_FIXTURE_TEST_SUITE(evospork_tests, LelantusTestingSetup)
 
-BOOST_AUTO_TEST_CASE(evospork_general)
+BOOST_AUTO_TEST_CASE(general)
 {
     int prevHeight;
     pwalletMain->SetBroadcastTransactions(true);
 
-    GenerateBlocks(200);
+    for (int n=chainActive.Height(); n<300; n++)
+        GenerateBlock({});
 
     auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
     CMutableTransaction sporkTx1 = CreateSporkTx(utxos, coinbaseKey, {
-        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 1100}
+        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 1010}
+    });
+    CMutableTransaction sporkTx2 = CreateSporkTx(utxos, coinbaseKey, {
+        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 1020}
+    });
+    CMutableTransaction sporkTx3 = CreateSporkTx(utxos, coinbaseKey, {
+        {CSporkAction::sporkEnable, CSporkAction::featureLelantus, 0, 0}
     });
 
     // should not accept spork tx before activation block
@@ -148,13 +156,14 @@ BOOST_AUTO_TEST_CASE(evospork_general)
 
     // should not accept block with spork tx either
     prevHeight = chainActive.Height();
-    CreateAndProcessBlock({sporkTx1}, coinbaseKey);
+    GenerateBlock({sporkTx1});
     BOOST_ASSERT(chainActive.Height() == prevHeight);
 
-    GenerateBlocks(700);
+    for (int n=chainActive.Height(); n<1000; n++)
+        GenerateBlock({});
 
     prevHeight = chainActive.Height();
-    CreateAndProcessBlock({sporkTx1}, coinbaseKey);
+    GenerateBlock({sporkTx1});
     // should be accepted now
     BOOST_ASSERT(chainActive.Height() == prevHeight+1);
 
@@ -162,15 +171,84 @@ BOOST_AUTO_TEST_CASE(evospork_general)
     GenerateMints({1,2}, lelantusMints);
 
     prevHeight = chainActive.Height();
-    CreateAndProcessBlock(lelantusMints, coinbaseKey);
+    GenerateBlock(lelantusMints);
     // can't accept lelantus tx anymore
     BOOST_ASSERT(chainActive.Height() == prevHeight);
 
     // wait until the spork expires
-    GenerateBlocks(1100 - chainActive.Height());
+    for (int n=chainActive.Height(); n<1010; n++)
+        GenerateBlock({});
     prevHeight = chainActive.Height();
-    CheckAndProcessBlock(lelantusMints, coinbaseKey);
+    GenerateBlock({lelantusMints[0]});
+    BOOST_ASSERT(chainActive.Height() == prevHeight+1);
+
+    // another disabling spork
+    GenerateBlock({sporkTx2});
+    // ensure lelantus is disabled
+    prevHeight = chainActive.Height();
+    GenerateBlock({lelantusMints[1]});
+    BOOST_ASSERT(chainActive.Height() == prevHeight);
+
+    // block with enabling spork
+    GenerateBlock({sporkTx3});
+    // ensure lelantus is enabled now
+    prevHeight = chainActive.Height();
+    GenerateBlock({lelantusMints[1]});
     BOOST_ASSERT(chainActive.Height() == prevHeight+1);
 }
+
+BOOST_AUTO_TEST_CASE(mempool)
+{
+    int prevHeight;
+    pwalletMain->SetBroadcastTransactions(true);
+
+    for (int n=chainActive.Height(); n<1000; n++)
+        GenerateBlock({});
+
+    auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
+    CMutableTransaction sporkTx1 = CreateSporkTx(utxos, coinbaseKey, {
+        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 1010}
+    });
+
+    std::vector<CMutableTransaction> lelantusMints;
+    GenerateMints({1,2}, lelantusMints);
+    ::mempool.removeRecursive(lelantusMints[0]);
+    ::mempool.removeRecursive(lelantusMints[1]);
+
+    CBlock blockWithLelantusMint = CreateBlock({lelantusMints[0]}, coinbaseKey);
+
+    // put one mint into the mempool
+    CommitToMempool(lelantusMints[0]);
+
+    // push spork to mempool
+    CommitToMempool(sporkTx1);
+    // spork should be in the mempool, lelantus mint should be pushed out of it
+    BOOST_ASSERT(::mempool.size() == 1);
+    BOOST_ASSERT(::mempool.exists(sporkTx1.GetHash()) && !::mempool.exists(lelantusMints[0].GetHash()));
+
+    // another lelantus tx shouldn't get to the mempool
+    CommitToMempool(lelantusMints[1]);
+    BOOST_ASSERT(::mempool.size() == 1);
+
+    // but should be accepted in block
+    prevHeight = chainActive.Height();
+    ProcessNewBlock(Params(), std::make_shared<CBlock>(blockWithLelantusMint), true, nullptr);
+    BOOST_ASSERT(chainActive.Height() == prevHeight+1);
+
+    // mine spork into the block
+    CreateAndProcessBlock({sporkTx1}, coinbaseKey);
+    // mempool should clear
+    BOOST_ASSERT(::mempool.size() == 0);
+
+    // because there is active spork at the tip lelantus mint shouldn't get into the mempool
+    BOOST_ASSERT(!CommitToMempool(lelantusMints[1]));
+
+    for (int n=chainActive.Height(); n<1010; n++)
+        CreateAndProcessBlock({}, coinbaseKey);
+
+    // spork expired, should accept now
+    BOOST_ASSERT(CommitToMempool(lelantusMints[1]));
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
