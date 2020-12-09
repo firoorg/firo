@@ -99,6 +99,103 @@
     </message>
 </context>
 <context>
+    <name>Recover</name>
+    <message>
+        <source>Create or Recover Wallet</source>
+        <translation>创建或恢复钱包</translation>
+    </message>
+    <message>
+        <source>Let's create your Firo wallet!
+
+Please save these words on paper (order is important). These words serve as your seed and will allow you to recover your wallet in case of a computer failure.
+
+By default we create a 24 word seed but you may choose a 12 word seed should you require it for compatibility reasons.
+
+You can also choose to further encrypt your seed with a passphrase for added security.
+
+Warning:
+* Never disclose your seed
+* Never type it on a website
+* Do not store it electronically.
+* If you encrypt your seed with an additional passphrase, please also record this.
+
+If you have an existing seed that you wish to restore, please select "Recover existing wallet" and enter your passphrase (if you have set one for your seed).
+
+Advanced: If you don't wish to generate a wallet with a seed phrase backup (not recommended), you can set usemnemonic=0 in firo.conf.
+      </source>
+        <translation> 让我们一起创建你的Firo钱包吧!
+
+请将这些字保存在纸上（顺序很重要）。这些字将作为你的种子，以便于允许你在计算机故障的情况下恢复你的钱包。
+
+默认情况下，我们会创建一个24个字的种子，但如果你出于兼容性的原因需要，你也可以选择一个12个字的种子。
+
+你也可以选择用密码口令进一步加密你的种子，以增加安全性。
+
+    警告：
+* 切勿透露你的种子
+* 不要在网站上打出来
+* 请不要以电子方式存储
+* 如果你用额外的口令加密种子，也请记录下来。
+
+如果你有一个想要恢复的现有种子，请选择 "恢复现有钱包"，然后输入你的密码（如果你已经为种子设置了密码）。
+
+高级设置：如果你不希望生成一个带有种子短语备份的钱包（不推荐），你可以在firo.conf中设置usemnemonic=0。
+        </translation>
+    </message>
+    <message>
+        <source>Create new wallet</source>
+        <translation>创建新钱包</translation>
+    </message>
+    <message>
+        <source>Recover existing wallet</source>
+        <translation>恢复现有钱包</translation>
+    </message>
+    <message>
+        <source>12 Words</source>
+        <translation>12个字</translation>
+    </message>
+    <message>
+        <source>24 Words</source>
+        <translation>24个字</translation>
+    </message>
+    <message>
+        <source>Input words here:</source>
+        <translation>请在这里输入：</translation>
+    </message>
+    <message>
+        <source>Use seed passphrase (optional):</source>
+        <translation>使用种子口令（可选）：</translation>
+    </message>
+    <message>
+        <source>Input mnemonic passphrase here:</source>
+        <translation>在这里输入记忆口令：</translation>
+    </message>
+    <message>
+        <source>Input mnemonic passphrase again:</source>
+        <translation>再次输入记忆口令：</translation>
+    </message>
+    <message>
+        <source>Wrong number of words. Please try again.</source>
+        <translation>字数错误。请再试一次。</translation>
+    </message>
+    <message>
+        <source>Mnemonic can't be empty.</source>
+        <translation>助记词不能是空的。</translation>
+    </message>
+    <message>
+        <source>Something went wrong. Please try again.</source>
+        <translation>出现问题。请再试一次。</translation>
+    </message>
+    <message>
+        <source>Passphrases don't match.</source>
+        <translation>密码口令不匹配。</translation>
+    </message>
+    <message>
+        <source>Passphrase can't be empty.</source>
+        <translation>密码口令不能为空。</translation>
+    </message>
+</context>
+<context>
     <name>AddressTableModel</name>
     <message>
         <source>Label</source>
@@ -822,6 +919,33 @@
     <message>
         <source>Reset all settings changed in the GUI</source>
         <translation>重置图形界面所有的变更设置</translation>
+    </message>
+</context>
+<context>
+    <name>NotifyMnemonic</name>
+    <message>
+        <source>Notification</source>
+        <translation>注意</translation>
+    </message>
+    <message>
+        <source>Please write down these words and keep them in a secure location such as a safe.</source>
+        <translation>请写下这些单词，并将其保存在安全的地方，如保险箱。</translation>
+    </message>
+    <message>
+        <source>Your wallet has been created successfully. Using the following sequence of words, you will be able to recover your wallet at any time.</source>
+        <translation>你的钱包已经创建成功。使用下面的顺序词，你就可以随时找回你的钱包。</translation>
+    </message>
+    <message>
+        <source>Mnemonic words:</source>
+        <translation>助记词：</translation>
+    </message>
+    <message>
+        <source>WARNING: Anyone with access to these words can recover your wallet and will have control over your funds!</source>
+        <translation>警告：任何有机会接触到这些词的人都可以找回你的钱包，并将控制你的资金！</translation>
+    </message>
+    <message>
+        <source>Please re-enter the mnemonic words to ensure that you have written it down correctly.</source>
+        <translation>请重新输入助记词，以确保你正确地写下了它。</translation>
     </message>
 </context>
 <context>

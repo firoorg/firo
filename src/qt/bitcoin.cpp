@@ -746,19 +746,6 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 #ifdef ENABLE_WALLET
-    // Determine if user wants to create new wallet or recover existing one.
-    // Only show if:
-    // - Using mnemonic (-usemnemonic on (default)) and
-    // - mnemonic not set (default, not setting mnemonic from conf file instead) and
-    // - hdseed not set (default, not setting hd seed from conf file instead)
-
-    if(GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC) &&
-       GetArg("-mnemonic", "").empty() &&
-       GetArg("-hdseed", "not hex")=="not hex"){
-        if(!Recover::askRecover(newWallet))
-            return EXIT_SUCCESS;
-    }
-
     // Parse URIs on command line -- this can affect Params()
     PaymentServer::ipcParseCommandLine(argc, argv);
 #endif
@@ -771,6 +758,18 @@ int main(int argc, char *argv[])
     initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
 
 #ifdef ENABLE_WALLET
+    // Determine if user wants to create new wallet or recover existing one.
+    // Only show if:
+    // - Using mnemonic (-usemnemonic on (default)) and
+    // - mnemonic not set (default, not setting mnemonic from conf file instead) and
+    // - hdseed not set (default, not setting hd seed from conf file instead)
+
+    if(GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC) &&
+       GetArg("-mnemonic", "").empty() &&
+       GetArg("-hdseed", "not hex")=="not hex"){
+        if(!Recover::askRecover(newWallet))
+            return EXIT_SUCCESS;
+    }
     /// 8. URI IPC sending
     // - Do this early as we don't want to bother initializing if we are just calling IPC
     // - Do this *after* setting up the data directory, as the data directory hash is used in the name
