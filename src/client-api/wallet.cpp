@@ -286,12 +286,18 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 category = "send";
             }
 
+            CAmount amount;
+            if (wtx.tx->vout[s.vout].scriptPubKey.IsLelantusJMint()) {
+                amount = pwalletMain->GetCredit(wtx.tx->vout[s.vout], ISMINE_SPENDABLE);
+            } else {
+                amount = s.amount;
+            }
+
             string categoryIndex = category + voutIndex;
             entry.push_back(Pair("category", category));
             entry.push_back(Pair("address", addrStr));
             entry.push_back(Pair("txIndex", s.vout));
 
-            CAmount amount = ValueFromAmount(s.amount).get_real() * COIN;
             entry.push_back(Pair("amount", amount));
             entry.push_back(Pair("fee", ValueFromAmount(nFee).get_real() * COIN));
             if(wtx.mapValue.count("label"))
