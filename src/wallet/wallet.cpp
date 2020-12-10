@@ -6955,7 +6955,7 @@ bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantus
         }
 
         //Set spent mint as used in memory
-        uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value + lelantus::Params::get_default()->get_h1() * Scalar(coin.amount).negate());
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value);
         zwallet->GetTracker().SetLelantusPubcoinUsed(hashPubcoin, wtxNew.GetHash());
         CLelantusMintMeta metaCheck;
         zwallet->GetTracker().GetLelantusMetaFromPubcoin(hashPubcoin, metaCheck);
