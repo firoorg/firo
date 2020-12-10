@@ -11,7 +11,12 @@ CPaymentChannel::CPaymentChannel(CPaymentCode const & theirPcode, CExtKey const 
 : myChannelKey(myChannelKey), theirPcode(theirPcode), usedAddressCount(0)
 {}
 
-std::vector<CBitcoinAddress> CPaymentChannel::generateTheirAddresses(size_t fromAddr, size_t uptoAddr) const
+CPaymentCode const & CPaymentChannel::getTheirPcode() const
+{
+    return theirPcode;
+}
+
+std::vector<CBitcoinAddress> CPaymentChannel::generateTheirSecretAddresses(size_t fromAddr, size_t uptoAddr) const
 {
     static GroupElement const G(GroupElement().set_base_g());
     std::vector<CBitcoinAddress>  result;
@@ -29,14 +34,39 @@ std::vector<CBitcoinAddress> CPaymentChannel::generateTheirAddresses(size_t from
 
         result.emplace_back(pubKeyN.GetID());
     }
-
     return result;
 }
 
-CPaymentCode const & CPaymentChannel::getTheirPcode() const
+CPaymentCode const & CPaymentChannel::getMyPcode() const
 {
-    return theirPcode;
+    if(!myPcode) {
+        CExtPubKey myChannelPubkey = myChannelKey.Neuter();
+        myPcode.emplace(myChannelPubkey.pubkey, myChannelPubkey.chaincode);
+    }
+    return *myPcode;
 }
+
+std::vector<CBitcoinAddress> CPaymentChannel::generateMySecretAddresses(size_t fromAddr, size_t uptoAddr) const
+{
+    static GroupElement const G(GroupElement().set_base_g());
+    CExtPubKey theirPubkey = theirPcode.getNthPubkey(0);
+    std::vector<CBitcoinAddress>  result;
+    for(size_t i = 0; i < 10; ++i) {
+        CExtKey privkey = bip47::utils::derive(myChannelKey, {uint32_t(i)});
+        CSecretPoint sp(privkey.key, theirPubkey.pubkey);
+        std::vector<unsigned char> spBytes = sp.getEcdhSecret();
+
+        std::vector<unsigned char> spHash(32);
+        CSHA256().Write(spBytes.data(), spBytes.size()).Finalize(spHash.data());
+
+        secp_primitives::GroupElement B = utils::GeFromPubkey(privkey.key.GetPubKey());
+        secp_primitives::GroupElement Bprime = B + G * secp_primitives::Scalar(spHash.data());
+        CPubKey pubKeyN = utils::PubkeyFromGe(Bprime);
+        result.emplace_back(pubKeyN.GetID());
+    }
+    return result;
+}
+
 
 std::vector<unsigned char> CPaymentChannel::getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret) const
 {
@@ -64,16 +94,6 @@ std::vector<unsigned char> CPaymentChannel::getMaskedPayload(COutPoint const & o
 
     return payload;
 }
-
-CPaymentCode const & CPaymentChannel::getMyPcode() const
-{
-    if(!myPcode) {
-        CExtPubKey myChannelPubkey = myChannelKey.Neuter();
-        myPcode.emplace(myChannelPubkey.pubkey, myChannelPubkey.chaincode);
-    }
-    return *myPcode;
-}
-
 
 CPaymentChannel::AddrContT const & CPaymentChannel::generateMyUsedAddresses()
 {

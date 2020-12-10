@@ -133,12 +133,23 @@ bool CAccountReceiver::markAddressUsed(CBitcoinAddress const & address)
 
 }
 
-bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, COutPoint const & outpoint)
+bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, COutPoint const & outpoint, CPubKey const & outpoinPubkey)
 {
-    CDataStream ds(SER_NETWORK, 0);
-    ds << outpoint;
+    CPaymentCode pcode;
+    CExtKey ppp = utils::derive(privkey, {0});
+    try {
+        if(!bip47::utils::pcodeFromMaskedPayload(maskedPayload, outpoint, ppp.key, outpoinPubkey, pcode))
+            return false;
+    } catch (std::runtime_error const &) {
+        return false;
+    }
+    if(findTheirPcode(pcode))
+        return true;
+    std::cerr << pcode.toString() << std::endl;
 
+    getMyPcode();
 
+    return true;
 }
 
 /******************************************************************************/

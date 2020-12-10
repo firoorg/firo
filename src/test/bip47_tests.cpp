@@ -215,7 +215,7 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
         CPaymentChannel paymentChannel(paymentCode_bob, privkey_alice);
 
         std::vector<std::string>::const_iterator iter = sendingaddresses.begin();
-        for (CBitcoinAddress const & addr: paymentChannel.generateTheirAddresses(0, 10)) {
+        for (CBitcoinAddress const & addr: paymentChannel.generateTheirSecretAddresses(0, 10)) {
             BOOST_CHECK_EQUAL(addr.ToString(), *iter++);
         }
     }
@@ -226,7 +226,7 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
         CPaymentChannel paymentChannel(paymentCode_alice, privkey_bob);
 
         std::vector<std::string>::const_iterator iter = sendingaddresses.begin();
-        for (CBitcoinAddress const & addr: paymentChannel.generateTheirAddresses(0, 5)) {
+        for (CBitcoinAddress const & addr: paymentChannel.generateTheirSecretAddresses(0, 5)) {
             BOOST_CHECK_EQUAL(addr.ToString(), *iter++);
         }
     }
@@ -321,6 +321,71 @@ BOOST_AUTO_TEST_CASE(account_for_receiving)
 
         BOOST_CHECK_EQUAL(account.getMyPcode().toString(), paymentcode);
         BOOST_CHECK_EQUAL(account.getMyNotificationAddress().ToString(), notificationaddress);
+
+        std::vector<unsigned char> const outPointSer = ParseHex("86f411ab1c8e70ae8a0795ab7a6757aea6e4d5ae1826fc7b8f00c597d500609c01000000");
+        CDataStream ds(outPointSer, SER_NETWORK, 0);
+        COutPoint outpoint;
+        ds >> outpoint;
+
+        CBitcoinSecret vchSecret;
+        vchSecret.SetString("Kx983SRhAZpAhj7Aac1wUXMJ6XZeyJKqCxJJ49dxEbYCT4a1ozRD");
+        CPubKey outpointPubkey = vchSecret.GetKey().GetPubKey();
+
+        BOOST_CHECK(account.acceptMaskedPayload(ParseHex(alice::maskedpayload), outpoint, outpointPubkey));
+
+
+
+
+    }
+}
+
+
+BOOST_AUTO_TEST_CASE(remove_me)
+{
+    ChangeBase58Prefixes _(Params());
+
+    {using namespace alice;
+        CExtKey privkey_alice; privkey_alice.key.Set(ecdhparams[0].begin(), ecdhparams[0].end(), false);
+        CPaymentCode const paymentCode_bob(bob::paymentcode);
+        CPaymentChannel paymentChannel(paymentCode_bob, privkey_alice);
+
+        std::vector<std::string>::const_iterator iter = sendingaddresses.begin();
+        for (CBitcoinAddress const & addr: paymentChannel.generateTheirSecretAddresses(0, 10)) {
+            BOOST_CHECK_EQUAL(addr.ToString(), *iter++);
+        }
+    }
+
+    {using namespace bob;
+        CExtKey privkey_bob; privkey_bob.key.Set(ecdhparams[0].begin(), ecdhparams[0].end(), false);
+        CPaymentCode const paymentCode_alice(alice::paymentcode);
+        CPaymentChannel paymentChannel(paymentCode_alice, privkey_bob);
+
+        std::vector<std::string>::const_iterator iter = sendingaddresses.begin();
+        for (CBitcoinAddress const & addr: paymentChannel.generateTheirSecretAddresses(0, 5)) {
+            BOOST_CHECK_EQUAL(addr.ToString(), *iter++);
+        }
+    }
+
+    CExtKey key; key.SetMaster(bob::bip32seed.data(), bob::bip32seed.size());
+    CExtKey privkey_bob = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
+
+    CPaymentCode const paymentCode_alice(alice::paymentcode);
+    CExtPubKey pubkeyAlice = paymentCode_alice.getNthPubkey(0);
+
+    static GroupElement const G(GroupElement().set_base_g());
+    std::vector<CBitcoinAddress>  result;
+    for(size_t i = 0; i < 10; ++i) {
+        CExtKey privkey = bip47::utils::derive(privkey_bob, {i});
+        CSecretPoint sp(privkey.key, pubkeyAlice.pubkey);
+        std::vector<unsigned char> spBytes = sp.getEcdhSecret();
+
+        std::vector<unsigned char> spHash(32);
+        CSHA256().Write(spBytes.data(), spBytes.size()).Finalize(spHash.data());
+
+        secp_primitives::GroupElement B = utils::GeFromPubkey(privkey.key.GetPubKey());
+        secp_primitives::GroupElement Bprime = B + G *  secp_primitives::Scalar(spHash.data());
+        CPubKey pubKeyN = utils::PubkeyFromGe(Bprime);
+        result.emplace_back(pubKeyN.GetID());
     }
 }
 

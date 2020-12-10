@@ -22,11 +22,12 @@ public:
     CPaymentChannel(CPaymentCode const & theirPcode, CExtKey const & myChannelKey);
 
     CPaymentCode const & getTheirPcode() const;
-    std::vector<CBitcoinAddress> generateTheirAddresses(size_t fromAddr, size_t uptoAddr) const;
-
-    std::vector<unsigned char> getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret) const;
+    std::vector<CBitcoinAddress> generateTheirSecretAddresses(size_t fromAddr, size_t uptoAddr) const;
 
     CPaymentCode const & getMyPcode() const;
+    std::vector<CBitcoinAddress> generateMySecretAddresses(size_t fromAddr, size_t uptoAddr) const;
+
+    std::vector<unsigned char> getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret) const;
 
     typedef std::vector<CBitcoinAddress> AddrContT;
 
