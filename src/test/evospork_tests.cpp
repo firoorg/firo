@@ -250,5 +250,69 @@ BOOST_AUTO_TEST_CASE(mempool)
     BOOST_ASSERT(CommitToMempool(lelantusMints[1]));
 }
 
+BOOST_AUTO_TEST_CASE(limit)
+{
+    int prevHeight;
+    pwalletMain->SetBroadcastTransactions(true);
+
+    for (int n=chainActive.Height(); n<1000; n++)
+        GenerateBlock({});
+
+    auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
+    CMutableTransaction sporkTx1 = CreateSporkTx(utxos, coinbaseKey, {
+        {CSporkAction::sporkLimit, CSporkAction::featureLelantusTransparentLimit, 100*COIN, 1030}
+    });
+
+    std::vector<CMutableTransaction> lelantusMints;
+    for (int i=0; i<4; i++) {
+        std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+        std::vector<CHDMint> mints;
+        std::string error = pwalletMain->MintAndStoreLelantus(50*COIN, wtxAndFee, mints);
+        BOOST_ASSERT(error.empty());
+        for (auto &w: wtxAndFee)
+            lelantusMints.emplace_back(*w.first.tx);
+    }
+
+    GenerateBlock(lelantusMints);
+
+    for (int i=0; i<10; i++)
+        GenerateBlock({});
+
+    CWalletTx jsWalletTx;
+    pwalletMain->JoinSplitLelantus({{script, 120*COIN, false}}, {}, jsWalletTx);
+
+    CMutableTransaction jsTx = *jsWalletTx.tx;
+
+    ::mempool.removeRecursive(jsTx);
+
+    auto joinsplit = lelantus::ParseLelantusJoinSplit(jsTx.vin[0]);
+    vector<Scalar> serials = joinsplit->getCoinSerialNumbers();
+
+    GenerateBlock({sporkTx1});
+
+    // joinsplit tx is out of range, should fail now
+    BOOST_ASSERT(!CommitToMempool(jsTx));
+    // should fail in block as well
+    prevHeight = chainActive.Height();
+    GenerateBlock({jsTx});
+    BOOST_ASSERT(chainActive.Height() == prevHeight);
+
+    // skip to 1030 (spork expiration block)
+    for (int n=chainActive.Height(); n<1030; n++)
+        GenerateBlock({});
+
+    // should be accepted into the mempool
+    BOOST_ASSERT(CommitToMempool(jsTx));
+    // and be mined into the block
+    prevHeight = chainActive.Height();
+    GenerateBlock({jsTx});
+    BOOST_ASSERT(chainActive.Height() == prevHeight+1);
+    // mempool should be clear
+    BOOST_ASSERT(::mempool.size() == 0);
+    // serials should go into the state
+    for (Scalar serial: serials)
+        BOOST_ASSERT(lelantus::CLelantusState::GetState()->IsUsedCoinSerial(serial));
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
