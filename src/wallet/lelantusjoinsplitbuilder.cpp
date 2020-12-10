@@ -228,7 +228,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
             input += spend.amount;
         }
 
-        changeToMint += (input - currentVout - fee - changeToMint);
+        changeToMint += (input - currentVout - fee - changeToMint - mint);
 
         if(changeToMint > consensusParams.nMaxValueLelantusMint) {
             throw std::invalid_argument(
