@@ -1254,7 +1254,10 @@ UniValue _bls(const JSONRPCRequest& request)
 [[ noreturn ]] void spork_help()
 {
     throw std::runtime_error(
-                "spork \"sporkprivatekey\" \"feeaddress\" {\"enable\": [\"feature1\", ...], \"disable\": {\"feature1\": block_height_to_reenable, ...}}\n"
+        "spork \"sporkprivatekey\" \"feeaddress\"\n"
+        "    {\"enable\": [\"feature1\", ...]},\n"
+        "    {\"disable\": {\"feature1\": block_height_to_reenable, ...}}\n"
+        "    {\"limit\": {\"feature1\": {\"limitUntil\": block_height_to_lift_limit, \"parameter\": limit_parameter}}\n"
     );
 }
 
@@ -1368,7 +1371,8 @@ UniValue spork(const JSONRPCRequest& request)
     std::set<std::string> validFeatureNames {
         CSporkAction::featureLelantus,
         CSporkAction::featureChainlocks,
-        CSporkAction::featureInstantSend
+        CSporkAction::featureInstantSend,
+        CSporkAction::featureLelantusTransparentLimit
     };
 
     for (const CSporkAction &action: sporkTx.actions) {

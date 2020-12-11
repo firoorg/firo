@@ -1764,13 +1764,18 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
                 if (!fReindex) {
                     CBlockIndex *tip = chainActive.Tip();
-                    if (tip && tip->nHeight >= chainparams.GetConsensus().nLelantusStartBlock) {
-                        const uint256* phash = tip->phashBlock;
-                        if (pblocktree->GetBlockIndexVersion(*phash) < LELANTUS_PROTOCOL_ENABLEMENT_VERSION) {
+                    if (tip) {
+                        int lastBlockIndexVersion = pblocktree->GetBlockIndexVersion(*tip->phashBlock);
+                        if ((tip->nHeight >= chainparams.GetConsensus().nLelantusStartBlock &&
+                                    lastBlockIndexVersion < LELANTUS_PROTOCOL_ENABLEMENT_VERSION) ||
+                            (tip->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
+                                    lastBlockIndexVersion < EVOSPORK_MIN_VERSION))
+                        {
                             strLoadError = _(
                                     "Block index is outdated, reindex required\n");
                             break;
                         }
+
                     }
                 }
 

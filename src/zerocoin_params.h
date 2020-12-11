@@ -102,6 +102,8 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 #define ZC_ADVANCED_WALLETDB_MINT_VERSION	130504
 // Version of the block index entry that introduces Lelantus protocol
 #define LELANTUS_PROTOCOL_ENABLEMENT_VERSION	140100
+// Version of the block index enty that introduces evo sporks
+#define EVOSPORK_MIN_VERSION                140200
 
 // number of mint confirmations needed to spend coin
 #define ZC_MINT_CONFIRMATIONS               6
