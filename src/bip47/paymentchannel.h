@@ -19,17 +19,22 @@ static constexpr size_t AddressLookaheadNumber = 10;
 class CPaymentChannel
 {
 public:
-    CPaymentChannel(CPaymentCode const & theirPcode, CExtKey const & myChannelKey);
-
-    CPaymentCode const & getTheirPcode() const;
-    std::vector<CBitcoinAddress> generateTheirSecretAddresses(size_t fromAddr, size_t uptoAddr) const;
-
-    CPaymentCode const & getMyPcode() const;
-    std::vector<CBitcoinAddress> generateMySecretAddresses(size_t fromAddr, size_t uptoAddr) const;
-
-    std::vector<unsigned char> getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret) const;
+    enum struct Side {
+        sender = 0,
+        receiver
+    };
+public:
+    CPaymentChannel(CPaymentCode const & theirPcode, CExtKey const & myChannelKey, Side side);
 
     typedef std::vector<CBitcoinAddress> AddrContT;
+
+    CPaymentCode const & getTheirPcode() const;
+    AddrContT generateTheirSecretAddresses(size_t fromAddr, size_t uptoAddr) const;
+
+    CPaymentCode const & getMyPcode() const;
+    AddrContT generateMySecretAddresses(size_t fromAddr, size_t uptoAddr) const;
+
+    std::vector<unsigned char> getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret) const;
 
     AddrContT const & generateMyUsedAddresses();
     AddrContT const & generateMyNextAddresses();
@@ -47,6 +52,7 @@ private:
     size_t usedAddressCount;
     AddrContT usedAddresses;
     AddrContT nextAddresses;
+    Side side;
 };
 
 }

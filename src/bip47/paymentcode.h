@@ -45,6 +45,7 @@ private:
     CPubKey pubKey;
     ChainCode  chainCode;
     CExtPubKey const & getChildPubKeyBase() const;
+    boost::optional<CBitcoinAddress> mutable myNotificationAddress;
    
     bool parse(std::string const & paymentCode);
 

@@ -43,7 +43,9 @@ bool CPaymentCode::isValid() const {
 
 CBitcoinAddress CPaymentCode::getNotificationAddress() const
 {
-    return CBitcoinAddress(getNthPubkey(0).pubkey.GetID());
+    if(!myNotificationAddress)
+        myNotificationAddress.emplace(getNthPubkey(0).pubkey.GetID());
+    return *myNotificationAddress;
 }
 
 CBitcoinAddress CPaymentCode::getNthAddress(size_t idx) const

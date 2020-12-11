@@ -210,9 +210,10 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
     ChangeBase58Prefixes _(Params());
 
     {using namespace alice;
-        CExtKey privkey_alice; privkey_alice.key.Set(ecdhparams[0].begin(), ecdhparams[0].end(), false);
+        CExtKey key; key.SetMaster(bip32seed.data(), bip32seed.size());
+        CExtKey privkey_alice = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0});
         CPaymentCode const paymentCode_bob(bob::paymentcode);
-        CPaymentChannel paymentChannel(paymentCode_bob, privkey_alice);
+        CPaymentChannel paymentChannel(paymentCode_bob, privkey_alice, CPaymentChannel::Side::sender);
 
         std::vector<std::string>::const_iterator iter = sendingaddresses.begin();
         for (CBitcoinAddress const & addr: paymentChannel.generateTheirSecretAddresses(0, 10)) {
@@ -221,12 +222,25 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
     }
 
     {using namespace bob;
-        CExtKey privkey_bob; privkey_bob.key.Set(ecdhparams[0].begin(), ecdhparams[0].end(), false);
+        CExtKey key; key.SetMaster(bip32seed.data(), bip32seed.size());
+        CExtKey privkey_bob = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0});
         CPaymentCode const paymentCode_alice(alice::paymentcode);
-        CPaymentChannel paymentChannel(paymentCode_alice, privkey_bob);
+        CPaymentChannel paymentChannel(paymentCode_alice, privkey_bob, CPaymentChannel::Side::sender);
 
         std::vector<std::string>::const_iterator iter = sendingaddresses.begin();
         for (CBitcoinAddress const & addr: paymentChannel.generateTheirSecretAddresses(0, 5)) {
+            BOOST_CHECK_EQUAL(addr.ToString(), *iter++);
+        }
+    }
+
+    {using namespace bob;
+        CExtKey key; key.SetMaster(bob::bip32seed.data(), bob::bip32seed.size());
+        CExtKey privkey_bob = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
+        CPaymentCode const paymentCode_alice(alice::paymentcode);
+        CPaymentChannel paymentChannel_bob(paymentCode_alice, privkey_bob, CPaymentChannel::Side::receiver);
+
+        std::vector<std::string>::const_iterator iter = alice::sendingaddresses.begin();
+        for(CBitcoinAddress const & addr: paymentChannel_bob.generateMySecretAddresses(0, 10)) {
             BOOST_CHECK_EQUAL(addr.ToString(), *iter++);
         }
     }
@@ -243,7 +257,7 @@ BOOST_AUTO_TEST_CASE(masked_paymentcode)
         key.SetMaster(bip32seed.data(), bip32seed.size());
         CExtKey key_alice = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
 
-        CPaymentChannel paymentChannel(paymentCode_bob, key_alice);
+        CPaymentChannel paymentChannel(paymentCode_bob, key_alice, CPaymentChannel::Side::sender);
 
         std::vector<unsigned char> const outPointSer = ParseHex("86f411ab1c8e70ae8a0795ab7a6757aea6e4d5ae1826fc7b8f00c597d500609c01000000");
         CDataStream ds(outPointSer, SER_NETWORK, 0);
@@ -289,8 +303,8 @@ BOOST_AUTO_TEST_CASE(account_for_sending)
         BOOST_CHECK_EQUAL(HexStr(account->getMaskedPayload(outpoint, outpoinSecret)), maskedpayload);
 
         CAccountBase::AddrContT addresses = account->getMyNextAddresses();
-        CBitcoinAddress notifAddr = addresses[0], someAddr = addresses[1];
-        BOOST_CHECK_EQUAL(addresses.size(), bip47::AddressLookaheadNumber);
+        CBitcoinAddress notifAddr = addresses[0];
+        BOOST_CHECK_EQUAL(addresses.size(), 1);
         BOOST_CHECK_EQUAL(addresses[0].ToString(), notificationaddress);
         BOOST_CHECK(account->addressUsed(addresses[0]));
 
@@ -298,14 +312,8 @@ BOOST_AUTO_TEST_CASE(account_for_sending)
         BOOST_CHECK(addresses[0] == notifAddr);
         BOOST_CHECK(account->addressUsed(notifAddr));
 
-        BOOST_CHECK(account->addressUsed(someAddr));
-        addresses = account->getMyNextAddresses();
-        BOOST_CHECK(addresses.size() == bip47::AddressLookaheadNumber);
-        BOOST_CHECK(addresses[0] == notifAddr);
-        BOOST_CHECK(addresses.end() == std::find(addresses.begin(), addresses.end(), someAddr));
-
         addresses = account->getMyUsedAddresses();
-        BOOST_CHECK(addresses == CAccountBase::AddrContT({someAddr}));
+        BOOST_CHECK(addresses.empty());
     }
 }
 
@@ -333,59 +341,58 @@ BOOST_AUTO_TEST_CASE(account_for_receiving)
 
         BOOST_CHECK(account.acceptMaskedPayload(ParseHex(alice::maskedpayload), outpoint, outpointPubkey));
 
+        CAccountBase::AddrContT addrs = account.getMyNextAddresses();
+        BOOST_CHECK_EQUAL(addrs.size(), 1 + bip47::AddressLookaheadNumber);
+        BOOST_CHECK_EQUAL(addrs[0].ToString(), notificationaddress);
 
-
-
-    }
-}
-
-
-BOOST_AUTO_TEST_CASE(remove_me)
-{
-    ChangeBase58Prefixes _(Params());
-
-    {using namespace alice;
-        CExtKey privkey_alice; privkey_alice.key.Set(ecdhparams[0].begin(), ecdhparams[0].end(), false);
-        CPaymentCode const paymentCode_bob(bob::paymentcode);
-        CPaymentChannel paymentChannel(paymentCode_bob, privkey_alice);
-
-        std::vector<std::string>::const_iterator iter = sendingaddresses.begin();
-        for (CBitcoinAddress const & addr: paymentChannel.generateTheirSecretAddresses(0, 10)) {
-            BOOST_CHECK_EQUAL(addr.ToString(), *iter++);
+        for(size_t i = 0; i < bip47::AddressLookaheadNumber; ++i) {
+            BOOST_CHECK_EQUAL(addrs[i+1].ToString(), alice::sendingaddresses[i]);
         }
-    }
 
-    {using namespace bob;
-        CExtKey privkey_bob; privkey_bob.key.Set(ecdhparams[0].begin(), ecdhparams[0].end(), false);
-        CPaymentCode const paymentCode_alice(alice::paymentcode);
-        CPaymentChannel paymentChannel(paymentCode_alice, privkey_bob);
+        BOOST_CHECK(account.addressUsed(addrs[0]));
 
-        std::vector<std::string>::const_iterator iter = sendingaddresses.begin();
-        for (CBitcoinAddress const & addr: paymentChannel.generateTheirSecretAddresses(0, 5)) {
-            BOOST_CHECK_EQUAL(addr.ToString(), *iter++);
+        addrs = account.getMyNextAddresses();
+        BOOST_CHECK_EQUAL(addrs.size(), 1 + bip47::AddressLookaheadNumber);
+        BOOST_CHECK_EQUAL(addrs[0].ToString(), notificationaddress);
+
+        CBitcoinAddress someAddr = addrs[2];
+        BOOST_CHECK(account.addressUsed(someAddr));
+
+        addrs = account.getMyNextAddresses();
+        BOOST_CHECK_EQUAL(addrs.size(), 1 + bip47::AddressLookaheadNumber);
+        BOOST_CHECK_EQUAL(addrs[0].ToString(), notificationaddress);
+
+        for(size_t i = 0; i < bip47::AddressLookaheadNumber - 2; ++i) {
+            BOOST_CHECK_EQUAL(addrs[i+1].ToString(), alice::sendingaddresses[i + 2]);
         }
-    }
 
-    CExtKey key; key.SetMaster(bob::bip32seed.data(), bob::bip32seed.size());
-    CExtKey privkey_bob = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
+        addrs = account.getMyUsedAddresses();
+        BOOST_CHECK_EQUAL(addrs.size(), 2);
+        for(size_t i = 0; i < addrs.size(); ++i) {
+            BOOST_CHECK_EQUAL(addrs[i].ToString(), alice::sendingaddresses[i]);
+        }
 
-    CPaymentCode const paymentCode_alice(alice::paymentcode);
-    CExtPubKey pubkeyAlice = paymentCode_alice.getNthPubkey(0);
+        BOOST_CHECK(!account.addressUsed(someAddr));
+        BOOST_CHECK_EQUAL(addrs.size(), 2);
+        for(size_t i = 0; i < addrs.size(); ++i) {
+            BOOST_CHECK_EQUAL(addrs[i].ToString(), alice::sendingaddresses[i]);
+        }
 
-    static GroupElement const G(GroupElement().set_base_g());
-    std::vector<CBitcoinAddress>  result;
-    for(size_t i = 0; i < 10; ++i) {
-        CExtKey privkey = bip47::utils::derive(privkey_bob, {i});
-        CSecretPoint sp(privkey.key, pubkeyAlice.pubkey);
-        std::vector<unsigned char> spBytes = sp.getEcdhSecret();
+        someAddr.SetString(alice::sendingaddresses[9]);
+        BOOST_CHECK(account.addressUsed(someAddr));
+        addrs = account.getMyUsedAddresses();
+        BOOST_CHECK_EQUAL(addrs.size(), 10);
+        for(size_t i = 0; i < addrs.size(); ++i) {
+            BOOST_CHECK_EQUAL(addrs[i].ToString(), alice::sendingaddresses[i]);
+        }
 
-        std::vector<unsigned char> spHash(32);
-        CSHA256().Write(spBytes.data(), spBytes.size()).Finalize(spHash.data());
-
-        secp_primitives::GroupElement B = utils::GeFromPubkey(privkey.key.GetPubKey());
-        secp_primitives::GroupElement Bprime = B + G *  secp_primitives::Scalar(spHash.data());
-        CPubKey pubKeyN = utils::PubkeyFromGe(Bprime);
-        result.emplace_back(pubKeyN.GetID());
+        addrs = account.getMyNextAddresses();
+        BOOST_CHECK_EQUAL(addrs.size(), 1 + bip47::AddressLookaheadNumber);
+        BOOST_CHECK_EQUAL(addrs[0].ToString(), notificationaddress);
+        for(std::string const & bobsaddr : alice::sendingaddresses) {
+            someAddr.SetString(bobsaddr);
+            BOOST_CHECK(addrs.end() == std::find(addrs.begin(), addrs.end(), someAddr));
+        }
     }
 }
 

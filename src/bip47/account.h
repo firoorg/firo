@@ -82,8 +82,8 @@ public:
 
     bool findTheirPcode(CPaymentCode const & pcode) const;
 private:
-    using ContT = std::vector<CPaymentChannel>;
-    ContT mutable pchannels;
+    using PChannelContT = std::vector<CPaymentChannel>;
+    PChannelContT mutable pchannels;
     boost::optional<CBitcoinAddress> mutable myNotificationAddress;
 
     AddrContT usedAddresses;

@@ -47,7 +47,7 @@ CAccountSender::CAccountSender(CExtKey const & walletKey, size_t accountNum, CPa
 
 CPaymentChannel & CAccountSender::getPaymentChannel() {
     if(!pchannel)
-        pchannel.emplace(theirPcode, privkey);
+        pchannel.emplace(theirPcode, privkey, CPaymentChannel::Side::sender);
     return *pchannel;
 }
 
@@ -118,7 +118,6 @@ CAccountBase::AddrContT const & CAccountReceiver::generateMyUsedAddresses()
 CAccountBase::AddrContT const & CAccountReceiver::generateMyNextAddresses()
 {
     nextAddresses.clear();
-    nextAddresses.push_back(getMyNotificationAddress());
     for(CPaymentChannel & pchannel: pchannels) {
         CPaymentChannel::AddrContT const & addrs = pchannel.generateMyNextAddresses();
         nextAddresses.insert(nextAddresses.end(), addrs.begin(), addrs.end());
@@ -128,27 +127,28 @@ CAccountBase::AddrContT const & CAccountReceiver::generateMyNextAddresses()
 
 bool CAccountReceiver::markAddressUsed(CBitcoinAddress const & address)
 {
-    if(address == getMyNotificationAddress())
-        return true;
-
+    for(PChannelContT::iterator iter = pchannels.begin(); iter != pchannels.end(); ++iter) {
+        if(iter->markAddressUsed(address)) {
+            generateMyNextAddresses();
+            return true;
+        }
+    }
+    return false;
 }
 
 bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, COutPoint const & outpoint, CPubKey const & outpoinPubkey)
 {
     CPaymentCode pcode;
-    CExtKey ppp = utils::derive(privkey, {0});
+    CExtKey pcodePrivkey = utils::derive(privkey, {uint32_t(pchannels.size())});
     try {
-        if(!bip47::utils::pcodeFromMaskedPayload(maskedPayload, outpoint, ppp.key, outpoinPubkey, pcode))
+        if(!bip47::utils::pcodeFromMaskedPayload(maskedPayload, outpoint, pcodePrivkey.key, outpoinPubkey, pcode))
             return false;
     } catch (std::runtime_error const &) {
         return false;
     }
     if(findTheirPcode(pcode))
         return true;
-    std::cerr << pcode.toString() << std::endl;
-
-    getMyPcode();
-
+    pchannels.emplace_back(pcode, privkey, CPaymentChannel::Side::receiver);
     return true;
 }
 
