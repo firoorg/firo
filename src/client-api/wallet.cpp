@@ -289,6 +289,9 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             CAmount amount;
             if (wtx.tx->vout[s.vout].scriptPubKey.IsLelantusJMint()) {
                 amount = pwalletMain->GetCredit(wtx.tx->vout[s.vout], ISMINE_SPENDABLE);
+
+                // 0-value Lelantus mints are sometimes made to increase privacy. Ignore these.
+                if (amount == 0) continue;
             } else {
                 amount = s.amount;
             }
