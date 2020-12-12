@@ -397,7 +397,6 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
             CLelantusState::LelantusCoinGroupInfo group;
             state->GetCoinGroupInfo(retrievedId, group);
-
             BOOST_CHECK_EQUAL(lastId, retrievedId);
             BOOST_CHECK_EQUAL(first, group.firstBlock);
             BOOST_CHECK_EQUAL(last, group.lastBlock);
@@ -450,7 +449,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
         CLelantusMintMeta meta;
         BOOST_CHECK(pwalletMain->zwallet->GetTracker()
             .GetLelantusMetaFromPubcoin(hash, meta));
-        
+
         BOOST_CHECK(meta.isUsed);
 
         meta.isUsed = false;
@@ -541,6 +540,8 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
     auto currentBlock = chainActive.Tip()->nHeight;
     BOOST_CHECK(!GenerateBlock({dupJsTx1}));
     BOOST_CHECK_EQUAL(currentBlock, chainActive.Tip()->nHeight);
+    mempool.clear();
+    lelantusState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(checktransaction)
@@ -557,7 +558,8 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     BOOST_CHECK(CheckLelantusTransaction(
         txs[0], state, tx.GetHash(), true, chainActive.Height(), true, true, NULL, &info));
 
-    std::vector<std::pair<PublicCoin, std::pair<uint64_t, uint256>>> expectedCoins = {{mints[0].GetPubcoinValue(), {1 * CENT, uint256()}}};
+    std::vector<std::pair<PublicCoin, std::pair<uint64_t, uint256>>> expectedCoins = {{mints[0].GetPubcoinValue(), {1 * CENT, info.mints[0].second.second}}};
+
     BOOST_CHECK(expectedCoins == info.mints);
 
     // join split

@@ -127,6 +127,7 @@ BITCOIN_TESTS = \
   test/key_tests.cpp \
   test/dbwrapper_tests.cpp \
   test/lelantus_tests.cpp \
+  test/lelantus_mintspend_test.cpp \
   test/lelantus_state_tests.cpp \
   test/limitedmap_tests.cpp \
   test/main_tests.cpp \

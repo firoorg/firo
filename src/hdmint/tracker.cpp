@@ -515,6 +515,19 @@ void CHDMintTracker::SetPubcoinNotUsed(const uint256& hashPubcoin)
     UpdateState(meta);
 }
 
+void CHDMintTracker::SetLelantusPubcoinNotUsed(const uint256& hashPubcoin)
+{
+    CLelantusMintMeta meta;
+    if(!GetLelantusMetaFromPubcoin(hashPubcoin, meta))
+        return;
+    meta.isUsed = false;
+
+    if (mapPendingSpends.count(meta.hashSerial))
+        mapPendingSpends.erase(meta.hashSerial);
+
+    UpdateState(meta);
+}
+
 
 /**
  * Check mempool for the spend associated with the mint serial hash passed

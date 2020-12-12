@@ -14,6 +14,8 @@
 #include <functional>
 #include "coin_containers.h"
 
+namespace lelantus_mintspend { class lelantus_mintspend_test; }
+
 namespace lelantus {
 
 // Lelantus transaction info, added to the CBlock to ensure zerocoin mint/spend transactions got their info stored into index
@@ -249,9 +251,13 @@ private:
         metainfo_container_t extendedMintMetaInfo, mintMetaInfo, spendMetaInfo;
 
         void CheckSurgeCondition();
+
+        friend class lelantus_mintspend::lelantus_mintspend_test;
     };
 
     Containers containers;
+
+    friend class lelantus_mintspend::lelantus_mintspend_test;
 };
 
 } // end of namespace lelantus
