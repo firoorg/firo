@@ -380,7 +380,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                     category = "mined";
                 }
             }
-            else if(wtx.tx->IsSigmaSpend() || wtx.tx->IsZerocoinSpend()){
+            else if(wtx.tx->IsSigmaSpend() || wtx.tx->IsZerocoinSpend() || wtx.tx->IsLelantusTransaction()){
                 // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendIn";
             } else {
