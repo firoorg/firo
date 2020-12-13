@@ -382,8 +382,9 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 else {
                     category = "mined";
                 }
-            }
-            else if(wtx.tx->IsSigmaSpend() || wtx.tx->IsZerocoinSpend() || wtx.tx->IsLelantusTransaction()){
+            } else if (wtx.tx->vout[r.vout].scriptPubKey.IsLelantusJMint() || wtx.tx->vout[r.vout].scriptPubKey.IsLelantusMint()) {
+                category = "mintIn";
+            } else if(wtx.tx->IsSigmaSpend() || wtx.tx->IsZerocoinSpend() || wtx.tx->IsLelantusTransaction()){
                 // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
                 category = "spendIn";
             } else {
@@ -400,7 +401,17 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             entry.push_back(Pair("category", category));
             entry.push_back(Pair("txIndex", r.vout));
 
-            CAmount amount = ValueFromAmount(r.amount).get_real() * COIN;
+
+            CAmount amount;
+            if (wtx.tx->vout[r.vout].scriptPubKey.IsLelantusJMint()) {
+                amount = pwalletMain->GetCredit(wtx.tx->vout[r.vout], ISMINE_SPENDABLE);
+
+                // 0-value Lelantus mints are sometimes made to increase privacy. Ignore these.
+                if (amount == 0) continue;
+            } else {
+                amount = r.amount;
+            }
+
             entry.push_back(Pair("amount", amount));
 
             COutPoint outPoint(txid, r.vout);
