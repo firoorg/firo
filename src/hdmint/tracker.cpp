@@ -1226,9 +1226,11 @@ std::vector<CLelantusMintMeta> CHDMintTracker::ListLelantusMints(bool fUnusedOnl
     std::set<uint256> setMempool = GetMempoolTxids();
 
     std::vector<CLelantusMintMeta> setMints;
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-    CWalletDB walletdb(strWalletFile);
+
     if (fLoad) {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        CWalletDB walletdb(strWalletFile);
+
         std::list<CHDMint> listDeterministicDB = walletdb.ListHDMints(true);
         for (auto& dMint : listDeterministicDB) {
             AddLelantus(walletdb, dMint, false, false);
