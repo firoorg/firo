@@ -1212,7 +1212,7 @@ bool WalletModel::transactionCanBeRebroadcast(uint256 hash) const
     return wtx->GetRequestCount() <= 0;
 }
 
-bool WalletModel::rebroadcastTransaction(uint256 hash)
+bool WalletModel::rebroadcastTransaction(uint256 hash, CValidationState &state)
 {
     LOCK2(cs_main, wallet->cs_wallet);
     CWalletTx *wtx = const_cast<CWalletTx*>(wallet->GetWalletTx(hash));
@@ -1233,7 +1233,6 @@ bool WalletModel::rebroadcastTransaction(uint256 hash)
 
     if (!fHaveMempool && !fHaveChain) {
         // push to local node and sync with wallets
-        CValidationState state;
         bool fMissingInputs;
         if (!AcceptToMemoryPool(mempool, state, wtx->tx, false, &fMissingInputs, NULL, true, false, maxTxFee))
             return false;

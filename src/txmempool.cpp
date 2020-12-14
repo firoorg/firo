@@ -1510,9 +1510,8 @@ bool CTxMemPool::HasNoInputsOf(const CTransaction &tx) const
     return true;
 }
 
-bool CTxMemPool::IsTransactionAllowed(const CTransaction &tx) const
+bool CTxMemPool::IsTransactionAllowed(const CTransaction &tx, CValidationState &state) const
 {
-    CValidationState state;
     return sporkManager.IsTransactionAllowed(tx, state);
 }
 

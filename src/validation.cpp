@@ -799,7 +799,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     if (!ContextualCheckTransaction(tx, state, Params().GetConsensus(), chainActive.Tip()))
         return error("%s: ContextualCheckTransaction: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
 
-    if (!pool.IsTransactionAllowed(tx)) {
+    if (!pool.IsTransactionAllowed(tx, state)) {
         LogPrintf("AcceptToMemoryPool() can't accept transaction because of active mempool spork\n");
         return false;
     }

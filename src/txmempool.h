@@ -621,7 +621,7 @@ public:
     void ApplyDeltas(const uint256 hash, double &dPriorityDelta, CAmount &nFeeDelta) const;
     void ClearPrioritisation(const uint256 hash);
 
-    bool IsTransactionAllowed(const CTransaction &tx) const;
+    bool IsTransactionAllowed(const CTransaction &tx, CValidationState &state) const;
 
 public:
     /** Remove a set of transactions from the mempool.
