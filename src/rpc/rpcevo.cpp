@@ -1254,6 +1254,7 @@ UniValue _bls(const JSONRPCRequest& request)
 [[ noreturn ]] void spork_help()
 {
     throw std::runtime_error(
+        "spork list\n"
         "spork \"sporkprivatekey\" \"feeaddress\"\n"
         "    {\"enable\": [\"feature1\", ...]},\n"
         "    {\"disable\": {\"feature1\": block_height_to_reenable, ...}}\n"
@@ -1261,11 +1262,42 @@ UniValue _bls(const JSONRPCRequest& request)
     );
 }
 
+static UniValue spork_listToJSON(const std::map<std::string, std::pair<int, int64_t>> &sporkMap) {
+    UniValue list;
+    list.setArray();
+    for (const auto &action: sporkMap) {
+        UniValue listItem;
+        listItem.setObject();
+        listItem.pushKV("feature", action.first);
+        listItem.pushKV("enableAtHeight", action.second.first);
+        listItem.pushKV("parameter", action.second.second);
+        list.push_back(listItem);
+    }
+    return list;
+}
+
 UniValue spork(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 3)
+    if (request.fHelp || request.params.size() < 1)
         spork_help();
 
+    if (request.params.size() == 1 && request.params[0].get_str() == "list") {
+        // list active sporks
+        UniValue result;
+        result.setObject();
+
+        LOCK(cs_main);
+        LOCK(mempool.cs);
+
+        result.pushKV("blockchain", spork_listToJSON(chainActive.Tip()->activeDisablingSporks));
+        result.pushKV("mempool", spork_listToJSON(mempool.GetActiveSporks()));
+
+        return result;
+    }
+    else if (request.params.size() != 3)
+        spork_help();
+
+    // create spork
     CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
     CKey secretKey = ParsePrivKey(pwallet, request.params[0].get_str(), true);
     CKeyID publicKeyID;

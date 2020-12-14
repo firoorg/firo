@@ -140,6 +140,7 @@ public:
     // test if the feature is enabled
     bool IsFeatureEnabled(const std::string &featureName) const;
     bool IsTransactionAllowed(const CTransaction &tx, CValidationState &state) const;
+    std::map<std::string, std::pair<int, int64_t>> GetActiveSporks() const { return mempoolSporks; }
 };
 
 #endif

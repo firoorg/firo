@@ -622,6 +622,7 @@ public:
     void ClearPrioritisation(const uint256 hash);
 
     bool IsTransactionAllowed(const CTransaction &tx, CValidationState &state) const;
+    std::map<std::string, std::pair<int, int64_t>> GetActiveSporks() const { return sporkManager.GetActiveSporks(); }
 
 public:
     /** Remove a set of transactions from the mempool.
