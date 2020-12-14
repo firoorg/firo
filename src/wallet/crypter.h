@@ -117,7 +117,6 @@ class CCryptoKeyStore : public CBasicKeyStore
 {
 private:
     CryptedKeyMap mapCryptedKeys;
-    KeyMap mapBip47Keys;
 
     CKeyingMaterial vMasterKey;
 
@@ -166,7 +165,6 @@ public:
 
     virtual bool AddCryptedKey(const CPubKey& vchPubKey, const std::vector<unsigned char>& vchCryptedSecret);
     bool AddKeyPubKey(const CKey& key, const CPubKey& pubkey);
-    bool AddBip47KeyPubkey(const CKey& key, const CPubKey& pubkey);
     bool HaveKey(const CKeyID& address) const
     {
         {
@@ -175,7 +173,7 @@ public:
                 if (CBasicKeyStore::HaveKey(address)) {
                     return true;
                 }
-            return mapCryptedKeys.count(address) > 0 || mapBip47Keys.count(address) > 0;
+            return mapCryptedKeys.count(address) > 0;
         }
         return false;
     }
@@ -191,12 +189,6 @@ public:
         while (mi != mapCryptedKeys.end()) {
             setAddress.insert((*mi).first);
             mi++;
-        }
-
-        KeyMap::const_iterator miBip47 = mapBip47Keys.begin();
-        while (miBip47 != mapBip47Keys.end()) {
-            setAddress.insert((*miBip47).first);
-            miBip47++;
         }
     }
 
