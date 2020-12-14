@@ -3072,7 +3072,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>Anonymized</source>
-        <translation>匿名的</translation>
+        <translation>匿名化</translation>
     </message>
     <message>
         <source>Anonymize</source>
