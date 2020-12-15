@@ -74,13 +74,15 @@ private:
 class CAccountReceiver : public CAccountBase
 {
 public:
-    CAccountReceiver(CExtKey const & walletKey, size_t accountNum);
+    CAccountReceiver(CExtKey const & walletKey, size_t accountNum, std::string const & label);
 
     CBitcoinAddress const & getMyNotificationAddress() const;
 
     bool acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, COutPoint const & outpoint, CPubKey const & outpoinPubkey);
 
     bool findTheirPcode(CPaymentCode const & pcode) const;
+
+    std::string const & getLabel() const;
 private:
     using PChannelContT = std::vector<CPaymentChannel>;
     PChannelContT mutable pchannels;
@@ -88,6 +90,7 @@ private:
 
     AddrContT usedAddresses;
     AddrContT nextAddresses;
+    std::string label;
 
     virtual AddrContT const & generateMyUsedAddresses();
     virtual AddrContT const & generateMyNextAddresses();
@@ -104,14 +107,27 @@ private:
 class CWallet {
 public:
     CWallet(std::vector<unsigned char> const & seedData);
+    CWallet(uint256 const & seedData);
 
-    CAccountPtr createReceivingAccount();
-    CAccountPtr provideSendingAccount(CPaymentCode const & theirPcode);
+    CAccountReceiver & createReceivingAccount(std::string const & label);
+    CAccountSender & provideSendingAccount(CPaymentCode const & theirPcode);
+
+    template<class E>
+    void enumerateAccounts(E e);
 private:
     using ContT = std::map<size_t, CAccountPtr>;
     ContT accounts;
     CExtKey privkey;
 };
+
+template<class E>
+void CWallet::enumerateAccounts(E e)
+{
+    for(ContT::value_type const & val : accounts) {
+        e(val.second);
+    }
+}
+
 
 }
 

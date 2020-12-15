@@ -4702,6 +4702,52 @@ UniValue bumpfee(const JSONRPCRequest& request)
     return result;
 }
 
+/******************************************************************************/
+
+UniValue listpcodes(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() > 0) {
+        throw runtime_error(
+            "listpcodes  \n"
+            "Lists all existing payment codes with labels. \n"
+            "Example:\n" +
+            HelpExampleCli("listpcodes", ""));
+    }
+    UniValue result(UniValue::VOBJ);
+    for(std::pair<std::string, std::string> const & info : pwallet->ListPcodes()) {
+        result.push_back(Pair(info.first, info.second));
+    }
+    return result;
+}
+
+
+UniValue generatepcode(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() < 1 or request.params.size() > 2) {
+        throw runtime_error(
+            "generatepcode  \"label\"\n"
+            "Generates a new labeled BIP47 payment code. \n"
+            "Example:\n" +
+            HelpExampleCli("generatepaymentcode", "<label>"));
+    }
+
+    UniValue result;
+    result.setStr(pwallet->GeneratePcode(request.params[0].get_str()).toString());
+    return result;
+}
+
+/******************************************************************************/
+
 extern UniValue dumpprivkey(const JSONRPCRequest& request); // in rpcdump.cpp
 extern UniValue importprivkey(const JSONRPCRequest& request);
 extern UniValue importaddress(const JSONRPCRequest& request);
@@ -4788,8 +4834,11 @@ static const CRPCCommand commands[] =
     { "wallet",             "removetxwallet",           &removetxwallet,           false },
     { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false },
     { "wallet",             "listsigmaspends",          &listsigmaspends,          false },
-    { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false }
+    { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false },
 
+    //bip47
+    { "wallet",             "listpcodes",               &listpcodes   ,            false },
+    { "wallet",             "generatepcode",            &generatepcode,            false }
 };
 
 void RegisterWalletRPCCommands(CRPCTable &t)

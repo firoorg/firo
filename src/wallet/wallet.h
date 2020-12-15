@@ -110,6 +110,11 @@ class CScript;
 class CTxMemPool;
 class CWalletTx;
 
+namespace bip47 {
+    class CPaymentCode;
+    class CWallet;
+}
+
 /** (client) version numbers for particular wallet features */
 enum WalletFeature
 {
@@ -688,6 +693,8 @@ private:
 
     int64_t nTimeFirstKey;
 
+    std::shared_ptr<bip47::CWallet> bip47wallet;
+
     /**
      * Private version of AddWatchOnly method which does not accept a
      * timestamp, and which will reset the wallet's nTimeFirstKey value to 1 if
@@ -769,6 +776,7 @@ public:
         vecAnonymizableTallyCached.clear();
         vecAnonymizableTallyCachedNonDenom.clear();
         zwallet = NULL;
+        bip47wallet.reset();
     }
 
     std::map<uint256, CWalletTx> mapWallet;
@@ -1217,6 +1225,11 @@ public:
 
     /* Set the current HD master key (will reset the chain child index counters) */
     bool SetHDMasterKey(const CPubKey& key, const int cHDChainVersion=CHDChain().CURRENT_VERSION);
+
+    /* Generates a new payment code and stores it into the wallet*/
+    bip47::CPaymentCode GeneratePcode(std::string const & label);
+
+    std::vector<std::pair<std::string, std::string>> ListPcodes();
 };
 
 /** A key allocated from the key pool. */

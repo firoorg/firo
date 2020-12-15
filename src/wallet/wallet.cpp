@@ -51,6 +51,9 @@
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
 
+#include "bip47/account.h"
+#include "bip47/paymentcode.h"
+
 using namespace std;
 
 CWallet* pwalletMain = NULL;
@@ -6890,6 +6893,8 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         walletInstance->zwallet = std::make_unique<CHDMintWallet>(pwalletMain->strWalletFile);
     }
 
+    walletInstance->bip47wallet = std::make_shared<bip47::CWallet>(walletInstance->vchDefaultKey.GetHash());
+
     RegisterValidationInterface(walletInstance);
 
     CBlockIndex *pindexRescan = chainActive.Tip();
@@ -7183,6 +7188,31 @@ bool CWallet::BackupWallet(const std::string& strDest)
         MilliSleep(100);
     }
     return false;
+}
+
+bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)
+{
+    bip47::CAccountReceiver & newAcc = bip47wallet->createReceivingAccount(label);
+    {
+        LOCK(cs_wallet);
+        //
+    }
+    return newAcc.getMyPcode();
+}
+
+std::vector<std::pair<std::string, std::string>> CWallet::ListPcodes()
+{
+    std::vector<std::pair<std::string, std::string>> result;
+    bip47wallet->enumerateAccounts(
+        [&result](bip47::CAccountPtr pacc)
+        {
+            bip47::CAccountReceiver const * acc = dynamic_cast<bip47::CAccountReceiver const *>(pacc.get());
+            if(acc) {
+                result.push_back(std::make_pair(acc->getMyPcode().toString(), acc->getLabel()));
+            }
+        }
+    );
+    return result;
 }
 
 CKeyPool::CKeyPool()

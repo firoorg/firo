@@ -56,7 +56,7 @@ CPaymentCode const & CPaymentChannel::getMyPcode() const
     return *myPcode;
 }
 
-std::vector<CBitcoinAddress> CPaymentChannel::generateMySecretAddresses(size_t fromAddr, size_t uptoAddr) const
+CPaymentChannel::AddrContT CPaymentChannel::generateMySecretAddresses(size_t fromAddr, size_t uptoAddr) const
 {
     static GroupElement const G(GroupElement().set_base_g());
     CExtPubKey theirPubkey = theirPcode.getNthPubkey(0);

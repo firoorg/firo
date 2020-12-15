@@ -78,11 +78,9 @@ bool CAccountSender::markAddressUsed(CBitcoinAddress const & address)
 
 /******************************************************************************/
 
-CAccountReceiver::CAccountReceiver(CExtKey const & walletKey, size_t accountNum)
-: CAccountBase(walletKey, accountNum)
-{
-
-}
+CAccountReceiver::CAccountReceiver(CExtKey const & walletKey, size_t accountNum, std::string const & label)
+: CAccountBase(walletKey, accountNum), label(label)
+{}
 
 CBitcoinAddress const & CAccountReceiver::getMyNotificationAddress() const
 {
@@ -103,6 +101,11 @@ namespace {
 bool CAccountReceiver::findTheirPcode(CPaymentCode const & pcode) const
 {
     return std::find_if(pchannels.begin(), pchannels.end(), CompByPcode(pcode)) != pchannels.end();
+}
+
+std::string const & CAccountReceiver::getLabel() const
+{
+    return label;
 }
 
 CAccountBase::AddrContT const & CAccountReceiver::generateMyUsedAddresses()
@@ -161,25 +164,29 @@ CWallet::CWallet(std::vector<unsigned char> const & seedData)
     privkey = utils::derive(seedKey, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
 }
 
-CAccountPtr CWallet::createReceivingAccount()
+CWallet::CWallet(uint256 const & seedData)
+:CWallet({seedData.begin(), seedData.end()})
+{}
+
+CAccountReceiver & CWallet::createReceivingAccount(std::string const & label)
 {
     size_t const accNum = (accounts.empty() ? 0 : accounts.cend()->first + 1);
-    CAccountPtr pacc = std::shared_ptr<CAccountBase>(new CAccountReceiver(privkey, accNum));
-    accounts.emplace(accNum, pacc).first->second;
-    return pacc;
+    CAccountPtr pacc = std::shared_ptr<CAccountBase>(new CAccountReceiver(privkey, accNum, label));
+    accounts.emplace(accNum, pacc);
+    return static_cast<CAccountReceiver &>(*pacc);
 }
 
-CAccountPtr CWallet::provideSendingAccount(CPaymentCode const & theirPcode)
+CAccountSender & CWallet::provideSendingAccount(CPaymentCode const & theirPcode)
 {
     for(std::pair<size_t, CAccountPtr const> const & acc : accounts) {
-        CAccountSender const * pacc = dynamic_cast<CAccountSender const *>(acc.second.get());
+        CAccountSender * pacc = dynamic_cast<CAccountSender *>(acc.second.get());
         if(pacc && pacc->getTheirPcode() == theirPcode)
-            return acc.second;
+            return *pacc;
     }
     size_t const accNum = (accounts.empty() ? 0 : accounts.cend()->first + 1);
     CAccountPtr pacc = std::shared_ptr<CAccountBase>(new CAccountSender(privkey, accNum, theirPcode));
     accounts.emplace(accNum, pacc);
-    return pacc;
+    return static_cast<CAccountSender &>(*pacc);
 }
 
 }

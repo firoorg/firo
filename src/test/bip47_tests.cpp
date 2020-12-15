@@ -289,7 +289,7 @@ BOOST_AUTO_TEST_CASE(account_for_sending)
         bip47::CWallet wallet(bip32seed);
         CPaymentCode const paymentCode_bob(bob::paymentcode);
 
-        bip47::CAccountSender * account = dynamic_cast<CAccountSender*>(wallet.provideSendingAccount(paymentCode_bob).get());
+        bip47::CAccountSender & account = wallet.provideSendingAccount(paymentCode_bob);
 
         std::vector<unsigned char> const outPointSer = ParseHex("86f411ab1c8e70ae8a0795ab7a6757aea6e4d5ae1826fc7b8f00c597d500609c01000000");
         CDataStream ds(outPointSer, SER_NETWORK, 0);
@@ -300,19 +300,19 @@ BOOST_AUTO_TEST_CASE(account_for_sending)
         vchSecret.SetString("Kx983SRhAZpAhj7Aac1wUXMJ6XZeyJKqCxJJ49dxEbYCT4a1ozRD");
         CKey outpoinSecret = vchSecret.GetKey();
 
-        BOOST_CHECK_EQUAL(HexStr(account->getMaskedPayload(outpoint, outpoinSecret)), maskedpayload);
+        BOOST_CHECK_EQUAL(HexStr(account.getMaskedPayload(outpoint, outpoinSecret)), maskedpayload);
 
-        CAccountBase::AddrContT addresses = account->getMyNextAddresses();
+        CAccountBase::AddrContT addresses = account.getMyNextAddresses();
         CBitcoinAddress notifAddr = addresses[0];
         BOOST_CHECK_EQUAL(addresses.size(), 1);
         BOOST_CHECK_EQUAL(addresses[0].ToString(), notificationaddress);
-        BOOST_CHECK(account->addressUsed(addresses[0]));
+        BOOST_CHECK(account.addressUsed(addresses[0]));
 
-        addresses = account->getMyNextAddresses();
+        addresses = account.getMyNextAddresses();
         BOOST_CHECK(addresses[0] == notifAddr);
-        BOOST_CHECK(account->addressUsed(notifAddr));
+        BOOST_CHECK(account.addressUsed(notifAddr));
 
-        addresses = account->getMyUsedAddresses();
+        addresses = account.getMyUsedAddresses();
         BOOST_CHECK(addresses.empty());
     }
 }
@@ -325,7 +325,7 @@ BOOST_AUTO_TEST_CASE(account_for_receiving)
         bip47::CWallet wallet(bip32seed);
         CPaymentCode const paymentCode_bob(bob::paymentcode);
 
-        bip47::CAccountReceiver & account = dynamic_cast<bip47::CAccountReceiver&>(*wallet.createReceivingAccount());
+        bip47::CAccountReceiver & account = wallet.createReceivingAccount("");
 
         BOOST_CHECK_EQUAL(account.getMyPcode().toString(), paymentcode);
         BOOST_CHECK_EQUAL(account.getMyNotificationAddress().ToString(), notificationaddress);
