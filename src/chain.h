@@ -15,6 +15,7 @@
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
 #include "sigma/coin.h"
+#include "evo/spork.h"
 #include "zerocoin_params.h"
 #include "util.h"
 #include "chainparams.h"
@@ -251,7 +252,7 @@ public:
 
     //! list of disabling sporks active at this block height
     //! map {feature name} -> {block number when feature is re-enabled again, parameter}
-    std::map<std::string, std::pair<int, int64_t>> activeDisablingSporks;
+    ActiveSporkMap activeDisablingSporks;
 
     void SetNull()
     {

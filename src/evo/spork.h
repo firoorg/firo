@@ -8,6 +8,8 @@
 class CBlockIndex;
 class UniValue;
 
+typedef std::map<std::string, std::pair<int, int64_t>> ActiveSporkMap;
+
 // one action to perform. Spork transaction can have multiple actions
 struct CSporkAction
 {
@@ -117,6 +119,12 @@ public:
     // test if transaction is allowed under current spork set
     bool IsTransactionAllowed(const CTransaction &tx, const CBlockIndex *pindex, CValidationState &state);
 
+    // low level function to update spork state given previous state and new set of spork txs
+    bool UpdateActiveSporkMap(ActiveSporkMap &sporkMap, const ActiveSporkMap &previousSporkMap, int nHeight, const std::vector<CTransactionRef> &sporkTransactions);
+
+    // test if block is valid under current spork set
+    bool IsBlockAllowed(const CBlock &block, const CBlockIndex *pindex, CValidationState &state);
+
     static CSporkManager *GetSporkManager() { return sharedSporkManager; };
 };
 
@@ -124,7 +132,7 @@ class CMempoolSporkManager
 {
 private:
     // map of {feature name} -> {enable block height, parameter}
-    std::map<std::string, std::pair<int, int64_t>> mempoolSporks;
+    ActiveSporkMap mempoolSporks;
 
 public:
     CMempoolSporkManager() {}
@@ -140,7 +148,7 @@ public:
     // test if the feature is enabled
     bool IsFeatureEnabled(const std::string &featureName) const;
     bool IsTransactionAllowed(const CTransaction &tx, CValidationState &state) const;
-    std::map<std::string, std::pair<int, int64_t>> GetActiveSporks() const { return mempoolSporks; }
+    ActiveSporkMap GetActiveSporks() const { return mempoolSporks; }
 };
 
 #endif

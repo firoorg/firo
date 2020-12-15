@@ -76,8 +76,8 @@ static void FundTransaction(CMutableTransaction& tx, SimpleUTXOMap& utoxs, const
         tx.vin.emplace_back(CTxIn(inputs[i]));
     }
     tx.vout.emplace_back(CTxOut(amount, scriptPayout));
-    if (change != 0) {
-        tx.vout.emplace_back(CTxOut(change, scriptPayout));
+    if (change > COIN/10) {
+        tx.vout.emplace_back(CTxOut(change-COIN/10, scriptPayout));
     }
 }
 
@@ -264,7 +264,7 @@ BOOST_AUTO_TEST_CASE(limit)
     });
 
     std::vector<CMutableTransaction> lelantusMints;
-    for (int i=0; i<4; i++) {
+    for (int i=0; i<10; i++) {
         std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
         std::vector<CHDMint> mints;
         std::string error = pwalletMain->MintAndStoreLelantus(50*COIN, wtxAndFee, mints);
@@ -288,9 +288,39 @@ BOOST_AUTO_TEST_CASE(limit)
     auto joinsplit = lelantus::ParseLelantusJoinSplit(jsTx.vin[0]);
     vector<Scalar> serials = joinsplit->getCoinSerialNumbers();
 
-    GenerateBlock({sporkTx1});
+    // generate two smaller joinsplit txs
+    CWalletTx jsSmallWalletTxs[2];
+    pwalletMain->JoinSplitLelantus({{script, 70*COIN, false}}, {}, jsSmallWalletTxs[0]);
+    pwalletMain->JoinSplitLelantus({{script, 70*COIN, false}}, {}, jsSmallWalletTxs[1]);
 
-    // joinsplit tx is out of range, should fail now
+    CMutableTransaction jsSmallTxs[2] = {*jsSmallWalletTxs[0].tx, *jsSmallWalletTxs[1].tx};
+
+    CommitToMempool(sporkTx1);
+    BOOST_ASSERT(::mempool.size() == 3);    // two small joinsplits and spork
+
+    fAllowMempoolTxsInCreateBlock = true;
+    CBlock block = CreateBlock({}, script);
+    // should only have one joinsplit transaction in the block
+    int nJoinSplits = 0;
+    for (CTransactionRef ptx: block.vtx) {
+        if (ptx->IsLelantusJoinSplit())
+            nJoinSplits++;
+    }
+    BOOST_ASSERT(nJoinSplits == 1);
+    prevHeight = chainActive.Height();
+    ProcessNewBlock(Params(), std::make_shared<CBlock>(block), true, nullptr);
+    BOOST_ASSERT(chainActive.Height() == prevHeight+1);
+    // one joinsplit should be left at the mempool
+    BOOST_ASSERT(::mempool.size() == 1);
+
+    // mine remaining joinsplit into the block
+    prevHeight = chainActive.Height();
+    GenerateBlock({});
+    BOOST_ASSERT(chainActive.Height() == prevHeight+1);
+    BOOST_ASSERT(::mempool.size() == 0);
+    fAllowMempoolTxsInCreateBlock = false;
+
+    // large joinsplit tx is out of range, should fail now
     BOOST_ASSERT(!CommitToMempool(jsTx));
     // should fail in block as well
     prevHeight = chainActive.Height();

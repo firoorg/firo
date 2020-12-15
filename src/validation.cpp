@@ -2729,10 +2729,10 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     // evo spork handling
     // back up spork state if fJustCheck is true
     auto sporkSetBackup = pindex->activeDisablingSporks;
+    CSporkManager *sporkManager = CSporkManager::GetSporkManager();
 
     if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
                 pindex->nHeight < chainparams.GetConsensus().nEvoSporkStopBlock) {
-        CSporkManager *sporkManager = CSporkManager::GetSporkManager();
         if (!sporkManager->BlockConnected(block, pindex)) {
             pindex->activeDisablingSporks = sporkSetBackup;
             return false;
@@ -2748,6 +2748,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     if (!ConnectBlockZC(state, chainparams, pindex, &block, fJustCheck) ||
         !sigma::ConnectBlockSigma(state, chainparams, pindex, &block, fJustCheck) ||
         !lelantus::ConnectBlockLelantus(state, chainparams, pindex, &block, fJustCheck))
+        return false;
+
+    if (!sporkManager->IsBlockAllowed(block, pindex, state))
         return false;
 
     if (fJustCheck) {

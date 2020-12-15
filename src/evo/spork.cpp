@@ -60,14 +60,7 @@ static bool IsTransactionAllowed(const CTransaction &tx, const std::map<std::str
         if (tx.IsLelantusJoinSplit()) {
             const auto &limitSpork = sporkMap.find(CSporkAction::featureLelantusTransparentLimit);
             if (limitSpork != sporkMap.cend()) {
-                CAmount transparentOutAmount = 0;
-
-                for (const CTxOut &txout: tx.vout) {
-                    if (!txout.scriptPubKey.IsLelantusMint())
-                        transparentOutAmount += txout.nValue;
-                }
-
-                if (transparentOutAmount > (CAmount)limitSpork->second.second)
+                if (lelantus::GetSpendTransparentAmount(tx) > (CAmount)limitSpork->second.second)
                     return state.DoS(100, false, REJECT_CONFLICT, "txn-lelantus-disabled", false, "Lelantus transaction is over the transparent limit");
             }
         }
@@ -117,19 +110,24 @@ CSporkManager *CSporkManager::sharedSporkManager = new CSporkManager();
 
 bool CSporkManager::BlockConnected(const CBlock &block, CBlockIndex *pindex)
 {
+    return UpdateActiveSporkMap(pindex->activeDisablingSporks, pindex->pprev->activeDisablingSporks, pindex->nHeight, block.vtx);
+}
+
+bool CSporkManager::UpdateActiveSporkMap(ActiveSporkMap &sporkMap, const ActiveSporkMap &previousSporkMap, int nHeight, const std::vector<CTransactionRef> &sporkTransactions)
+{
     const Consensus::Params &chainParams = Params().GetConsensus();
 
-    if (!(pindex->nHeight >= chainParams.nEvoSporkStartBlock && pindex->nHeight < chainParams.nEvoSporkStopBlock))
+    if (!(nHeight >= chainParams.nEvoSporkStartBlock && nHeight < chainParams.nEvoSporkStopBlock))
         return true;
 
-    pindex->activeDisablingSporks.clear();
-    for (const auto &prevIndexSpork: pindex->pprev->activeDisablingSporks) {
+    sporkMap.clear();
+    for (const auto &prevIndexSpork: previousSporkMap) {
         // check if spork is expired at new block height
-        if (!(prevIndexSpork.second.first != 0 && pindex->nHeight >= prevIndexSpork.second.first))
-            pindex->activeDisablingSporks.insert(prevIndexSpork);
+        if (!(prevIndexSpork.second.first != 0 && nHeight >= prevIndexSpork.second.first))
+            sporkMap.insert(prevIndexSpork);
     }
 
-    for (CTransactionRef ptx: block.vtx) {
+    for (CTransactionRef ptx: sporkTransactions) {
         if (ptx->nVersion >= 3 && ptx->nType == TRANSACTION_SPORK) {
             CSporkTx sporkTx;
             if (!GetTxPayload<CSporkTx>(*ptx, sporkTx))
@@ -138,15 +136,14 @@ bool CSporkManager::BlockConnected(const CBlock &block, CBlockIndex *pindex)
             for (const CSporkAction &action: sporkTx.actions) {
                 switch (action.actionType) {
                 case CSporkAction::sporkEnable:
-                    if (pindex->activeDisablingSporks.count(action.feature) > 0)
-                        // enable immediately
-                        pindex->activeDisablingSporks.erase(action.feature);
+                    // enable immediately
+                    sporkMap.erase(action.feature);
                     break;
                 
                 case CSporkAction::sporkDisable:
                 case CSporkAction::sporkLimit:
-                    if (action.nEnableAtHeight == 0 || (action.nEnableAtHeight != 0 && pindex->nHeight < action.nEnableAtHeight))
-                        pindex->activeDisablingSporks[action.feature] = std::pair<int, int64_t>(action.nEnableAtHeight, action.parameter);
+                    if (action.nEnableAtHeight == 0 || (action.nEnableAtHeight != 0 && nHeight < action.nEnableAtHeight))
+                        sporkMap[action.feature] = std::pair<int, int64_t>(action.nEnableAtHeight, action.parameter);
                     break;
                 }
             }
@@ -156,13 +153,34 @@ bool CSporkManager::BlockConnected(const CBlock &block, CBlockIndex *pindex)
     return true;
 }
 
-bool CSporkManager::IsFeatureEnabled(const std::string &featureName, const CBlockIndex *pindex) {
-    return pindex->activeDisablingSporks.count(featureName) > 0;
+bool CSporkManager::IsFeatureEnabled(const std::string &featureName, const CBlockIndex *pindex)
+{
+    return pindex->activeDisablingSporks.count(featureName) == 0;
 }
 
 bool CSporkManager::IsTransactionAllowed(const CTransaction &tx, const CBlockIndex *pindex, CValidationState &state)
 {
     return ::IsTransactionAllowed(tx, pindex->activeDisablingSporks, state);
+}
+
+bool CSporkManager::IsBlockAllowed(const CBlock &block, const CBlockIndex *pindex, CValidationState &state) {
+    if (pindex->activeDisablingSporks.count(CSporkAction::featureLelantusTransparentLimit) > 0) {
+        // limit total transparent output of lelantus joinsplit
+        int64_t limit = pindex->activeDisablingSporks.at(CSporkAction::featureLelantusTransparentLimit).second;
+        CAmount totalTransparentOutput = 0;
+
+        for (const auto &tx: block.vtx) {
+            if (!tx->IsLelantusJoinSplit())
+                continue;
+
+            totalTransparentOutput += lelantus::GetSpendTransparentAmount(*tx);
+        }
+
+        return totalTransparentOutput <= CAmount(limit) ? true :
+                state.DoS(100, false, REJECT_CONFLICT, "txn-lelantus-disabled", false, "Block is over the transparent output limit because of existing spork");
+    }
+
+    return true;
 }
 
 // CMempoolSporkManager
