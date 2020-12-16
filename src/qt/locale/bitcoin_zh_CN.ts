@@ -330,6 +330,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
 </context>
 <context>
     <name>FiroGUI</name>
+    <name>BitcoinGUI</name>
     <message>
         <source>Sign &amp;message...</source>
         <translation>消息签名(&amp;M)...</translation>
