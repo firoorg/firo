@@ -51,7 +51,7 @@ bool CheckSporkTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValida
     return true;
 }
 
-static bool IsTransactionAllowed(const CTransaction &tx, const std::map<std::string, std::pair<int, int64_t>> &sporkMap, CValidationState &state)
+static bool IsTransactionAllowed(const CTransaction &tx, const ActiveSporkMap &sporkMap, CValidationState &state)
 {
     if (tx.IsLelantusTransaction()) {
         if (sporkMap.count(CSporkAction::featureLelantus) > 0)
@@ -158,9 +158,9 @@ bool CSporkManager::IsFeatureEnabled(const std::string &featureName, const CBloc
     return pindex->activeDisablingSporks.count(featureName) == 0;
 }
 
-bool CSporkManager::IsTransactionAllowed(const CTransaction &tx, const CBlockIndex *pindex, CValidationState &state)
+bool CSporkManager::IsTransactionAllowed(const CTransaction &tx, const ActiveSporkMap &sporkMap, CValidationState &state)
 {
-    return ::IsTransactionAllowed(tx, pindex->activeDisablingSporks, state);
+    return ::IsTransactionAllowed(tx, sporkMap, state);
 }
 
 bool CSporkManager::IsBlockAllowed(const CBlock &block, const CBlockIndex *pindex, CValidationState &state) {

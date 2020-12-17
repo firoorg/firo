@@ -2740,7 +2740,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
         // check if transaction is allowed under spork rules
         for (CTransactionRef tx: block.vtx) {
-            if (!sporkManager->IsTransactionAllowed(*tx, pindex, state))
+            if (!sporkManager->IsTransactionAllowed(*tx, pindex->activeDisablingSporks, state))
                 return false;
         }
     }

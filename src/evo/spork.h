@@ -117,7 +117,7 @@ public:
     bool IsFeatureEnabled(const std::string &featureName, const CBlockIndex *pindex);
 
     // test if transaction is allowed under current spork set
-    bool IsTransactionAllowed(const CTransaction &tx, const CBlockIndex *pindex, CValidationState &state);
+    bool IsTransactionAllowed(const CTransaction &tx, const ActiveSporkMap &sporkMap, CValidationState &state);
 
     // low level function to update spork state given previous state and new set of spork txs
     bool UpdateActiveSporkMap(ActiveSporkMap &sporkMap, const ActiveSporkMap &previousSporkMap, int nHeight, const std::vector<CTransactionRef> &sporkTransactions);

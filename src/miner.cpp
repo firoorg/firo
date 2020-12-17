@@ -936,6 +936,15 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
     ActiveSporkMap sporkMap;
     sporkManager->UpdateActiveSporkMap(sporkMap, prevSporkMap, chainActive.Tip()->nHeight+1, sporkTxRefs);
 
+    // blacklist all the transactions not allowed under the spork set
+    if (!sporkMap.empty()) {
+        for (CTxMemPool::txiter mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi) {
+            CValidationState state;
+            if (!sporkManager->IsTransactionAllowed(mi->GetTx(), sporkMap, state))
+                mempool.CalculateDescendants(mi, txBlackList);
+        }
+    }
+
     // Now if we have limit on lelantus transparent outputs scan mempool and drop all the transactions exceeding the limit
     if (sporkMap.count(CSporkAction::featureLelantusTransparentLimit) > 0) {
         CAmount limit = sporkMap[CSporkAction::featureLelantusTransparentLimit].second;
