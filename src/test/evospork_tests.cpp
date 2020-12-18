@@ -168,7 +168,7 @@ BOOST_AUTO_TEST_CASE(general)
     BOOST_ASSERT(chainActive.Height() == prevHeight+1);
 
     std::vector<CMutableTransaction> lelantusMints;
-    GenerateMints({1,2}, lelantusMints);
+    GenerateMints({1*COIN, 2*COIN}, lelantusMints);
 
     prevHeight = chainActive.Height();
     GenerateBlock(lelantusMints);
@@ -209,9 +209,12 @@ BOOST_AUTO_TEST_CASE(mempool)
     CMutableTransaction sporkTx1 = CreateSporkTx(utxos, coinbaseKey, {
         {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 1010}
     });
+    CMutableTransaction sporkTx2 = CreateSporkTx(utxos, coinbaseKey, {
+        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 1020}
+    });
 
     std::vector<CMutableTransaction> lelantusMints;
-    GenerateMints({1,2}, lelantusMints);
+    GenerateMints({1*COIN, 2*COIN}, lelantusMints);
     ::mempool.removeRecursive(lelantusMints[0]);
     ::mempool.removeRecursive(lelantusMints[1]);
 
@@ -248,6 +251,19 @@ BOOST_AUTO_TEST_CASE(mempool)
 
     // spork expired, should accept now
     BOOST_ASSERT(CommitToMempool(lelantusMints[1]));
+    // try and generate a block with second spork without it ever entering the mempool
+    CreateAndProcessBlock({sporkTx2}, coinbaseKey);
+    // now we have a mint in the mempool and active spork. Verify that miner correctly blocks the mint
+    // from being mined
+    fAllowMempoolTxsInCreateBlock = true;
+    CBlock block = CreateBlock({}, coinbaseKey);
+    for (CTransactionRef tx: block.vtx) {
+        BOOST_ASSERT(!tx->IsLelantusTransaction());
+    }
+    BOOST_ASSERT(::mempool.exists(lelantusMints[1].GetHash()));
+    prevHeight = chainActive.Height();
+    ProcessNewBlock(Params(), std::make_shared<CBlock>(block), true, nullptr);
+    BOOST_ASSERT(chainActive.Height() == prevHeight+1);
 }
 
 BOOST_AUTO_TEST_CASE(limit)
@@ -342,6 +358,77 @@ BOOST_AUTO_TEST_CASE(limit)
     // serials should go into the state
     for (Scalar serial: serials)
         BOOST_ASSERT(lelantus::CLelantusState::GetState()->IsUsedCoinSerial(serial));
+}
+
+BOOST_AUTO_TEST_CASE(startstopblock)
+{
+    int prevHeight;
+    pwalletMain->SetBroadcastTransactions(true);
+
+    for (int n=chainActive.Height(); n<700; n++)
+        GenerateBlock({});
+
+    auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
+    CMutableTransaction sporkTx1 = CreateSporkTx(utxos, coinbaseKey, {
+        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 1010}
+    });
+    CMutableTransaction sporkTx2 = CreateSporkTx(utxos, coinbaseKey, {
+        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 0}
+    });
+    CMutableTransaction sporkTx3 = CreateSporkTx(utxos, coinbaseKey, {
+        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 2000}
+    });
+
+    // spork can't be put into the mempool/mined yet
+    BOOST_ASSERT(!CommitToMempool(sporkTx1));
+    prevHeight = chainActive.Height();
+    CreateAndProcessBlock({sporkTx1}, coinbaseKey);
+    BOOST_ASSERT(chainActive.Height() == prevHeight);
+
+    for (int n=chainActive.Height(); n<1000; n++)
+        GenerateBlock({});
+
+    // now we can mine sporkTx1
+    prevHeight = chainActive.Height();
+    CreateAndProcessBlock({sporkTx1}, coinbaseKey);
+    BOOST_ASSERT(chainActive.Height() == prevHeight+1);
+
+    // sporkTx3 can't be mined because it's stopping block is beyond spork window
+    prevHeight = chainActive.Height();
+    CreateAndProcessBlock({sporkTx3}, coinbaseKey);
+    BOOST_ASSERT(chainActive.Height() == prevHeight);
+
+    std::vector<CMutableTransaction> lelantusMints;
+    GenerateMints({1*COIN}, lelantusMints);
+
+    GenerateBlock({});
+
+    // can't get mints to the block
+    prevHeight = chainActive.Height();
+    CreateAndProcessBlock({lelantusMints[0]}, coinbaseKey);
+    BOOST_ASSERT(chainActive.Height() == prevHeight);
+
+    // mine spork tx without stop block
+    prevHeight = chainActive.Height();
+    CreateAndProcessBlock({sporkTx2}, coinbaseKey);
+    BOOST_ASSERT(chainActive.Height() == prevHeight+1);
+
+    // shouldn't bet able to get mint to the block
+    prevHeight = chainActive.Height();
+    CreateAndProcessBlock({lelantusMints[0]}, coinbaseKey);
+    BOOST_ASSERT(chainActive.Height() == prevHeight);
+
+    // go to the end of the spork window and try again
+    for (int n=chainActive.Height(); n<1500; n++)
+        GenerateBlock({});
+
+    // should work now
+    prevHeight = chainActive.Height();
+    CreateAndProcessBlock({lelantusMints[0]}, coinbaseKey);
+    BOOST_ASSERT(chainActive.Height() == prevHeight+1);
+
+    // test if spork set is empty
+    BOOST_ASSERT(chainActive.Tip()->activeDisablingSporks.empty());
 }
 
 

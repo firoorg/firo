@@ -823,7 +823,7 @@ public:
 
         // evo spork
         consensus.evoSporkKeyID = "TSpmHGzQT4KJrubWa4N2CRmpA7wKMMWDg4";  // private key is cW2YM2xaeCaebfpKguBahUAgEzLXgSserWRuD29kSyKHq1TTgwRQ
-        consensus.nEvoSporkStartBlock = 500;
+        consensus.nEvoSporkStartBlock = 1000;
         consensus.nEvoSporkStopBlock = 1500;
 
         // Dandelion related values.
