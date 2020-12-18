@@ -7194,8 +7194,11 @@ bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)
 {
     bip47::CAccountReceiver & newAcc = bip47wallet->createReceivingAccount(label);
     {
+        bip47::MyAddrContT addrs = newAcc.getMyNextAddresses();
         LOCK(cs_wallet);
-        //
+        for(bip47::MyAddrContT::value_type const & addr : addrs) {
+            AddKey(addr.second);
+        }
     }
     return newAcc.getMyPcode();
 }

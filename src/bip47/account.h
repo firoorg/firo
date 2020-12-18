@@ -3,6 +3,7 @@
 
 #include <map>
 
+#include "bip47/defs.h"
 #include "bip47/paymentcode.h"
 #include "bip47/paymentchannel.h"
 #include "key.h"
@@ -18,10 +19,8 @@ public:
     CAccountBase(CExtKey const & walletKey, size_t accountNum); 
     virtual ~CAccountBase() = default;
 
-    typedef std::vector<CBitcoinAddress> AddrContT;
-
-    AddrContT const & getMyUsedAddresses();
-    AddrContT const & getMyNextAddresses();
+    MyAddrContT const & getMyUsedAddresses();
+    MyAddrContT const & getMyNextAddresses();
     bool addressUsed(CBitcoinAddress const & address);
 
     CPaymentCode const & getMyPcode() const;
@@ -32,8 +31,8 @@ protected:
 private:
     boost::optional<CPaymentCode> mutable myPcode;
 
-    virtual AddrContT const & generateMyUsedAddresses() = 0;
-    virtual AddrContT const & generateMyNextAddresses() = 0;
+    virtual MyAddrContT const & generateMyUsedAddresses() = 0;
+    virtual MyAddrContT const & generateMyNextAddresses() = 0;
     virtual bool markAddressUsed(CBitcoinAddress const &) = 0;
 };
 
@@ -59,8 +58,8 @@ private:
     CPaymentCode theirPcode;
     boost::optional<CPaymentChannel> mutable pchannel;
 
-    virtual AddrContT const & generateMyUsedAddresses();
-    virtual AddrContT const & generateMyNextAddresses();
+    virtual MyAddrContT const & generateMyUsedAddresses();
+    virtual MyAddrContT const & generateMyNextAddresses();
     virtual bool markAddressUsed(CBitcoinAddress const &);
 };
 
@@ -88,12 +87,12 @@ private:
     PChannelContT mutable pchannels;
     boost::optional<CBitcoinAddress> mutable myNotificationAddress;
 
-    AddrContT usedAddresses;
-    AddrContT nextAddresses;
+    MyAddrContT usedAddresses;
+    MyAddrContT nextAddresses;
     std::string label;
 
-    virtual AddrContT const & generateMyUsedAddresses();
-    virtual AddrContT const & generateMyNextAddresses();
+    virtual MyAddrContT const & generateMyUsedAddresses();
+    virtual MyAddrContT const & generateMyNextAddresses();
     virtual bool markAddressUsed(CBitcoinAddress const &);
 };
 
@@ -120,8 +119,8 @@ private:
     CExtKey privkey;
 };
 
-template<class E>
-void CWallet::enumerateAccounts(E e)
+template<class UnaryFunction>
+void CWallet::enumerateAccounts(UnaryFunction e)
 {
     for(ContT::value_type const & val : accounts) {
         e(val.second);

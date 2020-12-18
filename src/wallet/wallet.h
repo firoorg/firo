@@ -1226,6 +1226,7 @@ public:
     /* Set the current HD master key (will reset the chain child index counters) */
     bool SetHDMasterKey(const CPubKey& key, const int cHDChainVersion=CHDChain().CURRENT_VERSION);
 
+    /* bip47 */
     /* Generates a new payment code and stores it into the wallet*/
     bip47::CPaymentCode GeneratePcode(std::string const & label);
 

@@ -15,12 +15,12 @@ CAccountBase::CAccountBase(CExtKey const & walletKey, size_t accountNum)
     pubkey = privkey.Neuter();
 }
 
-CAccountBase::AddrContT const & CAccountBase::getMyUsedAddresses()
+MyAddrContT const & CAccountBase::getMyUsedAddresses()
 {
     return generateMyUsedAddresses();
 }
 
-CAccountBase::AddrContT const & CAccountBase::getMyNextAddresses()
+MyAddrContT const & CAccountBase::getMyNextAddresses()
 {
     return generateMyNextAddresses();
 }
@@ -61,12 +61,12 @@ CPaymentCode const & CAccountSender::getTheirPcode() const
     return theirPcode;
 }
 
-CAccountBase::AddrContT const & CAccountSender::generateMyUsedAddresses()
+MyAddrContT const & CAccountSender::generateMyUsedAddresses()
 {
     return getPaymentChannel().generateMyUsedAddresses();
 }
 
-CAccountBase::AddrContT const & CAccountSender::generateMyNextAddresses()
+MyAddrContT const & CAccountSender::generateMyNextAddresses()
 {
     return getPaymentChannel().generateMyNextAddresses();
 }
@@ -108,21 +108,22 @@ std::string const & CAccountReceiver::getLabel() const
     return label;
 }
 
-CAccountBase::AddrContT const & CAccountReceiver::generateMyUsedAddresses()
+MyAddrContT const & CAccountReceiver::generateMyUsedAddresses()
 {
     usedAddresses.clear();
     for(CPaymentChannel & pchannel: pchannels) {
-        CPaymentChannel::AddrContT const & addrs = pchannel.generateMyUsedAddresses();
+        MyAddrContT const & addrs = pchannel.generateMyUsedAddresses();
         usedAddresses.insert(usedAddresses.end(), addrs.begin(), addrs.end());
     }
     return usedAddresses;
 }
 
-CAccountBase::AddrContT const & CAccountReceiver::generateMyNextAddresses()
+MyAddrContT const & CAccountReceiver::generateMyNextAddresses()
 {
     nextAddresses.clear();
+    nextAddresses.emplace_back(getMyPcode().getNotificationAddress(), bip47::utils::derive(privkey, {0}).key);
     for(CPaymentChannel & pchannel: pchannels) {
-        CPaymentChannel::AddrContT const & addrs = pchannel.generateMyNextAddresses();
+        MyAddrContT const & addrs = pchannel.generateMyNextAddresses();
         nextAddresses.insert(nextAddresses.end(), addrs.begin(), addrs.end());
     }
     return nextAddresses;

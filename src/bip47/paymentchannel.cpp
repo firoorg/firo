@@ -10,7 +10,7 @@ namespace bip47 {
 CPaymentChannel::CPaymentChannel(CPaymentCode const & theirPcode, CExtKey const & myChannelKey, Side side)
 : myChannelKey(myChannelKey), theirPcode(theirPcode), usedAddressCount(0), side(side)
 {
-    nextAddresses.push_back(getMyPcode().getNotificationAddress());
+    nextAddresses.push_back({getMyPcode().getNotificationAddress(), myChannelKey.key});
 }
 
 CPaymentCode const & CPaymentChannel::getTheirPcode() const
@@ -36,7 +36,7 @@ CBitcoinAddress generate(CKey const & privkey, CPubKey const & sharedSecretPubke
 }
 }
 
-std::vector<CBitcoinAddress> CPaymentChannel::generateTheirSecretAddresses(size_t fromAddr, size_t uptoAddr) const
+TheirAddrContT CPaymentChannel::generateTheirSecretAddresses(size_t fromAddr, size_t uptoAddr) const
 {
     static GroupElement const G(GroupElement().set_base_g());
     std::vector<CBitcoinAddress>  result;
@@ -56,14 +56,14 @@ CPaymentCode const & CPaymentChannel::getMyPcode() const
     return *myPcode;
 }
 
-CPaymentChannel::AddrContT CPaymentChannel::generateMySecretAddresses(size_t fromAddr, size_t uptoAddr) const
+MyAddrContT CPaymentChannel::generateMySecretAddresses(size_t fromAddr, size_t uptoAddr) const
 {
     static GroupElement const G(GroupElement().set_base_g());
     CExtPubKey theirPubkey = theirPcode.getNthPubkey(0);
-    std::vector<CBitcoinAddress>  result;
+    MyAddrContT  result;
     for(size_t i = fromAddr; i < uptoAddr; ++i) {
         CExtKey privkey = bip47::utils::derive(myChannelKey, {uint32_t(i)});
-        result.push_back(generate(privkey.key, theirPubkey.pubkey, privkey.key.GetPubKey()));
+        result.emplace_back(generate(privkey.key, theirPubkey.pubkey, privkey.key.GetPubKey()), privkey.key);
     }
     return result;
 }
@@ -96,19 +96,19 @@ std::vector<unsigned char> CPaymentChannel::getMaskedPayload(COutPoint const & o
     return payload;
 }
 
-CPaymentChannel::AddrContT const & CPaymentChannel::generateMyUsedAddresses()
+MyAddrContT const & CPaymentChannel::generateMyUsedAddresses()
 {
     if(side == Side::receiver && usedAddresses.size() < usedAddressCount) {
-        CPaymentChannel::AddrContT addrs = generateMySecretAddresses(usedAddresses.size(), usedAddressCount);
+        MyAddrContT addrs = generateMySecretAddresses(usedAddresses.size(), usedAddressCount);
         std::copy(addrs.begin(), addrs.end(), std::back_inserter(usedAddresses));
     }
     return usedAddresses;
 }
 
-CPaymentChannel::AddrContT const & CPaymentChannel::generateMyNextAddresses()
+MyAddrContT const & CPaymentChannel::generateMyNextAddresses()
 {
     if(side == Side::receiver && nextAddresses.size() < AddressLookaheadNumber) {
-        CPaymentChannel::AddrContT addrs = generateMySecretAddresses(usedAddressCount + nextAddresses.size() - 1, usedAddressCount + AddressLookaheadNumber);
+        MyAddrContT addrs = generateMySecretAddresses(usedAddressCount + nextAddresses.size() - 1, usedAddressCount + AddressLookaheadNumber);
         std::copy(addrs.begin(), addrs.end(), std::back_inserter(nextAddresses));
     }
     return nextAddresses;
@@ -119,8 +119,8 @@ bool CPaymentChannel::markAddressUsed(CBitcoinAddress const & address)
     if(address == getMyPcode().getNotificationAddress())
         return true;
     if(side == Side::receiver) {
-        AddrContT::iterator const begin = nextAddresses.begin() + 1;
-        AddrContT::iterator iter = std::find(begin, nextAddresses.end(), address);
+        MyAddrContT::iterator const begin = nextAddresses.begin() + 1;
+        MyAddrContT::iterator iter = std::find_if(begin, nextAddresses.end(), FindByAddress(address));
         if(iter == nextAddresses.end()) {
             return false;
         }

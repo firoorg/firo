@@ -285,6 +285,7 @@ BITCOIN_CORE_H = \
   hdmint/mintpool.h \
   hdmint/tracker.h \
   hdmint/wallet.h \
+  bip47/defs.h \
   bip47/account.h \
   bip47/address.h \
   bip47/paymentchannel.h \

@@ -240,8 +240,8 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
         CPaymentChannel paymentChannel_bob(paymentCode_alice, privkey_bob, CPaymentChannel::Side::receiver);
 
         std::vector<std::string>::const_iterator iter = alice::sendingaddresses.begin();
-        for(CBitcoinAddress const & addr: paymentChannel_bob.generateMySecretAddresses(0, 10)) {
-            BOOST_CHECK_EQUAL(addr.ToString(), *iter++);
+        for(bip47::MyAddrContT::value_type const & addr: paymentChannel_bob.generateMySecretAddresses(0, 10)) {
+            BOOST_CHECK_EQUAL(addr.first.ToString(), *iter++);
         }
     }
 }
@@ -302,14 +302,14 @@ BOOST_AUTO_TEST_CASE(account_for_sending)
 
         BOOST_CHECK_EQUAL(HexStr(account.getMaskedPayload(outpoint, outpoinSecret)), maskedpayload);
 
-        CAccountBase::AddrContT addresses = account.getMyNextAddresses();
-        CBitcoinAddress notifAddr = addresses[0];
+        MyAddrContT addresses = account.getMyNextAddresses();
+        CBitcoinAddress notifAddr = addresses[0].first;
         BOOST_CHECK_EQUAL(addresses.size(), 1);
-        BOOST_CHECK_EQUAL(addresses[0].ToString(), notificationaddress);
-        BOOST_CHECK(account.addressUsed(addresses[0]));
+        BOOST_CHECK_EQUAL(addresses[0].first.ToString(), notificationaddress);
+        BOOST_CHECK(account.addressUsed(addresses[0].first));
 
         addresses = account.getMyNextAddresses();
-        BOOST_CHECK(addresses[0] == notifAddr);
+        BOOST_CHECK(addresses[0].first == notifAddr);
         BOOST_CHECK(account.addressUsed(notifAddr));
 
         addresses = account.getMyUsedAddresses();
@@ -341,41 +341,41 @@ BOOST_AUTO_TEST_CASE(account_for_receiving)
 
         BOOST_CHECK(account.acceptMaskedPayload(ParseHex(alice::maskedpayload), outpoint, outpointPubkey));
 
-        CAccountBase::AddrContT addrs = account.getMyNextAddresses();
+        MyAddrContT addrs = account.getMyNextAddresses();
         BOOST_CHECK_EQUAL(addrs.size(), 1 + bip47::AddressLookaheadNumber);
-        BOOST_CHECK_EQUAL(addrs[0].ToString(), notificationaddress);
+        BOOST_CHECK_EQUAL(addrs[0].first.ToString(), notificationaddress);
 
         for(size_t i = 0; i < bip47::AddressLookaheadNumber; ++i) {
-            BOOST_CHECK_EQUAL(addrs[i+1].ToString(), alice::sendingaddresses[i]);
+            BOOST_CHECK_EQUAL(addrs[i+1].first.ToString(), alice::sendingaddresses[i]);
         }
 
-        BOOST_CHECK(account.addressUsed(addrs[0]));
+        BOOST_CHECK(account.addressUsed(addrs[0].first));
 
         addrs = account.getMyNextAddresses();
         BOOST_CHECK_EQUAL(addrs.size(), 1 + bip47::AddressLookaheadNumber);
-        BOOST_CHECK_EQUAL(addrs[0].ToString(), notificationaddress);
+        BOOST_CHECK_EQUAL(addrs[0].first.ToString(), notificationaddress);
 
-        CBitcoinAddress someAddr = addrs[2];
+        CBitcoinAddress someAddr = addrs[2].first;
         BOOST_CHECK(account.addressUsed(someAddr));
 
         addrs = account.getMyNextAddresses();
         BOOST_CHECK_EQUAL(addrs.size(), 1 + bip47::AddressLookaheadNumber);
-        BOOST_CHECK_EQUAL(addrs[0].ToString(), notificationaddress);
+        BOOST_CHECK_EQUAL(addrs[0].first.ToString(), notificationaddress);
 
         for(size_t i = 0; i < bip47::AddressLookaheadNumber - 2; ++i) {
-            BOOST_CHECK_EQUAL(addrs[i+1].ToString(), alice::sendingaddresses[i + 2]);
+            BOOST_CHECK_EQUAL(addrs[i+1].first.ToString(), alice::sendingaddresses[i + 2]);
         }
 
         addrs = account.getMyUsedAddresses();
         BOOST_CHECK_EQUAL(addrs.size(), 2);
         for(size_t i = 0; i < addrs.size(); ++i) {
-            BOOST_CHECK_EQUAL(addrs[i].ToString(), alice::sendingaddresses[i]);
+            BOOST_CHECK_EQUAL(addrs[i].first.ToString(), alice::sendingaddresses[i]);
         }
 
         BOOST_CHECK(!account.addressUsed(someAddr));
         BOOST_CHECK_EQUAL(addrs.size(), 2);
         for(size_t i = 0; i < addrs.size(); ++i) {
-            BOOST_CHECK_EQUAL(addrs[i].ToString(), alice::sendingaddresses[i]);
+            BOOST_CHECK_EQUAL(addrs[i].first.ToString(), alice::sendingaddresses[i]);
         }
 
         someAddr.SetString(alice::sendingaddresses[9]);
@@ -383,15 +383,15 @@ BOOST_AUTO_TEST_CASE(account_for_receiving)
         addrs = account.getMyUsedAddresses();
         BOOST_CHECK_EQUAL(addrs.size(), 10);
         for(size_t i = 0; i < addrs.size(); ++i) {
-            BOOST_CHECK_EQUAL(addrs[i].ToString(), alice::sendingaddresses[i]);
+            BOOST_CHECK_EQUAL(addrs[i].first.ToString(), alice::sendingaddresses[i]);
         }
 
         addrs = account.getMyNextAddresses();
         BOOST_CHECK_EQUAL(addrs.size(), 1 + bip47::AddressLookaheadNumber);
-        BOOST_CHECK_EQUAL(addrs[0].ToString(), notificationaddress);
+        BOOST_CHECK_EQUAL(addrs[0].first.ToString(), notificationaddress);
         for(std::string const & bobsaddr : alice::sendingaddresses) {
             someAddr.SetString(bobsaddr);
-            BOOST_CHECK(addrs.end() == std::find(addrs.begin(), addrs.end(), someAddr));
+            BOOST_CHECK(addrs.end() == std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(someAddr)));
         }
     }
 }
