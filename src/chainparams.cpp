@@ -387,9 +387,9 @@ public:
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
         consensus.nZerocoinToSigmaRemintWindowSize = 50000;
 
-        consensus.evoSporkKeyID = "";
-        consensus.nEvoSporkStartBlock = INT_MAX;
-        consensus.nEvoSporkStopBlock = INT_MAX;
+        consensus.evoSporkKeyID = "a78fERshquPsTv2TuKMSsxTeKom56uBwLP";
+        consensus.nEvoSporkStartBlock = ZC_LELANTUS_STARTING_BLOCK;
+        consensus.nEvoSporkStopBlock = ZC_LELANTUS_STARTING_BLOCK + 24*12*365;  // one year after lelantus
 
         // Dandelion related values.
         consensus.nDandelionEmbargoMinimum = DANDELION_EMBARGO_MINIMUM;
