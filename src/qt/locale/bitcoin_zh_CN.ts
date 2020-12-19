@@ -152,11 +152,11 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>12 Words</source>
-        <translation>12个字</translation>
+        <translation>12 个字</translation>
     </message>
     <message>
         <source>24 Words</source>
-        <translation>24个字</translation>
+        <translation>24 个字</translation>
     </message>
     <message>
         <source>Input words here:</source>
@@ -893,6 +893,10 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
 <context>
     <name>HelpMessageDialog</name>
     <message>
+        <source>Firo Core</source>
+        <translation>飞熔核心</translation>
+    </message>
+    <message>
         <source>version</source>
         <translation>版本</translation>
     </message>
@@ -902,7 +906,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>About %1</source>
-        <translation>關於 %1</translation>
+        <translation>关于 %1</translation>
     </message>
     <message>
         <source>Command-line options</source>
@@ -1615,6 +1619,26 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <message>
         <source>Confirm anonymize coins</source>
         <translation>确认匿名化货币</translation>
+    </message>
+    <message>
+        <source>Anonymize Coins</source>
+        <translation>匿名化货币</translation>
+    </message>
+    <message>
+        <source>The amount exceeds your balance.</source>
+        <translation>金额超出你的账上余额。</translation>
+    </message>
+    <message>
+        <source>The total exceeds your balance when the %1 transaction fee is included.</source>
+        <translation>计入 %1 交易费后的金额超出你的账上余额。</translation>
+    </message>
+    <message>
+        <source>The amount to pay must be larger than 0.</source>
+        <translation>支付金额必须大于 0。</translation>
+    </message>
+    <message>
+        <source>each transaction at least</source>
+        <translation>每笔交易至少</translation>
     </message>
 </context>
 <context>
@@ -2623,7 +2647,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>total at least</source>
-        <translation>最小额 </translation>
+        <translation>最小额</translation>
     </message>
     <message>
         <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Firo transactions than the network can process.</source>
@@ -2743,7 +2767,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>The amount to pay must be larger than 0.</source>
-        <translation>支付金额必须大于0。</translation>
+        <translation>支付金额必须大于 0。</translation>
     </message>
     <message>
         <source>The amount exceeds your balance.</source>
@@ -4347,6 +4371,18 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <message>
         <source>The required amount exceeds spend limit</source>
         <translation>金额超出最大支出限额</translation>
+    </message>
+    <message>
+        <source>Please contribute if you find %s useful. Visit %s for further information about the software.</source>
+        <translation>如果你觉得 %s 有用，请务必贡献一份力。访问 %s 以了解有关该软件的更多信息。</translation>
+    </message>
+    <message>
+        <source>Distributed under the MIT software license, see the accompanying file %s or %s</source>
+        <translation>在 MIT 协议下分发，参见附带的 %s 或 %s 文件</translation>
+    </message>
+    <message>
+        <source>This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit %s and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard.</source>
+        <translation>本产品包含 OpenSSL Project 开发的用于 OpenSSL Toolkit %s 的软件，以及 Eric Young 编写的加密软件和 Thomas Bernard 编写的 UPnP 软件。</translation>
     </message>
 </context>
 </TS>
