@@ -181,10 +181,10 @@ void OverviewPage::handleEnabledTorChanged(){
 
     if(ui->checkboxEnabledTor->isChecked()){
         settings.setValue("fTorSetup", true);
-        msgBox.setText("Please restart the Firo wallet to route your connection through Tor to protect your IP address. \nSyncing your wallet might be slower with TOR. \nNote that -torsetup in firo.conf will always override any changes made here.");
+        msgBox.setText(tr("Please restart the Firo wallet to route your connection through Tor to protect your IP address. <br>Syncing your wallet might be slower with TOR. <br>Note that -torsetup in firo.conf will always override any changes made here."));
     }else{
         settings.setValue("fTorSetup", false);
-        msgBox.setText("Please restart the Firo wallet to disable routing of your connection through Tor to protect your IP address. \nNote that -torsetup in firo.conf will always override any changes made here.");
+        msgBox.setText(tr("Please restart the Firo wallet to disable routing of your connection through Tor to protect your IP address. <br>Note that -torsetup in firo.conf will always override any changes made here."));
     }
     msgBox.exec();
 }
