@@ -102,6 +102,9 @@ if ENABLE_ZMQ:
 
 testScripts = [
     'lelantus_mint.py',
+    'lelantus_setmintstatus_validation.py',
+    'lelantus_mintspend.py',
+    'lelantus_spend_gettransaction.py',
     'elysium_create_denomination.py',
     'elysium_property_creation_fee.py',
     'elysium_sendmint.py',

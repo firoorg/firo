@@ -326,6 +326,8 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     BOOST_CHECK(lelantusState->IsUsedCoinSerial(serial1));
     BOOST_CHECK(lelantusState->IsUsedCoinSerial(serial2));
     BOOST_CHECK(!lelantusState->IsUsedCoinSerial(serial3));
+
+    lelantusState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_group)
@@ -493,6 +495,8 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     lelantusState->RemoveBlock(indexes[5]);
     verifyGroup(2, 6, indexes[2], indexes[4]);
     verifyGroup(1, 6, indexes[0], indexes[2], 1);
+
+    lelantusState->Reset();
 }
 
 // Surge condition testing

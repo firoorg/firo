@@ -1222,11 +1222,7 @@ std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureO
 
 std::vector<CLelantusMintMeta> CHDMintTracker::ListLelantusMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fLoad, bool fWrongSeed)
 {
-    std::vector<CLelantusMintMeta> vOverWrite;
-    std::set<uint256> setMempool = GetMempoolTxids();
-
     std::vector<CLelantusMintMeta> setMints;
-
     if (fLoad) {
         LOCK2(cs_main, pwalletMain->cs_wallet);
         CWalletDB walletdb(strWalletFile);
@@ -1237,6 +1233,9 @@ std::vector<CLelantusMintMeta> CHDMintTracker::ListLelantusMints(bool fUnusedOnl
         }
         LogPrint("zero", "%s: added %d lelantus hdmint from DB\n", __func__, listDeterministicDB.size());
     }
+
+    std::vector<CLelantusMintMeta> vOverWrite;
+    std::set<uint256> setMempool = GetMempoolTxids();
 
     for (auto& it : mapLelantusSerialHashes) {
         CLelantusMintMeta mint = it.second;
