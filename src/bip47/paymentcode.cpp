@@ -93,8 +93,8 @@ std::string CPaymentCode::toString() const
     return EncodeBase58Check(pc);
 }
 
-bool CPaymentCode::parse(std::string const & paymentCode)
-{
+namespace {
+bool validateImpl(std::string const & paymentCode, CPubKey & pubKey, ChainCode & chainCode) {
     std::vector<unsigned char> pcBytes;
     if (!DecodeBase58Check(paymentCode, pcBytes))
         return error("Cannot Base58-decode the payment code");
@@ -106,13 +106,26 @@ bool CPaymentCode::parse(std::string const & paymentCode)
         return error("invalid payment code version");
     }
     pubKey.Set(pcBytes.begin() + PUBLIC_KEY_X_OFFSET, pcBytes.begin() + PUBLIC_KEY_X_OFFSET + PUBLIC_KEY_COMPRESSED_LEN);
-    if ( pubKey[0] != 2 && pubKey[0] != 3 ) {
-        return error("invalid public key");
-    }
+    if(!pubKey.IsValid())
+        return false;
     std::copy(pcBytes.begin() + PUBLIC_KEY_X_OFFSET + PUBLIC_KEY_COMPRESSED_LEN, pcBytes.begin() + PUBLIC_KEY_X_OFFSET + PUBLIC_KEY_COMPRESSED_LEN + PUBLIC_KEY_X_LEN, chainCode.begin());
+    if(chainCode.IsNull())
+        return false;
     return true;
 }
+}
 
+bool CPaymentCode::parse(std::string const & paymentCode)
+{
+    return validateImpl(paymentCode, pubKey, chainCode);
+}
+
+bool CPaymentCode::validate(std::string const & paymentCode)
+{
+    CPubKey pubkey;
+    ChainCode chaincode;
+    return validateImpl(paymentCode, pubkey, chaincode);
+}
 
 CExtPubKey CPaymentCode::getNthPubkey(size_t idx) const
 {

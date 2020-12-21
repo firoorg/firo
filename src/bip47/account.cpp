@@ -174,6 +174,7 @@ CAccountReceiver & CWallet::createReceivingAccount(std::string const & label)
     size_t const accNum = (accounts.empty() ? 0 : accounts.cend()->first + 1);
     CAccountPtr pacc = std::shared_ptr<CAccountBase>(new CAccountReceiver(privkey, accNum, label));
     accounts.emplace(accNum, pacc);
+    LogBip47("Added pcode: %s, notification address: %s\n", pacc->getMyPcode().toString(), pacc->getMyPcode().getNotificationAddress().ToString());
     return static_cast<CAccountReceiver &>(*pacc);
 }
 

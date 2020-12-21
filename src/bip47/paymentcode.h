@@ -29,6 +29,8 @@ public:
 
     bool isValid() const;
 
+    static bool validate(std::string const & paymentCode);
+
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)
@@ -46,12 +48,9 @@ private:
     ChainCode  chainCode;
     CExtPubKey const & getChildPubKeyBase() const;
     boost::optional<CBitcoinAddress> mutable myNotificationAddress;
-   
-    bool parse(std::string const & paymentCode);
-
-    static std::vector<unsigned char> vector_xor(std::vector<unsigned char> a, std::vector<unsigned char> b);
-
     mutable boost::optional<CExtPubKey> childPubKeyBase;
+
+    bool parse(std::string const & paymentCode);
 };
 
 bool operator==(CPaymentCode const & lhs, CPaymentCode const & rhs);
