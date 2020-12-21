@@ -165,7 +165,12 @@ BOOST_AUTO_TEST_CASE(mintlelantus_and_mint_all)
         LOCK2(cs_main, pwalletMain->cs_wallet);
         std::vector<CScript> scripts;
         while (blocks != 0) {
-            auto key = pwalletMain->GenerateNewKey();
+
+            CPubKey key;
+            {
+                LOCK(pwalletMain->cs_wallet);
+                key = pwalletMain->GenerateNewKey();
+            }
             scripts.push_back(GetScriptForDestination(key.GetID()));
 
             auto blockCount = std::min(blocksPerScript, blocks);
@@ -261,7 +266,12 @@ BOOST_AUTO_TEST_CASE(spend)
 
     CWalletTx tx;
     std::vector<CRecipient> recipients;
-    auto pub = pwalletMain->GenerateNewKey();
+
+    CPubKey pub;
+    {
+        LOCK(pwalletMain->cs_wallet);
+        pub = pwalletMain->GenerateNewKey();
+    }
     recipients.push_back(CRecipient{
         .scriptPubKey = GetScriptForDestination(pub.GetID()),
         .nAmount = 5 * COIN,

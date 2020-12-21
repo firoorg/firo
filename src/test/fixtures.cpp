@@ -225,9 +225,6 @@ LelantusTestingSetup::LelantusTestingSetup() :
 }
 
 CBlockIndex* LelantusTestingSetup::GenerateBlock(std::vector<CMutableTransaction> const &txns, CScript *script) {
-    // NOTE: work around for deadlock problem, remove this when resolved
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-    LOCK(mempool.cs);
     auto last = chainActive.Tip();
 
     CreateAndProcessBlock(txns, script ? *script : this->script);

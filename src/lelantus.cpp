@@ -1019,7 +1019,9 @@ CLelantusState::CLelantusState(
     :containers(surgeCondition),
     maxCoinInGroup(maxCoinInGroup),
     startGroupSize(startGroupSize)
-{}
+{
+    Reset();
+}
 
 void CLelantusState::AddMintsToStateAndBlockIndex(
         CBlockIndex *index,
