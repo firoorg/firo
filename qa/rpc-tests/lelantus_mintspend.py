@@ -21,8 +21,8 @@ class LelantusMintSpendTest(BitcoinTestFramework):
 
         mint_trans = list()
         coin = 100000000;
-        mint_trans.append(self.nodes[0].mintlelantus(1 * coin))
-        mint_trans.append(self.nodes[0].mintlelantus(2 * coin))
+        mint_trans.append(self.nodes[0].mintlelantus(1))
+        mint_trans.append(self.nodes[0].mintlelantus(2))
 
         # Get last added transaction and fee for it
         info = self.nodes[0].gettransaction(mint_trans[-1])
@@ -53,7 +53,7 @@ class LelantusMintSpendTest(BitcoinTestFramework):
             res = False
             args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': coin}
             try:
-                res = self.nodes[0].joinsplit("", args)
+                res = self.nodes[0].joinsplit(args)
             except JSONRPCException as ex:
                 assert ex.error['message'] == 'Insufficient funds'
 
@@ -89,7 +89,7 @@ class LelantusMintSpendTest(BitcoinTestFramework):
         print(coin)
         args = {myaddr: coin}
 
-        spend_trans.append(self.nodes[0].joinsplit("", args))
+        spend_trans.append(self.nodes[0].joinsplit(args))
 
         info = self.nodes[0].gettransaction(spend_trans[-1])
         confrms = info['confirmations']

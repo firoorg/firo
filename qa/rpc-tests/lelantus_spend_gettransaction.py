@@ -33,7 +33,7 @@ class JoinSplitGettransactionTest(BitcoinTestFramework):
         self.sync_all()
 
         # case 1: Spend many with watchonly address
-        spendto_wo_id = self.nodes[0].joinsplit("", {watchonly_address: 1})
+        spendto_wo_id = self.nodes[0].joinsplit({watchonly_address: 1})
         spendto_wo_tx = self.nodes[0].gettransaction(spendto_wo_id)
 
         assert spendto_wo_tx['amount'] == Decimal('-1')
@@ -43,7 +43,7 @@ class JoinSplitGettransactionTest(BitcoinTestFramework):
         assert spendto_wo_tx['details'][0]['involvesWatchonly']
 
         # case 2: Spend many with watchonly address and valid address
-        spendto_wo_and_valid_id = self.nodes[0].joinsplit("", {watchonly_address: 1, valid_address: 2})
+        spendto_wo_and_valid_id = self.nodes[0].joinsplit({watchonly_address: 1, valid_address: 2})
         spendto_wo_and_valid_tx = self.nodes[0].gettransaction(spendto_wo_and_valid_id)
 
         assert spendto_wo_and_valid_tx['amount'] == Decimal('-1')
@@ -59,7 +59,7 @@ class JoinSplitGettransactionTest(BitcoinTestFramework):
         assert involves_watch_only_count == 1
 
         # case 3: spend many with watchonly address and invalid address
-        assert_raises(JSONRPCException, self.nodes[0].joinsplit, ["", {watchonly_address: 1, 'invalidaddress': 2}])
+        assert_raises(JSONRPCException, self.nodes[0].joinsplit, [{watchonly_address: 1, 'invalidaddress': 2}])
 
 if __name__ == '__main__':
     JoinSplitGettransactionTest().main()

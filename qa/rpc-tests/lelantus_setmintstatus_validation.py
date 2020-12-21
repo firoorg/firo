@@ -25,7 +25,7 @@ class SetLelantusMintSatusValidationWithFundsTest(BitcoinTestFramework):
 
         mint_info = lelantus_mint[0]
 
-        assert not mint_info['IsUsed'], \
+        assert not mint_info['isUsed'], \
             'This mint with txid: {} should not be Used.'.format(txid)
 
         print('Set mint status from False to True.')
@@ -38,7 +38,7 @@ class SetLelantusMintSatusValidationWithFundsTest(BitcoinTestFramework):
 
         mint_info = lelantus_mint[0]
 
-        assert mint_info['IsUsed'], \
+        assert mint_info['isUsed'], \
             'This mint with txid: {} should be Used.'.format(txid)
 
         print('Set mint status from True to False back.')
@@ -51,7 +51,7 @@ class SetLelantusMintSatusValidationWithFundsTest(BitcoinTestFramework):
 
         mint_info = lelantus_mint[0]
 
-        assert not mint_info['IsUsed'], \
+        assert not mint_info['isUsed'], \
             'This mint with txid: {} should not be Used.'.format(txid)
 
 
