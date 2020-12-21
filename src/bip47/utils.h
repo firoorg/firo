@@ -21,7 +21,7 @@ class CAccount;
 namespace utils {
 
 /******************************************************************************/
-bool pcodeFromMaskedPayload(std::vector<unsigned char> payload, COutPoint const & outpoint, CKey const & myPrivkey, CPubKey const & outPubkey, CPaymentCode & pcode);
+std::unique_ptr<CPaymentCode> pcodeFromMaskedPayload(std::vector<unsigned char> payload, COutPoint const & outpoint, CKey const & myPrivkey, CPubKey const & outPubkey);
 
 /******************************************************************************/
 CExtKey derive(CExtKey const & source, std::vector<uint32_t> const & path);

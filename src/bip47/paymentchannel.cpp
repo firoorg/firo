@@ -9,9 +9,7 @@ namespace bip47 {
 
 CPaymentChannel::CPaymentChannel(CPaymentCode const & theirPcode, CExtKey const & myChannelKey, Side side)
 : myChannelKey(myChannelKey), theirPcode(theirPcode), usedAddressCount(0), side(side)
-{
-    nextAddresses.push_back({getMyPcode().getNotificationAddress(), myChannelKey.key});
-}
+{}
 
 CPaymentCode const & CPaymentChannel::getTheirPcode() const
 {
@@ -108,7 +106,7 @@ MyAddrContT const & CPaymentChannel::generateMyUsedAddresses()
 MyAddrContT const & CPaymentChannel::generateMyNextAddresses()
 {
     if(side == Side::receiver && nextAddresses.size() < AddressLookaheadNumber) {
-        MyAddrContT addrs = generateMySecretAddresses(usedAddressCount + nextAddresses.size() - 1, usedAddressCount + AddressLookaheadNumber);
+        MyAddrContT addrs = generateMySecretAddresses(usedAddressCount + nextAddresses.size(), usedAddressCount + AddressLookaheadNumber);
         std::copy(addrs.begin(), addrs.end(), std::back_inserter(nextAddresses));
     }
     return nextAddresses;
@@ -119,7 +117,7 @@ bool CPaymentChannel::markAddressUsed(CBitcoinAddress const & address)
     if(address == getMyPcode().getNotificationAddress())
         return true;
     if(side == Side::receiver) {
-        MyAddrContT::iterator const begin = nextAddresses.begin() + 1;
+        MyAddrContT::iterator const begin = nextAddresses.begin();
         MyAddrContT::iterator iter = std::find_if(begin, nextAddresses.end(), FindByAddress(address));
         if(iter == nextAddresses.end()) {
             return false;

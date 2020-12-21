@@ -57,6 +57,7 @@ public:
 private:
     CPaymentCode theirPcode;
     boost::optional<CPaymentChannel> mutable pchannel;
+    MyAddrContT nextAddresses;
 
     virtual MyAddrContT const & generateMyUsedAddresses();
     virtual MyAddrContT const & generateMyNextAddresses();

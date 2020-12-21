@@ -11,13 +11,13 @@ using namespace std;
 namespace bip47 {
 namespace utils {
 
-bool pcodeFromMaskedPayload(std::vector<unsigned char> payload, COutPoint const & outpoint, CKey const & myPrivkey, CPubKey const & outPubkey, CPaymentCode & pcode)
+std::unique_ptr<CPaymentCode> pcodeFromMaskedPayload(std::vector<unsigned char> payload, COutPoint const & outpoint, CKey const & myPrivkey, CPubKey const & outPubkey)
 {
     if(payload[0] != 1 || payload[1] != 0) {
-        return false;
+        return nullptr;
     }
     if(payload[2] != 2 && payload[2] != 3) {
-        return false;
+        return nullptr;
     }
     using vector = std::vector<unsigned char>;
     vector const secretPointData = CSecretPoint(myPrivkey, outPubkey).getEcdhSecret();
@@ -37,8 +37,7 @@ bool pcodeFromMaskedPayload(std::vector<unsigned char> payload, COutPoint const 
 
     CPubKey pubkey(payload.begin() + 2, payload.begin() + 2 + 33); // pubkey starts at 2, its length is 33
     ChainCode chaincode({payload.begin() + 2 + 33, payload.begin() + 2 + 33 + 32}); // chain code starts at pubkey end, its length is 32
-    pcode = CPaymentCode(pubkey, chaincode);
-    return true;
+    return std::unique_ptr<CPaymentCode>(new CPaymentCode(pubkey, chaincode));
 }
 
 CExtKey derive(CExtKey const & source, std::vector<uint32_t> const & path)

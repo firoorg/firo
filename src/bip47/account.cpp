@@ -43,6 +43,7 @@ CPaymentCode const & CAccountBase::getMyPcode() const
 CAccountSender::CAccountSender(CExtKey const & walletKey, size_t accountNum, CPaymentCode const & theirPcode)
 : CAccountBase(walletKey, accountNum), theirPcode(theirPcode)
 {
+    nextAddresses.push_back({getPaymentChannel().getMyPcode().getNotificationAddress(), bip47::utils::derive(privkey, {0}).key});
 }
 
 CPaymentChannel & CAccountSender::getPaymentChannel() {
@@ -68,7 +69,7 @@ MyAddrContT const & CAccountSender::generateMyUsedAddresses()
 
 MyAddrContT const & CAccountSender::generateMyNextAddresses()
 {
-    return getPaymentChannel().generateMyNextAddresses();
+    return nextAddresses;
 }
 
 bool CAccountSender::markAddressUsed(CBitcoinAddress const & address)
@@ -142,17 +143,18 @@ bool CAccountReceiver::markAddressUsed(CBitcoinAddress const & address)
 
 bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, COutPoint const & outpoint, CPubKey const & outpoinPubkey)
 {
-    CPaymentCode pcode;
+    std::unique_ptr<CPaymentCode> pcode;
     CExtKey pcodePrivkey = utils::derive(privkey, {uint32_t(pchannels.size())});
     try {
-        if(!bip47::utils::pcodeFromMaskedPayload(maskedPayload, outpoint, pcodePrivkey.key, outpoinPubkey, pcode))
+        pcode = bip47::utils::pcodeFromMaskedPayload(maskedPayload, outpoint, pcodePrivkey.key, outpoinPubkey);
+        if(!pcode)
             return false;
     } catch (std::runtime_error const &) {
         return false;
     }
-    if(findTheirPcode(pcode))
+    if(findTheirPcode(*pcode))
         return true;
-    pchannels.emplace_back(pcode, privkey, CPaymentChannel::Side::receiver);
+    pchannels.emplace_back(*pcode, privkey, CPaymentChannel::Side::receiver);
     return true;
 }
 

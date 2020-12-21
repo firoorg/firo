@@ -306,8 +306,7 @@ bool WalletModel::validateAddress(const QString &address)
 
 bool WalletModel::validatePaymentCode(const QString &pCode)
 {
-    bip47::CPaymentCode paymentCode(pCode.toStdString());
-    return paymentCode.isValid();
+    return bip47::CPaymentCode::validate(pCode.toStdString());
 }
 
 bool WalletModel::isNotificationTransactionSent(const QString &pCode) const

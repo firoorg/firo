@@ -10,7 +10,6 @@ static const unsigned int BIP47_INDEX = 47;
 
 class CPaymentCode {
 public:
-    CPaymentCode();
     CPaymentCode(std::string const & paymentCode);
     CPaymentCode(CPubKey const & pubKey, ChainCode const & chainCode);
 
@@ -27,23 +26,17 @@ public:
 
     std::string toString() const;
 
-    bool isValid() const;
-
     static bool validate(std::string const & paymentCode);
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
-        READWRITE(valid);
-        if(!valid)
-            return;
         READWRITE(pubKey);
         READWRITE(chainCode);
     }
 
 private:
-    bool valid;
     CPubKey pubKey;
     ChainCode  chainCode;
     CExtPubKey const & getChildPubKeyBase() const;

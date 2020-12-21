@@ -6,6 +6,7 @@
 
 #include "base58.h"
 #include "bip47/paymentcode.h"
+#include "bip47/paymentchannel.h"
 
 /* Base58 characters are:
      "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -158,8 +159,7 @@ QValidator::State PaymentCodeOrBitcoinAddressEntryValidator::validate(QString &i
         }
         else
         {
-            bip47::CPaymentCode pcode(input.toStdString());
-            if (!pcode.isValid())
+            if (!bip47::CPaymentCode::validate(input.toStdString()))
                 state = QValidator::Invalid;
         }
     }
@@ -180,8 +180,7 @@ QValidator::State PaymentCodeOrBitcoinAddressCheckValidator::validate(QString &i
     if (addr.IsValid())
         return QValidator::Acceptable;
 
-    bip47::CPaymentCode pcode(input.toStdString());
-    if (pcode.isValid())
+    if (bip47::CPaymentCode::validate(input.toStdString()))
         return QValidator::Acceptable;
     else
         return QValidator::Invalid;

@@ -130,7 +130,6 @@ BOOST_AUTO_TEST_CASE(payment_codes)
         CExtPubKey pubkey = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT}).Neuter();
         bip47::CPaymentCode paymentCode(pubkey.pubkey, pubkey.chaincode);
         BOOST_CHECK_EQUAL(paymentCode.toString(), paymentcode);
-        BOOST_CHECK(paymentCode.isValid());
     }
 
     {   using namespace bob;
@@ -139,7 +138,6 @@ BOOST_AUTO_TEST_CASE(payment_codes)
         CExtPubKey pubkey = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT}).Neuter();
         bip47::CPaymentCode paymentCode = bip47::CPaymentCode(pubkey.pubkey, pubkey.chaincode);
         BOOST_CHECK_EQUAL(paymentCode.toString(), paymentcode);
-        BOOST_CHECK(paymentCode.isValid());
     }
 }
 
@@ -275,9 +273,8 @@ BOOST_AUTO_TEST_CASE(masked_paymentcode)
         key.SetMaster(bob::bip32seed.data(), bob::bip32seed.size());
         CExtKey key_bob = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00});
 
-        CPaymentCode pcode_unmasked;
-        bip47::utils::pcodeFromMaskedPayload(maskedPayload_alice, outpoint, key_bob.key, outpointSecret.GetPubKey(), pcode_unmasked);
-        BOOST_CHECK_EQUAL(pcode_unmasked.toString(), paymentcode);
+        std::unique_ptr<CPaymentCode> pcode_unmasked = bip47::utils::pcodeFromMaskedPayload(maskedPayload_alice, outpoint, key_bob.key, outpointSecret.GetPubKey());
+        BOOST_CHECK_EQUAL(pcode_unmasked->toString(), paymentcode);
     }
 }
 
@@ -303,8 +300,8 @@ BOOST_AUTO_TEST_CASE(account_for_sending)
         BOOST_CHECK_EQUAL(HexStr(account.getMaskedPayload(outpoint, outpoinSecret)), maskedpayload);
 
         MyAddrContT addresses = account.getMyNextAddresses();
-        CBitcoinAddress notifAddr = addresses[0].first;
         BOOST_CHECK_EQUAL(addresses.size(), 1);
+        CBitcoinAddress notifAddr = addresses[0].first;
         BOOST_CHECK_EQUAL(addresses[0].first.ToString(), notificationaddress);
         BOOST_CHECK(account.addressUsed(addresses[0].first));
 

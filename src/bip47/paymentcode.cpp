@@ -16,29 +16,19 @@ const size_t PAYMENT_CODE_LEN = PAYLOAD_LEN + 1; // (0x47("P") | payload)
 const unsigned char THE_P = 0x47; //"P"
 }
 
-CPaymentCode::CPaymentCode ()
-:valid(false)
-{}
-
 CPaymentCode::CPaymentCode (std::string const & paymentCode)
 {
-    valid = parse(paymentCode);
-    if(!valid) {
+    if(!parse(paymentCode)) {
         throw std::runtime_error("Cannot parse the payment code.");
     }
-
 }
 
 CPaymentCode::CPaymentCode (CPubKey const & pubKey, ChainCode const & chainCode)
-:  valid(true), pubKey(pubKey), chainCode(chainCode)
+: pubKey(pubKey), chainCode(chainCode)
 {
     if(!pubKey.IsValid() || chainCode.IsNull()) {
         throw std::runtime_error("Cannot initialize the payment code with invalid data.");
     }
-}
-
-bool CPaymentCode::isValid() const {
-    return valid;
 }
 
 CBitcoinAddress CPaymentCode::getNotificationAddress() const
@@ -146,10 +136,6 @@ CExtPubKey const & CPaymentCode::getChildPubKeyBase() const {
 }
 
 bool operator==(CPaymentCode const & lhs, CPaymentCode const & rhs) {
-    if(lhs.isValid() != rhs.isValid())
-        return false;
-    if(!lhs.isValid() && !rhs.isValid())
-        return true;
     if(lhs.getPubKey() != rhs.getPubKey())
         return false;
     return lhs.getChainCode() == rhs.getChainCode();
