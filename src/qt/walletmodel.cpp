@@ -563,7 +563,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintTransactions(
     std::vector<CHDMint> &mints,
     const CCoinControl *coinControl)
 {
-    if (amount < 0) {
+    if (amount <= 0) {
         return InvalidAmount;
     }
 
@@ -577,8 +577,15 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintTransactions(
     int changePos = -1;
     std::string failReason;
 
-    auto success = wallet->CreateLelantusMintTransactions(
-        amount, wtxAndFees, allFee, mints, reserveKeys, changePos, failReason, coinControl);
+    bool success = false;
+    try {
+        success = wallet->CreateLelantusMintTransactions(
+                amount, wtxAndFees, allFee, mints, reserveKeys, changePos, failReason, coinControl);
+
+    } catch (std::runtime_error const &e) {
+        return SendCoinsReturn(TransactionCreationFailed, e.what());
+    }
+
 
     transactions.clear();
     transactions.reserve(wtxAndFees.size());
