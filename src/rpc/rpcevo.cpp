@@ -1416,6 +1416,9 @@ UniValue spork(const JSONRPCRequest& request)
     tx.nVersion = 3;
     tx.nType = TRANSACTION_SPORK;
 
+    // make sure fee calculation works correctly
+    sporkTx.vchSig.resize(65);
+
     FundSpecialTx(pwallet, tx, sporkTx, feeAddress.Get());
     SignSpecialTxPayloadByHash(tx, sporkTx, secretKey);
     SetTxPayload(tx, sporkTx);
