@@ -4745,6 +4745,61 @@ UniValue generatepcode(const JSONRPCRequest& request)
     return result;
 }
 
+namespace {
+static void SendNotificationTx(CWallet * const pwallet, bip47::CPaymentChannel const & pchannel, CWalletTx& wtxNew)
+{
+    CAmount curBalance = pwallet->GetBalance();
+
+    if (curBalance < bip47::NotificationTxValue)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+
+    if (pwallet->GetBroadcastTransactions() && !g_connman) {
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+    }
+
+    // Parse Zcoin address
+    CScript scriptPubKey = GetScriptForDestination(pchannel.getTheirPcode().getNotificationAddress().Get());
+
+    // Create and send the transaction
+    CReserveKey reservekey(pwallet);
+    CAmount nFeeRequired;
+    std::string strError;
+    vector<CRecipient> vecSend;
+    int nChangePosRet = -1;
+    vecSend.push_back({scriptPubKey, bip47::NotificationTxValue, false});
+    CScript opReturnScript = CScript() << OP_RETURN << std::vector<unsigned char>(80);
+    vecSend.push_back({opReturnScript, 0, false});
+
+    if (!pwallet->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError))
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    if (wtxNew.tx->vin.size() == 0)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Cannot select inputs for the notification tx");
+
+    CCoinsViewCache view(pcoinsTip);
+    const Coin coin = view.AccessCoin(wtxNew.tx->vin[0].prevout);
+    const CTxOut &prevout = coin.out;
+
+    CTxDestination dest;
+    CKey prevoutKey;
+    CKeyID keyID;
+    if (!ExtractDestination(prevout.scriptPubKey, dest) || !CBitcoinAddress(dest).GetKeyID(keyID) || !pwallet->GetKey(keyID , prevoutKey))
+        throw std::runtime_error("Cannot get the prevout key.");
+
+    opReturnScript = CScript() << OP_RETURN << std::vector<unsigned char>(pchannel.getMaskedPayload(wtxNew.tx->vin[0].prevout, prevoutKey));
+    vecSend[1].scriptPubKey = opReturnScript;
+
+    if (!pwallet->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError))
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    CValidationState state;
+    if (!pwallet->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
+        strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+}
+}
+
 UniValue setupchannel(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -4756,7 +4811,7 @@ UniValue setupchannel(const JSONRPCRequest& request)
         throw runtime_error(
             "setupchannel \"paymentcode\"\n"
             "\nSets up a payment channel for the payment code. Sends a notification transaction to the payment code notification address.\n"
-            "It __will__ use Lelantus facilities to send the notification tx. The tx cost is NNNNN for the JoinSplit tx + fees\n"
+            "It __will__ use Lelantus facilities to send the notification tx. The tx cost is " + std::to_string(1.0 * bip47::NotificationTxValue / COIN ) + " for the JoinSplit tx + fees\n"
             + HelpRequiringPassphrase(pwallet) +
             "\nArguments:\n"
             "1. \"paymentcode\"  (string, required) The payment code to send to.\n"
@@ -4768,16 +4823,15 @@ UniValue setupchannel(const JSONRPCRequest& request)
 
     bip47::CPaymentCode theirPcode(request.params[0].get_str());
 
-    LOCK2(cs_main, pwallet->cs_wallet);
-
-    CBitcoinAddress notification = pwallet->SetupPchannel(theirPcode);
-
-    // Wallet comments
-    CWalletTx wtx;
-
     EnsureWalletIsUnlocked(pwallet);
 
-    SendMoney(pwallet, notification.Get(), 0.0001*COIN, false, wtx);
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    bip47::CPaymentChannel pchannel = pwallet->SetupPchannel(theirPcode);
+
+    CWalletTx wtx;
+
+    SendNotificationTx(pwallet, pchannel, wtx);
 
     return wtx.GetHash().GetHex();
 }

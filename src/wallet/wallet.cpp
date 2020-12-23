@@ -7218,10 +7218,10 @@ std::vector<std::pair<std::string, std::string>> CWallet::ListPcodes()
     return result;
 }
 
-CBitcoinAddress CWallet::SetupPchannel(bip47::CPaymentCode const & theirPcode)
+bip47::CPaymentChannel & CWallet::SetupPchannel(bip47::CPaymentCode const & theirPcode)
 {
-    bip47::CAccountSender const & sender = bip47wallet->provideSendingAccount(theirPcode);
-    return sender.getTheirPcode().getNotificationAddress();
+    bip47::CAccountSender & sender = bip47wallet->provideSendingAccount(theirPcode);
+    return sender.getPaymentChannel();
 }
 
 CBitcoinAddress CWallet::GetNextAddress(bip47::CPaymentCode const & theirPcode)

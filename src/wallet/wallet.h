@@ -1234,7 +1234,7 @@ public:
     std::vector<std::pair<std::string, std::string>> ListPcodes();
 
     /* Creates a payment channel for their payment code. Returns their notification address */
-    CBitcoinAddress SetupPchannel(bip47::CPaymentCode const & theirPcode);
+    bip47::CPaymentChannel & SetupPchannel(bip47::CPaymentCode const & theirPcode);
 
     /* Returns a next unused address for their payment code. Throws if no payment channel setup */
     CBitcoinAddress GetNextAddress(bip47::CPaymentCode const & theirPcode);
