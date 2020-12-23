@@ -613,8 +613,15 @@ std::string LicenseInfo()
 {
     const std::string URL_SOURCE_CODE = "<https://github.com/firoorg/firo>";
     const std::string URL_WEBSITE = "<https://firo.org/>";
-    // todo: remove urls from translations on next change
-    return CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2009, COPYRIGHT_YEAR) + " ") + "\n" +
+
+    std::string copyright = CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2016, COPYRIGHT_YEAR) + " ");
+    
+    const std::string bitcoinStr = strprintf("%i-%i The Bitcoin Core", 2016, COPYRIGHT_YEAR);
+    if (copyright.find(bitcoinStr) != std::string::npos) {
+        copyright.replace(copyright.find(bitcoinStr), sizeof("2016") - 1, "2009");
+    }
+
+    return copyright + "\n" +
            "\n" +
            strprintf(_("Please contribute if you find %s useful. "
                        "Visit %s for further information about the software."),
