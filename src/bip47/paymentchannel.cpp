@@ -8,7 +8,7 @@
 namespace bip47 {
 
 CPaymentChannel::CPaymentChannel(CPaymentCode const & theirPcode, CExtKey const & myChannelKey, Side side)
-: myChannelKey(myChannelKey), theirPcode(theirPcode), usedAddressCount(0), side(side)
+: myChannelKey(myChannelKey), theirPcode(theirPcode), usedAddressCount(0), theirUsedAddressCount(0), side(side)
 {}
 
 CPaymentCode const & CPaymentChannel::getTheirPcode() const
@@ -32,6 +32,13 @@ CBitcoinAddress generate(CKey const & privkey, CPubKey const & sharedSecretPubke
 
     return CBitcoinAddress(pubKeyN.GetID());
 }
+}
+
+CBitcoinAddress CPaymentChannel::generateTheirNextSecretAddress()
+{
+    TheirAddrContT addr = generateTheirSecretAddresses(theirUsedAddressCount, theirUsedAddressCount + 1);
+    theirUsedAddressCount += 1;
+    return addr.front();
 }
 
 TheirAddrContT CPaymentChannel::generateTheirSecretAddresses(size_t fromAddr, size_t uptoAddr) const

@@ -1227,10 +1227,17 @@ public:
     bool SetHDMasterKey(const CPubKey& key, const int cHDChainVersion=CHDChain().CURRENT_VERSION);
 
     /* bip47 */
-    /* Generates a new payment code and stores it into the wallet*/
+    /* Generates and strores a new payment code for receiving*/
     bip47::CPaymentCode GeneratePcode(std::string const & label);
 
+    /* Lists all receiving pcodes*/
     std::vector<std::pair<std::string, std::string>> ListPcodes();
+
+    /* Creates a payment channel for their payment code. Returns their notification address */
+    CBitcoinAddress SetupPchannel(bip47::CPaymentCode const & theirPcode);
+
+    /* Returns a next unused address for their payment code. Throws if no payment channel setup */
+    CBitcoinAddress GetNextAddress(bip47::CPaymentCode const & theirPcode);
 };
 
 /** A key allocated from the key pool. */

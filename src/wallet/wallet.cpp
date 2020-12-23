@@ -7218,6 +7218,31 @@ std::vector<std::pair<std::string, std::string>> CWallet::ListPcodes()
     return result;
 }
 
+CBitcoinAddress CWallet::SetupPchannel(bip47::CPaymentCode const & theirPcode)
+{
+    bip47::CAccountSender const & sender = bip47wallet->provideSendingAccount(theirPcode);
+    return sender.getTheirPcode().getNotificationAddress();
+}
+
+CBitcoinAddress CWallet::GetNextAddress(bip47::CPaymentCode const & theirPcode)
+{
+    boost::optional<bip47::CAccountSender*> existingAcc;
+    bip47wallet->enumerateAccounts(
+        [&theirPcode, &existingAcc](bip47::CAccountPtr pacc)
+        {
+            bip47::CAccountSender * acc = dynamic_cast<bip47::CAccountSender *>(pacc.get());
+            if(acc && acc->getTheirPcode() == theirPcode) {
+                existingAcc.emplace(acc);
+            }
+        }
+    );
+    if(!existingAcc)
+        throw std::runtime_error("There is no account setup for payment code " + theirPcode.toString());
+    return existingAcc.get()->getTheirPcode().getNotificationAddress();
+}
+
+
+
 CKeyPool::CKeyPool()
 {
     nTime = GetTime();

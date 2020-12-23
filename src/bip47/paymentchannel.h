@@ -26,6 +26,7 @@ public:
     CPaymentChannel(CPaymentCode const & theirPcode, CExtKey const & myChannelKey, Side side);
 
     CPaymentCode const & getTheirPcode() const;
+    CBitcoinAddress generateTheirNextSecretAddress();
     TheirAddrContT generateTheirSecretAddresses(size_t fromAddr, size_t uptoAddr) const;
 
     CPaymentCode const & getMyPcode() const;
@@ -42,7 +43,7 @@ private:
     CPaymentCode theirPcode;
     boost::optional<CPaymentCode> mutable myPcode;
 
-    size_t usedAddressCount;
+    size_t usedAddressCount, theirUsedAddressCount;
     MyAddrContT usedAddresses;
     MyAddrContT nextAddresses;
     Side side;

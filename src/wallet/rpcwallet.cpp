@@ -4725,7 +4725,6 @@ UniValue listpcodes(const JSONRPCRequest& request)
     return result;
 }
 
-
 UniValue generatepcode(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -4744,6 +4743,103 @@ UniValue generatepcode(const JSONRPCRequest& request)
     UniValue result;
     result.setStr(pwallet->GeneratePcode(request.params[0].get_str()).toString());
     return result;
+}
+
+UniValue setupchannel(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 1)
+        throw runtime_error(
+            "setupchannel \"paymentcode\"\n"
+            "\nSets up a payment channel for the payment code. Sends a notification transaction to the payment code notification address.\n"
+            "It __will__ use Lelantus facilities to send the notification tx. The tx cost is NNNNN for the JoinSplit tx + fees\n"
+            + HelpRequiringPassphrase(pwallet) +
+            "\nArguments:\n"
+            "1. \"paymentcode\"  (string, required) The payment code to send to.\n"
+            "\nResult:\n"
+            "\"txid\"                  (string) The notification transaction id.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("setupchannel", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\"")
+        );
+
+    bip47::CPaymentCode theirPcode(request.params[0].get_str());
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    CBitcoinAddress notification = pwallet->SetupPchannel(theirPcode);
+
+    // Wallet comments
+    CWalletTx wtx;
+
+    EnsureWalletIsUnlocked(pwallet);
+
+    SendMoney(pwallet, notification.Get(), 0.0001*COIN, false, wtx);
+
+    return wtx.GetHash().GetHex();
+}
+
+UniValue sendtopcode(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
+        throw runtime_error(
+            "sendtopcode \"paymentcode\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
+            "\nSend an amount to a given payment code.\n"
+            + HelpRequiringPassphrase(pwallet) +
+            "\nArguments:\n"
+            "1. \"paymentcode\"  (string, required) The payment code to send to.\n"
+            "2. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
+            "3. \"comment\"     (string, optional) A comment used to store what the transaction is for. \n"
+            "                             This is not part of the transaction, just kept in your wallet.\n"
+            "4. \"comment_to\"         (string, optional) A comment to store the name of the person or organization \n"
+            "                             to which you're sending the transaction. This is not part of the \n"
+            "                             transaction, just kept in your wallet.\n"
+            "5. subtractfeefromamount  (boolean, optional, default=false) The fee will be deducted from the amount being sent.\n"
+            "                             The recipient will receive less bitcoins than you enter in the amount field.\n"
+            "\nResult:\n"
+            "\"txid\"                  (string) The transaction id.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("sendtoaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\" 0.1")
+            + HelpExampleCli("sendtoaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\" 0.1 \"donation\" \"seans outpost\"")
+            + HelpExampleCli("sendtoaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\" 0.1 \"\" \"\" true")
+            + HelpExampleRpc("sendtoaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\", 0.1, \"donation\", \"seans outpost\"")
+        );
+
+    bip47::CPaymentCode theirPcode(request.params[0].get_str());
+
+    // Amount
+    CAmount nAmount = AmountFromValue(request.params[1]);
+    if (nAmount <= 0)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    CBitcoinAddress address = pwallet->GetNextAddress(theirPcode);
+
+    // Wallet comments
+    CWalletTx wtx;
+    if (request.params.size() > 2 && !request.params[2].isNull() && !request.params[2].get_str().empty())
+        wtx.mapValue["comment"] = request.params[2].get_str();
+    if (request.params.size() > 3 && !request.params[3].isNull() && !request.params[3].get_str().empty())
+        wtx.mapValue["to"]      = request.params[3].get_str();
+
+    bool fSubtractFeeFromAmount = false;
+    if (request.params.size() > 4)
+        fSubtractFeeFromAmount = request.params[4].get_bool();
+
+    EnsureWalletIsUnlocked(pwallet);
+
+    SendMoney(pwallet, address.Get(), nAmount, fSubtractFeeFromAmount, wtx);
+
+    return wtx.GetHash().GetHex();
 }
 
 /******************************************************************************/
@@ -4837,8 +4933,10 @@ static const CRPCCommand commands[] =
     { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false },
 
     //bip47
-    { "wallet",             "listpcodes",               &listpcodes   ,            false },
-    { "wallet",             "generatepcode",            &generatepcode,            false }
+    { "wallet",             "generatepcode",            &generatepcode,            false },
+    { "wallet",             "setupchannel",             &setupchannel,             false },
+    { "wallet",             "sendtopcode",              &sendtopcode,              false },
+    { "wallet",             "listpcodes",               &listpcodes,               false }
 };
 
 void RegisterWalletRPCCommands(CRPCTable &t)
