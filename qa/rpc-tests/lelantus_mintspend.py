@@ -20,17 +20,16 @@ class LelantusMintSpendTest(BitcoinTestFramework):
         start_bal = self.nodes[0].getbalance()
 
         mint_trans = list()
-        coin = 100000000;
         mint_trans.append(self.nodes[0].mintlelantus(1))
         mint_trans.append(self.nodes[0].mintlelantus(2))
 
         # Get last added transaction and fee for it
-        info = self.nodes[0].gettransaction(mint_trans[-1])
+        info = self.nodes[0].gettransaction(mint_trans[-1][0])
 
         # fee in transaction is negative
         fee = -(info['fee'] * 2)
         cur_bal = self.nodes[0].getbalance()
-        start_bal = float(start_bal) - float(fee) - coin * 3
+        start_bal = float(start_bal) - float(fee) - 3
         start_bal = Decimal(format(start_bal, '.8f'))
 
         assert start_bal == cur_bal, \
@@ -40,7 +39,7 @@ class LelantusMintSpendTest(BitcoinTestFramework):
         # confirmations should be i due to less than 4 blocks was generated after transactions send
         for i in range(5):
             for tr in mint_trans:
-                info = self.nodes[0].gettransaction(tr)
+                info = self.nodes[0].gettransaction(tr[0])
                 confrms = info['confirmations']
                 assert confrms == i, \
                     'Confirmations should be {}, ' \
@@ -51,7 +50,7 @@ class LelantusMintSpendTest(BitcoinTestFramework):
                 assert tr_type == 'mint', 'Unexpected transaction type: {}'.format(tr_type)
 
             res = False
-            args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': coin}
+            args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': 1}
             try:
                 res = self.nodes[0].joinsplit(args)
             except JSONRPCException as ex:
@@ -67,7 +66,7 @@ class LelantusMintSpendTest(BitcoinTestFramework):
         self.sync_all()
 
         for tr in mint_trans:
-            info = self.nodes[0].gettransaction(tr)
+            info = self.nodes[0].gettransaction(tr[0])
             confrms = info['confirmations']
             assert confrms == 6, \
                 'Confirmations should be 6, ' \
@@ -86,8 +85,8 @@ class LelantusMintSpendTest(BitcoinTestFramework):
         total_spend_fee = 0
 
         myaddr = self.nodes[0].listreceivedbyaddress(0, True)[0]['address']
-        print(coin)
-        args = {myaddr: coin}
+        print(1)
+        args = {myaddr: 1}
 
         spend_trans.append(self.nodes[0].joinsplit(args))
 
@@ -97,7 +96,7 @@ class LelantusMintSpendTest(BitcoinTestFramework):
         total_spend_fee += -info['fee']
         print(info['fee'])
         print(self.nodes[0].getbalance())
-        spend_total = float(spend_total) + coin
+        spend_total = float(spend_total) + 1
         assert confrms == 0, \
             'Confirmations should be 0, ' \
             'due to 0 blocks was generated after transaction was created,' \
