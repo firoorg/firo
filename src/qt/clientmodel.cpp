@@ -423,19 +423,19 @@ static void BlockTipChanged(ClientModel *clientmodel, bool initialSync, const CB
 void ClientModel::subscribeToCoreSignals()
 {
     // Connect signals to client
-    uiInterface.ShowProgress.connect(boost::bind(ShowProgress, this, boost::placeholders::_1, boost::placeholders::_2));
-    uiInterface.NotifyNumConnectionsChanged.connect(boost::bind(NotifyNumConnectionsChanged, this, boost::placeholders::_1));
-    uiInterface.NotifyNetworkActiveChanged.connect(boost::bind(NotifyNetworkActiveChanged, this, boost::placeholders::_1));
+    uiInterface.ShowProgress.connect(boost::bind(ShowProgress, this, _1, _2));
+    uiInterface.NotifyNumConnectionsChanged.connect(boost::bind(NotifyNumConnectionsChanged, this, _1));
+    uiInterface.NotifyNetworkActiveChanged.connect(boost::bind(NotifyNetworkActiveChanged, this, _1));
     uiInterface.NotifyAlertChanged.connect(boost::bind(NotifyAlertChanged, this));
     uiInterface.BannedListChanged.connect(boost::bind(BannedListChanged, this));
-    uiInterface.NotifyBlockTip.connect(boost::bind(BlockTipChanged, this, boost::placeholders::_1, boost::placeholders::_2, false));
-    uiInterface.NotifyHeaderTip.connect(boost::bind(BlockTipChanged, this, boost::placeholders::_1, boost::placeholders::_2, true));
-    uiInterface.NotifyAdditionalDataSyncProgressChanged.connect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, boost::placeholders::_1));
-    uiInterface.NotifyMasternodeListChanged.connect(boost::bind(NotifyMasternodeListChanged, this, boost::placeholders::_1));
+    uiInterface.NotifyBlockTip.connect(boost::bind(BlockTipChanged, this, _1, _2, false));
+    uiInterface.NotifyHeaderTip.connect(boost::bind(BlockTipChanged, this, _1, _2, true));
+    uiInterface.NotifyAdditionalDataSyncProgressChanged.connect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
+    uiInterface.NotifyMasternodeListChanged.connect(boost::bind(NotifyMasternodeListChanged, this, _1));
 
     // Connect Elysium signals
     uiInterface.ElysiumStateChanged.connect(boost::bind(ElysiumStateChanged, this));
-    uiInterface.ElysiumPendingChanged.connect(boost::bind(ElysiumPendingChanged, this, boost::placeholders::_1));
+    uiInterface.ElysiumPendingChanged.connect(boost::bind(ElysiumPendingChanged, this, _1));
     uiInterface.ElysiumBalanceChanged.connect(boost::bind(ElysiumBalanceChanged, this));
     uiInterface.ElysiumStateInvalidated.connect(boost::bind(ElysiumStateInvalidated, this));
 }
@@ -443,19 +443,19 @@ void ClientModel::subscribeToCoreSignals()
 void ClientModel::unsubscribeFromCoreSignals()
 {
     // Disconnect signals from client
-    uiInterface.ShowProgress.disconnect(boost::bind(ShowProgress, this, boost::placeholders::_1, boost::placeholders::_2));
-    uiInterface.NotifyNumConnectionsChanged.disconnect(boost::bind(NotifyNumConnectionsChanged, this, boost::placeholders::_1));
-    uiInterface.NotifyNetworkActiveChanged.disconnect(boost::bind(NotifyNetworkActiveChanged, this, boost::placeholders::_1));
+    uiInterface.ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
+    uiInterface.NotifyNumConnectionsChanged.disconnect(boost::bind(NotifyNumConnectionsChanged, this, _1));
+    uiInterface.NotifyNetworkActiveChanged.disconnect(boost::bind(NotifyNetworkActiveChanged, this, _1));
     uiInterface.NotifyAlertChanged.disconnect(boost::bind(NotifyAlertChanged, this));
     uiInterface.BannedListChanged.disconnect(boost::bind(BannedListChanged, this));
-    uiInterface.NotifyBlockTip.disconnect(boost::bind(BlockTipChanged, this, boost::placeholders::_1, boost::placeholders::_2, false));
-    uiInterface.NotifyHeaderTip.disconnect(boost::bind(BlockTipChanged, this, boost::placeholders::_1, boost::placeholders::_2, true));
-    uiInterface.NotifyAdditionalDataSyncProgressChanged.disconnect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, boost::placeholders::_1));
-    uiInterface.NotifyMasternodeListChanged.disconnect(boost::bind(NotifyMasternodeListChanged, this, boost::placeholders::_1));
+    uiInterface.NotifyBlockTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2, false));
+    uiInterface.NotifyHeaderTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2, true));
+    uiInterface.NotifyAdditionalDataSyncProgressChanged.disconnect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
+    uiInterface.NotifyMasternodeListChanged.disconnect(boost::bind(NotifyMasternodeListChanged, this, _1));
 
     // Disconnect Elysium signals
     uiInterface.ElysiumStateChanged.disconnect(boost::bind(ElysiumStateChanged, this));
-    uiInterface.ElysiumPendingChanged.disconnect(boost::bind(ElysiumPendingChanged, this, boost::placeholders::_1));
+    uiInterface.ElysiumPendingChanged.disconnect(boost::bind(ElysiumPendingChanged, this, _1));
     uiInterface.ElysiumBalanceChanged.disconnect(boost::bind(ElysiumBalanceChanged, this));
 	uiInterface.ElysiumStateInvalidated.disconnect(boost::bind(ElysiumStateInvalidated, this));
 }

@@ -387,6 +387,10 @@ public:
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
         consensus.nZerocoinToSigmaRemintWindowSize = 50000;
 
+        consensus.evoSporkKeyID = "a78fERshquPsTv2TuKMSsxTeKom56uBwLP";
+        consensus.nEvoSporkStartBlock = ZC_LELANTUS_STARTING_BLOCK;
+        consensus.nEvoSporkStopBlock = ZC_LELANTUS_STARTING_BLOCK + 24*12*365;  // one year after lelantus
+
         // Dandelion related values.
         consensus.nDandelionEmbargoMinimum = DANDELION_EMBARGO_MINIMUM;
         consensus.nDandelionEmbargoAvgAdd = DANDELION_EMBARGO_AVG_ADD;
@@ -623,6 +627,10 @@ public:
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
+        consensus.evoSporkKeyID = "TWSEa1UsZzDHywDG6CZFDNdeJU6LzhbbBL";
+        consensus.nEvoSporkStartBlock = 22000;
+        consensus.nEvoSporkStopBlock = 40000;
+
         // Dandelion related values.
         consensus.nDandelionEmbargoMinimum = DANDELION_TESTNET_EMBARGO_MINIMUM;
         consensus.nDandelionEmbargoAvgAdd = DANDELION_TESTNET_EMBARGO_AVG_ADD;
@@ -812,6 +820,11 @@ public:
         consensus.nMaxValueLelantusSpendPerTransaction = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
         consensus.nZerocoinToSigmaRemintWindowSize = 1000;
+
+        // evo spork
+        consensus.evoSporkKeyID = "TSpmHGzQT4KJrubWa4N2CRmpA7wKMMWDg4";  // private key is cW2YM2xaeCaebfpKguBahUAgEzLXgSserWRuD29kSyKHq1TTgwRQ
+        consensus.nEvoSporkStartBlock = 1000;
+        consensus.nEvoSporkStopBlock = 1500;
 
         // Dandelion related values.
         consensus.nDandelionEmbargoMinimum = 0;

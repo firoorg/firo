@@ -3284,18 +3284,17 @@ bool CWallet::GetCoinsToJoinSplit(
     }
 
     if(!coinControlUsed) {
-
-        auto itr = coins.begin();
         while (spend_val < required) {
-            if(itr == coins.end())
+            if(coins.empty())
                 break;
 
             CLelantusEntry choosen;
             CAmount need = required - spend_val;
 
+            auto itr = coins.begin();
             if(need >= itr->amount) {
                 choosen = *itr;
-                itr++;
+                coins.erase(itr);
             } else {
                 for (auto coinIt = coins.rbegin(); coinIt != coins.rend(); coinIt++) {
                     auto nextItr = coinIt;
@@ -3303,6 +3302,7 @@ bool CWallet::GetCoinsToJoinSplit(
 
                     if (coinIt->amount >= need && (nextItr == coins.rend() || nextItr->amount != coinIt->amount)) {
                         choosen = *coinIt;
+                        coins.erase(std::next(coinIt).base());
                         break;
                     }
                 }
@@ -7077,7 +7077,7 @@ bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantus
         }
 
         //Set spent mint as used in memory
-        uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value + lelantus::Params::get_default()->get_h1() * Scalar(coin.amount).negate());
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value);
         zwallet->GetTracker().SetLelantusPubcoinUsed(hashPubcoin, wtxNew.GetHash());
         CLelantusMintMeta metaCheck;
         zwallet->GetTracker().GetLelantusMetaFromPubcoin(hashPubcoin, metaCheck);

@@ -70,6 +70,7 @@
 #include "evo/providertx.h"
 #include "evo/deterministicmns.h"
 #include "evo/cbtx.h"
+#include "evo/spork.h"
 
 #include "llmq/quorums_instantsend.h"
 #include "llmq/quorums_chainlocks.h"
@@ -228,7 +229,7 @@ private:
 
 public:
     MemPoolConflictRemovalTracker(CTxMemPool &_pool) : pool(_pool) {
-        pool.NotifyEntryRemoved.connect(boost::bind(&MemPoolConflictRemovalTracker::NotifyEntryRemoved, this, boost::placeholders::_1, boost::placeholders::_2));
+        pool.NotifyEntryRemoved.connect(boost::bind(&MemPoolConflictRemovalTracker::NotifyEntryRemoved, this, _1, _2));
     }
 
     void NotifyEntryRemoved(CTransactionRef txRemoved, MemPoolRemovalReason reason) {
@@ -238,7 +239,7 @@ public:
     }
 
     ~MemPoolConflictRemovalTracker() {
-        pool.NotifyEntryRemoved.disconnect(boost::bind(&MemPoolConflictRemovalTracker::NotifyEntryRemoved, this, boost::placeholders::_1, boost::placeholders::_2));
+        pool.NotifyEntryRemoved.disconnect(boost::bind(&MemPoolConflictRemovalTracker::NotifyEntryRemoved, this, _1, _2));
         for (const auto& tx : conflictedTxs) {
             GetMainSignals().SyncTransaction(*tx, NULL, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
         }
@@ -680,12 +681,17 @@ bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state,
                 tx.nType != TRANSACTION_PROVIDER_UPDATE_REGISTRAR &&
                 tx.nType != TRANSACTION_PROVIDER_UPDATE_REVOKE &&
                 tx.nType != TRANSACTION_COINBASE &&
-                tx.nType != TRANSACTION_QUORUM_COMMITMENT) {
+                tx.nType != TRANSACTION_QUORUM_COMMITMENT &&
+                tx.nType != TRANSACTION_SPORK) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
             }
             if (tx.IsCoinBase() && tx.nType != TRANSACTION_COINBASE)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-cb-type");
-        } else if (tx.nType != TRANSACTION_NORMAL) {
+            if (tx.nType == TRANSACTION_SPORK &&
+                    !(nHeight >= consensusParams.nEvoSporkStartBlock && nHeight < consensusParams.nEvoSporkStopBlock))
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
+        }
+        else if (tx.nType != TRANSACTION_NORMAL) {
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
         }
     }
@@ -790,6 +796,11 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     if (!ContextualCheckTransaction(tx, state, Params().GetConsensus(), chainActive.Tip()))
         return error("%s: ContextualCheckTransaction: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
+
+    if (!pool.IsTransactionAllowed(tx, state)) {
+        LogPrintf("AcceptToMemoryPool() can't accept transaction because of active mempool spork\n");
+        return false;
+    }
 
     if (tx.nVersion >= 3 && tx.nType == TRANSACTION_QUORUM_COMMITMENT) {
         // quorum commitment is not allowed outside of blocks
@@ -896,7 +907,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         for(const auto& serial : serials) {
             if(!serial.isMember() || serial.isZero())
                 return state.Invalid(false, REJECT_INVALID, "txn-invalid-lelantus-joinsplit-serial");
-            if (!lelantusState->CanAddSpendToMempool(serial) || !sigmaState->CanAddSpendToMempool(serial)) {
+            if (lelantusState->IsUsedCoinSerial(serial) || pool.lelantusState.HasCoinSerial(serial) ||
+                    !sigmaState->CanAddSpendToMempool(serial)) {
                 LogPrintf("AcceptToMemoryPool(): lelantus serial number %s has been used\n", serial.tostring());
                 return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
             }
@@ -966,7 +978,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     {
         if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
             GroupElement pubCoinValue;
-            uint64_t amount;
+            uint64_t amount = 0;
             try {
                 if (txout.scriptPubKey.IsLelantusMint()) {
                     lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
@@ -974,13 +986,14 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 } else {
                     std::vector<unsigned char> encryptedValue;
                     lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
-                    if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
-                        amount = 0;
+                    if (pwalletMain)
+                        if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
+                            amount = 0;
                 }
             } catch (std::invalid_argument&) {
                 return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
             }
-            if (!lelantusState->CanAddMintToMempool(pubCoinValue)) {
+            if (lelantusState->HasCoin(pubCoinValue) || pool.lelantusState.HasMint(pubCoinValue)) {
                 LogPrintf("AcceptToMemoryPool(): lelantus mint with the same value %s is already in the mempool\n", pubCoinValue.tostring());
                 return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
             }
@@ -1431,11 +1444,13 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     }
 
     if (tx.IsLelantusJoinSplit()) {
-        if(markFiroSpendTransactionSerial)
-            lelantusState->AddSpendToMempool(lelantusSpendSerials, hash);
+        if(markFiroSpendTransactionSerial) {
+            for (const auto &spendSerial: lelantusSpendSerials)
+                pool.lelantusState.AddSpendToMempool(spendSerial, hash);
+        }
         LogPrintf("Updating mint tracker state from Mempool..");
 #ifdef ENABLE_WALLET
-        if (pwalletMain->zwallet) {
+        if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
             LogPrintf("Updating spend state from Mempool..");
             pwalletMain->zwallet->GetTracker().UpdateJoinSplitStateFromMempool(lelantusSpendSerials);
             pwalletMain->zwallet->GetTracker().UpdateSpendStateFromMempool(lelantusSpendSerials);
@@ -1445,7 +1460,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     if(markFiroSpendTransactionSerial) {
         sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
-        lelantusState->AddMintsToMempool(lelantusMintPubcoins);
+        for (const auto &pubCoin: lelantusMintPubcoins)
+            pool.lelantusState.AddMintToMempool(pubCoin);
     }
 
 
@@ -1455,7 +1471,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         pwalletMain->zwallet->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
     }
 
-    if(tx.IsLelantusMint() && pwalletMain->zwallet) {
+    if(tx.IsLelantusMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
         LogPrintf("Updating mint state from Mempool..");
         pwalletMain->zwallet->GetTracker().UpdateLelantusMintStateFromMempool(lelantusMintPubcoins, lelantusAmounts);
     }
@@ -2708,13 +2724,38 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     if (!fJustCheck)
         MTPState::GetMTPState()->SetLastBlock(pindex, chainparams.GetConsensus());
 
+    // evo spork handling
+    // back up spork state if fJustCheck is true
+    auto sporkSetBackup = pindex->activeDisablingSporks;
+    CSporkManager *sporkManager = CSporkManager::GetSporkManager();
+
+    if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
+                pindex->nHeight < chainparams.GetConsensus().nEvoSporkStopBlock) {
+        if (!sporkManager->BlockConnected(block, pindex)) {
+            pindex->activeDisablingSporks = sporkSetBackup;
+            return false;
+        }
+
+        // check if transaction is allowed under spork rules
+        for (CTransactionRef tx: block.vtx) {
+            if (!sporkManager->IsTransactionAllowed(*tx, pindex->activeDisablingSporks, state))
+                return false;
+        }
+    }
+
     if (!ConnectBlockZC(state, chainparams, pindex, &block, fJustCheck) ||
         !sigma::ConnectBlockSigma(state, chainparams, pindex, &block, fJustCheck) ||
         !lelantus::ConnectBlockLelantus(state, chainparams, pindex, &block, fJustCheck))
         return false;
 
-    if (fJustCheck)
+    if (!sporkManager->IsBlockAllowed(block, pindex, state))
+        return false;
+
+    if (fJustCheck) {
+        // roll back spork set if needed
+        pindex->activeDisablingSporks = sporkSetBackup;
         return true;
+    }
 
     // Write undo information to disk
     if (pindex->GetUndoPos().IsNull() || !pindex->IsValid(BLOCK_VALID_SCRIPTS))

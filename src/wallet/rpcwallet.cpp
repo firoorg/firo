@@ -2045,11 +2045,10 @@ UniValue gettransaction(const JSONRPCRequest& request)
     CAmount nDebit = wtx.GetDebit(filter);
     CAmount nNet = nCredit - nDebit;
     CAmount nFee = (wtx.IsFromMe(filter) ? wtx.tx->GetValueOut() - nDebit : 0);
+    if (wtx.tx->vin[0].IsLelantusJoinSplit())
+        nFee = (0 - lelantus::ParseLelantusJoinSplit(wtx.tx->vin[0])->getFee());
 
     entry.push_back(Pair("amount", ValueFromAmount(nNet - nFee)));
-
-    if (wtx.tx->vin[0].IsLelantusJoinSplit())
-        nFee = lelantus::ParseLelantusJoinSplit(wtx.tx->vin[0])->getFee();
 
     if (wtx.IsFromMe(filter))
         entry.push_back(Pair("fee", ValueFromAmount(nFee)));
@@ -3228,7 +3227,7 @@ UniValue mint(const JSONRPCRequest& request)
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
     if (!sigma::IsSigmaAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
+        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not active");
     }
 
     CAmount nAmount = AmountFromValue(request.params[0]);
@@ -3784,7 +3783,7 @@ UniValue spendmany(const JSONRPCRequest& request) {
         );
 
     if (!sigma::IsSigmaAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
+        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not active");
     }
 
     EnsureSigmaWalletIsAvailable();

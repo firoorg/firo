@@ -25,7 +25,7 @@
 #include "evo/providertx.h"
 #include "evo/simplifiedmns.h"
 #include "masternode-sync.h"
-
+#include "evo/spork.h"
 
 #include "bls/bls.h"
 
@@ -1253,11 +1253,187 @@ UniValue _bls(const JSONRPCRequest& request)
     }
 }
 
+[[ noreturn ]] void spork_help()
+{
+    throw std::runtime_error(
+        "spork list\n"
+        "spork \"sporkprivatekey\" \"feeaddress\"\n"
+        "    {\"enable\": [\"feature1\", ...]},\n"
+        "    {\"disable\": {\"feature1\": block_height_to_reenable, ...}}\n"
+        "    {\"limit\": {\"feature1\": {\"limitUntil\": block_height_to_lift_limit, \"parameter\": limit_parameter}}\n"
+    );
+}
+
+static UniValue spork_listToJSON(const std::map<std::string, std::pair<int, int64_t>> &sporkMap) {
+    UniValue list;
+    list.setArray();
+    for (const auto &action: sporkMap) {
+        UniValue listItem;
+        listItem.setObject();
+        listItem.pushKV("feature", action.first);
+        listItem.pushKV("enableAtHeight", action.second.first);
+        listItem.pushKV("parameter", action.second.second);
+        list.push_back(listItem);
+    }
+    return list;
+}
+
+UniValue spork(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() < 1)
+        spork_help();
+
+    if (request.params.size() == 1 && request.params[0].get_str() == "list") {
+        // list active sporks
+        UniValue result;
+        result.setObject();
+
+        LOCK(cs_main);
+        LOCK(mempool.cs);
+
+        result.pushKV("blockchain", spork_listToJSON(chainActive.Tip()->activeDisablingSporks));
+        result.pushKV("mempool", spork_listToJSON(mempool.GetActiveSporks()));
+
+        return result;
+    }
+    else if (request.params.size() != 3)
+        spork_help();
+
+    // create spork
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+    CKey secretKey = ParsePrivKey(pwallet, request.params[0].get_str(), true);
+    CKeyID publicKeyID;
+
+    if (!CBitcoinAddress(Params().GetConsensus().evoSporkKeyID).GetKeyID(publicKeyID) || secretKey.GetPubKey().GetID() != publicKeyID) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "incorrect spork secret key");
+    }
+
+    CBitcoinAddress feeAddress(request.params[1].get_str());
+    if (!feeAddress.IsValid()) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", request.params[1].get_str()));
+    }
+
+    CSporkTx sporkTx;
+    UniValue sporkEnableOrDisableObj = request.params[2].get_obj();
+    std::vector<std::string> enableOrDisableKeys = sporkEnableOrDisableObj.getKeys();
+
+    for (const std::string enableOrDisable: enableOrDisableKeys) {
+
+        if (enableOrDisable == "enable") {
+            UniValue featuresToEnable = sporkEnableOrDisableObj["enable"];
+
+            if (!featuresToEnable.isArray())
+                spork_help();
+
+            for (size_t i=0; i<featuresToEnable.size(); i++) {
+                UniValue feature = featuresToEnable[i];
+                if (!feature.isStr())
+                    spork_help();
+
+                CSporkAction enableAction;
+                enableAction.actionType = CSporkAction::sporkEnable;
+                enableAction.nEnableAtHeight = 0;
+                enableAction.parameter = 0;
+                enableAction.feature = feature.getValStr();
+                sporkTx.actions.push_back(enableAction);
+            }
+        }
+
+        else if (enableOrDisable == "disable") {
+            UniValue featuresToDisable = sporkEnableOrDisableObj["disable"];
+
+            if (!featuresToDisable.isObject())
+                spork_help();
+
+            std::vector<std::string> features = featuresToDisable.getKeys();
+            for (const std::string &feature: features) {
+                UniValue enableAtHeight = featuresToDisable[feature];
+                if (!enableAtHeight.isNum())
+                    spork_help();
+
+                CSporkAction disableAction;
+                disableAction.actionType = CSporkAction::sporkDisable;
+                disableAction.nEnableAtHeight = enableAtHeight.get_int();
+                disableAction.parameter = 0;
+                disableAction.feature = feature;
+                sporkTx.actions.push_back(disableAction);
+            }
+        }
+
+        else if (enableOrDisable == "limit") {
+            UniValue featuresToLimit = sporkEnableOrDisableObj["limit"];
+
+            if (!featuresToLimit.isObject())
+                spork_help();
+
+            std::vector<std::string> features = featuresToLimit.getKeys();
+            for (const std::string &feature: features) {
+                UniValue limit = featuresToLimit[feature];
+
+                if (!limit.isObject())
+                    spork_help();
+                std::vector<std::string> limitKeys = limit.getKeys();
+                CSporkAction limitAction;
+                limitAction.actionType = CSporkAction::sporkLimit;
+                limitAction.feature = feature;
+                limitAction.nEnableAtHeight = 0;
+                limitAction.parameter = 0;
+                for (const std::string &limitKey: limitKeys) {
+                    if (limitKey == "limitUntil") {
+                        limitAction.nEnableAtHeight = limit["limitUntil"].get_int();
+                    }
+                    else if (limitKey == "parameter") {
+                        limitAction.parameter = limit["parameter"].get_int64();
+                    }
+                    else {
+                        spork_help();
+                    }
+                }
+                sporkTx.actions.push_back(limitAction);
+            }
+        }
+
+        else {
+            spork_help();
+        }
+
+    }
+
+    if (sporkTx.actions.empty())
+        throw std::runtime_error("No spork actions specified");
+
+    std::set<std::string> validFeatureNames {
+        CSporkAction::featureLelantus,
+        CSporkAction::featureChainlocks,
+        CSporkAction::featureInstantSend,
+        CSporkAction::featureLelantusTransparentLimit
+    };
+
+    for (const CSporkAction &action: sporkTx.actions) {
+        if (validFeatureNames.count(action.feature) == 0)
+            throw std::runtime_error(action.feature + " is not recognized as valid feature name");
+    }
+
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_SPORK;
+
+    // make sure fee calculation works correctly
+    sporkTx.vchSig.resize(65);
+
+    FundSpecialTx(pwallet, tx, sporkTx, feeAddress.Get());
+    SignSpecialTxPayloadByHash(tx, sporkTx, secretKey);
+    SetTxPayload(tx, sporkTx);
+
+    return SignAndSendSpecialTx(tx);
+}
+
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
     { "evo",                "bls",                    &_bls,                   false, {}  },
     { "evo",                "protx",                  &protx,                  false, {}  },
+    { "evo",                "spork",                  &spork,                  false, {}  },
 };
 
 void RegisterEvoRPCCommands(CRPCTable &tableRPC)

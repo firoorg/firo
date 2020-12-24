@@ -89,9 +89,6 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->labelCoinControlLowOutput->addAction(clipboardLowOutputAction);
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
 
-    darkerColor = QColor(0xe0, 0xe0, 0xe0);
-    defaultColor = palette().color(QPalette::Background);
-
     ui->frameCoinControl->setAutoFillBackground(true);
     ui->scrollArea->setAutoFillBackground(true);
     ui->frameFee->setAutoFillBackground(true);
@@ -718,7 +715,6 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
 {
     fAnonymousMode = enableAnonymizeMode;
 
-    QColor bgColor;
     if (fAnonymousMode) {
         ui->switchFundButton->setText(QString("Use Transparent Balance"));
         ui->label->setText(QString("Private Balance"));
@@ -726,7 +722,6 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
         ui->checkBoxCoinControlChange->setEnabled(false);
         ui->lineEditCoinControlChange->setEnabled(false);
 
-        bgColor = darkerColor;
     } else {
         ui->switchFundButton->setText(QString("Use Private Balance"));
         ui->label->setText(QString("Transparent Balance"));
@@ -736,21 +731,7 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
             ui->lineEditCoinControlChange->setEnabled(true);
         }
 
-        bgColor = defaultColor;
     }
-
-    QPalette pal;
-    pal = ui->frameCoinControl->palette();
-    pal.setColor(QPalette::Background, bgColor);
-    ui->frameCoinControl->setPalette(pal);
-
-    pal = ui->scrollArea->palette();
-    pal.setColor(QPalette::Background, bgColor);
-    ui->scrollArea->setPalette(pal);
-
-    pal = ui->frameFee->palette();
-    pal.setColor(QPalette::Background, bgColor);
-    ui->frameFee->setPalette(pal);
 
     if (model) {
         setBalance(model->getBalance(), 0, 0, 0, 0, 0, model->getLelantusModel()->getPrivateBalance().first, 0, 0);

@@ -253,7 +253,7 @@ public:
     int getDefaultConfirmTarget() const;
 
     bool transactionCanBeRebroadcast(uint256 hash) const;
-    bool rebroadcastTransaction(uint256 hash);
+    bool rebroadcastTransaction(uint256 hash, CValidationState &state);
 
     // Sigma
     SendCoinsReturn prepareSigmaSpendTransaction(WalletModelTransaction &transaction,

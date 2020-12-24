@@ -3,7 +3,7 @@
 #include "test/test_bitcoin.h"
 #include "utiltime.h"
 
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 

@@ -178,6 +178,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "listsigmaspends", 1 },
     { "listlelantusjoinsplits", 0 },
     { "listlelantusjoinsplits", 1 },
+    { "joinsplit", 0 },
+    { "joinsplit", 2 },
     { "spendallzerocoin", 0 },
     { "remintzerocointosigma", 0 },
     { "getanonymityset", 0},
@@ -333,6 +335,9 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "trade_MP", 1 }, // depreciated
 	{ "trade_MP", 3 }, // depreciated
 	{ "trade_MP", 5 }, // depreciated
+
+    /* Evo spork */
+    { "spork", 2, "features"},
 };
 
 class CRPCConvertTable

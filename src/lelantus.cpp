@@ -264,9 +264,11 @@ bool CheckLelantusJMintTransaction(
                 "CheckLelantusMintTransaction: double mint");
     }
 
-     uint64_t amount;
-     if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
-         amount = 0;
+    uint64_t amount = 0;
+    if (pwalletMain) {
+        if (!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
+            amount = 0;
+    }
     if (lelantusTxInfo != NULL && !lelantusTxInfo->fInfoIsComplete) {
 
         // Update public coin list in the info
@@ -1017,7 +1019,9 @@ CLelantusState::CLelantusState(
     :containers(surgeCondition),
     maxCoinInGroup(maxCoinInGroup),
     startGroupSize(startGroupSize)
-{}
+{
+    Reset();
+}
 
 void CLelantusState::AddMintsToStateAndBlockIndex(
         CBlockIndex *index,
@@ -1287,52 +1291,54 @@ std::pair<int, int> CLelantusState::GetMintedCoinHeightAndId(
 }
 
 bool CLelantusState::AddSpendToMempool(const vector<Scalar> &coinSerials, uint256 txHash) {
+    LOCK(mempool.cs);
     BOOST_FOREACH(const Scalar& coinSerial, coinSerials){
-        if (IsUsedCoinSerial(coinSerial) || mempoolCoinSerials.count(coinSerial))
+        if (IsUsedCoinSerial(coinSerial) || mempool.lelantusState.HasCoinSerial(coinSerial))
             return false;
 
-        mempoolCoinSerials[coinSerial] = txHash;
+        mempool.lelantusState.AddSpendToMempool(coinSerial, txHash);
     }
 
     return true;
 }
 
 void CLelantusState::RemoveSpendFromMempool(const vector<Scalar> &coinSerials) {
-    BOOST_FOREACH(const Scalar& coinSerial, coinSerials){
-        mempoolCoinSerials.erase(coinSerial);
+    LOCK(mempool.cs);
+    BOOST_FOREACH(const Scalar& coinSerial, coinSerials) {
+        mempool.lelantusState.RemoveSpendFromMempool(coinSerial);
     }
 }
 
-void CLelantusState::AddMintsToMempool(const vector<GroupElement>& pubCoins){
-    BOOST_FOREACH(const GroupElement& pubCoin, pubCoins){
-        mempoolMints.insert(pubCoin);
+void CLelantusState::AddMintsToMempool(const vector<GroupElement>& pubCoins) {
+    LOCK(mempool.cs);
+    BOOST_FOREACH(const GroupElement& pubCoin, pubCoins) {
+        mempool.lelantusState.AddMintToMempool(pubCoin);
     }
 }
 
-void CLelantusState::RemoveMintFromMempool(const GroupElement& pubCoin){
-    mempoolMints.erase(pubCoin);
+void CLelantusState::RemoveMintFromMempool(const GroupElement& pubCoin) {
+    LOCK(mempool.cs);
+    mempool.lelantusState.RemoveMintFromMempool(pubCoin);
 }
 
 uint256 CLelantusState::GetMempoolConflictingTxHash(const Scalar& coinSerial) {
-    if (mempoolCoinSerials.count(coinSerial) == 0)
-        return uint256();
-
-    return mempoolCoinSerials[coinSerial];
+    LOCK(mempool.cs);
+    return mempool.lelantusState.GetMempoolConflictingTxHash(coinSerial);
 }
 
 bool CLelantusState::CanAddSpendToMempool(const Scalar& coinSerial) {
-    return !IsUsedCoinSerial(coinSerial) && mempoolCoinSerials.count(coinSerial) == 0;
+    LOCK(mempool.cs);    
+    return !IsUsedCoinSerial(coinSerial) && !mempool.lelantusState.HasCoinSerial(coinSerial);
 }
 
 bool CLelantusState::CanAddMintToMempool(const GroupElement& pubCoin){
-    return !HasCoin(pubCoin) && mempoolMints.count(pubCoin) == 0;
+    LOCK(mempool.cs);
+    return !HasCoin(pubCoin) && !mempool.lelantusState.HasMint(pubCoin);
 }
 
 void CLelantusState::Reset() {
     coinGroups.clear();
     latestCoinId = 0;
-    mempoolCoinSerials.clear();
-    mempoolMints.clear();
     containers.Reset();
 }
 
@@ -1361,7 +1367,8 @@ std::unordered_map<int, CLelantusState::LelantusCoinGroupInfo> const & CLelantus
 }
 
 std::unordered_map<Scalar, uint256, sigma::CScalarHash> const & CLelantusState::GetMempoolCoinSerials() const {
-    return mempoolCoinSerials;
+    LOCK(mempool.cs);
+    return mempool.lelantusState.GetMempoolCoinSerials();
 }
 
 // private
@@ -1388,5 +1395,44 @@ size_t CLelantusState::CountLastNCoins(int groupId, size_t required, CBlockIndex
 
     return coins;
 }
+
+// CLelantusMempoolState
+
+bool CLelantusMempoolState::HasCoinSerial(const Scalar& coinSerial) {
+    return mempoolCoinSerials.count(coinSerial) > 0;
+}
+
+bool CLelantusMempoolState::HasMint(const GroupElement& pubCoin) {
+    return mempoolMints.count(pubCoin) > 0;
+}
+
+bool CLelantusMempoolState::AddSpendToMempool(const Scalar &coinSerial, uint256 txHash) {
+    return mempoolCoinSerials.insert({coinSerial, txHash}).second;
+}
+
+void CLelantusMempoolState::AddMintToMempool(const GroupElement& pubCoin) {
+    mempoolMints.insert(pubCoin);
+}
+
+void CLelantusMempoolState::RemoveMintFromMempool(const GroupElement& pubCoin) {
+    mempoolMints.erase(pubCoin);
+}
+
+uint256 CLelantusMempoolState::GetMempoolConflictingTxHash(const Scalar& coinSerial) {
+    if (mempoolCoinSerials.count(coinSerial) == 0)
+        return uint256();
+
+    return mempoolCoinSerials[coinSerial];
+}
+
+void CLelantusMempoolState::RemoveSpendFromMempool(const Scalar &coinSerial) {
+    mempoolCoinSerials.erase(coinSerial);
+}
+
+void CLelantusMempoolState::Reset() {
+    mempoolCoinSerials.clear();
+    mempoolMints.clear();
+}
+
 
 } // end of namespace lelantus.

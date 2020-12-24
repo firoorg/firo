@@ -65,6 +65,8 @@ struct TestChain100Setup : public TestingSetup {
 
     std::vector<CTransaction> coinbaseTxns; // For convenience, coinbase transactions
     CKey coinbaseKey; // private/public key needed to spend coinbase transactions
+
+    bool fAllowMempoolTxsInCreateBlock{false}; // do not remove transactions from mempool during CreateBlock processing
 };
 
 struct TestChainDIP3Setup : public TestChain100Setup {

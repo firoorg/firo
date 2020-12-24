@@ -563,7 +563,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintTransactions(
     std::vector<CHDMint> &mints,
     const CCoinControl *coinControl)
 {
-    if (amount < 0) {
+    if (amount <= 0) {
         return InvalidAmount;
     }
 
@@ -577,8 +577,15 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintTransactions(
     int changePos = -1;
     std::string failReason;
 
-    auto success = wallet->CreateLelantusMintTransactions(
-        amount, wtxAndFees, allFee, mints, reserveKeys, changePos, failReason, coinControl);
+    bool success = false;
+    try {
+        success = wallet->CreateLelantusMintTransactions(
+                amount, wtxAndFees, allFee, mints, reserveKeys, changePos, failReason, coinControl);
+
+    } catch (std::runtime_error const &e) {
+        return SendCoinsReturn(TransactionCreationFailed, e.what());
+    }
+
 
     transactions.clear();
     transactions.reserve(wtxAndFees.size());
@@ -948,23 +955,23 @@ static void NotifyWatchonlyChanged(WalletModel *walletmodel, bool fHaveWatchonly
 void WalletModel::subscribeToCoreSignals()
 {
     // Connect signals to wallet
-    wallet->NotifyStatusChanged.connect(boost::bind(&NotifyKeyStoreStatusChanged, this, boost::placeholders::_1));
-    wallet->NotifyAddressBookChanged.connect(boost::bind(NotifyAddressBookChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3, boost::placeholders::_4, boost::placeholders::_5, boost::placeholders::_6));
-    wallet->NotifyTransactionChanged.connect(boost::bind(NotifyTransactionChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
-    wallet->ShowProgress.connect(boost::bind(ShowProgress, this, boost::placeholders::_1, boost::placeholders::_2));
-    wallet->NotifyWatchonlyChanged.connect(boost::bind(NotifyWatchonlyChanged, this, boost::placeholders::_1));
-    wallet->NotifyZerocoinChanged.connect(boost::bind(NotifyZerocoinChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3, boost::placeholders::_4));
+    wallet->NotifyStatusChanged.connect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
+    wallet->NotifyAddressBookChanged.connect(boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
+    wallet->NotifyTransactionChanged.connect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
+    wallet->ShowProgress.connect(boost::bind(ShowProgress, this, _1, _2));
+    wallet->NotifyWatchonlyChanged.connect(boost::bind(NotifyWatchonlyChanged, this, _1));
+    wallet->NotifyZerocoinChanged.connect(boost::bind(NotifyZerocoinChanged, this, _1, _2, _3, _4));
 }
 
 void WalletModel::unsubscribeFromCoreSignals()
 {
     // Disconnect signals from wallet
-    wallet->NotifyStatusChanged.disconnect(boost::bind(&NotifyKeyStoreStatusChanged, this, boost::placeholders::_1));
-    wallet->NotifyAddressBookChanged.disconnect(boost::bind(NotifyAddressBookChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3, boost::placeholders::_4, boost::placeholders::_5, boost::placeholders::_6));
-    wallet->NotifyTransactionChanged.disconnect(boost::bind(NotifyTransactionChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
-    wallet->ShowProgress.disconnect(boost::bind(ShowProgress, this, boost::placeholders::_1, boost::placeholders::_2));
-    wallet->NotifyWatchonlyChanged.disconnect(boost::bind(NotifyWatchonlyChanged, this, boost::placeholders::_1));
-    wallet->NotifyZerocoinChanged.disconnect(boost::bind(NotifyZerocoinChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3, boost::placeholders::_4));
+    wallet->NotifyStatusChanged.disconnect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
+    wallet->NotifyAddressBookChanged.disconnect(boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
+    wallet->NotifyTransactionChanged.disconnect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
+    wallet->ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
+    wallet->NotifyWatchonlyChanged.disconnect(boost::bind(NotifyWatchonlyChanged, this, _1));
+    wallet->NotifyZerocoinChanged.disconnect(boost::bind(NotifyZerocoinChanged, this, _1, _2, _3, _4));
 }
 
 // WalletModel::UnlockContext implementation
@@ -1205,7 +1212,7 @@ bool WalletModel::transactionCanBeRebroadcast(uint256 hash) const
     return wtx->GetRequestCount() <= 0;
 }
 
-bool WalletModel::rebroadcastTransaction(uint256 hash)
+bool WalletModel::rebroadcastTransaction(uint256 hash, CValidationState &state)
 {
     LOCK2(cs_main, wallet->cs_wallet);
     CWalletTx *wtx = const_cast<CWalletTx*>(wallet->GetWalletTx(hash));
@@ -1226,7 +1233,6 @@ bool WalletModel::rebroadcastTransaction(uint256 hash)
 
     if (!fHaveMempool && !fHaveChain) {
         // push to local node and sync with wallets
-        CValidationState state;
         bool fMissingInputs;
         if (!AcceptToMemoryPool(mempool, state, wtx->tx, false, &fMissingInputs, NULL, true, false, maxTxFee))
             return false;

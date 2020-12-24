@@ -126,8 +126,10 @@ BITCOIN_TESTS = \
   test/hash_tests.cpp \
   test/key_tests.cpp \
   test/dbwrapper_tests.cpp \
-  # test/lelantus_tests.cpp \
-  # test/lelantus_state_tests.cpp \
+  test/lelantus_tests.cpp \
+  test/lelantus_mintspend_test.cpp \
+  test/lelantus_state_tests.cpp \
+  test/sigma_lelantus_transition.cpp \
   test/limitedmap_tests.cpp \
   test/main_tests.cpp \
   test/mbstring_tests.cpp \
@@ -177,10 +179,11 @@ BITCOIN_TESTS = \
   test/univalue_tests.cpp \
   test/util_tests.cpp \
   test/multiexponentation_test.cpp \
-  test/firsthalving_tests.cpp
-#  test/evo_deterministicmns_tests.cpp \
-#  test/evo_simplifiedmns_tests.cpp \
-#  test/bls_tests.cpp
+  test/firsthalving_tests.cpp \
+  test/evospork_tests.cpp \
+  test/evo_deterministicmns_tests.cpp \
+  test/evo_simplifiedmns_tests.cpp \
+  test/bls_tests.cpp
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \

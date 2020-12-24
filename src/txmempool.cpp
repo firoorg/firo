@@ -492,6 +492,22 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
         if (dmn->pdmnState->pubKeyOperator.Get() != CBLSPublicKey()) {
             newit->isKeyChangeProTx = true;
         }
+    } else if (tx.nType == TRANSACTION_SPORK) {
+        sporkManager.AcceptSporkToMemoryPool(tx);
+
+        // evict all the transactions disabled by sporks
+        std::set<uint256> evictList;
+        for (txiter mi = mapTx.begin(); mi != mapTx.end(); ++mi) {
+            CValidationState state;
+            if (!sporkManager.IsTransactionAllowed(mi->GetTx(), state))
+                evictList.insert(mi->GetTx().GetHash());
+        }
+
+        for (uint256 evictTxHash: evictList) {
+            txiter txit = mapTx.find(evictTxHash);
+            if (txit != mapTx.end())
+                removeRecursive(txit->GetTx(), MemPoolRemovalReason::CONFLICT);
+        }
     }
 
     return true;
@@ -558,6 +574,41 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
             assert(false);
         }
         eraseProTxRef(proTx.proTxHash, it->GetTx().GetHash());
+    } else if (it->GetTx().nType == TRANSACTION_SPORK) {
+        sporkManager.RemovedFromMemoryPool(it->GetTx());
+    }
+
+    else if (it->GetTx().IsLelantusTransaction()) {
+        // Remove mints and spend serials from lelantus mempool state
+        const CTransaction &tx = it->GetTx();
+        if (tx.IsLelantusJoinSplit()) {
+            std::vector<Scalar> serials;
+            try {
+                serials = lelantus::GetLelantusJoinSplitSerialNumbers(tx, tx.vin[0]);
+                for (const Scalar &serial: serials)
+                    lelantusState.RemoveSpendFromMempool(serial);
+            }
+            catch (CBadTxIn&) {
+            }
+        }
+
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        {
+            if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
+                GroupElement pubCoinValue;
+                try {
+                    if (txout.scriptPubKey.IsLelantusMint()) {
+                        lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
+                    } else {
+                        std::vector<unsigned char> encryptedValue;
+                        lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
+                    }
+                    lelantusState.RemoveMintFromMempool(pubCoinValue);
+                }
+                catch (std::invalid_argument&) {
+                }
+            }
+        }
     }
 
     totalTxSize -= it->GetTxSize();
@@ -1022,6 +1073,7 @@ void CTxMemPool::_clear()
     lastRollingFeeUpdate = GetTime();
     blockSinceLastRollingFeeBump = false;
     rollingMinimumFeeRate = 0;
+    lelantusState.Reset();
     ++nTransactionsUpdated;
 }
 
@@ -1456,6 +1508,11 @@ bool CTxMemPool::HasNoInputsOf(const CTransaction &tx) const
         if (exists(tx.vin[i].prevout.hash))
             return false;
     return true;
+}
+
+bool CTxMemPool::IsTransactionAllowed(const CTransaction &tx, CValidationState &state) const
+{
+    return sporkManager.IsTransactionAllowed(tx, state);
 }
 
 CCoinsViewMemPool::CCoinsViewMemPool(CCoinsView* baseIn, const CTxMemPool& mempoolIn) : CCoinsViewBacked(baseIn), mempool(mempoolIn) { }

@@ -36,6 +36,7 @@
 #include "sigma/remint.h"
 #include "evo/cbtx.h"
 #include "evo/specialtx.h"
+#include "evo/spork.h"
 #include "llmq/quorums_commitment.h"
 #include "evo/providertx.h"
 #include "lelantus.h"
@@ -236,6 +237,9 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 break;
             case TRANSACTION_QUORUM_COMMITMENT:
                 ExtraPayloadToJson<llmq::CFinalCommitmentTxPayload>(tx, "finalCommitment", entry);
+                break;
+            case TRANSACTION_SPORK:
+                ExtraPayloadToJson<CSporkTx>(tx, "sporkTx", entry);
                 break;
             default:
                 break;

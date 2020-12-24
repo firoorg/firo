@@ -14,6 +14,8 @@
 #include <functional>
 #include "coin_containers.h"
 
+namespace lelantus_mintspend { class lelantus_mintspend_test; }
+
 namespace lelantus {
 
 // Lelantus transaction info, added to the CBlock to ensure zerocoin mint/spend transactions got their info stored into index
@@ -96,6 +98,36 @@ std::vector<Scalar> GetLelantusJoinSplitSerialNumbers(const CTransaction &tx, co
  * Util functions
  */
 size_t CountCoinInBlock(CBlockIndex const *index, int id);
+
+class CLelantusMempoolState {
+private:
+    // serials of spends currently in the mempool mapped to tx hashes
+    std::unordered_map<Scalar, uint256, sigma::CScalarHash> mempoolCoinSerials;
+    // mints in the mempool
+    std::unordered_set<GroupElement> mempoolMints;
+
+public:
+    // Check if there is a conflicting tx in the blockchain or mempool
+    bool HasCoinSerial(const Scalar& coinSerial);
+
+    bool HasMint(const GroupElement& pubCoin);
+
+    // Add spend into the mempool.
+    bool AddSpendToMempool(const Scalar &coinSerial, uint256 txHash);
+
+    void AddMintToMempool(const GroupElement& pubCoins);
+    void RemoveMintFromMempool(const GroupElement& pubCoin);
+
+    // Get conflicting tx hash by coin serial number
+    uint256 GetMempoolConflictingTxHash(const Scalar& coinSerial);
+
+    // Remove spend from the mempool (usually as the result of adding tx to the block)
+    void RemoveSpendFromMempool(const Scalar& coinSerial);
+
+    std::unordered_map<Scalar, uint256, sigma::CScalarHash> const & GetMempoolCoinSerials() const { return mempoolCoinSerials; }
+
+    void Reset();
+};
 
 /*
  * State of minted/spent coins as extracted from the index
@@ -208,11 +240,6 @@ private:
     // Latest anonymity set id;
     int latestCoinId;
 
-    // serials of spends currently in the mempool mapped to tx hashes
-    std::unordered_map<Scalar, uint256, sigma::CScalarHash> mempoolCoinSerials;
-
-    std::unordered_set<GroupElement> mempoolMints;
-
     std::atomic<bool> surgeCondition;
 
     struct Containers {
@@ -249,9 +276,13 @@ private:
         metainfo_container_t extendedMintMetaInfo, mintMetaInfo, spendMetaInfo;
 
         void CheckSurgeCondition();
+
+        friend class lelantus_mintspend::lelantus_mintspend_test;
     };
 
     Containers containers;
+
+    friend class lelantus_mintspend::lelantus_mintspend_test;
 };
 
 } // end of namespace lelantus
