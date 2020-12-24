@@ -1333,7 +1333,7 @@ bool CLelantusState::CanAddSpendToMempool(const Scalar& coinSerial) {
 
 bool CLelantusState::CanAddMintToMempool(const GroupElement& pubCoin){
     LOCK(mempool.cs);
-    return !HasCoin(pubCoin) && !mempool.lelantusState.HasMint(pubCoin) == 0;
+    return !HasCoin(pubCoin) && !mempool.lelantusState.HasMint(pubCoin);
 }
 
 void CLelantusState::Reset() {
