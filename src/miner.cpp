@@ -178,7 +178,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblocktemplate->vTxFees.push_back(-1); // updated at end
     pblocktemplate->vTxSigOpsCost.push_back(-1); // updated at end
 
-    LOCK2(cs_main, mempool.cs);
+    LOCK(cs_main);
     CBlockIndex* pindexPrev = chainActive.Tip();
     nHeight = pindexPrev->nHeight + 1;
 
@@ -219,12 +219,16 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     // transaction (which in most cases can be a no-op).
     fIncludeWitness = IsWitnessEnabled(pindexPrev, chainparams.GetConsensus()) && fMineWitnessTx;
 
-    FillBlackListForBlockTemplate();
 
-    addPriorityTxs();
     int nPackagesSelected = 0;
     int nDescendantsUpdated = 0;
-    addPackageTxs(nPackagesSelected, nDescendantsUpdated);
+    {
+        LOCK(mempool.cs);
+        FillBlackListForBlockTemplate();
+
+        addPriorityTxs();
+        addPackageTxs(nPackagesSelected, nDescendantsUpdated);
+    }
 
     int64_t nTime1 = GetTimeMicros();
 

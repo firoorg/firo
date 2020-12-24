@@ -968,7 +968,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     {
         if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
             GroupElement pubCoinValue;
-            uint64_t amount;
+            uint64_t amount = 0;
             try {
                 if (txout.scriptPubKey.IsLelantusMint()) {
                     lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
@@ -976,8 +976,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 } else {
                     std::vector<unsigned char> encryptedValue;
                     lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
-                    if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
-                        amount = 0;
+                    if (pwalletMain)
+                        if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
+                            amount = 0;
                 }
             } catch (std::invalid_argument&) {
                 return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
@@ -1437,7 +1438,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             lelantusState->AddSpendToMempool(lelantusSpendSerials, hash);
         LogPrintf("Updating mint tracker state from Mempool..");
 #ifdef ENABLE_WALLET
-        if (pwalletMain->zwallet) {
+        if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
             LogPrintf("Updating spend state from Mempool..");
             pwalletMain->zwallet->GetTracker().UpdateJoinSplitStateFromMempool(lelantusSpendSerials);
             pwalletMain->zwallet->GetTracker().UpdateSpendStateFromMempool(lelantusSpendSerials);
@@ -1457,7 +1458,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         pwalletMain->zwallet->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
     }
 
-    if(tx.IsLelantusMint() && pwalletMain->zwallet) {
+    if(tx.IsLelantusMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
         LogPrintf("Updating mint state from Mempool..");
         pwalletMain->zwallet->GetTracker().UpdateLelantusMintStateFromMempool(lelantusMintPubcoins, lelantusAmounts);
     }

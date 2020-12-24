@@ -225,9 +225,6 @@ LelantusTestingSetup::LelantusTestingSetup() :
 }
 
 CBlockIndex* LelantusTestingSetup::GenerateBlock(std::vector<CMutableTransaction> const &txns, CScript *script) {
-    // NOTE: work around for deadlock problem, remove this when resolved
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-    LOCK(mempool.cs);
     auto last = chainActive.Tip();
 
     CreateAndProcessBlock(txns, script ? *script : this->script);
@@ -241,7 +238,7 @@ CBlockIndex* LelantusTestingSetup::GenerateBlock(std::vector<CMutableTransaction
 }
 
 void LelantusTestingSetup::GenerateBlocks(size_t blocks, CScript *script) {
-    while (--blocks) {
+    while (blocks--) {
         GenerateBlock({}, script);
     }
 }
@@ -298,10 +295,10 @@ std::vector<CHDMint> LelantusTestingSetup::GenerateMints(
             throw std::runtime_error(_("Fail to generate mints, ") + result);
         }
 
-        txs.emplace_back(wtxAndFee.front().first);
+        for(auto itr : wtxAndFee)
+            txs.emplace_back(itr.first);
 
         hdMints.insert(hdMints.end(), mints.begin(), mints.end());
-        pwalletMain->zwallet->GetTracker().AddLelantus(walletdb, hdMints.back(), true);
     }
 
     return hdMints;

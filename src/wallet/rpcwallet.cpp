@@ -2032,11 +2032,10 @@ UniValue gettransaction(const JSONRPCRequest& request)
     CAmount nDebit = wtx.GetDebit(filter);
     CAmount nNet = nCredit - nDebit;
     CAmount nFee = (wtx.IsFromMe(filter) ? wtx.tx->GetValueOut() - nDebit : 0);
+    if (wtx.tx->vin[0].IsLelantusJoinSplit())
+        nFee = (0 - lelantus::ParseLelantusJoinSplit(wtx.tx->vin[0])->getFee());
 
     entry.push_back(Pair("amount", ValueFromAmount(nNet - nFee)));
-
-    if (wtx.tx->vin[0].IsLelantusJoinSplit())
-        nFee = lelantus::ParseLelantusJoinSplit(wtx.tx->vin[0])->getFee();
 
     if (wtx.IsFromMe(filter))
         entry.push_back(Pair("fee", ValueFromAmount(nFee)));

@@ -113,7 +113,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
     if (scriptPubKey.IsLelantusJMint())
     {
         typeRet = TX_LELANTUSJMINT;
-        if (scriptPubKey.size() != 82) return false;
+        if (scriptPubKey.size() != 83) return false;
         vSolutionsRet.emplace_back(scriptPubKey.begin() + 1, scriptPubKey.end());
         return true;
     }
