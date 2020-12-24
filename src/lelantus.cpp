@@ -264,9 +264,11 @@ bool CheckLelantusJMintTransaction(
                 "CheckLelantusMintTransaction: double mint");
     }
 
-     uint64_t amount;
-     if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
-         amount = 0;
+    uint64_t amount = 0;
+    if (pwalletMain) {
+        if (!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
+            amount = 0;
+    }
     if (lelantusTxInfo != NULL && !lelantusTxInfo->fInfoIsComplete) {
 
         // Update public coin list in the info
@@ -1017,7 +1019,9 @@ CLelantusState::CLelantusState(
     :containers(surgeCondition),
     maxCoinInGroup(maxCoinInGroup),
     startGroupSize(startGroupSize)
-{}
+{
+    Reset();
+}
 
 void CLelantusState::AddMintsToStateAndBlockIndex(
         CBlockIndex *index,

@@ -515,6 +515,19 @@ void CHDMintTracker::SetPubcoinNotUsed(const uint256& hashPubcoin)
     UpdateState(meta);
 }
 
+void CHDMintTracker::SetLelantusPubcoinNotUsed(const uint256& hashPubcoin)
+{
+    CLelantusMintMeta meta;
+    if(!GetLelantusMetaFromPubcoin(hashPubcoin, meta))
+        return;
+    meta.isUsed = false;
+
+    if (mapPendingSpends.count(meta.hashSerial))
+        mapPendingSpends.erase(meta.hashSerial);
+
+    UpdateState(meta);
+}
+
 
 /**
  * Check mempool for the spend associated with the mint serial hash passed
@@ -1209,19 +1222,20 @@ std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureO
 
 std::vector<CLelantusMintMeta> CHDMintTracker::ListLelantusMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fLoad, bool fWrongSeed)
 {
-    std::vector<CLelantusMintMeta> vOverWrite;
-    std::set<uint256> setMempool = GetMempoolTxids();
-
     std::vector<CLelantusMintMeta> setMints;
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-    CWalletDB walletdb(strWalletFile);
     if (fLoad) {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        CWalletDB walletdb(strWalletFile);
+
         std::list<CHDMint> listDeterministicDB = walletdb.ListHDMints(true);
         for (auto& dMint : listDeterministicDB) {
             AddLelantus(walletdb, dMint, false, false);
         }
         LogPrint("zero", "%s: added %d lelantus hdmint from DB\n", __func__, listDeterministicDB.size());
     }
+
+    std::vector<CLelantusMintMeta> vOverWrite;
+    std::set<uint256> setMempool = GetMempoolTxids();
 
     for (auto& it : mapLelantusSerialHashes) {
         CLelantusMintMeta mint = it.second;

@@ -19,7 +19,7 @@ struct JoinSplitScriptGenerator {
     CAmount vout;
     std::vector<PrivateCoin> coinsOut;
     CAmount fee;
-    std::vector<uint256> groupBlockHashes;
+    std::map<uint32_t, uint256> groupBlockHashes;
     uint256 txHash;
 
     std::pair<CScript, JoinSplit> Get() {
@@ -98,7 +98,7 @@ public:
 
     void PopulateLelantusTxInfo(
         CBlock &block,
-        std::vector<std::pair<secp_primitives::GroupElement, int64_t>> const &mints,
+        std::vector<std::pair<lelantus::PublicCoin, std::pair<uint64_t, uint256>>> const &mints,
         std::vector<std::pair<Scalar, int>> const &serials) {
         block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
         block.lelantusTxInfo->mints.insert(block.lelantusTxInfo->mints.end(), mints.begin(), mints.end());
@@ -198,7 +198,8 @@ BOOST_AUTO_TEST_CASE(parse_lelantus_mintscript)
     BOOST_CHECK(pub.getValue() == parsedCoin);
 
     SchnorrProof proof;
-    ParseLelantusMintScript(script, parsedCoin, proof);
+    uint256 mintTag;
+    ParseLelantusMintScript(script, parsedCoin, proof, mintTag);
 
     BOOST_CHECK(pub.getValue() == parsedCoin);
     BOOST_CHECK(VerifyMintSchnorrProof(1, parsedCoin, proof));
@@ -214,7 +215,7 @@ BOOST_AUTO_TEST_CASE(parse_lelantus_mintscript)
     BOOST_CHECK(pub.getValue() == parsedCoin2);
 
     script.resize(script.size() - 1);
-    BOOST_CHECK_THROW(ParseLelantusMintScript(script, parsedCoin, proof), std::invalid_argument);
+    BOOST_CHECK_THROW(ParseLelantusMintScript(script, parsedCoin, proof, mintTag), std::invalid_argument);
 }
 
 BOOST_AUTO_TEST_CASE(parse_lelantus_jmint)
@@ -274,7 +275,7 @@ BOOST_AUTO_TEST_CASE(get_outpoint)
     BOOST_CHECK(ReadBlockFromDisk(block, blockIdx, ::Params().GetConsensus()));
 
     block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
-    block.lelantusTxInfo->mints.emplace_back(mint.GetPubcoinValue(), mint.GetAmount());
+    block.lelantusTxInfo->mints.emplace_back(std::make_pair(mint.GetPubcoinValue(), std::make_pair(mint.GetAmount(), uint256())));
 
     lelantusState->AddMintsToStateAndBlockIndex(blockIdx, &block);
     lelantusState->AddBlock(blockIdx);
@@ -331,10 +332,10 @@ BOOST_AUTO_TEST_CASE(build_lelantus_state)
     block1.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
     block2.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
 
-    block1.lelantusTxInfo->mints.emplace_back(mints[0].GetPubcoinValue(), mints[0].GetAmount());
-    block1.lelantusTxInfo->mints.emplace_back(mints[1].GetPubcoinValue(), mints[1].GetAmount());
-    block2.lelantusTxInfo->mints.emplace_back(mints[2].GetPubcoinValue(), mints[2].GetAmount());
-    block2.lelantusTxInfo->mints.emplace_back(mints[3].GetPubcoinValue(), mints[3].GetAmount());
+    block1.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[0].GetPubcoinValue(), std::make_pair(mints[0].GetAmount(), uint256())));
+    block1.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[1].GetPubcoinValue(), std::make_pair(mints[1].GetAmount(), uint256())));
+    block1.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[2].GetPubcoinValue(), std::make_pair(mints[2].GetAmount(), uint256())));
+    block1.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[3].GetPubcoinValue(), std::make_pair(mints[3].GetAmount(), uint256())));
 
     lelantusState->AddMintsToStateAndBlockIndex(blockIdx1, &block1);
     lelantusState->AddMintsToStateAndBlockIndex(blockIdx2, &block2);
@@ -350,8 +351,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 {
     // util function
     auto reconnect = [](CBlock const &block) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
-        LOCK(mempool.cs);
+        LOCK(cs_main);
 
         std::shared_ptr<CBlock const> sharedBlock =
         std::make_shared<CBlock const>(block);
@@ -396,7 +396,6 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
             CLelantusState::LelantusCoinGroupInfo group;
             state->GetCoinGroupInfo(retrievedId, group);
-
             BOOST_CHECK_EQUAL(lastId, retrievedId);
             BOOST_CHECK_EQUAL(first, group.firstBlock);
             BOOST_CHECK_EQUAL(last, group.lastBlock);
@@ -444,20 +443,19 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
     // Update isused status
     {
         auto mint = hdMints[0];
-        auto pubCoin = mint.GetPubcoinValue()
-            + lelantus::Params::get_default()->get_h1() * Scalar(mint.GetAmount()).negate();
-        auto hash = primitives::GetPubCoinValueHash(pubCoin);
+        auto hash = primitives::GetPubCoinValueHash(mint.GetPubcoinValue());
 
         CLelantusMintMeta meta;
-        BOOST_CHECK(zwalletMain->GetTracker()
+        BOOST_CHECK(pwalletMain->zwallet->GetTracker()
             .GetLelantusMetaFromPubcoin(hash, meta));
+
         BOOST_CHECK(meta.isUsed);
 
         meta.isUsed = false;
-        BOOST_CHECK(zwalletMain->GetTracker().UpdateState(meta));
+        BOOST_CHECK(pwalletMain->zwallet->GetTracker().UpdateState(meta));
 
         meta = CLelantusMintMeta();
-        BOOST_CHECK(zwalletMain->GetTracker()
+        BOOST_CHECK(pwalletMain->zwallet->GetTracker()
             .GetLelantusMetaFromPubcoin(hash, meta));
         BOOST_CHECK(!meta.isUsed);
     }
@@ -541,6 +539,8 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
     auto currentBlock = chainActive.Tip()->nHeight;
     BOOST_CHECK(!GenerateBlock({dupJsTx1}));
     BOOST_CHECK_EQUAL(currentBlock, chainActive.Tip()->nHeight);
+    mempool.clear();
+    lelantusState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(checktransaction)
@@ -557,7 +557,8 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     BOOST_CHECK(CheckLelantusTransaction(
         txs[0], state, tx.GetHash(), true, chainActive.Height(), true, true, NULL, &info));
 
-    std::vector<std::pair<PublicCoin, uint64_t>> expectedCoins = {{mints[0].GetPubcoinValue(), 1 * CENT}};
+    std::vector<std::pair<PublicCoin, std::pair<uint64_t, uint256>>> expectedCoins = {{mints[0].GetPubcoinValue(), {1 * CENT, info.mints[0].second.second}}};
+
     BOOST_CHECK(expectedCoins == info.mints);
 
     // join split
@@ -621,13 +622,13 @@ BOOST_AUTO_TEST_CASE(spend_limitation_per_tx)
     invalidG.fee = 0;
     invalidG.vout = 0;
     invalidG.coinsOut = {coinOut};
-    invalidG.groupBlockHashes = {ArithToUint256(0)};
+    invalidG.groupBlockHashes[1] = {ArithToUint256(0)};
     invalidG.txHash = ArithToUint256(0);
 
     validG.fee = 0;
     validG.vout = 0;
     validG.coinsOut = {coinOut};
-    validG.groupBlockHashes = {ArithToUint256(0)};
+    validG.groupBlockHashes[1] = ArithToUint256(0);
     validG.txHash = ArithToUint256(0);
 
     for (size_t i = 0; i != consensus.nMaxLelantusInputPerTransaction + 1; i++) {
@@ -676,7 +677,7 @@ BOOST_AUTO_TEST_CASE(spend_limitation_per_block)
             spends++;
         }
 
-        g.groupBlockHashes = {ArithToUint256(i)};
+        g.groupBlockHashes[1] = ArithToUint256(i);
         g.txHash = ArithToUint256(i);
 
         CMutableTransaction tx;
@@ -717,7 +718,8 @@ BOOST_AUTO_TEST_CASE(parse_joinsplit)
     g.vout = 11 * COIN - CENT;
     g.coinsOut.push_back(coins[3]);
     g.fee = CENT;
-    g.groupBlockHashes = {ArithToUint256(1), ArithToUint256(2)};
+    g.groupBlockHashes[1] = ArithToUint256(1);
+    g.groupBlockHashes[2] = ArithToUint256(2);
     g.txHash = ArithToUint256(3);
 
     auto gs = g.Get();

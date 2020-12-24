@@ -70,6 +70,9 @@ std::pair<CAmount, CAmount> LelantusModel::getPrivateBalance(size_t &confirmed, 
 
     auto zwallet = pwalletMain->zwallet.get();
 
+    if(!zwallet)
+        return balance;
+
     auto coins = zwallet->GetTracker().ListLelantusMints(true, false, false);
     for (auto const &c : coins) {
 

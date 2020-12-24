@@ -753,6 +753,7 @@ int main(int argc, char *argv[])
     // - hdseed not set (default, not setting hd seed from conf file instead)
 
     if(GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC) &&
+       !GetBoolArg("-disablewallet", false) &&
        GetArg("-mnemonic", "").empty() &&
        GetArg("-hdseed", "not hex")=="not hex"){
         if(!Recover::askRecover(newWallet))

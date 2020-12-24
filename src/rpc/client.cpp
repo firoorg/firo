@@ -178,6 +178,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "listsigmaspends", 1 },
     { "listlelantusjoinsplits", 0 },
     { "listlelantusjoinsplits", 1 },
+    { "joinsplit", 0 },
+    { "joinsplit", 2 },
     { "spendallzerocoin", 0 },
     { "remintzerocointosigma", 0 },
     { "getanonymityset", 0},

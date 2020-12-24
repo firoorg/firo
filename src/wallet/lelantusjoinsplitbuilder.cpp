@@ -228,7 +228,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
             input += spend.amount;
         }
 
-        changeToMint += (input - currentVout - fee - changeToMint);
+        changeToMint += (input - currentVout - fee - changeToMint - mint);
 
         if(changeToMint > consensusParams.nMaxValueLelantusMint) {
             throw std::invalid_argument(
@@ -369,9 +369,7 @@ void LelantusJoinSplitBuilder::GenerateMints(const std::vector<CAmount>& newMint
         std::vector<unsigned char> vch = pubCoin.getValue().getvch();
         scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
 
-        LOCK(pwalletMain->cs_wallet);
         std::vector<unsigned char> encryptedValue = pwalletMain->EncryptMintAmount(mintVal, pubCoin.getValue());
-
         scriptSerializedCoin.insert(scriptSerializedCoin.end(), encryptedValue.begin(), encryptedValue.end());
 
         auto pubcoin = hdMint.GetPubcoinValue() + lelantus::Params::get_default()->get_h1() * Scalar(hdMint.GetAmount()).negate();
