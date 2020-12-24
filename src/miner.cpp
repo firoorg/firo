@@ -35,6 +35,7 @@
 #include "sigma.h"
 #include "lelantus.h"
 #include "sigma/remint.h"
+#include "evo/spork.h"
 #include <algorithm>
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
@@ -218,7 +219,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     // TODO: replace this with a call to main to assess validity of a mempool
     // transaction (which in most cases can be a no-op).
     fIncludeWitness = IsWitnessEnabled(pindexPrev, chainparams.GetConsensus()) && fMineWitnessTx;
-
 
     int nPackagesSelected = 0;
     int nDescendantsUpdated = 0;
@@ -890,8 +890,9 @@ void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fM
 }
 
 void BlockAssembler::FillBlackListForBlockTemplate() {
-    for (CTxMemPool::indexed_transaction_set::iterator mi = mempool.mapTx.begin();
-            mi != mempool.mapTx.end(); ++mi)
+    CTxMemPool::setEntries sporkTxs;
+
+    for (CTxMemPool::txiter mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi)
     {
         if (txBlackList.count(mi) > 0)
             continue;
@@ -915,6 +916,64 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
                         mempool.isSpent(proTx.collateralOutpoint)))
                 mempool.CalculateDescendants(mi, txBlackList);
         }
+
+        if (tx.nVersion >= 3 && tx.nType == TRANSACTION_SPORK) {
+            CSporkTx sporkTx;
+            if (GetTxPayload<CSporkTx>(tx, sporkTx)) {
+                sporkTxs.insert(mi);
+            }
+        }
+    }
+
+    // Update spork map with sporks to be included in block
+    std::vector<CTransactionRef> sporkTxRefs;
+    for (auto sporkTx: sporkTxs) {
+        if (txBlackList.count(sporkTx) == 0)
+            sporkTxRefs.push_back(sporkTx->GetSharedTx());
+    }
+    CSporkManager *sporkManager = CSporkManager::GetSporkManager();
+    ActiveSporkMap prevSporkMap = chainActive.Tip()->activeDisablingSporks;
+    ActiveSporkMap sporkMap;
+    sporkManager->UpdateActiveSporkMap(sporkMap, prevSporkMap, chainActive.Tip()->nHeight+1, sporkTxRefs);
+
+    // blacklist all the transactions not allowed under the spork set
+    if (!sporkMap.empty()) {
+        for (CTxMemPool::txiter mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi) {
+            CValidationState state;
+            if (!sporkManager->IsTransactionAllowed(mi->GetTx(), sporkMap, state))
+                mempool.CalculateDescendants(mi, txBlackList);
+        }
+    }
+
+    // Now if we have limit on lelantus transparent outputs scan mempool and drop all the transactions exceeding the limit
+    if (sporkMap.count(CSporkAction::featureLelantusTransparentLimit) > 0) {
+        CAmount limit = sporkMap[CSporkAction::featureLelantusTransparentLimit].second;
+
+        std::vector<CTxMemPool::txiter> joinSplitTxs;
+        for (CTxMemPool::txiter mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi) {
+            if (txBlackList.count(mi) == 0 && mi->GetTx().IsLelantusJoinSplit())
+                joinSplitTxs.push_back(mi);
+        }
+
+        // sort join splits in order of their transparent outputs so large txs won't block smaller ones
+        // from getting into the mempool
+        std::sort(joinSplitTxs.begin(), joinSplitTxs.end(), 
+            [](CTxMemPool::txiter a, CTxMemPool::txiter b) -> bool {
+                return lelantus::GetSpendTransparentAmount(a->GetTx()) < lelantus::GetSpendTransparentAmount(b->GetTx());
+            });
+
+        CAmount transparentAmount = 0;
+        std::vector<CTxMemPool::txiter>::const_iterator it;
+        for (it = joinSplitTxs.cbegin(); it != joinSplitTxs.cend(); ++it) {
+            CAmount output = lelantus::GetSpendTransparentAmount((*it)->GetTx());
+            if (transparentAmount + output > limit)
+                break;
+            transparentAmount += output;
+        }
+
+        // found all the joinsplit transaction fitting in the limit, blacklist the rest
+        while (it != joinSplitTxs.cend())
+            mempool.CalculateDescendants(*it++, txBlackList);
     }
 }
 

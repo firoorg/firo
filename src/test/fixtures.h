@@ -71,6 +71,8 @@ public:
 
     CPubKey GenerateAddress();
 
+    ~LelantusTestingSetup();
+
 public:
     lelantus::Params const *params;
     CScript script;

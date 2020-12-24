@@ -32,6 +32,7 @@ BOOST_AUTO_TEST_CASE(create_mint_recipient)
 
 BOOST_AUTO_TEST_CASE(mint_and_store_lelantus)
 {
+    bool oldFRequireStandard = fRequireStandard;
     fRequireStandard = true; // to verify mainnet can accept lelantus mint
     pwalletMain->SetBroadcastTransactions(true);
 
@@ -67,6 +68,7 @@ BOOST_AUTO_TEST_CASE(mint_and_store_lelantus)
 
     auto lelantusState = lelantus::CLelantusState::GetState();
     lelantusState->Reset();
+    fRequireStandard = oldFRequireStandard;
 }
 
 BOOST_AUTO_TEST_CASE(get_and_list_mints)

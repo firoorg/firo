@@ -335,6 +335,9 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "trade_MP", 1 }, // depreciated
 	{ "trade_MP", 3 }, // depreciated
 	{ "trade_MP", 5 }, // depreciated
+
+    /* Evo spork */
+    { "spork", 2, "features"},
 };
 
 class CRPCConvertTable
