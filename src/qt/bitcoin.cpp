@@ -219,7 +219,7 @@ public:
     // migrate settings to firo. Returns true if there was migration
     bool migrateSettings(const QString &oldOrganizationName, const QString &newOrganizationName, const QString &oldApplicationName, const QString &newApplicationName);
     // set data directory in settings file
-    bool setDataDirInSettings(const QString &organization, const QString &application, const QString &dataDir);
+    void setDataDirInSettings(const QString &organization, const QString &application, const QString &dataDir);
     // migrate directories to firo if needed
     void migrateToFiro();
 
@@ -563,7 +563,7 @@ bool BitcoinApplication::migrateSettings(const QString &oldOrganizationName, con
     return false;
 }
 
-bool BitcoinApplication::setDataDirInSettings(const QString &organization, const QString &application, const QString &dataDir)
+void BitcoinApplication::setDataDirInSettings(const QString &organization, const QString &application, const QString &dataDir)
 {
     QSettings settings(organization, application);
     if (!settings.value("strDataDir").isNull()) {
