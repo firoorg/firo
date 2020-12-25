@@ -128,7 +128,7 @@ struct SigmaWalletV1TestingSetup : WalletTestingSetup
     }
 
     template<class Output>
-    bool PopulateMintEntries(PropertyId propId, SigmaDenomination denom, size_t amount, Output output)
+    void PopulateMintEntries(PropertyId propId, SigmaDenomination denom, size_t amount, Output output)
     {
         for (size_t i = 0; i < amount; i++) {
             SigmaMintId id;
