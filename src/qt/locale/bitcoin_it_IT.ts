@@ -88,7 +88,7 @@
     </message>
 </context>
 <context>
-    <name>FiroGUI</name>
+    <name>BitcoinGUI</name>
     <message>
         <source>&amp;Transactions</source>
         <translation>Transazioni</translation>
