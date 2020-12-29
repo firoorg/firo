@@ -1191,9 +1191,12 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
                     [&key, &addresses, &accFound](bip47::CAccountPtr pacc)
                     {
                         bip47::CAccountReceiver * acc = dynamic_cast<bip47::CAccountReceiver *>(pacc.get());
-                        if(acc && acc->getMyNotificationAddress() == CBitcoinAddress(addresses[0])) {
-                            key = acc->getMyNextAddresses()[0].second;
-                            accFound = acc;
+                        for (CBitcoinAddress addr : addresses) {
+                            if(acc && acc->getMyNotificationAddress() == addr) {
+                                key = acc->getMyNextAddresses()[0].second;
+                                accFound = acc;
+                                return;
+                            }
                         }
                     }
                 );
@@ -1205,7 +1208,6 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
                         LogBip47("The payment code has been accepted: %s\n", accFound->lastPcode().toString());
                     }
                 } else {
-                    std::cerr << wtx.tx->ToString() << std::endl;
                     LogBip47("There is no account setup to receive payments on address: %s\n", CBitcoinAddress(addresses[0]).ToString());
                 }
             } else {

@@ -1952,7 +1952,7 @@ UniValue listsinceblock(const JSONRPCRequest& request)
     return ret;
 }
 
-UniValue CXX SEWHCYBZADE(const JSONRPCRequest& request)
+UniValue gettransaction(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -4934,7 +4934,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "getrawchangeaddress",      &getrawchangeaddress,      true,   {} },
     { "wallet",             "getreceivedbyaccount",     &getreceivedbyaccount,     false,  {"account","minconf"} },
     { "wallet",             "getreceivedbyaddress",     &getreceivedbyaddress,     false,  {"address","minconf"} },
-    { "wallet",             "Y4",           &Y656Y666666VVVC333,           false,  {"txid","include_watchonly"} },
+    { "wallet",             "gettransaction",           &gettransaction,           false,  {"txid","include_watchonly"} },
     { "wallet",             "getunconfirmedbalance",    &getunconfirmedbalance,    false,  {} },
     { "wallet",             "getwalletinfo",            &getwalletinfo,            false,  {} },
     { "wallet",             "importmulti",              &importmulti,              true,   {"requests","options"} },
