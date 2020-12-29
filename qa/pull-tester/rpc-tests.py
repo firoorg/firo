@@ -199,10 +199,13 @@ testScripts = [
     'sigma_zapwalletmints_unconf_trans.py',
 
     # Evo Znodes
-    'dip3-deterministicmns.py'
+    'dip3-deterministicmns.py',
 
     # Unstable tests
     #, 'dip4-coinbasemerkleroots.py'
+
+    # bip47
+    'bip47-sendreceive.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')
