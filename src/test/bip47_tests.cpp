@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE(payment_codes)
     {   using namespace alice;
         CExtKey key;
         key.SetMaster(bip32seed.data(), bip32seed.size());
-        CExtPubKey pubkey = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT}).Neuter();
+        CExtPubKey pubkey = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT}).Neuter();
         bip47::CPaymentCode paymentCode(pubkey.pubkey, pubkey.chaincode);
         BOOST_CHECK_EQUAL(paymentCode.toString(), paymentcode);
     }
@@ -135,7 +135,7 @@ BOOST_AUTO_TEST_CASE(payment_codes)
     {   using namespace bob;
         CExtKey key;
         key.SetMaster(bip32seed.data(), bip32seed.size());
-        CExtPubKey pubkey = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT}).Neuter();
+        CExtPubKey pubkey = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT}).Neuter();
         bip47::CPaymentCode paymentCode = bip47::CPaymentCode(pubkey.pubkey, pubkey.chaincode);
         BOOST_CHECK_EQUAL(paymentCode.toString(), paymentcode);
     }
@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE(ecdh_parameters)
         CExtKey key;
         key.SetMaster(bip32seed.data(), bip32seed.size());
 
-        CExtKey privkey = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0});
+        CExtKey privkey = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0});
         CExtPubKey pubkey = privkey.Neuter();
         BOOST_CHECK_EQUAL(HexStr(privkey.key), HexStr(ecdhparams[0]));
         BOOST_CHECK_EQUAL(HexStr(pubkey.pubkey), HexStr(ecdhparams[1]));
@@ -159,7 +159,7 @@ BOOST_AUTO_TEST_CASE(ecdh_parameters)
             CExtKey key;
             key.SetMaster(bip32seed.data(), bip32seed.size());
 
-            CExtKey privkey = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, uint32_t(i)});
+            CExtKey privkey = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, uint32_t(i)});
             CExtPubKey pubkey = privkey.Neuter();
             BOOST_CHECK_EQUAL(HexStr(privkey.key), HexStr(ecdhparams[i*2]));
             BOOST_CHECK_EQUAL(HexStr(pubkey.pubkey), HexStr(ecdhparams[i*2+1]));
@@ -209,7 +209,7 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
 
     {using namespace alice;
         CExtKey key; key.SetMaster(bip32seed.data(), bip32seed.size());
-        CExtKey privkey_alice = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0});
+        CExtKey privkey_alice = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0});
         CPaymentCode const paymentCode_bob(bob::paymentcode);
         CPaymentChannel paymentChannel(paymentCode_bob, privkey_alice, CPaymentChannel::Side::sender);
 
@@ -221,7 +221,7 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
 
     {using namespace bob;
         CExtKey key; key.SetMaster(bip32seed.data(), bip32seed.size());
-        CExtKey privkey_bob = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0});
+        CExtKey privkey_bob = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0});
         CPaymentCode const paymentCode_alice(alice::paymentcode);
         CPaymentChannel paymentChannel(paymentCode_alice, privkey_bob, CPaymentChannel::Side::sender);
 
@@ -233,7 +233,7 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
 
     {using namespace bob;
         CExtKey key; key.SetMaster(bob::bip32seed.data(), bob::bip32seed.size());
-        CExtKey privkey_bob = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
+        CExtKey privkey_bob = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
         CPaymentCode const paymentCode_alice(alice::paymentcode);
         CPaymentChannel paymentChannel_bob(paymentCode_alice, privkey_bob, CPaymentChannel::Side::receiver);
 
@@ -253,7 +253,7 @@ BOOST_AUTO_TEST_CASE(masked_paymentcode)
 
         CExtKey key;
         key.SetMaster(bip32seed.data(), bip32seed.size());
-        CExtKey key_alice = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
+        CExtKey key_alice = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
 
         CPaymentChannel paymentChannel(paymentCode_bob, key_alice, CPaymentChannel::Side::sender);
 
@@ -271,9 +271,9 @@ BOOST_AUTO_TEST_CASE(masked_paymentcode)
 
         // Unmasking at bob's side
         key.SetMaster(bob::bip32seed.data(), bob::bip32seed.size());
-        CExtKey key_bob = utils::derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00});
+        CExtKey key_bob = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00});
 
-        std::unique_ptr<CPaymentCode> pcode_unmasked = bip47::utils::pcodeFromMaskedPayload(maskedPayload_alice, outpoint, key_bob.key, outpointSecret.GetPubKey());
+        std::unique_ptr<CPaymentCode> pcode_unmasked = bip47::utils::PcodeFromMaskedPayload(maskedPayload_alice, outpoint, key_bob.key, outpointSecret.GetPubKey());
         BOOST_CHECK_EQUAL(pcode_unmasked->toString(), paymentcode);
     }
 }

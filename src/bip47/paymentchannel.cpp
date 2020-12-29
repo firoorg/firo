@@ -67,7 +67,7 @@ MyAddrContT CPaymentChannel::generateMySecretAddresses(size_t fromAddr, size_t u
     CExtPubKey theirPubkey = theirPcode.getNthPubkey(0);
     MyAddrContT  result;
     for(size_t i = fromAddr; i < uptoAddr; ++i) {
-        CExtKey privkey = bip47::utils::derive(myChannelKey, {uint32_t(i)});
+        CExtKey privkey = bip47::utils::Derive(myChannelKey, {uint32_t(i)});
         result.emplace_back(generate(privkey.key, theirPubkey.pubkey, privkey.key.GetPubKey()), privkey.key);
     }
     return result;

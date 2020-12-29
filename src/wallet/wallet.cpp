@@ -50,9 +50,11 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
+#include <vector>
 
 #include "bip47/account.h"
 #include "bip47/paymentcode.h"
+#include "bip47/utils.h"
 
 using namespace std;
 
@@ -1172,6 +1174,45 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
     if (fInsertedNew || fUpdated)
         if (!walletdb.WriteTx(wtx))
             return false;
+
+    // Handle bip47 notification tx
+    if (fInsertedNew) {
+        bip47::Bytes masked = bip47::utils::GetMaskedPcode(wtx.tx);
+        std::vector<bip47::Bytes> solution;
+        txnouttype txType = TX_NONSTANDARD;
+        if (!masked.empty() && wtx.tx->vin.size() > 0 && Solver(wtx.tx->vout[0].scriptPubKey, txType, solution) && txType == TX_PUBKEYHASH) {
+            txnouttype type;
+            vector<CTxDestination> addresses;
+            int nRequired;
+            if(ExtractDestinations(wtx.tx->vout[0].scriptPubKey, type, addresses, nRequired)){
+                CKey key;
+                bip47::CAccountReceiver * accFound = nullptr;
+                bip47wallet->enumerateAccounts(
+                    [&key, &addresses, &accFound](bip47::CAccountPtr pacc)
+                    {
+                        bip47::CAccountReceiver * acc = dynamic_cast<bip47::CAccountReceiver *>(pacc.get());
+                        if(acc && acc->getMyNotificationAddress() == CBitcoinAddress(addresses[0])) {
+                            key = acc->getMyNextAddresses()[0].second;
+                            accFound = acc;
+                        }
+                    }
+                );
+                CPubKey pubkey;
+                if(accFound && bip47::utils::GetScriptSigPubkey(wtx.tx->vin[0], pubkey)) {
+                    if(!accFound->acceptMaskedPayload(masked, wtx.tx->vin[0].prevout, pubkey)) {
+                        LogBip47("Could not accept this masked payload: %s\n", HexStr(masked));
+                    } else {
+                        LogBip47("The payment code has been accepted: %s\n", accFound->lastPcode().toString());
+                    }
+                } else {
+                    std::cerr << wtx.tx->ToString() << std::endl;
+                    LogBip47("There is no account setup to receive payments on address: %s\n", CBitcoinAddress(addresses[0]).ToString());
+                }
+            } else {
+                LogBip47("Cannot extract destinations for tx: %s\n", wtx.tx->GetHash().ToString());
+            }
+        }
+    }
 
     // Break debit/credit balance caches:
     wtx.MarkDirty();
@@ -7211,7 +7252,7 @@ std::vector<std::pair<std::string, std::string>> CWallet::ListPcodes()
         {
             bip47::CAccountReceiver const * acc = dynamic_cast<bip47::CAccountReceiver const *>(pacc.get());
             if(acc) {
-                result.push_back(std::make_pair(acc->getMyPcode().toString(), acc->getLabel()));
+                result.push_back(std::make_pair(acc->getMyPcode().toString(), acc->getLabel()+","+acc->getMyNotificationAddress().ToString()));
             }
         }
     );

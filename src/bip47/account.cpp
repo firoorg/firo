@@ -43,7 +43,7 @@ CPaymentCode const & CAccountBase::getMyPcode() const
 CAccountSender::CAccountSender(CExtKey const & walletKey, size_t accountNum, CPaymentCode const & theirPcode)
 : CAccountBase(walletKey, accountNum), theirPcode(theirPcode)
 {
-    nextAddresses.push_back({getPaymentChannel().getMyPcode().getNotificationAddress(), bip47::utils::derive(privkey, {0}).key});
+    nextAddresses.push_back({getPaymentChannel().getMyPcode().getNotificationAddress(), bip47::utils::Derive(privkey, {0}).key});
 }
 
 CPaymentChannel & CAccountSender::getPaymentChannel() {
@@ -122,7 +122,7 @@ MyAddrContT const & CAccountReceiver::generateMyUsedAddresses()
 MyAddrContT const & CAccountReceiver::generateMyNextAddresses()
 {
     nextAddresses.clear();
-    nextAddresses.emplace_back(getMyPcode().getNotificationAddress(), bip47::utils::derive(privkey, {0}).key);
+    nextAddresses.emplace_back(getMyPcode().getNotificationAddress(), bip47::utils::Derive(privkey, {0}).key);
     for(CPaymentChannel & pchannel: pchannels) {
         MyAddrContT const & addrs = pchannel.generateMyNextAddresses();
         nextAddresses.insert(nextAddresses.end(), addrs.begin(), addrs.end());
@@ -144,9 +144,9 @@ bool CAccountReceiver::markAddressUsed(CBitcoinAddress const & address)
 bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, COutPoint const & outpoint, CPubKey const & outpoinPubkey)
 {
     std::unique_ptr<CPaymentCode> pcode;
-    CExtKey pcodePrivkey = utils::derive(privkey, {uint32_t(pchannels.size())});
+    CExtKey pcodePrivkey = utils::Derive(privkey, {0});
     try {
-        pcode = bip47::utils::pcodeFromMaskedPayload(maskedPayload, outpoint, pcodePrivkey.key, outpoinPubkey);
+        pcode = bip47::utils::PcodeFromMaskedPayload(maskedPayload, outpoint, pcodePrivkey.key, outpoinPubkey);
         if(!pcode)
             return false;
     } catch (std::runtime_error const &) {
@@ -158,13 +158,18 @@ bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & ma
     return true;
 }
 
+CPaymentCode const & CAccountReceiver::lastPcode() const
+{
+    return pchannels.back().getTheirPcode();
+}
+
 /******************************************************************************/
 
 CWallet::CWallet(std::vector<unsigned char> const & seedData)
 {
     CExtKey seedKey;
     seedKey.SetMaster(seedData.data(), seedData.size());
-    privkey = utils::derive(seedKey, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
+    privkey = utils::Derive(seedKey, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
 }
 
 CWallet::CWallet(uint256 const & seedData)
@@ -176,7 +181,7 @@ CAccountReceiver & CWallet::createReceivingAccount(std::string const & label)
     size_t const accNum = (accounts.empty() ? 0 : accounts.cend()->first + 1);
     CAccountPtr pacc = std::shared_ptr<CAccountBase>(new CAccountReceiver(privkey, accNum, label));
     accounts.emplace(accNum, pacc);
-    LogBip47("Created for receiving: pcode: %s, notification address: %s\n", pacc->getMyPcode().toString(), pacc->getMyPcode().getNotificationAddress().ToString());
+    LogBip47("Created for receiving: pcode: %s, naddr: %s, accNum: %d\n", pacc->getMyPcode().toString(), pacc->getMyPcode().getNotificationAddress().ToString(), accNum);
     return static_cast<CAccountReceiver &>(*pacc);
 }
 

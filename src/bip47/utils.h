@@ -1,17 +1,17 @@
 #ifndef ZCOIN_BIP47UTIL_H
 #define ZCOIN_BIP47UTIL_H
 #include "key.h"
-#include <iostream>
-#include <list>
-#include <stdio.h>
 #include <string.h>
 #include <vector>
 #include <openssl/sha.h>
 #include "GroupElement.h"
+#include "defs.h"
 
 #define HARDENED_BIT 0x80000000
 
 class COutPoint;
+class CTransaction;
+typedef class std::shared_ptr<const CTransaction> CTransactionRef;
 
 namespace bip47 {
 
@@ -21,10 +21,12 @@ class CAccount;
 namespace utils {
 
 /******************************************************************************/
-std::unique_ptr<CPaymentCode> pcodeFromMaskedPayload(std::vector<unsigned char> payload, COutPoint const & outpoint, CKey const & myPrivkey, CPubKey const & outPubkey);
+std::unique_ptr<CPaymentCode> PcodeFromMaskedPayload(Bytes payload, COutPoint const & outpoint, CKey const & myPrivkey, CPubKey const & outPubkey);
+Bytes GetMaskedPcode(CTransactionRef const & tx);
+bool GetScriptSigPubkey(CTxIn const & txin, CPubKey& pubkey);
 
 /******************************************************************************/
-CExtKey derive(CExtKey const & source, std::vector<uint32_t> const & path);
+CExtKey Derive(CExtKey const & source, std::vector<uint32_t> const & path);
 
 /******************************************************************************/
 GroupElement GeFromPubkey(CPubKey const & pubKey);

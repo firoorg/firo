@@ -19,6 +19,7 @@ namespace bip47
 
     typedef std::vector<std::pair<CBitcoinAddress, CKey>> MyAddrContT;
     typedef std::vector<CBitcoinAddress> TheirAddrContT;
+    typedef std::vector<unsigned char> Bytes;
 
     struct FindByAddress {
         FindByAddress(CBitcoinAddress const & address): address(address) {}

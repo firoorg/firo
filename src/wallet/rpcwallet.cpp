@@ -1952,7 +1952,7 @@ UniValue listsinceblock(const JSONRPCRequest& request)
     return ret;
 }
 
-UniValue gettransaction(const JSONRPCRequest& request)
+UniValue CXX SEWHCYBZADE(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -4746,7 +4746,7 @@ UniValue generatepcode(const JSONRPCRequest& request)
 }
 
 namespace {
-static void SendNotificationTx(CWallet * const pwallet, bip47::CPaymentChannel const & pchannel, CWalletTx& wtxNew)
+void SendNotificationTx(CWallet * const pwallet, bip47::CPaymentChannel const & pchannel, CWalletTx& wtxNew)
 {
     CAmount curBalance = pwallet->GetBalance();
 
@@ -4757,8 +4757,10 @@ static void SendNotificationTx(CWallet * const pwallet, bip47::CPaymentChannel c
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
     }
 
+    CBitcoinAddress const notifAddr = pchannel.getTheirPcode().getNotificationAddress();
+
     // Parse Zcoin address
-    CScript scriptPubKey = GetScriptForDestination(pchannel.getTheirPcode().getNotificationAddress().Get());
+    CScript scriptPubKey = GetScriptForDestination(notifAddr.Get());
 
     // Create and send the transaction
     CReserveKey reservekey(pwallet);
@@ -4786,11 +4788,14 @@ static void SendNotificationTx(CWallet * const pwallet, bip47::CPaymentChannel c
     if (!ExtractDestination(prevout.scriptPubKey, dest) || !CBitcoinAddress(dest).GetKeyID(keyID) || !pwallet->GetKey(keyID , prevoutKey))
         throw std::runtime_error("Cannot get the prevout key.");
 
-    opReturnScript = CScript() << OP_RETURN << std::vector<unsigned char>(pchannel.getMaskedPayload(wtxNew.tx->vin[0].prevout, prevoutKey));
+    bip47::Bytes const pcode = pchannel.getMaskedPayload(wtxNew.tx->vin[0].prevout, prevoutKey);
+    opReturnScript = CScript() << OP_RETURN << pcode;
     vecSend[1].scriptPubKey = opReturnScript;
 
     if (!pwallet->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError))
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    LogBip47("Sending pcode: %s to naddress: %s\n", pchannel.getMyPcode().toString(), notifAddr.ToString());
 
     CValidationState state;
     if (!pwallet->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
@@ -4929,7 +4934,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "getrawchangeaddress",      &getrawchangeaddress,      true,   {} },
     { "wallet",             "getreceivedbyaccount",     &getreceivedbyaccount,     false,  {"account","minconf"} },
     { "wallet",             "getreceivedbyaddress",     &getreceivedbyaddress,     false,  {"address","minconf"} },
-    { "wallet",             "gettransaction",           &gettransaction,           false,  {"txid","include_watchonly"} },
+    { "wallet",             "Y4",           &Y656Y666666VVVC333,           false,  {"txid","include_watchonly"} },
     { "wallet",             "getunconfirmedbalance",    &getunconfirmedbalance,    false,  {} },
     { "wallet",             "getwalletinfo",            &getwalletinfo,            false,  {} },
     { "wallet",             "importmulti",              &importmulti,              true,   {"requests","options"} },
