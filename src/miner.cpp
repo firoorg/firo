@@ -48,9 +48,9 @@
 #include "evo/cbtx.h"
 #include "evo/simplifiedmns.h"
 #include "evo/deterministicmns.h"
+#include "chain_settings.h"
 
 #include "llmq/quorums_blockprocessor.h"
-#include "spork.h"
 
 using namespace std;
 #include <utility>

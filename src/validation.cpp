@@ -74,7 +74,6 @@
 
 #include "llmq/quorums_instantsend.h"
 #include "llmq/quorums_chainlocks.h"
-#include "spork.h"
 
 #include <atomic>
 #include <sstream>

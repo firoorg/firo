@@ -42,7 +42,6 @@
 #include "init.h"
 #include "hdmint/wallet.h"
 #include "rpc/protocol.h"
-#include "spork.h"
 
 #include "crypto/hmac_sha512.h"
 #include "crypto/aes.h"

@@ -95,8 +95,6 @@
 #include <event2/thread.h>
 #include "netfulfilledman.h"
 #include "flat-database.h"
-#include "instantx.h"
-#include "spork.h"
 
 #if ENABLE_ZMQ
 #include "zmq/zmqnotificationinterface.h"
