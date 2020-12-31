@@ -852,7 +852,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     vector<GroupElement> lelantusMintPubcoins;
     vector<uint64_t> lelantusAmounts;
     {
-    LOCK2(pwalletMain->cs_wallet, pool.cs); // protect pool.mapNextTx
+    LOCK(pool.cs); // protect pool.mapNextTx
     if (tx.IsZerocoinSpend()) {
         BOOST_FOREACH(const CTxIn &txin, tx.vin)
         {
@@ -980,18 +980,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     {
         if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
             GroupElement pubCoinValue;
-            uint64_t amount = 0;
             try {
-                if (txout.scriptPubKey.IsLelantusMint()) {
-                    lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
-                    amount = txout.nValue;
-                } else {
-                    std::vector<unsigned char> encryptedValue;
-                    lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
-                    if (pwalletMain)
-                        if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
-                            amount = 0;
-                }
+                lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
             } catch (std::invalid_argument&) {
                 return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
             }
@@ -1000,7 +990,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
             }
             lelantusMintPubcoins.push_back(pubCoinValue);
-            lelantusAmounts.push_back(amount);
         }
     }
 
@@ -1475,6 +1464,25 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     if(tx.IsLelantusMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
         LogPrintf("Updating mint state from Mempool..");
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        {
+            GroupElement pubCoinValue;
+            uint64_t amount = 0;
+            try {
+                if (txout.scriptPubKey.IsLelantusMint()) {
+                    lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
+                    amount = txout.nValue;
+                } else {
+                    std::vector<unsigned char> encryptedValue;
+                    lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
+                    if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
+                        amount = 0;
+                }
+            } catch (std::invalid_argument&) {
+                return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
+            }
+            lelantusAmounts.push_back(amount);
+        }
         pwalletMain->zwallet->GetTracker().UpdateLelantusMintStateFromMempool(lelantusMintPubcoins, lelantusAmounts);
     }
 #endif

@@ -265,10 +265,12 @@ bool CheckLelantusJMintTransaction(
     }
 
     uint64_t amount = 0;
-    if (pwalletMain) {
+#ifdef ENABLE_WALLET
+    if (!GetBoolArg("-disablewallet", false)) {
         if (!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
             amount = 0;
     }
+#endif
     if (lelantusTxInfo != NULL && !lelantusTxInfo->fInfoIsComplete) {
 
         // Update public coin list in the info
