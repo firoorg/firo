@@ -167,24 +167,6 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
                 CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
                 vecSend.push_back(recipient);
             }
-
-            // Try each of our accounts looking for one with enough balance
-            vector<string> accounts = GetMyAccountNames();
-            bool isValid = false;
-            BOOST_FOREACH(string strAccount, accounts){      
-                CAmount nBalance = pwalletMain->GetAccountBalance(strAccount, nMinDepth, ISMINE_ALL);
-                LogPrintf("nBalance: %s\n", nBalance);
-                LogPrintf("totalAmount: %s\n", totalAmount);
-                if (totalAmount <= nBalance){
-                   LogPrintf("ZMQ: found valid address. address: %s\n", strAccount);
-                   wtx.strFromAccount = strAccount;
-                   isValid = true; 
-                   break;
-                }
-            }
-            if(!isValid){
-                throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, "No account has sufficient funds. Consider moving enough funds to a single account");
-            }
             
             // Send
             CReserveKey keyChange(pwalletMain);
