@@ -19,7 +19,7 @@ Firo developed and utilizes [Merkle Tree Proofs (MTP)](https://arxiv.org/pdf/160
 
 How Firo’s Privacy Technology Compares to the Competition
 --------------
-![A comparison chart of Firo’s solutions with other leading privacy technologies can be found below](https://firo.org/guide/assets/privacy-technology-comparison/comparison-table-coloured.png) 
+![A comparison chart of Firo’s solutions with other leading privacy technologies can be found below](https://firo.org/guide/assets/privacy-technology-comparison/comparison-table-firo-updated.png) 
 read more https://firo.org/guide/privacy-technology-comparison.html
 
 Running with Docker
