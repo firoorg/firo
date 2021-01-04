@@ -64,7 +64,7 @@
     <name>BanTableModel</name>
     </context>
 <context>
-    <name>FiroGUI</name>
+    <name>BitcoinGUI</name>
     <message>
         <source>Firo</source>
         <translation>Firo Core</translation>

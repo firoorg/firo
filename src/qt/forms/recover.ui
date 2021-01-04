@@ -242,6 +242,9 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
      <property name="text">
       <string/>
      </property>
+     <property name="styleSheet">
+      <string notr="true">color:red;</string>
+     </property>
      <property name="wordWrap">
       <bool>true</bool>
      </property>

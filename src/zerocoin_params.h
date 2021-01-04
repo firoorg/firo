@@ -130,19 +130,19 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 #define ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION            35
 
 // Value of lelantus spends allowed per block
-#define ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_BLOCK  (1100 * COIN)
+#define ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_BLOCK  (5100 * COIN)
 
 // Amount of lelantus spends allowed per block
 #define ZC_LELANTUS_INPUT_LIMIT_PER_BLOCK         100
 
 // Value of lelantus spends allowed per transaction
-#define ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION     (1001 * COIN)
+#define ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION     (5001 * COIN)
 
 // Amount of lelantus spends allowed per transaction
 #define ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION            50
 
 // Maximum amount of lelantus mint
-#define ZC_LELANTUS_MAX_MINT            (1001 * COIN)
+#define ZC_LELANTUS_MAX_MINT            (5001 * COIN)
 
 // Number of zerocoin mints allowed per transaction
 #define ZC_MINT_LIMIT         100

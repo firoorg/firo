@@ -63,11 +63,11 @@
     </message>
     <message>
         <source>These are your Firo addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
-        <translation>这些是你要付款过去的比特币地址。在付钱之前，务必要检查金额和收款地址是否正确。</translation>
+        <translation>这些是你要付款过去的飞熔币地址。在付钱之前，务必要检查金额和收款地址是否正确。</translation>
     </message>
     <message>
         <source>These are your Firo addresses for receiving payments. It is recommended to use a new receiving address for each transaction.</source>
-        <translation>这些是你用来收款的比特币地址。建议在每次交易时，都使用一个新的收款地址。</translation>
+        <translation>这些是你用来收款的飞熔币地址。建议在每次交易时，都使用一个新的收款地址。</translation>
     </message>
     <message>
         <source>&amp;Copy Address</source>
@@ -96,6 +96,103 @@
     <message>
         <source>There was an error trying to save the address list to %1. Please try again.</source>
         <translation>存储地址列表到 %1 时发生错误。请再试一次。</translation>
+    </message>
+</context>
+<context>
+    <name>Recover</name>
+    <message>
+        <source>Create or Recover Wallet</source>
+        <translation>创建或恢复钱包</translation>
+    </message>
+    <message>
+        <source>Let's create your Firo wallet!
+
+Please save these words on paper (order is important). These words serve as your seed and will allow you to recover your wallet in case of a computer failure.
+
+By default we create a 24 word seed but you may choose a 12 word seed should you require it for compatibility reasons.
+
+You can also choose to further encrypt your seed with a passphrase for added security.
+
+Warning:
+* Never disclose your seed
+* Never type it on a website
+* Do not store it electronically.
+* If you encrypt your seed with an additional passphrase, please also record this.
+
+If you have an existing seed that you wish to restore, please select "Recover existing wallet" and enter your passphrase (if you have set one for your seed).
+
+Advanced: If you don't wish to generate a wallet with a seed phrase backup (not recommended), you can set usemnemonic=0 in firo.conf.
+      </source>
+        <translation> 让我们一起创建你的飞熔钱包吧！
+
+请将这些字保存在纸上（顺序很重要）。这些字将作为你的种子，以便于允许你在计算机故障的情况下恢复你的钱包。
+
+默认情况下，我们会创建一个 24 个字的种子，但如果你出于兼容性的原因需要，你也可以选择一个 12 个字的种子。
+
+你也可以选择用密码口令进一步加密你的种子，以增加安全性。
+
+警告：
+* 切勿透露你的种子
+* 不要在网站上打出来
+* 请不要以电子方式存储
+* 如果你用额外的口令加密种子，也请记录下来。
+
+如果你有一个想要恢复的现有种子，请选择“恢复现有钱包”，然后输入你的密码（如果你已经为种子设置了密码）。
+
+高级设置：如果你不希望生成一个带有种子短语备份的钱包（不推荐），你可以在 firo.conf 中设置 usemnemonic=0。
+        </translation>
+    </message>
+    <message>
+        <source>Create new wallet</source>
+        <translation>创建新钱包</translation>
+    </message>
+    <message>
+        <source>Recover existing wallet</source>
+        <translation>恢复现有钱包</translation>
+    </message>
+    <message>
+        <source>12 Words</source>
+        <translation>12 个字</translation>
+    </message>
+    <message>
+        <source>24 Words</source>
+        <translation>24 个字</translation>
+    </message>
+    <message>
+        <source>Input words here:</source>
+        <translation>请在这里输入：</translation>
+    </message>
+    <message>
+        <source>Use seed passphrase (optional):</source>
+        <translation>使用种子口令（可选）：</translation>
+    </message>
+    <message>
+        <source>Input mnemonic passphrase here:</source>
+        <translation>在这里输入记忆口令：</translation>
+    </message>
+    <message>
+        <source>Input mnemonic passphrase again:</source>
+        <translation>再次输入记忆口令：</translation>
+    </message>
+    <message>
+        <source>Wrong number of words. Please try again.</source>
+        <translation>字数错误。请再试一次。</translation>
+    </message>
+    <message>
+        <source>Mnemonic can't be empty.</source>
+        <translation>助记词不能是空的。</translation>
+    </message>
+    <message>
+        <source>Something went wrong. Please try again.</source>
+        <translation>出现问题。请再试一次。</translation>
+    </message>
+    <message>
+        <source>Passphrases don't match.</source>
+        <translation>密码口令不匹配。</translation>
+    </message>
+    <message>
+        <source>Passphrase can't be empty.</source>
+        <translation>密码口令不能为空。</translation>
     </message>
 </context>
 <context>
@@ -169,7 +266,7 @@
     </message>
     <message>
         <source>Warning: If you encrypt your wallet and lose your passphrase, you will &lt;b&gt;LOSE ALL OF YOUR FIROS&lt;/b&gt;!</source>
-        <translation>警告: 如果把钱包加密后又忘记密码，你就会从此&lt;b&gt;失去其中所有的比特币了&lt;/b&gt;！</translation>
+        <translation>警告：如果把钱包加密后又忘记密码，你就会从此&lt;b&gt;失去其中所有的飞熔币了&lt;/b&gt;！</translation>
     </message>
     <message>
         <source>Are you sure you wish to encrypt your wallet?</source>
@@ -180,12 +277,16 @@
         <translation>钱包已加密</translation>
     </message>
     <message>
+        <source>Firo Core</source>
+        <translation>飞熔核心</translation>
+    </message>
+    <message>
         <source>%1 will close now to finish the encryption process. Remember that encrypting your wallet cannot fully protect your firos from being stolen by malware infecting your computer.</source>
         <translation>%1 现在要关闭，以完成加密过程。请注意，加密钱包不能完全防止入侵你的电脑的恶意程序偷取钱币。</translation>
     </message>
     <message>
         <source>IMPORTANT: Any previous backups you have made of your wallet file should be replaced with the newly generated, encrypted wallet file. For security reasons, previous backups of the unencrypted wallet file will become useless as soon as you start using the new, encrypted wallet.</source>
-        <translation>重要: 请改用新产生的有加密的钱包文件，来取代旧钱包文件的备份。为了安全性，当你开始使用新的有加密的钱包后，旧钱包文件的备份就不能再使用了。</translation>
+        <translation>重要：请改用新产生的有加密的钱包文件，来取代旧钱包文件的备份。为了安全性，当你开始使用新的有加密的钱包后，旧钱包文件的备份就不能再使用了。</translation>
     </message>
     <message>
         <source>Wallet encryption failed</source>
@@ -197,7 +298,7 @@
     </message>
     <message>
         <source>The supplied passphrases do not match.</source>
-        <translation>提供的密码不yi'zhi。</translation>
+        <translation>提供的密码不一致。</translation>
     </message>
     <message>
         <source>Wallet unlock failed</source>
@@ -217,7 +318,7 @@
     </message>
     <message>
         <source>Warning: The Caps Lock key is on!</source>
-        <translation>警告: 大写字母锁定已开启！</translation>
+        <translation>警告：大写字母锁定已开启！</translation>
     </message>
 </context>
 <context>
@@ -232,7 +333,11 @@
     </message>
 </context>
 <context>
-    <name>FiroGUI</name>
+    <name>BitcoinGUI</name>
+    <message>
+        <source>Firo Core</source>
+        <translation>飞熔核心</translation>
+    </message>
     <message>
         <source>Sign &amp;message...</source>
         <translation>消息签名(&amp;M)...</translation>
@@ -244,6 +349,14 @@
     <message>
         <source>&amp;Overview</source>
         <translation>概况(&amp;O)</translation>
+    </message>
+    <message>
+        <source>&amp;Masternodes</source>
+        <translation>主节点(&amp;M)</translation>
+    </message>
+    <message>
+        <source>Syncing Headers (%1%)...</source>
+        <translation>同步区块头 (%1%)...</translation>
     </message>
     <message>
         <source>Node</source>
@@ -260,6 +373,14 @@
     <message>
         <source>Browse transaction history</source>
         <translation>查看交易历史</translation>
+    </message>
+    <message>
+        <source>Anonymize your coins</source>
+        <translation>匿名化你的币</translation>
+    </message>
+    <message>
+        <source>Browse masternodes</source>
+        <translation>查看主节点</translation>
     </message>
     <message>
         <source>E&amp;xit</source>
@@ -307,11 +428,11 @@
     </message>
     <message>
         <source>&amp;Sending addresses...</source>
-        <translation>正在发送地址(&amp;S)...</translation>
+        <translation>付款地址(&amp;S)...</translation>
     </message>
     <message>
         <source>&amp;Receiving addresses...</source>
-        <translation>正在接收地址(&amp;R)...</translation>
+        <translation>收款地址(&amp;R)...</translation>
     </message>
     <message>
         <source>Open &amp;URI...</source>
@@ -335,7 +456,7 @@
     </message>
     <message>
         <source>Send coins to a Firo address</source>
-        <translation>向一个比特币地址发送比特币</translation>
+        <translation>向一个飞熔币地址发送飞熔币</translation>
     </message>
     <message>
         <source>Backup wallet to another location</source>
@@ -359,7 +480,7 @@
     </message>
     <message>
         <source>Firo</source>
-        <translation>比特币</translation>
+        <translation>飞熔</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -387,11 +508,11 @@
     </message>
     <message>
         <source>Sign messages with your Firo addresses to prove you own them</source>
-        <translation>用比特币地址关联的私钥为消息签名，以证明您拥有这个比特币地址</translation>
+        <translation>用飞熔币地址关联的私钥为消息签名，以证明你拥有这个飞熔币地址</translation>
     </message>
     <message>
         <source>Verify messages to ensure they were signed with specified Firo addresses</source>
-        <translation>校验消息，确保该消息是由指定的比特币地址所有者签名的</translation>
+        <translation>校验消息，确保该消息是由指定的飞熔币地址所有者签名的</translation>
     </message>
     <message>
         <source>&amp;File</source>
@@ -431,7 +552,7 @@
     </message>
     <message numerus="yes">
         <source>%n active connection(s) to Firo network</source>
-        <translation><numerusform>%n 个到比特币网络的活动连接</numerusform></translation>
+        <translation><numerusform>%n 个到飞熔币网络的活动连接</numerusform></translation>
     </message>
     <message>
         <source>Indexing blocks on disk...</source>
@@ -568,11 +689,11 @@
     </message>
     <message>
         <source>After Fee:</source>
-        <translation>加上交易费用后:</translation>
+        <translation>加上交易费用后：</translation>
     </message>
     <message>
         <source>Change:</source>
-        <translation>变更 : </translation>
+        <translation>变更：</translation>
     </message>
     <message>
         <source>(un)select all</source>
@@ -624,7 +745,7 @@
     </message>
     <message>
         <source>Copy transaction ID</source>
-        <translation>复制交易识别码</translation>
+        <translation>复制交易 ID</translation>
     </message>
     <message>
         <source>Lock unspent</source>
@@ -731,7 +852,7 @@
     </message>
     <message>
         <source>The entered address "%1" is not a valid Firo address.</source>
-        <translation>输入的地址 %1 并不是有效的比特币地址。</translation>
+        <translation>输入的地址 %1 并不是有效的飞熔币地址。</translation>
     </message>
     <message>
         <source>The entered address "%1" is already in the address book.</source>
@@ -758,7 +879,7 @@
     </message>
     <message>
         <source>Directory already exists. Add %1 if you intend to create a new directory here.</source>
-        <translation>目录已存在。如果您打算在这里创建一个新目录，添加 %1。</translation>
+        <translation>目录已存在。如果你打算在这里创建一个新目录，添加 %1。</translation>
     </message>
     <message>
         <source>Path already exists, and is not a directory.</source>
@@ -772,6 +893,10 @@
 <context>
     <name>HelpMessageDialog</name>
     <message>
+        <source>Firo Core</source>
+        <translation>飞熔核心</translation>
+    </message>
+    <message>
         <source>version</source>
         <translation>版本</translation>
     </message>
@@ -781,7 +906,7 @@
     </message>
     <message>
         <source>About %1</source>
-        <translation>關於 %1</translation>
+        <translation>关于 %1</translation>
     </message>
     <message>
         <source>Command-line options</source>
@@ -825,6 +950,41 @@
     </message>
 </context>
 <context>
+    <name>NotifyMnemonic</name>
+    <message>
+        <source>Notification</source>
+        <translation>注意</translation>
+    </message>
+    <message>
+        <source>Please write down these words and keep them in a secure location such as a safe.</source>
+        <translation>请写下这些单词，并将其保存在安全的地方，如保险箱。</translation>
+    </message>
+    <message>
+        <source>Your wallet has been created successfully. Using the following sequence of words, you will be able to recover your wallet at any time.</source>
+        <translation>你的钱包已经创建成功。使用下面的顺序词，你就可以随时找回你的钱包。</translation>
+    </message>
+    <message>
+        <source>Mnemonic words:</source>
+        <translation>助记词：</translation>
+    </message>
+    <message>
+        <source>WARNING: Anyone with access to these words can recover your wallet and will have control over your funds!</source>
+        <translation>警告：任何有机会接触到这些词的人都可以找回你的钱包，并将控制你的资金！</translation>
+    </message>
+    <message>
+        <source>Please re-enter the mnemonic words to ensure that you have written it down correctly.</source>
+        <translation>请重新输入助记词，以确保你正确地写下了它。</translation>
+    </message>
+    <message>
+        <source>Your entered words do not match, please press back to re-check your mnemonic.</source>
+        <translation>你输入的词不匹配，请返回以重新检查你的助记词。</translation>
+    </message>
+    <message>
+        <source>Are you sure you wish to proceed without confirming whether you have written down your seed words correctly?</source>
+        <translation>你确定要在不确认自己的种子短语是否正确写下的情况下继续吗？</translation>
+    </message>
+</context>
+<context>
     <name>Intro</name>
     <message>
         <source>Welcome</source>
@@ -837,11 +997,11 @@
     </message>
     <message>
         <source>As this is the first time the program is launched, you can choose where %1 will store its data.</source>
-        <translation>由于这是第一次启动此程序，您可以选择%1的数据所存储的位置</translation>
+        <translation>由于这是第一次启动此程序，你可以选择%1的数据所存储的位置</translation>
     </message>
     <message>
         <source>%1 will download and store a copy of the Firo block chain. At least %2GB of data will be stored in this directory, and it will grow over time. The wallet will also be stored in this directory.</source>
-        <translation>%1 会下载并存储一份比特币区块链的副本。至少有 %2GB 的数据会存储到这个目录中，并且还会持续增长。另外钱包资料也会储存在这个目录。</translation>
+        <translation>%1 会下载并存储一份飞熔币区块链的副本。至少有 %2GB 的数据会存储到这个目录中，并且还会持续增长。另外钱包资料也会储存在这个目录。</translation>
     </message>
     <message>
         <source>Use the default data directory</source>
@@ -876,7 +1036,7 @@
     </message>
     <message>
         <source>Recent transactions may not yet be visible, and therefore your wallet's balance might be incorrect. This information will be correct once your wallet has finished synchronizing with the firo network, as detailed below.</source>
-        <translation>近期交易可能尚未显示，因此当前余额可能不准确。以上信息将在与比特币网络完全同步后更正。详情如下</translation>
+        <translation>近期交易可能尚未显示，因此当前余额可能不准确。以上信息将在与飞熔币网络完全同步后更正。详情如下</translation>
     </message>
     <message>
         <source>Attempting to spend firos that are affected by not-yet-displayed transactions will not be accepted by the network.</source>
@@ -914,7 +1074,11 @@
         <source>Hide</source>
         <translation>隐藏</translation>
     </message>
-    </context>
+    <message>
+        <source>Unknown. Syncing Headers (%1)...</source>
+        <translation>未知。正在同步区块头 (%1)...</translation>
+    </message>
+</context>
 <context>
     <name>OpenURIDialog</name>
     <message>
@@ -986,7 +1150,7 @@
     </message>
     <message>
         <source>Third party URLs (e.g. a block explorer) that appear in the transactions tab as context menu items. %s in the URL is replaced by transaction hash. Multiple URLs are separated by vertical bar |.</source>
-        <translation>出现在交易的选项卡的上下文菜单项的第三方网址 (例如：区块链接查询) 。 %s的URL被替换为交易哈希。多个的URL需要竖线 | 分隔。</translation>
+        <translation>出现在交易的选项卡的上下文菜单项的第三方网址 (例如：区块链接查询) 。%s的URL被替换为交易哈希。多个的URL需要竖线 | 分隔。</translation>
     </message>
     <message>
         <source>Third party transaction URLs</source>
@@ -1022,11 +1186,19 @@
     </message>
     <message>
         <source>Enable coin &amp;control features</source>
-        <translation>启动货币控制功能(&amp;C)</translation>
+        <translation>启动手动选币功能(&amp;C)</translation>
     </message>
     <message>
         <source>If you disable the spending of unconfirmed change, the change from a transaction cannot be used until that transaction has at least one confirmation. This also affects how your balance is computed.</source>
-        <translation>如果禁用未确认的零钱，则零钱至少需要1个确认才能使用。同时账户余额计算会受到影响。</translation>
+        <translation>如果禁用未确认的零钱，则零钱至少需要 1 个确认才能使用。同时账户余额计算会受到影响。</translation>
+    </message>
+    <message>
+        <source>Enable &amp;auto-anonymize features</source>
+        <translation>启用自动匿名化功能</translation>
+    </message>
+    <message>
+        <source>Enable &amp;lelantus manual-anonymize page</source>
+        <translation>启用 Lelantus 手动匿名化界面</translation>
     </message>
     <message>
         <source>&amp;Spend unconfirmed change</source>
@@ -1034,7 +1206,7 @@
     </message>
     <message>
         <source>Automatically open the Firo client port on the router. This only works when your router supports UPnP and it is enabled.</source>
-        <translation>自动在路由器中打开比特币端口。只有当您的路由器开启了 UPnP 选项时此功能才有效。</translation>
+        <translation>自动在路由器中打开飞熔币端口。只有当你的路由器开启了 UPnP 选项时此功能才有效。</translation>
     </message>
     <message>
         <source>Map port using &amp;UPnP</source>
@@ -1042,7 +1214,7 @@
     </message>
     <message>
         <source>Connect to the Firo network through a SOCKS5 proxy.</source>
-        <translation>通过 SOCKS5 代理连接比特币网络。</translation>
+        <translation>通过 SOCKS5 代理连接飞熔币网络。</translation>
     </message>
     <message>
         <source>&amp;Connect through SOCKS5 proxy (default proxy):</source>
@@ -1082,7 +1254,7 @@
     </message>
     <message>
         <source>Connect to the Firo network through a separate SOCKS5 proxy for Tor hidden services.</source>
-        <translation>在 Tor 匿名网络下通过不同的 SOCKS5 代理连接比特币网络</translation>
+        <translation>在 Tor 匿名网络下通过不同的 SOCKS5 代理连接飞熔币网络</translation>
     </message>
     <message>
         <source>Use separate SOCKS5 proxy to reach peers via Tor hidden services:</source>
@@ -1126,15 +1298,15 @@
     </message>
     <message>
         <source>&amp;Unit to show amounts in:</source>
-        <translation>比特币金额单位(&amp;U)：</translation>
+        <translation>飞熔币金额单位(&amp;U)：</translation>
     </message>
     <message>
         <source>Choose the default subdivision unit to show in the interface and when sending coins.</source>
-        <translation>选择比特币单位。</translation>
+        <translation>选择飞熔币单位。</translation>
     </message>
     <message>
         <source>Whether to show coin control features or not.</source>
-        <translation>是否需要交易源地址控制功能。</translation>
+        <translation>是否显示手动选币功能面板。</translation>
     </message>
     <message>
         <source>&amp;OK</source>
@@ -1162,7 +1334,7 @@
     </message>
     <message>
         <source>Client will be shut down. Do you want to proceed?</source>
-        <translation>客户端即将关闭，您想继续吗？</translation>
+        <translation>客户端即将关闭，你想继续吗？</translation>
     </message>
     <message>
         <source>This change would require a client restart.</source>
@@ -1174,34 +1346,481 @@
     </message>
 </context>
 <context>
+    <name>AutomintNotification</name>
+    <message>
+        <source>You have incoming transaction(s)!</source>
+        <translation>你有刚收到的交易！</translation>
+    </message>
+    <message>
+        <source>Do you want to anonymize all transparent funds?</source>
+        <translation>你想把所有公开的资金匿名化吗？</translation>
+    </message>
+    <message>
+        <source>Anonymize</source>
+        <translation>匿名化</translation>
+    </message>
+    <message>
+        <source>Dismiss</source>
+        <translation>忽略</translation>
+    </message>
+</context>
+<context>
+    <name>AutoMintDialog</name>
+    <message>
+        <source>Anonymize Funds</source>
+        <translation>资金匿名化</translation>
+    </message>
+    <message>
+        <source>Do you want to anonymize all transparent funds?</source>
+        <translation>你想把所有的公开资金匿名化吗？</translation>
+    </message>
+    <message>
+        <source>Anonymize</source>
+        <translation>匿名化</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <source>Unlock your wallet to anonymize all transparent funds.</source>
+        <translation>解锁钱包，将所有公开资金匿名化</translation>
+    </message>
+    <message>
+        <source>Lock wallet immediately after anonymizing</source>
+        <translation>匿名化后立即锁上你的钱包</translation>
+    </message>
+    <message>
+        <source>Enter passphrase</source>
+        <translation>输入密码</translation>
+    </message>
+    <message>
+        <source>Wallet unlock failed</source>
+        <translation>钱包解锁失败</translation>
+    </message>
+    <message>
+        <source>The passphrase was incorrect.</source>
+        <translation>密码不正确。</translation>
+    </message>
+</context>
+<context>
+    <name>AutoMintModel</name>
+    <message>
+        <source>Auto Anonymize</source>
+        <translation>自动匿名化</translation>
+    </message>
+    <message>
+        <source>Fail to mint, %1</source>
+        <translation>铸币失败，%1</translation>
+    </message>
+    <message>
+        <source>Fail to unlock wallet</source>
+        <translation>解锁钱包失败</translation>
+    </message>
+    <message>
+        <source>Successfully anonymized %1</source>
+        <translation>成功匿名化 %1</translation>
+    </message>
+    <message>
+        <source>Unable to generate mint: Blockchain not yet synced.</source>
+        <translation>无法铸币：区块链尚未同步。</translation>
+    </message>
+    <message>
+        <source>Unable to generate mint: HashSeedMaster not set</source>
+        <translation>无法铸币：没有设置 HashSeedMaster</translation>
+    </message>
+</context>
+<context>
+    <name>LelantusDialog</name>
+    <message>
+        <source>Coin Control Features</source>
+        <translation>手动选币功能</translation>
+    </message>
+    <message>
+        <source>Inputs...</source>
+        <translation>输入...</translation>
+    </message>
+    <message>
+        <source>automatically selected</source>
+        <translation>自动选择</translation>
+    </message>
+    <message>
+        <source>Insufficient funds!</source>
+        <translation>存款不足！</translation>
+    </message>
+    <message>
+        <source>Quantity:</source>
+        <translation>总量：</translation>
+    </message>
+    <message>
+        <source>Bytes:</source>
+        <translation>字节：</translation>
+    </message>
+    <message>
+        <source>Amount:</source>
+        <translation>金额：</translation>
+    </message>
+    <message>
+        <source>Fee:</source>
+        <translation>费用：</translation>
+    </message>
+    <message>
+        <source>After Fee:</source>
+        <translation>加上交易费用后：</translation>
+    </message>
+    <message>
+        <source>Change:</source>
+        <translation>变更：</translation>
+    </message>
+        <message>
+        <source>If this is activated, but the change address is empty or invalid, change will be sent to a newly generated address.</source>
+        <translation>如果激活该选项，但是零钱地址用光或者非法，将会新生成零钱地址，转入零钱。</translation>
+    </message>
+    <message>
+        <source>Custom change address</source>
+        <translation>自定义零钱地址</translation>
+    </message>
+    <message>
+        <source>Transaction Fee:</source>
+        <translation>交易费用：</translation>
+    </message>
+    <message>
+        <source>Choose...</source>
+        <translation>选择... </translation>
+    </message>
+    <message>
+        <source>collapse fee-settings</source>
+        <translation>收起  费用设置 </translation>
+    </message>
+    <message>
+        <source>per kilobyte</source>
+        <translation>每kb</translation>
+    </message>
+    <message>
+        <source>If the custom fee is set to 1000 satoshis and the transaction is only 250 bytes, then "per kilobyte" only pays 250 satoshis in fee, while "total at least" pays 1000 satoshis. For transactions bigger than a kilobyte both pay by kilobyte.</source>
+        <translation>如果自定义交易费设置为 1000 聪而交易大小只有 250 字节，则“每千字节”模式只支付 250 聪交易费，而“最少”模式则支付 1000 聪。大于 1000 字节的交易按每千字节付费。</translation>
+    </message>
+    <message>
+        <source>Hide</source>
+        <translation>隐藏</translation>
+    </message>
+    <message>
+        <source>total at least</source>
+        <translation>最小额 </translation>
+    </message>
+    <message>
+        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Firo transactions than the network can process.</source>
+        <translation>交易量小时只支付最小交易费是可以的。但是请注意，当交易量大到超出网络可处理时你的交易可能永远无法确认。</translation>
+    </message>
+    <message>
+        <source>(read the tooltip)</source>
+        <translation>(请注意提示信息)</translation>
+    </message>
+    <message>
+        <source>Recommended:</source>
+        <translation>推荐：</translation>
+    </message>
+    <message>
+        <source>Custom:</source>
+        <translation>自定义：</translation>
+    </message>
+        <message>
+        <source>(Smart fee not initialized yet. This usually takes a few blocks...)</source>
+        <translation>(智能交易费用 尚未初始化。需要再下载一些数据块...)</translation>
+    </message>
+    <message>
+        <source>normal</source>
+        <translation>一般</translation>
+    </message>
+    <message>
+        <source>fast</source>
+        <translation>快速</translation>
+    </message>
+    <message>
+        <source>Pay only the required fee of %1</source>
+        <translation>只支付必要费用 %1</translation>
+    </message>
+        <message numerus="yes">
+        <source>Estimated to begin confirmation within %n block(s).</source>
+        <translation><numerusform>预计 %n 个数据块后被确认。</numerusform></translation>
+    </message>
+        <message numerus="yes">
+        <source>%n block(s)</source>
+        <translation><numerusform>%n 个区块</numerusform></translation>
+    </message>
+    <message>
+        <source>Global Lelantus Pool:</source>
+        <translation>整个 Lelantus 池</translation>
+    </message>
+    <message>
+        <source>Total:</source>
+        <translation>总数：</translation>
+    </message>
+    <message>
+        <source>Latest group:</source>
+        <translation>最新一组：</translation>
+    </message>
+    <message>
+        <source>Unspent:</source>
+        <translation>未花费的：</translation>
+    </message>
+    <message>
+        <source>Your Anonymized Coins:</source>
+        <translation>你的匿名币：</translation>
+    </message>
+    <message>
+        <source>Spendable:</source>
+        <translation>可花费：</translation>
+    </message>
+    <message>
+        <source>Unconfirmed:</source>
+        <translation>未确认：</translation>
+    </message>
+    <message>
+        <source>Amount to anonymize:</source>
+        <translation>要匿名化的金额：</translation>
+    </message>
+    <message numerus="yes">
+        <source>Available amount to anonymize %1</source>
+        <translation><numerusform>可匿名化的金额：%1</numerusform></translation>
+    </message>
+    <message>
+        <source>Anonymize</source>
+        <translation>匿名化</translation>
+    </message>
+    <message>
+        <source>Warning: Fee estimation is currently not possible.</source>
+        <translation>警告：目前无法进行手续费估计。</translation>
+    </message>
+    <message>
+        <source>Using the fallbackfee can result in sending a transaction that will take several hours or days (or never) to confirm. Consider choosing your fee manually or wait until your have validated the complete chain.</source>
+        <translation>如果使用备用手续费设置，有可能会导致交易经过几个小时、几天（甚至永远）无法被确认。请考虑手动选择手续费，或等待整个链完成验证。</translation>
+    </message>
+    <message>
+        <source>Confirmation time target:</source>
+        <translation>目标确认时间：</translation>
+    </message>
+    <message>
+        <source>Are you sure you want to anonymize %1?</source>
+        <translation>你确定要匿名化 %1？</translation>
+    </message>
+    <message>
+        <source>added as transaction fee</source>
+        <translation>已添加交易费</translation>
+    </message>
+    <message>
+        <source>Total Amount %1</source>
+        <translation>总金额 %1</translation>
+    </message>
+    <message>
+        <source>or</source>
+        <translation>或</translation>
+    </message>
+    <message>
+        <source>Confirm anonymize coins</source>
+        <translation>确认匿名化货币</translation>
+    </message>
+    <message>
+        <source>Anonymize Coins</source>
+        <translation>匿名化货币</translation>
+    </message>
+    <message>
+        <source>The amount exceeds your balance.</source>
+        <translation>金额超出你的账上余额。</translation>
+    </message>
+    <message>
+        <source>The total exceeds your balance when the %1 transaction fee is included.</source>
+        <translation>计入 %1 交易费后的金额超出你的账上余额。</translation>
+    </message>
+    <message>
+        <source>The amount to pay must be larger than 0.</source>
+        <translation>支付金额必须大于 0。</translation>
+    </message>
+    <message>
+        <source>each transaction at least</source>
+        <translation>每笔交易至少</translation>
+    </message>
+</context>
+<context>
+    <name>MasternodeList</name>
+    <message>
+        <source>Form</source>
+        <translation>表单</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>状态</translation>
+    </message>
+    <message>
+        <source>0</source>
+        <translation>0</translation>
+    </message>
+    <message>
+        <source>Filter List:</source>
+        <translation>筛选列表：</translation>
+    </message>
+    <message>
+        <source>Filter masternode list</source>
+        <translation>筛选主节点列表</translation>
+    </message>
+    <message>
+        <source>Node Count:</source>
+        <translation>节点数：</translation>
+    </message>
+    <message>
+        <source>Show only masternodes this wallet has keys for.</source>
+        <translation>仅显示此钱包拥有私钥的主节点</translation>
+    </message>
+    <message>
+        <source>My masternodes only</source>
+        <translation>仅我的主节点</translation>
+    </message>
+    <message>
+        <source>Service</source>
+        <translation>服务</translation>
+    </message>
+    <message>
+        <source>PoSe Score</source>
+        <translation>PoSe 评分</translation>
+    </message>
+    <message>
+        <source>Registered (Block)</source>
+        <translation>已注册的（区块）</translation>
+    </message>
+    <message>
+        <source>Last Paid (Block)</source>
+        <translation>最近支付（区块）</translation>
+    </message>
+    <message>
+        <source>Next Payment (Block)</source>
+        <translation>下次支付（区块）</translation>
+    </message>
+    <message>
+        <source>Payout Address</source>
+        <translation>付款地址</translation>
+    </message>
+    <message>
+        <source>Operator Reward</source>
+        <translation>运行者奖励</translation>
+    </message>
+    <message>
+        <source>Collateral Address</source>
+        <translation>保证金地址</translation>
+    </message>
+    <message>
+        <source>Owner Address</source>
+        <translation>所有者地址</translation>
+    </message>
+    <message>
+        <source>Voting Address</source>
+        <translation>投票地址</translation>
+    </message>
+    <message>
+        <source>Copy ProTx Hash</source>
+        <translation>复制 ProTx Hash</translation>
+    </message>
+    <message>
+        <source>Copy Collateral Outpoint</source>
+        <translation>复制保证金输出点</translation>
+    </message>
+    <message>
+        <source>Updating...</source>
+        <translation>更新中...</translation>
+    </message>
+    <message>
+        <source>ENABLED</source>
+        <translation>ENABLED</translation>
+    </message>
+    <message>
+        <source>POSE_BANNED</source>
+        <translation>POSE_BANNED</translation>
+    </message>
+    <message>
+        <source>UNKNOWN</source>
+        <translation>UNKNOWN</translation>
+    </message>
+    <message>
+        <source>to %1</source>
+        <translation>至 %1</translation>
+    </message>
+    <message>
+        <source>to UNKNOWN</source>
+        <translation>至 UNKNOWN</translation>
+    </message>
+    <message>
+        <source>but not claimed</source>
+        <translation>但未认领</translation>
+    </message>
+    <message>
+        <source>NONE</source>
+        <translation>NONE</translation>
+    </message>
+    <message>
+        <source>Filter by any property (e.g. address or protx hash)</source>
+        <translation>按任何属性筛选 (例. 地址或protx hash)</translation>
+    </message>
+    <message>
+        <source>Please wait...</source>
+        <translation>请稍等...</translation>
+    </message>
+    <message>
+        <source>Additional information for DIP3 Masternode %1</source>
+        <translation>DIP3 主节点 %1 的额外信息</translation>
+    </message>
+</context>
+<context>
     <name>OverviewPage</name>
+    <message>
+        <source>Please restart the Firo wallet to route your connection through Tor to protect your IP address. &lt;br&gt;Syncing your wallet might be slower with TOR. &lt;br&gt;Note that -torsetup in firo.conf will always override any changes made here.</source>
+        <translation>请重新启动飞熔钱包，通过 Tor 来路由你的连接，以保护你的 IP 地址。&lt;br&gt;使用 Tor 同步你的钱包可能会比较慢。&lt;br&gt;请注意，firo.conf 中的 -torsetup 将始终覆盖这里的任何更改。</translation>
+    </message>
+    <message>
+        <source>Please restart the Firo wallet to disable routing of your connection through Tor to protect your IP address. &lt;br&gt;Note that -torsetup in firo.conf will always override any changes made here.</source>
+        <translation>请重新启动飞熔钱包，以禁用通过 Tor 来路由你的连接以保护你的 IP 地址。&lt;br&gt;请注意，firo.conf 中的 -torsetup 将始终覆盖这里的任何更改。</translation>
+    </message>
     <message>
         <source>Form</source>
         <translation>表单</translation>
     </message>
     <message>
         <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Firo network after a connection is established, but this process has not completed yet.</source>
-        <translation>现在显示的消息可能是过期的。在连接上比特币网络节点后，您的钱包将自动与网络同步，但是这个过程还没有完成。</translation>
+        <translation>现在显示的消息可能是过期的。在连接上飞熔币网络节点后，你的钱包将自动与网络同步，但是这个过程还没有完成。</translation>
+    </message>
+    <message>
+        <source>Private Balances</source>
+        <translation>匿名的余额</translation>
+    </message>
+    <message>
+        <source>Transparent Balances</source>
+        <translation>公开的余额</translation>
+    </message>
+    <message>
+        <source>Anonymizable:</source>
+        <translation>可匿名化：</translation>
+    </message>
+    <message>
+        <source>Anonymize All</source>
+        <translation>全部匿名化</translation>
     </message>
     <message>
         <source>Watch-only:</source>
-        <translation>查看-只有:</translation>
+        <translation>查看-只有：</translation>
     </message>
     <message>
         <source>Available:</source>
-        <translation>可使用的余额：</translation>
+        <translation>可用的：</translation>
     </message>
     <message>
         <source>Your current spendable balance</source>
-        <translation>您当前可使用的余额</translation>
+        <translation>你当前可使用的公开余额</translation>
     </message>
     <message>
         <source>Pending:</source>
-        <translation>等待中的余额：</translation>
+        <translation>等待中：</translation>
     </message>
     <message>
         <source>Total of transactions that have yet to be confirmed, and do not yet count toward the spendable balance</source>
-        <translation>尚未确认的交易总额，未计入当前余额</translation>
+        <translation>尚未确认的公开交易金额，未计入当前可用余额</translation>
     </message>
     <message>
         <source>Immature:</source>
@@ -1217,15 +1836,23 @@
     </message>
     <message>
         <source>Total:</source>
-        <translation>总额：</translation>
+        <translation>总金额：</translation>
+    </message>
+    <message>
+        <source>Your current spendable anonymized balance</source>
+        <translation>你当前可用的匿名余额</translation>
+    </message>
+    <message>
+        <source>Total of anonymize transactions that have yet to be confirmed, and do not yet count toward the spendable balance</source>
+        <translation>尚未确认的匿名交易金额，未计入当前可用余额</translation>
     </message>
     <message>
         <source>Your current total balance</source>
-        <translation>您当前的总余额</translation>
+        <translation>你当前的总余额</translation>
     </message>
     <message>
         <source>Your current balance in watch-only addresses</source>
-        <translation>您当前 观察地址(watch-only address)的余额 </translation>
+        <translation>你当前 观察地址(watch-only address)的余额 </translation>
     </message>
     <message>
         <source>Spendable:</source>
@@ -1246,6 +1873,10 @@
     <message>
         <source>Current total balance in watch-only addresses</source>
         <translation>观察地址(watch-only address)中的当前总余额 </translation>
+    </message>
+    <message>
+        <source>Anonymous communication with Tor</source>
+        <translation>使用 Tor 来匿名通信</translation>
     </message>
 </context>
 <context>
@@ -1273,7 +1904,7 @@
     </message>
     <message>
         <source>URI cannot be parsed! This can be caused by an invalid Firo address or malformed URI parameters.</source>
-        <translation>无法解析 URI 地址！可能是因为比特币地址无效，或是 URI 参数格式错误。</translation>
+        <translation>无法解析 URI 地址！可能是因为飞熔币地址无效，或是 URI 参数格式错误。</translation>
     </message>
     <message>
         <source>Payment request file handling</source>
@@ -1367,7 +1998,7 @@
     </message>
     <message>
         <source>Enter a Firo address (e.g. %1)</source>
-        <translation>请输入一个比特币地址 (例如 %1)</translation>
+        <translation>请输入一个飞熔币地址 (例如 %1)</translation>
     </message>
     <message>
         <source>%1 d</source>
@@ -1391,7 +2022,7 @@
     </message>
     <message>
         <source>N/A</source>
-        <translation>不可用</translation>
+        <translation>N/A</translation>
     </message>
     <message>
         <source>%1 ms</source>
@@ -1468,7 +2099,7 @@
     <name>RPCConsole</name>
     <message>
         <source>N/A</source>
-        <translation>不可用</translation>
+        <translation>N/A</translation>
     </message>
     <message>
         <source>Client version</source>
@@ -1708,7 +2339,7 @@
     </message>
     <message>
         <source>WARNING: Scammers have been active, telling users to type commands here, stealing their wallet contents. Do not use this console without fully understanding the ramification of a command.</source>
-        <translation>警告： 已有骗子通过要求用户在此输入指令以盗取钱包。不要在没有完全理解命令规范时使用控制台。</translation>
+        <translation>警告：已有骗子通过要求用户在此输入指令以盗取钱包。不要在没有完全理解命令规范时使用控制台。</translation>
     </message>
     <message>
         <source>Network activity disabled</source>
@@ -1787,7 +2418,7 @@
     </message>
     <message>
         <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Firo network.</source>
-        <translation>可在付款请求上备注一条信息，在打开付款请求时可以看到。注意：该消息不是通过比特币网络传送。</translation>
+        <translation>可在付款请求上备注一条信息，在打开付款请求时可以看到。注意：该消息不是通过飞熔币网络传送。</translation>
     </message>
     <message>
         <source>An optional label to associate with the new receiving address.</source>
@@ -1940,11 +2571,11 @@
     <name>SendCoinsDialog</name>
     <message>
         <source>Send Coins</source>
-        <translation>发送比特币</translation>
+        <translation>发送飞熔币</translation>
     </message>
     <message>
         <source>Coin Control Features</source>
-        <translation>交易源地址控制功能</translation>
+        <translation>手动选币功能</translation>
     </message>
     <message>
         <source>Inputs...</source>
@@ -1976,11 +2607,11 @@
     </message>
     <message>
         <source>After Fee:</source>
-        <translation>加上交易费用后:</translation>
+        <translation>加上交易费用后：</translation>
     </message>
     <message>
         <source>Change:</source>
-        <translation>变更 : </translation>
+        <translation>变更：</translation>
     </message>
     <message>
         <source>If this is activated, but the change address is empty or invalid, change will be sent to a newly generated address.</source>
@@ -1992,7 +2623,7 @@
     </message>
     <message>
         <source>Transaction Fee:</source>
-        <translation>交易费用:</translation>
+        <translation>交易费用：</translation>
     </message>
     <message>
         <source>Choose...</source>
@@ -2008,7 +2639,7 @@
     </message>
     <message>
         <source>If the custom fee is set to 1000 satoshis and the transaction is only 250 bytes, then "per kilobyte" only pays 250 satoshis in fee, while "total at least" pays 1000 satoshis. For transactions bigger than a kilobyte both pay by kilobyte.</source>
-        <translation>如果自定义交易费设置为 1000聪而交易大小只有250字节，则“每千字节" 模式只支付250聪交易费， 而"最少"模式则支付1000聪。 大于1000字节的交易按每千字节付费。</translation>
+        <translation>如果自定义交易费设置为 1000 聪而交易大小只有 250 字节，则“每千字节”模式只支付 250 聪交易费，而“最少”模式则支付 1000 聪。大于 1000 字节的交易按每千字节付费。</translation>
     </message>
     <message>
         <source>Hide</source>
@@ -2016,11 +2647,11 @@
     </message>
     <message>
         <source>total at least</source>
-        <translation>最小额 </translation>
+        <translation>最小额</translation>
     </message>
     <message>
-        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for firo transactions than the network can process.</source>
-        <translation>交易量小时只支付最小交易费是可以的。但是请注意，当交易量大到超出网络可处理时您的交易可能永远无法确认。</translation>
+        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Firo transactions than the network can process.</source>
+        <translation>交易量小时只支付最小交易费是可以的。但是请注意，当交易量大到超出网络可处理时你的交易可能永远无法确认。</translation>
     </message>
     <message>
         <source>(read the tooltip)</source>
@@ -2036,7 +2667,7 @@
     </message>
     <message>
         <source>(Smart fee not initialized yet. This usually takes a few blocks...)</source>
-        <translation>(智能交易费用 尚未初始化。 需要再下载一些数据块...)</translation>
+        <translation>(智能交易费用 尚未初始化。需要再下载一些数据块...)</translation>
     </message>
     <message>
         <source>normal</source>
@@ -2112,7 +2743,7 @@
     </message>
     <message>
         <source>Are you sure you want to send?</source>
-        <translation>您确定要发出吗？</translation>
+        <translation>你确定要发出吗？</translation>
     </message>
     <message>
         <source>added as transaction fee</source>
@@ -2136,15 +2767,15 @@
     </message>
     <message>
         <source>The amount to pay must be larger than 0.</source>
-        <translation>支付金额必须大于0。</translation>
+        <translation>支付金额必须大于 0。</translation>
     </message>
     <message>
         <source>The amount exceeds your balance.</source>
-        <translation>金额超出您的账上余额。</translation>
+        <translation>金额超出你的账上余额。</translation>
     </message>
     <message>
         <source>The total exceeds your balance when the %1 transaction fee is included.</source>
-        <translation>计入 %1 交易费后的金额超出您的账上余额。</translation>
+        <translation>计入 %1 交易费后的金额超出你的账上余额。</translation>
     </message>
     <message>
         <source>Duplicate address found: addresses should only be used once each.</source>
@@ -2180,7 +2811,7 @@
     </message>
     <message>
         <source>Warning: Invalid Firo address</source>
-        <translation>警告: 比特币地址无效</translation>
+        <translation>警告：飞熔币地址无效</translation>
     </message>
     <message>
         <source>Warning: Unknown change address</source>
@@ -2193,6 +2824,34 @@
     <message>
         <source>(no label)</source>
         <translation>(无标签)</translation>
+    </message>
+    <message>
+        <source>Use Transparent Balance</source>
+        <translation>使用公开的余额</translation>
+    </message>
+    <message>
+        <source>Transparent Balance</source>
+        <translation>公开的余额：</translation>
+    </message>
+    <message>
+        <source>Use Private Balance</source>
+        <translation>使用匿名的余额 </translation>
+    </message>
+    <message>
+        <source>Private Balance</source>
+        <translation>匿名的余额：</translation>
+    </message>
+    <message>
+        <source>Confirmation time target:</source>
+        <translation>目标确认时间：</translation>
+    </message>
+    <message>
+        <source>Warning: Fee estimation is currently not possible.</source>
+        <translation>警告：目前无法进行手续费估计。</translation>
+    </message>
+    <message>
+        <source>Using the fallbackfee can result in sending a transaction that will take several hours or days (or never) to confirm. Consider choosing your fee manually or wait until your have validated the complete chain.</source>
+        <translation>如果使用备用手续费设置，有可能会导致交易经过几个小时、几天（甚至永远）无法被确认。请考虑手动选择手续费，或等待整个链完成验证。</translation>
     </message>
 </context>
 <context>
@@ -2239,7 +2898,7 @@
     </message>
     <message>
         <source>The fee will be deducted from the amount being sent. The recipient will receive less firos than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</source>
-        <translation>交易费将从发送总额中扣除。接收人将收到比您在金额框中输入的更少的比特币。如果选中了多个收件人，交易费平分。</translation>
+        <translation>交易费将从发送总额中扣除。接收人将收到比你在金额框中输入的更少的飞熔币。如果选中了多个收件人，交易费平分。</translation>
     </message>
     <message>
         <source>S&amp;ubtract fee from amount</source>
@@ -2263,11 +2922,11 @@
     </message>
     <message>
         <source>A message that was attached to the firo: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Firo network.</source>
-        <translation>firo:URI 附带的备注信息，将会和交易一起存储，备查。 注意：该消息不会通过比特币网络传输。</translation>
+        <translation>firo:URI 附带的备注信息，将会和交易一起存储，备查。注意：该消息不会通过飞熔币网络传输。</translation>
     </message>
     <message>
         <source>Pay To:</source>
-        <translation>支付给:</translation>
+        <translation>支付给：</translation>
     </message>
     <message>
         <source>Memo:</source>
@@ -2275,7 +2934,7 @@
     </message>
     <message>
         <source>Enter a label for this address to add it to your address book</source>
-        <translation>为这个地址输入一个标签，以便将它添加到您的地址簿</translation>
+        <translation>为这个地址输入一个标签，以便将它添加到你的地址簿</translation>
     </message>
 </context>
 <context>
@@ -2287,6 +2946,10 @@
 </context>
 <context>
     <name>ShutdownWindow</name>
+    <message>
+        <source>Firo Core</source>
+        <translation>飞熔核心</translation>
+    </message>
     <message>
         <source>%1 is shutting down...</source>
         <translation>正在关闭 %1 ...</translation>
@@ -2308,7 +2971,7 @@
     </message>
     <message>
         <source>You can sign messages/agreements with your addresses to prove you can receive firos sent to them. Be careful not to sign anything vague or random, as phishing attacks may try to trick you into signing your identity over to them. Only sign fully-detailed statements you agree to.</source>
-        <translation>您可以用你的地址对消息/协议进行签名，以证明您可以接收发送到该地址的比特币。注意不要对任何模棱两可或者随机的消息进行签名，以免遭受钓鱼式攻击。请确保消息内容准确的表达了您的真实意愿。</translation>
+        <translation>你可以用你的地址对消息/协议进行签名，以证明你可以接收发送到该地址的飞熔币。注意不要对任何模棱两可或者随机的消息进行签名，以免遭受钓鱼式攻击。请确保消息内容准确的表达了你的真实意愿。</translation>
     </message>
     <message>
         <source>The Firo address to sign the message with</source>
@@ -2332,7 +2995,7 @@
     </message>
     <message>
         <source>Enter the message you want to sign here</source>
-        <translation>请输入您要发送的签名消息</translation>
+        <translation>请输入你要发送的签名消息</translation>
     </message>
     <message>
         <source>Signature</source>
@@ -2344,7 +3007,7 @@
     </message>
     <message>
         <source>Sign the message to prove you own this Firo address</source>
-        <translation>签名消息，证明这个地址属于您。</translation>
+        <translation>签名消息，证明这个地址属于你。</translation>
     </message>
     <message>
         <source>Sign &amp;Message</source>
@@ -2372,7 +3035,7 @@
     </message>
     <message>
         <source>Verify the message to ensure it was signed with the specified Firo address</source>
-        <translation>验证消息，确保消息是由指定的比特币地址签名过的。</translation>
+        <translation>验证消息，确保消息是由指定的飞熔币地址签名过的。</translation>
     </message>
     <message>
         <source>Verify &amp;Message</source>
@@ -2597,7 +3260,7 @@
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
-        <translation>生成的比特币在可以使用前必须有 %1 个成熟的区块。当您生成了此区块后，它将被广播到网络中以加入区块链。如果它未成功进入区块链，其状态将变更为“不接受”并且不可使用。这可能偶尔会发生，如果另一个节点比你早几秒钟成功生成一个区块。</translation>
+        <translation>生成的飞熔币在可以使用前必须有 %1 个成熟的区块。当你生成了此区块后，它将被广播到网络中以加入区块链。如果它未成功进入区块链，其状态将变更为“不接受”并且不可使用。这可能偶尔会发生，如果另一个节点比你早几秒钟成功生成一个区块。</translation>
     </message>
     <message>
         <source>Debug information</source>
@@ -2659,7 +3322,7 @@
     </message>
     <message>
         <source>Confirming (%1 of %2 recommended confirmations)</source>
-        <translation>确认中 (推荐 %2个确认，已经有 %1个确认)</translation>
+        <translation>确认中 (推荐 %2 个确认，已经有 %1 个确认)</translation>
     </message>
     <message>
         <source>Confirmed (%1 confirmations)</source>
@@ -2683,7 +3346,7 @@
     </message>
     <message>
         <source>Received with</source>
-        <translation>收款</translation>
+        <translation>收款至</translation>
     </message>
     <message>
         <source>Received from</source>
@@ -2691,11 +3354,27 @@
     </message>
     <message>
         <source>Sent to</source>
-        <translation>付款</translation>
+        <translation>公开付款给</translation>
+    </message>
+    <message>
+        <source>Spend to</source>
+        <translation>匿名付款给</translation>
+    </message>
+    <message>
+        <source>Spend to yourself</source>
+        <translation>匿名付款给自己</translation>
+    </message>
+    <message>
+        <source>Anonymized</source>
+        <translation>匿名化</translation>
+    </message>
+    <message>
+        <source>Anonymize</source>
+        <translation>匿名化</translation>
     </message>
     <message>
         <source>Payment to yourself</source>
-        <translation>付款给自己</translation>
+        <translation>公开付款给自己</translation>
     </message>
     <message>
         <source>Mined</source>
@@ -2707,7 +3386,7 @@
     </message>
     <message>
         <source>(n/a)</source>
-        <translation>（不可用）</translation>
+        <translation>（n/a）</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -2715,7 +3394,7 @@
     </message>
     <message>
         <source>Transaction status. Hover over this field to show number of confirmations.</source>
-        <translation>交易状态。 鼠标移到此区域可显示确认项数量。</translation>
+        <translation>交易状态。鼠标移到此区域可显示确认项数量。</translation>
     </message>
     <message>
         <source>Date and time that the transaction was received.</source>
@@ -2770,15 +3449,15 @@
     </message>
     <message>
         <source>Received with</source>
-        <translation>收款</translation>
+        <translation>收款至</translation>
     </message>
     <message>
         <source>Sent to</source>
-        <translation>付款</translation>
+        <translation>公开付款给</translation>
     </message>
     <message>
         <source>To yourself</source>
-        <translation>给自己</translation>
+        <translation>公开付款给自己</translation>
     </message>
     <message>
         <source>Mined</source>
@@ -2787,6 +3466,18 @@
     <message>
         <source>Other</source>
         <translation>其它</translation>
+    </message>
+    <message>
+        <source>Spend to</source>
+        <translation>匿名付款给</translation>
+    </message>
+    <message>
+        <source>Spend to yourself</source>
+        <translation>匿名付款给自己</translation>
+    </message>
+    <message>
+        <source>Anonymize</source>
+        <translation>匿名化</translation>
     </message>
     <message>
         <source>Enter address or label to search</source>
@@ -2814,7 +3505,7 @@
     </message>
     <message>
         <source>Copy transaction ID</source>
-        <translation>复制交易识别码</translation>
+        <translation>复制交易 ID</translation>
     </message>
     <message>
         <source>Copy raw transaction</source>
@@ -2822,7 +3513,7 @@
     </message>
     <message>
         <source>Copy full transaction details</source>
-        <translation>复制所有交易详情</translation>
+        <translation>复制完整交易详情</translation>
     </message>
     <message>
         <source>Edit label</source>
@@ -2892,6 +3583,22 @@
         <source>to</source>
         <translation>到</translation>
     </message>
+    <message>
+        <source>Re-broadcast transaction</source>
+        <translation>重新广播交易</translation>
+    </message>
+    <message>
+        <source>Re-broadcast</source>
+        <translation>重新广播</translation>
+    </message>
+    <message>
+        <source>Broadcast succeeded</source>
+        <translation>广播成功</translation>
+    </message>
+    <message>
+        <source>There was an error trying to broadcast the message: %1</source>
+        <translation>尝试广播该消息时出错：%1</translation>
+    </message>
 </context>
 <context>
     <name>UnitDisplayStatusBarControl</name>
@@ -2911,7 +3618,7 @@
     <name>WalletModel</name>
     <message>
         <source>Send Coins</source>
-        <translation>发送比特币</translation>
+        <translation>发送飞熔币</translation>
     </message>
 </context>
 <context>
@@ -2967,7 +3674,7 @@
     </message>
     <message>
         <source>Specify your own public address</source>
-        <translation>指定您的公共地址</translation>
+        <translation>指定你的公共地址</translation>
     </message>
     <message>
         <source>Accept command line and JSON-RPC commands</source>
@@ -3014,7 +3721,7 @@
     </message>
     <message>
         <source>Firo Core</source>
-        <translation>Firo Core</translation>
+        <translation>飞熔核心</translation>
     </message>
     <message>
         <source>The %s developers</source>
@@ -3250,15 +3957,15 @@
     </message>
     <message>
         <source>Allow JSON-RPC connections from specified source. Valid for &lt;ip&gt; are a single IP (e.g. 1.2.3.4), a network/netmask (e.g. 1.2.3.4/255.255.255.0) or a network/CIDR (e.g. 1.2.3.4/24). This option can be specified multiple times</source>
-        <translation>允许来自指定地址的 JSON-RPC 连接。 &lt;ip&gt;为单一IP (如: 1.2.3.4), 网络/掩码 (如: 1.2.3.4/255.255.255.0), 网络/CIDR (如:  1.2.3.4/24)。该选项可多次指定。</translation>
+        <translation>允许来自指定地址的 JSON-RPC 连接。&lt;ip&gt;为单一IP (如: 1.2.3.4), 网络/掩码 (如: 1.2.3.4/255.255.255.0), 网络/CIDR (如:  1.2.3.4/24)。该选项可多次指定。</translation>
     </message>
     <message>
         <source>Bind to given address and whitelist peers connecting to it. Use [host]:port notation for IPv6</source>
-        <translation>绑定到指定地址和连接的白名单节点。 IPv6使用  [主机]:端口 格式 </translation>
+        <translation>绑定到指定地址和连接的白名单节点。IPv6使用  [主机]:端口 格式 </translation>
     </message>
     <message>
         <source>Bind to given address to listen for JSON-RPC connections. Use [host]:port notation for IPv6. This option can be specified multiple times (default: bind to all interfaces)</source>
-        <translation>绑定到指定地址监听 JSON-RPC连接。 IPv6使用[主机]:端口 格式。该选项可多次指定 (默认: 绑定到所有接口) </translation>
+        <translation>绑定到指定地址监听 JSON-RPC连接。IPv6使用[主机]:端口 格式。该选项可多次指定 (默认: 绑定到所有接口) </translation>
     </message>
     <message>
         <source>Create new files with system default permissions, instead of umask 077 (only effective with disabled wallet functionality)</source>
@@ -3310,7 +4017,7 @@
     </message>
     <message>
         <source>You need to rebuild the database using -reindex to go back to unpruned mode.  This will redownload the entire blockchain</source>
-        <translation>您需要使用 -reindex 重新构建数据库以返回未修剪的模式。这将重新下载整个区块链</translation>
+        <translation>你需要使用 -reindex 重新构建数据库以返回未修剪的模式。这将重新下载整个区块链</translation>
     </message>
     <message>
         <source>(default: %u)</source>
@@ -3438,7 +4145,7 @@
     </message>
     <message>
         <source>Warning: unknown new rules activated (versionbit %i)</source>
-        <translation>警告: 不明的交易规则被启用了(versionbit %i)</translation>
+        <translation>警告：不明的交易规则被启用了(versionbit %i)</translation>
     </message>
     <message>
         <source>Whether to operate in a blocks only mode (default: %u)</source>
@@ -3527,7 +4234,7 @@
     </message>
     <message>
         <source>Warning: Unknown block versions being mined! It's possible unknown rules are in effect</source>
-        <translation>警告: 未知的区块版本被挖掘！未知规则可能已生效</translation>
+        <translation>警告：未知的区块版本被挖掘！未知规则可能已生效</translation>
     </message>
     <message>
         <source>(default: %s)</source>
@@ -3656,6 +4363,26 @@
     <message>
         <source>Error</source>
         <translation>错误</translation>
+    </message>
+    <message>
+        <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
+        <translation>请检查电脑日期和时间是否正确！ %s 没办法在时钟不准的情况下正常运作。</translation>
+    </message>
+    <message>
+        <source>The required amount exceeds spend limit</source>
+        <translation>金额超出最大支出限额</translation>
+    </message>
+    <message>
+        <source>Please contribute if you find %s useful. Visit %s for further information about the software.</source>
+        <translation>如果你觉得 %s 有用，请务必贡献一份力。访问 %s 以了解有关该软件的更多信息。</translation>
+    </message>
+    <message>
+        <source>Distributed under the MIT software license, see the accompanying file %s or %s</source>
+        <translation>在 MIT 协议下分发，参见附带的 %s 或 %s 文件</translation>
+    </message>
+    <message>
+        <source>This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit %s and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard.</source>
+        <translation>本产品包含 OpenSSL Project 开发的用于 OpenSSL Toolkit %s 的软件，以及 Eric Young 编写的加密软件和 Thomas Bernard 编写的 UPnP 软件。</translation>
     </message>
 </context>
 </TS>

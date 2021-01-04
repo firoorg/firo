@@ -219,7 +219,7 @@ public:
     // migrate settings to firo. Returns true if there was migration
     bool migrateSettings(const QString &oldOrganizationName, const QString &newOrganizationName, const QString &oldApplicationName, const QString &newApplicationName);
     // set data directory in settings file
-    bool setDataDirInSettings(const QString &organization, const QString &application, const QString &dataDir);
+    void setDataDirInSettings(const QString &organization, const QString &application, const QString &dataDir);
     // migrate directories to firo if needed
     void migrateToFiro();
 
@@ -563,7 +563,7 @@ bool BitcoinApplication::migrateSettings(const QString &oldOrganizationName, con
     return false;
 }
 
-bool BitcoinApplication::setDataDirInSettings(const QString &organization, const QString &application, const QString &dataDir)
+void BitcoinApplication::setDataDirInSettings(const QString &organization, const QString &application, const QString &dataDir)
 {
     QSettings settings(organization, application);
     if (!settings.value("strDataDir").isNull()) {
@@ -746,6 +746,18 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 #ifdef ENABLE_WALLET
+    // Parse URIs on command line -- this can affect Params()
+    PaymentServer::ipcParseCommandLine(argc, argv);
+#endif
+
+    QScopedPointer<const NetworkStyle> networkStyle(NetworkStyle::instantiate(QString::fromStdString(Params().NetworkIDString())));
+    assert(!networkStyle.isNull());
+    // Allow for separate UI settings for testnets
+    QApplication::setApplicationName(networkStyle->getAppName());
+    // Re-initialize translations after changing application name (language in network-specific settings can be different)
+    initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
+
+#ifdef ENABLE_WALLET
     // Determine if user wants to create new wallet or recover existing one.
     // Only show if:
     // - Using mnemonic (-usemnemonic on (default)) and
@@ -759,19 +771,6 @@ int main(int argc, char *argv[])
         if(!Recover::askRecover(newWallet))
             return EXIT_SUCCESS;
     }
-
-    // Parse URIs on command line -- this can affect Params()
-    PaymentServer::ipcParseCommandLine(argc, argv);
-#endif
-
-    QScopedPointer<const NetworkStyle> networkStyle(NetworkStyle::instantiate(QString::fromStdString(Params().NetworkIDString())));
-    assert(!networkStyle.isNull());
-    // Allow for separate UI settings for testnets
-    QApplication::setApplicationName(networkStyle->getAppName());
-    // Re-initialize translations after changing application name (language in network-specific settings can be different)
-    initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
-
-#ifdef ENABLE_WALLET
     /// 8. URI IPC sending
     // - Do this early as we don't want to bother initializing if we are just calling IPC
     // - Do this *after* setting up the data directory, as the data directory hash is used in the name

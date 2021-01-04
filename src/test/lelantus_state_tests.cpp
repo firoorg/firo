@@ -377,7 +377,7 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
         BOOST_CHECK(expected == coinSet);
     };
 
-    auto verifyGroup = [&](int expectedId, size_t expectedCoins, CBlockIndex *expectedFirst, CBlockIndex *expectedLast, int testId = 0) -> bool {
+    auto verifyGroup = [&](int expectedId, size_t expectedCoins, CBlockIndex *expectedFirst, CBlockIndex *expectedLast, int testId = 0)->void {
         if (!testId) {
             testId = lelantusState->GetLatestCoinID();
         }
