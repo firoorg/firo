@@ -13,7 +13,7 @@ Firo
 What is Firo?
 --------------
 
-[Firo](https://firo.org) is a privacy focused cryptocurrency that utilizes zero-knowledge proofs which allows users to destroy coins and then redeem them later for brand new ones with no transaction history. It was the first project to implement the Zerocoin protocol and has now transitioned to the [Sigma protocol](https://firo.org/2019/03/20/what-is-sigma.html) which has no trusted setup and small proof sizes. Firo also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as Tor/i2P.
+[Firo](https://firo.org) is a privacy focused cryptocurrency that uses the [Lelantus Technology](https://eprint.iacr.org/2019/373) which allows users to burn their coins, which hides them in an anonymity set of over 65,000. The receiver can redeem it from this anonymity pool, which breaks the links from your transaction and all the previous ones it has been through. It was the first project to implement the Zerocoin protocol and then transitioned to the [Sigma protocol](https://firo.org/2019/03/20/what-is-sigma.html) which has no trusted setup and small proof sizes. Firo also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as Tor/i2P.
 
 Firo developed and utilizes [Merkle Tree Proofs (MTP)](https://arxiv.org/pdf/1606.03588.pdf) as its Proof-of-Work algorithm which aims to be memory hard with fast verification.
 
