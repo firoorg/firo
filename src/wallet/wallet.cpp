@@ -2313,8 +2313,6 @@ void CWallet::ReacceptWalletTransactions()
     BOOST_FOREACH(PAIRTYPE(const int64_t, CWalletTx*)& item, mapSorted)
     {
         CWalletTx& wtx = *(item.second);
-
-        LOCK(mempool.cs);
         CValidationState state;
         // the app was closed and re-opened, do NOT check their
         // serial numbers, and DO NOT try to mark their serial numbers
