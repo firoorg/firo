@@ -1466,22 +1466,24 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         LogPrintf("Updating mint state from Mempool..");
         BOOST_FOREACH(const CTxOut &txout, tx.vout)
         {
-            GroupElement pubCoinValue;
-            uint64_t amount = 0;
-            try {
-                if (txout.scriptPubKey.IsLelantusMint()) {
-                    lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
-                    amount = txout.nValue;
-                } else {
-                    std::vector<unsigned char> encryptedValue;
-                    lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
-                    if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
-                        amount = 0;
+            if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
+                GroupElement pubCoinValue;
+                uint64_t amount = 0;
+                try {
+                    if (txout.scriptPubKey.IsLelantusMint()) {
+                        lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
+                        amount = txout.nValue;
+                    } else {
+                        std::vector<unsigned char> encryptedValue;
+                        lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
+                        if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
+                            amount = 0;
+                    }
+                } catch (std::invalid_argument&) {
+                    return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
                 }
-            } catch (std::invalid_argument&) {
-                return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
+                lelantusAmounts.push_back(amount);
             }
-            lelantusAmounts.push_back(amount);
         }
         pwalletMain->zwallet->GetTracker().UpdateLelantusMintStateFromMempool(lelantusMintPubcoins, lelantusAmounts);
     }
