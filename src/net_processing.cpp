@@ -971,9 +971,9 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         return llmq::quorumDKGSessionManager->AlreadyHave(inv);
     case MSG_QUORUM_RECOVERED_SIG:
         return llmq::quorumSigningManager->AlreadyHave(inv);
-    /*
     case MSG_CLSIG:
         return llmq::chainLocksHandler->AlreadyHave(inv);
+    /*
     case MSG_ISLOCK:
         return llmq::quorumInstantSendManager->AlreadyHave(inv);
     */
