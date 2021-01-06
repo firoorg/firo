@@ -4,7 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 from test_framework.mininode import *
-from test_framework.test_framework import DashTestFramework
+from test_framework.test_framework import EvoZnodeTestFramework
 from test_framework.util import *
 from time import *
 
@@ -15,25 +15,18 @@ Checks LLMQs based ChainLocks
 
 '''
 
-class LLMQChainLocksTest(DashTestFramework):
+class LLMQChainLocksTest(EvoZnodeTestFramework):
     def __init__(self):
-        super().__init__(6, 5, fast_dip3_enforcement=True)
+        super().__init__(6, 5, extra_args=[['-debug=chainlocks']] * 6)
 
     def run_test(self):
-
-        while self.nodes[0].getblockchaininfo()["bip9_softforks"]["dip0008"]["status"] != "active":
-            self.nodes[0].generate(10)
-        sync_blocks(self.nodes, timeout=60*5)
-
-        self.nodes[0].spork("SPORK_17_QUORUM_DKG_ENABLED", 0)
-        self.nodes[0].spork("SPORK_19_CHAINLOCKS_ENABLED", 0)
-        self.wait_for_sporks_same()
 
         for i in range(4):
             self.mine_quorum()
 
         # mine single block, wait for chainlock
         self.nodes[0].generate(1)
+
         self.wait_for_chainlock_tip_all_nodes()
 
         # mine many blocks, wait for chainlock
@@ -77,7 +70,6 @@ class LLMQChainLocksTest(DashTestFramework):
         self.nodes[0].invalidateblock(self.nodes[0].getbestblockhash())
         # Now try to reorg the chain
         self.nodes[0].generate(2)
-        sleep(6)
         assert(self.nodes[1].getbestblockhash() == good_tip)
         self.nodes[0].generate(2)
         sleep(6)
@@ -90,34 +82,8 @@ class LLMQChainLocksTest(DashTestFramework):
         self.wait_for_chainlock(self.nodes[0], self.nodes[1].getbestblockhash())
         assert(self.nodes[0].getbestblockhash() == self.nodes[1].getbestblockhash())
 
-        # Enable LLMQ bases InstantSend, which also enables checks for "safe" transactions
-        self.nodes[0].spork("SPORK_20_INSTANTSEND_LLMQ_BASED", 0)
-        self.wait_for_sporks_same()
-
-        # Isolate a node and let it create some transactions which won't get IS locked
         isolate_node(self.nodes[0])
-        txs = []
-        for i in range(3):
-            txs.append(self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1))
-        txs += self.create_chained_txs(self.nodes[0], 1)
-        # Assert that after block generation these TXs are NOT included (as they are "unsafe")
         self.nodes[0].generate(1)
-        for txid in txs:
-            tx = self.nodes[0].getrawtransaction(txid, 1)
-            assert("confirmations" not in tx)
-        sleep(1)
-        assert(not self.nodes[0].getblock(self.nodes[0].getbestblockhash())["chainlock"])
-        # Disable LLMQ based InstantSend for a very short time (this never gets propagated to other nodes)
-        self.nodes[0].spork("SPORK_20_INSTANTSEND_LLMQ_BASED", 4070908800)
-        # Now the TXs should be included
-        self.nodes[0].generate(1)
-        self.nodes[0].spork("SPORK_20_INSTANTSEND_LLMQ_BASED", 0)
-        # Assert that TXs got included now
-        for txid in txs:
-            tx = self.nodes[0].getrawtransaction(txid, 1)
-            assert("confirmations" in tx and tx["confirmations"] > 0)
-        # Enable network on first node again, which will cause the blocks to propagate and IS locks to happen retroactively
-        # for the mined TXs, which will then allow the network to create a CLSIG
         reconnect_isolated_node(self.nodes[0], 1)
         self.wait_for_chainlock(self.nodes[0], self.nodes[1].getbestblockhash())
 

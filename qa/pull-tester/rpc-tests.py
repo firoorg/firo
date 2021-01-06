@@ -207,8 +207,7 @@ testScripts = [
     'llmq-signing.py',
     'llmq-dkgerrors.py',
     'llmq-simplepose.py',
-    'llmq-chainlocks-simple.py',
-#    'llmq-chainlocks.py',
+    'llmq-chainlocks.py',
 #    'llmq-is-cl-conflicts.py',
 #    'llmq-is-retroactive.py'
 
