@@ -1410,6 +1410,14 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
         <source>Anonymizing...</source>
         <translation>匿名化中...</translation>
     </message>
+    <message>
+        <source>Unable to generate mint</source>
+        <translation>无法铸币</translation>
+    </message>
+    <message>
+        <source>Unable to generate mint: Blockchain not yet synced.</source>
+        <translation>无法铸币：区块链尚未同步。</translation>
+    </message>
 </context>
 <context>
     <name>AutoMintModel</name>
@@ -1647,6 +1655,10 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <message>
         <source>each transaction at least</source>
         <translation>每笔交易至少</translation>
+    </message>
+    <message>
+        <source>Transaction creation failed!</source>
+        <translation>交易创建失败！</translation>
     </message>
 </context>
 <context>

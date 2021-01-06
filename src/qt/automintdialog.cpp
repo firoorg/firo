@@ -76,6 +76,8 @@ void AutoMintDialog::accept()
     } catch (std::runtime_error const &e) {
         status = AutoMintAck::FailToMint;
         error = e.what();
+        QMessageBox::critical(this, tr("Unable to generate mint"),
+                              tr(error.toLocal8Bit().data()));
     }
 
     QDialog::accept();
