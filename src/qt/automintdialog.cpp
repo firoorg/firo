@@ -58,6 +58,7 @@ void AutoMintDialog::accept()
         if (!lelantusModel->unlockWallet(passphase, lock ? 0 : 60 * 1000)) {
             QMessageBox::critical(this, tr("Wallet unlock failed"),
                                   tr("The passphrase was incorrect."));
+            QDialog::reject();
             return;
         }
     }
