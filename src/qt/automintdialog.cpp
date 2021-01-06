@@ -131,7 +131,7 @@ void AutoMintDialog::paintEvent(QPaintEvent *event)
     painter.begin(this);
 
     if (progress != AutoMintProgress::Start) {
-        auto progressMessage = progress == AutoMintProgress::Unlocking ? "Unlocking wallet..." : "Anonymizing...";
+        auto progressMessage = progress == AutoMintProgress::Unlocking ? tr("Unlocking wallet...") : tr("Anonymizing...");
         auto size = QFontMetrics(painter.font()).size(Qt::TextSingleLine, progressMessage);
         painter.drawText(
             (width() - size.width()) / 2,

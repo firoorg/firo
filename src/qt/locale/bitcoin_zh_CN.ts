@@ -1402,6 +1402,14 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
         <source>The passphrase was incorrect.</source>
         <translation>密码不正确。</translation>
     </message>
+    <message>
+        <source>Unlocking wallet...</source>
+        <translation>解锁钱包中...</translation>
+    </message>
+    <message>
+        <source>Anonymizing...</source>
+        <translation>匿名化中...</translation>
+    </message>
 </context>
 <context>
     <name>AutoMintModel</name>
