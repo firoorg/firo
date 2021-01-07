@@ -236,10 +236,12 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "elysium_sendissuancefixed", 2 },
 	{ "elysium_sendissuancefixed", 3 },
 	{ "elysium_sendissuancefixed", 10 },
+	{ "elysium_sendissuancefixed", 11 },
 	{ "elysium_sendissuancemanaged", 1 },
 	{ "elysium_sendissuancemanaged", 2 },
 	{ "elysium_sendissuancemanaged", 3 },
 	{ "elysium_sendissuancemanaged", 9 },
+	{ "elysium_sendissuancemanaged", 10 },
 	{ "elysium_sendissuancecrowdsale", 1 },
 	{ "elysium_sendissuancecrowdsale", 2 },
 	{ "elysium_sendissuancecrowdsale", 3 },
@@ -272,6 +274,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "elysium_sendmint", 3 },
 	{ "elysium_sendspend", 1 },
 	{ "elysium_sendspend", 2 },
+    { "elysium_sendlelantusmint", 1 },
+    { "elysium_sendlelantusspend", 1 },
 
 	/* Elysium - raw transaction calls */
 	{ "elysium_decodetransaction", 1 },

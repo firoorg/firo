@@ -173,6 +173,17 @@ void RequireSigmaStatus(SigmaStatus status)
     }
 }
 
+void RequireLelantusStatus(LelantusStatus status)
+{
+    if (!elysium::IsLelantusStatusValid(status)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Lelantus status is not valid");
+    }
+
+    if (!elysium::IsFeatureActivated(elysium::FEATURE_LELANTUS, elysium::GetHeight())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Lelantus feature is not activated yet");
+    }
+}
+
 namespace elysium {
 
 void RequireSigma(PropertyId property)
@@ -183,6 +194,17 @@ void RequireSigma(PropertyId property)
 
     if (!IsSigmaEnabled(property)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Property has not enabled Sigma");
+    }
+}
+
+void RequireLelantus(PropertyId property)
+{
+    if (!IsFeatureActivated(FEATURE_LELANTUS, GetHeight())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Lelantus feature is not activated yet");
+    }
+
+    if (!IsLelantusEnabled(property)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Property has not enabled Lelantus");
     }
 }
 

@@ -303,7 +303,7 @@ class ElysiumTestFramework(BitcoinTestFramework):
         self.sync_all()
 
     def setup_nodes(self):
-        return start_nodes(self.num_nodes, self.options.tmpdir, [['-elysium'] for _ in range(self.num_nodes)])
+        return start_nodes(self.num_nodes, self.options.tmpdir, [['-elysium', '-debug=1'] for _ in range(self.num_nodes)])
 
     def assert_property_summary(self, prop, id, divisible, cat, subcat, name, url, data):
         assert_equal(prop['propertyid'], id)
@@ -314,7 +314,7 @@ class ElysiumTestFramework(BitcoinTestFramework):
         assert_equal(prop['url'], url)
         assert_equal(prop['divisible'], divisible)
 
-    def assert_property_info(self, prop, id, fixed, issuer, divisible, cat, subcat, name, url, data, tokens, sigma, createtx, denoms):
+    def assert_property_info(self, prop, id, fixed, issuer, divisible, cat, subcat, name, url, data, tokens, sigma, createtx, denoms, lelantus):
         assert_equal(prop['propertyid'], id)
         assert_equal(prop['name'], name)
         assert_equal(prop['category'], cat)
@@ -333,6 +333,8 @@ class ElysiumTestFramework(BitcoinTestFramework):
         for i in range(len(denoms)):
             assert_equal(prop['denominations'][i]['id'], denoms[i]['id'])
             assert_equal(prop['denominations'][i]['value'], denoms[i]['value'])
+
+        assert_equal(prop['lelantusstatus'], lelantus)
 
     def compare_mints(self, expected, actual):
         mint_key_extractor = lambda m : (m['propertyid'], m['denomination'], m['value'])

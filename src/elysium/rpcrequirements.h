@@ -24,10 +24,12 @@ void RequireSaneDExPaymentWindow(const std::string& address, uint32_t propertyId
 void RequireSaneDExFee(const std::string& address, uint32_t propertyId);
 void RequireHeightInChain(int blockHeight);
 void RequireSigmaStatus(SigmaStatus status);
+void RequireLelantusStatus(LelantusStatus status);
 
 namespace elysium {
 
 void RequireSigma(PropertyId property);
+void RequireLelantus(PropertyId property);
 void RequireExistingDenomination(PropertyId property, SigmaDenomination denomination);
 void RequireSigmaSpendV1Feature();
 

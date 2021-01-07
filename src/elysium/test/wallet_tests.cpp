@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include "../property.h"
+#include "../lelantusdb.h"
 #include "../sigmadb.h"
 #include "../sigmaprimitives.h"
 #include "../wallet.h"
@@ -42,6 +43,7 @@ struct WalletTestingSetup : ::WalletTestingSetup
     WalletTestingSetup()
     {
         sigmaDb = new SigmaDatabase(pathTemp / "elysium_sigma_tests", true, 10);
+        lelantusDb = new LelantusDb(pathTemp / "elysium_lelantus_tests", true);
         wallet = new Wallet(pwalletMain->strWalletFile);
         wallet->ReloadMasterKey();
     }
@@ -50,6 +52,7 @@ struct WalletTestingSetup : ::WalletTestingSetup
     {
         delete wallet; wallet = nullptr;
         delete sigmaDb; sigmaDb = nullptr;
+        delete lelantusDb; lelantusDb = nullptr;
     }
 
     SigmaMint CreateSigmaMint(PropertyId property, SigmaDenomination denomination)

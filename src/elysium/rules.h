@@ -77,6 +77,11 @@ constexpr uint16_t FEATURE_SIGMA = 15;
  **/
 constexpr uint16_t FEATURE_SIGMA_SPENDV1 = 16;
 
+/**
+ * Feature identifier to activate lelantus on elysium.
+ **/
+constexpr uint16_t FEATURE_LELANTUS = 17;
+
 //! When (propertyTotalTokens / ELYSIUM_FEE_THRESHOLD) is reached fee distribution will occur
 const int64_t ELYSIUM_FEE_THRESHOLD = 100000; // 0.001%
 
@@ -242,6 +247,11 @@ public:
      *  Block to activate Sigma spend version 1
      **/
     int SIGMA_SPENDV1_FEATURE_BLOCK;
+
+    /**
+     * Block to activate Lelantus related features.
+     **/
+    int LELANTUS_FEATURE_BLOCK;
 
     /**
      * Block to activate property creation fee.

@@ -46,6 +46,7 @@ constexpr size_t ELYSIUM_MAX_SIMPLE_MINTS = std::numeric_limits<uint8_t>::max();
 // Elysium Transaction (Packet) Version
 #define MP_TX_PKT_V0  0
 #define MP_TX_PKT_V1  1
+#define MP_TX_PKT_V2  2
 
 #define MIN_PAYLOAD_SIZE     5
 
@@ -84,6 +85,7 @@ enum FILETYPES {
 #define PKT_ERROR_TOKENS      (-82000)
 #define PKT_ERROR_SEND_ALL    (-83000)
 #define PKT_ERROR_SIGMA       (-84000)
+#define PKT_ERROR_LELANTUS    (-85000)
 
 #define ELYSIUM_PROPERTY_XZC   0
 #define ELYSIUM_PROPERTY_ELYSIUM   1
@@ -288,7 +290,8 @@ std::string FormatIndivisibleMP(int64_t n);
 
 enum class InputMode {
     NORMAL,
-    SIGMA
+    SIGMA,
+    LELANTUS
 };
 
 int WalletTxBuilder(const std::string& senderAddress, const std::string& receiverAddress, const std::string& redemptionAddress,

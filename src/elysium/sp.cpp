@@ -36,7 +36,8 @@ CMPSPInfo::Entry::Entry()
   : prop_type(0), prev_prop_id(0), num_tokens(0), property_desired(0),
     deadline(0), early_bird(0), percentage(0),
     close_early(false), max_tokens(false), missedTokens(0), timeclosed(0),
-    fixed(false), manual(false), sigmaStatus(SigmaStatus::SoftDisabled) {}
+    fixed(false), manual(false), sigmaStatus(SigmaStatus::SoftDisabled),
+    lelantusStatus(LelantusStatus::SoftDisabled) {}
 
 bool CMPSPInfo::Entry::isDivisible() const
 {
@@ -688,6 +689,41 @@ int64_t elysium::GetDenominationValue(PropertyId property, SigmaDenomination den
     return info.denominations[denomination];
 }
 
+bool elysium::IsLelantusStatusValid(LelantusStatus status)
+{
+    return status == LelantusStatus::SoftDisabled ||
+           status == LelantusStatus::SoftEnabled ||
+           status == LelantusStatus::HardDisabled ||
+           status == LelantusStatus::HardEnabled;
+}
+
+bool elysium::IsLelantusEnabled(PropertyId property)
+{
+    CMPSPInfo::Entry info;
+
+    LOCK(cs_main);
+
+    if (!_my_sps->getSP(property, info)) {
+        throw std::invalid_argument("property identifier is not valid");
+    }
+
+    return IsEnabledFlag(info.lelantusStatus);
+}
+
+bool elysium::IsLelantusStatusUpdatable(PropertyId property)
+{
+    CMPSPInfo::Entry info;
+
+    LOCK(cs_main);
+
+    if (!_my_sps->getSP(property, info)) {
+        throw std::invalid_argument("property identifier is not valid");
+    }
+
+    return info.lelantusStatus == elysium::LelantusStatus::SoftDisabled ||
+        info.lelantusStatus == elysium::LelantusStatus::SoftEnabled;
+}
+
 std::string std::to_string(SigmaStatus status)
 {
     switch (status) {
@@ -701,6 +737,22 @@ std::string std::to_string(SigmaStatus status)
         return "HardEnabled";
     default:
         throw std::invalid_argument("sigma status is invalid");
+    }
+}
+
+std::string std::to_string(LelantusStatus status)
+{
+    switch (status) {
+    case LelantusStatus::SoftDisabled:
+        return "SoftDisabled";
+    case LelantusStatus::SoftEnabled:
+        return "SoftEnabled";
+    case LelantusStatus::HardDisabled:
+        return "HardDisabled";
+    case LelantusStatus::HardEnabled:
+        return "HardEnabled";
+    default:
+        throw std::invalid_argument("lelantus status is invalid");
     }
 }
 
