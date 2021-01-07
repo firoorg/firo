@@ -1018,13 +1018,17 @@ int GetNumCores()
 
 std::string CopyrightHolders(const std::string& strPrefix)
 {
-    std::string strCopyrightHolders = strPrefix + strprintf(_(COPYRIGHT_HOLDERS), _(COPYRIGHT_HOLDERS_SUBSTITUTION));
+    const auto copyright_devs = strprintf(_(COPYRIGHT_HOLDERS), _(COPYRIGHT_HOLDERS_SUBSTITUTION));
+    std::string strCopyrightHolders = strPrefix + copyright_devs;
 
-    // Check for untranslated substitution to make sure Bitcoin Core copyright is not removed by accident
-    if (strprintf(COPYRIGHT_HOLDERS, COPYRIGHT_HOLDERS_SUBSTITUTION).find("Bitcoin Core") == std::string::npos) {
-        strCopyrightHolders
-                += '\n' + strPrefix + "The Bitcoin Core developers"
-                +  '\n' + strPrefix + "The Firo Core developers";
+    // Make sure Firo Core copyright is not removed by accident
+    if (copyright_devs.find(_("Firo Core")) == std::string::npos) {
+        strCopyrightHolders += '\n' + strPrefix + "The Firo Core developers";
     }
+    // Make sure Bitcoin Core copyright is not removed by accident
+    if (copyright_devs.find("Bitcoin Core") == std::string::npos) {
+        strCopyrightHolders += '\n' + strPrefix + "The Bitcoin Core developers";
+    }
+    
     return strCopyrightHolders;
 }
