@@ -71,6 +71,9 @@ std::string elysium::strTransactionType(uint16_t txType)
         case ELYSIUM_MESSAGE_TYPE_ALERT: return "ALERT";
         case ELYSIUM_MESSAGE_TYPE_DEACTIVATION: return "Feature Deactivation";
         case ELYSIUM_MESSAGE_TYPE_ACTIVATION: return "Feature Activation";
+        case ELYSIUM_TYPE_LELANTUS_MINT: return "Lelantus Mint";
+        case ELYSIUM_TYPE_LELANTUS_JOINSPLIT: return "Lelantus JoinSplit";
+        case ELYSIUM_TYPE_CHANGE_LELANTUS_STATUS: return "Change Lelantus Status";
 
         default: return "* unknown type *";
     }
@@ -190,6 +193,15 @@ bool CMPTransaction::interpret_Transaction()
 
         case ELYSIUM_TYPE_SIMPLE_SPEND:
             return interpret_SimpleSpend();
+
+        case ELYSIUM_TYPE_LELANTUS_MINT:
+            return interpret_LelantusMint();
+
+        case ELYSIUM_TYPE_LELANTUS_JOINSPLIT:
+            return interpret_LelantusJoinSplit();
+
+        case ELYSIUM_TYPE_CHANGE_LELANTUS_STATUS:
+            return interpret_ChangeLelantusStatus();
 
         case ELYSIUM_MESSAGE_TYPE_DEACTIVATION:
             return interpret_Deactivation();
@@ -464,6 +476,11 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
             return false;
         }
         break;
+    case 2:
+        if (raw.size() < 27) {
+            return false;
+        }
+        break;
     default:
         return false;
     }
@@ -495,8 +512,13 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
     p += 8;
     nNewValue = nValue;
 
-    if (version == 1) {
+    if (version >= 1) {
         memcpy(&sigmaStatus, p, 1);
+        p += 1;
+    }
+
+    if (version >= 2) {
+        memcpy(&lelantusStatus, p, 1);
         p += 1;
     }
 
@@ -511,6 +533,7 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
         PrintToLog("\t            data: %s\n", data);
         PrintToLog("\t           value: %s\n", FormatByType(nValue, prop_type));
         PrintToLog("\t    sigma status: %u\n", static_cast<uint8_t>(sigmaStatus));
+        PrintToLog("\t lelantus status: %u\n", static_cast<uint8_t>(lelantusStatus));
     }
 
     if (isOverrun(p)) {
@@ -616,6 +639,11 @@ bool CMPTransaction::interpret_CreatePropertyManaged()
             return false;
         }
         break;
+    case 2:
+        if (raw.size() < 19) {
+            return false;
+        }
+        break;
     default:
         return false;
     }
@@ -643,8 +671,13 @@ bool CMPTransaction::interpret_CreatePropertyManaged()
     memcpy(url, spstr[i].c_str(), std::min(spstr[i].length(), sizeof(url)-1)); i++;
     memcpy(data, spstr[i].c_str(), std::min(spstr[i].length(), sizeof(data)-1)); i++;
 
-    if (version == 1) {
+    if (version >= 1) {
         memcpy(&sigmaStatus, p, 1);
+        p += 1;
+    }
+
+    if (version >= 2) {
+        memcpy(&lelantusStatus, p, 1);
         p += 1;
     }
 
@@ -658,6 +691,7 @@ bool CMPTransaction::interpret_CreatePropertyManaged()
         PrintToLog("\t             url: %s\n", url);
         PrintToLog("\t            data: %s\n", data);
         PrintToLog("\t    sigma status: %u\n", static_cast<uint8_t>(sigmaStatus));
+        PrintToLog("\t lelantus status: %u\n", static_cast<uint8_t>(lelantusStatus));
     }
 
     if (isOverrun(p)) {
@@ -962,6 +996,97 @@ bool CMPTransaction::interpret_SimpleMint()
 
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
         PrintToLog("\t           mints: %s\n", denomsStr);
+    }
+
+    return true;
+}
+
+/** Tx 1027 */
+bool CMPTransaction::interpret_LelantusMint()
+{
+    constexpr unsigned ElysiumMintSize = 34,
+        IdSize = 32,
+        SchnorrProofSize = 98;
+
+    if (raw.size() != 16 + ElysiumMintSize + IdSize + SchnorrProofSize) {
+        return false;
+    }
+
+    memcpy(&property, &raw[4], 4);
+    swapByteOrder(property);
+
+    CDataStream deserialized(
+        reinterpret_cast<char*>(&raw[8]),
+        reinterpret_cast<char*>(&raw[8] + ElysiumMintSize + IdSize),
+        SER_NETWORK, CLIENT_VERSION
+    );
+
+    lelantusMint = lelantus::PublicCoin();
+    lelantusId = MintEntryId();
+
+    deserialized >> lelantusMint.get();
+    deserialized >> lelantusId.get();
+
+    memcpy(&lelantusMintValue, &raw[8 + ElysiumMintSize + IdSize], 8);
+    swapByteOrder(lelantusMintValue);
+
+    lelantusSchnorrProof.insert(lelantusSchnorrProof.end(),
+        raw.begin() + 8 + ElysiumMintSize + IdSize + 8, raw.end());
+
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
+        PrintToLog("\t           mints: %d\n", FormatShortMP(property, lelantusMintValue));
+    }
+
+    return true;
+}
+
+/** Tx 1028 */
+bool CMPTransaction::interpret_LelantusJoinSplit()
+{
+    PrintToLog("=== %s(): interpreting: calling...\n", __func__);
+    if (raw.size() < 8) {
+        return false;
+    }
+
+    memcpy(&property, &raw[4], 4);
+    memcpy(&lelantusSpendAmount, &raw[8], 8);
+    swapByteOrder(property);
+    swapByteOrder(lelantusSpendAmount);
+
+    CDataStream deserialized(
+        reinterpret_cast<char*>(&raw[16]),
+        reinterpret_cast<char*>(&raw[raw.size()]),
+        SER_NETWORK, CLIENT_VERSION
+    );
+
+    lelantusJoinSplit = lelantus::JoinSplit(lelantus::Params::get_default(), deserialized);
+
+    if (!deserialized.eof()) {
+        lelantusJoinSplitMint = JoinSplitMint();
+        deserialized >> lelantusJoinSplitMint.get();
+    }
+
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
+        PrintToLog("\t           value: %s\n", FormatMP(property, lelantusSpendAmount));
+    }
+
+    return true;
+}
+
+/** Tx 1029 */
+bool CMPTransaction::interpret_ChangeLelantusStatus()
+{
+    if (raw.size() < 9) {
+        return false;
+    }
+    memcpy(&property, &raw[4], 4);
+    swapByteOrder32(property);
+    memcpy(&lelantusStatus, &raw[8], 1);
+
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
     }
 
     return true;
@@ -1832,6 +1957,15 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
         newSP.sigmaStatus = sigmaStatus;
     }
 
+    if (IsFeatureActivated(FEATURE_LELANTUS, block)) {
+        if (!IsLelantusStatusValid(lelantusStatus)) {
+            PrintToLog("%s(): rejected: lelantus status %u is not valid\n", __func__, static_cast<uint8_t>(lelantusStatus));
+            return PKT_ERROR_SP - 900;
+        }
+
+        newSP.lelantusStatus = lelantusStatus;
+    }
+
     // ------------------------------------------
 
     newSP.issuer = sender;
@@ -2084,6 +2218,15 @@ int CMPTransaction::logicMath_CreatePropertyManaged()
         }
 
         newSP.sigmaStatus = sigmaStatus;
+    }
+
+    if (IsFeatureActivated(FEATURE_LELANTUS, block)) {
+        if (!IsLelantusStatusValid(lelantusStatus)) {
+            PrintToLog("%s(): rejected: lelantus status %u is not valid\n", __func__, static_cast<uint8_t>(lelantusStatus));
+            return PKT_ERROR_SP - 900;
+        }
+
+        newSP.lelantusStatus = lelantusStatus;
     }
 
     // ------------------------------------------

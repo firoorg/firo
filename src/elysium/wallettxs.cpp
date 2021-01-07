@@ -12,6 +12,7 @@
 #include "init.h"
 #include "validation.h"
 #include "pubkey.h"
+#include "lelantus.h"
 #include "script/standard.h"
 #include "sync.h"
 #include "txmempool.h"
@@ -278,19 +279,41 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
         }
         break;
     case InputMode::SIGMA:
-        std::vector<CSigmaEntry> coinsToSpend;
-        std::vector<sigma::CoinDenomination> remints;
-        try {
-            pwalletMain->GetCoinsToSpend(nMax, coinsToSpend, remints);
-        } catch (std::exception const &err) {
-            LogPrintf("SelectCoins() fail to get coin to spend: %s\n", err.what());
-            return nTotal;
+        {
+            std::vector<CSigmaEntry> coinsToSpend;
+            std::vector<sigma::CoinDenomination> remints;
+            try {
+                pwalletMain->GetCoinsToSpend(nMax, coinsToSpend, remints);
+            } catch (std::exception const &err) {
+                LogPrintf("SelectCoins() fail to get coin to spend: %s\n", err.what());
+                return nTotal;
+            }
+            for (auto const &mint : coinsToSpend) {
+                COutPoint coin;
+                if (sigma::GetOutPoint(coin, mint.value)) {
+                    nTotal += mint.get_denomination_value();
+                    coinControl.Select(coin);
+                }
+            }
         }
-        for (auto const &mint : coinsToSpend) {
-            COutPoint coin;
-            if (sigma::GetOutPoint(coin, mint.value)) {
-                nTotal += mint.get_denomination_value();
-                coinControl.Select(coin);
+        break;
+    case InputMode::LELANTUS:
+        {
+            std::vector<CLelantusEntry> coinsToSpend;
+            CAmount changeToMint;
+            try {
+                pwalletMain->GetCoinsToJoinSplit(nMax, coinsToSpend, changeToMint);
+            } catch (std::exception const &err) {
+                LogPrintf("SelectCoins() fail to get coin to spend: %s\n", err.what());
+                return nTotal;
+            }
+
+            for (auto const &mint : coinsToSpend) {
+                COutPoint coin;
+                if (lelantus::GetOutPoint(coin, mint.value)) {
+                    nTotal += mint.amount;
+                    coinControl.Select(coin);
+                }
             }
         }
         break;

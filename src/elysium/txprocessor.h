@@ -21,6 +21,9 @@ public:
 private:
     int ProcessSimpleMint(const CMPTransaction& tx);
     int ProcessSimpleSpend(const CMPTransaction& tx);
+    int ProcessLelantusMint(const CMPTransaction& tx);
+    int ProcessLelantusJoinSplit(const CMPTransaction& tx);
+    int ProcessChangeLelantusStatus(const CMPTransaction& tx);
 };
 
 extern TxProcessor *txProcessor;

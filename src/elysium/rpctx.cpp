@@ -11,11 +11,13 @@
 #include "signaturebuilder.h"
 #include "sp.h"
 #include "tx.h"
+#include "lelantusutils.h"
 #include "utilsbitcoin.h"
 #include "wallet.h"
 
 #include "../init.h"
 #include "../validation.h"
+#include "../lelantus.h"
 #include "../rpc/server.h"
 #include "../sync.h"
 #include "../wallet/wallet.h"
@@ -438,9 +440,9 @@ UniValue elysium_sendissuancecrowdsale(const JSONRPCRequest& request)
 
 UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() < 10 || request.params.size() > 11)
+    if (request.fHelp || request.params.size() < 10 || request.params.size() > 12)
         throw runtime_error(
-            "elysium_sendissuancefixed \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" \"amount\" ( sigma )\n"
+            "elysium_sendissuancefixed \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" \"amount\" ( sigma ) ( lelantus )\n"
 
             "\nCreate new tokens with fixed supply.\n"
 
@@ -456,6 +458,7 @@ UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
             "9. data                 (string, required) a description for the new tokens (can be \"\")\n"
             "10. amount              (string, required) the number of tokens to create\n"
             "11. sigma               (number, optional, default=0) flag to control sigma feature for the new tokens: (0 for soft disabled, 1 for soft enabled, 2 for hard disabled, 3 for hard enabled)\n"
+            "12. lelantus            (number, optional, default=0) flag to control lelantus feature for the new tokens: (0 for soft disabled, 1 for soft enabled, 2 for hard disabled, 3 for hard enabled)\n"
 
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
@@ -477,9 +480,14 @@ UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
     std::string data = ParseText(request.params[8]);
     int64_t amount = ParseAmount(request.params[9], type);
     boost::optional<SigmaStatus> sigma;
+    boost::optional<LelantusStatus> lelantus;
 
     if (request.params.size() > 10) {
         sigma = static_cast<SigmaStatus>(request.params[10].get_int());
+    }
+
+    if (request.params.size() > 11) {
+        lelantus = static_cast<LelantusStatus>(request.params[11].get_int());
     }
 
     // perform checks
@@ -487,6 +495,10 @@ UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
 
     if (sigma) {
         RequireSigmaStatus(sigma.get());
+    }
+
+    if (lelantus) {
+        RequireLelantusStatus(lelantus.get());
     }
 
     // create a payload for the transaction
@@ -500,7 +512,8 @@ UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
         url,
         data,
         amount,
-        sigma
+        sigma,
+        lelantus
     );
 
     // request the wallet build the transaction (and if needed commit it)
@@ -532,7 +545,7 @@ UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
 
 UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() < 9 || request.params.size() > 10)
+    if (request.fHelp || request.params.size() < 9 || request.params.size() > 11)
         throw runtime_error(
             "elysium_sendissuancemanaged \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" ( sigma )\n"
 
@@ -549,6 +562,7 @@ UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request)
             "8. url                  (string, required) an URL for further information about the new tokens (can be \"\")\n"
             "9. data                 (string, required) a description for the new tokens (can be \"\")\n"
             "10. sigma               (number, optional, default=0) flag to control sigma feature for the new tokens: (0 for soft disabled, 1 for soft enabled, 2 for hard disabled, 3 for hard enabled)\n"
+            "10. lelantus            (number, optional, default=0) flag to control lelantus feature for the new tokens: (0 for soft disabled, 1 for soft enabled, 2 for hard disabled, 3 for hard enabled)\n"
 
             "\nResult:\n"
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
@@ -569,9 +583,14 @@ UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request)
     std::string url = ParseText(request.params[7]);
     std::string data = ParseText(request.params[8]);
     boost::optional<SigmaStatus> sigma;
+    boost::optional<LelantusStatus> lelantus;
 
     if (request.params.size() > 9) {
         sigma = static_cast<SigmaStatus>(request.params[9].get_int());
+    }
+
+    if (request.params.size() > 10) {
+        lelantus = static_cast<LelantusStatus>(request.params[10].get_int());
     }
 
     // perform checks
@@ -579,6 +598,10 @@ UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request)
 
     if (sigma) {
         RequireSigmaStatus(sigma.get());
+    }
+
+    if (lelantus) {
+        RequireLelantusStatus(lelantus.get());
     }
 
     // create a payload for the transaction
@@ -591,7 +614,8 @@ UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request)
         name,
         url,
         data,
-        sigma
+        sigma,
+        lelantus
     );
 
     // request the wallet build the transaction (and if needed commit it)
@@ -619,7 +643,6 @@ UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request)
         }
     }
 }
-
 
 UniValue elysium_sendsto(const JSONRPCRequest& request)
 {
@@ -1585,7 +1608,6 @@ UniValue elysium_sendcreatedenomination(const JSONRPCRequest& request)
     }
 }
 
-
 UniValue elysium_sendmint(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 3 || request.params.size() > 4) {
@@ -1821,6 +1843,238 @@ UniValue elysium_sendspend(const JSONRPCRequest& request)
     }
 }
 
+UniValue elysium_sendlelantusmint(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 4) {
+        throw std::runtime_error(
+            "elysium_sendlelantusmint \"fromaddress\" propertyid amount\n"
+            "\nCreate mints.\n"
+            "\nArguments:\n"
+            "1. fromaddress                  (string, required) the address to send from\n"
+            "2. propertyid                   (number, required) the property to create mints\n"
+            "3. amount                       (number, required) amount to mint\n"
+            "\nResult:\n"
+            "\"hash\"                          (string) the hex-encoded transaction hash\n"
+            "\nExamples:\n"
+            + HelpExampleCli("elysium_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 100")
+            + HelpExampleRpc("elysium_sendmint", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, 100")
+        );
+    }
+
+    // obtain parameters & info
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[1]);
+
+    // perform checks
+    RequireExistingProperty(propertyId);
+    RequireLelantus(propertyId);
+
+    int64_t amount = ParseAmount(request.params[2], isPropertyDivisible(propertyId));
+
+    RequireBalance(fromAddress, propertyId, amount);
+
+    auto mint = wallet->CreateLelantusMint(propertyId, amount);
+    auto coin = mint.coin;
+
+    CDataStream  serializedSchnorrProof(SER_NETWORK, PROTOCOL_VERSION);
+    lelantus::GenerateMintSchnorrProof(coin, serializedSchnorrProof);
+
+    uint256 txid;
+    std::string rawHex;
+
+    auto payload = CreatePayload_CreateLelantusMint(propertyId, coin.getPublicCoin(), mint.id, amount, {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
+    auto result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+
+    if (result != 0) {
+        throw JSONRPCError(result, error_str(result));
+    }
+
+    // success then commit
+    mint.Commit();
+
+    if (!autoCommit) {
+        return rawHex;
+    } else {
+        PendingAdd(txid, fromAddress, ELYSIUM_TYPE_LELANTUS_MINT, propertyId, amount);
+        return txid.GetHex();
+    }
+}
+
+UniValue elysium_sendlelantusspend(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 4) {
+        throw std::runtime_error(
+            "elysium_sendlelantusspend \"toaddress\" propertyid amount ( \"referenceamount\" )\n"
+            "\nCreate spend.\n"
+            "\nArguments:\n"
+            "1. toaddress                    (string, required) the address to spend to\n"
+            "2. propertyid                   (number, required) the property to spend\n"
+            "3. amount                       (number, required) the amount to spend\n"
+            "4. referenceamount              (string, optional) a zcoin amount that is sent to the receiver (minimal by default)\n"
+            "\nResult:\n"
+            "\"hash\"                          (string) the hex-encoded transaction hash\n"
+            "\nExamples:\n"
+            + HelpExampleCli("elysium_sendlelantusspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 1")
+            + HelpExampleRpc("elysium_sendlelantusspend", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, 1")
+        );
+    }
+
+    // obtain parameters & info
+    auto toAddress = ParseAddress(request.params[0]);
+    auto propertyId = ParsePropertyId(request.params[1]);
+    auto amount = ParseAmount(request.params[2], isPropertyDivisible(propertyId));
+    auto referenceAmount = (request.params.size() > 3) ? ParseAmount(request.params[3], true): 0;
+
+    // perform checks
+    RequireExistingProperty(propertyId);
+    RequireSaneReferenceAmount(referenceAmount);
+    RequireLelantus(propertyId);
+
+    // create spend
+    std::vector<unsigned char> payload;
+
+    // calculate reference amount
+    CBitcoinAddress address(toAddress);
+    if (referenceAmount <= 0) {
+        CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(address).Get());
+        referenceAmount = GetDustThreshold(scriptPubKey);
+    }
+
+    auto metaData = PrepareSpendMetadata(address, referenceAmount);
+
+    std::vector<SpendableCoin> spendables;
+    boost::optional<LelantusWallet::MintReservation> reservation;
+    LelantusAmount changeValue = 0;
+
+    try {
+        auto joinSplit = wallet->CreateLelantusJoinSplit(propertyId, amount, metaData, spendables, reservation, changeValue);
+
+        boost::optional<JoinSplitMint> joinSplitMint;
+        if (reservation.has_value()) {
+            auto pub = reservation->coin.getPublicCoin();
+            EncryptedValue enc;
+            EncryptMintAmount(changeValue, pub.getValue(), enc);
+
+            joinSplitMint = JoinSplitMint(
+                reservation->id,
+                pub,
+                enc
+            );
+        }
+
+        payload = CreatePayload_CreateLelantusJoinSplit(
+            propertyId, amount, joinSplit, joinSplitMint);
+
+    } catch (InsufficientFunds& e) {
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());
+    } catch (WalletError &e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    }
+
+    // request the wallet build the transaction (and if needed commit it)
+    uint256 txid;
+    std::string rawHex;
+    int result = WalletTxBuilder(
+        "",
+        toAddress,
+        "",
+        referenceAmount,
+        payload,
+        txid,
+        rawHex,
+        autoCommit,
+        InputMode::LELANTUS
+    );
+
+    // check error and return the txid (or raw hex depending on autocommit)
+    if (result != 0) {
+        throw JSONRPCError(result, error_str(result));
+    } else {
+        // mark the coin as used
+        for (auto const &s : spendables) {
+            wallet->SetLelantusMintUsedTransaction(s.id, txid);
+        }
+
+        if (reservation.has_value()) {
+            reservation->Commit();
+        }
+
+        if (!autoCommit) {
+            return rawHex;
+        } else {
+            PendingAdd(
+                txid,
+                "Spend",
+                ELYSIUM_TYPE_SIMPLE_SPEND,
+                propertyId,
+                amount,
+                false,
+                toAddress);
+            return txid.GetHex();
+        }
+    }
+}
+
+
+UniValue elysium_sendchangelelantusstatus(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 3)
+        throw runtime_error(
+            "elysium_sendchangelelantusstatus \"fromaddress\" propertyid status\n"
+
+            "\nChange lelantus status on record of the given tokens.\n"
+
+            "\nArguments:\n"
+            "1. fromaddress          (string, required) the address associated with the tokens\n"
+            "2. propertyid           (number, required) the identifier of the tokens\n"
+            "2. status               (number, required) the status that need to change to (0 for soft disabled, 1 for soft enabled, 2 for hard disabled, 3 for hard enabled)\n"
+
+            "\nResult:\n"
+            "\"hash\"                  (string) the hex-encoded transaction hash\n"
+
+            "\nExamples:\n"
+            + HelpExampleCli("elysium_sendchangelelantusstatus", "\"1ARjWDkZ7kT9fwjPrjcQyvbXDkEySzKHwu\" \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\" 3")
+            + HelpExampleRpc("elysium_sendchangelelantusstatus", "\"1ARjWDkZ7kT9fwjPrjcQyvbXDkEySzKHwu\", \"3HTHRxu3aSDV4deakjC7VmsiUp7c6dfbvs\", 3")
+        );
+
+    // obtain parameters & info
+    auto fromAddress = ParseAddress(request.params[0]);
+    auto propertyId = ParsePropertyId(request.params[1]);
+    auto status = static_cast<LelantusStatus>(request.params[2].get_int());
+
+    // perform checks
+    RequireExistingProperty(propertyId);
+    RequireTokenIssuer(fromAddress, propertyId);
+
+    if (!IsFeatureActivated(FEATURE_LELANTUS, GetHeight())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Lelantus feature is not activated yet");
+    }
+
+    if (!elysium::IsLelantusStatusUpdatable(propertyId)) {
+        throw JSONRPCError(RPC_INVALID_REQUEST, "The property is not allowed to update lelantus status");
+    }
+
+    // create a payload for the transaction
+    std::vector<unsigned char> payload = CreatePayload_ChangeLelantusStatus(propertyId, status);
+
+    // request the wallet build the transaction (and if needed commit it)
+    uint256 txid;
+    std::string rawHex;
+    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+
+    // check error and return the txid (or raw hex depending on autocommit)
+    if (result != 0) {
+        throw JSONRPCError(result, error_str(result));
+    } else {
+        if (!autoCommit) {
+            return rawHex;
+        } else {
+            return txid.GetHex();
+        }
+    }
+}
+
+
 static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode
   //  ------------------------------------ ------------------------------- ------------------------------ ----------
@@ -1851,6 +2105,9 @@ static const CRPCCommand commands[] =
     { "elysium (transaction creation)",  "elysium_sendcreatedenomination",    &elysium_sendcreatedenomination,     false },
     { "elysium (transaction creation)",  "elysium_sendmint",                  &elysium_sendmint,                   false },
     { "elysium (transaction creation)",  "elysium_sendspend",                 &elysium_sendspend,                  false },
+    { "elysium (transaction creation)",  "elysium_sendlelantusmint",          &elysium_sendlelantusmint,           false },
+    { "elysium (transaction creation)",  "elysium_sendlelantusspend",         &elysium_sendlelantusspend,          false },
+    { "elysium (transaction creation)",  "elysium_sendchangelelantusstatus",  &elysium_sendchangelelantusstatus,   false },
 
     /* depreciated: */
     { "hidden",                          "sendrawtx_MP",                      &elysium_sendrawtx,                  false },

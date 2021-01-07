@@ -30,6 +30,8 @@ ELYSIUM_H = \
   elysium/sigma.h \
   elysium/sigmaprimitives.h \
   elysium/sigmadb.h \
+  elysium/lelantusdb.h \
+  elysium/lelantusutils.h \
   elysium/signaturebuilder.h \
   elysium/sp.h \
   elysium/sto.h \
@@ -74,6 +76,8 @@ ELYSIUM_CPP = \
   elysium/sigma.cpp \
   elysium/sigmaprimitives.cpp \
   elysium/sigmadb.cpp \
+  elysium/lelantusdb.cpp \
+  elysium/lelantusutils.cpp \
   elysium/signaturebuilder.cpp \
   elysium/sp.cpp \
   elysium/sto.cpp \
@@ -89,6 +93,9 @@ ELYSIUM_CPP = \
 if ENABLE_WALLET
 ELYSIUM_H += \
   elysium/rpctx.h \
+  elysium/lelantusprimitives.h \
+  elysium/lelantuswallet.h \
+  elysium/lelantuswalletmodels.cpp \
   elysium/sigmawallet.h \
   elysium/sigmawalletv0.h \
   elysium/sigmawalletv1.h \
@@ -97,6 +104,9 @@ ELYSIUM_H += \
 
 ELYSIUM_CPP += \
   elysium/rpctx.cpp \
+  elysium/lelantusprimitives.cpp \
+  elysium/lelantuswallet.cpp \
+  elysium/lelantuswalletmodels.cpp \
   elysium/sigmawallet.cpp \
   elysium/sigmawalletv0.cpp \
   elysium/sigmawalletv1.cpp \

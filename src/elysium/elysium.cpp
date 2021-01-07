@@ -6,6 +6,7 @@
 #include "dex.h"
 #include "errors.h"
 #include "fees.h"
+#include "lelantusdb.h"
 #include "log.h"
 #include "mdex.h"
 #include "notifications.h"
@@ -36,6 +37,7 @@
 #include "../init.h"
 #include "../validation.h"
 #include "../net.h"
+#include "../lelantus.h"
 #include "../primitives/block.h"
 #include "../primitives/transaction.h"
 #include "../script/script.h"
@@ -657,6 +659,10 @@ static bool FillTxInputCache(const CTransaction& tx)
             continue;
         }
 
+        if (it->scriptSig.IsLelantusJoinSplit()) {
+            continue;
+        }
+
         unsigned int nOut = txIn.prevout.n;
         Coin coin = view.AccessCoin(txIn.prevout);
 
@@ -692,6 +698,9 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
     InputMode inputMode = InputMode::NORMAL;
     if (wtx.IsSigmaSpend()) {
         inputMode = InputMode::SIGMA;
+    }
+    if (wtx.IsLelantusJoinSplit()) {
+        inputMode = InputMode::LELANTUS;
     }
 
     assert(bRPConly == mp_tx.isRpcOnly());
@@ -768,7 +777,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
             return -5;
         }
     }
-    else if (inputMode != InputMode::SIGMA)
+    else if (inputMode != InputMode::SIGMA && inputMode != InputMode::LELANTUS)
     {
         // NEW LOGIC - the sender is chosen based on the first vin
 
@@ -800,6 +809,8 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
     case InputMode::SIGMA:
         inAll = sigma::GetSpendAmount(wtx);
         break;
+    case InputMode::LELANTUS:
+        inAll = lelantus::GetSpendTransparentAmount(wtx);
     case InputMode::NORMAL:
     default:
         inAll = view.GetValueIn(wtx);
@@ -2007,6 +2018,7 @@ int elysium_init()
     s_stolistdb = new CMPSTOList(GetDataDir() / "MP_stolist", fReindex);
     p_txlistdb = new CMPTxList(GetDataDir() / "MP_txlist", fReindex);
     sigmaDb = new SigmaDatabase(GetDataDir() / "MP_sigma", fReindex);
+    lelantusDb = new LelantusDb(GetDataDir() / "MP_lelantus", fReindex);
     _my_sps = new CMPSPInfo(GetDataDir() / "MP_spinfo", fReindex);
     p_ElysiumTXDB = new CElysiumTransactionDB(GetDataDir() / "Exodus_TXDB", fReindex);
     p_feecache = new CElysiumFeeCache(GetDataDir() / "EXODUS_feecache", fReindex);
@@ -2238,7 +2250,14 @@ int elysium::WalletTxBuilder(
 
     // Select the inputs
     if (0 >= SelectCoins(senderAddress, coinControl, referenceAmount, inputMode)) {
-        return inputMode == InputMode::SIGMA ? MP_SIGMA_INPUTS_INVALID : MP_INPUTS_INVALID;
+        switch (inputMode) {
+        case InputMode::NORMAL:
+            return MP_INPUTS_INVALID;
+        case InputMode::SIGMA:
+            return MP_SIGMA_INPUTS_INVALID;
+        case InputMode::LELANTUS:
+            return MP_LELANTUS_INPUTS_INVALID;
+        }
     }
 
     // Encode the data outputs
@@ -2288,6 +2307,11 @@ int elysium::WalletTxBuilder(
     std::vector<CSigmaEntry> sigmaSelected;
     std::vector<CHDMint> sigmaChanges;
 
+    std::vector<CLelantusEntry> lelantusSpendCoins;
+    std::vector<CHDMint> lelantusMintCoins;
+
+    CAmount fee;
+
     switch (inputMode) {
     case InputMode::NORMAL:
         // Ask the wallet to create the transaction (note mining fee determined by Bitcoin Core params)
@@ -2297,11 +2321,19 @@ int elysium::WalletTxBuilder(
         }
         break;
     case InputMode::SIGMA:
-        CAmount fee;
         try {
             bool changeAddedToFee;
             wtxNew = pwalletMain->CreateSigmaSpendTransaction(
                 vecRecipients, fee, sigmaSelected, sigmaChanges, changeAddedToFee, &coinControl);
+        } catch (std::exception const &err) {
+            PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, err.what());
+            return MP_ERR_CREATE_SIGMA_TX;
+        }
+        break;
+    case InputMode::LELANTUS:
+        try {
+            wtxNew = pwalletMain->CreateLelantusJoinSplitTransaction(
+                vecRecipients, fee, {}, lelantusSpendCoins, lelantusMintCoins, &coinControl);
         } catch (std::exception const &err) {
             PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, err.what());
             return MP_ERR_CREATE_SIGMA_TX;
@@ -2329,6 +2361,13 @@ int elysium::WalletTxBuilder(
         case InputMode::SIGMA:
             try {
                 if (!pwalletMain->CommitSigmaTransaction(wtxNew, sigmaSelected, sigmaChanges)) return MP_ERR_COMMIT_TX;
+            } catch (...) {
+                return MP_ERR_COMMIT_TX;
+            }
+            break;
+        case InputMode::LELANTUS:
+            try {
+                if (!pwalletMain->CommitLelantusTransaction(wtxNew, lelantusSpendCoins, lelantusMintCoins)) return MP_ERR_COMMIT_TX;
             } catch (...) {
                 return MP_ERR_COMMIT_TX;
             }
@@ -3758,6 +3797,8 @@ int elysium_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex,
         unsigned int countMP)
 {
     LOCK(cs_main);
+
+    lelantusDb->CommitCoins();
 
     if (!elysiumInitialized) {
         elysium_init();

@@ -1,6 +1,9 @@
 #include "wallet.h"
 
+#include "lelantusdb.h"
+
 #include "sigma.h"
+#include "lelantusutils.h"
 
 #include "../validation.h"
 #include "../sync.h"
@@ -46,6 +49,14 @@ Wallet::Wallet(const std::string& walletFile) : walletFile(walletFile)
         auto h = std::bind(&Wallet::OnSpendRemoved, this, _1, _2, _3);
         eventConnections.emplace_front(sigmaDb->SpendRemoved.connect(h));
     }
+    {
+        auto h = std::bind(&Wallet::OnLelantusMintAdded, this, _1, _2, _3, _4, _5, _6);
+        eventConnections.emplace_front(lelantusDb->MintAdded.connect(h));
+    }
+    {
+        auto h = std::bind(&Wallet::OnLelantusMintRemoved, this, _1, _2);
+        eventConnections.emplace_front(lelantusDb->MintRemoved.connect(h));
+    }
 }
 
 Wallet::~Wallet()
@@ -56,11 +67,17 @@ void Wallet::ReloadMasterKey()
 {
     mintWalletV0.ReloadMasterKey();
     mintWalletV1.ReloadMasterKey();
+    lelantusWallet.ReloadMasterKey();
 }
 
 SigmaMintId Wallet::CreateSigmaMint(PropertyId property, SigmaDenomination denomination)
 {
     return mintWalletV1.GenerateMint(property, denomination);
+}
+
+LelantusWallet::MintReservation Wallet::CreateLelantusMint(PropertyId property, LelantusAmount amount)
+{
+    return lelantusWallet.GenerateMint(property, amount);
 }
 
 void Wallet::SetSigmaMintCreatedTransaction(const SigmaMintId& id, const uint256& tx)
@@ -75,10 +92,20 @@ void Wallet::SetSigmaMintUsedTransaction(const SigmaMintId& id, const uint256& t
     wallet.UpdateMintSpendTx(id, tx);
 }
 
+void Wallet::SetLelantusMintUsedTransaction(const MintEntryId& id, const uint256& tx)
+{
+    lelantusWallet.UpdateMintSpendTx(id, tx);
+}
+
 void Wallet::ClearAllChainState()
 {
     mintWalletV0.ClearMintsChainState();
     mintWalletV1.ClearMintsChainState();
+}
+
+bool Wallet::SyncWithChain()
+{
+    return lelantusWallet.SyncWithChain();
 }
 
 SigmaSpend Wallet::CreateSigmaSpendV0(PropertyId property, SigmaDenomination denomination, bool fPadding)
@@ -89,6 +116,17 @@ SigmaSpend Wallet::CreateSigmaSpendV0(PropertyId property, SigmaDenomination den
 SigmaSpend Wallet::CreateSigmaSpendV1(PropertyId property, SigmaDenomination denomination, bool fPadding)
 {
     return CreateSigmaSpend(property, denomination, fPadding, SigmaMintVersion::V1);
+}
+
+lelantus::JoinSplit Wallet::CreateLelantusJoinSplit(
+    PropertyId property,
+    CAmount amountToSpend,
+    uint256 const &metadata,
+    std::vector<SpendableCoin> &spendables,
+    boost::optional<LelantusWallet::MintReservation> &changeMint,
+    LelantusAmount &changeValue)
+{
+    return lelantusWallet.CreateJoinSplit(property, amountToSpend, metadata, spendables, changeMint, changeValue);
 }
 
 SigmaSpend Wallet::CreateSigmaSpend(PropertyId property, SigmaDenomination denomination, bool fPadding, SigmaMintVersion version)
@@ -140,6 +178,16 @@ bool Wallet::HasSigmaMint(const SigmaMintId& id)
 bool Wallet::HasSigmaMint(const secp_primitives::Scalar& serial)
 {
     return GetSigmaMintVersion(serial) != boost::none;
+}
+
+bool Wallet::HasLelantusMint(const MintEntryId& id)
+{
+    return lelantusWallet.HasMint(id);
+}
+
+bool Wallet::HasLelantusMint(const secp_primitives::Scalar &serial)
+{
+    return lelantusWallet.HasMint(serial);
 }
 
 SigmaMint Wallet::GetSigmaMint(const SigmaMintId& id)
@@ -206,6 +254,11 @@ void Wallet::SetSigmaMintChainState(const SigmaMintId& id, const SigmaMintChainS
 {
     auto &mintWallet = GetMintWallet(id);
     mintWallet.UpdateMintChainstate(id, state);
+}
+
+void Wallet::SetLelantusMintChainState(const MintEntryId &id, const LelantusMintChainState &state)
+{
+    lelantusWallet.UpdateMintChainstate(id, state);
 }
 
 SigmaWallet& Wallet::GetMintWallet(SigmaMintVersion version)
@@ -332,6 +385,54 @@ void Wallet::OnMintRemoved(PropertyId property, SigmaDenomination denomination, 
     }
 
     SetSigmaMintChainState(id, SigmaMintChainState());
+}
+
+void Wallet::OnLelantusMintAdded(
+    PropertyId property,
+    MintEntryId id,
+    LelantusGroup group,
+    LelantusIndex idx,
+    boost::optional<LelantusAmount> amount,
+    int block)
+{
+    LogPrintf("%s : Mint added = block : %d, group : %d, idx : %d\n", __func__, block, group, idx);
+    auto locked = pwalletMain->IsLocked();
+    auto knowAmount = amount.has_value();
+
+    // Can set state if wallet is not encrypt or encrypted but amount is known
+    auto canSetState = !locked || knowAmount;
+    if (!canSetState) {
+        LogPrintf("%s : Can not set state\n", __func__);
+        return;
+    }
+
+    if (HasLelantusMint(id)) {
+
+        // 1. is in wallet then update state
+        SetLelantusMintChainState(id, {block, group, idx});
+        return;
+    }
+
+    if (!locked) {
+
+        // 2. try to recover new mint from pool
+        LelantusMintChainState state(block, group, idx);
+        if (lelantusWallet.TryRecoverMint(id, state, property, amount.get())) {
+            LogPrintf("%s : Found new mint when try to recover\n", __func__);
+        }
+        return;
+    }
+}
+
+void Wallet::OnLelantusMintRemoved(
+    PropertyId property,
+    MintEntryId id)
+{
+    if (!HasLelantusMint(id)) {
+        return;
+    }
+
+    SetLelantusMintChainState(id, {});
 }
 
 } // namespace elysium

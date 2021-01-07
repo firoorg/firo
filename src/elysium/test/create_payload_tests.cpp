@@ -610,6 +610,84 @@ BOOST_AUTO_TEST_CASE(payload_create_simple_spendv1)
     );
 }
 
+BOOST_AUTO_TEST_CASE(payload_create_lelantus_mint)
+{
+    std::string data = "353408b8878f73271f391935a2d628087010d82d3066a0f2262af686681a3b960000";
+    std::string data2 = "62f60f65fdcf293c616fccab2a7caf6ecaf6c412321e52cc4737e1c09afa282beb000012cd84cfa478f74f46af852d3d97692d34b983fee6dc3e9ad7945ef810e73747d3cbb6a40fb4c53ebb267831b65de7981335e43caa7211a2be3b81d4c5e0e059";
+    std::string data3 = "0100000000000000000000000000000000000000000000000000000000000000";
+
+    lelantus::PublicCoin pubcoin;
+    std::vector<unsigned char> schnorrProof;
+    MintEntryId id;
+
+    CDataStream(ParseHex(data), SER_NETWORK, CLIENT_VERSION) >> pubcoin;
+    CDataStream(ParseHex(data2), SER_NETWORK, CLIENT_VERSION) >> schnorrProof;
+    CDataStream(ParseHex(data3), SER_NETWORK, CLIENT_VERSION) >> id;
+
+    // Simple mint [type 1027, version 0]
+    std::vector<unsigned char> vch = CreatePayload_CreateLelantusMint(1, pubcoin, id, 100, schnorrProof);
+
+    BOOST_CHECK_EQUAL(HexStr(vch),
+        "0000040300000001" \
+        "353408b8878f73271f391935a2d628087010d82d3066a0f2262af686681a3b960000" \
+        "0100000000000000000000000000000000000000000000000000000000000000" \
+        "0000000000000064" \
+        "f60f65fdcf293c616fccab2a7caf6ecaf6c412321e52cc4737e1c09afa282beb000012cd84cfa478f74f46af852d3d97692d34b983fee6dc3e9ad7945ef810e73747d3cbb6a40fb4c53ebb267831b65de7981335e43caa7211a2be3b81d4c5e0e059"
+    );
+}
+
+BOOST_AUTO_TEST_CASE(payload_create_lelantus_mint_invalid_schnorrproof_size)
+{
+    std::string data = "353408b8878f73271f391935a2d628087010d82d3066a0f2262af686681a3b960000";
+    std::string data2 = "0100000000000000000000000000000000000000000000000000000000000000";
+
+    lelantus::PublicCoin pubcoin;
+    MintEntryId id;
+
+    CDataStream(ParseHex(data), SER_NETWORK, CLIENT_VERSION) >> pubcoin;
+    CDataStream(ParseHex(data2), SER_NETWORK, CLIENT_VERSION) >> id;
+
+    BOOST_CHECK_THROW(CreatePayload_CreateLelantusMint(1, pubcoin, id, 100, std::vector<unsigned char>(32, 0x00)), std::invalid_argument);
+    BOOST_CHECK_THROW(CreatePayload_CreateLelantusMint(1, pubcoin, id, 100, std::vector<unsigned char>(97, 0x00)), std::invalid_argument);
+    BOOST_CHECK_NO_THROW(CreatePayload_CreateLelantusMint(1, pubcoin, id, 100, std::vector<unsigned char>(98, 0x00)));
+    BOOST_CHECK_THROW(CreatePayload_CreateLelantusMint(1, pubcoin, id, 100, std::vector<unsigned char>(99, 0x00)), std::invalid_argument);
+    BOOST_CHECK_THROW(CreatePayload_CreateLelantusMint(1, pubcoin, id, 100, std::vector<unsigned char>(1000, 0x00)), std::invalid_argument);
+}
+
+BOOST_AUTO_TEST_CASE(payload_create_lelantus_spend_without_change)
+{
+    // std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> coins;
+    // std::map<uint32_t, std::vector<lelantus::PublicCoin>> anonss;
+    // LelantusAmount amount;
+    // std::vector<lelantus::PrivateCoin> coinOuts;
+    // std::map<uint32_t, uint256> groupBlockHashs;
+    // uint256 metaData;
+
+    // auto js = ::CreateJoinSplit(coins, anonss, 100, coinOuts, groupBlockHashs, metaData);
+    // lelantus::
+
+    // Simple mint [type 1027, version 0]
+    // std::vector<unsigned char> vch = CreatePayload_CreateLelantusJoinSplit(1, 100);
+
+    // BOOST_CHECK_EQUAL(HexStr(vch),
+    //     "0000040300000001" \
+    //     "353408b8878f73271f391935a2d628087010d82d3066a0f2262af686681a3b960000" \
+    //     "0100000000000000000000000000000000000000000000000000000000000000" \
+    //     "0000000000000064" \
+    //     "f60f65fdcf293c616fccab2a7caf6ecaf6c412321e52cc4737e1c09afa282beb000012cd84cfa478f74f46af852d3d97692d34b983fee6dc3e9ad7945ef810e73747d3cbb6a40fb4c53ebb267831b65de7981335e43caa7211a2be3b81d4c5e0e059"
+    // );
+}
+
+BOOST_AUTO_TEST_CASE(payload_create_change_lelantus_status)
+{
+    // Change property lelantus status [type 1029, version 0]
+    std::vector<unsigned char> vch = CreatePayload_ChangeLelantusStatus(
+        static_cast<uint32_t>(13), // property: SP #13
+        LelantusStatus::SoftDisabled); // 0x00
+
+    BOOST_CHECK_EQUAL(HexStr(vch), "000004050000000d00");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 } // namespace elysium
