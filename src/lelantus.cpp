@@ -17,6 +17,7 @@
 #include "policy/policy.h"
 #include "coins.h"
 #include "batchproof_container.h"
+#include "blacklists.h"
 
 #include <atomic>
 #include <sstream>
@@ -384,6 +385,10 @@ bool CheckLelantusJoinSplitTransaction(
                     BOOST_FOREACH(
                     const sigma::PublicCoin &pubCoinValue,
                     index->sigmaMintedPubCoins[denominationAndId]) {
+                        std::vector<unsigned char> vch = pubCoinValue.getValue().getvch();
+                        if(sigma::sigma_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                            continue;
+                        }
                         lelantus::PublicCoin publicCoin(pubCoinValue.getValue() + lelantusParams->get_h1() * intDenom);
                         anonymity_set.push_back(publicCoin);
                     }
