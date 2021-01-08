@@ -2065,11 +2065,16 @@ void CWalletTx::GetAPIAmounts(list <COutputEntry> &listReceived,
     if(!(storedTx==NULL))
         fromMe = storedTx->fFromMe;
 
-    // Compute fee:
     CAmount nDebit = GetDebit(filter);
-    if (nDebit > 0) // debit>0 means we signed/sent this transaction
-    {
-        CAmount nValueOut = tx->GetValueOut();
+    CAmount nValueOut = tx->GetValueOut();
+
+    if (tx->IsLelantusJoinSplit()) {
+        for (const CTxIn& txIn : tx->vin) {
+            std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(txIn);
+            nFee += jsplit->getFee();
+        }
+    } else if (nDebit > 0) { // debit>0 means we signed/sent this transaction
+        // Compute fee:
         nFee = nDebit - nValueOut;
     }
 
