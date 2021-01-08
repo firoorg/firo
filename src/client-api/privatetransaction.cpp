@@ -353,6 +353,10 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
             fHasCoinControl ? &coinControl : nullptr
         );
 
+        if (fee > 10000000) {
+            throw JSONAPIError(API_INTERNAL_ERROR, "We have produced a transaction with a fee above 1 FIRO. This is almost certainly a bug.");
+        }
+
         if (!pwalletMain->CommitLelantusTransaction(transaction, spendCoins, mintCoins)) {
             throw JSONAPIError(API_INTERNAL_ERROR, "The produced transaction was invalid and was not accepted into the mempool.");
         }
