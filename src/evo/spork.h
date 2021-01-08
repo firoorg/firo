@@ -151,4 +151,25 @@ public:
     ActiveSporkMap GetActiveSporks() const { return mempoolSporks; }
 };
 
+namespace llmq {
+
+inline bool IsNewInstantSendEnabled()
+{
+    return false;
+}
+
+bool IsChainlocksEnabled();
+
+inline bool IsBlockFilteringEnabled()
+{
+    return false;
+}
+
+inline int GetInstantsendMaxValue()
+{
+    return 500;
+}
+
+}
+
 #endif

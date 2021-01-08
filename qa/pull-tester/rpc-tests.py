@@ -208,6 +208,7 @@ testScripts = [
     'llmq-dkgerrors.py',
     'llmq-simplepose.py',
     'llmq-chainlocks.py',
+    'llmq-cl-evospork.py',
 #    'llmq-is-cl-conflicts.py',
 #    'llmq-is-retroactive.py'
 

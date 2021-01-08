@@ -48,7 +48,7 @@
 #include "evo/cbtx.h"
 #include "evo/simplifiedmns.h"
 #include "evo/deterministicmns.h"
-#include "chain_settings.h"
+#include "evo/spork.h"
 
 #include "llmq/quorums_blockprocessor.h"
 
@@ -185,7 +185,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     nHeight = pindexPrev->nHeight + 1;
 
     bool fDIP0003Active_context = nHeight >= chainparams.GetConsensus().DIP0003Height;
-    bool fDIP0008Active_context = llmq::IsChainlocksEnabled() && nHeight >= chainparams.GetConsensus().DIP0003Height;
+    bool fDIP0008Active_context = fDIP0003Active_context && nHeight >= chainparams.GetConsensus().DIP0008Height;
 
     pblock->nTime = GetAdjustedTime();
     bool fMTP = pblock->nTime >= params.nMTPSwitchTime;

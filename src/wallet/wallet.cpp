@@ -6885,7 +6885,7 @@ CAmount CWallet::EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmou
                                        consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl, true);
                 currentRequired -= inputFromSigma;
             }
-        } catch (std::runtime_error) {
+        } catch (std::runtime_error const &) {
         }
 
         if (currentRequired > 0) {

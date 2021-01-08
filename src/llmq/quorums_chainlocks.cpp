@@ -7,7 +7,7 @@
 #include "quorums_instantsend.h"
 #include "quorums_signing.h"
 #include "quorums_utils.h"
-#include "chain_settings.h"
+#include "evo/spork.h"
 
 #include "chain.h"
 #include "masternode-sync.h"
@@ -519,8 +519,10 @@ void CChainLocksHandler::EnforceBestChainLock()
     }
 
     CValidationState state;
-    if (activateNeeded && !ActivateBestChain(state, Params())) {
-        LogPrintf("CChainLocksHandler::%s -- ActivateBestChain failed: %s\n", __func__, FormatStateMessage(state));
+    if (activateNeeded) {
+        LogPrintf("CChainLocksHandler::%s -- Activated best chain tip: %s\n", __func__, currentBestChainLockBlockIndex->GetBlockHash().ToString());
+        if (!ActivateBestChain(state, Params()))
+            LogPrintf("CChainLocksHandler::%s -- ActivateBestChain failed: %s\n", __func__, FormatStateMessage(state));
     }
 
     const CBlockIndex* pindexNotify = nullptr;
