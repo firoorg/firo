@@ -2260,9 +2260,6 @@ bool CWalletTx::RelayWalletTransaction(CConnman* connman)
                 int64_t nEmbargo = 1000000 * DANDELION_EMBARGO_MINIMUM
                         + PoissonNextSend(nCurrTime, DANDELION_EMBARGO_AVG_ADD);
                 CNode::insertDandelionEmbargo(GetHash(), nEmbargo);
-                //LogPrintf(
-                //    "dandeliontx %s embargoed for %d seconds\n",
-                //    GetHash().ToString(), (nEmbargo - nCurrTime) / 1000000);
                 CInv inv(MSG_DANDELION_TX, GetHash());
                 return CNode::localDandelionDestinationPushInventory(inv);
             }
