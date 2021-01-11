@@ -117,7 +117,6 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(CWalletDB& wal
     mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
     walletdb.WritePubcoin(hashSerial, commitmentValue);
     walletdb.WriteMintPoolPair(hashPubcoin, mintPoolEntry);
-    LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%s\n count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), nCount);
 
     nIndexes.first = hashPubcoin;
     nIndexes.second = hashSerial;
@@ -172,7 +171,6 @@ void CHDMintWallet::GenerateMintPool(CWalletDB& walletdb, int32_t nIndex)
         mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
         walletdb.WritePubcoin(primitives::GetSerialHash(coin.getSerialNumber()), commitmentValue);
         walletdb.WriteMintPoolPair(hashPubcoin, mintPoolEntry);
-        LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%d count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), nLastCount);
     }
 
     // write hdchain back to database
