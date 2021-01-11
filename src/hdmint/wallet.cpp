@@ -40,7 +40,7 @@ CHDMintWallet::CHDMintWallet(const std::string& strWalletFile, bool resetCount) 
     uint160 hashSeedMaster = pwalletMain->GetHDChain().masterKeyID;
 
     if (!SetupWallet(hashSeedMaster, resetCount)) {
-        LogPrintf("%s: failed to save deterministic seed for hashseed %s\n", __func__, hashSeedMaster.GetHex());
+        LogPrintf("%s: failed to save deterministic seed\n", __func__);
         return;
     }
 }
@@ -195,8 +195,6 @@ bool CHDMintWallet::LoadMintPoolFromDB()
     vector<std::pair<uint256, MintPoolEntry>> listMintPool = walletdb.ListMintPool();
 
     for (auto& mintPoolPair : listMintPool){
-        LogPrintf("LoadMintPoolFromDB: hashPubcoin: %d hashSeedMaster: %d seedId: %d nCount: %s\n",
-            mintPoolPair.first.GetHex(), get<0>(mintPoolPair.second).GetHex(), get<1>(mintPoolPair.second).GetHex(), get<2>(mintPoolPair.second));
         mintPool.Add(mintPoolPair);
     }
 
@@ -926,10 +924,6 @@ bool CHDMintWallet::GenerateMint(CWalletDB& walletdb, const sigma::CoinDenominat
     DenominationToInteger(denom, amount);
     dMint.SetAmount(amount);
 
-    LogPrintf("GenerateMint: hashPubcoin: %s hashSeedMaster: %s seedId: %s nCount: %d\n",
-             dMint.GetPubCoinHash().ToString(),
-             get<0>(mintPoolEntry.get()).GetHex(), get<1>(mintPoolEntry.get()).GetHex(), get<2>(mintPoolEntry.get()));
-
     return true;
 }
 
@@ -981,11 +975,6 @@ bool CHDMintWallet::GenerateLelantusMint(CWalletDB& walletdb, lelantus::PrivateC
     }
 
     dMint.SetAmount(coin.getV());
-
-    LogPrintf("GenerateMint: hashPubcoin: %s hashSeedMaster: %s seedId: %s nCount: %d\n",
-              dMint.GetPubCoinHash().ToString(),
-              get<0>(mintPoolEntry.get()).GetHex(), get<1>(mintPoolEntry.get()).GetHex(), get<2>(mintPoolEntry.get()));
-
     return true;
 }
 
