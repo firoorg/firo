@@ -14,7 +14,8 @@ llmq-chainlocks.py
 Checks LLMQs based ChainLocks
 
 00 Mine quorum and produce chainlocks
-01 Make sure the chainlocked tip does not change after invalidateblock 
+01 Make sure the chainlocked tip does not change after invalidateblock
+02 Make sure a rogue miner cannot inject a longer chain
 10 Disable chainlocks
 11 Make sure 01-09 work as usual
 - 
@@ -48,11 +49,11 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
             assert(block['chainlock'])
 
         # cannot invalidate tip
-        first_tip = self.nodes[0].getbestblockhash()
-        self.nodes[0].invalidateblock(first_tip)
-        assert(first_tip == self.nodes[0].getbestblockhash())
+        current_tip = self.nodes[0].getbestblockhash()
+        self.nodes[0].invalidateblock(current_tip)
+        assert(current_tip == self.nodes[0].getbestblockhash())
 
-        # disable chainlocks
+        ##### Disable chainlocks for 10 blocks
 
         self.nodes[0].importprivkey(self.sporkprivkey)
         self.disable_chainlocks(self.nodes[0].getblockcount() + 10)
@@ -61,15 +62,30 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
 
         # can invalidate block now
         self.nodes[0].invalidateblock(self.nodes[0].getbestblockhash())
-        assert(first_tip == self.nodes[0].getbestblockhash())
+        assert(current_tip == self.nodes[0].getbestblockhash())
 
-        # enable chainlocks
+        isolate_node(self.nodes[5])
+
+        ##### Enable chainlocks
 
         self.nodes[0].generate(10)
-        print(self.nodes[0].spork('list'))
+        self.nodes[0].spork('list')
         self.wait_for_chainlock_tip_all_nodes()
-        print(self.nodes[0].spork('list'))
+        sporks = self.nodes[0].spork("list")
+        assert(not sporks["blockchain"])
+        assert(not sporks["mempool"])
         assert(True == self.nodes[0].getblock(self.nodes[0].getbestblockhash())["chainlock"])
+
+        # generate a longer chain on the isolated node then reconnect it back and make sure it picks the chainlocked chain
+        self.nodes[5].generate(20)
+        reconnect_isolated_node(self.nodes[5], 1)
+        self.nodes[0].generate(1)
+        current_tip = self.nodes[0].getbestblockhash()
+        timeout = 10
+        while current_tip != self.nodes[5].getbestblockhash():
+            assert timeout > 0, "Timed out when waiting for a chainlocked chain"
+            sleep(1)
+            timeout = timeout - 1
 
 
     def wait_for_chainlock_tip_all_nodes(self):
