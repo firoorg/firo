@@ -77,10 +77,10 @@ ALLOWED_LIBRARIES = {
 }
 
 ARCH_MIN_GLIBC_VER = {
-'80386':  (2,1),
-'X86-64': (2,2,5),
-'ARM':    (2,4),
-'AArch64':(2,17),
+'80386':  (2,27),
+'X86-64': (2,27),
+'ARM':    (2,27),
+'AArch64':(2,27),
 'RISC-V': (2,27)
 }
 class CPPFilt(object):
