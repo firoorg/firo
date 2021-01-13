@@ -2043,9 +2043,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             );
 
             if (CNode::isTxDandelionEmbargoed(tx.GetHash())) {
-                //LogPrintf(
-                //    "Embargoed dandeliontx %s found in mempool; removing from embargo map\n",
-                //    tx.GetHash().ToString());
                 CNode::removeDandelionEmbargo(tx.GetHash());
             }
 
@@ -3464,8 +3461,6 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
                     //          hash.ToString(), pto->addr.ToString());
                     vInv.push_back(CInv(MSG_TX, hash));
                 } else {
-                    //LogPrintf("Pushing dandelion transaction MSG_DANDELION_TX %s to %s.",
-                    //          hash.ToString(), pto->addr.ToString());
                     vInv.push_back(CInv(MSG_DANDELION_TX, hash));
                 }
                 if (vInv.size() == MAX_INV_SZ) {

@@ -355,7 +355,8 @@ void Shutdown()
 /**
  * Signal handlers are very limited in what they are allowed to do, so:
  */
-void HandleSIGTERM(int)
+#ifndef WIN32
+static void HandleSIGTERM(int)
 {
     fRequestShutdown = true;
 }
@@ -365,6 +366,14 @@ void HandleSIGHUP(int)
     fReopenDebugLog = true;
     fReopenElysiumLog = true;
 }
+#else
+static BOOL WINAPI consoleCtrlHandler(DWORD dwCtrlType)
+{
+    fRequestShutdown = true;
+    Sleep(INFINITE);
+    return true;
+}
+#endif
 
 bool static Bind(CConnman& connman, const CService &addr, unsigned int flags) {
     if (!(flags & BF_EXPLICIT) && IsLimited(addr))
@@ -612,8 +621,15 @@ std::string LicenseInfo()
 {
     const std::string URL_SOURCE_CODE = "<https://github.com/firoorg/firo>";
     const std::string URL_WEBSITE = "<https://firo.org/>";
-    // todo: remove urls from translations on next change
-    return CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2009, COPYRIGHT_YEAR) + " ") + "\n" +
+
+    std::string copyright = CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2016, COPYRIGHT_YEAR) + " ");
+    
+    const std::string bitcoinStr = strprintf("%i-%i The Bitcoin Core", 2016, COPYRIGHT_YEAR);
+    if (copyright.find(bitcoinStr) != std::string::npos) {
+        copyright.replace(copyright.find(bitcoinStr), sizeof("2016") - 1, "2009");
+    }
+
+    return copyright + "\n" +
            "\n" +
            strprintf(_("Please contribute if you find %s useful. "
                        "Visit %s for further information about the software."),
@@ -626,7 +642,9 @@ std::string LicenseInfo()
            _("This is experimental software.") + "\n" +
            strprintf(_("Distributed under the MIT software license, see the accompanying file %s or %s"), "COPYING", "<https://opensource.org/licenses/MIT>") + "\n" +
            "\n" +
-           strprintf(_("This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit %s and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard."), "<https://www.openssl.org>") +
+           strprintf(_("This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit %s and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard."), "<https://www.openssl.org>") + "\n" +
+           "\n" +
+           strprintf(_("This product includes Masternodes software developed by the Dash Core developers %s."), "<https://www.dash.org>") +
            "\n";
 }
 
@@ -1143,6 +1161,8 @@ bool AppInitBasicSetup()
 
     // Ignore SIGPIPE, otherwise it will bring the daemon down if the client closes unexpectedly
     signal(SIGPIPE, SIG_IGN);
+#else
+    SetConsoleCtrlHandler(consoleCtrlHandler, true);
 #endif
 
     std::set_new_handler(new_handler_terminate);

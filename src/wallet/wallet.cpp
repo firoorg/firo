@@ -2233,8 +2233,6 @@ void CWallet::ReacceptWalletTransactions()
     BOOST_FOREACH(PAIRTYPE(const int64_t, CWalletTx*)& item, mapSorted)
     {
         CWalletTx& wtx = *(item.second);
-
-        LOCK(mempool.cs);
         CValidationState state;
         // the app was closed and re-opened, do NOT check their
         // serial numbers, and DO NOT try to mark their serial numbers
@@ -2262,9 +2260,6 @@ bool CWalletTx::RelayWalletTransaction(CConnman* connman)
                 int64_t nEmbargo = 1000000 * DANDELION_EMBARGO_MINIMUM
                         + PoissonNextSend(nCurrTime, DANDELION_EMBARGO_AVG_ADD);
                 CNode::insertDandelionEmbargo(GetHash(), nEmbargo);
-                //LogPrintf(
-                //    "dandeliontx %s embargoed for %d seconds\n",
-                //    GetHash().ToString(), (nEmbargo - nCurrTime) / 1000000);
                 CInv inv(MSG_DANDELION_TX, GetHash());
                 return CNode::localDandelionDestinationPushInventory(inv);
             }
