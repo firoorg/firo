@@ -4,7 +4,8 @@ set(CMAKE_CXX_STANDARD 14)
 cmake_minimum_required(VERSION 2.8)
 
 project(firod CXX)
-set(ENABLE_CLIENTAPI True)
+add_definitions(-DENABLE_CLIENTAPI=1)
+set(ENABLE_CLIENTAPI ON)
 include_directories(src src/univalue/include src/client-api src/zmq src/zmqserver src/wallet src/qt src/hdmint src/elysium src/crypto)
 add_executable(firod src/activemasternode.cpp
     src/activemasternode.h
