@@ -977,7 +977,27 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
         if (action == "add") 
         {
             pwalletMain->SetAddressBook(inputAddress, find_value(data, "label").getValStr(), find_value(data, "purpose").getValStr());
-        } 
+
+            // Make sure the address we just added is no longer returned as an unused address by the paymentrequestaddress call.
+
+            CWalletDB walletdb(pwalletMain->strWalletFile);
+
+            std::string defaultPaymentRequestAddress;
+            walletdb.ReadPaymentRequestAddress(defaultPaymentRequestAddress);
+            if (defaultPaymentRequestAddress == address) {
+                // We're saving our current default payment request address, so we need to make a new one.
+
+                CPubKey newKey;
+                if (!pwalletMain->GetKeyFromPool(newKey))
+                    throw JSONAPIError(API_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
+                CKeyID keyID = newKey.GetID();
+
+                pwalletMain->SetAddressBook(keyID, "", "receive");
+
+                CBitcoinAddress newPaymentRequestAddress {keyID};
+                walletdb.WritePaymentRequestAddress(newPaymentRequestAddress.ToString());
+            }
+        }
         else {
             if (find_value(data, "updatedlabel").isNull() || find_value(data, "updatedaddress").isNull()) {
                 throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
