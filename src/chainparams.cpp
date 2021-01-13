@@ -518,7 +518,7 @@ public:
         consensus.DIP0003EnforcementHeight = 3800;
         consensus.DIP0003EnforcementHash = uint256S("0x73a5d3086a676e48000c35595c3c4d0df2b443fb42e25be01c9e67f25f6b16a7");
 
-        consensus.DIP0008Height = INT_MAX;
+        consensus.DIP0008Height = 25000;
         consensus.nEvoZnodeMinimumConfirmations = 0;
 
         // long living quorum params
@@ -527,8 +527,8 @@ public:
         consensus.llmqs[Consensus::LLMQ_400_60] = llmq400_60;
         consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
         consensus.nLLMQPowTargetSpacing = 20;
-        consensus.llmqChainLocks = Consensus::LLMQ_50_60;
-        consensus.llmqForInstantSend = Consensus::LLMQ_50_60;
+        consensus.llmqChainLocks = Consensus::LLMQ_10_70;
+        consensus.llmqForInstantSend = Consensus::LLMQ_10_70;
 
         consensus.nMTPSwitchTime = 1539172800;
         consensus.nMTPStartBlock = 1;
