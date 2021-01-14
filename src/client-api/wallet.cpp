@@ -936,6 +936,7 @@ UniValue readaddressbook(Type type, const UniValue& data, const UniValue& auth, 
             item.push_back(Pair("address", addr.ToString()));
             item.push_back(Pair("label", it->second.name));
             item.push_back(Pair("purpose", it->second.purpose.empty()? "unknown":it->second.purpose));
+            item.push_back(Pair("createdAt", it->second.nCreatedAt));
             addressBook.push_back(item);
         }
     }

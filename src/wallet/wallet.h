@@ -166,6 +166,7 @@ class CAddressBookData
 public:
     std::string name;
     std::string purpose;
+    int64_t nCreatedAt = 0;
 
     CAddressBookData()
     {

@@ -57,6 +57,19 @@ bool CWalletDB::ErasePurpose(const string& strPurpose)
     return Erase(make_pair(string("purpose"), strPurpose));
 }
 
+bool CWalletDB::WriteAddressBookItemCreatedAt(const std::string& strAddress, int64_t nCreatedAt)
+{
+    nWalletDBUpdateCounter++;
+    return Write(make_pair(string("addressBookItemCreatedAt"), strAddress), nCreatedAt);
+}
+
+bool CWalletDB::EraseAddressBookItemCreatedAt(const string& strAddress)
+{
+    nWalletDBUpdateCounter++;
+    return Erase(make_pair(string("addressBookItemCreatedAt"), strAddress));
+}
+
+
 bool CWalletDB::WriteTx(const CWalletTx& wtx)
 {
     nWalletDBUpdateCounter++;
@@ -717,6 +730,15 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             string strAddress;
             ssKey >> strAddress;
             ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].purpose;
+        }
+        else if (strType == "addressBookItemCreatedAt")
+        {
+            string strAddress;
+            ssKey >> strAddress;
+            int64_t nCreatedAt;
+            ssValue >> nCreatedAt;
+
+            pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].nCreatedAt = nCreatedAt;
         }
         else if (strType == "tx")
         {

@@ -7361,6 +7361,7 @@ DBErrors CWallet::ZapLelantusMints() {
 
 bool CWallet::SetAddressBook(const CTxDestination& address, const string& strName, const string& strPurpose)
 {
+    int64_t now = GetTime();
     bool fUpdated = false;
     {
         LOCK(cs_wallet); // mapAddressBook
@@ -7369,14 +7370,24 @@ bool CWallet::SetAddressBook(const CTxDestination& address, const string& strNam
         mapAddressBook[address].name = strName;
         if (!strPurpose.empty()) /* update purpose only if requested */
             mapAddressBook[address].purpose = strPurpose;
+        if (!fUpdated)
+            mapAddressBook[address].nCreatedAt = now;
     }
     NotifyAddressBookChanged(this, address, strName, ::IsMine(*this, address) != ISMINE_NO,
                              strPurpose, (fUpdated ? CT_UPDATED : CT_NEW) );
     if (!fFileBacked)
         return false;
-    if (!strPurpose.empty() && !CWalletDB(strWalletFile).WritePurpose(CBitcoinAddress(address).ToString(), strPurpose))
-        return false;
-    return CWalletDB(strWalletFile).WriteName(CBitcoinAddress(address).ToString(), strName);
+
+    std::string addr = CBitcoinAddress(address).ToString();
+    bool retval = true;
+
+    retval &= CWalletDB(strWalletFile).WriteName(addr, strName);
+    if (!fUpdated)
+        retval &= CWalletDB(strWalletFile).WriteAddressBookItemCreatedAt(addr, now);
+    if (!strPurpose.empty())
+        retval &= CWalletDB(strWalletFile).WritePurpose(addr, strPurpose);
+
+    return retval;
 }
 
 bool CWallet::DelAddressBook(const CTxDestination& address)
@@ -7400,8 +7411,15 @@ bool CWallet::DelAddressBook(const CTxDestination& address)
 
     if (!fFileBacked)
         return false;
-    CWalletDB(strWalletFile).ErasePurpose(CBitcoinAddress(address).ToString());
-    return CWalletDB(strWalletFile).EraseName(CBitcoinAddress(address).ToString());
+
+    std::string addr = CBitcoinAddress(address).ToString();
+    bool retval = true;
+
+    retval &= CWalletDB(strWalletFile).EraseName(addr);
+    retval &= CWalletDB(strWalletFile).EraseAddressBookItemCreatedAt(addr);
+    retval &= CWalletDB(strWalletFile).ErasePurpose(addr);
+
+    return retval;
 }
 
 bool CWallet::SetDefaultKey(const CPubKey &vchPubKey)

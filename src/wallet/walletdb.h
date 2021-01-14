@@ -186,6 +186,9 @@ public:
     {
     }
 
+    bool WriteAddressBookItemCreatedAt(const std::string& strAddress, int64_t nCreatedAt);
+    bool EraseAddressBookItemCreatedAt(const std::string& strAddress);
+
     bool WriteName(const std::string& strAddress, const std::string& strName);
     bool EraseName(const std::string& strAddress);
 
