@@ -468,7 +468,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
 
         std::tie(std::ignore, groupId) = sigmaState->GetMintedCoinHeightAndId(pub);
 
-        if (groupId < 0 || groupId != spend.id) {
+        if (groupId < 0) {
             throw std::runtime_error(_("One of minted coin does not found in the chain"));
         }
 

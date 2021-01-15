@@ -487,12 +487,17 @@ bool CHDMintWallet::SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintP
     }
 
     LogPrintf("%s: Creating mint object.. \n", __func__);
+
+    int id;
+    std::tie(std::ignore, id) = sigma::CSigmaState::GetState()->GetMintedCoinHeightAndId(sigma::PublicCoin(bnValue, denom));
+
     // Create mint object
     CHDMint dMint(mintCount, seedId, hashSerial, bnValue);
     int64_t amount;
     DenominationToInteger(denom, amount);
     dMint.SetAmount(amount);
     dMint.SetHeight(nHeight);
+    dMint.SetId(id);
 
     // Check if this is also already spent
     int nHeightTx;
