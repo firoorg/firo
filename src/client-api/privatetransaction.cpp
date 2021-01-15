@@ -344,6 +344,9 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
         std::vector<CLelantusEntry> spendCoins;
         std::vector<CHDMint> mintCoins;
 
+        UniValue retval = UniValue::VOBJ;
+        UniValue inputs = UniValue::VARR;
+
         CWalletTx transaction = pwalletMain->CreateLelantusJoinSplitTransaction(
             recipients,
             fee, // clobbered
@@ -369,18 +372,17 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
             COutPoint outPoint;
             lelantus::GetOutPoint(outPoint, pubCoin);
 
-            uint256 hashBlock;
-            CTransactionRef tx;
-            GetTransaction(outPoint.hash, tx, Params().GetConsensus(), hashBlock, true);
+            UniValue input = UniValue::VARR;
+            input.push_back(outPoint.hash.ToString());
+            input.push_back((uint64_t)outPoint.n);
 
-            if (!tx) {
-                throw JSONAPIError(API_INTERNAL_ERROR, "The produced transaction could not be found in the mempool.");
-            }
-
-            GetMainSignals().WalletTransaction(*tx);
+            inputs.push_back(input);
         }
 
-        return transaction.GetHash().GetHex();
+        retval.pushKV("txid", transaction.GetHash().ToString());
+        retval.pushKV("inputs", inputs);
+
+        return retval;
     }
     catch (const InsufficientFunds& e) {
        throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, e.what());
