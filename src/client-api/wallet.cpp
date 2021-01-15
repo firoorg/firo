@@ -166,6 +166,13 @@ void IsTxOutSpendable(const CWalletTx& wtx, const COutPoint& outPoint, UniValue&
         nSpendableAt = -1;
     } else if (wtx.IsCoinBase() && wtx.GetDepthInMainChain() > 0) { // block 0 coinbase and orphans are unspendable
         nSpendableAt = mapBlockIndex[wtx.hashBlock]->nHeight + COINBASE_MATURITY;
+    } else if (wtx.tx->IsLelantusTransaction()) {
+        auto blockIndex = mapBlockIndex.find(wtx.hashBlock);
+        if (blockIndex == mapBlockIndex.end()) {
+            nSpendableAt = -1;
+        } else {
+            nSpendableAt = mapBlockIndex[wtx.hashBlock]->nHeight + ZC_MINT_CONFIRMATIONS;
+        }
     } else {
         nSpendableAt = 0;
     }
