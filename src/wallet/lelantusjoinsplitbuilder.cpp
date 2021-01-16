@@ -426,7 +426,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
         std::tie(std::ignore, groupId) = state->GetMintedCoinHeightAndId(pub);
 
         if (groupId < 0) {
-            throw std::runtime_error(_("One of minted coin does not found in the chain"));
+            throw std::runtime_error(_("One of the lelantus coins has not been found in the chain!"));
         }
 
         coins.emplace_back(make_pair(priv, groupId));
@@ -469,7 +469,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
         std::tie(std::ignore, groupId) = sigmaState->GetMintedCoinHeightAndId(pub);
 
         if (groupId < 0) {
-            throw std::runtime_error(_("One of minted coin does not found in the chain"));
+            throw std::runtime_error(_("One of the sigma coins has not been found in the chain!"));
         }
 
         //this way we are remembering denomination and group id in one field as we have no demomination in Lelantus
