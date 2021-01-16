@@ -17,6 +17,9 @@ typedef uint64_t LelantusAmount;
 typedef uint32_t LelantusGroup;
 typedef uint64_t LelantusIndex;
 
+// Get from Sigma
+uint160 GetSerialId(const secp_primitives::Scalar &serial);
+
 // Id of mint calculated from seed regardless of amount
 class MintEntryId : public uint256 {
 public:

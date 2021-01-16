@@ -9,6 +9,13 @@
 
 namespace elysium {
 
+uint160 GetSerialId(const secp_primitives::Scalar &serial)
+{
+	CDataStream ss(SER_GETHASH, 0);
+	ss << serial;
+	return Hash160(ss.begin(), ss.end());
+}
+
 MintEntryId::MintEntryId()
 {
     SetNull();

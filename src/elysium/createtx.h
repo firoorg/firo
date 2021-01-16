@@ -194,7 +194,7 @@ public:
      * @param seed   The address of the sender, used as seed for obfuscation
      * @param pubKey A public key that may be used to redeem the multisig dust
      */
-    ElysiumTxBuilder& addMultisig(const std::vector<unsigned char>& data, const std::string& seed, const CPubKey& pubKey);
+    //ElysiumTxBuilder& addMultisig(const std::vector<unsigned char>& data, const std::string& seed, const CPubKey& pubKey);
 
     /**
      * Adds an output for change.

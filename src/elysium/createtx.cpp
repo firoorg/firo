@@ -150,13 +150,6 @@ ElysiumTxBuilder& ElysiumTxBuilder::addOpReturn(const std::vector<unsigned char>
     return *this;
 }
 
-/** Embeds a payload with class B (bare-multisig) encoding. */
-ElysiumTxBuilder& ElysiumTxBuilder::addMultisig(const std::vector<unsigned char>& data, const std::string& seed, const CPubKey& pubKey)
-{
-    elysium::EncodeClassB(seed, pubKey, data.begin(), data.end(), std::back_inserter(transaction.vout));
-    return *this;
-}
-
 /** Adds an output for change. */
 ElysiumTxBuilder& ElysiumTxBuilder::addChange(const std::string& destination, const CCoinsViewCache& view, int64_t txFee, uint32_t position)
 {

@@ -8,11 +8,6 @@
 
 namespace elysium {
 
-bool IsEnabledFlag(SigmaStatus status)
-{
-    return status == SigmaStatus::SoftEnabled || status == SigmaStatus::HardEnabled;
-}
-
 bool IsEnabledFlag(LelantusStatus status)
 {
     return status == LelantusStatus::SoftEnabled || status == LelantusStatus::HardEnabled;
@@ -30,11 +25,10 @@ bool IsRequireCreationFee(EcosystemId ecosystem, int block)
 
 bool IsRequireCreationFee(EcosystemId ecosystem, int block, const std::string& network)
 {
-    if (ecosystem != ELYSIUM_PROPERTY_ELYSIUM) {
-        return false;
-    }
-
-    return block >= ConsensusParams(network).PROPERTY_CREATION_FEE_BLOCK;
+	// Poramin:
+	// who will pay creation fee for create tokens ?
+	// it should be free, except need to pay for transaction fee as usual
+	return false;
 }
 
 } // namespace elysium
