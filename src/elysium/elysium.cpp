@@ -3,19 +3,15 @@
 #include "activation.h"
 #include "consensushash.h"
 #include "convert.h"
-#include "dex.h"
 #include "errors.h"
-#include "fees.h"
 #include "lelantusdb.h"
 #include "log.h"
-#include "mdex.h"
 #include "notifications.h"
 #include "packetencoder.h"
 #include "pending.h"
 #include "persistence.h"
 #include "rules.h"
 #include "script.h"
-#include "sigmadb.h"
 #include "sp.h"
 #include "tally.h"
 #include "tx.h"
@@ -49,7 +45,6 @@
 #include "../util.h"
 #include "../utilstrencodings.h"
 #include "../utiltime.h"
-#include "../sigma.h"
 #ifdef ENABLE_WALLET
 #include "../script/ismine.h"
 #include "../wallet/wallet.h"
@@ -127,11 +122,8 @@ static int reorgRecoveryMode = 0;
 static int reorgRecoveryMaxHeight = 0;
 
 CMPTxList *elysium::p_txlistdb;
-CMPTradeList *elysium::t_tradelistdb;
 CMPSTOList *elysium::s_stolistdb;
 CElysiumTransactionDB *elysium::p_ElysiumTXDB;
-CElysiumFeeCache *elysium::p_feecache;
-CElysiumFeeHistory *elysium::p_feehistory;
 
 // indicate whether persistence is enabled at this point, or not
 // used to write/read files, for breakout mode, debugging, etc.
@@ -157,7 +149,7 @@ std::string elysium::strMPProperty(uint32_t propertyId)
         str = strprintf("Test token: %d : 0x%08X", 0x7FFFFFFF & propertyId, propertyId);
     } else {
         switch (propertyId) {
-            case ELYSIUM_PROPERTY_XZC: str = "FIRO";
+            case ELYSIUM_PROPERTY_FIRO: str = "FIRO";
                 break;
             case ELYSIUM_PROPERTY_ELYSIUM: str = "ELYSIUM";
                 break;
@@ -238,11 +230,7 @@ std::string FormatByType(int64_t amount, uint16_t propertyType)
     }
 }
 
-OfferMap elysium::my_offers;
-AcceptMap elysium::my_accepts;
-
 CMPSPInfo *elysium::_my_sps;
-CrowdMap elysium::my_crowds;
 
 // this is the master list of all amounts for all addresses for all properties, map is unsorted
 std::unordered_map<std::string, CMPTally> elysium::mp_tally_map;
@@ -261,10 +249,6 @@ int64_t getMPbalance(const std::string& address, uint32_t propertyId, TallyType 
 {
     int64_t balance = 0;
     if (TALLY_TYPE_COUNT <= ttype) {
-        return 0;
-    }
-    if (ttype == ACCEPT_RESERVE && propertyId > ELYSIUM_PROPERTY_TELYSIUM) {
-        // ACCEPT_RESERVE is always empty, except for ELYSIUM and TELYSIUM
         return 0;
     }
 
@@ -309,7 +293,7 @@ bool elysium::isTestEcosystemProperty(uint32_t propertyId)
 
 bool elysium::isMainEcosystemProperty(uint32_t propertyId)
 {
-    if ((ELYSIUM_PROPERTY_XZC != propertyId) && !isTestEcosystemProperty(propertyId)) return true;
+    if ((ELYSIUM_PROPERTY_FIRO != propertyId) && !isTestEcosystemProperty(propertyId)) return true;
 
     return false;
 }
@@ -436,17 +420,14 @@ int64_t elysium::getTotalTokens(uint32_t propertyId, int64_t* n_owners_total)
             const CMPTally& tally = it->second;
 
             totalTokens += tally.getMoney(propertyId, BALANCE);
-            totalTokens += tally.getMoney(propertyId, SELLOFFER_RESERVE);
-            totalTokens += tally.getMoney(propertyId, ACCEPT_RESERVE);
-            totalTokens += tally.getMoney(propertyId, METADEX_RESERVE);
 
             if (prev != totalTokens) {
                 prev = totalTokens;
                 owners++;
             }
         }
-        int64_t cachedFee = p_feecache->GetCachedAmount(propertyId);
-        totalTokens += cachedFee;
+        // int64_t cachedFee = p_feecache->GetCachedAmount(propertyId);
+        // totalTokens += cachedFee;
     }
 
     if (property.fixed) {
@@ -503,69 +484,6 @@ bool elysium::update_tally_map(const std::string& who, uint32_t propertyId, int6
     return bRet;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-// some old TODOs
-//  6) verify large-number calculations (especially divisions & multiplications)
-//  9) build in consesus checks with the masterchain.info & masterchest.info -- possibly run them automatically, daily (?)
-// 10) need a locking mechanism between Core & Qt -- to retrieve the tally, for instance, this and similar to this: LOCK(wallet->cs_wallet);
-//
-
-/**
- * Calculates and updates the "development mastercoins".
- *
- * For every 10 ELYSIUM sold during the Elysium period, 1 additional "Dev ELYSIUM" was generated,
- * which are being awarded to the Elysium address slowly over the years.
- *
- * @see The "Dev ELYSIUM" specification:
- * https://github.com/ElysiumLayer/spec#development-mastercoins-dev-elysium-previously-reward-mastercoins
- *
- * Note:
- * If timestamps are out of order, then previously vested "Dev ELYSIUM" are not voided.
- *
- * @param nTime  The timestamp of the block to update the "Dev ELYSIUM" for
- * @return The number of "Dev ELYSIUM" generated
- */
-static int64_t calculate_and_update_develysium(unsigned int nTime, int block)
-{
-    // do nothing if before end of fundraiser
-    if (nTime < 1377993874) return 0;
-
-    // taken mainly from elysium_validate.py: def get_available_reward(height, c)
-    int64_t develysium = 0;
-    int64_t elysium_delta = 0;
-    // spec constants:
-    const int64_t all_reward = 5631623576222;
-    const double seconds_in_one_year = 31556926;
-    const double seconds_passed = nTime - 1377993874; // elysium bootstrap deadline
-    const double years = seconds_passed / seconds_in_one_year;
-    const double part_available = 1 - pow(0.5, years);
-    const double available_reward = all_reward * part_available;
-
-    develysium = rounduint64(available_reward);
-    elysium_delta = develysium - elysium_prev;
-
-    if (elysium_debug_ely) PrintToLog("develysium=%d, elysium_prev=%d, elysium_delta=%d\n", develysium, elysium_prev, elysium_delta);
-
-    // skip if a block's timestamp is older than that of a previous one!
-    if (0 > elysium_delta) return 0;
-
-    // sanity check that develysium isn't an impossible value
-    if (develysium > all_reward || 0 > develysium) {
-        PrintToLog("%s(): ERROR: insane number of Dev ELYSIUM (nTime=%d, elysium_prev=%d, develysium=%d)\n", __func__, nTime, elysium_prev, develysium);
-        return 0;
-    }
-
-    if (elysium_delta > 0) {
-        update_tally_map(GetSystemAddress().ToString(), ELYSIUM_PROPERTY_ELYSIUM, elysium_delta, BALANCE);
-        elysium_prev = develysium;
-    }
-
-    NotifyTotalTokensChanged(ELYSIUM_PROPERTY_ELYSIUM, block);
-
-    return elysium_delta;
-}
-
 uint32_t elysium::GetNextPropertyId(bool maineco)
 {
     if (maineco) {
@@ -573,13 +491,6 @@ uint32_t elysium::GetNextPropertyId(bool maineco)
     } else {
         return _my_sps->peekNextSPID(2);
     }
-}
-
-// Perform any actions that need to be taken when the total number of tokens for a property ID changes
-void NotifyTotalTokensChanged(uint32_t propertyId, int block)
-{
-    p_feecache->UpdateDistributionThresholds(propertyId);
-    p_feecache->EvalCache(propertyId, block);
 }
 
 void CheckWalletUpdate(bool forceUpdate)
@@ -614,9 +525,6 @@ void CheckWalletUpdate(bool forceUpdate)
             if (addressIsMine != ISMINE_SPENDABLE) continue;
             // work out the balances and add to globals
             global_balance_money[propertyId] += getUserAvailableMPbalance(address, propertyId);
-            global_balance_reserved[propertyId] += getMPbalance(address, propertyId, SELLOFFER_RESERVE);
-            global_balance_reserved[propertyId] += getMPbalance(address, propertyId, METADEX_RESERVE);
-            global_balance_reserved[propertyId] += getMPbalance(address, propertyId, ACCEPT_RESERVE);
         }
     }
     // signal an Elysium balance change
@@ -655,10 +563,6 @@ static bool FillTxInputCache(const CTransaction& tx)
     for (std::vector<CTxIn>::const_iterator it = tx.vin.begin(); it != tx.vin.end(); ++it) {
         const CTxIn& txIn = *it;
 
-        if (it->scriptSig.IsSigmaSpend()) {
-            continue;
-        }
-
         if (it->scriptSig.IsLelantusJoinSplit()) {
             continue;
         }
@@ -696,10 +600,8 @@ static bool FillTxInputCache(const CTransaction& tx)
 static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, unsigned int idx, CMPTransaction& mp_tx, unsigned int nTime)
 {
     InputMode inputMode = InputMode::NORMAL;
-    if (wtx.IsSigmaSpend()) {
-        inputMode = InputMode::SIGMA;
-    }
-    if (wtx.IsLelantusJoinSplit()) {
+
+	if (wtx.IsLelantusJoinSplit()) {
         inputMode = InputMode::LELANTUS;
     }
 
@@ -777,7 +679,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
             return -5;
         }
     }
-    else if (inputMode != InputMode::SIGMA && inputMode != InputMode::LELANTUS)
+    else if (inputMode != InputMode::LELANTUS)
     {
         // NEW LOGIC - the sender is chosen based on the first vin
 
@@ -806,9 +708,6 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
     }
 
     switch (inputMode) {
-    case InputMode::SIGMA:
-        inAll = sigma::GetSpendAmount(wtx);
-        break;
     case InputMode::LELANTUS:
         inAll = lelantus::GetSpendTransparentAmount(wtx);
     case InputMode::NORMAL:
@@ -849,7 +748,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
     }
     if (elysium_debug_parser_data) PrintToLog(" address_data.size=%lu\n value_data.size=%lu\n", address_data.size(), value_data.size());
 
-    // ### CLASS B / CLASS C PARSING ###
+    // ### CLASS C PARSING ###
     if (elysium_debug_parser_data) PrintToLog("Beginning reference identification\n");
 
     bool changeRemoved = false; // bool to hold whether we've ignored the first output to sender as change
@@ -885,96 +784,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         }
     }
 
-    if (*elysiumClass == PacketClass::B) {
-        // ### CLASS B SPECIFC PARSING ###
-        std::vector<std::vector<unsigned char>> multisig_script_data;
-
-        // ### POPULATE MULTISIG SCRIPT DATA ###
-        for (unsigned int i = 0; i < wtx.vout.size(); ++i) {
-            txnouttype whichType;
-            std::vector<CTxDestination> vDest;
-            int nRequired;
-            if (elysium_debug_script) PrintToLog("scriptPubKey: %s\n", HexStr(wtx.vout[i].scriptPubKey));
-            if (!ExtractDestinations(wtx.vout[i].scriptPubKey, whichType, vDest, nRequired)) {
-                continue;
-            }
-            if (whichType == TX_MULTISIG) {
-                if (elysium_debug_script) {
-                    PrintToLog(" >> multisig: ");
-                    BOOST_FOREACH(const CTxDestination& dest, vDest) {
-                        PrintToLog("%s ; ", CBitcoinAddress(dest).ToString());
-                    }
-                    PrintToLog("\n");
-                }
-                // ignore first public key, as it should belong to the sender
-                // and it be used to avoid the creation of unspendable dust
-                std::vector<std::vector<unsigned char>> pushes;
-
-                GetPushedValues(wtx.vout[i].scriptPubKey, std::back_inserter(pushes));
-
-                for (auto it = pushes.begin() + 1; it < pushes.end(); it++) {
-                    multisig_script_data.push_back(std::move(*it));
-                }
-            }
-        }
-
-        // The number of packets is limited to MAX_PACKETS,
-        // which allows, at least in theory, to add 1 byte
-        // sequence numbers to each packet.
-
-        // Transactions with more than MAX_PACKET packets
-        // are not invalidated, but trimmed.
-
-        unsigned int nPackets = multisig_script_data.size();
-        if (nPackets > CLASS_B_MAX_CHUNKS) {
-            nPackets = CLASS_B_MAX_CHUNKS;
-            PrintToLog("limiting number of packets to %d [extracted=%d]\n", nPackets, multisig_script_data.size());
-        }
-
-        // ### PREPARE A FEW VARS ###
-        PacketKeyGenerator keyGenerator(sender->ToString());
-        unsigned char packets[CLASS_B_MAX_CHUNKS][32];
-        unsigned int mdata_count = 0;  // multisig data count
-
-        // ### DEOBFUSCATE MULTISIG PACKETS ###
-        for (unsigned int k = 0; k < nPackets; ++k) {
-            assert(mdata_count < CLASS_B_MAX_CHUNKS);
-
-            auto hash = keyGenerator.Next();
-            std::array<unsigned char, CLASS_B_CHUNK_SIZE> packet;
-
-            std::copy_n(multisig_script_data[k].begin() + 1, CLASS_B_CHUNK_SIZE, packet.begin());
-
-            for (unsigned int i = 0; i < packet.size(); i++) { // this is a data packet, must deobfuscate now
-                packet[i] ^= hash[i];
-            }
-            memcpy(&packets[mdata_count], packet.data(), CLASS_B_CHUNK_SIZE);
-            ++mdata_count;
-
-            if (elysium_debug_parser_data) {
-                CPubKey key(multisig_script_data[k]);
-                CKeyID keyID = key.GetID();
-                std::string strAddress = CBitcoinAddress(keyID).ToString();
-                PrintToLog("multisig_data[%d]:%s: %s\n", k, HexStr(multisig_script_data[k]), strAddress);
-            }
-            if (elysium_debug_parser) {
-                std::string strPacket = HexStr(packet.begin(), packet.end());
-                PrintToLog("packet #%d: %s\n", mdata_count, strPacket);
-            }
-        }
-
-        // ### FINALIZE CLASS B ###
-        for (unsigned int m = 0; m < mdata_count; ++m) { // now decode mastercoin packets
-            if (elysium_debug_parser) PrintToLog("m=%d: %s\n", m, HexStr(packets[m], packets[m] + CLASS_B_CHUNK_SIZE, false));
-
-            // check to ensure the sequence numbers are sequential and begin with 01 !
-            if (1 + m != packets[m][0]) {
-                if (elysium_debug_spec) PrintToLog("Error: non-sequential seqnum ! expected=%d, got=%d\n", 1+m, packets[m][0]);
-            }
-
-            payload.insert(payload.end(), packets[m] + 1, packets[m] + CLASS_B_CHUNK_SIZE);
-        }
-    } else if (*elysiumClass == PacketClass::C) {
+    if (*elysiumClass == PacketClass::C) {
         // ### CLASS C SPECIFIC PARSING ###
         std::vector<std::vector<unsigned char>> op_return_script_data;
 
@@ -1017,17 +827,8 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
                 auto& vch = op_return_script_data[n];
                 unsigned int payload_size = vch.size();
 
-                // Actually CLASS_B_MAX_CHUNKS * CLASS_B_CHUNK_SIZE is not right but we can't fix it due to
-                // it break consensus.
-                if (payload.size() + payload_size > CLASS_B_MAX_CHUNKS * CLASS_B_CHUNK_SIZE) {
-                    payload_size = CLASS_B_MAX_CHUNKS * CLASS_B_CHUNK_SIZE - payload.size();
-                    PrintToLog("limiting payload size to %d byte\n", payload.size() + payload_size);
-                }
                 if (payload_size > 0) {
                     payload.insert(payload.end(), vch.begin(), vch.begin() + payload_size);
-                }
-                if (CLASS_B_MAX_CHUNKS * CLASS_B_CHUNK_SIZE == payload.size()) {
-                    break;
                 }
             }
         }
@@ -1255,85 +1056,11 @@ int input_elysium_balances_string(const std::string& s)
         uint32_t propertyId = boost::lexical_cast<uint32_t>(curProperty[0]);
 
         int64_t balance = boost::lexical_cast<int64_t>(curBalance[0]);
-        int64_t sellReserved = boost::lexical_cast<int64_t>(curBalance[1]);
-        int64_t acceptReserved = boost::lexical_cast<int64_t>(curBalance[2]);
-        int64_t metadexReserved = boost::lexical_cast<int64_t>(curBalance[3]);
 
         if (balance) update_tally_map(strAddress, propertyId, balance, BALANCE);
-        if (sellReserved) update_tally_map(strAddress, propertyId, sellReserved, SELLOFFER_RESERVE);
-        if (acceptReserved) update_tally_map(strAddress, propertyId, acceptReserved, ACCEPT_RESERVE);
-        if (metadexReserved) update_tally_map(strAddress, propertyId, metadexReserved, METADEX_RESERVE);
     }
 
     return 0;
-}
-
-// seller-address, offer_block, amount, property, desired BTC , property_desired, fee, blocktimelimit
-// 13z1JFtDMGTYQvtMq5gs4LmCztK3rmEZga,299076,76375000,1,6415500,0,10000,6
-int input_mp_offers_string(const std::string& s)
-{
-    std::vector<std::string> vstr;
-    boost::split(vstr, s, boost::is_any_of(" ,="), boost::token_compress_on);
-
-    if (9 != vstr.size()) return -1;
-
-    int i = 0;
-
-    std::string sellerAddr = vstr[i++];
-    int offerBlock = boost::lexical_cast<int>(vstr[i++]);
-    int64_t amountOriginal = boost::lexical_cast<int64_t>(vstr[i++]);
-    uint32_t prop = boost::lexical_cast<uint32_t>(vstr[i++]);
-    int64_t btcDesired = boost::lexical_cast<int64_t>(vstr[i++]);
-    uint32_t prop_desired = boost::lexical_cast<uint32_t>(vstr[i++]);
-    int64_t minFee = boost::lexical_cast<int64_t>(vstr[i++]);
-    uint8_t blocktimelimit = boost::lexical_cast<unsigned int>(vstr[i++]); // lexical_cast can't handle char!
-    uint256 txid = uint256S(vstr[i++]);
-
-    // TODO: should this be here? There are usually no sanity checks..
-    if (ELYSIUM_PROPERTY_XZC != prop_desired) return -1;
-
-    const std::string combo = STR_SELLOFFER_ADDR_PROP_COMBO(sellerAddr, prop);
-    CMPOffer newOffer(offerBlock, amountOriginal, prop, btcDesired, minFee, blocktimelimit, txid);
-
-    if (!my_offers.insert(std::make_pair(combo, newOffer)).second) return -1;
-
-    return 0;
-}
-
-// seller-address, property, buyer-address, amount, fee, block
-// 13z1JFtDMGTYQvtMq5gs4LmCztK3rmEZga,1, 148EFCFXbk2LrUhEHDfs9y3A5dJ4tttKVd,100000,11000,299126
-// 13z1JFtDMGTYQvtMq5gs4LmCztK3rmEZga,1,1Md8GwMtWpiobRnjRabMT98EW6Jh4rEUNy,50000000,11000,299132
-int input_mp_accepts_string(const string &s)
-{
-  int nBlock;
-  unsigned char blocktimelimit;
-  std::vector<std::string> vstr;
-  boost::split(vstr, s, boost::is_any_of(" ,="), token_compress_on);
-  uint64_t amountRemaining, amountOriginal, offerOriginal, btcDesired;
-  unsigned int prop;
-  string sellerAddr, buyerAddr, txidStr;
-  int i = 0;
-
-  if (10 != vstr.size()) return -1;
-
-  sellerAddr = vstr[i++];
-  prop = boost::lexical_cast<unsigned int>(vstr[i++]);
-  buyerAddr = vstr[i++];
-  nBlock = atoi(vstr[i++]);
-  amountRemaining = boost::lexical_cast<uint64_t>(vstr[i++]);
-  amountOriginal = boost::lexical_cast<uint64_t>(vstr[i++]);
-  blocktimelimit = atoi(vstr[i++]);
-  offerOriginal = boost::lexical_cast<uint64_t>(vstr[i++]);
-  btcDesired = boost::lexical_cast<uint64_t>(vstr[i++]);
-  txidStr = vstr[i++];
-
-  const string combo = STR_ACCEPT_ADDR_PROP_ADDR_COMBO(sellerAddr, buyerAddr, prop);
-  CMPAccept newAccept(amountOriginal, amountRemaining, nBlock, blocktimelimit, prop, offerOriginal, btcDesired, uint256S(txidStr));
-  if (my_accepts.insert(std::make_pair(combo, newAccept)).second) {
-    return 0;
-  } else {
-    return -1;
-  }
 }
 
 // elysium_prev
@@ -1355,82 +1082,6 @@ int input_globals_state_string(const string &s)
   return 0;
 }
 
-// addr,propertyId,nValue,property_desired,deadline,early_bird,percentage,txid
-int input_mp_crowdsale_string(const std::string& s)
-{
-    std::vector<std::string> vstr;
-    boost::split(vstr, s, boost::is_any_of(" ,"), boost::token_compress_on);
-
-    if (9 > vstr.size()) return -1;
-
-    unsigned int i = 0;
-
-    std::string sellerAddr = vstr[i++];
-    uint32_t propertyId = boost::lexical_cast<uint32_t>(vstr[i++]);
-    int64_t nValue = boost::lexical_cast<int64_t>(vstr[i++]);
-    uint32_t property_desired = boost::lexical_cast<uint32_t>(vstr[i++]);
-    int64_t deadline = boost::lexical_cast<int64_t>(vstr[i++]);
-    uint8_t early_bird = boost::lexical_cast<unsigned int>(vstr[i++]); // lexical_cast can't handle char!
-    uint8_t percentage = boost::lexical_cast<unsigned int>(vstr[i++]); // lexical_cast can't handle char!
-    int64_t u_created = boost::lexical_cast<int64_t>(vstr[i++]);
-    int64_t i_created = boost::lexical_cast<int64_t>(vstr[i++]);
-
-    CMPCrowd newCrowdsale(propertyId, nValue, property_desired, deadline, early_bird, percentage, u_created, i_created);
-
-    // load the remaining as database pairs
-    while (i < vstr.size()) {
-        std::vector<std::string> entryData;
-        boost::split(entryData, vstr[i++], boost::is_any_of("="), boost::token_compress_on);
-        if (2 != entryData.size()) return -1;
-
-        std::vector<std::string> valueData;
-        boost::split(valueData, entryData[1], boost::is_any_of(";"), boost::token_compress_on);
-
-        std::vector<int64_t> vals;
-        for (std::vector<std::string>::const_iterator it = valueData.begin(); it != valueData.end(); ++it) {
-            vals.push_back(boost::lexical_cast<int64_t>(*it));
-        }
-
-        uint256 txHash = uint256S(entryData[0]);
-        newCrowdsale.insertDatabase(txHash, vals);
-    }
-
-    if (!my_crowds.insert(std::make_pair(sellerAddr, newCrowdsale)).second) {
-        return -1;
-    }
-
-    return 0;
-}
-
-// address, block, amount for sale, property, amount desired, property desired, subaction, idx, txid, amount remaining
-int input_mp_mdexorder_string(const std::string& s)
-{
-    std::vector<std::string> vstr;
-    boost::split(vstr, s, boost::is_any_of(" ,="), boost::token_compress_on);
-
-    if (10 != vstr.size()) return -1;
-
-    int i = 0;
-
-    std::string addr = vstr[i++];
-    int block = boost::lexical_cast<int>(vstr[i++]);
-    int64_t amount_forsale = boost::lexical_cast<int64_t>(vstr[i++]);
-    uint32_t property = boost::lexical_cast<uint32_t>(vstr[i++]);
-    int64_t amount_desired = boost::lexical_cast<int64_t>(vstr[i++]);
-    uint32_t desired_property = boost::lexical_cast<uint32_t>(vstr[i++]);
-    uint8_t subaction = boost::lexical_cast<unsigned int>(vstr[i++]); // lexical_cast can't handle char!
-    unsigned int idx = boost::lexical_cast<unsigned int>(vstr[i++]);
-    uint256 txid = uint256S(vstr[i++]);
-    int64_t amount_remaining = boost::lexical_cast<int64_t>(vstr[i++]);
-
-    CMPMetaDEx mdexObj(addr, block, property, amount_forsale, desired_property,
-            amount_desired, txid, idx, subaction, amount_remaining);
-
-    if (!MetaDEx_INSERT(mdexObj)) return -1;
-
-    return 0;
-}
-
 static int elysium_file_load(const string &filename, int what, bool verifyHash = false)
 {
   int lines = 0;
@@ -1446,32 +1097,8 @@ static int elysium_file_load(const string &filename, int what, bool verifyHash =
       inputLineFunc = input_elysium_balances_string;
       break;
 
-    case FILETYPE_OFFERS:
-      my_offers.clear();
-      inputLineFunc = input_mp_offers_string;
-      break;
-
-    case FILETYPE_ACCEPTS:
-      my_accepts.clear();
-      inputLineFunc = input_mp_accepts_string;
-      break;
-
-    case FILETYPE_GLOBALS:
+   case FILETYPE_GLOBALS:
       inputLineFunc = input_globals_state_string;
-      break;
-
-    case FILETYPE_CROWDSALES:
-      my_crowds.clear();
-      inputLineFunc = input_mp_crowdsale_string;
-      break;
-
-    case FILETYPE_MDEXORDERS:
-      // FIXME
-      // memory leak ... gotta unallocate inner layers first....
-      // TODO
-      // ...
-      metadex.clear();
-      inputLineFunc = input_mp_mdexorder_string;
       break;
 
     default:
@@ -1548,11 +1175,7 @@ static int elysium_file_load(const string &filename, int what, bool verifyHash =
 
 static char const * const statePrefix[NUM_FILETYPES] = {
     "balances",
-    "offers",
-    "accepts",
     "globals",
-    "crowdsales",
-    "mdexorders",
 };
 
 // returns the height of the state loaded
@@ -1676,24 +1299,18 @@ static int write_elysium_balances(std::ofstream& file, SHA256_CTX* shaCtx)
         uint32_t propertyId = 0;
         while (0 != (propertyId = curAddr.next())) {
             int64_t balance = (*iter).second.getMoney(propertyId, BALANCE);
-            int64_t sellReserved = (*iter).second.getMoney(propertyId, SELLOFFER_RESERVE);
-            int64_t acceptReserved = (*iter).second.getMoney(propertyId, ACCEPT_RESERVE);
-            int64_t metadexReserved = (*iter).second.getMoney(propertyId, METADEX_RESERVE);
 
             // we don't allow 0 balances to read in, so if we don't write them
             // it makes things match up better between persisted state and processed state
-            if (0 == balance && 0 == sellReserved && 0 == acceptReserved && 0 == metadexReserved) {
+            if (0 == balance) {
                 continue;
             }
 
             emptyWallet = false;
 
-            lineOut.append(strprintf("%d:%d,%d,%d,%d;",
+            lineOut.append(strprintf("%d:%d;",
                     propertyId,
-                    balance,
-                    sellReserved,
-                    acceptReserved,
-                    metadexReserved));
+                    balance));
         }
 
         if (false == emptyWallet) {
@@ -1706,54 +1323,6 @@ static int write_elysium_balances(std::ofstream& file, SHA256_CTX* shaCtx)
     }
 
     return 0;
-}
-
-static int write_mp_offers(ofstream &file, SHA256_CTX *shaCtx)
-{
-  OfferMap::const_iterator iter;
-  for (iter = my_offers.begin(); iter != my_offers.end(); ++iter) {
-    // decompose the key for address
-    std::vector<std::string> vstr;
-    boost::split(vstr, (*iter).first, boost::is_any_of("-"), token_compress_on);
-    CMPOffer const &offer = (*iter).second;
-    offer.saveOffer(file, shaCtx, vstr[0]);
-  }
-
-
-  return 0;
-}
-
-static int write_mp_metadex(ofstream &file, SHA256_CTX *shaCtx)
-{
-  for (md_PropertiesMap::iterator my_it = metadex.begin(); my_it != metadex.end(); ++my_it)
-  {
-    md_PricesMap & prices = my_it->second;
-    for (md_PricesMap::iterator it = prices.begin(); it != prices.end(); ++it)
-    {
-      md_Set & indexes = (it->second);
-      for (md_Set::iterator it = indexes.begin(); it != indexes.end(); ++it)
-      {
-        CMPMetaDEx meta = *it;
-        meta.saveOffer(file, shaCtx);
-      }
-    }
-  }
-
-  return 0;
-}
-
-static int write_mp_accepts(ofstream &file, SHA256_CTX *shaCtx)
-{
-  AcceptMap::const_iterator iter;
-  for (iter = my_accepts.begin(); iter != my_accepts.end(); ++iter) {
-    // decompose the key for address
-    std::vector<std::string> vstr;
-    boost::split(vstr, (*iter).first, boost::is_any_of("-+"), token_compress_on);
-    CMPAccept const &accept = (*iter).second;
-    accept.saveAccept(file, shaCtx, vstr[0], vstr[1]);
-  }
-
-  return 0;
 }
 
 static int write_globals_state(ofstream &file, SHA256_CTX *shaCtx)
@@ -1774,17 +1343,6 @@ static int write_globals_state(ofstream &file, SHA256_CTX *shaCtx)
   return 0;
 }
 
-static int write_mp_crowdsales(std::ofstream& file, SHA256_CTX* shaCtx)
-{
-    for (CrowdMap::const_iterator it = my_crowds.begin(); it != my_crowds.end(); ++it) {
-        // decompose the key for address
-        const CMPCrowd& crowd = it->second;
-        crowd.saveCrowdSale(file, shaCtx, it->first);
-    }
-
-    return 0;
-}
-
 static int write_state_file( CBlockIndex const *pBlockIndex, int what )
 {
   boost::filesystem::path path = MPPersistencePath / strprintf("%s-%s.dat", statePrefix[what], pBlockIndex->GetBlockHash().ToString());
@@ -1803,25 +1361,10 @@ static int write_state_file( CBlockIndex const *pBlockIndex, int what )
     result = write_elysium_balances(file, &shaCtx);
     break;
 
-  case FILETYPE_OFFERS:
-    result = write_mp_offers(file, &shaCtx);
-    break;
-
-  case FILETYPE_ACCEPTS:
-    result = write_mp_accepts(file, &shaCtx);
-    break;
-
   case FILETYPE_GLOBALS:
     result = write_globals_state(file, &shaCtx);
     break;
 
-  case FILETYPE_CROWDSALES:
-      result = write_mp_crowdsales(file, &shaCtx);
-      break;
-
-  case FILETYPE_MDEXORDERS:
-      result = write_mp_metadex(file, &shaCtx);
-      break;
   }
 
   // generate and wite the double hash of all the contents written
@@ -1906,11 +1449,7 @@ int elysium_save_state( CBlockIndex const *pBlockIndex )
 {
     // write the new state as of the given block
     write_state_file(pBlockIndex, FILETYPE_BALANCES);
-    write_state_file(pBlockIndex, FILETYPE_OFFERS);
-    write_state_file(pBlockIndex, FILETYPE_ACCEPTS);
     write_state_file(pBlockIndex, FILETYPE_GLOBALS);
-    write_state_file(pBlockIndex, FILETYPE_CROWDSALES);
-    write_state_file(pBlockIndex, FILETYPE_MDEXORDERS);
 
     // clean-up the directory
     prune_state_files(pBlockIndex);
@@ -1929,10 +1468,6 @@ void clear_all_state()
 
     // Memory based storage
     mp_tally_map.clear();
-    my_offers.clear();
-    my_accepts.clear();
-    my_crowds.clear();
-    metadex.clear();
     my_pending.clear();
     ResetConsensusParams();
     ClearActivations();
@@ -1942,12 +1477,9 @@ void clear_all_state()
     // LevelDB based storage
     _my_sps->Clear();
     p_txlistdb->Clear();
-    sigmaDb->Clear();
+	lelantusDb->Clear();
     s_stolistdb->Clear();
-    t_tradelistdb->Clear();
     p_ElysiumTXDB->Clear();
-    p_feecache->Clear();
-    p_feehistory->Clear();
     assert(p_txlistdb->setDBVersion() == DB_VERSION); // new set of databases, set DB version
     elysium_prev = 0;
 
@@ -1993,20 +1525,16 @@ int elysium_init()
         try {
             boost::filesystem::path persistPath = GetDataDir() / "MP_persist";
             boost::filesystem::path txlistPath = GetDataDir() / "MP_txlist";
-            boost::filesystem::path tradePath = GetDataDir() / "MP_tradelist";
+			boost::filesystem::path lelantusPath = GetDataDir() / "MP_lelantus";
             boost::filesystem::path spPath = GetDataDir() / "MP_spinfo";
             boost::filesystem::path stoPath = GetDataDir() / "MP_stolist";
             boost::filesystem::path elysiumTXDBPath = GetDataDir() / "Exodus_TXDB";
-            boost::filesystem::path feesPath = GetDataDir() / "EXODUS_feecache";
-            boost::filesystem::path feeHistoryPath = GetDataDir() / "EXODUS_feehistory";
             if (boost::filesystem::exists(persistPath)) boost::filesystem::remove_all(persistPath);
             if (boost::filesystem::exists(txlistPath)) boost::filesystem::remove_all(txlistPath);
-            if (boost::filesystem::exists(tradePath)) boost::filesystem::remove_all(tradePath);
+			if (boost::filesystem::exists(lelantusPath)) boost::filesystem::remove_all(lelantusPath);
             if (boost::filesystem::exists(spPath)) boost::filesystem::remove_all(spPath);
             if (boost::filesystem::exists(stoPath)) boost::filesystem::remove_all(stoPath);
             if (boost::filesystem::exists(elysiumTXDBPath)) boost::filesystem::remove_all(elysiumTXDBPath);
-            if (boost::filesystem::exists(feesPath)) boost::filesystem::remove_all(feesPath);
-            if (boost::filesystem::exists(feeHistoryPath)) boost::filesystem::remove_all(feeHistoryPath);
             PrintToLog("Success clearing persistence files in datadir %s\n", GetDataDir().string());
             startClean = true;
         } catch (const boost::filesystem::filesystem_error& e) {
@@ -2014,15 +1542,11 @@ int elysium_init()
         }
     }
 
-    t_tradelistdb = new CMPTradeList(GetDataDir() / "MP_tradelist", fReindex);
     s_stolistdb = new CMPSTOList(GetDataDir() / "MP_stolist", fReindex);
     p_txlistdb = new CMPTxList(GetDataDir() / "MP_txlist", fReindex);
-    sigmaDb = new SigmaDatabase(GetDataDir() / "MP_sigma", fReindex);
     lelantusDb = new LelantusDb(GetDataDir() / "MP_lelantus", fReindex);
     _my_sps = new CMPSPInfo(GetDataDir() / "MP_spinfo", fReindex);
     p_ElysiumTXDB = new CElysiumTransactionDB(GetDataDir() / "Exodus_TXDB", fReindex);
-    p_feecache = new CElysiumFeeCache(GetDataDir() / "EXODUS_feecache", fReindex);
-    p_feehistory = new CElysiumFeeHistory(GetDataDir() / "EXODUS_feehistory", fReindex);
 
     MPPersistencePath = GetDataDir() / "MP_persist";
     TryCreateDirectory(MPPersistencePath);
@@ -2130,14 +1654,11 @@ int elysium_shutdown()
     delete wallet; wallet = nullptr;
 #endif
     delete txProcessor; txProcessor = nullptr;
-    delete sigmaDb; sigmaDb = nullptr;
+	delete lelantusDb; lelantusDb = nullptr;
     delete p_txlistdb; p_txlistdb = nullptr;
-    delete t_tradelistdb; t_tradelistdb = nullptr;
     delete s_stolistdb; s_stolistdb = nullptr;
     delete _my_sps; _my_sps = nullptr;
     delete p_ElysiumTXDB; p_ElysiumTXDB = nullptr;
-    delete p_feecache; p_feecache = nullptr;
-    delete p_feehistory; p_feehistory = nullptr;
 
     elysiumInitialized = 0;
 
@@ -2150,7 +1671,7 @@ int elysium_shutdown()
 /**
  * This handler is called for every new transaction that comes in (actually in block parsing loop).
  *
- * @return True, if the transaction was an Elysium purchase, DEx payment or a valid Elysium transaction
+ * @return True, if the transaction was a valid Elysium transaction
  */
 bool elysium_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, const CBlockIndex* pBlockIndex)
 {
@@ -2208,7 +1729,7 @@ bool elysium_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, co
  */
 bool elysium::UseEncodingClassC(size_t nDataSize)
 {
-    size_t nTotalSize = nDataSize + magic.size(); // Marker "exodus"
+    size_t nTotalSize = nDataSize + magic.size(); // Marker "elysium"
     bool fDataEnabled = GetBoolArg("-datacarrier", true);
     int nBlockNow = GetHeight();
     if (!IsAllowedOutputType(TX_NULL_DATA, nBlockNow)) {
@@ -2253,8 +1774,6 @@ int elysium::WalletTxBuilder(
         switch (inputMode) {
         case InputMode::NORMAL:
             return MP_INPUTS_INVALID;
-        case InputMode::SIGMA:
-            return MP_SIGMA_INPUTS_INVALID;
         case InputMode::LELANTUS:
             return MP_LELANTUS_INPUTS_INVALID;
         }
@@ -2279,12 +1798,8 @@ int elysium::WalletTxBuilder(
             return MP_REDEMP_BAD_VALIDATION;
         }
 
-        try {
-            EncodeClassB(senderAddress, redeemingPubKey, data.begin(), data.end(), std::back_inserter(vecSend));
-        } catch (std::exception &e) {
-            PrintToLog("Fail to encode packet with class B: %s\n", e.what());
-            return MP_ENCODING_ERROR;
-        }
+        return MP_ENCODING_ERROR;
+        
     }
 
     // Then add a paytopubkeyhash output for the recipient (if needed) - note we do this last as we want this to be the highest vout
@@ -2304,9 +1819,6 @@ int elysium::WalletTxBuilder(
         vecRecipients.push_back(recipient);
     }
 
-    std::vector<CSigmaEntry> sigmaSelected;
-    std::vector<CHDMint> sigmaChanges;
-
     std::vector<CLelantusEntry> lelantusSpendCoins;
     std::vector<CHDMint> lelantusMintCoins;
 
@@ -2318,16 +1830,6 @@ int elysium::WalletTxBuilder(
         if (!pwalletMain->CreateTransaction(vecRecipients, wtxNew, reserveKey, nFeeRet, nChangePosInOut, strFailReason, &coinControl)) {
             PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, strFailReason);
             return MP_ERR_CREATE_TX;
-        }
-        break;
-    case InputMode::SIGMA:
-        try {
-            bool changeAddedToFee;
-            wtxNew = pwalletMain->CreateSigmaSpendTransaction(
-                vecRecipients, fee, sigmaSelected, sigmaChanges, changeAddedToFee, &coinControl);
-        } catch (std::exception const &err) {
-            PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, err.what());
-            return MP_ERR_CREATE_SIGMA_TX;
         }
         break;
     case InputMode::LELANTUS:
@@ -2356,13 +1858,6 @@ int elysium::WalletTxBuilder(
             {
                 CValidationState state;
                 if (!pwalletMain->CommitTransaction(wtxNew, reserveKey, g_connman.get(), state)) return MP_ERR_COMMIT_TX;
-            }
-            break;
-        case InputMode::SIGMA:
-            try {
-                if (!pwalletMain->CommitSigmaTransaction(wtxNew, sigmaSelected, sigmaChanges)) return MP_ERR_COMMIT_TX;
-            } catch (...) {
-                return MP_ERR_COMMIT_TX;
             }
             break;
         case InputMode::LELANTUS:
@@ -2494,7 +1989,6 @@ bool CMPTxList::LoadFreezeState(int blockHeight)
 {
     assert(pdb);
     std::vector<std::pair<std::string, uint256> > loadOrder;
-    int txnsLoaded = 0;
     Iterator* it = NewIterator();
     PrintToLog("Loading freeze state from levelDB\n");
 
@@ -2559,11 +2053,6 @@ bool CMPTxList::LoadFreezeState(int blockHeight)
             return false;
         }
 
-        txnsLoaded++;
-    }
-
-    if (blockHeight > 497000 && !isNonMainNet()) {
-        assert(txnsLoaded >= 2); // sanity check against a failure to properly load the freeze state
     }
 
     return true;
@@ -2704,30 +2193,6 @@ void CMPTxList::LoadAlerts(int blockHeight)
     }
 }
 
-uint256 CMPTxList::findMetaDExCancel(const uint256 txid)
-{
-  std::vector<std::string> vstr;
-  string txidStr = txid.ToString();
-  Slice skey, svalue;
-  uint256 cancelTxid;
-  Iterator* it = NewIterator();
-  for(it->SeekToFirst(); it->Valid(); it->Next())
-  {
-      skey = it->key();
-      svalue = it->value();
-      string svalueStr = svalue.ToString();
-      boost::split(vstr, svalueStr, boost::is_any_of(":"), token_compress_on);
-      // obtain the existing affected tx count
-      if (3 <= vstr.size())
-      {
-          if (vstr[0] == txidStr) { delete it; cancelTxid.SetHex(skey.ToString()); return cancelTxid; }
-      }
-  }
-
-  delete it;
-  return uint256();
-}
-
 /*
  * Gets the DB version from txlistdb
  *
@@ -2761,26 +2226,6 @@ int CMPTxList::setDBVersion()
     if (elysium_debug_txdb) PrintToLog("%s(): dbversion %s status %s, line %d, file: %s\n", __FUNCTION__, verStr, status.ToString(), __LINE__, __FILE__);
 
     return getDBVersion();
-}
-
-int CMPTxList::getNumberOfMetaDExCancels(const uint256 txid)
-{
-    if (!pdb) return 0;
-    int numberOfCancels = 0;
-    std::vector<std::string> vstr;
-    string strValue;
-    Status status = pdb->Get(readoptions, txid.ToString() + "-C", &strValue);
-    if (status.ok())
-    {
-        // parse the string returned
-        boost::split(vstr, strValue, boost::is_any_of(":"), token_compress_on);
-        // obtain the number of cancels
-        if (4 <= vstr.size())
-        {
-            numberOfCancels = atoi(vstr[3]);
-        }
-    }
-    return numberOfCancels;
 }
 
 /**
@@ -2893,58 +2338,6 @@ bool CMPTxList::getPurchaseDetails(const uint256 txid, int purchaseNumber, strin
     return false;
 }
 
-void CMPTxList::recordMetaDExCancelTX(const uint256 &txidMaster, const uint256 &txidSub, bool fValid, int nBlock, unsigned int propertyId, uint64_t nValue)
-{
-  if (!pdb) return;
-
-       // Prep - setup vars
-       unsigned int type = 99992104;
-       unsigned int refNumber = 1;
-       uint64_t existingAffectedTXCount = 0;
-       string txidMasterStr = txidMaster.ToString() + "-C";
-
-       // Step 1 - Check TXList to see if this cancel TXID exists
-       // Step 2a - If doesn't exist leave number of affected txs & ref set to 1
-       // Step 2b - If does exist add +1 to existing ref and set this ref as new number of affected
-       std::vector<std::string> vstr;
-       string strValue;
-       Status status = pdb->Get(readoptions, txidMasterStr, &strValue);
-       if (status.ok())
-       {
-           // parse the string returned
-           boost::split(vstr, strValue, boost::is_any_of(":"), token_compress_on);
-
-           // obtain the existing affected tx count
-           if (4 <= vstr.size())
-           {
-               existingAffectedTXCount = atoi(vstr[3]);
-               refNumber = existingAffectedTXCount + 1;
-           }
-       }
-
-       // Step 3 - Create new/update master record for cancel tx in TXList
-       const string key = txidMasterStr;
-       const string value = strprintf("%u:%d:%u:%lu", fValid ? 1:0, nBlock, type, refNumber);
-       PrintToLog("METADEXCANCELDEBUG : Writing master record %s(%s, valid=%s, block= %d, type= %d, number of affected transactions= %d)\n", __FUNCTION__, txidMaster.ToString(), fValid ? "YES":"NO", nBlock, type, refNumber);
-       if (pdb)
-       {
-           status = pdb->Put(writeoptions, key, value);
-           PrintToLog("METADEXCANCELDEBUG : %s(): %s, line %d, file: %s\n", __FUNCTION__, status.ToString(), __LINE__, __FILE__);
-       }
-
-       // Step 4 - Write sub-record with cancel details
-       const string txidStr = txidMaster.ToString() + "-C";
-       const string subKey = STR_REF_SUBKEY_TXID_REF_COMBO(txidStr, refNumber);
-       const string subValue = strprintf("%s:%d:%lu", txidSub.ToString(), propertyId, nValue);
-       Status subStatus;
-       PrintToLog("METADEXCANCELDEBUG : Writing sub-record %s with value %s\n", subKey, subValue);
-       if (pdb)
-       {
-           subStatus = pdb->Put(writeoptions, subKey, subValue);
-           PrintToLog("METADEXCANCELDEBUG : %s(): %s, line %d, file: %s\n", __FUNCTION__, subStatus.ToString(), __LINE__, __FILE__);
-       }
-}
-
 /**
  * Records a "send all" sub record.
  */
@@ -2956,66 +2349,6 @@ void CMPTxList::recordSendAllSubRecord(const uint256& txid, int subRecordNumber,
     leveldb::Status status = pdb->Put(writeoptions, strKey, strValue);
     ++nWritten;
     if (elysium_debug_txdb) PrintToLog("%s(): store: %s=%s, status: %s\n", __func__, strKey, strValue, status.ToString());
-}
-
-void CMPTxList::recordPaymentTX(const uint256 &txid, bool fValid, int nBlock, unsigned int vout, unsigned int propertyId, uint64_t nValue, string buyer, string seller)
-{
-  if (!pdb) return;
-
-       // Prep - setup vars
-       unsigned int type = 99999999;
-       uint64_t numberOfPayments = 1;
-       unsigned int paymentNumber = 1;
-       uint64_t existingNumberOfPayments = 0;
-
-       // Step 1 - Check TXList to see if this payment TXID exists
-       bool paymentEntryExists = p_txlistdb->exists(txid);
-
-       // Step 2a - If doesn't exist leave number of payments & paymentNumber set to 1
-       // Step 2b - If does exist add +1 to existing number of payments and set this paymentNumber as new numberOfPayments
-       if (paymentEntryExists)
-       {
-           //retrieve old numberOfPayments
-           std::vector<std::string> vstr;
-           string strValue;
-           Status status = pdb->Get(readoptions, txid.ToString(), &strValue);
-           if (status.ok())
-           {
-               // parse the string returned
-               boost::split(vstr, strValue, boost::is_any_of(":"), token_compress_on);
-
-               // obtain the existing number of payments
-               if (4 <= vstr.size())
-               {
-                   existingNumberOfPayments = atoi(vstr[3]);
-                   paymentNumber = existingNumberOfPayments + 1;
-                   numberOfPayments = existingNumberOfPayments + 1;
-               }
-           }
-       }
-
-       // Step 3 - Create new/update master record for payment tx in TXList
-       const string key = txid.ToString();
-       const string value = strprintf("%u:%d:%u:%lu", fValid ? 1:0, nBlock, type, numberOfPayments);
-       Status status;
-       PrintToLog("DEXPAYDEBUG : Writing master record %s(%s, valid=%s, block= %d, type= %d, number of payments= %lu)\n", __FUNCTION__, txid.ToString(), fValid ? "YES":"NO", nBlock, type, numberOfPayments);
-       if (pdb)
-       {
-           status = pdb->Put(writeoptions, key, value);
-           PrintToLog("DEXPAYDEBUG : %s(): %s, line %d, file: %s\n", __FUNCTION__, status.ToString(), __LINE__, __FILE__);
-       }
-
-       // Step 4 - Write sub-record with payment details
-       const string txidStr = txid.ToString();
-       const string subKey = STR_PAYMENT_SUBKEY_TXID_PAYMENT_COMBO(txidStr, paymentNumber);
-       const string subValue = strprintf("%d:%s:%s:%d:%lu", vout, buyer, seller, propertyId, nValue);
-       Status subStatus;
-       PrintToLog("DEXPAYDEBUG : Writing sub-record %s with value %s\n", subKey, subValue);
-       if (pdb)
-       {
-           subStatus = pdb->Put(writeoptions, subKey, subValue);
-           PrintToLog("DEXPAYDEBUG : %s(): %s, line %d, file: %s\n", __FUNCTION__, subStatus.ToString(), __LINE__, __FILE__);
-       }
 }
 
 void CMPTxList::recordTX(const uint256 &txid, bool fValid, int nBlock, unsigned int type, uint64_t nValue)
@@ -3374,308 +2707,6 @@ int CMPSTOList::deleteAboveBlock(int blockNum)
   return (n_found);
 }
 
-// MPTradeList here
-bool CMPTradeList::getMatchingTrades(const uint256& txid, uint32_t propertyId, UniValue& tradeArray, int64_t& totalSold, int64_t& totalReceived)
-{
-  if (!pdb) return false;
-
-  int count = 0;
-  totalReceived = 0;
-  totalSold = 0;
-
-  std::vector<std::string> vstr;
-  string txidStr = txid.ToString();
-  leveldb::Iterator* it = NewIterator();
-  for(it->SeekToFirst(); it->Valid(); it->Next()) {
-      // search key to see if this is a matching trade
-      std::string strKey = it->key().ToString();
-      std::string strValue = it->value().ToString();
-      std::string matchTxid;
-      size_t txidMatch = strKey.find(txidStr);
-      if (txidMatch == std::string::npos) continue; // no match
-
-      // sanity check key is the correct length for a matched trade
-      if (strKey.length() != 129) continue;
-
-      // obtain the txid of the match
-      if (txidMatch==0) { matchTxid = strKey.substr(65,64); } else { matchTxid = strKey.substr(0,64); }
-
-      // ensure correct amount of tokens in value string
-      boost::split(vstr, strValue, boost::is_any_of(":"), token_compress_on);
-      if (vstr.size() != 8) {
-          PrintToLog("TRADEDB error - unexpected number of tokens in value (%s)\n", strValue);
-          continue;
-      }
-
-      // decode the details from the value string
-      std::string address1 = vstr[0];
-      std::string address2 = vstr[1];
-      uint32_t prop1 = boost::lexical_cast<uint32_t>(vstr[2]);
-      uint32_t prop2 = boost::lexical_cast<uint32_t>(vstr[3]);
-      int64_t amount1 = boost::lexical_cast<int64_t>(vstr[4]);
-      int64_t amount2 = boost::lexical_cast<int64_t>(vstr[5]);
-      int blockNum = atoi(vstr[6]);
-      int64_t tradingFee = boost::lexical_cast<int64_t>(vstr[7]);
-
-      std::string strAmount1 = FormatMP(prop1, amount1);
-      std::string strAmount2 = FormatMP(prop2, amount2);
-      std::string strTradingFee = FormatMP(prop2, tradingFee);
-      std::string strAmount2PlusFee = FormatMP(prop2, amount2+tradingFee);
-
-      // populate trade object and add to the trade array, correcting for orientation of trade
-      UniValue trade(UniValue::VOBJ);
-      trade.push_back(Pair("txid", matchTxid));
-      trade.push_back(Pair("block", blockNum));
-      if (prop1 == propertyId) {
-          trade.push_back(Pair("address", address1));
-          trade.push_back(Pair("amountsold", strAmount1));
-          trade.push_back(Pair("amountreceived", strAmount2));
-          trade.push_back(Pair("tradingfee", strTradingFee));
-          totalReceived += amount2;
-          totalSold += amount1;
-      } else {
-          trade.push_back(Pair("address", address2));
-          trade.push_back(Pair("amountsold", strAmount2PlusFee));
-          trade.push_back(Pair("amountreceived", strAmount1));
-          trade.push_back(Pair("tradingfee", FormatMP(prop1, 0))); // not the liquidity taker so no fee for this participant - include attribute for standardness
-          totalReceived += amount1;
-          totalSold += amount2;
-      }
-      tradeArray.push_back(trade);
-      ++count;
-  }
-
-  // clean up
-  delete it;
-  if (count) { return true; } else { return false; }
-}
-
-bool CompareTradePair(const std::pair<int64_t, UniValue>& firstJSONObj, const std::pair<int64_t, UniValue>& secondJSONObj)
-{
-    return firstJSONObj.first > secondJSONObj.first;
-}
-
-// obtains an array of matching trades with pricing and volume details for a pair sorted by blocknumber
-void CMPTradeList::getTradesForPair(uint32_t propertyIdSideA, uint32_t propertyIdSideB, UniValue& responseArray, uint64_t count)
-{
-  if (!pdb) return;
-  leveldb::Iterator* it = NewIterator();
-  std::vector<std::pair<int64_t, UniValue> > vecResponse;
-  bool propertyIdSideAIsDivisible = isPropertyDivisible(propertyIdSideA);
-  bool propertyIdSideBIsDivisible = isPropertyDivisible(propertyIdSideB);
-  for(it->SeekToFirst(); it->Valid(); it->Next()) {
-      std::string strKey = it->key().ToString();
-      std::string strValue = it->value().ToString();
-      std::vector<std::string> vecKeys;
-      std::vector<std::string> vecValues;
-      uint256 sellerTxid, matchingTxid;
-      std::string sellerAddress, matchingAddress;
-      int64_t amountReceived = 0, amountSold = 0;
-      if (strKey.size() != 129) continue; // only interested in matches
-      boost::split(vecKeys, strKey, boost::is_any_of("+"), boost::token_compress_on);
-      boost::split(vecValues, strValue, boost::is_any_of(":"), boost::token_compress_on);
-      if (vecKeys.size() != 2 || vecValues.size() != 8) {
-          PrintToLog("TRADEDB error - unexpected number of tokens (%s:%s)\n", strKey, strValue);
-          continue;
-      }
-      uint32_t tradePropertyIdSideA = boost::lexical_cast<uint32_t>(vecValues[2]);
-      uint32_t tradePropertyIdSideB = boost::lexical_cast<uint32_t>(vecValues[3]);
-      if (tradePropertyIdSideA == propertyIdSideA && tradePropertyIdSideB == propertyIdSideB) {
-          sellerTxid.SetHex(vecKeys[1]);
-          sellerAddress = vecValues[1];
-          amountSold = boost::lexical_cast<int64_t>(vecValues[4]);
-          matchingTxid.SetHex(vecKeys[0]);
-          matchingAddress = vecValues[0];
-          amountReceived = boost::lexical_cast<int64_t>(vecValues[5]);
-      } else if (tradePropertyIdSideB == propertyIdSideA && tradePropertyIdSideA == propertyIdSideB) {
-          sellerTxid.SetHex(vecKeys[0]);
-          sellerAddress = vecValues[0];
-          amountSold = boost::lexical_cast<int64_t>(vecValues[5]);
-          matchingTxid.SetHex(vecKeys[1]);
-          matchingAddress = vecValues[1];
-          amountReceived = boost::lexical_cast<int64_t>(vecValues[4]);
-      } else {
-          continue;
-      }
-
-      rational_t unitPrice(amountReceived, amountSold);
-      rational_t inversePrice(amountSold, amountReceived);
-      if (!propertyIdSideAIsDivisible) unitPrice = unitPrice / COIN;
-      if (!propertyIdSideBIsDivisible) inversePrice = inversePrice / COIN;
-      std::string unitPriceStr = xToString(unitPrice); // TODO: not here!
-      std::string inversePriceStr = xToString(inversePrice);
-
-      int64_t blockNum = boost::lexical_cast<int64_t>(vecValues[6]);
-
-      UniValue trade(UniValue::VOBJ);
-      trade.push_back(Pair("block", blockNum));
-      trade.push_back(Pair("unitprice", unitPriceStr));
-      trade.push_back(Pair("inverseprice", inversePriceStr));
-      trade.push_back(Pair("sellertxid", sellerTxid.GetHex()));
-      trade.push_back(Pair("selleraddress", sellerAddress));
-      if (propertyIdSideAIsDivisible) {
-          trade.push_back(Pair("amountsold", FormatDivisibleMP(amountSold)));
-      } else {
-          trade.push_back(Pair("amountsold", FormatIndivisibleMP(amountSold)));
-      }
-      if (propertyIdSideBIsDivisible) {
-          trade.push_back(Pair("amountreceived", FormatDivisibleMP(amountReceived)));
-      } else {
-          trade.push_back(Pair("amountreceived", FormatIndivisibleMP(amountReceived)));
-      }
-      trade.push_back(Pair("matchingtxid", matchingTxid.GetHex()));
-      trade.push_back(Pair("matchingaddress", matchingAddress));
-      vecResponse.push_back(make_pair(blockNum, trade));
-  }
-
-  // sort the response most recent first before adding to the array
-  std::sort(vecResponse.begin(), vecResponse.end(), CompareTradePair);
-  uint64_t processed = 0;
-  for (std::vector<std::pair<int64_t, UniValue> >::iterator it = vecResponse.begin(); it != vecResponse.end(); ++it) {
-      responseArray.push_back(it->second);
-      processed++;
-      if (processed >= count) break;
-  }
-
-  std::vector<UniValue> responseArrayValues = responseArray.getValues();
-  std::reverse(responseArrayValues.begin(), responseArrayValues.end());
-  responseArray.clear();
-  for (std::vector<UniValue>::iterator it = responseArrayValues.begin(); it != responseArrayValues.end(); ++it) {
-      responseArray.push_back(*it);
-  }
-
-  delete it;
-}
-
-// obtains a vector of txids where the supplied address participated in a trade (needed for gettradehistory_MP)
-// optional property ID parameter will filter on propertyId transacted if supplied
-// sorted by block then index
-void CMPTradeList::getTradesForAddress(std::string address, std::vector<uint256>& vecTransactions, uint32_t propertyIdFilter)
-{
-  if (!pdb) return;
-  std::map<std::string,uint256> mapTrades;
-  leveldb::Iterator* it = NewIterator();
-  for(it->SeekToFirst(); it->Valid(); it->Next()) {
-      std::string strKey = it->key().ToString();
-      std::string strValue = it->value().ToString();
-      std::vector<std::string> vecValues;
-      if (strKey.size() != 64) continue; // only interested in trades
-      uint256 txid = uint256S(strKey);
-      size_t addressMatch = strValue.find(address);
-      if (addressMatch == std::string::npos) continue;
-      boost::split(vecValues, strValue, boost::is_any_of(":"), token_compress_on);
-      if (vecValues.size() != 5) {
-          PrintToLog("TRADEDB error - unexpected number of tokens in value (%s)\n", strValue);
-          continue;
-      }
-      uint32_t propertyIdForSale = boost::lexical_cast<uint32_t>(vecValues[1]);
-      uint32_t propertyIdDesired = boost::lexical_cast<uint32_t>(vecValues[2]);
-      int64_t blockNum = boost::lexical_cast<uint32_t>(vecValues[3]);
-      int64_t txIndex = boost::lexical_cast<uint32_t>(vecValues[4]);
-      if (propertyIdFilter != 0 && propertyIdFilter != propertyIdForSale && propertyIdFilter != propertyIdDesired) continue;
-      std::string sortKey = strprintf("%06d%010d", blockNum, txIndex);
-      mapTrades.insert(std::make_pair(sortKey, txid));
-  }
-  delete it;
-  for (std::map<std::string,uint256>::iterator it = mapTrades.begin(); it != mapTrades.end(); it++) {
-      vecTransactions.push_back(it->second);
-  }
-}
-
-void CMPTradeList::recordNewTrade(const uint256& txid, const std::string& address, uint32_t propertyIdForSale, uint32_t propertyIdDesired, int blockNum, int blockIndex)
-{
-  if (!pdb) return;
-  std::string strValue = strprintf("%s:%d:%d:%d:%d", address, propertyIdForSale, propertyIdDesired, blockNum, blockIndex);
-  Status status = pdb->Put(writeoptions, txid.ToString(), strValue);
-  ++nWritten;
-  if (elysium_debug_tradedb) PrintToLog("%s(): %s\n", __FUNCTION__, status.ToString());
-}
-
-void CMPTradeList::recordMatchedTrade(const uint256 txid1, const uint256 txid2, string address1, string address2, unsigned int prop1, unsigned int prop2, uint64_t amount1, uint64_t amount2, int blockNum, int64_t fee)
-{
-  if (!pdb) return;
-  const string key = txid1.ToString() + "+" + txid2.ToString();
-  const string value = strprintf("%s:%s:%u:%u:%lu:%lu:%d:%d", address1, address2, prop1, prop2, amount1, amount2, blockNum, fee);
-  Status status;
-  if (pdb)
-  {
-    status = pdb->Put(writeoptions, key, value);
-    ++nWritten;
-    if (elysium_debug_tradedb) PrintToLog("%s(): %s\n", __FUNCTION__, status.ToString());
-  }
-}
-
-/**
- * This function deletes records of trades above/equal to a specific block from the trade database.
- *
- * Returns the number of records changed.
- */
-int CMPTradeList::deleteAboveBlock(int blockNum)
-{
-  leveldb::Slice skey, svalue;
-  unsigned int count = 0;
-  std::vector<std::string> vstr;
-  int block = 0;
-  unsigned int n_found = 0;
-  leveldb::Iterator* it = NewIterator();
-  for(it->SeekToFirst(); it->Valid(); it->Next())
-  {
-    skey = it->key();
-    svalue = it->value();
-    ++count;
-    string strvalue = it->value().ToString();
-    boost::split(vstr, strvalue, boost::is_any_of(":"), token_compress_on);
-    if (7 == vstr.size()) block = atoi(vstr[6]); // trade matches have 7 tokens, key is txid+txid, only care about block
-    if (5 == vstr.size()) block = atoi(vstr[3]); // trades have 5 tokens, key is txid, only care about block
-    if (block >= blockNum) {
-        ++n_found;
-        PrintToLog("%s() DELETING FROM TRADEDB: %s=%s\n", __FUNCTION__, skey.ToString(), svalue.ToString());
-        pdb->Delete(writeoptions, skey);
-    }
-  }
-
-  PrintToLog("%s(%d); tradedb n_found= %d\n", __FUNCTION__, blockNum, n_found);
-
-  delete it;
-
-  return (n_found);
-}
-
-void CMPTradeList::printStats()
-{
-  PrintToLog("CMPTradeList stats: tWritten= %d , tRead= %d\n", nWritten, nRead);
-}
-
-int CMPTradeList::getMPTradeCountTotal()
-{
-    int count = 0;
-    Slice skey, svalue;
-    Iterator* it = NewIterator();
-    for(it->SeekToFirst(); it->Valid(); it->Next())
-    {
-        ++count;
-    }
-    delete it;
-    return count;
-}
-
-void CMPTradeList::printAll()
-{
-  int count = 0;
-  Slice skey, svalue;
-  Iterator* it = NewIterator();
-
-  for(it->SeekToFirst(); it->Valid(); it->Next())
-  {
-    skey = it->key();
-    svalue = it->value();
-    ++count;
-    PrintToLog("entry #%8d= %s:%s\n", count, skey.ToString(), svalue.ToString());
-  }
-
-  delete it;
-}
-
 // global wrapper, block numbers are inclusive, if ending_block is 0 top of the chain will be used
 bool elysium::isMPinBlockRange(int starting_block, int ending_block, bool bDeleteFound)
 {
@@ -3749,11 +2780,8 @@ int elysium_handler_block_begin(int nBlockPrev, CBlockIndex const * pBlockIndex)
 
         // NOTE: The blockNum parameter is inclusive, so deleteAboveBlock(1000) will delete records in block 1000 and above.
         p_txlistdb->isMPinBlockRange(pBlockIndex->nHeight, reorgRecoveryMaxHeight, true);
-        t_tradelistdb->deleteAboveBlock(pBlockIndex->nHeight);
         s_stolistdb->deleteAboveBlock(pBlockIndex->nHeight);
-        p_feecache->RollBackCache(pBlockIndex->nHeight);
-        p_feehistory->RollBackHistory(pBlockIndex->nHeight);
-        sigmaDb->DeleteAll(pBlockIndex->nHeight);
+		lelantusDb->DeleteAll(pBlockIndex->nHeight);
         reorgRecoveryMaxHeight = 0;
 
         nWaterlineBlock = ConsensusParams().GENESIS_BLOCK - 1;
@@ -3785,8 +2813,6 @@ int elysium_handler_block_begin(int nBlockPrev, CBlockIndex const * pBlockIndex)
     // handle any features that go live with this block
     CheckLiveActivations(pBlockIndex->nHeight);
 
-    eraseExpiredCrowdsale(pBlockIndex);
-
     return 0;
 }
 
@@ -3802,27 +2828,6 @@ int elysium_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex,
 
     if (!elysiumInitialized) {
         elysium_init();
-    }
-
-    // for every new received block must do:
-    // 1) remove expired entries from the accept list (per spec accept entries are
-    //    valid until their blocklimit expiration; because the customer can keep
-    //    paying BTC for the offer in several installments)
-    // 2) update the amount in the Elysium address
-    int64_t develysium = 0;
-    unsigned int how_many_erased = eraseExpiredAccepts(nBlockNow);
-
-    if (how_many_erased) {
-        PrintToLog("%s(%d); erased %u accepts this block, line %d, file: %s\n",
-            __FUNCTION__, how_many_erased, nBlockNow, __LINE__, __FILE__);
-    }
-
-    // calculate develysium as of this block and update the Elysium' balance
-    develysium = calculate_and_update_develysium(pBlockIndex->GetBlockTime(), nBlockNow);
-
-    if (elysium_debug_ely) {
-        int64_t balance = getMPbalance(GetSystemAddress().ToString(), ELYSIUM_PROPERTY_ELYSIUM, BALANCE);
-        PrintToLog("develysium for block %d: %d, Elysium balance: %d\n", nBlockNow, develysium, FormatDivisibleMP(balance));
     }
 
     // check the alert status, do we need to do anything else here?

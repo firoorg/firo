@@ -59,7 +59,7 @@ public:
 
         MintReservation(LelantusWallet *_wallet, MintEntryId const &_id, lelantus::PrivateCoin const &_coin, LelantusMint const &_mint);
         ~MintReservation();
-        bool Commit();
+        void Commit();
 
     public:
         MintPoolEntry GetMintPoolEntry() const { return mintpoolEntry; }

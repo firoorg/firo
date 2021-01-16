@@ -14,7 +14,6 @@
 #include "platformstyle.h"
 
 #include "elysium/fetchwallettx.h"
-#include "elysium/mdex.h"
 #include "elysium/elysium.h"
 #include "elysium/pending.h"
 #include "elysium/rpc.h"

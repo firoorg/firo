@@ -1,4 +1,4 @@
-// Copyright (c) 2020 The Zcoin Core Developers
+// Copyright (c) 2020 - 2021 The Firo Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -6,7 +6,7 @@
 #include "lelantusdb.h"
 #include "lelantusutils.h"
 #include "lelantuswallet.h"
-#include "walletmodels.h"
+//#include "walletmodels.h"
 
 #include "../liblelantus/coin.h"
 #include "../uint256.h"
@@ -67,7 +67,7 @@ LelantusWallet::MintReservation::~MintReservation()
     }
 }
 
-bool LelantusWallet::MintReservation::Commit()
+void LelantusWallet::MintReservation::Commit()
 {
     if (commited) {
         throw std::runtime_error("The mint is already be commited.");

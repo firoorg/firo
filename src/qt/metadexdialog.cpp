@@ -12,7 +12,6 @@
 
 #include "elysium/createpayload.h"
 #include "elysium/errors.h"
-#include "elysium/mdex.h"
 #include "elysium/elysium.h"
 #include "elysium/parse_string.h"
 #include "elysium/pending.h"

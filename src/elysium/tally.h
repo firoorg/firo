@@ -6,11 +6,8 @@
 
 //! Balance record types
 enum TallyType {
-    BALANCE = 0,
-    SELLOFFER_RESERVE = 1,
-    ACCEPT_RESERVE = 2,
+    BALANCE = 0,   
     PENDING = 3,
-    METADEX_RESERVE = 4,
     TALLY_TYPE_COUNT
 };
 
