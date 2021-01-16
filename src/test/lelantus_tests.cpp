@@ -129,14 +129,15 @@ public:
         }
 
         std::vector<CLelantusEntry>  spendCoins;
+        std::vector<CSigmaEntry> sigmaSpendCoins;
         std::vector<CHDMint> mintCoins;
 
         CAmount fee;
         auto result = pwalletMain->CreateLelantusJoinSplitTransaction(
-            vecs, fee, mints, spendCoins, mintCoins, coinControl);
+            vecs, fee, mints, spendCoins, sigmaSpendCoins, mintCoins, coinControl);
 
         if (!pwalletMain->CommitLelantusTransaction(
-            result, spendCoins, mintCoins)) {
+            result, spendCoins, sigmaSpendCoins, mintCoins)) {
             throw std::runtime_error("Fail to commit transaction");
         }
 

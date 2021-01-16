@@ -504,6 +504,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
         LOCK2(cs_main, wallet->cs_wallet);
 
         auto &spendCoins = transaction.getSpendCoins();
+        auto &sigmaSpendCoins = transaction.getSigmaSpendCoins();
         auto &mintCoins = transaction.getMintCoins();
 
         CAmount feeRequired = 0;
@@ -511,7 +512,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
 
         CWalletTx *newTx = transaction.getTransaction();
         try {
-            *newTx = wallet->CreateLelantusJoinSplitTransaction(vecSend, feeRequired, {}, spendCoins, mintCoins, coinControl);
+            *newTx = wallet->CreateLelantusJoinSplitTransaction(vecSend, feeRequired, {}, spendCoins, sigmaSpendCoins, mintCoins, coinControl);
         } catch (InsufficientFunds const&) {
             transaction.setTransactionFee(feeRequired);
             return SendCoinsReturn(AmountExceedsBalance);
@@ -733,7 +734,7 @@ WalletModel::SendCoinsReturn WalletModel::sendPrivateCoins(WalletModelTransactio
         }
 
         try {
-            if (!wallet->CommitLelantusTransaction(*newTx, transaction.getSpendCoins(), transaction.getMintCoins()))
+            if (!wallet->CommitLelantusTransaction(*newTx, transaction.getSpendCoins(), transaction.getSigmaSpendCoins(), transaction.getMintCoins()))
                 return SendCoinsReturn(TransactionCommitFailed);
         } catch (std::runtime_error const &e) {
             return SendCoinsReturn(TransactionCommitFailed, e.what());
