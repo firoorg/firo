@@ -211,6 +211,10 @@ BOOST_AUTO_TEST_CASE(trimmed_op_return)
 
         std::vector<CTxOut> txOutputs;
 
+		unsigned CLASS_B_MAX_CHUNKS = 255;
+		unsigned int COMPRESSED_PUBLIC_KEY_SIZE = 33;
+		unsigned CLASS_B_CHUNK_SIZE = CPubKey::COMPRESSED_PUBLIC_KEY_SIZE - 2;
+
         std::vector<unsigned char> vchFiller(CLASS_B_MAX_CHUNKS * CLASS_B_CHUNK_SIZE, 0x07);
         std::vector<unsigned char> vchPayload(magic.begin(), magic.end());
         vchPayload.insert(vchPayload.end(), vchFiller.begin(), vchFiller.end());

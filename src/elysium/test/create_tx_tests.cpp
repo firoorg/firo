@@ -263,7 +263,6 @@ BOOST_AUTO_TEST_CASE(elysiumtxbuilder_op_return)
     minRelayTxFee = minRelayTxFeeOriginal;
 }
 
-// TODO: test addMultisig -- currently an issue due to the non-deterministic ECDSA point manipulation
-
+// Disabled Class B
 
 BOOST_AUTO_TEST_SUITE_END()

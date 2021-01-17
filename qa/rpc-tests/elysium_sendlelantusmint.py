@@ -58,7 +58,7 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
         assert_equal("100", self.nodes[0].elysium_getbalance(addr, non_lelantus_property)['balance'])
 
         # lelantus
-        # mint without xzc and token
+        # mint without firo and token
         addr = self.nodes[0].getnewaddress()
         assert_raises_message(
             JSONRPCException,
@@ -66,7 +66,7 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
             self.nodes[0].elysium_sendlelantusmint, addr, lelantus_property, "10"
         )
 
-        # mint without xzc then fail
+        # mint without firo then fail
         addr = self.nodes[0].getnewaddress()
         self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property, "100")
         self.nodes[0].generate(10)
