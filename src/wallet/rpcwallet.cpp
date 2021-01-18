@@ -2981,9 +2981,6 @@ UniValue regeneratemintpool(const JSONRPCRequest& request) {
     bool reindexRequired = false;
 
     for (auto& mintPoolPair : listMintPool){
-        LogPrintf("regeneratemintpool: hashPubcoin: %d hashSeedMaster: %d seedId: %d nCount: %s\n",
-            mintPoolPair.first.GetHex(), get<0>(mintPoolPair.second).GetHex(), get<1>(mintPoolPair.second).GetHex(), get<2>(mintPoolPair.second));
-
         oldHashPubcoin = mintPoolPair.first;
         bool hasSerial = pwallet->zwallet->GetSerialForPubcoin(serialPubcoinPairs, oldHashPubcoin, oldHashSerial);
 

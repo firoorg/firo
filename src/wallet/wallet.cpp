@@ -2345,9 +2345,6 @@ bool CWalletTx::RelayWalletTransaction(CConnman* connman)
                 int64_t nEmbargo = 1000000 * DANDELION_EMBARGO_MINIMUM
                         + PoissonNextSend(nCurrTime, DANDELION_EMBARGO_AVG_ADD);
                 CNode::insertDandelionEmbargo(GetHash(), nEmbargo);
-                //LogPrintf(
-                //    "dandeliontx %s embargoed for %d seconds\n",
-                //    GetHash().ToString(), (nEmbargo - nCurrTime) / 1000000);
                 CInv inv(MSG_DANDELION_TX, GetHash());
                 return CNode::localDandelionDestinationPushInventory(inv);
             }
@@ -6974,18 +6971,23 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
     return tx;
 }
 
-CAmount CWallet::EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, const CCoinControl *coinControl) {
+std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, const CCoinControl *coinControl) {
     CAmount fee;
-
+    unsigned size;
     std::vector<CLelantusEntry> spendCoins;
     std::vector<CSigmaEntry> sigmaSpendCoins;
+
+    std::list<CSigmaEntry> coins = this->GetAvailableCoins(coinControl, false, true);
+    CAmount availableSigmaBalance(0);
+    for (auto coin : coins) {
+        availableSigmaBalance += coin.get_denomination_value();
+    }
 
     for (fee = payTxFee.GetFeePerK();;) {
         CAmount currentRequired = required;
 
         if (!subtractFeeFromAmount)
             currentRequired += fee;
-
 
         spendCoins.clear();
         sigmaSpendCoins.clear();
@@ -6994,15 +6996,10 @@ CAmount CWallet::EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmou
 
         std::vector<sigma::CoinDenomination> denomChanges;
         try {
-            std::list<CSigmaEntry> coins = this->GetAvailableCoins(coinControl, false, true);
-            CAmount availableBalance(0);
-            for (auto coin : coins) {
-                availableBalance += coin.get_denomination_value();
-            }
-            if (availableBalance > 0) {
+            if (availableSigmaBalance > 0) {
                 CAmount inputFromSigma;
-                if (currentRequired > availableBalance)
-                    inputFromSigma = availableBalance;
+                if (currentRequired > availableSigmaBalance)
+                    inputFromSigma = availableSigmaBalance;
                 else
                     inputFromSigma = currentRequired;
 
@@ -7011,20 +7008,20 @@ CAmount CWallet::EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmou
                                        consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl, true);
                 currentRequired -= inputFromSigma;
             }
+
+            if (currentRequired > 0) {
+                if (!this->GetCoinsToJoinSplit(currentRequired, spendCoins, changeToMint,
+                                                consensusParams.nMaxLelantusInputPerTransaction,
+                                                consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl, true)) {
+                    return std::make_pair(0, 0);
+                }
+            }
         } catch (std::runtime_error) {
         }
 
-        if (currentRequired > 0) {
-            if (!this->GetCoinsToJoinSplit(currentRequired, spendCoins, changeToMint,
-                                            consensusParams.nMaxLelantusInputPerTransaction,
-                                            consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl, true)) {
-                throw InsufficientFunds();
-            }
-        }
-
-        // 9560 is constant part, mainly Schnorr and Range proof, 2560 is for each sigma/aux data
+        // 956 is constant part, mainly Schnorr and Range proof, 2560 is for each sigma/aux data
         // 179 other parts of tx, assuming 1 utxo and 1 jmint
-        unsigned size = 956 + 2560 * (spendCoins.size() + sigmaSpendCoins.size()) + 179;
+        size = 956 + 2560 * (spendCoins.size() + sigmaSpendCoins.size()) + 179;
         CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
 
         if (fee >= feeNeeded) {
@@ -7032,9 +7029,12 @@ CAmount CWallet::EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmou
         }
 
         fee = feeNeeded;
+
+        if(subtractFeeFromAmount)
+            break;
     }
 
-    return fee;
+    return std::make_pair(fee, size);
 }
 
 bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CHDMint>& mintCoins) {
