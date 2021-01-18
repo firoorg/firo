@@ -311,7 +311,7 @@ UniValue lelantusTxFee(Type type, const UniValue& data, const UniValue& auth, bo
 
     // payTxFee is a global variable that will be used in EstimateJoinSplitFee.
     payTxFee = CFeeRate(data["feePerKb"].get_int64());
-    return pwalletMain->EstimateJoinSplitFee(nAmount, fSubtractFeeFromAmount, fHasCoinControl ? &coinControl : nullptr);
+    return pwalletMain->EstimateJoinSplitFee(nAmount, fSubtractFeeFromAmount, fHasCoinControl ? &coinControl : nullptr).first;
 }
 
 UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
