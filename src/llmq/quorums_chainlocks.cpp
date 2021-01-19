@@ -74,8 +74,10 @@ bool CChainLocksHandler::GetChainLockByHash(const uint256& hash, llmq::CChainLoc
 
 void CChainLocksHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
-    if (!llmq::IsChainlocksEnabled()) {
-        return;
+    {
+        LOCK(cs_main);
+        if(!IsChainlocksEnabled(chainActive.Tip()))
+            return;
     }
 
     if (strCommand == NetMsgType::CLSIG) {
@@ -210,13 +212,14 @@ void CChainLocksHandler::CheckActiveState()
     {
         LOCK(cs_main);
         fDIP0008Active = chainActive.Height() >= Params().GetConsensus().DIP0008Height;
+        isChainLocksActive = IsChainlocksEnabled(chainActive.Tip());
     }
 
     LOCK(cs);
     bool oldIsEnforced = isEnforced;
-    isChainLocksActive = llmq::IsChainlocksEnabled();
+
     // TODO remove this after DIP8 is active
-    bool fEnforcedBySpork = (Params().NetworkIDString() == CBaseChainParams::TESTNET) && (llmq::IsChainlocksEnabled());
+    bool fEnforcedBySpork = (Params().NetworkIDString() == CBaseChainParams::TESTNET) && (isChainLocksActive);
     isEnforced = (fDIP0008Active && isChainLocksActive) || fEnforcedBySpork;
 
     if (!oldIsEnforced && isEnforced) {

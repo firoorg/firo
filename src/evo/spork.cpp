@@ -249,16 +249,3 @@ bool CMempoolSporkManager::IsTransactionAllowed(const CTransaction &tx, CValidat
 
     return ::IsTransactionAllowed(tx, chainTip->activeDisablingSporks, state);
 }
-
-namespace llmq {
-
-bool IsChainlocksEnabled()
-{
-    const CBlockIndex *chainTip = chainActive.Tip();
-    if (!chainTip)
-        return false;
-
-    return CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureChainlocks, chainTip);
-}
-
-}
