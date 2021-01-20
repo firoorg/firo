@@ -391,6 +391,10 @@ public:
         consensus.nEvoSporkStartBlock = ZC_LELANTUS_STARTING_BLOCK;
         consensus.nEvoSporkStopBlock = ZC_LELANTUS_STARTING_BLOCK + 24*12*365;  // one year after lelantus
 
+        // reorg
+        consensus.nMaxReorgDepth = 5;
+        consensus.nMaxReorgDepthEnforcementBlock = 388000;
+
         // Dandelion related values.
         consensus.nDandelionEmbargoMinimum = DANDELION_EMBARGO_MINIMUM;
         consensus.nDandelionEmbargoAvgAdd = DANDELION_EMBARGO_AVG_ADD;
@@ -631,6 +635,10 @@ public:
         consensus.nEvoSporkStartBlock = 22000;
         consensus.nEvoSporkStopBlock = 40000;
 
+        // reorg
+        consensus.nMaxReorgDepth = 4;
+        consensus.nMaxReorgDepthEnforcementBlock = 25150;
+
         // Dandelion related values.
         consensus.nDandelionEmbargoMinimum = DANDELION_TESTNET_EMBARGO_MINIMUM;
         consensus.nDandelionEmbargoAvgAdd = DANDELION_TESTNET_EMBARGO_AVG_ADD;
@@ -825,6 +833,10 @@ public:
         consensus.evoSporkKeyID = "TSpmHGzQT4KJrubWa4N2CRmpA7wKMMWDg4";  // private key is cW2YM2xaeCaebfpKguBahUAgEzLXgSserWRuD29kSyKHq1TTgwRQ
         consensus.nEvoSporkStartBlock = 1000;
         consensus.nEvoSporkStopBlock = 1500;
+
+        // reorg
+        consensus.nMaxReorgDepth = 4;
+        consensus.nMaxReorgDepthEnforcementBlock = 100;
 
         // Dandelion related values.
         consensus.nDandelionEmbargoMinimum = 0;
