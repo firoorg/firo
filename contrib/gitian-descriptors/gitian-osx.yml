@@ -136,6 +136,7 @@ script: |
     CONFIG_SITE=${BASEPREFIX}/${i}/share/config.site ./configure --prefix=/ --enable-elysium --enable-clientapi --disable-ccache --disable-maintainer-mode --disable-dependency-tracking ${CONFIGFLAGS}
     make ${MAKEOPTS}
     make -C src osx_debug
+    make install DESTDIR=${OUTDIR}/${DISTNAME}_debug
     make install-strip DESTDIR=${INSTALLPATH}
 
     make osx_volname
