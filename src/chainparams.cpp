@@ -255,7 +255,8 @@ public:
         // evo znodes
         consensus.DIP0003Height = 278300; // Approximately June 22 2020, 12:00 UTC
         consensus.DIP0003EnforcementHeight = 284400; // Approximately July 13 2020, 12:00 UTC
-        consensus.DIP0008Height = INT_MAX;
+        consensus.DIP0003EnforcementHash = uint256S("0x8b8d7c05bb2d75f8c5e076cb6c10ef464e94ddcda2744740db03aeda2d6cc006");
+        consensus.DIP0008Height = 341100; // Approximately Jan 28 2021, 11:00 UTC
         consensus.nEvoZnodeMinimumConfirmations = 15;
 
         // long living quorum params
@@ -263,6 +264,8 @@ public:
         consensus.llmqs[Consensus::LLMQ_400_60] = llmq400_60;
         consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
         consensus.nLLMQPowTargetSpacing = 5*60;
+        consensus.llmqChainLocks = Consensus::LLMQ_400_60;
+        consensus.llmqForInstantSend = Consensus::LLMQ_50_60;
 
         consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
         consensus.nMTPStartBlock = 117564;
@@ -393,7 +396,7 @@ public:
 
         // reorg
         consensus.nMaxReorgDepth = 5;
-        consensus.nMaxReorgDepthEnforcementBlock = 388000;
+        consensus.nMaxReorgDepthEnforcementBlock = 338000;
 
         // Dandelion related values.
         consensus.nDandelionEmbargoMinimum = DANDELION_EMBARGO_MINIMUM;
@@ -517,7 +520,9 @@ public:
         // evo znodes
         consensus.DIP0003Height = 3340;
         consensus.DIP0003EnforcementHeight = 3800;
-        consensus.DIP0008Height = INT_MAX;
+        consensus.DIP0003EnforcementHash.SetNull();
+
+        consensus.DIP0008Height = 25000;
         consensus.nEvoZnodeMinimumConfirmations = 0;
 
         // long living quorum params
@@ -526,6 +531,8 @@ public:
         consensus.llmqs[Consensus::LLMQ_400_60] = llmq400_60;
         consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
         consensus.nLLMQPowTargetSpacing = 20;
+        consensus.llmqChainLocks = Consensus::LLMQ_10_70;
+        consensus.llmqForInstantSend = Consensus::LLMQ_10_70;
 
         consensus.nMTPSwitchTime = 1539172800;
         consensus.nMTPStartBlock = 1;
@@ -724,7 +731,9 @@ public:
         // evo znodes
         consensus.DIP0003Height = 500;
         consensus.DIP0003EnforcementHeight = 550;
-        consensus.DIP0008Height = INT_MAX;
+        consensus.DIP0003EnforcementHash.SetNull();
+
+        consensus.DIP0008Height = 550;
         consensus.nEvoZnodeMinimumConfirmations = 1;
 
         // long living quorum params
@@ -733,6 +742,8 @@ public:
         consensus.llmqs[Consensus::LLMQ_400_60] = llmq400_60;
         consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
         consensus.nLLMQPowTargetSpacing = 1;
+        consensus.llmqChainLocks = Consensus::LLMQ_5_60;
+        consensus.llmqForInstantSend = Consensus::LLMQ_5_60;
 
         consensus.nMTPSwitchTime = INT_MAX;
         consensus.nMTPStartBlock = 0;
@@ -836,7 +847,7 @@ public:
 
         // reorg
         consensus.nMaxReorgDepth = 4;
-        consensus.nMaxReorgDepthEnforcementBlock = 100;
+        consensus.nMaxReorgDepthEnforcementBlock = 300;
 
         // Dandelion related values.
         consensus.nDandelionEmbargoMinimum = 0;
