@@ -315,6 +315,11 @@ struct Params {
     /** block to start using chainlocks */
     int DIP0008Height;
 
+    /** maximum reorg depth */
+    int nMaxReorgDepth;
+    /** block to start reorg depth enforcement */
+    int nMaxReorgDepthEnforcementBlock;
+
     int nEvoZnodeMinimumConfirmations;
 
     std::map<LLMQType, LLMQParams> llmqs;
