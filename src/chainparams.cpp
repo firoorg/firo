@@ -520,7 +520,7 @@ public:
         // evo znodes
         consensus.DIP0003Height = 3340;
         consensus.DIP0003EnforcementHeight = 3800;
-        consensus.DIP0003EnforcementHash = uint256S("0x73a5d3086a676e48000c35595c3c4d0df2b443fb42e25be01c9e67f25f6b16a7");
+        consensus.DIP0003EnforcementHash.SetNull();
 
         consensus.DIP0008Height = 25000;
         consensus.nEvoZnodeMinimumConfirmations = 0;
@@ -731,6 +731,8 @@ public:
         // evo znodes
         consensus.DIP0003Height = 500;
         consensus.DIP0003EnforcementHeight = 550;
+        consensus.DIP0003EnforcementHash.SetNull();
+
         consensus.DIP0008Height = 550;
         consensus.nEvoZnodeMinimumConfirmations = 1;
 
