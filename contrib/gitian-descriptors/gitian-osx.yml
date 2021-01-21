@@ -137,7 +137,7 @@ script: |
     make ${MAKEOPTS}
     make -C src osx_debug
     cp -r src ${OUTDIR}/src_debug
-    find . -name firo-qt -exec cp -ra {} ${OUTDIR}/bin_debug
+    find . -name firo-qt -exec cp -ra {} ${OUTDIR}/bin_debug \;
     make install-strip DESTDIR=${INSTALLPATH}
 
     make osx_volname
