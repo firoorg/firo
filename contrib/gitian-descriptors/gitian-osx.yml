@@ -136,8 +136,6 @@ script: |
     CONFIG_SITE=${BASEPREFIX}/${i}/share/config.site ./configure --prefix=/ --enable-elysium --enable-clientapi --disable-ccache --disable-maintainer-mode --disable-dependency-tracking ${CONFIGFLAGS}
     make ${MAKEOPTS}
     make -C src osx_debug
-    cp -r src ${OUTDIR}/src_debug
-    find . -name firo-qt -exec cp -ra {} ${OUTDIR}/bin_debug \;
     make install-strip DESTDIR=${INSTALLPATH}
 
     make osx_volname
