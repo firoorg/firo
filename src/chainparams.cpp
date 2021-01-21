@@ -256,7 +256,7 @@ public:
         consensus.DIP0003Height = 278300; // Approximately June 22 2020, 12:00 UTC
         consensus.DIP0003EnforcementHeight = 284400; // Approximately July 13 2020, 12:00 UTC
         consensus.DIP0003EnforcementHash = uint256S("0x8b8d7c05bb2d75f8c5e076cb6c10ef464e94ddcda2744740db03aeda2d6cc006");
-        consensus.DIP0008Height = INT_MAX;
+        consensus.DIP0008Height = 342260; // Approximately Feb 1 2021, 11:00 UTC
         consensus.nEvoZnodeMinimumConfirmations = 15;
 
         // long living quorum params
