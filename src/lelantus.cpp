@@ -915,11 +915,14 @@ void CLelantusState::Containers::RemoveMint(lelantus::PublicCoin const & pubCoin
         mintMetaInfo[iter->second.coinGroupId] -= 1;
         mintedPubCoins.erase(iter);
         CheckSurgeCondition();
-        for(auto hashPair =  tagToPublicCoin.begin(); hashPair !=  tagToPublicCoin.end(); hashPair++)
-            if(hashPair->second == pubCoin) {
-                tagToPublicCoin.erase(hashPair);
+        uint256 key;
+        for(auto hashPair =  tagToPublicCoin.begin(); hashPair !=  tagToPublicCoin.end(); ++hashPair) {
+            if(hashPair->second.getValue() == pubCoin.getValue()) {
+                key = hashPair->first;
                 break;
             }
+        }
+        tagToPublicCoin.erase(key);
     }
 }
 
