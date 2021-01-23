@@ -171,7 +171,8 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("dataDir",       GetDataDir(true).string()));
     obj.push_back(Pair("network",       ChainNameFromCommandLine()));
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
-    obj.push_back(Pair("connections",   (int)g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL)));
+    if (g_connman) // g_connman will be NULL if called during shutdown.
+        obj.push_back(Pair("connections",   (int)g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL)));
     obj.push_back(Pair("devAuth",       CZMQAbstract::DEV_AUTH));
     obj.push_back(Pair("synced",        masternodeSync.IsBlockchainSynced()));
     obj.push_back(Pair("rescanning",    fRescanning));
