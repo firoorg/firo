@@ -164,14 +164,9 @@ public:
 class CAddressBookData
 {
 public:
-    std::string name;
-    std::string purpose;
+    std::string name = "";
+    std::string purpose = "unknown";
     int64_t nCreatedAt = 0;
-
-    CAddressBookData()
-    {
-        purpose = "unknown";
-    }
 
     typedef std::map<std::string, std::string> StringMap;
     StringMap destdata;

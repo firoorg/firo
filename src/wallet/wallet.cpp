@@ -7360,7 +7360,7 @@ DBErrors CWallet::ZapLelantusMints() {
 
 bool CWallet::SetAddressBook(const CTxDestination& address, const string& strName, const string& strPurpose)
 {
-    int64_t now = GetTime();
+    int64_t now = GetTimeMillis();
     bool fUpdated = false;
     {
         LOCK(cs_wallet); // mapAddressBook

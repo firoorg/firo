@@ -969,22 +969,6 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
     }
     std::string address = find_value(data, "address").getValStr();
 
-    // If we're manipulating the default payment request address, create a new one to take our place.
-    CWalletDB walletdb(pwalletMain->strWalletFile);
-    std::string defaultPaymentRequestAddress;
-    walletdb.ReadPaymentRequestAddress(defaultPaymentRequestAddress);
-    if (defaultPaymentRequestAddress == address) {
-        CPubKey newKey;
-        if (!pwalletMain->GetKeyFromPool(newKey))
-            throw JSONAPIError(API_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
-        CKeyID keyID = newKey.GetID();
-
-        pwalletMain->SetAddressBook(keyID, "", "receive");
-
-        CBitcoinAddress newPaymentRequestAddress {keyID};
-        walletdb.WritePaymentRequestAddress(newPaymentRequestAddress.ToString());
-    }
-
     CTxDestination inputAddress = CBitcoinAddress(address).Get();
     // Refuse to set invalid address, set error status and return false
     if(boost::get<CNoDestination>(&inputAddress)) 
@@ -1012,12 +996,29 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
             {
                 throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address");
             }
-            pwalletMain->DelAddressBook(inputAddress);
             pwalletMain->SetAddressBook(updatedAddress, updatedLabel, find_value(data, "purpose").getValStr());
         }
     } else {
         pwalletMain->DelAddressBook(inputAddress);
     }
+
+    // If we're manipulating the default payment request address, create a new one to take our place.
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    std::string defaultPaymentRequestAddress;
+    walletdb.ReadPaymentRequestAddress(defaultPaymentRequestAddress);
+    if (defaultPaymentRequestAddress == address) {
+        CPubKey newKey;
+        if (!pwalletMain->GetKeyFromPool(newKey))
+            throw JSONAPIError(API_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
+        CKeyID keyID = newKey.GetID();
+
+        pwalletMain->SetAddressBook(keyID, "", "receive");
+
+        CBitcoinAddress newPaymentRequestAddress {keyID};
+        walletdb.WritePaymentRequestAddress(newPaymentRequestAddress.ToString());
+    }
+
+
     return true;
 }
 
