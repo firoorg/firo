@@ -2950,6 +2950,7 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
 }
 
 std::vector<unsigned char> GetAESKey(const secp_primitives::GroupElement& pubcoin) {
+    //create a path with hashing the pubcoin, his is okay, as it is just a path, anyway for generating the key we need master key
     uint32_t keyPath = primitives::GetPubCoinValueHash(pubcoin).GetFirstUint32();
     CKey secret;
     {
@@ -5274,11 +5275,12 @@ bool CWallet::CreateLelantusMintTransactions(
         {
             std::list<CWalletTx> cacheWtxs;
             std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXO;
+            // as we want to create  from each address balance separate mint, we need to get UTXOs and balance for each address
             AvailableCoinsForLMint(valueAndUTXO, coinControl);
 
             std::random_shuffle(valueAndUTXO.begin(), valueAndUTXO.end(), GetRandInt);
 
-            while (!valueAndUTXO.empty()) {
+            while (!valueAndUTXO.empty()) { // iterate if we will still have utxo,
 
                 // initialize
                 CWalletTx wtx = wtxNew;
@@ -5296,12 +5298,12 @@ bool CWallet::CreateLelantusMintTransactions(
                 LogPrintf("nFeeRet=%s\n", nFeeRet);
 
                 auto itr = valueAndUTXO.begin();
-
+                // if address balance is bigger than mint limit, create maximum possible mint,and put the change into the vector for next iteration
                 CAmount valueToMintInTx = std::min(
                     ::Params().GetConsensus().nMaxValueLelantusMint,
                     itr->first);
 
-                if (!autoMintAll) {
+                if (!autoMintAll) { // if we creating manual min, take in account also that value,
                     valueToMintInTx = std::min(valueToMintInTx, valueToMint);
                 }
 
@@ -5578,7 +5580,7 @@ bool CWallet::CreateLelantusMintTransactions(
                 wtx.SetTx(MakeTransactionRef(std::move(tx)));
 
                 wtxAndFee.push_back(std::make_pair(wtx, nFeeRet));
-
+                //put newly created utxo for next iteration
                 if (nChangePosInOut >= 0) {
                     // Cache wtx to somewhere because COutput use pointer of it.
                     cacheWtxs.push_back(wtx);

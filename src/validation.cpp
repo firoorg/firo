@@ -1966,7 +1966,7 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
 
         CAmount nTxFee;
         if(!tx.IsLelantusJoinSplit()) {
-            // at Lelantus JoinSplit we check balance inside cryptographic proof verification
+            // at Lelantus JoinSplit we are checking the balance inside cryptographic proof verification
             if (nValueIn < tx.GetValueOut())
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-in-belowout", false,
                         strprintf("value in (%s) < value out (%s)", FormatMoney(nValueIn), FormatMoney(tx.GetValueOut())));
@@ -1974,6 +1974,7 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
             nTxFee = nValueIn - tx.GetValueOut();
         } else {
             try {
+                // for joinsplite we can't get fee with doing valueIn - valueOut, so we get it from Joinsplit object
                 nTxFee = lelantus::ParseLelantusJoinSplit(tx.vin[0])->getFee();
             }
             catch (CBadTxIn&) {
@@ -2075,6 +2076,7 @@ bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsVi
                 error("Spend transaction outputs larger than the inputs."));
         }
     } else if (tx.IsLelantusJoinSplit()) {
+        //Joinsplit transaction should have one single input which must have serialized JoinSplit object
         if(tx.vin.size() > 1 || !tx.vin[0].scriptSig.IsLelantusJoinSplit()) {
             return state.DoS(
                     100, false,
@@ -2585,6 +2587,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     set<uint256> txIds;
     bool isMainNet = chainparams.GetConsensus().IsMain();
     // batch verify Lelantus/Sigma if block is older than a day, that means we are syncing or reindexing
+    // verifier will check if fCollectProofs, it will skip sigma proof verification, and it will be collected for batch verification
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
     batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
     batchProofContainer->init();
@@ -3148,6 +3151,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
         CheckTransaction(*tx, state, false, tx->GetHash(), false, pindexDelete->pprev->nHeight,
             false, false, nullptr, block.sigmaTxInfo.get(), block.lelantusTxInfo.get());
 
+        // if batching is active, remove sigma/lelantus proof from batch container as we are removing containing block
         if(GetBoolArg("-batching", true)) {
             if (tx->IsLelantusJoinSplit()) {
                 const CTxIn &txin = tx->vin[0];

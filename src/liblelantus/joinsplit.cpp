@@ -133,7 +133,7 @@ bool JoinSplit::Verify(
         LogPrintf("Sigma spend failed due to serialNumbers and ecdsaSignatures/ecdsaPubkeys number mismatch.");
         return false;
     }
-
+    // verify signatures one by one, for each serial number, as we are crating separate signature for each serial
     for(size_t i = 0; i < serialNumbers.size(); i++) {
         // Verify ecdsa_signature, to make sure someone did not change the output of transaction.
         // Check sizes

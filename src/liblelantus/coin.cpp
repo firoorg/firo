@@ -145,7 +145,7 @@ void PrivateCoin::randomize() {
 void PrivateCoin::mintCoin(uint64_t v) {
     value = v;
     GroupElement commit = LelantusPrimitives::double_commit(
-            params->get_g(), serialNumber, params->get_h1(), getVScalar(), params->get_h0(), randomness);
+            params->get_g(), serialNumber, params->get_h1(), getVScalar(), params->get_h0(), randomness); // swap h0 with h1 to make sigma and lelantus compatible, you can see this also in other parts of the code
     publicCoin = PublicCoin(commit);
 }
 

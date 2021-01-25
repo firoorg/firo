@@ -53,7 +53,7 @@ Params::Params(const GroupElement& g_, int n_sigma_, int m_sigma_, int n_rangePr
     //creating generators for sigma
     this->h_sigma.resize(n_sigma * m_sigma);
     unsigned char buff0[32] = {0};
-    g.normalSha256(buff0);
+    g.normalSha256(buff0); // normalize group elements, to make 32 and 64 bit builds compatible, this was an issue at sigma
     h_sigma[0].generate(buff0);
     for (int i = 1; i < n_sigma * m_sigma; ++i)
     {

@@ -20,6 +20,10 @@ void BatchProofContainer::init() {
     tempLelantusSigmaProofs.clear();
 }
 
+// this function is called at the end of block verification, or when you are quiting Firo
+// if fCollectProofs is true, which means the block is older then one day
+// so move proofs from temp containers to main ones, for later verification
+// if it is false or your are quiting, call verification before quit
 void BatchProofContainer::finalize() {
     if(fCollectProofs) {
         for(const auto& itr : tempSigmaProofs) {

@@ -184,6 +184,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
 
         std::vector<sigma::CoinDenomination> denomChanges;
         try {
+            // get sigma balance and try to spend it first, then if we have no needed value try to get some coins also from lelantus
             std::list<CSigmaEntry> coins = pwalletMain->GetAvailableCoins(coinControl);
             CAmount availableBalance(0);
             for (auto coin : coins) {
@@ -268,7 +269,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
             if (output.second) {
                 result.changes.insert(static_cast<uint32_t>(i));
             }
-
+            // sort mints at Cout array to be the same order as int outputs, as verifier recovers mints from output wrong order will fail lelantus proof verification
             CScript script;
             if ((script = output.first.get().scriptPubKey).IsLelantusJMint()) {
                 GroupElement g;

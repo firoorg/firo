@@ -275,6 +275,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             if (tracker.HasPubcoinHash(pMint.first, walletdb))
                 continue;
 
+            // create mint tag, which will be used to faster mint recovery
             uint160 seedId = get<1>(pMint.second);
             CDataStream ss(SER_GETHASH, 0);
             ss << pMint.first;

@@ -6,9 +6,9 @@ LelantusProver::LelantusProver(const Params* p) : params(p) {
 }
 
 void LelantusProver::proof(
-        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets, //pass anonymity sets as a map, key is the id of the set, value is the set, we need this for multiple anonymity set support
         const Scalar& Vin,
-        const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
+        const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin, // we pass spending coins as a pair with anonymity set id, to which it belongs
         const std::vector<size_t>& indexes,
         const Scalar& Vout,
         const std::vector<PrivateCoin>& Cout,
@@ -60,7 +60,7 @@ void LelantusProver::proof(
 }
 
 void LelantusProver::generate_sigma_proofs(
-        const std::map<uint32_t, std::vector<PublicCoin>>& c,
+        const std::map<uint32_t, std::vector<PublicCoin>>& c,  //pass anonymity sets as a map, key is the id of the set, value is the set, we need this for multiple anonymity set support
         const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
         const std::vector<PrivateCoin>& Cout,
         const std::vector<size_t>& indexes,
@@ -109,7 +109,7 @@ void LelantusProver::generate_sigma_proofs(
         a[i].resize(params->get_sigma_n() * params->get_sigma_m());
         sigmaProver.sigma_commit(C_, indexes[i], rA[i], rB[i], rC[i], rD[i], a[i], Tk[i], Pk[i], Yk[i], sigma[i], sigma_proofs[i]);
     }
-
+    // include output coins also into challenge generation
     std::vector<GroupElement> PubcoinsOut;
     PubcoinsOut.reserve(Cout.size());
     for(auto coin : Cout)
@@ -147,6 +147,7 @@ void LelantusProver::generate_bulletproofs(
     std::size_t n = params->get_bulletproofs_n();
     std::size_t m = Cout.size() * 2;
 
+    // make m to be a power of 2, as range proof works only with power of 2 elements, just fill 0's
     while(m & (m - 1))
         m++;
 
@@ -155,8 +156,8 @@ void LelantusProver::generate_bulletproofs(
     randoms.reserve(m);
     for (std::size_t i = 0; i < Cout.size(); ++i)
     {
-        v_s.push_back(Cout[i].getV());
-        v_s.push_back(Cout[i].getVScalar() +  params->get_limit_range());
+        v_s.push_back(Cout[i].getV()); //check that value is in range [0, 2^64]
+        v_s.push_back(Cout[i].getVScalar() +  params->get_limit_range()); //check that the value is in a range [0, mint limit], in that case we are adding (2^64 - mint limit) to the value,
         serials.insert(serials.end(), 2, Cout[i].getSerialNumber());
         randoms.insert(randoms.end(), 2, Cout[i].getRandomness());
     }

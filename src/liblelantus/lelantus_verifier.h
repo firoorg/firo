@@ -12,8 +12,8 @@ public:
     LelantusVerifier(const Params* p);
 
     bool verify(
-            const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
-            const std::vector<Scalar>& serialNumbers,
+            const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets, //pass anonymity sets as a map, key is the id of the set, value is the set, we need this for multiple anonymity set support
+            const std::vector<Scalar>& serialNumbers,  // we pass serials as a vector, where the element has it's pair at groupIds vector, first is the serial, second is anonymity set id for it
             const std::vector<uint32_t>& groupIds,
             const Scalar& Vin,
             uint64_t Vout,
@@ -22,8 +22,8 @@ public:
             const LelantusProof& proof);
 
     bool verify(
-            const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
-            const std::vector<Scalar>& serialNumbers,
+            const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,  //pass anonymity sets as a map, key is the id of the set, value is the set, we need this for multiple anonymity set support
+            const std::vector<Scalar>& serialNumbers,  // we pass serials as a vector, where the element has it's pair at groupIds vector, first is the serial, second is anonymity set id for it
             const std::vector<uint32_t>& groupIds,
             const Scalar& Vin,
             uint64_t Vout,

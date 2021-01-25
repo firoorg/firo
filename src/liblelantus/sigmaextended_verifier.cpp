@@ -421,6 +421,7 @@ bool SigmaExtendedVerifier::abcd_checks(
     c.randomize();
 
     // Aggregating two checks into one, B^x * A = Comm(..) and C^x * D = Comm(..)
+    //for making aggregation more safe we are adding random value c in each side of equation,
     std::vector<Scalar> f_plus_f_prime;
     f_plus_f_prime.reserve(f_.size());
     for(std::size_t i = 0; i < f_.size(); i++)

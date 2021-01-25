@@ -17,6 +17,7 @@
 #include "zerocoin_params.h"
 
 //struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
+// as sigma mints have denomination, but lelantus mints has in values instead of it, crate one single class for Mint metadata, then inherit from it for sigma and lelantus
 struct MintMeta
 {
     int nHeight;

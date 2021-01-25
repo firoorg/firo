@@ -800,6 +800,7 @@ WalletModel::SendCoinsReturn WalletModel::sendAnonymizingCoins(
             wallet->zwallet->GetTracker().AddLelantus(db, mintTmp, true);
         }
     }
+    // we need to update counter for hd mint engine
     wallet->zwallet->UpdateCountDB(db);
     return SendCoinsReturn(OK);
 }

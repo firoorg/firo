@@ -18,7 +18,7 @@
 
 namespace lelantus {
 
-struct NthPower {
+struct NthPower { //as we are using n-th power of scalar in a lot of places at the code, make it look better with creating this type,
     Scalar num;
     Scalar pow;
 

@@ -303,7 +303,7 @@ bool CheckSigmaSpendTransaction(
         // if we are collecting proofs, skip verification and collect proofs
         passVerify = spend->Verify(anonymity_set, newMetaData, fPadding, batchProofContainer->fCollectProofs);
 
-        // add proofs into container
+        // add proofs into container, if we are verifing a block and it is older then a day
         if(batchProofContainer->fCollectProofs) {
             batchProofContainer->add(spend.get(), fPadding, coinGroupId, anonymity_set.size(), nHeight >= params.nStartSigmaBlacklist);
         }

@@ -101,6 +101,7 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
         throw std::invalid_argument("Script is not a valid Lelantus mint");
     }
 
+    // skip tad deserialization if it is not included onto scrypt
     bool skipTag = serialized.size() == (pubcoin.memoryRequired() + schnorrProof.memoryRequired());
 
     pubcoin.deserialize(serialized.data());
@@ -134,6 +135,7 @@ void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupEleme
         throw std::invalid_argument("Script is not a valid Lelantus jMint");
     }
 
+    // skip tad deserialization if it is not included onto scrypt
     bool skipTag = serialized.size() == (pubcoin.memoryRequired() + 16);
 
     pubcoin.deserialize(serialized.data());
@@ -187,12 +189,12 @@ bool CheckLelantusBlock(CValidationState &state, const CBlock& block) {
         auto txSpendsValue =  GetSpendTransparentAmount(*tx);
         size_t txSpendNumber = GetSpendInputs(*tx);
 
-        if (txSpendNumber > consensus.nMaxLelantusInputPerTransaction) {
+        if (txSpendNumber > consensus.nMaxLelantusInputPerTransaction) { //check number of spent coins in a transaction
             return state.DoS(100, false, REJECT_INVALID,
                 "bad-txns-lelantus-spend-invalid");
         }
 
-        if (txSpendsValue > consensus.nMaxValueLelantusSpendPerTransaction) {
+        if (txSpendsValue > consensus.nMaxValueLelantusSpendPerTransaction) { //check output transparent value in each transaction, mint value limits are being checked at range proof verification
             return state.DoS(100, false, REJECT_INVALID,
                              "bad-txns-lelantus-spend-invalid");
         }
@@ -201,12 +203,12 @@ bool CheckLelantusBlock(CValidationState &state, const CBlock& block) {
         blockSpendsValue += txSpendsValue;
     }
 
-    if (blockSpendsAmount > consensus.nMaxLelantusInputPerBlock) {
+    if (blockSpendsAmount > consensus.nMaxLelantusInputPerBlock) { //check number of spent coins in a block
         return state.DoS(100, false, REJECT_INVALID,
             "bad-txns-lelantus-spend-invalid");
     }
 
-    if (blockSpendsValue > consensus.nMaxValueLelantusSpendPerBlock) {
+    if (blockSpendsValue > consensus.nMaxValueLelantusSpendPerBlock) { //check spent transparent value in a block
         return state.DoS(100, false, REJECT_INVALID,
                          "bad-txns-lelantus-spend-invalid");
     }
@@ -361,7 +363,9 @@ bool CheckLelantusJoinSplitTransaction(
         int coinGroupId = idAndHash.first % (CENT / 1000);
         int64_t intDenom = (idAndHash.first - coinGroupId);
         intDenom *= 1000;
-
+        //when joinsplit version is SIGMA_TO_LELANTUS_JOINSPLIT that means in joinsplit sigma mints are bing spent,
+        // so try to convert intDenom to sigma coin denomination, if it fails, that means, the exact serial is from lelantus,
+        // mixes are also allowed, and for verification, sigma and lelantus serials are considered as serials from different anonymity sets, and proofs are being verified in separate batch verification
         sigma::CoinDenomination denomination;
         if(joinsplit->getVersion() == SIGMA_TO_LELANTUS_JOINSPLIT && sigma::IntegerToDenomination(intDenom, denomination)) {
 
@@ -386,9 +390,11 @@ bool CheckLelantusJoinSplitTransaction(
                     const sigma::PublicCoin &pubCoinValue,
                     index->sigmaMintedPubCoins[denominationAndId]) {
                         std::vector<unsigned char> vch = pubCoinValue.getValue().getvch();
+                        // skip sigma blacklisted coins just like we did in sigma
                         if(sigma::sigma_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
                             continue;
                         }
+                        // with following way, we are converting sigma anonymity set be be acceptable by Lelantus verifier
                         lelantus::PublicCoin publicCoin(pubCoinValue.getValue() + lelantusParams->get_h1() * intDenom);
                         anonymity_set.push_back(publicCoin);
                     }
@@ -434,7 +440,7 @@ bool CheckLelantusJoinSplitTransaction(
     // if we are collecting proofs, skip verification and collect proofs
     passVerify = joinsplit->Verify(anonymity_sets, Cout, Vout, txHashForMetadata, challenge, batchProofContainer->fCollectProofs);
 
-    // add proofs into container
+    // add proofs into container, if we are verifing a block and it is older then a day
     if(batchProofContainer->fCollectProofs) {
         std::map<uint32_t, size_t> idAndSizes;
 
@@ -545,6 +551,8 @@ bool CheckLelantusMintTransaction(
     lelantus::PublicCoin pubCoin(pubCoinValue);
 
     //checking whether commitment is valid
+    //with this verification, we are checking if mint creator knows the exponents S and R for this commitments, this is done to be sure that iti is not somehow crated to invalidate the set or make any other hack
+    //this works very fast, so no performance loses
     if(!VerifyMintSchnorrProof(txout.nValue, pubCoinValue, schnorrProof) || !pubCoin.validate())
         return state.DoS(100,
                          false,

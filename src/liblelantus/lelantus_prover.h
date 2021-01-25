@@ -12,9 +12,9 @@ class LelantusProver {
 public:
     LelantusProver(const Params* p);
     void proof(
-            const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+            const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets, //pass anonymity sets as a map, key is the id of the set, value is the set, we need this for multiple anonymity set support
             const Scalar& Vin,
-            const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
+            const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,  // we pass spending coins as a pair with anonymity set id, to which it belongs
             const std::vector <size_t>& indexes,
             const Scalar& Vout,
             const std::vector <PrivateCoin>& Cout,
@@ -23,8 +23,8 @@ public:
 
 private:
     void generate_sigma_proofs(
-            const std::map<uint32_t, std::vector<PublicCoin>>& c,
-            const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
+            const std::map<uint32_t, std::vector<PublicCoin>>& c, //pass anonymity sets as a map, key is the id of the set, value is the set, we need this for multiple anonymity set support
+            const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,  // we pass spending coins as a pair with anonymity set id, to which it belongs
             const std::vector<PrivateCoin>& Cout,
             const std::vector<size_t>& indexes,
             Scalar& x,

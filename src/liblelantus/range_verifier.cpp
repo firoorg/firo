@@ -62,7 +62,7 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const Range
         z_m.go_next();
     }
 
-    std::vector<Scalar> l_r;
+    std::vector<Scalar> l_r; //put l and r arrays in a single vector
     l_r.resize(n * m * 2);
     NthPower y_n_(y.inverse());
     NthPower z_j(z, z.square());
@@ -104,7 +104,7 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const Range
     //check lines  98 and 105
     Scalar c;
     c.randomize();
-
+    // instead of doing exponentations and multiplications one by one, put them in a single array and call multiexponentation function, which is a lot faster
     std::vector<GroupElement> points;
     points.insert(points.end(), g_.begin(), g_.end());
     points.insert(points.end(), h_.begin(), h_.end());

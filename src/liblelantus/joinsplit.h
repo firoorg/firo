@@ -96,7 +96,7 @@ public:
         READWRITE(coinGroupIdAndBlockHash);
         READWRITE(fee);
         READWRITE(version);
-
+        // we don't need to serialize serial numbers, as we can generate it from ecdsaPubkey,
         if (ser_action.ForRead()) {
             serialNumbers.resize(coinNum);
             for(size_t i = 0; i < coinNum; i++) {
@@ -120,6 +120,9 @@ private:
     std::vector<std::vector<unsigned char>> ecdsaSignatures;
     std::vector<std::vector<unsigned char>> ecdsaPubkeys;
     std::vector<std::pair<uint32_t, uint256>> coinGroupIdAndBlockHash;
+    // put lelantus joinsplit transaction fee here,
+    // as input and output amounts are hidden for such transactions and it is not possible to do vin - vout,
+    // so we need to parse joinsplit and get fee  from here if we need it, we can see it in many  places in the code
     uint64_t fee;
 
 };

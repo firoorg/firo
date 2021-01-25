@@ -254,7 +254,7 @@ void Shutdown()
     StopRPC();
     StopHTTPServer();
     llmq::StopLLMQSystem();
-
+    // do batch verification before quiting, this happens when you are quiting but sync/reindex is not finished, otherwise it does nothing
     BatchProofContainer::get_instance()->finalize();
 
 #ifdef ENABLE_WALLET

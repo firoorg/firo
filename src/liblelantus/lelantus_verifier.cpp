@@ -9,8 +9,8 @@ LelantusVerifier::LelantusVerifier(const Params* p) : params(p) {
 }
 
 bool LelantusVerifier::verify(
-        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
-        const std::vector<Scalar>& serialNumbers,
+        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,  //pass anonymity sets as matrix, each row is a  single anonymity set, we need this for multiple anonymity set support
+        const std::vector<Scalar>& serialNumbers, // we pass serials as a vector, where the element has it's pair at groupIds vector, first is the serial, second is anonymity set id for it
         const std::vector<uint32_t>& groupIds,
         const Scalar& Vin,
         uint64_t Vout,
@@ -23,8 +23,8 @@ bool LelantusVerifier::verify(
 }
 
 bool LelantusVerifier::verify(
-        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
-        const std::vector<Scalar>& serialNumbers,
+        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets, //pass anonymity sets as matrix, each row is a  single anonymity set, we need this for multiple anonymity set support
+        const std::vector<Scalar>& serialNumbers,  // we pass serials as a vector, where the element has it's pair at groupIds vector, first is the serial, second is anonymity set id for it
         const std::vector<uint32_t>& groupIds,
         const Scalar& Vin,
         uint64_t Vout,
@@ -46,7 +46,7 @@ bool LelantusVerifier::verify(
 
     size_t i = 0;
     auto itr = vSin.begin();
-    for(const auto& set : anonymity_sets) {
+    for(const auto& set : anonymity_sets) { // iterate on anonymity sets and collect serials for it,
         vAnonymity_sets.emplace_back(set.second);
 
         while (i < groupIds.size() && groupIds[i] == set.first) {
@@ -55,7 +55,7 @@ bool LelantusVerifier::verify(
         itr++;
     }
 
-    Scalar zV, zR;
+    Scalar zV, zR; //this values are sum of zV and zR of all proofs, not depending on anonymity set
     if(!(verify_sigma(vAnonymity_sets, vSin, Cout, proof.sigma_proofs, x, zV, zR, fSkipVerification) &&
          verify_rangeproof(Cout, proof.bulletproofs) &&
          verify_schnorrproof(x, zV, zR, Vin, Vout, fee, Cout, proof)))
@@ -120,6 +120,7 @@ bool LelantusVerifier::verify_rangeproof(
     std::size_t n = params->get_bulletproofs_n();
     std::size_t m = Cout.size() * 2;
 
+    // make m to be a power of 2, as range proof works only with power of 2 elements, just fill 0's
     while (m & (m - 1))
         m++;
 
@@ -132,8 +133,8 @@ bool LelantusVerifier::verify_rangeproof(
     std::vector<GroupElement> V;
     V.reserve(m);
     for (std::size_t i = 0; i < Cout.size(); ++i) {
-        V.push_back(Cout[i].getValue());
-        V.push_back(Cout[i].getValue() + params->get_h1_limit_range());
+        V.push_back(Cout[i].getValue());  //check that value is in range [0, 2^64]
+        V.push_back(Cout[i].getValue() + params->get_h1_limit_range()); //check that the value is in a range [0, mint limit], in that case we are adding (2^64 - mint limit) to the value,
     }
 
     for (std::size_t i = Cout.size() * 2; i < m; ++i)

@@ -25,6 +25,11 @@ Scalar::Scalar()
 
 Scalar::Scalar(uint64_t value)
    : value_(new secp256k1_scalar()) {
+    // previously we did this way
+    // secp256k1_scalar_set_int(reinterpret_cast<secp256k1_scalar *>(value_), value);
+    // which worked as in sigma we were not passing big numbers to this function,
+    // but secp256k1_scalar_set_int is casting uint664 to int, when in lelantus we need to pass really uin64 numbers to this function,
+    // for that reason convert the number to b32 string and create scalar from it
     unsigned char b32[32];
     for(int i = 0; i < 24; i++)
         b32[i] = 0;
