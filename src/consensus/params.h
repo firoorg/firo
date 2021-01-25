@@ -311,9 +311,15 @@ struct Params {
 
     /** block to switch to evo znode payments */
     int DIP0003EnforcementHeight;
+    uint256 DIP0003EnforcementHash;
 
     /** block to start using chainlocks */
     int DIP0008Height;
+
+    /** maximum reorg depth */
+    int nMaxReorgDepth;
+    /** block to start reorg depth enforcement */
+    int nMaxReorgDepthEnforcementBlock;
 
     int nEvoZnodeMinimumConfirmations;
 

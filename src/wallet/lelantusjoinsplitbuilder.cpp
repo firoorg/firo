@@ -206,7 +206,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
 
                 isSigmaToLelantusJoinSplit = true;
             }
-        } catch (std::runtime_error) {
+        } catch (std::runtime_error const &) {
         }
 
         if(required > 0) {
