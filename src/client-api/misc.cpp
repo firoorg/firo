@@ -166,8 +166,6 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     int estimateFoundAtBlock = nBlocksToConfirm;
     CFeeRate smartFee = mempool.estimateSmartFee(nBlocksToConfirm, &estimateFoundAtBlock);
     obj.push_back(Pair("smartFeePerKb", smartFee.GetFeePerK()));
-
-    obj.push_back(Pair("isLelantusAllowed", lelantus::IsLelantusAllowed()));
     obj.push_back(Pair("dataDir",       GetDataDir(true).string()));
     obj.push_back(Pair("network",       ChainNameFromCommandLine()));
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
@@ -181,6 +179,14 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     if(!APIIsInWarmup())
         obj.push_back(Pair("reindexing",    fReindex));
     obj.push_back(Pair("safeMode",      GetWarnings("api") != ""));
+
+    if (chainActive.Tip() != NULL) {
+        UniValue sporks = UniValue::VARR;
+        for (auto spork : chainActive.Tip()->activeDisablingSporks) {
+            sporks.push_back(spork.first);
+        }
+        obj.push_back(Pair("disabledSporks", sporks));
+    }
 
 #ifdef WIN32
     obj.push_back(Pair("pid",           (int)GetCurrentProcessId()));
