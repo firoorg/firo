@@ -108,7 +108,6 @@ add_executable(firod src/activemasternode.cpp
     src/bls/bls_worker.h
     src/chain.cpp
     src/chain.h
-    src/chain_settings.h
     src/chainparams.cpp
     src/chainparams.h
     src/chainparamsbase.cpp
