@@ -3765,7 +3765,8 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
             CBlockIndex *pindexOldTip = chainActive.Tip();
             if (pindexMostWork == NULL) {
                 pindexMostWork = FindMostWorkChain();
-                if (pindexMostWork != NULL &&
+                if (!fReindex && !IsInitialBlockDownload() &&
+                        pindexMostWork != NULL &&
                         pindexMostWork != chainActive.Tip() &&
                         chainActive.Height() >= chainparams.GetConsensus().nMaxReorgDepthEnforcementBlock &&
                         !GetBoolArg("-allowdeepreorg", false)) {
