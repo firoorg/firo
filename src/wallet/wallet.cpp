@@ -2260,9 +2260,6 @@ bool CWalletTx::RelayWalletTransaction(CConnman* connman)
                 int64_t nEmbargo = 1000000 * DANDELION_EMBARGO_MINIMUM
                         + PoissonNextSend(nCurrTime, DANDELION_EMBARGO_AVG_ADD);
                 CNode::insertDandelionEmbargo(GetHash(), nEmbargo);
-                //LogPrintf(
-                //    "dandeliontx %s embargoed for %d seconds\n",
-                //    GetHash().ToString(), (nEmbargo - nCurrTime) / 1000000);
                 CInv inv(MSG_DANDELION_TX, GetHash());
                 return CNode::localDandelionDestinationPushInventory(inv);
             }
@@ -3312,7 +3309,6 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
 void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue) const
 {
     static const int ZNODE_COIN_REQUIRED  = 1000;
-
     vCoins.clear();
     CoinType nCoinType = coinControl ? coinControl->nCoinType : CoinType::ALL_COINS;
 
@@ -6884,7 +6880,7 @@ CAmount CWallet::EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmou
                                        consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl, true);
                 currentRequired -= inputFromSigma;
             }
-        } catch (std::runtime_error) {
+        } catch (std::runtime_error const &) {
         }
 
         if (currentRequired > 0) {
