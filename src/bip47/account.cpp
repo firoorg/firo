@@ -11,7 +11,7 @@ namespace bip47 {
 CAccountBase::CAccountBase(CExtKey const & walletKey, size_t accountNum)
 :accountNum(accountNum)
 {
-    walletKey.Derive(privkey, uint32_t(accountNum) | BIP32_HARDENED_KEY_LIMIT);
+    walletKey.Derive(privkey, (unsigned int)(accountNum) | BIP32_HARDENED_KEY_LIMIT);
     pubkey = privkey.Neuter();
 }
 
@@ -169,7 +169,8 @@ CWallet::CWallet(std::vector<unsigned char> const & seedData)
 {
     CExtKey seedKey;
     seedKey.SetMaster(seedData.data(), seedData.size());
-    privkey = utils::Derive(seedKey, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
+    privkeySend = utils::Derive(seedKey, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0});
+    privkeyReceive = utils::Derive(seedKey, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 1});
 }
 
 CWallet::CWallet(uint256 const & seedData)
@@ -178,25 +179,24 @@ CWallet::CWallet(uint256 const & seedData)
 
 CAccountReceiver & CWallet::createReceivingAccount(std::string const & label)
 {
-    size_t const accNum = (accounts.empty() ? 0 : accounts.cend()->first + 1);
-    CAccountPtr pacc = std::shared_ptr<CAccountBase>(new CAccountReceiver(privkey, accNum, label));
-    accounts.emplace(accNum, pacc);
-    LogBip47("Created for receiving: pcode: %s, naddr: %s, accNum: %d\n", pacc->getMyPcode().toString(), pacc->getMyPcode().getNotificationAddress().ToString(), accNum);
-    return static_cast<CAccountReceiver &>(*pacc);
+    size_t const accNum = (accReceivers.empty() ? 0 : accReceivers.rbegin()->first + 1);
+    accReceivers.emplace(accNum, CAccountReceiver(privkeyReceive, accNum, label));
+    CAccountReceiver & acc = accReceivers.rbegin()->second;
+    LogBip47("Created for receiving: pcode: %s, naddr: %s, accNum: %d\n", acc.getMyPcode().toString(), acc.getMyPcode().getNotificationAddress().ToString(), accNum);
+    return acc;
 }
 
 CAccountSender & CWallet::provideSendingAccount(CPaymentCode const & theirPcode)
 {
-    for(std::pair<size_t, CAccountPtr const> const & acc : accounts) {
-        CAccountSender * pacc = dynamic_cast<CAccountSender *>(acc.second.get());
-        if(pacc && pacc->getTheirPcode() == theirPcode)
-            return *pacc;
+    for(std::pair<size_t const, CAccountSender> & acc : accSenders) {
+        if(acc.second.getTheirPcode() == theirPcode)
+            return acc.second;
     }
-    size_t const accNum = (accounts.empty() ? 0 : accounts.cend()->first + 1);
-    CAccountPtr pacc = std::shared_ptr<CAccountBase>(new CAccountSender(privkey, accNum, theirPcode));
-    accounts.emplace(accNum, pacc);
+    size_t const accNum = (accSenders.empty() ? 0 : accSenders.rbegin()->first + 1);
+    accSenders.emplace(accNum, CAccountSender(privkeySend, accNum, theirPcode));
+    CAccountSender & acc = accSenders.rbegin()->second;
     LogBip47("Created for sending to pcode: %s, accNum: %s\n", theirPcode.toString(), accNum);
-    return static_cast<CAccountSender &>(*pacc);
+    return acc;
 }
 
 }

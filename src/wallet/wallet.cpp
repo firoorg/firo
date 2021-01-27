@@ -1187,14 +1187,13 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
             if(ExtractDestinations(wtx.tx->vout[0].scriptPubKey, type, addresses, nRequired)){
                 CKey key;
                 bip47::CAccountReceiver * accFound = nullptr;
-                bip47wallet->enumerateAccounts(
-                    [&key, &addresses, &accFound](bip47::CAccountPtr pacc)
+                bip47wallet->enumerateReceivers(
+                    [&key, &addresses, &accFound](bip47::CAccountReceiver & acc)
                     {
-                        bip47::CAccountReceiver * acc = dynamic_cast<bip47::CAccountReceiver *>(pacc.get());
                         for (CBitcoinAddress addr : addresses) {
-                            if(acc && acc->getMyNotificationAddress() == addr) {
-                                key = acc->getMyNextAddresses()[0].second;
-                                accFound = acc;
+                            if(acc.getMyNotificationAddress() == addr) {
+                                key = acc.getMyNextAddresses()[0].second;
+                                accFound = &acc;
                                 return;
                             }
                         }
@@ -7249,13 +7248,10 @@ bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)
 std::vector<std::pair<std::string, std::string>> CWallet::ListPcodes()
 {
     std::vector<std::pair<std::string, std::string>> result;
-    bip47wallet->enumerateAccounts(
-        [&result](bip47::CAccountPtr pacc)
+    bip47wallet->enumerateReceivers(
+        [&result](bip47::CAccountReceiver const & acc)
         {
-            bip47::CAccountReceiver const * acc = dynamic_cast<bip47::CAccountReceiver const *>(pacc.get());
-            if(acc) {
-                result.push_back(std::make_pair(acc->getMyPcode().toString(), acc->getLabel()+","+acc->getMyNotificationAddress().ToString()));
-            }
+            result.push_back(std::make_pair(acc.getMyPcode().toString(), acc.getLabel()+","+acc.getMyNotificationAddress().ToString()));
         }
     );
     return result;
@@ -7270,12 +7266,11 @@ bip47::CPaymentChannel & CWallet::SetupPchannel(bip47::CPaymentCode const & thei
 CBitcoinAddress CWallet::GetNextAddress(bip47::CPaymentCode const & theirPcode)
 {
     boost::optional<bip47::CAccountSender*> existingAcc;
-    bip47wallet->enumerateAccounts(
-        [&theirPcode, &existingAcc](bip47::CAccountPtr pacc)
+    bip47wallet->enumerateSenders(
+        [&theirPcode, &existingAcc](bip47::CAccountSender const & acc)
         {
-            bip47::CAccountSender * acc = dynamic_cast<bip47::CAccountSender *>(pacc.get());
-            if(acc && acc->getTheirPcode() == theirPcode) {
-                existingAcc.emplace(acc);
+            if(acc.getTheirPcode() == theirPcode) {
+                existingAcc.emplace(&acc);
             }
         }
     );

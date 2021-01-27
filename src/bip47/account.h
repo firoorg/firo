@@ -36,8 +36,6 @@ private:
     virtual bool markAddressUsed(CBitcoinAddress const &) = 0;
 };
 
-typedef std::shared_ptr<CAccountBase> CAccountPtr;
-
 /******************************************************************************/
 
 /**
@@ -113,21 +111,30 @@ public:
     CAccountSender & provideSendingAccount(CPaymentCode const & theirPcode);
 
     template<class E>
-    void enumerateAccounts(E e);
+    void enumerateSenders(E e);
+    template<class E>
+    void enumerateReceivers(E e);
 private:
-    using ContT = std::map<size_t, CAccountPtr>;
-    ContT accounts;
-    CExtKey privkey;
+    std::map<size_t, CAccountSender> accSenders;
+    std::map<size_t, CAccountReceiver> accReceivers;
+    CExtKey privkeySend, privkeyReceive;
 };
 
 template<class UnaryFunction>
-void CWallet::enumerateAccounts(UnaryFunction e)
+void CWallet::enumerateSenders(UnaryFunction e)
 {
-    for(ContT::value_type const & val : accounts) {
+    for(std::pair<size_t const, CAccountSender> & val : accSenders) {
         e(val.second);
     }
 }
 
+template<class UnaryFunction>
+void CWallet::enumerateReceivers(UnaryFunction e)
+{
+    for(std::pair<size_t const, CAccountReceiver> & val : accReceivers) {
+        e(val.second);
+    }
+}
 
 }
 

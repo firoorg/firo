@@ -283,10 +283,13 @@ BOOST_AUTO_TEST_CASE(account_for_sending)
     ChangeBase58Prefixes _(Params());
 
     {using namespace alice;
-        bip47::CWallet wallet(bip32seed);
+        CExtKey key;
+        key.SetMaster(bip32seed.data(), bip32seed.size());
+        CExtKey key_alice = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
+
         CPaymentCode const paymentCode_bob(bob::paymentcode);
 
-        bip47::CAccountSender & account = wallet.provideSendingAccount(paymentCode_bob);
+        bip47::CAccountSender account(key_alice, 0, paymentCode_bob);
 
         std::vector<unsigned char> const outPointSer = ParseHex("86f411ab1c8e70ae8a0795ab7a6757aea6e4d5ae1826fc7b8f00c597d500609c01000000");
         CDataStream ds(outPointSer, SER_NETWORK, 0);
@@ -319,10 +322,11 @@ BOOST_AUTO_TEST_CASE(account_for_receiving)
     ChangeBase58Prefixes _(Params());
 
     {using namespace bob;
-        bip47::CWallet wallet(bip32seed);
-        CPaymentCode const paymentCode_bob(bob::paymentcode);
+        CExtKey key;
+        key.SetMaster(bip32seed.data(), bip32seed.size());
+        CExtKey key_bob = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
 
-        bip47::CAccountReceiver & account = wallet.createReceivingAccount("");
+        bip47::CAccountReceiver account(key_bob, 0, "");
 
         BOOST_CHECK_EQUAL(account.getMyPcode().toString(), paymentcode);
         BOOST_CHECK_EQUAL(account.getMyNotificationAddress().ToString(), notificationaddress);
