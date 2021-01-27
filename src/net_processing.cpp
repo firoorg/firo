@@ -971,9 +971,9 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         return llmq::quorumDKGSessionManager->AlreadyHave(inv);
     case MSG_QUORUM_RECOVERED_SIG:
         return llmq::quorumSigningManager->AlreadyHave(inv);
-    /*
     case MSG_CLSIG:
         return llmq::chainLocksHandler->AlreadyHave(inv);
+    /*
     case MSG_ISLOCK:
         return llmq::quorumInstantSendManager->AlreadyHave(inv);
     */
@@ -1253,6 +1253,13 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     }
                 }
 
+                if (!pushed && (inv.type == MSG_CLSIG)) {
+                    llmq::CChainLockSig o;
+                    if (llmq::chainLocksHandler->GetChainLockByHash(inv.hash, o)) {
+                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::CLSIG, o));
+                        pushed = true;
+                    }
+                }
                 if (!pushed)
                     vNotFound.push_back(inv);
             }
@@ -2036,9 +2043,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             );
 
             if (CNode::isTxDandelionEmbargoed(tx.GetHash())) {
-                //LogPrintf(
-                //    "Embargoed dandeliontx %s found in mempool; removing from embargo map\n",
-                //    tx.GetHash().ToString());
                 CNode::removeDandelionEmbargo(tx.GetHash());
             }
 
@@ -2559,6 +2563,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             bool fNewBlock = false;
             // Since we requested this block (it was in mapBlocksInFlight), force it to be processed,
             // even if it would not be a candidate for new tip (missing previous block, chain not long enough, etc)
+
             ProcessNewBlock(chainparams, pblock, true, &fNewBlock);
             if (fNewBlock)
                 pfrom->nLastBlockTime = GetTime();
@@ -2992,7 +2997,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             llmq::quorumDKGSessionManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
             llmq::quorumSigSharesManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
             llmq::quorumSigningManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
-            //llmq::chainLocksHandler->ProcessMessage(pfrom, strCommand, vRecv, connman);
+            llmq::chainLocksHandler->ProcessMessage(pfrom, strCommand, vRecv, connman);
             //llmq::quorumInstantSendManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
         } else {
             // Ignore unknown commands for extensibility
@@ -3456,8 +3461,6 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
                     //          hash.ToString(), pto->addr.ToString());
                     vInv.push_back(CInv(MSG_TX, hash));
                 } else {
-                    //LogPrintf("Pushing dandelion transaction MSG_DANDELION_TX %s to %s.",
-                    //          hash.ToString(), pto->addr.ToString());
                     vInv.push_back(CInv(MSG_DANDELION_TX, hash));
                 }
                 if (vInv.size() == MAX_INV_SZ) {

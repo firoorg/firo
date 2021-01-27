@@ -35,12 +35,9 @@ void InitLLMQSystem(CEvoDB& evoDb, CScheduler* scheduler, bool unitTests, bool f
     quorumManager = new CQuorumManager(evoDb, *blsWorker, *quorumDKGSessionManager);
     quorumSigSharesManager = new CSigSharesManager();
     quorumSigningManager = new CSigningManager(*llmqDb, unitTests);
-    /*
     chainLocksHandler = new CChainLocksHandler(scheduler);
-    quorumInstantSendManager = new CInstantSendManager(*llmqDb);
-    */
-   chainLocksHandler = nullptr;
-   quorumInstantSendManager = nullptr;
+//    quorumInstantSendManager = new CInstantSendManager(*llmqDb);
+    quorumInstantSendManager = nullptr;
 }
 
 void DestroyLLMQSystem()
@@ -81,10 +78,10 @@ void StartLLMQSystem()
         quorumSigSharesManager->RegisterAsRecoveredSigsListener();
         quorumSigSharesManager->StartWorkerThread();
     }
-    /*
     if (chainLocksHandler) {
         chainLocksHandler->Start();
     }
+    /*
     if (quorumInstantSendManager) {
         quorumInstantSendManager->Start();
     }
@@ -97,10 +94,10 @@ void StopLLMQSystem()
     if (quorumInstantSendManager) {
         quorumInstantSendManager->Stop();
     }
+    */
     if (chainLocksHandler) {
         chainLocksHandler->Stop();
     }
-    */
     if (quorumSigSharesManager) {
         quorumSigSharesManager->StopWorkerThread();
         quorumSigSharesManager->UnregisterAsRecoveredSigsListener();

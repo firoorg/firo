@@ -38,10 +38,9 @@ CHDMintWallet::CHDMintWallet(const std::string& strWalletFile, bool resetCount) 
 
     // Use MasterKeyId from HDChain as index for mintpool
     uint160 hashSeedMaster = pwalletMain->GetHDChain().masterKeyID;
-    LogPrintf("hashSeedMaster: %d\n", hashSeedMaster.GetHex());
 
     if (!SetupWallet(hashSeedMaster, resetCount)) {
-        LogPrintf("%s: failed to save deterministic seed for hashseed %s\n", __func__, hashSeedMaster.GetHex());
+        LogPrintf("%s: failed to save deterministic seed\n", __func__);
         return;
     }
 }
@@ -118,7 +117,6 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(CWalletDB& wal
     mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
     walletdb.WritePubcoin(hashSerial, commitmentValue);
     walletdb.WriteMintPoolPair(hashPubcoin, mintPoolEntry);
-    LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%s\n count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), nCount);
 
     nIndexes.first = hashPubcoin;
     nIndexes.second = hashSerial;
@@ -173,7 +171,6 @@ void CHDMintWallet::GenerateMintPool(CWalletDB& walletdb, int32_t nIndex)
         mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
         walletdb.WritePubcoin(primitives::GetSerialHash(coin.getSerialNumber()), commitmentValue);
         walletdb.WriteMintPoolPair(hashPubcoin, mintPoolEntry);
-        LogPrintf("%s : hashSeedMaster=%s hashPubcoin=%s seedId=%d count=%d\n", __func__, hashSeedMaster.GetHex(), hashPubcoin.GetHex(), seedId.GetHex(), nLastCount);
     }
 
     // write hdchain back to database
@@ -196,8 +193,6 @@ bool CHDMintWallet::LoadMintPoolFromDB()
     vector<std::pair<uint256, MintPoolEntry>> listMintPool = walletdb.ListMintPool();
 
     for (auto& mintPoolPair : listMintPool){
-        LogPrintf("LoadMintPoolFromDB: hashPubcoin: %d hashSeedMaster: %d seedId: %d nCount: %s\n",
-            mintPoolPair.first.GetHex(), get<0>(mintPoolPair.second).GetHex(), get<1>(mintPoolPair.second).GetHex(), get<2>(mintPoolPair.second));
         mintPool.Add(mintPoolPair);
     }
 
@@ -927,10 +922,6 @@ bool CHDMintWallet::GenerateMint(CWalletDB& walletdb, const sigma::CoinDenominat
     DenominationToInteger(denom, amount);
     dMint.SetAmount(amount);
 
-    LogPrintf("GenerateMint: hashPubcoin: %s hashSeedMaster: %s seedId: %s nCount: %d\n",
-             dMint.GetPubCoinHash().ToString(),
-             get<0>(mintPoolEntry.get()).GetHex(), get<1>(mintPoolEntry.get()).GetHex(), get<2>(mintPoolEntry.get()));
-
     return true;
 }
 
@@ -982,11 +973,6 @@ bool CHDMintWallet::GenerateLelantusMint(CWalletDB& walletdb, lelantus::PrivateC
     }
 
     dMint.SetAmount(coin.getV());
-
-    LogPrintf("GenerateMint: hashPubcoin: %s hashSeedMaster: %s seedId: %s nCount: %d\n",
-              dMint.GetPubCoinHash().ToString(),
-              get<0>(mintPoolEntry.get()).GetHex(), get<1>(mintPoolEntry.get()).GetHex(), get<2>(mintPoolEntry.get()));
-
     return true;
 }
 

@@ -5,7 +5,7 @@
 #include "quorums_chainlocks.h"
 #include "quorums_instantsend.h"
 #include "quorums_utils.h"
-#include "chain_settings.h"
+#include "evo/spork.h"
 
 #include "bls/bls_batchverifier.h"
 #include "chainparams.h"
@@ -1143,7 +1143,7 @@ void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
     // TODO remove this after DIP8 has activated
     bool fDIP0008Active = chainActive.Height() >= Params().GetConsensus().DIP0008Height;
 
-    if (IsChainlocksEnabled() && fDIP0008Active) {
+    if (fDIP0008Active && IsChainlocksEnabled(pindexNew)) {
         // Nothing to do here. We should keep all islocks and let chainlocks handle them.
         return;
     }

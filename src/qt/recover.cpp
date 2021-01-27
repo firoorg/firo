@@ -5,6 +5,7 @@
 
 #include "util.h"
 
+#include "../wallet/wallet.h"
 #include "../wallet/bip39.h"
 #include "support/allocators/secure.h"
 
@@ -76,23 +77,9 @@ void Recover::on_usePassphrase_clicked()
 bool Recover::askRecover(bool& newWallet)
 {
     namespace fs = boost::filesystem;
-    std::string dataDir = GetDataDir(false).string();
-    if(dataDir.empty())
-        throw std::runtime_error("Can't get data directory");
+    fs::path walletFile = GetDataDir(true) / GetArg("-wallet", DEFAULT_WALLET_DAT);
 
-    boost::optional<bool> regTest = GetOptBoolArg("-regtest")
-    , testNet = GetOptBoolArg("-testnet");
-
-    if (testNet && regTest && *testNet && *regTest)
-        throw std::runtime_error("Invalid combination of -regtest and -testnet.");
-    if (regTest && *regTest)
-        dataDir += "/regtest";
-    if (testNet && *testNet)
-        dataDir += "/testnet3";
-
-    dataDir += "/wallet.dat";
-
-    if(!fs::exists(GUIUtil::qstringToBoostPath(QString::fromStdString(dataDir))))
+    if (!fs::exists(walletFile))
     {
         newWallet = true;
         Recover recover;
