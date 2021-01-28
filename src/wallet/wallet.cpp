@@ -5308,7 +5308,7 @@ bool CWallet::CreateLelantusMintTransactions(
                 CAmount nValueToSelect, mintedValue;
 
                 std::set<std::pair<const CWalletTx *, unsigned int>> setCoins;
-                bool skipIfNegative = false;
+                bool skipCoin = false;
                 // Start with no fee and loop until there is enough fee
                 while (true) {
                     mintedValue = valueToMintInTx;
@@ -5322,7 +5322,7 @@ bool CWallet::CreateLelantusMintTransactions(
 
                     if (!MoneyRange(mintedValue) || mintedValue == 0) {
                         valueAndUTXO.erase(itr);
-                        skipIfNegative = true;
+                        skipCoin = true;
                         break;
                     }
 
@@ -5542,85 +5542,85 @@ bool CWallet::CreateLelantusMintTransactions(
                     continue;
                 }
 
-                if(!skipIfNegative) {
+                if(skipCoin)
+                    continue;
 
-                    if (GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS)) {
-                        // Lastly, ensure this tx will pass the mempool's chain limits
-                        LockPoints lp;
-                        CTxMemPoolEntry entry(MakeTransactionRef(tx), 0, 0, 0, 0, false, 0, lp);
-                        CTxMemPool::setEntries setAncestors;
-                        size_t nLimitAncestors = GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
-                        size_t nLimitAncestorSize = GetArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT) * 1000;
-                        size_t nLimitDescendants = GetArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT);
-                        size_t nLimitDescendantSize =
-                                GetArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT) * 1000;
-                        std::string errString;
-                        if (!mempool.CalculateMemPoolAncestors(entry, setAncestors, nLimitAncestors, nLimitAncestorSize,
-                                                               nLimitDescendants, nLimitDescendantSize, errString)) {
-                            strFailReason = _("Transaction has too long of a mempool chain");
-                            return false;
+                if (GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS)) {
+                    // Lastly, ensure this tx will pass the mempool's chain limits
+                    LockPoints lp;
+                    CTxMemPoolEntry entry(MakeTransactionRef(tx), 0, 0, 0, 0, false, 0, lp);
+                    CTxMemPool::setEntries setAncestors;
+                    size_t nLimitAncestors = GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
+                    size_t nLimitAncestorSize = GetArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT) * 1000;
+                    size_t nLimitDescendants = GetArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT);
+                    size_t nLimitDescendantSize =
+                            GetArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT) * 1000;
+                    std::string errString;
+                    if (!mempool.CalculateMemPoolAncestors(entry, setAncestors, nLimitAncestors, nLimitAncestorSize,
+                                                           nLimitDescendants, nLimitDescendantSize, errString)) {
+                        strFailReason = _("Transaction has too long of a mempool chain");
+                        return false;
+                    }
+                }
+
+                // Sign
+                int nIn = 0;
+                CTransaction txNewConst(tx);
+                for (const auto &coin : setCoins) {
+                    bool signSuccess = false;
+                    const CScript &scriptPubKey = coin.first->tx->vout[coin.second].scriptPubKey;
+                    SignatureData sigdata;
+                    if (sign)
+                        signSuccess = ProduceSignature(TransactionSignatureCreator(this, &txNewConst, nIn,
+                                                                                   coin.first->tx->vout[coin.second].nValue,
+                                                                                   SIGHASH_ALL), scriptPubKey,
+                                                       sigdata);
+                    else
+                        signSuccess = ProduceSignature(DummySignatureCreator(this), scriptPubKey, sigdata);
+
+                    if (!signSuccess) {
+                        strFailReason = _("Signing transaction failed");
+                        return false;
+                    } else {
+                        UpdateTransaction(tx, nIn, sigdata);
+                    }
+                    nIn++;
+                }
+
+                wtx.SetTx(MakeTransactionRef(std::move(tx)));
+
+                wtxAndFee.push_back(std::make_pair(wtx, nFeeRet));
+
+                if (nChangePosInOut >= 0) {
+                    // Cache wtx to somewhere because COutput use pointer of it.
+                    cacheWtxs.push_back(wtx);
+                    auto &wtx = cacheWtxs.back();
+
+                    COutput out(&wtx, nChangePosInOut, wtx.GetDepthInMainChain(false), true, true);
+                    auto val = wtx.tx->vout[nChangePosInOut].nValue;
+
+                    bool added = false;
+                    for (auto &utxos : valueAndUTXO) {
+                        auto const &o = utxos.second.front();
+                        if (o.tx->tx->vout[o.i].scriptPubKey == wtx.tx->vout[nChangePosInOut].scriptPubKey) {
+                            utxos.first += val;
+                            utxos.second.push_back(out);
+
+                            added = true;
                         }
                     }
 
-                    // Sign
-                    int nIn = 0;
-                    CTransaction txNewConst(tx);
-                    for (const auto &coin : setCoins) {
-                        bool signSuccess = false;
-                        const CScript &scriptPubKey = coin.first->tx->vout[coin.second].scriptPubKey;
-                        SignatureData sigdata;
-                        if (sign)
-                            signSuccess = ProduceSignature(TransactionSignatureCreator(this, &txNewConst, nIn,
-                                                                                       coin.first->tx->vout[coin.second].nValue,
-                                                                                       SIGHASH_ALL), scriptPubKey,
-                                                           sigdata);
-                        else
-                            signSuccess = ProduceSignature(DummySignatureCreator(this), scriptPubKey, sigdata);
-
-                        if (!signSuccess) {
-                            strFailReason = _("Signing transaction failed");
-                            return false;
-                        } else {
-                            UpdateTransaction(tx, nIn, sigdata);
-                        }
-                        nIn++;
+                    if (!added) {
+                        valueAndUTXO.push_back({val, {out}});
                     }
+                }
 
-                    wtx.SetTx(MakeTransactionRef(std::move(tx)));
-
-                    wtxAndFee.push_back(std::make_pair(wtx, nFeeRet));
-
-                    if (nChangePosInOut >= 0) {
-                        // Cache wtx to somewhere because COutput use pointer of it.
-                        cacheWtxs.push_back(wtx);
-                        auto &wtx = cacheWtxs.back();
-
-                        COutput out(&wtx, nChangePosInOut, wtx.GetDepthInMainChain(false), true, true);
-                        auto val = wtx.tx->vout[nChangePosInOut].nValue;
-
-                        bool added = false;
-                        for (auto &utxos : valueAndUTXO) {
-                            auto const &o = utxos.second.front();
-                            if (o.tx->tx->vout[o.i].scriptPubKey == wtx.tx->vout[nChangePosInOut].scriptPubKey) {
-                                utxos.first += val;
-                                utxos.second.push_back(out);
-
-                                added = true;
-                            }
-                        }
-
-                        if (!added) {
-                            valueAndUTXO.push_back({val, {out}});
-                        }
-                    }
-
-                    nAllFeeRet += nFeeRet;
-                    dMints.push_back(dMint);
-                    if (!autoMintAll) {
-                        valueToMint -= mintedValue;
-                        if (valueToMint <= 0)
-                            break;
-                    }
+                nAllFeeRet += nFeeRet;
+                dMints.push_back(dMint);
+                if (!autoMintAll) {
+                    valueToMint -= mintedValue;
+                    if (valueToMint <= 0)
+                        break;
                 }
             }
         }
