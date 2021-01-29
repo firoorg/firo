@@ -146,6 +146,8 @@ void CHDMintWallet::GenerateMintPool(CWalletDB& walletdb, int32_t nIndex)
         return;
     }
 
+    LOCK(pwalletMain->cs_wallet);
+
     int32_t nLastCount = nCountNextGenerate;
     int32_t nStop = nLastCount + 20;
     if(nIndex > 0 && nIndex >= nLastCount)
