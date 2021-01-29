@@ -657,7 +657,8 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
             return false;
     }
 
-    if (nHeight >= ::Params().GetConsensus().nStartBlacklist) {
+    bool isInWhitelist = Params().GetConsensus().txidWhitelist.count(tx.GetHash()) > 0;
+    if (nHeight >= ::Params().GetConsensus().nStartBlacklist && !isInWhitelist) {
         for (const auto& vin : tx.vin) {
             if(txid_blacklist.count(vin.prevout.hash.GetHex()) > 0) {
                     return state.DoS(100, error("Spending this tx is temporarily disabled"),
@@ -1329,7 +1330,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             // Check against previous transactions
             // This is done last to help prevent CPU exhaustion denial-of-service attacks.
             PrecomputedTransactionData txdata(tx);
-            if (!CheckInputs(tx, state, view, true, scriptVerifyFlags, true, txdata)) {
+            // don't check inputs for transactions in whitelist
+            bool isInWhitelist = consensus.txidWhitelist.count(tx.GetHash()) > 0;
+            if (!CheckInputs(tx, state, view, !isInWhitelist, scriptVerifyFlags, true, txdata)) {
                 // SCRIPT_VERIFY_CLEANSTACK requires SCRIPT_VERIFY_WITNESS, so we
                 // need to turn both off, and compare against just turning off CLEANSTACK
                 // to see if the failure is specifically due to witness validation.
@@ -2675,7 +2678,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
             std::vector<CScriptCheck> vChecks;
             bool fCacheResults = fJustCheck; /* Don't cache results if we're actually connecting blocks (still consult the cache, though) */
-            if (!CheckInputs(tx, state, view, fScriptChecks, flags, fCacheResults, txdata[i], nScriptCheckThreads ? &vChecks : NULL))
+            bool isInWhitelist = chainparams.GetConsensus().txidWhitelist.count(tx.GetHash()) > 0;
+            if (!CheckInputs(tx, state, view, fScriptChecks && !isInWhitelist, flags, fCacheResults, txdata[i], nScriptCheckThreads ? &vChecks : NULL))
                 return error("ConnectBlock(): CheckInputs on %s failed with %s",
                     tx.GetHash().ToString(), FormatStateMessage(state));
             control.Add(vChecks);
@@ -2728,8 +2732,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     }
 
     if (!ProcessSpecialTxsInBlock(block, pindex, state, fJustCheck, fScriptChecks)) {
-        return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s failed with %s",
-                    pindex->GetBlockHash().ToString(), FormatStateMessage(state));
+        return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s at height %i failed with %s",
+                    pindex->GetBlockHash().ToString(), pindex->nHeight, FormatStateMessage(state));
     }
     // END ZNODE
 
@@ -3761,6 +3765,25 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
             CBlockIndex *pindexOldTip = chainActive.Tip();
             if (pindexMostWork == NULL) {
                 pindexMostWork = FindMostWorkChain();
+                if (!fReindex && !IsInitialBlockDownload() &&
+                        pindexMostWork != NULL &&
+                        pindexMostWork != chainActive.Tip() &&
+                        chainActive.Height() >= chainparams.GetConsensus().nMaxReorgDepthEnforcementBlock &&
+                        chainActive.Height() < chainparams.GetConsensus().DIP0008Height + 100 &&
+                        !GetBoolArg("-allowdeepreorg", false)) {
+                    const CBlockIndex *pindexFork = chainActive.FindFork(pindexMostWork);
+                    assert(pindexFork != NULL);
+                    if (chainActive.Tip() != pindexFork &&
+                            pindexFork->nHeight < chainActive.Height() - chainparams.GetConsensus().nMaxReorgDepth) {
+                        LogPrintf("Deep reorg of %d blocks blocked (most work block = %s, fork block = %s)\n",
+                                pindexMostWork->nHeight - pindexFork->nHeight,
+                                pindexMostWork->GetBlockHash().ToString(),
+                                pindexFork->GetBlockHash().ToString());
+                        // mark block on wrong chain as invalid
+                        InvalidateBlock(state, chainparams, pindexMostWork->GetAncestor(pindexFork->nHeight+1));
+                        return state.Error("Reorg depth exceeds maximum allowed value");
+                    }
+                }
             }
 
             // Whether we have anything to do at all.

@@ -446,7 +446,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
  * @param txid mint txid height
  * @param denom mint denomination
  */
-bool CHDMintWallet::SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom)
+bool CHDMintWallet::SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, int nHeight, const uint256& txid, const sigma::CoinDenomination& denom)
 {
     // Regenerate the mint
     uint256 hashPubcoin = mintPoolEntryPair.first;
@@ -524,7 +524,7 @@ bool CHDMintWallet::SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintP
     return true;
 }
 
-bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const uint64_t amount)
+bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, int nHeight, const uint256& txid, uint64_t amount)
 {
     // Regenerate the mint
     uint256 hashPubcoin = mintPoolEntryPair.first;
