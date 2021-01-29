@@ -206,7 +206,7 @@ UniValue backup(Type type, const UniValue& data, const UniValue& auth, bool fHel
         system_clock::now().time_since_epoch()
     );
     UniValue firstSeenAt = secs.count();
-    string filename = "zcoin_backup-" + to_string(firstSeenAt.get_int64()) + ".zip";
+    string filename = "firo_backup-" + to_string(firstSeenAt.get_int64()) + ".zip";
 
     fs::path backupPath (directory);
     backupPath /= filename;
