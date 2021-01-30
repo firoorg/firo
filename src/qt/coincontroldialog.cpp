@@ -523,62 +523,67 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
     // calculation
     if (nQuantity > 0)
     {
-        // Bytes
-        nBytes = nBytesInputs + ((CoinControlDialog::payAmounts.size() > 0 ? CoinControlDialog::payAmounts.size() + 1 : 2) * 34) + 10; // always assume +1 output for change here
-        if (fWitness)
-        {
-            // there is some fudging in these numbers related to the actual virtual transaction size calculation that will keep this estimate from being exact.
-            // usually, the result will be an overestimate within a couple of satoshis so that the confirmation dialog ends up displaying a slightly smaller fee.
-            // also, the witness stack size value value is a variable sized integer. usually, the number of stack items will be well under the single byte var int limit.
-            nBytes += 2; // account for the serialized marker and flag bytes
-            nBytes += nQuantity; // account for the witness byte that holds the number of stack items for each input.
-        }
-
-        // in the subtract fee from amount case, we can tell if zero change already and subtract the bytes, so that fee calculation afterwards is accurate
-        if (CoinControlDialog::fSubtractFeeFromAmount)
-            if (nAmount - nPayAmount == 0)
-                nBytes -= 34;
-
-        // Fee
-        nPayFee = CWallet::GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
-        if (nPayFee > 0 && coinControl->nMinimumTotalFee > nPayFee)
-            nPayFee = coinControl->nMinimumTotalFee;
-
-
-        // Allow free? (require at least hard-coded threshold and default to that if no estimate)
-        double mempoolEstimatePriority = mempool.estimateSmartPriority(nTxConfirmTarget);
-        dPriority = dPriorityInputs / (nBytes - nBytesInputs + (nQuantityUncompressed * 29)); // 29 = 180 - 151 (uncompressed public keys are over the limit. max 151 bytes of the input are ignored for priority)
-        double dPriorityNeeded = std::max(mempoolEstimatePriority, AllowFreeThreshold());
-        fAllowFree = (dPriority >= dPriorityNeeded);
-
-        if (fSendFreeTransactions)
-            if (fAllowFree && nBytes <= MAX_FREE_TRANSACTION_CREATE_SIZE)
-                nPayFee = 0;
-
-        if (nPayAmount > 0)
-        {
-            nChange = nAmount - nPayAmount;
-            if (!CoinControlDialog::fSubtractFeeFromAmount)
-                nChange -= nPayFee;
-
-            // Never create dust outputs; if we would, just add the dust to the fee.
-            if (nChange > 0 && nChange < MIN_CHANGE)
+        if(anonymousMode){
+            std::tie(nPayFee, nBytes) = model->getWallet()->EstimateJoinSplitFee(nPayAmount,CoinControlDialog::fSubtractFeeFromAmount, coinControl);
+            if (nPayAmount > 0) {
+                nChange = nAmount - nPayAmount;
+                if (!CoinControlDialog::fSubtractFeeFromAmount)
+                    nChange -= nPayFee;
+            }
+        } else {
+            // Bytes
+            nBytes = nBytesInputs + ((CoinControlDialog::payAmounts.size() > 0 ? CoinControlDialog::payAmounts.size() + 1 : 2) * 34) + 10; // always assume +1 output for change here
+            if (fWitness)
             {
-                CTxOut txout(nChange, (CScript)std::vector<unsigned char>(24, 0));
-                if (txout.IsDust(dustRelayFee))
-                {
-                    if (CoinControlDialog::fSubtractFeeFromAmount) // dust-change will be raised until no dust
-                        nChange = txout.GetDustThreshold(dustRelayFee);
-                    else
-                    {
-                        nPayFee += nChange;
-                        nChange = 0;
-                    }
-                }
+                // there is some fudging in these numbers related to the actual virtual transaction size calculation that will keep this estimate from being exact.
+                // usually, the result will be an overestimate within a couple of satoshis so that the confirmation dialog ends up displaying a slightly smaller fee.
+                // also, the witness stack size value value is a variable sized integer. usually, the number of stack items will be well under the single byte var int limit.
+                nBytes += 2; // account for the serialized marker and flag bytes
+                nBytes += nQuantity; // account for the witness byte that holds the number of stack items for each input.
             }
 
-            if (nChange == 0 && !CoinControlDialog::fSubtractFeeFromAmount)
-                nBytes -= 34;
+            // in the subtract fee from amount case, we can tell if zero change already and subtract the bytes, so that fee calculation afterwards is accurate
+            if (CoinControlDialog::fSubtractFeeFromAmount)
+                if (nAmount - nPayAmount == 0)
+                    nBytes -= 34;
+
+            // Fee
+            nPayFee = CWallet::GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
+            if (nPayFee > 0 && coinControl->nMinimumTotalFee > nPayFee)
+                nPayFee = coinControl->nMinimumTotalFee;
+
+            // Allow free? (require at least hard-coded threshold and default to that if no estimate)
+            double mempoolEstimatePriority = mempool.estimateSmartPriority(nTxConfirmTarget);
+            dPriority = dPriorityInputs / (nBytes - nBytesInputs + (nQuantityUncompressed *
+                                                                    29)); // 29 = 180 - 151 (uncompressed public keys are over the limit. max 151 bytes of the input are ignored for priority)
+            double dPriorityNeeded = std::max(mempoolEstimatePriority, AllowFreeThreshold());
+            fAllowFree = (dPriority >= dPriorityNeeded);
+
+            if (fSendFreeTransactions)
+                if (fAllowFree && nBytes <= MAX_FREE_TRANSACTION_CREATE_SIZE)
+                    nPayFee = 0;
+
+            if (nPayAmount > 0) {
+                nChange = nAmount - nPayAmount;
+                if (!CoinControlDialog::fSubtractFeeFromAmount)
+                    nChange -= nPayFee;
+
+                // Never create dust outputs; if we would, just add the dust to the fee.
+                if (nChange > 0 && nChange < MIN_CHANGE) {
+                    CTxOut txout(nChange, (CScript) std::vector<unsigned char>(24, 0));
+                    if (txout.IsDust(dustRelayFee)) {
+                        if (CoinControlDialog::fSubtractFeeFromAmount) // dust-change will be raised until no dust
+                            nChange = txout.GetDustThreshold(dustRelayFee);
+                        else {
+                            nPayFee += nChange;
+                            nChange = 0;
+                        }
+                    }
+                }
+
+                if (nChange == 0 && !CoinControlDialog::fSubtractFeeFromAmount)
+                    nBytes -= 34;
+            }
         }
 
         // after fee

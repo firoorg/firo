@@ -119,7 +119,10 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         nCountNextUse = pwalletMain->zwallet->GetCount();
     }
 
-    for (fee = payTxFee.GetFeePerK();;) {
+    std::tie(fee, std::ignore) = wallet.EstimateJoinSplitFee(vOut + mint, recipientsToSubtractFee, coinControl);
+
+
+    for (;;) {
         // In case of not enough fee, reset mint seed counter
         if (pwalletMain->zwallet) {
             pwalletMain->zwallet->SetCount(nCountNextUse);
