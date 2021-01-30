@@ -1004,6 +1004,7 @@ public:
         CAmount& fee,
         const std::vector<CAmount>& newMints,
         std::vector<CLelantusEntry>& spendCoins,
+        std::vector<CSigmaEntry>& sigmaSpendCoins,
         std::vector<CHDMint>& mintCoins,
         const CCoinControl *coinControl = NULL);
 
@@ -1012,7 +1013,7 @@ public:
 
     bool CommitZerocoinSpendTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
     bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>& selectedCoins, std::vector<CHDMint>& changes);
-    bool CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CHDMint>& mintCoins);
+    bool CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CSigmaEntry>& sigmaSpendCoins, std::vector<CHDMint>& mintCoins);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
 

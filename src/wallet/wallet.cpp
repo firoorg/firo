@@ -1565,7 +1565,7 @@ isminetype CWallet::IsMine(const CTxIn &txin) const
             return ISMINE_NO;
         }
 
-        if (db.HasLelantusSpendSerialEntry(joinsplit->getCoinSerialNumbers()[0])) {
+        if (db.HasLelantusSpendSerialEntry(joinsplit->getCoinSerialNumbers()[0]) || db.HasCoinSpendSerialEntry(joinsplit->getCoinSerialNumbers()[0])) {
             return ISMINE_SPENDABLE;
         }
     } else if (txin.IsZerocoinRemint()) {
@@ -6823,11 +6823,12 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
 void CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result) {
     // create transaction
     std::vector<CLelantusEntry> spendCoins; //spends
+    std::vector<CSigmaEntry> sigmaSpendCoins;
     std::vector<CHDMint> mintCoins; // new mints
     CAmount fee;
-    result = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, mintCoins);
+    result = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins);
 
-    CommitLelantusTransaction(result, spendCoins, mintCoins);
+    CommitLelantusTransaction(result, spendCoins, sigmaSpendCoins, mintCoins);
 }
 
 CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
@@ -6835,6 +6836,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
         CAmount &fee,
         const std::vector<CAmount>& newMints,
         std::vector<CLelantusEntry>& spendCoins,
+        std::vector<CSigmaEntry>& sigmaSpendCoins,
         std::vector<CHDMint>& mintCoins,
         const CCoinControl *coinControl)
 {
@@ -6850,6 +6852,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
 
     CWalletTx tx = builder.Build(recipients, fee, newMints);
     spendCoins = builder.spendCoins;
+    sigmaSpendCoins = builder.sigmaSpendCoins;
     mintCoins = builder.mintCoins;
 
     return tx;
@@ -6918,7 +6921,7 @@ CAmount CWallet::EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmou
     return fee;
 }
 
-bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CHDMint>& mintCoins) {
+bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CSigmaEntry>& sigmaSpendCoins, std::vector<CHDMint>& mintCoins) {
     EnsureMintWalletAvailable();
 
     // commit
@@ -6984,6 +6987,53 @@ bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantus
                 coin.value.GetHex(),
                 "Used (" + std::to_string(coin.amount) + " mint)",
                 CT_UPDATED);
+    }
+
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+    for (auto& coin : sigmaSpendCoins) {
+        // get coin id & height
+        int height, id;
+
+        std::tie(height, id) = sigmaState->GetMintedCoinHeightAndId(sigma::PublicCoin(
+            coin.value, coin.get_denomination()));
+
+        // add CSigmaSpendEntry
+        CSigmaSpendEntry spend;
+
+        spend.coinSerial = coin.serialNumber;
+        spend.hashTx = wtxNew.GetHash();
+        spend.pubCoin = coin.value;
+        spend.id = id;
+        spend.set_denomination_value(coin.get_denomination_value());
+
+        if (!db.WriteCoinSpendSerialEntry(spend)) {
+            throw std::runtime_error(_("Failed to write coin serial number into wallet"));
+        }
+
+        //Set spent mint as used in memory
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value);
+        zwallet->GetTracker().SetPubcoinUsed(hashPubcoin, wtxNew.GetHash());
+        CMintMeta metaCheck;
+        zwallet->GetTracker().GetMetaFromPubcoin(hashPubcoin, metaCheck);
+        if (!metaCheck.isUsed) {
+            string strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
+            LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
+        }
+
+        //Set spent mint as used in DB
+        zwallet->GetTracker().UpdateState(metaCheck);
+
+        // update CSigmaEntry
+        coin.IsUsed = true;
+        coin.id = id;
+        coin.nHeight = height;
+
+        // raise event
+        NotifyZerocoinChanged(
+            this,
+            coin.value.GetHex(),
+            "Used (" + std::to_string(coin.get_denomination()) + " mint)",
+            CT_UPDATED);
     }
 
     for (auto& coin : mintCoins) {
