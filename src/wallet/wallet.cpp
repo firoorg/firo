@@ -1576,7 +1576,7 @@ isminetype CWallet::IsMine(const CTxIn &txin) const
             return ISMINE_NO;
         }
 
-        if (db.HasLelantusSpendSerialEntry(joinsplit->getCoinSerialNumbers()[0])) {
+        if (db.HasLelantusSpendSerialEntry(joinsplit->getCoinSerialNumbers()[0]) || db.HasCoinSpendSerialEntry(joinsplit->getCoinSerialNumbers()[0])) {
             return ISMINE_SPENDABLE;
         }
     } else if (txin.IsZerocoinRemint()) {
@@ -3843,7 +3843,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
 
         const CWalletTx *pcoin = output.tx;
 
-        if (output.nDepth < (pcoin->IsFromMe(ISMINE_ALL) ? nConfMine : nConfTheirs))
+        if (output.nDepth < ((pcoin->IsFromMe(ISMINE_ALL) || pcoin->tx->IsLelantusMint()) ? nConfMine : nConfTheirs))
             continue;
 
         if (!mempool.TransactionWithinChainLimit(pcoin->GetHash(), nMaxAncestors))
@@ -5415,8 +5415,8 @@ bool CWallet::CreateLelantusMintTransactions(
                 auto itr = valueAndUTXO.begin();
 
                 CAmount valueToMintInTx = std::min(
-                    ::Params().GetConsensus().nMaxValueLelantusMint,
-                    itr->first);
+                        ::Params().GetConsensus().nMaxValueLelantusMint,
+                        itr->first);
 
                 if (!autoMintAll) {
                     valueToMintInTx = std::min(valueToMintInTx, valueToMint);
@@ -5424,8 +5424,8 @@ bool CWallet::CreateLelantusMintTransactions(
 
                 CAmount nValueToSelect, mintedValue;
 
-                std::set<std::pair<const CWalletTx*, unsigned int>> setCoins;
-
+                std::set<std::pair<const CWalletTx *, unsigned int>> setCoins;
+                bool skipCoin = false;
                 // Start with no fee and loop until there is enough fee
                 while (true) {
                     mintedValue = valueToMintInTx;
@@ -5435,6 +5435,12 @@ bool CWallet::CreateLelantusMintTransactions(
                     if (nValueToSelect > itr->first) {
                         mintedValue -= nFeeRet;
                         nValueToSelect = mintedValue + nFeeRet;
+                    }
+
+                    if (!MoneyRange(mintedValue) || mintedValue == 0) {
+                        valueAndUTXO.erase(itr);
+                        skipCoin = true;
+                        break;
                     }
 
                     nChangePosInOut = nChangePosRequest;
@@ -5483,7 +5489,7 @@ bool CWallet::CreateLelantusMintTransactions(
                         assert(age >= 0);
                         if (age != 0)
                             age += 1;
-                        dPriority += (double)nCredit * age;
+                        dPriority += (double) nCredit * age;
                     }
 
                     CAmount nChange = nValueIn - nValueToSelect;
@@ -5498,9 +5504,10 @@ bool CWallet::CreateLelantusMintTransactions(
                         if (coinControl && !boost::get<CNoDestination>(&coinControl->destChange))
                             scriptChange = GetScriptForDestination(coinControl->destChange);
 
-                        // send change to one of the specified change addresses
+                            // send change to one of the specified change addresses
                         else if (IsArgSet("-change") && mapMultiArgs.at("-change").size() > 0) {
-                            CBitcoinAddress address(mapMultiArgs.at("change")[GetRandInt(mapMultiArgs.at("-change").size())]);
+                            CBitcoinAddress address(
+                                    mapMultiArgs.at("change")[GetRandInt(mapMultiArgs.at("-change").size())]);
                             CKeyID keyID;
                             if (!address.GetKeyID(keyID)) {
                                 strFailReason = _("Bad change address");
@@ -5509,7 +5516,7 @@ bool CWallet::CreateLelantusMintTransactions(
                             scriptChange = GetScriptForDestination(keyID);
                         }
 
-                        // no coin control: send change to newly generated address
+                            // no coin control: send change to newly generated address
                         else {
                             // Note: We use a new key here to keep it from being obvious which side is the change.
                             //  The drawback is that by not reusing a previous key, the change may be lost if a
@@ -5522,8 +5529,7 @@ bool CWallet::CreateLelantusMintTransactions(
                             CPubKey vchPubKey;
                             bool ret;
                             ret = reservekey.GetReservedKey(vchPubKey);
-                            if (!ret)
-                            {
+                            if (!ret) {
                                 strFailReason = _("Keypool ran out, please call keypoolrefill first");
                                 return false;
                             }
@@ -5545,7 +5551,7 @@ bool CWallet::CreateLelantusMintTransactions(
 
                                 // Insert change txn at random position:
                                 nChangePosInOut = GetRandInt(tx.vout.size() + 1);
-                            } else if ((unsigned int)nChangePosInOut > tx.vout.size()) {
+                            } else if ((unsigned int) nChangePosInOut > tx.vout.size()) {
 
                                 strFailReason = _("Change index out of range");
                                 return false;
@@ -5563,12 +5569,12 @@ bool CWallet::CreateLelantusMintTransactions(
                     //
                     // Note how the sequence number is set to max()-1 so that the
                     // nLockTime set above actually works.
-                    for (const auto& coin : setCoins) {
+                    for (const auto &coin : setCoins) {
                         tx.vin.push_back(CTxIn(
-                            coin.first->GetHash(),
-                            coin.second,
-                            CScript(),
-                            std::numeric_limits<unsigned int>::max() - 1));
+                                coin.first->GetHash(),
+                                coin.second,
+                                CScript(),
+                                std::numeric_limits<unsigned int>::max() - 1));
                     }
 
                     // Fill in dummy signatures for fee calculation.
@@ -5618,9 +5624,9 @@ bool CWallet::CreateLelantusMintTransactions(
                     }
 
                     if (nFeeRet >= nFeeNeeded) {
-                        for(auto& usedCoin : setCoins) {
-                            for(auto coin = itr->second.begin(); coin != itr->second.end(); coin++) {
-                                if(usedCoin.first == coin->tx && usedCoin.second == coin->i) {
+                        for (auto &usedCoin : setCoins) {
+                            for (auto coin = itr->second.begin(); coin != itr->second.end(); coin++) {
+                                if (usedCoin.first == coin->tx && usedCoin.second == coin->i) {
                                     itr->first -= coin->tx->tx->vout[coin->i].nValue;
                                     itr->second.erase(coin);
                                     break;
@@ -5628,7 +5634,7 @@ bool CWallet::CreateLelantusMintTransactions(
                             }
                         }
 
-                        if(itr->second.empty()) {
+                        if (itr->second.empty()) {
                             valueAndUTXO.erase(itr);
                         }
 
@@ -5653,6 +5659,9 @@ bool CWallet::CreateLelantusMintTransactions(
                     continue;
                 }
 
+                if(skipCoin)
+                    continue;
+
                 if (GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS)) {
                     // Lastly, ensure this tx will pass the mempool's chain limits
                     LockPoints lp;
@@ -5661,7 +5670,8 @@ bool CWallet::CreateLelantusMintTransactions(
                     size_t nLimitAncestors = GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
                     size_t nLimitAncestorSize = GetArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT) * 1000;
                     size_t nLimitDescendants = GetArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT);
-                    size_t nLimitDescendantSize = GetArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT) * 1000;
+                    size_t nLimitDescendantSize =
+                            GetArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT) * 1000;
                     std::string errString;
                     if (!mempool.CalculateMemPoolAncestors(entry, setAncestors, nLimitAncestors, nLimitAncestorSize,
                                                            nLimitDescendants, nLimitDescendantSize, errString)) {
@@ -5673,17 +5683,19 @@ bool CWallet::CreateLelantusMintTransactions(
                 // Sign
                 int nIn = 0;
                 CTransaction txNewConst(tx);
-                for (const auto& coin : setCoins) {
+                for (const auto &coin : setCoins) {
                     bool signSuccess = false;
-                    const CScript& scriptPubKey = coin.first->tx->vout[coin.second].scriptPubKey;
+                    const CScript &scriptPubKey = coin.first->tx->vout[coin.second].scriptPubKey;
                     SignatureData sigdata;
                     if (sign)
-                        signSuccess = ProduceSignature(TransactionSignatureCreator(this, &txNewConst, nIn, coin.first->tx->vout[coin.second].nValue, SIGHASH_ALL), scriptPubKey, sigdata);
+                        signSuccess = ProduceSignature(TransactionSignatureCreator(this, &txNewConst, nIn,
+                                                                                   coin.first->tx->vout[coin.second].nValue,
+                                                                                   SIGHASH_ALL), scriptPubKey,
+                                                       sigdata);
                     else
                         signSuccess = ProduceSignature(DummySignatureCreator(this), scriptPubKey, sigdata);
 
-                    if (!signSuccess)
-                    {
+                    if (!signSuccess) {
                         strFailReason = _("Signing transaction failed");
                         return false;
                     } else {
@@ -5722,9 +5734,9 @@ bool CWallet::CreateLelantusMintTransactions(
 
                 nAllFeeRet += nFeeRet;
                 dMints.push_back(dMint);
-                if(!autoMintAll) {
+                if (!autoMintAll) {
                     valueToMint -= mintedValue;
-                    if (valueToMint == 0)
+                    if (valueToMint <= 0)
                         break;
                 }
             }
@@ -6938,11 +6950,12 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
 void CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result) {
     // create transaction
     std::vector<CLelantusEntry> spendCoins; //spends
+    std::vector<CSigmaEntry> sigmaSpendCoins;
     std::vector<CHDMint> mintCoins; // new mints
     CAmount fee;
-    result = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, mintCoins);
+    result = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins);
 
-    CommitLelantusTransaction(result, spendCoins, mintCoins);
+    CommitLelantusTransaction(result, spendCoins, sigmaSpendCoins, mintCoins);
 }
 
 CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
@@ -6950,6 +6963,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
         CAmount &fee,
         const std::vector<CAmount>& newMints,
         std::vector<CLelantusEntry>& spendCoins,
+        std::vector<CSigmaEntry>& sigmaSpendCoins,
         std::vector<CHDMint>& mintCoins,
         const CCoinControl *coinControl)
 {
@@ -6965,6 +6979,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
 
     CWalletTx tx = builder.Build(recipients, fee, newMints);
     spendCoins = builder.spendCoins;
+    sigmaSpendCoins = builder.sigmaSpendCoins;
     mintCoins = builder.mintCoins;
 
     return tx;
@@ -7036,7 +7051,7 @@ std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(CAmount required,
     return std::make_pair(fee, size);
 }
 
-bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CHDMint>& mintCoins) {
+bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CSigmaEntry>& sigmaSpendCoins, std::vector<CHDMint>& mintCoins) {
     EnsureMintWalletAvailable();
 
     // commit
@@ -7102,6 +7117,53 @@ bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantus
                 coin.value.GetHex(),
                 "Used (" + std::to_string(coin.amount) + " mint)",
                 CT_UPDATED);
+    }
+
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+    for (auto& coin : sigmaSpendCoins) {
+        // get coin id & height
+        int height, id;
+
+        std::tie(height, id) = sigmaState->GetMintedCoinHeightAndId(sigma::PublicCoin(
+            coin.value, coin.get_denomination()));
+
+        // add CSigmaSpendEntry
+        CSigmaSpendEntry spend;
+
+        spend.coinSerial = coin.serialNumber;
+        spend.hashTx = wtxNew.GetHash();
+        spend.pubCoin = coin.value;
+        spend.id = id;
+        spend.set_denomination_value(coin.get_denomination_value());
+
+        if (!db.WriteCoinSpendSerialEntry(spend)) {
+            throw std::runtime_error(_("Failed to write coin serial number into wallet"));
+        }
+
+        //Set spent mint as used in memory
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value);
+        zwallet->GetTracker().SetPubcoinUsed(hashPubcoin, wtxNew.GetHash());
+        CMintMeta metaCheck;
+        zwallet->GetTracker().GetMetaFromPubcoin(hashPubcoin, metaCheck);
+        if (!metaCheck.isUsed) {
+            string strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
+            LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
+        }
+
+        //Set spent mint as used in DB
+        zwallet->GetTracker().UpdateState(metaCheck);
+
+        // update CSigmaEntry
+        coin.IsUsed = true;
+        coin.id = id;
+        coin.nHeight = height;
+
+        // raise event
+        NotifyZerocoinChanged(
+            this,
+            coin.value.GetHex(),
+            "Used (" + std::to_string(coin.get_denomination()) + " mint)",
+            CT_UPDATED);
     }
 
     for (auto& coin : mintCoins) {

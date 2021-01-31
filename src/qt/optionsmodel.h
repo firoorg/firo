@@ -45,7 +45,7 @@ public:
         ThreadsScriptVerif,     // int
         DatabaseCache,          // int
         SpendZeroConfChange,    // bool
-        ReindexSigma,           // bool
+        ReindexLelantus,        // bool
         Listen,                 // bool
         TorSetup,               // bool
         AutoAnonymize,          // bool

@@ -398,6 +398,9 @@ public:
         consensus.nMaxReorgDepth = 5;
         consensus.nMaxReorgDepthEnforcementBlock = 338000;
 
+        // whitelist
+        consensus.txidWhitelist.insert(uint256S("3ecea345c7b174271bbdcde8cad6097d9a3dc420259743d52cc9cf1945aaba03"));
+
         // Dandelion related values.
         consensus.nDandelionEmbargoMinimum = DANDELION_EMBARGO_MINIMUM;
         consensus.nDandelionEmbargoAvgAdd = DANDELION_EMBARGO_AVG_ADD;
@@ -645,6 +648,9 @@ public:
         // reorg
         consensus.nMaxReorgDepth = 4;
         consensus.nMaxReorgDepthEnforcementBlock = 25150;
+
+        // whitelist
+        consensus.txidWhitelist.insert(uint256S("44b3829117bd248544c71b430d585cb88b4ce156a7d4fdb9ef3ae96efa8f09d3"));
 
         // Dandelion related values.
         consensus.nDandelionEmbargoMinimum = DANDELION_TESTNET_EMBARGO_MINIMUM;

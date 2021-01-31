@@ -88,7 +88,7 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
     std::tie(std::ignore, groupId) = state->GetMintedCoinHeightAndId(pub);
 
     if (groupId < 0) {
-        throw std::runtime_error(_("One of minted coin does not found in the chain"));
+        throw std::runtime_error(_("One of the sigma coins has not been found in the chain!"));
     }
 
     signer->output.n = static_cast<uint32_t>(groupId);
