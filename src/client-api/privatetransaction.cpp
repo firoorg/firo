@@ -342,6 +342,7 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
         CAmount fee = 0;
         std::vector<CAmount> newMints;
         std::vector<CLelantusEntry> spendCoins;
+        std::vector<CSigmaEntry> sigmaSpendCoins;
         std::vector<CHDMint> mintCoins;
 
         UniValue retval = UniValue::VOBJ;
@@ -352,6 +353,7 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
             fee, // clobbered
             newMints, // clobbered
             spendCoins, // clobbered
+            sigmaSpendCoins, // clobbered
             mintCoins, // clobbered
             fHasCoinControl ? &coinControl : nullptr
         );
@@ -360,7 +362,7 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
             throw JSONAPIError(API_INTERNAL_ERROR, "We have produced a transaction with a fee above 1 FIRO. This is almost certainly a bug.");
         }
 
-        if (!pwalletMain->CommitLelantusTransaction(transaction, spendCoins, mintCoins)) {
+        if (!pwalletMain->CommitLelantusTransaction(transaction, spendCoins, sigmaSpendCoins, mintCoins)) {
             throw JSONAPIError(API_INTERNAL_ERROR, "The produced transaction was invalid and was not accepted into the mempool.");
         }
 
@@ -371,6 +373,19 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
 
             COutPoint outPoint;
             lelantus::GetOutPoint(outPoint, pubCoin);
+
+            UniValue input = UniValue::VARR;
+            input.push_back(outPoint.hash.ToString());
+            input.push_back((uint64_t)outPoint.n);
+
+            inputs.push_back(input);
+        }
+
+        for (CSigmaEntry& spendCoin: sigmaSpendCoins) {
+            sigma::PublicCoin pubCoin(spendCoin.value, spendCoin.get_denomination());
+
+            COutPoint outPoint;
+            sigma::GetOutPoint(outPoint, pubCoin);
 
             UniValue input = UniValue::VARR;
             input.push_back(outPoint.hash.ToString());
