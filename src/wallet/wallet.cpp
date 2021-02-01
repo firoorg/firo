@@ -5626,10 +5626,6 @@ bool CWallet::CreateLelantusMintTransactions(
         }
     }
 
-    if (!autoMintAll && valueToMint > 0) {
-        return false;
-    }
-
     return true;
 }
 
