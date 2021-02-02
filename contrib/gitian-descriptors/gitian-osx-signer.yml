@@ -1,5 +1,5 @@
 ---
-name: "zcoin-dmg-signer"
+name: "firo-dmg-signer"
 suites:
 - "bionic"
 architectures:
@@ -27,8 +27,8 @@ script: |
     chmod +x ${WRAP_DIR}/${prog}
   done
 
-  UNSIGNED=zcoin-osx-unsigned.tar.gz
-  SIGNED=zcoin-osx-signed.dmg
+  UNSIGNED=firo-osx-unsigned.tar.gz
+  SIGNED=firo-osx-signed.dmg
 
   tar -xf ${UNSIGNED}
   OSX_VOLNAME="$(cat osx_volname)"

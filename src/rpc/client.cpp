@@ -153,7 +153,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "echojson", 7, "arg7" },
     { "echojson", 8, "arg8" },
     { "echojson", 9, "arg9" },
-        //[zcoin]
+        //[firo]
     { "setmininput", 0 },
     { "mint", 0 },
     { "mintzerocoin", 0 },
@@ -167,6 +167,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "setmintzerocoinstatus", 2 },
     { "setmintzerocoinstatus", 1 },
     { "setsigmamintstatus", 1 },
+    { "setlelantusmintstatus", 1 },
     { "listmintzerocoins", 0 },
     { "listsigmamints", 0 },
     { "listpubcoins", 0 },
@@ -175,6 +176,10 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "listspendzerocoins", 1 },
     { "listsigmaspends", 0 },
     { "listsigmaspends", 1 },
+    { "listlelantusjoinsplits", 0 },
+    { "listlelantusjoinsplits", 1 },
+    { "joinsplit", 0 },
+    { "joinsplit", 2 },
     { "spendallzerocoin", 0 },
     { "remintzerocointosigma", 0 },
     { "getanonymityset", 0},
@@ -330,6 +335,9 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "trade_MP", 1 }, // depreciated
 	{ "trade_MP", 3 }, // depreciated
 	{ "trade_MP", 5 }, // depreciated
+
+    /* Evo spork */
+    { "spork", 2, "features"},
 };
 
 class CRPCConvertTable

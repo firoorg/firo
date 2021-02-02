@@ -51,6 +51,9 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     // normal Zcoin address field
     GUIUtil::setupPaymentCodeOrAddressWidget(ui->payTo, this);
     // just a label for displaying Zcoin address(es)
+    // normal Firo address field
+    GUIUtil::setupAddressWidget(ui->payTo, this);
+    // just a label for displaying Firo address(es)
     ui->payTo_is->setFont(GUIUtil::fixedPitchFont());
     
     ui->notifiactionTxFeeLabel->hide();

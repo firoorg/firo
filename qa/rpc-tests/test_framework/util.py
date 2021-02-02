@@ -116,7 +116,7 @@ def wait_to_sync(node, fast_znsync=False):
         time.sleep(0.2)
         if fast_znsync:
             # skip mnsync states
-            node.znsync("next")
+            node.evoznsync("next")
         tm += 0.2
     assert(synced)
 
@@ -225,7 +225,7 @@ def initialize_datadir(dirname, n):
     if not os.path.isdir(datadir):
         os.makedirs(datadir)
     rpc_u, rpc_p = rpc_auth_pair(n)
-    with open(os.path.join(datadir, "zcoin.conf"), 'w', encoding='utf8') as f:
+    with open(os.path.join(datadir, "firo.conf"), 'w', encoding='utf8') as f:
         f.write("regtest=1\n")
         f.write("rpcuser=" + rpc_u + "\n")
         f.write("rpcpassword=" + rpc_p + "\n")
@@ -251,12 +251,12 @@ def rpc_url(i, rpchost=None):
 
 def wait_for_bitcoind_start(process, url, i):
     '''
-    Wait for zcoind to start. This means that RPC is accessible and fully initialized.
-    Raise an exception if zcoind exits during initialization.
+    Wait for firod to start. This means that RPC is accessible and fully initialized.
+    Raise an exception if firod exits during initialization.
     '''
     while True:
         if process.poll() is not None:
-            raise Exception('zcoind exited with status %i during initialization' % process.returncode)
+            raise Exception('firod exited with status %i during initialization' % process.returncode)
         try:
             rpc = get_rpc_proxy(url, i)
             blocks = rpc.getblockcount()
@@ -292,7 +292,7 @@ def initialize_chain(test_dir, num_nodes, cachedir):
         # Create cache directories, run bitcoinds:
         for i in range(MAX_NODES):
             datadir=initialize_datadir(cachedir, i)
-            args = [ os.getenv("ZCOIND", "zcoind"), "-server", "-keypool=1", "-datadir="+datadir, "-discover=0" ]
+            args = [ os.getenv("FIROD", "firod"), "-server", "-keypool=1", "-datadir="+datadir, "-discover=0" ]
             if i > 0:
                 args.append("-connect=127.0.0.1:"+str(p2p_port(0)))
             bitcoind_processes[i] = subprocess.Popen(args)
@@ -382,9 +382,13 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
     """
     datadir = os.path.join(dirname, "node"+str(i))
     if binary is None:
-        binary = os.getenv("ZCOIND", "zcoind")
+        binary = os.getenv("FIROD", "firod")
     args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-dandelion=0", "-usemnemonic=0", "-mocktime="+str(get_mocktime()) ]
-    # Don't try auto backups (they fail a lot when running tests)
+#Useful args for debugging
+#        "screen", "--",
+#        "gdb", "-x", "/tmp/gdb_run", "--args",
+
+# Don't try auto backups (they fail a lot when running tests)
     args += [ "-createwalletbackups=0" ]
     if extra_args is not None: args.extend(extra_args)
     # Allow to redirect stderr to stdout in case we expect some non-critical warnings/errors printed to stderr
@@ -392,7 +396,7 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
     if redirect_stderr:
         stderr = sys.stdout
     bitcoind_processes[i] = subprocess.Popen(args, stderr=stderr)
-    logger.debug("start_node: zcoind started, waiting for RPC to come up")
+    logger.debug("start_node: firod started, waiting for RPC to come up")
     url = rpc_url(i, rpchost)
     wait_for_bitcoind_start(bitcoind_processes[i], url, i)
     logger.debug("start_node: RPC successfully started")

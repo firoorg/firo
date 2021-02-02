@@ -38,7 +38,7 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFe
     nSizeWithDescendants = GetTxSize();
     nModFeesWithDescendants = nFee;
     CAmount nValueIn = tx->GetValueOut()+nFee;
-    if (!tx->IsZerocoinSpend() && !tx->IsSigmaSpend() && !tx->IsZerocoinRemint()) {
+    if (!tx->IsZerocoinSpend() && !tx->IsSigmaSpend() && !tx->IsZerocoinRemint() && !tx->IsLelantusJoinSplit()) {
         assert(inChainInputValue <= nValueIn);
     }
 
@@ -416,7 +416,7 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
 
     const CTransaction& tx = newit->GetTx();
     std::set<uint256> setParentTransactions;
-    if (!entry.GetTx().IsZerocoinSpend() && !entry.GetTx().IsSigmaSpend() && !entry.GetTx().IsZerocoinRemint()) {
+    if (!entry.GetTx().IsZerocoinSpend() && !entry.GetTx().IsSigmaSpend() && !entry.GetTx().IsZerocoinRemint() && !entry.GetTx().IsLelantusJoinSplit()) {
         for (unsigned int i = 0; i < tx.vin.size(); i++) {
             mapNextTx.insert(std::make_pair(&tx.vin[i].prevout, &tx));
             setParentTransactions.insert(tx.vin[i].prevout.hash);
@@ -492,6 +492,22 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
         if (dmn->pdmnState->pubKeyOperator.Get() != CBLSPublicKey()) {
             newit->isKeyChangeProTx = true;
         }
+    } else if (tx.nType == TRANSACTION_SPORK) {
+        sporkManager.AcceptSporkToMemoryPool(tx);
+
+        // evict all the transactions disabled by sporks
+        std::set<uint256> evictList;
+        for (txiter mi = mapTx.begin(); mi != mapTx.end(); ++mi) {
+            CValidationState state;
+            if (!sporkManager.IsTransactionAllowed(mi->GetTx(), state))
+                evictList.insert(mi->GetTx().GetHash());
+        }
+
+        for (uint256 evictTxHash: evictList) {
+            txiter txit = mapTx.find(evictTxHash);
+            if (txit != mapTx.end())
+                removeRecursive(txit->GetTx(), MemPoolRemovalReason::CONFLICT);
+        }
     }
 
     return true;
@@ -501,8 +517,8 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
 {
     NotifyEntryRemoved(it->GetSharedTx(), reason);
     const uint256 hash = it->GetTx().GetHash();
-    if (!it->GetTx().IsZerocoinSpend() && !it->GetTx().IsSigmaSpend() && !it->GetTx().IsZerocoinRemint()) {
-        LogPrintf("removeUnchecked txHash=%s, IsZerocoinSpend()=%s\n", hash.ToString(), it->GetTx().IsZerocoinSpend() || it->GetTx().IsSigmaSpend() || it->GetTx().IsZerocoinRemint());
+    if (!it->GetTx().IsZerocoinSpend() && !it->GetTx().IsSigmaSpend() && !it->GetTx().IsZerocoinRemint() && !it->GetTx().IsLelantusJoinSplit()) {
+        LogPrintf("removeUnchecked txHash=%s, IsZerocoinSpend()=%s\n", hash.ToString(), it->GetTx().IsZerocoinSpend() || it->GetTx().IsSigmaSpend() || it->GetTx().IsZerocoinRemint() || it->GetTx().IsLelantusJoinSplit());
         BOOST_FOREACH(const CTxIn& txin, it->GetTx().vin)
             mapNextTx.erase(txin.prevout);
     }
@@ -558,6 +574,41 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
             assert(false);
         }
         eraseProTxRef(proTx.proTxHash, it->GetTx().GetHash());
+    } else if (it->GetTx().nType == TRANSACTION_SPORK) {
+        sporkManager.RemovedFromMemoryPool(it->GetTx());
+    }
+
+    else if (it->GetTx().IsLelantusTransaction()) {
+        // Remove mints and spend serials from lelantus mempool state
+        const CTransaction &tx = it->GetTx();
+        if (tx.IsLelantusJoinSplit()) {
+            std::vector<Scalar> serials;
+            try {
+                serials = lelantus::GetLelantusJoinSplitSerialNumbers(tx, tx.vin[0]);
+                for (const Scalar &serial: serials)
+                    lelantusState.RemoveSpendFromMempool(serial);
+            }
+            catch (CBadTxIn&) {
+            }
+        }
+
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        {
+            if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
+                GroupElement pubCoinValue;
+                try {
+                    if (txout.scriptPubKey.IsLelantusMint()) {
+                        lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
+                    } else {
+                        std::vector<unsigned char> encryptedValue;
+                        lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
+                    }
+                    lelantusState.RemoveMintFromMempool(pubCoinValue);
+                }
+                catch (std::invalid_argument&) {
+                }
+            }
+        }
     }
 
     totalTxSize -= it->GetTxSize();
@@ -578,7 +629,7 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
     uint256 txhash = tx.GetHash();
     for (unsigned int j = 0; j < tx.vin.size(); j++) {
         const CTxIn input = tx.vin[j];
-        if (input.IsSigmaSpend()) {
+        if (input.IsSigmaSpend() || input.IsLelantusJoinSplit()) {
             continue;
         }
 
@@ -657,7 +708,7 @@ void CTxMemPool::addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCac
     uint256 txhash = tx.GetHash();
     for (unsigned int j = 0; j < tx.vin.size(); j++) {
         const CTxIn input = tx.vin[j];
-        if (input.IsSigmaSpend()) {
+        if (input.IsSigmaSpend() || input.IsLelantusJoinSplit()) {
             continue;
         }
 
@@ -875,10 +926,17 @@ void CTxMemPool::removeProTxSpentCollateralConflicts(const CTransaction &tx)
             if (conflictIt != mapTx.end()) {
                 removeRecursive(conflictIt->GetTx(), MemPoolRemovalReason::CONFLICT);
             } else {
-                // Should not happen as we track referencing TXs in addUnchecked/removeUnchecked.
-                // But lets be on the safe side and not run into an endless loop...
-                LogPrintf("%s: ERROR: found invalid TX ref in mapProTxRefs, proTxHash=%s, txHash=%s", __func__, proTxHash.ToString(), it->second.ToString());
-                mapProTxRefs.erase(it);
+                auto protxIt = mapTx.find(proTxHash);
+                if (protxIt != mapTx.end()) {
+                    // Remove proTx from the mempool because its collateral has been spent
+                    removeRecursive(protxIt->GetTx(), MemPoolRemovalReason::CONFLICT);
+                }
+                else {
+                    // Should not happen as we track referencing TXs in addUnchecked/removeUnchecked.
+                    // But lets be on the safe side and not run into an endless loop...
+                    LogPrintf("%s: ERROR: found invalid TX ref in mapProTxRefs, proTxHash=%s, txHash=%s\n", __func__, proTxHash.ToString(), it->second.ToString());
+                    mapProTxRefs.erase(it);
+                }
             }
         }
     };
@@ -1015,6 +1073,7 @@ void CTxMemPool::_clear()
     lastRollingFeeUpdate = GetTime();
     blockSinceLastRollingFeeBump = false;
     rollingMinimumFeeRate = 0;
+    lelantusState.Reset();
     ++nTransactionsUpdated;
 }
 
@@ -1050,13 +1109,13 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
         txlinksMap::const_iterator linksiter = mapLinks.find(it);
         assert(linksiter != mapLinks.end());
         const TxLinks &links = linksiter->second;
-        if (!tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint())
+        if (!tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit())
             innerUsage += memusage::DynamicUsage(links.parents) + memusage::DynamicUsage(links.children);
         bool fDependsWait = false;
         setEntries setParentCheck;
         int64_t parentSizes = 0;
         int64_t parentSigOpCost = 0;
-        if (!tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) {
+        if (!tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit()) {
             BOOST_FOREACH(const CTxIn &txin, tx.vin) {
                 // Check that every mempool transaction's inputs refer to available coins, or other mempool tx's.
                 indexed_transaction_set::const_iterator it2 = mapTx.find(txin.prevout.hash);
@@ -1121,8 +1180,9 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
             waitingOnDependants.push_back(&(*it));
         else {
             CValidationState state;
-            bool fCheckResult = tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() ||
-                Consensus::CheckTxInputs(tx, state, mempoolDuplicate, nSpendHeight);
+            bool fCheckResult = tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsLelantusJoinSplit() ||
+                    Consensus::CheckTxInputs(tx, state, mempoolDuplicate, nSpendHeight);
+
             assert(fCheckResult);
             UpdateCoins(tx, mempoolDuplicate, 1000000);
         }
@@ -1138,7 +1198,7 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
             assert(stepsSinceLastRemove < waitingOnDependants.size());
         } else {
             const CTransaction &tx = entry->GetTx();
-            bool fCheckResult = tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() ||
+            bool fCheckResult = tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsLelantusJoinSplit() ||
                 Consensus::CheckTxInputs(entry->GetTx(), state, mempoolDuplicate, nSpendHeight);
             assert(fCheckResult);
             UpdateCoins(entry->GetTx(), mempoolDuplicate, 1000000);
@@ -1448,6 +1508,11 @@ bool CTxMemPool::HasNoInputsOf(const CTransaction &tx) const
         if (exists(tx.vin[i].prevout.hash))
             return false;
     return true;
+}
+
+bool CTxMemPool::IsTransactionAllowed(const CTransaction &tx, CValidationState &state) const
+{
+    return sporkManager.IsTransactionAllowed(tx, state);
 }
 
 CCoinsViewMemPool::CCoinsViewMemPool(CCoinsView* baseIn, const CTxMemPool& mempoolIn) : CCoinsViewBacked(baseIn), mempool(mempoolIn) { }

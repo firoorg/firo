@@ -387,7 +387,15 @@ GroupElement& GroupElement::generate(unsigned char* seed){
     return *this;
 }
 
-void GroupElement::sha256(unsigned char* result) const{
+void GroupElement::normalSha256(unsigned char* result) const {
+    GroupElement tmp = *this;
+    auto g = reinterpret_cast<secp256k1_gej *>(tmp.g_);
+    secp256k1_fe_normalize(&g->x);
+    secp256k1_fe_normalize(&g->y);
+    tmp.sha256(result);
+}
+
+void GroupElement::sha256(unsigned char* result) const {
     auto g = reinterpret_cast<secp256k1_gej *>(g_);
     unsigned char buff[64];
     secp256k1_fe_get_b32(&buff[0], &g->x);
@@ -519,6 +527,7 @@ const unsigned char* GroupElement::deserialize(const unsigned char* buffer) {
     secp256k1_ge result;
     secp256k1_ge_set_xo_var(&result, &x, (int)oddness);
     result.infinity = (int)infinity;
+
     secp256k1_gej_set_ge(reinterpret_cast<secp256k1_gej *>(g_), &result);
     return buffer + memoryRequired();
 }

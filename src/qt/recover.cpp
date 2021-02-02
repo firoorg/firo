@@ -5,6 +5,7 @@
 
 #include "util.h"
 
+#include "../wallet/wallet.h"
 #include "../wallet/bip39.h"
 #include "support/allocators/secure.h"
 
@@ -76,27 +77,13 @@ void Recover::on_usePassphrase_clicked()
 bool Recover::askRecover(bool& newWallet)
 {
     namespace fs = boost::filesystem;
-    std::string dataDir = GetDataDir(false).string();
-    if(dataDir.empty())
-        throw std::runtime_error("Can't get data directory");
+    fs::path walletFile = GetDataDir(true) / GetArg("-wallet", DEFAULT_WALLET_DAT);
 
-    boost::optional<bool> regTest = GetOptBoolArg("-regtest")
-    , testNet = GetOptBoolArg("-testnet");
-
-    if (testNet && regTest && *testNet && *regTest)
-        throw std::runtime_error("Invalid combination of -regtest and -testnet.");
-    if (regTest && *regTest)
-        dataDir += "/regtest";
-    if (testNet && *testNet)
-        dataDir += "/testnet3";
-
-    dataDir += "/wallet.dat";
-
-    if(!fs::exists(GUIUtil::qstringToBoostPath(QString::fromStdString(dataDir))))
+    if (!fs::exists(walletFile))
     {
         newWallet = true;
         Recover recover;
-        recover.setWindowIcon(QIcon(":icons/zcoin"));
+        recover.setWindowIcon(QIcon(":icons/firo"));
         while(true)
         {
             if(!recover.exec())
@@ -132,18 +119,18 @@ bool Recover::askRecover(bool& newWallet)
                     }
 
                     if((n == 12 && !use12) || (n != 24 && n != 12) || (n != 12 && use12)) {
-                        recover.ui->errorMessage->setText("<font color='red'>Wrong number of words. Please try again.</font>");
+                        recover.ui->errorMessage->setText(tr("Wrong number of words. Please try again."));
                         continue;
                     }
 
                     if(mnemonic.empty()) {
-                        recover.ui->errorMessage->setText("<font color='red'>Mnemonic can't be empty.</font>");
+                        recover.ui->errorMessage->setText("Mnemonic can't be empty.");
                         continue;
                     }
 
                     SecureString secmnemonic(mnemonic.begin(), mnemonic.end());
                     if(!Mnemonic::mnemonic_check(secmnemonic)){
-                        recover.ui->errorMessage->setText("<font color='red'>Something went wrong. Please try again.</font>");
+                        recover.ui->errorMessage->setText(tr("Something went wrong. Please try again."));
                         continue;
                     }
 
@@ -155,12 +142,12 @@ bool Recover::askRecover(bool& newWallet)
                     std::string mnemonicPassPhrase2 = recover.ui->mnemonicPassPhrase2->text().toStdString();
 
                     if(mnemonicPassPhrase != mnemonicPassPhrase2) {
-                        recover.ui->errorMessage->setText("<font color='red'>Passphrases don't match.</font>");
+                        recover.ui->errorMessage->setText(tr("Passphrases don't match."));
                         continue;
                     }
 
                     if(mnemonicPassPhrase.empty()) {
-                        recover.ui->errorMessage->setText("<font color='red'>Passphrase can't be empty.</font>");
+                        recover.ui->errorMessage->setText(tr("Passphrase can't be empty."));
                         continue;
                     }
 

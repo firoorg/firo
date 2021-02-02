@@ -335,7 +335,7 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
     pwalletMain->zwallet->SyncWithChain();
 
     // Pull mints from the wallet
-    std::list<CHDMint> vDMintsRegeneratedList = walletdb.ListHDMints();
+    std::list<CHDMint> vDMintsRegeneratedList = walletdb.ListHDMints(false);
     vector<CHDMint> vDMintsRegenerated(vDMintsRegeneratedList.begin(), vDMintsRegeneratedList.end());
 
     BOOST_CHECK(vDMints.size() == vDMintsRegenerated.size());

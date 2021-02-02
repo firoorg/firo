@@ -1,6 +1,6 @@
-# How to compile and execute Zcoin code on Windows 10
+# How to compile and execute Firo code on Windows 10
 
-There are two possibilities of compiling Zcoin code on Windows 10.
+There are two possibilities of compiling Firo code on Windows 10.
  Both of them are based on using [WSL/Ubuntu](https://msdn.microsoft.com/en-us/commandline/wsl/install_guide).
  The main difference is in execution, using first method you will get .exe files, otherwise you need to use [Xming](http://www.straightrunning.com/XmingNotes/) to start **GUI**.
  
@@ -12,7 +12,7 @@ There are two possibilities of compiling Zcoin code on Windows 10.
  * [WSL/Ubuntu](https://msdn.microsoft.com/en-us/commandline/wsl/install_guide) installed
 ---
 For the more complex second execution method, you need to install
- * [Xming](http://www.straightrunning.com/XmingNotes/) latest version, if you are planning to compile using [unix compiling instruction](https://github.com/zcoinofficial/zcoin/blob/master/doc/build-unix.md)
+ * [Xming](http://www.straightrunning.com/XmingNotes/) latest version, if you are planning to compile using [unix compiling instruction](https://github.com/firoorg/firo/blob/master/doc/build-unix.md)
 
 
 ## Pre common steps
@@ -40,17 +40,17 @@ For the more complex second execution method, you need to install
 
     * From Explorer create a directory named:
 
-            C:\Users\<username>\zcoin
+            C:\Users\<username>\firo
     * From Ubuntu bash window create a link to it:
   
-            ln -s /mnt/c/Users/<username>/zcoin zcoin   
+            ln -s /mnt/c/Users/<username>/firo firo   
     
     After creating link, please check that linked directory has blue font color, which means that is was successfully linked. Otherwise check path symbols. Error can be because of spaces, uppercase symbols e.t.c...
 
 5. Clone git repository into newly created directory and go to the right branch
    
-            git clone https://github.com/zcoinofficial/zcoin.git
-            cd zcoin
+            git clone https://github.com/firoorg/firo.git
+            cd firo
     If you are not authorized in git, configure git to always use LF and (optionally) specify your name/email. Global Windows git settings (if set)
     won't be inherited if git is invoked from Ubuntu shell.
 
@@ -75,15 +75,15 @@ For the more complex second execution method, you need to install
 2. Dependencies won't compile in a directory shared with Windows. We need to copy everything to the space private to
     WSL. Do not use .. here as it will lead you into different directory
 
-        cp -r depends ~/zcoin-depends
+        cp -r depends ~/firo-depends
 
 3. Go to depends folder and build dependencies (you may wish to build only 32-bit or 64-bit version)
 
-        cd ~/zcoin-depends
+        cd ~/firo-depends
         make HOST=i686-w64-mingw32 -j`nproc`
         make HOST=x86_64-w64-mingw32 -j`nproc`
-        cd ~/zcoin
-    It takes a while. You need to do it only once unless you delete zcoin-depends directory
+        cd ~/firo
+    It takes a while. You need to do it only once unless you delete firo-depends directory
 
 4. Generate configure script
 
@@ -105,30 +105,30 @@ For the more complex second execution method, you need to install
 
     Now do either step **7** OR step **8**, not both.
 
-6. Build 32-bit debug build (from the Zcoin root directory)
+6. Build 32-bit debug build (from the Firo root directory)
     
-        ./configure --prefix=$HOME/zcoin-depends/i686-w64-mingw32
+        ./configure --prefix=$HOME/firo-depends/i686-w64-mingw32
         make -j`nproc`
 
-7. Build 64-bit debug build (from the Zcoin root directory)
+7. Build 64-bit debug build (from the Firo root directory)
      
-        ./configure --prefix=$HOME/zcoin-depends/x86_64-w64-mingw32
+        ./configure --prefix=$HOME/firo-depends/x86_64-w64-mingw32
         make -j`nproc`
 
-8. After check the directory to run GUI with __zcoin-qt.exe__
+8. After check the directory to run GUI with __firo-qt.exe__
     
-        C:\Users\<username>\zcoin\src\qt
+        C:\Users\<username>\firo\src\qt
 ----
 ## Second method - Ubuntu + Xming
-1. Use existing paper [build-unix](https://github.com/zcoinofficial/zcoin/blob/master/doc/build-unix.md) and
+1. Use existing paper [build-unix](https://github.com/firoorg/firo/blob/master/doc/build-unix.md) and
     * Install all dependencies
     * Build app
 2. Start installed Xming in Windows
 3. From Ubuntu bash window start output to Xming:
    
         export DISPLAY=localhost:0.0
-4. From Ubuntu bash window start zcoin-qt:
+4. From Ubuntu bash window start firo-qt:
 
-        cd /mnt/c/Users/<username>/zcoin/src/qt
-        ./zcoin-qt 
+        cd /mnt/c/Users/<username>/firo/src/qt
+        ./firo-qt 
 

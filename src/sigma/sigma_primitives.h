@@ -1,5 +1,5 @@
-#ifndef ZCOIN_SIGMA_SIGMA_PRIMITIVES_H
-#define ZCOIN_SIGMA_SIGMA_PRIMITIVES_H
+#ifndef FIRO_SIGMA_SIGMA_PRIMITIVES_H
+#define FIRO_SIGMA_SIGMA_PRIMITIVES_H
 
 #include "../secp256k1/include/MultiExponent.h"
 #include "../secp256k1/include/GroupElement.h"
@@ -9,6 +9,19 @@
 #include <vector>
 
 namespace sigma {
+
+template<class Exponent>
+struct NthPower {
+    Exponent num;
+    Exponent pow;
+
+    NthPower(const Exponent& num_) : num(num_), pow(uint64_t(1)) {}
+    NthPower(const Exponent& num_, const Exponent& pow_) : num(num_), pow(pow_) {}
+
+    void go_next() {
+        pow *= num;
+    }
+};
 
 template<class Exponent, class GroupElement>
 class SigmaPrimitives {
@@ -40,4 +53,4 @@ public:
 
 #include "sigma_primitives.hpp"
 
-#endif // ZCOIN_SIGMA_SIGMA_PRIMITIVES_H
+#endif // FIRO_SIGMA_SIGMA_PRIMITIVES_H

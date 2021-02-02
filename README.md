@@ -1,75 +1,79 @@
-Zcoin
+Firo
 ===============
 
-[![Financial Contributors on Open Collective](https://opencollective.com/zcoin/all/badge.svg?label=financial+contributors)](https://opencollective.com/zcoin) [![latest-release](https://img.shields.io/github/release/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
-[![GitHub last-release](https://img.shields.io/github/release-date/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/releases)
-[![GitHub downloads](https://img.shields.io/github/downloads/zcoinofficial/zcoin/total)](https://github.com/zcoinofficial/zcoin/releases)
-[![GitHub commits-since-last-version](https://img.shields.io/github/commits-since/zcoinofficial/zcoin/latest/master)](https://github.com/zcoinofficial/zcoin/graphs/commit-activity)
-[![GitHub commits-per-month](https://img.shields.io/github/commit-activity/m/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/graphs/code-frequency)
-[![GitHub last-commit](https://img.shields.io/github/last-commit/zcoinofficial/zcoin)](https://github.com/zcoinofficial/zcoin/commits/master)
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/zcoinofficial/zcoin.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/zcoinofficial/zcoin/alerts/)
-[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/zcoinofficial/zcoin.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/zcoinofficial/zcoin/context:cpp)
+[![Financial Contributors on Open Collective](https://opencollective.com/firo/all/badge.svg?label=financial+contributors)](https://opencollective.com/firo) [![latest-release](https://img.shields.io/github/release/firoorg/firo)](https://github.com/firoorg/firo/releases)
+[![GitHub last-release](https://img.shields.io/github/release-date/firoorg/firo)](https://github.com/firoorg/firo/releases)
+[![GitHub downloads](https://img.shields.io/github/downloads/firoorg/firo/total)](https://github.com/firoorg/firo/releases)
+[![GitHub commits-since-last-version](https://img.shields.io/github/commits-since/firoorg/firo/latest/master)](https://github.com/firoorg/firo/graphs/commit-activity)
+[![GitHub commits-per-month](https://img.shields.io/github/commit-activity/m/firoorg/firo)](https://github.com/firoorg/firo/graphs/code-frequency)
+[![GitHub last-commit](https://img.shields.io/github/last-commit/firoorg/firo)](https://github.com/firoorg/firo/commits/master)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/firoorg/firo.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/firoorg/firo/alerts/)
+[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/firoorg/firo.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/firoorg/firo/context:cpp)
 
-What is Zcoin?
+What is Firo?
 --------------
 
-[Zcoin](https://zcoin.io) is a privacy focused cryptocurrency that utilizes zero-knowledge proofs which allows users to destroy coins and then redeem them later for brand new ones with no transaction history. It was the first project to implement the Zerocoin protocol and has now transitioned to the [Sigma protocol](https://zcoin.io/what-is-sigma-and-why-is-it-replacing-zerocoin-in-zcoin/) which has no trusted setup and small proof sizes. Zcoin also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as Tor/i2P.
+[Firo](https://firo.org) formerly known as Zcoin, is a privacy focused cryptocurrency that utilizes zero-knowledge proofs which allows users to destroy coins and then redeem them later for brand new ones with no transaction history.
 
-Zcoin developed and utilizes [Merkle Tree Proofs (MTP)](https://arxiv.org/pdf/1606.03588.pdf) as its Proof-of-Work algorithm which aims to be memory hard with fast verification.
+Our research created the [Lelantus privacy protocol](https://eprint.iacr.org/2019/373) which supports high anonymity sets without requiring trusted setup and relying only on standard cryptographic assumptions. The Lelantus cryptographic library was audited by [Trail of Bits](https://github.com/trailofbits/publications/blob/master/reviews/zcoin-lelantus-summary.pdf) and funded by Firo's CCS. Lelantus' cryptography was also audited by [ABDK Consulting](https://www.abdk.consulting/).
 
-How Zcoin’s Privacy Technology Compares to the Competition
+Firo also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as Tor/i2P.
+
+Firo developed and utilizes [Merkle Tree Proofs (MTP)](https://arxiv.org/pdf/1606.03588.pdf) as its Proof-of-Work algorithm which aims to be memory hard with fast verification to encourage mining using commodity hardware.
+
+How Firo’s Privacy Technology Compares to the Competition
 --------------
-![A comparison chart of Zcoin’s solutions with other leading privacy technologies can be found below](https://zcoin.io/wp-content/uploads/2019/04/zcoin_table_coloured5-01.png) 
-read more https://zcoin.io/zcoins-privacy-technology-compares-competition/
+![A comparison chart of Firo’s solutions with other leading privacy technologies can be found below](https://firo.org/guide/assets/privacy-technology-comparison/comparison-table-firo-updated.png) 
+read more https://firo.org/guide/privacy-technology-comparison.html
 
 Running with Docker
 ===================
 
-If you are already familiar with Docker, then running Zcoin with Docker might be the the easier method for you. To run Zcoin using this method, first install [Docker](https://store.docker.com/search?type=edition&offering=community). After this you may
+If you are already familiar with Docker, then running Firo with Docker might be the the easier method for you. To run Firo using this method, first install [Docker](https://store.docker.com/search?type=edition&offering=community). After this you may
 continue with the following instructions.
 
-Please note that we currently don't support the GUI when running with Docker. Therefore, you can only use RPC (via HTTP or the `zcoin-cli` utility) to interact with Zcoin via this method.
+Please note that we currently don't support the GUI when running with Docker. Therefore, you can only use RPC (via HTTP or the `firo-cli` utility) to interact with Firo via this method.
 
 Pull our latest official Docker image:
 
 ```sh
-docker pull zcoinofficial/zcoind
+docker pull firoorg/firod
 ```
 
-Start Zcoin daemon:
+Start Firo daemon:
 
 ```sh
-docker run --detach --name zcoind zcoinofficial/zcoind
+docker run --detach --name firod firoorg/firod
 ```
 
 View current block count (this might take a while since the daemon needs to find other nodes and download blocks first):
 
 ```sh
-docker exec zcoind zcoin-cli getblockcount
+docker exec firod firo-cli getblockcount
 ```
 
 View connected nodes:
 
 ```sh
-docker exec zcoind zcoin-cli getpeerinfo
+docker exec firod firo-cli getpeerinfo
 ```
 
 Stop daemon:
 
 ```sh
-docker stop zcoind
+docker stop firod
 ```
 
 Backup wallet:
 
 ```sh
-docker cp zcoind:/home/zcoind/.zcoin/wallet.dat .
+docker cp firod:/home/firod/.firo/wallet.dat .
 ```
 
 Start daemon again:
 
 ```sh
-docker start zcoind
+docker start firod
 ```
 
 Linux Build Instructions and Notes
@@ -101,11 +105,11 @@ Build
 ----------------------
 1.  Clone the source:
 
-        git clone https://github.com/zcoinofficial/zcoin
+        git clone https://github.com/firoorg/firo
 
-2.  Build Zcoin-core:
+2.  Build Firo-core:
 
-    Configure and build the headless Zcoin binaries as well as the GUI (if Qt is found).
+    Configure and build the headless Firo binaries as well as the GUI (if Qt is found).
 
     You can disable the GUI build by passing `--without-gui` to configure.
         
@@ -133,27 +137,27 @@ See (doc/build-windows.md) for instructions on building on Windows 64/32 bit.
 ### Code Contributors
 
 This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
-<a href="https://github.com/zcoinofficial/zcoin/graphs/contributors"><img src="https://opencollective.com/zcoin/contributors.svg?width=890&button=false" /></a>
+<a href="https://github.com/firoorg/firo/graphs/contributors"><img src="https://opencollective.com/firo/contributors.svg?width=890&button=false" /></a>
 
 ### Financial Contributors
 
-Become a financial contributor and help us sustain our community. [[Contribute](https://opencollective.com/zcoin/contribute)]
+Become a financial contributor and help us sustain our community. [[Contribute](https://opencollective.com/firo/contribute)]
 
 #### Individuals
 
-<a href="https://opencollective.com/zcoin"><img src="https://opencollective.com/zcoin/individuals.svg?width=890"></a>
+<a href="https://opencollective.com/firo"><img src="https://opencollective.com/firo/individuals.svg?width=890"></a>
 
 #### Organizations
 
-Support this project with your organization. Your logo will show up here with a link to your website. [[Contribute](https://opencollective.com/zcoin/contribute)]
+Support this project with your organization. Your logo will show up here with a link to your website. [[Contribute](https://opencollective.com/firo/contribute)]
 
-<a href="https://opencollective.com/zcoin/organization/0/website"><img src="https://opencollective.com/zcoin/organization/0/avatar.svg"></a>
-<a href="https://opencollective.com/zcoin/organization/1/website"><img src="https://opencollective.com/zcoin/organization/1/avatar.svg"></a>
-<a href="https://opencollective.com/zcoin/organization/2/website"><img src="https://opencollective.com/zcoin/organization/2/avatar.svg"></a>
-<a href="https://opencollective.com/zcoin/organization/3/website"><img src="https://opencollective.com/zcoin/organization/3/avatar.svg"></a>
-<a href="https://opencollective.com/zcoin/organization/4/website"><img src="https://opencollective.com/zcoin/organization/4/avatar.svg"></a>
-<a href="https://opencollective.com/zcoin/organization/5/website"><img src="https://opencollective.com/zcoin/organization/5/avatar.svg"></a>
-<a href="https://opencollective.com/zcoin/organization/6/website"><img src="https://opencollective.com/zcoin/organization/6/avatar.svg"></a>
-<a href="https://opencollective.com/zcoin/organization/7/website"><img src="https://opencollective.com/zcoin/organization/7/avatar.svg"></a>
-<a href="https://opencollective.com/zcoin/organization/8/website"><img src="https://opencollective.com/zcoin/organization/8/avatar.svg"></a>
-<a href="https://opencollective.com/zcoin/organization/9/website"><img src="https://opencollective.com/zcoin/organization/9/avatar.svg"></a>
+<a href="https://opencollective.com/firo/organization/0/website"><img src="https://opencollective.com/firo/organization/0/avatar.svg"></a>
+<a href="https://opencollective.com/firo/organization/1/website"><img src="https://opencollective.com/firo/organization/1/avatar.svg"></a>
+<a href="https://opencollective.com/firo/organization/2/website"><img src="https://opencollective.com/firo/organization/2/avatar.svg"></a>
+<a href="https://opencollective.com/firo/organization/3/website"><img src="https://opencollective.com/firo/organization/3/avatar.svg"></a>
+<a href="https://opencollective.com/firo/organization/4/website"><img src="https://opencollective.com/firo/organization/4/avatar.svg"></a>
+<a href="https://opencollective.com/firo/organization/5/website"><img src="https://opencollective.com/firo/organization/5/avatar.svg"></a>
+<a href="https://opencollective.com/firo/organization/6/website"><img src="https://opencollective.com/firo/organization/6/avatar.svg"></a>
+<a href="https://opencollective.com/firo/organization/7/website"><img src="https://opencollective.com/firo/organization/7/avatar.svg"></a>
+<a href="https://opencollective.com/firo/organization/8/website"><img src="https://opencollective.com/firo/organization/8/avatar.svg"></a>
+<a href="https://opencollective.com/firo/organization/9/website"><img src="https://opencollective.com/firo/organization/9/avatar.svg"></a>

@@ -203,7 +203,7 @@ struct Params {
 
     // Maximum number of outbound peers designated as Dandelion destinations.
     uint32_t nDandelionMaxDestinations;
-    
+
     // Expected time between Dandelion routing shuffles (in seconds).
     uint32_t nDandelionShuffleInterval;
 
@@ -224,6 +224,18 @@ struct Params {
 
     // The block number after which old sigma clients are banned.
     int nOldSigmaBanBlock;
+
+    // The block number after which lelantus is accepted.
+    int nLelantusStartBlock;
+
+    // The block number introducing evo sporks
+    int nEvoSporkStartBlock;
+
+    // The block number to stop using evo sporks
+    int nEvoSporkStopBlock;
+
+    // Key to sign spork txs
+    std::string evoSporkKeyID;
 
     // The block number when Bip39 was implemented in Zcoin
     int nMnemonicBlock;
@@ -251,6 +263,21 @@ struct Params {
 
     // Value of maximum sigma spend per transaction.
     int64_t nMaxValueSigmaSpendPerTransaction;
+
+    // Amount of maximum lelantus spend per block.
+    unsigned nMaxLelantusInputPerBlock;
+
+    // Value of maximum lelantus spend per block.
+    int64_t nMaxValueLelantusSpendPerBlock;
+
+    // Amount of maximum lelantus spend per transaction.
+    unsigned nMaxLelantusInputPerTransaction;
+
+    // Value of maximum lelantus spend per transaction.
+    int64_t nMaxValueLelantusSpendPerTransaction;
+
+    // Value of maximum lelantus mint.
+    int64_t nMaxValueLelantusMint;
 
     // Number of blocks with allowed zerocoin to sigma remint transaction (after nSigmaStartBlock)
     int nZerocoinToSigmaRemintWindowSize;
@@ -284,9 +311,15 @@ struct Params {
 
     /** block to switch to evo znode payments */
     int DIP0003EnforcementHeight;
+    uint256 DIP0003EnforcementHash;
 
     /** block to start using chainlocks */
     int DIP0008Height;
+
+    /** maximum reorg depth */
+    int nMaxReorgDepth;
+    /** block to start reorg depth enforcement */
+    int nMaxReorgDepthEnforcementBlock;
 
     int nEvoZnodeMinimumConfirmations;
 
@@ -296,7 +329,7 @@ struct Params {
 
     /** Time between blocks for LLMQ random time purposes. Can be less than actual average distance between blocks */
     int nLLMQPowTargetSpacing;
-	
+
     int64_t DifficultyAdjustmentInterval(bool fMTP = false) const { return nPowTargetTimespan / (fMTP ? nPowTargetSpacingMTP : nPowTargetSpacing); }
     uint256 nMinimumChainWork;
     uint256 defaultAssumeValid;

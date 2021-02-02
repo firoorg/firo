@@ -598,7 +598,7 @@ bool IsTransactionTypeAllowed(int txBlock, uint32_t txProperty, uint16_t txType,
         if (entry.txType != txType || entry.txVersion != version) {
             continue;
         }
-        // a property identifier of 0 (= XZC) may be used as wildcard
+        // a property identifier of 0 (= FIRO) may be used as wildcard
         if (ELYSIUM_PROPERTY_XZC == txProperty && !entry.allowWildcard) {
             continue;
         }

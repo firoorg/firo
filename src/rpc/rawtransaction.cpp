@@ -36,8 +36,10 @@
 #include "sigma/remint.h"
 #include "evo/cbtx.h"
 #include "evo/specialtx.h"
+#include "evo/spork.h"
 #include "llmq/quorums_commitment.h"
 #include "evo/providertx.h"
+#include "lelantus.h"
 
 using namespace std;
 
@@ -78,7 +80,8 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fInclud
 }
 
 namespace {
-    void fillStdFields(UniValue & out, CTxIn const & txin) {
+    void fillStdFields(UniValue & out, CTxIn const & txin)
+    {
         UniValue o(UniValue::VOBJ);
         o.push_back(Pair("asm", ScriptToAsmStr(txin.scriptSig, true)));
         o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
@@ -103,7 +106,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         UniValue in(UniValue::VOBJ);
         if (tx.IsCoinBase()) {
             in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-        } else if (txin.IsSigmaSpend()){
+        } else if (txin.IsSigmaSpend()) {
             std::unique_ptr<sigma::CoinSpend> spend;
             uint32_t pubcoinId;
             try {
@@ -118,7 +121,17 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
 
             in.push_back(Pair("value", ValueFromAmount(spend->getIntDenomination())));
             in.push_back(Pair("valueSat", spend->getIntDenomination()));
-        } else if (txin.IsZerocoinRemint()){
+        } else if (txin.IsLelantusJoinSplit()) {
+            in.push_back("joinsplit");
+            fillStdFields(in, txin);
+            std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(txin);
+            in.push_back(Pair("nFees", ValueFromAmount(jsplit->getFee())));
+            UniValue serials(UniValue::VARR);
+            for (Scalar const & serial : jsplit->getCoinSerialNumbers()) {
+                serials.push_back(serial.GetHex());
+            }
+            in.push_back(Pair("serials", serials));
+        } else if (txin.IsZerocoinRemint()) {
             std::shared_ptr<sigma::CoinRemintToV3>  remint;
             try {
                 CDataStream serData(std::vector<unsigned char>(txin.scriptSig.begin()+1, txin.scriptSig.end()), SER_NETWORK, PROTOCOL_VERSION);
@@ -167,7 +180,11 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
         const CTxOut& txout = tx.vout[i];
         UniValue out(UniValue::VOBJ);
-        out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
+        if (txout.scriptPubKey.IsLelantusJMint()) {
+            out.push_back(Pair("value", 0));
+        } else {
+            out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
+        }
         out.push_back(Pair("n", (int64_t)i));
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
@@ -220,6 +237,9 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 break;
             case TRANSACTION_QUORUM_COMMITMENT:
                 ExtraPayloadToJson<llmq::CFinalCommitmentTxPayload>(tx, "finalCommitment", entry);
+                break;
+            case TRANSACTION_SPORK:
+                ExtraPayloadToJson<CSporkTx>(tx, "sporkTx", entry);
                 break;
             default:
                 break;
@@ -280,7 +300,7 @@ UniValue getrawtransaction(const JSONRPCRequest& request)
             "         \"reqSigs\" : n,            (numeric) The required sigs\n"
             "         \"type\" : \"pubkeyhash\",  (string) The type, eg 'pubkeyhash'\n"
             "         \"addresses\" : [           (json array of string)\n"
-            "           \"address\"        (string) Zcoin address\n"
+            "           \"address\"        (string) Firo address\n"
             "           ,...\n"
             "         ]\n"
             "       }\n"
@@ -477,7 +497,7 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
             "     ]\n"
             "2. \"outputs\"               (object, required) a json object with outputs\n"
             "    {\n"
-            "      \"address\": x.xxx,    (numeric or string, required) The key is the Zcoin address, the numeric value (can be string) is the " + CURRENCY_UNIT + " amount\n"
+            "      \"address\": x.xxx,    (numeric or string, required) The key is the Firo address, the numeric value (can be string) is the " + CURRENCY_UNIT + " amount\n"
             "      \"data\": \"hex\"      (string, required) The key is \"data\", the value is hex encoded data\n"
             "      ,...\n"
             "    }\n"
@@ -550,7 +570,7 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
         } else {
             CBitcoinAddress address(name_);
             if (!address.IsValid())
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Zcoin address: ")+name_);
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Firo address: ")+name_);
 
             if (setAddress.count(address))
                 throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+name_);
@@ -608,7 +628,7 @@ UniValue decoderawtransaction(const JSONRPCRequest& request)
             "         \"reqSigs\" : n,            (numeric) The required sigs\n"
             "         \"type\" : \"pubkeyhash\",  (string) The type, eg 'pubkeyhash'\n"
             "         \"addresses\" : [           (json array of string)\n"
-            "           \"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\"   (string) Zcoin address\n"
+            "           \"aGoK6MF87K2SgT7cnJFhSWt7u2cAS5m18p\"   (string) Firo address\n"
             "           ,...\n"
             "         ]\n"
             "       }\n"
@@ -651,7 +671,7 @@ UniValue decodescript(const JSONRPCRequest& request)
             "  \"type\":\"type\", (string) The output type\n"
             "  \"reqSigs\": n,    (numeric) The required signatures\n"
             "  \"addresses\": [   (json array of string)\n"
-            "     \"address\"     (string) Zcoin address\n"
+            "     \"address\"     (string) Firo address\n"
             "     ,...\n"
             "  ],\n"
             "  \"p2sh\",\"address\" (string) address of P2SH script wrapping this redeem script (not returned if the script is already a P2SH).\n"

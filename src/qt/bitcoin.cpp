@@ -54,6 +54,7 @@
 #include <QTimer>
 #include <QTranslator>
 #include <QSslConfiguration>
+#include <QCheckBox>
 
 #if defined(QT_STATICPLUGIN)
 #include <QtPlugin>
@@ -97,7 +98,7 @@ static void InitMessage(const std::string &message)
  */
 static std::string Translate(const char* psz)
 {
-    return QCoreApplication::translate("zcoin-core", psz).toStdString();
+    return QCoreApplication::translate("firo-core", psz).toStdString();
 }
 
 static QString GetLangTerritory()
@@ -215,6 +216,12 @@ public:
     void createWindow(const NetworkStyle *networkStyle);
     /// Create splash screen
     void createSplashScreen(const NetworkStyle *networkStyle);
+    // migrate settings to firo. Returns true if there was migration
+    bool migrateSettings(const QString &oldOrganizationName, const QString &newOrganizationName, const QString &oldApplicationName, const QString &newApplicationName);
+    // set data directory in settings file
+    void setDataDirInSettings(const QString &organization, const QString &application, const QString &dataDir);
+    // migrate directories to firo if needed
+    void migrateToFiro();
 
     /// Request core initialization
     void requestInitialize();
@@ -498,9 +505,9 @@ void BitcoinApplication::initializeResult(int retval)
         if(newWallet)
             NotifyMnemonic::notify();
         }
-        
+
         // Now that initialization/startup is done, process any command-line
-        // zcoin: URIs or payment requests:
+        // firo: URIs or payment requests:
         connect(paymentServer, SIGNAL(receivedPaymentRequest(SendCoinsRecipient)),
                          window, SLOT(handlePaymentRequest(SendCoinsRecipient)));
         connect(window, SIGNAL(receivedURI(QString)),
@@ -522,7 +529,7 @@ void BitcoinApplication::shutdownResult(int retval)
 
 void BitcoinApplication::handleRunawayException(const QString &message)
 {
-    QMessageBox::critical(0, "Runaway exception", BitcoinGUI::tr("A fatal error occurred. Zcoin can no longer continue safely and will quit.") + QString("\n\n") + message);
+    QMessageBox::critical(0, "Runaway exception", BitcoinGUI::tr("A fatal error occurred. Firo can no longer continue safely and will quit.") + QString("\n\n") + message);
     ::exit(EXIT_FAILURE);
 }
 
@@ -532,6 +539,98 @@ WId BitcoinApplication::getMainWinId() const
         return 0;
 
     return window->winId();
+}
+
+bool BitcoinApplication::migrateSettings(const QString &oldOrganizationName, const QString &newOrganizationName,
+                                            const QString &oldApplicationName, const QString &newApplicationName)
+{
+    QSettings newSettings(newOrganizationName, newApplicationName);
+    if (!newSettings.allKeys().empty())
+        // no migration is needed
+        return false;
+
+    QSettings oldSettings(oldOrganizationName, oldApplicationName);
+    QList<QString> keys = oldSettings.allKeys();
+    if (!keys.empty()) {
+        Q_FOREACH(const QString &key, keys) {
+            newSettings.setValue(key, oldSettings.value(key));
+        }
+        newSettings.sync();
+
+        return true;
+    }
+
+    return false;
+}
+
+void BitcoinApplication::setDataDirInSettings(const QString &organization, const QString &application, const QString &dataDir)
+{
+    QSettings settings(organization, application);
+    if (!settings.value("strDataDir").isNull()) {
+        boost::filesystem::path zcoinDataDir = GetDefaultDataDirForCoinName("zcoin");
+        boost::filesystem::path settingsDataDir = GUIUtil::qstringToBoostPath(settings.value("strDataDir", GUIUtil::boostPathToQString(zcoinDataDir)).toString());
+
+        if (settingsDataDir == zcoinDataDir) {
+            settings.setValue("strDataDir", dataDir);
+            settings.sync();
+        }
+    }
+}
+
+void BitcoinApplication::migrateToFiro()
+{
+    migrateSettings("Zcoin", "Firo", "Zcoin-Qt", "Firo-Qt");
+    migrateSettings("Zcoin", "Firo", "Zcoin-Qt-testnet", "Firo-Qt-testnet");
+
+    QSettings settings;
+    if (IsArgSet("-datadir"))
+        return;
+
+    boost::filesystem::path dataDir = GetDefaultDataDir();
+    dataDir = GUIUtil::qstringToBoostPath(settings.value("strDataDir", GUIUtil::boostPathToQString(GetDefaultDataDir())).toString());
+    boost::filesystem::path zcoinDefaultDataDir = GetDefaultDataDirForCoinName("zcoin");
+    boost::filesystem::path firoDefaultDataDir = GetDefaultDataDirForCoinName("firo");
+
+    if (dataDir != zcoinDefaultDataDir)
+        return;
+
+    boost::filesystem::path dontMigrateFilePath = dataDir / ".dontmigratetofiro";
+    if (boost::filesystem::exists(dontMigrateFilePath) && !GetBoolArg("-migratetofiro", false))
+        return;
+
+    QCheckBox *doNotAskMeAgainCheckbox = new QCheckBox("Do not ask me again");
+    QMessageBox messageBox;
+    QString messageText;
+    QTextStream(&messageText) <<
+        "Migrate directory structure from zcoin to firo? "
+        "Directory " << GUIUtil::boostPathToQString(zcoinDefaultDataDir) <<
+          " will be renamed to " << GUIUtil::boostPathToQString(firoDefaultDataDir) <<
+          " and file zcoin.conf in it will be renamed to firo.conf";
+    messageBox.setText(messageText);
+
+    messageBox.setIcon(QMessageBox::Icon::Question);
+    messageBox.addButton(QMessageBox::Yes);
+    messageBox.addButton(QMessageBox::No);
+    messageBox.setDefaultButton(QMessageBox::Yes);
+    messageBox.setCheckBox(doNotAskMeAgainCheckbox);
+
+    bool doNotShowAgain = false;
+
+    QObject::connect(doNotAskMeAgainCheckbox, &QCheckBox::stateChanged, [&doNotShowAgain] (int state) {
+        doNotShowAgain = static_cast<Qt::CheckState>(state) == Qt::CheckState::Checked;
+    });
+
+    if (messageBox.exec() == QMessageBox::Yes) {
+        if (RenameDirectoriesFromZcoinToFiro()) {
+            // Update path in settings if not set to non-default value
+            setDataDirInSettings("Firo", "Firo-Qt", GUIUtil::boostPathToQString(firoDefaultDataDir));
+            setDataDirInSettings("Firo", "Firo-Qt-testnet", GUIUtil::boostPathToQString(firoDefaultDataDir));
+        }
+    }
+    else if (doNotShowAgain) {
+        // create file to block migration in the future
+        boost::filesystem::ofstream(dontMigrateFilePath).flush();
+    }
 }
 
 #ifndef BITCOIN_QT_TEST
@@ -576,6 +675,7 @@ int main(int argc, char *argv[])
     //   Need to pass name here as CAmount is a typedef (see http://qt-project.org/doc/qt-5/qmetatype.html#qRegisterMetaType)
     //   IMPORTANT if it is no longer a typedef use the normal variant above
     qRegisterMetaType< CAmount >("CAmount");
+    qRegisterMetaType< uint256 >("uint256");
 
     /// 3. Application identification
     // must be set before OptionsModel is initialized or translations are loaded,
@@ -614,7 +714,9 @@ int main(int argc, char *argv[])
     if (!Intro::pickDataDirectory())
         return EXIT_SUCCESS;
 
-    /// 6. Determine availability of data directory and parse zcoin.conf
+    app.migrateToFiro();
+
+    /// 6. Determine availability of data directory and parse firo.conf
     /// - Do not call GetDataDir(true) before this step finishes
     if (!boost::filesystem::is_directory(GetDataDir(false)))
     {
@@ -644,19 +746,6 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 #ifdef ENABLE_WALLET
-    // Determine if user wants to create new wallet or recover existing one.
-    // Only show if:
-    // - Using mnemonic (-usemnemonic on (default)) and
-    // - mnemonic not set (default, not setting mnemonic from conf file instead) and
-    // - hdseed not set (default, not setting hd seed from conf file instead)
-
-    if(GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC) &&
-       GetArg("-mnemonic", "").empty() &&
-       GetArg("-hdseed", "not hex")=="not hex"){
-        if(!Recover::askRecover(newWallet))
-            return EXIT_SUCCESS;
-    }
-
     // Parse URIs on command line -- this can affect Params()
     PaymentServer::ipcParseCommandLine(argc, argv);
 #endif
@@ -669,6 +758,19 @@ int main(int argc, char *argv[])
     initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
 
 #ifdef ENABLE_WALLET
+    // Determine if user wants to create new wallet or recover existing one.
+    // Only show if:
+    // - Using mnemonic (-usemnemonic on (default)) and
+    // - mnemonic not set (default, not setting mnemonic from conf file instead) and
+    // - hdseed not set (default, not setting hd seed from conf file instead)
+
+    if(GetBoolArg("-usemnemonic", DEFAULT_USE_MNEMONIC) &&
+       !GetBoolArg("-disablewallet", false) &&
+       GetArg("-mnemonic", "").empty() &&
+       GetArg("-hdseed", "not hex")=="not hex"){
+        if(!Recover::askRecover(newWallet))
+            return EXIT_SUCCESS;
+    }
     /// 8. URI IPC sending
     // - Do this early as we don't want to bother initializing if we are just calling IPC
     // - Do this *after* setting up the data directory, as the data directory hash is used in the name
@@ -679,7 +781,7 @@ int main(int argc, char *argv[])
         exit(EXIT_SUCCESS);
 
     // Start up the payment server early, too, so impatient users that click on
-    // zcoin: links repeatedly have their payment requests routed to this process:
+    // firo: links repeatedly have their payment requests routed to this process:
     app.createPaymentServer();
 #endif
     /// 9. Main GUI initialization

@@ -134,7 +134,7 @@ void SigmaDialog::setWalletModel(WalletModel *model)
     this->walletModel = model;
 
     if (model && model->getOptionsModel()) {
-        connect(model, SIGNAL(balanceChanged(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount)),
+        connect(model, SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)),
             this, SLOT(updateMintableBalance()));
         connect(model, SIGNAL(updateMintable()), this, SLOT(updateMintableBalance()));
         updateMintableBalance();
@@ -210,7 +210,7 @@ void SigmaDialog::on_mintButton_clicked()
 
     if (amount < smallestDenominationValue) {
         QMessageBox::critical(this, tr("Amount too small to mint"),
-            tr("Amount to mint must not be lower than %1 XZC.").arg(formatAmount(smallestDenominationValue)),
+            tr("Amount to mint must not be lower than %1 FIRO.").arg(formatAmount(smallestDenominationValue)),
             QMessageBox::Ok, QMessageBox::Ok);
         return;
     }
@@ -219,7 +219,7 @@ void SigmaDialog::on_mintButton_clicked()
         amount -= amount % smallestDenominationValue;
         auto reply = QMessageBox::question(
             this, tr("Unable to mint."),
-            tr("Amount to mint must be a multiple of 0.05 XZC. Do you want to mint %1 XZC?"
+            tr("Amount to mint must be a multiple of 0.05 FIRO. Do you want to mint %1 FIRO?"
             ).arg(formatAmount(amount)));
 
         if (reply == QMessageBox::No) {
@@ -771,6 +771,7 @@ void SigmaDialog::updateAvailableToMintBalance(const CAmount& balance)
 void SigmaDialog::updateMintableBalance()
 {
     updateAvailableToMintBalance(this->walletModel->getBalance(NULL, true));
+    walletModel->checkSigmaAmount(true);
 }
 
 // Coin Control: copy label "Quantity" to clipboard
@@ -907,7 +908,7 @@ void SigmaDialog::coinControlChangeEdited(const QString& text)
         }
         else if (!addr.IsValid()) // Invalid address
         {
-            ui->labelCoinControlChangeLabel->setText(tr("Warning: Invalid Zcoin address"));
+            ui->labelCoinControlChangeLabel->setText(tr("Warning: Invalid Firo address"));
         }
         else // Valid address
         {
@@ -997,7 +998,7 @@ void SigmaDialog::processSpendCoinsReturn(const WalletModel::SendCoinsReturn &se
         msgParams.second = CClientUIInterface::MSG_ERROR;
         break;
     case WalletModel::ExceedLimit:
-        msgParams.first = tr("Transaction exceeds max number of spends (35) or value (500 XZC per transaction), please reduce the amount you wish to spend.");
+        msgParams.first = tr("Transaction exceeds max number of spends (35) or value (500 FIRO per transaction), please reduce the amount you wish to spend.");
         msgParams.second = CClientUIInterface::MSG_ERROR;
         break;
     // included to prevent a compiler warning.

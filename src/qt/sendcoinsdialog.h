@@ -51,9 +51,11 @@ public Q_SLOTS:
     void reject();
     void accept();
     SendCoinsEntry *addEntry();
+    void updateBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool header);
     void updateTabsAndLabels();
     void setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
-                    const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance);
+                    const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance,
+                    const CAmount& privateBalance, const CAmount& unconfirmedPrivateBalance, const CAmount& anonymizableBalance);
 
 private:
     Ui::SendCoinsDialog *ui;
@@ -61,6 +63,7 @@ private:
     WalletModel *model;
     bool fNewRecipientAllowed;
     bool fFeeMinimized;
+    bool fAnonymousMode;
     const PlatformStyle *platformStyle;
 
     // Process WalletModel::SendCoinsReturn and generate a pair consisting
@@ -69,6 +72,8 @@ private:
     void processSendCoinsReturn(const WalletModel::SendCoinsReturn &sendCoinsReturn, const QString &msgArg = QString());
     void minimizeFeeSection(bool fMinimize);
     void updateFeeMinimizedLabel();
+    void setAnonymizeMode(bool enableAnonymizeMode);
+    void removeUnmatchedOutput(CCoinControl &coinControl);
 
     /**
      * @todo sendpaymentcode transaction
@@ -79,8 +84,9 @@ private:
 
 private Q_SLOTS:
     void on_sendButton_clicked();
-//    void on_buttonChooseFee_clicked();
-//    void on_buttonMinimizeFee_clicked();
+    void on_switchFundButton_clicked();
+    void on_buttonChooseFee_clicked();
+    void on_buttonMinimizeFee_clicked();
     void removeEntry(SendCoinsEntry* entry);
     void updateDisplayUnit();
     void coinControlFeatureChanged(bool);
@@ -98,7 +104,7 @@ private Q_SLOTS:
     void setMinimumFee();
     void updateFeeSectionControls();
     void updateMinFeeLabel();
-//    void updateSmartFeeLabel();
+    void updateSmartFeeLabel();
     void updateGlobalFeeVariables();
 
 Q_SIGNALS:

@@ -81,7 +81,8 @@ public:
         SpendToAddress,
         SpendToSelf,
         Mint,
-        PCode
+        PCode,
+        Anonymize,
     };
 
     /** Number of confirmation recommended for accepting a transaction */

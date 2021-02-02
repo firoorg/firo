@@ -108,7 +108,7 @@ class TestNode(NodeConnCB):
 class AcceptBlockTest(BitcoinTestFramework):
     def add_options(self, parser):
         parser.add_option("--testbinary", dest="testbinary",
-                          default=os.getenv("ZCOIND", "zcoind"),
+                          default=os.getenv("FIROD", "firod"),
                           help="bitcoind binary to test")
 
     def __init__(self):

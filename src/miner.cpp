@@ -33,7 +33,9 @@
 #include "crypto/Lyra2Z/Lyra2.h"
 #include "zerocoin.h"
 #include "sigma.h"
+#include "lelantus.h"
 #include "sigma/remint.h"
+#include "evo/spork.h"
 #include <algorithm>
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
@@ -46,6 +48,7 @@
 #include "evo/cbtx.h"
 #include "evo/simplifiedmns.h"
 #include "evo/deterministicmns.h"
+#include "evo/spork.h"
 
 #include "llmq/quorums_blockprocessor.h"
 
@@ -149,13 +152,16 @@ void BlockAssembler::resetBlock()
 
     nSigmaSpendAmount = 0;
     nSigmaSpendInputs = 0;
+
+    nLelantusSpendAmount = 0;
+    nLelantusSpendInputs = 0;
 }
 
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn, bool fMineWitnessTx)
 {
     // Create new block
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
-    
+
     int64_t nTimeStart = GetTimeMicros();
 
     // fMTP is always true currently
@@ -174,11 +180,12 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblocktemplate->vTxFees.push_back(-1); // updated at end
     pblocktemplate->vTxSigOpsCost.push_back(-1); // updated at end
 
-    LOCK2(cs_main, mempool.cs);
+    LOCK(cs_main);
     CBlockIndex* pindexPrev = chainActive.Tip();
     nHeight = pindexPrev->nHeight + 1;
 
     bool fDIP0003Active_context = nHeight >= chainparams.GetConsensus().DIP0003Height;
+    bool fDIP0008Active_context = nHeight >= chainparams.GetConsensus().DIP0008Height;
 
     pblock->nTime = GetAdjustedTime();
     bool fMTP = pblock->nTime >= params.nMTPSwitchTime;
@@ -215,12 +222,15 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     // transaction (which in most cases can be a no-op).
     fIncludeWitness = IsWitnessEnabled(pindexPrev, chainparams.GetConsensus()) && fMineWitnessTx;
 
-    FillBlackListForBlockTemplate();
-
-    addPriorityTxs();
     int nPackagesSelected = 0;
     int nDescendantsUpdated = 0;
-    addPackageTxs(nPackagesSelected, nDescendantsUpdated);
+    {
+        LOCK(mempool.cs);
+        FillBlackListForBlockTemplate();
+
+        addPriorityTxs();
+        addPackageTxs(nPackagesSelected, nDescendantsUpdated);
+    }
 
     int64_t nTime1 = GetTimeMicros();
 
@@ -236,6 +246,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
+
     coinbaseTx.vout[0].nValue = nFees + nBlockSubsidy;
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
 
@@ -249,15 +260,12 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
         CCbTx cbTx;
 
-        /*
+
         if (fDIP0008Active_context) {
             cbTx.nVersion = 2;
         } else {
-        */
             cbTx.nVersion = 1;
-        /*
         }
-        */
 
         cbTx.nHeight = nHeight;
 
@@ -265,13 +273,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         if (!CalcCbTxMerkleRootMNList(*pblock, pindexPrev, cbTx.merkleRootMNList, state)) {
             throw std::runtime_error(strprintf("%s: CalcCbTxMerkleRootMNList failed: %s", __func__, FormatStateMessage(state)));
         }
-        /*
         if (fDIP0008Active_context) {
             if (!CalcCbTxMerkleRootQuorums(*pblock, pindexPrev, cbTx.merkleRootQuorums, state)) {
                 throw std::runtime_error(strprintf("%s: CalcCbTxMerkleRootQuorums failed: %s", __func__, FormatStateMessage(state)));
             }
         }
-        */
 
         SetTxPayload(coinbaseTx, cbTx);
     }
@@ -281,7 +287,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vTxFees[0] = -nFees;
-    
+
     uint64_t nSerializeSize = GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION);
     LogPrintf("CreateNewBlock(): total size: %u block weight: %u txs: %u fees: %ld sigops %d\n", nSerializeSize, GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
 
@@ -292,7 +298,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblock->nNonce         = 0;
     pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(*pblock->vtx[0]);
 
-    // Zcoin - MTP
+    // Firo - MTP
     if (fMTP)
         pblock->mtpHashData = make_shared<CMTPHashData>();
 
@@ -436,6 +442,22 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
             return false;
     }
 
+    // Check transaction against lelantus limits
+    if(tx.IsLelantusJoinSplit()) {
+        CAmount spendAmount = lelantus::GetSpendTransparentAmount(tx);
+        size_t spendNumber = lelantus::GetSpendInputs(tx);
+        auto &params = chainparams.GetConsensus();
+
+        if (spendNumber > params.nMaxLelantusInputPerTransaction || spendAmount > params.nMaxValueLelantusSpendPerTransaction)
+            return false;
+
+        if (spendNumber + nLelantusSpendInputs > params.nMaxLelantusInputPerBlock)
+            return false;
+
+        if (spendAmount + nLelantusSpendAmount > params.nMaxValueLelantusSpendPerBlock)
+            return false;
+    }
+
     return true;
 }
 
@@ -448,11 +470,26 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
 
         if ((nSigmaSpendAmount += spendAmount) > chainparams.GetConsensus().nMaxValueSigmaSpendPerBlock)
             return;
-        
+
         if ((nSigmaSpendInputs += tx.vin.size()) > chainparams.GetConsensus().nMaxSigmaInputPerBlock)
             return;
     }
-    
+
+    if(tx.IsLelantusJoinSplit()) {
+        CAmount spendAmount = lelantus::GetSpendTransparentAmount(tx);
+        size_t spendNumber = lelantus::GetSpendInputs(tx);
+        auto &params = chainparams.GetConsensus();
+
+        if (spendAmount > params.nMaxValueLelantusSpendPerTransaction)
+            return;
+
+        if ((nLelantusSpendAmount += spendAmount) > params.nMaxValueLelantusSpendPerBlock)
+            return;
+
+        if ((nLelantusSpendInputs += spendNumber) > params.nMaxLelantusInputPerBlock)
+            return;
+    }
+
     pblock->vtx.emplace_back(iter->GetSharedTx());
     pblocktemplate->vTxFees.push_back(iter->GetFee());
     pblocktemplate->vTxSigOpsCost.push_back(iter->GetSigOpCost());
@@ -850,8 +887,9 @@ void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fM
 }
 
 void BlockAssembler::FillBlackListForBlockTemplate() {
-    for (CTxMemPool::indexed_transaction_set::iterator mi = mempool.mapTx.begin();
-            mi != mempool.mapTx.end(); ++mi)
+    CTxMemPool::setEntries sporkTxs;
+
+    for (CTxMemPool::txiter mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi)
     {
         if (txBlackList.count(mi) > 0)
             continue;
@@ -866,12 +904,73 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
             txBlackList.erase(mi);
         }
 
-        // ProRegTx referencing external collateral can't be in same block with the collateral itself
         if (tx.nVersion >= 3 && tx.nType == TRANSACTION_PROVIDER_REGISTER) {
             CProRegTx proTx;
-            if (GetTxPayload(tx, proTx) && !proTx.collateralOutpoint.hash.IsNull() && mempool.get(proTx.collateralOutpoint.hash))
+            if (GetTxPayload(tx, proTx) && !proTx.collateralOutpoint.hash.IsNull() &&
+                    // ProRegTx referencing external collateral can't be in same block with the collateral itself
+                    (mempool.get(proTx.collateralOutpoint.hash) ||
+                    // ProRegTx cannot be in the same block as transaction spending external collateral
+                        mempool.isSpent(proTx.collateralOutpoint)))
                 mempool.CalculateDescendants(mi, txBlackList);
         }
+
+        if (tx.nVersion >= 3 && tx.nType == TRANSACTION_SPORK) {
+            CSporkTx sporkTx;
+            if (GetTxPayload<CSporkTx>(tx, sporkTx)) {
+                sporkTxs.insert(mi);
+            }
+        }
+    }
+
+    // Update spork map with sporks to be included in block
+    std::vector<CTransactionRef> sporkTxRefs;
+    for (auto sporkTx: sporkTxs) {
+        if (txBlackList.count(sporkTx) == 0)
+            sporkTxRefs.push_back(sporkTx->GetSharedTx());
+    }
+    CSporkManager *sporkManager = CSporkManager::GetSporkManager();
+    ActiveSporkMap prevSporkMap = chainActive.Tip()->activeDisablingSporks;
+    ActiveSporkMap sporkMap;
+    sporkManager->UpdateActiveSporkMap(sporkMap, prevSporkMap, chainActive.Tip()->nHeight+1, sporkTxRefs);
+
+    // blacklist all the transactions not allowed under the spork set
+    if (!sporkMap.empty()) {
+        for (CTxMemPool::txiter mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi) {
+            CValidationState state;
+            if (!sporkManager->IsTransactionAllowed(mi->GetTx(), sporkMap, state))
+                mempool.CalculateDescendants(mi, txBlackList);
+        }
+    }
+
+    // Now if we have limit on lelantus transparent outputs scan mempool and drop all the transactions exceeding the limit
+    if (sporkMap.count(CSporkAction::featureLelantusTransparentLimit) > 0) {
+        CAmount limit = sporkMap[CSporkAction::featureLelantusTransparentLimit].second;
+
+        std::vector<CTxMemPool::txiter> joinSplitTxs;
+        for (CTxMemPool::txiter mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi) {
+            if (txBlackList.count(mi) == 0 && mi->GetTx().IsLelantusJoinSplit())
+                joinSplitTxs.push_back(mi);
+        }
+
+        // sort join splits in order of their transparent outputs so large txs won't block smaller ones
+        // from getting into the mempool
+        std::sort(joinSplitTxs.begin(), joinSplitTxs.end(), 
+            [](CTxMemPool::txiter a, CTxMemPool::txiter b) -> bool {
+                return lelantus::GetSpendTransparentAmount(a->GetTx()) < lelantus::GetSpendTransparentAmount(b->GetTx());
+            });
+
+        CAmount transparentAmount = 0;
+        std::vector<CTxMemPool::txiter>::const_iterator it;
+        for (it = joinSplitTxs.cbegin(); it != joinSplitTxs.cend(); ++it) {
+            CAmount output = lelantus::GetSpendTransparentAmount((*it)->GetTx());
+            if (transparentAmount + output > limit)
+                break;
+            transparentAmount += output;
+        }
+
+        // found all the joinsplit transaction fitting in the limit, blacklist the rest
+        while (it != joinSplitTxs.cend())
+            mempool.CalculateDescendants(*it++, txBlackList);
     }
 }
 
@@ -922,7 +1021,7 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
     {
         LOCK(cs_main);
         if (pblock->hashPrevBlock != chainActive.Tip()->GetBlockHash())
-            return error("ZcoinMiner: generated block is stale");
+            return error("FiroMiner: generated block is stale");
     }
 
     // Inform about the new block
@@ -930,14 +1029,14 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
 
     // Process this block the same as if we had received it from another node
     if (!ProcessNewBlock(chainparams, std::shared_ptr<const CBlock>(new CBlock(*pblock)), true, NULL))
-        return error("ZcoinMiner: ProcessNewBlock, block not accepted");
+        return error("FiroMiner: ProcessNewBlock, block not accepted");
 
     return true;
 }
 
-void static ZcoinMiner(const CChainParams &chainparams) {
+void static FiroMiner(const CChainParams &chainparams) {
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
-    RenameThread("zcoin-miner");
+    RenameThread("firo-miner");
 
     unsigned int nExtraNonce = 0;
 
@@ -949,7 +1048,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
         // due to some internal error but also if the keypool is empty.
         // In the latter case, already the pointer is NULL.
         if (!coinbaseScript || coinbaseScript->reserveScript.empty()) {
-            LogPrintf("ZcoinMiner stop here coinbaseScript=%s, coinbaseScript->reserveScript.empty()=%s\n", coinbaseScript, coinbaseScript->reserveScript.empty());
+            LogPrintf("FiroMiner stop here coinbaseScript=%s, coinbaseScript->reserveScript.empty()=%s\n", coinbaseScript, coinbaseScript->reserveScript.empty());
             throw std::runtime_error("No coinbase script available (mining requires a wallet)");
         }
 
@@ -988,13 +1087,13 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             std::unique_ptr<CBlockTemplate> pblocktemplate = BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, {});
             LogPrintf("AFTER: pblocktemplate\n");
             if (!pblocktemplate.get()) {
-                LogPrintf("Error in ZcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
+                LogPrintf("Error in FiroMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
                 return;
             }
             CBlock *pblock = &pblocktemplate->block;
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
-            LogPrintf("Running ZcoinMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
+            LogPrintf("Running FiroMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
                       ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
             LogPrintf("BEFORE: search\n");
@@ -1047,7 +1146,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                     }
 
                     boost::this_thread::interruption_point();
-                    
+
                     //LogPrintf("*****\nhash   : %s  \ntarget : %s\n", UintToArith256(thash).ToString(), hashTarget.ToString());
 
                     if (UintToArith256(thash) <= hashTarget) {
@@ -1055,7 +1154,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                         LogPrintf("Found a solution. Hash: %s", UintToArith256(thash).ToString());
                         SetThreadPriority(THREAD_PRIORITY_NORMAL);
 //                        CheckWork(pblock, *pwallet, reservekey);
-                        LogPrintf("ZcoinMiner:\n");
+                        LogPrintf("FiroMiner:\n");
                         LogPrintf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", UintToArith256(thash).ToString(), hashTarget.ToString());
                         ProcessBlockFound(pblock, chainparams);
                         SetThreadPriority(THREAD_PRIORITY_LOWEST);
@@ -1091,11 +1190,11 @@ void static ZcoinMiner(const CChainParams &chainparams) {
         }
     }
     catch (const boost::thread_interrupted &) {
-        LogPrintf("ZcoinMiner terminated\n");
+        LogPrintf("FiroMiner terminated\n");
         throw;
     }
     catch (const std::runtime_error &e) {
-        LogPrintf("ZcoinMiner runtime error: %s\n", e.what());
+        LogPrintf("FiroMiner runtime error: %s\n", e.what());
         return;
     }
 }
@@ -1119,7 +1218,7 @@ void GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainpar
 
     minerThreads = new boost::thread_group();
     for (int i = 0; i < nThreads; i++)
-        minerThreads->create_thread(boost::bind(&ZcoinMiner, boost::cref(chainparams)));
+        minerThreads->create_thread(boost::bind(&FiroMiner, boost::cref(chainparams)));
 }
 
 void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce)

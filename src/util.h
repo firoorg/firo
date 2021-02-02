@@ -32,6 +32,11 @@
 #include <boost/thread/exceptions.hpp>
 #include <boost/optional.hpp>
 
+#include <boost/bind/bind.hpp>
+// workaround for boost::placeholders namespace missing during use
+namespace boost { namespace placeholders {}}
+using namespace boost::placeholders;
+
 static const bool DEFAULT_LOGTIMEMICROS = false;
 static const bool DEFAULT_LOGIPS        = false;
 static const bool DEFAULT_LOGTIMESTAMPS = true;
@@ -118,9 +123,11 @@ int RaiseFileDescriptorLimit(int nMinFD);
 void AllocateFileRange(FILE *file, unsigned int offset, unsigned int length);
 bool RenameOver(boost::filesystem::path src, boost::filesystem::path dest);
 bool TryCreateDirectory(const boost::filesystem::path& p);
+boost::filesystem::path GetDefaultDataDirForCoinName(const std::string &coinName);
 boost::filesystem::path GetDefaultDataDir();
 const boost::filesystem::path &GetDataDir(bool fNetSpecific = true);
 const boost::filesystem::path &GetBackupsDir();
+bool RenameDirectoriesFromZcoinToFiro();
 void ClearDatadirCache();
 boost::filesystem::path GetConfigFile(const std::string& confPath);
 #ifndef WIN32

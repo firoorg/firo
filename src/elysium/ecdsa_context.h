@@ -1,9 +1,9 @@
-// Copyright (c) 2020 The Zcoin Core Developers
+// Copyright (c) 2020 The Firo Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_ELYSIUM_ECDSA_CONTEXT_H
-#define ZCOIN_ELYSIUM_ECDSA_CONTEXT_H
+#ifndef FIRO_ELYSIUM_ECDSA_CONTEXT_H
+#define FIRO_ELYSIUM_ECDSA_CONTEXT_H
 
 #include <secp256k1.h>
 
@@ -35,4 +35,4 @@ private:
 
 } // elysium
 
-#endif // ZCOIN_ELYSIUM_ECDSA_CONTEXT_H
+#endif // FIRO_ELYSIUM_ECDSA_CONTEXT_H

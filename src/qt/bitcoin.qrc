@@ -30,7 +30,7 @@
         <file alias="qrcode">res/icons/qrcode.png</file>
         <file alias="zerocoin">res/icons/zerocoin.png</file>
         <file alias="sigma">res/icons/sigma.png</file>
-        <file alias="znodes">res/icons/znodes.png</file>
+        <file alias="znodes">res/icons/masternodes.png</file>
         <file alias="overview">res/icons/overview.png</file>
         <file alias="export">res/icons/export.png</file>
         <file alias="synced">res/icons/synced.png</file>
@@ -72,6 +72,7 @@
         <file alias="elysium_meta_partfilled">res/icons/meta_partfilled.png</file>
         <file alias="elysium_meta_pending">res/icons/meta_pending.png</file>
         <file alias="elysium_hourglass">res/icons/elysium_hourglass.png</file>
+        <file alias="lelantus">res/icons/lelantus.png</file>
     </qresource>
     <qresource prefix="/images">
         <file alias="splash">res/images/splash.png</file>

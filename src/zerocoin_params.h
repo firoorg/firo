@@ -5,9 +5,9 @@
 #define ZEROCOIN_MODULUS_V2 "C7970CEEDCC3B0754490201A7AA613CD73911081C790F5F1A8726F463550BB5B7FF0DB8E1EA1189EC72F93D1650011BD721AEEACC2ACDE32A04107F0648C2813A31F5B0B7765FF8B44B4B6FFC93384B646EB09C7CF5E8592D40EA33C80039F35B4F14A04B51F7BFD781BE4D1673164BA8EB991C2C4D730BBBE35F592BDEF524AF7E8DAEFD26C66FC02C479AF89D64D373F442709439DE66CEB955F3EA37D5159F6135809F85334B5CB1813ADDC80CD05609F10AC6A95AD65872C909525BDAD32BC729592642920F24C61DC5B3C3B7923E56B16A4D9D373D8721F24A3FC0F1B3131F55615172866BCCC30F95054C824E733A5EB6817F7BC16399D48C6361CC7E5"
 
 /** Dust Soft Limit, allowed with additional fee per output */
-//static const int64_t DUST_SOFT_LIMIT = 100000; // 0.001 XZC
+//static const int64_t DUST_SOFT_LIMIT = 100000; // 0.001 FIRO
 /** Dust Hard Limit, ignored as wallet inputs (mininput default) */
-static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
+static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 
 // There were bugs before this block, don't do some checks on early blocks
 #define ZC_CHECK_BUG_FIXED_AT_BLOCK         61168
@@ -53,6 +53,10 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 // The block number after which old sigma clients are banned.
 #define ZC_OLD_SIGMA_BAN_BLOCK          181850 //Approx July 22nd, 2019, 4:00 AM UTC
 
+// Block after which lelantus mints are activated.
+#define ZC_LELANTUS_STARTING_BLOCK         336888
+#define ZC_LELANTUS_TESTNET_STARTING_BLOCK 15700
+
 // Number of blocks after ZC_SIGMA_STARTING_BLOCK during which we still accept zerocoin V2 mints into mempool.
 #define ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD          4500
 #define ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD  500
@@ -88,12 +92,18 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 // limit of coins number per id in spend v3.0
 #define ZC_SPEND_V3_COINSPERID_LIMIT    16000
 
+// limit of coins number per id in Lelantus
+#define ZC_LELANTUS_MAX_MINT_NUM    65000
+#define ZC_LELANTUS_SET_START_SIZE  16000
+
 // Version of index that introduced storing accumulators and coin serials
 #define ZC_ADVANCED_INDEX_VERSION           130500
 // Version of wallet.db entry that introduced storing extra information for mints
 #define ZC_ADVANCED_WALLETDB_MINT_VERSION	130504
-// Version of the block index entry that introduces Sigma protocol
-#define SIGMA_PROTOCOL_ENABLEMENT_VERSION	130800
+// Version of the block index entry that introduces Lelantus protocol
+#define LELANTUS_PROTOCOL_ENABLEMENT_VERSION	140100
+// Version of the block index enty that introduces evo sporks
+#define EVOSPORK_MIN_VERSION                140200
 
 // number of mint confirmations needed to spend coin
 #define ZC_MINT_CONFIRMATIONS               6
@@ -118,6 +128,21 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 
 // Amount of sigma spends allowed per transaction
 #define ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION            35
+
+// Value of lelantus spends allowed per block
+#define ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_BLOCK  (5100 * COIN)
+
+// Amount of lelantus spends allowed per block
+#define ZC_LELANTUS_INPUT_LIMIT_PER_BLOCK         100
+
+// Value of lelantus spends allowed per transaction
+#define ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION     (5001 * COIN)
+
+// Amount of lelantus spends allowed per transaction
+#define ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION            50
+
+// Maximum amount of lelantus mint
+#define ZC_LELANTUS_MAX_MINT            (5001 * COIN)
 
 // Number of zerocoin mints allowed per transaction
 #define ZC_MINT_LIMIT         100

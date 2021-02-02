@@ -18,21 +18,21 @@ class RemintSigmaValidationTest(BitcoinTestFramework):
         return start_nodes(self.num_nodes, self.options.tmpdir)
 
 
-    # 1. All denoms except zcoint not acceptable
+    # 1. All denoms except firot not acceptable
     # 2. All other inputs except valid ints not acceptable
     def run_test(self):
         getcontext().prec = 6
         self.nodes[0].generate(101)
         self.sync_all()
 
-        zcoin_denoms = [1, 10, 25, 50, 100]
-        for denom in zcoin_denoms:
+        firo_denoms = [1, 10, 25, 50, 100]
+        for denom in firo_denoms:
             self.nodes[0].mintzerocoin(denom)
             self.nodes[0].mintzerocoin(denom)
 
         self.nodes[0].generate(300)
 
-        # 1. All denoms except zcoint not acceptable
+        # 1. All denoms except firot not acceptable
         assert_raises(JSONRPCException, self.nodes[0].remintzerocointosigma, 5)
         assert_raises(JSONRPCException, self.nodes[0].remintzerocointosigma, 0.1)
         assert_raises(JSONRPCException, self.nodes[0].remintzerocointosigma, -1)
@@ -43,7 +43,7 @@ class RemintSigmaValidationTest(BitcoinTestFramework):
         assert_raises(JSONRPCException, self.nodes[0].remintzerocointosigma, "test")
         assert_raises(JSONRPCException, self.nodes[0].remintzerocointosigma, [1, "1"])
 
-        for denom in zcoin_denoms:
+        for denom in firo_denoms:
             try:
                 self.nodes[0].remintzerocointosigma(denom)
                 self.nodes[0].remintzerocointosigma(denom)
@@ -51,7 +51,7 @@ class RemintSigmaValidationTest(BitcoinTestFramework):
                 assert False, "Could not remint denomination {} with next exception {}." \
                     .format(denom, e.error['message'])
 
-        #should fail cause no zcoin mints
+        #should fail cause no firo mints
         assert_raises(JSONRPCException, self.nodes[0].remintzerocointosigma, 1)
         
 

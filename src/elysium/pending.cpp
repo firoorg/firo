@@ -55,7 +55,7 @@ void PendingAdd(const uint256& txid, const std::string& sendingAddress, uint16_t
 /**
  * Deletes a transaction from the pending map and credits the amount back to the pending tally for the address.
  *
- * NOTE: this is currently called for every Zcoin transaction prior to running through the parser.
+ * NOTE: this is currently called for every Firo transaction prior to running through the parser.
  */
 void PendingDelete(const uint256& txid)
 {

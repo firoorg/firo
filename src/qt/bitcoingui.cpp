@@ -33,6 +33,8 @@
 
 #include "chainparams.h"
 #include "init.h"
+#include "lelantus.h"
+#include "sigma.h"
 #include "ui_interface.h"
 #include "util.h"
 
@@ -134,7 +136,9 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     openRPCConsoleAction(0),
     openAction(0),
     showHelpMessageAction(0),
+    sigmaAction(0),
     zc2SigmaAction(0),
+    lelantusAction(0),
     masternodeAction(0),
     trayIcon(0),
     trayIconMenu(0),
@@ -325,7 +329,7 @@ void BitcoinGUI::createActions()
 	tabGroup->addAction(overviewAction);
 
 	sendCoinsAction = new QAction(platformStyle->SingleColorIcon(":/icons/send"), tr("&Send"), this);
-	sendCoinsAction->setStatusTip(tr("Send coins to a Zcoin address"));
+	sendCoinsAction->setStatusTip(tr("Send coins to a Firo address"));
 	sendCoinsAction->setToolTip(sendCoinsAction->statusTip());
 	sendCoinsAction->setCheckable(true);
 	sendCoinsAction->setShortcut(QKeySequence(Qt::ALT + key++));
@@ -336,7 +340,7 @@ void BitcoinGUI::createActions()
 	sendCoinsMenuAction->setToolTip(sendCoinsMenuAction->statusTip());
 
 	receiveCoinsAction = new QAction(platformStyle->SingleColorIcon(":/icons/receiving_addresses"), tr("&Receive"), this);
-	receiveCoinsAction->setStatusTip(tr("Request payments (generates QR codes and zcoin: URIs)"));
+	receiveCoinsAction->setStatusTip(tr("Request payments (generates QR codes and firo: URIs)"));
 	receiveCoinsAction->setToolTip(receiveCoinsAction->statusTip());
 	receiveCoinsAction->setCheckable(true);
 	receiveCoinsAction->setShortcut(QKeySequence(Qt::ALT + key++));
@@ -353,13 +357,14 @@ void BitcoinGUI::createActions()
 	historyAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(historyAction);
 
+#ifdef ENABLE_WALLET
     sigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/sigma"), tr("Si&gma"), this);
     sigmaAction->setStatusTip(tr("Anonymize your coins and perform private transfers using Sigma"));
     sigmaAction->setToolTip(sigmaAction->statusTip());
     sigmaAction->setCheckable(true);
     sigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
     tabGroup->addAction(sigmaAction);
-    sigmaAction->setVisible(true);
+    sigmaAction->setVisible(false);
 
     zc2SigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Remint"), this);
     zc2SigmaAction->setStatusTip(tr("Show the list of public Zerocoins that could be reminted in Sigma"));
@@ -369,11 +374,18 @@ void BitcoinGUI::createActions()
     tabGroup->addAction(zc2SigmaAction);
     zc2SigmaAction->setVisible(false);
 
-#ifdef ENABLE_WALLET
+    lelantusAction = new QAction(platformStyle->SingleColorIcon(":/icons/lelantus"), tr("&Lelantus"), this);
+    lelantusAction->setStatusTip(tr("Anonymize your coins"));
+    lelantusAction->setToolTip(lelantusAction->statusTip());
+    lelantusAction->setCheckable(true);
+    lelantusAction->setShortcut(QKeySequence(Qt::ALT + key++));
+    tabGroup->addAction(lelantusAction);
+    lelantusAction->setVisible(false);
+
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
-    masternodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/znodes"), tr("&Znodes"), this);
-    masternodeAction->setStatusTip(tr("Browse Znodes"));
+    masternodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/znodes"), tr("&Masternodes"), this);
+    masternodeAction->setStatusTip(tr("Browse masternodes"));
     masternodeAction->setToolTip(masternodeAction->statusTip());
     masternodeAction->setCheckable(true);
 #ifdef Q_OS_MAC
@@ -422,7 +434,8 @@ void BitcoinGUI::createActions()
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
 	connect(sigmaAction, SIGNAL(triggered()), this, SLOT(gotoSigmaPage()));
-        connect(zc2SigmaAction, SIGNAL(triggered()), this, SLOT(gotoZc2SigmaPage()));
+	connect(zc2SigmaAction, SIGNAL(triggered()), this, SLOT(gotoZc2SigmaPage()));
+	connect(lelantusAction, SIGNAL(triggered()), this, SLOT(gotoLelantusPage()));
 
 #ifdef ENABLE_ELYSIUM
     if (elysiumEnabled) {
@@ -460,9 +473,9 @@ void BitcoinGUI::createActions()
     changePassphraseAction = new QAction(platformStyle->TextColorIcon(":/icons/key"), tr("&Change Passphrase..."), this);
     changePassphraseAction->setStatusTip(tr("Change the passphrase used for wallet encryption"));
     signMessageAction = new QAction(platformStyle->TextColorIcon(":/icons/edit"), tr("Sign &message..."), this);
-    signMessageAction->setStatusTip(tr("Sign messages with your Zcoin addresses to prove you own them"));
+    signMessageAction->setStatusTip(tr("Sign messages with your Firo addresses to prove you own them"));
     verifyMessageAction = new QAction(platformStyle->TextColorIcon(":/icons/verify"), tr("&Verify message..."), this);
-    verifyMessageAction->setStatusTip(tr("Verify messages to ensure they were signed with specified Zcoin addresses"));
+    verifyMessageAction->setStatusTip(tr("Verify messages to ensure they were signed with specified Firo addresses"));
 
     openRPCConsoleAction = new QAction(platformStyle->TextColorIcon(":/icons/debugwindow"), tr("&Debug window"), this);
     openRPCConsoleAction->setStatusTip(tr("Open debugging and diagnostic console"));
@@ -475,11 +488,11 @@ void BitcoinGUI::createActions()
     usedReceivingAddressesAction->setStatusTip(tr("Show the list of used receiving addresses and labels"));
 
     openAction = new QAction(platformStyle->TextColorIcon(":/icons/open"), tr("Open &URI..."), this);
-    openAction->setStatusTip(tr("Open a zcoin: URI or payment request"));
+    openAction->setStatusTip(tr("Open a firo: URI or payment request"));
 
     showHelpMessageAction = new QAction(platformStyle->TextColorIcon(":/icons/info"), tr("&Command-line options"), this);
     showHelpMessageAction->setMenuRole(QAction::NoRole);
-    showHelpMessageAction->setStatusTip(tr("Show the %1 help message to get a list with possible Zcoin command-line options").arg(tr(PACKAGE_NAME)));
+    showHelpMessageAction->setStatusTip(tr("Show the %1 help message to get a list with possible Firo command-line options").arg(tr(PACKAGE_NAME)));
 
     connect(quitAction, SIGNAL(triggered()), qApp, SLOT(quit()));
     connect(aboutAction, SIGNAL(triggered()), this, SLOT(aboutClicked()));
@@ -567,6 +580,7 @@ void BitcoinGUI::createToolBars()
         //toolbar->addAction(paymentcodeAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(sigmaAction);
+        toolbar->addAction(lelantusAction);
         toolbar->addAction(zc2SigmaAction);
         toolbar->addAction(masternodeAction);
 
@@ -618,18 +632,29 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
         }
 #endif // ENABLE_WALLET
         unitDisplayControl->setOptionsModel(_clientModel->getOptionsModel());
-        
+
         OptionsModel* optionsModel = _clientModel->getOptionsModel();
         if(optionsModel)
         {
             // be aware of the tray icon disable state change reported by the OptionsModel object.
             connect(optionsModel,SIGNAL(hideTrayIconChanged(bool)),this,SLOT(setTrayIconVisible(bool)));
-        
+
+            // update lelantus page if option is changed.
+            connect(optionsModel,SIGNAL(lelantusPageChanged(bool)),this,SLOT(updateLelantusPage()));
+
             // initialize the disable state of the tray icon with the current value in the model.
             setTrayIconVisible(optionsModel->getHideTrayIcon());
         }
-        checkZc2SigmaVisibility(clientModel->getNumBlocks());
-        checkZnodeVisibility(clientModel->getNumBlocks());
+        {
+            auto blocks = clientModel->getNumBlocks();
+            checkZnodeVisibility(blocks);
+
+#ifdef ENABLE_WALLET
+            checkZc2SigmaVisibility(blocks);
+            checkSigmaVisibility(blocks);
+            checkLelantusVisibility(blocks);
+#endif // ENABLE_WALLET
+        }
     } else {
         // Disable possibility to show main window via action
         toggleHideAction->setEnabled(false);
@@ -685,6 +710,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     //paymentcodeAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
     sigmaAction->setEnabled(enabled);
+    lelantusAction->setEnabled(enabled);
     masternodeAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
@@ -885,12 +911,19 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
 
 void BitcoinGUI::gotoSigmaPage()
 {
+    sigmaAction->setChecked(true);
     if (walletFrame) walletFrame->gotoSigmaPage();
 }
 
 void BitcoinGUI::gotoZc2SigmaPage()
 {
     if (walletFrame) walletFrame->gotoZc2SigmaPage();
+}
+
+void BitcoinGUI::gotoLelantusPage()
+{
+    lelantusAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoLelantusPage();
 }
 
 void BitcoinGUI::gotoVerifyMessageTab(QString addr)
@@ -915,7 +948,7 @@ void BitcoinGUI::updateNetworkState()
     QString tooltip;
 
     if (clientModel->getNetworkActive()) {
-        tooltip = tr("%n active connection(s) to Zcoin network", "", count) + QString(".<br>") + tr("Click to disable network activity.");
+        tooltip = tr("%n active connection(s) to Firo network", "", count) + QString(".<br>") + tr("Click to disable network activity.");
     } else {
         tooltip = tr("Network activity disabled.") + QString("<br>") + tr("Click to enable network activity again.");
         icon = ":/icons/network_disabled";
@@ -1056,7 +1089,12 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     progressBarLabel->setToolTip(tooltip);
     progressBar->setToolTip(tooltip);
 
+#ifdef ENABLE_WALLET
+    checkSigmaVisibility(count);
+    checkLelantusVisibility(count);
     checkZc2SigmaVisibility(count);
+#endif // ENABLE_WALLET
+
     checkZnodeVisibility(count);
 }
 
@@ -1115,7 +1153,7 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
 
 void BitcoinGUI::message(const QString &title, const QString &message, unsigned int style, bool *ret)
 {
-    QString strTitle = tr("Zcoin"); // default title
+    QString strTitle = tr("Firo"); // default title
     // Default to information icon
     int nMBoxIcon = QMessageBox::Information;
     int nNotifyIcon = Notificator::Information;
@@ -1141,7 +1179,7 @@ void BitcoinGUI::message(const QString &title, const QString &message, unsigned 
             break;
         }
     }
-    // Append title to "Zcoin - "
+    // Append title to "Firo - "
     if (!msgType.isEmpty())
         strTitle += " - " + msgType;
 
@@ -1300,7 +1338,7 @@ void BitcoinGUI::setHDStatus(int hdEnabled)
     labelWalletHDStatusIcon->setPixmap(platformStyle->SingleColorIcon(hdEnabled ? ":/icons/hd_enabled" : ":/icons/hd_disabled").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
     labelWalletHDStatusIcon->setToolTip(hdEnabled ? tr("HD key generation is <b>enabled</b>") : tr("HD key generation is <b>disabled</b>"));
 
-    // eventually disable the QLabel to set its opacity to 50% 
+    // eventually disable the QLabel to set its opacity to 50%
     labelWalletHDStatusIcon->setEnabled(hdEnabled);
 }
 
@@ -1411,6 +1449,12 @@ void BitcoinGUI::showModalOverlay()
         modalOverlay->toggleVisibility();
 }
 
+void BitcoinGUI::updateLelantusPage()
+{
+    auto blocks = clientModel->getNumBlocks();
+    checkLelantusVisibility(blocks);
+}
+
 static bool ThreadSafeMessageBox(BitcoinGUI *gui, const std::string& message, const std::string& caption, unsigned int style)
 {
     bool modal = (style & CClientUIInterface::MODAL);
@@ -1431,15 +1475,15 @@ static bool ThreadSafeMessageBox(BitcoinGUI *gui, const std::string& message, co
 void BitcoinGUI::subscribeToCoreSignals()
 {
     // Connect signals to client
-    uiInterface.ThreadSafeMessageBox.connect(boost::bind(ThreadSafeMessageBox, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
-    uiInterface.ThreadSafeQuestion.connect(boost::bind(ThreadSafeMessageBox, this, boost::placeholders::_1, boost::placeholders::_3, boost::placeholders::_4));
+    uiInterface.ThreadSafeMessageBox.connect(boost::bind(ThreadSafeMessageBox, this, _1, _2, _3));
+    uiInterface.ThreadSafeQuestion.connect(boost::bind(ThreadSafeMessageBox, this, _1, _3, _4));
 }
 
 void BitcoinGUI::unsubscribeFromCoreSignals()
 {
     // Disconnect signals from client
-    uiInterface.ThreadSafeMessageBox.disconnect(boost::bind(ThreadSafeMessageBox, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
-    uiInterface.ThreadSafeQuestion.disconnect(boost::bind(ThreadSafeMessageBox, this, boost::placeholders::_1, boost::placeholders::_3, boost::placeholders::_4));
+    uiInterface.ThreadSafeMessageBox.disconnect(boost::bind(ThreadSafeMessageBox, this, _1, _2, _3));
+    uiInterface.ThreadSafeQuestion.disconnect(boost::bind(ThreadSafeMessageBox, this, _1, _3, _4));
 }
 
 void BitcoinGUI::checkZc2SigmaVisibility(int numBlocks) {
@@ -1459,6 +1503,34 @@ void BitcoinGUI::checkZnodeVisibility(int numBlocks) {
         masternodeAction->setVisible(false);
     } else {
         masternodeAction->setVisible(true);
+    }
+}
+
+void BitcoinGUI::checkSigmaVisibility(int numBlocks)
+{
+    auto allowSigmaPage = sigma::IsSigmaAllowed(numBlocks) && !lelantus::IsLelantusAllowed(numBlocks);
+    if (allowSigmaPage != sigmaAction->isVisible()) {
+        if (!allowSigmaPage && sigmaAction->isChecked()) {
+            gotoOverviewPage();
+        }
+        sigmaAction->setVisible(allowSigmaPage);
+    }
+}
+
+void BitcoinGUI::checkLelantusVisibility(int numBlocks)
+{
+    auto allowLelantusPage = false;
+    if (clientModel && clientModel->getOptionsModel()) {
+        allowLelantusPage = clientModel->getOptionsModel()->getLelantusPage();
+    }
+
+    allowLelantusPage &= lelantus::IsLelantusAllowed(numBlocks);
+
+    if (allowLelantusPage != lelantusAction->isVisible()) {
+        if (!allowLelantusPage && lelantusAction->isChecked()) {
+            gotoOverviewPage();
+        }
+        lelantusAction->setVisible(allowLelantusPage);
     }
 }
 

@@ -20,7 +20,7 @@ class SigmaMeetSpendTest(BitcoinTestFramework):
         # Decimal formating: 6 digits for balance will be enought 000.000
         getcontext().prec = 6
 
-        self.nodes[0].generate(500)
+        self.nodes[0].generate(400)
         self.sync_all()
 
         start_bal = self.nodes[0].getbalance()
@@ -32,7 +32,7 @@ class SigmaMeetSpendTest(BitcoinTestFramework):
         denoms1 = [(10, 9), (2, 100), (9, 1)]
         spend_size1 = 99
         spend1 = ['100']
-        remint1 = ['0.1', '0.1', '0.5', '0.1', '0.05', '0.1'] 
+        remint1 = ['0.1', '0.1', '0.5', '0.1', '0.05', '0.1']
 
 
         # Before mint new coins were: {'1': 99, '0.1': 4, '0.05': 1, '100': 1, '0.5': 1}
@@ -42,7 +42,7 @@ class SigmaMeetSpendTest(BitcoinTestFramework):
         denoms2 = [(100, 1)]
         spend_size2 = 100
         spend2 = ['100', '0.1']
-        remint2 = ['0.05'] 
+        remint2 = ['0.05']
 
 
         # Before mint new coins were: {'1': 199, '0.1': 3, '0.05': 2, '0.5': 1}
@@ -77,20 +77,20 @@ class SigmaMeetSpendTest(BitcoinTestFramework):
         activate_sigma_spend(denoms4, spend_size4, spend4, remint4, self)
 
 
-def activate_sigma_spend(denoms, spendsize, exp_spends, exp_remints, zcoind):
+def activate_sigma_spend(denoms, spendsize, exp_spends, exp_remints, firod):
     for denom in denoms:
         count, size = denom
         for i in range(count):
-            zcoind.nodes[0].mint(size)
-            zcoind.nodes[0].generate(6)
+            firod.nodes[0].mint(size)
+    firod.nodes[0].generate(6)
 
-    myaddr = zcoind.nodes[0].listreceivedbyaddress(0, True)[0]['address']
+    myaddr = firod.nodes[0].listreceivedbyaddress(0, True)[0]['address']
     args = {myaddr: spendsize}
-    txid = zcoind.nodes[0].spendmany("", args)
-    zcoind.nodes[0].generate(2)
+    txid = firod.nodes[0].spendmany("", args)
+    firod.nodes[0].generate(2)
 
     # Should be checked spends
-    spends = zcoind.nodes[0].listsigmaspends(0)
+    spends = firod.nodes[0].listsigmaspends(0)
     cur_spend = [sp for sp in spends if sp['txid'] == txid]
     assert len(cur_spend) == 1, 'Txid not found in list of spends'
     cur_remints = [denom['denomination'] for denom in cur_spend[0]['remints']]

@@ -41,6 +41,7 @@
 #include "validationinterface.h"
 #include "validation.h"
 #include "mtpstate.h"
+#include "batchproof_container.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -78,7 +79,7 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/lexical_cast.hpp>
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/function.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
@@ -254,12 +255,13 @@ void Shutdown()
     StopHTTPServer();
     llmq::StopLLMQSystem();
 
+    BatchProofContainer::get_instance()->finalize();
+
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
 #endif
     GenerateBitcoins(false, 0, Params());
-    
     MapPort(false);
     UnregisterValidationInterface(peerLogic.get());
     peerLogic.reset();
@@ -353,7 +355,8 @@ void Shutdown()
 /**
  * Signal handlers are very limited in what they are allowed to do, so:
  */
-void HandleSIGTERM(int)
+#ifndef WIN32
+static void HandleSIGTERM(int)
 {
     fRequestShutdown = true;
 }
@@ -363,6 +366,14 @@ void HandleSIGHUP(int)
     fReopenDebugLog = true;
     fReopenElysiumLog = true;
 }
+#else
+static BOOL WINAPI consoleCtrlHandler(DWORD dwCtrlType)
+{
+    fRequestShutdown = true;
+    Sleep(INFINITE);
+    return true;
+}
+#endif
 
 bool static Bind(CConnman& connman, const CService &addr, unsigned int flags) {
     if (!(flags & BF_EXPLICIT) && IsLimited(addr))
@@ -608,10 +619,17 @@ std::string HelpMessage(HelpMessageMode mode)
 
 std::string LicenseInfo()
 {
-    const std::string URL_SOURCE_CODE = "<https://github.com/zcoinofficial/zcoin>";
-    const std::string URL_WEBSITE = "<https://zcoin.io/>";
-    // todo: remove urls from translations on next change
-    return CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2009, COPYRIGHT_YEAR) + " ") + "\n" +
+    const std::string URL_SOURCE_CODE = "<https://github.com/firoorg/firo>";
+    const std::string URL_WEBSITE = "<https://firo.org/>";
+
+    std::string copyright = CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2016, COPYRIGHT_YEAR) + " ");
+    
+    const std::string bitcoinStr = strprintf("%i-%i The Bitcoin Core", 2016, COPYRIGHT_YEAR);
+    if (copyright.find(bitcoinStr) != std::string::npos) {
+        copyright.replace(copyright.find(bitcoinStr), sizeof("2016") - 1, "2009");
+    }
+
+    return copyright + "\n" +
            "\n" +
            strprintf(_("Please contribute if you find %s useful. "
                        "Visit %s for further information about the software."),
@@ -624,7 +642,9 @@ std::string LicenseInfo()
            _("This is experimental software.") + "\n" +
            strprintf(_("Distributed under the MIT software license, see the accompanying file %s or %s"), "COPYING", "<https://opensource.org/licenses/MIT>") + "\n" +
            "\n" +
-           strprintf(_("This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit %s and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard."), "<https://www.openssl.org>") +
+           strprintf(_("This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit %s and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard."), "<https://www.openssl.org>") + "\n" +
+           "\n" +
+           strprintf(_("This product includes Masternodes software developed by the Dash Core developers %s."), "<https://www.dash.org>") +
            "\n";
 }
 
@@ -778,7 +798,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     if (!ActivateBestChain(state, chainparams)) {
         LogPrintf("Failed to connect best block");
         StartShutdown();
-    }    
+    }
 
     if (GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
         LogPrintf("Stopping after block import\n");
@@ -814,6 +834,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     // Need this to restore Sigma spend state
     if (GetBoolArg("-rescan", false) && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
         pwalletMain->zwallet->GetTracker().ListMints();
+        pwalletMain->zwallet->GetTracker().ListLelantusMints();
     }
 #endif
     fDumpMempoolLater = !fRequestShutdown;
@@ -1063,7 +1084,7 @@ void InitLogging() {
     fLogIPs = GetBoolArg("-logips", DEFAULT_LOGIPS);
 
     LogPrintf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-    LogPrintf("Zcoin version %s\n", FormatFullVersion());
+    LogPrintf("Firo version %s\n", FormatFullVersion());
 }
 
 namespace { // Variables internal to initialization process only
@@ -1140,6 +1161,8 @@ bool AppInitBasicSetup()
 
     // Ignore SIGPIPE, otherwise it will bring the daemon down if the client closes unexpectedly
     signal(SIGPIPE, SIG_IGN);
+#else
+    SetConsoleCtrlHandler(consoleCtrlHandler, true);
 #endif
 
     std::set_new_handler(new_handler_terminate);
@@ -1760,13 +1783,18 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
                 if (!fReindex) {
                     CBlockIndex *tip = chainActive.Tip();
-                    if (tip && tip->nHeight >= chainparams.GetConsensus().nSigmaStartBlock) {
-                        const uint256* phash = tip->phashBlock;
-                        if (pblocktree->GetBlockIndexVersion(*phash) < SIGMA_PROTOCOL_ENABLEMENT_VERSION) {
+                    if (tip) {
+                        int lastBlockIndexVersion = pblocktree->GetBlockIndexVersion(*tip->phashBlock);
+                        if ((tip->nHeight >= chainparams.GetConsensus().nLelantusStartBlock &&
+                                    lastBlockIndexVersion < LELANTUS_PROTOCOL_ENABLEMENT_VERSION) ||
+                            (tip->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
+                                    lastBlockIndexVersion < EVOSPORK_MIN_VERSION))
+                        {
                             strLoadError = _(
                                     "Block index is outdated, reindex required\n");
                             break;
                         }
+
                     }
                 }
 
@@ -1983,7 +2011,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                                  "Please add txindex=1 to your configuration and start with -reindex");
     }
 
-
     // evo znode system
     if(fLiteMode && fMasternodeMode) {
         return InitError(_("You can not start a znode in lite mode."));
@@ -2105,7 +2132,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // Generate coins in the background
     GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
                      chainparams);
-
     // ********************************************************* Step 13: Znode - obsoleted
 
     // ********************************************************* Step 14: finished

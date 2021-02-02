@@ -22,6 +22,7 @@
 class AddressTableModel;
 class PaymentCodeTableModel;
 class MyRAPTableModel;
+class LelantusModel;
 class OptionsModel;
 class PlatformStyle;
 class RecentRequestsTableModel;
@@ -136,6 +137,7 @@ public:
     OptionsModel *getOptionsModel();
     AddressTableModel *getAddressTableModel();
     PaymentCodeTableModel *getPaymentCodeTableModel();
+    LelantusModel *getLelantusModel();
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
     MyRAPTableModel *getMyRAPTableModel();
@@ -150,6 +152,8 @@ public:
     CAmount getWatchBalance() const;
     CAmount getWatchUnconfirmedBalance() const;
     CAmount getWatchImmatureBalance() const;
+    CAmount getAnonymizableBalance() const;
+
     EncryptionStatus getEncryptionStatus() const;
     
     
@@ -177,9 +181,29 @@ public:
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
     SendCoinsReturn preparePCodeTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
 
+    // prepare transaction for getting txfee before sending coins in anonymous mode
+    SendCoinsReturn prepareJoinSplitTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
+
+    // prepare transaction for getting txfee before anonymizing coins
+    SendCoinsReturn prepareMintTransactions(
+        CAmount amount,
+        std::vector<WalletModelTransaction> &transactions,
+        std::list<CReserveKey> &reserveKeys,
+        std::vector<CHDMint> &mints,
+        const CCoinControl *coinControl);
+
     // Send coins to a list of recipients
     SendCoinsReturn sendCoins(WalletModelTransaction &transaction);
     SendCoinsReturn sendPCodeCoins(WalletModelTransaction &transaction, bool &needMainTx);
+
+    // Send private coins to a list of recipients
+    SendCoinsReturn sendPrivateCoins(WalletModelTransaction &transaction);
+
+    // Anonymize coins.
+    SendCoinsReturn sendAnonymizingCoins(
+        std::vector<WalletModelTransaction> &transactions,
+        std::list<CReserveKey> &reservekeys,
+        std::vector<CHDMint> &mints);
 
     // Wallet encryption
     bool setWalletEncrypted(bool encrypted, const SecureString &passphrase);
@@ -244,8 +268,7 @@ public:
     int getDefaultConfirmTarget() const;
 
     bool transactionCanBeRebroadcast(uint256 hash) const;
-    bool rebroadcastTransaction(uint256 hash);
-    
+    bool rebroadcastTransaction(uint256 hash, CValidationState &state);
 
     // Sigma
     SendCoinsReturn prepareSigmaSpendTransaction(WalletModelTransaction &transaction,
@@ -270,8 +293,11 @@ public:
 
     std::vector<CSigmaEntry> GetUnsafeCoins(const CCoinControl* coinControl = NULL);
 
+    CAmount GetJMintCredit(const CTxOut& txout) const;
+
 private:
     CWallet *wallet;
+
     bool fHaveWatchOnly;
     bool fForceCheckBalanceChanged;
 
@@ -282,6 +308,7 @@ private:
     AddressTableModel *addressTableModel;
     RecentPCodeTransactionsTableModel *recentPCodeTransactionsTableModel;
     PaymentCodeTableModel *paymentCodeTableModel;
+    LelantusModel *lelantusModel;
     TransactionTableModel *transactionTableModel;
     RecentRequestsTableModel *recentRequestsTableModel;
     MyRAPTableModel *myRapTableModel;
@@ -293,6 +320,9 @@ private:
     CAmount cachedWatchOnlyBalance;
     CAmount cachedWatchUnconfBalance;
     CAmount cachedWatchImmatureBalance;
+    CAmount cachedAnonymizableBalance;
+    CAmount cachedPrivateBalance;
+    CAmount cachedUnconfirmedPrivateBalance;
     EncryptionStatus cachedEncryptionStatus;
     int cachedNumBlocks;
 
@@ -311,7 +341,9 @@ private:
 Q_SIGNALS:
     // Signal that balance in wallet changed
     void balanceChanged(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
-                        const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance);
+                        const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance,
+                        const CAmount& privateBalance, const CAmount& unconfirmedPrivateBalance,
+                        const CAmount& anonymizableBalance);
 
     void updateMintable();
 

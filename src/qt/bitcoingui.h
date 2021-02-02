@@ -61,7 +61,7 @@ public:
 
 #ifdef ENABLE_WALLET
     /** Set the wallet model.
-        The wallet model represents a Zcoin wallet, and offers access to the list of transactions, address book and sending
+        The wallet model represents a Firo wallet, and offers access to the list of transactions, address book and sending
         functionality.
     */
     bool addWallet(const QString& name, WalletModel *walletModel);
@@ -120,6 +120,7 @@ private:
     QAction *openAction;
     QAction *showHelpMessageAction;
     QAction *sigmaAction;
+    QAction *lelantusAction;
     QAction *zc2SigmaAction;
     QAction *masternodeAction;
 
@@ -159,6 +160,10 @@ private:
     void checkZc2SigmaVisibility(int numBlocks);
     /** Updates Znode visibility */
     void checkZnodeVisibility(int numBlocks);
+    /** Updates Sigma visibility */
+    void checkSigmaVisibility(int numBlocks);
+    /** Updates Lelantus visibility */
+    void checkLelantusVisibility(int numBlocks);
     /** Update UI with latest network info from model. */
     void updateNetworkState();
 
@@ -222,7 +227,7 @@ private Q_SLOTS:
 #endif
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
-    /** Switch directly to Zcoin history tab */
+    /** Switch directly to Firo history tab */
     void gotoBitcoinHistoryTab();
     /** Switch to masternode page */
     void gotoMasternodePage();
@@ -236,6 +241,8 @@ private Q_SLOTS:
     void gotoSigmaPage();
     /** Switch to ZC->sigma page */
     void gotoZc2SigmaPage();
+    /** Switch to lelantus page */
+    void gotoLelantusPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
@@ -270,7 +277,7 @@ private Q_SLOTS:
 
     /** Show progress dialog e.g. for verifychain */
     void showProgress(const QString &title, int nProgress);
-    
+
     /** When hideTrayIcon setting is changed in OptionsModel hide or show the icon accordingly. */
     void setTrayIconVisible(bool);
 
@@ -278,6 +285,9 @@ private Q_SLOTS:
     void toggleNetworkActive();
 
     void showModalOverlay();
+
+    /** Update Lelantus page visibility */
+    void updateLelantusPage();
 };
 
 class UnitDisplayStatusBarControl : public QLabel

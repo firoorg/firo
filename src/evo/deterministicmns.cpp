@@ -552,15 +552,14 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
         uiInterface.NotifyMasternodeListChanged(newList);
     }
 
-    // TODO: uncomment when DIP3 enforcement block hash is known
-    /*if (nHeight == consensusParams.DIP0003EnforcementHeight) {
+    if (nHeight == consensusParams.DIP0003EnforcementHeight) {
         if (!consensusParams.DIP0003EnforcementHash.IsNull() && consensusParams.DIP0003EnforcementHash != pindex->GetBlockHash()) {
             LogPrintf("CDeterministicMNManager::%s -- DIP3 enforcement block has wrong hash: hash=%s, expected=%s, nHeight=%d\n", __func__,
                     pindex->GetBlockHash().ToString(), consensusParams.DIP0003EnforcementHash.ToString(), nHeight);
             return _state.DoS(100, false, REJECT_INVALID, "bad-dip3-enf-block");
         }
         LogPrintf("CDeterministicMNManager::%s -- DIP3 is enforced now. nHeight=%d\n", __func__, nHeight);
-    }*/
+    }
 
     LOCK(cs);
     CleanupCache(nHeight);
@@ -685,7 +684,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
                 // This might only happen with a ProRegTx that refers an external collateral
                 // In that case the new ProRegTx will replace the old one. This means the old one is removed
                 // and the new one is added like a completely fresh one, which is also at the bottom of the payment list
-                
+
                 // ProRegTx can't replace masternode declared in the same block
                 if (replacedDmn->pdmnState->nRegisteredHeight == nHeight) {
                     return _state.DoS(100, false, REJECT_CONFLICT, "protx-dup");

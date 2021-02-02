@@ -42,7 +42,7 @@ void NotifyMnemonic::notify()
     SecureString mnemonic;
     pwalletMain->GetMnemonicContainer().GetMnemonic(mnemonic);
     NotifyMnemonic notify;
-    notify.setWindowIcon(QIcon(":icons/zcoin"));
+    notify.setWindowIcon(QIcon(":icons/firo"));
     notify.show();
     notify.ui->mnemonic->setText(mnemonic.c_str());
     notify.restart();
@@ -53,7 +53,7 @@ void NotifyMnemonic::notify()
             std::string inputMnememonic = notify.ui->words->toPlainText().toStdString();
             std::string strMnemonic(mnemonic.begin(), mnemonic.end());
             if(inputMnememonic != strMnemonic) {
-                notify.ui->errorMessage->setText("<font color='red'>Your entered words do not match, please press back to re-check your mnemonic.</font>");
+                notify.ui->errorMessage->setText("<font color='red'>" + tr("Your entered words do not match, please press back to re-check your mnemonic.") + "</font>");
                 continue;
             }
             break;

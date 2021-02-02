@@ -17,7 +17,7 @@
 #include "net.h"
 #include "netbase.h"
 #include "txdb.h" // for -dbcache defaults
-#include "intro.h" 
+#include "intro.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -59,7 +59,7 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("fHideTrayIcon", false);
     fHideTrayIcon = settings.value("fHideTrayIcon").toBool();
     Q_EMIT hideTrayIconChanged(fHideTrayIcon);
-    
+
     if (!settings.contains("fMinimizeToTray"))
         settings.setValue("fMinimizeToTray", false);
     fMinimizeToTray = settings.value("fMinimizeToTray").toBool() && !fHideTrayIcon;
@@ -80,6 +80,15 @@ void OptionsModel::Init(bool resetSettings)
     if (!settings.contains("fCoinControlFeatures"))
         settings.setValue("fCoinControlFeatures", false);
     fCoinControlFeatures = settings.value("fCoinControlFeatures", false).toBool();
+
+    if (!settings.contains("fAutoAnonymize"))
+        settings.setValue("fAutoAnonymize", false);
+    fAutoAnonymize = settings.value("fAutoAnonymize", false).toBool();
+
+    if (!settings.contains("fLelantusPage"))
+        settings.setValue("fLelantusPage", false);
+    fLelantusPage = settings.value("fLelantusPage", false).toBool();
+
 
     // These are shared with the core or have a command-line parameter
     // and we want command-line parameters to overwrite the GUI settings.
@@ -261,6 +270,10 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return settings.value("language");
         case CoinControlFeatures:
             return fCoinControlFeatures;
+        case AutoAnonymize:
+            return fAutoAnonymize;
+        case LelantusPage:
+            return fLelantusPage;
         case DatabaseCache:
             return settings.value("nDatabaseCache");
         case ThreadsScriptVerif:
@@ -403,6 +416,16 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             fCoinControlFeatures = value.toBool();
             settings.setValue("fCoinControlFeatures", fCoinControlFeatures);
             Q_EMIT coinControlFeaturesChanged(fCoinControlFeatures);
+            break;
+        case AutoAnonymize:
+            fAutoAnonymize = value.toBool();
+            settings.setValue("fAutoAnonymize", fAutoAnonymize);
+            Q_EMIT autoAnonymizeChanged(fAutoAnonymize);
+            break;
+        case LelantusPage:
+            fLelantusPage = value.toBool();
+            settings.setValue("fLelantusPage", fLelantusPage);
+            Q_EMIT lelantusPageChanged(fLelantusPage);
             break;
         case DatabaseCache:
             if (settings.value("nDatabaseCache") != value) {

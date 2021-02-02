@@ -34,6 +34,7 @@ enum {
     TRANSACTION_PROVIDER_UPDATE_REVOKE = 4,
     TRANSACTION_COINBASE = 5,
     TRANSACTION_QUORUM_COMMITMENT = 6,
+    TRANSACTION_SPORK = 7,
 };
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
@@ -156,6 +157,7 @@ public:
     std::string ToString() const;
     bool IsZerocoinSpend() const;
     bool IsSigmaSpend() const;
+    bool IsLelantusJoinSplit() const;
     bool IsZerocoinRemint() const;
 };
 
@@ -238,7 +240,7 @@ public:
     bool IsDust(const CFeeRate &minRelayTxFee) const
     {
 //        return (nValue < GetDustThreshold(minRelayTxFee));
-        //zcoin: disable dust
+        //firo: disable dust
         return false;
     }
 
@@ -437,11 +439,16 @@ public:
     // Returns true, if this is a V3 zerocoin mint or spend, made with sigma algorithm.
     bool IsZerocoinV3SigmaTransaction() const;
 
+    bool IsLelantusTransaction() const;
+
     bool IsZerocoinSpend() const;
     bool IsZerocoinMint() const;
 
     bool IsSigmaSpend() const;
     bool IsSigmaMint() const;
+
+    bool IsLelantusJoinSplit() const;
+    bool IsLelantusMint() const;
 
     bool IsZerocoinRemint() const;
 
@@ -454,7 +461,10 @@ public:
 
     bool IsCoinBase() const
     {
-        return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig.size() == 0 || (vin[0].scriptSig[0] != OP_ZEROCOINSPEND && vin[0].scriptSig[0] != OP_ZEROCOINTOSIGMAREMINT)));
+        return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig.size() == 0
+            || (vin[0].scriptSig[0] != OP_ZEROCOINSPEND
+            && vin[0].scriptSig[0] != OP_ZEROCOINTOSIGMAREMINT
+            && vin[0].scriptSig[0] != OP_LELANTUSJOINSPLIT)));
     }
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
@@ -524,7 +534,7 @@ struct CMutableTransaction
     {
         return !(a == b);
     }
-    
+
     bool HasWitness() const
     {
         for (size_t i = 0; i < vin.size(); i++) {

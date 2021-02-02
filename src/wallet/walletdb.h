@@ -248,12 +248,17 @@ public:
     void ListSigmaPubCoin(std::list<CSigmaEntry>& listPubCoin);
     void ListCoinSpendSerial(std::list<CZerocoinSpendEntry>& listCoinSpendSerial);
     void ListCoinSpendSerial(std::list<CSigmaSpendEntry>& listCoinSpendSerial);
+    void ListLelantusSpendSerial(std::list<CLelantusSpendEntry>& listLelantusSpendSerial);
     bool WriteCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
     bool WriteCoinSpendSerialEntry(const CSigmaSpendEntry& zerocoinSpend);
+    bool WriteLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend);
+    bool ReadLelantusSpendSerialEntry(const secp_primitives::Scalar& serial, CLelantusSpendEntry& lelantusSpend);
     bool HasCoinSpendSerialEntry(const Bignum& serial);
     bool HasCoinSpendSerialEntry(const secp_primitives::Scalar& serial);
+    bool HasLelantusSpendSerialEntry(const secp_primitives::Scalar& serial);
     bool EraseCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
     bool EraseCoinSpendSerialEntry(const CSigmaSpendEntry& zerocoinSpend);
+    bool EraseLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend);
     bool WriteZerocoinAccumulator(libzerocoin::Accumulator accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
     bool ReadZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
     // bool EraseZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
@@ -267,6 +272,7 @@ public:
     DBErrors ZapWalletTx(CWallet* pwallet, std::vector<CWalletTx>& vWtx);
     DBErrors ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
     DBErrors ZapSigmaMints(CWallet* pwallet);
+    DBErrors ZapLelantusMints(CWallet *pwallet);
     static bool Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKeys);
     static bool Recover(CDBEnv& dbenv, const std::string& filename);
 
@@ -279,14 +285,18 @@ public:
     bool ArchiveMintOrphan(const CZerocoinEntry& zerocoin);
     bool ArchiveDeterministicOrphan(const CHDMint& dMint);
     bool UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& zerocoin);
-    bool UnarchiveHDMint(const uint256& hashPubcoin, CHDMint& dMint);
+    bool UnarchiveHDMint(const uint256& hashPubcoin, bool isLelantus, CHDMint& dMint);
 
-    bool WriteHDMint(const CHDMint& dMint);
-    bool ReadHDMint(const uint256& hashPubcoin, CHDMint& dMint);
+    bool WriteHDMint(const uint256& hashPubcoin, const CHDMint& dMint, bool isLelantus);
+    bool ReadHDMint(const uint256& hashPubcoin, bool isLelantus, CHDMint& dMint);
     bool EraseHDMint(const CHDMint& dMint);
     bool HasHDMint(const secp_primitives::GroupElement& pub);
 
-    std::list<CHDMint> ListHDMints();
+    bool WritePubcoinHashes(const uint256& fullHash, const uint256& reducedHash);
+    bool ReadPubcoinHashes(const uint256& fullHash, uint256& reducedHash);
+    bool ErasePubcoinHashes(const uint256& fullHash);
+
+    std::list<CHDMint> ListHDMints(bool isLelantus);
     bool WritePubcoin(const uint256& hashSerial, const GroupElement& hashPubcoin);
     bool ReadPubcoin(const uint256& hashSerial, GroupElement& hashPubcoin);
     bool ErasePubcoin(const uint256& hashSerial);

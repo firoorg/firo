@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Zcoin Core developers
+// Copyright (c) 2019 The Firo Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -114,7 +114,7 @@ struct SigmaWalletV0TestingSetup : WalletTestingSetup
     }
 
     template<class Output>
-    bool PopulateMintEntries(PropertyId propId, SigmaDenomination denom, size_t amount, Output output)
+    void PopulateMintEntries(PropertyId propId, SigmaDenomination denom, size_t amount, Output output)
     {
         for (size_t i = 0; i < amount; i++) {
             SigmaMintId id;

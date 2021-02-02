@@ -322,7 +322,7 @@
                      <enum>Qt::ActionsContextMenu</enum>
                     </property>
                     <property name="text">
-                     <string notr="true">0.00 XZC</string>
+                     <string notr="true">0.00 FIRO</string>
                     </property>
                     <property name="textInteractionFlags">
                      <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -402,7 +402,7 @@
                      <enum>Qt::ActionsContextMenu</enum>
                     </property>
                     <property name="text">
-                     <string notr="true">0.00 XZC</string>
+                     <string notr="true">0.00 FIRO</string>
                     </property>
                     <property name="textInteractionFlags">
                      <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -482,7 +482,7 @@
                      <enum>Qt::ActionsContextMenu</enum>
                     </property>
                     <property name="text">
-                     <string notr="true">0.00 XZC</string>
+                     <string notr="true">0.00 FIRO</string>
                     </property>
                     <property name="textInteractionFlags">
                      <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -511,7 +511,7 @@
                      <enum>Qt::ActionsContextMenu</enum>
                     </property>
                     <property name="text">
-                     <string notr="true">0.00 XZC</string>
+                     <string notr="true">0.00 FIRO</string>
                     </property>
                     <property name="textInteractionFlags">
                      <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -691,7 +691,7 @@
               </size>
              </property>
              <property name="text">
-              <string>XZC</string>
+              <string>FIRO</string>
              </property>
              <property name="alignment">
               <set>Qt::AlignCenter</set>
@@ -749,7 +749,7 @@
            <item row="9" column="2">
             <widget class="QLabel" name="label_7">
              <property name="text">
-              <string>XZC</string>
+              <string>FIRO</string>
              </property>
              <property name="alignment">
               <set>Qt::AlignCenter</set>
@@ -900,7 +900,7 @@
               </size>
              </property>
              <property name="text">
-              <string>XZC</string>
+              <string>FIRO</string>
              </property>
              <property name="alignment">
               <set>Qt::AlignCenter</set>
@@ -1044,7 +1044,7 @@
              <item>
               <widget class="QLabel" name="label_2">
                <property name="text">
-                <string>XZC</string>
+                <string>FIRO</string>
                </property>
               </widget>
              </item>
@@ -1076,7 +1076,7 @@
                 </font>
                </property>
                <property name="text">
-                <string>0.00000000 XZC</string>
+                <string>0.00000000 FIRO</string>
                </property>
                <property name="alignment">
                 <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>

@@ -40,6 +40,8 @@
 #define ZEROCOIN_TX_VERSION_1_5             15
 #define ZEROCOIN_TX_VERSION_3               30
 #define ZEROCOIN_TX_VERSION_3_1             31
+#define LELANTUS_TX_VERSION_4               40
+#define SIGMA_TO_LELANTUS_JOINSPLIT         41
 
 // Activate multithreaded mode for proof verification
 #define ZEROCOIN_THREADING 1

@@ -954,7 +954,7 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         return false;
 
         /*
-            Zcoin Related Inventory Messages
+            Firo Related Inventory Messages
 
         --
 
@@ -971,9 +971,9 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         return llmq::quorumDKGSessionManager->AlreadyHave(inv);
     case MSG_QUORUM_RECOVERED_SIG:
         return llmq::quorumSigningManager->AlreadyHave(inv);
-    /*
     case MSG_CLSIG:
         return llmq::chainLocksHandler->AlreadyHave(inv);
+    /*
     case MSG_ISLOCK:
         return llmq::quorumInstantSendManager->AlreadyHave(inv);
     */
@@ -1253,6 +1253,13 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     }
                 }
 
+                if (!pushed && (inv.type == MSG_CLSIG)) {
+                    llmq::CChainLockSig o;
+                    if (llmq::chainLocksHandler->GetChainLockByHash(inv.hash, o)) {
+                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::CLSIG, o));
+                        pushed = true;
+                    }
+                }
                 if (!pushed)
                     vNotFound.push_back(inv);
             }
@@ -1419,7 +1426,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             if (sscanf(cleanSubVer.c_str(), "/Satoshi:%2d.%2d.%2d.%2d/",
                     &parsedVersion[0], &parsedVersion[1], &parsedVersion[2], &parsedVersion[3]) == 4) {
                 int peerClientVersion = parsedVersion[0]*1000000 + parsedVersion[1]*10000 + parsedVersion[2]*100 + parsedVersion[3];
-                if (peerClientVersion < MIN_ZCOIN_CLIENT_VERSION) {
+                if (peerClientVersion < MIN_FIRO_CLIENT_VERSION) {
                     connman.PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE, "This version is banned from the network"));
                     pfrom->fDisconnect = 1;
                     LOCK(cs_main);
@@ -1433,6 +1440,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         }
         if (!vRecv.empty())
             vRecv >> fRelay;
+
         if (!vRecv.empty()) {
             LOCK(pfrom->cs_mnauth);
             vRecv >> pfrom->receivedMNAuthChallenge;
@@ -2031,13 +2039,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 false, /* fOverrideMempoolLimit */
                 0, /* nAbsurdFee */
                 true, /* isCheckWalletTransaction */
-                false /* markZcoinSpendTransactionSerial */
+                false /* markFiroSpendTransactionSerial */
             );
 
             if (CNode::isTxDandelionEmbargoed(tx.GetHash())) {
-                //LogPrintf(
-                //    "Embargoed dandeliontx %s found in mempool; removing from embargo map\n",
-                //    tx.GetHash().ToString());
                 CNode::removeDandelionEmbargo(tx.GetHash());
             }
 
@@ -2093,7 +2098,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                             false, /* fOverrideMempoolLimit */
                             0, /* nAbsurdFee */
                             true, /* isCheckWalletTransaction */
-                            false /* markZcoinSpendTransactionSerial */
+                            false /* markFiroSpendTransactionSerial */
                         );
 
                         connman.RelayTransaction(orphanTx);
@@ -2131,7 +2136,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             BOOST_FOREACH(uint256 hash, vEraseQueue)
                 EraseOrphanTx(hash);
         }
-        else if (!AlreadyHave(inv) && tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && AcceptToMemoryPool(mempool, state, ptx, true, &fMissingInputsSigma, nullptr, false, 0, true)) {
+        else if (!AlreadyHave(inv) && tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit() && AcceptToMemoryPool(mempool, state, ptx, true, &fMissingInputsSigma, nullptr, false, 0, true)) {
             // Changes to mempool should also be made to Dandelion stempool
             AcceptToMemoryPool(
                 txpools.getStemTxPool(),
@@ -2143,7 +2148,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 false, /* fOverrideMempoolLimit */
                 0, /* nAbsurdFee */
                 true, /* isCheckWalletTransaction */
-                false /* markZcoinSpendTransactionSerial */
+                false /* markFiroSpendTransactionSerial */
             );
             if (CNode::isTxDandelionEmbargoed(tx.GetHash())) {
                 CNode::removeDandelionEmbargo(tx.GetHash());
@@ -2257,7 +2262,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     false, /* fOverrideMempoolLimit */
                     0, /* nAbsurdFee */
                     false, /* isCheckWalletTransaction */
-                    false /* markZcoinSpendTransactionSerial */
+                    false /* markFiroSpendTransactionSerial */
                     );
                 if (ret) {
                     LogPrint("mempool",
@@ -2558,6 +2563,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             bool fNewBlock = false;
             // Since we requested this block (it was in mapBlocksInFlight), force it to be processed,
             // even if it would not be a candidate for new tip (missing previous block, chain not long enough, etc)
+
             ProcessNewBlock(chainparams, pblock, true, &fNewBlock);
             if (fNewBlock)
                 pfrom->nLastBlockTime = GetTime();
@@ -2991,7 +2997,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             llmq::quorumDKGSessionManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
             llmq::quorumSigSharesManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
             llmq::quorumSigningManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
-            //llmq::chainLocksHandler->ProcessMessage(pfrom, strCommand, vRecv, connman);
+            llmq::chainLocksHandler->ProcessMessage(pfrom, strCommand, vRecv, connman);
             //llmq::quorumInstantSendManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
         } else {
             // Ignore unknown commands for extensibility
@@ -3455,8 +3461,6 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
                     //          hash.ToString(), pto->addr.ToString());
                     vInv.push_back(CInv(MSG_TX, hash));
                 } else {
-                    //LogPrintf("Pushing dandelion transaction MSG_DANDELION_TX %s to %s.",
-                    //          hash.ToString(), pto->addr.ToString());
                     vInv.push_back(CInv(MSG_DANDELION_TX, hash));
                 }
                 if (vInv.size() == MAX_INV_SZ) {

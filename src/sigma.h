@@ -49,6 +49,13 @@ bool IsSigmaAllowed(int height);
 
 bool IsRemintWindow(int height);
 
+bool CheckSigmaSpendSerial(
+        CValidationState &state,
+        CSigmaTxInfo *sigmaTxInfo,
+        const Scalar &serial,
+        int nHeight,
+        bool fConnectTip);
+
 secp_primitives::GroupElement ParseSigmaMintScript(const CScript& script);
 std::pair<std::unique_ptr<sigma::CoinSpend>, uint32_t> ParseSigmaSpend(const CTxIn& in);
 CAmount GetSpendAmount(const CTxIn& in);
@@ -151,6 +158,12 @@ public:
         int id,
         uint256& blockHash_out,
         std::vector<sigma::PublicCoin>& coins_out);
+
+    void GetAnonymitySet(
+            sigma::CoinDenomination denomination,
+            int coinGroupID,
+            bool fStartSigmaBlacklist,
+            std::vector<GroupElement>& coins_out);
 
     // Return height of mint transaction and id of minted coin
     std::pair<int, int> GetMintedCoinHeightAndId(const sigma::PublicCoin& pubCoin);

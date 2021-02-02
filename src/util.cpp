@@ -111,8 +111,8 @@ bool fMasternodeMode = false;
 bool fLiteMode = false;
 int nWalletBackups = 10;
 
-const char * const BITCOIN_CONF_FILENAME = "zcoin.conf";
-const char * const BITCOIN_PID_FILENAME = "zcoind.pid";
+const char * const BITCOIN_CONF_FILENAME = "firo.conf";
+const char * const BITCOIN_PID_FILENAME = "firod.pid";
 
 CCriticalSection cs_args;
 map<string, string> mapArgs;
@@ -496,16 +496,16 @@ void PrintExceptionContinue(const std::exception_ptr pex, const char* pszThread)
 #endif
 }
 
-boost::filesystem::path GetDefaultDataDir()
+boost::filesystem::path GetDefaultDataDirForCoinName(const std::string &coinName)
 {
     namespace fs = boost::filesystem;
-    // Windows < Vista: C:\Documents and Settings\Username\Application Data\zcoin
-    // Windows >= Vista: C:\Users\Username\AppData\Roaming\zcoin
-    // Mac: ~/Library/Application Support/zcoin
-    // Unix: ~/.zcoin
+    // Windows < Vista: C:\Documents and Settings\Username\Application Data\firo
+    // Windows >= Vista: C:\Users\Username\AppData\Roaming\firo
+    // Mac: ~/Library/Application Support/firo
+    // Unix: ~/.firo
 #ifdef WIN32
     // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / "zcoin";
+    return GetSpecialFolderPath(CSIDL_APPDATA) / coinName;
 #else
     fs::path pathRet;
     char* pszHome = getenv("HOME");
@@ -515,12 +515,27 @@ boost::filesystem::path GetDefaultDataDir()
         pathRet = fs::path(pszHome);
 #ifdef MAC_OSX
     // Mac
-    return pathRet / "Library/Application Support/zcoin";
+    return pathRet / "Library/Application Support" / coinName;
 #else
     // Unix
-    return pathRet / ".zcoin";
+    return pathRet / ("." + coinName);
 #endif
 #endif
+}
+
+boost::filesystem::path GetDefaultDataDir()
+{
+    namespace fs = boost::filesystem;
+
+    fs::path firoDefaultDir = GetDefaultDataDirForCoinName("firo");
+    if (!fs::is_directory(firoDefaultDir)) {
+        // try "zcoin" in case we're upgrading from pre-firo version
+        fs::path zcoinDefaultDir = GetDefaultDataDirForCoinName("zcoin");
+        if (fs::is_directory(zcoinDefaultDir))
+            return zcoinDefaultDir;
+    }
+
+    return firoDefaultDir;
 }
 
 static boost::filesystem::path pathCached;
@@ -596,8 +611,17 @@ void ClearDatadirCache()
 boost::filesystem::path GetConfigFile(const std::string& confPath)
 {
     boost::filesystem::path pathConfigFile(confPath);
-    if (!pathConfigFile.is_complete())
-        pathConfigFile = GetDataDir(false) / pathConfigFile;
+    if (!pathConfigFile.is_complete()) {
+        boost::filesystem::path dataDir = GetDataDir(false);
+
+        // upgrade heuristics: if dataDir ends with either "zcoin" or ".zcoin" and confPath is set
+        // to default value we use "zcoin.conf" as config file name
+
+        if (confPath == BITCOIN_CONF_FILENAME && (dataDir.filename() == "zcoin" || dataDir.filename() == ".zcoin"))
+            pathConfigFile = dataDir / "zcoin.conf";
+        else
+            pathConfigFile = dataDir / pathConfigFile;
+    }
 
     return pathConfigFile;
 }
@@ -606,7 +630,7 @@ void ReadConfigFile(const std::string& confPath)
 {
     boost::filesystem::ifstream streamConfig(GetConfigFile(confPath));
     if (!streamConfig.good())
-        return; // No zcoin.conf file is OK
+        return; // No firo.conf file is OK
 
     {
         LOCK(cs_args);
@@ -626,6 +650,43 @@ void ReadConfigFile(const std::string& confPath)
     }
     // If datadir is changed in .conf file:
     ClearDatadirCache();
+}
+
+bool RenameDirectoriesFromZcoinToFiro()
+{
+    namespace fs = boost::filesystem;
+
+    fs::path zcoinPath = GetDefaultDataDirForCoinName("zcoin");
+    fs::path firoPath = GetDefaultDataDirForCoinName("firo");
+
+    // rename is possible only if zcoin directory exists and firo doesn't
+    if (fs::exists(firoPath) || !fs::is_directory(zcoinPath))
+        return false;
+
+    fs::path zcoinConfFileName = zcoinPath / "zcoin.conf";
+    fs::path firoConfFileName = zcoinPath / "firo.conf";
+    if (fs::exists(firoConfFileName))
+        return false;
+
+    try {
+        if (fs::is_regular_file(zcoinConfFileName))
+            fs::rename(zcoinConfFileName, firoConfFileName);
+
+        try {
+            fs::rename(zcoinPath, firoPath);
+        }
+        catch (const fs::filesystem_error &) {
+            // rename config file back
+            fs::rename(firoConfFileName, zcoinConfFileName);
+            throw;
+        }
+    }
+    catch (const fs::filesystem_error &) {
+        return false;
+    }
+
+    ClearDatadirCache();
+    return true;
 }
 
 #ifndef WIN32
@@ -957,13 +1018,17 @@ int GetNumCores()
 
 std::string CopyrightHolders(const std::string& strPrefix)
 {
-    std::string strCopyrightHolders = strPrefix + strprintf(_(COPYRIGHT_HOLDERS), _(COPYRIGHT_HOLDERS_SUBSTITUTION));
+    const auto copyright_devs = strprintf(_(COPYRIGHT_HOLDERS), _(COPYRIGHT_HOLDERS_SUBSTITUTION));
+    std::string strCopyrightHolders = strPrefix + copyright_devs;
 
-    // Check for untranslated substitution to make sure Bitcoin Core copyright is not removed by accident
-    if (strprintf(COPYRIGHT_HOLDERS, COPYRIGHT_HOLDERS_SUBSTITUTION).find("Bitcoin Core") == std::string::npos) {
-        strCopyrightHolders
-                += '\n' + strPrefix + "The Bitcoin Core developers"
-                +  '\n' + strPrefix + "The Zcoin Core developers";
+    // Make sure Firo Core copyright is not removed by accident
+    if (copyright_devs.find(_("Firo Core")) == std::string::npos) {
+        strCopyrightHolders += '\n' + strPrefix + "The Firo Core developers";
     }
+    // Make sure Bitcoin Core copyright is not removed by accident
+    if (copyright_devs.find("Bitcoin Core") == std::string::npos) {
+        strCopyrightHolders += '\n' + strPrefix + "The Bitcoin Core developers";
+    }
+    
     return strCopyrightHolders;
 }
