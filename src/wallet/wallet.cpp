@@ -2783,7 +2783,7 @@ CAmount CWallet::GetLegacyBalance(const isminefilter& filter, int minDepth, cons
         CAmount debit = wtx.GetDebit(filter);
         const bool outgoing = debit > 0;
         for (const CTxOut& out : wtx.tx->vout) {
-            if (outgoing && IsChange(out)) {
+            if (outgoing && IsChange(wtx.tx->GetHash(), out)) {
                 debit -= out.nValue;
             } else if (IsMine(out) & filter && depth >= minDepth && (!account || *account == GetAccountName(out.scriptPubKey))) {
                 balance += out.nValue;
@@ -2797,7 +2797,7 @@ CAmount CWallet::GetLegacyBalance(const isminefilter& filter, int minDepth, cons
     }
 
     if (account) {
-        balance += CWalletDB(*dbw).GetAccountCreditDebit(*account);
+        balance += CWalletDB(strWalletFile).GetAccountCreditDebit(*account);
     }
 
     return balance;
