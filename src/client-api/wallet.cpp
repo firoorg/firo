@@ -156,25 +156,39 @@ CAmount getLockUnspentAmount()
 
 void IsTxOutSpendable(const CWalletTx& wtx, const COutPoint& outPoint, UniValue& entry) {
     // 0 indicates that the transaction may be spent immediately; -1 that it may not be spent at all; and any other
-    // value that it may be spent AFTER the given block height. The lock status of a transaction does not affect this
+    // value that it may be spent at the given block height. The lock status of a transaction does not affect this
     // value.
     int nSpendableAt;
+
+    int nBlockHeight;
+    auto blockIndex = mapBlockIndex.find(wtx.hashBlock);
+    if (blockIndex == mapBlockIndex.end()) {
+        nBlockHeight = -1;
+    } else {
+        nBlockHeight = mapBlockIndex[wtx.hashBlock]->nHeight;
+    }
 
     if (wtx.isAbandoned()) {
         nSpendableAt = -1;
     } else if (pwalletMain->IsSpent(outPoint.hash, outPoint.n)) {
         nSpendableAt = -1;
     } else if (wtx.IsCoinBase() && wtx.GetDepthInMainChain() > 0) { // block 0 coinbase and orphans are unspendable
-        nSpendableAt = mapBlockIndex[wtx.hashBlock]->nHeight + COINBASE_MATURITY;
-    } else if (wtx.tx->IsLelantusTransaction()) {
-        auto blockIndex = mapBlockIndex.find(wtx.hashBlock);
-        if (blockIndex == mapBlockIndex.end()) {
-            nSpendableAt = -1;
+        nSpendableAt = nBlockHeight + COINBASE_MATURITY;
+    } else if (wtx.tx->vout[outPoint.n].scriptPubKey.IsLelantusJoinSplit() ||
+        wtx.tx->vout[outPoint.n].scriptPubKey.IsLelantusJMint() ||
+        wtx.tx->vout[outPoint.n].scriptPubKey.IsLelantusMint()
+    ) {
+        if (nBlockHeight != -1) {
+            nSpendableAt = nBlockHeight + ZC_MINT_CONFIRMATIONS;
         } else {
-            nSpendableAt = mapBlockIndex[wtx.hashBlock]->nHeight + ZC_MINT_CONFIRMATIONS;
+            nSpendableAt = -1;
         }
-    } else {
+    } else if (nBlockHeight != -1) {
         nSpendableAt = 0;
+    } else if (wtx.IsTrusted()) {
+        nSpendableAt = 0;
+    } else {
+        nSpendableAt = -1;
     }
 
     bool fLocked = pwalletMain->IsLockedCoin(outPoint.hash, outPoint.n);
