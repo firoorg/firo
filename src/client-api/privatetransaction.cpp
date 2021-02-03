@@ -419,6 +419,9 @@ UniValue autoMintLelantus(Type type, const UniValue& data, const UniValue& auth,
     }
 
     EnsureWalletIsUnlocked(pwalletMain);
+    if (!pwalletMain || !pwalletMain->zwallet) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "lelantus mint/joinsplit is not allowed for legacy wallet");
+    }
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
     std::vector<CHDMint> mints;
