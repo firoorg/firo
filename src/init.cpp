@@ -290,6 +290,19 @@ void Shutdown()
 
     {
         LOCK(cs_main);
+
+#ifdef ENABLE_CLIENTAPI
+        if (pzmqPublisherInterface) {
+            UnregisterValidationInterface(pzmqPublisherInterface);
+            delete pzmqPublisherInterface;
+            pzmqPublisherInterface = NULL;
+        }
+
+        if (pzmqReplierInterface) {
+            pzmqReplierInterface->Shutdown();
+        }
+#endif
+
         if (pcoinsTip != NULL) {
             FlushStateToDisk();
         }
@@ -317,18 +330,6 @@ void Shutdown()
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(true);
-#endif
-
-#ifdef ENABLE_CLIENTAPI
-    if (pzmqPublisherInterface) {
-        UnregisterValidationInterface(pzmqPublisherInterface);
-        delete pzmqPublisherInterface;
-        pzmqPublisherInterface = NULL;
-    }
-
-    if (pzmqReplierInterface) {
-        pzmqReplierInterface->Shutdown();
-    }
 #endif
 
     if (pdsNotificationInterface) {
