@@ -119,13 +119,20 @@ void OptionsModel::Init(bool resetSettings)
     if (!SoftSetBoolArg("-spendzeroconfchange", settings.value("bSpendZeroConfChange").toBool()))
         addOverriddenOption("-spendzeroconfchange");
 
-    if (!settings.contains("bReindexSigma"))
-        settings.setValue("bReindexSigma", DEFAULT_ZAP_WALLET);
-    if (!SoftSetBoolArg("-zapwalletmints", settings.value("bReindexSigma").toBool())) {
-        addOverriddenOption("-zapwalletmints");
-    } else {
-        settings.setValue("bReindexSigma", false);
+    if (!settings.contains("bReindexLelantus"))
+        settings.setValue("bReindexLelantus", DEFAULT_ZAP_WALLET);
+    bool reindexLelantus = settings.value("bReindexLelantus").toBool();
+    if (reindexLelantus) {
+        if (!SoftSetBoolArg("-zapwalletmints", true))
+            addOverriddenOption("-zapwalletmints");
+        if (!SoftSetBoolArg("-reindex", true))
+            addOverriddenOption("-reindex");
+        if (!SoftSetArg("-zapwallettxes", std::string("1")))
+            addOverriddenOption("-zapwallettxes");
     }
+
+    // Reset the flag to prevent unneeded reindex,
+    settings.setValue("bReindexLelantus", false);
 
 #endif
 
@@ -259,8 +266,8 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
         case SpendZeroConfChange:
             return settings.value("bSpendZeroConfChange");
 
-        case ReindexSigma:
-            return settings.value("bReindexSigma");
+        case ReindexLelantus:
+            return settings.value("bReindexLelantus");
 #endif
         case DisplayUnit:
             return nDisplayUnit;
@@ -389,9 +396,9 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             }
             break;
 
-        case ReindexSigma:
-            if (settings.value("bReindexSigma") != value) {
-                settings.setValue("bReindexSigma", value);
+        case ReindexLelantus:
+            if (settings.value("bReindexLelantus") != value) {
+                settings.setValue("bReindexLelantus", value);
                 setRestartRequired(true);
             }
             break;

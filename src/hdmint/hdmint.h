@@ -45,9 +45,9 @@ public:
     uint256 GetPubCoinHash() const { return primitives::GetPubCoinValueHash(pubCoinValue); }
     uint256 GetTxHash() const { return txid; }
     bool IsUsed() const { return isUsed; }
-    void SetAmount(const int64_t& amount) { this->amount = amount; }
-    void SetHeight(const int& nHeight) { this->nHeight = nHeight; }
-    void SetId(const int& nId) { this->nId = nId; }
+    void SetAmount(int64_t amount) { this->amount = amount; }
+    void SetHeight(int nHeight) { this->nHeight = nHeight; }
+    void SetId(int nId) { this->nId = nId; }
     void SetNull();
     void SetTxHash(const uint256& txid) { this->txid = txid; }
     void SetUsed(const bool isUsed) { this->isUsed = isUsed; }
