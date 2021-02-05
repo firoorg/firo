@@ -176,7 +176,8 @@ void IsTxOutSpendable(const CWalletTx& wtx, const COutPoint& outPoint, UniValue&
         nSpendableAt = nBlockHeight + COINBASE_MATURITY;
     } else if (wtx.tx->vout[outPoint.n].scriptPubKey.IsLelantusJoinSplit() ||
         wtx.tx->vout[outPoint.n].scriptPubKey.IsLelantusJMint() ||
-        wtx.tx->vout[outPoint.n].scriptPubKey.IsLelantusMint()
+        wtx.tx->vout[outPoint.n].scriptPubKey.IsLelantusMint() ||
+        wtx.tx->vout[outPoint.n].scriptPubKey.IsSigmaMint()
     ) {
         if (nBlockHeight != -1) {
             nSpendableAt = nBlockHeight + ZC_MINT_CONFIRMATIONS;
