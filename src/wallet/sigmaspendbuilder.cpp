@@ -96,7 +96,7 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
 
     if (state->GetCoinSetForSpend(
         &chainActive,
-        chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
+        chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 2 confirmation for mint to spend
         denom,
         groupId,
         signer->lastBlockOfGroup,

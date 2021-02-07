@@ -106,7 +106,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 #define EVOSPORK_MIN_VERSION                140200
 
 // number of mint confirmations needed to spend coin
-#define ZC_MINT_CONFIRMATIONS               6
+#define ZC_MINT_CONFIRMATIONS               2
 
 // Genesis block timestamp
 #define ZC_GENESIS_BLOCK_TIME               1414776286

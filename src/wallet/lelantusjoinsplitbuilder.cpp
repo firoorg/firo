@@ -439,7 +439,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
             uint256 blockHash;
             if (state->GetCoinSetForSpend(
                     &chainActive,
-                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
+                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 2 confirmation for mint to spend
                     groupId,
                     blockHash,
                     set) < 2)
@@ -485,7 +485,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
             uint256 blockHash;
             if (sigmaState->GetCoinSetForSpend(
                     &chainActive,
-                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
+                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 2 confirmation for mint to spend
                     spend.get_denomination(),
                     groupId,
                     blockHash,
