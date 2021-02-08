@@ -1612,8 +1612,11 @@ bool CWalletDB::ArchiveDeterministicOrphan(const CHDMint& dMint)
     if (!Write(make_pair(string("dzco"), dMint.GetPubCoinHash()), dMint))
         return error("%s: write failed", __func__);
 
-    if (!Erase(make_pair(string("hdmint"), dMint.GetPubCoinHash())) && !Erase(std::make_pair(std::string("hdmint_lelantus"), dMint.GetPubCoinHash())))
+    if (!Erase(make_pair(string("hdmint"), dMint.GetPubCoinHash())))
         return error("%s: failed to erase", __func__);
+
+    if (!Erase(std::make_pair(std::string("hdmint_lelantus"), dMint.GetPubCoinHash())))
+        return error("%s: failed to erase lelantus", __func__);
 
     return true;
 }

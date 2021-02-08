@@ -146,6 +146,8 @@ void CHDMintWallet::GenerateMintPool(CWalletDB& walletdb, int32_t nIndex)
         return;
     }
 
+    LOCK(pwalletMain->cs_wallet);
+
     int32_t nLastCount = nCountNextGenerate;
     int32_t nStop = nLastCount + 20;
     if(nIndex > 0 && nIndex >= nLastCount)
@@ -446,7 +448,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
  * @param txid mint txid height
  * @param denom mint denomination
  */
-bool CHDMintWallet::SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom)
+bool CHDMintWallet::SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, int nHeight, const uint256& txid, const sigma::CoinDenomination& denom)
 {
     // Regenerate the mint
     uint256 hashPubcoin = mintPoolEntryPair.first;
@@ -487,12 +489,17 @@ bool CHDMintWallet::SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintP
     }
 
     LogPrintf("%s: Creating mint object.. \n", __func__);
+
+    int id;
+    std::tie(std::ignore, id) = sigma::CSigmaState::GetState()->GetMintedCoinHeightAndId(sigma::PublicCoin(bnValue, denom));
+
     // Create mint object
     CHDMint dMint(mintCount, seedId, hashSerial, bnValue);
     int64_t amount;
     DenominationToInteger(denom, amount);
     dMint.SetAmount(amount);
     dMint.SetHeight(nHeight);
+    dMint.SetId(id);
 
     // Check if this is also already spent
     int nHeightTx;
@@ -519,7 +526,7 @@ bool CHDMintWallet::SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintP
     return true;
 }
 
-bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const uint64_t amount)
+bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, int nHeight, const uint256& txid, uint64_t amount)
 {
     // Regenerate the mint
     uint256 hashPubcoin = mintPoolEntryPair.first;
