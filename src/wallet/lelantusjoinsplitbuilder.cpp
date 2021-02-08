@@ -351,42 +351,52 @@ void LelantusJoinSplitBuilder::GenerateMints(const std::vector<CAmount>& newMint
     std::vector<CAmount> newMintsAndChange(newMints);
     newMintsAndChange.push_back(changeToMint);
     for (CAmount mintVal : newMintsAndChange) {
-        hdMint.SetNull();
+        while (true) {
+            hdMint.SetNull();
+            lelantus::PrivateCoin newCoin(params, mintVal);
+            newCoin.setVersion(LELANTUS_TX_VERSION_4);
+            CWalletDB walletdb(pwalletMain->strWalletFile);
 
-        lelantus::PrivateCoin newCoin(params, mintVal);
-        newCoin.setVersion(LELANTUS_TX_VERSION_4);
-        CWalletDB walletdb(pwalletMain->strWalletFile);
+            uint160 seedID;
+            mintWallet.GenerateLelantusMint(walletdb, newCoin, hdMint, seedID, boost::none, true);
 
-        uint160 seedID;
-        mintWallet.GenerateLelantusMint(walletdb, newCoin, hdMint, seedID, boost::none, true);
-        Cout.emplace_back(newCoin);
-        auto& pubCoin = newCoin.getPublicCoin();
+            auto &pubCoin = newCoin.getPublicCoin();
 
-        if (!pubCoin.validate()) {
-            throw std::runtime_error("Unable to mint a lelantus coin.");
+            if (!pubCoin.validate()) {
+                throw std::runtime_error("Unable to mint a lelantus coin.");
+            }
+
+            // Create script for coin
+            CScript scriptSerializedCoin;
+            scriptSerializedCoin << OP_LELANTUSJMINT;
+            std::vector<unsigned char> vch = pubCoin.getValue().getvch();
+            scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
+
+            std::vector<unsigned char> encryptedValue = pwalletMain->EncryptMintAmount(mintVal, pubCoin.getValue());
+            scriptSerializedCoin.insert(scriptSerializedCoin.end(), encryptedValue.begin(), encryptedValue.end());
+
+            auto pubcoin = hdMint.GetPubcoinValue() +
+                           lelantus::Params::get_default()->get_h1() * Scalar(hdMint.GetAmount()).negate();
+            uint256 hashPub = primitives::GetPubCoinValueHash(pubcoin);
+            CDataStream ss(SER_GETHASH, 0);
+            ss << hashPub;
+            ss << seedID;
+            uint256 hashForRecover = Hash(ss.begin(), ss.end());
+            // Check if there is a mint with same private data in chain, most likely Hd mint state corruption,
+            // If yes, try with new counter
+            GroupElement dummyValue;
+            if (lelantus::CLelantusState::GetState()->HasCoinTag(dummyValue, hashForRecover))
+                continue;
+
+            CDataStream serializedHash(SER_NETWORK, 0);
+            serializedHash << hashForRecover;
+            scriptSerializedCoin.insert(scriptSerializedCoin.end(), serializedHash.begin(), serializedHash.end());
+
+            Cout.emplace_back(newCoin);
+            outputs.push_back(CTxOut(0, scriptSerializedCoin));
+            mintCoins.push_back(hdMint);
+            break;
         }
-
-        // Create script for coin
-        CScript scriptSerializedCoin;
-        scriptSerializedCoin << OP_LELANTUSJMINT;
-        std::vector<unsigned char> vch = pubCoin.getValue().getvch();
-        scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
-
-        std::vector<unsigned char> encryptedValue = pwalletMain->EncryptMintAmount(mintVal, pubCoin.getValue());
-        scriptSerializedCoin.insert(scriptSerializedCoin.end(), encryptedValue.begin(), encryptedValue.end());
-
-        auto pubcoin = hdMint.GetPubcoinValue() + lelantus::Params::get_default()->get_h1() * Scalar(hdMint.GetAmount()).negate();
-        uint256 hashPub = primitives::GetPubCoinValueHash(pubcoin);
-        CDataStream ss(SER_GETHASH, 0);
-        ss << hashPub;
-        ss << seedID;
-        uint256 hashForRecover = Hash(ss.begin(), ss.end());
-        CDataStream serializedHash(SER_NETWORK, 0);
-        serializedHash << hashForRecover;
-        scriptSerializedCoin.insert(scriptSerializedCoin.end(), serializedHash.begin(), serializedHash.end());
-
-        outputs.push_back(CTxOut(0, scriptSerializedCoin));
-        mintCoins.push_back(hdMint);
     }
 }
 
