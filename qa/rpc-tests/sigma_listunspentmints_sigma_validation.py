@@ -48,7 +48,7 @@ class ListSigmaUnspentMintsValidationWithFundsTest(BitcoinTestFramework):
             denoms_total += 2
             mint1 = self.nodes[0].mint(denom)
             mint2 = self.nodes[0].mint(denom)
-            self.nodes[0].generate(6)
+            self.nodes[0].generate(2)
             self.sync_all()
 
             unspent_sigma_mints = self.nodes[0].listunspentsigmamints(1)
@@ -78,7 +78,7 @@ class ListSigmaUnspentMintsValidationWithFundsTest(BitcoinTestFramework):
         self.nodes[0].mint(0.05)
         self.nodes[0].mint(0.1)
 
-        self.nodes[0].generate(6)
+        self.nodes[0].generate(2)
         self.sync_all()
 
         for case_name, denom in denoms:
