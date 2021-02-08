@@ -2,6 +2,8 @@
 #include "../schnorr_prover.h"
 #include "../schnorr_verifier.h"
 #include "../../streams.h"
+#include "../../version.h"
+
 
 #include <boost/test/unit_test.hpp>
 

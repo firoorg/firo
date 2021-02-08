@@ -125,7 +125,3 @@ int64_t GetBlockWeight(const CBlock& block)
 //    return ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * (WITNESS_SCALE_FACTOR - 1) + ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION);
     return ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION);
 }
-
-void CBlock::ZerocoinClean() const {
-    zerocoinTxInfo = nullptr;
-}

@@ -167,7 +167,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
         BOOST_CHECK_MESSAGE(addToMempool(dtx), "Spend created although double");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
 
-        // Bring serials back to zerocoin state
+        // Bring serials back to sigma state
         sigmaState->containers.usedCoinSerials = tempSerials;
 
         // CreateBlock throw exception because invalid transaction is in mempool

@@ -1,5 +1,4 @@
 #include "innerproduct_proof_generator.h"
-#include "../libzerocoin/Zerocoin.h"
 
 namespace lelantus {
     
@@ -44,7 +43,7 @@ void InnerProductProofGenerator::generate_proof_util(
         InnerProductProof& proof_out) {
 
     if(a.size() != b.size())
-        throw ZerocoinException("Sizes of a and b are not equal.");
+        throw std::runtime_error("Sizes of a and b are not equal.");
 
     if(a.size() == 1 && b.size() == 1) { //Protocol 2 line 15
         proof_out.a_ = a[0];

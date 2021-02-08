@@ -33,7 +33,6 @@
 #include <boost/assign/list_of.hpp>
 #include <univalue.h>
 #include "sigma.h"
-#include "sigma/remint.h"
 #include "evo/cbtx.h"
 #include "evo/specialtx.h"
 #include "evo/spork.h"
@@ -131,21 +130,6 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 serials.push_back(serial.GetHex());
             }
             in.push_back(Pair("serials", serials));
-        } else if (txin.IsZerocoinRemint()) {
-            std::shared_ptr<sigma::CoinRemintToV3>  remint;
-            try {
-                CDataStream serData(std::vector<unsigned char>(txin.scriptSig.begin()+1, txin.scriptSig.end()), SER_NETWORK, PROTOCOL_VERSION);
-                remint = std::make_shared<sigma::CoinRemintToV3>(serData);
-                in.push_back(Pair("publicCoinValue", remint->getPublicCoinValue().ToString(16)));
-            } catch (std::ios_base::failure &) {
-                throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Zerocoin to Sigma remint information");
-            }
-            fillStdFields(in, txin);
-
-            CAmount const valueSat = remint->getDenomination() * COIN;
-
-            in.push_back(Pair("value", ValueFromAmount(valueSat)));
-            in.push_back(Pair("valueSat", valueSat));
         } else {
             in.push_back(Pair("txid", txin.prevout.hash.GetHex()));
             in.push_back(Pair("vout", (int64_t)txin.prevout.n));

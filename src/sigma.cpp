@@ -1,6 +1,5 @@
 #include "validation.h"
 #include "sigma.h"
-#include "zerocoin.h" // Mostly for reusing class libzerocoin::SpendMetaData
 #include "timedata.h"
 #include "chainparams.h"
 #include "util.h"
@@ -12,7 +11,6 @@
 #include "crypto/sha256.h"
 #include "sigma/coinspend.h"
 #include "sigma/coin.h"
-#include "sigma/remint.h"
 #include "primitives/zerocoin.h"
 #include "batchproof_container.h"
 
@@ -26,6 +24,8 @@
 #include <boost/scope_exit.hpp>
 
 #include <ios>
+
+int64_t nMinimumInputValue = DUST_HARD_LIMIT;
 
 namespace sigma {
 
@@ -140,9 +140,7 @@ bool CheckSigmaBlock(CValidationState &state, const CBlock& block) {
     CAmount blockSpendsValue(0);
 
     for (const auto& tx : block.vtx) {
-        // Check zerocoin to sigma remints against the same limit as sigma spends
-
-        auto txSpendsValue = tx->IsZerocoinRemint() ? CoinRemintToV3::GetAmount(*tx) : GetSpendAmount(*tx);
+        auto txSpendsValue = tx->IsZerocoinRemint() ? 0 : GetSpendAmount(*tx);
         size_t txSpendsAmount = 0;
 
         for (const auto& in : tx->vin) {
@@ -752,7 +750,7 @@ bool BuildSigmaStateFromIndex(CChain *chain) {
     return true;
 }
 
-// CZerocoinTxInfoV3
+// CSigmaTxInfo
 
 void CSigmaTxInfo::Complete() {
     // We need to sort mints lexicographically by serialized value of pubCoin. That's the way old code

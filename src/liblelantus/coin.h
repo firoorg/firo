@@ -3,6 +3,7 @@
 
 #include "lelantus_primitives.h"
 #include "params.h"
+#include "../uint256.h"
 #include "../sigma/openssl_context.h"
 
 

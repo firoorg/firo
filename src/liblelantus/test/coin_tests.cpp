@@ -1,5 +1,6 @@
 #include "../coin.h"
 #include "../params.h"
+#include "../../version.h"
 
 #include "streams.h"
 

@@ -359,7 +359,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
     }
 }
 
-BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput)
+BOOST_AUTO_TEST_CASE(sigma_mintspend_usedinput)
 {
     vector<string> denominationsForTx;
     vector<uint256> vtxid;

@@ -11,7 +11,6 @@
 #include "range_proof.h"
 
 #include "serialize.h"
-#include "../libzerocoin/Zerocoin.h"
 
 #include <vector>
 #include <algorithm>

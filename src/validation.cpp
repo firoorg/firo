@@ -9,8 +9,6 @@
 #include "config/bitcoin-config.h"
 #endif
 
-#include "zerocoin.h"
-
 #include "arith_uint256.h"
 #include "chainparams.h"
 #include "checkpoints.h"
@@ -57,7 +55,6 @@
 #include "blacklists.h"
 
 #include "sigma/coinspend.h"
-#include "sigma/remint.h"
 #include "warnings.h"
 
 #ifdef ENABLE_ELYSIUM
@@ -212,6 +209,17 @@ int GetHeight()
 {
     LOCK(cs_main);
     return chainActive.Height();
+}
+
+int GetNHeight(const CBlockHeader &block) {
+    CBlockIndex *pindexPrev = NULL;
+    int nHeight = 0;
+    BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
+    if (mi != mapBlockIndex.end()) {
+        pindexPrev = (*mi).second;
+        nHeight = pindexPrev->nHeight + 1;
+    }
+    return nHeight;
 }
 
 /* Use this class to start tracking transactions that are removed from the
@@ -570,7 +578,7 @@ int GetUTXOConfirmations(const COutPoint& outpoint)
     return (nPrevoutHeight > -1 && chainActive.Tip()) ? chainActive.Height() - nPrevoutHeight + 1 : -1;
 }
 
-bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, CZerocoinTxInfo *zerocoinTxInfo, sigma::CSigmaTxInfo *sigmaTxInfo, lelantus::CLelantusTxInfo* lelantusTxInfo)
+bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, sigma::CSigmaTxInfo *sigmaTxInfo, lelantus::CLelantusTxInfo* lelantusTxInfo)
 {
     LogPrintf("CheckTransaction nHeight=%s, isVerifyDB=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isVerifyDB, isCheckWallet, tx.GetHash().ToString());
 
@@ -607,7 +615,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
     bool const check_di = nHeight != INT_MAX && nHeight > ::Params().GetConsensus().nStartDuplicationCheck;
     if (fCheckDuplicateInputs || check_di) {
         std::set<COutPoint> vInOutPoints;
-        if (tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsLelantusJoinSplit()) {
+        if (tx.IsSigmaSpend() || tx.IsLelantusJoinSplit()) {
             std::set<CScript> spendScripts;
             for (const auto& txin: tx.vin)
             {
@@ -648,18 +656,27 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
                 return false;
         }
 
-        if(tx.IsLelantusTransaction()) {
+        if (tx.IsLelantusTransaction()) {
             if (!CheckLelantusTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sigmaTxInfo, lelantusTxInfo))
                 return false;
         }
 
-        if (!CheckZerocoinTransaction(tx, state, Params().GetConsensus(), hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, zerocoinTxInfo))
-            return false;
+        auto params = ::Params().GetConsensus();
+        if (tx.IsZerocoinSpend() || tx.IsZerocoinMint()) {
+            if (nHeight != INT_MAX && nHeight >= params.nDisableZerocoinStartBlock)
+                return state.DoS(1, error("Zerocoin is disabled at this point"));
+        }
+
+        if (tx.IsZerocoinRemint()) {
+            if (nHeight != INT_MAX && (nHeight < params.nSigmaStartBlock || nHeight >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize))
+                // we allow transactions of remint type only during specific window
+                return false;
+        }
     }
 
     if (nHeight >= ::Params().GetConsensus().nStartBlacklist) {
         for (const auto& vin : tx.vin) {
-            if(txid_blacklist.count(vin.prevout.hash.GetHex()) > 0) {
+            if (txid_blacklist.count(vin.prevout.hash.GetHex()) > 0) {
                     return state.DoS(100, error("Spending this tx is temporarily disabled"),
                                  REJECT_INVALID, "bad-txns-zerocoin");
             }
@@ -742,7 +759,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                               bool isCheckWalletTransaction, bool markFiroSpendTransactionSerial)
 {
     bool fTestNet = Params().GetConsensus().IsTestnet();
-    LogPrintf("AcceptToMemoryPoolWorker(), tx.IsZerocoinSpend()=%s, fTestNet=%s\n", ptx->IsZerocoinSpend() || ptx->IsSigmaSpend() || ptx->IsLelantusJoinSplit(), fTestNet);
+    LogPrintf("AcceptToMemoryPoolWorker(), tx.IsSpend()=%s, fTestNet=%s\n", ptx->IsSigmaSpend() || ptx->IsLelantusJoinSplit(), fTestNet);
 
     const CTransaction& tx = *ptx;
     const uint256 hash = tx.GetHash();
@@ -752,24 +769,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     const Consensus::Params& consensus = Params().GetConsensus();
 
-    if (tx.IsZerocoinMint()) {
-        // Shows if old zerocoin mints are allowed yet in the mempool.
-        bool allow = (chainActive.Height() <= consensus.nSigmaStartBlock + consensus.nZerocoinV2MintMempoolGracefulPeriod);
-
-        if (!allow) {
-            return state.DoS(100, error("Old zerocoin mints no more allowed in mempool"),
-                             REJECT_INVALID, "bad-txns-zerocoin");
-        }
-    }
-
-    if (tx.IsZerocoinSpend()) {
-        // Shows if old zerocoin spends are allowed yet in the mempool.
-        bool allow = (chainActive.Height() <= consensus.nSigmaStartBlock + consensus.nZerocoinV2SpendMempoolGracefulPeriod);
-
-        if (!allow) {
-            return state.DoS(100, error("Old zerocoin spends no more allowed in mempool"),
-                             REJECT_INVALID, "bad-txns-zerocoin");
-        }
+    if (tx.IsZerocoinMint() || tx.IsZerocoinSpend() || tx.IsZerocoinRemint()) {
+        return state.DoS(100, error("Zerocoin transactions no more allowed in mempool"),
+                         REJECT_INVALID, "bad-txns-zerocoin");
     }
 
     if (tx.IsSigmaMint() || tx.IsSigmaSpend()) {
@@ -836,12 +838,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     // Check for conflicts with in-memory transactions
     std::set<uint256> setConflicts;
-    //btzc
-    CZerocoinState *zcState = CZerocoinState::GetZerocoinState();
-    vector<CBigNum> zcSpendSerials;
-    CBigNum zcSpendSerial;
 
-    // V3 sigma spends.
+    // Sigma spends.
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     vector<Scalar> zcSpendSerialsV3;
     vector<GroupElement> zcMintPubcoinsV3;
@@ -853,33 +851,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     vector<uint64_t> lelantusAmounts;
     {
     LOCK(pool.cs); // protect pool.mapNextTx
-    if (tx.IsZerocoinSpend()) {
-        BOOST_FOREACH(const CTxIn &txin, tx.vin)
-        {
-            zcSpendSerial = ZerocoinGetSpendSerialNumber(tx, txin);
-            if (!zcSpendSerial)
-                return state.Invalid(false, REJECT_INVALID, "txn-invalid-zerocoin-spend");
-            if (!zcState->CanAddSpendToMempool(zcSpendSerial)) {
-                LogPrintf("AcceptToMemoryPool(): serial number %s has been used\n", zcSpendSerial.ToString());
-                return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
-            }
-            zcSpendSerials.push_back(zcSpendSerial);
-        }
-    }
-    else if (tx.IsZerocoinRemint()) {
-        zcSpendSerial = sigma::CoinRemintToV3::GetSerialNumber(tx);
-
-        if (!zcSpendSerial)
-            return state.Invalid(false, REJECT_INVALID, "txn-invalid-zerocoin-spend");
-
-        if (!zcState->CanAddSpendToMempool(zcSpendSerial)) {
-            LogPrintf("AcceptToMemoryPool(): serial number %s has been used\n", zcSpendSerial.ToString());
-            return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
-        }
-
-        zcSpendSerials.push_back(zcSpendSerial);
-    }
-    else if (tx.IsSigmaSpend()) {
+    if (tx.IsSigmaSpend()) {
 
         BOOST_FOREACH(const CTxIn &txin, tx.vin)
         {
@@ -1017,7 +989,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
         }
 
-        if (!tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit()) {
+        if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit()) {
             // do all inputs exist?
             BOOST_FOREACH(const CTxIn txin, tx.vin) {
                 if (!pcoinsTip->HaveCoinInCache(txin.prevout)) {
@@ -1053,375 +1025,353 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         view.SetBackend(dummy);
         } // LOCK
 
-        if (!tx.IsZerocoinSpend() && !tx.IsZerocoinRemint()) {
+        // Check for non-standard pay-to-script-hash in inputs
+        if (fRequireStandard && !AreInputsStandard(tx, view))
+            return state.Invalid(false, REJECT_NONSTANDARD, "bad-txns-nonstandard-inputs");
 
-            // Check for non-standard pay-to-script-hash in inputs
-            if (fRequireStandard && !AreInputsStandard(tx, view))
-                return state.Invalid(false, REJECT_NONSTANDARD, "bad-txns-nonstandard-inputs");
+        // Check for non-standard witness in P2WSH
+        if (tx.HasWitness() && fRequireStandard && !IsWitnessStandard(tx, view))
+            return state.DoS(0, false, REJECT_NONSTANDARD, "bad-witness-nonstandard", true);
 
-            // Check for non-standard witness in P2WSH
-            if (tx.HasWitness() && fRequireStandard && !IsWitnessStandard(tx, view))
-                return state.DoS(0, false, REJECT_NONSTANDARD, "bad-witness-nonstandard", true);
+        int64_t nSigOpsCost = GetTransactionSigOpCost(tx, view, STANDARD_SCRIPT_VERIFY_FLAGS);
 
-            int64_t nSigOpsCost = GetTransactionSigOpCost(tx, view, STANDARD_SCRIPT_VERIFY_FLAGS);
-
-            CAmount nValueOut = tx.GetValueOut();
-            CAmount nFees;
-            if(!tx.IsLelantusJoinSplit()) {
-                nFees = nValueIn-nValueOut;
-            } else {
-                try {
-                    nFees = lelantus::ParseLelantusJoinSplit(tx.vin[0])->getFee();
-                }
-                catch (CBadTxIn&) {
-                    return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
-                }
+        CAmount nValueOut = tx.GetValueOut();
+        CAmount nFees;
+        if(!tx.IsLelantusJoinSplit()) {
+            nFees = nValueIn-nValueOut;
+        } else {
+            try {
+                nFees = lelantus::ParseLelantusJoinSplit(tx.vin[0])->getFee();
             }
-            // nModifiedFees includes any fee deltas from PrioritiseTransaction
-            CAmount nModifiedFees = nFees;
-            double nPriorityDummy = 0;
-            pool.ApplyDeltas(hash, nPriorityDummy, nModifiedFees);
+            catch (CBadTxIn&) {
+                return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
+            }
+        }
+        // nModifiedFees includes any fee deltas from PrioritiseTransaction
+        CAmount nModifiedFees = nFees;
+        double nPriorityDummy = 0;
+        pool.ApplyDeltas(hash, nPriorityDummy, nModifiedFees);
 
-            CAmount inChainInputValue = 0;
-            bool fSpendsCoinbase = false;
-            if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit()) {
-                // Keep track of transactions that spend a coinbase, which we re-scan
-                // during reorgs to ensure COINBASE_MATURITY is still met.
-                BOOST_FOREACH(const CTxIn &txin, tx.vin) {
-                    const Coin &coin = view.AccessCoin(txin.prevout);
-                    if (coin.IsCoinBase()) {
-                        fSpendsCoinbase = true;
-                        break;
-                    }
+        CAmount inChainInputValue = 0;
+        bool fSpendsCoinbase = false;
+        if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit()) {
+            // Keep track of transactions that spend a coinbase, which we re-scan
+            // during reorgs to ensure COINBASE_MATURITY is still met.
+            BOOST_FOREACH(const CTxIn &txin, tx.vin) {
+                const Coin &coin = view.AccessCoin(txin.prevout);
+                if (coin.IsCoinBase()) {
+                    fSpendsCoinbase = true;
+                    break;
                 }
             }
+        }
 
-            CTxMemPoolEntry entry(ptx, nFees, nAcceptTime, chainActive.Height(),
-                                inChainInputValue, fSpendsCoinbase, nSigOpsCost, lp);
-            unsigned int nSize = entry.GetTxSize();
+        CTxMemPoolEntry entry(ptx, nFees, nAcceptTime, chainActive.Height(),
+                            inChainInputValue, fSpendsCoinbase, nSigOpsCost, lp);
+        unsigned int nSize = entry.GetTxSize();
 
-            // Check that the transaction doesn't have an excessive number of
-            // sigops, making it impossible to mine. Since the coinbase transaction
-            // itself can contain sigops MAX_STANDARD_TX_SIGOPS is less than
-            // MAX_BLOCK_SIGOPS; we still consider this an invalid rather than
-            // merely non-standard transaction.
-            /*
-            if (nSigOpsCost > MAX_STANDARD_TX_SIGOPS_COST)
-                return state.DoS(0, false, REJECT_NONSTANDARD, "bad-txns-too-many-sigops", false,
-                    strprintf("%d", nSigOpsCost));
+        // Check that the transaction doesn't have an excessive number of
+        // sigops, making it impossible to mine. Since the coinbase transaction
+        // itself can contain sigops MAX_STANDARD_TX_SIGOPS is less than
+        // MAX_BLOCK_SIGOPS; we still consider this an invalid rather than
+        // merely non-standard transaction.
+        /*
+        if (nSigOpsCost > MAX_STANDARD_TX_SIGOPS_COST)
+            return state.DoS(0, false, REJECT_NONSTANDARD, "bad-txns-too-many-sigops", false,
+                strprintf("%d", nSigOpsCost));
 
-            CAmount mempoolRejectFee = pool.GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFee(nSize);
-            if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
-                return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee));
-            } else if (GetBoolArg("-relaypriority", DEFAULT_RELAYPRIORITY) && nModifiedFees < ::minRelayTxFee.GetFee(nSize) && !AllowFree(entry.GetPriority(chainActive.Height() + 1))) {
-                // Require that free transactions have sufficient priority to be mined in the next block.
-                return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "insufficient priority");
-            }
-            */
+        CAmount mempoolRejectFee = pool.GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFee(nSize);
+        if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
+            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee));
+        } else if (GetBoolArg("-relaypriority", DEFAULT_RELAYPRIORITY) && nModifiedFees < ::minRelayTxFee.GetFee(nSize) && !AllowFree(entry.GetPriority(chainActive.Height() + 1))) {
+            // Require that free transactions have sufficient priority to be mined in the next block.
+            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "insufficient priority");
+        }
+        */
 
-            // Continuously rate-limit free (really, very-low-fee) transactions
-            // This mitigates 'penny-flooding' -- sending thousands of free transactions just to
-            // be annoying or make others' transactions take longer to confirm.
-            if (fLimitFree && nModifiedFees < ::minRelayTxFee.GetFee(nSize))
+        // Continuously rate-limit free (really, very-low-fee) transactions
+        // This mitigates 'penny-flooding' -- sending thousands of free transactions just to
+        // be annoying or make others' transactions take longer to confirm.
+        if (fLimitFree && nModifiedFees < ::minRelayTxFee.GetFee(nSize))
+        {
+            static CCriticalSection csFreeLimiter;
+            static double dFreeCount;
+            static int64_t nLastTime;
+            int64_t nNow = GetTime();
+
+            LOCK(csFreeLimiter);
+
+            // Use an exponentially decaying ~10-minute window:
+            dFreeCount *= pow(1.0 - 1.0/600.0, (double)(nNow - nLastTime));
+            nLastTime = nNow;
+            // -limitfreerelay unit is thousand-bytes-per-minute
+            // At default rate it would take over a month to fill 1GB
+            if (dFreeCount + nSize >= GetArg("-limitfreerelay", DEFAULT_LIMITFREERELAY) * 10 * 1000)
+                return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "rate limited free transaction");
+            LogPrint("mempool", "Rate limit dFreeCount: %g => %g\n", dFreeCount, dFreeCount+nSize);
+            dFreeCount += nSize;
+        }
+
+        /*
+        if (nAbsurdFee && nFees > nAbsurdFee)
+            return state.Invalid(false,
+                REJECT_HIGHFEE, "absurdly-high-fee",
+                strprintf("%d > %d", nFees, nAbsurdFee));
+        */
+
+        if (nAbsurdFee && nFees > nAbsurdFee)
+            return state.Invalid(false,
+                REJECT_HIGHFEE, "absurdly-high-fee",
+                strprintf("%d > %d", nFees, nAbsurdFee));
+
+        // Calculate in-mempool ancestors, up to a limit.
+        CTxMemPool::setEntries setAncestors;
+        size_t nLimitAncestors = GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
+        size_t nLimitAncestorSize = GetArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT)*1000;
+        size_t nLimitDescendants = GetArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT);
+        size_t nLimitDescendantSize = GetArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT)*1000;
+        std::string errString;
+        if (!pool.CalculateMemPoolAncestors(entry, setAncestors, nLimitAncestors, nLimitAncestorSize, nLimitDescendants, nLimitDescendantSize, errString)) {
+            return state.DoS(0, false, REJECT_NONSTANDARD, "too-long-mempool-chain", false, errString);
+        }
+
+        // check special TXs after all the other checks. If we'd do this before the other checks, we might end up
+        // DoS scoring a node for non-critical errors, e.g. duplicate keys because a TX is received that was already
+        // mined
+        if (!CheckSpecialTx(tx, chainActive.Tip(), state))
+            return false;
+
+        if (pool.existsProviderTxConflict(tx)) {
+            return state.DoS(0, false, REJECT_DUPLICATE, "protx-dup");
+        }
+
+        // A transaction that spends outputs that would be replaced by it is invalid. Now
+        // that we have the set of all ancestors we can detect this
+        // pathological case by making sure setConflicts and setAncestors don't
+        // intersect.
+        BOOST_FOREACH(CTxMemPool::txiter ancestorIt, setAncestors)
+        {
+            const uint256 &hashAncestor = ancestorIt->GetTx().GetHash();
+            if (setConflicts.count(hashAncestor))
             {
-                static CCriticalSection csFreeLimiter;
-                static double dFreeCount;
-                static int64_t nLastTime;
-                int64_t nNow = GetTime();
-
-                LOCK(csFreeLimiter);
-
-                // Use an exponentially decaying ~10-minute window:
-                dFreeCount *= pow(1.0 - 1.0/600.0, (double)(nNow - nLastTime));
-                nLastTime = nNow;
-                // -limitfreerelay unit is thousand-bytes-per-minute
-                // At default rate it would take over a month to fill 1GB
-                if (dFreeCount + nSize >= GetArg("-limitfreerelay", DEFAULT_LIMITFREERELAY) * 10 * 1000)
-                    return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "rate limited free transaction");
-                LogPrint("mempool", "Rate limit dFreeCount: %g => %g\n", dFreeCount, dFreeCount+nSize);
-                dFreeCount += nSize;
+                return state.DoS(10, false,
+                                 REJECT_INVALID, "bad-txns-spends-conflicting-tx", false,
+                                 strprintf("%s spends conflicting transaction %s",
+                                           hash.ToString(),
+                                           hashAncestor.ToString()));
             }
+        }
 
-            /*
-            if (nAbsurdFee && nFees > nAbsurdFee)
-                return state.Invalid(false,
-                    REJECT_HIGHFEE, "absurdly-high-fee",
-                    strprintf("%d > %d", nFees, nAbsurdFee));
-            */
+        // Check if it's economically rational to mine this transaction rather
+        // than the ones it replaces.
+        CAmount nConflictingFees = 0;
+        size_t nConflictingSize = 0;
+        uint64_t nConflictingCount = 0;
+        CTxMemPool::setEntries allConflicting;
 
-            if (nAbsurdFee && nFees > nAbsurdFee)
-                return state.Invalid(false,
-                    REJECT_HIGHFEE, "absurdly-high-fee",
-                    strprintf("%d > %d", nFees, nAbsurdFee));
-
-            // Calculate in-mempool ancestors, up to a limit.
-            CTxMemPool::setEntries setAncestors;
-            size_t nLimitAncestors = GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
-            size_t nLimitAncestorSize = GetArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT)*1000;
-            size_t nLimitDescendants = GetArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT);
-            size_t nLimitDescendantSize = GetArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT)*1000;
-            std::string errString;
-            if (!pool.CalculateMemPoolAncestors(entry, setAncestors, nLimitAncestors, nLimitAncestorSize, nLimitDescendants, nLimitDescendantSize, errString)) {
-                return state.DoS(0, false, REJECT_NONSTANDARD, "too-long-mempool-chain", false, errString);
-            }
-
-            // check special TXs after all the other checks. If we'd do this before the other checks, we might end up
-            // DoS scoring a node for non-critical errors, e.g. duplicate keys because a TX is received that was already
-            // mined
-            if (!CheckSpecialTx(tx, chainActive.Tip(), state))
-                return false;
-
-            if (pool.existsProviderTxConflict(tx)) {
-                return state.DoS(0, false, REJECT_DUPLICATE, "protx-dup");
-            }
-
-            // A transaction that spends outputs that would be replaced by it is invalid. Now
-            // that we have the set of all ancestors we can detect this
-            // pathological case by making sure setConflicts and setAncestors don't
-            // intersect.
-            BOOST_FOREACH(CTxMemPool::txiter ancestorIt, setAncestors)
+        // If we don't hold the lock allConflicting might be incomplete; the
+        // subsequent RemoveStaged() and addUnchecked() calls don't guarantee
+        // mempool consistency for us.
+        LOCK(pool.cs);
+        const bool fReplacementTransaction = setConflicts.size();
+        if (fReplacementTransaction)
+        {
+            CFeeRate newFeeRate(nModifiedFees, nSize);
+            std::set<uint256> setConflictsParents;
+            const int maxDescendantsToVisit = 100;
+            CTxMemPool::setEntries setIterConflicting;
+            BOOST_FOREACH(const uint256 &hashConflicting, setConflicts)
             {
-                const uint256 &hashAncestor = ancestorIt->GetTx().GetHash();
-                if (setConflicts.count(hashAncestor))
-                {
-                    return state.DoS(10, false,
-                                     REJECT_INVALID, "bad-txns-spends-conflicting-tx", false,
-                                     strprintf("%s spends conflicting transaction %s",
-                                               hash.ToString(),
-                                               hashAncestor.ToString()));
-                }
-            }
+                CTxMemPool::txiter mi = pool.mapTx.find(hashConflicting);
+                if (mi == pool.mapTx.end())
+                    continue;
 
-            // Check if it's economically rational to mine this transaction rather
-            // than the ones it replaces.
-            CAmount nConflictingFees = 0;
-            size_t nConflictingSize = 0;
-            uint64_t nConflictingCount = 0;
-            CTxMemPool::setEntries allConflicting;
+                // Save these to avoid repeated lookups
+                setIterConflicting.insert(mi);
 
-            // If we don't hold the lock allConflicting might be incomplete; the
-            // subsequent RemoveStaged() and addUnchecked() calls don't guarantee
-            // mempool consistency for us.
-            LOCK(pool.cs);
-            const bool fReplacementTransaction = setConflicts.size();
-            if (fReplacementTransaction)
-            {
-                CFeeRate newFeeRate(nModifiedFees, nSize);
-                std::set<uint256> setConflictsParents;
-                const int maxDescendantsToVisit = 100;
-                CTxMemPool::setEntries setIterConflicting;
-                BOOST_FOREACH(const uint256 &hashConflicting, setConflicts)
-                {
-                    CTxMemPool::txiter mi = pool.mapTx.find(hashConflicting);
-                    if (mi == pool.mapTx.end())
-                        continue;
-
-                    // Save these to avoid repeated lookups
-                    setIterConflicting.insert(mi);
-
-                    // Don't allow the replacement to reduce the feerate of the
-                    // mempool.
-                    //
-                    // We usually don't want to accept replacements with lower
-                    // feerates than what they replaced as that would lower the
-                    // feerate of the next block. Requiring that the feerate always
-                    // be increased is also an easy-to-reason about way to prevent
-                    // DoS attacks via replacements.
-                    //
-                    // The mining code doesn't (currently) take children into
-                    // account (CPFP) so we only consider the feerates of
-                    // transactions being directly replaced, not their indirect
-                    // descendants. While that does mean high feerate children are
-                    // ignored when deciding whether or not to replace, we do
-                    // require the replacement to pay more overall fees too,
-                    // mitigating most cases.
-                    CFeeRate oldFeeRate(mi->GetModifiedFee(), mi->GetTxSize());
-                    if (newFeeRate <= oldFeeRate)
-                    {
-                        return state.DoS(0, false,
-                                        REJECT_INSUFFICIENTFEE, "insufficient fee", false,
-                                        strprintf("rejecting replacement %s; new feerate %s <= old feerate %s",
-                                                hash.ToString(),
-                                                newFeeRate.ToString(),
-                                                oldFeeRate.ToString()));
-                    }
-
-                    BOOST_FOREACH(const CTxIn &txin, mi->GetTx().vin)
-                    {
-                        setConflictsParents.insert(txin.prevout.hash);
-                    }
-
-                    nConflictingCount += mi->GetCountWithDescendants();
-                }
-                // This potentially overestimates the number of actual descendants
-                // but we just want to be conservative to avoid doing too much
-                // work.
-                if (nConflictingCount <= maxDescendantsToVisit) {
-                    // If not too many to replace, then calculate the set of
-                    // transactions that would have to be evicted
-                    BOOST_FOREACH(CTxMemPool::txiter it, setIterConflicting) {
-                        pool.CalculateDescendants(it, allConflicting);
-                    }
-                    BOOST_FOREACH(CTxMemPool::txiter it, allConflicting) {
-                        nConflictingFees += it->GetModifiedFee();
-                        nConflictingSize += it->GetTxSize();
-                    }
-                } else {
-                    return state.DoS(0, false,
-                            REJECT_NONSTANDARD, "too many potential replacements", false,
-                            strprintf("rejecting replacement %s; too many potential replacements (%d > %d)\n",
-                                hash.ToString(),
-                                nConflictingCount,
-                                maxDescendantsToVisit));
-                }
-
-                for (unsigned int j = 0; j < tx.vin.size(); j++)
-                {
-                    // We don't want to accept replacements that require low
-                    // feerate junk to be mined first. Ideally we'd keep track of
-                    // the ancestor feerates and make the decision based on that,
-                    // but for now requiring all new inputs to be confirmed works.
-                    if (!setConflictsParents.count(tx.vin[j].prevout.hash))
-                    {
-                        // Rather than check the UTXO set - potentially expensive -
-                        // it's cheaper to just check if the new input refers to a
-                        // tx that's in the mempool.
-                        if (pool.mapTx.find(tx.vin[j].prevout.hash) != pool.mapTx.end())
-                            return state.DoS(0, false,
-                                            REJECT_NONSTANDARD, "replacement-adds-unconfirmed", false,
-                                            strprintf("replacement %s adds unconfirmed input, idx %d",
-                                                    hash.ToString(), j));
-                    }
-                }
-
-                // The replacement must pay greater fees than the transactions it
-                // replaces - if we did the bandwidth used by those conflicting
-                // transactions would not be paid for.
-                if (nModifiedFees < nConflictingFees)
+                // Don't allow the replacement to reduce the feerate of the
+                // mempool.
+                //
+                // We usually don't want to accept replacements with lower
+                // feerates than what they replaced as that would lower the
+                // feerate of the next block. Requiring that the feerate always
+                // be increased is also an easy-to-reason about way to prevent
+                // DoS attacks via replacements.
+                //
+                // The mining code doesn't (currently) take children into
+                // account (CPFP) so we only consider the feerates of
+                // transactions being directly replaced, not their indirect
+                // descendants. While that does mean high feerate children are
+                // ignored when deciding whether or not to replace, we do
+                // require the replacement to pay more overall fees too,
+                // mitigating most cases.
+                CFeeRate oldFeeRate(mi->GetModifiedFee(), mi->GetTxSize());
+                if (newFeeRate <= oldFeeRate)
                 {
                     return state.DoS(0, false,
                                     REJECT_INSUFFICIENTFEE, "insufficient fee", false,
-                                    strprintf("rejecting replacement %s, less fees than conflicting txs; %s < %s",
-                                            hash.ToString(), FormatMoney(nModifiedFees), FormatMoney(nConflictingFees)));
+                                    strprintf("rejecting replacement %s; new feerate %s <= old feerate %s",
+                                            hash.ToString(),
+                                            newFeeRate.ToString(),
+                                            oldFeeRate.ToString()));
                 }
 
-                // Finally in addition to paying more fees than the conflicts the
-                // new transaction must pay for its own bandwidth.
-                CAmount nDeltaFees = nModifiedFees - nConflictingFees;
-                if (nDeltaFees < ::minRelayTxFee.GetFee(nSize))
+                BOOST_FOREACH(const CTxIn &txin, mi->GetTx().vin)
                 {
-                    return state.DoS(0, false,
-                            REJECT_INSUFFICIENTFEE, "insufficient fee", false,
-                            strprintf("rejecting replacement %s, not enough additional fees to relay; %s < %s",
-                                    hash.ToString(),
-                                    FormatMoney(nDeltaFees),
-                                    FormatMoney(::minRelayTxFee.GetFee(nSize))));
+                    setConflictsParents.insert(txin.prevout.hash);
+                }
+
+                nConflictingCount += mi->GetCountWithDescendants();
+            }
+            // This potentially overestimates the number of actual descendants
+            // but we just want to be conservative to avoid doing too much
+            // work.
+            if (nConflictingCount <= maxDescendantsToVisit) {
+                // If not too many to replace, then calculate the set of
+                // transactions that would have to be evicted
+                BOOST_FOREACH(CTxMemPool::txiter it, setIterConflicting) {
+                    pool.CalculateDescendants(it, allConflicting);
+                }
+                BOOST_FOREACH(CTxMemPool::txiter it, allConflicting) {
+                    nConflictingFees += it->GetModifiedFee();
+                    nConflictingSize += it->GetTxSize();
+                }
+            } else {
+                return state.DoS(0, false,
+                        REJECT_NONSTANDARD, "too many potential replacements", false,
+                        strprintf("rejecting replacement %s; too many potential replacements (%d > %d)\n",
+                            hash.ToString(),
+                            nConflictingCount,
+                            maxDescendantsToVisit));
+            }
+
+            for (unsigned int j = 0; j < tx.vin.size(); j++)
+            {
+                // We don't want to accept replacements that require low
+                // feerate junk to be mined first. Ideally we'd keep track of
+                // the ancestor feerates and make the decision based on that,
+                // but for now requiring all new inputs to be confirmed works.
+                if (!setConflictsParents.count(tx.vin[j].prevout.hash))
+                {
+                    // Rather than check the UTXO set - potentially expensive -
+                    // it's cheaper to just check if the new input refers to a
+                    // tx that's in the mempool.
+                    if (pool.mapTx.find(tx.vin[j].prevout.hash) != pool.mapTx.end())
+                        return state.DoS(0, false,
+                                        REJECT_NONSTANDARD, "replacement-adds-unconfirmed", false,
+                                        strprintf("replacement %s adds unconfirmed input, idx %d",
+                                                hash.ToString(), j));
                 }
             }
 
-            unsigned int scriptVerifyFlags = SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC;
-            /*
-            if (!Params().RequireStandard()) {
-                scriptVerifyFlags = GetArg("-promiscuousmempoolflags", scriptVerifyFlags);
-            }
-            */
-
-            // Check against previous transactions
-            // This is done last to help prevent CPU exhaustion denial-of-service attacks.
-            PrecomputedTransactionData txdata(tx);
-            if (!CheckInputs(tx, state, view, true, scriptVerifyFlags, true, txdata)) {
-                // SCRIPT_VERIFY_CLEANSTACK requires SCRIPT_VERIFY_WITNESS, so we
-                // need to turn both off, and compare against just turning off CLEANSTACK
-                // to see if the failure is specifically due to witness validation.
-                /*
-                CValidationState stateDummy; // Want reported failures to be from first CheckInputs
-                if (!tx.HasWitness() && CheckInputs(tx, stateDummy, view, true, scriptVerifyFlags & ~(SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_CLEANSTACK), true, txdata) &&
-                    !CheckInputs(tx, stateDummy, view, true, scriptVerifyFlags & ~SCRIPT_VERIFY_CLEANSTACK, true, txdata)) {
-                    // Only the witness is missing, so the transaction itself may be fine.
-                    state.SetCorruptionPossible();
-                }
-                */
-                return false;
-            }
-
-            // Check again against just the consensus-critical mandatory script
-            // verification flags, in case of bugs in the standard flags that cause
-            // transactions to pass as valid when they're actually invalid. For
-            // instance the STRICTENC flag was incorrectly allowing certain
-            // CHECKSIG NOT scripts to pass, even though they were invalid.
-            //
-            // There is a similar check in CreateNewBlock() to prevent creating
-            // invalid blocks, however allowing such transactions into the mempool
-            // can be exploited as a DoS attack.
-            /*
-            if (!CheckInputs(tx, state, view, true, MANDATORY_SCRIPT_VERIFY_FLAGS, true, txdata))
+            // The replacement must pay greater fees than the transactions it
+            // replaces - if we did the bandwidth used by those conflicting
+            // transactions would not be paid for.
+            if (nModifiedFees < nConflictingFees)
             {
-                return error("%s: BUG! PLEASE REPORT THIS! ConnectInputs failed against MANDATORY but not STANDARD flags %s, %s",
-                    __func__, hash.ToString(), FormatStateMessage(state));
+                return state.DoS(0, false,
+                                REJECT_INSUFFICIENTFEE, "insufficient fee", false,
+                                strprintf("rejecting replacement %s, less fees than conflicting txs; %s < %s",
+                                        hash.ToString(), FormatMoney(nModifiedFees), FormatMoney(nConflictingFees)));
             }
-            */
 
-            // Remove conflicting transactions from the mempool
-            BOOST_FOREACH(const CTxMemPool::txiter it, allConflicting)
+            // Finally in addition to paying more fees than the conflicts the
+            // new transaction must pay for its own bandwidth.
+            CAmount nDeltaFees = nModifiedFees - nConflictingFees;
+            if (nDeltaFees < ::minRelayTxFee.GetFee(nSize))
             {
-                LogPrint("mempool", "replacing tx %s with %s for %s BTC additional fees, %d delta bytes\n",
-                         it->GetTx().GetHash().ToString(),
-                         hash.ToString(),
-                         FormatMoney(nModifiedFees - nConflictingFees),
-                         (int)nSize - (int)nConflictingSize);
-                if (plTxnReplaced)
-                    plTxnReplaced->push_back(it->GetSharedTx());
-            }
-            pool.RemoveStaged(allConflicting, false);
-
-            // This transaction should only count for fee estimation if it isn't a
-            // BIP 125 replacement transaction (may not be widely supported), the
-            // node is not behind, and the transaction is not dependent on any other
-            // transactions in the mempool.
-            bool validForFeeEstimation = !fReplacementTransaction && IsCurrentForFeeEstimation() && pool.HasNoInputsOf(tx);
-
-            // Store transaction in memory
-            pool.addUnchecked(hash, entry, setAncestors, validForFeeEstimation);
-
-            // Add memory address index
-            if (fAddressIndex) {
-                pool.addAddressIndex(entry, view);
-            }
-
-            // Add memory spent index
-            if (fSpentIndex) {
-                pool.addSpentIndex(entry, view);
-            }
-
-            if (tx.IsZerocoinSpend()) {
-                pool.countZCSpend++;
-            }
-
-            // trim mempool and check if tx was trimmed
-            if (!fOverrideMempoolLimit) {
-                LimitMempoolSize(pool, GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000, GetArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY) * 60 * 60);
-                if (!pool.exists(hash))
-                    return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool full");
+                return state.DoS(0, false,
+                        REJECT_INSUFFICIENTFEE, "insufficient fee", false,
+                        strprintf("rejecting replacement %s, not enough additional fees to relay; %s < %s",
+                                hash.ToString(),
+                                FormatMoney(nDeltaFees),
+                                FormatMoney(::minRelayTxFee.GetFee(nSize))));
             }
         }
-        else {
-            LockPoints lp;
-            double fSpendsCoinbase = false;
-            CAmount inChainInputValue = 0;
-            CAmount nFees = 0;
-            int64_t nSigOpsCost = GetLegacySigOpCount(tx);
-            CTxMemPool::setEntries setAncestors;
-            CTxMemPoolEntry entry(ptx, nFees, GetTime(), chainActive.Height(),
-                                inChainInputValue, fSpendsCoinbase, nSigOpsCost, lp);
-            pool.addUnchecked(hash, entry, setAncestors, !IsInitialBlockDownload());
-            if (tx.IsZerocoinSpend()) {
-                pool.countZCSpend++;
-            }
+
+        unsigned int scriptVerifyFlags = SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC;
+        /*
+        if (!Params().RequireStandard()) {
+            scriptVerifyFlags = GetArg("-promiscuousmempoolflags", scriptVerifyFlags);
         }
+        */
+
+        // Check against previous transactions
+        // This is done last to help prevent CPU exhaustion denial-of-service attacks.
+        PrecomputedTransactionData txdata(tx);
+        if (!CheckInputs(tx, state, view, true, scriptVerifyFlags, true, txdata)) {
+            // SCRIPT_VERIFY_CLEANSTACK requires SCRIPT_VERIFY_WITNESS, so we
+            // need to turn both off, and compare against just turning off CLEANSTACK
+            // to see if the failure is specifically due to witness validation.
+            /*
+            CValidationState stateDummy; // Want reported failures to be from first CheckInputs
+            if (!tx.HasWitness() && CheckInputs(tx, stateDummy, view, true, scriptVerifyFlags & ~(SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_CLEANSTACK), true, txdata) &&
+                !CheckInputs(tx, stateDummy, view, true, scriptVerifyFlags & ~SCRIPT_VERIFY_CLEANSTACK, true, txdata)) {
+                // Only the witness is missing, so the transaction itself may be fine.
+                state.SetCorruptionPossible();
+            }
+            */
+            return false;
+        }
+
+        // Check again against just the consensus-critical mandatory script
+        // verification flags, in case of bugs in the standard flags that cause
+        // transactions to pass as valid when they're actually invalid. For
+        // instance the STRICTENC flag was incorrectly allowing certain
+        // CHECKSIG NOT scripts to pass, even though they were invalid.
+        //
+        // There is a similar check in CreateNewBlock() to prevent creating
+        // invalid blocks, however allowing such transactions into the mempool
+        // can be exploited as a DoS attack.
+        /*
+        if (!CheckInputs(tx, state, view, true, MANDATORY_SCRIPT_VERIFY_FLAGS, true, txdata))
+        {
+            return error("%s: BUG! PLEASE REPORT THIS! ConnectInputs failed against MANDATORY but not STANDARD flags %s, %s",
+                __func__, hash.ToString(), FormatStateMessage(state));
+        }
+        */
+
+        // Remove conflicting transactions from the mempool
+        BOOST_FOREACH(const CTxMemPool::txiter it, allConflicting)
+        {
+            LogPrint("mempool", "replacing tx %s with %s for %s BTC additional fees, %d delta bytes\n",
+                     it->GetTx().GetHash().ToString(),
+                     hash.ToString(),
+                     FormatMoney(nModifiedFees - nConflictingFees),
+                     (int)nSize - (int)nConflictingSize);
+            if (plTxnReplaced)
+                plTxnReplaced->push_back(it->GetSharedTx());
+        }
+        pool.RemoveStaged(allConflicting, false);
+
+        // This transaction should only count for fee estimation if it isn't a
+        // BIP 125 replacement transaction (may not be widely supported), the
+        // node is not behind, and the transaction is not dependent on any other
+        // transactions in the mempool.
+        bool validForFeeEstimation = !fReplacementTransaction && IsCurrentForFeeEstimation() && pool.HasNoInputsOf(tx);
+
+        // Store transaction in memory
+        pool.addUnchecked(hash, entry, setAncestors, validForFeeEstimation);
+
+        // Add memory address index
+        if (fAddressIndex) {
+            pool.addAddressIndex(entry, view);
+        }
+
+        // Add memory spent index
+        if (fSpentIndex) {
+            pool.addSpentIndex(entry, view);
+        }
+
+        // trim mempool and check if tx was trimmed
+        if (!fOverrideMempoolLimit) {
+            LimitMempoolSize(pool, GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000, GetArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY) * 60 * 60);
+            if (!pool.exists(hash))
+                return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool full");
+        }
+
     }
 
-    if ((tx.IsZerocoinSpend() || tx.IsZerocoinRemint()) && markFiroSpendTransactionSerial)
-        zcState->AddSpendToMempool(zcSpendSerials, hash);
     if (tx.IsSigmaSpend()) {
         if(markFiroSpendTransactionSerial)
             sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
@@ -1989,6 +1939,126 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
 }
 }// namespace Consensus
 
+bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state, const Consensus::Params &params, int nHeight, bool fMTP) {
+    // Check for founders inputs
+    if ((nHeight > params.nCheckBugFixedAtBlock) && (nHeight < params.nSubsidyHalvingFirst)) {
+        // Reduce everything by a factor of two when MTP is in place
+        int reductionFactor = fMTP ? params.nMTPRewardReduction : 1;
+
+        bool found_1 = false;
+        bool found_2 = false;
+        bool found_3 = false;
+        bool found_4 = false;
+        bool found_5 = false;
+        int total_payment_tx = 0; // no more than 1 output for payment
+        CScript FOUNDER_1_SCRIPT;
+        CScript FOUNDER_2_SCRIPT;
+        CScript FOUNDER_3_SCRIPT;
+        CScript FOUNDER_4_SCRIPT;
+        CScript FOUNDER_5_SCRIPT;
+        if (nHeight < params.nZnodePaymentsStartBlock) {
+            if (params.IsMain() && GetAdjustedTime() > nStartRewardTime) {
+                FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
+                if (nHeight < 14000) {
+                    FOUNDER_2_SCRIPT = GetScriptForDestination(
+                            CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
+                } else {
+                    FOUNDER_2_SCRIPT = GetScriptForDestination(
+                            CBitcoinAddress("aHu897ivzmeFuLNB6956X6gyGeVNHUBRgD").Get());
+                }
+                FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
+                FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
+                FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
+            } else if (params.IsMain() && GetAdjustedTime() <= nStartRewardTime) {
+                return state.DoS(100, false, REJECT_TRANSACTION_TOO_EARLY,
+                                 "CTransaction::CheckTransaction() : transaction is too early");
+            } else {
+                FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("TDk19wPKYq91i18qmY6U9FeTdTxwPeSveo").Get());
+                FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("TWZZcDGkNixTAMtRBqzZkkMHbq1G6vUTk5").Get());
+                FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("TRZTFdNCKCKbLMQV8cZDkQN9Vwuuq4gDzT").Get());
+                FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve").Get());
+                FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("TCsTzQZKVn4fao8jDmB9zQBk9YQNEZ3XfS").Get());
+            }
+
+            BOOST_FOREACH(const CTxOut &output, tx.vout) {
+                if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64_t)(2 * COIN)/reductionFactor) {
+                    found_1 = true;
+                }
+                if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64_t)(2 * COIN)/reductionFactor) {
+                    found_2 = true;
+                }
+                if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64_t)(2 * COIN)/reductionFactor) {
+                    found_3 = true;
+                }
+                if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64_t)(2 * COIN)/reductionFactor) {
+                    found_4 = true;
+                }
+                if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64_t)(2 * COIN)/reductionFactor) {
+                    found_5 = true;
+                }
+            }
+        } else {
+
+            if (params.IsMain() && GetAdjustedTime() > nStartRewardTime) {
+                FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
+                if (nHeight < 14000) {
+                    FOUNDER_2_SCRIPT = GetScriptForDestination(
+                            CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
+                } else {
+                    FOUNDER_2_SCRIPT = GetScriptForDestination(
+                            CBitcoinAddress("aHu897ivzmeFuLNB6956X6gyGeVNHUBRgD").Get());
+                }
+                FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
+                FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
+                FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
+            } else if (params.IsMain() && GetAdjustedTime() <= nStartRewardTime) {
+                return state.DoS(100, false, REJECT_TRANSACTION_TOO_EARLY,
+                                 "CTransaction::CheckTransaction() : transaction is too early");
+            } else {
+                FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("TDk19wPKYq91i18qmY6U9FeTdTxwPeSveo").Get());
+                FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("TWZZcDGkNixTAMtRBqzZkkMHbq1G6vUTk5").Get());
+                FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("TRZTFdNCKCKbLMQV8cZDkQN9Vwuuq4gDzT").Get());
+                FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve").Get());
+                FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("TCsTzQZKVn4fao8jDmB9zQBk9YQNEZ3XfS").Get());
+            }
+
+            CAmount znodePayment = GetZnodePayment(params, fMTP);
+            BOOST_FOREACH(const CTxOut &output, tx.vout) {
+                if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64_t)(1 * COIN)/reductionFactor) {
+                    found_1 = true;
+                    continue;
+                }
+                if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64_t)(1 * COIN)/reductionFactor) {
+                    found_2 = true;
+                    continue;
+                }
+                if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64_t)(1 * COIN)/reductionFactor) {
+                    found_3 = true;
+                    continue;
+                }
+                if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64_t)(3 * COIN)/reductionFactor) {
+                    found_4 = true;
+                    continue;
+                }
+                if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64_t)(1 * COIN)/reductionFactor) {
+                    found_5 = true;
+                    continue;
+                }
+                if (znodePayment == output.nValue) {
+                    total_payment_tx = total_payment_tx + 1;
+                }
+            }
+        }
+
+        if (!(found_1 && found_2 && found_3 && found_4 && found_5)) {
+            return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
+                             "CTransaction::CheckTransaction() : founders reward missing");
+        }
+    }
+
+    return true;
+}
+
 bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheStore, PrecomputedTransactionData& txdata, std::vector<CScriptCheck> *pvChecks)
 {
     if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit())
@@ -2263,7 +2333,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
         }
 
         // restore inputs
-        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit()) { // not coinbases
+        if (!tx.IsCoinBase() && !tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit()) { // not coinbases
             CTxUndo &txundo = blockUndo.vtxundo[i-1];
             if (txundo.vprevout.size() != tx.vin.size()) {
                 error("DisconnectBlock(): transaction and undo data inconsistent");
@@ -2589,7 +2659,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
     batchProofContainer->init();
 
-    block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
     block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
     block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
 
@@ -2650,8 +2719,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 }
             }
 
-            // Check transaction against zerocoin state
-            if (!CheckTransaction(tx, state, false, txHash, false, pindex->nHeight, false, true, block.zerocoinTxInfo.get(), block.sigmaTxInfo.get(), block.lelantusTxInfo.get()))
+            // Check transaction against signa/lelantus state
+            if (!CheckTransaction(tx, state, false, txHash, false, pindex->nHeight, false, true, block.sigmaTxInfo.get(), block.lelantusTxInfo.get()))
                 return state.DoS(100, error("stateful zerocoin check failed"),
                                  REJECT_INVALID, "bad-txns-zerocoin");
         }
@@ -2695,7 +2764,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     }
 
-    block.zerocoinTxInfo->Complete();
     block.sigmaTxInfo->Complete();
     block.lelantusTxInfo->Complete();
 
@@ -2755,8 +2823,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         }
     }
 
-    if (!ConnectBlockZC(state, chainparams, pindex, &block, fJustCheck) ||
-        !sigma::ConnectBlockSigma(state, chainparams, pindex, &block, fJustCheck) ||
+    if (!sigma::ConnectBlockSigma(state, chainparams, pindex, &block, fJustCheck) ||
         !lelantus::ConnectBlockLelantus(state, chainparams, pindex, &block, fJustCheck))
         return false;
 
@@ -2834,36 +2901,16 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 }
 
 /**
- * Erase all of zerocoin/sigma transactions conflicting with given block from the mempool
+ * Erase all of sigma/lelantus transactions conflicting with given block from the mempool
  */
 void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block) {
     LOCK(mempool.cs);
 
-    // Erase conflicting zerocoin txs from the mempool
-    CZerocoinState *zcState = CZerocoinState::GetZerocoinState();
+    // Erase conflicting sigma/lelantus txs from the mempool
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
     BOOST_FOREACH(CTransactionRef tx, block.vtx) {
-        if (tx->IsZerocoinSpend() || tx->IsZerocoinRemint()) {
-            BOOST_FOREACH(const CTxIn &txin, tx->vin)
-            {
-                CBigNum zcSpendSerial = txin.IsZerocoinSpend() ? ZerocoinGetSpendSerialNumber(*tx, txin) : sigma::CoinRemintToV3::GetSerialNumber(*tx);
-                uint256 thisTxHash = tx->GetHash();
-                uint256 conflictingTxHash = zcState->GetMempoolConflictingTxHash(zcSpendSerial);
-                if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
-                    std::list<CTransaction> removed;
-                    auto pTx = mempool.get(conflictingTxHash);
-                    if (pTx)
-                        mempool.removeRecursive(*pTx);
-                    LogPrintf("ConnectBlock: removed conflicting zerocoin spend/remint tx %s from the mempool\n",
-                              conflictingTxHash.ToString());
-                }
-
-                // In any case we need to remove serial from mempool set
-                zcState->RemoveSpendFromMempool(zcSpendSerial);
-            }
-        }
-        else if (tx->IsSigmaSpend()) {
+        if (tx->IsSigmaSpend()) {
             BOOST_FOREACH(const CTxIn &txin, tx->vin)
             {
                 Scalar zcSpendSerial = sigma::GetSigmaSpendSerialNumber(*tx, txin);
@@ -2874,7 +2921,7 @@ void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block)
                     auto pTx = mempool.get(conflictingTxHash);
                     if (pTx)
                         mempool.removeRecursive(*pTx);
-                    LogPrintf("ConnectBlock: removed conflicting zerocoin sigma spend tx %s from the mempool\n",
+                    LogPrintf("ConnectBlock: removed conflicting sigma/lelantus spend tx %s from the mempool\n",
                                 conflictingTxHash.ToString());
                 }
 
@@ -3146,7 +3193,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
 
     for (CTransactionRef tx : block.vtx) {
         CheckTransaction(*tx, state, false, tx->GetHash(), false, pindexDelete->pprev->nHeight,
-            false, false, nullptr, block.sigmaTxInfo.get(), block.lelantusTxInfo.get());
+            false, false, block.sigmaTxInfo.get(), block.lelantusTxInfo.get());
 
         if(GetBoolArg("-batching", true)) {
             if (tx->IsLelantusJoinSplit()) {
@@ -3218,7 +3265,6 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     }
     LogPrint("bench", "- Disconnect block: %.2fms\n", (GetTimeMicros() - nStart) * 0.001);
 
-	DisconnectTipZC(block, pindexDelete);
 	sigma::DisconnectTipSigma(block, pindexDelete);
     lelantus::DisconnectTipLelantus(block, pindexDelete);
     // Roll back MTP state
@@ -4118,7 +4164,7 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 //btzc: code from vertcoin, add
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW)
 {
-    int nHeight = ZerocoinGetNHeight(block);
+    int nHeight = GetNHeight(block);
     // set nHeight to INT_MAX if block is not found in index and it's not genesis block
     if (nHeight == 0 && !block.hashPrevBlock.IsNull())
         nHeight = INT_MAX;
@@ -4128,9 +4174,7 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
 }
 
 bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot, int nHeight, bool isVerifyDB) {
-    // CheckBlock not only checks the block, but also fills up zerocoinTxInfo and sigmaTxInfo.
-    if (!block.zerocoinTxInfo)
-        block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
+    // CheckBlock not only checks the block, but also fills up lelantusTxInfo and sigmaTxInfo.
     if (!block.sigmaTxInfo)
         block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
     if (!block.lelantusTxInfo)
@@ -4186,14 +4230,14 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
     // Check transactions
     if (nHeight == INT_MAX)
-        nHeight = ZerocoinGetNHeight(block.GetBlockHeader());
+        nHeight = GetNHeight(block.GetBlockHeader());
 
     for (CTransactionRef tx : block.vtx) {
         if (nHeight >= consensusParams.nStartSigmaBlacklist && nHeight < consensusParams.nRestartSigmaWithBlacklistCheck && (tx->IsSigmaMint() || tx->IsSigmaSpend())) {
             return state.DoS(100, error("Sigma is temporarily disabled"), REJECT_INVALID, "bad-txns-zerocoin");
         }
-        // We don't check transactions against zerocoin state here, we'll check it again later in ConnectBlock
-        if (!CheckTransaction(*tx, state, false, tx->GetHash(), isVerifyDB, nHeight, false, false, NULL, NULL, NULL))
+        // We don't check transactions against sigma/lelantus state here, we'll check it again later in ConnectBlock
+        if (!CheckTransaction(*tx, state, false, tx->GetHash(), isVerifyDB, nHeight, false, false, NULL, NULL))
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                 strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), state.GetDebugMessage()));
 
@@ -5008,15 +5052,9 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams)
 
     PruneBlockIndexCandidates();
 
-    // some blocks in index can change as a result of ZerocoinBuildStateFromIndex() call
-    set<CBlockIndex *> changes;
-    ZerocoinBuildStateFromIndex(&chainActive, changes);
     sigma::BuildSigmaStateFromIndex(&chainActive);
     lelantus::BuildLelantusStateFromIndex(&chainActive);
-    if (!changes.empty()) {
-        setDirtyBlockIndex.insert(changes.begin(), changes.end());
-        FlushStateToDisk();
-    }
+
     // Initialize MTP state
     MTPState::GetMTPState()->InitializeFromChain(&chainActive, chainparams.GetConsensus());
 

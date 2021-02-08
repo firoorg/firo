@@ -9,7 +9,6 @@
 #include <list>
 
 #include "primitives/zerocoin.h"
-#include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "uint256.h"
 
 typedef std::tuple<uint160, CKeyID, int32_t> MintPoolEntry;

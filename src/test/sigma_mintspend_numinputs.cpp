@@ -53,7 +53,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
 
     pwalletMain->SetBroadcastTransactions(true);
 
-    // attempt to create a zerocoin spend with more than inputs limit.
+    // attempt to create a sigma spend with more than inputs limit.
     denominationsForTx.clear();
     CAmount nAmount(0);
     for (unsigned i = 0; i < (consensus.nMaxSigmaInputPerBlock + 1) * 2; i++){

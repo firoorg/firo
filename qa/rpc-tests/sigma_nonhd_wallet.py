@@ -36,7 +36,6 @@ class SigmaNonHDWalletTest(BitcoinTestFramework):
         self.assert_disable_nonhd(node.listsigmapubcoins)
         self.assert_disable_nonhd(node.setsigmamintstatus, "abc", True)
         self.assert_disable_nonhd(node.listsigmaspends, 0)
-        self.assert_disable_nonhd(node.remintzerocointosigma, 1)
 
 if __name__ == '__main__':
     SigmaNonHDWalletTest().main()

@@ -1,6 +1,5 @@
 #include "validation.h"
 #include "lelantus.h"
-#include "zerocoin.h" // Mostly for reusing class libzerocoin::SpendMetaData
 #include "timedata.h"
 #include "chainparams.h"
 #include "util.h"

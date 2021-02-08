@@ -2025,7 +2025,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
         std::list<CTransactionRef> lRemovedTxn;
 
-        if (!AlreadyHave(inv) && !tx.IsZerocoinSpend() && AcceptToMemoryPool(mempool, state, ptx, true, &fMissingInputs, &lRemovedTxn, false, 0, true)) {
+        if (!AlreadyHave(inv) && AcceptToMemoryPool(mempool, state, ptx, true, &fMissingInputs, &lRemovedTxn, false, 0, true)) {
             LogPrintf("Transaction %s received and added to the mempool.\n", tx.GetHash().ToString());
 
             // Changes to mempool should also be made to Dandelion stempool.
@@ -2136,7 +2136,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             BOOST_FOREACH(uint256 hash, vEraseQueue)
                 EraseOrphanTx(hash);
         }
-        else if (!AlreadyHave(inv) && tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit() && AcceptToMemoryPool(mempool, state, ptx, true, &fMissingInputsSigma, nullptr, false, 0, true)) {
+        else if (!AlreadyHave(inv) && !tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit() && AcceptToMemoryPool(mempool, state, ptx, true, &fMissingInputsSigma, nullptr, false, 0, true)) {
             // Changes to mempool should also be made to Dandelion stempool
             AcceptToMemoryPool(
                 txpools.getStemTxPool(),

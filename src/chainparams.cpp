@@ -11,7 +11,7 @@
 #include "tinyformat.h"
 #include "util.h"
 #include "utilstrencodings.h"
-#include "libzerocoin/bitcoin_bignum/bignum.h"
+#include "bitcoin_bignum/bignum.h"
 
 #include <assert.h>
 

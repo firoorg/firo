@@ -26,7 +26,6 @@
 #include "ui_interface.h"
 #include "rpc/server.h"
 #include "rpc/register.h"
-#include "zerocoin.h"
 
 #include "test/testutil.h"
 #include "test/fixtures.h"
@@ -38,7 +37,6 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 
-#include "zerocoin.h"
 #include "sigma.h"
 #include "lelantus.h"
 
@@ -48,10 +46,6 @@ ZerocoinTestingSetupBase::ZerocoinTestingSetupBase():
     // Crean sigma state, just in case someone forgot to do so.
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     sigmaState->Reset();
-
-    // Also clean up old zerocoin state.
-    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
-    zerocoinState->Reset();
 };
 
 ZerocoinTestingSetupBase::~ZerocoinTestingSetupBase() {
@@ -59,9 +53,6 @@ ZerocoinTestingSetupBase::~ZerocoinTestingSetupBase() {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     sigmaState->Reset();
 
-    // Also clean up old zerocoin state.
-    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
-    zerocoinState->Reset();
 
 }
 

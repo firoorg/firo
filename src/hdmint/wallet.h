@@ -6,7 +6,6 @@
 #define FIRO_HDMINTWALLET_H
 
 #include <map>
-#include "libzerocoin/Zerocoin.h"
 #include "hdmint/mintpool.h"
 #include "uint256.h"
 #include "primitives/zerocoin.h"

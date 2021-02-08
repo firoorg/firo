@@ -164,4 +164,11 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 /** Probability (percentage) that a Dandelion transaction enters fluff phase */
 #define DANDELION_FLUFF 10
 
+// Versions of zerocoin mint/spend transactions
+#define ZEROCOIN_TX_VERSION_3               30
+#define ZEROCOIN_TX_VERSION_3_1             31
+#define LELANTUS_TX_VERSION_4               40
+#define SIGMA_TO_LELANTUS_JOINSPLIT         41
+#define ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER  "PUBLICKEY_TO_SERIALNUMBER"
+
 #endif

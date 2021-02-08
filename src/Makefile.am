@@ -290,7 +290,6 @@ BITCOIN_CORE_H = \
   hdmint/mintpool.h \
   hdmint/tracker.h \
   hdmint/wallet.h \
-  zerocoin.h \
   sigma.h \
   lelantus.h \
   blacklists.h \
@@ -453,7 +452,6 @@ libbitcoin_server_a_SOURCES = \
   validation.cpp \
   validationinterface.cpp \
   versionbits.cpp \
-  zerocoin.cpp \
   sigma.cpp \
   lelantus.cpp \
   coin_containers.cpp \
@@ -638,32 +636,10 @@ libbitcoin_util_a_SOURCES = \
   utiltime.cpp \
   crypto/scrypt.cpp \
   primitives/block.cpp \
-  libzerocoin/bitcoin_bignum/allocators.h \
-  libzerocoin/bitcoin_bignum/bignum.h \
-  libzerocoin/bitcoin_bignum/compat.h \
-  libzerocoin/bitcoin_bignum/netbase.h \
-  libzerocoin/Accumulator.h \
-  libzerocoin/Accumulator.cpp \
-  libzerocoin/AccumulatorProofOfKnowledge.h \
-  libzerocoin/AccumulatorProofOfKnowledge.cpp \
-  libzerocoin/Coin.h \
-  libzerocoin/Coin.cpp \
-  libzerocoin/CoinSpend.h \
-  libzerocoin/CoinSpend.cpp \
-  libzerocoin/Commitment.h \
-  libzerocoin/Commitment.cpp \
-  libzerocoin/ParallelTasks.h \
-  libzerocoin/ParallelTasks.cpp \
-  libzerocoin/ParamGeneration.h \
-  libzerocoin/ParamGeneration.cpp \
-  libzerocoin/Params.h \
-  libzerocoin/Params.cpp \
-  libzerocoin/SerialNumberSignatureOfKnowledge.h \
-  libzerocoin/SerialNumberSignatureOfKnowledge.cpp \
-  libzerocoin/AccumulatorProofOfKnowledge.cpp \
-  libzerocoin/SpendMetaData.h \
-  libzerocoin/SpendMetaData.cpp \
-  libzerocoin/Zerocoin.h \
+  bitcoin_bignum/allocators.h \
+  bitcoin_bignum/bignum.h \
+  bitcoin_bignum/compat.h \
+  bitcoin_bignum/netbase.h \
   crypto/MerkleTreeProof/mtp.cpp \
   crypto/MerkleTreeProof/merkle-tree.cpp \
   $(BITCOIN_CORE_H)
@@ -730,9 +706,6 @@ libsigma_a_SOURCES = \
   sigma/coinspend.h \
   sigma/spend_metadata.cpp \
   sigma/spend_metadata.h \
-  sigma/remint.h \
-  sigma/remint.cpp \
-  sigma/remint-blacklist.cpp \
   sigma/params.h \
   sigma/params.cpp \
   sigma/openssl_context.h

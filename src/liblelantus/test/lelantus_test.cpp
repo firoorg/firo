@@ -152,7 +152,7 @@ BOOST_AUTO_TEST_CASE(imbalance_proof_should_fail)
 
     // Should be prevent from prover
     LelantusProver prover(params);
-    BOOST_CHECK_THROW(prover.proof(anonymitySets, Vin, Cin, indexs, Vout, Cout, f, proof), ZerocoinException);
+    BOOST_CHECK_THROW(prover.proof(anonymitySets, Vin, Cin, indexs, Vout, Cout, f, proof), std::runtime_error);
 
     // Use fake vin
     prover.proof(anonymitySets, FakeVin, Cin, indexs, Vout, Cout, f, proof);

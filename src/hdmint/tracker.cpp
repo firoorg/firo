@@ -11,7 +11,6 @@
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #include "hdmint/wallet.h"
-#include "libzerocoin/Zerocoin.h"
 #include "validation.h"
 #include "sigma.h"
 #include "lelantus.h"

@@ -24,7 +24,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "libzerocoin/Zerocoin.h"
 
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/erase.hpp>
@@ -45,9 +44,7 @@ class CWallet;
 class CWalletTx;
 class uint160;
 class uint256;
-class CZerocoinEntry;
 class CSigmaEntry;
-class CZerocoinSpendEntry;
 class CSigmaSpendEntry;
 
 /** Error statuses for the wallet database */
@@ -232,32 +229,20 @@ public:
     CAmount GetAccountCreditDebit(const std::string& strAccount);
     void ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& acentries);
 
-    bool WriteZerocoinEntry(const CZerocoinEntry& zerocoin);
-    bool WriteSigmaEntry(const CSigmaEntry& zerocoin);
-    bool ReadZerocoinEntry(const Bignum& pub, CZerocoinEntry& entry);
+    bool WriteSigmaEntry(const CSigmaEntry& sigma);
     bool ReadSigmaEntry(const secp_primitives::GroupElement& pub, CSigmaEntry& entry);
-    bool HasZerocoinEntry(const Bignum& pub);
     bool HasSigmaEntry(const secp_primitives::GroupElement& pub);
-    bool EraseZerocoinEntry(const CZerocoinEntry& zerocoin);
     bool EraseSigmaEntry(const CSigmaEntry& sigma);
-    void ListPubCoin(std::list<CZerocoinEntry>& listPubCoin);
     void ListSigmaPubCoin(std::list<CSigmaEntry>& listPubCoin);
-    void ListCoinSpendSerial(std::list<CZerocoinSpendEntry>& listCoinSpendSerial);
     void ListCoinSpendSerial(std::list<CSigmaSpendEntry>& listCoinSpendSerial);
     void ListLelantusSpendSerial(std::list<CLelantusSpendEntry>& listLelantusSpendSerial);
-    bool WriteCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
-    bool WriteCoinSpendSerialEntry(const CSigmaSpendEntry& zerocoinSpend);
+    bool WriteCoinSpendSerialEntry(const CSigmaSpendEntry& sigmaSpend);
     bool WriteLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend);
     bool ReadLelantusSpendSerialEntry(const secp_primitives::Scalar& serial, CLelantusSpendEntry& lelantusSpend);
-    bool HasCoinSpendSerialEntry(const Bignum& serial);
     bool HasCoinSpendSerialEntry(const secp_primitives::Scalar& serial);
     bool HasLelantusSpendSerialEntry(const secp_primitives::Scalar& serial);
-    bool EraseCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
-    bool EraseCoinSpendSerialEntry(const CSigmaSpendEntry& zerocoinSpend);
+    bool EraseCoinSpendSerialEntry(const CSigmaSpendEntry& sigmaSpend);
     bool EraseLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend);
-    bool WriteZerocoinAccumulator(libzerocoin::Accumulator accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
-    bool ReadZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
-    // bool EraseZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
 
     bool ReadCalculatedZCBlock(int& height);
     bool WriteCalculatedZCBlock(int height);
@@ -278,9 +263,8 @@ public:
     bool ReadMintSeedCount(int32_t& nCount);
     bool WriteMintSeedCount(const int32_t& nCount);
 
-    bool ArchiveMintOrphan(const CZerocoinEntry& zerocoin);
     bool ArchiveDeterministicOrphan(const CHDMint& dMint);
-    bool UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& zerocoin);
+    bool UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& sigma);
     bool UnarchiveHDMint(const uint256& hashPubcoin, bool isLelantus, CHDMint& dMint);
 
     bool WriteHDMint(const uint256& hashPubcoin, const CHDMint& dMint, bool isLelantus);
