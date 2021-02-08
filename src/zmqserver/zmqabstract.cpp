@@ -167,7 +167,11 @@ bool CZMQAbstract::WriteCert(string publicKey, string privateKey, KeyType type, 
 }
 
 vector<string> CZMQAbstract::ReadCert(KeyType type){
-    boost::filesystem::path cert = GetDataDir(true) / "certificates" / GetAuthType(type) / "keys.json"; 
+    boost::filesystem::path cert = GetDataDir(true) / "certificates" / GetAuthType(type) / "keys.json";
+
+    if (!boost::filesystem::exists(cert)) {
+        CreateCerts(true);
+    }
 
     LogPrintf("ZMQ: path @ read: %s\n", cert.string());
 
