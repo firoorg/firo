@@ -256,7 +256,7 @@ static uint64_t GetBaseAddress()
     return vmoffset;
 }
 #else
-static int dl_iterate_callback(struct dl_phdr_info* info, size_t s, void* data)
+static void dl_iterate_callback(struct dl_phdr_info* info, size_t s, void* data)
 {
     uint64_t* p = (uint64_t*)data;
     if (info->dlpi_name == nullptr || info->dlpi_name[0] == '\0') {
