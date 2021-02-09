@@ -15,7 +15,7 @@ pipeline {
                 sh 'mkdir -p dist'
                 sh 'tar -C dist --strip-components=1 -xzf firo-*.tar.gz'
                 dir('dist') {
-                    sh './configure --enable-elysium --enable-tests'
+                    sh './configure --enable-elysium --enable-tests --enable-crash-hooks'
                     sh 'make -j6'
                 }
             }
