@@ -174,7 +174,7 @@ void IsTxOutSpendable(const CWalletTx& wtx, const COutPoint& outPoint, UniValue&
     } else if (pwalletMain->IsSpent(outPoint.hash, outPoint.n)) {
         nSpendableAt = -1;
     } else if (wtx.IsCoinBase() && wtx.GetDepthInMainChain() > 0) { // block 0 coinbase and orphans are unspendable
-        nSpendableAt = nBlockHeight + COINBASE_MATURITY;
+        nSpendableAt = nBlockHeight + COINBASE_MATURITY + 1;
     } else if (wtx.tx->vout[outPoint.n].scriptPubKey.IsLelantusJoinSplit() ||
         wtx.tx->vout[outPoint.n].scriptPubKey.IsLelantusJMint() ||
         wtx.tx->vout[outPoint.n].scriptPubKey.IsLelantusMint() ||
