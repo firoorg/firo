@@ -325,7 +325,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             entry.push_back(Pair("txIndex", s.vout));
 
             entry.push_back(Pair("amount", amount));
-            entry.push_back(Pair("fee", ValueFromAmount(nFee).get_real() * COIN));
+            entry.push_back(Pair("fee", nFee));
             if(wtx.mapValue.count("label"))
                 entry.push_back(Pair("label", wtx.mapValue.at("label")));
             APIWalletTxToJSON(wtx, entry);
