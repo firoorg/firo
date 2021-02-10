@@ -26,6 +26,7 @@ using namespace boost::chrono;
 using namespace std;
 std::map<COutPoint, bool> pendingLockCoins;
 const int WALLET_SEGMENT_SIZE = 100;
+bool fHasSentInitialStateWallet = false;
 
 bool GetCoinControl(const UniValue& data, CCoinControl& cc) {
     if (find_value(data, "coinControl").isNull()) return false;
@@ -635,6 +636,7 @@ UniValue statewallet(Type type, const UniValue& data, const UniValue& auth, bool
     std::string genesisBlock = chainActive[0]->GetBlockHash().ToString();
 
     StateSinceBlock(ret, genesisBlock);
+    fHasSentInitialStateWallet = true;
 
     return ret;
 }

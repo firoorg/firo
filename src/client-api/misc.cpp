@@ -179,6 +179,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     if(!APIIsInWarmup())
         obj.push_back(Pair("reindexing",    fReindex));
     obj.push_back(Pair("safeMode",      GetWarnings("api") != ""));
+    obj.push_back(Pair("hasSentInitialStateWallet", fHasSentInitialStateWallet));
 
     if (chainActive.Tip() != NULL) {
         UniValue sporks = UniValue::VARR;
