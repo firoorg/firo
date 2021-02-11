@@ -68,7 +68,7 @@ class ListSigmaUnspentMintsValidationWithFundsTest(BitcoinTestFramework):
 
 
         # check that all sigma mints has at least 6 confirmations
-        assert len(self.nodes[0].listunspentsigmamints(6)) == denoms_total
+        assert len(self.nodes[0].listunspentsigmamints(2)) == denoms_total
 
         # generate mints for the fee
         self.nodes[0].mint(0.05)
@@ -99,7 +99,7 @@ class ListSigmaUnspentMintsValidationWithFundsTest(BitcoinTestFramework):
         assert sorted(expected_unspent_denoms) == sorted(actual_unspent_denoms), \
             'Unexpected denominations are Un-Used.'
 
-        unspent_mints = len(self.nodes[0].listunspentsigmamints(6))
+        unspent_mints = len(self.nodes[0].listunspentsigmamints(2))
         assert unspent_mints == denoms_total // 2, \
             'Amount of unspent mints was not decreased as expected: {}.'.format(unspent_mints)
         
