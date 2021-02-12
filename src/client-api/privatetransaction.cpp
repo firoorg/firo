@@ -431,13 +431,28 @@ UniValue autoMintLelantus(Type type, const UniValue& data, const UniValue& auth,
         throw JSONAPIError(RPC_WALLET_ERROR, strError);
     }
 
-    UniValue retval(UniValue::VARR);
+
+    UniValue mintTxs = UniValue::VARR;
+    UniValue inputs = UniValue::VARR;
     for (std::pair<CWalletTx, CAmount> wtxAndFee: wtxAndFees) {
         CWalletTx tx = wtxAndFee.first;
         GetMainSignals().WalletTransaction(tx);
-        retval.push_back(tx.GetHash().GetHex());
+
+        mintTxs.push_back(tx.GetHash().GetHex());
+
+        for (CTxIn txin: wtxAndFee.first.tx->vin) {
+            UniValue input = UniValue::VARR;
+            input.push_back(txin.prevout.hash.ToString());
+            input.push_back((uint64_t)txin.prevout.n);
+            inputs.push_back(input);
+        }
     }
+
     GetMainSignals().UpdatedBalance();
+
+    UniValue retval(UniValue::VOBJ);
+    retval.push_back(Pair("mints", mintTxs));
+    retval.push_back(Pair("inputs", inputs));
     return retval;
 }
 

@@ -125,7 +125,6 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
                 throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
             }
 
-            UniValue txid(UniValue::VOBJ);
             setTxFee(feePerKb);
 
             int nMinDepth = 1;
@@ -175,16 +174,26 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
             string strFailReason;
             bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason, hasCoinControl? (&cc):NULL);
             if (!fCreated)
-                throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);
-
-            string txidStr = wtx.GetHash().GetHex();
+                throw JSONAPIError(API_WALLET_ERROR, strFailReason);
 
             CValidationState state;
             if (!pwalletMain->CommitTransaction(wtx, keyChange, g_connman.get(), state))
                 throw JSONAPIError(API_WALLET_ERROR, "Transaction commit failed");
 
-            txid.push_back(Pair("txid", txidStr));
-            return txid;
+
+            UniValue inputs = UniValue::VARR;
+            for (CTxIn txin: wtx.tx->vin) {
+                UniValue input = UniValue::VARR;
+                input.push_back(txin.prevout.hash.ToString());
+                input.push_back((uint64_t)txin.prevout.n);
+                inputs.push_back(input);
+            }
+
+
+            UniValue retval(UniValue::VOBJ);
+            retval.push_back(Pair("txid",  wtx.GetHash().GetHex()));
+            retval.push_back(Pair("inputs", inputs));
+            return retval;
         }
         default: {
 
