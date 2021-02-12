@@ -94,7 +94,7 @@ class ElysiumIssuanceManagedTest(ElysiumTestFramework):
 
         # create properties
         tx1 = self.nodes[0].elysium_sendissuancemanaged(self.addrs[0], 1, 1, 0, 'main', 'indivisible', 'token1', 'http://token1.com', 'data1')
-        self.nodes[0].generate(300) # we need 500 blocks in order to specify sigma flag
+        self.nodes[0].generate(150) # we need 100 blocks in order to specify sigma flag
         self.sync_all()
 
         tx2 = self.nodes[1].elysium_sendissuancemanaged(self.addrs[1], 1, 2, 0, 'main', 'divisible', 'token2', 'http://token2.com', 'data2', 0)

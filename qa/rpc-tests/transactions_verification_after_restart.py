@@ -63,30 +63,22 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
         getcontext().prec = 6
 
         #1. Generate some blocks
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(10)
         self.sync_all()
-
-        firo_denoms = [1, 10, 25, 50, 100]
 
         #2. Send firos
         self.nodes[0].sendtoaddress('TNZMs3dtwRddC5BuZ9zQUdvksPUjmJPRfL', 25)
 
         #3. Gerate blocks
+        self.nodes[0].generate(5)
 
-        while self.nodes[0].getblockcount() < 550:
-            self.nodes[0].generate(1)
-        mn1 = prepare_mn(self.nodes[0], 1, "mn-1")
-        create_mn_collateral(self.nodes[0], mn1)
-        register_mn(self.nodes[0], mn1)
-
-        self.nodes[0].generate(150)
-
+        sigma_denoms = [0.05, 0.1, 0.5, 1, 10, 25, 100]
         #4. Mint sigma coins
         for denom in sigma_denoms:
                  self.nodes[0].mint(denom)
                  self.nodes[0].mint(denom)
 
-        self.nodes[0].generate(100)
+        self.nodes[0].generate(10)
 
         #5. 2 Spend in different time
         args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': 100}

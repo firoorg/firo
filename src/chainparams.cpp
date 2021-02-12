@@ -822,17 +822,17 @@ public:
         nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
 
         // Sigma related values.
-        consensus.nSigmaStartBlock = 400;
+        consensus.nSigmaStartBlock = 100;
         consensus.nSigmaPaddingBlock = 1;
         consensus.nDisableUnpaddedSigmaBlock = 1;
         consensus.nStartSigmaBlacklist = INT_MAX;
         consensus.nRestartSigmaWithBlacklistCheck = INT_MAX;
-        consensus.nOldSigmaBanBlock = 450;
-        consensus.nLelantusStartBlock = 1000;
-        consensus.nZerocoinV2MintMempoolGracefulPeriod = 2;
-        consensus.nZerocoinV2MintGracefulPeriod = 5;
-        consensus.nZerocoinV2SpendMempoolGracefulPeriod = 10;
-        consensus.nZerocoinV2SpendGracefulPeriod = 20;
+        consensus.nOldSigmaBanBlock = 1;
+        consensus.nLelantusStartBlock = 400;
+        consensus.nZerocoinV2MintMempoolGracefulPeriod = 1;
+        consensus.nZerocoinV2MintGracefulPeriod = 1;
+        consensus.nZerocoinV2SpendMempoolGracefulPeriod = 1;
+        consensus.nZerocoinV2SpendGracefulPeriod = 1;
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
         consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
         consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;

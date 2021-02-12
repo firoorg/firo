@@ -26,7 +26,7 @@ class SigmaNonHDWalletTest(BitcoinTestFramework):
 
     def run_test(self):
         node = self.nodes[0]
-        node.generate(500)
+        node.generate(300)
 
         self.assert_disable_nonhd(node.listunspentsigmamints)
         self.assert_disable_nonhd(node.mint, 1)

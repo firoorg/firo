@@ -77,7 +77,6 @@ class ListSigmaPubCoinsValidationWithFundsTest(BitcoinTestFramework):
 
     def run_test(self):
         getcontext().prec = 6
-        self.nodes[0].generate(400)
         self.sync_all()
 
         for denom in denoms.values():

@@ -57,8 +57,6 @@ BOOST_AUTO_TEST_CASE(partialspend)
     CAmount smallestDenomAmount;
     sigma::DenominationToInteger(denoms.back(), smallestDenomAmount);
 
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     // foreach denom from denominations
     for (const auto& denomination : denominations) {
@@ -212,9 +210,6 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
 
     sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
 
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
-
     CAmount denomAmount1;
     CAmount denomAmount01;
     sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_1, denomAmount1);
@@ -301,9 +296,6 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
 
     sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
 
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
-
     CAmount denomAmount01;
     sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_1, denomAmount01);
 
@@ -376,8 +368,7 @@ BOOST_AUTO_TEST_CASE(double_mint_into_mempool) {
         string denomination;
         std::vector<string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
         const auto& sigmaParams = sigma::Params::get_default();
-        // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-        CreateAndProcessEmptyBlocks(201, scriptPubKey);
+
         // foreach denom from denominations
         for(auto denomination : denominations)
         {

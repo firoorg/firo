@@ -226,9 +226,6 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_coinperid_limit)
     // Make sure that transactions get to mempool
     pwalletMain->SetBroadcastTransactions(true);
 
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
-
     // Generate mints ZC_SPEND_V3_COINSPERID - 1, last group ID should be 1.
     int allMints = 0;
     while (allMints < ZC_SPEND_V3_COINSPERID_LIMIT - 1) {

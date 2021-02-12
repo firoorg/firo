@@ -37,9 +37,6 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
-    //200 blocks already mined, create another 200.
-    CreateAndProcessEmptyBlocks(200, scriptPubKey);
-
     pwalletMain->SetBroadcastTransactions(true);
 
     std::vector<sigma::PrivateCoin> privCoins;
@@ -375,9 +372,6 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_usedinput)
     std::vector<std::string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
 
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     pwalletMain->SetBroadcastTransactions(true);
 

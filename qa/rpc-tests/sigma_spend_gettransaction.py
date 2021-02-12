@@ -18,7 +18,7 @@ class SigmaSpendGettransactionTest(BitcoinTestFramework):
     def run_test(self):
         # Decimal formating: 6 digits for balance will be enought 000.000
         getcontext().prec = 6
-        self.nodes[0].generate(400)
+        self.nodes[0].generate(200)
         self.sync_all()
 
         # get a watch only address

@@ -5333,7 +5333,7 @@ std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(CAmount required,
                     return std::make_pair(0, 0);
                 }
             }
-        } catch (std::runtime_error) {
+        } catch (std::runtime_error&) {
         }
 
         // 956 is constant part, mainly Schnorr and Range proof, 2560 is for each sigma/aux data

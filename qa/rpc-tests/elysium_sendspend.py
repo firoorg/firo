@@ -8,7 +8,7 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
     def run_test(self):
         super().run_test()
 
-        sigma_starting_block = 550
+        sigma_starting_block = 210
 
         self.nodes[0].generatetoaddress(sigma_starting_block - self.nodes[0].getblockcount(), self.addrs[0])
         self.sync_all()

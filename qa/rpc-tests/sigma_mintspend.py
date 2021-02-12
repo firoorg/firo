@@ -19,8 +19,6 @@ class SigmaMintSpendTest(BitcoinTestFramework):
     def run_test(self):
         # Decimal formating: 6 digits for balance will be enought 000.000
         getcontext().prec = 6
-        self.nodes[0].generate(551)
-        self.sync_all()
 
         # old denomination
         # TODO should be changed after RPC will be updated

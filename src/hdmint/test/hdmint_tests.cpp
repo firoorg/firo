@@ -55,9 +55,6 @@ BOOST_AUTO_TEST_CASE(deterministic)
 
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
-
     pwalletMain->SetBroadcastTransactions(true);
 
     vector<CHDMint> vDMints;
@@ -173,9 +170,6 @@ BOOST_AUTO_TEST_CASE(wallet_count)
 
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
-
     pwalletMain->SetBroadcastTransactions(true);
 
     for(int i=0; i<=INITIAL_MINTS;i++){
@@ -257,9 +251,6 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
     int mintCount = 0;
 
     std::vector<std::string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
-
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     pwalletMain->SetBroadcastTransactions(true);
 
