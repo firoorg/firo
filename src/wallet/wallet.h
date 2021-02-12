@@ -632,6 +632,13 @@ private:
     std::vector<char> _ssExtra;
 };
 
+// A helper struct that allows to modify outputs during Lelantus JSplit creation
+class LelantusJoinSplitBuilder;
+struct CJsplitOutModifier {
+    virtual void beforeTxSigning(CTxOut & , LelantusJoinSplitBuilder const &) = 0;
+    virtual ~CJsplitOutModifier() {};
+};
+
 /**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
@@ -1012,7 +1019,8 @@ public:
         std::vector<CLelantusEntry>& spendCoins,
         std::vector<CSigmaEntry>& sigmaSpendCoins,
         std::vector<CHDMint>& mintCoins,
-        const CCoinControl *coinControl = NULL);
+        const CCoinControl *coinControl = NULL,
+        CJsplitOutModifier *modifier = nullptr);
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
@@ -1047,7 +1055,7 @@ public:
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result);
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 
-    void JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result);
+    std::vector<CLelantusEntry> JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result);
 
     std::pair<CAmount, unsigned int> EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, const CCoinControl *coinControl);
 

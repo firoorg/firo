@@ -6868,7 +6868,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
     return true;
 }
 
-void CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result) {
+std::vector<CLelantusEntry> CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result) {
     // create transaction
     std::vector<CLelantusEntry> spendCoins; //spends
     std::vector<CSigmaEntry> sigmaSpendCoins;
@@ -6877,6 +6877,8 @@ void CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const
     result = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins);
 
     CommitLelantusTransaction(result, spendCoins, sigmaSpendCoins, mintCoins);
+
+    return spendCoins;
 }
 
 CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
@@ -6886,7 +6888,8 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
         std::vector<CLelantusEntry>& spendCoins,
         std::vector<CSigmaEntry>& sigmaSpendCoins,
         std::vector<CHDMint>& mintCoins,
-        const CCoinControl *coinControl)
+        const CCoinControl *coinControl,
+        CJsplitOutModifier *modifier)
 {
     // sanity check
     EnsureMintWalletAvailable();
@@ -6898,7 +6901,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
     // create transaction
     LelantusJoinSplitBuilder builder(*this, *zwallet, coinControl);
 
-    CWalletTx tx = builder.Build(recipients, fee, newMints);
+    CWalletTx tx = builder.Build(recipients, fee, newMints, modifier);
     spendCoins = builder.spendCoins;
     sigmaSpendCoins = builder.sigmaSpendCoins;
     mintCoins = builder.mintCoins;

@@ -5302,6 +5302,67 @@ void SendNotificationTx(CWallet * const pwallet, bip47::CPaymentChannel const & 
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
 }
+
+void SendNotificationTxLelantus(CWallet * const pwallet, bip47::CPaymentChannel const & pchannel, CWalletTx& wtxNew)
+{
+    if (pwallet->GetBroadcastTransactions() && !g_connman) {
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+    }
+
+    CBitcoinAddress const notifAddr = pchannel.getTheirPcode().getNotificationAddress();
+
+    std::vector<CRecipient> recipients;
+    std::vector<CAmount> newMints;
+
+    CRecipient receiver;
+    receiver.scriptPubKey = GetScriptForDestination(notifAddr.Get());
+    receiver.nAmount = bip47::NotificationTxValue;
+    receiver.fSubtractFeeFromAmount = false;
+
+    recipients.emplace_back(receiver);
+    CScript opReturnScript = CScript() << OP_RETURN << std::vector<unsigned char>(80);
+    recipients.push_back({opReturnScript, 0, false});
+
+
+    try {
+        std::vector<CLelantusEntry> spendCoins;
+        std::vector<CSigmaEntry> sigmaSpendCoins;
+        std::vector<CHDMint> mintCoins;
+        CAmount fee;
+        wtxNew = pwallet->CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins);
+
+        if(!sigmaSpendCoins.empty())
+            throw std::runtime_error(std::string("It looks like you have unspent Sigma coins in your wallet. "));
+
+        if(spendCoins.empty())
+            throw std::runtime_error(std::string("Cannot create a Lelantus spend to address: " + notifAddr.ToString()).c_str());
+
+        //Masking the OP_RETURN output with the key of CreateLel... call
+        CMutableTransaction amendOpReturnTx(*wtxNew.tx);
+        std::cerr << wtxNew.tx->GetHash().ToString() << "\n" << wtxNew.tx->ToString() << std::endl;
+
+
+        CKey spendPrivKey;
+        spendPrivKey.Set(spendCoins[0].ecdsaSecretKey.begin(), spendCoins[0].ecdsaSecretKey.end(), false);
+        bip47::Bytes const pcode = pchannel.getMaskedPayload(wtxNew.tx->vin[0].prevout, spendPrivKey);
+        opReturnScript = CScript() << OP_RETURN << pcode;
+
+        for(CTxOut & out : amendOpReturnTx.vout)
+            if(out.scriptPubKey[0] == OP_RETURN)
+                out.scriptPubKey = opReturnScript;
+
+        wtxNew.SetTx(CTransactionRef(new CTransaction(amendOpReturnTx)));
+        std::cerr << wtxNew.tx->GetHash().ToString() << "\n" << wtxNew.tx->ToString() << std::endl;
+
+        pwallet->CommitLelantusTransaction(wtxNew, spendCoins, sigmaSpendCoins, mintCoins);
+    }
+    catch (const InsufficientFunds& e) {
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, std::string(e.what())+" Please check your Lelantus balance is grear than " + std::to_string(1.0 * bip47::NotificationTxValue / COIN));
+    }
+    catch (const std::exception& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    }
+}
 }
 
 UniValue setupchannel(const JSONRPCRequest& request)
@@ -5327,6 +5388,12 @@ UniValue setupchannel(const JSONRPCRequest& request)
 
     bip47::CPaymentCode theirPcode(request.params[0].get_str());
 
+    if (!lelantus::IsLelantusAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not activated yet");
+    }
+
+    EnsureLelantusWalletIsAvailable();
+
     EnsureWalletIsUnlocked(pwallet);
 
     LOCK2(cs_main, pwallet->cs_wallet);
@@ -5335,7 +5402,7 @@ UniValue setupchannel(const JSONRPCRequest& request)
 
     CWalletTx wtx;
 
-    SendNotificationTx(pwallet, pchannel, wtx);
+    SendNotificationTxLelantus(pwallet, pchannel, wtx);
 
     return wtx.GetHash().GetHex();
 }
@@ -5499,10 +5566,10 @@ static const CRPCCommand commands[] =
     { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false },
 
     //bip47
-    { "wallet",             "generatepcode",            &generatepcode,            false },
-    { "wallet",             "setupchannel",             &setupchannel,             false },
-    { "wallet",             "sendtopcode",              &sendtopcode,              false },
-    { "wallet",             "listpcodes",               &listpcodes,               false }
+    { "bip47",              "generatepcode",            &generatepcode,            false },
+    { "bip47",              "setupchannel",             &setupchannel,             false },
+    { "bip47",              "sendtopcode",              &sendtopcode,              false },
+    { "bip47",              "listpcodes",               &listpcodes,               false }
 };
 
 void RegisterWalletRPCCommands(CRPCTable &t)

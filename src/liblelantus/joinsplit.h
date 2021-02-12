@@ -62,6 +62,10 @@ public:
 
     bool HasValidSerials() const;
 
+    std::vector<std::vector<unsigned char>> const & GetEcdsaPubkeys() const {
+        return ecdsaPubkeys;
+    }
+
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     void SerializationOp(Stream& s, Operation ser_action)
