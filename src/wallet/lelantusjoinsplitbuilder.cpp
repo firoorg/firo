@@ -245,35 +245,24 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         GenerateMints(newMints, changeToMint, Cout, outputMints);
 
         // shuffle outputs to provide some privacy
-        std::vector<std::pair<std::reference_wrapper<CTxOut>, bool>> outputs;
-        outputs.reserve(tx.vout.size() + outputMints.size());
-
-        for (auto& output : tx.vout) {
-            outputs.push_back(std::make_pair(std::ref(output), false));
-        }
+        std::vector<std::reference_wrapper<CTxOut>> outputs;
+        outputs.reserve(outputMints.size());
 
         for (auto& output : outputMints) {
-            outputs.push_back(std::make_pair(std::ref(output), true));
+            outputs.push_back(std::ref(output));
         }
 
         std::shuffle(outputs.begin(), outputs.end(), std::random_device());
 
         // replace outputs with shuffled one
-        std::vector<CTxOut> shuffled;
-        shuffled.reserve(outputs.size());
-
         size_t coinIdx = 0;
         for (size_t i = 0; i < outputs.size(); i++) {
             auto& output = outputs[i];
 
-            shuffled.push_back(output.first);
-
-            if (output.second) {
-                result.changes.insert(static_cast<uint32_t>(i));
-            }
+            result.changes.insert(static_cast<uint32_t>(tx.vout.size() + i -1));
 
             CScript script;
-            if ((script = output.first.get().scriptPubKey).IsLelantusJMint()) {
+            if ((script = output.get().scriptPubKey).IsLelantusJMint()) {
                 GroupElement g;
                 std::vector<unsigned char> enc;
                 lelantus::ParseLelantusJMintScript(script, g, enc);
@@ -287,7 +276,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
             }
         }
 
-        tx.vout = std::move(shuffled);
+        tx.vout.insert(tx.vout.end(), outputs.begin(), outputs.end());
 
         // fill inputs
         uint32_t sequence = CTxIn::SEQUENCE_FINAL;
