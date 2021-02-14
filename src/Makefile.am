@@ -227,7 +227,7 @@ BITCOIN_CORE_H = \
   policy/fees.h \
   policy/policy.h \
   policy/rbf.h \
-  primitives/zerocoin.h \
+  primitives/mint_spend.h \
   fixed.h \
   pow.h \
   hdmint/hdmint.h \
@@ -294,7 +294,7 @@ BITCOIN_CORE_H = \
   lelantus.h \
   blacklists.h \
   coin_containers.h \
-  zerocoin_params.h \
+  firo_params.h \
   addresstype.h \
   mtpstate.h \
   messagesigner.h \
@@ -429,7 +429,7 @@ libbitcoin_server_a_SOURCES = \
   noui.cpp \
   policy/fees.cpp \
   policy/policy.cpp \
-  primitives/zerocoin.cpp \
+  primitives/mint_spend.cpp \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
@@ -495,7 +495,7 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/authhelper.cpp \
   hdmint/tracker.cpp \
   policy/rbf.cpp \
-  primitives/zerocoin.cpp \
+  primitives/mint_spend.cpp \
   $(BITCOIN_CORE_H)
 
 # crypto primitives library

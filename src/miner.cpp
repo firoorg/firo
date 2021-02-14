@@ -422,7 +422,7 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 
     // Check transaction against sigma limits
     if (tx.IsSigmaSpend()) {
-        CAmount spendAmount = tx.IsSigmaSpend() ? sigma::GetSpendAmount(tx) : 0;
+        CAmount spendAmount = sigma::GetSpendAmount(tx);
         auto &params = chainparams.GetConsensus();
 
         if (tx.vin.size() > params.nMaxSigmaInputPerTransaction || spendAmount > params.nMaxValueSigmaSpendPerTransaction)
@@ -459,7 +459,7 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
     const CTransaction &tx = iter->GetTx();
     if (tx.IsSigmaSpend()) {
         // Update sigma stats
-        CAmount spendAmount = tx.IsSigmaSpend() ? sigma::GetSpendAmount(tx) : 0;
+        CAmount spendAmount = sigma::GetSpendAmount(tx);
 
         if ((nSigmaSpendAmount += spendAmount) > chainparams.GetConsensus().nMaxValueSigmaSpendPerBlock)
             return;

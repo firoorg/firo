@@ -6,7 +6,7 @@
 #include "primitives/block.h"
 #include "consensus/consensus.h"
 #include "validation.h"
-#include "zerocoin.h"
+#include "mint_spend.h"
 #include "hash.h"
 #include "tinyformat.h"
 #include "utilstrencodings.h"

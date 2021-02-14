@@ -12,7 +12,7 @@
 #include "liblelantus/coin.h"
 #include "liblelantus/schnorr_prover.h"
 #include "liblelantus/schnorr_verifier.h"
-#include "primitives/zerocoin.h"
+#include "primitives/mint_spend.h"
 #include "policy/policy.h"
 #include "coins.h"
 #include "batchproof_container.h"

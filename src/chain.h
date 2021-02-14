@@ -16,7 +16,7 @@
 #include <secp256k1/include/GroupElement.h>
 #include "sigma/coin.h"
 #include "evo/spork.h"
-#include "zerocoin_params.h"
+#include "firo_params.h"
 #include "util.h"
 #include "chainparams.h"
 #include "coin_containers.h"

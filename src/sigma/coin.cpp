@@ -5,7 +5,7 @@
 #include <openssl/rand.h>
 #include <sstream>
 #include "openssl_context.h"
-#include "primitives/zerocoin.h"
+#include "primitives/mint_spend.h"
 
 namespace sigma {
 

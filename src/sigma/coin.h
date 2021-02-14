@@ -3,7 +3,7 @@
 
 #include "params.h"
 #include "sigma_primitives.h"
-#include "../zerocoin_params.h"
+#include "../firo_params.h"
 #include "../consensus/validation.h"
 #include "../uint256.h"
 

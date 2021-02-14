@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef PRIMITIVES_ZEROCOIN_H
-#define PRIMITIVES_ZEROCOIN_H
+#ifndef PRIMITIVES_MINT_SPEND_H
+#define PRIMITIVES_MINT_SPEND_H
 
 #include <amount.h>
 #include <streams.h>
@@ -12,7 +12,7 @@
 #include "key.h"
 #include "sigma/coin.h"
 #include "serialize.h"
-#include "zerocoin_params.h"
+#include "firo_params.h"
 
 //struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
 struct MintMeta
@@ -272,4 +272,4 @@ uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial);
 uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue);
 }
 
-#endif //PRIMITIVES_ZEROCOIN_H
+#endif //PRIMITIVES_MINT_SPEND_H

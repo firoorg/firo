@@ -11,7 +11,7 @@
 #include "crypto/sha256.h"
 #include "sigma/coinspend.h"
 #include "sigma/coin.h"
-#include "primitives/zerocoin.h"
+#include "primitives/mint_spend.h"
 #include "batchproof_container.h"
 
 #include "blacklists.h"

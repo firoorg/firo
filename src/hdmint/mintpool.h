@@ -8,7 +8,7 @@
 #include <map>
 #include <list>
 
-#include "primitives/zerocoin.h"
+#include "primitives/mint_spend.h"
 #include "uint256.h"
 
 typedef std::tuple<uint160, CKeyID, int32_t> MintPoolEntry;

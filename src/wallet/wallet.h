@@ -21,13 +21,13 @@
 #include "wallet/rpcwallet.h"
 #include "wallet/mnemoniccontainer.h"
 #include "../base58.h"
-#include "zerocoin_params.h"
+#include "firo_params.h"
 #include "univalue.h"
 
 #include "hdmint/tracker.h"
 #include "hdmint/wallet.h"
 
-#include "primitives/zerocoin.h"
+#include "primitives/mint_spend.h"
 
 
 #include <algorithm>

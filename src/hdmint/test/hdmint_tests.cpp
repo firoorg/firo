@@ -25,7 +25,7 @@
 #include "ui_interface.h"
 #include "rpc/server.h"
 #include "rpc/register.h"
-#include "zerocoin_params.h"
+#include "firo_params.h"
 
 #include "test/fixtures.h"
 #include "test/testutil.h"
