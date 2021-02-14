@@ -259,7 +259,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         for (size_t i = 0; i < outputs.size(); i++) {
             auto& output = outputs[i];
 
-            result.changes.insert(static_cast<uint32_t>(tx.vout.size() + i -1));
+            result.changes.insert(static_cast<uint32_t>(tx.vout.size() + i));
 
             CScript script;
             if ((script = output.get().scriptPubKey).IsLelantusJMint()) {
