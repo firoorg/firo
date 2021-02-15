@@ -2929,7 +2929,7 @@ std::vector<unsigned char> CWallet::EncryptMintAmount(uint64_t amount, const sec
 }
 
 bool CWallet::DecryptMintAmount(const std::vector<unsigned char>& encryptedValue, const secp_primitives::GroupElement& pubcoin, uint64_t& amount) const {
-    if(IsLocked()) {
+    if (IsLocked() || hdChain.masterKeyID.IsNull()) {
         amount = 0;
         return true;
     }
