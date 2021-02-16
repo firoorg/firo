@@ -634,9 +634,9 @@ private:
 
 // A helper struct that allows to modify outputs during Lelantus JSplit creation
 class LelantusJoinSplitBuilder;
-struct CJsplitOutModifier {
+struct CLelantusJsplitOutModifier {
     virtual void beforeTxSigning(CTxOut & , LelantusJoinSplitBuilder const &) = 0;
-    virtual ~CJsplitOutModifier() {};
+    virtual ~CLelantusJsplitOutModifier() {};
 };
 
 /**
@@ -1020,7 +1020,7 @@ public:
         std::vector<CSigmaEntry>& sigmaSpendCoins,
         std::vector<CHDMint>& mintCoins,
         const CCoinControl *coinControl = NULL,
-        CJsplitOutModifier *modifier = nullptr);
+        CLelantusJsplitOutModifier *modifier = nullptr);
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);

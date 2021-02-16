@@ -77,6 +77,7 @@ public:
     CBitcoinAddress const & getMyNotificationAddress() const;
 
     bool acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, COutPoint const & outpoint, CPubKey const & outpoinPubkey);
+    bool acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, CTxIn const & in);
     CPaymentCode const & lastPcode() const;
     bool findTheirPcode(CPaymentCode const & pcode) const;
 

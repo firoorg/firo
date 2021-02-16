@@ -29,6 +29,7 @@
 #include "zerocoin.h"
 #include "walletexcept.h"
 #include "masternode-payments.h"
+#include "lelantusjoinsplitbuilder.h"
 
 #include <stdint.h>
 
@@ -5303,6 +5304,21 @@ void SendNotificationTx(CWallet * const pwallet, bip47::CPaymentChannel const & 
     }
 }
 
+struct Bip47OpReturnModifier : CLelantusJsplitOutModifier {
+    Bip47OpReturnModifier(bip47::CPaymentChannel const & pchannel): pchannel(pchannel) {}
+    bip47::CPaymentChannel const & pchannel;
+    virtual void beforeTxSigning(CTxOut & out, LelantusJoinSplitBuilder const & builder) {
+        if(out.scriptPubKey[0] == OP_RETURN) {
+            CKey spendPrivKey;
+            spendPrivKey.Set(builder.spendCoins[0].ecdsaSecretKey.begin(), builder.spendCoins[0].ecdsaSecretKey.end(), false);
+            CDataStream ds(SER_NETWORK, 0);
+            ds << builder.spendCoins[0].serialNumber;
+            bip47::Bytes const pcode = pchannel.getMaskedPayload((unsigned char const *)ds.vch.data(), ds.vch.size(), spendPrivKey);
+            out.scriptPubKey = CScript() << OP_RETURN << pcode;
+        }
+    }
+};
+
 void SendNotificationTxLelantus(CWallet * const pwallet, bip47::CPaymentChannel const & pchannel, CWalletTx& wtxNew)
 {
     if (pwallet->GetBroadcastTransactions() && !g_connman) {
@@ -5329,29 +5345,16 @@ void SendNotificationTxLelantus(CWallet * const pwallet, bip47::CPaymentChannel 
         std::vector<CSigmaEntry> sigmaSpendCoins;
         std::vector<CHDMint> mintCoins;
         CAmount fee;
-        wtxNew = pwallet->CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins);
+        Bip47OpReturnModifier modifier(pchannel);
+
+        wtxNew = pwallet->CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins, nullptr, &modifier);
 
         if(!sigmaSpendCoins.empty())
-            throw std::runtime_error(std::string("It looks like you have unspent Sigma coins in your wallet. "));
+            throw std::runtime_error(std::string("It looks like you have unspent Sigma coins in your wallet. Using Sigma coins for BIP47 is not supported. Please spend your Sigma coins before establishing a BIP47 channel."));
 
         if(spendCoins.empty())
             throw std::runtime_error(std::string("Cannot create a Lelantus spend to address: " + notifAddr.ToString()).c_str());
 
-        //Masking the OP_RETURN output with the key of CreateLel... call
-        CMutableTransaction amendOpReturnTx(*wtxNew.tx);
-        std::cerr << wtxNew.tx->GetHash().ToString() << "\n" << wtxNew.tx->ToString() << std::endl;
-
-
-        CKey spendPrivKey;
-        spendPrivKey.Set(spendCoins[0].ecdsaSecretKey.begin(), spendCoins[0].ecdsaSecretKey.end(), false);
-        bip47::Bytes const pcode = pchannel.getMaskedPayload(wtxNew.tx->vin[0].prevout, spendPrivKey);
-        opReturnScript = CScript() << OP_RETURN << pcode;
-
-        for(CTxOut & out : amendOpReturnTx.vout)
-            if(out.scriptPubKey[0] == OP_RETURN)
-                out.scriptPubKey = opReturnScript;
-
-        wtxNew.SetTx(CTransactionRef(new CTransaction(amendOpReturnTx)));
         std::cerr << wtxNew.tx->GetHash().ToString() << "\n" << wtxNew.tx->ToString() << std::endl;
 
         pwallet->CommitLelantusTransaction(wtxNew, spendCoins, sigmaSpendCoins, mintCoins);

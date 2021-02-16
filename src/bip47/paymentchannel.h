@@ -32,6 +32,7 @@ public:
     CPaymentCode const & getMyPcode() const;
     MyAddrContT generateMySecretAddresses(size_t fromAddr, size_t uptoAddr) const;
 
+    std::vector<unsigned char> getMaskedPayload(unsigned char const * sha512Key, size_t sha512KeySize, CKey const & outpointSecret) const;
     std::vector<unsigned char> getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret) const;
 
     MyAddrContT const & generateMyUsedAddresses();

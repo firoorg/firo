@@ -22,8 +22,10 @@ namespace utils {
 
 /******************************************************************************/
 std::unique_ptr<CPaymentCode> PcodeFromMaskedPayload(Bytes payload, COutPoint const & outpoint, CKey const & myPrivkey, CPubKey const & outPubkey);
+std::unique_ptr<CPaymentCode> PcodeFromMaskedPayload(Bytes payload, unsigned char const * data, size_t dataSize, CKey const & myPrivkey, CPubKey const & outPubkey);
 Bytes GetMaskedPcode(CTransactionRef const & tx);
 bool GetScriptSigPubkey(CTxIn const & txin, CPubKey& pubkey);
+bool GetJsplitPubkey(CTxIn const & jsplitIn, CPubKey& pubkey);
 
 /******************************************************************************/
 CExtKey Derive(CExtKey const & source, std::vector<uint32_t> const & path);

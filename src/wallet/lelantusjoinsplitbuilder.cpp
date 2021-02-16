@@ -45,7 +45,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
     const std::vector<CRecipient>& recipients,
     CAmount &fee,
     const std::vector<CAmount>& newMints,
-    CJsplitOutModifier * modifier)
+    CLelantusJsplitOutModifier * modifier)
 {
     if (recipients.empty() && newMints.empty()) {
         throw std::runtime_error(_("Either recipients or newMints has to be nonempty."));

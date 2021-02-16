@@ -1192,41 +1192,56 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
     // Handle bip47 notification tx
     if (fInsertedNew) {
         bip47::Bytes masked = bip47::utils::GetMaskedPcode(wtx.tx);
-        std::vector<bip47::Bytes> solution;
-        txnouttype txType = TX_NONSTANDARD;
-        if (!masked.empty() && wtx.tx->vin.size() > 0 && Solver(wtx.tx->vout[0].scriptPubKey, txType, solution) && txType == TX_PUBKEYHASH) {
-            txnouttype type;
-            vector<CTxDestination> addresses;
-            int nRequired;
-            if(ExtractDestinations(wtx.tx->vout[0].scriptPubKey, type, addresses, nRequired)){
-                CKey key;
-                bip47::CAccountReceiver * accFound = nullptr;
-                bip47wallet->enumerateReceivers(
-                    [&key, &addresses, &accFound](bip47::CAccountReceiver & acc)
-                    {
-                        for (CBitcoinAddress addr : addresses) {
-                            if(acc.getMyNotificationAddress() == addr) {
-                                key = acc.getMyNextAddresses()[0].second;
-                                accFound = &acc;
-                                return;
-                            }
-                        }
-                    }
-                );
-                CPubKey pubkey;
-                if(accFound && bip47::utils::GetScriptSigPubkey(wtx.tx->vin[0], pubkey)) {
-                    if(!accFound->acceptMaskedPayload(masked, wtx.tx->vin[0].prevout, pubkey)) {
-                        LogBip47("Could not accept this masked payload: %s\n", HexStr(masked));
-                    } else {
-                        LogBip47("The payment code has been accepted: %s\n", accFound->lastPcode().toString());
-                    }
-                } else {
-                    LogBip47("There is no account setup to receive payments on address: %s\n", CBitcoinAddress(addresses[0]).ToString());
-                }
-            } else {
-                LogBip47("Cannot extract destinations for tx: %s\n", wtx.tx->GetHash().ToString());
-            }
+        CKey key;
+        bip47::CAccountReceiver * accFound = nullptr;
+        int nRequired = 0;
+        vector<CTxDestination> addresses;
+        txnouttype typeRet = TX_NONSTANDARD;
+        std::vector<CTxIn>::const_iterator ijsplit;
+        std::vector<CTxOut>::const_iterator iregout;
+        bool success = false;
+
+        if (masked.empty()) goto notifTxExit;
+
+        ijsplit = std::find_if(wtx.tx->vin.begin(), wtx.tx->vin.end(), [](CTxIn const & in){ return in.scriptSig.IsLelantusJoinSplit(); });
+        if(ijsplit == wtx.tx->vin.end()) {
+            LogBip47("Joinsplit input was not found in a potential notification tx: %s\n", wtx.tx->GetHash().ToString());
+            goto notifTxExit;
         }
+
+        iregout = std::find_if(wtx.tx->vout.begin(), wtx.tx->vout.end(), [](CTxOut const & out){ return out.scriptPubKey[0] != OP_RETURN && !out.scriptPubKey.IsLelantusJMint(); });
+        if(iregout == wtx.tx->vout.end()) {
+            LogBip47("Regular out was not found in a potential notification tx: %s\n", wtx.tx->GetHash().ToString());
+            goto notifTxExit;
+        }
+        if(!ExtractDestinations(iregout->scriptPubKey, typeRet, addresses, nRequired)) {
+            LogBip47("Cannot extract destinations for tx: %s\n", wtx.tx->GetHash().ToString());
+            goto notifTxExit;
+        }
+        bip47wallet->enumerateReceivers(
+            [&key, &addresses, &accFound](bip47::CAccountReceiver & acc)
+            {
+                for (CBitcoinAddress addr : addresses) {
+                    if(acc.getMyNotificationAddress() == addr) {
+                        key = acc.getMyNextAddresses()[0].second;
+                        accFound = &acc;
+                        return;
+                    }
+                }
+            }
+        );
+        if(!accFound) {
+            LogBip47("There was no account set up to receive payments on address: %s\n", CBitcoinAddress(addresses[0]).ToString());
+            goto notifTxExit;
+        }
+        if(!accFound->acceptMaskedPayload(masked, *ijsplit)){
+            LogBip47("Could not accept this masked payload: %s\n", HexStr(masked));
+            goto notifTxExit;
+        }
+        success = true;
+notifTxExit:
+        if(success)
+            LogBip47("The payment code has been accepted: %s\n", accFound->lastPcode().toString());
     }
 
     // Break debit/credit balance caches:
@@ -6889,7 +6904,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
         std::vector<CSigmaEntry>& sigmaSpendCoins,
         std::vector<CHDMint>& mintCoins,
         const CCoinControl *coinControl,
-        CJsplitOutModifier *modifier)
+        CLelantusJsplitOutModifier *modifier)
 {
     // sanity check
     EnsureMintWalletAvailable();
@@ -8501,7 +8516,7 @@ CBitcoinAddress CWallet::GetNextAddress(bip47::CPaymentCode const & theirPcode)
 {
     boost::optional<bip47::CAccountSender*> existingAcc;
     bip47wallet->enumerateSenders(
-        [&theirPcode, &existingAcc](bip47::CAccountSender const & acc)
+        [&theirPcode, &existingAcc](bip47::CAccountSender & acc)
         {
             if(acc.getTheirPcode() == theirPcode) {
                 existingAcc.emplace(&acc);

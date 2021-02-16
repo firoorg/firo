@@ -4,6 +4,7 @@
 #include "util.h"
 #include "bip47/utils.h"
 #include "wallet/wallet.h"
+#include "lelantus.h"
 
 
 namespace bip47 {
@@ -158,6 +159,28 @@ bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & ma
     return true;
 }
 
+bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, CTxIn const & in)
+{
+    std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(in);
+    if(!jsplit)
+        return false;
+    std::unique_ptr<CPaymentCode> pcode;
+    CExtKey pcodePrivkey = utils::Derive(privkey, {0});
+    try {
+        CDataStream ds(SER_NETWORK, 0);
+        ds << jsplit->getCoinSerialNumbers()[0];
+        pcode = bip47::utils::PcodeFromMaskedPayload(maskedPayload, (unsigned char const *)ds.vch.data(), ds.vch.size(), pcodePrivkey.key, jsplit->GetEcdsaPubkeys()[0]);
+        if(!pcode)
+            return false;
+    } catch (std::runtime_error const &) {
+        return false;
+    }
+    if(findTheirPcode(*pcode))
+        return true;
+    pchannels.emplace_back(*pcode, privkey, CPaymentChannel::Side::receiver);
+    return true;
+}
+
 CPaymentCode const & CAccountReceiver::lastPcode() const
 {
     return pchannels.back().getTheirPcode();
@@ -195,7 +218,7 @@ CAccountSender & CWallet::provideSendingAccount(CPaymentCode const & theirPcode)
     size_t const accNum = (accSenders.empty() ? 0 : accSenders.rbegin()->first + 1);
     accSenders.emplace(accNum, CAccountSender(privkeySend, accNum, theirPcode));
     CAccountSender & acc = accSenders.rbegin()->second;
-    LogBip47("Created for sending to pcode: %s, accNum: %s\n", theirPcode.toString(), accNum);
+    LogBip47("Created for sending to pcode: %s, accNum: %s, myPcode: %s\n", theirPcode.toString().c_str(), accNum, acc.getMyPcode().toString().c_str());
     return acc;
 }
 

@@ -73,8 +73,7 @@ MyAddrContT CPaymentChannel::generateMySecretAddresses(size_t fromAddr, size_t u
     return result;
 }
 
-
-std::vector<unsigned char> CPaymentChannel::getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret) const
+std::vector<unsigned char> CPaymentChannel::getMaskedPayload(unsigned char const * sha512Key, size_t sha512KeySize, CKey const & outpointSecret) const
 {
     using vector = std::vector<unsigned char>;
     using iterator = vector::iterator;
@@ -84,10 +83,7 @@ std::vector<unsigned char> CPaymentChannel::getMaskedPayload(COutPoint const & o
     CPubKey const theirPubkey = theirPcode.getNthPubkey(0).pubkey;
     vector const secretPointData = CSecretPoint(outpointSecret, theirPubkey).getEcdhSecret();
 
-    CDataStream ds(SER_NETWORK, 0);
-    ds << outpoint;
-
-    CHMAC_SHA512((const unsigned char*)(ds.vch.data()), ds.vch.size())
+    CHMAC_SHA512(sha512Key, sha512KeySize)
             .Write(secretPointData.data(), secretPointData.size())
             .Finalize(maskData.data());
 
@@ -99,6 +95,14 @@ std::vector<unsigned char> CPaymentChannel::getMaskedPayload(COutPoint const & o
     }
 
     return payload;
+}
+
+std::vector<unsigned char> CPaymentChannel::getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret) const
+{
+    CDataStream ds(SER_NETWORK, 0);
+    ds << outpoint;
+
+    return getMaskedPayload((const unsigned char *)ds.vch.data(), ds.vch.size(), outpointSecret);
 }
 
 MyAddrContT const & CPaymentChannel::generateMyUsedAddresses()

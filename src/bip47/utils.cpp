@@ -17,6 +17,14 @@ namespace utils {
 
 std::unique_ptr<CPaymentCode> PcodeFromMaskedPayload(Bytes payload, COutPoint const & outpoint, CKey const & myPrivkey, CPubKey const & outPubkey)
 {
+    CDataStream ds(SER_NETWORK, 0);
+    ds << outpoint;
+
+    return PcodeFromMaskedPayload(payload, (unsigned char const *)ds.vch.data(), ds.vch.size(), myPrivkey, outPubkey);
+}
+
+std::unique_ptr<CPaymentCode> PcodeFromMaskedPayload(Bytes payload, unsigned char const * data, size_t dataSize, CKey const & myPrivkey, CPubKey const & outPubkey)
+{
     if(payload[0] != 1 || payload[1] != 0) {
         return nullptr;
     }
@@ -26,10 +34,7 @@ std::unique_ptr<CPaymentCode> PcodeFromMaskedPayload(Bytes payload, COutPoint co
     Bytes const secretPointData = CSecretPoint(myPrivkey, outPubkey).getEcdhSecret();
     Bytes maskData(CHMAC_SHA512::OUTPUT_SIZE);
 
-    CDataStream ds(SER_NETWORK, 0);
-    ds << outpoint;
-
-    CHMAC_SHA512((const unsigned char*)(ds.vch.data()), ds.vch.size())
+    CHMAC_SHA512(data, dataSize)
         .Write(secretPointData.data(), secretPointData.size())
         .Finalize(maskData.data());
 
@@ -129,7 +134,6 @@ bool GetScriptSigPubkey(CTxIn const & txin, CPubKey& pubkey)
     }
     return false;
 }
-
 
 CExtKey Derive(CExtKey const & source, std::vector<uint32_t> const & path)
 {
