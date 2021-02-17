@@ -27,9 +27,18 @@ class Bip47SendReceive(BitcoinTestFramework):
 
     def run_test(self):
 
-        self.nodes[1].generate(110)
+        self.nodes[1].generate(1010)
         node0_pcode = self.nodes[0].generatepcode("node0-pcode0")
-        
+
+        try:
+            self.nodes[1].setupchannel(node0_pcode)
+            raise AssertionError('Lelantus balance should be zero')
+        except JSONRPCException as e:
+            assert(e.error['code']==-6)
+                
+        self.nodes[1].mintlelantus(1)
+        self.nodes[1].mintlelantus(1)
+        self.nodes[1].generate(10)
         self.nodes[1].setupchannel(node0_pcode)
         self.nodes[1].sendtopcode(node0_pcode, 10)
 
