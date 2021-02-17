@@ -9,6 +9,7 @@
 #include "uint256.h"
 #include <map>
 #include <string>
+#include <set>
 
 namespace Consensus {
 
@@ -320,6 +321,9 @@ struct Params {
     int nMaxReorgDepth;
     /** block to start reorg depth enforcement */
     int nMaxReorgDepthEnforcementBlock;
+
+    /** whitelisted transactions */
+    std::set<uint256> txidWhitelist;
 
     int nEvoZnodeMinimumConfirmations;
 
