@@ -58,6 +58,7 @@ void AutoMintDialog::accept()
         if (!lelantusModel->unlockWallet(passphase, lock ? 0 : 60 * 1000)) {
             QMessageBox::critical(this, tr("Wallet unlock failed"),
                                   tr("The passphrase was incorrect."));
+            QDialog::reject();
             return;
         }
     }
@@ -75,6 +76,8 @@ void AutoMintDialog::accept()
     } catch (std::runtime_error const &e) {
         status = AutoMintAck::FailToMint;
         error = e.what();
+        QMessageBox::critical(this, tr("Unable to generate mint"),
+                              tr(error.toLocal8Bit().data()));
     }
 
     QDialog::accept();
@@ -130,7 +133,7 @@ void AutoMintDialog::paintEvent(QPaintEvent *event)
     painter.begin(this);
 
     if (progress != AutoMintProgress::Start) {
-        auto progressMessage = progress == AutoMintProgress::Unlocking ? "Unlocking wallet..." : "Anonymizing...";
+        auto progressMessage = progress == AutoMintProgress::Unlocking ? tr("Unlocking wallet...") : tr("Anonymizing...");
         auto size = QFontMetrics(painter.font()).size(Qt::TextSingleLine, progressMessage);
         painter.drawText(
             (width() - size.width()) / 2,
