@@ -632,12 +632,7 @@ private:
     std::vector<char> _ssExtra;
 };
 
-// A helper struct that allows to modify outputs during Lelantus JSplit creation
 class LelantusJoinSplitBuilder;
-struct CLelantusJsplitOutModifier {
-    virtual void beforeTxSigning(CTxOut & , LelantusJoinSplitBuilder const &) = 0;
-    virtual ~CLelantusJsplitOutModifier() {};
-};
 
 /**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
@@ -1020,7 +1015,7 @@ public:
         std::vector<CSigmaEntry>& sigmaSpendCoins,
         std::vector<CHDMint>& mintCoins,
         const CCoinControl *coinControl = NULL,
-        CLelantusJsplitOutModifier *modifier = nullptr);
+        std::function<void(CTxOut & , LelantusJoinSplitBuilder const &)> modifier = nullptr);
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);

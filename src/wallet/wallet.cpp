@@ -6904,7 +6904,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
         std::vector<CSigmaEntry>& sigmaSpendCoins,
         std::vector<CHDMint>& mintCoins,
         const CCoinControl *coinControl,
-        CLelantusJsplitOutModifier *modifier)
+        std::function<void(CTxOut & , LelantusJoinSplitBuilder const &)> modifier)
 {
     // sanity check
     EnsureMintWalletAvailable();
