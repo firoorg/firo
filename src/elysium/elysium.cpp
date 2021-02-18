@@ -1831,14 +1831,13 @@ int elysium::WalletTxBuilder(
             PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, strFailReason);
             return MP_ERR_CREATE_TX;
         }
-        break;
     case InputMode::LELANTUS:
         try {
             wtxNew = pwalletMain->CreateLelantusJoinSplitTransaction(
                 vecRecipients, fee, {}, lelantusSpendCoins, lelantusMintCoins, &coinControl);
         } catch (std::exception const &err) {
             PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, err.what());
-            return MP_ERR_CREATE_SIGMA_TX;
+            return MP_ERR_CREATE_LELANTUS_TX;
         }
         break;
     default:
