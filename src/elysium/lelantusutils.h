@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_ELYSIUM_LELANTUSUTILS_H
-#define ZCOIN_ELYSIUM_LELANTUSUTILS_H
+#ifndef FIRO_ELYSIUM_LELANTUSUTILS_H
+#define FIRO_ELYSIUM_LELANTUSUTILS_H
 
 #include "../base58.h"
 #include "../uint256.h"
@@ -22,4 +22,4 @@ bool DecryptMintAmount(const EncryptedValue& encryptedValue, const secp_primitiv
 
 } // namespace elysium
 
-#endif // ZCOIN_ELYSIUM_LELANTUSUTILS_H
+#endif // FIRO_ELYSIUM_LELANTUSUTILS_H

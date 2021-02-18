@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_ELYSIUM_LELANTUSWALLET_H
-#define ZCOIN_ELYSIUM_LELANTUSWALLET_H
+#ifndef FIRO_ELYSIUM_LELANTUSWALLET_H
+#define FIRO_ELYSIUM_LELANTUSWALLET_H
 
 #include "ecdsa_context.h"
 #include "property.h"
@@ -235,4 +235,4 @@ private:
 
 } // namespace elysium
 
-#endif // ZCOIN_ELYSIUM_LELANTUSWALLET_H
+#endif // FIRO_ELYSIUM_LELANTUSWALLET_H

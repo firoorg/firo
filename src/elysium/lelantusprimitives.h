@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_ELYSIUM_LELANTUSPRIMITIVES_H
-#define ZCOIN_ELYSIUM_LELANTUSPRIMITIVES_H
+#ifndef FIRO_ELYSIUM_LELANTUSPRIMITIVES_H
+#define FIRO_ELYSIUM_LELANTUSPRIMITIVES_H
 
 #include "../liblelantus/coin.h"
 #include "../liblelantus/joinsplit.h"
@@ -96,4 +96,4 @@ lelantus::JoinSplit CreateJoinSplit(
 
 } // namespace elysium
 
-#endif // ZCOIN_ELYSIUM_LELANTUSPRIMITIVES_H
+#endif // FIRO_ELYSIUM_LELANTUSPRIMITIVES_H

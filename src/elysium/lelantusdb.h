@@ -1,9 +1,9 @@
-// Copyright (c) 2020 The Zcoin Core developers
+// Copyright (c) 2020 The Firo Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_ELYSIUM_LELANTUSDB_H
-#define ZCOIN_ELYSIUM_LELANTUSDB_H
+#ifndef FIRO_ELYSIUM_LELANTUSDB_H
+#define FIRO_ELYSIUM_LELANTUSDB_H
 
 #include "../dbwrapper.h"
 #include "../sync.h"
@@ -103,4 +103,4 @@ extern LelantusDb *lelantusDb;
 
 } // namespace elysium
 
-#endif // ZCOIN_ELYSIUM_LELANTUSDB_H
+#endif // FIRO_ELYSIUM_LELANTUSDB_H

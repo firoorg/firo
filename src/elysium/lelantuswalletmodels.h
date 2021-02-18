@@ -1,5 +1,5 @@
-#ifndef ZCOIN_ELYSIUM_LELANTUSWALLETMODELS_H
-#define ZCOIN_ELYSIUM_LELANTUSWALLETMODELS_H
+#ifndef FIRO_ELYSIUM_LELANTUSWALLETMODELS_H
+#define FIRO_ELYSIUM_LELANTUSWALLETMODELS_H
 
 #include "property.h"
 #include "lelantusprimitives.h"
@@ -177,4 +177,4 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const L
 
 } // namespace std
 
-#endif // ZCOIN_ELYSIUM_LELANTUSWALLETMODELS_H
+#endif // FIRO_ELYSIUM_LELANTUSWALLETMODELS_H
