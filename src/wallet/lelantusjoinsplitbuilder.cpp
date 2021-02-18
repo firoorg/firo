@@ -444,7 +444,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
                     blockHash,
                     set) < 2)
                 throw std::runtime_error(
-                        _("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"));
+                        _("Has to have at least two mint coins with at least 2 confirmation in order to spend a coin"));
             groupBlockHashes[groupId] = blockHash;
             anonymity_sets[groupId] = set;
         }
@@ -491,7 +491,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
                     blockHash,
                     group) < 2)
                 throw std::runtime_error(
-                        _("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"));
+                        _("Has to have at least two mint coins with at least 2 confirmation in order to spend a coin"));
             std::vector<lelantus::PublicCoin> set;
             set.reserve(group.size());
             for(auto& coin : group) {

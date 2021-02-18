@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         std::vector<CRecipient> recipients = {
                 {GetScriptForDestination(randomAddr.Get()), nAmount, true},
         };
-        //Add 1 more blocks and verify that Mint can not be spent until 6 blocks verification
+        //Add 1 more blocks and verify that Mint can not be spent until 2 blocks verification
         BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as 2 blocks have not passed yet,
 
         b = CreateAndProcessBlock(scriptPubKey);
@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
         wtx.Init(NULL);
 
-        BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as it has to have at least two mint coins with at least 6 confirmation
+        BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as it has to have at least two mint coins with at least 2 confirmation
 
         vDMints.clear();
         vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
@@ -126,7 +126,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
 
         previousHeight = chainActive.Height();
-        //Add 1 more blocks and verify that Mint can not be spent until 6 blocks verification
+        //Add 1 more blocks and verify that Mint can not be spent until 2 blocks verification
         wtx.Init(NULL);
         BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as 2 blocks have not passed yet,
 

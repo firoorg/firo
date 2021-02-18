@@ -67,7 +67,7 @@ class ListSigmaUnspentMintsValidationWithFundsTest(BitcoinTestFramework):
             'This txid with denom {} should be in list of unspent mints: {}, but was not'.format((mint2, denom), mints)
 
 
-        # check that all sigma mints has at least 6 confirmations
+        # check that all sigma mints has at least 2 confirmations
         assert len(self.nodes[0].listunspentsigmamints(2)) == denoms_total
 
         # generate mints for the fee

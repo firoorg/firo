@@ -101,7 +101,7 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
         groupId,
         signer->lastBlockOfGroup,
         signer->group) < 2) {
-        throw std::runtime_error(_("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"));
+        throw std::runtime_error(_("Has to have at least two mint coins with at least 2 confirmation in order to spend a coin"));
     }
 
     return signer;

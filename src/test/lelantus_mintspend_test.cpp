@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(lelantus_mintspend_test)
         {GetScriptForDestination(randomAddr.Get()), 30 * COIN, true},
     };
 
-    // Add 1 more blocks and verify that Mint can not be spent until 6 blocks verification
+    // Add 1 more blocks and verify that Mint can not be spent until 2blocks verification
     {
         CWalletTx wtx;
         BOOST_CHECK_THROW(pwalletMain->JoinSplitLelantus(recipients, {}, wtx), WalletError); //this must throw as it has to have at least two mint coins with at least 2 confirmation
