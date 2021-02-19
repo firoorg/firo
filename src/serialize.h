@@ -26,6 +26,7 @@
 #include "prevector.h"
 #include <memory>
 #include "definition.h"
+#include <boost/optional.hpp>
 using namespace std;
 
 
@@ -783,6 +784,13 @@ template<typename Stream, typename T> void Serialize(Stream& os, const std::uniq
 template<typename Stream, typename T> void Unserialize(Stream& os, std::unique_ptr<const T>& p);
 
 /**
+ * optional
+ */
+template<typename Stream, typename T> void Serialize(Stream& os, const boost::optional<const T>& p);
+template<typename Stream, typename T> void Unserialize(Stream& os, boost::optional<const T>& p);
+
+
+/**
  * If none of the specialized versions above matched, default to calling member function.
  */
 template<typename Stream, typename T>
@@ -1105,6 +1113,29 @@ template<typename Stream, typename T>
 void Unserialize(Stream& is, std::shared_ptr<const T>& p)
 {
     p = std::make_shared<const T>(deserialize, is);
+}
+
+
+
+/**
+ * optional
+ */
+template<typename Stream, typename T> void
+Serialize(Stream& os, const boost::optional<const T>& p)
+{
+    bool exists(p);
+    Serialize(os, exists);
+    if (exists)
+        Serialize(os, *p);
+}
+
+template<typename Stream, typename T>
+void Unserialize(Stream& is, boost::optional<const T>& p)
+{
+    bool exists;
+    Unserialize(is, exists);
+    if (exists)
+        p.reset(new T(deserialize, is));
 }
 
 

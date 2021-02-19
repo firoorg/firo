@@ -24,6 +24,17 @@ public:
     bool addressUsed(CBitcoinAddress const & address);
 
     CPaymentCode const & getMyPcode() const;
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(accountNum);
+        READWRITE(privkey);
+        READWRITE(pubkey);
+        READWRITE(myPcode);
+    }
+
 protected:
     size_t const accountNum;
     CExtKey privkey;
@@ -52,6 +63,15 @@ public:
     std::vector<unsigned char> getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret);
 
     CPaymentCode const & getTheirPcode() const;
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(theirPcode);
+        READWRITE(pchannel);
+    }
+
 private:
     CPaymentCode theirPcode;
     boost::optional<CPaymentChannel> mutable pchannel;
@@ -82,6 +102,15 @@ public:
     bool findTheirPcode(CPaymentCode const & pcode) const;
 
     std::string const & getLabel() const;
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(label);
+        READWRITE(pchannels);
+    }
+
 private:
     using PChannelContT = std::vector<CPaymentChannel>;
     PChannelContT mutable pchannels;
@@ -111,10 +140,16 @@ public:
     CAccountReceiver & createReceivingAccount(std::string const & label);
     CAccountSender & provideSendingAccount(CPaymentCode const & theirPcode);
 
-    template<class E>
-    void enumerateSenders(E e);
-    template<class E>
-    void enumerateReceivers(E e);
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(accSenders);
+        READWRITE(accReceivers);
+    }
+
+    template<class E> void enumerateSenders(E e);
+    template<class E> void enumerateReceivers(E e);
 private:
     std::map<size_t, CAccountSender> accSenders;
     std::map<size_t, CAccountReceiver> accReceivers;

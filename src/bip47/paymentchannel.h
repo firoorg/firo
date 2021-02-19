@@ -39,6 +39,18 @@ public:
     MyAddrContT const & generateMyNextAddresses();
     bool markAddressUsed(CBitcoinAddress const &);
 
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(myChannelKey);
+        READWRITE(theirPcode);
+        READWRITE(usedAddressCount);
+        READWRITE(theirUsedAddressCount);
+        char sd = side;
+        READWRITE(sd);
+        side = Side(sd);
+    }
 private:
     CExtKey myChannelKey;
     CPaymentCode theirPcode;
