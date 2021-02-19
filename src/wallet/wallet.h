@@ -111,6 +111,10 @@ class CReserveKey;
 class CScript;
 class CTxMemPool;
 class CWalletTx;
+namespace bip47 {
+class CPaymentChannel;
+}
+
 
 namespace bip47 {
     class CPaymentCode;

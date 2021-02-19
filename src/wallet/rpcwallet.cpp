@@ -30,6 +30,7 @@
 #include "walletexcept.h"
 #include "masternode-payments.h"
 #include "lelantusjoinsplitbuilder.h"
+#include "bip47/paymentchannel.h"
 
 #include <stdint.h>
 

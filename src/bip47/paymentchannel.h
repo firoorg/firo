@@ -18,7 +18,7 @@ namespace bip47 {
 class CPaymentChannel
 {
 public:
-    enum struct Side {
+    enum struct Side : unsigned char {
         sender = 0,
         receiver
     };
@@ -39,6 +39,7 @@ public:
     MyAddrContT const & generateMyNextAddresses();
     bool markAddressUsed(CBitcoinAddress const &);
 
+    ADD_DESERIALIZE_CTOR(CPaymentChannel);
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     void SerializationOp(Stream& s, Operation ser_action)
@@ -47,7 +48,7 @@ public:
         READWRITE(theirPcode);
         READWRITE(usedAddressCount);
         READWRITE(theirUsedAddressCount);
-        char sd = side;
+        unsigned char sd(static_cast<unsigned char>(side));
         READWRITE(sd);
         side = Side(sd);
     }

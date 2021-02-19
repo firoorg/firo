@@ -46,6 +46,12 @@ static const unsigned int MAX_SIZE = 0x02000000;
 struct deserialize_type {};
 constexpr deserialize_type deserialize {};
 
+#define ADD_DESERIALIZE_CTOR(CLASS_NAME)                              \
+template <typename Stream>                                            \
+CLASS_NAME(deserialize_type, Stream& s) {                             \
+    Unserialize(s);                                                   \
+}                                                                     \
+
 /**
  * Used to bypass the rule against non-const reference to temporary
  * where it makes sense with wrappers such as CFlatData or CTxDB

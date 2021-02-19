@@ -10,6 +10,7 @@ static const unsigned int BIP47_INDEX = 47;
 
 class CPaymentCode {
 public:
+    CPaymentCode() = default;
     CPaymentCode(std::string const & paymentCode);
     CPaymentCode(CPubKey const & pubKey, ChainCode const & chainCode);
 

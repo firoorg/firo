@@ -16,7 +16,6 @@
 
 #include "hdmint/hdmint.h"
 #include "hdmint/mintpool.h"
-#include "bip47/paymentchannel.h"
 #include "../secp256k1/include/GroupElement.h"
 #include "../secp256k1/include/Scalar.h"
 
@@ -50,9 +49,6 @@ class CZerocoinEntry;
 class CSigmaEntry;
 class CZerocoinSpendEntry;
 class CSigmaSpendEntry;
-namespace bip47 {
-class CPaymentChannel;
-}
 
 /** Error statuses for the wallet database */
 enum DBErrors
