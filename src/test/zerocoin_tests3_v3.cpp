@@ -94,17 +94,15 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         };
 
         previousHeight = chainActive.Height();
-        //Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
-        for (int i = 0; i < 5; i++)
+        //Add 1 more blocks and verify that Mint can not be spent until 6 blocks verification
         {
-            {
-                CWalletTx wtx;
-                BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as 6 blocks have not passed yet,
-            }
-
-            CBlock b = CreateAndProcessBlock(scriptPubKey);
+            CWalletTx wtx;
+            BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as 6 blocks have not passed yet,
         }
-        BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
+
+        b = CreateAndProcessBlock(scriptPubKey);
+
+        BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
         {
             CWalletTx wtx;
@@ -131,17 +129,15 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
 
 
         previousHeight = chainActive.Height();
-        //Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
-        for (int i = 0; i < 5; i++)
+        //Add 1 more blocks and verify that Mint can not be spent until 6 blocks verification
         {
-            {
-                CWalletTx wtx;
-                BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as 6 blocks have not passed yet,
-            }
-            CBlock b = CreateAndProcessBlock(scriptPubKey);
+            CWalletTx wtx;
+            BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as 6 blocks have not passed yet,
         }
+        b = CreateAndProcessBlock(scriptPubKey);
 
-        BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
+
+        BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
         {
             CWalletTx wtx;

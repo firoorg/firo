@@ -2737,48 +2737,57 @@ CRecipient CWallet::CreateLelantusMintRecipient(
 {
     EnsureMintWalletAvailable();
 
-    CWalletDB walletdb(pwalletMain->strWalletFile);
-    uint160 seedID;
-    if (generate) {
-        // Generate and store secrets deterministically in the following function.
-        pwalletMain->zwallet->GenerateLelantusMint(walletdb, coin, vDMint, seedID);
+    while (true) {
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        uint160 seedID;
+        if (generate) {
+            // Generate and store secrets deterministically in the following function.
+            pwalletMain->zwallet->GenerateLelantusMint(walletdb, coin, vDMint, seedID);
+        }
+
+        // Get a copy of the 'public' portion of the coin. You should
+        // embed this into a Lelantus 'MINT' transaction along with a series of currency inputs
+        auto &pubCoin = coin.getPublicCoin();
+
+        if (!pubCoin.validate()) {
+            throw std::runtime_error("Unable to mint a lelantus coin.");
+        }
+
+        // Create script for coin
+        CScript script;
+        // opcode is inserted as 1 byte according to file script/script.h
+        script << OP_LELANTUSMINT;
+
+        // and this one will write the size in different byte lengths depending on the length of vector. If vector size is <0.4c, which is 76, will write the size of vector in just 1 byte. In our case the size is always 34, so must write that 34 in 1 byte.
+        std::vector<unsigned char> vch = pubCoin.getValue().getvch();
+        script.insert(script.end(), vch.begin(), vch.end()); //this uses 34 byte
+
+        // generating schnorr proof
+        CDataStream serializedSchnorrProof(SER_NETWORK, PROTOCOL_VERSION);
+        lelantus::GenerateMintSchnorrProof(coin, serializedSchnorrProof);
+        script.insert(script.end(), serializedSchnorrProof.begin(), serializedSchnorrProof.end()); //this uses 98 byte
+
+        auto pubcoin = vDMint.GetPubcoinValue() +
+                       lelantus::Params::get_default()->get_h1() * Scalar(vDMint.GetAmount()).negate();
+        uint256 hashPub = primitives::GetPubCoinValueHash(pubcoin);
+        CDataStream ss(SER_GETHASH, 0);
+        ss << hashPub;
+        ss << seedID;
+        uint256 hashForRecover = Hash(ss.begin(), ss.end());
+
+        // Check if there is a mint with same private data in chain, most likely Hd mint state corruption,
+        // If yes, try with new counter
+        GroupElement dummyValue;
+        if (lelantus::CLelantusState::GetState()->HasCoinTag(dummyValue, hashForRecover))
+            continue;
+
+        CDataStream serializedHash(SER_NETWORK, 0);
+        serializedHash << hashForRecover;
+        script.insert(script.end(), serializedHash.begin(), serializedHash.end());
+
+        // overall Lelantus mint script size is 1 + 34 + 98 + 32 = 165 byte
+        return {script, CAmount(coin.getV()), false};
     }
-
-    // Get a copy of the 'public' portion of the coin. You should
-    // embed this into a Lelantus 'MINT' transaction along with a series of currency inputs
-    auto& pubCoin = coin.getPublicCoin();
-
-    if (!pubCoin.validate()) {
-        throw std::runtime_error("Unable to mint a lelantus coin.");
-    }
-
-    // Create script for coin
-    CScript script;
-    // opcode is inserted as 1 byte according to file script/script.h
-    script << OP_LELANTUSMINT;
-
-    // and this one will write the size in different byte lengths depending on the length of vector. If vector size is <0.4c, which is 76, will write the size of vector in just 1 byte. In our case the size is always 34, so must write that 34 in 1 byte.
-    std::vector<unsigned char> vch = pubCoin.getValue().getvch();
-    script.insert(script.end(), vch.begin(), vch.end()); //this uses 34 byte
-
-    // generating schnorr proof
-    CDataStream  serializedSchnorrProof(SER_NETWORK, PROTOCOL_VERSION);
-    lelantus::GenerateMintSchnorrProof(coin, serializedSchnorrProof);
-    script.insert(script.end(), serializedSchnorrProof.begin(), serializedSchnorrProof.end()); //this uses 98 byte
-
-    auto pubcoin = vDMint.GetPubcoinValue() + lelantus::Params::get_default()->get_h1() * Scalar(vDMint.GetAmount()).negate();
-    uint256 hashPub = primitives::GetPubCoinValueHash(pubcoin);
-    CDataStream ss(SER_GETHASH, 0);
-    ss << hashPub;
-    ss << seedID;
-    uint256 hashForRecover = Hash(ss.begin(), ss.end());
-    CDataStream serializedHash(SER_NETWORK, 0);
-    serializedHash << hashForRecover;
-    script.insert(script.end(), serializedHash.begin(), serializedHash.end());
-
-    // overall Lelantus mint script size is 1 + 34 + 98 + 32 = 165 byte
-    return {script, CAmount(coin.getV()), false};
-
 }
 
 // coinsIn has to be sorted in descending order.
@@ -2905,7 +2914,7 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinContro
 
     std::set<COutPoint> lockedCoins = setLockedCoins;
 
-    // Filter out coins which are not confirmed, I.E. do not have at least 6 blocks
+    // Filter out coins which are not confirmed, I.E. do not have at least 2 blocks
     // above them, after they were minted.
     // Also filter out used coins.
     // Finally filter out coins that have not been selected from CoinControl should that be used
@@ -2923,7 +2932,7 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinContro
         std::vector<sigma::PublicCoin> coinOuts;
         sigmaState->GetCoinSetForSpend(
             &chainActive,
-            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
+            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 2 confirmation for mint to spend
             coin.get_denomination(),
             coinId,
             hashOut,
@@ -2983,7 +2992,7 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
 
     std::set<COutPoint> lockedCoins = setLockedCoins;
 
-    // Filter out coins which are not confirmed, I.E. do not have at least 6 blocks
+    // Filter out coins which are not confirmed, I.E. do not have at least 2 blocks
     // above them, after they were minted.
     // Also filter out used coins.
     // Finally filter out coins that have not been selected from CoinControl should that be used
@@ -3000,7 +3009,7 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
         std::vector<lelantus::PublicCoin> coinOuts;
         state->GetCoinSetForSpend(
             &chainActive,
-            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
+            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 2 confirmation for mint to spend
             coinId,
             hashOut,
             coinOuts
@@ -3068,7 +3077,7 @@ std::vector<unsigned char> CWallet::EncryptMintAmount(uint64_t amount, const sec
 }
 
 bool CWallet::DecryptMintAmount(const std::vector<unsigned char>& encryptedValue, const secp_primitives::GroupElement& pubcoin, uint64_t& amount) const {
-    if(IsLocked()) {
+    if (IsLocked() || hdChain.masterKeyID.IsNull()) {
         amount = 0;
         return true;
     }
@@ -5873,7 +5882,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
             }
 
             if (coinId == INT_MAX){
-                strFailReason = _("it has to have at least two mint coins with at least 6 confirmation in order to spend a coin");
+                strFailReason = _("it has to have at least two mint coins with at least 2 confirmation in order to spend a coin");
                 return false;
             }
 
@@ -6164,7 +6173,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
 
                 // If no suitable coin found, fail.
                 if (coinId == INT_MAX){
-                    strFailReason = _("it has to have at least two mint coins with at least 6 confirmation in order to spend a coin");
+                    strFailReason = _("it has to have at least two mint coins with at least 2 confirmation in order to spend a coin");
                     return false;
                 }
                 // 1. Get the current accumulator for denomination selected
