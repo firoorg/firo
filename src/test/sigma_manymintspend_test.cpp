@@ -97,19 +97,16 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         std::vector<CRecipient> recipients = {
                 {GetScriptForDestination(randomAddr.Get()), nAmount, true},
         };
-        //Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
-        for (int i = 0; i < 5; i++)
-        {
-            BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as 6 blocks have not passed yet,
+        //Add 1 more blocks and verify that Mint can not be spent until 2 blocks verification
+        BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as 2 blocks have not passed yet,
 
-            b = CreateAndProcessBlock(scriptPubKey);
-            wtx.Init(NULL);
-        }
-        BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
+        b = CreateAndProcessBlock(scriptPubKey);
+        wtx.Init(NULL);
+        BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
         wtx.Init(NULL);
 
-        BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as it has to have at least two mint coins with at least 6 confirmation
+        BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as it has to have at least two mint coins with at least 2 confirmation
 
         vDMints.clear();
         vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
@@ -126,17 +123,14 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
 
         previousHeight = chainActive.Height();
-        //Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
+        //Add 1 more blocks and verify that Mint can not be spent until 2 blocks verification
         wtx.Init(NULL);
-        for (int i = 0; i < 5; i++)
-        {
-            BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as 6 blocks have not passed yet,
+        BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as 2 blocks have not passed yet,
 
-            b = CreateAndProcessBlock(scriptPubKey);
-            wtx.Init(NULL);
-        }
+        b = CreateAndProcessBlock(scriptPubKey);
+        wtx.Init(NULL);
 
-        BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
+        BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
         // Create two spend transactions using the same mints
         std::vector<CSigmaEntry> coins;

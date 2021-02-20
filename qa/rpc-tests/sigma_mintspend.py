@@ -43,31 +43,29 @@ class SigmaMintSpendTest(BitcoinTestFramework):
                 'Unexpected current balance: {}, should be minus two mints and two fee, ' \
                 'but start was {}'.format(cur_bal, start_bal)
 
-        # confirmations should be i due to less than 4 blocks was generated after transactions send
-        for i in range(5):
-            for tr in mint_trans:
-                info = self.nodes[0].gettransaction(tr)
-                confrms = info['confirmations']
-                assert confrms == i, \
-                    'Confirmations should be {}, ' \
-                    'due to {} blocks was generated after transaction was created,' \
-                    'but was {}'.format(i, i, confrms)
+        for tr in mint_trans:
+            info = self.nodes[0].gettransaction(tr)
+            confrms = info['confirmations']
+            assert confrms == 0, \
+                'Confirmations should be {}, ' \
+                'due to {} blocks was generated after transaction was created,' \
+                'but was {}'.format(0, 0, confrms)
 
-                tr_type = info['details'][0]['category']
-                assert tr_type == 'mint', 'Unexpected transaction type: {}'.format(tr_type)
+            tr_type = info['details'][0]['category']
+            assert tr_type == 'mint', 'Unexpected transaction type: {}'.format(tr_type)
 
-            for denom in denoms:
-                res = False
-                args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom}
-                try:
-                    res = self.nodes[0].spendmany("", args)
-                except JSONRPCException as ex:
-                    assert ex.error['message'] == 'Insufficient funds'
+        for denom in denoms:
+            res = False
+            args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom}
+            try:
+                res = self.nodes[0].spendmany("", args)
+            except JSONRPCException as ex:
+                assert ex.error['message'] == 'Insufficient funds'
 
-                assert not res, 'Did not raise spend exception, but should be.'
+            assert not res, 'Did not raise spend exception, but should be.'
 
-            self.nodes[0].generate(1)
-            self.sync_all()
+        self.nodes[0].generate(1)
+        self.sync_all()
 
         # generate last confirmation block - now all transactions should be confimed
         self.nodes[0].generate(1)
@@ -76,9 +74,9 @@ class SigmaMintSpendTest(BitcoinTestFramework):
         for tr in mint_trans:
             info = self.nodes[0].gettransaction(tr)
             confrms = info['confirmations']
-            assert confrms == 6, \
-                'Confirmations should be 6, ' \
-                'due to 6 blocks was generated after transaction was created,' \
+            assert confrms == 2, \
+                'Confirmations should be 2, ' \
+                'due to 2 blocks was generated after transaction was created,' \
                 'but was {}.'.format(confrms)
             tr_type = info['details'][0]['category']
             assert tr_type == 'mint', 'Unexpected transaction type'

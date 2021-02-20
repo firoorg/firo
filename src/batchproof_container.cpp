@@ -161,7 +161,7 @@ void BatchProofContainer::batch_lelantus() {
             uint256 blockHash;
             state->GetCoinSetForSpend(
                     &chainActive,
-                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
+                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 2 confirmation for mint to spend
                     itr.first.first,
                     blockHash,
                     coins);
