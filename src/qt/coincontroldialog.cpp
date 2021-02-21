@@ -523,8 +523,11 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
     // calculation
     if (nQuantity > 0)
     {
-        if(anonymousMode){
-            std::tie(nPayFee, nBytes) = model->getWallet()->EstimateJoinSplitFee(nPayAmount,CoinControlDialog::fSubtractFeeFromAmount, coinControl);
+        if (anonymousMode) {
+            // 956 is constant part, mainly Schnorr and Range proof, 2560 is for each sigma/aux data
+            // 83 assuming 1 jmint, 34 is the size of each normal vout,  10 is the size of empty transaction, 52 other constant parts
+            nBytes = 956 + 2560 * vOutputs.size() + 83 + CoinControlDialog::payAmounts.size()  * 34  + 10 + 52;
+            nPayFee = CWallet::GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
             if (nPayAmount > 0) {
                 nChange = nAmount - nPayAmount;
                 if (!CoinControlDialog::fSubtractFeeFromAmount)
