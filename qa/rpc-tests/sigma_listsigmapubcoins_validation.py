@@ -49,9 +49,9 @@ expected_pubcoins_after_denom_spend = {
            ('10', False), ('10', True), ('100', False), ('100', False), ('25', False), ('25', False)],
 
     '25': [('0.05', False), ('0.05', True), ('0.05', True), ('0.05', True), ('0.1', False), ('0.1', False),
-            ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False),
-            ('0.1', True), ('0.1', True), ('0.5', False), ('0.5', True), ('0.5', True), ('1', True), ('1', True),
-            ('10', False), ('10', True), ('100', False), ('100', False), ('25', False), ('25', True)],
+           ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False),
+           ('0.1', True), ('0.1', True), ('0.5', False), ('0.5', True), ('0.5', True), ('1', True), ('1', True),
+           ('10', False), ('10', True), ('100', False), ('100', False), ('25', False), ('25', True)],
 
     '100':  [('0.05', True), ('0.05', True), ('0.05', True), ('0.05', True), ('0.1', False), ('0.1', False),
              ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False),
@@ -85,7 +85,7 @@ class ListSigmaPubCoinsValidationWithFundsTest(BitcoinTestFramework):
         for denom in denoms.values():
             self.nodes[0].mint(denom)
             self.nodes[0].mint(denom)
-        self.nodes[0].generate(2)
+            self.nodes[0].generate(2)
         self.sync_all()
 
         pubcoins = [(pubcoin['denomination'], pubcoin['IsUsed'])
