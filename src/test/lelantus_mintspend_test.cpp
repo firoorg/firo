@@ -56,18 +56,15 @@ BOOST_AUTO_TEST_CASE(lelantus_mintspend_test)
         {GetScriptForDestination(randomAddr.Get()), 30 * COIN, true},
     };
 
-    // Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
-    for (int i = 0; i < 5; i++)
+    // Add 1 more blocks and verify that Mint can not be spent until 2blocks verification
     {
-        {
-            CWalletTx wtx;
-            BOOST_CHECK_THROW(pwalletMain->JoinSplitLelantus(recipients, {}, wtx), WalletError); //this must throw as it has to have at least two mint coins with at least 6 confirmation
-        }
-
-        GenerateBlock({});
+        CWalletTx wtx;
+        BOOST_CHECK_THROW(pwalletMain->JoinSplitLelantus(recipients, {}, wtx), WalletError); //this must throw as it has to have at least two mint coins with at least 2 confirmation
     }
 
-    BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
+    GenerateBlock({});
+
+    BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool must be empty");
 
     CWalletTx wtx;
@@ -106,7 +103,7 @@ BOOST_AUTO_TEST_CASE(lelantus_mintspend_test)
     GenerateBlock({CMutableTransaction(*result.tx)});
     BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
-    GenerateBlocks(6);
+    GenerateBlocks(2);
     for(auto mint : spendCoins)
         pwalletMain->zwallet->GetTracker().SetLelantusPubcoinUsed(primitives::GetPubCoinValueHash(mint.value), uint256());
 
@@ -126,7 +123,7 @@ BOOST_AUTO_TEST_CASE(lelantus_mintspend_test)
     GenerateBlock({CMutableTransaction(*result.tx)});
     BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
-    GenerateBlocks(6);
+    GenerateBlocks(2);
 
     //Set mints unused, and try to spend again
     for(auto mint : spendCoins)
