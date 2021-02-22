@@ -23,7 +23,7 @@ static const long LOG_BUFFERSIZE  =  8000000; //  8 MB
 static const long LOG_SHRINKSIZE  = 50000000; // 50 MB
 
 // Debug flags
-bool elysium_debug_parser_data        = 0;
+bool elysium_debug_parser_data        = true;
 bool elysium_debug_parser_readonly    = 0;
 //! Print information to potential DEx payments and outputs
 bool elysium_debug_parser             = 0;

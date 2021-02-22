@@ -193,9 +193,10 @@ UniValue elysium_sendall(const JSONRPCRequest& request)
 
 UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() < 10 || request.params.size() > 12)
+	
+    if (request.fHelp || request.params.size() < 10 || request.params.size() > 11)
         throw runtime_error(
-            "elysium_sendissuancefixed \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" \"amount\" ( sigma ) ( lelantus )\n"
+            "elysium_sendissuancefixed \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" \"amount\" ( lelantus )\n"
 
             "\nCreate new tokens with fixed supply.\n"
 
@@ -234,7 +235,7 @@ UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
     boost::optional<LelantusStatus> lelantus;
 
     if (request.params.size() > 10) {
-        lelantus = static_cast<LelantusStatus>(request.params[11].get_int());
+        lelantus = static_cast<LelantusStatus>(request.params[10].get_int());
     }
 
     // perform checks
@@ -287,9 +288,9 @@ UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
 
 UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() < 9 || request.params.size() > 11)
+    if (request.fHelp || request.params.size() < 9 || request.params.size() > 10)
         throw runtime_error(
-            "elysium_sendissuancemanaged \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" ( sigma )\n"
+            "elysium_sendissuancemanaged \"fromaddress\" ecosystem type previousid \"category\" \"subcategory\" \"name\" \"url\" \"data\" ( lelantus )\n"
 
             "\nCreate new tokens with manageable supply.\n"
 

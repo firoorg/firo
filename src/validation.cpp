@@ -3457,9 +3457,9 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
 
 #ifdef ENABLE_ELYSIUM
     //! Elysium: end of block connect notification
-    if (fElysium) {
-        LogPrint("handler", "Elysium handler: block connect end [new height: %d, found: %u txs]\n", GetHeight(), nNumMetaTxs);
+    if (fElysium) {        
         elysium_handler_block_end(GetHeight(), pindexNew, nNumMetaTxs);
+		LogPrint("handler", "Elysium handler: block connect end [new height: %d, found: %u txs]\n", GetHeight(), nNumMetaTxs);
     }
 #endif
 
