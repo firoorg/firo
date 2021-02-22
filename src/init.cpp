@@ -246,7 +246,7 @@ void Shutdown()
     /// for example if the data directory was found to be locked.
     /// Be sure that anything that writes files or flushes caches only does this if the respective
     /// module was initialized.
-    RenameThread("bitcoin-shutoff");
+    RenameThread("firo-shutoff");
     txpools.AddTransactionsUpdated(1);
 
     StopHTTPRPC();
@@ -741,7 +741,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
 #endif
 
     const CChainParams &chainparams = Params();
-    RenameThread("bitcoin-loadblk");
+    RenameThread("firo-loadblk");
 
     {
     CImportingNow imp;
