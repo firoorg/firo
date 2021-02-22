@@ -1110,6 +1110,8 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
 
     // NotifyTotalTokensChanged(propertyId, block);
 
+	LogPrintf("CREATED MANUAL PROPERTY id: %d admin: %s\n", propertyId, sender);
+
     return 0;
 }
 
@@ -1724,7 +1726,7 @@ int CMPTransaction::logicMath_Alert()
 
     if (alert_type == ALERT_CLIENT_VERSION_EXPIRY && ELYSIUM_VERSION < alert_expiry) {
         // regular alert keys CANNOT be used to force a client upgrade on mainnet - at least 3 signatures from board/devs are required
-        if (sender == "48UM25xTXCxPRwnv36YjjJNaAK4whKR8Rd" || isNonMainNet()) {
+        if (sender == "a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U" || isNonMainNet()) {
             std::string msgText = "Client upgrade is required!  Shutting down due to unsupported consensus state!";
             PrintToLog(msgText);
             if (!GetBoolArg("-overrideforcedshutdown", false)) {
