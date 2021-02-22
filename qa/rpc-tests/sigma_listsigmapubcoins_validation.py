@@ -48,19 +48,15 @@ expected_pubcoins_after_denom_spend = {
            ('0.1', True), ('0.1', True), ('0.5', False), ('0.5', True), ('0.5', True), ('1', True), ('1', True),
            ('10', False), ('10', True), ('100', False), ('100', False), ('25', False), ('25', False)],
 
-    '25': [('0.05', False), ('0.05', False), ('0.05', False), ('0.05', True), ('0.05', True), ('0.1', False),
-           ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False),
-           ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', True),
-           ('0.1', True), ('0.5', False), ('0.5', False), ('0.5', True), ('0.5', True), ('1', False), ('1', False),
-           ('1', False), ('1', False), ('1', True), ('1', True), ('10', False), ('10', False), ('10', False),
-           ('10', True), ('100', False), ('100', False), ('25', True), ('25', True)],
+    '25': [('0.05', False), ('0.05', True), ('0.05', True), ('0.05', True), ('0.1', False), ('0.1', False),
+            ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False),
+            ('0.1', True), ('0.1', True), ('0.5', False), ('0.5', True), ('0.5', True), ('1', True), ('1', True),
+            ('10', False), ('10', True), ('100', False), ('100', False), ('25', False), ('25', True)],
 
-    '100': [('0.05', False), ('0.05', False), ('0.05', True), ('0.05', True), ('0.05', True),
-            ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False),
-            ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False),
-            ('0.1', True), ('0.1', True), ('0.5', False), ('0.5', False), ('0.5', True), ('0.5', True), ('1', False),
-            ('1', False), ('1', False), ('1', False), ('1', True), ('1', True), ('10', False), ('10', False),
-            ('10', False), ('10', True), ('100', False), ('100', True), ('25', True), ('25', True)]
+    '100':  [('0.05', True), ('0.05', True), ('0.05', True), ('0.05', True), ('0.1', False), ('0.1', False),
+             ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False),
+             ('0.1', True), ('0.1', True), ('0.5', False), ('0.5', True), ('0.5', True), ('1', True), ('1', True),
+             ('10', False), ('10', True), ('100', False), ('100', True), ('25', False), ('25', True)]
 }
 
 
@@ -90,8 +86,8 @@ class ListSigmaPubCoinsValidationWithFundsTest(BitcoinTestFramework):
         for denom in denoms.values():
             self.nodes[0].mint(denom)
             self.nodes[0].mint(denom)
-            self.nodes[0].generate(6)
-            self.sync_all()
+        self.nodes[0].generate(2)
+        self.sync_all()
 
         pubcoins = [(pubcoin['denomination'], pubcoin['IsUsed'])
                     for pubcoin in self.nodes[0].listsigmapubcoins()]
@@ -106,7 +102,7 @@ class ListSigmaPubCoinsValidationWithFundsTest(BitcoinTestFramework):
             print("denom: " + denom_name)
             args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom}
             self.nodes[0].spendmany("", args)
-            self.nodes[0].generate(2)
+            self.nodes[0].generate(1)
             self.sync_all()
 
             pubcoins = [(pubcoin['denomination'], pubcoin['IsUsed'])
@@ -115,6 +111,8 @@ class ListSigmaPubCoinsValidationWithFundsTest(BitcoinTestFramework):
             assert sorted(pubcoins) == sorted(expected_pubcoins_after_denom_spend[denom_name]), \
                 'Unexpected pubcoins list returned after spend: {}. Should be: {}, but was: {}.' \
                     .format(denom, sorted(expected_pubcoins_after_denom_spend[denom_name]), sorted(pubcoins))
+
+
 
         unused_pubcoins_sum = sum([Decimal(pubcoin['denomination'])
                          for pubcoin in self.nodes[0].listsigmapubcoins() if pubcoin['IsUsed'] == False])
