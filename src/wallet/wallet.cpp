@@ -3027,10 +3027,10 @@ bool CWallet::GetCoinsToSpend(
         CAmount required,
         std::vector<CSigmaEntry>& coinsToSpend_out,
         std::vector<sigma::CoinDenomination>& coinsToMint_out,
+        std::list<CSigmaEntry>& coins,
         const size_t coinsToSpendLimit,
         const CAmount amountToSpendLimit,
-        const CCoinControl *coinControl,
-        bool forEstimation) const
+        const CCoinControl *coinControl) const
 {
     // Sanity check to make sure this function is never called with a too large
     // amount to spend, resulting to a possible crash due to out of memory condition.
@@ -3058,8 +3058,6 @@ bool CWallet::GetCoinsToSpend(
         throw std::invalid_argument(
             _("Required amount exceed value spend limit"));
     }
-
-    std::list<CSigmaEntry> coins = GetAvailableCoins(coinControl, false, forEstimation);
 
     CAmount availableBalance = CalculateCoinsBalance(coins.begin(), coins.end());
 
@@ -3159,10 +3157,10 @@ bool CWallet::GetCoinsToJoinSplit(
         CAmount required,
         std::vector<CLelantusEntry>& coinsToSpend_out,
         CAmount& changeToMint,
+        std::list<CLelantusEntry>& coins,
         const size_t coinsToSpendLimit,
         const CAmount amountToSpendLimit,
-        const CCoinControl *coinControl,
-        bool forEstimation) const
+        const CCoinControl *coinControl) const
 {
     // Sanity check to make sure this function is never called with a too large
     // amount to spend, resulting to a possible crash due to out of memory condition.
@@ -3180,8 +3178,6 @@ bool CWallet::GetCoinsToJoinSplit(
         throw WalletError(
                 _("The required amount exceeds spend limit"));
     }
-
-    std::list<CLelantusEntry> coins = GetAvailableLelantusCoins(coinControl, false, forEstimation);
 
     CAmount availableBalance = CalculateLelantusCoinsBalance(coins.begin(), coins.end());
 
@@ -6875,12 +6871,13 @@ std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(CAmount required,
     unsigned size;
     std::vector<CLelantusEntry> spendCoins;
     std::vector<CSigmaEntry> sigmaSpendCoins;
-
-    std::list<CSigmaEntry> coins = this->GetAvailableCoins(coinControl, false, true);
+    std::list<CSigmaEntry> sigmaCoins = this->GetAvailableCoins(coinControl, false, true);
     CAmount availableSigmaBalance(0);
-    for (auto coin : coins) {
+    for (auto coin : sigmaCoins) {
         availableSigmaBalance += coin.get_denomination_value();
     }
+
+    std::list<CLelantusEntry> coins = GetAvailableLelantusCoins(coinControl, false, true);
 
     for (fee = payTxFee.GetFeePerK();;) {
         CAmount currentRequired = required;
@@ -6901,17 +6898,16 @@ std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(CAmount required,
                     inputFromSigma = availableSigmaBalance;
                 else
                     inputFromSigma = currentRequired;
-
-                this->GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges, //try to spend sigma first
+                this->GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges, sigmaCoins, //try to spend sigma first
                                        consensusParams.nMaxLelantusInputPerTransaction,
-                                       consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl, true);
+                                       consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
                 currentRequired -= inputFromSigma;
             }
 
             if (currentRequired > 0) {
-                if (!this->GetCoinsToJoinSplit(currentRequired, spendCoins, changeToMint,
+                if (!this->GetCoinsToJoinSplit(currentRequired, spendCoins, changeToMint, coins,
                                                 consensusParams.nMaxLelantusInputPerTransaction,
-                                                consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl, true)) {
+                                                consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl)) {
                     return std::make_pair(0, 0);
                 }
             }
