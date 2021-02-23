@@ -393,17 +393,16 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 if(walletdb.ReadPaymentRequestAddress(paymentRequestAddress) && addrStr==paymentRequestAddress)
                     walletdb.ErasePaymentRequestAddress();
             }
-            if (wtx.IsCoinBase())
-            {
-                int txHeight = getBlockHeight(wtx.hashBlock.GetHex()).get_int();
-                if(txHeight == -1){
-                    category = "coinbase";
-                }
-                else if(r.vout==1 && txHeight >= Params().GetConsensus().nZnodePaymentsStartBlock){
-                    category = "znode";
-                }
-                else {
-                    category = "mined";
+            if (wtx.IsCoinBase()) {
+                if (wtx.GetDepthInMainChain() >= 1) {
+                    int nHeight = mapBlockIndex[wtx.hashBlock]->nHeight;
+                    if (r.vout == 1 && nHeight >= Params().GetConsensus().nZnodePaymentsStartBlock) {
+                        category = "znode";
+                    } else {
+                        category = "mined";
+                    }
+                } else {
+                    category = "orphan";
                 }
             } else if (wtx.tx->vout[r.vout].scriptPubKey.IsLelantusJMint() || wtx.tx->vout[r.vout].scriptPubKey.IsLelantusMint()) {
                 category = "mintIn";
@@ -414,7 +413,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 category = "receive";
             }
 
-            if(category=="mined"){
+            if (category == "mined" || category == "orphan"){
                 entry.push_back(Pair("isChange", false));
             } else {
                 entry.push_back(Pair("isChange", wtx.IsChange(static_cast<uint32_t>(r.vout))));
