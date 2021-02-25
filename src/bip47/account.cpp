@@ -1,4 +1,6 @@
 
+#include <thread>
+
 #include "bip47/account.h"
 #include "bip47/paymentcode.h"
 #include "util.h"
@@ -8,6 +10,11 @@
 
 
 namespace bip47 {
+
+CAccountBase::CAccountBase()
+:accountNum(0)
+{
+}
 
 CAccountBase::CAccountBase(CExtKey const & walletKey, size_t accountNum)
 :accountNum(accountNum)
@@ -39,12 +46,26 @@ CPaymentCode const & CAccountBase::getMyPcode() const
     return *myPcode;
 }
 
+size_t CAccountBase::getAccountNum() const
+{
+    return accountNum;
+}
+
+CKey const & CAccountBase::getMyNotificationKey() const
+{
+    if(!myNotificationKey) {
+        myNotificationKey.emplace(utils::Derive(privkey, {0}).key);
+    }
+    return *myNotificationKey;
+}
+
+
 /******************************************************************************/
 
 CAccountSender::CAccountSender(CExtKey const & walletKey, size_t accountNum, CPaymentCode const & theirPcode)
 : CAccountBase(walletKey, accountNum), theirPcode(theirPcode)
 {
-    nextAddresses.push_back({getPaymentChannel().getMyPcode().getNotificationAddress(), bip47::utils::Derive(privkey, {0}).key});
+    updateMyNextAddresses();
 }
 
 CPaymentChannel & CAccountSender::getPaymentChannel() {
@@ -61,6 +82,17 @@ std::vector<unsigned char> CAccountSender::getMaskedPayload(COutPoint const & ou
 CPaymentCode const & CAccountSender::getTheirPcode() const
 {
     return theirPcode;
+}
+
+CBitcoinAddress CAccountSender::generateTheirNextSecretAddress()
+{
+    return getPaymentChannel().generateTheirNextSecretAddress();
+}
+
+void CAccountSender::updateMyNextAddresses()
+{
+    nextAddresses.clear();
+    nextAddresses.push_back({getPaymentChannel().getMyPcode().getNotificationAddress(), getMyNotificationKey()});
 }
 
 MyAddrContT const & CAccountSender::generateMyUsedAddresses()
@@ -110,6 +142,11 @@ std::string const & CAccountReceiver::getLabel() const
     return label;
 }
 
+CAccountReceiver::PChannelContT const & CAccountReceiver::getPchannels() const
+{
+    return pchannels;
+}
+
 MyAddrContT const & CAccountReceiver::generateMyUsedAddresses()
 {
     usedAddresses.clear();
@@ -123,7 +160,7 @@ MyAddrContT const & CAccountReceiver::generateMyUsedAddresses()
 MyAddrContT const & CAccountReceiver::generateMyNextAddresses()
 {
     nextAddresses.clear();
-    nextAddresses.emplace_back(getMyPcode().getNotificationAddress(), bip47::utils::Derive(privkey, {0}).key);
+    nextAddresses.emplace_back(getMyNotificationAddress(), getMyNotificationKey());
     for(CPaymentChannel & pchannel: pchannels) {
         MyAddrContT const & addrs = pchannel.generateMyNextAddresses();
         nextAddresses.insert(nextAddresses.end(), addrs.begin(), addrs.end());

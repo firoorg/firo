@@ -8534,7 +8534,7 @@ CBitcoinAddress CWallet::GetNextAddress(bip47::CPaymentCode const & theirPcode)
     );
     if(!existingAcc)
         throw std::runtime_error("There is no account setup for payment code " + theirPcode.toString());
-    return existingAcc.get()->getTheirPcode().getNotificationAddress();
+    return existingAcc.get()->generateTheirNextSecretAddress();
 }
 
 

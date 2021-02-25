@@ -23,6 +23,7 @@ public:
         receiver
     };
 public:
+    CPaymentChannel() = default;
     CPaymentChannel(CPaymentCode const & theirPcode, CExtKey const & myChannelKey, Side side);
 
     CPaymentCode const & getTheirPcode() const;
@@ -38,6 +39,8 @@ public:
     MyAddrContT const & generateMyUsedAddresses();
     MyAddrContT const & generateMyNextAddresses();
     bool markAddressUsed(CBitcoinAddress const &);
+
+    bool operator==(CPaymentChannel const & other) const;
 
     ADD_DESERIALIZE_CTOR(CPaymentChannel);
     ADD_SERIALIZE_METHODS;

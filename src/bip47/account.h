@@ -16,6 +16,7 @@ class CWallet;
 class CAccountBase
 {
 public:
+    CAccountBase();
     CAccountBase(CExtKey const & walletKey, size_t accountNum); 
     virtual ~CAccountBase() = default;
 
@@ -24,12 +25,14 @@ public:
     bool addressUsed(CBitcoinAddress const & address);
 
     CPaymentCode const & getMyPcode() const;
+    size_t getAccountNum() const;
 
+    ADD_DESERIALIZE_CTOR(CAccountBase);
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     void SerializationOp(Stream& s, Operation ser_action)
     {
-        READWRITE(accountNum);
+        READWRITE(const_cast<size_t&>(accountNum));
         READWRITE(privkey);
         READWRITE(pubkey);
         READWRITE(myPcode);
@@ -39,8 +42,10 @@ protected:
     size_t const accountNum;
     CExtKey privkey;
     CExtPubKey pubkey;
+    CKey const & getMyNotificationKey() const;
 private:
     boost::optional<CPaymentCode> mutable myPcode;
+    boost::optional<CKey> mutable myNotificationKey;
 
     virtual MyAddrContT const & generateMyUsedAddresses() = 0;
     virtual MyAddrContT const & generateMyNextAddresses() = 0;
@@ -63,13 +68,18 @@ public:
     std::vector<unsigned char> getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret);
 
     CPaymentCode const & getTheirPcode() const;
+    CBitcoinAddress generateTheirNextSecretAddress();
 
+    ADD_DESERIALIZE_CTOR(CAccountSender);
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     void SerializationOp(Stream& s, Operation ser_action)
     {
+        CAccountBase::SerializationOp(s, ser_action);
         READWRITE(theirPcode);
         READWRITE(pchannel);
+        if (ser_action.ForRead())
+            updateMyNextAddresses();
     }
 
 private:
@@ -77,6 +87,7 @@ private:
     boost::optional<CPaymentChannel> mutable pchannel;
     MyAddrContT nextAddresses;
 
+    void updateMyNextAddresses();
     virtual MyAddrContT const & generateMyUsedAddresses();
     virtual MyAddrContT const & generateMyNextAddresses();
     virtual bool markAddressUsed(CBitcoinAddress const &);
@@ -103,16 +114,20 @@ public:
 
     std::string const & getLabel() const;
 
+    using PChannelContT = std::vector<CPaymentChannel>;
+    PChannelContT const & getPchannels() const;
+
+    ADD_DESERIALIZE_CTOR(CAccountReceiver);
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     void SerializationOp(Stream& s, Operation ser_action)
     {
+        CAccountBase::SerializationOp(s, ser_action);
         READWRITE(label);
         READWRITE(pchannels);
     }
 
 private:
-    using PChannelContT = std::vector<CPaymentChannel>;
     PChannelContT mutable pchannels;
     boost::optional<CBitcoinAddress> mutable myNotificationAddress;
 

@@ -29,6 +29,7 @@ public:
 
     static bool validate(std::string const & paymentCode);
 
+    ADD_DESERIALIZE_CTOR(CPaymentCode);
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)

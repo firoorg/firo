@@ -792,8 +792,8 @@ template<typename Stream, typename T> void Unserialize(Stream& os, std::unique_p
 /**
  * optional
  */
-template<typename Stream, typename T> void Serialize(Stream& os, const boost::optional<const T>& p);
-template<typename Stream, typename T> void Unserialize(Stream& os, boost::optional<const T>& p);
+template<typename Stream, typename T> void Serialize(Stream& os, const boost::optional<T>& p);
+template<typename Stream, typename T> void Unserialize(Stream& os, boost::optional<T>& p);
 
 
 /**
@@ -1127,7 +1127,7 @@ void Unserialize(Stream& is, std::shared_ptr<const T>& p)
  * optional
  */
 template<typename Stream, typename T> void
-Serialize(Stream& os, const boost::optional<const T>& p)
+Serialize(Stream& os, const boost::optional<T>& p)
 {
     bool exists(p);
     Serialize(os, exists);
@@ -1136,12 +1136,12 @@ Serialize(Stream& os, const boost::optional<const T>& p)
 }
 
 template<typename Stream, typename T>
-void Unserialize(Stream& is, boost::optional<const T>& p)
+void Unserialize(Stream& is, boost::optional<T>& p)
 {
     bool exists;
     Unserialize(is, exists);
     if (exists)
-        p.reset(new T(deserialize, is));
+        p.emplace(deserialize, is);
 }
 
 

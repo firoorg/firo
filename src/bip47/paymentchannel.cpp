@@ -143,5 +143,18 @@ bool CPaymentChannel::markAddressUsed(CBitcoinAddress const & address)
     return false;
 }
 
+bool CPaymentChannel::operator==(CPaymentChannel const & other) const
+{
+    if (!(myChannelKey.key == other.myChannelKey.key)
+            || myChannelKey.chaincode != other.myChannelKey.chaincode
+            || !(theirPcode == other.theirPcode)
+            || usedAddressCount != other.usedAddressCount
+            || theirUsedAddressCount != other.theirUsedAddressCount
+            || side != other.side
+        )
+        return false;
+    return true;
+}
+
 
 }
