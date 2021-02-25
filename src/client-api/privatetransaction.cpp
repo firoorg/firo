@@ -307,11 +307,18 @@ UniValue lelantusTxFee(Type type, const UniValue& data, const UniValue& auth, bo
     bool fSubtractFeeFromAmount = data["subtractFeeFromAmount"].get_bool();
 
     CCoinControl coinControl;
-    bool fHasCoinControl = GetCoinControl(data, coinControl);
+    GetCoinControl(data, coinControl);
 
-    // payTxFee is a global variable that will be used in EstimateJoinSplitFee.
+    // payTxFee is a global variable that will be used to estimate the fee.
     payTxFee = CFeeRate(data["feePerKb"].get_int64());
-    return pwalletMain->EstimateJoinSplitFee(nAmount, fSubtractFeeFromAmount, fHasCoinControl ? &coinControl : nullptr).first;
+
+    CAmount txFee = 0;
+    std::vector<CMintMeta> _t1;
+    std::vector<CLelantusMintMeta> _t2;
+    CAmount _t3;
+    pwalletMain->GetCoinsToJoinSplit(1, nAmount, fSubtractFeeFromAmount, coinControl, _t1, _t2, txFee, _t3);
+
+    return txFee;
 }
 
 UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {

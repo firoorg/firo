@@ -3240,101 +3240,191 @@ bool CWallet::GetCoinsToSpend(
     return true;
 }
 
-bool CWallet::GetCoinsToJoinSplit(
+void CWallet::GetCoinsToJoinSplit(
+        unsigned nRecipients,
         CAmount required,
-        std::vector<CLelantusEntry>& coinsToSpend_out,
-        CAmount& changeToMint,
-        std::list<CLelantusEntry>& coins,
-        const size_t coinsToSpendLimit,
-        const CAmount amountToSpendLimit,
-        const CCoinControl *coinControl) const
+        bool subtractFeeFromAmount,
+        CCoinControl& coinControl,
+        std::vector<CMintMeta>& sigmaCoinsToSpend,
+        std::vector<CLelantusMintMeta>& lelantusCoinsToSpend,
+        CAmount& txFee,
+        CAmount& changeAmount)
 {
-    // Sanity check to make sure this function is never called with a too large
-    // amount to spend, resulting to a possible crash due to out of memory condition.
-    if (!MoneyRange(required)) {
-        throw WalletError(
-                _("The required amount exceeds 21 MLN FIRO"));
+    EnsureMintWalletAvailable();
+
+    sigmaCoinsToSpend.clear();
+    lelantusCoinsToSpend.clear();
+    changeAmount = 0;
+    txFee = 0;
+
+    Consensus::Params consensusParams = Params().GetConsensus();
+
+    if (required > consensusParams.nMaxValueLelantusSpendPerTransaction) {
+        throw WalletError(_("The required amount exceeds spend limit"));
     }
 
-    if (!MoneyRange(amountToSpendLimit)) {
-        throw WalletError(
-                _("The amount limit exceeds max money"));
+    CAmount fulfilled = 0;
+    // Schnorr and range proofs are 956 bytes, the joinmint change is 157 bytes, and each P2SH recipient is 22 bytes.
+    // We'll be incremented by the size of each input as we add it along the way.
+    unsigned int txSize = 956 + 157 + 22 * nRecipients;
+
+    int currentHeight = chainActive.Height();
+    CHDMintTracker tracker = zwallet->GetTracker();
+
+    std::vector<CMintMeta> sigmaCoins = tracker.ListMints(true, true, false);
+    std::sort(sigmaCoins.begin(), sigmaCoins.end(),[](const CMintMeta& a, const CMintMeta& b) {
+        int64_t aAmount, bAmount;
+        DenominationToInteger(a.denom, aAmount);
+        DenominationToInteger(b.denom, bAmount);
+        return aAmount > bAmount;
+    });
+
+    std::vector<CLelantusMintMeta> lelantusCoins = tracker.ListLelantusMints(true, true, false);
+    std::sort(lelantusCoins.begin(), lelantusCoins.end(), [](CLelantusMintMeta& a, CLelantusMintMeta& b) {
+        return a.amount > b.amount;
+    });
+
+    // Copying in the for loops below is the intended behaviour.
+    if (coinControl.HasSelected()) {
+        std::vector<COutPoint> selectedOutPoints;
+        coinControl.ListSelected(selectedOutPoints);
+
+        // Because MintMeta doesn't included the output index, if we determine that the mint is in the same transaction
+        // as one we've selected, we need to fetch it from disk and check whether the outpoints match.
+        for (COutPoint selectedOutPoint: selectedOutPoints) {
+            if (setLockedCoins.count(selectedOutPoint) > 0) {
+                throw WalletError(_("coin control selection includes a locked coin."));
+            }
+
+            for (CMintMeta sigmaCoin: sigmaCoins) {
+                if (sigmaCoin.txid != selectedOutPoint.hash) continue;
+
+                CSigmaEntry entry;
+                GetMint(sigmaCoin.hashSerial, entry, true);
+
+                COutPoint outPoint;
+                sigma::PublicCoin pubCoin(entry.value, entry.get_denomination());
+                sigma::GetOutPoint(outPoint, pubCoin);
+
+                if (outPoint != selectedOutPoint) continue;
+
+                if (sigmaCoin.isArchived || sigmaCoin.isUsed || !sigmaCoin.isSeedCorrect || sigmaCoin.nHeight == -1) {
+                    throw WalletError(_("coin control selection includes an invalid, unknown, or public coin."));
+                }
+
+                int64_t amount;
+                DenominationToInteger(sigmaCoin.denom, amount);
+                fulfilled += amount;
+
+                txSize += 2560;
+                sigmaCoinsToSpend.push_back(sigmaCoin);
+
+                goto continueOuter;
+            }
+
+            for (CLelantusMintMeta lelantusCoin: lelantusCoins) {
+                if (lelantusCoin.txid != selectedOutPoint.hash) continue;
+
+                CLelantusEntry entry;
+                GetMint(lelantusCoin.hashSerial, entry, true);
+
+                COutPoint outPoint;
+                lelantus::PublicCoin pubCoin(entry.value);
+                lelantus::GetOutPoint(outPoint, pubCoin);
+
+                if (outPoint != selectedOutPoint) continue;
+
+
+                if (
+                    lelantusCoin.isArchived || lelantusCoin.isUsed || !lelantusCoin.isSeedCorrect ||
+                    lelantusCoin.amount == 0 || lelantusCoin.nHeight + ZC_MINT_CONFIRMATIONS > currentHeight ||
+                    lelantusCoin.nHeight == -1
+                ) {
+                    throw WalletError(_("coin control selection includes an invalid, unknown, or public coin."));
+                }
+
+                fulfilled += lelantusCoin.amount;
+                txSize += 2560;
+                lelantusCoinsToSpend.push_back(lelantusCoin);
+
+                goto continueOuter;
+            }
+
+            sigmaCoinsToSpend.clear();
+            lelantusCoinsToSpend.clear();
+            throw WalletError(_("coin control selection includes an invalid, unknown, or public coin."));
+
+            continueOuter: continue;
+        }
+    } else {
+        for (const CMintMeta sigmaCoin: sigmaCoins) {
+            if (fulfilled >= (subtractFeeFromAmount ? required : required + payTxFee.GetFee(txSize))) {
+                break;
+            }
+
+            if (sigmaCoin.isArchived || sigmaCoin.isUsed || !sigmaCoin.isSeedCorrect || sigmaCoin.nHeight == -1) continue;
+
+            int64_t amount;
+            DenominationToInteger(sigmaCoin.denom, amount);
+            fulfilled += amount;
+
+            txSize += 2560;
+            sigmaCoinsToSpend.push_back(sigmaCoin);
+        }
+
+        for (const CLelantusMintMeta lelantusCoin: lelantusCoins) {
+            if (fulfilled >= (subtractFeeFromAmount ? required : required + payTxFee.GetFee(txSize))) {
+                break;
+            }
+
+            if (
+                lelantusCoin.isArchived || lelantusCoin.isUsed || !lelantusCoin.isSeedCorrect ||
+                lelantusCoin.amount == 0 || lelantusCoin.nHeight + ZC_MINT_CONFIRMATIONS > currentHeight ||
+                lelantusCoin.nHeight == -1
+            ) continue;
+
+            txSize += 2560;
+            fulfilled += lelantusCoin.amount;
+            lelantusCoinsToSpend.push_back(lelantusCoin);
+        }
     }
 
-    if (required > amountToSpendLimit) {
-        throw WalletError(
-                _("The required amount exceeds spend limit"));
+    txFee = payTxFee.GetFee(txSize);
+    CAmount totalRequired = subtractFeeFromAmount ? required : required + txFee;
+    changeAmount = fulfilled - totalRequired;
+
+    assert(fulfilled - changeAmount == totalRequired);
+
+    if (txFee > COIN * 5) {
+        throw WalletError(_("sanity check failed: txFee exceeds 5 FIRO"));
     }
 
-    CAmount availableBalance = CalculateLelantusCoinsBalance(coins.begin(), coins.end());
+    if (changeAmount < 0) {
+        sigmaCoinsToSpend.clear();
+        lelantusCoinsToSpend.clear();
+        txFee = 0;
+        changeAmount = 0;
 
-    if (required > availableBalance) {
         throw InsufficientFunds();
     }
 
-    // sort by biggest amount. if it is same amount we will prefer the older block
-    auto comparer = [](const CLelantusEntry& a, const CLelantusEntry& b) -> bool {
-        return a.amount != b.amount ? a.amount > b.amount : a.nHeight < b.nHeight;
-    };
-    coins.sort(comparer);
+    if (sigmaCoinsToSpend.size() + lelantusCoinsToSpend.size() > consensusParams.nMaxLelantusInputPerTransaction) {
+        sigmaCoinsToSpend.clear();
+        lelantusCoinsToSpend.clear();
+        txFee = 0;
+        changeAmount = 0;
 
-    CAmount spend_val(0);
-
-    std::list<CLelantusEntry> coinsToSpend;
-
-    // If coinControl, want to use all inputs
-    bool coinControlUsed = false;
-    if(coinControl != NULL) {
-        if(coinControl->HasSelected()) {
-            auto coinIt = coins.rbegin();
-            for (; coinIt != coins.rend(); coinIt++) {
-                spend_val += coinIt->amount;
-            }
-            coinControlUsed = true;
-            coinsToSpend.insert(coinsToSpend.begin(), coins.begin(), coins.end());
-        }
+        throw WalletError(_("The number of inputs required would exceed the nMaxLelantusInputPerTransaction limit."));
     }
 
-    if(!coinControlUsed) {
-        while (spend_val < required) {
-            if(coins.empty())
-                break;
+    if (changeAmount > consensusParams.nMaxValueLelantusMint) {
+        sigmaCoinsToSpend.clear();
+        lelantusCoinsToSpend.clear();
+        txFee = 0;
+        changeAmount = 0;
 
-            CLelantusEntry choosen;
-            CAmount need = required - spend_val;
-
-            auto itr = coins.begin();
-            if(need >= itr->amount) {
-                choosen = *itr;
-                coins.erase(itr);
-            } else {
-                for (auto coinIt = coins.rbegin(); coinIt != coins.rend(); coinIt++) {
-                    auto nextItr = coinIt;
-                    nextItr++;
-
-                    if (coinIt->amount >= need && (nextItr == coins.rend() || nextItr->amount != coinIt->amount)) {
-                        choosen = *coinIt;
-                        coins.erase(std::next(coinIt).base());
-                        break;
-                    }
-                }
-            }
-
-            spend_val += choosen.amount;
-            coinsToSpend.push_back(choosen);
-        }
+        throw WalletError(_("Value of change exceeds the nMaxValueLelantusMint limit."));
     }
-
-    // sort by group id ay ascending order. it is mandatory for creting proper joinsplit
-    auto idComparer = [](const CLelantusEntry& a, const CLelantusEntry& b) -> bool {
-        return a.id < b.id;
-    };
-    coinsToSpend.sort(idComparer);
-
-    changeToMint = spend_val - required;
-    coinsToSpend_out.insert(coinsToSpend_out.begin(), coinsToSpend.begin(), coinsToSpend.end());
-
-    return true;
 }
 
 CAmount CWallet::GetUnconfirmedBalance() const {
@@ -6991,72 +7081,6 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
     mintCoins = builder.mintCoins;
 
     return tx;
-}
-
-std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, const CCoinControl *coinControl) {
-    CAmount fee;
-    unsigned size;
-    std::vector<CLelantusEntry> spendCoins;
-    std::vector<CSigmaEntry> sigmaSpendCoins;
-    std::list<CSigmaEntry> sigmaCoins = this->GetAvailableCoins(coinControl, false, true);
-    CAmount availableSigmaBalance(0);
-    for (auto coin : sigmaCoins) {
-        availableSigmaBalance += coin.get_denomination_value();
-    }
-
-    std::list<CLelantusEntry> coins = GetAvailableLelantusCoins(coinControl, false, true);
-
-    for (fee = payTxFee.GetFeePerK();;) {
-        CAmount currentRequired = required;
-
-        if (!subtractFeeFromAmount)
-            currentRequired += fee;
-
-        spendCoins.clear();
-        sigmaSpendCoins.clear();
-        auto &consensusParams = Params().GetConsensus();
-        CAmount changeToMint = 0;
-
-        std::vector<sigma::CoinDenomination> denomChanges;
-        try {
-            if (availableSigmaBalance > 0) {
-                CAmount inputFromSigma;
-                if (currentRequired > availableSigmaBalance)
-                    inputFromSigma = availableSigmaBalance;
-                else
-                    inputFromSigma = currentRequired;
-                this->GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges, sigmaCoins, //try to spend sigma first
-                                       consensusParams.nMaxLelantusInputPerTransaction,
-                                       consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
-                currentRequired -= inputFromSigma;
-            }
-
-            if (currentRequired > 0) {
-                if (!this->GetCoinsToJoinSplit(currentRequired, spendCoins, changeToMint, coins,
-                                                consensusParams.nMaxLelantusInputPerTransaction,
-                                                consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl)) {
-                    return std::make_pair(0, 0);
-                }
-            }
-        } catch (std::runtime_error) {
-        }
-
-        // 956 is constant part, mainly Schnorr and Range proof, 2560 is for each sigma/aux data
-        // 179 other parts of tx, assuming 1 utxo and 1 jmint
-        size = 956 + 2560 * (spendCoins.size() + sigmaSpendCoins.size()) + 179;
-        CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
-
-        if (fee >= feeNeeded) {
-            break;
-        }
-
-        fee = feeNeeded;
-
-        if(subtractFeeFromAmount)
-            break;
-    }
-
-    return std::make_pair(fee, size);
 }
 
 bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CSigmaEntry>& sigmaSpendCoins, std::vector<CHDMint>& mintCoins) {

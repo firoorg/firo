@@ -950,14 +950,26 @@ public:
         const CAmount amountLimit = MAX_MONEY,
         const CCoinControl *coinControl = NULL) const;
 
-    bool GetCoinsToJoinSplit(
-            CAmount required,
-            std::vector<CLelantusEntry>& coinsToSpend_out,
-            CAmount& changeToMint,
-            std::list<CLelantusEntry>& coins,
-            const size_t coinsToSpendLimit = SIZE_MAX,
-            const CAmount amountToSpendLimit = MAX_MONEY,
-            const CCoinControl *coinControl = NULL) const;
+    /** \brief Select coins to joinsplit (preferentially selecting Sigma coins), calculating txFee and changeAmount.
+     *
+     * @param[in] nRecipients the number of P2SH recipients
+     * @param[in] required
+     * @param[in] subtractFeeFromAmount
+     * @param[in] coinControl
+     * @param[out] sigmaCoinsToSpend
+     * @param[out] lelantusCoinsToSpend
+     * @param[out] txFee
+     * @param[out] changeAmount
+     */
+    void GetCoinsToJoinSplit(
+        unsigned nRecipients,
+        CAmount required,
+        bool subtractFeeFromAmount,
+        CCoinControl& coinControl,
+        std::vector<CMintMeta>& sigmaCoinsToSpend,
+        std::vector<CLelantusMintMeta>& lelantusCoinsToSpend,
+        CAmount& txFee,
+        CAmount& changeAmount);
 
     /**
      * Insert additional inputs into the transaction by
@@ -1044,8 +1056,6 @@ public:
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 
     void JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result);
-
-    std::pair<CAmount, unsigned int> EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, const CCoinControl *coinControl);
 
     bool GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin, bool forEstimation = false) const;
 
