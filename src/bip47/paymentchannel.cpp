@@ -17,7 +17,7 @@ CPaymentCode const & CPaymentChannel::getTheirPcode() const
 }
 
 namespace {
-CBitcoinAddress generate(CKey const & privkey, CPubKey const & sharedSecretPubkey, CPubKey const & addressPubkey)
+CBitcoinAddress generate(CKey const & privkey, CPubKey const & sharedSecretPubkey, CPubKey const & addressPubkey, CKey * privkeyOut = nullptr)
 {
     static GroupElement const G(GroupElement().set_base_g());
     CSecretPoint sp(privkey, sharedSecretPubkey);
@@ -25,6 +25,15 @@ CBitcoinAddress generate(CKey const & privkey, CPubKey const & sharedSecretPubke
 
     std::vector<unsigned char> spHash(32);
     CSHA256().Write(spBytes.data(), spBytes.size()).Finalize(spHash.data());
+
+    if (privkeyOut) {
+        Scalar a = Scalar(privkey.begin()) + Scalar(spHash.data());
+
+        vector<unsigned char> ppkeybytes = ParseHex(a.GetHex());
+        privkeyOut->Set(ppkeybytes.begin(), ppkeybytes.end(), true);
+        assert(privkeyOut->IsValid());
+    }
+
 
     secp_primitives::GroupElement B = utils::GeFromPubkey(addressPubkey);
     secp_primitives::GroupElement Bprime = B + G *  secp_primitives::Scalar(spHash.data());
@@ -47,7 +56,7 @@ TheirAddrContT CPaymentChannel::generateTheirSecretAddresses(size_t fromAddr, si
     std::vector<CBitcoinAddress>  result;
     for(size_t i = fromAddr; i < uptoAddr; ++i) {
         CPubKey const theirPubkey = theirPcode.getNthPubkey(i).pubkey;
-        result.push_back(generate(myChannelKey.key, theirPubkey, theirPubkey));
+        result.push_back(generate(utils::Derive(myChannelKey, {0}).key, theirPubkey, theirPubkey));
     }
     return result;
 }
@@ -68,7 +77,8 @@ MyAddrContT CPaymentChannel::generateMySecretAddresses(size_t fromAddr, size_t u
     MyAddrContT  result;
     for(size_t i = fromAddr; i < uptoAddr; ++i) {
         CExtKey privkey = bip47::utils::Derive(myChannelKey, {uint32_t(i)});
-        result.emplace_back(generate(privkey.key, theirPubkey.pubkey, privkey.key.GetPubKey()), privkey.key);
+        CKey privkeyOut;
+        result.emplace_back(generate(privkey.key, theirPubkey.pubkey, privkey.key.GetPubKey(), &privkeyOut), privkeyOut);
     }
     return result;
 }

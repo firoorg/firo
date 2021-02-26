@@ -315,8 +315,11 @@ BOOST_AUTO_TEST_CASE(address_match)
     receiver.acceptPcode(sender.getMyPcode());
 
     MyAddrContT receiverAddrs = receiver.getMyNextAddresses();
-    std::cerr << "=============" << std::endl;
     BOOST_CHECK(std::find_if(receiverAddrs.begin(), receiverAddrs.end(), FindByAddress(sender.generateTheirNextSecretAddress())) != receiverAddrs.end());
+
+    for (MyAddrContT::value_type const & addrPair: receiverAddrs) {
+        BOOST_CHECK(addrPair.first == CBitcoinAddress(addrPair.second.GetPubKey().GetID()));
+    }
 }
 
 

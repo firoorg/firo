@@ -43,7 +43,7 @@ class Bip47SendReceive(BitcoinTestFramework):
         print(self.nodes[1].sendtopcode(node0_pcode, 10))
 
         self.nodes[1].generate(1)
-        sync_blocks(self.nodes)
+        self.sync_all()
 
         assert_equal(self.nodes[0].getbalance(), Decimal("10.0001"))
 
