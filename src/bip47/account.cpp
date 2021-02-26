@@ -179,6 +179,13 @@ bool CAccountReceiver::markAddressUsed(CBitcoinAddress const & address)
     return false;
 }
 
+void CAccountReceiver::acceptPcode(CPaymentCode const & theirPcode)
+{
+    if(findTheirPcode(theirPcode))
+        return;
+    pchannels.emplace_back(theirPcode, privkey, CPaymentChannel::Side::receiver);
+}
+
 bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, COutPoint const & outpoint, CPubKey const & outpoinPubkey)
 {
     std::unique_ptr<CPaymentCode> pcode;
@@ -190,9 +197,7 @@ bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & ma
     } catch (std::runtime_error const &) {
         return false;
     }
-    if(findTheirPcode(*pcode))
-        return true;
-    pchannels.emplace_back(*pcode, privkey, CPaymentChannel::Side::receiver);
+    acceptPcode(*pcode);
     return true;
 }
 
@@ -212,9 +217,7 @@ bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & ma
     } catch (std::runtime_error const &) {
         return false;
     }
-    if(findTheirPcode(*pcode))
-        return true;
-    pchannels.emplace_back(*pcode, privkey, CPaymentChannel::Side::receiver);
+    acceptPcode(*pcode);
     return true;
 }
 

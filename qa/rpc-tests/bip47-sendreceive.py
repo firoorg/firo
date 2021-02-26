@@ -40,9 +40,8 @@ class Bip47SendReceive(BitcoinTestFramework):
         self.nodes[1].mintlelantus(1)
         self.nodes[1].generate(10)
         self.nodes[1].setupchannel(node0_pcode)
-        self.nodes[1].sendtopcode(node0_pcode, 10)
+        print(self.nodes[1].sendtopcode(node0_pcode, 10))
 
-        self.sync_all()
         self.nodes[1].generate(1)
         sync_blocks(self.nodes)
 

@@ -37,11 +37,11 @@ public:
         READWRITE(pubKey);
         READWRITE(chainCode);
     }
-
+CExtPubKey const & getChildPubKeyBase() const;
 private:
     CPubKey pubKey;
     ChainCode  chainCode;
-    CExtPubKey const & getChildPubKeyBase() const;
+
     boost::optional<CBitcoinAddress> mutable myNotificationAddress;
     mutable boost::optional<CExtPubKey> childPubKeyBase;
 

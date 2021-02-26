@@ -1240,8 +1240,31 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
         }
         success = true;
 notifTxExit:
-        if(success)
+        if (success) {
             LogBip47("The payment code has been accepted: %s\n", accFound->lastPcode().toString());
+            {
+                bip47::MyAddrContT addrs = accFound->getMyNextAddresses();
+                LOCK(cs_wallet);
+                for(bip47::MyAddrContT::value_type const & addr : addrs) {
+                    LogBip47("Adding secret address: %s, %s\n", addr.first.ToString(), HexStr(addr.second));
+
+                    CPubKey pubkey = addr.second.GetPubKey();
+                    CKeyID vchAddress = pubkey.GetID();
+                    CBitcoinAddress add(vchAddress);
+                    LogBip47("Added secret address: %s\n", add.ToString());
+                    MarkDirty();
+                    SetAddressBook(vchAddress, "", "receive");
+
+                    if (HaveKey(vchAddress)) {
+                        continue;
+                    }
+
+                    if (!AddKeyPubKey(key, pubkey)) {
+                        throw JSONRPCError(RPC_WALLET_ERROR, "Error adding key to wallet");
+                    }
+                }
+            }
+        }
     }
 
     // Break debit/credit balance caches:
@@ -8534,7 +8557,9 @@ CBitcoinAddress CWallet::GetNextAddress(bip47::CPaymentCode const & theirPcode)
     );
     if(!existingAcc)
         throw std::runtime_error("There is no account setup for payment code " + theirPcode.toString());
-    return existingAcc.get()->generateTheirNextSecretAddress();
+    auto result = existingAcc.get()->generateTheirNextSecretAddress();
+    LogBip47("Sending to secret address: %s\n", result.ToString());
+    return result;
 }
 
 

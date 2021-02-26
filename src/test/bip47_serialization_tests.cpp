@@ -139,6 +139,7 @@ BOOST_AUTO_TEST_CASE(account_receiver)
 BOOST_AUTO_TEST_CASE(account_sender)
 {
     CExtKey privkey_bob; privkey_bob.SetMaster(bob::bip32seed.data(), bob::bip32seed.size());
+    std::srand(std::time(nullptr));
     CAccountReceiver receiver(privkey_bob, std::rand(), "Label1");
 
     CExtKey privkey_alice; privkey_alice.SetMaster(alice::bip32seed.data(), alice::bip32seed.size());;

@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
 
     {using namespace alice;
         CExtKey key; key.SetMaster(bip32seed.data(), bip32seed.size());
-        CExtKey privkey_alice = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0});
+        CExtKey privkey_alice = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
         CPaymentCode const paymentCode_bob(bob::paymentcode);
         CPaymentChannel paymentChannel(paymentCode_bob, privkey_alice, CPaymentChannel::Side::sender);
 
@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
 
     {using namespace bob;
         CExtKey key; key.SetMaster(bip32seed.data(), bip32seed.size());
-        CExtKey privkey_bob = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0});
+        CExtKey privkey_bob = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
         CPaymentCode const paymentCode_alice(alice::paymentcode);
         CPaymentChannel paymentChannel(paymentCode_alice, privkey_bob, CPaymentChannel::Side::sender);
 
@@ -302,6 +302,23 @@ BOOST_AUTO_TEST_CASE(account_for_receiving)
         }
     }
 }
+
+BOOST_AUTO_TEST_CASE(address_match)
+{
+    CExtKey keyBob; keyBob.SetMaster(bob::bip32seed.data(), bob::bip32seed.size());
+    std::srand(std::time(nullptr));
+    bip47::CAccountReceiver receiver(keyBob, std::rand(), "");
+
+    CExtKey keyAlice; keyAlice.SetMaster(alice::bip32seed.data(), alice::bip32seed.size());
+    bip47::CAccountSender sender(keyAlice, std::rand(), receiver.getMyPcode());
+
+    receiver.acceptPcode(sender.getMyPcode());
+
+    MyAddrContT receiverAddrs = receiver.getMyNextAddresses();
+    std::cerr << "=============" << std::endl;
+    BOOST_CHECK(std::find_if(receiverAddrs.begin(), receiverAddrs.end(), FindByAddress(sender.generateTheirNextSecretAddress())) != receiverAddrs.end());
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
         

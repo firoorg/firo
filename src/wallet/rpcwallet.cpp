@@ -5350,6 +5350,7 @@ void SendNotificationTxLelantus(CWallet * const pwallet, bip47::CPaymentChannel 
             throw std::runtime_error(std::string("Cannot create a Lelantus spend to address: " + notifAddr.ToString()).c_str());
 
         pwallet->CommitLelantusTransaction(wtxNew, spendCoins, sigmaSpendCoins, mintCoins);
+        LogBip47("Paymentcode %s was sent to notification address: %s\n", pchannel.getMyPcode().toString().c_str(), notifAddr.ToString().c_str() );
     }
     catch (const InsufficientFunds& e) {
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, std::string(e.what())+" Please check your Lelantus balance is grear than " + std::to_string(1.0 * bip47::NotificationTxValue / COIN));
