@@ -1245,21 +1245,15 @@ notifTxExit:
             {
                 bip47::MyAddrContT addrs = accFound->getMyNextAddresses();
                 LOCK(cs_wallet);
-                for(bip47::MyAddrContT::value_type const & addr : addrs) {
-                    LogBip47("Adding secret address: %s, %s\n", addr.first.ToString(), HexStr(addr.second));
-
+                for (bip47::MyAddrContT::value_type const & addr : addrs) {
                     CPubKey pubkey = addr.second.GetPubKey();
                     CKeyID vchAddress = pubkey.GetID();
-                    CBitcoinAddress add(vchAddress);
-                    LogBip47("Added secret address: %s\n", add.ToString());
                     MarkDirty();
                     SetAddressBook(vchAddress, "", "receive");
-
                     if (HaveKey(vchAddress)) {
                         continue;
                     }
-
-                    if (!AddKeyPubKey(key, pubkey)) {
+                    if (!AddKeyPubKey(addr.second, pubkey)) {
                         throw JSONRPCError(RPC_WALLET_ERROR, "Error adding key to wallet");
                     }
                 }
