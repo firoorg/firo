@@ -50,6 +50,12 @@ class CSigmaEntry;
 class CZerocoinSpendEntry;
 class CSigmaSpendEntry;
 
+namespace bip47 {
+class CAccountReceiver;
+class CAccountSender;
+class CWallet;
+}
+
 /** Error statuses for the wallet database */
 enum DBErrors
 {
@@ -458,6 +464,9 @@ public:
 
 #endif
 
+    bool WriteBip47Account(bip47::CAccountReceiver const & account);
+    bool WriteBip47Account(bip47::CAccountSender const & account);
+    void LoadBip47Accounts(bip47::CWallet & wallet);
 private:
     CWalletDB(const CWalletDB&);
     void operator=(const CWalletDB&);

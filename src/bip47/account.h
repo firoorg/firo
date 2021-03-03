@@ -62,6 +62,7 @@ private:
 class CAccountSender : public CAccountBase
 {
 public:
+    CAccountSender() = default;
     CAccountSender(CExtKey const & walletKey, size_t accountNum, CPaymentCode const & theirPcode);
 
     CPaymentChannel & getPaymentChannel();
@@ -103,6 +104,7 @@ private:
 class CAccountReceiver : public CAccountBase
 {
 public:
+    CAccountReceiver() = default;
     CAccountReceiver(CExtKey const & walletKey, size_t accountNum, std::string const & label);
 
     CBitcoinAddress const & getMyNotificationAddress() const;
@@ -156,34 +158,29 @@ public:
     CAccountReceiver & createReceivingAccount(std::string const & label);
     CAccountSender & provideSendingAccount(CPaymentCode const & theirPcode);
 
-    ADD_SERIALIZE_METHODS;
-    template <typename Stream, typename Operation>
-    void SerializationOp(Stream& s, Operation ser_action)
-    {
-        READWRITE(accSenders);
-        READWRITE(accReceivers);
-    }
+    void readReceiver(CAccountReceiver && receiver);
+    void readSender(CAccountSender && sender);
 
-    template<class E> void enumerateSenders(E e);
     template<class E> void enumerateReceivers(E e);
+    template<class E> void enumerateSenders(E e);
 private:
-    std::map<size_t, CAccountSender> accSenders;
     std::map<size_t, CAccountReceiver> accReceivers;
+    std::map<size_t, CAccountSender> accSenders;
     CExtKey privkeySend, privkeyReceive;
 };
-
-template<class UnaryFunction>
-void CWallet::enumerateSenders(UnaryFunction e)
-{
-    for(std::pair<size_t const, CAccountSender> & val : accSenders) {
-        e(val.second);
-    }
-}
 
 template<class UnaryFunction>
 void CWallet::enumerateReceivers(UnaryFunction e)
 {
     for(std::pair<size_t const, CAccountReceiver> & val : accReceivers) {
+        e(val.second);
+    }
+}
+
+template<class UnaryFunction>
+void CWallet::enumerateSenders(UnaryFunction e)
+{
+    for(std::pair<size_t const, CAccountSender> & val : accSenders) {
         e(val.second);
     }
 }

@@ -5219,9 +5219,13 @@ UniValue listpcodes(const JSONRPCRequest& request)
             "Example:\n" +
             HelpExampleCli("listpcodes", ""));
     }
-    UniValue result(UniValue::VOBJ);
-    for(std::pair<std::string, std::string> const & info : pwallet->ListPcodes()) {
-        result.push_back(Pair(info.first, info.second));
+    UniValue result(UniValue::VARR);
+    for(std::tuple<bip47::CPaymentCode, std::string, CBitcoinAddress> const & info : pwallet->ListPcodes()) {
+        UniValue r(UniValue::VOBJ);
+        r.push_back(Pair("Pcode", std::get<0>(info).toString()));
+        r.push_back(Pair("Label",std::get<1>(info)));
+        r.push_back(Pair("NotifAddr",std::get<2>(info).ToString()));
+        result.push_back(r);
     }
     return result;
 }
@@ -5233,16 +5237,32 @@ UniValue generatepcode(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() < 1 or request.params.size() > 2) {
+    std::function<void()> help = []()
+    {
         throw runtime_error(
             "generatepcode  \"label\"\n"
             "Generates a new labeled BIP47 payment code. \n"
+            "The label should be unique and non-empty. \n"
             "Example:\n" +
             HelpExampleCli("generatepaymentcode", "<label>"));
+    };
+
+    if (request.fHelp || request.params.size() < 1 or request.params.size() > 2) {
+        help();
     }
 
     UniValue result;
-    result.setStr(pwallet->GeneratePcode(request.params[0].get_str()).toString());
+    std::string const label = request.params[0].get_str();
+    if (label.empty()) {
+        help();
+    }
+
+    std::vector<std::tuple<bip47::CPaymentCode, std::string, CBitcoinAddress>>  const pcodes = pwallet->ListPcodes();
+    if (std::find_if(pcodes.begin(), pcodes.end(), [&label](std::tuple<bip47::CPaymentCode, std::string, CBitcoinAddress> const & pcode){ return  std::get<1>(pcode) == label; }) != pcodes.end()) {
+        help();
+    }
+
+    result.setStr(pwallet->GeneratePcode(label).toString());
     return result;
 }
 

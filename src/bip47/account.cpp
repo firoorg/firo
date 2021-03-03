@@ -262,4 +262,18 @@ CAccountSender & CWallet::provideSendingAccount(CPaymentCode const & theirPcode)
     return acc;
 }
 
+void CWallet::readReceiver(CAccountReceiver && receiver)
+{
+    if(accReceivers.find(receiver.getAccountNum()) != accReceivers.end())
+        throw std::runtime_error("There is already an account with number " + std::to_string(receiver.getAccountNum()));
+    accReceivers.insert(std::pair<size_t, CAccountReceiver>(receiver.getAccountNum(), std::move(receiver)));
+}
+
+void CWallet::readSender(CAccountSender && sender)
+{
+    if(accSenders.find(sender.getAccountNum()) != accSenders.end())
+        throw std::runtime_error("There is already an account with number " + std::to_string(sender.getAccountNum()));
+    accSenders.insert(std::pair<size_t, CAccountSender>(sender.getAccountNum(), std::move(sender)));
+}
+
 }

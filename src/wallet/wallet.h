@@ -1290,14 +1290,17 @@ public:
     /* Generates and strores a new payment code for receiving*/
     bip47::CPaymentCode GeneratePcode(std::string const & label);
 
-    /* Lists all receiving pcodes*/
-    std::vector<std::pair<std::string, std::string>> ListPcodes();
+    /* Lists all receiving pcodes as tuples of (pcode, label, notification address) */
+    std::vector<std::tuple<bip47::CPaymentCode, std::string, CBitcoinAddress>> ListPcodes();
 
     /* Creates a payment channel for their payment code. Returns their notification address */
     bip47::CPaymentChannel & SetupPchannel(bip47::CPaymentCode const & theirPcode);
 
-    /* Returns a next unused address for their payment code. Throws if no payment channel setup */
+    /* Returns next unused address for their payment code. Throws if no payment channel was setup */
     CBitcoinAddress GetNextAddress(bip47::CPaymentCode const & theirPcode);
+
+    /*Loads previously stored bip47 accounts */
+    void LoadBip47Wallet();
 };
 
 /** A key allocated from the key pool. */

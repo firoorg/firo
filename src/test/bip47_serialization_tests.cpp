@@ -8,6 +8,7 @@
 #include "test/fixtures.h"
 
 #include "bip47_test_data.h"
+#include "wallet/wallet.h"
 #include <bip47/utils.h>
 #include <bip47/secretpoint.h>
 #include <bip47/account.h>
@@ -161,6 +162,57 @@ BOOST_AUTO_TEST_CASE(account_sender)
     BOOST_CHECK(sender.getMyNextAddresses() == sender_deserialized.getMyNextAddresses());
     BOOST_CHECK(sender.getMyNextAddresses() == sender_deserialized.getMyNextAddresses());
     BOOST_CHECK(sender.generateTheirNextSecretAddress() == sender_deserialized.generateTheirNextSecretAddress());
+}
+
+BOOST_AUTO_TEST_CASE(wallet)
+{
+    bip47::CWallet wallet(alice::bip32seed);
+    wallet.createReceivingAccount("Label1");
+    CPaymentCode paymentCode_bob(bob::paymentcode);
+    wallet.provideSendingAccount(paymentCode_bob);
+
+    CDataStream ds(SER_NETWORK, 0);
+    wallet.enumerateReceivers(
+        [&ds](bip47::CAccountReceiver & acc)
+        {
+            ds << acc;
+        }
+    );
+
+    wallet.enumerateSenders(
+        [&ds](bip47::CAccountSender & acc)
+        {
+            ds << acc;
+        }
+    );
+
+
+    bip47::CWallet wallet_deserialize(alice::bip32seed);
+
+    CAccountReceiver rcv(deserialize, ds);
+    wallet_deserialize.readReceiver(std::move(rcv));
+
+    CAccountSender snd(deserialize, ds);
+    wallet_deserialize.readSender(std::move(snd));
+
+    size_t receiverNum = 0, senderNum = 0;
+    wallet_deserialize.enumerateReceivers(
+        [&receiverNum](bip47::CAccountReceiver & acc)
+        {
+            BOOST_CHECK(acc.getLabel() == "Label1");
+            receiverNum += 1;
+        }
+    );
+    BOOST_CHECK_EQUAL(receiverNum, 1);
+
+    wallet_deserialize.enumerateSenders(
+        [&senderNum, &paymentCode_bob](bip47::CAccountSender & acc)
+        {
+            BOOST_CHECK(acc.getTheirPcode() == paymentCode_bob);
+            senderNum += 1;
+        }
+    );
+    BOOST_CHECK_EQUAL(senderNum, 1);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

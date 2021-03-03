@@ -8211,6 +8211,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     }
 
     walletInstance->bip47wallet = std::make_shared<bip47::CWallet>(walletInstance->vchDefaultKey.GetHash());
+    walletInstance->LoadBip47Wallet();
 
     RegisterValidationInterface(walletInstance);
 
@@ -8517,16 +8518,17 @@ bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)
             AddKey(addr.second);
         }
     }
+    CWalletDB(strWalletFile).WriteBip47Account(newAcc);
     return newAcc.getMyPcode();
 }
 
-std::vector<std::pair<std::string, std::string>> CWallet::ListPcodes()
+std::vector<std::tuple<bip47::CPaymentCode, std::string, CBitcoinAddress>> CWallet::ListPcodes()
 {
-    std::vector<std::pair<std::string, std::string>> result;
+    std::vector<std::tuple<bip47::CPaymentCode, std::string, CBitcoinAddress>> result;
     bip47wallet->enumerateReceivers(
         [&result](bip47::CAccountReceiver const & acc)
         {
-            result.push_back(std::make_pair(acc.getMyPcode().toString(), acc.getLabel()+","+acc.getMyNotificationAddress().ToString()));
+            result.push_back(std::make_tuple(acc.getMyPcode(), acc.getLabel(), acc.getMyNotificationAddress()));
         }
     );
     return result;
@@ -8535,6 +8537,7 @@ std::vector<std::pair<std::string, std::string>> CWallet::ListPcodes()
 bip47::CPaymentChannel & CWallet::SetupPchannel(bip47::CPaymentCode const & theirPcode)
 {
     bip47::CAccountSender & sender = bip47wallet->provideSendingAccount(theirPcode);
+    CWalletDB(strWalletFile).WriteBip47Account(sender);
     return sender.getPaymentChannel();
 }
 
@@ -8553,9 +8556,14 @@ CBitcoinAddress CWallet::GetNextAddress(bip47::CPaymentCode const & theirPcode)
         throw std::runtime_error("There is no account setup for payment code " + theirPcode.toString());
     auto result = existingAcc.get()->generateTheirNextSecretAddress();
     LogBip47("Sending to secret address: %s\n", result.ToString());
+    CWalletDB(strWalletFile).WriteBip47Account(*existingAcc.get());
     return result;
 }
 
+void CWallet::LoadBip47Wallet()
+{
+    CWalletDB(strWalletFile).LoadBip47Accounts(*bip47wallet);
+}
 
 
 CKeyPool::CKeyPool()
