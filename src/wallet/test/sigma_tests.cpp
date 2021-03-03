@@ -249,7 +249,9 @@ BOOST_AUTO_TEST_CASE(get_coin_no_coin)
 
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
-    BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint), InsufficientFunds);
+    std::list<CSigmaEntry> availableCoins = pwalletMain->GetAvailableCoins();
+
+    BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint, availableCoins), InsufficientFunds);
 
     std::vector<std::pair<sigma::CoinDenomination, int>> needCoins;
 
@@ -270,7 +272,9 @@ BOOST_AUTO_TEST_CASE(get_coin_different_denomination)
 
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
-    BOOST_CHECK_NO_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint));
+    std::list<CSigmaEntry> availableCoins = pwalletMain->GetAvailableCoins();
+
+    BOOST_CHECK_NO_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint, availableCoins));
     sigmaState->Reset();
 }
 
@@ -287,7 +291,9 @@ BOOST_AUTO_TEST_CASE(get_coin_round_up)
 
     std::vector<CSigmaEntry> coinsToSpend;
     std::vector<sigma::CoinDenomination> coinsToMint;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coinsToSpend, coinsToMint),
+    std::list<CSigmaEntry> availableCoins = pwalletMain->GetAvailableCoins();
+
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coinsToSpend, coinsToMint, availableCoins),
       "Expect enough for requirement");
 
     // We would expect to spend 100 + 10 + 1 + 0.5 + 0.1 + 0.05
@@ -312,7 +318,9 @@ BOOST_AUTO_TEST_CASE(get_coin_not_enough)
 
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
-    BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint), InsufficientFunds);
+    std::list<CSigmaEntry> availableCoins = pwalletMain->GetAvailableCoins();
+
+    BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint, availableCoins), InsufficientFunds);
     sigmaState->Reset();
 }
 
@@ -329,7 +337,9 @@ BOOST_AUTO_TEST_CASE(get_coin_cannot_spend_unconfirmed_coins)
 
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
-    BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint), InsufficientFunds);
+    std::list<CSigmaEntry> availableCoins = pwalletMain->GetAvailableCoins();
+
+    BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint, availableCoins), InsufficientFunds);
     sigmaState->Reset();
 }
 
@@ -345,7 +355,9 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
 
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins,coinsToMint),
+    std::list<CSigmaEntry> availableCoins = pwalletMain->GetAvailableCoins();
+
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins,coinsToMint, availableCoins),
       "Expect enough coin and equal to one SIGMA_DENOM_100");
 
     std::vector<std::pair<sigma::CoinDenomination, int>> expectedCoins;
@@ -368,7 +380,9 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
 
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint),
+    std::list<CSigmaEntry> availableCoins = pwalletMain->GetAvailableCoins();
+
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint, availableCoins),
       "Coins to spend value is not equal to required amount.");
 
     std::vector<std::pair<sigma::CoinDenomination, int>> expectedCoins;
@@ -391,7 +405,9 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
 
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins,coinsToMint),
+    std::list<CSigmaEntry> availableCoins = pwalletMain->GetAvailableCoins();
+
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins,coinsToMint, availableCoins),
       "Expect enough coin and equal one SIGMA_DENOM_1");
 
     std::vector<std::pair<sigma::CoinDenomination, int>> expectedCoins;
@@ -414,7 +430,9 @@ BOOST_AUTO_TEST_CASE(get_coin_by_limit_max_to_1)
 
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
-    BOOST_CHECK_EXCEPTION(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint, 1),
+    std::list<CSigmaEntry> availableCoins = pwalletMain->GetAvailableCoins();
+
+    BOOST_CHECK_EXCEPTION(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint, availableCoins, 1),
         std::runtime_error,
         [](const std::runtime_error& e) {
             return e.what() == std::string("Can not choose coins within limit.");

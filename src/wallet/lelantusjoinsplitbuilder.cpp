@@ -120,7 +120,8 @@ CWalletTx LelantusJoinSplitBuilder::Build(
     }
 
     std::tie(fee, std::ignore) = wallet.EstimateJoinSplitFee(vOut + mint, recipientsToSubtractFee, coinControl);
-
+    std::list<CSigmaEntry> sigmaCoins = pwalletMain->GetAvailableCoins(coinControl);
+    std::list<CLelantusEntry> coins = pwalletMain->GetAvailableLelantusCoins(coinControl);
 
     for (;;) {
         // In case of not enough fee, reset mint seed counter
@@ -187,9 +188,8 @@ CWalletTx LelantusJoinSplitBuilder::Build(
 
         std::vector<sigma::CoinDenomination> denomChanges;
         try {
-            std::list<CSigmaEntry> coins = pwalletMain->GetAvailableCoins(coinControl);
             CAmount availableBalance(0);
-            for (auto coin : coins) {
+            for (auto coin : sigmaCoins) {
                 availableBalance += coin.get_denomination_value();
             }
             if(availableBalance > 0) {
@@ -199,9 +199,10 @@ CWalletTx LelantusJoinSplitBuilder::Build(
                 else
                     inputFromSigma = required;
 
-                wallet.GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges, //try to spend sigma first
+                wallet.GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges, sigmaCoins, //try to spend sigma first
                                        consensusParams.nMaxLelantusInputPerTransaction,
                                        consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
+
                 required -= inputFromSigma;
 
                 isSigmaToLelantusJoinSplit = true;
@@ -210,7 +211,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         }
 
         if(required > 0) {
-            if (!wallet.GetCoinsToJoinSplit(required, spendCoins, changeToMint,
+            if (!wallet.GetCoinsToJoinSplit(required, spendCoins, changeToMint, coins,
                                             consensusParams.nMaxLelantusInputPerTransaction,
                                             consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl)) {
                 throw InsufficientFunds();
