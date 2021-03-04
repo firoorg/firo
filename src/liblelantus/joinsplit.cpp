@@ -9,6 +9,7 @@ namespace lelantus {
 JoinSplit::JoinSplit(const Params *p,
              const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
              const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+             const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
              const Scalar& Vout,
              const std::vector<PrivateCoin>& Cout,
              uint64_t fee,
@@ -45,7 +46,7 @@ JoinSplit::JoinSplit(const Params *p,
 
     LelantusProver prover(p);
 
-    prover.proof(anonymity_sets, uint64_t(0), Cin, indexes, Vout, Cout, fee, lelantusProof);
+    prover.proof(anonymity_sets, anonymity_set_hashes, uint64_t(0), Cin, indexes, Vout, Cout, fee, lelantusProof);
 
     if(groupBlockHashes.size() != anonymity_sets.size())
         throw std::invalid_argument("Mismatch blockHashes and anonymity sets sizes.");
@@ -103,16 +104,18 @@ void JoinSplit::signMetaData(const std::vector<std::pair<PrivateCoin, uint32_t>>
 
 bool JoinSplit::Verify(
         const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+        const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
         const std::vector<PublicCoin>& Cout,
         uint64_t Vout,
         const uint256& txHash) const {
     Scalar challenge;
     bool fSkipVerification = false;
-    return Verify(anonymity_sets, Cout, Vout, txHash, challenge, fSkipVerification);
+    return Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHash, challenge, fSkipVerification);
 }
 
 bool JoinSplit::Verify(
         const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+        const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
         const std::vector<PublicCoin>& Cout,
         uint64_t Vout,
         const uint256& txHash,
@@ -172,7 +175,7 @@ bool JoinSplit::Verify(
 
     // Now verify lelantus proof
     LelantusVerifier verifier(params);
-    return verifier.verify(anonymity_sets, serialNumbers, groupIds, uint64_t(0),Vout, fee, Cout, lelantusProof, challenge, fSkipVerification);
+    return verifier.verify(anonymity_sets, anonymity_set_hashes, serialNumbers, groupIds, uint64_t(0),Vout, fee, Cout, lelantusProof, challenge, fSkipVerification);
 }
 
 

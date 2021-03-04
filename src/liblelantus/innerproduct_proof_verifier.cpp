@@ -1,15 +1,19 @@
 #include "innerproduct_proof_verifier.h"
+#include "chainparams.h"
+
 namespace lelantus {
     
 InnerProductProofVerifier::InnerProductProofVerifier(
         const std::vector<GroupElement>& g,
         const std::vector<GroupElement>& h,
         const GroupElement& u,
-        const GroupElement& P)
+        const GroupElement& P,
+        bool afterFixes)
         : g_(g)
         , h_(h)
         , u_(u)
         , P_(P)
+        , afterFixes_(afterFixes)
 {
 }
 
@@ -37,7 +41,10 @@ bool InnerProductProofVerifier::verify_util(
     //Get challenge x
     Scalar x;
     std::vector<GroupElement> group_elements = {*itr_l, *itr_r};
-    LelantusPrimitives::generate_challenge(group_elements, x);
+    std::string domain_separator = "";
+    if(afterFixes_)
+        domain_separator = "INNER_PRODUCT";
+    LelantusPrimitives::generate_challenge(group_elements, domain_separator, x);
 
     //Compute g prime and p prime
     std::vector<GroupElement> g_p;
@@ -65,7 +72,10 @@ bool InnerProductProofVerifier::verify_fast_util(
     for (std::size_t i = 0; i < log_n; ++i)
     {
         std::vector<GroupElement> group_elements = {proof.L_[i], proof.R_[i]};
-        LelantusPrimitives::generate_challenge(group_elements, x_j[i]);
+        std::string domain_separator = "";
+        if(afterFixes_)
+            domain_separator = "INNER_PRODUCT_ITERATION";
+        LelantusPrimitives::generate_challenge(group_elements, domain_separator, x_j[i]);
     }
     std::vector<Scalar> s, s_inv;
     s.resize(n);

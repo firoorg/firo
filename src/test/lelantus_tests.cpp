@@ -28,7 +28,7 @@ struct JoinSplitScriptGenerator {
 
         CScript script;
 
-        JoinSplit joinSplit(p, coins, anons, vout, coinsOut, fee, groupBlockHashes, txHash);
+        JoinSplit joinSplit(p, coins, anons, {}, vout, coinsOut, fee, groupBlockHashes, txHash);
         joinSplit.setVersion(LELANTUS_TX_VERSION_4);
 
         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
@@ -735,8 +735,8 @@ BOOST_AUTO_TEST_CASE(parse_joinsplit)
     BOOST_CHECK(gs.second.getVersion() == result->getVersion());
     BOOST_CHECK(gs.second.HasValidSerials() == result->HasValidSerials());
 
-    BOOST_CHECK(gs.second.Verify(g.anons, ExtractCoins(g.coinsOut), g.vout, g.txHash));
-    BOOST_CHECK(result->Verify(g.anons, ExtractCoins(g.coinsOut), g.vout, g.txHash));
+    BOOST_CHECK(gs.second.Verify(g.anons, {}, ExtractCoins(g.coinsOut), g.vout, g.txHash));
+    BOOST_CHECK(result->Verify(g.anons, {}, ExtractCoins(g.coinsOut), g.vout, g.txHash));
 }
 
 BOOST_AUTO_TEST_CASE(coingroup)

@@ -1,4 +1,5 @@
 #include "lelantus_prover.h"
+#include "chainparams.h"
 
 namespace lelantus {
 
@@ -7,6 +8,7 @@ LelantusProver::LelantusProver(const Params* p) : params(p) {
 
 void LelantusProver::proof(
         const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+        const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
         const Scalar& Vin,
         const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
         const std::vector<size_t>& indexes,
@@ -29,7 +31,7 @@ void LelantusProver::proof(
     Scalar x;
     std::vector<Scalar> Yk_sum;
     Yk_sum.resize(Cin.size());
-    generate_sigma_proofs(anonymity_sets, Cin, Cout, indexes, x, Yk_sum, proof_out.sigma_proofs);
+    generate_sigma_proofs(anonymity_sets, anonymity_set_hashes, Cin, Cout, indexes, x, Yk_sum, proof_out.sigma_proofs);
 
     generate_bulletproofs(Cout, proof_out.bulletproofs);
 
@@ -38,29 +40,36 @@ void LelantusProver::proof(
     Scalar X_;
     Scalar So;
     Scalar Ro;
+    GroupElement A;
     for (std::size_t i = 0; i < Cout.size(); ++i)
     {
         So += Cout[i].getSerialNumber();
         Ro += Cout[i].getRandomness();
+        A += Cout[i].getPublicCoin().getValue();
     }
     X_ = So * x_m;
-
+    A *= x_m;
+    A += params->get_h1() * ((Vout + fee) * x_m);
     Scalar Y_;
     Scalar Ri;
+    Scalar Vi = Vin;
     for (std::size_t i = 0; i < Cin.size(); ++i)
     {
         Ri += Cin[i].first.getRandomness() * x_m + Yk_sum[i];
+        Vi += Cin[i].first.getVScalar();
     }
     Y_ = Ro * x_m - Ri;
-
-    SchnorrProver schnorrProver(params->get_g(), params->get_h0());
-
-    schnorrProver.proof(X_, Y_, proof_out.schnorrProof);
+    Vi *=  x_m;
+    GroupElement B = params->get_h1() * Vi + params->get_h0() * Ri;
+    GroupElement Y = A + B.inverse();
+    SchnorrProver schnorrProver(params->get_g(), params->get_h0(), chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock);
+    schnorrProver.proof(X_, Y_, Y, A, B, proof_out.schnorrProof);
 
 }
 
 void LelantusProver::generate_sigma_proofs(
         const std::map<uint32_t, std::vector<PublicCoin>>& c,
+        const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
         const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
         const std::vector<PrivateCoin>& Cout,
         const std::vector<size_t>& indexes,
@@ -83,12 +92,14 @@ void LelantusProver::generate_sigma_proofs(
     Yk.resize(N);
     std::vector<std::vector<Scalar>> a;
     a.resize(N);
+    std::vector<Scalar> serialNumbers(N);
     for (std::size_t i = 0; i < N; ++i)
     {
         if (!c.count(Cin[i].second))
             throw std::invalid_argument("No such anonymity set or id is not correct");
 
         GroupElement gs = (params->get_g() * Cin[i].first.getSerialNumber().negate());
+        serialNumbers.emplace_back(Cin[i].first.getSerialNumber());
         std::vector<GroupElement> C_;
         C_.reserve(c.size());
 
@@ -114,7 +125,7 @@ void LelantusProver::generate_sigma_proofs(
     PubcoinsOut.reserve(Cout.size());
     for(auto coin : Cout)
         PubcoinsOut.emplace_back(coin.getPublicCoin().getValue());
-    LelantusPrimitives::generate_Lelantus_challenge(sigma_proofs, PubcoinsOut, x);
+    LelantusPrimitives::generate_Lelantus_challenge(sigma_proofs, anonymity_set_hashes, serialNumbers, PubcoinsOut, chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock, x);
 
     std::vector<Scalar> x_ks;
     x_ks.reserve(params->get_sigma_m());

@@ -18,6 +18,7 @@ public:
     JoinSplit(const Params* p,
               const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
               const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+              const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
               const Scalar& Vout,
               const std::vector<PrivateCoin>& Cout,
               uint64_t fee,
@@ -25,11 +26,13 @@ public:
               const uint256& txHash);
 
     bool Verify(const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+                const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
                 const std::vector<PublicCoin>& Cout,
                 uint64_t Vout,
                 const uint256& txHash) const;
 
     bool Verify(const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+                const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
                 const std::vector<PublicCoin>& Cout,
                 uint64_t Vout,
                 const uint256& txHash,

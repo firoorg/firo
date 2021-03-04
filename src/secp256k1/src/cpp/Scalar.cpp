@@ -217,7 +217,7 @@ Scalar& Scalar::randomize() {
             throw "Unable to generate random Scalar";
         }
         generate(temp);
-    } while (!this->isMember());
+    } while (!this->isMember() || this->isZero());
 
     return *this;
 }

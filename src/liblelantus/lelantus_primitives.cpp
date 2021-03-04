@@ -2,14 +2,22 @@
 #include "challenge_generator.h"
 
 namespace lelantus {
+
+static std::string lts("LELANTUS_SIGMA");
     
 void LelantusPrimitives::generate_challenge(
         const std::vector<GroupElement>& group_elements,
+        const std::string& domain_separator,
         Scalar& result_out) {
     if (group_elements.empty())
         throw std::runtime_error("Group elements empty while generating a challenge.");
 
     ChallengeGenerator challengeGenerator;
+    if (domain_separator != "") {
+        std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
+        challengeGenerator.add(pre);
+    }
+
     challengeGenerator.add(group_elements);
     challengeGenerator.get_challenge(result_out);
 }
@@ -80,14 +88,25 @@ std::vector<uint64_t> LelantusPrimitives::convert_to_nal(
 
 void  LelantusPrimitives::generate_Lelantus_challenge(
         const std::vector<SigmaExtendedProof>& proofs,
+        const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
+        const std::vector<Scalar>& serialNumbers,
         const std::vector<GroupElement>& Cout,
+        bool afterFixes,
         Scalar& result_out) {
 
     result_out = uint64_t(1);
 
     ChallengeGenerator challengeGenerator;
-    if(Cout.size() > 0) {
-        for(auto coin : Cout)
+    if (afterFixes) {
+        std::vector<unsigned char> pre(lts.begin(), lts.end());
+        challengeGenerator.add(pre);
+        for (const auto& hash : anonymity_set_hashes)
+            challengeGenerator.add(hash);
+        challengeGenerator.add(serialNumbers);
+    }
+
+    if (Cout.size() > 0) {
+        for (auto coin : Cout)
             challengeGenerator.add(coin);
     }
 

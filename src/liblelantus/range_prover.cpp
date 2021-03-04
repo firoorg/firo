@@ -1,5 +1,6 @@
 #include "range_prover.h"
 #include "challenge_generator.h"
+#include "chainparams.h"
 
 namespace lelantus {
     
@@ -58,8 +59,15 @@ void RangeProver::batch_proof(
     ro.randomize();
     LelantusPrimitives::commit(h1, ro, g_, sL, h_, sR, proof_out.S);
 
+
+
     Scalar y, z;
     ChallengeGenerator challengeGenerator;
+    if (chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock) {
+        std::string domain_separator = "RANGE_PROOF";
+        std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
+        challengeGenerator.add(pre);
+    }
     challengeGenerator.add({proof_out.A, proof_out.S});
     challengeGenerator.get_challenge(y);
     challengeGenerator.get_challenge(z);

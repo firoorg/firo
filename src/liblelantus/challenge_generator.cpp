@@ -30,6 +30,10 @@ void ChallengeGenerator::add(const std::vector<Scalar>& scalars) {
     }
 }
 
+void ChallengeGenerator::add(const std::vector<unsigned char>& data_) {
+    hash.Write(data_.data(), data_.size());
+}
+
 void ChallengeGenerator::get_challenge(Scalar& result_out) {
     unsigned char result_data[CSHA256::OUTPUT_SIZE];
     do {

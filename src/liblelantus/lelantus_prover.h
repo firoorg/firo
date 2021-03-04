@@ -5,6 +5,8 @@
 #include "sigmaextended_prover.h"
 #include "range_prover.h"
 #include "coin.h"
+#include "chain.h"
+extern CChain chainActive;
 
 namespace lelantus {
 
@@ -13,6 +15,7 @@ public:
     LelantusProver(const Params* p);
     void proof(
             const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+            const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
             const Scalar& Vin,
             const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
             const std::vector <size_t>& indexes,
@@ -24,6 +27,7 @@ public:
 private:
     void generate_sigma_proofs(
             const std::map<uint32_t, std::vector<PublicCoin>>& c,
+            const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
             const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
             const std::vector<PrivateCoin>& Cout,
             const std::vector<size_t>& indexes,

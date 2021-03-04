@@ -229,6 +229,8 @@ struct Params {
     // The block number after which lelantus is accepted.
     int nLelantusStartBlock;
 
+    int nLelantusFixesStartBlock;
+
     // The block number introducing evo sporks
     int nEvoSporkStartBlock;
 

@@ -36,6 +36,7 @@ public:
 ////common functions
     static void generate_challenge(
             const std::vector<GroupElement>& group_elements,
+            const std::string& domain_separator,
             Scalar& result_out);
 
     static GroupElement commit(
@@ -63,7 +64,13 @@ public:
 
     static std::vector<uint64_t> convert_to_nal(uint64_t num, uint64_t n, uint64_t m);
 
-    static void generate_Lelantus_challenge(const std::vector<SigmaExtendedProof>& proofs, const std::vector<GroupElement>& Cout, Scalar& result_out);
+    static void generate_Lelantus_challenge(
+            const std::vector<SigmaExtendedProof>& proofs,
+            const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
+            const std::vector<Scalar>& serialNumbers,
+            const std::vector<GroupElement>& Cout,
+            bool afterFixes,
+            Scalar& result_out);
 
     static void new_factor(const Scalar& x, const Scalar& a, std::vector<Scalar>& coefficients);
 //// functions for bulletproofs

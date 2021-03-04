@@ -21,7 +21,9 @@ bool  SigmaExtendedVerifier::verify(
     std::vector<GroupElement> group_elements = {proof.A_, proof.B_, proof.C_, proof.D_};
     group_elements.insert(group_elements.end(), proof.Gk_.begin(), proof.Gk_.end());
     group_elements.insert(group_elements.end(), proof.Qk.begin(), proof.Qk.end());
-    LelantusPrimitives::generate_challenge(group_elements, x);
+    group_elements.insert(group_elements.end(), commits.begin(), commits.end());
+    std::string domain_separator = "SIGMA";
+    LelantusPrimitives::generate_challenge(group_elements, domain_separator, x);
     return verify(commits, x, proof);
 }
 

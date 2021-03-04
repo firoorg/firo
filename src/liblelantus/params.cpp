@@ -118,6 +118,10 @@ int Params::get_bulletproofs_n() const {
     return n_rangeProof;
 }
 
+int Params::get_bulletproofs_max_m() const {
+    return max_m_rangeProof;
+}
+
 const Scalar& Params::get_limit_range() const {
     return limit_range;
 }

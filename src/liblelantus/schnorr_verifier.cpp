@@ -2,18 +2,27 @@
 
 namespace lelantus {
     
-SchnorrVerifier::SchnorrVerifier(const GroupElement& g, const GroupElement& h):
-        g_(g), h_(h) {
+SchnorrVerifier::SchnorrVerifier(const GroupElement& g, const GroupElement& h, bool withFixes_):
+        g_(g), h_(h), withFixes(withFixes_) {
 }
 
 bool SchnorrVerifier::verify(
         const GroupElement& y,
+        const GroupElement& a,
+        const GroupElement& b,
         const SchnorrProof& proof){
 
     const GroupElement& u = proof.u;
     Scalar c;
     std::vector<GroupElement> group_elements = {u};
-    LelantusPrimitives::generate_challenge(group_elements, c);
+
+    std::string shts = "";
+    if (withFixes) {
+        shts = "SCHNORR_PROOF";
+        group_elements = {u, y, a, b};
+    }
+
+    LelantusPrimitives::generate_challenge(group_elements, shts, c);
     const Scalar P1 = proof.P1;
     const Scalar T1 = proof.T1;
 

@@ -2,6 +2,8 @@
 #define FIRO_LIBLELANTUS_INNER_PRODUCT_PROOF_VERIFIER_H
 
 #include "lelantus_primitives.h"
+#include "chain.h"
+extern CChain chainActive;
 
 namespace lelantus {
     
@@ -13,7 +15,8 @@ public:
             const std::vector<GroupElement>& g,
             const std::vector<GroupElement>& h,
             const GroupElement& u,
-            const GroupElement& P);
+            const GroupElement& P,
+            bool afterFixes = false);
 
     bool verify(const Scalar& x, const InnerProductProof& proof);
     bool verify_fast(uint64_t n, const Scalar& x, const InnerProductProof& proof);
@@ -31,6 +34,7 @@ private:
     const std::vector<GroupElement>& h_;
     GroupElement u_;
     GroupElement P_;
+    bool afterFixes_;
 
 };
 

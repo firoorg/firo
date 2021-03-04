@@ -10,6 +10,7 @@ LelantusVerifier::LelantusVerifier(const Params* p) : params(p) {
 
 bool LelantusVerifier::verify(
         const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+        const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
         const std::vector<Scalar>& serialNumbers,
         const std::vector<uint32_t>& groupIds,
         const Scalar& Vin,
@@ -19,11 +20,12 @@ bool LelantusVerifier::verify(
         const LelantusProof& proof) {
     Scalar x;
     bool fSkipVerification = 0;
-    return verify(anonymity_sets, serialNumbers, groupIds, Vin, Vout, fee, Cout, proof, x, fSkipVerification);
+    return verify(anonymity_sets, anonymity_set_hashes, serialNumbers, groupIds, Vin, Vout, fee, Cout, proof, x, fSkipVerification);
 }
 
 bool LelantusVerifier::verify(
         const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+        const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
         const std::vector<Scalar>& serialNumbers,
         const std::vector<uint32_t>& groupIds,
         const Scalar& Vin,
@@ -36,6 +38,16 @@ bool LelantusVerifier::verify(
     //check the overflow of Vout and fee
     if (!(Vout <= uint64_t(::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction) && fee < (1000 * CENT))) { // 1000 * CENT is the value of max fee defined at validation.h
         LogPrintf("Lelantus verification failed due to transparent values check failed.");
+        return false;
+    }
+
+    if (serialNumbers.size() != proof.sigma_proofs.size()) {
+        LogPrintf("Lelantus verification failed due to sizes of serials  and sigma proofs are not equal.");
+        return false;
+    }
+
+    if (Cout.size() > (params->get_bulletproofs_max_m() / 2)) {
+        LogPrintf("Number of output coins are more than allowed.");
         return false;
     }
 
@@ -56,7 +68,7 @@ bool LelantusVerifier::verify(
     }
 
     Scalar zV, zR;
-    if (!(verify_sigma(vAnonymity_sets, vSin, Cout, proof.sigma_proofs, x, zV, zR, fSkipVerification) &&
+    if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, Cout, proof.sigma_proofs, x, zV, zR, fSkipVerification) &&
          verify_rangeproof(Cout, proof.bulletproofs) &&
          verify_schnorrproof(x, zV, zR, Vin, Vout, fee, Cout, proof)))
         return false;
@@ -65,7 +77,9 @@ bool LelantusVerifier::verify(
 
 bool LelantusVerifier::verify_sigma(
         const std::vector<std::vector<PublicCoin>>& anonymity_sets,
+        const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
         const std::vector<std::vector<Scalar>>& Sin,
+        const std::vector<Scalar>& serialNumbers,
         const std::vector<PublicCoin>& Cout,
         const std::vector<SigmaExtendedProof> &sigma_proofs,
         Scalar& x,
@@ -77,7 +91,8 @@ bool LelantusVerifier::verify_sigma(
     for (auto coin : Cout)
         PubcoinsOut.emplace_back(coin.getValue());
 
-    LelantusPrimitives::generate_Lelantus_challenge(sigma_proofs, PubcoinsOut, x);
+    LelantusPrimitives::generate_Lelantus_challenge(sigma_proofs, anonymity_set_hashes, serialNumbers, PubcoinsOut, chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock, x);
+
     SigmaExtendedVerifier sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
                                                           params->get_sigma_m());
 
@@ -187,10 +202,11 @@ bool LelantusVerifier::verify_schnorrproof(
         Comm += Comm_t;
     }
     B += Comm;
-    SchnorrVerifier schnorrVerifier(params->get_g(), params->get_h0());
+    SchnorrVerifier schnorrVerifier(params->get_g(), params->get_h0(), chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock);
     const SchnorrProof& schnorrProof = proof.schnorrProof;
     GroupElement Y = A + B * (Scalar(uint64_t(1)).negate());
-    if (!schnorrVerifier.verify(Y, schnorrProof)) {
+
+    if (!schnorrVerifier.verify(Y, A, B, schnorrProof)) {
         LogPrintf("Lelantus verification failed due schnorr proof verification failed.");
         return false;
     }
