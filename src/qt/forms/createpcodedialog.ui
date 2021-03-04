@@ -65,8 +65,8 @@
              <string>C&amp;reate payment code</string>
             </property>
             <property name="icon">
-             <iconset>
-              <normaloff>../res/icons/paymentcode.png</normaloff>../res/icons/paymentcode.png</iconset>
+             <iconset resource="../bitcoin.qrc">
+              <normaloff>:/icons/paymentcode</normaloff>:/icons/paymentcode</iconset>
             </property>
            </widget>
           </item>
