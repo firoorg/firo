@@ -138,6 +138,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     zc2SigmaAction(0),
     lelantusAction(0),
     masternodeAction(0),
+    createPcodeAction(0),
     trayIcon(0),
     trayIconMenu(0),
     notificator(0),
@@ -414,6 +415,13 @@ void BitcoinGUI::createActions()
     }
 #endif
 
+    createPcodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/receiving_addresses"), tr("RA&P codes"), this);
+    createPcodeAction->setStatusTip(tr("Creates RAP (BIP47) payment codes"));
+    createPcodeAction->setToolTip(createPcodeAction->statusTip());
+    createPcodeAction->setCheckable(true);
+    createPcodeAction->setShortcut(QKeySequence(Qt::ALT + key++));
+    tabGroup->addAction(createPcodeAction);
+
 #ifdef ENABLE_WALLET
     connect(masternodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(masternodeAction, SIGNAL(triggered()), this, SLOT(gotoMasternodePage()));
@@ -432,7 +440,7 @@ void BitcoinGUI::createActions()
 	connect(sigmaAction, SIGNAL(triggered()), this, SLOT(gotoSigmaPage()));
 	connect(zc2SigmaAction, SIGNAL(triggered()), this, SLOT(gotoZc2SigmaPage()));
 	connect(lelantusAction, SIGNAL(triggered()), this, SLOT(gotoLelantusPage()));
-
+	connect(createPcodeAction, SIGNAL(triggered()), this, SLOT(gotoCreatePcodePage()));
 #ifdef ENABLE_ELYSIUM
     if (elysiumEnabled) {
         connect(elyAssetsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -585,6 +593,7 @@ void BitcoinGUI::createToolBars()
             toolbar->addAction(toolboxAction);
         }
 #endif
+        toolbar->addAction(createPcodeAction);
 
         overviewAction->setChecked(true);
     }
@@ -702,6 +711,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     sendCoinsMenuAction->setEnabled(enabled);
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
+    createPcodeAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
     sigmaAction->setEnabled(enabled);
     lelantusAction->setEnabled(enabled);
@@ -884,6 +894,12 @@ void BitcoinGUI::gotoReceiveCoinsPage()
 {
     receiveCoinsAction->setChecked(true);
     if (walletFrame) walletFrame->gotoReceiveCoinsPage();
+}
+
+void BitcoinGUI::gotoCreatePcodePage()
+{
+    createPcodeAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoCreatePcodePage();
 }
 
 void BitcoinGUI::gotoSendCoinsPage(QString addr)
