@@ -1,5 +1,6 @@
 #include "range_verifier.h"
 #include "challenge_generator.h"
+#include "chainparams.h"
 
 namespace lelantus {
     
@@ -25,8 +26,13 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const Range
 
     //computing challenges
     Scalar x, x_u, y, z;
-
+    bool afterFixes = chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock;
     ChallengeGenerator challengeGenerator;
+    if (afterFixes) {
+        std::string domain_separator = "RANGE_PROOF";
+        std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
+        challengeGenerator.add(pre);
+    }
     challengeGenerator.add({proof.A, proof.S});
     challengeGenerator.get_challenge(y);
     challengeGenerator.get_challenge(z);
@@ -46,7 +52,10 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const Range
     for (int i = 0; i < log_n; ++i)
     {
         std::vector<GroupElement> group_elements_i = {innerProductProof.L_[i], innerProductProof.R_[i]};
-        LelantusPrimitives::generate_challenge(group_elements_i, x_j[i]);
+        std::string domain_separator = "";
+        if(afterFixes)
+            domain_separator = "INNER_PRODUCT";
+        LelantusPrimitives::generate_challenge(group_elements_i, domain_separator, x_j[i]);
         x_j_inv.emplace_back((x_j[i].inverse()));
     }
 

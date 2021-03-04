@@ -17,6 +17,7 @@ public:
     void add(const std::vector<GroupElement>& group_elements);
     void add(const Scalar& scalar);
     void add(const std::vector<Scalar>& scalars);
+    void add(const std::vector<unsigned char>& data_);
     void get_challenge(Scalar& result_out);
 
 private:

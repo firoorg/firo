@@ -2,6 +2,8 @@
 #define FIRO_LIBLELANTUS_RANGE_PROVER_H
 
 #include "innerproduct_proof_generator.h"
+#include "chain.h"
+extern CChain chainActive;
 
 namespace lelantus {
     

@@ -36,7 +36,9 @@ void SigmaExtendedProver::proof(
     std::vector<GroupElement> group_elements = {proof_out.A_, proof_out.B_, proof_out.C_, proof_out.D_};
     group_elements.insert(group_elements.end(), proof_out.Gk_.begin(), proof_out.Gk_.end());
     group_elements.insert(group_elements.end(), proof_out.Qk.begin(), proof_out.Qk.end());
-    LelantusPrimitives::generate_challenge(group_elements, x);
+    group_elements.insert(group_elements.end(), commits.begin(), commits.end());
+    std::string domain_separator = "SIGMA";
+    LelantusPrimitives::generate_challenge(group_elements, domain_separator, x);
     sigma_response(sigma, a, rA, rB, rC, rD, v, r, Tk, Pk, x, proof_out);
 }
 

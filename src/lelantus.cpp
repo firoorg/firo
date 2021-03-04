@@ -75,8 +75,12 @@ void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, CDataStream&  s
     auto params = lelantus::Params::get_default();
 
     SchnorrProof schnorrProof;
-    SchnorrProver schnorrProver(params->get_g(), params->get_h0());
-    schnorrProver.proof(coin.getSerialNumber(), coin.getRandomness(), schnorrProof);
+    bool afterFixes = chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock;
+    SchnorrProver schnorrProver(params->get_g(), params->get_h0(), afterFixes);
+    Scalar v = coin.getVScalar();
+    secp_primitives::GroupElement commit = coin.getPublicCoin().getValue();
+    secp_primitives::GroupElement comm = commit + (params->get_h1() * v.negate());
+    schnorrProver.proof(coin.getSerialNumber(), coin.getRandomness(), comm, commit, (params->get_h1() * v), schnorrProof);
 
     serializedSchnorrProof << schnorrProof;
 }
@@ -84,10 +88,11 @@ void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, CDataStream&  s
 bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupElement& commit, const SchnorrProof& schnorrProof)
 {
     auto params = lelantus::Params::get_default();
+    bool afterFixes = chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock;
 
     secp_primitives::GroupElement comm = commit + (params->get_h1() * Scalar(v).negate());
-    SchnorrVerifier verifier(params->get_g(), params->get_h0());
-    return verifier.verify(comm, schnorrProof);
+    SchnorrVerifier verifier(params->get_g(), params->get_h0(), afterFixes);
+    return verifier.verify(comm, commit, (params->get_h1() * Scalar(v)), schnorrProof);
 }
 
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof& schnorrProof, uint256& mintTag)
@@ -356,6 +361,8 @@ bool CheckLelantusJoinSplitTransaction(
         }
     }
 
+    std::vector<std::vector<unsigned char>> anonymity_set_hashes;
+
     for(auto& idAndHash : joinsplit->getIdAndBlockHashes()) {
         auto& anonymity_set = anonymity_sets[idAndHash.first];
         int coinGroupId = idAndHash.first % (CENT / 1000);
@@ -405,10 +412,13 @@ bool CheckLelantusJoinSplitTransaction(
 
             CBlockIndex *index = coinGroup.lastBlock;
 
+
             // find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
             while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
                 index = index->pprev;
 
+            if (nHeight >= params.nLelantusFixesStartBlock && index->anonymitySetHash.count(idAndHash.first))
+                anonymity_set_hashes.push_back(index->anonymitySetHash[idAndHash.first]);
             // Build a vector with all the public coins with given id before
             // the block on which the spend occured.
             // This list of public coins is required by function "Verify" of JoinSplit.
@@ -418,6 +428,12 @@ bool CheckLelantusJoinSplitTransaction(
                     BOOST_FOREACH(
                     const auto& pubCoinValue,
                     index->lelantusMintedPubCoins[idAndHash.first]) {
+                        if (chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
+                            std::vector<unsigned char> vch = pubCoinValue.first.getValue().getvch();
+                            if(lelantus_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                                continue;
+                            }
+                        }
                         anonymity_set.push_back(pubCoinValue.first);
                     }
                 }
@@ -432,7 +448,7 @@ bool CheckLelantusJoinSplitTransaction(
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
     Scalar challenge;
     // if we are collecting proofs, skip verification and collect proofs
-    passVerify = joinsplit->Verify(anonymity_sets, Cout, Vout, txHashForMetadata, challenge, batchProofContainer->fCollectProofs);
+    passVerify = joinsplit->Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHashForMetadata, challenge, batchProofContainer->fCollectProofs);
 
     // add proofs into container
     if(batchProofContainer->fCollectProofs) {
@@ -441,7 +457,7 @@ bool CheckLelantusJoinSplitTransaction(
         for(auto itr : anonymity_sets)
             idAndSizes[itr.first] = itr.second.size();
 
-        batchProofContainer->add(joinsplit.get(), idAndSizes, challenge);
+        batchProofContainer->add(joinsplit.get(), idAndSizes, challenge, nHeight >= params.nLelantusFixesStartBlock);
     }
 
     if (passVerify) {
@@ -783,8 +799,42 @@ bool ConnectBlockLelantus(
         if (fJustCheck)
             return true;
 
+        auto& params = ::Params().GetConsensus();
+        if (pindexNew->nHeight > params.nLelantusFixesStartBlock)
+            pindexNew->anonymitySetHash = pindexNew->pprev->anonymitySetHash;
+
         if (!pblock->lelantusTxInfo->mints.empty()) {
             lelantusState.AddMintsToStateAndBlockIndex(pindexNew, pblock);
+
+            if (pindexNew->nHeight >= params.nLelantusFixesStartBlock) {
+                CSHA256 hash;
+                int latestCoinId = lelantusState.GetLatestCoinID();
+                std::vector<unsigned char> data;
+                data.resize(GroupElement::serialize_size);
+
+
+                if (pindexNew->nHeight == params.nLelantusFixesStartBlock) {
+                    std::vector<lelantus::PublicCoin> coins;
+                    lelantusState.GetAnonymitySet(1, false, coins);
+                    for (auto &coin : coins) {
+                        coin.getValue().serialize(data.data());
+                        hash.Write(data.data(), data.size());
+                    }
+                } else if (pindexNew->nHeight > params.nLelantusFixesStartBlock) {
+                    if (pindexNew->pprev->anonymitySetHash.count(latestCoinId) > 0)
+                        hash.Write(pindexNew->pprev->anonymitySetHash[latestCoinId].data(), 32);
+
+                    for (auto &coin : pindexNew->lelantusMintedPubCoins[latestCoinId]) {
+                        coin.first.getValue().serialize(data.data());
+                        hash.Write(data.data(), data.size());
+                    }
+                }
+
+                unsigned char hash_result[CSHA256::OUTPUT_SIZE];
+                hash.Finalize(hash_result);
+                auto &out_hash = pindexNew->anonymitySetHash[latestCoinId];
+                out_hash.insert(out_hash.begin(), std::begin(hash_result), std::end(hash_result));
+            }
         }
     }
     else if (!fJustCheck) {
@@ -1240,7 +1290,8 @@ int CLelantusState::GetCoinSetForSpend(
     int maxHeight,
     int coinGroupID,
     uint256& blockHash_out,
-    std::vector<lelantus::PublicCoin>& coins_out) {
+    std::vector<lelantus::PublicCoin>& coins_out,
+    std::vector<unsigned char>& hash_out) {
 
     coins_out.clear();
 
@@ -1271,11 +1322,19 @@ int CLelantusState::GetCoinSetForSpend(
                 // latest block satisfying given conditions
                 // remember block hash
                 blockHash_out = block->GetBlockHash();
+                hash_out =  block->anonymitySetHash[id];
             }
             numberOfCoins += block->lelantusMintedPubCoins[id].size();
-            if(block->lelantusMintedPubCoins.count(id) > 0) {
-                for (const auto &coin : block->lelantusMintedPubCoins[id])
+            if (block->lelantusMintedPubCoins.count(id) > 0) {
+                for (const auto &coin : block->lelantusMintedPubCoins[id]) {
+                    if (chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
+                        std::vector<unsigned char> vch = coin.first.getValue().getvch();
+                        if (lelantus_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                            continue;
+                        }
+                    }
                     coins_out.push_back(coin.first);
+                }
             }
         }
 
@@ -1285,6 +1344,58 @@ int CLelantusState::GetCoinSetForSpend(
     }
 
     return numberOfCoins;
+}
+
+void CLelantusState::GetAnonymitySet(
+        int coinGroupID,
+        bool fStartLelantusBlacklist,
+        std::vector<lelantus::PublicCoin>& coins_out) {
+
+    coins_out.clear();
+
+    if (coinGroups.count(coinGroupID) == 0) {
+        return;
+    }
+
+    LelantusCoinGroupInfo &coinGroup = coinGroups[coinGroupID];
+    auto params = ::Params().GetConsensus();
+    int maxHeight = fStartLelantusBlacklist ? (chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1)) : (params.nStartSigmaBlacklist - 1);
+
+
+    for (CBlockIndex *block = coinGroup.lastBlock;; block = block->pprev) {
+
+        // ignore block heigher than max height
+        if (block->nHeight > maxHeight) {
+            continue;
+        }
+
+        // check coins in group coinGroupID - 1 in the case that using coins from prev group.
+        int id = 0;
+        if (CountCoinInBlock(block, coinGroupID)) {
+            id = coinGroupID;
+        } else if (CountCoinInBlock(block, coinGroupID - 1)) {
+            id = coinGroupID - 1;
+        }
+
+        if (id) {
+            if(block->lelantusMintedPubCoins.count(id) > 0) {
+                for (const auto &coin : block->lelantusMintedPubCoins[id]) {
+                    if (fStartLelantusBlacklist &&
+                        chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
+                        std::vector<unsigned char> vch = coin.first.getValue().getvch();
+                        if (lelantus_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                            continue;
+                        }
+                    }
+                    coins_out.push_back(coin.first);
+                }
+            }
+        }
+
+        if (block == coinGroup.firstBlock) {
+            break ;
+        }
+    }
 }
 
 std::pair<int, int> CLelantusState::GetMintedCoinHeightAndId(

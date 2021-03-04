@@ -24,7 +24,8 @@ public:
 
     void add(lelantus::JoinSplit* joinSplit,
              const std::map<uint32_t, size_t>& setSizes,
-             const Scalar& challenge);
+             const Scalar& challenge,
+             bool fStartLelantusBlacklist);
 
     void removeSigma(const sigma::spend_info_container& spendSerials);
     void removeLelantus(std::unordered_map<Scalar, int> spentSerials);
@@ -74,11 +75,11 @@ private:
     // temp containers, to forget in case block connection fails
     std::map<std::pair<sigma::CoinDenomination, std::pair<int, bool>>, std::vector<SigmaProofData>> tempSigmaProofs;
     // map (id, fIsSigmaToLelantus) to (sigma proof, serial, set size, challenge)
-    std::map<std::pair<uint32_t, bool>, std::vector<LelantusSigmaProofData>> tempLelantusSigmaProofs;
+    std::map<std::pair<std::pair<uint32_t, bool>, bool>, std::vector<LelantusSigmaProofData>> tempLelantusSigmaProofs;
 
     // containers to keep proofs for batching
     std::map<std::pair<sigma::CoinDenomination, std::pair<int, bool>>, std::vector<SigmaProofData>> sigmaProofs;
-    std::map<std::pair<uint32_t, bool>, std::vector<LelantusSigmaProofData>> lelantusSigmaProofs;
+    std::map<std::pair<std::pair<uint32_t, bool>, bool>, std::vector<LelantusSigmaProofData>> lelantusSigmaProofs;
 };
 
 #endif //FIRO_BATCHPROOF_CONTAINER_H

@@ -12,7 +12,8 @@ public:
     InnerProductProofGenerator(
             const std::vector<GroupElement>& g,
             const std::vector<GroupElement>& h,
-            const GroupElement& u);
+            const GroupElement& u,
+            bool afterFixes = false);
 
     void generate_proof(
             const std::vector<Scalar>& a,
@@ -64,6 +65,7 @@ private:
     GroupElement u_;
     GroupElement P_;
     GroupElement P_initial;
+    bool afterFixes_;
 
 };
 

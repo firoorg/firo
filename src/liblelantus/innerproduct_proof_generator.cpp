@@ -6,10 +6,12 @@ namespace lelantus {
 InnerProductProofGenerator::InnerProductProofGenerator(
         const std::vector<GroupElement>& g,
         const std::vector<GroupElement>& h,
-        const GroupElement& u)
+        const GroupElement& u,
+        bool afterFixes)
         : g_(g)
         , h_(h)
         , u_(u)
+        , afterFixes_(afterFixes)
 {
 }
 
@@ -70,7 +72,10 @@ void InnerProductProofGenerator::generate_proof_util(
     //Get challenge x
     Scalar x;
     std::vector<GroupElement> group_elements = {L, R};
-    LelantusPrimitives::generate_challenge(group_elements, x);
+    std::string domain_separator = "";
+    if(afterFixes_)
+        domain_separator = "INNER_PRODUCT";
+    LelantusPrimitives::generate_challenge(group_elements, domain_separator, x);
 
     //Compute g prime and p prime
     std::vector<GroupElement> g_p;
