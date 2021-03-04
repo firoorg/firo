@@ -65,7 +65,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     sendCoinsTabs(0),
 #endif
     sigmaView(0),
-    paymentcodePage(0),
     blankSigmaView(0),
     lelantusView(0),
     blankLelantusView(0),
@@ -87,8 +86,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     lelantusPage = new QWidget(this);
 
     sendCoinsPage = new QWidget(this);
-    paymentcodePage = new PaymentcodePage(platformStyle);
-
 #ifdef ENABLE_ELYSIUM
     toolboxPage = new QWidget(this);
 #endif
@@ -112,7 +109,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
-    addWidget(paymentcodePage);
     addWidget(zerocoinPage);
     addWidget(sigmaPage);
     addWidget(lelantusPage);
@@ -342,7 +338,6 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     receiveCoinsPage->setModel(_walletModel);
     // TODO: fix this
     //sendCoinsPage->setModel(_walletModel);
-    paymentcodePage->setWalletModel(walletModel);
     zerocoinPage->setModel(_walletModel->getAddressTableModel());
     if (pwalletMain->IsHDSeedAvailable()) {
         sigmaView->setWalletModel(_walletModel);
@@ -437,18 +432,12 @@ void WalletView::gotoOverviewPage()
 void WalletView::gotoElyAssetsPage()
 {
     setCurrentWidget(elyAssetsPage);
-    if (!paymentcodePage->tryEnablePaymentCode()) {
-        gotoOverviewPage();
-    }
 }
 #endif
 
 void WalletView::gotoHistoryPage()
 {
     setCurrentWidget(transactionsPage);
-    if (!paymentcodePage->tryEnablePaymentCode()) {
-        gotoOverviewPage();
-    }
 }
 
 #ifdef ENABLE_ELYSIUM
@@ -460,9 +449,6 @@ void WalletView::gotoElysiumHistoryTab()
 
     setCurrentWidget(transactionsPage);
     transactionTabs->setCurrentIndex(1);
-    if (!paymentcodePage->tryEnablePaymentCode()) {
-        gotoOverviewPage();
-    }
 }
 #endif
 
@@ -475,9 +461,6 @@ void WalletView::gotoBitcoinHistoryTab()
         transactionTabs->setCurrentIndex(0);
     }
 #endif
-    if (!paymentcodePage->tryEnablePaymentCode()) {
-        gotoOverviewPage();
-    }
 }
 
 #ifdef ENABLE_ELYSIUM
@@ -501,41 +484,21 @@ void WalletView::focusBitcoinHistoryTab(const QModelIndex &idx)
 void WalletView::gotoMasternodePage()
 {
     setCurrentWidget(masternodeListPage);
-    if (!paymentcodePage->tryEnablePaymentCode()) {
-        gotoOverviewPage();
-    }
 }
 
 void WalletView::gotoReceiveCoinsPage()
 {
     setCurrentWidget(receiveCoinsPage);
-    if (!paymentcodePage->tryEnablePaymentCode()) {
-        gotoOverviewPage();
-    }
-}
-
-void WalletView::gotoPaymentcodePage()
-{
-    setCurrentWidget(paymentcodePage);
-    if (!paymentcodePage->tryEnablePaymentCode()) {
-        gotoOverviewPage();
-    }
 }
 
 void WalletView::gotoZerocoinPage()
 {
     setCurrentWidget(zerocoinPage);
-    if (!paymentcodePage->tryEnablePaymentCode()) {
-        gotoOverviewPage();
-    }
 }
 
 void WalletView::gotoSigmaPage()
 {
     setCurrentWidget(sigmaPage);
-    if (!paymentcodePage->tryEnablePaymentCode()) {
-        gotoOverviewPage();
-    }
 }
 
 void WalletView::gotoZc2SigmaPage()
@@ -544,9 +507,6 @@ void WalletView::gotoZc2SigmaPage()
         setCurrentWidget(zc2SigmaPage);
     } else {
         setCurrentWidget(sigmaPage);
-    }
-    if (!paymentcodePage->tryEnablePaymentCode()) {
-        gotoOverviewPage();
     }
 }
 
@@ -559,9 +519,6 @@ void WalletView::gotoLelantusPage()
 void WalletView::gotoToolboxPage()
 {
     setCurrentWidget(toolboxPage);
-    if (!paymentcodePage->tryEnablePaymentCode()) {
-        gotoOverviewPage();
-    }
 }
 #endif
 
@@ -571,9 +528,6 @@ void WalletView::gotoSendCoinsPage(QString addr)
 
     if (!addr.isEmpty()){
         sendFiroView->setAddress(addr);
-    }
-    if (!paymentcodePage->tryEnablePaymentCode()) {
-        gotoOverviewPage();
     }
 }
 

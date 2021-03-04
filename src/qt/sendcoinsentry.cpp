@@ -11,11 +11,9 @@
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "walletmodel.h"
-#include "bip47/paymentcode.h"
 
 #include <QApplication>
 #include <QClipboard>
-#include <QMessageBox>
 
 SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *parent) :
     QStackedWidget(parent),
@@ -23,14 +21,6 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     model(0),
     platformStyle(_platformStyle)
 {
-    
-    int cmpret = strncmp("SigmaDialog", parent->metaObject()->className(), strlen("SigmaDialog"));
-    
-    if(cmpret == 0)
-        isSigmaDlg = true;
-    else
-        isSigmaDlg = false;
-    
     ui->setupUi(this);
 
     ui->addressBookButton->setIcon(platformStyle->SingleColorIcon(":/icons/address-book"));
@@ -47,16 +37,10 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     ui->addAsLabel->setPlaceholderText(tr("Enter a label for this address to add it to your address book"));
 #endif
 
-    // Updated GUIUtil::setupAddressWidget(ui->payTo, this);
-    // normal Zcoin address field
-    GUIUtil::setupPaymentCodeOrAddressWidget(ui->payTo, this);
-    // just a label for displaying Zcoin address(es)
     // normal Firo address field
     GUIUtil::setupAddressWidget(ui->payTo, this);
     // just a label for displaying Firo address(es)
     ui->payTo_is->setFont(GUIUtil::fixedPitchFont());
-    
-    ui->notifiactionTxFeeLabel->hide();
 
     // Connect signals
     connect(ui->payAmount, SIGNAL(valueChanged()), this, SIGNAL(payAmountChanged()));
@@ -83,7 +67,6 @@ void SendCoinsEntry::on_addressBookButton_clicked()
         return;
     AddressBookPage dlg(platformStyle, AddressBookPage::ForSelection, AddressBookPage::SendingTab, this);
     dlg.setModel(model->getAddressTableModel());
-    dlg.setModel(model->getPaymentCodeTableModel());
     if(dlg.exec())
     {
         ui->payTo->setText(dlg.getReturnValue());
@@ -171,15 +154,6 @@ bool SendCoinsEntry::validate()
     }
 
     return retval;
-}
-
-bool SendCoinsEntry::isPaymentCode()
-{
-    std::string address = ui->payTo->text().toStdString();
-    if (address.empty())
-        return false;
-    return bip47::CPaymentCode::validate(address);
-    
 }
 
 SendCoinsRecipient SendCoinsEntry::getValue()
@@ -285,49 +259,13 @@ bool SendCoinsEntry::updateLabel(const QString &address)
     if(!model)
         return false;
 
-    if(isPaymentCode()) 
+    // Fill in label from address book, if address has an associated label
+    QString associatedLabel = model->getAddressTableModel()->labelForAddress(address);
+    if(!associatedLabel.isEmpty())
     {
-        ui->addressDetectedType->setText("PRIVATE PAYMENT CODE DETECTED");
-        // Fill in label from address book, if address has an associated label
-        QString associatedLabel = model->getPaymentCodeTableModel()->labelForAddress(address);
-        if(!associatedLabel.isEmpty())
-        {
-            ui->addAsLabel->setText(associatedLabel);
-            ui->notifiactionTxFeeLabel->hide();
-            return true;
-        }
-        else
-        {
-            ui->addAsLabel->setPlaceholderText(tr("*Payment codes need a label in your address book so that you can find and re-use them later."));
-            if(!model->isNotificationTransactionSent(address))
-                ui->notifiactionTxFeeLabel->show();
-            return false;
-        }
+        ui->addAsLabel->setText(associatedLabel);
+        return true;
     }
-    else if(model->validateAddress(ui->payTo->text()))
-    {
-        LogPrintf("validate address zcoin \n");
-        ui->addressDetectedType->setText("REGULAR ZCOIN ADDRESS DETECTED");
-        ui->notifiactionTxFeeLabel->hide();
-        // Fill in label from address book, if address has an associated label
-        QString associatedLabel = model->getAddressTableModel()->labelForAddress(address);
-        if(!associatedLabel.isEmpty())
-        {
-            ui->addAsLabel->setText(associatedLabel);
-            return true;
-        }
-        else
-        {
-            ui->addAsLabel->setPlaceholderText(tr("Enter a label for this address to add it to your address book"));
-        }
-    } 
-    else 
-    {
-        ui->notifiactionTxFeeLabel->hide();
-        ui->addressDetectedType->clear();
-        ui->addAsLabel->setPlaceholderText(tr("Enter a label for this address to add it to your address book"));
-        return false;
-    }
-    
+
     return false;
 }

@@ -71,8 +71,6 @@ private:
     const PlatformStyle *platformStyle;
 
     void processSpendCoinsReturn(const WalletModel::SendCoinsReturn &sendCoinsReturn, const QString &msgArg = QString());
-    
-    void processPaymentCodeTransactions();
 
 private Q_SLOTS:
     void numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress, bool header);

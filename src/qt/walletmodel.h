@@ -20,13 +20,10 @@
 #include <QObject>
 
 class AddressTableModel;
-class PaymentCodeTableModel;
-class MyRAPTableModel;
 class LelantusModel;
 class OptionsModel;
 class PlatformStyle;
 class RecentRequestsTableModel;
-class RecentPCodeTransactionsTableModel;
 class TransactionTableModel;
 class WalletModelTransaction;
 
@@ -119,6 +116,7 @@ public:
         AmountExceedsBalance,
         AmountWithFeeExceedsBalance,
         DuplicateAddress,
+        SigmaDisabled,
         TransactionCreationFailed, // Error returned when wallet is still locked
         TransactionCommitFailed,
         AbsurdFee,
@@ -136,12 +134,9 @@ public:
 
     OptionsModel *getOptionsModel();
     AddressTableModel *getAddressTableModel();
-    PaymentCodeTableModel *getPaymentCodeTableModel();
     LelantusModel *getLelantusModel();
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
-    MyRAPTableModel *getMyRAPTableModel();
-    RecentPCodeTransactionsTableModel *getRecentPCodeTransactionsTableModel();
 
     CWallet *getWallet() const { return wallet; }
 
@@ -155,15 +150,9 @@ public:
     CAmount getAnonymizableBalance() const;
 
     EncryptionStatus getEncryptionStatus() const;
-    
-    
 
     // Check address for validity
     bool validateAddress(const QString &address);
-
-    // @bip47 validatePaymentCode
-    bool validatePaymentCode(const QString &pCode);
-    bool isNotificationTransactionSent(const QString &pCode) const;
 
     // Return status record for SendCoins, contains error id + information
     struct SendCoinsReturn
@@ -179,7 +168,6 @@ public:
 
     // prepare transaction for getting txfee before sending coins
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
-    SendCoinsReturn preparePCodeTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
 
     // prepare transaction for getting txfee before sending coins in anonymous mode
     SendCoinsReturn prepareJoinSplitTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
@@ -194,7 +182,6 @@ public:
 
     // Send coins to a list of recipients
     SendCoinsReturn sendCoins(WalletModelTransaction &transaction);
-    SendCoinsReturn sendPCodeCoins(WalletModelTransaction &transaction, bool &needMainTx);
 
     // Send private coins to a list of recipients
     SendCoinsReturn sendPrivateCoins(WalletModelTransaction &transaction);
@@ -254,9 +241,7 @@ public:
     bool hasMasternode();
 
     void loadReceiveRequests(std::vector<std::string>& vReceiveRequests);
-    void loadPCodeNotificationTransactions(std::vector<std::string>& vPCodeNotificationTransactions);
     bool saveReceiveRequest(const std::string &sAddress, const int64_t nId, const std::string &sRequest);
-    bool savePCodeNotificationTransaction(const std::string &rpcodestr, const int64_t nId, const std::string &sNotificationSent);
 
     bool transactionCanBeAbandoned(uint256 hash) const;
     bool abandonTransaction(uint256 hash) const;
@@ -275,16 +260,9 @@ public:
         std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes,
         bool& fChangeAddedToFee,
         const CCoinControl *coinControl = NULL);
-    
-    SendCoinsReturn prepareSigmaSpendPCodeTransaction(WalletModelTransaction &transaction,
-        std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes,
-        bool& fChangeAddedToFee,
-        const CCoinControl *coinControl = NULL);
 
     // Send coins to a list of recipients
     SendCoinsReturn sendSigma(WalletModelTransaction &transaction,
-        std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes);
-    SendCoinsReturn sendSigmaPCode(WalletModelTransaction &transaction,
         std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes);
 
     // Mint sigma
@@ -306,12 +284,9 @@ private:
     OptionsModel *optionsModel;
 
     AddressTableModel *addressTableModel;
-    RecentPCodeTransactionsTableModel *recentPCodeTransactionsTableModel;
-    PaymentCodeTableModel *paymentCodeTableModel;
     LelantusModel *lelantusModel;
     TransactionTableModel *transactionTableModel;
     RecentRequestsTableModel *recentRequestsTableModel;
-    MyRAPTableModel *myRapTableModel;
 
     // Cache some values to be able to detect changes
     CAmount cachedBalance;
@@ -385,8 +360,6 @@ public Q_SLOTS:
     void pollBalanceChanged();
     /* Update Amount of sigma change */
     void updateSigmaCoins(const QString &pubCoin, const QString &isUsed, int status);
-    
-    bool tryEnablePaymentCode();
 
 };
 

@@ -80,13 +80,11 @@ public:
         SendToSelf,
         SpendToAddress,
         SpendToSelf,
-        Mint,
-        PCode,
         Anonymize,
     };
 
     /** Number of confirmation recommended for accepting a transaction */
-    static const int RecommendedNumConfirmations = 6;
+    static const int RecommendedNumConfirmations = 2;
 
     TransactionRecord():
             hash(), time(0), type(Other), address(""), debit(0), credit(0), idx(0)

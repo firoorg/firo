@@ -15,23 +15,19 @@
 #include "recentrequeststablemodel.h"
 #include "walletmodel.h"
 
-#include "addresstablemodel.h"
-
 #include <QAction>
 #include <QCursor>
 #include <QItemSelection>
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QTextDocument>
-#include <QSortFilterProxyModel>
 
 ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::ReceiveCoinsDialog),
     columnResizingFixer(0),
     model(0),
-    platformStyle(_platformStyle),
-    isRegularAddressSelected(true)
+    platformStyle(_platformStyle)
 {
     ui->setupUi(this);
 
@@ -66,95 +62,8 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     connect(copyLabelAction, SIGNAL(triggered()), this, SLOT(copyLabel()));
     connect(copyMessageAction, SIGNAL(triggered()), this, SLOT(copyMessage()));
     connect(copyAmountAction, SIGNAL(triggered()), this, SLOT(copyAmount()));
-    connect(ui->regularAddressButton, SIGNAL(clicked()), this, SLOT(on_regularAddressButton_clicked()));
-    connect(ui->reusableAddressButton, SIGNAL(clicked()), this, SLOT(on_reusableAddressButton_clicked()));
 
     connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
-    this->setAddressType();
-}
-
-void ReceiveCoinsDialog::setAddressType()
-{
-    if (this->isRegularAddressSelected)
-    {
-        this->ui->regularAddressButton->setStyleSheet("background-color: white; color:black;");
-        this->ui->reusableAddressButton->setStyleSheet("background-color: transparent; color:white;");
-        this->ui->recentRequestsView->setVisible(true);
-        this->ui->myRapAddressesView->setVisible(false);
-
-        this->ui->label_6->setStyleSheet("font-weight: bold");
-        this->ui->label_6->setText(QString("Requested payments history"));
-
-        this->ui->label_10->setVisible(false);
-        this->ui->frame2->setVisible(true);
-        this->ui->label_5->setVisible(true);
-        this->ui->label_2->setVisible(true);
-        this->ui->clearButton->setVisible(true);
-        this->ui->receiveButton->setVisible(true);
-        this->ui->label->setVisible(true);
-        this->ui->label_3->setVisible(true);
-        this->ui->label_4->setVisible(true);
-        this->ui->label_7->setVisible(true);
-        this->ui->reqAmount->setVisible(true);
-        this->ui->reqLabel->setVisible(true);
-        this->ui->reqMessage->setVisible(true);
-        this->ui->reuseAddress->setVisible(true);
-    } else {
-        this->ui->regularAddressButton->setStyleSheet("background-color: transparent; color:white;");
-        this->ui->reusableAddressButton->setStyleSheet("background-color: white; color:black;");
-        this->ui->label_10->setVisible(true);
-        this->ui->recentRequestsView->setVisible(false);
-        this->ui->myRapAddressesView->setVisible(true);
-
-        this->ui->frame2->setVisible(false);
-        this->ui->label_6->setStyleSheet("font-weight: bold");
-        this->ui->label_6->setText(QString("All my RAP addresses"));
-    }
-}
-
-void ReceiveCoinsDialog::on_regularAddressButton_clicked()
-{
-    this->isRegularAddressSelected = true;
-    setAddressType();
-}
-
-void ReceiveCoinsDialog::on_reusableAddressButton_clicked()
-{
-    this->isRegularAddressSelected = false;
-    setAddressType();
-}
-
-void ReceiveCoinsDialog::selectionChanged() {
-    // Set button states based on selected tab and selection
-    selectionChanged(ui->myRapAddressesView);
-}
-
-void ReceiveCoinsDialog::selectionChanged(const QTableView *table) 
-{
-    if (!table) return;
-    if (!table->selectionModel())
-        return;
-
-    if (table->selectionModel()->hasSelection())
-    {
-        
-    }
-    else
-    {
-        // ui->deleteAddress->setEnabled(false);
-        // ui->copyAddress->setEnabled(false);
-    }
-}
-
-void ReceiveCoinsDialog::selectNewPaymentCode(const QModelIndex &parent, int begin, int /*end*/)
-{
-    // QModelIndex idx = pcodeProxyModel->mapFromSource(pcodeModel->index(begin, ZCoinTableModel::Address, parent));
-    // if (idx.isValid() && (idx.data(Qt::EditRole).toString() == newAddressToSelect)) {
-    //     // Select row of newly created address, once
-    //     ui->paymentcodeTableView->setFocus();
-    //     ui->paymentcodeTableView->selectRow(idx.row());
-    //     newAddressToSelect.clear();
-    // }
 }
 
 void ReceiveCoinsDialog::setModel(WalletModel *_model)
@@ -184,24 +93,6 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
             SLOT(recentRequestsView_selectionChanged(QItemSelection, QItemSelection)));
         // Last 2 columns are set by the columnResizingFixer, when the table geometry is ready.
         columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, AMOUNT_MINIMUM_COLUMN_WIDTH, DATE_COLUMN_WIDTH, this);
-    
-        QTableView* myRAPView = ui->myRapAddressesView;
-        pRapTableModel = _model->getMyRAPTableModel();
-        myRAPView->verticalHeader()->hide();
-        myRAPView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        myRAPView->setModel(pRapTableModel);
-        myRAPView->setAlternatingRowColors(true);
-        myRAPView->setSelectionBehavior(QAbstractItemView::SelectRows);
-        myRAPView->setSelectionMode(QAbstractItemView::ContiguousSelection);
-        myRAPView->setColumnWidth(MyRAPTableModel::Label, LABEL_COLUMN_WIDTH);
-        myRAPView->setColumnWidth(MyRAPTableModel::Address, 600);
-        myRAPView->horizontalHeader()->setStretchLastSection(true);
-
-        connect(myRAPView->selectionModel(),
-            SIGNAL(selectionChanged(QItemSelection, QItemSelection)), this,
-            SLOT(myRAPAddressesView_selectionChanged(QItemSelection, QItemSelection)));
-        connect(pRapTableModel, SIGNAL(rowsInserted(QModelIndex, int, int)), this, SLOT(selectNewPaymentCode(QModelIndex, int, int)));
-        // Last 2 columns are set by the columnResizingFixer, when the table geometry is ready.
     }
 }
 
@@ -290,14 +181,6 @@ void ReceiveCoinsDialog::recentRequestsView_selectionChanged(const QItemSelectio
 {
     // Enable Show/Remove buttons only if anything is selected.
     bool enable = !ui->recentRequestsView->selectionModel()->selectedRows().isEmpty();
-    ui->showRequestButton->setEnabled(enable);
-    ui->removeRequestButton->setEnabled(enable);
-}
-
-void ReceiveCoinsDialog::myRAPAddressesView_selectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
-{
-    // Enable Show/Remove buttons only if anything is selected.
-    bool enable = !ui->myRapAddressesView->selectionModel()->selectedRows().isEmpty();
     ui->showRequestButton->setEnabled(enable);
     ui->removeRequestButton->setEnabled(enable);
 }

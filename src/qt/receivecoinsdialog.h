@@ -18,8 +18,6 @@
 class OptionsModel;
 class PlatformStyle;
 class WalletModel;
-class QSortFilterProxyModel;
-class MyRAPTableModel;
 
 namespace Ui {
     class ReceiveCoinsDialog;
@@ -46,7 +44,6 @@ public:
     ~ReceiveCoinsDialog();
 
     void setModel(WalletModel *model);
-    void setModel(MyRAPTableModel *pRapTableModel);
 
 public Q_SLOTS:
     void clear();
@@ -62,15 +59,10 @@ private:
     WalletModel *model;
     QMenu *contextMenu;
     const PlatformStyle *platformStyle;
-    bool isRegularAddressSelected;
-    void setAddressType();
 
     QModelIndex selectedRow();
     void copyColumnToClipboard(int column);
     virtual void resizeEvent(QResizeEvent *event);
-    QSortFilterProxyModel *proxyModel;
-    MyRAPTableModel *pRapTableModel;
-    void selectionChanged(const QTableView *table);
 
 private Q_SLOTS:
     void on_receiveButton_clicked();
@@ -78,17 +70,12 @@ private Q_SLOTS:
     void on_removeRequestButton_clicked();
     void on_recentRequestsView_doubleClicked(const QModelIndex &index);
     void recentRequestsView_selectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
-    void myRAPAddressesView_selectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
     void updateDisplayUnit();
     void showMenu(const QPoint &point);
     void copyURI();
     void copyLabel();
     void copyMessage();
     void copyAmount();
-    void on_regularAddressButton_clicked();
-    void on_reusableAddressButton_clicked();
-    void selectionChanged();
-    void selectNewPaymentCode(const QModelIndex &parent, int begin, int /*end*/);
 };
 
 #endif // BITCOIN_QT_RECEIVECOINSDIALOG_H

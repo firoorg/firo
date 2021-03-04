@@ -39,8 +39,6 @@
 #include "util.h"
 
 #include "evo/deterministicmns.h"
-#include "paymentcodepage.h"
-
 #include "masternode-sync.h"
 #include "masternodelist.h"
 #include "elysium_qtutils.h"
@@ -429,8 +427,6 @@ void BitcoinGUI::createActions()
 	connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
 	connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
-	//connect(paymentcodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-	//connect(paymentcodeAction, SIGNAL(triggered()), this, SLOT(gotoPaymentcodePage()));
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
 	connect(sigmaAction, SIGNAL(triggered()), this, SLOT(gotoSigmaPage()));
@@ -577,7 +573,6 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(overviewAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
-        //toolbar->addAction(paymentcodeAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(sigmaAction);
         toolbar->addAction(lelantusAction);
@@ -707,7 +702,6 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     sendCoinsMenuAction->setEnabled(enabled);
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
-    //paymentcodeAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
     sigmaAction->setEnabled(enabled);
     lelantusAction->setEnabled(enabled);
@@ -850,12 +844,6 @@ void BitcoinGUI::gotoElyAssetsPage()
     if (walletFrame) walletFrame->gotoElyAssetsPage();
 }
 #endif
-
-void BitcoinGUI::gotoPaymentcodePage()
-{
-    //paymentcodeAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoPaymentcodePage();
-}
 
 void BitcoinGUI::gotoHistoryPage()
 {

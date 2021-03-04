@@ -32,30 +32,4 @@ public:
     State validate(QString &input, int &pos) const;
 };
 
-/** Base58 entry widget validator, checks for valid characters and
- * removes some whitespace.
- */
-class PaymentCodeOrBitcoinAddressEntryValidator : public QValidator
-{
-    Q_OBJECT
-
-public:
-    explicit PaymentCodeOrBitcoinAddressEntryValidator(QObject *parent);
-
-    State validate(QString &input, int &pos) const;
-};
-
-/** PaymentCode widget validator
- * */
-class PaymentCodeOrBitcoinAddressCheckValidator : public QValidator
-{
-    Q_OBJECT
-
-public:
-    explicit PaymentCodeOrBitcoinAddressCheckValidator(QObject *parent);
-
-    State validate(QString &input, int &pos) const;
-};
-
-
 #endif // BITCOIN_QT_BITCOINADDRESSVALIDATOR_H

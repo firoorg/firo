@@ -625,7 +625,7 @@ void BitcoinApplication::migrateToFiro()
             // Update path in settings if not set to non-default value
             setDataDirInSettings("Firo", "Firo-Qt", GUIUtil::boostPathToQString(firoDefaultDataDir));
             setDataDirInSettings("Firo", "Firo-Qt-testnet", GUIUtil::boostPathToQString(firoDefaultDataDir));
-            }
+        }
     }
     else if (doNotShowAgain) {
         // create file to block migration in the future

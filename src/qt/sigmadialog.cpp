@@ -10,7 +10,6 @@
 #include "sendcoinsdialog.h"
 #include "sendcoinsentry.h"
 #include "walletmodel.h"
-#include "recentpaymentcodetransactionstablemodel.h"
 
 #include "../sigma.h"
 #include "../wallet/wallet.h"
@@ -267,10 +266,6 @@ void SigmaDialog::on_sendButton_clicked()
     for (int i = 0; i < ui->entries->count(); ++i) {
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         if (entry) {
-            if(entry->isPaymentCode())
-            {
-                return processPaymentCodeTransactions();
-            }
             if (entry->validate()) {
                 recipients.append(entry->getValue());
             } else {
@@ -454,252 +449,6 @@ void SigmaDialog::on_sendButton_clicked()
         SigmaCoinControlDialog::coinControl->UnSelectAll();
         coinControlUpdateLabels();
     }
-
-    isNewRecipientAllowed = true;
-}
-
-void SigmaDialog::processPaymentCodeTransactions()
-{
-    if (!walletModel || !walletModel->getOptionsModel())
-        return;
-
-    QList<SendCoinsRecipient> recipients;
-    bool valid = true;
-
-    for (int i = 0; i < ui->entries->count(); ++i) {
-        SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
-        if (entry) {
-            if(entry->isPaymentCode())
-            {
-                recipients.append(entry->getValue());
-            } else {
-                valid = false;
-            }
-        }
-    }
-
-    if (!valid || recipients.isEmpty()) {
-        return;
-    }
-
-    isNewRecipientAllowed = false;
-    WalletModel::UnlockContext ctx(walletModel->requestUnlock());
-    if (!ctx.isValid()) {
-        isNewRecipientAllowed = true;
-        return;
-    }
-
-    // prepare transaction for getting txFee earlier
-    std::vector<CSigmaEntry> selectedCoins;
-    std::vector<CHDMint> changes;
-    WalletModelTransaction currentTransaction(recipients);
-    WalletModel::SendCoinsReturn prepareStatus;
-    bool fChangeAddedToFee = false;
-    if (walletModel->getOptionsModel()->getCoinControlFeatures()){
-        prepareStatus = walletModel->prepareSigmaSpendPCodeTransaction(currentTransaction, selectedCoins, changes, fChangeAddedToFee, SigmaCoinControlDialog::coinControl);
-    }else{
-        prepareStatus = walletModel->prepareSigmaSpendPCodeTransaction(currentTransaction, selectedCoins, changes, fChangeAddedToFee);
-    }
-
-    // process prepareStatus and on error generate message shown to user
-    processSpendCoinsReturn(prepareStatus,
-        BitcoinUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
-
-    // Check unsafe coins
-    if (prepareStatus.status == WalletModel::AmountExceedsBalance) {
-        auto unsafeCoins = walletModel->GetUnsafeCoins();
-        std::vector<CAmount> unsafeDenomVals;
-        for (const auto coin : unsafeCoins) {
-            unsafeDenomVals.push_back(coin.get_denomination_value());
-        }
-        std::sort(unsafeDenomVals.begin(), unsafeDenomVals.end());
-
-        QString unsafeDenomsStr = tr("");
-        for (const auto denomVal : unsafeDenomVals) {
-            sigma::CoinDenomination denom;
-            sigma::IntegerToDenomination(denomVal, denom);
-            auto denomStr = sigma::DenominationToString(denom).c_str();
-            unsafeDenomsStr.append(tr("%1, ").arg(denomStr));
-        }
-
-        if (!unsafeCoins.empty()) {
-            unsafeDenomsStr.resize(unsafeDenomsStr.size() - 2);
-            unsafeDenomsStr.append(tr(" denomination"));
-            if (unsafeCoins.size() > 1) {
-                unsafeDenomsStr.append(tr("s"));
-            }
-
-            QMessageBox::information(this, tr("Have unspendable coins."),
-                tr("To protect your privacy, we require you to wait until more people mint %1, Once this is done, your minted coin will be spendable.").arg(unsafeDenomsStr),
-                QMessageBox::Ok);
-        }
-    }
-
-    if (prepareStatus.status != WalletModel::OK) {
-        isNewRecipientAllowed = true;
-        return;
-    }
-
-    CAmount txFee = currentTransaction.getTransactionFee();
-    CAmount totalAmount(0);
-
-    auto walletTx = currentTransaction.getTransaction();
-
-    // Format confirmation message
-    QStringList formatted;
-    bool is_notification_tx = false;
-    QString pcodeqstr;
-    
-    for (auto const &rcp : currentTransaction.getRecipients()) {
-
-        
-        bool is_pcode = walletModel->validatePaymentCode(rcp.address);
-        is_notification_tx = !walletModel->isNotificationTransactionSent(rcp.address);
-        
-             
-        CAmount realAmount = rcp.amount;
-        
-        CScript recipientScriptPubKey = GetScriptForDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
-        if(!is_notification_tx) {
-            for (auto const &out : walletTx->tx->vout) {
-                if (out.scriptPubKey == recipientScriptPubKey) {
-                    realAmount = out.nValue;
-                }
-            }    
-        }
-        
-
-        totalAmount += realAmount;
-
-        // generate bold amount string
-        QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), realAmount);
-        amount.append("</b>");
-
-        // generate monospace address string
-        QString address = "<span style='font-family: monospace;'>" + rcp.address;
-        address.append("</span>");
-
-        QString recipientElement;
-
-        if(is_pcode && is_notification_tx)
-        {
-            pcodeqstr = rcp.address;
-            recipientElement = tr("%1 <br /> %2").arg("Your notification transaction will be broadcast first, followed by your main transaction.", "You can see and track your outbound transactions in the history list.");
-        }
-        else if (!rcp.paymentRequest.IsInitialized()) {
-            if (rcp.label.length() > 0) { // label with address
-                recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
-                recipientElement.append(QString(" (%1)").arg(address));
-            } else { // just address
-                recipientElement = tr("%1 to %2").arg(amount, address);
-            }
-        } else if (!rcp.authenticatedMerchant.isEmpty()) { // authenticated payment request
-            recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.authenticatedMerchant));
-        } else { // unauthenticated payment request
-            recipientElement = tr("%1 to %2").arg(amount, address);
-        }
-
-        formatted.append(recipientElement);
-    }
-
-    QString questionString = tr("Are you sure you want to spend?");
-    questionString.append("<br /><br />%1");
-
-    if (txFee > 0) {
-        // append fee string if a fee is required
-        questionString.append("<hr /><span style='color:#aa0000;'>");
-        questionString.append(BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), txFee));
-        questionString.append("</span> ");
-        questionString.append(tr("added as transaction fee"));
-
-        // append transaction size
-        questionString.append(" (" + QString::number((double)currentTransaction.getTransactionSize() / 1000) + " kB)");
-    }
-
-    // add total amount in all subdivision units
-    questionString.append("<hr />");
-    totalAmount += txFee;
-    QStringList alternativeUnits;
-    Q_FOREACH(BitcoinUnits::Unit u, BitcoinUnits::availableUnits()) {
-        if (u != walletModel->getOptionsModel()->getDisplayUnit())
-            alternativeUnits.append(BitcoinUnits::formatHtmlWithUnit(u, totalAmount));
-    }
-    questionString.append(tr("Total Amount %1")
-        .arg(BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), totalAmount)));
-    questionString.append(QString("<span style='font-size:10pt;font-weight:normal;'><br />(=%2)</span>")
-        .arg(alternativeUnits.join(" " + tr("or") + "<br />")));
-
-    std::string info = "";
-    
-    if(walletTx->tx->vout.size() > recipients.size())
-        info += "Change will be reminted";
-
-    if(fChangeAddedToFee) {
-        if(info == "")
-            info = "Amounts smaller than 0.05 are added to fee.";
-        else
-            info += " and amounts smaller than 0.05 are added to fee.";
-    }
-
-    questionString.append(QString("<span style='font-size:8pt;font-weight:normal;float:right;'> <br/> <br/> %1</span>")
-        .arg(tr(info.c_str())));
-    
-    QMessageBox::StandardButton retval;
-    if(is_notification_tx)
-    {
-        SendConfirmationDialog confirmationDialog(tr("Transaction in Progress"),
-        formatted.join("<br />"), SEND_CONFIRM_DELAY, this);
-        confirmationDialog.exec();
-        retval = (QMessageBox::StandardButton)confirmationDialog.result();
-    }
-    else
-    {
-        SendConfirmationDialog confirmationDialog(tr("Confirm spend coins"),
-        questionString.arg(formatted.join("<br />")), SEND_CONFIRM_DELAY, this);
-
-        confirmationDialog.exec();
-        retval = (QMessageBox::StandardButton)confirmationDialog.result();
-    }
-
-    
-
-    if (retval != QMessageBox::Yes) {
-        isNewRecipientAllowed = true;
-        return;
-    }
-    
-    if(is_notification_tx)
-    {
-        bool needMainTx;
-        WalletModel::SendCoinsReturn sendStatus = walletModel->sendPCodeCoins(currentTransaction, needMainTx);
-        processSpendCoinsReturn(sendStatus);
-        if (sendStatus.status == WalletModel::OK)
-        {
-            if(needMainTx)
-            {
-                walletModel->getRecentPCodeTransactionsTableModel()->addNewRequest(pcodeqstr, totalAmount);
-                processPaymentCodeTransactions();
-            }
-        }
-        
-    } else {
-        //reset cc
-        if(walletModel->getOptionsModel()->getCoinControlFeatures())
-            SigmaCoinControlDialog::coinControl->SetNull();
-
-        // now send the prepared transaction
-        WalletModel::SendCoinsReturn sendStatus = walletModel->sendSigmaPCode(currentTransaction, selectedCoins, changes);
-        // process sendStatus and on error generate message shown to user
-        processSpendCoinsReturn(sendStatus);
-
-        if (sendStatus.status == WalletModel::OK) {
-            accept();
-            SigmaCoinControlDialog::coinControl->UnSelectAll();
-            coinControlUpdateLabels();
-        }
-    }
-
-    
 
     isNewRecipientAllowed = true;
 }
@@ -985,6 +734,10 @@ void SigmaDialog::processSpendCoinsReturn(const WalletModel::SendCoinsReturn &se
     case WalletModel::DuplicateAddress:
         msgParams.first = tr("Duplicate address found: addresses should only be used once each.");
         break;
+    case WalletModel::SigmaDisabled:
+        msgParams.first = tr("Sigma is disabled at this period!");
+        msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
     case WalletModel::TransactionCreationFailed:
         msgParams.first = tr("Transaction creation failed!");
         msgParams.second = CClientUIInterface::MSG_ERROR;
@@ -993,6 +746,9 @@ void SigmaDialog::processSpendCoinsReturn(const WalletModel::SendCoinsReturn &se
         msgParams.first = tr("The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
         msgParams.second = CClientUIInterface::MSG_ERROR;
         break;
+    // case WalletModel::AbsurdFee:
+    //     msgParams.first = tr("A fee higher than %1 is considered an absurdly high fee.").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), maxTxFee));
+    //     break;
     case WalletModel::PaymentRequestExpired:
         msgParams.first = tr("Payment request expired.");
         msgParams.second = CClientUIInterface::MSG_ERROR;

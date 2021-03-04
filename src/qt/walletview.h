@@ -13,7 +13,6 @@
 #include "automintnotification.h"
 #include "amount.h"
 #include "masternodelist.h"
-#include "paymentcodepage.h"
 #include "sigmadialog.h"
 #include "lelantusdialog.h"
 
@@ -42,7 +41,6 @@ class TXHistoryDialog;
 class WalletModel;
 class AddressBookPage;
 class ZerocoinPage;
-class PaymentcodePage;
 class Zc2SigmaPage;
 
 QT_BEGIN_NAMESPACE
@@ -96,7 +94,6 @@ private:
     WalletModel *walletModel;
 
     OverviewPage *overviewPage;
-
 #ifdef ENABLE_ELYSIUM
     ElyAssetsDialog *elyAssetsPage;
     QWidget *toolboxPage;
@@ -117,7 +114,6 @@ private:
     MetaDExCancelDialog *cancelTab;
     ZerocoinPage *zerocoinPage;
     SigmaDialog *sigmaView;
-    PaymentcodePage *paymentcodePage;
     BlankSigmaDialog *blankSigmaView;
     LelantusDialog *lelantusView;
     BlankSigmaDialog *blankLelantusView;
@@ -158,8 +154,6 @@ public Q_SLOTS:
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-    /** Switch to paymentcode page */
-    void gotoPaymentcodePage();
     /** Switch to zerocoin page */
     void gotoZerocoinPage();
     /** Switch to sigma page */

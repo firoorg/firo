@@ -75,13 +75,6 @@ private:
     void setAnonymizeMode(bool enableAnonymizeMode);
     void removeUnmatchedOutput(CCoinControl &coinControl);
 
-    /**
-     * @todo sendpaymentcode transaction
-     * 
-     * 
-     * */
-    void processPaymentCodeTransactions(bool isSecondTx = false);
-
 private Q_SLOTS:
     void on_sendButton_clicked();
     void on_switchFundButton_clicked();

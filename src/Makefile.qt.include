@@ -115,7 +115,6 @@ QT_FORMS_UI = \
   qt/forms/openuridialog.ui \
   qt/forms/optionsdialog.ui \
   qt/forms/overviewpage.ui \
-  qt/forms/paymentcodepage.ui \
   qt/forms/receivecoinsdialog.ui \
   qt/forms/receiverequestdialog.ui \
   qt/forms/debugwindow.ui \
@@ -140,7 +139,6 @@ QT_MOC_CPP = \
   qt/moc_automintdialog.cpp \
   qt/moc_automintnotification.cpp \
   qt/moc_zerocoinpage.cpp \
-  qt/moc_paymentcodepage.cpp \
   qt/moc_sigmadialog.cpp \
   qt/moc_sigmacoincontroldialog.cpp \
   qt/moc_addresstablemodel.cpp \
@@ -176,7 +174,6 @@ QT_MOC_CPP = \
   qt/moc_receivecoinsdialog.cpp \
   qt/moc_receiverequestdialog.cpp \
   qt/moc_recentrequeststablemodel.cpp \
-  qt/moc_recentpaymentcodetransactionstablemodel.cpp \
   qt/moc_rpcconsole.cpp \
   qt/moc_sendcoinsdialog.cpp \
   qt/moc_sendcoinsentry.cpp \
@@ -258,7 +255,6 @@ BITCOIN_QT_H = \
   qt/macnotificationhandler.h \
   qt/masternodelist.h \
   qt/modaloverlay.h \
-  qt/paymentcodepage.h \
   qt/networkstyle.h \
   qt/notificator.h \
   qt/openuridialog.h \
@@ -274,7 +270,6 @@ BITCOIN_QT_H = \
   qt/receivecoinsdialog.h \
   qt/receiverequestdialog.h \
   qt/recentrequeststablemodel.h \
-  qt/recentpaymentcodetransactionstablemodel.h \
   qt/rpcconsole.h \
   qt/sendcoinsdialog.h \
   qt/sendcoinsentry.h \
@@ -427,7 +422,6 @@ BITCOIN_QT_WALLET_CPP = \
   qt/automintdialog.cpp \
   qt/automintnotification.cpp \
   qt/zerocoinpage.cpp \
-  qt/paymentcodepage.cpp \
   qt/sigmadialog.cpp \
   qt/sigmacoincontroldialog.cpp \
   qt/addresstablemodel.cpp \
@@ -443,7 +437,6 @@ BITCOIN_QT_WALLET_CPP = \
   qt/receivecoinsdialog.cpp \
   qt/receiverequestdialog.cpp \
   qt/recentrequeststablemodel.cpp \
-  qt/recentpaymentcodetransactionstablemodel.cpp \
   qt/sendcoinsdialog.cpp \
   qt/sendcoinsentry.cpp \
   qt/signverifymessagedialog.cpp \

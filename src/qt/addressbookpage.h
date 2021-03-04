@@ -6,12 +6,10 @@
 #define BITCOIN_QT_ADDRESSBOOKPAGE_H
 
 #include <QDialog>
-#include <QTableView>
+
 class AddressTableModel;
-class PaymentCodeTableModel;
 class OptionsModel;
 class PlatformStyle;
-class ZCoinTableModel;
 
 namespace Ui {
     class AddressBookPage;
@@ -46,7 +44,6 @@ public:
     ~AddressBookPage();
 
     void setModel(AddressTableModel *model);
-    void setModel(PaymentCodeTableModel *pcodeModel);
     const QString &getReturnValue() const { return returnValue; }
 
 public Q_SLOTS:
@@ -55,28 +52,15 @@ public Q_SLOTS:
 private:
     Ui::AddressBookPage *ui;
     AddressTableModel *model;
-    PaymentCodeTableModel *pcodeModel;
-    ZCoinTableModel *pActiveAddressModel;
     Mode mode;
     Tabs tab;
-    int pageMode;
     QString returnValue;
     QSortFilterProxyModel *proxyModel;
-    QSortFilterProxyModel *pcodeProxyModel;
-    QSortFilterProxyModel *pActiveProxyModel;
     QMenu *contextMenu;
-    QAction *copyAddressAction;
     QAction *deleteAction; // to be able to explicitly disable it
-    QAction *editAction;
     QString newAddressToSelect;
 
-    QTableView *pActiveTableView;
-    void setActiveModel();
-
 private Q_SLOTS:
-    /** TabWidget Changed **/
-    void on_tabWidget_currentChanged(int index);
-    
     /** Delete currently selected address entry */
     void on_deleteAddress_clicked();
     /** Create a new address for receiving coins and / or add a new address book entry */
@@ -96,13 +80,6 @@ private Q_SLOTS:
     void contextualMenu(const QPoint &point);
     /** New entry/entries were added to address table */
     void selectNewAddress(const QModelIndex &parent, int begin, int /*end*/);
-    
-    /** @bip47 */
-    void pcodeSelectionChanged();
-    void selectNewPaymentCode(const QModelIndex &parent, int begin, int /*end*/);
-
-    void selectionChanged(const QTableView *table);
-    
 
 Q_SIGNALS:
     void sendCoins(QString addr);
