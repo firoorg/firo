@@ -95,46 +95,6 @@ bool isMnemonicExist() {
     return doesWalletHaveMnemonics();
 }
 
-void GetSigmaBalance(CAmount& sigmaAll, CAmount& sigmaConfirmed) {
-    auto coins = pwalletMain->zwallet->GetTracker().ListMints(true, false, false);
-    for (const auto& coin : coins) {
-        // ignore spent coin
-        if (coin.isUsed)
-            continue;
-
-        int64_t coinValue;
-        DenominationToInteger(coin.denom, coinValue);
-
-        sigmaAll += coinValue;
-        if (coin.nHeight > 0
-            && coin.nHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height())
-            sigmaConfirmed += coinValue;
-    }
-}
-
-// partially taken from qt/LelantusModel.cpp:LelantusModel::getPrivateBalance
-void GetLelantusBalance(CAmount& lelantusAll, CAmount& lelantusConfirmed) {
-    lelantusAll = 0;
-    lelantusConfirmed = 0;
-
-    auto zwallet = pwalletMain->zwallet.get();
-
-    std::vector<CLelantusMintMeta> coins = zwallet->GetTracker().ListLelantusMints(true, false, false);
-    for (CLelantusMintMeta const &c : coins) {
-        if (c.isUsed || c.isArchived || !c.isSeedCorrect) {
-            continue;
-        }
-
-        auto conf = c.nHeight > 0
-                    ? chainActive.Height() - c.nHeight + 1 : 0;
-
-        lelantusAll += c.amount;
-        if (conf >= ZC_MINT_CONFIRMATIONS) {
-            lelantusConfirmed += c.amount;
-        }
-    }
-}
-
 CAmount getLockUnspentAmount()
 {
     CTransactionRef tx;
@@ -784,40 +744,55 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
     LOCK2(cs_main, pwalletMain->cs_wallet);
-    
-    UniValue balanceObj(UniValue::VOBJ);
-    UniValue publicObj(UniValue::VOBJ);
-    UniValue privateObj(UniValue::VOBJ);
 
     CAmount publicConfirmed = pwalletMain->GetBalance(true);
     CAmount publicUnconfirmed = pwalletMain->GetUnconfirmedBalance();
-    CAmount publicLocked = getLockUnspentAmount();
+    CAmount publicLocked = pwalletMain->GetBalance(false) - publicConfirmed;
     CAmount publicImmature = pwalletMain->GetImmatureBalance();
 
-    CAmount sigmaAll = 0;
     CAmount sigmaConfirmed = 0;
-    GetSigmaBalance(sigmaAll, sigmaConfirmed);
-    CAmount sigmaUnconfirmed = sigmaAll - sigmaConfirmed;
+    CAmount sigmaUnconfirmed = 0;
+    std::vector<CMintMeta> sigmaMints = pwalletMain->zwallet->GetTracker().ListMints(true, false, false);
+    for (CMintMeta& mint: sigmaMints) {
+        if (mint.isUsed || mint.isArchived || !mint.isSeedCorrect) continue;
 
-    CAmount lelantusAll = 0;
+        int64_t amount;
+        DenominationToInteger(mint.denom, amount);
+
+        if (mint.nHeight > 0 && mint.nHeight + (ZC_MINT_CONFIRMATIONS - 1) <= chainActive.Height()) {
+            sigmaConfirmed += amount;
+        } else {
+            sigmaUnconfirmed += amount;
+        }
+    }
+
     CAmount lelantusConfirmed = 0;
-    GetLelantusBalance(lelantusAll, lelantusConfirmed);
-    CAmount lelantusUnconfirmed = lelantusAll - lelantusConfirmed;
+    CAmount lelantusUnconfirmed = 0;
+    std::vector<CLelantusMintMeta> lelantusMints = pwalletMain->zwallet->GetTracker().ListLelantusMints(true, false, false);
+    for (CLelantusMintMeta &mint: lelantusMints) {
+        if (mint.isUsed || mint.isArchived || !mint.isSeedCorrect) continue;
 
-    CAmount privateConfirmed = lelantusConfirmed + sigmaConfirmed;
-    CAmount privateUnconfirmed = lelantusUnconfirmed + sigmaUnconfirmed;
+        if (mint.nHeight > 0 && mint.nHeight + (ZC_MINT_CONFIRMATIONS - 1) <= chainActive.Height()) {
+            lelantusConfirmed += mint.amount;
+        } else {
+            lelantusUnconfirmed += mint.amount;
+        }
+    }
+
+    UniValue balanceObj(UniValue::VOBJ);
+    UniValue publicObj(UniValue::VOBJ);
+    UniValue privateObj(UniValue::VOBJ);
 
     publicObj.push_back(Pair("confirmed", publicConfirmed));
     publicObj.push_back(Pair("unconfirmed", publicUnconfirmed));
     publicObj.push_back(Pair("locked", publicLocked));
     publicObj.push_back(Pair("immature", publicImmature));
 
-    privateObj.push_back(Pair("confirmed", privateConfirmed));
-    privateObj.push_back(Pair("unconfirmed", privateUnconfirmed));
+    privateObj.push_back(Pair("confirmed", lelantusConfirmed + sigmaConfirmed));
+    privateObj.push_back(Pair("unconfirmed", lelantusUnconfirmed + sigmaUnconfirmed));
 
     balanceObj.push_back(Pair("public", publicObj));
     balanceObj.push_back(Pair("private", privateObj));
-    balanceObj.push_back(Pair("unspentSigmaMints", GetSigmaDenominations()));
 
     return balanceObj;
 }
