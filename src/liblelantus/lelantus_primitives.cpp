@@ -1,5 +1,6 @@
 #include "lelantus_primitives.h"
-#include "challenge_generator.h"
+#include "challenge_generator_sha256.h"
+#include "challenge_generator_hash256.h"
 
 namespace lelantus {
 
@@ -12,14 +13,19 @@ void LelantusPrimitives::generate_challenge(
     if (group_elements.empty())
         throw std::runtime_error("Group elements empty while generating a challenge.");
 
-    ChallengeGenerator challengeGenerator;
+    ChallengeGenerator* challengeGenerator;
     if (domain_separator != "") {
+        challengeGenerator = new ChallengeGeneratorHash256();
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
-        challengeGenerator.add(pre);
+        challengeGenerator->add(pre);
+    } else {
+        challengeGenerator = new ChallengeGeneratorSha256();
     }
 
-    challengeGenerator.add(group_elements);
-    challengeGenerator.get_challenge(result_out);
+    challengeGenerator->add(group_elements);
+    challengeGenerator->get_challenge(result_out);
+
+    delete (challengeGenerator);
 }
 
 void LelantusPrimitives::commit(const GroupElement& g,
@@ -96,32 +102,37 @@ void  LelantusPrimitives::generate_Lelantus_challenge(
 
     result_out = uint64_t(1);
 
-    ChallengeGenerator challengeGenerator;
+    ChallengeGenerator* challengeGenerator;
     if (afterFixes) {
+        challengeGenerator = new ChallengeGeneratorHash256();
         std::vector<unsigned char> pre(lts.begin(), lts.end());
-        challengeGenerator.add(pre);
+        challengeGenerator->add(pre);
         for (const auto& hash : anonymity_set_hashes)
-            challengeGenerator.add(hash);
-        challengeGenerator.add(serialNumbers);
+            challengeGenerator->add(hash);
+        challengeGenerator->add(serialNumbers);
+    } else {
+        challengeGenerator = new ChallengeGeneratorSha256();
     }
 
     if (Cout.size() > 0) {
         for (auto coin : Cout)
-            challengeGenerator.add(coin);
+            challengeGenerator->add(coin);
     }
 
     if (proofs.size() > 0) {
         for (std::size_t i = 0; i < proofs.size(); ++i) {
-            challengeGenerator.add(proofs[i].A_);
-            challengeGenerator.add(proofs[i].B_);
-            challengeGenerator.add(proofs[i].C_);
-            challengeGenerator.add(proofs[i].D_);
-            challengeGenerator.add(proofs[i].Gk_);
-            challengeGenerator.add(proofs[i].Qk);
+            challengeGenerator->add(proofs[i].A_);
+            challengeGenerator->add(proofs[i].B_);
+            challengeGenerator->add(proofs[i].C_);
+            challengeGenerator->add(proofs[i].D_);
+            challengeGenerator->add(proofs[i].Gk_);
+            challengeGenerator->add(proofs[i].Qk);
         }
 
-        challengeGenerator.get_challenge(result_out);
+        challengeGenerator->get_challenge(result_out);
     }
+
+    delete (challengeGenerator);
 }
 
 void LelantusPrimitives::new_factor(
