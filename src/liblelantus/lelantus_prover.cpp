@@ -149,27 +149,29 @@ void LelantusProver::generate_sigma_proofs(
 }
 
 void LelantusProver::generate_bulletproofs(
-        const std::vector <PrivateCoin>& Cout,
+        const std::vector<PrivateCoin>& Cout,
         RangeProof& bulletproofs) {
-    if(Cout.empty())
+    if (Cout.empty())
         return;
 
     std::vector<secp_primitives::Scalar> v_s, serials, randoms;
     std::size_t n = params->get_bulletproofs_n();
     std::size_t m = Cout.size() * 2;
 
-    while(m & (m - 1))
+    while (m & (m - 1))
         m++;
 
     v_s.reserve(m);
     serials.reserve(m);
     randoms.reserve(m);
+    std::vector<GroupElement> commitments(Cout.size());
     for (std::size_t i = 0; i < Cout.size(); ++i)
     {
         v_s.push_back(Cout[i].getV());
         v_s.push_back(Cout[i].getVScalar() +  params->get_limit_range());
         serials.insert(serials.end(), 2, Cout[i].getSerialNumber());
         randoms.insert(randoms.end(), 2, Cout[i].getRandomness());
+        commitments.emplace_back(Cout[i].getPublicCoin().getValue());
     }
 
     v_s.resize(m);
@@ -185,7 +187,7 @@ void LelantusProver::generate_bulletproofs(
     h_.insert(h_.end(), params->get_bulletproofs_h().begin(), params->get_bulletproofs_h().begin() + (n * m));
 
     RangeProver rangeProver(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n);
-    rangeProver.batch_proof(v_s, serials, randoms, bulletproofs);
+    rangeProver.batch_proof(v_s, serials, randoms, commitments, bulletproofs);
 
 }
 

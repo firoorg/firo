@@ -146,16 +146,18 @@ bool LelantusVerifier::verify_rangeproof(
 
     std::vector<GroupElement> V;
     V.reserve(m);
+    std::vector<GroupElement> commitments(Cout.size());
     for (std::size_t i = 0; i < Cout.size(); ++i) {
         V.push_back(Cout[i].getValue());
         V.push_back(Cout[i].getValue() + params->get_h1_limit_range());
+        commitments.emplace_back(Cout[i].getValue());
     }
 
     for (std::size_t i = Cout.size() * 2; i < m; ++i)
         V.push_back(GroupElement());
 
     RangeVerifier  rangeVerifier(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n);
-    if (!rangeVerifier.verify_batch(V, bulletproofs)) {
+    if (!rangeVerifier.verify_batch(V, commitments, bulletproofs)) {
         LogPrintf("Lelantus verification failed due range proof verification failed.");
         return false;
     }
