@@ -1,5 +1,6 @@
 #include "range_verifier.h"
-#include "challenge_generator.h"
+#include "challenge_generator_sha256.h"
+#include "challenge_generator_hash256.h"
 #include "chainparams.h"
 
 namespace lelantus {
@@ -27,23 +28,26 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
     //computing challenges
     Scalar x, x_u, y, z;
     bool afterFixes = chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock;
-    ChallengeGenerator challengeGenerator;
+    ChallengeGenerator* challengeGenerator;
     if (afterFixes) {
+        challengeGenerator = new ChallengeGeneratorHash256();
         std::string domain_separator = "RANGE_PROOF";
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
-        challengeGenerator.add(pre);
-        challengeGenerator.add(commitments);
+        challengeGenerator->add(pre);
+        challengeGenerator->add(commitments);
+    }  else {
+        challengeGenerator = new ChallengeGeneratorSha256();
     }
-    challengeGenerator.add({proof.A, proof.S});
-    challengeGenerator.get_challenge(y);
-    challengeGenerator.get_challenge(z);
+    challengeGenerator->add({proof.A, proof.S});
+    challengeGenerator->get_challenge(y);
+    challengeGenerator->get_challenge(z);
 
-    challengeGenerator.add({proof.T1, proof.T2});
-    challengeGenerator.get_challenge(x);
+    challengeGenerator->add({proof.T1, proof.T2});
+    challengeGenerator->get_challenge(x);
     Scalar x_neg = x.negate();
 
-    challengeGenerator.add({proof.T_x1, proof.T_x2, proof.u});
-    challengeGenerator.get_challenge(x_u);
+    challengeGenerator->add({proof.T_x1, proof.T_x2, proof.u});
+    challengeGenerator->get_challenge(x_u);
 
     auto log_n = RangeProof::int_log2(n * m);
     const InnerProductProof& innerProductProof = proof.innerProductProof;
@@ -54,19 +58,21 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
     {
         std::vector<GroupElement> group_elements_i = {innerProductProof.L_[i], innerProductProof.R_[i]};
         if (!afterFixes) {
-            challengeGenerator = ChallengeGenerator();
+            delete (challengeGenerator);
+            challengeGenerator = new ChallengeGeneratorSha256();
         }
 
         if (afterFixes) {
             std::string domain_separator = "INNER_PRODUCT";
             std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
-            challengeGenerator.add(pre);
+            challengeGenerator->add(pre);
         }
 
-        challengeGenerator.add(group_elements_i);
-        challengeGenerator.get_challenge(x_j[i]);
+        challengeGenerator->add(group_elements_i);
+        challengeGenerator->get_challenge(x_j[i]);
         x_j_inv.emplace_back((x_j[i].inverse()));
     }
+    delete (challengeGenerator);
 
     Scalar z_square_neg = (z.square()).negate();
     Scalar delta = LelantusPrimitives::delta(y, z, n, m);

@@ -31,7 +31,7 @@ void InnerProductProofGenerator::generate_proof(
         const std::vector<Scalar>& a,
         const std::vector<Scalar>& b,
         const Scalar& x,
-        ChallengeGenerator& challengeGenerator,
+        ChallengeGenerator* challengeGenerator,
         InnerProductProof& proof_out) {
     const Scalar c = LelantusPrimitives::scalar_dot_product(a.begin(), a.end(), b.begin(), b.end());
     compute_P(a, b, P_initial);
@@ -44,7 +44,7 @@ void InnerProductProofGenerator::generate_proof(
 void InnerProductProofGenerator::generate_proof_util(
         const std::vector<Scalar>& a,
         const std::vector<Scalar>& b,
-        ChallengeGenerator& challengeGenerator,
+        ChallengeGenerator* challengeGenerator,
         InnerProductProof& proof_out) {
 
     if(a.size() != b.size())
@@ -75,15 +75,16 @@ void InnerProductProofGenerator::generate_proof_util(
     Scalar x;
     std::vector<GroupElement> group_elements = {L, R};
 
-    if (!afterFixes_)
-        challengeGenerator = ChallengeGenerator();
     if (afterFixes_) {
         std::string domain_separator = "INNER_PRODUCT";
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
-        challengeGenerator.add(pre);
+        challengeGenerator->add(pre);
+    } else {
+        delete (challengeGenerator);
+        challengeGenerator = new ChallengeGeneratorSha256();
     }
-    challengeGenerator.add(group_elements);
-    challengeGenerator.get_challenge(x);
+    challengeGenerator->add(group_elements);
+    challengeGenerator->get_challenge(x);
 
     //Compute g prime and p prime
     std::vector<GroupElement> g_p;

@@ -1,5 +1,6 @@
 #include "range_prover.h"
-#include "challenge_generator.h"
+#include "challenge_generator_sha256.h"
+#include "challenge_generator_hash256.h"
 #include "chainparams.h"
 
 namespace lelantus {
@@ -59,19 +60,23 @@ void RangeProver::batch_proof(
     Scalar ro;
     ro.randomize();
     LelantusPrimitives::commit(h1, ro, g_, sL, h_, sR, proof_out.S);
-    
+
     Scalar y, z;
-    ChallengeGenerator challengeGenerator;
+    ChallengeGenerator* challengeGenerator;
     bool afterFixes = chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock;
     if (afterFixes) {
+        challengeGenerator = new ChallengeGeneratorHash256();
         std::string domain_separator = "RANGE_PROOF";
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
-        challengeGenerator.add(pre);
-        challengeGenerator.add(commitments);
+        challengeGenerator->add(pre);
+        challengeGenerator->add(commitments);
+    } else {
+        challengeGenerator = new ChallengeGeneratorSha256();
     }
-    challengeGenerator.add({proof_out.A, proof_out.S});
-    challengeGenerator.get_challenge(y);
-    challengeGenerator.get_challenge(z);
+
+    challengeGenerator->add({proof_out.A, proof_out.S});
+    challengeGenerator->get_challenge(y);
+    challengeGenerator->get_challenge(z);
 
     //compute l(x) and r(x) polynomials
     std::vector<std::vector<Scalar>> l_x, r_x;
@@ -128,8 +133,8 @@ void RangeProver::batch_proof(
     proof_out.T2 = LelantusPrimitives::double_commit(g, t2, h1, T_12, h2, T_22);
 
     Scalar x;
-    challengeGenerator.add({proof_out.T1, proof_out.T2});
-    challengeGenerator.get_challenge(x);
+    challengeGenerator->add({proof_out.T1, proof_out.T2});
+    challengeGenerator->get_challenge(x);
 
     //computing l and r
     std::vector<Scalar> l;
@@ -159,11 +164,11 @@ void RangeProver::batch_proof(
     InnerProductProofGenerator InnerProductProofGenerator(g_, h_prime, g, afterFixes);
     //t^ is calculated inside inner product proof generation with name c
     Scalar x_u;
-    challengeGenerator.add({proof_out.T_x1, proof_out.T_x2, proof_out.u});
-    challengeGenerator.get_challenge(x_u);
+    challengeGenerator->add({proof_out.T_x1, proof_out.T_x2, proof_out.u});
+    challengeGenerator->get_challenge(x_u);
 
     InnerProductProofGenerator.generate_proof(l, r, x_u, challengeGenerator, proof_out.innerProductProof);
-
+    delete (challengeGenerator);
 }
 
 }//namespace lelantus

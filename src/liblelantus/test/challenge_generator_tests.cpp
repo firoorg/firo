@@ -1,6 +1,6 @@
 #include "lelantus_test_fixture.h"
 
-#include "../challenge_generator.h"
+#include "../challenge_generator_sha256.h"
 
 #include <GroupElement.h>
 #include <Scalar.h>
@@ -11,7 +11,7 @@ namespace lelantus {
 
 class ChallengeGeneratorTests : public LelantusTestingSetup {
 public:
-    ChallengeGenerator generator;
+    ChallengeGeneratorSha256 generator;
 };
 
 BOOST_FIXTURE_TEST_SUITE(lelantus_challenge_generator_tests, ChallengeGeneratorTests)
