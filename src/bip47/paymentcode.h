@@ -50,6 +50,9 @@ private:
 
 bool operator==(CPaymentCode const & lhs, CPaymentCode const & rhs);
 
+
+typedef std::tuple<size_t, CPaymentCode, std::string, CBitcoinAddress> CPaymentCodeDescription;
+
 }
 
 #endif // ZCOIN_BIP47PAYMENTCODE_H

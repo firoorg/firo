@@ -5220,11 +5220,11 @@ UniValue listpcodes(const JSONRPCRequest& request)
             HelpExampleCli("listpcodes", ""));
     }
     UniValue result(UniValue::VARR);
-    for(std::tuple<bip47::CPaymentCode, std::string, CBitcoinAddress> const & info : pwallet->ListPcodes()) {
+    for(bip47::CPaymentCodeDescription const & info : pwallet->ListPcodes()) {
         UniValue r(UniValue::VOBJ);
-        r.push_back(Pair("Pcode", std::get<0>(info).toString()));
-        r.push_back(Pair("Label",std::get<1>(info)));
-        r.push_back(Pair("NotifAddr",std::get<2>(info).ToString()));
+        r.push_back(Pair("Pcode", std::get<1>(info).toString()));
+        r.push_back(Pair("Label",std::get<2>(info)));
+        r.push_back(Pair("NotifAddr",std::get<3>(info).ToString()));
         result.push_back(r);
     }
     return result;
@@ -5257,8 +5257,8 @@ UniValue generatepcode(const JSONRPCRequest& request)
         help();
     }
 
-    std::vector<std::tuple<bip47::CPaymentCode, std::string, CBitcoinAddress>>  const pcodes = pwallet->ListPcodes();
-    if (std::find_if(pcodes.begin(), pcodes.end(), [&label](std::tuple<bip47::CPaymentCode, std::string, CBitcoinAddress> const & pcode){ return  std::get<1>(pcode) == label; }) != pcodes.end()) {
+    std::vector<bip47::CPaymentCodeDescription>  const pcodes = pwallet->ListPcodes();
+    if (std::find_if(pcodes.begin(), pcodes.end(), [&label](bip47::CPaymentCodeDescription const & pcode){ return  std::get<2>(pcode) == label; }) != pcodes.end()) {
         help();
     }
 

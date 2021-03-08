@@ -416,7 +416,7 @@ void BitcoinGUI::createActions()
 #endif
 
     createPcodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/paymentcode"), tr("RA&P codes"), this);
-    createPcodeAction->setStatusTip(tr("Creates RAP (BIP47) payment codes"));
+    createPcodeAction->setStatusTip(tr("Create RAP(BIP47) payment code"));
     createPcodeAction->setToolTip(createPcodeAction->statusTip());
     createPcodeAction->setCheckable(true);
     createPcodeAction->setShortcut(QKeySequence(Qt::ALT + key++));

@@ -30,6 +30,8 @@
 
 #include "primitives/zerocoin.h"
 
+#include "bip47/paymentcode.h"
+
 
 #include <algorithm>
 #include <atomic>
@@ -1235,6 +1237,9 @@ public:
     /** Watch-only address added */
     boost::signals2::signal<void (bool fHaveWatchOnly)> NotifyWatchonlyChanged;
 
+    /** Payment code added */
+    boost::signals2::signal<void (bip47::CPaymentCodeDescription)> NotifyPcodeCreated;
+
     /** Inquire whether this wallet broadcasts transactions. */
     bool GetBroadcastTransactions() const { return fBroadcastTransactions; }
     /** Set whether this wallet broadcasts transactions. */
@@ -1291,7 +1296,7 @@ public:
     bip47::CPaymentCode GeneratePcode(std::string const & label);
 
     /* Lists all receiving pcodes as tuples of (pcode, label, notification address) */
-    std::vector<std::tuple<bip47::CPaymentCode, std::string, CBitcoinAddress>> ListPcodes();
+    std::vector<bip47::CPaymentCodeDescription> ListPcodes();
 
     /* Creates a payment channel for their payment code. Returns their notification address */
     bip47::CPaymentChannel & SetupPchannel(bip47::CPaymentCode const & theirPcode);

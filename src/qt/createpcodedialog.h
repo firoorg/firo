@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2016 The Bitcoin Core developers
+// Copyright (c) 2019-2021 The Firo Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -14,6 +14,8 @@
 #include <QMenu>
 #include <QPoint>
 #include <QVariant>
+
+#include "bip47/paymentcode.h"
 
 class OptionsModel;
 class PlatformStyle;
@@ -33,11 +35,10 @@ class CreatePcodeDialog : public QDialog
     Q_OBJECT
 
 public:
-    enum ColumnWidths {
-        DATE_COLUMN_WIDTH = 130,
-        LABEL_COLUMN_WIDTH = 120,
-        AMOUNT_MINIMUM_COLUMN_WIDTH = 180,
-        MINIMUM_COLUMN_WIDTH = 130
+    enum struct ColumnWidths : int {
+        Number = 80,
+        Pcode = 180,
+        Label = 180
     };
 
     explicit CreatePcodeDialog(const PlatformStyle *platformStyle, QWidget *parent = 0);
@@ -66,12 +67,11 @@ private:
 
 private Q_SLOTS:
     void on_createPcodeButton_clicked();
-    void updateDisplayUnit();
+    void on_labelText_textChanged();
     void showMenu(const QPoint &point);
-    void copyURI();
-    void copyLabel();
-    void copyMessage();
-    void copyAmount();
+    void copyPcode();
+    void copyNotificationAddr();
+    void showQrcode();
 };
 
 #endif // BITCOIN_QT_CREATEPCODEDIALOG_H

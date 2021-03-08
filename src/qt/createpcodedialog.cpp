@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2016 The Bitcoin Core developers
+// Copyright (c) 2019-2021 The Firo Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -14,6 +14,7 @@
 #include "receiverequestdialog.h"
 #include "recentrequeststablemodel.h"
 #include "walletmodel.h"
+#include "pcodemodel.h"
 
 #include <QAction>
 #include <QCursor>
@@ -36,59 +37,61 @@ CreatePcodeDialog::CreatePcodeDialog(const PlatformStyle *_platformStyle, QWidge
         ui->createPcodeButton->setIcon(QIcon());
     } else {
         ui->clearButton->setIcon(_platformStyle->SingleColorIcon(":/icons/remove"));
-        ui->createPcodeButton->setIcon(_platformStyle->SingleColorIcon(":/icons/receiving_addresses"));
+        ui->createPcodeButton->setIcon(_platformStyle->SingleColorIcon(":/icons/paymentcodes"));
     }
 
     // context menu actions
-    QAction *copyURIAction = new QAction(tr("Copy URI"), this);
-    QAction *copyLabelAction = new QAction(tr("Copy label"), this);
-    QAction *copyMessageAction = new QAction(tr("Copy message"), this);
-    QAction *copyAmountAction = new QAction(tr("Copy amount"), this);
+    QAction *copyPcodeAction = new QAction(tr("Copy Payment Code"), this);
+    QAction *copyNotificationAddrAction = new QAction(tr("Copy Notification Address"), this);
+    QAction *showQrcodeAction = new QAction(tr("Show QR Code"), this);
 
     // context menu
     contextMenu = new QMenu(this);
-    contextMenu->addAction(copyURIAction);
-    contextMenu->addAction(copyLabelAction);
-    contextMenu->addAction(copyMessageAction);
-    contextMenu->addAction(copyAmountAction);
+    contextMenu->addAction(copyPcodeAction);
+    contextMenu->addAction(copyNotificationAddrAction);
+    contextMenu->addAction(showQrcodeAction);
 
     // context menu signals
-    connect(ui->recentRequestsView, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(showMenu(QPoint)));
-    connect(copyURIAction, SIGNAL(triggered()), this, SLOT(copyURI()));
-    connect(copyLabelAction, SIGNAL(triggered()), this, SLOT(copyLabel()));
-    connect(copyMessageAction, SIGNAL(triggered()), this, SLOT(copyMessage()));
-    connect(copyAmountAction, SIGNAL(triggered()), this, SLOT(copyAmount()));
+    connect(ui->pcodesView, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(showMenu(QPoint)));
+    connect(copyPcodeAction, SIGNAL(triggered()), this, SLOT(copyPcode()));
+    connect(copyNotificationAddrAction, SIGNAL(triggered()), this, SLOT(copyNotificationAddr()));
+    connect(showQrcodeAction, SIGNAL(triggered()), this, SLOT(showQrcode()));
 
     connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
+
+    int lightness = ui->statusLabel->palette().color(QPalette::WindowText).lightness();
+    QColor warning_color(255 - (lightness / 5), 176 - (lightness / 3), 48 - (lightness / 14));
+    ui->statusLabel->setStyleSheet("QLabel { color: " + warning_color.name() + "; }");
 }
 
 void CreatePcodeDialog::setModel(WalletModel *_model)
 {
-    this->model = _model;
+    model = _model;
 
     if(_model && _model->getOptionsModel())
     {
-        _model->getRecentRequestsTableModel()->sort(RecentRequestsTableModel::Date, Qt::DescendingOrder);
-        connect(_model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
-        updateDisplayUnit();
+        _model->getPcodeModel()->sort(int(PcodeModel::ColumnIndex::Number), Qt::DescendingOrder);
 
-        QTableView* tableView = ui->recentRequestsView;
+        QTableView* tableView = ui->pcodesView;
 
         tableView->verticalHeader()->hide();
         tableView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        tableView->setModel(_model->getRecentRequestsTableModel());
+        tableView->setModel(_model->getPcodeModel());
         tableView->setAlternatingRowColors(true);
         tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
         tableView->setSelectionMode(QAbstractItemView::ContiguousSelection);
-        tableView->setColumnWidth(RecentRequestsTableModel::Date, DATE_COLUMN_WIDTH);
-        tableView->setColumnWidth(RecentRequestsTableModel::Label, LABEL_COLUMN_WIDTH);
-        tableView->setColumnWidth(RecentRequestsTableModel::Amount, AMOUNT_MINIMUM_COLUMN_WIDTH);
+        tableView->setColumnWidth(static_cast<int>(PcodeModel::ColumnIndex::Number), static_cast<int>(ColumnWidths::Number));
+        tableView->setColumnWidth(static_cast<int>(PcodeModel::ColumnIndex::Pcode), static_cast<int>(ColumnWidths::Pcode));
 
         connect(tableView->selectionModel(),
             SIGNAL(selectionChanged(QItemSelection, QItemSelection)), this,
             SLOT(recentRequestsView_selectionChanged(QItemSelection, QItemSelection)));
         // Last 2 columns are set by the columnResizingFixer, when the table geometry is ready.
-        columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, AMOUNT_MINIMUM_COLUMN_WIDTH, DATE_COLUMN_WIDTH, this);
+        columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, 70, 70, this);
+
+        connect(model->getPcodeModel(), SIGNAL(PcodeCreated(bip47::CPaymentCodeDescription const &)), this, SLOT(DisplayCreatedPcode(bip47::CPaymentCodeDescription const &)));
+        ui->createPcodeButton->setEnabled(false);
+        ui->statusLabel->setText(tr("The label should not be empty."));
     }
 }
 
@@ -99,8 +102,7 @@ CreatePcodeDialog::~CreatePcodeDialog()
 
 void CreatePcodeDialog::clear()
 {
-    ui->reqLabel->setText("");
-    updateDisplayUnit();
+    ui->labelText->setText("");
 }
 
 void CreatePcodeDialog::reject()
@@ -113,50 +115,22 @@ void CreatePcodeDialog::accept()
     clear();
 }
 
-void CreatePcodeDialog::updateDisplayUnit()
-{
-    if(model && model->getOptionsModel())
-    {
-    }
-}
-
 void CreatePcodeDialog::on_createPcodeButton_clicked()
 {
-//    if(!model || !model->getOptionsModel() || !model->getAddressTableModel() || !model->getRecentRequestsTableModel())
-//        return;
-//
-//    QString address;
-//    QString label = ui->reqLabel->text();
-//    if(ui->reuseAddress->isChecked())
-//    {
-//        /* Choose existing receiving address */
-//        AddressBookPage dlg(platformStyle, AddressBookPage::ForSelection, AddressBookPage::ReceivingTab, this);
-//        dlg.setModel(model->getAddressTableModel());
-//        if(dlg.exec())
-//        {
-//            address = dlg.getReturnValue();
-//            if(label.isEmpty()) /* If no label provided, use the previously used label */
-//            {
-//                label = model->getAddressTableModel()->labelForAddress(address);
-//            }
-//        } else {
-//            return;
-//        }
-//    } else {
-//        /* Generate new receiving address */
-//        address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "");
-//    }
-//    SendCoinsRecipient info(address, label,
-//        ui->reqAmount->value(), ui->reqMessage->text());
-//    ReceiveRequestDialog *dialog = new ReceiveRequestDialog(this);
-//    dialog->setAttribute(Qt::WA_DeleteOnClose);
-//    dialog->setModel(model->getOptionsModel());
-//    dialog->setInfo(info);
-//    dialog->show();
-//    clear();
-//
-//    /* Store request for later reference */
-//    model->getRecentRequestsTableModel()->addNewRequest(info);
+    model->getWallet()->GeneratePcode(ui->labelText->text().toStdString());
+}
+
+void CreatePcodeDialog::on_labelText_textChanged()
+{
+    QString status = "";
+    if (ui->labelText->text().size() == 0)
+        status = tr("The label should not be empty.");
+    for (bip47::CPaymentCodeDescription const & desr : model->getPcodeModel()->getItems()) {
+        if(std::get<2>(desr) == ui->labelText->text().toStdString())
+            status = tr("The label should be unique.");
+    }
+    ui->statusLabel->setText(status);
+    ui->createPcodeButton->setEnabled(status.size() == 0);
 }
 
 // We override the virtual resizeEvent of the QWidget to adjust tables column
@@ -172,7 +146,7 @@ void CreatePcodeDialog::keyPressEvent(QKeyEvent *event)
     if (event->key() == Qt::Key_Return)
     {
         // press return -> submit form
-        if (ui->reqLabel->hasFocus())
+        if (ui->labelText->hasFocus())
         {
             event->ignore();
             on_createPcodeButton_clicked();
@@ -185,9 +159,9 @@ void CreatePcodeDialog::keyPressEvent(QKeyEvent *event)
 
 QModelIndex CreatePcodeDialog::selectedRow()
 {
-    if(!model || !model->getRecentRequestsTableModel() || !ui->recentRequestsView->selectionModel())
+    if(!model || !model->getRecentRequestsTableModel() || !ui->pcodesView->selectionModel())
         return QModelIndex();
-    QModelIndexList selection = ui->recentRequestsView->selectionModel()->selectedRows();
+    QModelIndexList selection = ui->pcodesView->selectionModel()->selectedRows();
     if(selection.empty())
         return QModelIndex();
     // correct for selection mode ContiguousSelection
@@ -214,33 +188,24 @@ void CreatePcodeDialog::showMenu(const QPoint &point)
     contextMenu->exec(QCursor::pos());
 }
 
-// context menu action: copy URI
-void CreatePcodeDialog::copyURI()
+void CreatePcodeDialog::copyPcode()
 {
     QModelIndex sel = selectedRow();
     if (!sel.isValid()) {
         return;
     }
-
-    const RecentRequestsTableModel * const submodel = model->getRecentRequestsTableModel();
-    const QString uri = GUIUtil::formatBitcoinURI(submodel->entry(sel.row()).recipient);
-    GUIUtil::setClipboard(uri);
+    GUIUtil::setClipboard(std::get<1>(model->getPcodeModel()->getItems().at(sel.row())).toString().c_str());
 }
 
-// context menu action: copy label
-void CreatePcodeDialog::copyLabel()
+void CreatePcodeDialog::copyNotificationAddr()
 {
-    copyColumnToClipboard(RecentRequestsTableModel::Label);
+    QModelIndex sel = selectedRow();
+    if (!sel.isValid()) {
+        return;
+    }
+    GUIUtil::setClipboard(std::get<3>(model->getPcodeModel()->getItems().at(sel.row())).ToString().c_str());
 }
 
-// context menu action: copy message
-void CreatePcodeDialog::copyMessage()
+void CreatePcodeDialog::showQrcode()
 {
-    copyColumnToClipboard(RecentRequestsTableModel::Message);
-}
-
-// context menu action: copy amount
-void CreatePcodeDialog::copyAmount()
-{
-    copyColumnToClipboard(RecentRequestsTableModel::Amount);
 }

@@ -242,6 +242,10 @@ CWallet::CWallet(uint256 const & seedData)
 
 CAccountReceiver & CWallet::createReceivingAccount(std::string const & label)
 {
+    for (std::pair<size_t const, CAccountReceiver> const & accReceiver : accReceivers) {
+        if (accReceiver.second.getLabel() == label)
+            throw std::runtime_error("Account with such label already exists.");
+    }
     size_t const accNum = (accReceivers.empty() ? 0 : accReceivers.rbegin()->first + 1);
     accReceivers.emplace(accNum, CAccountReceiver(privkeyReceive, accNum, label));
     CAccountReceiver & acc = accReceivers.rbegin()->second;
@@ -251,7 +255,7 @@ CAccountReceiver & CWallet::createReceivingAccount(std::string const & label)
 
 CAccountSender & CWallet::provideSendingAccount(CPaymentCode const & theirPcode)
 {
-    for(std::pair<size_t const, CAccountSender> & acc : accSenders) {
+    for (std::pair<size_t const, CAccountSender> & acc : accSenders) {
         if(acc.second.getTheirPcode() == theirPcode)
             return acc.second;
     }

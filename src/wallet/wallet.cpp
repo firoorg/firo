@@ -8519,16 +8519,17 @@ bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)
         }
     }
     CWalletDB(strWalletFile).WriteBip47Account(newAcc);
+    NotifyPcodeCreated(bip47::CPaymentCodeDescription(newAcc.getAccountNum(), newAcc.getMyPcode(), newAcc.getLabel(), newAcc.getMyPcode().getNotificationAddress()));
     return newAcc.getMyPcode();
 }
 
-std::vector<std::tuple<bip47::CPaymentCode, std::string, CBitcoinAddress>> CWallet::ListPcodes()
+std::vector<bip47::CPaymentCodeDescription> CWallet::ListPcodes()
 {
-    std::vector<std::tuple<bip47::CPaymentCode, std::string, CBitcoinAddress>> result;
+    std::vector<bip47::CPaymentCodeDescription> result;
     bip47wallet->enumerateReceivers(
         [&result](bip47::CAccountReceiver const & acc)
         {
-            result.push_back(std::make_tuple(acc.getMyPcode(), acc.getLabel(), acc.getMyNotificationAddress()));
+            result.emplace_back(acc.getAccountNum(), acc.getMyPcode(), acc.getLabel(), acc.getMyNotificationAddress());
         }
     );
     return result;

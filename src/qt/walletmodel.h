@@ -26,6 +26,7 @@ class PlatformStyle;
 class RecentRequestsTableModel;
 class TransactionTableModel;
 class WalletModelTransaction;
+class PcodeModel;
 
 class CCoinControl;
 class CKeyID;
@@ -137,6 +138,7 @@ public:
     LelantusModel *getLelantusModel();
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
+    PcodeModel *getPcodeModel();
 
     CWallet *getWallet() const { return wallet; }
 
@@ -287,6 +289,7 @@ private:
     LelantusModel *lelantusModel;
     TransactionTableModel *transactionTableModel;
     RecentRequestsTableModel *recentRequestsTableModel;
+    PcodeModel *pcodeModel;
 
     // Cache some values to be able to detect changes
     CAmount cachedBalance;

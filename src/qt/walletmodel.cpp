@@ -12,6 +12,7 @@
 #include "paymentserver.h"
 #include "recentrequeststablemodel.h"
 #include "transactiontablemodel.h"
+#include "pcodemodel.h"
 
 #include "base58.h"
 #include "keystore.h"
@@ -42,6 +43,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     lelantusModel(0),
     transactionTableModel(0),
     recentRequestsTableModel(0),
+    pcodeModel(0),
     cachedBalance(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0),
     cachedEncryptionStatus(Unencrypted),
     cachedNumBlocks(0)
@@ -53,6 +55,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     lelantusModel = new LelantusModel(platformStyle, wallet, _optionsModel, this);
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
+    pcodeModel = new PcodeModel(wallet, this);
 
     // This timer will be fired repeatedly to update the balance
     pollTimer = new QTimer(this);
@@ -828,6 +831,11 @@ TransactionTableModel *WalletModel::getTransactionTableModel()
 RecentRequestsTableModel *WalletModel::getRecentRequestsTableModel()
 {
     return recentRequestsTableModel;
+}
+
+PcodeModel *WalletModel::getPcodeModel()
+{
+    return pcodeModel;
 }
 
 WalletModel::EncryptionStatus WalletModel::getEncryptionStatus() const

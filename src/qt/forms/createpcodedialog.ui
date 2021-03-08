@@ -30,6 +30,12 @@
        <layout class="QGridLayout" name="gridLayout">
         <item row="2" column="2">
          <widget class="QLabel" name="label_5">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <property name="text">
            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use this form to create a Receiver Address Privacy (BIP47) payment code.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
@@ -47,7 +53,7 @@
            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
           </property>
           <property name="buddy">
-           <cstring>reqLabel</cstring>
+           <cstring>labelText</cstring>
           </property>
          </widget>
         </item>
@@ -98,13 +104,29 @@
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Minimum</enum>
+            </property>
             <property name="sizeHint" stdset="0">
              <size>
-              <width>40</width>
+              <width>10</width>
               <height>20</height>
              </size>
             </property>
            </spacer>
+          </item>
+          <item>
+           <widget class="QLabel" name="statusLabel">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>statusLabel</string>
+            </property>
+           </widget>
           </item>
          </layout>
         </item>
@@ -116,7 +138,7 @@
          </widget>
         </item>
         <item row="4" column="2">
-         <widget class="QLineEdit" name="reqLabel">
+         <widget class="QLineEdit" name="labelText">
           <property name="toolTip">
            <string>An optional label to associate with the new receiving address.</string>
           </property>
@@ -169,7 +191,7 @@
        </widget>
       </item>
       <item>
-       <widget class="QTableView" name="recentRequestsView">
+       <widget class="QTableView" name="pcodesView">
         <property name="contextMenuPolicy">
          <enum>Qt::CustomContextMenu</enum>
         </property>
@@ -224,14 +246,17 @@
   </layout>
  </widget>
  <tabstops>
-  <tabstop>reqLabel</tabstop>
+  <tabstop>labelText</tabstop>
   <tabstop>createPcodeButton</tabstop>
   <tabstop>clearButton</tabstop>
-  <tabstop>recentRequestsView</tabstop>
+  <tabstop>pcodesView</tabstop>
   <tabstop>showPcodeButton</tabstop>
  </tabstops>
  <resources>
   <include location="../bitcoin.qrc"/>
  </resources>
  <connections/>
+ <slots>
+  <slot>slot1()</slot>
+ </slots>
 </ui>

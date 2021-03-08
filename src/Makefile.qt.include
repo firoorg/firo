@@ -206,7 +206,8 @@ QT_MOC_CPP = \
   qt/moc_lelantusdialog.cpp \
   qt/moc_lelantuscoincontroldialog.cpp \
   qt/moc_automintmodel.cpp \
-  qt/moc_automintnotification.cpp
+  qt/moc_automintnotification.cpp \
+  qt/moc_pcodemodel.cpp
 
 BITCOIN_MM = \
   qt/macdockiconhandler.mm \
@@ -266,6 +267,7 @@ BITCOIN_QT_H = \
   qt/overviewpage.h \
   qt/paymentrequestplus.h \
   qt/paymentserver.h \
+  qt/pcodemodel.h \
   qt/peertablemodel.h \
   qt/platformstyle.h \
   qt/qvalidatedlineedit.h \
@@ -436,6 +438,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/manualmintdialog.cpp \
   qt/openuridialog.cpp \
   qt/overviewpage.cpp \
+  qt/pcodemodel.cpp \
   qt/paymentrequestplus.cpp \
   qt/paymentserver.cpp \
   qt/receivecoinsdialog.cpp \
