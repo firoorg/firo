@@ -23,6 +23,7 @@ void RangeProver::batch_proof(
         const std::vector<Scalar>& v,
         const std::vector<Scalar>& serialNumbers,
         const std::vector<Scalar>& randomness,
+        const std::vector<GroupElement>& commitments,
         RangeProof& proof_out) {
     std::size_t m = v.size();
     std::vector<std::vector<bool>> bits;
@@ -58,15 +59,15 @@ void RangeProver::batch_proof(
     Scalar ro;
     ro.randomize();
     LelantusPrimitives::commit(h1, ro, g_, sL, h_, sR, proof_out.S);
-
-
-
+    
     Scalar y, z;
     ChallengeGenerator challengeGenerator;
-    if (chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock) {
+    bool afterFixes = chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock;
+    if (afterFixes) {
         std::string domain_separator = "RANGE_PROOF";
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator.add(pre);
+        challengeGenerator.add(commitments);
     }
     challengeGenerator.add({proof_out.A, proof_out.S});
     challengeGenerator.get_challenge(y);
@@ -155,13 +156,13 @@ void RangeProver::batch_proof(
         y_i_inv.go_next();
     }
 
-    InnerProductProofGenerator InnerProductProofGenerator(g_, h_prime, g);
+    InnerProductProofGenerator InnerProductProofGenerator(g_, h_prime, g, afterFixes);
     //t^ is calculated inside inner product proof generation with name c
     Scalar x_u;
     challengeGenerator.add({proof_out.T_x1, proof_out.T_x2, proof_out.u});
     challengeGenerator.get_challenge(x_u);
 
-    InnerProductProofGenerator.generate_proof(l, r, x_u, proof_out.innerProductProof);
+    InnerProductProofGenerator.generate_proof(l, r, x_u, challengeGenerator, proof_out.innerProductProof);
 
 }
 

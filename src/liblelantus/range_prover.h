@@ -21,6 +21,7 @@ public:
             const std::vector<Scalar>& v
             , const std::vector<Scalar>& serialNumbers
             , const std::vector<Scalar>& randomness
+            , const std::vector<GroupElement>& commitments
             , RangeProof& proof_out);
 
 private:

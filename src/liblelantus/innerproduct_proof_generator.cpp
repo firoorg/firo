@@ -31,18 +31,20 @@ void InnerProductProofGenerator::generate_proof(
         const std::vector<Scalar>& a,
         const std::vector<Scalar>& b,
         const Scalar& x,
+        ChallengeGenerator& challengeGenerator,
         InnerProductProof& proof_out) {
     const Scalar c = LelantusPrimitives::scalar_dot_product(a.begin(), a.end(), b.begin(), b.end());
     compute_P(a, b, P_initial);
     u_ *= x;
     proof_out.c_ = c;
     P_ = (P_initial + u_ * c);
-    generate_proof_util(a, b, proof_out);
+    generate_proof_util(a, b, challengeGenerator, proof_out);
 }
 
 void InnerProductProofGenerator::generate_proof_util(
         const std::vector<Scalar>& a,
         const std::vector<Scalar>& b,
+        ChallengeGenerator& challengeGenerator,
         InnerProductProof& proof_out) {
 
     if(a.size() != b.size())
@@ -72,10 +74,16 @@ void InnerProductProofGenerator::generate_proof_util(
     //Get challenge x
     Scalar x;
     std::vector<GroupElement> group_elements = {L, R};
-    std::string domain_separator = "";
-    if(afterFixes_)
-        domain_separator = "INNER_PRODUCT";
-    LelantusPrimitives::generate_challenge(group_elements, domain_separator, x);
+
+    if (!afterFixes_)
+        challengeGenerator = ChallengeGenerator();
+    if (afterFixes_) {
+        std::string domain_separator = "INNER_PRODUCT";
+        std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
+        challengeGenerator.add(pre);
+    }
+    challengeGenerator.add(group_elements);
+    challengeGenerator.get_challenge(x);
 
     //Compute g prime and p prime
     std::vector<GroupElement> g_p;
@@ -91,7 +99,7 @@ void InnerProductProofGenerator::generate_proof_util(
     GroupElement p_p = LelantusPrimitives::p_prime(P_, L, R, x);
 
     // Recursive call of protocol 2
-    InnerProductProofGenerator(g_p, h_p, u_, p_p).generate_proof_util(a_p, b_p, proof_out);
+    InnerProductProofGenerator(g_p, h_p, u_, p_p).generate_proof_util(a_p, b_p, challengeGenerator, proof_out);
 }
 
 void InnerProductProofGenerator::compute_P(

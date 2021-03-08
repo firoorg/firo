@@ -18,7 +18,7 @@ public:
             , const std::vector<GroupElement>& h_vector
             , uint64_t n);
 
-    bool verify_batch(const std::vector<GroupElement>& V, const RangeProof& proof);
+    bool verify_batch(const std::vector<GroupElement>& V, const std::vector<GroupElement>& commitments, const RangeProof& proof);
 
 private:
     bool membership_checks(const RangeProof& proof);

@@ -2,6 +2,7 @@
 #define FIRO_LIBLELANTUS_INNERP_RODUCT_PROOF_GENERATOR_H
 
 #include "lelantus_primitives.h"
+#include "challenge_generator.h"
 
 namespace lelantus {
     
@@ -19,6 +20,7 @@ public:
             const std::vector<Scalar>& a,
             const std::vector<Scalar>& b,
             const Scalar& x,
+            ChallengeGenerator& challengeGenerator,
             InnerProductProof& proof_out);
 
     const GroupElement& get_P();
@@ -34,6 +36,7 @@ private:
     void generate_proof_util(
             const std::vector<Scalar>& a,
             const std::vector<Scalar>& b,
+            ChallengeGenerator& challengeGenerator,
             InnerProductProof& proof_out);
 
     void l(typename std::vector<Scalar>::const_iterator a_start,

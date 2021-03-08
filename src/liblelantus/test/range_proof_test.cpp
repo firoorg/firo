@@ -34,10 +34,10 @@ BOOST_AUTO_TEST_CASE(prove_verify)
 
     RangeProver rangeProver(g_gen, h_gen1, h_gen2, g_, h_, n);
     RangeProof proof;
-    rangeProver.batch_proof(v_s, serials, randoms, proof);
+    rangeProver.batch_proof(v_s, serials, randoms, V, proof);
 
     RangeVerifier rangeVerifier(g_gen, h_gen1, h_gen2, g_, h_, n);
-    BOOST_CHECK(rangeVerifier.verify_batch(V, proof));
+    BOOST_CHECK(rangeVerifier.verify_batch(V, V, proof));
 }
 
 BOOST_AUTO_TEST_CASE(out_of_range_notVerify)
@@ -64,10 +64,10 @@ BOOST_AUTO_TEST_CASE(out_of_range_notVerify)
 
         lelantus::RangeProver rangeProver(g_gen, h_gen1, h_gen2, g_, h_, n);
         lelantus::RangeProof proof;
-        rangeProver.batch_proof(v_s, serials, randoms, proof);
+        rangeProver.batch_proof(v_s, serials, randoms, V, proof);
 
         lelantus::RangeVerifier rangeVerifier(g_gen, h_gen1, h_gen2, g_, h_, n);
-        BOOST_CHECK(!rangeVerifier.verify_batch(V, proof));
+        BOOST_CHECK(!rangeVerifier.verify_batch(V, V, proof));
     };
 
     // All values are out of range

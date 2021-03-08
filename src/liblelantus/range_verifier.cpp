@@ -19,7 +19,7 @@ RangeVerifier::RangeVerifier(
         , n (n)
 {}
 
-bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const RangeProof& proof) {
+bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::vector<GroupElement>& commitments, const RangeProof& proof) {
     if(!membership_checks(proof))
         return false;
     uint64_t m = V.size();
@@ -32,6 +32,7 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const Range
         std::string domain_separator = "RANGE_PROOF";
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator.add(pre);
+        challengeGenerator.add(commitments);
     }
     challengeGenerator.add({proof.A, proof.S});
     challengeGenerator.get_challenge(y);
@@ -52,10 +53,18 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const Range
     for (int i = 0; i < log_n; ++i)
     {
         std::vector<GroupElement> group_elements_i = {innerProductProof.L_[i], innerProductProof.R_[i]};
-        std::string domain_separator = "";
-        if(afterFixes)
-            domain_separator = "INNER_PRODUCT";
-        LelantusPrimitives::generate_challenge(group_elements_i, domain_separator, x_j[i]);
+        if (!afterFixes) {
+            challengeGenerator = ChallengeGenerator();
+        }
+
+        if (afterFixes) {
+            std::string domain_separator = "INNER_PRODUCT";
+            std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
+            challengeGenerator.add(pre);
+        }
+
+        challengeGenerator.add(group_elements_i);
+        challengeGenerator.get_challenge(x_j[i]);
         x_j_inv.emplace_back((x_j[i].inverse()));
     }
 
