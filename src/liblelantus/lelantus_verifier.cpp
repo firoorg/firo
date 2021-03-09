@@ -68,9 +68,10 @@ bool LelantusVerifier::verify(
     }
 
     Scalar zV, zR;
-    if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, Cout, proof.sigma_proofs, x, zV, zR, fSkipVerification) &&
+    unique_ptr<ChallengeGenerator> challengeGenerator;
+    if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, Cout, proof.sigma_proofs, x, challengeGenerator, zV, zR, fSkipVerification) &&
          verify_rangeproof(Cout, proof.bulletproofs) &&
-         verify_schnorrproof(x, zV, zR, Vin, Vout, fee, Cout, proof)))
+         verify_schnorrproof(x, zV, zR, Vin, Vout, fee, Cout, proof, challengeGenerator)))
         return false;
     return true;
 }
@@ -83,6 +84,7 @@ bool LelantusVerifier::verify_sigma(
         const std::vector<PublicCoin>& Cout,
         const std::vector<SigmaExtendedProof> &sigma_proofs,
         Scalar& x,
+        unique_ptr<ChallengeGenerator>& challengeGenerator,
         Scalar& zV,
         Scalar& zR,
         bool fSkipVerification) {
@@ -91,7 +93,14 @@ bool LelantusVerifier::verify_sigma(
     for (auto coin : Cout)
         PubcoinsOut.emplace_back(coin.getValue());
 
-    LelantusPrimitives::generate_Lelantus_challenge(sigma_proofs, anonymity_set_hashes, serialNumbers, PubcoinsOut, chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock, x);
+    LelantusPrimitives::generate_Lelantus_challenge(
+            sigma_proofs,
+            anonymity_set_hashes,
+            serialNumbers,
+            PubcoinsOut,
+            chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock,
+            challengeGenerator,
+            x);
 
     SigmaExtendedVerifier sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
                                                           params->get_sigma_m());
@@ -172,7 +181,8 @@ bool LelantusVerifier::verify_schnorrproof(
         const Scalar& Vout,
         const Scalar fee,
         const std::vector<PublicCoin>& Cout,
-        const LelantusProof& proof) {
+        const LelantusProof& proof,
+        unique_ptr<ChallengeGenerator>& challengeGenerator) {
     GroupElement A;
     for (std::size_t i = 0; i < Cout.size(); ++i)
         A += Cout[i].getValue();
@@ -208,7 +218,7 @@ bool LelantusVerifier::verify_schnorrproof(
     const SchnorrProof& schnorrProof = proof.schnorrProof;
     GroupElement Y = A + B * (Scalar(uint64_t(1)).negate());
 
-    if (!schnorrVerifier.verify(Y, A, B, schnorrProof)) {
+    if (!schnorrVerifier.verify(Y, A, B, schnorrProof, challengeGenerator)) {
         LogPrintf("Lelantus verification failed due schnorr proof verification failed.");
         return false;
     }

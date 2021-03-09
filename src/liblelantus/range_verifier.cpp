@@ -28,15 +28,15 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
     //computing challenges
     Scalar x, x_u, y, z;
     bool afterFixes = chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock;
-    ChallengeGenerator* challengeGenerator;
+    unique_ptr<ChallengeGenerator> challengeGenerator;
     if (afterFixes) {
-        challengeGenerator = new ChallengeGeneratorHash256();
+        challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
         std::string domain_separator = "RANGE_PROOF";
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator->add(pre);
         challengeGenerator->add(commitments);
     }  else {
-        challengeGenerator = new ChallengeGeneratorSha256();
+        challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
     }
     challengeGenerator->add({proof.A, proof.S});
     challengeGenerator->get_challenge(y);
@@ -57,22 +57,19 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
     for (int i = 0; i < log_n; ++i)
     {
         std::vector<GroupElement> group_elements_i = {innerProductProof.L_[i], innerProductProof.R_[i]};
-        if (!afterFixes) {
-            delete (challengeGenerator);
-            challengeGenerator = new ChallengeGeneratorSha256();
-        }
 
         if (afterFixes) {
             std::string domain_separator = "INNER_PRODUCT";
             std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
             challengeGenerator->add(pre);
+        } else {
+            challengeGenerator.reset();
         }
 
         challengeGenerator->add(group_elements_i);
         challengeGenerator->get_challenge(x_j[i]);
         x_j_inv.emplace_back((x_j[i].inverse()));
     }
-    delete (challengeGenerator);
 
     Scalar z_square_neg = (z.square()).negate();
     Scalar delta = LelantusPrimitives::delta(y, z, n, m);

@@ -10,7 +10,7 @@ public:
     //g and h are being kept by reference, be sure it will not be modified from outside
     SchnorrVerifier(const GroupElement& g, const GroupElement& h, bool withFixes_);
 
-    bool verify(const GroupElement& y, const GroupElement& a, const GroupElement& b,const SchnorrProof& proof);
+    bool verify(const GroupElement& y, const GroupElement& a, const GroupElement& b,const SchnorrProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);
 
 private:
     const GroupElement& g_;

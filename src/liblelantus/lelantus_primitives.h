@@ -9,6 +9,7 @@
 #include "schnorr_proof.h"
 #include "innerproduct_proof.h"
 #include "range_proof.h"
+#include "challenge_generator.h"
 
 #include "serialize.h"
 #include "../libzerocoin/Zerocoin.h"
@@ -70,6 +71,7 @@ public:
             const std::vector<Scalar>& serialNumbers,
             const std::vector<GroupElement>& Cout,
             bool afterFixes,
+            unique_ptr<ChallengeGenerator>& challengeGenerator,
             Scalar& result_out);
 
     static void new_factor(const Scalar& x, const Scalar& a, std::vector<Scalar>& coefficients);

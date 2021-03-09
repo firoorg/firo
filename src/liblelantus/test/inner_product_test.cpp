@@ -56,12 +56,12 @@ BOOST_AUTO_TEST_CASE(prove_verify_one)
 
     Scalar x;
     x.randomize();
-    ChallengeGeneratorSha256 challengeGenerator;
+    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
 
     // generating proofs
     Proof proof;
     ProofGenerator prover(gens_g, gens_h, u);
-    prover.generate_proof(a, b, x, &challengeGenerator, proof);
+    prover.generate_proof(a, b, x, challengeGenerator, proof);
 
     BOOST_CHECK_EQUAL(ComputePInit(), prover.get_P());
 
@@ -73,8 +73,8 @@ BOOST_AUTO_TEST_CASE(prove_verify_one)
     BOOST_CHECK_EQUAL(log2_n, proof.R_.size());
 
     // verify
-    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(x, proof, &challengeGenerator));
-    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, x, proof, &challengeGenerator));
+    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(x, proof, challengeGenerator));
+    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, x, proof, challengeGenerator));
 }
 
 BOOST_AUTO_TEST_CASE(prove_verify)
@@ -86,12 +86,12 @@ BOOST_AUTO_TEST_CASE(prove_verify)
 
     Scalar x;
     x.randomize();
-    ChallengeGeneratorSha256 challengeGenerator;
+    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
 
     // generating proofs
     Proof proof;
     ProofGenerator prover(gens_g, gens_h, u);
-    prover.generate_proof(a, b, x, &challengeGenerator, proof);
+    prover.generate_proof(a, b, x, challengeGenerator, proof);
 
     BOOST_CHECK_EQUAL(ComputePInit(), prover.get_P());
 
@@ -101,8 +101,8 @@ BOOST_AUTO_TEST_CASE(prove_verify)
     BOOST_CHECK_EQUAL(log2_n, proof.R_.size());
 
     // verify
-    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(x, proof, &challengeGenerator));
-    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, x, proof, &challengeGenerator));
+    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(x, proof, challengeGenerator));
+    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, x, proof, challengeGenerator));
 }
 
 BOOST_AUTO_TEST_CASE(fake_proof_not_verify)
@@ -114,23 +114,23 @@ BOOST_AUTO_TEST_CASE(fake_proof_not_verify)
 
     Scalar x;
     x.randomize();
-    ChallengeGeneratorSha256 challengeGenerator;
+    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
 
     // generating genertor
     Proof proof;
-    ProofGenerator(gens_g, gens_h, u).generate_proof(a, b, x, &challengeGenerator, proof);
+    ProofGenerator(gens_g, gens_h, u).generate_proof(a, b, x, challengeGenerator, proof);
 
     // verify with fake P
     GroupElement fakeP;
     fakeP.randomize();
 
-    BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, fakeP).verify(x, proof, &challengeGenerator));
-    BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, fakeP).verify_fast(n, x, proof, &challengeGenerator));
+    BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, fakeP).verify(x, proof, challengeGenerator));
+    BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, fakeP).verify_fast(n, x, proof, challengeGenerator));
 
     // verify with fake proof
     auto verify = [&](Scalar const &_x, Proof const &_p) -> void {
-        BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(_x, _p, &challengeGenerator));
-        BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, _x, _p, &challengeGenerator));
+        BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(_x, _p, challengeGenerator));
+        BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, _x, _p, challengeGenerator));
     };
 
     auto fakeProof = proof;

@@ -12,6 +12,7 @@ void SchnorrProver::proof(
         const GroupElement& y,
         const GroupElement& a,
         const GroupElement& b,
+        unique_ptr<ChallengeGenerator>& challengeGenerator,
         SchnorrProof& proof_out){
     Scalar P0;
     Scalar T0;
@@ -25,10 +26,14 @@ void SchnorrProver::proof(
     std::string shts = "";
     if (withFixes) {
         shts = "SCHNORR_PROOF";
+        std::vector<unsigned char> pre(shts.begin(), shts.end());
         group_elements = {u, y, a, b};
+        challengeGenerator->add(pre);
+    } else {
+        challengeGenerator.reset();
     }
-
-    LelantusPrimitives::generate_challenge(group_elements, shts, c);
+    challengeGenerator->add(group_elements);
+    challengeGenerator->get_challenge(c);
     proof_out.P1 = P0 - c * P;
     proof_out.T1 = T0 - c * T;
 }

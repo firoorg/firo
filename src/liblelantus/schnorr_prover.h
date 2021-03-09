@@ -10,7 +10,7 @@ public:
     //g and h are being kept by reference, be sure it will not be modified from outside
     SchnorrProver(const GroupElement& g, const GroupElement& h, bool withFixes_);
 
-    void proof(const Scalar& P, const Scalar& T, const GroupElement& y, const GroupElement& a, const GroupElement& b, SchnorrProof& proof_out);
+    void proof(const Scalar& P, const Scalar& T, const GroupElement& y, const GroupElement& a, const GroupElement& b, unique_ptr<ChallengeGenerator>& challengeGenerator, SchnorrProof& proof_out);
 
 private:
     const GroupElement& g_;

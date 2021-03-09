@@ -32,6 +32,7 @@ private:
             const std::vector<PrivateCoin>& Cout,
             const std::vector<size_t>& indexes,
             Scalar& x,
+            unique_ptr<ChallengeGenerator>& challengeGenerator,
             std::vector<Scalar>& Yk_sum,
             std::vector<SigmaExtendedProof>& sigma_proofs);
 

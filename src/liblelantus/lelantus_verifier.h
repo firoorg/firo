@@ -47,6 +47,7 @@ private:
             const std::vector<PublicCoin>& Cout,
             const std::vector<SigmaExtendedProof> &sigma_proofs,
             Scalar& x,
+            unique_ptr<ChallengeGenerator>& challengeGenerator,
             Scalar& zV,
             Scalar& zR,
             bool fSkipVerification = false);
@@ -61,7 +62,8 @@ private:
             const Scalar& Vout,
             const Scalar fee,
             const std::vector<PublicCoin>& Cout,
-            const LelantusProof& proof);
+            const LelantusProof& proof,
+            unique_ptr<ChallengeGenerator>& challengeGenerator);
 
 private:
     const Params* params;
