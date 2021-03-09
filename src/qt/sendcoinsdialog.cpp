@@ -220,6 +220,8 @@ SendCoinsDialog::~SendCoinsDialog()
     delete ui;
 }
 
+#include "receiverequestdialog.h"
+
 void SendCoinsDialog::on_sendButton_clicked()
 {
     updateGlobalFeeVariables();
@@ -238,7 +240,12 @@ void SendCoinsDialog::on_sendButton_clicked()
             if(entry->validate())
             {
                 if(entry->isPayToPcode()) {
-                    //Show send to pcode wizard
+                    ReceiveRequestDialog *dialog = new ReceiveRequestDialog(this);
+                    dialog->setModel(model->getOptionsModel());
+                    SendCoinsRecipient recipient;
+                    dialog->setInfo(recipient);
+                    dialog->setAttribute(Qt::WA_DeleteOnClose);
+                    dialog->exec();
                 }
                 recipients.append(entry->getValue());
             }

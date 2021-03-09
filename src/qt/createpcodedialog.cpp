@@ -234,5 +234,4 @@ void CreatePcodeDialog::showQrcode()
     dialog->setInfo(recipient);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->show();
-
 }
