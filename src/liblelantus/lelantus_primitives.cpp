@@ -13,19 +13,17 @@ void LelantusPrimitives::generate_challenge(
     if (group_elements.empty())
         throw std::runtime_error("Group elements empty while generating a challenge.");
 
-    ChallengeGenerator* challengeGenerator;
+    std::unique_ptr<ChallengeGenerator> challengeGenerator;
     if (domain_separator != "") {
-        challengeGenerator = new ChallengeGeneratorHash256();
+        challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator->add(pre);
     } else {
-        challengeGenerator = new ChallengeGeneratorSha256();
+        challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
     }
 
     challengeGenerator->add(group_elements);
     challengeGenerator->get_challenge(result_out);
-
-    delete (challengeGenerator);
 }
 
 void LelantusPrimitives::commit(const GroupElement& g,
@@ -98,20 +96,20 @@ void  LelantusPrimitives::generate_Lelantus_challenge(
         const std::vector<Scalar>& serialNumbers,
         const std::vector<GroupElement>& Cout,
         bool afterFixes,
+        unique_ptr<ChallengeGenerator>& challengeGenerator,
         Scalar& result_out) {
 
     result_out = uint64_t(1);
 
-    ChallengeGenerator* challengeGenerator;
     if (afterFixes) {
-        challengeGenerator = new ChallengeGeneratorHash256();
+        challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
         std::vector<unsigned char> pre(lts.begin(), lts.end());
         challengeGenerator->add(pre);
         for (const auto& hash : anonymity_set_hashes)
             challengeGenerator->add(hash);
         challengeGenerator->add(serialNumbers);
     } else {
-        challengeGenerator = new ChallengeGeneratorSha256();
+        challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
     }
 
     if (Cout.size() > 0) {
@@ -131,8 +129,6 @@ void  LelantusPrimitives::generate_Lelantus_challenge(
 
         challengeGenerator->get_challenge(result_out);
     }
-
-    delete (challengeGenerator);
 }
 
 void LelantusPrimitives::new_factor(

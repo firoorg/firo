@@ -62,16 +62,16 @@ void RangeProver::batch_proof(
     LelantusPrimitives::commit(h1, ro, g_, sL, h_, sR, proof_out.S);
 
     Scalar y, z;
-    ChallengeGenerator* challengeGenerator;
+    unique_ptr<ChallengeGenerator> challengeGenerator;
     bool afterFixes = chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock;
     if (afterFixes) {
-        challengeGenerator = new ChallengeGeneratorHash256();
+        challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
         std::string domain_separator = "RANGE_PROOF";
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator->add(pre);
         challengeGenerator->add(commitments);
     } else {
-        challengeGenerator = new ChallengeGeneratorSha256();
+        challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
     }
 
     challengeGenerator->add({proof_out.A, proof_out.S});
@@ -168,7 +168,6 @@ void RangeProver::batch_proof(
     challengeGenerator->get_challenge(x_u);
 
     InnerProductProofGenerator.generate_proof(l, r, x_u, challengeGenerator, proof_out.innerProductProof);
-    delete (challengeGenerator);
 }
 
 }//namespace lelantus

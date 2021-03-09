@@ -13,6 +13,8 @@
 #include "liblelantus/coin.h"
 #include "liblelantus/schnorr_prover.h"
 #include "liblelantus/schnorr_verifier.h"
+#include "liblelantus/challenge_generator_hash256.h"
+#include "liblelantus/challenge_generator_sha256.h"
 #include "primitives/zerocoin.h"
 #include "policy/policy.h"
 #include "coins.h"
@@ -80,7 +82,15 @@ void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, CDataStream&  s
     Scalar v = coin.getVScalar();
     secp_primitives::GroupElement commit = coin.getPublicCoin().getValue();
     secp_primitives::GroupElement comm = commit + (params->get_h1() * v.negate());
-    schnorrProver.proof(coin.getSerialNumber(), coin.getRandomness(), comm, commit, (params->get_h1() * v), schnorrProof);
+
+    unique_ptr<ChallengeGenerator> challengeGenerator;
+    if (afterFixes) {
+        challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
+    }  else {
+        challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
+    }
+
+    schnorrProver.proof(coin.getSerialNumber(), coin.getRandomness(), comm, commit, (params->get_h1() * v), challengeGenerator, schnorrProof);
 
     serializedSchnorrProof << schnorrProof;
 }
@@ -92,7 +102,14 @@ bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupEleme
 
     secp_primitives::GroupElement comm = commit + (params->get_h1() * Scalar(v).negate());
     SchnorrVerifier verifier(params->get_g(), params->get_h0(), afterFixes);
-    return verifier.verify(comm, commit, (params->get_h1() * Scalar(v)), schnorrProof);
+    unique_ptr<ChallengeGenerator> challengeGenerator;
+    if (afterFixes) {
+        challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
+    }  else {
+        challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
+    }
+
+    return verifier.verify(comm, commit, (params->get_h1() * Scalar(v)), schnorrProof, challengeGenerator);
 }
 
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin,  SchnorrProof& schnorrProof, uint256& mintTag)

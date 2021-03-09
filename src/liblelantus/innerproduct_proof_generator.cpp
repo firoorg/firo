@@ -31,7 +31,7 @@ void InnerProductProofGenerator::generate_proof(
         const std::vector<Scalar>& a,
         const std::vector<Scalar>& b,
         const Scalar& x,
-        ChallengeGenerator* challengeGenerator,
+        unique_ptr<ChallengeGenerator>& challengeGenerator,
         InnerProductProof& proof_out) {
     const Scalar c = LelantusPrimitives::scalar_dot_product(a.begin(), a.end(), b.begin(), b.end());
     compute_P(a, b, P_initial);
@@ -44,7 +44,7 @@ void InnerProductProofGenerator::generate_proof(
 void InnerProductProofGenerator::generate_proof_util(
         const std::vector<Scalar>& a,
         const std::vector<Scalar>& b,
-        ChallengeGenerator* challengeGenerator,
+        unique_ptr<ChallengeGenerator>& challengeGenerator,
         InnerProductProof& proof_out) {
 
     if(a.size() != b.size())
@@ -80,8 +80,7 @@ void InnerProductProofGenerator::generate_proof_util(
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator->add(pre);
     } else {
-        delete (challengeGenerator);
-        challengeGenerator = new ChallengeGeneratorSha256();
+        challengeGenerator.reset();
     }
     challengeGenerator->add(group_elements);
     challengeGenerator->get_challenge(x);

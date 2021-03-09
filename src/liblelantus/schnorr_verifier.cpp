@@ -10,7 +10,8 @@ bool SchnorrVerifier::verify(
         const GroupElement& y,
         const GroupElement& a,
         const GroupElement& b,
-        const SchnorrProof& proof){
+        const SchnorrProof& proof,
+        unique_ptr<ChallengeGenerator>& challengeGenerator){
 
     const GroupElement& u = proof.u;
     Scalar c;
@@ -19,10 +20,15 @@ bool SchnorrVerifier::verify(
     std::string shts = "";
     if (withFixes) {
         shts = "SCHNORR_PROOF";
+        std::vector<unsigned char> pre(shts.begin(), shts.end());
         group_elements = {u, y, a, b};
+        challengeGenerator->add(pre);
+    } else {
+        challengeGenerator.reset();
     }
+    challengeGenerator->add(group_elements);
+    challengeGenerator->get_challenge(c);
 
-    LelantusPrimitives::generate_challenge(group_elements, shts, c);
     const Scalar P1 = proof.P1;
     const Scalar T1 = proof.T1;
 

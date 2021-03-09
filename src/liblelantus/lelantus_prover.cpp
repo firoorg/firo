@@ -31,7 +31,8 @@ void LelantusProver::proof(
     Scalar x;
     std::vector<Scalar> Yk_sum;
     Yk_sum.resize(Cin.size());
-    generate_sigma_proofs(anonymity_sets, anonymity_set_hashes, Cin, Cout, indexes, x, Yk_sum, proof_out.sigma_proofs);
+    unique_ptr<ChallengeGenerator> challengeGenerator;
+    generate_sigma_proofs(anonymity_sets, anonymity_set_hashes, Cin, Cout, indexes, x, challengeGenerator, Yk_sum, proof_out.sigma_proofs);
 
     generate_bulletproofs(Cout, proof_out.bulletproofs);
 
@@ -63,8 +64,7 @@ void LelantusProver::proof(
     GroupElement B = params->get_h1() * Vi + params->get_h0() * Ri;
     GroupElement Y = A + B.inverse();
     SchnorrProver schnorrProver(params->get_g(), params->get_h0(), chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock);
-    schnorrProver.proof(X_, Y_, Y, A, B, proof_out.schnorrProof);
-
+    schnorrProver.proof(X_, Y_, Y, A, B, challengeGenerator, proof_out.schnorrProof);
 }
 
 void LelantusProver::generate_sigma_proofs(
@@ -74,6 +74,7 @@ void LelantusProver::generate_sigma_proofs(
         const std::vector<PrivateCoin>& Cout,
         const std::vector<size_t>& indexes,
         Scalar& x,
+        unique_ptr<ChallengeGenerator>& challengeGenerator,
         std::vector<Scalar>& Yk_sum,
         std::vector<SigmaExtendedProof>& sigma_proofs) {
     SigmaExtendedProver sigmaProver(params->get_g(), params->get_sigma_h(), params->get_sigma_n(), params->get_sigma_m());
@@ -125,7 +126,14 @@ void LelantusProver::generate_sigma_proofs(
     PubcoinsOut.reserve(Cout.size());
     for(auto coin : Cout)
         PubcoinsOut.emplace_back(coin.getPublicCoin().getValue());
-    LelantusPrimitives::generate_Lelantus_challenge(sigma_proofs, anonymity_set_hashes, serialNumbers, PubcoinsOut, chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock, x);
+    LelantusPrimitives::generate_Lelantus_challenge(
+            sigma_proofs,
+            anonymity_set_hashes,
+            serialNumbers,
+            PubcoinsOut,
+            chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock,
+            challengeGenerator,
+            x);
 
     std::vector<Scalar> x_ks;
     x_ks.reserve(params->get_sigma_m());
