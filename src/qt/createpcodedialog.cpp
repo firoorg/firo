@@ -85,7 +85,7 @@ void CreatePcodeDialog::setModel(WalletModel *_model)
 
         connect(tableView->selectionModel(),
             SIGNAL(selectionChanged(QItemSelection, QItemSelection)), this,
-            SLOT(recentRequestsView_selectionChanged(QItemSelection, QItemSelection)));
+            SLOT(on_pcodesView_selectionChanged(QItemSelection, QItemSelection)));
         // Last 2 columns are set by the columnResizingFixer, when the table geometry is ready.
         columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, 70, 70, this);
 
@@ -131,6 +131,22 @@ void CreatePcodeDialog::on_labelText_textChanged()
     }
     ui->statusLabel->setText(status);
     ui->createPcodeButton->setEnabled(status.size() == 0);
+}
+
+void CreatePcodeDialog::on_pcodesView_doubleClicked(const QModelIndex &index)
+{
+    showQrcode();
+}
+
+void CreatePcodeDialog::on_showPcodeButton_clicked()
+{
+    showQrcode();
+}
+
+void CreatePcodeDialog::on_pcodesView_selectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
+{
+    bool const enable = !ui->pcodesView->selectionModel()->selectedRows().isEmpty();
+    ui->showPcodeButton->setEnabled(enable);
 }
 
 // We override the virtual resizeEvent of the QWidget to adjust tables column
@@ -208,4 +224,15 @@ void CreatePcodeDialog::copyNotificationAddr()
 
 void CreatePcodeDialog::showQrcode()
 {
+    QModelIndex sel = selectedRow();
+    if (!sel.isValid()) {
+        return;
+    }
+    recipient.address = QString(std::get<1>(model->getPcodeModel()->getItems().at(sel.row())).toString().c_str());
+    ReceiveRequestDialog *dialog = new ReceiveRequestDialog(this);
+    dialog->setModel(model->getOptionsModel());
+    dialog->setInfo(recipient);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->show();
+
 }

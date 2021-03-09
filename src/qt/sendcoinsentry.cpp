@@ -19,7 +19,8 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     QStackedWidget(parent),
     ui(new Ui::SendCoinsEntry),
     model(0),
-    platformStyle(_platformStyle)
+    platformStyle(_platformStyle),
+    isPcodeEntry(false)
 {
     ui->setupUi(this);
 
@@ -129,7 +130,8 @@ bool SendCoinsEntry::validate()
     if (recipient.paymentRequest.IsInitialized())
         return retval;
 
-    if (!model->validateAddress(ui->payTo->text()))
+    isPcodeEntry = bip47::CPaymentCode::validate(ui->payTo->text().toStdString());
+    if (!(model->validateAddress(ui->payTo->text()) || isPcodeEntry))
     {
         ui->payTo->setValid(false);
         retval = false;
@@ -236,6 +238,11 @@ void SendCoinsEntry::setSubtractFeeFromAmount(bool enable)
 bool SendCoinsEntry::isClear()
 {
     return ui->payTo->text().isEmpty() && ui->payTo_is->text().isEmpty() && ui->payTo_s->text().isEmpty();
+}
+
+bool SendCoinsEntry::isPayToPcode() const
+{
+    return isPcodeEntry;
 }
 
 void SendCoinsEntry::setFocus()

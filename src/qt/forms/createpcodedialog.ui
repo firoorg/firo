@@ -140,7 +140,7 @@
         <item row="4" column="2">
          <widget class="QLineEdit" name="labelText">
           <property name="toolTip">
-           <string>An optional label to associate with the new receiving address.</string>
+           <string>A mandatory label to associate with the new payment code.</string>
           </property>
          </widget>
         </item>
@@ -211,7 +211,7 @@
            <bool>false</bool>
           </property>
           <property name="toolTip">
-           <string>Show the selected request (does the same as double clicking an entry)</string>
+           <string>Show the selected payment code (does the same as double clicking an entry)</string>
           </property>
           <property name="text">
            <string>Show</string>

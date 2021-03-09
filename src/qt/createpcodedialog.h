@@ -15,6 +15,7 @@
 #include <QPoint>
 #include <QVariant>
 
+#include "walletmodel.h"
 #include "bip47/paymentcode.h"
 
 class OptionsModel;
@@ -60,6 +61,7 @@ private:
     WalletModel *model;
     QMenu *contextMenu;
     const PlatformStyle *platformStyle;
+    SendCoinsRecipient recipient;
 
     QModelIndex selectedRow();
     void copyColumnToClipboard(int column);
@@ -68,6 +70,9 @@ private:
 private Q_SLOTS:
     void on_createPcodeButton_clicked();
     void on_labelText_textChanged();
+    void on_pcodesView_doubleClicked(const QModelIndex &index);
+    void on_pcodesView_selectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
+    void on_showPcodeButton_clicked();
     void showMenu(const QPoint &point);
     void copyPcode();
     void copyNotificationAddr();

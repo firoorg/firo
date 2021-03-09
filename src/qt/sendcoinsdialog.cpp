@@ -237,6 +237,9 @@ void SendCoinsDialog::on_sendButton_clicked()
         {
             if(entry->validate())
             {
+                if(entry->isPayToPcode()) {
+                    //Show send to pcode wizard
+                }
                 recipients.append(entry->getValue());
             }
             else
