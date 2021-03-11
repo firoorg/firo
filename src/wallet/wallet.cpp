@@ -1219,15 +1219,16 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
             goto notifTxExit;
         }
         bip47wallet->enumerateReceivers(
-            [&key, &addresses, &accFound](bip47::CAccountReceiver & acc)
+            [&key, &addresses, &accFound](bip47::CAccountReceiver & acc)->bool
             {
                 for (CBitcoinAddress addr : addresses) {
                     if(acc.getMyNotificationAddress() == addr) {
                         key = acc.getMyNextAddresses()[0].second;
                         accFound = &acc;
-                        return;
+                        return false;
                     }
                 }
+                return true;
             }
         );
         if(!accFound) {
@@ -6995,7 +6996,7 @@ std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(CAmount required,
                     return std::make_pair(0, 0);
                 }
             }
-        } catch (std::runtime_error) {
+        } catch (std::runtime_error const &) {
         }
 
         // 956 is constant part, mainly Schnorr and Range proof, 2560 is for each sigma/aux data
@@ -8527,9 +8528,10 @@ std::vector<bip47::CPaymentCodeDescription> CWallet::ListPcodes()
 {
     std::vector<bip47::CPaymentCodeDescription> result;
     bip47wallet->enumerateReceivers(
-        [&result](bip47::CAccountReceiver const & acc)
+        [&result](bip47::CAccountReceiver const & acc)->bool
         {
             result.emplace_back(acc.getAccountNum(), acc.getMyPcode(), acc.getLabel(), acc.getMyNotificationAddress());
+            return true;
         }
     );
     return result;
@@ -8542,15 +8544,24 @@ bip47::CPaymentChannel & CWallet::SetupPchannel(bip47::CPaymentCode const & thei
     return sender.getPaymentChannel();
 }
 
+void CWallet::SetNotificationTxId(bip47::CPaymentCode const & theirPcode, uint256 const & txid)
+{
+    bip47::CAccountSender & sender = bip47wallet->provideSendingAccount(theirPcode);
+    sender.setNotificationTxId(txid);
+    CWalletDB(strWalletFile).WriteBip47Account(sender);
+}
+
 CBitcoinAddress CWallet::GetNextAddress(bip47::CPaymentCode const & theirPcode)
 {
     boost::optional<bip47::CAccountSender*> existingAcc;
     bip47wallet->enumerateSenders(
-        [&theirPcode, &existingAcc](bip47::CAccountSender & acc)
+        [&theirPcode, &existingAcc](bip47::CAccountSender & acc)->bool
         {
             if(acc.getTheirPcode() == theirPcode) {
                 existingAcc.emplace(&acc);
+                return false;
             }
+            return true;
         }
     );
     if(!existingAcc)
@@ -8564,6 +8575,11 @@ CBitcoinAddress CWallet::GetNextAddress(bip47::CPaymentCode const & theirPcode)
 void CWallet::LoadBip47Wallet()
 {
     CWalletDB(strWalletFile).LoadBip47Accounts(*bip47wallet);
+}
+
+std::shared_ptr<bip47::CWallet const> CWallet::GetBip47Wallet() const
+{
+    return bip47wallet;
 }
 
 

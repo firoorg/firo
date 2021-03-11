@@ -1298,14 +1298,19 @@ public:
     /* Lists all receiving pcodes as tuples of (pcode, label, notification address) */
     std::vector<bip47::CPaymentCodeDescription> ListPcodes();
 
-    /* Creates a payment channel for their payment code. Returns their notification address */
+    /* Creates a payment channel for their payment code. */
     bip47::CPaymentChannel & SetupPchannel(bip47::CPaymentCode const & theirPcode);
+
+    /* Stores the notification tx id into the wallet database */
+    void SetNotificationTxId(bip47::CPaymentCode const & theirPcode, uint256 const & txid);
 
     /* Returns next unused address for their payment code. Throws if no payment channel was setup */
     CBitcoinAddress GetNextAddress(bip47::CPaymentCode const & theirPcode);
 
     /*Loads previously stored bip47 accounts */
     void LoadBip47Wallet();
+
+    std::shared_ptr<bip47::CWallet const>  GetBip47Wallet() const;
 };
 
 /** A key allocated from the key pool. */

@@ -12,7 +12,8 @@
 namespace bip47 {
 
 CAccountBase::CAccountBase()
-:accountNum(0)
+: accountNum(0)
+, version(1)
 {
 }
 
@@ -59,6 +60,10 @@ CKey const & CAccountBase::getMyNotificationKey() const
     return *myNotificationKey;
 }
 
+size_t CAccountBase::getVersion() const
+{
+    return version;
+}
 
 /******************************************************************************/
 
@@ -108,6 +113,15 @@ MyAddrContT const & CAccountSender::generateMyNextAddresses()
 bool CAccountSender::markAddressUsed(CBitcoinAddress const & address)
 {
     return getPaymentChannel().markAddressUsed(address);
+}
+
+void CAccountSender::setNotificationTxId(uint256 const & txId)
+{
+    notificationTxId = txId;
+}
+uint256 CAccountSender::getNotificationTxId() const
+{
+    return notificationTxId;
 }
 
 /******************************************************************************/
@@ -278,6 +292,39 @@ void CWallet::readSender(CAccountSender && sender)
     if(accSenders.find(sender.getAccountNum()) != accSenders.end())
         throw std::runtime_error("There is already an account with number " + std::to_string(sender.getAccountNum()));
     accSenders.insert(std::pair<size_t, CAccountSender>(sender.getAccountNum(), std::move(sender)));
+}
+
+void CWallet::enumerateReceivers(std::function<bool(CAccountReceiver &)> op)
+{
+    for(std::pair<size_t const, CAccountReceiver> & val : accReceivers) {
+        if (op && !op(val.second))
+            break;
+    }
+}
+
+void CWallet::enumerateReceivers(std::function<bool(CAccountReceiver const &)> op) const
+{
+    for(std::pair<size_t const, CAccountReceiver> const & val : accReceivers) {
+        if (op && !op(val.second))
+            break;
+    }
+
+}
+
+void CWallet::enumerateSenders(std::function<bool(CAccountSender &)> op)
+{
+    for(std::pair<size_t const, CAccountSender> & val : accSenders) {
+        if (op && !op(val.second))
+            break;
+    }
+}
+
+void CWallet::enumerateSenders(std::function<bool(CAccountSender const &)> op) const
+{
+    for(std::pair<size_t const, CAccountSender> const & val : accSenders) {
+        if (op && !op(val.second))
+            break;
+    }
 }
 
 }

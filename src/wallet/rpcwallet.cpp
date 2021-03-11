@@ -5420,6 +5420,8 @@ UniValue setupchannel(const JSONRPCRequest& request)
 
     SendNotificationTxLelantus(pwallet, pchannel, wtx);
 
+    pwallet->SetNotificationTxId(theirPcode, wtx.GetHash());
+
     return wtx.GetHash().GetHex();
 }
 

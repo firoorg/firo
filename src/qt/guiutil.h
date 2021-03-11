@@ -242,6 +242,13 @@ namespace GUIUtil
     typedef ClickableProgressBar ProgressBar;
 #endif
 
+    struct GUIColors {
+        enum RGB {
+            checkPassed = 0x006400, // dark green
+            warning = 0xff7f50 //coral
+        };
+    };
+
 } // namespace GUIUtil
 
 #endif // BITCOIN_QT_GUIUTIL_H

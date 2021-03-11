@@ -173,16 +173,18 @@ BOOST_AUTO_TEST_CASE(wallet)
 
     CDataStream ds(SER_NETWORK, 0);
     wallet.enumerateReceivers(
-        [&ds](bip47::CAccountReceiver & acc)
+        [&ds](bip47::CAccountReceiver & acc)->bool
         {
             ds << acc;
+            return true;
         }
     );
 
     wallet.enumerateSenders(
-        [&ds](bip47::CAccountSender & acc)
+        [&ds](bip47::CAccountSender & acc)->bool
         {
             ds << acc;
+            return true;
         }
     );
 
@@ -197,19 +199,21 @@ BOOST_AUTO_TEST_CASE(wallet)
 
     size_t receiverNum = 0, senderNum = 0;
     wallet_deserialize.enumerateReceivers(
-        [&receiverNum](bip47::CAccountReceiver & acc)
+        [&receiverNum](bip47::CAccountReceiver & acc)->bool
         {
             BOOST_CHECK(acc.getLabel() == "Label1");
             receiverNum += 1;
+            return true;
         }
     );
     BOOST_CHECK_EQUAL(receiverNum, 1);
 
     wallet_deserialize.enumerateSenders(
-        [&senderNum, &paymentCode_bob](bip47::CAccountSender & acc)
+        [&senderNum, &paymentCode_bob](bip47::CAccountSender & acc)->bool
         {
             BOOST_CHECK(acc.getTheirPcode() == paymentCode_bob);
             senderNum += 1;
+            return true;
         }
     );
     BOOST_CHECK_EQUAL(senderNum, 1);

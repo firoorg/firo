@@ -33,6 +33,7 @@ public:
     void SerializationOp(Stream& s, Operation ser_action)
     {
         READWRITE(const_cast<size_t&>(accountNum));
+        READWRITE(version);
         READWRITE(privkey);
         READWRITE(pubkey);
         READWRITE(myPcode);
@@ -43,9 +44,11 @@ protected:
     CExtKey privkey;
     CExtPubKey pubkey;
     CKey const & getMyNotificationKey() const;
+    size_t getVersion() const;
 private:
     boost::optional<CPaymentCode> mutable myPcode;
     boost::optional<CKey> mutable myNotificationKey;
+    long int version;
 
     virtual MyAddrContT const & generateMyUsedAddresses() = 0;
     virtual MyAddrContT const & generateMyNextAddresses() = 0;
@@ -71,6 +74,9 @@ public:
     CPaymentCode const & getTheirPcode() const;
     CBitcoinAddress generateTheirNextSecretAddress();
 
+    void setNotificationTxId(uint256 const & txId);
+    uint256 getNotificationTxId() const;
+
     ADD_DESERIALIZE_CTOR(CAccountSender);
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
@@ -81,12 +87,14 @@ public:
         READWRITE(pchannel);
         if (ser_action.ForRead())
             updateMyNextAddresses();
+        READWRITE(notificationTxId);
     }
 
 private:
     CPaymentCode theirPcode;
     boost::optional<CPaymentChannel> mutable pchannel;
     MyAddrContT nextAddresses;
+    uint256 notificationTxId;
 
     void updateMyNextAddresses();
     virtual MyAddrContT const & generateMyUsedAddresses();
@@ -161,29 +169,16 @@ public:
     void readReceiver(CAccountReceiver && receiver);
     void readSender(CAccountSender && sender);
 
-    template<class E> void enumerateReceivers(E e);
-    template<class E> void enumerateSenders(E e);
+    /* Op is called for every sender/receiver account. Enumeration stops when calling op returns false */
+    void enumerateReceivers(std::function<bool(CAccountReceiver &)> op);
+    void enumerateReceivers(std::function<bool(CAccountReceiver const &)> op) const;
+    void enumerateSenders(std::function<bool(CAccountSender &)> op);
+    void enumerateSenders(std::function<bool(CAccountSender const &)> op) const;
 private:
     std::map<size_t, CAccountReceiver> accReceivers;
     std::map<size_t, CAccountSender> accSenders;
     CExtKey privkeySend, privkeyReceive;
 };
-
-template<class UnaryFunction>
-void CWallet::enumerateReceivers(UnaryFunction e)
-{
-    for(std::pair<size_t const, CAccountReceiver> & val : accReceivers) {
-        e(val.second);
-    }
-}
-
-template<class UnaryFunction>
-void CWallet::enumerateSenders(UnaryFunction e)
-{
-    for(std::pair<size_t const, CAccountSender> & val : accSenders) {
-        e(val.second);
-    }
-}
 
 }
 

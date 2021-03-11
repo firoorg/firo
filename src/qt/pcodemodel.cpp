@@ -11,6 +11,7 @@
 
 #include "clientversion.h"
 #include "streams.h"
+#include "bip47/account.h"
 
 #include <boost/foreach.hpp>
 
@@ -106,6 +107,23 @@ QModelIndex PcodeModel::index(int row, int column, const QModelIndex &parent) co
 Qt::ItemFlags PcodeModel::flags(const QModelIndex &) const
 {
     return Qt::ItemIsSelectable | Qt::ItemIsEnabled;
+}
+
+bool PcodeModel::getNotificationTxid(bip47::CPaymentCode const & paymentCode, uint256 & txid)
+{
+    bool result = false;
+    LOCK(walletMain.cs_wallet);
+    walletMain.GetBip47Wallet()->enumerateSenders(
+        [&paymentCode, &result, &txid](bip47::CAccountSender const & sender)
+        {
+            if (sender.getTheirPcode() == paymentCode && !sender.getNotificationTxId().IsNull()) {
+                txid = sender.getNotificationTxId();
+                return false;
+            }
+            return true;
+        }
+    );
+    return result;
 }
 
 void PcodeModel::OnPcodeCreated(bip47::CPaymentCodeDescription const & pcodeDescr)

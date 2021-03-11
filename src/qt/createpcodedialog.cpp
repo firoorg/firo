@@ -37,7 +37,7 @@ CreatePcodeDialog::CreatePcodeDialog(const PlatformStyle *_platformStyle, QWidge
         ui->createPcodeButton->setIcon(QIcon());
     } else {
         ui->clearButton->setIcon(_platformStyle->SingleColorIcon(":/icons/remove"));
-        ui->createPcodeButton->setIcon(_platformStyle->SingleColorIcon(":/icons/paymentcodes"));
+        ui->createPcodeButton->setIcon(_platformStyle->SingleColorIcon(":/icons/paymentcode"));
     }
 
     // context menu actions
@@ -59,9 +59,7 @@ CreatePcodeDialog::CreatePcodeDialog(const PlatformStyle *_platformStyle, QWidge
 
     connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
 
-    int lightness = ui->statusLabel->palette().color(QPalette::WindowText).lightness();
-    QColor warning_color(255 - (lightness / 5), 176 - (lightness / 3), 48 - (lightness / 14));
-    ui->statusLabel->setStyleSheet("QLabel { color: " + warning_color.name() + "; }");
+    ui->statusLabel->setStyleSheet("QLabel { color: " + QColor(GUIUtil::GUIColors::warning).name() + "; }");
 }
 
 void CreatePcodeDialog::setModel(WalletModel *_model)
@@ -118,6 +116,7 @@ void CreatePcodeDialog::accept()
 void CreatePcodeDialog::on_createPcodeButton_clicked()
 {
     model->getWallet()->GeneratePcode(ui->labelText->text().toStdString());
+    on_labelText_textChanged();
 }
 
 void CreatePcodeDialog::on_labelText_textChanged()
@@ -126,7 +125,7 @@ void CreatePcodeDialog::on_labelText_textChanged()
     if (ui->labelText->text().size() == 0)
         status = tr("The label should not be empty.");
     for (bip47::CPaymentCodeDescription const & desr : model->getPcodeModel()->getItems()) {
-        if(std::get<2>(desr) == ui->labelText->text().toStdString())
+        if (std::get<2>(desr) == ui->labelText->text().toStdString())
             status = tr("The label should be unique.");
     }
     ui->statusLabel->setText(status);

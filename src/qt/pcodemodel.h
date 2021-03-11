@@ -42,10 +42,11 @@ public:
     Qt::ItemFlags flags(const QModelIndex &index) const;
     /*@}*/
 
-    void OnPcodeCreated(bip47::CPaymentCodeDescription const & pcodeDescr);
+    bool getNotificationTxid(bip47::CPaymentCode const & paymentCode, uint256 & txid);
 
 public Q_SLOTS:
     void sort(int column, Qt::SortOrder order);
+    void OnPcodeCreated(bip47::CPaymentCodeDescription const & pcodeDescr);
 
 private:
     CWallet & walletMain;

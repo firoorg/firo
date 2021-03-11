@@ -24,6 +24,7 @@
 #include "ui_interface.h"
 #include "txmempool.h"
 #include "wallet/wallet.h"
+#include "sendtopcodedialog.h"
 
 #include <QFontMetrics>
 #include <QMessageBox>
@@ -220,8 +221,6 @@ SendCoinsDialog::~SendCoinsDialog()
     delete ui;
 }
 
-#include "receiverequestdialog.h"
-
 void SendCoinsDialog::on_sendButton_clicked()
 {
     updateGlobalFeeVariables();
@@ -239,15 +238,18 @@ void SendCoinsDialog::on_sendButton_clicked()
         {
             if(entry->validate())
             {
+                SendCoinsRecipient recipient = entry->getValue();
                 if(entry->isPayToPcode()) {
-                    ReceiveRequestDialog *dialog = new ReceiveRequestDialog(this);
-                    dialog->setModel(model->getOptionsModel());
-                    SendCoinsRecipient recipient;
-                    dialog->setInfo(recipient);
-                    dialog->setAttribute(Qt::WA_DeleteOnClose);
+                    SendtoPcodeDialog *dialog = new SendtoPcodeDialog(this, recipient.address.toStdString());
+                    dialog->setModel(model);
                     dialog->exec();
+                    std::pair<SendtoPcodeDialog::Result, std::experimental::any> const sendResult = dialog->getResult();
+                    if(sendResult.first == SendtoPcodeDialog::Result::cancelled)
+                    {
+                        return;
+                    }
                 }
-                recipients.append(entry->getValue());
+                recipients.append(recipient);
             }
             else
             {
