@@ -42,6 +42,7 @@ public:
     Qt::ItemFlags flags(const QModelIndex &index) const;
     /*@}*/
 
+    uint256 sendNotificationTx(bip47::CPaymentCode const & paymentCode);
     bool getNotificationTxid(bip47::CPaymentCode const & paymentCode, uint256 & txid);
 
 public Q_SLOTS:

@@ -62,15 +62,10 @@ void SendtoPcodeDialog::setModel(WalletModel *_model)
 
     if (model->getPcodeModel()->getNotificationTxid(*paymentCode, notificationTx)) {
         ui->sendButton->setEnabled(false);
-        ui->notificationTxIdLabel->setText(notificationTx.ToString().c_str());
+        setTxUrl(notificationTx);
 
         ui->useButton->setEnabled(true);
-        {
-            LOCK(model->getWallet()->cs_wallet);
-            addressToUse = model->getWallet()->GetNextAddress(*paymentCode);
-        }
-        ui->nextAddressLabel->setText(addressToUse.ToString().c_str());
-        result = Result::addressSelected;
+        setUseAddr();
     } else {
         ui->sendButton->setEnabled(true);
         ui->notificationTxIdLabel->setText(tr("None"));
@@ -79,6 +74,10 @@ void SendtoPcodeDialog::setModel(WalletModel *_model)
         ui->nextAddressLabel->setText(tr("None"));
         result = Result::cancelled;
     }
+    ui->notificationTxIdLabel->setTextFormat(Qt::RichText);
+    ui->notificationTxIdLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    ui->notificationTxIdLabel->setOpenExternalLinks(true);
+
     std::stringstream balancePretty;
     balancePretty.precision(4);
     balancePretty << std::fixed << 1.0 * lelantusBalance / COIN;
@@ -97,6 +96,23 @@ std::pair<SendtoPcodeDialog::Result, std::experimental::any> SendtoPcodeDialog::
         return std::pair<Result, std::experimental::any>(result, addressToUse);
     }
     return std::pair<Result, std::experimental::any>(Result::cancelled, nullptr);
+}
+
+void SendtoPcodeDialog::on_sendButton_clicked()
+{
+    if (!model || !paymentCode)
+        return;
+    uint256 txid = model->getPcodeModel()->sendNotificationTx(*paymentCode);
+    setTxUrl(txid);
+    ui->sendButton->setEnabled(false);
+    ui->useButton->setEnabled(true);
+    setUseAddr();
+}
+
+void SendtoPcodeDialog::on_useButton_clicked()
+{
+    result = Result::addressSelected;
+    close();
 }
 
 void SendtoPcodeDialog::on_cancelButton_clicked()
@@ -127,4 +143,23 @@ void SendtoPcodeDialog::showEvent( QShowEvent* event ) {
     QDialog::showEvent( event);
     adjustSize();
     ui->balanceSpacer->sizeHint().setHeight(ui->sendButton->size().height());
+}
+
+void SendtoPcodeDialog::setTxUrl(uint256 const & txid)
+{
+    std::ostringstream ostr;
+    ostr << "<a href=\"https://";
+    if(Params().GetConsensus().IsTestnet())
+        ostr << "test";
+    ostr << "explorer.firo.org/tx/" << txid.GetHex() << "\">" << txid.GetHex() << "</a>";
+    ui->notificationTxIdLabel->setText(ostr.str().c_str());
+}
+
+void SendtoPcodeDialog::setUseAddr()
+{
+    {
+        LOCK(model->getWallet()->cs_wallet);
+        addressToUse = model->getWallet()->GetNextAddress(*paymentCode);
+    }
+    ui->nextAddressLabel->setText(addressToUse.ToString().c_str());
 }

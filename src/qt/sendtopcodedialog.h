@@ -60,7 +60,12 @@ private:
     uint256 notificationTx;
     CBitcoinAddress addressToUse;
 
+    void setTxUrl(uint256 const & txid);
+    void setUseAddr();
+
 private Q_SLOTS:
+    void on_sendButton_clicked();
+    void on_useButton_clicked();
     void on_cancelButton_clicked();
     void on_helpButton_clicked();
     void showEvent( QShowEvent* event );

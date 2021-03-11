@@ -15,6 +15,8 @@
 
 #include <boost/foreach.hpp>
 
+extern CCriticalSection cs_main;
+
 namespace {
 static void OnPcodeCreated_(PcodeModel *pcodeModel, bip47::CPaymentCodeDescription const & pcodeDescr)
 {
@@ -109,6 +111,12 @@ Qt::ItemFlags PcodeModel::flags(const QModelIndex &) const
     return Qt::ItemIsSelectable | Qt::ItemIsEnabled;
 }
 
+uint256 PcodeModel::sendNotificationTx(bip47::CPaymentCode const & paymentCode)
+{
+    LOCK2(cs_main, walletMain.cs_wallet);
+    return PrepareAndSendNotificationTx(&walletMain, paymentCode).GetHash();
+}
+
 bool PcodeModel::getNotificationTxid(bip47::CPaymentCode const & paymentCode, uint256 & txid)
 {
     bool result = false;
@@ -118,6 +126,7 @@ bool PcodeModel::getNotificationTxid(bip47::CPaymentCode const & paymentCode, ui
         {
             if (sender.getTheirPcode() == paymentCode && !sender.getNotificationTxId().IsNull()) {
                 txid = sender.getNotificationTxId();
+                result = true;
                 return false;
             }
             return true;

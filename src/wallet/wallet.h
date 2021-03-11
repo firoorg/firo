@@ -1398,4 +1398,7 @@ bool CWallet::DummySignTx(CMutableTransaction &txNew, const ContainerType &coins
     }
     return true;
 }
+
+CWalletTx PrepareAndSendNotificationTx(CWallet* pwallet, bip47::CPaymentCode const & theirPcode);
+
 #endif // BITCOIN_WALLET_WALLET_H
