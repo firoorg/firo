@@ -243,10 +243,10 @@ void SendCoinsDialog::on_sendButton_clicked()
                     SendtoPcodeDialog *dialog = new SendtoPcodeDialog(this, recipient.address.toStdString());
                     dialog->setModel(model);
                     dialog->exec();
-                    std::pair<SendtoPcodeDialog::Result, std::experimental::any> const sendResult = dialog->getResult();
+                    std::pair<SendtoPcodeDialog::Result, CBitcoinAddress> const sendResult = dialog->getResult();
                     switch (sendResult.first) {
                         case SendtoPcodeDialog::Result::addressSelected:
-                            recipient.address = std::experimental::any_cast<CBitcoinAddress>(sendResult.second).ToString().c_str();
+                            recipient.address = sendResult.second.ToString().c_str();
                             break;
                         default:
                             return;

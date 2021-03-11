@@ -18,8 +18,6 @@
 #include "walletmodel.h"
 #include "bip47/paymentcode.h"
 
-#include <experimental/any>
-
 class OptionsModel;
 class PlatformStyle;
 class WalletModel;
@@ -48,7 +46,7 @@ public:
 
     void setModel(WalletModel *model);
 
-    std::pair<Result, std::experimental::any> getResult() const;
+    std::pair<Result, CBitcoinAddress> getResult() const;
 
 public Q_SLOTS:
 

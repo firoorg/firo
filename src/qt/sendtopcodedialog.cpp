@@ -90,12 +90,12 @@ void SendtoPcodeDialog::setModel(WalletModel *_model)
     ui->balanceLabel->setStyleSheet("QLabel { color: " + color.name() + "; }");
 }
 
-std::pair<SendtoPcodeDialog::Result, std::experimental::any> SendtoPcodeDialog::getResult() const
+std::pair<SendtoPcodeDialog::Result, CBitcoinAddress> SendtoPcodeDialog::getResult() const
 {
     if (result == Result::addressSelected) {
-        return std::pair<Result, std::experimental::any>(result, addressToUse);
+        return std::pair<Result, CBitcoinAddress>(result, addressToUse);
     }
-    return std::pair<Result, std::experimental::any>(Result::cancelled, nullptr);
+    return std::pair<Result, CBitcoinAddress>(Result::cancelled, CBitcoinAddress());
 }
 
 void SendtoPcodeDialog::on_sendButton_clicked()
