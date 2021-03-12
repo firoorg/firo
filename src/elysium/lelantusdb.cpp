@@ -268,7 +268,7 @@ public:
 } // unnamed namespace
 
 // DB
-LelantusDb::LelantusDb(const boost::filesystem::path& path, bool wipe, size_t groupSize, size_t startCoins)
+LelantusDb::LelantusDb(const boost::filesystem::path& path, bool wipe, uint64_t groupSize, uint64_t startCoins)
     : groupSize(groupSize), startGroupSize(startCoins)
 {
     auto status = Open(path, wipe);
@@ -336,7 +336,7 @@ bool LelantusDb::WriteSerial(
 std::vector<lelantus::PublicCoin> LelantusDb::GetAnonimityGroup(
     PropertyId id,
     LelantusGroup groupId,
-    size_t count,
+    uint64_t count,
     int &block)
 {
     LOCK(cs);
@@ -440,7 +440,7 @@ LelantusGroup LelantusDb::GetGroup(PropertyId property, lelantus::PublicCoin con
     CoinData data;
     ParseRaw(val, data);
 
-    size_t coinsCount;
+    uint64_t coinsCount;
     auto group = GetLastGroup(property, coinsCount);
 
     do {
@@ -554,8 +554,8 @@ void LelantusDb::CommitCoins()
         std::vector<std::tuple<LelantusIndex, CoinData, lelantus::PublicCoin>> entries;
 
 
-        size_t newCoins = idAndPubKeys.second.size();
-        size_t coins = 0;
+        uint64_t newCoins = idAndPubKeys.second.size();
+        uint64_t coins = 0;
         auto lastGroup = GetLastGroup(propertyId, coins);
 
         if (coins + newCoins > groupSize) {
@@ -743,7 +743,7 @@ void LelantusDb::DeleteAll(int startBlock)
     }
 }
 
-bool LelantusDb::WriteGroupSize(size_t groupSize, size_t mintAmount)
+bool LelantusDb::WriteGroupSize(uint64_t groupSize, uint64_t mintAmount)
 {
     assert(groupSize > mintAmount);
     std::string data;
@@ -754,14 +754,14 @@ bool LelantusDb::WriteGroupSize(size_t groupSize, size_t mintAmount)
     return pdb->Put(writeoptions, MakeRaw(DB_GROUPSIZE), MakeRaw(groupSize, mintAmount)).ok();
 }
 
-std::pair<size_t, size_t> LelantusDb::ReadGroupSize()
+std::pair<uint64_t, uint64_t> LelantusDb::ReadGroupSize()
 {
     std::string data;
     if (!pdb->Get(readoptions, MakeRaw(DB_GROUPSIZE), &data).ok()) {
         return {0, 0};
     }
 
-    std::pair<size_t, size_t> groupSizes;
+    std::pair<uint64_t, uint64_t> groupSizes;
     ParseRaw(data, groupSizes);
 
     assert(groupSizes.first > groupSizes.second);
@@ -769,7 +769,7 @@ std::pair<size_t, size_t> LelantusDb::ReadGroupSize()
     return groupSizes;
 }
 
-LelantusGroup LelantusDb::GetLastGroup(PropertyId id, size_t &coins)
+LelantusGroup LelantusDb::GetLastGroup(PropertyId id, uint64_t &coins)
 {
     auto nextSeq = GetNextSequence(DB_COIN_SEQUENCE, id);
     coins = nextSeq;

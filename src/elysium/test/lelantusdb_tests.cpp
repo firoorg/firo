@@ -38,7 +38,7 @@ public:
         return LelantusDb::ReadGroupSize();
     }
 
-    int GetLastGroup(PropertyId id, size_t &coins)
+    int GetLastGroup(PropertyId id, uint64_t &coins)
     {
         return LelantusDb::GetLastGroup(id, coins);
     }
@@ -221,8 +221,8 @@ BOOST_AUTO_TEST_CASE(sliding_windows)
         result = "";
     };
 
-    auto verifyLastGroup = [&](PropertyId id, int group, size_t coins) {
-        size_t actualCoins;
+    auto verifyLastGroup = [&](PropertyId id, int group, uint64_t coins) {
+        uint64_t actualCoins;
         auto actualGroup = db->GetLastGroup(id, actualCoins);
 
         BOOST_CHECK_MESSAGE(actualGroup == group, strprintf("Expect group %d, actual %d", group, actualGroup));

@@ -20,20 +20,20 @@ class LelantusDb : public CDBBase
 protected:
     CCriticalSection cs;
 
-    static const size_t DEFAULT_GROUPSIZE = 65000;
-    static const size_t DEFAULT_STARTCOINS = 16000;
+    static const uint64_t DEFAULT_GROUPSIZE = 65000;
+    static const uint64_t DEFAULT_STARTCOINS = 16000;
 
-    size_t groupSize;
-    size_t startGroupSize;
+    uint64_t groupSize;
+    uint64_t startGroupSize;
 
 public:
-    LelantusDb(const boost::filesystem::path& path, bool wipe, size_t groupSize = DEFAULT_GROUPSIZE, size_t startCoins = DEFAULT_STARTCOINS);
+    LelantusDb(const boost::filesystem::path& path, bool wipe, uint64_t groupSize = DEFAULT_GROUPSIZE, uint64_t startCoins = DEFAULT_STARTCOINS);
 
 public:
     bool HasSerial(PropertyId id, Scalar const &serial, uint256 &spendTx);
     bool WriteSerial(PropertyId id, secp_primitives::Scalar serial, int block, uint256 const &spendTx);
 
-    std::vector<lelantus::PublicCoin> GetAnonimityGroup(PropertyId id, LelantusGroup groupId, size_t count, int &block);
+    std::vector<lelantus::PublicCoin> GetAnonimityGroup(PropertyId id, LelantusGroup groupId, uint64_t count, int &block);
     bool HasMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey);
     bool HasMint(MintEntryId const &id, PropertyId &property, lelantus::PublicCoin &publicKey, LelantusIndex &index, LelantusGroup &group, int &block, LelantusAmount &amount, std::vector<unsigned char> &additional);
     bool WriteMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey, int block, MintEntryId const &id, LelantusAmount amount, std::vector<unsigned char> const &additional);
@@ -91,10 +91,10 @@ protected:
         return v + 1;
     }
 
-    bool WriteGroupSize(size_t groupSize, size_t mintAmount);
-    std::pair<size_t, size_t> ReadGroupSize();
+    bool WriteGroupSize(uint64_t groupSize, uint64_t mintAmount);
+    std::pair<uint64_t, uint64_t> ReadGroupSize();
 
-    LelantusGroup GetLastGroup(PropertyId id, size_t &coins);
+    LelantusGroup GetLastGroup(PropertyId id, uint64_t &coins);
 
     std::unique_ptr<leveldb::Iterator> NewIterator();
 };
