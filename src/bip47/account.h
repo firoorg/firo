@@ -17,7 +17,7 @@ class CAccountBase
 {
 public:
     CAccountBase();
-    CAccountBase(CExtKey const & walletKey, size_t accountNum); 
+    CAccountBase(CExtKey const & walletKey, uint32_t accountNum);
     virtual ~CAccountBase() = default;
 
     MyAddrContT const & getMyUsedAddresses();
@@ -25,14 +25,16 @@ public:
     bool addressUsed(CBitcoinAddress const & address);
 
     CPaymentCode const & getMyPcode() const;
-    size_t getAccountNum() const;
+    uint32_t getAccountNum() const;
 
     ADD_DESERIALIZE_CTOR(CAccountBase);
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     void SerializationOp(Stream& s, Operation ser_action)
     {
-        READWRITE(const_cast<size_t&>(accountNum));
+        uint32_t accNum = accountNum;
+        READWRITE(accNum);
+        const_cast<uint32_t &>(accountNum) = accNum;
         READWRITE(version);
         READWRITE(privkey);
         READWRITE(pubkey);
@@ -40,15 +42,15 @@ public:
     }
 
 protected:
-    size_t const accountNum;
+    uint32_t const accountNum;
     CExtKey privkey;
     CExtPubKey pubkey;
     CKey const & getMyNotificationKey() const;
-    size_t getVersion() const;
+    uint32_t getVersion() const;
 private:
     boost::optional<CPaymentCode> mutable myPcode;
     boost::optional<CKey> mutable myNotificationKey;
-    long int version;
+    uint32_t version;
 
     virtual MyAddrContT const & generateMyUsedAddresses() = 0;
     virtual MyAddrContT const & generateMyNextAddresses() = 0;
@@ -66,7 +68,7 @@ class CAccountSender : public CAccountBase
 {
 public:
     CAccountSender() = default;
-    CAccountSender(CExtKey const & walletKey, size_t accountNum, CPaymentCode const & theirPcode);
+    CAccountSender(CExtKey const & walletKey, uint32_t accountNum, CPaymentCode const & theirPcode);
 
     CPaymentChannel & getPaymentChannel();
     std::vector<unsigned char> getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret);
@@ -113,7 +115,7 @@ class CAccountReceiver : public CAccountBase
 {
 public:
     CAccountReceiver() = default;
-    CAccountReceiver(CExtKey const & walletKey, size_t accountNum, std::string const & label);
+    CAccountReceiver(CExtKey const & walletKey, uint32_t accountNum, std::string const & label);
 
     CBitcoinAddress const & getMyNotificationAddress() const;
 
@@ -175,8 +177,8 @@ public:
     void enumerateSenders(std::function<bool(CAccountSender &)> op);
     void enumerateSenders(std::function<bool(CAccountSender const &)> op) const;
 private:
-    std::map<size_t, CAccountReceiver> accReceivers;
-    std::map<size_t, CAccountSender> accSenders;
+    std::map<uint32_t, CAccountReceiver> accReceivers;
+    std::map<uint32_t, CAccountSender> accSenders;
     CExtKey privkeySend, privkeyReceive;
 };
 

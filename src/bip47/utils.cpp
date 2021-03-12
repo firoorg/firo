@@ -1,4 +1,3 @@
-#include <c++/7/bits/stl_pair.h>
 #include <vector>
 
 #include "bip47/utils.h"

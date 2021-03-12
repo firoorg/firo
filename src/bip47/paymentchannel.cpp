@@ -50,11 +50,11 @@ CBitcoinAddress CPaymentChannel::generateTheirNextSecretAddress()
     return addr.front();
 }
 
-TheirAddrContT CPaymentChannel::generateTheirSecretAddresses(size_t fromAddr, size_t uptoAddr) const
+TheirAddrContT CPaymentChannel::generateTheirSecretAddresses(uint32_t fromAddr, uint32_t uptoAddr) const
 {
     static GroupElement const G(GroupElement().set_base_g());
     std::vector<CBitcoinAddress>  result;
-    for(size_t i = fromAddr; i < uptoAddr; ++i) {
+    for(uint32_t i = fromAddr; i < uptoAddr; ++i) {
         CPubKey const theirPubkey = theirPcode.getNthPubkey(i).pubkey;
         result.push_back(generate(utils::Derive(myChannelKey, {0}).key, theirPubkey, theirPubkey));
     }
@@ -70,12 +70,12 @@ CPaymentCode const & CPaymentChannel::getMyPcode() const
     return *myPcode;
 }
 
-MyAddrContT CPaymentChannel::generateMySecretAddresses(size_t fromAddr, size_t uptoAddr) const
+MyAddrContT CPaymentChannel::generateMySecretAddresses(uint32_t fromAddr, uint32_t uptoAddr) const
 {
     static GroupElement const G(GroupElement().set_base_g());
     CExtPubKey theirPubkey = theirPcode.getNthPubkey(0);
     MyAddrContT  result;
-    for(size_t i = fromAddr; i < uptoAddr; ++i) {
+    for(uint32_t i = fromAddr; i < uptoAddr; ++i) {
         CExtKey privkey = bip47::utils::Derive(myChannelKey, {uint32_t(i)});
         CKey privkeyOut;
         result.emplace_back(generate(privkey.key, theirPubkey.pubkey, privkey.key.GetPubKey(), &privkeyOut), privkeyOut);

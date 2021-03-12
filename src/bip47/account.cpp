@@ -17,7 +17,7 @@ CAccountBase::CAccountBase()
 {
 }
 
-CAccountBase::CAccountBase(CExtKey const & walletKey, size_t accountNum)
+CAccountBase::CAccountBase(CExtKey const & walletKey, uint32_t accountNum)
 :accountNum(accountNum)
 {
     walletKey.Derive(privkey, (unsigned int)(accountNum) | BIP32_HARDENED_KEY_LIMIT);
@@ -47,7 +47,7 @@ CPaymentCode const & CAccountBase::getMyPcode() const
     return *myPcode;
 }
 
-size_t CAccountBase::getAccountNum() const
+uint32_t CAccountBase::getAccountNum() const
 {
     return accountNum;
 }
@@ -60,14 +60,14 @@ CKey const & CAccountBase::getMyNotificationKey() const
     return *myNotificationKey;
 }
 
-size_t CAccountBase::getVersion() const
+uint32_t CAccountBase::getVersion() const
 {
     return version;
 }
 
 /******************************************************************************/
 
-CAccountSender::CAccountSender(CExtKey const & walletKey, size_t accountNum, CPaymentCode const & theirPcode)
+CAccountSender::CAccountSender(CExtKey const & walletKey, uint32_t accountNum, CPaymentCode const & theirPcode)
 : CAccountBase(walletKey, accountNum), theirPcode(theirPcode)
 {
     updateMyNextAddresses();
@@ -126,7 +126,7 @@ uint256 CAccountSender::getNotificationTxId() const
 
 /******************************************************************************/
 
-CAccountReceiver::CAccountReceiver(CExtKey const & walletKey, size_t accountNum, std::string const & label)
+CAccountReceiver::CAccountReceiver(CExtKey const & walletKey, uint32_t accountNum, std::string const & label)
 : CAccountBase(walletKey, accountNum), label(label)
 {}
 
@@ -256,11 +256,11 @@ CWallet::CWallet(uint256 const & seedData)
 
 CAccountReceiver & CWallet::createReceivingAccount(std::string const & label)
 {
-    for (std::pair<size_t const, CAccountReceiver> const & accReceiver : accReceivers) {
+    for (std::pair<uint32_t const, CAccountReceiver> const & accReceiver : accReceivers) {
         if (accReceiver.second.getLabel() == label)
             throw std::runtime_error("Account with such label already exists.");
     }
-    size_t const accNum = (accReceivers.empty() ? 0 : accReceivers.rbegin()->first + 1);
+    uint32_t const accNum = (accReceivers.empty() ? 0 : accReceivers.rbegin()->first + 1);
     accReceivers.emplace(accNum, CAccountReceiver(privkeyReceive, accNum, label));
     CAccountReceiver & acc = accReceivers.rbegin()->second;
     LogBip47("Created for receiving: pcode: %s, naddr: %s, accNum: %d\n", acc.getMyPcode().toString(), acc.getMyPcode().getNotificationAddress().ToString(), accNum);
@@ -269,11 +269,11 @@ CAccountReceiver & CWallet::createReceivingAccount(std::string const & label)
 
 CAccountSender & CWallet::provideSendingAccount(CPaymentCode const & theirPcode)
 {
-    for (std::pair<size_t const, CAccountSender> & acc : accSenders) {
+    for (std::pair<uint32_t const, CAccountSender> & acc : accSenders) {
         if(acc.second.getTheirPcode() == theirPcode)
             return acc.second;
     }
-    size_t const accNum = (accSenders.empty() ? 0 : accSenders.rbegin()->first + 1);
+    uint32_t const accNum = (accSenders.empty() ? 0 : accSenders.rbegin()->first + 1);
     accSenders.emplace(accNum, CAccountSender(privkeySend, accNum, theirPcode));
     CAccountSender & acc = accSenders.rbegin()->second;
     LogBip47("Created for sending to pcode: %s, accNum: %s, myPcode: %s\n", theirPcode.toString().c_str(), accNum, acc.getMyPcode().toString().c_str());
@@ -284,19 +284,19 @@ void CWallet::readReceiver(CAccountReceiver && receiver)
 {
     if(accReceivers.find(receiver.getAccountNum()) != accReceivers.end())
         throw std::runtime_error("There is already an account with number " + std::to_string(receiver.getAccountNum()));
-    accReceivers.insert(std::pair<size_t, CAccountReceiver>(receiver.getAccountNum(), std::move(receiver)));
+    accReceivers.insert(std::pair<uint32_t, CAccountReceiver>(receiver.getAccountNum(), std::move(receiver)));
 }
 
 void CWallet::readSender(CAccountSender && sender)
 {
     if(accSenders.find(sender.getAccountNum()) != accSenders.end())
         throw std::runtime_error("There is already an account with number " + std::to_string(sender.getAccountNum()));
-    accSenders.insert(std::pair<size_t, CAccountSender>(sender.getAccountNum(), std::move(sender)));
+    accSenders.insert(std::pair<uint32_t, CAccountSender>(sender.getAccountNum(), std::move(sender)));
 }
 
 void CWallet::enumerateReceivers(std::function<bool(CAccountReceiver &)> op)
 {
-    for(std::pair<size_t const, CAccountReceiver> & val : accReceivers) {
+    for(std::pair<uint32_t const, CAccountReceiver> & val : accReceivers) {
         if (op && !op(val.second))
             break;
     }
@@ -304,7 +304,7 @@ void CWallet::enumerateReceivers(std::function<bool(CAccountReceiver &)> op)
 
 void CWallet::enumerateReceivers(std::function<bool(CAccountReceiver const &)> op) const
 {
-    for(std::pair<size_t const, CAccountReceiver> const & val : accReceivers) {
+    for(std::pair<uint32_t const, CAccountReceiver> const & val : accReceivers) {
         if (op && !op(val.second))
             break;
     }
@@ -313,7 +313,7 @@ void CWallet::enumerateReceivers(std::function<bool(CAccountReceiver const &)> o
 
 void CWallet::enumerateSenders(std::function<bool(CAccountSender &)> op)
 {
-    for(std::pair<size_t const, CAccountSender> & val : accSenders) {
+    for(std::pair<uint32_t const, CAccountSender> & val : accSenders) {
         if (op && !op(val.second))
             break;
     }
@@ -321,7 +321,7 @@ void CWallet::enumerateSenders(std::function<bool(CAccountSender &)> op)
 
 void CWallet::enumerateSenders(std::function<bool(CAccountSender const &)> op) const
 {
-    for(std::pair<size_t const, CAccountSender> const & val : accSenders) {
+    for(std::pair<uint32_t const, CAccountSender> const & val : accSenders) {
         if (op && !op(val.second))
             break;
     }

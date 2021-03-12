@@ -1809,24 +1809,24 @@ unsigned int CWalletDB::GetUpdateCounter()
 
 bool CWalletDB::WriteBip47Account(bip47::CAccountReceiver const & account)
 {
-    return Write(make_pair(string("bip47rcv"), size_t(account.getAccountNum())), account, true);
+    return Write(make_pair(string("bip47rcv"), uint32_t(account.getAccountNum())), account, true);
 }
 
 bool CWalletDB::WriteBip47Account(bip47::CAccountSender const & account)
 {
-    return Write(make_pair(string("bip47snd"), size_t(account.getAccountNum())), account, true);
+    return Write(make_pair(string("bip47snd"), uint32_t(account.getAccountNum())), account, true);
 }
 
 void CWalletDB::LoadBip47Accounts(bip47::CWallet & wallet)
 {
-    ListEntries<size_t, bip47::CAccountReceiver>("bip47rcv",
+    ListEntries<uint32_t, bip47::CAccountReceiver>("bip47rcv",
             [&wallet](char, bip47::CAccountReceiver & receiver)
             {
                 wallet.readReceiver(std::move(receiver));
             }
         );
 
-    ListEntries<size_t, bip47::CAccountSender>("bip47snd",
+    ListEntries<uint32_t, bip47::CAccountSender>("bip47snd",
             [&wallet](char, bip47::CAccountSender & sender)
             {
                 wallet.readSender(std::move(sender));
