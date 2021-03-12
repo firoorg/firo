@@ -5,13 +5,14 @@
 
 namespace lelantus {
 
-LelantusVerifier::LelantusVerifier(const Params* p) : params(p) {
+LelantusVerifier::LelantusVerifier(const Params* p, unsigned int v) : params(p), version(v) {
 }
 
 bool LelantusVerifier::verify(
         const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
         const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
         const std::vector<Scalar>& serialNumbers,
+        const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
         const std::vector<uint32_t>& groupIds,
         const Scalar& Vin,
         uint64_t Vout,
@@ -20,13 +21,14 @@ bool LelantusVerifier::verify(
         const LelantusProof& proof) {
     Scalar x;
     bool fSkipVerification = 0;
-    return verify(anonymity_sets, anonymity_set_hashes, serialNumbers, groupIds, Vin, Vout, fee, Cout, proof, x, fSkipVerification);
+    return verify(anonymity_sets, anonymity_set_hashes, serialNumbers, ecdsaPubkeys, groupIds, Vin, Vout, fee, Cout, proof, x, fSkipVerification);
 }
 
 bool LelantusVerifier::verify(
         const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
         const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
         const std::vector<Scalar>& serialNumbers,
+        const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
         const std::vector<uint32_t>& groupIds,
         const Scalar& Vin,
         uint64_t Vout,
@@ -69,7 +71,7 @@ bool LelantusVerifier::verify(
 
     Scalar zV, zR;
     unique_ptr<ChallengeGenerator> challengeGenerator;
-    if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, Cout, proof.sigma_proofs, x, challengeGenerator, zV, zR, fSkipVerification) &&
+    if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, ecdsaPubkeys, Cout, proof.sigma_proofs, x, challengeGenerator, zV, zR, fSkipVerification) &&
          verify_rangeproof(Cout, proof.bulletproofs) &&
          verify_schnorrproof(x, zV, zR, Vin, Vout, fee, Cout, proof, challengeGenerator)))
         return false;
@@ -81,6 +83,7 @@ bool LelantusVerifier::verify_sigma(
         const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
         const std::vector<std::vector<Scalar>>& Sin,
         const std::vector<Scalar>& serialNumbers,
+        const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
         const std::vector<PublicCoin>& Cout,
         const std::vector<SigmaExtendedProof> &sigma_proofs,
         Scalar& x,
@@ -97,8 +100,9 @@ bool LelantusVerifier::verify_sigma(
             sigma_proofs,
             anonymity_set_hashes,
             serialNumbers,
+            ecdsaPubkeys,
             PubcoinsOut,
-            chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock,
+            version,
             challengeGenerator,
             x);
 
@@ -165,7 +169,7 @@ bool LelantusVerifier::verify_rangeproof(
     for (std::size_t i = Cout.size() * 2; i < m; ++i)
         V.push_back(GroupElement());
 
-    RangeVerifier  rangeVerifier(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n);
+    RangeVerifier  rangeVerifier(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n, version);
     if (!rangeVerifier.verify_batch(V, commitments, bulletproofs)) {
         LogPrintf("Lelantus verification failed due range proof verification failed.");
         return false;
@@ -214,7 +218,7 @@ bool LelantusVerifier::verify_schnorrproof(
         Comm += Comm_t;
     }
     B += Comm;
-    SchnorrVerifier schnorrVerifier(params->get_g(), params->get_h0(), chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock);
+    SchnorrVerifier schnorrVerifier(params->get_g(), params->get_h0(), version >= LELANTUS_TX_VERSION_4_5);
     const SchnorrProof& schnorrProof = proof.schnorrProof;
     GroupElement Y = A + B * (Scalar(uint64_t(1)).negate());
 

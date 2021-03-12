@@ -69,8 +69,9 @@ public:
             const std::vector<SigmaExtendedProof>& proofs,
             const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
             const std::vector<Scalar>& serialNumbers,
+            const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
             const std::vector<GroupElement>& Cout,
-            bool afterFixes,
+            unsigned int version,
             unique_ptr<ChallengeGenerator>& challengeGenerator,
             Scalar& result_out);
 

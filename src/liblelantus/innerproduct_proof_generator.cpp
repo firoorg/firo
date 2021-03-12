@@ -80,7 +80,7 @@ void InnerProductProofGenerator::generate_proof_util(
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator->add(pre);
     } else {
-        challengeGenerator.reset();
+        challengeGenerator.reset(new ChallengeGeneratorSha256());
     }
     challengeGenerator->add(group_elements);
     challengeGenerator->get_challenge(x);

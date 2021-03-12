@@ -60,7 +60,7 @@ void BatchProofContainer::add(lelantus::JoinSplit* joinSplit,
         intDenom *= 1000;
 
         sigma::CoinDenomination denomination;
-        bool isSigma = sigma::IntegerToDenomination(intDenom, denomination) && joinSplit->getVersion() == SIGMA_TO_LELANTUS_JOINSPLIT;
+        bool isSigma = sigma::IntegerToDenomination(intDenom, denomination) && joinSplit->isSigmaToLelantus();
         std::pair<std::pair<uint32_t, bool>, bool> idAndFlag = std::make_pair(std::make_pair(groupIds[i], fStartLelantusBlacklist), isSigma);
         tempLelantusSigmaProofs[idAndFlag].push_back(LelantusSigmaProofData(sigma_proofs[i], serials[i], challenge, setSizes.at(groupIds[i])));
     }

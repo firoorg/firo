@@ -406,9 +406,15 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
     int version = 0;
 
     if(!isSigmaToLelantusJoinSplit) {
-        version = LELANTUS_TX_VERSION_4;
+        if (chainActive.Height() >= Params().GetConsensus().nLelantusFixesStartBlock)
+            version = LELANTUS_TX_VERSION_4_5;
+        else
+            version = LELANTUS_TX_VERSION_4;
     } else {
-        version = SIGMA_TO_LELANTUS_JOINSPLIT;
+        if (chainActive.Height() >= Params().GetConsensus().nLelantusFixesStartBlock)
+            version = SIGMA_TO_LELANTUS_JOINSPLIT_FIXED;
+        else
+            version = SIGMA_TO_LELANTUS_JOINSPLIT;
     }
 
     std::vector<std::vector<unsigned char>> anonymity_set_hashes;

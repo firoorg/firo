@@ -40,8 +40,8 @@ BOOST_AUTO_TEST_CASE(serialize)
 
     lelantus::LelantusProof initial_proof;
 
-    lelantus::LelantusProver prover(params);
-    prover.proof(anonymity_sets, {}, Vin, Cin, indexes, Vout, Cout, f,  initial_proof);
+    lelantus::LelantusProver prover(params, LELANTUS_TX_VERSION_4_5);
+    prover.proof(anonymity_sets, {}, Vin, Cin, indexes, {}, Vout, Cout, f,  initial_proof);
 
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
     serialized << initial_proof;

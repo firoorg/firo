@@ -39,6 +39,8 @@ public:
                 Scalar& challenge,
                 bool fSkipVerification = false) const;
 
+    void generatePubKeys(const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin);
+
     void signMetaData(const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin, const SpendMetaData& m, size_t coutSize);
 
     uint256 signatureHash(const SpendMetaData& m, size_t coutSize) const;
@@ -64,6 +66,8 @@ public:
     bool getIndex(const PublicCoin& coin, const std::vector<PublicCoin>& anonymity_set, size_t& index);
 
     bool HasValidSerials() const;
+
+    bool isSigmaToLelantus() const;
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
