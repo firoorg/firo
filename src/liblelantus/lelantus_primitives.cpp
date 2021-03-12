@@ -94,19 +94,23 @@ void  LelantusPrimitives::generate_Lelantus_challenge(
         const std::vector<SigmaExtendedProof>& proofs,
         const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
         const std::vector<Scalar>& serialNumbers,
+        const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
         const std::vector<GroupElement>& Cout,
-        bool afterFixes,
+        unsigned int version,
         unique_ptr<ChallengeGenerator>& challengeGenerator,
         Scalar& result_out) {
 
     result_out = uint64_t(1);
 
-    if (afterFixes) {
+    if (version >= LELANTUS_TX_VERSION_4_5) {
         challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
-        std::vector<unsigned char> pre(lts.begin(), lts.end());
+        std::string domainSeparator = lts + std::to_string(version);
+        std::vector<unsigned char> pre(domainSeparator.begin(), domainSeparator.end());
         challengeGenerator->add(pre);
         for (const auto& hash : anonymity_set_hashes)
             challengeGenerator->add(hash);
+        for (const auto& pubkey : ecdsaPubkeys)
+            challengeGenerator->add(pubkey);
         challengeGenerator->add(serialNumbers);
     } else {
         challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();

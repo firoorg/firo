@@ -3,7 +3,7 @@
 
 namespace lelantus {
 
-LelantusProver::LelantusProver(const Params* p) : params(p) {
+LelantusProver::LelantusProver(const Params* p, unsigned int v) : params(p), version(v) {
 }
 
 void LelantusProver::proof(
@@ -12,6 +12,7 @@ void LelantusProver::proof(
         const Scalar& Vin,
         const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
         const std::vector<size_t>& indexes,
+        const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
         const Scalar& Vout,
         const std::vector<PrivateCoin>& Cout,
         const Scalar& fee,
@@ -32,7 +33,7 @@ void LelantusProver::proof(
     std::vector<Scalar> Yk_sum;
     Yk_sum.resize(Cin.size());
     unique_ptr<ChallengeGenerator> challengeGenerator;
-    generate_sigma_proofs(anonymity_sets, anonymity_set_hashes, Cin, Cout, indexes, x, challengeGenerator, Yk_sum, proof_out.sigma_proofs);
+    generate_sigma_proofs(anonymity_sets, anonymity_set_hashes, Cin, Cout, indexes, ecdsaPubkeys, x, challengeGenerator, Yk_sum, proof_out.sigma_proofs);
 
     generate_bulletproofs(Cout, proof_out.bulletproofs);
 
@@ -63,7 +64,7 @@ void LelantusProver::proof(
     Vi *=  x_m;
     GroupElement B = params->get_h1() * Vi + params->get_h0() * Ri;
     GroupElement Y = A + B.inverse();
-    SchnorrProver schnorrProver(params->get_g(), params->get_h0(), chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock);
+    SchnorrProver schnorrProver(params->get_g(), params->get_h0(), version >= LELANTUS_TX_VERSION_4_5);
     schnorrProver.proof(X_, Y_, Y, A, B, challengeGenerator, proof_out.schnorrProof);
 }
 
@@ -73,6 +74,7 @@ void LelantusProver::generate_sigma_proofs(
         const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
         const std::vector<PrivateCoin>& Cout,
         const std::vector<size_t>& indexes,
+        const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
         Scalar& x,
         unique_ptr<ChallengeGenerator>& challengeGenerator,
         std::vector<Scalar>& Yk_sum,
@@ -130,8 +132,9 @@ void LelantusProver::generate_sigma_proofs(
             sigma_proofs,
             anonymity_set_hashes,
             serialNumbers,
+            ecdsaPubkeys,
             PubcoinsOut,
-            chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock,
+            version,
             challengeGenerator,
             x);
 
@@ -194,7 +197,7 @@ void LelantusProver::generate_bulletproofs(
     g_.insert(g_.end(), params->get_bulletproofs_g().begin(), params->get_bulletproofs_g().begin() + (n * m));
     h_.insert(h_.end(), params->get_bulletproofs_h().begin(), params->get_bulletproofs_h().begin() + (n * m));
 
-    RangeProver rangeProver(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n);
+    RangeProver rangeProver(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n, version);
     rangeProver.batch_proof(v_s, serials, randoms, commitments, bulletproofs);
 
 }

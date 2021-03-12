@@ -49,7 +49,7 @@ bool InnerProductProofVerifier::verify_util(
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator->add(pre);
     } else {
-        challengeGenerator.reset();
+        challengeGenerator.reset(new ChallengeGeneratorSha256());
     }
     challengeGenerator->add(group_elements);
     challengeGenerator->get_challenge(x);
@@ -87,7 +87,7 @@ bool InnerProductProofVerifier::verify_fast_util(
             std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
             challengeGenerator->add(pre);
         } else {
-            challengeGenerator.reset();
+            challengeGenerator.reset(new ChallengeGeneratorSha256());
         }
         challengeGenerator->add(group_elements);
         challengeGenerator->get_challenge(x_j[i]);

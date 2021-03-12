@@ -12,12 +12,13 @@ extern CChain chainActive;
 namespace lelantus {
 class LelantusVerifier {
 public:
-    LelantusVerifier(const Params* p);
+    LelantusVerifier(const Params* p, unsigned int v);
 
     bool verify(
             const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
             const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
             const std::vector<Scalar>& serialNumbers,
+            const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
             const std::vector<uint32_t>& groupIds,
             const Scalar& Vin,
             uint64_t Vout,
@@ -29,6 +30,7 @@ public:
             const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
             const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
             const std::vector<Scalar>& serialNumbers,
+            const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
             const std::vector<uint32_t>& groupIds,
             const Scalar& Vin,
             uint64_t Vout,
@@ -44,6 +46,7 @@ private:
             const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
             const std::vector<std::vector<Scalar>>& Sin,
             const std::vector<Scalar>& serialNumbers,
+            const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
             const std::vector<PublicCoin>& Cout,
             const std::vector<SigmaExtendedProof> &sigma_proofs,
             Scalar& x,
@@ -67,6 +70,7 @@ private:
 
 private:
     const Params* params;
+    unsigned int version;
 
 };
 }// namespace lelantus

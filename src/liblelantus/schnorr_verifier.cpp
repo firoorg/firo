@@ -1,4 +1,5 @@
 #include "schnorr_verifier.h"
+#include "challenge_generator_sha256.h"
 
 namespace lelantus {
     
@@ -24,7 +25,7 @@ bool SchnorrVerifier::verify(
         group_elements = {u, y, a, b};
         challengeGenerator->add(pre);
     } else {
-        challengeGenerator.reset();
+        challengeGenerator.reset(new ChallengeGeneratorSha256());
     }
     challengeGenerator->add(group_elements);
     challengeGenerator->get_challenge(c);

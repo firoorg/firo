@@ -1,4 +1,5 @@
 #include "schnorr_prover.h"
+#include "challenge_generator_sha256.h"
 
 namespace lelantus {
 
@@ -30,7 +31,7 @@ void SchnorrProver::proof(
         group_elements = {u, y, a, b};
         challengeGenerator->add(pre);
     } else {
-        challengeGenerator.reset();
+        challengeGenerator.reset(new ChallengeGeneratorSha256());
     }
     challengeGenerator->add(group_elements);
     challengeGenerator->get_challenge(c);

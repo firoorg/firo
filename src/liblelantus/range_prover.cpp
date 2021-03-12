@@ -11,13 +11,15 @@ RangeProver::RangeProver(
         const GroupElement& h2,
         const std::vector<GroupElement>& g_vector,
         const std::vector<GroupElement>& h_vector,
-        uint64_t n)
+        uint64_t n,
+        unsigned int v)
         : g (g)
         , h1 (h1)
         , h2 (h2)
         , g_(g_vector)
         , h_(h_vector)
         , n (n)
+        , version (v)
 {}
 
 void RangeProver::batch_proof(
@@ -63,10 +65,10 @@ void RangeProver::batch_proof(
 
     Scalar y, z;
     unique_ptr<ChallengeGenerator> challengeGenerator;
-    bool afterFixes = chainActive.Height() > ::Params().GetConsensus().nLelantusFixesStartBlock;
+    bool afterFixes = version >= LELANTUS_TX_VERSION_4_5;
     if (afterFixes) {
         challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
-        std::string domain_separator = "RANGE_PROOF";
+        std::string domain_separator = "RANGE_PROOF" + std::to_string(version);
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator->add(pre);
         challengeGenerator->add(commitments);
