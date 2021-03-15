@@ -33,7 +33,7 @@ public:
     bool HasSerial(PropertyId id, Scalar const &serial, uint256 &spendTx);
     bool WriteSerial(PropertyId id, secp_primitives::Scalar serial, int block, uint256 const &spendTx);
 
-    std::vector<lelantus::PublicCoin> GetAnonimityGroup(PropertyId id, LelantusGroup groupId, uint64_t count, int &block);
+    std::vector<lelantus::PublicCoin> GetAnonymityGroup(PropertyId id, LelantusGroup groupId, uint64_t count, int &block);
     bool HasMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey);
     bool HasMint(MintEntryId const &id, PropertyId &property, lelantus::PublicCoin &publicKey, LelantusIndex &index, LelantusGroup &group, int &block, LelantusAmount &amount, std::vector<unsigned char> &additional);
     bool WriteMint(PropertyId propertyId, lelantus::PublicCoin const &pubKey, int block, MintEntryId const &id, LelantusAmount amount, std::vector<unsigned char> const &additional);

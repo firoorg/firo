@@ -333,7 +333,7 @@ bool LelantusDb::WriteSerial(
     return pdb->Write(syncoptions, &batch).ok();
 }
 
-std::vector<lelantus::PublicCoin> LelantusDb::GetAnonimityGroup(
+std::vector<lelantus::PublicCoin> LelantusDb::GetAnonymityGroup(
     PropertyId id,
     LelantusGroup groupId,
     uint64_t count,

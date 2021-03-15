@@ -181,8 +181,8 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
     std::map<uint32_t, std::vector<lelantus::PublicCoin>> anonss;
     for (auto const &idAndBlockHash : idAndBlockHashes) {
         int block = mapBlockIndex[idAndBlockHash.second]->nHeight;
-        anonss[idAndBlockHash.first] = lelantusDb->GetAnonimityGroup(
-            property, idAndBlockHash.first, SIZE_MAX, block);
+        anonss[idAndBlockHash.first] = lelantusDb->GetAnonymityGroup(
+                property, idAndBlockHash.first, SIZE_MAX, block);
     }
 
     auto spendAmount = tx.getLelantusSpendAmount();

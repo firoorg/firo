@@ -810,7 +810,7 @@ lelantus::JoinSplit LelantusWallet::CreateJoinSplit(
     std::map<uint32_t, uint256> blockHashes;
     for (auto &anons : anonss) {
         int block = INT_MAX;
-        anons.second = lelantusDb->GetAnonimityGroup(property, anons.first, SIZE_MAX, block);
+        anons.second = lelantusDb->GetAnonymityGroup(property, anons.first, SIZE_MAX, block);
         blockHashes[anons.first] = chainActive[block]->GetBlockHash();
     }
 
