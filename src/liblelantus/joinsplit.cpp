@@ -14,10 +14,12 @@ JoinSplit::JoinSplit(const Params *p,
              const std::vector<PrivateCoin>& Cout,
              uint64_t fee,
              const std::map<uint32_t, uint256>& groupBlockHashes,
-             const uint256& txHash)
+             const uint256& txHash,
+             unsigned int nVersion)
         :
         params (p),
-        fee (fee){
+        fee (fee),
+        version (nVersion) {
 
     serialNumbers.reserve(Cin.size());
     for(size_t i = 0; i < Cin.size(); i++) {

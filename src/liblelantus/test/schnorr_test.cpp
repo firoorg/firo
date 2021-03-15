@@ -57,6 +57,7 @@ BOOST_AUTO_TEST_CASE(prove_verify)
     prover.proof(P, T, y, a, b, challengeGenerator, proof);
 
     SchnorrVerifier verifier(g, h, true);
+    challengeGenerator.reset(new ChallengeGeneratorHash256());
     BOOST_CHECK(verifier.verify(y, a, b, proof, challengeGenerator));
 }
 
@@ -73,18 +74,22 @@ BOOST_AUTO_TEST_CASE(fake_prove_not_verify)
     fakeY.randomize();
 
     SchnorrVerifier verifier(g, h, true);
+    challengeGenerator.reset(new ChallengeGeneratorHash256());
     BOOST_CHECK(!verifier.verify(fakeY, a, b, proof, challengeGenerator));
 
     auto fakeProof = proof;
     fakeProof.P1.randomize();
+    challengeGenerator.reset(new ChallengeGeneratorHash256());
     BOOST_CHECK(!verifier.verify(y, a, b, fakeProof, challengeGenerator));
 
     fakeProof = proof;
     fakeProof.T1.randomize();
+    challengeGenerator.reset(new ChallengeGeneratorHash256());
     BOOST_CHECK(!verifier.verify(y, a, b, fakeProof, challengeGenerator));
 
     fakeProof = proof;
     fakeProof.u.randomize();
+    challengeGenerator.reset(new ChallengeGeneratorHash256());
     BOOST_CHECK(!verifier.verify(y, a, b, fakeProof, challengeGenerator));
 }
 

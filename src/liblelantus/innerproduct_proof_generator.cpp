@@ -19,11 +19,13 @@ InnerProductProofGenerator::InnerProductProofGenerator(
         const std::vector<GroupElement>& g,
         const std::vector<GroupElement>& h,
         const GroupElement& u,
-        const GroupElement& P)
+        const GroupElement& P,
+        bool afterFixes)
         : g_(g)
         , h_(h)
         , u_(u)
         , P_(P)
+        , afterFixes_(afterFixes)
 {
 }
 
@@ -99,7 +101,7 @@ void InnerProductProofGenerator::generate_proof_util(
     GroupElement p_p = LelantusPrimitives::p_prime(P_, L, R, x);
 
     // Recursive call of protocol 2
-    InnerProductProofGenerator(g_p, h_p, u_, p_p).generate_proof_util(a_p, b_p, challengeGenerator, proof_out);
+    InnerProductProofGenerator(g_p, h_p, u_, p_p, afterFixes_).generate_proof_util(a_p, b_p, challengeGenerator, proof_out);
 }
 
 void InnerProductProofGenerator::compute_P(

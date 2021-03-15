@@ -122,8 +122,9 @@ BOOST_AUTO_TEST_CASE(prove_verify_many_coins)
 
     lelantus::LelantusVerifier verifier(params, LELANTUS_TX_VERSION_4_5);
     BOOST_CHECK(verifier.verify(anonymity_sets, {}, Sin, {}, groupIds, Vin, Vout, f, Cout_Public, proof));
-    BOOST_CHECK(verifier.verify(anonymity_sets, {}, Sin, {}, groupIds, Vin + 1, Vout + 1, f, Cout_Public, proof));
-    BOOST_CHECK(verifier.verify(anonymity_sets, {}, Sin, {}, groupIds, Vin, Vout + f, uint64_t(0), Cout_Public, proof));
+    //After Lelantus new update (after version LELANTUS_TX_VERSION_4_5) following 2 verifications will fail, as schnorr proof challenge depends also on Vout, Vin  and fee values
+//    BOOST_CHECK(verifier.verify(anonymity_sets, {}, Sin, {}, groupIds, Vin + 1, Vout + 1, f, Cout_Public, proof));
+//    BOOST_CHECK(verifier.verify(anonymity_sets, {}, Sin, {}, groupIds, Vin, Vout + f, uint64_t(0), Cout_Public, proof));
 }
 
 BOOST_AUTO_TEST_CASE(imbalance_proof_should_fail)

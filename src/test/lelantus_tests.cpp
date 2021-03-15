@@ -7,7 +7,7 @@
 
 #include "test_bitcoin.h"
 #include "fixtures.h"
-
+#include <iostream>
 #include <boost/test/unit_test.hpp>
 
 namespace lelantus {
@@ -28,8 +28,7 @@ struct JoinSplitScriptGenerator {
 
         CScript script;
 
-        JoinSplit joinSplit(p, coins, anons, {}, vout, coinsOut, fee, groupBlockHashes, txHash);
-        joinSplit.setVersion(LELANTUS_TX_VERSION_4);
+        JoinSplit joinSplit(p, coins, anons, {}, vout, coinsOut, fee, groupBlockHashes, txHash, LELANTUS_TX_VERSION_4);
 
         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
         ss << joinSplit;

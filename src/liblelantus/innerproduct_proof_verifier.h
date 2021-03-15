@@ -17,7 +17,7 @@ public:
             const std::vector<GroupElement>& h,
             const GroupElement& u,
             const GroupElement& P,
-            bool afterFixes = false);
+            bool afterFixes = true);
 
     bool verify(const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);
     bool verify_fast(uint64_t n, const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);
