@@ -6835,11 +6835,12 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
 void CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result) {
 	// create transaction
 	std::vector<CLelantusEntry> spendCoins; //spends
+    std::vector<CSigmaEntry> sigmaSpendCoins;
 	std::vector<CHDMint> mintCoins; // new mints
 	CAmount fee;
-	result = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, mintCoins);
+    result = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins);
 
-	CommitLelantusTransaction(result, spendCoins, mintCoins);
+    CommitLelantusTransaction(result, spendCoins, sigmaSpendCoins, mintCoins);
 }
 
 CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
@@ -6847,6 +6848,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
 	CAmount &fee,
 	const std::vector<CAmount>& newMints,
 	std::vector<CLelantusEntry>& spendCoins,
+    std::vector<CSigmaEntry>& sigmaSpendCoins,
 	std::vector<CHDMint>& mintCoins,
 	const CCoinControl *coinControl)
 {
@@ -6862,6 +6864,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
 
 	CWalletTx tx = builder.Build(recipients, fee, newMints);
 	spendCoins = builder.spendCoins;
+    sigmaSpendCoins = builder.sigmaSpendCoins;
 	mintCoins = builder.mintCoins;
 
 	return tx;
@@ -6933,92 +6936,6 @@ std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(CAmount required,
     return std::make_pair(fee, size);
 }
 
-bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CHDMint>& mintCoins) {
-	EnsureMintWalletAvailable();
-
-	// commit
-	try {
-		CValidationState state;
-		CReserveKey reserveKey(this);
-		CommitTransaction(wtxNew, reserveKey, g_connman.get(), state);
-	}
-	catch (...) {
-		auto error = _(
-			"Error: The transaction was rejected! This might happen if some of "
-			"the coins in your wallet were already spent, such as if you used "
-			"a copy of wallet.dat and coins were spent in the copy but not "
-			"marked as spent here."
-		);
-
-		std::throw_with_nested(std::runtime_error(error));
-	}
-
-	// mark selected coins as used
-	lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-	CWalletDB db(strWalletFile);
-
-	for (auto& coin : spendCoins) {
-		// get coin id & height
-		int height, id;
-
-		std::tie(height, id) = lelantusState->GetMintedCoinHeightAndId(lelantus::PublicCoin(coin.value));
-
-		// add CLelantusSpendEntry
-		CLelantusSpendEntry spend;
-
-		spend.coinSerial = coin.serialNumber;
-		spend.hashTx = wtxNew.GetHash();
-		spend.pubCoin = coin.value;
-		spend.id = id;
-		spend.amount = coin.amount;
-
-		if (!db.WriteLelantusSpendSerialEntry(spend)) {
-			throw std::runtime_error(_("Failed to write coin serial number into wallet"));
-		}
-
-		//Set spent mint as used in memory
-		uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value + lelantus::Params::get_default()->get_h1() * Scalar(coin.amount).negate());
-		zwallet->GetTracker().SetLelantusPubcoinUsed(hashPubcoin, wtxNew.GetHash());
-		CLelantusMintMeta metaCheck;
-		zwallet->GetTracker().GetLelantusMetaFromPubcoin(hashPubcoin, metaCheck);
-		if (!metaCheck.isUsed) {
-			string strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
-			LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
-		}
-
-		//Set spent mint as used in DB
-		zwallet->GetTracker().UpdateState(metaCheck);
-
-		// update CLelantusEntry
-		coin.IsUsed = true;
-		coin.id = id;
-		coin.nHeight = height;
-
-		// raise event
-		NotifyZerocoinChanged(
-			this,
-			coin.value.GetHex(),
-			"Used (" + std::to_string(coin.amount) + " mint)",
-			CT_UPDATED);
-	}
-
-	for (auto& coin : mintCoins) {
-		coin.SetTxHash(wtxNew.GetHash());
-		zwallet->GetTracker().AddLelantus(db, coin, true);
-
-		// raise event
-		NotifyZerocoinChanged(this,
-			coin.GetPubcoinValue().GetHex(),
-			"New (" + std::to_string(coin.GetAmount()) + " mint)",
-			CT_NEW);
-	}
-
-	// Update nCountNextUse in HDMint wallet database
-	zwallet->UpdateCountDB(db);
-
-	return true;
-}
-
 bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CSigmaEntry>& sigmaSpendCoins, std::vector<CHDMint>& mintCoins) {
 	EnsureMintWalletAvailable();
 
@@ -7027,8 +6944,7 @@ bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantus
 		CValidationState state;
 		CReserveKey reserveKey(this);
 		CommitTransaction(wtxNew, reserveKey, g_connman.get(), state);
-	}
-	catch (...) {
+    } catch (...) {
 		auto error = _(
 			"Error: The transaction was rejected! This might happen if some of "
 			"the coins in your wallet were already spent, such as if you used "

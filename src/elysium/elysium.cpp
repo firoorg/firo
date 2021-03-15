@@ -1824,6 +1824,7 @@ int elysium::WalletTxBuilder(
         vecRecipients.push_back(recipient);
     }
 
+    std::vector<CSigmaEntry> sigmaSpendCoins;
     std::vector<CLelantusEntry> lelantusSpendCoins;
     std::vector<CHDMint> lelantusMintCoins;
 
@@ -1842,7 +1843,7 @@ int elysium::WalletTxBuilder(
 		LogPrintf("inputMode Lelantus \n");
 		try {
 			wtxNew = pwalletMain->CreateLelantusJoinSplitTransaction(
-				vecRecipients, fee, {}, lelantusSpendCoins, lelantusMintCoins, &coinControl);
+				vecRecipients, fee, {}, lelantusSpendCoins, sigmaSpendCoins, lelantusMintCoins, &coinControl);
 		}
 		catch (std::exception const &err) {
 			PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, err.what());
@@ -1869,7 +1870,7 @@ int elysium::WalletTxBuilder(
             break;
         case InputMode::LELANTUS:
             try {
-                if (!pwalletMain->CommitLelantusTransaction(wtxNew, lelantusSpendCoins, lelantusMintCoins)) return MP_ERR_COMMIT_TX;
+                if (!pwalletMain->CommitLelantusTransaction(wtxNew, lelantusSpendCoins, sigmaSpendCoins, lelantusMintCoins)) return MP_ERR_COMMIT_TX;
             } catch (...) {
                 return MP_ERR_COMMIT_TX;
             }
