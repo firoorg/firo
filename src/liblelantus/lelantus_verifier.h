@@ -6,8 +6,6 @@
 #include "range_verifier.h"
 #include "lelantus_primitives.h"
 #include "coin.h"
-#include "chain.h"
-extern CChain chainActive;
 
 namespace lelantus {
 class LelantusVerifier {

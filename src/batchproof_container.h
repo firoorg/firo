@@ -71,10 +71,10 @@ public:
 
 private:
     static std::unique_ptr<BatchProofContainer> instance;
-    // map (denom, id) to (sigma proof, serial, set size)
     // temp containers, to forget in case block connection fails
+    // map (denom, id) to (sigma proof, serial, set size)
     std::map<std::pair<sigma::CoinDenomination, std::pair<int, bool>>, std::vector<SigmaProofData>> tempSigmaProofs;
-    // map (id, fIsSigmaToLelantus) to (sigma proof, serial, set size, challenge)
+    // map ((id, afterFixes), fIsSigmaToLelantus) to (sigma proof, serial, set size, challenge)
     std::map<std::pair<std::pair<uint32_t, bool>, bool>, std::vector<LelantusSigmaProofData>> tempLelantusSigmaProofs;
 
     // containers to keep proofs for batching

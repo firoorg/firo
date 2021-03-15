@@ -2,8 +2,6 @@
 #define FIRO_LIBLELANTUS_RANGE_PROVER_H
 
 #include "innerproduct_proof_generator.h"
-#include "chain.h"
-extern CChain chainActive;
 
 namespace lelantus {
     
@@ -18,6 +16,7 @@ public:
             , uint64_t n
             , unsigned int v);
 
+    // commitments are included into transcript if version >= LELANTUS_TX_VERSION_4_5
     void batch_proof(
             const std::vector<Scalar>& v
             , const std::vector<Scalar>& serialNumbers

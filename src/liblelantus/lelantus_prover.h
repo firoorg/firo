@@ -5,8 +5,6 @@
 #include "sigmaextended_prover.h"
 #include "range_prover.h"
 #include "coin.h"
-#include "chain.h"
-extern CChain chainActive;
 
 namespace lelantus {
 

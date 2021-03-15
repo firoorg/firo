@@ -3,8 +3,6 @@
 
 #include "lelantus_primitives.h"
 #include "challenge_generator_sha256.h"
-#include "chain.h"
-extern CChain chainActive;
 
 namespace lelantus {
     
@@ -17,7 +15,7 @@ public:
             const std::vector<GroupElement>& h,
             const GroupElement& u,
             const GroupElement& P,
-            bool afterFixes = true);
+            bool afterFixes = true); // if(afterFixes) we should pass ChallengeGeneratorHash256 in verify
 
     bool verify(const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);
     bool verify_fast(uint64_t n, const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);

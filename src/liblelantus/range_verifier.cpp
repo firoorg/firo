@@ -1,7 +1,6 @@
 #include "range_verifier.h"
 #include "challenge_generator_sha256.h"
 #include "challenge_generator_hash256.h"
-#include "chainparams.h"
 
 namespace lelantus {
     
@@ -33,6 +32,7 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
     unique_ptr<ChallengeGenerator> challengeGenerator;
     if (afterFixes) {
         challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
+        // add domain separator and transaction version into transcript
         std::string domain_separator = "RANGE_PROOF" + std::to_string(version);
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator->add(pre);
@@ -60,7 +60,10 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
     {
         std::vector<GroupElement> group_elements_i = {innerProductProof.L_[i], innerProductProof.R_[i]};
 
+        // if(afterFixes_) we should be using ChallengeGeneratorHash256,
+        // we want to link transcripts from range proof and from previous iteration in each step, so we are not restarting in that case,
         if (afterFixes) {
+            // add domain separator in each step
             std::string domain_separator = "INNER_PRODUCT";
             std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
             challengeGenerator->add(pre);

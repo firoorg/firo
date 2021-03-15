@@ -43,11 +43,13 @@ bool LelantusVerifier::verify(
         return false;
     }
 
+    // number of serials should be equal to number of sigma proofs, we need one proof for each serial
     if (serialNumbers.size() != proof.sigma_proofs.size()) {
         LogPrintf("Lelantus verification failed due to sizes of serials  and sigma proofs are not equal.");
         return false;
     }
 
+    // max possible number of output coins is 8,
     if (Cout.size() > (params->get_bulletproofs_max_m() / 2)) {
         LogPrintf("Number of output coins are more than allowed.");
         return false;
@@ -71,6 +73,7 @@ bool LelantusVerifier::verify(
 
     Scalar zV, zR;
     unique_ptr<ChallengeGenerator> challengeGenerator;
+    // we are passing challengeGenerator ptr here, as after LELANTUS_TX_VERSION_4_5 we need  it back, with filled data, to use in schnorr proof,
     if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, ecdsaPubkeys, Cout, proof.sigma_proofs, x, challengeGenerator, zV, zR, fSkipVerification) &&
          verify_rangeproof(Cout, proof.bulletproofs) &&
          verify_schnorrproof(x, zV, zR, Vin, Vout, fee, Cout, proof, challengeGenerator)))
@@ -221,7 +224,7 @@ bool LelantusVerifier::verify_schnorrproof(
     SchnorrVerifier schnorrVerifier(params->get_g(), params->get_h0(), version >= LELANTUS_TX_VERSION_4_5);
     const SchnorrProof& schnorrProof = proof.schnorrProof;
     GroupElement Y = A + B * (Scalar(uint64_t(1)).negate());
-
+    // after LELANTUS_TX_VERSION_4_5 we are getting challengeGenerator with filled data from sigma,
     if (!schnorrVerifier.verify(Y, A, B, schnorrProof, challengeGenerator)) {
         LogPrintf("Lelantus verification failed due schnorr proof verification failed.");
         return false;

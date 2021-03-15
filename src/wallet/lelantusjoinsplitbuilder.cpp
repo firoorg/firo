@@ -405,6 +405,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
     std::map<uint32_t, uint256> groupBlockHashes;
     int version = 0;
 
+    // after nLelantusFixesStartBlock set new transaction version,  
     if(!isSigmaToLelantusJoinSplit) {
         if (chainActive.Height() >= Params().GetConsensus().nLelantusFixesStartBlock)
             version = LELANTUS_TX_VERSION_4_5;

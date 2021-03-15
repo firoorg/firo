@@ -245,7 +245,7 @@ public:
     std::map<pair<sigma::CoinDenomination, int>, vector<sigma::PublicCoin>> sigmaMintedPubCoins;
     //! Map id to <public coin, tag>
     std::map<int, vector<std::pair<lelantus::PublicCoin, uint256>>>  lelantusMintedPubCoins;
-
+    //! Map id to <hash of the set>
     std::map<int, vector<unsigned char>> anonymitySetHash;
 
     //! Values of coin serials spent in this block

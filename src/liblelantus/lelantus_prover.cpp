@@ -1,5 +1,4 @@
 #include "lelantus_prover.h"
-#include "chainparams.h"
 
 namespace lelantus {
 
@@ -32,6 +31,7 @@ void LelantusProver::proof(
     Scalar x;
     std::vector<Scalar> Yk_sum;
     Yk_sum.resize(Cin.size());
+    // we are passing challengeGenerator ptr here, as after LELANTUS_TX_VERSION_4_5 we need  it back, with filled data, to use in schnorr proof,
     unique_ptr<ChallengeGenerator> challengeGenerator;
     generate_sigma_proofs(anonymity_sets, anonymity_set_hashes, Cin, Cout, indexes, ecdsaPubkeys, x, challengeGenerator, Yk_sum, proof_out.sigma_proofs);
 
@@ -62,6 +62,8 @@ void LelantusProver::proof(
     }
     Y_ = Ro * x_m - Ri;
     Vi *=  x_m;
+    // we are calculating A, B amd Y here as after LELANTUS_TX_VERSION_4_5 we need them for challenge generation in schnorr proof
+    // also we are getting challengeGenerator with filled data from sigma,
     GroupElement B = params->get_h1() * Vi + params->get_h0() * Ri;
     GroupElement Y = A + B.inverse();
     SchnorrProver schnorrProver(params->get_g(), params->get_h0(), version >= LELANTUS_TX_VERSION_4_5);
