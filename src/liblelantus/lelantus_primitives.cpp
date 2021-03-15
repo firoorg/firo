@@ -102,6 +102,7 @@ void  LelantusPrimitives::generate_Lelantus_challenge(
 
     result_out = uint64_t(1);
 
+    // starting from LELANTUS_TX_VERSION_4_5 we are using ChallengeGeneratorHash256, and adding domain separator, version, pubkeys and serials into it
     if (version >= LELANTUS_TX_VERSION_4_5) {
         challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
         std::string domainSeparator = lts + std::to_string(version);

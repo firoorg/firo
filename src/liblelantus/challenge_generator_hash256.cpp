@@ -35,7 +35,7 @@ void ChallengeGeneratorHash256::add(const std::vector<unsigned char>& data_) {
 
 void ChallengeGeneratorHash256::get_challenge(Scalar& result_out) {
     unsigned char result_data[CSHA256::OUTPUT_SIZE];
-    // copy hasher in each generation, dont use length extension
+    // copy hasher in each generation, don't use length extension
     CHash256 hash_ = hash;
     do {
         CHash256 temp_hash = hash_;

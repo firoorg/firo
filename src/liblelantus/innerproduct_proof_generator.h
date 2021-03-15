@@ -14,7 +14,7 @@ public:
             const std::vector<GroupElement>& g,
             const std::vector<GroupElement>& h,
             const GroupElement& u,
-            bool afterFixes = true);
+            bool afterFixes = true); // if(afterFixes) we should pass ChallengeGeneratorHash256 in generate_proof function
 
     void generate_proof(
             const std::vector<Scalar>& a,

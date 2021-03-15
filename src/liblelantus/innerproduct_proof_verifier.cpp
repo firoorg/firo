@@ -1,5 +1,4 @@
 #include "innerproduct_proof_verifier.h"
-#include "chainparams.h"
 
 namespace lelantus {
     
@@ -44,7 +43,10 @@ bool InnerProductProofVerifier::verify_util(
     Scalar x;
     std::vector<GroupElement> group_elements = {*itr_l, *itr_r};
 
+    // if(afterFixes_) we should be using ChallengeGeneratorHash256,
+    // we want to link transcripts from previous iteration in each step, so we are not restarting in that case,
     if (afterFixes_) {
+        // add domain separator in each step
         std::string domain_separator = "INNER_PRODUCT";
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator->add(pre);
@@ -82,7 +84,10 @@ bool InnerProductProofVerifier::verify_fast_util(
     {
         std::vector<GroupElement> group_elements = {proof.L_[i], proof.R_[i]};
 
+        // if(afterFixes_) we should be using ChallengeGeneratorHash256,
+        // we want to link transcripts from previous iteration in each step, so we are not restarting in that case,
         if (afterFixes_) {
+            // add domain separator in each step
             std::string domain_separator = "INNER_PRODUCT";
             std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
             challengeGenerator->add(pre);

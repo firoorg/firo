@@ -78,6 +78,8 @@ void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, CDataStream&  s
 
     LOCK(cs_main);
     SchnorrProof schnorrProof;
+
+    // after nLelantusFixesStartBlock block start to pass whole data to transcript
     bool afterFixes = chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock;
     SchnorrProver schnorrProver(params->get_g(), params->get_h0(), afterFixes);
     Scalar v = coin.getVScalar();
@@ -86,11 +88,13 @@ void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, CDataStream&  s
 
     unique_ptr<ChallengeGenerator> challengeGenerator;
     if (afterFixes) {
+        // start to use CHash256 which is more secure
         challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
     }  else {
         challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
     }
 
+    // commit (G^s*H1^v*H2^r), comm (G^s*H2^r), and H1^v are used in challenge generation if nLelantusFixesStartBlock is passed
     schnorrProver.proof(coin.getSerialNumber(), coin.getRandomness(), comm, commit, (params->get_h1() * v), challengeGenerator, schnorrProof);
 
     serializedSchnorrProof << schnorrProof;
@@ -101,16 +105,19 @@ bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupEleme
     auto params = lelantus::Params::get_default();
 
     LOCK(cs_main);
+    // after nLelantusFixesStartBlock block start to pass whole data to transcript
     bool afterFixes = chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock;
     secp_primitives::GroupElement comm = commit + (params->get_h1() * Scalar(v).negate());
     SchnorrVerifier verifier(params->get_g(), params->get_h0(), afterFixes);
     unique_ptr<ChallengeGenerator> challengeGenerator;
     if (afterFixes) {
+        // start to use CHash256 which is more secure
         challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
     }  else {
         challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
     }
 
+    // commit (G^s*H1^v*H2^r), comm (G^s*H2^r), and H1^v are used in challenge generation if nLelantusFixesStartBlock is passed
     return verifier.verify(comm, commit, (params->get_h1() * Scalar(v)), schnorrProof, challengeGenerator);
 }
 
@@ -439,6 +446,7 @@ bool CheckLelantusJoinSplitTransaction(
             while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
                 index = index->pprev;
 
+            // take the hash from last block of anonymity set, it is used at challenge generation if nLelantusFixesStartBlock is passed
             if (nHeight >= params.nLelantusFixesStartBlock && index->anonymitySetHash.count(idAndHash.first))
                 anonymity_set_hashes.push_back(index->anonymitySetHash[idAndHash.first]);
             // Build a vector with all the public coins with given id before
@@ -450,6 +458,7 @@ bool CheckLelantusJoinSplitTransaction(
                     BOOST_FOREACH(
                     const auto& pubCoinValue,
                     index->lelantusMintedPubCoins[idAndHash.first]) {
+                        // skip mints from blacklist if nLelantusFixesStartBlock is passed
                         if (chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
                             std::vector<unsigned char> vch = pubCoinValue.first.getValue().getvch();
                             if(lelantus_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
@@ -822,6 +831,7 @@ bool ConnectBlockLelantus(
             return true;
 
         auto& params = ::Params().GetConsensus();
+        // take set hash from previous block, we will not update it if this block has no mints
         if (pindexNew->nHeight > params.nLelantusFixesStartBlock)
             pindexNew->anonymitySetHash = pindexNew->pprev->anonymitySetHash;
 
@@ -830,6 +840,8 @@ bool ConnectBlockLelantus(
         int latestCoinId = lelantusState.GetLatestCoinID();
 
         bool updateHash = false;
+
+        // create first anonymity set hash with whole existing set, at HF block
         if (pindexNew->nHeight == params.nLelantusFixesStartBlock) {
             updateHash = true;
             std::vector<lelantus::PublicCoin> coins;
@@ -843,6 +855,9 @@ bool ConnectBlockLelantus(
         if (!pblock->lelantusTxInfo->mints.empty()) {
             lelantusState.AddMintsToStateAndBlockIndex(pindexNew, pblock);
 
+            // add  coins into hasher, for generating set hash
+            // if this is HF block just add mint from this block too,
+            // else hasher is supposed to be empty, so add previous hash first, then coins
             if (pindexNew->nHeight >= params.nLelantusFixesStartBlock) {
                 updateHash = true;
                 if (pindexNew->pprev->anonymitySetHash.count(latestCoinId) > 0)
@@ -855,6 +870,7 @@ bool ConnectBlockLelantus(
             }
         }
 
+        // generate hash if we need it
         if (updateHash) {
             unsigned char hash_result[CSHA256::OUTPUT_SIZE];
             hash.Finalize(hash_result);
@@ -1354,6 +1370,7 @@ int CLelantusState::GetCoinSetForSpend(
             if (block->lelantusMintedPubCoins.count(id) > 0) {
                 for (const auto &coin : block->lelantusMintedPubCoins[id]) {
                     LOCK(cs_main);
+                    // skip mints from blacklist if nLelantusFixesStartBlock is passed
                     if (chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
                         std::vector<unsigned char> vch = coin.first.getValue().getvch();
                         if (lelantus_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {

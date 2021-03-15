@@ -45,6 +45,8 @@ JoinSplit::JoinSplit(const Params *p,
     }
 
     coinNum = Cin.size();
+
+    // generate public keys here, as we need it for challenge generation starting from LELANTUS_TX_VERSION_4_5
     generatePubKeys(Cin);
 
     LelantusProver prover(p, version);
