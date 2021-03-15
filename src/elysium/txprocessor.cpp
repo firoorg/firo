@@ -64,8 +64,8 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
     }
 
     int64_t mintValue = tx.getLelantusMintValue();
-    if (mintValue <= 0 || MAX_INT_8_BYTES < mintValue) {
-        PrintToLog("%s(): ");
+    if (mintValue <= 0) {
+        PrintToLog("%s(): mintValue <= 0 ", __func__);
         return PKT_ERROR_LELANTUS - 23;
     }
 

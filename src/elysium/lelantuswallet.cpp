@@ -51,12 +51,12 @@ bool LelantusWallet::MintPoolEntry::operator!=(MintPoolEntry const &another) con
 
 LelantusWallet::MintReservation::MintReservation(
     LelantusWallet *_wallet, MintEntryId const &_id, lelantus::PrivateCoin const &_coin, LelantusMint const &_mint) :
-    wallet(_wallet),
     id(_id),
     coin(_coin),
+    wallet(_wallet),
     mint(_mint),
-    commited(false),
-    mintpoolEntry(wallet->ReserveMint(_id))
+    mintpoolEntry(wallet->ReserveMint(_id)),
+    commited(false)
 {
 }
 
@@ -82,7 +82,7 @@ LelantusWallet::LelantusWallet() : LelantusWallet(new Database)
 }
 
 LelantusWallet::LelantusWallet(Database *database)
-    : walletFile(pwalletMain->strWalletFile), database(database), context(ECDSAContext::CreateSignContext()), loaded(false)
+    : database(database), walletFile(pwalletMain->strWalletFile), loaded(false), context(ECDSAContext::CreateSignContext())
 {
 }
 
@@ -453,7 +453,6 @@ bool LelantusWallet::SyncWithChain(MintEntryId const &id)
         }
     }
 
-    bool found = false;
     LelantusMintChainState state(block, group, index);
     if (HasMint(id)) {
         UpdateMintChainstate(id, state);
