@@ -513,8 +513,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
 
     std::sort(coins.begin(), coins.end(), CoinCompare());
 
-    lelantus::JoinSplit joinSplit(params, coins, anonymity_sets, anonymity_set_hashes, Vout, Cout, fee, groupBlockHashes, txHash);
-    joinSplit.setVersion(version);
+    lelantus::JoinSplit joinSplit(params, coins, anonymity_sets, anonymity_set_hashes, Vout, Cout, fee, groupBlockHashes, txHash, version);
 
     std::vector<lelantus::PublicCoin>  pCout;
     pCout.reserve(Cout.size());

@@ -14,7 +14,7 @@ public:
             const std::vector<GroupElement>& g,
             const std::vector<GroupElement>& h,
             const GroupElement& u,
-            bool afterFixes = false);
+            bool afterFixes = true);
 
     void generate_proof(
             const std::vector<Scalar>& a,
@@ -31,7 +31,8 @@ private:
             const std::vector<GroupElement>& g,
             const std::vector<GroupElement>& h,
             const GroupElement& u,
-            const GroupElement& P);
+            const GroupElement& P,
+            bool afterFixes);
 
     void generate_proof_util(
             const std::vector<Scalar>& a,

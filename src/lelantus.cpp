@@ -825,38 +825,41 @@ bool ConnectBlockLelantus(
         if (pindexNew->nHeight > params.nLelantusFixesStartBlock)
             pindexNew->anonymitySetHash = pindexNew->pprev->anonymitySetHash;
 
+        CSHA256 hash;
+        std::vector<unsigned char> data(GroupElement::serialize_size);
+        int latestCoinId = lelantusState.GetLatestCoinID();
+
+        bool updateHash = false;
+        if (pindexNew->nHeight == params.nLelantusFixesStartBlock) {
+            updateHash = true;
+            std::vector<lelantus::PublicCoin> coins;
+            lelantusState.GetAnonymitySet(1, false, coins);
+            for (auto &coin : coins) {
+                coin.getValue().serialize(data.data());
+                hash.Write(data.data(), data.size());
+            }
+        }
+
         if (!pblock->lelantusTxInfo->mints.empty()) {
             lelantusState.AddMintsToStateAndBlockIndex(pindexNew, pblock);
 
             if (pindexNew->nHeight >= params.nLelantusFixesStartBlock) {
-                CSHA256 hash;
-                int latestCoinId = lelantusState.GetLatestCoinID();
-                std::vector<unsigned char> data;
-                data.resize(GroupElement::serialize_size);
+                updateHash = true;
+                if (pindexNew->pprev->anonymitySetHash.count(latestCoinId) > 0)
+                    hash.Write(pindexNew->pprev->anonymitySetHash[latestCoinId].data(), 32);
 
-
-                if (pindexNew->nHeight == params.nLelantusFixesStartBlock) {
-                    std::vector<lelantus::PublicCoin> coins;
-                    lelantusState.GetAnonymitySet(1, false, coins);
-                    for (auto &coin : coins) {
-                        coin.getValue().serialize(data.data());
-                        hash.Write(data.data(), data.size());
-                    }
-                } else if (pindexNew->nHeight > params.nLelantusFixesStartBlock) {
-                    if (pindexNew->pprev->anonymitySetHash.count(latestCoinId) > 0)
-                        hash.Write(pindexNew->pprev->anonymitySetHash[latestCoinId].data(), 32);
-
-                    for (auto &coin : pindexNew->lelantusMintedPubCoins[latestCoinId]) {
-                        coin.first.getValue().serialize(data.data());
-                        hash.Write(data.data(), data.size());
-                    }
+                for (auto &coin : pindexNew->lelantusMintedPubCoins[latestCoinId]) {
+                    coin.first.getValue().serialize(data.data());
+                    hash.Write(data.data(), data.size());
                 }
-
-                unsigned char hash_result[CSHA256::OUTPUT_SIZE];
-                hash.Finalize(hash_result);
-                auto &out_hash = pindexNew->anonymitySetHash[latestCoinId];
-                out_hash.insert(out_hash.begin(), std::begin(hash_result), std::end(hash_result));
             }
+        }
+
+        if (updateHash) {
+            unsigned char hash_result[CSHA256::OUTPUT_SIZE];
+            hash.Finalize(hash_result);
+            auto &out_hash = pindexNew->anonymitySetHash[latestCoinId];
+            out_hash.insert(out_hash.begin(), std::begin(hash_result), std::end(hash_result));
         }
     }
     else if (!fJustCheck) {
@@ -1313,7 +1316,7 @@ int CLelantusState::GetCoinSetForSpend(
     int coinGroupID,
     uint256& blockHash_out,
     std::vector<lelantus::PublicCoin>& coins_out,
-    std::vector<unsigned char>& hash_out) {
+    std::vector<unsigned char>& setHash_out) {
 
     coins_out.clear();
 
@@ -1342,9 +1345,10 @@ int CLelantusState::GetCoinSetForSpend(
         if (id) {
             if (numberOfCoins == 0) {
                 // latest block satisfying given conditions
-                // remember block hash
+                // remember block hash and set hash
                 blockHash_out = block->GetBlockHash();
-                hash_out =  block->anonymitySetHash[id];
+                if (block->anonymitySetHash.count(id) > 0)
+                    setHash_out =  block->anonymitySetHash[id];
             }
             numberOfCoins += block->lelantusMintedPubCoins[id].size();
             if (block->lelantusMintedPubCoins.count(id) > 0) {

@@ -95,7 +95,8 @@ void LelantusProver::generate_sigma_proofs(
     Yk.resize(N);
     std::vector<std::vector<Scalar>> a;
     a.resize(N);
-    std::vector<Scalar> serialNumbers(N);
+    std::vector<Scalar> serialNumbers;
+    serialNumbers.reserve(N);
     for (std::size_t i = 0; i < N; ++i)
     {
         if (!c.count(Cin[i].second))

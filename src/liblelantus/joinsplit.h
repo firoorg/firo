@@ -23,7 +23,8 @@ public:
               const std::vector<PrivateCoin>& Cout,
               uint64_t fee,
               const std::map<uint32_t, uint256>& groupBlockHashes,
-              const uint256& txHash);
+              const uint256& txHash,
+              unsigned int nVersion);
 
     bool Verify(const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
                 const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,

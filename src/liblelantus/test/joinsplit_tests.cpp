@@ -94,7 +94,8 @@ BOOST_AUTO_TEST_CASE(verify)
         {privs[3]}, // cout
         CENT, // fee
         groupBlockHashes,
-        ArithToUint256(3));
+        ArithToUint256(3),
+        0);
 
     std::vector<uint32_t> expectedGroupIds = {1, 1, 2};
     BOOST_CHECK(expectedGroupIds == joinSplit.getCoinGroupIds());

@@ -62,7 +62,7 @@ bool InnerProductProofVerifier::verify_util(
 
     //Compute P prime
     GroupElement p_p = LelantusPrimitives::p_prime(P_, *itr_l, *itr_r, x);
-    return InnerProductProofVerifier(g_p, h_p, u_, p_p).verify_util(proof, itr_l + 1, itr_r + 1, challengeGenerator);
+    return InnerProductProofVerifier(g_p, h_p, u_, p_p, afterFixes_).verify_util(proof, itr_l + 1, itr_r + 1, challengeGenerator);
 }
 
 bool InnerProductProofVerifier::verify_fast(uint64_t n, const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator) {
