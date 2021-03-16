@@ -1014,6 +1014,8 @@ static int elysium_initial_scan(int nFirstBlock)
         // Sum total parsed.
         nTxsFoundTotal += parsed;
         nTxsTotal += block.vtx.size();
+
+        if (nBlock % 100 == 0) LogPrintf("Finished scanning block %d\n", nBlock);
     }
 
     if (nBlock < nLastBlock) {
@@ -1697,7 +1699,6 @@ bool elysium_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, co
 
     bool fFoundTx = false;
     int pop_ret = parseTransaction(false, tx, nBlock, idx, mp_obj, nBlockTime);
-	LogPrintf("pop_ret = %d \n", pop_ret);
 
     if (0 == pop_ret) {
         int interp_ret = txProcessor->ProcessTx(mp_obj);
