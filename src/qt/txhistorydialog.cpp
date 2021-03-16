@@ -234,12 +234,8 @@ int TXHistoryDialog::PopulateHistoryMap()
             htxo.amount = "-" + FormatShortMP(pending.prop, pending.amount) + getTokenLabel(pending.prop);
             bool fundsMoved = true;
             htxo.txType = shrinkTxType(pending.type, &fundsMoved);
-            if (pending.type == ELYSIUM_TYPE_METADEX_CANCEL_PRICE || pending.type == ELYSIUM_TYPE_METADEX_CANCEL_PAIR ||
-                pending.type == ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM || pending.type == ELYSIUM_TYPE_SEND_ALL) {
-                htxo.amount = "N/A";
-            }
 
-            if (pending.type == ELYSIUM_TYPE_SIMPLE_SPEND) {
+            if (pending.type == ELYSIUM_TYPE_LELANTUS_SPEND) {
                 if (pending.dest && IsMyAddress(pending.dest.get())) {
                     htxo.amount = FormatShortMP(pending.prop, pending.amount) + getTokenLabel(pending.prop);
                 }
@@ -307,14 +303,13 @@ int TXHistoryDialog::PopulateHistoryMap()
         uint32_t type = 0;
         uint64_t amountNew = 0;
         htxo.valid = getValidMPTX(txHash, &tmpBlock, &type, &amountNew);
-        if (htxo.valid && type == ELYSIUM_TYPE_TRADE_OFFER && amountNew > 0) amount = amountNew; // override for when amount for sale has been auto-adjusted
 
-        if (htxo.valid && type == ELYSIUM_TYPE_SIMPLE_SPEND) { // override amount for spend
-            amount = mp_obj.getSpendAmount();
+        if (htxo.valid && type == ELYSIUM_TYPE_LELANTUS_SPEND) { // override amount for spend
+            amount = mp_obj.getLelantusSpendAmount();
         }
 
-        if (htxo.valid && type == ELYSIUM_TYPE_SIMPLE_MINT) { // override amount for mint
-            amount = mp_obj.getMintAmount();
+        if (htxo.valid && type == ELYSIUM_TYPE_LELANTUS_MINT) { // override amount for mint
+            amount = mp_obj.getLelantusMintValue();
         }
 
         std::string displayAmount = FormatShortMP(mp_obj.getProperty(), amount) + getTokenLabel(mp_obj.getProperty());
@@ -326,7 +321,7 @@ int TXHistoryDialog::PopulateHistoryMap()
         if (!IsMyAddress(mp_obj.getSender())) htxo.address = mp_obj.getReceiver();
         if (htxo.fundsMoved && IsMyAddress(mp_obj.getSender())) displayAmount = "-" + displayAmount;
 
-        if (type == ELYSIUM_TYPE_SIMPLE_SPEND) {
+        if (type == ELYSIUM_TYPE_LELANTUS_SPEND) {
             htxo.address = "Spend";
             if (htxo.fundsMoved && !IsMyAddress(mp_obj.getReceiver())) {
                 displayAmount = "-" + displayAmount;

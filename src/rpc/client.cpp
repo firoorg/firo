@@ -212,7 +212,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "elysium_getorderbook", 1 },
 	{ "elysium_getseedblocks", 0 },
 	{ "elysium_getseedblocks", 1 },
-	{ "elysium_getmetadexhash", 0 },
 	{ "elysium_getfeecache", 0 },
 	{ "elysium_getfeeshare", 1 },
 	{ "elysium_getfeetrigger", 0 },
