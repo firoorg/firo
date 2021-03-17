@@ -233,7 +233,6 @@ extern CElysiumTransactionDB *p_ElysiumTXDB;
 extern CCoinsView viewDummy;
 extern CCoinsViewCache view;
 //! Guards coins view cache
-extern CCriticalSection cs_tx_cache;
 
 std::string strMPProperty(uint32_t propertyId);
 

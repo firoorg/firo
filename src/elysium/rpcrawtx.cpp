@@ -23,7 +23,6 @@
 
 extern CCriticalSection cs_main;
 
-using elysium::cs_tx_cache;
 using elysium::view;
 
 
@@ -93,7 +92,7 @@ UniValue elysium_decodetransaction(const JSONRPCRequest& request)
     {
         //TODO: The swaps below are temporarily commented out
         throw std::runtime_error("Not implemented");
-        LOCK2(cs_main, cs_tx_cache);
+        LOCK(cs_main);
         // temporarily switch global coins view cache for transaction inputs
 //        std::swap(view, viewTemp);
         // then get the results

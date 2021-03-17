@@ -536,22 +536,21 @@ void CheckWalletUpdate(bool forceUpdate)
 CCoinsView elysium::viewDummy;
 CCoinsViewCache elysium::view(&viewDummy);
 
-//! Guards coins view cache
-CCriticalSection elysium::cs_tx_cache;
-
 static unsigned int nCacheHits = 0;
 static unsigned int nCacheMiss = 0;
 
 /**
  * Fetches transaction inputs and adds them to the coins view cache.
  *
- * Note: cs_tx_cache should be locked, when adding and accessing inputs!
+ * Note: cs_main should be locked, when adding and accessing inputs!
  *
  * @param tx[in]  The transaction to fetch inputs for
  * @return True, if all inputs were successfully added to the cache
  */
 static bool FillTxInputCache(const CTransaction& tx)
 {
+    AssertLockHeld(cs_main);
+
     static unsigned int nCacheSize = GetArg("-elysiumtxcache", 500000);
 
     if (view.GetCacheSize() > nCacheSize) {
@@ -629,7 +628,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
     int64_t inAll = 0;
 
     { // needed to ensure the cache isn't cleared in the meantime when doing parallel queries
-    LOCK(cs_tx_cache);
+    LOCK(cs_main);
 
     // Add previous transaction inputs to the cache
     if (!FillTxInputCache(wtx)) {
@@ -718,7 +717,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         inAll = view.GetValueIn(wtx);
     }
 
-    } // end of LOCK(cs_tx_cache)
+    } // end of LOCK(cs_main)
 
     int64_t outAll = wtx.GetValueOut();
 
