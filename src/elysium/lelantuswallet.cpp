@@ -808,9 +808,11 @@ lelantus::JoinSplit LelantusWallet::CreateJoinSplit(
 
     std::map<uint32_t, uint256> blockHashes;
     for (auto &anons : anonss) {
-        int block = INT_MAX;
-        anons.second = lelantusDb->GetAnonymityGroup(property, anons.first, SIZE_MAX, block);
-        blockHashes[anons.first] = chainActive[block]->GetBlockHash();
+        int blockHeight = INT_MAX;
+        anons.second = lelantusDb->GetAnonymityGroup(property, anons.first, SIZE_MAX, blockHeight);
+        auto block = chainActive[blockHeight];
+        if (!block) throw std::runtime_error("Failed to create joinsplit due to invalid anonymity group input");
+        blockHashes[anons.first] = block->GetBlockHash();
     }
 
     // reserve change

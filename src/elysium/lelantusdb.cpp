@@ -341,11 +341,17 @@ std::vector<lelantus::PublicCoin> LelantusDb::GetAnonymityGroup(
 {
     LOCK(cs);
 
+    std::vector<lelantus::PublicCoin> coins;
     CoinGroupData groupData;
     std::string rawGroupData;
 
-    if (!pdb->Get(readoptions, CoinGroupParser().GetKey(id, groupId), &rawGroupData).ok() || !ParseRaw(rawGroupData, groupData)) {
-        throw std::runtime_error("Fail to read first sequence in group");
+    leveldb::Slice key = CoinGroupParser().GetKey(id, groupId);
+    if (!pdb->Get(readoptions, key, &rawGroupData).ok()) {
+        // Groups which have no data written about them have no coins in them.
+        return coins;
+    }
+    if (!ParseRaw(rawGroupData, groupData)) {
+        throw std::runtime_error("Fail to parse first sequence in group");
     }
 
     auto it = NewIterator();
@@ -353,7 +359,6 @@ std::vector<lelantus::PublicCoin> LelantusDb::GetAnonymityGroup(
 
     int outBlock = 0;
 
-    std::vector<lelantus::PublicCoin> coins;
     CoinSequenceData coinSeqData;
     for (size_t i = 0;
         i != count

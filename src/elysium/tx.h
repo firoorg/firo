@@ -62,7 +62,7 @@ class CMPTransaction
 {
 private:
     uint256 txid;
-    int block;
+    int block = -1;
     int64_t blockTime;  // internally nTime is still an "unsigned int"
     unsigned int tx_idx;  // tx # within the block, 0-based
     uint64_t tx_fee_paid;

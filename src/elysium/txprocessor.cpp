@@ -128,6 +128,11 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
 int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
 {
     auto block = tx.getBlock();
+    if (block < 0) {
+        PrintToLog("%s(): rejected unconfirmed transaction %s\n", __func__, tx.getHash().GetHex());
+        return PKT_ERROR_LELANTUS - 907;
+    }
+
     auto type = tx.getType();
     auto version = tx.getVersion();
     auto property = tx.getProperty();
@@ -180,9 +185,12 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
 
     std::map<uint32_t, std::vector<lelantus::PublicCoin>> anonss;
     for (auto const &idAndBlockHash : idAndBlockHashes) {
-        int block = mapBlockIndex[idAndBlockHash.second]->nHeight;
-        anonss[idAndBlockHash.first] = lelantusDb->GetAnonymityGroup(
-                property, idAndBlockHash.first, SIZE_MAX, block);
+        auto coinBlock = mapBlockIndex.find(idAndBlockHash.second);
+        if (coinBlock == mapBlockIndex.end()) {
+            PrintToLog("%s(): rejected: joinsplit has unknown block as an input\n", __func__);
+            return PKT_ERROR_LELANTUS - 907;
+        }
+        anonss[idAndBlockHash.first] = lelantusDb->GetAnonymityGroup(property, idAndBlockHash.first, SIZE_MAX, coinBlock->second->nHeight);
     }
 
     auto spendAmount = tx.getLelantusSpendAmount();
