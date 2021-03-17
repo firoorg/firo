@@ -31,6 +31,7 @@
 #include "masternode-payments.h"
 #include "lelantusjoinsplitbuilder.h"
 #include "bip47/paymentchannel.h"
+#include "bip47/account.h"
 
 #include <stdint.h>
 
@@ -5204,6 +5205,10 @@ UniValue bumpfee(const JSONRPCRequest& request)
 }
 
 /******************************************************************************/
+/*                                                                            */
+/*                              BIP47                                         */
+/*                                                                            */
+/******************************************************************************/
 
 UniValue listpcodes(const JSONRPCRequest& request)
 {
@@ -5212,20 +5217,81 @@ UniValue listpcodes(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() > 0) {
+    auto help = []() {
         throw runtime_error(
-            "listpcodes  \n"
-            "Lists all existing payment codes with labels. \n"
+            "listpcodes verbose \n"
+            "Lists all existing receiving payment codes with labels. \n"
+            "verbose: (bool, optional) - displays all used and next(unused) addresses for each payment code,\n"
+            "\t\tas well as all sending payment codes with addresses.\n"
             "Example:\n" +
-            HelpExampleCli("listpcodes", ""));
+            HelpExampleCli("listpcodes true", ""));
+    };
+
+    if (request.fHelp || request.params.size() > 1) {
+        help();
     }
+    bool verbose = false;
+    if (request.params.size() == 1)
+        try {
+            verbose = request.params[0].getBool();
+        } catch (...) {
+            help();
+        }
+
     UniValue result(UniValue::VARR);
-    for(bip47::CPaymentCodeDescription const & info : pwallet->ListPcodes()) {
+
+    if (!verbose) {
+        std::vector<bip47::CPaymentCodeDescription> descriptions;
+        {
+            LOCK(pwallet->cs_wallet);
+            descriptions = pwallet->ListPcodes();
+        }
+        for(bip47::CPaymentCodeDescription const & info : descriptions) {
+            UniValue r(UniValue::VOBJ);
+            r.push_back(Pair("Pcode", std::get<1>(info).toString()));
+            r.push_back(Pair("Label",std::get<2>(info)));
+            r.push_back(Pair("NotifAddr",std::get<3>(info).ToString()));
+            result.push_back(r);
+        }
+        return result;
+    }
+
+    {
         UniValue r(UniValue::VOBJ);
-        r.push_back(Pair("Pcode", std::get<1>(info).toString()));
-        r.push_back(Pair("Label",std::get<2>(info)));
-        r.push_back(Pair("NotifAddr",std::get<3>(info).ToString()));
-        result.push_back(r);
+        LOCK(pwallet->cs_wallet);
+        pwallet->GetBip47Wallet()->enumerateReceivers(
+            [&result](bip47::CAccountReceiver const & receiver)->bool {
+                UniValue r(UniValue::VOBJ);
+                r.push_back(Pair("MyPcode", receiver.getMyPcode().toString()));
+                r.push_back(Pair("Label", receiver.getLabel()));
+                r.push_back(Pair("NotifAddr",receiver.getMyNotificationAddress().ToString()));
+                size_t n = 0;
+                for(bip47::MyAddrContT::value_type const & addr : receiver.getMyUsedAddresses())
+                    r.push_back(Pair(std::string("MyUsed") + std::to_string(n++), addr.first.ToString()));
+                n = 0;
+                for(bip47::MyAddrContT::value_type const & addr : receiver.getMyNextAddresses())
+                    r.push_back(Pair(std::string("MyNext") + std::to_string(n++), addr.first.ToString()));
+                result.push_back(r);
+                return true;
+            }
+        );
+    }
+    {
+        UniValue r(UniValue::VOBJ);
+        LOCK(pwallet->cs_wallet);
+        pwallet->GetBip47Wallet()->enumerateSenders(
+            [&result](bip47::CAccountSender  const & sender)->bool {
+                UniValue r(UniValue::VOBJ);
+                r.push_back(Pair("TheirPcode", sender.getTheirPcode().toString()));
+                r.push_back(Pair("NotificationTxid", sender.getNotificationTxId().ToString()));
+                size_t n = 0;
+                for(bip47::TheirAddrContT::value_type const & addr : sender.getPaymentChannel().getTheirUsedSecretAddresses())
+                    r.push_back(Pair(std::string("TheirUsed") + std::to_string(n++), addr.ToString()));
+                r.push_back(Pair(std::string("TheirNext") + std::to_string(n), sender.getPaymentChannel().generateTheirSecretAddresses(n, n+1).front().ToString()));
+                result.push_back(r);
+                return true;
+            }
+        );
     }
     return result;
 }
@@ -5257,11 +5323,16 @@ UniValue generatepcode(const JSONRPCRequest& request)
         help();
     }
 
-    std::vector<bip47::CPaymentCodeDescription>  const pcodes = pwallet->ListPcodes();
+    std::vector<bip47::CPaymentCodeDescription> pcodes;
+    {
+        LOCK(pwallet->cs_wallet);
+        pcodes = pwallet->ListPcodes();
+    }
     if (std::find_if(pcodes.begin(), pcodes.end(), [&label](bip47::CPaymentCodeDescription const & pcode){ return  std::get<2>(pcode) == label; }) != pcodes.end()) {
         help();
     }
 
+    LOCK(pwallet->cs_wallet);
     result.setStr(pwallet->GeneratePcode(label).toString());
     return result;
 }

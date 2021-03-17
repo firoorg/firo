@@ -61,6 +61,13 @@ TheirAddrContT CPaymentChannel::generateTheirSecretAddresses(uint32_t fromAddr, 
     return result;
 }
 
+TheirAddrContT CPaymentChannel::getTheirUsedSecretAddresses() const
+{
+    TheirAddrContT addition = generateTheirSecretAddresses(theirUsedAddresses.size(), theirUsedAddressCount);
+    theirUsedAddresses.insert(theirUsedAddresses.end(), addition.begin(), addition.end());
+    return theirUsedAddresses;
+}
+
 CPaymentCode const & CPaymentChannel::getMyPcode() const
 {
     if(!myPcode) {

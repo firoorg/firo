@@ -1049,6 +1049,26 @@ void CWallet::MarkDirty()
     }
 }
 
+namespace {
+void HandleSecretAddresses(CWallet & wallet, bip47::CAccountReceiver const & receiver)
+{
+    bip47::MyAddrContT addrs = receiver.getMyNextAddresses();
+    LOCK(wallet.cs_wallet);
+    for (bip47::MyAddrContT::value_type const & addr : addrs) {
+        CPubKey pubkey = addr.second.GetPubKey();
+        CKeyID vchAddress = pubkey.GetID();
+        wallet.MarkDirty();
+        wallet.SetAddressBook(vchAddress, "", "receive");
+        if (wallet.HaveKey(vchAddress)) {
+            continue;
+        }
+        if (!wallet.AddKeyPubKey(addr.second, pubkey)) {
+            throw WalletError("Error adding key to wallet");
+        }
+    }
+}
+}
+
 bool CWallet::MarkReplaced(const uint256& originalHash, const uint256& newHash)
 {
     LOCK(cs_wallet);
@@ -1243,19 +1263,20 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
 notifTxExit:
         if (success) {
             LogBip47("The payment code has been accepted: %s\n", accFound->lastPcode().toString());
-            {
-                bip47::MyAddrContT addrs = accFound->getMyNextAddresses();
-                LOCK(cs_wallet);
-                for (bip47::MyAddrContT::value_type const & addr : addrs) {
-                    CPubKey pubkey = addr.second.GetPubKey();
-                    CKeyID vchAddress = pubkey.GetID();
-                    MarkDirty();
-                    SetAddressBook(vchAddress, "", "receive");
-                    if (HaveKey(vchAddress)) {
-                        continue;
-                    }
-                    if (!AddKeyPubKey(addr.second, pubkey)) {
-                        throw JSONRPCError(RPC_WALLET_ERROR, "Error adding key to wallet");
+            HandleSecretAddresses(*this, *accFound);
+            CWalletDB(strWalletFile).WriteBip47Account(*accFound);
+        } else {
+            // Checking if it uses a bip47 address
+            for (CTxOut const & out : wtx.tx->vout) {
+                vector<CTxDestination> addresses;
+                txnouttype typeRet = TX_NONSTANDARD;
+                int nRequired = 0;
+                if (ExtractDestinations(out.scriptPubKey, typeRet, addresses, nRequired)) {
+                    for (CBitcoinAddress addr : addresses) {
+                        bip47::CAccountReceiver const * rec = AddressUsed(addr);
+                        if (rec) {
+                            HandleSecretAddresses(*this, *rec);
+                        }
                     }
                 }
             }
@@ -8581,6 +8602,75 @@ std::shared_ptr<bip47::CWallet const> CWallet::GetBip47Wallet() const
 {
     return bip47wallet;
 }
+
+boost::optional<bip47::CPaymentCode> CWallet::FindPcode(CBitcoinAddress const & address) const
+{
+    boost::optional<bip47::CPaymentCode> result;
+    bip47wallet->enumerateReceivers(
+        [&address, &result](bip47::CAccountReceiver & rec)->bool
+        {
+            bip47::MyAddrContT addrs = rec.getMyUsedAddresses();
+            if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
+            {
+                result.emplace(rec.getMyPcode());
+                return false;
+            }
+            addrs = rec.getMyNextAddresses();
+            if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
+            {
+                result.emplace(rec.getMyPcode());
+                return false;
+            }
+            return true;
+        }
+    );
+    bip47wallet->enumerateSenders(
+        [&address, &result](bip47::CAccountSender & sender)->bool
+        {
+            bip47::MyAddrContT addrs = sender.getMyUsedAddresses();
+            if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
+            {
+                result.emplace(sender.getTheirPcode());
+                return false;
+            }
+            addrs = sender.getMyNextAddresses();
+            if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
+            {
+                result.emplace(sender.getTheirPcode());
+                return false;
+            }
+            return true;
+        }
+    );
+    return result;
+}
+
+bip47::CAccountReceiver const * CWallet::AddressUsed(CBitcoinAddress const & address)
+{
+    bip47::CAccountReceiver const * result = nullptr;
+
+    bip47wallet->enumerateReceivers(
+        [&address, &result](bip47::CAccountReceiver & rec)->bool
+        {
+            bip47::MyAddrContT addrs = rec.getMyNextAddresses();
+            if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
+            {
+                rec.addressUsed(address);
+                result = &rec;
+                return false;
+            }
+            return true;
+        }
+    );
+    return result;
+}
+
+
+/******************************************************************************/
+/*                                                                            */
+/*                            CKeyPool                                        */
+/*                                                                            */
+/******************************************************************************/
 
 
 CKeyPool::CKeyPool()

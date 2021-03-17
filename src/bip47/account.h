@@ -20,8 +20,8 @@ public:
     CAccountBase(CExtKey const & walletKey, uint32_t accountNum);
     virtual ~CAccountBase() = default;
 
-    MyAddrContT const & getMyUsedAddresses();
-    MyAddrContT const & getMyNextAddresses();
+    MyAddrContT const & getMyUsedAddresses() const;
+    MyAddrContT const & getMyNextAddresses() const;
     bool addressUsed(CBitcoinAddress const & address);
 
     CPaymentCode const & getMyPcode() const;
@@ -52,8 +52,8 @@ private:
     boost::optional<CKey> mutable myNotificationKey;
     uint32_t version;
 
-    virtual MyAddrContT const & generateMyUsedAddresses() = 0;
-    virtual MyAddrContT const & generateMyNextAddresses() = 0;
+    virtual MyAddrContT const & generateMyUsedAddresses() const = 0;
+    virtual MyAddrContT const & generateMyNextAddresses() const = 0;
     virtual bool markAddressUsed(CBitcoinAddress const &) = 0;
 };
 
@@ -70,7 +70,7 @@ public:
     CAccountSender() = default;
     CAccountSender(CExtKey const & walletKey, uint32_t accountNum, CPaymentCode const & theirPcode);
 
-    CPaymentChannel & getPaymentChannel();
+    CPaymentChannel & getPaymentChannel() const;
     std::vector<unsigned char> getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret);
 
     CPaymentCode const & getTheirPcode() const;
@@ -99,8 +99,8 @@ private:
     uint256 notificationTxId;
 
     void updateMyNextAddresses();
-    virtual MyAddrContT const & generateMyUsedAddresses();
-    virtual MyAddrContT const & generateMyNextAddresses();
+    virtual MyAddrContT const & generateMyUsedAddresses() const;
+    virtual MyAddrContT const & generateMyNextAddresses() const;
     virtual bool markAddressUsed(CBitcoinAddress const &);
 };
 
@@ -144,12 +144,11 @@ private:
     PChannelContT mutable pchannels;
     boost::optional<CBitcoinAddress> mutable myNotificationAddress;
 
-    MyAddrContT usedAddresses;
-    MyAddrContT nextAddresses;
+    MyAddrContT mutable usedAddresses, nextAddresses;
     std::string label;
 
-    virtual MyAddrContT const & generateMyUsedAddresses();
-    virtual MyAddrContT const & generateMyNextAddresses();
+    virtual MyAddrContT const & generateMyUsedAddresses() const;
+    virtual MyAddrContT const & generateMyNextAddresses() const;
     virtual bool markAddressUsed(CBitcoinAddress const &);
 };
 

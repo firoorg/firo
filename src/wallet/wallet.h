@@ -1311,6 +1311,11 @@ public:
     void LoadBip47Wallet();
 
     std::shared_ptr<bip47::CWallet const>  GetBip47Wallet() const;
+
+    boost::optional<bip47::CPaymentCode> FindPcode(CBitcoinAddress const & address) const;
+
+    /*Marks address as used for a receiving bip47 account. Returns the account if found*/
+    bip47::CAccountReceiver const * AddressUsed(CBitcoinAddress const & address);
 };
 
 /** A key allocated from the key pool. */

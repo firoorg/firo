@@ -147,6 +147,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         //
         // Credit
         //
+
         for(unsigned int i = 0; i < wtx.tx->vout.size(); i++)
         {
             const CTxOut& txout = wtx.tx->vout[i];
@@ -175,6 +176,11 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 {
                     // Generated
                     sub.type = TransactionRecord::Generated;
+                }
+                boost::optional<bip47::CPaymentCode> pcode = wallet->FindPcode(CBitcoinAddress(address));
+                if (pcode) {
+                    sub.type = TransactionRecord::Pcode;
+                    sub.address.append(", " + pcode->toString());
                 }
                 parts.append(sub);
             }

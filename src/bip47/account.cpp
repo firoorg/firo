@@ -24,12 +24,12 @@ CAccountBase::CAccountBase(CExtKey const & walletKey, uint32_t accountNum)
     pubkey = privkey.Neuter();
 }
 
-MyAddrContT const & CAccountBase::getMyUsedAddresses()
+MyAddrContT const & CAccountBase::getMyUsedAddresses() const
 {
     return generateMyUsedAddresses();
 }
 
-MyAddrContT const & CAccountBase::getMyNextAddresses()
+MyAddrContT const & CAccountBase::getMyNextAddresses() const
 {
     return generateMyNextAddresses();
 }
@@ -73,7 +73,7 @@ CAccountSender::CAccountSender(CExtKey const & walletKey, uint32_t accountNum, C
     updateMyNextAddresses();
 }
 
-CPaymentChannel & CAccountSender::getPaymentChannel() {
+CPaymentChannel & CAccountSender::getPaymentChannel() const {
     if(!pchannel)
         pchannel.emplace(theirPcode, privkey, CPaymentChannel::Side::sender);
     return *pchannel;
@@ -100,12 +100,12 @@ void CAccountSender::updateMyNextAddresses()
     nextAddresses.push_back({getPaymentChannel().getMyPcode().getNotificationAddress(), getMyNotificationKey()});
 }
 
-MyAddrContT const & CAccountSender::generateMyUsedAddresses()
+MyAddrContT const & CAccountSender::generateMyUsedAddresses() const
 {
     return getPaymentChannel().generateMyUsedAddresses();
 }
 
-MyAddrContT const & CAccountSender::generateMyNextAddresses()
+MyAddrContT const & CAccountSender::generateMyNextAddresses() const
 {
     return nextAddresses;
 }
@@ -161,7 +161,7 @@ CAccountReceiver::PChannelContT const & CAccountReceiver::getPchannels() const
     return pchannels;
 }
 
-MyAddrContT const & CAccountReceiver::generateMyUsedAddresses()
+MyAddrContT const & CAccountReceiver::generateMyUsedAddresses() const
 {
     usedAddresses.clear();
     for(CPaymentChannel & pchannel: pchannels) {
@@ -171,7 +171,7 @@ MyAddrContT const & CAccountReceiver::generateMyUsedAddresses()
     return usedAddresses;
 }
 
-MyAddrContT const & CAccountReceiver::generateMyNextAddresses()
+MyAddrContT const & CAccountReceiver::generateMyNextAddresses() const
 {
     nextAddresses.clear();
     nextAddresses.emplace_back(getMyNotificationAddress(), getMyNotificationKey());

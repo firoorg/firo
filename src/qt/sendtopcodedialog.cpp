@@ -86,6 +86,7 @@ void SendtoPcodeDialog::setModel(WalletModel *_model)
     QColor color(GUIUtil::GUIColors::checkPassed);
     if (lelantusBalance < bip47::NotificationTxValue) {
         color = QColor(GUIUtil::GUIColors::warning);
+        ui->sendButton->setEnabled(false);
     }
     ui->balanceLabel->setStyleSheet("QLabel { color: " + color.name() + "; }");
 }
