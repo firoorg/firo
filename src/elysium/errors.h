@@ -246,7 +246,7 @@ inline std::string error_str(int ec) {
           break;
 
       default:
-          ec_str = "Unknown error";
+          ec_str = "Error: " + std::to_string(ec);
   }
 
   return ec_str;
