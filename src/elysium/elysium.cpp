@@ -747,7 +747,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
             }
         }
     }
-    LogPrintf(" address_data.size=%lu\n value_data.size=%lu\n", address_data.size(), value_data.size());
+    LogPrintf("address_data.size=%lu value_data.size=%lu\n", address_data.size(), value_data.size());
 
     // ### CLASS C PARSING ###
     LogPrintf("Beginning reference identification\n");

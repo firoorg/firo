@@ -30,19 +30,19 @@ bool  SigmaExtendedVerifier::verify(
         const Scalar& x,
         const SigmaExtendedProof& proof) const {
     if (commits.empty()) {
-        LogPrintf("Sigma verification failed due to commits are empty.");
+        LogPrintf("Sigma verification failed due to commits are empty.\n");
         return false;
     }
 
     if(!membership_checks(proof)) {
-        LogPrintf("Sigma verification failed due to membership checks failed.");
+        LogPrintf("Sigma verification failed due to membership checks failed.\n");
         return false;
     }
 
     std::vector<Scalar> f_;
 
     if(!compute_fs(proof, x, f_) || !abcd_checks(proof, x, f_)) {
-        LogPrintf("Sigma verification failed due to f computations or abcd checks failed.");
+        LogPrintf("Sigma verification failed due to f computations or abcd checks failed.\n");
         return false;
     }
 
@@ -100,7 +100,7 @@ bool  SigmaExtendedVerifier::verify(
 
     GroupElement left(t1 + t2);
     if(left != LelantusPrimitives::double_commit(g_, Scalar(uint64_t(0)), h_[1], proof.zV_, h_[0], proof.zR_)) {
-        LogPrintf("Sigma verification failed due to last check failed.");
+        LogPrintf("Sigma verification failed due to last check failed.\n");
         return false;
     }
 
@@ -116,13 +116,13 @@ bool SigmaExtendedVerifier::batchverify(
     int N = commits.size();
 
     if (commits.empty()) {
-        LogPrintf("Sigma verification failed due to commits are empty.");
+        LogPrintf("Sigma verification failed due to commits are empty.\n");
         return false;
     }
 
     for(int t = 0; t < M; ++t) {
         if(!membership_checks(proofs[t])) {
-            LogPrintf("Sigma verification failed due to membership checks failed.");
+            LogPrintf("Sigma verification failed due to membership checks failed.\n");
             return false;
         }
     }
@@ -132,7 +132,7 @@ bool SigmaExtendedVerifier::batchverify(
     for (int t = 0; t < M; ++t)
     {
         if(!compute_fs(proofs[t], x, f_[t]) || !abcd_checks(proofs[t], x, f_[t])) {
-            LogPrintf("Sigma verification failed due to f computations or abcd checks failed.");
+            LogPrintf("Sigma verification failed due to f computations or abcd checks failed.\n");
             return false;
         }
     }
