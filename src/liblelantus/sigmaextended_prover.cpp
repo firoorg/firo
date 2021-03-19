@@ -13,35 +13,6 @@ SigmaExtendedProver::SigmaExtendedProver(
         , m_(m) {
 }
 
-void SigmaExtendedProver::proof(
-        const std::vector<GroupElement>& commits,
-        int l,
-        const Scalar& v,
-        const Scalar& r,
-        SigmaExtendedProof& proof_out) {
-    Scalar rA, rB, rC, rD;
-    rA.randomize();
-    rB.randomize();
-    rC.randomize();
-    rD.randomize();
-    std::vector<Scalar> sigma;
-    std::vector<Scalar> Tk, Pk, Yk;
-    Tk.resize(m_);
-    Pk.resize(m_);
-    Yk.resize(m_);
-    std::vector<Scalar> a;
-    a.resize(n_ * m_);
-    sigma_commit(commits, l, rA, rB, rC, rD, a, Tk, Pk, Yk, sigma, proof_out);
-    Scalar x;
-    std::vector<GroupElement> group_elements = {proof_out.A_, proof_out.B_, proof_out.C_, proof_out.D_};
-    group_elements.insert(group_elements.end(), proof_out.Gk_.begin(), proof_out.Gk_.end());
-    group_elements.insert(group_elements.end(), proof_out.Qk.begin(), proof_out.Qk.end());
-    group_elements.insert(group_elements.end(), commits.begin(), commits.end());
-    std::string domain_separator = "SIGMA";
-    LelantusPrimitives::generate_challenge(group_elements, domain_separator, x);
-    sigma_response(sigma, a, rA, rB, rC, rD, v, r, Tk, Pk, x, proof_out);
-}
-
 void SigmaExtendedProver::sigma_commit(
         const std::vector<GroupElement>& commits,
         int l,
