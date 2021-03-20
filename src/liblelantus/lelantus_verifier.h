@@ -22,7 +22,8 @@ public:
             uint64_t Vout,
             uint64_t fee,
             const std::vector<PublicCoin>& Cout,
-            const LelantusProof& proof);
+            const LelantusProof& proof,
+            const SchnorrProof& qkSchnorrProof);
 
     bool verify(
             const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
@@ -35,6 +36,7 @@ public:
             uint64_t fee,
             const std::vector<PublicCoin>& Cout,
             const LelantusProof& proof,
+            const SchnorrProof& qkSchnorrProof,
             Scalar& x,
             bool fSkipVerification = false);
 
@@ -47,6 +49,7 @@ private:
             const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
             const std::vector<PublicCoin>& Cout,
             const std::vector<SigmaExtendedProof> &sigma_proofs,
+            const SchnorrProof& qkSchnorrProof,
             Scalar& x,
             unique_ptr<ChallengeGenerator>& challengeGenerator,
             Scalar& zV,

@@ -50,7 +50,7 @@ JoinSplit::JoinSplit(const Params *p,
     generatePubKeys(Cin);
 
     LelantusProver prover(p, version);
-    prover.proof(anonymity_sets, anonymity_set_hashes, uint64_t(0), Cin, indexes, ecdsaPubkeys, Vout, Cout, fee, lelantusProof);
+    prover.proof(anonymity_sets, anonymity_set_hashes, uint64_t(0), Cin, indexes, ecdsaPubkeys, Vout, Cout, fee, lelantusProof, qkSchnorrProof);
 
     if(groupBlockHashes.size() != anonymity_sets.size())
         throw std::invalid_argument("Mismatch blockHashes and anonymity sets sizes.");
@@ -180,7 +180,7 @@ bool JoinSplit::Verify(
 
     // Now verify lelantus proof
     LelantusVerifier verifier(params, version);
-    return verifier.verify(anonymity_sets, anonymity_set_hashes, serialNumbers, ecdsaPubkeys, groupIds, uint64_t(0),Vout, fee, Cout, lelantusProof, challenge, fSkipVerification);
+    return verifier.verify(anonymity_sets, anonymity_set_hashes, serialNumbers, ecdsaPubkeys, groupIds, uint64_t(0),Vout, fee, Cout, lelantusProof, qkSchnorrProof, challenge, fSkipVerification);
 }
 
 

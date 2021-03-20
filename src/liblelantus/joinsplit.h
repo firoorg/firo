@@ -4,6 +4,7 @@
 #include "coin.h"
 #include "lelantus_proof.h"
 #include "spend_metadata.h"
+#include "../libzerocoin/Zerocoin.h"
 
 namespace lelantus {
 
@@ -105,6 +106,9 @@ public:
         READWRITE(fee);
         READWRITE(version);
 
+        if (version >= LELANTUS_TX_VERSION_4_5)
+            READWRITE(qkSchnorrProof);
+
         if (ser_action.ForRead()) {
             serialNumbers.resize(coinNum);
             for(size_t i = 0; i < coinNum; i++) {
@@ -122,6 +126,7 @@ private:
     const Params* params;
     unsigned int version = 0;
     LelantusProof lelantusProof;
+    SchnorrProof qkSchnorrProof;
     uint8_t coinNum;
     std::vector<Scalar> serialNumbers;
     std::vector<uint32_t> groupIds;

@@ -18,10 +18,11 @@ bool LelantusVerifier::verify(
         uint64_t Vout,
         uint64_t fee,
         const std::vector<PublicCoin>& Cout,
-        const LelantusProof& proof) {
+        const LelantusProof& proof,
+        const SchnorrProof& qkSchnorrProof) {
     Scalar x;
     bool fSkipVerification = 0;
-    return verify(anonymity_sets, anonymity_set_hashes, serialNumbers, ecdsaPubkeys, groupIds, Vin, Vout, fee, Cout, proof, x, fSkipVerification);
+    return verify(anonymity_sets, anonymity_set_hashes, serialNumbers, ecdsaPubkeys, groupIds, Vin, Vout, fee, Cout, proof, qkSchnorrProof, x, fSkipVerification);
 }
 
 bool LelantusVerifier::verify(
@@ -35,6 +36,7 @@ bool LelantusVerifier::verify(
         uint64_t fee,
         const std::vector<PublicCoin>& Cout,
         const LelantusProof& proof,
+        const SchnorrProof& qkSchnorrProof,
         Scalar& x,
         bool fSkipVerification) {
     //check the overflow of Vout and fee
@@ -74,7 +76,7 @@ bool LelantusVerifier::verify(
     Scalar zV, zR;
     unique_ptr<ChallengeGenerator> challengeGenerator;
     // we are passing challengeGenerator ptr here, as after LELANTUS_TX_VERSION_4_5 we need  it back, with filled data, to use in schnorr proof,
-    if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, ecdsaPubkeys, Cout, proof.sigma_proofs, x, challengeGenerator, zV, zR, fSkipVerification) &&
+    if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, ecdsaPubkeys, Cout, proof.sigma_proofs, qkSchnorrProof, x, challengeGenerator, zV, zR, fSkipVerification) &&
          verify_rangeproof(Cout, proof.bulletproofs) &&
          verify_schnorrproof(x, zV, zR, Vin, Vout, fee, Cout, proof, challengeGenerator)))
         return false;
@@ -89,6 +91,7 @@ bool LelantusVerifier::verify_sigma(
         const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
         const std::vector<PublicCoin>& Cout,
         const std::vector<SigmaExtendedProof> &sigma_proofs,
+        const SchnorrProof& qkSchnorrProof,
         Scalar& x,
         unique_ptr<ChallengeGenerator>& challengeGenerator,
         Scalar& zV,
@@ -139,6 +142,34 @@ bool LelantusVerifier::verify_sigma(
             return false;
         }
     }
+
+    // verify schnorr proof to verify that Q_k is generated honestly;
+    if (version >= LELANTUS_TX_VERSION_4_5) {
+        Scalar q_k_x;
+        challengeGenerator->get_challenge(q_k_x);
+
+        NthPower qK_x_n(q_k_x);
+        GroupElement Gk_sum;
+        std::vector<GroupElement> Qks;
+        Qks.reserve(Sin.size() * params->get_sigma_m());
+        for (std::size_t t = 0; t < Sin.size(); ++t)
+        {
+            const std::vector<GroupElement>& Qk = sigma_proofs[t].Qk;
+            for (std::size_t k = 0; k < Qk.size(); ++k)
+            {
+                Gk_sum += (Qk[k]) * qK_x_n.pow;
+                qK_x_n.go_next();
+                Qks.emplace_back(Qk[k]);
+            }
+        }
+
+        SchnorrVerifier schnorrVerifier(params->get_h1(), params->get_h0(), version >= LELANTUS_TX_VERSION_4_5);
+        if (!schnorrVerifier.verify(Gk_sum, Qks, qkSchnorrProof)) {
+            LogPrintf("Lelantus verification failed due to Qk schnorr proof verification failed.");
+            return false;
+        }
+    }
+
     return true;
 }
 

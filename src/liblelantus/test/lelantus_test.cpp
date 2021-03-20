@@ -79,16 +79,17 @@ BOOST_AUTO_TEST_CASE(prove_verify)
 
     uint64_t f(1);
     LelantusProof proof;
+    SchnorrProof qkSchnorrProof;
 
     LelantusProver prover(params, LELANTUS_TX_VERSION_4_5);
-    prover.proof(anonymity_sets, {}, Vin, Cin, indexes, {}, Vout, Cout, f,  proof);
+    prover.proof(anonymity_sets, {}, Vin, Cin, indexes, {}, Vout, Cout, f,  proof, qkSchnorrProof);
 
     std::vector<uint32_t> groupIds;
     auto Sin = ExtractSerials(anonymity_sets.size(), Cin, groupIds);
     auto Cout_Public = ExtractPublicCoins(Cout);
 
     lelantus::LelantusVerifier verifier(params, LELANTUS_TX_VERSION_4_5);
-    BOOST_CHECK(verifier.verify(anonymity_sets, {}, Sin, {}, groupIds, Vin, Vout, f, Cout_Public, proof));
+    BOOST_CHECK(verifier.verify(anonymity_sets, {}, Sin, {}, groupIds, Vin, Vout, f, Cout_Public, proof, qkSchnorrProof));
 }
 
 BOOST_AUTO_TEST_CASE(prove_verify_many_coins)
@@ -112,16 +113,17 @@ BOOST_AUTO_TEST_CASE(prove_verify_many_coins)
     std::vector<PrivateCoin> Cout = {{params, 2}, {params, 1}};
 
     LelantusProof proof;
+    SchnorrProof qkSchnorrProof;
 
     LelantusProver prover(params, LELANTUS_TX_VERSION_4_5);
-    prover.proof(anonymity_sets, {}, Vin, Cin, indexes, {}, Vout, Cout, f,  proof);
+    prover.proof(anonymity_sets, {}, Vin, Cin, indexes, {}, Vout, Cout, f,  proof, qkSchnorrProof);
 
     std::vector<uint32_t> groupIds;
     auto Sin = ExtractSerials(anonymity_sets.size(), Cin, groupIds);
     auto Cout_Public = ExtractPublicCoins(Cout);
 
     lelantus::LelantusVerifier verifier(params, LELANTUS_TX_VERSION_4_5);
-    BOOST_CHECK(verifier.verify(anonymity_sets, {}, Sin, {}, groupIds, Vin, Vout, f, Cout_Public, proof));
+    BOOST_CHECK(verifier.verify(anonymity_sets, {}, Sin, {}, groupIds, Vin, Vout, f, Cout_Public, proof, qkSchnorrProof));
     //After Lelantus new update (after version LELANTUS_TX_VERSION_4_5) following 2 verifications will fail, as schnorr proof challenge depends also on Vout, Vin  and fee values
 //    BOOST_CHECK(verifier.verify(anonymity_sets, {}, Sin, {}, groupIds, Vin + 1, Vout + 1, f, Cout_Public, proof));
 //    BOOST_CHECK(verifier.verify(anonymity_sets, {}, Sin, {}, groupIds, Vin, Vout + f, uint64_t(0), Cout_Public, proof));
@@ -150,13 +152,14 @@ BOOST_AUTO_TEST_CASE(imbalance_proof_should_fail)
 
     // Proof
     LelantusProof proof;
+    SchnorrProof qkSchnorrProof;
 
     // Should be prevent from prover
     LelantusProver prover(params, LELANTUS_TX_VERSION_4_5);
-    BOOST_CHECK_THROW(prover.proof(anonymitySets, {}, Vin, Cin, indexs, {}, Vout, Cout, f, proof), ZerocoinException);
+    BOOST_CHECK_THROW(prover.proof(anonymitySets, {}, Vin, Cin, indexs, {}, Vout, Cout, f, proof, qkSchnorrProof), ZerocoinException);
 
     // Use fake vin
-    prover.proof(anonymitySets, {}, FakeVin, Cin, indexs, {}, Vout, Cout, f, proof);
+    prover.proof(anonymitySets, {}, FakeVin, Cin, indexs, {}, Vout, Cout, f, proof, qkSchnorrProof);
 
     // Verify
     std::vector<uint32_t> groupIds;
@@ -166,12 +169,12 @@ BOOST_AUTO_TEST_CASE(imbalance_proof_should_fail)
     LelantusVerifier verifier(params, LELANTUS_TX_VERSION_4_5);
 
     // input: 2 + 3(anonymous), output: 3 + 3(anonymous) + 1(fee)
-    BOOST_CHECK(!verifier.verify(anonymitySets, {}, Sin, {}, groupIds, Vin, Vout, f, publicCoins, proof));
+    BOOST_CHECK(!verifier.verify(anonymitySets, {}, Sin, {}, groupIds, Vin, Vout, f, publicCoins, proof, qkSchnorrProof));
 
     // Verify with output which is less than input also should fail
     // input: 99 + 3(anonymous), output: 3 + 3(anonymous) + 1(fee)
     Scalar newVin(99);
-    BOOST_CHECK(!verifier.verify(anonymitySets, {}, Sin, {}, groupIds, newVin, Vout, f, publicCoins, proof));
+    BOOST_CHECK(!verifier.verify(anonymitySets, {}, Sin, {}, groupIds, newVin, Vout, f, publicCoins, proof, qkSchnorrProof));
 }
 
 BOOST_AUTO_TEST_CASE(other_fail_to_validate)
@@ -197,10 +200,11 @@ BOOST_AUTO_TEST_CASE(other_fail_to_validate)
 
     // Proof
     LelantusProof proof;
+    SchnorrProof qkSchnorrProof;
 
     // Should be prevent from prover
     LelantusProver prover(params, LELANTUS_TX_VERSION_4_5);
-    prover.proof(anonymitySets, {}, Vin, Cin, indexs, {}, Vout, Cout, f, proof);
+    prover.proof(anonymitySets, {}, Vin, Cin, indexs, {}, Vout, Cout, f, proof, qkSchnorrProof);
 
     // Verify
     std::vector<uint32_t> groupIds;
@@ -209,21 +213,21 @@ BOOST_AUTO_TEST_CASE(other_fail_to_validate)
 
     LelantusVerifier verifier(params, LELANTUS_TX_VERSION_4_5);
 
-    BOOST_CHECK(verifier.verify(anonymitySets, {}, Sin, {}, groupIds, Vin, Vout, f, publicCoins, proof));
+    BOOST_CHECK(verifier.verify(anonymitySets, {}, Sin, {}, groupIds, Vin, Vout, f, publicCoins, proof, qkSchnorrProof));
 
     // Invalid group
     auto invalidAnonymitySets = anonymitySets;
     invalidAnonymitySets[0].pop_back();
-    BOOST_CHECK(!verifier.verify(invalidAnonymitySets, {}, Sin, {}, groupIds, Vin, Vout, f, publicCoins, proof));
+    BOOST_CHECK(!verifier.verify(invalidAnonymitySets, {}, Sin, {}, groupIds, Vin, Vout, f, publicCoins, proof, qkSchnorrProof));
 
     invalidAnonymitySets = anonymitySets;
     invalidAnonymitySets[0].push_back(PrivateCoin(params, 1).getPublicCoin());
-    BOOST_CHECK(!verifier.verify(invalidAnonymitySets, {}, Sin, {}, groupIds, Vin, Vout, f, publicCoins, proof));
+    BOOST_CHECK(!verifier.verify(invalidAnonymitySets, {}, Sin, {}, groupIds, Vin, Vout, f, publicCoins, proof, qkSchnorrProof));
 
     // Invalid serial
     auto invalidSin = Sin;
     invalidSin[1].randomize();
-    BOOST_CHECK(!verifier.verify(anonymitySets, {}, invalidSin, {}, groupIds, Vin, Vout, f, publicCoins, proof));
+    BOOST_CHECK(!verifier.verify(anonymitySets, {}, invalidSin, {}, groupIds, Vin, Vout, f, publicCoins, proof, qkSchnorrProof));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
