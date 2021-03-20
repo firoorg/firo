@@ -21,7 +21,8 @@ public:
             const Scalar& Vout,
             const std::vector <PrivateCoin>& Cout,
             const Scalar& fee,
-            LelantusProof& proof_out);
+            LelantusProof& proof_out,
+            SchnorrProof& qkSchnorrProof);
 
 private:
     void generate_sigma_proofs(
@@ -34,7 +35,8 @@ private:
             Scalar& x,
             unique_ptr<ChallengeGenerator>& challengeGenerator,
             std::vector<Scalar>& Yk_sum,
-            std::vector<SigmaExtendedProof>& sigma_proofs);
+            std::vector<SigmaExtendedProof>& sigma_proofs,
+            SchnorrProof& qkSchnorrProof);
 
     void generate_bulletproofs(
             const std::vector <PrivateCoin>& Cout,

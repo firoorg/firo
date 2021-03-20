@@ -15,7 +15,8 @@ void LelantusProver::proof(
         const Scalar& Vout,
         const std::vector<PrivateCoin>& Cout,
         const Scalar& fee,
-        LelantusProof& proof_out) {
+        LelantusProof& proof_out,
+        SchnorrProof& qkSchnorrProof) {
     Scalar input = Vin;
     for (std::size_t i = 0; i < Cin.size(); ++i)
         input += Cin[i].first.getV();
@@ -33,7 +34,7 @@ void LelantusProver::proof(
     Yk_sum.resize(Cin.size());
     // we are passing challengeGenerator ptr here, as after LELANTUS_TX_VERSION_4_5 we need  it back, with filled data, to use in schnorr proof,
     unique_ptr<ChallengeGenerator> challengeGenerator;
-    generate_sigma_proofs(anonymity_sets, anonymity_set_hashes, Cin, Cout, indexes, ecdsaPubkeys, x, challengeGenerator, Yk_sum, proof_out.sigma_proofs);
+    generate_sigma_proofs(anonymity_sets, anonymity_set_hashes, Cin, Cout, indexes, ecdsaPubkeys, x, challengeGenerator, Yk_sum, proof_out.sigma_proofs, qkSchnorrProof);
 
     generate_bulletproofs(Cout, proof_out.bulletproofs);
 
@@ -80,7 +81,8 @@ void LelantusProver::generate_sigma_proofs(
         Scalar& x,
         unique_ptr<ChallengeGenerator>& challengeGenerator,
         std::vector<Scalar>& Yk_sum,
-        std::vector<SigmaExtendedProof>& sigma_proofs) {
+        std::vector<SigmaExtendedProof>& sigma_proofs,
+        SchnorrProof& qkSchnorrProof) {
     SigmaExtendedProver sigmaProver(params->get_g(), params->get_sigma_h(), params->get_sigma_n(), params->get_sigma_m());
     sigma_proofs.resize(Cin.size());
     std::size_t N = Cin.size();
@@ -159,6 +161,29 @@ void LelantusProver::generate_sigma_proofs(
         const Scalar& v = Cin[i].first.getV();
         const Scalar& r = Cin[i].first.getRandomness();
         sigmaProver.sigma_response(sigma[i], a[i], rA[i], rB[i], rC[i], rD[i], v, r, Tk[i], Pk[i], x, sigma_proofs[i]);
+    }
+
+    // generate schnorr proof to prove that Q_k is generated honestly;
+    if (version >= LELANTUS_TX_VERSION_4_5) {
+        Scalar q_k_x;
+        challengeGenerator->get_challenge(q_k_x);
+        NthPower qk_x_n(q_k_x);
+
+        Scalar Pk_sum(uint64_t(0));
+        Scalar Tk_Yk_sum(uint64_t(0));
+        std::vector<GroupElement> Qk;
+        Qk.reserve(N * params->get_sigma_m());
+        for (std::size_t i = 0; i < N; ++i) {
+            for (std::size_t j = 0; j < params->get_sigma_m(); ++j) {
+                Pk_sum += (Pk[i][j] * qk_x_n.pow);
+                Tk_Yk_sum += ((Tk[i][j] + Yk[i][j]) * qk_x_n.pow);
+                qk_x_n.go_next();
+                Qk.emplace_back(sigma_proofs[i].Qk[j]);
+            }
+        }
+
+        SchnorrProver schnorrProver(params->get_h1(), params->get_h0(), true);
+        schnorrProver.proof(Pk_sum, Tk_Yk_sum, Qk, qkSchnorrProof);
     }
 }
 

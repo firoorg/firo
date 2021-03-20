@@ -12,6 +12,7 @@ public:
 
     // values a, b and y are included into transcript if(withFixes_), also better to use ChallengeGeneratorHash256 in that case
     void proof(const Scalar& P, const Scalar& T, const GroupElement& y, const GroupElement& a, const GroupElement& b, unique_ptr<ChallengeGenerator>& challengeGenerator, SchnorrProof& proof_out);
+    void proof(const Scalar& P, const Scalar& T, const std::vector<GroupElement>& groupElements, SchnorrProof& proof_out);
 
 private:
     const GroupElement& g_;
