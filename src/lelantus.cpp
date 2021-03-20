@@ -460,8 +460,7 @@ bool CheckLelantusJoinSplitTransaction(
                     index->lelantusMintedPubCoins[idAndHash.first]) {
                         // skip mints from blacklist if nLelantusFixesStartBlock is passed
                         if (chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
-                            std::vector<unsigned char> vch = pubCoinValue.first.getValue().getvch();
-                            if(lelantus_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                            if (::Params().GetConsensus().lelantusBlacklist.count(pubCoinValue.first.getValue()) > 0) {
                                 continue;
                             }
                         }
@@ -835,10 +834,8 @@ bool ConnectBlockLelantus(
         if (pindexNew->nHeight > params.nLelantusFixesStartBlock)
             pindexNew->anonymitySetHash = pindexNew->pprev->anonymitySetHash;
 
-        CSHA256 hash;
+        CHash256 hash;
         std::vector<unsigned char> data(GroupElement::serialize_size);
-        int latestCoinId = lelantusState.GetLatestCoinID();
-
         bool updateHash = false;
 
         // create first anonymity set hash with whole existing set, at HF block
@@ -854,7 +851,7 @@ bool ConnectBlockLelantus(
 
         if (!pblock->lelantusTxInfo->mints.empty()) {
             lelantusState.AddMintsToStateAndBlockIndex(pindexNew, pblock);
-
+            int latestCoinId  = lelantusState.GetLatestCoinID();
             // add  coins into hasher, for generating set hash
             // if this is HF block just add mint from this block too,
             // else hasher is supposed to be empty, so add previous hash first, then coins
@@ -874,7 +871,7 @@ bool ConnectBlockLelantus(
         if (updateHash) {
             unsigned char hash_result[CSHA256::OUTPUT_SIZE];
             hash.Finalize(hash_result);
-            auto &out_hash = pindexNew->anonymitySetHash[latestCoinId];
+            auto &out_hash = pindexNew->anonymitySetHash[lelantusState.GetLatestCoinID()];
             out_hash.insert(out_hash.begin(), std::begin(hash_result), std::end(hash_result));
         }
     }
@@ -1372,8 +1369,7 @@ int CLelantusState::GetCoinSetForSpend(
                     LOCK(cs_main);
                     // skip mints from blacklist if nLelantusFixesStartBlock is passed
                     if (chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
-                        std::vector<unsigned char> vch = coin.first.getValue().getvch();
-                        if (lelantus_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                        if (::Params().GetConsensus().lelantusBlacklist.count(coin.first.getValue()) > 0) {
                             continue;
                         }
                     }
@@ -1427,7 +1423,7 @@ void CLelantusState::GetAnonymitySet(
                     if (fStartLelantusBlacklist &&
                         chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
                         std::vector<unsigned char> vch = coin.first.getValue().getvch();
-                        if (lelantus_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                        if (::Params().GetConsensus().lelantusBlacklist.count(coin.first.getValue()) > 0) {
                             continue;
                         }
                     }

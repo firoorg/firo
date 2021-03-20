@@ -10,6 +10,8 @@
 #include <map>
 #include <string>
 #include <set>
+#include <unordered_set>
+#include <secp256k1/include/GroupElement.h>
 
 namespace Consensus {
 
@@ -230,6 +232,9 @@ struct Params {
     int nLelantusStartBlock;
 
     int nLelantusFixesStartBlock;
+
+    // Lelantus Blacklist
+    std::unordered_set<secp_primitives::GroupElement> lelantusBlacklist;
 
     // The block number introducing evo sporks
     int nEvoSporkStartBlock;

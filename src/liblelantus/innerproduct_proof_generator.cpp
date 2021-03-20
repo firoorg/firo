@@ -7,11 +7,11 @@ InnerProductProofGenerator::InnerProductProofGenerator(
         const std::vector<GroupElement>& g,
         const std::vector<GroupElement>& h,
         const GroupElement& u,
-        bool afterFixes)
+        int version)
         : g_(g)
         , h_(h)
         , u_(u)
-        , afterFixes_(afterFixes)
+        , version_(version)
 {
 }
 
@@ -20,12 +20,12 @@ InnerProductProofGenerator::InnerProductProofGenerator(
         const std::vector<GroupElement>& h,
         const GroupElement& u,
         const GroupElement& P,
-        bool afterFixes)
+        int version)
         : g_(g)
         , h_(h)
         , u_(u)
         , P_(P)
-        , afterFixes_(afterFixes)
+        , version_(version)
 {
 }
 
@@ -77,9 +77,9 @@ void InnerProductProofGenerator::generate_proof_util(
     Scalar x;
     std::vector<GroupElement> group_elements = {L, R};
 
-    // if(afterFixes_) we should be using ChallengeGeneratorHash256,
+    // if(version_ >= 2) we should be using ChallengeGeneratorHash256,
     // we want to link transcripts from previous iteration in each step, so we are not restarting in that case,
-    if (afterFixes_) {
+    if (version_ >= 2) {
         // add domain separator in each step
         std::string domain_separator = "INNER_PRODUCT";
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
@@ -104,7 +104,7 @@ void InnerProductProofGenerator::generate_proof_util(
     GroupElement p_p = LelantusPrimitives::p_prime(P_, L, R, x);
 
     // Recursive call of protocol 2
-    InnerProductProofGenerator(g_p, h_p, u_, p_p, afterFixes_).generate_proof_util(a_p, b_p, challengeGenerator, proof_out);
+    InnerProductProofGenerator(g_p, h_p, u_, p_p, version_).generate_proof_util(a_p, b_p, challengeGenerator, proof_out);
 }
 
 void InnerProductProofGenerator::compute_P(

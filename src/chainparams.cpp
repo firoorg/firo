@@ -12,6 +12,7 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include "libzerocoin/bitcoin_bignum/bignum.h"
+#include "blacklists.h"
 
 #include <assert.h>
 
@@ -388,6 +389,12 @@ public:
         consensus.nMaxValueLelantusSpendPerTransaction = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
         consensus.nZerocoinToSigmaRemintWindowSize = 50000;
+
+        for (const auto& str : lelantus::lelantus_blacklist) {
+            GroupElement coin;
+            coin.deserialize(ParseHex(str).data());
+            consensus.lelantusBlacklist.insert(coin);
+        }
 
         consensus.evoSporkKeyID = "a78fERshquPsTv2TuKMSsxTeKom56uBwLP";
         consensus.nEvoSporkStartBlock = ZC_LELANTUS_STARTING_BLOCK;
