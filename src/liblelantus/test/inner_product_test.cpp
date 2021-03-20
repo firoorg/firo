@@ -61,7 +61,7 @@ BOOST_AUTO_TEST_CASE(prove_verify_one)
 
     // generating proofs
     Proof proof;
-    ProofGenerator prover(gens_g, gens_h, u);
+    ProofGenerator prover(gens_g, gens_h, u, 2);
     prover.generate_proof(a, b, x, challengeGenerator, proof);
 
     BOOST_CHECK_EQUAL(ComputePInit(), prover.get_P());
@@ -75,9 +75,9 @@ BOOST_AUTO_TEST_CASE(prove_verify_one)
 
     // verify
     challengeGenerator.reset(new ChallengeGeneratorHash256());
-    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(x, proof, challengeGenerator));
+    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit(), 2).verify(x, proof, challengeGenerator));
     challengeGenerator.reset(new ChallengeGeneratorHash256());
-    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, x, proof, challengeGenerator));
+    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit(), 2).verify_fast(n, x, proof, challengeGenerator));
 }
 
 BOOST_AUTO_TEST_CASE(prove_verify)
@@ -93,7 +93,7 @@ BOOST_AUTO_TEST_CASE(prove_verify)
 
     // generating proofs
     Proof proof;
-    ProofGenerator prover(gens_g, gens_h, u);
+    ProofGenerator prover(gens_g, gens_h, u, 2);
     prover.generate_proof(a, b, x, challengeGenerator, proof);
 
     BOOST_CHECK_EQUAL(ComputePInit(), prover.get_P());
@@ -105,9 +105,9 @@ BOOST_AUTO_TEST_CASE(prove_verify)
 
     // verify
     challengeGenerator.reset(new ChallengeGeneratorHash256());
-    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(x, proof, challengeGenerator));
+    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit(), 2).verify(x, proof, challengeGenerator));
     challengeGenerator.reset(new ChallengeGeneratorHash256());
-    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, x, proof, challengeGenerator));
+    BOOST_CHECK(ProofVerifier(gens_g, gens_h, u, ComputePInit(), 2).verify_fast(n, x, proof, challengeGenerator));
 }
 
 BOOST_AUTO_TEST_CASE(fake_proof_not_verify)
@@ -123,23 +123,23 @@ BOOST_AUTO_TEST_CASE(fake_proof_not_verify)
 
     // generating genertor
     Proof proof;
-    ProofGenerator(gens_g, gens_h, u).generate_proof(a, b, x, challengeGenerator, proof);
+    ProofGenerator(gens_g, gens_h, u, 2).generate_proof(a, b, x, challengeGenerator, proof);
 
     // verify with fake P
     GroupElement fakeP;
     fakeP.randomize();
 
     challengeGenerator.reset(new ChallengeGeneratorHash256());
-    BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, fakeP).verify(x, proof, challengeGenerator));
+    BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, fakeP, 2).verify(x, proof, challengeGenerator));
     challengeGenerator.reset(new ChallengeGeneratorHash256());
-    BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, fakeP).verify_fast(n, x, proof, challengeGenerator));
+    BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, fakeP, 2).verify_fast(n, x, proof, challengeGenerator));
 
     // verify with fake proof
     auto verify = [&](Scalar const &_x, Proof const &_p) -> void {
         challengeGenerator.reset(new ChallengeGeneratorHash256());
-        BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify(_x, _p, challengeGenerator));
+        BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, ComputePInit(), 2).verify(_x, _p, challengeGenerator));
         challengeGenerator.reset(new ChallengeGeneratorHash256());
-        BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, ComputePInit()).verify_fast(n, _x, _p, challengeGenerator));
+        BOOST_CHECK(!ProofVerifier(gens_g, gens_h, u, ComputePInit(), 2).verify_fast(n, _x, _p, challengeGenerator));
     };
 
     auto fakeProof = proof;

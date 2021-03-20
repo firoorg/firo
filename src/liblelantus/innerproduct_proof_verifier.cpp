@@ -7,12 +7,12 @@ InnerProductProofVerifier::InnerProductProofVerifier(
         const std::vector<GroupElement>& h,
         const GroupElement& u,
         const GroupElement& P,
-        bool afterFixes)
+        int version)
         : g_(g)
         , h_(h)
         , u_(u)
         , P_(P)
-        , afterFixes_(afterFixes)
+        , version_(version)
 {
 }
 
@@ -43,9 +43,9 @@ bool InnerProductProofVerifier::verify_util(
     Scalar x;
     std::vector<GroupElement> group_elements = {*itr_l, *itr_r};
 
-    // if(afterFixes_) we should be using ChallengeGeneratorHash256,
+    // if(version >= 2) we should be using ChallengeGeneratorHash256,
     // we want to link transcripts from previous iteration in each step, so we are not restarting in that case,
-    if (afterFixes_) {
+    if (version_ >= 2) {
         // add domain separator in each step
         std::string domain_separator = "INNER_PRODUCT";
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
@@ -64,7 +64,7 @@ bool InnerProductProofVerifier::verify_util(
 
     //Compute P prime
     GroupElement p_p = LelantusPrimitives::p_prime(P_, *itr_l, *itr_r, x);
-    return InnerProductProofVerifier(g_p, h_p, u_, p_p, afterFixes_).verify_util(proof, itr_l + 1, itr_r + 1, challengeGenerator);
+    return InnerProductProofVerifier(g_p, h_p, u_, p_p, version_).verify_util(proof, itr_l + 1, itr_r + 1, challengeGenerator);
 }
 
 bool InnerProductProofVerifier::verify_fast(uint64_t n, const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator) {
@@ -84,9 +84,9 @@ bool InnerProductProofVerifier::verify_fast_util(
     {
         std::vector<GroupElement> group_elements = {proof.L_[i], proof.R_[i]};
 
-        // if(afterFixes_) we should be using ChallengeGeneratorHash256,
+        // if(version_ >= 2) we should be using ChallengeGeneratorHash256,
         // we want to link transcripts from previous iteration in each step, so we are not restarting in that case,
-        if (afterFixes_) {
+        if (version_ >= 2) {
             // add domain separator in each step
             std::string domain_separator = "INNER_PRODUCT";
             std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());

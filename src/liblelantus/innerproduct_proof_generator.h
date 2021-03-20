@@ -14,7 +14,7 @@ public:
             const std::vector<GroupElement>& g,
             const std::vector<GroupElement>& h,
             const GroupElement& u,
-            bool afterFixes = true); // if(afterFixes) we should pass ChallengeGeneratorHash256 in generate_proof function
+            int version); // if(version >= 2) we should pass ChallengeGeneratorHash256 in generate_proof function
 
     void generate_proof(
             const std::vector<Scalar>& a,
@@ -32,7 +32,7 @@ private:
             const std::vector<GroupElement>& h,
             const GroupElement& u,
             const GroupElement& P,
-            bool afterFixes);
+            int version);
 
     void generate_proof_util(
             const std::vector<Scalar>& a,
@@ -69,7 +69,7 @@ private:
     GroupElement u_;
     GroupElement P_;
     GroupElement P_initial;
-    bool afterFixes_;
+    int version_;
 
 };
 

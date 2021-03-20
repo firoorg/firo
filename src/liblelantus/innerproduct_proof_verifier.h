@@ -15,7 +15,7 @@ public:
             const std::vector<GroupElement>& h,
             const GroupElement& u,
             const GroupElement& P,
-            bool afterFixes = true); // if(afterFixes) we should pass ChallengeGeneratorHash256 in verify
+            int version); // if(version >= 2) we should pass ChallengeGeneratorHash256 in verify
 
     bool verify(const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);
     bool verify_fast(uint64_t n, const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);
@@ -34,7 +34,7 @@ private:
     const std::vector<GroupElement>& h_;
     GroupElement u_;
     GroupElement P_;
-    bool afterFixes_;
+    int version_;
 
 };
 
