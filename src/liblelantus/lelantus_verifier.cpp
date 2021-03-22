@@ -151,14 +151,19 @@ bool LelantusVerifier::verify_sigma(
         NthPower qK_x_n(q_k_x);
         GroupElement Gk_sum;
         std::vector<GroupElement> Qks;
-        Qks.reserve(Sin.size() * params->get_sigma_m());
-        for (std::size_t t = 0; t < Sin.size(); ++t)
+        Qks.reserve(sigma_proofs.size() * params->get_sigma_m());
+        for (std::size_t t = 0; t < sigma_proofs.size(); ++t)
         {
             const std::vector<GroupElement>& Qk = sigma_proofs[t].Qk;
             for (std::size_t k = 0; k < Qk.size(); ++k)
             {
                 Gk_sum += (Qk[k]) * qK_x_n.pow;
-                qK_x_n.go_next();
+                try {
+                    qK_x_n.go_next();
+                } catch (std::invalid_argument&) {
+                    return false;
+                }
+
                 Qks.emplace_back(Qk[k]);
             }
         }
@@ -237,7 +242,11 @@ bool LelantusVerifier::verify_schnorrproof(
     for (int k = 0; k < params->get_sigma_m(); ++k)
     {
         x_ks.emplace_back(x_k.pow);
-        x_k.go_next();
+        try {
+            x_k.go_next();
+        } catch (std::invalid_argument&) {
+            return false;
+        }
     }
 
     GroupElement Comm;

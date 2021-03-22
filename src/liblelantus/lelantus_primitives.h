@@ -28,6 +28,8 @@ struct NthPower {
 
     void go_next() {
         pow *= num;
+        if (pow == Scalar(uint64_t(1)))
+            throw std::invalid_argument("NthPower resulted 1");
     }
 };
 
