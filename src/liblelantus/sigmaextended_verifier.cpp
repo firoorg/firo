@@ -95,7 +95,11 @@ bool SigmaExtendedVerifier::batchverify(
             for (std::size_t i = I_[N - 1][j] + 1; i < n; i++)
                 fi_sum += f_[t][j*n + i];
             pow += fi_sum * xj.pow * f_part_product[m - j - 1];
-            xj.go_next();
+            try {
+                xj.go_next();
+            } catch (std::invalid_argument&) {
+                return false;
+            }
         }
 
         f_i_t[N - 1] += pow * y[t];
@@ -113,7 +117,11 @@ bool SigmaExtendedVerifier::batchverify(
     NthPower x_k(x);
     for (uint64_t k = 0; k < m; ++k) {
         x_k_neg.emplace_back(x_k.pow.negate());
-        x_k.go_next();
+        try {
+            x_k.go_next();
+        } catch (std::invalid_argument&) {
+            return false;
+        }
     }
 
     GroupElement t2;
@@ -216,7 +224,11 @@ bool SigmaExtendedVerifier::batchverify(
             for (std::size_t i = I_[size - 1][j] + 1; i < n; i++)
                 fi_sum += f_[t][j*n + i];
             pow += fi_sum * xj.pow * f_part_product[m - j - 1];
-            xj.go_next();
+            try {
+                xj.go_next();
+            } catch (std::invalid_argument&) {
+                return false;
+            }
         }
 
         f_i_t[N - 1] += pow * y[t];
@@ -236,7 +248,11 @@ bool SigmaExtendedVerifier::batchverify(
         NthPower x_k(challenges[t]);
         for (uint64_t k = 0; k < m; ++k) {
             x_t_k_neg[t].emplace_back(x_k.pow.negate());
-            x_k.go_next();
+            try {
+                x_k.go_next();
+            } catch (std::invalid_argument&) {
+                return false;
+            }
         }
     }
     GroupElement t2;
