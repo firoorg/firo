@@ -1,7 +1,7 @@
 #include "../schnorr_proof.h"
 #include "../schnorr_prover.h"
 #include "../schnorr_verifier.h"
-#include "../challenge_generator_hash256.h"
+#include "../challenge_generator_impl.h"
 #include "../../streams.h"
 
 #include <boost/test/unit_test.hpp>
@@ -29,7 +29,7 @@ BOOST_FIXTURE_TEST_SUITE(lelantus_schnorr_proof_tests, SchnorrProofTests)
 
 BOOST_AUTO_TEST_CASE(serialization)
 {
-    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
+    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>();
     SchnorrProver prover(g, h, true);
     GroupElement y;
     y.randomize();
@@ -50,21 +50,21 @@ BOOST_AUTO_TEST_CASE(serialization)
 BOOST_AUTO_TEST_CASE(prove_verify)
 {
     auto y = LelantusPrimitives::commit(g, P, h, T);
-    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
+    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>();
 
     SchnorrProver prover(g, h, true);
     SchnorrProof proof;
     prover.proof(P, T, y, a, b, challengeGenerator, proof);
 
     SchnorrVerifier verifier(g, h, true);
-    challengeGenerator.reset(new ChallengeGeneratorHash256());
+    challengeGenerator.reset(new ChallengeGeneratorImpl<CHash256>());
     BOOST_CHECK(verifier.verify(y, a, b, proof, challengeGenerator));
 }
 
 BOOST_AUTO_TEST_CASE(fake_prove_not_verify)
 {
     auto y = LelantusPrimitives::commit(g, P, h, T);
-    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
+    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>();
 
     SchnorrProver prover(g, h, true);
     SchnorrProof proof;
@@ -74,22 +74,22 @@ BOOST_AUTO_TEST_CASE(fake_prove_not_verify)
     fakeY.randomize();
 
     SchnorrVerifier verifier(g, h, true);
-    challengeGenerator.reset(new ChallengeGeneratorHash256());
+    challengeGenerator.reset(new ChallengeGeneratorImpl<CHash256>());
     BOOST_CHECK(!verifier.verify(fakeY, a, b, proof, challengeGenerator));
 
     auto fakeProof = proof;
     fakeProof.P1.randomize();
-    challengeGenerator.reset(new ChallengeGeneratorHash256());
+    challengeGenerator.reset(new ChallengeGeneratorImpl<CHash256>());
     BOOST_CHECK(!verifier.verify(y, a, b, fakeProof, challengeGenerator));
 
     fakeProof = proof;
     fakeProof.T1.randomize();
-    challengeGenerator.reset(new ChallengeGeneratorHash256());
+    challengeGenerator.reset(new ChallengeGeneratorImpl<CHash256>());
     BOOST_CHECK(!verifier.verify(y, a, b, fakeProof, challengeGenerator));
 
     fakeProof = proof;
     fakeProof.u.randomize();
-    challengeGenerator.reset(new ChallengeGeneratorHash256());
+    challengeGenerator.reset(new ChallengeGeneratorImpl<CHash256>());
     BOOST_CHECK(!verifier.verify(y, a, b, fakeProof, challengeGenerator));
 }
 

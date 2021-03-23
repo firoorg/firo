@@ -1,6 +1,5 @@
 #include "lelantus_primitives.h"
-#include "challenge_generator_sha256.h"
-#include "challenge_generator_hash256.h"
+#include "challenge_generator_impl.h"
 
 namespace lelantus {
 
@@ -15,11 +14,11 @@ void LelantusPrimitives::generate_challenge(
 
     std::unique_ptr<ChallengeGenerator> challengeGenerator;
     if (domain_separator != "") {
-        challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>();
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator->add(pre);
     } else {
-        challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>();
     }
 
     challengeGenerator->add(group_elements);
@@ -102,9 +101,9 @@ void  LelantusPrimitives::generate_Lelantus_challenge(
 
     result_out = uint64_t(1);
 
-    // starting from LELANTUS_TX_VERSION_4_5 we are using ChallengeGeneratorHash256, and adding domain separator, version, pubkeys and serials into it
+    // starting from LELANTUS_TX_VERSION_4_5 we are using CHash256, and adding domain separator, version, pubkeys and serials into it
     if (version >= LELANTUS_TX_VERSION_4_5) {
-        challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>();
         std::string domainSeparator = lts + std::to_string(version);
         std::vector<unsigned char> pre(domainSeparator.begin(), domainSeparator.end());
         challengeGenerator->add(pre);
@@ -114,7 +113,7 @@ void  LelantusPrimitives::generate_Lelantus_challenge(
             challengeGenerator->add(pubkey);
         challengeGenerator->add(serialNumbers);
     } else {
-        challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>();
     }
 
     if (Cout.size() > 0) {
