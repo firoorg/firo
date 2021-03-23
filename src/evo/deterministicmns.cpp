@@ -1019,7 +1019,7 @@ bool CDeterministicMNManager::IsDIP3Enforced(int nHeight)
 
 void CDeterministicMNManager::CleanupCache(int nHeight)
 {
-    AssertLockHeld(cs);
+    LOCK(cs);
 
     std::vector<uint256> toDeleteLists;
     std::vector<uint256> toDeleteDiffs;
