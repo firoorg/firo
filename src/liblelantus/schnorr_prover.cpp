@@ -1,6 +1,6 @@
 #include "schnorr_prover.h"
-#include "challenge_generator_sha256.h"
-#include "challenge_generator_hash256.h"
+#include "challenge_generator_impl.h"
+#include "challenge_generator_impl.h"
 
 namespace lelantus {
 
@@ -32,7 +32,7 @@ void SchnorrProver::proof(
         group_elements = {u, y, a, b};
         challengeGenerator->add(pre);
     } else {
-        challengeGenerator.reset(new ChallengeGeneratorSha256());
+        challengeGenerator.reset(new ChallengeGeneratorImpl<CSHA256>());
     }
     challengeGenerator->add(group_elements);
     challengeGenerator->get_challenge(c);
@@ -53,7 +53,7 @@ void SchnorrProver::proof(
     proof_out.u = u;
     Scalar c;
 
-    ChallengeGeneratorHash256 challengeGenerator;
+    ChallengeGeneratorImpl<CHash256> challengeGenerator;
     std::string shts = "SCHNORR_PROOF";
     std::vector<unsigned char> pre(shts.begin(), shts.end());
     challengeGenerator.add(pre);

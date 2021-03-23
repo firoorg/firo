@@ -1,6 +1,5 @@
 #include "range_prover.h"
-#include "challenge_generator_sha256.h"
-#include "challenge_generator_hash256.h"
+#include "challenge_generator_impl.h"
 
 namespace lelantus {
     
@@ -65,14 +64,14 @@ void RangeProver::batch_proof(
     Scalar y, z;
     unique_ptr<ChallengeGenerator> challengeGenerator;
     if (version >= LELANTUS_TX_VERSION_4_5) {
-        challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>();
         // add domain separator and transaction version into transcript
         std::string domain_separator = "RANGE_PROOF" + std::to_string(version);
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator->add(pre);
         challengeGenerator->add(commitments);
     } else {
-        challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>();
     }
 
     challengeGenerator->add({proof_out.A, proof_out.S});

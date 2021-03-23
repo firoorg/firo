@@ -2,7 +2,7 @@
 #define FIRO_LIBLELANTUS_INNERP_RODUCT_PROOF_GENERATOR_H
 
 #include "lelantus_primitives.h"
-#include "challenge_generator_sha256.h"
+#include "challenge_generator_impl.h"
 
 namespace lelantus {
     
@@ -14,7 +14,7 @@ public:
             const std::vector<GroupElement>& g,
             const std::vector<GroupElement>& h,
             const GroupElement& u,
-            int version); // if(version >= 2) we should pass ChallengeGeneratorHash256 in generate_proof function
+            int version); // if(version >= 2) we should pass CHash256 in generate_proof function
 
     void generate_proof(
             const std::vector<Scalar>& a,

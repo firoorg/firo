@@ -672,10 +672,8 @@ liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 liblelantus_a_SOURCES = \
   liblelantus/challenge_generator.h \
-  liblelantus/challenge_generator_sha256.h \
-  liblelantus/challenge_generator_sha256.cpp \
-  liblelantus/challenge_generator_hash256.h \
-  liblelantus/challenge_generator_hash256.cpp \
+  liblelantus/challenge_generator_impl.h \
+  liblelantus/challenge_generator_impl.hpp \
   liblelantus/lelantus_primitives.h \
   liblelantus/lelantus_primitives.cpp \
   liblelantus/lelantus_proof.h \

@@ -1,6 +1,5 @@
 #include "range_verifier.h"
-#include "challenge_generator_sha256.h"
-#include "challenge_generator_hash256.h"
+#include "challenge_generator_impl.h"
 
 namespace lelantus {
     
@@ -30,14 +29,14 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
     Scalar x, x_u, y, z;
     unique_ptr<ChallengeGenerator> challengeGenerator;
     if (version >= LELANTUS_TX_VERSION_4_5) {
-        challengeGenerator = std::make_unique<ChallengeGeneratorHash256>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>();
         // add domain separator and transaction version into transcript
         std::string domain_separator = "RANGE_PROOF" + std::to_string(version);
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator->add(pre);
         challengeGenerator->add(commitments);
     }  else {
-        challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>();
     }
     challengeGenerator->add({proof.A, proof.S});
     challengeGenerator->get_challenge(y);
@@ -59,7 +58,7 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
     {
         std::vector<GroupElement> group_elements_i = {innerProductProof.L_[i], innerProductProof.R_[i]};
 
-        // if(version >= LELANTUS_TX_VERSION_4_5) we should be using ChallengeGeneratorHash256,
+        // if(version >= LELANTUS_TX_VERSION_4_5) we should be using CHash256,
         // we want to link transcripts from range proof and from previous iteration in each step, so we are not restarting in that case,
         if (version >= LELANTUS_TX_VERSION_4_5) {
             // add domain separator in each step
@@ -67,7 +66,7 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
             std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
             challengeGenerator->add(pre);
         } else {
-            challengeGenerator.reset(new ChallengeGeneratorSha256());
+            challengeGenerator.reset(new ChallengeGeneratorImpl<CSHA256>());
         }
 
         challengeGenerator->add(group_elements_i);

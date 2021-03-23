@@ -2,7 +2,7 @@
 #define FIRO_LIBLELANTUS_INNER_PRODUCT_PROOF_VERIFIER_H
 
 #include "lelantus_primitives.h"
-#include "challenge_generator_sha256.h"
+#include "challenge_generator_impl.h"
 
 namespace lelantus {
     
@@ -15,7 +15,7 @@ public:
             const std::vector<GroupElement>& h,
             const GroupElement& u,
             const GroupElement& P,
-            int version); // if(version >= 2) we should pass ChallengeGeneratorHash256 in verify
+            int version); // if(version >= 2) we should pass CHash256 in verify
 
     bool verify(const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);
     bool verify_fast(uint64_t n, const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);

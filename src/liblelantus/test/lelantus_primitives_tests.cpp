@@ -1,7 +1,7 @@
 #include "lelantus_test_fixture.h"
 
 #include "../lelantus_primitives.h"
-#include "../challenge_generator_sha256.h"
+#include "../challenge_generator_impl.h"
 #include "../../test/test_bitcoin.h"
 #include "../../utilstrencodings.h"
 
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(generate_lelantus_challenge)
     }
 
     Scalar out;
-    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorSha256>();
+    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>();
     Primitives::generate_Lelantus_challenge(proofs, {}, {}, {}, {}, 0, challengeGenerator, out);
 
     BOOST_CHECK_EQUAL(

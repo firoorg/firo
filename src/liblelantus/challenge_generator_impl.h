@@ -1,19 +1,20 @@
-#ifndef FIRO_LELANTUS_CHALLENGE_GENERATOR_HASH256_H
-#define FIRO_LELANTUS_CHALLENGE_GENERATOR_HASH256_H
+#ifndef FIRO_LELANTUS_CHALLENGE_GENERATOR_IMPL_H
+#define FIRO_LELANTUS_CHALLENGE_GENERATOR_IMPL_H
 
-#include "challenge_generator.h"
-#include "../hash.h"
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
+#include "../../crypto/sha256.h"
+#include "challenge_generator.h"
 
 namespace lelantus {
 
 using namespace secp_primitives;
 
-class ChallengeGeneratorHash256 : public ChallengeGenerator {
+template <class Hasher>
+class ChallengeGeneratorImpl : public ChallengeGenerator {
 
 public:
-    ChallengeGeneratorHash256();
+    ChallengeGeneratorImpl();
     void add(const GroupElement& group_element);
     void add(const std::vector<GroupElement>& group_elements);
     void add(const Scalar& scalar);
@@ -22,12 +23,13 @@ public:
     void get_challenge(Scalar& result_out);
 
 private:
-    CHash256 hash;
+    Hasher hash;
     std::vector<unsigned char> data;
     std::vector<unsigned char> scalar_data;
 };
 
 }// namespace lelantus
 
+#include "challenge_generator_impl.hpp"
 
-#endif //FIRO_LELANTUS_CHALLENGE_GENERATOR_HASH256_H
+#endif //FIRO_LELANTUS_CHALLENGE_GENERATOR_IMPL_H
