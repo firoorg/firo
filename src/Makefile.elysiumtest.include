@@ -22,7 +22,6 @@ ELYSIUM_TEST_CPP = \
   elysium/test/script_extraction_tests.cpp \
   elysium/test/script_solver_tests.cpp \
   elysium/test/sender_firstin_tests.cpp \
-  elysium/test/sp_tests.cpp \
   elysium/test/strtoint64_tests.cpp \
   elysium/test/swapbyteorder_tests.cpp \
   elysium/test/lelantusdb_tests.cpp \

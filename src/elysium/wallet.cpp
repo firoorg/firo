@@ -1,18 +1,6 @@
 #include "wallet.h"
-
 #include "lelantusdb.h"
-
 #include "sigma.h"
-#include "lelantusutils.h"
-
-#include "../validation.h"
-#include "../sync.h"
-#include "../util.h"
-
-#include "../wallet/walletdb.h"
-#include "../wallet/walletexcept.h"
-
-#include <boost/function_output_iterator.hpp>
 
 #include <functional>
 #include <utility>

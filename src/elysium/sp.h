@@ -158,8 +158,6 @@ public:
 
     bool getPrevVersion(uint32_t propertyId, Entry &info) const;
 
-    int getDenominationRemainingConfirmation(uint32_t propertyId, uint8_t denomination, int target);
-
     void printAll() const;
 };
 
@@ -178,34 +176,6 @@ bool IsPropertyIdValid(uint32_t propertyId);
 bool IsLelantusStatusValid(LelantusStatus status);
 bool IsLelantusEnabled(PropertyId property);
 bool IsLelantusStatusUpdatable(PropertyId property);
-
-template<class Denomination>
-int64_t SumDenominationsValue(PropertyId property, Denomination begin, Denomination end)
-{
-    CMPSPInfo::Entry sp;
-
-    LOCK(cs_main);
-
-    if (!_my_sps->getSP(property, sp)) {
-        throw std::invalid_argument("the property not found");
-    }
-
-    int64_t amount = 0;
-
-    for (auto it = begin; it != end; it++) {
-        if (*it >= sp.denominations.size()) {
-            throw std::invalid_argument("the denomination not found");
-        }
-
-        if (sp.denominations[*it] > static_cast<int64_t>(MAX_INT_8_BYTES) - amount) {
-            throw std::overflow_error("summation of mints is overflow");
-        }
-
-        amount += sp.denominations[*it];
-    }
-
-    return amount;
-}
 
 } // namespace elysium
 

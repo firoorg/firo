@@ -460,37 +460,6 @@ bool CMPSPInfo::getPrevVersion(uint32_t propertyId, Entry &info) const
     return true;
 }
 
-int CMPSPInfo::getDenominationRemainingConfirmation(
-    uint32_t propertyId, uint8_t denomination, int target)
-{
-    LOCK(cs_main);
-    Entry info;
-    if (!getSP(propertyId, info)) {
-        throw std::invalid_argument("property notfound");
-    }
-
-    // no denomination in lastest version then imply it's unconfirmed.
-    if (denomination >= info.denominations.size()) {
-        return target;
-    }
-
-    int targetBlock =
-        std::max(chainActive.Height() - target + 1, 0);
-    CBlockIndex *lastBlockHasDenomination = nullptr;
-
-    while (
-        denomination < info.denominations.size() &&
-        (lastBlockHasDenomination =
-            GetBlockIndex(info.update_block))->nHeight > targetBlock) {
-        if (!getPrevVersion(propertyId, info)) {
-            break;
-        }
-    }
-
-    return lastBlockHasDenomination->nHeight <= targetBlock ? 0 :
-        lastBlockHasDenomination->nHeight - targetBlock;
-}
-
 void CMPSPInfo::printAll() const
 {
     // print off the hard coded MSC and TMSC entries

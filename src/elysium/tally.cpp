@@ -143,27 +143,6 @@ int64_t CMPTally::getMoneyAvailable(uint32_t propertyId) const
 }
 
 /**
- * Returns the number of reserved tokens.
- *
- * Balances can be reserved by sell offers, pending accepts, or offers
- * on the distributed exchange.
- *
- * @param propertyId  The identifier of the tally to lookup
- * @return The reserved balance
- */
-int64_t CMPTally::getMoneyReserved(uint32_t propertyId) const
-{
-    int64_t money = 0;
-    TokenMap::const_iterator it = mp_token.find(propertyId);
-
-    if (it != mp_token.end()) {
-        const BalanceRecord& record = it->second;
-    }
-
-    return money;
-}
-
-/**
  * Compares the tally with another tally and returns true, if they are equal.
  *
  * @param rhs  The other tally
