@@ -1853,6 +1853,15 @@ std::set<std::string> const lelantus_blacklist {
         "f9d4b7e856a12a368fe5a1f805a20a1fef6e1b0049f51100e22c55a20fac15910000"
 };
 
+std::set<std::string> const lelantus_testnet_blacklist {
+        "60413731c57c642b22ab5b02593db2c11fe22d3f3ee39aa7801950c494aa277d0000",
+        "b6293e17d5a58ca60ad8a3d7602724b9e2c228252b6f465261b685731f6b70c10000",
+        "3bfc84d144a05dfa178de0d19d6cc32075af52d085aa3f6a0c4b66bf6c33984c0100",
+        "e5e9348339d3c0215534cf02876f50bb008bfc471f0105888a2a8e5ccf60c7db0000",
+        "c2c855dd44a4e062b1b978bab03da54b7cb7cb4b7cb0a03b9c854becf958b7cd0100",
+        "fdbb43011f72180ff0d47a330e1ba1411a35452319fd12af52c5b3836bfd5b4a0000"
+};
+
 } // end of namespace lelantus.
 
 std::set<std::string> const txid_blacklist {
