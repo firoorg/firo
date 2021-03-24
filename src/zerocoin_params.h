@@ -57,7 +57,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 #define ZC_LELANTUS_STARTING_BLOCK         336888
 #define ZC_LELANTUS_FIXES_START_BLOCK       356000
 #define ZC_LELANTUS_TESTNET_STARTING_BLOCK 15700
-#define ZC_LELANTUS_TESTNET_FIXES_START_BLOCK   27000
+#define ZC_LELANTUS_TESTNET_FIXES_START_BLOCK   27600
 
 // Number of blocks after ZC_SIGMA_STARTING_BLOCK during which we still accept zerocoin V2 mints into mempool.
 #define ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD          4500
