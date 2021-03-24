@@ -76,6 +76,9 @@ public:
     CPaymentCode const & getTheirPcode() const;
     CBitcoinAddress generateTheirNextSecretAddress();
 
+    CBitcoinAddress getTheirNextAddress() const;
+    TheirAddrContT getTheirUsedAddresses() const;
+
     void setNotificationTxId(uint256 const & txId);
     uint256 getNotificationTxId() const;
 

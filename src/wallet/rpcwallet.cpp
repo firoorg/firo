@@ -5250,7 +5250,7 @@ UniValue listpcodes(const JSONRPCRequest& request)
             UniValue r(UniValue::VOBJ);
             r.push_back(Pair("Pcode", std::get<1>(info).toString()));
             r.push_back(Pair("Label",std::get<2>(info)));
-            r.push_back(Pair("NotifAddr",std::get<3>(info).ToString()));
+            r.push_back(Pair("NotificationAddr",std::get<3>(info).ToString()));
             result.push_back(r);
         }
         return result;
@@ -5264,7 +5264,7 @@ UniValue listpcodes(const JSONRPCRequest& request)
                 UniValue r(UniValue::VOBJ);
                 r.push_back(Pair("MyPcode", receiver.getMyPcode().toString()));
                 r.push_back(Pair("Label", receiver.getLabel()));
-                r.push_back(Pair("NotifAddr",receiver.getMyNotificationAddress().ToString()));
+                r.push_back(Pair("NotificationAddr",receiver.getMyNotificationAddress().ToString()));
                 size_t n = 0;
                 for(bip47::MyAddrContT::value_type const & addr : receiver.getMyUsedAddresses())
                     r.push_back(Pair(std::string("MyUsed") + std::to_string(n++), addr.first.ToString()));
@@ -5285,9 +5285,9 @@ UniValue listpcodes(const JSONRPCRequest& request)
                 r.push_back(Pair("TheirPcode", sender.getTheirPcode().toString()));
                 r.push_back(Pair("NotificationTxid", sender.getNotificationTxId().ToString()));
                 size_t n = 0;
-                for(bip47::TheirAddrContT::value_type const & addr : sender.getPaymentChannel().getTheirUsedSecretAddresses())
+                for(bip47::TheirAddrContT::value_type const & addr : sender.getTheirUsedAddresses())
                     r.push_back(Pair(std::string("TheirUsed") + std::to_string(n++), addr.ToString()));
-                r.push_back(Pair(std::string("TheirNext") + std::to_string(n), sender.getPaymentChannel().generateTheirSecretAddresses(n, n+1).front().ToString()));
+                r.push_back(Pair(std::string("TheirNext") + std::to_string(n), sender.getTheirNextAddress().ToString()));
                 result.push_back(r);
                 return true;
             }

@@ -29,6 +29,7 @@ public:
     CPaymentCode const & getTheirPcode() const;
     CBitcoinAddress generateTheirNextSecretAddress();
     TheirAddrContT generateTheirSecretAddresses(uint32_t fromAddr, uint32_t uptoAddr) const;
+    CBitcoinAddress getTheirNextSecretAddress() const;
     TheirAddrContT getTheirUsedSecretAddresses() const;
 
     CPaymentCode const & getMyPcode() const;

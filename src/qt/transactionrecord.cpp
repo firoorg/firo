@@ -115,7 +115,6 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                         sub.type = TransactionRecord::SpendToSelf;
                         sub.address = CBitcoinAddress(address).ToString();
                         sub.credit = txout.nValue;
-                        parts.append(sub);
                     }
                 } else {
                     ExtractDestination(txout.scriptPubKey, address);
@@ -126,8 +125,15 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                         sub.debit -= nTxFee;
                         first = false;
                     }
-                    parts.append(sub);
                 }
+                if(wtx.tx->GetHash().ToString() == "4f2e27a5656294d39f23134a892a49a25224c2d0e15843f2919650c9095f5926")
+                    std::cerr << "Here" << CBitcoinAddress(address).ToString() << std::endl;
+                boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
+                if (pcode) {
+                    sub.type = TransactionRecord::SendToPcode;
+                    sub.address.append(", " + bip47::utils::ShortenPcode(std::get<1>(*pcode)));
+                }
+                parts.append(sub);
             }
         }
     }
@@ -178,9 +184,9 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     // Generated
                     sub.type = TransactionRecord::Generated;
                 }
-                boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(CBitcoinAddress(address));
+                boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
                 if (pcode) {
-                    sub.type = TransactionRecord::Pcode;
+                    sub.type = TransactionRecord::RecvWithPcode;
                     sub.address.append(", " + std::get<2>(*pcode));
                 }
                 parts.append(sub);
@@ -251,9 +257,9 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     // Sent to Bitcoin Address
                     sub.type = TransactionRecord::SendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
-                    boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(CBitcoinAddress(address));
+                    boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
                     if (pcode) {
-                        sub.type = TransactionRecord::Pcode;
+                        sub.type = TransactionRecord::SendToPcode;
                         sub.address.append(", " + bip47::utils::ShortenPcode(std::get<1>(*pcode)));
                     }
                 }

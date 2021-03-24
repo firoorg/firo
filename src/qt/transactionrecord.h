@@ -81,7 +81,8 @@ public:
         SpendToAddress,
         SpendToSelf,
         Anonymize,
-        Pcode,
+        SendToPcode,
+        RecvWithPcode,
     };
 
     /** Number of confirmation recommended for accepting a transaction */

@@ -386,8 +386,10 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
            return tr("Spend to yourself");
     case TransactionRecord::Anonymize:
            return tr("Anonymize");
-    case TransactionRecord::Pcode:
-            return tr("RAP code");
+    case TransactionRecord::SendToPcode:
+            return tr("Send to RAP code");
+    case TransactionRecord::RecvWithPcode:
+            return tr("Received with RAP code");
     default:
         return QString();
     }
@@ -407,7 +409,8 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
     case TransactionRecord::SpendToAddress:
     case TransactionRecord::Anonymize:
         return QIcon(":/icons/tx_output");
-    case TransactionRecord::Pcode:
+    case TransactionRecord::SendToPcode:
+    case TransactionRecord::RecvWithPcode:
         return QIcon(":/icons/paymentcode");
     default:
         return QIcon(":/icons/tx_inout");
@@ -424,12 +427,13 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
 
     switch(wtx->type)
     {
-    case TransactionRecord::Pcode:
+    case TransactionRecord::RecvWithPcode:
     case TransactionRecord::RecvFromOther:
         return QString::fromStdString(wtx->address) + watchAddress;
     case TransactionRecord::RecvWithAddress:
     case TransactionRecord::SendToAddress:
     case TransactionRecord::SpendToAddress:
+    case TransactionRecord::SendToPcode:
     case TransactionRecord::Generated:
         return lookupAddress(wtx->address, tooltip) + watchAddress;
     case TransactionRecord::SendToOther:

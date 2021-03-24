@@ -94,6 +94,16 @@ CBitcoinAddress CAccountSender::generateTheirNextSecretAddress()
     return getPaymentChannel().generateTheirNextSecretAddress();
 }
 
+CBitcoinAddress CAccountSender::getTheirNextAddress() const
+{
+    return getPaymentChannel().getTheirNextSecretAddress();
+}
+
+TheirAddrContT CAccountSender::getTheirUsedAddresses() const
+{
+    return getPaymentChannel().getTheirUsedSecretAddresses();
+}
+
 void CAccountSender::updateMyNextAddresses()
 {
     nextAddresses.clear();

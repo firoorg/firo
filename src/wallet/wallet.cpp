@@ -8627,14 +8627,13 @@ boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(CBitcoinAddre
     bip47wallet->enumerateSenders(
         [&address, &result](bip47::CAccountSender & sender)->bool
         {
-            bip47::MyAddrContT addrs = sender.getMyUsedAddresses();
-            if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
+            bip47::TheirAddrContT addrs = sender.getTheirUsedAddresses();
+            if (std::find(addrs.begin(), addrs.end(), address) != addrs.end())
             {
                 result.emplace(sender.getAccountNum(), sender.getTheirPcode(), "", sender.getTheirPcode().getNotificationAddress());
                 return false;
             }
-            addrs = sender.getMyNextAddresses();
-            if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
+            if (address == sender.getTheirNextAddress())
             {
                 result.emplace(sender.getAccountNum(), sender.getTheirPcode(), "", sender.getTheirPcode().getNotificationAddress());
                 return false;

@@ -45,9 +45,9 @@ CBitcoinAddress generate(CKey const & privkey, CPubKey const & sharedSecretPubke
 
 CBitcoinAddress CPaymentChannel::generateTheirNextSecretAddress()
 {
-    TheirAddrContT addr = generateTheirSecretAddresses(theirUsedAddressCount, theirUsedAddressCount + 1);
-    theirUsedAddressCount += 1;
-    return addr.front();
+    CBitcoinAddress addr = getTheirNextSecretAddress();
+    ++theirUsedAddressCount;
+    return addr;
 }
 
 TheirAddrContT CPaymentChannel::generateTheirSecretAddresses(uint32_t fromAddr, uint32_t uptoAddr) const
@@ -59,6 +59,12 @@ TheirAddrContT CPaymentChannel::generateTheirSecretAddresses(uint32_t fromAddr, 
         result.push_back(generate(utils::Derive(myChannelKey, {0}).key, theirPubkey, theirPubkey));
     }
     return result;
+}
+
+CBitcoinAddress CPaymentChannel::getTheirNextSecretAddress() const
+{
+    TheirAddrContT addr = generateTheirSecretAddresses(theirUsedAddressCount, theirUsedAddressCount + 1);
+    return addr.front();
 }
 
 TheirAddrContT CPaymentChannel::getTheirUsedSecretAddresses() const
