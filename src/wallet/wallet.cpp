@@ -8532,6 +8532,9 @@ bool CWallet::BackupWallet(const std::string& strDest)
 
 bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)
 {
+    if (!bip47wallet)
+        throw WalletError("BIP47 wallet was not created during the initialization");
+
     bip47::CAccountReceiver & newAcc = bip47wallet->createReceivingAccount(label);
     {
         bip47::MyAddrContT addrs = newAcc.getMyNextAddresses();
@@ -8548,6 +8551,9 @@ bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)
 std::vector<bip47::CPaymentCodeDescription> CWallet::ListPcodes()
 {
     std::vector<bip47::CPaymentCodeDescription> result;
+    if (!bip47wallet)
+        return result;
+
     bip47wallet->enumerateReceivers(
         [&result](bip47::CAccountReceiver const & acc)->bool
         {
@@ -8560,6 +8566,9 @@ std::vector<bip47::CPaymentCodeDescription> CWallet::ListPcodes()
 
 bip47::CPaymentChannel & CWallet::SetupPchannel(bip47::CPaymentCode const & theirPcode)
 {
+    if (!bip47wallet)
+        throw WalletError("BIP47 wallet was not created during the initialization");
+
     bip47::CAccountSender & sender = bip47wallet->provideSendingAccount(theirPcode);
     CWalletDB(strWalletFile).WriteBip47Account(sender);
     return sender.getPaymentChannel();
@@ -8567,6 +8576,9 @@ bip47::CPaymentChannel & CWallet::SetupPchannel(bip47::CPaymentCode const & thei
 
 void CWallet::SetNotificationTxId(bip47::CPaymentCode const & theirPcode, uint256 const & txid)
 {
+    if (!bip47wallet)
+        throw WalletError("BIP47 wallet was not created during the initialization");
+
     bip47::CAccountSender & sender = bip47wallet->provideSendingAccount(theirPcode);
     sender.setNotificationTxId(txid);
     CWalletDB(strWalletFile).WriteBip47Account(sender);
@@ -8574,6 +8586,9 @@ void CWallet::SetNotificationTxId(bip47::CPaymentCode const & theirPcode, uint25
 
 CBitcoinAddress CWallet::GetNextAddress(bip47::CPaymentCode const & theirPcode)
 {
+    if (!bip47wallet)
+        throw WalletError("BIP47 wallet was not created during the initialization");
+
     boost::optional<bip47::CAccountSender*> existingAcc;
     bip47wallet->enumerateSenders(
         [&theirPcode, &existingAcc](bip47::CAccountSender & acc)->bool
@@ -8606,6 +8621,9 @@ std::shared_ptr<bip47::CWallet const> CWallet::GetBip47Wallet() const
 boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(CBitcoinAddress const & address) const
 {
     boost::optional<bip47::CPaymentCodeDescription> result;
+    if (!bip47wallet)
+        return result;
+
     bip47wallet->enumerateReceivers(
         [&address, &result](bip47::CAccountReceiver & rec)->bool
         {
@@ -8647,6 +8665,8 @@ boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(CBitcoinAddre
 bip47::CAccountReceiver const * CWallet::AddressUsed(CBitcoinAddress const & address)
 {
     bip47::CAccountReceiver const * result = nullptr;
+    if(!bip47wallet)
+        return result;
 
     bip47wallet->enumerateReceivers(
         [&address, &result](bip47::CAccountReceiver & rec)->bool
