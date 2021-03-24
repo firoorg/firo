@@ -175,4 +175,14 @@ CPubKey PubkeyFromGe(GroupElement const & ge)
     return result;
 }
 
+std::string ShortenPcode(CPaymentCode const & pcode)
+{
+    std::ostringstream ostr;
+    std::string pcodeStr = pcode.toString();
+    ostr << pcodeStr.substr(0, 6);
+    ostr << "...";
+    ostr << pcodeStr.substr(pcodeStr.size() - 6, 6);
+    return ostr.str();
+}
+
 } }

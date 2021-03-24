@@ -34,6 +34,8 @@ CExtKey Derive(CExtKey const & source, std::vector<uint32_t> const & path);
 GroupElement GeFromPubkey(CPubKey const & pubKey);
 CPubKey PubkeyFromGe(GroupElement const & ge);
 
+/******************************************************************************/
+std::string ShortenPcode(CPaymentCode const & pcode);
 } }
 
 #endif // ZCOIN_BIP47UTIL_H

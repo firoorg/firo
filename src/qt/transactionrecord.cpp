@@ -12,6 +12,7 @@
 #include "validation.h"
 #include "timedata.h"
 #include "wallet/wallet.h"
+#include "bip47/utils.h"
 
 #include <stdint.h>
 
@@ -177,10 +178,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     // Generated
                     sub.type = TransactionRecord::Generated;
                 }
-                boost::optional<bip47::CPaymentCode> pcode = wallet->FindPcode(CBitcoinAddress(address));
+                boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(CBitcoinAddress(address));
                 if (pcode) {
                     sub.type = TransactionRecord::Pcode;
-                    sub.address.append(", " + pcode->toString());
+                    sub.address.append(", " + std::get<2>(*pcode));
                 }
                 parts.append(sub);
             }
@@ -250,6 +251,11 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     // Sent to Bitcoin Address
                     sub.type = TransactionRecord::SendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
+                    boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(CBitcoinAddress(address));
+                    if (pcode) {
+                        sub.type = TransactionRecord::Pcode;
+                        sub.address.append(", " + bip47::utils::ShortenPcode(std::get<1>(*pcode)));
+                    }
                 }
                 else if(wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint())
                 {

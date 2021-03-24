@@ -8603,22 +8603,22 @@ std::shared_ptr<bip47::CWallet const> CWallet::GetBip47Wallet() const
     return bip47wallet;
 }
 
-boost::optional<bip47::CPaymentCode> CWallet::FindPcode(CBitcoinAddress const & address) const
+boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(CBitcoinAddress const & address) const
 {
-    boost::optional<bip47::CPaymentCode> result;
+    boost::optional<bip47::CPaymentCodeDescription> result;
     bip47wallet->enumerateReceivers(
         [&address, &result](bip47::CAccountReceiver & rec)->bool
         {
             bip47::MyAddrContT addrs = rec.getMyUsedAddresses();
             if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
             {
-                result.emplace(rec.getMyPcode());
+                result.emplace(rec.getAccountNum(), rec.getMyPcode(), rec.getLabel(), rec.getMyPcode().getNotificationAddress());
                 return false;
             }
             addrs = rec.getMyNextAddresses();
             if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
             {
-                result.emplace(rec.getMyPcode());
+                result.emplace(rec.getAccountNum(), rec.getMyPcode(), rec.getLabel(), rec.getMyPcode().getNotificationAddress());
                 return false;
             }
             return true;
@@ -8630,13 +8630,13 @@ boost::optional<bip47::CPaymentCode> CWallet::FindPcode(CBitcoinAddress const & 
             bip47::MyAddrContT addrs = sender.getMyUsedAddresses();
             if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
             {
-                result.emplace(sender.getTheirPcode());
+                result.emplace(sender.getAccountNum(), sender.getTheirPcode(), "", sender.getTheirPcode().getNotificationAddress());
                 return false;
             }
             addrs = sender.getMyNextAddresses();
             if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
             {
-                result.emplace(sender.getTheirPcode());
+                result.emplace(sender.getAccountNum(), sender.getTheirPcode(), "", sender.getTheirPcode().getNotificationAddress());
                 return false;
             }
             return true;

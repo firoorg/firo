@@ -50,7 +50,7 @@ private:
 
 bool operator==(CPaymentCode const & lhs, CPaymentCode const & rhs);
 
-
+//accNum, pcode, label, notificationAddress
 typedef std::tuple<size_t, CPaymentCode, std::string, CBitcoinAddress> CPaymentCodeDescription;
 
 }
