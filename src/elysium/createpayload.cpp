@@ -94,7 +94,7 @@ std::vector<unsigned char> CreatePayload_IssuanceFixed(uint8_t ecosystem, uint16
 {
     std::vector<unsigned char> payload;
     uint16_t messageType = ELYSIUM_TYPE_CREATE_PROPERTY_FIXED;
-    uint16_t messageVer = lelantusStatus ? 2 : 1;
+    uint16_t messageVer = lelantusStatus ? 2 : 0;
 
     elysium::swapByteOrder16(messageVer);
     elysium::swapByteOrder16(messageType);
@@ -138,7 +138,7 @@ std::vector<unsigned char> CreatePayload_IssuanceManaged(uint8_t ecosystem, uint
 {
     std::vector<unsigned char> payload;
     uint16_t messageType = ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL;
-    uint16_t messageVer = lelantusStatus ? 2 : 1;
+    uint16_t messageVer = lelantusStatus ? 2 : 0;
 
     elysium::swapByteOrder16(messageVer);
     elysium::swapByteOrder16(messageType);
