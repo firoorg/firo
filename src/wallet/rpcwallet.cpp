@@ -5296,7 +5296,7 @@ UniValue listpcodes(const JSONRPCRequest& request)
     return result;
 }
 
-UniValue generatepcode(const JSONRPCRequest& request)
+UniValue createpcode(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -5306,11 +5306,11 @@ UniValue generatepcode(const JSONRPCRequest& request)
     std::function<void()> help = []()
     {
         throw runtime_error(
-            "generatepcode  \"label\"\n"
-            "Generates a new labeled BIP47 payment code. \n"
+            "createpcode  \"label\"\n"
+            "Creates a new labeled BIP47 payment code. \n"
             "The label should be unique and non-empty. \n"
             "Example:\n" +
-            HelpExampleCli("generatepaymentcode", "<label>"));
+            HelpExampleCli("createpcode", "<label>"));
     };
 
     if (request.fHelp || request.params.size() < 1 or request.params.size() > 2) {
@@ -5534,7 +5534,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false },
 
     //bip47
-    { "bip47",              "generatepcode",            &generatepcode,            false },
+    { "bip47",              "createpcode",              &createpcode,            false },
     { "bip47",              "setupchannel",             &setupchannel,             false },
     { "bip47",              "sendtopcode",              &sendtopcode,              false },
     { "bip47",              "listpcodes",               &listpcodes,               false }

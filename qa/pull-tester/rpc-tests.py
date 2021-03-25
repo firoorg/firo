@@ -216,7 +216,8 @@ testScripts = [
     #, 'dip4-coinbasemerkleroots.py'
 
     # bip47
-    'bip47-sendreceive.py'
+    'bip47-sendreceive.py',
+    'bip47-walletrestore.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')

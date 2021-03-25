@@ -387,7 +387,7 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
     case TransactionRecord::Anonymize:
            return tr("Anonymize");
     case TransactionRecord::SendToPcode:
-            return tr("Send to RAP code");
+            return tr("Sent to RAP code");
     case TransactionRecord::RecvWithPcode:
             return tr("Received with RAP code");
     default:

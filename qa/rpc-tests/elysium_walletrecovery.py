@@ -36,8 +36,7 @@ class ElysiumWalletRecoveryTest(ElysiumTestFramework):
         stop_node(self.nodes[0], 0)
         fresh_wallet_content = self.load_wallet_content(0)
 
-        self.nodes[0] = start_node(0, self.options.tmpdir, ["-elysium"])
-        self.connect_to_other(0)
+
 
         super().run_test()
 

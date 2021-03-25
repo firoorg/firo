@@ -17,18 +17,16 @@ class Bip47SendReceive(BitcoinTestFramework):
 
     def setup_network(self, split=False):
         self.nodes = start_nodes(self.num_nodes, self.options.tmpdir)
-
         connect_nodes_bi(self.nodes,0,1)
         connect_nodes_bi(self.nodes,1,2)
         connect_nodes_bi(self.nodes,0,2)
-
         self.is_network_split=False
         self.sync_all()
 
     def run_test(self):
 
         self.nodes[1].generate(1010)
-        node0_pcode = self.nodes[0].generatepcode("node0-pcode0")
+        node0_pcode = self.nodes[0].createpcode("node0-pcode0")
 
         try:
             self.nodes[1].setupchannel(node0_pcode)
