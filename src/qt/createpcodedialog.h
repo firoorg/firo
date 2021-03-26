@@ -71,7 +71,7 @@ private Q_SLOTS:
     void on_createPcodeButton_clicked();
     void on_labelText_textChanged();
     void on_pcodesView_doubleClicked(const QModelIndex &index);
-    void on_pcodesView_selectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
+    void pcodesView_selectionChanged(QItemSelection const & selected, QItemSelection const & deselected);
     void on_showPcodeButton_clicked();
     void showMenu(const QPoint &point);
     void copyPcode();

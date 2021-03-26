@@ -81,13 +81,11 @@ void CreatePcodeDialog::setModel(WalletModel *_model)
         tableView->setColumnWidth(static_cast<int>(PcodeModel::ColumnIndex::Number), static_cast<int>(ColumnWidths::Number));
         tableView->setColumnWidth(static_cast<int>(PcodeModel::ColumnIndex::Pcode), static_cast<int>(ColumnWidths::Pcode));
 
-        connect(tableView->selectionModel(),
-            SIGNAL(selectionChanged(QItemSelection, QItemSelection)), this,
-            SLOT(on_pcodesView_selectionChanged(QItemSelection, QItemSelection)));
+        connect(tableView->selectionModel(), SIGNAL(selectionChanged(QItemSelection, QItemSelection)),
+                this, SLOT(pcodesView_selectionChanged(QItemSelection const &, QItemSelection const &)));
         // Last 2 columns are set by the columnResizingFixer, when the table geometry is ready.
         columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, 70, 70, this);
 
-        connect(model->getPcodeModel(), SIGNAL(PcodeCreated(bip47::CPaymentCodeDescription const &)), this, SLOT(DisplayCreatedPcode(bip47::CPaymentCodeDescription const &)));
         ui->createPcodeButton->setEnabled(false);
         ui->statusLabel->setText(tr("The label should not be empty."));
     }
@@ -142,7 +140,7 @@ void CreatePcodeDialog::on_showPcodeButton_clicked()
     showQrcode();
 }
 
-void CreatePcodeDialog::on_pcodesView_selectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
+void CreatePcodeDialog::pcodesView_selectionChanged(QItemSelection const & selected, QItemSelection const & deselected)
 {
     bool const enable = !ui->pcodesView->selectionModel()->selectedRows().isEmpty();
     ui->showPcodeButton->setEnabled(enable);

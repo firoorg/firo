@@ -20,7 +20,7 @@ extern CCriticalSection cs_main;
 namespace {
 static void OnPcodeCreated_(PcodeModel *pcodeModel, bip47::CPaymentCodeDescription const & pcodeDescr)
 {
-    pcodeModel->OnPcodeCreated(pcodeDescr);
+    pcodeModel->DisplayCreatedPcode(pcodeDescr);
 }
 }
 
@@ -135,13 +135,6 @@ bool PcodeModel::getNotificationTxid(bip47::CPaymentCode const & paymentCode, ui
     return result;
 }
 
-void PcodeModel::OnPcodeCreated(bip47::CPaymentCodeDescription const & pcodeDescr)
-{
-    beginInsertRows(QModelIndex(), 0, 0);
-    items.push_back(pcodeDescr);
-    endInsertRows();
-}
-
 void PcodeModel::sort(int column, Qt::SortOrder order)
 {
     std::function<bool(bip47::CPaymentCodeDescription const &, bip47::CPaymentCodeDescription const &)> 
@@ -162,4 +155,11 @@ void PcodeModel::sort(int column, Qt::SortOrder order)
     };
     qSort(items.begin(), items.end(), sortPred);
     Q_EMIT dataChanged(index(0, 0, QModelIndex()), index(items.size() - 1, int(ColumnIndex::NumberOfColumns) - 1, QModelIndex()));
+}
+
+void PcodeModel::DisplayCreatedPcode(bip47::CPaymentCodeDescription const & pcodeDescr)
+{
+    beginInsertRows(QModelIndex(), 0, 0);
+    items.push_back(pcodeDescr);
+    endInsertRows();
 }

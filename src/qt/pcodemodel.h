@@ -47,7 +47,7 @@ public:
 
 public Q_SLOTS:
     void sort(int column, Qt::SortOrder order);
-    void OnPcodeCreated(bip47::CPaymentCodeDescription const & pcodeDescr);
+    void DisplayCreatedPcode(bip47::CPaymentCodeDescription const & pcodeDescr);
 
 private:
     CWallet & walletMain;
@@ -57,4 +57,3 @@ private:
 };
 
 #endif /* PCODEMODEL_H */
-
