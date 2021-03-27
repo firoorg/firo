@@ -5370,9 +5370,19 @@ UniValue setupchannel(const JSONRPCRequest& request)
 
     LOCK2(cs_main, pwallet->cs_wallet);
 
-    CWalletTx wtx = PrepareAndSendNotificationTx(pwallet, theirPcode);
+    try {
+        CWalletTx wtx = PrepareAndSendNotificationTx(pwallet, theirPcode);
+        return wtx.GetHash().GetHex();
 
-    return wtx.GetHash().GetHex();
+    }
+    catch (InsufficientFunds const & e)
+    {
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, std::string(e.what())+" Please check your Lelantus balance is grear than " + std::to_string(1.0 * bip47::NotificationTxValue / COIN));
+    }
+    catch (std::runtime_error const & e)
+    {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    }
 }
 
 UniValue sendtopcode(const JSONRPCRequest& request)

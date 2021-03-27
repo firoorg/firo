@@ -8899,6 +8899,9 @@ void SendNotificationTxLelantus(CWallet * const pwallet, bip47::CPaymentChannel 
     CScript opReturnScript = CScript() << OP_RETURN << std::vector<unsigned char>(80); // Passing empty array to calc fees
     recipients.push_back({opReturnScript, 0, false});
 
+    auto throwSigma =
+        [](){throw std::runtime_error(std::string("There are unspent Sigma coins in your wallet. Using Sigma coins for BIP47 is not supported. Please spend your Sigma coins before establishing a BIP47 channel."));};
+
     try {
         std::vector<CLelantusEntry> spendCoins;
         std::vector<CSigmaEntry> sigmaSpendCoins;
@@ -8906,9 +8909,11 @@ void SendNotificationTxLelantus(CWallet * const pwallet, bip47::CPaymentChannel 
         CAmount fee;
 
         wtxNew = pwallet->CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins, nullptr,
-                [&pchannel](CTxOut & out, LelantusJoinSplitBuilder const & builder) {
+                [&pchannel, &throwSigma](CTxOut & out, LelantusJoinSplitBuilder const & builder) {
                     if(out.scriptPubKey[0] == OP_RETURN) {
                         CKey spendPrivKey;
+                        if (builder.spendCoins.empty())
+                            throwSigma();
                         spendPrivKey.Set(builder.spendCoins[0].ecdsaSecretKey.begin(), builder.spendCoins[0].ecdsaSecretKey.end(), false);
                         CDataStream ds(SER_NETWORK, 0);
                         ds << builder.spendCoins[0].serialNumber;
@@ -8918,7 +8923,7 @@ void SendNotificationTxLelantus(CWallet * const pwallet, bip47::CPaymentChannel 
                 });
 
         if (!sigmaSpendCoins.empty())
-            throw std::runtime_error(std::string("It looks like you have unspent Sigma coins in your wallet. Using Sigma coins for BIP47 is not supported. Please spend your Sigma coins before establishing a BIP47 channel."));
+            throwSigma();
 
         if (spendCoins.empty())
             throw std::runtime_error(std::string("Cannot create a Lelantus spend to address: " + notifAddr.ToString()).c_str());
@@ -8926,11 +8931,13 @@ void SendNotificationTxLelantus(CWallet * const pwallet, bip47::CPaymentChannel 
         pwallet->CommitLelantusTransaction(wtxNew, spendCoins, sigmaSpendCoins, mintCoins);
         LogBip47("Paymentcode %s was sent to notification address: %s\n", pchannel.getMyPcode().toString().c_str(), notifAddr.ToString().c_str() );
     }
-    catch (const InsufficientFunds& e) {
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, std::string(e.what())+" Please check your Lelantus balance is grear than " + std::to_string(1.0 * bip47::NotificationTxValue / COIN));
+    catch (const InsufficientFunds& e)
+    {
+        throw e;
     }
-    catch (const std::exception& e) {
-        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    catch (const std::exception& e)
+    {
+        throw WalletError(e.what());
     }
 }
 }

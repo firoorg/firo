@@ -103,11 +103,24 @@ void SendtoPcodeDialog::on_sendButton_clicked()
 {
     if (!model || !paymentCode)
         return;
-    uint256 txid = model->getPcodeModel()->sendNotificationTx(*paymentCode);
-    setTxUrl(txid);
-    ui->sendButton->setEnabled(false);
-    ui->useButton->setEnabled(true);
-    setUseAddr();
+    try {
+        uint256 txid = model->getPcodeModel()->sendNotificationTx(*paymentCode);
+        setTxUrl(txid);
+        ui->sendButton->setEnabled(false);
+        ui->useButton->setEnabled(true);
+        setUseAddr();
+    }
+    catch (std::runtime_error const & e)
+    {
+        QMessageBox msgBox;
+        msgBox.setText(tr(
+            "During creation of the notification tx the followin error occurred:  \n"));
+        msgBox.setInformativeText(e.what());
+        msgBox.setWindowTitle(tr("RAP error"));
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.setDefaultButton(QMessageBox::Ok);
+        msgBox.exec();
+    }
 }
 
 void SendtoPcodeDialog::on_useButton_clicked()
