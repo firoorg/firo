@@ -1,5 +1,3 @@
-#include "elysium/createtx.h"
-
 #include "base58.h"
 #include "coins.h"
 #include "core_io.h"
@@ -9,6 +7,7 @@
 #include "script/standard.h"
 #include "test/test_bitcoin.h"
 #include "utilstrencodings.h"
+#include "elysium/createtx.h"
 
 #include <boost/test/unit_test.hpp>
 
@@ -23,6 +22,7 @@ static CFeeRate minRelayTxFeeOriginal = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
 
 BOOST_FIXTURE_TEST_SUITE(elysium_create_tx_tests, BasicTestingSetup)
 
+/*
 BOOST_AUTO_TEST_CASE(txbuilder_empty)
 {
     TxBuilder builder;
@@ -30,6 +30,7 @@ BOOST_AUTO_TEST_CASE(txbuilder_empty)
 
     BOOST_CHECK_EQUAL("01000000000000000000", EncodeHexTx(CTransaction(tx)));
 }
+*/
 
 BOOST_AUTO_TEST_CASE(txbuilder_from_existing)
 {
