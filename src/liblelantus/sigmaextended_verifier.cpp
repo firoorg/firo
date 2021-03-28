@@ -225,7 +225,7 @@ bool SigmaExtendedVerifier::batchverify(
 
     right += g_ * exp;
     if(left != right) {
-        LogPrintf("Sigma verification failed due to last check failed.");
+        LogPrintf("Sigma verification failed due to last check failed.\n");
         return false;
     }
 
