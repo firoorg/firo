@@ -711,7 +711,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         else return -110;
     }
 
-	if (inputMode != InputMode::LELANTUS) {
+	if (inputMode == InputMode::LELANTUS) {
 		inAll = lelantus::GetSpendTransparentAmount(wtx);
 	}else{
         inAll = view.GetValueIn(wtx);
