@@ -871,6 +871,7 @@ bool ConnectBlockLelantus(
             unsigned char hash_result[CSHA256::OUTPUT_SIZE];
             hash.Finalize(hash_result);
             auto &out_hash = pindexNew->anonymitySetHash[lelantusState.GetLatestCoinID()];
+            out_hash.clear();
             out_hash.insert(out_hash.begin(), std::begin(hash_result), std::end(hash_result));
         }
     }
