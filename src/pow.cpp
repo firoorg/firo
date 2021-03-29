@@ -20,6 +20,7 @@
 #include "fixed.h"
 
 static CBigNum bnProofOfWorkLimit(~arith_uint256(0) >> 8);
+static CBigNum bnProofOfWorkProgPowLimit(~arith_uint256(0) >> 28);
 
 double GetDifficultyHelper(unsigned int nBits) {
     int nShift = (nBits >> 24) & 0xff;
@@ -38,6 +39,15 @@ double GetDifficultyHelper(unsigned int nBits) {
 }
 
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
+{
+    bool progpowDiff = pblock->IsProgPow();
+    unsigned int diffRetarget = GetNextWorkRequiredWrapped(pindexLast, pblock, params);
+    if (progpowDiff && (diffRetarget < bnProofOfWorkProgPowLimit))
+        diffRetarget = bnProofOfWorkProgPowLimit.GetCompact();
+    return diffRetarget;
+}
+
+unsigned int GetNextWorkRequiredWrapped(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {
     if (!pindexLast || pindexLast->nHeight < params.nDifficultyAdjustStartBlock)
         return params.nFixedDifficulty;
@@ -157,6 +167,30 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     // Check proof of work matches claimed amount
     if (UintToArith256(hash) > bnTarget)
         return false;
+    return true;
+}
+
+bool CheckProofOfWork(uint256 hash, unsigned int nBits, uint256& bestHash, const Consensus::Params& params)
+{
+    //! separate function as to not upset the tests
+    bool fNegative;
+    bool fOverflow;
+    arith_uint256 bnTarget;
+
+    bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
+
+    // Check range
+    if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(params.powLimit))
+        return false;
+
+    // Keep record of best hash seen
+    if (UintToArith256(hash) < UintToArith256(bestHash))
+        bestHash = hash;
+
+    // Check proof of work matches claimed amount
+    if (UintToArith256(hash) > bnTarget)
+        return false;
+
     return true;
 }
 

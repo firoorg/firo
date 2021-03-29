@@ -25,7 +25,7 @@
 #include <vector>
 #include <unordered_set>
 
-
+#define PROGPOW_STARTTIME 1617678362
 
 class CBlockFileInfo
 {
@@ -211,6 +211,7 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
+    uint64_t nNonce64;
 
     // Firo - MTP
     int32_t nVersionMTP = 0x1000;
@@ -275,6 +276,7 @@ public:
         nTime          = 0;
         nBits          = 0;
         nNonce         = 0;
+        nNonce64       = 0;
 
         nVersionMTP = 0;
         mtpHashValue = reserved[0] = reserved[1] = uint256();
@@ -302,7 +304,12 @@ public:
         hashMerkleRoot = block.hashMerkleRoot;
         nTime          = block.nTime;
         nBits          = block.nBits;
-        nNonce         = block.nNonce;
+
+        if (!block.IsProgPow()) {
+            nNonce     = block.nNonce;
+        } else {
+            nNonce64   = block.nNonce64;
+        }
 
         if (block.IsMTP()) {
             nVersionMTP = block.nVersionMTP;
@@ -339,7 +346,12 @@ public:
         block.hashMerkleRoot = hashMerkleRoot;
         block.nTime          = nTime;
         block.nBits          = nBits;
-        block.nNonce         = nNonce;
+
+        if (!block.IsProgPow()) {
+            block.nNonce     = nNonce;
+        } else {
+            block.nNonce64   = nNonce64;
+        }
 
         // Firo - MTP
         if(block.IsMTP()){
@@ -472,9 +484,14 @@ public:
         READWRITE(hashMerkleRoot);
         READWRITE(nTime);
         READWRITE(nBits);
-        READWRITE(nNonce);
 
         const auto &params = Params().GetConsensus();
+
+        if (nTime < PROGPOW_STARTTIME) {
+            READWRITE(nNonce);
+        } else {
+            READWRITE(nNonce64);
+        }
 
         // Zcoin - MTP
         if (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= params.nMTPSwitchTime) {
@@ -526,7 +543,12 @@ public:
         block.hashMerkleRoot = hashMerkleRoot;
         block.nTime          = nTime;
         block.nBits          = nBits;
-        block.nNonce         = nNonce;
+
+        if (!block.IsProgPow()) {
+            block.nNonce     = nNonce;
+        } else {
+            block.nNonce64   = nNonce64;
+        }
 
         if (block.IsMTP()) {
             block.nVersionMTP = nVersionMTP;

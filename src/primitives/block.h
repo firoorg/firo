@@ -102,7 +102,8 @@ public:
     uint256 hashMerkleRoot;
     uint32_t nTime;
     uint32_t nBits;
-    uint32_t nNonce;
+    uint32_t nNonce;   //! std satoshi
+    uint64_t nNonce64; //! ethash nonce
 
     // Firo - MTP
     int32_t nVersionMTP = 0x1000;
@@ -136,7 +137,12 @@ public:
         READWRITE(hashMerkleRoot);
         READWRITE(nTime);
         READWRITE(nBits);
-        READWRITE(nNonce);
+        // Firo - ProgPoW
+        // Return std 4byte, if ProgPoW return 8byte
+        if (!IsProgPow())
+            READWRITE(nNonce);
+        else
+            READWRITE(nNonce64);
         // Firo - MTP
         // On read: allocate and read. On write: write only if already allocated
         if (IsMTP()) {
@@ -162,7 +168,10 @@ public:
         READWRITE(hashMerkleRoot);
         READWRITE(nTime);
         READWRITE(nBits);
-        READWRITE(nNonce);
+        if (!IsProgPow())
+            READWRITE(nNonce);
+        else
+            READWRITE(nNonce64);
         if (IsMTP()) {
             READWRITE(nVersionMTP);
             READWRITE(mtpHashValue);
@@ -179,6 +188,7 @@ public:
         nTime = 0;
         nBits = 0;
         nNonce = 0;
+        nNonce64 = 0;
         cachedPoWHash.SetNull();
 
         // Firo - MTP
@@ -209,6 +219,8 @@ public:
     void InvalidateCachedPoWHash(int nHeight) const;
 
     bool IsMTP() const;
+
+    bool IsProgPow() const;
 };
 
 class CZerocoinTxInfo;
@@ -280,7 +292,10 @@ public:
         block.hashMerkleRoot = hashMerkleRoot;
         block.nTime          = nTime;
         block.nBits          = nBits;
-        block.nNonce         = nNonce;
+        if (!IsProgPow())
+            block.nNonce     = nNonce;
+        else
+            block.nNonce64   = nNonce64;
         if (block.IsMTP()) {
             block.nVersionMTP = nVersionMTP;
             block.mtpHashData = mtpHashData;

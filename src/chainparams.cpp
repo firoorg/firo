@@ -408,6 +408,9 @@ public:
 
         // Bip39
         consensus.nMnemonicBlock = 222400;
+
+        // Progpow settings
+        consensus.nEpochOffset = 0;
     }
     virtual bool SkipUndoForBlock(int nHeight) const
     {
@@ -659,6 +662,9 @@ public:
 
         // Bip39
         consensus.nMnemonicBlock = 1;
+
+        // Progpow settings
+        consensus.nEpochOffset = 0;
     }
 };
 
@@ -862,6 +868,9 @@ public:
 
         // Bip39
         consensus.nMnemonicBlock = 0;
+
+        // Progpow settings
+        consensus.nEpochOffset = 150;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)

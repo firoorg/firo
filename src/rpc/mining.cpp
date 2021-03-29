@@ -1,5 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2021 barrystyle
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -8,9 +9,12 @@
 #include "chain.h"
 #include "chainparams.h"
 #include "consensus/consensus.h"
+#include "consensus/merkle.h"
 #include "consensus/params.h"
 #include "consensus/validation.h"
 #include "core_io.h"
+#include "crypto/progpow.h"
+#include "crypto/progpow/helpers.hpp"
 #include "init.h"
 #include "validation.h"
 #include "miner.h"
@@ -25,6 +29,7 @@
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 
+#include <utility>      // std::pair
 #include <memory>
 #include <stdint.h>
 
@@ -116,8 +121,12 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
     }
     unsigned int nExtraNonce = 0;
     UniValue blockHashes(UniValue::VARR);
+    uint256 bestHash;
+    uint32_t hashState = 0;
+    int64_t hashStart = GetTimeMillis();
     while (nHeight < nHeightEnd)
     {
+        bestHash = uint256S("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
@@ -136,10 +145,20 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
             }
         }
         else {
-            while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetPoWHash(nHeight+1), pblock->nBits, Params().GetConsensus())) {
-                ++pblock->nNonce;
+            while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetPoWHash(nHeight+1), pblock->nBits, bestHash, Params().GetConsensus())) {
+                ++pblock->nNonce64;
+                //! quite the hack, prevents having to replicate this loop
+                if (pblock->IsProgPow())
+                    pblock->nNonce = (uint32_t) pblock->nNonce64;
                 --nMaxTries;
                 pblock->cachedPoWHash.SetNull();
+                //! time the hashing
+                if (GetTimeMillis() - hashStart > 1000) {
+                    int hashrate = abs((int)pblock->nNonce - (int)hashState);
+                    LogPrintf("hashing @ %dh/s (besthash: %s)\n", hashrate, bestHash.ToString().c_str());
+                    hashState = pblock->nNonce;
+                    hashStart = GetTimeMillis();
+                }
             }
         }
         if (nMaxTries == 0) {
@@ -894,6 +913,147 @@ UniValue submitblock(const JSONRPCRequest& request)
     return BIP22ValidationResult(sc.state);
 }
 
+bool haveCoinbase{false};
+std::vector<std::pair<int, CBlock>> prevGetWork;
+boost::shared_ptr<CReserveScript> coinbaseScript;
+
+CBlock workCache(int height)
+{
+    //! check if we have anything that matches
+    for (auto l : prevGetWork) {
+        if (l.first == height) {
+            LogPrintf("%s - found cached data for height %d\n", __func__, height);
+            return l.second;
+        }
+    }
+
+    //! create new template
+    CBlock pblock = BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript)->block;
+    pblock.hashMerkleRoot = BlockMerkleRoot(pblock);
+    prevGetWork.push_back(std::make_pair(height, pblock));
+    return pblock;
+}
+
+CBlock workCache(uint256 hash, bool& valid)
+{
+    valid = false;
+
+    //! check if we have anything that matches
+    for (auto l : prevGetWork) {
+        if (l.second.hashPrevBlock == hash) {
+            valid = true;
+            LogPrintf("%s - found cached data by prevhash %s\n", __func__, hash.ToString());
+            return l.second;
+        }
+    }
+
+    return CBlock();
+}
+
+UniValue eth_getwork(const JSONRPCRequest &request)
+{
+    LOCK(cs_main);
+
+    // First run, this is expected
+    if (!haveCoinbase) {
+        GetMainSignals().ScriptForMining(coinbaseScript);
+        coinbaseScript->KeepScript();
+        haveCoinbase = true;
+    }
+
+    // generate a block or re-use if still on same height
+    int height = chainActive.Height();
+    CBlock pblock = workCache(height);
+
+    // calculate target
+    bool fNegative;
+    bool fOverflow;
+    arith_uint256 target;
+    target.SetCompact(pblock.nBits, &fNegative, &fOverflow);
+
+    // format height
+    char hexheight[12];
+    memset(hexheight,0,sizeof(hexheight));
+    sprintf(hexheight,"0x%x",skewed_epoch_number(height));
+
+    // display to client
+    UniValue result(UniValue::VARR);
+    result.push_back(pblock.hashPrevBlock.ToString());
+    result.push_back(to_hex(ethash::calculate_epoch_seed(ethash::get_epoch_number(skewed_epoch_number(height)))));
+    result.push_back(target.ToString());
+    result.push_back(std::string(hexheight));
+
+    return result;
+}
+
+UniValue eth_submitwork(const JSONRPCRequest &request)
+{
+    LOCK(cs_main);
+
+    std::string strNonce = request.params[0].get_str();
+    std::string strheaderHash = request.params[1].get_str();
+    std::string strhashMix = request.params[2].get_str();
+
+    if (strNonce.empty() || strheaderHash.empty() || strhashMix.empty())
+        return {};
+
+    //! correctly handle uint256's
+    ethash::hash256 headerHash;
+    safe_tohash256(strheaderHash, headerHash);
+    ethash::hash256 mixhash;
+    safe_tohash256(strhashMix, mixhash);
+
+    //! match the existing work template
+    bool valid = false;
+    CBlock pblock = workCache(uint256S(strheaderHash), valid);
+    if (!valid) {
+        LogPrintf("unknown work template... fail\n");
+        return {};
+    }
+    pblock.nNonce64 = strtoul(strNonce.c_str(), NULL, 16);
+
+    // calculate target
+    bool fNegative;
+    bool fOverflow;
+    arith_uint256 target;
+    target.SetCompact(pblock.nBits, &fNegative, &fOverflow);
+
+    //! from hereon is just the guts of submitblock
+    if (pblock.vtx.empty() || !pblock.vtx[0]->IsCoinBase()) {
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block does not start with a coinbase");
+    }
+
+    uint256 hash = pblock.GetHash();
+    bool fBlockPresent = false;
+    {
+        BlockMap::iterator mi = mapBlockIndex.find(hash);
+        if (mi != mapBlockIndex.end()) {
+            CBlockIndex *pindex = mi->second;
+            if (pindex->IsValid(BLOCK_VALID_SCRIPTS))
+                return "duplicate";
+            if (pindex->nStatus & BLOCK_FAILED_MASK)
+                return "duplicate-invalid";
+            // Otherwise, we might only have the header - process the block before returning
+            fBlockPresent = true;
+        }
+    }
+
+    // process block
+    submitblock_StateCatcher sc(pblock.GetHash());
+    RegisterValidationInterface(&sc);
+    bool fAccepted = ProcessNewBlock(Params(), std::shared_ptr<const CBlock>(new CBlock(pblock)), true, NULL);
+    UnregisterValidationInterface(&sc);
+    if (fBlockPresent)
+    {
+        if (fAccepted && !sc.found)
+            return "duplicate-inconclusive";
+        return "duplicate";
+    }
+    if (!sc.found)
+        return "inconclusive";
+    return fAccepted;
+}
+
 UniValue estimatefee(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
@@ -1034,6 +1194,8 @@ static const CRPCCommand commands[] =
     { "mining",             "getnetworkhashps",       &getnetworkhashps,       true,  {"nblocks","height"} },
     { "mining",             "getmininginfo",          &getmininginfo,          true,  {} },
     { "mining",             "prioritisetransaction",  &prioritisetransaction,  true,  {"txid","priority_delta","fee_delta"} },
+    { "mining",             "eth_getWork",            &eth_getwork,            true,  {} },
+    { "mining",             "eth_submitWork",         &eth_submitwork,         true,  {"nonce", "headerHash", "hashMix"} },
     { "mining",             "getblocktemplate",       &getblocktemplate,       true,  {"template_request"} },
     { "mining",             "submitblock",            &submitblock,            true,  {"hexdata","parameters"} },
 
