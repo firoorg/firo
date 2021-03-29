@@ -284,6 +284,7 @@ public:
         mintedPubCoins.clear();
         sigmaMintedPubCoins.clear();
         lelantusMintedPubCoins.clear();
+        anonymitySetHash.clear();
         accumulatorChanges.clear();
         spentSerials.clear();
         sigmaSpentSerials.clear();
