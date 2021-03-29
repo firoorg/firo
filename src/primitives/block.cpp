@@ -13,6 +13,7 @@
 #include "crypto/common.h"
 #include "chainparams.h"
 #include "crypto/scrypt.h"
+#include "crypto/progpow.h"
 #include "crypto/Lyra2Z/Lyra2Z.h"
 #include "crypto/Lyra2Z/Lyra2.h"
 #include "crypto/MerkleTreeProof/mtp.h"
@@ -23,8 +24,6 @@
 #include <algorithm>
 #include <string>
 #include "precomputed_hash.h"
-
-
 
 unsigned char GetNfactor(int64_t nTimestamp) {
     int l = 0;
@@ -57,11 +56,21 @@ bool CBlockHeader::IsMTP() const {
     return nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().GetConsensus().nMTPSwitchTime;
 }
 
+bool CBlockHeader::IsProgPow() const {
+    // This isnt ideal, but suffers from the same issue as the IsMTP() call above. Also can't get
+    // chainActive/mapBlockIndex in the consensus library (without disabling binary hardening)..
+    return nTime >= PROGPOW_STARTTIME;
+}
+
 uint256 CBlockHeader::GetPoWHash(int nHeight) const {
     if (!cachedPoWHash.IsNull())
         return cachedPoWHash;
 
     uint256 powHash;
+    if (IsProgPow()) {
+        progpow_hash(*this, powHash, nHeight);
+        return powHash;
+    }
     if (IsMTP()) {
         // MTP processing is the same across all the types on networks
         powHash = mtpHashValue;
