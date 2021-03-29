@@ -126,8 +126,6 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                         first = false;
                     }
                 }
-                if(wtx.tx->GetHash().ToString() == "4f2e27a5656294d39f23134a892a49a25224c2d0e15843f2919650c9095f5926")
-                    std::cerr << "Here" << CBitcoinAddress(address).ToString() << std::endl;
                 boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
                 if (pcode) {
                     sub.type = TransactionRecord::SendToPcode;

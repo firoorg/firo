@@ -8651,7 +8651,7 @@ boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(CBitcoinAddre
                 result.emplace(sender.getAccountNum(), sender.getTheirPcode(), "", sender.getTheirPcode().getNotificationAddress());
                 return false;
             }
-            if (address == sender.getTheirNextAddress())
+            if (address == sender.getTheirNextAddress() || address == sender.getTheirPcode().getNotificationAddress())
             {
                 result.emplace(sender.getAccountNum(), sender.getTheirPcode(), "", sender.getTheirPcode().getNotificationAddress());
                 return false;
@@ -8681,6 +8681,8 @@ bip47::CAccountReceiver const * CWallet::AddressUsed(CBitcoinAddress const & add
             return true;
         }
     );
+    if (result)
+        CWalletDB(strWalletFile).WriteBip47Account(*result);
     return result;
 }
 
