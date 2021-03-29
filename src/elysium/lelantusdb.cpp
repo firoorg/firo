@@ -286,9 +286,11 @@ LelantusDb::LelantusDb(const boost::filesystem::path& path, bool wipe, uint64_t 
     auto it = NewIterator();
     it->Seek(PendingCoinParser().GetKey(0));
 
+    /*
     if (it->Valid() && PendingCoinParser().ParseKey(it->key().ToString()) != boost::none) {
         throw std::runtime_error("Found pending coins");
     }
+    */
 }
 
 bool LelantusDb::HasSerial(PropertyId id, Scalar const &serial, uint256 &spendTx)
