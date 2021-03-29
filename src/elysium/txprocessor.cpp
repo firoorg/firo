@@ -122,6 +122,8 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
         return PKT_ERROR_LELANTUS - 907;
     }
 
+    PrintToLog("%s(): Lelantus mint for Elysium property %d accepted from %s: %d\n", __func__, property, sender, tx.getLelantusMintValue());
+
     return 0;
 }
 
@@ -217,6 +219,8 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
     }
 
     assert(update_tally_map(tx.getReceiver(), property, spendAmount, BALANCE));
+
+    PrintToLog("%s(): Lelantus joinsplit for Elysium property %d accepted to %s: %d\n", __func__, property, tx.getReceiver(), spendAmount);
 
     return 0;
 }
