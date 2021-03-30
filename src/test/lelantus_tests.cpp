@@ -555,7 +555,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     CValidationState state;
     CLelantusTxInfo info;
     BOOST_CHECK(CheckLelantusTransaction(
-        txs[0], state, tx.GetHash(), true, chainActive.Height(), true, true, NULL, &info));
+        txs[0], state, tx.GetHash(), false, chainActive.Height(), true, true, NULL, &info));
 
     std::vector<std::pair<PublicCoin, std::pair<uint64_t, uint256>>> expectedCoins = {{mints[0].GetPubcoinValue(), {1 * CENT, info.mints[0].second.second}}};
 

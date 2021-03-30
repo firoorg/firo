@@ -372,7 +372,7 @@ bool CheckLelantusJoinSplitTransaction(
     int jSplitVersion = joinsplit->getVersion();
 
     if (jSplitVersion < LELANTUS_TX_VERSION_4 ||
-        (nHeight >= params.nLelantusFixesStartBlock && jSplitVersion != LELANTUS_TX_VERSION_4_5 && jSplitVersion != SIGMA_TO_LELANTUS_JOINSPLIT_FIXED)) {
+        (!isVerifyDB && nHeight >= params.nLelantusFixesStartBlock && jSplitVersion != LELANTUS_TX_VERSION_4_5 && jSplitVersion != SIGMA_TO_LELANTUS_JOINSPLIT_FIXED)) {
         return state.DoS(100,
                          false,
                          NSEQUENCE_INCORRECT,
@@ -693,7 +693,7 @@ bool CheckLelantusTransaction(
     }
 
     // Check Mint Lelantus Transaction
-    if (allowLelantus) {
+    if (allowLelantus && !isVerifyDB) {
         for (const CTxOut &txout : tx.vout) {
             if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsLelantusMint()) {
                 if (!CheckLelantusMintTransaction(txout, state, hashTx, fStatefulSigmaCheck, lelantusTxInfo))
