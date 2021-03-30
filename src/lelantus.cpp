@@ -56,11 +56,14 @@ static bool CheckLelantusSpendSerial(
 }
 
 
-std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id) {
+std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id, bool generation = false) {
     std::vector<unsigned char> out_hash;
 
     CLelantusState::LelantusCoinGroupInfo coinGroup;
     if (!lelantusState.GetCoinGroupInfo(group_id, coinGroup))
+        return out_hash;
+
+    if ((coinGroup.firstBlock == coinGroup.lastBlock && generation) || (coinGroup.nCoins == 0))
         return out_hash;
 
     while (index != coinGroup.firstBlock) {
@@ -823,6 +826,7 @@ bool ConnectBlockLelantus(
         if (!fJustCheck) {
             pindexNew->lelantusMintedPubCoins.clear();
             pindexNew->lelantusSpentSerials.clear();
+            pindexNew->anonymitySetHash.clear();
         }
 
         if (!CheckLelantusBlock(state, *pblock)) {
@@ -874,10 +878,12 @@ bool ConnectBlockLelantus(
             if (pindexNew->nHeight >= params.nLelantusFixesStartBlock) {
                 updateHash = true;
 
-                // get previous hash of the set, if there is no such, don't write anything
-                std::vector<unsigned char> prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId);
-                if(!prev_hash.empty())
-                    hash.Write(prev_hash.data(), 32);
+                if (pindexNew->nHeight > params.nLelantusFixesStartBlock) {
+                    // get previous hash of the set, if there is no such, don't write anything
+                    std::vector<unsigned char> prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId, true);
+                    if (!prev_hash.empty())
+                        hash.Write(prev_hash.data(), 32);
+                }
 
                 for (auto &coin : pindexNew->lelantusMintedPubCoins[latestCoinId]) {
                     coin.first.getValue().serialize(data.data());
