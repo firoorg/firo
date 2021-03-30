@@ -55,6 +55,24 @@ static bool CheckLelantusSpendSerial(
     return true;
 }
 
+
+std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id) {
+    std::vector<unsigned char> out_hash;
+
+    CLelantusState::LelantusCoinGroupInfo coinGroup;
+    if (!lelantusState.GetCoinGroupInfo(group_id, coinGroup))
+        return out_hash;
+
+    while (index != coinGroup.firstBlock) {
+        if (index->anonymitySetHash.count(group_id) > 0) {
+            out_hash = index->anonymitySetHash[group_id];
+            break;
+        }
+        index = index->pprev;
+    }
+    return out_hash;
+}
+
 bool IsLelantusAllowed()
 {
     LOCK(cs_main);
@@ -446,8 +464,11 @@ bool CheckLelantusJoinSplitTransaction(
                 index = index->pprev;
 
             // take the hash from last block of anonymity set, it is used at challenge generation if nLelantusFixesStartBlock is passed
-            if (nHeight >= params.nLelantusFixesStartBlock && index->anonymitySetHash.count(idAndHash.first))
-                anonymity_set_hashes.push_back(index->anonymitySetHash[idAndHash.first]);
+            if (nHeight >= params.nLelantusFixesStartBlock) {
+                std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, idAndHash.first);
+                if (!set_hash.empty())
+                    anonymity_set_hashes.push_back(set_hash);
+            }
             // Build a vector with all the public coins with given id before
             // the block on which the spend occured.
             // This list of public coins is required by function "Verify" of JoinSplit.
@@ -829,10 +850,6 @@ bool ConnectBlockLelantus(
             return true;
 
         auto& params = ::Params().GetConsensus();
-        // take set hash from previous block, we will not update it if this block has no mints
-        if (pindexNew->nHeight > params.nLelantusFixesStartBlock)
-            pindexNew->anonymitySetHash = pindexNew->pprev->anonymitySetHash;
-
         CHash256 hash;
         std::vector<unsigned char> data(GroupElement::serialize_size);
         bool updateHash = false;
@@ -856,8 +873,11 @@ bool ConnectBlockLelantus(
             // else hasher is supposed to be empty, so add previous hash first, then coins
             if (pindexNew->nHeight >= params.nLelantusFixesStartBlock) {
                 updateHash = true;
-                if (pindexNew->pprev->anonymitySetHash.count(latestCoinId) > 0)
-                    hash.Write(pindexNew->pprev->anonymitySetHash[latestCoinId].data(), 32);
+
+                // get previous hash of the set, if there is no such, don't write anything
+                std::vector<unsigned char> prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId);
+                if(!prev_hash.empty())
+                    hash.Write(prev_hash.data(), 32);
 
                 for (auto &coin : pindexNew->lelantusMintedPubCoins[latestCoinId]) {
                     coin.first.getValue().serialize(data.data());
@@ -1360,8 +1380,7 @@ int CLelantusState::GetCoinSetForSpend(
                 // latest block satisfying given conditions
                 // remember block hash and set hash
                 blockHash_out = block->GetBlockHash();
-                if (block->anonymitySetHash.count(id) > 0)
-                    setHash_out =  block->anonymitySetHash[id];
+                setHash_out =  GetAnonymitySetHash(block, id);
             }
             numberOfCoins += block->lelantusMintedPubCoins[id].size();
             if (block->lelantusMintedPubCoins.count(id) > 0) {

@@ -455,7 +455,8 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
                         _("Has to have at least two mint coins with at least 2 confirmation in order to spend a coin"));
             groupBlockHashes[groupId] = blockHash;
             anonymity_sets[groupId] = set;
-            anonymity_set_hashes.push_back(setHash);
+            if (!setHash.empty())
+                anonymity_set_hashes.push_back(setHash);
         }
     }
 
