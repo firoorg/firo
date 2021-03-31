@@ -1664,7 +1664,7 @@ int elysium_shutdown()
 
     elysiumInitialized = 0;
 
-    PrintToLog("\nElysium Core shutdown completed\n");
+    PrintToLog("Elysium Core shutdown completed\n");
     PrintToLog("Shutdown time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()));
 
     return 0;
