@@ -171,46 +171,6 @@ bool BalanceToJSON(const std::string& address, uint32_t property, UniValue& bala
     }
 }
 
-// generate a list of seed blocks based on the data in LevelDB
-UniValue elysium_getseedblocks(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 2)
-        throw runtime_error(
-            "elysium_getseedblocks startblock endblock\n"
-            "\nReturns a list of blocks containing Elysium transactions for use in seed block filtering.\n"
-            "\nWARNING: The Elysium crowdsale is not stored in LevelDB, thus this is currently only safe to use to generate seed blocks after block 255365."
-            "\nArguments:\n"
-            "1. startblock           (number, required) the first block to look for Elysium transactions (inclusive)\n"
-            "2. endblock             (number, required) the last block to look for Elysium transactions (inclusive)\n"
-            "\nResult:\n"
-            "[                     (array of numbers) a list of seed blocks\n"
-            "   nnnnnn,              (number) the block height of the seed block\n"
-            "   ...\n"
-            "]\n"
-            "\nExamples:\n"
-            + HelpExampleCli("elysium_getseedblocks", "290000 300000")
-            + HelpExampleRpc("elysium_getseedblocks", "290000, 300000")
-        );
-
-    int startHeight = request.params[0].get_int();
-    int endHeight = request.params[1].get_int();
-
-    RequireHeightInChain(startHeight);
-    RequireHeightInChain(endHeight);
-
-    UniValue response(UniValue::VARR);
-
-    {
-        LOCK(cs_main);
-        std::set<int> setSeedBlocks = p_txlistdb->GetSeedBlocks(startHeight, endHeight);
-        for (std::set<int>::const_iterator it = setSeedBlocks.begin(); it != setSeedBlocks.end(); ++it) {
-            response.push_back(*it);
-        }
-    }
-
-    return response;
-}
-
 // obtain the payload for a transaction
 UniValue elysium_getpayload(const JSONRPCRequest& request)
 {
@@ -1401,7 +1361,6 @@ static const CRPCCommand commands[] =
     { "elysium (data retrieval)", "elysium_getallbalancesforaddress",  &elysium_getallbalancesforaddress,   false },
     { "elysium (data retrieval)", "elysium_getcurrentconsensushash",   &elysium_getcurrentconsensushash,    false },
     { "elysium (data retrieval)", "elysium_getpayload",                &elysium_getpayload,                 false },
-    { "elysium (data retrieval)", "elysium_getseedblocks",             &elysium_getseedblocks,              false },
     { "elysium (data retrieval)", "elysium_getbalanceshash",           &elysium_getbalanceshash,            false },
 #ifdef ENABLE_WALLET
     { "elysium (data retrieval)", "elysium_listtransactions",          &elysium_listtransactions,           false },
