@@ -199,6 +199,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "elysium_getgrants", 0 },
 	{ "elysium_getbalance", 1 },
 	{ "elysium_getproperty", 0 },
+	{ "elysium_listlelantusmints", 0 },
+	{ "elysium_listlelantusmints", 1 },
 	{ "elysium_listtransactions", 1 },
 	{ "elysium_listtransactions", 2 },
 	{ "elysium_listtransactions", 3 },
