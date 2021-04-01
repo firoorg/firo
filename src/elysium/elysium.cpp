@@ -1046,18 +1046,12 @@ int input_elysium_balances_string(const std::string& s)
         }
 
         // "propertyid:balancedata"
-        std::vector<std::string> curProperty;
-        boost::split(curProperty, *iter, boost::is_any_of(":"), boost::token_compress_on);
-        if (curProperty.size() != 2) return -1;
+        std::vector<std::string> propertyBalance;
+        boost::split(propertyBalance, *iter, boost::is_any_of(":"), boost::token_compress_on);
+        if (propertyBalance.size() != 2) return -1;
 
-        // "balance,sellreserved,acceptreserved,metadexreserved"
-        std::vector<std::string> curBalance;
-        boost::split(curBalance, curProperty[1], boost::is_any_of(","), boost::token_compress_on);
-        if (curBalance.size() != 4) return -1;
-
-        uint32_t propertyId = boost::lexical_cast<uint32_t>(curProperty[0]);
-
-        int64_t balance = boost::lexical_cast<int64_t>(curBalance[0]);
+        uint32_t propertyId = boost::lexical_cast<uint32_t>(propertyBalance[0]);
+        int64_t balance = boost::lexical_cast<int64_t>(propertyBalance[1]);
 
         if (balance) update_tally_map(strAddress, propertyId, balance, BALANCE);
     }
