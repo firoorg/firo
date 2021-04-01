@@ -952,7 +952,7 @@ public:
             CAmount required,
             std::vector<CLelantusEntry>& coinsToSpend_out,
             CAmount& changeToMint,
-            std::list<CLelantusEntry>& coins,
+            std::list<CLelantusEntry> coins,
             const size_t coinsToSpendLimit = SIZE_MAX,
             const CAmount amountToSpendLimit = MAX_MONEY,
             const CCoinControl *coinControl = NULL) const;

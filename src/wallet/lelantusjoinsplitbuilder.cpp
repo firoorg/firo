@@ -199,7 +199,8 @@ CWalletTx LelantusJoinSplitBuilder::Build(
                 else
                     inputFromSigma = required;
 
-                wallet.GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges, sigmaCoins, //try to spend sigma first
+                std::list<CSigmaEntry> sigmaCoinsCp = sigmaCoins;
+                wallet.GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges, sigmaCoinsCp, //try to spend sigma first
                                        consensusParams.nMaxLelantusInputPerTransaction,
                                        consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
 

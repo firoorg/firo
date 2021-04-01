@@ -3157,7 +3157,7 @@ bool CWallet::GetCoinsToJoinSplit(
         CAmount required,
         std::vector<CLelantusEntry>& coinsToSpend_out,
         CAmount& changeToMint,
-        std::list<CLelantusEntry>& coins,
+        std::list<CLelantusEntry> coins,
         const size_t coinsToSpendLimit,
         const CAmount amountToSpendLimit,
         const CCoinControl *coinControl) const
