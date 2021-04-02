@@ -681,7 +681,7 @@ public:
     bool UpgradeDiff(CDBBatch& batch, const CBlockIndex* pindexNext, const CDeterministicMNList& curMNList, CDeterministicMNList& newMNList);
     void UpgradeDBIfNeeded();
 
-private:
+public:
     void CleanupCache(int nHeight);
 };
 
