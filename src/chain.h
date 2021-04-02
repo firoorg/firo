@@ -245,6 +245,8 @@ public:
     std::map<pair<sigma::CoinDenomination, int>, vector<sigma::PublicCoin>> sigmaMintedPubCoins;
     //! Map id to <public coin, tag>
     std::map<int, vector<std::pair<lelantus::PublicCoin, uint256>>>  lelantusMintedPubCoins;
+    //! Map id to <hash of the set>
+    std::map<int, vector<unsigned char>> anonymitySetHash;
 
     //! Values of coin serials spent in this block
     sigma::spend_info_container sigmaSpentSerials;
@@ -282,6 +284,7 @@ public:
         mintedPubCoins.clear();
         sigmaMintedPubCoins.clear();
         lelantusMintedPubCoins.clear();
+        anonymitySetHash.clear();
         accumulatorChanges.clear();
         spentSerials.clear();
         sigmaSpentSerials.clear();
@@ -510,6 +513,9 @@ public:
             } else
                 READWRITE(lelantusMintedPubCoins);
             READWRITE(lelantusSpentSerials);
+
+            if (nHeight >= params.nLelantusFixesStartBlock)
+                READWRITE(anonymitySetHash);
         }
 
         if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nEvoSporkStartBlock && nHeight < params.nEvoSporkStopBlock)

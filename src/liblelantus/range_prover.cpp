@@ -1,5 +1,5 @@
 #include "range_prover.h"
-#include "challenge_generator.h"
+#include "challenge_generator_impl.h"
 
 namespace lelantus {
     
@@ -9,19 +9,22 @@ RangeProver::RangeProver(
         const GroupElement& h2,
         const std::vector<GroupElement>& g_vector,
         const std::vector<GroupElement>& h_vector,
-        uint64_t n)
+        uint64_t n,
+        unsigned int v)
         : g (g)
         , h1 (h1)
         , h2 (h2)
         , g_(g_vector)
         , h_(h_vector)
         , n (n)
+        , version (v)
 {}
 
 void RangeProver::batch_proof(
         const std::vector<Scalar>& v,
         const std::vector<Scalar>& serialNumbers,
         const std::vector<Scalar>& randomness,
+        const std::vector<GroupElement>& commitments,
         RangeProof& proof_out) {
     std::size_t m = v.size();
     std::vector<std::vector<bool>> bits;
@@ -59,10 +62,21 @@ void RangeProver::batch_proof(
     LelantusPrimitives::commit(h1, ro, g_, sL, h_, sR, proof_out.S);
 
     Scalar y, z;
-    ChallengeGenerator challengeGenerator;
-    challengeGenerator.add({proof_out.A, proof_out.S});
-    challengeGenerator.get_challenge(y);
-    challengeGenerator.get_challenge(z);
+    unique_ptr<ChallengeGenerator> challengeGenerator;
+    if (version >= LELANTUS_TX_VERSION_4_5) {
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>();
+        // add domain separator and transaction version into transcript
+        std::string domain_separator = "RANGE_PROOF" + std::to_string(version);
+        std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
+        challengeGenerator->add(pre);
+        challengeGenerator->add(commitments);
+    } else {
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>();
+    }
+
+    challengeGenerator->add({proof_out.A, proof_out.S});
+    challengeGenerator->get_challenge(y);
+    challengeGenerator->get_challenge(z);
 
     //compute l(x) and r(x) polynomials
     std::vector<std::vector<Scalar>> l_x, r_x;
@@ -119,8 +133,8 @@ void RangeProver::batch_proof(
     proof_out.T2 = LelantusPrimitives::double_commit(g, t2, h1, T_12, h2, T_22);
 
     Scalar x;
-    challengeGenerator.add({proof_out.T1, proof_out.T2});
-    challengeGenerator.get_challenge(x);
+    challengeGenerator->add({proof_out.T1, proof_out.T2});
+    challengeGenerator->get_challenge(x);
 
     //computing l and r
     std::vector<Scalar> l;
@@ -147,14 +161,15 @@ void RangeProver::batch_proof(
         y_i_inv.go_next();
     }
 
-    InnerProductProofGenerator InnerProductProofGenerator(g_, h_prime, g);
+    int inner_product_version = version >= LELANTUS_TX_VERSION_4_5 ? 2 : 1;
+    InnerProductProofGenerator InnerProductProofGenerator(g_, h_prime, g, inner_product_version);
     //t^ is calculated inside inner product proof generation with name c
     Scalar x_u;
-    challengeGenerator.add({proof_out.T_x1, proof_out.T_x2, proof_out.u});
-    challengeGenerator.get_challenge(x_u);
+    challengeGenerator->add({proof_out.T_x1, proof_out.T_x2, proof_out.u});
+    challengeGenerator->get_challenge(x_u);
 
-    InnerProductProofGenerator.generate_proof(l, r, x_u, proof_out.innerProductProof);
-
+    // if(inner_product_version >= 2) link range proof data to inner product transcript with passing already filled  challengeGenerator
+    InnerProductProofGenerator.generate_proof(l, r, x_u, challengeGenerator, proof_out.innerProductProof);
 }
 
 }//namespace lelantus

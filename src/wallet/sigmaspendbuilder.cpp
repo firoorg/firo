@@ -96,12 +96,12 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
 
     if (state->GetCoinSetForSpend(
         &chainActive,
-        chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
+        chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 2 confirmation for mint to spend
         denom,
         groupId,
         signer->lastBlockOfGroup,
         signer->group) < 2) {
-        throw std::runtime_error(_("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"));
+        throw std::runtime_error(_("Has to have at least two mint coins with at least 2 confirmation in order to spend a coin"));
     }
 
     return signer;

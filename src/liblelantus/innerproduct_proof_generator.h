@@ -2,6 +2,7 @@
 #define FIRO_LIBLELANTUS_INNERP_RODUCT_PROOF_GENERATOR_H
 
 #include "lelantus_primitives.h"
+#include "challenge_generator_impl.h"
 
 namespace lelantus {
     
@@ -12,12 +13,14 @@ public:
     InnerProductProofGenerator(
             const std::vector<GroupElement>& g,
             const std::vector<GroupElement>& h,
-            const GroupElement& u);
+            const GroupElement& u,
+            int version); // if(version >= 2) we should pass CHash256 in generate_proof function
 
     void generate_proof(
             const std::vector<Scalar>& a,
             const std::vector<Scalar>& b,
             const Scalar& x,
+            unique_ptr<ChallengeGenerator>& challengeGenerator,
             InnerProductProof& proof_out);
 
     const GroupElement& get_P();
@@ -28,11 +31,13 @@ private:
             const std::vector<GroupElement>& g,
             const std::vector<GroupElement>& h,
             const GroupElement& u,
-            const GroupElement& P);
+            const GroupElement& P,
+            int version);
 
     void generate_proof_util(
             const std::vector<Scalar>& a,
             const std::vector<Scalar>& b,
+            unique_ptr<ChallengeGenerator>& challengeGenerator,
             InnerProductProof& proof_out);
 
     void l(typename std::vector<Scalar>::const_iterator a_start,
@@ -64,6 +69,7 @@ private:
     GroupElement u_;
     GroupElement P_;
     GroupElement P_initial;
+    int version_;
 
 };
 

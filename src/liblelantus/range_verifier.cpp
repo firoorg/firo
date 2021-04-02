@@ -1,5 +1,5 @@
 #include "range_verifier.h"
-#include "challenge_generator.h"
+#include "challenge_generator_impl.h"
 
 namespace lelantus {
     
@@ -9,34 +9,45 @@ RangeVerifier::RangeVerifier(
         const GroupElement& h2,
         const std::vector<GroupElement>& g_vector,
         const std::vector<GroupElement>& h_vector,
-        uint64_t n)
+        uint64_t n,
+        unsigned int v)
         : g (g)
         , h1 (h1)
         , h2 (h2)
         , g_(g_vector)
         , h_(h_vector)
         , n (n)
+        , version (v)
 {}
 
-bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const RangeProof& proof) {
+bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::vector<GroupElement>& commitments, const RangeProof& proof) {
     if(!membership_checks(proof))
         return false;
     uint64_t m = V.size();
 
     //computing challenges
     Scalar x, x_u, y, z;
+    unique_ptr<ChallengeGenerator> challengeGenerator;
+    if (version >= LELANTUS_TX_VERSION_4_5) {
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>();
+        // add domain separator and transaction version into transcript
+        std::string domain_separator = "RANGE_PROOF" + std::to_string(version);
+        std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
+        challengeGenerator->add(pre);
+        challengeGenerator->add(commitments);
+    }  else {
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>();
+    }
+    challengeGenerator->add({proof.A, proof.S});
+    challengeGenerator->get_challenge(y);
+    challengeGenerator->get_challenge(z);
 
-    ChallengeGenerator challengeGenerator;
-    challengeGenerator.add({proof.A, proof.S});
-    challengeGenerator.get_challenge(y);
-    challengeGenerator.get_challenge(z);
-
-    challengeGenerator.add({proof.T1, proof.T2});
-    challengeGenerator.get_challenge(x);
+    challengeGenerator->add({proof.T1, proof.T2});
+    challengeGenerator->get_challenge(x);
     Scalar x_neg = x.negate();
 
-    challengeGenerator.add({proof.T_x1, proof.T_x2, proof.u});
-    challengeGenerator.get_challenge(x_u);
+    challengeGenerator->add({proof.T_x1, proof.T_x2, proof.u});
+    challengeGenerator->get_challenge(x_u);
 
     auto log_n = RangeProof::int_log2(n * m);
     const InnerProductProof& innerProductProof = proof.innerProductProof;
@@ -46,12 +57,30 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const Range
     for (int i = 0; i < log_n; ++i)
     {
         std::vector<GroupElement> group_elements_i = {innerProductProof.L_[i], innerProductProof.R_[i]};
-        LelantusPrimitives::generate_challenge(group_elements_i, x_j[i]);
+
+        // if(version >= LELANTUS_TX_VERSION_4_5) we should be using CHash256,
+        // we want to link transcripts from range proof and from previous iteration in each step, so we are not restarting in that case,
+        if (version >= LELANTUS_TX_VERSION_4_5) {
+            // add domain separator in each step
+            std::string domain_separator = "INNER_PRODUCT";
+            std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
+            challengeGenerator->add(pre);
+        } else {
+            challengeGenerator.reset(new ChallengeGeneratorImpl<CSHA256>());
+        }
+
+        challengeGenerator->add(group_elements_i);
+        challengeGenerator->get_challenge(x_j[i]);
         x_j_inv.emplace_back((x_j[i].inverse()));
     }
 
     Scalar z_square_neg = (z.square()).negate();
-    Scalar delta = LelantusPrimitives::delta(y, z, n, m);
+    Scalar delta;
+    try {
+        delta = LelantusPrimitives::delta(y, z, n, m);
+    } catch (std::invalid_argument&) {
+        return false;
+    }
 
     //check line 97
     GroupElement V_z;
@@ -59,7 +88,11 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const Range
     for (std::size_t j = 0; j < m; ++j)
     {
         V_z += V[j] * (z_square_neg * z_m.pow);
-        z_m.go_next();
+        try {
+            z_m.go_next();
+        } catch (std::invalid_argument&) {
+            return false;
+        }
     }
 
     std::vector<Scalar> l_r;
@@ -73,7 +106,11 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const Range
     for (uint64_t k = 0; k < n; ++k)
     {
         two_n.emplace_back(two_n_.pow);
-        two_n_.go_next();
+        try {
+            two_n_.go_next();
+        } catch (std::invalid_argument&) {
+            return false;
+        }
     }
 
     for (uint64_t t = 0; t < m ; ++t)
@@ -96,9 +133,17 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const Range
             }
             l_r[i] = x_il * innerProductProof.a_ + z;
             l_r[n * m + i] = y_n_.pow * (x_ir * innerProductProof.b_ - (z_j.pow * two_n[k])) - z;
-            y_n_.go_next();
+            try {
+                y_n_.go_next();
+            } catch (std::invalid_argument&) {
+                return false;
+            }
         }
-        z_j.go_next();
+        try {
+            z_j.go_next();
+        } catch (std::invalid_argument&) {
+            return false;
+        }
     }
 
     //check lines  98 and 105

@@ -6,10 +6,12 @@ namespace lelantus {
 InnerProductProofGenerator::InnerProductProofGenerator(
         const std::vector<GroupElement>& g,
         const std::vector<GroupElement>& h,
-        const GroupElement& u)
+        const GroupElement& u,
+        int version)
         : g_(g)
         , h_(h)
         , u_(u)
+        , version_(version)
 {
 }
 
@@ -17,11 +19,13 @@ InnerProductProofGenerator::InnerProductProofGenerator(
         const std::vector<GroupElement>& g,
         const std::vector<GroupElement>& h,
         const GroupElement& u,
-        const GroupElement& P)
+        const GroupElement& P,
+        int version)
         : g_(g)
         , h_(h)
         , u_(u)
         , P_(P)
+        , version_(version)
 {
 }
 
@@ -29,18 +33,20 @@ void InnerProductProofGenerator::generate_proof(
         const std::vector<Scalar>& a,
         const std::vector<Scalar>& b,
         const Scalar& x,
+        unique_ptr<ChallengeGenerator>& challengeGenerator,
         InnerProductProof& proof_out) {
     const Scalar c = LelantusPrimitives::scalar_dot_product(a.begin(), a.end(), b.begin(), b.end());
     compute_P(a, b, P_initial);
     u_ *= x;
     proof_out.c_ = c;
     P_ = (P_initial + u_ * c);
-    generate_proof_util(a, b, proof_out);
+    generate_proof_util(a, b, challengeGenerator, proof_out);
 }
 
 void InnerProductProofGenerator::generate_proof_util(
         const std::vector<Scalar>& a,
         const std::vector<Scalar>& b,
+        unique_ptr<ChallengeGenerator>& challengeGenerator,
         InnerProductProof& proof_out) {
 
     if(a.size() != b.size())
@@ -70,7 +76,19 @@ void InnerProductProofGenerator::generate_proof_util(
     //Get challenge x
     Scalar x;
     std::vector<GroupElement> group_elements = {L, R};
-    LelantusPrimitives::generate_challenge(group_elements, x);
+
+    // if(version_ >= 2) we should be using CHash256,
+    // we want to link transcripts from previous iteration in each step, so we are not restarting in that case,
+    if (version_ >= 2) {
+        // add domain separator in each step
+        std::string domain_separator = "INNER_PRODUCT";
+        std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
+        challengeGenerator->add(pre);
+    } else {
+        challengeGenerator.reset(new ChallengeGeneratorImpl<CSHA256>());
+    }
+    challengeGenerator->add(group_elements);
+    challengeGenerator->get_challenge(x);
 
     //Compute g prime and p prime
     std::vector<GroupElement> g_p;
@@ -86,7 +104,7 @@ void InnerProductProofGenerator::generate_proof_util(
     GroupElement p_p = LelantusPrimitives::p_prime(P_, L, R, x);
 
     // Recursive call of protocol 2
-    InnerProductProofGenerator(g_p, h_p, u_, p_p).generate_proof_util(a_p, b_p, proof_out);
+    InnerProductProofGenerator(g_p, h_p, u_, p_p, version_).generate_proof_util(a_p, b_p, challengeGenerator, proof_out);
 }
 
 void InnerProductProofGenerator::compute_P(

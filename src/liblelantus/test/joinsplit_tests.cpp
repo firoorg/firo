@@ -89,15 +89,17 @@ BOOST_AUTO_TEST_CASE(verify)
         params,
         cin,
         anons,
+        {},
         vout, // vout
         {privs[3]}, // cout
         CENT, // fee
         groupBlockHashes,
-        ArithToUint256(3));
+        ArithToUint256(3),
+        0);
 
     std::vector<uint32_t> expectedGroupIds = {1, 1, 2};
     BOOST_CHECK(expectedGroupIds == joinSplit.getCoinGroupIds());
-    BOOST_CHECK(joinSplit.Verify(anons, {privs[3].getPublicCoin()}, vout, ArithToUint256(3)));
+    BOOST_CHECK(joinSplit.Verify(anons, {}, {privs[3].getPublicCoin()}, vout, ArithToUint256(3)));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

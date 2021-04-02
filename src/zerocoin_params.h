@@ -55,7 +55,9 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 
 // Block after which lelantus mints are activated.
 #define ZC_LELANTUS_STARTING_BLOCK         336888
+#define ZC_LELANTUS_FIXES_START_BLOCK       360000
 #define ZC_LELANTUS_TESTNET_STARTING_BLOCK 15700
+#define ZC_LELANTUS_TESTNET_FIXES_START_BLOCK   27600
 
 // Number of blocks after ZC_SIGMA_STARTING_BLOCK during which we still accept zerocoin V2 mints into mempool.
 #define ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD          4500
@@ -106,7 +108,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 #define EVOSPORK_MIN_VERSION                140200
 
 // number of mint confirmations needed to spend coin
-#define ZC_MINT_CONFIRMATIONS               6
+#define ZC_MINT_CONFIRMATIONS               2
 
 // Genesis block timestamp
 #define ZC_GENESIS_BLOCK_TIME               1414776286

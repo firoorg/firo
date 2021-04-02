@@ -2918,7 +2918,7 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinContro
 
     std::set<COutPoint> lockedCoins = setLockedCoins;
 
-    // Filter out coins which are not confirmed, I.E. do not have at least 6 blocks
+    // Filter out coins which are not confirmed, I.E. do not have at least 2 blocks
     // above them, after they were minted.
     // Also filter out used coins.
     // Finally filter out coins that have not been selected from CoinControl should that be used
@@ -2936,7 +2936,7 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinContro
         std::vector<sigma::PublicCoin> coinOuts;
         sigmaState->GetCoinSetForSpend(
             &chainActive,
-            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
+            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 2 confirmation for mint to spend
             coin.get_denomination(),
             coinId,
             hashOut,
@@ -2996,7 +2996,7 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
 
     std::set<COutPoint> lockedCoins = setLockedCoins;
 
-    // Filter out coins which are not confirmed, I.E. do not have at least 6 blocks
+    // Filter out coins which are not confirmed, I.E. do not have at least 2 blocks
     // above them, after they were minted.
     // Also filter out used coins.
     // Finally filter out coins that have not been selected from CoinControl should that be used
@@ -3011,12 +3011,14 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
         // Check group size
         uint256 hashOut;
         std::vector<lelantus::PublicCoin> coinOuts;
+        std::vector<unsigned char> setHash;
         state->GetCoinSetForSpend(
             &chainActive,
-            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
+            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 2 confirmation for mint to spend
             coinId,
             hashOut,
-            coinOuts
+            coinOuts,
+            setHash
         );
 
         if (!includeUnsafe && coinOuts.size() < 2) {
@@ -5855,7 +5857,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
             }
 
             if (coinId == INT_MAX){
-                strFailReason = _("it has to have at least two mint coins with at least 6 confirmation in order to spend a coin");
+                strFailReason = _("it has to have at least two mint coins with at least 2 confirmation in order to spend a coin");
                 return false;
             }
 
@@ -6145,7 +6147,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
 
                 // If no suitable coin found, fail.
                 if (coinId == INT_MAX){
-                    strFailReason = _("it has to have at least two mint coins with at least 6 confirmation in order to spend a coin");
+                    strFailReason = _("it has to have at least two mint coins with at least 2 confirmation in order to spend a coin");
                     return false;
                 }
                 // 1. Get the current accumulator for denomination selected

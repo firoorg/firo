@@ -400,15 +400,16 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     addMintsToState(indexes[2], blocks[2]);
 
     verifyGroup(1, 6, indexes[0], indexes[2]);
-
     uint256 blockHashOut1;
     std::vector<PublicCoin> coinOut1;
+    std::vector<unsigned char> setHash;
     BOOST_CHECK_EQUAL(6, lelantusState->GetCoinSetForSpend(
         &chainActive,
         indexes[2]->nHeight,
         1,
         blockHashOut1,
-        coinOut1));
+        coinOut1,
+        setHash));
 
     verifyMints(0, 6, coinOut1);
     BOOST_CHECK(indexes[2]->GetBlockHash() == blockHashOut1);
@@ -425,7 +426,8 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
         indexes[3]->nHeight + 1, // specify limit with no mints block
         2,
         blockHashOut2,
-        coinOut2));
+        coinOut2,
+        setHash));
 
     verifyMints(4, 8, coinOut2);
     BOOST_CHECK(indexes[3]->GetBlockHash() == blockHashOut2);
@@ -443,7 +445,8 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
         indexes[4]->nHeight,
         2,
         blockHashOut3,
-        coinOut3));
+        coinOut3,
+        setHash));
 
     verifyMints(4, 10, coinOut3);
     BOOST_CHECK(indexes[4]->GetBlockHash() == blockHashOut3);
@@ -462,7 +465,8 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
         indexes[5]->nHeight,
         3,
         blockHashOut4,
-        coinOut4));
+        coinOut4,
+        setHash));
 
     verifyMints(8, 12, coinOut4);
 
@@ -474,7 +478,8 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
         indexes[5]->nHeight,
         1,
         blockHashOut5,
-        coinOut5));
+        coinOut5,
+        setHash));
 
     verifyMints(0, 6, coinOut5);
     BOOST_CHECK(indexes[2]->GetBlockHash() == blockHashOut5);
@@ -487,7 +492,8 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
         indexes[0]->nHeight,
         1,
         blockHashOut6,
-        coinOut6));
+        coinOut6,
+        setHash));
 
     verifyMints(0, 2, coinOut6);
     BOOST_CHECK(indexes[0]->GetBlockHash() == blockHashOut6);
