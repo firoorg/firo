@@ -55,7 +55,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 
 // Block after which lelantus mints are activated.
 #define ZC_LELANTUS_STARTING_BLOCK         336888
-#define ZC_LELANTUS_FIXES_START_BLOCK       356000
+#define ZC_LELANTUS_FIXES_START_BLOCK       360000
 #define ZC_LELANTUS_TESTNET_STARTING_BLOCK 15700
 #define ZC_LELANTUS_TESTNET_FIXES_START_BLOCK   27600
 
