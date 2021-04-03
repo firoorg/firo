@@ -14,99 +14,6 @@ SigmaExtendedVerifier::SigmaExtendedVerifier(
         , m(m){
 }
 
-bool  SigmaExtendedVerifier::verify(
-        const std::vector<GroupElement>& commits,
-        const SigmaExtendedProof& proof) const {
-    Scalar x;
-    std::vector<GroupElement> group_elements = {proof.A_, proof.B_, proof.C_, proof.D_};
-    group_elements.insert(group_elements.end(), proof.Gk_.begin(), proof.Gk_.end());
-    group_elements.insert(group_elements.end(), proof.Qk.begin(), proof.Qk.end());
-    LelantusPrimitives::generate_challenge(group_elements, x);
-    return verify(commits, x, proof);
-}
-
-bool  SigmaExtendedVerifier::verify(
-        const std::vector<GroupElement>& commits,
-        const Scalar& x,
-        const SigmaExtendedProof& proof) const {
-    if (commits.empty()) {
-        LogPrintf("Sigma verification failed due to commits are empty.");
-        return false;
-    }
-
-    if(!membership_checks(proof)) {
-        LogPrintf("Sigma verification failed due to membership checks failed.");
-        return false;
-    }
-
-    std::vector<Scalar> f_;
-
-    if(!compute_fs(proof, x, f_) || !abcd_checks(proof, x, f_)) {
-        LogPrintf("Sigma verification failed due to f computations or abcd checks failed.");
-        return false;
-    }
-
-    int N = commits.size();
-    std::vector<Scalar> f_i_;
-    f_i_.resize(N);
-
-    compute_fis(m, f_, f_i_);
-
-    /*
-         * Optimization for getting power for last 'commits' array element is done similarly to the one used in creating
-         * a proof. The fact that sum of any row in 'f' array is 'x' (challenge value) is used.
-         *
-         * Math (in TeX notation):
-         *
-         * \sum_{i=s+1}^{N-1} \prod_{j=0}^{m-1}f_{j,i_j} =
-         *   \sum_{j=0}^{m-1}
-         *     \left[
-         *       \left( \sum_{i=s_j+1}^{n-1}f_{j,i} \right)
-         *       \left( \prod_{k=j}^{m-1}f_{k,s_k} \right)
-         *       x^j
-         *     \right]
-         */
-
-    Scalar pow(uint64_t(1));
-    std::vector<uint64_t> I = LelantusPrimitives::convert_to_nal(N - 1, n, m);
-    vector<Scalar> f_part_product;    // partial product of f array elements for lastIndex
-    for (int64_t j = m - 1; j >= 0; j--) {
-        f_part_product.push_back(pow);
-        pow *= f_[j * n + I[j]];
-    }
-
-    NthPower xj(x);
-    for (uint64_t j = 0; j < m; j++) {
-        Scalar fi_sum(uint64_t(0));
-        for (uint64_t i = I[j] + 1; i < n; i++)
-            fi_sum += f_[j*n + i];
-        pow += fi_sum * xj.pow * f_part_product[m - j - 1];
-        xj.go_next();
-    }
-    f_i_[N - 1] = pow;
-
-    secp_primitives::MultiExponent mult(commits, f_i_);
-    GroupElement t1 = mult.get_multiple();
-
-    const std::vector <GroupElement>& Gk = proof.Gk_;
-    const std::vector <GroupElement>& Qk = proof.Qk;
-    GroupElement t2;
-    NthPower x_k(x);
-    for (std::size_t k = 0; k < m; ++k)
-    {
-        t2 += ((Gk[k] + Qk[k] )* (x_k.pow.negate()));
-        x_k.go_next();
-    }
-
-    GroupElement left(t1 + t2);
-    if(left != LelantusPrimitives::double_commit(g_, Scalar(uint64_t(0)), h_[1], proof.zV_, h_[0], proof.zR_)) {
-        LogPrintf("Sigma verification failed due to last check failed.");
-        return false;
-    }
-
-    return true;
-}
-
 bool SigmaExtendedVerifier::batchverify(
         const std::vector<GroupElement>& commits,
         const Scalar& x,
@@ -188,7 +95,11 @@ bool SigmaExtendedVerifier::batchverify(
             for (std::size_t i = I_[N - 1][j] + 1; i < n; i++)
                 fi_sum += f_[t][j*n + i];
             pow += fi_sum * xj.pow * f_part_product[m - j - 1];
-            xj.go_next();
+            try {
+                xj.go_next();
+            } catch (std::invalid_argument&) {
+                return false;
+            }
         }
 
         f_i_t[N - 1] += pow * y[t];
@@ -206,7 +117,11 @@ bool SigmaExtendedVerifier::batchverify(
     NthPower x_k(x);
     for (uint64_t k = 0; k < m; ++k) {
         x_k_neg.emplace_back(x_k.pow.negate());
-        x_k.go_next();
+        try {
+            x_k.go_next();
+        } catch (std::invalid_argument&) {
+            return false;
+        }
     }
 
     GroupElement t2;
@@ -309,7 +224,11 @@ bool SigmaExtendedVerifier::batchverify(
             for (std::size_t i = I_[size - 1][j] + 1; i < n; i++)
                 fi_sum += f_[t][j*n + i];
             pow += fi_sum * xj.pow * f_part_product[m - j - 1];
-            xj.go_next();
+            try {
+                xj.go_next();
+            } catch (std::invalid_argument&) {
+                return false;
+            }
         }
 
         f_i_t[N - 1] += pow * y[t];
@@ -329,7 +248,11 @@ bool SigmaExtendedVerifier::batchverify(
         NthPower x_k(challenges[t]);
         for (uint64_t k = 0; k < m; ++k) {
             x_t_k_neg[t].emplace_back(x_k.pow.negate());
-            x_k.go_next();
+            try {
+                x_k.go_next();
+            } catch (std::invalid_argument&) {
+                return false;
+            }
         }
     }
     GroupElement t2;

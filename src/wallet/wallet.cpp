@@ -3007,12 +3007,14 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
         // Check group size
         uint256 hashOut;
         std::vector<lelantus::PublicCoin> coinOuts;
+        std::vector<unsigned char> setHash;
         state->GetCoinSetForSpend(
             &chainActive,
             chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 2 confirmation for mint to spend
             coinId,
             hashOut,
-            coinOuts
+            coinOuts,
+            setHash
         );
 
         if (!includeUnsafe && coinOuts.size() < 2) {

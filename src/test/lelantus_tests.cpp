@@ -7,7 +7,7 @@
 
 #include "test_bitcoin.h"
 #include "fixtures.h"
-
+#include <iostream>
 #include <boost/test/unit_test.hpp>
 
 namespace lelantus {
@@ -28,8 +28,7 @@ struct JoinSplitScriptGenerator {
 
         CScript script;
 
-        JoinSplit joinSplit(p, coins, anons, vout, coinsOut, fee, groupBlockHashes, txHash);
-        joinSplit.setVersion(LELANTUS_TX_VERSION_4);
+        JoinSplit joinSplit(p, coins, anons, {}, vout, coinsOut, fee, groupBlockHashes, txHash, LELANTUS_TX_VERSION_4);
 
         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
         ss << joinSplit;
@@ -556,7 +555,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     CValidationState state;
     CLelantusTxInfo info;
     BOOST_CHECK(CheckLelantusTransaction(
-        txs[0], state, tx.GetHash(), true, chainActive.Height(), true, true, NULL, &info));
+        txs[0], state, tx.GetHash(), false, chainActive.Height(), true, true, NULL, &info));
 
     std::vector<std::pair<PublicCoin, std::pair<uint64_t, uint256>>> expectedCoins = {{mints[0].GetPubcoinValue(), {1 * CENT, info.mints[0].second.second}}};
 
@@ -735,8 +734,8 @@ BOOST_AUTO_TEST_CASE(parse_joinsplit)
     BOOST_CHECK(gs.second.getVersion() == result->getVersion());
     BOOST_CHECK(gs.second.HasValidSerials() == result->HasValidSerials());
 
-    BOOST_CHECK(gs.second.Verify(g.anons, ExtractCoins(g.coinsOut), g.vout, g.txHash));
-    BOOST_CHECK(result->Verify(g.anons, ExtractCoins(g.coinsOut), g.vout, g.txHash));
+    BOOST_CHECK(gs.second.Verify(g.anons, {}, ExtractCoins(g.coinsOut), g.vout, g.txHash));
+    BOOST_CHECK(result->Verify(g.anons, {}, ExtractCoins(g.coinsOut), g.vout, g.txHash));
 }
 
 BOOST_AUTO_TEST_CASE(coingroup)
