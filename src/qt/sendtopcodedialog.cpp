@@ -99,10 +99,20 @@ std::pair<SendtoPcodeDialog::Result, CBitcoinAddress> SendtoPcodeDialog::getResu
     return std::pair<Result, CBitcoinAddress>(Result::cancelled, CBitcoinAddress());
 }
 
+std::unique_ptr<WalletModel::UnlockContext> SendtoPcodeDialog::getUnlockContext()
+{
+    return std::move(unlockContext);
+}
+
 void SendtoPcodeDialog::on_sendButton_clicked()
 {
     if (!model || !paymentCode)
         return;
+
+    unlockContext = std::unique_ptr<WalletModel::UnlockContext>(new WalletModel::UnlockContext(model->requestUnlock()));
+    if (!unlockContext->isValid())
+        return;
+
     try {
         uint256 txid = model->getPcodeModel()->sendNotificationTx(*paymentCode);
         setTxUrl(txid);
@@ -114,7 +124,7 @@ void SendtoPcodeDialog::on_sendButton_clicked()
     {
         QMessageBox msgBox;
         msgBox.setText(tr(
-            "During creation of the notification tx the followin error occurred:  \n"));
+            "During creation of the notification tx the following error occurred:\n"));
         msgBox.setInformativeText(e.what());
         msgBox.setWindowTitle(tr("RAP error"));
         msgBox.setStandardButtons(QMessageBox::Ok);

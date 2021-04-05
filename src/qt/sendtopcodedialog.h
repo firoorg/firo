@@ -45,10 +45,8 @@ public:
     ~SendtoPcodeDialog();
 
     void setModel(WalletModel *model);
-
     std::pair<Result, CBitcoinAddress> getResult() const;
-
-public Q_SLOTS:
+    std::unique_ptr<WalletModel::UnlockContext> getUnlockContext();
 
 private:
     Ui::SendtoPcodeDialog *ui;
@@ -57,6 +55,7 @@ private:
     Result result;
     uint256 notificationTx;
     CBitcoinAddress addressToUse;
+    std::unique_ptr<WalletModel::UnlockContext> unlockContext;
 
     void setTxUrl(uint256 const & txid);
     void setUseAddr();
