@@ -23,7 +23,7 @@ void LelantusProver::proof(
         out += Cout[i].getV();
     out += fee;
 
-    if(input != out)
+    if (input != out)
         throw ZerocoinException("Input and output are not equal");
 
     Scalar x;
@@ -130,7 +130,7 @@ void LelantusProver::generate_sigma_proofs(
         }
     }
 
-    for(std::size_t i = 0; i < N; ++i){
+    for (std::size_t i = 0; i < N; ++i){
         const Scalar& v = Cin[i].first.getV();
         const Scalar& r = Cin[i].first.getRandomness();
         sigmaProver.sigma_response(sigma[i], a[i], rA[i], rB[i], rC[i], rD[i], v, r, Tk[i], Pk[i], x, sigma_proofs[i]);
@@ -147,7 +147,7 @@ void LelantusProver::generate_bulletproofs(
     std::size_t n = params->get_bulletproofs_n();
     std::size_t m = Cout.size() * 2;
 
-    while(m & (m - 1))
+    while (m & (m - 1))
         m++;
 
     v_s.reserve(m);

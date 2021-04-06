@@ -380,13 +380,13 @@ bool CheckLelantusJoinSplitTransaction(
             pair<sigma::CoinDenomination, int> denominationAndId = std::make_pair(denomination, coinGroupId);
 
             auto lelantusParams = lelantus::Params::get_default();
-            while(true) {
-                if(index->sigmaMintedPubCoins.count(denominationAndId) > 0) {
+            while (true) {
+                if (index->sigmaMintedPubCoins.count(denominationAndId) > 0) {
                     BOOST_FOREACH(
                     const sigma::PublicCoin &pubCoinValue,
                     index->sigmaMintedPubCoins[denominationAndId]) {
                         std::vector<unsigned char> vch = pubCoinValue.getValue().getvch();
-                        if(sigma::sigma_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                        if (sigma::sigma_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
                             continue;
                         }
                         lelantus::PublicCoin publicCoin(pubCoinValue.getValue() + lelantusParams->get_h1() * intDenom);

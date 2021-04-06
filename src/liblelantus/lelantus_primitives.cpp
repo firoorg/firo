@@ -15,10 +15,10 @@ void LelantusPrimitives::generate_challenge(
 }
 
 void LelantusPrimitives::commit(const GroupElement& g,
-                                                        const std::vector<GroupElement>& h,
-                                                        const std::vector<Scalar>& exp,
-                                                        const Scalar& r,
-                                                        GroupElement& result_out) {
+                                const std::vector<GroupElement>& h,
+                                const std::vector<Scalar>& exp,
+                                const Scalar& r,
+                                GroupElement& result_out) {
     secp_primitives::MultiExponent mult(h, exp);
     result_out = g * r + mult.get_multiple();
 }
