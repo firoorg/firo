@@ -27,7 +27,7 @@ class Bip47WalletRestore(BitcoinTestFramework):
 
         stop_node(self.nodes[0], 0)
         os.remove(wallet_file)
-        os.copy(backup_file, wallet_file)
+        shutil.copy(backup_file, wallet_file)
 
         self.nodes[0] = start_node(0, self.options.tmpdir)
         assert(len(self.nodes[0].listpcodes()) == 0)

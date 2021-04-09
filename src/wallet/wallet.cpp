@@ -2230,6 +2230,17 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
     {
         LOCK2(cs_main, cs_wallet);
 
+        // no need to read and scan block, if block was created before
+        // our wallet birthday (as adjusted for block time variability)
+        // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Firo
+        if (fRecoverMnemonic) {
+            pindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
+            if (pindex == NULL)
+                pindex = chainActive.Tip();
+        } else
+            while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
+                pindex = chainActive.Next(pindex);
+
         ShowProgress(_("Rescanning..."), 0); // show rescan progress in GUI as dialog or on splashscreen, if -rescan on startup
         double dProgressStart = GuessVerificationProgress(chainParams.TxData(), pindex);
         double dProgressTip = GuessVerificationProgress(chainParams.TxData(), chainActive.Tip());
