@@ -75,11 +75,16 @@ bool LelantusVerifier::verify(
 
     Scalar zV, zR;
     unique_ptr<ChallengeGenerator> challengeGenerator;
-    // we are passing challengeGenerator ptr here, as after LELANTUS_TX_VERSION_4_5 we need  it back, with filled data, to use in schnorr proof,
-    if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, ecdsaPubkeys, Cout, proof.sigma_proofs, qkSchnorrProof, x, challengeGenerator, zV, zR, fSkipVerification) &&
-         verify_rangeproof(Cout, proof.bulletproofs) &&
-         verify_schnorrproof(x, zV, zR, Vin, Vout, fee, Cout, proof, challengeGenerator)))
+    try {
+        // we are passing challengeGenerator ptr here, as after LELANTUS_TX_VERSION_4_5 we need  it back, with filled data, to use in schnorr proof,
+        if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, ecdsaPubkeys, Cout, proof.sigma_proofs, qkSchnorrProof, x, challengeGenerator, zV, zR, fSkipVerification) &&
+             verify_rangeproof(Cout, proof.bulletproofs) &&
+             verify_schnorrproof(x, zV, zR, Vin, Vout, fee, Cout, proof, challengeGenerator)))
+            return false;
+    } catch (std::invalid_argument&) {
         return false;
+    }
+
     return true;
 }
 
@@ -158,11 +163,7 @@ bool LelantusVerifier::verify_sigma(
             for (std::size_t k = 0; k < Qk.size(); ++k)
             {
                 Gk_sum += (Qk[k]) * qK_x_n.pow;
-                try {
-                    qK_x_n.go_next();
-                } catch (std::invalid_argument&) {
-                    return false;
-                }
+                qK_x_n.go_next();
 
                 Qks.emplace_back(Qk[k]);
             }
@@ -242,11 +243,7 @@ bool LelantusVerifier::verify_schnorrproof(
     for (int k = 0; k < params->get_sigma_m(); ++k)
     {
         x_ks.emplace_back(x_k.pow);
-        try {
-            x_k.go_next();
-        } catch (std::invalid_argument&) {
-            return false;
-        }
+        x_k.go_next();
     }
 
     GroupElement Comm;
