@@ -6,6 +6,8 @@
 
 *.tar.gz
 
+*.dSYM
+
 *.exe
 src/firo
 src/firod

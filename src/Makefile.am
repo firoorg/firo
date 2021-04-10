@@ -941,7 +941,7 @@ if HARDEN
 endif
 
 osx_debug: $(bin_PROGRAMS)
-	for i in $(bin_PROGRAMS); do mkdir -p $$i.dSYM/Contents/Resources/DWARF && $(DSYMUTIL_FLAT) -o $$i.dSYM/Contents/Resources/DWARF/$$(basename $$i) $$i &> /dev/null ; done
+	for i in $(bin_PROGRAMS); do $(DSYMUTIL) $$i; done
 
 %.pb.cc %.pb.h: %.proto
 	@test -f $(PROTOC)
