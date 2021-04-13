@@ -243,11 +243,7 @@ bool LelantusVerifier::verify_schnorrproof(
     for (int k = 0; k < params->get_sigma_m(); ++k)
     {
         x_ks.emplace_back(x_k.pow);
-        try {
-            x_k.go_next();
-        } catch (std::invalid_argument&) {
-            return false;
-        }
+        x_k.go_next();
     }
 
     GroupElement Comm;

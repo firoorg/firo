@@ -75,12 +75,7 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
     }
 
     Scalar z_square_neg = (z.square()).negate();
-    Scalar delta;
-    try {
-        delta = LelantusPrimitives::delta(y, z, n, m);
-    } catch (std::invalid_argument&) {
-        return false;
-    }
+    Scalar delta = LelantusPrimitives::delta(y, z, n, m);
 
     //check line 97
     GroupElement V_z;
@@ -88,11 +83,7 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
     for (std::size_t j = 0; j < m; ++j)
     {
         V_z += V[j] * (z_square_neg * z_m.pow);
-        try {
-            z_m.go_next();
-        } catch (std::invalid_argument&) {
-            return false;
-        }
+        z_m.go_next();
     }
 
     std::vector<Scalar> l_r;
@@ -106,11 +97,7 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
     for (uint64_t k = 0; k < n; ++k)
     {
         two_n.emplace_back(two_n_.pow);
-        try {
-            two_n_.go_next();
-        } catch (std::invalid_argument&) {
-            return false;
-        }
+        two_n_.go_next();
     }
 
     for (uint64_t t = 0; t < m ; ++t)
@@ -133,17 +120,9 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
             }
             l_r[i] = x_il * innerProductProof.a_ + z;
             l_r[n * m + i] = y_n_.pow * (x_ir * innerProductProof.b_ - (z_j.pow * two_n[k])) - z;
-            try {
-                y_n_.go_next();
-            } catch (std::invalid_argument&) {
-                return false;
-            }
+            y_n_.go_next();
         }
-        try {
-            z_j.go_next();
-        } catch (std::invalid_argument&) {
-            return false;
-        }
+        z_j.go_next();
     }
 
     //check lines  98 and 105
