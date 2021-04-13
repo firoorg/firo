@@ -220,7 +220,16 @@ void BatchProofContainer::batch_lelantus() {
         lelantus::SigmaExtendedVerifier sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
                                             params->get_sigma_m());
 
-        if (!sigmaVerifier.batchverify(anonymity_set, challenges, serials, setSizes, proofs)) {
+        bool isFail = false;
+        try {
+            if (!sigmaVerifier.batchverify(anonymity_set, challenges, serials, setSizes, proofs)) {
+                isFail = true;
+            }
+        } catch (std::invalid_argument&) {
+            isFail = true;
+        }
+
+        if (isFail) {
             LogPrintf("Lelantus batch verification failed.");
             throw std::invalid_argument("Lelantus batch verification failed, please run Firo with -reindex -batching=0");
         }

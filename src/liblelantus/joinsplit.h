@@ -73,7 +73,7 @@ public:
         return ecdsaPubkeys;
     }
 
-bool isSigmaToLelantus() const;
+    bool isSigmaToLelantus() const;
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
