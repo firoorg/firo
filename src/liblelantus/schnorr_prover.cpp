@@ -32,7 +32,7 @@ void SchnorrProver::proof(
         group_elements = {u, y, a, b};
         challengeGenerator->add(pre);
     } else {
-        challengeGenerator.reset(new ChallengeGeneratorImpl<CSHA256>());
+        challengeGenerator.reset(new ChallengeGeneratorImpl<CSHA256>(0));
     }
     challengeGenerator->add(group_elements);
     challengeGenerator->get_challenge(c);
@@ -53,7 +53,7 @@ void SchnorrProver::proof(
     proof_out.u = u;
     Scalar c;
 
-    ChallengeGeneratorImpl<CHash256> challengeGenerator;
+    ChallengeGeneratorImpl<CHash256> challengeGenerator(1);
     std::string shts = "SCHNORR_PROOF";
     std::vector<unsigned char> pre(shts.begin(), shts.end());
     challengeGenerator.add(pre);

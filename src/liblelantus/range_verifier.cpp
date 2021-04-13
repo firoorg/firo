@@ -29,14 +29,14 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
     Scalar x, x_u, y, z;
     unique_ptr<ChallengeGenerator> challengeGenerator;
     if (version >= LELANTUS_TX_VERSION_4_5) {
-        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
         // add domain separator and transaction version into transcript
         std::string domain_separator = "RANGE_PROOF" + std::to_string(version);
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator->add(pre);
         challengeGenerator->add(commitments);
     }  else {
-        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>(0);
     }
     challengeGenerator->add({proof.A, proof.S});
     challengeGenerator->get_challenge(y);
@@ -54,19 +54,22 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
     std::vector<Scalar> x_j, x_j_inv;
     x_j.resize(log_n);
     x_j_inv.reserve(log_n);
+
+    if (version >= LELANTUS_TX_VERSION_4_5) {
+        // add domain separator in each step
+        std::string domain_separator = "INNER_PRODUCT";
+        std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
+        challengeGenerator->add(pre);
+    }
+
     for (int i = 0; i < log_n; ++i)
     {
         std::vector<GroupElement> group_elements_i = {innerProductProof.L_[i], innerProductProof.R_[i]};
 
         // if(version >= LELANTUS_TX_VERSION_4_5) we should be using CHash256,
         // we want to link transcripts from range proof and from previous iteration in each step, so we are not restarting in that case,
-        if (version >= LELANTUS_TX_VERSION_4_5) {
-            // add domain separator in each step
-            std::string domain_separator = "INNER_PRODUCT";
-            std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
-            challengeGenerator->add(pre);
-        } else {
-            challengeGenerator.reset(new ChallengeGeneratorImpl<CSHA256>());
+        if (version < LELANTUS_TX_VERSION_4_5) {
+            challengeGenerator.reset(new ChallengeGeneratorImpl<CSHA256>(0));
         }
 
         challengeGenerator->add(group_elements_i);

@@ -109,9 +109,9 @@ void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, CDataStream&  s
     unique_ptr<ChallengeGenerator> challengeGenerator;
     if (afterFixes) {
         // start to use CHash256 which is more secure
-        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
     }  else {
-        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>(0);
     }
 
     // commit (G^s*H1^v*H2^r), comm (G^s*H2^r), and H1^v are used in challenge generation if nLelantusFixesStartBlock is passed
@@ -132,9 +132,9 @@ bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupEleme
     unique_ptr<ChallengeGenerator> challengeGenerator;
     if (afterFixes) {
         // start to use CHash256 which is more secure
-        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
     }  else {
-        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>(0);
     }
 
     // commit (G^s*H1^v*H2^r), comm (G^s*H2^r), and H1^v are used in challenge generation if nLelantusFixesStartBlock is passed
