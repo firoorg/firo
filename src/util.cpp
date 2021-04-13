@@ -121,6 +121,7 @@ const map<string, vector<string> >& mapMultiArgs = _mapMultiArgs;
 bool fDebug = false;
 bool fPrintToConsole = false;
 bool fPrintToDebugLog = true;
+bool fNoDebug = false; //A temporary fix for https://github.com/firoorg/firo/issues/1011
 
 bool fLogTimestamps = DEFAULT_LOGTIMESTAMPS;
 bool fLogTimeMicros = DEFAULT_LOGTIMEMICROS;
@@ -307,6 +308,14 @@ static std::string LogTimestampStr(const std::string &str, std::atomic_bool *fSt
 
 int LogPrintStr(const std::string &str)
 {
+    //A temporary fix for https://github.com/firoorg/firo/issues/1011
+    if (fNoDebug) {
+        if (str.size() < 6)
+            return 0;
+        else if (strncmp(str.data(), "ERROR:", 6) != 0)
+            return 0;
+    }
+
     int ret = 0; // Returns total number of characters written
     static std::atomic_bool fStartedNewLine(true);
 
