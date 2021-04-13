@@ -62,8 +62,8 @@ public:
 private:
     void addSize(uint32_t size) {
         if (version >= 1) {
-            std::string s = std::to_string(size);
-            hash.Write((const unsigned char*)s.c_str(), s.size());
+            Scalar s(size);
+            add(s);
         }
     }
 private:
