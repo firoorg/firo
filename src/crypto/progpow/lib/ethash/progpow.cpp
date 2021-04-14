@@ -1,5 +1,6 @@
-// ethash: C/C++ implementation of Ethash, the Ethereum Proof of Work algorithm.
+// progpow: C/C++ implementation of ProgPow
 // Copyright 2018-2019 Pawel Bylica.
+// Andrea Lanfranchi 2021 - Upgrade PP to spec 0.9.4
 // Licensed under the Apache License, Version 2.0.
 
 #include <crypto/progpow/include/ethash/progpow.hpp>
@@ -16,49 +17,6 @@ namespace progpow
 {
 namespace
 {
-/// A variant of Keccak hash function for ProgPoW.
-///
-/// This Keccak hash function uses 800-bit permutation (Keccak-f[800]) with 576 bitrate.
-/// It take exactly 576 bits of input (split across 3 arguments) and adds no padding.
-///
-/// @param header_hash  The 256-bit header hash.
-/// @param nonce        The 64-bit nonce.
-/// @param mix_hash     Additional 256-bits of data.
-/// @return             The 256-bit output of the hash function.
-hash256 keccak_progpow_256(
-    const hash256& header_hash, uint64_t nonce, const hash256& mix_hash) noexcept
-{
-    static constexpr size_t num_words =
-        sizeof(header_hash.word32s) / sizeof(header_hash.word32s[0]);
-
-    uint32_t state[25] = {};
-
-    size_t i;
-    for (i = 0; i < num_words; ++i)
-        state[i] = le::uint32(header_hash.word32s[i]);
-
-    state[i++] = static_cast<uint32_t>(nonce);
-    state[i++] = static_cast<uint32_t>(nonce >> 32);
-
-    for (uint32_t mix_word : mix_hash.word32s)
-        state[i++] = le::uint32(mix_word);
-
-    ethash_keccakf800(state);
-
-    hash256 output;
-    for (i = 0; i < num_words; ++i)
-        output.word32s[i] = le::uint32(state[i]);
-    return output;
-}
-
-/// The same as keccak_progpow_256() but uses null mix
-/// and returns top 64 bits of the output being a big-endian prefix of the 256-bit hash.
-inline uint64_t keccak_progpow_64(const hash256& header_hash, uint64_t nonce) noexcept
-{
-    const hash256 h = keccak_progpow_256(header_hash, nonce, {});
-    return be::uint64(h.word64s[0]);
-}
-
 
 /// ProgPoW mix RNG state.
 ///
@@ -255,13 +213,34 @@ mix_array init_mix(uint64_t seed)
     return mix;
 }
 
+hash256 hash_seed(const hash256& header_hash, uint64_t nonce) noexcept 
+{
+
+    nonce = le::uint64(nonce);
+    uint32_t state[25] = {0x0};
+
+    for (int i = 0; i < 8; ++i) {
+        state[i] = le::uint32(header_hash.word32s[i]);
+    }
+    std::memcpy(&state[8], &nonce, sizeof(uint64_t));
+    state[10] = 0x00000001;
+    state[18] = 0x80008081;
+
+    ethash_keccakf800(state);
+
+    hash256 output;
+    for (int i = 0; i < 8; ++i)
+        output.word32s[i] = le::uint32(state[i]);
+    return output;
+}
+
 hash256 hash_mix(
     const epoch_context& context, int block_number, uint64_t seed, lookup_fn lookup) noexcept
 {
     auto mix = init_mix(seed);
     mix_rng_state state{uint64_t(block_number / period_length)};
 
-    for (uint32_t i = 0; i < 64; ++i)
+    for (uint32_t i = 0; i < num_rounds; ++i)
         round(context, i, mix, state, lookup);
 
     // Reduce mix data to a single per-lane result.
@@ -282,14 +261,32 @@ hash256 hash_mix(
         mix_hash.word32s[l % num_words] = fnv1a(mix_hash.word32s[l % num_words], lane_hash[l]);
     return le::uint32s(mix_hash);
 }
+
+hash256 hash_final(const hash256& seed_hash, const hash256& mix_hash) noexcept 
+{
+    uint32_t state[25] = {0x0};
+    std::memcpy(&state[0], seed_hash.bytes, sizeof(hash256));
+    std::memcpy(&state[8], mix_hash.bytes, sizeof(hash256));
+    state[17] = 0x00000001;
+    state[24] = 0x80008081;
+
+    ethash_keccakf800(state);
+
+    hash256 output;
+    std::memcpy(output.bytes, &state[0], sizeof(hash256));
+    return output;
+}
+
 }  // namespace
+
 
 result hash(const epoch_context& context, int block_number, const hash256& header_hash,
     uint64_t nonce) noexcept
 {
-    const uint64_t seed = keccak_progpow_64(header_hash, nonce);
+    const hash256 seed_hash = hash_seed(header_hash, nonce);
+    const uint64_t seed = seed_hash.word64s[0];
     const hash256 mix_hash = hash_mix(context, block_number, seed, calculate_dataset_item_2048);
-    const hash256 final_hash = keccak_progpow_256(header_hash, seed, mix_hash);
+    const hash256 final_hash = hash_final(seed_hash, mix_hash);
     return {final_hash, mix_hash};
 }
 
@@ -310,20 +307,27 @@ result hash(const epoch_context_full& context, int block_number, const hash256& 
         return item;
     };
 
-    const uint64_t seed = keccak_progpow_64(header_hash, nonce);
+    const hash256 seed_hash = hash_seed(header_hash, nonce);
+    const uint64_t seed = seed_hash.word64s[0];
     const hash256 mix_hash = hash_mix(context, block_number, seed, lazy_lookup);
-    const hash256 final_hash = keccak_progpow_256(header_hash, seed, mix_hash);
+    const hash256 final_hash = hash_final(seed_hash, mix_hash);
     return {final_hash, mix_hash};
+
 }
 
 bool verify(const epoch_context& context, int block_number, const hash256& header_hash,
     const hash256& mix_hash, uint64_t nonce, const hash256& boundary) noexcept
 {
-    const uint64_t seed = keccak_progpow_64(header_hash, nonce);
-    const hash256 final_hash = keccak_progpow_256(header_hash, seed, mix_hash);
+
+    const hash256 seed_hash = hash_seed(header_hash, nonce);
+    const uint64_t seed = seed_hash.word64s[0];
+    const hash256 final_hash = hash_final(seed_hash, mix_hash);
+
+    // Check boundary
     if (!is_less_or_equal(final_hash, boundary))
         return false;
 
+    // Check mixes match
     const hash256 expected_mix_hash =
         hash_mix(context, block_number, seed, calculate_dataset_item_2048);
     return is_equal(expected_mix_hash, mix_hash);
