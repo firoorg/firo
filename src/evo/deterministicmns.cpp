@@ -770,6 +770,11 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             if (!dmn) {
                 return _state.DoS(100, false, REJECT_INVALID, "bad-protx-hash");
             }
+
+            if (newList.HasUniqueProperty(proTx.pubKeyOperator) && newList.GetUniquePropertyMN(proTx.pubKeyOperator)->proTxHash != proTx.proTxHash) {
+                return _state.DoS(100, false, REJECT_DUPLICATE, "bad-protx-dup-key");
+            }
+
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
             if (newState->pubKeyOperator.Get() != proTx.pubKeyOperator) {
                 // reset all operator related fields and put MN into PoSe-banned state in case the operator key changes

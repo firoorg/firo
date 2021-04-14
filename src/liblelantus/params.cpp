@@ -17,7 +17,7 @@ Params const* Params::get_default() {
 
         //fixing generator G;
         GroupElement g;
-        if(!(::Params().GetConsensus().IsTestnet())) {
+        if (!(::Params().GetConsensus().IsTestnet())) {
             unsigned char buff[32] = {0};
             GroupElement base;
             base.set_base_g();
@@ -83,46 +83,50 @@ Params::Params(const GroupElement& g_, int n_sigma_, int m_sigma_, int n_rangePr
     h1_limit_range = get_h1() * limit_range;
 }
 
-const GroupElement& Params::get_g() const{
+const GroupElement& Params::get_g() const {
     return g;
 }
 
-const GroupElement& Params::get_h0() const{
+const GroupElement& Params::get_h0() const {
     return h_sigma[0];
 }
 
-const GroupElement& Params::get_h1() const{
+const GroupElement& Params::get_h1() const {
     return h_sigma[1];
 }
 
-const std::vector<GroupElement>& Params::get_sigma_h() const{
+const std::vector<GroupElement>& Params::get_sigma_h() const {
     return h_sigma;
 }
 
-const std::vector<GroupElement>& Params::get_bulletproofs_g() const{
+const std::vector<GroupElement>& Params::get_bulletproofs_g() const {
     return g_rangeProof;
 }
-const std::vector<GroupElement>& Params::get_bulletproofs_h() const{
+const std::vector<GroupElement>& Params::get_bulletproofs_h() const {
     return h_rangeProof;
 }
 
-int Params::get_sigma_n() const{
+int Params::get_sigma_n() const {
     return n_sigma;
 }
 
-int Params::get_sigma_m() const{
+int Params::get_sigma_m() const {
     return m_sigma;
 }
 
-int Params::get_bulletproofs_n() const{
+int Params::get_bulletproofs_n() const {
     return n_rangeProof;
 }
 
-const Scalar& Params::get_limit_range() const{
+int Params::get_bulletproofs_max_m() const {
+    return max_m_rangeProof;
+}
+
+const Scalar& Params::get_limit_range() const {
     return limit_range;
 }
 
-const GroupElement& Params::get_h1_limit_range() const{
+const GroupElement& Params::get_h1_limit_range() const {
     return h1_limit_range;
 }
 

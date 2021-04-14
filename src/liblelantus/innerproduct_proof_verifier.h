@@ -2,6 +2,7 @@
 #define FIRO_LIBLELANTUS_INNER_PRODUCT_PROOF_VERIFIER_H
 
 #include "lelantus_primitives.h"
+#include "challenge_generator_impl.h"
 
 namespace lelantus {
     
@@ -13,24 +14,27 @@ public:
             const std::vector<GroupElement>& g,
             const std::vector<GroupElement>& h,
             const GroupElement& u,
-            const GroupElement& P);
+            const GroupElement& P,
+            int version); // if(version >= 2) we should pass CHash256 in verify
 
-    bool verify(const Scalar& x, const InnerProductProof& proof);
-    bool verify_fast(uint64_t n, const Scalar& x, const InnerProductProof& proof);
+    bool verify(const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);
+    bool verify_fast(uint64_t n, const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);
 
 private:
     bool verify_util(
             const InnerProductProof& proof,
             typename std::vector<GroupElement>::const_iterator ltr_l,
-            typename std::vector<GroupElement>::const_iterator itr_r);
+            typename std::vector<GroupElement>::const_iterator itr_r,
+            unique_ptr<ChallengeGenerator>& challengeGenerator);
 
-    bool verify_fast_util(uint64_t n, const InnerProductProof& proof);
+    bool verify_fast_util(uint64_t n, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);
 
 private:
     const std::vector<GroupElement>& g_;
     const std::vector<GroupElement>& h_;
     GroupElement u_;
     GroupElement P_;
+    int version_;
 
 };
 

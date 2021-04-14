@@ -10,11 +10,7 @@ class SigmaExtendedProver{
 public:
     SigmaExtendedProver(const GroupElement& g,
                     const std::vector<GroupElement>& h_gens, uint64_t n, uint64_t m);
-    void proof(const std::vector<GroupElement>& commits,
-               int l,
-               const Scalar& v,
-               const Scalar& r,
-               SigmaExtendedProof& proof_out);
+
     void sigma_commit(
             const std::vector<GroupElement>& commits,
             int l,

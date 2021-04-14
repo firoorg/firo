@@ -187,7 +187,13 @@ public:
         int maxHeight,
         int id,
         uint256& blockHash_out,
-        std::vector<lelantus::PublicCoin>& coins_out);
+        std::vector<lelantus::PublicCoin>& coins_out,
+        std::vector<unsigned char>& setHash_out);
+
+    void GetAnonymitySet(
+            int coinGroupID,
+            bool fStartLelantusBlacklist,
+            std::vector<lelantus::PublicCoin>& coins_out);
 
     // Return height of mint transaction and id of minted coin
     std::pair<int, int> GetMintedCoinHeightAndId(const lelantus::PublicCoin& pubCoin);
