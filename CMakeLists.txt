@@ -9,7 +9,7 @@ add_definitions(-DENABLE_WALLET=1)
 
 set(ENABLE_CLIENTAPI ON)
 set(ENABLE_WALLET ON)
-set(INCLUDE_DIRS src src/univalue/include src/client-api src/zmq src/zmqserver src/wallet src/qt src/qt/forms src/hdmint src/elysium src/crypto src/leveldb/include src/secp256k1/include)
+set(INCLUDE_DIRS src src/univalue/include src/client-api src/zmq src/zmqserver src/wallet src/qt src/qt/forms src/hdmint src/elysium src/crypto src/leveldb/include src/secp256k1 src/secp256k1/include src/secp256k1/cpp)
 include_directories(${INCLUDE_DIRS})
 
 file(GLOB_RECURSE SRC_FILES *.h *.cpp *.ui)
@@ -19,6 +19,11 @@ find_package(Boost 1.45.0 COMPONENTS)
 if(Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
     target_link_libraries(firod ${Boost_LIBRARIES})
+endif()
+
+find_package(OpenSSL)
+if(OpenSSL_FOUND)
+    target_link_libraries(firod OpenSSL::SSL)
 endif()
 
 # Qt's path must be added to the CMAKE_PREFIX_PATH envvar for this to work. e.g. CMAKE_PREFIX_PATH=/usr/local/Cellar/qt/5.15.2/lib/cmake/
