@@ -12,7 +12,7 @@ CSecretPoint::CSecretPoint(CKey const & privkey, CPubKey const & pubkey)
 {}
 
 std::vector<unsigned char> CSecretPoint::getEcdhSecret() const {
-    if(ecdhSecret.empty()) {
+    if (ecdhSecret.empty()) {
         secp_primitives::GroupElement B = utils::GeFromPubkey(pubkey);
         ecdhSecret = (B * a).getvch();
         ecdhSecret.erase(ecdhSecret.end() - 2, ecdhSecret.end());

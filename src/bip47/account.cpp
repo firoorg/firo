@@ -41,7 +41,7 @@ bool CAccountBase::addressUsed(CBitcoinAddress const & address)
 
 CPaymentCode const & CAccountBase::getMyPcode() const
 {
-    if(!myPcode) {
+    if (!myPcode) {
         myPcode.emplace(pubkey.pubkey, pubkey.chaincode);
     }
     return *myPcode;
@@ -54,7 +54,7 @@ uint32_t CAccountBase::getAccountNum() const
 
 CKey const & CAccountBase::getMyNotificationKey() const
 {
-    if(!myNotificationKey) {
+    if (!myNotificationKey) {
         myNotificationKey.emplace(utils::Derive(privkey, {0}).key);
     }
     return *myNotificationKey;
@@ -74,7 +74,7 @@ CAccountSender::CAccountSender(CExtKey const & walletKey, uint32_t accountNum, C
 }
 
 CPaymentChannel & CAccountSender::getPaymentChannel() const {
-    if(!pchannel)
+    if (!pchannel)
         pchannel.emplace(theirPcode, privkey, CPaymentChannel::Side::sender);
     return *pchannel;
 }
@@ -142,7 +142,7 @@ CAccountReceiver::CAccountReceiver(CExtKey const & walletKey, uint32_t accountNu
 
 CBitcoinAddress const & CAccountReceiver::getMyNotificationAddress() const
 {
-    if(!myNotificationAddress) {
+    if (!myNotificationAddress) {
         myNotificationAddress.emplace(getMyPcode().getNotificationAddress());
     }
     return *myNotificationAddress;
@@ -158,7 +158,7 @@ namespace {
 
 bool CAccountReceiver::findTheirPcode(CPaymentCode const & pcode) const
 {
-    return std::find_if(pchannels.begin(), pchannels.end(), CompByPcode(pcode)) != pchannels.end();
+    return std::find_if (pchannels.begin(), pchannels.end(), CompByPcode(pcode)) != pchannels.end();
 }
 
 std::string const & CAccountReceiver::getLabel() const
@@ -174,7 +174,7 @@ CAccountReceiver::PChannelContT const & CAccountReceiver::getPchannels() const
 MyAddrContT const & CAccountReceiver::generateMyUsedAddresses() const
 {
     usedAddresses.clear();
-    for(CPaymentChannel & pchannel: pchannels) {
+    for (CPaymentChannel & pchannel: pchannels) {
         MyAddrContT const & addrs = pchannel.generateMyUsedAddresses();
         usedAddresses.insert(usedAddresses.end(), addrs.begin(), addrs.end());
     }
@@ -185,7 +185,7 @@ MyAddrContT const & CAccountReceiver::generateMyNextAddresses() const
 {
     nextAddresses.clear();
     nextAddresses.emplace_back(getMyNotificationAddress(), getMyNotificationKey());
-    for(CPaymentChannel & pchannel: pchannels) {
+    for (CPaymentChannel & pchannel: pchannels) {
         MyAddrContT const & addrs = pchannel.generateMyNextAddresses();
         nextAddresses.insert(nextAddresses.end(), addrs.begin(), addrs.end());
     }
@@ -194,8 +194,8 @@ MyAddrContT const & CAccountReceiver::generateMyNextAddresses() const
 
 bool CAccountReceiver::markAddressUsed(CBitcoinAddress const & address)
 {
-    for(PChannelContT::iterator iter = pchannels.begin(); iter != pchannels.end(); ++iter) {
-        if(iter->markAddressUsed(address)) {
+    for (PChannelContT::iterator iter = pchannels.begin(); iter != pchannels.end(); ++iter) {
+        if (iter->markAddressUsed(address)) {
             generateMyNextAddresses();
             return true;
         }
@@ -205,7 +205,7 @@ bool CAccountReceiver::markAddressUsed(CBitcoinAddress const & address)
 
 void CAccountReceiver::acceptPcode(CPaymentCode const & theirPcode)
 {
-    if(findTheirPcode(theirPcode))
+    if (findTheirPcode(theirPcode))
         return;
     pchannels.emplace_back(theirPcode, privkey, CPaymentChannel::Side::receiver);
 }
@@ -216,7 +216,7 @@ bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & ma
     CExtKey pcodePrivkey = utils::Derive(privkey, {0});
     try {
         pcode = bip47::utils::PcodeFromMaskedPayload(maskedPayload, outpoint, pcodePrivkey.key, outpoinPubkey);
-        if(!pcode)
+        if (!pcode)
             return false;
     } catch (std::runtime_error const &) {
         return false;
@@ -228,7 +228,7 @@ bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & ma
 bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, CTxIn const & in)
 {
     std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(in);
-    if(!jsplit)
+    if (!jsplit)
         return false;
     std::unique_ptr<CPaymentCode> pcode;
     CExtKey pcodePrivkey = utils::Derive(privkey, {0});
@@ -236,7 +236,7 @@ bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & ma
         CDataStream ds(SER_NETWORK, 0);
         ds << jsplit->getCoinSerialNumbers()[0];
         pcode = bip47::utils::PcodeFromMaskedPayload(maskedPayload, (unsigned char const *)ds.vch.data(), ds.vch.size(), pcodePrivkey.key, jsplit->GetEcdsaPubkeys()[0]);
-        if(!pcode)
+        if (!pcode)
             return false;
     } catch (std::runtime_error const &) {
         return false;
@@ -280,7 +280,7 @@ CAccountReceiver & CWallet::createReceivingAccount(std::string const & label)
 CAccountSender & CWallet::provideSendingAccount(CPaymentCode const & theirPcode)
 {
     for (std::pair<uint32_t const, CAccountSender> & acc : accSenders) {
-        if(acc.second.getTheirPcode() == theirPcode)
+        if (acc.second.getTheirPcode() == theirPcode)
             return acc.second;
     }
     uint32_t const accNum = (accSenders.empty() ? 0 : accSenders.rbegin()->first + 1);
@@ -292,21 +292,21 @@ CAccountSender & CWallet::provideSendingAccount(CPaymentCode const & theirPcode)
 
 void CWallet::readReceiver(CAccountReceiver && receiver)
 {
-    if(accReceivers.find(receiver.getAccountNum()) != accReceivers.end())
+    if (accReceivers.find(receiver.getAccountNum()) != accReceivers.end())
         throw std::runtime_error("There is already an account with number " + std::to_string(receiver.getAccountNum()));
     accReceivers.insert(std::pair<uint32_t, CAccountReceiver>(receiver.getAccountNum(), std::move(receiver)));
 }
 
 void CWallet::readSender(CAccountSender && sender)
 {
-    if(accSenders.find(sender.getAccountNum()) != accSenders.end())
+    if (accSenders.find(sender.getAccountNum()) != accSenders.end())
         throw std::runtime_error("There is already an account with number " + std::to_string(sender.getAccountNum()));
     accSenders.insert(std::pair<uint32_t, CAccountSender>(sender.getAccountNum(), std::move(sender)));
 }
 
 void CWallet::enumerateReceivers(std::function<bool(CAccountReceiver &)> op)
 {
-    for(std::pair<uint32_t const, CAccountReceiver> & val : accReceivers) {
+    for (std::pair<uint32_t const, CAccountReceiver> & val : accReceivers) {
         if (op && !op(val.second))
             break;
     }
@@ -314,7 +314,7 @@ void CWallet::enumerateReceivers(std::function<bool(CAccountReceiver &)> op)
 
 void CWallet::enumerateReceivers(std::function<bool(CAccountReceiver const &)> op) const
 {
-    for(std::pair<uint32_t const, CAccountReceiver> const & val : accReceivers) {
+    for (std::pair<uint32_t const, CAccountReceiver> const & val : accReceivers) {
         if (op && !op(val.second))
             break;
     }
@@ -323,7 +323,7 @@ void CWallet::enumerateReceivers(std::function<bool(CAccountReceiver const &)> o
 
 void CWallet::enumerateSenders(std::function<bool(CAccountSender &)> op)
 {
-    for(std::pair<uint32_t const, CAccountSender> & val : accSenders) {
+    for (std::pair<uint32_t const, CAccountSender> & val : accSenders) {
         if (op && !op(val.second))
             break;
     }
@@ -331,7 +331,7 @@ void CWallet::enumerateSenders(std::function<bool(CAccountSender &)> op)
 
 void CWallet::enumerateSenders(std::function<bool(CAccountSender const &)> op) const
 {
-    for(std::pair<uint32_t const, CAccountSender> const & val : accSenders) {
+    for (std::pair<uint32_t const, CAccountSender> const & val : accSenders) {
         if (op && !op(val.second))
             break;
     }

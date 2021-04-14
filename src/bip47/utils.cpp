@@ -24,10 +24,10 @@ std::unique_ptr<CPaymentCode> PcodeFromMaskedPayload(Bytes payload, COutPoint co
 
 std::unique_ptr<CPaymentCode> PcodeFromMaskedPayload(Bytes payload, unsigned char const * data, size_t dataSize, CKey const & myPrivkey, CPubKey const & outPubkey)
 {
-    if(payload[0] != 1 || payload[1] != 0) {
+    if (payload[0] != 1 || payload[1] != 0) {
         return nullptr;
     }
-    if(payload[2] != 2 && payload[2] != 3) {
+    if (payload[2] != 2 && payload[2] != 3) {
         return nullptr;
     }
     Bytes const secretPointData = CSecretPoint(myPrivkey, outPubkey).getEcdhSecret();
@@ -38,7 +38,7 @@ std::unique_ptr<CPaymentCode> PcodeFromMaskedPayload(Bytes payload, unsigned cha
         .Finalize(maskData.data());
 
     Bytes::iterator plIter = payload.begin()+3;
-    for(Bytes::const_iterator iter = maskData.begin(); iter != maskData.end(); ++iter) {
+    for (Bytes::const_iterator iter = maskData.begin(); iter != maskData.end(); ++iter) {
         *plIter++ ^= *iter;
     }
 
@@ -50,22 +50,22 @@ std::unique_ptr<CPaymentCode> PcodeFromMaskedPayload(Bytes payload, unsigned cha
 namespace {
 std::pair<CScript::const_iterator, CScript::const_iterator> FindOpreturnData(CScript const & script)
 {
-    if(script.size() < 2 && script[0] != OP_RETURN)
+    if (script.size() < 2 && script[0] != OP_RETURN)
         return {script.end(), script.end()};
     CScript::const_iterator iter = script.begin() + 1;
-    if(*iter < OP_PUSHDATA1) {
+    if (*iter < OP_PUSHDATA1) {
         uint8_t sz = *iter;
         return {iter + 1, iter + 1 + sz};
     }
-    if(*iter == OP_PUSHDATA1) {
+    if (*iter == OP_PUSHDATA1) {
         uint8_t sz = *(iter + 1);
         return {iter + 1 + sizeof(sz), iter +  1 + sizeof(sz) + sz};
     }
-    if(*iter == OP_PUSHDATA2) {
+    if (*iter == OP_PUSHDATA2) {
         uint16_t sz = ReadLE16(&*(iter + 1));
         return {iter + 1 + sizeof(sz), iter +  1 + sizeof(sz) + sz};
     }
-    if(*iter == OP_PUSHDATA4) {
+    if (*iter == OP_PUSHDATA4) {
         uint32_t sz = ReadLE32(&*(iter + 1));
         return {iter + 1 + sizeof(sz), iter +  1 + sizeof(sz) + sz};
     }
@@ -77,10 +77,10 @@ Bytes GetMaskedPcode(CTransactionRef const & tx)
 {
     for (CTxOut const & out : tx->vout) {
         std::pair<CScript::const_iterator, CScript::const_iterator> opRetData = FindOpreturnData(out.scriptPubKey);
-        if(opRetData.first == out.scriptPubKey.end())
+        if (opRetData.first == out.scriptPubKey.end())
             continue;
 
-        if(*opRetData.first == 0x01 && *(opRetData.first + 1) == 0x00)
+        if (*opRetData.first == 0x01 && *(opRetData.first + 1) == 0x00)
             return Bytes(opRetData.first, opRetData.second);
     }
     return Bytes();
@@ -121,12 +121,12 @@ bool GetScriptSigPubkey(CTxIn const & txin, CPubKey& pubkey)
         return true;
     }
 
-    if(!chunk0data.empty() && chunk0data.size() > 2 && !chunk1data.empty() && chunk1data.size() > 2)
+    if (!chunk0data.empty() && chunk0data.size() > 2 && !chunk1data.empty() && chunk1data.size() > 2)
     {
         pubkey = CPubKey(chunk1data);
         return true;
     }
-    else if(opcode0 == OP_CHECKSIG && !chunk0data.empty() && chunk0data.size() > 2)
+    else if (opcode0 == OP_CHECKSIG && !chunk0data.empty() && chunk0data.size() > 2)
     {
         pubkey = CPubKey(chunk0data);
         return true;
@@ -138,12 +138,12 @@ CExtKey Derive(CExtKey const & source, std::vector<uint32_t> const & path)
 {
     CExtKey key1, key2, *currentKey = &key1, *nextKey = &key2;
 
-    if(!source.Derive(key1, path[0])) {
+    if (!source.Derive(key1, path[0])) {
         throw std::runtime_error("Cannot derive the key on path: " + std::string(path.begin(), path.end()));
     }
 
-    for(std::vector<uint32_t>::const_iterator i = path.begin() + 1; i < path.end(); ++i) {
-        if(!currentKey->Derive(*nextKey, *i)){
+    for (std::vector<uint32_t>::const_iterator i = path.begin() + 1; i < path.end(); ++i) {
+        if (!currentKey->Derive(*nextKey, *i)){
             throw std::runtime_error("Cannot derive the key on path: " + std::string(path.begin(), path.end()));
         }
         std::swap(currentKey, nextKey);

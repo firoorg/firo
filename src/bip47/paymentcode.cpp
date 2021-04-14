@@ -18,7 +18,7 @@ const unsigned char THE_P = 0x47; //"P"
 
 CPaymentCode::CPaymentCode (std::string const & paymentCode)
 {
-    if(!parse(paymentCode)) {
+    if (!parse(paymentCode)) {
         throw std::runtime_error("Cannot parse the payment code.");
     }
 }
@@ -26,14 +26,14 @@ CPaymentCode::CPaymentCode (std::string const & paymentCode)
 CPaymentCode::CPaymentCode (CPubKey const & pubKey, ChainCode const & chainCode)
 : pubKey(pubKey), chainCode(chainCode)
 {
-    if(!pubKey.IsValid() || chainCode.IsNull()) {
+    if (!pubKey.IsValid() || chainCode.IsNull()) {
         throw std::runtime_error("Cannot initialize the payment code with invalid data.");
     }
 }
 
 CBitcoinAddress CPaymentCode::getNotificationAddress() const
 {
-    if(!myNotificationAddress)
+    if (!myNotificationAddress)
         myNotificationAddress.emplace(getNthPubkey(0).pubkey.GetID());
     return *myNotificationAddress;
 }
@@ -53,7 +53,7 @@ std::vector<unsigned char> CPaymentCode::getPayload() const
     std::copy(pubKey.begin(), pubKey.begin() + pubKey.size(), std::back_inserter(payload));
     std::copy(chainCode.begin(), chainCode.begin() + chainCode.size(), std::back_inserter(payload));
 
-    if(payload.size() != 67) {
+    if (payload.size() != 67) {
         throw std::runtime_error("Payload construction failed");
     }
 
@@ -89,17 +89,17 @@ bool validateImpl(std::string const & paymentCode, CPubKey & pubKey, ChainCode &
     if (!DecodeBase58Check(paymentCode, pcBytes))
         return error("Cannot Base58-decode the payment code");
 
-    if(pcBytes.size() != PAYMENT_CODE_LEN)
+    if (pcBytes.size() != PAYMENT_CODE_LEN)
         return error("Payment code lenght is invalid");
 
     if ( pcBytes[0] != THE_P ) {
         return error("invalid payment code version");
     }
     pubKey.Set(pcBytes.begin() + PUBLIC_KEY_X_OFFSET, pcBytes.begin() + PUBLIC_KEY_X_OFFSET + PUBLIC_KEY_COMPRESSED_LEN);
-    if(!pubKey.IsValid())
+    if (!pubKey.IsValid())
         return false;
     std::copy(pcBytes.begin() + PUBLIC_KEY_X_OFFSET + PUBLIC_KEY_COMPRESSED_LEN, pcBytes.begin() + PUBLIC_KEY_X_OFFSET + PUBLIC_KEY_COMPRESSED_LEN + PUBLIC_KEY_X_LEN, chainCode.begin());
-    if(chainCode.IsNull())
+    if (chainCode.IsNull())
         return false;
     return true;
 }
@@ -127,7 +127,7 @@ CExtPubKey CPaymentCode::getNthPubkey(size_t idx) const
 }
 
 CExtPubKey const & CPaymentCode::getChildPubKeyBase() const {
-    if(!childPubKeyBase) {
+    if (!childPubKeyBase) {
         childPubKeyBase.emplace();
         childPubKeyBase->pubkey = pubKey;
         childPubKeyBase->chaincode = chainCode;
@@ -136,7 +136,7 @@ CExtPubKey const & CPaymentCode::getChildPubKeyBase() const {
 }
 
 bool operator==(CPaymentCode const & lhs, CPaymentCode const & rhs) {
-    if(lhs.getPubKey() != rhs.getPubKey())
+    if (lhs.getPubKey() != rhs.getPubKey())
         return false;
     return lhs.getChainCode() == rhs.getChainCode();
 }
