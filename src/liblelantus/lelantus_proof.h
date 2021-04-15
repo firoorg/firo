@@ -1,6 +1,7 @@
 #ifndef FIRO_LIBLELANTUS_LELANTUSPROOF_H
 #define FIRO_LIBLELANTUS_LELANTUSPROOF_H
 
+#include "sigmaextended_proof.h"
 #include "schnorr_proof.h"
 #include "range_proof.h"
 #include "params.h"

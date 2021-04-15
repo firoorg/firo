@@ -202,7 +202,7 @@ BOOST_AUTO_TEST_CASE(mempool)
     int prevHeight;
     pwalletMain->SetBroadcastTransactions(true);
 
-    for (int n=chainActive.Height(); n<1000; n++)
+    for (int n=chainActive.Height(); n<1001; n++)
         GenerateBlock({});
 
     auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
@@ -271,7 +271,7 @@ BOOST_AUTO_TEST_CASE(limit)
     int prevHeight;
     pwalletMain->SetBroadcastTransactions(true);
 
-    for (int n=chainActive.Height(); n<1000; n++)
+    for (int n=chainActive.Height(); n<1001; n++)
         GenerateBlock({});
 
     auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
@@ -385,7 +385,7 @@ BOOST_AUTO_TEST_CASE(startstopblock)
     CreateAndProcessBlock({sporkTx1}, coinbaseKey);
     BOOST_ASSERT(chainActive.Height() == prevHeight);
 
-    for (int n=chainActive.Height(); n<1000; n++)
+    for (int n=chainActive.Height(); n<1001; n++)
         GenerateBlock({});
 
     // now we can mine sporkTx1

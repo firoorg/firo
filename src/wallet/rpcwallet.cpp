@@ -1534,7 +1534,7 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const strin
                     int txHeight = chainActive.Height() - wtx.GetDepthInMainChain();
 
                     std::vector<CTxOut> voutMasternodePaymentsRet;
-                    mnpayments.GetBlockTxOuts(txHeight, CAmount(), voutMasternodePaymentsRet);
+                    mnpayments.GetBlockTxOutsWipeCache(txHeight, CAmount(), voutMasternodePaymentsRet);
                     //compare address of payee to addr.
 
                     bool its_znode_payment = false;

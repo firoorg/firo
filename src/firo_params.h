@@ -55,7 +55,9 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 
 // Block after which lelantus mints are activated.
 #define ZC_LELANTUS_STARTING_BLOCK         336888
+#define ZC_LELANTUS_FIXES_START_BLOCK      365544 //Approx April 22, 20211, 2:00 PM UTC
 #define ZC_LELANTUS_TESTNET_STARTING_BLOCK 15700
+#define ZC_LELANTUS_TESTNET_FIXES_START_BLOCK   27600
 
 // Number of blocks after ZC_SIGMA_STARTING_BLOCK during which we still accept zerocoin V2 mints into mempool.
 #define ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD          4500
@@ -169,6 +171,8 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 #define ZEROCOIN_TX_VERSION_3_1             31
 #define LELANTUS_TX_VERSION_4               40
 #define SIGMA_TO_LELANTUS_JOINSPLIT         41
+#define LELANTUS_TX_VERSION_4_5             45
+#define SIGMA_TO_LELANTUS_JOINSPLIT_FIXED   46
 #define ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER  "PUBLICKEY_TO_SERIALNUMBER"
 
 #endif
