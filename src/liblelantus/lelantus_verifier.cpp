@@ -57,6 +57,18 @@ bool LelantusVerifier::verify(
         return false;
     }
 
+    // number of serials should be equal to number of sigma proofs, we need one proof for each serial
+    if (serialNumbers.size() != proof.sigma_proofs.size()) {
+        LogPrintf("Lelantus verification failed due to sizes of serials  and sigma proofs are not equal.");
+        return false;
+    }
+
+    // max possible number of output coins is 8,
+    if (Cout.size() > (params->get_bulletproofs_max_m() / 2)) {
+        LogPrintf("Number of output coins are more than allowed.");
+        return false;
+    }
+
     std::vector<std::vector<PublicCoin>> vAnonymity_sets;
     std::vector<std::vector<Scalar>> vSin;
     vAnonymity_sets.reserve(anonymity_sets.size());
@@ -75,11 +87,16 @@ bool LelantusVerifier::verify(
 
     Scalar zV, zR;
     unique_ptr<ChallengeGenerator> challengeGenerator;
-    // we are passing challengeGenerator ptr here, as after LELANTUS_TX_VERSION_4_5 we need  it back, with filled data, to use in schnorr proof,
-    if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, ecdsaPubkeys, Cout, proof.sigma_proofs, qkSchnorrProof, x, challengeGenerator, zV, zR, fSkipVerification) &&
-         verify_rangeproof(Cout, proof.bulletproofs) &&
-         verify_schnorrproof(x, zV, zR, Vin, Vout, fee, Cout, proof, challengeGenerator)))
+    try {
+        // we are passing challengeGenerator ptr here, as after LELANTUS_TX_VERSION_4_5 we need  it back, with filled data, to use in schnorr proof,
+        if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, ecdsaPubkeys, Cout, proof.sigma_proofs, qkSchnorrProof, x, challengeGenerator, zV, zR, fSkipVerification) &&
+             verify_rangeproof(Cout, proof.bulletproofs) &&
+             verify_schnorrproof(x, zV, zR, Vin, Vout, fee, Cout, proof, challengeGenerator)))
+            return false;
+    } catch (std::invalid_argument&) {
         return false;
+    }
+
     return true;
 }
 
@@ -129,7 +146,7 @@ bool LelantusVerifier::verify_sigma(
         }
 
         //skip verification if we are collecting proofs for later batch verification
-        if(fSkipVerification)
+        if (fSkipVerification)
             continue;
 
         std::vector<GroupElement> C_;
@@ -158,11 +175,7 @@ bool LelantusVerifier::verify_sigma(
             for (std::size_t k = 0; k < Qk.size(); ++k)
             {
                 Gk_sum += (Qk[k]) * qK_x_n.pow;
-                try {
-                    qK_x_n.go_next();
-                } catch (std::invalid_argument&) {
-                    return false;
-                }
+                qK_x_n.go_next();
 
                 Qks.emplace_back(Qk[k]);
             }

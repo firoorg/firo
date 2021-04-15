@@ -4,7 +4,7 @@
 namespace lelantus {
 
 static std::string lts("LELANTUS_SIGMA");
-    
+
 void LelantusPrimitives::generate_challenge(
         const std::vector<GroupElement>& group_elements,
         const std::string& domain_separator,
@@ -14,11 +14,11 @@ void LelantusPrimitives::generate_challenge(
 
     std::unique_ptr<ChallengeGenerator> challengeGenerator;
     if (domain_separator != "") {
-        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
         std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
         challengeGenerator->add(pre);
     } else {
-        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>(0);
     }
 
     challengeGenerator->add(group_elements);
@@ -103,7 +103,7 @@ void  LelantusPrimitives::generate_Lelantus_challenge(
 
     // starting from LELANTUS_TX_VERSION_4_5 we are using CHash256, and adding domain separator, version, pubkeys and serials into it
     if (version >= LELANTUS_TX_VERSION_4_5) {
-        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
         std::string domainSeparator = lts + std::to_string(version);
         std::vector<unsigned char> pre(domainSeparator.begin(), domainSeparator.end());
         challengeGenerator->add(pre);
@@ -113,7 +113,7 @@ void  LelantusPrimitives::generate_Lelantus_challenge(
             challengeGenerator->add(pubkey);
         challengeGenerator->add(serialNumbers);
     } else {
-        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>();
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>(0);
     }
 
     if (Cout.size() > 0) {

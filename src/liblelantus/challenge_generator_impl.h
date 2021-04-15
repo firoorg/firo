@@ -5,7 +5,7 @@
 #include <secp256k1/include/GroupElement.h>
 #include "../../crypto/sha256.h"
 #include "challenge_generator.h"
-
+#include <iostream>
 namespace lelantus {
 
 using namespace secp_primitives;
@@ -14,7 +14,8 @@ template <class Hasher>
 class ChallengeGeneratorImpl : public ChallengeGenerator {
 
 public:
-    ChallengeGeneratorImpl() {
+    ChallengeGeneratorImpl(int version_ = 0) {
+        version = version_;
         data.resize(GroupElement::serialize_size);
         scalar_data.resize(32);
     }
@@ -25,6 +26,7 @@ public:
     }
 
     void add(const std::vector<GroupElement>& group_elements) {
+        addSize(group_elements.size());
         for (size_t i = 0; i < group_elements.size(); ++i) {
             add(group_elements[i]);
         }
@@ -36,6 +38,7 @@ public:
     }
 
     void add(const std::vector<Scalar>& scalars) {
+        addSize(scalars.size());
         for (size_t i = 0; i < scalars.size(); ++i) {
             add(scalars[i]);
         }
@@ -57,6 +60,14 @@ public:
     }
 
 private:
+    void addSize(uint32_t size) {
+        if (version >= 1) {
+            Scalar s(size);
+            add(s);
+        }
+    }
+private:
+    int version;
     Hasher hash;
     std::vector<unsigned char> data;
     std::vector<unsigned char> scalar_data;

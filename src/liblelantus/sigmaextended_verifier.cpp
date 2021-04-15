@@ -270,13 +270,13 @@ bool SigmaExtendedVerifier::batchverify(
     GroupElement left(t1 + t2);
 
     right += g_ * exp;
-    if(left != right)
+    if (left != right)
         return false;
     return true;
 }
 
 bool SigmaExtendedVerifier::membership_checks(const SigmaExtendedProof& proof) const {
-    if(!(proof.A_.isMember() &&
+    if (!(proof.A_.isMember() &&
          proof.B_.isMember() &&
          proof.C_.isMember() &&
          proof.D_.isMember()) ||
@@ -346,12 +346,12 @@ bool SigmaExtendedVerifier::abcd_checks(
     // Aggregating two checks into one, B^x * A = Comm(..) and C^x * D = Comm(..)
     std::vector<Scalar> f_plus_f_prime;
     f_plus_f_prime.reserve(f_.size());
-    for(std::size_t i = 0; i < f_.size(); i++)
+    for (std::size_t i = 0; i < f_.size(); i++)
         f_plus_f_prime.emplace_back(f_[i] * c + f_[i] * (x - f_[i]));
 
     GroupElement right;
     LelantusPrimitives::commit(g_, h_, f_plus_f_prime, proof.ZA_ * c + proof.ZC_, right);
-    if(((proof.B_ * x + proof.A_) * c + proof.C_ * x + proof.D_) != right)
+    if (((proof.B_ * x + proof.A_) * c + proof.C_ * x + proof.D_) != right)
         return false;
     return true;
 }
@@ -371,7 +371,7 @@ void SigmaExtendedVerifier::compute_fis(
     j--;
     if (j == -1)
     {
-        if(ptr < end_ptr)
+        if (ptr < end_ptr)
             *ptr++ += f_i;
         return;
     }

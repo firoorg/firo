@@ -26,6 +26,7 @@ struct NthPower {
     NthPower(const Scalar& num_) : num(num_), pow(uint64_t(1)) {}
     NthPower(const Scalar& num_, const Scalar& pow_) : num(num_), pow(pow_) {}
 
+    // be careful and verify that you have catch on upper level
     void go_next() {
         pow *= num;
         if (pow == Scalar(uint64_t(1)))
