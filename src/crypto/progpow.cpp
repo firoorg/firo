@@ -12,8 +12,7 @@
 
 #include <sstream>
 
-int prevEpochState{-1};
-ethash::epoch_context_ptr prevEpochContext{nullptr,nullptr};
+ethash::epoch_context_ptr epochContext{nullptr,nullptr};
 
 void safe_tohash256(std::string& input, ethash::hash256& hash)
 {
@@ -40,22 +39,15 @@ void header_hash(const CBlockHeader& header, ethash::hash256& hash)
     hash = to_hash256(sat_hash.ToString());
 }
 
-ethash::epoch_context_ptr& epochContextCache(int currentEpoch)
-{
-    if (prevEpochState != currentEpoch) {
-        prevEpochState = currentEpoch;
-        printf("generating epoch_context for epoch %d..\n", currentEpoch);
-        prevEpochContext = ethash::create_epoch_context(prevEpochState);
-    }
-    return prevEpochContext;
-}
-
 void progpow_hash(const CBlockHeader& header, uint256& hash, int height)
 {
     ethash::hash256 headerhash;
     header_hash(header, headerhash);
-    int currentEpoch = ethash::get_epoch_number(height);
-    const auto& ctx = epochContextCache(currentEpoch);
-    const auto& etresult = progpow::hash(*ctx, height, headerhash, header.nNonce64);
-    hash = uint256S(to_hex(etresult.final_hash));
+    if (!epochContext || epochContext->epoch_number != ethash::get_epoch_number(height))
+    {
+        epochContext.reset(ethash::create_epoch_context(ethash::get_epoch_number(height)));
+    }
+    
+    const auto result = progpow::hash(*epochContext, height, headerhash, header.nNonce64);
+    hash = uint256S(to_hex(result.final_hash));
 }
