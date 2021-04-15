@@ -40,11 +40,6 @@ void header_hash(const CBlockHeader& header, ethash::hash256& hash)
     hash = to_hash256(sat_hash.ToString());
 }
 
-int skewed_epoch_number(int height)
-{
-    return height + (ETHASH_EPOCH_LENGTH * Params().GetConsensus().nEpochOffset);
-}
-
 ethash::epoch_context_ptr& epochContextCache(int currentEpoch)
 {
     if (prevEpochState != currentEpoch) {
@@ -59,7 +54,7 @@ void progpow_hash(const CBlockHeader& header, uint256& hash, int height)
 {
     ethash::hash256 headerhash;
     header_hash(header, headerhash);
-    int currentEpoch = ethash::get_epoch_number(skewed_epoch_number(height));
+    int currentEpoch = ethash::get_epoch_number(height);
     const auto& ctx = epochContextCache(currentEpoch);
     const auto& etresult = progpow::hash(*ctx, height, headerhash, header.nNonce64);
     hash = uint256S(to_hex(etresult.final_hash));
