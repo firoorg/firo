@@ -1,7 +1,7 @@
 #include "lelantus_test_fixture.h"
 
 #include "../lelantus_primitives.h"
-
+#include "../challenge_generator_impl.h"
 #include "../../test/test_bitcoin.h"
 #include "../../utilstrencodings.h"
 
@@ -20,8 +20,8 @@ BOOST_AUTO_TEST_CASE(generate_challenge)
     auto gs1 = GenerateGroupElements(5);
 
     secp_primitives::Scalar s0, s1;
-    Primitives::generate_challenge(gs0, s0);
-    Primitives::generate_challenge(gs1, s1);
+    Primitives::generate_challenge(gs0, "", s0);
+    Primitives::generate_challenge(gs1, "", s1);
 
     BOOST_CHECK_EQUAL(
         "7486c200ca76a53a40715a64982705276181c4c8fe6335425607ddc696ca739f",
@@ -149,7 +149,8 @@ BOOST_AUTO_TEST_CASE(generate_lelantus_challenge)
     }
 
     Scalar out;
-    Primitives::generate_Lelantus_challenge(proofs, {}, out);
+    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>();
+    Primitives::generate_Lelantus_challenge(proofs, {}, {}, {}, {}, 0, challengeGenerator, out);
 
     BOOST_CHECK_EQUAL(
         "0739d8484b29d53410510c38ffd5b6a43187fa0775175f97d12c61e81147245b",

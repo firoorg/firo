@@ -1,5 +1,6 @@
 #include "../coin.h"
 #include "../params.h"
+#include "../lelantus_primitives.h"
 
 #include "streams.h"
 
