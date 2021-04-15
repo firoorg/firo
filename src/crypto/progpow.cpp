@@ -31,7 +31,8 @@ void progpow_hash(const CBlockHeader& header, uint256& hash, int height)
     header_hash(header, headerhash);
     if (!epochContext || epochContext->epoch_number != ethash::get_epoch_number(height))
     {
-        epochContext.reset(ethash::create_epoch_context(ethash::get_epoch_number(height)));
+        epochContext.reset();
+        epochContext = ethash::create_epoch_context(ethash::get_epoch_number(height));
     }
     
     const auto result = progpow::hash(*epochContext, height, headerhash, header.nNonce64);
