@@ -13,7 +13,6 @@ class uint256;
 class CBlockHeader;
 
 void safe_tohash256(std::string& input, ethash::hash256& hash);
-int skewed_epoch_number(int height);
 void header_hash(const CBlockHeader& header, uint256& hash);
 void header_hash(const CBlockHeader& header, ethash::hash256& hash);
 void progpow_hash(const CBlockHeader& header, uint256& hash, int height);

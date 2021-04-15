@@ -337,9 +337,7 @@ struct Params {
     int64_t DifficultyAdjustmentInterval(bool fMTP = false) const { return nPowTargetTimespan / (fMTP ? nPowTargetSpacingMTP : nPowTargetSpacing); }
     uint256 nMinimumChainWork;
     uint256 defaultAssumeValid;
-
-    int nEpochOffset;
-
+    
     bool IsMain() const { return chainType == chainMain; }
     bool IsTestnet() const { return chainType == chainTestnet; }
     bool IsRegtest() const { return chainType == chainRegtest; }
