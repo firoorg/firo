@@ -12,7 +12,6 @@
 
 #include <sstream>
 
-ethash::epoch_context_ptr epochContext{nullptr,nullptr};
 
 void header_hash(const CBlockHeader& header, uint256& hash)
 {
@@ -27,6 +26,7 @@ void header_hash(const CBlockHeader& header, ethash::hash256& hash)
 
 void progpow_hash(const CBlockHeader& header, uint256& hash, int height)
 {
+    static ethash::epoch_context_ptr epochContext{nullptr,nullptr};
     ethash::hash256 headerhash;
     header_hash(header, headerhash);
     if (!epochContext || epochContext->epoch_number != ethash::get_epoch_number(height))
