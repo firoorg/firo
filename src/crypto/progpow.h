@@ -12,8 +12,6 @@
 class uint256;
 class CBlockHeader;
 
-void header_hash(const CBlockHeader& header, uint256& hash);
-void header_hash(const CBlockHeader& header, ethash::hash256& hash);
 void progpow_hash(const CBlockHeader& header, uint256& hash, int height);
 
 #endif // FIRO_PROGPOW_H
