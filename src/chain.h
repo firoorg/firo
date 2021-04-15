@@ -211,7 +211,10 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
+
+    // Firo - ProgPow
     uint64_t nNonce64;
+    uint256 mix_hash;
 
     // Firo - MTP
     int32_t nVersionMTP = 0x1000;
@@ -276,8 +279,12 @@ public:
         nTime          = 0;
         nBits          = 0;
         nNonce         = 0;
-        nNonce64       = 0;
 
+        // Firo - ProgPow
+        nNonce64       = 0;
+        mix_hash       = uint256();
+
+        // Firo - MTP
         nVersionMTP = 0;
         mtpHashValue = reserved[0] = reserved[1] = uint256();
 
@@ -305,18 +312,20 @@ public:
         nTime          = block.nTime;
         nBits          = block.nBits;
 
-        if (!block.IsProgPow()) {
-            nNonce     = block.nNonce;
-        } else {
+        if (block.IsProgPow()) {
+            nHeight    = block.nHeight;
             nNonce64   = block.nNonce64;
+            mix_hash   = block.mix_hash;
+        } else {
+            nNonce     = block.nNonce;
+            if (block.IsMTP()) {
+                nVersionMTP = block.nVersionMTP;
+                mtpHashValue = block.mtpHashValue;
+                reserved[0] = block.reserved[0];
+                reserved[1] = block.reserved[1];
+            }
         }
 
-        if (block.IsMTP()) {
-            nVersionMTP = block.nVersionMTP;
-            mtpHashValue = block.mtpHashValue;
-            reserved[0] = block.reserved[0];
-            reserved[1] = block.reserved[1];
-        }
     }
 
     CDiskBlockPos GetBlockPos() const {
@@ -347,19 +356,21 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
 
-        if (!block.IsProgPow()) {
-            block.nNonce     = nNonce;
-        } else {
+        if (block.IsProgPow()) {
+            block.nHeight    = nHeight;
             block.nNonce64   = nNonce64;
+            block.mix_hash   = mix_hash;
+        } else {
+            block.nNonce     = nNonce;
+            // Firo - MTP
+            if(block.IsMTP()){
+                block.nVersionMTP = nVersionMTP;
+                block.mtpHashValue = mtpHashValue;
+                block.reserved[0] = reserved[0];
+                block.reserved[1] = reserved[1];
+            }
         }
 
-        // Firo - MTP
-        if(block.IsMTP()){
-			block.nVersionMTP = nVersionMTP;
-            block.mtpHashValue = mtpHashValue;
-            block.reserved[0] = reserved[0];
-            block.reserved[1] = reserved[1];
-		}
         return block;
     }
 
@@ -487,20 +498,20 @@ public:
 
         const auto &params = Params().GetConsensus();
 
-        if (nTime < PROGPOW_STARTTIME) {
-            READWRITE(nNonce);
-        } else {
+        if (nTime >= PROGPOW_STARTTIME) {
             READWRITE(nNonce64);
+            READWRITE(mix_hash);
+        } else {
+            READWRITE(nNonce);
+            // Zcoin - MTP
+            if (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= params.nMTPSwitchTime) {
+                READWRITE(nVersionMTP);
+                READWRITE(mtpHashValue);
+                READWRITE(reserved[0]);
+                READWRITE(reserved[1]);
+            }
         }
-
-        // Zcoin - MTP
-        if (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= params.nMTPSwitchTime) {
-            READWRITE(nVersionMTP);
-            READWRITE(mtpHashValue);
-            READWRITE(reserved[0]);
-            READWRITE(reserved[1]);
-        }
-
+        
         if (!(s.GetType() & SER_GETHASH) && nVersion >= ZC_ADVANCED_INDEX_VERSION) {
             READWRITE(mintedPubCoins);
 		    READWRITE(accumulatorChanges);
@@ -544,18 +555,20 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
 
-        if (!block.IsProgPow()) {
-            block.nNonce     = nNonce;
-        } else {
+        if (block.IsProgPow()) {
+            block.nHeight    = nHeight;
             block.nNonce64   = nNonce64;
+            block.mix_hash   = mix_hash;
+        } else {
+            block.nNonce     = nNonce;
+            if (block.IsMTP()) {
+                block.nVersionMTP = nVersionMTP;
+                block.mtpHashValue = mtpHashValue;
+                block.reserved[0] = reserved[0];
+                block.reserved[1] = reserved[1];
+            }
         }
 
-        if (block.IsMTP()) {
-            block.nVersionMTP = nVersionMTP;
-            block.mtpHashValue = mtpHashValue;
-            block.reserved[0] = reserved[0];
-            block.reserved[1] = reserved[1];
-        }
 
         return block.GetHash();
     }
