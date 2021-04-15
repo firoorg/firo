@@ -998,8 +998,8 @@ UniValue eth_submitwork(const JSONRPCRequest &request)
         return {};
 
     //! correctly handle uint256's
-    ethash::hash256 headerHash {ethash::to_hash256(strheaderHash)};
-    ethash::hash256 mixhash { ethash::to_hash256(strhashMix)};
+    ethash::hash256 headerHash {to_hash256(strheaderHash)};
+    ethash::hash256 mixhash {to_hash256(strhashMix)};
     
     //! match the existing work template
     bool valid = false;
