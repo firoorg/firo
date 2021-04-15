@@ -998,11 +998,9 @@ UniValue eth_submitwork(const JSONRPCRequest &request)
         return {};
 
     //! correctly handle uint256's
-    ethash::hash256 headerHash;
-    safe_tohash256(strheaderHash, headerHash);
-    ethash::hash256 mixhash;
-    safe_tohash256(strhashMix, mixhash);
-
+    ethash::hash256 headerHash {ethash::to_hash256(strheaderHash)};
+    ethash::hash256 mixhash { ethash::to_hash256(strhashMix)};
+    
     //! match the existing work template
     bool valid = false;
     CBlock pblock = workCache(uint256S(strheaderHash), valid);
