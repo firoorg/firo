@@ -314,16 +314,21 @@ public:
         block.hashMerkleRoot = hashMerkleRoot;
         block.nTime          = nTime;
         block.nBits          = nBits;
-        if (!IsProgPow())
-            block.nNonce     = nNonce;
-        else
+        
+        if (IsProgPow()) {
+            block.nHeight    = nHeight;
             block.nNonce64   = nNonce64;
-        if (block.IsMTP()) {
-            block.nVersionMTP = nVersionMTP;
-            block.mtpHashData = mtpHashData;
-            block.reserved[0] = reserved[0];
-            block.reserved[1] = reserved[1];
+            block.mix_hash   = mix_hash;
+        } else {
+            block.nNonce     = nNonce;
+            if (block.IsMTP()) {
+                block.nVersionMTP = nVersionMTP;
+                block.mtpHashData = mtpHashData;
+                block.reserved[0] = reserved[0];
+                block.reserved[1] = reserved[1];
+            }
         }
+
         return block;
     }
 
