@@ -61,6 +61,6 @@ void progpow_hash(const CBlockHeader& header, uint256& hash, int height)
     header_hash(header, headerhash);
     int currentEpoch = ethash::get_epoch_number(skewed_epoch_number(height));
     const auto& ctx = epochContextCache(currentEpoch);
-    const auto& etresult = progpow::hash(*ctx, skewed_epoch_number(height), headerhash, header.nNonce64);
+    const auto& etresult = progpow::hash(*ctx, height, headerhash, header.nNonce64);
     hash = uint256S(to_hex(etresult.final_hash));
 }
