@@ -12,23 +12,13 @@
 
 #include <sstream>
 
-
-void header_hash(const CBlockHeader& header, uint256& hash)
-{
-    hash = header.hashPrevBlock;
-}
-
-void header_hash(const CBlockHeader& header, ethash::hash256& hash)
-{
-    uint256 sat_hash = header.hashPrevBlock;
-    hash = to_hash256(sat_hash.ToString());
-}
-
 void progpow_hash(const CBlockHeader& header, uint256& hash, int height)
 {
     static ethash::epoch_context_ptr epochContext{nullptr,nullptr};
-    ethash::hash256 headerhash;
-    header_hash(header, headerhash);
+
+    auto input = header.GetProgPowHeaderHash();
+    ethash::hash256 headerhash{to_hash256(input.GetHex())};
+
     if (!epochContext || epochContext->epoch_number != ethash::get_epoch_number(height))
     {
         epochContext.reset();

@@ -62,6 +62,12 @@ bool CBlockHeader::IsProgPow() const {
     return nTime >= PROGPOW_STARTTIME;
 }
 
+uint256 CBlockHeader::GetProgPowHeaderHash() const 
+{
+    CProgPowHeader input(*this);
+    return SerializeHash(input);
+}
+
 uint256 CBlockHeader::GetPoWHash(int nHeight) const {
     if (!cachedPoWHash.IsNull())
         return cachedPoWHash;
