@@ -6916,9 +6916,9 @@ std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(CAmount required,
         } catch (std::runtime_error) {
         }
 
-        // 956 is constant part, mainly Schnorr and Range proof, 2560 is for each sigma/aux data
+        // 1054 is constant part, mainly Schnorr and Range proofs, 2560 is for each sigma/aux data
         // 179 other parts of tx, assuming 1 utxo and 1 jmint
-        size = 956 + 2560 * (spendCoins.size() + sigmaSpendCoins.size()) + 179;
+        size = 1054 + 2560 * (spendCoins.size() + sigmaSpendCoins.size()) + 179;
         CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
 
         if (fee >= feeNeeded) {
