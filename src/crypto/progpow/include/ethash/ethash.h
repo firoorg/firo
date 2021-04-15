@@ -26,7 +26,15 @@ extern "C" {
  */
 #define ETHASH_REVISION "23"
 
-#define ETHASH_EPOCH_LENGTH 30000
+/**
+ * Ethereum epoch is 30000 blocks which, with an avg 13 sec block time, corresponds
+ * to roughly 108 hours i.e. 4.5 days. To achieve the same DAG growth rate with
+ * a block time of 5 min we need to set epoch length to 30000/(300/13) which
+ * provides a DAG increase every 1300 blocks i.e. 4.51 days
+ * See "./lib/ethash/ethash.cpp" for increase size(s)
+ */
+
+#define ETHASH_EPOCH_LENGTH 1300
 #define ETHASH_LIGHT_CACHE_ITEM_SIZE 64
 #define ETHASH_FULL_DATASET_ITEM_SIZE 128
 #define ETHASH_NUM_DATASET_ACCESSES 64
