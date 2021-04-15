@@ -14,20 +14,6 @@
 
 ethash::epoch_context_ptr epochContext{nullptr,nullptr};
 
-void safe_tohash256(std::string& input, ethash::hash256& hash)
-{
-    int inSize = input.size();
-
-    //! trim leading 0x..
-    if (inSize == 66) {
-        std::stringstream temptrunc;
-        temptrunc << input.substr(2, 64);
-        input = temptrunc.str();
-    }
-
-    hash = to_hash256(input);
-}
-
 void header_hash(const CBlockHeader& header, uint256& hash)
 {
     hash = header.hashPrevBlock;
