@@ -974,12 +974,12 @@ UniValue eth_getwork(const JSONRPCRequest &request)
     // format height
     char hexheight[12];
     memset(hexheight,0,sizeof(hexheight));
-    sprintf(hexheight,"0x%x",skewed_epoch_number(height));
+    sprintf(hexheight,"0x%x",ethash::get_epoch_number(height));
 
     // display to client
     UniValue result(UniValue::VARR);
     result.push_back(pblock.hashPrevBlock.ToString());
-    result.push_back(to_hex(ethash::calculate_epoch_seed(ethash::get_epoch_number(skewed_epoch_number(height)))));
+    result.push_back(to_hex(ethash::calculate_epoch_seed(ethash::get_epoch_number(height))));
     result.push_back(target.ToString());
     result.push_back(std::string(hexheight));
 
