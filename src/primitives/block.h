@@ -103,7 +103,11 @@ public:
     uint32_t nTime;
     uint32_t nBits;
     uint32_t nNonce;   //! std satoshi
-    uint64_t nNonce64; //! ethash nonce
+
+    // Firo - ProgPow 
+    uint32_t nHeight;
+    uint64_t nNonce64;
+    uint256 mix_hash;
 
     // Firo - MTP
     int32_t nVersionMTP = 0x1000;
