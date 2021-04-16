@@ -53,13 +53,15 @@ uint256 CBlockHeader::GetHash() const {
 bool CBlockHeader::IsMTP() const {
     // In case if nTime == ZC_GENESIS_BLOCK_TIME we're being called from CChainParams() constructor and
     // it is not possible to get Params()
-    return nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().GetConsensus().nMTPSwitchTime;
+    return nTime > ZC_GENESIS_BLOCK_TIME && 
+        (nTime >= Params().GetConsensus().nMTPSwitchTime && nTime < Params().GetConsensus().nPPSwitchTime);
 }
 
 bool CBlockHeader::IsProgPow() const {
     // This isnt ideal, but suffers from the same issue as the IsMTP() call above. Also can't get
     // chainActive/mapBlockIndex in the consensus library (without disabling binary hardening)..
-    return nTime >= PROGPOW_STARTTIME;
+    return nTime > ZC_GENESIS_BLOCK_TIME && 
+        (nTime < Params().GetConsensus().nPPSwitchTime);
 }
 
 uint256 CBlockHeader::GetProgPowHeaderHash() const 
