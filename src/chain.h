@@ -25,8 +25,6 @@
 #include <vector>
 #include <unordered_set>
 
-#define PROGPOW_STARTTIME 1617678362
-
 class CBlockFileInfo
 {
 public:
