@@ -401,6 +401,6 @@ class CProgPowHeader : private CBlockHeader {
         READWRITE(nBits);
         READWRITE(nHeight);
     }
-}
+};
 
 #endif // BITCOIN_PRIMITIVES_BLOCK_H
