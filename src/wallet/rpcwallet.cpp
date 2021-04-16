@@ -1627,7 +1627,7 @@ UniValue listtransactions(const JSONRPCRequest& request)
             "2. count          (numeric, optional, default=10) The number of transactions to return\n"
             "3. skip           (numeric, optional, default=0) The number of transactions to skip\n"
             "4. include_watchonly (bool, optional, default=false) Include transactions to watch-only addresses (see 'importaddress')\n"
-            "5. omit_mnpayments   (bool, optional, default=false) Do not handle masternode outputs (improves performance)\n"
+            "5. skip_mnout_check  (bool, optional, default=false) Skip checking for masternode payment txout (improves performance)\n"
             "\nResult:\n"
             "[\n"
             "  {\n"

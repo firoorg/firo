@@ -68,7 +68,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "listtransactions", 1, "count" },
     { "listtransactions", 2, "skip" },
     { "listtransactions", 3, "include_watchonly" },
-    { "listtransactions", 4, "omit_mnpayments" },
+    { "listtransactions", 4, "skip_mnout_check" },
     { "listaccounts", 0, "minconf" },
     { "listaccounts", 1, "include_watchonly" },
     { "walletpassphrase", 1, "timeout" },
