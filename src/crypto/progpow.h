@@ -16,6 +16,6 @@ class CBlockHeader;
 std::pair<uint256,uint256> progpow_hash_full(const CBlockHeader& header);
 
 /* Performs a light progpow hash (DAG loops excluded) provided header has mix_hash */
-uint256 progpow_hash_light(const CBlockHeader& header)
+uint256 progpow_hash_light(const CBlockHeader& header);
 
 #endif // FIRO_PROGPOW_H
