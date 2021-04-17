@@ -35,7 +35,7 @@ uint256 progpow_hash_light(const CBlockHeader& header)
 
     auto input{header.GetProgPowHeaderHash()};
     auto header_hash{ethash::hash256_from_bytes(input.begin())};
-    auto seed_hash{progpow::hash_seed(header_hash, header->nNonce64)};
+    auto seed_hash{progpow::hash_seed(header_hash, header.nNonce64)};
     auto mix_hash{ethash::hash256_from_bytes(header.mix_hash.begin())};
     return progpow::hash_final(seed_hash, mix_hash);
 
