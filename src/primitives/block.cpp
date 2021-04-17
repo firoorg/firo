@@ -76,8 +76,7 @@ uint256 CBlockHeader::GetPoWHash(int nHeight) const {
 
     uint256 powHash;
     if (IsProgPow()) {
-        // TODO - store ppHash and return it
-        powHash = ppHashValue;
+        powHash = progpow_hash_light(*this);
     } else if (IsMTP()) {
         // MTP processing is the same across all the types on networks
         powHash = mtpHashValue;
