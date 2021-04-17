@@ -119,14 +119,12 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
         nHeight = nHeightStart;
         nHeightEnd = nHeightStart+nGenerate;
     }
+
     unsigned int nExtraNonce = 0;
     UniValue blockHashes(UniValue::VARR);
-    uint256 bestHash;
-    uint32_t hashState = 0;
-    int64_t hashStart = GetTimeMillis();
+    
     while (nHeight < nHeightEnd)
     {
-        bestHash = uint256S("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
         
         if (!pblocktemplate.get()) {
@@ -138,6 +136,7 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
             LOCK(cs_main);
             IncrementExtraNonce(pblock, chainActive.Tip(), nExtraNonce);
         }
+
         if (pblock->IsMTP()) {
             while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount) {
                 pblock->mtpHashValue = mtp::hash(*pblock, Params().GetConsensus().powLimit);
@@ -148,20 +147,10 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
             }
         }
         else {
-            while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetPoWHash(nHeight+1), pblock->nBits, bestHash, Params().GetConsensus())) {
+            while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetPoWHash(nHeight+1), pblock->nBits, Params().GetConsensus())) {
                 ++pblock->nNonce64;
-                //! quite the hack, prevents having to replicate this loop
-                if (pblock->IsProgPow())
-                    pblock->nNonce = (uint32_t) pblock->nNonce64;
                 --nMaxTries;
                 pblock->cachedPoWHash.SetNull();
-                //! time the hashing
-                if (GetTimeMillis() - hashStart > 1000) {
-                    int hashrate = abs((int)pblock->nNonce - (int)hashState);
-                    LogPrintf("hashing @ %dh/s (besthash: %s)\n", hashrate, bestHash.ToString().c_str());
-                    hashState = pblock->nNonce;
-                    hashStart = GetTimeMillis();
-                }
             }
         }
         if (nMaxTries == 0) {
