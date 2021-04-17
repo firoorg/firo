@@ -76,18 +76,15 @@ uint256 CBlockHeader::GetPoWHash(int nHeight) const {
 
     uint256 powHash;
     if (IsProgPow()) {
-        progpow_hash(*this, powHash, nHeight);
-        return powHash;
-    }
-    if (IsMTP()) {
+        // TODO - store ppHash and return it
+        powHash = ppHashValue;
+    } else if (IsMTP()) {
         // MTP processing is the same across all the types on networks
         powHash = mtpHashValue;
-    }
-    else if (nHeight == 0) {
+    } else if (nHeight == 0) {
         // genesis block
         scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(powHash), GetNfactor(nTime));
-    }
-    else if (Params().GetConsensus().IsMain()) {
+    } else if (Params().GetConsensus().IsMain()) {
         if (nHeight >= 20500) {
             // Lyra2Z
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
@@ -106,8 +103,7 @@ uint256 CBlockHeader::GetPoWHash(int nHeight) const {
              * }
              */
         }
-    }
-    else {
+    } else {
         // regtest - use simple block hash
         // current testnet is MTP since block 1, shouldn't get here
         powHash = GetHash();
