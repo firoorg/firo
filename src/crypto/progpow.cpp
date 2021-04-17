@@ -26,7 +26,7 @@ std::pair<uint256,uint256> progpow_hash_full(const CBlockHeader& header)
     }
     
     const auto result = progpow::hash(*epochContext, header.nHeight, header_hash, header.nNonce64);
-    return {uint256S(to_hex(result.final_hash), uint256S(to_hex(result.mix_hash))};
+    return {uint256S(to_hex(result.final_hash)), uint256S(to_hex(result.mix_hash))};
 }
 
 uint256 progpow_hash_light(const CBlockHeader& header) 
