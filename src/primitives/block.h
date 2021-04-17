@@ -393,7 +393,7 @@ class CProgPowHeader : private CBlockHeader {
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream>
-    inline void SerializationOp(Stream& s, CReadBlockHeader ser_action) {
+    inline void SerializationOp(Stream& s, CWriteBlockHeader ser_action) {
         READWRITE(this->nVersion);
         READWRITE(hashPrevBlock);
         READWRITE(hashMerkleRoot);
