@@ -945,19 +945,19 @@ public:
         CAmount required,
         std::vector<CSigmaEntry>& coinsToSpend_out,
         std::vector<sigma::CoinDenomination>& coinsToMint_out,
+        std::list<CSigmaEntry>& coins,
         const size_t coinsLimit = SIZE_MAX,
         const CAmount amountLimit = MAX_MONEY,
-        const CCoinControl *coinControl = NULL,
-        bool forEstimation = false) const;
+        const CCoinControl *coinControl = NULL) const;
 
     bool GetCoinsToJoinSplit(
             CAmount required,
             std::vector<CLelantusEntry>& coinsToSpend_out,
             CAmount& changeToMint,
+            std::list<CLelantusEntry> coins,
             const size_t coinsToSpendLimit = SIZE_MAX,
             const CAmount amountToSpendLimit = MAX_MONEY,
-            const CCoinControl *coinControl = NULL,
-            bool forEstimation = false) const;
+            const CCoinControl *coinControl = NULL) const;
 
     /**
      * Insert additional inputs into the transaction by

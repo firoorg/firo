@@ -22,6 +22,7 @@ public:
     int get_sigma_n() const;
     int get_sigma_m() const;
     int get_bulletproofs_n() const;
+    int get_bulletproofs_max_m() const;
     const Scalar& get_limit_range() const;
     const GroupElement& get_h1_limit_range() const;
 

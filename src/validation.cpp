@@ -3172,7 +3172,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
                     continue;
                 }
 
-                if (joinsplit->getVersion() == SIGMA_TO_LELANTUS_JOINSPLIT) {
+                if (joinsplit->isSigmaToLelantus()) {
                     for (size_t i = 0; i < serials.size(); i++) {
                         int coinGroupId = ids[i] % (CENT / 1000);
                         int64_t intDenom = (ids[i] - coinGroupId);

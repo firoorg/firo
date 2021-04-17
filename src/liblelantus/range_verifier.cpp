@@ -1,5 +1,5 @@
 #include "range_verifier.h"
-#include "challenge_generator.h"
+#include "challenge_generator_impl.h"
 
 namespace lelantus {
     
@@ -9,44 +9,71 @@ RangeVerifier::RangeVerifier(
         const GroupElement& h2,
         const std::vector<GroupElement>& g_vector,
         const std::vector<GroupElement>& h_vector,
-        uint64_t n)
+        uint64_t n,
+        unsigned int v)
         : g (g)
         , h1 (h1)
         , h2 (h2)
         , g_(g_vector)
         , h_(h_vector)
         , n (n)
+        , version (v)
 {}
 
-bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const RangeProof& proof) {
+bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::vector<GroupElement>& commitments, const RangeProof& proof) {
     if(!membership_checks(proof))
         return false;
     uint64_t m = V.size();
 
     //computing challenges
     Scalar x, x_u, y, z;
+    unique_ptr<ChallengeGenerator> challengeGenerator;
+    if (version >= LELANTUS_TX_VERSION_4_5) {
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
+        // add domain separator and transaction version into transcript
+        std::string domain_separator = "RANGE_PROOF" + std::to_string(version);
+        std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
+        challengeGenerator->add(pre);
+        challengeGenerator->add(commitments);
+    }  else {
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>(0);
+    }
+    challengeGenerator->add({proof.A, proof.S});
+    challengeGenerator->get_challenge(y);
+    challengeGenerator->get_challenge(z);
 
-    ChallengeGenerator challengeGenerator;
-    challengeGenerator.add({proof.A, proof.S});
-    challengeGenerator.get_challenge(y);
-    challengeGenerator.get_challenge(z);
-
-    challengeGenerator.add({proof.T1, proof.T2});
-    challengeGenerator.get_challenge(x);
+    challengeGenerator->add({proof.T1, proof.T2});
+    challengeGenerator->get_challenge(x);
     Scalar x_neg = x.negate();
 
-    challengeGenerator.add({proof.T_x1, proof.T_x2, proof.u});
-    challengeGenerator.get_challenge(x_u);
+    challengeGenerator->add({proof.T_x1, proof.T_x2, proof.u});
+    challengeGenerator->get_challenge(x_u);
 
     auto log_n = RangeProof::int_log2(n * m);
     const InnerProductProof& innerProductProof = proof.innerProductProof;
     std::vector<Scalar> x_j, x_j_inv;
     x_j.resize(log_n);
     x_j_inv.reserve(log_n);
+
+    if (version >= LELANTUS_TX_VERSION_4_5) {
+        // add domain separator in each step
+        std::string domain_separator = "INNER_PRODUCT";
+        std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
+        challengeGenerator->add(pre);
+    }
+
     for (int i = 0; i < log_n; ++i)
     {
         std::vector<GroupElement> group_elements_i = {innerProductProof.L_[i], innerProductProof.R_[i]};
-        LelantusPrimitives::generate_challenge(group_elements_i, x_j[i]);
+
+        // if(version >= LELANTUS_TX_VERSION_4_5) we should be using CHash256,
+        // we want to link transcripts from range proof and from previous iteration in each step, so we are not restarting in that case,
+        if (version < LELANTUS_TX_VERSION_4_5) {
+            challengeGenerator.reset(new ChallengeGeneratorImpl<CSHA256>(0));
+        }
+
+        challengeGenerator->add(group_elements_i);
+        challengeGenerator->get_challenge(x_j[i]);
         x_j_inv.emplace_back((x_j[i].inverse()));
     }
 

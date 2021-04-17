@@ -1,4 +1,5 @@
 #include "coin.h"
+#include "lelantus_primitives.h"
 #include "primitives/zerocoin.h"
 
 namespace lelantus {

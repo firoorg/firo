@@ -32,12 +32,12 @@ BOOST_AUTO_TEST_CASE(prove_verify)
         V.push_back(g_gen * v_s.back() +  h_gen1 * randoms[i] + h_gen2 * serials[i]);
     }
 
-    RangeProver rangeProver(g_gen, h_gen1, h_gen2, g_, h_, n);
+    RangeProver rangeProver(g_gen, h_gen1, h_gen2, g_, h_, n, LELANTUS_TX_VERSION_4_5);
     RangeProof proof;
-    rangeProver.batch_proof(v_s, serials, randoms, proof);
+    rangeProver.batch_proof(v_s, serials, randoms, V, proof);
 
-    RangeVerifier rangeVerifier(g_gen, h_gen1, h_gen2, g_, h_, n);
-    BOOST_CHECK(rangeVerifier.verify_batch(V, proof));
+    RangeVerifier rangeVerifier(g_gen, h_gen1, h_gen2, g_, h_, n, LELANTUS_TX_VERSION_4_5);
+    BOOST_CHECK(rangeVerifier.verify_batch(V, V, proof));
 }
 
 BOOST_AUTO_TEST_CASE(out_of_range_notVerify)
@@ -62,12 +62,12 @@ BOOST_AUTO_TEST_CASE(out_of_range_notVerify)
             V.push_back(g_gen * v_s[i] +  h_gen1 * randoms[i] + h_gen2 * serials[i]);
         }
 
-        lelantus::RangeProver rangeProver(g_gen, h_gen1, h_gen2, g_, h_, n);
+        lelantus::RangeProver rangeProver(g_gen, h_gen1, h_gen2, g_, h_, n, LELANTUS_TX_VERSION_4_5);
         lelantus::RangeProof proof;
-        rangeProver.batch_proof(v_s, serials, randoms, proof);
+        rangeProver.batch_proof(v_s, serials, randoms, V, proof );
 
-        lelantus::RangeVerifier rangeVerifier(g_gen, h_gen1, h_gen2, g_, h_, n);
-        BOOST_CHECK(!rangeVerifier.verify_batch(V, proof));
+        lelantus::RangeVerifier rangeVerifier(g_gen, h_gen1, h_gen2, g_, h_, n, LELANTUS_TX_VERSION_4_5);
+        BOOST_CHECK(!rangeVerifier.verify_batch(V, V, proof));
     };
 
     // All values are out of range
