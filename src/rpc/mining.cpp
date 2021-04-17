@@ -135,18 +135,40 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
             IncrementExtraNonce(pblock, chainActive.Tip(), nExtraNonce);
         }
 
-        if (pblock->IsMTP()) {
+        /**
+         * @AndreaLanfranchi. This loop imho makes no sense for PP
+         * as its' purpose is to "mine" blocks but reading the code the attempts
+         * are interrupted on nMaxTries (default 1M) or when the nonce overflows nInnerLoopCount (65535)
+         * whichever the first. Understandably on PP the nInnerLoopCount si hit quickly as the
+         * nonce range is quite wide (64bits)
+         */
+
+        if (pblock->IsProgPow()) {
+            while (nMaxTries > 0 && pblock->nNonce64 < nInnerLoopCount) {
+                auto result{progpow_hash_full(*pblock)};
+                if (CheckProofOfWork(result.first, pblock->nBits, Params().GetConsensus()))
+                {
+                    pblock->mix_hash = result.second;
+                    break;
+                }
+                ++pblock->nNonce64;
+                --nMaxTries;
+            }
+        } else if (pblock->IsMTP()) {
             while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount) {
+                // Note from @AndreaLanfranchi for future devs
+                // Not sure about this but my strong guess is 
+                // pblock->mtpHashValue should be valued only on positive validation
+                // of proof. As it's code I'm not involved into I'm leaving for reference
                 pblock->mtpHashValue = mtp::hash(*pblock, Params().GetConsensus().powLimit);
                 if (CheckProofOfWork(pblock->mtpHashValue, pblock->nBits, Params().GetConsensus()))
                     break;
                 ++pblock->nNonce;
                 --nMaxTries;
             }
-        }
-        else {
+        } else {
             while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetPoWHash(nHeight+1), pblock->nBits, Params().GetConsensus())) {
-                ++pblock->nNonce64;
+                ++pblock->nNonce;
                 --nMaxTries;
                 pblock->cachedPoWHash.SetNull();
             }
@@ -154,7 +176,7 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
         if (nMaxTries == 0) {
             break;
         }
-        if (pblock->nNonce == nInnerLoopCount) {
+        if (pblock->nNonce == nInnerLoopCount || pblock->nNonce64 == nInnerLoopCount) {
             continue;
         }
         std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
