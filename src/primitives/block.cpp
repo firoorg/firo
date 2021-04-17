@@ -61,7 +61,7 @@ bool CBlockHeader::IsProgPow() const {
     // This isnt ideal, but suffers from the same issue as the IsMTP() call above. Also can't get
     // chainActive/mapBlockIndex in the consensus library (without disabling binary hardening)..
     return nTime > ZC_GENESIS_BLOCK_TIME && 
-        (nTime < Params().GetConsensus().nPPSwitchTime);
+        (nTime >= Params().GetConsensus().nPPSwitchTime);
 }
 
 uint256 CBlockHeader::GetProgPowHeaderHash() const 
