@@ -213,27 +213,6 @@ mix_array init_mix(uint64_t seed)
     return mix;
 }
 
-hash256 hash_seed(const hash256& header_hash, uint64_t nonce) noexcept 
-{
-
-    nonce = le::uint64(nonce);
-    uint32_t state[25] = {0x0};
-
-    for (int i = 0; i < 8; ++i) {
-        state[i] = le::uint32(header_hash.word32s[i]);
-    }
-    std::memcpy(&state[8], &nonce, sizeof(uint64_t));
-    state[10] = 0x00000001;
-    state[18] = 0x80008081;
-
-    ethash_keccakf800(state);
-
-    hash256 output;
-    for (int i = 0; i < 8; ++i)
-        output.word32s[i] = le::uint32(state[i]);
-    return output;
-}
-
 hash256 hash_mix(
     const epoch_context& context, int block_number, uint64_t seed, lookup_fn lookup) noexcept
 {
@@ -262,6 +241,29 @@ hash256 hash_mix(
     return le::uint32s(mix_hash);
 }
 
+}  // namespace
+
+hash256 hash_seed(const hash256& header_hash, uint64_t nonce) noexcept 
+{
+
+    nonce = le::uint64(nonce);
+    uint32_t state[25] = {0x0};
+
+    for (int i = 0; i < 8; ++i) {
+        state[i] = le::uint32(header_hash.word32s[i]);
+    }
+    std::memcpy(&state[8], &nonce, sizeof(uint64_t));
+    state[10] = 0x00000001;
+    state[18] = 0x80008081;
+
+    ethash_keccakf800(state);
+
+    hash256 output;
+    for (int i = 0; i < 8; ++i)
+        output.word32s[i] = le::uint32(state[i]);
+    return output;
+}
+
 hash256 hash_final(const hash256& seed_hash, const hash256& mix_hash) noexcept 
 {
     uint32_t state[25] = {0x0};
@@ -277,7 +279,6 @@ hash256 hash_final(const hash256& seed_hash, const hash256& mix_hash) noexcept
     return output;
 }
 
-}  // namespace
 
 
 result hash(const epoch_context& context, int block_number, const hash256& header_hash,

@@ -29,6 +29,9 @@ constexpr int num_math_operations = 18;
 constexpr size_t l1_cache_size = 16 * 1024;
 constexpr size_t l1_cache_num_items = l1_cache_size / sizeof(uint32_t);
 
+hash256 hash_seed(const hash256& header_hash, uint64_t nonce) noexcept;
+hash256 hash_final(const hash256& seed_hash, const hash256& mix_hash) noexcept;
+
 result hash(const epoch_context& context, int block_number, const hash256& header_hash,
     uint64_t nonce) noexcept;
 
