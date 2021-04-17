@@ -496,7 +496,7 @@ public:
 
         const auto &params = Params().GetConsensus();
 
-        if (nTime >= PROGPOW_STARTTIME) {
+        if (nTime >= params.nPPSwitchTime) {
             READWRITE(nNonce64);
             READWRITE(mix_hash);
         } else {
