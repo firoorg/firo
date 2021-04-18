@@ -1,6 +1,6 @@
 // progpow: C/C++ implementation of ProgPow
 // Copyright 2018-2019 Pawel Bylica.
-// Andrea Lanfranchi 2021 - Upgrade PP to spec 0.9.4
+// Copyright 2021 Andrea Lanfranchi - Upgrade PP to spec 0.9.4
 // Licensed under the Apache License, Version 2.0.
 
 /// @file
