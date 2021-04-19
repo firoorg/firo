@@ -36,6 +36,7 @@ public:
 protected:
     // CValidationInterface
     void WalletTransaction(const CTransaction& tx);
+    void NotifyTxoutLock(COutPoint txout, bool isLocked);
     void WalletSegment(const std::string &segment);
     void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload);
     void NumConnectionsChanged();

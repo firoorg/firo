@@ -151,6 +151,7 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
         "pubstatus",
         "pubmasternodelist",
         "pubwalletsegment",
+        "publockstatus"
     };
 
     factories["pubblock"] = CZMQAbstract::Create<CZMQBlockDataTopic>;
@@ -162,6 +163,7 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     factories["pubstatus"] = CZMQAbstract::Create<CZMQAPIStatusTopic>;
     factories["pubwalletsegment"] = CZMQAbstract::Create<CZMQWalletSegmentTopic>;
     factories["pubmasternodelist"] = CZMQAbstract::Create<CZMQMasternodeListTopic>;
+    factories["publockstatus"] = CZMQAbstract::Create<CZMQLockStatusTopic>;
     
     BOOST_FOREACH(string pubIndex, pubIndexes)
     {
@@ -385,4 +387,24 @@ void CZMQPublisherInterface::UpdatedBalance()
             i = notifiers.erase(i);
         }
     }
+}
+
+void CZMQPublisherInterface::NotifyTxoutLock(COutPoint txout, bool isLocked) {
+    if(APIIsInWarmup())
+        return;
+
+    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
+    {
+        CZMQAbstract *notifier = *i;
+        if (notifier->NotifyTxoutLock(txout, isLocked))
+        {
+            i++;
+        }
+        else
+        {
+            notifier->Shutdown();
+            i = notifiers.erase(i);
+        }
+    }
+
 }

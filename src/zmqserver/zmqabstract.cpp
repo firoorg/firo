@@ -67,6 +67,10 @@ bool CZMQAbstract::NotifyBalance()
     return true;
 }
 
+bool CZMQAbstract::NotifyTxoutLock(COutPoint txout, bool isLocked) {
+    return true;
+}
+
 bool CZMQAbstract::SendMultipart(const void* data, size_t size, ...)
 {
     va_list args;

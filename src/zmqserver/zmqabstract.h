@@ -63,6 +63,7 @@ public:
     virtual bool NotifyMasternodeUpdate(CDeterministicMNCPtr masternode);
     virtual bool NotifySettingsUpdate(std::string update);
     virtual bool NotifyBalance();
+    virtual bool NotifyTxoutLock(COutPoint txout, bool isLocked);
 
     /* send message with or without topic value. */
     bool SendMessage();

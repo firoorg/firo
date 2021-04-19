@@ -46,6 +46,8 @@ protected:
     virtual void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) {}
     virtual void SyncTransaction(const CTransaction &tx, const CBlockIndex *pindex, int posInBlock) {}
     virtual void NotifyTransactionLock(const CTransaction &tx) {}
+    // This is separate from NotifyTransactionLock to work around issues with re-entrant locks.
+    virtual void NotifyTxoutLock(COutPoint txout, bool isLocked) {}
     virtual void NotifyChainLock(const CBlockIndex* pindex) {}
     virtual void NotifyGovernanceVote(const CGovernanceVote &vote) {}
     virtual void NotifyGovernanceObject(const CGovernanceObject &object) {}
@@ -96,6 +98,8 @@ struct CMainSignals {
     boost::signals2::signal<void (const CTransaction &)> WalletTransaction;
     /** Notifies listeners of an updated transaction lock without new data. */
     boost::signals2::signal<void (const CTransaction &)> NotifyTransactionLock;
+    /** Same as above but without some associated issues. */
+    boost::signals2::signal<void (COutPoint txout, bool isLocked)> NotifyTxoutLock;
     /** Notifies listeners of a ChainLock. */
     boost::signals2::signal<void (const CBlockIndex* pindex)> NotifyChainLock;
     /** Notifies listeners of a new governance vote. */

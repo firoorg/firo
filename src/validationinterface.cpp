@@ -29,6 +29,7 @@ void RegisterValidationInterface(CValidationInterface* pwalletIn) {
 
     // ZMQ Client API Signals
     g_signals.WalletTransaction.connect(boost::bind(&CValidationInterface::WalletTransaction, pwalletIn, boost::placeholders::_1));
+    g_signals.NotifyTxoutLock.connect(boost::bind(&CValidationInterface::NotifyTxoutLock, pwalletIn, boost::placeholders::_1, boost::placeholders::_2));
     g_signals.NumConnectionsChanged.connect(boost::bind(&CValidationInterface::NumConnectionsChanged, pwalletIn));
     g_signals.UpdateSyncStatus.connect(boost::bind(&CValidationInterface::UpdateSyncStatus, pwalletIn));
     g_signals.UpdatedMasternode.connect(boost::bind(&CValidationInterface::UpdatedMasternode, pwalletIn, boost::placeholders::_1));
@@ -56,6 +57,7 @@ void UnregisterValidationInterface(CValidationInterface* pwalletIn) {
 
     // ZMQ Client API Signals
     g_signals.WalletTransaction.disconnect(boost::bind(&CValidationInterface::WalletTransaction, pwalletIn, boost::placeholders::_1));
+    g_signals.NotifyTxoutLock.disconnect(boost::bind(&CValidationInterface::NotifyTxoutLock, pwalletIn, boost::placeholders::_1, boost::placeholders::_2));
     g_signals.NumConnectionsChanged.disconnect(boost::bind(&CValidationInterface::NumConnectionsChanged, pwalletIn));
     g_signals.UpdateSyncStatus.disconnect(boost::bind(&CValidationInterface::UpdateSyncStatus, pwalletIn));
     g_signals.UpdatedMasternode.disconnect(boost::bind(&CValidationInterface::UpdatedMasternode, pwalletIn, boost::placeholders::_1));
@@ -83,6 +85,7 @@ void UnregisterAllValidationInterfaces() {
 
     // ZMQ Client API Signals
     g_signals.WalletTransaction.disconnect_all_slots();
+    g_signals.NotifyTxoutLock.disconnect_all_slots();
     g_signals.NumConnectionsChanged.disconnect_all_slots();
     g_signals.UpdateSyncStatus.disconnect_all_slots();
     g_signals.UpdatedMasternode.disconnect_all_slots();

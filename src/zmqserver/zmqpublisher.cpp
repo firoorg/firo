@@ -220,6 +220,20 @@ bool CZMQMasternodeListEvent::NotifyMasternodeList()
     return true;
 }
 
+bool CZMQLockStatusEvent::NotifyTxoutLock(COutPoint txout, bool isLocked) {
+    UniValue out = UniValue::VARR;
+    out.push_back(txout.hash.GetHex());
+    out.push_back((int)txout.n);
+
+    UniValue data = UniValue::VOBJ;
+    data.push_back(Pair("txout", out));
+    data.push_back(Pair("locked", isLocked));
+    request.replace("data", data);
+
+    Execute();
+    return true;
+}
+
 bool CZMQConnectionsEvent::NotifyConnections()
 {
     Execute();

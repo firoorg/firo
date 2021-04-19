@@ -7917,17 +7917,32 @@ void CWallet::LockCoin(const COutPoint& output)
 {
     AssertLockHeld(cs_wallet); // setLockedCoins
     setLockedCoins.insert(output);
+
+#ifdef ENABLE_CLIENTAPI
+    GetMainSignals().NotifyTxoutLock(output, true);
+#endif
 }
 
 void CWallet::UnlockCoin(const COutPoint& output)
 {
     AssertLockHeld(cs_wallet); // setLockedCoins
     setLockedCoins.erase(output);
+
+#ifdef ENABLE_CLIENTAPI
+    GetMainSignals().NotifyTxoutLock(output, false);
+#endif
 }
 
 void CWallet::UnlockAllCoins()
 {
     AssertLockHeld(cs_wallet); // setLockedCoins
+
+#ifdef ENABLE_CLIENTAPI
+    for (const COutPoint &output: setLockedCoins) {
+        GetMainSignals().NotifyTxoutLock(output, false);
+    }
+#endif
+
     setLockedCoins.clear();
 }
 

@@ -115,6 +115,13 @@ public:
     bool NotifyMasternodeList();
 };
 
+class CZMQLockStatusEvent : virtual public CZMQAbstractPublisher
+{
+    /* Notification when a transaction is locked or unlocked */
+public:
+    bool NotifyTxoutLock(COutPoint outpoint, bool isLocked);
+};
+
 class CZMQSettingsEvent : virtual public CZMQAbstractPublisher
 {
      /* Settings updated
@@ -209,6 +216,13 @@ class CZMQMasternodeListTopic : public CZMQMasternodeListEvent
 public:
     void SetTopic(){ topic = "masternodeList";}
     void SetMethod(){ method= "masternodeList";}
+};
+
+class CZMQLockStatusTopic : public CZMQLockStatusEvent
+{
+public:
+    void SetTopic(){ topic = "lockStatus";}
+    void SetMethod(){ method= "lockStatus";}
 };
 
 class CZMQMasternodeTopic : public CZMQMasternodeEvent
