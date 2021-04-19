@@ -664,7 +664,7 @@ public:
     void UpgradeDBIfNeeded();
     static bool IsDIP3Active(int height);
 
-public:
+private:
     void CleanupCache(int nHeight);
 };
 
