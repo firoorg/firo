@@ -961,6 +961,12 @@ static void NotifyWatchonlyChanged(WalletModel *walletmodel, bool fHaveWatchonly
                               Q_ARG(bool, fHaveWatchonly));
 }
 
+static void NotifyUnlockRequired(WalletModel *walletmodel, int milliseconds)
+{
+    QMetaObject::invokeMethod(walletmodel, "requestUnlockFor", Qt::QueuedConnection,
+                              Q_ARG(int, milliseconds));
+}
+
 void WalletModel::subscribeToCoreSignals()
 {
     // Connect signals to wallet
@@ -970,6 +976,7 @@ void WalletModel::subscribeToCoreSignals()
     wallet->ShowProgress.connect(boost::bind(ShowProgress, this, _1, _2));
     wallet->NotifyWatchonlyChanged.connect(boost::bind(NotifyWatchonlyChanged, this, _1));
     wallet->NotifyZerocoinChanged.connect(boost::bind(NotifyZerocoinChanged, this, _1, _2, _3, _4));
+    wallet->NotifyUnlockRequired.connect(boost::bind(NotifyUnlockRequired, this, _1));
 }
 
 void WalletModel::unsubscribeFromCoreSignals()
@@ -981,6 +988,7 @@ void WalletModel::unsubscribeFromCoreSignals()
     wallet->ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
     wallet->NotifyWatchonlyChanged.disconnect(boost::bind(NotifyWatchonlyChanged, this, _1));
     wallet->NotifyZerocoinChanged.disconnect(boost::bind(NotifyZerocoinChanged, this, _1, _2, _3, _4));
+    wallet->NotifyUnlockRequired.disconnect(boost::bind(NotifyUnlockRequired, this, _1));
 }
 
 // WalletModel::UnlockContext implementation
@@ -1018,6 +1026,27 @@ void WalletModel::UnlockContext::CopyFrom(const UnlockContext& rhs)
     // Transfer context; old object no longer relocks wallet
     *this = rhs;
     rhs.relock = false;
+}
+
+void WalletModel::requestUnlockFor(int milliseconds)
+{
+    bool was_locked = getEncryptionStatus() == Locked;
+    if(!was_locked)
+        return;
+
+   // Request UI to unlock wallet
+    Q_EMIT requireUnlock();
+    // If wallet is still locked, unlock was failed or cancelled, mark context as invalid
+    bool valid = getEncryptionStatus() != Locked;
+    if(!valid)
+        return;
+
+    QTimer::singleShot(milliseconds, this, SLOT(relockWallet()));
+}
+
+void WalletModel::relockWallet()
+{
+    setWalletLocked(true);
 }
 
 bool WalletModel::IsSpendable(const CTxDestination& dest) const

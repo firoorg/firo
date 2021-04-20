@@ -113,6 +113,7 @@ void CreatePcodeDialog::accept()
 
 void CreatePcodeDialog::on_createPcodeButton_clicked()
 {
+    WalletModel::UnlockContext ctx(model->requestUnlock());
     model->getWallet()->GeneratePcode(ui->labelText->text().toStdString());
     on_labelText_textChanged();
 }

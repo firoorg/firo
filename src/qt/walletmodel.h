@@ -347,7 +347,6 @@ Q_SIGNALS:
 
     // Update sigma changed
     void notifySigmaChanged(const std::vector<CMintMeta>& spendable, const std::vector<CMintMeta>& pending);
-
 public Q_SLOTS:
     /* Wallet status might have changed */
     void updateStatus();
@@ -363,7 +362,10 @@ public Q_SLOTS:
     void pollBalanceChanged();
     /* Update Amount of sigma change */
     void updateSigmaCoins(const QString &pubCoin, const QString &isUsed, int status);
-
+    /* Request wallet unlock for the time*/
+    void requestUnlockFor(int milliseconds);
+    /* Lock the wallet after the timeout*/
+    void relockWallet();
 };
 
 #endif // BITCOIN_QT_WALLETMODEL_H

@@ -1240,6 +1240,9 @@ public:
     /** Payment code added */
     boost::signals2::signal<void (bip47::CPaymentCodeDescription)> NotifyPcodeCreated;
 
+    /** Unlock required (for example for adding a privkey to the wallet),  */
+    boost::signals2::signal<void (int milliseconds)> NotifyUnlockRequired;
+
     /** Inquire whether this wallet broadcasts transactions. */
     bool GetBroadcastTransactions() const { return fBroadcastTransactions; }
     /** Set whether this wallet broadcasts transactions. */

@@ -5333,6 +5333,7 @@ UniValue createpcode(const JSONRPCRequest& request)
     }
 
     LOCK(pwallet->cs_wallet);
+    EnsureWalletIsUnlocked(pwallet);
     result.setStr(pwallet->GeneratePcode(label).toString());
     return result;
 }
@@ -5366,9 +5367,9 @@ UniValue setupchannel(const JSONRPCRequest& request)
 
     EnsureLelantusWalletIsAvailable();
 
-    EnsureWalletIsUnlocked(pwallet);
-
     LOCK2(cs_main, pwallet->cs_wallet);
+
+    EnsureWalletIsUnlocked(pwallet);
 
     try {
         CWalletTx wtx = PrepareAndSendNotificationTx(pwallet, theirPcode);
@@ -5424,6 +5425,8 @@ UniValue sendtopcode(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
 
     LOCK2(cs_main, pwallet->cs_wallet);
+
+    EnsureWalletIsUnlocked(pwallet);
 
     CBitcoinAddress address = pwallet->GetNextAddress(theirPcode);
 

@@ -1263,6 +1263,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
 notifTxExit:
         if (success) {
             LogBip47("The payment code has been accepted: %s\n", accFound->lastPcode().toString());
+            NotifyUnlockRequired(1000);
             HandleSecretAddresses(*this, *accFound);
             CWalletDB(strWalletFile).WriteBip47Account(*accFound);
         } else {
@@ -1275,6 +1276,7 @@ notifTxExit:
                     for (CBitcoinAddress addr : addresses) {
                         bip47::CAccountReceiver const * rec = AddressUsed(addr);
                         if (rec) {
+                            NotifyUnlockRequired(1000);
                             HandleSecretAddresses(*this, *rec);
                         }
                     }
