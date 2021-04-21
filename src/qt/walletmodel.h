@@ -362,10 +362,8 @@ public Q_SLOTS:
     void pollBalanceChanged();
     /* Update Amount of sigma change */
     void updateSigmaCoins(const QString &pubCoin, const QString &isUsed, int status);
-    /* Request wallet unlock for the time*/
-    void requestUnlockFor(int milliseconds);
-    /* Lock the wallet after the timeout*/
-    void relockWallet();
+    // Handle the changed BIP47 privkeys
+    void handleBip47Keys(int receiverAccountNum);
 };
 
 #endif // BITCOIN_QT_WALLETMODEL_H

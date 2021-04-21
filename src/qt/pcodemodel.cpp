@@ -18,9 +18,10 @@
 extern CCriticalSection cs_main;
 
 namespace {
-static void OnPcodeCreated_(PcodeModel *pcodeModel, bip47::CPaymentCodeDescription const & pcodeDescr)
+static void OnPcodeCreated_(PcodeModel *PcodeModel, bip47::CPaymentCodeDescription const & pcodeDescr)
 {
-    pcodeModel->DisplayCreatedPcode(pcodeDescr);
+    QMetaObject::invokeMethod(PcodeModel, "DisplayCreatedPcode", Qt::AutoConnection,
+                            Q_ARG(bip47::CPaymentCodeDescription const &, pcodeDescr));
 }
 }
 

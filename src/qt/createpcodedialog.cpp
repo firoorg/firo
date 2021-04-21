@@ -114,7 +114,14 @@ void CreatePcodeDialog::accept()
 void CreatePcodeDialog::on_createPcodeButton_clicked()
 {
     WalletModel::UnlockContext ctx(model->requestUnlock());
-    model->getWallet()->GeneratePcode(ui->labelText->text().toStdString());
+    try {
+        model->getWallet()->GeneratePcode(ui->labelText->text().toStdString());
+    }
+    catch (std::runtime_error const & e)
+    {
+        QMessageBox::critical(0, tr(PACKAGE_NAME),
+            tr("Payment code creation failed with error: \"%1\"").arg(e.what()));
+    }
     on_labelText_textChanged();
 }
 

@@ -8,6 +8,8 @@
 #include "streams.h"
 #include "utilstrencodings.h"
 #include "validation.h"
+#include "wallet/wallet.h"
+#include "wallet/walletexcept.h"
 
 using namespace std;
 
@@ -183,6 +185,25 @@ std::string ShortenPcode(CPaymentCode const & pcode)
     ostr << "...";
     ostr << pcodeStr.substr(pcodeStr.size() - 6, 6);
     return ostr.str();
+}
+
+
+void AddReceiverSecretAddresses(CAccountReceiver const & receiver, ::CWallet & wallet)
+{
+    bip47::MyAddrContT addrs = receiver.getMyNextAddresses();
+    LOCK(wallet.cs_wallet);
+    for (bip47::MyAddrContT::value_type const & addr : addrs) {
+        CPubKey pubkey = addr.second.GetPubKey();
+        CKeyID vchAddress = pubkey.GetID();
+        wallet.MarkDirty();
+        wallet.SetAddressBook(vchAddress, "", "receive");
+        if (wallet.HaveKey(vchAddress)) {
+            continue;
+        }
+        if (!wallet.AddKeyPubKey(addr.second, pubkey)) {
+            throw WalletError("Error adding key to wallet");
+        }
+    }
 }
 
 } }

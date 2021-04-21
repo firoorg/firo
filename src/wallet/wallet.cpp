@@ -1052,20 +1052,12 @@ void CWallet::MarkDirty()
 namespace {
 void HandleSecretAddresses(CWallet & wallet, bip47::CAccountReceiver const & receiver)
 {
-    bip47::MyAddrContT addrs = receiver.getMyNextAddresses();
-    LOCK(wallet.cs_wallet);
-    for (bip47::MyAddrContT::value_type const & addr : addrs) {
-        CPubKey pubkey = addr.second.GetPubKey();
-        CKeyID vchAddress = pubkey.GetID();
-        wallet.MarkDirty();
-        wallet.SetAddressBook(vchAddress, "", "receive");
-        if (wallet.HaveKey(vchAddress)) {
-            continue;
-        }
-        if (!wallet.AddKeyPubKey(addr.second, pubkey)) {
-            throw WalletError("Error adding key to wallet");
-        }
+    if (wallet.IsLocked()) {
+        wallet.NotifyBip47KeysChanged(receiver.getAccountNum());
+        return;
     }
+
+    bip47::utils::AddReceiverSecretAddresses(receiver, wallet);
 }
 }
 
@@ -1263,7 +1255,6 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
 notifTxExit:
         if (success) {
             LogBip47("The payment code has been accepted: %s\n", accFound->lastPcode().toString());
-            NotifyUnlockRequired(1000);
             HandleSecretAddresses(*this, *accFound);
             CWalletDB(strWalletFile).WriteBip47Account(*accFound);
         } else {
@@ -1276,7 +1267,6 @@ notifTxExit:
                     for (CBitcoinAddress addr : addresses) {
                         bip47::CAccountReceiver const * rec = AddressUsed(addr);
                         if (rec) {
-                            NotifyUnlockRequired(1000);
                             HandleSecretAddresses(*this, *rec);
                         }
                     }

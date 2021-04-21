@@ -290,6 +290,14 @@ CAccountSender & CWallet::provideSendingAccount(CPaymentCode const & theirPcode)
     return acc;
 }
 
+CAccountReceiver const * CWallet::getReceivingAccount(uint32_t accountNum) const
+{
+    std::map<uint32_t, CAccountReceiver>::const_iterator iacc = accReceivers.find(accountNum);
+    if (iacc == accReceivers.end())
+        return nullptr;
+    return &(iacc->second);
+}
+
 void CWallet::readReceiver(CAccountReceiver && receiver)
 {
     if (accReceivers.find(receiver.getAccountNum()) != accReceivers.end())

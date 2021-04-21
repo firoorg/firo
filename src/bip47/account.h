@@ -170,6 +170,8 @@ public:
     CAccountReceiver & createReceivingAccount(std::string const & label);
     CAccountSender & provideSendingAccount(CPaymentCode const & theirPcode);
 
+    CAccountReceiver const * getReceivingAccount(uint32_t accountNum) const;
+
     void readReceiver(CAccountReceiver && receiver);
     void readSender(CAccountSender && sender);
 
