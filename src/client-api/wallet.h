@@ -15,4 +15,4 @@ UniValue StateBlock(UniValue& ret, std::string blockhash);
 bool GetCoinControl(const UniValue& data, CCoinControl& cc);
 bool doesWalletHaveMnemonics();
 
-extern bool fHasSentInitialStateWallet;
+extern std::atomic<bool> fHasSentInitialStateWallet;
