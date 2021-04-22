@@ -66,11 +66,11 @@ public:
     virtual bool NotifyTxoutLock(COutPoint txout, bool isLocked);
 
     /* send message with or without topic value. */
-    bool SendMessage();
+    int SendMessage();
 
 private:
     /* Internal function to send multipart message - 1 to N messages */
-    bool SendMultipart(const void* data, size_t size, ...);
+    int SendMultipart(const void* data, size_t size, ...);
 
 protected:
     void *psocket;
