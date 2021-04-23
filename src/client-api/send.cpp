@@ -210,6 +210,9 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
+    CCoinControl coinControl;
+    bool hasCoinControl = GetCoinControl(data, coinControl);
+
     UniValue ret(UniValue::VOBJ);
     UniValue feePerKb;
     UniValue sendTo(UniValue::VOBJ);
@@ -262,7 +265,7 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
     CAmount nFeeRequired = 0;
     int nChangePosRet = -1;
     string strFailReason;
-    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason, NULL, false);
+    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason, hasCoinControl ? &coinControl : NULL, false);
     if (!fCreated)
         throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);  
     
