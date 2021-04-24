@@ -2136,28 +2136,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             BOOST_FOREACH(uint256 hash, vEraseQueue)
                 EraseOrphanTx(hash);
         }
-        else if (!AlreadyHave(inv) && !tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit() && AcceptToMemoryPool(mempool, state, ptx, true, &fMissingInputsSigma, nullptr, false, 0, true)) {
-            // Changes to mempool should also be made to Dandelion stempool
-            AcceptToMemoryPool(
-                txpools.getStemTxPool(),
-                dummyState,
-                ptx,
-                true, /* fLimitFree */
-                &fMissingInputsSigma,  /* pfMissingInputs */
-                nullptr,
-                false, /* fOverrideMempoolLimit */
-                0, /* nAbsurdFee */
-                true, /* isCheckWalletTransaction */
-                false /* markFiroSpendTransactionSerial */
-            );
-            if (CNode::isTxDandelionEmbargoed(tx.GetHash())) {
-                CNode::removeDandelionEmbargo(tx.GetHash());
-            }
-            // Changes to mempool should also be made to Dandelion stempool
-            txpools.getStemTxPool().check(pcoinsTip);
-
-            connman.RelayTransaction(tx);
-        }
         else if (fMissingInputs)
         {
             bool fRejectedParents = false; // It may be the case that the orphans parents have all been rejected

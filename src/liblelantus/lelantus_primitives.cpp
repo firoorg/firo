@@ -140,7 +140,7 @@ void LelantusPrimitives::new_factor(
         const Scalar& a,
         std::vector<Scalar>& coefficients) {
     if(coefficients.empty())
-        throw std::runtime_error("Coefficients if empty.");
+        throw std::runtime_error("Empty coefficients array.");
 
     std::size_t degree = coefficients.size();
     coefficients.push_back(x * coefficients[degree-1]);
