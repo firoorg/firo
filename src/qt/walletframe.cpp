@@ -187,25 +187,11 @@ void WalletFrame::gotoSignMessageTab(QString addr)
         walletView->gotoSignMessageTab(addr);
 }
 
-void WalletFrame::gotoZerocoinPage()
-{
-    QMap<QString, WalletView*>::const_iterator i;
-    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
-        i.value()->gotoZerocoinPage();
-}
-
 void WalletFrame::gotoSigmaPage()
 {
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
         i.value()->gotoSigmaPage();
-}
-
-void WalletFrame::gotoZc2SigmaPage()
-{
-    QMap<QString, WalletView*>::const_iterator i;
-    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
-        i.value()->gotoZc2SigmaPage();
 }
 
 void WalletFrame::gotoLelantusPage()

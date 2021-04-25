@@ -498,91 +498,73 @@ UniValue importwallet(const JSONRPCRequest& request)
         if (vstr.size() < 2)
             continue;
         CBitcoinSecret vchSecret;
-        // begin zerocoin
-        if(vstr[0] == "zerocoin=1"){    
-            CZerocoinEntry zerocoinEntry;
-            zerocoinEntry.value.SetHex(vstr[1]);
-            zerocoinEntry.denomination = stoi(vstr[2]);
-            zerocoinEntry.randomness.SetHex(vstr[3]);
-            zerocoinEntry.serialNumber.SetHex(vstr[4]);
-            zerocoinEntry.IsUsed = stoi(vstr[5]);
-            zerocoinEntry.nHeight = stoi(vstr[6]);
-            zerocoinEntry.id = stoi(vstr[7]);
-            if(vstr.size()==11){ // Including the last "#"
-                zerocoinEntry.ecdsaSecretKey = ParseHex(vstr[8]);
-                zerocoinEntry.IsUsedForRemint = stoi(vstr[9]);
-            }
-            pwallet->NotifyZerocoinChanged(pwallet, zerocoinEntry.value.GetHex(), "New (" + std::to_string(zerocoinEntry.denomination) + " mint)", CT_NEW);
-            walletdb.WriteZerocoinEntry(zerocoinEntry);
+
+        if (!vchSecret.SetString(vstr[0]))
+            continue;
+        CKey key = vchSecret.GetKey();
+        CPubKey pubkey = key.GetPubKey();
+        assert(key.VerifyPubKey(pubkey));
+        CKeyID keyid = pubkey.GetID();
+        if (pwallet->HaveKey(keyid)) {
+            LogPrintf("Skipping import of %s (key already present)\n", CBitcoinAddress(keyid).ToString());
+            continue;
         }
-        else {
-            if (!vchSecret.SetString(vstr[0]))
-                continue;
-            CKey key = vchSecret.GetKey();
-            CPubKey pubkey = key.GetPubKey();
-            assert(key.VerifyPubKey(pubkey));
-            CKeyID keyid = pubkey.GetID();
-            if (pwallet->HaveKey(keyid)) {
-                LogPrintf("Skipping import of %s (key already present)\n", CBitcoinAddress(keyid).ToString());
-                continue;
-            }
-            int64_t nTime = DecodeDumpTime(vstr[1]);
-            std::string strLabel;
-            bool fLabel = true;
-            // CKeyMetadata
-            bool fHd = false;
-            std::string hdKeypath;
-            CKeyID hdMasterKeyID;
+        int64_t nTime = DecodeDumpTime(vstr[1]);
+        std::string strLabel;
+        bool fLabel = true;
+        // CKeyMetadata
+        bool fHd = false;
+        std::string hdKeypath;
+        CKeyID hdMasterKeyID;
 
-            for (unsigned int nStr = 2; nStr < vstr.size(); nStr++) {
-                if (boost::algorithm::starts_with(vstr[nStr], "#"))
-                    break;
-                if (vstr[nStr] == "change=1")
-                    fLabel = false;
-                if (!masterKeyID.IsNull() && vstr[nStr] == "sigma=1")
-                    fLabel = false;
-                if (vstr[nStr] == "reserve=1")
-                    fLabel = false;
-                if (boost::algorithm::starts_with(vstr[nStr], "label=")) {
-                    strLabel = DecodeDumpString(vstr[nStr].substr(6));
-                    fLabel = true;
-                }
-                if(!masterKeyID.IsNull() && boost::algorithm::starts_with(vstr[nStr], "hdKeypath=")){
-                    hdKeypath = vstr[nStr].substr(10);
-                    fHd = true;
-                }
-                if(!masterKeyID.IsNull() && boost::algorithm::starts_with(vstr[nStr], "hdMasterKeyID=")){
-                    hdMasterKeyID.SetHex(vstr[nStr].substr(14));
-                }
+        for (unsigned int nStr = 2; nStr < vstr.size(); nStr++) {
+            if (boost::algorithm::starts_with(vstr[nStr], "#"))
+                break;
+            if (vstr[nStr] == "change=1")
+                fLabel = false;
+            if (!masterKeyID.IsNull() && vstr[nStr] == "sigma=1")
+                fLabel = false;
+            if (vstr[nStr] == "reserve=1")
+                fLabel = false;
+            if (boost::algorithm::starts_with(vstr[nStr], "label=")) {
+                strLabel = DecodeDumpString(vstr[nStr].substr(6));
+                fLabel = true;
             }
-            LogPrintf("Importing %s...\n", CBitcoinAddress(keyid).ToString());
-
-            // Add entry to mapKeyMetadata (Need to populate KeyMetadata before for it to be written to DB in the following call)
-            if(!masterKeyID.IsNull()){
-                pwallet->mapKeyMetadata[keyid].nCreateTime = nTime;
-                if(fHd){
-                    pwallet->mapKeyMetadata[keyid].hdKeypath = hdKeypath;
-                    pwallet->mapKeyMetadata[keyid].hdMasterKeyID = hdMasterKeyID;
-                    pwallet->mapKeyMetadata[keyid].ParseComponents();
-                }
+            if(!masterKeyID.IsNull() && boost::algorithm::starts_with(vstr[nStr], "hdKeypath=")){
+                hdKeypath = vstr[nStr].substr(10);
+                fHd = true;
             }
-
-            if (!pwallet->AddKeyPubKey(key, pubkey)) {
-                fGood = false;
-                continue;
+            if(!masterKeyID.IsNull() && boost::algorithm::starts_with(vstr[nStr], "hdMasterKeyID=")){
+                hdMasterKeyID.SetHex(vstr[nStr].substr(14));
             }
-
-            if(!masterKeyID.IsNull() && fHd){
-                // If change component in HD path is 2, this is a mint seed key. Add to mintpool. (Have to call after key addition)
-                if(pwallet->mapKeyMetadata[keyid].nChange.first==2){
-                    pwallet->zwallet->RegenerateMintPoolEntry(walletdb, hdMasterKeyID, keyid, pwallet->mapKeyMetadata[keyid].nChild.first);
-                    fMintUpdate = true;
-                }
-            }
-            if (fLabel)
-                pwallet->SetAddressBook(keyid, strLabel, "receive");
-            nTimeBegin = std::min(nTimeBegin, nTime);
         }
+        LogPrintf("Importing %s...\n", CBitcoinAddress(keyid).ToString());
+
+        // Add entry to mapKeyMetadata (Need to populate KeyMetadata before for it to be written to DB in the following call)
+        if(!masterKeyID.IsNull()){
+            pwallet->mapKeyMetadata[keyid].nCreateTime = nTime;
+            if(fHd){
+                pwallet->mapKeyMetadata[keyid].hdKeypath = hdKeypath;
+                pwallet->mapKeyMetadata[keyid].hdMasterKeyID = hdMasterKeyID;
+                pwallet->mapKeyMetadata[keyid].ParseComponents();
+            }
+        }
+
+        if (!pwallet->AddKeyPubKey(key, pubkey)) {
+            fGood = false;
+            continue;
+        }
+
+        if(!masterKeyID.IsNull() && fHd){
+            // If change component in HD path is 2, this is a mint seed key. Add to mintpool. (Have to call after key addition)
+            if(pwallet->mapKeyMetadata[keyid].nChange.first==2){
+                pwallet->zwallet->RegenerateMintPoolEntry(walletdb, hdMasterKeyID, keyid, pwallet->mapKeyMetadata[keyid].nChild.first);
+                fMintUpdate = true;
+            }
+        }
+        if (fLabel)
+            pwallet->SetAddressBook(keyid, strLabel, "receive");
+        nTimeBegin = std::min(nTimeBegin, nTime);
     }
     file.close();
     pwallet->ShowProgress("", 100); // hide progress dialog in GUI
@@ -818,29 +800,6 @@ UniValue dumpwallet(const JSONRPCRequest& request)
                 }
             }
             file << strprintf(" # addr=%s\n", strAddr);
-        }
-    }
-
-    // Begin dump Zerocoins
-    if (!pwallet->strWalletFile.empty()) {
-        list <CZerocoinEntry> listZerocoinEntries;
-        CWalletDB walletdb(pwallet->strWalletFile);
-        walletdb.ListPubCoin(listZerocoinEntries);
-
-        for (auto& zerocoinEntry : listZerocoinEntries) {
-            file << "zerocoin=1 ";
-            file << strprintf("%s ", zerocoinEntry.value.GetHex()); // value
-            file << strprintf("%d ", zerocoinEntry.denomination); // denomination
-            file << strprintf("%s ", zerocoinEntry.randomness.GetHex()); // randomness
-            file << strprintf("%s ", zerocoinEntry.serialNumber.GetHex()); // serialNumber
-            file << strprintf("%d ", zerocoinEntry.IsUsed); // IsUsed
-            file << strprintf("%d ", zerocoinEntry.nHeight); // nHeight
-            file << strprintf("%d ", zerocoinEntry.id); // id
-            if(!zerocoinEntry.ecdsaSecretKey.empty()){
-                file << strprintf("%s ", HexStr(zerocoinEntry.ecdsaSecretKey)); // ecdsaSecretKey
-                file << strprintf("%d ", zerocoinEntry.IsUsedForRemint); // IsUsedForRemint
-            }
-            file << "#\n"; // --
         }
     }
 

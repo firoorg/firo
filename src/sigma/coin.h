@@ -3,9 +3,14 @@
 
 #include "params.h"
 #include "sigma_primitives.h"
-
+#include "../firo_params.h"
 #include "../consensus/validation.h"
-#include "../libzerocoin/Zerocoin.h"
+#include "../uint256.h"
+
+#include <secp256k1.h>
+#include <secp256k1_recovery.h>
+#include <secp256k1_ecdh.h>
+
 
 #include <cinttypes>
 

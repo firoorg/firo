@@ -6,7 +6,7 @@
 #define BITCOIN_QT_WALLETMODELTRANSACTION_H
 
 #include "../hdmint/hdmint.h"
-#include "../primitives/zerocoin.h"
+#include "../primitives/mint_spend.h"
 
 #include "walletmodel.h"
 

@@ -1,4 +1,4 @@
-#include "zerocoin.h"
+#include "mint_spend.h"
 #include "../liblelantus/coin.h"
 
 GroupElement const & MintMeta::GetPubCoinValue() const {

@@ -28,7 +28,6 @@ class ListSigmaSpendValidationWithFundsTest(BitcoinTestFramework):
 
     def run_test(self):
         getcontext().prec = 6
-        self.nodes[0].generate(400)
         self.sync_all()
 
         assert not self.nodes[0].listsigmaspends(1), 'List sigma spends should be empty.'

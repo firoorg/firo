@@ -3,6 +3,8 @@
 #include "../schnorr_verifier.h"
 #include "../challenge_generator_impl.h"
 #include "../../streams.h"
+#include "../../version.h"
+
 
 #include <boost/test/unit_test.hpp>
 

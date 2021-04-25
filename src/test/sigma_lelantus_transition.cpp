@@ -24,7 +24,7 @@ BOOST_FIXTURE_TEST_SUITE(sigma_lelantus_transition, LelantusTestingSetup)
 
 BOOST_AUTO_TEST_CASE(sigma_lelantus_transition_test)
 {
-    GenerateBlocks(400);
+    GenerateBlocks(150);
 
     pwalletMain->SetBroadcastTransactions(true);
     string stringError;
@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE(sigma_lelantus_transition_test)
     std::list<CSigmaEntry> coins = pwalletMain->GetAvailableCoins(nullptr, false);
     BOOST_CHECK_MESSAGE(coins.size() == denominations.size() * 2, "Wrong number of available sigma coins");
 
-    GenerateBlocks(600);
+    GenerateBlocks(300);
 
     // Generate address
     CPubKey newKey;

@@ -1,7 +1,6 @@
 #include "hdmint/hdmint.h"
 #include "primitives/transaction.h"
 #include "test/test_bitcoin.h"
-#include "zerocoin.h"
 #include "test/testutil.h"
 #include "consensus/params.h"
 #include "liblelantus/coin.h"

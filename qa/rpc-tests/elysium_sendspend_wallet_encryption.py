@@ -13,7 +13,7 @@ class ElysiumSendSpendWalletEncryptionTest(ElysiumTestFramework):
     def run_test(self):
         super().run_test()
 
-        sigma_start_block = 550
+        sigma_start_block = 150
         passphase = "1234"
 
         owner = self.addrs[0]

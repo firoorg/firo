@@ -33,7 +33,6 @@
 #include <boost/foreach.hpp>
 
 #include <univalue.h>
-#include "zerocoin.h"
 
 typedef std::vector<unsigned char> valtype;
 

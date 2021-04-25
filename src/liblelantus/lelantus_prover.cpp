@@ -27,7 +27,7 @@ void LelantusProver::proof(
     out += fee;
 
     if (input != out)
-        throw ZerocoinException("Input and output are not equal");
+        throw std::runtime_error("Input and output are not equal");
 
     Scalar x;
     std::vector<Scalar> Yk_sum;

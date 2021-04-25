@@ -4,6 +4,7 @@
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
 #include "../../crypto/sha256.h"
+#include "../hash.h"
 #include "challenge_generator.h"
 #include <iostream>
 namespace lelantus {

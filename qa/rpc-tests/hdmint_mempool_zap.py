@@ -105,7 +105,7 @@ class HDMintMempoolZapTest(BitcoinTestFramework):
     def run_test(self):
         getcontext().prec = 6
         self.sync_all()
-        self.nodes[0].generate(401)
+
         zapwal1 = ["-zapwallettxes=1"]
         self.hdmint_zap(zapwal1)
 

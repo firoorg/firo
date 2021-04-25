@@ -2,19 +2,17 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef PRIMITIVES_ZEROCOIN_H
-#define PRIMITIVES_ZEROCOIN_H
+#ifndef PRIMITIVES_MINT_SPEND_H
+#define PRIMITIVES_MINT_SPEND_H
 
 #include <amount.h>
 #include <streams.h>
 #include <boost/optional.hpp>
 #include <limits.h>
-#include "libzerocoin/bitcoin_bignum/bignum.h"
-#include "libzerocoin/Zerocoin.h"
 #include "key.h"
 #include "sigma/coin.h"
 #include "serialize.h"
-#include "zerocoin_params.h"
+#include "firo_params.h"
 
 //struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
 struct MintMeta
@@ -44,94 +42,6 @@ struct CMintMeta : MintMeta
 struct CLelantusMintMeta : MintMeta
 {
     uint64_t amount;
-};
-
-class CZerocoinEntry
-{
-private:
-    template <typename Stream>
-    auto is_eof_helper(Stream &s, bool) -> decltype(s.eof()) {
-        return s.eof();
-    }
-
-    template <typename Stream>
-    bool is_eof_helper(Stream &s, int) {
-        return false;
-    }
-
-    template<typename Stream>
-    bool is_eof(Stream &s) {
-        return is_eof_helper(s, true);
-    }
-
-public:
-    //public
-    Bignum value;
-    int denomination;
-    //private
-    Bignum randomness;
-    Bignum serialNumber;
-    vector<unsigned char> ecdsaSecretKey;
-
-    bool IsUsed;
-    int nHeight;
-    int id;
-
-    // used for reminting to sigma
-    bool IsUsedForRemint;
-
-    CZerocoinEntry()
-    {
-        SetNull();
-    }
-
-    void SetNull()
-    {
-        IsUsed = IsUsedForRemint = false;
-        randomness = 0;
-        serialNumber = 0;
-        value = 0;
-        denomination = -1;
-        nHeight = -1;
-        id = -1;
-    }
-
-    bool IsCorrectV2Mint() const {
-        return value > 0 && randomness > 0 && serialNumber > 0 && serialNumber.bitSize() <= 160 &&
-                ecdsaSecretKey.size() >= 32;
-    }
-
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
-        READWRITE(IsUsed);
-        READWRITE(randomness);
-        READWRITE(serialNumber);
-        READWRITE(value);
-        READWRITE(denomination);
-        READWRITE(nHeight);
-        READWRITE(id);
-        if (ser_action.ForRead()) {
-            IsUsedForRemint = false;
-            if (!is_eof(s)) {
-                int nStoredVersion = 0;
-                READWRITE(nStoredVersion);
-                if (nStoredVersion >= ZC_ADVANCED_WALLETDB_MINT_VERSION) {
-                    READWRITE(ecdsaSecretKey);
-                    if (!is_eof(s))
-                        READWRITE(IsUsedForRemint);
-                }
-            }
-        }
-        else {
-            int streamVersion = s.GetVersion();
-            READWRITE(streamVersion);
-            READWRITE(ecdsaSecretKey);
-            READWRITE(IsUsedForRemint);
-        }
-    }
-
 };
 
 
@@ -265,41 +175,6 @@ struct CLelantusEntry {
     int64_t amount;
 };
 
-
-class CZerocoinSpendEntry
-{
-public:
-    Bignum coinSerial;
-    uint256 hashTx;
-    Bignum pubCoin;
-    int denomination;
-    int id;
-
-    CZerocoinSpendEntry()
-    {
-        SetNull();
-    }
-
-    void SetNull()
-    {
-        coinSerial = 0;
-//        hashTx =
-        pubCoin = 0;
-        denomination = 0;
-        id = 0;
-    }
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
-        READWRITE(coinSerial);
-        READWRITE(hashTx);
-        READWRITE(pubCoin);
-        READWRITE(denomination);
-        READWRITE(id);
-    }
-};
-
 class CSigmaSpendEntry
 {
 public:
@@ -397,4 +272,4 @@ uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial);
 uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue);
 }
 
-#endif //PRIMITIVES_ZEROCOIN_H
+#endif //PRIMITIVES_MINT_SPEND_H

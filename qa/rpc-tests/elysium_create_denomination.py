@@ -10,19 +10,9 @@ class ElysiumCreateDenominationTest(ElysiumTestFramework):
         # create non-sigma token
         self.nodes[0].elysium_sendissuancefixed(self.addrs[0], 1, 1, 0, '', '', 'Normal Token', '', '', '1000000')
         self.nodes[0].generate(1)
-
         self.sync_all()
 
-        # test feature check
-        assert_raises_message(
-            JSONRPCException,
-            'Sigma feature is not activated yet',
-            self.nodes[0].elysium_sendcreatedenomination, self.addrs[0], 3, '1'
-        )
-
         # create sigma token
-        self.nodes[0].generate(300) # sigma on regtest start at block 500
-
         self.nodes[0].elysium_sendissuancefixed(self.addrs[0], 1, 2, 0, '', '', 'Sigma Token', '', '', '1000000', 1)
         self.nodes[0].generate(1)
 
