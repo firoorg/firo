@@ -28,6 +28,18 @@
 #include <QScrollBar>
 #include <QTextDocument>
 
+namespace {
+void OnTransactionChanged(SendtoPcodeDialog *dialog, CWallet *wallet, uint256 const &hash, ChangeType status)
+{
+    Q_UNUSED(wallet);
+    Q_UNUSED(status);
+    if (status == ChangeType::CT_NEW || status == ChangeType::CT_UPDATED) {
+        QMetaObject::invokeMethod(dialog, "onTransactionChanged", Qt::QueuedConnection,
+            Q_ARG(uint256, hash));
+    }
+}
+}
+
 SendtoPcodeDialog::SendtoPcodeDialog(QWidget *parent, std::string const & pcode) :
     QDialog(parent),
     ui(new Ui::SendtoPcodeDialog),
@@ -45,6 +57,9 @@ SendtoPcodeDialog::SendtoPcodeDialog(QWidget *parent, std::string const & pcode)
 SendtoPcodeDialog::~SendtoPcodeDialog()
 {
     delete ui;
+
+    if (!model) return;
+    model->getWallet()->NotifyTransactionChanged.disconnect(boost::bind(OnTransactionChanged, this, _1, _2, _3));
 }
 
 void SendtoPcodeDialog::setModel(WalletModel *_model)
@@ -58,13 +73,13 @@ void SendtoPcodeDialog::setModel(WalletModel *_model)
     if (!model || !paymentCode)
         return;
 
+    model->getWallet()->NotifyTransactionChanged.connect(boost::bind(OnTransactionChanged, this, _1, _2, _3));
+
     CAmount lelantusBalance = model->getLelantusModel()->getPrivateBalance().first;
 
-    if (model->getPcodeModel()->getNotificationTxid(*paymentCode, notificationTx)) {
+    if (model->getPcodeModel()->getNotificationTxid(*paymentCode, notificationTxHash)) {
         ui->sendButton->setEnabled(false);
-        setTxUrl(notificationTx);
-
-        ui->useButton->setEnabled(true);
+        setNotifTxId();
         setUseAddr();
     } else {
         ui->sendButton->setEnabled(true);
@@ -114,10 +129,9 @@ void SendtoPcodeDialog::on_sendButton_clicked()
         return;
 
     try {
-        uint256 txid = model->getPcodeModel()->sendNotificationTx(*paymentCode);
-        setTxUrl(txid);
+        notificationTxHash = model->getPcodeModel()->sendNotificationTx(*paymentCode);
+        setNotifTxId();
         ui->sendButton->setEnabled(false);
-        ui->useButton->setEnabled(true);
         setUseAddr();
     }
     catch (std::runtime_error const & e)
@@ -169,14 +183,31 @@ void SendtoPcodeDialog::showEvent( QShowEvent* event ) {
     ui->balanceSpacer->sizeHint().setHeight(ui->sendButton->size().height());
 }
 
-void SendtoPcodeDialog::setTxUrl(uint256 const & txid)
+void SendtoPcodeDialog::setNotifTxId()
 {
     std::ostringstream ostr;
     ostr << "<a href=\"https://";
     if(Params().GetConsensus().IsTestnet())
         ostr << "test";
-    ostr << "explorer.firo.org/tx/" << txid.GetHex() << "\">" << txid.GetHex() << "</a>";
+    ostr << "explorer.firo.org/tx/" << notificationTxHash.GetHex() << "\">" << notificationTxHash.GetHex() << "</a>";
     ui->notificationTxIdLabel->setText(ostr.str().c_str());
+
+    CWalletTx const * notifTx = model->getWallet()->GetWalletTx(notificationTxHash);
+    if (!notifTx) return;
+    int notifTxDepth = 0;
+    {
+        LOCK(cs_main);
+        notifTxDepth = notifTx->GetDepthInMainChain();
+    }
+
+    if (notifTxDepth > 0)
+    {
+        ui->useButton->setEnabled(true);
+        ui->useButton->setText("Use");
+    } else {
+        ui->useButton->setEnabled(false);
+        ui->useButton->setText("Unconfirmed");
+    }
 }
 
 void SendtoPcodeDialog::setUseAddr()
@@ -186,4 +217,10 @@ void SendtoPcodeDialog::setUseAddr()
         addressToUse = model->getWallet()->GetNextAddress(*paymentCode);
     }
     ui->nextAddressLabel->setText(addressToUse.ToString().c_str());
+}
+
+void SendtoPcodeDialog::onTransactionChanged(uint256 txHash)
+{
+    if (txHash != notificationTxHash) return;
+    setNotifTxId();
 }

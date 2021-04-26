@@ -53,11 +53,11 @@ private:
     WalletModel *model;
     std::shared_ptr<bip47::CPaymentCode> paymentCode;
     Result result;
-    uint256 notificationTx;
+    uint256 notificationTxHash;
     CBitcoinAddress addressToUse;
     std::unique_ptr<WalletModel::UnlockContext> unlockContext;
 
-    void setTxUrl(uint256 const & txid);
+    void setNotifTxId();
     void setUseAddr();
 
 private Q_SLOTS:
@@ -65,7 +65,8 @@ private Q_SLOTS:
     void on_useButton_clicked();
     void on_cancelButton_clicked();
     void on_helpButton_clicked();
-    void showEvent( QShowEvent* event );
+    void showEvent(QShowEvent* event);
+    void onTransactionChanged(uint256 txHash);
 };
 
 #endif /* SENDTOPCODEDIALOG_H */

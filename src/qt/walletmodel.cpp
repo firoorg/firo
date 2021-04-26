@@ -1460,6 +1460,11 @@ void WalletModel::handleBip47Keys(int receiverAccountNum)
         if (!acc)
             return;
         UnlockContext ctx(requestUnlock());
+        if(!ctx.isValid()) {
+            QMessageBox::critical(0, tr("RAP tx received"),
+                tr("BIP47 protocol requires unlocking your wallet every time a RAP tx is received."));
+            return;
+        }
         bip47::utils::AddReceiverSecretAddresses(*acc, *wallet);
     }
 }

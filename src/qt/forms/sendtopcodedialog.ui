@@ -46,6 +46,9 @@
         </item>
         <item row="8" column="2">
          <widget class="QPushButton" name="useButton">
+          <property name="toolTip">
+           <string>Requires a notification tx to be confirmed</string>
+          </property>
           <property name="text">
            <string>Use</string>
           </property>
