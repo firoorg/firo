@@ -3266,9 +3266,7 @@ void CWallet::GetCoinsToJoinSplit(
     }
 
     CAmount fulfilled = 0;
-    // Schnorr and range proofs are 956 bytes, the joinmint change is 157 bytes, and each P2SH recipient is 22 bytes.
-    // We'll be incremented by the size of each input as we add it along the way.
-    unsigned int txSize = 956 + 157 + 22 * nRecipients;
+    unsigned int txSize = 1199 + 34 * nRecipients;
 
     int currentHeight = chainActive.Height();
     CHDMintTracker tracker = zwallet->GetTracker();
