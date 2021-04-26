@@ -4,7 +4,6 @@
 #include "coin.h"
 #include "lelantus_proof.h"
 #include "spend_metadata.h"
-#include "../libzerocoin/Zerocoin.h"
 
 namespace lelantus {
 

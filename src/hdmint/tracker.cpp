@@ -3,15 +3,12 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <hdmint/hdmint.h>
-#include <primitives/zerocoin.h>
 #include "hdmint/tracker.h"
 #include "util.h"
 #include "sync.h"
 #include "txdb.h"
 #include "wallet/wallet.h"
-#include "wallet/walletdb.h"
 #include "hdmint/wallet.h"
-#include "libzerocoin/Zerocoin.h"
 #include "validation.h"
 #include "sigma.h"
 #include "lelantus.h"

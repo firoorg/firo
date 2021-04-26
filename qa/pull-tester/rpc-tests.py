@@ -177,15 +177,10 @@ testScripts = [
     'notifications.py',
 
     # Firo-specific tests
-    'wallet_dumpnonhd.py',
     'wallet_dumpsigma.py',
-    'wallet_dumpzerocoin.py',
     'transactions_verification_after_restart.py',
-    'sigma_remint_lockedwallet.py',
     'sigma_zapwalletmints.py',
     'sigma_nonhd_wallet.py',
-    'sigma_remint.py',
-    'sigma_remint_validation.py',
     'sigma_meetspend.py',
     'sigma_listsigmamints_validation.py',
     'sigma_listsigmaspends_validation.py',

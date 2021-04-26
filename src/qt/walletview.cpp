@@ -27,8 +27,6 @@
 #include "transactiontablemodel.h"
 #include "transactionview.h"
 #include "walletmodel.h"
-#include "zc2sigmapage.h"
-#include "zerocoinpage.h"
 
 #include "ui_interface.h"
 
@@ -69,7 +67,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     blankSigmaView(0),
     lelantusView(0),
     blankLelantusView(0),
-    zc2SigmaPage(0),
     firoTransactionsView(0),
     platformStyle(_platformStyle)
 {
@@ -82,9 +79,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     createPcodePage = new CreatePcodeDialog(platformStyle);
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
-    zerocoinPage = new ZerocoinPage(platformStyle, ZerocoinPage::ForEditing, this);
     sigmaPage = new QWidget(this);
-    zc2SigmaPage = new Zc2SigmaPage(platformStyle, this);
     lelantusPage = new QWidget(this);
 
     sendCoinsPage = new QWidget(this);
@@ -112,10 +107,8 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     addWidget(receiveCoinsPage);
     addWidget(createPcodePage);
     addWidget(sendCoinsPage);
-    addWidget(zerocoinPage);
     addWidget(sigmaPage);
     addWidget(lelantusPage);
-    addWidget(zc2SigmaPage);
 #ifdef ENABLE_ELYSIUM
     addWidget(toolboxPage);
 #endif
@@ -318,7 +311,6 @@ void WalletView::setClientModel(ClientModel *_clientModel)
         sigmaView->setClientModel(clientModel);
         lelantusView->setClientModel(clientModel);
     }
-    zc2SigmaPage->setClientModel(clientModel);
 
 #ifdef ENABLE_ELYSIUM
     if (elysiumTransactionsView) {
@@ -342,17 +334,14 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     createPcodePage->setModel(_walletModel);
     // TODO: fix this
     //sendCoinsPage->setModel(_walletModel);
-    zerocoinPage->setModel(_walletModel->getAddressTableModel());
     if (pwalletMain->IsHDSeedAvailable()) {
         sigmaView->setWalletModel(_walletModel);
         lelantusView->setWalletModel(_walletModel);
     }
-    zc2SigmaPage->createModel();
     usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(_walletModel->getAddressTableModel());
     masternodeListPage->setWalletModel(_walletModel);
     sendFiroView->setModel(_walletModel);
-    zc2SigmaPage->setWalletModel(_walletModel);
     automintNotification->setModel(_walletModel);
 #ifdef ENABLE_ELYSIUM
     elyAssetsPage->setWalletModel(walletModel);
@@ -500,23 +489,9 @@ void WalletView::gotoCreatePcodePage()
     setCurrentWidget(createPcodePage);
 }
 
-void WalletView::gotoZerocoinPage()
-{
-    setCurrentWidget(zerocoinPage);
-}
-
 void WalletView::gotoSigmaPage()
 {
     setCurrentWidget(sigmaPage);
-}
-
-void WalletView::gotoZc2SigmaPage()
-{
-    if (pwalletMain->IsHDSeedAvailable()) {
-        setCurrentWidget(zc2SigmaPage);
-    } else {
-        setCurrentWidget(sigmaPage);
-    }
 }
 
 void WalletView::gotoLelantusPage()

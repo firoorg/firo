@@ -14,7 +14,7 @@ class SetLelantusMintSatusValidationWithFundsTest(BitcoinTestFramework):
         return start_nodes(self.num_nodes, self.options.tmpdir)
 
     def run_test(self):
-        self.nodes[0].generate(1000)
+        self.nodes[0].generate(400)
         self.sync_all()
 
         txid = self.nodes[0].mintlelantus(10)

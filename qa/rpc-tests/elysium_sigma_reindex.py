@@ -7,7 +7,7 @@ class ElysiumSigmaReindexTest(ElysiumTestFramework):
     def run_test(self):
         super().run_test()
 
-        sigma_start_block = 550
+        sigma_start_block = 150
         self.nodes[0].generate(sigma_start_block - self.nodes[0].getblockcount())
 
         # generate mints to spend

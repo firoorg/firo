@@ -57,8 +57,6 @@ BOOST_AUTO_TEST_CASE(partialspend)
     CAmount smallestDenomAmount;
     sigma::DenominationToInteger(denoms.back(), smallestDenomAmount);
 
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     // foreach denom from denominations
     for (const auto& denomination : denominations) {
@@ -167,7 +165,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
         BOOST_CHECK_MESSAGE(addToMempool(dtx), "Spend created although double");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
 
-        // Bring serials back to zerocoin state
+        // Bring serials back to sigma state
         sigmaState->containers.usedCoinSerials = tempSerials;
 
         // CreateBlock throw exception because invalid transaction is in mempool
@@ -211,9 +209,6 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
     const CBitcoinAddress randomAddr2(newKey2.GetID());
 
     sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     CAmount denomAmount1;
     CAmount denomAmount01;
@@ -301,9 +296,6 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
 
     sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
 
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
-
     CAmount denomAmount01;
     sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_1, denomAmount01);
 
@@ -376,8 +368,7 @@ BOOST_AUTO_TEST_CASE(double_mint_into_mempool) {
         string denomination;
         std::vector<string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
         const auto& sigmaParams = sigma::Params::get_default();
-        // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-        CreateAndProcessEmptyBlocks(201, scriptPubKey);
+
         // foreach denom from denominations
         for(auto denomination : denominations)
         {

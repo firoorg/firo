@@ -100,7 +100,6 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_without_mints)
 BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_with_toolarge_data)
 {
     pwalletMain->SetBroadcastTransactions(true);
-    CreateAndProcessEmptyBlocks(200, scriptPubKey);
 
     string stringError;
     sigma::CoinDenomination denomination;
@@ -131,7 +130,6 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_with_toolarge_data)
 BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_success)
 {
     pwalletMain->SetBroadcastTransactions(true);
-    CreateAndProcessEmptyBlocks(200, scriptPubKey);
 
     string stringError;
     sigma::CoinDenomination denomination;

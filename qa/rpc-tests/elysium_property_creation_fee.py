@@ -42,7 +42,7 @@ class ElysiumPropertyCreationFeeTest(ElysiumTestFramework):
     def run_test(self):
         super().run_test()
 
-        creation_fee_start_block = 500
+        creation_fee_start_block = 250
 
         # before creation fee is activated, all properies type should be able to create with low fee.
         self.test(ecosystem = 1)

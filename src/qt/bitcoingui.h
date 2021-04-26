@@ -121,7 +121,6 @@ private:
     QAction *showHelpMessageAction;
     QAction *sigmaAction;
     QAction *lelantusAction;
-    QAction *zc2SigmaAction;
     QAction *masternodeAction;
     QAction *createPcodeAction;
 
@@ -157,8 +156,6 @@ private:
     /** Disconnect core signals from GUI client */
     void unsubscribeFromCoreSignals();
 
-    /** Updates Zc2SigmaPage visibility */
-    void checkZc2SigmaVisibility(int numBlocks);
     /** Updates Znode visibility */
     void checkZnodeVisibility(int numBlocks);
     /** Updates Sigma visibility */
@@ -240,8 +237,6 @@ private Q_SLOTS:
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to sigma page */
     void gotoSigmaPage();
-    /** Switch to ZC->sigma page */
-    void gotoZc2SigmaPage();
     /** Switch to lelantus page */
     void gotoLelantusPage();
 

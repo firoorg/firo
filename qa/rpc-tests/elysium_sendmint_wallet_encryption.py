@@ -8,7 +8,7 @@ class ElysiumSendMintWalletEncrytionTest(ElysiumTestFramework):
     def run_test(self):
         super().run_test()
 
-        sigma_start_block = 500
+        sigma_start_block = 150
 
         self.nodes[0].generatetoaddress(100, self.addrs[0])
         self.nodes[0].generate(sigma_start_block - self.nodes[0].getblockcount())

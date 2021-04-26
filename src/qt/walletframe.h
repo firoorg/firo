@@ -87,12 +87,8 @@ public Q_SLOTS:
     void gotoCreatePcodePage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-    /** Switch to zerocoin page */
-    void gotoZerocoinPage();
     /** Switch to sigma page */
     void gotoSigmaPage();
-    /** Switch to sigma page */
-    void gotoZc2SigmaPage();
     /** Switch to lelantus page */
     void gotoLelantusPage();
 

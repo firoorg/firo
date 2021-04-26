@@ -96,7 +96,6 @@ QT_TS = \
 
 QT_FORMS_UI = \
   qt/forms/addressbookpage.ui \
-  qt/forms/zerocoinpage.ui \
   qt/forms/blanksigmadialog.ui \
   qt/forms/sigmadialog.ui \
   qt/forms/sigmacoincontroldialog.ui \
@@ -132,7 +131,6 @@ QT_FORMS_UI = \
   qt/forms/metadexdialog.ui \
   qt/forms/tradehistorydialog.ui \
   qt/forms/elyassetsdialog.ui \
-  qt/forms/zc2sigmapage.ui \
   qt/forms/lelantusdialog.ui \
   qt/forms/createpcodedialog.ui
 
@@ -140,7 +138,6 @@ QT_MOC_CPP = \
   qt/moc_addressbookpage.cpp \
   qt/moc_automintdialog.cpp \
   qt/moc_automintnotification.cpp \
-  qt/moc_zerocoinpage.cpp \
   qt/moc_sigmadialog.cpp \
   qt/moc_sigmacoincontroldialog.cpp \
   qt/moc_addresstablemodel.cpp \
@@ -202,8 +199,6 @@ QT_MOC_CPP = \
   qt/moc_metadexdialog.cpp \
   qt/moc_metadexcanceldialog.cpp \
   qt/moc_tradehistorydialog.cpp \
-  qt/moc_zc2sigmapage.cpp \
-  qt/moc_zc2sigmamodel.cpp \
   qt/moc_lelantusmodel.cpp \
   qt/moc_lelantusdialog.cpp \
   qt/moc_lelantuscoincontroldialog.cpp \
@@ -235,7 +230,6 @@ BITCOIN_QT_H = \
   qt/addressbookpage.h \
   qt/automintdialog.h \
   qt/automintnotification.h \
-  qt/zerocoinpage.h \
   qt/sigmadialog.h \
   qt/sigmacoincontroldialog.h \
   qt/addresstablemodel.h \
@@ -306,8 +300,6 @@ BITCOIN_QT_H = \
   qt/tradehistorydialog.h \
   qt/sendmpdialog.h \
   qt/elysium_qtutils.h \
-  qt/zc2sigmapage.h \
-  qt/zc2sigmamodel.h \
   qt/lelantusmodel.h \
   qt/lelantusdialog.h \
   qt/lelantuscoincontroldialog.h \
@@ -429,7 +421,6 @@ BITCOIN_QT_WALLET_CPP = \
   qt/addressbookpage.cpp \
   qt/automintdialog.cpp \
   qt/automintnotification.cpp \
-  qt/zerocoinpage.cpp \
   qt/sigmadialog.cpp \
   qt/sigmacoincontroldialog.cpp \
   qt/addresstablemodel.cpp \
@@ -462,8 +453,6 @@ BITCOIN_QT_WALLET_CPP = \
   qt/walletmodeltransaction.cpp \
   qt/masternodelist.cpp \
   qt/walletview.cpp \
-  qt/zc2sigmapage.cpp \
-  qt/zc2sigmamodel.cpp \
   qt/lelantusmodel.cpp \
   qt/lelantusdialog.cpp \
   qt/lelantuscoincontroldialog.cpp \

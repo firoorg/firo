@@ -42,7 +42,6 @@
 #include "masternode-sync.h"
 #include "masternodelist.h"
 #include "elysium_qtutils.h"
-#include "zc2sigmapage.h"
 
 #ifdef ENABLE_ELYSIUM
 #include "../elysium/elysium.h"
@@ -135,7 +134,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     openAction(0),
     showHelpMessageAction(0),
     sigmaAction(0),
-    zc2SigmaAction(0),
     lelantusAction(0),
     masternodeAction(0),
     createPcodeAction(0),
@@ -365,14 +363,6 @@ void BitcoinGUI::createActions()
     tabGroup->addAction(sigmaAction);
     sigmaAction->setVisible(false);
 
-    zc2SigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Remint"), this);
-    zc2SigmaAction->setStatusTip(tr("Show the list of public Zerocoins that could be reminted in Sigma"));
-    zc2SigmaAction->setToolTip(zc2SigmaAction->statusTip());
-    zc2SigmaAction->setCheckable(true);
-    zc2SigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
-    tabGroup->addAction(zc2SigmaAction);
-    zc2SigmaAction->setVisible(false);
-
     lelantusAction = new QAction(platformStyle->SingleColorIcon(":/icons/lelantus"), tr("&Lelantus"), this);
     lelantusAction->setStatusTip(tr("Anonymize your coins"));
     lelantusAction->setToolTip(lelantusAction->statusTip());
@@ -438,7 +428,6 @@ void BitcoinGUI::createActions()
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
 	connect(sigmaAction, SIGNAL(triggered()), this, SLOT(gotoSigmaPage()));
-	connect(zc2SigmaAction, SIGNAL(triggered()), this, SLOT(gotoZc2SigmaPage()));
 	connect(lelantusAction, SIGNAL(triggered()), this, SLOT(gotoLelantusPage()));
 	connect(createPcodeAction, SIGNAL(triggered()), this, SLOT(gotoCreatePcodePage()));
 #ifdef ENABLE_ELYSIUM
@@ -584,7 +573,6 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(historyAction);
         toolbar->addAction(sigmaAction);
         toolbar->addAction(lelantusAction);
-        toolbar->addAction(zc2SigmaAction);
         toolbar->addAction(masternodeAction);
 
 #ifdef ENABLE_ELYSIUM
@@ -654,7 +642,6 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
             checkZnodeVisibility(blocks);
 
 #ifdef ENABLE_WALLET
-            checkZc2SigmaVisibility(blocks);
             checkSigmaVisibility(blocks);
             checkLelantusVisibility(blocks);
 #endif // ENABLE_WALLET
@@ -919,11 +906,6 @@ void BitcoinGUI::gotoSigmaPage()
     if (walletFrame) walletFrame->gotoSigmaPage();
 }
 
-void BitcoinGUI::gotoZc2SigmaPage()
-{
-    if (walletFrame) walletFrame->gotoZc2SigmaPage();
-}
-
 void BitcoinGUI::gotoLelantusPage()
 {
     lelantusAction->setChecked(true);
@@ -1096,7 +1078,6 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 #ifdef ENABLE_WALLET
     checkSigmaVisibility(count);
     checkLelantusVisibility(count);
-    checkZc2SigmaVisibility(count);
 #endif // ENABLE_WALLET
 
     checkZnodeVisibility(count);
@@ -1488,15 +1469,6 @@ void BitcoinGUI::unsubscribeFromCoreSignals()
     // Disconnect signals from client
     uiInterface.ThreadSafeMessageBox.disconnect(boost::bind(ThreadSafeMessageBox, this, _1, _2, _3));
     uiInterface.ThreadSafeQuestion.disconnect(boost::bind(ThreadSafeMessageBox, this, _1, _3, _4));
-}
-
-void BitcoinGUI::checkZc2SigmaVisibility(int numBlocks) {
-    if(!zc2SigmaAction->isVisible() && sigma::IsRemintWindow(numBlocks)) {
-        const bool show = Zc2SigmaPage::showZc2SigmaPage();
-
-        if(show)
-            zc2SigmaAction->setVisible(true);
-    }
 }
 
 void BitcoinGUI::checkZnodeVisibility(int numBlocks) {

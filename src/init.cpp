@@ -19,7 +19,6 @@
 #include "httpserver.h"
 #include "httprpc.h"
 #include "key.h"
-#include "zerocoin.h"
 #include "validation.h"
 #include "miner.h"
 #include "netbase.h"

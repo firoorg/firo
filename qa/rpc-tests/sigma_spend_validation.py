@@ -48,12 +48,12 @@ class SigmaSpendValidationWithFundsTest(BitcoinTestFramework):
     def run_test(self):
         # Decimal formating: 6 digits for balance will be enought 000.000
         getcontext().prec = 6
-        self.nodes[0].generate(200)
+        self.nodes[0].generate(150)
         self.sync_all()
         self.nodes[0].mint(240.8)
         self.nodes[0].mint(2000)
-        self.nodes[0].generate(200)
-        print(self.nodes[0].getblockcount())
+
+        self.nodes[0].generate(10)
         self.sync_all()
         for input_data, exp_err in zip(validation_inputs_with_funds, post_outputs_with_funds):
             case_name, denom = input_data
