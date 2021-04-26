@@ -134,3 +134,6 @@ firo.creator
 firo.creator.user
 firo.files
 firo.includes
+
+# Backups
+*.backup

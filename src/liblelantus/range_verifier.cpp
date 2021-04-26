@@ -184,23 +184,12 @@ bool RangeVerifier::membership_checks(const RangeProof& proof) {
          && proof.u.isMember()
          && proof.innerProductProof.a_.isMember()
          && proof.innerProductProof.b_.isMember()
-         && proof.innerProductProof.c_.isMember())
-         || proof.A.isInfinity()
-         || proof.S.isInfinity()
-         || proof.T1.isInfinity()
-         || proof.T2.isInfinity()
-         || proof.T_x1.isZero()
-         || proof.T_x2.isZero()
-         || proof.u.isZero()
-         || proof.innerProductProof.a_.isZero()
-         || proof.innerProductProof.b_.isZero()
-         || proof.innerProductProof.c_.isZero())
-        return false;
+         && proof.innerProductProof.c_.isMember()))
+         return false;
 
     for (std::size_t i = 0; i < proof.innerProductProof.L_.size(); ++i)
     {
-        if (!(proof.innerProductProof.L_[i].isMember() && proof.innerProductProof.R_[i].isMember())
-           || proof.innerProductProof.L_[i].isInfinity() || proof.innerProductProof.R_[i].isInfinity())
+        if (!(proof.innerProductProof.L_[i].isMember() && proof.innerProductProof.R_[i].isMember()))
             return false;
     }
     return true;
