@@ -263,11 +263,7 @@ bool SigmaExtendedVerifier::membership_checks(const SigmaExtendedProof& proof) c
     if (!(proof.A_.isMember() &&
          proof.B_.isMember() &&
          proof.C_.isMember() &&
-         proof.D_.isMember()) ||
-        (proof.A_.isInfinity() ||
-         proof.B_.isInfinity() ||
-         proof.C_.isInfinity() ||
-         proof.D_.isInfinity()))
+         proof.D_.isMember()))
         return false;
 
     for (std::size_t i = 0; i < proof.f_.size(); i++)
@@ -279,18 +275,13 @@ bool SigmaExtendedVerifier::membership_checks(const SigmaExtendedProof& proof) c
     const std::vector <GroupElement>& Qk = proof.Qk;
     for (std::size_t k = 0; k < m; ++k)
     {
-        if (!(Gk[k].isMember() && Qk[k].isMember())
-           || Gk[k].isInfinity() || Qk[k].isInfinity())
+        if (!(Gk[k].isMember() && Qk[k].isMember()))
             return false;
     }
     if(!(proof.ZA_.isMember() &&
          proof.ZC_.isMember() &&
          proof.zV_.isMember() &&
-         proof.zR_.isMember()) ||
-        (proof.ZA_.isZero() ||
-         proof.ZC_.isZero() ||
-         proof.zV_.isZero() ||
-         proof.zR_.isZero()))
+         proof.zR_.isMember()))
         return false;
     return true;
 }
