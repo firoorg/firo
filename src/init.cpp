@@ -613,6 +613,8 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-elysiumshowblockconsensushash=<number>", "Calculate and log the consensus hash for the specified block");
 #endif
 
+    strUsage += HelpMessageOpt("-skipmnpayoutcheck", _("Do not check for masternode payout when handling listtransactions, listsinceblock and gettransaction calls (improves performance)"));
+
     return strUsage;
 }
 
@@ -1402,6 +1404,7 @@ bool AppInitParameterInteraction()
             }
         }
     }
+    fSkipMnpayoutCheck = GetBoolArg("-skipmnpayoutcheck", false);
     return true;
 }
 
