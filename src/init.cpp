@@ -1207,8 +1207,10 @@ bool AppInitParameterInteraction()
     // Special-case: if -debug=0/-nodebug is set, turn off debugging messages
     if (fDebug) {
         const std::vector<std::string>& categories = mapMultiArgs.at("-debug");
-        if (GetBoolArg("-nodebug", false) || find(categories.begin(), categories.end(), std::string("0")) != categories.end())
+        if (GetBoolArg("-nodebug", false) || find(categories.begin(), categories.end(), std::string("0")) != categories.end()) {
             fDebug = false;
+            fNoDebug = true;
+        }
     }
 
     // Check for -debugnet
