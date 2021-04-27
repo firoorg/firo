@@ -806,6 +806,9 @@ lelantus::JoinSplit LelantusWallet::CreateJoinSplit(
         coins.emplace_back(priv, group);
     }
 
+    uint256 highestBlock;
+    int highestBlockHeight = 0;
+
     std::map<uint32_t, uint256> blockHashes;
     for (auto &anons : anonss) {
         int blockHeight = INT_MAX;
@@ -813,7 +816,18 @@ lelantus::JoinSplit LelantusWallet::CreateJoinSplit(
         auto block = chainActive[blockHeight];
         if (!block) throw std::runtime_error("Failed to create joinsplit due to invalid anonymity group input");
         blockHashes[anons.first] = block->GetBlockHash();
+
+        if (block->nHeight > highestBlockHeight) {
+            highestBlockHeight = block->nHeight;
+            highestBlock = block->GetBlockHash();
+        }
     }
+
+    // It is safe to use the hashes of blocks instead of the hashes of anonymity sets because blocks hashes are
+    // necessarily dependent on anonymity set hashes.
+    vector<vector<unsigned char>> anonymitySetHashes;
+    vector<unsigned char> anonymitySetHash(highestBlock.begin(), highestBlock.end());
+    anonymitySetHashes.push_back(anonymitySetHash);
 
     // reserve change
     std::vector<lelantus::PrivateCoin> coinOuts;
@@ -827,9 +841,11 @@ lelantus::JoinSplit LelantusWallet::CreateJoinSplit(
         pubCoinOuts = {changeMint->coin.getPublicCoin()};
     }
 
-    auto js = ::CreateJoinSplit(coins, anonss, amountToSpend, coinOuts, blockHashes, metadata);
+    // It is safe to use blockHash instead of hashes of the anonymity sets because any change in the latter will
+    // necessarily result in a change in the former.
+    auto js = ::CreateJoinSplit(coins, anonss, anonymitySetHashes, amountToSpend, coinOuts, blockHashes, metadata);
 
-    if (!js.Verify(anonss, pubCoinOuts, amountToSpend, metadata)) {
+    if (!js.Verify(anonss, anonymitySetHashes, pubCoinOuts, amountToSpend, metadata)) {
         throw std::runtime_error("Fail to verify created join/split object");
     }
 

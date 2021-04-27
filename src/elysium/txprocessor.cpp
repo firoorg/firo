@@ -159,7 +159,7 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
         return PKT_ERROR_LELANTUS - 901;
     }
 
-    auto joinSplit = tx.getLelantusJoinSplit();
+    lelantus::JoinSplit joinSplit = tx.getLelantusJoinSplit();
 
     CBitcoinAddress receiver(tx.getReceiver());
     if (!receiver.IsValid()) {
@@ -185,6 +185,9 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
     // get anons
     auto idAndBlockHashes = joinSplit.getIdAndBlockHashes();
 
+    uint256 highestBlock;
+    int highestBlockHeight = 0;
+
     std::map<uint32_t, std::vector<lelantus::PublicCoin>> anonss;
     for (auto const &idAndBlockHash : idAndBlockHashes) {
         auto coinBlock = mapBlockIndex.find(idAndBlockHash.second);
@@ -193,7 +196,18 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
             return PKT_ERROR_LELANTUS - 907;
         }
         anonss[idAndBlockHash.first] = lelantusDb->GetAnonymityGroup(property, idAndBlockHash.first, SIZE_MAX, coinBlock->second->nHeight);
+
+        if (coinBlock->second->nHeight > highestBlockHeight) {
+            highestBlockHeight = coinBlock->second->nHeight;
+            highestBlock = coinBlock->second->GetBlockHash();
+        }
     }
+
+    // It is safe to use the hashes of blocks instead of the hashes of anonymity sets because blocks hashes are
+    // necessarily dependent on anonymity set hashes.
+    vector<vector<unsigned char>> anonymitySetHashes;
+    vector<unsigned char> anonymitySetHash(highestBlock.begin(), highestBlock.end());
+    anonymitySetHashes.push_back(anonymitySetHash);
 
     auto spendAmount = tx.getLelantusSpendAmount();
     auto joinSplitMint = tx.getLelantusJoinSplitMint();
@@ -204,7 +218,7 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
     }
 
     // verify
-    if (!joinSplit.Verify(anonss, cout, spendAmount, metadata)) {
+    if (!joinSplit.Verify(anonss, anonymitySetHashes, cout, spendAmount, metadata)) {
         PrintToLog("%s(): rejected: joinsplit is invalid\n", __func__);
         return PKT_ERROR_LELANTUS - 907;
     }

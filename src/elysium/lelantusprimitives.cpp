@@ -6,6 +6,7 @@
 #include "../liblelantus/lelantus_primitives.h"
 
 #include "lelantusprimitives.h"
+#include "wallet.h"
 
 namespace elysium {
 
@@ -84,13 +85,14 @@ JoinSplitMint::JoinSplitMint(MintEntryId _id, lelantus::PublicCoin const &_publi
 lelantus::JoinSplit CreateJoinSplit(
     std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> const &coins,
     std::map<uint32_t, std::vector<lelantus::PublicCoin>> const &anonss,
+    vector<vector<unsigned char>> anonymitySetHashes,
     LelantusAmount amount,
     std::vector<lelantus::PrivateCoin> const &coinOuts,
     std::map<uint32_t, uint256> const &groupBlockHashs,
     uint256 const &metaData)
 {
     auto params = lelantus::Params::get_default();
-    return {params, coins, anonss, amount, coinOuts, 0, groupBlockHashs, metaData};
+    return {params, coins, anonss, anonymitySetHashes, amount, coinOuts, (uint64_t)payTxFee.GetFee(5000), groupBlockHashs, metaData, LELANTUS_TX_VERSION_4_5};
 }
 
 } // namespace elysium

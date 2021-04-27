@@ -282,8 +282,9 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
         {
             std::vector<CLelantusEntry> coinsToSpend;
             CAmount changeToMint;
+            std::list<CLelantusEntry> availableCoins = pwalletMain->GetAvailableLelantusCoins();
             try {
-                pwalletMain->GetCoinsToJoinSplit(nMax, coinsToSpend, changeToMint);
+                pwalletMain->GetCoinsToJoinSplit(nMax, coinsToSpend, changeToMint, availableCoins);
             } catch (std::exception const &err) {
                 LogPrintf("SelectCoins() fail to get coin to spend: %s\n", err.what());
                 return nTotal;
