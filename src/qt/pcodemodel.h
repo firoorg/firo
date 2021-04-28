@@ -31,8 +31,6 @@ public:
 
     std::vector<bip47::CPaymentCodeDescription> const & getItems() const;
 
-    /** @name Methods overridden from QAbstractTableModel
-        @{*/
     int rowCount(const QModelIndex &parent) const;
     int columnCount(const QModelIndex &parent) const;
     QVariant data(const QModelIndex &index, int role) const;
@@ -40,10 +38,12 @@ public:
     QVariant headerData(int section, Qt::Orientation orientation, int role) const;
     QModelIndex index(int row, int column, const QModelIndex &parent) const;
     Qt::ItemFlags flags(const QModelIndex &index) const;
-    /*@}*/
 
     uint256 sendNotificationTx(bip47::CPaymentCode const & paymentCode);
     bool getNotificationTxid(bip47::CPaymentCode const & paymentCode, uint256 & txid);
+    void reconsiderBip47Tx(uint256 const & hash);
+
+    bool isBip47Transaction(uint256 const & hash) const;
 
 public Q_SLOTS:
     void sort(int column, Qt::SortOrder order);

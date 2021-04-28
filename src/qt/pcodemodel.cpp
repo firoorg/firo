@@ -136,6 +136,37 @@ bool PcodeModel::getNotificationTxid(bip47::CPaymentCode const & paymentCode, ui
     return result;
 }
 
+void PcodeModel::reconsiderBip47Tx(uint256 const & hash)
+{
+    const CWalletTx * wtx = walletMain.GetWalletTx(hash);
+    if (wtx && !wtx->IsCoinBase())
+        walletMain.HandleBip47Transaction(*wtx);
+}
+
+bool PcodeModel::isBip47Transaction(uint256 const & hash) const
+{
+    const CWalletTx * wtx = walletMain.GetWalletTx(hash);
+    if (wtx && !wtx->IsCoinBase())
+    {
+        for(unsigned int i = 0; i < wtx->tx->vout.size(); i++)
+        {
+            const CTxOut& txout = wtx->tx->vout[i];
+            isminetype mine = walletMain.IsMine(txout);
+            if (mine)
+            {
+                CTxDestination address;
+                if(ExtractDestination(txout.scriptPubKey, address) && IsMine(walletMain, address))
+                {
+                    boost::optional<bip47::CPaymentCodeDescription> pcode = walletMain.FindPcode(address);
+                    if (pcode)
+                        return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 void PcodeModel::sort(int column, Qt::SortOrder order)
 {
     std::function<bool(bip47::CPaymentCodeDescription const &, bip47::CPaymentCodeDescription const &)> 

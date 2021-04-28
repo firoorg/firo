@@ -1289,6 +1289,9 @@ public:
 
     /*Marks address as used for a receiving bip47 account. Returns the account if found*/
     bip47::CAccountReceiver const * AddressUsed(CBitcoinAddress const & address);
+
+    /*Checks if this is a BIP47 transaction and handles it. May send an ulock request if wallet is locked.*/
+    void HandleBip47Transaction(CWalletTx const & wtx);
 };
 
 /** A key allocated from the key pool. */
