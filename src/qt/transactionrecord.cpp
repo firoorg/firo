@@ -129,7 +129,6 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
                 if (pcode) {
                     sub.type = TransactionRecord::SendToPcode;
-                    sub.address.append(", " + bip47::utils::ShortenPcode(std::get<1>(*pcode)));
                 }
                 parts.append(sub);
             }
@@ -185,7 +184,6 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
                 if (pcode) {
                     sub.type = TransactionRecord::RecvWithPcode;
-                    sub.address.append(", " + std::get<2>(*pcode));
                 }
                 parts.append(sub);
             }
@@ -258,7 +256,6 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
                     if (pcode) {
                         sub.type = TransactionRecord::SendToPcode;
-                        sub.address.append(", " + bip47::utils::ShortenPcode(std::get<1>(*pcode)));
                     }
                 }
                 else if(wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint())
