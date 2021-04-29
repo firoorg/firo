@@ -6,8 +6,6 @@
 
 namespace bip47 {
 
-static const unsigned int BIP47_INDEX = 47;
-
 class CPaymentCode {
 public:
     CPaymentCode() = default;

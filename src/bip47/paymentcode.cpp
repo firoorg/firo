@@ -6,11 +6,9 @@
 namespace bip47 {
 
 namespace {
-const size_t PUBLIC_KEY_Y_OFFSET = 2;
 const size_t PUBLIC_KEY_X_OFFSET = 3;
 const size_t PUBLIC_KEY_X_LEN = 32;
 const size_t PUBLIC_KEY_COMPRESSED_LEN = 33;
-const size_t CHAIN_CODE_LEN = 32;
 const size_t PAYLOAD_LEN = 80;
 const size_t PAYMENT_CODE_LEN = PAYLOAD_LEN + 1; // (0x47("P") | payload)
 const unsigned char THE_P = 0x47; //"P"
