@@ -7,9 +7,9 @@ class ElysiumSendMintTest(ElysiumTestFramework):
     def run_test(self):
         super().run_test()
 
-        sigma_start_block = 500
+        sigma_start_block = 260
 
-        self.nodes[0].generatetoaddress(100, self.addrs[0])
+        self.nodes[0].generatetoaddress(30, self.addrs[0])
         self.nodes[0].generate(sigma_start_block - self.nodes[0].getblockcount())
 
         assert_equal(sigma_start_block, self.nodes[0].getblockcount())

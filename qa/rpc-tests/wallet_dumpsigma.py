@@ -33,7 +33,6 @@ class WalletDumpSigmaTest(BitcoinTestFramework):
 
     def run_test(self):
         getcontext().prec = 6
-        self.nodes[0].generate(201)
         self.sync_all()
 
         sigma_denoms = [0.05, 0.1, 0.5, 1, 10, 25, 100]

@@ -4,7 +4,6 @@
 
 #include "../crypto/aes.h"
 #include "../crypto/hmac_sha512.h"
-#include "../primitives/zerocoin.h"
 #include "../wallet/wallet.h"
 
 #include "lelantusprimitives.h"

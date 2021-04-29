@@ -1,5 +1,6 @@
 #include "coinspend.h"
 #include "openssl_context.h"
+#include "hash.h"
 #include "util.h"
 
 namespace sigma {
@@ -20,7 +21,7 @@ CoinSpend::CoinSpend(
     sigmaProof(p->get_n(), p->get_m())
 {
     if (!HasValidSerial()) {
-        throw ZerocoinException("Invalid serial # range");
+        throw std::runtime_error("Invalid serial # range");
     }
     SigmaPlusProver<Scalar, GroupElement> sigmaProver(
         params->get_g(),
@@ -41,7 +42,7 @@ CoinSpend::CoinSpend(
     }
 
     if(coinIndex == SIZE_MAX)
-        throw ZerocoinException("No such coin in this anonymity set");
+        throw std::runtime_error("No such coin in this anonymity set");
 
     sigmaProver.proof(C_, coinIndex, coin.getRandomness(), fPadding, sigmaProof);
 
@@ -62,22 +63,22 @@ void CoinSpend::updateMetaData(const PrivateCoin& coin, const SpendMetaData& m){
     // See main_impl.h of ecdh module on secp256k1
     if (!secp256k1_ec_pubkey_create(
             OpenSSLContext::get_context(), &pubkey, coin.getEcdsaSeckey())) {
-        throw ZerocoinException("Invalid secret key");
+        throw std::runtime_error("Invalid secret key");
     }
     if (1 != secp256k1_ec_pubkey_serialize(
             OpenSSLContext::get_context(),
             &this->ecdsaPubkey[0], &len, &pubkey, SECP256K1_EC_COMPRESSED)) {
-        throw ZerocoinException("Unable to serialize public key.");
+        throw std::runtime_error("Unable to serialize public key.");
     }
 
     if (1 != secp256k1_ecdsa_sign(
             OpenSSLContext::get_context(), &sig,
             metahash.begin(), coin.getEcdsaSeckey(), NULL, NULL)) {
-        throw ZerocoinException("Unable to sign with EcdsaSeckey.");
+        throw std::runtime_error("Unable to sign with EcdsaSeckey.");
     }
     if (1 != secp256k1_ecdsa_signature_serialize_compact(
             OpenSSLContext::get_context(), &this->ecdsaSignature[0], &sig)) {
-        throw ZerocoinException("Unable to serialize ecdsa_signature.");
+        throw std::runtime_error("Unable to serialize ecdsa_signature.");
     }
 }
 

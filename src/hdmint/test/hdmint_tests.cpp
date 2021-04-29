@@ -25,8 +25,7 @@
 #include "ui_interface.h"
 #include "rpc/server.h"
 #include "rpc/register.h"
-#include "zerocoin.h"
-#include "zerocoin_params.h"
+#include "firo_params.h"
 
 #include "test/fixtures.h"
 #include "test/testutil.h"
@@ -55,9 +54,6 @@ BOOST_AUTO_TEST_CASE(deterministic)
     std::vector<std::string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
 
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     pwalletMain->SetBroadcastTransactions(true);
 
@@ -174,9 +170,6 @@ BOOST_AUTO_TEST_CASE(wallet_count)
 
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
-
     pwalletMain->SetBroadcastTransactions(true);
 
     for(int i=0; i<=INITIAL_MINTS;i++){
@@ -258,9 +251,6 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
     int mintCount = 0;
 
     std::vector<std::string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
-
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     pwalletMain->SetBroadcastTransactions(true);
 

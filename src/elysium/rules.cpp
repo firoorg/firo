@@ -198,7 +198,7 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     LELANTUS_FEATURE_BLOCK = 1000;
 
     // Property creation fee
-    PROPERTY_CREATION_FEE_BLOCK = 500;
+    PROPERTY_CREATION_FEE_BLOCK = 250;
     PROPERTY_CREATION_FEE = 10 * COIN;
     PROPERTY_CREATION_FEE_RECEIVER.SetString("TKPbcG9QVLSfNvrtowQ7GzEEXq4zPjkej6");
 }

@@ -416,7 +416,7 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
 
     const CTransaction& tx = newit->GetTx();
     std::set<uint256> setParentTransactions;
-    if (!entry.GetTx().IsZerocoinSpend() && !entry.GetTx().IsSigmaSpend() && !entry.GetTx().IsZerocoinRemint() && !entry.GetTx().IsLelantusJoinSplit()) {
+    if (!entry.GetTx().IsSigmaSpend() && !entry.GetTx().IsLelantusJoinSplit()) {
         for (unsigned int i = 0; i < tx.vin.size(); i++) {
             mapNextTx.insert(std::make_pair(&tx.vin[i].prevout, &tx));
             setParentTransactions.insert(tx.vin[i].prevout.hash);
@@ -517,8 +517,8 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
 {
     NotifyEntryRemoved(it->GetSharedTx(), reason);
     const uint256 hash = it->GetTx().GetHash();
-    if (!it->GetTx().IsZerocoinSpend() && !it->GetTx().IsSigmaSpend() && !it->GetTx().IsZerocoinRemint() && !it->GetTx().IsLelantusJoinSplit()) {
-        LogPrintf("removeUnchecked txHash=%s, IsZerocoinSpend()=%s\n", hash.ToString(), it->GetTx().IsZerocoinSpend() || it->GetTx().IsSigmaSpend() || it->GetTx().IsZerocoinRemint() || it->GetTx().IsLelantusJoinSplit());
+    if (!it->GetTx().IsSigmaSpend() && !it->GetTx().IsLelantusJoinSplit()) {
+        LogPrintf("removeUnchecked txHash=%s, IsSpend()=%s\n", hash.ToString(), it->GetTx().IsSigmaSpend() || it->GetTx().IsLelantusJoinSplit());
         BOOST_FOREACH(const CTxIn& txin, it->GetTx().vin)
             mapNextTx.erase(txin.prevout);
     }
@@ -1109,13 +1109,13 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
         txlinksMap::const_iterator linksiter = mapLinks.find(it);
         assert(linksiter != mapLinks.end());
         const TxLinks &links = linksiter->second;
-        if (!tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit())
+        if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit())
             innerUsage += memusage::DynamicUsage(links.parents) + memusage::DynamicUsage(links.children);
         bool fDependsWait = false;
         setEntries setParentCheck;
         int64_t parentSizes = 0;
         int64_t parentSigOpCost = 0;
-        if (!tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit()) {
+        if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit()) {
             BOOST_FOREACH(const CTxIn &txin, tx.vin) {
                 // Check that every mempool transaction's inputs refer to available coins, or other mempool tx's.
                 indexed_transaction_set::const_iterator it2 = mapTx.find(txin.prevout.hash);
@@ -1180,7 +1180,7 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
             waitingOnDependants.push_back(&(*it));
         else {
             CValidationState state;
-            bool fCheckResult = tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsLelantusJoinSplit() ||
+            bool fCheckResult = tx.IsCoinBase() || tx.IsSigmaSpend() || tx.IsLelantusJoinSplit() ||
                     Consensus::CheckTxInputs(tx, state, mempoolDuplicate, nSpendHeight);
 
             assert(fCheckResult);
@@ -1198,7 +1198,7 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
             assert(stepsSinceLastRemove < waitingOnDependants.size());
         } else {
             const CTransaction &tx = entry->GetTx();
-            bool fCheckResult = tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsLelantusJoinSplit() ||
+            bool fCheckResult = tx.IsCoinBase() || tx.IsSigmaSpend() || tx.IsLelantusJoinSplit() ||
                 Consensus::CheckTxInputs(entry->GetTx(), state, mempoolDuplicate, nSpendHeight);
             assert(fCheckResult);
             UpdateCoins(entry->GetTx(), mempoolDuplicate, 1000000);

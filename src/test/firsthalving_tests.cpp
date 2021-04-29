@@ -4,7 +4,6 @@
 #include "script/standard.h"
 #include "script/sign.h"
 #include "validation.h"
-#include "zerocoin.h"
 #include "netbase.h"
 #include "keystore.h"
 #include "base58.h"
