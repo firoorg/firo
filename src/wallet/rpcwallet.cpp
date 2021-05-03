@@ -1498,7 +1498,7 @@ static void MaybePushAddress(UniValue & entry, const CTxDestination &dest, CBitc
         entry.push_back(Pair("address", addr.ToString()));
 }
 
-void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const string& strAccount, int nMinDepth, bool fLong, UniValue& ret, const isminefilter& filter)
+void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const string& strAccount, int nMinDepth, bool fLong, UniValue& ret, const isminefilter& filter, bool omitNmPayments)
 {
     CAmount nFee;
     string strSentAccount;
@@ -1565,18 +1565,20 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const strin
                 {
                     int txHeight = chainActive.Height() - wtx.GetDepthInMainChain();
 
-                    std::vector<CTxOut> voutMasternodePaymentsRet;
-                    mnpayments.GetBlockTxOutsWipeCache(txHeight, CAmount(), voutMasternodePaymentsRet);
-                    //compare address of payee to addr.
-
                     bool its_znode_payment = false;
-                    for(CTxOut const & out : voutMasternodePaymentsRet) {
-                        CTxDestination payeeDest;
-                        ExtractDestination(out.scriptPubKey, payeeDest);
-                        CBitcoinAddress payeeAddr(payeeDest);
 
-                        if(addr.ToString() == payeeAddr.ToString()) {
-                            its_znode_payment = true;
+                    if (!omitNmPayments) {
+                        std::vector<CTxOut> voutMasternodePaymentsRet;
+                        mnpayments.GetBlockTxOuts(txHeight, CAmount(), voutMasternodePaymentsRet);
+                        //compare address of payee to addr.
+                        for(CTxOut const & out : voutMasternodePaymentsRet) {
+                            CTxDestination payeeDest;
+                            ExtractDestination(out.scriptPubKey, payeeDest);
+                            CBitcoinAddress payeeAddr(payeeDest);
+
+                            if(addr.ToString() == payeeAddr.ToString()) {
+                                its_znode_payment = true;
+                            }
                         }
                     }
                     if(its_znode_payment){
@@ -1629,7 +1631,7 @@ UniValue listtransactions(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() > 4)
+    if (request.fHelp || request.params.size() > 5)
         throw runtime_error(
             "listtransactions ( \"account\" count skip include_watchonly)\n"
             "\nReturns up to 'count' most recent transactions skipping the first 'from' transactions for account 'account'.\n"
@@ -1638,6 +1640,7 @@ UniValue listtransactions(const JSONRPCRequest& request)
             "2. count          (numeric, optional, default=10) The number of transactions to return\n"
             "3. skip           (numeric, optional, default=0) The number of transactions to skip\n"
             "4. include_watchonly (bool, optional, default=false) Include transactions to watch-only addresses (see 'importaddress')\n"
+            "5. skip_mnout_check  (bool, optional, default=false) Skip checking for masternode payment txout (improves performance)\n"
             "\nResult:\n"
             "[\n"
             "  {\n"
@@ -1704,6 +1707,9 @@ UniValue listtransactions(const JSONRPCRequest& request)
     if(request.params.size() > 3)
         if(request.params[3].get_bool())
             filter = filter | ISMINE_WATCH_ONLY;
+    bool omitNmPayments = false;
+    if(request.params.size() > 4)
+        omitNmPayments = request.params[4].get_bool();
 
     if (nCount < 0)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative count");
@@ -1719,7 +1725,7 @@ UniValue listtransactions(const JSONRPCRequest& request)
     {
         CWalletTx *const pwtx = (*it).second.first;
         if (pwtx != 0)
-            ListTransactions(pwallet, *pwtx, strAccount, 0, true, ret, filter);
+            ListTransactions(pwallet, *pwtx, strAccount, 0, true, ret, filter, omitNmPayments);
         CAccountingEntry *const pacentry = (*it).second.second;
         if (pacentry != 0)
             AcentryToJSON(*pacentry, strAccount, ret);
@@ -1928,7 +1934,7 @@ UniValue listsinceblock(const JSONRPCRequest& request)
         CWalletTx tx = pairWtx.second;
 
         if (depth == -1 || tx.GetDepthInMainChain() < depth)
-            ListTransactions(pwallet, tx, "*", 0, true, transactions, filter);
+            ListTransactions(pwallet, tx, "*", 0, true, transactions, filter, false);
     }
 
     CBlockIndex *pblockLast = chainActive[chainActive.Height() + 1 - target_confirms];
@@ -2024,7 +2030,7 @@ UniValue gettransaction(const JSONRPCRequest& request)
     WalletTxToJSON(wtx, entry);
 
     UniValue details(UniValue::VARR);
-    ListTransactions(pwallet, wtx, "*", 0, false, details, filter);
+    ListTransactions(pwallet, wtx, "*", 0, false, details, filter, false);
     entry.push_back(Pair("details", details));
 
     string strHex = EncodeHexTx(static_cast<CTransaction>(wtx), RPCSerializationFlags());

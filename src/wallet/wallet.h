@@ -950,26 +950,14 @@ public:
         const CAmount amountLimit = MAX_MONEY,
         const CCoinControl *coinControl = NULL) const;
 
-    /** \brief Select coins to joinsplit (preferentially selecting Sigma coins), calculating txFee and changeAmount.
-     *
-     * @param[in] nRecipients the number of P2SH recipients
-     * @param[in] required
-     * @param[in] subtractFeeFromAmount
-     * @param[in] coinControl
-     * @param[out] sigmaCoinsToSpend
-     * @param[out] lelantusCoinsToSpend
-     * @param[out] txFee
-     * @param[out] changeAmount
-     */
-    void GetCoinsToJoinSplit(
-        unsigned nRecipients,
-        CAmount required,
-        bool subtractFeeFromAmount,
-        CCoinControl& coinControl,
-        std::vector<CMintMeta>& sigmaCoinsToSpend,
-        std::vector<CLelantusMintMeta>& lelantusCoinsToSpend,
-        CAmount& txFee,
-        CAmount& changeAmount);
+    bool GetCoinsToJoinSplit(
+            CAmount required,
+            std::vector<CLelantusEntry>& coinsToSpend_out,
+            CAmount& changeToMint,
+            std::list<CLelantusEntry> coins,
+            const size_t coinsToSpendLimit = SIZE_MAX,
+            const CAmount amountToSpendLimit = MAX_MONEY,
+            const CCoinControl *coinControl = NULL) const;
 
     /**
      * Insert additional inputs into the transaction by
@@ -985,10 +973,10 @@ public:
     bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, int nExtraPayloadSize = 0);
 
-    bool IsSigmaMintFromTxOutAvailable(CTxOut txout);
-
+    /**
+     * Add zerocoin Mint and Spend function
+     */
     void ListAvailableCoinsMintCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true) const;
-
     void ListAvailableSigmaMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const;
     void ListAvailableLelantusMintCoins(vector<COutput> &vCoins, bool fOnlyConfirmed) const;
 
@@ -1009,8 +997,7 @@ public:
         std::vector<CSigmaEntry>& selected,
         std::vector<CHDMint>& changes,
         bool& fChangeAddedToFee,
-        const CCoinControl *coinControl = NULL,
-        bool fDummy = false);
+        const CCoinControl *coinControl = NULL);
 
     CWalletTx CreateLelantusJoinSplitTransaction(
         const std::vector<CRecipient>& recipients,
@@ -1032,7 +1019,6 @@ public:
 
     std::string MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string MintAndStoreZerocoin(vector<CRecipient> vecSend, vector<libzerocoin::PrivateCoin> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
-
     std::string MintAndStoreSigma(
         const vector<CRecipient>& vecSend,
         const vector<sigma::PrivateCoin>& privCoins,
@@ -1056,6 +1042,8 @@ public:
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 
     void JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result);
+
+    std::pair<CAmount, unsigned int> EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, const CCoinControl *coinControl);
 
     bool GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin, bool forEstimation = false) const;
 

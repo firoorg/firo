@@ -50,7 +50,7 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
                     (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
             }
         }
-        else if (nDepth < 6)
+        else if (nDepth < TransactionRecord::RecommendedNumConfirmations)
             return tr("%1/unconfirmed").arg(nDepth);
         else
             return tr("%1 confirmations").arg(nDepth);
