@@ -15,6 +15,7 @@
 #include "definition.h"
 #include "crypto/MerkleTreeProof/mtp.h"
 #include "zerocoin_params.h"
+#include "crypto/progpow.h"
 
 // Can't include sigma.h
 namespace sigma {
@@ -245,6 +246,7 @@ public:
     bool IsProgPow() const;
 
     uint256 GetProgPowHeaderHash() const;
+    uint256 GetProgPowHashFull(uint256& mix_hash) const;
 
 };
 

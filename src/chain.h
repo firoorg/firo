@@ -309,21 +309,18 @@ public:
         hashMerkleRoot = block.hashMerkleRoot;
         nTime          = block.nTime;
         nBits          = block.nBits;
+        nNonce         = block.nNonce;
 
         if (block.IsProgPow()) {
             nHeight    = block.nHeight;
             nNonce64   = block.nNonce64;
             mix_hash   = block.mix_hash;
-        } else {
-            nNonce     = block.nNonce;
-            if (block.IsMTP()) {
+        } else if (block.IsMTP()) {
                 nVersionMTP = block.nVersionMTP;
                 mtpHashValue = block.mtpHashValue;
                 reserved[0] = block.reserved[0];
                 reserved[1] = block.reserved[1];
-            }
         }
-
     }
 
     CDiskBlockPos GetBlockPos() const {

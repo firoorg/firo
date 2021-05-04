@@ -12,7 +12,7 @@
 
 #include <sstream>
 
-std::pair<uint256,uint256> progpow_hash_full(const CBlockHeader& header)
+uint256 progpow_hash_full(const CBlockHeader& header, uint256& mix_hash)
 {
     static ethash::epoch_context_ptr epochContext{nullptr,nullptr};
 
@@ -26,7 +26,8 @@ std::pair<uint256,uint256> progpow_hash_full(const CBlockHeader& header)
     }
     
     const auto result = progpow::hash(*epochContext, header.nHeight, header_hash, header.nNonce64);
-    return {uint256S(to_hex(result.final_hash)), uint256S(to_hex(result.mix_hash))};
+    mix_hash = uint256S(to_hex(result.mix_hash));
+    return uint256S(to_hex(result.final_hash));
 }
 
 uint256 progpow_hash_light(const CBlockHeader& header) 
