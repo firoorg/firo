@@ -1116,8 +1116,8 @@ void static FiroMiner(const CChainParams &chainparams) {
 
             while (true) {
                 // Check if something found
-                uint256 thash();
-                uint256 mix_hash();
+                uint256 thash;
+                uint256 mix_hash;
 
                 while (true) {
                     if (pblock->IsProgPow()) {
