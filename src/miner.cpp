@@ -1154,14 +1154,15 @@ void static FiroMiner(const CChainParams &chainparams) {
                     boost::this_thread::interruption_point();
 
                     //LogPrintf("*****\nhash   : %s  \ntarget : %s\n", UintToArith256(thash).ToString(), hashTarget.ToString());
-                    if (UintToArith256(thash) <= hashTarget) {
+                    auto powTarget = UintToArith256(thash);
+                    if (powTarget <= hashTarget) {
                         pblock->mix_hash = mix_hash; // Store ProgPoW mix_hash
                         // Found a solution
-                        LogPrintf("Found a solution. Hash: %s", UintToArith256(thash).ToString());
+                        LogPrintf("Found a solution. Hash: %s", powTarget.ToString());
                         SetThreadPriority(THREAD_PRIORITY_NORMAL);
 //                        CheckWork(pblock, *pwallet, reservekey);
                         LogPrintf("FiroMiner:\n");
-                        LogPrintf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", thash.ToString(), hashTarget.ToString());
+                        LogPrintf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", powTarget.ToString(), hashTarget.ToString());
                         ProcessBlockFound(pblock, chainparams);
                         SetThreadPriority(THREAD_PRIORITY_LOWEST);
                         coinbaseScript->KeepScript();
