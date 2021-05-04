@@ -68,6 +68,10 @@ uint256 CBlockHeader::GetProgPowHeaderHash() const
     return SerializeHash(input);
 }
 
+uint256 CBlockHeader::GetProgPowHashFull(uint256& mix_hash) const {
+    return progpow_hash_full(*this, mix_hash);
+}
+
 uint256 CBlockHeader::GetPoWHash(int nHeight) const {
     if (!cachedPoWHash.IsNull())
         return cachedPoWHash;
@@ -112,12 +116,12 @@ uint256 CBlockHeader::GetPoWHash(int nHeight) const {
 
 std::string CBlock::ToString() const {
     std::stringstream s;
-    s << strprintf("CBlock(hash=%s, ver=0x%08x, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%u)\n",
+    s << strprintf("CBlock(hash=%s, ver=0x%08x, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, nNonce64=%u, vtx=%u)\n",
         GetHash().ToString(),
         nVersion,
         hashPrevBlock.ToString(),
         hashMerkleRoot.ToString(),
-        nTime, nBits, nNonce,
+        nTime, nBits, nNonce, nNonce64,
         vtx.size());
     for (unsigned int i = 0; i < vtx.size(); i++)
     {
