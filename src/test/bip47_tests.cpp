@@ -11,7 +11,7 @@
 
 #include "key.h"
 #include "utilstrencodings.h"
-#include <bip47/utils.h>
+#include <bip47/bip47utils.h>
 #include <bip47/secretpoint.h>
 #include <bip47/account.h>
 #include "wallet/wallet.h"

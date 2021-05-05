@@ -1,7 +1,7 @@
 #include "bip47/paymentchannel.h"
-#include "bip47/utils.h"
+#include "bip47/bip47utils.h"
 #include "bip47/address.h"
-#include "bip47/utils.h"
+#include "bip47/bip47utils.h"
 #include "bip47/secretpoint.h"
 #include "wallet/wallet.h"
 

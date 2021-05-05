@@ -1,6 +1,6 @@
 #include <vector>
 
-#include "bip47/utils.h"
+#include "bip47/bip47utils.h"
 #include "bip47/paymentcode.h"
 #include "secretpoint.h"
 #include "primitives/transaction.h"

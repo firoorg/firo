@@ -17,7 +17,7 @@
 #include "util.h"
 #include "wallet/db.h"
 #include "wallet/wallet.h"
-#include "bip47/utils.h"
+#include "bip47/bip47utils.h"
 
 #include <stdint.h>
 #include <string>

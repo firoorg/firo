@@ -1,5 +1,5 @@
 #include "bip47/address.h"
-#include "bip47/utils.h"
+#include "bip47/bip47utils.h"
 
 namespace bip47 {
 

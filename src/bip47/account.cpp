@@ -4,7 +4,7 @@
 #include "bip47/account.h"
 #include "bip47/paymentcode.h"
 #include "util.h"
-#include "bip47/utils.h"
+#include "bip47/bip47utils.h"
 #include "wallet/wallet.h"
 #include "lelantus.h"
 

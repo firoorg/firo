@@ -1,7 +1,7 @@
 #ifndef BIP47_TEST_DATA_H
 #define BIP47_TEST_DATA_H
 
-#include "bip47/utils.h"
+#include "bip47/bip47utils.h"
 
 namespace {
 namespace alice {

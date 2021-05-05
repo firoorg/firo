@@ -294,7 +294,7 @@ BITCOIN_CORE_H = \
   bip47/account.h \
   bip47/address.h \
   bip47/paymentchannel.h \
-  bip47/utils.h \
+  bip47/bip47utils.h \
   bip47/paymentcode.h \
   bip47/secretpoint.h \
   sigma.h \
@@ -505,7 +505,7 @@ libbitcoin_wallet_a_SOURCES = \
   bip47/account.cpp \
   bip47/address.cpp \
   bip47/paymentchannel.cpp \
-  bip47/utils.cpp \
+  bip47/bip47utils.cpp \
   bip47/paymentcode.cpp \
   bip47/secretpoint.cpp \
   primitives/mint_spend.cpp \

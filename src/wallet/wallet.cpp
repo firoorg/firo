@@ -56,7 +56,7 @@
 
 #include "bip47/account.h"
 #include "bip47/paymentcode.h"
-#include "bip47/utils.h"
+#include "bip47/bip47utils.h"
 
 using namespace std;
 

@@ -1,7 +1,7 @@
 #include "sigma/coin.h"
 #include "bip47/secretpoint.h"
 #include "sigma/openssl_context.h"
-#include "bip47/utils.h"
+#include "bip47/bip47utils.h"
 #include "utilstrencodings.h"
 
 

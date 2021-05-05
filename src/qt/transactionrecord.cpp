@@ -12,7 +12,7 @@
 #include "validation.h"
 #include "timedata.h"
 #include "wallet/wallet.h"
-#include "bip47/utils.h"
+#include "bip47/bip47utils.h"
 
 #include <stdint.h>
 
