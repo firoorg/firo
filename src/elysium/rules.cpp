@@ -124,7 +124,7 @@ CMainConsensusParams::CMainConsensusParams()
  */
 CTestNetConsensusParams::CTestNetConsensusParams()
 {
-    GENESIS_BLOCK = 87000;
+    GENESIS_BLOCK = 29000;
 
     // Notice range for feature activations:
     MIN_ACTIVATION_BLOCKS = 0;
@@ -146,17 +146,17 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     ELYSIUM_MANUALSP_BLOCK = 0;
     ELYSIUM_STO_BLOCK = 0;
     ELYSIUM_SEND_ALL_BLOCK = 0;
-    ELYSIUM_STOV1_BLOCK = 999999;
+    ELYSIUM_STOV1_BLOCK = 29000;
 
     // Other feature activations:
     GRANTEFFECTS_FEATURE_BLOCK = 0;
-    FREEZENOTICE_FEATURE_BLOCK = 999999;
+    FREEZENOTICE_FEATURE_BLOCK = 29000;
 
     // Lelantus related
-    LELANTUS_FEATURE_BLOCK = 9999999;
+    LELANTUS_FEATURE_BLOCK = 29000;
 
     // Property creation fee
-    PROPERTY_CREATION_FEE_BLOCK = 100000;
+    PROPERTY_CREATION_FEE_BLOCK = 29000;
     PROPERTY_CREATION_FEE = 10 * COIN;
     PROPERTY_CREATION_FEE_RECEIVER.SetString("TKPbcG9QVLSfNvrtowQ7GzEEXq4zPjkej6");
 }
