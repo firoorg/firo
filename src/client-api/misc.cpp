@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "clientversion.h"
 #include "validation.h"
 #include "init.h"
 #include "util.h"
@@ -146,7 +147,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     modules.push_back(Pair("API", !APIIsInWarmup()));
     modules.push_back(Pair("Masternode", masternodeSync.IsSynced()));
 
-    obj.push_back(Pair("version", CLIENT_VERSION));
+    obj.push_back(Pair("version", CLIENT_BUILD));
     obj.push_back(Pair("protocolVersion", PROTOCOL_VERSION));
     if (pwalletMain) {
         obj.push_back(Pair("walletVersion", pwalletMain->GetVersion()));
