@@ -332,12 +332,12 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "listblocktransactions_MP", 0 },
 	{ "getorderbook_MP", 0 },
 	{ "getorderbook_MP", 1 },
-	{ "trade_MP", 1 }, // depreciated
-	{ "trade_MP", 3 }, // depreciated
-	{ "trade_MP", 5 }, // depreciated
+	{ "trade_MP", 1 }, // deprecated
+	{ "trade_MP", 3 }, // deprecated
+	{ "trade_MP", 5 }, // deprecated
 
     /* Evo spork */
-    { "spork", 2, "features"},
+    { "spork", 2, "features"}
 };
 
 class CRPCConvertTable
