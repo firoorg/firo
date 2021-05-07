@@ -14,6 +14,7 @@
 #include "uint256.h"
 #include "definition.h"
 #include "crypto/MerkleTreeProof/mtp.h"
+#include "crypto/progpow.h"
 #include "firo_params.h"
 #include "crypto/progpow.h"
 
