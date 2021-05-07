@@ -18,23 +18,29 @@ public:
     JoinSplit(const Params* p,
               const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin,
               const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+              const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
               const Scalar& Vout,
               const std::vector<PrivateCoin>& Cout,
               uint64_t fee,
               const std::map<uint32_t, uint256>& groupBlockHashes,
-              const uint256& txHash);
+              const uint256& txHash,
+              unsigned int nVersion);
 
     bool Verify(const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+                const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
                 const std::vector<PublicCoin>& Cout,
                 uint64_t Vout,
                 const uint256& txHash) const;
 
     bool Verify(const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+                const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
                 const std::vector<PublicCoin>& Cout,
                 uint64_t Vout,
                 const uint256& txHash,
                 Scalar& challenge,
                 bool fSkipVerification = false) const;
+
+    void generatePubKeys(const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin);
 
     void signMetaData(const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin, const SpendMetaData& m, size_t coutSize);
 
@@ -61,6 +67,8 @@ public:
     bool getIndex(const PublicCoin& coin, const std::vector<PublicCoin>& anonymity_set, size_t& index);
 
     bool HasValidSerials() const;
+
+    bool isSigmaToLelantus() const;
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
@@ -97,6 +105,9 @@ public:
         READWRITE(fee);
         READWRITE(version);
 
+        if (version >= LELANTUS_TX_VERSION_4_5)
+            READWRITE(qkSchnorrProof);
+
         if (ser_action.ForRead()) {
             serialNumbers.resize(coinNum);
             for(size_t i = 0; i < coinNum; i++) {
@@ -114,6 +125,7 @@ private:
     const Params* params;
     unsigned int version = 0;
     LelantusProof lelantusProof;
+    SchnorrProof qkSchnorrProof;
     uint8_t coinNum;
     std::vector<Scalar> serialNumbers;
     std::vector<uint32_t> groupIds;

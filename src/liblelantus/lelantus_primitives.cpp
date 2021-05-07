@@ -1,24 +1,35 @@
 #include "lelantus_primitives.h"
-#include "challenge_generator.h"
+#include "challenge_generator_impl.h"
 
 namespace lelantus {
+
+static std::string lts("LELANTUS_SIGMA");
     
 void LelantusPrimitives::generate_challenge(
         const std::vector<GroupElement>& group_elements,
+        const std::string& domain_separator,
         Scalar& result_out) {
     if (group_elements.empty())
         throw std::runtime_error("Group elements empty while generating a challenge.");
 
-    ChallengeGenerator challengeGenerator;
-    challengeGenerator.add(group_elements);
-    challengeGenerator.get_challenge(result_out);
+    std::unique_ptr<ChallengeGenerator> challengeGenerator;
+    if (domain_separator != "") {
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
+        std::vector<unsigned char> pre(domain_separator.begin(), domain_separator.end());
+        challengeGenerator->add(pre);
+    } else {
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>(0);
+    }
+
+    challengeGenerator->add(group_elements);
+    challengeGenerator->get_challenge(result_out);
 }
 
 void LelantusPrimitives::commit(const GroupElement& g,
-                                                        const std::vector<GroupElement>& h,
-                                                        const std::vector<Scalar>& exp,
-                                                        const Scalar& r,
-                                                        GroupElement& result_out) {
+                                const std::vector<GroupElement>& h,
+                                const std::vector<Scalar>& exp,
+                                const Scalar& r,
+                                GroupElement& result_out) {
     secp_primitives::MultiExponent mult(h, exp);
     result_out = g * r + mult.get_multiple();
 }
@@ -80,28 +91,47 @@ std::vector<uint64_t> LelantusPrimitives::convert_to_nal(
 
 void  LelantusPrimitives::generate_Lelantus_challenge(
         const std::vector<SigmaExtendedProof>& proofs,
+        const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
+        const std::vector<Scalar>& serialNumbers,
+        const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
         const std::vector<GroupElement>& Cout,
+        unsigned int version,
+        unique_ptr<ChallengeGenerator>& challengeGenerator,
         Scalar& result_out) {
 
     result_out = uint64_t(1);
 
-    ChallengeGenerator challengeGenerator;
-    if(Cout.size() > 0) {
-        for(auto coin : Cout)
-            challengeGenerator.add(coin);
+    // starting from LELANTUS_TX_VERSION_4_5 we are using CHash256, and adding domain separator, version, pubkeys and serials into it
+    if (version >= LELANTUS_TX_VERSION_4_5) {
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
+        std::string domainSeparator = lts + std::to_string(version);
+        std::vector<unsigned char> pre(domainSeparator.begin(), domainSeparator.end());
+        challengeGenerator->add(pre);
+        for (const auto& hash : anonymity_set_hashes)
+            challengeGenerator->add(hash);
+        for (const auto& pubkey : ecdsaPubkeys)
+            challengeGenerator->add(pubkey);
+        challengeGenerator->add(serialNumbers);
+    } else {
+        challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>(0);
+    }
+
+    if (Cout.size() > 0) {
+        for (auto coin : Cout)
+            challengeGenerator->add(coin);
     }
 
     if (proofs.size() > 0) {
         for (std::size_t i = 0; i < proofs.size(); ++i) {
-            challengeGenerator.add(proofs[i].A_);
-            challengeGenerator.add(proofs[i].B_);
-            challengeGenerator.add(proofs[i].C_);
-            challengeGenerator.add(proofs[i].D_);
-            challengeGenerator.add(proofs[i].Gk_);
-            challengeGenerator.add(proofs[i].Qk);
+            challengeGenerator->add(proofs[i].A_);
+            challengeGenerator->add(proofs[i].B_);
+            challengeGenerator->add(proofs[i].C_);
+            challengeGenerator->add(proofs[i].D_);
+            challengeGenerator->add(proofs[i].Gk_);
+            challengeGenerator->add(proofs[i].Qk);
         }
 
-        challengeGenerator.get_challenge(result_out);
+        challengeGenerator->get_challenge(result_out);
     }
 }
 
@@ -110,7 +140,7 @@ void LelantusPrimitives::new_factor(
         const Scalar& a,
         std::vector<Scalar>& coefficients) {
     if(coefficients.empty())
-        throw ZerocoinException("Coefficients if empty.");
+        throw std::runtime_error("Empty coefficients array.");
 
     std::size_t degree = coefficients.size();
     coefficients.push_back(x * coefficients[degree-1]);

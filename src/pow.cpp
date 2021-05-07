@@ -13,7 +13,7 @@
 #include <iostream>
 #include "util.h"
 #include "chainparams.h"
-#include "libzerocoin/bitcoin_bignum/bignum.h"
+#include "bitcoin_bignum/bignum.h"
 #include "utilstrencodings.h"
 #include "crypto/MerkleTreeProof/mtp.h"
 #include "mtpstate.h"

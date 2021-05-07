@@ -5,7 +5,7 @@
 #ifndef FIRO_HDMINT_H
 #define FIRO_HDMINT_H
 
-#include "primitives/zerocoin.h"
+#include "primitives/mint_spend.h"
 #include "sigma.h"
 
 /**

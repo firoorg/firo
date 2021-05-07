@@ -99,16 +99,16 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(CWalletDB& wal
 
     //Is locked
     if (pwalletMain->IsLocked())
-        throw ZerocoinException("Error: Please enter the wallet passphrase with walletpassphrase first.");
+        throw std::runtime_error("Error: Please enter the wallet passphrase with walletpassphrase first.");
 
     uint512 mintSeed;
     if(!CreateMintSeed(walletdb, mintSeed, nCount, seedId))
-        throw ZerocoinException("Unable to create seed for mint regeneration.");
+        throw std::runtime_error("Unable to create seed for mint regeneration.");
 
     GroupElement commitmentValue;
     sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
     if(!SeedToMint(mintSeed, commitmentValue, coin)) //for lelantus put just part of commit, for checking we will need to reduce h1^v from lelantus mint
-        throw ZerocoinException("Unable to create sigmamint from seed in mint regeneration.");
+        throw std::runtime_error("Unable to create sigmamint from seed in mint regeneration.");
 
     uint256 hashPubcoin = primitives::GetPubCoinValueHash(commitmentValue);
     uint256 hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
@@ -538,6 +538,7 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
     GroupElement bnValue;
     uint256 hashSerial;
     // Can regenerate if unlocked (cheaper)
+    Scalar serial;
     if(!pwalletMain->IsLocked()) {
         LogPrintf("%s: Wallet not locked, creating mind seed..\n", __func__);
         uint512 mintSeed;
@@ -547,6 +548,7 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
             return false;
         hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
         bnValue = coin.getPublicCoin().getValue();
+        serial = coin.getSerialNumber();
     } else {
         LogPrintf("%s: Wallet locked, retrieving mind seed..\n", __func__);
         // Get serial and pubcoin data from the db
@@ -585,6 +587,7 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
     int nHeightTx;
     uint256 txidSpend;
     CTransactionRef txSpend;
+    bool used = false;
     if (IsLelantusSerialInBlockchain(hashSerial, nHeightTx, txidSpend, txSpend)) {
         //Find transaction details and make a wallettx and add to wallet
         LogPrintf("%s: Mint object is spent. Setting used..\n", __func__);
@@ -597,12 +600,28 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
 
         wtx.nTimeReceived = pindex->nTime;
         pwalletMain->AddToWallet(wtx, false);
+        used = true;
     } else {
         lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
         // this is for some edge cases, when mint is used but the serial is not at map
         Scalar s;
         if (lelantusState->IsUsedCoinSerialHash(s, hashSerial)) {
             dMint.SetUsed(true);
+            serial = s;
+            used = true;
+        }
+    }
+
+    // Adding spend entry into db,
+    if(used && (serial != uint64_t(0))) {
+        CLelantusSpendEntry spend;
+        spend.coinSerial = serial;
+        spend.pubCoin = bnValue;
+        spend.id = id;
+        spend.amount = amount;
+
+        if (!walletdb.WriteLelantusSpendSerialEntry(spend)) {
+            throw std::runtime_error(_("Failed to write coin serial number into wallet"));
         }
     }
 
@@ -713,7 +732,7 @@ CKeyID CHDMintWallet::GetMintSeedID(CWalletDB& walletdb, int32_t nCount){
         GenerateMintPool(walletdb, nCount);
         if(!mintPool.Get(nCount, hashSeedMaster, mintPoolEntryPair)){
             ResetCount(walletdb);
-            throw ZerocoinException("Unable to retrieve mint seed ID");
+            throw std::runtime_error("Unable to retrieve mint seed ID");
         }
     }
 
@@ -751,7 +770,7 @@ bool CHDMintWallet::CreateMintSeed(CWalletDB& walletdb, uint512& mintSeed, const
             pubKey = pwalletMain->GetKeyFromKeypath(BIP44_MINT_INDEX, nCount, secret);
         }
         else{
-            throw ZerocoinException("Unable to retrieve mint seed ID (internal index greater than HDChain index). \n"
+            throw std::runtime_error("Unable to retrieve mint seed ID (internal index greater than HDChain index). \n"
                                     "We recommend restarting with -zapwalletmints.");
         }
         seedId = pubKey.GetID();
@@ -759,7 +778,7 @@ bool CHDMintWallet::CreateMintSeed(CWalletDB& walletdb, uint512& mintSeed, const
 
     if (!pwalletMain->CCryptoKeyStore::GetKey(seedId, key)){
         ResetCount(walletdb);
-        throw ZerocoinException("Unable to retrieve generated key for mint seed. Is the wallet locked?");
+        throw std::runtime_error("Unable to retrieve generated key for mint seed. Is the wallet locked?");
     }
 
     // HMAC-SHA512(SHA256(count),key)
@@ -898,7 +917,7 @@ bool CHDMintWallet::GetLelantusHDMintFromMintPoolEntry(CWalletDB& walletdb, lela
 bool CHDMintWallet::GenerateMint(CWalletDB& walletdb, const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry, bool fAllowUnsynced)
 {
     if (!masternodeSync.IsBlockchainSynced() && !fAllowUnsynced && !(Params().NetworkIDString() == CBaseChainParams::REGTEST))
-        throw ZerocoinException("Unable to generate mint: Blockchain not yet synced.");
+        throw std::runtime_error("Unable to generate mint: Blockchain not yet synced.");
 
     if(mintPoolEntry!=boost::none)
         return GetHDMintFromMintPoolEntry(walletdb, denom, coin, dMint, mintPoolEntry.get());
@@ -906,7 +925,7 @@ bool CHDMintWallet::GenerateMint(CWalletDB& walletdb, const sigma::CoinDenominat
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     while(true){
         if(hashSeedMaster.IsNull())
-            throw ZerocoinException("Unable to generate mint: HashSeedMaster not set");
+            throw std::runtime_error("Unable to generate mint: HashSeedMaster not set");
         CKeyID seedId = GetMintSeedID(walletdb, nCountNextUse);
         mintPoolEntry = MintPoolEntry(hashSeedMaster, seedId, nCountNextUse);
         // Empty mintPoolEntry implies this is a new mint being created, so update nCountNextUse
@@ -951,7 +970,7 @@ bool CHDMintWallet::GenerateMint(CWalletDB& walletdb, const sigma::CoinDenominat
 bool CHDMintWallet::GenerateLelantusMint(CWalletDB& walletdb, lelantus::PrivateCoin& coin, CHDMint& dMint, uint160& seedIdOut, boost::optional<MintPoolEntry> mintPoolEntry, bool fAllowUnsynced)
 {
     if(!masternodeSync.IsBlockchainSynced() && !fAllowUnsynced && !(Params().NetworkIDString() == CBaseChainParams::REGTEST))
-        throw ZerocoinException("Unable to generate mint: Blockchain not yet synced.");
+        throw std::runtime_error("Unable to generate mint: Blockchain not yet synced.");
 
     if(mintPoolEntry!=boost::none)
         return GetLelantusHDMintFromMintPoolEntry(walletdb, coin, dMint, mintPoolEntry.get());
@@ -959,7 +978,7 @@ bool CHDMintWallet::GenerateLelantusMint(CWalletDB& walletdb, lelantus::PrivateC
     lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
     while(true) {
         if(hashSeedMaster.IsNull())
-            throw ZerocoinException("Unable to generate mint: HashSeedMaster not set");
+            throw std::runtime_error("Unable to generate mint: HashSeedMaster not set");
         CKeyID seedId = GetMintSeedID(walletdb, nCountNextUse);
         seedIdOut = seedId;
         mintPoolEntry = MintPoolEntry(hashSeedMaster, seedId, nCountNextUse);

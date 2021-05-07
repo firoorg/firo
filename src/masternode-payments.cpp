@@ -247,14 +247,6 @@ bool CMasternodePayments::GetBlockTxOuts(int nBlockHeight, CAmount blockReward, 
     return true;
 }
 
-bool CMasternodePayments::GetBlockTxOutsWipeCache(int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& voutMasternodePaymentsRet) const
-{
-    bool result = GetBlockTxOuts(nBlockHeight, blockReward, voutMasternodePaymentsRet);
-    AssertLockHeld(cs_main);
-    deterministicMNManager->CleanupCache(chainActive.Height());
-    return result;
-}
-
 // Is this masternode scheduled to get paid soon?
 // -- Only look ahead up to 8 blocks to allow for propagation of the latest 2 blocks of votes
 bool CMasternodePayments::IsScheduled(const CDeterministicMNCPtr& dmnIn, int nNotBlockHeight) const

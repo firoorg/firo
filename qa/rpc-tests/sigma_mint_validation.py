@@ -69,7 +69,9 @@ class SigmaMintValidationWithFundsTest(BitcoinTestFramework):
     def run_test(self):
         # Decimal formating: 6 digits for balance will be enought 000.000
         getcontext().prec = 6
-        self.nodes[0].generate(400)
+        self.nodes[0].generate(150)
+        self.sync_all()
+
         for input_data, exp_err in zip(validation_inputs_no_funds, post_outputs_no_funds):
             case_name, denom = input_data
             exp_code, exp_msg = exp_err

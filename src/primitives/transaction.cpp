@@ -231,6 +231,10 @@ bool CTransaction::IsZerocoinRemint() const
     return false;
 }
 
+bool CTransaction::HasNoRegularInputs() const {
+    return IsZerocoinSpend() || IsSigmaSpend() || IsZerocoinRemint() || IsLelantusJoinSplit();
+}
+
 unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const
 {
     // In order to avoid disincentivizing cleaning up the UTXO set we don't count

@@ -6,12 +6,13 @@
 #include "chainparams.h"
 #include "consensus/merkle.h"
 #include "consensus/consensus.h"
-#include "zerocoin_params.h"
+#include "firo_params.h"
 
 #include "tinyformat.h"
 #include "util.h"
 #include "utilstrencodings.h"
-#include "libzerocoin/bitcoin_bignum/bignum.h"
+#include "bitcoin_bignum/bignum.h"
+#include "blacklists.h"
 
 #include <assert.h>
 
@@ -377,6 +378,7 @@ public:
         consensus.nRestartSigmaWithBlacklistCheck = 296900;
         consensus.nOldSigmaBanBlock = ZC_OLD_SIGMA_BAN_BLOCK;
         consensus.nLelantusStartBlock = ZC_LELANTUS_STARTING_BLOCK;
+        consensus.nLelantusFixesStartBlock = ZC_LELANTUS_FIXES_START_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD;
@@ -391,6 +393,12 @@ public:
         consensus.nMaxValueLelantusSpendPerTransaction = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
         consensus.nZerocoinToSigmaRemintWindowSize = 50000;
+
+        for (const auto& str : lelantus::lelantus_blacklist) {
+            GroupElement coin;
+            coin.deserialize(ParseHex(str).data());
+            consensus.lelantusBlacklist.insert(coin);
+        }
 
         consensus.evoSporkKeyID = "a78fERshquPsTv2TuKMSsxTeKom56uBwLP";
         consensus.nEvoSporkStartBlock = ZC_LELANTUS_STARTING_BLOCK;
@@ -627,6 +635,7 @@ public:
         consensus.nOldSigmaBanBlock = 1;
 
         consensus.nLelantusStartBlock = ZC_LELANTUS_TESTNET_STARTING_BLOCK;
+        consensus.nLelantusFixesStartBlock = ZC_LELANTUS_TESTNET_FIXES_START_BLOCK;
 
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
@@ -642,6 +651,12 @@ public:
         consensus.nMaxValueLelantusSpendPerTransaction = 1001 * COIN;
         consensus.nMaxValueLelantusMint = 1001 * COIN;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
+
+        for (const auto& str : lelantus::lelantus_testnet_blacklist) {
+            GroupElement coin;
+            coin.deserialize(ParseHex(str).data());
+            consensus.lelantusBlacklist.insert(coin);
+        }
 
         consensus.evoSporkKeyID = "TWSEa1UsZzDHywDG6CZFDNdeJU6LzhbbBL";
         consensus.nEvoSporkStartBlock = 22000;
@@ -826,17 +841,18 @@ public:
         nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
 
         // Sigma related values.
-        consensus.nSigmaStartBlock = 400;
+        consensus.nSigmaStartBlock = 100;
         consensus.nSigmaPaddingBlock = 1;
         consensus.nDisableUnpaddedSigmaBlock = 1;
         consensus.nStartSigmaBlacklist = INT_MAX;
         consensus.nRestartSigmaWithBlacklistCheck = INT_MAX;
-        consensus.nOldSigmaBanBlock = 450;
-        consensus.nLelantusStartBlock = 1000;
-        consensus.nZerocoinV2MintMempoolGracefulPeriod = 2;
-        consensus.nZerocoinV2MintGracefulPeriod = 5;
-        consensus.nZerocoinV2SpendMempoolGracefulPeriod = 10;
-        consensus.nZerocoinV2SpendGracefulPeriod = 20;
+        consensus.nOldSigmaBanBlock = 1;
+        consensus.nLelantusStartBlock = 400;
+        consensus.nLelantusFixesStartBlock = 400;
+        consensus.nZerocoinV2MintMempoolGracefulPeriod = 1;
+        consensus.nZerocoinV2MintGracefulPeriod = 1;
+        consensus.nZerocoinV2SpendMempoolGracefulPeriod = 1;
+        consensus.nZerocoinV2SpendGracefulPeriod = 1;
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
         consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
         consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;

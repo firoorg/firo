@@ -98,22 +98,6 @@ public:
                                   QString::fromStdString(strName),
                                   QString::fromStdString(address.ToString())));
             }
-            //[firo] add load pubcoin
-            std::list<CZerocoinEntry> listPubcoin;
-            CWalletDB(wallet->strWalletFile).ListPubCoin(listPubcoin);
-            BOOST_FOREACH(const CZerocoinEntry& item, listPubcoin)
-            {
-                if(item.randomness != 0 && item.serialNumber != 0){
-                    const std::string& pubCoin = item.value.GetHex();
-                    // const std::string& isUsed = item.IsUsed ? "Used" : "New";
-                    const std::string& isUsedDenomStr = item.IsUsed
-                            ? "Used (" + std::to_string(item.denomination) + " mint)"
-                            : "New (" + std::to_string(item.denomination) + " mint)";
-                    cachedAddressTable.append(AddressTableEntry(AddressTableEntry::Zerocoin,
-                                                                QString::fromStdString(isUsedDenomStr),
-                                                                QString::fromStdString(pubCoin)));
-                }
-            }
         }
         // qLowerBound() and qUpperBound() require our cachedAddressTable list to be sorted in asc order
         // Even though the map is already sorted this re-sorting step is needed because the originating map
@@ -518,28 +502,4 @@ int AddressTableModel::lookupAddress(const QString &address) const
 void AddressTableModel::emitDataChanged(int idx)
 {
     Q_EMIT dataChanged(index(idx, 0, QModelIndex()), index(idx, columns.length()-1, QModelIndex()));
-}
-
-bool AddressTableModel::zerocoinMint(string &stringError, string denomAmount)
-{
-    WalletModel::UnlockContext ctx(walletModel->requestUnlock());
-    if(!ctx.isValid())
-    {
-        // Unlock wallet failed or was cancelled
-        return false;
-    }
-
-    return wallet->CreateZerocoinMintModel(stringError, denomAmount);
-}
-
-bool AddressTableModel::zerocoinSpend(string &stringError, string thirdPartyAddress, string denomAmount)
-{
-    WalletModel::UnlockContext ctx(walletModel->requestUnlock());
-    if(!ctx.isValid())
-    {
-        // Unlock wallet failed or was cancelled
-        return false;
-    }
-
-    return wallet->CreateZerocoinSpendModel(stringError, thirdPartyAddress, denomAmount);
 }

@@ -18,8 +18,9 @@ class SigmaBlockLimitTest(BitcoinTestFramework):
 
     def run_test(self):
         getcontext().prec = 6
-        self.nodes[0].generate(400)
+        self.nodes[0].generate(100)
         self.sync_all()
+
         self.nodes[0].mint(1000)
         self.nodes[0].generate(10)
         self.sync_all()

@@ -6,7 +6,7 @@
 #include "primitives/block.h"
 #include "consensus/consensus.h"
 #include "validation.h"
-#include "zerocoin.h"
+#include "mint_spend.h"
 #include "hash.h"
 #include "tinyformat.h"
 #include "utilstrencodings.h"
@@ -138,8 +138,4 @@ int64_t GetBlockWeight(const CBlock& block)
 //     weight = (stripped_size * 3) + total_size.
 //    return ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * (WITNESS_SCALE_FACTOR - 1) + ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION);
     return ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION);
-}
-
-void CBlock::ZerocoinClean() const {
-    zerocoinTxInfo = nullptr;
 }

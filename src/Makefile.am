@@ -227,7 +227,7 @@ BITCOIN_CORE_H = \
   policy/fees.h \
   policy/policy.h \
   policy/rbf.h \
-  primitives/zerocoin.h \
+  primitives/mint_spend.h \
   fixed.h \
   pow.h \
   hdmint/hdmint.h \
@@ -290,12 +290,11 @@ BITCOIN_CORE_H = \
   hdmint/mintpool.h \
   hdmint/tracker.h \
   hdmint/wallet.h \
-  zerocoin.h \
   sigma.h \
   lelantus.h \
   blacklists.h \
   coin_containers.h \
-  zerocoin_params.h \
+  firo_params.h \
   addresstype.h \
   mtpstate.h \
   messagesigner.h \
@@ -430,7 +429,7 @@ libbitcoin_server_a_SOURCES = \
   noui.cpp \
   policy/fees.cpp \
   policy/policy.cpp \
-  primitives/zerocoin.cpp \
+  primitives/mint_spend.cpp \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
@@ -453,7 +452,6 @@ libbitcoin_server_a_SOURCES = \
   validation.cpp \
   validationinterface.cpp \
   versionbits.cpp \
-  zerocoin.cpp \
   sigma.cpp \
   lelantus.cpp \
   coin_containers.cpp \
@@ -497,7 +495,7 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/authhelper.cpp \
   hdmint/tracker.cpp \
   policy/rbf.cpp \
-  primitives/zerocoin.cpp \
+  primitives/mint_spend.cpp \
   $(BITCOIN_CORE_H)
 
 # crypto primitives library
@@ -648,32 +646,10 @@ libbitcoin_util_a_SOURCES = \
   utiltime.cpp \
   crypto/scrypt.cpp \
   primitives/block.cpp \
-  libzerocoin/bitcoin_bignum/allocators.h \
-  libzerocoin/bitcoin_bignum/bignum.h \
-  libzerocoin/bitcoin_bignum/compat.h \
-  libzerocoin/bitcoin_bignum/netbase.h \
-  libzerocoin/Accumulator.h \
-  libzerocoin/Accumulator.cpp \
-  libzerocoin/AccumulatorProofOfKnowledge.h \
-  libzerocoin/AccumulatorProofOfKnowledge.cpp \
-  libzerocoin/Coin.h \
-  libzerocoin/Coin.cpp \
-  libzerocoin/CoinSpend.h \
-  libzerocoin/CoinSpend.cpp \
-  libzerocoin/Commitment.h \
-  libzerocoin/Commitment.cpp \
-  libzerocoin/ParallelTasks.h \
-  libzerocoin/ParallelTasks.cpp \
-  libzerocoin/ParamGeneration.h \
-  libzerocoin/ParamGeneration.cpp \
-  libzerocoin/Params.h \
-  libzerocoin/Params.cpp \
-  libzerocoin/SerialNumberSignatureOfKnowledge.h \
-  libzerocoin/SerialNumberSignatureOfKnowledge.cpp \
-  libzerocoin/AccumulatorProofOfKnowledge.cpp \
-  libzerocoin/SpendMetaData.h \
-  libzerocoin/SpendMetaData.cpp \
-  libzerocoin/Zerocoin.h \
+  bitcoin_bignum/allocators.h \
+  bitcoin_bignum/bignum.h \
+  bitcoin_bignum/compat.h \
+  bitcoin_bignum/netbase.h \
   crypto/MerkleTreeProof/mtp.cpp \
   crypto/MerkleTreeProof/merkle-tree.cpp \
   $(BITCOIN_CORE_H)
@@ -682,7 +658,7 @@ liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 liblelantus_a_SOURCES = \
   liblelantus/challenge_generator.h \
-  liblelantus/challenge_generator.cpp \
+  liblelantus/challenge_generator_impl.h \
   liblelantus/lelantus_primitives.h \
   liblelantus/lelantus_primitives.cpp \
   liblelantus/lelantus_proof.h \
@@ -740,9 +716,6 @@ libsigma_a_SOURCES = \
   sigma/coinspend.h \
   sigma/spend_metadata.cpp \
   sigma/spend_metadata.h \
-  sigma/remint.h \
-  sigma/remint.cpp \
-  sigma/remint-blacklist.cpp \
   sigma/params.h \
   sigma/params.cpp \
   sigma/openssl_context.h

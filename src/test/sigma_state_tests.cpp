@@ -226,9 +226,6 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_coinperid_limit)
     // Make sure that transactions get to mempool
     pwalletMain->SetBroadcastTransactions(true);
 
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
-
     // Generate mints ZC_SPEND_V3_COINSPERID - 1, last group ID should be 1.
     int allMints = 0;
     while (allMints < ZC_SPEND_V3_COINSPERID_LIMIT - 1) {
@@ -503,7 +500,7 @@ BOOST_AUTO_TEST_CASE(sigma_reset)
     pubcoin = privcoin.getPublicCoin();
     CBlockIndex index = CreateBlockIndex(1);
 
-    // Let's add data to zerocoinstate before reset
+    // Let's add data to sigmastate before reset
 
     auto mintsBlock = CreateBlockWithMints({pubcoin});
     sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock);
@@ -600,7 +597,7 @@ BOOST_AUTO_TEST_CASE(sigma_getcoingroupinfo_not_minted)
     sigmaState->Reset();
 }
 
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_nonexist_index)
+BOOST_AUTO_TEST_CASE(sigma_addblock_nonexist_index)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     CScript scriptPubKey2;
@@ -621,7 +618,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_nonexist_index)
     sigmaState->Reset();
 }
 
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_minted_spend)
+BOOST_AUTO_TEST_CASE(sigma_addblock_minted_spend)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     CScript scriptPubKey2;
@@ -689,7 +686,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_minted_spend)
     sigmaState->Reset();
 }
 
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_removeblock_remove)
+BOOST_AUTO_TEST_CASE(sigma_removeblock_remove)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     CScript scriptPubKey2;
@@ -783,7 +780,7 @@ BOOST_AUTO_TEST_CASE(getmempoolconflictingtxhash_added_yes)
     BOOST_CHECK(state.GetMempoolConflictingTxHash(serial) == txid);
 }
 
-BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
+BOOST_AUTO_TEST_CASE(getspendserialnumberv3_valid_tx_valid_vin)
 {
     // setup
     CScript scriptPubKey2;
@@ -867,7 +864,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
       "Expect 0 got serial");
 }
 
-BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_invalid_script)
+BOOST_AUTO_TEST_CASE(getspendserialnumberv3_invalid_script)
 {
     // setup
     CScript scriptPubKey2;
@@ -911,7 +908,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_invalid_script)
       "Expect 0 got serial, Wrong script");
 }
 
-BOOST_AUTO_TEST_CASE(getzerocoinstate_not_null)
+BOOST_AUTO_TEST_CASE(getsigmastate_not_null)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     BOOST_CHECK_MESSAGE(sigmaState != NULL, "sigma::CSigmaState::GetState() returned null");

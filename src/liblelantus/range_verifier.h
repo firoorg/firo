@@ -14,9 +14,11 @@ public:
             , const GroupElement& h2
             , const std::vector<GroupElement>& g_vector
             , const std::vector<GroupElement>& h_vector
-            , uint64_t n);
+            , uint64_t n
+            , unsigned int v);
 
-    bool verify_batch(const std::vector<GroupElement>& V, const RangeProof& proof);
+    // commitments are included into transcript if version >= LELANTUS_TX_VERSION_4_5
+    bool verify_batch(const std::vector<GroupElement>& V, const std::vector<GroupElement>& commitments, const RangeProof& proof);
 
 private:
     bool membership_checks(const RangeProof& proof);
@@ -28,6 +30,7 @@ private:
     const std::vector<GroupElement>& g_;
     const std::vector<GroupElement>& h_;
     uint64_t n;
+    unsigned int version;
 };
 
 }//namespace lelantus

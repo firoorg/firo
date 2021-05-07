@@ -11,13 +11,7 @@ public:
     SigmaExtendedVerifier(const GroupElement& g,
                       const std::vector<GroupElement>& h_gens,
                       uint64_t n, uint64_t m_);
-    //gets commitments divided into g^s
-    bool verify(const std::vector<GroupElement>& commits,
-                const Scalar& x,
-                const SigmaExtendedProof& proof) const;
-    //gets commitments divided into g^s
-    bool verify(const std::vector<GroupElement>& commits,
-                const SigmaExtendedProof& proof) const;
+
     //gets initial double-blinded Pedersen commitments,
     //verifies proofs from single transaction, where set size and challenge are the same
     bool batchverify(const std::vector<GroupElement>& commits,

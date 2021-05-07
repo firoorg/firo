@@ -11,12 +11,12 @@
 #include "pow.h"
 #include "tinyformat.h"
 #include "uint256.h"
-#include "libzerocoin/bitcoin_bignum/bignum.h"
+#include "bitcoin_bignum/bignum.h"
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
 #include "sigma/coin.h"
 #include "evo/spork.h"
-#include "zerocoin_params.h"
+#include "firo_params.h"
 #include "util.h"
 #include "chainparams.h"
 #include "coin_containers.h"
@@ -234,9 +234,6 @@ public:
     //! Maps <denomination, id> to <accumulator value (CBigNum), number of such mints in this block>
     map<pair<int,int>, pair<CBigNum,int>> accumulatorChanges;
 
-	//! Same as accumulatorChanges but for alternative modulus
-	map<pair<int,int>, pair<CBigNum,int>> alternativeAccumulatorChanges;
-
     //! Values of coin serials spent in this block
 	set<CBigNum> spentSerials;
 
@@ -247,6 +244,8 @@ public:
     std::map<pair<sigma::CoinDenomination, int>, vector<sigma::PublicCoin>> sigmaMintedPubCoins;
     //! Map id to <public coin, tag>
     std::map<int, vector<std::pair<lelantus::PublicCoin, uint256>>>  lelantusMintedPubCoins;
+    //! Map id to <hash of the set>
+    std::map<int, vector<unsigned char>> anonymitySetHash;
 
     //! Values of coin serials spent in this block
     sigma::spend_info_container sigmaSpentSerials;
@@ -286,11 +285,9 @@ public:
         nVersionMTP = 0;
         mtpHashValue = reserved[0] = reserved[1] = uint256();
 
-        mintedPubCoins.clear();
         sigmaMintedPubCoins.clear();
         lelantusMintedPubCoins.clear();
-        accumulatorChanges.clear();
-        spentSerials.clear();
+        anonymitySetHash.clear();
         sigmaSpentSerials.clear();
         lelantusSpentSerials.clear();
         activeDisablingSporks.clear();
@@ -533,6 +530,9 @@ public:
             } else
                 READWRITE(lelantusMintedPubCoins);
             READWRITE(lelantusSpentSerials);
+
+            if (nHeight >= params.nLelantusFixesStartBlock)
+                READWRITE(anonymitySetHash);
         }
 
         if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nEvoSporkStartBlock && nHeight < params.nEvoSporkStopBlock)

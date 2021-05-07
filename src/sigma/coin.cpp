@@ -5,7 +5,7 @@
 #include <openssl/rand.h>
 #include <sstream>
 #include "openssl_context.h"
-#include "primitives/zerocoin.h"
+#include "primitives/mint_spend.h"
 
 namespace sigma {
 
@@ -26,7 +26,7 @@ bool DenominationToInteger(CoinDenomination denom, int64_t& denom_out, CValidati
 
     switch (denom) {
         default:
-            return state.DoS(100, error("CheckZerocoinTransaction : invalid denomination value, unable to convert to integer"));
+            return state.DoS(100, error("CheckSigmaTransaction : invalid denomination value, unable to convert to integer"));
         case CoinDenomination::SIGMA_DENOM_0_05:
             denom_out = 5 * CENT;
             break;
@@ -110,7 +110,7 @@ std::string DenominationToString(const CoinDenomination& denom) {
     if (denom == CoinDenomination::SIGMA_DENOM_100) {
         return "100";
     }
-    throw ZerocoinException("Unsupported denomination, unable to convert to string.");
+    throw std::runtime_error("Unsupported denomination, unable to convert to string.");
 }
 
 bool IntegerToDenomination(int64_t value, CoinDenomination& denom_out) {
@@ -121,7 +121,7 @@ bool IntegerToDenomination(int64_t value, CoinDenomination& denom_out) {
 bool IntegerToDenomination(int64_t value, CoinDenomination& denom_out, CValidationState &state) {
     switch (value) {
         default:
-            return state.DoS(100, error("CheckZerocoinTransaction : invalid denomination value, unable to convert to enum"));
+            return state.DoS(100, error("CheckSigmaTransaction : invalid denomination value, unable to convert to enum"));
         case 5 * CENT:
             denom_out = CoinDenomination::SIGMA_DENOM_0_05;
             break;
@@ -264,7 +264,7 @@ void PrivateCoin::mintCoin(const CoinDenomination denomination){
     secp256k1_pubkey pubkey;
     do {
         if (RAND_bytes(this->ecdsaSeckey, sizeof(this->ecdsaSeckey)) != 1) {
-            throw ZerocoinException("Unable to generate randomness");
+            throw std::runtime_error("Unable to generate randomness");
         }
     } while (!secp256k1_ec_pubkey_create(
         OpenSSLContext::get_context(), &pubkey, this->ecdsaSeckey));
@@ -293,7 +293,7 @@ Scalar PrivateCoin::serialNumberFromSerializedPublicKey(
 
     // We use secp256k1_ecdh instead of secp256k1_serialize_pubkey to avoid a timing channel.
     if (1 != secp256k1_ecdh(context, pubkey_hash.data(), pubkey, &one[0])) {
-        throw ZerocoinException("Unable to compute public key hash with secp256k1_ecdh.");
+        throw std::runtime_error("Unable to compute public key hash with secp256k1_ecdh.");
     }
 
 	std::string zpts(ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER);

@@ -31,10 +31,8 @@
 #include "crypto/MerkleTreeProof/mtp.h"
 #include "crypto/Lyra2Z/Lyra2Z.h"
 #include "crypto/Lyra2Z/Lyra2.h"
-#include "zerocoin.h"
 #include "sigma.h"
 #include "lelantus.h"
-#include "sigma/remint.h"
 #include "evo/spork.h"
 #include <algorithm>
 #include <boost/thread.hpp>
@@ -424,15 +422,10 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
         return false;
 
     const CTransaction &tx = iter->GetTx();
-    // Prohibit zerocoin
-    // Make exception for regtest network (for remint tests)
-    if (!chainparams.GetConsensus().IsRegtest() && (tx.IsZerocoinSpend() || tx.IsZerocoinMint()))
-        return false;
 
     // Check transaction against sigma limits
-    if (tx.IsSigmaSpend() || tx.IsZerocoinRemint()) {
-        // Sigma spend and zerocoin->sigma remint are subject to the same limits
-        CAmount spendAmount = tx.IsSigmaSpend() ? sigma::GetSpendAmount(tx) : sigma::CoinRemintToV3::GetAmount(tx);
+    if (tx.IsSigmaSpend()) {
+        CAmount spendAmount = sigma::GetSpendAmount(tx);
         auto &params = chainparams.GetConsensus();
 
         if (tx.vin.size() > params.nMaxSigmaInputPerTransaction || spendAmount > params.nMaxValueSigmaSpendPerTransaction)
@@ -467,9 +460,9 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
 {
     const CTransaction &tx = iter->GetTx();
-    if (tx.IsSigmaSpend() || tx.IsZerocoinRemint()) {
+    if (tx.IsSigmaSpend()) {
         // Update sigma stats
-        CAmount spendAmount = tx.IsSigmaSpend() ? sigma::GetSpendAmount(tx) : sigma::CoinRemintToV3::GetAmount(tx);
+        CAmount spendAmount = sigma::GetSpendAmount(tx);
 
         if ((nSigmaSpendAmount += spendAmount) > chainparams.GetConsensus().nMaxValueSigmaSpendPerBlock)
             return;
