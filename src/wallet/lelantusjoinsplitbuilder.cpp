@@ -119,9 +119,9 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         nCountNextUse = pwalletMain->zwallet->GetCount();
     }
 
-    std::tie(fee, std::ignore) = wallet.EstimateJoinSplitFee(vOut + mint, recipientsToSubtractFee, coinControl);
     std::list<CSigmaEntry> sigmaCoins = pwalletMain->GetAvailableCoins(coinControl);
     std::list<CLelantusEntry> coins = pwalletMain->GetAvailableLelantusCoins(coinControl);
+    std::tie(fee, std::ignore) = wallet.EstimateJoinSplitFee(vOut + mint, recipientsToSubtractFee, sigmaCoins, coins, coinControl);
 
     for (;;) {
         // In case of not enough fee, reset mint seed counter
