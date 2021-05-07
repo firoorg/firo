@@ -91,7 +91,8 @@ lelantus::JoinSplit CreateJoinSplit(
     uint256 const &metaData)
 {
     auto params = lelantus::Params::get_default();
-    return {params, coins, anonss, anonymitySetHashes, amount, coinOuts, (uint64_t)payTxFee.GetFee(5000), groupBlockHashs, metaData, LELANTUS_TX_VERSION_4_5};
+    // 7526 is the size of all Elysium JoinSplit transactions.
+    return {params, coins, anonss, anonymitySetHashes, amount, coinOuts, (uint64_t)payTxFee.GetFee(7526), groupBlockHashs, metaData, LELANTUS_TX_VERSION_4_5};
 }
 
 } // namespace elysium
