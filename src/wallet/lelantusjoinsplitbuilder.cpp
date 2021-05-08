@@ -219,6 +219,10 @@ CWalletTx LelantusJoinSplitBuilder::Build(
             }
         }
 
+        if ((sigmaSpendCoins.size() + spendCoins.size()) > consensusParams.nMaxLelantusInputPerTransaction)
+            throw std::invalid_argument(
+                    _("Number of inputs is bigger then limit."));
+
         for(const auto& demon : denomChanges) {
             int64_t intDenom;
             sigma::DenominationToInteger(demon, intDenom);
@@ -303,7 +307,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         // If we made it here and we aren't even able to meet the relay fee on the next pass, give up
         // because we must be at the maximum allowed fee.
         if (feeNeeded < minRelayTxFee.GetFee(size)) {
-            throw std::runtime_error(_("Transaction too large for fee policy"));
+            throw std::invalid_argument(_("Transaction too large for fee policy"));
         }
 
         if (fee >= feeNeeded) {

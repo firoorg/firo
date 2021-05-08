@@ -3087,16 +3087,16 @@ bool CWallet::GetCoinsToSpend(
         best_spend_val *= zeros;
 
         if (minimum == INT_MAX - 1)
-            throw std::runtime_error(
+            throw std::invalid_argument(
                 _("Can not choose coins within limit."));
     }
 
     if (SelectMintCoinsForAmount(best_spend_val - roundedRequired * zeros, denominations, coinsToMint_out) != best_spend_val - roundedRequired * zeros) {
-        throw std::runtime_error(
+        throw std::invalid_argument(
             _("Problem with coin selection for re-mint while spending."));
     }
     if (SelectSpendCoinsForAmount(best_spend_val, coins, coinsToSpend_out) != best_spend_val) {
-        throw std::runtime_error(
+        throw std::invalid_argument(
             _("Problem with coin selection for spend."));
     }
 
@@ -3117,7 +3117,7 @@ bool CWallet::GetCoinsToJoinSplit(
     Consensus::Params consensusParams = Params().GetConsensus();
 
     if (required > consensusParams.nMaxValueLelantusSpendPerTransaction) {
-        throw WalletError(_("The required amount exceeds spend limit"));
+        throw invalid_argument(_("The required amount exceeds spend limit"));
     }
 
     CAmount availableBalance = CalculateLelantusCoinsBalance(coins.begin(), coins.end());
