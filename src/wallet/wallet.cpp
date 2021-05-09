@@ -6621,6 +6621,26 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
             }
         }
     }
+
+    // recover addressbook
+    if (fFirstRun)
+    {
+        for (map<uint256, CWalletTx>::iterator it = walletInstance->mapWallet.begin(); it != walletInstance->mapWallet.end(); ++it) {
+            for (uint32_t i = 0; i < (*it).second.tx->vout.size(); i++) {
+                const auto& txout = (*it).second.tx->vout[i];
+                if(txout.scriptPubKey.IsMint() || (*it).second.changes.count(i))
+                    continue;
+                if (!walletInstance->IsMine(txout))
+                    continue;
+                CTxDestination addr;
+                if(!ExtractDestination(txout.scriptPubKey, addr))
+                    continue;
+                if (walletInstance->mapAddressBook.count(addr) == 0)
+                    walletInstance->SetAddressBook(addr, "", "receive");
+            }
+        }
+    }
+
     walletInstance->SetBroadcastTransactions(GetBoolArg("-walletbroadcast", DEFAULT_WALLETBROADCAST));
 
     {
