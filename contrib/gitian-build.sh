@@ -2,6 +2,8 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+set -x
+
 # Systems to build
 linux=
 windows=
@@ -59,7 +61,7 @@ then
     echo ""
     echo "Compiling ${VERSION} Linux"
     echo ""
-    ./bin/gbuild -j ${proc} -m ${mem} --commit firo=${COMMIT} --url firo=${url} ../firo/contrib/gitian-descriptors/gitian-linux.yml
+    ./bin/gbuild -j ${proc} -m ${mem} --commit firo=${COMMIT} --url firo=${gitRepo} ../firo/contrib/gitian-descriptors/gitian-linux.yml
 fi
 
 # Windows
@@ -68,7 +70,7 @@ then
     echo ""
     echo "Compiling ${VERSION} Windows"
     echo ""
-    ./bin/gbuild -j ${proc} -m ${mem} --commit firo=${COMMIT} --url firo=${url} ../firo/contrib/gitian-descriptors/gitian-win.yml
+    ./bin/gbuild -j ${proc} -m ${mem} --commit firo=${COMMIT} --url firo=${gitRepo} ../firo/contrib/gitian-descriptors/gitian-win.yml
 fi
 
 # Mac OSX
@@ -77,6 +79,6 @@ then
     echo ""
     echo "Compiling ${VERSION} Mac OSX"
     echo ""
-    ./bin/gbuild -j ${proc} -m ${mem} --commit firo=${COMMIT} --url firo=${url} ../firo/contrib/gitian-descriptors/gitian-osx.yml
+    ./bin/gbuild -j ${proc} -m ${mem} --commit firo=${COMMIT} --url firo=${gitRepo} ../firo/contrib/gitian-descriptors/gitian-osx.yml
 fi
 popd
