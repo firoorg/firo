@@ -821,21 +821,42 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
             }
             std::vector<Scalar> serials;
+            std::vector<uint32_t> ids;
             try {
                 serials = lelantus::GetLelantusJoinSplitSerialNumbers(tx, tx.vin[0]);
+                ids = lelantus::GetLelantusJoinSplitIds(tx, tx.vin[0]);
             }
             catch (CBadTxIn&) {
                 return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
             }
-            for (const auto& serial : serials) {
-                if (!serial.isMember() || serial.isZero())
+
+            if (serials.size() != ids.size())
+                return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
+
+            for (size_t i = 0; i < serials.size(); ++i) {
+                if (!serials[i].isMember() || serials[i].isZero())
                     return state.Invalid(false, REJECT_INVALID, "txn-invalid-lelantus-joinsplit-serial");
-                if (lelantusState->IsUsedCoinSerial(serial) || pool.lelantusState.HasCoinSerial(serial) ||
-                    !sigmaState->CanAddSpendToMempool(serial)) {
-                    LogPrintf("AcceptToMemoryPool(): lelantus serial number %s has been used\n", serial.tostring());
-                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+
+                int coinGroupId = ids[i] % (CENT / 1000);
+                int64_t intDenom = (ids[i] - coinGroupId);
+                intDenom *= 1000;
+                sigma::CoinDenomination denomination;
+
+                if (chainActive.Height() < consensus.nPPStartBlock || sigma::IntegerToDenomination(intDenom, denomination)) {
+                    if (lelantusState->IsUsedCoinSerial(serials[i]) || pool.lelantusState.HasCoinSerial(serials[i]) ||
+                        !sigmaState->CanAddSpendToMempool(serials[i])) {
+                        LogPrintf("AcceptToMemoryPool(): lelantus serial number %s has been used\n",
+                                  serials[i].tostring());
+                        return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+                    }
+                } else {
+                    if (lelantusState->IsUsedCoinSerial(serials[i]) || pool.lelantusState.HasCoinSerial(serials[i])) {
+                        LogPrintf("AcceptToMemoryPool(): lelantus serial number %s has been used\n",
+                                  serials[i].tostring());
+                        return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+                    }
                 }
-                lelantusSpendSerials.push_back(serial);
+                lelantusSpendSerials.push_back(serials[i]);
             }
         }
 
