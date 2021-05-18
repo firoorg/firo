@@ -189,8 +189,6 @@ QT_MOC_CPP = \
   qt/moc_lookuptxdialog.cpp \
   qt/moc_txhistorydialog.cpp \
   qt/moc_elyassetsdialog.cpp \
-  qt/moc_zc2sigmapage.cpp \
-  qt/moc_zc2sigmamodel.cpp \
   qt/moc_lelantusmodel.cpp \
   qt/moc_lelantusdialog.cpp \
   qt/moc_lelantuscoincontroldialog.cpp \
