@@ -243,7 +243,8 @@ void SendCoinsDialog::on_sendButton_clicked()
             {
                 SendCoinsRecipient recipient = entry->getValue();
                 if(entry->isPayToPcode()) {
-                    std::unique_ptr<SendtoPcodeDialog> dialog(new SendtoPcodeDialog(this, recipient.address.toStdString()));
+                    if (!model->getPcodeModel()) return;
+                    std::unique_ptr<SendtoPcodeDialog> dialog(new SendtoPcodeDialog(this, recipient.address.toStdString(), recipient.label.toStdString()));
                     dialog->setModel(model);
                     dialog->exec();
                     std::pair<SendtoPcodeDialog::Result, CBitcoinAddress> const sendResult = dialog->getResult();

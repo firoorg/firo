@@ -100,6 +100,7 @@ private:
     boost::optional<CPaymentChannel> mutable pchannel;
     MyAddrContT nextAddresses;
     uint256 notificationTxId;
+    std::string label;
 
     void updateMyNextAddresses();
     virtual MyAddrContT const & generateMyUsedAddresses() const;

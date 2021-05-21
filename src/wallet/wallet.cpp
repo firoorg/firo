@@ -7076,6 +7076,26 @@ notifTxExit:
     }
 }
 
+void CWallet::LabelPcode(bip47::CPaymentCode const & pcode_, std::string const & label, bool remove)
+{
+    std::string const pcodeLbl = bip47::PcodeLabel() + pcode_.toString();
+    CWalletDB walletDb(strWalletFile);
+    if (remove) {
+        walletDb.EraseKV(pcodeLbl);
+        mapCustomKeyValues.erase(pcodeLbl);
+    } else {
+        std::multimap<std::string, std::string>::iterator iter = mapCustomKeyValues.find(pcodeLbl);
+        if (iter == mapCustomKeyValues.end())
+            mapCustomKeyValues.insert(std::make_pair(pcodeLbl, label));
+        else {
+            if (iter->second == label)
+                return;
+            iter->second = label;
+        }
+        walletDb.EraseKV(pcodeLbl);
+        walletDb.WriteKV(pcodeLbl, label);
+    }
+}
 
 /******************************************************************************/
 /*                                                                            */

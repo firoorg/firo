@@ -167,6 +167,16 @@ bool PcodeModel::isBip47Transaction(uint256 const & hash) const
     return false;
 }
 
+void PcodeModel::labelPcode(std::string const & pcode_, std::string const & label, bool remove)
+{
+    try {
+        bip47::CPaymentCode pcode(pcode_);
+        walletMain.LabelPcode(pcode, label, remove);
+    } catch (std::runtime_error const &) {
+        return;
+    }
+}
+
 void PcodeModel::sort(int column, Qt::SortOrder order)
 {
     std::function<bool(bip47::CPaymentCodeDescription const &, bip47::CPaymentCodeDescription const &)> 

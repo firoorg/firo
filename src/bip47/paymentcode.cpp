@@ -74,11 +74,14 @@ ChainCode const & CPaymentCode::getChainCode() const
 
 std::string CPaymentCode::toString() const
 {
-    std::vector<unsigned char> pc, pl = getPayload();
-    pc.reserve(1 + PAYLOAD_LEN);
-    pc.push_back(THE_P);
-    pc.insert(pc.end(), pl.begin(), pl.end());
-    return EncodeBase58Check(pc);
+    if (!pcodeStr) {
+        std::vector<unsigned char> pc, pl = getPayload();
+        pc.reserve(1 + PAYLOAD_LEN);
+        pc.push_back(THE_P);
+        pc.insert(pc.end(), pl.begin(), pl.end());
+        pcodeStr.emplace(EncodeBase58Check(pc));
+    }
+    return *pcodeStr;
 }
 
 namespace {

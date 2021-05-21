@@ -44,6 +44,7 @@ public:
     void reconsiderBip47Tx(uint256 const & hash);
 
     bool isBip47Transaction(uint256 const & hash) const;
+    void labelPcode(std::string const & pcode, std::string const & label, bool remove = false);
 
 public Q_SLOTS:
     void sort(int column, Qt::SortOrder order);

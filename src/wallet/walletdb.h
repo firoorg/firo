@@ -189,6 +189,9 @@ public:
     {
     }
 
+    bool WriteKV(const std::string& key, const std::string& value);
+    bool EraseKV(const std::string& key);
+
     bool WriteName(const std::string& strAddress, const std::string& strName);
     bool EraseName(const std::string& strAddress);
 
@@ -296,7 +299,6 @@ public:
     bool WriteHDChain(const CHDChain& chain);
     bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
-    //bip47 data
     static void IncrementUpdateCounter();
     static unsigned int GetUpdateCounter();    
 
@@ -448,6 +450,7 @@ public:
 
 #endif
 
+    //bip47 data
     bool WriteBip47Account(bip47::CAccountReceiver const & account);
     bool WriteBip47Account(bip47::CAccountSender const & account);
     void LoadBip47Accounts(bip47::CWallet & wallet);

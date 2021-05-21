@@ -32,6 +32,18 @@ static std::atomic<unsigned int> nWalletDBUpdateCounter;
 // CWalletDB
 //
 
+bool CWalletDB::WriteKV(const string& key, const string& value)
+{
+    nWalletDBUpdateCounter++;
+    return Write(make_pair(string("kv"), key), value);
+}
+
+bool CWalletDB::EraseKV(const string& key)
+{
+    nWalletDBUpdateCounter++;
+    return Erase(make_pair(string("kv"), key));
+}
+
 bool CWalletDB::WriteName(const string& strAddress, const string& strName)
 {
     nWalletDBUpdateCounter++;
@@ -558,7 +570,14 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         // Taking advantage of the fact that pair serialization
         // is just the two items serialized one after the other
         ssKey >> strType;
-        if (strType == "name")
+        if (strType == "kv")
+        {
+            string key, value;
+            ssKey >> key;
+            ssValue >> value;
+            pwallet->mapCustomKeyValues.insert(std::make_pair(key, value));
+        }
+        else if (strType == "name")
         {
             string strAddress;
             ssKey >> strAddress;

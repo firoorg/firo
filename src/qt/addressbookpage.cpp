@@ -15,6 +15,8 @@
 #include "editaddressdialog.h"
 #include "guiutil.h"
 #include "platformstyle.h"
+#include "bip47/paymentcode.h"
+#include "bip47/paymentchannel.h"
 
 #include <QIcon>
 #include <QMenu>
@@ -173,12 +175,13 @@ void AddressBookPage::onEditAction()
     if(indexes.isEmpty())
         return;
 
-    EditAddressDialog dlg(
-        tab == SendingTab ?
-        EditAddressDialog::EditSendingAddress :
-        EditAddressDialog::EditReceivingAddress, this);
-    dlg.setModel(model);
+    EditAddressDialog::Mode mode = tab == SendingTab ? EditAddressDialog::EditSendingAddress : EditAddressDialog::EditReceivingAddress;
     QModelIndex origIndex = proxyModel->mapToSource(indexes.at(0));
+    if (bip47::CPaymentCode::validate(origIndex.child(origIndex.row(), 1).data().toString().toStdString()))
+        mode = EditAddressDialog::EditPcode;
+
+    EditAddressDialog dlg(mode, this);
+    dlg.setModel(model);
     dlg.loadRow(origIndex.row());
     dlg.exec();
 }

@@ -41,18 +41,20 @@ public:
         addressSelected,
     };
 
-    explicit SendtoPcodeDialog(QWidget *parent, std::string const & pcode);
+    explicit SendtoPcodeDialog(QWidget *parent, std::string const & pcode, std::string const & label);
     ~SendtoPcodeDialog();
 
     void setModel(WalletModel *model);
     std::pair<Result, CBitcoinAddress> getResult() const;
     std::unique_ptr<WalletModel::UnlockContext> getUnlockContext();
+    void close();
 
 private:
     Ui::SendtoPcodeDialog *ui;
     WalletModel *model;
     std::shared_ptr<bip47::CPaymentCode> paymentCode;
     Result result;
+    std::string label;
     uint256 notificationTxHash;
     CBitcoinAddress addressToUse;
     std::unique_ptr<WalletModel::UnlockContext> unlockContext;

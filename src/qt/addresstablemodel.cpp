@@ -10,6 +10,7 @@
 #include "base58.h"
 #include "wallet/wallet.h"
 #include "validation.h"
+#include "bip47/defs.h"
 
 #include <boost/foreach.hpp>
 
@@ -97,6 +98,13 @@ public:
                 cachedAddressTable.append(AddressTableEntry(addressType,
                                   QString::fromStdString(strName),
                                   QString::fromStdString(address.ToString())));
+            }
+            std::multimap<std::string, std::string>::const_iterator iter = wallet->mapCustomKeyValues.lower_bound(bip47::PcodeLabel());
+            for (;iter != wallet->mapCustomKeyValues.end() && iter->first.compare(0, bip47::PcodeLabel().size(), bip47::PcodeLabel()) == 0; ++iter)
+            {
+                cachedAddressTable.append(AddressTableEntry(AddressTableEntry::Sending,
+                        QString::fromStdString(iter->second),
+                        QString::fromStdString(iter->first.substr(bip47::PcodeLabel().size(),iter->first.size() - bip47::PcodeLabel().size()))));
             }
         }
         // qLowerBound() and qUpperBound() require our cachedAddressTable list to be sorted in asc order

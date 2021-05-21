@@ -17,6 +17,8 @@ namespace bip47
 
     static constexpr CAmount NotificationTxValue = 0.0001 * COIN;
 
+    inline std::string PcodeLabel() {return "pcode_label=";}
+
     typedef std::vector<std::pair<CBitcoinAddress, CKey>> MyAddrContT;
     typedef std::vector<CBitcoinAddress> TheirAddrContT;
     typedef std::vector<unsigned char> Bytes;

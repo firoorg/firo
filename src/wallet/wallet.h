@@ -796,6 +796,7 @@ public:
     std::map<uint256, int> mapRequestCount;
 
     std::map<CTxDestination, CAddressBookData> mapAddressBook;
+    std::multimap<std::string, std::string> mapCustomKeyValues;
 
     CPubKey vchDefaultKey;
 
@@ -1290,8 +1291,11 @@ public:
     /*Marks address as used for a receiving bip47 account. Returns the account if found*/
     bip47::CAccountReceiver const * AddressUsed(CBitcoinAddress const & address);
 
-    /*Checks if this is a BIP47 transaction and handles it. May send an ulock request if wallet is locked.*/
+    /*Checks if this is a BIP47 transaction and handles it. May send an unlock request if wallet is locked.*/
     void HandleBip47Transaction(CWalletTx const & wtx);
+
+    /*Attaches a new label to a payment code.*/
+    void LabelPcode(bip47::CPaymentCode const & pcode, std::string const & label, bool remove = false);
 };
 
 /** A key allocated from the key pool. */

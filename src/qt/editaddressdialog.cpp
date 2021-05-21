@@ -22,6 +22,7 @@ EditAddressDialog::EditAddressDialog(Mode _mode, QWidget *parent) :
 
     GUIUtil::setupAddressWidget(ui->addressEdit, this);
 
+    ui->addressEdit->setEnabled(true);
     switch(mode)
     {
     case NewReceivingAddress:
@@ -37,6 +38,10 @@ EditAddressDialog::EditAddressDialog(Mode _mode, QWidget *parent) :
         break;
     case EditSendingAddress:
         setWindowTitle(tr("Edit sending address"));
+        break;
+    case EditPcode:
+        setWindowTitle(tr("Edit RAP payment code"));
+        ui->addressEdit->setEnabled(false);
         break;
     }
 

@@ -42,6 +42,7 @@ private:
 
     boost::optional<CBitcoinAddress> mutable myNotificationAddress;
     mutable boost::optional<CExtPubKey> childPubKeyBase;
+    mutable boost::optional<std::string> pcodeStr;
 
     bool parse(std::string const & paymentCode);
 };

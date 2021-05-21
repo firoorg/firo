@@ -40,11 +40,12 @@ void OnTransactionChanged(SendtoPcodeDialog *dialog, CWallet *wallet, uint256 co
 }
 }
 
-SendtoPcodeDialog::SendtoPcodeDialog(QWidget *parent, std::string const & pcode) :
+SendtoPcodeDialog::SendtoPcodeDialog(QWidget *parent, std::string const & pcode, std::string const & label) :
     QDialog(parent),
     ui(new Ui::SendtoPcodeDialog),
     model(0),
-    result(Result::cancelled)
+    result(Result::cancelled),
+    label(label)
 {
     ui->setupUi(this);
     try {
@@ -119,9 +120,16 @@ std::unique_ptr<WalletModel::UnlockContext> SendtoPcodeDialog::getUnlockContext(
     return std::move(unlockContext);
 }
 
+void SendtoPcodeDialog::close()
+{
+    if (!label.empty())
+         model->getPcodeModel()->labelPcode(paymentCode->toString(), label);
+    QDialog::close();
+}
+
 void SendtoPcodeDialog::on_sendButton_clicked()
 {
-    if (!model || !paymentCode)
+    if (!model || !paymentCode || !model->getPcodeModel())
         return;
 
     unlockContext = std::unique_ptr<WalletModel::UnlockContext>(new WalletModel::UnlockContext(model->requestUnlock()));

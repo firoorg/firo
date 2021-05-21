@@ -28,7 +28,8 @@ public:
         NewReceivingAddress,
         NewSendingAddress,
         EditReceivingAddress,
-        EditSendingAddress
+        EditSendingAddress,
+        EditPcode
     };
 
     explicit EditAddressDialog(Mode mode, QWidget *parent);
