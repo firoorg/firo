@@ -8,7 +8,6 @@
 #include "uint256.h"
 
 #include "bip47/defs.h"
-#include "bip47/address.h"
 #include "bip47/paymentcode.h"
 
 class CWallet;
