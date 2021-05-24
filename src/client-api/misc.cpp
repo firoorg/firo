@@ -177,10 +177,22 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("rescanning",    fRescanning));
     obj.push_back(Pair("walletinitialized",    fWalletInitialized));
     // have to wait for the API to be loaded before getting the correct reindexing state
-    if(!APIIsInWarmup())
-        obj.push_back(Pair("reindexing",    fReindex));
     obj.push_back(Pair("safeMode",      GetWarnings("api") != ""));
     obj.push_back(Pair("hasSentInitialStateWallet", fHasSentInitialStateWallet));
+
+
+    if (!APIIsInWarmup()) {
+        obj.push_back(Pair("reindexing",    fReindex));
+
+        // This measure of reindexing progress is different than what QT uses.
+        if (chainActive.Tip() != NULL && chainActive[1] != NULL && fReindex) {
+            // Block 1 is used because the genesis block on regtest is very old.
+            long double genesisBlockTime = chainActive[1]->GetBlockTime();
+            long double latestBlockTime = chainActive.Tip()->GetBlockTime();
+            long double now = time(NULL);
+            obj.push_back(Pair("reindexingProgress", (double)((latestBlockTime-genesisBlockTime) / (now-genesisBlockTime))));
+        }
+    }
 
     if (chainActive.Tip() != NULL) {
         UniValue sporks = UniValue::VARR;
