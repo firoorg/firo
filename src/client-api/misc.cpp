@@ -181,7 +181,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
 
 
     obj.push_back(Pair("rescanning",    fRescanning));
-    obj.push_back(Pair("reindexing",    fReindex && !fRescanning));
+    obj.push_back(Pair("reindexing",    fReindex));
 
     // This measure of reindexing progress is different than what QT uses.
     if (chainActive.Tip() != NULL && chainActive[1] != NULL && (fReindex || fRescanning)) {
