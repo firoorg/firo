@@ -6740,10 +6740,12 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     bool rescanning = (chainActive.Tip() && chainActive.Tip() != pindexRescan);
 
 #ifdef ENABLE_CLIENTAPI
-        // Set API loaded before wallet sync (if not rescanning) and immediately notify.
+        fRescanning = rescanning;
+        if (fApi && !fFirstRun) GetMainSignals().NotifyAPIStatus();
+
+        // Set API loaded before wallet sync and immediately notify.
         if(fApi && !rescanning && !fFirstRun){
-            SetAPIWarmupFinished();
-            GetMainSignals().NotifyAPIStatus();
+            if (!rescanning) SetAPIWarmupFinished();
             // Update next payments list for EVO Znodes
             deterministicMNManager->GetListForBlock(chainActive.Tip());
             deterministicMNManager->UpdateNextPayments();
