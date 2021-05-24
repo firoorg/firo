@@ -48,12 +48,9 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     auto& consensus = ::Params().GetConsensus();
 
-    // Create 200 new empty blocks to get some funds. nMaxSigmaInputPerBlock == 50, so
-    CreateAndProcessEmptyBlocks(200, scriptPubKey);
-
     pwalletMain->SetBroadcastTransactions(true);
 
-    // attempt to create a zerocoin spend with more than inputs limit.
+    // attempt to create a sigma spend with more than inputs limit.
     denominationsForTx.clear();
     CAmount nAmount(0);
     for (unsigned i = 0; i < (consensus.nMaxSigmaInputPerBlock + 1) * 2; i++){
@@ -162,9 +159,6 @@ BOOST_AUTO_TEST_CASE(spend_value_limit)
     auto testDenomination = sigma::CoinDenomination::SIGMA_DENOM_100;
     CAmount testDenominationAmount;
     sigma::DenominationToInteger(testDenomination, testDenominationAmount);
-
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     pwalletMain->SetBroadcastTransactions(true);
 

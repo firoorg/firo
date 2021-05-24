@@ -33,8 +33,6 @@ class SigmaZapWalletMintsTest(BitcoinTestFramework):
 
         sigma_denoms = [0.05, 0.1, 0.5, 1, 10, 25, 100]
 
-        self.nodes[0].generate(401)
-
         self.nodes[0].mint(sum(sigma_denoms))
 
         self.nodes[0].generate(10)

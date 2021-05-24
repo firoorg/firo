@@ -8,7 +8,7 @@
 
 #include "amount.h"
 #include "primitives/transaction.h"
-#include "primitives/zerocoin.h"
+#include "primitives/mint_spend.h"
 #include "wallet/db.h"
 #include "mnemoniccontainer.h"
 #include "streams.h"
@@ -24,7 +24,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "libzerocoin/Zerocoin.h"
 
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/erase.hpp>
@@ -45,9 +44,7 @@ class CWallet;
 class CWalletTx;
 class uint160;
 class uint256;
-class CZerocoinEntry;
 class CSigmaEntry;
-class CZerocoinSpendEntry;
 class CSigmaSpendEntry;
 
 /** Error statuses for the wallet database */
@@ -243,32 +240,20 @@ public:
     CAmount GetAccountCreditDebit(const std::string& strAccount);
     void ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& acentries);
 
-    bool WriteZerocoinEntry(const CZerocoinEntry& zerocoin);
-    bool WriteSigmaEntry(const CSigmaEntry& zerocoin);
-    bool ReadZerocoinEntry(const Bignum& pub, CZerocoinEntry& entry);
+    bool WriteSigmaEntry(const CSigmaEntry& sigma);
     bool ReadSigmaEntry(const secp_primitives::GroupElement& pub, CSigmaEntry& entry);
-    bool HasZerocoinEntry(const Bignum& pub);
     bool HasSigmaEntry(const secp_primitives::GroupElement& pub);
-    bool EraseZerocoinEntry(const CZerocoinEntry& zerocoin);
     bool EraseSigmaEntry(const CSigmaEntry& sigma);
-    void ListPubCoin(std::list<CZerocoinEntry>& listPubCoin);
     void ListSigmaPubCoin(std::list<CSigmaEntry>& listPubCoin);
-    void ListCoinSpendSerial(std::list<CZerocoinSpendEntry>& listCoinSpendSerial);
     void ListCoinSpendSerial(std::list<CSigmaSpendEntry>& listCoinSpendSerial);
     void ListLelantusSpendSerial(std::list<CLelantusSpendEntry>& listLelantusSpendSerial);
-    bool WriteCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
-    bool WriteCoinSpendSerialEntry(const CSigmaSpendEntry& zerocoinSpend);
+    bool WriteCoinSpendSerialEntry(const CSigmaSpendEntry& sigmaSpend);
     bool WriteLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend);
     bool ReadLelantusSpendSerialEntry(const secp_primitives::Scalar& serial, CLelantusSpendEntry& lelantusSpend);
-    bool HasCoinSpendSerialEntry(const Bignum& serial);
     bool HasCoinSpendSerialEntry(const secp_primitives::Scalar& serial);
     bool HasLelantusSpendSerialEntry(const secp_primitives::Scalar& serial);
-    bool EraseCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
-    bool EraseCoinSpendSerialEntry(const CSigmaSpendEntry& zerocoinSpend);
+    bool EraseCoinSpendSerialEntry(const CSigmaSpendEntry& sigmaSpend);
     bool EraseLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend);
-    bool WriteZerocoinAccumulator(libzerocoin::Accumulator accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
-    bool ReadZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
-    // bool EraseZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
 
     bool ReadCalculatedZCBlock(int& height);
     bool WriteCalculatedZCBlock(int height);
@@ -289,9 +274,8 @@ public:
     bool ReadMintSeedCount(int32_t& nCount);
     bool WriteMintSeedCount(const int32_t& nCount);
 
-    bool ArchiveMintOrphan(const CZerocoinEntry& zerocoin);
     bool ArchiveDeterministicOrphan(const CHDMint& dMint);
-    bool UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& zerocoin);
+    bool UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& sigma);
     bool UnarchiveHDMint(const uint256& hashPubcoin, bool isLelantus, CHDMint& dMint);
 
     bool WriteHDMint(const uint256& hashPubcoin, const CHDMint& dMint, bool isLelantus);
@@ -318,7 +302,7 @@ public:
     bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
     static void IncrementUpdateCounter();
-    static unsigned int GetUpdateCounter();    
+    static unsigned int GetUpdateCounter();
 
 #ifdef ENABLE_ELYSIUM
 
@@ -464,6 +448,77 @@ public:
     void ListElysiumMintsV1(InsertF insertF)
     {
         ListEntries<K, V, InsertF>(string("exodus_mint_v1"), insertF);
+    }
+
+    template<class MintPool>
+    bool ReadElysiumLelantusMintPool(MintPool &mintPool)
+    {
+        return Read(std::string("elysium_lelantusmint_pool"), mintPool);
+    }
+
+    template<class MintPool>
+    bool WriteElysiumLelantusMintPool(MintPool const &mintPool)
+    {
+        return Write(std::string("elysium_lelantusmint_pool"), mintPool, true);
+    }
+
+    bool HasElysiumLelantusMintPool()
+    {
+        return Exists(std::string("elysium_lelantusmint_pool"));
+    }
+
+    template<class Key, class MintID>
+    bool ReadElysiumLelantusMintId(const Key& k, MintID &id)
+    {
+        return Read(std::make_pair(std::string("elysium_lelantusmint_id"), k), id);
+    }
+
+    template<class Key, class MintID>
+    bool WriteElysiumLelantusMintId(const Key& k, const MintID &id)
+    {
+        return Write(std::make_pair(std::string("elysium_lelantusmint_id"), k), id);
+    }
+
+    template<class Key>
+    bool HasElysiumLelantusMintId(const Key& k)
+    {
+        return Exists(std::make_pair(std::string("elysium_lelantusmint_id"), k));
+    }
+
+    template<class Key>
+    bool EraseElysiumLelantusMintId(const Key& k)
+    {
+        return Erase(std::make_pair(std::string("elysium_lelantusmint_id"), k));
+    }
+
+    template<class K, class V>
+    bool ReadElysiumLelantusMint(const K& k, V& v)
+    {
+        return Read(std::make_pair(std::string("elysium_lelantusmintmint"), k), v);
+    }
+
+    template<class K>
+    bool HasElysiumLelantusMint(const K& k)
+    {
+        return Exists(std::make_pair(std::string("elysium_lelantusmintmint"), k));
+    }
+
+    template<class K, class V>
+    bool WriteElysiumLelantusMint(const K &k, const V &v)
+    {
+        return Write(std::make_pair(std::string("elysium_lelantusmintmint"), k), v, true);
+    }
+
+    template<class K>
+    bool EraseElysiumLelantusMint(const K& k)
+    {
+        return Erase(std::make_pair(std::string("elysium_lelantusmintmint"), k));
+    }
+
+    template<typename K, typename V, typename InsertF>
+    void ListElysiumLelantusMints(InsertF insertF)
+    {
+        ListEntries<K, V, InsertF>(string("elysium_lelantusmintmint"), insertF);
     }
 
 #endif

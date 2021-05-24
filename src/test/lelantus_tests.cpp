@@ -545,7 +545,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
 BOOST_AUTO_TEST_CASE(checktransaction)
 {
-    GenerateBlocks(1000);
+    GenerateBlocks(400);
 
     // mints
     std::vector<CMutableTransaction> txs;
@@ -740,7 +740,7 @@ BOOST_AUTO_TEST_CASE(parse_joinsplit)
 
 BOOST_AUTO_TEST_CASE(coingroup)
 {
-    GenerateBlocks(1000);
+    GenerateBlocks(400);
 
     // util function
     auto reconnect = [](CBlock const &block) {

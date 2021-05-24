@@ -1,5 +1,3 @@
-#include "elysium/createtx.h"
-
 #include "base58.h"
 #include "coins.h"
 #include "core_io.h"
@@ -9,6 +7,7 @@
 #include "script/standard.h"
 #include "test/test_bitcoin.h"
 #include "utilstrencodings.h"
+#include "elysium/createtx.h"
 
 #include <boost/test/unit_test.hpp>
 
@@ -23,6 +22,7 @@ static CFeeRate minRelayTxFeeOriginal = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
 
 BOOST_FIXTURE_TEST_SUITE(elysium_create_tx_tests, BasicTestingSetup)
 
+/*
 BOOST_AUTO_TEST_CASE(txbuilder_empty)
 {
     TxBuilder builder;
@@ -30,6 +30,7 @@ BOOST_AUTO_TEST_CASE(txbuilder_empty)
 
     BOOST_CHECK_EQUAL("01000000000000000000", EncodeHexTx(CTransaction(tx)));
 }
+*/
 
 BOOST_AUTO_TEST_CASE(txbuilder_from_existing)
 {
@@ -39,7 +40,7 @@ BOOST_AUTO_TEST_CASE(txbuilder_from_existing)
     CMutableTransaction txBasis;
     BOOST_CHECK(DecodeHexTx(txBasis, rawTx));
 
-    CMutableTransaction tx = TxBuilder(txBasis).build();
+    CMutableTransaction tx = ElysiumTxBuilder(txBasis).build();
     BOOST_CHECK_EQUAL(rawTx, EncodeHexTx(CTransaction(tx)));
 }
 
@@ -49,7 +50,7 @@ BOOST_AUTO_TEST_CASE(txbuilder_add_outpoint)
         "ffffffff50259f6673c372006ffa6f52309bc3b68501e3dbdaadc910b81846a0202792b10000000000ffffffff00000000"
         "00");
 
-    CMutableTransaction tx = TxBuilder()
+    CMutableTransaction tx = ElysiumTxBuilder()
         .addInput(COutPoint(uint256S("ddfbc64a9b471e6fe88c49b79d639cd354c3596e69c432651155512ef16bef70"), 2))
         .addInput(COutPoint(uint256S("b1922720a04618b810c9addadbe30185b6c39b30526ffa6f0072c373669f2550"), 0))
         .build();
@@ -63,7 +64,7 @@ BOOST_AUTO_TEST_CASE(txbuilder_add_input)
         "ffffffff50259f6673c372006ffa6f52309bc3b68501e3dbdaadc910b81846a0202792b10000000000ffffffff00000000"
         "00");
 
-    CMutableTransaction tx = TxBuilder()
+    CMutableTransaction tx = ElysiumTxBuilder()
         .addInput(uint256S("ddfbc64a9b471e6fe88c49b79d639cd354c3596e69c432651155512ef16bef70"), 2)
         .addInput(uint256S("b1922720a04618b810c9addadbe30185b6c39b30526ffa6f0072c373669f2550"), 0)
         .build();
@@ -83,7 +84,7 @@ BOOST_AUTO_TEST_CASE(txbuilder_add_output)
     CMutableTransaction txBasis;
     BOOST_CHECK(DecodeHexTx(txBasis, rawTxBasis));
 
-    CMutableTransaction tx = TxBuilder(txBasis)
+    CMutableTransaction tx = ElysiumTxBuilder(txBasis)
         .addOutput(CScript(script.begin(), script.end()), 404000000LL)
         .build();
 
@@ -108,7 +109,7 @@ BOOST_AUTO_TEST_CASE(txbuilder_add_outputs)
     outputs.push_back(std::make_pair(CScript(scriptB.begin(), scriptB.end()), 546LL));
     outputs.push_back(std::make_pair(CScript(scriptC.begin(), scriptC.end()), 988668LL));
 
-    TxBuilder builder;
+    ElysiumTxBuilder builder;
     builder.addOutputs(outputs);
 
     CMutableTransaction tx = builder.build();
@@ -144,7 +145,7 @@ BOOST_AUTO_TEST_CASE(txbuilder_add_change)
     CCoinsViewCache viewTemp(&viewDummy);
     InputsToView(prevTxs, viewTemp);
 
-    CMutableTransaction tx = TxBuilder()
+    CMutableTransaction tx = ElysiumTxBuilder()
         .addInput(prevTxs[0].outPoint)
         .addOutput(GetScriptForDestination(addrA.Get()), 150000000LL)
         .addInput(prevTxs[1].outPoint)
@@ -152,7 +153,7 @@ BOOST_AUTO_TEST_CASE(txbuilder_add_change)
 
     BOOST_CHECK(viewTemp.HaveInputs(CTransaction(tx)));
 
-    tx = TxBuilder(tx)
+    tx = ElysiumTxBuilder(tx)
         .addChange(addrB.Get(), viewTemp, 13242LL)
         .build();
 
@@ -187,7 +188,7 @@ BOOST_AUTO_TEST_CASE(txbuilder_add_change_position)
     InputsToView(prevTxs, viewTemp);
     BOOST_CHECK(viewTemp.HaveInputs(CTransaction(txBasis)));
 
-    CMutableTransaction tx = TxBuilder(txBasis)
+    CMutableTransaction tx = ElysiumTxBuilder(txBasis)
         .addChange(addr.Get(), viewTemp, 50000LL, 1)
         .build();
 
@@ -263,7 +264,6 @@ BOOST_AUTO_TEST_CASE(elysiumtxbuilder_op_return)
     minRelayTxFee = minRelayTxFeeOriginal;
 }
 
-// TODO: test addMultisig -- currently an issue due to the non-deterministic ECDSA point manipulation
-
+// Disabled Class B
 
 BOOST_AUTO_TEST_SUITE_END()

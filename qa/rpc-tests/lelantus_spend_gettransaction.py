@@ -16,7 +16,7 @@ class JoinSplitGettransactionTest(BitcoinTestFramework):
         return start_nodes(self.num_nodes, self.options.tmpdir)
 
     def run_test(self):
-        self.nodes[0].generate(1001)
+        self.nodes[0].generate(401)
         self.sync_all()
 
         # get a watch only address

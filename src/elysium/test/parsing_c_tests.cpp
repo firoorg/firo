@@ -211,14 +211,13 @@ BOOST_AUTO_TEST_CASE(trimmed_op_return)
 
         std::vector<CTxOut> txOutputs;
 
+		unsigned CLASS_B_MAX_CHUNKS = 255;
+		unsigned int COMPRESSED_PUBLIC_KEY_SIZE = 33;
+		unsigned CLASS_B_CHUNK_SIZE = CPubKey::COMPRESSED_PUBLIC_KEY_SIZE - 2;
+
         std::vector<unsigned char> vchFiller(CLASS_B_MAX_CHUNKS * CLASS_B_CHUNK_SIZE, 0x07);
         std::vector<unsigned char> vchPayload(magic.begin(), magic.end());
         vchPayload.insert(vchPayload.end(), vchFiller.begin(), vchFiller.end());
-
-        // These will be trimmed:
-        vchPayload.push_back(0x44);
-        vchPayload.push_back(0x44);
-        vchPayload.push_back(0x44);
 
         CScript scriptPubKey;
         scriptPubKey << OP_RETURN;
@@ -247,7 +246,7 @@ BOOST_AUTO_TEST_CASE(multiple_op_return_short)
         std::vector<CTxOut> txOutputs;
         {
             CScript scriptPubKey;
-            scriptPubKey << OP_RETURN << ParseHex("65786f6475730000111122223333");
+            scriptPubKey << OP_RETURN << ParseHex("656c797369756d0000111122223333");
             CTxOut txOut = CTxOut(0, scriptPubKey);
             txOutputs.push_back(txOut);
         }
@@ -259,13 +258,13 @@ BOOST_AUTO_TEST_CASE(multiple_op_return_short)
         }
         {
             CScript scriptPubKey;
-            scriptPubKey << OP_RETURN << ParseHex("65786f6475730001000200030004");
+            scriptPubKey << OP_RETURN << ParseHex("656c797369756d0001000200030004");
             CTxOut txOut = CTxOut(0, scriptPubKey);
             txOutputs.push_back(txOut);
         }
         {
             CScript scriptPubKey;
-            scriptPubKey << OP_RETURN << ParseHex("65786f647573");
+            scriptPubKey << OP_RETURN << ParseHex("656c797369756d");
             CTxOut txOut = CTxOut(0, scriptPubKey);
             txOutputs.push_back(txOut);
         }
@@ -372,7 +371,7 @@ BOOST_AUTO_TEST_CASE(multiple_op_return_pushes)
         {
             CScript scriptPubKey;
             scriptPubKey << OP_RETURN;
-            scriptPubKey << ParseHex("65786f64757300000000000000010000000006dac2c0");
+            scriptPubKey << ParseHex("656c797369756d00000000000000010000000006dac2c0");
             scriptPubKey << ParseHex("00000000000000030000000000000d48");
             CTxOut txOut = CTxOut(0, scriptPubKey);
             txOutputs.push_back(txOut);
@@ -396,7 +395,7 @@ BOOST_AUTO_TEST_CASE(multiple_op_return_pushes)
         {
           CScript scriptPubKey;
           scriptPubKey << OP_RETURN;
-          scriptPubKey << ParseHex("65786f647573");
+          scriptPubKey << ParseHex("656c797369756d");
           scriptPubKey << ParseHex("00000000000000010000000006dac2c0");
           CTxOut txOut = CTxOut(0, scriptPubKey);
           txOutputs.push_back(txOut);

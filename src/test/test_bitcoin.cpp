@@ -47,7 +47,6 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/test/unit_test_monitor.hpp>
 #include <boost/thread.hpp>
-#include "zerocoin.h"
 #include "sigma.h"
 #include "evo/evodb.h"
 #include "evo/cbtx.h"
@@ -91,7 +90,6 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
     const CChainParams& chainparams = Params();
         // Ideally we'd move all the RPC tests to the functional testing framework
         // instead of unit tests, but for now we need these here.
-        CZerocoinState::GetZerocoinState()->Reset();
         RegisterAllCoreRPCCommands(tableRPC);
 #ifdef ENABLE_CLIENTAPI
         RegisterAllCoreAPICommands(tableAPI);

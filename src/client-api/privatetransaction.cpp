@@ -14,7 +14,6 @@
 #include "client-api/protocol.h"
 #include "wallet/coincontrol.h"
 #include "lelantus.h"
-#include <zerocoin.h>
 #include <sigma.h>
 #include <vector>
 

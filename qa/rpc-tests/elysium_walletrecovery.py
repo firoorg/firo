@@ -44,7 +44,7 @@ class ElysiumWalletRecoveryTest(ElysiumTestFramework):
         # generate sigma property
         owner = self.addrs[0]
 
-        sigma_start_block = 550
+        sigma_start_block = 150
         self.nodes[0].generatetoaddress(
             sigma_start_block - self.nodes[0].getblockcount(),
             owner)

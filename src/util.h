@@ -64,6 +64,7 @@ extern bool fPrintToConsole;
 extern bool fPrintToDebugLog;
 extern bool fServer;
 extern bool fApi;
+extern bool fNoDebug;
 
 extern bool fLogTimestamps;
 extern bool fLogTimeMicros;
@@ -77,6 +78,7 @@ extern std::atomic<bool> fReopenElysiumLog;
 extern const char * const BITCOIN_CONF_FILENAME;
 extern const char * const BITCOIN_PID_FILENAME;
 
+extern bool fSkipMnpayoutCheck;
 
 /**
  * Translation function: Call Translate signal on UI interface, which returns a boost::optional result.

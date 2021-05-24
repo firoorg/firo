@@ -97,12 +97,6 @@ BITCOIN_TESTS = \
   sigma/test/r1_test.cpp \
   sigma/test/serialize_test.cpp \
   sigma/test/sigma_primitive_types_test.cpp \
-  test/zerocoin_tests.cpp \
-  test/zerocoin_tests2.cpp \
-  test/zerocoin_tests3.cpp \
-  test/zerocoin_tests2_v3.cpp \
-  test/zerocoin_tests3_v3.cpp \
-  test/remint_tests.cpp \
   test/addrman_tests.cpp \
   test/allocator_tests.cpp \
   test/amount_tests.cpp \
@@ -162,7 +156,6 @@ BITCOIN_TESTS = \
   test/sigma_mintspend_test.cpp \
   test/sigma_partialspend_mempool_tests.cpp \
   test/sigma_state_tests.cpp \
-  test/sigma_transition_test.cpp \
   test/sigopcount_tests.cpp \
   test/skiplist_tests.cpp \
   test/streams_tests.cpp \

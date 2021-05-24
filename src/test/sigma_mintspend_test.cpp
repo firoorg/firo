@@ -36,8 +36,6 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
     string denomination;
     std::vector<string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
 
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     // foreach denom from denominations
     for(auto denomination : denominations)

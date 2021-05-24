@@ -1,6 +1,5 @@
 #include "validation.h"
 #include "lelantus.h"
-#include "zerocoin.h" // Mostly for reusing class libzerocoin::SpendMetaData
 #include "timedata.h"
 #include "chainparams.h"
 #include "util.h"
@@ -13,8 +12,8 @@
 #include "liblelantus/coin.h"
 #include "liblelantus/schnorr_prover.h"
 #include "liblelantus/schnorr_verifier.h"
+#include "primitives/mint_spend.h"
 #include "liblelantus/challenge_generator_impl.h"
-#include "primitives/zerocoin.h"
 #include "policy/policy.h"
 #include "coins.h"
 #include "batchproof_container.h"

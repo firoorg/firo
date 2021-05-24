@@ -22,11 +22,11 @@ namespace zerocoin_tests3_v3 { class zerocoin_mintspend_v3; }
 
 namespace sigma {
 
-// Zerocoin transaction info, added to the CBlock to ensure zerocoin mint/spend transactions got their info stored into
+// Sigma transaction info, added to the CBlock to ensure sigma mint/spend transactions got their info stored into
 // index
 class CSigmaTxInfo {
 public:
-    // all the zerocoin transactions encountered so far
+    // all the sigma transactions encountered so far
     std::set<uint256> zcTransactions;
 
     // Vector of <pubCoin> for all the mints.
@@ -70,7 +70,7 @@ bool CheckSigmaTransaction(
 	int nHeight,
   bool isCheckWallet,
   bool fStatefulSigmaCheck,
-  CSigmaTxInfo *zerocoinTxInfo);
+  CSigmaTxInfo *sigmaTxInfo);
 
 void DisconnectTipSigma(CBlock &block, CBlockIndex *pindexDelete);
 

@@ -10,9 +10,9 @@
 #include "innerproduct_proof.h"
 #include "range_proof.h"
 #include "challenge_generator.h"
+#include "../firo_params.h"
 
 #include "serialize.h"
-#include "../libzerocoin/Zerocoin.h"
 
 #include <vector>
 #include <algorithm>

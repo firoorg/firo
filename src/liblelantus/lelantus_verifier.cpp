@@ -155,7 +155,7 @@ bool LelantusVerifier::verify_sigma(
             C_.emplace_back(anonymity_sets[k][j].getValue());
 
         if (!sigmaVerifier.batchverify(C_, x, Sin[k], sigma_proofs_k)) {
-            LogPrintf("Lelantus verification failed due sigma verification failed.");
+            LogPrintf("Lelantus verification failed due sigma verification failed.\n");
             return false;
         }
     }

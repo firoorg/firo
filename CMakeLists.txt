@@ -6,9 +6,12 @@ project(firod CXX)
 
 add_definitions(-DENABLE_CLIENTAPI=1)
 add_definitions(-DENABLE_WALLET=1)
-
+add_definitions(-DENABLE_ELYSIUM=1)
 set(ENABLE_CLIENTAPI ON)
 set(ENABLE_WALLET ON)
+set(ENABLE_CLIENTAPI ON)
+set(ENABLE_WALLET ON)
+set(ENABLE_ELYSIUM ON)
 set(INCLUDE_DIRS src src/univalue/include src/client-api src/zmq src/zmqserver src/wallet src/qt src/qt/forms src/hdmint src/elysium src/crypto src/leveldb/include src/secp256k1 src/secp256k1/include src/secp256k1/cpp)
 include_directories(${INCLUDE_DIRS})
 
