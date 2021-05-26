@@ -102,9 +102,10 @@ public Q_SLOTS:
 
 class PcodeAddressTableModel : public AddressTableModel
 {
+    Q_OBJECT
 public:
     explicit PcodeAddressTableModel(CWallet *wallet, WalletModel *parent = 0);
-    ~PcodeAddressTableModel() = default;
+    ~PcodeAddressTableModel();
 
     enum struct ColumnIndex : int {
         Label = 0,
@@ -126,11 +127,12 @@ public:
 
     AddressTableModel::EditStatus getEditStatus() const { return editStatus; }
 
+    Q_INVOKABLE void onPcodeLabeled(QString pcode, QString label, bool removed);
+
 private:
     std::vector<std::pair<std::string, std::string>> pcodeData;
 
     void updatePcodeData();
-
 };
 
 #endif // BITCOIN_QT_ADDRESSTABLEMODEL_H

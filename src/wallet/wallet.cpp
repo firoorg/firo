@@ -7079,6 +7079,8 @@ notifTxExit:
 void CWallet::LabelPcode(bip47::CPaymentCode const & pcode_, std::string const & label, bool remove)
 {
     std::string const pcodeLbl = bip47::PcodeLabel() + pcode_.toString();
+    if (label.empty())
+        remove = true;
     CWalletDB walletDb(strWalletFile);
     if (remove) {
         walletDb.EraseKV(pcodeLbl);
@@ -7097,6 +7099,17 @@ void CWallet::LabelPcode(bip47::CPaymentCode const & pcode_, std::string const &
         walletDb.EraseKV(pcodeLbl);
         walletDb.WriteKV(pcodeLbl, label);
     }
+    NotifyPcodeLabeled(pcode_.toString(), label, remove);
+}
+
+std::string CWallet::GetPcodeLabel(bip47::CPaymentCode const & pcode) const
+{
+    std::string const pcodeLbl = bip47::PcodeLabel() + pcode.toString();
+    LOCK(cs_wallet);
+    std::multimap<std::string, std::string>::const_iterator iter = mapCustomKeyValues.find(pcodeLbl);
+    if(iter == mapCustomKeyValues.end())
+        return "";
+    return iter->second;
 }
 
 /******************************************************************************/

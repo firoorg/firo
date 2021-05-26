@@ -515,11 +515,26 @@ PcodeAddressTableModel * AddressTableModel::getPcodeAddressTableModel()
 
 // RAP pcodes
 
+static void NotifyPcodeLabeled(PcodeAddressTableModel *walletmodel, std::string pcode, std::string label, bool removed)
+{
+    QMetaObject::invokeMethod(walletmodel, "onPcodeLabeled", Qt::QueuedConnection,
+                            Q_ARG(QString, QString::fromStdString(pcode)),
+                            Q_ARG(QString, QString::fromStdString(label)),
+                            Q_ARG(bool, removed)
+        );
+}
+
 PcodeAddressTableModel::PcodeAddressTableModel(CWallet *wallet_, WalletModel *parent)
 :AddressTableModel(wallet_, parent)
 {
     columns[AddressTableModel::Address] = tr("RAP payment code");
     updatePcodeData();
+    wallet->NotifyPcodeLabeled.connect(boost::bind(NotifyPcodeLabeled, this, _1, _2, _3));
+}
+
+PcodeAddressTableModel::~PcodeAddressTableModel()
+{
+    wallet->NotifyPcodeLabeled.disconnect(boost::bind(NotifyPcodeLabeled, this, _1, _2, _3));
 }
 
 int PcodeAddressTableModel::rowCount(const QModelIndex &) const
@@ -624,11 +639,7 @@ bool PcodeAddressTableModel::removeRows(int row, int count, const QModelIndex &)
     if(count != 1 || row >= pcodeData.size())
         return false;
 
-    beginRemoveRows(QModelIndex(), row, row);
     wallet->LabelPcode(pcodeData[row].first, "", true);
-    updatePcodeData();
-    endRemoveRows();
-    
     return true;
 }
 
@@ -656,25 +667,8 @@ QString PcodeAddressTableModel::addRow(const QString &type, const QString &label
         editStatus = AddressTableModel::PCODE_VALIDATION_FAILURE;
         return QString();
     }
-    std::vector<std::pair<std::string, std::string>>::const_iterator iter =
-        std::lower_bound(pcodeData.begin(), pcodeData.end(), strPcode,
-            [](std::pair<std::string, std::string> const & item, std::string const & val) { return item.first < val; }
-        );
-    int const pos = std::distance(pcodeData.cbegin(), iter);
 
-    if(iter != pcodeData.end() && iter->first == strPcode)
-    {
-        wallet->LabelPcode(strPcode, strLabel);
-        updatePcodeData();
-        Q_EMIT dataChanged(createIndex(pos, 0), createIndex(pos, columns.length() - 1));
-    }
-    else
-    {
-        beginInsertRows(QModelIndex(), pos, pos);
-        wallet->LabelPcode(strPcode, strLabel);
-        updatePcodeData();
-        endInsertRows();
-    }
+    wallet->LabelPcode(strPcode, strLabel);
 
     return QString::fromStdString(strPcode);
 }
@@ -687,5 +681,48 @@ void PcodeAddressTableModel::updatePcodeData()
     for(; iter != wallet->mapCustomKeyValues.end() && iter->first.compare(0, bip47::PcodeLabel().size(), bip47::PcodeLabel()) <= 0; ++iter) {
         pcodeData.push_back(std::make_pair(iter->first.substr(bip47::PcodeLabel().size(), iter->first.size() - bip47::PcodeLabel().size()), iter->second));
     }
+
+}
+
+void PcodeAddressTableModel::onPcodeLabeled(QString pcode_, QString label_, bool removed)
+{
+    std::string const & pcode = pcode_.toStdString();
+    std::string const & label = label_.toStdString();
+    if(removed)
+    {
+        std::vector<std::pair<std::string, std::string>>::iterator iter = std::find_if(
+                pcodeData.begin(),
+                pcodeData.end(),
+                [&pcode](std::pair<std::string, std::string> const & item) -> bool {
+                    return item.first == pcode;
+                });
+        if (iter == pcodeData.end())
+            return;
+        int const row = std::distance(pcodeData.begin(), iter);
+        beginRemoveRows(QModelIndex(), row, row);
+        updatePcodeData();
+        endRemoveRows();
+    }
+    else
+    {
+        std::vector<std::pair<std::string, std::string>>::const_iterator iter =
+            std::lower_bound(pcodeData.begin(), pcodeData.end(), pcode,
+                [](std::pair<std::string, std::string> const & item, std::string const & val) { return item.first < val; }
+            );
+        int const pos = std::distance(pcodeData.cbegin(), iter);
+
+        if(iter != pcodeData.end() && iter->first == pcode)
+        {
+            updatePcodeData();
+            Q_EMIT dataChanged(createIndex(pos, 0), createIndex(pos, columns.length() - 1));
+        }
+        else
+        {
+            beginInsertRows(QModelIndex(), pos, pos);
+            updatePcodeData();
+            endInsertRows();
+        }
+    }
+
 
 }

@@ -267,12 +267,16 @@ bool SendCoinsEntry::updateLabel(const QString &address)
         return false;
 
     // Fill in label from address book, if address has an associated label
-    QString associatedLabel = model->getAddressTableModel()->labelForAddress(address);
-    if(!associatedLabel.isEmpty())
+    QString associatedLabel;
+    if(bip47::CPaymentCode::validate(address.toStdString()))
     {
-        ui->addAsLabel->setText(associatedLabel);
-        return true;
+        associatedLabel = QString::fromStdString(model->getWallet()->GetPcodeLabel(address.toStdString()));
+    }
+    else
+    {
+        associatedLabel = model->getAddressTableModel()->labelForAddress(address);
     }
 
-    return false;
+    ui->addAsLabel->setText(associatedLabel);
+    return true;
 }
