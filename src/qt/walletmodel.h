@@ -20,6 +20,7 @@
 #include <QObject>
 
 class AddressTableModel;
+class PcodeAddressTableModel;
 class LelantusModel;
 class OptionsModel;
 class PlatformStyle;
@@ -135,6 +136,7 @@ public:
 
     OptionsModel *getOptionsModel();
     AddressTableModel *getAddressTableModel();
+    PcodeAddressTableModel *getPcodeAddressTableModel();
     LelantusModel *getLelantusModel();
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
@@ -286,6 +288,7 @@ private:
     OptionsModel *optionsModel;
 
     AddressTableModel *addressTableModel;
+    PcodeAddressTableModel *pcodeAddressTableModel;
     LelantusModel *lelantusModel;
     TransactionTableModel *transactionTableModel;
     RecentRequestsTableModel *recentRequestsTableModel;

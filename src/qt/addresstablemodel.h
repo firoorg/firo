@@ -10,6 +10,7 @@
 
 class AddressTablePriv;
 class WalletModel;
+class PcodeAddressTableModel;
 
 class CWallet;
 
@@ -40,7 +41,8 @@ public:
         INVALID_ADDRESS,        /**< Unparseable address */
         DUPLICATE_ADDRESS,      /**< Address already in address book */
         WALLET_UNLOCK_FAILURE,  /**< Wallet could not be unlocked to create new receiving address */
-        KEY_GENERATION_FAILURE  /**< Generating a new public key for a receiving address failed */
+        KEY_GENERATION_FAILURE,  /**< Generating a new public key for a receiving address failed */
+        PCODE_VALIDATION_FAILURE /**< Failed to validate the payment code */
     };
 
     static const QString Send;      /**< Specifies send address */
@@ -62,7 +64,7 @@ public:
     /* Add an address to the model.
        Returns the added address on success, and an empty string otherwise.
      */
-    QString addRow(const QString &type, const QString &label, const QString &address);
+    virtual QString addRow(const QString &type, const QString &label, const QString &address);
 
     /* Look up label for address in address book, if not found return empty string.
      */
@@ -75,12 +77,15 @@ public:
 
     EditStatus getEditStatus() const { return editStatus; }
 
-private:
+    PcodeAddressTableModel * getPcodeAddressTableModel();
+protected:
     WalletModel *walletModel;
     CWallet *wallet;
-    AddressTablePriv *priv;
-    QStringList columns;
     EditStatus editStatus;
+    QStringList columns;
+
+private:
+    AddressTablePriv *priv;
 
     /** Notify listeners that data changed. */
     void emitDataChanged(int index);
@@ -92,6 +97,40 @@ public Q_SLOTS:
     void updateEntry(const QString &pubCoin, const QString &isUsed, int status);
 
     friend class AddressTablePriv;
+};
+
+
+class PcodeAddressTableModel : public AddressTableModel
+{
+public:
+    explicit PcodeAddressTableModel(CWallet *wallet, WalletModel *parent = 0);
+    ~PcodeAddressTableModel() = default;
+
+    enum struct ColumnIndex : int {
+        Label = 0,
+        Pcode
+    };
+
+    /** @name Methods overridden from QAbstractTableModel
+        @{*/
+    int rowCount(const QModelIndex &parent) const;
+    int columnCount(const QModelIndex &parent) const;
+    QVariant data(const QModelIndex &index, int role) const;
+    bool setData(const QModelIndex &index, const QVariant &value, int role);
+    QVariant headerData(int section, Qt::Orientation orientation, int role) const;
+    bool removeRows(int row, int count, const QModelIndex &parent = QModelIndex());
+    Qt::ItemFlags flags(const QModelIndex &index) const;
+    /*@}*/
+
+    QString addRow(const QString &type, const QString &label, const QString &address) override;
+
+    AddressTableModel::EditStatus getEditStatus() const { return editStatus; }
+
+private:
+    std::vector<std::pair<std::string, std::string>> pcodeData;
+
+    void updatePcodeData();
+
 };
 
 #endif // BITCOIN_QT_ADDRESSTABLEMODEL_H

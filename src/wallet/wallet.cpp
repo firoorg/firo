@@ -7082,12 +7082,14 @@ void CWallet::LabelPcode(bip47::CPaymentCode const & pcode_, std::string const &
     CWalletDB walletDb(strWalletFile);
     if (remove) {
         walletDb.EraseKV(pcodeLbl);
+        LOCK(cs_wallet);
         mapCustomKeyValues.erase(pcodeLbl);
     } else {
         std::multimap<std::string, std::string>::iterator iter = mapCustomKeyValues.find(pcodeLbl);
-        if (iter == mapCustomKeyValues.end())
+        if (iter == mapCustomKeyValues.end()) {
+            LOCK(cs_wallet);
             mapCustomKeyValues.insert(std::make_pair(pcodeLbl, label));
-        else {
+        } else {
             if (iter->second == label)
                 return;
             iter->second = label;

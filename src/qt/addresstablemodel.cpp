@@ -11,6 +11,7 @@
 #include "wallet/wallet.h"
 #include "validation.h"
 #include "bip47/defs.h"
+#include "bip47/paymentchannel.h"
 
 #include <boost/foreach.hpp>
 
@@ -98,13 +99,6 @@ public:
                 cachedAddressTable.append(AddressTableEntry(addressType,
                                   QString::fromStdString(strName),
                                   QString::fromStdString(address.ToString())));
-            }
-            std::multimap<std::string, std::string>::const_iterator iter = wallet->mapCustomKeyValues.lower_bound(bip47::PcodeLabel());
-            for (;iter != wallet->mapCustomKeyValues.end() && iter->first.compare(0, bip47::PcodeLabel().size(), bip47::PcodeLabel()) == 0; ++iter)
-            {
-                cachedAddressTable.append(AddressTableEntry(AddressTableEntry::Sending,
-                        QString::fromStdString(iter->second),
-                        QString::fromStdString(iter->first.substr(bip47::PcodeLabel().size(),iter->first.size() - bip47::PcodeLabel().size()))));
             }
         }
         // qLowerBound() and qUpperBound() require our cachedAddressTable list to be sorted in asc order
@@ -510,4 +504,188 @@ int AddressTableModel::lookupAddress(const QString &address) const
 void AddressTableModel::emitDataChanged(int idx)
 {
     Q_EMIT dataChanged(index(idx, 0, QModelIndex()), index(idx, columns.length()-1, QModelIndex()));
+}
+
+PcodeAddressTableModel * AddressTableModel::getPcodeAddressTableModel()
+{
+    if(!walletModel)
+        return nullptr;
+    return walletModel->getPcodeAddressTableModel();
+}
+
+// RAP pcodes
+
+PcodeAddressTableModel::PcodeAddressTableModel(CWallet *wallet_, WalletModel *parent)
+:AddressTableModel(wallet_, parent)
+{
+    columns[AddressTableModel::Address] = tr("RAP payment code");
+    updatePcodeData();
+}
+
+int PcodeAddressTableModel::rowCount(const QModelIndex &) const
+{
+    return pcodeData.size();
+}
+
+int PcodeAddressTableModel::columnCount(const QModelIndex &) const
+{
+    return columns.size();
+}
+
+QVariant PcodeAddressTableModel::data(const QModelIndex &index, int role) const
+{
+    if(!index.isValid())
+        return QVariant();
+
+    int const row = index.row();
+    if(row >= pcodeData.size())
+        return QVariant();
+
+    if(role == Qt::DisplayRole || role == Qt::EditRole)
+    {
+        switch(ColumnIndex(index.column()))
+        {
+            case ColumnIndex::Label:
+                return QString::fromStdString(pcodeData[row].second);
+            case ColumnIndex::Pcode:
+                return QString::fromStdString(pcodeData[row].first);
+        }
+    }
+    else if (role == Qt::FontRole)
+    {
+        QFont font;
+        if(ColumnIndex(index.column()) == ColumnIndex::Pcode)
+        {
+            font = GUIUtil::fixedPitchFont();
+        }
+        return font;
+    }
+    return QVariant();
+}
+
+bool PcodeAddressTableModel::setData(const QModelIndex &index, const QVariant &value, int role)
+{
+    if(!index.isValid())
+        return false;
+    int const row = index.row();
+    if(row >= pcodeData.size())
+        return false;
+
+    if(role == Qt::EditRole)
+    {
+        if(ColumnIndex(index.column()) == ColumnIndex::Label)
+        {
+            std::string const newLab = value.toString().toStdString();
+            if(pcodeData[row].second == newLab)
+            {
+                editStatus = AddressTableModel::NO_CHANGES;
+                return false;
+            }
+
+            wallet->LabelPcode(pcodeData[row].first, newLab, false);
+            updatePcodeData();
+            editStatus = AddressTableModel::OK;
+            Q_EMIT dataChanged(createIndex(row, 0), createIndex(row, columns.length() - 1));
+        }
+        else if(ColumnIndex(index.column()) == ColumnIndex::Pcode)
+        {
+            std::string const newPcode = value.toString().toStdString();
+            if(!bip47::CPaymentCode::validate(newPcode))
+            {
+                editStatus = AddressTableModel::PCODE_VALIDATION_FAILURE;
+                return false;
+            }
+
+            wallet->LabelPcode(pcodeData[row].first, "", true);
+            wallet->LabelPcode(newPcode, pcodeData[row].second, false);
+            updatePcodeData();
+            Q_EMIT dataChanged(createIndex(row, 0), createIndex(row, columns.length() - 1));
+
+        }
+        return true;
+    }
+    return false;
+}
+
+QVariant PcodeAddressTableModel::headerData(int section, Qt::Orientation orientation, int role) const
+{
+    if(orientation == Qt::Horizontal)
+    {
+        if(role == Qt::DisplayRole && section >= 0 && section < columns.size())
+        {
+            return columns[section];
+        }
+    }
+    return QVariant();
+}
+
+bool PcodeAddressTableModel::removeRows(int row, int count, const QModelIndex &)
+{
+    if(count != 1 || row >= pcodeData.size())
+        return false;
+
+    beginRemoveRows(QModelIndex(), row, row);
+    wallet->LabelPcode(pcodeData[row].first, "", true);
+    updatePcodeData();
+    endRemoveRows();
+    
+    return true;
+}
+
+Qt::ItemFlags PcodeAddressTableModel::flags(const QModelIndex &index) const
+{
+    if(!index.isValid())
+        return 0;
+    Qt::ItemFlags retval = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
+    if(index.column() == int(ColumnIndex::Label))
+    {
+        retval |= Qt::ItemIsEditable;
+    }
+    return retval;
+}
+
+QString PcodeAddressTableModel::addRow(const QString &type, const QString &label, const QString &address)
+{
+    std::string const strLabel = label.toStdString();
+    std::string const strPcode = address.toStdString();
+
+    editStatus = AddressTableModel::OK;
+
+    if(!bip47::CPaymentCode::validate(strPcode))
+    {
+        editStatus = AddressTableModel::PCODE_VALIDATION_FAILURE;
+        return QString();
+    }
+    std::vector<std::pair<std::string, std::string>>::const_iterator iter =
+        std::lower_bound(pcodeData.begin(), pcodeData.end(), strPcode,
+            [](std::pair<std::string, std::string> const & item, std::string const & val) { return item.first < val; }
+        );
+    int const pos = std::distance(pcodeData.cbegin(), iter);
+
+    if(iter != pcodeData.end() && iter->first == strPcode)
+    {
+        wallet->LabelPcode(strPcode, strLabel);
+        updatePcodeData();
+        Q_EMIT dataChanged(createIndex(pos, 0), createIndex(pos, columns.length() - 1));
+    }
+    else
+    {
+        beginInsertRows(QModelIndex(), pos, pos);
+        wallet->LabelPcode(strPcode, strLabel);
+        updatePcodeData();
+        endInsertRows();
+    }
+
+    return QString::fromStdString(strPcode);
+}
+
+void PcodeAddressTableModel::updatePcodeData()
+{
+    LOCK(wallet->cs_wallet);
+    pcodeData.clear();
+    std::multimap<std::string, std::string>::const_iterator iter = wallet->mapCustomKeyValues.lower_bound(bip47::PcodeLabel());
+    for(; iter != wallet->mapCustomKeyValues.end() && iter->first.compare(0, bip47::PcodeLabel().size(), bip47::PcodeLabel()) <= 0; ++iter) {
+        pcodeData.push_back(std::make_pair(iter->first.substr(bip47::PcodeLabel().size(), iter->first.size() - bip47::PcodeLabel().size()), iter->second));
+    }
+
 }

@@ -39,9 +39,13 @@ EditAddressDialog::EditAddressDialog(Mode _mode, QWidget *parent) :
     case EditSendingAddress:
         setWindowTitle(tr("Edit sending address"));
         break;
+    case NewPcode:
+        setWindowTitle(tr("New RAP payment code"));
+        ui->label_2->setText(tr("RAP code"));
+        break;
     case EditPcode:
         setWindowTitle(tr("Edit RAP payment code"));
-        ui->addressEdit->setEnabled(false);
+        ui->label_2->setText(tr("RAP code"));
         break;
     }
 
@@ -90,6 +94,10 @@ bool EditAddressDialog::saveCurrentRow()
         {
             address = ui->addressEdit->text();
         }
+        break;
+    case NewPcode:
+    case EditPcode:
+        address = model->getPcodeAddressTableModel()->addRow("", ui->labelEdit->text(), ui->addressEdit->text());
         break;
     }
     return !address.isEmpty();
