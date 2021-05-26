@@ -117,6 +117,8 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                         sub.credit = txout.nValue;
                     }
                 } else {
+                    if (!bip47::utils::GetMaskedPcode(txout).empty())
+                        continue;
                     ExtractDestination(txout.scriptPubKey, address);
                     sub.type = TransactionRecord::SpendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();

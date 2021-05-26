@@ -52,7 +52,7 @@ std::unique_ptr<CPaymentCode> PcodeFromMaskedPayload(Bytes payload, unsigned cha
 namespace {
 std::pair<CScript::const_iterator, CScript::const_iterator> FindOpreturnData(CScript const & script)
 {
-    if (script.size() < 2 && script[0] != OP_RETURN)
+    if (script.size() < 2 || script[0] != OP_RETURN)
         return {script.end(), script.end()};
     CScript::const_iterator iter = script.begin() + 1;
     if (*iter < OP_PUSHDATA1) {
@@ -75,15 +75,24 @@ std::pair<CScript::const_iterator, CScript::const_iterator> FindOpreturnData(CSc
 }
 }
 
+Bytes GetMaskedPcode(CTxOut const & txout)
+{
+    std::pair<CScript::const_iterator, CScript::const_iterator> opRetData = FindOpreturnData(txout.scriptPubKey);
+    if (opRetData.first == txout.scriptPubKey.end())
+        return Bytes();
+
+    if (*opRetData.first == 0x01 && *(opRetData.first + 1) == 0x00)
+        return Bytes(opRetData.first, opRetData.second);
+
+    return Bytes();
+}
+
 Bytes GetMaskedPcode(CTransactionRef const & tx)
 {
     for (CTxOut const & out : tx->vout) {
-        std::pair<CScript::const_iterator, CScript::const_iterator> opRetData = FindOpreturnData(out.scriptPubKey);
-        if (opRetData.first == out.scriptPubKey.end())
-            continue;
-
-        if (*opRetData.first == 0x01 && *(opRetData.first + 1) == 0x00)
-            return Bytes(opRetData.first, opRetData.second);
+        Bytes result = GetMaskedPcode (out);
+        if(!result.empty())
+            return result;
     }
     return Bytes();
 }
