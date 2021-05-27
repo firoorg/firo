@@ -286,14 +286,14 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     //
     BOOST_FOREACH(const CTxOut& txout, wtx.tx->vout)
     {
-        isminetype isMine = wallet->IsMine(txout);
+        bool isFromMe = wallet->IsFromMe(*wtx.tx);
         CTxDestination address;
         if (ExtractDestination(txout.scriptPubKey, address))
         {
             boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
             if (pcode)
             {
-                if (isMine & ISMINE_SPENDABLE)
+                if (!isFromMe)
                     strHTML += "<b>" + tr("Received with RAP code") + ":</b> " + GUIUtil::HtmlEscape(std::get<2>(*pcode));
                 else
                     strHTML += "<b>" + tr("Sent to RAP code") + ":</b> " + bip47::utils::ShortenPcode(std::get<1>(*pcode)).c_str();
