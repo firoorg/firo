@@ -5258,41 +5258,41 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
 }
 
 void CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result) {
-	// create transaction
-	std::vector<CLelantusEntry> spendCoins; //spends
+    // create transaction
+    std::vector<CLelantusEntry> spendCoins; //spends
     std::vector<CSigmaEntry> sigmaSpendCoins;
-	std::vector<CHDMint> mintCoins; // new mints
-	CAmount fee;
+    std::vector<CHDMint> mintCoins; // new mints
+    CAmount fee;
     result = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins);
 
     CommitLelantusTransaction(result, spendCoins, sigmaSpendCoins, mintCoins);
 }
 
 CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
-	const std::vector<CRecipient>& recipients,
-	CAmount &fee,
-	const std::vector<CAmount>& newMints,
-	std::vector<CLelantusEntry>& spendCoins,
-    std::vector<CSigmaEntry>& sigmaSpendCoins,
-	std::vector<CHDMint>& mintCoins,
-	const CCoinControl *coinControl)
+        const std::vector<CRecipient>& recipients,
+        CAmount &fee,
+        const std::vector<CAmount>& newMints,
+        std::vector<CLelantusEntry>& spendCoins,
+        std::vector<CSigmaEntry>& sigmaSpendCoins,
+        std::vector<CHDMint>& mintCoins,
+        const CCoinControl *coinControl)
 {
-	// sanity check
-	EnsureMintWalletAvailable();
+    // sanity check
+    EnsureMintWalletAvailable();
 
-	if (IsLocked()) {
-		throw std::runtime_error(_("Wallet locked"));
-	}
+    if (IsLocked()) {
+        throw std::runtime_error(_("Wallet locked"));
+    }
 
-	// create transaction
-	LelantusJoinSplitBuilder builder(*this, *zwallet, coinControl);
+    // create transaction
+    LelantusJoinSplitBuilder builder(*this, *zwallet, coinControl);
 
-	CWalletTx tx = builder.Build(recipients, fee, newMints);
-	spendCoins = builder.spendCoins;
+    CWalletTx tx = builder.Build(recipients, fee, newMints);
+    spendCoins = builder.spendCoins;
     sigmaSpendCoins = builder.sigmaSpendCoins;
-	mintCoins = builder.mintCoins;
+    mintCoins = builder.mintCoins;
 
-	return tx;
+    return tx;
 }
 
 std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, const CCoinControl *coinControl) {
@@ -5362,149 +5362,149 @@ std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(CAmount required,
 }
 
 bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CSigmaEntry>& sigmaSpendCoins, std::vector<CHDMint>& mintCoins) {
-	EnsureMintWalletAvailable();
+    EnsureMintWalletAvailable();
 
-	// commit
-	try {
-		CValidationState state;
-		CReserveKey reserveKey(this);
-		CommitTransaction(wtxNew, reserveKey, g_connman.get(), state);
+    // commit
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(this);
+        CommitTransaction(wtxNew, reserveKey, g_connman.get(), state);
     } catch (...) {
-		auto error = _(
-			"Error: The transaction was rejected! This might happen if some of "
-			"the coins in your wallet were already spent, such as if you used "
-			"a copy of wallet.dat and coins were spent in the copy but not "
-			"marked as spent here."
-		);
+        auto error = _(
+                "Error: The transaction was rejected! This might happen if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
 
-		std::throw_with_nested(std::runtime_error(error));
-	}
+        std::throw_with_nested(std::runtime_error(error));
+    }
 
-	// mark selected coins as used
-	lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-	CWalletDB db(strWalletFile);
+    // mark selected coins as used
+    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
+    CWalletDB db(strWalletFile);
 
-	for (auto& coin : spendCoins) {
-		// get coin id & height
-		int height, id;
+    for (auto& coin : spendCoins) {
+        // get coin id & height
+        int height, id;
 
-		std::tie(height, id) = lelantusState->GetMintedCoinHeightAndId(lelantus::PublicCoin(coin.value));
+        std::tie(height, id) = lelantusState->GetMintedCoinHeightAndId(lelantus::PublicCoin(coin.value));
 
-		// add CLelantusSpendEntry
-		CLelantusSpendEntry spend;
+        // add CLelantusSpendEntry
+        CLelantusSpendEntry spend;
 
-		spend.coinSerial = coin.serialNumber;
-		spend.hashTx = wtxNew.GetHash();
-		spend.pubCoin = coin.value;
-		spend.id = id;
-		spend.amount = coin.amount;
+        spend.coinSerial = coin.serialNumber;
+        spend.hashTx = wtxNew.GetHash();
+        spend.pubCoin = coin.value;
+        spend.id = id;
+        spend.amount = coin.amount;
 
-		if (!db.WriteLelantusSpendSerialEntry(spend)) {
-			throw std::runtime_error(_("Failed to write coin serial number into wallet"));
-		}
+        if (!db.WriteLelantusSpendSerialEntry(spend)) {
+            throw std::runtime_error(_("Failed to write coin serial number into wallet"));
+        }
 
-		//Set spent mint as used in memory
-		uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value);
-		zwallet->GetTracker().SetLelantusPubcoinUsed(hashPubcoin, wtxNew.GetHash());
-		CLelantusMintMeta metaCheck;
-		zwallet->GetTracker().GetLelantusMetaFromPubcoin(hashPubcoin, metaCheck);
-		if (!metaCheck.isUsed) {
-			string strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
-			LogPrintf("SpendLelantus() : %s\n", strError.c_str());
-		}
+        //Set spent mint as used in memory
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value);
+        zwallet->GetTracker().SetLelantusPubcoinUsed(hashPubcoin, wtxNew.GetHash());
+        CLelantusMintMeta metaCheck;
+        zwallet->GetTracker().GetLelantusMetaFromPubcoin(hashPubcoin, metaCheck);
+        if (!metaCheck.isUsed) {
+            string strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
+            LogPrintf("SpendLelantus() : %s\n", strError.c_str());
+        }
 
-		//Set spent mint as used in DB
-		zwallet->GetTracker().UpdateState(metaCheck);
+        //Set spent mint as used in DB
+        zwallet->GetTracker().UpdateState(metaCheck);
 
-		// update CLelantusEntry
-		coin.IsUsed = true;
-		coin.id = id;
-		coin.nHeight = height;
+        // update CLelantusEntry
+        coin.IsUsed = true;
+        coin.id = id;
+        coin.nHeight = height;
 
-		// raise event
-		NotifyZerocoinChanged(
-			this,
-			coin.value.GetHex(),
-			"Used (" + std::to_string(coin.amount) + " mint)",
-			CT_UPDATED);
-	}
+        // raise event
+        NotifyZerocoinChanged(
+                this,
+                coin.value.GetHex(),
+                "Used (" + std::to_string(coin.amount) + " mint)",
+                CT_UPDATED);
+    }
 
-	sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-	for (auto& coin : sigmaSpendCoins) {
-		// get coin id & height
-		int height, id;
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+    for (auto& coin : sigmaSpendCoins) {
+        // get coin id & height
+        int height, id;
 
-		std::tie(height, id) = sigmaState->GetMintedCoinHeightAndId(sigma::PublicCoin(
-			coin.value, coin.get_denomination()));
+        std::tie(height, id) = sigmaState->GetMintedCoinHeightAndId(sigma::PublicCoin(
+            coin.value, coin.get_denomination()));
 
-		// add CSigmaSpendEntry
-		CSigmaSpendEntry spend;
+        // add CSigmaSpendEntry
+        CSigmaSpendEntry spend;
 
-		spend.coinSerial = coin.serialNumber;
-		spend.hashTx = wtxNew.GetHash();
-		spend.pubCoin = coin.value;
-		spend.id = id;
-		spend.set_denomination_value(coin.get_denomination_value());
+        spend.coinSerial = coin.serialNumber;
+        spend.hashTx = wtxNew.GetHash();
+        spend.pubCoin = coin.value;
+        spend.id = id;
+        spend.set_denomination_value(coin.get_denomination_value());
 
-		if (!db.WriteCoinSpendSerialEntry(spend)) {
-			throw std::runtime_error(_("Failed to write coin serial number into wallet"));
-		}
+        if (!db.WriteCoinSpendSerialEntry(spend)) {
+            throw std::runtime_error(_("Failed to write coin serial number into wallet"));
+        }
 
-		//Set spent mint as used in memory
-		uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value);
-		zwallet->GetTracker().SetPubcoinUsed(hashPubcoin, wtxNew.GetHash());
-		CMintMeta metaCheck;
-		zwallet->GetTracker().GetMetaFromPubcoin(hashPubcoin, metaCheck);
-		if (!metaCheck.isUsed) {
-			string strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
-			LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
-		}
+        //Set spent mint as used in memory
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value);
+        zwallet->GetTracker().SetPubcoinUsed(hashPubcoin, wtxNew.GetHash());
+        CMintMeta metaCheck;
+        zwallet->GetTracker().GetMetaFromPubcoin(hashPubcoin, metaCheck);
+        if (!metaCheck.isUsed) {
+            string strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
+            LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
+        }
 
-		//Set spent mint as used in DB
-		zwallet->GetTracker().UpdateState(metaCheck);
+        //Set spent mint as used in DB
+        zwallet->GetTracker().UpdateState(metaCheck);
 
-		// update CSigmaEntry
-		coin.IsUsed = true;
-		coin.id = id;
-		coin.nHeight = height;
+        // update CSigmaEntry
+        coin.IsUsed = true;
+        coin.id = id;
+        coin.nHeight = height;
 
-		// raise event
-		NotifyZerocoinChanged(
-			this,
-			coin.value.GetHex(),
-			"Used (" + std::to_string(coin.get_denomination()) + " mint)",
-			CT_UPDATED);
-	}
+        // raise event
+        NotifyZerocoinChanged(
+            this,
+            coin.value.GetHex(),
+            "Used (" + std::to_string(coin.get_denomination()) + " mint)",
+            CT_UPDATED);
+    }
 
-	for (auto& coin : mintCoins) {
-		coin.SetTxHash(wtxNew.GetHash());
-		zwallet->GetTracker().AddLelantus(db, coin, true);
+    for (auto& coin : mintCoins) {
+        coin.SetTxHash(wtxNew.GetHash());
+        zwallet->GetTracker().AddLelantus(db, coin, true);
 
-		// raise event
-		NotifyZerocoinChanged(this,
-			coin.GetPubcoinValue().GetHex(),
-			"New (" + std::to_string(coin.GetAmount()) + " mint)",
-			CT_NEW);
-	}
+        // raise event
+        NotifyZerocoinChanged(this,
+                              coin.GetPubcoinValue().GetHex(),
+                              "New (" + std::to_string(coin.GetAmount()) + " mint)",
+                              CT_NEW);
+    }
 
-	// Update nCountNextUse in HDMint wallet database
-	zwallet->UpdateCountDB(db);
+    // Update nCountNextUse in HDMint wallet database
+    zwallet->UpdateCountDB(db);
 
-	return true;
+    return true;
 }
 
 
 bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& sigmaEntry, bool forEstimation) const
 {
-	EnsureMintWalletAvailable();
+    EnsureMintWalletAvailable();
 
-	if (IsLocked() && !forEstimation) {
-		return false;
-	}
+    if (IsLocked() && !forEstimation) {
+        return false;
+    }
 
-	CMintMeta meta;
-	if (!zwallet->GetTracker().GetMetaFromSerial(hashSerial, meta))
-		return error("%s: serialhash %s is not in tracker", __func__, hashSerial.GetHex());
+    CMintMeta meta;
+    if(!zwallet->GetTracker().GetMetaFromSerial(hashSerial, meta))
+        return error("%s: serialhash %s is not in tracker", __func__, hashSerial.GetHex());
 
     CWalletDB walletdb(strWalletFile);
      if (meta.isDeterministic) {
@@ -5519,7 +5519,7 @@ bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& sigmaEntry, bool f
         return error("%s: failed to read sigmamint from database", __func__);
     }
 
-	return true;
+     return true;
 }
 
 bool CWallet::GetMint(const uint256& hashSerial, CLelantusEntry& mint, bool forEstimation) const
