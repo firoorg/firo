@@ -4714,7 +4714,7 @@ UniValue setusednumber(const JSONRPCRequest& request)
 
     size_t numberOfUsed = pwallet->SetUsedAddressNumber(pcode, number);
 
-    return numberOfUsed;
+    return UniValue(int(numberOfUsed));
 }
 
 /******************************************************************************/
