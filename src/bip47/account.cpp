@@ -94,9 +94,14 @@ CBitcoinAddress CAccountSender::generateTheirNextSecretAddress()
     return getPaymentChannel().generateTheirNextSecretAddress();
 }
 
-CBitcoinAddress CAccountSender::getTheirNextAddress() const
+CBitcoinAddress CAccountSender::getTheirNextSecretAddress() const
 {
     return getPaymentChannel().getTheirNextSecretAddress();
+}
+
+size_t CAccountSender::setTheirUsedAddressNumber(size_t number)
+{
+    return getPaymentChannel().setTheirUsedAddressNumber(number);
 }
 
 TheirAddrContT CAccountSender::getTheirUsedAddresses() const
@@ -169,6 +174,20 @@ std::string const & CAccountReceiver::getLabel() const
 CAccountReceiver::PChannelContT const & CAccountReceiver::getPchannels() const
 {
     return pchannels;
+}
+
+boost::optional<size_t> CAccountReceiver::setMyUsedAddressNumber(CPaymentCode const & theirPcode, size_t number)
+{
+    boost::optional<size_t> result;
+    for (CPaymentChannel & pchannel: pchannels) {
+        if(pchannel.getTheirPcode() == theirPcode)
+            result.emplace(pchannel.setMyUsedAddressNumber(number));
+    }
+    if(result) {
+        generateMyNextAddresses();
+        generateMyUsedAddresses();
+    }
+    return result;
 }
 
 MyAddrContT const & CAccountReceiver::generateMyUsedAddresses() const

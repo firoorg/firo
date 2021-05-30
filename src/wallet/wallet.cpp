@@ -6860,7 +6860,7 @@ bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)
         }
     }
     CWalletDB(strWalletFile).WriteBip47Account(newAcc);
-    NotifyPcodeCreated(bip47::CPaymentCodeDescription(newAcc.getAccountNum(), newAcc.getMyPcode(), newAcc.getLabel(), newAcc.getMyPcode().getNotificationAddress()));
+    NotifyPcodeCreated(bip47::CPaymentCodeDescription(newAcc.getAccountNum(), newAcc.getMyPcode(), newAcc.getLabel(), newAcc.getMyPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Receiver));
     return newAcc.getMyPcode();
 }
 
@@ -6873,7 +6873,7 @@ std::vector<bip47::CPaymentCodeDescription> CWallet::ListPcodes()
     bip47wallet->enumerateReceivers(
         [&result](bip47::CAccountReceiver const & acc)->bool
         {
-            result.emplace_back(acc.getAccountNum(), acc.getMyPcode(), acc.getLabel(), acc.getMyNotificationAddress());
+            result.emplace_back(acc.getAccountNum(), acc.getMyPcode(), acc.getLabel(), acc.getMyNotificationAddress(), bip47::CPaymentCodeSide::Receiver);
             return true;
         }
     );
@@ -6900,13 +6900,11 @@ void CWallet::SetNotificationTxId(bip47::CPaymentCode const & theirPcode, uint25
     CWalletDB(strWalletFile).WriteBip47Account(sender);
 }
 
-CBitcoinAddress CWallet::GetNextAddress(bip47::CPaymentCode const & theirPcode)
+namespace {
+CBitcoinAddress HandleTheirNextAddress(bip47::CWallet & wallet, std::string const & strWalletFile, bip47::CPaymentCode const & theirPcode, bool storeNextAddress)
 {
-    if (!bip47wallet)
-        throw WalletError("BIP47 wallet was not created during the initialization");
-
     boost::optional<bip47::CAccountSender*> existingAcc;
-    bip47wallet->enumerateSenders(
+    wallet.enumerateSenders(
         [&theirPcode, &existingAcc](bip47::CAccountSender & acc)->bool
         {
             if(acc.getTheirPcode() == theirPcode) {
@@ -6918,10 +6916,33 @@ CBitcoinAddress CWallet::GetNextAddress(bip47::CPaymentCode const & theirPcode)
     );
     if(!existingAcc)
         throw std::runtime_error("There is no account setup for payment code " + theirPcode.toString());
-    auto result = existingAcc.get()->generateTheirNextSecretAddress();
-    LogBip47("Sending to secret address: %s\n", result.ToString());
+    CBitcoinAddress result;
+    if(storeNextAddress)
+    {
+        result = existingAcc.get()->generateTheirNextSecretAddress();
+        LogBip47("Sending to secret address: %s\n", result.ToString());
+    } else {
+        result = existingAcc.get()->getTheirNextSecretAddress();
+    }
     CWalletDB(strWalletFile).WriteBip47Account(*existingAcc.get());
     return result;
+}
+}
+
+CBitcoinAddress CWallet::GetTheirNextAddress(bip47::CPaymentCode const & theirPcode) const
+{
+    if (!bip47wallet)
+        throw WalletError("BIP47 wallet was not created during the initialization");
+
+    return HandleTheirNextAddress(*bip47wallet, strWalletFile, theirPcode, false);
+}
+
+CBitcoinAddress CWallet::GenerateTheirNextAddress(bip47::CPaymentCode const & theirPcode)
+{
+    if (!bip47wallet)
+        throw WalletError("BIP47 wallet was not created during the initialization");
+
+    return HandleTheirNextAddress(*bip47wallet, strWalletFile, theirPcode, true);
 }
 
 void CWallet::LoadBip47Wallet()
@@ -6932,6 +6953,42 @@ void CWallet::LoadBip47Wallet()
 std::shared_ptr<bip47::CWallet const> CWallet::GetBip47Wallet() const
 {
     return bip47wallet;
+}
+
+boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(bip47::CPaymentCode const & pcode) const
+{
+    boost::optional<bip47::CPaymentCodeDescription> result;
+    if (!bip47wallet)
+        return result;
+
+    bip47wallet->enumerateReceivers(
+        [&pcode, &result](bip47::CAccountReceiver & rec)->bool
+        {
+            if(rec.getMyPcode() == pcode) {
+                result.emplace(rec.getAccountNum(), rec.getMyPcode(), rec.getLabel(), rec.getMyPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Receiver);
+                return false;
+            }
+
+            for(bip47::CPaymentChannel const & channel : rec.getPchannels()) {
+                if(channel.getTheirPcode() == pcode) {
+                    result.emplace(rec.getAccountNum(), rec.getMyPcode(), rec.getLabel(), rec.getMyPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Receiver);
+                    return false;
+                }
+            }
+            return true;
+        }
+    );
+    bip47wallet->enumerateSenders(
+        [&pcode, &result](bip47::CAccountSender & sender)->bool
+        {
+            if(sender.getTheirPcode() == pcode) {
+                result.emplace(sender.getAccountNum(), sender.getMyPcode(), "", sender.getMyPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Sender);
+                return false;
+            }
+            return true;
+        }
+    );
+    return result;
 }
 
 boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(CBitcoinAddress const & address) const
@@ -6946,13 +7003,13 @@ boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(CBitcoinAddre
             bip47::MyAddrContT addrs = rec.getMyUsedAddresses();
             if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
             {
-                result.emplace(rec.getAccountNum(), rec.getMyPcode(), rec.getLabel(), rec.getMyPcode().getNotificationAddress());
+                result.emplace(rec.getAccountNum(), rec.getMyPcode(), rec.getLabel(), rec.getMyPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Receiver);
                 return false;
             }
             addrs = rec.getMyNextAddresses();
             if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
             {
-                result.emplace(rec.getAccountNum(), rec.getMyPcode(), rec.getLabel(), rec.getMyPcode().getNotificationAddress());
+                result.emplace(rec.getAccountNum(), rec.getMyPcode(), rec.getLabel(), rec.getMyPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Receiver);
                 return false;
             }
             return true;
@@ -6964,12 +7021,12 @@ boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(CBitcoinAddre
             bip47::TheirAddrContT addrs = sender.getTheirUsedAddresses();
             if (std::find(addrs.begin(), addrs.end(), address) != addrs.end())
             {
-                result.emplace(sender.getAccountNum(), sender.getTheirPcode(), "", sender.getTheirPcode().getNotificationAddress());
+                result.emplace(sender.getAccountNum(), sender.getTheirPcode(), "", sender.getTheirPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Sender);
                 return false;
             }
-            if (address == sender.getTheirNextAddress() || address == sender.getTheirPcode().getNotificationAddress())
+            if (address == sender.getTheirNextSecretAddress() || address == sender.getTheirPcode().getNotificationAddress())
             {
-                result.emplace(sender.getAccountNum(), sender.getTheirPcode(), "", sender.getTheirPcode().getNotificationAddress());
+                result.emplace(sender.getAccountNum(), sender.getTheirPcode(), "", sender.getTheirPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Sender);
                 return false;
             }
             return true;
@@ -7076,7 +7133,7 @@ notifTxExit:
     }
 }
 
-void CWallet::LabelPcode(bip47::CPaymentCode const & pcode_, std::string const & label, bool remove)
+void CWallet::LabelSendingPcode(bip47::CPaymentCode const & pcode_, std::string const & label, bool remove)
 {
     std::string const pcodeLbl = bip47::PcodeLabel() + pcode_.toString();
     if (label.empty())
@@ -7102,7 +7159,7 @@ void CWallet::LabelPcode(bip47::CPaymentCode const & pcode_, std::string const &
     NotifyPcodeLabeled(pcode_.toString(), label, remove);
 }
 
-std::string CWallet::GetPcodeLabel(bip47::CPaymentCode const & pcode) const
+std::string CWallet::GetSendingPcodeLabel(bip47::CPaymentCode const & pcode) const
 {
     std::string const pcodeLbl = bip47::PcodeLabel() + pcode.toString();
     LOCK(cs_wallet);
@@ -7110,6 +7167,41 @@ std::string CWallet::GetPcodeLabel(bip47::CPaymentCode const & pcode) const
     if(iter == mapCustomKeyValues.end())
         return "";
     return iter->second;
+}
+
+size_t CWallet::SetUsedAddressNumber(bip47::CPaymentCode const & pcode, size_t number)
+{
+    boost::optional<size_t> result;
+    bip47wallet->enumerateSenders(
+        [&pcode, &number, &result](bip47::CAccountSender & sender)->bool
+        {
+            if(sender.getTheirPcode() == pcode) {
+                result.emplace(sender.setTheirUsedAddressNumber(number));
+                return false;
+            }
+            return true;
+        }
+    );
+    if(result)
+        return *result;
+
+    bip47::CAccountReceiver * receiver;
+    bip47wallet->enumerateReceivers(
+        [&pcode, &number, &result, &receiver](bip47::CAccountReceiver & rec)->bool
+        {
+            result = rec.setMyUsedAddressNumber(pcode, number);
+            if(result) {
+                receiver = &rec;
+                return false;
+            }
+            return true;
+        }
+    );
+    if(result) {
+        HandleSecretAddresses(*this, *receiver);
+        return *result;
+    }
+    return 0;
 }
 
 /******************************************************************************/

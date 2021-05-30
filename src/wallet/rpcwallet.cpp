@@ -1,5 +1,4 @@
-// Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2016-2019 The Firo Core developers
+// Copyright (c) 2010 Satoshi Nakamoto// Copyright (c) 2016-2019 The Firo Core developers
 // Copyright (c) 2009-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -4486,11 +4485,17 @@ UniValue listpcodes(const JSONRPCRequest& request)
                 r.push_back(Pair("Label", receiver.getLabel()));
                 r.push_back(Pair("NotificationAddr",receiver.getMyNotificationAddress().ToString()));
                 size_t n = 0;
-                for(bip47::MyAddrContT::value_type const & addr : receiver.getMyUsedAddresses())
-                    r.push_back(Pair(std::string("MyUsed") + std::to_string(n++), addr.first.ToString()));
-                n = 0;
-                for(bip47::MyAddrContT::value_type const & addr : receiver.getMyNextAddresses())
-                    r.push_back(Pair(std::string("MyNext") + std::to_string(n++), addr.first.ToString()));
+                for(bip47::CPaymentChannel const & pchannel : receiver.getPchannels()) {
+                    r.push_back(Pair(std::string("TheirPcode"), pchannel.getTheirPcode().toString()));
+                    n = 0;
+                    for(bip47::MyAddrContT::value_type const & addr: pchannel.generateMyUsedAddresses()) {
+                        r.push_back(Pair(std::string("MyUsed") + std::to_string(n++), addr.first.ToString()));
+                    }
+                    n = 0;
+                    for(bip47::MyAddrContT::value_type const & addr: pchannel.generateMyNextAddresses()) {
+                        r.push_back(Pair(std::string("MyNext") + std::to_string(n++), addr.first.ToString()));
+                    }
+                }
                 result.push_back(r);
                 return true;
             }
@@ -4507,7 +4512,7 @@ UniValue listpcodes(const JSONRPCRequest& request)
                 size_t n = 0;
                 for(bip47::TheirAddrContT::value_type const & addr : sender.getTheirUsedAddresses())
                     r.push_back(Pair(std::string("TheirUsed") + std::to_string(n++), addr.ToString()));
-                r.push_back(Pair(std::string("TheirNext") + std::to_string(n), sender.getTheirNextAddress().ToString()));
+                r.push_back(Pair(std::string("TheirNext") + std::to_string(n), sender.getTheirNextSecretAddress().ToString()));
                 result.push_back(r);
                 return true;
             }
@@ -4648,7 +4653,7 @@ UniValue sendtopcode(const JSONRPCRequest& request)
 
     EnsureWalletIsUnlocked(pwallet);
 
-    CBitcoinAddress address = pwallet->GetNextAddress(theirPcode);
+    CBitcoinAddress address = pwallet->GetTheirNextAddress(theirPcode);
 
     // Wallet comments
     CWalletTx wtx;
@@ -4661,11 +4666,55 @@ UniValue sendtopcode(const JSONRPCRequest& request)
     if (request.params.size() > 4)
         fSubtractFeeFromAmount = request.params[4].get_bool();
 
-    EnsureWalletIsUnlocked(pwallet);
-
     SendMoney(pwallet, address.Get(), nAmount, fSubtractFeeFromAmount, wtx);
 
+    pwallet->GenerateTheirNextAddress(theirPcode);
+
     return wtx.GetHash().GetHex();
+}
+
+UniValue setusednumber(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
+        throw runtime_error(
+            "setusednumber \"paymentcode\" number\n"
+            "\nIncrease the number of used addresses for a payment code.\n"
+            + HelpRequiringPassphrase(pwallet) +
+            "\nArguments:\n"
+            "1. \"paymentcode\"  (string, required) The payment code.\n"
+            "2. \"number\"       (int32_t, required) The number of used addresses which a payment code will have after this call.\n"
+            "                                        If the current number of used addresses is greater than the provides, the call has no effect."
+            "\nResult:\n"
+            "\"numberOfUsed\"    (int32_t) The number of used addresses after the call.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("setusednumber", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\" 20")
+        );
+
+    bip47::CPaymentCode pcode(request.params[0].get_str());
+    size_t const number = ParseInt32V(request.params[1], "number");
+
+    boost::optional<bip47::CPaymentCodeDescription> pcodeDesc;
+    {
+        LOCK(pwallet->cs_wallet);
+        pcodeDesc = pwallet->FindPcode(pcode);
+    }
+
+    if(!pcodeDesc)
+        throw runtime_error("Payment code not found: " + pcode.toString());
+
+    if(std::get<4>(*pcodeDesc) == bip47::CPaymentCodeSide::Receiver)
+            EnsureWalletIsUnlocked(pwallet);
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    size_t numberOfUsed = pwallet->SetUsedAddressNumber(pcode, number);
+
+    return numberOfUsed;
 }
 
 /******************************************************************************/
@@ -4756,10 +4805,11 @@ static const CRPCCommand commands[] =
     { "wallet",             "listlelantusjoinsplits",   &listlelantusjoinsplits,   false },
 
     //bip47
-    { "bip47",              "createpcode",              &createpcode,            false },
-    { "bip47",              "setupchannel",             &setupchannel,             false },
-    { "bip47",              "sendtopcode",              &sendtopcode,              false },
-    { "bip47",              "listpcodes",               &listpcodes,               false }
+    { "bip47",              "createpcode",              &createpcode,              true },
+    { "bip47",              "setupchannel",             &setupchannel,             true },
+    { "bip47",              "sendtopcode",              &sendtopcode,              true },
+    { "bip47",              "listpcodes",               &listpcodes,               true },
+    { "bip47",              "setusednumber",            &setusednumber,            true }
 };
 
 void RegisterWalletRPCCommands(CRPCTable &t)

@@ -25,6 +25,7 @@
 #include "txmempool.h"
 #include "wallet/wallet.h"
 #include "sendtopcodedialog.h"
+#include "pcodemodel.h"
 
 #include <QFontMetrics>
 #include <QMessageBox>
@@ -405,6 +406,15 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     if (sendStatus.status == WalletModel::OK)
     {
+        for(int i = 0; i < ui->entries->count(); ++i)
+        {
+            SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+            if(entry && entry->isPayToPcode())
+            {
+                SendCoinsRecipient recipient = entry->getValue();
+                model->getPcodeModel()->generateTheirNextAddress(recipient.address.toStdString());
+            }
+        }
         accept();
         CoinControlDialog::coinControl->UnSelectAll();
         coinControlUpdateLabels();

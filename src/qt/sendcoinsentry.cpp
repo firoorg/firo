@@ -270,7 +270,7 @@ bool SendCoinsEntry::updateLabel(const QString &address)
     QString associatedLabel;
     if(bip47::CPaymentCode::validate(address.toStdString()))
     {
-        associatedLabel = QString::fromStdString(model->getWallet()->GetPcodeLabel(address.toStdString()));
+        associatedLabel = QString::fromStdString(model->getWallet()->GetSendingPcodeLabel(address.toStdString()));
     }
     else
     {

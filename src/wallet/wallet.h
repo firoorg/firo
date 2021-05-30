@@ -1282,13 +1282,17 @@ public:
     void SetNotificationTxId(bip47::CPaymentCode const & theirPcode, uint256 const & txid);
 
     /* Returns next unused address for their payment code. Throws if no payment channel was setup */
-    CBitcoinAddress GetNextAddress(bip47::CPaymentCode const & theirPcode);
+    CBitcoinAddress GetTheirNextAddress(bip47::CPaymentCode const & theirPcode) const;
+
+    /* Returns and stores a next unused address for their payment code. Throws if no payment channel was setup */
+    CBitcoinAddress GenerateTheirNextAddress(bip47::CPaymentCode const & theirPcode);
 
     /*Loads previously stored bip47 accounts */
     void LoadBip47Wallet();
 
     std::shared_ptr<bip47::CWallet const>  GetBip47Wallet() const;
 
+    boost::optional<bip47::CPaymentCodeDescription> FindPcode(bip47::CPaymentCode const & pcode) const;
     boost::optional<bip47::CPaymentCodeDescription> FindPcode(CBitcoinAddress const & address) const;
 
     /*Marks address as used for a receiving bip47 account. Returns the account if found*/
@@ -1297,10 +1301,12 @@ public:
     /*Checks if this is a BIP47 transaction and handles it. May send an unlock request if wallet is locked.*/
     void HandleBip47Transaction(CWalletTx const & wtx);
 
-    /*Attaches a new label to a payment code.*/
-    void LabelPcode(bip47::CPaymentCode const & pcode, std::string const & label, bool remove = false);
+    /*Attaches a new label to a receiving payment code.*/
+    void LabelSendingPcode(bip47::CPaymentCode const & pcode, std::string const & label, bool remove = false);
+    std::string GetSendingPcodeLabel(bip47::CPaymentCode const & pcode) const;
 
-    std::string GetPcodeLabel(bip47::CPaymentCode const & pcode) const;
+    /*Sets used address number for a sending or receiving payment channel*/
+    size_t SetUsedAddressNumber(bip47::CPaymentCode const & pcode, size_t number);
 };
 
 /** A key allocated from the key pool. */

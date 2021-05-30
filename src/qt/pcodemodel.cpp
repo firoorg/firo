@@ -136,6 +136,15 @@ bool PcodeModel::getNotificationTxid(bip47::CPaymentCode const & paymentCode, ui
     return result;
 }
 
+void PcodeModel::generateTheirNextAddress(std::string const & pcode)
+{
+    try {
+        walletMain.GenerateTheirNextAddress(pcode);
+    } catch (std::runtime_error const &) {
+        LogBip47("Cannot convert to pcode: %s", pcode.c_str());
+    }
+}
+
 void PcodeModel::reconsiderBip47Tx(uint256 const & hash)
 {
     const CWalletTx * wtx = walletMain.GetWalletTx(hash);
@@ -170,7 +179,7 @@ bool PcodeModel::isBip47Transaction(uint256 const & hash) const
 void PcodeModel::labelPcode(std::string const & pcode_, std::string const & label, bool remove)
 {
     try {
-        walletMain.LabelPcode(pcode_, label, remove);
+        walletMain.LabelSendingPcode(pcode_, label, remove);
     } catch (std::runtime_error const &) {
         return;
     }

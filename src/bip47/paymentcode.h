@@ -49,8 +49,12 @@ private:
 
 bool operator==(CPaymentCode const & lhs, CPaymentCode const & rhs);
 
-//accNum, pcode, label, notificationAddress
-typedef std::tuple<size_t, CPaymentCode, std::string, CBitcoinAddress> CPaymentCodeDescription;
+enum struct CPaymentCodeSide : char {
+    Sender = 0,
+    Receiver
+};
+//0-accNum, 1-pcode, 2-label, 3-notificationAddress, 4-pcodeSide
+typedef std::tuple<size_t, CPaymentCode, std::string, CBitcoinAddress, CPaymentCodeSide> CPaymentCodeDescription;
 
 }
 

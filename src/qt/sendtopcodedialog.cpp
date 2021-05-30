@@ -222,7 +222,7 @@ void SendtoPcodeDialog::setUseAddr()
 {
     {
         LOCK(model->getWallet()->cs_wallet);
-        addressToUse = model->getWallet()->GetNextAddress(*paymentCode);
+        addressToUse = model->getWallet()->GetTheirNextAddress(*paymentCode);
     }
     ui->nextAddressLabel->setText(addressToUse.ToString().c_str());
 }

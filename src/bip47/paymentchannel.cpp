@@ -73,6 +73,13 @@ TheirAddrContT CPaymentChannel::getTheirUsedSecretAddresses() const
     return theirUsedAddresses;
 }
 
+size_t CPaymentChannel::setTheirUsedAddressNumber(size_t number)
+{
+    if(theirUsedAddressCount < number)
+        theirUsedAddressCount = number;
+    return theirUsedAddressCount;
+}
+
 CPaymentCode const & CPaymentChannel::getMyPcode() const
 {
     if (!myPcode) {
@@ -127,7 +134,7 @@ std::vector<unsigned char> CPaymentChannel::getMaskedPayload(COutPoint const & o
     return getMaskedPayload((const unsigned char *)ds.vch.data(), ds.vch.size(), outpointSecret);
 }
 
-MyAddrContT const & CPaymentChannel::generateMyUsedAddresses()
+MyAddrContT const & CPaymentChannel::generateMyUsedAddresses() const
 {
     if (side == Side::receiver && usedAddresses.size() < usedAddressCount) {
         MyAddrContT addrs = generateMySecretAddresses(usedAddresses.size(), usedAddressCount);
@@ -136,7 +143,7 @@ MyAddrContT const & CPaymentChannel::generateMyUsedAddresses()
     return usedAddresses;
 }
 
-MyAddrContT const & CPaymentChannel::generateMyNextAddresses()
+MyAddrContT const & CPaymentChannel::generateMyNextAddresses() const
 {
     if (side == Side::receiver && nextAddresses.size() < AddressLookaheadNumber) {
         MyAddrContT addrs = generateMySecretAddresses(usedAddressCount + nextAddresses.size(), usedAddressCount + AddressLookaheadNumber);
@@ -163,6 +170,13 @@ bool CPaymentChannel::markAddressUsed(CBitcoinAddress const & address)
         return true;
     }
     return false;
+}
+
+size_t CPaymentChannel::setMyUsedAddressNumber(size_t number)
+{
+    if(usedAddressCount < number)
+        usedAddressCount = number;
+    return usedAddressCount;
 }
 
 bool CPaymentChannel::operator==(CPaymentChannel const & other) const

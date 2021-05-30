@@ -75,8 +75,9 @@ public:
 
     CPaymentCode const & getTheirPcode() const;
     CBitcoinAddress generateTheirNextSecretAddress();
+    CBitcoinAddress getTheirNextSecretAddress() const;
+    size_t setTheirUsedAddressNumber(size_t number);
 
-    CBitcoinAddress getTheirNextAddress() const;
     TheirAddrContT getTheirUsedAddresses() const;
 
     void setNotificationTxId(uint256 const & txId);
@@ -133,6 +134,8 @@ public:
 
     using PChannelContT = std::vector<CPaymentChannel>;
     PChannelContT const & getPchannels() const;
+
+    boost::optional<size_t> setMyUsedAddressNumber(CPaymentCode const & theirPcode, size_t number);
 
     ADD_DESERIALIZE_CTOR(CAccountReceiver);
     ADD_SERIALIZE_METHODS;

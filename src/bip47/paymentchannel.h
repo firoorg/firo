@@ -30,6 +30,7 @@ public:
     TheirAddrContT generateTheirSecretAddresses(uint32_t fromAddr, uint32_t uptoAddr) const;
     CBitcoinAddress getTheirNextSecretAddress() const;
     TheirAddrContT getTheirUsedSecretAddresses() const;
+    size_t setTheirUsedAddressNumber(size_t number);
 
     CPaymentCode const & getMyPcode() const;
     MyAddrContT generateMySecretAddresses(uint32_t fromAddr, uint32_t uptoAddr) const;
@@ -37,9 +38,11 @@ public:
     std::vector<unsigned char> getMaskedPayload(unsigned char const * sha512Key, size_t sha512KeySize, CKey const & outpointSecret) const;
     std::vector<unsigned char> getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret) const;
 
-    MyAddrContT const & generateMyUsedAddresses();
-    MyAddrContT const & generateMyNextAddresses();
+    MyAddrContT const & generateMyUsedAddresses() const;
+    MyAddrContT const & generateMyNextAddresses() const;
+
     bool markAddressUsed(CBitcoinAddress const &);
+    size_t setMyUsedAddressNumber(size_t number);
 
     bool operator==(CPaymentChannel const & other) const;
 
@@ -62,7 +65,7 @@ private:
     boost::optional<CPaymentCode> mutable myPcode;
 
     uint32_t usedAddressCount, theirUsedAddressCount;
-    MyAddrContT usedAddresses, nextAddresses;
+    MyAddrContT mutable usedAddresses, nextAddresses;
     TheirAddrContT mutable theirUsedAddresses;
     Side side;
 };

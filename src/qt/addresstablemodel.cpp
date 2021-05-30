@@ -597,7 +597,7 @@ bool PcodeAddressTableModel::setData(const QModelIndex &index, const QVariant &v
                 return false;
             }
 
-            wallet->LabelPcode(pcodeData[row].first, newLab, false);
+            wallet->LabelSendingPcode(pcodeData[row].first, newLab, false);
             updatePcodeData();
             editStatus = AddressTableModel::OK;
             Q_EMIT dataChanged(createIndex(row, 0), createIndex(row, columns.length() - 1));
@@ -611,8 +611,8 @@ bool PcodeAddressTableModel::setData(const QModelIndex &index, const QVariant &v
                 return false;
             }
 
-            wallet->LabelPcode(pcodeData[row].first, "", true);
-            wallet->LabelPcode(newPcode, pcodeData[row].second, false);
+            wallet->LabelSendingPcode(pcodeData[row].first, "", true);
+            wallet->LabelSendingPcode(newPcode, pcodeData[row].second, false);
             updatePcodeData();
             Q_EMIT dataChanged(createIndex(row, 0), createIndex(row, columns.length() - 1));
 
@@ -639,7 +639,7 @@ bool PcodeAddressTableModel::removeRows(int row, int count, const QModelIndex &)
     if(count != 1 || row >= pcodeData.size())
         return false;
 
-    wallet->LabelPcode(pcodeData[row].first, "", true);
+    wallet->LabelSendingPcode(pcodeData[row].first, "", true);
     return true;
 }
 
@@ -668,7 +668,7 @@ QString PcodeAddressTableModel::addRow(const QString &type, const QString &label
         return QString();
     }
 
-    wallet->LabelPcode(strPcode, strLabel);
+    wallet->LabelSendingPcode(strPcode, strLabel);
 
     return QString::fromStdString(strPcode);
 }

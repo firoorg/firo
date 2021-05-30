@@ -42,6 +42,7 @@ public:
     uint256 sendNotificationTx(bip47::CPaymentCode const & paymentCode);
     bool getNotificationTxid(bip47::CPaymentCode const & paymentCode, uint256 & txid);
     void reconsiderBip47Tx(uint256 const & hash);
+    void generateTheirNextAddress(std::string const & pcode);
 
     bool isBip47Transaction(uint256 const & hash) const;
     void labelPcode(std::string const & pcode, std::string const & label, bool remove = false);
