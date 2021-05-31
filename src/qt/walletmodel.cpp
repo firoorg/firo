@@ -1001,13 +1001,13 @@ void WalletModel::unsubscribeFromCoreSignals()
 }
 
 // WalletModel::UnlockContext implementation
-WalletModel::UnlockContext WalletModel::requestUnlock()
+WalletModel::UnlockContext WalletModel::requestUnlock(const QString & info)
 {
     bool was_locked = getEncryptionStatus() == Locked;
     if(was_locked)
     {
         // Request UI to unlock wallet
-        Q_EMIT requireUnlock();
+        Q_EMIT requireUnlock(info);
     }
     // If wallet is still locked, unlock was failed or cancelled, mark context as invalid
     bool valid = getEncryptionStatus() != Locked;
@@ -1465,7 +1465,7 @@ void WalletModel::handleBip47Keys(int receiverAccountNum)
         bip47::CAccountReceiver const * acc = wallet->GetBip47Wallet()->getReceivingAccount(uint32_t(receiverAccountNum));
         if (!acc)
             return;
-        UnlockContext ctx(requestUnlock());
+        UnlockContext ctx(requestUnlock(tr("Please unlock your wallet to receive a <b>RAP/BIP47 transaction</b>.")));
         if(!ctx.isValid()) {
             QMessageBox::critical(0, tr("RAP tx received"),
                 tr("BIP47 protocol requires unlocking your wallet every time a RAP tx is received."));

@@ -224,7 +224,7 @@ public:
         void CopyFrom(const UnlockContext& rhs);
     };
 
-    UnlockContext requestUnlock();
+    UnlockContext requestUnlock(const QString & info = "");
 
     bool IsSpendable(const CTxDestination& dest) const;
     bool IsSpendable(const CScript& script) const;
@@ -334,7 +334,7 @@ Q_SIGNALS:
     // Signal emitted when wallet needs to be unlocked
     // It is valid behaviour for listeners to keep the wallet locked after this signal;
     // this means that the unlocking failed or was cancelled.
-    void requireUnlock();
+    void requireUnlock(const QString &info);
 
     // Fired when a message should be reported to the user
     void message(const QString &title, const QString &message, unsigned int style);

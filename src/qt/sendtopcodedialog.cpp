@@ -262,7 +262,7 @@ void SendtoPcodeDialog::onTransactionChanged(uint256 txHash)
 
 void SendtoPcodeDialog::onWindowShown()
 {
-    if(model->getPcodeModel()->hasSendingPcodes()) {
+    if(!model->getPcodeModel()->hasSendingPcodes()) {
         QMessageBox msgBox;
         msgBox.setText(tr(
             "A one time connection fee is required when sending to a new RAP address.\n"
