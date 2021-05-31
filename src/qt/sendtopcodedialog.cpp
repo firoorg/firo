@@ -125,7 +125,7 @@ void SendtoPcodeDialog::updateButtons()
     if(!status.balanceOk)
         hintText = tr("<i>The balance is not enough.</i>");
     if(status.notifTxSent)
-        hintText = tr("<i>Please wait until the connection transaction has 1 confirmation or cancel this dialog to send funds later.</i>");
+        hintText = tr("<i>Please wait until the connection transaction has at least 1 confirmation or cancel this dialog to send funds later.</i>");
     if(status.notifTxConfirmed)
         hintText = tr("<i>Funds can be send now.</i>");
     ui->hintLabel->setText(hintText);
