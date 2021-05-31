@@ -7171,36 +7171,36 @@ std::string CWallet::GetSendingPcodeLabel(bip47::CPaymentCode const & pcode) con
 
 size_t CWallet::SetUsedAddressNumber(bip47::CPaymentCode const & pcode, size_t number)
 {
-    boost::optional<size_t> result;
+    boost::optional<size_t> resultSnd, resutRec;
     bip47wallet->enumerateSenders(
-        [&pcode, &number, &result](bip47::CAccountSender & sender)->bool
+        [&pcode, &number, &resultSnd](bip47::CAccountSender & sender)->bool
         {
             if(sender.getTheirPcode() == pcode) {
-                result.emplace(sender.setTheirUsedAddressNumber(number));
+                resultSnd.emplace(sender.setTheirUsedAddressNumber(number));
                 return false;
             }
             return true;
         }
     );
-    if(result)
-        return *result;
 
     bip47::CAccountReceiver * receiver;
     bip47wallet->enumerateReceivers(
-        [&pcode, &number, &result, &receiver](bip47::CAccountReceiver & rec)->bool
+        [&pcode, &number, &resutRec, &receiver](bip47::CAccountReceiver & rec)->bool
         {
-            result = rec.setMyUsedAddressNumber(pcode, number);
-            if(result) {
+            resutRec = rec.setMyUsedAddressNumber(pcode, number);
+            if(resutRec) {
                 receiver = &rec;
                 return false;
             }
             return true;
         }
     );
-    if(result) {
+    if(resutRec) {
         HandleSecretAddresses(*this, *receiver);
-        return *result;
+        return *resutRec;
     }
+    if(resultSnd)
+        return *resultSnd;
     return 0;
 }
 
