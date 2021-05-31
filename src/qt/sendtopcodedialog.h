@@ -47,7 +47,9 @@ public:
     void setModel(WalletModel *model);
     std::pair<Result, CBitcoinAddress> getResult() const;
     std::unique_ptr<WalletModel::UnlockContext> getUnlockContext();
+
     void close();
+    int exec() override;
 
 private:
     Ui::SendtoPcodeDialog *ui;

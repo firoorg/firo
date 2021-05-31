@@ -123,6 +123,16 @@ void SendtoPcodeDialog::close()
     QDialog::close();
 }
 
+int SendtoPcodeDialog::exec()
+{
+    if (notificationTxHash == uint256{})
+        return QDialog::exec();
+    result = Result::addressSelected;
+    close();
+    return 0;
+}
+
+
 void SendtoPcodeDialog::on_sendButton_clicked()
 {
     if (!model || !paymentCode || !model->getPcodeModel())
@@ -209,7 +219,7 @@ void SendtoPcodeDialog::setNotifTxId()
     if (notifTxDepth > 0)
     {
         ui->useButton->setEnabled(true);
-        ui->useButton->setText("Use");
+        ui->useButton->setText("Send to");
     } else {
         ui->useButton->setEnabled(false);
         ui->useButton->setText("Unconfirmed");
@@ -238,6 +248,8 @@ void SendtoPcodeDialog::setLelantusBalance(CAmount const & lelantusBalance, CAmo
     if (lelantusBalance < bip47::NotificationTxValue) {
         color = QColor(GUIUtil::GUIColors::warning);
         ui->sendButton->setEnabled(false);
+    } else {
+        ui->sendButton->setEnabled(true);
     }
     ui->balanceLabel->setStyleSheet("QLabel { color: " + color.name() + "; }");
 }
