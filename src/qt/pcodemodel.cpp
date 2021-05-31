@@ -191,7 +191,7 @@ bool PcodeModel::hasSendingPcodes() const
     if(!result) {
         LOCK(walletMain.cs_wallet);
         walletMain.GetBip47Wallet()->enumerateSenders(
-            [&result](bip47::CAccountSender const & sender)
+            [](bip47::CAccountSender const & sender)
             {
                 result = true;
                 return false;
