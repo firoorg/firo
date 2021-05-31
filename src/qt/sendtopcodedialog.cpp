@@ -53,6 +53,7 @@ SendtoPcodeDialog::SendtoPcodeDialog(QWidget *parent, std::string const & pcode,
     } catch (std::runtime_error const &) {
         LogBip47("Cannot parse the payment code: " + pcode);
     }
+    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 }
 
 SendtoPcodeDialog::~SendtoPcodeDialog()
@@ -76,8 +77,6 @@ void SendtoPcodeDialog::setModel(WalletModel *_model)
 
     model->getWallet()->NotifyTransactionChanged.connect(boost::bind(OnTransactionChanged, this, _1, _2, _3));
 
-    CAmount lelantusBalance = model->getLelantusModel()->getPrivateBalance().first;
-
     if (model->getPcodeModel()->getNotificationTxid(*paymentCode, notificationTxHash)) {
         ui->sendButton->setEnabled(false);
         setNotifTxId();
@@ -94,17 +93,14 @@ void SendtoPcodeDialog::setModel(WalletModel *_model)
     ui->notificationTxIdLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
     ui->notificationTxIdLabel->setOpenExternalLinks(true);
 
-    std::stringstream balancePretty;
-    balancePretty.precision(4);
-    balancePretty << std::fixed << 1.0 * lelantusBalance / COIN;
-    ui->balanceLabel->setText(balancePretty.str().c_str());
+    std::pair<CAmount, CAmount> lelantusBalance = model->getLelantusModel()->getPrivateBalance();
+    setLelantusBalance(lelantusBalance.first, lelantusBalance.second);
 
-    QColor color(GUIUtil::GUIColors::checkPassed);
-    if (lelantusBalance < bip47::NotificationTxValue) {
-        color = QColor(GUIUtil::GUIColors::warning);
-        ui->sendButton->setEnabled(false);
-    }
-    ui->balanceLabel->setStyleSheet("QLabel { color: " + color.name() + "; }");
+    connect(
+        model,
+        SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)),
+        this,
+        SLOT(onBalanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)));
 }
 
 std::pair<SendtoPcodeDialog::Result, CBitcoinAddress> SendtoPcodeDialog::getResult() const
@@ -189,6 +185,8 @@ void SendtoPcodeDialog::showEvent( QShowEvent* event ) {
     QDialog::showEvent( event);
     adjustSize();
     ui->balanceSpacer->sizeHint().setHeight(ui->sendButton->size().height());
+
+    QTimer::singleShot(10, this, SLOT(onWindowShown()));
 }
 
 void SendtoPcodeDialog::setNotifTxId()
@@ -227,8 +225,54 @@ void SendtoPcodeDialog::setUseAddr()
     ui->nextAddressLabel->setText(addressToUse.ToString().c_str());
 }
 
+void SendtoPcodeDialog::setLelantusBalance(CAmount const & lelantusBalance, CAmount const & unconfirmedLelantusBalance)
+{
+    int const unit = model->getOptionsModel()->getDisplayUnit();
+    QString balancePretty = BitcoinUnits::formatWithUnit(unit, lelantusBalance, false, BitcoinUnits::separatorAlways);
+    if (lelantusBalance < bip47::NotificationTxValue)
+        balancePretty += " (pending: " + BitcoinUnits::formatWithUnit(unit, unconfirmedLelantusBalance, false, BitcoinUnits::separatorAlways) + ")";
+
+    ui->balanceLabel->setText(balancePretty);
+
+    QColor color(GUIUtil::GUIColors::checkPassed);
+    if (lelantusBalance < bip47::NotificationTxValue) {
+        color = QColor(GUIUtil::GUIColors::warning);
+        ui->sendButton->setEnabled(false);
+    }
+    ui->balanceLabel->setStyleSheet("QLabel { color: " + color.name() + "; }");
+}
+
 void SendtoPcodeDialog::onTransactionChanged(uint256 txHash)
 {
     if (txHash != notificationTxHash) return;
     setNotifTxId();
+}
+
+void SendtoPcodeDialog::onWindowShown()
+{
+    if(model->getPcodeModel()->hasSendingPcodes()) {
+        QMessageBox msgBox;
+        msgBox.setText(tr(
+            "A one time connection fee is required when sending to a new RAP address.\n"
+            "Once this fee is paid, all future sends to this RAP address do not incur any additional fee.\n"
+            ));
+        msgBox.setWindowTitle(tr("RAP info"));
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.setDefaultButton(QMessageBox::Ok);
+        msgBox.exec();
+    }
+}
+
+void SendtoPcodeDialog::onBalanceChanged(
+    const CAmount& balance,
+    const CAmount& unconfirmedBalance,
+    const CAmount& immatureBalance,
+    const CAmount& watchOnlyBalance,
+    const CAmount& watchUnconfBalance,
+    const CAmount& watchImmatureBalance,
+    const CAmount& privateBalance,
+    const CAmount& unconfirmedPrivateBalance,
+    const CAmount& anonymizableBalance)
+{
+    setLelantusBalance(privateBalance, unconfirmedPrivateBalance);
 }

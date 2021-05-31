@@ -47,6 +47,8 @@ public:
     bool isBip47Transaction(uint256 const & hash) const;
     void labelPcode(std::string const & pcode, std::string const & label, bool remove = false);
 
+    bool hasSendingPcodes() const;
+
 public Q_SLOTS:
     void sort(int column, Qt::SortOrder order);
     void DisplayCreatedPcode(bip47::CPaymentCodeDescription const & pcodeDescr);

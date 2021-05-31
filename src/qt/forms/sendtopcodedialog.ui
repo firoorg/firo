@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>775</width>
+    <width>759</width>
     <height>174</height>
    </rect>
   </property>
@@ -50,7 +50,7 @@
            <string>Requires a notification tx to be confirmed</string>
           </property>
           <property name="text">
-           <string>Use</string>
+           <string>Send to</string>
           </property>
          </widget>
         </item>
@@ -64,7 +64,7 @@
         <item row="3" column="0">
          <widget class="QLabel" name="notificationTxStatic">
           <property name="text">
-           <string>Notification transaction</string>
+           <string>Connection transaction</string>
           </property>
          </widget>
         </item>
@@ -91,7 +91,7 @@
         <item row="3" column="2">
          <widget class="QPushButton" name="sendButton">
           <property name="text">
-           <string>Send</string>
+           <string>Connect</string>
           </property>
          </widget>
         </item>

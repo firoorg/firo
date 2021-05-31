@@ -185,6 +185,21 @@ void PcodeModel::labelPcode(std::string const & pcode_, std::string const & labe
     }
 }
 
+bool PcodeModel::hasSendingPcodes() const
+{
+    static bool result = false;
+    if(!result) {
+        LOCK(walletMain.cs_wallet);
+        walletMain.GetBip47Wallet()->enumerateSenders(
+            [&result](bip47::CAccountSender const & sender)
+            {
+                result = true;
+                return false;
+            });
+    }
+    return result;
+}
+
 void PcodeModel::sort(int column, Qt::SortOrder order)
 {
     std::function<bool(bip47::CPaymentCodeDescription const &, bip47::CPaymentCodeDescription const &)> 

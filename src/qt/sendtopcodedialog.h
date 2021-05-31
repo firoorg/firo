@@ -61,6 +61,7 @@ private:
 
     void setNotifTxId();
     void setUseAddr();
+    void setLelantusBalance(CAmount const & amount, CAmount const & unconfirmedLelantusBalance);
 
 private Q_SLOTS:
     void on_sendButton_clicked();
@@ -69,6 +70,8 @@ private Q_SLOTS:
     void on_helpButton_clicked();
     void showEvent(QShowEvent* event);
     void onTransactionChanged(uint256 txHash);
+    void onWindowShown();
+    void onBalanceChanged(CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &);
 };
 
 #endif /* SENDTOPCODEDIALOG_H */
