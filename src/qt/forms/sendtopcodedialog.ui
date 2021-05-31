@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>759</width>
-    <height>174</height>
+    <width>763</width>
+    <height>195</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -35,6 +35,13 @@
       <enum>QFrame::Sunken</enum>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_3">
+      <item>
+       <widget class="QLabel" name="hintLabel">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
       <item>
        <layout class="QGridLayout" name="gridLayout">
         <item row="8" column="1">

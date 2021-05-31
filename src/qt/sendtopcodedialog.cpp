@@ -54,6 +54,7 @@ SendtoPcodeDialog::SendtoPcodeDialog(QWidget *parent, std::string const & pcode,
         LogBip47("Cannot parse the payment code: " + pcode);
     }
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
+    status.pcodeValid = true;
 }
 
 SendtoPcodeDialog::~SendtoPcodeDialog()
@@ -67,9 +68,6 @@ SendtoPcodeDialog::~SendtoPcodeDialog()
 void SendtoPcodeDialog::setModel(WalletModel *_model)
 {
     model = _model;
-
-    ui->sendButton->setEnabled(false);
-    ui->useButton->setEnabled(false);
     result = Result::cancelled;
 
     if (!model || !paymentCode)
@@ -78,17 +76,13 @@ void SendtoPcodeDialog::setModel(WalletModel *_model)
     model->getWallet()->NotifyTransactionChanged.connect(boost::bind(OnTransactionChanged, this, _1, _2, _3));
 
     if (model->getPcodeModel()->getNotificationTxid(*paymentCode, notificationTxHash)) {
-        ui->sendButton->setEnabled(false);
         setNotifTxId();
         setUseAddr();
     } else {
-        ui->sendButton->setEnabled(true);
         ui->notificationTxIdLabel->setText(tr("None"));
-
-        ui->useButton->setEnabled(false);
         ui->nextAddressLabel->setText(tr("None"));
-        result = Result::cancelled;
     }
+
     ui->notificationTxIdLabel->setTextFormat(Qt::RichText);
     ui->notificationTxIdLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
     ui->notificationTxIdLabel->setOpenExternalLinks(true);
@@ -101,6 +95,40 @@ void SendtoPcodeDialog::setModel(WalletModel *_model)
         SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)),
         this,
         SLOT(onBalanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)));
+
+    updateButtons();
+}
+
+void SendtoPcodeDialog::updateButtons()
+{
+    if (!status.pcodeValid) {
+        ui->sendButton->setEnabled(false);
+        ui->useButton->setEnabled(false);
+        return;
+    }
+
+    if (!status.balanceOk || status.notifTxSent || status.notifTxConfirmed) {
+        ui->sendButton->setEnabled(false);
+    } else {
+        ui->sendButton->setEnabled(true);
+    }
+
+    if (!status.notifTxSent || !status.notifTxConfirmed) {
+        ui->useButton->setEnabled(false);
+        ui->useButton->setText(tr("Waiting to confirm"));
+    } else if (status.notifTxConfirmed) {
+        ui->useButton->setEnabled(true);
+        ui->useButton->setText(tr("Send to"));
+    }
+
+    QString hintText = tr("<i>Please click Connect button to start.</i>");
+    if(!status.balanceOk)
+        hintText = tr("<i>The balance is not enough.</i>");
+    if(status.notifTxSent)
+        hintText = tr("<i>Please wait until the connection transaction has 1 confirmation or cancel this dialog to send funds later.</i>");
+    if(status.notifTxConfirmed)
+        hintText = tr("<i>Funds can be send now.</i>");
+    ui->hintLabel->setText(hintText);
 }
 
 std::pair<SendtoPcodeDialog::Result, CBitcoinAddress> SendtoPcodeDialog::getResult() const
@@ -145,8 +173,9 @@ void SendtoPcodeDialog::on_sendButton_clicked()
     try {
         notificationTxHash = model->getPcodeModel()->sendNotificationTx(*paymentCode);
         setNotifTxId();
-        ui->sendButton->setEnabled(false);
         setUseAddr();
+        status.notifTxSent = true;
+        updateButtons();
     }
     catch (std::runtime_error const & e)
     {
@@ -218,11 +247,7 @@ void SendtoPcodeDialog::setNotifTxId()
 
     if (notifTxDepth > 0)
     {
-        ui->useButton->setEnabled(true);
-        ui->useButton->setText("Send to");
-    } else {
-        ui->useButton->setEnabled(false);
-        ui->useButton->setText("Unconfirmed");
+        status.notifTxConfirmed = true;
     }
 }
 
@@ -247,11 +272,12 @@ void SendtoPcodeDialog::setLelantusBalance(CAmount const & lelantusBalance, CAmo
     QColor color(GUIUtil::GUIColors::checkPassed);
     if (lelantusBalance < bip47::NotificationTxValue) {
         color = QColor(GUIUtil::GUIColors::warning);
-        ui->sendButton->setEnabled(false);
+        status.balanceOk = false;
     } else {
-        ui->sendButton->setEnabled(true);
+        status.balanceOk = true;
     }
     ui->balanceLabel->setStyleSheet("QLabel { color: " + color.name() + "; }");
+    updateButtons();
 }
 
 void SendtoPcodeDialog::onTransactionChanged(uint256 txHash)

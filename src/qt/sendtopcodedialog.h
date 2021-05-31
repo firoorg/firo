@@ -60,10 +60,19 @@ private:
     uint256 notificationTxHash;
     CBitcoinAddress addressToUse;
     std::unique_ptr<WalletModel::UnlockContext> unlockContext;
+    struct Status
+    {
+        bool pcodeValid;
+        bool balanceOk;
+        bool notifTxSent;
+        bool notifTxConfirmed;
+    };
+    Status status;
 
     void setNotifTxId();
     void setUseAddr();
     void setLelantusBalance(CAmount const & amount, CAmount const & unconfirmedLelantusBalance);
+    void updateButtons();
 
 private Q_SLOTS:
     void on_sendButton_clicked();
