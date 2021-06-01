@@ -129,8 +129,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     }
                 }
                 boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
-                if (pcode) {
+                if(pcode)
+                {
                     sub.type = TransactionRecord::SendToPcode;
+                    sub.pcode = std::get<1>(*pcode).toString();
                 }
                 parts.append(sub);
             }
@@ -184,8 +186,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     sub.type = TransactionRecord::Generated;
                 }
                 boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
-                if (pcode) {
+                if(pcode)
+                {
                     sub.type = TransactionRecord::RecvWithPcode;
+                    sub.pcode = std::get<1>(*pcode).toString();
                 }
                 parts.append(sub);
             }
@@ -250,14 +254,16 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 }
 
                 CTxDestination address;
-                if (ExtractDestination(txout.scriptPubKey, address))
+                if(ExtractDestination(txout.scriptPubKey, address))
                 {
                     // Sent to Bitcoin Address
                     sub.type = TransactionRecord::SendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
                     boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
-                    if (pcode) {
+                    if(pcode)
+                    {
                         sub.type = TransactionRecord::SendToPcode;
+                        sub.pcode = std::get<1>(*pcode).toString();
                     }
                 }
                 else if(wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint())

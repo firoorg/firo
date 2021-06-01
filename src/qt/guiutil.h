@@ -15,6 +15,7 @@
 #include <QString>
 #include <QTableView>
 #include <QLabel>
+#include <QStyledItemDelegate>
 
 #include <boost/filesystem.hpp>
 
@@ -247,6 +248,14 @@ namespace GUIUtil
             checkPassed = 0x006400, // dark green
             warning = 0xff7f50 //coral
         };
+    };
+
+    class TextElideStyledItemDelegate: public QStyledItemDelegate
+    {
+    public:
+        using QStyledItemDelegate::QStyledItemDelegate;
+    protected:
+        void initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const override;
     };
 
 } // namespace GUIUtil

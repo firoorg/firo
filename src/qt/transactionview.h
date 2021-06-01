@@ -75,6 +75,7 @@ private:
     QFrame *dateRangeWidget;
     QDateTimeEdit *dateFrom;
     QDateTimeEdit *dateTo;
+    QAction *copyLabelAction;
     QAction *abandonAction;
     QAction *resendAction;
     QAction *reconsiderBip47TxAction;

@@ -6979,10 +6979,11 @@ boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(bip47::CPayme
         }
     );
     bip47wallet->enumerateSenders(
-        [&pcode, &result](bip47::CAccountSender & sender)->bool
+        [&pcode, &result, this](bip47::CAccountSender & sender)->bool
         {
             if(sender.getTheirPcode() == pcode) {
-                result.emplace(sender.getAccountNum(), sender.getMyPcode(), "", sender.getMyPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Sender);
+                std::string label = GetSendingPcodeLabel(sender.getTheirPcode());
+                result.emplace(sender.getAccountNum(), sender.getTheirPcode(), label, sender.getTheirPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Sender);
                 return false;
             }
             return true;
@@ -7016,17 +7017,19 @@ boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(CBitcoinAddre
         }
     );
     bip47wallet->enumerateSenders(
-        [&address, &result](bip47::CAccountSender & sender)->bool
+        [&address, &result, this](bip47::CAccountSender & sender)->bool
         {
             bip47::TheirAddrContT addrs = sender.getTheirUsedAddresses();
             if (std::find(addrs.begin(), addrs.end(), address) != addrs.end())
             {
-                result.emplace(sender.getAccountNum(), sender.getTheirPcode(), "", sender.getTheirPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Sender);
+                std::string label = GetSendingPcodeLabel(sender.getTheirPcode());
+                result.emplace(sender.getAccountNum(), sender.getTheirPcode(), label, sender.getTheirPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Sender);
                 return false;
             }
             if (address == sender.getTheirNextSecretAddress() || address == sender.getTheirPcode().getNotificationAddress())
             {
-                result.emplace(sender.getAccountNum(), sender.getTheirPcode(), "", sender.getTheirPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Sender);
+                std::string label = GetSendingPcodeLabel(sender.getTheirPcode());
+                result.emplace(sender.getAccountNum(), sender.getTheirPcode(), label, sender.getTheirPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Sender);
                 return false;
             }
             return true;

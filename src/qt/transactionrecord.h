@@ -120,6 +120,7 @@ public:
     std::string address;
     CAmount debit;
     CAmount credit;
+    std::string pcode;
     /**@}*/
 
     /** Subtransaction index, for sort key */

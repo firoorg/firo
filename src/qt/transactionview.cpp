@@ -36,6 +36,11 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
+namespace {
+char const * CopyLabelText{"Copy label"};
+char const * CopyRapText{"Copy RAP address/label"};
+}
+
 TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *parent) :
     QWidget(parent), model(0), transactionProxyModel(0),
     transactionView(0), abandonAction(0), columnResizingFixer(0)
@@ -94,6 +99,8 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     typeWidget->addItem(tr("Spend to"), TransactionFilterProxy::TYPE(TransactionRecord::SpendToAddress));
     typeWidget->addItem(tr("Spend to yourself"), TransactionFilterProxy::TYPE(TransactionRecord::SpendToSelf));
     typeWidget->addItem(tr("Anonymize"), TransactionFilterProxy::TYPE(TransactionRecord::Anonymize));
+    typeWidget->addItem(tr("Sent to RAP address"), TransactionFilterProxy::TYPE(TransactionRecord::SendToPcode));
+    typeWidget->addItem(tr("Received with RAP address"), TransactionFilterProxy::TYPE(TransactionRecord::RecvWithPcode));
 
     hlayout->addWidget(typeWidget);
 
@@ -135,6 +142,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     view->setTabKeyNavigation(false);
     view->setContextMenuPolicy(Qt::CustomContextMenu);
+    view->setItemDelegateForColumn(TransactionTableModel::ToAddress, new GUIUtil::TextElideStyledItemDelegate(view));
 
     view->installEventFilter(this);
 
@@ -146,7 +154,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     reconsiderBip47TxAction = new QAction(tr("Reconsider BIP47 transaction"), this);
 
     QAction *copyAddressAction = new QAction(tr("Copy address"), this);
-    QAction *copyLabelAction = new QAction(tr("Copy label"), this);
+    copyLabelAction = new QAction(tr(CopyLabelText), this);
     QAction *copyAmountAction = new QAction(tr("Copy amount"), this);
     QAction *copyTxIDAction = new QAction(tr("Copy transaction ID"), this);
     QAction *copyTxHexAction = new QAction(tr("Copy raw transaction"), this);
@@ -382,6 +390,10 @@ void TransactionView::contextualMenu(const QPoint &point)
     // check if transaction can be abandoned, disable context menu action in case it doesn't
     uint256 hash;
     hash.SetHex(selection.at(0).data(TransactionTableModel::TxHashRole).toString().toStdString());
+    if(selection.at(0).data(TransactionTableModel::PcodeRole).toString().size() > 0)
+        copyLabelAction->setText(tr(CopyRapText));
+    else
+        copyLabelAction->setText(tr(CopyLabelText));
     abandonAction->setEnabled(model->transactionCanBeAbandoned(hash));
     resendAction->setEnabled(model->transactionCanBeRebroadcast(hash));
     reconsiderBip47TxAction->setVisible(model->getWallet()->IsCrypted() && model->getPcodeModel()->isBip47Transaction(hash));
@@ -483,15 +495,24 @@ void TransactionView::editLabel()
     QModelIndexList selection = transactionView->selectionModel()->selectedRows();
     if(!selection.isEmpty())
     {
-        AddressTableModel *addressBook = model->getAddressTableModel();
-        if(!addressBook)
-            return;
-        QString address = selection.at(0).data(TransactionTableModel::AddressRole).toString();
-        if(address.isEmpty())
+        AddressTableModel *addressBook;
+        EditAddressDialog::Mode mode;
+        QString address = selection.at(0).data(TransactionTableModel::PcodeRole).toString();
+
+        if(!address.isEmpty())
         {
-            // If this transaction has no associated address, exit
-            return;
+            addressBook = model->getPcodeAddressTableModel();
+            mode = EditAddressDialog::NewPcode;
         }
+        else
+        {
+            address = selection.at(0).data(TransactionTableModel::AddressRole).toString();
+            addressBook = model->getAddressTableModel();
+            mode = EditAddressDialog::NewSendingAddress;
+        }
+
+        if(!addressBook || address.isEmpty())
+            return;
         // Is address in address book? Address book can miss address when a transaction is
         // sent from outside the UI.
         int idx = addressBook->lookupAddress(address);
@@ -502,10 +523,16 @@ void TransactionView::editLabel()
             // Determine type of address, launch appropriate editor dialog type
             QString type = modelIdx.data(AddressTableModel::TypeRole).toString();
 
-            EditAddressDialog dlg(
-                type == AddressTableModel::Receive
-                ? EditAddressDialog::EditReceivingAddress
-                : EditAddressDialog::EditSendingAddress, this);
+            if(mode == EditAddressDialog::NewSendingAddress)
+            {
+                mode = type == AddressTableModel::Receive
+                    ? EditAddressDialog::EditReceivingAddress
+                    : EditAddressDialog::EditSendingAddress;
+            }
+            else
+                mode = EditAddressDialog::EditPcode;
+
+            EditAddressDialog dlg(mode, this);
             dlg.setModel(addressBook);
             dlg.loadRow(idx);
             dlg.exec();
@@ -513,8 +540,7 @@ void TransactionView::editLabel()
         else
         {
             // Add sending address
-            EditAddressDialog dlg(EditAddressDialog::NewSendingAddress,
-                this);
+            EditAddressDialog dlg(mode, this);
             dlg.setModel(addressBook);
             dlg.setAddress(address);
             dlg.exec();

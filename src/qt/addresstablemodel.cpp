@@ -681,7 +681,11 @@ void PcodeAddressTableModel::updatePcodeData()
     for(; iter != wallet->mapCustomKeyValues.end() && iter->first.compare(0, bip47::PcodeLabel().size(), bip47::PcodeLabel()) <= 0; ++iter) {
         pcodeData.push_back(std::make_pair(iter->first.substr(bip47::PcodeLabel().size(), iter->first.size() - bip47::PcodeLabel().size()), iter->second));
     }
+}
 
+std::string PcodeAddressTableModel::findLabel(QString const & pcode)
+{
+    return wallet->GetSendingPcodeLabel(pcode.toStdString());
 }
 
 void PcodeAddressTableModel::onPcodeLabeled(QString pcode_, QString label_, bool removed)

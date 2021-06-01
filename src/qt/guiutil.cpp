@@ -1002,4 +1002,12 @@ void ClickableProgressBar::mouseReleaseEvent(QMouseEvent *event)
     Q_EMIT clicked(event->pos());
 }
 
+
+void TextElideStyledItemDelegate::initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const
+{
+    QStyledItemDelegate::initStyleOption(option, index);
+    option->textElideMode = Qt::ElideMiddle;
+}
+
+
 } // namespace GUIUtil

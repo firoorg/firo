@@ -127,6 +127,7 @@ public:
 
     AddressTableModel::EditStatus getEditStatus() const { return editStatus; }
 
+    std::string findLabel(QString const & pcode);
     Q_INVOKABLE void onPcodeLabeled(QString pcode, QString label, bool removed);
 
 private:
