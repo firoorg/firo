@@ -382,7 +382,7 @@ void AddressBookPage::contextualMenu(const QPoint &point)
     else
     {
         index = ui->tableViewPcodes->indexAt(point);
-        copyAddressAction->setText(tr("&Copy RAP code"));
+        copyAddressAction->setText(tr("&Copy RAP address"));
     }
     if(index.isValid())
     {

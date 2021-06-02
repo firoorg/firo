@@ -294,9 +294,9 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
             if (pcode)
             {
                 if (!isFromMe)
-                    strHTML += "<b>" + tr("Received with RAP code") + ":</b> " + GUIUtil::HtmlEscape(std::get<2>(*pcode));
+                    strHTML += "<b>" + tr("Received with RAP address") + ":</b> " + GUIUtil::HtmlEscape(std::get<2>(*pcode));
                 else
-                    strHTML += "<b>" + tr("Sent to RAP code") + ":</b> " + bip47::utils::ShortenPcode(std::get<1>(*pcode)).c_str();
+                    strHTML += "<b>" + tr("Sent to RAP address") + ":</b> " + bip47::utils::ShortenPcode(std::get<1>(*pcode)).c_str();
             }
             strHTML += "<br>" ;
         }

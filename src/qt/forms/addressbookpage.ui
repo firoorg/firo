@@ -63,7 +63,7 @@
      </widget>
      <widget class="QWidget" name="tabPcodes">
       <attribute name="title">
-       <string>RAP codes</string>
+       <string>RAP addresses</string>
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_3">
        <item>

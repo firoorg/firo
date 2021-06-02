@@ -668,6 +668,12 @@ QString PcodeAddressTableModel::addRow(const QString &type, const QString &label
         return QString();
     }
 
+    if(isReceivingPcode(bip47::CPaymentCode(address.toStdString())))
+    {
+        editStatus = AddressTableModel::PCODE_CANNOT_BE_LABELED;
+        return QString();
+    }
+
     wallet->LabelSendingPcode(strPcode, strLabel);
 
     return QString::fromStdString(strPcode);
@@ -686,6 +692,14 @@ void PcodeAddressTableModel::updatePcodeData()
 std::string PcodeAddressTableModel::findLabel(QString const & pcode)
 {
     return wallet->GetSendingPcodeLabel(pcode.toStdString());
+}
+
+bool PcodeAddressTableModel::isReceivingPcode(bip47::CPaymentCode const & pcode)
+{
+    boost::optional<bip47::CPaymentCodeDescription> descr = wallet->FindPcode(pcode);
+    if(!descr)
+        return false;
+    return std::get<4>(*descr) == bip47::CPaymentCodeSide::Receiver;
 }
 
 void PcodeAddressTableModel::onPcodeLabeled(QString pcode_, QString label_, bool removed)

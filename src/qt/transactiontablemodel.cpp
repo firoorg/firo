@@ -347,6 +347,22 @@ QString TransactionTableModel::formatTxDate(const TransactionRecord *wtx) const
     return QString();
 }
 
+namespace {
+    QString getPcodeLabel(CWallet * wallet, std::string const & pcode)
+    {
+        QString result;
+        boost::optional<bip47::CPaymentCodeDescription> pcodeDesc;
+        try {
+            pcodeDesc = wallet->FindPcode(bip47::CPaymentCode(pcode));
+        } catch (std::runtime_error const &)
+        {}
+        result = QString::fromStdString(std::get<2>(*pcodeDesc));
+        if(result.isEmpty())
+            result = QString::fromStdString(pcode);
+        return result;
+    }
+}
+
 /* Look up address in address book, if found return label (address)
    otherwise just return (address)
  */
@@ -355,16 +371,7 @@ QString TransactionTableModel::lookupAddress(const TransactionRecord *wtx, bool 
     QString label;
     if(!wtx->pcode.empty())
     {
-        boost::optional<bip47::CPaymentCodeDescription> pcode;
-        try {
-            pcode = wallet->FindPcode(bip47::CPaymentCode(wtx->pcode));
-        } catch (std::runtime_error const &)
-        {}
-
-        if(pcode)
-            label = QString::fromStdString(std::get<2>(*pcode));
-        if(label.isEmpty())
-            label = QString::fromStdString(wtx->pcode);
+        label = getPcodeLabel(wallet, wtx->pcode);
     }
     else
         label = walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(wtx->address));
@@ -403,9 +410,9 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
     case TransactionRecord::Anonymize:
            return tr("Anonymize");
     case TransactionRecord::SendToPcode:
-            return tr("Sent to RAP code");
+            return tr("Sent to RAP address");
     case TransactionRecord::RecvWithPcode:
-            return tr("Received with RAP code");
+            return tr("Received with RAP address");
     default:
         return QString();
     }
@@ -443,10 +450,10 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
 
     switch(wtx->type)
     {
-    case TransactionRecord::RecvWithPcode:
     case TransactionRecord::RecvFromOther:
         return QString::fromStdString(wtx->address) + watchAddress;
     case TransactionRecord::RecvWithAddress:
+    case TransactionRecord::RecvWithPcode:
     case TransactionRecord::SendToAddress:
     case TransactionRecord::SpendToAddress:
     case TransactionRecord::SendToPcode:
@@ -651,7 +658,10 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
     case AddressRole:
         return QString::fromStdString(rec->address);
     case LabelRole:
-        return walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(rec->address));
+        if(rec->pcode.empty())
+            return walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(rec->address));
+        else
+            return getPcodeLabel(wallet, rec->pcode);
     case AmountRole:
         return qint64(rec->credit + rec->debit);
     case TxIDRole:

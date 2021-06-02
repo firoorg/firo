@@ -14,6 +14,10 @@ class PcodeAddressTableModel;
 
 class CWallet;
 
+namespace bip47{
+class CPaymentCode;
+}
+
 /**
    Qt model of the address book in the core. This allows views to access and modify the address book.
  */
@@ -42,7 +46,8 @@ public:
         DUPLICATE_ADDRESS,      /**< Address already in address book */
         WALLET_UNLOCK_FAILURE,  /**< Wallet could not be unlocked to create new receiving address */
         KEY_GENERATION_FAILURE,  /**< Generating a new public key for a receiving address failed */
-        PCODE_VALIDATION_FAILURE /**< Failed to validate the payment code */
+        PCODE_VALIDATION_FAILURE,/**< Failed to validate the payment code */
+        PCODE_CANNOT_BE_LABELED  /**< Receiving pcodes cannot be relabeled*/
     };
 
     static const QString Send;      /**< Specifies send address */
@@ -128,6 +133,7 @@ public:
     AddressTableModel::EditStatus getEditStatus() const { return editStatus; }
 
     std::string findLabel(QString const & pcode);
+    bool isReceivingPcode(bip47::CPaymentCode const & pcode);
     Q_INVOKABLE void onPcodeLabeled(QString pcode, QString label, bool removed);
 
 private:

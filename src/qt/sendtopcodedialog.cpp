@@ -207,14 +207,14 @@ void SendtoPcodeDialog::on_helpButton_clicked()
 {
     QMessageBox msgBox;
     msgBox.setText(tr(
-        "Sending funds to a RAP code requires a notification transaction to be sent by the payer prior to the first payment. \n"
+        "Sending funds to a RAP address requires a notification transaction to be sent by the payer prior to the first payment. \n"
         "Notification transactions use Lelantus facilities to enhance privacy.\n"
-        "After the notification transaction is received by the RAP code issuer, funds can be privately sent to the RAP secret addresses.\n"));
+        "After the notification transaction is received by the RAP address issuer, funds can be privately sent to the RAP secret addresses.\n"));
     msgBox.setInformativeText(tr(
         "The recommended workflow is as follows:\n"
         "1. Send a notification transaction\n"
         "2. Make sure it is included in a block with a block explorer\n"
-        "3. Send funds to the RAP code in one or more transactions"));
+        "3. Send funds to the RAP address in one or more transactions"));
     msgBox.setWindowTitle(tr("RAP info"));
     msgBox.setStandardButtons(QMessageBox::Ok);
     msgBox.setDefaultButton(QMessageBox::Ok);
