@@ -45,7 +45,8 @@ SendtoPcodeDialog::SendtoPcodeDialog(QWidget *parent, std::string const & pcode,
     ui(new Ui::SendtoPcodeDialog),
     model(0),
     result(Result::cancelled),
-    label(label)
+    label(label),
+    status{}
 {
     ui->setupUi(this);
     try {
@@ -127,7 +128,7 @@ void SendtoPcodeDialog::updateButtons()
     if(status.notifTxSent)
         hintText = tr("<i>Please wait until the connection transaction has at least 1 confirmation or cancel this dialog to send FIRO later.</i>");
     if(status.notifTxConfirmed)
-        hintText = tr("<i>FIRO can be send now.</i>");
+        hintText = tr("<i>FIRO can be sent now.</i>");
     ui->hintLabel->setText(hintText);
 }
 
