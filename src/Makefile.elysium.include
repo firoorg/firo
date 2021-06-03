@@ -81,7 +81,7 @@ ELYSIUM_H += \
   elysium/rpctx.h \
   elysium/lelantusprimitives.h \
   elysium/lelantuswallet.h \
-  elysium/lelantuswalletmodels.cpp \
+  elysium/lelantuswalletmodels.h \
   elysium/wallet.h
 
 ELYSIUM_CPP += \
