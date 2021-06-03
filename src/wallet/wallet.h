@@ -999,14 +999,14 @@ public:
         bool& fChangeAddedToFee,
         const CCoinControl *coinControl = NULL);
 
-	CWalletTx CreateLelantusJoinSplitTransaction(
-		const std::vector<CRecipient>& recipients,
-		CAmount& fee,
-		const std::vector<CAmount>& newMints,
-		std::vector<CLelantusEntry>& spendCoins,
+    CWalletTx CreateLelantusJoinSplitTransaction(
+        const std::vector<CRecipient>& recipients,
+        CAmount& fee,
+        const std::vector<CAmount>& newMints,
+        std::vector<CLelantusEntry>& spendCoins,
         std::vector<CSigmaEntry>& sigmaSpendCoins,
-		std::vector<CHDMint>& mintCoins,
-		const CCoinControl *coinControl = NULL);
+        std::vector<CHDMint>& mintCoins,
+        const CCoinControl *coinControl = NULL);
 
     bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>& selectedCoins, std::vector<CHDMint>& changes);
     bool CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CSigmaEntry>& sigmaSpendCoins, std::vector<CHDMint>& mintCoins);
