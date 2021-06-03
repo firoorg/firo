@@ -836,7 +836,7 @@ lelantus::JoinSplit LelantusWallet::CreateJoinSplit(
     }
 
     std::vector<lelantus::PublicCoin> pubCoinOuts;
-    if (changeMint.has_value()) {
+    if (changeMint.get_ptr() != nullptr) {
         coinOuts = {changeMint->coin};
         pubCoinOuts = {changeMint->coin.getPublicCoin()};
     }

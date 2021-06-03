@@ -203,7 +203,7 @@ public:
 
     boost::optional<std::tuple<uint64_t>> ParseKey(std::string val) const override {
         auto v = Parser::ParseKey(val);
-        if (!v.has_value()) {
+        if (v.get_ptr() == nullptr) {
             return v;
         }
 
@@ -225,7 +225,7 @@ public:
 
     boost::optional<std::tuple<PropertyId, LelantusIndex>> ParseKey(std::string val) const override {
         auto v = Parser::ParseKey(val);
-        if (!v.has_value()) {
+        if (v.get_ptr() == nullptr) {
             return v;
         }
 
@@ -302,7 +302,7 @@ bool LelantusDb::HasSerial(PropertyId id, Scalar const &serial, uint256 &spendTx
     }
 
     auto tx = SerialParser().ParseVal(data);
-    if (tx.has_value()) {
+    if (tx.get_ptr() != nullptr) {
         spendTx = tx.get();
     }
 
@@ -610,7 +610,7 @@ void LelantusDb::CommitCoins()
             }
 
             auto groupData = CoinGroupParser().ParseVal(val);
-            if (!groupData.has_value()) {
+            if (groupData.get_ptr() == nullptr) {
                 throw std::runtime_error("Fail to parse value");
             }
 
@@ -659,7 +659,7 @@ void LelantusDb::CommitCoins()
             }
 
 #ifdef ENABLE_WALLET
-            if (pwalletMain && !amount.has_value() && additional.size() == 16) {
+            if (pwalletMain && amount.get_ptr() == nullptr && additional.size() == 16) {
                 EncryptedValue enc;
                 std::copy(additional.begin(), additional.end(), &enc[0]);
                 LelantusAmount retrieved;
@@ -795,7 +795,7 @@ LelantusGroup LelantusDb::GetLastGroup(PropertyId id, uint64_t &coins)
     }
 
     boost::optional<CoinGroupData> groupData;
-    while (pdb->Get(readoptions, CoinGroupParser().GetKey(id, group + 1), &data).ok() && (groupData = CoinGroupParser().ParseVal(data)).has_value()) {
+    while (pdb->Get(readoptions, CoinGroupParser().GetKey(id, group + 1), &data).ok() && (groupData = CoinGroupParser().ParseVal(data)).get_ptr() != nullptr) {
         coins = nextSeq - groupData->firstSequence;
         group++;
     }

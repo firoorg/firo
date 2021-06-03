@@ -213,7 +213,7 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
     auto joinSplitMint = tx.getLelantusJoinSplitMint();
 
     std::vector<lelantus::PublicCoin> cout;
-    if (joinSplitMint.has_value()) {
+    if (joinSplitMint.get_ptr() != nullptr) {
         cout.push_back(joinSplitMint->publicCoin);
     }
 
@@ -228,7 +228,7 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
         lelantusDb->WriteSerial(property, s, block, tx.getHash());
     }
 
-    if (joinSplitMint.has_value()) {
+    if (joinSplitMint.get_ptr() != nullptr) {
         lelantusDb->WriteMint(property, joinSplitMint.get(), block);
     }
 
