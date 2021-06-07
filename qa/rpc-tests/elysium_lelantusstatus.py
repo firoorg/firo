@@ -35,7 +35,6 @@ class ElysiumLelantusStatusTest(ElysiumTestFramework):
 
         args = [self.addrs[0], 1, 1, 0, '', '', 'Pre-lelantus', '', '', '1000000']
         if status is not None:
-            args.append(0)
             args.append(status)
 
         self.nodes[0].elysium_sendissuancefixed(*args)
