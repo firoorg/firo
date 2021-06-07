@@ -842,7 +842,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 intDenom *= 1000;
                 sigma::CoinDenomination denomination;
 
-                if (chainActive.Height() < consensus.nPPStartBlock || sigma::IntegerToDenomination(intDenom, denomination)) {
+                if (chainActive.Height() < consensus.nPPStartBlock || (joinsplit->isSigmaToLelantus() && sigma::IntegerToDenomination(intDenom, denomination))) {
                     if (lelantusState->IsUsedCoinSerial(serials[i]) || pool.lelantusState.HasCoinSerial(serials[i]) ||
                         !sigmaState->CanAddSpendToMempool(serials[i])) {
                         LogPrintf("AcceptToMemoryPool(): lelantus serial number %s has been used\n",
