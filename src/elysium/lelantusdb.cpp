@@ -347,7 +347,8 @@ std::vector<lelantus::PublicCoin> LelantusDb::GetAnonymityGroup(
     CoinGroupData groupData;
     std::string rawGroupData;
 
-    leveldb::Slice key = CoinGroupParser().GetKey(id, groupId);
+    std::string strKey = CoinGroupParser().GetKey(id, groupId);
+    leveldb::Slice key = strKey;
     if (!pdb->Get(readoptions, key, &rawGroupData).ok()) {
         // Groups which have no data written about them have no coins in them.
         return coins;
