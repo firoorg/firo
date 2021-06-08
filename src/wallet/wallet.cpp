@@ -7118,6 +7118,7 @@ notifTxExit:
         LogBip47("The payment code has been accepted: %s\n", accFound->lastPcode().toString());
         HandleSecretAddresses(*this, *accFound);
         CWalletDB(strWalletFile).WriteBip47Account(*accFound);
+        LockCoin(COutPoint(wtx.tx->GetHash(), std::distance(wtx.tx->vout.begin(), iregout))); //Locking the notif tx output to be spent only manually
     } else {
         // Checking if it uses a bip47 address
         for (CTxOut const & out : wtx.tx->vout) {
