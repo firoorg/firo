@@ -122,6 +122,7 @@ private:
     QAction *sigmaAction;
     QAction *lelantusAction;
     QAction *masternodeAction;
+    QAction *createPcodeAction;
 
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
@@ -230,6 +231,8 @@ private Q_SLOTS:
     void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
+    /** Switch to create payment code page */
+    void gotoCreatePcodePage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to sigma page */

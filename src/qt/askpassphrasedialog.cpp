@@ -18,18 +18,15 @@
 #include <QMessageBox>
 #include <QPushButton>
 
-AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent) :
+AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent, const QString &info) :
     QDialog(parent),
     ui(new Ui::AskPassphraseDialog),
     mode(_mode),
     model(0),
-    fCapsLock(false)
+    fCapsLock(false),
+    info(info)
 {
     ui->setupUi(this);
-
-    ui->passEdit1->setMinimumSize(ui->passEdit1->sizeHint());
-    ui->passEdit2->setMinimumSize(ui->passEdit2->sizeHint());
-    ui->passEdit3->setMinimumSize(ui->passEdit3->sizeHint());
 
     ui->passEdit1->setMaxLength(MAX_PASSPHRASE_SIZE);
     ui->passEdit2->setMaxLength(MAX_PASSPHRASE_SIZE);
@@ -69,7 +66,12 @@ AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent) :
             ui->warningLabel->setText(tr("Enter the old passphrase and new passphrase to the wallet."));
             break;
     }
+    if(info.size() > 0)
+    {
+        ui->warningLabel->setText(info + "<br/>" + ui->warningLabel->text());
+    }
     textChanged();
+    adjustSize();
     connect(ui->passEdit1, SIGNAL(textChanged(QString)), this, SLOT(textChanged()));
     connect(ui->passEdit2, SIGNAL(textChanged(QString)), this, SLOT(textChanged()));
     connect(ui->passEdit3, SIGNAL(textChanged(QString)), this, SLOT(textChanged()));

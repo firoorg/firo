@@ -44,7 +44,8 @@ LelantusJoinSplitBuilder::~LelantusJoinSplitBuilder()
 CWalletTx LelantusJoinSplitBuilder::Build(
     const std::vector<CRecipient>& recipients,
     CAmount &fee,
-    const std::vector<CAmount>& newMints)
+    const std::vector<CAmount>& newMints,
+    std::function<void(CTxOut & , LelantusJoinSplitBuilder const &)> outModifier)
 {
     if (recipients.empty() && newMints.empty()) {
         throw std::runtime_error(_("Either recipients or newMints has to be nonempty."));
@@ -284,6 +285,11 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         uint32_t sequence = CTxIn::SEQUENCE_FINAL;
         tx.vin.emplace_back(COutPoint(), CScript(), sequence);
 
+        if(outModifier) {
+            for(CTxOut & out : tx.vout) {
+                outModifier(out, *this);
+            }
+        }
         // now every fields is populated then we can sign transaction
         uint256 sig = tx.GetHash();
 

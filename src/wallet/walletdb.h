@@ -14,8 +14,8 @@
 #include "streams.h"
 #include "key.h"
 
-#include "../hdmint/hdmint.h"
-#include "../hdmint/mintpool.h"
+#include "hdmint/hdmint.h"
+#include "hdmint/mintpool.h"
 #include "../secp256k1/include/GroupElement.h"
 #include "../secp256k1/include/Scalar.h"
 
@@ -46,6 +46,12 @@ class uint160;
 class uint256;
 class CSigmaEntry;
 class CSigmaSpendEntry;
+
+namespace bip47 {
+class CAccountReceiver;
+class CAccountSender;
+class CWallet;
+}
 
 /** Error statuses for the wallet database */
 enum DBErrors
@@ -182,6 +188,9 @@ public:
     CWalletDB(const std::string& strFilename, const char* pszMode = "r+", bool fFlushOnClose = true) : CDB(strFilename, pszMode, fFlushOnClose)
     {
     }
+
+    bool WriteKV(const std::string& key, const std::string& value);
+    bool EraseKV(const std::string& key);
 
     bool WriteName(const std::string& strAddress, const std::string& strName);
     bool EraseName(const std::string& strAddress);
@@ -441,6 +450,10 @@ public:
 
 #endif
 
+    //bip47 data
+    bool WriteBip47Account(bip47::CAccountReceiver const & account);
+    bool WriteBip47Account(bip47::CAccountSender const & account);
+    void LoadBip47Accounts(bip47::CWallet & wallet);
 private:
     CWalletDB(const CWalletDB&);
     void operator=(const CWalletDB&);

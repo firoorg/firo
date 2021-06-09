@@ -6,6 +6,7 @@
 #define BITCOIN_QT_EDITADDRESSDIALOG_H
 
 #include <QDialog>
+#include <QAbstractItemModel>
 
 class AddressTableModel;
 
@@ -28,7 +29,9 @@ public:
         NewReceivingAddress,
         NewSendingAddress,
         EditReceivingAddress,
-        EditSendingAddress
+        EditSendingAddress,
+        NewPcode,
+        EditPcode
     };
 
     explicit EditAddressDialog(Mode mode, QWidget *parent);

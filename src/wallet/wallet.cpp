@@ -52,6 +52,11 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
+#include <vector>
+
+#include "bip47/account.h"
+#include "bip47/paymentcode.h"
+#include "bip47/bip47utils.h"
 
 using namespace std;
 
@@ -1034,6 +1039,18 @@ void CWallet::MarkDirty()
     }
 }
 
+namespace {
+void HandleSecretAddresses(CWallet & wallet, bip47::CAccountReceiver const & receiver)
+{
+    if (wallet.IsLocked()) {
+        wallet.NotifyBip47KeysChanged(receiver.getAccountNum());
+        return;
+    }
+
+    bip47::utils::AddReceiverSecretAddresses(receiver, wallet);
+}
+}
+
 bool CWallet::MarkReplaced(const uint256& originalHash, const uint256& newHash)
 {
     LOCK(cs_wallet);
@@ -1173,6 +1190,12 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
     if (fInsertedNew || fUpdated)
         if (!walletdb.WriteTx(wtx))
             return false;
+
+    // Handle bip47 notification tx
+    if (fInsertedNew)
+    {
+        HandleBip47Transaction(wtx);
+    }
 
     // Break debit/credit balance caches:
     wtx.MarkDirty();
@@ -2095,6 +2118,9 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
         double dProgressTip = GuessVerificationProgress(chainParams.TxData(), chainActive.Tip());
         while (pindex)
         {
+            // A temporary fix for inability to Ctrl-C rescan when restoring a wallet (will be fixed in 0.15.)
+            if (ShutdownRequested())
+                return nullptr;
             if (pindex->nHeight % 100 == 0 && dProgressTip - dProgressStart > 0.0)
                 ShowProgress(_("Rescanning..."), std::max(1, std::min(99, (int)((GuessVerificationProgress(chainParams.TxData(), pindex) - dProgressStart) / (dProgressTip - dProgressStart) * 100))));
             if (GetTime() >= nNow + 60) {
@@ -5257,7 +5283,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
     return true;
 }
 
-void CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result) {
+std::vector<CLelantusEntry> CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result) {
     // create transaction
     std::vector<CLelantusEntry> spendCoins; //spends
     std::vector<CSigmaEntry> sigmaSpendCoins;
@@ -5266,6 +5292,8 @@ void CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const
     result = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins);
 
     CommitLelantusTransaction(result, spendCoins, sigmaSpendCoins, mintCoins);
+
+    return spendCoins;
 }
 
 CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
@@ -5275,7 +5303,8 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
         std::vector<CLelantusEntry>& spendCoins,
         std::vector<CSigmaEntry>& sigmaSpendCoins,
         std::vector<CHDMint>& mintCoins,
-        const CCoinControl *coinControl)
+        const CCoinControl *coinControl,
+        std::function<void(CTxOut & , LelantusJoinSplitBuilder const &)> modifier)
 {
     // sanity check
     EnsureMintWalletAvailable();
@@ -5287,7 +5316,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
     // create transaction
     LelantusJoinSplitBuilder builder(*this, *zwallet, coinControl);
 
-    CWalletTx tx = builder.Build(recipients, fee, newMints);
+    CWalletTx tx = builder.Build(recipients, fee, newMints, modifier);
     spendCoins = builder.spendCoins;
     sigmaSpendCoins = builder.sigmaSpendCoins;
     mintCoins = builder.mintCoins;
@@ -5340,7 +5369,7 @@ std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(CAmount required,
                     return std::make_pair(0, 0);
                 }
             }
-        } catch (std::runtime_error&) {
+        } catch (std::runtime_error const &) {
         }
 
         // 1054 is constant part, mainly Schnorr and Range proofs, 2560 is for each sigma/aux data
@@ -6555,6 +6584,9 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         walletInstance->zwallet = std::make_unique<CHDMintWallet>(pwalletMain->strWalletFile);
     }
 
+    walletInstance->bip47wallet = std::make_shared<bip47::CWallet>(walletInstance->vchDefaultKey.GetHash());
+    walletInstance->LoadBip47Wallet();
+
     RegisterValidationInterface(walletInstance);
 
     CBlockIndex *pindexRescan = chainActive.Tip();
@@ -6813,6 +6845,444 @@ bool CWallet::BackupWallet(const std::string& strDest)
     }
     return false;
 }
+
+bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)
+{
+    if (!bip47wallet)
+        throw WalletError("BIP47 wallet was not created during the initialization");
+
+    bip47::CAccountReceiver & newAcc = bip47wallet->createReceivingAccount(label);
+    {
+        bip47::MyAddrContT addrs = newAcc.getMyNextAddresses();
+        LOCK(cs_wallet);
+        for(bip47::MyAddrContT::value_type const & addr : addrs) {
+            AddKey(addr.second);
+        }
+    }
+    CWalletDB(strWalletFile).WriteBip47Account(newAcc);
+    NotifyPcodeCreated(bip47::CPaymentCodeDescription(newAcc.getAccountNum(), newAcc.getMyPcode(), newAcc.getLabel(), newAcc.getMyPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Receiver));
+    return newAcc.getMyPcode();
+}
+
+CWalletTx CWallet::PrepareAndSendNotificationTx(bip47::CPaymentCode const & theirPcode)
+{
+    bip47::CPaymentChannel pchannel = SetupPchannel(theirPcode);
+
+    CWalletTx wtxNew;
+
+    if (GetBroadcastTransactions() && !g_connman) {
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+    }
+
+    CBitcoinAddress const notifAddr = pchannel.getTheirPcode().getNotificationAddress();
+
+    std::vector<CRecipient> recipients;
+    std::vector<CAmount> newMints;
+
+    CRecipient receiver;
+    receiver.scriptPubKey = GetScriptForDestination(notifAddr.Get());
+    receiver.nAmount = bip47::NotificationTxValue;
+    receiver.fSubtractFeeFromAmount = false;
+
+    recipients.emplace_back(receiver);
+    CScript opReturnScript = CScript() << OP_RETURN << std::vector<unsigned char>(80); // Passing empty array to calc fees
+    recipients.push_back({opReturnScript, 0, false});
+
+    auto throwSigma =
+        [](){throw std::runtime_error(std::string("There are unspent Sigma coins in your wallet. Using Sigma coins for BIP47 is not supported. Please spend your Sigma coins before establishing a BIP47 channel."));};
+
+    try {
+        std::vector<CLelantusEntry> spendCoins;
+        std::vector<CSigmaEntry> sigmaSpendCoins;
+        std::vector<CHDMint> mintCoins;
+        CAmount fee;
+
+        wtxNew = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins, nullptr,
+                [&pchannel, &throwSigma](CTxOut & out, LelantusJoinSplitBuilder const & builder) {
+                    if(out.scriptPubKey[0] == OP_RETURN) {
+                        CKey spendPrivKey;
+                        if (builder.spendCoins.empty())
+                            throwSigma();
+                        spendPrivKey.Set(builder.spendCoins[0].ecdsaSecretKey.begin(), builder.spendCoins[0].ecdsaSecretKey.end(), false);
+                        CDataStream ds(SER_NETWORK, 0);
+                        ds << builder.spendCoins[0].serialNumber;
+                        bip47::Bytes const pcode = pchannel.getMaskedPayload((unsigned char const *)ds.vch.data(), ds.vch.size(), spendPrivKey);
+                        out.scriptPubKey = CScript() << OP_RETURN << pcode;
+                    }
+                });
+
+        if (!sigmaSpendCoins.empty())
+            throwSigma();
+
+        if (spendCoins.empty())
+            throw std::runtime_error(std::string("Cannot create a Lelantus spend to address: " + notifAddr.ToString()).c_str());
+
+        CommitLelantusTransaction(wtxNew, spendCoins, sigmaSpendCoins, mintCoins);
+        LogBip47("Paymentcode %s was sent to notification address: %s\n", pchannel.getMyPcode().toString().c_str(), notifAddr.ToString().c_str() );
+    }
+    catch (const InsufficientFunds& e)
+    {
+        throw e;
+    }
+    catch (const std::exception& e)
+    {
+        throw WalletError(e.what());
+    }
+
+    SetNotificationTxId(theirPcode, wtxNew.GetHash());
+    return wtxNew;
+}
+
+std::vector<bip47::CPaymentCodeDescription> CWallet::ListPcodes()
+{
+    std::vector<bip47::CPaymentCodeDescription> result;
+    if (!bip47wallet)
+        return result;
+
+    bip47wallet->enumerateReceivers(
+        [&result](bip47::CAccountReceiver const & acc)->bool
+        {
+            result.emplace_back(acc.getAccountNum(), acc.getMyPcode(), acc.getLabel(), acc.getMyNotificationAddress(), bip47::CPaymentCodeSide::Receiver);
+            return true;
+        }
+    );
+    return result;
+}
+
+bip47::CPaymentChannel & CWallet::SetupPchannel(bip47::CPaymentCode const & theirPcode)
+{
+    if (!bip47wallet)
+        throw WalletError("BIP47 wallet was not created during the initialization");
+
+    bip47::CAccountSender & sender = bip47wallet->provideSendingAccount(theirPcode);
+    CWalletDB(strWalletFile).WriteBip47Account(sender);
+    return sender.getPaymentChannel();
+}
+
+void CWallet::SetNotificationTxId(bip47::CPaymentCode const & theirPcode, uint256 const & txid)
+{
+    if (!bip47wallet)
+        throw WalletError("BIP47 wallet was not created during the initialization");
+
+    bip47::CAccountSender & sender = bip47wallet->provideSendingAccount(theirPcode);
+    sender.setNotificationTxId(txid);
+    CWalletDB(strWalletFile).WriteBip47Account(sender);
+}
+
+namespace {
+CBitcoinAddress HandleTheirNextAddress(bip47::CWallet & wallet, std::string const & strWalletFile, bip47::CPaymentCode const & theirPcode, bool storeNextAddress)
+{
+    boost::optional<bip47::CAccountSender*> existingAcc;
+    wallet.enumerateSenders(
+        [&theirPcode, &existingAcc](bip47::CAccountSender & acc)->bool
+        {
+            if(acc.getTheirPcode() == theirPcode) {
+                existingAcc.emplace(&acc);
+                return false;
+            }
+            return true;
+        }
+    );
+    if(!existingAcc)
+        throw std::runtime_error("There is no account setup for payment code " + theirPcode.toString());
+    CBitcoinAddress result;
+    if(storeNextAddress)
+    {
+        result = existingAcc.get()->generateTheirNextSecretAddress();
+        LogBip47("Sending to secret address: %s\n", result.ToString());
+    } else {
+        result = existingAcc.get()->getTheirNextSecretAddress();
+    }
+    CWalletDB(strWalletFile).WriteBip47Account(*existingAcc.get());
+    return result;
+}
+}
+
+CBitcoinAddress CWallet::GetTheirNextAddress(bip47::CPaymentCode const & theirPcode) const
+{
+    if (!bip47wallet)
+        throw WalletError("BIP47 wallet was not created during the initialization");
+
+    return HandleTheirNextAddress(*bip47wallet, strWalletFile, theirPcode, false);
+}
+
+CBitcoinAddress CWallet::GenerateTheirNextAddress(bip47::CPaymentCode const & theirPcode)
+{
+    if (!bip47wallet)
+        throw WalletError("BIP47 wallet was not created during the initialization");
+
+    return HandleTheirNextAddress(*bip47wallet, strWalletFile, theirPcode, true);
+}
+
+void CWallet::LoadBip47Wallet()
+{
+    CWalletDB(strWalletFile).LoadBip47Accounts(*bip47wallet);
+}
+
+std::shared_ptr<bip47::CWallet const> CWallet::GetBip47Wallet() const
+{
+    return bip47wallet;
+}
+
+boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(bip47::CPaymentCode const & pcode) const
+{
+    boost::optional<bip47::CPaymentCodeDescription> result;
+    if (!bip47wallet)
+        return result;
+
+    bip47wallet->enumerateReceivers(
+        [&pcode, &result](bip47::CAccountReceiver & rec)->bool
+        {
+            if(rec.getMyPcode() == pcode) {
+                result.emplace(rec.getAccountNum(), rec.getMyPcode(), rec.getLabel(), rec.getMyPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Receiver);
+                return false;
+            }
+
+            for(bip47::CPaymentChannel const & channel : rec.getPchannels()) {
+                if(channel.getTheirPcode() == pcode) {
+                    result.emplace(rec.getAccountNum(), rec.getMyPcode(), rec.getLabel(), rec.getMyPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Receiver);
+                    return false;
+                }
+            }
+            return true;
+        }
+    );
+    bip47wallet->enumerateSenders(
+        [&pcode, &result, this](bip47::CAccountSender & sender)->bool
+        {
+            if(sender.getTheirPcode() == pcode) {
+                std::string label = GetSendingPcodeLabel(sender.getTheirPcode());
+                result.emplace(sender.getAccountNum(), sender.getTheirPcode(), label, sender.getTheirPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Sender);
+                return false;
+            }
+            return true;
+        }
+    );
+    return result;
+}
+
+boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(CBitcoinAddress const & address) const
+{
+    boost::optional<bip47::CPaymentCodeDescription> result;
+    if (!bip47wallet)
+        return result;
+
+    bip47wallet->enumerateReceivers(
+        [&address, &result](bip47::CAccountReceiver & rec)->bool
+        {
+            bip47::MyAddrContT addrs = rec.getMyUsedAddresses();
+            if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
+            {
+                result.emplace(rec.getAccountNum(), rec.getMyPcode(), rec.getLabel(), rec.getMyPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Receiver);
+                return false;
+            }
+            addrs = rec.getMyNextAddresses();
+            if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
+            {
+                result.emplace(rec.getAccountNum(), rec.getMyPcode(), rec.getLabel(), rec.getMyPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Receiver);
+                return false;
+            }
+            return true;
+        }
+    );
+    bip47wallet->enumerateSenders(
+        [&address, &result, this](bip47::CAccountSender & sender)->bool
+        {
+            bip47::TheirAddrContT addrs = sender.getTheirUsedAddresses();
+            if (std::find(addrs.begin(), addrs.end(), address) != addrs.end())
+            {
+                std::string label = GetSendingPcodeLabel(sender.getTheirPcode());
+                result.emplace(sender.getAccountNum(), sender.getTheirPcode(), label, sender.getTheirPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Sender);
+                return false;
+            }
+            if (address == sender.getTheirNextSecretAddress() || address == sender.getTheirPcode().getNotificationAddress())
+            {
+                std::string label = GetSendingPcodeLabel(sender.getTheirPcode());
+                result.emplace(sender.getAccountNum(), sender.getTheirPcode(), label, sender.getTheirPcode().getNotificationAddress(), bip47::CPaymentCodeSide::Sender);
+                return false;
+            }
+            return true;
+        }
+    );
+    return result;
+}
+
+bip47::CAccountReceiver const * CWallet::AddressUsed(CBitcoinAddress const & address)
+{
+    bip47::CAccountReceiver const * result = nullptr;
+    if(!bip47wallet)
+        return result;
+
+    bip47wallet->enumerateReceivers(
+        [&address, &result](bip47::CAccountReceiver & rec)->bool
+        {
+            bip47::MyAddrContT addrs = rec.getMyNextAddresses();
+            if (std::find_if(addrs.begin(), addrs.end(), bip47::FindByAddress(address)) != addrs.end())
+            {
+                rec.addressUsed(address);
+                result = &rec;
+                return false;
+            }
+            return true;
+        }
+    );
+    if (result)
+        CWalletDB(strWalletFile).WriteBip47Account(*result);
+    return result;
+}
+
+void CWallet::HandleBip47Transaction(CWalletTx const & wtx)
+{
+    bip47::Bytes masked = bip47::utils::GetMaskedPcode(wtx.tx);
+    CKey key;
+    bip47::CAccountReceiver * accFound = nullptr;
+    int nRequired = 0;
+    vector<CTxDestination> addresses;
+    txnouttype typeRet = TX_NONSTANDARD;
+    std::vector<CTxIn>::const_iterator ijsplit;
+    std::vector<CTxOut>::const_iterator iregout;
+    bool success = false;
+
+    if (masked.empty()) goto notifTxExit;
+
+    ijsplit = std::find_if(wtx.tx->vin.begin(), wtx.tx->vin.end(), [](CTxIn const & in){ return in.scriptSig.IsLelantusJoinSplit(); });
+    if(ijsplit == wtx.tx->vin.end()) {
+        LogBip47("Joinsplit input was not found in a potential notification tx: %s\n", wtx.tx->GetHash().ToString());
+        goto notifTxExit;
+    }
+
+    iregout = std::find_if(wtx.tx->vout.begin(), wtx.tx->vout.end(), [](CTxOut const & out){ return out.scriptPubKey[0] != OP_RETURN && !out.scriptPubKey.IsLelantusJMint(); });
+    if(iregout == wtx.tx->vout.end()) {
+        LogBip47("Regular out was not found in a potential notification tx: %s\n", wtx.tx->GetHash().ToString());
+        goto notifTxExit;
+    }
+    if(!ExtractDestinations(iregout->scriptPubKey, typeRet, addresses, nRequired)) {
+        LogBip47("Cannot extract destinations for tx: %s\n", wtx.tx->GetHash().ToString());
+        goto notifTxExit;
+    }
+    bip47wallet->enumerateReceivers(
+        [&key, &addresses, &accFound](bip47::CAccountReceiver & acc)->bool
+        {
+            for (CBitcoinAddress addr : addresses) {
+                if(acc.getMyNotificationAddress() == addr) {
+                    key = acc.getMyNextAddresses()[0].second;
+                    accFound = &acc;
+                    return false;
+                }
+            }
+            return true;
+        }
+    );
+    if(!accFound) {
+        LogBip47("There was no account set up to receive payments on address: %s\n", CBitcoinAddress(addresses[0]).ToString());
+        goto notifTxExit;
+    }
+    if(!accFound->acceptMaskedPayload(masked, *ijsplit)){
+        LogBip47("Could not accept this masked payload: %s\n", HexStr(masked));
+        goto notifTxExit;
+    }
+    success = true;
+notifTxExit:
+    if (success) {
+        LogBip47("The payment code has been accepted: %s\n", accFound->lastPcode().toString());
+        HandleSecretAddresses(*this, *accFound);
+        CWalletDB(strWalletFile).WriteBip47Account(*accFound);
+        LockCoin(COutPoint(wtx.tx->GetHash(), std::distance(wtx.tx->vout.begin(), iregout))); //Locking the notif tx output to be spent only manually
+    } else {
+        // Checking if it uses a bip47 address
+        for (CTxOut const & out : wtx.tx->vout) {
+            vector<CTxDestination> addresses;
+            txnouttype typeRet = TX_NONSTANDARD;
+            int nRequired = 0;
+            if (ExtractDestinations(out.scriptPubKey, typeRet, addresses, nRequired)) {
+                for (CBitcoinAddress addr : addresses) {
+                    bip47::CAccountReceiver const * rec = AddressUsed(addr);
+                    if (rec) {
+                        HandleSecretAddresses(*this, *rec);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void CWallet::LabelSendingPcode(bip47::CPaymentCode const & pcode_, std::string const & label, bool remove)
+{
+    std::string const pcodeLbl = bip47::PcodeLabel() + pcode_.toString();
+    if (label.empty())
+        remove = true;
+    CWalletDB walletDb(strWalletFile);
+    if (remove) {
+        walletDb.EraseKV(pcodeLbl);
+        LOCK(cs_wallet);
+        mapCustomKeyValues.erase(pcodeLbl);
+    } else {
+        std::multimap<std::string, std::string>::iterator iter = mapCustomKeyValues.find(pcodeLbl);
+        if (iter == mapCustomKeyValues.end()) {
+            LOCK(cs_wallet);
+            mapCustomKeyValues.insert(std::make_pair(pcodeLbl, label));
+        } else {
+            if (iter->second == label)
+                return;
+            iter->second = label;
+        }
+        walletDb.EraseKV(pcodeLbl);
+        walletDb.WriteKV(pcodeLbl, label);
+    }
+    NotifyPcodeLabeled(pcode_.toString(), label, remove);
+}
+
+std::string CWallet::GetSendingPcodeLabel(bip47::CPaymentCode const & pcode) const
+{
+    std::string const pcodeLbl = bip47::PcodeLabel() + pcode.toString();
+    LOCK(cs_wallet);
+    std::multimap<std::string, std::string>::const_iterator iter = mapCustomKeyValues.find(pcodeLbl);
+    if(iter == mapCustomKeyValues.end())
+        return "";
+    return iter->second;
+}
+
+size_t CWallet::SetUsedAddressNumber(bip47::CPaymentCode const & pcode, size_t number)
+{
+    boost::optional<size_t> resultSnd, resutRec;
+    bip47wallet->enumerateSenders(
+        [&pcode, &number, &resultSnd](bip47::CAccountSender & sender)->bool
+        {
+            if(sender.getTheirPcode() == pcode) {
+                resultSnd.emplace(sender.setTheirUsedAddressNumber(number));
+                return false;
+            }
+            return true;
+        }
+    );
+
+    bip47::CAccountReceiver * receiver;
+    bip47wallet->enumerateReceivers(
+        [&pcode, &number, &resutRec, &receiver](bip47::CAccountReceiver & rec)->bool
+        {
+            resutRec = rec.setMyUsedAddressNumber(pcode, number);
+            if(resutRec) {
+                receiver = &rec;
+                return false;
+            }
+            return true;
+        }
+    );
+    if(resutRec) {
+        HandleSecretAddresses(*this, *receiver);
+        return *resutRec;
+    }
+    if(resultSnd)
+        return *resultSnd;
+    return 0;
+}
+
+/******************************************************************************/
+/*                                                                            */
+/*                            CKeyPool                                        */
+/*                                                                            */
+/******************************************************************************/
+
 
 CKeyPool::CKeyPool()
 {
