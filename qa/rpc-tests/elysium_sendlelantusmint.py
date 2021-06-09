@@ -13,12 +13,12 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
     def run_test(self):
         super().run_test()
 
-        lelantus_start_block = 1000
-
-        self.nodes[0].generatetoaddress(100, self.addrs[0])
-        self.nodes[0].generate(lelantus_start_block - self.nodes[0].getblockcount())
-
-        assert_equal(lelantus_start_block, self.nodes[0].getblockcount())
+        lelantus_starting_block = 1000
+        remaining = lelantus_starting_block - self.nodes[0].getblockcount()
+        while remaining > 0:
+            # Generate in blocks of 10 so we don't run into timeout issues.
+            self.nodes[0].generatetoaddress(min(10, remaining), self.addrs[0])
+            remaining -= 10
 
         # create non-lelantus
         self.nodes[0].elysium_sendissuancefixed(
@@ -29,7 +29,7 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
 
         # create lelantus
         self.nodes[0].elysium_sendissuancefixed(
-            self.addrs[0], 1, 1, 0, '', '', 'Lelantus', '', '', '1000000', 0 ,1
+            self.addrs[0], 1, 1, 0, '', '', 'Lelantus', '', '', '1000000', 1
         )
 
         self.nodes[0].generate(1)
@@ -37,7 +37,7 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
 
         # create one more divisible
         self.nodes[0].elysium_sendissuancefixed(
-            self.addrs[0], 1, 2, 0, '', '', 'Lelantus2', '', '', '1000000.00000', 0 ,1
+            self.addrs[0], 1, 2, 0, '', '', 'Lelantus2', '', '', '1000000.00000', 1
         )
 
         self.nodes[0].generate(1)
@@ -47,7 +47,7 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
         addr = self.nodes[0].getnewaddress()
         self.nodes[0].elysium_send(self.addrs[0], addr, non_lelantus_property, "100")
         self.nodes[0].sendtoaddress(addr, 100)
-        self.nodes[0].generate(10)
+        self.nodes[0].generate(1)
 
         assert_raises_message(
             JSONRPCException,
@@ -69,7 +69,7 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
         # mint without firo then fail
         addr = self.nodes[0].getnewaddress()
         self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property, "100")
-        self.nodes[0].generate(10)
+        self.nodes[0].generate(1)
 
         assert_raises_message(
             JSONRPCException,
@@ -83,7 +83,7 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
         # mint without token then fail
         addr = self.nodes[0].getnewaddress()
         self.nodes[0].sendtoaddress(addr, 100)
-        self.nodes[0].generate(10)
+        self.nodes[0].generate(1)
 
         assert_raises_message(
             JSONRPCException,
@@ -108,7 +108,7 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
         assert_equal(2, len(self.nodes[0].elysium_listpendinglelantusmints()))
         assert_equal("79", self.nodes[0].elysium_getbalance(addr, lelantus_property)['balance'])
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(2)
         assert_equal(0, len(self.nodes[0].elysium_listpendinglelantusmints()))
         assert_equal(2, len(self.nodes[0].elysium_listlelantusmints()))
 
@@ -126,7 +126,7 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
         assert_equal(2, len(self.nodes[0].elysium_listpendinglelantusmints()))
         assert_equal("79.7", self.nodes[0].elysium_getbalance(addr2, lelantus_property_2)['balance'].rstrip('0'))
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(2)
         assert_equal(0, len(self.nodes[0].elysium_listpendinglelantusmints()))
         assert_equal(4, len(self.nodes[0].elysium_listlelantusmints()))
 
