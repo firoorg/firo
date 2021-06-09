@@ -4597,7 +4597,7 @@ UniValue setupchannel(const JSONRPCRequest& request)
     EnsureWalletIsUnlocked(pwallet);
 
     try {
-        CWalletTx wtx = PrepareAndSendNotificationTx(pwallet, theirPcode);
+        CWalletTx wtx = pwallet->PrepareAndSendNotificationTx(theirPcode);
         return wtx.GetHash().GetHex();
 
     }

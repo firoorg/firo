@@ -1272,6 +1272,9 @@ public:
     /* Generates and strores a new payment code for receiving*/
     bip47::CPaymentCode GeneratePcode(std::string const & label);
 
+    /*Prepares and sends a notification tx using Lelantus facilities*/
+    CWalletTx PrepareAndSendNotificationTx(bip47::CPaymentCode const & theirPcode);
+
     /* Lists all receiving pcodes as tuples of (pcode, label, notification address) */
     std::vector<bip47::CPaymentCodeDescription> ListPcodes();
 

@@ -115,7 +115,7 @@ Qt::ItemFlags PcodeModel::flags(const QModelIndex &) const
 uint256 PcodeModel::sendNotificationTx(bip47::CPaymentCode const & paymentCode)
 {
     LOCK2(cs_main, walletMain.cs_wallet);
-    return PrepareAndSendNotificationTx(&walletMain, paymentCode).GetHash();
+    return walletMain.PrepareAndSendNotificationTx(paymentCode).GetHash();
 }
 
 bool PcodeModel::getNotificationTxid(bip47::CPaymentCode const & paymentCode, uint256 & txid)

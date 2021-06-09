@@ -6864,6 +6864,80 @@ bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)
     return newAcc.getMyPcode();
 }
 
+namespace {
+void SendNotificationTxLelantus(CWallet * const pwallet, bip47::CPaymentChannel const & pchannel, CWalletTx& wtxNew)
+{
+    if (pwallet->GetBroadcastTransactions() && !g_connman) {
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+    }
+
+    CBitcoinAddress const notifAddr = pchannel.getTheirPcode().getNotificationAddress();
+
+    std::vector<CRecipient> recipients;
+    std::vector<CAmount> newMints;
+
+    CRecipient receiver;
+    receiver.scriptPubKey = GetScriptForDestination(notifAddr.Get());
+    receiver.nAmount = bip47::NotificationTxValue;
+    receiver.fSubtractFeeFromAmount = false;
+
+    recipients.emplace_back(receiver);
+    CScript opReturnScript = CScript() << OP_RETURN << std::vector<unsigned char>(80); // Passing empty array to calc fees
+    recipients.push_back({opReturnScript, 0, false});
+
+    auto throwSigma =
+        [](){throw std::runtime_error(std::string("There are unspent Sigma coins in your wallet. Using Sigma coins for BIP47 is not supported. Please spend your Sigma coins before establishing a BIP47 channel."));};
+
+    try {
+        std::vector<CLelantusEntry> spendCoins;
+        std::vector<CSigmaEntry> sigmaSpendCoins;
+        std::vector<CHDMint> mintCoins;
+        CAmount fee;
+
+        wtxNew = pwallet->CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins, nullptr,
+                [&pchannel, &throwSigma](CTxOut & out, LelantusJoinSplitBuilder const & builder) {
+                    if(out.scriptPubKey[0] == OP_RETURN) {
+                        CKey spendPrivKey;
+                        if (builder.spendCoins.empty())
+                            throwSigma();
+                        spendPrivKey.Set(builder.spendCoins[0].ecdsaSecretKey.begin(), builder.spendCoins[0].ecdsaSecretKey.end(), false);
+                        CDataStream ds(SER_NETWORK, 0);
+                        ds << builder.spendCoins[0].serialNumber;
+                        bip47::Bytes const pcode = pchannel.getMaskedPayload((unsigned char const *)ds.vch.data(), ds.vch.size(), spendPrivKey);
+                        out.scriptPubKey = CScript() << OP_RETURN << pcode;
+                    }
+                });
+
+        if (!sigmaSpendCoins.empty())
+            throwSigma();
+
+        if (spendCoins.empty())
+            throw std::runtime_error(std::string("Cannot create a Lelantus spend to address: " + notifAddr.ToString()).c_str());
+
+        pwallet->CommitLelantusTransaction(wtxNew, spendCoins, sigmaSpendCoins, mintCoins);
+        LogBip47("Paymentcode %s was sent to notification address: %s\n", pchannel.getMyPcode().toString().c_str(), notifAddr.ToString().c_str() );
+    }
+    catch (const InsufficientFunds& e)
+    {
+        throw e;
+    }
+    catch (const std::exception& e)
+    {
+        throw WalletError(e.what());
+    }
+}
+}
+
+CWalletTx CWallet::PrepareAndSendNotificationTx(bip47::CPaymentCode const & theirPcode)
+{
+    bip47::CPaymentChannel pchannel = SetupPchannel(theirPcode);
+
+    CWalletTx wtx;
+    SendNotificationTxLelantus(this, pchannel, wtx);
+    SetNotificationTxId(theirPcode, wtx.GetHash());
+    return wtx;
+}
+
 std::vector<bip47::CPaymentCodeDescription> CWallet::ListPcodes()
 {
     std::vector<bip47::CPaymentCodeDescription> result;
@@ -7337,137 +7411,3 @@ bool CMerkleTx::AcceptToMemoryPool(const CAmount &nAbsurdFee, CValidationState &
 
 bool CompSigmaHeight(const CSigmaEntry &a, const CSigmaEntry &b) { return a.nHeight < b.nHeight; }
 bool CompSigmaID(const CSigmaEntry &a, const CSigmaEntry &b) { return a.id < b.id; }
-
-namespace {
-//I am leaving this proc in place as it may be useful for further urgent cases.
-[[deprecated]]
-void SendNotificationTx(CWallet * const pwallet, bip47::CPaymentChannel const & pchannel, CWalletTx& wtxNew)
-{
-    CAmount curBalance = pwallet->GetBalance();
-
-    if (curBalance < bip47::NotificationTxValue)
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
-
-    if (pwallet->GetBroadcastTransactions() && !g_connman) {
-        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
-    }
-
-    CBitcoinAddress const notifAddr = pchannel.getTheirPcode().getNotificationAddress();
-
-    // Parse Zcoin address
-    CScript scriptPubKey = GetScriptForDestination(notifAddr.Get());
-
-    // Create and send the transaction
-    CReserveKey reservekey(pwallet);
-    CAmount nFeeRequired;
-    std::string strError;
-    vector<CRecipient> vecSend;
-    int nChangePosRet = -1;
-    vecSend.push_back({scriptPubKey, bip47::NotificationTxValue, false});
-    CScript opReturnScript = CScript() << OP_RETURN << std::vector<unsigned char>(80);
-    vecSend.push_back({opReturnScript, 0, false});
-
-    if (!pwallet->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError))
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-
-    if (wtxNew.tx->vin.size() == 0)
-        throw JSONRPCError(RPC_WALLET_ERROR, "Cannot select inputs for the notification tx");
-
-    CCoinsViewCache view(pcoinsTip);
-    const Coin coin = view.AccessCoin(wtxNew.tx->vin[0].prevout);
-    const CTxOut &prevout = coin.out;
-
-    CTxDestination dest;
-    CKey prevoutKey;
-    CKeyID keyID;
-    if (!ExtractDestination(prevout.scriptPubKey, dest) || !CBitcoinAddress(dest).GetKeyID(keyID) || !pwallet->GetKey(keyID , prevoutKey))
-        throw std::runtime_error("Cannot get the prevout key.");
-
-    bip47::Bytes const pcode = pchannel.getMaskedPayload(wtxNew.tx->vin[0].prevout, prevoutKey);
-    opReturnScript = CScript() << OP_RETURN << pcode;
-    vecSend[1].scriptPubKey = opReturnScript;
-
-    if (!pwallet->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError))
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-
-    LogBip47("Sending pcode: %s to naddress: %s\n", pchannel.getMyPcode().toString(), notifAddr.ToString());
-
-    CValidationState state;
-    if (!pwallet->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
-        strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    }
-}
-
-void SendNotificationTxLelantus(CWallet * const pwallet, bip47::CPaymentChannel const & pchannel, CWalletTx& wtxNew)
-{
-    if (pwallet->GetBroadcastTransactions() && !g_connman) {
-        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
-    }
-
-    CBitcoinAddress const notifAddr = pchannel.getTheirPcode().getNotificationAddress();
-
-    std::vector<CRecipient> recipients;
-    std::vector<CAmount> newMints;
-
-    CRecipient receiver;
-    receiver.scriptPubKey = GetScriptForDestination(notifAddr.Get());
-    receiver.nAmount = bip47::NotificationTxValue;
-    receiver.fSubtractFeeFromAmount = false;
-
-    recipients.emplace_back(receiver);
-    CScript opReturnScript = CScript() << OP_RETURN << std::vector<unsigned char>(80); // Passing empty array to calc fees
-    recipients.push_back({opReturnScript, 0, false});
-
-    auto throwSigma =
-        [](){throw std::runtime_error(std::string("There are unspent Sigma coins in your wallet. Using Sigma coins for BIP47 is not supported. Please spend your Sigma coins before establishing a BIP47 channel."));};
-
-    try {
-        std::vector<CLelantusEntry> spendCoins;
-        std::vector<CSigmaEntry> sigmaSpendCoins;
-        std::vector<CHDMint> mintCoins;
-        CAmount fee;
-
-        wtxNew = pwallet->CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins, nullptr,
-                [&pchannel, &throwSigma](CTxOut & out, LelantusJoinSplitBuilder const & builder) {
-                    if(out.scriptPubKey[0] == OP_RETURN) {
-                        CKey spendPrivKey;
-                        if (builder.spendCoins.empty())
-                            throwSigma();
-                        spendPrivKey.Set(builder.spendCoins[0].ecdsaSecretKey.begin(), builder.spendCoins[0].ecdsaSecretKey.end(), false);
-                        CDataStream ds(SER_NETWORK, 0);
-                        ds << builder.spendCoins[0].serialNumber;
-                        bip47::Bytes const pcode = pchannel.getMaskedPayload((unsigned char const *)ds.vch.data(), ds.vch.size(), spendPrivKey);
-                        out.scriptPubKey = CScript() << OP_RETURN << pcode;
-                    }
-                });
-
-        if (!sigmaSpendCoins.empty())
-            throwSigma();
-
-        if (spendCoins.empty())
-            throw std::runtime_error(std::string("Cannot create a Lelantus spend to address: " + notifAddr.ToString()).c_str());
-
-        pwallet->CommitLelantusTransaction(wtxNew, spendCoins, sigmaSpendCoins, mintCoins);
-        LogBip47("Paymentcode %s was sent to notification address: %s\n", pchannel.getMyPcode().toString().c_str(), notifAddr.ToString().c_str() );
-    }
-    catch (const InsufficientFunds& e)
-    {
-        throw e;
-    }
-    catch (const std::exception& e)
-    {
-        throw WalletError(e.what());
-    }
-}
-}
-
-CWalletTx PrepareAndSendNotificationTx(CWallet* pwallet, bip47::CPaymentCode const & theirPcode)
-{
-    bip47::CPaymentChannel pchannel = pwallet->SetupPchannel(theirPcode);
-
-    CWalletTx wtx;
-    SendNotificationTxLelantus(pwallet, pchannel, wtx);
-    pwallet->SetNotificationTxId(theirPcode, wtx.GetHash());
-    return wtx;
-}
