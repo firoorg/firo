@@ -6864,10 +6864,13 @@ bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)
     return newAcc.getMyPcode();
 }
 
-namespace {
-void SendNotificationTxLelantus(CWallet * const pwallet, bip47::CPaymentChannel const & pchannel, CWalletTx& wtxNew)
+CWalletTx CWallet::PrepareAndSendNotificationTx(bip47::CPaymentCode const & theirPcode)
 {
-    if (pwallet->GetBroadcastTransactions() && !g_connman) {
+    bip47::CPaymentChannel pchannel = SetupPchannel(theirPcode);
+
+    CWalletTx wtxNew;
+
+    if (GetBroadcastTransactions() && !g_connman) {
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
     }
 
@@ -6894,7 +6897,7 @@ void SendNotificationTxLelantus(CWallet * const pwallet, bip47::CPaymentChannel 
         std::vector<CHDMint> mintCoins;
         CAmount fee;
 
-        wtxNew = pwallet->CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins, nullptr,
+        wtxNew = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins, nullptr,
                 [&pchannel, &throwSigma](CTxOut & out, LelantusJoinSplitBuilder const & builder) {
                     if(out.scriptPubKey[0] == OP_RETURN) {
                         CKey spendPrivKey;
@@ -6914,7 +6917,7 @@ void SendNotificationTxLelantus(CWallet * const pwallet, bip47::CPaymentChannel 
         if (spendCoins.empty())
             throw std::runtime_error(std::string("Cannot create a Lelantus spend to address: " + notifAddr.ToString()).c_str());
 
-        pwallet->CommitLelantusTransaction(wtxNew, spendCoins, sigmaSpendCoins, mintCoins);
+        CommitLelantusTransaction(wtxNew, spendCoins, sigmaSpendCoins, mintCoins);
         LogBip47("Paymentcode %s was sent to notification address: %s\n", pchannel.getMyPcode().toString().c_str(), notifAddr.ToString().c_str() );
     }
     catch (const InsufficientFunds& e)
@@ -6925,17 +6928,9 @@ void SendNotificationTxLelantus(CWallet * const pwallet, bip47::CPaymentChannel 
     {
         throw WalletError(e.what());
     }
-}
-}
 
-CWalletTx CWallet::PrepareAndSendNotificationTx(bip47::CPaymentCode const & theirPcode)
-{
-    bip47::CPaymentChannel pchannel = SetupPchannel(theirPcode);
-
-    CWalletTx wtx;
-    SendNotificationTxLelantus(this, pchannel, wtx);
-    SetNotificationTxId(theirPcode, wtx.GetHash());
-    return wtx;
+    SetNotificationTxId(theirPcode, wtxNew.GetHash());
+    return wtxNew;
 }
 
 std::vector<bip47::CPaymentCodeDescription> CWallet::ListPcodes()
