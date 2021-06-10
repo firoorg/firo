@@ -12,6 +12,7 @@
 #include "validation.h"
 #include "timedata.h"
 #include "wallet/wallet.h"
+#include "bip47/bip47utils.h"
 
 #include <stdint.h>
 
@@ -114,9 +115,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                         sub.type = TransactionRecord::SpendToSelf;
                         sub.address = CBitcoinAddress(address).ToString();
                         sub.credit = txout.nValue;
-                        parts.append(sub);
                     }
                 } else {
+                    if (!bip47::utils::GetMaskedPcode(txout).empty())
+                        continue;
                     ExtractDestination(txout.scriptPubKey, address);
                     sub.type = TransactionRecord::SpendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
@@ -125,8 +127,14 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                         sub.debit -= nTxFee;
                         first = false;
                     }
-                    parts.append(sub);
                 }
+                boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
+                if(pcode)
+                {
+                    sub.type = TransactionRecord::SendToPcode;
+                    sub.pcode = std::get<1>(*pcode).toString();
+                }
+                parts.append(sub);
             }
         }
     }
@@ -147,6 +155,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         //
         // Credit
         //
+
         for(unsigned int i = 0; i < wtx.tx->vout.size(); i++)
         {
             const CTxOut& txout = wtx.tx->vout[i];
@@ -175,6 +184,12 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 {
                     // Generated
                     sub.type = TransactionRecord::Generated;
+                }
+                boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
+                if(pcode)
+                {
+                    sub.type = TransactionRecord::RecvWithPcode;
+                    sub.pcode = std::get<1>(*pcode).toString();
                 }
                 parts.append(sub);
             }
@@ -239,11 +254,17 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 }
 
                 CTxDestination address;
-                if (ExtractDestination(txout.scriptPubKey, address))
+                if(ExtractDestination(txout.scriptPubKey, address))
                 {
                     // Sent to Bitcoin Address
                     sub.type = TransactionRecord::SendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
+                    boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
+                    if(pcode)
+                    {
+                        sub.type = TransactionRecord::SendToPcode;
+                        sub.pcode = std::get<1>(*pcode).toString();
+                    }
                 }
                 else if(wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint())
                 {

@@ -99,7 +99,7 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
 
     def wait_for_chainlock(self, node, block_hash):
         t = time()
-        while time() - t < 15:
+        while time() - t < 30:
             try:
                 block = node.getblock(block_hash)
                 if block["confirmations"] > 0 and block["chainlock"]:

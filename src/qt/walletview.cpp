@@ -10,6 +10,7 @@
 #include "automintmodel.h"
 #include "bitcoingui.h"
 #include "clientmodel.h"
+#include "createpcodedialog.h"
 #include "guiutil.h"
 #include "lelantusdialog.h"
 #include "lelantusmodel.h"
@@ -72,6 +73,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     elyAssetsPage = new ElyAssetsDialog();
 #endif
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
+    createPcodePage = new CreatePcodeDialog(platformStyle);
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
     sigmaPage = new QWidget(this);
@@ -100,6 +102,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
 #endif
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
+    addWidget(createPcodePage);
     addWidget(sendCoinsPage);
     addWidget(sigmaPage);
     addWidget(lelantusPage);
@@ -325,6 +328,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     firoTransactionList->setModel(_walletModel);
     overviewPage->setWalletModel(_walletModel);
     receiveCoinsPage->setModel(_walletModel);
+    createPcodePage->setModel(_walletModel);
     // TODO: fix this
     //sendCoinsPage->setModel(_walletModel);
     if (pwalletMain->IsHDSeedAvailable()) {
@@ -365,7 +369,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
                 this, SLOT(processNewTransaction(QModelIndex,int,int)));
 
         // Ask for passphrase if needed
-        connect(_walletModel, SIGNAL(requireUnlock()), this, SLOT(unlockWallet()));
+        connect(_walletModel, SIGNAL(requireUnlock(QString)), this, SLOT(unlockWallet(QString)));
 
         // Show progress dialog
         connect(_walletModel, SIGNAL(showProgress(QString,int)), this, SLOT(showProgress(QString,int)));
@@ -477,6 +481,11 @@ void WalletView::gotoReceiveCoinsPage()
     setCurrentWidget(receiveCoinsPage);
 }
 
+void WalletView::gotoCreatePcodePage()
+{
+    setCurrentWidget(createPcodePage);
+}
+
 void WalletView::gotoSigmaPage()
 {
     setCurrentWidget(sigmaPage);
@@ -585,14 +594,14 @@ void WalletView::changePassphrase()
     dlg.exec();
 }
 
-void WalletView::unlockWallet()
+void WalletView::unlockWallet(const QString &info)
 {
     if(!walletModel)
         return;
     // Unlock wallet when requested by wallet model
     if (walletModel->getEncryptionStatus() == WalletModel::Locked)
     {
-        AskPassphraseDialog dlg(AskPassphraseDialog::Unlock, this);
+        AskPassphraseDialog dlg(AskPassphraseDialog::Unlock, this, info);
         dlg.setModel(walletModel);
         dlg.exec();
     }

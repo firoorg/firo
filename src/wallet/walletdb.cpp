@@ -13,6 +13,7 @@
 #include "util.h"
 #include "utiltime.h"
 #include "wallet/wallet.h"
+#include "bip47/account.h"
 
 #include <atomic>
 
@@ -30,6 +31,18 @@ static std::atomic<unsigned int> nWalletDBUpdateCounter;
 //
 // CWalletDB
 //
+
+bool CWalletDB::WriteKV(const string& key, const string& value)
+{
+    nWalletDBUpdateCounter++;
+    return Write(make_pair(string("kv"), key), value);
+}
+
+bool CWalletDB::EraseKV(const string& key)
+{
+    nWalletDBUpdateCounter++;
+    return Erase(make_pair(string("kv"), key));
+}
 
 bool CWalletDB::WriteName(const string& strAddress, const string& strName)
 {
@@ -600,7 +613,14 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         // Taking advantage of the fact that pair serialization
         // is just the two items serialized one after the other
         ssKey >> strType;
-        if (strType == "name")
+        if (strType == "kv")
+        {
+            string key, value;
+            ssKey >> key;
+            ssValue >> value;
+            pwallet->mapCustomKeyValues.insert(std::make_pair(key, value));
+        }
+        else if (strType == "name")
         {
             string strAddress;
             ssKey >> strAddress;
@@ -1443,6 +1463,9 @@ bool CWalletDB::WriteHDChain(const CHDChain& chain)
     nWalletDBUpdateCounter++;
     return Write(std::string("hdchain"), chain);
 }
+/******************************************************************************/
+// Mnemonic
+/******************************************************************************/
 
 bool CWalletDB::WriteMnemonic(const MnemonicContainer& mnContainer) {
     nWalletDBUpdateCounter++;
@@ -1710,4 +1733,36 @@ void CWalletDB::IncrementUpdateCounter()
 unsigned int CWalletDB::GetUpdateCounter()
 {
     return nWalletDBUpdateCounter;
+}
+
+
+/******************************************************************************/
+// BIP47
+/******************************************************************************/
+
+bool CWalletDB::WriteBip47Account(bip47::CAccountReceiver const & account)
+{
+    return Write(make_pair(string("bip47rcv"), uint32_t(account.getAccountNum())), account, true);
+}
+
+bool CWalletDB::WriteBip47Account(bip47::CAccountSender const & account)
+{
+    return Write(make_pair(string("bip47snd"), uint32_t(account.getAccountNum())), account, true);
+}
+
+void CWalletDB::LoadBip47Accounts(bip47::CWallet & wallet)
+{
+    ListEntries<uint32_t, bip47::CAccountReceiver>("bip47rcv",
+            [&wallet](char, bip47::CAccountReceiver & receiver)
+            {
+                wallet.readReceiver(std::move(receiver));
+            }
+        );
+
+    ListEntries<uint32_t, bip47::CAccountSender>("bip47snd",
+            [&wallet](char, bip47::CAccountSender & sender)
+            {
+                wallet.readSender(std::move(sender));
+            }
+        );
 }

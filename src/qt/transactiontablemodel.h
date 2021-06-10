@@ -72,6 +72,8 @@ public:
         StatusRole,
         /** Unprocessed icon */
         RawDecorationRole,
+        /** Payment code */
+        PcodeRole
     };
 
     int rowCount(const QModelIndex &parent) const;
@@ -92,7 +94,7 @@ private:
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
 
-    QString lookupAddress(const std::string &address, bool tooltip) const;
+    QString lookupAddress(const TransactionRecord *wtx, bool tooltip) const;
     QVariant addressColor(const TransactionRecord *wtx) const;
     QString formatTxStatus(const TransactionRecord *wtx) const;
     QString formatTxDate(const TransactionRecord *wtx) const;

@@ -17,6 +17,7 @@
 #include "util.h"
 #include "wallet/db.h"
 #include "wallet/wallet.h"
+#include "bip47/bip47utils.h"
 
 #include <stdint.h>
 #include <string>
@@ -278,6 +279,27 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     {
         quint32 numBlocksToMaturity = COINBASE_MATURITY +  1;
         strHTML += "<br>" + tr("Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to \"not accepted\" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.").arg(QString::number(numBlocksToMaturity)) + "<br>";
+    }
+
+    //
+    // Check if it is a BIP47 tx
+    //
+    BOOST_FOREACH(const CTxOut& txout, wtx.tx->vout)
+    {
+        bool isFromMe = wallet->IsFromMe(*wtx.tx);
+        CTxDestination address;
+        if (ExtractDestination(txout.scriptPubKey, address))
+        {
+            boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
+            if (pcode)
+            {
+                if (!isFromMe)
+                    strHTML += "<b>" + tr("Received with RAP address") + ":</b> " + GUIUtil::HtmlEscape(std::get<2>(*pcode));
+                else
+                    strHTML += "<b>" + tr("Sent to RAP address") + ":</b> " + bip47::utils::ShortenPcode(std::get<1>(*pcode)).c_str();
+            }
+            strHTML += "<br>" ;
+        }
     }
 
     //

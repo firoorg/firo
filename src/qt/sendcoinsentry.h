@@ -35,6 +35,8 @@ public:
 
     /** Return whether the entry is still empty and unedited */
     bool isClear();
+    /** Needs validate() to be called before calling isPayToPcode()*/
+    bool isPayToPcode() const;
 
     void setValue(const SendCoinsRecipient &value);
     void setAddress(const QString &address);
@@ -67,6 +69,7 @@ private:
     Ui::SendCoinsEntry *ui;
     WalletModel *model;
     const PlatformStyle *platformStyle;
+    bool isPcodeEntry;
 
     bool updateLabel(const QString &address);
 };

@@ -1,5 +1,4 @@
-// Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2016-2019 The Firo Core developers
+// Copyright (c) 2010 Satoshi Nakamoto// Copyright (c) 2016-2019 The Firo Core developers
 // Copyright (c) 2009-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -27,6 +26,9 @@
 #include "hdmint/tracker.h"
 #include "walletexcept.h"
 #include "masternode-payments.h"
+#include "lelantusjoinsplitbuilder.h"
+#include "bip47/paymentchannel.h"
+#include "bip47/account.h"
 
 #include <stdint.h>
 
@@ -4434,6 +4436,302 @@ UniValue bumpfee(const JSONRPCRequest& request)
     return result;
 }
 
+/******************************************************************************/
+/*                                                                            */
+/*                              BIP47                                         */
+/*                                                                            */
+/******************************************************************************/
+
+UniValue listpcodes(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    auto help = []() {
+        throw runtime_error(
+            "listpcodes verbose \n"
+            "Lists all existing receiving payment codes with labels. \n"
+            "verbose: (bool, optional) - displays all used and next(unused) addresses for each payment code,\n"
+            "\t\tas well as all sending payment codes with addresses.\n"
+            "Example:\n" +
+            HelpExampleCli("listpcodes true", ""));
+    };
+
+    if (request.fHelp || request.params.size() > 1) {
+        help();
+    }
+    bool verbose = false;
+    if (request.params.size() == 1)
+        try {
+            verbose = request.params[0].getBool();
+        } catch (...) {
+            help();
+        }
+
+    UniValue result(UniValue::VARR);
+
+    if (!verbose) {
+        std::vector<bip47::CPaymentCodeDescription> descriptions;
+        {
+            LOCK(pwallet->cs_wallet);
+            descriptions = pwallet->ListPcodes();
+        }
+        for(bip47::CPaymentCodeDescription const & info : descriptions) {
+            UniValue r(UniValue::VOBJ);
+            r.push_back(Pair("Pcode", std::get<1>(info).toString()));
+            r.push_back(Pair("Label",std::get<2>(info)));
+            r.push_back(Pair("NotificationAddr",std::get<3>(info).ToString()));
+            result.push_back(r);
+        }
+        return result;
+    }
+
+    {
+        UniValue r(UniValue::VOBJ);
+        LOCK(pwallet->cs_wallet);
+        pwallet->GetBip47Wallet()->enumerateReceivers(
+            [&result](bip47::CAccountReceiver const & receiver)->bool {
+                UniValue r(UniValue::VOBJ);
+                r.push_back(Pair("MyPcode", receiver.getMyPcode().toString()));
+                r.push_back(Pair("Label", receiver.getLabel()));
+                r.push_back(Pair("NotificationAddr",receiver.getMyNotificationAddress().ToString()));
+                size_t n = 0;
+                for(bip47::CPaymentChannel const & pchannel : receiver.getPchannels()) {
+                    r.push_back(Pair(std::string("TheirPcode"), pchannel.getTheirPcode().toString()));
+                    n = 0;
+                    for(bip47::MyAddrContT::value_type const & addr: pchannel.generateMyUsedAddresses()) {
+                        r.push_back(Pair(std::string("MyUsed") + std::to_string(n++), addr.first.ToString()));
+                    }
+                    n = 0;
+                    for(bip47::MyAddrContT::value_type const & addr: pchannel.generateMyNextAddresses()) {
+                        r.push_back(Pair(std::string("MyNext") + std::to_string(n++), addr.first.ToString()));
+                    }
+                }
+                result.push_back(r);
+                return true;
+            }
+        );
+    }
+    {
+        UniValue r(UniValue::VOBJ);
+        LOCK(pwallet->cs_wallet);
+        pwallet->GetBip47Wallet()->enumerateSenders(
+            [&result](bip47::CAccountSender  const & sender)->bool {
+                UniValue r(UniValue::VOBJ);
+                r.push_back(Pair("TheirPcode", sender.getTheirPcode().toString()));
+                r.push_back(Pair("NotificationTxid", sender.getNotificationTxId().ToString()));
+                size_t n = 0;
+                for(bip47::TheirAddrContT::value_type const & addr : sender.getTheirUsedAddresses())
+                    r.push_back(Pair(std::string("TheirUsed") + std::to_string(n++), addr.ToString()));
+                r.push_back(Pair(std::string("TheirNext") + std::to_string(n), sender.getTheirNextSecretAddress().ToString()));
+                result.push_back(r);
+                return true;
+            }
+        );
+    }
+    return result;
+}
+
+UniValue createpcode(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    std::function<void()> help = []()
+    {
+        throw runtime_error(
+            "createpcode  \"label\"\n"
+            "Creates a new labeled BIP47 payment code. \n"
+            "The label should be unique and non-empty. \n"
+            "Example:\n" +
+            HelpExampleCli("createpcode", "<label>"));
+    };
+
+    if (request.fHelp || request.params.size() < 1 or request.params.size() > 2) {
+        help();
+    }
+
+    UniValue result;
+    std::string const label = request.params[0].get_str();
+    if (label.empty()) {
+        help();
+    }
+
+    std::vector<bip47::CPaymentCodeDescription> pcodes;
+    {
+        LOCK(pwallet->cs_wallet);
+        pcodes = pwallet->ListPcodes();
+    }
+    if (std::find_if(pcodes.begin(), pcodes.end(), [&label](bip47::CPaymentCodeDescription const & pcode){ return  std::get<2>(pcode) == label; }) != pcodes.end()) {
+        help();
+    }
+
+    LOCK(pwallet->cs_wallet);
+    EnsureWalletIsUnlocked(pwallet);
+    result.setStr(pwallet->GeneratePcode(label).toString());
+    return result;
+}
+
+UniValue setupchannel(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 1)
+        throw runtime_error(
+            "setupchannel \"paymentcode\"\n"
+            "\nSets up a payment channel for the payment code. Sends a notification transaction to the payment code notification address.\n"
+            "It __will__ use Lelantus facilities to send the notification tx. The tx cost is " + std::to_string(1.0 * bip47::NotificationTxValue / COIN ) + " for the JoinSplit tx + fees\n"
+            + HelpRequiringPassphrase(pwallet) +
+            "\nArguments:\n"
+            "1. \"paymentcode\"  (string, required) The payment code to send to.\n"
+            "\nResult:\n"
+            "\"txid\"                  (string) The notification transaction id.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("setupchannel", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\"")
+        );
+
+    bip47::CPaymentCode theirPcode(request.params[0].get_str());
+
+    if (!lelantus::IsLelantusAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not activated yet");
+    }
+
+    EnsureLelantusWalletIsAvailable();
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    EnsureWalletIsUnlocked(pwallet);
+
+    try {
+        CWalletTx wtx = pwallet->PrepareAndSendNotificationTx(theirPcode);
+        return wtx.GetHash().GetHex();
+
+    }
+    catch (InsufficientFunds const & e)
+    {
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, std::string(e.what())+" Please check your Lelantus balance is grear than " + std::to_string(1.0 * bip47::NotificationTxValue / COIN));
+    }
+    catch (std::runtime_error const & e)
+    {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    }
+}
+
+UniValue sendtopcode(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
+        throw runtime_error(
+            "sendtopcode \"paymentcode\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
+            "\nSend an amount to a given payment code.\n"
+            + HelpRequiringPassphrase(pwallet) +
+            "\nArguments:\n"
+            "1. \"paymentcode\"  (string, required) The payment code to send to.\n"
+            "2. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
+            "3. \"comment\"     (string, optional) A comment used to store what the transaction is for. \n"
+            "                             This is not part of the transaction, just kept in your wallet.\n"
+            "4. \"comment_to\"         (string, optional) A comment to store the name of the person or organization \n"
+            "                             to which you're sending the transaction. This is not part of the \n"
+            "                             transaction, just kept in your wallet.\n"
+            "5. subtractfeefromamount  (boolean, optional, default=false) The fee will be deducted from the amount being sent.\n"
+            "                             The recipient will receive less bitcoins than you enter in the amount field.\n"
+            "\nResult:\n"
+            "\"txid\"                  (string) The transaction id.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("sendtoaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\" 0.1")
+            + HelpExampleCli("sendtoaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\" 0.1 \"donation\" \"seans outpost\"")
+            + HelpExampleCli("sendtoaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\" 0.1 \"\" \"\" true")
+            + HelpExampleRpc("sendtoaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\", 0.1, \"donation\", \"seans outpost\"")
+        );
+
+    bip47::CPaymentCode theirPcode(request.params[0].get_str());
+
+    // Amount
+    CAmount nAmount = AmountFromValue(request.params[1]);
+    if (nAmount <= 0)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    EnsureWalletIsUnlocked(pwallet);
+
+    CBitcoinAddress address = pwallet->GetTheirNextAddress(theirPcode);
+
+    // Wallet comments
+    CWalletTx wtx;
+    if (request.params.size() > 2 && !request.params[2].isNull() && !request.params[2].get_str().empty())
+        wtx.mapValue["comment"] = request.params[2].get_str();
+    if (request.params.size() > 3 && !request.params[3].isNull() && !request.params[3].get_str().empty())
+        wtx.mapValue["to"]      = request.params[3].get_str();
+
+    bool fSubtractFeeFromAmount = false;
+    if (request.params.size() > 4)
+        fSubtractFeeFromAmount = request.params[4].get_bool();
+
+    SendMoney(pwallet, address.Get(), nAmount, fSubtractFeeFromAmount, wtx);
+
+    pwallet->GenerateTheirNextAddress(theirPcode);
+
+    return wtx.GetHash().GetHex();
+}
+
+UniValue setusednumber(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
+        throw runtime_error(
+            "setusednumber \"paymentcode\" number\n"
+            "\nIncrease the number of used addresses for a payment code.\n"
+            + HelpRequiringPassphrase(pwallet) +
+            "\nArguments:\n"
+            "1. \"paymentcode\"  (string, required) The payment code.\n"
+            "2. \"number\"       (int32_t, required) The number of used addresses which a payment code will have after this call.\n"
+            "                                        If the current number of used addresses is greater than the provides, the call has no effect."
+            "\nResult:\n"
+            "\"numberOfUsed\"    (int32_t) The number of used addresses after the call.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("setusednumber", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\" 20")
+        );
+
+    bip47::CPaymentCode pcode(request.params[0].get_str());
+    size_t const number = ParseInt32V(request.params[1], "number");
+
+    boost::optional<bip47::CPaymentCodeDescription> pcodeDesc;
+    {
+        LOCK(pwallet->cs_wallet);
+        pcodeDesc = pwallet->FindPcode(pcode);
+    }
+
+    if(!pcodeDesc)
+        throw runtime_error("Payment code not found: " + pcode.toString());
+
+    if(std::get<4>(*pcodeDesc) == bip47::CPaymentCodeSide::Receiver)
+            EnsureWalletIsUnlocked(pwallet);
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    size_t numberOfUsed = pwallet->SetUsedAddressNumber(pcode, number);
+
+    return UniValue(int(numberOfUsed));
+}
+
+/******************************************************************************/
+
 extern UniValue dumpprivkey(const JSONRPCRequest& request); // in rpcdump.cpp
 extern UniValue importprivkey(const JSONRPCRequest& request);
 extern UniValue importaddress(const JSONRPCRequest& request);
@@ -4518,6 +4816,13 @@ static const CRPCCommand rpcCommands[] =
     { "wallet",             "removetxwallet",           &removetxwallet,           false },
     { "wallet",             "listsigmaspends",          &listsigmaspends,          false },
     { "wallet",             "listlelantusjoinsplits",   &listlelantusjoinsplits,   false },
+
+    //bip47
+    { "bip47",              "createpcode",              &createpcode,              true },
+    { "bip47",              "setupchannel",             &setupchannel,             true },
+    { "bip47",              "sendtopcode",              &sendtopcode,              true },
+    { "bip47",              "listpcodes",               &listpcodes,               true },
+    { "bip47",              "setusednumber",            &setusednumber,            true }
 };
 
 void RegisterWalletRPCCommands(CRPCTable &t)

@@ -68,6 +68,10 @@ public:
 
     bool HasValidSerials() const;
 
+    std::vector<std::vector<unsigned char>> const & GetEcdsaPubkeys() const {
+        return ecdsaPubkeys;
+    }
+
     bool isSigmaToLelantus() const;
 
     ADD_SERIALIZE_METHODS;

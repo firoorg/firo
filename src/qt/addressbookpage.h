@@ -55,8 +55,9 @@ private:
     Mode mode;
     Tabs tab;
     QString returnValue;
-    QSortFilterProxyModel *proxyModel;
+    QSortFilterProxyModel *proxyModel, *proxyModelPcode;
     QMenu *contextMenu;
+    QAction *copyAddressAction;
     QAction *deleteAction; // to be able to explicitly disable it
     QString newAddressToSelect;
 
