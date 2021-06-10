@@ -27,6 +27,7 @@ using namespace std;
 std::map<COutPoint, bool> pendingLockCoins;
 const int WALLET_SEGMENT_SIZE = 100;
 std::atomic<bool> fHasSentInitialStateWallet {false};
+std::atomic<bool> fBalancePublishingEmbargo {false};
 
 bool GetCoinControl(const UniValue& data, CCoinControl& cc) {
     if (find_value(data, "coinControl").isNull()) return false;

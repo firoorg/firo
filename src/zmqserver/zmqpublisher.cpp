@@ -251,11 +251,13 @@ bool CZMQTransactionEvent::NotifyTransaction(const CTransaction& transaction)
     wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
 
     if(topic=="balance"){
-        // If synced, always publish, if not, every 1000 blocks (for better sync speed).
-        if(masternodeSync.IsBlockchainSynced() || chainActive.Tip()->nHeight%1000==0)
-            Execute();
-        else
+        if (fBalancePublishingEmbargo) {
             return true;
+        } else if (masternodeSync.IsBlockchainSynced() || chainActive.Tip()->nHeight%1000==0) {
+            Execute();
+        } else {
+            return true;
+        }
     }
 
     if(listReceived.size() > 0 || listSent.size() > 0){
