@@ -154,7 +154,7 @@ void SendtoPcodeDialog::close()
 
 int SendtoPcodeDialog::exec()
 {
-    if (notificationTxHash == uint256{})
+    if (!status.notifTxConfirmed)
         return QDialog::exec();
     result = Result::addressSelected;
     close();
@@ -237,6 +237,8 @@ void SendtoPcodeDialog::setNotifTxId()
         ostr << "test";
     ostr << "explorer.firo.org/tx/" << notificationTxHash.GetHex() << "\">" << notificationTxHash.GetHex() << "</a>";
     ui->notificationTxIdLabel->setText(ostr.str().c_str());
+
+    status.notifTxSent = true;
 
     CWalletTx const * notifTx = model->getWallet()->GetWalletTx(notificationTxHash);
     if (!notifTx) return;
