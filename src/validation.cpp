@@ -820,15 +820,17 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             if (tx.vin.size() > 1) {
                 return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
             }
-            std::vector<Scalar> serials;
-            std::vector<uint32_t> ids;
+            std::unique_ptr<lelantus::JoinSplit> joinsplit;
+
             try {
-                serials = lelantus::GetLelantusJoinSplitSerialNumbers(tx, tx.vin[0]);
-                ids = lelantus::GetLelantusJoinSplitIds(tx, tx.vin[0]);
+                joinsplit = lelantus::ParseLelantusJoinSplit(tx.vin[0]);
             }
             catch (CBadTxIn&) {
                 return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
             }
+
+            const std::vector<uint32_t> &ids = joinsplit->getCoinGroupIds();
+            const std::vector<Scalar>& serials = joinsplit->getCoinSerialNumbers();
 
             if (serials.size() != ids.size())
                 return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
