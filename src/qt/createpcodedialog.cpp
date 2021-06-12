@@ -41,7 +41,7 @@ CreatePcodeDialog::CreatePcodeDialog(const PlatformStyle *_platformStyle, QWidge
     }
 
     // context menu actions
-    QAction *copyPcodeAction = new QAction(tr("Copy Payment Code"), this);
+    QAction *copyPcodeAction = new QAction(tr("Copy RAP Address"), this);
     QAction *copyNotificationAddrAction = new QAction(tr("Copy Notification Address"), this);
     QAction *showQrcodeAction = new QAction(tr("Show QR Code"), this);
 

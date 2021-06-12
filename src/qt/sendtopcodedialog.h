@@ -70,7 +70,6 @@ private:
     Status status;
 
     void setNotifTxId();
-    void setUseAddr();
     void setLelantusBalance(CAmount const & amount, CAmount const & unconfirmedLelantusBalance);
     void updateButtons();
 
