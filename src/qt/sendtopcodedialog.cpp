@@ -79,6 +79,7 @@ void SendtoPcodeDialog::setModel(WalletModel *_model)
 
     if (model->getPcodeModel()->getNotificationTxid(*paymentCode, notificationTxHash)) {
         setNotifTxId();
+        setUseAddr();
     } else {
         ui->notificationTxIdLabel->setText(tr("None"));
     }
@@ -186,6 +187,7 @@ void SendtoPcodeDialog::on_sendButton_clicked()
     try {
         notificationTxHash = model->getPcodeModel()->sendNotificationTx(*paymentCode);
         setNotifTxId();
+        setUseAddr();
         status.notifTxSent = true;
         updateButtons();
     }
@@ -262,6 +264,14 @@ void SendtoPcodeDialog::setNotifTxId()
     if (notifTxDepth > 0)
     {
         status.notifTxConfirmed = true;
+    }
+}
+
+void SendtoPcodeDialog::setUseAddr()
+{
+    {
+        LOCK(model->getWallet()->cs_wallet);
+        addressToUse = model->getWallet()->GetTheirNextAddress(*paymentCode);
     }
 }
 

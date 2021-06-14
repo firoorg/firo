@@ -31,6 +31,7 @@
 #include "lelantus.h"
 #include "bip47/account.h"
 #include "bip47/bip47utils.h"
+#include "cancelpassworddialog.h"
 
 #include <stdint.h>
 
@@ -1033,7 +1034,9 @@ WalletModel::UnlockContext::~UnlockContext()
 void WalletModel::UnlockContext::CopyFrom(const UnlockContext& rhs)
 {
     // Transfer context; old object no longer relocks wallet
-    *this = rhs;
+    wallet = rhs.wallet;
+    valid = rhs.valid;
+    relock = rhs.relock;
     rhs.relock = false;
 }
 
@@ -1465,11 +1468,18 @@ void WalletModel::handleBip47Keys(int receiverAccountNum)
         bip47::CAccountReceiver const * acc = wallet->GetBip47Wallet()->getReceivingAccount(uint32_t(receiverAccountNum));
         if (!acc)
             return;
-        UnlockContext ctx(requestUnlock(tr("Please unlock your wallet to receive a <b>RAP/BIP47 transaction</b>.")));
-        if(!ctx.isValid()) {
-            QMessageBox::critical(0, tr("RAP tx received"),
-                tr("BIP47 protocol requires unlocking your wallet every time a RAP tx is received."));
-            return;
+        static QString const unlockText = tr("You have received a payment to a RAP address, please unlock your wallet to receive.");
+        UnlockContext ctx(requestUnlock(unlockText));
+        while(!ctx.isValid()) {
+            CancelPasswordDialog msgDialog(
+                    tr("RAP address payment"),
+                    tr("RAP addresses require you to unlock your wallet every time a payment to it is received."),
+                    3
+            );
+            msgDialog.setInformativeText(tr("If you do not enter your password now, you will need to rescan your wallet to receive your FIRO. Retry entering password?"));
+            if(msgDialog.exec() == QMessageBox::Cancel)
+                return;
+            ctx = requestUnlock(unlockText);
         }
         bip47::utils::AddReceiverSecretAddresses(*acc, *wallet);
     }
