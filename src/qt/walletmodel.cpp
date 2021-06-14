@@ -891,6 +891,16 @@ bool WalletModel::setWalletLocked(bool locked, const SecureString &passPhrase)
     }
 }
 
+bool WalletModel::lockWallet()
+{
+    return wallet->Lock();
+}
+
+void WalletModel::lockWalletDelayed(int seconds)
+{
+    QTimer::singleShot(seconds * 1000, this, SLOT(lockWallet()));
+}
+
 bool WalletModel::changePassphrase(const SecureString &oldPass, const SecureString &newPass)
 {
     bool retval;
@@ -1019,7 +1029,8 @@ WalletModel::UnlockContext WalletModel::requestUnlock(const QString & info)
 WalletModel::UnlockContext::UnlockContext(WalletModel *_wallet, bool _valid, bool _relock):
         wallet(_wallet),
         valid(_valid),
-        relock(_relock)
+        relock(_relock),
+        delay(0)
 {
 }
 
@@ -1027,8 +1038,20 @@ WalletModel::UnlockContext::~UnlockContext()
 {
     if(valid && relock)
     {
-        wallet->setWalletLocked(true);
+        if(delay == 0)
+        {
+            wallet->setWalletLocked(true);
+        }
+        else
+        {
+            wallet->lockWalletDelayed(delay);
+        }
     }
+}
+
+void WalletModel::UnlockContext::delayRelock(int seconds)
+{
+    delay = seconds;
 }
 
 void WalletModel::UnlockContext::CopyFrom(const UnlockContext& rhs)
@@ -1037,6 +1060,7 @@ void WalletModel::UnlockContext::CopyFrom(const UnlockContext& rhs)
     wallet = rhs.wallet;
     valid = rhs.valid;
     relock = rhs.relock;
+    delay = rhs.delay;
     rhs.relock = false;
 }
 
@@ -1476,11 +1500,12 @@ void WalletModel::handleBip47Keys(int receiverAccountNum)
                     tr("RAP addresses require you to unlock your wallet every time a payment to it is received."),
                     3
             );
-            msgDialog.setInformativeText(tr("If you do not enter your password now, you will need to rescan your wallet to receive your FIRO. Retry entering password?"));
+            msgDialog.setInformativeText(tr("If you do not enter your password now, you will need to rescan your wallet to receive your FIRO.<br/><br/>Re-enter your password?"));
             if(msgDialog.exec() == QMessageBox::Cancel)
                 return;
             ctx = requestUnlock(unlockText);
         }
+        ctx.delayRelock(60);
         bip47::utils::AddReceiverSecretAddresses(*acc, *wallet);
     }
 }
