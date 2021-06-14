@@ -505,7 +505,7 @@ bool CheckLelantusJoinSplitTransaction(
     passVerify = joinsplit->Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHashForMetadata, challenge, useBatching);
 
     // add proofs into container
-    if(useBatching) {
+    if(useBatching && passVerify) {
         std::map<uint32_t, size_t> idAndSizes;
 
         for(auto itr : anonymity_sets)
