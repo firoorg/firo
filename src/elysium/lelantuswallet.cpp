@@ -372,32 +372,33 @@ void LelantusWallet::ClearMintsChainState()
 
 bool LelantusWallet::SyncWithChain()
 {
-    if (pwalletMain->IsLocked()) {
-        return false;
-    }
-
     EnsureMasterKeyIsLoaded();
+    EnsureWalletIsUnlocked(pwalletMain);
 
     bool keepFinding = true;
 
     while (keepFinding) {
-
         keepFinding = false;
 
-        // recover from mintpool
-        for (auto const &entry : mintPool) {
-            if (!SyncWithChain(entry.id)) {
+        std::vector<MintEntryId> ids;
+        for (auto const &entry: mintPool) {
+            ids.push_back(entry.id);
+        }
+        for (MintEntryId id: ids) {
+            // SyncWithChain will remove the mint from mintPool if it is found.
+            if (!SyncWithChain(id)) {
                 continue;
             }
 
-            if (!RemoveFromMintPool(entry.id)) {
-                throw std::runtime_error("Fail to remove recovered mint from mintpool");
+            // Perform a sanity check to make sure the mint is removed. This should never throw.
+            auto &index = mintPool.get<1>();
+            if (index.find(id) != index.end()) {
+                throw std::runtime_error("Failed to remove recovered mint from mintpool");
             }
 
             keepFinding = true;
         }
 
-        // found from mempool then refill it
         if (keepFinding) {
             FillMintPool();
         }
@@ -422,9 +423,7 @@ bool LelantusWallet::SyncWithChain()
 
 bool LelantusWallet::SyncWithChain(MintEntryId const &id)
 {
-    if (pwalletMain->IsLocked()) {
-        return false;
-    }
+    EnsureWalletIsUnlocked(pwalletMain);
 
     PropertyId property;
 
