@@ -147,16 +147,17 @@ UniValue autoMintLelantus(Type type, const UniValue& data, const UniValue& auth,
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
     std::vector<CHDMint> mints;
-    std::string strError = pwalletMain->MintAndStoreLelantus(0, wtxAndFees, mints, true);
-
-    if (strError != "") {
-        throw JSONAPIError(RPC_WALLET_ERROR, strError);
-    }
 
     UniValue mintTxs = UniValue::VARR;
     UniValue inputs = UniValue::VARR;
     fBalancePublishingEmbargo = true;
     try {
+        std::string strError = pwalletMain->MintAndStoreLelantus(0, wtxAndFees, mints, true);
+
+        if (strError != "") {
+            throw JSONAPIError(RPC_WALLET_ERROR, strError);
+        }
+
         for (std::pair<CWalletTx, CAmount> wtxAndFee: wtxAndFees) {
             CWalletTx tx = wtxAndFee.first;
             GetMainSignals().WalletTransaction(tx);

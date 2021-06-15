@@ -311,6 +311,8 @@ bool CZMQSettingsEvent::NotifySettingsUpdate(std::string update){
 
 bool CZMQBalanceEvent::NotifyBalance()
 {
-    Execute();
+    if (!fBalancePublishingEmbargo) {
+        Execute();
+    }
     return true;
 }
