@@ -521,6 +521,10 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
             *newTx = wallet->CreateLelantusJoinSplitTransaction(vecSend, feeRequired, {}, spendCoins, sigmaSpendCoins, mintCoins, coinControl);
         } catch (InsufficientFunds const&) {
             transaction.setTransactionFee(feeRequired);
+            if(!fSubtractFeeFromAmount && (total + feeRequired) > nBalance)
+            {
+                return SendCoinsReturn(AmountWithFeeExceedsBalance);
+            }
             return SendCoinsReturn(AmountExceedsBalance);
         } catch (std::runtime_error const &e) {
             Q_EMIT message(
