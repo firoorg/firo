@@ -1,89 +1,103 @@
 #!/usr/bin/env python3
 from test_framework.authproxy import JSONRPCException
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import ElysiumTestFramework
 from test_framework.util import (
     assert_equal,
-    assert_raises_jsonrpc,
-    assert_raises_message,
-    bitcoind_processes,
-    connect_nodes,
     connect_nodes_bi,
     start_node,
-    start_nodes,
-)
+    stop_node,
+    sync_blocks,
+    assert_raises_message,
+    bitcoind_processes)
 
-from time import sleep
 import os
-import shutil
+from shutil import rmtree
 
-class ElysiumRecoverLelantusMintTest(BitcoinTestFramework):
-    def __init__(self):
-        super().__init__()
-        # self.mnemonic = 'robust magnet atom concert tank sing sand chimney draw obvious attract mask science volcano tattoo'
+class ElysiumRecoverLelantusMintTest(ElysiumTestFramework):
+    def get_datadir(self, node):
+        return os.path.join(self.options.tmpdir, f"node{node}", "regtest")
 
-    def setup_nodes(self):
-        self.args = [['-elysium'] for _ in range(self.num_nodes)]
-        # self.args[0].append(f'-mnemonic=\"{self.mnemonic}\"')
+    def get_walletfile(self, node):
+        datadir = self.get_datadir(node)
+        return os.path.join(datadir, "wallet.dat")
 
-        return start_nodes(self.num_nodes, self.options.tmpdir, self.args)
+    def load_wallet_content(self, node):
+        with open(self.get_walletfile(node), mode='rb') as f:
+            return f.read()
+
+    def clear_datadir(self, node):
+        datadir = self.get_datadir(node)
+        rmtree(datadir)
+        os.mkdir(datadir)
+
+    def connect_to_other(self, node):
+        for i in range(len(self.nodes)):
+            if i != node:
+                connect_nodes_bi(self.nodes, node, i)
 
     def run_test(self):
-        # super().run_test()
+        super().run_test()
 
-        # testing
-        # 1. encrypt wallet
-        passphrase = "1234"
+        # Initialize node 0 with a mnemonic
+
+        mnemonic = 'produce sign mass upper inner atom carbon return drip usual fringe toward enable cause load team lamp outdoor nest curious brass cover smart snack'
+
+        stop_node(self.nodes[0], 0)
+        self.clear_datadir(0)
+
+        self.nodes[0] = start_node(0, self.options.tmpdir, ['-elysium', '-usemnemonic=1', f'-mnemonic={mnemonic}'])
+        connect_nodes_bi(self.nodes, 0, 1)
+        connect_nodes_bi(self.nodes, 0, 2)
+
+        sync_blocks(self.nodes)
+
+        addr = self.nodes[0].getnewaddress()
+
+        remaining = 1000 - self.nodes[0].getblockcount()
+        while remaining > 0:
+            # Generate in blocks of 10 so we don't run into timeout issues.
+            self.nodes[0].generatetoaddress(min(10, remaining), addr)
+            remaining -= 10
+
+        self.nodes[0].elysium_sendissuancefixed(addr, 1, 1, 0, '', '', 'Lelantus', '', '', '1000000', 1)
+        self.nodes[0].generate(1)
+
+        lelantus_property = 3
+
+        self.nodes[0].elysium_sendlelantusmint(addr, lelantus_property, "100000")
+        self.nodes[0].elysium_sendlelantusmint(addr, lelantus_property, "10")
+        self.nodes[0].mintlelantus(2)
+        self.nodes[0].mintlelantus(2)
+        self.nodes[0].generate(2)
+
+        for i in range(1, 30):
+            self.nodes[0].elysium_sendlelantusspend(addr, lelantus_property, f'{i}')
+            self.nodes[0].generate(2)
+
+        expected_mints = self.nodes[0].elysium_listlelantusmints()
+        assert_equal(100000 + 10 - sum(range(1, 30)), sum((int(m['value']) for m in expected_mints)))
+
+        # Delete the old node and create a new one with the same mnemonic.
+
+        stop_node(self.nodes[0], 0)
+        self.clear_datadir(0)
+
+        self.nodes[0] = start_node(0, self.options.tmpdir, ['-elysium', '-usemnemonic=1', f'-mnemonic={mnemonic}'])
+        connect_nodes_bi(self.nodes, 0, 1)
+        connect_nodes_bi(self.nodes, 0, 2)
+
+        sync_blocks(self.nodes, timeout=1000)
+
+        # Encrypt the wallet so we can test the behaviour of elysium_recoverlelantusmints with a passphrase.
+
+        passphrase = 'abc123'
         self.nodes[0].encryptwallet(passphrase)
         bitcoind_processes[0].wait()
-
-        # make snapshot
-        regdir = os.path.join(self.options.tmpdir, 'node0', 'regtest')
-        tmpdir = os.path.join(self.options.tmpdir, 'node0', 'regtest.tmp')
-        shutil.copytree(regdir, tmpdir)
 
         self.nodes[0] = start_node(0, self.options.tmpdir, ['-elysium'])
         connect_nodes_bi(self.nodes, 0, 1)
         connect_nodes_bi(self.nodes, 0, 2)
 
-        self.nodes[0].walletpassphrase(passphrase, 20)
-        addr = self.nodes[0].getnewaddress()
-        self.nodes[0].generatetoaddress(1000, addr)
-        self.nodes[0].elysium_sendissuancefixed(
-            addr, 1, 1, 0, '', '', 'Lelantus', '', '', '1000000', 0 ,1
-        )
-        sleep(20)
-
-        self.nodes[0].generate(1)
-        lelantus_property = 3
-
-        # 2. generate some mints
-        self.nodes[0].walletpassphrase(passphrase, 2)
-        self.nodes[0].elysium_sendlelantusmint(addr, lelantus_property, "10")
-        self.nodes[0].elysium_sendlelantusmint(addr, lelantus_property, "10")
-
-        self.nodes[0].generate(10)
-        sleep(2)
-
-        # 3. spend some coins to generate a joinsplit mint
-        self.nodes[0].walletpassphrase(passphrase, 2)
-        self.nodes[0].mintlelantus(2)
-        self.nodes[0].mintlelantus(2)
-        self.nodes[0].generate(10)
-        sleep(2)
-
-        self.nodes[0].walletpassphrase(passphrase, 2)
-        self.nodes[0].elysium_sendlelantusspend(addr, lelantus_property, "1")
-        sleep(2)
-
-        self.nodes[0].generate(10)
-
-        # 4. check mint, should not show all
-        mints = self.nodes[0].elysium_listlelantusmints(lelantus_property, True)
-        assert_equal(1, len(mints))
-
-        assert_equal('10', mints[0]['value'])
-
-        # 5. call recoverlelantusmint
         assert_raises_message(
             JSONRPCException,
             'Error: require passphrase to unlock wallet',
@@ -98,45 +112,8 @@ class ElysiumRecoverLelantusMintTest(BitcoinTestFramework):
 
         self.nodes[0].elysium_recoverlelantusmints(passphrase)
 
-        # 6. all mint should be shown
-        mints = self.nodes[0].elysium_listlelantusmints(lelantus_property, True)
-        assert_equal(2, len(mints))
-
-        mintVals = [m['value'] for m in mints]
-        mintVals.sort()
-
-        assert_equal(['10', '9'], mintVals)
-
-        self.sync_all()
-
-        # clear to do fresh start
-        self.nodes[0].stop()
-        bitcoind_processes[0].wait()
-
-        shutil.rmtree(regdir)
-        shutil.copytree(tmpdir, regdir)
-
-        self.nodes[0] = start_node(0, self.options.tmpdir, self.args[0])
-        connect_nodes_bi(self.nodes, 0, 1)
-        connect_nodes_bi(self.nodes, 0, 2)
-
-        sleep(5)
-        self.sync_all()
-
-        # wallet is locked then no mints is recover from pool
-        mints = self.nodes[0].elysium_listlelantusmints(lelantus_property, True)
-        assert_equal(0, len(mints))
-
-        self.nodes[0].elysium_recoverlelantusmints(passphrase)
-
-        # all mint should be shown
-        mints = self.nodes[0].elysium_listlelantusmints(lelantus_property, True)
-        assert_equal(2, len(mints))
-
-        mintVals = [m['value'] for m in mints]
-        mintVals.sort()
-
-        assert_equal(['10', '9'], mintVals)
+        mints = self.nodes[0].elysium_listlelantusmints(lelantus_property)
+        assert_equal([m['value'] for m in expected_mints].sort(), [m['value'] for m in mints].sort())
 
 if __name__ == '__main__':
     ElysiumRecoverLelantusMintTest().main()
