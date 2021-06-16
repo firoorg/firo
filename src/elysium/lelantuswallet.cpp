@@ -404,7 +404,6 @@ bool LelantusWallet::SyncWithChain()
         }
     }
 
-    // recover from state
     std::vector<MintEntryId> idsToUpdate;
     ListMints(boost::make_function_output_iterator([&] (const std::pair<MintEntryId, LelantusMint>& m) {
         if (m.second.IsSpent() || m.second.IsOnChain()) {
@@ -416,6 +415,23 @@ bool LelantusWallet::SyncWithChain()
 
     for (auto const &id : idsToUpdate) {
         SyncWithChain(id);
+    }
+
+    // Update spent status of our mints.
+    std::vector<std::pair<MintEntryId, LelantusMint>> mints;
+    ListMints(back_inserter(mints));
+    for (std::pair<MintEntryId, LelantusMint> m: mints) {
+        if (m.second.IsSpent()) continue;
+
+        uint512 seed;
+        GenerateSeed(m.second.seedId, seed);
+        LelantusPrivateKey privKey = GeneratePrivateKey(seed);
+
+        uint256 spendTx;
+        if (!lelantusDb->HasSerial(m.second.property, privKey.serial, spendTx)) continue;
+
+        m.second.spendTx = spendTx;
+        WriteMint(m.first, m.second);
     }
 
     return true;
