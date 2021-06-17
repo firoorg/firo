@@ -1046,7 +1046,7 @@ UniValue elysium_sendlelantusspend(const JSONRPCRequest& request)
         auto joinSplit = wallet->CreateLelantusJoinSplit(propertyId, amount, metaData, spendables, reservation, changeValue);
 
         boost::optional<JoinSplitMint> joinSplitMint;
-        if (reservation.has_value()) {
+        if (reservation.get_ptr() != nullptr) {
             auto pub = reservation->coin.getPublicCoin();
             EncryptedValue enc;
             EncryptMintAmount(changeValue, pub.getValue(), enc);
@@ -1091,7 +1091,7 @@ UniValue elysium_sendlelantusspend(const JSONRPCRequest& request)
             wallet->SetLelantusMintUsedTransaction(s.id, txid);
         }
 
-        if (reservation.has_value()) {
+        if (reservation.get_ptr() != nullptr) {
             reservation->Commit();
         }
 

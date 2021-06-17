@@ -213,7 +213,7 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
     auto joinSplitMint = tx.getLelantusJoinSplitMint();
 
     std::vector<lelantus::PublicCoin> cout;
-    if (joinSplitMint.has_value()) {
+    if (joinSplitMint.get_ptr() != nullptr) {
         cout.push_back(joinSplitMint->publicCoin);
     }
 
@@ -225,11 +225,17 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
 
     // record serial and change
     for (auto const &s : serials) {
-        lelantusDb->WriteSerial(property, s, block, tx.getHash());
+        if (!lelantusDb->WriteSerial(property, s, block, tx.getHash())) {
+            PrintToLog("%s(): rejected: serial is duplicated\n", __func__);
+            return PKT_ERROR_LELANTUS - 907;
+        }
     }
 
-    if (joinSplitMint.has_value()) {
-        lelantusDb->WriteMint(property, joinSplitMint.get(), block);
+    if (joinSplitMint.get_ptr() != nullptr) {
+        if (!lelantusDb->WriteMint(property, joinSplitMint.get(), block)) {
+            PrintToLog("%s(): error writing mint\n", __func__);
+            // Accept the spend even if the mint is invalid. The mint will be unusable though.
+        }
     }
 
     assert(update_tally_map(tx.getReceiver(), property, spendAmount, BALANCE));

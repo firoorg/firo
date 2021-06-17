@@ -430,7 +430,7 @@ std::vector<unsigned char> CreatePayload_CreateLelantusJoinSplit(
     }
 
     // change
-    if (mint.has_value()) {
+    if (mint.get_ptr() != nullptr) {
         CDataStream serialized(SER_NETWORK, CLIENT_VERSION);
         serialized << mint.get();
         payload.insert(payload.end(), serialized.begin(), serialized.end());

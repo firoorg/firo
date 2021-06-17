@@ -96,7 +96,7 @@ void Wallet::OnLelantusMintAdded(
 {
     LogPrintf("%s : Mint added = block : %d, group : %d, idx : %d\n", __func__, block, group, idx);
     auto locked = pwalletMain->IsLocked();
-    auto knowAmount = amount.has_value();
+    auto knowAmount = amount.get_ptr() != nullptr;
 
     // Can set state if wallet is not encrypt or encrypted but amount is known
     auto canSetState = !locked || knowAmount;

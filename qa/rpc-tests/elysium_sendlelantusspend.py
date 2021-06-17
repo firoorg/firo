@@ -15,15 +15,19 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         super().run_test()
 
         lelantus_starting_block = 1000
+        remaining = lelantus_starting_block - self.nodes[0].getblockcount()
+        while remaining > 0:
+            # Generate in blocks of 10 so we don't run into timeout issues.
+            self.nodes[0].generatetoaddress(min(10, remaining), self.addrs[0])
+            remaining -= 10
 
-        self.nodes[0].generatetoaddress(lelantus_starting_block - self.nodes[0].getblockcount(), self.addrs[0])
         self.sync_all()
 
         assert_equal(lelantus_starting_block, self.nodes[0].getblockcount())
 
         # non-lelantus
         self.nodes[0].elysium_sendissuancefixed(self.addrs[0], 1, 1, 0, 'main', \
-            'indivisible', 'non-sigma', '', '', '1000000')
+            'indivisible', 'non-lelantus', '', '', '1000000')
         self.nodes[0].generate(1)
 
         non_lelantus_property = 3
@@ -41,7 +45,7 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         )
 
         self.nodes[0].elysium_sendissuancefixed(self.addrs[0], 1, 1, 0, 'main', \
-            'indivisible', 'foo', '', '', '1000000', 0, 1)
+            'indivisible', 'foo', '', '', '1000000', 1)
         self.nodes[0].generate(1)
 
         lelantus_property = 4
@@ -67,7 +71,7 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         self.sync_all()
 
         testing_node.mintlelantus(2)
-        self.nodes[0].generate(10)
+        self.nodes[0].generate(2)
         self.sync_all()
 
         assert_raises_message(
@@ -82,7 +86,7 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         for _ in range(0, 10):
             self.nodes[0].sendtoaddress(addr, '1')
         self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property, '100')
-        self.nodes[0].generate(10)
+        self.nodes[0].generate(2)
         self.sync_all()
 
         testing_node.elysium_sendlelantusmint(addr, lelantus_property, '10')
@@ -101,13 +105,10 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         for _ in range(0, 10):
             testing_node.mintlelantus(1)
 
-        testing_node.generate(10)
+        testing_node.generate(2)
         self.sync_all()
 
         receiver = self.nodes[0].getnewaddress()
-
-        mints = testing_node.elysium_listlelantusmints(lelantus_property, True)
-        assert_equal(2, len(mints))
 
         testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '1')
         testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '1')
@@ -117,7 +118,6 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
 
         assert_equal('2', self.nodes[0].elysium_getbalance(receiver, lelantus_property)['balance'])
 
-        # spend all, there are 2 of 9 now
         assert_raises_message(
             JSONRPCException,
             'Insufficient funds',
@@ -126,12 +126,12 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
 
         testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '16')
 
-        testing_node.generate(1)
+        testing_node.generate(2)
         self.sync_all()
         assert_equal('18', self.nodes[0].elysium_getbalance(receiver, lelantus_property)['balance'])
 
-        mints = testing_node.elysium_listlelantusmints(lelantus_property, True)
-        assert_equal(1, len(mints))
+        expected_num_mints = len(testing_node.elysium_listlelantusmints(lelantus_property, True))
+        assert(expected_num_mints > 0)
 
         # encrypt wallet
         passphrase = '1234'
@@ -146,7 +146,7 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
 
         # mint still there
         mints = testing_node.elysium_listlelantusmints(lelantus_property, True)
-        assert_equal(1, len(mints))
+        assert_equal(expected_num_mints, len(mints))
 
         assert_raises_message(
             JSONRPCException,
@@ -156,12 +156,14 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
 
         testing_node.walletpassphrase(passphrase, 2)
         testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '2')
+
+        testing_node.generate(2)
         time.sleep(2)
 
-        testing_node.generate(110)
         assert_equal('20', self.nodes[0].elysium_getbalance(receiver, lelantus_property)['balance'])
 
         # try to mint on encrypted wallet
+        time.sleep(2)
         assert_raises_message(
             JSONRPCException,
             'Wallet locked, unable to create transaction!',
@@ -174,14 +176,14 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         testing_node.walletpassphrase(passphrase, 2)
         testing_node.elysium_sendlelantusmint(addr, lelantus_property, '10')
         testing_node.elysium_sendlelantusmint(addr, lelantus_property, '10')
-        time.sleep(2)
 
-        testing_node.generate(10)
+        testing_node.generate(2)
         self.sync_all()
 
         mints = testing_node.elysium_listlelantusmints(lelantus_property, True)
         assert_equal(2, len(mints))
 
+        time.sleep(2)
         assert_raises_message(
             JSONRPCException,
             'Unable to retrieve generated key for mint seed. Is the wallet locked?',
@@ -190,19 +192,17 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
 
         testing_node.walletpassphrase(passphrase, 2)
         testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '15')
-        testing_node.generate(10)
+        testing_node.generate(2)
         self.sync_all()
 
         assert_equal('35', self.nodes[0].elysium_getbalance(receiver, lelantus_property)['balance'])
 
         # try to spend on divisible asset
         self.nodes[0].elysium_sendissuancefixed(self.addrs[0], 1, 2, 0, 'main', \
-            'divisible', 'foo', '', '', '1000000', 0, 1)
-        self.nodes[0].generate(10)
+            'divisible', 'foo', '', '', '1000000', 1)
+        self.nodes[0].generate(1)
 
         lelantus_property_2 = 5
-
-        time.sleep(10)
 
         self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property_2, '100')
         self.nodes[0].generate(1)
@@ -211,7 +211,7 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         testing_node.walletpassphrase(passphrase, 10)
         testing_node.elysium_sendlelantusmint(addr, lelantus_property_2, '10.5')
         testing_node.elysium_sendlelantusmint(addr, lelantus_property_2, '10.5')
-        testing_node.generate(1)
+        testing_node.generate(2)
         self.sync_all()
 
         assert_equal(0, float(testing_node.elysium_getbalance(receiver, lelantus_property_2)['balance']))

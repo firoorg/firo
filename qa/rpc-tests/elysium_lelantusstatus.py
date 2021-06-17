@@ -35,7 +35,6 @@ class ElysiumLelantusStatusTest(ElysiumTestFramework):
 
         args = [self.addrs[0], 1, 1, 0, '', '', 'Pre-lelantus', '', '', '1000000']
         if status is not None:
-            args.append(0)
             args.append(status)
 
         self.nodes[0].elysium_sendissuancefixed(*args)
@@ -92,7 +91,12 @@ class ElysiumLelantusStatusTest(ElysiumTestFramework):
 
         addr = self.addrs[0]
         node = self.nodes[0]
-        node.generatetoaddress(200, addr)
+
+        remaining = 200 - self.nodes[0].getblockcount()
+        while remaining > 0:
+            # Generate in blocks of 10 so we don't run into timeout issues.
+            self.nodes[0].generatetoaddress(min(10, remaining), addr)
+            remaining -= 10
 
         pre_lelantus = self.new_property()
 
@@ -100,7 +104,11 @@ class ElysiumLelantusStatusTest(ElysiumTestFramework):
         self.update_status(pre_lelantus, SOFT_DISABLED, expected_error='Lelantus feature is not activated yet')
 
         lelantus_start_block = 1000
-        node.generate(lelantus_start_block - node.getblockcount())
+        remaining = lelantus_start_block - self.nodes[0].getblockcount()
+        while remaining > 0:
+            # Generate in blocks of 10 so we don't run into timeout issues.
+            self.nodes[0].generatetoaddress(min(10, remaining), addr)
+            remaining -= 10
 
         # update after lelantus activation, should work
         lelantus1 = self.new_property()
