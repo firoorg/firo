@@ -77,7 +77,6 @@ void BatchProofContainer::removeSigma(const sigma::spend_info_container& spendSe
                     if (dataItr->coinSerialNumber == spendSerial.first) {
                         vProofs.erase(dataItr);
                         foundAtSigma = true;
-                        break;
                     }
                 }
             }
@@ -99,7 +98,6 @@ void BatchProofContainer::removeSigma(const sigma::spend_info_container& spendSe
             for (auto dataItr = vProofs->begin(); dataItr != vProofs->end(); dataItr++) {
                 if (dataItr->serialNumber == spendSerial.first) {
                     vProofs->erase(dataItr);
-                    break;
                 }
             }
         }
@@ -121,7 +119,6 @@ void BatchProofContainer::removeLelantus(std::unordered_map<Scalar, int> spentSe
         for (auto dataItr = vProofs->begin(); dataItr != vProofs->end(); dataItr++) {
             if (dataItr->serialNumber == spendSerial.first) {
                 vProofs->erase(dataItr);
-                break;
             }
         }
     }
