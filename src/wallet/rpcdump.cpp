@@ -658,8 +658,8 @@ UniValue dumpprivkey_firo(const JSONRPCRequest& request)
             "\n"
             " Please seek help on one of our public channels. \n"
             " Telegram: https://t.me/firoproject \n"
-            " Discord: https://discordapp.com/invite/4FjnQ2q\n"
-            " Reddit: https://www.reddit.com/r/firo/\n"
+            " Discord: https://discord.com/invite/TGZPRbRT3Y\n"
+            " Reddit: https://www.reddit.com/r/FiroProject/\n"
             "\n"
             ;
         throw runtime_error(warning);
@@ -836,8 +836,8 @@ UniValue dumpwallet_firo(const JSONRPCRequest& request)
             "\n"
             " Please seek help on one of our public channels. \n"
             " Telegram: https://t.me/firoproject \n"
-            " Discord: https://discordapp.com/invite/4FjnQ2q\n"
-            " Reddit: https://www.reddit.com/r/firo/\n"
+            " Discord: https://discord.com/invite/TGZPRbRT3Y\n"
+            " Reddit: https://www.reddit.com/r/FiroProject/\n"
             "\n"
             ;
         throw runtime_error(warning);
