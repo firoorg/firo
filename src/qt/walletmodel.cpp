@@ -12,6 +12,7 @@
 #include "paymentserver.h"
 #include "recentrequeststablemodel.h"
 #include "transactiontablemodel.h"
+#include "pcodemodel.h"
 
 #include "base58.h"
 #include "keystore.h"
@@ -28,6 +29,8 @@
 #include "sigma.h"
 #include "sigma/coin.h"
 #include "lelantus.h"
+#include "bip47/account.h"
+#include "bip47/bip47utils.h"
 
 #include <stdint.h>
 
@@ -38,10 +41,11 @@
 #include <boost/foreach.hpp>
 
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, OptionsModel *_optionsModel, QObject *parent) :
-    QObject(parent), wallet(_wallet), optionsModel(_optionsModel), addressTableModel(0),
+    QObject(parent), wallet(_wallet), optionsModel(_optionsModel), addressTableModel(0), pcodeAddressTableModel(0),
     lelantusModel(0),
     transactionTableModel(0),
     recentRequestsTableModel(0),
+    pcodeModel(0),
     cachedBalance(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0),
     cachedEncryptionStatus(Unencrypted),
     cachedNumBlocks(0)
@@ -50,9 +54,11 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     fForceCheckBalanceChanged = false;
 
     addressTableModel = new AddressTableModel(wallet, this);
+    pcodeAddressTableModel = new PcodeAddressTableModel(wallet, this);
     lelantusModel = new LelantusModel(platformStyle, wallet, _optionsModel, this);
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
+    pcodeModel = new PcodeModel(wallet, this);
 
     // This timer will be fired repeatedly to update the balance
     pollTimer = new QTimer(this);
@@ -815,6 +821,11 @@ AddressTableModel *WalletModel::getAddressTableModel()
     return addressTableModel;
 }
 
+PcodeAddressTableModel *WalletModel::getPcodeAddressTableModel()
+{
+    return pcodeAddressTableModel;
+}
+
 LelantusModel *WalletModel::getLelantusModel()
 {
     return lelantusModel;
@@ -828,6 +839,11 @@ TransactionTableModel *WalletModel::getTransactionTableModel()
 RecentRequestsTableModel *WalletModel::getRecentRequestsTableModel()
 {
     return recentRequestsTableModel;
+}
+
+PcodeModel *WalletModel::getPcodeModel()
+{
+    return pcodeModel;
 }
 
 WalletModel::EncryptionStatus WalletModel::getEncryptionStatus() const
@@ -953,6 +969,12 @@ static void NotifyWatchonlyChanged(WalletModel *walletmodel, bool fHaveWatchonly
                               Q_ARG(bool, fHaveWatchonly));
 }
 
+static void NotifyBip47KeysChanged(WalletModel *walletmodel, int receiverAccountNum)
+{
+    QMetaObject::invokeMethod(walletmodel, "handleBip47Keys", Qt::QueuedConnection,
+                             Q_ARG(int, receiverAccountNum));
+}
+
 void WalletModel::subscribeToCoreSignals()
 {
     // Connect signals to wallet
@@ -962,6 +984,8 @@ void WalletModel::subscribeToCoreSignals()
     wallet->ShowProgress.connect(boost::bind(ShowProgress, this, _1, _2));
     wallet->NotifyWatchonlyChanged.connect(boost::bind(NotifyWatchonlyChanged, this, _1));
     wallet->NotifyZerocoinChanged.connect(boost::bind(NotifyZerocoinChanged, this, _1, _2, _3, _4));
+    wallet->NotifyBip47KeysChanged.connect(boost::bind(NotifyBip47KeysChanged, this, _1));
+
 }
 
 void WalletModel::unsubscribeFromCoreSignals()
@@ -973,16 +997,17 @@ void WalletModel::unsubscribeFromCoreSignals()
     wallet->ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
     wallet->NotifyWatchonlyChanged.disconnect(boost::bind(NotifyWatchonlyChanged, this, _1));
     wallet->NotifyZerocoinChanged.disconnect(boost::bind(NotifyZerocoinChanged, this, _1, _2, _3, _4));
+    wallet->NotifyBip47KeysChanged.disconnect(boost::bind(NotifyBip47KeysChanged, this, _1));
 }
 
 // WalletModel::UnlockContext implementation
-WalletModel::UnlockContext WalletModel::requestUnlock()
+WalletModel::UnlockContext WalletModel::requestUnlock(const QString & info)
 {
     bool was_locked = getEncryptionStatus() == Locked;
     if(was_locked)
     {
         // Request UI to unlock wallet
-        Q_EMIT requireUnlock();
+        Q_EMIT requireUnlock(info);
     }
     // If wallet is still locked, unlock was failed or cancelled, mark context as invalid
     bool valid = getEncryptionStatus() != Locked;
@@ -1432,4 +1457,20 @@ bool WalletModel::hdEnabled() const
 int WalletModel::getDefaultConfirmTarget() const
 {
     return nTxConfirmTarget;
+}
+
+void WalletModel::handleBip47Keys(int receiverAccountNum)
+{
+    if (wallet->GetBip47Wallet()) {
+        bip47::CAccountReceiver const * acc = wallet->GetBip47Wallet()->getReceivingAccount(uint32_t(receiverAccountNum));
+        if (!acc)
+            return;
+        UnlockContext ctx(requestUnlock(tr("Please unlock your wallet to receive a <b>RAP/BIP47 transaction</b>.")));
+        if(!ctx.isValid()) {
+            QMessageBox::critical(0, tr("RAP tx received"),
+                tr("BIP47 protocol requires unlocking your wallet every time a RAP tx is received."));
+            return;
+        }
+        bip47::utils::AddReceiverSecretAddresses(*acc, *wallet);
+    }
 }

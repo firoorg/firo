@@ -27,7 +27,7 @@ public:
         Decrypt     /**< Ask passphrase and decrypt wallet */
     };
 
-    explicit AskPassphraseDialog(Mode mode, QWidget *parent);
+    explicit AskPassphraseDialog(Mode mode, QWidget *parent, const QString &info = "");
     ~AskPassphraseDialog();
 
     void accept();
@@ -39,6 +39,7 @@ private:
     Mode mode;
     WalletModel *model;
     bool fCapsLock;
+    QString info;
 
 private Q_SLOTS:
     void textChanged();

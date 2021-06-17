@@ -24,6 +24,8 @@
 #include "ui_interface.h"
 #include "txmempool.h"
 #include "wallet/wallet.h"
+#include "sendtopcodedialog.h"
+#include "pcodemodel.h"
 
 #include <QFontMetrics>
 #include <QMessageBox>
@@ -230,6 +232,9 @@ void SendCoinsDialog::on_sendButton_clicked()
     QList<SendCoinsRecipient> recipients;
     bool valid = true;
 
+    using UnlockContext = WalletModel::UnlockContext;
+    std::unique_ptr<UnlockContext> ctx;
+
     for(int i = 0; i < ui->entries->count(); ++i)
     {
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
@@ -237,7 +242,23 @@ void SendCoinsDialog::on_sendButton_clicked()
         {
             if(entry->validate())
             {
-                recipients.append(entry->getValue());
+                SendCoinsRecipient recipient = entry->getValue();
+                if(entry->isPayToPcode()) {
+                    if (!model->getPcodeModel()) return;
+                    std::unique_ptr<SendtoPcodeDialog> dialog(new SendtoPcodeDialog(this, recipient.address.toStdString(), recipient.label.toStdString()));
+                    dialog->setModel(model);
+                    dialog->exec();
+                    std::pair<SendtoPcodeDialog::Result, CBitcoinAddress> const sendResult = dialog->getResult();
+                    switch (sendResult.first) {
+                        case SendtoPcodeDialog::Result::addressSelected:
+                            recipient.address = sendResult.second.ToString().c_str();
+                            break;
+                        default:
+                            return;
+                    }
+                    ctx = dialog->getUnlockContext();
+                }
+                recipients.append(recipient);
             }
             else
             {
@@ -252,8 +273,11 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     fNewRecipientAllowed = false;
-    WalletModel::UnlockContext ctx(model->requestUnlock());
-    if(!ctx.isValid())
+    if(!ctx)
+    {
+        ctx = std::unique_ptr<UnlockContext>(new UnlockContext(model->requestUnlock()));
+    }
+    if(!ctx->isValid())
     {
         // Unlock wallet was cancelled
         fNewRecipientAllowed = true;
@@ -382,6 +406,15 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     if (sendStatus.status == WalletModel::OK)
     {
+        for(int i = 0; i < ui->entries->count(); ++i)
+        {
+            SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+            if(entry && entry->isPayToPcode())
+            {
+                SendCoinsRecipient recipient = entry->getValue();
+                model->getPcodeModel()->generateTheirNextAddress(recipient.address.toStdString());
+            }
+        }
         accept();
         CoinControlDialog::coinControl->UnSelectAll();
         coinControlUpdateLabels();

@@ -136,6 +136,7 @@ TestingSetup::~TestingSetup()
 {
     UnregisterNodeSignals(GetNodeSignals());
     llmq::InterruptLLMQSystem();
+    llmq::DestroyLLMQSystem();
 #ifdef ENABLE_ELYSIUM
     elysium_shutdown();
 #endif

@@ -347,12 +347,35 @@ QString TransactionTableModel::formatTxDate(const TransactionRecord *wtx) const
     return QString();
 }
 
+namespace {
+    QString getPcodeLabel(CWallet * wallet, std::string const & pcode)
+    {
+        QString result;
+        boost::optional<bip47::CPaymentCodeDescription> pcodeDesc;
+        try {
+            pcodeDesc = wallet->FindPcode(bip47::CPaymentCode(pcode));
+        } catch (std::runtime_error const &)
+        {}
+        result = QString::fromStdString(std::get<2>(*pcodeDesc));
+        if(result.isEmpty())
+            result = QString::fromStdString(pcode);
+        return result;
+    }
+}
+
 /* Look up address in address book, if found return label (address)
    otherwise just return (address)
  */
-QString TransactionTableModel::lookupAddress(const std::string &address, bool tooltip) const
+QString TransactionTableModel::lookupAddress(const TransactionRecord *wtx, bool tooltip) const
 {
-    QString label = walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(address));
+    QString label;
+    if(!wtx->pcode.empty())
+    {
+        label = getPcodeLabel(wallet, wtx->pcode);
+    }
+    else
+        label = walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(wtx->address));
+
     QString description;
     if(!label.isEmpty())
     {
@@ -360,7 +383,7 @@ QString TransactionTableModel::lookupAddress(const std::string &address, bool to
     }
     if(label.isEmpty() || tooltip)
     {
-        description += QString(" (") + QString::fromStdString(address) + QString(")");
+        description += QString(" (") + QString::fromStdString(wtx->address) + QString(")");
     }
     return description;
 }
@@ -386,6 +409,10 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
            return tr("Spend to yourself");
     case TransactionRecord::Anonymize:
            return tr("Anonymize");
+    case TransactionRecord::SendToPcode:
+            return tr("Sent to RAP address");
+    case TransactionRecord::RecvWithPcode:
+            return tr("Received with RAP address");
     default:
         return QString();
     }
@@ -405,6 +432,9 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
     case TransactionRecord::SpendToAddress:
     case TransactionRecord::Anonymize:
         return QIcon(":/icons/tx_output");
+    case TransactionRecord::SendToPcode:
+    case TransactionRecord::RecvWithPcode:
+        return QIcon(":/icons/paymentcode");
     default:
         return QIcon(":/icons/tx_inout");
     }
@@ -423,10 +453,12 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     case TransactionRecord::RecvFromOther:
         return QString::fromStdString(wtx->address) + watchAddress;
     case TransactionRecord::RecvWithAddress:
+    case TransactionRecord::RecvWithPcode:
     case TransactionRecord::SendToAddress:
     case TransactionRecord::SpendToAddress:
+    case TransactionRecord::SendToPcode:
     case TransactionRecord::Generated:
-        return lookupAddress(wtx->address, tooltip) + watchAddress;
+        return lookupAddress(wtx, tooltip) + watchAddress;
     case TransactionRecord::SendToOther:
         return QString::fromStdString(wtx->address) + watchAddress;
     case TransactionRecord::Anonymize:
@@ -626,7 +658,10 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
     case AddressRole:
         return QString::fromStdString(rec->address);
     case LabelRole:
-        return walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(rec->address));
+        if(rec->pcode.empty())
+            return walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(rec->address));
+        else
+            return getPcodeLabel(wallet, rec->pcode);
     case AmountRole:
         return qint64(rec->credit + rec->debit);
     case TxIDRole:
@@ -670,6 +705,8 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
         return formatTxAmount(rec, false, BitcoinUnits::separatorNever);
     case StatusRole:
         return rec->status.status;
+    case PcodeRole:
+        return rec->pcode.c_str();
     }
     return QVariant();
 }
