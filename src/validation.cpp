@@ -663,12 +663,12 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
 
         auto params = ::Params().GetConsensus();
         if (tx.IsZerocoinSpend() || tx.IsZerocoinMint()) {
-            if (nHeight >= params.nDisableZerocoinStartBlock)
+            if (!isVerifyDB && nHeight >= params.nDisableZerocoinStartBlock)
                 return state.DoS(1, error("Zerocoin is disabled at this point"));
         }
 
         if (tx.IsZerocoinRemint()) {
-            if (nHeight < params.nSigmaStartBlock || nHeight >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize)
+            if (!isVerifyDB && (nHeight < params.nSigmaStartBlock || nHeight >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize))
                 // we allow transactions of remint type only during specific window
                 return false;
         }
