@@ -828,7 +828,7 @@ UniValue getbalance(const JSONRPCRequest& request)
     LOCK2(cs_main, pwallet->cs_wallet);
 
     if (request.params.size() == 0)
-        return  ValueFromAmount(pwallet->GetBalance());
+        return  ValueFromAmount(pwallet->GetBalance() + pwallet->GetPrivateBalance().first);
 
     const std::string* account = request.params[0].get_str() != "*" ? &request.params[0].get_str() : nullptr;
 
