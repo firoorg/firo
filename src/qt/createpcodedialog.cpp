@@ -80,11 +80,13 @@ void CreatePcodeDialog::setModel(WalletModel *_model)
         tableView->setSelectionMode(QAbstractItemView::ContiguousSelection);
         tableView->setColumnWidth(static_cast<int>(PcodeModel::ColumnIndex::Number), static_cast<int>(ColumnWidths::Number));
         tableView->setColumnWidth(static_cast<int>(PcodeModel::ColumnIndex::Pcode), static_cast<int>(ColumnWidths::Pcode));
+        tableView->setItemDelegateForColumn(int(PcodeModel::ColumnIndex::Pcode), new GUIUtil::TextElideStyledItemDelegate(tableView));
 
         connect(tableView->selectionModel(), SIGNAL(selectionChanged(QItemSelection, QItemSelection)),
                 this, SLOT(pcodesView_selectionChanged(QItemSelection const &, QItemSelection const &)));
         // Last 2 columns are set by the columnResizingFixer, when the table geometry is ready.
-        columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, 70, 70, this);
+        columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, 70, 70, this, int(PcodeModel::ColumnIndex::Pcode));
+        columnResizingFixer->stretchColumnWidth(int(PcodeModel::ColumnIndex::Pcode));
 
         ui->createPcodeButton->setEnabled(false);
         ui->statusLabel->setText(tr("The label should not be empty."));
@@ -121,7 +123,7 @@ void CreatePcodeDialog::on_createPcodeButton_clicked()
     catch (std::runtime_error const & e)
     {
         QMessageBox::critical(0, tr(PACKAGE_NAME),
-            tr("Payment code creation failed with error: \"%1\"").arg(e.what()));
+            tr("RAP address creation failed with error: \"%1\"").arg(e.what()));
     }
     on_labelText_textChanged();
 }
@@ -165,7 +167,7 @@ void CreatePcodeDialog::pcodesView_selectionChanged(QItemSelection const & selec
 void CreatePcodeDialog::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
-    columnResizingFixer->stretchColumnWidth(RecentRequestsTableModel::Message);
+    columnResizingFixer->stretchColumnWidth(int(PcodeModel::ColumnIndex::Pcode));
 }
 
 void CreatePcodeDialog::keyPressEvent(QKeyEvent *event)

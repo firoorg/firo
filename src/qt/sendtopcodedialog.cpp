@@ -132,8 +132,8 @@ void SendtoPcodeDialog::updateButtons()
         statusText = tr("Balance is not enough");
     }
     if(status.notifTxSent) {
-        hintText = tr("<i>Please wait until the connection transaction has confirmed.</br>"
-                        "It is safe to close this dialog box while waiting for the confirmation.</br>"
+        hintText = tr("<i>Please wait until the connection transaction has confirmed.&nbsp;"
+                        "It is safe to close this dialog box while waiting for the confirmation.&nbsp;"
                         "Once confirmed, you can send your FIRO to the RAP address on the Send tab.</i>");
         statusText = tr("Waiting for confirmation");
     }

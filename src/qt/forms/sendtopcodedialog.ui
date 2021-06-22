@@ -17,7 +17,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>Send to RAP payment code</string>
+   <string>Send to RAP address</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,1">
    <item>

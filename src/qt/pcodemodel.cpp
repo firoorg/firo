@@ -31,7 +31,7 @@ PcodeModel::PcodeModel(CWallet *wallet, WalletModel *parent) :
     walletModel(parent)
 {
     /* These columns must match the indices in the ColumnIndex enumeration */
-    columns << tr("#") << tr("Payment code") << tr("Label");
+    columns << tr("#") << tr("Label") << tr("RAP address");
 
     wallet->NotifyPcodeCreated.connect(boost::bind(OnPcodeCreated_, this, _1));
     items = wallet->ListPcodes();
