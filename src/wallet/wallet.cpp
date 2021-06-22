@@ -7242,6 +7242,30 @@ std::string CWallet::GetSendingPcodeLabel(bip47::CPaymentCode const & pcode) con
     return iter->second;
 }
 
+void CWallet::LabelReceivingPcode(bip47::CPaymentCode const & pcode, std::string const & label)
+{
+    if (!bip47wallet)
+        return;
+
+    LOCK(cs_wallet);
+    bip47::CAccountReceiver * result = nullptr;
+    bip47wallet->enumerateReceivers(
+        [&result, &pcode](bip47::CAccountReceiver & rec)->bool
+        {
+            if(rec.getMyPcode() == pcode)
+            {
+                result = &rec;
+                return false;
+            }
+            return true;
+        }
+    );
+    if(!result)
+        return;
+    result->setLabel(label);
+    CWalletDB(strWalletFile).WriteBip47Account(*result);
+}
+
 size_t CWallet::SetUsedAddressNumber(bip47::CPaymentCode const & pcode, size_t number)
 {
     boost::optional<size_t> resultSnd, resutRec;

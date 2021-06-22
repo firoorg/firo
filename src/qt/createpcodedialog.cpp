@@ -141,6 +141,11 @@ void CreatePcodeDialog::on_labelText_textChanged()
 
 void CreatePcodeDialog::on_pcodesView_doubleClicked(const QModelIndex &index)
 {
+    if(index.column() == int(PcodeModel::ColumnIndex::Label))
+    {
+        ui->pcodesView->edit(index);
+        return;
+    }
     showQrcode();
 }
 

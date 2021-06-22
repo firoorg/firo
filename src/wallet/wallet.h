@@ -1304,9 +1304,12 @@ public:
     /*Checks if this is a BIP47 transaction and handles it. May send an unlock request if wallet is locked.*/
     void HandleBip47Transaction(CWalletTx const & wtx);
 
-    /*Attaches a new label to a receiving payment code.*/
+    /*Attaches a new label to a sending payment code.*/
     void LabelSendingPcode(bip47::CPaymentCode const & pcode, std::string const & label, bool remove = false);
     std::string GetSendingPcodeLabel(bip47::CPaymentCode const & pcode) const;
+
+    /*Relabels an existing receiving payment code*/
+    void LabelReceivingPcode(bip47::CPaymentCode const & pcode, std::string const & label);
 
     /*Sets used address number for a sending or receiving payment channel*/
     size_t SetUsedAddressNumber(bip47::CPaymentCode const & pcode, size_t number);
