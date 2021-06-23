@@ -13,7 +13,7 @@
     <x>0</x>
     <y>0</y>
     <width>674</width>
-    <height>808</height>
+    <height>660</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -244,6 +244,9 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
      </property>
      <property name="styleSheet">
       <string notr="true">color:red;</string>
+     </property>
+     <property name="text">
+      <string/>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
