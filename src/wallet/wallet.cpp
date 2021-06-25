@@ -3113,16 +3113,16 @@ bool CWallet::GetCoinsToSpend(
         best_spend_val *= zeros;
 
         if (minimum == INT_MAX - 1)
-            throw std::runtime_error(
+            throw std::invalid_argument(
                 _("Can not choose coins within limit."));
     }
 
     if (SelectMintCoinsForAmount(best_spend_val - roundedRequired * zeros, denominations, coinsToMint_out) != best_spend_val - roundedRequired * zeros) {
-        throw std::runtime_error(
+        throw std::invalid_argument(
             _("Problem with coin selection for re-mint while spending."));
     }
     if (SelectSpendCoinsForAmount(best_spend_val, coins, coinsToSpend_out) != best_spend_val) {
-        throw std::runtime_error(
+        throw std::invalid_argument(
             _("Problem with coin selection for spend."));
     }
 
@@ -3138,21 +3138,12 @@ bool CWallet::GetCoinsToJoinSplit(
         const CAmount amountToSpendLimit,
         const CCoinControl *coinControl) const
 {
-    // Sanity check to make sure this function is never called with a too large
-    // amount to spend, resulting to a possible crash due to out of memory condition.
-    if (!MoneyRange(required)) {
-        throw WalletError(
-                _("The required amount exceeds 21 MLN FIRO"));
-    }
 
-    if (!MoneyRange(amountToSpendLimit)) {
-        throw WalletError(
-                _("The amount limit exceeds max money"));
-    }
+    EnsureMintWalletAvailable();
+    Consensus::Params consensusParams = Params().GetConsensus();
 
-    if (required > amountToSpendLimit) {
-        throw WalletError(
-                _("The required amount exceeds spend limit"));
+    if (required > consensusParams.nMaxValueLelantusSpendPerTransaction) {
+        throw invalid_argument(_("The required amount exceeds spend limit"));
     }
 
     CAmount availableBalance = CalculateLelantusCoinsBalance(coins.begin(), coins.end());
@@ -5324,18 +5315,21 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
     return tx;
 }
 
-std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, const CCoinControl *coinControl) {
+std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(
+        CAmount required,
+        bool subtractFeeFromAmount,
+        std::list<CSigmaEntry> sigmaCoins,
+        std::list<CLelantusEntry> coins,
+        const CCoinControl *coinControl) {
     CAmount fee;
     unsigned size;
     std::vector<CLelantusEntry> spendCoins;
     std::vector<CSigmaEntry> sigmaSpendCoins;
-    std::list<CSigmaEntry> sigmaCoins = this->GetAvailableCoins(coinControl, false, true);
+
     CAmount availableSigmaBalance(0);
     for (auto coin : sigmaCoins) {
         availableSigmaBalance += coin.get_denomination_value();
     }
-
-    std::list<CLelantusEntry> coins = GetAvailableLelantusCoins(coinControl, false, true);
 
     for (fee = payTxFee.GetFeePerK();;) {
         CAmount currentRequired = required;
