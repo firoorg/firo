@@ -696,7 +696,11 @@ UniValue dumpwallet(const JSONRPCRequest& request)
     EnsureWalletIsUnlocked(pwallet);
 
     ofstream file;
-    file.open(request.params[0].get_str().c_str());
+    // need change to std::filesystem::absolute() for C++17
+    boost::filesystem::path filePath = request.params[0].get_str();
+    filePath = boost::filesystem::absolute(filePath);
+    file.open(filePath.string().c_str());
+
     if (!file.is_open())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open wallet dump file");
 
@@ -806,7 +810,10 @@ UniValue dumpwallet(const JSONRPCRequest& request)
     file << "\n";
     file << "# End of dump\n";
     file.close();
-    return NullUniValue;
+
+    UniValue reply(UniValue::VOBJ);
+    reply.push_back(Pair("filename", filePath.string()));
+    return reply;
 }
 
 UniValue dumpwallet_firo(const JSONRPCRequest& request)
