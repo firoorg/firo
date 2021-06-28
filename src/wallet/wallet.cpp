@@ -1043,7 +1043,7 @@ namespace {
 void HandleSecretAddresses(CWallet & wallet, bip47::CAccountReceiver const & receiver)
 {
     if (wallet.IsLocked()) {
-        wallet.NotifyBip47KeysChanged(receiver.getAccountNum());
+        wallet.NotifyBip47KeysChanged(receiver.getAccountNum(), chainActive.Tip());
         return;
     }
 

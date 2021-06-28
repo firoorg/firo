@@ -1214,7 +1214,7 @@ public:
     boost::signals2::signal<void (std::string pcode, std::string label, bool removed)> NotifyPcodeLabeled;
 
     /** Unlock required (for example for adding a privkey to the wallet),  */
-    boost::signals2::signal<void (int receiverAccountNum)> NotifyBip47KeysChanged;
+    boost::signals2::signal<void (int receiverAccountNum, CBlockIndex* pBlockIndex)> NotifyBip47KeysChanged;
 
     /** Inquire whether this wallet broadcasts transactions. */
     bool GetBroadcastTransactions() const { return fBroadcastTransactions; }

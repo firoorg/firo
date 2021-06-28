@@ -264,6 +264,7 @@ void SendtoPcodeDialog::setNotifTxId()
     if (notifTxDepth > 0)
     {
         status.notifTxConfirmed = true;
+        updateButtons();
     }
 }
 

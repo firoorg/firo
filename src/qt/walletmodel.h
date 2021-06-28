@@ -370,10 +370,9 @@ public Q_SLOTS:
     /* Update Amount of sigma change */
     void updateSigmaCoins(const QString &pubCoin, const QString &isUsed, int status);
     // Handle the changed BIP47 privkeys
-    void handleBip47Keys(int receiverAccountNum);
+    void handleBip47Keys(int receiverAccountNum, void * pBlockIndex);
     // Locks wallet from timer calls
     bool lockWallet();
-
 };
 
 #endif // BITCOIN_QT_WALLETMODEL_H
