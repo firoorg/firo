@@ -120,7 +120,7 @@ BOOST_AUTO_TEST_CASE(valid_arbitrary_output_number_class_b)
         txOutputs.push_back(PayToPubKeyHash_Elysium());
     }
 
-    std::random_shuffle(txOutputs.begin(), txOutputs.end());
+    Shuffle(txOutputs.begin(), txOutputs.end(), FastRandomContext());
 
     CTransaction dummyTx = TxClassB(txInputs, txOutputs);
     BOOST_CHECK_EQUAL(dummyTx.vout.size(), nOutputs);
