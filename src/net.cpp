@@ -2247,7 +2247,7 @@ void CConnman::ThreadOpenMasternodeConnections()
                 continue;
             }
 
-            std::random_shuffle(pending.begin(), pending.end());
+            Shuffle(pending.begin(), pending.end(), FastRandomContext());
             addr = pending.front();
         }
 

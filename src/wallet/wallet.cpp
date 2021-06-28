@@ -3652,7 +3652,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
     vector<pair<CAmount, pair<const CWalletTx*,unsigned int> > > vValue;
     CAmount nTotalLower = 0;
 
-    random_shuffle(vCoins.begin(), vCoins.end(), GetRandInt);
+    Shuffle(vCoins.begin(), vCoins.end(), FastRandomContext());
 
     BOOST_FOREACH(const COutput &output, vCoins)
     {
@@ -4641,7 +4641,7 @@ bool CWallet::CreateLelantusMintTransactions(
             std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXO;
             AvailableCoinsForLMint(valueAndUTXO, coinControl);
 
-            std::random_shuffle(valueAndUTXO.begin(), valueAndUTXO.end(), GetRandInt);
+            Shuffle(valueAndUTXO.begin(), valueAndUTXO.end(), FastRandomContext());
 
             while (!valueAndUTXO.empty()) {
 
