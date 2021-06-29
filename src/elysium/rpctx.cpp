@@ -1100,8 +1100,8 @@ UniValue elysium_sendlelantusspend(const JSONRPCRequest& request)
         } else {
             PendingAdd(
                 txid,
-                "Lelantus Spend",
-				ELYSIUM_TYPE_LELANTUS_SPEND,
+                "Lelantus Joinsplit",
+				ELYSIUM_TYPE_LELANTUS_JOINSPLIT,
                 propertyId,
                 amount,
                 false,
