@@ -91,6 +91,13 @@ lelantus::JoinSplit CreateJoinSplit(
     uint256 const &metaData)
 {
     auto params = lelantus::Params::get_default();
+
+    // Because amount is represented differently for divisible and indivisible properties, the limit for divisible
+    // properties is 5001 tokens, whereas the limit for indivisible properties is 500100000000 tokens.
+    if (amount > ::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction) {
+        throw std::runtime_error("spend amount would violate consensus limits");
+    }
+
     // 4966 is the fixed size part of the transaction. It includes:
     // + 1 Lelantus input
     // + 1 Lelantus joinmint output

@@ -58,6 +58,11 @@ LelantusWallet::MintReservation::MintReservation(
     mintpoolEntry(wallet->ReserveMint(_id)),
     commited(false)
 {
+    // Because amount is represented differently for divisible and indivisible properties, the limit for divisible
+    // properties is 5001 tokens, whereas the limit for indivisible properties is 500100000000 tokens.
+    if (mint.amount > ::Params().GetConsensus().nMaxValueLelantusMint) {
+        throw std::runtime_error("mint amount would violate consensus limits");
+    }
 }
 
 LelantusWallet::MintReservation::~MintReservation()

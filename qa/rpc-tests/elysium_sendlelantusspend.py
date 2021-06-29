@@ -204,15 +204,28 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
 
         lelantus_property_2 = 5
 
-        self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property_2, '100')
+        self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property_2, '100000')
         self.nodes[0].generate(1)
         self.sync_all()
 
         testing_node.walletpassphrase(passphrase, 10)
-        testing_node.elysium_sendlelantusmint(addr, lelantus_property_2, '10.5')
-        testing_node.elysium_sendlelantusmint(addr, lelantus_property_2, '10.5')
+
+        assert_raises_message(
+            JSONRPCException,
+            'mint amount would violate consensus limits',
+            testing_node.elysium_sendlelantusmint, addr, lelantus_property_2, '5002'
+        )
+
+        testing_node.elysium_sendlelantusmint(addr, lelantus_property_2, '4010.5')
+        testing_node.elysium_sendlelantusmint(addr, lelantus_property_2, '4010.5')
         testing_node.generate(2)
         self.sync_all()
+
+        assert_raises_message(
+            JSONRPCException,
+            'spend amount would violate consensus limits',
+            testing_node.elysium_sendlelantusspend, receiver, lelantus_property_2, '5002'
+        )
 
         assert_equal(0, float(testing_node.elysium_getbalance(receiver, lelantus_property_2)['balance']))
         testing_node.elysium_sendlelantusspend(receiver, lelantus_property_2, '15.5')
