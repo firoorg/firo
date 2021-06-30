@@ -3189,7 +3189,6 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
 
     std::unordered_map<Scalar, int> lelantusSerialsToRemove;
     sigma::spend_info_container sigmaSerialsToRemove;
-    BatchProofContainer::get_instance()->fCollectProofs = false;
 
     for (CTransactionRef tx : block.vtx) {
         CheckTransaction(*tx, state, false, tx->GetHash(), false, pindexDelete->pprev->nHeight,
