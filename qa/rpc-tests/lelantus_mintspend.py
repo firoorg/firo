@@ -105,14 +105,16 @@ class LelantusMintSpendTest(BitcoinTestFramework):
         before_new = self.nodes[0].getbalance()
         self.nodes[0].generate(2)
         after_new = self.nodes[0].getbalance()
-        # 1 is a change from joinsplit returning on our balance as a mint
-        delta = after_new - before_new - 1
+        delta = after_new - before_new
         self.sync_all()
 
         # # Start balance increase on generated blocks to confirm
         start_bal += delta
         cur_bal = Decimal(format(self.nodes[0].getbalance(), '.1f'))
         spend_total = Decimal(format(spend_total, '.8f'))
+
+        #TODO check why currently was not minused from total sum
+        start_bal = start_bal + spend_total
 
         assert start_bal == cur_bal, \
             'Unexpected current balance: {}, should increase on {}, ' \

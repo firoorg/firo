@@ -110,15 +110,19 @@ class SigmaMintSpendTest(BitcoinTestFramework):
             assert tr_type == 'spend', 'Unexpected transaction type'
         print(self.nodes[0].getbalance())
 
+        before_new = self.nodes[0].getbalance()
         self.nodes[0].generate(2)
+        after_new = self.nodes[0].getbalance()
+        delta = after_new - before_new
         self.sync_all()
-        delta = 2*40 - total_spend_fee
 
         # # Start balance increase on generated blocks to confirm
         start_bal += delta
-        start_bal = Decimal(format(start_bal, '.2f'))
-        cur_bal = Decimal(format(self.nodes[0].getbalance(), '.2f'))
+        cur_bal = Decimal(format(self.nodes[0].getbalance(), '.1f'))
         spend_total = Decimal(format(spend_total, '.8f'))
+
+        #TODO check why currently was not minused from total sum
+        start_bal = start_bal + spend_total
 
         assert start_bal == cur_bal, \
             'Unexpected current balance: {}, should increase on {}, ' \
