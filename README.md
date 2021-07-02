@@ -101,7 +101,7 @@ Dependencies
         sudo apt-get install libminiupnpc-dev libzmq3-dev
         sudo apt-get install libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler libqrencode-dev
 
-Alternatively, you can use a [depends/README.md](depends build) to handle dependencies.
+Alternatively, you can use a [depends build](depends/README.md) to handle dependencies.
 
 Build
 ----------------------
@@ -119,7 +119,7 @@ Build
         ./configure
         make
 
-    Note that the use of a [depends/README.md](depends build) necessitates passing the `--prefix` option to `./configure`.
+    Note that the use of a [depends build](depends/README.md) necessitates passing the `--prefix` option to `./configure`.
 
 3.  It is recommended to build and run the unit tests:
 
