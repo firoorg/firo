@@ -340,6 +340,7 @@ bool CheckLelantusJoinSplitTransaction(
         uint256 hashTx,
         bool isVerifyDB,
         int nHeight,
+        int realHeight,
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
         sigma::CSigmaTxInfo* sigmaTxInfo,
@@ -514,18 +515,38 @@ bool CheckLelantusJoinSplitTransaction(
 
     if (passVerify) {
         const std::vector<Scalar>& serials = joinsplit->getCoinSerialNumbers();
+        const std::vector<uint32_t> &ids = joinsplit->getCoinGroupIds();
+
+        if (serials.size() != ids.size()) {
+            return state.DoS(100,
+                             error("CheckLelantusJoinSplitTransaction: sized of serials and group ids don't match."));
+        }
+
         // do not check for duplicates in case we've seen exact copy of this tx in this block before
         if (!(sigmaTxInfo && sigmaTxInfo->zcTransactions.count(hashTx) > 0) && !(lelantusTxInfo && lelantusTxInfo->zcTransactions.count(hashTx) > 0)) {
-            for (const auto &serial : serials) {
-                if (!sigma::CheckSigmaSpendSerial(
-                        state, sigmaTxInfo, serial, nHeight, false)) {
-                    LogPrintf("CheckSigmaSpendTransaction: serial check failed, serial=%s\n", serial);
-                    return false;
-                } else if (!CheckLelantusSpendSerial(
-                        state, lelantusTxInfo, serial, nHeight, false)) {
-                    LogPrintf("CheckLelantusJoinSplitTransaction: serial check failed, serial=%s\n", serial);
-                    return false;
+            for (size_t i = 0; i < serials.size(); ++i) {
+                int coinGroupId = ids[i] % (CENT / 1000);
+                int64_t intDenom = (ids[i] - coinGroupId);
+                intDenom *= 1000;
+                sigma::CoinDenomination denomination;
 
+                if (realHeight < params.nPPStartBlock || (joinsplit->isSigmaToLelantus() && sigma::IntegerToDenomination(intDenom, denomination))) {
+                    if (!sigma::CheckSigmaSpendSerial(
+                            state, sigmaTxInfo, serials[i], nHeight, false)) {
+                        LogPrintf("CheckSigmaSpendTransaction: serial check failed, serial=%s\n", serials[i]);
+                        return false;
+                    } else if (!CheckLelantusSpendSerial(
+                            state, lelantusTxInfo, serials[i], nHeight, false)) {
+                        LogPrintf("CheckLelantusJoinSplitTransaction: serial check failed, serial=%s\n", serials[i]);
+                        return false;
+
+                    }
+                } else {
+                    if (!CheckLelantusSpendSerial(
+                            state, lelantusTxInfo, serials[i], nHeight, false)) {
+                        LogPrintf("CheckLelantusJoinSplitTransaction: serial check failed, serial=%s\n", serials[i]);
+                        return false;
+                    }
                 }
             }
         }
@@ -540,12 +561,6 @@ bool CheckLelantusJoinSplitTransaction(
 
         if (!isVerifyDB && !isCheckWallet) {
             // add spend information to the index
-            const std::vector<uint32_t> &ids = joinsplit->getCoinGroupIds();
-            if (serials.size() != ids.size()) {
-                return state.DoS(100,
-                                 error("CheckLelantusJoinSplitTransaction: sized of serials and group ids don't match."));
-            }
-
             if (joinsplit->isSigmaToLelantus()) {
                 if (sigmaTxInfo && !sigmaTxInfo->fInfoIsComplete) {
                     for (size_t i = 0; i < serials.size(); i++) {
@@ -718,7 +733,7 @@ bool CheckLelantusTransaction(
 
         if (!isVerifyDB) {
             if (!CheckLelantusJoinSplitTransaction(
-                tx, state, hashTx, isVerifyDB, nHeight,
+                tx, state, hashTx, isVerifyDB, nHeight, realHeight,
                 isCheckWallet, fStatefulSigmaCheck, sigmaTxInfo, lelantusTxInfo)) {
                     return false;
             }
@@ -784,6 +799,18 @@ std::vector<Scalar> GetLelantusJoinSplitSerialNumbers(const CTransaction &tx, co
     }
     catch (const std::ios_base::failure &) {
         return std::vector<Scalar>();
+    }
+}
+
+std::vector<uint32_t> GetLelantusJoinSplitIds(const CTransaction &tx, const CTxIn &txin) {
+    if (!tx.IsLelantusJoinSplit())
+        return std::vector<uint32_t>();
+
+    try {
+        return ParseLelantusJoinSplit(txin)->getCoinGroupIds();
+    }
+    catch (const std::ios_base::failure &) {
+        return std::vector<uint32_t>();
     }
 }
 
