@@ -111,9 +111,11 @@ public:
     /** Generate a random boolean. */
     bool randbool() { return randbits(1); }
 
-    uint32_t operator()(uint32_t nMax) {
-        return (uint32_t)randrange(nMax);
-    }
+    // Compatibility with the C++11 UniformRandomBitGenerator concept
+    typedef uint64_t result_type;
+    static constexpr uint64_t min() { return 0; }
+    static constexpr uint64_t max() { return std::numeric_limits<uint64_t>::max(); }
+    inline uint64_t operator()() noexcept { return rand64(); }
 };
 
 /** More efficient than using std::shuffle on a FastRandomContext.
