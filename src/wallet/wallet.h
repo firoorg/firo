@@ -908,6 +908,8 @@ public:
     void ResendWalletTransactions(int64_t nBestBlockTime, CConnman* connman) override;
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime, CConnman* connman);
     CAmount GetBalance(bool fExcludeLocked = false) const;
+    std::pair<CAmount, CAmount> GetPrivateBalance() const;
+    std::pair<CAmount, CAmount> GetPrivateBalance(size_t &confirmed, size_t &unconfirmed) const;
     CAmount GetUnconfirmedBalance() const;
     CAmount GetImmatureBalance() const;
     CAmount GetWatchOnlyBalance() const;

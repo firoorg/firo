@@ -2570,6 +2570,70 @@ CAmount CWallet::GetBalance(bool fExcludeLocked) const
     return nTotal;
 }
 
+std::pair<CAmount, CAmount> CWallet::GetPrivateBalance() const
+{
+    size_t confirmed, unconfirmed;
+    return GetPrivateBalance(confirmed, unconfirmed);
+}
+
+std::pair<CAmount, CAmount> CWallet::GetPrivateBalance(size_t &confirmed, size_t &unconfirmed) const
+{
+    std::pair<CAmount, CAmount> balance = {0, 0};
+
+    confirmed = 0;
+    unconfirmed = 0;
+
+    auto zwallet = pwalletMain->zwallet.get();
+
+    if(!zwallet)
+        return balance;
+
+    auto lelantusCoins = zwallet->GetTracker().ListLelantusMints(true, false, false);
+    for (auto const &c : lelantusCoins) {
+
+        if (c.isUsed || c.isArchived || !c.isSeedCorrect) {
+            continue;
+        }
+
+        auto conf = c.nHeight > 0
+            ? chainActive.Height() - c.nHeight + 1 : 0;
+
+        if (conf >= ZC_MINT_CONFIRMATIONS) {
+            confirmed++;
+            balance.first += c.amount;
+        } else {
+            unconfirmed++;
+            balance.second += c.amount;
+        }
+    }
+
+    auto sigmaCoins = zwallet->GetTracker().ListMints(true, false, false);
+    for (auto const &c : sigmaCoins) {
+
+        if (c.isUsed || c.isArchived || !c.isSeedCorrect) {
+            continue;
+        }
+
+        CAmount amount;
+        if (!sigma::DenominationToInteger(c.denom, amount)) {
+            throw std::runtime_error("Fail to get denomination value");
+        }
+
+        auto conf = c.nHeight > 0
+            ? chainActive.Height() - c.nHeight + 1 : 0;
+
+        if (conf >= ZC_MINT_CONFIRMATIONS) {
+            confirmed++;
+            balance.first += amount;
+        } else {
+            unconfirmed++;
+            balance.second += amount;
+        }
+    }
+
+    return balance;
+}
+
 std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
     std::vector<sigma::PrivateCoin>& coins,
     vector<CHDMint>& vDMints)

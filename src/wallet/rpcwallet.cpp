@@ -843,6 +843,61 @@ UniValue getbalance(const JSONRPCRequest& request)
     return ValueFromAmount(pwallet->GetLegacyBalance(filter, nMinDepth, account));
 }
 
+UniValue getprivatebalance(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    EnsureLelantusWalletIsAvailable();
+
+    if (request.fHelp || request.params.size() != 0)
+        throw runtime_error(
+            "getprivatebalance\n"
+            "\nReturns  private balance.\n"
+            "Private balance is the sum of all confirmed sigma/lelantus mints which are created by the wallet.\n"
+            "\nResult:\n"
+            "amount              (numeric) The confirmed private balance in " + CURRENCY_UNIT + ".\n"
+            "\nExamples:\n"
+            "\nThe total amount in the wallet\n"
+            + HelpExampleCli("getprivatebalance", "")
+            + HelpExampleRpc("getprivatebalance", "")
+        );
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    return  ValueFromAmount(pwallet->GetPrivateBalance().first);
+}
+
+UniValue gettotalbalance(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    EnsureLelantusWalletIsAvailable();
+
+    if (request.fHelp || request.params.size() != 0)
+        throw runtime_error(
+            "gettotalbalance\n"
+            "\nReturns total (transparent + private) balance.\n"
+            "Transparent balance is the sum of coin amounts received as utxo.\n"
+            "Private balance is the sum of all confirmed sigma/lelantus mints which are created by the wallet.\n"
+            "\nResult:\n"
+            "amount              (numeric) The total balance in " + CURRENCY_UNIT + " for the wallet.\n"
+            "\nExamples:\n"
+            "\nThe total amount in the wallet\n"
+            + HelpExampleCli("gettotalbalance", "")
+            + HelpExampleRpc("gettotalbalance", "")
+        );
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    return  ValueFromAmount(pwallet->GetBalance() + pwallet->GetPrivateBalance().first);
+}
+
 UniValue getunconfirmedbalance(const JSONRPCRequest &request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -4746,6 +4801,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "getaccount",               &getaccount,               true,   {"address"} },
     { "wallet",             "getaddressesbyaccount",    &getaddressesbyaccount,    true,   {"account"} },
     { "wallet",             "getbalance",               &getbalance,               false,  {"account","minconf","include_watchonly"} },
+    { "wallet",             "getprivatebalance",        &getprivatebalance,        false,  {} },
+    { "wallet",             "gettotalbalance",          &gettotalbalance,          false,  {} },
     { "wallet",             "getnewaddress",            &getnewaddress,            true,   {"account"} },
     { "wallet",             "getrawchangeaddress",      &getrawchangeaddress,      true,   {} },
     { "wallet",             "getreceivedbyaccount",     &getreceivedbyaccount,     false,  {"account","minconf"} },
