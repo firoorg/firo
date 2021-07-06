@@ -1488,12 +1488,28 @@ int WalletModel::getDefaultConfirmTarget() const
     return nTxConfirmTarget;
 }
 
-void WalletModel::handleBip47Keys(int receiverAccountNum, void * pBlockIndex)
+void WalletModel::handleBip47Keys(int receiverAccountNum, void * pBlockIndex_)
 {
+    //These statics are to display only one password prompt at a time and block consequent prompts
+    static std::mutex singlePasswordPromptMutex, queueMutex;
+    static std::deque<bip47::CAccountReceiver const *> receiverAccountNumQueue;
+
+    if(!pBlockIndex_)
+        return;
+    CBlockIndex * pBlockIndex = reinterpret_cast<CBlockIndex *>(pBlockIndex_);
+
     if (wallet->GetBip47Wallet()) {
         bip47::CAccountReceiver const * acc = wallet->GetBip47Wallet()->getReceivingAccount(uint32_t(receiverAccountNum));
         if (!acc)
             return;
+
+        std::unique_lock<std::mutex> _(singlePasswordPromptMutex, std::try_to_lock);
+        if (!_.owns_lock()) {
+            std::lock_guard<std::mutex> _(queueMutex);
+            receiverAccountNumQueue.push_back(acc);
+            return;
+        }
+
         static QString const unlockText = tr("You have received a payment to a RAP address, please unlock your wallet to receive.");
         UnlockContext ctx(requestUnlock(unlockText));
         while(!ctx.isValid()) {
@@ -1508,10 +1524,15 @@ void WalletModel::handleBip47Keys(int receiverAccountNum, void * pBlockIndex)
             ctx = requestUnlock(unlockText);
         }
         ctx.delayRelock(60);
-        bip47::utils::AddReceiverSecretAddresses(*acc, *wallet);
+        {
+            std::lock_guard<std::mutex> _(queueMutex);
+            for(std::deque<bip47::CAccountReceiver const *>::iterator iter = receiverAccountNumQueue.begin(); iter != receiverAccountNumQueue.end(); ++iter)
+                bip47::utils::AddReceiverSecretAddresses(**iter, *wallet);
+            receiverAccountNumQueue.clear();
+        }
         LOCK(cs_main);
         if (pBlockIndex != chainActive.Tip()) {
-            wallet->ScanForWalletTransactions(reinterpret_cast<CBlockIndex *>(pBlockIndex), false, false);
+            wallet->ScanForWalletTransactions(pBlockIndex, false, false);
         }
     }
 }
