@@ -12,6 +12,9 @@
 
 #include <stdint.h>
 
+using elysium::ECDSASignature;
+using elysium::SigmaStatus;
+
 std::vector<unsigned char> CreatePayload_SimpleSend(uint32_t propertyId, uint64_t amount);
 std::vector<unsigned char> CreatePayload_SimpleMint(uint32_t propertyId, const std::vector<std::pair<uint8_t, elysium::SigmaPublicKey>>& mints);
 std::vector<unsigned char> CreatePayload_SimpleSpend(uint32_t propertyId, uint8_t denomination, uint32_t group,

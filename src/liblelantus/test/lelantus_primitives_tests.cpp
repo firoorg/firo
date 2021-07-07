@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(generate_lelantus_challenge)
     }
 
     Scalar out;
-    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>();
+    std::unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CSHA256>>();
     Primitives::generate_Lelantus_challenge(proofs, {}, {}, {}, {}, 0, challengeGenerator, out);
 
     BOOST_CHECK_EQUAL(

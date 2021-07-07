@@ -50,7 +50,6 @@
 
 #include "llmq/quorums_blockprocessor.h"
 
-using namespace std;
 #include <utility>
 
 //////////////////////////////////////////////////////////////////////////////
@@ -298,7 +297,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     // Firo - MTP
     if (fMTP)
-        pblock->mtpHashData = make_shared<CMTPHashData>();
+        pblock->mtpHashData = std::make_shared<CMTPHashData>();
 
     CValidationState state;
     if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {

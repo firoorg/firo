@@ -135,7 +135,7 @@ BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_non_spend)
     std::vector<sigma::PrivateCoin> privCoins(10, sigma::PrivateCoin(sigmaParams, denomination));
 
     CWalletTx wtx;
-    vector<CHDMint> vDMints;
+    std::vector<CHDMint> vDMints;
     auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
     stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
 
@@ -182,7 +182,7 @@ BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_spend)
     std::vector<sigma::PrivateCoin> privCoins(10, sigma::PrivateCoin(sigmaParams, denomination));
 
     CWalletTx wtx;
-    vector<CHDMint> vDMints;
+    std::vector<CHDMint> vDMints;
     auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
     stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
 

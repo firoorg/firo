@@ -179,7 +179,7 @@ bool CheckSigmaBlock(CValidationState &state, const CBlock& block) {
 // Mixing V2 and sigma spends into the same transaction will fail.
 bool CheckSigmaSpendTransaction(
         const CTransaction &tx,
-        const vector<sigma::CoinDenomination>& targetDenominations,
+        const std::vector<sigma::CoinDenomination>& targetDenominations,
         CValidationState &state,
         uint256 hashTx,
         bool isVerifyDB,
@@ -253,7 +253,7 @@ bool CheckSigmaSpendTransaction(
 
         bool passVerify = false;
         CBlockIndex *index = coinGroup.lastBlock;
-        pair<sigma::CoinDenomination, int> denominationAndId = std::make_pair(
+        std::pair<sigma::CoinDenomination, int> denominationAndId = std::make_pair(
             targetDenominations[vinIndex], coinGroupId);
 
         uint256 accumulatorBlockHash = spend->getAccumulatorBlockHash();
@@ -479,7 +479,7 @@ bool CheckSigmaTransaction(
                 "bad-txns-spend-invalid");
         }
 
-        vector<sigma::CoinDenomination> denominations;
+        std::vector<sigma::CoinDenomination> denominations;
         uint64_t totalValue = 0;
         BOOST_FOREACH(const CTxIn &txin, tx.vin){
             if(!txin.scriptSig.IsSigmaSpend()) {
@@ -662,7 +662,7 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue,
 
                 // If you wonder why +1, go to file wallet.cpp and read the comments in function
                 // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
-                vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
+                std::vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
                                                       txout.scriptPubKey.end());
                 txPubCoinValue.deserialize(&coin_serialised[0]);
                 if(pubCoinValue==txPubCoinValue){
@@ -874,7 +874,7 @@ void CSigmaState::AddMintsToStateAndBlockIndex(
         auto mintCoinGroupId = latestCoinIds[denomination];
 
 
-        SigmaCoinGroupInfo &coinGroup = coinGroups[make_pair(denomination, mintCoinGroupId)];
+        SigmaCoinGroupInfo &coinGroup = coinGroups[std::make_pair(denomination, mintCoinGroupId)];
 
         if (coinGroup.nCoins + mintsWithThisDenom.size() <= ZC_SPEND_V3_COINSPERID_LIMIT) {
             if (coinGroup.nCoins == 0) {
@@ -914,7 +914,7 @@ void CSigmaState::AddSpend(const Scalar &serial, CoinDenomination denom, int coi
 
 void CSigmaState::AddBlock(CBlockIndex *index) {
     BOOST_FOREACH(
-        const PAIRTYPE(PAIRTYPE(sigma::CoinDenomination, int), vector<sigma::PublicCoin>) &pubCoins,
+        const PAIRTYPE(PAIRTYPE(sigma::CoinDenomination, int), std::vector<sigma::PublicCoin>) &pubCoins,
             index->sigmaMintedPubCoins) {
 
         if (pubCoins.second.empty())
@@ -941,7 +941,7 @@ void CSigmaState::AddBlock(CBlockIndex *index) {
 void CSigmaState::RemoveBlock(CBlockIndex *index) {
     // roll back accumulator updates
     BOOST_FOREACH(
-        const PAIRTYPE(PAIRTYPE(sigma::CoinDenomination, int),vector<sigma::PublicCoin>) &coin,
+        const PAIRTYPE(PAIRTYPE(sigma::CoinDenomination, int),std::vector<sigma::PublicCoin>) &coin,
         index->sigmaMintedPubCoins)
     {
         SigmaCoinGroupInfo   &coinGroup = coinGroups[coin.first];
@@ -974,7 +974,7 @@ void CSigmaState::RemoveBlock(CBlockIndex *index) {
     }
 
     // roll back mints
-    BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(sigma::CoinDenomination, int),vector<sigma::PublicCoin>) &pubCoins,
+    BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(sigma::CoinDenomination, int),std::vector<sigma::PublicCoin>) &pubCoins,
                   index->sigmaMintedPubCoins) {
         BOOST_FOREACH(const sigma::PublicCoin &coin, pubCoins.second) {
             auto coins = containers.GetMints().equal_range(coin);
@@ -1047,7 +1047,7 @@ int CSigmaState::GetCoinSetForSpend(
 
     coins_out.clear();
 
-    pair<sigma::CoinDenomination, int> denomAndId = std::make_pair(denomination, coinGroupID);
+    std::pair<sigma::CoinDenomination, int> denomAndId = std::make_pair(denomination, coinGroupID);
 
     if (coinGroups.count(denomAndId) == 0)
         return 0;
@@ -1094,7 +1094,7 @@ void CSigmaState::GetAnonymitySet(
 
     coins_out.clear();
 
-    pair<sigma::CoinDenomination, int> denomAndId = std::make_pair(denomination, coinGroupID);
+    std::pair<sigma::CoinDenomination, int> denomAndId = std::make_pair(denomination, coinGroupID);
 
     if (coinGroups.count(denomAndId) == 0)
         return;
@@ -1137,7 +1137,7 @@ std::pair<int, int> CSigmaState::GetMintedCoinHeightAndId(
     return std::make_pair(-1, -1);
 }
 
-bool CSigmaState::AddSpendToMempool(const vector<Scalar> &coinSerials, uint256 txHash) {
+bool CSigmaState::AddSpendToMempool(const std::vector<Scalar> &coinSerials, uint256 txHash) {
     BOOST_FOREACH(Scalar coinSerial, coinSerials){
         if (IsUsedCoinSerial(coinSerial) || mempoolCoinSerials.count(coinSerial))
             return false;
@@ -1160,7 +1160,7 @@ void CSigmaState::RemoveSpendFromMempool(const Scalar& coinSerial) {
     mempoolCoinSerials.erase(coinSerial);
 }
 
-void CSigmaState::AddMintsToMempool(const vector<GroupElement>& pubCoins){
+void CSigmaState::AddMintsToMempool(const std::vector<GroupElement>& pubCoins){
     BOOST_FOREACH(const GroupElement& pubCoin, pubCoins){
         mempoolMints.insert(pubCoin);
     }
@@ -1218,7 +1218,7 @@ spend_info_container const & CSigmaState::GetSpends() const {
     return containers.GetSpends();
 }
 
-std::unordered_map<pair<CoinDenomination, int>, CSigmaState::SigmaCoinGroupInfo, CSigmaState::pairhash> const & CSigmaState::GetCoinGroups() const {
+std::unordered_map<std::pair<CoinDenomination, int>, CSigmaState::SigmaCoinGroupInfo, CSigmaState::pairhash> const & CSigmaState::GetCoinGroups() const {
     return coinGroups;
 }
 

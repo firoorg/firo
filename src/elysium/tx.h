@@ -136,7 +136,7 @@ private:
     uint32_t min_client_version;
 
     // Sigma
-    SigmaStatus sigmaStatus;
+    elysium::SigmaStatus sigmaStatus;
     std::vector<std::pair<uint8_t, elysium::SigmaPublicKey>> mints;
     uint8_t denomination;
     uint32_t group;
@@ -145,7 +145,7 @@ private:
     std::unique_ptr<elysium::SigmaProof> spend;
 
     CPubKey ecdsaPubkey;
-    ECDSASignature ecdsaSignature;
+    elysium::ECDSASignature ecdsaSignature;
 
     // Indicates whether the transaction can be used to execute logic
     bool rpcOnly;
@@ -278,7 +278,7 @@ public:
     const secp_primitives::Scalar *getSerial() const { return serial.get(); }
     const elysium::SigmaProof *getSpend() const { return spend.get(); }
     const CPubKey &getECDSAPublicKey() const { return ecdsaPubkey; }
-    const ECDSASignature &getECDSASignature() const { return ecdsaSignature; }
+    const elysium::ECDSASignature &getECDSASignature() const { return ecdsaSignature; }
     CAmount getMintAmount() const {
         auto itr = boost::make_transform_iterator(mints.begin(), [] (std::pair<uint8_t, elysium::SigmaPublicKey> const &m) -> uint8_t {
             return m.first;
@@ -289,7 +289,7 @@ public:
 
     CAmount getSpendAmount() const {
         std::array<uint8_t, 1> denoms = {getDenomination()};
-        return SumDenominationsValue(getProperty(), denoms.begin(), denoms.end());
+        return elysium::SumDenominationsValue(getProperty(), denoms.begin(), denoms.end());
     }
 
 
@@ -343,7 +343,7 @@ public:
         activation_block = 0;
         min_client_version = 0;
         distribution_property = 0;
-        sigmaStatus = SigmaStatus::SoftDisabled;
+        sigmaStatus = elysium::SigmaStatus::SoftDisabled;
     }
 
     /** Sets the given values. */

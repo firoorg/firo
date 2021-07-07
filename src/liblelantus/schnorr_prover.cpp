@@ -14,7 +14,7 @@ void SchnorrProver::proof(
         const GroupElement& y,
         const GroupElement& a,
         const GroupElement& b,
-        unique_ptr<ChallengeGenerator>& challengeGenerator,
+        std::unique_ptr<ChallengeGenerator>& challengeGenerator,
         SchnorrProof& proof_out){
     Scalar P0;
     Scalar T0;
