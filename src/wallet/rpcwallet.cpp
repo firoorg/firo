@@ -851,7 +851,7 @@ UniValue getprivatebalance(const JSONRPCRequest& request)
     EnsureLelantusWalletIsAvailable();
 
     if (request.fHelp || request.params.size() != 0)
-        throw runtime_error(
+        throw std::runtime_error(
             "getprivatebalance\n"
             "\nReturns  private balance.\n"
             "Private balance is the sum of all confirmed sigma/lelantus mints which are created by the wallet.\n"
@@ -878,7 +878,7 @@ UniValue gettotalbalance(const JSONRPCRequest& request)
     EnsureLelantusWalletIsAvailable();
 
     if (request.fHelp || request.params.size() != 0)
-        throw runtime_error(
+        throw std::runtime_error(
             "gettotalbalance\n"
             "\nReturns total (transparent + private) balance.\n"
             "Transparent balance is the sum of coin amounts received as utxo.\n"

@@ -3205,7 +3205,7 @@ bool CWallet::GetCoinsToJoinSplit(
     Consensus::Params consensusParams = Params().GetConsensus();
 
     if (required > consensusParams.nMaxValueLelantusSpendPerTransaction) {
-        throw invalid_argument(_("The required amount exceeds spend limit"));
+        throw std::invalid_argument(_("The required amount exceeds spend limit"));
     }
 
     CAmount availableBalance = CalculateLelantusCoinsBalance(coins.begin(), coins.end());
@@ -6713,7 +6713,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     // recover addressbook
     if (fFirstRun)
     {
-        for (map<uint256, CWalletTx>::iterator it = walletInstance->mapWallet.begin(); it != walletInstance->mapWallet.end(); ++it) {
+        for (std::map<uint256, CWalletTx>::iterator it = walletInstance->mapWallet.begin(); it != walletInstance->mapWallet.end(); ++it) {
             for (uint32_t i = 0; i < (*it).second.tx->vout.size(); i++) {
                 const auto& txout = (*it).second.tx->vout[i];
                 if(txout.scriptPubKey.IsMint() || (*it).second.changes.count(i))
