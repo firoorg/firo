@@ -26,7 +26,6 @@
 #include "prevector.h"
 #include <memory>
 #include "definition.h"
-using namespace std;
 
 
 static const unsigned int MAX_SIZE = 0x02000000;

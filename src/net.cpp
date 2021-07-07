@@ -2989,7 +2989,7 @@ void CNode::CheckDandelionEmbargoes()
             // Embargo time is over, we did not "see" the transaction back in fluff phase,
             // so start fluffing/relaying it.
             CValidationState state;
-            shared_ptr<const CTransaction> ptx = txpools.getStemTxPool().get(iter->first);
+            std::shared_ptr<const CTransaction> ptx = txpools.getStemTxPool().get(iter->first);
             // If txn was not found in Stempool, then something went wrong,
             // Keep it embargoed for now.
             if (!ptx) {

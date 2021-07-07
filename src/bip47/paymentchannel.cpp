@@ -28,7 +28,7 @@ CBitcoinAddress generate(CKey const & privkey, CPubKey const & sharedSecretPubke
     if (privkeyOut) {
         Scalar a = Scalar(privkey.begin()) + Scalar(spHash.data());
 
-        vector<unsigned char> ppkeybytes = ParseHex(a.GetHex());
+        std::vector<unsigned char> ppkeybytes = ParseHex(a.GetHex());
         privkeyOut->Set(ppkeybytes.begin(), ppkeybytes.end(), true);
         assert(privkeyOut->IsValid());
     }

@@ -52,11 +52,11 @@ public:
     void UpdateSpendStateFromBlock(const sigma::spend_info_container& spentSerials);
     void UpdateSpendStateFromBlock(const std::unordered_map<Scalar, int>& spentSerials);
     void UpdateMintStateFromMempool(const std::vector<GroupElement>& pubCoins);
-    void UpdateLelantusMintStateFromMempool(const std::vector<GroupElement>& pubCoins, const vector<uint64_t>& amounts);
-    void UpdateSpendStateFromMempool(const vector<Scalar>& spentSerials);
-    void UpdateJoinSplitStateFromMempool(const vector<Scalar>& spentSerials);
-    list<CSigmaEntry> MintsAsSigmaEntries(bool fUnusedOnly = true, bool fMatureOnly = true);
-    list<CLelantusEntry> MintsAsLelantusEntries(bool fUnusedOnly = true, bool fMatureOnly = true);
+    void UpdateLelantusMintStateFromMempool(const std::vector<GroupElement>& pubCoins, const std::vector<uint64_t>& amounts);
+    void UpdateSpendStateFromMempool(const std::vector<Scalar>& spentSerials);
+    void UpdateJoinSplitStateFromMempool(const std::vector<Scalar>& spentSerials);
+    std::list<CSigmaEntry> MintsAsSigmaEntries(bool fUnusedOnly = true, bool fMatureOnly = true);
+    std::list<CLelantusEntry> MintsAsLelantusEntries(bool fUnusedOnly = true, bool fMatureOnly = true);
     std::vector<CMintMeta> ListMints(bool fUnusedOnly = true, bool fMatureOnly = true, bool fUpdateStatus = true, bool fLoad = false, bool fWrongSeed = false);
     std::vector<CLelantusMintMeta> ListLelantusMints(bool fUnusedOnly = true, bool fMatureOnly = true, bool fUpdateStatus = true, bool fLoad = false, bool fWrongSeed = false);
     void SetPubcoinUsed(const uint256& hashPubcoin, const uint256& txid);

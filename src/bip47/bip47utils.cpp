@@ -11,8 +11,6 @@
 #include "wallet/wallet.h"
 #include "wallet/walletexcept.h"
 
-using namespace std;
-
 namespace bip47 {
 namespace utils {
 
@@ -101,8 +99,8 @@ Bytes GetMaskedPcode(CTransactionRef const & tx)
 bool GetScriptSigPubkey(CTxIn const & txin, CPubKey& pubkey)
 {
     CScript::const_iterator pc = txin.scriptSig.begin();
-    vector<unsigned char> chunk0data;
-    vector<unsigned char> chunk1data;
+    std::vector<unsigned char> chunk0data;
+    std::vector<unsigned char> chunk1data;
 
     opcodetype opcode0, opcode1;
     if (!txin.scriptSig.GetOp(pc, opcode0, chunk0data))
@@ -176,7 +174,7 @@ GroupElement GeFromPubkey(CPubKey const & pubKey)
 
 CPubKey PubkeyFromGe(GroupElement const & ge)
 {
-    vector<unsigned char> pubkey_vch = ge.getvch();
+    std::vector<unsigned char> pubkey_vch = ge.getvch();
     pubkey_vch.pop_back();
     unsigned char header_char = pubkey_vch[pubkey_vch.size()-1] == 0 ? 0x02 : 0x03;
     pubkey_vch.pop_back();

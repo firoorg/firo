@@ -917,7 +917,7 @@ public:
 
     static std::vector<CRecipient> CreateSigmaMintRecipients(
         std::vector<sigma::PrivateCoin>& coins,
-        vector<CHDMint>& vDMints);
+        std::vector<CHDMint>& vDMints);
 
     static CRecipient CreateLelantusMintRecipient(
         lelantus::PrivateCoin& coin,
@@ -990,8 +990,8 @@ public:
     /**
      * Add Mint and Spend functions
      */
-    void ListAvailableSigmaMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const;
-    void ListAvailableLelantusMintCoins(vector<COutput> &vCoins, bool fOnlyConfirmed) const;
+    void ListAvailableSigmaMintCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed) const;
+    void ListAvailableLelantusMintCoins(std::vector<COutput> &vCoins, bool fOnlyConfirmed) const;
 
     bool CreateMintTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true);
@@ -1026,9 +1026,9 @@ public:
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
 
     std::string MintAndStoreSigma(
-        const vector<CRecipient>& vecSend,
-        const vector<sigma::PrivateCoin>& privCoins,
-        vector<CHDMint> vDMints,
+        const std::vector<CRecipient>& vecSend,
+        const std::vector<sigma::PrivateCoin>& privCoins,
+        std::vector<CHDMint> vDMints,
         CWalletTx &wtxNew,
         bool fAskFee=false,
         const CCoinControl *coinControl = NULL);

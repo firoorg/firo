@@ -15,6 +15,8 @@ class CTransaction;
 typedef class std::shared_ptr<const CTransaction> CTransactionRef;
 class CWallet;
 
+using secp_primitives::GroupElement;
+
 namespace bip47 {
 
 class CPaymentCode;
