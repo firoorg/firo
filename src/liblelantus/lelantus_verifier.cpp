@@ -38,9 +38,14 @@ bool LelantusVerifier::verify(
         const LelantusProof& proof,
         const SchnorrProof& qkSchnorrProof,
         Scalar& x,
-        bool fSkipVerification) {
+        bool fSkipVerification,
+        boost::optional<int64_t> nMaxValueLelantusSpendPerTransaction) {
+    if (!nMaxValueLelantusSpendPerTransaction.has_value()) {
+        nMaxValueLelantusSpendPerTransaction = ::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction;
+    }
+
     //check the overflow of Vout and fee
-    if (!(Vout <= uint64_t(::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction) && fee < (1000 * CENT))) { // 1000 * CENT is the value of max fee defined at validation.h
+    if (!(Vout <= uint64_t(nMaxValueLelantusSpendPerTransaction.get()) && fee < (1000 * CENT))) { // 1000 * CENT is the value of max fee defined at validation.h
         LogPrintf("Lelantus verification failed due to transparent values check failed.");
         return false;
     }

@@ -218,7 +218,7 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
     }
 
     // verify
-    if (!joinSplit.Verify(anonss, anonymitySetHashes, cout, spendAmount, metadata)) {
+    if (!joinSplit.VerifyElysium(anonss, anonymitySetHashes, cout, spendAmount, metadata)) {
         PrintToLog("%s(): rejected: joinsplit is invalid\n", __func__);
         return PKT_ERROR_LELANTUS - 907;
     }

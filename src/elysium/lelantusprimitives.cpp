@@ -28,7 +28,7 @@ MintEntryId::MintEntryId(lelantus::PrivateCoin const &coin, uint160 const &seedI
 
 MintEntryId::MintEntryId(secp_primitives::Scalar const &serial, secp_primitives::Scalar const &randomness, uint160 const &seedId)
 {
-    auto params = lelantus::Params::get_default();
+    auto params = lelantus::Params::get_elysium();
     auto pubcoin = lelantus::LelantusPrimitives::commit(
         params->get_g(), serial, params->get_h0(), randomness);
 
@@ -90,11 +90,10 @@ lelantus::JoinSplit CreateJoinSplit(
     std::map<uint32_t, uint256> const &groupBlockHashs,
     uint256 const &metaData)
 {
-    auto params = lelantus::Params::get_default();
+    auto params = lelantus::Params::get_elysium();
 
-    // Because amount is represented differently for divisible and indivisible properties, the limit for divisible
-    // properties is 5001 tokens, whereas the limit for indivisible properties is 500100000000 tokens.
-    if (amount > ::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction) {
+    // int64_t is the max amount allowed for Elysium Lelantus transactions.
+    if (amount > INT64_MAX) {
         throw std::runtime_error("spend amount would violate consensus limits");
     }
 

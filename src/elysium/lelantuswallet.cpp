@@ -58,9 +58,7 @@ LelantusWallet::MintReservation::MintReservation(
     mintpoolEntry(wallet->ReserveMint(_id)),
     commited(false)
 {
-    // Because amount is represented differently for divisible and indivisible properties, the limit for divisible
-    // properties is 5001 tokens, whereas the limit for indivisible properties is 500100000000 tokens.
-    if (mint.amount > ::Params().GetConsensus().nMaxValueLelantusMint) {
+    if (mint.amount > INT64_MAX) {
         throw std::runtime_error("mint amount would violate consensus limits");
     }
 }
@@ -230,7 +228,7 @@ uint32_t LelantusWallet::BIP44ChangeIndex() const
 
 LelantusPrivateKey LelantusWallet::GeneratePrivateKey(uint512 const &seed)
 {
-    auto params = lelantus::Params::get_default();
+    auto params = lelantus::Params::get_elysium();
 
     ECDSAPrivateKey signatureKey;
 
@@ -865,7 +863,7 @@ lelantus::JoinSplit LelantusWallet::CreateJoinSplit(
     // necessarily result in a change in the former.
     auto js = ::CreateJoinSplit(coins, anonss, anonymitySetHashes, amountToSpend, coinOuts, blockHashes, metadata);
 
-    if (!js.Verify(anonss, anonymitySetHashes, pubCoinOuts, amountToSpend, metadata)) {
+    if (!js.VerifyElysium(anonss, anonymitySetHashes, pubCoinOuts, amountToSpend, metadata)) {
         throw std::runtime_error("Fail to verify created join/split object");
     }
 
