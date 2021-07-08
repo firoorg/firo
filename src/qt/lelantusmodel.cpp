@@ -58,65 +58,12 @@ AutoMintModel* LelantusModel::getAutoMintModel()
 std::pair<CAmount, CAmount> LelantusModel::getPrivateBalance()
 {
     size_t confirmed, unconfirmed;
-    return getPrivateBalance(confirmed, unconfirmed);
+    return pwalletMain->GetPrivateBalance(confirmed, unconfirmed);
 }
 
 std::pair<CAmount, CAmount> LelantusModel::getPrivateBalance(size_t &confirmed, size_t &unconfirmed)
 {
-    std::pair<CAmount, CAmount> balance = {0, 0};
-
-    confirmed = 0;
-    unconfirmed = 0;
-
-    auto zwallet = pwalletMain->zwallet.get();
-
-    if(!zwallet)
-        return balance;
-
-    auto coins = zwallet->GetTracker().ListLelantusMints(true, false, false);
-    for (auto const &c : coins) {
-
-        if (c.isUsed || c.isArchived || !c.isSeedCorrect) {
-            continue;
-        }
-
-        auto conf = c.nHeight > 0
-            ? chainActive.Height() - c.nHeight + 1 : 0;
-
-        if (conf >= ZC_MINT_CONFIRMATIONS) {
-            confirmed++;
-            balance.first += c.amount;
-        } else {
-            unconfirmed++;
-            balance.second += c.amount;
-        }
-    }
-
-    auto sigmaCoins = zwallet->GetTracker().ListMints(true, false, false);
-    for (auto const &c : sigmaCoins) {
-
-        if (c.isUsed || c.isArchived || !c.isSeedCorrect) {
-            continue;
-        }
-
-        CAmount amount;
-        if (!sigma::DenominationToInteger(c.denom, amount)) {
-            throw std::runtime_error("Fail to get denomination value");
-        }
-
-        auto conf = c.nHeight > 0
-            ? chainActive.Height() - c.nHeight + 1 : 0;
-
-        if (conf >= ZC_MINT_CONFIRMATIONS) {
-            confirmed++;
-            balance.first += amount;
-        } else {
-            unconfirmed++;
-            balance.second += amount;
-        }
-    }
-
-    return balance;
+    return pwalletMain->GetPrivateBalance(confirmed, unconfirmed);
 }
 
 bool LelantusModel::unlockWallet(SecureString const &passphase, size_t msecs)

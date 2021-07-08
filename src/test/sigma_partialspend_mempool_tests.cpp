@@ -22,6 +22,8 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 
+using namespace std;
+
 static bool addToMempool(const CWalletTx& tx) {
     CValidationState state;
     bool fMissingInputs;

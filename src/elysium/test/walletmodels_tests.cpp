@@ -8,6 +8,8 @@
 
 #include <ostream>
 
+using namespace elysium;
+
 namespace {
 
 SigmaMintId GenerateSigmaMintId(PropertyId property, SigmaDenomination denom)

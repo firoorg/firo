@@ -33,7 +33,7 @@ void LelantusProver::proof(
     std::vector<Scalar> Yk_sum;
     Yk_sum.resize(Cin.size());
     // we are passing challengeGenerator ptr here, as after LELANTUS_TX_VERSION_4_5 we need  it back, with filled data, to use in schnorr proof,
-    unique_ptr<ChallengeGenerator> challengeGenerator;
+    std::unique_ptr<ChallengeGenerator> challengeGenerator;
     generate_sigma_proofs(anonymity_sets, anonymity_set_hashes, Cin, Cout, indexes, ecdsaPubkeys, x, challengeGenerator, Yk_sum, proof_out.sigma_proofs, qkSchnorrProof);
 
     generate_bulletproofs(Cout, proof_out.bulletproofs);
@@ -79,7 +79,7 @@ void LelantusProver::generate_sigma_proofs(
         const std::vector<size_t>& indexes,
         const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
         Scalar& x,
-        unique_ptr<ChallengeGenerator>& challengeGenerator,
+        std::unique_ptr<ChallengeGenerator>& challengeGenerator,
         std::vector<Scalar>& Yk_sum,
         std::vector<SigmaExtendedProof>& sigma_proofs,
         SchnorrProof& qkSchnorrProof) {

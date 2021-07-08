@@ -522,6 +522,9 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
             *newTx = wallet->CreateLelantusJoinSplitTransaction(vecSend, feeRequired, {}, spendCoins, sigmaSpendCoins, mintCoins, coinControl);
         } catch (InsufficientFunds const&) {
             transaction.setTransactionFee(feeRequired);
+            if (!fSubtractFeeFromAmount && (total + feeRequired) > nBalance) {
+                return SendCoinsReturn(AmountWithFeeExceedsBalance);
+            }
             return SendCoinsReturn(AmountExceedsBalance);
         } catch (std::runtime_error const &e) {
             Q_EMIT message(
@@ -1441,7 +1444,7 @@ void WalletModel::sigmaMint(const CAmount& n, const CCoinControl *coinControl)
             return sigma::PrivateCoin(sigmaParams, denom);
         });
 
-    vector<CHDMint> vDMints;
+    std::vector<CHDMint> vDMints;
     auto recipients = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
 
     CWalletTx wtx;

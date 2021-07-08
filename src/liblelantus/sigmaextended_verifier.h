@@ -17,14 +17,14 @@ public:
     bool batchverify(const std::vector<GroupElement>& commits,
                      const Scalar& x,
                      const std::vector<Scalar>& serials,
-                     const vector<SigmaExtendedProof>& proofs) const;
+                     const std::vector<SigmaExtendedProof>& proofs) const;
     //gets initial double-blinded Pedersen commitments
     //verifies proofs from different transactions, where set sizes and challenges are different
     bool batchverify(const std::vector<GroupElement>& commits,
                      const std::vector<Scalar>& challenges,
                      const std::vector<Scalar>& serials,
                      const std::vector<size_t>& setSizes,
-                     const vector<SigmaExtendedProof>& proofs) const;
+                     const std::vector<SigmaExtendedProof>& proofs) const;
 
 private:
     //auxiliary functions
@@ -43,17 +43,17 @@ private:
             const Scalar& f_i,
             int j,
             const std::vector<Scalar>& f,
-            vector<Scalar>::iterator& ptr,
-            vector<Scalar>::iterator end_ptr) const;
+            std::vector<Scalar>::iterator& ptr,
+            std::vector<Scalar>::iterator end_ptr) const;
     void compute_batch_fis(
             const Scalar& f_i,
             int j,
             const std::vector<Scalar>& f,
             const Scalar& y,
             Scalar& e,
-            vector<Scalar>::iterator& ptr,
-            vector<Scalar>::iterator start_ptr,
-            vector<Scalar>::iterator end_ptr) const;
+            std::vector<Scalar>::iterator& ptr,
+            std::vector<Scalar>::iterator start_ptr,
+            std::vector<Scalar>::iterator end_ptr) const;
 
 private:
     GroupElement g_;

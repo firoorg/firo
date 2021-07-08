@@ -17,17 +17,17 @@ public:
             const GroupElement& P,
             int version); // if(version >= 2) we should pass CHash256 in verify
 
-    bool verify(const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);
-    bool verify_fast(uint64_t n, const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);
+    bool verify(const Scalar& x, const InnerProductProof& proof, std::unique_ptr<ChallengeGenerator>& challengeGenerator);
+    bool verify_fast(uint64_t n, const Scalar& x, const InnerProductProof& proof, std::unique_ptr<ChallengeGenerator>& challengeGenerator);
 
 private:
     bool verify_util(
             const InnerProductProof& proof,
             typename std::vector<GroupElement>::const_iterator ltr_l,
             typename std::vector<GroupElement>::const_iterator itr_r,
-            unique_ptr<ChallengeGenerator>& challengeGenerator);
+            std::unique_ptr<ChallengeGenerator>& challengeGenerator);
 
-    bool verify_fast_util(uint64_t n, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);
+    bool verify_fast_util(uint64_t n, const InnerProductProof& proof, std::unique_ptr<ChallengeGenerator>& challengeGenerator);
 
 private:
     const std::vector<GroupElement>& g_;

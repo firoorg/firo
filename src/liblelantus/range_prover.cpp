@@ -62,7 +62,7 @@ void RangeProver::batch_proof(
     LelantusPrimitives::commit(h1, ro, g_, sL, h_, sR, proof_out.S);
 
     Scalar y, z;
-    unique_ptr<ChallengeGenerator> challengeGenerator;
+    std::unique_ptr<ChallengeGenerator> challengeGenerator;
     if (version >= LELANTUS_TX_VERSION_4_5) {
         challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
         // add domain separator and transaction version into transcript
