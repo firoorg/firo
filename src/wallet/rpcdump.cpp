@@ -693,10 +693,10 @@ UniValue dumpwallet(const JSONRPCRequest& request)
 
     EnsureWalletIsUnlocked(pwallet);
 
-    ofstream file;
-    // need change to std::filesystem::absolute() for C++17
     boost::filesystem::path filePath = request.params[0].get_str();
     filePath = boost::filesystem::absolute(filePath);
+
+    std::ofstream file;
     file.open(filePath.string().c_str());
 
     if (!file.is_open())
