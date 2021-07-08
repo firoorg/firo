@@ -117,7 +117,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
             };
 
     // Check that the tx creation fails.
-    BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), std::runtime_error);
+    BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), std::exception);
     
     sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_1, nAmount);
     recipients = {

@@ -433,8 +433,8 @@ BOOST_AUTO_TEST_CASE(get_coin_by_limit_max_to_1)
     std::list<CSigmaEntry> availableCoins = pwalletMain->GetAvailableCoins();
 
     BOOST_CHECK_EXCEPTION(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint, availableCoins, 1),
-        std::runtime_error,
-        [](const std::runtime_error& e) {
+        std::exception,
+        [](const std::exception& e) {
             return e.what() == std::string("Can not choose coins within limit.");
         });
     sigmaState->Reset();
