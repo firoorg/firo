@@ -6,7 +6,7 @@
 namespace sigma {
 
 std::size_t CScalarHash::operator ()(const Scalar& bn) const noexcept {
-    vector<unsigned char> bnData(bn.memoryRequired());
+    std::vector<unsigned char> bnData(bn.memoryRequired());
     bn.serialize(&bnData[0]);
 
     unsigned char hash[CSHA256::OUTPUT_SIZE];

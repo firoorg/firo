@@ -57,7 +57,7 @@ BOOST_AUTO_TEST_CASE(prove_verify_one)
 
     Scalar x;
     x.randomize();
-    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
+    std::unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
 
     // generating proofs
     Proof proof;
@@ -89,7 +89,7 @@ BOOST_AUTO_TEST_CASE(prove_verify)
 
     Scalar x;
     x.randomize();
-    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
+    std::unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
 
     // generating proofs
     Proof proof;
@@ -119,7 +119,7 @@ BOOST_AUTO_TEST_CASE(fake_proof_not_verify)
 
     Scalar x;
     x.randomize();
-    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
+    std::unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
 
     // generating genertor
     Proof proof;

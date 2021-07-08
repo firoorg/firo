@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE(p2pkh_contribution_by_sum_test)
     std::string strExpected("aAVHyFLdKNH8qHZQYv4eN742hNiVJ9qzHk");
 
     for (int i = 0; i < 10; ++i) {
-        std::random_shuffle(vouts.begin(), vouts.end(), GetRandInt);
+        Shuffle(vouts.begin(), vouts.end(), FastRandomContext());
 
         std::string strSender;
         BOOST_CHECK(GetSenderByContribution(vouts, strSender));
@@ -111,7 +111,7 @@ BOOST_AUTO_TEST_CASE(p2pkh_contribution_by_total_sum_test)
     std::string strExpected("aJThrdhEzf4yZmRwhzSMGxxmeC7BQEwAKC");
 
     for (int i = 0; i < 10; ++i) {
-        std::random_shuffle(vouts.begin(), vouts.end(), GetRandInt);
+        Shuffle(vouts.begin(), vouts.end(), FastRandomContext());
 
         std::string strSender;
         BOOST_CHECK(GetSenderByContribution(vouts, strSender));
@@ -142,7 +142,7 @@ BOOST_AUTO_TEST_CASE(p2pkh_contribution_by_sum_order_test)
     std::string strExpected("a1CJjinipg4PUDquNiUsP9cTfcyKLvyb3K");
 
     for (int i = 0; i < 10; ++i) {
-        std::random_shuffle(vouts.begin(), vouts.end(), GetRandInt);
+        Shuffle(vouts.begin(), vouts.end(), FastRandomContext());
 
         std::string strSender;
         BOOST_CHECK(GetSenderByContribution(vouts, strSender));
@@ -169,7 +169,7 @@ BOOST_AUTO_TEST_CASE(p2sh_contribution_by_sum_test)
     std::string strExpected("aA3ijhTqu7ywrft9fJGxnEHMUpVjW5ZnrL");
 
     for (int i = 0; i < 10; ++i) {
-        std::random_shuffle(vouts.begin(), vouts.end(), GetRandInt);
+        Shuffle(vouts.begin(), vouts.end(), FastRandomContext());
 
         std::string strSender;
         BOOST_CHECK(GetSenderByContribution(vouts, strSender));
@@ -197,7 +197,7 @@ BOOST_AUTO_TEST_CASE(p2sh_contribution_by_total_sum_test)
     std::string strExpected("a2oXxnaSLGfYskMzMh3YHyTre5mCbLL5Mn");
 
     for (int i = 0; i < 10; ++i) {
-        std::random_shuffle(vouts.begin(), vouts.end(), GetRandInt);
+        Shuffle(vouts.begin(), vouts.end(), FastRandomContext());
 
         std::string strSender;
         BOOST_CHECK(GetSenderByContribution(vouts, strSender));
@@ -228,7 +228,7 @@ BOOST_AUTO_TEST_CASE(p2sh_contribution_by_sum_order_test)
     std::string strExpected("a1CJjinipg4PUDquNiUsP9cTfcyKLvyb3K");
 
     for (int i = 0; i < 10; ++i) {
-        std::random_shuffle(vouts.begin(), vouts.end(), GetRandInt);
+        Shuffle(vouts.begin(), vouts.end(), FastRandomContext());
 
         std::string strSender;
         BOOST_CHECK(GetSenderByContribution(vouts, strSender));
@@ -257,7 +257,7 @@ BOOST_AUTO_TEST_CASE(sender_selection_string_based_test)
     std::string strExpected("a11WeUi6HFkHNdG5puD9LHCXTySddeNcu8");
 
     for (int i = 0; i < 24; ++i) {
-        std::random_shuffle(vouts.begin(), vouts.end(), GetRandInt);
+        Shuffle(vouts.begin(), vouts.end(), FastRandomContext());
 
         std::string strSender;
         BOOST_CHECK(GetSenderByContribution(vouts, strSender));
@@ -414,7 +414,7 @@ void shuffleAndCheck(std::vector<CTxOut>& vouts, unsigned nRounds)
     BOOST_CHECK(GetSenderByContribution(vouts, strSenderFirst));
 
     for (unsigned j = 0; j < nRounds; ++j) {
-        std::random_shuffle(vouts.begin(), vouts.end(), GetRandInt);
+        Shuffle(vouts.begin(), vouts.end(), FastRandomContext());
 
         std::string strSender;
         BOOST_CHECK(GetSenderByContribution(vouts, strSender));

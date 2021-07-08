@@ -26,10 +26,10 @@ class CMintPool : public std::map<uint256, MintPoolEntry> //hashPubcoin mapped t
 
 public:
     CMintPool();
-    void Add(pair<uint256, MintPoolEntry> pMint, bool fVerbose = false);
-    void List(list<pair<uint256, MintPoolEntry>>& listMints);
+    void Add(std::pair<uint256, MintPoolEntry> pMint, bool fVerbose = false);
+    void List(std::list<std::pair<uint256, MintPoolEntry>>& listMints);
     void Reset();
-    bool Get(int32_t nCount, uint160 hashSeedMaster, pair<uint256, MintPoolEntry>& result);
+    bool Get(int32_t nCount, uint160 hashSeedMaster, std::pair<uint256, MintPoolEntry>& result);
 };
 
 #endif // FIRO_MINTPOOL_H

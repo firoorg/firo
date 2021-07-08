@@ -11,7 +11,7 @@ public:
     SchnorrVerifier(const GroupElement& g, const GroupElement& h, bool withFixes_);
 
     // values a, b and y are included into transcript if(withFixes_), also better to use CHash256 in that case
-    bool verify(const GroupElement& y, const GroupElement& a, const GroupElement& b,const SchnorrProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator);
+    bool verify(const GroupElement& y, const GroupElement& a, const GroupElement& b,const SchnorrProof& proof, std::unique_ptr<ChallengeGenerator>& challengeGenerator);
     bool verify(const GroupElement& y, const std::vector<GroupElement>& groupElements,const SchnorrProof& proof);
 
 private:

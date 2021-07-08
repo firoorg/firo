@@ -22,6 +22,8 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 
+using namespace std;
+
 BOOST_FIXTURE_TEST_SUITE(sigma_mintspend_numinputs, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
@@ -117,7 +119,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
             };
 
     // Check that the tx creation fails.
-    BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), std::runtime_error);
+    BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), std::exception);
     
     sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_1, nAmount);
     recipients = {
