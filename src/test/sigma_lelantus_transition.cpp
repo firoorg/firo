@@ -20,6 +20,8 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 
+using namespace std;
+
 BOOST_FIXTURE_TEST_SUITE(sigma_lelantus_transition, LelantusTestingSetup)
 
 BOOST_AUTO_TEST_CASE(sigma_lelantus_transition_test)

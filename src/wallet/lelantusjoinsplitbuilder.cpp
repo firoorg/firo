@@ -451,7 +451,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
             throw std::runtime_error(_("One of the lelantus coins has not been found in the chain!"));
         }
 
-        coins.emplace_back(make_pair(priv, groupId));
+        coins.emplace_back(std::make_pair(priv, groupId));
         std::vector<unsigned char> setHash;
         if (anonymity_sets.count(groupId) == 0) {
             std::vector<lelantus::PublicCoin> set;
@@ -499,7 +499,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
 
         //this way we are remembering denomination and group id in one field as we have no demomination in Lelantus
         // with dividing by 1000 we just making maximum denomiation fit into uint32
-        coins.emplace_back(make_pair(priv, denom / 1000 + groupId));
+        coins.emplace_back(std::make_pair(priv, denom / 1000 + groupId));
 
 
         if (anonymity_sets.count(denom / 1000 + groupId) == 0) {

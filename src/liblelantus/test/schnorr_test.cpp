@@ -31,7 +31,7 @@ BOOST_FIXTURE_TEST_SUITE(lelantus_schnorr_proof_tests, SchnorrProofTests)
 
 BOOST_AUTO_TEST_CASE(serialization)
 {
-    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
+    std::unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
     SchnorrProver prover(g, h, true);
     GroupElement y;
     y.randomize();
@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE(serialization)
 BOOST_AUTO_TEST_CASE(prove_verify)
 {
     auto y = LelantusPrimitives::commit(g, P, h, T);
-    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
+    std::unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
 
     SchnorrProver prover(g, h, true);
     SchnorrProof proof;
@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_CASE(prove_verify)
 BOOST_AUTO_TEST_CASE(fake_prove_not_verify)
 {
     auto y = LelantusPrimitives::commit(g, P, h, T);
-    unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
+    std::unique_ptr<ChallengeGenerator> challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
 
     SchnorrProver prover(g, h, true);
     SchnorrProof proof;

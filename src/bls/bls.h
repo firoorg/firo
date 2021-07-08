@@ -238,7 +238,6 @@ protected:
 class CBLSSecretKey : public CBLSWrapper<bls::PrivateKey, BLS_CURVE_SECKEY_SIZE, CBLSSecretKey>
 {
 public:
-    using CBLSWrapper::operator=;
     using CBLSWrapper::operator==;
     using CBLSWrapper::operator!=;
 

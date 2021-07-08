@@ -33,7 +33,7 @@ private:
             const std::vector<size_t>& indexes,
             const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
             Scalar& x,
-            unique_ptr<ChallengeGenerator>& challengeGenerator,
+            std::unique_ptr<ChallengeGenerator>& challengeGenerator,
             std::vector<Scalar>& Yk_sum,
             std::vector<SigmaExtendedProof>& sigma_proofs,
             SchnorrProof& qkSchnorrProof);

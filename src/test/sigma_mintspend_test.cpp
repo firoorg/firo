@@ -22,6 +22,8 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 
+using namespace std;
+
 BOOST_FIXTURE_TEST_SUITE(sigma_mintspend, ZerocoinTestingSetup200)
 
 /*

@@ -18,6 +18,8 @@
 
 #include <inttypes.h>
 
+using namespace elysium;
+
 BOOST_FIXTURE_TEST_SUITE(elysium_encoding_b_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(class_b_empty)

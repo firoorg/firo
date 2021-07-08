@@ -74,7 +74,7 @@ bool LelantusVerifier::verify(
     }
 
     Scalar zV, zR;
-    unique_ptr<ChallengeGenerator> challengeGenerator;
+    std::unique_ptr<ChallengeGenerator> challengeGenerator;
     try {
         // we are passing challengeGenerator ptr here, as after LELANTUS_TX_VERSION_4_5 we need  it back, with filled data, to use in schnorr proof,
         if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, ecdsaPubkeys, Cout, proof.sigma_proofs, qkSchnorrProof, x, challengeGenerator, zV, zR, fSkipVerification) &&
@@ -98,7 +98,7 @@ bool LelantusVerifier::verify_sigma(
         const std::vector<SigmaExtendedProof> &sigma_proofs,
         const SchnorrProof& qkSchnorrProof,
         Scalar& x,
-        unique_ptr<ChallengeGenerator>& challengeGenerator,
+        std::unique_ptr<ChallengeGenerator>& challengeGenerator,
         Scalar& zV,
         Scalar& zR,
         bool fSkipVerification) {
@@ -226,7 +226,7 @@ bool LelantusVerifier::verify_schnorrproof(
         const Scalar fee,
         const std::vector<PublicCoin>& Cout,
         const LelantusProof& proof,
-        unique_ptr<ChallengeGenerator>& challengeGenerator) {
+        std::unique_ptr<ChallengeGenerator>& challengeGenerator) {
     // x^m
     Scalar x_m = x.exponent(params->get_sigma_m());
 

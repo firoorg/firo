@@ -321,7 +321,6 @@ AM_CONDITIONAL(BUILD_MANPAGE, [test "x$enable_manpage" != "xno"])
 AM_CONDITIONAL(BUILD_HTML_DOCS, [test "x$enable_html_manual" != "xno"])
 
 AM_PROG_CC_C_O
-AC_PROG_CC_C99
 
 AC_ARG_VAR([PYTHON], [path to Python binary])
 AC_CHECK_PROGS(PYTHON, [ \

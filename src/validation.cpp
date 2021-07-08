@@ -130,7 +130,7 @@ FeeFilterRounder filterRounder(::minRelayTxFee);
 CTxPoolAggregate txpools(::minRelayTxFee);
 
 // Firo znode
-map <uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
+std::map <uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 
 
 static void CheckBlockIndex(const Consensus::Params& consensusParams);
@@ -138,7 +138,7 @@ static void CheckBlockIndex(const Consensus::Params& consensusParams);
 /** Constant stuff for coinbase transactions we create: */
 CScript COINBASE_FLAGS;
 
-const string strMessageMagic = "Zcoin Signed Message:\n";
+const std::string strMessageMagic = "Zcoin Signed Message:\n";
 
 // Internal stuff
 namespace {
@@ -791,14 +791,14 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     // V3 sigma spends.
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    vector<Scalar> zcSpendSerialsV3;
-    vector<GroupElement> zcMintPubcoinsV3;
+    std::vector<Scalar> zcSpendSerialsV3;
+    std::vector<GroupElement> zcMintPubcoinsV3;
 
     //lelantus
     lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
-    vector<Scalar> lelantusSpendSerials;
-    vector<GroupElement> lelantusMintPubcoins;
-    vector<uint64_t> lelantusAmounts;
+    std::vector<Scalar> lelantusSpendSerials;
+    std::vector<GroupElement> lelantusMintPubcoins;
+    std::vector<uint64_t> lelantusAmounts;
     {
         LOCK(pool.cs);
         if (tx.IsSigmaSpend()) {
@@ -2650,7 +2650,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     std::vector<PrecomputedTransactionData> txdata;
     txdata.reserve(block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
 
-    set<uint256> txIds;
+    std::set<uint256> txIds;
     bool isMainNet = chainparams.GetConsensus().IsMain();
     // batch verify Lelantus/Sigma if block is older than a day, that means we are syncing or reindexing
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
