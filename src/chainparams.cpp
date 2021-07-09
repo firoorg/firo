@@ -803,6 +803,10 @@ public:
         consensus.nLLMQPowTargetSpacing = 20;
         consensus.llmqChainLocks = Consensus::LLMQ_5_60;
         consensus.llmqForInstantSend = Consensus::LLMQ_5_60;
+        consensus.nInstantSendConfirmationsRequired = 2;
+        consensus.nInstantSendKeepLock = 6;
+        consensus.nInstantSendBlockFilteringStartHeight = 1000;
+
 
         consensus.nMTPSwitchTime = 0;
         consensus.nMTPStartBlock = 1;
