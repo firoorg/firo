@@ -1025,14 +1025,15 @@ void CLelantusState::Containers::AddMint(lelantus::PublicCoin const & pubCoin, C
 void CLelantusState::Containers::RemoveMint(lelantus::PublicCoin const & pubCoin) {
     mint_info_container::const_iterator iter = mintedPubCoins.find(pubCoin);
     if (iter != mintedPubCoins.end()) {
-        mintMetaInfo[iter->second.coinGroupId] -= 1;
-        mintedPubCoins.erase(iter);
-        CheckSurgeCondition();
         for(auto hashPair =  tagToPublicCoin.begin(); hashPair !=  tagToPublicCoin.end(); hashPair++)
             if(hashPair->second == pubCoin) {
                 tagToPublicCoin.erase(hashPair);
                 break;
             }
+
+        mintMetaInfo[iter->second.coinGroupId] -= 1;
+        mintedPubCoins.erase(iter);
+        CheckSurgeCondition();
     }
 }
 
