@@ -1527,6 +1527,7 @@ void WalletModel::handleBip47Keys(int receiverAccountNum, void * pBlockIndex_)
             ctx = requestUnlock(unlockText);
         }
         ctx.delayRelock(60);
+        bip47::utils::AddReceiverSecretAddresses(*acc, *wallet);
         {
             std::lock_guard<std::mutex> _(queueMutex);
             for(std::deque<bip47::CAccountReceiver const *>::iterator iter = receiverAccountNumQueue.begin(); iter != receiverAccountNumQueue.end(); ++iter)
@@ -1534,6 +1535,9 @@ void WalletModel::handleBip47Keys(int receiverAccountNum, void * pBlockIndex_)
             receiverAccountNumQueue.clear();
         }
         LOCK(cs_main);
+        for (; !chainActive.Contains(pBlockIndex); pBlockIndex = pBlockIndex->pprev) {
+            if (!pBlockIndex) return;
+        }
         if (pBlockIndex != chainActive.Tip()) {
             wallet->ScanForWalletTransactions(pBlockIndex, false, false);
         }
