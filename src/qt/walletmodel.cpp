@@ -1535,7 +1535,8 @@ void WalletModel::handleBip47Keys(int receiverAccountNum, void * pBlockIndex_)
             receiverAccountNumQueue.clear();
         }
         LOCK(cs_main);
-        for (; !chainActive.Contains(pBlockIndex); pBlockIndex = pBlockIndex->pprev) {
+        if (!chainActive.Contains(pBlockIndex)) {
+            pBlockIndex = const_cast<CBlockIndex*>(chainActive.FindFork(pBlockIndex));
             if (!pBlockIndex) return;
         }
         if (pBlockIndex != chainActive.Tip()) {
