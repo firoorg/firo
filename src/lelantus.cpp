@@ -498,12 +498,14 @@ bool CheckLelantusJoinSplitTransaction(
     }
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+    bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete;
+
     Scalar challenge;
     // if we are collecting proofs, skip verification and collect proofs
-    passVerify = joinsplit->Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHashForMetadata, challenge, batchProofContainer->fCollectProofs);
+    passVerify = joinsplit->Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHashForMetadata, challenge, useBatching);
 
     // add proofs into container
-    if(batchProofContainer->fCollectProofs) {
+    if(useBatching) {
         std::map<uint32_t, size_t> idAndSizes;
 
         for(auto itr : anonymity_sets)
