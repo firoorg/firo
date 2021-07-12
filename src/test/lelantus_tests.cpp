@@ -70,7 +70,7 @@ public:
         std::vector<Scalar> &serials) {
         for (auto const &in : tx.vin) {
             if (in.IsLelantusJoinSplit()) {
-                auto js = ParseLelantusJoinSplit(in);
+                auto js = ParseLelantusJoinSplit(tx);
                 auto const &s = js->getCoinSerialNumbers();
                 serials.insert(serials.end(), s.begin(), s.end());
             }
@@ -577,7 +577,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
         wtx);
 
     CMutableTransaction joinsplitTx(wtx);
-    auto joinsplit = ParseLelantusJoinSplit(joinsplitTx.vin[0]);
+    auto joinsplit = ParseLelantusJoinSplit(joinsplitTx);
 
     // test get join split amounts
     BOOST_CHECK_EQUAL(1, GetSpendInputs(joinsplitTx));
@@ -724,8 +724,10 @@ BOOST_AUTO_TEST_CASE(parse_joinsplit)
 
     auto gs = g.Get();
     CTxIn inp(COutPoint(), gs.first);
+    CMutableTransaction inpTx;
+    inpTx.vin.push_back(inp);
 
-    auto result = ParseLelantusJoinSplit(inp);
+    auto result = ParseLelantusJoinSplit(inpTx);
 
     BOOST_CHECK(gs.second.getCoinSerialNumbers() == result->getCoinSerialNumbers());
     BOOST_CHECK(gs.second.getFee() == result->getFee());

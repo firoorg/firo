@@ -561,7 +561,7 @@ bool CHDMintTracker::IsMempoolSpendOurs(const std::set<uint256>& setMempool, con
             if (txin.IsLelantusJoinSplit()) {
                 std::unique_ptr<lelantus::JoinSplit> joinsplit;
                 try {
-                    joinsplit = lelantus::ParseLelantusJoinSplit(txin);
+                    joinsplit = lelantus::ParseLelantusJoinSplit(tx);
                 } catch (CBadTxIn &) {
                     return false;
                 } catch (std::ios_base::failure &) {
