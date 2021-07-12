@@ -173,6 +173,7 @@ void PcodeModel::generateTheirNextAddress(std::string const & pcode)
 
 void PcodeModel::reconsiderBip47Tx(uint256 const & hash)
 {
+    LOCK(walletMain.cs_wallet);
     const CWalletTx * wtx = walletMain.GetWalletTx(hash);
     if (wtx && !wtx->IsCoinBase())
         walletMain.HandleBip47Transaction(*wtx);
