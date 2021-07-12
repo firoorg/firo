@@ -51,6 +51,7 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
         # cannot invalidate tip
         current_tip = self.nodes[0].getbestblockhash()
         self.nodes[0].invalidateblock(current_tip)
+        sleep(2)
         assert(current_tip == self.nodes[0].getbestblockhash())
 
         ##### Disable chainlocks for 10 blocks
@@ -81,11 +82,20 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
         reconnect_isolated_node(self.nodes[5], 1)
         self.nodes[0].generate(1)
         current_tip = self.nodes[0].getbestblockhash()
-        timeout = 10
+        timeout = 15
+        while current_tip != self.nodes[5].getbestblockhash():
+            if timeout == 0: # retry
+                self.nodes[0].generate(1)
+                current_tip = self.nodes[0].getbestblockhash()
+                timeout = 15
+                break
+            sleep(1)
+            timeout = timeout - 1
         while current_tip != self.nodes[5].getbestblockhash():
             assert timeout > 0, "Timed out when waiting for a chainlocked chain"
             sleep(1)
             timeout = timeout - 1
+
 
 
     def wait_for_chainlock_tip_all_nodes(self):

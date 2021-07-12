@@ -4482,7 +4482,7 @@ UniValue bumpfee(const JSONRPCRequest& request)
 /*                                                                            */
 /******************************************************************************/
 
-UniValue listpcodes(const JSONRPCRequest& request)
+UniValue listrapaddresses(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -4491,12 +4491,12 @@ UniValue listpcodes(const JSONRPCRequest& request)
 
     auto help = []() {
         throw std::runtime_error(
-            "listpcodes verbose \n"
-            "Lists all existing receiving payment codes with labels. \n"
-            "verbose: (bool, optional) - displays all used and next(unused) addresses for each payment code,\n"
-            "\t\tas well as all sending payment codes with addresses.\n"
+            "listrapaddresses verbose \n"
+            "Lists all existing receiving RAP addresses with labels. \n"
+            "verbose: (bool, optional) - displays all used and next(unused) addresses for each RAP address,\n"
+            "\t\tas well as all sending RAP addresses with addresses.\n"
             "Example:\n" +
-            HelpExampleCli("listpcodes true", ""));
+            HelpExampleCli("listrapaddresses true", ""));
     };
 
     if (request.fHelp || request.params.size() > 1) {
@@ -4520,7 +4520,7 @@ UniValue listpcodes(const JSONRPCRequest& request)
         }
         for(bip47::CPaymentCodeDescription const & info : descriptions) {
             UniValue r(UniValue::VOBJ);
-            r.push_back(Pair("Pcode", std::get<1>(info).toString()));
+            r.push_back(Pair("RAPaddr", std::get<1>(info).toString()));
             r.push_back(Pair("Label",std::get<2>(info)));
             r.push_back(Pair("NotificationAddr",std::get<3>(info).ToString()));
             result.push_back(r);
@@ -4534,12 +4534,12 @@ UniValue listpcodes(const JSONRPCRequest& request)
         pwallet->GetBip47Wallet()->enumerateReceivers(
             [&result](bip47::CAccountReceiver const & receiver)->bool {
                 UniValue r(UniValue::VOBJ);
-                r.push_back(Pair("MyPcode", receiver.getMyPcode().toString()));
+                r.push_back(Pair("MyRAPaddr", receiver.getMyPcode().toString()));
                 r.push_back(Pair("Label", receiver.getLabel()));
                 r.push_back(Pair("NotificationAddr",receiver.getMyNotificationAddress().ToString()));
                 size_t n = 0;
                 for(bip47::CPaymentChannel const & pchannel : receiver.getPchannels()) {
-                    r.push_back(Pair(std::string("TheirPcode"), pchannel.getTheirPcode().toString()));
+                    r.push_back(Pair(std::string("TheirRapAddr"), pchannel.getTheirPcode().toString()));
                     n = 0;
                     for(bip47::MyAddrContT::value_type const & addr: pchannel.generateMyUsedAddresses()) {
                         r.push_back(Pair(std::string("MyUsed") + std::to_string(n++), addr.first.ToString()));
@@ -4560,7 +4560,7 @@ UniValue listpcodes(const JSONRPCRequest& request)
         pwallet->GetBip47Wallet()->enumerateSenders(
             [&result](bip47::CAccountSender  const & sender)->bool {
                 UniValue r(UniValue::VOBJ);
-                r.push_back(Pair("TheirPcode", sender.getTheirPcode().toString()));
+                r.push_back(Pair("TheirRapAddr", sender.getTheirPcode().toString()));
                 r.push_back(Pair("NotificationTxid", sender.getNotificationTxId().ToString()));
                 size_t n = 0;
                 for(bip47::TheirAddrContT::value_type const & addr : sender.getTheirUsedAddresses())
@@ -4574,7 +4574,7 @@ UniValue listpcodes(const JSONRPCRequest& request)
     return result;
 }
 
-UniValue createpcode(const JSONRPCRequest& request)
+UniValue createrapaddress(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -4584,11 +4584,11 @@ UniValue createpcode(const JSONRPCRequest& request)
     std::function<void()> help = []()
     {
         throw std::runtime_error(
-            "createpcode  \"label\"\n"
-            "Creates a new labeled BIP47 payment code. \n"
+            "createrapaddress  \"label\"\n"
+            "Creates a new labeled RAP address. \n"
             "The label should be unique and non-empty. \n"
             "Example:\n" +
-            HelpExampleCli("createpcode", "<label>"));
+            HelpExampleCli("createrapaddress", "<label>"));
     };
 
     if (request.fHelp || request.params.size() < 1 or request.params.size() > 2) {
@@ -4625,12 +4625,12 @@ UniValue setupchannel(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-            "setupchannel \"paymentcode\"\n"
-            "\nSets up a payment channel for the payment code. Sends a notification transaction to the payment code notification address.\n"
+            "setupchannel \"RapAddress\"\n"
+            "\nSets up a payment channel for the RAP address. Sends a notification transaction to the RAP address notification address.\n"
             "It __will__ use Lelantus facilities to send the notification tx. The tx cost is " + std::to_string(1.0 * bip47::NotificationTxValue / COIN ) + " for the JoinSplit tx + fees\n"
             + HelpRequiringPassphrase(pwallet) +
             "\nArguments:\n"
-            "1. \"paymentcode\"  (string, required) The payment code to send to.\n"
+            "1. \"RapAddress\"  (string, required) The RAP address to send to.\n"
             "\nResult:\n"
             "\"txid\"                  (string) The notification transaction id.\n"
             "\nExamples:\n"
@@ -4640,7 +4640,7 @@ UniValue setupchannel(const JSONRPCRequest& request)
     bip47::CPaymentCode theirPcode(request.params[0].get_str());
 
     if (!lelantus::IsLelantusAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not activated yet");
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not active yet");
     }
 
     EnsureLelantusWalletIsAvailable();
@@ -4656,7 +4656,7 @@ UniValue setupchannel(const JSONRPCRequest& request)
     }
     catch (InsufficientFunds const & e)
     {
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, std::string(e.what())+" Please check your Lelantus balance is grear than " + std::to_string(1.0 * bip47::NotificationTxValue / COIN));
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, std::string(e.what())+" Please check your Lelantus balance is greater than " + std::to_string(1.0 * bip47::NotificationTxValue / COIN));
     }
     catch (std::runtime_error const & e)
     {
@@ -4664,7 +4664,7 @@ UniValue setupchannel(const JSONRPCRequest& request)
     }
 }
 
-UniValue sendtopcode(const JSONRPCRequest& request)
+UniValue sendtorapaddress(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -4673,11 +4673,11 @@ UniValue sendtopcode(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
         throw std::runtime_error(
-            "sendtopcode \"paymentcode\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
-            "\nSend an amount to a given payment code.\n"
+            "sendtorapaddress \"RapAddress\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
+            "\nSend an amount to a given RAP address.\n"
             + HelpRequiringPassphrase(pwallet) +
             "\nArguments:\n"
-            "1. \"paymentcode\"  (string, required) The payment code to send to.\n"
+            "1. \"RapAddress\"  (string, required) The RAP address to send to.\n"
             "2. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
             "3. \"comment\"     (string, optional) A comment used to store what the transaction is for. \n"
             "                             This is not part of the transaction, just kept in your wallet.\n"
@@ -4689,10 +4689,10 @@ UniValue sendtopcode(const JSONRPCRequest& request)
             "\nResult:\n"
             "\"txid\"                  (string) The transaction id.\n"
             "\nExamples:\n"
-            + HelpExampleCli("sendtoaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\" 0.1")
-            + HelpExampleCli("sendtoaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\" 0.1 \"donation\" \"seans outpost\"")
-            + HelpExampleCli("sendtoaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\" 0.1 \"\" \"\" true")
-            + HelpExampleRpc("sendtoaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\", 0.1, \"donation\", \"seans outpost\"")
+            + HelpExampleCli("sendtorapaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\" 0.1")
+            + HelpExampleCli("sendtorapaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\" 0.1 \"donation\" \"seans outpost\"")
+            + HelpExampleCli("sendtorapaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\" 0.1 \"\" \"\" true")
+            + HelpExampleRpc("sendtorapaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\", 0.1, \"donation\", \"seans outpost\"")
         );
 
     bip47::CPaymentCode theirPcode(request.params[0].get_str());
@@ -4735,12 +4735,12 @@ UniValue setusednumber(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
         throw std::runtime_error(
-            "setusednumber \"paymentcode\" number\n"
-            "\nIncrease the number of used addresses for a payment code.\n"
+            "setusednumber \"RapAddress\" number\n"
+            "\nIncrease the number of used addresses for a RAP address.\n"
             + HelpRequiringPassphrase(pwallet) +
             "\nArguments:\n"
-            "1. \"paymentcode\"  (string, required) The payment code.\n"
-            "2. \"number\"       (int32_t, required) The number of used addresses which a payment code will have after this call.\n"
+            "1. \"paymentcode\"  (string, required) The RAP address.\n"
+            "2. \"number\"       (int32_t, required) The number of used addresses which a RAP address will have after this call.\n"
             "                                        If the current number of used addresses is greater than the provides, the call has no effect."
             "\nResult:\n"
             "\"numberOfUsed\"    (int32_t) The number of used addresses after the call.\n"
@@ -4758,7 +4758,7 @@ UniValue setusednumber(const JSONRPCRequest& request)
     }
 
     if(!pcodeDesc)
-        throw std::runtime_error("Payment code not found: " + pcode.toString());
+        throw std::runtime_error("RAP address not found: " + pcode.toString());
 
     if(std::get<4>(*pcodeDesc) == bip47::CPaymentCodeSide::Receiver)
             EnsureWalletIsUnlocked(pwallet);
@@ -4860,10 +4860,10 @@ static const CRPCCommand commands[] =
     { "wallet",             "listlelantusjoinsplits",   &listlelantusjoinsplits,   false },
 
     //bip47
-    { "bip47",              "createpcode",              &createpcode,              true },
+    { "bip47",              "createrapaddress",         &createrapaddress,         true },
     { "bip47",              "setupchannel",             &setupchannel,             true },
-    { "bip47",              "sendtopcode",              &sendtopcode,              true },
-    { "bip47",              "listpcodes",               &listpcodes,               true },
+    { "bip47",              "sendtorapaddress",         &sendtorapaddress,         true },
+    { "bip47",              "listrapaddresses",         &listrapaddresses,         true },
     { "bip47",              "setusednumber",            &setusednumber,            true }
 };
 

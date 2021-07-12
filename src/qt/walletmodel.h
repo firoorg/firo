@@ -200,6 +200,7 @@ public:
     bool setWalletEncrypted(bool encrypted, const SecureString &passphrase);
     // Passphrase only needed when unlocking
     bool setWalletLocked(bool locked, const SecureString &passPhrase=SecureString());
+    void lockWalletDelayed(int seconds);
     bool changePassphrase(const SecureString &oldPass, const SecureString &newPass);
     // Wallet backup
     bool backupWallet(const QString &filename);
@@ -216,10 +217,13 @@ public:
         // Copy operator and constructor transfer the context
         UnlockContext(const UnlockContext& obj) { CopyFrom(obj); }
         UnlockContext& operator=(const UnlockContext& rhs) { CopyFrom(rhs); return *this; }
+
+        void delayRelock(int seconds);
     private:
         WalletModel *wallet;
         bool valid;
         mutable bool relock; // mutable, as it can be set to false by copying
+        int delay;
 
         void CopyFrom(const UnlockContext& rhs);
     };
@@ -366,7 +370,9 @@ public Q_SLOTS:
     /* Update Amount of sigma change */
     void updateSigmaCoins(const QString &pubCoin, const QString &isUsed, int status);
     // Handle the changed BIP47 privkeys
-    void handleBip47Keys(int receiverAccountNum);
+    void handleBip47Keys(int receiverAccountNum, void * pBlockIndex);
+    // Locks wallet from timer calls
+    bool lockWallet();
 };
 
 #endif // BITCOIN_QT_WALLETMODEL_H
