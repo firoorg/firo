@@ -601,7 +601,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
     info = CLelantusTxInfo();
     BOOST_CHECK(CheckLelantusTransaction(
-        joinsplitTx, state, joinsplitTx.GetHash(), false, INT_MAX, false, true, NULL, &info));
+        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, NULL, &info));
 
     // test surge dection.
     while (!lelantusState->IsSurgeConditionDetected()) {
@@ -612,7 +612,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     }
 
     BOOST_CHECK(!CheckLelantusTransaction(
-        joinsplitTx, state, joinsplitTx.GetHash(), false, INT_MAX, false, true, NULL, &info));
+        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, NULL, &info));
 }
 
 BOOST_AUTO_TEST_CASE(spend_limitation_per_tx)
