@@ -374,7 +374,6 @@ bool CheckLelantusJoinSplitTransaction(
         }
     }
 
-    const CTxIn &txin = tx.vin[0];
     std::unique_ptr<lelantus::JoinSplit> joinsplit;
 
     try {
@@ -549,7 +548,7 @@ bool CheckLelantusJoinSplitTransaction(
                 intDenom *= 1000;
                 sigma::CoinDenomination denomination;
 
-                if (realHeight < params.nPPStartBlock || (joinsplit->isSigmaToLelantus() && sigma::IntegerToDenomination(intDenom, denomination))) {
+                if (realHeight < params.nLelantusV3PayloadStartBlock || (joinsplit->isSigmaToLelantus() && sigma::IntegerToDenomination(intDenom, denomination))) {
                     if (!sigma::CheckSigmaSpendSerial(
                             state, sigmaTxInfo, serials[i], nHeight, false)) {
                         LogPrintf("CheckSigmaSpendTransaction: serial check failed, serial=%s\n", serials[i]);
@@ -826,7 +825,7 @@ std::vector<uint32_t> GetLelantusJoinSplitIds(const CTransaction &tx, const CTxI
         return std::vector<uint32_t>();
 
     try {
-        return ParseLelantusJoinSplit(txin)->getCoinGroupIds();
+        return ParseLelantusJoinSplit(tx)->getCoinGroupIds();
     }
     catch (const std::ios_base::failure &) {
         return std::vector<uint32_t>();

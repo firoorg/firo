@@ -826,7 +826,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             std::unique_ptr<lelantus::JoinSplit> joinsplit;
 
             try {
-                joinsplit = lelantus::ParseLelantusJoinSplit(tx.vin[0]);
+                joinsplit = lelantus::ParseLelantusJoinSplit(tx);
             }
             catch (CBadTxIn&) {
                 return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
@@ -847,7 +847,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 intDenom *= 1000;
                 sigma::CoinDenomination denomination;
 
-                if (chainActive.Height() < consensus.nPPStartBlock || (joinsplit->isSigmaToLelantus() && sigma::IntegerToDenomination(intDenom, denomination))) {
+                if (chainActive.Height() < consensus.nLelantusV3PayloadStartBlock || (joinsplit->isSigmaToLelantus() && sigma::IntegerToDenomination(intDenom, denomination))) {
                     if (lelantusState->IsUsedCoinSerial(serials[i]) || pool.lelantusState.HasCoinSerial(serials[i]) ||
                         !sigmaState->CanAddSpendToMempool(serials[i])) {
                         LogPrintf("AcceptToMemoryPool(): lelantus serial number %s has been used\n",
