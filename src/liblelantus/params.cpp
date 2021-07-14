@@ -5,7 +5,9 @@ namespace lelantus {
 
     CCriticalSection Params::cs_instance;
     std::unique_ptr<Params> Params::instance;
+#ifdef ENABLE_ELYSIUM
     std::unique_ptr<Params> Params::elysium_instance;
+#endif
 
 Params const* Params::get_default() {
     if (instance) {
