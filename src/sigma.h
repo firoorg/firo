@@ -98,7 +98,7 @@ CAmount GetSigmaSpendInput(const CTransaction &tx);
  * State of minted/spent coins as extracted from the index
  */
 class CSigmaState {
-friend bool BuildSigmaStateFromIndex(CChain *, set<CBlockIndex *> &);
+friend bool BuildSigmaStateFromIndex(CChain *, std::set<CBlockIndex *> &);
 public:
     // First and last block where mint with given denomination and id was seen
     struct SigmaCoinGroupInfo {
@@ -182,9 +182,9 @@ public:
 
     // Add spend into the mempool.
     // Check if there is a coin with such serial in either blockchain or mempool
-    bool AddSpendToMempool(const vector<Scalar> &coinSerials, uint256 txHash);
+    bool AddSpendToMempool(const std::vector<Scalar> &coinSerials, uint256 txHash);
 
-    void AddMintsToMempool(const vector<GroupElement>& pubCoins);
+    void AddMintsToMempool(const std::vector<GroupElement>& pubCoins);
 
     void RemoveMintFromMempool(const GroupElement& pubCoin);
 
@@ -202,7 +202,7 @@ public:
 
     mint_info_container const & GetMints() const;
     spend_info_container const & GetSpends() const;
-    std::unordered_map<pair<CoinDenomination, int>, SigmaCoinGroupInfo, pairhash> const & GetCoinGroups() const ;
+    std::unordered_map<std::pair<CoinDenomination, int>, SigmaCoinGroupInfo, pairhash> const & GetCoinGroups() const ;
     std::unordered_map<CoinDenomination, int> const & GetLatestCoinIds() const;
     std::unordered_map<Scalar, uint256, sigma::CScalarHash> const & GetMempoolCoinSerials() const;
 
@@ -212,7 +212,7 @@ public:
 
 private:
     // Collection of coin groups. Map from <denomination,id> to SigmaCoinGroupInfo structure
-    std::unordered_map<pair<CoinDenomination, int>, SigmaCoinGroupInfo, pairhash> coinGroups;
+    std::unordered_map<std::pair<CoinDenomination, int>, SigmaCoinGroupInfo, pairhash> coinGroups;
 
     // Latest IDs of coins by denomination
     std::unordered_map<CoinDenomination, int> latestCoinIds;

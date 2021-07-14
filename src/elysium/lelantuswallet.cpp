@@ -843,8 +843,8 @@ lelantus::JoinSplit LelantusWallet::CreateJoinSplit(
 
     // It is safe to use the hashes of blocks instead of the hashes of anonymity sets because blocks hashes are
     // necessarily dependent on anonymity set hashes.
-    vector<vector<unsigned char>> anonymitySetHashes;
-    vector<unsigned char> anonymitySetHash(highestBlock.begin(), highestBlock.end());
+    std::vector<std::vector<unsigned char>> anonymitySetHashes;
+    std::vector<unsigned char> anonymitySetHash(highestBlock.begin(), highestBlock.end());
     anonymitySetHashes.push_back(anonymitySetHash);
 
     // reserve change
@@ -861,7 +861,7 @@ lelantus::JoinSplit LelantusWallet::CreateJoinSplit(
 
     // It is safe to use blockHash instead of hashes of the anonymity sets because any change in the latter will
     // necessarily result in a change in the former.
-    auto js = ::CreateJoinSplit(coins, anonss, anonymitySetHashes, amountToSpend, coinOuts, blockHashes, metadata);
+    auto js = elysium::CreateJoinSplit(coins, anonss, anonymitySetHashes, amountToSpend, coinOuts, blockHashes, metadata);
 
     if (!js.VerifyElysium(anonss, anonymitySetHashes, pubCoinOuts, amountToSpend, metadata)) {
         throw std::runtime_error("Fail to verify created join/split object");

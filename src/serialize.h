@@ -27,7 +27,6 @@
 #include <memory>
 #include "definition.h"
 #include <boost/optional.hpp>
-using namespace std;
 
 
 static const unsigned int MAX_SIZE = 0x02000000;

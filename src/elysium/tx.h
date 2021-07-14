@@ -111,15 +111,15 @@ private:
     uint32_t min_client_version;
 
     // Lelantus
-    LelantusStatus lelantusStatus;
+    elysium::LelantusStatus lelantusStatus;
     boost::optional<lelantus::PublicCoin> lelantusMint;
     uint64_t lelantusMintValue;
-    boost::optional<MintEntryId> lelantusId;
+    boost::optional<elysium::MintEntryId> lelantusId;
     std::vector<unsigned char> lelantusSchnorrProof;
 
     boost::optional<lelantus::JoinSplit> lelantusJoinSplit;
     uint64_t lelantusSpendAmount;
-    boost::optional<JoinSplitMint> lelantusJoinSplitMint;
+    boost::optional<elysium::JoinSplitMint> lelantusJoinSplitMint;
 
     // Indicates whether the transaction can be used to execute logic
     bool rpcOnly;
@@ -207,13 +207,13 @@ public:
     /** Lelantus */
     lelantus::PublicCoin getLelantusMint() const { return lelantusMint.get(); }
     uint64_t getLelantusMintValue() const { return lelantusMintValue; }
-    MintEntryId getLelantusMintId() const { return lelantusId.get(); }
+    elysium::MintEntryId getLelantusMintId() const { return lelantusId.get(); }
     std::vector<unsigned char> getLelantusSchnorrProof() const { return lelantusSchnorrProof; }
-    LelantusStatus getLelantusStatus() const { return lelantusStatus; }
+    elysium::LelantusStatus getLelantusStatus() const { return lelantusStatus; }
 
     lelantus::JoinSplit getLelantusJoinSplit() const { return lelantusJoinSplit.get(); };
     uint64_t getLelantusSpendAmount() const { return lelantusSpendAmount; }
-    boost::optional<JoinSplitMint> getLelantusJoinSplitMint() const { return lelantusJoinSplitMint; }
+    boost::optional<elysium::JoinSplitMint> getLelantusJoinSplitMint() const { return lelantusJoinSplitMint; }
 
     /** Creates a new CMPTransaction object. */
     CMPTransaction()
@@ -255,7 +255,7 @@ public:
         activation_block = 0;
         min_client_version = 0;
         distribution_property = 0;
-        lelantusStatus = LelantusStatus::SoftDisabled;
+        lelantusStatus = elysium::LelantusStatus::SoftDisabled;
     }
 
     /** Sets the given values. */

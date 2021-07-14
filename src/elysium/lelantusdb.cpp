@@ -709,7 +709,7 @@ void LelantusDb::DeleteAll(int startBlock)
                 std::tuple<char, PropertyId, lelantus::PublicCoin> coinKey;
                 ParseRaw(undoEntry.data, coinKey);
 
-                string rawCoinData;
+                std::string rawCoinData;
                 if (!pdb->Get(readoptions, undoEntry.data, &rawCoinData).ok()) {
                     throw std::runtime_error("Fail to read mint data");
                 }

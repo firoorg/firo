@@ -14,7 +14,6 @@
 #include "lelantus.h"
 #include "txmempool.h"
 
-using namespace std;
 using namespace sigma;
 
 /**
@@ -198,7 +197,7 @@ bool CHDMintTracker::GetLelantusMetaFromPubcoin(const uint256& hashPubcoin, CLel
  */
 std::vector<uint256> CHDMintTracker::GetSerialHashes()
 {
-    vector<uint256> vHashes;
+    std::vector<uint256> vHashes;
     for (auto it : mapSerialHashes) {
         if (it.second.isArchived)
             continue;
@@ -478,7 +477,7 @@ void CHDMintTracker::SetPubcoinUsed(const uint256& hashPubcoin, const uint256& t
     if(!GetMetaFromPubcoin(hashPubcoin, meta))
         return;
     meta.isUsed = true;
-    mapPendingSpends.insert(make_pair(meta.hashSerial, txid));
+    mapPendingSpends.insert(std::make_pair(meta.hashSerial, txid));
     UpdateState(meta);
 }
 
@@ -488,7 +487,7 @@ void CHDMintTracker::SetLelantusPubcoinUsed(const uint256& hashPubcoin, const ui
     if(!GetLelantusMetaFromPubcoin(hashPubcoin, meta))
         return;
     meta.isUsed = true;
-    mapPendingSpends.insert(make_pair(meta.hashSerial, txid));
+    mapPendingSpends.insert(std::make_pair(meta.hashSerial, txid));
     UpdateState(meta);
 }
 
@@ -995,7 +994,7 @@ void CHDMintTracker::UpdateMintStateFromMempool(const std::vector<GroupElement>&
     UpdateFromBlock(mintPoolEntries, updatedMeta);
 }
 
-void CHDMintTracker::UpdateLelantusMintStateFromMempool(const std::vector<GroupElement>& pubCoins, const vector<uint64_t>& amounts) {
+void CHDMintTracker::UpdateLelantusMintStateFromMempool(const std::vector<GroupElement>& pubCoins, const std::vector<uint64_t>& amounts) {
     CWalletDB walletdb(strWalletFile);
     std::vector<CLelantusMintMeta> updatedLelantusMeta;
     std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
@@ -1046,7 +1045,7 @@ void CHDMintTracker::UpdateLelantusMintStateFromMempool(const std::vector<GroupE
  * @param spentSerials the set of spent serial objects to check for.
  * @return void
  */
-void CHDMintTracker::UpdateSpendStateFromMempool(const vector<Scalar>& spentSerials) {
+void CHDMintTracker::UpdateSpendStateFromMempool(const std::vector<Scalar>& spentSerials) {
     CWalletDB walletdb(strWalletFile);
     std::vector<CMintMeta> updatedMeta;
     std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
@@ -1079,7 +1078,7 @@ void CHDMintTracker::UpdateSpendStateFromMempool(const vector<Scalar>& spentSeri
     UpdateFromBlock(mintPoolEntries, updatedMeta);
 }
 
-void CHDMintTracker::UpdateJoinSplitStateFromMempool(const vector<Scalar>& spentSerials) {
+void CHDMintTracker::UpdateJoinSplitStateFromMempool(const std::vector<Scalar>& spentSerials) {
     CWalletDB walletdb(strWalletFile);
     std::vector<CLelantusMintMeta> updatedMeta;
     std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
@@ -1119,11 +1118,11 @@ void CHDMintTracker::UpdateJoinSplitStateFromMempool(const vector<Scalar>& spent
  * @param fMatureOnly convert mature (ie. spendable due to sufficient confirmations) mints only
  * @return list of CSigmaEntry objects
  */
-list<CSigmaEntry> CHDMintTracker::MintsAsSigmaEntries(bool fUnusedOnly, bool fMatureOnly){
-    list <CSigmaEntry> listPubcoin;
+std::list<CSigmaEntry> CHDMintTracker::MintsAsSigmaEntries(bool fUnusedOnly, bool fMatureOnly){
+    std::list <CSigmaEntry> listPubcoin;
     CWalletDB walletdb(strWalletFile);
     std::vector<CMintMeta> vecMists = ListMints(fUnusedOnly, fMatureOnly, false);
-    list<CMintMeta> listMints(vecMists.begin(), vecMists.end());
+    std::list<CMintMeta> listMints(vecMists.begin(), vecMists.end());
     for (const CMintMeta& mint : listMints) {
         CSigmaEntry entry;
         pwalletMain->GetMint(mint.hashSerial, entry);
@@ -1132,11 +1131,11 @@ list<CSigmaEntry> CHDMintTracker::MintsAsSigmaEntries(bool fUnusedOnly, bool fMa
     return listPubcoin;
 }
 
-list<CLelantusEntry> CHDMintTracker::MintsAsLelantusEntries(bool fUnusedOnly, bool fMatureOnly){
-    list <CLelantusEntry> listCoin;
+std::list<CLelantusEntry> CHDMintTracker::MintsAsLelantusEntries(bool fUnusedOnly, bool fMatureOnly){
+    std::list <CLelantusEntry> listCoin;
     CWalletDB walletdb(strWalletFile);
     std::vector<CLelantusMintMeta> vecMists = ListLelantusMints(fUnusedOnly, fMatureOnly, false);
-    list<CLelantusMintMeta> listMints(vecMists.begin(), vecMists.end());
+    std::list<CLelantusMintMeta> listMints(vecMists.begin(), vecMists.end());
     for (const CLelantusMintMeta& mint : listMints) {
         CLelantusEntry entry;
         pwalletMain->GetMint(mint.hashSerial, entry);

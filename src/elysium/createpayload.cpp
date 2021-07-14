@@ -90,7 +90,7 @@ std::vector<unsigned char> CreatePayload_SendToOwners(uint32_t propertyId, uint6
 
 std::vector<unsigned char> CreatePayload_IssuanceFixed(uint8_t ecosystem, uint16_t propertyType, uint32_t previousPropertyId, std::string category,
                                                        std::string subcategory, std::string name, std::string url, std::string data, uint64_t amount,
-                                                       boost::optional<LelantusStatus> lelantusStatus)
+                                                       boost::optional<elysium::LelantusStatus> lelantusStatus)
 {
     std::vector<unsigned char> payload;
     uint16_t messageType = ELYSIUM_TYPE_CREATE_PROPERTY_FIXED;
@@ -134,7 +134,7 @@ std::vector<unsigned char> CreatePayload_IssuanceFixed(uint8_t ecosystem, uint16
 
 std::vector<unsigned char> CreatePayload_IssuanceManaged(uint8_t ecosystem, uint16_t propertyType, uint32_t previousPropertyId, std::string category,
                                                        std::string subcategory, std::string name, std::string url, std::string data,
-                                                       boost::optional<LelantusStatus> lelantusStatus)
+                                                       boost::optional<elysium::LelantusStatus> lelantusStatus)
 {
     std::vector<unsigned char> payload;
     uint16_t messageType = ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL;
@@ -367,7 +367,7 @@ std::vector<unsigned char> CreatePayload_ElysiumAlert(uint16_t alertType, uint32
 }
 
 std::vector<unsigned char> CreatePayload_CreateLelantusMint(
-    uint32_t propertyId, lelantus::PublicCoin const &pubcoin, MintEntryId const &id,
+    uint32_t propertyId, lelantus::PublicCoin const &pubcoin, elysium::MintEntryId const &id,
     uint64_t value,  std::vector<unsigned char> const &schnorrProof)
 {
     if (schnorrProof.size() != 98) {
@@ -404,7 +404,7 @@ std::vector<unsigned char> CreatePayload_CreateLelantusJoinSplit(
     uint32_t propertyId,
     uint64_t amount,
     lelantus::JoinSplit const &joinSplit,
-    boost::optional<JoinSplitMint> const &mint)
+    boost::optional<elysium::JoinSplitMint> const &mint)
 {
     std::vector<unsigned char> payload;
     uint16_t messageVer = 0;
@@ -439,7 +439,7 @@ std::vector<unsigned char> CreatePayload_CreateLelantusJoinSplit(
     return payload;
 }
 
-std::vector<unsigned char> CreatePayload_ChangeLelantusStatus(uint32_t propertyId, LelantusStatus status)
+std::vector<unsigned char> CreatePayload_ChangeLelantusStatus(uint32_t propertyId, elysium::LelantusStatus status)
 {
     std::vector<unsigned char> payload;
     uint16_t messageType = ELYSIUM_TYPE_CHANGE_LELANTUS_STATUS;

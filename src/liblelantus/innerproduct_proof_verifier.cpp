@@ -19,7 +19,7 @@ InnerProductProofVerifier::InnerProductProofVerifier(
 bool InnerProductProofVerifier::verify(
         const Scalar& x,
         const InnerProductProof& proof,
-        unique_ptr<ChallengeGenerator>& challengeGenerator) {
+        std::unique_ptr<ChallengeGenerator>& challengeGenerator) {
     auto itr_l = proof.L_.begin();
     auto itr_r = proof.R_.begin();
     u_  *= x;
@@ -31,7 +31,7 @@ bool InnerProductProofVerifier::verify_util(
         const InnerProductProof& proof,
         typename std::vector<GroupElement>::const_iterator itr_l,
         typename std::vector<GroupElement>::const_iterator itr_r,
-        unique_ptr<ChallengeGenerator>& challengeGenerator) {
+        std::unique_ptr<ChallengeGenerator>& challengeGenerator) {
     if(itr_l == proof.L_.end()){
         Scalar c = proof.a_ * proof.b_;
         GroupElement uc = u_ * c;
@@ -62,7 +62,7 @@ bool InnerProductProofVerifier::verify_util(
     return InnerProductProofVerifier(g_p, h_p, u_, p_p, version_).verify_util(proof, itr_l + 1, itr_r + 1, challengeGenerator);
 }
 
-bool InnerProductProofVerifier::verify_fast(uint64_t n, const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator) {
+bool InnerProductProofVerifier::verify_fast(uint64_t n, const Scalar& x, const InnerProductProof& proof, std::unique_ptr<ChallengeGenerator>& challengeGenerator) {
     u_  *= x;
     P_ += u_ * proof.c_;
     return verify_fast_util(n, proof, challengeGenerator);
@@ -71,7 +71,7 @@ bool InnerProductProofVerifier::verify_fast(uint64_t n, const Scalar& x, const I
 bool InnerProductProofVerifier::verify_fast_util(
         uint64_t n,
         const InnerProductProof& proof,
-        unique_ptr<ChallengeGenerator>& challengeGenerator){
+        std::unique_ptr<ChallengeGenerator>& challengeGenerator){
     std::size_t log_n = proof.L_.size();
     std::vector<Scalar> x_j;
     x_j.resize(log_n);

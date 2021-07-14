@@ -84,7 +84,7 @@ JoinSplitMint::JoinSplitMint(MintEntryId _id, lelantus::PublicCoin const &_publi
 lelantus::JoinSplit CreateJoinSplit(
     std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> const &coins,
     std::map<uint32_t, std::vector<lelantus::PublicCoin>> const &anonss,
-    vector<vector<unsigned char>> anonymitySetHashes,
+    std::vector<std::vector<unsigned char>> anonymitySetHashes,
     LelantusAmount amount,
     std::vector<lelantus::PrivateCoin> const &coinOuts,
     std::map<uint32_t, uint256> const &groupBlockHashs,

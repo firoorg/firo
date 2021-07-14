@@ -820,7 +820,7 @@ public:
 public:
     void UpdateTransactionsFromBlock(const std::vector <uint256> &vHashesToUpdate);
     void AddTransactionsUpdated(unsigned int n);
-    void PrioritiseTransaction(const uint256 hash, const string strHash, double dPriorityDelta, const CAmount &nFeeDelta);
+    void PrioritiseTransaction(const uint256 hash, const std::string strHash, double dPriorityDelta, const CAmount &nFeeDelta);
     void setSanityCheck(double dFrequency = 1.0);
     void getTransactions(std::set<uint256>& setTxid);
     void check(const CCoinsViewCache *pcoins) const;

@@ -1415,7 +1415,7 @@ void WalletModel::sigmaMint(const CAmount& n, const CCoinControl *coinControl)
             return sigma::PrivateCoin(sigmaParams, denom);
         });
 
-    vector<CHDMint> vDMints;
+    std::vector<CHDMint> vDMints;
     auto recipients = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
 
     CWalletTx wtx;

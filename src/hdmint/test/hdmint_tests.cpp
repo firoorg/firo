@@ -38,6 +38,7 @@
 #include <boost/thread.hpp>
 
 using namespace sigma;
+using namespace std;
 
 BOOST_FIXTURE_TEST_SUITE(hdmint_tests, ZerocoinTestingSetup200)
 

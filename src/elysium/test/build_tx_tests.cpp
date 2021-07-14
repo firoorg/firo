@@ -30,6 +30,8 @@
 
 #include <inttypes.h>
 
+using namespace std;
+
 namespace elysium {
 
 BOOST_FIXTURE_TEST_SUITE(elysium_build_tx_tests, ZerocoinTestingSetup200)

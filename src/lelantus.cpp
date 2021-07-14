@@ -105,7 +105,7 @@ void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, CDataStream&  s
     secp_primitives::GroupElement commit = coin.getPublicCoin().getValue();
     secp_primitives::GroupElement comm = commit + (params->get_h1() * v.negate());
 
-    unique_ptr<ChallengeGenerator> challengeGenerator;
+    std::unique_ptr<ChallengeGenerator> challengeGenerator;
     if (afterFixes) {
         // start to use CHash256 which is more secure
         challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
@@ -128,7 +128,7 @@ bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupEleme
     bool afterFixes = chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock;
     secp_primitives::GroupElement comm = commit + (params->get_h1() * Scalar(v).negate());
     SchnorrVerifier verifier(params->get_g(), params->get_h0(), afterFixes);
-    unique_ptr<ChallengeGenerator> challengeGenerator;
+    std::unique_ptr<ChallengeGenerator> challengeGenerator;
     if (afterFixes) {
         // start to use CHash256 which is more secure
         challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
@@ -432,7 +432,7 @@ bool CheckLelantusJoinSplitTransaction(
             while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
                 index = index->pprev;
 
-            pair<sigma::CoinDenomination, int> denominationAndId = std::make_pair(denomination, coinGroupId);
+            std::pair<sigma::CoinDenomination, int> denominationAndId = std::make_pair(denomination, coinGroupId);
 
             auto lelantusParams = lelantus::Params::get_default();
             while (true) {
@@ -1025,14 +1025,15 @@ void CLelantusState::Containers::AddMint(lelantus::PublicCoin const & pubCoin, C
 void CLelantusState::Containers::RemoveMint(lelantus::PublicCoin const & pubCoin) {
     mint_info_container::const_iterator iter = mintedPubCoins.find(pubCoin);
     if (iter != mintedPubCoins.end()) {
-        mintMetaInfo[iter->second.coinGroupId] -= 1;
-        mintedPubCoins.erase(iter);
-        CheckSurgeCondition();
         for(auto hashPair =  tagToPublicCoin.begin(); hashPair !=  tagToPublicCoin.end(); hashPair++)
             if(hashPair->second == pubCoin) {
                 tagToPublicCoin.erase(hashPair);
                 break;
             }
+
+        mintMetaInfo[iter->second.coinGroupId] -= 1;
+        mintedPubCoins.erase(iter);
+        CheckSurgeCondition();
     }
 }
 
@@ -1472,7 +1473,7 @@ std::pair<int, int> CLelantusState::GetMintedCoinHeightAndId(
     return std::make_pair(-1, -1);
 }
 
-bool CLelantusState::AddSpendToMempool(const vector<Scalar> &coinSerials, uint256 txHash) {
+bool CLelantusState::AddSpendToMempool(const std::vector<Scalar> &coinSerials, uint256 txHash) {
     LOCK(mempool.cs);
     BOOST_FOREACH(const Scalar& coinSerial, coinSerials){
         if (IsUsedCoinSerial(coinSerial) || mempool.lelantusState.HasCoinSerial(coinSerial))
@@ -1484,14 +1485,14 @@ bool CLelantusState::AddSpendToMempool(const vector<Scalar> &coinSerials, uint25
     return true;
 }
 
-void CLelantusState::RemoveSpendFromMempool(const vector<Scalar> &coinSerials) {
+void CLelantusState::RemoveSpendFromMempool(const std::vector<Scalar> &coinSerials) {
     LOCK(mempool.cs);
     BOOST_FOREACH(const Scalar& coinSerial, coinSerials) {
         mempool.lelantusState.RemoveSpendFromMempool(coinSerial);
     }
 }
 
-void CLelantusState::AddMintsToMempool(const vector<GroupElement>& pubCoins) {
+void CLelantusState::AddMintsToMempool(const std::vector<GroupElement>& pubCoins) {
     LOCK(mempool.cs);
     BOOST_FOREACH(const GroupElement& pubCoin, pubCoins) {
         mempool.lelantusState.AddMintToMempool(pubCoin);
