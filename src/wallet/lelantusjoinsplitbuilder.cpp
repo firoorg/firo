@@ -44,7 +44,8 @@ LelantusJoinSplitBuilder::~LelantusJoinSplitBuilder()
 CWalletTx LelantusJoinSplitBuilder::Build(
     const std::vector<CRecipient>& recipients,
     CAmount &fee,
-    const std::vector<CAmount>& newMints)
+    const std::vector<CAmount>& newMints,
+    std::function<void(CTxOut & , LelantusJoinSplitBuilder const &)> outModifier)
 {
     if (recipients.empty() && newMints.empty()) {
         throw std::runtime_error(_("Either recipients or newMints has to be nonempty."));
@@ -119,9 +120,9 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         nCountNextUse = pwalletMain->zwallet->GetCount();
     }
 
-    std::tie(fee, std::ignore) = wallet.EstimateJoinSplitFee(vOut + mint, recipientsToSubtractFee, coinControl);
     std::list<CSigmaEntry> sigmaCoins = pwalletMain->GetAvailableCoins(coinControl);
     std::list<CLelantusEntry> coins = pwalletMain->GetAvailableLelantusCoins(coinControl);
+    std::tie(fee, std::ignore) = wallet.EstimateJoinSplitFee(vOut + mint, recipientsToSubtractFee, sigmaCoins, coins, coinControl);
 
     for (;;) {
         // In case of not enough fee, reset mint seed counter
@@ -219,6 +220,10 @@ CWalletTx LelantusJoinSplitBuilder::Build(
             }
         }
 
+        if ((sigmaSpendCoins.size() + spendCoins.size()) > consensusParams.nMaxLelantusInputPerTransaction)
+            throw std::invalid_argument(
+                    _("Number of inputs is bigger then limit."));
+
         for(const auto& demon : denomChanges) {
             int64_t intDenom;
             sigma::DenominationToInteger(demon, intDenom);
@@ -284,6 +289,21 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         uint32_t sequence = CTxIn::SEQUENCE_FINAL;
         tx.vin.emplace_back(COutPoint(), CScript(), sequence);
 
+        if(outModifier) {
+            for(CTxOut & out : tx.vout) {
+                outModifier(out, *this);
+            }
+        }
+
+        // clear vExtraPayload to calculate metadata hash correctly
+        tx.vExtraPayload.clear();
+
+        // set correct type of transaction (this affects metadata hash)
+        if (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock) {
+            tx.nVersion = 3;
+            tx.nType = TRANSACTION_LELANTUS;
+        }
+
         // now every fields is populated then we can sign transaction
         uint256 sig = tx.GetHash();
 
@@ -303,7 +323,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         // If we made it here and we aren't even able to meet the relay fee on the next pass, give up
         // because we must be at the maximum allowed fee.
         if (feeNeeded < minRelayTxFee.GetFee(size)) {
-            throw std::runtime_error(_("Transaction too large for fee policy"));
+            throw std::invalid_argument(_("Transaction too large for fee policy"));
         }
 
         if (fee >= feeNeeded) {
@@ -441,7 +461,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
             throw std::runtime_error(_("One of the lelantus coins has not been found in the chain!"));
         }
 
-        coins.emplace_back(make_pair(priv, groupId));
+        coins.emplace_back(std::make_pair(priv, groupId));
         std::vector<unsigned char> setHash;
         if (anonymity_sets.count(groupId) == 0) {
             std::vector<lelantus::PublicCoin> set;
@@ -489,7 +509,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
 
         //this way we are remembering denomination and group id in one field as we have no demomination in Lelantus
         // with dividing by 1000 we just making maximum denomiation fit into uint32
-        coins.emplace_back(make_pair(priv, denom / 1000 + groupId));
+        coins.emplace_back(std::make_pair(priv, denom / 1000 + groupId));
 
 
         if (anonymity_sets.count(denom / 1000 + groupId) == 0) {
@@ -534,8 +554,16 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
 
     CScript script;
 
-    script << OP_LELANTUSJOINSPLIT;
-    script.insert(script.end(), serialized.begin(), serialized.end());
+    if (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock) {
+        script << OP_LELANTUSJOINSPLITPAYLOAD;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_LELANTUS;
+        tx.vExtraPayload.assign(serialized.begin(), serialized.end());
+    }
+    else {
+        script << OP_LELANTUSJOINSPLIT;
+        script.insert(script.end(), serialized.begin(), serialized.end());
+    }
 
     tx.vin[0].scriptSig = script;
 }

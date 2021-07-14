@@ -7,6 +7,7 @@
 
 #include "addresstablemodel.h"
 #include "guiutil.h"
+#include "bip47/paymentcode.h"
 
 #include <QDataWidgetMapper>
 #include <QMessageBox>
@@ -22,6 +23,7 @@ EditAddressDialog::EditAddressDialog(Mode _mode, QWidget *parent) :
 
     GUIUtil::setupAddressWidget(ui->addressEdit, this);
 
+    ui->addressEdit->setEnabled(true);
     switch(mode)
     {
     case NewReceivingAddress:
@@ -37,6 +39,14 @@ EditAddressDialog::EditAddressDialog(Mode _mode, QWidget *parent) :
         break;
     case EditSendingAddress:
         setWindowTitle(tr("Edit sending address"));
+        break;
+    case NewPcode:
+        setWindowTitle(tr("New RAP payment code"));
+        ui->label_2->setText(tr("RAP address"));
+        break;
+    case EditPcode:
+        setWindowTitle(tr("Edit RAP payment code"));
+        ui->label_2->setText(tr("RAP address"));
         break;
     }
 
@@ -86,6 +96,10 @@ bool EditAddressDialog::saveCurrentRow()
             address = ui->addressEdit->text();
         }
         break;
+    case NewPcode:
+    case EditPcode:
+        address = model->getPcodeAddressTableModel()->addRow("", ui->labelEdit->text(), ui->addressEdit->text());
+        break;
     }
     return !address.isEmpty();
 }
@@ -123,6 +137,16 @@ void EditAddressDialog::accept()
         case AddressTableModel::KEY_GENERATION_FAILURE:
             QMessageBox::critical(this, windowTitle(),
                 tr("New key generation failed."),
+                QMessageBox::Ok, QMessageBox::Ok);
+            break;
+        case AddressTableModel::PCODE_VALIDATION_FAILURE:
+            QMessageBox::critical(this, windowTitle(),
+                tr("New RAP address validation failed."),
+                QMessageBox::Ok, QMessageBox::Ok);
+            break;
+        case AddressTableModel::PCODE_CANNOT_BE_LABELED:
+            QMessageBox::critical(this, windowTitle(),
+                tr("Receiving RAP addresses cannot be relabeled."),
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
 

@@ -12,6 +12,7 @@
 #include "validation.h"
 #include "timedata.h"
 #include "wallet/wallet.h"
+#include "bip47/bip47utils.h"
 
 #include <stdint.h>
 
@@ -47,14 +48,14 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 
     bool isAllSigmaSpendFromMe = false;
     for (const auto& vin : wtx.tx->vin) {
-        isAllSigmaSpendFromMe = (wallet->IsMine(vin) & ISMINE_SPENDABLE) && vin.IsSigmaSpend();
+        isAllSigmaSpendFromMe = (wallet->IsMine(vin, *wtx.tx) & ISMINE_SPENDABLE) && vin.IsSigmaSpend();
         if (!isAllSigmaSpendFromMe)
             break;
     }
 
     bool isAllJoinSplitFromMe = false;
     for (const auto& vin : wtx.tx->vin) {
-        isAllJoinSplitFromMe = (wallet->IsMine(vin) & ISMINE_SPENDABLE) && vin.IsLelantusJoinSplit();
+        isAllJoinSplitFromMe = (wallet->IsMine(vin, *wtx.tx) & ISMINE_SPENDABLE) && vin.IsLelantusJoinSplit();
         if (!isAllJoinSplitFromMe)
             break;
     }
@@ -62,7 +63,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     if (wtx.tx->IsZerocoinSpend() || isAllSigmaSpendFromMe || isAllJoinSplitFromMe) {
         CAmount nTxFee = nDebit - wtx.tx->GetValueOut();
         if (isAllJoinSplitFromMe && wtx.tx->vin.size() > 0) {
-            nTxFee = lelantus::ParseLelantusJoinSplit(wtx.tx->vin[0])->getFee();
+            nTxFee = lelantus::ParseLelantusJoinSplit(*wtx.tx)->getFee();
         }
 
         bool first = true;
@@ -114,9 +115,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                         sub.type = TransactionRecord::SpendToSelf;
                         sub.address = CBitcoinAddress(address).ToString();
                         sub.credit = txout.nValue;
-                        parts.append(sub);
                     }
                 } else {
+                    if (!bip47::utils::GetMaskedPcode(txout).empty())
+                        continue;
                     ExtractDestination(txout.scriptPubKey, address);
                     sub.type = TransactionRecord::SpendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
@@ -125,8 +127,14 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                         sub.debit -= nTxFee;
                         first = false;
                     }
-                    parts.append(sub);
                 }
+                boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
+                if(pcode)
+                {
+                    sub.type = TransactionRecord::SendToPcode;
+                    sub.pcode = std::get<1>(*pcode).toString();
+                }
+                parts.append(sub);
             }
         }
     }
@@ -147,6 +155,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         //
         // Credit
         //
+
         for(unsigned int i = 0; i < wtx.tx->vout.size(); i++)
         {
             const CTxOut& txout = wtx.tx->vout[i];
@@ -176,6 +185,12 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     // Generated
                     sub.type = TransactionRecord::Generated;
                 }
+                boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
+                if(pcode)
+                {
+                    sub.type = TransactionRecord::RecvWithPcode;
+                    sub.pcode = std::get<1>(*pcode).toString();
+                }
                 parts.append(sub);
             }
         }
@@ -186,7 +201,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         isminetype fAllFromMe = ISMINE_SPENDABLE;
         BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
         {
-            isminetype mine = wallet->IsMine(txin);
+            isminetype mine = wallet->IsMine(txin, *wtx.tx);
             if(mine & ISMINE_WATCH_ONLY) involvesWatchAddress = true;
             if(fAllFromMe > mine) fAllFromMe = mine;
         }
@@ -239,11 +254,17 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 }
 
                 CTxDestination address;
-                if (ExtractDestination(txout.scriptPubKey, address))
+                if(ExtractDestination(txout.scriptPubKey, address))
                 {
                     // Sent to Bitcoin Address
                     sub.type = TransactionRecord::SendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
+                    boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
+                    if(pcode)
+                    {
+                        sub.type = TransactionRecord::SendToPcode;
+                        sub.pcode = std::get<1>(*pcode).toString();
+                    }
                 }
                 else if(wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint())
                 {

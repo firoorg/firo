@@ -130,7 +130,7 @@ FeeFilterRounder filterRounder(::minRelayTxFee);
 CTxPoolAggregate txpools(::minRelayTxFee);
 
 // Firo znode
-map <uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
+std::map <uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 
 
 static void CheckBlockIndex(const Consensus::Params& consensusParams);
@@ -138,7 +138,7 @@ static void CheckBlockIndex(const Consensus::Params& consensusParams);
 /** Constant stuff for coinbase transactions we create: */
 CScript COINBASE_FLAGS;
 
-const string strMessageMagic = "Zcoin Signed Message:\n";
+const std::string strMessageMagic = "Zcoin Signed Message:\n";
 
 // Internal stuff
 namespace {
@@ -663,12 +663,12 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
 
         auto params = ::Params().GetConsensus();
         if (tx.IsZerocoinSpend() || tx.IsZerocoinMint()) {
-            if (nHeight >= params.nDisableZerocoinStartBlock)
+            if (!isVerifyDB && nHeight >= params.nDisableZerocoinStartBlock)
                 return state.DoS(1, error("Zerocoin is disabled at this point"));
         }
 
         if (tx.IsZerocoinRemint()) {
-            if (nHeight < params.nSigmaStartBlock || nHeight >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize)
+            if (!isVerifyDB && (nHeight < params.nSigmaStartBlock || nHeight >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize))
                 // we allow transactions of remint type only during specific window
                 return false;
         }
@@ -702,13 +702,16 @@ bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state,
                 tx.nType != TRANSACTION_PROVIDER_UPDATE_REVOKE &&
                 tx.nType != TRANSACTION_COINBASE &&
                 tx.nType != TRANSACTION_QUORUM_COMMITMENT &&
-                tx.nType != TRANSACTION_SPORK) {
+                tx.nType != TRANSACTION_SPORK &&
+                tx.nType != TRANSACTION_LELANTUS) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
             }
             if (tx.IsCoinBase() && tx.nType != TRANSACTION_COINBASE)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-cb-type");
             if (tx.nType == TRANSACTION_SPORK &&
                     !(nHeight >= consensusParams.nEvoSporkStartBlock && nHeight < consensusParams.nEvoSporkStopBlock))
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
+            if (tx.nType == TRANSACTION_LELANTUS && nHeight < consensusParams.nLelantusV3PayloadStartBlock)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
         }
         else if (tx.nType != TRANSACTION_NORMAL) {
@@ -791,14 +794,14 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     // V3 sigma spends.
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    vector<Scalar> zcSpendSerialsV3;
-    vector<GroupElement> zcMintPubcoinsV3;
+    std::vector<Scalar> zcSpendSerialsV3;
+    std::vector<GroupElement> zcMintPubcoinsV3;
 
     //lelantus
     lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
-    vector<Scalar> lelantusSpendSerials;
-    vector<GroupElement> lelantusMintPubcoins;
-    vector<uint64_t> lelantusAmounts;
+    std::vector<Scalar> lelantusSpendSerials;
+    std::vector<GroupElement> lelantusMintPubcoins;
+    std::vector<uint64_t> lelantusAmounts;
     {
         LOCK(pool.cs);
         if (tx.IsSigmaSpend()) {
@@ -1060,7 +1063,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 nFees = nValueIn - nValueOut;
             } else {
                 try {
-                    nFees = lelantus::ParseLelantusJoinSplit(tx.vin[0])->getFee();
+                    nFees = lelantus::ParseLelantusJoinSplit(tx)->getFee();
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
@@ -1945,7 +1948,7 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
             nTxFee = nValueIn - tx.GetValueOut();
         } else {
             try {
-                nTxFee = lelantus::ParseLelantusJoinSplit(tx.vin[0])->getFee();
+                nTxFee = lelantus::ParseLelantusJoinSplit(tx)->getFee();
             }
             catch (CBadTxIn&) {
                 return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
@@ -2374,7 +2377,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
         if(tx.IsSigmaSpend())
             nFees += sigma::GetSigmaSpendInput(tx) - tx.GetValueOut();
         else if (tx.IsLelantusJoinSplit()) {
-            nFees += lelantus::ParseLelantusJoinSplit(tx.vin[0])->getFee();
+            nFees += lelantus::ParseLelantusJoinSplit(tx)->getFee();
         }
 
         dbIndexHelper.DisconnectTransactionInputs(tx, pindex->nHeight, i, view);
@@ -2673,7 +2676,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     std::vector<PrecomputedTransactionData> txdata;
     txdata.reserve(block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
 
-    set<uint256> txIds;
+    std::set<uint256> txIds;
     bool isMainNet = chainparams.GetConsensus().IsMain();
     // batch verify Lelantus/Sigma if block is older than a day, that means we are syncing or reindexing
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
@@ -2733,7 +2736,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
             if(tx.IsLelantusJoinSplit()) {
                 try {
-                    nFees += lelantus::ParseLelantusJoinSplit(tx.vin[0])->getFee();
+                    nFees += lelantus::ParseLelantusJoinSplit(tx)->getFee();
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
@@ -3219,11 +3222,10 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
 
         if(GetBoolArg("-batching", true)) {
             if (tx->IsLelantusJoinSplit()) {
-                const CTxIn &txin = tx->vin[0];
                 std::unique_ptr<lelantus::JoinSplit> joinsplit;
 
                 try {
-                    joinsplit = lelantus::ParseLelantusJoinSplit(txin);
+                    joinsplit = lelantus::ParseLelantusJoinSplit(*tx);
                 }
                 catch (CBadTxIn &) {
                     continue;

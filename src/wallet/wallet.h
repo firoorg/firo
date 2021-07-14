@@ -29,6 +29,8 @@
 
 #include "primitives/mint_spend.h"
 
+#include "bip47/paymentcode.h"
+
 
 #include <algorithm>
 #include <atomic>
@@ -110,6 +112,15 @@ class CReserveKey;
 class CScript;
 class CTxMemPool;
 class CWalletTx;
+namespace bip47 {
+class CPaymentChannel;
+}
+
+
+namespace bip47 {
+    class CPaymentCode;
+    class CWallet;
+}
 
 /** (client) version numbers for particular wallet features */
 enum WalletFeature
@@ -626,6 +637,8 @@ private:
     std::vector<char> _ssExtra;
 };
 
+class LelantusJoinSplitBuilder;
+
 /**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
@@ -685,6 +698,8 @@ private:
     std::set<int64_t> setKeyPool;
 
     int64_t nTimeFirstKey;
+
+    std::shared_ptr<bip47::CWallet> bip47wallet;
 
     /**
      * Private version of AddWatchOnly method which does not accept a
@@ -767,6 +782,7 @@ public:
         vecAnonymizableTallyCached.clear();
         vecAnonymizableTallyCachedNonDenom.clear();
         zwallet = NULL;
+        bip47wallet.reset();
     }
 
     std::map<uint256, CWalletTx> mapWallet;
@@ -780,6 +796,7 @@ public:
     std::map<uint256, int> mapRequestCount;
 
     std::map<CTxDestination, CAddressBookData> mapAddressBook;
+    std::multimap<std::string, std::string> mapCustomKeyValues;
 
     CPubKey vchDefaultKey;
 
@@ -891,6 +908,8 @@ public:
     void ResendWalletTransactions(int64_t nBestBlockTime, CConnman* connman) override;
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime, CConnman* connman);
     CAmount GetBalance(bool fExcludeLocked = false) const;
+    std::pair<CAmount, CAmount> GetPrivateBalance() const;
+    std::pair<CAmount, CAmount> GetPrivateBalance(size_t &confirmed, size_t &unconfirmed) const;
     CAmount GetUnconfirmedBalance() const;
     CAmount GetImmatureBalance() const;
     CAmount GetWatchOnlyBalance() const;
@@ -900,7 +919,7 @@ public:
 
     static std::vector<CRecipient> CreateSigmaMintRecipients(
         std::vector<sigma::PrivateCoin>& coins,
-        vector<CHDMint>& vDMints);
+        std::vector<CHDMint>& vDMints);
 
     static CRecipient CreateLelantusMintRecipient(
         lelantus::PrivateCoin& coin,
@@ -973,8 +992,8 @@ public:
     /**
      * Add Mint and Spend functions
      */
-    void ListAvailableSigmaMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const;
-    void ListAvailableLelantusMintCoins(vector<COutput> &vCoins, bool fOnlyConfirmed) const;
+    void ListAvailableSigmaMintCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed) const;
+    void ListAvailableLelantusMintCoins(std::vector<COutput> &vCoins, bool fOnlyConfirmed) const;
 
     bool CreateMintTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true);
@@ -1000,7 +1019,8 @@ public:
         std::vector<CLelantusEntry>& spendCoins,
         std::vector<CSigmaEntry>& sigmaSpendCoins,
         std::vector<CHDMint>& mintCoins,
-        const CCoinControl *coinControl = NULL);
+        const CCoinControl *coinControl = NULL,
+        std::function<void(CTxOut & , LelantusJoinSplitBuilder const &)> modifier = nullptr);
 
     bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>& selectedCoins, std::vector<CHDMint>& changes);
     bool CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CSigmaEntry>& sigmaSpendCoins, std::vector<CHDMint>& mintCoins);
@@ -1008,9 +1028,9 @@ public:
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
 
     std::string MintAndStoreSigma(
-        const vector<CRecipient>& vecSend,
-        const vector<sigma::PrivateCoin>& privCoins,
-        vector<CHDMint> vDMints,
+        const std::vector<CRecipient>& vecSend,
+        const std::vector<sigma::PrivateCoin>& privCoins,
+        std::vector<CHDMint> vDMints,
         CWalletTx &wtxNew,
         bool fAskFee=false,
         const CCoinControl *coinControl = NULL);
@@ -1026,9 +1046,9 @@ public:
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result);
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 
-    void JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result);
+    std::vector<CLelantusEntry> JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result);
 
-    std::pair<CAmount, unsigned int> EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, const CCoinControl *coinControl);
+    std::pair<CAmount, unsigned int> EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, std::list<CSigmaEntry> sigmaCoins, std::list<CLelantusEntry> coins, const CCoinControl *coinControl);
 
     bool GetMint(const uint256& hashSerial, CSigmaEntry& sigmaEntry, bool forEstimation = false) const;
 
@@ -1078,12 +1098,12 @@ public:
 
     std::set<CTxDestination> GetAccountAddresses(const std::string& strAccount) const;
 
-    isminetype IsMine(const CTxIn& txin) const;
+    isminetype IsMine(const CTxIn& txin, const CTransaction& tx) const;
     /**
      * Returns amount of debit if the input matches the
      * filter, otherwise returns 0
      */
-    CAmount GetDebit(const CTxIn& txin, const isminefilter& filter) const;
+    CAmount GetDebit(const CTxIn& txin, const CTransaction&tx, const isminefilter& filter) const;
     isminetype IsMine(const CTxOut& txout) const;
     CAmount GetCredit(const CTxOut& txout, const isminefilter& filter) const;
     bool IsChange(const uint256& tx, const CTxOut& txout) const;
@@ -1189,6 +1209,15 @@ public:
     /** Watch-only address added */
     boost::signals2::signal<void (bool fHaveWatchOnly)> NotifyWatchonlyChanged;
 
+    /** Payment code added */
+    boost::signals2::signal<void (bip47::CPaymentCodeDescription)> NotifyPcodeCreated;
+
+    /** Payment code labeled */
+    boost::signals2::signal<void (std::string pcode, std::string label, bool removed)> NotifyPcodeLabeled;
+
+    /** Unlock required (for example for adding a privkey to the wallet),  */
+    boost::signals2::signal<void (int receiverAccountNum)> NotifyBip47KeysChanged;
+
     /** Inquire whether this wallet broadcasts transactions. */
     bool GetBroadcastTransactions() const { return fBroadcastTransactions; }
     /** Set whether this wallet broadcasts transactions. */
@@ -1239,6 +1268,50 @@ public:
 
     /* Set the current HD master key (will reset the chain child index counters) */
     bool SetHDMasterKey(const CPubKey& key, const int cHDChainVersion=CHDChain().CURRENT_VERSION);
+
+    /**************************************************************************/
+    /* bip47 */
+    /* Generates and strores a new payment code for receiving*/
+    bip47::CPaymentCode GeneratePcode(std::string const & label);
+
+    /*Prepares and sends a notification tx using Lelantus facilities*/
+    CWalletTx PrepareAndSendNotificationTx(bip47::CPaymentCode const & theirPcode);
+
+    /* Lists all receiving pcodes as tuples of (pcode, label, notification address) */
+    std::vector<bip47::CPaymentCodeDescription> ListPcodes();
+
+    /* Creates a payment channel for their payment code. */
+    bip47::CPaymentChannel & SetupPchannel(bip47::CPaymentCode const & theirPcode);
+
+    /* Stores the notification tx id into the wallet database */
+    void SetNotificationTxId(bip47::CPaymentCode const & theirPcode, uint256 const & txid);
+
+    /* Returns next unused address for their payment code. Throws if no payment channel was setup */
+    CBitcoinAddress GetTheirNextAddress(bip47::CPaymentCode const & theirPcode) const;
+
+    /* Returns and stores a next unused address for their payment code. Throws if no payment channel was setup */
+    CBitcoinAddress GenerateTheirNextAddress(bip47::CPaymentCode const & theirPcode);
+
+    /*Loads previously stored bip47 accounts */
+    void LoadBip47Wallet();
+
+    std::shared_ptr<bip47::CWallet const>  GetBip47Wallet() const;
+
+    boost::optional<bip47::CPaymentCodeDescription> FindPcode(bip47::CPaymentCode const & pcode) const;
+    boost::optional<bip47::CPaymentCodeDescription> FindPcode(CBitcoinAddress const & address) const;
+
+    /*Marks address as used for a receiving bip47 account. Returns the account if found*/
+    bip47::CAccountReceiver const * AddressUsed(CBitcoinAddress const & address);
+
+    /*Checks if this is a BIP47 transaction and handles it. May send an unlock request if wallet is locked.*/
+    void HandleBip47Transaction(CWalletTx const & wtx);
+
+    /*Attaches a new label to a receiving payment code.*/
+    void LabelSendingPcode(bip47::CPaymentCode const & pcode, std::string const & label, bool remove = false);
+    std::string GetSendingPcodeLabel(bip47::CPaymentCode const & pcode) const;
+
+    /*Sets used address number for a sending or receiving payment channel*/
+    size_t SetUsedAddressNumber(bip47::CPaymentCode const & pcode, size_t number);
 };
 
 /** A key allocated from the key pool. */
@@ -1324,4 +1397,7 @@ bool CWallet::DummySignTx(CMutableTransaction &txNew, const ContainerType &coins
     }
     return true;
 }
+
+CWalletTx PrepareAndSendNotificationTx(CWallet* pwallet, bip47::CPaymentCode const & theirPcode);
+
 #endif // BITCOIN_WALLET_WALLET_H

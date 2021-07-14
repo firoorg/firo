@@ -17,6 +17,7 @@
 #include "util.h"
 #include "wallet/db.h"
 #include "wallet/wallet.h"
+#include "bip47/bip47utils.h"
 
 #include <stdint.h>
 #include <string>
@@ -164,7 +165,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
         isminetype fAllFromMe = ISMINE_SPENDABLE;
         BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
         {
-            isminetype mine = wallet->IsMine(txin);
+            isminetype mine = wallet->IsMine(txin, *wtx.tx);
             if(fAllFromMe > mine) fAllFromMe = mine;
         }
 
@@ -232,8 +233,8 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
             // Mixed debit transaction
             //
             BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
-                if (wallet->IsMine(txin))
-                    strHTML += "<b>" + tr("Debit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -wallet->GetDebit(txin, ISMINE_ALL)) + "<br>";
+                if (wallet->IsMine(txin, *wtx.tx))
+                    strHTML += "<b>" + tr("Debit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -wallet->GetDebit(txin, *wtx.tx, ISMINE_ALL)) + "<br>";
             BOOST_FOREACH(const CTxOut& txout, wtx.tx->vout)
                 if (wallet->IsMine(txout))
                     strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, wallet->GetCredit(txout, ISMINE_ALL)) + "<br>";
@@ -281,14 +282,35 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     }
 
     //
+    // Check if it is a BIP47 tx
+    //
+    BOOST_FOREACH(const CTxOut& txout, wtx.tx->vout)
+    {
+        bool isFromMe = wallet->IsFromMe(*wtx.tx);
+        CTxDestination address;
+        if (ExtractDestination(txout.scriptPubKey, address))
+        {
+            boost::optional<bip47::CPaymentCodeDescription> pcode = wallet->FindPcode(address);
+            if (pcode)
+            {
+                if (!isFromMe)
+                    strHTML += "<b>" + tr("Received with RAP address") + ":</b> " + GUIUtil::HtmlEscape(std::get<2>(*pcode));
+                else
+                    strHTML += "<b>" + tr("Sent to RAP address") + ":</b> " + bip47::utils::ShortenPcode(std::get<1>(*pcode)).c_str();
+            }
+            strHTML += "<br>" ;
+        }
+    }
+
+    //
     // Debug view
     //
     if (fDebug)
     {
         strHTML += "<hr><br>" + tr("Debug information") + "<br><br>";
         BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
-            if(wallet->IsMine(txin))
-                strHTML += "<b>" + tr("Debit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -wallet->GetDebit(txin, ISMINE_ALL)) + "<br>";
+            if(wallet->IsMine(txin, *wtx.tx))
+                strHTML += "<b>" + tr("Debit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -wallet->GetDebit(txin, *wtx.tx, ISMINE_ALL)) + "<br>";
         BOOST_FOREACH(const CTxOut& txout, wtx.tx->vout)
             if(wallet->IsMine(txout))
                 strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, wallet->GetCredit(txout, ISMINE_ALL)) + "<br>";

@@ -162,7 +162,7 @@ void RequireHeightInChain(int blockHeight)
     }
 }
 
-void RequireSigmaStatus(SigmaStatus status)
+void RequireSigmaStatus(elysium::SigmaStatus status)
 {
     if (!elysium::IsSigmaStatusValid(status)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Sigma status is not valid");

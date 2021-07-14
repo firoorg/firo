@@ -95,7 +95,7 @@ void ZerocoinTestingSetupBase::CreateAndProcessEmptyBlocks(size_t block_numbers,
     {
         BOOST_CHECK(pwalletMain->GetKeyFromPool(pubkey));
 
-        string strAddress = CBitcoinAddress(pubkey.GetID()).ToString();
+        std::string strAddress = CBitcoinAddress(pubkey.GetID()).ToString();
         pwalletMain->SetAddressBook(CBitcoinAddress(strAddress).Get(), "",
                                ( "receive"));
 
@@ -124,7 +124,7 @@ void ZerocoinTestingSetupBase::CreateAndProcessEmptyBlocks(size_t block_numbers,
         CPubKey newKey;
         BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
 
-        string strAddress = CBitcoinAddress(newKey.GetID()).ToString();
+        std::string strAddress = CBitcoinAddress(newKey.GetID()).ToString();
         pwalletMain->SetAddressBook(CBitcoinAddress(strAddress).Get(), "",
                                ( "receive"));
 
@@ -147,7 +147,7 @@ MtpMalformedTestingSetup::MtpMalformedTestingSetup()
     CPubKey newKey;
     BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
 
-    string strAddress = CBitcoinAddress(newKey.GetID()).ToString();
+    std::string strAddress = CBitcoinAddress(newKey.GetID()).ToString();
     pwalletMain->SetAddressBook(CBitcoinAddress(strAddress).Get(), "",
                             ( "receive"));
 

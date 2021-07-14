@@ -50,7 +50,7 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
 void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue);
 void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue, uint256& mintTag);
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin);
-std::unique_ptr<JoinSplit> ParseLelantusJoinSplit(const CTxIn& in);
+std::unique_ptr<JoinSplit> ParseLelantusJoinSplit(const CTransaction& tx);
 
 size_t GetSpendInputs(const CTransaction &tx, const CTxIn& in);
 size_t GetSpendInputs(const CTransaction &tx);
@@ -134,7 +134,7 @@ public:
  * State of minted/spent coins as extracted from the index
  */
 class CLelantusState {
-friend bool BuildLelantusStateFromIndex(CChain *, set<CBlockIndex *> &);
+friend bool BuildLelantusStateFromIndex(CChain *, std::set<CBlockIndex *> &);
 public:
     // First and last block where mint with given id was seen
     struct LelantusCoinGroupInfo {
@@ -209,16 +209,16 @@ public:
 
     // Add spend into the mempool.
     // Check if there is a coin with such serial in either blockchain or mempool
-    bool AddSpendToMempool(const vector<Scalar>& coinSerials, uint256 txHash);
+    bool AddSpendToMempool(const std::vector<Scalar>& coinSerials, uint256 txHash);
 
-    void AddMintsToMempool(const vector<GroupElement>& pubCoins);
+    void AddMintsToMempool(const std::vector<GroupElement>& pubCoins);
     void RemoveMintFromMempool(const GroupElement& pubCoin);
 
     // Get conflicting tx hash by coin serial number
     uint256 GetMempoolConflictingTxHash(const Scalar& coinSerial);
 
     // Remove spend from the mempool (usually as the result of adding tx to the block)
-    void RemoveSpendFromMempool(const vector<Scalar>& coinSerials);
+    void RemoveSpendFromMempool(const std::vector<Scalar>& coinSerials);
 
     static CLelantusState* GetState();
 

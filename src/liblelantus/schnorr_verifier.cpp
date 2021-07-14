@@ -12,7 +12,7 @@ bool SchnorrVerifier::verify(
         const GroupElement& a,
         const GroupElement& b,
         const SchnorrProof& proof,
-        unique_ptr<ChallengeGenerator>& challengeGenerator){
+        std::unique_ptr<ChallengeGenerator>& challengeGenerator){
 
     const GroupElement& u = proof.u;
     Scalar c;

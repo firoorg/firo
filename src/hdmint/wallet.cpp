@@ -114,7 +114,7 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(CWalletDB& wal
     uint256 hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
 
     MintPoolEntry mintPoolEntry(mintHashSeedMaster, seedId, nCount);
-    mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
+    mintPool.Add(std::make_pair(hashPubcoin, mintPoolEntry));
     walletdb.WritePubcoin(hashSerial, commitmentValue);
     walletdb.WriteMintPoolPair(hashPubcoin, mintPoolEntry);
 
@@ -170,7 +170,7 @@ void CHDMintWallet::GenerateMintPool(CWalletDB& walletdb, int32_t nIndex)
         uint256 hashPubcoin = primitives::GetPubCoinValueHash(commitmentValue);
 
         MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nLastCount);
-        mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
+        mintPool.Add(std::make_pair(hashPubcoin, mintPoolEntry));
         walletdb.WritePubcoin(primitives::GetSerialHash(coin.getSerialNumber()), commitmentValue);
         walletdb.WriteMintPoolPair(hashPubcoin, mintPoolEntry);
     }
@@ -192,7 +192,7 @@ void CHDMintWallet::GenerateMintPool(CWalletDB& walletdb, int32_t nIndex)
 bool CHDMintWallet::LoadMintPoolFromDB()
 {
     CWalletDB walletdb(strWalletFile);
-    vector<std::pair<uint256, MintPoolEntry>> listMintPool = walletdb.ListMintPool();
+    std::vector<std::pair<uint256, MintPoolEntry>> listMintPool = walletdb.ListMintPool();
 
     for (auto& mintPoolPair : listMintPool){
         mintPool.Add(mintPoolPair);
@@ -252,7 +252,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
     bool foundLela = true;
 
 
-    set<uint256> setAddedTx;
+    std::set<uint256> setAddedTx;
     std::set<uint256> setChecked;
     while (foundSigma || foundLela) {
         foundSigma = false;
@@ -262,10 +262,10 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
         LogPrintf("%s: Mintpool size=%d\n", __func__, mintPool.size());
 
         if(listMints==boost::none){
-            listMints = list<pair<uint256, MintPoolEntry>>();
+            listMints = std::list<std::pair<uint256, MintPoolEntry>>();
             mintPool.List(listMints.get());
         }
-        for (pair<uint256, MintPoolEntry>& pMint : listMints.get()) {
+        for (std::pair<uint256, MintPoolEntry>& pMint : listMints.get()) {
             if (setChecked.count(pMint.first))
                 continue;
             setChecked.insert(pMint.first);
@@ -273,8 +273,8 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             if (ShutdownRequested())
                 return;
 
-            uint160& mintHashSeedMaster = get<0>(pMint.second);
-            int32_t& mintCount = get<2>(pMint.second);
+            uint160& mintHashSeedMaster = std::get<0>(pMint.second);
+            int32_t& mintCount = std::get<2>(pMint.second);
 
             // halt processing if mint already in tracker
             COutPoint outPoint;
@@ -353,7 +353,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             if (tracker.HasLelantusPubcoinHash(pMint.first, walletdb))
                 continue;
 
-            uint160 seedId = get<1>(pMint.second);
+            uint160 seedId = std::get<1>(pMint.second);
             CDataStream ss(SER_GETHASH, 0);
             ss << pMint.first;
             ss << seedId;
@@ -457,8 +457,8 @@ bool CHDMintWallet::SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintP
 {
     // Regenerate the mint
     uint256 hashPubcoin = mintPoolEntryPair.first;
-    CKeyID seedId = get<1>(mintPoolEntryPair.second);
-    int32_t mintCount = get<2>(mintPoolEntryPair.second);
+    CKeyID seedId = std::get<1>(mintPoolEntryPair.second);
+    int32_t mintCount = std::get<2>(mintPoolEntryPair.second);
 
     GroupElement bnValue;
     uint256 hashSerial;
@@ -535,8 +535,8 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
 {
     // Regenerate the mint
     uint256 hashPubcoin = mintPoolEntryPair.first;
-    CKeyID seedId = get<1>(mintPoolEntryPair.second);
-    int32_t mintCount = get<2>(mintPoolEntryPair.second);
+    CKeyID seedId = std::get<1>(mintPoolEntryPair.second);
+    int32_t mintCount = std::get<2>(mintPoolEntryPair.second);
 
     auto params = lelantus::Params::get_default();
 
@@ -741,7 +741,7 @@ CKeyID CHDMintWallet::GetMintSeedID(CWalletDB& walletdb, int32_t nCount){
         }
     }
 
-    return get<1>(mintPoolEntryPair.second);
+    return std::get<1>(mintPoolEntryPair.second);
 }
 
 /**
@@ -790,7 +790,7 @@ bool CHDMintWallet::CreateMintSeed(CWalletDB& walletdb, uint512& mintSeed, const
     unsigned char countHash[CSHA256().OUTPUT_SIZE];
     std::vector<unsigned char> result(CSHA512().OUTPUT_SIZE);
 
-    std::string nCountStr = to_string(nCount);
+    std::string nCountStr = std::to_string(nCount);
     CSHA256().Write(reinterpret_cast<const unsigned char*>(nCountStr.c_str()), nCountStr.size()).Finalize(countHash);
 
     CHMAC_SHA512(countHash, CSHA256().OUTPUT_SIZE).Write(key.begin(), key.size()).Finalize(&result[0]);
@@ -867,7 +867,7 @@ void CHDMintWallet::UpdateCountDB(CWalletDB& walletdb)
  */
 bool CHDMintWallet::GetHDMintFromMintPoolEntry(CWalletDB& walletdb, const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry){
     uint512 mintSeed;
-    CreateMintSeed(walletdb, mintSeed, get<2>(mintPoolEntry), get<1>(mintPoolEntry));
+    CreateMintSeed(walletdb, mintSeed, std::get<2>(mintPoolEntry), std::get<1>(mintPoolEntry));
 
     GroupElement commitmentValue;
     if(!SeedToMint(mintSeed, commitmentValue, coin)){
@@ -877,7 +877,7 @@ bool CHDMintWallet::GetHDMintFromMintPoolEntry(CWalletDB& walletdb, const sigma:
     coin.setPublicCoin(sigma::PublicCoin(commitmentValue, denom));
 
     uint256 hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
-    dMint = CHDMint(get<2>(mintPoolEntry), get<1>(mintPoolEntry), hashSerial, coin.getPublicCoin().getValue());
+    dMint = CHDMint(std::get<2>(mintPoolEntry), std::get<1>(mintPoolEntry), hashSerial, coin.getPublicCoin().getValue());
     return true;
 }
 
@@ -891,14 +891,14 @@ bool CHDMintWallet::GetHDMintFromMintPoolEntry(CWalletDB& walletdb, const sigma:
  */
 bool CHDMintWallet::GetLelantusHDMintFromMintPoolEntry(CWalletDB& walletdb, lelantus::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry){
     uint512 mintSeed;
-    CreateMintSeed(walletdb, mintSeed, get<2>(mintPoolEntry), get<1>(mintPoolEntry));
+    CreateMintSeed(walletdb, mintSeed, std::get<2>(mintPoolEntry), std::get<1>(mintPoolEntry));
 
     if(!SeedToLelantusMint(mintSeed, coin)){
         return false;
     }
 
     uint256 hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
-    dMint = CHDMint(get<2>(mintPoolEntry), get<1>(mintPoolEntry), hashSerial, coin.getPublicCoin().getValue());
+    dMint = CHDMint(std::get<2>(mintPoolEntry), std::get<1>(mintPoolEntry), hashSerial, coin.getPublicCoin().getValue());
     return true;
 }
 
@@ -942,9 +942,9 @@ bool CHDMintWallet::GenerateMint(CWalletDB& walletdb, const sigma::CoinDenominat
         // New HDMint exists, try new count
         if(walletdb.HasHDMint(dMint.GetPubcoinValue()) ||
            sigmaState->HasCoin(coin.getPublicCoin())) {
-            LogPrintf("%s: Coin detected used, trying next. count: %d\n", __func__, get<2>(mintPoolEntry.get()));
+            LogPrintf("%s: Coin detected used, trying next. count: %d\n", __func__, std::get<2>(mintPoolEntry.get()));
         }else{
-            LogPrintf("%s: Found unused coin, count: %d\n", __func__, get<2>(mintPoolEntry.get()));
+            LogPrintf("%s: Found unused coin, count: %d\n", __func__, std::get<2>(mintPoolEntry.get()));
             break;
         }
     }
@@ -996,9 +996,9 @@ bool CHDMintWallet::GenerateLelantusMint(CWalletDB& walletdb, lelantus::PrivateC
         // New HDMint exists, try new count
         if(walletdb.HasHDMint(dMint.GetPubcoinValue())
         || lelantusState->HasCoin(coin.getPublicCoin())) {
-            LogPrintf("%s: Coin detected used, trying next. count: %d\n", __func__, get<2>(mintPoolEntry.get()));
+            LogPrintf("%s: Coin detected used, trying next. count: %d\n", __func__, std::get<2>(mintPoolEntry.get()));
         }else{
-            LogPrintf("%s: Found unused coin, count: %d\n", __func__, get<2>(mintPoolEntry.get()));
+            LogPrintf("%s: Found unused coin, count: %d\n", __func__, std::get<2>(mintPoolEntry.get()));
             break;
         }
     }
@@ -1145,7 +1145,7 @@ bool CHDMintWallet::TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pu
 {
     // If you wonder why +1, go to file wallet.cpp and read the comments in function
     // CWallet::CreateSigmaMintModel around "scriptSerializedCoin << OP_SIGMAMINT";
-    vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
+    std::vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
                                           txout.scriptPubKey.end());
     secp_primitives::GroupElement publicSigma;
     publicSigma.deserialize(&coin_serialised[0]);

@@ -26,7 +26,7 @@
 #include "prevector.h"
 #include <memory>
 #include "definition.h"
-using namespace std;
+#include <boost/optional.hpp>
 
 
 static const unsigned int MAX_SIZE = 0x02000000;
@@ -44,6 +44,12 @@ static const unsigned int MAX_SIZE = 0x02000000;
  */
 struct deserialize_type {};
 constexpr deserialize_type deserialize {};
+
+#define ADD_DESERIALIZE_CTOR(CLASS_NAME)                              \
+template <typename Stream>                                            \
+CLASS_NAME(deserialize_type, Stream& s) {                             \
+    Unserialize(s);                                                   \
+}                                                                     \
 
 /**
  * Used to bypass the rule against non-const reference to temporary
@@ -783,6 +789,13 @@ template<typename Stream, typename T> void Serialize(Stream& os, const std::uniq
 template<typename Stream, typename T> void Unserialize(Stream& os, std::unique_ptr<const T>& p);
 
 /**
+ * optional
+ */
+template<typename Stream, typename T> void Serialize(Stream& os, const boost::optional<T>& p);
+template<typename Stream, typename T> void Unserialize(Stream& os, boost::optional<T>& p);
+
+
+/**
  * If none of the specialized versions above matched, default to calling member function.
  */
 template<typename Stream, typename T>
@@ -1105,6 +1118,29 @@ template<typename Stream, typename T>
 void Unserialize(Stream& is, std::shared_ptr<const T>& p)
 {
     p = std::make_shared<const T>(deserialize, is);
+}
+
+
+
+/**
+ * optional
+ */
+template<typename Stream, typename T> void
+Serialize(Stream& os, const boost::optional<T>& p)
+{
+    bool exists(p);
+    Serialize(os, exists);
+    if (exists)
+        Serialize(os, *p);
+}
+
+template<typename Stream, typename T>
+void Unserialize(Stream& is, boost::optional<T>& p)
+{
+    bool exists;
+    Unserialize(is, exists);
+    if (exists)
+        p.emplace(deserialize, is);
 }
 
 

@@ -8,8 +8,6 @@
 #include "tinyformat.h"
 #include "utilstrencodings.h"
 
-using namespace std;
-
 const char* GetOpName(opcodetype opcode)
 {
     switch (opcode)
@@ -153,6 +151,7 @@ const char* GetOpName(opcodetype opcode)
     case OP_LELANTUSMINT       : return "OP_LELANTUSMINT";
     case OP_LELANTUSJMINT      : return "OP_LELANTUSJMINT";
     case OP_LELANTUSJOINSPLIT  : return "OP_LELANTUSJOINSPLIT";
+    case OP_LELANTUSJOINSPLITPAYLOAD: return "OP_LELANTUSJOINSPLITPAYLOAD";
 
     // Note:
     //  The template matching params OP_SMALLINTEGER/etc are defined in opcodetype enum
@@ -197,7 +196,7 @@ unsigned int CScript::GetSigOpCount(const CScript& scriptSig) const
     // get the last item that the scriptSig
     // pushes onto the stack:
     const_iterator pc = scriptSig.begin();
-    vector<unsigned char> data;
+    std::vector<unsigned char> data;
     while (pc < scriptSig.end())
     {
         opcodetype opcode;
@@ -324,7 +323,7 @@ bool CScript::IsLelantusJMint() const {
 
 bool CScript::IsLelantusJoinSplit() const {
     return (this->size() > 0 &&
-            (*this)[0] == OP_LELANTUSJOINSPLIT);
+            ((*this)[0] == OP_LELANTUSJOINSPLIT || (*this)[0] == OP_LELANTUSJOINSPLITPAYLOAD));
 }
 
 bool CScript::IsMint() const {

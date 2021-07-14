@@ -15,6 +15,8 @@
 #include "editaddressdialog.h"
 #include "guiutil.h"
 #include "platformstyle.h"
+#include "bip47/paymentcode.h"
+#include "bip47/paymentchannel.h"
 
 #include <QIcon>
 #include <QMenu>
@@ -51,6 +53,7 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode,
         case ReceivingTab: setWindowTitle(tr("Choose the address to receive coins with")); break;
         }
         connect(ui->tableView, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(accept()));
+        connect(ui->tableViewPcodes, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(accept()));
         ui->tableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
         ui->tableView->setFocus();
         ui->closeButton->setText(tr("C&hoose"));
@@ -69,15 +72,19 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode,
     case SendingTab:
         ui->labelExplanation->setText(tr("These are your Firo addresses for sending payments. Always check the amount and the receiving address before sending coins."));
         ui->deleteAddress->setVisible(true);
+        connect(ui->tabWidget, SIGNAL(currentChanged(int)), this, SLOT(selectionChanged()));
+        connect(ui->tableViewPcodes, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
         break;
     case ReceivingTab:
         ui->labelExplanation->setText(tr("These are your Firo addresses for receiving payments. It is recommended to use a new receiving address for each transaction."));
         ui->deleteAddress->setVisible(false);
+        ui->tabWidget->removeTab(1); //RAP Pcodes tab
+        ui->tabWidget->tabBar()->setVisible(false);
         break;
     }
 
     // Context menu actions
-    QAction *copyAddressAction = new QAction(tr("&Copy Address"), this);
+    copyAddressAction = new QAction(tr("&Copy Address"), this);
     QAction *copyLabelAction = new QAction(tr("Copy &Label"), this);
     QAction *editAction = new QAction(tr("&Edit"), this);
     deleteAction = new QAction(ui->deleteAddress->text(), this);
@@ -118,6 +125,7 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     proxyModel->setDynamicSortFilter(true);
     proxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
     proxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
+
     switch(tab)
     {
     case ReceivingTab:
@@ -129,6 +137,24 @@ void AddressBookPage::setModel(AddressTableModel *_model)
         // Send filter
         proxyModel->setFilterRole(AddressTableModel::TypeRole);
         proxyModel->setFilterFixedString(AddressTableModel::Send);
+
+        proxyModelPcode = new QSortFilterProxyModel(this);
+        proxyModelPcode->setSourceModel(_model->getPcodeAddressTableModel());
+        proxyModelPcode->setDynamicSortFilter(true);
+        proxyModelPcode->setSortCaseSensitivity(Qt::CaseInsensitive);
+        proxyModelPcode->setFilterCaseSensitivity(Qt::CaseInsensitive);
+        ui->tableViewPcodes->setModel(proxyModelPcode);
+        ui->tableViewPcodes->sortByColumn(0, Qt::AscendingOrder);
+        connect(ui->tableViewPcodes->selectionModel(), SIGNAL(selectionChanged(QItemSelection,QItemSelection)),
+            this, SLOT(selectionChanged()));
+
+#if QT_VERSION < 0x050000
+        ui->tableViewPcodes->horizontalHeader()->setResizeMode(AddressTableModel::Label, QHeaderView::Stretch);
+        ui->tableViewPcodes->horizontalHeader()->setResizeMode(AddressTableModel::Address, QHeaderView::ResizeToContents);
+#else
+        ui->tableViewPcodes->horizontalHeader()->setSectionResizeMode(AddressTableModel::Label, QHeaderView::Stretch);
+        ui->tableViewPcodes->horizontalHeader()->setSectionResizeMode(AddressTableModel::Address, QHeaderView::ResizeToContents);
+#endif
         break;
     }
     ui->tableView->setModel(proxyModel);
@@ -154,31 +180,51 @@ void AddressBookPage::setModel(AddressTableModel *_model)
 
 void AddressBookPage::on_copyAddress_clicked()
 {
-    GUIUtil::copyEntryData(ui->tableView, AddressTableModel::Address);
+    if(ui->tabWidget->currentWidget() == ui->tabAddresses)
+        GUIUtil::copyEntryData(ui->tableView, AddressTableModel::Address);
+    else
+        GUIUtil::copyEntryData(ui->tableViewPcodes, AddressTableModel::Address);
 }
 
 void AddressBookPage::onCopyLabelAction()
 {
-    GUIUtil::copyEntryData(ui->tableView, AddressTableModel::Label);
+    if(ui->tabWidget->currentWidget() == ui->tabAddresses)
+        GUIUtil::copyEntryData(ui->tableView, AddressTableModel::Label);
+    else
+        GUIUtil::copyEntryData(ui->tableViewPcodes, AddressTableModel::Label);
 }
 
 void AddressBookPage::onEditAction()
 {
-    if(!model)
+    QModelIndexList indexes;
+
+    EditAddressDialog::Mode mode;
+    AddressTableModel * pmodel;
+    QSortFilterProxyModel *pproxyModel;
+    if(ui->tabWidget->currentWidget() == ui->tabAddresses)
+    {
+        mode = tab == SendingTab ? EditAddressDialog::EditSendingAddress : EditAddressDialog::EditReceivingAddress;
+        pmodel = model;
+        pproxyModel = proxyModel;
+        if(!ui->tableView->selectionModel())
+           return;
+        indexes = ui->tableView->selectionModel()->selectedRows();
+    }
+    else
+    {
+        mode = EditAddressDialog::EditPcode;
+        pmodel = model->getPcodeAddressTableModel();
+        pproxyModel = proxyModelPcode;
+        if(!ui->tableViewPcodes->selectionModel())
+            return;
+        indexes = ui->tableViewPcodes->selectionModel()->selectedRows();
+    }
+    if(!pmodel || indexes.isEmpty())
         return;
 
-    if(!ui->tableView->selectionModel())
-        return;
-    QModelIndexList indexes = ui->tableView->selectionModel()->selectedRows();
-    if(indexes.isEmpty())
-        return;
-
-    EditAddressDialog dlg(
-        tab == SendingTab ?
-        EditAddressDialog::EditSendingAddress :
-        EditAddressDialog::EditReceivingAddress, this);
-    dlg.setModel(model);
-    QModelIndex origIndex = proxyModel->mapToSource(indexes.at(0));
+    EditAddressDialog dlg(mode, this);
+    dlg.setModel(pmodel);
+    QModelIndex origIndex = pproxyModel->mapToSource(indexes.at(0));
     dlg.loadRow(origIndex.row());
     dlg.exec();
 }
@@ -188,11 +234,21 @@ void AddressBookPage::on_newAddress_clicked()
     if(!model)
         return;
 
-    EditAddressDialog dlg(
-        tab == SendingTab ?
-        EditAddressDialog::NewSendingAddress :
-        EditAddressDialog::NewReceivingAddress, this);
-    dlg.setModel(model);
+    AddressTableModel *pmodel;
+    EditAddressDialog::Mode mode;
+    if(ui->tabWidget->currentWidget() == ui->tabAddresses)
+    {
+        pmodel = model;
+        mode = tab == SendingTab ? EditAddressDialog::NewSendingAddress : EditAddressDialog::NewReceivingAddress;
+    }
+    else
+    {
+        pmodel = model->getPcodeAddressTableModel();
+        mode = EditAddressDialog::NewPcode;
+    }
+
+    EditAddressDialog dlg(mode, this);
+    dlg.setModel(pmodel);
     if(dlg.exec())
     {
         newAddressToSelect = dlg.getAddress();
@@ -201,7 +257,12 @@ void AddressBookPage::on_newAddress_clicked()
 
 void AddressBookPage::on_deleteAddress_clicked()
 {
-    QTableView *table = ui->tableView;
+    QTableView *table;
+    if(ui->tabWidget->currentWidget() == ui->tabAddresses)
+        table = ui->tableView;
+    else
+        table = ui->tableViewPcodes;
+
     if(!table->selectionModel())
         return;
 
@@ -215,7 +276,12 @@ void AddressBookPage::on_deleteAddress_clicked()
 void AddressBookPage::selectionChanged()
 {
     // Set button states based on selected tab and selection
-    QTableView *table = ui->tableView;
+    QTableView *table;
+    if(ui->tabWidget->currentWidget() == ui->tabAddresses)
+        table = ui->tableView;
+    else
+        table = ui->tableViewPcodes;
+
     if(!table->selectionModel())
         return;
 
@@ -247,7 +313,12 @@ void AddressBookPage::selectionChanged()
 
 void AddressBookPage::done(int retval)
 {
-    QTableView *table = ui->tableView;
+    QTableView *table;
+    if(ui->tabWidget->currentWidget() == ui->tabAddresses)
+        table = ui->tableView;
+    else 
+        table = ui->tableViewPcodes;
+
     if(!table->selectionModel() || !table->model())
         return;
 
@@ -280,10 +351,19 @@ void AddressBookPage::on_exportButton_clicked()
 
     CSVModelWriter writer(filename);
 
-    // name, column, role
-    writer.setModel(proxyModel);
-    writer.addColumn("Label", AddressTableModel::Label, Qt::EditRole);
-    writer.addColumn("Address", AddressTableModel::Address, Qt::EditRole);
+    QTableView *table;
+    if(ui->tabWidget->currentWidget() == ui->tabAddresses)
+    {
+        writer.setModel(proxyModel);
+        writer.addColumn("Label", AddressTableModel::Label, Qt::EditRole);
+        writer.addColumn("Address", AddressTableModel::Address, Qt::EditRole);
+    }
+    else
+    {
+        writer.setModel(proxyModelPcode);
+        writer.addColumn("Label", AddressTableModel::Label, Qt::EditRole);
+        writer.addColumn("PaymentCode", AddressTableModel::Address, Qt::EditRole);
+    }
 
     if(!writer.write()) {
         QMessageBox::critical(this, tr("Exporting Failed"),
@@ -293,7 +373,17 @@ void AddressBookPage::on_exportButton_clicked()
 
 void AddressBookPage::contextualMenu(const QPoint &point)
 {
-    QModelIndex index = ui->tableView->indexAt(point);
+    QModelIndex index;
+    if(ui->tabWidget->currentWidget() == ui->tabAddresses)
+    {
+        index = ui->tableView->indexAt(point);
+        copyAddressAction->setText(tr("&Copy Address"));
+    }
+    else
+    {
+        index = ui->tableViewPcodes->indexAt(point);
+        copyAddressAction->setText(tr("&Copy RAP address"));
+    }
     if(index.isValid())
     {
         contextMenu->exec(QCursor::pos());

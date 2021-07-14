@@ -81,6 +81,8 @@ public:
         SpendToAddress,
         SpendToSelf,
         Anonymize,
+        SendToPcode,
+        RecvWithPcode,
     };
 
     /** Number of confirmation recommended for accepting a transaction */
@@ -118,6 +120,7 @@ public:
     std::string address;
     CAmount debit;
     CAmount credit;
+    std::string pcode;
     /**@}*/
 
     /** Subtransaction index, for sort key */

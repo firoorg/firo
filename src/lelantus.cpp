@@ -105,7 +105,7 @@ void GenerateMintSchnorrProof(const lelantus::PrivateCoin& coin, CDataStream&  s
     secp_primitives::GroupElement commit = coin.getPublicCoin().getValue();
     secp_primitives::GroupElement comm = commit + (params->get_h1() * v.negate());
 
-    unique_ptr<ChallengeGenerator> challengeGenerator;
+    std::unique_ptr<ChallengeGenerator> challengeGenerator;
     if (afterFixes) {
         // start to use CHash256 which is more secure
         challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
@@ -128,7 +128,7 @@ bool VerifyMintSchnorrProof(const uint64_t& v, const secp_primitives::GroupEleme
     bool afterFixes = chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock;
     secp_primitives::GroupElement comm = commit + (params->get_h1() * Scalar(v).negate());
     SchnorrVerifier verifier(params->get_g(), params->get_h0(), afterFixes);
-    unique_ptr<ChallengeGenerator> challengeGenerator;
+    std::unique_ptr<ChallengeGenerator> challengeGenerator;
     if (afterFixes) {
         // start to use CHash256 which is more secure
         challengeGenerator = std::make_unique<ChallengeGeneratorImpl<CHash256>>(1);
@@ -210,21 +210,24 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
     }
 }
 
-std::unique_ptr<JoinSplit> ParseLelantusJoinSplit(const CTxIn& in)
+std::unique_ptr<JoinSplit> ParseLelantusJoinSplit(const CTransaction &tx)
 {
-    if (in.scriptSig.size() < 1) {
+    if (tx.vin.size() != 1 || tx.vin[0].scriptSig.size() < 1) {
         throw CBadTxIn();
     }
 
-    CDataStream serialized(
-        std::vector<unsigned char>(in.scriptSig.begin() + 1, in.scriptSig.end()),
-        SER_NETWORK,
-        PROTOCOL_VERSION
-    );
+    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
 
-    std::unique_ptr<lelantus::JoinSplit> joinsplit(new lelantus::JoinSplit(lelantus::Params::get_default(), serialized));
+    if (tx.vin[0].scriptSig[0] == OP_LELANTUSJOINSPLIT) {
+        serialized.write((const char *)tx.vin[0].scriptSig.data()+1, tx.vin[0].scriptSig.size()-1);
+    }
+    else if (tx.vin[0].scriptSig[0] == OP_LELANTUSJOINSPLITPAYLOAD && tx.nVersion >= 3 && tx.nType == TRANSACTION_LELANTUS) {
+        serialized.write((const char *)tx.vExtraPayload.data(), tx.vExtraPayload.size());
+    }
+    else
+        throw CBadTxIn();
 
-    return joinsplit;
+    return std::make_unique<lelantus::JoinSplit>(lelantus::Params::get_default(), serialized);
 }
 
 bool CheckLelantusBlock(CValidationState &state, const CBlock& block) {
@@ -356,11 +359,26 @@ bool CheckLelantusJoinSplitTransaction(
                          "CheckLelantusJoinSplitTransaction: can't mix lelantus spend input with other tx types or have more than one spend");
     }
 
+    if (!isVerifyDB) {
+        int height = nHeight == INT_MAX ? chainActive.Height()+1 : nHeight;
+        if (height >= params.nLelantusV3PayloadStartBlock) {
+            // data should be moved to v3 payload
+            if (tx.nVersion < 3 || tx.nType != TRANSACTION_LELANTUS)
+                return state.DoS(100, false, NSEQUENCE_INCORRECT,
+                        "CheckLelantusJoinSplitTransaction: lelantus data should reside in transaction payload");
+        }
+        else {
+            if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL)
+                return state.DoS(100, false, NSEQUENCE_INCORRECT,
+                        "CheckLelantusJoinSplitTransaction: network hasn't yet switched over to lelantus payload data");
+        }
+    }
+
     const CTxIn &txin = tx.vin[0];
     std::unique_ptr<lelantus::JoinSplit> joinsplit;
 
     try {
-        joinsplit = ParseLelantusJoinSplit(txin);
+        joinsplit = ParseLelantusJoinSplit(tx);
     }
     catch (CBadTxIn&) {
         return state.DoS(100,
@@ -384,6 +402,7 @@ bool CheckLelantusJoinSplitTransaction(
     // Obtain the hash of the transaction sans the zerocoin part
     CMutableTransaction txTemp = tx;
     txTemp.vin[0].scriptSig.clear();
+    txTemp.vExtraPayload.clear();
 
     txHashForMetadata = txTemp.GetHash();
 
@@ -433,7 +452,7 @@ bool CheckLelantusJoinSplitTransaction(
             while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
                 index = index->pprev;
 
-            pair<sigma::CoinDenomination, int> denominationAndId = std::make_pair(denomination, coinGroupId);
+            std::pair<sigma::CoinDenomination, int> denominationAndId = std::make_pair(denomination, coinGroupId);
 
             auto lelantusParams = lelantus::Params::get_default();
             while (true) {
@@ -681,7 +700,7 @@ bool CheckLelantusTransaction(
     if(tx.IsLelantusJoinSplit()) {
         CAmount nFees;
         try {
-            nFees = lelantus::ParseLelantusJoinSplit(tx.vin[0])->getFee();
+            nFees = lelantus::ParseLelantusJoinSplit(tx)->getFee();
         }
         catch (CBadTxIn&) {
             return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
@@ -756,7 +775,7 @@ void RemoveLelantusJoinSplitReferencingBlock(CTxMemPool& pool, CBlockIndex* bloc
                     std::unique_ptr<lelantus::JoinSplit> joinsplit;
 
                     try {
-                        joinsplit = ParseLelantusJoinSplit(txin);
+                        joinsplit = ParseLelantusJoinSplit(tx);
                     }
                     catch (const std::ios_base::failure &) {
                         txn_to_remove.push_back(tx);
@@ -795,7 +814,7 @@ std::vector<Scalar> GetLelantusJoinSplitSerialNumbers(const CTransaction &tx, co
         return std::vector<Scalar>();
 
     try {
-        return ParseLelantusJoinSplit(txin)->getCoinSerialNumbers();
+        return ParseLelantusJoinSplit(tx)->getCoinSerialNumbers();
     }
     catch (const std::ios_base::failure &) {
         return std::vector<Scalar>();
@@ -1052,14 +1071,15 @@ void CLelantusState::Containers::AddMint(lelantus::PublicCoin const & pubCoin, C
 void CLelantusState::Containers::RemoveMint(lelantus::PublicCoin const & pubCoin) {
     mint_info_container::const_iterator iter = mintedPubCoins.find(pubCoin);
     if (iter != mintedPubCoins.end()) {
-        mintMetaInfo[iter->second.coinGroupId] -= 1;
-        mintedPubCoins.erase(iter);
-        CheckSurgeCondition();
         for(auto hashPair =  tagToPublicCoin.begin(); hashPair !=  tagToPublicCoin.end(); hashPair++)
             if(hashPair->second == pubCoin) {
                 tagToPublicCoin.erase(hashPair);
                 break;
             }
+
+        mintMetaInfo[iter->second.coinGroupId] -= 1;
+        mintedPubCoins.erase(iter);
+        CheckSurgeCondition();
     }
 }
 
@@ -1499,7 +1519,7 @@ std::pair<int, int> CLelantusState::GetMintedCoinHeightAndId(
     return std::make_pair(-1, -1);
 }
 
-bool CLelantusState::AddSpendToMempool(const vector<Scalar> &coinSerials, uint256 txHash) {
+bool CLelantusState::AddSpendToMempool(const std::vector<Scalar> &coinSerials, uint256 txHash) {
     LOCK(mempool.cs);
     BOOST_FOREACH(const Scalar& coinSerial, coinSerials){
         if (IsUsedCoinSerial(coinSerial) || mempool.lelantusState.HasCoinSerial(coinSerial))
@@ -1511,14 +1531,14 @@ bool CLelantusState::AddSpendToMempool(const vector<Scalar> &coinSerials, uint25
     return true;
 }
 
-void CLelantusState::RemoveSpendFromMempool(const vector<Scalar> &coinSerials) {
+void CLelantusState::RemoveSpendFromMempool(const std::vector<Scalar> &coinSerials) {
     LOCK(mempool.cs);
     BOOST_FOREACH(const Scalar& coinSerial, coinSerials) {
         mempool.lelantusState.RemoveSpendFromMempool(coinSerial);
     }
 }
 
-void CLelantusState::AddMintsToMempool(const vector<GroupElement>& pubCoins) {
+void CLelantusState::AddMintsToMempool(const std::vector<GroupElement>& pubCoins) {
     LOCK(mempool.cs);
     BOOST_FOREACH(const GroupElement& pubCoin, pubCoins) {
         mempool.lelantusState.AddMintToMempool(pubCoin);
