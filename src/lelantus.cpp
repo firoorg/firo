@@ -358,8 +358,9 @@ bool CheckLelantusJoinSplitTransaction(
                          "CheckLelantusJoinSplitTransaction: can't mix lelantus spend input with other tx types or have more than one spend");
     }
 
-    if (!isVerifyDB && !isCheckWallet) {
-        if (nHeight >= params.nLelantusV3PayloadStartBlock) {
+    if (!isVerifyDB) {
+        int height = nHeight == INT_MAX ? chainActive.Height()+1 : nHeight;
+        if (height >= params.nLelantusV3PayloadStartBlock) {
             // data should be moved to v3 payload
             if (tx.nVersion < 3 || tx.nType != TRANSACTION_LELANTUS)
                 return state.DoS(100, false, NSEQUENCE_INCORRECT,
