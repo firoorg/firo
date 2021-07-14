@@ -65,14 +65,14 @@ enum DBErrors
 };
 
 // {value, isHardened}
-typedef pair<uint32_t,bool> Component;
+typedef std::pair<uint32_t,bool> Component;
 
 /* simple HD chain data model */
 class CHDChain
 {
 public:
     uint32_t nExternalChainCounter; // VERSION_BASIC
-    vector<uint32_t> nExternalChainCounters; // VERSION_WITH_BIP44: vector index corresponds to account value
+    std::vector<uint32_t> nExternalChainCounters; // VERSION_WITH_BIP44: vector index corresponds to account value
     CKeyID masterKeyID; //!< master key hash160
 
     static const int VERSION_BASIC = 1;
@@ -146,11 +146,11 @@ public:
         std::string nChangeStr = nComponents[nComponents.size()-2];
         std::string nChildStr  = nComponents[nComponents.size()-1];
 
-        nChange.second = (nChangeStr.find("'") != string::npos);
+        nChange.second = (nChangeStr.find("'") != std::string::npos);
         boost::erase_all(nChangeStr, "'");
         nChange.first = boost::lexical_cast<uint32_t>(nChangeStr);
 
-        nChild.second = (nChildStr.find("'") != string::npos);
+        nChild.second = (nChildStr.find("'") != std::string::npos);
         boost::erase_all(nChildStr, "'");
         nChild.first = boost::lexical_cast<uint32_t>(nChildStr);
 
@@ -384,7 +384,7 @@ public:
     template<typename K, typename V, typename InsertF>
     void ListElysiumMintsV0(InsertF insertF)
     {
-        ListEntries<K, V, InsertF>(string("exodus_mint"), insertF);
+        ListEntries<K, V, InsertF>(std::string("exodus_mint"), insertF);
     }
 
     // version 1
@@ -456,7 +456,7 @@ public:
     template<typename K, typename V, typename InsertF>
     void ListElysiumMintsV1(InsertF insertF)
     {
-        ListEntries<K, V, InsertF>(string("exodus_mint_v1"), insertF);
+        ListEntries<K, V, InsertF>(std::string("exodus_mint_v1"), insertF);
     }
 
     template<class MintPool>
@@ -527,7 +527,7 @@ public:
     template<typename K, typename V, typename InsertF>
     void ListElysiumLelantusMints(InsertF insertF)
     {
-        ListEntries<K, V, InsertF>(string("elysium_lelantusmintmint"), insertF);
+        ListEntries<K, V, InsertF>(std::string("elysium_lelantusmintmint"), insertF);
     }
 
 #endif
@@ -545,7 +545,7 @@ private:
     {
         auto cursor = GetCursor();
         if (!cursor) {
-            throw runtime_error(std::string(__func__) + " : cannot create DB cursor");
+            throw std::runtime_error(std::string(__func__) + " : cannot create DB cursor");
         }
 
         bool setRange = true;

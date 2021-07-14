@@ -912,6 +912,8 @@ public:
     void ResendWalletTransactions(int64_t nBestBlockTime, CConnman* connman) override;
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime, CConnman* connman);
     CAmount GetBalance(bool fExcludeLocked = false) const;
+    std::pair<CAmount, CAmount> GetPrivateBalance() const;
+    std::pair<CAmount, CAmount> GetPrivateBalance(size_t &confirmed, size_t &unconfirmed) const;
     CAmount GetUnconfirmedBalance() const;
     CAmount GetImmatureBalance() const;
     CAmount GetWatchOnlyBalance() const;
@@ -921,7 +923,7 @@ public:
 
     static std::vector<CRecipient> CreateSigmaMintRecipients(
         std::vector<sigma::PrivateCoin>& coins,
-        vector<CHDMint>& vDMints);
+        std::vector<CHDMint>& vDMints);
 
     static CRecipient CreateLelantusMintRecipient(
         lelantus::PrivateCoin& coin,
@@ -996,8 +998,8 @@ public:
     /**
      * Add Mint and Spend functions
      */
-    void ListAvailableSigmaMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const;
-    void ListAvailableLelantusMintCoins(vector<COutput> &vCoins, bool fOnlyConfirmed) const;
+    void ListAvailableSigmaMintCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed) const;
+    void ListAvailableLelantusMintCoins(std::vector<COutput> &vCoins, bool fOnlyConfirmed) const;
 
     bool CreateMintTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true);
@@ -1032,9 +1034,9 @@ public:
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
 
     std::string MintAndStoreSigma(
-        const vector<CRecipient>& vecSend,
-        const vector<sigma::PrivateCoin>& privCoins,
-        vector<CHDMint> vDMints,
+        const std::vector<CRecipient>& vecSend,
+        const std::vector<sigma::PrivateCoin>& privCoins,
+        std::vector<CHDMint> vDMints,
         CWalletTx &wtxNew,
         bool fAskFee=false,
         const CCoinControl *coinControl = NULL);
@@ -1052,7 +1054,7 @@ public:
 
     std::vector<CLelantusEntry> JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result);
 
-    std::pair<CAmount, unsigned int> EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, const CCoinControl *coinControl);
+    std::pair<CAmount, unsigned int> EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, std::list<CSigmaEntry> sigmaCoins, std::list<CLelantusEntry> coins, const CCoinControl *coinControl);
 
     bool GetMint(const uint256& hashSerial, CSigmaEntry& sigmaEntry, bool forEstimation = false) const;
 

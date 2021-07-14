@@ -140,11 +140,11 @@ void BatchProofContainer::batch_sigma() {
         size_t m = itr.second.size();
         std::vector<Scalar> serials;
         serials.reserve(m);
-        vector<bool> fPadding;
+        std::vector<bool> fPadding;
         fPadding.reserve(m);
         std::vector<size_t> setSizes;
         setSizes.reserve(m);
-        vector<sigma::SigmaPlusProof<Scalar, GroupElement>> proofs;
+        std::vector<sigma::SigmaPlusProof<Scalar, GroupElement>> proofs;
         proofs.reserve(m);
 
         for (auto& proofData : itr.second) {

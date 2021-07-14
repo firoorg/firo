@@ -20,7 +20,7 @@ public:
             const std::vector<Scalar>& a,
             const std::vector<Scalar>& b,
             const Scalar& x,
-            unique_ptr<ChallengeGenerator>& challengeGenerator,
+            std::unique_ptr<ChallengeGenerator>& challengeGenerator,
             InnerProductProof& proof_out);
 
     const GroupElement& get_P();
@@ -37,7 +37,7 @@ private:
     void generate_proof_util(
             const std::vector<Scalar>& a,
             const std::vector<Scalar>& b,
-            unique_ptr<ChallengeGenerator>& challengeGenerator,
+            std::unique_ptr<ChallengeGenerator>& challengeGenerator,
             InnerProductProof& proof_out);
 
     void l(typename std::vector<Scalar>::const_iterator a_start,

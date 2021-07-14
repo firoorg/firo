@@ -15,9 +15,9 @@ class JSONRPCRequest;
 
 void RegisterWalletRPCCommands(CRPCTable &t);
 
-CBitcoinAddress GetAccountAddress(CWallet * const pwallet, string strAccount, bool bForceNew=false);
+CBitcoinAddress GetAccountAddress(CWallet * const pwallet, std::string strAccount, bool bForceNew=false);
 
-vector<string> GetMyAccountNames();
+std::vector<std::string> GetMyAccountNames();
 /**
  * Figures out what wallet, if any, to use for a JSONRPCRequest.
  *

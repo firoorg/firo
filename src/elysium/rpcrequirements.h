@@ -17,7 +17,7 @@ void RequireManagedProperty(uint32_t propertyId);
 void RequireTokenIssuer(const std::string& address, uint32_t propertyId);
 void RequireSaneReferenceAmount(int64_t amount);
 void RequireHeightInChain(int blockHeight);
-void RequireLelantusStatus(LelantusStatus status);
+void RequireLelantusStatus(elysium::LelantusStatus status);
 
 namespace elysium {
 

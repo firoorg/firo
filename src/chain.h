@@ -227,31 +227,31 @@ public:
 
     //! Public coin values of mints in this block, ordered by serialized value of public coin
     //! Maps <denomination,id> to vector of public coins
-    map<pair<int,int>, vector<CBigNum>> mintedPubCoins;
+    std::map<std::pair<int,int>, std::vector<CBigNum>> mintedPubCoins;
 
     //! Accumulator updates. Contains only changes made by mints in this block
     //! Maps <denomination, id> to <accumulator value (CBigNum), number of such mints in this block>
-    map<pair<int,int>, pair<CBigNum,int>> accumulatorChanges;
+    std::map<std::pair<int,int>, std::pair<CBigNum,int>> accumulatorChanges;
 
     //! Values of coin serials spent in this block
-	set<CBigNum> spentSerials;
+	std::set<CBigNum> spentSerials;
 
 /////////////////////// Sigma index entries. ////////////////////////////////////////////
 
     //! Public coin values of mints in this block, ordered by serialized value of public coin
     //! Maps <denomination,id> to vector of public coins
-    std::map<pair<sigma::CoinDenomination, int>, vector<sigma::PublicCoin>> sigmaMintedPubCoins;
+    std::map<std::pair<sigma::CoinDenomination, int>, std::vector<sigma::PublicCoin>> sigmaMintedPubCoins;
     //! Map id to <public coin, tag>
-    std::map<int, vector<std::pair<lelantus::PublicCoin, uint256>>>  lelantusMintedPubCoins;
+    std::map<int, std::vector<std::pair<lelantus::PublicCoin, uint256>>>  lelantusMintedPubCoins;
     //! Map id to <hash of the set>
-    std::map<int, vector<unsigned char>> anonymitySetHash;
+    std::map<int, std::vector<unsigned char>> anonymitySetHash;
 
     //! Values of coin serials spent in this block
     sigma::spend_info_container sigmaSpentSerials;
     std::unordered_map<Scalar, int> lelantusSpentSerials;
 
     //! list of disabling sporks active at this block height
-    //! map {feature name} -> {block number when feature is re-enabled again, parameter}
+    //! std::map {feature name} -> {block number when feature is re-enabled again, parameter}
     ActiveSporkMap activeDisablingSporks;
 
     void SetNull()
@@ -402,16 +402,16 @@ public:
         ret.push_back(Pair("nHeight", nHeight));
         ret.push_back(Pair("merkle", hashMerkleRoot.ToString()));
         ret.push_back(Pair("hashBlock", GetBlockHash().ToString()));
-        ret.push_back(Pair("dataPos", to_string(nDataPos)));
+        ret.push_back(Pair("dataPos", std::to_string(nDataPos)));
         ret.push_back(Pair("chainWork", nChainWork.GetHex()));
-        ret.push_back(Pair("tx", to_string(nTx)));
-        ret.push_back(Pair("chainTx", to_string(nChainTx)));
-        ret.push_back(Pair("status", to_string(nStatus)));
-        ret.push_back(Pair("sequenceId", to_string(nSequenceId)));
-        ret.push_back(Pair("version", to_string(nVersion)));
-        ret.push_back(Pair("nTime", to_string(nTime)));
-        ret.push_back(Pair("bits", to_string(nBits)));
-        ret.push_back(Pair("nonce", to_string(nNonce)));
+        ret.push_back(Pair("tx", std::to_string(nTx)));
+        ret.push_back(Pair("chainTx", std::to_string(nChainTx)));
+        ret.push_back(Pair("status", std::to_string(nStatus)));
+        ret.push_back(Pair("sequenceId", std::to_string(nSequenceId)));
+        ret.push_back(Pair("version", std::to_string(nVersion)));
+        ret.push_back(Pair("nTime", std::to_string(nTime)));
+        ret.push_back(Pair("bits", std::to_string(nBits)));
+        ret.push_back(Pair("nonce", std::to_string(nNonce)));
 
         return ret;
     }
@@ -520,7 +520,7 @@ public:
                 && nHeight >= params.nLelantusStartBlock
                 && nVersion >= LELANTUS_PROTOCOL_ENABLEMENT_VERSION) {
             if(nVersion == LELANTUS_PROTOCOL_ENABLEMENT_VERSION) {
-                std::map<int, vector<lelantus::PublicCoin>>  lelantusPubCoins;
+                std::map<int, std::vector<lelantus::PublicCoin>>  lelantusPubCoins;
                 READWRITE(lelantusPubCoins);
                 for(auto& itr : lelantusPubCoins) {
                     if(!itr.second.empty()) {

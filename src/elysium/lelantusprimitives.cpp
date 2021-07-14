@@ -28,7 +28,7 @@ MintEntryId::MintEntryId(lelantus::PrivateCoin const &coin, uint160 const &seedI
 
 MintEntryId::MintEntryId(secp_primitives::Scalar const &serial, secp_primitives::Scalar const &randomness, uint160 const &seedId)
 {
-    auto params = lelantus::Params::get_default();
+    auto params = lelantus::Params::get_elysium();
     auto pubcoin = lelantus::LelantusPrimitives::commit(
         params->get_g(), serial, params->get_h0(), randomness);
 
@@ -84,13 +84,19 @@ JoinSplitMint::JoinSplitMint(MintEntryId _id, lelantus::PublicCoin const &_publi
 lelantus::JoinSplit CreateJoinSplit(
     std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> const &coins,
     std::map<uint32_t, std::vector<lelantus::PublicCoin>> const &anonss,
-    vector<vector<unsigned char>> anonymitySetHashes,
+    std::vector<std::vector<unsigned char>> anonymitySetHashes,
     LelantusAmount amount,
     std::vector<lelantus::PrivateCoin> const &coinOuts,
     std::map<uint32_t, uint256> const &groupBlockHashs,
     uint256 const &metaData)
 {
-    auto params = lelantus::Params::get_default();
+    auto params = lelantus::Params::get_elysium();
+
+    // int64_t is the max amount allowed for Elysium Lelantus transactions.
+    if (amount > INT64_MAX) {
+        throw std::runtime_error("spend amount would violate consensus limits");
+    }
+
     // 4966 is the fixed size part of the transaction. It includes:
     // + 1 Lelantus input
     // + 1 Lelantus joinmint output

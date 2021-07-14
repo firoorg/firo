@@ -103,7 +103,7 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         pcoinsdbview = new CCoinsViewDB(1 << 23, true);
         llmq::InitLLMQSystem(*evoDb, nullptr, true);
         pcoinsTip = new CCoinsViewCache(pcoinsdbview);
-        pwalletMain = new CWallet(string("wallet_test.dat"));
+        pwalletMain = new CWallet(std::string("wallet_test.dat"));
         static bool fFirstRun = true;
         pwalletMain->LoadWallet(fFirstRun);
 

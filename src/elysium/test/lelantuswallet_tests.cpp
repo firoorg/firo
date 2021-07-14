@@ -216,7 +216,7 @@ lelantus::JoinSplit CreateEvilJoinSplit(
     // necessarily result in a change in the former.
     auto js = ::CreateJoinSplit(coins, anonss, anonymitySetHashes, amountToSpend, coinOuts, blockHashes, metadata);
 
-    if (!js.Verify(anonss, anonymitySetHashes, pubCoinOuts, amountToSpend, metadata)) {
+    if (!js.VerifyElysium(anonss, anonymitySetHashes, pubCoinOuts, amountToSpend, metadata)) {
         throw std::runtime_error("Fail to verify created join/split object");
     }
 

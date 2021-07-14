@@ -235,7 +235,7 @@ int TXHistoryDialog::PopulateHistoryMap()
             bool fundsMoved = true;
             htxo.txType = shrinkTxType(pending.type, &fundsMoved);
 
-            if (pending.type == ELYSIUM_TYPE_LELANTUS_SPEND) {
+            if (pending.type == ELYSIUM_TYPE_LELANTUS_JOINSPLIT) {
                 if (pending.dest && IsMyAddress(pending.dest.get())) {
                     htxo.amount = FormatShortMP(pending.prop, pending.amount) + getTokenLabel(pending.prop);
                 }
@@ -304,11 +304,14 @@ int TXHistoryDialog::PopulateHistoryMap()
         uint64_t amountNew = 0;
         htxo.valid = getValidMPTX(txHash, &tmpBlock, &type, &amountNew);
 
-        if (htxo.valid && type == ELYSIUM_TYPE_LELANTUS_SPEND) { // override amount for spend
+        // Ignore invalid transactions so as to not confuse the user.
+        if (!htxo.valid) continue;
+
+        if (type == ELYSIUM_TYPE_LELANTUS_JOINSPLIT) { // override amount for spend
             amount = mp_obj.getLelantusSpendAmount();
         }
 
-        if (htxo.valid && type == ELYSIUM_TYPE_LELANTUS_MINT) { // override amount for mint
+        if (type == ELYSIUM_TYPE_LELANTUS_MINT) { // override amount for mint
             amount = mp_obj.getLelantusMintValue();
         }
 
@@ -321,8 +324,8 @@ int TXHistoryDialog::PopulateHistoryMap()
         if (!IsMyAddress(mp_obj.getSender())) htxo.address = mp_obj.getReceiver();
         if (htxo.fundsMoved && IsMyAddress(mp_obj.getSender())) displayAmount = "-" + displayAmount;
 
-        if (type == ELYSIUM_TYPE_LELANTUS_SPEND) {
-            htxo.address = "Spend";
+        if (type == ELYSIUM_TYPE_LELANTUS_MINT) {
+            htxo.address = "Mint";
             if (htxo.fundsMoved && !IsMyAddress(mp_obj.getReceiver())) {
                 displayAmount = "-" + displayAmount;
             }
@@ -538,6 +541,8 @@ std::string TXHistoryDialog::shrinkTxType(int txType, bool *fundsMoved)
         case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS: displayType = "Grant Tokens"; break;
         case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS: displayType = "Revoke Tokens"; break;
         case ELYSIUM_TYPE_CHANGE_ISSUER_ADDRESS: displayType = "Change Issuer"; *fundsMoved = false; break;
+        case ELYSIUM_TYPE_LELANTUS_JOINSPLIT: displayType = "Joinsplit"; break;
+        case ELYSIUM_TYPE_LELANTUS_MINT: displayType = "Mint"; break;
 
     }
     return displayType;

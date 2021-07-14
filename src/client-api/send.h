@@ -8,4 +8,4 @@
 
 bool getPaymentRequest(UniValue &paymentRequestUni, UniValue &paymentRequestData);
 
-bool getPaymentRequestEntry(string address, UniValue &entry);
+bool getPaymentRequestEntry(std::string address, UniValue &entry);

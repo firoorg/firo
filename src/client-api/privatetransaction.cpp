@@ -31,7 +31,9 @@ UniValue lelantusTxFee(Type type, const UniValue& data, const UniValue& auth, bo
     // payTxFee is a global variable that will be used to estimate the fee.
     payTxFee = CFeeRate(data["feePerKb"].get_int64());
 
-    pair<CAmount, unsigned int> txFeeAndSize = pwalletMain->EstimateJoinSplitFee(nAmount, fSubtractFeeFromAmount, &coinControl);
+    std::list<CSigmaEntry> sigmaCoins;
+    std::list<CLelantusEntry> lelantusCoins;
+    pair<CAmount, unsigned int> txFeeAndSize = pwalletMain->EstimateJoinSplitFee(nAmount, fSubtractFeeFromAmount, sigmaCoins, lelantusCoins, &coinControl);
 
     return txFeeAndSize.first;
 }

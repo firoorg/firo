@@ -7,7 +7,7 @@ namespace fs = boost::filesystem;
 
 void ReadAPISettingsFile();
 
-bool WriteAPISetting(UniValue& data, string name, UniValue& setting);
+bool WriteAPISetting(UniValue& data, std::string name, UniValue& setting);
 
 bool GetSettings(UniValue& settings, fs::path& path);
 

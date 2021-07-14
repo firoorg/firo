@@ -18,7 +18,7 @@ bool SigmaExtendedVerifier::batchverify(
         const std::vector<GroupElement>& commits,
         const Scalar& x,
         const std::vector<Scalar>& serials,
-        const vector<SigmaExtendedProof>& proofs) const {
+        const std::vector<SigmaExtendedProof>& proofs) const {
     int M = proofs.size();
     int N = commits.size();
 
@@ -65,7 +65,7 @@ bool SigmaExtendedVerifier::batchverify(
         Scalar e;
 
         Scalar f_i(uint64_t(1));
-        vector<Scalar>::iterator ptr = f_i_t.begin();
+        std::vector<Scalar>::iterator ptr = f_i_t.begin();
         compute_batch_fis(f_i, m, f_[t], y[t], e, ptr, ptr, ptr + N - 1);
         /*
         * Optimization for getting power for last 'commits' array element is done similarly to the one used in creating
@@ -83,7 +83,7 @@ bool SigmaExtendedVerifier::batchverify(
         */
 
         Scalar pow(uint64_t(1));
-        vector<Scalar> f_part_product;    // partial product of f array elements for lastIndex
+        std::vector<Scalar> f_part_product;    // partial product of f array elements for lastIndex
         for (int j = m - 1; j >= 0; j--) {
             f_part_product.push_back(pow);
             pow *= f_[t][j * n + I_[N - 1][j]];
@@ -152,7 +152,7 @@ bool SigmaExtendedVerifier::batchverify(
         const std::vector<Scalar>& challenges,
         const std::vector<Scalar>& serials,
         const std::vector<size_t>& setSizes,
-        const vector<SigmaExtendedProof>& proofs) const {
+        const std::vector<SigmaExtendedProof>& proofs) const {
     int M = proofs.size();
     int N = commits.size();
 
@@ -193,7 +193,7 @@ bool SigmaExtendedVerifier::batchverify(
         size_t start = N - size;
 
         Scalar f_i(uint64_t(1));
-        vector<Scalar>::iterator ptr = f_i_t.begin() + start;
+        std::vector<Scalar>::iterator ptr = f_i_t.begin() + start;
         compute_batch_fis(f_i, m, f_[t], y[t], e, ptr, ptr, ptr + size - 1);
 
         /*
@@ -212,7 +212,7 @@ bool SigmaExtendedVerifier::batchverify(
         */
 
         Scalar pow(uint64_t(1));
-        vector<Scalar> f_part_product;    // partial product of f array elements for lastIndex
+        std::vector<Scalar> f_part_product;    // partial product of f array elements for lastIndex
         for (int j = m - 1; j >= 0; j--) {
             f_part_product.push_back(pow);
             pow *= f_[t][j * n + I_[size - 1][j]];
@@ -358,7 +358,7 @@ bool SigmaExtendedVerifier::abcd_checks(
 
 void SigmaExtendedVerifier::compute_fis(int j, const std::vector<Scalar>& f, std::vector<Scalar>& f_i_) const {
     Scalar f_i(uint64_t(1));
-    vector<Scalar>::iterator ptr = f_i_.begin();
+    std::vector<Scalar>::iterator ptr = f_i_.begin();
     compute_fis(f_i, m, f, ptr, f_i_.end());
 }
 
@@ -366,8 +366,8 @@ void SigmaExtendedVerifier::compute_fis(
         const Scalar& f_i,
         int j,
         const std::vector<Scalar>& f,
-        vector<Scalar>::iterator& ptr,
-        vector<Scalar>::iterator end_ptr) const {
+        std::vector<Scalar>::iterator& ptr,
+        std::vector<Scalar>::iterator end_ptr) const {
     j--;
     if (j == -1)
     {
@@ -393,9 +393,9 @@ void SigmaExtendedVerifier::compute_batch_fis(
         const std::vector<Scalar>& f,
         const Scalar& y,
         Scalar& e,
-        vector<Scalar>::iterator& ptr,
-        vector<Scalar>::iterator start_ptr,
-        vector<Scalar>::iterator end_ptr) const {
+        std::vector<Scalar>::iterator& ptr,
+        std::vector<Scalar>::iterator start_ptr,
+        std::vector<Scalar>::iterator end_ptr) const {
     j--;
     if (j == -1)
     {

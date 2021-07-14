@@ -15,6 +15,8 @@
 
 #include <inttypes.h>
 
+using namespace elysium;
+
 // Is resetted to a norm value in each test
 extern unsigned nMaxDatacarrierBytes;
 

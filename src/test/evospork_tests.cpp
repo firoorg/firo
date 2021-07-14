@@ -302,7 +302,7 @@ BOOST_AUTO_TEST_CASE(limit)
     ::mempool.removeRecursive(jsTx);
 
     auto joinsplit = lelantus::ParseLelantusJoinSplit(jsTx.vin[0]);
-    vector<Scalar> serials = joinsplit->getCoinSerialNumbers();
+    std::vector<Scalar> serials = joinsplit->getCoinSerialNumbers();
 
     // generate two smaller joinsplit txs
     CWalletTx jsSmallWalletTxs[2];

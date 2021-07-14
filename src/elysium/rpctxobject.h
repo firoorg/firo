@@ -15,6 +15,8 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
 void populateRPCTypeInfo(CMPTransaction& mp_obj, UniValue& txobj, uint32_t txType, bool extendedDetails, std::string extendedDetailsFilter, int confirmations);
 
 void populateRPCTypeSimpleSend(CMPTransaction& elysiumObj, UniValue& txobj);
+void populateRPCTypeLelantusMint(CMPTransaction& elysiumObj, UniValue& txobj);
+void populateRPCTypeLelantusJoinSplit(CMPTransaction& elysiumObj, UniValue& txobj);
 void populateRPCTypeSendToOwners(CMPTransaction& elysiumObj, UniValue& txobj, bool extendedDetails, std::string extendedDetailsFilter);
 void populateRPCTypeSendAll(CMPTransaction& elysiumObj, UniValue& txobj, int confirmations);
 void populateRPCTypeCreatePropertyFixed(CMPTransaction& elysiumObj, UniValue& txobj, int confirmations);

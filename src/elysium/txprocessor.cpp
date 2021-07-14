@@ -205,8 +205,8 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
 
     // It is safe to use the hashes of blocks instead of the hashes of anonymity sets because blocks hashes are
     // necessarily dependent on anonymity set hashes.
-    vector<vector<unsigned char>> anonymitySetHashes;
-    vector<unsigned char> anonymitySetHash(highestBlock.begin(), highestBlock.end());
+    std::vector<std::vector<unsigned char>> anonymitySetHashes;
+    std::vector<unsigned char> anonymitySetHash(highestBlock.begin(), highestBlock.end());
     anonymitySetHashes.push_back(anonymitySetHash);
 
     auto spendAmount = tx.getLelantusSpendAmount();
@@ -218,7 +218,7 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
     }
 
     // verify
-    if (!joinSplit.Verify(anonss, anonymitySetHashes, cout, spendAmount, metadata)) {
+    if (!joinSplit.VerifyElysium(anonss, anonymitySetHashes, cout, spendAmount, metadata)) {
         PrintToLog("%s(): rejected: joinsplit is invalid\n", __func__);
         return PKT_ERROR_LELANTUS - 907;
     }

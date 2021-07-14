@@ -433,8 +433,8 @@ BOOST_AUTO_TEST_CASE(get_coin_by_limit_max_to_1)
     std::list<CSigmaEntry> availableCoins = pwalletMain->GetAvailableCoins();
 
     BOOST_CHECK_EXCEPTION(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint, availableCoins, 1),
-        std::runtime_error,
-        [](const std::runtime_error& e) {
+        std::exception,
+        [](const std::exception& e) {
             return e.what() == std::string("Can not choose coins within limit.");
         });
     sigmaState->Reset();
@@ -576,9 +576,9 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     BOOST_CHECK(CheckSpend(tx.tx->vin[1], selected[1]));
 
     BOOST_CHECK(ContainTxOut(tx.tx->vout,
-        make_pair(GetScriptForDestination(randomAddr1.Get()), 5 * COIN ), 1));
+        std::make_pair(GetScriptForDestination(randomAddr1.Get()), 5 * COIN ), 1));
     BOOST_CHECK(ContainTxOut(tx.tx->vout,
-        make_pair(GetScriptForDestination(randomAddr2.Get()), 10 * COIN ), 1));
+        std::make_pair(GetScriptForDestination(randomAddr2.Get()), 10 * COIN ), 1));
 
     CAmount remintsSum = std::accumulate(tx.tx->vout.begin(), tx.tx->vout.end(), 0, [](CAmount c, const CTxOut& v) {
         return c + (v.scriptPubKey.IsSigmaMint() ? v.nValue : 0);

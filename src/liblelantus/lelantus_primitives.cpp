@@ -96,7 +96,7 @@ void  LelantusPrimitives::generate_Lelantus_challenge(
         const std::vector<std::vector<unsigned char>>& ecdsaPubkeys,
         const std::vector<GroupElement>& Cout,
         unsigned int version,
-        unique_ptr<ChallengeGenerator>& challengeGenerator,
+        std::unique_ptr<ChallengeGenerator>& challengeGenerator,
         Scalar& result_out) {
 
     result_out = uint64_t(1);

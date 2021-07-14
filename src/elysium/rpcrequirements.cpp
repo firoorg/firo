@@ -104,7 +104,7 @@ void RequireHeightInChain(int blockHeight)
     }
 }
 
-void RequireLelantusStatus(LelantusStatus status)
+void RequireLelantusStatus(elysium::LelantusStatus status)
 {
     if (!elysium::IsLelantusStatusValid(status)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Lelantus status is not valid");

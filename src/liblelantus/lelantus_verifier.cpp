@@ -38,9 +38,14 @@ bool LelantusVerifier::verify(
         const LelantusProof& proof,
         const SchnorrProof& qkSchnorrProof,
         Scalar& x,
-        bool fSkipVerification) {
+        bool fSkipVerification,
+        boost::optional<int64_t> nMaxValueLelantusSpendPerTransaction) {
+    if (!nMaxValueLelantusSpendPerTransaction.has_value()) {
+        nMaxValueLelantusSpendPerTransaction = ::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction;
+    }
+
     //check the overflow of Vout and fee
-    if (!(Vout <= uint64_t(::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction) && fee < (1000 * CENT))) { // 1000 * CENT is the value of max fee defined at validation.h
+    if (!(Vout <= uint64_t(nMaxValueLelantusSpendPerTransaction.get()) && fee < (1000 * CENT))) { // 1000 * CENT is the value of max fee defined at validation.h
         LogPrintf("Lelantus verification failed due to transparent values check failed.");
         return false;
     }
@@ -86,7 +91,7 @@ bool LelantusVerifier::verify(
     }
 
     Scalar zV, zR;
-    unique_ptr<ChallengeGenerator> challengeGenerator;
+    std::unique_ptr<ChallengeGenerator> challengeGenerator;
     try {
         // we are passing challengeGenerator ptr here, as after LELANTUS_TX_VERSION_4_5 we need  it back, with filled data, to use in schnorr proof,
         if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, ecdsaPubkeys, Cout, proof.sigma_proofs, qkSchnorrProof, x, challengeGenerator, zV, zR, fSkipVerification) &&
@@ -110,7 +115,7 @@ bool LelantusVerifier::verify_sigma(
         const std::vector<SigmaExtendedProof> &sigma_proofs,
         const SchnorrProof& qkSchnorrProof,
         Scalar& x,
-        unique_ptr<ChallengeGenerator>& challengeGenerator,
+        std::unique_ptr<ChallengeGenerator>& challengeGenerator,
         Scalar& zV,
         Scalar& zR,
         bool fSkipVerification) {
@@ -238,16 +243,25 @@ bool LelantusVerifier::verify_schnorrproof(
         const Scalar fee,
         const std::vector<PublicCoin>& Cout,
         const LelantusProof& proof,
-        unique_ptr<ChallengeGenerator>& challengeGenerator) {
-    GroupElement A;
-    for (std::size_t i = 0; i < Cout.size(); ++i)
-        A += Cout[i].getValue();
-    if (Cout.size() > 0)
-        A *= x.exponent(params->get_sigma_m());
-    A += params->get_h1() * ((Vout + fee) * x.exponent(params->get_sigma_m()));
+        std::unique_ptr<ChallengeGenerator>& challengeGenerator) {
+    // x^m
+    Scalar x_m = x.exponent(params->get_sigma_m());
 
-    GroupElement B = (params->get_h1() * (Vin * x.exponent(params->get_sigma_m())))
-                     + LelantusPrimitives::double_commit(params->get_g(), uint64_t(0), params->get_h1(), zV, params->get_h0(), zR);
+    // A is computed directly, to take advantage of point addition
+    GroupElement A;
+    for (std::size_t j = 0; j < Cout.size(); ++j) {
+        A += Cout[j].getValue();
+    }
+    A += params->get_h1() * (Vout + fee);
+    A *= x_m;
+
+    // B is computed via multiscalar multiplication
+    std::vector<GroupElement> B_points;
+    std::vector<Scalar> B_scalars;
+    B_points.emplace_back(params->get_h1());
+    B_scalars.emplace_back(Vin*x_m + zV);
+    B_points.emplace_back(params->get_h0());
+    B_scalars.emplace_back(zR);
 
     NthPower x_k(x);
     std::vector<Scalar> x_ks;
@@ -262,18 +276,18 @@ bool LelantusVerifier::verify_schnorrproof(
         }
     }
 
-    GroupElement Comm;
     for (std::size_t t = 0; t < proof.sigma_proofs.size(); ++t)
     {
-        GroupElement Comm_t;
         const std::vector<GroupElement>& Qk = proof.sigma_proofs[t].Qk;
         for (std::size_t k = 0; k < Qk.size(); ++k)
         {
-            Comm_t += (Qk[k]) * x_ks[k];
+            B_points.emplace_back(Qk[k]);
+            B_scalars.emplace_back(x_ks[k]);
         }
-        Comm += Comm_t;
     }
-    B += Comm;
+
+    GroupElement B = secp_primitives::MultiExponent(B_points, B_scalars).get_multiple();
+
     SchnorrVerifier schnorrVerifier(params->get_g(), params->get_h0(), version >= LELANTUS_TX_VERSION_4_5);
     const SchnorrProof& schnorrProof = proof.schnorrProof;
     GroupElement Y = A + B * (Scalar(uint64_t(1)).negate());

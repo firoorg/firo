@@ -633,7 +633,7 @@ bool CMPTransaction::interpret_LelantusJoinSplit()
         SER_NETWORK, CLIENT_VERSION
     );
 
-    lelantusJoinSplit = lelantus::JoinSplit(lelantus::Params::get_default(), deserialized);
+    lelantusJoinSplit = lelantus::JoinSplit(lelantus::Params::get_elysium(), deserialized);
 
     if (!deserialized.eof()) {
         lelantusJoinSplitMint = JoinSplitMint();

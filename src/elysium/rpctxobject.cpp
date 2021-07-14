@@ -142,6 +142,12 @@ void populateRPCTypeInfo(CMPTransaction& mp_obj, UniValue& txobj, uint32_t txTyp
         case ELYSIUM_TYPE_SIMPLE_SEND:
             populateRPCTypeSimpleSend(mp_obj, txobj);
             break;
+        case ELYSIUM_TYPE_LELANTUS_MINT:
+            populateRPCTypeLelantusMint(mp_obj, txobj);
+            break;
+        case ELYSIUM_TYPE_LELANTUS_JOINSPLIT:
+            populateRPCTypeLelantusJoinSplit(mp_obj, txobj);
+            break;
         case ELYSIUM_TYPE_SEND_TO_OWNERS:
             populateRPCTypeSendToOwners(mp_obj, txobj, extendedDetails, extendedDetailsFilter);
             break;
@@ -199,6 +205,24 @@ void populateRPCTypeSimpleSend(CMPTransaction& elysiumObj, UniValue& txobj)
     txobj.push_back(Pair("divisible", isPropertyDivisible(propertyId)));
     txobj.push_back(Pair("amount", FormatMP(propertyId, elysiumObj.getAmount())));
     
+}
+
+void populateRPCTypeLelantusMint(CMPTransaction& elysiumObj, UniValue& txobj)
+{
+    uint32_t propertyId = elysiumObj.getProperty();
+    txobj.push_back(Pair("propertyid", (uint64_t)propertyId));
+    txobj.push_back(Pair("divisible", isPropertyDivisible(propertyId)));
+    txobj.push_back(Pair("amount", FormatMP(propertyId, elysiumObj.getLelantusMintValue())));
+
+}
+
+void populateRPCTypeLelantusJoinSplit(CMPTransaction& elysiumObj, UniValue& txobj)
+{
+    uint32_t propertyId = elysiumObj.getProperty();
+    txobj.push_back(Pair("propertyid", (uint64_t)propertyId));
+    txobj.push_back(Pair("divisible", isPropertyDivisible(propertyId)));
+    txobj.push_back(Pair("amount", FormatMP(propertyId, elysiumObj.getLelantusSpendAmount())));
+
 }
 
 void populateRPCTypeSendToOwners(CMPTransaction& elysiumObj, UniValue& txobj, bool extendedDetails, std::string extendedDetailsFilter)
