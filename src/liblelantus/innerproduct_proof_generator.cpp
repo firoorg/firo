@@ -38,6 +38,8 @@ void InnerProductProofGenerator::generate_proof(
     compute_P(a, b, P_initial);
     u_ *= x;
     proof_out.c_ = c;
+    if (version_ >=3)
+        challengeGenerator->add(c);
     P_ = (P_initial + u_ * c);
     generate_proof_util(a, b, challengeGenerator, proof_out);
 }

@@ -358,8 +358,8 @@ bool CheckLelantusJoinSplitTransaction(
                          "CheckLelantusJoinSplitTransaction: can't mix lelantus spend input with other tx types or have more than one spend");
     }
 
+    int height = nHeight == INT_MAX ? chainActive.Height()+1 : nHeight;
     if (!isVerifyDB) {
-        int height = nHeight == INT_MAX ? chainActive.Height()+1 : nHeight;
         if (height >= params.nLelantusV3PayloadStartBlock) {
             // data should be moved to v3 payload
             if (tx.nVersion < 3 || tx.nType != TRANSACTION_LELANTUS)
@@ -389,7 +389,9 @@ bool CheckLelantusJoinSplitTransaction(
     int jSplitVersion = joinsplit->getVersion();
 
     if (jSplitVersion < LELANTUS_TX_VERSION_4 ||
-        (!isVerifyDB && nHeight >= params.nLelantusFixesStartBlock && jSplitVersion != LELANTUS_TX_VERSION_4_5 && jSplitVersion != SIGMA_TO_LELANTUS_JOINSPLIT_FIXED)) {
+        (!isVerifyDB &&
+        ((height >= params.nLelantusFixesStartBlock && height < params.nLelantusV3PayloadStartBlock && jSplitVersion != LELANTUS_TX_VERSION_4_5 && jSplitVersion != SIGMA_TO_LELANTUS_JOINSPLIT_FIXED) ||
+        (height >= params.nLelantusV3PayloadStartBlock && jSplitVersion != LELANTUS_TX_TPAYLOAD && jSplitVersion != SIGMA_TO_LELANTUS_TX_TPAYLOAD)))) {
         return state.DoS(100,
                          false,
                          NSEQUENCE_INCORRECT,

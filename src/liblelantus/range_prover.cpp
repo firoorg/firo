@@ -162,6 +162,9 @@ void RangeProver::batch_proof(
     }
 
     int inner_product_version = version >= LELANTUS_TX_VERSION_4_5 ? 2 : 1;
+    if (version >= LELANTUS_TX_TPAYLOAD)
+        inner_product_version = 3;
+
     InnerProductProofGenerator InnerProductProofGenerator(g_, h_prime, g, inner_product_version);
     //t^ is calculated inside inner product proof generation with name c
     Scalar x_u;
