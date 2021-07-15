@@ -40,7 +40,7 @@ bool LelantusVerifier::verify(
         Scalar& x,
         bool fSkipVerification,
         boost::optional<int64_t> nMaxValueLelantusSpendPerTransaction) {
-    if (!nMaxValueLelantusSpendPerTransaction.has_value()) {
+    if (!nMaxValueLelantusSpendPerTransaction.is_initialized()) {
         nMaxValueLelantusSpendPerTransaction = ::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction;
     }
 
