@@ -229,7 +229,7 @@ bool JoinSplit::HasValidSerials() const {
 }
 
 bool JoinSplit::isSigmaToLelantus() const {
-    return version == SIGMA_TO_LELANTUS_JOINSPLIT || version == SIGMA_TO_LELANTUS_JOINSPLIT_FIXED;
+    return version == SIGMA_TO_LELANTUS_JOINSPLIT || version == SIGMA_TO_LELANTUS_JOINSPLIT_FIXED || version == SIGMA_TO_LELANTUS_TX_TPAYLOAD;
 }
 
 } //namespace lelantus

@@ -429,15 +429,15 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
 
     // after nLelantusFixesStartBlock set new transaction version,
     if(!isSigmaToLelantusJoinSplit) {
-        if (chainActive.Height() >= Params().GetConsensus().nLelantusFixesStartBlock)
+        if (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock)
+            version = LELANTUS_TX_TPAYLOAD;
+        else
             version = LELANTUS_TX_VERSION_4_5;
-        else
-            version = LELANTUS_TX_VERSION_4;
     } else {
-        if (chainActive.Height() >= Params().GetConsensus().nLelantusFixesStartBlock)
-            version = SIGMA_TO_LELANTUS_JOINSPLIT_FIXED;
+        if (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock)
+            version = SIGMA_TO_LELANTUS_TX_TPAYLOAD;
         else
-            version = SIGMA_TO_LELANTUS_JOINSPLIT;
+            version = SIGMA_TO_LELANTUS_JOINSPLIT_FIXED;
     }
 
     std::vector<std::vector<unsigned char>> anonymity_set_hashes;
