@@ -133,7 +133,7 @@ public:
  * State of minted/spent coins as extracted from the index
  */
 class CLelantusState {
-friend bool BuildLelantusStateFromIndex(CChain *, set<CBlockIndex *> &);
+friend bool BuildLelantusStateFromIndex(CChain *, std::set<CBlockIndex *> &);
 public:
     // First and last block where mint with given id was seen
     struct LelantusCoinGroupInfo {
@@ -208,16 +208,16 @@ public:
 
     // Add spend into the mempool.
     // Check if there is a coin with such serial in either blockchain or mempool
-    bool AddSpendToMempool(const vector<Scalar>& coinSerials, uint256 txHash);
+    bool AddSpendToMempool(const std::vector<Scalar>& coinSerials, uint256 txHash);
 
-    void AddMintsToMempool(const vector<GroupElement>& pubCoins);
+    void AddMintsToMempool(const std::vector<GroupElement>& pubCoins);
     void RemoveMintFromMempool(const GroupElement& pubCoin);
 
     // Get conflicting tx hash by coin serial number
     uint256 GetMempoolConflictingTxHash(const Scalar& coinSerial);
 
     // Remove spend from the mempool (usually as the result of adding tx to the block)
-    void RemoveSpendFromMempool(const vector<Scalar>& coinSerials);
+    void RemoveSpendFromMempool(const std::vector<Scalar>& coinSerials);
 
     static CLelantusState* GetState();
 

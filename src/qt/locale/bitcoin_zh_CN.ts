@@ -23,7 +23,7 @@
     </message>
     <message>
         <source>C&amp;lose</source>
-        <translation>关闭(&amp;l)</translation>
+        <translation>关闭(&amp;L)</translation>
     </message>
     <message>
         <source>Delete the currently selected address from the list</source>
@@ -51,7 +51,7 @@
     </message>
     <message>
         <source>C&amp;hoose</source>
-        <translation>选择</translation>
+        <translation>选择(&amp;H)</translation>
     </message>
     <message>
         <source>Sending addresses</source>
@@ -63,23 +63,23 @@
     </message>
     <message>
         <source>These are your Firo addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
-        <translation>这些是你要付款过去的飞熔币地址。在付钱之前，务必要检查金额和收款地址是否正确。</translation>
+        <translation>这些是你要付款过去的 Firo 地址。在付钱之前，务必要检查金额和收款地址是否正确。</translation>
     </message>
     <message>
         <source>These are your Firo addresses for receiving payments. It is recommended to use a new receiving address for each transaction.</source>
-        <translation>这些是你用来收款的飞熔币地址。建议在每次交易时，都使用一个新的收款地址。</translation>
+        <translation>这些是你用来收款的 Firo 地址。建议在每次交易时，都使用一个新的收款地址。</translation>
     </message>
     <message>
         <source>&amp;Copy Address</source>
-        <translation>复制地址</translation>
+        <translation>复制地址(&amp;C)</translation>
     </message>
     <message>
         <source>Copy &amp;Label</source>
-        <translation>复制标签</translation>
+        <translation>复制标签(&amp;L)</translation>
     </message>
     <message>
         <source>&amp;Edit</source>
-        <translation>编辑</translation>
+        <translation>编辑(&amp;E)</translation>
     </message>
     <message>
         <source>Export Address List</source>
@@ -96,6 +96,18 @@
     <message>
         <source>There was an error trying to save the address list to %1. Please try again.</source>
         <translation>存储地址列表到 %1 时发生错误。请再试一次。</translation>
+    </message>
+    <message>
+        <source>Addresses</source>
+        <translation>地址</translation>
+    </message>
+    <message>
+        <source>RAP addresses</source>
+        <translation>RAP 地址</translation>
+    </message>
+    <message>
+        <source>&amp;Copy RAP address</source>
+        <translation>复制 RAP 地址(&amp;C)</translation>
     </message>
 </context>
 <context>
@@ -123,7 +135,7 @@ If you have an existing seed that you wish to restore, please select "Recover ex
 
 Advanced: If you don't wish to generate a wallet with a seed phrase backup (not recommended), you can set usemnemonic=0 in firo.conf.
       </source>
-        <translation> 让我们一起创建你的飞熔钱包吧！
+        <translation>让我们一起创建你的 Firo 钱包吧！
 
 请将这些字保存在纸上（顺序很重要）。这些字将作为你的种子，以便于允许你在计算机故障的情况下恢复你的钱包。
 
@@ -194,6 +206,14 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
         <source>Passphrase can't be empty.</source>
         <translation>密码口令不能为空。</translation>
     </message>
+    <message>
+        <source>RAP addresses to be created:</source>
+        <translation>将要创建的 RAP 地址数量：</translation>
+    </message>
+    <message>
+        <source>The number of RAP addresses will be created in the wallet for the initial blockchain scan</source>
+        <translation>将在钱包中创建的 RAP 地址的数量，用于初始区块链扫描</translation>
+    </message>
 </context>
 <context>
     <name>AddressTableModel</name>
@@ -208,6 +228,17 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <message>
         <source>(no label)</source>
         <translation>(无标签)</translation>
+    </message>
+</context>
+<context>
+    <name>PcodeAddressTableModel</name>
+    <message>
+        <source>RAP payment code</source>
+        <translation>RAP 支付码</translation>
+    </message>
+    <message>
+        <source>Copy RAP address</source>
+        <translation>复制 RAP 地址</translation>
     </message>
 </context>
 <context>
@@ -266,7 +297,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>Warning: If you encrypt your wallet and lose your passphrase, you will &lt;b&gt;LOSE ALL OF YOUR FIROS&lt;/b&gt;!</source>
-        <translation>警告：如果把钱包加密后又忘记密码，你就会从此&lt;b&gt;失去其中所有的飞熔币了&lt;/b&gt;！</translation>
+        <translation>警告：如果把钱包加密后又忘记密码，你就会从此&lt;b&gt;失去其中所有的 Firo 了&lt;/b&gt;！</translation>
     </message>
     <message>
         <source>Are you sure you wish to encrypt your wallet?</source>
@@ -278,7 +309,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>Firo Core</source>
-        <translation>飞熔核心</translation>
+        <translation>Firo 核心</translation>
     </message>
     <message>
         <source>%1 will close now to finish the encryption process. Remember that encrypting your wallet cannot fully protect your firos from being stolen by malware infecting your computer.</source>
@@ -336,7 +367,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <name>BitcoinGUI</name>
     <message>
         <source>Firo Core</source>
-        <translation>飞熔核心</translation>
+        <translation>Firo 核心</translation>
     </message>
     <message>
         <source>Sign &amp;message...</source>
@@ -353,6 +384,14 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <message>
         <source>&amp;Masternodes</source>
         <translation>主节点(&amp;M)</translation>
+    </message>
+    <message>
+        <source>RA&amp;P addresses</source>
+        <translation>RAP 地址(&amp;P)</translation>
+    </message>
+    <message>
+        <source>Create RAP addresses (BIP47 payment codes)</source>
+        <translation>创建 RAP 地址（BIP47 支付码）</translation>
     </message>
     <message>
         <source>Syncing Headers (%1%)...</source>
@@ -456,7 +495,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>Send coins to a Firo address</source>
-        <translation>向一个飞熔币地址发送飞熔币</translation>
+        <translation>向一个 Firo 地址发送 Firo</translation>
     </message>
     <message>
         <source>Backup wallet to another location</source>
@@ -480,7 +519,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>Firo</source>
-        <translation>飞熔</translation>
+        <translation>Firo</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -508,11 +547,11 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>Sign messages with your Firo addresses to prove you own them</source>
-        <translation>用飞熔币地址关联的私钥为消息签名，以证明你拥有这个飞熔币地址</translation>
+        <translation>用 Firo 地址关联的私钥为消息签名，以证明你拥有这个 Firo 地址</translation>
     </message>
     <message>
         <source>Verify messages to ensure they were signed with specified Firo addresses</source>
-        <translation>校验消息，确保该消息是由指定的飞熔币地址所有者签名的</translation>
+        <translation>校验消息，确保该消息是由指定的 Firo 地址所有者签名的</translation>
     </message>
     <message>
         <source>&amp;File</source>
@@ -552,7 +591,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message numerus="yes">
         <source>%n active connection(s) to Firo network</source>
-        <translation><numerusform>%n 个到飞熔币网络的活动连接</numerusform></translation>
+        <translation><numerusform>%n 个到 Firo 网络的活动连接</numerusform></translation>
     </message>
     <message>
         <source>Indexing blocks on disk...</source>
@@ -659,6 +698,201 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <message>
         <source>A fatal error occurred. Firo can no longer continue safely and will quit.</source>
         <translation>发生严重错误。客户端无法安全地继续运行，即将退出。</translation>
+    </message>
+</context>
+<context>
+    <name>CreatePcodeDialog</name>
+    <message>
+        <source>Copy RAP Address</source>
+        <translation>复制 RAP 地址</translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use this form to create a Receiver Address Privacy (BIP47) payment code.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;使用此表单创建一个接收方地址隐私（BIP47）支付码。&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <source>&amp;Label:</source>
+        <translation>标签(&amp;L)：</translation>
+    </message>
+    <message>
+        <source>An optional label to associate with the new receiving address.</source>
+        <translation>可为新建的收款地址添加一个标签。</translation>
+    </message>
+    <message>
+        <source>A mandatory label to associate with the new payment code.</source>
+        <translation>与新支付码相关联的强制性标签。</translation>
+    </message>
+    <message>
+        <source>Recent payment codes</source>
+        <translation>最近的支付码</translation>
+    </message>
+    <message>
+        <source>The label should not be empty.</source>
+        <translation>标签不应为空。</translation>
+    </message>
+    <message>
+        <source>The label should be unique.</source>
+        <translation>标签应该是唯一的。</translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation>清除</translation>
+    </message>
+    <message>
+        <source>C&amp;reate payment code</source>
+        <translation>创建支付码(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Show the selected payment code (does the same as double clicking an entry)</source>
+        <translation>显示所选的支付码（与双击一个条目的作用相同）</translation>
+    </message>
+    <message>
+        <source>Show</source>
+        <translation>显示</translation>
+    </message>
+    <message>
+        <source>Copy Notification Address</source>
+        <translation>复制通知地址</translation>
+    </message>
+    <message>
+        <source>Show QR Code</source>
+        <translation>显示二维码</translation>
+    </message>
+    <message>
+        <source>Clear all fields of the form.</source>
+        <translation>清除此表单的所有字段。</translation>
+    </message>
+    <message>
+        <source>RAP address creation failed with error: "%1"</source>
+        <translation>创建 RAP 地址失败，出现错误：「%1」</translation>
+    </message>
+    <message>
+        <source>Double click on Label to edit</source>
+        <translation>双击标签进行编辑</translation>
+    </message>
+</context>
+<context>
+    <name>PcodeModel</name>
+    <message>
+        <source>RAP address</source>
+        <translation>RAP 地址</translation>
+    </message>
+    <message>
+        <source>Label</source>
+        <translation>标签</translation>
+    </message>
+</context>
+<context>
+    <name>SendtoPcodeDialog</name>
+    <message>
+        <source>RAP info</source>
+        <translation>RAP 信息</translation>
+    </message>
+    <message>
+        <source>A one time connection fee is required when sending to a new RAP address.
+Once this fee is paid, all future sends to this RAP address do not incur any additional fee.
+</source>
+        <translation>在向一个新的 RAP 地址发送时，需要一次性的连接费。
+一旦支付了这笔费用，今后向该 RAP 地址发送的所有交易都不会产生任何额外费用。</translation>
+    </message>
+    <message>
+        <source>This is the first time you are sending to this RAP address:</source>
+        <translation>这是你第一次发送到此 RAP 地址：</translation>
+    </message>
+    <message>
+        <source>Connection transaction</source>
+        <translation>连接交易</translation>
+    </message>
+    <message>
+        <source>notificationTxId</source>
+        <translation>通知交易 ID</translation>
+    </message>
+    <message>
+        <source>Help</source>
+        <translation>帮助</translation>
+    </message>
+    <message>
+        <source>Requires a notification tx to be confirmed</source>
+        <translation>需要通知交易被确认</translation>
+    </message>
+    <message>
+        <source>Send Now</source>
+        <translation>立即发送</translation>
+    </message>
+    <message>
+        <source>&lt;i&gt;Please click Connect button to start.&lt;/i&gt;</source>
+        <translation>&lt;i&gt;请点击连接按钮开始。&lt;/i&gt;</translation>
+    </message>
+    <message>
+        <source>Ready to connect</source>
+        <translation>准备连接</translation>
+    </message>
+    <message>
+        <source>&lt;i&gt;The balance is not enough.&lt;/i&gt;</source>
+        <translation>&lt;i&gt;余额不足。&lt;/i&gt;</translation>
+    </message>
+    <message>
+        <source>Balance is not enough</source>
+        <translation>余额不足</translation>
+    </message>
+    <message>
+        <source>&lt;i&gt;Please wait until the connection transaction has confirmed.&amp;nbsp;It is safe to close this dialog box while waiting for the confirmation.&amp;nbsp;Once confirmed, you can send your FIRO to the RAP address on the Send tab.&lt;/i&gt;</source>
+        <translation>&lt;i&gt;请等待，直到连接交易得到确认。在等待确认的过程中，关闭这个对话框是安全的。一旦确认，你可以将你的 FIRO 发送到发送选项卡上的 RAP 地址。&lt;/i&gt;</translation>
+    </message>
+    <message>
+        <source>Waiting for confirmation</source>
+        <translation>等待确认中</translation>
+    </message>
+    <message>
+        <source>&lt;i&gt;FIRO can be sent now.&lt;/i&gt;</source>
+        <translation>&lt;i&gt;现在可以发送 FIRO。&lt;/i&gt;</translation>
+    </message>
+    <message>
+        <source>Ready</source>
+        <translation>准备就绪</translation>
+    </message>
+    <message>
+        <source>Send to RAP address</source>
+        <translation>发送到 RAP 地址</translation>
+    </message>
+    <message>
+        <source>Lelantus balance</source>
+        <translation>Lelantus 余额</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>状态</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>无</translation>
+    </message>
+    <message>
+        <source>Connect</source>
+        <translation>连接</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <source>Sending funds to a RAP address requires a notification transaction to be sent by the payer prior to the first payment.&#32;
+Notification transactions use Lelantus facilities to enhance privacy.
+After the notification transaction is received by the RAP address issuer, funds can be privately sent to the RAP secret addresses.
+</source>
+        <translation>向 RAP 地址发送资金需要付款人在第一次付款前发送通知交易。
+通知交易使用 Lelantus 功能来增强隐私。
+在 RAP 地址发布者收到通知交易后，资金可以被私下发送到 RAP 秘密地址。</translation>
+    </message>
+    <message>
+        <source>The recommended workflow is as follows:
+1. Send a notification transaction
+2. Make sure it is included in a block with a block explorer
+3. Send funds to the RAP address in one or more transactions</source>
+        <translation>推荐的工作流程如下：
+1. 发送一个通知交易
+2. 使用区块浏览器确保它包含在一个区块中
+3. 在一笔或多笔交易中向 RAP 地址发送资金</translation>
     </message>
 </context>
 <context>
@@ -852,7 +1086,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>The entered address "%1" is not a valid Firo address.</source>
-        <translation>输入的地址 %1 并不是有效的飞熔币地址。</translation>
+        <translation>输入的地址 %1 并不是有效的 Firo 地址。</translation>
     </message>
     <message>
         <source>The entered address "%1" is already in the address book.</source>
@@ -865,6 +1099,22 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <message>
         <source>New key generation failed.</source>
         <translation>产生新的密钥失败了。</translation>
+    </message>
+    <message>
+        <source>New RAP payment code</source>
+        <translation>新建 RAP 支付码</translation>
+    </message>
+    <message>
+        <source>Edit RAP payment code</source>
+        <translation>编辑 RAP 支付码</translation>
+    </message>
+    <message>
+        <source>RAP address</source>
+        <translation>RAP 地址</translation>
+    </message>
+    <message>
+        <source>New RAP address validation failed.</source>
+        <translation>新建 RAP 地址验证失败。</translation>
     </message>
 </context>
 <context>
@@ -894,7 +1144,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <name>HelpMessageDialog</name>
     <message>
         <source>Firo Core</source>
-        <translation>飞熔核心</translation>
+        <translation>Firo 核心</translation>
     </message>
     <message>
         <source>version</source>
@@ -1001,7 +1251,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>%1 will download and store a copy of the Firo block chain. At least %2GB of data will be stored in this directory, and it will grow over time. The wallet will also be stored in this directory.</source>
-        <translation>%1 会下载并存储一份飞熔币区块链的副本。至少有 %2GB 的数据会存储到这个目录中，并且还会持续增长。另外钱包资料也会储存在这个目录。</translation>
+        <translation>%1 会下载并存储一份 Firo 区块链的副本。至少有 %2GB 的数据会存储到这个目录中，并且还会持续增长。另外钱包资料也会储存在这个目录。</translation>
     </message>
     <message>
         <source>Use the default data directory</source>
@@ -1036,7 +1286,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>Recent transactions may not yet be visible, and therefore your wallet's balance might be incorrect. This information will be correct once your wallet has finished synchronizing with the firo network, as detailed below.</source>
-        <translation>近期交易可能尚未显示，因此当前余额可能不准确。以上信息将在与飞熔币网络完全同步后更正。详情如下</translation>
+        <translation>近期交易可能尚未显示，因此当前余额可能不准确。以上信息将在与 Firo 网络完全同步后更正。详情如下</translation>
     </message>
     <message>
         <source>Attempting to spend firos that are affected by not-yet-displayed transactions will not be accepted by the network.</source>
@@ -1186,7 +1436,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>Enable coin &amp;control features</source>
-        <translation>启动手动选币功能(&amp;C)</translation>
+        <translation>启用手动选币功能(&amp;C)</translation>
     </message>
     <message>
         <source>If you disable the spending of unconfirmed change, the change from a transaction cannot be used until that transaction has at least one confirmation. This also affects how your balance is computed.</source>
@@ -1205,8 +1455,16 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
         <translation>使用未经确认的零钱(&amp;S)</translation>
     </message>
     <message>
+        <source>&amp;Reindex Lelantus</source>
+        <translation>重新索引 Lelantus(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Restore all Lelantus transactions following a reindex.</source>
+        <translation>在重新索引后恢复所有 Lelantus 交易。</translation>
+    </message>
+    <message>
         <source>Automatically open the Firo client port on the router. This only works when your router supports UPnP and it is enabled.</source>
-        <translation>自动在路由器中打开飞熔币端口。只有当你的路由器开启了 UPnP 选项时此功能才有效。</translation>
+        <translation>自动在路由器中打开 Firo 端口。只有当你的路由器开启了 UPnP 选项时此功能才有效。</translation>
     </message>
     <message>
         <source>Map port using &amp;UPnP</source>
@@ -1214,7 +1472,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>Connect to the Firo network through a SOCKS5 proxy.</source>
-        <translation>通过 SOCKS5 代理连接飞熔币网络。</translation>
+        <translation>通过 SOCKS5 代理连接 Firo 网络。</translation>
     </message>
     <message>
         <source>&amp;Connect through SOCKS5 proxy (default proxy):</source>
@@ -1254,7 +1512,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>Connect to the Firo network through a separate SOCKS5 proxy for Tor hidden services.</source>
-        <translation>在 Tor 匿名网络下通过不同的 SOCKS5 代理连接飞熔币网络</translation>
+        <translation>在 Tor 匿名网络下通过不同的 SOCKS5 代理连接 Firo 网络</translation>
     </message>
     <message>
         <source>Use separate SOCKS5 proxy to reach peers via Tor hidden services:</source>
@@ -1298,11 +1556,11 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>&amp;Unit to show amounts in:</source>
-        <translation>飞熔币金额单位(&amp;U)：</translation>
+        <translation>Firo 金额单位(&amp;U)：</translation>
     </message>
     <message>
         <source>Choose the default subdivision unit to show in the interface and when sending coins.</source>
-        <translation>选择飞熔币单位。</translation>
+        <translation>选择 Firo 单位。</translation>
     </message>
     <message>
         <source>Whether to show coin control features or not.</source>
@@ -1343,6 +1601,14 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <message>
         <source>The supplied proxy address is invalid.</source>
         <translation>提供的代理服务器地址无效。</translation>
+    </message>
+    <message>
+        <source>Confirm Reindex Lelantus</source>
+        <translation>确认重新索引 Lelantus</translation>
+    </message>
+    <message>
+        <source>Warning: On restart, this setting will wipe your transaction list, reindex the blockchain, and restore the list from the seed in your wallet. This will likely take a few hours. Are you sure?</source>
+        <translation>警告：在重新启动时，该设置将擦除你的交易列表，重新索引区块链，并从你钱包中的种子恢复列表。这可能需要几个小时。你确定吗？</translation>
     </message>
 </context>
 <context>
@@ -1792,11 +2058,11 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <name>OverviewPage</name>
     <message>
         <source>Please restart the Firo wallet to route your connection through Tor to protect your IP address. &lt;br&gt;Syncing your wallet might be slower with TOR. &lt;br&gt;Note that -torsetup in firo.conf will always override any changes made here.</source>
-        <translation>请重新启动飞熔钱包，通过 Tor 来路由你的连接，以保护你的 IP 地址。&lt;br&gt;使用 Tor 同步你的钱包可能会比较慢。&lt;br&gt;请注意，firo.conf 中的 -torsetup 将始终覆盖这里的任何更改。</translation>
+        <translation>请重新启动 Firo 钱包，通过 Tor 来路由你的连接，以保护你的 IP 地址。&lt;br&gt;使用 Tor 同步你的钱包可能会比较慢。&lt;br&gt;请注意，firo.conf 中的 -torsetup 将始终覆盖这里的任何更改。</translation>
     </message>
     <message>
         <source>Please restart the Firo wallet to disable routing of your connection through Tor to protect your IP address. &lt;br&gt;Note that -torsetup in firo.conf will always override any changes made here.</source>
-        <translation>请重新启动飞熔钱包，以禁用通过 Tor 来路由你的连接以保护你的 IP 地址。&lt;br&gt;请注意，firo.conf 中的 -torsetup 将始终覆盖这里的任何更改。</translation>
+        <translation>请重新启动 Firo 钱包，以禁用通过 Tor 来路由你的连接以保护你的 IP 地址。&lt;br&gt;请注意，firo.conf 中的 -torsetup 将始终覆盖这里的任何更改。</translation>
     </message>
     <message>
         <source>Form</source>
@@ -1804,7 +2070,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Firo network after a connection is established, but this process has not completed yet.</source>
-        <translation>现在显示的消息可能是过期的。在连接上飞熔币网络节点后，你的钱包将自动与网络同步，但是这个过程还没有完成。</translation>
+        <translation>现在显示的消息可能是过期的。在连接上 Firo 网络节点后，你的钱包将自动与网络同步，但是这个过程还没有完成。</translation>
     </message>
     <message>
         <source>Private Balances</source>
@@ -1924,7 +2190,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>URI cannot be parsed! This can be caused by an invalid Firo address or malformed URI parameters.</source>
-        <translation>无法解析 URI 地址！可能是因为飞熔币地址无效，或是 URI 参数格式错误。</translation>
+        <translation>无法解析 URI 地址！可能是因为 Firo 地址无效，或是 URI 参数格式错误。</translation>
     </message>
     <message>
         <source>Payment request file handling</source>
@@ -2018,7 +2284,11 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>Enter a Firo address (e.g. %1)</source>
-        <translation>请输入一个飞熔币地址 (例如 %1)</translation>
+        <translation>请输入一个 Firo 地址（例如 %1）</translation>
+    </message>
+    <message>
+        <source> or a payment code</source>
+        <translation>或一个支付码</translation>
     </message>
     <message>
         <source>%1 d</source>
@@ -2438,7 +2708,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Firo network.</source>
-        <translation>可在付款请求上备注一条信息，在打开付款请求时可以看到。注意：该消息不是通过飞熔币网络传送。</translation>
+        <translation>可在付款请求上备注一条信息，在打开付款请求时可以看到。注意：该消息不是通过 Firo 网络传送。</translation>
     </message>
     <message>
         <source>An optional label to associate with the new receiving address.</source>
@@ -2591,7 +2861,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <name>SendCoinsDialog</name>
     <message>
         <source>Send Coins</source>
-        <translation>发送飞熔币</translation>
+        <translation>发送 Firo</translation>
     </message>
     <message>
         <source>Coin Control Features</source>
@@ -2831,7 +3101,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>Warning: Invalid Firo address</source>
-        <translation>警告：飞熔币地址无效</translation>
+        <translation>警告：Firo 地址无效</translation>
     </message>
     <message>
         <source>Warning: Unknown change address</source>
@@ -2918,7 +3188,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>The fee will be deducted from the amount being sent. The recipient will receive less firos than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</source>
-        <translation>交易费将从发送总额中扣除。接收人将收到比你在金额框中输入的更少的飞熔币。如果选中了多个收件人，交易费平分。</translation>
+        <translation>交易费将从发送总额中扣除。接收人将收到比你在金额框中输入的更少的 Firo。如果选中了多个收件人，交易费平分。</translation>
     </message>
     <message>
         <source>S&amp;ubtract fee from amount</source>
@@ -2942,7 +3212,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>A message that was attached to the firo: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Firo network.</source>
-        <translation>firo:URI 附带的备注信息，将会和交易一起存储，备查。注意：该消息不会通过飞熔币网络传输。</translation>
+        <translation>firo:URI 附带的备注信息，将会和交易一起存储，备查。注意：该消息不会通过 Firo 网络传输。</translation>
     </message>
     <message>
         <source>Pay To:</source>
@@ -2968,7 +3238,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <name>ShutdownWindow</name>
     <message>
         <source>Firo Core</source>
-        <translation>飞熔核心</translation>
+        <translation>Firo 核心</translation>
     </message>
     <message>
         <source>%1 is shutting down...</source>
@@ -2991,7 +3261,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>You can sign messages/agreements with your addresses to prove you can receive firos sent to them. Be careful not to sign anything vague or random, as phishing attacks may try to trick you into signing your identity over to them. Only sign fully-detailed statements you agree to.</source>
-        <translation>你可以用你的地址对消息/协议进行签名，以证明你可以接收发送到该地址的飞熔币。注意不要对任何模棱两可或者随机的消息进行签名，以免遭受钓鱼式攻击。请确保消息内容准确的表达了你的真实意愿。</translation>
+        <translation>你可以用你的地址对消息/协议进行签名，以证明你可以接收发送到该地址的 Firo。注意不要对任何模棱两可或者随机的消息进行签名，以免遭受钓鱼式攻击。请确保消息内容准确的表达了你的真实意愿。</translation>
     </message>
     <message>
         <source>The Firo address to sign the message with</source>
@@ -3055,7 +3325,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>Verify the message to ensure it was signed with the specified Firo address</source>
-        <translation>验证消息，确保消息是由指定的飞熔币地址签名过的。</translation>
+        <translation>验证消息，确保消息是由指定的 Firo 地址签名过的。</translation>
     </message>
     <message>
         <source>Verify &amp;Message</source>
@@ -3280,7 +3550,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
-        <translation>生成的飞熔币在可以使用前必须有 %1 个成熟的区块。当你生成了此区块后，它将被广播到网络中以加入区块链。如果它未成功进入区块链，其状态将变更为“不接受”并且不可使用。这可能偶尔会发生，如果另一个节点比你早几秒钟成功生成一个区块。</translation>
+        <translation>生成的 Firo 在可以使用前必须有 %1 个成熟的区块。当你生成了此区块后，它将被广播到网络中以加入区块链。如果它未成功进入区块链，其状态将变更为“不接受”并且不可使用。这可能偶尔会发生，如果另一个节点比你早几秒钟成功生成一个区块。</translation>
     </message>
     <message>
         <source>Debug information</source>
@@ -3313,7 +3583,11 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
         <source>This pane shows a detailed description of the transaction</source>
         <translation>当前面板显示了交易的详细信息</translation>
     </message>
-    </context>
+    <message>
+        <source>Details for %1</source>
+        <translation>%1 详情</translation>
+    </message>
+</context>
 <context>
     <name>TransactionTableModel</name>
     <message>
@@ -3391,6 +3665,14 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <message>
         <source>Anonymize</source>
         <translation>匿名化</translation>
+    </message>
+    <message>
+        <source>Sent to RAP address</source>
+        <translation>付款给 RAP 地址</translation>
+    </message>
+    <message>
+        <source>Received with RAP address</source>
+        <translation>以 RAP 地址收款</translation>
     </message>
     <message>
         <source>Payment to yourself</source>
@@ -3498,6 +3780,14 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <message>
         <source>Anonymize</source>
         <translation>匿名化</translation>
+    </message>
+    <message>
+        <source>Sent to RAP address</source>
+        <translation>付款给 RAP 地址</translation>
+    </message>
+    <message>
+        <source>Received with RAP address</source>
+        <translation>以 RAP 地址收款</translation>
     </message>
     <message>
         <source>Enter address or label to search</source>
@@ -3619,6 +3909,14 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
         <source>There was an error trying to broadcast the message: %1</source>
         <translation>尝试广播该消息时出错：%1</translation>
     </message>
+    <message>
+        <source>Copy RAP address/label</source>
+        <translation>复制 RAP 地址/标签</translation>
+    </message>
+    <message>
+        <source>Reconsider BIP47 transaction</source>
+        <translation>重新考虑 BIP47 交易</translation>
+    </message>
 </context>
 <context>
     <name>UnitDisplayStatusBarControl</name>
@@ -3638,7 +3936,23 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <name>WalletModel</name>
     <message>
         <source>Send Coins</source>
-        <translation>发送飞熔币</translation>
+        <translation>发送 Firo</translation>
+    </message>
+    <message>
+        <source>You have received a payment to a RAP address, please unlock your wallet to receive.</source>
+        <translation>你收到一笔到 RAP 地址的付款，请解锁你的钱包以接收。</translation>
+    </message>
+    <message>
+        <source>RAP address payment</source>
+        <translation>RAP 地址付款</translation>
+    </message>
+    <message>
+        <source>RAP addresses require you to unlock your wallet every time a payment to it is received.</source>
+        <translation>RAP 地址要求你在每次收到付款时解锁你的钱包。</translation>
+    </message>
+    <message>
+        <source>If you do not enter your password now, you will need to rescan your wallet to receive your FIRO.&lt;br/&gt;&lt;br/&gt;Re-enter your password?</source>
+        <translation>如果你现在不输入密码，你将需要重新扫描你的钱包来接收你的 FIRO。&lt;br/&gt;&lt;br/&gt;重新输入密码？</translation>
     </message>
 </context>
 <context>
@@ -3741,7 +4055,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </message>
     <message>
         <source>Firo Core</source>
-        <translation>飞熔核心</translation>
+        <translation>Firo 核心</translation>
     </message>
     <message>
         <source>The %s developers</source>
@@ -4403,6 +4717,18 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     <message>
         <source>This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit %s and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard.</source>
         <translation>本产品包含 OpenSSL Project 开发的用于 OpenSSL Toolkit %s 的软件，以及 Eric Young 编写的加密软件和 Thomas Bernard 编写的 UPnP 软件。</translation>
+    </message>
+    <message>
+        <source>This product includes Masternodes software developed by the Dash Core developers %s.</source>
+        <translation>本产品包含 Dash Core %s 开发人员开发的 Masternodes 软件。</translation>
+    </message>
+    <message>
+        <source>Cannot obtain a lock on data directory %s. %s is probably already running.</source>
+        <translation>无法锁定数据目录 %s。%s 可能已经在运行。</translation>
+    </message>
+    <message>
+        <source>Error reading %s! All keys read correctly, but transaction data or address book entries might be missing or incorrect.</source>
+        <translation>读取 %s 时发生错误！所有的密钥都可以正确读取，但是交易记录或地址簿数据可能已经丢失或出错。</translation>
     </message>
 </context>
 </TS>

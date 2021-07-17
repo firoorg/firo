@@ -20,12 +20,14 @@
 #include <QObject>
 
 class AddressTableModel;
+class PcodeAddressTableModel;
 class LelantusModel;
 class OptionsModel;
 class PlatformStyle;
 class RecentRequestsTableModel;
 class TransactionTableModel;
 class WalletModelTransaction;
+class PcodeModel;
 
 class CCoinControl;
 class CKeyID;
@@ -134,9 +136,11 @@ public:
 
     OptionsModel *getOptionsModel();
     AddressTableModel *getAddressTableModel();
+    PcodeAddressTableModel *getPcodeAddressTableModel();
     LelantusModel *getLelantusModel();
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
+    PcodeModel *getPcodeModel();
 
     CWallet *getWallet() const { return wallet; }
 
@@ -196,6 +200,7 @@ public:
     bool setWalletEncrypted(bool encrypted, const SecureString &passphrase);
     // Passphrase only needed when unlocking
     bool setWalletLocked(bool locked, const SecureString &passPhrase=SecureString());
+    void lockWalletDelayed(int seconds);
     bool changePassphrase(const SecureString &oldPass, const SecureString &newPass);
     // Wallet backup
     bool backupWallet(const QString &filename);
@@ -212,15 +217,18 @@ public:
         // Copy operator and constructor transfer the context
         UnlockContext(const UnlockContext& obj) { CopyFrom(obj); }
         UnlockContext& operator=(const UnlockContext& rhs) { CopyFrom(rhs); return *this; }
+
+        void delayRelock(int seconds);
     private:
         WalletModel *wallet;
         bool valid;
         mutable bool relock; // mutable, as it can be set to false by copying
+        int delay;
 
         void CopyFrom(const UnlockContext& rhs);
     };
 
-    UnlockContext requestUnlock();
+    UnlockContext requestUnlock(const QString & info = "");
 
     bool IsSpendable(const CTxDestination& dest) const;
     bool IsSpendable(const CScript& script) const;
@@ -284,9 +292,11 @@ private:
     OptionsModel *optionsModel;
 
     AddressTableModel *addressTableModel;
+    PcodeAddressTableModel *pcodeAddressTableModel;
     LelantusModel *lelantusModel;
     TransactionTableModel *transactionTableModel;
     RecentRequestsTableModel *recentRequestsTableModel;
+    PcodeModel *pcodeModel;
 
     // Cache some values to be able to detect changes
     CAmount cachedBalance;
@@ -328,7 +338,7 @@ Q_SIGNALS:
     // Signal emitted when wallet needs to be unlocked
     // It is valid behaviour for listeners to keep the wallet locked after this signal;
     // this means that the unlocking failed or was cancelled.
-    void requireUnlock();
+    void requireUnlock(const QString &info);
 
     // Fired when a message should be reported to the user
     void message(const QString &title, const QString &message, unsigned int style);
@@ -344,7 +354,6 @@ Q_SIGNALS:
 
     // Update sigma changed
     void notifySigmaChanged(const std::vector<CMintMeta>& spendable, const std::vector<CMintMeta>& pending);
-
 public Q_SLOTS:
     /* Wallet status might have changed */
     void updateStatus();
@@ -360,7 +369,10 @@ public Q_SLOTS:
     void pollBalanceChanged();
     /* Update Amount of sigma change */
     void updateSigmaCoins(const QString &pubCoin, const QString &isUsed, int status);
-
+    // Handle the changed BIP47 privkeys
+    void handleBip47Keys(int receiverAccountNum, void * pBlockIndex);
+    // Locks wallet from timer calls
+    bool lockWallet();
 };
 
 #endif // BITCOIN_QT_WALLETMODEL_H

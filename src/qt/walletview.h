@@ -27,6 +27,7 @@ class ClientModel;
 class OverviewPage;
 class PlatformStyle;
 class ReceiveCoinsDialog;
+class CreatePcodeDialog;
 class SendCoinsDialog;
 class SendMPDialog;
 class TradeHistoryDialog;
@@ -103,6 +104,7 @@ private:
     QWidget *transactionsPage;
     QWidget *smartPropertyPage;
     ReceiveCoinsDialog *receiveCoinsPage;
+    CreatePcodeDialog *createPcodePage;
     AddressBookPage *usedSendingAddressesPage;
     AddressBookPage *usedReceivingAddressesPage;
     QWidget *sendCoinsPage;
@@ -148,6 +150,7 @@ public Q_SLOTS:
     void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
+    void gotoCreatePcodePage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to sigma page */
@@ -172,7 +175,7 @@ public Q_SLOTS:
     /** Change encrypted wallet passphrase */
     void changePassphrase();
     /** Ask for passphrase to unlock wallet temporarily */
-    void unlockWallet();
+    void unlockWallet(const QString & info = "");
 
     /** Show used sending addresses */
     void usedSendingAddresses();

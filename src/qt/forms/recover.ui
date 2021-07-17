@@ -13,7 +13,7 @@
     <x>0</x>
     <y>0</y>
     <width>674</width>
-    <height>620</height>
+    <height>660</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -245,10 +245,44 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
      <property name="styleSheet">
       <string notr="true">color:red;</string>
      </property>
+     <property name="text">
+      <string/>
+     </property>
      <property name="wordWrap">
       <bool>true</bool>
      </property>
     </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QLabel" name="labelPcodes">
+       <property name="text">
+        <string>RAP addresses to be created:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSpinBox" name="spinBoxPcodes">
+       <property name="toolTip">
+        <string>The number of RAP addresses will be created in the wallet for the initial blockchain scan</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
    </item>
    <item>
     <spacer name="verticalSpacer">

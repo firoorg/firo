@@ -18,7 +18,8 @@ public:
     CWalletTx Build(
         const std::vector<CRecipient>& recipients,
         CAmount &fee,
-        const std::vector<CAmount>& newMintss);
+        const std::vector<CAmount>& newMintss,
+        std::function<void(CTxOut & , LelantusJoinSplitBuilder const &)> outModifier = nullptr);
 
 private:
     void GenerateMints(const std::vector<CAmount>& newMints, const CAmount& changeToMint, std::vector<lelantus::PrivateCoin>& Cout, std::vector<CTxOut>& outputs);

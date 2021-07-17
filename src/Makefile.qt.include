@@ -119,6 +119,7 @@ QT_FORMS_UI = \
   qt/forms/debugwindow.ui \
   qt/forms/sendcoinsdialog.ui \
   qt/forms/sendcoinsentry.ui \
+  qt/forms/sendtopcodedialog.ui \
   qt/forms/signverifymessagedialog.ui \
   qt/forms/transactiondescdialog.ui \
   qt/forms/sendmpdialog.ui \
@@ -130,7 +131,8 @@ QT_FORMS_UI = \
   qt/forms/metadexdialog.ui \
   qt/forms/tradehistorydialog.ui \
   qt/forms/elyassetsdialog.ui \
-  qt/forms/lelantusdialog.ui
+  qt/forms/lelantusdialog.ui \
+  qt/forms/createpcodedialog.ui
 
 QT_MOC_CPP = \
   qt/moc_addressbookpage.cpp \
@@ -145,11 +147,13 @@ QT_MOC_CPP = \
   qt/moc_bitcoinamountfield.cpp \
   qt/moc_bitcoingui.cpp \
   qt/moc_bitcoinunits.cpp \
+  qt/moc_cancelpassworddialog.cpp \
   qt/moc_clientmodel.cpp \
   qt/moc_coincontroldialog.cpp \
   qt/moc_manualmintdialog.cpp \
   qt/moc_coincontroltreewidget.cpp \
   qt/moc_csvmodelwriter.cpp \
+  qt/moc_createpcodedialog.cpp \
   qt/moc_editaddressdialog.cpp \
   qt/moc_guiutil.cpp \
   qt/moc_intro.cpp \
@@ -174,6 +178,7 @@ QT_MOC_CPP = \
   qt/moc_rpcconsole.cpp \
   qt/moc_sendcoinsdialog.cpp \
   qt/moc_sendcoinsentry.cpp \
+  qt/moc_sendtopcodedialog.cpp \
   qt/moc_signverifymessagedialog.cpp \
   qt/moc_splashscreen.cpp \
   qt/moc_trafficgraphwidget.cpp \
@@ -199,7 +204,8 @@ QT_MOC_CPP = \
   qt/moc_lelantusdialog.cpp \
   qt/moc_lelantuscoincontroldialog.cpp \
   qt/moc_automintmodel.cpp \
-  qt/moc_automintnotification.cpp
+  qt/moc_automintnotification.cpp \
+  qt/moc_pcodemodel.cpp
 
 BITCOIN_MM = \
   qt/macdockiconhandler.mm \
@@ -234,8 +240,10 @@ BITCOIN_QT_H = \
   qt/bitcoinamountfield.h \
   qt/bitcoingui.h \
   qt/bitcoinunits.h \
+  qt/cancelpassworddialog.h \
   qt/clientmodel.h \
   qt/coincontroldialog.h \
+  qt/createpcodedialog.h \
   qt/manualmintdialog.h \
   qt/coincontroltreewidget.h \
   qt/csvmodelwriter.h \
@@ -257,6 +265,7 @@ BITCOIN_QT_H = \
   qt/overviewpage.h \
   qt/paymentrequestplus.h \
   qt/paymentserver.h \
+  qt/pcodemodel.h \
   qt/peertablemodel.h \
   qt/platformstyle.h \
   qt/qvalidatedlineedit.h \
@@ -267,6 +276,7 @@ BITCOIN_QT_H = \
   qt/rpcconsole.h \
   qt/sendcoinsdialog.h \
   qt/sendcoinsentry.h \
+  qt/sendtopcodedialog.h \
   qt/signverifymessagedialog.h \
   qt/splashscreen.h \
   qt/trafficgraphwidget.h \
@@ -309,6 +319,7 @@ RES_ICONS = \
   qt/res/icons/firo.png \
   qt/res/icons/zerocoin.png \
   qt/res/icons/sigma.png \
+  qt/res/icons/paymentcode.png \
   qt/res/icons/masternodes.png \
   qt/res/icons/qrcode.png \
   qt/res/icons/chevron.png \
@@ -384,6 +395,7 @@ BITCOIN_QT_BASE_CPP = \
   qt/bitcoinamountfield.cpp \
   qt/bitcoingui.cpp \
   qt/bitcoinunits.cpp \
+  qt/cancelpassworddialog.cpp \
   qt/clientmodel.cpp \
   qt/csvmodelwriter.cpp \
   qt/guiutil.cpp \
@@ -417,11 +429,13 @@ BITCOIN_QT_WALLET_CPP = \
   qt/addresstablemodel.cpp \
   qt/askpassphrasedialog.cpp \
   qt/coincontroldialog.cpp \
-  qt/manualmintdialog.cpp \
   qt/coincontroltreewidget.cpp \
+  qt/createpcodedialog.cpp \
   qt/editaddressdialog.cpp \
+  qt/manualmintdialog.cpp \
   qt/openuridialog.cpp \
   qt/overviewpage.cpp \
+  qt/pcodemodel.cpp \
   qt/paymentrequestplus.cpp \
   qt/paymentserver.cpp \
   qt/receivecoinsdialog.cpp \
@@ -429,6 +443,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/recentrequeststablemodel.cpp \
   qt/sendcoinsdialog.cpp \
   qt/sendcoinsentry.cpp \
+  qt/sendtopcodedialog.cpp \
   qt/signverifymessagedialog.cpp \
   qt/transactiondesc.cpp \
   qt/transactiondescdialog.cpp \

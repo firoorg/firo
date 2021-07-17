@@ -75,8 +75,10 @@ private:
     QFrame *dateRangeWidget;
     QDateTimeEdit *dateFrom;
     QDateTimeEdit *dateTo;
+    QAction *copyLabelAction;
     QAction *abandonAction;
     QAction *resendAction;
+    QAction *reconsiderBip47TxAction;
 
     QWidget *createDateRangeWidget();
 
@@ -101,6 +103,7 @@ private Q_SLOTS:
     void updateWatchOnlyColumn(bool fHaveWatchOnly);
     void abandonTx();
     void rebroadcastTx();
+    void reconsiderBip47Tx();
 
 Q_SIGNALS:
     void doubleClicked(const QModelIndex&);

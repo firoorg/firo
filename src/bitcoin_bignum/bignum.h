@@ -707,8 +707,8 @@ public:
         return ret;
     }
 
-    vector<unsigned char> ToBytes() const {
-        vector<unsigned char> result(BN_num_bytes(bn));
+    std::vector<unsigned char> ToBytes() const {
+        std::vector<unsigned char> result(BN_num_bytes(bn));
         BN_bn2bin(bn, result.data());
         return result;
     }

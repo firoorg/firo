@@ -77,7 +77,7 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Block connected with incorrect proof");
 
     bMtp = CreateBlock(scriptPubKey, mtp);
-    bMtp.mtpHashData = make_shared<CMTPHashData>();
+    bMtp.mtpHashData = std::make_shared<CMTPHashData>();
     ProcessBlock(bMtp);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Block connected with missing proof");
 

@@ -130,7 +130,7 @@ FeeFilterRounder filterRounder(::minRelayTxFee);
 CTxPoolAggregate txpools(::minRelayTxFee);
 
 // Firo znode
-map <uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
+std::map <uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 
 
 static void CheckBlockIndex(const Consensus::Params& consensusParams);
@@ -138,7 +138,7 @@ static void CheckBlockIndex(const Consensus::Params& consensusParams);
 /** Constant stuff for coinbase transactions we create: */
 CScript COINBASE_FLAGS;
 
-const string strMessageMagic = "Zcoin Signed Message:\n";
+const std::string strMessageMagic = "Zcoin Signed Message:\n";
 
 // Internal stuff
 namespace {
@@ -663,12 +663,12 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
 
         auto params = ::Params().GetConsensus();
         if (tx.IsZerocoinSpend() || tx.IsZerocoinMint()) {
-            if (nHeight >= params.nDisableZerocoinStartBlock)
+            if (!isVerifyDB && nHeight >= params.nDisableZerocoinStartBlock)
                 return state.DoS(1, error("Zerocoin is disabled at this point"));
         }
 
         if (tx.IsZerocoinRemint()) {
-            if (nHeight < params.nSigmaStartBlock || nHeight >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize)
+            if (!isVerifyDB && (nHeight < params.nSigmaStartBlock || nHeight >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize))
                 // we allow transactions of remint type only during specific window
                 return false;
         }
@@ -791,14 +791,14 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     // V3 sigma spends.
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    vector<Scalar> zcSpendSerialsV3;
-    vector<GroupElement> zcMintPubcoinsV3;
+    std::vector<Scalar> zcSpendSerialsV3;
+    std::vector<GroupElement> zcMintPubcoinsV3;
 
     //lelantus
     lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
-    vector<Scalar> lelantusSpendSerials;
-    vector<GroupElement> lelantusMintPubcoins;
-    vector<uint64_t> lelantusAmounts;
+    std::vector<Scalar> lelantusSpendSerials;
+    std::vector<GroupElement> lelantusMintPubcoins;
+    std::vector<uint64_t> lelantusAmounts;
     {
         LOCK(pool.cs);
         if (tx.IsSigmaSpend()) {
@@ -2650,7 +2650,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     std::vector<PrecomputedTransactionData> txdata;
     txdata.reserve(block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
 
-    set<uint256> txIds;
+    std::set<uint256> txIds;
     bool isMainNet = chainparams.GetConsensus().IsMain();
     // batch verify Lelantus/Sigma if block is older than a day, that means we are syncing or reindexing
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
@@ -3193,7 +3193,6 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     for (CTransactionRef tx : block.vtx) {
         CheckTransaction(*tx, state, false, tx->GetHash(), false, pindexDelete->pprev->nHeight,
             false, false, block.sigmaTxInfo.get(), block.lelantusTxInfo.get());
-
         if(GetBoolArg("-batching", true)) {
             if (tx->IsLelantusJoinSplit()) {
                 const CTxIn &txin = tx->vin[0];
@@ -3213,22 +3212,8 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
                     continue;
                 }
 
-                if (joinsplit->isSigmaToLelantus()) {
-                    for (size_t i = 0; i < serials.size(); i++) {
-                        int coinGroupId = ids[i] % (CENT / 1000);
-                        int64_t intDenom = (ids[i] - coinGroupId);
-                        intDenom *= 1000;
-                        sigma::CoinDenomination denomination;
-                        if (!sigma::IntegerToDenomination(intDenom, denomination))
-                            lelantusSerialsToRemove.insert(std::make_pair(serials[i], ids[i]));
-                        else
-                            sigmaSerialsToRemove.insert(std::make_pair(
-                                    serials[i], sigma::CSpendCoinInfo::make(denomination, coinGroupId)));
-                    }
-                } else {
-                    for (size_t i = 0; i < serials.size(); i++) {
-                        lelantusSerialsToRemove.insert(std::make_pair(serials[i], ids[i]));
-                    }
+                for (size_t i = 0; i < serials.size(); i++) {
+                    lelantusSerialsToRemove.insert(std::make_pair(serials[i], ids[i]));
                 }
             } else if (tx->IsSigmaSpend()) {
                 for (const CTxIn &txin : tx->vin) {
@@ -3266,6 +3251,16 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
 
 	sigma::DisconnectTipSigma(block, pindexDelete);
     lelantus::DisconnectTipLelantus(block, pindexDelete);
+
+    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+    if (sigmaSerialsToRemove.size() > 0) {
+        batchProofContainer->removeSigma(sigmaSerialsToRemove);
+    }
+
+    if (lelantusSerialsToRemove.size() > 0) {
+        batchProofContainer->removeLelantus(lelantusSerialsToRemove);
+    }
+
     // Roll back MTP state
     MTPState::GetMTPState()->SetLastBlock(pindexDelete->pprev, chainparams.GetConsensus());
 
@@ -3311,15 +3306,6 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     }
     // Update chainActive and related variables.
     UpdateTip(pindexDelete->pprev, chainparams);
-
-    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    if (sigmaSerialsToRemove.size() > 0) {
-        batchProofContainer->removeSigma(sigmaSerialsToRemove);
-    }
-
-    if (lelantusSerialsToRemove.size() > 0) {
-        batchProofContainer->removeLelantus(lelantusSerialsToRemove);
-    }
 
 #ifdef ENABLE_WALLET
     // update mint/spend wallet
