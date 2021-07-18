@@ -19,7 +19,7 @@ BOOST_AUTO_TEST_CASE(firopow_hash_and_verify) {
         }
 
         const ethash::hash256 header{to_hash256(t.header_hash_hex)};
-        const ethash::hash256 boundary{to_hash256(t.boundary)};
+        const ethash::hash256 boundary{to_hash256(t.boundary_hex)};
         const uint64_t nonce{std::stoull(t.nonce_hex, nullptr, 16)};
         ethash::hash256 mix_hash{to_hash256(t.mix_hash_hex)};
         const ethash::hash256 final_hash{to_hash256(t.final_hash_hex)};
