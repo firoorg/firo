@@ -4,6 +4,8 @@
  */
 
 #pragma once
+#ifndef CRYPTO_PROGPOW_ATTRIBUTES_H_
+#define CRYPTO_PROGPOW_ATTRIBUTES_H_
 
 /** inline */
 #if _MSC_VER || __STDC_VERSION__
@@ -31,3 +33,4 @@
 #else
 #define NO_SANITIZE(sanitizer)
 #endif
+#endif // !CRYPTO_PROGPOW_ATTRIBUTES_H_
