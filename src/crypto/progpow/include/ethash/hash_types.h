@@ -4,6 +4,8 @@
  */
 
 #pragma once
+#ifndef CRYPTO_PROGPOW_HASH_TYPES_H_
+#define CRYPTO_PROGPOW_HASH_TYPES_H_
 
 #include <stdint.h>
 
@@ -48,3 +50,4 @@ union ethash_hash2048
 #ifdef __cplusplus
 }
 #endif
+#endif // !CRYPTO_PROGPOW_HASH_TYPES_H_

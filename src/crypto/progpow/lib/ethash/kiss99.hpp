@@ -4,6 +4,8 @@
  */
 
 #pragma once
+#ifndef CRYPTO_PROGPOW_KISS99_HPP_
+#define CRYPTO_PROGPOW_KISS99_HPP_
 
 #include "../support/attributes.h"
 #include <stdint.h>
@@ -62,3 +64,4 @@ public:
 };
 
 /** @} */
+#endif // !CRYPTO_PROGPOW_KISS99_HPP_

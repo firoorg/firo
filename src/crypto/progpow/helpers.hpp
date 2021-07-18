@@ -3,6 +3,8 @@
 // Licensed under the Apache License, Version 2.0.
 
 #pragma once
+#ifndef CRYPTO_PROGPOW_HELPERS_HPP_
+#define CRYPTO_PROGPOW_HELPERS_HPP_
 
 #include <crypto/progpow/include/ethash/ethash.hpp>
 
@@ -53,3 +55,4 @@ inline const ethash::epoch_context& get_ethash_epoch_context_0() noexcept
     static ethash::epoch_context_ptr context = ethash::create_epoch_context(0);
     return *context;
 }
+#endif // !CRYPTO_PROGPOW_HELPERS_HPP_
