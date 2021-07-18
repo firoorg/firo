@@ -9,6 +9,10 @@
 ///
 /// This file provides the public API for ProgPoW as the Ethash API extension.
 
+#pragma once
+#ifndef CRYPTO_PROGPOW_PROGPOW_HPP_
+#define CRYPTO_PROGPOW_PROGPOW_HPP_
+
 #include <crypto/progpow/include/ethash/ethash.hpp>
 
 namespace progpow
@@ -50,3 +54,4 @@ search_result search(const epoch_context_full& context, int block_number,
     size_t iterations) noexcept;
 
 }  // namespace progpow
+#endif // !CRYPTO_PROGPOW_PROGPOW_HPP_

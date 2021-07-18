@@ -13,6 +13,8 @@
 ///    See https://github.com/Microsoft/GSL/issues/171.
 
 #pragma once
+#ifndef CRYPTO_PROGPOW_ETHASH_HPP_
+#define CRYPTO_PROGPOW_ETHASH_HPP_
 
 #include <crypto/progpow/include/ethash/ethash.h>
 #include <crypto/progpow/include/ethash/hash_types.hpp>
@@ -170,3 +172,4 @@ inline const epoch_context_full& get_global_epoch_context_full(int epoch_number)
     return *ethash_get_global_epoch_context_full(epoch_number);
 }
 }  // namespace ethash
+#endif // !CRYPTO_PROGPOW_ETHASH_HPP_

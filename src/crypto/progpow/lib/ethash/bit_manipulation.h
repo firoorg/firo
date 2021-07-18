@@ -4,6 +4,8 @@
  */
 
 #pragma once
+#ifndef CRYPTO_PROGPOW_BIT_MANIPULATION_H_
+#define CRYPTO_PROGPOW_BIT_MANIPULATION_H_
 
 #include "builtins.h"
 #include "../support/attributes.h"
@@ -79,3 +81,4 @@ static inline uint32_t fnv1a(uint32_t u, uint32_t v) noexcept
 #ifdef __cplusplus
 }
 #endif
+#endif // !CRYPTO_PROGPOW_BIT_MANIPULATION_H_

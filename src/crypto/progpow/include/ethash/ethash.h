@@ -4,6 +4,8 @@
  */
 
 #pragma once
+#ifndef CRYPTO_PROGPOW_ETHASH_H_
+#define CRYPTO_PROGPOW_ETHASH_H_
 
 #include <crypto/progpow/include/ethash/hash_types.h>
 
@@ -137,3 +139,4 @@ bool ethash_verify_final_hash(const union ethash_hash256* header_hash,
 #ifdef __cplusplus
 }
 #endif
+#endif // !CRYPTO_PROGPOW_ETHASH_H_

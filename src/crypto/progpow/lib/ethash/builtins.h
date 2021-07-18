@@ -9,6 +9,8 @@
  */
 
 #pragma once
+#ifndef CRYPTO_PROGPOW_BUILTINS_H_
+#define CRYPTO_PROGPOW_BUILTINS_H_
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -41,3 +43,4 @@ inline int __builtin_popcount(unsigned int x)
 #endif
 
 #endif
+#endif // !CRYPTO_PROGPOW_BUILTINS_H_

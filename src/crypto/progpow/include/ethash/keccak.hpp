@@ -3,6 +3,8 @@
 // Licensed under the Apache License, Version 2.0.
 
 #pragma once
+#ifndef CRYPTO_PROGPOW_KECCAK_HPP_
+#define CRYPTO_PROGPOW_KECCAK_HPP_
 
 #include <crypto/progpow/include/ethash/keccak.h>
 #include <crypto/progpow/include/ethash/hash_types.hpp>
@@ -33,3 +35,4 @@ static constexpr auto keccak256_32 = ethash_keccak256_32;
 static constexpr auto keccak512_64 = ethash_keccak512_64;
 
 }  // namespace ethash
+#endif // !CRYPTO_PROGPOW_KECCAK_HPP_
