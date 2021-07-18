@@ -18,11 +18,11 @@ BOOST_AUTO_TEST_CASE(firopow_hash_and_verify) {
             context = ethash::create_epoch_context(epoch_number);
         }
 
-        const ethash::hash256 header{to_hash256(test.header_hash_hex)};
-        const ethash::hash256 boundary{to_hash256(test.boundary)};
+        const ethash::hash256 header{to_hash256(t.header_hash_hex)};
+        const ethash::hash256 boundary{to_hash256(t.boundary)};
         const uint64_t nonce{std::stoull(t.nonce_hex, nullptr, 16)};
-        ethash::hash256 mix_hash{to_hash256(test.mix_hash_hex)};
-        const ethash::hash256 final_hash{to_hash256(test.final_hash_hex)};
+        ethash::hash256 mix_hash{to_hash256(t.mix_hash_hex)};
+        const ethash::hash256 final_hash{to_hash256(t.final_hash_hex)};
 
         auto result{progpow::hash(*context, t.block_number, header, nonce)};
         BOOST_CHECK(ethash::is_less_or_equal(result.final_hash, boundary)); // Must be below boundary
