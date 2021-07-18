@@ -543,7 +543,7 @@ crypto_libbitcoin_crypto_a_SOURCES += \
   crypto/progpow/lib/ethash/bit_manipulation.h \
   crypto/progpow/lib/ethash/builtins.h \
   crypto/progpow/lib/ethash/endianness.hpp \
-  crypto/progpow/lib/ethash/ethash_internal.hpp \
+  crypto/progpow/lib/ethash/ethash-internal.hpp \
   crypto/progpow/lib/ethash/ethash.cpp \
   crypto/progpow/lib/ethash/kiss99.hpp \
   crypto/progpow/lib/ethash/managed.cpp \
