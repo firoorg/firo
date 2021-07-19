@@ -69,7 +69,7 @@ public:
 
     Scalar hash(const unsigned char* data,size_t len);
 
-    std::size_t lowestbyte() const;
+    std::size_t lowest_limb() const;
 
     bool isMember() const;
 
@@ -133,7 +133,7 @@ using namespace secp_primitives;
 template<>
 struct hash<Scalar> {
     size_t operator()(const Scalar& s) const {
-        return s.lowestbyte();
+        return s.lowest_limb();
     }
 };
 

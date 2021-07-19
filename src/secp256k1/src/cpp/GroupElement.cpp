@@ -555,8 +555,10 @@ std::size_t GroupElement::hash() const
     return std::hash<std::string>()(std::string(coord.begin(), coord.end()));
 }
 
-std::size_t GroupElement::lowestbyte() const {
-    return reinterpret_cast<secp256k1_gej *>(g_)->x.n[0];
+std::size_t GroupElement::lowest_limb() const {
+    secp256k1_fe x = reinterpret_cast<secp256k1_gej *>(g_)->x;
+    secp256k1_fe_normalize(&x);
+    return x.n[0];
 }
 
 const void* GroupElement::get_value() const {
