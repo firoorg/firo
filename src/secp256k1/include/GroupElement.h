@@ -103,7 +103,7 @@ public:
 
   std::size_t hash() const;
 
-  std::size_t lowest_limb() const;
+  std::size_t get_hash() const;
 
   GroupElement& set_base_g();
 
@@ -127,7 +127,7 @@ namespace std {
     {
         size_t operator()(const secp_primitives::GroupElement& g) const
         {
-            return g.lowest_limb();
+            return g.get_hash();
         }
     };
 } // namespace std
