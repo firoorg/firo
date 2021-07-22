@@ -195,7 +195,9 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
             PrintToLog("%s(): rejected: joinsplit has unknown block as an input\n", __func__);
             return PKT_ERROR_LELANTUS - 907;
         }
-        anonss[idAndBlockHash.first] = lelantusDb->GetAnonymityGroup(property, idAndBlockHash.first, SIZE_MAX, coinBlock->second->nHeight);
+
+        int blockHeight = coinBlock->second->nHeight;
+        anonss[idAndBlockHash.first] = lelantusDb->GetAnonymityGroup(property, idAndBlockHash.first, SIZE_MAX, blockHeight);
 
         if (coinBlock->second->nHeight > highestBlockHeight) {
             highestBlockHeight = coinBlock->second->nHeight;
