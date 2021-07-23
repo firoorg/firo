@@ -555,6 +555,12 @@ std::size_t GroupElement::hash() const
     return std::hash<std::string>()(std::string(coord.begin(), coord.end()));
 }
 
+std::size_t GroupElement::get_hash() const {
+    secp256k1_fe x = reinterpret_cast<secp256k1_gej *>(g_)->x;
+    secp256k1_fe_normalize(&x);
+    return x.n[0] ^ (x.n[1] << 16);
+}
+
 const void* GroupElement::get_value() const {
     return g_;
 }

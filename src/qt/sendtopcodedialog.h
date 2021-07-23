@@ -14,6 +14,7 @@
 #include <QMenu>
 #include <QPoint>
 #include <QVariant>
+#include <QTimer>
 
 #include "walletmodel.h"
 #include "bip47/paymentcode.h"
@@ -48,6 +49,7 @@ public:
     std::pair<Result, CBitcoinAddress> getResult() const;
     std::unique_ptr<WalletModel::UnlockContext> getUnlockContext();
 
+    void setUseAddr();
     void close();
     int exec() override;
 
@@ -70,7 +72,6 @@ private:
     Status status;
 
     void setNotifTxId();
-    void setUseAddr();
     void setLelantusBalance(CAmount const & amount, CAmount const & unconfirmedLelantusBalance);
     void updateButtons();
 

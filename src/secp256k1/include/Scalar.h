@@ -69,6 +69,8 @@ public:
 
     Scalar hash(const unsigned char* data,size_t len);
 
+    std::size_t get_hash() const;
+
     bool isMember() const;
 
     bool isZero() const;
@@ -131,9 +133,7 @@ using namespace secp_primitives;
 template<>
 struct hash<Scalar> {
     size_t operator()(const Scalar& s) const {
-        array<unsigned char, 32> d;
-        s.serialize(d.data());
-        return hash<string>()(string(d.begin(), d.end()));
+        return s.get_hash();
     }
 };
 

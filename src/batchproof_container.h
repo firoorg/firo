@@ -12,27 +12,6 @@ class BatchProofContainer {
 public:
     static BatchProofContainer* get_instance();
 
-    void init();
-
-    void finalize();
-
-    void add(sigma::CoinSpend* spend,
-             bool fPadding,
-             int group_id,
-             size_t setSize,
-             bool fStartSigmaBlacklist);
-
-    void add(lelantus::JoinSplit* joinSplit,
-             const std::map<uint32_t, size_t>& setSizes,
-             const Scalar& challenge,
-             bool fStartLelantusBlacklist);
-
-    void removeSigma(const sigma::spend_info_container& spendSerials);
-    void removeLelantus(std::unordered_map<Scalar, int> spentSerials);
-
-    void batch_sigma();
-    void batch_lelantus();
-
     struct SigmaProofData {
         SigmaProofData() : sigmaProof(0, 0), coinSerialNumber(uint64_t(0)), fPadding(0), anonymitySetSize(0) {}
         SigmaProofData(const sigma::SigmaPlusProof<Scalar, GroupElement>& sigmaProof_,
@@ -65,6 +44,28 @@ public:
         Scalar challenge;
         size_t anonymitySetSize;
     };
+
+    void init();
+
+    void finalize();
+
+    void add(sigma::CoinSpend* spend,
+             bool fPadding,
+             int group_id,
+             size_t setSize,
+             bool fStartSigmaBlacklist);
+
+    void add(lelantus::JoinSplit* joinSplit,
+             const std::map<uint32_t, size_t>& setSizes,
+             const Scalar& challenge,
+             bool fStartLelantusBlacklist);
+
+    void removeSigma(const sigma::spend_info_container& spendSerials);
+    void removeLelantus(std::unordered_map<Scalar, int> spentSerials);
+    void erase(std::vector<LelantusSigmaProofData>* vProofs, const Scalar& serial);
+
+    void batch_sigma();
+    void batch_lelantus();
 
 public:
     bool fCollectProofs = 0;
