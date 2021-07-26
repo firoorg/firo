@@ -834,9 +834,6 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         }
     }
 
-    // ### SET MP TX INFO ###
-	LogPrintf("single_pkt: %s\n", HexStr(payload));
-
     mp_tx.Set(
         sender ? sender->ToString() : "",
         referenceAddr ? referenceAddr->ToString() : "",
