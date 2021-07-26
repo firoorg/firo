@@ -1413,8 +1413,6 @@ static void prune_state_files( CBlockIndex const *topIndex )
       uint256 blockHash;
       blockHash.SetHex(vstr[1]);
       statefulBlockHashes.insert(blockHash);
-    } else {
-      PrintToLog("None state file found in persistence directory : %s\n", fName);
     }
   }
 
