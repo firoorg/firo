@@ -1249,7 +1249,12 @@ static int load_most_relevant_state()
       for (int i = 0; i < NUM_FILETYPES; ++i) {
         boost::filesystem::path path = MPPersistencePath / strprintf("%s-%s.dat", statePrefix[i], curTip->GetBlockHash().ToString());
         const std::string strFile = path.string();
-        success = elysium_file_load(strFile, i, true);
+        try {
+            success = elysium_file_load(strFile, i, true);
+        } catch (std::exception &e) {
+            LogPrintf("Loading elysium state %s failed: %s\n", strFile, e.what());
+            success = -1;
+        }
         if (success < 0) {
           break;
         }
