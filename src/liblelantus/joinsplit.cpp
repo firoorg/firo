@@ -127,6 +127,10 @@ bool JoinSplit::VerifyElysium(
         const std::vector<PublicCoin>& Cout,
         uint64_t Vout,
         const uint256& txHash) const {
+    if (version != LELANTUS_TX_TPAYLOAD) {
+        LogPrintf("invalid lelantus version for Elysium transaction %s\n", txHash);
+    }
+
     Scalar challenge;
     bool fSkipVerification = false;
     return Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHash, challenge, fSkipVerification, INT64_MAX);
