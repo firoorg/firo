@@ -128,7 +128,7 @@ bool JoinSplit::VerifyElysium(
         uint64_t Vout,
         const uint256& txHash) const {
     if (version != LELANTUS_TX_TPAYLOAD) {
-        LogPrintf("invalid lelantus version for Elysium transaction %s\n", txHash);
+        LogPrintf("invalid lelantus version for Elysium transaction %s\n", txHash.GetHex());
     }
 
     Scalar challenge;

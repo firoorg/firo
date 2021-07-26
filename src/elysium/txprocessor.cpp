@@ -11,7 +11,7 @@ namespace elysium {
 
 TxProcessor *txProcessor;
 
-int TxProcessor::ProcessTx(CMPTransaction& tx)
+int TxProcessor::ProcessTx(const CBlockIndex *pBlockIndex, CMPTransaction& tx)
 {
     LOCK(cs_main);
 
@@ -27,7 +27,7 @@ int TxProcessor::ProcessTx(CMPTransaction& tx)
             break;
 
         case ELYSIUM_TYPE_LELANTUS_JOINSPLIT:
-            result = ProcessLelantusJoinSplit(tx);
+            result = ProcessLelantusJoinSplit(pBlockIndex, tx);
             break;
 
         case ELYSIUM_TYPE_CHANGE_LELANTUS_STATUS:
@@ -127,13 +127,18 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
     return 0;
 }
 
-int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
+int TxProcessor::ProcessLelantusJoinSplit(const CBlockIndex *pBlockIndex, const CMPTransaction& tx)
 {
+    AssertLockHeld(cs_main);
+    assert(pBlockIndex);
+
     auto block = tx.getBlock();
     if (block < 0) {
         PrintToLog("%s(): rejected unconfirmed transaction %s\n", __func__, tx.getHash().GetHex());
         return PKT_ERROR_LELANTUS - 907;
     }
+
+    assert(pBlockIndex->nHeight == block);
 
     auto type = tx.getType();
     auto version = tx.getVersion();
@@ -197,6 +202,12 @@ int TxProcessor::ProcessLelantusJoinSplit(const CMPTransaction& tx)
         }
 
         int blockHeight = coinBlock->second->nHeight;
+
+        if (blockHeight >= pBlockIndex->nHeight || *pBlockIndex->GetAncestor(blockHeight)->phashBlock != *coinBlock->second->phashBlock) {
+            PrintToLog("%s(): rejected: joinsplit has a non-ancestor as anonymity group source\n", __func__);
+            return PKT_ERROR_LELANTUS - 907;
+        }
+
         anonss[idAndBlockHash.first] = lelantusDb->GetAnonymityGroup(property, idAndBlockHash.first, SIZE_MAX, blockHeight);
 
         if (coinBlock->second->nHeight > highestBlockHeight) {
