@@ -216,7 +216,7 @@ bool LelantusVerifier::verify_rangeproof(
 
     RangeVerifier  rangeVerifier(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n, version);
     if (!rangeVerifier.verify_batch(V, commitments, bulletproofs)) {
-        LogPrintf("Lelantus verification failed due range proof verification failed.");
+        LogPrintf("Lelantus verification failed due range proof verification failed.\n");
         return false;
     }
     return true;

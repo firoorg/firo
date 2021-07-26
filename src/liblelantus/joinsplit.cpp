@@ -154,7 +154,7 @@ bool JoinSplit::Verify(
     uint256 metahash = signatureHash(m, Cout.size());
 
     if(serialNumbers.size() != ecdsaSignatures.size() || serialNumbers.size() != ecdsaPubkeys.size()) {
-        LogPrintf("Sigma spend failed due to serialNumbers and ecdsaSignatures/ecdsaPubkeys number mismatch.");
+        LogPrintf("Sigma spend failed due to serialNumbers and ecdsaSignatures/ecdsaPubkeys number mismatch.\n");
         return false;
     }
 
@@ -162,7 +162,7 @@ bool JoinSplit::Verify(
         // Verify ecdsa_signature, to make sure someone did not change the output of transaction.
         // Check sizes
         if (this->ecdsaPubkeys[i].size() != 33 || this->ecdsaSignatures[i].size() != 64) {
-            LogPrintf("Lelantus joinsplit failed due to incorrect size of ecdsaSignature.");
+            LogPrintf("Lelantus joinsplit failed due to incorrect size of ecdsaSignature.\n");
             return false;
         }
 
@@ -171,25 +171,25 @@ bool JoinSplit::Verify(
         secp256k1_ecdsa_signature signature;
 
         if (!secp256k1_ec_pubkey_parse(OpenSSLContext::get_context(), &pubkey, ecdsaPubkeys[i].data(), 33)) {
-            LogPrintf("Lelantus joinsplit failed due to unable to parse ecdsaPubkey.");
+            LogPrintf("Lelantus joinsplit failed due to unable to parse ecdsaPubkey.\n");
             return false;
         }
 
         // Recompute and compare hash of public key
         Scalar coinSerialNumberExpected = PrivateCoin::serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey);
         if (serialNumbers[i] != coinSerialNumberExpected) {
-            LogPrintf("Lelantus joinsplit failed due to serial number does not match public key hash.");
+            LogPrintf("Lelantus joinsplit failed due to serial number does not match public key hash.\n");
             return false;
         }
 
         if (1 != secp256k1_ecdsa_signature_parse_compact(OpenSSLContext::get_context(), &signature, ecdsaSignatures[i].data()) ) {
-            LogPrintf("Lelantus joinsplit failed due to signature cannot be parsed.");
+            LogPrintf("Lelantus joinsplit failed due to signature cannot be parsed.\n");
             return false;
         }
 
         if (!secp256k1_ecdsa_verify(
                 OpenSSLContext::get_context(), &signature, metahash.begin(), &pubkey)) {
-            LogPrintf("Lelantus joinsplit failed due to signature cannot be verified.");
+            LogPrintf("Lelantus joinsplit failed due to signature cannot be verified.\n");
             return false;
         }
     }
