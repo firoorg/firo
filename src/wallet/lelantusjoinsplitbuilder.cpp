@@ -294,6 +294,16 @@ CWalletTx LelantusJoinSplitBuilder::Build(
                 outModifier(out, *this);
             }
         }
+
+        // clear vExtraPayload to calculate metadata hash correctly
+        tx.vExtraPayload.clear();
+
+        // set correct type of transaction (this affects metadata hash)
+        if (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock) {
+            tx.nVersion = 3;
+            tx.nType = TRANSACTION_LELANTUS;
+        }
+
         // now every fields is populated then we can sign transaction
         uint256 sig = tx.GetHash();
 
@@ -419,15 +429,15 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
 
     // after nLelantusFixesStartBlock set new transaction version,
     if(!isSigmaToLelantusJoinSplit) {
-        if (chainActive.Height() >= Params().GetConsensus().nLelantusFixesStartBlock)
+        if (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock)
+            version = LELANTUS_TX_TPAYLOAD;
+        else
             version = LELANTUS_TX_VERSION_4_5;
-        else
-            version = LELANTUS_TX_VERSION_4;
     } else {
-        if (chainActive.Height() >= Params().GetConsensus().nLelantusFixesStartBlock)
-            version = SIGMA_TO_LELANTUS_JOINSPLIT_FIXED;
+        if (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock)
+            version = SIGMA_TO_LELANTUS_TX_TPAYLOAD;
         else
-            version = SIGMA_TO_LELANTUS_JOINSPLIT;
+            version = SIGMA_TO_LELANTUS_JOINSPLIT_FIXED;
     }
 
     std::vector<std::vector<unsigned char>> anonymity_set_hashes;
@@ -544,8 +554,16 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
 
     CScript script;
 
-    script << OP_LELANTUSJOINSPLIT;
-    script.insert(script.end(), serialized.begin(), serialized.end());
+    if (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock) {
+        script << OP_LELANTUSJOINSPLITPAYLOAD;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_LELANTUS;
+        tx.vExtraPayload.assign(serialized.begin(), serialized.end());
+    }
+    else {
+        script << OP_LELANTUSJOINSPLIT;
+        script.insert(script.end(), serialized.begin(), serialized.end());
+    }
 
     tx.vin[0].scriptSig = script;
 }

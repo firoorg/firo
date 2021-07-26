@@ -50,7 +50,7 @@ void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElemen
 void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue);
 void ParseLelantusJMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin, std::vector<unsigned char>& encryptedValue, uint256& mintTag);
 void ParseLelantusMintScript(const CScript& script, secp_primitives::GroupElement& pubcoin);
-std::unique_ptr<JoinSplit> ParseLelantusJoinSplit(const CTxIn& in);
+std::unique_ptr<JoinSplit> ParseLelantusJoinSplit(const CTransaction& tx);
 
 size_t GetSpendInputs(const CTransaction &tx, const CTxIn& in);
 size_t GetSpendInputs(const CTransaction &tx);
