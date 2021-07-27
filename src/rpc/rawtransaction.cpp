@@ -205,8 +205,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         }
     }
     bool fLLMQLocked = llmq::quorumInstantSendManager->IsLocked(txid);
-    entry.push_back(Pair("instantlock", fLLMQLocked || chainLock));
-    entry.push_back(Pair("instantlock_internal", fLLMQLocked));
+    entry.push_back(Pair("instantlock", fLLMQLocked));
     entry.push_back(Pair("chainlock", chainLock));
 
     if (tx.nVersion >= 3) {

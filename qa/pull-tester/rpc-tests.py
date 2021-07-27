@@ -247,6 +247,10 @@ testScriptsExt = [
     # 'replace-by-fee.py',
 ]
 
+IGNORE_STDERR = [
+'llmq-is-retroactive.py'
+]
+
 
 def runtests():
     test_list = []
@@ -351,7 +355,9 @@ class RPCTestHandler:
                     log_out.seek(0), log_err.seek(0)
                     [stdout, stderr] = [l.read().decode('utf-8') for l in (log_out, log_err)]
                     log_out.close(), log_err.close()
-                    passed = stderr == "" and proc.returncode == 0
+                    passed = proc.returncode == 0
+                    if passed and name not in IGNORE_STDERR:
+                        passed = passed and stderr == ""
                     self.num_running -= 1
                     self.jobs.remove(j)
                     return name, stdout, stderr, passed, int(time.time() - time0)

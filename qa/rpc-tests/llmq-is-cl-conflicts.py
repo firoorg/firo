@@ -134,8 +134,7 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
             assert_raises_jsonrpc(-5, "No such mempool or blockchain transaction", node.getrawtransaction, rawtx4_txid, True)
             rawtx = node.getrawtransaction(rawtx2_txid, True)
             assert(rawtx['chainlock'])
-            assert(rawtx['instantlock'])
-            assert(not rawtx['instantlock_internal'])
+            assert(not rawtx['instantlock'])
 
     def test_islock_overrides_nonchainlock(self):
         # create two raw TXs, they will conflict with each other
