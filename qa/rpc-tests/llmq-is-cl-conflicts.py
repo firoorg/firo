@@ -2,7 +2,7 @@
 # Copyright (c) 2015-2018 The Dash Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-from test_framework.blocktools import get_masternode_payment, create_coinbase, create_block
+from test_framework.blocktools import get_masternode_payment, create_coinbase, create_block, get_founders_rewards
 from test_framework.mininode import *
 from test_framework.test_framework import EvoZnodeTestFramework
 from test_framework.util import *
@@ -58,7 +58,7 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
         self.mine_quorum()
 
         # mine single block, wait for chainlock
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(600 - self.nodes[0].getblockcount())
         self.wait_for_chainlock_tip_all_nodes()
 
         self.test_chainlock_overrides_islock(False)
@@ -180,7 +180,7 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
 
         # Send the actual transaction and mine it
         self.nodes[0].sendrawtransaction(rawtx2)
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(2)
         self.sync_all()
 
         assert(self.nodes[0].getrawtransaction(rawtx2_txid, True)['confirmations'] > 0)
@@ -220,13 +220,7 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
         coinbasevalue = bt['coinbasevalue']
         miner_address = node.getnewaddress()
         mn_payee = bt['znode'][0]['payee']
-        founders = [
-            ("TDk19wPKYq91i18qmY6U9FeTdTxwPeSveo", 1),
-            ("TWZZcDGkNixTAMtRBqzZkkMHbq1G6vUTk5", 1),
-            ("TRZTFdNCKCKbLMQV8cZDkQN9Vwuuq4gDzT", 1),
-            ("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve", 3),
-            ("TCsTzQZKVn4fao8jDmB9zQBk9YQNEZ3XfS", 1)
-        ]
+        founders = get_founders_rewards(height)
 
         # calculate fees that the block template included (we'll have to remove it from the coinbase as we won't
         # include the template's transactions
@@ -252,15 +246,15 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
         mn_amount = get_masternode_payment(height, coinbasevalue)
         miner_amount = coinbasevalue - mn_amount
 
-        for founder in founders:
-            miner_amount -= founder[1]
+        for founder, amount in founders.items():
+            miner_amount -= amount
 
         outputs = {miner_address: str(Decimal(miner_amount) / COIN)}
         if mn_amount > 0:
             outputs[mn_payee] = str(Decimal(mn_amount) / COIN)
 
-        for founder in founders:
-           outputs[founder[0]] = founder[1]
+        for founder, amount in founders.items():
+           outputs[founder] = amount
 
         coinbase = FromHex(CTransaction(), node.createrawtransaction([], outputs))
         coinbase.vin = create_coinbase(height).vin

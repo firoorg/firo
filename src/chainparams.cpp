@@ -269,6 +269,8 @@ public:
         consensus.llmqChainLocks = Consensus::LLMQ_400_60;
         consensus.llmqForInstantSend = Consensus::LLMQ_50_60;
         consensus.nInstantSendConfirmationsRequired = 2;
+        consensus.nInstantSendKeepLock = 24;
+        consensus.nInstantSendBlockFilteringStartHeight = 400000;
 
         consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
         consensus.nMTPStartBlock = 117564;
@@ -562,6 +564,8 @@ public:
         consensus.llmqChainLocks = Consensus::LLMQ_10_70;
         consensus.llmqForInstantSend = Consensus::LLMQ_10_70;
         consensus.nInstantSendConfirmationsRequired = 2;
+        consensus.nInstantSendKeepLock = 6;
+        consensus.nInstantSendBlockFilteringStartHeight = 40000;
 
         consensus.nMTPSwitchTime = 1539172800;
         consensus.nMTPStartBlock = 1;
@@ -1008,6 +1012,8 @@ public:
         consensus.llmqChainLocks = Consensus::LLMQ_5_60;
         consensus.llmqForInstantSend = Consensus::LLMQ_5_60;
         consensus.nInstantSendConfirmationsRequired = 2;
+        consensus.nInstantSendKeepLock = 6;
+        consensus.nInstantSendBlockFilteringStartHeight = 600;
 
         consensus.nMTPSwitchTime = INT_MAX;
         consensus.nMTPStartBlock = 0;

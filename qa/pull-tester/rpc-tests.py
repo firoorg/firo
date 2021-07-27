@@ -205,7 +205,7 @@ testScripts = [
     'llmq-chainlocks.py',
     'llmq-cl-evospork.py',
     'llmq-is-cl-conflicts.py',
-    'llmq-is-retroactive.py'
+    'llmq-is-retroactive.py',
 
     # Unstable tests
     #, 'dip4-coinbasemerkleroots.py'

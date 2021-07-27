@@ -733,14 +733,11 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
         return false;
     }
 
-    if (LOCK(cs_main); !IsNewInstantSendEnabled(chainActive.Tip())) {
-        return false;
-    }
-
     int tipHeight;
-    {
-        LOCK(cs_main);
+    if (LOCK(cs_main); IsNewInstantSendEnabled(chainActive.Tip())) {
         tipHeight = chainActive.Height();
+    } else {
+        return false;
     }
 
     auto llmqType = Params().GetConsensus().llmqForInstantSend;

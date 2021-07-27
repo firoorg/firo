@@ -54,7 +54,7 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
     if (fLiteMode)
         return;
 
-    //llmq::quorumInstantSendManager->UpdatedBlockTip(pindexNew);
+    llmq::quorumInstantSendManager->UpdatedBlockTip(pindexNew);
     llmq::chainLocksHandler->UpdatedBlockTip(pindexNew);
 
     //instantsend.UpdatedBlockTip(pindexNew);

@@ -180,8 +180,7 @@ struct Params {
 
     int nInstantSendConfirmationsRequired; // in blocks
     int nInstantSendKeepLock; // in blocks
-    int nInstantSendSigsRequired;
-    int nInstantSendSigsTotal;
+    int nInstantSendBlockFilteringStartHeight;
 
 	/** Zerocoin-related block numbers when features are changed */
     int nCheckBugFixedAtBlock;

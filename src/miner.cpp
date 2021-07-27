@@ -359,8 +359,8 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
         if (!IsFinalTx(it->GetTx(), nHeight, nLockTimeCutoff))
             return false;
         if (!llmq::chainLocksHandler->IsTxSafeForMining(it->GetTx().GetHash())) {
-		return false;
-	}
+                return false;
+        }
         if (!fIncludeWitness && it->GetTx().HasWitness())
             return false;
         if (fNeedSizeAccounting) {
