@@ -2729,7 +2729,8 @@ CRecipient CWallet::CreateLelantusMintRecipient(
         // Check if there is a mint with same private data in chain, most likely Hd mint state corruption,
         // If yes, try with new counter
         GroupElement dummyValue;
-        if (lelantus::CLelantusState::GetState()->HasCoinTag(dummyValue, hashForRecover))
+        if (lelantus::CLelantusState::GetState()->HasCoinTag(dummyValue, hashForRecover) ||
+            sigma::CSigmaState::GetState()->HasCoinHash(dummyValue, hashPub))
             continue;
 
         CDataStream serializedHash(SER_NETWORK, 0);
