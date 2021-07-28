@@ -22,7 +22,7 @@ class Bip47WalletRestore(BitcoinTestFramework):
         backup_file = os.path.join(self.options.tmpdir, "cleanwallet.bak")
         wallet_file = os.path.join(self.options.tmpdir, "node0/regtest/wallet.dat")
         self.nodes[0].backupwallet(backup_file)
-        initial_pcodes = [self.nodes[0].createpcode("pcode" + str(num)) for num in range(0,200)]
+        initial_pcodes = [self.nodes[0].createrapaddress("pcode" + str(num)) for num in range(0,200)]
         assert(len(initial_pcodes) == 200)
 
         stop_node(self.nodes[0], 0)
@@ -30,10 +30,10 @@ class Bip47WalletRestore(BitcoinTestFramework):
         shutil.copy(backup_file, wallet_file)
 
         self.nodes[0] = start_node(0, self.options.tmpdir)
-        assert(len(self.nodes[0].listpcodes()) == 0)
+        assert(len(self.nodes[0].listrapaddresses()) == 0)
 
         for i in range(0, 200):
-            assert(initial_pcodes[i] == self.nodes[0].createpcode("pcode" + str(i)))
+            assert(initial_pcodes[i] == self.nodes[0].createrapaddress("pcode" + str(i)))
 
 
 if __name__ == '__main__':

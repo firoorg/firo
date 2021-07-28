@@ -17,7 +17,6 @@
 #include "policy/policy.h"
 #include "coins.h"
 #include "batchproof_container.h"
-#include "blacklists.h"
 
 #include <atomic>
 #include <sstream>
@@ -440,8 +439,7 @@ bool CheckLelantusJoinSplitTransaction(
                     BOOST_FOREACH(
                     const sigma::PublicCoin &pubCoinValue,
                     index->sigmaMintedPubCoins[denominationAndId]) {
-                        std::vector<unsigned char> vch = pubCoinValue.getValue().getvch();
-                        if (sigma::sigma_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                        if (::Params().GetConsensus().sigmaBlacklist.count(pubCoinValue.getValue()) > 0) {
                             continue;
                         }
                         lelantus::PublicCoin publicCoin(pubCoinValue.getValue() + lelantusParams->get_h1() * intDenom);
@@ -498,12 +496,14 @@ bool CheckLelantusJoinSplitTransaction(
     }
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+    bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete;
+
     Scalar challenge;
     // if we are collecting proofs, skip verification and collect proofs
-    passVerify = joinsplit->Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHashForMetadata, challenge, batchProofContainer->fCollectProofs);
+    passVerify = joinsplit->Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHashForMetadata, challenge, useBatching);
 
     // add proofs into container
-    if(batchProofContainer->fCollectProofs) {
+    if(useBatching) {
         std::map<uint32_t, size_t> idAndSizes;
 
         for(auto itr : anonymity_sets)

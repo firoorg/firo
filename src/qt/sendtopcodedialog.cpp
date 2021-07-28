@@ -20,6 +20,7 @@
 #include "pcodemodel.h"
 #include "bip47/paymentchannel.h"
 #include "lelantusmodel.h"
+#include "bip47/bip47utils.h"
 
 #include <QAction>
 #include <QCursor>
@@ -81,7 +82,6 @@ void SendtoPcodeDialog::setModel(WalletModel *_model)
         setUseAddr();
     } else {
         ui->notificationTxIdLabel->setText(tr("None"));
-        ui->nextAddressLabel->setText(tr("None"));
     }
 
     ui->notificationTxIdLabel->setTextFormat(Qt::RichText);
@@ -98,6 +98,11 @@ void SendtoPcodeDialog::setModel(WalletModel *_model)
         SLOT(onBalanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)));
 
     updateButtons();
+
+    if(!label.empty())
+        ui->pcodeLbl->setText(QString::fromStdString(label));
+    else
+        ui->pcodeLbl->setText(QString::fromStdString(bip47::utils::ShortenPcode(*paymentCode)));
 }
 
 void SendtoPcodeDialog::updateButtons()
@@ -116,20 +121,28 @@ void SendtoPcodeDialog::updateButtons()
 
     if (!status.notifTxSent || !status.notifTxConfirmed) {
         ui->useButton->setEnabled(false);
-        ui->useButton->setText(tr("Waiting to confirm"));
     } else if (status.notifTxConfirmed) {
         ui->useButton->setEnabled(true);
-        ui->useButton->setText(tr("Send to"));
     }
 
     QString hintText = tr("<i>Please click Connect button to start.</i>");
-    if(!status.balanceOk)
+    QString statusText = tr("Ready to connect");
+    if(!status.balanceOk) {
         hintText = tr("<i>The balance is not enough.</i>");
-    if(status.notifTxSent)
-        hintText = tr("<i>Please wait until the connection transaction has at least 1 confirmation or cancel this dialog to send FIRO later.</i>");
-    if(status.notifTxConfirmed)
+        statusText = tr("Balance is not enough");
+    }
+    if(status.notifTxSent) {
+        hintText = tr("<i>Please wait until the connection transaction has confirmed.&nbsp;"
+                        "It is safe to close this dialog box while waiting for the confirmation.&nbsp;"
+                        "Once confirmed, you can send your FIRO to the RAP address on the Send tab.</i>");
+        statusText = tr("Waiting for confirmation");
+    }
+    if(status.notifTxConfirmed) {
         hintText = tr("<i>FIRO can be sent now.</i>");
+        statusText = tr("Ready");
+    }
     ui->hintLabel->setText(hintText);
+    ui->statusLabel->setText(statusText);
 }
 
 std::pair<SendtoPcodeDialog::Result, CBitcoinAddress> SendtoPcodeDialog::getResult() const
@@ -147,14 +160,14 @@ std::unique_ptr<WalletModel::UnlockContext> SendtoPcodeDialog::getUnlockContext(
 
 void SendtoPcodeDialog::close()
 {
-    if (!label.empty())
+    if (!label.empty() && paymentCode)
          model->getPcodeModel()->labelPcode(paymentCode->toString(), label);
     QDialog::close();
 }
 
 int SendtoPcodeDialog::exec()
 {
-    if (notificationTxHash == uint256{})
+    if (!status.notifTxConfirmed)
         return QDialog::exec();
     result = Result::addressSelected;
     close();
@@ -238,6 +251,8 @@ void SendtoPcodeDialog::setNotifTxId()
     ostr << "explorer.firo.org/tx/" << notificationTxHash.GetHex() << "\">" << notificationTxHash.GetHex() << "</a>";
     ui->notificationTxIdLabel->setText(ostr.str().c_str());
 
+    status.notifTxSent = true;
+
     CWalletTx const * notifTx = model->getWallet()->GetWalletTx(notificationTxHash);
     if (!notifTx) return;
     int notifTxDepth = 0;
@@ -249,6 +264,7 @@ void SendtoPcodeDialog::setNotifTxId()
     if (notifTxDepth > 0)
     {
         status.notifTxConfirmed = true;
+        updateButtons();
     }
 }
 
@@ -258,11 +274,11 @@ void SendtoPcodeDialog::setUseAddr()
         LOCK(model->getWallet()->cs_wallet);
         addressToUse = model->getWallet()->GetTheirNextAddress(*paymentCode);
     }
-    ui->nextAddressLabel->setText(addressToUse.ToString().c_str());
 }
 
 void SendtoPcodeDialog::setLelantusBalance(CAmount const & lelantusBalance, CAmount const & unconfirmedLelantusBalance)
 {
+    if (!model) return;
     int const unit = model->getOptionsModel()->getDisplayUnit();
     QString balancePretty = BitcoinUnits::formatWithUnit(unit, lelantusBalance, false, BitcoinUnits::separatorAlways);
     if (lelantusBalance < bip47::NotificationTxValue)

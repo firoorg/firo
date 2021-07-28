@@ -3193,7 +3193,6 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     for (CTransactionRef tx : block.vtx) {
         CheckTransaction(*tx, state, false, tx->GetHash(), false, pindexDelete->pprev->nHeight,
             false, false, block.sigmaTxInfo.get(), block.lelantusTxInfo.get());
-
         if(GetBoolArg("-batching", true)) {
             if (tx->IsLelantusJoinSplit()) {
                 const CTxIn &txin = tx->vin[0];
@@ -3213,22 +3212,8 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
                     continue;
                 }
 
-                if (joinsplit->isSigmaToLelantus()) {
-                    for (size_t i = 0; i < serials.size(); i++) {
-                        int coinGroupId = ids[i] % (CENT / 1000);
-                        int64_t intDenom = (ids[i] - coinGroupId);
-                        intDenom *= 1000;
-                        sigma::CoinDenomination denomination;
-                        if (!sigma::IntegerToDenomination(intDenom, denomination))
-                            lelantusSerialsToRemove.insert(std::make_pair(serials[i], ids[i]));
-                        else
-                            sigmaSerialsToRemove.insert(std::make_pair(
-                                    serials[i], sigma::CSpendCoinInfo::make(denomination, coinGroupId)));
-                    }
-                } else {
-                    for (size_t i = 0; i < serials.size(); i++) {
-                        lelantusSerialsToRemove.insert(std::make_pair(serials[i], ids[i]));
-                    }
+                for (size_t i = 0; i < serials.size(); i++) {
+                    lelantusSerialsToRemove.insert(std::make_pair(serials[i], ids[i]));
                 }
             } else if (tx->IsSigmaSpend()) {
                 for (const CTxIn &txin : tx->vin) {
@@ -3266,6 +3251,16 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
 
 	sigma::DisconnectTipSigma(block, pindexDelete);
     lelantus::DisconnectTipLelantus(block, pindexDelete);
+
+    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+    if (sigmaSerialsToRemove.size() > 0) {
+        batchProofContainer->removeSigma(sigmaSerialsToRemove);
+    }
+
+    if (lelantusSerialsToRemove.size() > 0) {
+        batchProofContainer->removeLelantus(lelantusSerialsToRemove);
+    }
+
     // Roll back MTP state
     MTPState::GetMTPState()->SetLastBlock(pindexDelete->pprev, chainparams.GetConsensus());
 
@@ -3311,15 +3306,6 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     }
     // Update chainActive and related variables.
     UpdateTip(pindexDelete->pprev, chainparams);
-
-    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    if (sigmaSerialsToRemove.size() > 0) {
-        batchProofContainer->removeSigma(sigmaSerialsToRemove);
-    }
-
-    if (lelantusSerialsToRemove.size() > 0) {
-        batchProofContainer->removeLelantus(lelantusSerialsToRemove);
-    }
 
 #ifdef ENABLE_WALLET
     // update mint/spend wallet
@@ -5424,6 +5410,8 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
 
                 NotifyHeaderTip();
 
+                LOCK(cs_main);
+
                 // Recursively process earlier encountered successors of this block
                 std::deque<uint256> queue;
                 queue.push_back(hash);
@@ -5439,7 +5427,6 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                         {
                             LogPrint("reindex", "%s: Processing out of order child %s of %s\n", __func__, pblockrecursive->GetHash().ToString(),
                                     head.ToString());
-                            LOCK(cs_main);
                             CValidationState dummy;
                             if (AcceptBlock(pblockrecursive, dummy, chainparams, NULL, true, &it->second, NULL))
                             {

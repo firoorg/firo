@@ -24,8 +24,8 @@ public:
 
     enum struct ColumnIndex : int {
         Number = 0,
-        Pcode,
         Label,
+        Pcode,
         NumberOfColumns
     };
 

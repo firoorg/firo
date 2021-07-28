@@ -1192,6 +1192,7 @@ static int load_most_relevant_state()
     return -1;
   }
 
+  uint256 watermarkBlock;
   while (NULL != spBlockIndex && false == chainActive.Contains(spBlockIndex)) {
     int remainingSPs = _my_sps->popBlock(spBlockIndex->GetBlockHash());
     if (remainingSPs < 0) {
@@ -1201,9 +1202,10 @@ static int load_most_relevant_state()
       // potential optimization here?
     }*/
     spBlockIndex = spBlockIndex->pprev;
-    if (spBlockIndex != NULL) {
-        _my_sps->setWatermark(spBlockIndex->GetBlockHash());
-    }
+    if (spBlockIndex) watermarkBlock = spBlockIndex->GetBlockHash();
+  }
+  if (watermarkBlock != uint256()) {
+    _my_sps->setWatermark(watermarkBlock);
   }
 
   // prepare a set of available files by block hash pruning any that are

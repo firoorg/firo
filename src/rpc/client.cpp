@@ -338,7 +338,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     /* Evo spork */
     { "spork", 2, "features"},
     /* BIP47 */
-    { "listpcodes", 0, "verbose"},
+    { "listrapaddresses", 0, "verbose"},
 };
 
 class CRPCConvertTable

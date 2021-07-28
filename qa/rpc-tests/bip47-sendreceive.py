@@ -26,7 +26,7 @@ class Bip47SendReceive(BitcoinTestFramework):
     def run_test(self):
 
         self.nodes[1].generate(1010)
-        node0_pcode = self.nodes[0].createpcode("node0-pcode0")
+        node0_pcode = self.nodes[0].createrapaddress("node0-pcode0")
 
         try:
             self.nodes[1].setupchannel(node0_pcode)
@@ -40,7 +40,7 @@ class Bip47SendReceive(BitcoinTestFramework):
         self.nodes[1].setupchannel(node0_pcode)
         self.nodes[1].generate(1)
         sync_blocks(self.nodes)
-        self.nodes[1].sendtopcode(node0_pcode, 10)
+        self.nodes[1].sendtorapaddress(node0_pcode, 10)
 
         self.nodes[1].generate(1)
         self.sync_all()
