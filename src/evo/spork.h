@@ -151,14 +151,4 @@ public:
     ActiveSporkMap GetActiveSporks() const { return mempoolSporks; }
 };
 
-inline bool IsChainlocksEnabled(const CBlockIndex *pindex)
-{
-    return CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureChainlocks, pindex);
-}
-
-inline bool IsNewInstantSendEnabled(const CBlockIndex *pindex)
-{
-    return CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureInstantSend, pindex);
-}
-
 #endif

@@ -58,7 +58,7 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
         self.mine_quorum()
 
         # mine single block, wait for chainlock
-        self.nodes[0].generate(600 - self.nodes[0].getblockcount())
+        self.nodes[0].generate(800 - self.nodes[0].getblockcount())
         self.wait_for_chainlock_tip_all_nodes()
 
         self.test_chainlock_overrides_islock(False)

@@ -347,6 +347,12 @@ void CInstantSendManager::Start()
         assert(false);
     }
 
+    {
+        LOCK(cs_main);
+        if (chainActive.Tip())
+            isNewInstantSendEnabled = CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureInstantSend, chainActive.Tip());
+    }
+
     workThread = std::thread(&TraceThread<std::function<void()> >, "instantsend", std::function<void()>(std::bind(&CInstantSendManager::WorkThreadMain, this)));
 
     quorumSigningManager->RegisterRecoveredSigsListener(this);
@@ -373,7 +379,7 @@ void CInstantSendManager::InterruptWorkerThread()
 
 bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool allowReSigning, const Consensus::Params& params)
 {
-    if (LOCK(cs_main); !IsNewInstantSendEnabled(chainActive.Tip())) {
+    if (!IsNewInstantSendEnabled()) {
         return true;
     }
 
@@ -544,7 +550,7 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
 
 void CInstantSendManager::HandleNewRecoveredSig(const CRecoveredSig& recoveredSig)
 {
-    if (LOCK(cs_main); !IsNewInstantSendEnabled(chainActive.Tip())) {
+    if (!IsNewInstantSendEnabled()) {
         return;
     }
 
@@ -662,7 +668,7 @@ void CInstantSendManager::HandleNewInstantSendLockRecoveredSig(const llmq::CReco
 
 void CInstantSendManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
-    if (LOCK(cs_main); !IsNewInstantSendEnabled(chainActive.Tip())) {
+    if (!IsNewInstantSendEnabled()) {
         return;
     }
 
@@ -733,11 +739,13 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
         return false;
     }
 
-    int tipHeight;
-    if (LOCK(cs_main); IsNewInstantSendEnabled(chainActive.Tip())) {
-        tipHeight = chainActive.Height();
-    } else {
+    if (!IsNewInstantSendEnabled())
         return false;
+
+    int tipHeight;
+    {
+        LOCK(cs_main);
+        tipHeight = chainActive.Height();
     }
 
     auto llmqType = Params().GetConsensus().llmqForInstantSend;
@@ -973,7 +981,7 @@ void CInstantSendManager::UpdateWalletTransaction(const uint256& txid, const CTr
 
 void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIndex* pindex, int posInBlock)
 {
-    if (LOCK(cs_main); !IsNewInstantSendEnabled(chainActive.Tip())) {
+    if (!IsNewInstantSendEnabled()) {
         return;
     }
 
@@ -1127,7 +1135,9 @@ void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
     // TODO remove this after DIP8 has activated
     bool fDIP0008Active = chainActive.Height() >= Params().GetConsensus().DIP0008Height;
 
-    if (fDIP0008Active && IsChainlocksEnabled(pindexNew)) {
+    isNewInstantSendEnabled = CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureInstantSend, pindexNew);
+
+    if (fDIP0008Active && IsChainlocksEnabled()) {
         // Nothing to do here. We should keep all islocks and let chainlocks handle them.
         return;
     }
@@ -1364,7 +1374,7 @@ bool CInstantSendManager::ProcessPendingRetryLockTxs()
         return false;
     }
 
-    if (LOCK(cs_main); !IsNewInstantSendEnabled(chainActive.Tip())) {
+    if (!IsNewInstantSendEnabled()) {
         return false;
     }
 
@@ -1372,24 +1382,21 @@ bool CInstantSendManager::ProcessPendingRetryLockTxs()
     for (const auto& txid : retryTxs) {
         CTransactionRef tx;
         {
-            {
-                LOCK(cs);
-                auto it = nonLockedTxs.find(txid);
-                if (it == nonLockedTxs.end()) {
-                    continue;
-                }
-                tx = it->second.tx;
-
-                if (!tx) {
-                    continue;
-                }
-
-                if (txToCreatingInstantSendLocks.count(tx->GetHash())) {
-                    // we're already in the middle of locking this one
-                    continue;
-                }
+            LOCK(cs);
+            auto it = nonLockedTxs.find(txid);
+            if (it == nonLockedTxs.end()) {
+                continue;
             }
-            LOCK2(cs_main, cs);
+            tx = it->second.tx;
+
+            if (!tx) {
+                continue;
+            }
+
+            if (txToCreatingInstantSendLocks.count(tx->GetHash())) {
+                // we're already in the middle of locking this one
+                continue;
+            }
             if (IsLocked(tx->GetHash())) {
                 continue;
             }
@@ -1424,7 +1431,7 @@ bool CInstantSendManager::ProcessPendingRetryLockTxs()
 
 bool CInstantSendManager::AlreadyHave(const CInv& inv)
 {
-    if (LOCK(cs_main); !IsNewInstantSendEnabled(chainActive.Tip())) {
+    if (!IsNewInstantSendEnabled()) {
         return true;
     }
 
@@ -1434,7 +1441,7 @@ bool CInstantSendManager::AlreadyHave(const CInv& inv)
 
 bool CInstantSendManager::GetInstantSendLockByHash(const uint256& hash, llmq::CInstantSendLock& ret)
 {
-    if (LOCK(cs_main); !IsNewInstantSendEnabled(chainActive.Tip())) {
+    if (!IsNewInstantSendEnabled()) {
         return false;
     }
 
@@ -1449,7 +1456,7 @@ bool CInstantSendManager::GetInstantSendLockByHash(const uint256& hash, llmq::CI
 
 bool CInstantSendManager::IsLocked(const uint256& txHash)
 {
-    if (LOCK(cs_main); !IsNewInstantSendEnabled(chainActive.Tip())) {
+    if (!IsNewInstantSendEnabled()) {
         return false;
     }
 
@@ -1464,7 +1471,7 @@ bool CInstantSendManager::IsConflicted(const CTransaction& tx)
 
 CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& tx)
 {
-    if (LOCK(cs_main); !IsNewInstantSendEnabled(chainActive.Tip())) {
+    if (!IsNewInstantSendEnabled()) {
         return nullptr;
     }
 
@@ -1503,4 +1510,15 @@ void CInstantSendManager::WorkThreadMain()
     }
 }
 
+bool CInstantSendManager::IsNewInstantSendEnabled() const
+{
+    return isNewInstantSendEnabled;
+}
+
+}
+
+bool IsNewInstantSendEnabled()
+{
+    if (!llmq::quorumInstantSendManager) return false;
+    return llmq::quorumInstantSendManager->IsNewInstantSendEnabled();
 }

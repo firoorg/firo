@@ -110,6 +110,7 @@ private:
     std::unordered_multimap<uint256, std::pair<uint32_t, uint256>> nonLockedTxsByInputs;
 
     std::unordered_set<uint256, StaticSaltedHasher> pendingRetryTxs;
+    std::atomic_bool isNewInstantSendEnabled{false};
 
 public:
     CInstantSendManager(CDBWrapper& _llmqDb);
@@ -163,10 +164,14 @@ public:
     size_t GetInstantSendLockCount();
 
     void WorkThreadMain();
+
+    bool IsNewInstantSendEnabled() const;
 };
 
 extern CInstantSendManager* quorumInstantSendManager;
 
 }
+
+bool IsNewInstantSendEnabled();
 
 #endif//DASH_QUORUMS_INSTANTSEND_H
