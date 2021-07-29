@@ -50,6 +50,13 @@ uint256 CBlockHeader::GetHash() const {
     return SerializeHash(*this);
 }
 
+uint256 CBlockHeader::GetHashFull(uint256& mix_hash) const {
+    if (IsProgPow()) {
+        return GetProgPowHashFull(mix_hash);
+    }
+    return GetHash();
+}
+
 bool CBlockHeader::IsMTP() const {
     // In case if nTime == ZC_GENESIS_BLOCK_TIME we're being called from CChainParams() constructor and
     // it is not possible to get Params()

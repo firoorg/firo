@@ -236,7 +236,8 @@ public:
     uint256 GetPoWHash(int nHeight) const;
 
     uint256 GetHash() const;
-
+    uint256 GetHashFull(uint256& mix_hash) const;
+    
     int64_t GetBlockTime() const
     {
         return (int64_t)nTime;
