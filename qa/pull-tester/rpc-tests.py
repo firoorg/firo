@@ -206,6 +206,7 @@ testScripts = [
     'llmq-cl-evospork.py',
     'llmq-is-cl-conflicts.py',
     'llmq-is-retroactive.py',
+    'llmq-is-lelantus.py',
 
     # Unstable tests
     #, 'dip4-coinbasemerkleroots.py'
