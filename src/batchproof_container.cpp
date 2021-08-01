@@ -1,5 +1,6 @@
 #include "batchproof_container.h"
 #include "liblelantus/sigmaextended_verifier.h"
+#include "liblelantus/threadpool.h"
 #include "sigma/sigmaplus_verifier.h"
 #include "sigma.h"
 #include "lelantus.h"
@@ -119,39 +120,63 @@ void BatchProofContainer::erase(std::vector<LelantusSigmaProofData>* vProofs, co
 }
 
 void BatchProofContainer::batch_sigma() {
-    for (const auto& itr : sigmaProofs) {
-        std::vector<GroupElement> anonymity_set;
-        sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-        sigmaState->GetAnonymitySet(
-                itr.first.first,
-                itr.first.second.first,
-                itr.first.second.second,
-                anonymity_set);
+    std::size_t threadsMaxCount = std::min((unsigned int)sigmaProofs.size(), std::thread::hardware_concurrency());
+    std::vector<std::future<bool>> parallelTasks;
+    parallelTasks.reserve(threadsMaxCount);
+    ThreadPool threadPool(threadsMaxCount);
+    auto itr = sigmaProofs.begin();
+    for (std::size_t j = 0; j < sigmaProofs.size(); j += threadsMaxCount) {
+        for (std::size_t i = j; i < j + threadsMaxCount; ++i) {
+            if (i < sigmaProofs.size()) {
+                std::vector<GroupElement> anonymity_set;
+                sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+                sigmaState->GetAnonymitySet(
+                        itr->first.first,
+                        itr->first.second.first,
+                        itr->first.second.second,
+                        anonymity_set);
 
-        size_t m = itr.second.size();
-        std::vector<Scalar> serials;
-        serials.reserve(m);
-        std::vector<bool> fPadding;
-        fPadding.reserve(m);
-        std::vector<size_t> setSizes;
-        setSizes.reserve(m);
-        std::vector<sigma::SigmaPlusProof<Scalar, GroupElement>> proofs;
-        proofs.reserve(m);
+                size_t m = itr->second.size();
+                std::vector<Scalar> serials;
+                serials.reserve(m);
+                std::vector<bool> fPadding;
+                fPadding.reserve(m);
+                std::vector<size_t> setSizes;
+                setSizes.reserve(m);
+                std::vector<sigma::SigmaPlusProof<Scalar, GroupElement>> proofs;
+                proofs.reserve(m);
 
-        for (auto& proofData : itr.second) {
-            serials.emplace_back(proofData.coinSerialNumber);
-            fPadding.emplace_back(proofData.fPadding);
-            setSizes.emplace_back(proofData.anonymitySetSize);
-            proofs.emplace_back(proofData.sigmaProof);
+                for (auto& proofData : itr->second) {
+                    serials.emplace_back(proofData.coinSerialNumber);
+                    fPadding.emplace_back(proofData.fPadding);
+                    setSizes.emplace_back(proofData.anonymitySetSize);
+                    proofs.emplace_back(proofData.sigmaProof);
+                }
+
+                auto params = sigma::Params::get_default();
+                sigma::SigmaPlusVerifier<Scalar, GroupElement> sigmaVerifier(params->get_g(), params->get_h(), params->get_n(), params->get_m());
+
+                parallelTasks.emplace_back(threadPool.AddTask([=]() {
+                    return sigmaVerifier.batch_verify(anonymity_set, serials, fPadding, setSizes, proofs);
+                }));
+            }
+
+            ++itr;
         }
 
-        auto params = sigma::Params::get_default();
-        sigma::SigmaPlusVerifier<Scalar, GroupElement> sigmaVerifier(params->get_g(), params->get_h(), params->get_n(), params->get_m());
+        for (auto& th : parallelTasks) {
+            try {
+                if (!th.get()) {
+                    LogPrintf("Sigma batch verification failed.");
+                    throw std::invalid_argument(
+                            "Sigma batch verification failed, please run Firo with -reindex -batching=0");
+                }
+            } catch (std::exception& except) {
+                std::runtime_error(except.what());
+            }
 
-        if (!sigmaVerifier.batch_verify(anonymity_set, serials, fPadding, setSizes, proofs)) {
-            LogPrintf("Sigma batch verification failed.");
-            throw std::invalid_argument("Sigma batch verification failed, please run Firo with -reindex -batching=0");
         }
+        parallelTasks.clear();
     }
     sigmaProofs.clear();
 }
@@ -159,74 +184,91 @@ void BatchProofContainer::batch_sigma() {
 void BatchProofContainer::batch_lelantus() {
     auto params = lelantus::Params::get_default();
 
-    for (const auto& itr : lelantusSigmaProofs) {
-        std::vector<GroupElement> anonymity_set;
-        if (!itr.first.second) {
-            lelantus::CLelantusState* state = lelantus::CLelantusState::GetState();
-            std::vector<lelantus::PublicCoin> coins;
-            state->GetAnonymitySet(
-                    itr.first.first.first,
-                    itr.first.first.second,
-                    coins);
-            anonymity_set.reserve(coins.size());
-            for (auto& coin : coins)
-                anonymity_set.emplace_back(coin.getValue());
-        } else {
-            int coinGroupId = itr.first.first.first % (CENT / 1000);
-            int64_t intDenom = (itr.first.first.first - coinGroupId);
-            intDenom *= 1000;
-            sigma::CoinDenomination denomination;
-            sigma::IntegerToDenomination(intDenom, denomination);
+    std::size_t threadsMaxCount = std::min((unsigned int)lelantusSigmaProofs.size(), std::thread::hardware_concurrency());
+    std::vector<std::future<bool>> parallelTasks;
+    parallelTasks.reserve(threadsMaxCount);
+    ThreadPool threadPool(threadsMaxCount);
+    auto itr = lelantusSigmaProofs.begin();
 
-            std::vector<GroupElement> coins;
-            sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-            sigmaState->GetAnonymitySet(
-                    denomination,
-                    coinGroupId,
-                    true,
-                    coins);
+    for (std::size_t j = 0; j < lelantusSigmaProofs.size(); j += threadsMaxCount) {
+        for (std::size_t i = j; i < j + threadsMaxCount; ++i) {
+            if (i < lelantusSigmaProofs.size()) {
+                std::vector<GroupElement> anonymity_set;
+                if (!itr->first.second) {
+                    lelantus::CLelantusState* state = lelantus::CLelantusState::GetState();
+                    std::vector<lelantus::PublicCoin> coins;
+                    state->GetAnonymitySet(
+                            itr->first.first.first,
+                            itr->first.first.second,
+                            coins);
+                    anonymity_set.reserve(coins.size());
+                    for (auto& coin : coins)
+                        anonymity_set.emplace_back(coin.getValue());
+                } else {
+                    int coinGroupId = itr->first.first.first % (CENT / 1000);
+                    int64_t intDenom = (itr->first.first.first - coinGroupId);
+                    intDenom *= 1000;
+                    sigma::CoinDenomination denomination;
+                    sigma::IntegerToDenomination(intDenom, denomination);
 
-            anonymity_set.reserve(coins.size());
-            for (auto& coin : coins)
-                anonymity_set.emplace_back(coin + params->get_h1() * intDenom);
+                    std::vector<GroupElement> coins;
+                    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+                    sigmaState->GetAnonymitySet(
+                            denomination,
+                            coinGroupId,
+                            true,
+                            coins);
+
+                    anonymity_set.reserve(coins.size());
+                    for (auto& coin : coins)
+                        anonymity_set.emplace_back(coin + params->get_h1() * intDenom);
+                }
+
+                size_t m = itr->second.size();
+                std::vector<Scalar> serials;
+                serials.reserve(m);
+                std::vector<size_t> setSizes;
+                setSizes.reserve(m);
+                std::vector<lelantus::SigmaExtendedProof> proofs;
+                proofs.reserve(m);
+                std::vector<Scalar> challenges;
+                challenges.reserve(m);
+
+                for (auto& proofData : itr->second) {
+                    serials.emplace_back(proofData.serialNumber);
+                    setSizes.emplace_back(proofData.anonymitySetSize);
+                    proofs.emplace_back(proofData.lelantusSigmaProof);
+                    challenges.emplace_back(proofData.challenge);
+                }
+
+                lelantus::SigmaExtendedVerifier sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
+                                                              params->get_sigma_m());
+
+                parallelTasks.emplace_back(threadPool.AddTask([=]() {
+                    return sigmaVerifier.batchverify(anonymity_set, challenges, serials, setSizes, proofs);
+                }));
+            }
+            ++itr;
         }
 
-        size_t m = itr.second.size();
-        std::vector<Scalar> serials;
-        serials.reserve(m);
-        std::vector<size_t> setSizes;
-        setSizes.reserve(m);
-        std::vector<lelantus::SigmaExtendedProof> proofs;
-        proofs.reserve(m);
-        std::vector<Scalar> challenges;
-        challenges.reserve(m);
-
-        for (auto& proofData : itr.second) {
-            serials.emplace_back(proofData.serialNumber);
-            setSizes.emplace_back(proofData.anonymitySetSize);
-            proofs.emplace_back(proofData.lelantusSigmaProof);
-            challenges.emplace_back(proofData.challenge);
-        }
-
-        lelantus::SigmaExtendedVerifier sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
-                                            params->get_sigma_m());
-
-        bool isFail = false;
-        try {
-            if (!sigmaVerifier.batchverify(anonymity_set, challenges, serials, setSizes, proofs)) {
+        for (auto& th : parallelTasks) {
+            bool isFail = false;
+            try {
+                if (!th.get()) {
+                    isFail = true;
+                }
+            } catch (std::exception& except) {
+                std::runtime_error(except.what());
                 isFail = true;
             }
-        } catch (std::invalid_argument&) {
-            isFail = true;
+
+            if (isFail) {
+                LogPrintf("Lelantus batch verification failed.");
+                throw std::invalid_argument("Lelantus batch verification failed, please run Firo with -reindex -batching=0");
+            }
         }
 
-        if (isFail) {
-            LogPrintf("Lelantus batch verification failed.");
-            throw std::invalid_argument("Lelantus batch verification failed, please run Firo with -reindex -batching=0");
-        }
+        parallelTasks.clear();
     }
-
     lelantusSigmaProofs.clear();
 }
-
-
