@@ -302,8 +302,6 @@ struct Params {
 
     /** switch to ProgPoW (PP) time */
     uint32_t nPPSwitchTime;
-    /** number of block when PP switch occurs or 0 if not clear yet */
-    int nPPStartBlock;
 
     /** don't adjust difficulty until some block number */
     int nDifficultyAdjustStartBlock;

@@ -40,15 +40,6 @@ double GetDifficultyHelper(unsigned int nBits) {
 
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {
-    bool progpowDiff = pblock->IsProgPow();
-    unsigned int diffRetarget = GetNextWorkRequiredWrapped(pindexLast, pblock, params);
-    if (progpowDiff && (diffRetarget < bnProofOfWorkProgPowLimit))
-        diffRetarget = bnProofOfWorkProgPowLimit.GetCompact();
-    return diffRetarget;
-}
-
-unsigned int GetNextWorkRequiredWrapped(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
-{
     if (!pindexLast || pindexLast->nHeight < params.nDifficultyAdjustStartBlock)
         return params.nFixedDifficulty;
 

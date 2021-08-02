@@ -898,6 +898,10 @@ public:
 
         // moving lelantus data to v3 payload
         consensus.nLelantusV3PayloadStartBlock = 1000;
+        
+        // ProgPow
+        // this can be overridden with either -ppswitchtime or -ppswitchtimefromnow flags
+        consensus.nPPSwitchTime = INT_MAX;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)
