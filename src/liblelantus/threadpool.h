@@ -7,150 +7,103 @@
 #include <memory>
 #include <queue>
 #include <thread>
+#include <list>
 #include <vector>
 
-template <typename T>
-class ThreadSafeQueue
-{
+// our code currently relies on boost disable_interruption. This will go away with core upgrade
+//#include <boost/thread.hpp>
+
+// Number of seconds before thread shuts down if idle
+constexpr static int secondsBeforeThreadShutdown = 60;
+
+// Simple thread pool class for using multiple cores effeciently
+
+template <typename Result>
+class ParallelOpThreadPool {
 private:
-    mutable CCriticalSection cs;
-    std::queue<T> dataQueue;
-    std::condition_variable dataCond;
+    std::list<std::thread>                    threads;
+    std::queue<std::packaged_task<Result()>>  task_queue;
+    std::mutex                                task_queue_mutex;
+    std::condition_variable                   task_queue_condition;
 
-    bool empty() const
-    {
-        LOCK(cs);
-        return dataQueue.empty();
-    }
+    bool                                      shutdown;
+    size_t const                              number_of_threads;
 
-public:
-    ThreadSafeQueue()
-    {
-    }
-
-    bool try_pop(T &value)
-    {
-        LOCK(cs);
-        if (dataQueue.empty())
-            return false;
-        value = std::move(dataQueue.front());
-        dataQueue.pop();
-        return true;
-    }
-
-    void push(T new_value)
-    {
-        LOCK(cs);
-        dataQueue.push(std::move(new_value));
-        dataCond.notify_one();
-    }
-};
-
-struct JoinThreads
-{
-    std::vector<std::thread>& threads;
-
-public:
-    explicit JoinThreads(std::vector<std::thread>& threads_)
-        : threads(threads_)
-    {
-    }
-    ~JoinThreads()
-    {
-        for (std::size_t i = 0; i < threads.size(); ++i)
-        {
-            if (threads[i].joinable())
-                threads[i].join();
-        }
-    }
-};
-
-class function_wrapper {
-    struct impl_base {
-        virtual void call() = 0;
-
-        virtual ~impl_base() {}
-    };
-
-    std::unique_ptr <impl_base> impl;
-
-    template<typename F>
-    struct impl_type : impl_base {
-        F f;
-
-        impl_type(F &&f_) : f(std::move(f_)) {}
-
-        void call() { f(); }
-    };
-public:
-    template <typename F>
-    function_wrapper(F&& f) : impl(new impl_type<F>(std::move(f))) {}
-    void operator()() { impl->call(); }
-    function_wrapper() = default;
-    function_wrapper(function_wrapper&& other) : impl(std::move(other.impl)) {}
-    function_wrapper& operator=(function_wrapper&& other) {
-        impl = std::move(other.impl);
-        return *this;
-    }
-};
-
-class ThreadPool
-{
-private:
-    std::atomic<bool> done;
-    ThreadSafeQueue<function_wrapper> poolQueue;
-    std::vector<std::thread> threads;
-    JoinThreads joiner;
-
-    void WorkerThread(unsigned index)
-    {
-        while (!done)
-        {
-            function_wrapper task;
-            if (poolQueue.try_pop(task))
+    void ThreadProc() {
+        for (;;) {
+            std::packaged_task<Result()> job;
             {
-                task();
+                std::unique_lock<std::mutex> lock(task_queue_mutex);
+
+                task_queue_condition.wait_for(lock, std::chrono::seconds(secondsBeforeThreadShutdown),
+                                              [this] { return !task_queue.empty() || shutdown; });
+                if (task_queue.empty()) {
+                    // Either timeout or shutdown. If it's a timeout we need to delete ourself from the thread list and detach the thread
+                    // In case of shutdown thread list will be empty and destructor will wait for this thread completion
+                    std::thread::id currentId = std::this_thread::get_id();
+                    auto pThread = std::find_if(threads.begin(), threads.end(), [=](const std::thread &t) { return t.get_id() == currentId; });
+                    if (pThread != threads.end()) {
+                        pThread->detach();
+                        threads.erase(pThread);
+                    }
+                    break;
+                }
+                job = std::move(task_queue.front());
+                task_queue.pop();
             }
-            else
-            {
-                std::this_thread::yield();
-            }
+            job();
         }
+    }
+
+    void StartThreads() {
+        // should be called with mutex aquired
+        // start missing threads
+        while (threads.size() < number_of_threads)
+            threads.emplace_back(std::bind(&ParallelOpThreadPool::ThreadProc, this));
     }
 
 public:
-    ThreadPool(std::size_t threadsCount = std::max(1u, std::thread::hardware_concurrency()))
-        : done(false)
-        , joiner(threads)
-    {
-        try
+    ParallelOpThreadPool(std::size_t thread_number) : number_of_threads(thread_number), shutdown(false) {}
+
+    ~ParallelOpThreadPool() {
+        std::list<std::thread> threadsToJoin;
+
         {
-            for (std::size_t i = 0; i < threadsCount; ++i)
-            {
-                threads.push_back(
-                    std::thread(&ThreadPool::WorkerThread, this, i));
-            }
+            std::unique_lock<std::mutex> lock(task_queue_mutex);
+            shutdown = true;
+            task_queue_condition.notify_all();
+
+            // move the list to separate variable to wait for the shutdown process to complete
+            threadsToJoin.swap(threads);
         }
-        catch (...)
-        {
-            done = true;
-            throw;
-        }
+
+        // wait for all the threads
+        for (std::thread &t: threadsToJoin)
+            t.join();
     }
 
-    ~ThreadPool()
-    {
-        done = true;
+    // Post a task to the thread pool and return a future to wait for its completion
+    std::future<Result> PostTask(std::function<Result()> task) {
+        std::packaged_task<Result()> packagedTask(std::move(task));
+        std::future<Result> ret = packagedTask.get_future();
+
+        std::unique_lock<std::mutex> lock(task_queue_mutex);
+
+        // lazy start threads on first request or after shutdown
+        if (threads.size() < number_of_threads)
+            StartThreads();
+
+        task_queue.emplace(std::move(packagedTask));
+        task_queue_condition.notify_one();
+
+        return std::move(ret);
     }
 
-    template <typename FunctionType>
-    std::future<typename std::result_of<FunctionType()>::type> AddTask(FunctionType f) {
-        typedef typename std::result_of<FunctionType()>::type result_type;
-        std::packaged_task<result_type()> task(std::move(f));
-        std::future<result_type> res(task.get_future());
-        poolQueue.push(std::move(task));
-        return res;
+    int GetNumberOfThreads() const {
+        return number_of_threads;
     }
+
 };
+
 
 #endif

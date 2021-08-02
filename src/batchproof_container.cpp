@@ -123,7 +123,7 @@ void BatchProofContainer::batch_sigma() {
     std::size_t threadsMaxCount = std::min((unsigned int)sigmaProofs.size(), std::thread::hardware_concurrency());
     std::vector<std::future<bool>> parallelTasks;
     parallelTasks.reserve(threadsMaxCount);
-    ThreadPool threadPool(threadsMaxCount);
+    ParallelOpThreadPool<bool> threadPool(threadsMaxCount);
     auto itr = sigmaProofs.begin();
     for (std::size_t j = 0; j < sigmaProofs.size(); j += threadsMaxCount) {
         for (std::size_t i = j; i < j + threadsMaxCount; ++i) {
@@ -156,7 +156,7 @@ void BatchProofContainer::batch_sigma() {
                 auto params = sigma::Params::get_default();
                 sigma::SigmaPlusVerifier<Scalar, GroupElement> sigmaVerifier(params->get_g(), params->get_h(), params->get_n(), params->get_m());
 
-                parallelTasks.emplace_back(threadPool.AddTask([=]() {
+                parallelTasks.emplace_back(threadPool.PostTask([=]() {
                     return sigmaVerifier.batch_verify(anonymity_set, serials, fPadding, setSizes, proofs);
                 }));
             }
@@ -187,7 +187,7 @@ void BatchProofContainer::batch_lelantus() {
     std::size_t threadsMaxCount = std::min((unsigned int)lelantusSigmaProofs.size(), std::thread::hardware_concurrency());
     std::vector<std::future<bool>> parallelTasks;
     parallelTasks.reserve(threadsMaxCount);
-    ThreadPool threadPool(threadsMaxCount);
+    ParallelOpThreadPool<bool> threadPool(threadsMaxCount);
     auto itr = lelantusSigmaProofs.begin();
 
     for (std::size_t j = 0; j < lelantusSigmaProofs.size(); j += threadsMaxCount) {
@@ -244,7 +244,7 @@ void BatchProofContainer::batch_lelantus() {
                 lelantus::SigmaExtendedVerifier sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
                                                               params->get_sigma_m());
 
-                parallelTasks.emplace_back(threadPool.AddTask([=]() {
+                parallelTasks.emplace_back(threadPool.PostTask([=]() {
                     return sigmaVerifier.batchverify(anonymity_set, challenges, serials, setSizes, proofs);
                 }));
             }
