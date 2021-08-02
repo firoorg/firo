@@ -883,6 +883,10 @@ public:
 
         // Bip39
         consensus.nMnemonicBlock = 0;
+
+        // ProgPow
+        // this can be overridden with either -ppswitchtime or -ppswitchtimefromnow flags
+        consensus.nPPSwitchTime = INT_MAX;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)
