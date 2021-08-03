@@ -72,6 +72,11 @@ public:
     std::vector<uint256> RemoveChainedInstantSendLocks(const uint256& islockHash, const uint256& txid, int nHeight);
 };
 
+namespace isutil
+{
+class CTransactionAdapter;
+}
+
 class CInstantSendManager : public CRecoveredSigsListener
 {
 private:
@@ -120,12 +125,12 @@ public:
     void Stop();
     void InterruptWorkerThread();
 
-    void SyncTransaction(const CTransaction& tx, const CBlockIndex *pindex, int posInBlock);
+    void SyncTransaction(isutil::CTransactionAdapter tx, const CBlockIndex *pindex, int posInBlock);
 
     bool IsLocked(const uint256& txHash);
     bool GetInstantSendLockByHash(const uint256& hash, CInstantSendLock& ret);
 
-    CInstantSendLockPtr GetConflictingLock(const CTransaction& tx);
+    CInstantSendLockPtr GetConflictingLock(isutil::CTransactionAdapter tx);
     void RemoveChainLockConflictingLock(const uint256& islockHash, const CInstantSendLock& islock);
 
     void UpdatedBlockTip(const CBlockIndex* pindexNew);
@@ -138,16 +143,16 @@ public:
     bool IsNewInstantSendEnabled() const;
 
 private:
-    bool ProcessTx(const CTransaction& tx, bool allowReSigning, const Consensus::Params& params);
-    bool CheckCanLock(const CTransaction& tx, bool printDebug, const Consensus::Params& params);
+    bool ProcessTx(const isutil::CTransactionAdapter& tx, bool allowReSigning, const Consensus::Params& params);
+    bool CheckCanLock(const isutil::CTransactionAdapter& tx, bool printDebug, const Consensus::Params& params);
     bool CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash, CAmount* retValue, const Consensus::Params& params);
-    bool IsConflicted(const CTransaction& tx);
+    bool IsConflicted(const isutil::CTransactionAdapter& tx);
     
     virtual void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig);
     void HandleNewInputLockRecoveredSig(const CRecoveredSig& recoveredSig, const uint256& txid);
     void HandleNewInstantSendLockRecoveredSig(const CRecoveredSig& recoveredSig);
 
-    void TrySignInstantSendLock(const CTransaction& tx);
+    void TrySignInstantSendLock(const isutil::CTransactionAdapter& tx);
 
     void ProcessMessageInstantSendLock(CNode* pfrom, const CInstantSendLock& islock, CConnman& connman);
     bool PreVerifyInstantSendLock(NodeId nodeId, const CInstantSendLock& islock, bool& retBan);
@@ -158,7 +163,7 @@ private:
 
     void AddNonLockedTx(const CTransactionRef& tx);
     void RemoveNonLockedTx(const uint256& txid, bool retryChildren);
-    void RemoveConflictedTx(const CTransaction& tx);
+    void RemoveConflictedTx(const isutil::CTransactionAdapter& tx);
 
     void HandleFullyConfirmedBlock(const CBlockIndex* pindex);
 
@@ -171,6 +176,23 @@ private:
 };
 
 extern CInstantSendManager* quorumInstantSendManager;
+
+namespace isutil
+{
+class CTransactionAdapter : public CTransaction
+{
+public:
+    CTransactionAdapter(CTransaction const &);
+
+    std::vector<CTxIn> const & Vin() const;
+
+private:
+    using CTransaction::vin;
+
+    bool const isJsplit;
+    std::vector<CTxIn> jsplitVin;
+};
+}
 
 }
 
