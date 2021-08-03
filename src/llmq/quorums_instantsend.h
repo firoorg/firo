@@ -173,8 +173,6 @@ private:
     bool ProcessPendingRetryLockTxs();
 
     void WorkThreadMain();
-
-    bool IsNewInstantSendEnabled() const;
 };
 
 extern CInstantSendManager* quorumInstantSendManager;
