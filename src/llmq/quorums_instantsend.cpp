@@ -482,6 +482,14 @@ bool CInstantSendManager::CheckCanLock(const isutil::CTransactionAdapter& tx, bo
         return false;
     }
 
+    if (tx.IsLelantusJoinSplit()) {
+        for (Scalar const & serial : tx.coinSerials()) {
+            if (lelantus::CLelantusState::GetState()->IsUsedCoinSerial(serial))
+                return false;
+        }
+        return true;
+    }
+
     CAmount nValueIn = 0;
     for (const auto& in : tx.Vin()) {
         CAmount v = 0;
@@ -1522,14 +1530,13 @@ CTransactionAdapter::CTransactionAdapter(CTransaction const & tx)
 {
     if (isJsplit) {
         for (CTxIn const in : vin) {
-            if (in.IsLelantusJoinSplit()) {
-                std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(in);
-                for (Scalar const serial : jsplit->getCoinSerialNumbers()) {
-                    CTxIn newin(in);
-                    newin.prevout.hash = primitives::GetSerialHash(serial);
-                    newin.prevout.n = 0;
-                    jsplitVin.push_back(newin);
-                }
+            std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(in);
+            for (Scalar const & serial : jsplit->getCoinSerialNumbers()) {
+                CTxIn newin(in);
+                newin.prevout.hash = primitives::GetSerialHash(serial);
+                newin.prevout.n = 0;
+                jsplitVin.push_back(newin);
+                coinserials.push_back(serial);
             }
         }
     }
@@ -1542,8 +1549,13 @@ std::vector<CTxIn> const & CTransactionAdapter::Vin() const
     }
     return vin;
 }
+
+std::vector<secp_primitives::Scalar> const & CTransactionAdapter::coinSerials() const
+{
+    return coinserials;
 }
 
+}
 
 }
 

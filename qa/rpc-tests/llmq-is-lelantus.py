@@ -8,37 +8,52 @@ from test_framework.test_framework import EvoZnodeTestFramework
 from test_framework.util import sync_blocks, set_node_times, \
     isolate_node, reconnect_isolated_node, set_mocktime, get_mocktime
 from test_framework.util import assert_equal, assert_raises_jsonrpc, \
-    bitcoind_processes, start_nodes
+    bitcoind_processes, start_nodes, start_node, connect_nodes_bi
 
 '''
-llmq-is-retroactive.py
+llmq-is-lelantus.py
 
-Tests retroactive signing
-
-We have 6 nodes where node 0 is the control node, nodes 1-5 are masternodes.
-Mempool inconsistencies are simulated via disconnecting/reconnecting node 3
-and by having a higher relay fee on nodes 4 and 5.
+Testing Instantsend for Lelantus transactions
 '''
 
 class LLMQ_IS_Lelantus(EvoZnodeTestFramework):
     def __init__(self):
-        super().__init__(6, 5)
+        super().__init__(6, 5, extra_args=[['-debug=instantsend']] * 6 )
         self.sporkprivkey = "cW2YM2xaeCaebfpKguBahUAgEzLXgSserWRuD29kSyKHq1TTgwRQ"
 
     def run_test(self):
         self.sporkAddress = self.nodes[0].getaccountaddress("")
-        print(self.nodes[0].sendtoaddress(self.sporkAddress, 1))
         self.mine_quorum()
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
 
         self.nodes[0].generate(1000 - self.nodes[0].getblockcount())
+        self.nodes[0].mintlelantus(1)
         mintTxid = self.nodes[0].mintlelantus(1)
-        self.wait_for_instantlock(mintTxid, self.nodes[0])
+        assert(self.wait_for_instantlock(mintTxid[0], self.nodes[0]))
         mintTx = self.nodes[0].getrawtransaction(mintTxid[0], 1)
 
-        rawTxDspend = self.nodes[0].createrawtransaction(mintTx['vin'], {self.nodes[0].getnewaddress(): 0.999})
-        assert_raises_jsonrpc(-26, 'tx-txlock-conflict', self.nodes[1].sendrawtransaction, rawTxDspend)
+        mintDspend = self.nodes[0].createrawtransaction(mintTx['vin'], {self.nodes[0].getnewaddress(): 0.999})
+        assert_raises_jsonrpc(-26, 'tx-txlock-conflict', self.nodes[1].sendrawtransaction, mintDspend)
 
+        self.nodes[0].generate(3)
+        assert (self.nodes[0].getrawtransaction(mintTxid[0], True)['confirmations'] > 0)
+
+        jsplitTxid = self.nodes[0].joinsplit({self.sporkAddress: 0.1})
+        assert(self.wait_for_instantlock(jsplitTxid, self.nodes[0]))
+
+        self.nodes[0].stop()
+        bitcoind_processes[0].wait()
+        self.nodes[0] = start_node(0, self.options.tmpdir, ["-zapwallettxes=1"])
+        for i in range(1, self.num_nodes):
+            if i < len(self.nodes) and self.nodes[i] is not None:
+                connect_nodes_bi(self.nodes, 0, i)
+
+        jsplitTx1id = self.nodes[0].joinsplit({self.sporkAddress: 0.11}) # This uses the already islocked coin serial. No islock expected.
+        self.wait_for_instantlock(jsplitTx1id, self.nodes[1], False, 5, True)
+        jsplitTx2id = self.nodes[0].joinsplit({self.sporkAddress: 0.11}) # This uses a new coin serial. An islock is expected.
+        self.wait_for_instantlock(jsplitTx2id, self.nodes[1], True, 5, True)
+
+        # Disabling IS
         self.nodes[0].importprivkey(self.sporkprivkey)
         self.nodes[0].spork(self.sporkprivkey, self.sporkAddress, {"disable": {"instantsend": self.nodes[0].getblockcount() + 3}})
         self.nodes[0].generate(3)

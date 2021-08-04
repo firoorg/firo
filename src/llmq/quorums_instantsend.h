@@ -185,12 +185,14 @@ public:
     CTransactionAdapter(CTransaction const &);
 
     std::vector<CTxIn> const & Vin() const;
+    std::vector<secp_primitives::Scalar> const & coinSerials() const;
 
 private:
     using CTransaction::vin;
 
     bool const isJsplit;
     std::vector<CTxIn> jsplitVin;
+    std::vector<secp_primitives::Scalar> coinserials;
 };
 }
 
