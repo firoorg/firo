@@ -22,7 +22,7 @@ namespace ethash
 constexpr static int light_cache_init_size = 1 << 24;  // 16 MB
 constexpr static int light_cache_growth = 1 << 17;     // 0.125 MB == 128 KB
 constexpr static int light_cache_rounds = 3;
-constexpr static int full_dataset_init_size = 1 << 30; // 1GB == 1024 MB
+constexpr static int full_dataset_init_size = (1 << 30) + (1 << 29); // 1.5GB == 1536 MB
 constexpr static int full_dataset_growth = 1 << 23;    // 8MB
 constexpr static int full_dataset_item_parents = 512;  // PP 0.9.4 increase from 256 to 512
 
