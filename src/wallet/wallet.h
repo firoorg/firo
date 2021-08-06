@@ -1323,6 +1323,9 @@ public:
 
     /*Sets used address number for a sending or receiving payment channel*/
     size_t SetUsedAddressNumber(bip47::CPaymentCode const & pcode, size_t number);
+
+    void NotifyTransactionLock(const CTransaction &tx) override;
+    void NotifyChainLock(const CBlockIndex* pindexChainLock) override;
 };
 
 /** A key allocated from the key pool. */

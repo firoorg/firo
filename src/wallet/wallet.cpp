@@ -7393,6 +7393,22 @@ size_t CWallet::SetUsedAddressNumber(bip47::CPaymentCode const & pcode, size_t n
     return 0;
 }
 
+void CWallet::NotifyTransactionLock(const CTransaction &tx)
+{
+    LOCK(cs_wallet);
+    // Only notify UI if this transaction is in this wallet
+    std::map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(tx.GetHash());
+    if (mi != mapWallet.end()){
+        NotifyISLockReceived();
+    }
+}
+
+void CWallet::NotifyChainLock(const CBlockIndex* pindexChainLock)
+{
+    NotifyChainLockReceived(pindexChainLock->nHeight);
+}
+
+
 /******************************************************************************/
 /*                                                                            */
 /*                            CKeyPool                                        */
