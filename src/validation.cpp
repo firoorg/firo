@@ -4241,9 +4241,11 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         if (mutated)
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-duplicate", true, "duplicate transaction");
 
-        // Firo - MTP
-        if (block.IsMTP() && !CheckMerkleTreeProof(block, consensusParams))
-            return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
+        if (!block.IsProgPow()) {
+            // Firo - MTP
+            if (block.IsMTP() && !CheckMerkleTreeProof(block, consensusParams))
+                return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
+        }
     }
 
     // All potential-corruption validation must be done before we do any

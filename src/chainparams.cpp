@@ -430,6 +430,10 @@ public:
 
         // moving lelantus data to v3 payload
         consensus.nLelantusV3PayloadStartBlock = 401580;
+        
+        // ProgPow
+        consensus.nPPSwitchTime = INT_MAX;
+        consensus.nInitialPPDifficulty = 0x1b4d7ec5;    // replace later!
     }
     virtual bool SkipUndoForBlock(int nHeight) const
     {
@@ -691,6 +695,10 @@ public:
 
         // moving lelantus data to v3 payload
         consensus.nLelantusV3PayloadStartBlock = 35000;
+        
+        // ProgPow
+        consensus.nPPSwitchTime = INT_MAX;           // change it later!
+        consensus.nInitialPPDifficulty = 0x1c574349; // 42Mh/s, 300 secs between blocks
     }
 };
 
@@ -902,6 +910,7 @@ public:
         // ProgPow
         // this can be overridden with either -ppswitchtime or -ppswitchtimefromnow flags
         consensus.nPPSwitchTime = INT_MAX;
+        consensus.nInitialPPDifficulty = 0x2000ffff;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)

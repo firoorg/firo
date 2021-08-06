@@ -26,8 +26,8 @@ uint256 progpow_hash_full(const CBlockHeader& header, uint256& mix_hash)
     }
     
     const auto result = progpow::hash(*epochContext, header.nHeight, header_hash, header.nNonce64);
-    mix_hash = uint256S(to_hex(result.mix_hash));
-    return uint256S(to_hex(result.final_hash));
+    mix_hash = uint256(std::vector<unsigned char>(&result.mix_hash.bytes[0], &result.mix_hash.bytes[32]));
+    return uint256(std::vector<unsigned char>(&result.final_hash.bytes[0], &result.final_hash.bytes[32]));
 }
 
 uint256 progpow_hash_light(const CBlockHeader& header) 
@@ -38,6 +38,6 @@ uint256 progpow_hash_light(const CBlockHeader& header)
     auto header_hash{ethash::hash256_from_bytes(input.begin())};
     auto seed_hash{progpow::hash_seed(header_hash, header.nNonce64)};
     auto mix_hash{ethash::hash256_from_bytes(header.mix_hash.begin())};
-    return uint256S(to_hex(progpow::hash_final(seed_hash, mix_hash)));
-
+    auto hash_final = progpow::hash_final(seed_hash, mix_hash);
+    return uint256(std::vector<unsigned char>(&hash_final.bytes[0], &hash_final.bytes[32]));
 }
