@@ -421,6 +421,10 @@ public:
 
         // Bip39
         consensus.nMnemonicBlock = 222400;
+
+        // ProgPow
+        consensus.nPPSwitchTime = INT_MAX;
+        consensus.nInitialPPDifficulty = 0x1b4d7ec5;    // replace later!
     }
     virtual bool SkipUndoForBlock(int nHeight) const
     {
@@ -679,6 +683,10 @@ public:
 
         // Bip39
         consensus.nMnemonicBlock = 1;
+
+        // ProgPow
+        consensus.nPPSwitchTime = INT_MAX;           // change it later!
+        consensus.nInitialPPDifficulty = 0x1c574349; // 42Mh/s, 300 secs between blocks
     }
 };
 
@@ -887,6 +895,7 @@ public:
         // ProgPow
         // this can be overridden with either -ppswitchtime or -ppswitchtimefromnow flags
         consensus.nPPSwitchTime = INT_MAX;
+        consensus.nInitialPPDifficulty = 0x2000ffff;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)

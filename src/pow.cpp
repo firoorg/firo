@@ -70,13 +70,15 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     int nFirstMTPBlock = MTPState::GetMTPState()->GetFirstMTPBlockNumber(params, pindexLast);
     bool fMTP = nFirstMTPBlock > 0;
 
-    if (pblock->IsMTP() && !fMTP) {
+    if (pblock->IsProgPow()) {
+        if (pindexLast->nTime < params.nPPSwitchTime) {
+            // first ProgPOW block ever
+            return params.nInitialPPDifficulty;
+        }
+    }
+    else if (pblock->IsMTP() && !fMTP) {
         // first MTP block ever
         return params.nInitialMTPDifficulty;
-    }
-    else if (pblock->IsProgPow() && pindexLast->nTime < params.nPPSwitchTime) {
-        // first ProgPOW block ever
-        return params.nInitialPPDifficulty;
     }
 
     const uint32_t BlocksTargetSpacing = 
@@ -98,8 +100,8 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
 
             if (pindex) {
                 uint32_t numberOfPPBlocks = pindexLast->nHeight - pindex->nHeight;
-                if (numberOfPPBlocks < 3)
-                    // do not retarget if too few blocks
+                if (numberOfPPBlocks < params.DifficultyAdjustmentInterval(true)/2)
+                    // do not retarget if too few PP blocks
                     return params.nInitialPPDifficulty;
                     
                 PastBlocksMin = std::min(PastBlocksMin, numberOfPPBlocks);
@@ -150,7 +152,7 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
 
 // Firo - MTP
 bool CheckMerkleTreeProof(const CBlockHeader &block, const Consensus::Params &params) {
-    if (!block.IsMTP())
+    if (!block.IsMTP() || block.IsProgPow())
 	    return true;
 
     if (!block.mtpHashData)
