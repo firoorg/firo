@@ -381,8 +381,10 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 if (diskindex.nTime > ZC_GENESIS_BLOCK_TIME && diskindex.nTime >= consensusParams.nPPSwitchTime) {
                     pindexNew->nNonce64 = diskindex.nNonce64;
                     pindexNew->mix_hash = diskindex.mix_hash;
+                    pindexNew->reserved[0] = diskindex.reserved[0];
+                    pindexNew->reserved[1] = diskindex.reserved[1];
                 }
-                
+
                 // Firo - MTP
                 else if (diskindex.nTime > ZC_GENESIS_BLOCK_TIME && diskindex.nTime >= consensusParams.nMTPSwitchTime) {
                     pindexNew->nVersionMTP = diskindex.nVersionMTP;
