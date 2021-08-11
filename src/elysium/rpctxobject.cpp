@@ -40,7 +40,7 @@ using namespace elysium;
  * Function to standardize RPC output for transactions into a JSON object in either basic or extended mode.
  *
  * Use basic mode for generic calls (e.g. elysium_gettransaction/elysium_listtransaction etc.)
- * Use extended mode for transaction specific calls (e.g. elysium_getsto, elysium_gettrade etc.)
+ * Use extended mode for transaction specific calls (e.g. elysium_gettrade etc.)
  *
  * DEx payments and the extended mode are only available for confirmed transactions.
  */
@@ -148,9 +148,6 @@ void populateRPCTypeInfo(CMPTransaction& mp_obj, UniValue& txobj, uint32_t txTyp
         case ELYSIUM_TYPE_LELANTUS_JOINSPLIT:
             populateRPCTypeLelantusJoinSplit(mp_obj, txobj);
             break;
-        case ELYSIUM_TYPE_SEND_TO_OWNERS:
-            populateRPCTypeSendToOwners(mp_obj, txobj, extendedDetails, extendedDetailsFilter);
-            break;
         case ELYSIUM_TYPE_SEND_ALL:
             populateRPCTypeSendAll(mp_obj, txobj, confirmations);
             break;        
@@ -181,7 +178,6 @@ bool showRefForTx(uint32_t txType)
 {
     switch (txType) {
         case ELYSIUM_TYPE_SIMPLE_SEND: return true;
-        case ELYSIUM_TYPE_SEND_TO_OWNERS: return false;
         case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED: return false;
         case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE: return false;
         case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL: return false;

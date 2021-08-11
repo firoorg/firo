@@ -219,8 +219,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
 
 	/* Elysium - transaction calls */
 	{ "elysium_send", 2 },
-	{ "elysium_sendsto", 1 },
-	{ "elysium_sendsto", 4 },
 	{ "elysium_sendall", 2 },
 	{ "elysium_sendtrade", 1 },
 	{ "elysium_sendtrade", 3 },
@@ -288,8 +286,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "elysium_createpayload_dexsell", 3 },
 	{ "elysium_createpayload_dexsell", 5 },
 	{ "elysium_createpayload_dexaccept", 0 },
-	{ "elysium_createpayload_sto", 0 },
-	{ "elysium_createpayload_sto", 2 },
 	{ "elysium_createpayload_issuancefixed", 0 },
 	{ "elysium_createpayload_issuancefixed", 1 },
 	{ "elysium_createpayload_issuancefixed", 2 },

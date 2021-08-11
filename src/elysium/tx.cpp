@@ -40,7 +40,6 @@ std::string elysium::strTransactionType(uint16_t txType)
     switch (txType) {
         case ELYSIUM_TYPE_SIMPLE_SEND: return "Simple Send";
         case ELYSIUM_TYPE_RESTRICTED_SEND: return "Restricted Send";
-        case ELYSIUM_TYPE_SEND_TO_OWNERS: return "Send To Owners";
         case ELYSIUM_TYPE_SEND_ALL: return "Send All";
         case ELYSIUM_TYPE_SAVINGS_MARK: return "Savings";
         case ELYSIUM_TYPE_SAVINGS_COMPROMISED: return "Savings COMPROMISED";
@@ -116,9 +115,6 @@ bool CMPTransaction::interpret_Transaction()
     switch (type) {
         case ELYSIUM_TYPE_SIMPLE_SEND:
             return interpret_SimpleSend();
-
-        case ELYSIUM_TYPE_SEND_TO_OWNERS:
-            return interpret_SendToOwners();
 
         case ELYSIUM_TYPE_SEND_ALL:
             return interpret_SendAll();
@@ -768,10 +764,6 @@ int CMPTransaction::interpretPacket()
     switch (type) {
         case ELYSIUM_TYPE_SIMPLE_SEND:
             status = logicMath_SimpleSend();
-            break;
-
-        case ELYSIUM_TYPE_SEND_TO_OWNERS:
-            status = logicMath_SendToOwners();
             break;
 
         case ELYSIUM_TYPE_SEND_ALL:
