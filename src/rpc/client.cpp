@@ -269,6 +269,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "elysium_sendspend", 2 },
     { "elysium_sendlelantusmint", 1 },
     { "elysium_sendlelantusspend", 1 },
+    { "elysium_sendchangelelantusstatus", 1 },
+    { "elysium_sendchangelelantusstatus", 2 },
 
 	/* Elysium - raw transaction calls */
 	{ "elysium_decodetransaction", 1 },
