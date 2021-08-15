@@ -851,7 +851,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
         lastHeader = pblock->GetProgPowHeaderHash().GetHex();
         result.pushKV("pprpcheader", lastHeader);
-        result.pushKV("pprpcheader", ethash::get_epoch_number(pblock->nHeight));
+        result.pushKV("pprpcepoch", ethash::get_epoch_number(pblock->nHeight));
         mapPPBlockTemplates[lastHeader] = *pblock;
     }
 
