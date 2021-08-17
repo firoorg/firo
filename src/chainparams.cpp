@@ -425,7 +425,7 @@ public:
         consensus.nMnemonicBlock = 222400;
 
         // moving lelantus data to v3 payload
-        consensus.nLelantusV3PayloadStartBlock = 400000;
+        consensus.nLelantusV3PayloadStartBlock = 401580;
     }
     virtual bool SkipUndoForBlock(int nHeight) const
     {
