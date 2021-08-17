@@ -1661,6 +1661,8 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter) cons
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error(std::string(__func__) + ": value out of range");
     if (txout.scriptPubKey.IsLelantusJMint()) {
+        if (!(filter & ISMINE_SPENDABLE))
+            return 0;
         CWalletDB db(strWalletFile);
         secp_primitives::GroupElement pub;
         try {
