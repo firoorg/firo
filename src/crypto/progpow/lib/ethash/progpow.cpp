@@ -131,7 +131,7 @@ void round(
     const epoch_context& context, uint32_t r, mix_array& mix, mix_rng_state state, lookup_fn lookup)
 {
     const uint32_t num_items = static_cast<uint32_t>(context.full_dataset_num_items / 2);
-    const uint32_t item_index = mix[r % num_lanes][0] % num_items;
+    const uint32_t item_index = mix.at(r % num_lanes).at(0) % num_items;
     const hash2048 item = lookup(context, item_index);
 
     constexpr size_t num_words_per_lane = sizeof(item) / (sizeof(uint32_t) * num_lanes);
@@ -217,10 +217,11 @@ hash256 hash_mix(
     const epoch_context& context, int block_number, uint64_t seed, lookup_fn lookup) noexcept
 {
     auto mix = init_mix(seed);
-    mix_rng_state state{uint64_t(block_number / period_length)};
+    mix_rng_state state(uint64_t(block_number / period_length));
 
-    for (uint32_t i = 0; i < num_rounds; ++i)
+    for (uint32_t i = 0; i < num_rounds; ++i) {
         round(context, i, mix, state, lookup);
+    }
 
     // Reduce mix data to a single per-lane result.
     uint32_t lane_hash[num_lanes];
@@ -228,16 +229,18 @@ hash256 hash_mix(
     {
         lane_hash[l] = fnv_offset_basis;
         for (uint32_t i = 0; i < num_regs; ++i)
-            lane_hash[l] = fnv1a(lane_hash[l], mix[l][i]);
+            lane_hash[l] = fnv1a(lane_hash[l], mix.at(l).at(i));
     }
 
     // Reduce all lanes to a single 256-bit result.
     static constexpr size_t num_words = sizeof(hash256) / sizeof(uint32_t);
-    hash256 mix_hash;
-    for (uint32_t& w : mix_hash.word32s)
+    hash256 mix_hash{};
+    for (uint32_t& w : mix_hash.word32s) {
         w = fnv_offset_basis;
-    for (size_t l = 0; l < num_lanes; ++l)
+    }
+    for (size_t l = 0; l < num_lanes; ++l) {
         mix_hash.word32s[l % num_words] = fnv1a(mix_hash.word32s[l % num_words], lane_hash[l]);
+    }
     return le::uint32s(mix_hash);
 }
 
@@ -259,8 +262,9 @@ hash256 hash_seed(const hash256& header_hash, uint64_t nonce) noexcept
     ethash_keccakf800(state);
 
     hash256 output;
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < 8; ++i) {
         output.word32s[i] = le::uint32(state[i]);
+    }
     return output;
 }
 
