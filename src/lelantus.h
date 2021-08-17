@@ -93,6 +93,7 @@ bool GetOutPointFromMintTag(COutPoint& outPoint, const uint256 &pubCoinTag);
 bool BuildLelantusStateFromIndex(CChain *chain);
 
 std::vector<Scalar> GetLelantusJoinSplitSerialNumbers(const CTransaction &tx, const CTxIn &txin);
+std::vector<uint32_t> GetLelantusJoinSplitIds(const CTransaction &tx, const CTxIn &txin);
 
 /*
  * Util functions
