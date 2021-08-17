@@ -85,37 +85,44 @@ std::string CPaymentCode::toString() const
 }
 
 namespace {
-bool validateImpl(std::string const & paymentCode, CPubKey & pubKey, ChainCode & chainCode) {
+std::pair<bool, std::string> validateImpl(std::string const & paymentCode, CPubKey & pubKey, ChainCode & chainCode) {
     std::vector<unsigned char> pcBytes;
     if (!DecodeBase58Check(paymentCode, pcBytes))
-        return error("Cannot Base58-decode the payment code");
+        return {false, "Cannot Base58-decode the payment code"};
 
     if (pcBytes.size() != PAYMENT_CODE_LEN)
-        return error("Payment code lenght is invalid");
+        return {false, "Payment code length is invalid"};
 
-    if ( pcBytes[0] != THE_P ) {
-        return error("invalid payment code version");
-    }
+    if (pcBytes[0] != THE_P)
+        return {false, "Invalid payment code version"};
+
     pubKey.Set(pcBytes.begin() + PUBLIC_KEY_X_OFFSET, pcBytes.begin() + PUBLIC_KEY_X_OFFSET + PUBLIC_KEY_COMPRESSED_LEN);
     if (!pubKey.IsValid())
-        return false;
+        return {false, "Invalid payment code pubkey"};
+
     std::copy(pcBytes.begin() + PUBLIC_KEY_X_OFFSET + PUBLIC_KEY_COMPRESSED_LEN, pcBytes.begin() + PUBLIC_KEY_X_OFFSET + PUBLIC_KEY_COMPRESSED_LEN + PUBLIC_KEY_X_LEN, chainCode.begin());
     if (chainCode.IsNull())
-        return false;
-    return true;
+        return {false, "Invalid payment code chaincode"};
+
+    return {true, {}};
 }
 }
 
 bool CPaymentCode::parse(std::string const & paymentCode)
 {
-    return validateImpl(paymentCode, pubKey, chainCode);
+    std::pair<bool, std::string>
+        result = validateImpl(paymentCode, pubKey, chainCode);
+
+    if(!result.first)
+        return error(result.second.c_str());
+    return true;
 }
 
 bool CPaymentCode::validate(std::string const & paymentCode)
 {
     CPubKey pubkey;
     ChainCode chaincode;
-    return validateImpl(paymentCode, pubkey, chaincode);
+    return validateImpl(paymentCode, pubkey, chaincode).first;
 }
 
 CExtPubKey CPaymentCode::getNthPubkey(size_t idx) const
@@ -143,3 +150,4 @@ bool operator==(CPaymentCode const & lhs, CPaymentCode const & rhs) {
 }
 
 }
+

@@ -32,10 +32,10 @@ remotes:
 - "url": "https://github.com/firoorg/firo"
   "dir": "firo"
 files:
-- "MacOSX10.11.sdk.tar.gz"
+- "MacOSX10.14.sdk.tar.gz"
 script: |
   WRAP_DIR=$HOME/wrapped
-  HOSTS="x86_64-apple-darwin14"
+  HOSTS="x86_64-apple-darwin16"
   CONFIGFLAGS="--enable-reduce-exports --disable-bench --disable-gui-tests GENISOIMAGE=$WRAP_DIR/genisoimage --enable-crash-hooks"
   FAKETIME_HOST_PROGS=""
   FAKETIME_PROGS="ar ranlib date dmg genisoimage"
@@ -88,7 +88,7 @@ script: |
   BASEPREFIX=`pwd`/depends
 
   mkdir -p ${BASEPREFIX}/SDKs
-  tar -C ${BASEPREFIX}/SDKs -xf ${BUILD_DIR}/MacOSX10.11.sdk.tar.gz
+  tar -C ${BASEPREFIX}/SDKs -xf ${BUILD_DIR}/MacOSX10.14.sdk.tar.gz
 
   # Build dependencies for each host
   for i in $HOSTS; do
@@ -167,5 +167,5 @@ script: |
   done
   mkdir -p $OUTDIR/src
   mv $SOURCEDIST $OUTDIR/src
-  mv ${OUTDIR}/${DISTNAME}-x86_64-apple-darwin14.tar.gz ${OUTDIR}/${DISTNAME}-osx64.tar.gz
-  mv ${OUTDIR}/${DISTNAME}-x86_64-apple-darwin14-debug.tar.gz ${OUTDIR}/${DISTNAME}-osx64-debug.tar.gz
+  mv ${OUTDIR}/${DISTNAME}-x86_64-apple-darwin16.tar.gz ${OUTDIR}/${DISTNAME}-osx64.tar.gz
+  mv ${OUTDIR}/${DISTNAME}-x86_64-apple-darwin16-debug.tar.gz ${OUTDIR}/${DISTNAME}-osx64-debug.tar.gz

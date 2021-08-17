@@ -236,6 +236,9 @@ struct Params {
     // Lelantus Blacklist
     std::unordered_set<secp_primitives::GroupElement> lelantusBlacklist;
 
+    // Sigma Blacklist
+    std::unordered_set<secp_primitives::GroupElement> sigmaBlacklist;
+
     // The block number introducing evo sporks
     int nEvoSporkStartBlock;
 

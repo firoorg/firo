@@ -131,6 +131,7 @@ public:
     bool findTheirPcode(CPaymentCode const & pcode) const;
 
     std::string const & getLabel() const;
+    void setLabel(std::string const & label);
 
     using PChannelContT = std::vector<CPaymentChannel>;
     PChannelContT const & getPchannels() const;

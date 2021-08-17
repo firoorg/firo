@@ -24,6 +24,8 @@ bool InnerProductProofVerifier::verify(
     auto itr_r = proof.R_.begin();
     u_  *= x;
     P_ += u_ * proof.c_;
+    if (version_ >= 3)
+        challengeGenerator->add(proof.c_);
     return verify_util(proof, itr_l, itr_r, challengeGenerator);
 }
 

@@ -156,6 +156,10 @@ bool Recover::askRecover(bool& newWallet)
 
                 if(use12)
                     SoftSetBoolArg("-use12", true);
+
+                if(recover.ui->spinBoxPcodes->value() > 0)
+                    SoftSetArg("-defaultpcodenumber", std::to_string(recover.ui->spinBoxPcodes->value()));
+
                 break;
             }
         }

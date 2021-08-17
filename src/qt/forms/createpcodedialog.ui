@@ -195,6 +195,9 @@
         <property name="contextMenuPolicy">
          <enum>Qt::CustomContextMenu</enum>
         </property>
+        <property name="toolTip">
+         <string>Double click on Label to edit</string>
+        </property>
         <property name="tabKeyNavigation">
          <bool>false</bool>
         </property>

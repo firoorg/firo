@@ -397,6 +397,12 @@ public:
             consensus.lelantusBlacklist.insert(coin);
         }
 
+        for (const auto& str : sigma::sigma_blacklist) {
+            GroupElement coin;
+            coin.deserialize(ParseHex(str).data());
+            consensus.sigmaBlacklist.insert(coin);
+        }
+
         consensus.evoSporkKeyID = "a78fERshquPsTv2TuKMSsxTeKom56uBwLP";
         consensus.nEvoSporkStartBlock = ZC_LELANTUS_STARTING_BLOCK;
         consensus.nEvoSporkStopBlock = ZC_LELANTUS_STARTING_BLOCK + 24*12*365;  // one year after lelantus

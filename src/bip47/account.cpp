@@ -171,6 +171,11 @@ std::string const & CAccountReceiver::getLabel() const
     return label;
 }
 
+void CAccountReceiver::setLabel(std::string const & lbl)
+{
+    label = lbl;
+}
+
 CAccountReceiver::PChannelContT const & CAccountReceiver::getPchannels() const
 {
     return pchannels;

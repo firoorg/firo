@@ -601,6 +601,12 @@ TableViewLastColumnResizingFixer::TableViewLastColumnResizingFixer(QTableView* t
     setViewHeaderResizeMode(lastColumnIndex, QHeaderView::Interactive);
 }
 
+TableViewLastColumnResizingFixer::TableViewLastColumnResizingFixer(QTableView* table, int lastColMinimumWidth, int allColsMinimumWidth, QObject *parent, int resizeColumnIndex):
+    TableViewLastColumnResizingFixer(table, lastColMinimumWidth, allColsMinimumWidth, parent)
+{
+    secondToLastColumnIndex = resizeColumnIndex;
+}
+
 #ifdef WIN32
 boost::filesystem::path static StartupShortcutPath()
 {

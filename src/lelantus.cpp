@@ -17,7 +17,6 @@
 #include "policy/policy.h"
 #include "coins.h"
 #include "batchproof_container.h"
-#include "blacklists.h"
 
 #include <atomic>
 #include <sstream>
@@ -359,8 +358,8 @@ bool CheckLelantusJoinSplitTransaction(
                          "CheckLelantusJoinSplitTransaction: can't mix lelantus spend input with other tx types or have more than one spend");
     }
 
+    int height = nHeight == INT_MAX ? chainActive.Height()+1 : nHeight;
     if (!isVerifyDB) {
-        int height = nHeight == INT_MAX ? chainActive.Height()+1 : nHeight;
         if (height >= params.nLelantusV3PayloadStartBlock) {
             // data should be moved to v3 payload
             if (tx.nVersion < 3 || tx.nType != TRANSACTION_LELANTUS)
@@ -389,7 +388,9 @@ bool CheckLelantusJoinSplitTransaction(
     int jSplitVersion = joinsplit->getVersion();
 
     if (jSplitVersion < LELANTUS_TX_VERSION_4 ||
-        (!isVerifyDB && nHeight >= params.nLelantusFixesStartBlock && jSplitVersion != LELANTUS_TX_VERSION_4_5 && jSplitVersion != SIGMA_TO_LELANTUS_JOINSPLIT_FIXED)) {
+        (!isVerifyDB &&
+        ((height >= params.nLelantusFixesStartBlock && height < params.nLelantusV3PayloadStartBlock && jSplitVersion != LELANTUS_TX_VERSION_4_5 && jSplitVersion != SIGMA_TO_LELANTUS_JOINSPLIT_FIXED) ||
+        (height >= params.nLelantusV3PayloadStartBlock && jSplitVersion != LELANTUS_TX_TPAYLOAD && jSplitVersion != SIGMA_TO_LELANTUS_TX_TPAYLOAD)))) {
         return state.DoS(100,
                          false,
                          NSEQUENCE_INCORRECT,
@@ -459,8 +460,7 @@ bool CheckLelantusJoinSplitTransaction(
                     BOOST_FOREACH(
                     const sigma::PublicCoin &pubCoinValue,
                     index->sigmaMintedPubCoins[denominationAndId]) {
-                        std::vector<unsigned char> vch = pubCoinValue.getValue().getvch();
-                        if (sigma::sigma_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                        if (::Params().GetConsensus().sigmaBlacklist.count(pubCoinValue.getValue()) > 0) {
                             continue;
                         }
                         lelantus::PublicCoin publicCoin(pubCoinValue.getValue() + lelantusParams->get_h1() * intDenom);
@@ -517,12 +517,14 @@ bool CheckLelantusJoinSplitTransaction(
     }
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+    bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete;
+
     Scalar challenge;
     // if we are collecting proofs, skip verification and collect proofs
-    passVerify = joinsplit->Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHashForMetadata, challenge, batchProofContainer->fCollectProofs);
+    passVerify = joinsplit->Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHashForMetadata, challenge, useBatching);
 
     // add proofs into container
-    if(batchProofContainer->fCollectProofs) {
+    if(useBatching) {
         std::map<uint32_t, size_t> idAndSizes;
 
         for(auto itr : anonymity_sets)

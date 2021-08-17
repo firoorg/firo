@@ -38,8 +38,8 @@ class CreatePcodeDialog : public QDialog
 public:
     enum struct ColumnWidths : int {
         Number = 80,
-        Pcode = 180,
-        Label = 180
+        Label = 180,
+        Pcode = 180
     };
 
     explicit CreatePcodeDialog(const PlatformStyle *platformStyle, QWidget *parent = 0);

@@ -31,7 +31,7 @@ PcodeModel::PcodeModel(CWallet *wallet, WalletModel *parent) :
     walletModel(parent)
 {
     /* These columns must match the indices in the ColumnIndex enumeration */
-    columns << tr("#") << tr("Payment code") << tr("Label");
+    columns << tr("#") << tr("Label") << tr("RAP address");
 
     wallet->NotifyPcodeCreated.connect(boost::bind(OnPcodeCreated_, this, _1));
     items = wallet->ListPcodes();
@@ -85,7 +85,26 @@ QVariant PcodeModel::data(const QModelIndex &index, int role) const
 
 bool PcodeModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
-    return true;
+    if(!index.isValid())
+        return false;
+    int const row = index.row();
+    if(row >= items.size())
+        return false;
+    if(ColumnIndex(index.column()) != ColumnIndex::Label)
+        return false;
+
+    if(role == Qt::EditRole)
+    {
+        std::string const newLab = value.toString().toStdString();
+        if(std::get<2>(items[row]) == newLab)
+            return false;
+
+        walletMain.LabelReceivingPcode(std::get<1>(items[row]), newLab);
+        std::get<2>(items[row]) = newLab;
+        Q_EMIT dataChanged(createIndex(row,  int(ColumnIndex::Label)), createIndex(row, int(ColumnIndex::Label)));
+        return true;
+    }
+    return false;
 }
 
 QVariant PcodeModel::headerData(int section, Qt::Orientation orientation, int role) const
@@ -107,9 +126,16 @@ QModelIndex PcodeModel::index(int row, int column, const QModelIndex &parent) co
     return createIndex(row, column);
 }
 
-Qt::ItemFlags PcodeModel::flags(const QModelIndex &) const
+Qt::ItemFlags PcodeModel::flags(const QModelIndex & index) const
 {
-    return Qt::ItemIsSelectable | Qt::ItemIsEnabled;
+    if(!index.isValid())
+        return 0;
+    Qt::ItemFlags retval = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
+    if(index.column() == int(ColumnIndex::Label))
+    {
+        retval |= Qt::ItemIsEditable;
+    }
+    return retval;
 }
 
 uint256 PcodeModel::sendNotificationTx(bip47::CPaymentCode const & paymentCode)
@@ -147,6 +173,7 @@ void PcodeModel::generateTheirNextAddress(std::string const & pcode)
 
 void PcodeModel::reconsiderBip47Tx(uint256 const & hash)
 {
+    LOCK(walletMain.cs_wallet);
     const CWalletTx * wtx = walletMain.GetWalletTx(hash);
     if (wtx && !wtx->IsCoinBase())
         walletMain.HandleBip47Transaction(*wtx);

@@ -179,7 +179,6 @@ public:
             case CT_UPDATED:
                 if(!inModel)
                 {
-                    qWarning() << "Warning: AddressTablePriv::updateEntry: Got CT_UPDATED, but entry is not in model";
                     break;
                 }
                 lower->type = newEntryType;

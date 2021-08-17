@@ -31,6 +31,7 @@
 #include "lelantus.h"
 #include "bip47/account.h"
 #include "bip47/bip47utils.h"
+#include "cancelpassworddialog.h"
 
 #include <stdint.h>
 
@@ -893,6 +894,16 @@ bool WalletModel::setWalletLocked(bool locked, const SecureString &passPhrase)
     }
 }
 
+bool WalletModel::lockWallet()
+{
+    return wallet->Lock();
+}
+
+void WalletModel::lockWalletDelayed(int seconds)
+{
+    QTimer::singleShot(seconds * 1000, this, SLOT(lockWallet()));
+}
+
 bool WalletModel::changePassphrase(const SecureString &oldPass, const SecureString &newPass)
 {
     bool retval;
@@ -972,10 +983,12 @@ static void NotifyWatchonlyChanged(WalletModel *walletmodel, bool fHaveWatchonly
                               Q_ARG(bool, fHaveWatchonly));
 }
 
-static void NotifyBip47KeysChanged(WalletModel *walletmodel, int receiverAccountNum)
+static void NotifyBip47KeysChanged(WalletModel *walletmodel, int receiverAccountNum, CBlockIndex * pBlockIndex)
 {
     QMetaObject::invokeMethod(walletmodel, "handleBip47Keys", Qt::QueuedConnection,
-                             Q_ARG(int, receiverAccountNum));
+                            Q_ARG(int, receiverAccountNum),
+                            Q_ARG(void *, pBlockIndex)
+                        );
 }
 
 void WalletModel::subscribeToCoreSignals()
@@ -987,7 +1000,7 @@ void WalletModel::subscribeToCoreSignals()
     wallet->ShowProgress.connect(boost::bind(ShowProgress, this, _1, _2));
     wallet->NotifyWatchonlyChanged.connect(boost::bind(NotifyWatchonlyChanged, this, _1));
     wallet->NotifyZerocoinChanged.connect(boost::bind(NotifyZerocoinChanged, this, _1, _2, _3, _4));
-    wallet->NotifyBip47KeysChanged.connect(boost::bind(NotifyBip47KeysChanged, this, _1));
+    wallet->NotifyBip47KeysChanged.connect(boost::bind(NotifyBip47KeysChanged, this, _1, _2));
 
 }
 
@@ -1000,7 +1013,7 @@ void WalletModel::unsubscribeFromCoreSignals()
     wallet->ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
     wallet->NotifyWatchonlyChanged.disconnect(boost::bind(NotifyWatchonlyChanged, this, _1));
     wallet->NotifyZerocoinChanged.disconnect(boost::bind(NotifyZerocoinChanged, this, _1, _2, _3, _4));
-    wallet->NotifyBip47KeysChanged.disconnect(boost::bind(NotifyBip47KeysChanged, this, _1));
+    wallet->NotifyBip47KeysChanged.disconnect(boost::bind(NotifyBip47KeysChanged, this, _1, _2));
 }
 
 // WalletModel::UnlockContext implementation
@@ -1021,7 +1034,8 @@ WalletModel::UnlockContext WalletModel::requestUnlock(const QString & info)
 WalletModel::UnlockContext::UnlockContext(WalletModel *_wallet, bool _valid, bool _relock):
         wallet(_wallet),
         valid(_valid),
-        relock(_relock)
+        relock(_relock),
+        delay(0)
 {
 }
 
@@ -1029,14 +1043,29 @@ WalletModel::UnlockContext::~UnlockContext()
 {
     if(valid && relock)
     {
-        wallet->setWalletLocked(true);
+        if(delay == 0)
+        {
+            wallet->setWalletLocked(true);
+        }
+        else
+        {
+            wallet->lockWalletDelayed(delay);
+        }
     }
+}
+
+void WalletModel::UnlockContext::delayRelock(int seconds)
+{
+    delay = seconds;
 }
 
 void WalletModel::UnlockContext::CopyFrom(const UnlockContext& rhs)
 {
     // Transfer context; old object no longer relocks wallet
-    *this = rhs;
+    wallet = rhs.wallet;
+    valid = rhs.valid;
+    relock = rhs.relock;
+    delay = rhs.delay;
     rhs.relock = false;
 }
 
@@ -1462,18 +1491,56 @@ int WalletModel::getDefaultConfirmTarget() const
     return nTxConfirmTarget;
 }
 
-void WalletModel::handleBip47Keys(int receiverAccountNum)
+void WalletModel::handleBip47Keys(int receiverAccountNum, void * pBlockIndex_)
 {
+    //These statics are to display only one password prompt at a time and block consequent prompts
+    static std::mutex singlePasswordPromptMutex, queueMutex;
+    static std::deque<bip47::CAccountReceiver const *> receiverAccountNumQueue;
+
+    if(!pBlockIndex_)
+        return;
+    CBlockIndex * pBlockIndex = reinterpret_cast<CBlockIndex *>(pBlockIndex_);
+
     if (wallet->GetBip47Wallet()) {
         bip47::CAccountReceiver const * acc = wallet->GetBip47Wallet()->getReceivingAccount(uint32_t(receiverAccountNum));
         if (!acc)
             return;
-        UnlockContext ctx(requestUnlock(tr("Please unlock your wallet to receive a <b>RAP/BIP47 transaction</b>.")));
-        if(!ctx.isValid()) {
-            QMessageBox::critical(0, tr("RAP tx received"),
-                tr("BIP47 protocol requires unlocking your wallet every time a RAP tx is received."));
+
+        std::unique_lock<std::mutex> _(singlePasswordPromptMutex, std::try_to_lock);
+        if (!_.owns_lock()) {
+            std::lock_guard<std::mutex> _(queueMutex);
+            receiverAccountNumQueue.push_back(acc);
             return;
         }
+
+        static QString const unlockText = tr("You have received a payment to a RAP address, please unlock your wallet to receive.");
+        UnlockContext ctx(requestUnlock(unlockText));
+        while(!ctx.isValid()) {
+            CancelPasswordDialog msgDialog(
+                    tr("RAP address payment"),
+                    tr("RAP addresses require you to unlock your wallet every time a payment to it is received."),
+                    3
+            );
+            msgDialog.setInformativeText(tr("If you do not enter your password now, you will need to rescan your wallet to receive your FIRO.<br/><br/>Re-enter your password?"));
+            if(msgDialog.exec() == QMessageBox::Cancel)
+                return;
+            ctx = requestUnlock(unlockText);
+        }
+        ctx.delayRelock(60);
         bip47::utils::AddReceiverSecretAddresses(*acc, *wallet);
+        {
+            std::lock_guard<std::mutex> _(queueMutex);
+            for(std::deque<bip47::CAccountReceiver const *>::iterator iter = receiverAccountNumQueue.begin(); iter != receiverAccountNumQueue.end(); ++iter)
+                bip47::utils::AddReceiverSecretAddresses(**iter, *wallet);
+            receiverAccountNumQueue.clear();
+        }
+        LOCK(cs_main);
+        if (!chainActive.Contains(pBlockIndex)) {
+            pBlockIndex = const_cast<CBlockIndex*>(chainActive.FindFork(pBlockIndex));
+            if (!pBlockIndex) return;
+        }
+        if (pBlockIndex != chainActive.Tip()) {
+            wallet->ScanForWalletTransactions(pBlockIndex, false, false);
+        }
     }
 }
