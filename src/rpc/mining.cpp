@@ -918,12 +918,12 @@ UniValue pprpcsb(const JSONRPCRequest& request)
     }
     
     // Check provided header_hash is in cache
-    if (!mapPPBlockTemplates.count(header_hash))
+    if (!mapPPBlockTemplates.count(header_hash_str))
     {
         throw JSONRPCError(RPC_INVALID_PARAMS, "Job not found");
     }
     std::shared_ptr<CBlock> blockptr = std::make_shared<CBlock>();
-    *blockptr = mapPPBlockTemplates.at(header_hash);
+    *blockptr = mapPPBlockTemplates.at(header_hash_str);
     blockptr->nNonce64 = nonce;
 
     // Check provided solution is formally valid
