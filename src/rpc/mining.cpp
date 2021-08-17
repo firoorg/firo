@@ -849,7 +849,15 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
             return result;
         }
         pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
-        lastHeader = pblock->GetProgPowHeaderHash().GetHex();
+        auto lastHeader_u256 = pblock->GetProgPowHeaderHash();
+        auto lastHeader_h256 = ethash::hash256_from_bytes(lastHeader_u256.begin());
+        lastHeader = to_hex(lastHeader_h256);
+
+        // The following is wrong as u256().GetHex() reverses the order of bytes
+        // and will send out a martian header hash impairing subsequent
+        // verification of solution sent by the miner
+        // lastHeader = pblock->GetProgPowHeaderHash().GetHex();
+
         result.pushKV("pprpcheader", lastHeader);
         result.pushKV("pprpcepoch", ethash::get_epoch_number(pblock->nHeight));
         mapPPBlockTemplates[lastHeader] = *pblock;
@@ -894,8 +902,8 @@ UniValue pprpcsb(const JSONRPCRequest& request)
         );
     }
 
-    std::string header_hash = request.params[0].get_str();
-    std::string mix_hash = request.params[1].get_str();
+    std::string header_hash_str = request.params[0].get_str();
+    std::string mix_hash_str = request.params[1].get_str();
     std::string nonce_str = request.params[2].get_str();
 
     // Parse nonce
@@ -916,15 +924,20 @@ UniValue pprpcsb(const JSONRPCRequest& request)
     }
     std::shared_ptr<CBlock> blockptr = std::make_shared<CBlock>();
     *blockptr = mapPPBlockTemplates.at(header_hash);
+    blockptr->nNonce64 = nonce;
 
     // Check provided solution is formally valid
-    uint256 act_mix_hash = uint256S(mix_hash);
+    auto mix_hash_h256 = to_hash256(mix_hash_str);
+    uint256 act_mix_hash = uint256(std::vector<unsigned char>(&mix_hash_h256.bytes[0], &mix_hash_h256.bytes[32]));
     uint256 exp_mix_hash;
-    blockptr->nNonce64 = nonce;
     uint256 final_hash = blockptr->GetProgPowHashFull(exp_mix_hash);
     if (act_mix_hash != exp_mix_hash)
     {
-        throw JSONRPCError(RPC_INVALID_PARAMS, "Bad solution : mismatching mix_hash");
+        std::string what{"Mismatching mix hash:"};
+        what.append(" Expected " + exp_mix_hash.GetHex());
+        what.append(" Got " + act_mix_hash.GetHex());
+        throw JSONRPCError(RPC_INVALID_PARAMS, what.c_str());
+        //throw JSONRPCError(RPC_INVALID_PARAMS, "Bad solution : mismatching mix_hash");
     }
    
     // Check provided solution honors boundaries
