@@ -231,7 +231,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
             CAmount nTxFee = nDebit - wtx.tx->GetValueOut();
 
             if (wtx.tx->IsLelantusJoinSplit() && wtx.tx->vin.size() > 0) {
-                nTxFee = lelantus::ParseLelantusJoinSplit(wtx.tx->vin[0])->getFee();
+                nTxFee = lelantus::ParseLelantusJoinSplit(*wtx.tx)->getFee();
             }
             if (nTxFee > 0)
                 strHTML += "<b>" + tr("Transaction fee") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -nTxFee) + "<br>";
