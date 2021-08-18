@@ -7,6 +7,16 @@
 
 namespace lelantus {
 
+// All versions to be tested
+unsigned int test_versions[] = {
+    LELANTUS_TX_VERSION_4,
+    SIGMA_TO_LELANTUS_JOINSPLIT,
+    LELANTUS_TX_VERSION_4_5,
+    SIGMA_TO_LELANTUS_JOINSPLIT_FIXED,
+    LELANTUS_TX_TPAYLOAD,
+    SIGMA_TO_LELANTUS_TX_TPAYLOAD
+};
+
 BOOST_FIXTURE_TEST_SUITE(lelantus_range_proof_tests, LelantusTestingSetup)
 
 // A single valid aggregated range proof
@@ -50,7 +60,7 @@ BOOST_AUTO_TEST_CASE(prove_verify_single)
     // Test powers of 2
     std::size_t i = 1;
     while (i <= max_m) {
-        for (auto version : {LELANTUS_TX_VERSION_4, LELANTUS_TX_VERSION_4_5, LELANTUS_TX_TPAYLOAD})
+        for (auto version : test_versions) 
             prove_verify(i, version);
         i *= 2;
     }
@@ -73,7 +83,7 @@ BOOST_AUTO_TEST_CASE(prove_verify_batch)
     auto g_ = RandomizeGroupElements(n * max_m);
     auto h_ = RandomizeGroupElements(n * max_m);
 
-    for (auto version : {LELANTUS_TX_VERSION_4, LELANTUS_TX_VERSION_4_5, LELANTUS_TX_TPAYLOAD})
+    for (auto version : test_versions)
     {
         // Proofs
         std::vector<std::vector<GroupElement> > V_batch;
@@ -140,7 +150,7 @@ BOOST_AUTO_TEST_CASE(out_of_range_single_proof)
         BOOST_CHECK(!rangeVerifier.verify(V, V, proof));
     };
 
-    for (auto version : {LELANTUS_TX_VERSION_4, LELANTUS_TX_VERSION_4_5, LELANTUS_TX_TPAYLOAD})
+    for (auto version : test_versions)
     {
         // All values are out of range
         std::vector<Scalar> vs;
@@ -189,7 +199,7 @@ BOOST_AUTO_TEST_CASE(invalid_elements)
         V.push_back(g_gen * v_s.back() +  h_gen1 * randoms[i] + h_gen2 * serials[i]);
     }
 
-    for (auto version : {LELANTUS_TX_VERSION_4, LELANTUS_TX_VERSION_4_5, LELANTUS_TX_TPAYLOAD})
+    for (auto version : test_versions)
     {
         // Initial correctness check
         RangeProver rangeProver(g_gen, h_gen1, h_gen2, g_, h_, n, version);
@@ -294,7 +304,7 @@ BOOST_AUTO_TEST_CASE(invalid_batch)
     auto g_ = RandomizeGroupElements(n * max_m);
     auto h_ = RandomizeGroupElements(n * max_m);
 
-    for (auto version : {LELANTUS_TX_VERSION_4, LELANTUS_TX_VERSION_4_5, LELANTUS_TX_TPAYLOAD})
+    for (auto version : test_versions)
     {
         // Proofs
         std::vector<std::vector<GroupElement> > V_batch;
