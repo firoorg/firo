@@ -106,7 +106,6 @@ bool RangeVerifier::verify(const std::vector<std::vector<GroupElement> >& V, con
         w2.randomize();
 
         // Reconstruct all challenges from this proof
-        // NOTE: This does _not_ properly account for all inner product statement parameters! These need to be accounted for prior to deploying
         Scalar x, x_u, y, z;
         std::unique_ptr<ChallengeGenerator> challengeGenerator;
 
