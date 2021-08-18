@@ -910,7 +910,7 @@ UniValue pprpcsb(const JSONRPCRequest& request)
     uint64_t nonce{0};
     try
     {
-        std::stoull(nonce_str, nullptr, 0);
+        nonce = std::stoull(nonce_str, nullptr, 0);
     }
     catch(...)
     {
@@ -927,17 +927,13 @@ UniValue pprpcsb(const JSONRPCRequest& request)
     blockptr->nNonce64 = nonce;
 
     // Check provided solution is formally valid
+    uint256 act_mix_hash, exp_mix_hash;
     auto mix_hash_h256 = to_hash256(mix_hash_str);
-    uint256 act_mix_hash = uint256(std::vector<unsigned char>(&mix_hash_h256.bytes[0], &mix_hash_h256.bytes[32]));
-    uint256 exp_mix_hash;
+    std::memcpy(act_mix_hash.begin(), &mix_hash_h256.bytes[0], sizeof(ethash::hash256));
     uint256 final_hash = blockptr->GetProgPowHashFull(exp_mix_hash);
     if (act_mix_hash != exp_mix_hash)
     {
-        std::string what{"Mismatching mix hash:"};
-        what.append(" Expected " + exp_mix_hash.GetHex());
-        what.append(" Got " + act_mix_hash.GetHex());
-        throw JSONRPCError(RPC_INVALID_PARAMS, what.c_str());
-        //throw JSONRPCError(RPC_INVALID_PARAMS, "Bad solution : mismatching mix_hash");
+        throw JSONRPCError(RPC_INVALID_PARAMS, "Bad solution : mismatching mix_hash");
     }
    
     // Check provided solution honors boundaries
