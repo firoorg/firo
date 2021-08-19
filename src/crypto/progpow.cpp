@@ -6,11 +6,37 @@
 
 #include <chainparams.h>
 #include <crypto/progpow/helpers.hpp>
+#include <crypto/progpow/lib/ethash/endianness.hpp>
 #include <crypto/progpow/include/ethash/ethash.hpp>
 #include <hash.h>
 #include <primitives/block.h>
 
 #include <sstream>
+
+static inline ethash::hash256 U256ToH256(const uint256& in) {
+
+    ethash::hash256 ret{};
+    auto in_data{reinterpret_cast<const uint64_t*>(in.begin())};
+    uint32_t x{0};
+    uint32_t y{3};
+    for (; x < 4; x++, y--)
+    {
+        ret.word64s[x] = ethash::be::uint64(in_data[y]);
+    }
+    return ret;
+}
+
+static inline uint256 H256ToU256(const ethash::hash256& in) {
+    uint256 ret{};
+    auto out_data{reinterpret_cast<uint64_t*>(ret.begin())};
+    uint32_t x{0};
+    uint32_t y{3};
+    for (; x < 4; x++, y--)
+    {
+        out_data[x] = ethash::be::uint64(in.word64s[y]);
+    }
+    return ret;
+}
 
 uint256 progpow_hash_full(const CBlockHeader& header, uint256& mix_hash)
 {
@@ -21,24 +47,20 @@ uint256 progpow_hash_full(const CBlockHeader& header, uint256& mix_hash)
         epochContext = ethash::create_epoch_context(ethash::get_epoch_number(header.nHeight));
     }
 
-    const auto header_hex = header.GetProgPowHeaderHash().GetHex();
-    const auto header_h256 = to_hash256(header_hex);
+    const auto header_h256{U256ToH256(header.GetProgPowHeaderHash())};
     const auto result = progpow::hash(*epochContext, header.nHeight, header_h256, header.nNonce64);
-    mix_hash.SetHex(to_hex(result.mix_hash));
-    return uint256S(to_hex(result.final_hash));
+    mix_hash = H256ToU256(result.mix_hash);
+    return H256ToU256(result.final_hash);
 }
 
 uint256 progpow_hash_light(const CBlockHeader& header) 
 {
     assert(!header.mix_hash.IsNull());
 
-    const auto header_hex = header.GetProgPowHeaderHash().GetHex();
-    const auto mix_hex = header.mix_hash.GetHex();
-    const auto header_h256 = to_hash256(header_hex);
-    const auto mix_h256 = to_hash256(mix_hex);
+    const auto header_h256{U256ToH256(header.GetProgPowHeaderHash())};
+    const auto mix_h256{U256ToH256(header.mix_hash)};
 
     const auto seed_h256{progpow::hash_seed(header_h256, header.nNonce64)};
     const auto final_h256{progpow::hash_final(seed_h256, mix_h256)};
-    return uint256S(to_hex(final_h256));
-
+    return H256ToU256(final_h256);
 }
