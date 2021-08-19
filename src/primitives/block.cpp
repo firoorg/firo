@@ -79,6 +79,10 @@ uint256 CBlockHeader::GetProgPowHashFull(uint256& mix_hash) const {
     return progpow_hash_full(*this, mix_hash);
 }
 
+uint256 CBlockHeader::GetProgPowHashLight() const {
+    return progpow_hash_light(*this);
+}
+
 uint256 CBlockHeader::GetPoWHash(int nHeight) const {
     if (!cachedPoWHash.IsNull())
         return cachedPoWHash;
