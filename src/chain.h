@@ -493,8 +493,6 @@ public:
         if (nTime >= params.nPPSwitchTime) {
             READWRITE(nNonce64);
             READWRITE(mix_hash);
-            READWRITE(reserved[0]);
-            READWRITE(reserved[1]);
         } else {
             READWRITE(nNonce);
             // Zcoin - MTP
