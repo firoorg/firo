@@ -164,7 +164,7 @@ public:
                 READWRITE(reserved[0]);
                 READWRITE(reserved[1]);
                 if (ser_action.ForRead()) {
-                    mtpHashData = make_shared<CMTPHashData>();
+                    mtpHashData = std::make_shared<CMTPHashData>();
                     READWRITE(*mtpHashData);
                 }
                 else {
