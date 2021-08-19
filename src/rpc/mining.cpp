@@ -849,15 +849,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
             return result;
         }
         pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
-        auto lastHeader_u256 = pblock->GetProgPowHeaderHash();
-        auto lastHeader_h256 = ethash::hash256_from_bytes(lastHeader_u256.begin());
-        lastHeader = to_hex(lastHeader_h256);
-
-        // The following is wrong as u256().GetHex() reverses the order of bytes
-        // and will send out a martian header hash impairing subsequent
-        // verification of solution sent by the miner
-        // lastHeader = pblock->GetProgPowHeaderHash().GetHex();
-
+        lastHeader = pblock->GetProgPowHeaderHash().GetHex();
         result.pushKV("pprpcheader", lastHeader);
         result.pushKV("pprpcepoch", ethash::get_epoch_number(pblock->nHeight));
         mapPPBlockTemplates[lastHeader] = *pblock;
@@ -902,15 +894,15 @@ UniValue pprpcsb(const JSONRPCRequest& request)
         );
     }
 
-    std::string header_hash_str = request.params[0].get_str();
-    std::string mix_hash_str = request.params[1].get_str();
-    std::string nonce_str = request.params[2].get_str();
+    std::string header_hex = request.params[0].get_str();
+    std::string mix_hex = request.params[1].get_str();
+    std::string nonce_hex = request.params[2].get_str();
 
     // Parse nonce
     uint64_t nonce{0};
     try
     {
-        nonce = std::stoull(nonce_str, nullptr, 0);
+        nonce = std::stoull(nonce_hex, nullptr, 0);
     }
     catch(...)
     {
@@ -918,24 +910,24 @@ UniValue pprpcsb(const JSONRPCRequest& request)
     }
     
     // Check provided header_hash is in cache
-    if (!mapPPBlockTemplates.count(header_hash_str))
+    if (!mapPPBlockTemplates.count(header_hex))
     {
         throw JSONRPCError(RPC_INVALID_PARAMS, "Job not found");
     }
+
     std::shared_ptr<CBlock> blockptr = std::make_shared<CBlock>();
-    *blockptr = mapPPBlockTemplates.at(header_hash_str);
+    *blockptr = mapPPBlockTemplates.at(header_hex);
     blockptr->nNonce64 = nonce;
 
     // Check provided solution is formally valid
-    uint256 act_mix_hash, exp_mix_hash;
-    auto mix_hash_h256 = to_hash256(mix_hash_str);
-    std::memcpy(act_mix_hash.begin(), &mix_hash_h256.bytes[0], sizeof(ethash::hash256));
+    uint256 act_mix_hash = uint256S(mix_hex);
+    uint256 exp_mix_hash{};
     uint256 final_hash = blockptr->GetProgPowHashFull(exp_mix_hash);
     if (act_mix_hash != exp_mix_hash)
     {
         throw JSONRPCError(RPC_INVALID_PARAMS, "Bad solution : mismatching mix_hash");
     }
-   
+
     // Check provided solution honors boundaries
     if (!CheckProofOfWork(final_hash, blockptr->nBits, Params().GetConsensus()))
     {
