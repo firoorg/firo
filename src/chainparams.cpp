@@ -401,6 +401,12 @@ public:
             consensus.lelantusBlacklist.insert(coin);
         }
 
+        for (const auto& str : sigma::sigma_blacklist) {
+            GroupElement coin;
+            coin.deserialize(ParseHex(str).data());
+            consensus.sigmaBlacklist.insert(coin);
+        }
+
         consensus.evoSporkKeyID = "a78fERshquPsTv2TuKMSsxTeKom56uBwLP";
         consensus.nEvoSporkStartBlock = ZC_LELANTUS_STARTING_BLOCK;
         consensus.nEvoSporkStopBlock = ZC_LELANTUS_STARTING_BLOCK + 24*12*365;  // one year after lelantus
@@ -422,9 +428,14 @@ public:
         // Bip39
         consensus.nMnemonicBlock = 222400;
 
+
         // ProgPow
         consensus.nPPSwitchTime = INT_MAX;
         consensus.nInitialPPDifficulty = 0x1b4d7ec5;    // replace later!
+
+        // moving lelantus data to v3 payload
+        consensus.nLelantusV3PayloadStartBlock = 401580;
+
     }
     virtual bool SkipUndoForBlock(int nHeight) const
     {
@@ -684,9 +695,14 @@ public:
         // Bip39
         consensus.nMnemonicBlock = 1;
 
+
         // ProgPow
         consensus.nPPSwitchTime = INT_MAX;           // change it later!
         consensus.nInitialPPDifficulty = 0x1c574349; // 42Mh/s, 300 secs between blocks
+
+        // moving lelantus data to v3 payload
+        consensus.nLelantusV3PayloadStartBlock = 35000;
+
     }
 };
 
@@ -892,10 +908,15 @@ public:
         // Bip39
         consensus.nMnemonicBlock = 0;
 
+
         // ProgPow
         // this can be overridden with either -ppswitchtime or -ppswitchtimefromnow flags
         consensus.nPPSwitchTime = INT_MAX;
         consensus.nInitialPPDifficulty = 0x2000ffff;
+
+        // moving lelantus data to v3 payload
+        consensus.nLelantusV3PayloadStartBlock = 1000;
+
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)

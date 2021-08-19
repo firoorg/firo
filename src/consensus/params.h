@@ -236,6 +236,9 @@ struct Params {
     // Lelantus Blacklist
     std::unordered_set<secp_primitives::GroupElement> lelantusBlacklist;
 
+    // Sigma Blacklist
+    std::unordered_set<secp_primitives::GroupElement> sigmaBlacklist;
+
     // The block number introducing evo sporks
     int nEvoSporkStartBlock;
 
@@ -333,6 +336,9 @@ struct Params {
     int nMaxReorgDepth;
     /** block to start reorg depth enforcement */
     int nMaxReorgDepthEnforcementBlock;
+
+    /** move lelantus data to v3 payload since this block */
+    int nLelantusV3PayloadStartBlock;
 
     /** whitelisted transactions */
     std::set<uint256> txidWhitelist;

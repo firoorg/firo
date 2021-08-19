@@ -103,6 +103,8 @@ public:
 
   std::size_t hash() const;
 
+  std::size_t get_hash() const;
+
   GroupElement& set_base_g();
 
   friend class MultiExponent;
@@ -125,7 +127,7 @@ namespace std {
     {
         size_t operator()(const secp_primitives::GroupElement& g) const
         {
-            return g.hash();
+            return g.get_hash();
         }
     };
 } // namespace std

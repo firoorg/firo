@@ -263,6 +263,10 @@ Scalar Scalar::hash(const unsigned char* data, size_t len) {
     return result_;
 }
 
+std::size_t Scalar::get_hash() const {
+    auto scalar = reinterpret_cast<const secp256k1_scalar *>(value_);
+    return scalar->d[0] ^ (scalar->d[1] << 8);
+}
 
 std::string Scalar::tostring() const {
     unsigned char buffer[32];

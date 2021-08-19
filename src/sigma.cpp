@@ -14,8 +14,6 @@
 #include "primitives/mint_spend.h"
 #include "batchproof_container.h"
 
-#include "blacklists.h"
-
 #include <atomic>
 #include <sstream>
 #include <chrono>
@@ -277,8 +275,7 @@ bool CheckSigmaSpendTransaction(
                 BOOST_FOREACH(const sigma::PublicCoin& pubCoinValue,
                         index->sigmaMintedPubCoins[denominationAndId]) {
                     if (nHeight >= params.nStartSigmaBlacklist) {
-                        std::vector<unsigned char> vch = pubCoinValue.getValue().getvch();
-                        if(sigma_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                        if (::Params().GetConsensus().sigmaBlacklist.count(pubCoinValue.getValue()) > 0) {
                             continue;
                         }
                     }
@@ -1069,8 +1066,7 @@ int CSigmaState::GetCoinSetForSpend(
                 BOOST_FOREACH(const sigma::PublicCoin& pubCoinValue,
                         block->sigmaMintedPubCoins[denomAndId]) {
                     if (chainActive.Height() >= ::Params().GetConsensus().nStartSigmaBlacklist) {
-                        std::vector<unsigned char> vch = pubCoinValue.getValue().getvch();
-                        if(sigma_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                        if (::Params().GetConsensus().sigmaBlacklist.count(pubCoinValue.getValue()) > 0) {
                             continue;
                         }
                     }
@@ -1112,8 +1108,7 @@ void CSigmaState::GetAnonymitySet(
                 BOOST_FOREACH(const sigma::PublicCoin& pubCoinValue,
                         block->sigmaMintedPubCoins[denomAndId]) {
                     if (fStartSigmaBlacklist && chainActive.Height() >= params.nStartSigmaBlacklist) {
-                        std::vector<unsigned char> vch = pubCoinValue.getValue().getvch();
-                        if(sigma_blacklist.count(HexStr(vch.begin(), vch.end())) > 0) {
+                        if (::Params().GetConsensus().sigmaBlacklist.count(pubCoinValue.getValue()) > 0) {
                             continue;
                         }
                     }
