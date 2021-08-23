@@ -10,8 +10,6 @@
 #include "validation.h"
 #include "rpc/rpcevo.h"
 
-using namespace std;
-
 UniValue masternodelist(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
 
     if (!EnsureWalletIsAvailable(pwalletMain, false))

@@ -16,7 +16,6 @@
 #include "evo/deterministicmns.h"
 #include "masternode-sync.h"
 
-using namespace std;
 using namespace boost::chrono;
 
 uint32_t AvgBlockTime(){
@@ -48,8 +47,8 @@ UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool 
         currentBlock.push_back(Pair("height", height));    
         currentBlock.push_back(Pair("timestamp", stoi(time.get_str())));
     }else{
-        currentBlock.push_back(Pair("height", stoi(to_string(chainActive.Tip()->nHeight))));
-        currentBlock.push_back(Pair("timestamp", stoi(to_string(chainActive.Tip()->nTime))));
+        currentBlock.push_back(Pair("height", stoi(std::to_string(chainActive.Tip()->nHeight))));
+        currentBlock.push_back(Pair("timestamp", stoi(std::to_string(chainActive.Tip()->nTime))));
     }
 
     blockinfoObj.push_back(Pair("testnet", Params().NetworkIDString() == CBaseChainParams::TESTNET));
@@ -97,7 +96,7 @@ UniValue block(Type type, const UniValue& data, const UniValue& auth, bool fHelp
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
     UniValue getblockObj(UniValue::VOBJ);
-    string blockhash;
+    std::string blockhash;
 
     try{
         blockhash = find_value(data, "hashBlock").get_str();

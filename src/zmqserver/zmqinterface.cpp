@@ -79,10 +79,10 @@ CZMQReplierInterface* CZMQReplierInterface::Create()
 
     for (std::map<std::string, CZMQFactory>::const_iterator i=factories.begin(); i!=factories.end(); ++i)
     {
-        string type = i->first;
-        string address = BaseParams().APIAddr();
-        string port = type=="auth" ? to_string(BaseParams().APIAuthREPPort()) : 
-                                     to_string(BaseParams().APIOpenREPPort());
+        std::string type = i->first;
+        std::string address = BaseParams().APIAddr();
+        std::string port = type=="auth" ? std::to_string(BaseParams().APIAuthREPPort()) :
+                                     std::to_string(BaseParams().APIOpenREPPort());
 
         CZMQFactory factory = factories[type];
         CZMQAbstract *notifier = factory();
@@ -165,13 +165,13 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     factories["pubmasternodelist"] = CZMQAbstract::Create<CZMQMasternodeListTopic>;
     factories["publockstatus"] = CZMQAbstract::Create<CZMQLockStatusTopic>;
     
-    BOOST_FOREACH(string pubIndex, pubIndexes)
+    BOOST_FOREACH(std::string pubIndex, pubIndexes)
     {
         CZMQFactory factory = factories[pubIndex];
         CZMQAbstract *notifier = factory();
-        string address = BaseParams().APIAddr();
-        string port = pubIndex=="pubstatus" ? to_string(BaseParams().APIOpenPUBPort()) :
-                                           to_string(BaseParams().APIAuthPUBPort());
+        std::string address = BaseParams().APIAddr();
+        std::string port = pubIndex=="pubstatus" ? std::to_string(BaseParams().APIOpenPUBPort()) :
+                                           std::to_string(BaseParams().APIAuthPUBPort());
         notifier->SetType("zmq" + pubIndex);
         notifier->SetAddress(address);
         notifier->SetPort(port);

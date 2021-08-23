@@ -24,7 +24,6 @@
 
 namespace fs = boost::filesystem;
 using namespace boost::chrono;
-using namespace std;
 
 /* Parse help string as JSON object.
 */
@@ -212,19 +211,19 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
 
 UniValue backup(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
-    string directory = find_value(data, "directory").get_str();
+    std::string directory = find_value(data, "directory").get_str();
 
     milliseconds secs = duration_cast< milliseconds >(
         system_clock::now().time_since_epoch()
     );
     UniValue firstSeenAt = secs.count();
-    string filename = "firo_backup-" + to_string(firstSeenAt.get_int64()) + ".zip";
+    std::string filename = "firo_backup-" + std::to_string(firstSeenAt.get_int64()) + ".zip";
 
     fs::path backupPath (directory);
     backupPath /= filename;
 
-    vector<string> filePaths;
-    vector<string> folderPaths;
+    std::vector<std::string> filePaths;
+    std::vector<std::string> folderPaths;
 
     filePaths.push_back(DEFAULT_WALLET_DAT);
     folderPaths.push_back(PERSISTENT_FILENAME);
@@ -240,7 +239,7 @@ UniValue stop(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     // Accept the deprecated and ignored 'detach' boolean argument
     if (fHelp)
-        throw runtime_error(
+        throw std::runtime_error(
             "stop\n"
             "\nStop Zcoin server.");
     // Event loop will exit after current HTTP requests have been handled, so

@@ -7,8 +7,6 @@
 #include "univalue.h"
 #include <string>
 
-using namespace std;
-
 UniValue JSONAPIReplyObj(const UniValue& result, const UniValue& error)
 {
     UniValue reply(UniValue::VOBJ);

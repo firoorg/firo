@@ -14,7 +14,6 @@
 #include <validationinterface.h>
 
 namespace fs = boost::filesystem;
-using namespace std;
 
 std::set<std::string> guiSettings = { "-torsetup" };
 
@@ -22,7 +21,7 @@ UniValue settings(Type type, const UniValue& data, const UniValue& auth, bool fH
     return data;
 }
 
-bool ReadAPISetting(UniValue& data, UniValue& setting, string name){
+bool ReadAPISetting(UniValue& data, UniValue& setting, std::string name){
     setting = find_value(data, name);
     if(!setting.isNull()){
         return true;
@@ -30,7 +29,7 @@ bool ReadAPISetting(UniValue& data, UniValue& setting, string name){
     return false;
 }
 
-bool WriteAPISetting(UniValue& data, string name, UniValue& setting){
+bool WriteAPISetting(UniValue& data, std::string name, UniValue& setting){
     UniValue settingUni(UniValue::VOBJ);
     settingUni = find_value(data, name);
     if(settingUni.isNull()){
@@ -50,7 +49,7 @@ bool WriteSettingsToFS(UniValue& data){
     //write back UniValue
     std::ofstream SettingsOut(path.string());
 
-    SettingsOut << SettingsUni.write(4,0) << endl;
+    SettingsOut << SettingsUni.write(4,0) << std::endl;
 
     return true;
 }
@@ -83,7 +82,7 @@ UniValue ReadSettingsData(){
     return SettingsData;
 }
 
-bool SettingExists(UniValue data, string name){
+bool SettingExists(UniValue data, std::string name){
     if(!find_value(data, name).isNull()){
         return true;
     }
@@ -101,12 +100,12 @@ bool CheckSettingLayout(UniValue& setting){
 }
 
 bool SetRestartNow(UniValue& data){
-    vector<string> names;
+    std::vector<std::string> names;
     UniValue setting(UniValue::VOBJ);
 
     names = data.getKeys();
-    for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
-        string name = (*it);
+    for (std::vector<std::string>::iterator it = names.begin(); it != names.end(); it++) {
+        std::string name = (*it);
         setting = find_value(data, name);
         if(name != "restartNow" && 
            find_value(setting, "changed").get_bool()==true){
@@ -139,8 +138,8 @@ void ReadAPISettingsFile()
     UniValue setting(UniValue::VOBJ);
 
     for(std::map<std::string, std::string>:: iterator it = mapArgs.begin(); it != mapArgs.end(); it++){
-        string name = (*it).first;
-        string value = (*it).second;
+        std::string name = (*it).first;
+        std::string value = (*it).second;
         setting.setObject();
         setting.replace("data", value);
         setting.replace("changed", false);
@@ -148,14 +147,14 @@ void ReadAPISettingsFile()
         settingsData.replace(name, setting);
     }
 
-    vector<string> keys = settingsData.getKeys();
+    std::vector<std::string> keys = settingsData.getKeys();
     BOOST_FOREACH(const std::string& strKey, keys)
     {
         setting.setObject();
         setting = find_value(settingsData, strKey);
         if(guiSettings.count(strKey)){
             if(!mapArgs.count(strKey)){
-                string value = find_value(setting, "data").get_str();
+                std::string value = find_value(setting, "data").get_str();
                 mapArgs[strKey] = value;
                 setting.replace("changed", false);
                 setting.replace("disabled", false);
@@ -180,7 +179,7 @@ UniValue readsettings(Type type, const UniValue& data, const UniValue& auth, boo
 UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     UniValue settingsData = ReadSettingsData();
-    vector<UniValue> settings;
+    std::vector<UniValue> settings;
     UniValue setting(UniValue::VOBJ);
     std::string name;
     std::string settingData;
@@ -192,7 +191,7 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
             break;   
         }
         case Update: {
-            vector<string> names = data.getKeys();
+            std::vector<std::string> names = data.getKeys();
             BOOST_FOREACH(std::string& name, names)
             {
                 try {
@@ -225,7 +224,7 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
             UniValue names(UniValue::VARR);
             names = find_value(data, "settings").get_array();
             for(size_t index=0; index<names.size();index++){
-                string name = names[index].get_str();
+                std::string name = names[index].get_str();
                 if(!SettingExists(settingsData, name)){
                     throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }

@@ -19,8 +19,6 @@
 
 #include "univalue.h"
 
-using namespace std;
-
 UniValue lelantusTxFee(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     CAmount nAmount = data["amount"].get_int64();
     bool fSubtractFeeFromAmount = data["subtractFeeFromAmount"].get_bool();
@@ -35,7 +33,7 @@ UniValue lelantusTxFee(Type type, const UniValue& data, const UniValue& auth, bo
 
     std::list<CSigmaEntry> sigmaCoins = pwalletMain->GetAvailableCoins(ccp, false, true);
     std::list<CLelantusEntry> lelantusCoins = pwalletMain->GetAvailableLelantusCoins(ccp, false, true);
-    pair<CAmount, unsigned int> txFeeAndSize = pwalletMain->EstimateJoinSplitFee(nAmount, fSubtractFeeFromAmount, sigmaCoins, lelantusCoins, ccp);
+    std::pair<CAmount, unsigned int> txFeeAndSize = pwalletMain->EstimateJoinSplitFee(nAmount, fSubtractFeeFromAmount, sigmaCoins, lelantusCoins, ccp);
     return txFeeAndSize.first;
 }
 

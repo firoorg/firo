@@ -19,7 +19,6 @@
 
 namespace fs = boost::filesystem;
 using namespace boost::chrono;
-using namespace std;
 
 std::map<std::string, int> nStates = {
         {"active",0},
@@ -34,7 +33,7 @@ bool setPaymentRequest(UniValue paymentRequestUni){
 
     std::ofstream paymentRequestOut(path.string());
 
-    paymentRequestOut << paymentRequestUni.write(4,0) << endl;
+    paymentRequestOut << paymentRequestUni.write(4,0) << std::endl;
 
     return true;
 }
@@ -131,12 +130,12 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
 
             CWalletTx wtx;
 
-            set<CBitcoinAddress> setAddress;
-            vector<CRecipient> vecSend;
+            std::set<CBitcoinAddress> setAddress;
+            std::vector<CRecipient> vecSend;
 
             CAmount totalAmount = 0;
-            vector<string> keys = sendTo.getKeys();
-            BOOST_FOREACH(const string& name_, keys)
+            std::vector<std::string> keys = sendTo.getKeys();
+            BOOST_FOREACH(const std::string& name_, keys)
             {
                 
                 UniValue entry(UniValue::VOBJ);
@@ -148,15 +147,15 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
 
                 CBitcoinAddress address(name_);
                 if (!address.IsValid())
-                    throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, string("Invalid zcoin address: ")+name_);
+                    throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, std::string("Invalid zcoin address: ")+name_);
 
                 if (setAddress.count(address))
-                    throw JSONAPIError(API_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+name_);
+                    throw JSONAPIError(API_INVALID_PARAMETER, std::string("Invalid parameter, duplicated address: ")+name_);
                 setAddress.insert(address);
 
                 CScript scriptPubKey = GetScriptForDestination(address.Get());
                 CAmount nAmount = find_value(entry, "amount").get_int64();
-                string label = find_value(entry, "label").get_str();
+                std::string label = find_value(entry, "label").get_str();
                 if (nAmount <= 0)
                     throw JSONAPIError(API_TYPE_ERROR, "Invalid amount for send");
                 totalAmount += nAmount;
@@ -171,7 +170,7 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
             CReserveKey keyChange(pwalletMain);
             CAmount nFeeRequired = 0;
             int nChangePosRet = -1;
-            string strFailReason;
+            std::string strFailReason;
             bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason, hasCoinControl? (&cc):NULL);
             if (!fCreated)
                 throw JSONAPIError(API_WALLET_ERROR, strFailReason);
@@ -229,19 +228,19 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
     CWalletTx wtx;
     wtx.strFromAccount = "";
 
-    set<CBitcoinAddress> setAddress;
-    vector<CRecipient> vecSend;
+    std::set<CBitcoinAddress> setAddress;
+    std::vector<CRecipient> vecSend;
 
     CAmount totalAmount = 0;
-    vector<string> keys = sendTo.getKeys();
-    BOOST_FOREACH(const string& name_, keys)
+    std::vector<std::string> keys = sendTo.getKeys();
+    BOOST_FOREACH(const std::string& name_, keys)
     {
         CBitcoinAddress address(name_);
         if (!address.IsValid())
-            throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, string("Invalid zcoin address: ")+name_);
+            throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, std::string("Invalid zcoin address: ")+name_);
 
         if (setAddress.count(address))
-            throw JSONAPIError(API_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+name_);
+            throw JSONAPIError(API_INVALID_PARAMETER, std::string("Invalid parameter, duplicated address: ")+name_);
         setAddress.insert(address);
 
         CScript scriptPubKey = GetScriptForDestination(address.Get());
@@ -264,7 +263,7 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
     CReserveKey keyChange(pwalletMain);
     CAmount nFeeRequired = 0;
     int nChangePosRet = -1;
-    string strFailReason;
+    std::string strFailReason;
     bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason, hasCoinControl ? &coinControl : NULL, false);
     if (!fCreated)
         throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);  
@@ -315,24 +314,24 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             CWalletDB walletdb(pwalletMain->strWalletFile);
             std::string nextPaymentRequestAddress;
             if(!walletdb.ReadPaymentRequestAddress(nextPaymentRequestAddress))
-                throw runtime_error("Could not retrieve wallet payment address.");
+                throw std::runtime_error("Could not retrieve wallet payment address.");
 
             if(nextPaymentRequestAddress != paymentRequestAddress)
-                throw runtime_error("Payment request address passed does not match wallet.");
+                throw std::runtime_error("Payment request address passed does not match wallet.");
 
             if(!paymentRequestUni.replace("data", paymentRequestData)){
-                throw runtime_error("Could not replace key/value pair.");
+                throw std::runtime_error("Could not replace key/value pair.");
             }
             returnEntry = true;
 
             // remove payment request address
             if(!walletdb.ErasePaymentRequestAddress())
-                throw runtime_error("Could not reset payment request address.");
+                throw std::runtime_error("Could not reset payment request address.");
                     
             break;
         }
         case Delete: {
-            string id = find_value(data, "id").get_str();
+            std::string id = find_value(data, "id").get_str();
             
             const UniValue addressObj = find_value(paymentRequestData, id);
             if(addressObj.isNull()){
@@ -347,7 +346,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             paymentRequestData.erase(addressStr);
 
             if(!paymentRequestUni.replace("data", paymentRequestData)){
-                throw runtime_error("Could not replace key/value pair.");
+                throw std::runtime_error("Could not replace key/value pair.");
             }
             return true;
             break;      
@@ -358,7 +357,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             - Create a new entry for address and metadata that was NOT created through a payment request (eg. created with the Qt application).
         */
         case Update: {
-            string id;
+            std::string id;
             std::vector<std::string> dataKeys;
             try{
                 id = find_value(data, "id").get_str();
@@ -376,7 +375,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
              }
 
             for (std::vector<std::string>::iterator it = dataKeys.begin(); it != dataKeys.end(); it++){
-                string key = (*it);
+                std::string key = (*it);
                 UniValue value = find_value(data, key);
                 if(!(key=="id")){
                     if(key=="state"){
@@ -391,7 +390,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             paymentRequestData.replace(id, entry);
 
             if(!paymentRequestUni.replace("data", paymentRequestData)){
-                throw runtime_error("Could not replace key/value pair.");
+                throw std::runtime_error("Could not replace key/value pair.");
             }
             returnEntry = true;
             break;

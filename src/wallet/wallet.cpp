@@ -2023,8 +2023,8 @@ int CWalletTx::GetRequestCount() const
 }
 
 
-void CWalletTx::GetAPIAmounts(list <COutputEntry> &listReceived,
-                           list <COutputEntry> &listSent, CAmount &nFee, string &strSentAccount,
+void CWalletTx::GetAPIAmounts(std::list <COutputEntry> &listReceived,
+                           std::list <COutputEntry> &listSent, CAmount &nFee, std::string &strSentAccount,
                            const isminefilter &filter, bool ignoreChange) const {
     nFee = 0;
     listReceived.clear();
@@ -2091,7 +2091,7 @@ void CWalletTx::GetAPIAmounts(list <COutputEntry> &listReceived,
 }
 
 void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
-                           std::list<COutputEntry>& listSent, CAmount& nFee, string& strSentAccount, const isminefilter& filter) const
+                           std::list<COutputEntry>& listSent, CAmount& nFee, std::string& strSentAccount, const isminefilter& filter) const
 {
     nFee = 0;
     listReceived.clear();
@@ -3629,7 +3629,7 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
 bool CWallet::IsSigmaMintFromTxOutAvailable(CTxOut txout){
 
     if(!txout.scriptPubKey.IsSigmaMint())
-        throw runtime_error(std::string(__func__) + ": txout is not a SIGMA_MINT\n");
+        throw std::runtime_error(std::string(__func__) + ": txout is not a SIGMA_MINT\n");
 
     if (!pwalletMain->zwallet)
         throw JSONRPCError(RPC_WALLET_ERROR, "sigma mint/spend is not allowed for legacy wallet");

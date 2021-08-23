@@ -155,9 +155,9 @@ bool CZMQAbstractReplier::Socket(){
 
 bool CZMQAuthReplier::Auth(){
     if(CZMQAbstract::DEV_AUTH){
-        vector<string> keys = ReadCert(CZMQAbstract::Server);
+        std::vector<std::string> keys = ReadCert(CZMQAbstract::Server);
 
-        string server_secret_key = keys.at(1);
+        std::string server_secret_key = keys.at(1);
 
         LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
 
@@ -170,7 +170,7 @@ bool CZMQAuthReplier::Auth(){
 }
 
 bool CZMQAbstractReplier::Bind(){
-    string tcp = "tcp://*:";
+    std::string tcp = "tcp://*:";
 
     LogPrintf("ZMQ: Port in bind: %s\n", port);
 

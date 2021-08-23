@@ -23,7 +23,6 @@
 
 namespace fs = boost::filesystem;
 using namespace boost::chrono;
-using namespace std;
 std::map<COutPoint, bool> pendingLockCoins;
 const int WALLET_SEGMENT_SIZE = 100;
 std::atomic<bool> fHasSentInitialStateWallet {false};
@@ -39,11 +38,11 @@ bool GetCoinControl(const UniValue& data, CCoinControl& cc) {
     std::string selected = boost::algorithm::trim_copy(uniSelected.getValStr());
     if (selected.empty()) return false;
 
-    std::vector<string> selectedKeys;
+    std::vector<std::string> selectedKeys;
     boost::split(selectedKeys, selected, boost::is_any_of(":"));
 
     for(size_t i = 0; i < selectedKeys.size(); i++) {
-        std::vector<string> splits;
+        std::vector<std::string> splits;
         boost::split(splits, selectedKeys[i], boost::is_any_of("-"));
         if (splits.size() != 2) continue;
 
@@ -101,7 +100,7 @@ CAmount getLockUnspentAmount()
     CTransactionRef tx;
     uint256 hashBlock;
     uint256 hash;
-    vector<COutPoint> vOutpts;
+    std::vector<COutPoint> vOutpts;
     CAmount total = 0;
 
     pwalletMain->ListLockedCoins(vOutpts);
@@ -162,7 +161,7 @@ void IsTxOutSpendable(const CWalletTx& wtx, const COutPoint& outPoint, UniValue&
     entry.push_back(Pair("spendableAt", nSpendableAt));
 }
 
-UniValue getBlockHeight(const string strHash)
+UniValue getBlockHeight(const std::string strHash)
 {
     LOCK(cs_main);
 
@@ -179,7 +178,7 @@ UniValue getBlockHeight(const string strHash)
 void APIWalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
 {
     int confirms = wtx.GetDepthInMainChain();
-    string hash = wtx.GetHash().GetHex();
+    std::string hash = wtx.GetHash().GetHex();
     if (confirms > 0) {
         entry.push_back(Pair("blockHash", wtx.hashBlock.GetHex()));
         UniValue blocktime = mapBlockIndex[wtx.hashBlock]->GetBlockTime();
@@ -195,11 +194,11 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 {
     LOCK(cs_main);
     CAmount nFee;
-    string strSentAccount;
-    list<COutputEntry> listReceived;
-    list<COutputEntry> listSent;
+    std::string strSentAccount;
+    std::list<COutputEntry> listReceived;
+    std::list<COutputEntry> listSent;
     CBitcoinAddress addr;
-    string addrStr;
+    std::string addrStr;
     CWalletDB walletdb(pwalletMain->strWalletFile);
 
     wtx.GetAPIAmounts(listReceived, listSent, nFee, strSentAccount, filter, false);
@@ -229,8 +228,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 addrStr = addr.ToString();
             }
 
-            string category;
-            string voutIndex = to_string(s.vout);
+            std::string category;
+            std::string voutIndex = std::to_string(s.vout);
 
             entry.push_back(Pair("isChange", wtx.IsChange(static_cast<uint32_t>(s.vout))));
 
@@ -282,7 +281,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 amount = s.amount;
             }
 
-            string categoryIndex = category + voutIndex;
+            std::string categoryIndex = category + voutIndex;
             entry.push_back(Pair("category", category));
             entry.push_back(Pair("address", addrStr));
             entry.push_back(Pair("txIndex", s.vout));
@@ -345,8 +344,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             entry.setObject();
 
             uint256 txid = wtx.GetHash();
-            string category;
-            string voutIndex = to_string(r.vout);
+            std::string category;
+            std::string voutIndex = std::to_string(r.vout);
 
             if (addr.Set(r.destination)){
                 addrStr = addr.ToString();
@@ -382,7 +381,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 entry.push_back(Pair("isChange", wtx.IsChange(static_cast<uint32_t>(r.vout))));
             }
 
-            string categoryIndex = category + voutIndex;
+            std::string categoryIndex = category + voutIndex;
             entry.push_back(Pair("category", category));
             entry.push_back(Pair("txIndex", r.vout));
 
@@ -454,7 +453,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             BOOST_FOREACH(const CTxIn& in, wtx.tx->vin) {
                 UniValue entry(UniValue::VOBJ);
                 entry.push_back(Pair("txid", in.prevout.hash.ToString()));
-                entry.push_back(Pair("index", to_string(in.prevout.n)));
+                entry.push_back(Pair("index", std::to_string(in.prevout.n)));
                 listInputs.push_back(entry);
             }
         }else {
@@ -475,7 +474,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 if(!sigma::GetOutPoint(outpoint, meta.GetPubCoinValue()))
                     continue;
                 entry.push_back(Pair("txid", outpoint.hash.ToString()));
-                entry.push_back(Pair("index", to_string(outpoint.n)));
+                entry.push_back(Pair("index", std::to_string(outpoint.n)));
                 listInputs.push_back(entry);
             }
         }
@@ -489,7 +488,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
         for(std::map<COutPoint, bool>::const_iterator it = pendingLockCoins.begin(); it != pendingLockCoins.end(); it++) {
             UniValue entry(UniValue::VOBJ);
             entry.push_back(Pair("txid", it->first.hash.ToString()));
-            entry.push_back(Pair("index", to_string(it->first.n)));
+            entry.push_back(Pair("index", std::to_string(it->first.n)));
             if (it->second) {
                 //locked = true
                 lockedList.push_back(entry);
@@ -526,7 +525,7 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
     LogPrintf("StateWallet: wallet segments = %u\n",       floor(pwalletMain->mapWallet.size() / WALLET_SEGMENT_SIZE) + 1);
     UniValue segment(UniValue::VOBJ);
     int txCount = 0;
-    for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); it++)
+    for (std::map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); it++)
     {
         CWalletTx tx = (*it).second;
 
@@ -637,7 +636,7 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
                 }
 
                 if (strOldWalletPass.length() < 1 || strNewWalletPass.length() < 1)
-                    throw runtime_error("");
+                    throw std::runtime_error("");
 
                 if (!pwalletMain->ChangeWalletPassphrase(strOldWalletPass, strNewWalletPass))
                     throw JSONAPIError(API_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
@@ -664,7 +663,7 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
             }
 
             if (strWalletPass.length() < 1)
-                throw runtime_error(
+                throw std::runtime_error(
                     "encryptwallet <passphrase>\n"
                     "Encrypts the wallet with <passphrase>.");
 
@@ -691,7 +690,7 @@ UniValue lockwallet(Type type, const UniValue& data, const UniValue& auth, bool 
         return NullUniValue;
 
     if (pwalletMain->IsCrypted() && (data.size() != 0))
-        throw runtime_error(
+        throw std::runtime_error(
             "walletlock\n"
             "\nRemoves the wallet encryption key from memory, locking the wallet.\n"
             "After calling this method, you will need to call walletunlock again\n"
@@ -803,11 +802,11 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
 
 void parseCoins(const std::string input, std::vector<COutPoint>& output) 
 {
-    std::vector<string> selectedKeys;
+    std::vector<std::string> selectedKeys;
     boost::split(selectedKeys, input, boost::is_any_of(":"));
 
     for(size_t i = 0; i < selectedKeys.size(); i++) {
-        std::vector<string> splits;
+        std::vector<std::string> splits;
         boost::split(splits, selectedKeys[i], boost::is_any_of("-"));
         if (splits.size() != 2) continue;
 
@@ -934,7 +933,7 @@ UniValue readaddressbook(Type type, const UniValue& data, const UniValue& auth, 
         return NullUniValue;
     LOCK(pwalletMain->cs_wallet);
     UniValue addressBook(UniValue::VARR);
-    for (map<CTxDestination, CAddressBookData>::const_iterator it = pwalletMain->mapAddressBook.begin(); it != pwalletMain->mapAddressBook.end(); ++it) {
+    for (std::map<CTxDestination, CAddressBookData>::const_iterator it = pwalletMain->mapAddressBook.begin(); it != pwalletMain->mapAddressBook.end(); ++it) {
         CBitcoinAddress addr;
         if (addr.Set(it->first)) 
         {

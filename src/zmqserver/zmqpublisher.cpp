@@ -68,9 +68,9 @@ bool CZMQAbstractPublisher::Initialize()
         
         if(CZMQAbstract::DEV_AUTH && this->topic != "apiStatus"){
             // Set up PUB auth.
-            vector<string> keys = ReadCert(CZMQAbstract::Server);
+            std::vector<std::string> keys = ReadCert(CZMQAbstract::Server);
 
-            string server_secret_key = keys.at(1);
+            std::string server_secret_key = keys.at(1);
 
             const int curve_server_enable = 1;
             zmq_setsockopt(psocket, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
@@ -244,9 +244,9 @@ bool CZMQTransactionEvent::NotifyTransaction(const CTransaction& transaction)
 {
     CWalletTx wtx(pwalletMain, MakeTransactionRef(std::move(transaction)));
     CAmount nFee;
-    string strSentAccount;
-    list<COutputEntry> listReceived;
-    list<COutputEntry> listSent;
+    std::string strSentAccount;
+    std::list<COutputEntry> listReceived;
+    std::list<COutputEntry> listSent;
     isminefilter filter = ISMINE_ALL;
     wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
 
@@ -262,7 +262,7 @@ bool CZMQTransactionEvent::NotifyTransaction(const CTransaction& transaction)
 
     if(listReceived.size() > 0 || listSent.size() > 0){
         UniValue requestData(UniValue::VOBJ);
-        string encodedTx;
+        std::string encodedTx;
         try{
             encodedTx = EncodeHexTx(transaction);
         }catch(const std::exception& e){

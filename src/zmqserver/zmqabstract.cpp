@@ -9,9 +9,6 @@
 #include "zmqconfig.h"
 #include "univalue.h"
 
-using namespace std;
-
-
 CZMQAbstract::~CZMQAbstract()
 {
     assert(!psocket);
@@ -133,11 +130,11 @@ int CZMQAbstract::SendMessage()
     return true;
 }
 
-string CZMQAbstract::GetAuthType(KeyType type){
+std::string CZMQAbstract::GetAuthType(KeyType type){
     return (type == Server) ? "server" : "client";
 }
 
-bool CZMQAbstract::WriteCert(string publicKey, string privateKey, KeyType type, bool reset){
+bool CZMQAbstract::WriteCert(std::string publicKey, std::string privateKey, KeyType type, bool reset){
 
     boost::filesystem::path cert = GetDataDir(true) / "certificates" / GetAuthType(type);
 
@@ -170,7 +167,7 @@ bool CZMQAbstract::WriteCert(string publicKey, string privateKey, KeyType type, 
     return true;
 }
 
-vector<string> CZMQAbstract::ReadCert(KeyType type){
+std::vector<std::string> CZMQAbstract::ReadCert(KeyType type){
     boost::filesystem::path cert = GetDataDir(true) / "certificates" / GetAuthType(type) / "keys.json";
 
     if (!boost::filesystem::exists(cert)) {
@@ -190,7 +187,7 @@ vector<string> CZMQAbstract::ReadCert(KeyType type){
     UniValue certUniData(UniValue::VOBJ);
     certUniData = certUni["data"];
 
-    vector<string> result;
+    std::vector<std::string> result;
 
     result.push_back(find_value(certUniData,"public").get_str());
     result.push_back(find_value(certUniData,"private").get_str());

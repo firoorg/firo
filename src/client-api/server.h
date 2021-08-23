@@ -1,7 +1,5 @@
 #include "univalue.h"
 
-using namespace std;
-
 #ifndef ZCOIN_API_SERVER_H
 #define ZCOIN_API_SERVER_H
 
