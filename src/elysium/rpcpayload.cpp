@@ -70,36 +70,6 @@ UniValue elysium_createpayload_sendall(const JSONRPCRequest& request)
     return HexStr(payload.begin(), payload.end());
 }
 
-UniValue elysium_createpayload_sto(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
-        throw runtime_error(
-            "elysium_createpayload_sto propertyid \"amount\" ( distributionproperty )\n"
-
-            "\nCreates the payload for a send-to-owners transaction.\n"
-
-            "\nArguments:\n"
-            "1. propertyid             (number, required) the identifier of the tokens to distribute\n"
-            "2. amount                 (string, required) the amount to distribute\n"
-            "3. distributionproperty   (number, optional) the identifier of the property holders to distribute to\n"
-            "\nResult:\n"
-            "\"payload\"             (string) the hex-encoded payload\n"
-
-            "\nExamples:\n"
-            + HelpExampleCli("elysium_createpayload_sto", "3 \"5000\"")
-            + HelpExampleRpc("elysium_createpayload_sto", "3, \"5000\"")
-        );
-
-    uint32_t propertyId = ParsePropertyId(request.params[0]);
-    RequireExistingProperty(propertyId);
-    int64_t amount = ParseAmount(request.params[1], isPropertyDivisible(propertyId));
-    uint32_t distributionPropertyId = (request.params.size() > 2) ? ParsePropertyId(request.params[2]) : propertyId;
-
-    std::vector<unsigned char> payload = CreatePayload_SendToOwners(propertyId, amount, distributionPropertyId);
-
-    return HexStr(payload.begin(), payload.end());
-}
-
 UniValue elysium_createpayload_issuancefixed(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 9)
@@ -405,7 +375,6 @@ static const CRPCCommand commands[] =
   //  -------------------------------- ----------------------------------------- ---------------------------------------- ----------
     { "elysium (payload creation)", "elysium_createpayload_simplesend",          &elysium_createpayload_simplesend,          true },
     { "elysium (payload creation)", "elysium_createpayload_sendall",             &elysium_createpayload_sendall,             true },
-    { "elysium (payload creation)", "elysium_createpayload_sto",                 &elysium_createpayload_sto,                 true },
     { "elysium (payload creation)", "elysium_createpayload_grant",               &elysium_createpayload_grant,               true },
     { "elysium (payload creation)", "elysium_createpayload_revoke",              &elysium_createpayload_revoke,              true },
     { "elysium (payload creation)", "elysium_createpayload_changeissuer",        &elysium_createpayload_changeissuer,        true },

@@ -1378,10 +1378,9 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
             // find out coin serial number
             assert(wtx.tx->vin.size() == 1);
 
-            const CTxIn &txin = wtx.tx->vin[0];
             std::unique_ptr<lelantus::JoinSplit> joinsplit;
             try {
-                joinsplit = lelantus::ParseLelantusJoinSplit(txin);
+                joinsplit = lelantus::ParseLelantusJoinSplit(*wtx.tx);
             }
             catch (CBadTxIn&) {
                 continue;
@@ -1526,7 +1525,7 @@ void CWallet::SyncTransaction(const CTransaction& tx, const CBlockIndex *pindex,
 }
 
 
-isminetype CWallet::IsMine(const CTxIn &txin) const
+isminetype CWallet::IsMine(const CTxIn &txin, const CTransaction& tx) const
 {
     LOCK(cs_wallet);
 
@@ -1549,7 +1548,7 @@ isminetype CWallet::IsMine(const CTxIn &txin) const
         CWalletDB db(strWalletFile);
         std::unique_ptr<lelantus::JoinSplit> joinsplit;
         try {
-            joinsplit = lelantus::ParseLelantusJoinSplit(txin);
+            joinsplit = lelantus::ParseLelantusJoinSplit(tx);
         }
         catch (CBadTxIn&) {
             return ISMINE_NO;
@@ -1576,7 +1575,7 @@ isminetype CWallet::IsMine(const CTxIn &txin) const
 
 // Note that this function doesn't distinguish between a 0-valued input,
 // and a not-"is mine" (according to the filter) input.
-CAmount CWallet::GetDebit(const CTxIn &txin, const isminefilter& filter) const
+CAmount CWallet::GetDebit(const CTxIn &txin, const CTransaction& tx, const isminefilter& filter) const
 {
     LOCK(cs_wallet);
 
@@ -1610,7 +1609,7 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const isminefilter& filter) const
         CWalletDB db(strWalletFile);
         std::unique_ptr<lelantus::JoinSplit> joinsplit;
         try {
-            joinsplit = lelantus::ParseLelantusJoinSplit(txin);
+            joinsplit = lelantus::ParseLelantusJoinSplit(tx);
         }
         catch (CBadTxIn&) {
             goto end;
@@ -1674,6 +1673,8 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter) cons
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error(std::string(__func__) + ": value out of range");
     if (txout.scriptPubKey.IsLelantusJMint()) {
+        if (!(filter & ISMINE_SPENDABLE))
+            return 0;
         CWalletDB db(strWalletFile);
         secp_primitives::GroupElement pub;
         try {
@@ -1727,7 +1728,7 @@ CAmount CWallet::GetDebit(const CTransaction& tx, const isminefilter& filter) co
     CAmount nDebit = 0;
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
     {
-        nDebit += GetDebit(txin, filter);
+        nDebit += GetDebit(txin, tx, filter);
         if (!MoneyRange(nDebit))
             throw std::runtime_error(std::string(__func__) + ": value out of range");
     }
@@ -2109,7 +2110,7 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
             nFee = nDebit - nValueOut;
         }
         else
-            nFee = lelantus::ParseLelantusJoinSplit(tx->vin[0])->getFee();
+            nFee = lelantus::ParseLelantusJoinSplit(*tx)->getFee();
     }
 
     // Sent/received.
@@ -2518,7 +2519,7 @@ bool CWalletTx::IsTrusted() const
     BOOST_FOREACH(const CTxIn& txin, tx->vin)
     {
         if (txin.IsZerocoinSpend() || txin.IsSigmaSpend() || txin.IsZerocoinRemint() || txin.IsLelantusJoinSplit()) {
-            if (!(pwallet->IsMine(txin) & ISMINE_SPENDABLE)) {
+            if (!(pwallet->IsMine(txin, *tx) & ISMINE_SPENDABLE)) {
                 return false;
             }
         } else {
@@ -2813,7 +2814,8 @@ CRecipient CWallet::CreateLelantusMintRecipient(
         // Check if there is a mint with same private data in chain, most likely Hd mint state corruption,
         // If yes, try with new counter
         GroupElement dummyValue;
-        if (lelantus::CLelantusState::GetState()->HasCoinTag(dummyValue, hashForRecover))
+        if (lelantus::CLelantusState::GetState()->HasCoinTag(dummyValue, hashForRecover) ||
+            sigma::CSigmaState::GetState()->HasCoinHash(dummyValue, hashPub))
             continue;
 
         CDataStream serializedHash(SER_NETWORK, 0);
@@ -6224,7 +6226,7 @@ std::set< std::set<CTxDestination> > CWallet::GetAddressGroupings()
             BOOST_FOREACH(CTxIn txin, pcoin->tx->vin)
             {
                 CTxDestination address;
-                if(!IsMine(txin)) /* If this input isn't mine, ignore it */
+                if(!IsMine(txin, *pcoin->tx)) /* If this input isn't mine, ignore it */
                     continue;
                 if(!ExtractDestination(mapWallet[txin.prevout.hash].tx->vout[txin.prevout.n].scriptPubKey, address))
                     continue;
@@ -7446,7 +7448,7 @@ void CWallet::HandleBip47Transaction(CWalletTx const & wtx)
         LogBip47("There was no account set up to receive payments on address: %s\n", CBitcoinAddress(addresses[0]).ToString());
         goto notifTxExit;
     }
-    if(!accFound->acceptMaskedPayload(masked, *ijsplit)){
+    if(!accFound->acceptMaskedPayload(masked, *wtx.tx)){
         LogBip47("Could not accept this masked payload: %s\n", HexStr(masked));
         goto notifTxExit;
     }

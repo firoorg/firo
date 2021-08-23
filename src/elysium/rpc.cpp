@@ -1168,54 +1168,6 @@ UniValue elysium_getactivations(const JSONRPCRequest& request)
     return response;
 }
 
-UniValue elysium_getsto(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
-        throw runtime_error(
-            "elysium_getsto \"txid\" \"recipientfilter\"\n"
-            "\nGet information and recipients of a send-to-owners transaction.\n"
-            "\nArguments:\n"
-            "1. txid                 (string, required) the hash of the transaction to lookup\n"
-            "2. recipientfilter      (string, optional) a filter for recipients (wallet by default, \"*\" for all)\n"
-            "\nResult:\n"
-            "{\n"
-            "  \"txid\" : \"hash\",                (string) the hex-encoded hash of the transaction\n"
-            "  \"sendingaddress\" : \"address\",   (string) the Firo address of the sender\n"
-            "  \"ismine\" : true|false,          (boolean) whether the transaction involes an address in the wallet\n"
-            "  \"confirmations\" : nnnnnnnnnn,   (number) the number of transaction confirmations\n"
-            "  \"fee\" : \"n.nnnnnnnn\",           (string) the transaction fee in firos\n"
-            "  \"blocktime\" : nnnnnnnnnn,       (number) the timestamp of the block that contains the transaction\n"
-            "  \"valid\" : true|false,           (boolean) whether the transaction is valid\n"
-            "  \"version\" : n,                  (number) the transaction version\n"
-            "  \"type_int\" : n,                 (number) the transaction type as number\n"
-            "  \"type\" : \"type\",                (string) the transaction type as string\n"
-            "  \"propertyid\" : n,               (number) the identifier of sent tokens\n"
-            "  \"divisible\" : true|false,       (boolean) whether the sent tokens are divisible\n"
-            "  \"amount\" : \"n.nnnnnnnn\",        (string) the number of tokens sent to owners\n"
-            "  \"totalstofee\" : \"n.nnnnnnnn\",   (string) the fee paid by the sender, nominated in ELYSIUM or TELYSIUM\n"
-            "  \"recipients\": [                 (array of JSON objects) a list of recipients\n"
-            "    {\n"
-            "      \"address\" : \"address\",          (string) the Firo address of the recipient\n"
-            "      \"amount\" : \"n.nnnnnnnn\"         (string) the number of tokens sent to this recipient\n"
-            "    },\n"
-            "    ...\n"
-            "  ]\n"
-            "}\n"
-            "\nExamples:\n"
-            + HelpExampleCli("elysium_getsto", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\" \"*\"")
-            + HelpExampleRpc("elysium_getsto", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\", \"*\"")
-        );
-
-    uint256 hash = ParseHashV(request.params[0], "txid");
-    std::string filterAddress;
-    if (request.params.size() > 1) filterAddress = ParseAddressOrWildcard(request.params[1]);
-
-    UniValue txobj(UniValue::VOBJ);
-    int populateResult = populateRPCTransactionObject(hash, txobj, "", true, filterAddress);
-    if (populateResult != 0) PopulateFailure(populateResult);
-
-    return txobj;
-}
 
 UniValue elysium_getcurrentconsensushash(const JSONRPCRequest& request)
 {
@@ -1251,7 +1203,6 @@ UniValue elysium_getcurrentconsensushash(const JSONRPCRequest& request)
 
     return response;
 }
-
 
 UniValue elysium_getbalanceshash(const JSONRPCRequest& request)
 {
@@ -1355,7 +1306,6 @@ static const CRPCCommand commands[] =
     { "elysium (data retrieval)", "elysium_getproperty",               &elysium_getproperty,                false },
     { "elysium (data retrieval)", "elysium_listproperties",            &elysium_listproperties,             false },
     { "elysium (data retrieval)", "elysium_getgrants",                 &elysium_getgrants,                  false },
-    { "elysium (data retrieval)", "elysium_getsto",                    &elysium_getsto,                     false },
     { "elysium (data retrieval)", "elysium_listblocktransactions",     &elysium_listblocktransactions,      false },
     { "elysium (data retrieval)", "elysium_listpendingtransactions",   &elysium_listpendingtransactions,    false },
     { "elysium (data retrieval)", "elysium_getallbalancesforaddress",  &elysium_getallbalancesforaddress,   false },
@@ -1379,7 +1329,6 @@ static const CRPCCommand commands[] =
     { "hidden",                      "getproperty_MP",                 &elysium_getproperty,                false },
     { "hidden",                      "listproperties_MP",              &elysium_listproperties,             false },
     { "hidden",                      "getgrants_MP",                   &elysium_getgrants,                  false },
-    { "hidden",                      "getsto_MP",                      &elysium_getsto,                     false },
     { "hidden",                      "gettransaction_MP",              &elysium_gettransaction,             false },
     { "hidden",                      "listblocktransactions_MP",       &elysium_listblocktransactions,      false },
 #ifdef ENABLE_WALLET

@@ -538,7 +538,7 @@
               <item row="5" column="0">
                <widget class="QLabel" name="sigmaStatus">
                 <property name="text">
-                 <string>Sigma Status:</string>
+                 <string>Lelantus Status:</string>
                 </property>
                </widget>
               </item>

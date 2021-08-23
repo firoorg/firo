@@ -19,7 +19,6 @@ using elysium::ECDSASignature;
 
 std::vector<unsigned char> CreatePayload_SimpleSend(uint32_t propertyId, uint64_t amount);
 std::vector<unsigned char> CreatePayload_SendAll(uint8_t ecosystem);
-std::vector<unsigned char> CreatePayload_SendToOwners(uint32_t propertyId, uint64_t amount, uint32_t distributionProperty);
 std::vector<unsigned char> CreatePayload_IssuanceFixed(uint8_t ecosystem, uint16_t propertyType, uint32_t previousPropertyId, std::string category,
                                                        std::string subcategory, std::string name, std::string url, std::string data, uint64_t amount,
                                                        boost::optional<elysium::LelantusStatus> lelantusStatus = boost::none);

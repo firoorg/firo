@@ -11,14 +11,14 @@ namespace elysium {
 class TxProcessor
 {
 public:
-    int ProcessTx(CMPTransaction& tx);
+    int ProcessTx(const CBlockIndex *pBlockIndex, CMPTransaction& tx);
 
 public:
     boost::signals2::signal<void(const CMPTransaction&)> TransactionProcessed;
 
 private:
     int ProcessLelantusMint(const CMPTransaction& tx);
-    int ProcessLelantusJoinSplit(const CMPTransaction& tx);
+    int ProcessLelantusJoinSplit(const CBlockIndex *pBlockIndex, const CMPTransaction& tx);
     int ProcessChangeLelantusStatus(const CMPTransaction& tx);
 };
 

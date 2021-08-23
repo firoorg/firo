@@ -62,6 +62,9 @@ bool RangeVerifier::verify_batch(const std::vector<GroupElement>& V, const std::
         challengeGenerator->add(pre);
     }
 
+    if (version >= LELANTUS_TX_TPAYLOAD)
+        challengeGenerator->add(innerProductProof.c_);
+
     for (int i = 0; i < log_n; ++i)
     {
         std::vector<GroupElement> group_elements_i = {innerProductProof.L_[i], innerProductProof.R_[i]};

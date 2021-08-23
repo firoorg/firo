@@ -377,61 +377,6 @@ UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request)
     }
 }
 
-UniValue elysium_sendsto(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() < 3 || request.params.size() > 5)
-        throw runtime_error(
-            "elysium_sendsto \"fromaddress\" propertyid \"amount\" ( \"redeemaddress\" distributionproperty )\n"
-
-            "\nCreate and broadcast a send-to-owners transaction.\n"
-
-            "\nArguments:\n"
-            "1. fromaddress            (string, required) the address to send from\n"
-            "2. propertyid             (number, required) the identifier of the tokens to distribute\n"
-            "3. amount                 (string, required) the amount to distribute\n"
-            "4. redeemaddress          (string, optional) an address that can spend the transaction dust (sender by default)\n"
-            "5. distributionproperty   (number, optional) the identifier of the property holders to distribute to\n"
-
-            "\nResult:\n"
-            "\"hash\"                  (string) the hex-encoded transaction hash\n"
-
-            "\nExamples:\n"
-            + HelpExampleCli("elysium_sendsto", "\"32Z3tJccZuqQZ4PhJR2hxHC3tjgjA8cbqz\" \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\" 3 \"5000\"")
-            + HelpExampleRpc("elysium_sendsto", "\"32Z3tJccZuqQZ4PhJR2hxHC3tjgjA8cbqz\", \"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\", 3, \"5000\"")
-        );
-
-    // obtain parameters & info
-    std::string fromAddress = ParseAddress(request.params[0]);
-    uint32_t propertyId = ParsePropertyId(request.params[1]);
-    int64_t amount = ParseAmount(request.params[2], isPropertyDivisible(propertyId));
-    std::string redeemAddress = (request.params.size() > 3 && !ParseText(request.params[3]).empty()) ? ParseAddress(request.params[3]): "";
-    uint32_t distributionPropertyId = (request.params.size() > 4) ? ParsePropertyId(request.params[4]) : propertyId;
-
-    // perform checks
-    RequireBalance(fromAddress, propertyId, amount);
-
-    // create a payload for the transaction
-    std::vector<unsigned char> payload = CreatePayload_SendToOwners(propertyId, amount, distributionPropertyId);
-
-    // request the wallet build the transaction (and if needed commit it)
-    uint256 txid;
-    std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, "", redeemAddress, 0, payload, txid, rawHex, autoCommit);
-
-    // check error and return the txid (or raw hex depending on autocommit)
-    if (result != 0) {
-        throw JSONRPCError(result, error_str(result));
-    } else {
-        if (!autoCommit) {
-            return rawHex;
-        } else {
-            PendingAdd(txid, fromAddress, ELYSIUM_TYPE_SEND_TO_OWNERS, propertyId, amount);
-            return txid.GetHex();
-        }
-    }
-}
-
-
 UniValue elysium_sendgrant(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 4 || request.params.size() > 5)
@@ -1178,7 +1123,6 @@ static const CRPCCommand commands[] =
     { "elysium (transaction creation)",  "elysium_send",                      &elysium_send,                       false },
     { "elysium (transaction creation)",  "elysium_sendissuancefixed",         &elysium_sendissuancefixed,          false },
     { "elysium (transaction creation)",  "elysium_sendissuancemanaged",       &elysium_sendissuancemanaged,        false },
-    { "elysium (transaction creation)",  "elysium_sendsto",                   &elysium_sendsto,                    false },
     { "elysium (transaction creation)",  "elysium_sendgrant",                 &elysium_sendgrant,                  false },
     { "elysium (transaction creation)",  "elysium_sendrevoke",                &elysium_sendrevoke,                 false },
     { "elysium (transaction creation)",  "elysium_sendchangeissuer",          &elysium_sendchangeissuer,           false },
@@ -1196,8 +1140,7 @@ static const CRPCCommand commands[] =
 
     /* depreciated: */
     { "hidden",                          "sendrawtx_MP",                      &elysium_sendrawtx,                  false },
-    { "hidden",                          "send_MP",                           &elysium_send,                       false },
-    { "hidden",                          "sendtoowners_MP",                   &elysium_sendsto,                    false },
+    { "hidden",                          "send_MP",                           &elysium_send,                       false }
 };
 
 void RegisterElysiumTransactionCreationRPCCommands(CRPCTable &tableRPC)

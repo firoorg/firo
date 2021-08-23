@@ -52,9 +52,6 @@ std::vector<TransactionRestriction> CConsensusParams::GetRestrictions() const
         { ELYSIUM_TYPE_FREEZE_PROPERTY_TOKENS,    MP_TX_PKT_V0,  false,   ELYSIUM_MANUALSP_BLOCK },
         { ELYSIUM_TYPE_UNFREEZE_PROPERTY_TOKENS,  MP_TX_PKT_V0,  false,   ELYSIUM_MANUALSP_BLOCK },
 
-        { ELYSIUM_TYPE_SEND_TO_OWNERS,            MP_TX_PKT_V0,  false,   ELYSIUM_STO_BLOCK      },
-        { ELYSIUM_TYPE_SEND_TO_OWNERS,            MP_TX_PKT_V1,  false,   ELYSIUM_STOV1_BLOCK    },
-
         { ELYSIUM_TYPE_SEND_ALL,                  MP_TX_PKT_V0,  false,   ELYSIUM_SEND_ALL_BLOCK },
 
         { ELYSIUM_TYPE_LELANTUS_MINT,             MP_TX_PKT_V0,  false,   LELANTUS_FEATURE_BLOCK      },

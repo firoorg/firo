@@ -63,31 +63,6 @@ std::vector<unsigned char> CreatePayload_SendAll(uint8_t ecosystem)
     return payload;
 }
 
-std::vector<unsigned char> CreatePayload_SendToOwners(uint32_t propertyId, uint64_t amount, uint32_t distributionProperty)
-{
-    bool v0 = (propertyId == distributionProperty) ? true : false;
-
-    std::vector<unsigned char> payload;
-
-    uint16_t messageType = ELYSIUM_TYPE_SEND_TO_OWNERS;
-    uint16_t messageVer = (v0) ? 0 : 1;
-    elysium::swapByteOrder16(messageType);
-    elysium::swapByteOrder16(messageVer);
-    elysium::swapByteOrder32(propertyId);
-    elysium::swapByteOrder64(amount);
-
-    PUSH_BACK_BYTES(payload, messageVer);
-    PUSH_BACK_BYTES(payload, messageType);
-    PUSH_BACK_BYTES(payload, propertyId);
-    PUSH_BACK_BYTES(payload, amount);
-    if (!v0) {
-        elysium::swapByteOrder32(distributionProperty);
-        PUSH_BACK_BYTES(payload, distributionProperty);
-    }
-
-    return payload;
-}
-
 std::vector<unsigned char> CreatePayload_IssuanceFixed(uint8_t ecosystem, uint16_t propertyType, uint32_t previousPropertyId, std::string category,
                                                        std::string subcategory, std::string name, std::string url, std::string data, uint64_t amount,
                                                        boost::optional<elysium::LelantusStatus> lelantusStatus)

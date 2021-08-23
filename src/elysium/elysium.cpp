@@ -834,9 +834,6 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         }
     }
 
-    // ### SET MP TX INFO ###
-	LogPrintf("single_pkt: %s\n", HexStr(payload));
-
     mp_tx.Set(
         sender ? sender->ToString() : "",
         referenceAddr ? referenceAddr->ToString() : "",
@@ -1249,7 +1246,12 @@ static int load_most_relevant_state()
       for (int i = 0; i < NUM_FILETYPES; ++i) {
         boost::filesystem::path path = MPPersistencePath / strprintf("%s-%s.dat", statePrefix[i], curTip->GetBlockHash().ToString());
         const std::string strFile = path.string();
-        success = elysium_file_load(strFile, i, true);
+        try {
+            success = elysium_file_load(strFile, i, true);
+        } catch (std::exception &e) {
+            LogPrintf("Loading elysium state %s failed: %s\n", strFile, e.what());
+            success = -1;
+        }
         if (success < 0) {
           break;
         }
@@ -1411,8 +1413,6 @@ static void prune_state_files( CBlockIndex const *topIndex )
       uint256 blockHash;
       blockHash.SetHex(vstr[1]);
       statefulBlockHashes.insert(blockHash);
-    } else {
-      PrintToLog("None state file found in persistence directory : %s\n", fName);
     }
   }
 
@@ -1696,7 +1696,7 @@ bool elysium_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, co
     int pop_ret = parseTransaction(false, tx, nBlock, idx, mp_obj, nBlockTime);
 
     if (0 == pop_ret) {
-        int interp_ret = txProcessor->ProcessTx(mp_obj);
+        int interp_ret = txProcessor->ProcessTx(pBlockIndex, mp_obj);
 		LogPrintf("interp_ret = %d \n", interp_ret);
         if (interp_ret) {
             PrintToLog("!!! interpretPacket() returned %d !!!\n", interp_ret);
@@ -2052,7 +2052,7 @@ bool CMPTxList::LoadFreezeState(int blockHeight)
             return false;
         }
 
-        if (0 != txProcessor->ProcessTx(mp_obj)) {
+        if (0 != txProcessor->ProcessTx(pBlockIndex, mp_obj)) {
             PrintToLog("ERROR: While loading freeze transaction %s: non-zero return from interpretPacket\n", hash.GetHex());
             return false;
         }
@@ -2118,7 +2118,7 @@ void CMPTxList::LoadActivations(int blockHeight)
             continue;
         }
 
-        if (0 != txProcessor->ProcessTx(mp_obj)) {
+        if (0 != txProcessor->ProcessTx(pBlockIndex, mp_obj)) {
             PrintToLog("ERROR: While loading activation transaction %s: non-zero return from interpretPacket\n", hash.GetHex());
             continue;
         }

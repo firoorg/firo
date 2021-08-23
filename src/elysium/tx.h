@@ -28,7 +28,6 @@ using elysium::strTransactionType;
 enum TransactionType {
     ELYSIUM_TYPE_SIMPLE_SEND                 =  0,
     ELYSIUM_TYPE_RESTRICTED_SEND             =  2,
-    ELYSIUM_TYPE_SEND_TO_OWNERS              =  3,
     ELYSIUM_TYPE_SEND_ALL                    =  4,
     ELYSIUM_TYPE_SAVINGS_MARK                = 10,
     ELYSIUM_TYPE_SAVINGS_COMPROMISED         = 11,

@@ -348,15 +348,6 @@ int TXHistoryDialog::PopulateHistoryMap()
             displayAmount = "N/A";
         }
 
-        // override - display amount received not STO amount in packet (the total amount) for STOs I didn't send
-        if (type == ELYSIUM_TYPE_SEND_TO_OWNERS && !IsMyAddress(mp_obj.getSender())) {
-            UniValue receiveArray(UniValue::VARR);
-            uint64_t tmpAmount = 0, stoFee = 0;
-            LOCK(cs_main);
-            s_stolistdb->getRecipients(txHash, "", &receiveArray, &tmpAmount, &stoFee);
-            displayAmount = FormatShortMP(mp_obj.getProperty(), tmpAmount) + getTokenLabel(mp_obj.getProperty());
-        }
-
         htxo.amount = displayAmount;
         txHistoryMap.insert(std::make_pair(txHash, htxo));
         nProcessed++;
@@ -529,7 +520,6 @@ std::string TXHistoryDialog::shrinkTxType(int txType, bool *fundsMoved)
     switch (txType) {
         case ELYSIUM_TYPE_SIMPLE_SEND: displayType = "Send"; break;
         case ELYSIUM_TYPE_RESTRICTED_SEND: displayType = "Rest. Send"; break;
-        case ELYSIUM_TYPE_SEND_TO_OWNERS: displayType = "Send To Owners"; break;
         case ELYSIUM_TYPE_SEND_ALL: displayType = "Send All"; break;
         case ELYSIUM_TYPE_SAVINGS_MARK: displayType = "Mark Savings"; *fundsMoved = false; break;
         case ELYSIUM_TYPE_SAVINGS_COMPROMISED: ; displayType = "Lock Savings"; break;

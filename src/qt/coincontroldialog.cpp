@@ -736,7 +736,14 @@ void CoinControlDialog::updateView()
             {
                 // tooltip from where the change comes from
                 itemOutput->setToolTip(COLUMN_LABEL, tr("change from %1 (%2)").arg(sWalletLabel).arg(sWalletAddress));
-                itemOutput->setText(COLUMN_LABEL, tr("(change)"));
+                if(out.tx->tx->IsSigmaMint()) {
+                    itemOutput->setText(COLUMN_LABEL, tr("(sigma mint)"));
+                } else if(out.tx->tx->IsLelantusMint()) {
+                    itemOutput->setText(COLUMN_LABEL, tr("(mint)"));
+                } else {
+                    itemOutput->setText(COLUMN_LABEL, tr("(change)"));
+                }
+
             }
             else if (!treeMode)
             {
