@@ -216,14 +216,23 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 
             if (fAllToMe)
             {
-                // Payment to self
-                CAmount nChange = wtx.GetChange();
-                CAmount nValue = nCredit - nChange;
-                strHTML += "<b>" + tr("Total debit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -nValue) + "<br>";
-                strHTML += "<b>" + tr("Total credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, nValue) + "<br>";
+                if (wtx.tx->IsLelantusJoinSplit()) {
+                    strHTML += "<b>" + tr("Total debit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -wtx.tx->GetValueOut()) + "<br>";
+                    strHTML += "<b>" + tr("Total credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, wtx.tx->GetValueOut()) + "<br>";
+                } else {
+                    // Payment to self
+                    CAmount nChange = wtx.GetChange();
+                    CAmount nValue = nCredit - nChange;
+                    strHTML += "<b>" + tr("Total debit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -nValue) + "<br>";
+                    strHTML += "<b>" + tr("Total credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, nValue) + "<br>";
+                }
             }
 
             CAmount nTxFee = nDebit - wtx.tx->GetValueOut();
+
+            if (wtx.tx->IsLelantusJoinSplit() && wtx.tx->vin.size() > 0) {
+                nTxFee = lelantus::ParseLelantusJoinSplit(*wtx.tx)->getFee();
+            }
             if (nTxFee > 0)
                 strHTML += "<b>" + tr("Transaction fee") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -nTxFee) + "<br>";
         }

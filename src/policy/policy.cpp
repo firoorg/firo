@@ -68,7 +68,8 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason, const bool witnes
     // computing signature hashes is O(ninputs*txsize). Limiting transactions
     // to MAX_STANDARD_TX_WEIGHT mitigates CPU exhaustion attacks.
     unsigned int sz = GetTransactionWeight(tx);
-    if (sz >= MAX_STANDARD_TX_WEIGHT) {
+    unsigned int szLimit = tx.IsLelantusJoinSplit() ? MAX_LELANTUS_TX_WEIGHT : MAX_STANDARD_TX_WEIGHT;
+    if (sz >= szLimit) {
         reason = "tx-size";
         return false;
     }
