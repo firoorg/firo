@@ -28,13 +28,14 @@ UniValue lelantusTxFee(Type type, const UniValue& data, const UniValue& auth, bo
     CCoinControl coinControl;
     GetCoinControl(data, coinControl);
 
+    CCoinControl *ccp = coinControl.HasSelected() ? &coinControl : NULL;
+
     // payTxFee is a global variable that will be used to estimate the fee.
     payTxFee = CFeeRate(data["feePerKb"].get_int64());
 
-    std::list<CSigmaEntry> sigmaCoins;
-    std::list<CLelantusEntry> lelantusCoins;
-    pair<CAmount, unsigned int> txFeeAndSize = pwalletMain->EstimateJoinSplitFee(nAmount, fSubtractFeeFromAmount, sigmaCoins, lelantusCoins, &coinControl);
-
+    std::list<CSigmaEntry> sigmaCoins = pwalletMain->GetAvailableCoins(ccp, false, true);
+    std::list<CLelantusEntry> lelantusCoins = pwalletMain->GetAvailableLelantusCoins(ccp, false, true);
+    pair<CAmount, unsigned int> txFeeAndSize = pwalletMain->EstimateJoinSplitFee(nAmount, fSubtractFeeFromAmount, sigmaCoins, lelantusCoins, ccp);
     return txFeeAndSize.first;
 }
 

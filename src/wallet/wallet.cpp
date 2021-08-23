@@ -2040,10 +2040,7 @@ void CWalletTx::GetAPIAmounts(list <COutputEntry> &listReceived,
     CAmount nValueOut = tx->GetValueOut();
 
     if (tx->IsLelantusJoinSplit()) {
-        for (const CTxIn& txIn : tx->vin) {
-            std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(txIn);
-            nFee += jsplit->getFee();
-        }
+        nFee = lelantus::ParseLelantusJoinSplit(*tx)->getFee();
     } else if (nDebit > 0) { // debit>0 means we signed/sent this transaction
         // Compute fee:
         nFee = nDebit - nValueOut;
@@ -5551,7 +5548,7 @@ std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(
 
         // 1054 is constant part, mainly Schnorr and Range proofs, 2560 is for each sigma/aux data
         // 179 other parts of tx, assuming 1 utxo and 1 jmint
-        size = 1054 + 2560 * (spendCoins.size() + sigmaSpendCoins.size()) + 179;
+        size = 1055 + 2560 * (spendCoins.size() + sigmaSpendCoins.size()) + 179;
         CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
 
         if (fee >= feeNeeded) {
