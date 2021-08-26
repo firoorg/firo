@@ -335,7 +335,7 @@ static const CRPCCommand vRPCCommands[] =
     { "mobile",             "getanonymityset",        &getanonymityset,        true  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
     { "mobile",             "getusedcoinserials",     &getusedcoinserials,     true  },
-    { "mobile",             "getlatestcoinids",       &getlatestcoinids,       true  },
+    { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
 };
 
 CRPCTable::CRPCTable()
