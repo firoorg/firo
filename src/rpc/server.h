@@ -210,7 +210,7 @@ extern UniValue getaddressbalance(const JSONRPCRequest &request);
 extern UniValue getanonymityset(const JSONRPCRequest& params);
 extern UniValue getmintmetadata(const JSONRPCRequest& params);
 extern UniValue getusedcoinserials(const JSONRPCRequest& params);
-extern UniValue getlatestcoinids(const JSONRPCRequest& params);
+extern UniValue getlatestcoinid(const JSONRPCRequest& params);
 
 extern UniValue znode(const JSONRPCRequest &request);
 extern UniValue znodelist(const JSONRPCRequest &request);
