@@ -1226,12 +1226,6 @@ public:
     /** ChainLock received */
     boost::signals2::signal<void (int height)> NotifyChainLockReceived;
 
-    /** IS-lock received */
-    boost::signals2::signal<void ()> NotifyISLockReceived;
-
-    /** ChainLock received */
-    boost::signals2::signal<void (int height)> NotifyChainLockReceived;
-
     /** Inquire whether this wallet broadcasts transactions. */
     bool GetBroadcastTransactions() const { return fBroadcastTransactions; }
     /** Set whether this wallet broadcasts transactions. */

@@ -1529,15 +1529,14 @@ CTransactionAdapter::CTransactionAdapter(CTransaction const & tx)
 : CTransaction(tx), isJsplit(tx.IsLelantusJoinSplit())
 {
     if (isJsplit) {
-        for (CTxIn const in : vin) {
-            std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(in);
-            for (Scalar const & serial : jsplit->getCoinSerialNumbers()) {
-                CTxIn newin(in);
-                newin.prevout.hash = primitives::GetSerialHash(serial);
-                newin.prevout.n = 0;
-                jsplitVin.push_back(newin);
-                coinserials.push_back(serial);
-            }
+        std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(tx);
+        CTxIn lelin = *std::find_if(tx.vin.begin(), tx.vin.end(), [](CTxIn const & in) {return in.IsLelantusJoinSplit();});
+        for (Scalar const & serial : jsplit->getCoinSerialNumbers()) {
+            CTxIn newin(lelin);
+            newin.prevout.hash = primitives::GetSerialHash(serial);
+            newin.prevout.n = 0;
+            jsplitVin.push_back(newin);
+            coinserials.push_back(serial);
         }
     }
 }
