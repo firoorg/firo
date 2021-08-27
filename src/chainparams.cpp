@@ -432,7 +432,7 @@ public:
         consensus.nLelantusV3PayloadStartBlock = 401580;
         
         // ProgPow
-        consensus.nPPSwitchTime = 1630065600;           // August 27 2021, 12:00 UTC
+        consensus.nPPSwitchTime = INT_MAX;
         consensus.nInitialPPDifficulty = 0x1d016e81;    // 10MH/s
     }
     virtual bool SkipUndoForBlock(int nHeight) const
@@ -697,8 +697,8 @@ public:
         consensus.nLelantusV3PayloadStartBlock = 35000;
         
         // ProgPow
-        consensus.nPPSwitchTime = INT_MAX;           // change it later!
-        consensus.nInitialPPDifficulty = 0x1c574349; // 42Mh/s, 300 secs between blocks
+        consensus.nPPSwitchTime = 1630069200;           // August 27 2021, 13:00 UTC
+        consensus.nInitialPPDifficulty = 0x1d016e81;    // 10MH/s
     }
 };
 
