@@ -196,7 +196,7 @@
          <enum>Qt::CustomContextMenu</enum>
         </property>
         <property name="toolTip">
-         <string>Double click on Label to edit</string>
+         <string>Double click on Label to edit, on other columns for more info</string>
         </property>
         <property name="tabKeyNavigation">
          <bool>false</bool>
@@ -214,7 +214,7 @@
            <bool>false</bool>
           </property>
           <property name="toolTip">
-           <string>Show the selected payment code (does the same as double clicking an entry)</string>
+           <string>Show more info on the selected payment code (does the same as double clicking an entry)</string>
           </property>
           <property name="text">
            <string>Show</string>
