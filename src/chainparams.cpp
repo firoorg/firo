@@ -432,8 +432,8 @@ public:
         consensus.nLelantusV3PayloadStartBlock = 401580;
         
         // ProgPow
-        consensus.nPPSwitchTime = INT_MAX;
-        consensus.nInitialPPDifficulty = 0x1b4d7ec5;    // replace later!
+        consensus.nPPSwitchTime = 1630065600;           // August 27 2021, 12:00 UTC
+        consensus.nInitialPPDifficulty = 0x1d016e81;    // 10MH/s
     }
     virtual bool SkipUndoForBlock(int nHeight) const
     {
