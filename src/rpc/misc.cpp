@@ -943,7 +943,7 @@ UniValue getanonymityset(const JSONRPCRequest& request)
 
     int coinGroupId;
     try {
-        coinGroupId = std::stol(request.params[1].get_str());
+        coinGroupId = std::stol(request.params[0].get_str());
     } catch (std::logic_error const & e) {
         throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
     }
