@@ -747,6 +747,7 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
     LOCK2(cs_main, pwalletMain->cs_wallet);
+    if (!pwalletMain->zwallet) return NullUniValue;
 
     CAmount publicConfirmed = pwalletMain->GetBalance(true);
     CAmount publicUnconfirmed = pwalletMain->GetUnconfirmedBalance();
