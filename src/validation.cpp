@@ -4179,9 +4179,31 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
     int nHeight = GetNHeight(block);
     // set nHeight to INT_MAX if block is not found in index and it's not genesis block
     if (nHeight == 0 && !block.hashPrevBlock.IsNull())
+    {
         nHeight = INT_MAX;
-    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams))
-        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
+    }
+
+    if (fCheckPOW)
+    {
+        uint256 final_hash;
+        if (block.IsProgPow())
+        {
+            uint256 exp_mix_hash;
+            final_hash = block.GetProgPowHashFull(exp_mix_hash);
+            if (exp_mix_hash != block.mix_hash)
+            {
+                return state.DoS(50, false, REJECT_INVALID, "invalid-mixhash", false, "mix_hash validity failed");
+            }
+        } else {
+            final_hash = block.GetPoWHash(nHeight);
+        }
+        if (!CheckProofOfWork(final_hash, block.nBits, consensusParams))
+        {
+            return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
+        }
+
+    }
+
     return true;
 }
 
@@ -4219,9 +4241,11 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         if (mutated)
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-duplicate", true, "duplicate transaction");
 
-        // Firo - MTP
-        if (block.IsMTP() && !CheckMerkleTreeProof(block, consensusParams))
-            return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
+        if (!block.IsProgPow()) {
+            // Firo - MTP
+            if (block.IsMTP() && !CheckMerkleTreeProof(block, consensusParams))
+                return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
+        }
     }
 
     // All potential-corruption validation must be done before we do any
@@ -4417,6 +4441,13 @@ bool IsTransactionInChain(const uint256& txId, int& nHeightTx)
 bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
+
+    // once ProgPow always ProgPow
+    if (pindexPrev && pindexPrev->nTime >= consensusParams.nPPSwitchTime && block.nTime < consensusParams.nPPSwitchTime)
+        return state.Invalid(false, REJECT_INVALID, "bad-blk-progpow-state", "Cannot go back from ProgPOW");
+
+    if (block.IsProgPow() && block.nHeight != nHeight)
+        return state.DoS(100, false, REJECT_INVALID, "bad-blk-progpow", "ProgPOW height doesn't match chain height");
 
     // Start enforcing BIP113 (Median Time Past) using versionbits logic.
     int nLockTimeFlags = 0;

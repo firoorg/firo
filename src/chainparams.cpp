@@ -272,6 +272,10 @@ public:
         consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
         consensus.nMTPStartBlock = 117564;
         consensus.nMTPFiveMinutesStartBlock = SWITCH_TO_MTP_5MIN_BLOCK;
+
+        consensus.nPPSwitchTime = SWITCH_PROGPOW_BLOCK_HEADER;
+        assert(consensus.nMTPSwitchTime < consensus.nPPSwitchTime && "PP Switch time must be after MTP");
+
         consensus.nDifficultyAdjustStartBlock = 0;
         consensus.nFixedDifficulty = 0x2000ffff;
         consensus.nPowTargetSpacingMTP = 5*60;
@@ -426,6 +430,10 @@ public:
 
         // moving lelantus data to v3 payload
         consensus.nLelantusV3PayloadStartBlock = 401580;
+        
+        // ProgPow
+        consensus.nPPSwitchTime = INT_MAX;
+        consensus.nInitialPPDifficulty = 0x1d016e81;    // 10MH/s
     }
     virtual bool SkipUndoForBlock(int nHeight) const
     {
@@ -687,6 +695,10 @@ public:
 
         // moving lelantus data to v3 payload
         consensus.nLelantusV3PayloadStartBlock = 35000;
+        
+        // ProgPow
+        consensus.nPPSwitchTime = 1630069200;           // August 27 2021, 13:00 UTC
+        consensus.nInitialPPDifficulty = 0x1d016e81;    // 10MH/s
     }
 };
 
@@ -894,6 +906,11 @@ public:
 
         // moving lelantus data to v3 payload
         consensus.nLelantusV3PayloadStartBlock = 1000;
+        
+        // ProgPow
+        // this can be overridden with either -ppswitchtime or -ppswitchtimefromnow flags
+        consensus.nPPSwitchTime = INT_MAX;
+        consensus.nInitialPPDifficulty = 0x2000ffff;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)
