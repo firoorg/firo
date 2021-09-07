@@ -450,7 +450,7 @@ bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid)
         return true;
     }
 
-    if (chainActive.Height() <= Params().GetConsensus().nInstantSendBlockFilteringStartHeight) {
+    if (chainActive.Height() < Params().GetConsensus().nInstantSendBlockFilteringStartHeight) {
         return true;
     }
 

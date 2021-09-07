@@ -1530,9 +1530,8 @@ CTransactionAdapter::CTransactionAdapter(CTransaction const & tx)
 {
     if (isJsplit) {
         std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(tx);
-        CTxIn lelin = *std::find_if(tx.vin.begin(), tx.vin.end(), [](CTxIn const & in) {return in.IsLelantusJoinSplit();});
         for (Scalar const & serial : jsplit->getCoinSerialNumbers()) {
-            CTxIn newin(lelin);
+            CTxIn newin(tx.vin[0]); // CheckLelantusJoinSplitTransaction only allows single Lelantus vin in the 0th position
             newin.prevout.hash = primitives::GetSerialHash(serial);
             newin.prevout.n = 0;
             jsplitVin.push_back(newin);
