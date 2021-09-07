@@ -28,15 +28,23 @@ class LLMQ_IS_Lelantus(EvoZnodeTestFramework):
 
         self.nodes[0].generate(1000 - self.nodes[0].getblockcount())
         self.nodes[0].mintlelantus(1)
-        mintTxid = self.nodes[0].mintlelantus(1)
-        assert(self.wait_for_instantlock(mintTxid[0], self.nodes[0]))
-        mintTx = self.nodes[0].getrawtransaction(mintTxid[0], 1)
+        mintTxids = self.nodes[0].mintlelantus(1)
 
-        mintDspend = self.nodes[0].createrawtransaction(mintTx['vin'], {self.nodes[0].getnewaddress(): 0.999})
+        for mintTxid in mintTxids:
+            mintTx = self.nodes[0].getrawtransaction(mintTxid, 1)
+            val = 0.0
+            for vi in mintTx['vin']:
+                val += float(vi['value'])
+            if val > 0.001:
+                break;
+        
+        assert(self.wait_for_instantlock(mintTxid, self.nodes[0]))
+
+        mintDspend = self.nodes[0].createrawtransaction(mintTx['vin'], {self.nodes[0].getnewaddress(): val - 0.001})
         assert_raises_jsonrpc(-26, 'tx-txlock-conflict', self.nodes[1].sendrawtransaction, mintDspend)
 
         self.nodes[0].generate(3)
-        assert (self.nodes[0].getrawtransaction(mintTxid[0], True)['confirmations'] > 0)
+        assert (self.nodes[0].getrawtransaction(mintTxid, True)['confirmations'] > 0)
 
         jsplitTxid = self.nodes[0].joinsplit({self.sporkAddress: 0.1})
         assert(self.wait_for_instantlock(jsplitTxid, self.nodes[0]))
