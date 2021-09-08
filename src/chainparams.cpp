@@ -705,6 +705,223 @@ public:
 static CTestNetParams testNetParams;
 
 /**
+ * Devnet (testnet for experimental stuff)
+ */
+class CDevNetParams : public CChainParams {
+public:
+    CDevNetParams() {
+        strNetworkID = "dev";
+
+        consensus.chainType = Consensus::chainDevnet;
+
+        consensus.nSubsidyHalvingFirst = 12000;
+        consensus.nSubsidyHalvingInterval = 100000;
+        consensus.nSubsidyHalvingStopBlock = 1000000;
+
+        consensus.stage2DevelopmentFundShare = 15;
+        consensus.stage2ZnodeShare = 35;
+        consensus.stage2DevelopmentFundAddress = "TixHByoJ21dmx5xfMAXTVC4V7k53U7RncU";
+
+        consensus.nStartBlacklist = 0;
+        consensus.nStartDuplicationCheck = 0;
+        consensus.nMajorityEnforceBlockUpgrade = 51;
+        consensus.nMajorityRejectBlockOutdated = 75;
+        consensus.nMajorityWindow = 100;
+        consensus.nMinNFactor = 10;
+        consensus.nMaxNFactor = 30;
+        consensus.nChainStartTime = 1389306217;
+        consensus.BIP34Height = 21111;
+        consensus.BIP34Hash = uint256S("0x0000000023b3a96d3484e5abb3755c413e7d41500f8e2a5c3f0dd01299cd8ef8");
+        consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.nPowTargetTimespan = 60 * 60; // 60 minutes between retargets
+        consensus.nPowTargetSpacing = 5 * 60; // 5 minute blocks
+        consensus.fPowAllowMinDifficultyBlocks = true;
+        consensus.fPowNoRetargeting = false;
+        consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
+        consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
+
+        // Deployment of BIP68, BIP112, and BIP113.
+        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].bit = 0;
+        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nStartTime = 1456790400; // March 1st, 2016
+        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nTimeout = 1493596800; // May 1st, 2017
+
+        // Deployment of SegWit (BIP141, BIP143, and BIP147)
+        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
+        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 1462060800; // May 1st 2016
+        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 1493596800; // May 1st 2017
+
+        // Deployment of MTP
+        consensus.vDeployments[Consensus::DEPLOYMENT_MTP].bit = 12;
+        consensus.vDeployments[Consensus::DEPLOYMENT_MTP].nStartTime = 1539172800 - 2*60;
+        consensus.vDeployments[Consensus::DEPLOYMENT_MTP].nTimeout = 1539172800 + consensus.nMinerConfirmationWindow*2 * 5*60;
+
+        // The best chain should have at least this much work.
+        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
+
+        // By default assume that the signatures in ancestors of this block are valid.
+        consensus.defaultAssumeValid = uint256S("3825896ac39b8b27220e7bfaed81c5f979ca11dc874e564c5e70756ad06077b0 "); // 50000
+
+        consensus.nSpendV15StartBlock = 1;
+        consensus.nCheckBugFixedAtBlock = 1;
+        consensus.nZnodePaymentsBugFixedAtBlock = 1;
+
+        consensus.nSpendV2ID_1 = 1;
+        consensus.nSpendV2ID_10 = 1;
+        consensus.nSpendV2ID_25 = 1;
+        consensus.nSpendV2ID_50 = 1;
+        consensus.nSpendV2ID_100 = 1;
+        consensus.nModulusV2StartBlock = 1;
+        consensus.nModulusV1MempoolStopBlock = 1;
+        consensus.nModulusV1StopBlock = 1;
+        consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
+        consensus.nDontAllowDupTxsStartBlock = 1;
+
+        // Znode params testnet
+        consensus.nZnodePaymentsStartBlock = 120;
+        nMaxTipAge = 0x7fffffff; // allow mining on top of old blocks for testnet
+
+        // evo znodes
+        consensus.DIP0003Height = 100;
+        consensus.DIP0003EnforcementHeight = 120;
+        consensus.DIP0003EnforcementHash.SetNull();
+
+        consensus.DIP0008Height = 25000;
+        consensus.nEvoZnodeMinimumConfirmations = 0;
+
+        // long living quorum params
+        consensus.llmqs[Consensus::LLMQ_5_60] = llmq5_60;
+        consensus.llmqs[Consensus::LLMQ_10_70] = llmq10_70;
+        consensus.nLLMQPowTargetSpacing = 20;
+        consensus.llmqChainLocks = Consensus::LLMQ_5_60;
+        consensus.llmqForInstantSend = Consensus::LLMQ_5_60;
+
+        consensus.nMTPSwitchTime = 0;
+        consensus.nMTPStartBlock = 1;
+        consensus.nMTPFiveMinutesStartBlock = 0;
+        consensus.nDifficultyAdjustStartBlock = 100;
+        consensus.nFixedDifficulty = 0x2000ffff;
+        consensus.nPowTargetSpacingMTP = 5*60;
+        consensus.nInitialMTPDifficulty = 0x2000ffff;  // !!!! change it to the real value
+        consensus.nMTPRewardReduction = 2;
+
+        consensus.nDisableZerocoinStartBlock = 1;
+
+        nPoolMaxTransactions = 3;
+        nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
+
+        pchMessageStart[0] = 0xcf;
+        pchMessageStart[1] = 0xfc;
+        pchMessageStart[2] = 0xbe;
+        pchMessageStart[3] = 0xeb;
+        nDefaultPort = 38168;
+        nPruneAfterHeight = 1000;
+
+        std::vector<unsigned char> extraNonce(4);
+        extraNonce[0] = 0x0a;
+        extraNonce[1] = 0x00;
+        extraNonce[2] = 0x00;
+        extraNonce[3] = 0x00;
+
+        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 459834, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
+        consensus.hashGenesisBlock = genesis.GetHash();
+        assert(consensus.hashGenesisBlock ==
+                uint256S("0x1fcfe26873831662874b5358c4a28611be641fbb997e62d8bf9c80f799f5caff"));
+        assert(genesis.hashMerkleRoot ==
+                uint256S("0x3a0d54ae5549a8d75cd8d0cb73c6e3577ae6be8d5706fc9411bdebbe75c97210"));
+        vFixedSeeds.clear();
+        vSeeds.clear();
+        // firo test seeds
+
+        vSeeds.push_back(CDNSSeedData("DEVNET1", "devnet1.firo.org", false));
+        vSeeds.push_back(CDNSSeedData("DEVNET2", "devnet2.firo.org", false));
+
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 66);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char > (1, 179);
+        base58Prefixes[SECRET_KEY] = std::vector < unsigned char > (1, 186);
+        base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xD0).convert_to_container < std::vector < unsigned char > > ();
+        base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x95).convert_to_container < std::vector < unsigned char > > ();
+        vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_test, pnSeed6_test + ARRAYLEN(pnSeed6_test));
+
+        fMiningRequiresPeers = true;
+        fDefaultConsistencyChecks = false;
+        fRequireStandard = false;
+        fMineBlocksOnDemand = false;
+        fAllowMultiplePorts = true;
+
+        checkpointData = (CCheckpointData) {
+            boost::assign::map_list_of
+            (0, uint256S("0x"))
+        };
+
+        chainTxData = ChainTxData{
+            1414776313,
+            0,
+            0.001
+        };
+
+        // Sigma related values.
+        consensus.nSigmaStartBlock = 1;
+        consensus.nSigmaPaddingBlock = 1;
+        consensus.nDisableUnpaddedSigmaBlock = 1;
+        consensus.nStartSigmaBlacklist = INT_MAX;
+        consensus.nRestartSigmaWithBlacklistCheck = INT_MAX;
+        consensus.nOldSigmaBanBlock = 1;
+
+        consensus.nLelantusStartBlock = 1;
+        consensus.nLelantusFixesStartBlock = 1;
+
+        consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSigmaSpendPerTransaction = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxLelantusInputPerBlock = ZC_LELANTUS_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueLelantusSpendPerBlock = 1100 * COIN;
+        consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueLelantusSpendPerTransaction = 1001 * COIN;
+        consensus.nMaxValueLelantusMint = 1001 * COIN;
+        consensus.nZerocoinToSigmaRemintWindowSize = 0;
+
+        for (const auto& str : lelantus::lelantus_testnet_blacklist) {
+            GroupElement coin;
+            coin.deserialize(ParseHex(str).data());
+            consensus.lelantusBlacklist.insert(coin);
+        }
+
+        consensus.evoSporkKeyID = "TdxR3tfoHiQUkowcfjEGiMBfk6GXFdajUA";
+        consensus.nEvoSporkStartBlock = 1;
+        consensus.nEvoSporkStopBlock = 40000;
+
+        // reorg
+        consensus.nMaxReorgDepth = 4;
+        consensus.nMaxReorgDepthEnforcementBlock = 25150;
+
+        // whitelist
+
+        // Dandelion related values.
+        consensus.nDandelionEmbargoMinimum = DANDELION_TESTNET_EMBARGO_MINIMUM;
+        consensus.nDandelionEmbargoAvgAdd = DANDELION_TESTNET_EMBARGO_AVG_ADD;
+        consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
+        consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
+        consensus.nDandelionFluff = DANDELION_FLUFF;
+
+        // Bip39
+        consensus.nMnemonicBlock = 1;
+
+        // moving lelantus data to v3 payload
+        consensus.nLelantusV3PayloadStartBlock = 1;
+
+        // ProgPow
+        consensus.nPPSwitchTime = 1631261566;           // immediately after network start
+        consensus.nInitialPPDifficulty = 0x2000ffff;
+    }
+};
+
+static CDevNetParams devNetParams;
+
+/**
  * Regression test
  */
 class CRegTestParams : public CChainParams {
@@ -934,6 +1151,8 @@ CChainParams& Params(const std::string& chain)
             return mainParams;
     else if (chain == CBaseChainParams::TESTNET)
             return testNetParams;
+    else if (chain == CBaseChainParams::DEVNET)
+            return devNetParams;
     else if (chain == CBaseChainParams::REGTEST)
             return regTestParams;
     else

@@ -43,7 +43,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     if (!pindexLast || pindexLast->nHeight < params.nDifficultyAdjustStartBlock)
         return params.nFixedDifficulty;
 
-    if (params.IsTestnet()) {
+    if (params.IsTestnet() || params.IsDevnet()) {
         // If the new block's timestamp is more than nTargetSpacing*6
         // then allow mining of a min-difficulty block
         if (pblock->nTime > pindexLast->nTime + params.nPowTargetTimespan * 1) {

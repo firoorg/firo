@@ -127,9 +127,10 @@ const CWalletTx *CWallet::GetWalletTx(const uint256 &hash) const {
 CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild, CKey& secret) {
     AssertLockHeld(cs_wallet); // mapKeyMetadata
 
-    boost::optional<bool> regTest = GetOptBoolArg("-regtest")
-    , testNet = GetOptBoolArg("-testnet");
-    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_FIRO_INDEX;
+    boost::optional<bool> regTest = GetOptBoolArg("-regtest");
+    boost::optional<bool> testNet = GetOptBoolArg("-testnet");
+    boost::optional<bool> devNet = GetOptBoolArg("-devnet");
+    uint32_t nIndex = (regTest || testNet || devNet) ? BIP44_TEST_INDEX : BIP44_FIRO_INDEX;
 
     // Fail if not using HD wallet (no keypaths)
     if (hdChain.masterKeyID.IsNull())
