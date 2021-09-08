@@ -292,6 +292,13 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 entry.push_back(Pair("label", wtx.mapValue.at("label")));
             APIWalletTxToJSON(wtx, entry);
 
+            txnouttype type;
+            std::vector<CTxDestination> _addresses;
+            int _nRequired;
+
+            ExtractDestinations(wtx.tx->vout[s.vout].scriptPubKey, type, _addresses, _nRequired);
+            entry.push_back(Pair("txType", GetTxnOutputType(type)));
+
             if(!ret[addrStr].isNull()){
                 address = ret[addrStr];
             }
@@ -380,6 +387,13 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             } else {
                 entry.push_back(Pair("isChange", wtx.IsChange(static_cast<uint32_t>(r.vout))));
             }
+
+            txnouttype type;
+            std::vector<CTxDestination> _addresses;
+            int _nRequired;
+
+            ExtractDestinations(wtx.tx->vout[r.vout].scriptPubKey, type, _addresses, _nRequired);
+            entry.push_back(Pair("txType", GetTxnOutputType(type)));
 
             std::string categoryIndex = category + voutIndex;
             entry.push_back(Pair("category", category));
