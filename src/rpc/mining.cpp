@@ -411,7 +411,7 @@ std::string gbt_vb_name(const Consensus::DeploymentPos pos) {
 
 UniValue getblocktemplate(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 1)
+    if (request.fHelp || request.params.size() > 2)
         throw std::runtime_error(
             "getblocktemplate ( TemplateRequest )\n"
             "\nIf the request parameters include a 'mode' key, that is used to explicitly select between the default 'template' request or a 'proposal'.\n"
@@ -435,6 +435,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
             "           ,...\n"
             "       ]\n"
             "     }\n"
+            "2. reward_address          (string, optional) address for reward in coinbase (meaningful only if block solution is later submitter with pprpcsb)\n"
             "\n"
 
             "\nResult:\n"
@@ -668,6 +669,21 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     UpdateTime(pblock, consensusParams, pindexPrev);
     pblock->nNonce = 0;
 
+    // Update coinbase reward address
+    bool fRewardAddressSet = false;
+    if (request.params.size() >= 2) {
+        CBitcoinAddress     rewardAddress;
+
+        if (!(rewardAddress.SetString(request.params[1].get_str()) && rewardAddress.IsValid()))
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Incorrect reward address");
+
+        CMutableTransaction coinbaseTx = *pblock->vtx[0];
+        coinbaseTx.vout[0].scriptPubKey = GetScriptForDestination(rewardAddress.Get());
+        pblock->vtx[0] = MakeTransactionRef(CTransaction(coinbaseTx));
+
+        fRewardAddressSet = true;
+    }
+
     // TODO: support segwit
     // NOTE: If at some point we support pre-segwit miners post-segwit-activation, this needs to take segwit support into consideration
 //    const bool fPreSegWit = (THRESHOLD_ACTIVE != VersionBitsState(pindexPrev, consensusParams, Consensus::DEPLOYMENT_SEGWIT, versionbitscache));
@@ -852,7 +868,9 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         lastHeader = pblock->GetProgPowHeaderHash().GetHex();
         result.pushKV("pprpcheader", lastHeader);
         result.pushKV("pprpcepoch", ethash::get_epoch_number(pblock->nHeight));
-        mapPPBlockTemplates[lastHeader] = *pblock;
+        if (fRewardAddressSet)
+            // don't bother to save block unless reward address is set
+            mapPPBlockTemplates[lastHeader] = *pblock;
     }
 
     return result;
