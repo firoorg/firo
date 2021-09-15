@@ -484,6 +484,7 @@ bool CInstantSendManager::CheckCanLock(const isutil::CTransactionAdapter& tx, bo
 
     if (tx.IsLelantusJoinSplit()) {
         for (Scalar const & serial : tx.coinSerials()) {
+            LOCK(cs_main);
             if (lelantus::CLelantusState::GetState()->IsUsedCoinSerial(serial))
                 return false;
         }
@@ -1140,10 +1141,7 @@ void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 
 void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
-    // TODO remove this after DIP8 has activated
-    bool fDIP0008Active = chainActive.Height() >= Params().GetConsensus().DIP0008Height;
-
-    isNewInstantSendEnabled = CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureInstantSend, pindexNew);
+    bool fDIP0008Active = pindexNew->pprev && pindexNew->pprev->nHeight >= Params().GetConsensus().DIP0008Height;
 
     if (fDIP0008Active && IsChainlocksEnabled()) {
         // Nothing to do here. We should keep all islocks and let chainlocks handle them.
@@ -1499,6 +1497,7 @@ CInstantSendLockPtr CInstantSendManager::GetConflictingLock(isutil::CTransaction
 
 size_t CInstantSendManager::GetInstantSendLockCount()
 {
+    LOCK(cs);
     return db.GetInstantSendLockCount();
 }
 

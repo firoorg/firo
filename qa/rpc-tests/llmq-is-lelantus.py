@@ -10,6 +10,8 @@ from test_framework.util import sync_blocks, set_node_times, \
 from test_framework.util import assert_equal, assert_raises_jsonrpc, \
     bitcoind_processes, start_nodes, start_node, connect_nodes_bi
 
+from decimal import Decimal
+
 '''
 llmq-is-lelantus.py
 
@@ -27,20 +29,21 @@ class LLMQ_IS_Lelantus(EvoZnodeTestFramework):
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
 
         self.nodes[0].generate(1000 - self.nodes[0].getblockcount())
-        self.nodes[0].mintlelantus(1)
-        mintTxids = self.nodes[0].mintlelantus(1)
+        for i in range(0, 3):
+            mintTxids = self.nodes[0].mintlelantus(1)
 
         for mintTxid in mintTxids:
             mintTx = self.nodes[0].getrawtransaction(mintTxid, 1)
-            val = 0.0
+            val = 0
             for vi in mintTx['vin']:
-                val += float(vi['value'])
-            if val > 0.001:
+                val += vi['valueSat']
+            if val > 10000:
                 break;
+        val = Decimal((val - 10000) / 1e+8).quantize(Decimal('1e-7'))
         
         assert(self.wait_for_instantlock(mintTxid, self.nodes[0]))
 
-        mintDspend = self.nodes[0].createrawtransaction(mintTx['vin'], {self.nodes[0].getnewaddress(): val - 0.001})
+        mintDspend = self.nodes[0].createrawtransaction(mintTx['vin'], {self.nodes[0].getnewaddress(): str(val)})
         assert_raises_jsonrpc(-26, 'tx-txlock-conflict', self.nodes[1].sendrawtransaction, mintDspend)
 
         self.nodes[0].generate(3)
