@@ -377,7 +377,7 @@ void CInstantSendManager::InterruptWorkerThread()
     workInterrupt();
 }
 
-bool CInstantSendManager::ProcessTx(const isutil::CTransactionAdapter& tx, bool allowReSigning, const Consensus::Params& params)
+bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool allowReSigning, const Consensus::Params& params)
 {
     if (!IsNewInstantSendEnabled()) {
         return true;
@@ -423,10 +423,10 @@ bool CInstantSendManager::ProcessTx(const isutil::CTransactionAdapter& tx, bool 
     }
 
     std::vector<uint256> ids;
-    ids.reserve(tx.Vin().size());
+    ids.reserve(tx.vin.size());
 
     size_t alreadyVotedCount = 0;
-    for (const auto& in : tx.Vin()) {
+    for (const auto& in : tx.vin) {
         auto id = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in.prevout));
         ids.emplace_back(id);
 
@@ -454,10 +454,10 @@ bool CInstantSendManager::ProcessTx(const isutil::CTransactionAdapter& tx, bool 
     }
 
     LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: trying to vote on %d inputs\n", __func__,
-             tx.GetHash().ToString(), tx.Vin().size());
+             tx.GetHash().ToString(), tx.vin.size());
 
-    for (size_t i = 0; i < tx.Vin().size(); i++) {
-        auto& in = tx.Vin()[i];
+    for (size_t i = 0; i < tx.vin.size(); i++) {
+        auto& in = tx.vin[i];
         auto& id = ids[i];
         inputRequestIds.emplace(id);
         LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: trying to vote on input %s with id %s. allowReSigning=%d\n", __func__,
@@ -475,9 +475,9 @@ bool CInstantSendManager::ProcessTx(const isutil::CTransactionAdapter& tx, bool 
     return true;
 }
 
-bool CInstantSendManager::CheckCanLock(const isutil::CTransactionAdapter& tx, bool printDebug, const Consensus::Params& params)
+bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, const Consensus::Params& params)
 {
-    if (tx.Vin().empty()) {
+    if (tx.vin.empty()) {
         // can't lock TXs without inputs (e.g. quorum commitments)
         return false;
     }
@@ -492,7 +492,7 @@ bool CInstantSendManager::CheckCanLock(const isutil::CTransactionAdapter& tx, bo
     }
 
     CAmount nValueIn = 0;
-    for (const auto& in : tx.Vin()) {
+    for (const auto& in : tx.vin) {
         CAmount v = 0;
         if (!CheckCanLock(in.prevout, printDebug, tx.GetHash(), &v, params)) {
             return false;
@@ -611,11 +611,11 @@ void CInstantSendManager::HandleNewInputLockRecoveredSig(const CRecoveredSig& re
     TrySignInstantSendLock(*tx);
 }
 
-void CInstantSendManager::TrySignInstantSendLock(const isutil::CTransactionAdapter& tx)
+void CInstantSendManager::TrySignInstantSendLock(const CTransaction& tx)
 {
     auto llmqType = Params().GetConsensus().llmqForInstantSend;
 
-    for (auto& in : tx.Vin()) {
+    for (auto& in : tx.vin) {
         auto id = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in.prevout));
         if (!quorumSigningManager->HasRecoveredSig(llmqType, id, tx.GetHash())) {
             return;
@@ -627,7 +627,7 @@ void CInstantSendManager::TrySignInstantSendLock(const isutil::CTransactionAdapt
 
     CInstantSendLock islock;
     islock.txid = tx.GetHash();
-    for (auto& in : tx.Vin()) {
+    for (auto& in : tx.vin) {
         islock.inputs.emplace_back(in.prevout);
     }
 
@@ -988,13 +988,13 @@ void CInstantSendManager::UpdateWalletTransaction(const uint256& txid, const CTr
     }
 }
 
-void CInstantSendManager::SyncTransaction(isutil::CTransactionAdapter tx, const CBlockIndex* pindex, int posInBlock)
+void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIndex* pindex, int posInBlock)
 {
     if (!IsNewInstantSendEnabled()) {
         return;
     }
 
-    if (tx.IsCoinBase() || tx.Vin().empty()) {
+    if (tx.IsCoinBase() || tx.vin.empty()) {
         // coinbase can't and TXs with no inputs be locked
         return;
     }
@@ -1123,12 +1123,12 @@ void CInstantSendManager::RemoveNonLockedTx(const uint256& txid, bool retryChild
              txid.ToString(), retryChildren, retryChildrenCount);
 }
 
-void CInstantSendManager::RemoveConflictedTx(const isutil::CTransactionAdapter& tx)
+void CInstantSendManager::RemoveConflictedTx(const CTransaction& tx)
 {
     AssertLockHeld(cs);
     RemoveNonLockedTx(tx.GetHash(), false);
 
-    for (const auto& in : tx.Vin()) {
+    for (const auto& in : tx.vin) {
         auto inputRequestId = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in));
         inputRequestIds.erase(inputRequestId);
     }
@@ -1470,19 +1470,19 @@ bool CInstantSendManager::IsLocked(const uint256& txHash)
     return db.GetInstantSendLockByTxid(txHash) != nullptr;
 }
 
-bool CInstantSendManager::IsConflicted(const isutil::CTransactionAdapter& tx)
+bool CInstantSendManager::IsConflicted(const CTransaction& tx)
 {
     return GetConflictingLock(tx) != nullptr;
 }
 
-CInstantSendLockPtr CInstantSendManager::GetConflictingLock(isutil::CTransactionAdapter tx)
+CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& tx)
 {
     if (!IsNewInstantSendEnabled()) {
         return nullptr;
     }
 
     LOCK(cs);
-    for (const auto& in : tx.Vin()) {
+    for (const auto& in : tx.vin) {
         auto otherIsLock = db.GetInstantSendLockByInput(in.prevout);
         if (!otherIsLock) {
             continue;
@@ -1520,38 +1520,6 @@ void CInstantSendManager::WorkThreadMain()
 bool CInstantSendManager::IsNewInstantSendEnabled() const
 {
     return isNewInstantSendEnabled;
-}
-
-namespace isutil
-{
-CTransactionAdapter::CTransactionAdapter(CTransaction const & tx)
-: CTransaction(tx), isJsplit(tx.IsLelantusJoinSplit())
-{
-    if (isJsplit) {
-        std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(tx);
-        for (Scalar const & serial : jsplit->getCoinSerialNumbers()) {
-            CTxIn newin(tx.vin[0]); // CheckLelantusJoinSplitTransaction only allows single Lelantus vin in the 0th position
-            newin.prevout.hash = primitives::GetSerialHash(serial);
-            newin.prevout.n = 0;
-            jsplitVin.push_back(newin);
-            coinserials.push_back(serial);
-        }
-    }
-}
-
-std::vector<CTxIn> const & CTransactionAdapter::Vin() const
-{
-    if (isJsplit) {
-        return jsplitVin;
-    }
-    return vin;
-}
-
-std::vector<secp_primitives::Scalar> const & CTransactionAdapter::coinSerials() const
-{
-    return coinserials;
-}
-
 }
 
 }
