@@ -58,7 +58,6 @@ public:
     virtual bool NotifyConnections();
     virtual bool NotifyStatus();
     virtual bool NotifyAPIStatus();
-    virtual bool NotifyWalletSegment(const std::string &segment);
     virtual bool NotifyMasternodeList();
     virtual bool NotifyMasternodeUpdate(CDeterministicMNCPtr masternode);
     virtual bool NotifySettingsUpdate(std::string update);

@@ -7,10 +7,7 @@
 #include <script/ismine.h>
 #include <wallet/wallet.h>
 
-void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter& filter, bool getInputs=false);
-
-UniValue StateSinceBlock(UniValue& ret, std::string block);
-UniValue StateBlock(UniValue& ret, std::string blockhash);
+UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx);
 
 bool GetCoinControl(const UniValue& data, CCoinControl& cc);
 bool doesWalletHaveMnemonics();

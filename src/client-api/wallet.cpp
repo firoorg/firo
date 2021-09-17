@@ -190,413 +190,146 @@ void APIWalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
     entry.push_back(Pair("txid", hash));
 }
 
-void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter& filter, bool getInputs)
+std::string ScriptType(const CScript &script) {
+    if (script.IsPayToPublicKey()) return "pay-to-public-key";
+    else if (script.IsPayToPublicKeyHash()) return "pay-to-public-key-hash";
+    else if (script.IsPayToScriptHash()) return "pay-to-script-hash";
+    else if (script.IsPayToWitnessScriptHash()) return "pay-to-witness-script-hash";
+    else if (script.IsZerocoinMint()) return "zerocoin-mint";
+    else if (script.IsZerocoinRemint()) return "zerocoin-remint";
+    else if (script.IsZerocoinSpend()) return "zerocoin-spend";
+    else if (script.IsSigmaSpend()) return "sigma-spend";
+    else if (script.IsSigmaMint()) return "sigma-mint";
+    else if (script.IsLelantusMint()) return "lelantus-mint";
+    else if (script.IsLelantusJMint()) return "lelantus-jmint";
+    else if (script.IsLelantusJoinSplit()) return "lelantus-joinsplit";
+    else return "unknown";
+}
+
+UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
 {
-    LOCK(cs_main);
-    CAmount nFee;
-    std::string strSentAccount;
-    std::list<COutputEntry> listReceived;
-    std::list<COutputEntry> listSent;
-    CBitcoinAddress addr;
-    std::string addrStr;
-    CWalletDB walletdb(pwalletMain->strWalletFile);
+    AssertLockHeld(cs_main);
 
-    wtx.GetAPIAmounts(listReceived, listSent, nFee, strSentAccount, filter, false);
+    bool fIsFromMe = false;
+    bool fIsMining = false;
 
-    UniValue address(UniValue::VOBJ);
-    UniValue total(UniValue::VOBJ);
-    UniValue totalCategory(UniValue::VOBJ);
-    UniValue txids(UniValue::VOBJ);
-    UniValue vouts(UniValue::VOBJ);
-    UniValue entry(UniValue::VOBJ);
+    std::string inputType = "public";
+    for (const CTxIn &txin: wtx.tx->vin) {
+        if (txin.IsZerocoinSpend() || txin.IsZerocoinRemint()) inputType = "zerocoin";
+        else if (txin.IsSigmaSpend()) inputType = "sigma";
+        else if (txin.IsLelantusJoinSplit()) inputType = "lelantus";
+    }
+    if (inputType == "public" && wtx.tx->vin.size() == 1 && wtx.tx->vin[0].prevout.IsNull()) {
+        inputType = "mined";
+        fIsMining = true;
+    }
 
-    // Sent
-    if ((!listSent.empty() || nFee != 0))
-    {
+    std::unique_ptr<lelantus::JoinSplit> joinSplit;
+    if (wtx.tx->IsLelantusJoinSplit()) joinSplit = lelantus::ParseLelantusJoinSplit(*wtx.tx);
 
-        BOOST_FOREACH(const COutputEntry& s, listSent)
-        {
-            address.setObject();
-            total.setObject();
-            totalCategory.setObject();
-            txids.setObject();
-            vouts.setObject();
-            entry.setObject();
+    int64_t fee;
+    if (fIsMining) { // mining transaction
+        fee = 0;
+    } else if (joinSplit) {
+        fee = joinSplit->getFee();
+    } else {
+        CAmount nDebit = wtx.GetDebit(ISMINE_SPENDABLE);
+        CAmount nValueOut = wtx.tx->GetValueOut();
 
-            uint256 txid = wtx.GetHash();
-            if (addr.Set(s.destination)){
-                addrStr = addr.ToString();
+        if (nDebit > 0) fIsFromMe = true;
+        fee = nDebit - nValueOut;
+    }
+
+    UniValue outputs = UniValue::VARR;
+    int n = -1;
+    for (const CTxOut &txout: wtx.tx->vout) {
+        n += 1;
+
+        bool fIsChange = !!wtx.changes.count(n);
+        bool fIsToMe = false;
+        bool fIsSpent = true;
+
+        int64_t amount = 0;
+        if (txout.scriptPubKey.IsLelantusMint()) {
+            secp_primitives::GroupElement pub;
+            bool ok = true;
+            try {
+                lelantus::ParseLelantusMintScript(txout.scriptPubKey, pub);
+            } catch (std::invalid_argument&) {
+                ok = false;
             }
 
-            std::string category;
-            std::string voutIndex = std::to_string(s.vout);
-
-            entry.push_back(Pair("isChange", wtx.IsChange(static_cast<uint32_t>(s.vout))));
-
-            // Zerocoin is deprecated, leaving here to correctly display historical transactions.
-            if(wtx.tx->vout[s.vout].scriptPubKey.IsZerocoinMint()){
-                category = "mint";
-                addrStr = "MINT";
-                entry.push_back(Pair("available", false));
-                entry.push_back(Pair("spendable", false));
-            }
-            else if(wtx.tx->vout[s.vout].scriptPubKey.IsSigmaMint()){
-                // As outputs take preference, in the case of a Sigma-to-Sigma tx (ie. spend-to-mint), the category will be listed as "mint".
-                category = "mint";
-                addrStr = "MINT";
-                if(pwalletMain->IsSigmaMintFromTxOutAvailable(wtx.tx->vout[s.vout])){
-                    entry.push_back(Pair("available", true));
-                    COutPoint outPoint(wtx.GetHash(), s.vout);
-                    IsTxOutSpendable(wtx, outPoint, entry);
-                }else{
-                    entry.push_back(Pair("available", false));
+            if (ok) {
+                uint256 hashPubcoin = primitives::GetPubCoinValueHash(pub);
+                CHDMint dMint;
+                if (db.ReadHDMint(hashPubcoin, true, dMint)) {
+                    amount = dMint.GetAmount();
+                    fIsSpent = dMint.IsUsed();
+                    fIsFromMe = true; // If we can parse a Lelantus mint, the transaction is from us.
+                    fIsToMe = true;
                 }
             }
-            else if(wtx.tx->vout[s.vout].scriptPubKey.IsLelantusMint() || wtx.tx->vout[s.vout].scriptPubKey.IsLelantusJMint()){
-                category = "mint";
-                addrStr = "MINT";
-                COutPoint outPoint(wtx.GetHash(), s.vout);
-                IsTxOutSpendable(wtx, outPoint, entry);
-                if(!pwalletMain->IsSpent(wtx.tx->GetHash(), s.vout)){
-                    entry.push_back(Pair("available", true));
-                }else{
-                    entry.push_back(Pair("available", false));
+        } else if (txout.scriptPubKey.IsLelantusJMint()) {
+            secp_primitives::GroupElement pub;
+            std::vector<unsigned char> encryptedValue;
+            bool ok = true;
+            try {
+                lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pub, encryptedValue);
+            } catch (std::invalid_argument&) {
+                ok = false;
+            }
+
+            if (ok) {
+                uint256 hashPubcoin = primitives::GetPubCoinValueHash(pub);
+                CHDMint dMint;
+                if (db.ReadHDMint(hashPubcoin, true, dMint)) {
+                    amount = dMint.GetAmount();
+                    fIsSpent = dMint.IsUsed();
+                    fIsFromMe = true; // If we can parse a Lelantus mint, the transaction is from us.
+                    fIsToMe = true;
                 }
             }
-            else if((wtx.tx->IsSigmaSpend() || wtx.tx->IsZerocoinSpend() || wtx.tx->IsLelantusJoinSplit())){
-                // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
-                category = "spendOut";                
-            }
-            else {
-                category = "send";
-            }
-
-            CAmount amount;
-            if (wtx.tx->vout[s.vout].scriptPubKey.IsLelantusJMint()) {
-                amount = pwalletMain->GetCredit(wtx.tx->vout[s.vout], ISMINE_SPENDABLE);
-
-                // 0-value Lelantus mints are sometimes made to increase privacy. Ignore these.
-                if (amount == 0) continue;
-            } else {
-                amount = s.amount;
-            }
-
-            std::string categoryIndex = category + voutIndex;
-            entry.push_back(Pair("category", category));
-            entry.push_back(Pair("address", addrStr));
-            entry.push_back(Pair("txIndex", s.vout));
-
-            entry.push_back(Pair("amount", amount));
-            entry.push_back(Pair("fee", nFee));
-            if(wtx.mapValue.count("label"))
-                entry.push_back(Pair("label", wtx.mapValue.at("label")));
-            APIWalletTxToJSON(wtx, entry);
-
-            txnouttype type;
-            std::vector<CTxDestination> _addresses;
-            int _nRequired;
-
-            ExtractDestinations(wtx.tx->vout[s.vout].scriptPubKey, type, _addresses, _nRequired);
-            entry.push_back(Pair("txType", GetTxnOutputType(type)));
-
-            if(!ret[addrStr].isNull()){
-                address = ret[addrStr];
-            }
-
-            if(!address["total"].isNull()){
-                total = address["total"];
-            }
-
-            if(!address["txids"].isNull()){
-                txids = address["txids"];
-            }
-
-            if(!txids[categoryIndex].isNull()){
-                vouts = txids[categoryIndex];
-            }
-
-            if(!total[category].isNull()){
-                totalCategory = total[category];
-            }
-
-            if(!totalCategory["sent"].isNull()){
-                UniValue totalSent = find_value(totalCategory, "sent");
-                UniValue newTotal = totalSent.get_int64() + amount;
-                totalCategory.replace("sent", newTotal);
-                total.replace(category, totalCategory);
-            }
-            else{
-                totalCategory.push_back(Pair("sent", amount));
-                total.replace(category, totalCategory);
-            }
-            vouts.replace(txid.GetHex(), entry);
-            txids.replace(categoryIndex, vouts);
-            address.replace("total", total);
-            address.replace("txids", txids);
-            ret.replace(addrStr, address);
+        } else {
+            fIsSpent = pwalletMain->IsSpent(wtx.tx->GetHash(), n);
+            amount = txout.nValue;
         }
+
+        bool hasDestination = false;
+        CTxDestination destination;
+        if (ExtractDestination(txout.scriptPubKey, destination)) {
+            hasDestination = true;
+            fIsToMe = pwalletMain->IsMine(txout);
+        }
+
+        UniValue output = UniValue::VOBJ;
+        output.pushKV("scriptType", ScriptType(txout.scriptPubKey));
+        output.pushKV("amount", amount);
+        output.pushKV("isChange", fIsChange);
+        output.pushKV("isLocked", !!pwalletMain->setLockedCoins.count(COutPoint(wtx.tx->GetHash(), n)));
+        output.pushKV("isSpent", fIsSpent);
+        output.pushKV("isToMe", fIsToMe);
+        if (hasDestination) output.pushKV("destination", CBitcoinAddress(destination).ToString());
+
+        outputs.push_back(output);
     }
 
-    //Received
-    if (listReceived.size() > 0 && wtx.GetDepthInMainChain() >= 0)
-    {
-        BOOST_FOREACH(const COutputEntry& r, listReceived)
-        {
-
-            address.setObject();
-            total.setObject();
-            totalCategory.setObject();
-            txids.setObject();
-            vouts.setObject();
-            entry.setObject();
-
-            uint256 txid = wtx.GetHash();
-            std::string category;
-            std::string voutIndex = std::to_string(r.vout);
-
-            if (addr.Set(r.destination)){
-                addrStr = addr.ToString();
-                entry.push_back(Pair("address", addr.ToString()));
-                // Also check here if the address is the next payment request address. if so, remove.
-                std::string paymentRequestAddress;
-                if(walletdb.ReadPaymentRequestAddress(paymentRequestAddress) && addrStr==paymentRequestAddress)
-                    walletdb.ErasePaymentRequestAddress();
-            }
-            if (wtx.IsCoinBase()) {
-                if (wtx.GetDepthInMainChain() >= 1) {
-                    int nHeight = mapBlockIndex[wtx.hashBlock]->nHeight;
-                    if (r.vout == 1 && nHeight >= Params().GetConsensus().nZnodePaymentsStartBlock) {
-                        category = "znode";
-                    } else {
-                        category = "mined";
-                    }
-                } else {
-                    category = "orphan";
-                }
-            } else if (wtx.tx->vout[r.vout].scriptPubKey.IsLelantusJMint() || wtx.tx->vout[r.vout].scriptPubKey.IsLelantusMint()) {
-                category = "mintIn";
-            } else if(wtx.tx->IsSigmaSpend() || wtx.tx->IsZerocoinSpend() || wtx.tx->IsLelantusTransaction()){
-                // You can't mix spend and non-spend inputs, therefore it's valid to just check if the overall transaction is a spend.
-                category = "spendIn";
-            } else {
-                category = "receive";
-            }
-
-            if (category == "mined" || category == "orphan"){
-                entry.push_back(Pair("isChange", false));
-            } else {
-                entry.push_back(Pair("isChange", wtx.IsChange(static_cast<uint32_t>(r.vout))));
-            }
-
-            txnouttype type;
-            std::vector<CTxDestination> _addresses;
-            int _nRequired;
-
-            ExtractDestinations(wtx.tx->vout[r.vout].scriptPubKey, type, _addresses, _nRequired);
-            entry.push_back(Pair("txType", GetTxnOutputType(type)));
-
-            std::string categoryIndex = category + voutIndex;
-            entry.push_back(Pair("category", category));
-            entry.push_back(Pair("txIndex", r.vout));
-
-
-            CAmount amount;
-            if (wtx.tx->vout[r.vout].scriptPubKey.IsLelantusJMint()) {
-                amount = pwalletMain->GetCredit(wtx.tx->vout[r.vout], ISMINE_SPENDABLE);
-
-                // 0-value Lelantus mints are sometimes made to increase privacy. Ignore these.
-                if (amount == 0) continue;
-            } else {
-                amount = r.amount;
-            }
-
-            entry.push_back(Pair("amount", amount));
-
-            COutPoint outPoint(txid, r.vout);
-            IsTxOutSpendable(wtx, outPoint, entry);
-
-            APIWalletTxToJSON(wtx, entry);
-
-            if(!ret[addrStr].isNull()){
-                address = ret[addrStr];
-            }
-
-            if(!address["total"].isNull()){
-                total = address["total"];
-            }
-
-            if(!address["txids"].isNull()){
-                txids = address["txids"];
-            }
-
-            if(!txids[categoryIndex].isNull()){
-                vouts = txids[categoryIndex];
-            }
-
-            if(!total[category].isNull()){
-                totalCategory = total[category];
-            }
-
-            if(!totalCategory["balance"].isNull()){
-                UniValue totalBalance = find_value(totalCategory, "balance");
-                UniValue newTotal = totalBalance.get_int64() + amount;
-                totalCategory.replace("balance", newTotal);
-                total.replace(category, totalCategory);
-            }
-            else{
-                totalCategory.push_back(Pair("balance", amount));
-                total.replace(category, totalCategory);
-            }
-            
-            vouts.replace(txid.GetHex(), entry);
-            txids.replace(categoryIndex, vouts);
-            address.replace("total", total);
-            address.replace("txids", txids);
-
-            ret.replace(addrStr, address);
+    UniValue txData = UniValue::VOBJ;
+    if (!wtx.hashBlock.IsNull()) {
+        txData.pushKV("blockHash", wtx.hashBlock.ToString());
+        auto block = mapBlockIndex.find(wtx.hashBlock);
+        if (block != mapBlockIndex.end()) {
+            txData.pushKV("blockTime", block->second->GetBlockTime());
+            txData.pushKV("blockHeight", block->second->nHeight);
         }
     }
+    txData.pushKV("txid", wtx.GetHash().ToString());
+    txData.pushKV("inputType", inputType);
+    txData.pushKV("isFromMe", fIsFromMe);
+    txData.pushKV("firstSeenAt", wtx.GetTxTime());
+    txData.pushKV("fee", fee);
+    txData.pushKV("outputs", outputs);
 
-    if(getInputs && wtx.GetDepthInMainChain() >= 0 &&
-      (!wtx.IsCoinBase() && !wtx.tx->IsZerocoinMint() && !wtx.tx->IsZerocoinSpend())){
-        UniValue listInputs(UniValue::VARR);
-        if (!find_value(ret, "inputs").isNull()) {
-            listInputs = find_value(ret, "inputs");
-        }
-        if (!wtx.tx->IsSigmaSpend()) {
-            BOOST_FOREACH(const CTxIn& in, wtx.tx->vin) {
-                UniValue entry(UniValue::VOBJ);
-                entry.push_back(Pair("txid", in.prevout.hash.ToString()));
-                entry.push_back(Pair("index", std::to_string(in.prevout.n)));
-                listInputs.push_back(entry);
-            }
-        }else {
-            COutPoint outpoint;
-            CMintMeta meta;
-            Scalar zcSpendSerial;
-            uint256 spentSerialHash;
-
-            BOOST_FOREACH(const CTxIn& in, wtx.tx->vin) {
-                UniValue entry(UniValue::VOBJ);
-
-                zcSpendSerial = sigma::GetSigmaSpendSerialNumber(wtx, in);
-                spentSerialHash = primitives::GetSerialHash(zcSpendSerial);
-
-                if(!pwalletMain->zwallet->GetTracker().GetMetaFromSerial(spentSerialHash, meta))
-                    continue;
-
-                if(!sigma::GetOutPoint(outpoint, meta.GetPubCoinValue()))
-                    continue;
-                entry.push_back(Pair("txid", outpoint.hash.ToString()));
-                entry.push_back(Pair("index", std::to_string(outpoint.n)));
-                listInputs.push_back(entry);
-            }
-        }
-        ret.replace("inputs", listInputs);
-    }
-
-    //update locked and unlocked coins
-    if (pendingLockCoins.size() > 0) {
-        UniValue lockedList(UniValue::VARR);
-        UniValue unlockedList(UniValue::VARR);
-        for(std::map<COutPoint, bool>::const_iterator it = pendingLockCoins.begin(); it != pendingLockCoins.end(); it++) {
-            UniValue entry(UniValue::VOBJ);
-            entry.push_back(Pair("txid", it->first.hash.ToString()));
-            entry.push_back(Pair("index", std::to_string(it->first.n)));
-            if (it->second) {
-                //locked = true
-                lockedList.push_back(entry);
-            } else {
-                //locked = false
-                unlockedList.push_back(entry);
-            }
-        }     
-
-        pendingLockCoins.clear();
-        if (lockedList.getValues().size() > 0) {
-            ret.push_back(Pair("lockedCoins", lockedList));
-        }
-        if (unlockedList.getValues().size() > 0) {
-            ret.push_back(Pair("unlockedCoins", unlockedList));
-        }
-    }
-}
-
-UniValue StateSinceBlock(UniValue& ret, std::string block){
-
-    CBlockIndex *pindex = NULL;
-    isminefilter filter = ISMINE_SPENDABLE;
-
-    uint256 blockId;
-
-    blockId.SetHex(block); //set block hash
-    BlockMap::iterator it = mapBlockIndex.find(blockId);
-    if (it != mapBlockIndex.end())
-        pindex = it->second;
-
-    int depth = pindex ? (1 + chainActive.Height() - pindex->nHeight) : -1;
-
-    LogPrintf("StateWallet: wallet segments = %u\n",       floor(pwalletMain->mapWallet.size() / WALLET_SEGMENT_SIZE) + 1);
-    UniValue segment(UniValue::VOBJ);
-    int txCount = 0;
-    for (std::map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); it++)
-    {
-        CWalletTx tx = (*it).second;
-
-        if (depth == -1 || tx.GetDepthInMainChain() <= depth)
-            ListAPITransactions(tx, segment, filter, true);
-
-        if((++txCount % WALLET_SEGMENT_SIZE)==0){
-            ret.push_back(Pair("addresses", segment));
-            GetMainSignals().WalletSegment(ret.write());
-            ret.setObject();
-            segment.setObject();
-            LogPrintf("StateWallet: segment loaded= %u\n",       txCount/WALLET_SEGMENT_SIZE);
-        }
-    }
-
-    // send last batch
-    ret.push_back(Pair("addresses", segment));
-    GetMainSignals().WalletSegment(ret.write());
-
-    LogPrintf("StateWallet: all segments loaded \n");
-
-    return true;
-}
-
-UniValue StateBlock(UniValue& ret, std::string blockhash){
-
-    CBlockIndex *pindex = NULL;
-    isminefilter filter = ISMINE_SPENDABLE;
-
-    uint256 blockId;
-
-    blockId.SetHex(blockhash); //set block hash
-    BlockMap::iterator it = mapBlockIndex.find(blockId);
-    if (it != mapBlockIndex.end())
-        pindex = it->second;
-
-    if(!pindex){
-        return false;
-    }
-
-    CBlock block;
-    if(!ReadBlockFromDisk(block, pindex, Params().GetConsensus())){
-        LogPrintf("can't read block from disk.\n");
-    }
-
-    UniValue transactions(UniValue::VOBJ);
-    BOOST_FOREACH(const CTransactionRef tx, block.vtx)
-    {
-        const CWalletTx *wtx = pwalletMain->GetWalletTx(tx->GetHash());
-        if(wtx){
-            ListAPITransactions(*(wtx), transactions, filter, true);
-        }
-    }
-
-    ret.push_back(Pair("addresses", transactions));
-
-    return ret;
+    return txData;
 }
 
 UniValue statewallet(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
@@ -606,20 +339,14 @@ UniValue statewallet(Type type, const UniValue& data, const UniValue& auth, bool
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    UniValue ret(UniValue::VOBJ);
-
-    std::string genesisBlock = chainActive[0]->GetBlockHash().ToString();
-
-    StateSinceBlock(ret, genesisBlock);
-    fHasSentInitialStateWallet = true;
-    LogPrintf("Set fHasSentInitialStateWallet to true...");
-
-    return ret;
-}
-
-UniValue walletsegment(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
-{
-    return data;
+    CWalletDB db(pwalletMain->strWalletFile);
+    UniValue transactions(UniValue::VARR);
+    for (std::map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); it++)
+    {
+        CWalletTx tx = (*it).second;
+        transactions.push_back(FormatWalletTxForClientAPI(db, tx));
+    }
+    return transactions;
 }
 
 UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
@@ -1041,7 +768,6 @@ static const CAPICommand commands[] =
     { "wallet",             "lockWallet",                     &lockwallet,                     true,      false,           false  },
     { "wallet",             "unlockWallet",                   &unlockwallet,                   true,      false,           false  },
     { "wallet",             "stateWallet",                    &statewallet,                    true,      false,           false  },
-    { "wallet",             "walletSegment",                  &walletsegment,                  true,      false,           false  },
     { "wallet",             "setPassphrase",                  &setpassphrase,                  true,      false,           false  },
     { "wallet",             "balance",                        &balance,                        true,      false,           false  },
     { "wallet",             "lockCoins",                      &lockcoins,                      true,      false,           false  },

@@ -211,6 +211,16 @@ unsigned int CScript::GetSigOpCount(const CScript& scriptSig) const
     return subscript.GetSigOpCount(true);
 }
 
+bool CScript::IsPayToPublicKey() const {
+    if (size() != 35) return false;
+
+    opcodetype opcode;
+    const_iterator pc = begin();
+    GetOp(pc, opcode);
+    GetOp(pc, opcode);
+    return opcode == OP_CHECKSIG;
+}
+
 bool CScript::IsNormalPaymentScript() const
 {
     if(this->size() != 25) return false;

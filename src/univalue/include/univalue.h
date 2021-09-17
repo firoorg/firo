@@ -124,6 +124,10 @@ public:
         UniValue tmpVal(val_);
         return pushKV(key, tmpVal);
     }
+    bool pushKV(const std::string& key, bool val_) {
+        UniValue tmpVal(val_);
+        return pushKV(key, tmpVal);
+    }
     bool pushKVs(const UniValue& obj);
 
     std::string write(unsigned int prettyIndent = 0,

@@ -69,7 +69,6 @@ protected:
     virtual void NotifyMasternodeList() {}
     virtual void UpdatedBalance() {}
     virtual void NewPoWValidBlock(const CBlockIndex *pindex, const std::shared_ptr<const CBlock>& block) {};
-    virtual void WalletSegment(const std::string &) {}
     friend void ::RegisterValidationInterface(CValidationInterface*);
     friend void ::UnregisterValidationInterface(CValidationInterface*);
     friend void ::UnregisterAllValidationInterfaces();
@@ -144,8 +143,6 @@ struct CMainSignals {
      * Notifies listeners that a block which builds directly on our current tip
      * has been received and connected to the headers tree, though not validated yet */
     boost::signals2::signal<void (const CBlockIndex *, const std::shared_ptr<const CBlock>&)> NewPoWValidBlock;
-    /** Notifies listeners of wallet segment (stateWallet) */
-    boost::signals2::signal<void (const std::string &)> WalletSegment;
 };
 
 CMainSignals& GetMainSignals();

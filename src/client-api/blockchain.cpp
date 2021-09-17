@@ -82,31 +82,45 @@ UniValue transaction(Type type, const UniValue& data, const UniValue& auth, bool
     if (!DecodeHexTx(transaction, find_value(data, "txRaw").get_str()))
         throw JSONAPIError(API_DESERIALIZATION_ERROR, "Error parsing or validating structure in raw format");
 
-    const CWalletTx * wtx = pwalletMain->GetWalletTx(transaction.GetHash());
+    const CWalletTx *wtx = pwalletMain->GetWalletTx(transaction.GetHash());
     if(wtx==NULL)
         throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
-    
-    ListAPITransactions(*wtx, ret, ISMINE_ALL, true);
 
-    return ret;
+    CWalletDB db(pwalletMain->strWalletFile);
+    return FormatWalletTxForClientAPI(db, *wtx);
 }
 
 
 UniValue block(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
-
     LOCK2(cs_main, pwalletMain->cs_wallet);
-    UniValue getblockObj(UniValue::VOBJ);
-    std::string blockhash;
 
-    try{
+    std::string blockhash;
+    try {
         blockhash = find_value(data, "hashBlock").get_str();
-    }catch (const std::exception& e){
+    } catch (const std::exception& e) {
         throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
     }
 
-    StateBlock(getblockObj, blockhash);
+    uint256 blockId;
+    blockId.SetHex(blockhash); //set block hash
 
-    return getblockObj;
+    CBlockIndex *pindex;
+    BlockMap::iterator it = mapBlockIndex.find(blockId);
+    if (it != mapBlockIndex.end()) pindex = it->second;
+    else return false;
+
+    CBlock block;
+    if(!ReadBlockFromDisk(block, pindex, Params().GetConsensus())){
+        LogPrintf("can't read block from disk.\n");
+    }
+
+    CWalletDB db(pwalletMain->strWalletFile);
+    UniValue transactions = UniValue::VARR;
+    for (const CTransactionRef tx:block.vtx) {
+        const CWalletTx *wtx = pwalletMain->GetWalletTx(tx->GetHash());
+        if (wtx) transactions.push_back(FormatWalletTxForClientAPI(db, *wtx));
+    }
+    return transactions;
 }
 
 UniValue rebroadcast(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
