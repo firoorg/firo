@@ -40,11 +40,11 @@ class LLMQ_IS_Lelantus(EvoZnodeTestFramework):
             if val > 10000:
                 break;
         val = Decimal((val - 10000) / 1e+8).quantize(Decimal('1e-7'))
-        
+
         assert(self.wait_for_instantlock(mintTxid, self.nodes[0]))
 
         mintDspend = self.nodes[0].createrawtransaction(mintTx['vin'], {self.nodes[0].getnewaddress(): str(val)})
-        assert_raises_jsonrpc(-26, 'tx-txlock-conflict', self.nodes[1].sendrawtransaction, mintDspend)
+        assert_raises_jsonrpc(-26, 'tx-txlock-conflict', self.nodes[0].sendrawtransaction, mintDspend)
 
         self.nodes[0].generate(3)
         assert (self.nodes[0].getrawtransaction(mintTxid, True)['confirmations'] > 0)

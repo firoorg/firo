@@ -21,6 +21,7 @@
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/thread.hpp>
+#include <limits>
 
 namespace llmq
 {
@@ -37,6 +38,13 @@ uint256 CInstantSendLock::GetRequestId() const
     hw << inputs;
     return hw.GetHash();
 }
+
+namespace isutils
+{
+static int16_t const INSTANTSEND_ADAPTED_TX = std::numeric_limits<int16_t>::min();
+CTransaction AdaptJsplitTx(CTransaction const & tx);
+}
+
 
 ////////////////
 
@@ -482,8 +490,10 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
         return false;
     }
 
-    if (tx.IsLelantusJoinSplit()) {
-        for (Scalar const & serial : tx.coinSerials()) {
+    if (tx.nType == isutils::INSTANTSEND_ADAPTED_TX ) {
+        for (CTxIn const & in : tx.vin) {
+            Scalar serial;
+            serial.deserialize(&in.scriptSig.front());
             LOCK(cs_main);
             if (lelantus::CLelantusState::GetState()->IsUsedCoinSerial(serial))
                 return false;
@@ -595,6 +605,10 @@ void CInstantSendManager::HandleNewInputLockRecoveredSig(const CRecoveredSig& re
     uint256 hashBlock;
     if (!GetTransaction(txid, tx, Params().GetConsensus(), hashBlock, true)) {
         return;
+    }
+
+    if(tx && tx->IsLelantusJoinSplit()) {
+        tx = MakeTransactionRef(isutils::AdaptJsplitTx(*tx));
     }
 
     if (LogAcceptCategory("instantsend")) {
@@ -988,16 +1002,18 @@ void CInstantSendManager::UpdateWalletTransaction(const uint256& txid, const CTr
     }
 }
 
-void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIndex* pindex, int posInBlock)
+void CInstantSendManager::SyncTransaction(const CTransaction& tx_, const CBlockIndex* pindex, int posInBlock)
 {
     if (!IsNewInstantSendEnabled()) {
         return;
     }
 
-    if (tx.IsCoinBase() || tx.vin.empty()) {
+    if (tx_.IsCoinBase() || tx_.vin.empty()) {
         // coinbase can't and TXs with no inputs be locked
         return;
     }
+
+    CTransaction const & tx{tx_.IsLelantusJoinSplit() ? isutils::AdaptJsplitTx(tx_) : tx_};
 
     bool inMempool = mempool.get(tx.GetHash()) != nullptr;
     bool isDisconnect = pindex && posInBlock == CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK;
@@ -1475,11 +1491,13 @@ bool CInstantSendManager::IsConflicted(const CTransaction& tx)
     return GetConflictingLock(tx) != nullptr;
 }
 
-CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& tx)
+CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& tx_)
 {
     if (!IsNewInstantSendEnabled()) {
         return nullptr;
     }
+
+    CTransaction const & tx{tx_.IsLelantusJoinSplit() ? isutils::AdaptJsplitTx(tx_) : tx_};
 
     LOCK(cs);
     for (const auto& in : tx.vin) {
@@ -1520,6 +1538,29 @@ void CInstantSendManager::WorkThreadMain()
 bool CInstantSendManager::IsNewInstantSendEnabled() const
 {
     return isNewInstantSendEnabled;
+}
+
+namespace isutils
+{
+CTransaction AdaptJsplitTx(CTransaction const & tx)
+{
+    static size_t const jsplitSerialSize = 32;
+
+    CTransaction result{tx};
+    std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(tx);
+    const_cast<std::vector<CTxIn>*>(&result.vin)->clear();                      //This const_cast was done intentionally as the current design allows for this way only
+    for (Scalar const & serial : jsplit->getCoinSerialNumbers()) {
+        CTxIn newin;
+        newin.scriptSig.resize(jsplitSerialSize);
+        serial.serialize(&newin.scriptSig.front());
+        newin.prevout.hash = primitives::GetSerialHash(serial);
+        newin.prevout.n = 0;
+        const_cast<std::vector<CTxIn>*>(&result.vin)->push_back(newin);
+    }
+    *const_cast<int16_t*>(&result.nType) = INSTANTSEND_ADAPTED_TX;
+    assert(result.GetHash() == tx.GetHash());
+    return result;
+}
 }
 
 }
