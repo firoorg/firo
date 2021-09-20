@@ -30,7 +30,6 @@ public:
 
     bool membership_checks(const SigmaPlusProof<Exponent, GroupElement>& proof) const;
     bool compute_fs(const SigmaPlusProof<Exponent, GroupElement>& proof, const Exponent& x, std::vector<Exponent>& f_) const;
-    bool abcd_checks(const SigmaPlusProof<Exponent, GroupElement>& proof, const Exponent& x, const std::vector<Exponent>& f_) const;
 
     void compute_fis(int j, const std::vector<Exponent>& f, std::vector<Exponent>& f_i_) const;
     void compute_fis(const Exponent& f_i, int j, const std::vector<Exponent>& f, typename std::vector<Exponent>::iterator& ptr, typename std::vector<Exponent>::iterator end_ptr) const;
