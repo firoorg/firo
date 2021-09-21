@@ -149,7 +149,7 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
         if (pblock->IsProgPow()) {
             while (nMaxTries > 0 && pblock->nNonce64 < nInnerLoopCount) {
                 uint256 mix_hash;
-                auto final_hash{progpow_hash_full(*pblock, mix_hash)};
+                auto final_hash{progpow_hash_full(pblock->GetProgPowHeader(), mix_hash)};
                 if (CheckProofOfWork(final_hash, pblock->nBits, Params().GetConsensus()))
                 {
                     pblock->mix_hash = mix_hash;
