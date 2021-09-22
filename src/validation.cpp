@@ -1524,7 +1524,7 @@ bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus
 
     LOCK(cs_main);
 
-    CTransactionRef ptx = mempool.get(hash);
+    CTransactionRef ptx = txpools.get(hash);
     if (ptx)
     {
         txOut = ptx;
