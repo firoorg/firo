@@ -565,7 +565,7 @@ public:
         consensus.llmqForInstantSend = Consensus::LLMQ_10_70;
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 6;
-        consensus.nInstantSendBlockFilteringStartHeight = 40000;
+        consensus.nInstantSendBlockFilteringStartHeight = 48136;
 
         consensus.nMTPSwitchTime = 1539172800;
         consensus.nMTPStartBlock = 1;
