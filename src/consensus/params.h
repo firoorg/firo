@@ -300,6 +300,11 @@ struct Params {
     /** block number to reduce distance between blocks */
     int nMTPFiveMinutesStartBlock;
 
+    /** switch to ProgPoW (PP) time */
+    uint32_t nPPSwitchTime;
+    /** initial difficulty for ProgPOW */
+    int nInitialPPDifficulty;
+
     /** don't adjust difficulty until some block number */
     int nDifficultyAdjustStartBlock;
     /** fixed diffuculty to use before adjustment takes place */
@@ -350,7 +355,7 @@ struct Params {
     int64_t DifficultyAdjustmentInterval(bool fMTP = false) const { return nPowTargetTimespan / (fMTP ? nPowTargetSpacingMTP : nPowTargetSpacing); }
     uint256 nMinimumChainWork;
     uint256 defaultAssumeValid;
-
+    
     bool IsMain() const { return chainType == chainMain; }
     bool IsTestnet() const { return chainType == chainTestnet; }
     bool IsRegtest() const { return chainType == chainRegtest; }

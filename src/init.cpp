@@ -16,6 +16,7 @@
 #include "checkpoints.h"
 #include "compat/sanity.h"
 #include "consensus/validation.h"
+#include "crypto/progpow.h"
 #include "httpserver.h"
 #include "httprpc.h"
 #include "key.h"
@@ -1685,6 +1686,16 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     if (IsArgSet("-maxuploadtarget")) {
         nMaxOutboundLimit = GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024;
+    }
+
+    // ********************************************************* Prepare ProgPow test in regtest mode
+
+    if (Params().GetConsensus().IsRegtest()) {
+        Consensus::Params &mutableParams = const_cast<Consensus::Params &>(Params().GetConsensus());
+        if (IsArgSet("-ppswitchtime"))
+            mutableParams.nPPSwitchTime = GetArg("-ppswitchtime", INT_MAX);
+        else if (IsArgSet("-ppswitchtimefromnow"))
+            mutableParams.nPPSwitchTime = GetArg("-ppswitchtimefromnow", 0) + (uint32_t)GetTime();
     }
 
     // ********************************************************* Step 7a: check lite mode

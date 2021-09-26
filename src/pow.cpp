@@ -20,6 +20,7 @@
 #include "fixed.h"
 
 static CBigNum bnProofOfWorkLimit(~arith_uint256(0) >> 8);
+static CBigNum bnProofOfWorkProgPowLimit(~arith_uint256(0) >> 28);
 
 double GetDifficultyHelper(unsigned int nBits) {
     int nShift = (nBits >> 24) & 0xff;
@@ -69,7 +70,13 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     int nFirstMTPBlock = MTPState::GetMTPState()->GetFirstMTPBlockNumber(params, pindexLast);
     bool fMTP = nFirstMTPBlock > 0;
 
-    if (pblock->IsMTP() && !fMTP) {
+    if (pblock->IsProgPow()) {
+        if (pindexLast->nTime < params.nPPSwitchTime) {
+            // first ProgPOW block ever
+            return params.nInitialPPDifficulty;
+        }
+    }
+    else if (pblock->IsMTP() && !fMTP) {
         // first MTP block ever
         return params.nInitialMTPDifficulty;
     }
@@ -84,7 +91,25 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     uint32_t PastBlocksMax = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
     uint32_t StartingPoWBlock = 0;
 
-    if (nFirstMTPBlock > 1) {
+    if (pblock->IsProgPow()) {
+        if (pblock->nTime < params.nPPSwitchTime + BlocksTargetSpacing*PastBlocksMax*3) {
+            // transition to progpow happened recently, look for the first PP block
+            const CBlockIndex *pindex = pindexLast;
+            while (pindex && pindex->nTime >= params.nPPSwitchTime)
+                pindex = pindex->pprev;
+
+            if (pindex) {
+                uint32_t numberOfPPBlocks = pindexLast->nHeight - pindex->nHeight;
+                if (numberOfPPBlocks < params.DifficultyAdjustmentInterval(true)/2)
+                    // do not retarget if too few PP blocks
+                    return params.nInitialPPDifficulty;
+                    
+                PastBlocksMin = std::min(PastBlocksMin, numberOfPPBlocks);
+                PastBlocksMax = std::min(PastBlocksMax, numberOfPPBlocks);
+            }
+        }
+    }
+    else if (nFirstMTPBlock > 1) {
         // There are both legacy and MTP blocks in the chain. Limit PoW calculation scope to MTP blocks only
         uint32_t numberOfMTPBlocks = pindexLast->nHeight - nFirstMTPBlock + 1;
         PastBlocksMin = std::min(PastBlocksMin, numberOfMTPBlocks);
@@ -127,7 +152,7 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
 
 // Firo - MTP
 bool CheckMerkleTreeProof(const CBlockHeader &block, const Consensus::Params &params) {
-    if (!block.IsMTP())
+    if (!block.IsMTP() || block.IsProgPow())
 	    return true;
 
     if (!block.mtpHashData)
@@ -154,7 +179,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(params.powLimit))
         return false;
 
-    // Check proof of work matches claimed amount
+    // Check proof of work matches boundary
     if (UintToArith256(hash) > bnTarget)
         return false;
     return true;
