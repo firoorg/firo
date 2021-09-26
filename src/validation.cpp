@@ -3870,7 +3870,7 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
         // Do batch verification if we reach 1 day old block,
         BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
         batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindexNewTip->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
-        BatchProofContainer::get_instance()->verify();
+        batchProofContainer->verify();
 
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
