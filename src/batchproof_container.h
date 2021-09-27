@@ -49,6 +49,8 @@ public:
 
     void finalize();
 
+    void verify();
+
     void add(sigma::CoinSpend* spend,
              bool fPadding,
              int group_id,
