@@ -807,7 +807,6 @@ public:
         consensus.nInstantSendKeepLock = 6;
         consensus.nInstantSendBlockFilteringStartHeight = 1000;
 
-
         consensus.nMTPSwitchTime = 0;
         consensus.nMTPStartBlock = 1;
         consensus.nMTPFiveMinutesStartBlock = 0;
