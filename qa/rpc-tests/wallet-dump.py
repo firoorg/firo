@@ -131,7 +131,7 @@ class WalletDumpTest(BitcoinTestFramework):
             read_dump(tmpdir + "/node0/wallet.encrypted.dump", addrs, hd_master_addr_unenc)
         assert_equal(found_addr, test_addr_count)
         
-        assert_equal(found_addr_chg, 50) # 50 block were mined
+        assert_equal(found_addr_chg, 141) # 50 block were mined, and old reserved keys are marked change now
         # Wallet encryption doesn't change master key anymore, therefore we just verify hdmint_key_count is the same as before.
         assert_equal(found_addr_sigma, hdmint_key_count) # hdmint keys
         assert_equal(found_addr_rsv, 90 + 1)  # keypool size (TODO: fix off-by-one)
