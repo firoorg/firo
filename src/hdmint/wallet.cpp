@@ -248,15 +248,12 @@ void CHDMintWallet::SetWalletTransactionBlock(CWalletTx &wtx, const CBlockIndex 
 void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints)
 {
     CWalletDB walletdb(strWalletFile);
-    bool foundSigma = true;
-    bool foundLela = true;
-
+    bool found = true;
 
     std::set<uint256> setAddedTx;
     std::set<uint256> setChecked;
-    while (foundSigma || foundLela) {
-        foundSigma = false;
-        foundLela = false;
+    while (found) {
+        found = false;
         if (fGenerateMintPool)
             GenerateMintPool(walletdb);
         LogPrintf("%s: Mintpool size=%d\n", __func__, mintPool.size());
@@ -277,80 +274,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             int32_t& mintCount = std::get<2>(pMint.second);
 
             // halt processing if mint already in tracker
-            COutPoint outPoint;
-            if (!tracker.HasSigmaPubcoinHash(pMint.first, walletdb) && sigma::GetOutPoint(outPoint, pMint.first)) {
-                const uint256& txHash = outPoint.hash;
-                //this mint has already occurred on the chain, increment counter's state to reflect this
-                LogPrintf("%s : Found wallet coin mint=%s count=%d tx=%s\n", __func__, pMint.first.GetHex(), mintCount, txHash.GetHex());
-                foundSigma = true;
-
-                uint256 hashBlock;
-                CTransactionRef tx;
-                if (!GetTransaction(txHash, tx, Params().GetConsensus(), hashBlock, true)) {
-                    LogPrintf("%s : failed to get transaction for mint %s!\n", __func__, pMint.first.GetHex());
-                    foundSigma = false;
-                    continue;
-                }
-
-                //Find the denomination
-                boost::optional<sigma::CoinDenomination> denomination = boost::none;
-                bool fFoundMint = false;
-                GroupElement bnValue;
-                for (const CTxOut& out : tx->vout) {
-                    if (!out.scriptPubKey.IsSigmaMint())
-                        continue;
-
-                    sigma::PublicCoin pubcoin;
-                    CValidationState state;
-                    if (!TxOutToPublicCoin(out, pubcoin, state)) {
-                        LogPrintf("%s : failed to get mint from txout for %s!\n", __func__, pMint.first.GetHex());
-                        continue;
-                    }
-
-                    // See if this is the mint that we are looking for
-                    uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin.getValue());
-                    if (pMint.first == hashPubcoin) {
-                        denomination = pubcoin.getDenomination();
-                        bnValue = pubcoin.getValue();
-                        fFoundMint = true;
-                        break;
-                    }
-                }
-
-                if (!fFoundMint || denomination == boost::none) {
-                    LogPrintf("%s : failed to get mint %s from tx %s!\n", __func__, pMint.first.GetHex(), tx->GetHash().GetHex());
-                    foundSigma = false;
-                    break;
-                }
-
-                CBlockIndex* pindex = nullptr;
-                if (mapBlockIndex.count(hashBlock))
-                    pindex = mapBlockIndex.at(hashBlock);
-
-                if (!setAddedTx.count(txHash)) {
-                    CBlock block;
-                    CWalletTx wtx(pwalletMain, tx);
-                    if (pindex && ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
-                        SetWalletTransactionBlock(wtx, pindex, block);
-
-                    //Fill out wtx so that a transaction record can be created
-                    wtx.nTimeReceived = pindex->GetBlockTime();
-                    pwalletMain->AddToWallet(wtx, false);
-                    setAddedTx.insert(txHash);
-                }
-
-                if(!SetMintSeedSeen(walletdb, pMint, pindex->nHeight, txHash, denomination.get()))
-                    continue;
-
-                // Only update if the current hashSeedMaster matches the mints'
-                if(hashSeedMaster == mintHashSeedMaster && mintCount >= GetCount()){
-                    SetCount(++mintCount);
-                    UpdateCountDB(walletdb);
-                    LogPrint("zero", "%s: updated count to %d\n", __func__, nCountNextUse);
-                }
-            }
-
-            if (tracker.HasLelantusPubcoinHash(pMint.first, walletdb))
+            if (tracker.HasPubcoinHash(pMint.first, walletdb))
                 continue;
 
             uint160 seedId = std::get<1>(pMint.second);
@@ -359,17 +283,18 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             ss << seedId;
             uint256 mintTag = Hash(ss.begin(), ss.end());
 
+            COutPoint outPoint;
             if (!pwalletMain->IsLocked() && lelantus::GetOutPointFromMintTag(outPoint, mintTag)) {
                 const uint256& txHash = outPoint.hash;
                 //this mint has already occurred on the chain, increment counter's state to reflect this
                 LogPrintf("%s : Found wallet coin mint=%s count=%d tx=%s\n", __func__, pMint.first.GetHex(), mintCount, txHash.GetHex());
-                foundLela = true;
+                found = true;
 
                 uint256 hashBlock;
                 CTransactionRef tx;
                 if (!GetTransaction(txHash, tx, Params().GetConsensus(), hashBlock, true)) {
                     LogPrintf("%s : failed to get transaction for mint %s!\n", __func__, pMint.first.GetHex());
-                    foundLela = false;
+                    found = false;
                     continue;
                 }
 
@@ -404,7 +329,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
 
                 if (!fFoundMint) {
                     LogPrintf("%s : failed to get mint %s from tx %s!\n", __func__, pMint.first.GetHex(), tx->GetHash().GetHex());
-                    foundLela = false;
+                    found = false;
                     break;
                 }
 
@@ -433,10 +358,80 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                     UpdateCountDB(walletdb);
                     LogPrint("zero", "%s: updated count to %d\n", __func__, nCountNextUse);
                 }
+            } if (sigma::GetOutPoint(outPoint, pMint.first)) {
+                const uint256& txHash = outPoint.hash;
+                //this mint has already occurred on the chain, increment counter's state to reflect this
+                LogPrintf("%s : Found wallet coin mint=%s count=%d tx=%s\n", __func__, pMint.first.GetHex(), mintCount, txHash.GetHex());
+                found = true;
+
+                uint256 hashBlock;
+                CTransactionRef tx;
+                if (!GetTransaction(txHash, tx, Params().GetConsensus(), hashBlock, true)) {
+                    LogPrintf("%s : failed to get transaction for mint %s!\n", __func__, pMint.first.GetHex());
+                    found = false;
+                    continue;
+                }
+
+                //Find the denomination
+                boost::optional<sigma::CoinDenomination> denomination = boost::none;
+                bool fFoundMint = false;
+                GroupElement bnValue;
+                for (const CTxOut& out : tx->vout) {
+                    if (!out.scriptPubKey.IsSigmaMint())
+                        continue;
+
+                    sigma::PublicCoin pubcoin;
+                    CValidationState state;
+                    if (!TxOutToPublicCoin(out, pubcoin, state)) {
+                        LogPrintf("%s : failed to get mint from txout for %s!\n", __func__, pMint.first.GetHex());
+                        continue;
+                    }
+
+                    // See if this is the mint that we are looking for
+                    uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin.getValue());
+                    if (pMint.first == hashPubcoin) {
+                        denomination = pubcoin.getDenomination();
+                        bnValue = pubcoin.getValue();
+                        fFoundMint = true;
+                        break;
+                    }
+                }
+
+                if (!fFoundMint || denomination == boost::none) {
+                    LogPrintf("%s : failed to get mint %s from tx %s!\n", __func__, pMint.first.GetHex(), tx->GetHash().GetHex());
+                    found = false;
+                    break;
+                }
+
+                CBlockIndex* pindex = nullptr;
+                if (mapBlockIndex.count(hashBlock))
+                    pindex = mapBlockIndex.at(hashBlock);
+
+                if (!setAddedTx.count(txHash)) {
+                    CBlock block;
+                    CWalletTx wtx(pwalletMain, tx);
+                    if (pindex && ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
+                        SetWalletTransactionBlock(wtx, pindex, block);
+
+                    //Fill out wtx so that a transaction record can be created
+                    wtx.nTimeReceived = pindex->GetBlockTime();
+                    pwalletMain->AddToWallet(wtx, false);
+                    setAddedTx.insert(txHash);
+                }
+
+                if(!SetMintSeedSeen(walletdb, pMint, pindex->nHeight, txHash, denomination.get()))
+                    continue;
+
+                // Only update if the current hashSeedMaster matches the mints'
+                if(hashSeedMaster == mintHashSeedMaster && mintCount >= GetCount()){
+                    SetCount(++mintCount);
+                    UpdateCountDB(walletdb);
+                    LogPrint("zero", "%s: updated count to %d\n", __func__, nCountNextUse);
+                }
             }
         }
         // Clear listMints to allow it to be repopulated by the mintPool on the next iteration
-        if(foundSigma || foundLela)
+        if(found)
             listMints = boost::none;
     }
 }
