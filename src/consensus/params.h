@@ -119,6 +119,7 @@ struct LLMQParams {
 enum ChainType {
     chainMain,
     chainTestnet,
+    chainDevnet,
     chainRegtest
 };
 
@@ -358,6 +359,7 @@ struct Params {
     
     bool IsMain() const { return chainType == chainMain; }
     bool IsTestnet() const { return chainType == chainTestnet; }
+    bool IsDevnet() const { return chainType == chainDevnet; }
     bool IsRegtest() const { return chainType == chainRegtest; }
 };
 } // namespace Consensus

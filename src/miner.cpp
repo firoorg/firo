@@ -1114,8 +1114,6 @@ void static FiroMiner(const CChainParams &chainparams) {
                     if (pblock->IsProgPow()) {
                         thash = pblock->GetProgPowHashFull(mix_hash);
                     } else if (pblock->IsMTP()) {
-                        //sleep(60);
-                        LogPrintf("BEFORE: mtp_hash\n");
                         thash = mtp::hash(*pblock, Params().GetConsensus().powLimit);
                         pblock->mtpHashValue = thash;
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT) {
