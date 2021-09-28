@@ -1110,8 +1110,9 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
         txlinksMap::const_iterator linksiter = mapLinks.find(it);
         assert(linksiter != mapLinks.end());
         const TxLinks &links = linksiter->second;
+        innerUsage += memusage::DynamicUsage(links.children);
         if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit())
-            innerUsage += memusage::DynamicUsage(links.parents) + memusage::DynamicUsage(links.children);
+            innerUsage += memusage::DynamicUsage(links.parents);
         bool fDependsWait = false;
         setEntries setParentCheck;
         int64_t parentSizes = 0;
