@@ -893,12 +893,6 @@ public:
         consensus.nMaxValueLelantusMint = 1001 * COIN;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
-        for (const auto& str : lelantus::lelantus_testnet_blacklist) {
-            GroupElement coin;
-            coin.deserialize(ParseHex(str).data());
-            consensus.lelantusBlacklist.insert(coin);
-        }
-
         consensus.evoSporkKeyID = "TdxR3tfoHiQUkowcfjEGiMBfk6GXFdajUA";
         consensus.nEvoSporkStartBlock = 1;
         consensus.nEvoSporkStopBlock = 40000;
