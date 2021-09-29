@@ -76,6 +76,8 @@ private:
 
     int64_t lastCleanupTime{0};
 
+    std::atomic_bool isChainlocksEnabled{false};
+
 public:
     CChainLocksHandler(CScheduler* _scheduler);
     ~CChainLocksHandler();
@@ -101,6 +103,8 @@ public:
 
     bool IsTxSafeForMining(const uint256& txid);
 
+    bool IsChainlocksEnabled() const;
+
 private:
     // these require locks to be held already
     bool InternalHasChainLock(int nHeight, const uint256& blockHash);
@@ -115,7 +119,8 @@ private:
 
 extern CChainLocksHandler* chainLocksHandler;
 
-
 }
+
+bool IsChainlocksEnabled();
 
 #endif //DASH_QUORUMS_CHAINLOCKS_H

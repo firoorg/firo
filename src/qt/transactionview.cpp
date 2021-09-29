@@ -48,23 +48,33 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     // Build filter row
     setContentsMargins(0,0,0,0);
 
-    QHBoxLayout *hlayout = new QHBoxLayout();
-    hlayout->setContentsMargins(0,0,0,0);
+    headerLayout = new QHBoxLayout();
+    headerLayout->setContentsMargins(0,0,0,0);
 
     if (platformStyle->getUseExtraSpacing()) {
-        hlayout->setSpacing(5);
-        hlayout->addSpacing(26);
+        headerLayout->setSpacing(5);
+        headerLayout->addSpacing(26);
     } else {
-        hlayout->setSpacing(0);
-        hlayout->addSpacing(23);
+        headerLayout->setSpacing(0);
+        headerLayout->addSpacing(23);
     }
+
+    statusSpacer = new QSpacerItem(20, 1, QSizePolicy::Expanding);
+    headerLayout->addSpacerItem(statusSpacer);
 
     watchOnlyWidget = new QComboBox(this);
     watchOnlyWidget->setFixedWidth(24);
     watchOnlyWidget->addItem("", TransactionFilterProxy::WatchOnlyFilter_All);
     watchOnlyWidget->addItem(platformStyle->SingleColorIcon(":/icons/eye_plus"), "", TransactionFilterProxy::WatchOnlyFilter_Yes);
     watchOnlyWidget->addItem(platformStyle->SingleColorIcon(":/icons/eye_minus"), "", TransactionFilterProxy::WatchOnlyFilter_No);
-    hlayout->addWidget(watchOnlyWidget);
+    headerLayout->addWidget(watchOnlyWidget);
+
+    instantsendWidget = new QComboBox(this);
+    instantsendWidget->setFixedWidth(24);
+    instantsendWidget->addItem(tr("All"), TransactionFilterProxy::InstantSendFilter_All);
+    instantsendWidget->addItem(tr("Locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_Yes);
+    instantsendWidget->addItem(tr("Not locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_No);
+    headerLayout->addWidget(instantsendWidget);
 
     dateWidget = new QComboBox(this);
     if (platformStyle->getUseExtraSpacing()) {
@@ -79,7 +89,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     dateWidget->addItem(tr("Last month"), LastMonth);
     dateWidget->addItem(tr("This year"), ThisYear);
     dateWidget->addItem(tr("Range..."), Range);
-    hlayout->addWidget(dateWidget);
+    headerLayout->addWidget(dateWidget);
 
     typeWidget = new QComboBox(this);
     if (platformStyle->getUseExtraSpacing()) {
@@ -102,13 +112,13 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     typeWidget->addItem(tr("Sent to RAP address"), TransactionFilterProxy::TYPE(TransactionRecord::SendToPcode));
     typeWidget->addItem(tr("Received with RAP address"), TransactionFilterProxy::TYPE(TransactionRecord::RecvWithPcode));
 
-    hlayout->addWidget(typeWidget);
+    headerLayout->addWidget(typeWidget);
 
     addressWidget = new QLineEdit(this);
 #if QT_VERSION >= 0x040700
     addressWidget->setPlaceholderText(tr("Enter address or label to search"));
 #endif
-    hlayout->addWidget(addressWidget);
+    headerLayout->addWidget(addressWidget);
 
     amountWidget = new QLineEdit(this);
 #if QT_VERSION >= 0x040700
@@ -120,23 +130,23 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
         amountWidget->setFixedWidth(100);
     }
     amountWidget->setValidator(new QDoubleValidator(0, 1e20, 8, this));
-    hlayout->addWidget(amountWidget);
+    headerLayout->addWidget(amountWidget);
 
     QVBoxLayout *vlayout = new QVBoxLayout(this);
     vlayout->setContentsMargins(0,0,0,0);
     vlayout->setSpacing(0);
 
     QTableView *view = new QTableView(this);
-    vlayout->addLayout(hlayout);
+    vlayout->addLayout(headerLayout);
     vlayout->addWidget(createDateRangeWidget());
     vlayout->addWidget(view);
     vlayout->setSpacing(0);
     int width = view->verticalScrollBar()->sizeHint().width();
     // Cover scroll bar width with spacing
     if (platformStyle->getUseExtraSpacing()) {
-        hlayout->addSpacing(width+2);
+        headerLayout->addSpacing(width+2);
     } else {
-        hlayout->addSpacing(width);
+        headerLayout->addSpacing(width);
     }
     // Always show scroll bar
     view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
@@ -184,11 +194,13 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     connect(dateWidget, SIGNAL(activated(int)), this, SLOT(chooseDate(int)));
     connect(typeWidget, SIGNAL(activated(int)), this, SLOT(chooseType(int)));
     connect(watchOnlyWidget, SIGNAL(activated(int)), this, SLOT(chooseWatchonly(int)));
+    connect(instantsendWidget, SIGNAL(activated(int)), this, SLOT(chooseInstantSend(int)));
     connect(addressWidget, SIGNAL(textChanged(QString)), this, SLOT(changedPrefix(QString)));
     connect(amountWidget, SIGNAL(textChanged(QString)), this, SLOT(changedAmount(QString)));
 
     connect(view, SIGNAL(doubleClicked(QModelIndex)), this, SIGNAL(doubleClicked(QModelIndex)));
     connect(view, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
+    connect(view->horizontalHeader(), SIGNAL(sectionResized(int,int,int)), this, SLOT(updateHeaderSizes(int,int,int)));
 
     connect(abandonAction, SIGNAL(triggered()), this, SLOT(abandonTx()));
     connect(copyAddressAction, SIGNAL(triggered()), this, SLOT(copyAddress()));
@@ -227,6 +239,7 @@ void TransactionView::setModel(WalletModel *_model)
 
         transactionView->setColumnWidth(TransactionTableModel::Status, STATUS_COLUMN_WIDTH);
         transactionView->setColumnWidth(TransactionTableModel::Watchonly, WATCHONLY_COLUMN_WIDTH);
+        transactionView->setColumnWidth(TransactionTableModel::InstantSend, INSTANTSEND_COLUMN_WIDTH);
         transactionView->setColumnWidth(TransactionTableModel::Date, DATE_COLUMN_WIDTH);
         transactionView->setColumnWidth(TransactionTableModel::Type, TYPE_COLUMN_WIDTH);
         transactionView->setColumnWidth(TransactionTableModel::Amount, AMOUNT_MINIMUM_COLUMN_WIDTH);
@@ -324,6 +337,14 @@ void TransactionView::chooseWatchonly(int idx)
         (TransactionFilterProxy::WatchOnlyFilter)watchOnlyWidget->itemData(idx).toInt());
 }
 
+void TransactionView::chooseInstantSend(int idx)
+{
+    if(!transactionProxyModel)
+        return;
+    transactionProxyModel->setInstantSendFilter(
+        (TransactionFilterProxy::InstantSendFilter)instantsendWidget->itemData(idx).toInt());
+}
+
 void TransactionView::changedPrefix(const QString &prefix)
 {
     if(!transactionProxyModel)
@@ -402,6 +423,30 @@ void TransactionView::contextualMenu(const QPoint &point)
     {
         contextMenu->exec(QCursor::pos());
     }
+}
+
+void TransactionView::updateHeaderSizes(int logicalIndex, int oldSize, int newSize)
+{
+    static std::vector<std::pair<int, QWidget*>> const headerWidgets{
+        {TransactionTableModel::Watchonly, watchOnlyWidget},
+        {TransactionTableModel::InstantSend, instantsendWidget},
+        {TransactionTableModel::Date, dateWidget},
+        {TransactionTableModel::Type, typeWidget},
+        {TransactionTableModel::ToAddress, addressWidget},
+        {TransactionTableModel::Amount, amountWidget}
+    };
+
+    if(logicalIndex < TransactionTableModel::ToAddress)
+        return;
+
+    headerLayout->blockSignals(true);
+    statusSpacer->changeSize(transactionView->columnWidth(TransactionTableModel::Status) - 10, 1, QSizePolicy::Expanding);
+    for(std::pair<int, QWidget*> const & p : headerWidgets) {
+        int const w = transactionView->columnWidth(p.first);
+        if(p.second->width() != w)
+            p.second->setFixedWidth(w);
+    }
+    headerLayout->blockSignals(false);
 }
 
 void TransactionView::abandonTx()
