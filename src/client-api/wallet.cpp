@@ -245,7 +245,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     for (const CTxOut &txout: wtx.tx->vout) {
         n += 1;
 
-        bool fIsChange = !!wtx.changes.count(n);
+        bool fIsChange = wtx.IsChange(n);
         bool fIsToMe = false;
         bool fIsSpent = true;
 

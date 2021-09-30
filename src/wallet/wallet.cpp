@@ -2645,7 +2645,7 @@ CAmount CWallet::GetBalance(bool fExcludeLocked) const
         for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
-            if (pcoin->IsTrusted())
+            if (pcoin->IsInMainChain())
                 nTotal += pcoin->GetAvailableCredit(true, fExcludeLocked);
         }
     }
@@ -3371,8 +3371,7 @@ CAmount CWallet::GetUnconfirmedBalance() const {
         LOCK2(cs_main, cs_wallet);
         for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
             const CWalletTx *pcoin = &(*it).second;
-            if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 &&
-                (pcoin->InMempool() || pcoin->InStempool()))
+            if (pcoin->GetDepthInMainChain() == 0 && (pcoin->InMempool() || pcoin->InStempool()))
                 nTotal += pcoin->GetAvailableCredit();
         }
     }
