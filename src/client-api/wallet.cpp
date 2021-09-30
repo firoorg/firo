@@ -245,7 +245,8 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     for (const CTxOut &txout: wtx.tx->vout) {
         n += 1;
 
-        bool fIsChange = wtx.IsChange(n);
+        // IsChange incorrectly reports mining outputs as change.
+        bool fIsChange = !fIsMining && wtx.IsChange(n);
         bool fIsToMe = false;
         bool fIsSpent = true;
 
