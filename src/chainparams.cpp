@@ -270,7 +270,7 @@ public:
         consensus.llmqForInstantSend = Consensus::LLMQ_50_60;
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 24;
-        consensus.nInstantSendBlockFilteringStartHeight = 400000;
+        consensus.nInstantSendBlockFilteringStartHeight = 421150;   // Approx Nov 2 2021 06:00:00 GMT+0000
 
         consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
         consensus.nMTPStartBlock = 117564;
@@ -435,8 +435,8 @@ public:
         consensus.nLelantusV3PayloadStartBlock = 401580;
         
         // ProgPow
-        consensus.nPPSwitchTime = INT_MAX;
-        consensus.nInitialPPDifficulty = 0x1d016e81;    // 10MH/s
+        consensus.nPPSwitchTime = 1635228000;           // Tue Oct 26 2021 06:00:00 GMT+0000
+        consensus.nInitialPPDifficulty = 0x1b1774cd;    // 40GH/s
     }
     virtual bool SkipUndoForBlock(int nHeight) const
     {
