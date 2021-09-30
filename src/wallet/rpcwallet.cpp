@@ -864,8 +864,6 @@ UniValue getprivatebalance(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    EnsureLelantusWalletIsAvailable();
-
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
             "getprivatebalance\n"
@@ -879,6 +877,7 @@ UniValue getprivatebalance(const JSONRPCRequest& request)
             + HelpExampleRpc("getprivatebalance", "")
         );
 
+    EnsureLelantusWalletIsAvailable();
     LOCK2(cs_main, pwallet->cs_wallet);
 
     return  ValueFromAmount(pwallet->GetPrivateBalance().first);
@@ -891,7 +890,6 @@ UniValue gettotalbalance(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    EnsureLelantusWalletIsAvailable();
 
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
@@ -907,6 +905,7 @@ UniValue gettotalbalance(const JSONRPCRequest& request)
             + HelpExampleRpc("gettotalbalance", "")
         );
 
+    EnsureLelantusWalletIsAvailable();
     LOCK2(cs_main, pwallet->cs_wallet);
 
     return  ValueFromAmount(pwallet->GetBalance() + pwallet->GetPrivateBalance().first);
