@@ -44,31 +44,17 @@ class LLMQ_IS_Lelantus(EvoZnodeTestFramework):
 
         nnode = self.nodes[0]
 
-        while nnode.getinfo()["blocks"] <= 790:                 # Bfiltering enabled at 800
+        while nnode.getinfo()["blocks"] <= 800:                 # Bfiltering enabled at 800
             nnode.generate(1)
 
-        # Creating chained txs and checking they are mined OK
-        childTxid = create_chained_tx(nnode, self.sporkAddress)
-        nnode.generate(1)
-        assert (nnode.getrawtransaction(childTxid, True)['confirmations'] > 0)  # Should be included in the next block
+        for i in range(0, 3):
+            mintTxids = nnode.mintlelantus(1)
 
-        while nnode.getinfo()["blocks"] <= 800:
-            nnode.generate(1)
+        nnode.generate(3)
 
-        childTxid = create_chained_tx(nnode, self.sporkAddress)
+        jsplitTxid = nnode.joinsplit({self.sporkAddress: 0.1})
         nnode.generate(1)
-        childTx = nnode.getrawtransaction(childTxid, True)
-        assert ('confirmations' not in childTx or childTx['confirmations'] == 0)  # Should not be included in the next block
-        assert (childTxid in nnode.getrawmempool())
-
-        nnode.generate(1)
-        assert (nnode.getrawtransaction(childTxid, True)['confirmations'] > 0)
-
-        childTxid = create_chained_tx(nnode, self.sporkAddress)
-        set_mocktime(get_mocktime() + 10 * 60 + 1)
-        set_node_times(self.nodes, get_mocktime())
-        nnode.generate(1)
-        assert (nnode.getrawtransaction(childTxid, True)['confirmations'] > 0)
+        assert (nnode.getrawtransaction(jsplitTxid, True)['confirmations'] > 0)
 
 
 if __name__ == '__main__':
