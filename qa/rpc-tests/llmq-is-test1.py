@@ -64,5 +64,12 @@ class LLMQ_IS_Lelantus(EvoZnodeTestFramework):
         nnode.generate(1)
         assert (nnode.getrawtransaction(childTxid, True)['confirmations'] > 0)  # Should be included in the next block
 
+        childTxid = create_chained_tx(nnode, self.sporkAddress)
+        set_mocktime(get_mocktime() + 10 * 60 + 1)
+        set_node_times(self.nodes, get_mocktime())
+        nnode.generate(1)
+        assert (nnode.getrawtransaction(childTxid, True)['confirmations'] > 0)  # Should be included in the next block
+
+
 if __name__ == '__main__':
     LLMQ_IS_Lelantus().main()
