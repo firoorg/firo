@@ -639,7 +639,7 @@ class EvoZnodeTestFramework(BitcoinTestFramework):
         num_simple_nodes = self.num_nodes - self.mn_count - 1
         for i in range(0, num_simple_nodes):
             connect_nodes(self.nodes[i+1], 0)
-            wait_to_sync(self.nodes[i+1], true)
+            wait_to_sync(self.nodes[i+1], True)
 
         set_mocktime(get_mocktime() + 1)
         set_node_times(self.nodes, get_mocktime())
