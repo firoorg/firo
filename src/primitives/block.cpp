@@ -69,18 +69,30 @@ bool CBlockHeader::IsProgPow() const {
     return (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().GetConsensus().nPPSwitchTime);
 }
 
+CProgPowHeader CBlockHeader::GetProgPowHeader() const {
+    return CProgPowHeader {
+        nVersion,
+        hashPrevBlock,
+        hashMerkleRoot,
+        nTime,
+        nBits,
+        nHeight,
+        nNonce64,
+        mix_hash
+    };
+}
+
 uint256 CBlockHeader::GetProgPowHeaderHash() const 
 {
-    CProgPowHeader input(*this);
-    return SerializeHash(input);
+    return SerializeHash(GetProgPowHeader());
 }
 
 uint256 CBlockHeader::GetProgPowHashFull(uint256& mix_hash) const {
-    return progpow_hash_full(*this, mix_hash);
+    return progpow_hash_full(GetProgPowHeader(), mix_hash);
 }
 
 uint256 CBlockHeader::GetProgPowHashLight() const {
-    return progpow_hash_light(*this);
+    return progpow_hash_light(GetProgPowHeader());
 }
 
 uint256 CBlockHeader::GetPoWHash(int nHeight) const {
@@ -89,7 +101,7 @@ uint256 CBlockHeader::GetPoWHash(int nHeight) const {
 
     uint256 powHash;
     if (IsProgPow()) {
-        powHash = progpow_hash_light(*this);
+        powHash = progpow_hash_light(GetProgPowHeader());
     } else if (IsMTP()) {
         // MTP processing is the same across all the types on networks
         powHash = mtpHashValue;

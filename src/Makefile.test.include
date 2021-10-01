@@ -180,6 +180,7 @@ BITCOIN_TESTS = \
   test/evospork_tests.cpp \
   test/evo_deterministicmns_tests.cpp \
   test/evo_simplifiedmns_tests.cpp \
+  test/progpow_tests.cpp \
   test/bls_tests.cpp
 
 if ENABLE_WALLET

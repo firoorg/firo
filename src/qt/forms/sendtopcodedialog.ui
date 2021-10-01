@@ -146,6 +146,9 @@
         </item>
         <item row="6" column="3">
          <widget class="QPushButton" name="sendButton">
+          <property name="toolTip">
+           <string>Sends the connection transaction</string>
+          </property>
           <property name="text">
            <string>Connect</string>
           </property>
@@ -243,7 +246,7 @@
            <bool>true</bool>
           </property>
           <property name="toolTip">
-           <string>Show the selected payment code (does the same as double clicking an entry)</string>
+           <string>Cancel</string>
           </property>
           <property name="text">
            <string>Cancel</string>

@@ -247,6 +247,7 @@ public:
 
     bool IsProgPow() const;
 
+    CProgPowHeader GetProgPowHeader() const;
     uint256 GetProgPowHeaderHash() const;
     uint256 GetProgPowHashFull(uint256& mix_hash) const;
     uint256 GetProgPowHashLight() const;
