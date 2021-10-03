@@ -34,27 +34,37 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
     }
     else
     {
+        QString strTxStatus;
         int nDepth = wtx.GetDepthInMainChain();
         if (nDepth < 0)
-            return tr("conflicted with a transaction with %1 confirmations").arg(-nDepth);
+            strTxStatus = tr("conflicted with a transaction with %1 confirmations").arg(-nDepth);
         else if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0)
-            return tr("%1/offline").arg(nDepth);
+            strTxStatus =  tr("%1/offline").arg(nDepth);
         else if (nDepth == 0) {
             if (wtx.InMempool()) {
-                return "0/unconfirmed, in memory pool" + 
+                strTxStatus = "0/unconfirmed, in memory pool" +
                     (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
             } else if (wtx.InStempool()) {
-                return "0/unconfirmed, in dandelion stem pool"+ 
+                strTxStatus = "0/unconfirmed, in dandelion stem pool"+
                     (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
             } else {
-                return "0/unconfirmed, not in memory pool" + 
+                strTxStatus = "0/unconfirmed, not in memory pool" +
                     (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
             }
         }
         else if (nDepth < TransactionRecord::RecommendedNumConfirmations)
-            return tr("%1/unconfirmed").arg(nDepth);
+            strTxStatus = tr("%1/unconfirmed").arg(nDepth);
         else
-            return tr("%1 confirmations").arg(nDepth);
+            strTxStatus = tr("%1 confirmations").arg(nDepth);
+
+        if (wtx.IsChainLocked()) {
+            strTxStatus += " (" + tr("locked via LLMQ based ChainLocks") + ")";
+        }
+
+        if (wtx.IsLockedByLLMQInstantSend()) {
+            strTxStatus += " (" + tr("verified via LLMQ based InstantSend") + ")";
+        }
+        return strTxStatus;
     }
 }
 

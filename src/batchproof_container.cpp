@@ -30,7 +30,12 @@ void BatchProofContainer::finalize() {
         for (const auto& itr : tempLelantusSigmaProofs) {
             lelantusSigmaProofs[itr.first].insert(lelantusSigmaProofs[itr.first].begin(), itr.second.begin(), itr.second.end());
         }
-    } else {
+    }
+    fCollectProofs = false;
+}
+
+void BatchProofContainer::verify() {
+    if (!fCollectProofs) {
         batch_sigma();
         batch_lelantus();
     }
@@ -120,6 +125,8 @@ void BatchProofContainer::erase(std::vector<LelantusSigmaProofData>* vProofs, co
 }
 
 void BatchProofContainer::batch_sigma() {
+    if (!sigmaProofs.empty())
+        LogPrintf("Sigma batch verification started.\n");
     std::size_t threadsMaxCount = std::min((unsigned int)sigmaProofs.size(), std::thread::hardware_concurrency());
     std::vector<std::future<bool>> parallelTasks;
     parallelTasks.reserve(threadsMaxCount);
@@ -174,14 +181,18 @@ void BatchProofContainer::batch_sigma() {
             } catch (std::exception& except) {
                 std::runtime_error(except.what());
             }
-
         }
         parallelTasks.clear();
     }
+    if (!sigmaProofs.empty())
+        LogPrintf("Sigma batch verification finished successfully.\n");
     sigmaProofs.clear();
 }
 
 void BatchProofContainer::batch_lelantus() {
+    if (!lelantusSigmaProofs.empty())
+        LogPrintf("Lelantus batch verification started.\n");
+
     auto params = lelantus::Params::get_default();
 
     std::size_t threadsMaxCount = std::min((unsigned int)lelantusSigmaProofs.size(), std::thread::hardware_concurrency());
@@ -270,5 +281,7 @@ void BatchProofContainer::batch_lelantus() {
 
         parallelTasks.clear();
     }
+    if (!lelantusSigmaProofs.empty())
+        LogPrintf("Lelantus batch verification finished successfully.\n");
     lelantusSigmaProofs.clear();
 }

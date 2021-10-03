@@ -119,6 +119,7 @@ struct LLMQParams {
 enum ChainType {
     chainMain,
     chainTestnet,
+    chainDevnet,
     chainRegtest
 };
 
@@ -179,8 +180,7 @@ struct Params {
 
     int nInstantSendConfirmationsRequired; // in blocks
     int nInstantSendKeepLock; // in blocks
-    int nInstantSendSigsRequired;
-    int nInstantSendSigsTotal;
+    int nInstantSendBlockFilteringStartHeight;
 
 	/** Zerocoin-related block numbers when features are changed */
     int nCheckBugFixedAtBlock;
@@ -300,6 +300,11 @@ struct Params {
     /** block number to reduce distance between blocks */
     int nMTPFiveMinutesStartBlock;
 
+    /** switch to ProgPoW (PP) time */
+    uint32_t nPPSwitchTime;
+    /** initial difficulty for ProgPOW */
+    int nInitialPPDifficulty;
+
     /** don't adjust difficulty until some block number */
     int nDifficultyAdjustStartBlock;
     /** fixed diffuculty to use before adjustment takes place */
@@ -350,9 +355,10 @@ struct Params {
     int64_t DifficultyAdjustmentInterval(bool fMTP = false) const { return nPowTargetTimespan / (fMTP ? nPowTargetSpacingMTP : nPowTargetSpacing); }
     uint256 nMinimumChainWork;
     uint256 defaultAssumeValid;
-
+    
     bool IsMain() const { return chainType == chainMain; }
     bool IsTestnet() const { return chainType == chainTestnet; }
+    bool IsDevnet() const { return chainType == chainDevnet; }
     bool IsRegtest() const { return chainType == chainRegtest; }
 };
 } // namespace Consensus
