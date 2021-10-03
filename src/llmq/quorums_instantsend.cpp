@@ -21,6 +21,7 @@
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/thread.hpp>
+#include <limits>
 
 namespace llmq
 {
@@ -37,6 +38,13 @@ uint256 CInstantSendLock::GetRequestId() const
     hw << inputs;
     return hw.GetHash();
 }
+
+namespace isutils
+{
+static int16_t const INSTANTSEND_ADAPTED_TX = std::numeric_limits<int16_t>::min();
+CTransaction AdaptJsplitTx(CTransaction const & tx);
+}
+
 
 ////////////////
 
@@ -347,6 +355,12 @@ void CInstantSendManager::Start()
         assert(false);
     }
 
+    {
+        LOCK(cs_main);
+        if (chainActive.Tip())
+            isNewInstantSendEnabled = CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureInstantSend, chainActive.Tip());
+    }
+
     workThread = std::thread(&TraceThread<std::function<void()> >, "instantsend", std::function<void()>(std::bind(&CInstantSendManager::WorkThreadMain, this)));
 
     quorumSigningManager->RegisterRecoveredSigsListener(this);
@@ -476,6 +490,17 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
         return false;
     }
 
+    if (tx.nType == isutils::INSTANTSEND_ADAPTED_TX ) {
+        for (CTxIn const & in : tx.vin) {
+            Scalar serial;
+            serial.deserialize(&in.scriptSig.front());
+            LOCK(cs_main);
+            if (lelantus::CLelantusState::GetState()->IsUsedCoinSerial(serial))
+                return false;
+        }
+        return true;
+    }
+
     CAmount nValueIn = 0;
     for (const auto& in : tx.vin) {
         CAmount v = 0;
@@ -485,19 +510,6 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
 
         nValueIn += v;
     }
-
-    // TODO decide if we should limit max input values. This was ok to do in the old system, but in the new system
-    // where we want to have all TXs locked at some point, this is counterproductive (especially when ChainLocks later
-    // depend on all TXs being locked first)
-//    CAmount maxValueIn = sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE);
-//    if (nValueIn > maxValueIn * COIN) {
-//        if (printDebug) {
-//            LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: TX input value too high. nValueIn=%f, maxValueIn=%d", __func__,
-//                     tx.GetHash().ToString(), nValueIn / (double)COIN, maxValueIn);
-//        }
-//        return false;
-//    }
-
     return true;
 }
 
@@ -593,6 +605,10 @@ void CInstantSendManager::HandleNewInputLockRecoveredSig(const CRecoveredSig& re
     uint256 hashBlock;
     if (!GetTransaction(txid, tx, Params().GetConsensus(), hashBlock, true)) {
         return;
+    }
+
+    if(tx && tx->IsLelantusJoinSplit()) {
+        tx = MakeTransactionRef(isutils::AdaptJsplitTx(*tx));
     }
 
     if (LogAcceptCategory("instantsend")) {
@@ -746,9 +762,8 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
         return false;
     }
 
-    if (!IsNewInstantSendEnabled()) {
+    if (!IsNewInstantSendEnabled())
         return false;
-    }
 
     int tipHeight;
     {
@@ -987,16 +1002,18 @@ void CInstantSendManager::UpdateWalletTransaction(const uint256& txid, const CTr
     }
 }
 
-void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIndex* pindex, int posInBlock)
+void CInstantSendManager::SyncTransaction(const CTransaction& tx_, const CBlockIndex* pindex, int posInBlock)
 {
     if (!IsNewInstantSendEnabled()) {
         return;
     }
 
-    if (tx.IsCoinBase() || tx.vin.empty()) {
+    if (tx_.IsCoinBase() || tx_.vin.empty()) {
         // coinbase can't and TXs with no inputs be locked
         return;
     }
+
+    CTransaction const & tx{tx_.IsLelantusJoinSplit() ? isutils::AdaptJsplitTx(tx_) : tx_};
 
     bool inMempool = mempool.get(tx.GetHash()) != nullptr;
     bool isDisconnect = pindex && posInBlock == CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK;
@@ -1140,10 +1157,9 @@ void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 
 void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
-    // TODO remove this after DIP8 has activated
-    bool fDIP0008Active = chainActive.Height() >= Params().GetConsensus().DIP0008Height;
+    bool fDIP0008Active = pindexNew->pprev && pindexNew->pprev->nHeight >= Params().GetConsensus().DIP0008Height;
 
-    if (fDIP0008Active && IsChainlocksEnabled(pindexNew)) {
+    if (fDIP0008Active && IsChainlocksEnabled()) {
         // Nothing to do here. We should keep all islocks and let chainlocks handle them.
         return;
     }
@@ -1475,11 +1491,13 @@ bool CInstantSendManager::IsConflicted(const CTransaction& tx)
     return GetConflictingLock(tx) != nullptr;
 }
 
-CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& tx)
+CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& tx_)
 {
     if (!IsNewInstantSendEnabled()) {
         return nullptr;
     }
+
+    CTransaction const & tx{tx_.IsLelantusJoinSplit() ? isutils::AdaptJsplitTx(tx_) : tx_};
 
     LOCK(cs);
     for (const auto& in : tx.vin) {
@@ -1497,6 +1515,7 @@ CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& 
 
 size_t CInstantSendManager::GetInstantSendLockCount()
 {
+    LOCK(cs);
     return db.GetInstantSendLockCount();
 }
 
@@ -1516,4 +1535,38 @@ void CInstantSendManager::WorkThreadMain()
     }
 }
 
+bool CInstantSendManager::IsNewInstantSendEnabled() const
+{
+    return isNewInstantSendEnabled;
+}
+
+namespace isutils
+{
+CTransaction AdaptJsplitTx(CTransaction const & tx)
+{
+    static size_t const jsplitSerialSize = 32;
+
+    CTransaction result{tx};
+    std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(tx);
+    const_cast<std::vector<CTxIn>*>(&result.vin)->clear();                      //This const_cast was done intentionally as the current design allows for this way only
+    for (Scalar const & serial : jsplit->getCoinSerialNumbers()) {
+        CTxIn newin;
+        newin.scriptSig.resize(jsplitSerialSize);
+        serial.serialize(&newin.scriptSig.front());
+        newin.prevout.hash = primitives::GetSerialHash(serial);
+        newin.prevout.n = 0;
+        const_cast<std::vector<CTxIn>*>(&result.vin)->push_back(newin);
+    }
+    *const_cast<int16_t*>(&result.nType) = INSTANTSEND_ADAPTED_TX;
+    assert(result.GetHash() == tx.GetHash());
+    return result;
+}
+}
+
+}
+
+bool IsNewInstantSendEnabled()
+{
+    if (!llmq::quorumInstantSendManager) return false;
+    return llmq::quorumInstantSendManager->IsNewInstantSendEnabled();
 }

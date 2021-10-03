@@ -39,6 +39,11 @@ CChainLocksHandler::~CChainLocksHandler()
 
 void CChainLocksHandler::Start()
 {
+    {
+        LOCK(cs_main);
+        if (chainActive.Tip())
+            isChainlocksEnabled = CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureChainlocks, chainActive.Tip());
+    }
     quorumSigningManager->RegisterRecoveredSigsListener(this);
     scheduler->scheduleEvery([&]() {
         CheckActiveState();
@@ -74,11 +79,8 @@ bool CChainLocksHandler::GetChainLockByHash(const uint256& hash, llmq::CChainLoc
 
 void CChainLocksHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
-    {
-        LOCK(cs_main);
-        if(!IsChainlocksEnabled(chainActive.Tip()))
-            return;
-    }
+    if(!IsChainlocksEnabled())
+        return;
 
     if (strCommand == NetMsgType::CLSIG) {
         CChainLockSig clsig;
@@ -192,6 +194,8 @@ void CChainLocksHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
     // don't call TrySignChainTip directly but instead let the scheduler call it. This way we ensure that cs_main is
     // never locked and TrySignChainTip is not called twice in parallel. Also avoids recursive calls due to
     // EnforceBestChainLock switching chains.
+    isChainlocksEnabled = CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureChainlocks, pindexNew);
+
     LOCK(cs);
     if (tryLockChainTipScheduled) {
         return;
@@ -212,7 +216,7 @@ void CChainLocksHandler::CheckActiveState()
     {
         LOCK(cs_main);
         fDIP0008Active = chainActive.Height() >= Params().GetConsensus().DIP0008Height;
-        isChainLocksActive = IsChainlocksEnabled(chainActive.Tip());
+        isChainLocksActive = IsChainlocksEnabled();
     }
 
     LOCK(cs);
@@ -289,7 +293,7 @@ void CChainLocksHandler::TrySignChainTip()
     // considered safe when it is ixlocked or at least known since 10 minutes (from mempool or block). These checks are
     // performed for the tip (which we try to sign) and the previous 5 blocks. If a ChainLocked block is found on the
     // way down, we consider all TXs to be safe.
-    if (IsNewInstantSendEnabled() && IsBlockFilteringEnabled()) {
+    if (IsNewInstantSendEnabled()) {
         auto pindexWalk = pindex;
         while (pindexWalk) {
             if (pindex->nHeight - pindexWalk->nHeight > 5) {
@@ -441,10 +445,12 @@ CChainLocksHandler::BlockTxs::mapped_type CChainLocksHandler::GetBlockTxs(const 
 
 bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid)
 {
-    if (!IsBlockFilteringEnabled()) {
+    AssertLockHeld(cs_main);
+    if (!IsNewInstantSendEnabled()) {
         return true;
     }
-    if (!IsNewInstantSendEnabled()) {
+
+    if (chainActive.Height() < Params().GetConsensus().nInstantSendBlockFilteringStartHeight) {
         return true;
     }
 
@@ -464,6 +470,11 @@ bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid)
         return false;
     }
     return true;
+}
+
+bool CChainLocksHandler::IsChainlocksEnabled() const
+{
+    return isChainlocksEnabled;
 }
 
 // WARNING: cs_main and cs should not be held!
@@ -718,3 +729,10 @@ void CChainLocksHandler::Cleanup()
 }
 
 }
+
+bool IsChainlocksEnabled()
+{
+    if (!llmq::chainLocksHandler) return false;
+    return llmq::chainLocksHandler->IsChainlocksEnabled();
+}
+

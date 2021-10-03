@@ -151,25 +151,4 @@ public:
     ActiveSporkMap GetActiveSporks() const { return mempoolSporks; }
 };
 
-inline bool IsNewInstantSendEnabled()
-{
-    return false;
-}
-
-inline bool IsChainlocksEnabled(const CBlockIndex *pindex)
-{
-    return CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureChainlocks, pindex);
-}
-
-inline bool IsBlockFilteringEnabled()
-{
-    return false;
-}
-
-inline int GetInstantsendMaxValue()
-{
-    return 500;
-}
-
-
 #endif

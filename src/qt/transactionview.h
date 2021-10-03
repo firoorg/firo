@@ -23,6 +23,8 @@ class QMenu;
 class QModelIndex;
 class QSignalMapper;
 class QTableView;
+class QSpacerItem;
+class QHBoxLayout;
 QT_END_NAMESPACE
 
 /** Widget showing the transaction list for a wallet, including a filter row.
@@ -52,6 +54,7 @@ public:
     enum ColumnWidths {
         STATUS_COLUMN_WIDTH = 30,
         WATCHONLY_COLUMN_WIDTH = 23,
+        INSTANTSEND_COLUMN_WIDTH = 23,
         DATE_COLUMN_WIDTH = 120,
         TYPE_COLUMN_WIDTH = 113,
         AMOUNT_MINIMUM_COLUMN_WIDTH = 120,
@@ -63,9 +66,12 @@ private:
     TransactionFilterProxy *transactionProxyModel;
     QTableView *transactionView;
 
+    QHBoxLayout * headerLayout;
+    QSpacerItem *statusSpacer;
     QComboBox *dateWidget;
     QComboBox *typeWidget;
     QComboBox *watchOnlyWidget;
+    QComboBox *instantsendWidget;
     QLineEdit *addressWidget;
     QLineEdit *amountWidget;
 
@@ -90,6 +96,7 @@ private:
 
 private Q_SLOTS:
     void contextualMenu(const QPoint &);
+    void updateHeaderSizes(int logicalIndex, int oldSize, int newSize);
     void dateRangeChanged();
     void showDetails();
     void copyAddress();
@@ -115,6 +122,7 @@ public Q_SLOTS:
     void chooseDate(int idx);
     void chooseType(int idx);
     void chooseWatchonly(int idx);
+    void chooseInstantSend(int idx);
     void changedPrefix(const QString &prefix);
     void changedAmount(const QString &amount);
     void exportClicked();

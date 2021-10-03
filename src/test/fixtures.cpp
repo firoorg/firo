@@ -64,11 +64,16 @@ CBlock ZerocoinTestingSetupBase::CreateBlock(const CScript& scriptPubKey) {
     // IncrementExtraNonce creates a valid coinbase and merkleRoot
     unsigned int extraNonce = 0;
     IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
-
-    while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())){
+    
+    uint256 mix_hash;
+    while (!CheckProofOfWork(block.GetHashFull(mix_hash), block.nBits, chainparams.GetConsensus())) {
+        ++block.nNonce64;
         ++block.nNonce;
+        if(!(block.nNonce64 % 5000)) {
+            BOOST_TEST_MESSAGE(std::to_string(block.nNonce64));
+        }
     }
-
+    block.mix_hash = mix_hash;
     return block;
 }
 

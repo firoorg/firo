@@ -137,6 +137,7 @@ BITCOIN_TESTS = \
   test/mtp_malformed_tests.cpp \
   test/mtp_tests.cpp \
   test/mtp_trans_tests.cpp \
+  test/firopow_tests.cpp \
   test/multisig_tests.cpp \
   test/netbase_tests.cpp \
   test/net_tests.cpp \
@@ -179,6 +180,7 @@ BITCOIN_TESTS = \
   test/evospork_tests.cpp \
   test/evo_deterministicmns_tests.cpp \
   test/evo_simplifiedmns_tests.cpp \
+  test/progpow_tests.cpp \
   test/bls_tests.cpp
 
 if ENABLE_WALLET
