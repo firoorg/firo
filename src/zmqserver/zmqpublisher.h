@@ -73,6 +73,7 @@ class CZMQTransactionEvent : virtual public CZMQAbstractPublisher
     */
 public:
     bool NotifyTransaction(const CTransaction& transaction);
+    bool NotifyTransactionLock(const CTransaction& transaction);
 };
 
 class CZMQConnectionsEvent : virtual public CZMQAbstractPublisher

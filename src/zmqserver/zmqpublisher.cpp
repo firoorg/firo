@@ -262,6 +262,42 @@ bool CZMQTransactionEvent::NotifyTransaction(const CTransaction& transaction)
     return true;
 }
 
+bool CZMQTransactionEvent::NotifyTransactionLock(const CTransaction& transaction)
+{
+    CWalletTx wtx(pwalletMain, MakeTransactionRef(std::move(transaction)));
+    CAmount nFee;
+    std::string strSentAccount;
+    std::list<COutputEntry> listReceived;
+    std::list<COutputEntry> listSent;
+    isminefilter filter = ISMINE_ALL;
+    wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
+
+    if(topic=="balance"){
+        if (fBalancePublishingEmbargo) {
+            return true;
+        } else if (masternodeSync.IsBlockchainSynced() || chainActive.Tip()->nHeight%1000==0) {
+            Execute();
+        } else {
+            return true;
+        }
+    }
+
+    if(listReceived.size() > 0 || listSent.size() > 0){
+        UniValue requestData(UniValue::VOBJ);
+        std::string encodedTx;
+        try{
+            encodedTx = EncodeHexTx(transaction);
+        }catch(const std::exception& e){
+            throw JSONAPIError(API_DESERIALIZATION_ERROR, "Error parsing or validating structure in raw format");
+        }
+        requestData.push_back(Pair("txRaw",encodedTx));
+        request.replace("data", requestData);
+        Execute();
+    }
+
+    return true;
+}
+
 bool CZMQBlockEvent::NotifyBlock(const CBlockIndex *pindex){
     // If synced, always publish, if not, every 100 blocks (for better sync speed).
     if(masternodeSync.IsBlockchainSynced() || pindex->nHeight%100==0){

@@ -24,6 +24,10 @@ bool CZMQAbstract::NotifyTransaction(const CTransaction& /*transaction*/)
     return true;
 }
 
+bool CZMQAbstract::NotifyTransactionLock(const CTransaction& /*transaction*/) {
+    return true;
+}
+
 bool CZMQAbstract::NotifyConnections()
 {
     return true;

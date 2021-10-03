@@ -6,6 +6,7 @@
 #define ZCOIN_ZMQ_ZMQNOTIFICATIONINTERFACE_H
 
 #include "validationinterface.h"
+#include "../wallet/wallet.h"
 #include <string>
 #include <map>
 #include <boost/thread/thread.hpp>
@@ -36,6 +37,7 @@ public:
 protected:
     // CValidationInterface
     void WalletTransaction(const CTransaction& tx);
+    void NotifyTransactionLock(const CTransaction& tx);
     void NotifyTxoutLock(COutPoint txout, bool isLocked);
     void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload);
     void NumConnectionsChanged();
@@ -45,7 +47,6 @@ protected:
     void UpdatedMasternode(CDeterministicMNCPtr masternode);
     void UpdatedSettings(std::string update);
     void UpdatedBalance();
-    
 };
 
 class CZMQReplierInterface : public CZMQInterface

@@ -307,6 +307,26 @@ void CZMQPublisherInterface::WalletTransaction(const CTransaction& tx)
     }
 }
 
+void CZMQPublisherInterface::NotifyTransactionLock(const CTransaction& tx)
+{
+    if(APIIsInWarmup())
+        return;
+
+    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
+    {
+        CZMQAbstract *notifier = *i;
+        if (notifier->NotifyTransactionLock(tx))
+        {
+            i++;
+        }
+        else
+        {
+            notifier->Shutdown();
+            i = notifiers.erase(i);
+        }
+    }
+}
+
 void CZMQPublisherInterface::UpdatedMasternode(CDeterministicMNCPtr masternode)
 {
     if(APIIsInWarmup())

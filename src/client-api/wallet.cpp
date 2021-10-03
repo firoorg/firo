@@ -323,6 +323,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
             txData.pushKV("blockHeight", block->second->nHeight);
         }
     }
+    txData.pushKV("isInstantSendLocked", wtx.IsLockedByLLMQInstantSend());
     txData.pushKV("txid", wtx.GetHash().ToString());
     txData.pushKV("inputType", inputType);
     txData.pushKV("isFromMe", fIsFromMe);
