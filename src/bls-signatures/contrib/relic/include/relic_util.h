@@ -50,7 +50,9 @@
  * @param[in] B		- the second number.
  * @returns			- the smaller number.
  */
+#ifndef MIN
 #define MIN(A, B)			((A) < (B) ? (A) : (B))
+#endif
 
 /**
  * Returns the maximum between two numbers.
@@ -59,7 +61,9 @@
  * @param[in] B		- the second number.
  * @returns			- the bigger number.
  */
+#ifndef MAX
 #define MAX(A, B)			((A) > (B) ? (A) : (B))
+#endif
 
 /**
  * Splits a bit count in a digit count and an updated bit count.

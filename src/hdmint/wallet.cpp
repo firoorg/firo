@@ -27,7 +27,7 @@
  * @param strWalletFile wallet file string
  * @return CHDMintWallet object
  */
-CHDMintWallet::CHDMintWallet(const std::string& strWalletFile, bool resetCount) : tracker(strWalletFile), strWalletFile(strWalletFile)
+CHDMintWallet::CHDMintWallet(const std::string& strWalletFile, bool resetCount) : strWalletFile(strWalletFile), tracker(strWalletFile)
 {
     this->mintPool = CMintPool();
 
