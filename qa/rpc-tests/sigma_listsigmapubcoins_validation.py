@@ -26,40 +26,6 @@ expected_pubcoins_before_spend = \
      ('100', False), ('100', False),
      ]
 
-expected_pubcoins_after_denom_spend = {
-    '0.05': [('0.05', False), ('0.05', False), ('0.1', False), ('0.1', True),
-             ('0.5', False), ('0.5', False), ('1', False), ('1', False),
-             ('10', False), ('10', False), ('100', False), ('100', False), ('25', False), ('25', False)],
-
-    '0.1': [('0.05', False), ('0.05', True), ('0.1', True), ('0.1', True),
-            ('0.5', False), ('0.5', False), ('1', False), ('1', False), ('10', False),
-            ('10', False), ('100', False), ('100', False), ('25', False), ('25', False)],
-
-    '0.5': [('0.05', True), ('0.05', True), ('0.1', True), ('0.1', True), ('0.5', False),
-            ('0.5', True), ('1', False), ('1', False), ('10', False), ('10', False), ('100', False),
-            ('100', False), ('25', False), ('25', False)],
-
-    '1': [('0.05', False), ('0.05', True), ('0.05', True), ('0.1', False), ('0.1', False), ('0.1', False),
-          ('0.1', False), ('0.1', True), ('0.1', True), ('0.5', True), ('0.5', True), ('1', False), ('1', True),
-          ('10', False), ('10', False), ('100', False), ('100', False), ('25', False), ('25', False)],
-
-    '10': [('0.05', False), ('0.05', False), ('0.05', True), ('0.05', True), ('0.1', False), ('0.1', False),
-           ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False),
-           ('0.1', True), ('0.1', True), ('0.5', False), ('0.5', True), ('0.5', True), ('1', True), ('1', True),
-           ('10', False), ('10', True), ('100', False), ('100', False), ('25', False), ('25', False)],
-
-    '25': [('0.05', False), ('0.05', True), ('0.05', True), ('0.05', True), ('0.1', False), ('0.1', False),
-           ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False),
-           ('0.1', True), ('0.1', True), ('0.5', False), ('0.5', True), ('0.5', True), ('1', True), ('1', True),
-           ('10', False), ('10', True), ('100', False), ('100', False), ('25', False), ('25', True)],
-
-    '100':  [('0.05', True), ('0.05', True), ('0.05', True), ('0.05', True), ('0.1', False), ('0.1', False),
-             ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False),
-             ('0.1', True), ('0.1', True), ('0.5', False), ('0.5', True), ('0.5', True), ('1', True), ('1', True),
-             ('10', False), ('10', True), ('100', False), ('100', True), ('25', False), ('25', True)]
-}
-
-
 class ListSigmaPubCoinsValidationWithFundsTest(BitcoinTestFramework):
     def __init__(self):
         super().__init__()
@@ -95,6 +61,10 @@ class ListSigmaPubCoinsValidationWithFundsTest(BitcoinTestFramework):
             'Unexpected pubcoins list returned. Should be: {}, but was: {}.' \
                 .format(expected_pubcoins_before_spend, pubcoins)
 
+        number_of_coins_spent = 0
+        total_spent = 0.0
+        sum_of_denominations = sum(denoms.values())
+
         for denom_value in sorted(denoms.items(),key=lambda x:x[1]):
             denom_name = denom_value[0]
             denom = denom_value[1]
@@ -107,11 +77,17 @@ class ListSigmaPubCoinsValidationWithFundsTest(BitcoinTestFramework):
             pubcoins = [(pubcoin['denomination'], pubcoin['IsUsed'])
                         for pubcoin in self.nodes[0].listsigmapubcoins()]
 
-            assert sorted(pubcoins) == sorted(expected_pubcoins_after_denom_spend[denom_name]), \
-                'Unexpected pubcoins list returned after spend: {}. Should be: {}, but was: {}.' \
-                    .format(denom, sorted(expected_pubcoins_after_denom_spend[denom_name]), sorted(pubcoins))
+            number_of_coins_spent += 1
+            total_spent += denom
 
+            total_used = sum(float(c[0]) for c in pubcoins if c[1])
+            total_available = sum(float(c[0]) for c in pubcoins if not c[1])
 
+            assert total_used >= total_spent and total_used <= total_spent + number_of_coins_spent*0.05 + 1, \
+                'Amount of used coins is out of bounds'
+            assert total_available+total_spent >= sum_of_denominations*2 - number_of_coins_spent*0.05 - 1 and \
+                total_available+total_used <= sum_of_denominations*2 + 1, \
+                'Total amount of used and available coins is out of bounds'
 
         unused_pubcoins_sum = sum([Decimal(pubcoin['denomination'])
                          for pubcoin in self.nodes[0].listsigmapubcoins() if pubcoin['IsUsed'] == False])
