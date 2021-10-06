@@ -373,17 +373,17 @@ UniValue elysium_createpayload_unfreeze(const JSONRPCRequest& request)
 static const CRPCCommand commands[] =
 { //  category                         name                                      actor (function)                         okSafeMode
   //  -------------------------------- ----------------------------------------- ---------------------------------------- ----------
-    { "elysium (payload creation)", "elysium_createpayload_simplesend",          &elysium_createpayload_simplesend,          true },
-    { "elysium (payload creation)", "elysium_createpayload_sendall",             &elysium_createpayload_sendall,             true },
-    { "elysium (payload creation)", "elysium_createpayload_grant",               &elysium_createpayload_grant,               true },
-    { "elysium (payload creation)", "elysium_createpayload_revoke",              &elysium_createpayload_revoke,              true },
-    { "elysium (payload creation)", "elysium_createpayload_changeissuer",        &elysium_createpayload_changeissuer,        true },
-    { "elysium (payload creation)", "elysium_createpayload_issuancefixed",       &elysium_createpayload_issuancefixed,       true },
-    { "elysium (payload creation)", "elysium_createpayload_issuancemanaged",     &elysium_createpayload_issuancemanaged,     true },
-    { "elysium (payload creation)", "elysium_createpayload_enablefreezing",      &elysium_createpayload_enablefreezing,      true },
-    { "elysium (payload creation)", "elysium_createpayload_disablefreezing",     &elysium_createpayload_disablefreezing,     true },
-    { "elysium (payload creation)", "elysium_createpayload_freeze",              &elysium_createpayload_freeze,              true },
-    { "elysium (payload creation)", "elysium_createpayload_unfreeze",            &elysium_createpayload_unfreeze,            true },
+    { "elysium (payload creation)", "elysium_createpayload_simplesend",          &elysium_createpayload_simplesend,          true, {} },
+    { "elysium (payload creation)", "elysium_createpayload_sendall",             &elysium_createpayload_sendall,             true, {} },
+    { "elysium (payload creation)", "elysium_createpayload_grant",               &elysium_createpayload_grant,               true, {} },
+    { "elysium (payload creation)", "elysium_createpayload_revoke",              &elysium_createpayload_revoke,              true, {} },
+    { "elysium (payload creation)", "elysium_createpayload_changeissuer",        &elysium_createpayload_changeissuer,        true, {} },
+    { "elysium (payload creation)", "elysium_createpayload_issuancefixed",       &elysium_createpayload_issuancefixed,       true, {} },
+    { "elysium (payload creation)", "elysium_createpayload_issuancemanaged",     &elysium_createpayload_issuancemanaged,     true, {} },
+    { "elysium (payload creation)", "elysium_createpayload_enablefreezing",      &elysium_createpayload_enablefreezing,      true, {} },
+    { "elysium (payload creation)", "elysium_createpayload_disablefreezing",     &elysium_createpayload_disablefreezing,     true, {} },
+    { "elysium (payload creation)", "elysium_createpayload_freeze",              &elysium_createpayload_freeze,              true, {} },
+    { "elysium (payload creation)", "elysium_createpayload_unfreeze",            &elysium_createpayload_unfreeze,            true, {} },
 };
 
 void RegisterElysiumPayloadCreationRPCCommands(CRPCTable &tableRPC)

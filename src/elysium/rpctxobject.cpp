@@ -193,7 +193,6 @@ bool showRefForTx(uint32_t txType)
 void populateRPCTypeSimpleSend(CMPTransaction& elysiumObj, UniValue& txobj)
 {
     uint32_t propertyId = elysiumObj.getProperty();
-    int64_t crowdPropertyId = 0, crowdTokens = 0, issuerTokens = 0;
     LOCK(cs_main);
     
     txobj.push_back(Pair("type", "Simple Send"));

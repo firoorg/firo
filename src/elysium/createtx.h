@@ -2,7 +2,7 @@
 #define ELYSIUM_CREATETX_H
 
 class CCoinsViewCache;
-class CMutableTransaction;
+struct CMutableTransaction;
 class COutPoint;
 class CPubKey;
 class CScript;
