@@ -49,6 +49,7 @@
 #include "evo/spork.h"
 
 #include "llmq/quorums_blockprocessor.h"
+#include "llmq/quorums_chainlocks.h"
 
 #include <utility>
 
@@ -185,7 +186,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     bool fDIP0008Active_context = nHeight >= chainparams.GetConsensus().DIP0008Height;
 
     pblock->nTime = GetAdjustedTime();
-    bool fMTP = pblock->nTime >= params.nMTPSwitchTime;
+    bool fMTP = (pblock->nTime >= params.nMTPSwitchTime);
     const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
 
     pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus()) | (fMTP ? 0x1000 : 0);
@@ -293,6 +294,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
     pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
     pblock->nNonce         = 0;
+    pblock->nNonce64       = 0;
+    pblock->nHeight        = nHeight;
     pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(*pblock->vtx[0]);
 
     // Firo - MTP
@@ -355,6 +358,9 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
     BOOST_FOREACH (const CTxMemPool::txiter it, package) {
         if (!IsFinalTx(it->GetTx(), nHeight, nLockTimeCutoff))
             return false;
+        if (!llmq::chainLocksHandler->IsTxSafeForMining(it->GetTx().GetHash())) {
+                return false;
+        }
         if (!fIncludeWitness && it->GetTx().HasWitness())
             return false;
         if (fNeedSizeAccounting) {
@@ -1106,11 +1112,12 @@ void static FiroMiner(const CChainParams &chainparams) {
             while (true) {
                 // Check if something found
                 uint256 thash;
+                uint256 mix_hash;
 
                 while (true) {
-                    if (pblock->IsMTP()) {
-                        //sleep(60);
-                        LogPrintf("BEFORE: mtp_hash\n");
+                    if (pblock->IsProgPow()) {
+                        thash = pblock->GetProgPowHashFull(mix_hash);
+                    } else if (pblock->IsMTP()) {
                         thash = mtp::hash(*pblock, Params().GetConsensus().powLimit);
                         pblock->mtpHashValue = thash;
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT) {
@@ -1140,14 +1147,15 @@ void static FiroMiner(const CChainParams &chainparams) {
                     boost::this_thread::interruption_point();
 
                     //LogPrintf("*****\nhash   : %s  \ntarget : %s\n", UintToArith256(thash).ToString(), hashTarget.ToString());
-
-                    if (UintToArith256(thash) <= hashTarget) {
+                    auto powTarget = UintToArith256(thash);
+                    if (powTarget <= hashTarget) {
+                        pblock->mix_hash = mix_hash; // Store ProgPoW mix_hash
                         // Found a solution
-                        LogPrintf("Found a solution. Hash: %s", UintToArith256(thash).ToString());
+                        LogPrintf("Found a solution. Hash: %s", powTarget.ToString());
                         SetThreadPriority(THREAD_PRIORITY_NORMAL);
 //                        CheckWork(pblock, *pwallet, reservekey);
                         LogPrintf("FiroMiner:\n");
-                        LogPrintf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", UintToArith256(thash).ToString(), hashTarget.ToString());
+                        LogPrintf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", powTarget.ToString(), hashTarget.ToString());
                         ProcessBlockFound(pblock, chainparams);
                         SetThreadPriority(THREAD_PRIORITY_LOWEST);
                         coinbaseScript->KeepScript();
@@ -1157,6 +1165,7 @@ void static FiroMiner(const CChainParams &chainparams) {
                         break;
                     }
                     pblock->nNonce += 1;
+                    pblock->nNonce64 += 1;
                     if ((pblock->nNonce & 0xFF) == 0)
                         break;
                 }

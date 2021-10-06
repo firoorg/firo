@@ -7,8 +7,8 @@
 
 AutomintNotification::AutomintNotification(QWidget *parent) :
     QDialog(parent),
-    lelantusModel(nullptr),
-    ui(new Ui::AutomintNotification)
+    ui(new Ui::AutomintNotification),
+    lelantusModel(nullptr)
 {
     ui->setupUi(this);
     ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Anonymize"));
