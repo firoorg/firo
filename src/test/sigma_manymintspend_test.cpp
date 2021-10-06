@@ -125,9 +125,6 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
 
         previousHeight = chainActive.Height();
-        //Add 1 more blocks and verify that Mint can not be spent until 2 blocks verification
-        wtx.Init(NULL);
-        BOOST_CHECK_THROW(pwalletMain->SpendSigma(recipients, wtx), WalletError); //this must throw as 2 blocks have not passed yet,
 
         b = CreateAndProcessBlock(scriptPubKey);
         wtx.Init(NULL);
