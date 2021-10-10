@@ -139,14 +139,6 @@ public:
     bool NotifyMintStatusUpdate(std::string update);
 };
 
-class CZMQBalanceEvent : virtual public CZMQAbstractPublisher
-{
-    /* Data related to an updated balance
-    */
-public:
-    bool NotifyBalance();
-};
-
 /* Topics. inheriting from an event class implies publishing on that event. 
    'method' string is the API method called in client-api/ 
 */
@@ -164,16 +156,6 @@ class CZMQBlockInfoTopic : public CZMQBlockEvent,
 public:
     void SetTopic(){ topic = "block";}
     void SetMethod(){ method= "blockchain";}
-};
-
-class CZMQBalanceTopic : public CZMQBlockEvent, 
-                         public CZMQTransactionEvent,
-                         public CZMQBalanceEvent
-                         
-{
-public:
-    void SetTopic(){ topic = "balance";}
-    void SetMethod(){ method= "balance";}
 };
 
 class CZMQTransactionTopic : public CZMQTransactionEvent

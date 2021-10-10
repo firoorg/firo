@@ -67,7 +67,6 @@ protected:
     virtual void UpdatedSettings(std::string update) {};
     virtual void NotifyAPIStatus() {}
     virtual void NotifyMasternodeList() {}
-    virtual void UpdatedBalance() {}
     virtual void NewPoWValidBlock(const CBlockIndex *pindex, const std::shared_ptr<const CBlock>& block) {};
     friend void ::RegisterValidationInterface(CValidationInterface*);
     friend void ::UnregisterValidationInterface(CValidationInterface*);
@@ -137,8 +136,6 @@ struct CMainSignals {
     boost::signals2::signal<void ()> NotifyAPIStatus;
     /** Notifies listeners of Masternode list */
     boost::signals2::signal<void ()> NotifyMasternodeList;
-    /** Notifies listeners of balance */
-    boost::signals2::signal<void ()> UpdatedBalance;
     /**
      * Notifies listeners that a block which builds directly on our current tip
      * has been received and connected to the headers tree, though not validated yet */

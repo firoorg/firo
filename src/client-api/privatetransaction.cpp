@@ -151,34 +151,26 @@ UniValue autoMintLelantus(Type type, const UniValue& data, const UniValue& auth,
 
     UniValue mintTxs = UniValue::VARR;
     UniValue inputs = UniValue::VARR;
-    fBalancePublishingEmbargo = true;
-    try {
-        std::string strError = pwalletMain->MintAndStoreLelantus(0, wtxAndFees, mints, true);
 
-        if (strError != "") {
-            throw JSONAPIError(RPC_WALLET_ERROR, strError);
-        }
+    std::string strError = pwalletMain->MintAndStoreLelantus(0, wtxAndFees, mints, true);
 
-        for (std::pair<CWalletTx, CAmount> wtxAndFee: wtxAndFees) {
-            CWalletTx tx = wtxAndFee.first;
-            GetMainSignals().WalletTransaction(tx);
-
-            mintTxs.push_back(tx.GetHash().GetHex());
-
-            for (CTxIn txin: wtxAndFee.first.tx->vin) {
-                UniValue input = UniValue::VARR;
-                input.push_back(txin.prevout.hash.ToString());
-                input.push_back((uint64_t) txin.prevout.n);
-                inputs.push_back(input);
-            }
-        }
-    } catch (std::exception e) {
-        fBalancePublishingEmbargo = false;
-        throw;
+    if (strError != "") {
+        throw JSONAPIError(RPC_WALLET_ERROR, strError);
     }
-    fBalancePublishingEmbargo = false;
 
-    GetMainSignals().UpdatedBalance();
+    for (std::pair<CWalletTx, CAmount> wtxAndFee: wtxAndFees) {
+        CWalletTx tx = wtxAndFee.first;
+        GetMainSignals().WalletTransaction(tx);
+
+        mintTxs.push_back(tx.GetHash().GetHex());
+
+        for (CTxIn txin: wtxAndFee.first.tx->vin) {
+            UniValue input = UniValue::VARR;
+            input.push_back(txin.prevout.hash.ToString());
+            input.push_back((uint64_t) txin.prevout.n);
+            inputs.push_back(input);
+        }
+    }
 
     UniValue retval(UniValue::VOBJ);
     retval.push_back(Pair("mints", mintTxs));

@@ -144,8 +144,7 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     std::vector<std::string> pubIndexes = {
         "pubblock", 
         "pubrawtx", 
-        "pubblockinfo", 
-        "pubbalance", 
+        "pubblockinfo",
         "pubmasternodeupdate",
         "pubsettings",
         "pubstatus",
@@ -156,7 +155,6 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     factories["pubblock"] = CZMQAbstract::Create<CZMQBlockDataTopic>;
     factories["pubrawtx"] = CZMQAbstract::Create<CZMQTransactionTopic>;
     factories["pubblockinfo"] = CZMQAbstract::Create<CZMQBlockInfoTopic>;
-    factories["pubbalance"] = CZMQAbstract::Create<CZMQBalanceTopic>;
     factories["pubmasternodeupdate"] = CZMQAbstract::Create<CZMQMasternodeTopic>;
     factories["pubsettings"] = CZMQAbstract::Create<CZMQSettingsTopic>;
     factories["pubstatus"] = CZMQAbstract::Create<CZMQAPIStatusTopic>;
@@ -356,26 +354,6 @@ void CZMQPublisherInterface::UpdatedSettings(std::string update)
     {
         CZMQAbstract *notifier = *i;
         if (notifier->NotifySettingsUpdate(update))
-        {
-            i++;
-        }
-        else
-        {
-            notifier->Shutdown();
-            i = notifiers.erase(i);
-        }
-    }
-}
-
-void CZMQPublisherInterface::UpdatedBalance()
-{
-    if(APIIsInWarmup())
-        return;
-
-    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
-    {
-        CZMQAbstract *notifier = *i;
-        if (notifier->NotifyBalance())
         {
             i++;
         }

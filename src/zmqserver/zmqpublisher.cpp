@@ -236,16 +236,6 @@ bool CZMQTransactionEvent::NotifyTransaction(const CTransaction& transaction)
     isminefilter filter = ISMINE_ALL;
     wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
 
-    if(topic=="balance"){
-        if (fBalancePublishingEmbargo) {
-            return true;
-        } else if (masternodeSync.IsBlockchainSynced() || chainActive.Tip()->nHeight%1000==0) {
-            Execute();
-        } else {
-            return true;
-        }
-    }
-
     if(listReceived.size() > 0 || listSent.size() > 0){
         UniValue requestData(UniValue::VOBJ);
         std::string encodedTx;
@@ -271,16 +261,6 @@ bool CZMQTransactionEvent::NotifyTransactionLock(const CTransaction& transaction
     std::list<COutputEntry> listSent;
     isminefilter filter = ISMINE_ALL;
     wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
-
-    if(topic=="balance"){
-        if (fBalancePublishingEmbargo) {
-            return true;
-        } else if (masternodeSync.IsBlockchainSynced() || chainActive.Tip()->nHeight%1000==0) {
-            Execute();
-        } else {
-            return true;
-        }
-    }
 
     if(listReceived.size() > 0 || listSent.size() > 0){
         UniValue requestData(UniValue::VOBJ);
@@ -328,13 +308,5 @@ bool CZMQSettingsEvent::NotifySettingsUpdate(std::string update){
     request.replace("data", updateObj);
     Execute();
 
-    return true;
-}
-
-bool CZMQBalanceEvent::NotifyBalance()
-{
-    if (!fBalancePublishingEmbargo) {
-        Execute();
-    }
     return true;
 }

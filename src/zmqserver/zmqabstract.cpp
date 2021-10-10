@@ -58,11 +58,6 @@ bool CZMQAbstract::NotifySettingsUpdate(std::string update)
     return true;
 }
 
-bool CZMQAbstract::NotifyBalance()
-{
-    return true;
-}
-
 bool CZMQAbstract::NotifyTxoutLock(COutPoint txout, bool isLocked) {
     return true;
 }

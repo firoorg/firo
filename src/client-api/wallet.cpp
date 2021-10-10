@@ -26,7 +26,6 @@ using namespace boost::chrono;
 std::map<COutPoint, bool> pendingLockCoins;
 const int WALLET_SEGMENT_SIZE = 100;
 std::atomic<bool> fHasSentInitialStateWallet {false};
-std::atomic<bool> fBalancePublishingEmbargo {false};
 
 bool GetCoinControl(const UniValue& data, CCoinControl& cc) {
     if (find_value(data, "coinControl").isNull()) return false;
@@ -486,64 +485,6 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
     return true;
 }
 
-UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
-    if (!EnsureWalletIsAvailable(pwalletMain, false))
-        return NullUniValue;
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-    if (!pwalletMain->zwallet) return NullUniValue;
-
-    CAmount publicConfirmed = pwalletMain->GetBalance(true);
-    CAmount publicUnconfirmed = pwalletMain->GetUnconfirmedBalance();
-    CAmount publicLocked = pwalletMain->GetBalance(false) - publicConfirmed;
-    CAmount publicImmature = pwalletMain->GetImmatureBalance();
-
-    CAmount sigmaConfirmed = 0;
-    CAmount sigmaUnconfirmed = 0;
-    std::vector<CMintMeta> sigmaMints = pwalletMain->zwallet->GetTracker().ListMints(true, false, false);
-    for (CMintMeta& mint: sigmaMints) {
-        if (mint.isUsed || mint.isArchived || !mint.isSeedCorrect) continue;
-
-        int64_t amount;
-        DenominationToInteger(mint.denom, amount);
-
-        if (mint.nHeight > 0 && mint.nHeight + (ZC_MINT_CONFIRMATIONS - 1) <= chainActive.Height()) {
-            sigmaConfirmed += amount;
-        } else {
-            sigmaUnconfirmed += amount;
-        }
-    }
-
-    CAmount lelantusConfirmed = 0;
-    CAmount lelantusUnconfirmed = 0;
-    std::vector<CLelantusMintMeta> lelantusMints = pwalletMain->zwallet->GetTracker().ListLelantusMints(true, false, false);
-    for (CLelantusMintMeta &mint: lelantusMints) {
-        if (mint.isUsed || mint.isArchived || !mint.isSeedCorrect) continue;
-
-        if (mint.nHeight > 0 && mint.nHeight + (ZC_MINT_CONFIRMATIONS - 1) <= chainActive.Height()) {
-            lelantusConfirmed += mint.amount;
-        } else {
-            lelantusUnconfirmed += mint.amount;
-        }
-    }
-
-    UniValue balanceObj(UniValue::VOBJ);
-    UniValue publicObj(UniValue::VOBJ);
-    UniValue privateObj(UniValue::VOBJ);
-
-    publicObj.push_back(Pair("confirmed", publicConfirmed));
-    publicObj.push_back(Pair("unconfirmed", publicUnconfirmed));
-    publicObj.push_back(Pair("locked", publicLocked));
-    publicObj.push_back(Pair("immature", publicImmature));
-
-    privateObj.push_back(Pair("confirmed", lelantusConfirmed + sigmaConfirmed));
-    privateObj.push_back(Pair("unconfirmed", lelantusUnconfirmed + sigmaUnconfirmed));
-
-    balanceObj.push_back(Pair("public", publicObj));
-    balanceObj.push_back(Pair("private", privateObj));
-
-    return balanceObj;
-}
-
 void parseCoins(const std::string input, std::vector<COutPoint>& output) 
 {
     std::vector<std::string> selectedKeys;
@@ -771,7 +712,6 @@ static const CAPICommand commands[] =
     { "wallet",             "unlockWallet",                   &unlockwallet,                   true,      false,           false  },
     { "wallet",             "stateWallet",                    &statewallet,                    true,      false,           false  },
     { "wallet",             "setPassphrase",                  &setpassphrase,                  true,      false,           false  },
-    { "wallet",             "balance",                        &balance,                        true,      false,           false  },
     { "wallet",             "lockCoins",                      &lockcoins,                      true,      false,           false  },
     { "wallet",             "writeShowMnemonicWarning",       &writeshowmnemonicwarning,       true,      false,           false  },
     { "wallet",             "readWalletMnemonicWarningState", &readwalletmnemonicwarningstate, true,      false,           false  },

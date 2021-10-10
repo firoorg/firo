@@ -46,7 +46,6 @@ protected:
     void NotifyAPIStatus();
     void UpdatedMasternode(CDeterministicMNCPtr masternode);
     void UpdatedSettings(std::string update);
-    void UpdatedBalance();
 };
 
 class CZMQReplierInterface : public CZMQInterface
