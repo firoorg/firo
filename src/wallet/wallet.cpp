@@ -3026,8 +3026,7 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
 
     std::set<COutPoint> lockedCoins = setLockedCoins;
 
-    // Filter out coins which are not confirmed, I.E. do not have at least 2 blocks
-    // above them, after they were minted.
+    // Filter out coins which are not in the blockchain
     // Also filter out used coins.
     // Finally filter out coins that have not been selected from CoinControl should that be used
     coins.remove_if([lockedCoins, coinControl, includeUnsafe](const CLelantusEntry& coin) {
@@ -3044,7 +3043,7 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
         std::vector<unsigned char> setHash;
         state->GetCoinSetForSpend(
             &chainActive,
-            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 2 confirmation for mint to spend
+            chainActive.Height(),
             coinId,
             hashOut,
             coinOuts,
@@ -3057,12 +3056,6 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
 
         if (coinHeight == -1) {
             // Coin still in the mempool.
-            return true;
-        }
-
-        if (coinHeight + (ZC_MINT_CONFIRMATIONS - 1) > chainActive.Height()) {
-            // Remove the coin from the candidates list, since it does not have the
-            // required number of confirmations.
             return true;
         }
 

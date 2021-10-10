@@ -469,13 +469,13 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
             uint256 blockHash;
             if (state->GetCoinSetForSpend(
                     &chainActive,
-                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 2 confirmation for mint to spend
+                    chainActive.Height(),
                     groupId,
                     blockHash,
                     set,
                     setHash) < 2)
                 throw std::runtime_error(
-                        _("Has to have at least two mint coins with at least 2 confirmation in order to spend a coin"));
+                        _("Has to have at least two mint coins with at least 1 confirmation in order to spend a coin"));
             groupBlockHashes[groupId] = blockHash;
             anonymity_sets[groupId] = set;
             if (!setHash.empty())
@@ -518,13 +518,13 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
             uint256 blockHash;
             if (sigmaState->GetCoinSetForSpend(
                     &chainActive,
-                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 2 confirmation for mint to spend
+                    chainActive.Height(),
                     spend.get_denomination(),
                     groupId,
                     blockHash,
                     group) < 2)
                 throw std::runtime_error(
-                        _("Has to have at least two mint coins with at least 2 confirmation in order to spend a coin"));
+                        _("Has to have at least two mint coins with at least 1 confirmation in order to spend a coin"));
             std::vector<lelantus::PublicCoin> set;
             set.reserve(group.size());
             for(auto& coin : group) {
