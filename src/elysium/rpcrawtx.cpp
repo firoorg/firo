@@ -279,11 +279,11 @@ UniValue elysium_createrawtx_change(const JSONRPCRequest& request)
 static const CRPCCommand commands[] =
 { //  category                         name                          actor (function)             okSafeMode
   //  -------------------------------- ----------------------------- ---------------------------- ----------
-    { "elysium (raw transactions)", "elysium_decodetransaction",     &elysium_decodetransaction,     true },
-    { "elysium (raw transactions)", "elysium_createrawtx_opreturn",  &elysium_createrawtx_opreturn,  true },
-    { "elysium (raw transactions)", "elysium_createrawtx_input",     &elysium_createrawtx_input,     true },
-    { "elysium (raw transactions)", "elysium_createrawtx_reference", &elysium_createrawtx_reference, true },
-    { "elysium (raw transactions)", "elysium_createrawtx_change",    &elysium_createrawtx_change,    true },
+    { "elysium (raw transactions)", "elysium_decodetransaction",     &elysium_decodetransaction,     true, {} },
+    { "elysium (raw transactions)", "elysium_createrawtx_opreturn",  &elysium_createrawtx_opreturn,  true, {} },
+    { "elysium (raw transactions)", "elysium_createrawtx_input",     &elysium_createrawtx_input,     true, {} },
+    { "elysium (raw transactions)", "elysium_createrawtx_reference", &elysium_createrawtx_reference, true, {} },
+    { "elysium (raw transactions)", "elysium_createrawtx_change",    &elysium_createrawtx_change,    true, {} },
 
 };
 

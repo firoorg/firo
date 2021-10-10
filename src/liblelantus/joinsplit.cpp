@@ -20,8 +20,8 @@ JoinSplit::JoinSplit(const Params *p,
              unsigned int nVersion)
         :
         params (p),
-        fee (fee),
-        version (nVersion) {
+        version (nVersion),
+        fee (fee) {
 
     serialNumbers.reserve(Cin.size());
     for(size_t i = 0; i < Cin.size(); i++) {

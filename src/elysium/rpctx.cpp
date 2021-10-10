@@ -23,7 +23,7 @@
 
 #include <univalue.h>
 
-#include <boost/function_output_iterator.hpp>
+#include <boost/iterator/function_output_iterator.hpp>
 #include <boost/optional.hpp>
 
 #include <stdexcept>
@@ -1119,28 +1119,28 @@ UniValue elysium_sendchangelelantusstatus(const JSONRPCRequest& request)
 static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode
   //  ------------------------------------ ------------------------------- ------------------------------ ----------
-    { "elysium (transaction creation)",  "elysium_sendrawtx",                 &elysium_sendrawtx,                  false },
-    { "elysium (transaction creation)",  "elysium_send",                      &elysium_send,                       false },
-    { "elysium (transaction creation)",  "elysium_sendissuancefixed",         &elysium_sendissuancefixed,          false },
-    { "elysium (transaction creation)",  "elysium_sendissuancemanaged",       &elysium_sendissuancemanaged,        false },
-    { "elysium (transaction creation)",  "elysium_sendgrant",                 &elysium_sendgrant,                  false },
-    { "elysium (transaction creation)",  "elysium_sendrevoke",                &elysium_sendrevoke,                 false },
-    { "elysium (transaction creation)",  "elysium_sendchangeissuer",          &elysium_sendchangeissuer,           false },
-    { "hidden",                          "elysium_sendall",                   &elysium_sendall,                    false },
-    { "hidden",                          "elysium_sendenablefreezing",        &elysium_sendenablefreezing,         false },
-    { "hidden",                          "elysium_senddisablefreezing",       &elysium_senddisablefreezing,        false },
-    { "hidden",                          "elysium_sendfreeze",                &elysium_sendfreeze,                 false },
-    { "hidden",                          "elysium_sendunfreeze",              &elysium_sendunfreeze,               false },
-    { "hidden",                          "elysium_senddeactivation",          &elysium_senddeactivation,           true  },
-    { "hidden",                          "elysium_sendactivation",            &elysium_sendactivation,             false },
-    { "hidden",                          "elysium_sendalert",                 &elysium_sendalert,                  true  },
-    { "elysium (transaction creation)",  "elysium_sendlelantusmint",          &elysium_sendlelantusmint,           false },
-    { "elysium (transaction creation)",  "elysium_sendlelantusspend",         &elysium_sendlelantusspend,          false },
-    { "elysium (transaction creation)",  "elysium_sendchangelelantusstatus",  &elysium_sendchangelelantusstatus,   false },
+    { "elysium (transaction creation)",  "elysium_sendrawtx",                 &elysium_sendrawtx,                  false, {} },
+    { "elysium (transaction creation)",  "elysium_send",                      &elysium_send,                       false, {} },
+    { "elysium (transaction creation)",  "elysium_sendissuancefixed",         &elysium_sendissuancefixed,          false, {} },
+    { "elysium (transaction creation)",  "elysium_sendissuancemanaged",       &elysium_sendissuancemanaged,        false, {} },
+    { "elysium (transaction creation)",  "elysium_sendgrant",                 &elysium_sendgrant,                  false, {} },
+    { "elysium (transaction creation)",  "elysium_sendrevoke",                &elysium_sendrevoke,                 false, {} },
+    { "elysium (transaction creation)",  "elysium_sendchangeissuer",          &elysium_sendchangeissuer,           false, {} },
+    { "hidden",                          "elysium_sendall",                   &elysium_sendall,                    false, {} },
+    { "hidden",                          "elysium_sendenablefreezing",        &elysium_sendenablefreezing,         false, {} },
+    { "hidden",                          "elysium_senddisablefreezing",       &elysium_senddisablefreezing,        false, {} },
+    { "hidden",                          "elysium_sendfreeze",                &elysium_sendfreeze,                 false, {} },
+    { "hidden",                          "elysium_sendunfreeze",              &elysium_sendunfreeze,               false, {} },
+    { "hidden",                          "elysium_senddeactivation",          &elysium_senddeactivation,           true,  {} },
+    { "hidden",                          "elysium_sendactivation",            &elysium_sendactivation,             false, {} },
+    { "hidden",                          "elysium_sendalert",                 &elysium_sendalert,                  true,  {} },
+    { "elysium (transaction creation)",  "elysium_sendlelantusmint",          &elysium_sendlelantusmint,           false, {} },
+    { "elysium (transaction creation)",  "elysium_sendlelantusspend",         &elysium_sendlelantusspend,          false, {} },
+    { "elysium (transaction creation)",  "elysium_sendchangelelantusstatus",  &elysium_sendchangelelantusstatus,   false, {} },
 
     /* depreciated: */
-    { "hidden",                          "sendrawtx_MP",                      &elysium_sendrawtx,                  false },
-    { "hidden",                          "send_MP",                           &elysium_send,                       false }
+    { "hidden",                          "sendrawtx_MP",                      &elysium_sendrawtx,                  false, {} },
+    { "hidden",                          "send_MP",                           &elysium_send,                       false, {} }
 };
 
 void RegisterElysiumTransactionCreationRPCCommands(CRPCTable &tableRPC)
