@@ -28,16 +28,6 @@ bool CZMQAbstract::NotifyTransactionLock(const CTransaction& /*transaction*/) {
     return true;
 }
 
-bool CZMQAbstract::NotifyConnections()
-{
-    return true;
-}
-
-bool CZMQAbstract::NotifyStatus()
-{
-    return true;
-}
-
 bool CZMQAbstract::NotifyAPIStatus()
 {
     return true;

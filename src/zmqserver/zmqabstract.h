@@ -56,8 +56,6 @@ public:
     virtual bool NotifyBlock(const CBlockIndex *pindex);
     virtual bool NotifyTransaction(const CTransaction& transaction);
     virtual bool NotifyTransactionLock(const CTransaction& transaction);
-    virtual bool NotifyConnections();
-    virtual bool NotifyStatus();
     virtual bool NotifyAPIStatus();
     virtual bool NotifyMasternodeList();
     virtual bool NotifyMasternodeUpdate(CDeterministicMNCPtr masternode);

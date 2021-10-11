@@ -40,8 +40,6 @@ protected:
     void NotifyTransactionLock(const CTransaction& tx);
     void NotifyTxoutLock(COutPoint txout, bool isLocked);
     void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload);
-    void NumConnectionsChanged();
-    void UpdateSyncStatus();
     void NotifyMasternodeList();
     void NotifyAPIStatus();
     void UpdatedMasternode(CDeterministicMNCPtr masternode);

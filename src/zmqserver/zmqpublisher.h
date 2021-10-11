@@ -76,22 +76,6 @@ public:
     bool NotifyTransactionLock(const CTransaction& transaction);
 };
 
-class CZMQConnectionsEvent : virtual public CZMQAbstractPublisher
-{
-    /* Updated connection count
-    */
-public:
-    bool NotifyConnections();
-};
-
-class CZMQStatusEvent : virtual public CZMQAbstractPublisher
-{
-    /* Updated blockchain sync status
-    */
-public:
-    bool NotifyStatus();
-};
-
 class CZMQAPIStatusEvent : virtual public CZMQAbstractPublisher
 {
     /* API Status notification
@@ -147,15 +131,6 @@ class CZMQBlockDataTopic : public CZMQBlockEvent
 public:
     void SetTopic(){ topic = "address";}
     void SetMethod(){ method= "block";}
-};
-
-class CZMQBlockInfoTopic : public CZMQBlockEvent,
-                           public CZMQConnectionsEvent,
-                           public CZMQStatusEvent
-{
-public:
-    void SetTopic(){ topic = "block";}
-    void SetMethod(){ method= "blockchain";}
 };
 
 class CZMQTransactionTopic : public CZMQTransactionEvent

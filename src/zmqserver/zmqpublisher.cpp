@@ -187,12 +187,6 @@ bool CZMQAbstractPublisher::Publish(){
   }
 }
 
-bool CZMQStatusEvent::NotifyStatus()
-{
-    Execute();
-    return true;
-}
-
 bool CZMQAPIStatusEvent::NotifyAPIStatus()
 {
     Execute();
@@ -216,12 +210,6 @@ bool CZMQLockStatusEvent::NotifyTxoutLock(COutPoint txout, bool isLocked) {
     data.push_back(Pair("locked", isLocked));
     request.replace("data", data);
 
-    Execute();
-    return true;
-}
-
-bool CZMQConnectionsEvent::NotifyConnections()
-{
     Execute();
     return true;
 }

@@ -197,6 +197,8 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
             sporks.push_back(spork.first);
         }
         obj.push_back(Pair("disabledSporks", sporks));
+
+        obj.pushKV("lastestBlockTimestamp", (int64_t)chainActive.Tip()->nTime);
     }
 
 #ifdef WIN32

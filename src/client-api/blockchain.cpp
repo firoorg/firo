@@ -29,49 +29,6 @@ uint32_t AvgBlockTime(){
     return avgBlockTime;
 }
 
-UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
-
-    UniValue blockinfoObj(UniValue::VOBJ);
-    UniValue status(UniValue::VOBJ);
-    UniValue currentBlock(UniValue::VOBJ);
-
-    status.push_back(Pair("isBlockchainSynced", masternodeSync.IsBlockchainSynced()));
-    status.push_back(Pair("isSynced", masternodeSync.IsSynced()));
-    status.push_back(Pair("isFailed", masternodeSync.IsFailed()));
-
-    // if coming from PUB, height and time are included in data. otherwise just return chain tip
-    UniValue height = find_value(data, "nHeight");
-    UniValue time = find_value(data, "nTime");
-
-    if(!(height.isNull() && time.isNull())){
-        currentBlock.push_back(Pair("height", height));    
-        currentBlock.push_back(Pair("timestamp", stoi(time.get_str())));
-    }else{
-        currentBlock.push_back(Pair("height", stoi(std::to_string(chainActive.Tip()->nHeight))));
-        currentBlock.push_back(Pair("timestamp", stoi(std::to_string(chainActive.Tip()->nTime))));
-    }
-
-    blockinfoObj.push_back(Pair("testnet", Params().NetworkIDString() == CBaseChainParams::TESTNET));
-    blockinfoObj.push_back(Pair("connections", (int)g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL)));
-    blockinfoObj.push_back(Pair("type","full"));
-    blockinfoObj.push_back(Pair("status", status));
-    blockinfoObj.push_back(Pair("currentBlock", currentBlock));
-    blockinfoObj.push_back(Pair("avgBlockTime", int64_t(AvgBlockTime())));
-
-    if(!masternodeSync.IsBlockchainSynced()){
-        unsigned long currentTimestamp = floor(
-            system_clock::now().time_since_epoch() / 
-            milliseconds(1)/1000);
-
-        int blockTimestamp = chainActive.Tip()->nTime;
-
-        int timeUntilSynced = currentTimestamp - blockTimestamp;
-        blockinfoObj.push_back(Pair("timeUntilSynced", timeUntilSynced));
-    }
-    
-    return blockinfoObj;
-}
-
 UniValue transaction(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -174,7 +131,6 @@ UniValue rebroadcast(Type type, const UniValue& data, const UniValue& auth, bool
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
-    { "blockchain",         "blockchain",      &blockchain,              true,      false,           false  },
     { "blockchain",         "block",           &block,                   true,      false,           false  },
     { "blockchain",         "rebroadcast",     &rebroadcast,             true,      false,           false  },
     { "blockchain",         "transaction",     &transaction,             true,      false,           false  }

@@ -143,8 +143,7 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     // Ordering here implies ordering of topic publishing.
     std::vector<std::string> pubIndexes = {
         "pubblock", 
-        "pubrawtx", 
-        "pubblockinfo",
+        "pubrawtx",
         "pubmasternodeupdate",
         "pubsettings",
         "pubstatus",
@@ -154,7 +153,6 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
 
     factories["pubblock"] = CZMQAbstract::Create<CZMQBlockDataTopic>;
     factories["pubrawtx"] = CZMQAbstract::Create<CZMQTransactionTopic>;
-    factories["pubblockinfo"] = CZMQAbstract::Create<CZMQBlockInfoTopic>;
     factories["pubmasternodeupdate"] = CZMQAbstract::Create<CZMQMasternodeTopic>;
     factories["pubsettings"] = CZMQAbstract::Create<CZMQSettingsTopic>;
     factories["pubstatus"] = CZMQAbstract::Create<CZMQAPIStatusTopic>;
@@ -188,26 +186,6 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     return notificationInterface;
 }
 
-void CZMQPublisherInterface::UpdateSyncStatus()
-{
-    if(APIIsInWarmup())
-        return;
-
-    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
-    {
-        CZMQAbstract *notifier = *i;
-        if (notifier->NotifyStatus())
-        {
-            i++;
-        }
-        else
-        {
-            notifier->Shutdown();
-            i = notifiers.erase(i);
-        }
-    }
-}
-
 void CZMQPublisherInterface::NotifyAPIStatus()
 {
     for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
@@ -234,26 +212,6 @@ void CZMQPublisherInterface::NotifyMasternodeList()
     {
         CZMQAbstract *notifier = *i;
         if (notifier->NotifyMasternodeList())
-        {
-            i++;
-        }
-        else
-        {
-            notifier->Shutdown();
-            i = notifiers.erase(i);
-        }
-    }
-}
-
-void CZMQPublisherInterface::NumConnectionsChanged()
-{
-    if(APIIsInWarmup())
-        return;
-
-    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
-    {
-        CZMQAbstract *notifier = *i;
-        if (notifier->NotifyConnections())
         {
             i++;
         }
