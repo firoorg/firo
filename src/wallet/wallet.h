@@ -730,6 +730,7 @@ public:
     {
         setKeyPool.insert(nIndex);
 
+        m_pool_key_to_index[keypool.vchPubKey.GetID()] = nIndex;
         // If no metadata exists yet, create a default with the pool key's
         // creation time. Note that this may be overwritten by actually
         // stored metadata for that key later, which is fine.
