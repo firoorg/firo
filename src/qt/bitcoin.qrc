@@ -149,5 +149,7 @@
         <file alias="radio_normal_disabled_light">res/images/radio_normal_disabled_light.png</file>
         <file alias="radio_checked_disabled_light">res/images/radio_checked_disabled_light.png</file>
     </qresource>
+    <qresource prefix="/css">
+        <file alias="firoTheme">res/css/firo.css</file>
     </qresource>
 </RCC>
