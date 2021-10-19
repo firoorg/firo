@@ -1217,10 +1217,6 @@
        <property name="text">
         <string>S&amp;end</string>
        </property>
-       <property name="icon">
-        <iconset resource="../bitcoin.qrc">
-         <normaloff>:/icons/send</normaloff>:/icons/send</iconset>
-       </property>
        <property name="autoDefault">
         <bool>false</bool>
        </property>
@@ -1243,10 +1239,6 @@
        <property name="text">
         <string>Clear &amp;All</string>
        </property>
-       <property name="icon">
-        <iconset resource="../bitcoin.qrc">
-         <normaloff>:/icons/remove</normaloff>:/icons/remove</iconset>
-       </property>
        <property name="autoDefault">
         <bool>false</bool>
        </property>
@@ -1259,10 +1251,6 @@
        </property>
        <property name="text">
         <string>Add &amp;Recipient</string>
-       </property>
-       <property name="icon">
-        <iconset resource="../bitcoin.qrc">
-         <normaloff>:/icons/add</normaloff>:/icons/add</iconset>
        </property>
        <property name="autoDefault">
         <bool>false</bool>
@@ -1351,10 +1339,6 @@
        </property>
        <property name="text">
         <string>Use Transparent Balance</string>
-       </property>
-       <property name="icon">
-        <iconset resource="../bitcoin.qrc">
-         <normaloff>:/movies/spinner-009</normaloff>:/movies/spinner-009</iconset>
        </property>
       </widget>
      </item>

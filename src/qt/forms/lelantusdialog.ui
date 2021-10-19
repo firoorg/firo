@@ -1579,10 +1579,6 @@
        <property name="text">
         <string>Anonymize</string>
        </property>
-       <property name="icon">
-        <iconset resource="../bitcoin.qrc">
-         <normaloff>:/icons/send</normaloff>:/icons/send</iconset>
-       </property>
        <property name="autoDefault">
         <bool>false</bool>
        </property>
