@@ -1288,7 +1288,7 @@
         <number>3</number>
        </property>
        <item>
-        <widget class="QLabel" name="label">
+        <widget class="QLabel" name="labelBalanceText">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
            <horstretch>0</horstretch>
