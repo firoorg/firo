@@ -1064,6 +1064,22 @@
              <number>0</number>
             </property>
             <item>
+             <spacer name="verticalSpacer_8">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Fixed</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>1</width>
+                <height>4</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
              <layout class="QHBoxLayout" name="horizontalLayoutSmartFee">
               <property name="spacing">
                <number>10</number>
