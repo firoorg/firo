@@ -66,6 +66,8 @@ class PublicKey {
     // Don't allow public construction, force static methods
     PublicKey();
 
+    PublicKey& operator=(const PublicKey &) = default;
+
  private:
     // Exponentiate public key with n
     PublicKey Exp(const bn_t n) const;

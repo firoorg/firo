@@ -251,23 +251,8 @@ void LelantusDialog::updateDisplayUnit(int unit)
 {
     ui->anonymizeUnit->setText(BitcoinUnits::name(unit));
 
-    auto amountText = ui->anonymizeAmount->text();
-    size_t prec;
-
-    switch(unit) {
-    case BitcoinUnits::Unit::BTC:  prec = 8; break;
-    case BitcoinUnits::Unit::mBTC: prec = 5; break;
-    case BitcoinUnits::Unit::uBTC: prec = 2; break;
-    default: prec = 8; break;
-    }
-
-    ui->anonymizeAmount->setDecimals(prec);
-
-    CAmount out;
-    if (BitcoinUnits::parse(currentUnit, amountText, &out)) {
-        ui->anonymizeAmount->setValue(
-            (double)(out) / BitcoinUnits::factor(unit)
-        );
+    if(walletModel && walletModel->getOptionsModel()) {
+        ui->anonymizeAmount->setDisplayUnit(walletModel->getOptionsModel()->getDisplayUnit());
     }
 
     updateBalanceDisplay(unit);
@@ -302,7 +287,7 @@ void LelantusDialog::on_anonymizeButton_clicked()
 {
     updateGlobalFeeVariables();
 
-    CAmount val = ui->anonymizeAmount->value() * COIN /  CENT * CENT;
+    CAmount val = ui->anonymizeAmount->value();
 
     if (val < 0 || val > BitcoinUnits::maxMoney()) {
         val = 0;
@@ -410,6 +395,7 @@ void LelantusDialog::on_anonymizeButton_clicked()
         accept();
         coinControlStorage.coinControl.UnSelectAll();
         coinControlUpdateLabels();
+        ui->anonymizeAmount->clear();
     }
 }
 
@@ -570,12 +556,7 @@ void LelantusDialog::updateFeeMinimizedLabel()
 
 CAmount LelantusDialog::getAmount(int unit)
 {
-    CAmount val;
-
-    return BitcoinUnits::parse(
-        unit == -1 ? BitcoinUnits::Unit::BTC : unit,
-        ui->anonymizeAmount->text(),
-        &val) ? val : 0;
+    return ui->anonymizeAmount->value();
 }
 
 void LelantusDialog::removeUnmatchedOutput(CCoinControl &coinControl)

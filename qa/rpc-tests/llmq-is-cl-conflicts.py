@@ -2,7 +2,7 @@
 # Copyright (c) 2015-2018 The Dash Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-from test_framework.blocktools import get_masternode_payment, create_coinbase, create_block
+from test_framework.blocktools import get_masternode_payment, create_coinbase, create_block, get_founders_rewards
 from test_framework.mininode import *
 from test_framework.test_framework import EvoZnodeTestFramework
 from test_framework.util import *
@@ -58,7 +58,7 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
         self.mine_quorum()
 
         # mine single block, wait for chainlock
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(800 - self.nodes[0].getblockcount())
         self.wait_for_chainlock_tip_all_nodes()
 
         self.test_chainlock_overrides_islock(False)
@@ -134,8 +134,7 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
             assert_raises_jsonrpc(-5, "No such mempool or blockchain transaction", node.getrawtransaction, rawtx4_txid, True)
             rawtx = node.getrawtransaction(rawtx2_txid, True)
             assert(rawtx['chainlock'])
-            assert(rawtx['instantlock'])
-            assert(not rawtx['instantlock_internal'])
+            assert(not rawtx['instantlock'])
 
     def test_islock_overrides_nonchainlock(self):
         # create two raw TXs, they will conflict with each other
@@ -180,7 +179,7 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
 
         # Send the actual transaction and mine it
         self.nodes[0].sendrawtransaction(rawtx2)
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(2)
         self.sync_all()
 
         assert(self.nodes[0].getrawtransaction(rawtx2_txid, True)['confirmations'] > 0)
@@ -219,7 +218,8 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
 
         coinbasevalue = bt['coinbasevalue']
         miner_address = node.getnewaddress()
-        mn_payee = bt['masternode'][0]['payee']
+        mn_payee = bt['znode'][0]['payee']
+        founders = get_founders_rewards(height)
 
         # calculate fees that the block template included (we'll have to remove it from the coinbase as we won't
         # include the template's transactions
@@ -245,9 +245,15 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
         mn_amount = get_masternode_payment(height, coinbasevalue)
         miner_amount = coinbasevalue - mn_amount
 
+        for founder, amount in founders.items():
+            miner_amount -= amount
+
         outputs = {miner_address: str(Decimal(miner_amount) / COIN)}
         if mn_amount > 0:
             outputs[mn_payee] = str(Decimal(mn_amount) / COIN)
+
+        for founder, amount in founders.items():
+           outputs[founder] = amount
 
         coinbase = FromHex(CTransaction(), node.createrawtransaction([], outputs))
         coinbase.vin = create_coinbase(height).vin

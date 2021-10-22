@@ -46,7 +46,7 @@ bool SigmaWallet::MintPoolEntry::operator!=(MintPoolEntry const &another) const
 }
 
 SigmaWallet::SigmaWallet(Database *database)
-    : walletFile(pwalletMain->strWalletFile), database(database)
+    : database(database), walletFile(pwalletMain->strWalletFile)
 {
 }
 

@@ -204,8 +204,9 @@ testScripts = [
     'llmq-simplepose.py',
     'llmq-chainlocks.py',
     'llmq-cl-evospork.py',
-#    'llmq-is-cl-conflicts.py',
-#    'llmq-is-retroactive.py'
+    'llmq-is-cl-conflicts.py',
+    'llmq-is-retroactive.py',
+    'llmq-is-lelantus.py',
 
     # Unstable tests
     #, 'dip4-coinbasemerkleroots.py'
@@ -245,6 +246,10 @@ testScriptsExt = [
     'maxblocksinflight.py',
     'p2p-acceptblock.py',
     # 'replace-by-fee.py',
+]
+
+IGNORE_STDERR = [
+'llmq-is-retroactive.py'
 ]
 
 
@@ -351,7 +356,9 @@ class RPCTestHandler:
                     log_out.seek(0), log_err.seek(0)
                     [stdout, stderr] = [l.read().decode('utf-8') for l in (log_out, log_err)]
                     log_out.close(), log_err.close()
-                    passed = stderr == "" and proc.returncode == 0
+                    passed = proc.returncode == 0
+                    if passed and name not in IGNORE_STDERR:
+                        passed = passed and stderr == ""
                     self.num_running -= 1
                     self.jobs.remove(j)
                     return name, stdout, stderr, passed, int(time.time() - time0)

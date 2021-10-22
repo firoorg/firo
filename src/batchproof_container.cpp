@@ -29,7 +29,12 @@ void BatchProofContainer::finalize() {
         for (const auto& itr : tempLelantusSigmaProofs) {
             lelantusSigmaProofs[itr.first].insert(lelantusSigmaProofs[itr.first].begin(), itr.second.begin(), itr.second.end());
         }
-    } else {
+    }
+    fCollectProofs = false;
+}
+
+void BatchProofContainer::verify() {
+    if (!fCollectProofs) {
         batch_sigma();
         batch_lelantus();
     }
@@ -119,6 +124,8 @@ void BatchProofContainer::erase(std::vector<LelantusSigmaProofData>* vProofs, co
 }
 
 void BatchProofContainer::batch_sigma() {
+    if (!sigmaProofs.empty())
+        LogPrintf("Sigma batch verification started.\n");
     for (const auto& itr : sigmaProofs) {
         std::vector<GroupElement> anonymity_set;
         sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
@@ -149,14 +156,19 @@ void BatchProofContainer::batch_sigma() {
         sigma::SigmaPlusVerifier<Scalar, GroupElement> sigmaVerifier(params->get_g(), params->get_h(), params->get_n(), params->get_m());
 
         if (!sigmaVerifier.batch_verify(anonymity_set, serials, fPadding, setSizes, proofs)) {
-            LogPrintf("Sigma batch verification failed.");
+            LogPrintf("Sigma batch verification failed.\n");
             throw std::invalid_argument("Sigma batch verification failed, please run Firo with -reindex -batching=0");
         }
     }
+    if (!sigmaProofs.empty())
+        LogPrintf("Sigma batch verification finished successfully.\n");
     sigmaProofs.clear();
 }
 
 void BatchProofContainer::batch_lelantus() {
+    if (!lelantusSigmaProofs.empty())
+        LogPrintf("Lelantus batch verification started.\n");
+
     auto params = lelantus::Params::get_default();
 
     for (const auto& itr : lelantusSigmaProofs) {
@@ -221,11 +233,12 @@ void BatchProofContainer::batch_lelantus() {
         }
 
         if (isFail) {
-            LogPrintf("Lelantus batch verification failed.");
+            LogPrintf("Lelantus batch verification failed.\n");
             throw std::invalid_argument("Lelantus batch verification failed, please run Firo with -reindex -batching=0");
         }
     }
-
+    if (!lelantusSigmaProofs.empty())
+        LogPrintf("Lelantus batch verification finished successfully.\n");
     lelantusSigmaProofs.clear();
 }
 

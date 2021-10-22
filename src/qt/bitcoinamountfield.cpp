@@ -37,6 +37,9 @@ public:
         if(text.isEmpty())
             return QValidator::Intermediate;
         bool valid = false;
+        if(text.contains(",")) {
+            text.replace(",", ".");
+        }
         parse(text, &valid);
         /* Make sure we return Intermediate so that fixup() is called on defocus */
         return valid ? QValidator::Intermediate : QValidator::Invalid;
