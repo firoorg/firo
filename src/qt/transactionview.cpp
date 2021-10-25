@@ -59,7 +59,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
         headerLayout->addSpacing(23);
     }
 
-    statusSpacer = new QSpacerItem(20, 1, QSizePolicy::Expanding);
+    statusSpacer = new QSpacerItem(1, 1, QSizePolicy::MinimumExpanding);
     headerLayout->addSpacerItem(statusSpacer);
 
     watchOnlyWidget = new QComboBox(this);
@@ -439,14 +439,11 @@ void TransactionView::updateHeaderSizes(int logicalIndex, int oldSize, int newSi
     if(logicalIndex < TransactionTableModel::ToAddress)
         return;
 
-    headerLayout->blockSignals(true);
-    statusSpacer->changeSize(transactionView->columnWidth(TransactionTableModel::Status) - 10, 1, QSizePolicy::Expanding);
     for(std::pair<int, QWidget*> const & p : headerWidgets) {
-        int const w = transactionView->columnWidth(p.first);
+        int const w = transactionView->columnWidth(p.first) - headerLayout->spacing() / 2;
         if(p.second->width() != w)
             p.second->setFixedWidth(w);
     }
-    headerLayout->blockSignals(false);
 }
 
 void TransactionView::abandonTx()
@@ -675,7 +672,9 @@ void TransactionView::focusTransaction(const QModelIndex &idx)
 void TransactionView::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
+    disconnect(transactionView->horizontalHeader(), SIGNAL(sectionResized(int,int,int)), this, SLOT(updateHeaderSizes(int,int,int)));
     columnResizingFixer->stretchColumnWidth(TransactionTableModel::ToAddress);
+    connect(transactionView->horizontalHeader(), SIGNAL(sectionResized(int,int,int)), this, SLOT(updateHeaderSizes(int,int,int)));
 }
 
 // Need to override default Ctrl+C action for amount as default behaviour is just to copy DisplayRole text
