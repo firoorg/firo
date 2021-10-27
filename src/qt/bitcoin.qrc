@@ -115,7 +115,7 @@
     <qresource prefix="/images">
         <file alias="about">res/images/about.png</file>
         <file alias="splash">res/images/splash.png</file>
-        <file alias="splash_testnet">res/images/splash-testnet.png</file>
+        <file alias="splash_testnet">res/images/splash_testnet.png</file>
         <file alias="arrow_down_dark">res/images/arrow_down_dark.png</file>
         <file alias="arrow_down_light">res/images/arrow_down_light.png</file>
         <file alias="arrow_left_dark">res/images/arrow_left_dark.png</file>
