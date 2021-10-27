@@ -4755,7 +4755,10 @@ bool CWallet::CreateLelantusMintTransactions(
             AvailableCoinsForLMint(valueAndUTXO, coinControl);
 
             Shuffle(valueAndUTXO.begin(), valueAndUTXO.end(), FastRandomContext());
-
+            {
+                CWalletDB walletdb(pwalletMain->strWalletFile);
+                pwalletMain->zwallet->ResetCount(walletdb);
+            }
             while (!valueAndUTXO.empty()) {
 
                 // initialize
