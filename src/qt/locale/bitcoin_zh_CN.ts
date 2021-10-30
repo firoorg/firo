@@ -743,8 +743,8 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
         <translation>创建支付码(&amp;R)</translation>
     </message>
     <message>
-        <source>Show the selected payment code (does the same as double clicking an entry)</source>
-        <translation>显示所选的支付码（与双击一个条目的作用相同）</translation>
+        <source>Show more info on the selected payment code (does the same as double clicking an entry)</source>
+        <translation>显示所选支付码的更多信息（与双击条目的作用相同）</translation>
     </message>
     <message>
         <source>Show</source>
@@ -767,8 +767,8 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
         <translation>创建 RAP 地址失败，出现错误：「%1」</translation>
     </message>
     <message>
-        <source>Double click on Label to edit</source>
-        <translation>双击标签进行编辑</translation>
+        <source>Double click on Label to edit, on other columns for more info</source>
+        <translation>双击标签进行编辑，双击其他列查看更多信息</translation>
     </message>
 </context>
 <context>
@@ -802,6 +802,10 @@ Once this fee is paid, all future sends to this RAP address do not incur any add
     <message>
         <source>Connection transaction</source>
         <translation>连接交易</translation>
+    </message>
+    <message>
+        <source>Sends the connection transaction</source>
+        <translation>发送连接交易</translation>
     </message>
     <message>
         <source>notificationTxId</source>
@@ -3121,7 +3125,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Transparent Balance</source>
-        <translation>公开的余额：</translation>
+        <translation>公开的余额</translation>
     </message>
     <message>
         <source>Use Private Balance</source>
@@ -3129,7 +3133,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Private Balance</source>
-        <translation>匿名的余额：</translation>
+        <translation>匿名的余额</translation>
     </message>
     <message>
         <source>Confirmation time target:</source>
@@ -3148,7 +3152,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     <name>SendCoinsEntry</name>
     <message>
         <source>A&amp;mount:</source>
-        <translation>金额(&amp;M)</translation>
+        <translation>金额(&amp;M)：</translation>
     </message>
     <message>
         <source>Pay &amp;To:</source>
@@ -3445,6 +3449,10 @@ After the notification transaction is received by the RAP address issuer, funds 
         <translation>%1 已确认</translation>
     </message>
     <message>
+        <source>verified via LLMQ based InstantSend</source>
+        <translation>已验证，通过基于 LLMQ 的即时发送</translation>
+    </message>
+    <message>
         <source>Status</source>
         <translation>状态</translation>
     </message>
@@ -3601,6 +3609,10 @@ After the notification transaction is received by the RAP address issuer, funds 
     <message>
         <source>Label</source>
         <translation>标签</translation>
+    </message>
+    <message>
+        <source>Address / Label</source>
+        <translation>地址 / 标签</translation>
     </message>
     <message>
         <source>Open until %1</source>
@@ -4705,6 +4717,10 @@ After the notification transaction is received by the RAP address issuer, funds 
     <message>
         <source>The required amount exceeds spend limit</source>
         <translation>金额超出最大支出限额</translation>
+    </message>
+    <message>
+        <source>Number of inputs is bigger then limit.</source>
+        <translation>输入的数量大于限制。</translation>
     </message>
     <message>
         <source>Please contribute if you find %s useful. Visit %s for further information about the software.</source>
