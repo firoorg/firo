@@ -135,14 +135,14 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(CWalletDB& wal
  *
  * @param nIndex The number of mints to generate. Defaults to 20 if no param passed.
  */
-void CHDMintWallet::GenerateMintPool(CWalletDB& walletdb, int32_t nIndex)
+void CHDMintWallet::GenerateMintPool(CWalletDB& walletdb, bool forceGenerate, int32_t nIndex)
 {
     //Is locked
     if (pwalletMain->IsLocked())
         return;
 
     // Only generate new values (ie. if last generated less than or the same, proceed)
-    if(nCountNextGenerate > nCountNextUse){
+    if(nCountNextGenerate > nCountNextUse && !forceGenerate){
         return;
     }
 
@@ -252,11 +252,16 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
 
     std::set<uint256> setAddedTx;
     std::set<uint256> setChecked;
-    while (found) {
+    int mintsFound = 1;
+    bool firstIteration = true;
+    while (found || mintsFound > 0) {
         found = false;
+        mintsFound = 0;
         if (fGenerateMintPool)
-            GenerateMintPool(walletdb);
+            GenerateMintPool(walletdb, !firstIteration);
         LogPrintf("%s: Mintpool size=%d\n", __func__, mintPool.size());
+
+        firstIteration = false;
 
         if(listMints==boost::none){
             listMints = std::list<std::pair<uint256, MintPoolEntry>>();
@@ -429,10 +434,14 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                     LogPrint("zero", "%s: updated count to %d\n", __func__, nCountNextUse);
                 }
             }
+            if (found)
+                mintsFound++;
         }
         // Clear listMints to allow it to be repopulated by the mintPool on the next iteration
         if(found)
             listMints = boost::none;
+        if (!fGenerateMintPool)
+            mintsFound = 0;
     }
 }
 
