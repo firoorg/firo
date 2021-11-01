@@ -1184,9 +1184,10 @@ void CLelantusState::Containers::CheckSurgeCondition() {
 CLelantusState::CLelantusState(
     size_t maxCoinInGroup,
     size_t startGroupSize)
-    :containers(surgeCondition),
+    :
     maxCoinInGroup(maxCoinInGroup),
-    startGroupSize(startGroupSize)
+    startGroupSize(startGroupSize),
+    containers(surgeCondition)
 {
     Reset();
 }

@@ -67,7 +67,7 @@ public:
     }
 
     CBLSWrapper(const CBLSWrapper& ref) = default;
-    CBLSWrapper& operator=(const CBLSWrapper& ref) = default;
+    constexpr CBLSWrapper& operator=(const CBLSWrapper& ref) = default;
     CBLSWrapper(CBLSWrapper&& ref)
     {
         std::swap(impl, ref.impl);
@@ -213,6 +213,8 @@ public:
         GetBuf(buf);
         return HexStr(buf.begin(), buf.end());
     }
+
+    virtual ~CBLSWrapper() = default;
 };
 
 class CBLSId : public CBLSWrapper<uint256, BLS_CURVE_ID_SIZE, CBLSId>

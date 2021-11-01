@@ -21,12 +21,12 @@
 
 MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* parent) :
     QWidget(parent),
+    nTimeFilterUpdatedDIP3(0),
+    nTimeUpdatedDIP3(0),
+    fFilterUpdatedDIP3(true),
     ui(new Ui::MasternodeList),
     clientModel(0),
     walletModel(0),
-    fFilterUpdatedDIP3(true),
-    nTimeFilterUpdatedDIP3(0),
-    nTimeUpdatedDIP3(0),
     mnListChanged(true)
 {
     ui->setupUi(this);
