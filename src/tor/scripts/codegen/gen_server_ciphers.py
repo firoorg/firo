@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # Copyright 2014-2019, The Tor Project, Inc
 # See LICENSE for licensing information
 
@@ -7,6 +7,11 @@
 # to preference rules.
 #
 # Run it on all the files in your openssl include directory.
+
+# Future imports for Python 2.7, mandatory in 3.0
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 import re
 import sys
@@ -96,7 +101,7 @@ def parse_cipher(ciph):
         fwsec, = m.groups()
         return Ciphersuite(ciph, fwsec, "CHACHA20", "256", "POLY1305", "n/a")
 
-    print "/* Couldn't parse %s ! */"%ciph
+    print("/* Couldn't parse %s ! */"%ciph)
     return None
 
 
@@ -120,12 +125,12 @@ for c in ALL_CIPHERS:
         colon = ' ":"'
 
     if c.name in MANDATORY:
-        print "%s/* Required */"%indent
-        print '%s%s%s'%(indent,c.name,colon)
+        print("%s/* Required */"%indent)
+        print('%s%s%s'%(indent,c.name,colon))
     else:
-        print "#ifdef %s"%c.name
-        print '%s%s%s'%(indent,c.name,colon)
-        print "#endif"
+        print("#ifdef %s"%c.name)
+        print('%s%s%s'%(indent,c.name,colon))
+        print("#endif")
 
-print '%s;'%indent
+print('%s;'%indent)
 

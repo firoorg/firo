@@ -1,7 +1,10 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
+# Future imports for Python 2.7, mandatory in 3.0
+from __future__ import division
 from __future__ import print_function
-from __future__ import with_statement
+from __future__ import unicode_literals
+
 import sys
 import re
 import os
@@ -22,7 +25,12 @@ KNOWN_GROUPS = set([
     "Code simplification and refactoring",
     "Removed features",
     "Deprecated features",
-    "Directory authority changes"])
+    "Directory authority changes",
+
+    # These aren't preferred, but sortChanges knows how to clean them up.
+    "Code simplifications and refactoring",
+    "Code simplification and refactorings",
+    "Code simplifications and refactorings"])
 
 NEEDS_SUBCATEGORIES = set([
     "Minor bugfix",
