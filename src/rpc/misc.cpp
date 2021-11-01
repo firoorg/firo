@@ -1056,6 +1056,24 @@ UniValue getusedcoinserials(const JSONRPCRequest& request)
     return ret;
 }
 
+UniValue getfeerate(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getfeerate\n"
+                "\nReturns the fee rate.\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"rate\" (int) Fee rate\n"
+                "}\n"
+        );
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("serials", ::minRelayTxFee.GetFeePerK()));
+
+    return ret;
+}
+
 UniValue getlatestcoinid(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0)
@@ -1369,6 +1387,7 @@ static const CRPCCommand commands[] =
     { "mobile",             "getanonymityset",        &getanonymityset,        false  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
     { "mobile",             "getusedcoinserials",     &getusedcoinserials,     true  },
+    { "mobile",             "getfeerate",             &getfeerate,             true  },
     { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
 
     { "hidden",             "setmocktime",            &setmocktime,            true,  {"timestamp"}},

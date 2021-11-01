@@ -335,6 +335,7 @@ static const CRPCCommand vRPCCommands[] =
     { "mobile",             "getanonymityset",        &getanonymityset,        false  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
     { "mobile",             "getusedcoinserials",     &getusedcoinserials,     true  },
+    { "mobile",             "getfeerate",             &getfeerate,             true  },
     { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
 };
 
