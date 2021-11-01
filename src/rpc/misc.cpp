@@ -923,13 +923,14 @@ UniValue getaddressbalance(const JSONRPCRequest& request)
 
 UniValue getanonymityset(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 1)
+    if (request.fHelp || request.params.size() != 2)
         throw std::runtime_error(
                 "getanonymityset\n"
                         "\nReturns the anonymity set and latest block hash.\n"
                         "\nArguments:\n"
                         "{\n"
                         "      \"coinGroupId\"  (int)\n"
+                        "      \"startBlockHash\"    (string)\n"
                         "}\n"
                         "\nResult:\n"
                         "{\n"
@@ -942,8 +943,10 @@ UniValue getanonymityset(const JSONRPCRequest& request)
 
 
     int coinGroupId;
+    std::string startBlockHash;
     try {
         coinGroupId = std::stol(request.params[0].get_str());
+        startBlockHash = std::stol(request.params[1].get_str());
     } catch (std::logic_error const & e) {
         throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
     }
@@ -960,7 +963,8 @@ UniValue getanonymityset(const JSONRPCRequest& request)
                 coinGroupId,
                 blockHash,
                 coins,
-                setHash);
+                setHash,
+                startBlockHash);
     }
 
     UniValue serializedCoins(UniValue::VARR);
@@ -1362,7 +1366,7 @@ static const CRPCCommand commands[] =
     { "addressindex",       "gettotalsupply",         &gettotalsupply,         false },
 
         /* Mobile related */
-    { "mobile",             "getanonymityset",        &getanonymityset,        true  },
+    { "mobile",             "getanonymityset",        &getanonymityset,        false  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
     { "mobile",             "getusedcoinserials",     &getusedcoinserials,     true  },
     { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
