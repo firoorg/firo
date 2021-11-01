@@ -189,7 +189,8 @@ public:
         int id,
         uint256& blockHash_out,
         std::vector<lelantus::PublicCoin>& coins_out,
-        std::vector<unsigned char>& setHash_out);
+        std::vector<unsigned char>& setHash_out,
+        std::string start_block_hash = "");
 
     void GetAnonymitySet(
             int coinGroupID,

@@ -1402,7 +1402,8 @@ int CLelantusState::GetCoinSetForSpend(
     int coinGroupID,
     uint256& blockHash_out,
     std::vector<lelantus::PublicCoin>& coins_out,
-    std::vector<unsigned char>& setHash_out) {
+    std::vector<unsigned char>& setHash_out,
+    std::string start_block_hash) {
 
     coins_out.clear();
 
@@ -1450,7 +1451,7 @@ int CLelantusState::GetCoinSetForSpend(
             }
         }
 
-        if (block == coinGroup.firstBlock) {
+        if (block == coinGroup.firstBlock || block->GetBlockHash().GetHex() == start_block_hash) {
             break ;
         }
     }
