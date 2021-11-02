@@ -12,12 +12,13 @@ QDialog {
     margin: 0;
     padding-top: 20px;
     padding-bottom: 20px;
+    font-size: 8pt;
 }
 
 QFrame {
     background-color: #f4f4f4;
     border: 0px;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QDialog,
@@ -25,25 +26,25 @@ QMainWindow,
 QMessageBox
 WalletFrame {
     background-color: #f4f4f4;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QWidget {
     selection-color: #FFFFFF;
     selection-background-color: #3d3939;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QLabel,
 QListView {
     color: #110202;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QLabel:disabled,
 QListView:disabled {
     color: #878787;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 BitcoinAmountField,
@@ -51,14 +52,14 @@ QAbstractSpinBox,
 QComboBox,
 QPlainTextEdit,
 QLineEdit {
-    height: 28px;
+    min-height: 28px;
     border: 1px solid;
     border-radius: 8px;
     padding: 0px 8px 0px 8px;
     background-color: #f4f4f4;
     border-color: #9b1c2e;
     color: #110202;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 BitcoinAmountField:hover:!focus,
@@ -67,7 +68,7 @@ QComboBox:hover:!focus,
 QPlainTextEdit:hover:!focus,
 QLineEdit:hover:!focus {
     border: 2px solid;
-    height: 28px;
+    min-height: 28px;
     background-color: #f4f4f4;
     border-color: #7c1624;
 } 
@@ -90,7 +91,6 @@ QLineEdit:focus {
     padding: -1px 7px -1px 7px;
     background-color: #d2d2d2;
     border-color: #7c1624;
-    font: 'Source Sans Pro';
 }
 
 BitcoinAmountField:disabled,
@@ -181,13 +181,11 @@ QAbstractSpinBox::down-arrow:disabled {
 QCalendarWidget  {
     background-color: #cfcccc;
     min-height: 250px;
-    font: 'Source Sans Pro';
 }
 
 QCalendarWidget QToolButton {
     color: #110202;
     width: 80px;
-    font: 'Source Sans Pro';
 }
 
 #qt_calendar_calendarview {
@@ -267,7 +265,7 @@ QCalendarWidget QToolButton::menu-indicator {
 
 QCalendarWidget QWidget {
     alternate-background-color: #9b1c2e;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QCalendarWidget QAbstractItemView:enabled {
@@ -333,6 +331,10 @@ QCheckBox::indicator:indeterminate:disabled {
     image: url(':/images/checkbox_partly_checked_disabled_light');
 }
 
+QCheckBox > .QLabel {
+    font: 8pt 'Source Sans Pro';
+}
+
 /* QComboBox */
 
 QComboBox:editable {
@@ -362,7 +364,7 @@ QComboBox QListView {
     color: #110202;
     border: 1px solid #878787;
     border-radius: 4px;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QComboBox QAbstractItemView::item {
@@ -371,18 +373,18 @@ QComboBox QAbstractItemView::item {
 
 QComboBox::item {
     color: #110202;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QComboBox::item:alternate {
     background-color: #f4f4f4;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QComboBox::item:selected {
     border: 0px solid #f4f4f4;
     background-color: #cfcccc;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QComboBox::down-arrow {
@@ -419,21 +421,25 @@ QGroupBox {
     background-color: #f4f4f4;
     color: #110202;
     padding-top: 20px;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QGroupBox:title {
     background-color: #f4f4f4;
     margin-top: 5px;
     margin-left: 7px;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 /* QHeaderView */
 
 QHeaderView {
     background-color: #9b1c2e;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
+}
+
+QHeaderView::section > .QLabel {
+    padding: 2px;
 }
 
 QHeaderView::section {
@@ -448,7 +454,7 @@ QHeaderView::section {
     background-color: #9b1c2e;
     border-color: #f4f4f4;
     color: #f4f4f4;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QHeaderView::section:last {
@@ -476,7 +482,7 @@ QHeaderView::up-arrow {
 QHeaderView::section:hover {
     background-color: #7c1624;
     color: #f4f4f4;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 /* QMenu */
@@ -491,7 +497,7 @@ QMenu {
 QMenu::item {
     padding: 2px 6px 2px 6px;
     color: #110202;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QMenu::item:selected:!disabled {
@@ -500,7 +506,6 @@ QMenu::item:selected:!disabled {
 
 QMenu::item:disabled {
     color: #878787;
-    font: 'Source Sans Pro';
 }
 
 QMenu::separator {
@@ -520,7 +525,6 @@ QProgressBar {
     border: 1px solid #878787;
     border-radius: 7px;
     min-height: 16px;
-    max-height: 16px;
     background-color: #878787;
     border-color: #f4f4f4;
     color: #f4f4f4;
@@ -539,13 +543,12 @@ QPushButton {
     border: 0;
     border-radius: 8px;
     color: #FFFFFF;
-    max-height: 26px;
     min-height: 26px;
     padding-left: 12px;
     padding-right: 12px;
     padding-top: 4px;
     padding-bottom: 4px;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QPushButton:hover {
@@ -567,6 +570,10 @@ QPushButton:disabled {
     color: #878787;
 }
 
+QPushButton > .QLabel {
+    font-size: 8pt;
+}
+
 /* tabbar */
 
 #tabInfo,
@@ -584,7 +591,7 @@ QPushButton:disabled {
     border-radius: 0px;
     background-color: transparent;
     color: #FFFFFF;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 #tabInfo:hover:checked,
@@ -601,7 +608,7 @@ QPushButton:disabled {
     border: none;
     background-color: transparent;
     color: #cfcccc;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 #tabInfo:hover:!checked,
@@ -618,7 +625,7 @@ QPushButton:disabled {
     border: none;
     background-color: transparent;
     color: #cfcccc;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 #tabInfo:checked,
@@ -635,7 +642,7 @@ QPushButton:disabled {
     border: none;
     background-color: transparent;
     color: #cfcccc;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 #tabShowInfo:hover:pressed,
@@ -651,7 +658,7 @@ QPushButton:disabled {
 #tabVerifyMessage:hover:pressed {
     border: none;
     background-color: #7c1624;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 /* QRadioButton */
@@ -659,7 +666,11 @@ QPushButton:disabled {
 QRadioButton {
     color: #110202;
     background-color: #f4f4f4;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
+}
+
+QRadioButton > .QLabel {
+    font-size: 8pt;
 }
 
 QRadioButton:disabled {
@@ -753,7 +764,7 @@ QStatusBar {
 
 QStatusBar QLabel {
     margin-right: 5px;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QStatusBar #lblStatusBarProgress {
@@ -776,14 +787,14 @@ QTableView::item {
     background-color: #f4f4f4;
     border-color: #878787;
     color: #110202;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QTableView::item:selected {
     background-color: #d2d2d2;
     border-color: #d2d2d2;
     color: #110202;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 /* QTableWidget */
@@ -806,8 +817,12 @@ QTabWidget QTabBar {
 
 QTabWidget QTabBar::tab {
     background-color: #9b1c2e; 
-    height: 33px;
+    height: 35px;
     color: #FFFFFF
+}
+
+QTabWidget QTabBar::tab > .QLabel {
+    font-size: 8pt;
 }
 
 QTabWidget QTabBar::tab:hover {
@@ -836,23 +851,24 @@ QToolBar {
     padding: 0;
     margin: 0;
     spacing: 0;
-    min-height: 50px;
-    max-height: 50px;
+    min-height: 2.5em;
     background-color: #9b1c2e;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QToolBar > QToolButton {
     border: none;
-    min-height: 50px;
-    max-height: 50px;
-    width: 140px;
-    padding: 1px;
+    min-height: 2.5em;
+    min-width: 140px;
+    padding: 0px;
     text-align: center;
     background-color: #9b1c2e;
     color: #f4f4f4;
-    font-weight: bold;
     font: 12pt 'Saira Semi Condensed';
+}
+
+QToolBar > QToolButton > QLabel {
+    padding: 12px;
 }
 
 QToolBar > QToolButton:hover:!checked {
@@ -863,7 +879,7 @@ QToolBar > QToolButton:hover:!checked {
 QToolBar > QToolButton:checked {
     background-color: #f4f4f4;
     color: #9b1c2e;
-    border:  1px solid #cfcccc;
+    border-top: 1px solid #cfcccc;
 }
 
 QToolBar > QToolButton:disabled {
@@ -887,7 +903,7 @@ QToolTip {
     background-color: #f4f4f4;
     border-color: #cfcccc;
     color: #3d3939;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 /* QTreeWidget */
@@ -898,7 +914,7 @@ QTreeWidget {
     background-color: #f4f4f4;
     border-color: #cfcccc;
     color: #110202;
-    font: 'Source Sans Pro';
+    font: 8pt 'Source Sans Pro';
 }
 
 QTreeWidget::branch::closed:has-children {
@@ -1524,7 +1540,6 @@ QWidget#RPCConsole  QLabel#banHeading {
 
 QWidget#RPCConsole QPushButton#promptIcon {
     background-color: #f4f4f4;
-    margin-top: 10px;
     height: 28px;
 }
 
@@ -1537,8 +1552,8 @@ QWidget#RPCConsole QPushButton#fontSmallerButton,
 QWidget#RPCConsole QPushButton#fontBiggerButton,
 QWidget#RPCConsole QPushButton#clearButton {
     background-color: #f4f4f4;
-    width: 28px;
-    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
 }
 
 QWidget#RPCConsole QTextEdit#messagesWidget {
