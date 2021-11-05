@@ -568,7 +568,7 @@ public:
         consensus.nMTPSwitchTime = 1539172800;
         consensus.nMTPStartBlock = 1;
         consensus.nMTPFiveMinutesStartBlock = 0;
-        consensus.nMTPStripDataTime = INT_MAX;
+        consensus.nMTPStripDataTime = 1636362000;      // November 08 2021, 09:00 UTC
 
         consensus.nDifficultyAdjustStartBlock = 100;
         consensus.nFixedDifficulty = 0x2000ffff;
