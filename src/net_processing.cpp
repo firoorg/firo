@@ -1093,11 +1093,16 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                         assert(!"cannot load block from disk");
                     // Strip MTP data if past specific point of time
                     if (!block.IsProgPow() && block.IsMTP() && GetTime() >= consensusParams.nMTPStripDataTime) {
-                        if (block.mtpHashData)
-                            block.mtpHashData->StripMTPData();
-                        if (pfrom->nVersion < MTPDATA_STRIPPED_VERSION)
-                            // node is not ready for a block with stripped MTP data
-                            continue;
+                        if (pfrom->nVersion >= MTPDATA_STRIPPED_VERSION) {
+                            if (block.mtpHashData)
+                                block.mtpHashData->StripMTPData();
+                        }
+                        else {
+                            // node is not ready for a block with stripped MTP data. Skip the block if MTP
+                            // data has already been stripped locally
+                            if (!block.mtpHashData || block.mtpHashData->IsMTPDataStripped())
+                                continue;
+                        }
                     }
 
                     if (inv.type == MSG_BLOCK)
@@ -1421,8 +1426,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             return false;
         }
 
-        if (nVersion < MIN_PEER_PROTO_VERSION ||
-                (nVersion < MTPDATA_STRIPPED_VERSION && GetTime() >= chainparams.GetConsensus().nMTPStripDataTime))
+        if (nVersion < MIN_PEER_PROTO_VERSION)
         {
             // disconnect from peers older than this proto version
             LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, nVersion);
