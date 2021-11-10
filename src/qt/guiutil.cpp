@@ -56,6 +56,7 @@
 #include <QTextDocument> // for Qt::mightBeRichText
 #include <QThread>
 #include <QMouseEvent>
+#include <QTextStream>
 
 #if QT_VERSION < 0x050000
 #include <QUrl>
@@ -82,6 +83,10 @@ extern double NSAppKitVersionNumber;
 #endif
 
 namespace GUIUtil {
+
+static QString stylesheetDirectory = ":css";
+static QString firoTheme = "firoTheme";
+static CCriticalSection cs_css;
 
 QString dateTimeStr(const QDateTime &date)
 {
@@ -1015,5 +1020,25 @@ void TextElideStyledItemDelegate::initStyleOption(QStyleOptionViewItem *option, 
     option->textElideMode = Qt::ElideMiddle;
 }
 
+void loadTheme()
+{
+    AssertLockNotHeld(cs_css);
+    LOCK(cs_css);
+
+    static std::unique_ptr<QString> stylesheet;
+
+    QString fileName = stylesheetDirectory + "/" + firoTheme;
+    QFile qFile(fileName);
+    if (!qFile.open(QFile::ReadOnly)) {
+        throw std::runtime_error(strprintf("%s: Failed to open file: %s", __func__, fileName.toStdString()));
+    }
+
+    QString strStyle = QLatin1String(qFile.readAll());
+    stylesheet = std::make_unique<QString>(); 
+
+    stylesheet->append(strStyle);
+
+    qApp->setStyleSheet(*stylesheet);
+}
 
 } // namespace GUIUtil
