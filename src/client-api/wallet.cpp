@@ -616,8 +616,11 @@ UniValue verifymnemonicvalidity(Type type, const UniValue& data, const UniValue&
 UniValue readaddressbook(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
+
     LOCK(pwalletMain->cs_wallet);
+
     UniValue addressBook(UniValue::VARR);
+
     for (std::map<CTxDestination, CAddressBookData>::const_iterator it = pwalletMain->mapAddressBook.begin(); it != pwalletMain->mapAddressBook.end(); ++it) {
         CBitcoinAddress addr;
         if (addr.Set(it->first)) 
@@ -630,6 +633,16 @@ UniValue readaddressbook(Type type, const UniValue& data, const UniValue& auth, 
             addressBook.push_back(item);
         }
     }
+
+    std::vector<bip47::CPaymentCodeDescription> paymentCodes = pwalletMain->ListPcodes();
+    for (bip47::CPaymentCodeDescription const &pc: paymentCodes) {
+        UniValue e(UniValue::VOBJ);
+        e.pushKV("address", std::get<1>(pc).toString());
+        e.pushKV("label", std::get<2>(pc));
+        e.pushKV("purpose", "rap-receive");
+        addressBook.push_back(e);
+    }
+
     return addressBook;
 }
 
