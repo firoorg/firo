@@ -1069,7 +1069,7 @@ UniValue getfeerate(const JSONRPCRequest& request)
         );
 
     UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("serials", ::minRelayTxFee.GetFeePerK()));
+    ret.push_back(Pair("rate", ::minRelayTxFee.GetFeePerK()));
 
     return ret;
 }
