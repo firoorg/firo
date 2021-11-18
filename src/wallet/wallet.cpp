@@ -2882,7 +2882,7 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinContro
         std::vector<sigma::PublicCoin> coinOuts;
         sigmaState->GetCoinSetForSpend(
             &chainActive,
-            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 2 confirmation for mint to spend
+            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 1 confirmation for mint to spend
             coin.get_denomination(),
             coinId,
             hashOut,
@@ -2960,7 +2960,7 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
         std::vector<unsigned char> setHash;
         state->GetCoinSetForSpend(
             &chainActive,
-            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 2 confirmation for mint to spend
+            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 1 confirmation for mint to spend
             coinId,
             hashOut,
             coinOuts,
