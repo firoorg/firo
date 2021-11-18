@@ -127,6 +127,7 @@ BOOST_AUTO_TEST_CASE(blockfilter_basic_test)
 
 BOOST_AUTO_TEST_CASE(blockfilters_json_test)
 {
+    SelectParams(CBaseChainParams::MAIN);
     UniValue json;
     std::string json_data(json_tests::blockfilters,
                           json_tests::blockfilters + sizeof(json_tests::blockfilters));
@@ -150,7 +151,7 @@ BOOST_AUTO_TEST_CASE(blockfilters_json_test)
         unsigned int pos = 0;
         /*int block_height =*/ test[pos++].get_int();
         uint256 block_hash;
-        ParseHashStr(test[pos++].get_str(), block_hash.ToString());
+        block_hash = ParseHashStr(test[pos++].get_str(), "block_hash");
 
         CBlock block;
         BOOST_REQUIRE(DecodeHexBlk(block, test[pos++].get_str()));
@@ -166,10 +167,10 @@ BOOST_AUTO_TEST_CASE(blockfilters_json_test)
         }
 
         uint256 prev_filter_header_basic;
-        ParseHashStr(test[pos++].get_str(), prev_filter_header_basic.ToString());
+        prev_filter_header_basic = ParseHashStr(test[pos++].get_str(), "prev_filter_header_basic");
         std::vector<unsigned char> filter_basic = ParseHex(test[pos++].get_str());
         uint256 filter_header_basic;
-        ParseHashStr(test[pos++].get_str(), filter_header_basic.ToString());
+        filter_header_basic = ParseHashStr(test[pos++].get_str(), "filter_header_basic");
 
         BlockFilter computed_filter_basic(BlockFilterType::Basic, block, block_undo);
         BOOST_CHECK(computed_filter_basic.GetFilter().GetEncoded() == filter_basic);
