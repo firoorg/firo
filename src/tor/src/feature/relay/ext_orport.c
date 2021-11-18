@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Tor Project, Inc. */
+/* Copyright (c) 2012-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -391,7 +391,7 @@ connection_ext_or_auth_handle_client_hash(connection_t *conn)
 }
 
 /** Handle data from <b>or_conn</b> received on Extended ORPort.
- *  Return -1 on error. 0 on unsufficient data. 1 on correct. */
+ *  Return -1 on error. 0 on insufficient data. 1 on correct. */
 static int
 connection_ext_or_auth_process_inbuf(or_connection_t *or_conn)
 {
@@ -493,6 +493,10 @@ connection_ext_or_handle_cmd_useraddr(connection_t *conn,
     tor_free(conn->address);
   }
   conn->address = tor_addr_to_str_dup(&addr);
+
+  /* Now that we know the address, we don't have to manually override rate
+   * limiting. */
+  conn->always_rate_limit_as_remote = 0;
 
   return 0;
 }
@@ -602,7 +606,7 @@ connection_ext_or_process_inbuf(or_connection_t *or_conn)
                                              command->body, command->len) < 0)
         goto err;
     } else {
-      log_notice(LD_NET,"Got Extended ORPort command we don't regognize (%u).",
+      log_notice(LD_NET,"Got Extended ORPort command we don't recognize (%u).",
                  command->cmd);
     }
 
@@ -650,6 +654,19 @@ connection_ext_or_start_auth(or_connection_t *or_conn)
   conn->state = EXT_OR_CONN_STATE_AUTH_WAIT_AUTH_TYPE;
 
   return 0;
+}
+
+/** Creates an Extended ORPort identifier for <b>conn</b> and deposits
+ *  it into the global list of identifiers. */
+void
+connection_or_set_ext_or_identifier(or_connection_t *conn)
+{
+  char random_id[EXT_OR_CONN_ID_LEN];
+
+  if (!conn->ext_or_conn_id)
+    conn->ext_or_conn_id = tor_malloc_zero(EXT_OR_CONN_ID_LEN);
+
+  memcpy(conn->ext_or_conn_id, random_id, EXT_OR_CONN_ID_LEN);
 }
 
 /** Free any leftover allocated memory of the ext_orport.c subsystem. */

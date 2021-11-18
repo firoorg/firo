@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -14,18 +14,9 @@
 
 void rep_hist_init(void);
 void rep_hist_dump_stats(time_t now, int severity);
-void rep_hist_note_bytes_read(uint64_t num_bytes, time_t when);
-void rep_hist_note_bytes_written(uint64_t num_bytes, time_t when);
 
 void rep_hist_make_router_pessimal(const char *id, time_t when);
 
-void rep_hist_note_dir_bytes_read(uint64_t num_bytes, time_t when);
-void rep_hist_note_dir_bytes_written(uint64_t num_bytes, time_t when);
-
-MOCK_DECL(int, rep_hist_bandwidth_assess, (void));
-char *rep_hist_get_bandwidth_lines(void);
-void rep_hist_update_state(or_state_t *state);
-int rep_hist_load_state(or_state_t *state, char **err);
 void rep_history_clean(time_t before);
 
 void rep_hist_note_router_reachable(const char *id, const tor_addr_t *at_addr,
@@ -65,44 +56,66 @@ void rep_hist_note_desc_served(const char * desc);
 void rep_hist_desc_stats_term(void);
 time_t rep_hist_desc_stats_write(time_t now);
 
-void rep_hist_conn_stats_init(time_t now);
-void rep_hist_note_or_conn_bytes(uint64_t conn_id, size_t num_read,
-                                 size_t num_written, time_t when);
-void rep_hist_reset_conn_stats(time_t now);
-char *rep_hist_format_conn_stats(time_t now);
-time_t rep_hist_conn_stats_write(time_t now);
-void rep_hist_conn_stats_term(void);
-
 void rep_hist_note_circuit_handshake_requested(uint16_t type);
 void rep_hist_note_circuit_handshake_assigned(uint16_t type);
 void rep_hist_log_circuit_handshake_stats(time_t now);
 
+MOCK_DECL(int, rep_hist_get_circuit_handshake_requested, (uint16_t type));
+MOCK_DECL(int, rep_hist_get_circuit_handshake_assigned, (uint16_t type));
+
 void rep_hist_hs_stats_init(time_t now);
 void rep_hist_hs_stats_term(void);
-time_t rep_hist_hs_stats_write(time_t now);
-char *rep_hist_get_hs_stats_string(void);
-void rep_hist_seen_new_rp_cell(void);
-void rep_hist_stored_maybe_new_hs(const crypto_pk_t *pubkey);
+time_t rep_hist_hs_stats_write(time_t now, bool is_v3);
+
+void rep_hist_seen_new_rp_cell(bool is_v2);
+
+char *rep_hist_get_hs_v3_stats_string(void);
+void rep_hist_hsdir_stored_maybe_new_v3_onion(const uint8_t *blinded_key);
+
+void rep_hist_note_dns_query(int type, uint8_t error);
 
 void rep_hist_free_all(void);
 
 void rep_hist_note_negotiated_link_proto(unsigned link_proto,
                                          int started_here);
 void rep_hist_log_link_protocol_counts(void);
+void rep_hist_consensus_has_changed(const networkstatus_t *ns);
 
 extern uint64_t rephist_total_alloc;
 extern uint32_t rephist_total_num;
 #ifdef TOR_UNIT_TESTS
 extern int onion_handshakes_requested[MAX_ONION_HANDSHAKE_TYPE+1];
 extern int onion_handshakes_assigned[MAX_ONION_HANDSHAKE_TYPE+1];
-extern struct bw_array_t *write_array;
 #endif
 
 #ifdef REPHIST_PRIVATE
-typedef struct bw_array_t bw_array_t;
-STATIC uint64_t find_largest_max(bw_array_t *b);
-STATIC void commit_max(bw_array_t *b);
-STATIC void advance_obs(bw_array_t *b);
+/** Carries the various hidden service statistics, and any other
+ *  information needed. */
+typedef struct hs_v2_stats_t {
+  /** How many v2 relay cells have we seen as rendezvous points? */
+  uint64_t rp_v2_relay_cells_seen;
+} hs_v2_stats_t;
+
+/** Structure that contains the various statistics we keep about v3
+ *  services.
+ *
+ *  Because of the time period logic of v3 services, v3 statistics are more
+ *  sensitive to time than v2 stats. For this reason, we collect v3
+ *  statistics strictly from 12:00UTC to 12:00UTC as dictated by
+ *  'start_of_hs_v3_stats_interval'.
+ **/
+typedef struct hs_v3_stats_t {
+  /** How many v3 relay cells have we seen as a rendezvous point? */
+  uint64_t rp_v3_relay_cells_seen;
+
+  /* The number of unique v3 onion descriptors (actually, unique v3 blind keys)
+   * we've seen during the measurement period */
+  digest256map_t *v3_onions_seen_this_period;
+} hs_v3_stats_t;
+
+MOCK_DECL(STATIC bool, should_collect_v3_stats,(void));
+
+STATIC char *rep_hist_format_hs_stats(time_t now, bool is_v3);
 #endif /* defined(REPHIST_PRIVATE) */
 
 /**
@@ -129,5 +142,31 @@ char *rep_hist_get_padding_count_lines(void);
 void rep_hist_reset_padding_counts(void);
 void rep_hist_prep_published_padding_counts(time_t now);
 void rep_hist_padding_count_timers(uint64_t num_timers);
+
+/**
+ * Represents the various types of overload we keep track of and expose in our
+ * extra-info descriptor.
+*/
+typedef enum {
+  /* A general overload -- can have many different causes. */
+  OVERLOAD_GENERAL,
+  /* We went over our configured read rate/burst bandwidth limit */
+  OVERLOAD_READ,
+  /* We went over our configured write rate/burst bandwidth limit */
+  OVERLOAD_WRITE,
+  /* We exhausted the file descriptors in this system */
+  OVERLOAD_FD_EXHAUSTED,
+} overload_type_t;
+
+void rep_hist_note_overload(overload_type_t overload);
+char *rep_hist_get_overload_general_line(void);
+char *rep_hist_get_overload_stats_lines(void);
+
+#ifdef TOR_UNIT_TESTS
+struct hs_v2_stats_t;
+const struct hs_v2_stats_t *rep_hist_get_hs_v2_stats(void);
+struct hs_v3_stats_t;
+const struct hs_v3_stats_t *rep_hist_get_hs_v3_stats(void);
+#endif /* defined(TOR_UNIT_TESTS) */
 
 #endif /* !defined(TOR_REPHIST_H) */

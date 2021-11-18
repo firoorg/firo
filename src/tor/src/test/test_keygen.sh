@@ -6,6 +6,20 @@
 umask 077
 set -e
 
+# emulate realpath(), in case coreutils or equivalent is not installed.
+abspath() {
+    f="$*"
+    if [ -d "$f" ]; then
+        dir="$f"
+        base=""
+    else
+        dir="$(dirname "$f")"
+        base="/$(basename "$f")"
+    fi
+    dir="$(cd "$dir" && pwd)"
+    echo "$dir$base"
+}
+
 if [ $# -eq 0 ] || [ ! -f "${1}" ] || [ ! -x "${1}" ]; then
   if [ "$TESTING_TOR_BINARY" = "" ] ; then
     echo "Usage: ${0} PATH_TO_TOR [case-number]"
@@ -21,14 +35,22 @@ if test "$UNAME_OS" = 'CYGWIN' || \
   exit 77
 fi
 
+# find the tor binary
 if [ $# -ge 1 ]; then
   TOR_BINARY="${1}"
   shift
 else
-  TOR_BINARY="${TESTING_TOR_BINARY}"
+  TOR_BINARY="${TESTING_TOR_BINARY:-./src/app/tor}"
 fi
 
+TOR_BINARY="$(abspath "$TOR_BINARY")"
 
+echo "TOR BINARY IS ${TOR_BINARY}"
+
+if "$TOR_BINARY" --list-modules | grep -q "relay: no"; then
+  echo "This test requires the relay module. Skipping." >&2
+  exit 77
+fi
 
   if [ $# -ge 1 ]; then
       dflt=0
@@ -98,7 +120,7 @@ TOR="${TOR_BINARY} ${QUIETLY} --DisableNetwork 1 --ShutdownWaitLength 0 --ORPort
 
 # Step 1: Start Tor with --list-fingerprint --quiet.  Make sure everything is there.
 mkdir "${DATA_DIR}/orig"
-${TOR} --DataDirectory "${DATA_DIR}/orig" --list-fingerprint ${SILENTLY} > /dev/null
+${TOR} --DataDirectory "${DATA_DIR}/orig" ${SILENTLY} --list-fingerprint > /dev/null
 
 check_dir "${DATA_DIR}/orig/keys"
 check_file "${DATA_DIR}/orig/keys/ed25519_master_id_public_key"
@@ -184,7 +206,7 @@ SRC="${DATA_DIR}/orig"
 
 mkdir -p "${ME}/keys"
 cp "${SRC}/keys/ed25519_master_id_"* "${ME}/keys/"
-${TOR} --DataDirectory "${ME}" --list-fingerprint ${SILENTLY} >/dev/null || die "Tor failed when starting with only master key"
+${TOR} --DataDirectory "${ME}" ${SILENTLY} --list-fingerprint >/dev/null || die "Tor failed when starting with only master key"
 check_files_eq "${SRC}/keys/ed25519_master_id_public_key" "${ME}/keys/ed25519_master_id_public_key"
 check_files_eq "${SRC}/keys/ed25519_master_id_secret_key" "${ME}/keys/ed25519_master_id_secret_key"
 check_file "${ME}/keys/ed25519_signing_cert"
@@ -242,11 +264,11 @@ SRC="${DATA_DIR}/orig"
 
 mkdir -p "${ME}/keys"
 cp "${SRC}/keys/ed25519_master_id_secret_key" "${ME}/keys/"
-${TOR} --DataDirectory "${ME}" --list-fingerprint ${SILENTLY} > "${ME}/fp1" || die "Tor wouldn't start with only unencrypted secret key"
+${TOR} --DataDirectory "${ME}" ${SILENTLY} --list-fingerprint > "${ME}/fp1" || die "Tor wouldn't start with only unencrypted secret key"
 check_file "${ME}/keys/ed25519_master_id_public_key"
 check_file "${ME}/keys/ed25519_signing_cert"
 check_file "${ME}/keys/ed25519_signing_secret_key"
-${TOR} --DataDirectory "${ME}" --list-fingerprint ${SILENTLY} > "${ME}/fp2" || die "Tor wouldn't start again after starting once with only unencrypted secret key."
+${TOR} --DataDirectory "${ME}" ${SILENTLY} --list-fingerprint > "${ME}/fp2" || die "Tor wouldn't start again after starting once with only unencrypted secret key."
 
 check_files_eq "${ME}/fp1" "${ME}/fp2"
 
@@ -308,7 +330,7 @@ cp "${SRC}/keys/ed25519_master_id_secret_key" "${ME}/keys/"
 cp "${SRC}/keys/ed25519_signing_cert" "${ME}/keys/"
 cp "${SRC}/keys/ed25519_signing_secret_key" "${ME}/keys/"
 
-${TOR} --DataDirectory "${ME}" --list-fingerprint ${SILENTLY} >/dev/null || die "Failed when starting with missing public key"
+${TOR} --DataDirectory "${ME}" ${SILENTLY} --list-fingerprint >/dev/null || die "Failed when starting with missing public key"
 check_keys_eq ed25519_master_id_secret_key
 check_keys_eq ed25519_master_id_public_key
 check_keys_eq ed25519_signing_secret_key
@@ -330,7 +352,7 @@ cp "${SRC}/keys/ed25519_master_id_public_key" "${ME}/keys/"
 cp "${SRC}/keys/ed25519_signing_cert" "${ME}/keys/"
 cp "${SRC}/keys/ed25519_signing_secret_key" "${ME}/keys/"
 
-${TOR} --DataDirectory "${ME}" --list-fingerprint ${SILENTLY} >/dev/null || die "Failed when starting with offline secret key"
+${TOR} --DataDirectory "${ME}" ${SILENTLY} --list-fingerprint >/dev/null || die "Failed when starting with offline secret key"
 check_no_file "${ME}/keys/ed25519_master_id_secret_key"
 check_keys_eq ed25519_master_id_public_key
 check_keys_eq ed25519_signing_secret_key
@@ -351,7 +373,7 @@ mkdir -p "${ME}/keys"
 cp "${SRC}/keys/ed25519_signing_cert" "${ME}/keys/"
 cp "${SRC}/keys/ed25519_signing_secret_key" "${ME}/keys/"
 
-${TOR} --DataDirectory "${ME}" --list-fingerprint ${SILENTLY} >/dev/null || die "Failed when starting with only signing material"
+${TOR} --DataDirectory "${ME}" ${SILENTLY} --list-fingerprint >/dev/null || die "Failed when starting with only signing material"
 check_no_file "${ME}/keys/ed25519_master_id_secret_key"
 check_file "${ME}/keys/ed25519_master_id_public_key"
 check_keys_eq ed25519_signing_secret_key
