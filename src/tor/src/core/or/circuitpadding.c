@@ -116,7 +116,6 @@ STATIC smartlist_t *origin_padding_machines = NULL;
  *  runtime and as long as circuits are alive. */
 STATIC smartlist_t *relay_padding_machines = NULL;
 
-#ifndef COCCI
 /** Loop over the current padding state machines using <b>loop_var</b> as the
  *  loop variable. */
 #define FOR_EACH_CIRCUIT_MACHINE_BEGIN(loop_var)                         \
@@ -131,7 +130,6 @@ STATIC smartlist_t *relay_padding_machines = NULL;
   if (!(circ)->padding_info[loop_var])                           \
     continue;
 #define FOR_EACH_ACTIVE_CIRCUIT_MACHINE_END } STMT_END ;
-#endif /* !defined(COCCI) */
 
 /**
  * Free the machineinfo at an index
@@ -266,31 +264,18 @@ circpad_marked_circuit_for_padding(circuit_t *circ, int reason)
 /**
  * Free all the machineinfos in <b>circ</b> that match <b>machine_num</b>.
  *
- * If machine_ctr is non-zero, also make sure it matches the padding_info's
- * machine counter before freeing.
- *
  * Returns true if any machineinfos with that number were freed.
  * False otherwise. */
 static int
-free_circ_machineinfos_with_machine_num(circuit_t *circ, int machine_num,
-                                        uint32_t machine_ctr)
+free_circ_machineinfos_with_machine_num(circuit_t *circ, int machine_num)
 {
   int found = 0;
   FOR_EACH_CIRCUIT_MACHINE_BEGIN(i) {
     if (circ->padding_machine[i] &&
         circ->padding_machine[i]->machine_num == machine_num) {
-      /* If machine_ctr is non-zero, make sure it matches too. This
-       * is to ensure that old STOP messages don't shutdown newer machines. */
-      if (machine_ctr && circ->padding_info[i] &&
-          circ->padding_info[i]->machine_ctr != machine_ctr) {
-        log_info(LD_CIRC,
-                 "Padding shutdown for wrong (old?) machine ctr: %u vs %u",
-                 machine_ctr, circ->padding_info[i]->machine_ctr);
-      } else {
-        circpad_circuit_machineinfo_free_idx(circ, i);
-        circ->padding_machine[i] = NULL;
-        found = 1;
-      }
+      circpad_circuit_machineinfo_free_idx(circ, i);
+      circ->padding_machine[i] = NULL;
+      found = 1;
     }
   } FOR_EACH_CIRCUIT_MACHINE_END;
 
@@ -319,7 +304,6 @@ circpad_circuit_machineinfo_new(circuit_t *on_circ, int machine_index)
   mi->machine_index = machine_index;
   mi->on_circ = on_circ;
   mi->last_cell_time_sec = approx_time();
-  mi->machine_ctr = on_circ->padding_machine_ctr;
 
   return mi;
 }
@@ -702,7 +686,7 @@ circpad_distribution_sample(circpad_distribution_t dist)
     case CIRCPAD_DIST_UNIFORM:
       {
         // param2 is upper bound, param1 is lower
-        const struct uniform_t my_uniform = {
+        const struct uniform my_uniform = {
           .base = UNIFORM(my_uniform),
           .a = dist.param1,
           .b = dist.param2,
@@ -712,7 +696,7 @@ circpad_distribution_sample(circpad_distribution_t dist)
     case CIRCPAD_DIST_LOGISTIC:
       {
       /* param1 is Mu, param2 is sigma. */
-        const struct logistic_t my_logistic = {
+        const struct logistic my_logistic = {
           .base = LOGISTIC(my_logistic),
           .mu = dist.param1,
           .sigma = dist.param2,
@@ -722,7 +706,7 @@ circpad_distribution_sample(circpad_distribution_t dist)
     case CIRCPAD_DIST_LOG_LOGISTIC:
       {
         /* param1 is Alpha, param2 is 1.0/Beta */
-        const struct log_logistic_t my_log_logistic = {
+        const struct log_logistic my_log_logistic = {
           .base = LOG_LOGISTIC(my_log_logistic),
           .alpha = dist.param1,
           .beta = dist.param2,
@@ -732,7 +716,7 @@ circpad_distribution_sample(circpad_distribution_t dist)
     case CIRCPAD_DIST_GEOMETRIC:
       {
         /* param1 is 'p' (success probability) */
-        const struct geometric_t my_geometric = {
+        const struct geometric my_geometric = {
           .base = GEOMETRIC(my_geometric),
           .p = dist.param1,
         };
@@ -741,7 +725,7 @@ circpad_distribution_sample(circpad_distribution_t dist)
     case CIRCPAD_DIST_WEIBULL:
       {
         /* param1 is k, param2 is Lambda */
-        const struct weibull_t my_weibull = {
+        const struct weibull my_weibull = {
           .base = WEIBULL(my_weibull),
           .k = dist.param1,
           .lambda = dist.param2,
@@ -751,7 +735,7 @@ circpad_distribution_sample(circpad_distribution_t dist)
     case CIRCPAD_DIST_PARETO:
       {
         /* param1 is sigma, param2 is xi, no more params for mu so we use 0 */
-        const struct genpareto_t my_genpareto = {
+        const struct genpareto my_genpareto = {
           .base = GENPARETO(my_genpareto),
           .mu = 0,
           .sigma = dist.param1,
@@ -1226,7 +1210,6 @@ circpad_send_padding_cell_for_callback(circpad_machine_runtime_t *mi)
   circuit_t *circ = mi->on_circ;
   int machine_idx = mi->machine_index;
   mi->padding_scheduled_at_usec = 0;
-  mi->is_padding_timer_scheduled = 0;
   circpad_statenum_t state = mi->current_state;
 
   /* Make sure circuit didn't close on us */
@@ -1536,7 +1519,7 @@ circpad_machine_schedule_padding,(circpad_machine_runtime_t *mi))
 /**
  * If the machine transitioned to the END state, we need
  * to check to see if it wants us to shut it down immediately.
- * If it does, then we need to send the appropriate negotiation commands
+ * If it does, then we need to send the appropiate negotiation commands
  * depending on which side it is.
  *
  * After this function is called, mi may point to freed memory. Do
@@ -1571,23 +1554,19 @@ circpad_machine_spec_transitioned_to_end(circpad_machine_runtime_t *mi)
       /* We free the machine info here so that we can be replaced
        * by a different machine. But we must leave the padding_machine
        * in place to wait for the negotiated response */
-      uint32_t machine_ctr = mi->machine_ctr;
       circpad_circuit_machineinfo_free_idx(on_circ,
                                            machine->machine_index);
       circpad_negotiate_padding(TO_ORIGIN_CIRCUIT(on_circ),
                                 machine->machine_num,
                                 machine->target_hopnum,
-                                CIRCPAD_COMMAND_STOP,
-                                machine_ctr);
+                                CIRCPAD_COMMAND_STOP);
     } else {
-      uint32_t machine_ctr = mi->machine_ctr;
       circpad_circuit_machineinfo_free_idx(on_circ,
                                            machine->machine_index);
       circpad_padding_negotiated(on_circ,
                                 machine->machine_num,
                                 CIRCPAD_COMMAND_STOP,
-                                CIRCPAD_RESPONSE_OK,
-                                machine_ctr);
+                                CIRCPAD_RESPONSE_OK);
       on_circ->padding_machine[machine->machine_index] = NULL;
     }
   }
@@ -2009,7 +1988,7 @@ circpad_internal_event_state_length_up(circpad_machine_runtime_t *mi)
  * Returns true if the circuit matches the conditions.
  */
 static inline bool
-circpad_machine_conditions_apply(origin_circuit_t *circ,
+circpad_machine_conditions_met(origin_circuit_t *circ,
                                const circpad_machine_spec_t *machine)
 {
   /* If padding is disabled, no machines should match/apply. This has
@@ -2026,7 +2005,7 @@ circpad_machine_conditions_apply(origin_circuit_t *circ,
   }
 
   if (!(circpad_circ_purpose_to_mask(TO_CIRCUIT(circ)->purpose)
-      & machine->conditions.apply_purpose_mask))
+      & machine->conditions.purpose_mask))
     return 0;
 
   if (machine->conditions.requires_vanguards) {
@@ -2042,7 +2021,7 @@ circpad_machine_conditions_apply(origin_circuit_t *circ,
    * "I want to apply to circuits with either streams or no streams"; OR
    * "I only want to apply to circuits with streams"; OR
    * "I only want to apply to circuits without streams". */
-  if (!(circpad_circuit_state(circ) & machine->conditions.apply_state_mask))
+  if (!(circpad_circuit_state(circ) & machine->conditions.state_mask))
     return 0;
 
   if (circuit_get_cpath_opened_len(circ) < machine->conditions.min_hops)
@@ -2052,31 +2031,11 @@ circpad_machine_conditions_apply(origin_circuit_t *circ,
 }
 
 /**
- * Check to see if any of the keep conditions still apply to this circuit.
- *
- * These conditions keep the machines active if they match, but do not
- * cause new machines to start up.
- */
-static inline bool
-circpad_machine_conditions_keep(origin_circuit_t *circ,
-                                const circpad_machine_spec_t *machine)
-{
-  if ((circpad_circ_purpose_to_mask(TO_CIRCUIT(circ)->purpose)
-      & machine->conditions.keep_purpose_mask))
-    return 1;
-
-  if ((circpad_circuit_state(circ) & machine->conditions.keep_state_mask))
-    return 1;
-
-  return 0;
-}
-
-/**
  * Returns a minimized representation of the circuit state.
  *
  * The padding code only cares if the circuit is building,
  * opened, used for streams, and/or still has relay early cells.
- * This returns a bitmask of all state properties that apply to
+ * This returns a bitmask of all state properities that apply to
  * this circuit.
  */
 static inline
@@ -2136,22 +2095,15 @@ circpad_shutdown_old_machines(origin_circuit_t *on_circ)
   circuit_t *circ = TO_CIRCUIT(on_circ);
 
   FOR_EACH_ACTIVE_CIRCUIT_MACHINE_BEGIN(i, circ) {
-    /* We shut down a machine if neither the apply conditions
-     * nor the keep conditions match. If either set of conditions match,
-     * keep it around. */
-    if (!circpad_machine_conditions_apply(on_circ,
-                                        circ->padding_machine[i]) &&
-        !circpad_machine_conditions_keep(on_circ,
+    if (!circpad_machine_conditions_met(on_circ,
                                         circ->padding_machine[i])) {
-      uint32_t machine_ctr = circ->padding_info[i]->machine_ctr;
       // Clear machineinfo (frees timers)
       circpad_circuit_machineinfo_free_idx(circ, i);
       // Send padding negotiate stop
       circpad_negotiate_padding(on_circ,
                                 circ->padding_machine[i]->machine_num,
                                 circ->padding_machine[i]->target_hopnum,
-                                CIRCPAD_COMMAND_STOP,
-                                machine_ctr);
+                                CIRCPAD_COMMAND_STOP);
     }
   } FOR_EACH_ACTIVE_CIRCUIT_MACHINE_END;
 }
@@ -2200,7 +2152,7 @@ circpad_add_matching_machines(origin_circuit_t *on_circ,
        * machines installed on a circuit. Make sure we only
        * add this machine if its target machine index is free. */
       if (machine->machine_index == i &&
-          circpad_machine_conditions_apply(on_circ, machine)) {
+          circpad_machine_conditions_met(on_circ, machine)) {
 
         // We can only replace this machine if the target hopnum
         // is the same, otherwise we'll get invalid data
@@ -2218,8 +2170,7 @@ circpad_add_matching_machines(origin_circuit_t *on_circ,
         circpad_setup_machine_on_circ(circ, machine);
         if (circpad_negotiate_padding(on_circ, machine->machine_num,
                                   machine->target_hopnum,
-                                  CIRCPAD_COMMAND_START,
-                                  circ->padding_machine_ctr) < 0) {
+                                  CIRCPAD_COMMAND_START) < 0) {
           log_info(LD_CIRC,
                    "Padding not negotiated. Cleaning machine from circuit %u",
              CIRCUIT_IS_ORIGIN(circ) ?
@@ -2228,8 +2179,8 @@ circpad_add_matching_machines(origin_circuit_t *on_circ,
           circ->padding_machine[i] = NULL;
           on_circ->padding_negotiation_failed = 1;
         } else {
-          /* Success. Don't try any more machines on this index */
-          break;
+          /* Success. Don't try any more machines */
+          return;
         }
       }
     } SMARTLIST_FOREACH_END(machine);
@@ -2390,7 +2341,7 @@ circpad_deliver_unrecognized_cell_events(circuit_t *circ,
  * Deliver circpad events for "recognized" relay cells.
  *
  * Recognized cells are destined for this hop, either client or middle.
- * Check if this is a padding cell or not, and send the appropriate
+ * Check if this is a padding cell or not, and send the appropiate
  * received event.
  */
 void
@@ -2510,17 +2461,6 @@ circpad_setup_machine_on_circ(circuit_t *on_circ,
              machine->name, on_circ->purpose);
   }
 
-  /* Padding machine ctr starts at 1, so we increment this ctr first.
-   * (machine ctr of 0 means "any machine").
-   *
-   * See https://bugs.tororject.org/30992. */
-  on_circ->padding_machine_ctr++;
-
-  /* uint32 wraparound check: 0 is special, just wrap to 1 */
-  if (on_circ->padding_machine_ctr == 0) {
-    on_circ->padding_machine_ctr = 1;
-  }
-
   on_circ->padding_info[machine->machine_index] =
       circpad_circuit_machineinfo_new(on_circ, machine->machine_index);
   on_circ->padding_machine[machine->machine_index] = machine;
@@ -2613,9 +2553,9 @@ circpad_circ_client_machine_init(void)
       = tor_malloc_zero(sizeof(circpad_machine_spec_t));
 
   circ_client_machine->conditions.min_hops = 2;
-  circ_client_machine->conditions.apply_state_mask =
+  circ_client_machine->conditions.state_mask =
       CIRCPAD_CIRC_BUILDING|CIRCPAD_CIRC_OPENED|CIRCPAD_CIRC_HAS_RELAY_EARLY;
-  circ_client_machine->conditions.apply_purpose_mask = CIRCPAD_PURPOSE_ALL;
+  circ_client_machine->conditions.purpose_mask = CIRCPAD_PURPOSE_ALL;
   circ_client_machine->conditions.reduced_padding_ok = 1;
 
   circ_client_machine->target_hopnum = 2;
@@ -2682,7 +2622,7 @@ circpad_circ_responder_machine_init(void)
      serialize this into the consensus or the torrc */
 
   /* We transition to the burst state on padding receive and on non-padding
-   * receive */
+   * recieve */
   circ_responder_machine->states[CIRCPAD_STATE_START].
       next_state[CIRCPAD_EVENT_PADDING_RECV] = CIRCPAD_STATE_BURST;
   circ_responder_machine->states[CIRCPAD_STATE_START].
@@ -2711,7 +2651,7 @@ circpad_circ_responder_machine_init(void)
   /* During burst state we wait forever for padding to arrive.
 
      We are waiting for a padding cell from the client to come in, so that we
-     respond, and we imitate how extend looks like */
+     respond, and we immitate how extend looks like */
   circ_responder_machine->states[CIRCPAD_STATE_BURST].histogram[0] = 0;
   // Only infinity bin:
   circ_responder_machine->states[CIRCPAD_STATE_BURST].histogram[1] = 1;
@@ -2874,8 +2814,7 @@ signed_error_t
 circpad_negotiate_padding(origin_circuit_t *circ,
                           circpad_machine_num_t machine,
                           uint8_t target_hopnum,
-                          uint8_t command,
-                          uint32_t machine_ctr)
+                          uint8_t command)
 {
   circpad_negotiate_t type;
   cell_t cell;
@@ -2897,16 +2836,14 @@ circpad_negotiate_padding(origin_circuit_t *circ,
   circpad_negotiate_set_command(&type, command);
   circpad_negotiate_set_version(&type, 0);
   circpad_negotiate_set_machine_type(&type, machine);
-  circpad_negotiate_set_machine_ctr(&type, machine_ctr);
 
   if ((len = circpad_negotiate_encode(cell.payload, CELL_PAYLOAD_SIZE,
         &type)) < 0)
     return -1;
 
   log_fn(LOG_INFO,LD_CIRC,
-         "Negotiating padding on circuit %u (%d), command %d, for ctr %u",
-         circ->global_identifier, TO_CIRCUIT(circ)->purpose, command,
-         machine_ctr);
+         "Negotiating padding on circuit %u (%d), command %d",
+         circ->global_identifier, TO_CIRCUIT(circ)->purpose, command);
 
   return circpad_send_command_to_hop(circ, target_hopnum,
                                      RELAY_COMMAND_PADDING_NEGOTIATE,
@@ -2922,8 +2859,7 @@ bool
 circpad_padding_negotiated(circuit_t *circ,
                            circpad_machine_num_t machine,
                            uint8_t command,
-                           uint8_t response,
-                           uint32_t machine_ctr)
+                           uint8_t response)
 {
   circpad_negotiated_t type;
   cell_t cell;
@@ -2940,7 +2876,6 @@ circpad_padding_negotiated(circuit_t *circ,
   circpad_negotiated_set_response(&type, response);
   circpad_negotiated_set_version(&type, 0);
   circpad_negotiated_set_machine_type(&type, machine);
-  circpad_negotiated_set_machine_ctr(&type, machine_ctr);
 
   if ((len = circpad_negotiated_encode(cell.payload, CELL_PAYLOAD_SIZE,
         &type)) < 0)
@@ -2986,33 +2921,19 @@ circpad_handle_padding_negotiate(circuit_t *circ, cell_t *cell)
   if (negotiate->command == CIRCPAD_COMMAND_STOP) {
     /* Free the machine corresponding to this machine type */
     if (free_circ_machineinfos_with_machine_num(circ,
-                negotiate->machine_type,
-                negotiate->machine_ctr)) {
-      log_info(LD_CIRC, "Received STOP command for machine %u, ctr %u",
-               negotiate->machine_type, negotiate->machine_ctr);
+                negotiate->machine_type)) {
+      log_info(LD_CIRC, "Received STOP command for machine %u",
+               negotiate->machine_type);
       goto done;
     }
-    if (negotiate->machine_ctr <= circ->padding_machine_ctr) {
-      log_info(LD_CIRC, "Received STOP command for old machine %u, ctr %u",
-               negotiate->machine_type, negotiate->machine_ctr);
-      goto done;
-
-    } else {
-      log_fn(LOG_PROTOCOL_WARN, LD_CIRC,
-                "Received circuit padding stop command for unknown machine.");
-      goto err;
-    }
- } else if (negotiate->command == CIRCPAD_COMMAND_START) {
+    log_fn(LOG_PROTOCOL_WARN, LD_CIRC,
+          "Received circuit padding stop command for unknown machine.");
+    goto err;
+  } else if (negotiate->command == CIRCPAD_COMMAND_START) {
     SMARTLIST_FOREACH_BEGIN(relay_padding_machines,
                             const circpad_machine_spec_t *, m) {
       if (m->machine_num == negotiate->machine_type) {
         circpad_setup_machine_on_circ(circ, m);
-        if (negotiate->machine_ctr &&
-            circ->padding_machine_ctr != negotiate->machine_ctr) {
-            log_fn(LOG_PROTOCOL_WARN, LD_CIRC,
-              "Client and relay have different counts for padding machines: "
-              "%u vs %u", circ->padding_machine_ctr, negotiate->machine_ctr);
-        }
         circpad_cell_event_nonpadding_received(circ);
         goto done;
       }
@@ -3025,8 +2946,7 @@ circpad_handle_padding_negotiate(circuit_t *circ, cell_t *cell)
   done:
     circpad_padding_negotiated(circ, negotiate->machine_type,
                    negotiate->command,
-                   (retval == 0) ? CIRCPAD_RESPONSE_OK : CIRCPAD_RESPONSE_ERR,
-                   negotiate->machine_ctr);
+                   (retval == 0) ? CIRCPAD_RESPONSE_OK : CIRCPAD_RESPONSE_ERR);
     circpad_negotiate_free(negotiate);
 
     return retval;
@@ -3077,22 +2997,17 @@ circpad_handle_padding_negotiated(circuit_t *circ, cell_t *cell,
      * circpad_add_matching_matchines() added a new machine,
      * there may be a padding_machine for a different machine num
      * than this response. */
-    free_circ_machineinfos_with_machine_num(circ, negotiated->machine_type,
-                                            negotiated->machine_ctr);
+    free_circ_machineinfos_with_machine_num(circ, negotiated->machine_type);
   } else if (negotiated->command == CIRCPAD_COMMAND_START &&
              negotiated->response == CIRCPAD_RESPONSE_ERR) {
-    // This can still happen due to consensus drift.. free the machines
+    // This can happen due to consensus drift.. free the machines
     // and be sad
-    if (free_circ_machineinfos_with_machine_num(circ, negotiated->machine_type,
-                                            negotiated->machine_ctr)) {
-      // Only fail if a machine was there and matched the error cell
-      TO_ORIGIN_CIRCUIT(circ)->padding_negotiation_failed = 1;
-      log_fn(LOG_PROTOCOL_WARN, LD_CIRC,
-             "Middle node did not accept our padding request on circuit "
-             "%u (%d)",
-             TO_ORIGIN_CIRCUIT(circ)->global_identifier,
-             circ->purpose);
-    }
+    free_circ_machineinfos_with_machine_num(circ, negotiated->machine_type);
+    TO_ORIGIN_CIRCUIT(circ)->padding_negotiation_failed = 1;
+    log_fn(LOG_PROTOCOL_WARN, LD_CIRC,
+           "Middle node did not accept our padding request on circuit %u (%d)",
+           TO_ORIGIN_CIRCUIT(circ)->global_identifier,
+           circ->purpose);
   }
 
   circpad_negotiated_free(negotiated);

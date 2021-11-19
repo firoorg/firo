@@ -1,13 +1,8 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
-
-/**
- * @file entry_port_cfg_st.h
- * @brief Configuration structure for client ports.
- **/
 
 #ifndef ENTRY_PORT_CFG_ST_H
 #define ENTRY_PORT_CFG_ST_H
@@ -53,9 +48,7 @@ struct entry_port_cfg_t {
    * do we prefer IPv6? */
   unsigned int prefer_ipv6_virtaddr : 1;
 
-  /** For socks listeners: can we send back the extended SOCKS5 error code? */
-  unsigned int extended_socks5_codes : 1;
-
 };
 
 #endif /* !defined(ENTRY_PORT_CFG_ST_H) */
+

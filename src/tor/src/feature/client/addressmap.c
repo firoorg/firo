@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -23,6 +23,7 @@
 #include "app/config/config.h"
 #include "core/or/connection_edge.h"
 #include "feature/control/control_events.h"
+#include "feature/relay/dns.h"
 #include "feature/nodelist/nodelist.h"
 #include "feature/nodelist/routerset.h"
 
@@ -422,7 +423,7 @@ addressmap_rewrite(char *address, size_t maxlen,
       goto done;
     }
 
-    /* Check whether the flags we were passed tell us not to use this
+    /* Check wither the flags we were passed tell us not to use this
      * mapping. */
     switch (ent->source) {
       case ADDRMAPSRC_DNS:
@@ -515,7 +516,7 @@ addressmap_rewrite_reverse(char *address, size_t maxlen, unsigned flags,
     else if (f == AF_INET6 && !(flags & AMR_FLAG_USE_IPV6_DNS))
       return 0;
     /* FFFF we should reverse-map virtual addresses even if we haven't
-     * enabled DNS caching. */
+     * enabled DNS cacheing. */
   }
 
   tor_asprintf(&s, "REVERSE[%s]", address);
@@ -576,7 +577,7 @@ void
 addressmap_register(const char *address, char *new_address, time_t expires,
                     addressmap_entry_source_t source,
                     const int wildcard_addr,
-                    const int wildcard_new_addr, uint64_t stream_id)
+                    const int wildcard_new_addr)
 {
   addressmap_entry_t *ent;
 
@@ -626,8 +627,7 @@ addressmap_register(const char *address, char *new_address, time_t expires,
   log_info(LD_CONFIG, "Addressmap: (re)mapped '%s' to '%s'",
            safe_str_client(address),
            safe_str_client(ent->new_address));
-  control_event_address_mapped(address, ent->new_address,
-                               expires, NULL, 1, stream_id);
+  control_event_address_mapped(address, ent->new_address, expires, NULL, 1);
 }
 
 /** An attempt to resolve <b>address</b> failed at some OR.
@@ -681,19 +681,15 @@ client_dns_set_addressmap_impl(entry_connection_t *for_conn,
                                int ttl)
 {
   char *extendedaddress=NULL, *extendedval=NULL;
-  uint64_t stream_id = 0;
+  (void)for_conn;
 
   tor_assert(address);
   tor_assert(name);
 
-  if (for_conn) {
-    stream_id = ENTRY_TO_CONN(for_conn)->global_identifier;
-  }
-
   if (ttl<0)
     ttl = DEFAULT_DNS_TTL;
   else
-    ttl = clip_dns_ttl(ttl);
+    ttl = dns_clip_ttl(ttl);
 
   if (exitname) {
     /* XXXX fails to ever get attempts to get an exit address of
@@ -710,7 +706,7 @@ client_dns_set_addressmap_impl(entry_connection_t *for_conn,
                  "%s", name);
   }
   addressmap_register(extendedaddress, extendedval,
-                      time(NULL) + ttl, ADDRMAPSRC_DNS, 0, 0, stream_id);
+                      time(NULL) + ttl, ADDRMAPSRC_DNS, 0, 0);
   tor_free(extendedaddress);
 }
 
@@ -907,7 +903,7 @@ get_random_virtual_addr(const virtual_addr_conf_t *conf, tor_addr_t *addr_out)
   }
 
   if (ipv6)
-    tor_addr_from_ipv6_bytes(addr_out, bytes);
+    tor_addr_from_ipv6_bytes(addr_out, (char*) bytes);
   else
     tor_addr_from_ipv4n(addr_out, get_uint32(bytes));
 
@@ -1048,7 +1044,7 @@ addressmap_register_virtual_address(int type, char *new_address)
   log_info(LD_APP, "Registering map from %s to %s", *addrp, new_address);
   if (vent_needs_to_be_added)
     strmap_set(virtaddress_reversemap, new_address, vent);
-  addressmap_register(*addrp, new_address, 2, ADDRMAPSRC_AUTOMAP, 0, 0, 0);
+  addressmap_register(*addrp, new_address, 2, ADDRMAPSRC_AUTOMAP, 0, 0);
 
   /* FFFF register corresponding reverse mapping. */
 

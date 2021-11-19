@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #ifndef OR_CIRCUIT_ST_H
@@ -27,7 +27,7 @@ struct or_circuit_t {
   /** Pointer to a workqueue entry, if this circuit has given an onionskin to
    * a cpuworker and is waiting for a response. Used to decide whether it is
    * safe to free a circuit or if it is still in use by a cpuworker. */
-  struct workqueue_entry_t *workqueue_entry;
+  struct workqueue_entry_s *workqueue_entry;
 
   /** The circuit_id used in the previous (backward) hop of this circuit. */
   circid_t p_circ_id;
@@ -63,12 +63,6 @@ struct or_circuit_t {
    *  statistics. */
   unsigned int circuit_carries_hs_traffic_stats : 1;
 
-  /** True iff this circuit was made with a CREATE_FAST cell, or a CREATE[2]
-   * cell with a TAP handshake. If this is the case and this is a rend circuit,
-   * this is a v2 circuit, otherwise if this is a rend circuit it's a v3
-   * circuit. */
-  bool used_legacy_circuit_handshake;
-
   /** Number of cells that were removed from circuit queue; reset every
    * time when writing buffer stats to disk. */
   uint32_t processed_cells;
@@ -81,10 +75,6 @@ struct or_circuit_t {
   /** If set, the DoS defenses are enabled on this circuit meaning that the
    * introduce2_bucket is initialized and used. */
   unsigned int introduce2_dos_defense_enabled : 1;
-  /** If set, the DoS defenses were explicitly enabled through the
-   * ESTABLISH_INTRO cell extension. If unset, the consensus is used to learn
-   * if the defenses can be enabled or not. */
-  unsigned int introduce2_dos_defense_explicit : 1;
 
   /** INTRODUCE2 cell bucket controlling how much can go on this circuit. Only
    * used if this is a service introduction circuit at the intro point

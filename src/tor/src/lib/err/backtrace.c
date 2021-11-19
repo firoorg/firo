@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2021, The Tor Project, Inc. */
+/* Copyright (c) 2013-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -54,7 +54,7 @@
 
 #include "lib/cc/ctassert.h"
 
-#define BACKTRACE_PRIVATE
+#define EXPOSE_CLEAN_BACKTRACE
 #include "lib/err/backtrace.h"
 
 #if defined(HAVE_EXECINFO_H) && defined(HAVE_BACKTRACE) && \

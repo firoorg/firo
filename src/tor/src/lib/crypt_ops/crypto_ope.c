@@ -1,9 +1,8 @@
-/* Copyright (c) 2018-2021, The Tor Project, Inc. */
+/* Copyright (c) 2018-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
- * @file crypto_ope.c
- * @brief A rudimentary order-preserving encryption scheme.
+ * A rudimentary order-preserving encryption scheme.
  *
  * To compute the encryption of N, this scheme uses an AES-CTR stream to
  * generate M-byte values, and adds the first N of them together. (+1 each to
@@ -144,7 +143,7 @@ crypto_ope_new(const uint8_t *key)
   return ope;
 }
 
-/** Free all storage held in <b>ope</b>. */
+/** Free all storage held in <>ope</b>. */
 void
 crypto_ope_free_(crypto_ope_t *ope)
 {

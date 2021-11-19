@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 # Copyright (c) 2014-2019, The Tor Project, Inc.
 # See LICENSE for licensing information
 #
@@ -8,11 +8,6 @@
 #
 # To run it, pipe a section of the changelog (starting with "Changes
 # in Tor 0.x.y.z-alpha" through the script.)
-
-# Future imports for Python 2.7, mandatory in 3.0
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import os
 import re
@@ -195,7 +190,7 @@ def body_parser(line):
     elif re.match(r'^\s+\S', line):
         return TP_HEADTEXT
     else:
-        print("Weird line %r"%line, file=sys.stderr)
+        print "Weird line %r"%line
 
 def clean_head(head):
     return head
@@ -203,7 +198,7 @@ def clean_head(head):
 def head_score(s):
     m = re.match(r'^ +o (.*)', s)
     if not m:
-        print("Can't score %r"%s, file=sys.stderr)
+        print >>sys.stderr, "Can't score %r"%s
         return 99999
     lw = m.group(1).lower()
     if lw.startswith("security") and "feature" not in lw:
@@ -291,12 +286,12 @@ class ChangeLog(object):
             self.curgraf.append(line)
 
         else:
-            assert False  # This should be unreachable.
+            assert "This" is "unreachable"
 
     def lint_head(self, line, head):
         m = re.match(r'^ *o ([^\(]+)((?:\([^\)]+\))?):', head)
         if not m:
-            print("Weird header format on line %s"%line, file=sys.stderr)
+            print >>sys.stderr, "Weird header format on line %s"%line
 
     def lint_item(self, line, grafs, head_type):
         pass
@@ -311,7 +306,7 @@ class ChangeLog(object):
     def dumpGraf(self,par,indent1,indent2=-1):
         if not self.wrapText:
             for line in par:
-                print(line)
+                print line
             return
 
         if indent2 == -1:
@@ -325,17 +320,17 @@ class ChangeLog(object):
 
     def dumpPreheader(self, graf):
         self.dumpGraf(graf, 0)
-        print()
+        print
 
     def dumpMainhead(self, head):
-        print(head)
+        print head
 
     def dumpHeadGraf(self, graf):
         self.dumpGraf(graf, 2)
-        print()
+        print
 
     def dumpSectionHeader(self, header):
-        print(header)
+        print header
 
     def dumpStartOfSections(self):
         pass
@@ -344,10 +339,10 @@ class ChangeLog(object):
         pass
 
     def dumpEndOfSection(self):
-        print()
+        print
 
     def dumpEndOfChangelog(self):
-        print()
+        print
 
     def dumpDrupalBreak(self):
         pass
@@ -355,7 +350,7 @@ class ChangeLog(object):
     def dumpItem(self, grafs):
         self.dumpGraf(grafs[0],4,6)
         for par in grafs[1:]:
-            print()
+            print
             self.dumpGraf(par,6,6)
 
     def collateAndSortSections(self):
@@ -394,7 +389,7 @@ class ChangeLog(object):
         self.dumpStartOfSections()
         for _,head,items in self.sections:
             if not head.endswith(':'):
-                print("adding : to %r"%head, file=sys.stderr)
+                print >>sys.stderr, "adding : to %r"%head
                 head = head + ":"
             self.dumpSectionHeader(head)
             for _,grafs in items:
@@ -405,31 +400,10 @@ class ChangeLog(object):
         self.dumpEndOfSections()
         self.dumpEndOfChangelog()
 
-# Map from issue prefix to pair of (visible prefix, url prefix)
-ISSUE_PREFIX_MAP = {
-    "" : ( "", "tpo/core/tor" ),
-    "tor#" : ( "", "tpo/core/tor" ),
-    "chutney#" : ( "chutney#", "tpo/core/chutney" ),
-    "torspec#" : ( "torspec#", "tpo/core/torspec" ),
-    "trunnel#" : ( "trunnel#", "tpo/core/trunnel" ),
-    "torsocks#" : ( "torsocks#", "tpo/core/torsocks"),
-}
-
 # Let's turn bugs to html.
-BUG_PAT = re.compile('(bug|ticket|issue|feature)\s+([\w/]+#)?(\d{4,6})', re.I)
+BUG_PAT = re.compile('(bug|ticket|issue|feature)\s+(\d{4,5})', re.I)
 def bug_html(m):
-    kind = m.group(1)
-    prefix = m.group(2) or ""
-    bugno = m.group(3)
-    try:
-        disp_prefix, url_prefix = ISSUE_PREFIX_MAP[prefix]
-    except KeyError:
-        print("Can't figure out URL for {}{}".formt(prefix,bugno),
-              file=sys.stderr)
-        return "{} {}{}".format(kind, prefix, bugno)
-
-    return "{} <a href='https://bugs.torproject.org/{}/{}'>{}{}</a>".format(
-        kind, url_prefix, bugno, disp_prefix, bugno)
+    return "%s <a href='https://bugs.torproject.org/%s'>%s</a>" % (m.group(1), m.group(2), m.group(2))
 
 class HTMLChangeLog(ChangeLog):
     def __init__(self, *args, **kwargs):
@@ -471,16 +445,16 @@ class HTMLChangeLog(ChangeLog):
         pass
 
     def dumpStartOfSections(self):
-        print("<ul>\n")
+        print "<ul>\n"
 
     def dumpEndOfSections(self):
-        print("</ul>\n")
+        print "</ul>\n"
 
     def dumpDrupalBreak(self):
-        print("\n</ul>\n")
-        print("<p>&nbsp;</p>")
-        print("\n<!--break-->\n\n")
-        print("<ul>")
+        print "\n</ul>\n"
+        print "<p>&nbsp;</p>"
+        print "\n<!--break-->\n\n"
+        print "<ul>"
 
     def dumpItem(self, grafs):
         grafs[0][0] = grafs[0][0].replace(" - ", "", 1).lstrip()
@@ -490,7 +464,7 @@ class HTMLChangeLog(ChangeLog):
                 self.htmlPar(par)
         else:
             self.htmlText(grafs[0])
-        print()
+        print
 
 op = optparse.OptionParser(usage="usage: %prog [options] [filename]")
 op.add_option('-W', '--no-wrap', action='store_false',
@@ -586,7 +560,7 @@ if options.firstOnly:
     sys.exit(0)
 
 if nextline is not None:
-    print(nextline)
+    print nextline
 
 for line in sys.stdin:
     sys.stdout.write(line)

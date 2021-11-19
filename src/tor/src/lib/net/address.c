@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -97,7 +97,7 @@
  * work correctly. Bail out here if we've found a platform where AF_UNSPEC
  * isn't 0. */
 #if AF_UNSPEC != 0
-#error "We rely on AF_UNSPEC being 0. Yours isn't. Please tell us more!"
+#error We rely on AF_UNSPEC being 0. Let us know about your platform, please!
 #endif
 CTASSERT(AF_UNSPEC == 0);
 
@@ -608,8 +608,7 @@ tor_addr_parse_mask_ports(const char *s,
         family = AF_INET;
         tor_addr_from_ipv4h(addr_out, 0);
       } else if (flags & TAPMP_STAR_IPV6_ONLY) {
-        static uint8_t nil_bytes[16] =
-          { [0]=0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 };
+        static char nil_bytes[16] = { [0]=0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 };
         family = AF_INET6;
         tor_addr_from_ipv6_bytes(addr_out, nil_bytes);
       } else {
@@ -630,7 +629,7 @@ tor_addr_parse_mask_ports(const char *s,
     tor_addr_from_ipv4h(addr_out, 0);
     any_flag = 1;
   } else if (!strcmp(address, "*6") && (flags & TAPMP_EXTENDED_STAR)) {
-    static uint8_t nil_bytes[16] = { [0]=0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 };
+    static char nil_bytes[16] = { [0]=0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 };
     family = AF_INET6;
     tor_addr_from_ipv6_bytes(addr_out, nil_bytes);
     any_flag = 1;
@@ -764,15 +763,6 @@ tor_addr_is_v4(const tor_addr_t *addr)
   return 0; /* Not IPv4 - unknown family or a full-blood IPv6 address */
 }
 
-/** Determine whether an address <b>addr</b> is an IPv6 (AF_INET6). Return
- * true if so else false. */
-int
-tor_addr_is_v6(const tor_addr_t *addr)
-{
-  tor_assert(addr);
-  return (tor_addr_family(addr) == AF_INET6);
-}
-
 /** Determine whether an address <b>addr</b> is null, either all zeroes or
  *  belonging to family AF_UNSPEC.
  */
@@ -827,12 +817,8 @@ tor_addr_is_loopback(const tor_addr_t *addr)
 
 /* Is addr valid?
  * Checks that addr is non-NULL and not tor_addr_is_null().
- * If for_listening is true, all IPv4 and IPv6 addresses are valid, including
- * 0.0.0.0 (for IPv4) and :: (for IPv6). When listening, these addresses mean
- * "bind to all addresses on the local machine".
- * Otherwise, 0.0.0.0 and ::  are invalid, because they are null addresses.
- * All unspecified and unix addresses are invalid, regardless of for_listening.
- */
+ * If for_listening is true, IPv4 addr 0.0.0.0 is allowed.
+ * It means "bind to all addresses on the local machine". */
 int
 tor_addr_is_valid(const tor_addr_t *addr, int for_listening)
 {
@@ -841,11 +827,10 @@ tor_addr_is_valid(const tor_addr_t *addr, int for_listening)
     return 0;
   }
 
-  /* Allow all IPv4 and IPv6 addresses, when for_listening is true */
-  if (for_listening) {
-    if (addr->family == AF_INET || addr->family == AF_INET6) {
-      return 1;
-    }
+  /* Only allow IPv4 0.0.0.0 for_listening. */
+  if (for_listening && addr->family == AF_INET
+      && tor_addr_to_ipv4h(addr) == 0) {
+    return 1;
   }
 
   /* Otherwise, the address is valid if it's not tor_addr_is_null() */
@@ -897,7 +882,7 @@ tor_addr_from_ipv4n(tor_addr_t *dest, uint32_t v4addr)
 /** Set <b>dest</b> to equal the IPv6 address in the 16 bytes at
  * <b>ipv6_bytes</b>. */
 void
-tor_addr_from_ipv6_bytes(tor_addr_t *dest, const uint8_t *ipv6_bytes)
+tor_addr_from_ipv6_bytes(tor_addr_t *dest, const char *ipv6_bytes)
 {
   tor_assert(dest);
   tor_assert(ipv6_bytes);
@@ -910,21 +895,7 @@ tor_addr_from_ipv6_bytes(tor_addr_t *dest, const uint8_t *ipv6_bytes)
 void
 tor_addr_from_in6(tor_addr_t *dest, const struct in6_addr *in6)
 {
-  tor_addr_from_ipv6_bytes(dest, in6->s6_addr);
-}
-
-/** Set the 16 bytes at <b>dest</b> to equal the IPv6 address <b>src</b>.
- * <b>src</b> must be an IPv6 address, if it is not, log a warning, and clear
- * <b>dest</b>. */
-void
-tor_addr_copy_ipv6_bytes(uint8_t *dest, const tor_addr_t *src)
-{
-  tor_assert(dest);
-  tor_assert(src);
-  memset(dest, 0, 16);
-  IF_BUG_ONCE(src->family != AF_INET6)
-    return;
-  memcpy(dest, src->addr.in6_addr.s6_addr, 16);
+  tor_addr_from_ipv6_bytes(dest, (const char*)in6->s6_addr);
 }
 
 /** Copy a tor_addr_t from <b>src</b> to <b>dest</b>.
@@ -958,7 +929,6 @@ tor_addr_copy_tight(tor_addr_t *dest, const tor_addr_t *src)
       break;
     case AF_INET6:
       memcpy(dest->addr.in6_addr.s6_addr, src->addr.in6_addr.s6_addr, 16);
-      break;
     case AF_UNSPEC:
       break;
       // LCOV_EXCL_START
@@ -1198,87 +1168,23 @@ fmt_addr_impl(const tor_addr_t *addr, int decorate)
 const char *
 fmt_addrport(const tor_addr_t *addr, uint16_t port)
 {
-  static char buf[TOR_ADDRPORT_BUF_LEN];
+  /* Add space for a colon and up to 5 digits. */
+  static char buf[TOR_ADDR_BUF_LEN + 6];
   tor_snprintf(buf, sizeof(buf), "%s:%u", fmt_and_decorate_addr(addr), port);
   return buf;
 }
 
 /** Like fmt_addr(), but takes <b>addr</b> as a host-order IPv4
  * addresses. Also not thread-safe, also clobbers its return buffer on
- * repeated calls. Clean internal buffer and return empty string on failure. */
+ * repeated calls. */
 const char *
 fmt_addr32(uint32_t addr)
 {
   static char buf[INET_NTOA_BUF_LEN];
   struct in_addr in;
-  int success;
-
   in.s_addr = htonl(addr);
-
-  success = tor_inet_ntoa(&in, buf, sizeof(buf));
-  tor_assertf_nonfatal(success >= 0,
-      "Failed to convert IP 0x%08X (HBO) to string", addr);
-
-  IF_BUG_ONCE(success < 0) {
-    memset(buf, 0, INET_NTOA_BUF_LEN);
-  }
-
+  tor_inet_ntoa(&in, buf, sizeof(buf));
   return buf;
-}
-
-/** Like fmt_addrport(), but takes <b>addr</b> as a host-order IPv4
- * addresses. Also not thread-safe, also clobbers its return buffer on
- * repeated calls. */
-const char *
-fmt_addr32_port(uint32_t addr, uint16_t port)
-{
-  static char buf[INET_NTOA_BUF_LEN + 6];
-  snprintf(buf, sizeof(buf), "%s:%u", fmt_addr32(addr), port);
-  return buf;
-}
-
-/** Return a string representing <b>family</b>.
- *
- * This string is a string constant, and must not be freed.
- * This function is thread-safe.
- */
-const char *
-fmt_af_family(sa_family_t family)
-{
-  static int default_bug_once = 0;
-
-  switch (family) {
-    case AF_INET6:
-      return "IPv6";
-    case AF_INET:
-      return "IPv4";
-    case AF_UNIX:
-      return "UNIX socket";
-    case AF_UNSPEC:
-      return "unspecified";
-    default:
-      if (!default_bug_once) {
-        log_warn(LD_BUG, "Called with unknown address family %d",
-                 (int)family);
-        default_bug_once = 1;
-      }
-      return "unknown";
-  }
-  //return "(unreachable code)";
-}
-
-/** Return a string representing the family of <b>addr</b>.
- *
- * This string is a string constant, and must not be freed.
- * This function is thread-safe.
- */
-const char *
-fmt_addr_family(const tor_addr_t *addr)
-{
-  IF_BUG_ONCE(!addr)
-    return "NULL pointer";
-
-  return fmt_af_family(tor_addr_family(addr));
 }
 
 /** Convert the string in <b>src</b> to a tor_addr_t <b>addr</b>.  The string
@@ -1486,7 +1392,7 @@ get_interface_addresses_win32(int severity, sa_family_t family)
 
 /* This is defined on Mac OS X */
 #ifndef _SIZEOF_ADDR_IFREQ
-#define _SIZEOF_ADDR_IFREQ(x) sizeof(x)
+#define _SIZEOF_ADDR_IFREQ sizeof
 #endif
 
 /* Free ifc->ifc_buf safely. */
@@ -1505,10 +1411,10 @@ ifconf_free_ifc_buf(struct ifconf *ifc)
  * into smartlist of <b>tor_addr_t</b> structures.
  */
 STATIC smartlist_t *
-ifreq_to_smartlist(const uint8_t *buf, size_t buflen)
+ifreq_to_smartlist(char *buf, size_t buflen)
 {
   smartlist_t *result = smartlist_new();
-  const uint8_t *end = buf + buflen;
+  char *end = buf + buflen;
 
   /* These acrobatics are due to alignment issues which trigger
    * undefined behaviour traps on OSX. */
@@ -1582,7 +1488,7 @@ get_interface_addresses_ioctl(int severity, sa_family_t family)
     /* Ensure we have least IFREQ_SIZE bytes unused at the end. Otherwise, we
      * don't know if we got everything during ioctl. */
   } while (mult * IFREQ_SIZE - ifc.ifc_len <= IFREQ_SIZE);
-  result = ifreq_to_smartlist((const uint8_t *)ifc.ifc_buf, ifc.ifc_len);
+  result = ifreq_to_smartlist(ifc.ifc_buf, ifc.ifc_len);
 
  done:
   if (fd >= 0)
@@ -1731,19 +1637,15 @@ get_interface_address6,(int severity, sa_family_t family, tor_addr_t *addr))
   /* Get a list of public or internal IPs in arbitrary order */
   addrs = get_interface_address6_list(severity, family, 1);
 
-  /* Find the first non-internal address, or the last internal address.
-   * Ideally, we want the default route; see #12377 for details. */
+  /* Find the first non-internal address, or the last internal address
+   * Ideally, we want the default route, see #12377 for details */
   SMARTLIST_FOREACH_BEGIN(addrs, tor_addr_t *, a) {
     tor_addr_copy(addr, a);
-    const bool is_internal = tor_addr_is_internal(a, 0);
     rv = 0;
-
-    log_debug(LD_NET, "Found %s interface address '%s'",
-              (is_internal ? "internal" : "external"), fmt_addr(addr));
 
     /* If we found a non-internal address, declare success.  Otherwise,
      * keep looking. */
-    if (!is_internal)
+    if (!tor_addr_is_internal(a, 0))
       break;
   } SMARTLIST_FOREACH_END(a);
 
@@ -2040,24 +1942,17 @@ parse_port_range(const char *port, uint16_t *port_min_out,
 }
 
 /** Given a host-order <b>addr</b>, call tor_inet_ntop() on it
- *  and return a strdup of the resulting address. Return NULL if
- *  tor_inet_ntop() fails.
+ *  and return a strdup of the resulting address.
  */
 char *
 tor_dup_ip(uint32_t addr)
 {
-  const char *ip_str;
   char buf[TOR_ADDR_BUF_LEN];
   struct in_addr in;
 
   in.s_addr = htonl(addr);
-  ip_str = tor_inet_ntop(AF_INET, &in, buf, sizeof(buf));
-
-  tor_assertf_nonfatal(ip_str, "Failed to duplicate IP %08X", addr);
-  if (ip_str)
-    return tor_strdup(buf);
-
-  return NULL;
+  tor_inet_ntop(AF_INET, &in, buf, sizeof(buf));
+  return tor_strdup(buf);
 }
 
 /**
@@ -2106,7 +2001,7 @@ tor_addr_port_new(const tor_addr_t *addr, uint16_t port)
   return ap;
 }
 
-/** Return true iff <b>a</b> and <b>b</b> are the same address and port */
+/** Return true iff <a>a</b> and <b>b</b> are the same address and port */
 int
 tor_addr_port_eq(const tor_addr_port_t *a,
                  const tor_addr_port_t *b)
@@ -2114,19 +2009,7 @@ tor_addr_port_eq(const tor_addr_port_t *a,
   return tor_addr_eq(&a->addr, &b->addr) && a->port == b->port;
 }
 
-/**
- * Copy a tor_addr_port_t from @a source to @a dest.
- **/
-void
-tor_addr_port_copy(tor_addr_port_t *dest,
-                   const tor_addr_port_t *source)
-{
-  tor_assert(dest);
-  tor_assert(source);
-  memcpy(dest, source, sizeof(tor_addr_port_t));
-}
-
-/** Return true if <b>string</b> represents a valid IPv4 address in
+/** Return true if <b>string</b> represents a valid IPv4 adddress in
  * 'a.b.c.d' form.
  */
 int

@@ -1,13 +1,8 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
-
-/**
- * @file proto_http.h
- * @brief Header for proto_http.c
- **/
 
 #ifndef TOR_PROTO_HTTP_H
 #define TOR_PROTO_HTTP_H
@@ -26,3 +21,4 @@ STATIC int buf_http_find_content_length(const char *headers, size_t headerlen,
 #endif
 
 #endif /* !defined(TOR_PROTO_HTTP_H) */
+

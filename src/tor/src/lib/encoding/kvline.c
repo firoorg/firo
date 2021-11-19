@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -29,19 +29,11 @@
 #include <string.h>
 
 /** Return true iff we need to quote and escape the string <b>s</b> to encode
- * it.
- *
- * kvline_can_encode_lines() also uses this (with
- * <b>as_keyless_val</b> true) to check whether a key would require
- * quoting.
- */
+ * it. */
 static bool
 needs_escape(const char *s, bool as_keyless_val)
 {
   if (as_keyless_val && *s == 0)
-    return true;
-  /* Keyless values containing '=' need to be escaped. */
-  if (as_keyless_val && strchr(s, '='))
     return true;
 
   for (; *s; ++s) {
@@ -80,17 +72,23 @@ kvline_can_encode_lines(const config_line_t *line, unsigned flags)
 {
   for ( ; line; line = line->next) {
     const bool keyless = line_has_no_key(line);
-    if (keyless && ! (flags & KV_OMIT_KEYS)) {
-      /* If KV_OMIT_KEYS is not set, we can't encode a line with no key. */
-      return false;
+    if (keyless) {
+      if (! (flags & KV_OMIT_KEYS)) {
+        /* If KV_OMIT_KEYS is not set, we can't encode a line with no key. */
+        return false;
+      }
+      if (strchr(line->value, '=') && !( flags & KV_QUOTED)) {
+        /* We can't have a keyless value with = without quoting it. */
+        return false;
+      }
     }
 
-    if (needs_escape(line->value, keyless) && ! (flags & (KV_QUOTED|KV_RAW))) {
-      /* If both KV_QUOTED and KV_RAW are false, we can't encode a
-         value that needs quotes. */
+    if (needs_escape(line->value, keyless) && ! (flags & KV_QUOTED)) {
+      /* If KV_QUOTED is false, we can't encode a value that needs quotes. */
       return false;
     }
-    if (!keyless && needs_escape(line->key, true)) {
+    if (line->key && strlen(line->key) &&
+        (needs_escape(line->key, false) || strchr(line->key, '='))) {
       /* We can't handle keys that need quoting. */
       return false;
     }
@@ -105,7 +103,7 @@ kvline_can_encode_lines(const config_line_t *line, unsigned flags)
  *
  * If KV_QUOTED is set in <b>flags</b>, then all values that contain
  * spaces or unusual characters are escaped and quoted.  Otherwise, such
- * values are not allowed.  Mutually exclusive with KV_RAW.
+ * values are not allowed.
  *
  * If KV_OMIT_KEYS is set in <b>flags</b>, then pairs with empty keys are
  * allowed, and are encoded as 'Value'.  Otherwise, such pairs are not
@@ -115,11 +113,6 @@ kvline_can_encode_lines(const config_line_t *line, unsigned flags)
  * encoded as 'Key', not as 'Key=' or 'Key=""'.  Mutually exclusive with
  * KV_OMIT_KEYS.
  *
- * If KV_RAW is set in <b>flags</b>, then don't apply any quoting to
- * the value, and assume that the caller has adequately quoted it.
- * (The control protocol has some quirks that make this necessary.)
- * Mutually exclusive with KV_QUOTED.
- *
  * KV_QUOTED_QSTRING is not supported.
  */
 char *
@@ -128,12 +121,11 @@ kvline_encode(const config_line_t *line,
 {
   tor_assert(! (flags & KV_QUOTED_QSTRING));
 
-  tor_assert((flags & (KV_OMIT_KEYS|KV_OMIT_VALS)) !=
-             (KV_OMIT_KEYS|KV_OMIT_VALS));
-  tor_assert((flags & (KV_QUOTED|KV_RAW)) != (KV_QUOTED|KV_RAW));
-
   if (!kvline_can_encode_lines(line, flags))
     return NULL;
+
+  tor_assert((flags & (KV_OMIT_KEYS|KV_OMIT_VALS)) !=
+             (KV_OMIT_KEYS|KV_OMIT_VALS));
 
   smartlist_t *elements = smartlist_new();
 
@@ -150,12 +142,15 @@ kvline_encode(const config_line_t *line,
       k = line->key;
     } else {
       eq = "";
+      if (strchr(line->value, '=')) {
+        esc = true;
+      }
     }
 
     if ((flags & KV_OMIT_VALS) && line_has_no_val(line)) {
       eq = "";
       v = "";
-    } else if (!(flags & KV_RAW) && esc) {
+    } else if (esc) {
       tmp = esc_for_log(line->value);
       v = tmp;
     } else {
@@ -192,15 +187,12 @@ kvline_encode(const config_line_t *line,
  * If KV_QUOTED_QSTRING is set in <b>flags</b>, then double-quoted values
  * are allowed and handled as QuotedStrings per qstring.c.  Do not add
  * new users of this flag.
- *
- * KV_RAW is not supported.
  */
 config_line_t *
 kvline_parse(const char *line, unsigned flags)
 {
   tor_assert((flags & (KV_OMIT_KEYS|KV_OMIT_VALS)) !=
              (KV_OMIT_KEYS|KV_OMIT_VALS));
-  tor_assert(!(flags & KV_RAW));
 
   const char *cp = line, *cplast = NULL;
   const bool omit_keys = (flags & KV_OMIT_KEYS) != 0;

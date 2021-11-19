@@ -1,6 +1,6 @@
 /* Copyright (c) 2003, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -9,7 +9,6 @@
  **/
 
 #include "lib/string/parse_int.h"
-#include "lib/cc/compat_compiler.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -18,7 +17,6 @@
 /* Helper: common code to check whether the result of a strtol or strtoul or
  * strtoll is correct. */
 #define CHECK_STRTOX_RESULT()                           \
-  STMT_BEGIN                                            \
   /* Did an overflow occur? */                          \
   if (errno == ERANGE)                                  \
     goto err;                                           \
@@ -40,8 +38,7 @@
  err:                                                   \
   if (ok) *ok = 0;                                      \
   if (next) *next = endptr;                             \
-  return 0;                                             \
-  STMT_END
+  return 0
 
 /** Extract a long from the start of <b>s</b>, in the given numeric
  * <b>base</b>.  If <b>base</b> is 0, <b>s</b> is parsed as a decimal,

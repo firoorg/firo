@@ -1,8 +1,8 @@
-/* Copyright (c) 2018-2021, The Tor Project, Inc. */
+/* Copyright (c) 2018-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
- * \file crypto_sys.h
+ * \file log_crypto.h
  * \brief Declare subsystem object for the crypto module.
  **/
 

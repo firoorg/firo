@@ -1,8 +1,8 @@
-/* Copyright (c) 2018-2021, The Tor Project, Inc. */
+/* Copyright (c) 2018-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
- * \file network_sys.h
+ * \file log_network.h
  * \brief Declare subsystem object for the network module.
  **/
 

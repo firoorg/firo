@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, The Tor Project, Inc. */
+ * Copyright (c) 2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -15,6 +15,10 @@
  *   some more effort:
  *
  *   - circuit_list_path_impl()
+ *   - Functions dealing with cpaths in HSv2 create_rend_cpath() and
+ *     create_rend_cpath_legacy()
+ *   - The cpath related parts of rend_service_receive_introduction() and
+ *     rend_client_send_introduction().
  **/
 
 #define CRYPT_PATH_PRIVATE
@@ -26,7 +30,6 @@
 #include "core/crypto/onion_crypto.h"
 #include "core/or/circuitbuild.h"
 #include "core/or/circuitlist.h"
-#include "core/or/extendinfo.h"
 
 #include "lib/crypt_ops/crypto_dh.h"
 #include "lib/crypt_ops/crypto_util.h"
@@ -110,7 +113,7 @@ cpath_assert_layer_ok(const crypt_path_t *cp)
     {
     case CPATH_STATE_OPEN:
       relay_crypto_assert_ok(&cp->pvt_crypto);
-      FALLTHROUGH;
+      /* fall through */
     case CPATH_STATE_CLOSED:
       /*XXXX Assert that there's no handshake_state either. */
       tor_assert(!cp->rend_dh_handshake_state);
@@ -256,3 +259,4 @@ cpath_get_n_hops(crypt_path_t **head_ptr)
 }
 
 #endif /* defined(TOR_UNIT_TESTS) */
+

@@ -1,13 +1,8 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
-
-/**
- * @file edge_connection_st.h
- * @brief Edge-connection structure.
- **/
 
 #ifndef EDGE_CONNECTION_ST_H
 #define EDGE_CONNECTION_ST_H
@@ -33,6 +28,9 @@ struct edge_connection_t {
   /** A pointer to which node in the circ this conn exits at.  Set for AP
    * connections and for hidden service exit connections. */
   struct crypt_path_t *cpath_layer;
+  /** What rendezvous service are we querying for (if an AP) or providing (if
+   * an exit)? */
+  rend_data_t *rend_data;
 
   /* Hidden service connection identifier for edge connections. Used by the HS
    * client-side code to identify client SOCKS connections and by the
@@ -76,3 +74,4 @@ struct edge_connection_t {
 };
 
 #endif /* !defined(EDGE_CONNECTION_ST_H) */
+

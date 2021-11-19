@@ -1,6 +1,6 @@
 /* Copyright (c) 2003, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -44,9 +44,6 @@ update_approx_time(time_t now)
 }
 #endif /* !defined(TIME_IS_FAST) */
 
-/**
- * Initialize the "wallclock" subsystem by setting the current cached time.
- **/
 static int
 subsys_wallclock_initialize(void)
 {
@@ -54,12 +51,8 @@ subsys_wallclock_initialize(void)
   return 0;
 }
 
-/**
- * Subsystem function table describing the "wallclock" subsystem.
- **/
 const subsys_fns_t sys_wallclock = {
   .name = "wallclock",
-  SUBSYS_DECLARE_LOCATION(),
   .supported = true,
   /* Approximate time is a diagnostic feature, we want it to init right after
    * low-level error handling. */

@@ -1,11 +1,6 @@
 /* Copyright (c) 2014, Daniel Martí
- * Copyright (c) 2014-2021, The Tor Project, Inc. */
+ * Copyright (c) 2014-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
-
-/**
- * @file consdiff.h
- * @brief Header for consdiff.c
- **/
 
 #ifndef TOR_CONSDIFF_H
 #define TOR_CONSDIFF_H

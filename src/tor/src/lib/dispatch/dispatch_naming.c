@@ -1,13 +1,8 @@
 /* Copyright (c) 2001, Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2018, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
-
-/**
- * @file dispatch_naming.c
- * @brief Name-to-ID maps for our message dispatch system.
- **/
 
 #include "orconfig.h"
 
@@ -38,7 +33,6 @@ dispatch_naming_init(void)
 {
 }
 
-#ifndef COCCI
 /* Helper macro: declare functions to map IDs to and from names for a given
  * type in a namemap_t.
  */
@@ -62,7 +56,6 @@ dispatch_naming_init(void)
     return namemap_get_size(&type##_id_map);                            \
   }                                                                     \
   EAT_SEMICOLON
-#endif /* !defined(COCCI) */
 
 DECLARE_ID_MAP_FNS(message);
 DECLARE_ID_MAP_FNS(channel);

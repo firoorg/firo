@@ -1,12 +1,7 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
-
-/**
- * @file dlstatus.c
- * @brief Track status and retry schedule of a downloadable object.
- **/
 
 #define DLSTATUS_PRIVATE
 

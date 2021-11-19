@@ -1,13 +1,8 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
-
-/**
- * @file addressmap.h
- * @brief Header for addressmap.c
- **/
 
 #ifndef TOR_ADDRESSMAP_H
 #define TOR_ADDRESSMAP_H
@@ -36,7 +31,7 @@ int addressmap_have_mapping(const char *address, int update_timeout);
 void addressmap_register(const char *address, char *new_address,
                          time_t expires, addressmap_entry_source_t source,
                          const int address_wildcard,
-                         const int new_address_wildcard, uint64_t stream_id);
+                         const int new_address_wildcard);
 int parse_virtual_addr_network(const char *val,
                                sa_family_t family, int validate_only,
                                char **msg);
@@ -67,3 +62,4 @@ STATIC void get_random_virtual_addr(const virtual_addr_conf_t *conf,
 #endif /* defined(ADDRESSMAP_PRIVATE) */
 
 #endif /* !defined(TOR_ADDRESSMAP_H) */
+

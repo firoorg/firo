@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -42,7 +42,12 @@ typedef struct tor_cond_t {
 #ifdef USE_PTHREADS
   pthread_cond_t cond;
 #elif defined(USE_WIN32_THREADS)
-  CONDITION_VARIABLE cond;
+  HANDLE event;
+
+  CRITICAL_SECTION lock;
+  int n_waiting;
+  int n_to_wake;
+  int generation;
 #else
 #error no known condition implementation.
 #endif /* defined(USE_PTHREADS) || ... */
@@ -58,7 +63,7 @@ int tor_cond_wait(tor_cond_t *cond, tor_mutex_t *mutex,
 void tor_cond_signal_one(tor_cond_t *cond);
 void tor_cond_signal_all(tor_cond_t *cond);
 
-typedef struct tor_threadlocal_t {
+typedef struct tor_threadlocal_s {
 #ifdef _WIN32
   DWORD index;
 #else
@@ -101,9 +106,7 @@ void tor_threadlocal_set(tor_threadlocal_t *threadlocal, void *value);
 typedef struct atomic_counter_t {
   atomic_size_t val;
 } atomic_counter_t;
-#ifndef COCCI
 #define ATOMIC_LINKAGE static
-#endif
 #else /* !defined(HAVE_WORKING_STDATOMIC) */
 typedef struct atomic_counter_t {
   tor_mutex_t mutex;

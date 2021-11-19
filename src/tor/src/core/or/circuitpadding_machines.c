@@ -5,6 +5,8 @@
  * \file circuitpadding_machines.c
  * \brief Circuit padding state machines
  *
+ * \detail
+ *
  * Introduce circuit padding machines that will be used by Tor circuits, as
  * specified by proposal 302 "Hiding onion service clients using padding".
  *
@@ -25,7 +27,7 @@
  * Client-side introduction circuit hiding machine:
  *
  *    This machine hides client-side introduction circuits by making their
- *    circuit construction sequence look like normal general circuits that
+ *    circuit consruction sequence look like normal general circuits that
  *    download directory information. Furthermore, the circuits are kept open
  *    until all the padding has been sent, since intro circuits are usually
  *    very short lived and this act as a distinguisher. For more info see
@@ -67,7 +69,7 @@ circpad_machine_client_hide_intro_circuits(smartlist_t *machines_sl)
 
   client_machine->name = "client_ip_circ";
 
-  client_machine->conditions.apply_state_mask = CIRCPAD_CIRC_OPENED;
+  client_machine->conditions.state_mask = CIRCPAD_CIRC_OPENED;
   client_machine->target_hopnum = 2;
 
   /* This is a client machine */
@@ -102,18 +104,9 @@ circpad_machine_client_hide_intro_circuits(smartlist_t *machines_sl)
    * INTRO_MACHINE_MAXIMUM_PADDING cells, to match the "...(inbound data cells
    * continue)" portion of the trace (aka the rest of an HTTPS response body).
    */
-
-  /* Start the machine on fresh intro circs. */
-  client_machine->conditions.apply_purpose_mask =
-    circpad_circ_purpose_to_mask(CIRCUIT_PURPOSE_C_INTRODUCE_ACK_WAIT);
-
-  /* If the client purpose changes back to CIRCUIT_PURPOSE_C_INTRODUCING,
-   * or transitions to CIRCUIT_PURPOSE_C_INTRODUCE_ACKED, keep the machine
-   * alive, but do not launch new machines for these purposes. Also
-   * keep the machine around if it is in the CIRCUIT_PADDING purpose
-   * (but do not try to take over other machines in that purpose). */
-  client_machine->conditions.keep_purpose_mask =
-    circpad_circ_purpose_to_mask(CIRCUIT_PURPOSE_C_INTRODUCE_ACKED) |
+  client_machine->conditions.purpose_mask =
+    circpad_circ_purpose_to_mask(CIRCUIT_PURPOSE_C_INTRODUCE_ACK_WAIT)|
+    circpad_circ_purpose_to_mask(CIRCUIT_PURPOSE_C_INTRODUCE_ACKED)|
     circpad_circ_purpose_to_mask(CIRCUIT_PURPOSE_C_CIRCUIT_PADDING);
 
   /* Keep the circuit alive even after the introduction has been finished,
@@ -161,7 +154,7 @@ circpad_machine_relay_hide_intro_circuits(smartlist_t *machines_sl)
 
   relay_machine->name = "relay_ip_circ";
 
-  relay_machine->conditions.apply_state_mask = CIRCPAD_CIRC_OPENED;
+  relay_machine->conditions.state_mask = CIRCPAD_CIRC_OPENED;
 
   /* This is a relay-side machine */
   relay_machine->is_origin_side = 0;
@@ -272,7 +265,7 @@ circpad_machine_client_hide_rend_circuits(smartlist_t *machines_sl)
   client_machine->name = "client_rp_circ";
 
   /* Only pad after the circuit has been built and pad to the middle */
-  client_machine->conditions.apply_state_mask = CIRCPAD_CIRC_OPENED;
+  client_machine->conditions.state_mask = CIRCPAD_CIRC_OPENED;
   client_machine->target_hopnum = 2;
 
   /* This is a client machine */
@@ -308,7 +301,7 @@ circpad_machine_client_hide_rend_circuits(smartlist_t *machines_sl)
    *
    * Hence this way we make rendezvous circuits look like general circuits up
    * till the end of the circuit setup. */
-  client_machine->conditions.apply_purpose_mask =
+  client_machine->conditions.purpose_mask =
     circpad_circ_purpose_to_mask(CIRCUIT_PURPOSE_C_REND_JOINED)|
     circpad_circ_purpose_to_mask(CIRCUIT_PURPOSE_C_REND_READY)|
     circpad_circ_purpose_to_mask(CIRCUIT_PURPOSE_C_REND_READY_INTRO_ACKED);
@@ -392,7 +385,7 @@ circpad_machine_relay_hide_rend_circuits(smartlist_t *machines_sl)
 
   /* Only pad after the circuit has been built and pad to the middle */
   relay_machine->conditions.min_hops = 2;
-  relay_machine->conditions.apply_state_mask = CIRCPAD_CIRC_OPENED;
+  relay_machine->conditions.state_mask = CIRCPAD_CIRC_OPENED;
 
   /* This is a relay-side machine */
   relay_machine->is_origin_side = 0;

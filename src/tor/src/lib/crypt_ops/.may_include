@@ -1,7 +1,6 @@
 orconfig.h
 lib/arch/*.h
 lib/cc/*.h
-lib/conf/*.h
 lib/container/*.h
 lib/crypt_ops/*.h
 lib/ctime/*.h
@@ -17,8 +16,6 @@ lib/subsys/*.h
 lib/testsupport/*.h
 lib/thread/*.h
 lib/log/*.h
-
-lib/crypt_ops/*.inc
 
 trunnel/pwbox.h
 

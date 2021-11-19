@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2021, The Tor Project, Inc. */
+/* Copyright (c) 2014-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "core/or/or.h"
@@ -11,16 +11,19 @@
 
 #include "app/config/or_state_st.h"
 
+#define NS_MODULE accounting
+
+#define NS_SUBMODULE limits
+
 /*
  * Test to make sure accounting triggers hibernation
  * correctly with both sum or max rules set
  */
 
 static or_state_t *or_state;
-static or_state_t * acct_limits_get_or_state(void);
-ATTR_UNUSED static int acct_limits_get_or_state_called = 0;
+NS_DECL(or_state_t *, get_or_state, (void));
 static or_state_t *
-acct_limits_get_or_state(void)
+NS(get_or_state)(void)
 {
   return or_state;
 }
@@ -32,8 +35,7 @@ test_accounting_limits(void *arg)
   time_t fake_time = time(NULL);
   (void) arg;
 
-  MOCK(get_or_state,
-       acct_limits_get_or_state);
+  NS_MOCK(get_or_state);
   or_state = or_state_new();
 
   options->AccountingMax = 100;
@@ -92,9 +94,11 @@ test_accounting_limits(void *arg)
 
   goto done;
  done:
-  UNMOCK(get_or_state);
+  NS_UNMOCK(get_or_state);
   or_state_free(or_state);
 }
+
+#undef NS_SUBMODULE
 
 struct testcase_t accounting_tests[] = {
   { "bwlimits", test_accounting_limits, TT_FORK, NULL, NULL },

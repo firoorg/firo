@@ -89,10 +89,10 @@ typedef uint64_t timeout_t;
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef TIMEOUT_CB_OVERRIDE
-struct timeout_cb_t {
+struct timeout_cb {
 	void (*fn)(void);
 	void *arg;
-}; /* struct timeout_cb_t */
+}; /* struct timeout_cb */
 #endif
 
 /*
@@ -125,7 +125,7 @@ struct timeout {
 	/* entry member for struct timeout_list lists */
 
 #ifndef TIMEOUT_DISABLE_CALLBACKS
-	struct timeout_cb_t callback;
+	struct timeout_cb callback;
 	/* optional callback information */
 #endif
 

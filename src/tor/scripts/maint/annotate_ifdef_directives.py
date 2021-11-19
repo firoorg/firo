@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 # Copyright (c) 2017-2019, The Tor Project, Inc.
 # See LICENSE for licensing information
 
@@ -57,11 +57,6 @@ Note that only #else and #endif lines are annotated.  Existing comments
 on those lines are removed.
 """
 
-# Future imports for Python 2.7, mandatory in 3.0
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import re
 
 # Any block with fewer than this many lines does not need annotations.
@@ -70,7 +65,7 @@ LINE_OBVIOUSNESS_LIMIT = 4
 # Maximum line width.  This includes a terminating newline character.
 #
 # (This is the maximum before encoding, so that if the the operating system
-# uses multiple characters to encode newline, that's still okay.)
+# uses multiple characers to encode newline, that's still okay.)
 LINE_WIDTH=80
 
 class Problem(Exception):

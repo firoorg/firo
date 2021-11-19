@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -17,12 +17,12 @@
 
 #include "orconfig.h"
 #include "lib/conf/conftypes.h"
-#include "lib/conf/confdecl.h"
 #include "lib/confmgt/typedvar.h"
 #include "lib/confmgt/type_defs.h"
 #include "lib/confmgt/unitparse.h"
 
 #include "lib/cc/compat_compiler.h"
+#include "lib/conf/conftypes.h"
 #include "lib/container/smartlist.h"
 #include "lib/encoding/confline.h"
 #include "lib/encoding/time_fmt.h"
@@ -52,10 +52,11 @@
 
 static int
 string_parse(void *target, const char *value, char **errmsg,
-             const void *params)
+             const void *params, const char *key)
 {
   (void)params;
   (void)errmsg;
+  (void)key;
   char **p = (char**)target;
   *p = tor_strdup(value);
   return 0;
@@ -90,12 +91,9 @@ static const var_type_fns_t string_fns = {
 // These types are implemented as int, possibly with a restricted range.
 /////
 
-/**
- * Parameters for parsing an integer type.
- **/
 typedef struct int_type_params_t {
-  int minval; /**< Lowest allowed value */
-  int maxval; /**< Highest allowed value */
+  int minval;
+  int maxval;
 } int_parse_params_t;
 
 static const int_parse_params_t INT_PARSE_UNRESTRICTED = {
@@ -109,8 +107,10 @@ static const int_parse_params_t INT_PARSE_POSINT = {
 };
 
 static int
-int_parse(void *target, const char *value, char **errmsg, const void *params)
+int_parse(void *target, const char *value, char **errmsg, const void *params,
+          const char *key)
 {
+  (void)key;
   const int_parse_params_t *pp;
   if (params) {
     pp = params;
@@ -121,9 +121,8 @@ int_parse(void *target, const char *value, char **errmsg, const void *params)
   int ok=0;
   *p = (int)tor_parse_long(value, 10, pp->minval, pp->maxval, &ok, NULL);
   if (!ok) {
-    tor_asprintf(errmsg, "Integer %s is malformed or out of bounds. "
-                 "Allowed values are between %d and %d.",
-                 value, pp->minval, pp->maxval);
+    tor_asprintf(errmsg, "Integer %s is malformed or out of bounds.",
+                 value);
     return -1;
   }
   return 0;
@@ -173,10 +172,11 @@ static const var_type_fns_t int_fns = {
 
 static int
 uint64_parse(void *target, const char *value, char **errmsg,
-             const void *params)
+             const void *params, const char *key)
 {
   (void)params;
   (void)errmsg;
+  (void)key;
   uint64_t *p = target;
   int ok=0;
   *p = tor_parse_uint64(value, 10, 0, UINT64_MAX, &ok, NULL);
@@ -223,44 +223,34 @@ static const var_type_fns_t uint64_fns = {
 
 static int
 units_parse_u64(void *target, const char *value, char **errmsg,
-                const void *params)
+                const void *params, const char *key)
 {
+  (void)key;
   const unit_table_t *table = params;
   tor_assert(table);
   uint64_t *v = (uint64_t*)target;
   int ok=1;
-  char *msg = NULL;
-  *v = config_parse_units(value, table, &ok, &msg);
+  *v = config_parse_units(value, table, &ok);
   if (!ok) {
-    tor_asprintf(errmsg, "Provided value is malformed or out of bounds: %s",
-                 msg);
-    tor_free(msg);
+    *errmsg = tor_strdup("Provided value is malformed or out of bounds.");
     return -1;
-  }
-  if (BUG(msg)) {
-    tor_free(msg);
   }
   return 0;
 }
 
 static int
 units_parse_int(void *target, const char *value, char **errmsg,
-               const void *params)
+                const void *params, const char *key)
 {
+  (void)key;
   const unit_table_t *table = params;
   tor_assert(table);
   int *v = (int*)target;
   int ok=1;
-  char *msg = NULL;
-  uint64_t u64 = config_parse_units(value, table, &ok, &msg);
+  uint64_t u64 = config_parse_units(value, table, &ok);
   if (!ok) {
-    tor_asprintf(errmsg, "Provided value is malformed or out of bounds: %s",
-                 msg);
-    tor_free(msg);
+    *errmsg = tor_strdup("Provided value is malformed or out of bounds.");
     return -1;
-  }
-  if (BUG(msg)) {
-    tor_free(msg);
   }
   if (u64 > INT_MAX) {
     tor_asprintf(errmsg, "Provided value %s is too large", value);
@@ -299,10 +289,11 @@ static const var_type_fns_t interval_fns = {
 
 static int
 double_parse(void *target, const char *value, char **errmsg,
-             const void *params)
+             const void *params, const char *key)
 {
   (void)params;
   (void)errmsg;
+  (void)key;
   double *v = (double*)target;
   char *endptr=NULL;
   errno = 0;
@@ -361,17 +352,12 @@ typedef struct enumeration_table_t {
   int value;
 } enumeration_table_t;
 
-typedef struct enumeration_params_t {
-  const char *allowed_val_string;
-  const enumeration_table_t *table;
-} enumeration_params_t;
-
 static int
 enum_parse(void *target, const char *value, char **errmsg,
-           const void *params_)
+           const void *params, const char *key)
 {
-  const enumeration_params_t *params = params_;
-  const enumeration_table_t *table = params->table;
+  (void)key;
+  const enumeration_table_t *table = params;
   int *p = (int *)target;
   for (; table->name; ++table) {
     if (!strcasecmp(value, table->name)) {
@@ -379,17 +365,15 @@ enum_parse(void *target, const char *value, char **errmsg,
       return 0;
     }
   }
-  tor_asprintf(errmsg, "Unrecognized value %s. %s",
-               value, params->allowed_val_string);
+  tor_asprintf(errmsg, "Unrecognized value %s.", value);
   return -1;
 }
 
 static char *
-enum_encode(const void *value, const void *params_)
+enum_encode(const void *value, const void *params)
 {
   int v = *(const int*)value;
-  const enumeration_params_t *params = params_;
-  const enumeration_table_t *table = params->table;
+  const enumeration_table_t *table = params;
   for (; table->name; ++table) {
     if (v == table->value)
       return tor_strdup(table->name);
@@ -398,21 +382,19 @@ enum_encode(const void *value, const void *params_)
 }
 
 static void
-enum_clear(void *value, const void *params_)
+enum_clear(void *value, const void *params)
 {
   int *p = (int*)value;
-  const enumeration_params_t *params = params_;
-  const enumeration_table_t *table = params->table;
+  const enumeration_table_t *table = params;
   tor_assert(table->name);
   *p = table->value;
 }
 
 static bool
-enum_ok(const void *value, const void *params_)
+enum_ok(const void *value, const void *params)
 {
   int v = *(const int*)value;
-  const enumeration_params_t *params = params_;
-  const enumeration_table_t *table = params->table;
+  const enumeration_table_t *table = params;
   for (; table->name; ++table) {
     if (v == table->value)
       return true;
@@ -426,21 +408,11 @@ static const enumeration_table_t enum_table_bool[] = {
   { NULL, 0 },
 };
 
-static const enumeration_params_t enum_params_bool = {
-  "Allowed values are 0 and 1.",
-  enum_table_bool
-};
-
 static const enumeration_table_t enum_table_autobool[] = {
   { "0", 0 },
   { "1", 1 },
   { "auto", -1 },
   { NULL, 0 },
-};
-
-static const enumeration_params_t enum_params_autobool = {
-  "Allowed values are 0, 1, and auto.",
-  enum_table_autobool
 };
 
 static const var_type_fns_t enum_fns = {
@@ -458,9 +430,10 @@ static const var_type_fns_t enum_fns = {
 
 static int
 time_parse(void *target, const char *value, char **errmsg,
-           const void *params)
+           const void *params, const char *key)
 {
   (void) params;
+  (void) key;
   time_t *p = target;
   if (parse_iso_time(value, p) < 0) {
     tor_asprintf(errmsg, "Invalid time %s", escaped(value));
@@ -502,10 +475,11 @@ static const var_type_fns_t time_fns = {
 
 static int
 csv_parse(void *target, const char *value, char **errmsg,
-          const void *params)
+          const void *params, const char *key)
 {
   (void)params;
   (void)errmsg;
+  (void)key;
   smartlist_t **sl = (smartlist_t**)target;
   *sl = smartlist_new();
   smartlist_split_string(*sl, value, ",",
@@ -551,7 +525,7 @@ static const var_type_fns_t csv_fns = {
 
 static int
 legacy_csv_interval_parse(void *target, const char *value, char **errmsg,
-                          const void *params)
+                          const void *params, const char *key)
 {
   (void)params;
   /* We used to have entire smartlists here.  But now that all of our
@@ -565,7 +539,7 @@ legacy_csv_interval_parse(void *target, const char *value, char **errmsg,
     val = tmp;
   }
 
-  int rv = units_parse_int(target, val, errmsg, &time_units);
+  int rv = units_parse_int(target, val, errmsg, &time_units, key);
   tor_free(tmp);
   return rv;
 }
@@ -714,23 +688,32 @@ static const var_type_fns_t linelist_s_fns = {
 /////
 // CONFIG_TYPE_ROUTERSET
 //
+// XXXX This type is not implemented here, since routerset_t is not available
 // XXXX to this module.
 /////
 
 /////
-// CONFIG_TYPE_IGNORE
+// CONFIG_TYPE_OBSOLETE
 //
-// Used to indicate an option that cannot be stored or encoded.
+// Used to indicate an obsolete option.
+//
+// XXXX This is not a type, and should be handled at a higher level of
+// XXXX abstraction.
 /////
 
 static int
 ignore_parse(void *target, const char *value, char **errmsg,
-             const void *params)
+             const void *params, const char *key)
 {
   (void)target;
   (void)value;
   (void)errmsg;
   (void)params;
+  // XXXX move this to a higher level, once such a level exists.
+  log_warn(LD_GENERAL, "Skipping obsolete configuration option%s%s%s",
+           key && *key ? " \"" : "",
+           key && *key ? key : "",
+           key && *key ? "\"." : ".");
   return 0;
 }
 
@@ -747,91 +730,50 @@ static const var_type_fns_t ignore_fns = {
   .encode = ignore_encode,
 };
 
-const var_type_def_t STRING_type_defn = {
-  .name="String", .fns=&string_fns };
-const var_type_def_t FILENAME_type_defn = {
-  .name="Filename", .fns=&string_fns };
-const var_type_def_t INT_type_defn = {
-  .name="SignedInteger", .fns=&int_fns,
-  .params=&INT_PARSE_UNRESTRICTED };
-const var_type_def_t POSINT_type_defn = {
-  .name="Integer", .fns=&int_fns,
-  .params=&INT_PARSE_POSINT };
-const var_type_def_t UINT64_type_defn = {
-  .name="Integer", .fns=&uint64_fns, };
-const var_type_def_t MEMUNIT_type_defn = {
-  .name="DataSize", .fns=&memunit_fns,
-  .params=&memory_units };
-const var_type_def_t INTERVAL_type_defn = {
-  .name="TimeInterval", .fns=&interval_fns,
-  .params=&time_units };
-const var_type_def_t MSEC_INTERVAL_type_defn = {
-  .name="TimeMsecInterval",
-  .fns=&interval_fns,
-  .params=&time_msec_units };
-const var_type_def_t DOUBLE_type_defn = {
-  .name="Float", .fns=&double_fns, };
-const var_type_def_t BOOL_type_defn = {
-  .name="Boolean", .fns=&enum_fns,
-  .params=&enum_params_bool };
-const var_type_def_t AUTOBOOL_type_defn = {
-  .name="Boolean+Auto", .fns=&enum_fns,
-  .params=&enum_params_autobool };
-const var_type_def_t ISOTIME_type_defn = {
-  .name="Time", .fns=&time_fns, };
-const var_type_def_t CSV_type_defn = {
-  .name="CommaList", .fns=&csv_fns, };
-const var_type_def_t CSV_INTERVAL_type_defn = {
-  .name="TimeInterval",
-  .fns=&legacy_csv_interval_fns, };
-const var_type_def_t LINELIST_type_defn = {
-  .name="LineList", .fns=&linelist_fns,
-  .flags=CFLG_NOREPLACE };
-/*
- * A "linelist_s" is a derived view of a linelist_v: inspecting
- * it gets part of a linelist_v, and setting it adds to the linelist_v.
- */
-const var_type_def_t LINELIST_S_type_defn = {
-  .name="Dependent", .fns=&linelist_s_fns,
-  .flags=CFLG_NOREPLACE|
-  /* The operations we disable here are
-   * handled by the linelist_v. */
-  CFLG_NOCOPY|CFLG_NOCMP|CFLG_NODUMP };
-const var_type_def_t LINELIST_V_type_defn = {
-  .name="Virtual", .fns=&linelist_v_fns,
-  .flags=CFLG_NOREPLACE|CFLG_NOSET };
-const var_type_def_t IGNORE_type_defn = {
-  .name="Ignored", .fns=&ignore_fns,
-  .flags=CFLG_NOCOPY|CFLG_NOCMP|CFLG_NODUMP|CFLG_NOSET,
-};
-const var_type_def_t OBSOLETE_type_defn = {
-  .name="Obsolete", .fns=&ignore_fns,
-  .flags=CFLG_GROUP_OBSOLETE,
-};
-
 /**
  * Table mapping conf_type_t values to var_type_def_t objects.
  **/
-static const var_type_def_t *type_definitions_table[] = {
-  [CONFIG_TYPE_STRING] = &STRING_type_defn,
-  [CONFIG_TYPE_FILENAME] = &FILENAME_type_defn,
-  [CONFIG_TYPE_INT] = &INT_type_defn,
-  [CONFIG_TYPE_POSINT] = &POSINT_type_defn,
-  [CONFIG_TYPE_UINT64] = &UINT64_type_defn,
-  [CONFIG_TYPE_MEMUNIT] = &MEMUNIT_type_defn,
-  [CONFIG_TYPE_INTERVAL] = &INTERVAL_type_defn,
-  [CONFIG_TYPE_MSEC_INTERVAL] = &MSEC_INTERVAL_type_defn,
-  [CONFIG_TYPE_DOUBLE] = &DOUBLE_type_defn,
-  [CONFIG_TYPE_BOOL] = &BOOL_type_defn,
-  [CONFIG_TYPE_AUTOBOOL] = &AUTOBOOL_type_defn,
-  [CONFIG_TYPE_ISOTIME] = &ISOTIME_type_defn,
-  [CONFIG_TYPE_CSV] = &CSV_type_defn,
-  [CONFIG_TYPE_CSV_INTERVAL] = &CSV_INTERVAL_type_defn,
-  [CONFIG_TYPE_LINELIST] = &LINELIST_type_defn,
-  [CONFIG_TYPE_LINELIST_S] = &LINELIST_S_type_defn,
-  [CONFIG_TYPE_LINELIST_V] = &LINELIST_V_type_defn,
-  [CONFIG_TYPE_IGNORE] = &IGNORE_type_defn,
-  [CONFIG_TYPE_OBSOLETE] = &OBSOLETE_type_defn,
+static const var_type_def_t type_definitions_table[] = {
+  [CONFIG_TYPE_STRING] = { .name="String", .fns=&string_fns },
+  [CONFIG_TYPE_FILENAME] = { .name="Filename", .fns=&string_fns },
+  [CONFIG_TYPE_INT] = { .name="SignedInteger", .fns=&int_fns,
+                        .params=&INT_PARSE_UNRESTRICTED },
+  [CONFIG_TYPE_POSINT] = { .name="Integer", .fns=&int_fns,
+                           .params=&INT_PARSE_POSINT },
+  [CONFIG_TYPE_UINT64] = { .name="Integer", .fns=&uint64_fns, },
+  [CONFIG_TYPE_MEMUNIT] = { .name="DataSize", .fns=&memunit_fns,
+                            .params=&memory_units },
+  [CONFIG_TYPE_INTERVAL] = { .name="TimeInterval", .fns=&interval_fns,
+                             .params=&time_units },
+  [CONFIG_TYPE_MSEC_INTERVAL] = { .name="TimeMsecInterval",
+                                  .fns=&interval_fns,
+                                  .params=&time_msec_units },
+  [CONFIG_TYPE_DOUBLE] = { .name="Float", .fns=&double_fns, },
+  [CONFIG_TYPE_BOOL] = { .name="Boolean", .fns=&enum_fns,
+                         .params=&enum_table_bool },
+  [CONFIG_TYPE_AUTOBOOL] = { .name="Boolean+Auto", .fns=&enum_fns,
+                             .params=&enum_table_autobool },
+  [CONFIG_TYPE_ISOTIME] = { .name="Time", .fns=&time_fns, },
+  [CONFIG_TYPE_CSV] = { .name="CommaList", .fns=&csv_fns, },
+  [CONFIG_TYPE_CSV_INTERVAL] = { .name="TimeInterval",
+                                 .fns=&legacy_csv_interval_fns, },
+  [CONFIG_TYPE_LINELIST] = { .name="LineList", .fns=&linelist_fns,
+                             .flags=CFLG_NOREPLACE },
+  /*
+   * A "linelist_s" is a derived view of a linelist_v: inspecting
+   * it gets part of a linelist_v, and setting it adds to the linelist_v.
+   */
+  [CONFIG_TYPE_LINELIST_S] = { .name="Dependent", .fns=&linelist_s_fns,
+                               .flags=CFLG_NOREPLACE|
+                               /* The operations we disable here are
+                                * handled by the linelist_v. */
+                               CFLG_NOCOPY|CFLG_NOCMP|CFLG_NODUMP },
+  [CONFIG_TYPE_LINELIST_V] = { .name="Virtual", .fns=&linelist_v_fns,
+                               .flags=CFLG_NOREPLACE|CFLG_NOSET },
+  [CONFIG_TYPE_OBSOLETE] = {
+         .name="Obsolete", .fns=&ignore_fns,
+         .flags=CFLG_GROUP_OBSOLETE,
+  }
 };
 
 /**
@@ -845,5 +787,5 @@ lookup_type_def(config_type_t type)
   tor_assert(t >= 0);
   if (t >= (int)ARRAY_LENGTH(type_definitions_table))
     return NULL;
-  return type_definitions_table[t];
+  return &type_definitions_table[t];
 }

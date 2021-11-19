@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 # Copyright (c) 2014-2019, The Tor Project, Inc.
 # See LICENSE for licensing information
 
@@ -6,11 +6,6 @@
    line into roughly the order in which they should appear in the
    changelog.
 """
-
-# Future imports for Python 2.7, mandatory in 3.0
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import re
 import sys
@@ -48,7 +43,7 @@ REPLACEMENTS = {
 def score(s,fname=None):
     m = re.match(r'^ +o ([^\n]*)\n(.*)', s, re.M|re.S)
     if not m:
-        print("Can't score %r from %s"%(s,fname), file=sys.stderr)
+        print >>sys.stderr, "Can't score %r from %s"%(s,fname)
     heading = m.group(1)
     heading = REPLACEMENTS.get(heading, heading)
     lw = m.group(1).lower()
@@ -105,9 +100,9 @@ changes.sort()
 last_lw = "this is not a header"
 for _, lw, header, rest in changes:
     if lw == last_lw:
-        print(rest, end="")
+        print rest,
     else:
-        print()
-        print("  o",header)
-        print(rest, end="")
+        print
+        print "  o",header
+        print rest,
         last_lw = lw

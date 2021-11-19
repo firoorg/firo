@@ -5,9 +5,6 @@
 
 # include "permitted.h"
 
-#include "ext/good.c"
-#include "bad.c"
-
 int
 i_am_a_function(void)
 {

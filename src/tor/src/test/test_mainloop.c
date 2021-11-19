@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2021, The Tor Project, Inc. */
+/* Copyright (c) 2018-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -13,13 +13,9 @@
 #include "test/test.h"
 #include "test/log_test_helpers.h"
 
-#include "lib/confmgt/confmgt.h"
-
 #include "core/or/or.h"
 #include "core/mainloop/connection.h"
 #include "core/mainloop/mainloop.h"
-#include "core/mainloop/mainloop_state_st.h"
-#include "core/mainloop/mainloop_sys.h"
 #include "core/mainloop/netstatus.h"
 
 #include "feature/hs/hs_service.h"
@@ -27,8 +23,6 @@
 #include "app/config/config.h"
 #include "app/config/statefile.h"
 #include "app/config/or_state_st.h"
-
-#include "app/main/subsysmgr.h"
 
 static const uint64_t BILLION = 1000000000;
 
@@ -231,8 +225,6 @@ test_mainloop_check_participation(void *arg)
   const time_t start = 1542658829;
   const time_t ONE_DAY = 24*60*60;
 
-  options->DormantTimeoutEnabled = 1;
-
   // Suppose we've been idle for a day or two
   reset_user_activity(start - 2*ONE_DAY);
   set_network_participation(true);
@@ -295,13 +287,7 @@ static void
 test_mainloop_dormant_load_state(void *arg)
 {
   (void)arg;
-  or_state_t *or_state = or_state_new();
-  mainloop_state_t *state;
-  {
-    int idx = subsystems_get_state_idx(&sys_mainloop);
-    tor_assert(idx >= 0);
-    state = config_mgr_get_obj_mutable(get_state_mgr(), or_state, idx);
-  }
+  or_state_t *state = or_state_new();
   const time_t start = 1543956575;
 
   reset_user_activity(0);
@@ -340,14 +326,14 @@ test_mainloop_dormant_load_state(void *arg)
   tt_i64_op(get_last_user_activity_time(), OP_EQ, start);
 
  done:
-  or_state_free(or_state);
+  or_state_free(state);
 }
 
 static void
 test_mainloop_dormant_save_state(void *arg)
 {
   (void)arg;
-  mainloop_state_t *state = tor_malloc_zero(sizeof(mainloop_state_t));
+  or_state_t *state = or_state_new();
   const time_t start = 1543956575;
 
   // Can we save a non-dormant state correctly?
@@ -366,7 +352,7 @@ test_mainloop_dormant_save_state(void *arg)
   tt_int_op(state->MinutesSinceUserActivity, OP_EQ, 0);
 
  done:
-  tor_free(state);
+  or_state_free(state);
 }
 
 #define MAINLOOP_TEST(name) \

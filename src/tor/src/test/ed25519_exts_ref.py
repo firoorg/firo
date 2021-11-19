@@ -8,11 +8,6 @@
    Includes self-tester and test vector generator.
 """
 
-# Future imports for Python 2.7, mandatory in 3.0
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import slow_ed25519
 from slow_ed25519 import *
 
@@ -42,7 +37,7 @@ def blindESK(esk, param):
     s_prime = (s * mult) % ell
     k = esk[32:]
     assert(len(k) == 32)
-    k_prime = H(b"Derive temporary signing key hash input" + k)[:32]
+    k_prime = H("Derive temporary signing key hash input" + k)[:32]
     return encodeint(s_prime) + k_prime
 
 def blindPK(pk, param):
@@ -53,7 +48,7 @@ def blindPK(pk, param):
 def expandSK(sk):
     h = H(sk)
     a = 2**(b-2) + sum(2**i * bit(h,i) for i in range(3,b-2))
-    k = bytes(h[i] for i in range(b//8,b//4))
+    k = ''.join([h[i] for i in range(b/8,b/4)])
     assert len(k) == 32
     return encodeint(a)+k
 
@@ -64,7 +59,7 @@ def publickeyFromESK(h):
 
 def signatureWithESK(m,h,pk):
     a = decodeint(h[:32])
-    r = Hint(bytes([h[i] for i in range(b//8,b//4)]) + m)
+    r = Hint(''.join([h[i] for i in range(b/8,b/4)]) + m)
     R = scalarmult(B,r)
     S = (r + Hint(encodepoint(R) + pk + m) * a) % l
     return encodepoint(R) + encodeint(S)
@@ -152,7 +147,7 @@ class SelfTest(unittest.TestCase):
         # Check that identities match
         assert(identity == identity2)
         # Check that identity is the point (0,1)
-        assert(identity == [0,1])
+        assert(identity == [0L,1L])
 
         # Check identity element: a*E = E, where a is a random scalar
         scalar = random_scalar(os.urandom)
@@ -170,8 +165,6 @@ RAND_INPUTS = [
   '5c8eac469bb3f1b85bc7cd893f52dc42a9ab66f1b02b5ce6a68e9b175d3bb433',
   'eda433d483059b6d1ff8b7cfbd0fe406bfb23722c8f3c8252629284573b61b86',
   '4377c40431c30883c5fbd9bc92ae48d1ed8a47b81d13806beac5351739b5533d',
-  'c6bbcce615839756aed2cc78b1de13884dd3618f48367a17597a16c1cd7a290b',
-  'c6bbcce615839756aed2cc78b1de13884dd3618f48367a17597a16c1cd7a290b',
   'c6bbcce615839756aed2cc78b1de13884dd3618f48367a17597a16c1cd7a290b']
 
 # From pprint.pprint([ binascii.b2a_hex(os.urandom(32)) for _ in xrange(8) ])
@@ -183,29 +176,27 @@ BLINDING_PARAMS = [
   'b1fe79d1dec9bc108df69f6612c72812755751f21ecc5af99663b30be8b9081f',
   '81f1512b63ab5fb5c1711a4ec83d379c420574aedffa8c3368e1c3989a3a0084',
   '97f45142597c473a4b0e9a12d64561133ad9e1155fe5a9807fe6af8a93557818',
-  '3f44f6a5a92cde816635dfc12ade70539871078d2ff097278be2a555c9859cd0',
-  '0000000000000000000000000000000000000000000000000000000000000000',
-  '1111111111111111111111111111111111111111111111111111111111111111']
+  '3f44f6a5a92cde816635dfc12ade70539871078d2ff097278be2a555c9859cd0']
 
 PREFIX = "ED25519_"
 
 def writeArray(name, array):
-    print("static const char *{prefix}{name}[] = {{".format(
-        prefix=PREFIX,name=name))
+    print "static const char *{prefix}{name}[] = {{".format(
+        prefix=PREFIX,name=name)
     for a in array:
         h = binascii.b2a_hex(a)
         if len(h) > 70:
             h1 = h[:70]
             h2 = h[70:]
-            print('  "{0}"\n      "{1}",'.format(h1.decode('utf-8'),h2.decode('utf-8')))
+            print '  "{0}"\n      "{1}",'.format(h1,h2)
         else:
-            print('  "{0}",'.format(h.decode('utf-8')))
-    print("};\n")
+            print '  "{0}",'.format(h)
+    print "};\n"
 
 def comment(text, initial="/**"):
-    print(initial)
-    print(textwrap.fill(text,initial_indent=" * ",subsequent_indent=" * "))
-    print(" */")
+    print initial
+    print textwrap.fill(text,initial_indent=" * ",subsequent_indent=" * ")
+    print " */"
 
 def makeTestVectors():
     comment("""Test vectors for our ed25519 implementation and related
@@ -261,9 +252,11 @@ def makeTestVectors():
 if __name__ == '__main__':
     import sys
     if len(sys.argv) == 1 or sys.argv[1] not in ("SelfTest", "MakeVectors"):
-        print("You should specify one of 'SelfTest' or 'MakeVectors'")
+        print "You should specify one of 'SelfTest' or 'MakeVectors'"
         sys.exit(1)
     if sys.argv[1] == 'SelfTest':
         unittest.main()
     else:
         makeTestVectors()
+
+

@@ -1,7 +1,7 @@
 /* Copyright (c) 2001, Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -9,6 +9,8 @@
  *
  * \brief Common cryptographic utilities.
  **/
+
+#define CRYPTO_UTIL_PRIVATE
 
 #include "lib/crypt_ops/crypto_util.h"
 #include "lib/cc/compat_compiler.h"
@@ -24,10 +26,10 @@
 #include <stdlib.h>
 
 #ifdef ENABLE_OPENSSL
-DISABLE_GCC_WARNING("-Wredundant-decls")
+DISABLE_GCC_WARNING(redundant-decls)
 #include <openssl/err.h>
 #include <openssl/crypto.h>
-ENABLE_GCC_WARNING("-Wredundant-decls")
+ENABLE_GCC_WARNING(redundant-decls)
 #endif /* defined(ENABLE_OPENSSL) */
 
 #include "lib/log/log.h"
@@ -106,18 +108,4 @@ memwipe(void *mem, uint8_t byte, size_t sz)
    * if somebody accidentally calls memwipe() instead of memset().
    **/
   memset(mem, byte, sz);
-}
-
-/**
- * Securely all memory in <b>str</b>, then free it.
- *
- * As tor_free(), tolerates null pointers.
- **/
-void
-tor_str_wipe_and_free_(char *str)
-{
-  if (!str)
-    return;
-  memwipe(str, 0, strlen(str));
-  tor_free_(str);
 }

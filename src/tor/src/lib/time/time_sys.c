@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2021, The Tor Project, Inc. */
+/* Copyright (c) 2018-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -20,7 +20,6 @@ subsys_time_initialize(void)
 
 const subsys_fns_t sys_time = {
   .name = "time",
-  SUBSYS_DECLARE_LOCATION(),
   /* Monotonic time depends on logging, and a lot of other modules depend on
    * monotonic time. */
   .level = -80,

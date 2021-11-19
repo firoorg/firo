@@ -1,13 +1,8 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
-
-/**
- * @file addr_policy_st.h
- * @brief Address policy structures.
- **/
 
 #ifndef TOR_ADDR_POLICY_ST_H
 #define TOR_ADDR_POLICY_ST_H
@@ -38,7 +33,7 @@ struct addr_policy_t {
   /** Base address to accept or reject.
    *
    * Note that wildcards are treated
-   * differently depending on address family. An AF_UNSPEC address means
+   * differntly depending on address family. An AF_UNSPEC address means
    * "All addresses, IPv4 or IPv6." An AF_INET address with maskbits==0 means
    * "All IPv4 addresses" and an AF_INET6 address with maskbits == 0 means
    * "All IPv6 addresses".

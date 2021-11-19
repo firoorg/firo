@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "core/or/or.h"
@@ -68,6 +68,7 @@
  *   router_upload_dir_desc_to_dirservers() in router.c
  *   upload_service_descriptor() in rendservice.c
  * - directory_get_from_dirserver(), called from
+ *   rend_client_refetch_renddesc() in rendclient.c
  *   run_scheduled_events() in main.c
  *   do_hup() in main.c
  * - connection_dir_process_inbuf(), called from
@@ -78,29 +79,13 @@
  *   connection_finished_connecting() in connection.c
  */
 
-/**
- * Cast a `connection_t *` to a `dir_connection_t *`.
- *
- * Exit with an assertion failure if the input is not a
- * `dir_connection_t`.
- **/
+/** Convert a connection_t* to a dir_connection_t*; assert if the cast is
+ * invalid. */
 dir_connection_t *
 TO_DIR_CONN(connection_t *c)
 {
   tor_assert(c->magic == DIR_CONNECTION_MAGIC);
   return DOWNCAST(dir_connection_t, c);
-}
-
-/**
- * Cast a `const connection_t *` to a `const dir_connection_t *`.
- *
- * Exit with an assertion failure if the input is not a
- * `dir_connection_t`.
- **/
-const dir_connection_t *
-CONST_TO_DIR_CONN(const connection_t *c)
-{
-  return TO_DIR_CONN((connection_t *)c);
 }
 
 /** Return false if the directory purpose <b>dir_purpose</b>
@@ -142,6 +127,9 @@ purpose_needs_anonymity(uint8_t dir_purpose, uint8_t router_purpose,
     case DIR_PURPOSE_FETCH_MICRODESC:
       return 0;
     case DIR_PURPOSE_HAS_FETCHED_HSDESC:
+    case DIR_PURPOSE_HAS_FETCHED_RENDDESC_V2:
+    case DIR_PURPOSE_UPLOAD_RENDDESC_V2:
+    case DIR_PURPOSE_FETCH_RENDDESC_V2:
     case DIR_PURPOSE_FETCH_HSDESC:
     case DIR_PURPOSE_UPLOAD_HSDESC:
       return 1;
@@ -229,7 +217,7 @@ connection_dir_is_anonymous(const dir_connection_t *dir_conn)
     return false;
   }
 
-  edge_conn = CONST_TO_EDGE_CONN(linked_conn);
+  edge_conn = TO_EDGE_CONN((connection_t *) linked_conn);
   circ = edge_conn->on_circuit;
 
   /* Can't be a circuit we initiated and without a circuit, no channel. */
@@ -467,9 +455,9 @@ connection_dir_process_inbuf(dir_connection_t *conn)
 
   if (connection_get_inbuf_len(TO_CONN(conn)) > max_size) {
     log_warn(LD_HTTP,
-             "Too much data received from %s: "
+             "Too much data received from directory connection (%s): "
              "denial of service attempt, or you need to upgrade?",
-             connection_describe(TO_CONN(conn)));
+             conn->base_.address);
     connection_mark_for_close(TO_CONN(conn));
     return -1;
   }
@@ -552,8 +540,8 @@ connection_dir_finished_connecting(dir_connection_t *conn)
   tor_assert(conn->base_.type == CONN_TYPE_DIR);
   tor_assert(conn->base_.state == DIR_CONN_STATE_CONNECTING);
 
-  log_debug(LD_HTTP,"Dir connection to %s established.",
-            connection_describe_peer(TO_CONN(conn)));
+  log_debug(LD_HTTP,"Dir connection to router %s:%u established.",
+            conn->base_.address,conn->base_.port);
 
   /* start flushing conn */
   conn->base_.state = DIR_CONN_STATE_CLIENT_SENDING;
@@ -713,4 +701,35 @@ dir_split_resource_into_fingerprints(const char *resource,
   smartlist_add_all(fp_out, fp_tmp);
   smartlist_free(fp_tmp);
   return 0;
+}
+
+/** As dir_split_resource_into_fingerprints, but instead fills
+ * <b>spool_out</b> with a list of spoolable_resource_t for the resource
+ * identified through <b>source</b>. */
+int
+dir_split_resource_into_spoolable(const char *resource,
+                                  dir_spool_source_t source,
+                                  smartlist_t *spool_out,
+                                  int *compressed_out,
+                                  int flags)
+{
+  smartlist_t *fingerprints = smartlist_new();
+
+  tor_assert(flags & (DSR_HEX|DSR_BASE64));
+  const size_t digest_len =
+    (flags & DSR_DIGEST256) ? DIGEST256_LEN : DIGEST_LEN;
+
+  int r = dir_split_resource_into_fingerprints(resource, fingerprints,
+                                               compressed_out, flags);
+  /* This is not a very efficient implementation XXXX */
+  SMARTLIST_FOREACH_BEGIN(fingerprints, uint8_t *, digest) {
+    spooled_resource_t *spooled =
+      spooled_resource_new(source, digest, digest_len);
+    if (spooled)
+      smartlist_add(spool_out, spooled);
+    tor_free(digest);
+  } SMARTLIST_FOREACH_END(digest);
+
+  smartlist_free(fingerprints);
+  return r;
 }

@@ -1,8 +1,6 @@
 #ifndef SIPHASH_H
 #define SIPHASH_H
 
-#include <stdint.h>
-
 struct sipkey {
   uint64_t k0;
   uint64_t k1;

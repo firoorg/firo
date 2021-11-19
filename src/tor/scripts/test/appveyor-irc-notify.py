@@ -75,10 +75,8 @@ in Appveyor's YAML:
       - "python scripts/test/appveyor-irc-notify.py irc.oftc.net:6697 tor-ci failure
 """
 
-# Future imports for Python 2.7, mandatory in 3.0
-from __future__ import division
 from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import absolute_import
 
 import os
 import random

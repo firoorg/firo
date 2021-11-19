@@ -1,13 +1,8 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
-
-/**
- * @file vote_timing_st.h
- * @brief Directory voting schedule structure.
- **/
 
 #ifndef VOTE_TIMING_ST_H
 #define VOTE_TIMING_ST_H
@@ -26,3 +21,4 @@ struct vote_timing_t {
 };
 
 #endif /* !defined(VOTE_TIMING_ST_H) */
+

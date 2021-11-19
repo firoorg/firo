@@ -160,31 +160,31 @@ pub(crate) fn get_supported_protocols_cstr() -> &'static CStr {
         cstr!(
             "Cons=1-2 \
              Desc=1-2 \
-             DirCache=2 \
-             FlowCtrl=1 \
+             DirCache=1-2 \
              HSDir=1-2 \
-             HSIntro=3-5 \
+             HSIntro=3-4 \
              HSRend=1-2 \
              Link=1-5 \
              LinkAuth=3 \
              Microdesc=1-2 \
+             Relay=1-2 \
              Padding=2 \
-             Relay=1-3"
+             FlowCtrl=1"
         )
     } else {
         cstr!(
             "Cons=1-2 \
              Desc=1-2 \
-             DirCache=2 \
-             FlowCtrl=1 \
+             DirCache=1-2 \
              HSDir=1-2 \
-             HSIntro=3-5 \
+             HSIntro=3-4 \
              HSRend=1-2 \
              Link=1-5 \
              LinkAuth=1,3 \
              Microdesc=1-2 \
+             Relay=1-2 \
              Padding=2 \
-             Relay=1-3"
+             FlowCtrl=1"
         )
     }
 }
@@ -253,11 +253,6 @@ impl FromStr for ProtoEntry {
     /// Otherwise, the `Err` value of this `Result` is a `ProtoverError`.
     fn from_str(protocol_entry: &str) -> Result<ProtoEntry, ProtoverError> {
         let mut proto_entry: ProtoEntry = ProtoEntry::default();
-
-        if protocol_entry.is_empty() {
-            return Ok(proto_entry);
-        }
-
         let entries = protocol_entry.split(' ');
 
         for entry in entries {
@@ -505,10 +500,6 @@ impl UnvalidatedProtoEntry {
         protocol_string: &'a str,
     ) -> Result<Vec<(&'a str, &'a str)>, ProtoverError> {
         let mut protovers: Vec<(&str, &str)> = Vec::new();
-
-        if protocol_string.is_empty() {
-            return Ok(protovers);
-        }
 
         for subproto in protocol_string.split(' ') {
             let mut parts = subproto.splitn(2, '=');
@@ -868,8 +859,7 @@ mod test {
 
     #[test]
     fn test_protoentry_from_str_empty() {
-        assert_protoentry_is_parseable!("");
-        assert!(UnvalidatedProtoEntry::from_str("").is_ok());
+        assert_protoentry_is_unparseable!("");
     }
 
     #[test]
@@ -884,12 +874,17 @@ mod test {
 
     #[test]
     fn test_protoentry_from_str_allowed_number_of_versions() {
-        assert_protoentry_is_parseable!("Desc=1-63");
+        assert_protoentry_is_parseable!("Desc=1-4294967294");
     }
 
     #[test]
     fn test_protoentry_from_str_too_many_versions() {
-        assert_protoentry_is_unparseable!("Desc=1-64");
+        assert_protoentry_is_unparseable!("Desc=1-4294967295");
+    }
+
+    #[test]
+    fn test_protoentry_from_str_() {
+        assert_protoentry_is_unparseable!("");
     }
 
     #[test]
@@ -923,10 +918,10 @@ mod test {
 
     #[test]
     fn test_protoentry_all_supported_unsupported_high_version() {
-        let protocols: UnvalidatedProtoEntry = "HSDir=12-60".parse().unwrap();
+        let protocols: UnvalidatedProtoEntry = "HSDir=12-100".parse().unwrap();
         let unsupported: Option<UnvalidatedProtoEntry> = protocols.all_supported();
         assert_eq!(true, unsupported.is_some());
-        assert_eq!("HSDir=12-60", &unsupported.unwrap().to_string());
+        assert_eq!("HSDir=12-100", &unsupported.unwrap().to_string());
     }
 
     #[test]
@@ -975,7 +970,7 @@ mod test {
             ProtoSet::from_str(&versions).unwrap().to_string()
         );
 
-        versions = "1-3,50";
+        versions = "1-3,500";
         assert_eq!(
             String::from(versions),
             ProtoSet::from_str(&versions).unwrap().to_string()

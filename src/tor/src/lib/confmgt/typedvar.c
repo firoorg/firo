@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2019, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -24,7 +24,6 @@
 #include "lib/log/log.h"
 #include "lib/log/util_bug.h"
 #include "lib/malloc/malloc.h"
-#include "lib/string/printf.h"
 #include "lib/string/util_string.h"
 
 #include "lib/confmgt/var_type_def_st.h"
@@ -34,7 +33,8 @@
 
 /**
  * Try to parse a string in <b>value</b> that encodes an object of the type
- * defined by <b>def</b>.
+ * defined by <b>def</b>. If not NULL, <b>key</b> is the name of the option,
+ * which may be used for logging.
  *
  * On success, adjust the lvalue pointed to by <b>target</b> to hold that
  * value, and return 0.  On failure, set *<b>errmsg</b> to a newly allocated
@@ -42,7 +42,7 @@
  **/
 int
 typed_var_assign(void *target, const char *value, char **errmsg,
-                    const var_type_def_t *def)
+                 const var_type_def_t *def, const char *key)
 {
   if (BUG(!def))
     return -1; // LCOV_EXCL_LINE
@@ -50,7 +50,7 @@ typed_var_assign(void *target, const char *value, char **errmsg,
   typed_var_free(target, def);
 
   tor_assert(def->fns->parse);
-  return def->fns->parse(target, value, errmsg, def->params);
+  return def->fns->parse(target, value, errmsg, def->params, key);
 }
 
 /**
@@ -76,15 +76,7 @@ typed_var_kvassign(void *target, const config_line_t *line,
     return def->fns->kv_parse(target, line, errmsg, def->params);
   }
 
-  int rv = typed_var_assign(target, line->value, errmsg, def);
-  if (rv < 0 && *errmsg != NULL) {
-    /* typed_var_assign() didn't know the line's keyword, but we do.
-     * Let's add it to the error message. */
-    char *oldmsg = *errmsg;
-    tor_asprintf(errmsg, "Could not parse %s: %s", line->key, oldmsg);
-    tor_free(oldmsg);
-  }
-  return rv;
+  return typed_var_assign(target, line->value, errmsg, def, line->key);
 }
 
 /**
@@ -156,7 +148,7 @@ typed_var_copy(void *dest, const void *src, const var_type_def_t *def)
   if (BUG(!def))
     return -1; // LCOV_EXCL_LINE
   if (def->fns->copy) {
-    // If we have been provided a copy function, use it.
+    // If we have been provided a copy fuction, use it.
     return def->fns->copy(dest, src, def);
   }
 
@@ -167,7 +159,7 @@ typed_var_copy(void *dest, const void *src, const var_type_def_t *def)
     return 0;
   }
   char *err = NULL;
-  int rv = typed_var_assign(dest, enc, &err, def);
+  int rv = typed_var_assign(dest, enc, &err, def, NULL);
   if (BUG(rv < 0)) {
     // LCOV_EXCL_START
     log_warn(LD_BUG, "Encoded value %s was not parseable as a %s: %s",
