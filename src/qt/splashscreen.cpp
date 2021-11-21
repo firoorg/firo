@@ -52,12 +52,12 @@ SplashScreen::SplashScreen(const QPixmap &pixmap, Qt::WindowFlags f) : QSplashSc
 
     // load the bitmap for writing some text over it
     QPixmap newPixmap;
-//    if(GetBoolArg("-testnet")) {
-//        newPixmap     = QPixmap(":/images/splash_testnet");
-//    }
-//    else {
+   if(GetBoolArg("-testnet", false)) {
+       newPixmap     = QPixmap(":/images/splash_testnet");
+   }
+   else {
     newPixmap     = QPixmap(":/images/splash");
-//    }
+   }
 
     QPainter pixPaint(&newPixmap);
     pixPaint.setPen(QColor(70,70,70));

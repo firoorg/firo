@@ -123,6 +123,7 @@ private:
     QAction *lelantusAction;
     QAction *masternodeAction;
     QAction *createPcodeAction;
+    QAction *logoAction;
 
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;

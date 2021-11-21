@@ -35,6 +35,7 @@
 #include <QTableView>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <QCalendarWidget>
 
 namespace {
 char const * CopyLabelText{"Copy label"};
@@ -645,6 +646,7 @@ QWidget *TransactionView::createDateRangeWidget()
     connect(dateFrom, SIGNAL(dateChanged(QDate)), this, SLOT(dateRangeChanged()));
     connect(dateTo, SIGNAL(dateChanged(QDate)), this, SLOT(dateRangeChanged()));
 
+    updateCalendarWidgets();
     return dateRangeWidget;
 }
 
@@ -655,6 +657,20 @@ void TransactionView::dateRangeChanged()
     transactionProxyModel->setDateRange(
             QDateTime(dateFrom->date()),
             QDateTime(dateTo->date()).addDays(1));
+}
+
+void TransactionView::updateCalendarWidgets()
+{
+    auto adjustWeekEndColors = [](QCalendarWidget* w) {
+        QTextCharFormat format = w->weekdayTextFormat(Qt::Saturday);
+        format.setForeground(QBrush(QColor(61,57,57), Qt::SolidPattern));
+
+        w->setWeekdayTextFormat(Qt::Saturday, format);
+        w->setWeekdayTextFormat(Qt::Sunday, format);
+    };
+
+    adjustWeekEndColors(dateFrom->calendarWidget());
+    adjustWeekEndColors(dateTo->calendarWidget());
 }
 
 void TransactionView::focusTransaction(const QModelIndex &idx)

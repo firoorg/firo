@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2019, The Tor Project, Inc. */
+/* Copyright (c) 2013-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -102,7 +102,7 @@ static const ed25519_impl_t impl_donna = {
 
   ed25519_donna_open,
   ed25519_donna_sign,
-  ed25519_sign_open_batch_donna,
+  NULL, /* Don't use donna's batching code because of #40078 */
 
   ed25519_donna_blind_secret_key,
   ed25519_donna_blind_public_key,

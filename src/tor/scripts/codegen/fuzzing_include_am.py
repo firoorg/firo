@@ -1,4 +1,9 @@
-#!/usr/bin/python
+#!/usr/bin/env python
+
+# Future imports for Python 2.7, mandatory in 3.0
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 FUZZERS = """
 	consensus
@@ -26,17 +31,18 @@ FUZZING_CFLAGS = \
 FUZZING_LDFLAG = \
 	@TOR_LDFLAGS_zlib@ $(TOR_LDFLAGS_CRYPTLIB) @TOR_LDFLAGS_libevent@
 FUZZING_LIBS = \
-	$(TOR_INTERNAL_TESTING_LIBS) \
+	src/test/libtor-testing.a \
 	$(rust_ldadd) \
 	@TOR_ZLIB_LIBS@ @TOR_LIB_MATH@ \
 	@TOR_LIBEVENT_LIBS@ $(TOR_LIBS_CRYPTLIB) \
-	@TOR_LIB_WS32@ @TOR_LIB_IPHLPAPI@ @TOR_LIB_GDI@ @TOR_LIB_USERENV@ @CURVE25519_LIBS@ \
+	@TOR_LIB_WS32@ @TOR_LIB_IPHLPAPI@ @TOR_LIB_SHLWAPI@ @TOR_LIB_GDI@ @TOR_LIB_USERENV@ @CURVE25519_LIBS@ \
 	@TOR_SYSTEMD_LIBS@ \
 	@TOR_LZMA_LIBS@ \
-	@TOR_ZSTD_LIBS@
+	@TOR_ZSTD_LIBS@ \
+	@TOR_TRACE_LIBS@
 
 oss-fuzz-prereqs: \
-    $(TOR_INTERNAL_TESTING_LIBS)
+    src/test/libtor-testing.a
 
 noinst_HEADERS += \
 	src/test/fuzz/fuzzing.h
