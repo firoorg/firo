@@ -337,6 +337,7 @@ static const CRPCCommand vRPCCommands[] =
     { "mobile",             "getusedcoinserials",     &getusedcoinserials,     true  },
     { "mobile",             "getfeerate",             &getfeerate,             true  },
     { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
+    { "mobile",             "getcoinsforrecovery",    &getcoinsforrecovery,    true  },
 };
 
 CRPCTable::CRPCTable()

@@ -212,6 +212,7 @@ extern UniValue getmintmetadata(const JSONRPCRequest& params);
 extern UniValue getusedcoinserials(const JSONRPCRequest& params);
 extern UniValue getfeerate(const JSONRPCRequest& params);
 extern UniValue getlatestcoinid(const JSONRPCRequest& params);
+extern UniValue getcoinsforrecovery(const JSONRPCRequest& params);
 
 extern UniValue znode(const JSONRPCRequest &request);
 extern UniValue znodelist(const JSONRPCRequest &request);

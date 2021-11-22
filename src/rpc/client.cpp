@@ -192,6 +192,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getmintmetadata", 0 },
     { "getusedcoinserials", 0 },
     { "getlatestcoinids", 0 },
+    { "getcoinsforrecovery", 0 },
 
     /* Elysium - data retrieval calls */
 	{ "elysium_gettradehistoryforaddress", 1 },
