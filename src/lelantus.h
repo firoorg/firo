@@ -27,6 +27,8 @@ public:
     // Vector of <pubCoin, <amount, hash>> for all the mints.
     std::vector<std::pair<lelantus::PublicCoin, std::pair<uint64_t, uint256>>> mints;
 
+    std::unordered_map<lelantus::PublicCoin, std::vector<unsigned char>, lelantus::CPublicCoinHash> encryptedJmintValues;
+
     // serial for every spend (map from serial to coin group id)
     std::unordered_map<Scalar, int> spentSerials;
 
@@ -196,6 +198,10 @@ public:
             int coinGroupID,
             bool fStartLelantusBlacklist,
             std::vector<lelantus::PublicCoin>& coins_out);
+
+    void GetCoinsForRecovery(
+            int coinGroupID,
+            std::vector<std::pair<lelantus::PublicCoin, std::pair<lelantus::MintValueData, uint256>>>& coins);
 
     // Return height of mint transaction and id of minted coin
     std::pair<int, int> GetMintedCoinHeightAndId(const lelantus::PublicCoin& pubCoin);

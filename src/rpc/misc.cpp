@@ -1101,6 +1101,50 @@ UniValue getlatestcoinid(const JSONRPCRequest& request)
     return UniValue(latestCoinId);
 }
 
+UniValue getcoinsforrecovery(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getcoinsforrecovery\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"setID\" (int) Set id\n"
+                "  \"mints\" (Pair<string,Pair<<string, uint64_t>>) Public coins paired with mint tag and mint value\n"
+                "  \"jmints\"(Pair<string,Pair<<string, string>>) Public coins paired with mint tag and encrypted mint value \n"
+                "}\n"
+        );
+
+    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
+    int latestCoinId = lelantusState->GetLatestCoinID();
+
+    UniValue ret(UniValue::VOBJ);
+    while (latestCoinId) {
+        ret.push_back(Pair("setID", latestCoinId));
+        std::vector<std::pair <lelantus::PublicCoin,std::pair<lelantus::MintValueData, uint256>>> coins;
+        lelantusState->GetCoinsForRecovery(latestCoinId, coins);
+        UniValue mints(UniValue::VARR);
+        UniValue jmints(UniValue::VARR);
+        for (const auto& coin : coins) {
+            if (coin.second.first.isJMint) {
+                std::vector<unsigned char> vch = coin.first.getValue().getvch();
+                UniValue data(UniValue::VARR);
+                data.push_back(Pair(coin.second.second.GetHex(), HexStr(coin.second.first.encryptedValue.begin(), coin.second.first.encryptedValue.end())));
+                jmints.push_back(Pair(HexStr(vch.begin(), vch.end()), data));
+            } else {
+                std::vector<unsigned char> vch = coin.first.getValue().getvch();
+                UniValue data(UniValue::VARR);
+                data.push_back(Pair(coin.second.second.GetHex(), coin.second.first.amount));
+                mints.push_back(Pair(HexStr(vch.begin(), vch.end()), data));
+            }
+        }
+        ret.push_back(Pair("mints", mints));
+        ret.push_back(Pair("jmints", jmints));
+        latestCoinId--;
+    }
+
+    return ret;
+}
+
 UniValue getaddresstxids(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
@@ -1389,6 +1433,8 @@ static const CRPCCommand commands[] =
     { "mobile",             "getusedcoinserials",     &getusedcoinserials,     true  },
     { "mobile",             "getfeerate",             &getfeerate,             true  },
     { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
+    { "mobile",             "getcoinsforrecovery",    &getcoinsforrecovery,    true  },
+
 
     { "hidden",             "setmocktime",            &setmocktime,            true,  {"timestamp"}},
     { "hidden",             "echo",                   &echo,                   true,  {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"}},
