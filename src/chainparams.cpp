@@ -275,7 +275,7 @@ public:
         consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
         consensus.nMTPStartBlock = 117564;
         consensus.nMTPFiveMinutesStartBlock = SWITCH_TO_MTP_5MIN_BLOCK;
-        consensus.nMTPStripDataTime = INT_MAX;
+        consensus.nMTPStripDataTime = 1638954000;   // December 08, 2021 09:00 UTC
 
         consensus.nDifficultyAdjustStartBlock = 0;
         consensus.nFixedDifficulty = 0x2000ffff;
