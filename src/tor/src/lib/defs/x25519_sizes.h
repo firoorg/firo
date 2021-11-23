@@ -1,7 +1,7 @@
 /* Copyright (c) 2001, Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -35,9 +35,6 @@
 
 /** Length of a Curve25519 key when encoded in base 64, with padding. */
 #define CURVE25519_BASE64_PADDED_LEN 44
-
-/** Length of a Curve25519 key when encoded in base 64, without padding. */
-#define CURVE25519_BASE64_LEN 43
 
 /** Length of a Ed25519 key when encoded in base 64, without padding. */
 #define ED25519_BASE64_LEN 43

@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
@@ -579,10 +579,8 @@ test_get_pt_proxy_uri(void *arg)
     tor_free(uri);
 }
 
-#ifndef COCCI
 #define PT_LEGACY(name)                                               \
-  { (#name), test_pt_ ## name , 0, NULL, NULL }
-#endif
+  { #name, test_pt_ ## name , 0, NULL, NULL }
 
 struct testcase_t pt_tests[] = {
   PT_LEGACY(parsing),

@@ -1,7 +1,7 @@
 /* Copyright (c) 2001, Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -163,7 +163,7 @@ crypto_dh_init_openssl(void)
 
 /** Number of bits to use when choosing the x or y value in a Diffie-Hellman
  * handshake.  Since we exponentiate by this value, choosing a smaller one
- * lets our handshake go faster.
+ * lets our handhake go faster.
  */
 #define DH_PRIVATE_KEY_BITS 320
 

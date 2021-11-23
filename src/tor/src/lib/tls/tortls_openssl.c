@@ -1,6 +1,6 @@
 /* Copyright (c) 2003, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -245,28 +245,8 @@ tls_log_errors(tor_tls_t *tls, int severity, int domain, const char *doing)
   unsigned long err;
 
   while ((err = ERR_get_error()) != 0) {
-    if (tls)
-      tls->last_error = err;
     tor_tls_log_one_error(tls, err, severity, domain, doing);
   }
-}
-
-/**
- * Return a string representing more detail about the last error received
- * on TLS.
- *
- * May return null if no error was found.
- **/
-const char *
-tor_tls_get_last_error_msg(const tor_tls_t *tls)
-{
-  IF_BUG_ONCE(!tls) {
-    return NULL;
-  }
-  if (tls->last_error == 0) {
-    return NULL;
-  }
-  return (const char*)ERR_reason_error_string(tls->last_error);
 }
 
 #define CATCH_SYSCALL 1
@@ -342,7 +322,7 @@ tor_tls_init(void)
 
 #if (SIZEOF_VOID_P >= 8 &&                              \
      OPENSSL_VERSION_NUMBER >= OPENSSL_V_SERIES(1,0,1))
-    long version = tor_OpenSSL_version_num();
+    long version = OpenSSL_version_num();
 
     /* LCOV_EXCL_START : we can't test these lines on the same machine */
     if (version >= OPENSSL_V_SERIES(1,0,1)) {
@@ -1188,6 +1168,19 @@ tor_tls_block_renegotiation(tor_tls_t *tls)
 #else
   (void) tls;
 #endif
+}
+
+/** Assert that the flags that allow legacy renegotiation are still set */
+void
+tor_tls_assert_renegotiation_unblocked(tor_tls_t *tls)
+{
+#if defined(SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION) && \
+  SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION != 0
+  long options = SSL_get_options(tls->ssl);
+  tor_assert(0 != (options & SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION));
+#else
+  (void) tls;
+#endif /* defined(SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION) && ... */
 }
 
 /**

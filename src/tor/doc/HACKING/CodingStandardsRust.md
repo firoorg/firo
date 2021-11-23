@@ -1,51 +1,48 @@
-# Rust Coding Standards
 
-You MUST follow the standards laid out in `doc/HACKING/CodingStandards.md`,
+ Rust Coding Standards
+=======================
+
+You MUST follow the standards laid out in `.../doc/HACKING/CodingStandards.md`,
 where applicable.
 
-## Module/Crate Declarations
+ Module/Crate Declarations
+---------------------------
 
 Each Tor C module which is being rewritten MUST be in its own crate.
-See the structure of `src/rust` for examples.
+See the structure of `.../src/rust` for examples.
 
 In your crate, you MUST use `lib.rs` ONLY for pulling in external
 crates (e.g. `extern crate libc;`) and exporting public objects from
 other Rust modules (e.g. `pub use mymodule::foo;`).  For example, if
-you create a crate in `src/rust/yourcrate`, your Rust code should
-live in `src/rust/yourcrate/yourcode.rs` and the public interface
-to it should be exported in `src/rust/yourcrate/lib.rs`.
+you create a crate in `.../src/rust/yourcrate`, your Rust code should
+live in `.../src/rust/yourcrate/yourcode.rs` and the public interface
+to it should be exported in `.../src/rust/yourcrate/lib.rs`.
 
 If your code is to be called from Tor C code, you MUST define a safe
 `ffi.rs`.  See the "Safety" section further down for more details.
 
 For example, in a hypothetical `tor_addition` Rust module:
 
-In `src/rust/tor_addition/addition.rs`:
+In `.../src/rust/tor_addition/addition.rs`:
 
-```rust
-pub fn get_sum(a: i32, b: i32) -> i32 {
-    a + b
-}
-```
+    pub fn get_sum(a: i32, b: i32) -> i32 {
+        a + b
+    }
 
-In `src/rust/tor_addition/lib.rs`:
+In `.../src/rust/tor_addition/lib.rs`:
 
-```rust
-pub use addition::*;
-```
+    pub use addition::*;
 
-In `src/rust/tor_addition/ffi.rs`:
+In `.../src/rust/tor_addition/ffi.rs`:
 
-```rust
-#[no_mangle]
-pub extern "C" fn tor_get_sum(a: c_int, b: c_int) -> c_int {
-    get_sum(a, b)
-}
-```
+    #[no_mangle]
+    pub extern "C" fn tor_get_sum(a: c_int, b: c_int) -> c_int {
+        get_sum(a, b)
+    }
 
 If your Rust code must call out to parts of Tor's C code, you must
 declare the functions you are calling in the `external` crate, located
-at `src/rust/external`.
+at `.../src/rust/external`.
 
 <!-- XXX get better examples of how to declare these externs, when/how they -->
 <!-- XXX are unsafe, what they are expected to do —isis                     -->
@@ -57,7 +54,8 @@ If you have any external modules as dependencies (e.g. `extern crate
 libc;`), you MUST declare them in your crate's `lib.rs` and NOT in any
 other module.
 
-## Dependencies and versions
+ Dependencies and versions
+---------------------------
 
 In general, we use modules from only the Rust standard library
 whenever possible. We will review including external crates on a
@@ -83,7 +81,8 @@ Currently, Tor requires that you use the latest stable Rust version. At
 some point in the future, we will freeze on a given stable Rust version,
 to ensure backward compatibility with stable distributions that ship it.
 
-## Updating/Adding Dependencies
+ Updating/Adding Dependencies
+------------------------------
 
 To add/remove/update dependencies, first add your dependencies,
 exactly specifying their versions, into the appropriate *crate-level*
@@ -102,13 +101,14 @@ Next, run `/scripts/maint/updateRustDependencies.sh`.  Then, go into
 `src/ext/rust` and commit the changes to the `tor-rust-dependencies`
 repo.
 
-## Documentation
+ Documentation
+---------------
 
 You MUST include `#![deny(missing_docs)]` in your crate.
 
 For function/method comments, you SHOULD include a one-sentence, "first person"
 description of function behaviour (see requirements for documentation as
-described in `src/HACKING/CodingStandards.md`), then an `# Inputs` section
+described in `.../src/HACKING/CodingStandards.md`), then an `# Inputs` section
 for inputs or initialisation values, a `# Returns` section for return
 values/types, a `# Warning` section containing warnings for unsafe behaviours or
 panics that could happen.  For publicly accessible
@@ -118,12 +118,14 @@ types/constants/objects/functions/methods, you SHOULD also include an
 You MUST document your module with _module docstring_ comments,
 i.e. `//!` at the beginning of each line.
 
-## Style
+ Style
+-------
 
 You SHOULD consider breaking up large literal numbers with `_` when it makes it
 more human readable to do so, e.g. `let x: u64 = 100_000_000_000`.
 
-## Testing
+ Testing
+---------
 
 All code MUST be unittested and integration tested.
 
@@ -132,23 +134,22 @@ describing how the function/object is expected to be used.
 
 Integration tests SHOULD go into a `tests/` directory inside your
 crate.  Unittests SHOULD go into their own module inside the module
-they are testing, e.g. in `src/rust/tor_addition/addition.rs` you
+they are testing, e.g. in `.../src/rust/tor_addition/addition.rs` you
 should put:
 
-```rust
-#[cfg(test)]
-mod test {
-    use super::*;
+    #[cfg(test)]
+    mod test {
+        use super::*;
 
-#[test]
-    fn addition_with_zero() {
-        let sum: i32 = get_sum(5i32, 0i32);
-        assert_eq!(sum, 5);
+        #[test]
+        fn addition_with_zero() {
+            let sum: i32 = get_sum(5i32, 0i32);
+            assert_eq!(sum, 5);
+        }
     }
-}
-```
 
-## Benchmarking
+ Benchmarking
+--------------
 
 The external `test` crate can be used for most benchmarking.  However, using
 this crate requires nightly Rust.  Since we may want to switch to a more
@@ -159,52 +160,49 @@ benchmarks in the following manner.
 If you wish to benchmark some of your Rust code, you MUST put the
 following in the `[features]` section of your crate's `Cargo.toml`:
 
-```toml
-[features]
-bench = []
-```
+    [features]
+    bench = []
 
 Next, in your crate's `lib.rs` you MUST put:
 
-```rust
-#[cfg(all(test, feature = "bench"))]
-extern crate test;
-```
+    #[cfg(all(test, feature = "bench"))]
+    extern crate test;
 
 This ensures that the external crate `test`, which contains utilities
 for basic benchmarks, is only used when running benchmarks via `cargo
 bench --features bench`.
 
 Finally, to write your benchmark code, in
-`src/rust/tor_addition/addition.rs` you SHOULD put:
+`.../src/rust/tor_addition/addition.rs` you SHOULD put:
 
-```rust
-#[cfg(all(test, features = "bench"))]
-mod bench {
-    use test::Bencher;
-    use super::*;
+    #[cfg(all(test, features = "bench"))]
+    mod bench {
+        use test::Bencher;
+        use super::*;
 
-#[bench]
-    fn addition_small_integers(b: &mut Bencher) {
-        b.iter(| | get_sum(5i32, 0i32));
+        #[bench]
+        fn addition_small_integers(b: &mut Bencher) {
+            b.iter(| | get_sum(5i32, 0i32));
+        }
     }
-}
-```
 
-## Fuzzing
+ Fuzzing
+---------
 
 If you wish to fuzz parts of your code, please see the
-[cargo fuzz](https://github.com/rust-fuzz/cargo-fuzz) crate, which uses
+[`cargo fuzz`](https://github.com/rust-fuzz/cargo-fuzz) crate, which uses
 [libfuzzer-sys](https://github.com/rust-fuzz/libfuzzer-sys).
 
-## Whitespace & Formatting
+ Whitespace & Formatting
+-------------------------
 
 You MUST run `rustfmt` (https://github.com/rust-lang-nursery/rustfmt)
 on your code before your code will be merged.  You can install rustfmt
 by doing `cargo install rustfmt-nightly` and then run it with `cargo
 fmt`.
 
-## Safety
+ Safety
+--------
 
 You SHOULD read [the nomicon](https://doc.rust-lang.org/nomicon/) before writing
 Rust FFI code.  It is *highly advised* that you read and write normal Rust code
@@ -224,10 +222,10 @@ Here are some additional bits of advice and rules:
    > 
    > * Data races
    > * Dereferencing a null/dangling raw pointer
-   > * Reads of [undef](https://llvm.org/docs/LangRef.html#undefined-values)
+   > * Reads of [undef](http://llvm.org/docs/LangRef.html#undefined-values)
    >   (uninitialized) memory
    > * Breaking the
-   >   [pointer aliasing rules](https://llvm.org/docs/LangRef.html#pointer-aliasing-rules)
+   >   [pointer aliasing rules](http://llvm.org/docs/LangRef.html#pointer-aliasing-rules)
    >   with raw pointers (a subset of the rules used by C)
    > * `&mut T` and `&T` follow LLVM’s scoped noalias model, except if the `&T`
    >   contains an `UnsafeCell<U>`. Unsafe code must not violate these aliasing
@@ -261,47 +259,39 @@ Here are some additional bits of advice and rules:
    potential error with the eel operator, `?` or another non panicking way.
    For example, consider a function which parses a string into an integer:
 
-   ```rust
-   fn parse_port_number(config_string: &str) -> u16 {
-       u16::from_str_radix(config_string, 10).unwrap()
-   }
-   ```
+        fn parse_port_number(config_string: &str) -> u16 {
+            u16::from_str_radix(config_string, 10).unwrap()
+        }
 
    There are numerous ways this can fail, and the `unwrap()` will cause the
    whole program to byte the dust!  Instead, either you SHOULD use `ok()`
    (or another equivalent function which will return an `Option` or a `Result`)
    and change the return type to be compatible:
 
-   ```rust
-   fn parse_port_number(config_string: &str) -> Option<u16> {
-       u16::from_str_radix(config_string, 10).ok()
-   }
-   ```
+        fn parse_port_number(config_string: &str) -> Option<u16> {
+            u16::from_str_radix(config_string, 10).ok()
+        }
 
    or you SHOULD use `or()` (or another similar method):
 
-    ```rust
-    fn parse_port_number(config_string: &str) -> Option<u16> {
-        u16::from_str_radix(config_string, 10).or(Err("Couldn't parse port into a u16")
-    }
-    ```
+        fn parse_port_number(config_string: &str) -> Option<u16> {
+            u16::from_str_radix(config_string, 10).or(Err("Couldn't parse port into a u16")
+        }
 
    Using methods like `or()` can be particularly handy when you must do
    something afterwards with the data, for example, if we wanted to guarantee
    that the port is high.  Combining these methods with the eel operator (`?`)
    makes this even easier:
 
-    ```rust
-    fn parse_port_number(config_string: &str) -> Result<u16, Err> {
-        let port = u16::from_str_radix(config_string, 10).or(Err("Couldn't parse port into a u16"))?;
+        fn parse_port_number(config_string: &str) -> Result<u16, Err> {
+            let port = u16::from_str_radix(config_string, 10).or(Err("Couldn't parse port into a u16"))?;
 
-        if port > 1024 {
-            return Ok(port);
-        } else {
-            return Err("Low ports not allowed");
+            if port > 1024 {
+                return Ok(port);
+            } else {
+                return Err("Low ports not allowed");
+            }
         }
-    }
-    ```
 
 2. `unsafe`
 
@@ -314,29 +304,25 @@ Here are some additional bits of advice and rules:
    When creating an FFI in Rust for C code to call, it is NOT REQUIRED
    to declare the entire function `unsafe`.  For example, rather than doing:
 
-    ```rust
-    #[no_mangle]
-    pub unsafe extern "C" fn increment_and_combine_numbers(mut numbers: [u8; 4]) -> u32 {
-        for number in &mut numbers {
-            *number += 1;
+        #[no_mangle]
+        pub unsafe extern "C" fn increment_and_combine_numbers(mut numbers: [u8; 4]) -> u32 {
+            for number in &mut numbers {
+                *number += 1;
+            }
+            std::mem::transmute::<[u8; 4], u32>(numbers)
         }
-        std::mem::transmute::<[u8; 4], u32>(numbers)
-    }
-    ```
 
    You SHOULD instead do:
 
-    ```rust
-    #[no_mangle]
-    pub extern "C" fn increment_and_combine_numbers(mut numbers: [u8; 4]) -> u32 {
-        for index in 0..numbers.len() {
-            numbers[index] += 1;
+        #[no_mangle]
+        pub extern "C" fn increment_and_combine_numbers(mut numbers: [u8; 4]) -> u32 {
+            for index in 0..numbers.len() {
+                numbers[index] += 1;
+            }
+            unsafe {
+                std::mem::transmute::<[u8; 4], u32>(numbers)
+            }
         }
-        unsafe {
-            std::mem::transmute::<[u8; 4], u32>(numbers)
-        }
-    }
-    ```
 
 3. Pass only C-compatible primitive types and bytes over the boundary
 
@@ -411,51 +397,45 @@ Here are some additional bits of advice and rules:
    rather than using an untyped mapping between strings and integers
    like so:
 
-    ```rust
-    use std::collections::HashMap;
+        use std::collections::HashMap;
 
-    pub fn get_elements_with_over_9000_points(map: &HashMap<String, usize>) -> Vec<String> {
-        ...
-    }
-    ```
+        pub fn get_elements_with_over_9000_points(map: &HashMap<String, usize>) -> Vec<String> {
+            ...
+        }
 
    It would be safer to define a new type, such that some other usage
    of `HashMap<String, usize>` cannot be confused for this type:
 
-   ```rust
-   pub struct DragonBallZPowers(pub HashMap<String, usize>);
+        pub struct DragonBallZPowers(pub HashMap<String, usize>);
 
-   impl DragonBallZPowers {
-       pub fn over_nine_thousand<'a>(&'a self) -> Vec<&'a String> {
-           let mut powerful_enough: Vec<&'a String> = Vec::with_capacity(5);
+        impl DragonBallZPowers {
+            pub fn over_nine_thousand<'a>(&'a self) -> Vec<&'a String> {
+                let mut powerful_enough: Vec<&'a String> = Vec::with_capacity(5);
 
-           for (character, power) in &self.0 {
-               if *power > 9000 {
-                   powerful_enough.push(character);
-               }
-           }
-           powerful_enough
-       }
-   }
-   ```
+                for (character, power) in &self.0 {
+                    if *power > 9000 {
+                        powerful_enough.push(character);
+                    }
+                }
+                powerful_enough
+            }
+        }
 
    Note the following code, which uses Rust's type aliasing, is valid
    but it does NOT meet the desired type safety goals:
 
-    ```rust
-    pub type Power = usize;
+        pub type Power = usize;
 
-    pub fn over_nine_thousand(power: &Power) -> bool {
-        if *power > 9000 {
-            return true;
+        pub fn over_nine_thousand(power: &Power) -> bool {
+            if *power > 9000 {
+                return true;
+            }
+            false
         }
-        false
-    }
 
-    // We can still do the following:
-    let his_power: usize = 9001;
-    over_nine_thousand(&his_power);
-    ```
+        // We can still do the following:
+        let his_power: usize = 9001;
+        over_nine_thousand(&his_power);
 
 7. Unsafe mucking around with lifetimes
 
@@ -463,17 +443,15 @@ Here are some additional bits of advice and rules:
    family of types, individual lifetimes can be treated as types.  For example,
    one can arbitrarily extend and shorten lifetime using `std::mem::transmute`:
 
-    ```rust
-    struct R<'a>(&'a i32);
+        struct R<'a>(&'a i32);
 
-    unsafe fn extend_lifetime<'b>(r: R<'b>) -> R<'static> {
-        std::mem::transmute::<R<'b>, R<'static>>(r)
-    }
+        unsafe fn extend_lifetime<'b>(r: R<'b>) -> R<'static> {
+            std::mem::transmute::<R<'b>, R<'static>>(r)
+        }
 
-    unsafe fn shorten_invariant_lifetime<'b, 'c>(r: &'b mut R<'static>) -> &'b mut R<'c> {
-        std::mem::transmute::<&'b mut R<'static>, &'b mut R<'c>>(r)
-    }
-    ```
+        unsafe fn shorten_invariant_lifetime<'b, 'c>(r: &'b mut R<'static>) -> &'b mut R<'c> {
+            std::mem::transmute::<&'b mut R<'static>, &'b mut R<'c>>(r)
+        }
 
    Calling `extend_lifetime()` would cause an `R` passed into it to live forever
    for the life of the program (the `'static` lifetime).  Similarly,
@@ -494,14 +472,12 @@ Here are some additional bits of advice and rules:
    For example, `std::mem::transmute` can be abused in ways where casting with
    `as` would be both simpler and safer:
 
-    ```rust
-    // Don't do this
-    let ptr = &0;
-    let ptr_num_transmute = unsafe { std::mem::transmute::<&i32, usize>(ptr)};
+        // Don't do this
+        let ptr = &0;
+        let ptr_num_transmute = unsafe { std::mem::transmute::<&i32, usize>(ptr)};
 
-    // Use an `as` cast instead
-    let ptr_num_cast = ptr as *const i32 as usize;
-    ```
+        // Use an `as` cast instead
+        let ptr_num_cast = ptr as *const i32 as usize;
 
    In fact, using `std::mem::transmute` for *any* reason is a code smell and as
    such SHOULD be avoided.
@@ -511,10 +487,8 @@ Here are some additional bits of advice and rules:
    This is generally fine to do, but it has some behaviours which you should be
    aware of.  Casting down chops off the high bits, e.g.:
 
-    ```rust
-    let x: u32 = 4294967295;
-    println!("{}", x as u16); // prints 65535
-    ```
+        let x: u32 = 4294967295;
+        println!("{}", x as u16); // prints 65535
 
    Some cases which you MUST NOT do include:
 
@@ -525,28 +499,24 @@ Here are some additional bits of advice and rules:
    * Casting between integers and floats when the thing being cast
      cannot fit into the type it is being casted into, e.g.:
 
-    ```rust
-     println!("{}", 42949.0f32 as u8); // prints 197 in debug mode and 0 in release
-     println!("{}", 1.04E+17 as u8);   // prints 0 in both modes
-     println!("{}", (0.0/0.0) as i64); // prints whatever the heck LLVM wants
-     ```
+         println!("{}", 42949.0f32 as u8); // prints 197 in debug mode and 0 in release
+         println!("{}", 1.04E+17 as u8);   // prints 0 in both modes
+         println!("{}", (0.0/0.0) as i64); // prints whatever the heck LLVM wants
 
      Because this behaviour is undefined, it can even produce segfaults in
      safe Rust code.  For example, the following program built in release
      mode segfaults:
 
-    ```rust
-     #[inline(never)]
-     pub fn trigger_ub(sl: &[u8; 666]) -> &[u8] {
-         // Note that the float is out of the range of `usize`, invoking UB when casting.
-         let idx = 1e99999f64 as usize;
-         &sl[idx..] // The bound check is elided due to `idx` being of an undefined value.
-     }
+         #[inline(never)]
+         pub fn trigger_ub(sl: &[u8; 666]) -> &[u8] {
+             // Note that the float is out of the range of `usize`, invoking UB when casting.
+             let idx = 1e99999f64 as usize;
+             &sl[idx..] // The bound check is elided due to `idx` being of an undefined value.
+         }
 
-     fn main() {
-         println!("{}", trigger_ub(&[1; 666])[999999]); // ~ out of bound
-     }
-     ```
+         fn main() {
+             println!("{}", trigger_ub(&[1; 666])[999999]); // ~ out of bound
+         }
 
       And in debug mode panics with:
 

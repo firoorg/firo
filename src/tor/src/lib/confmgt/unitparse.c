@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -23,7 +23,6 @@
 
 /** Table to map the names of memory units to the number of bytes they
  * contain. */
-// clang-format off
 const struct unit_table_t memory_units[] = {
   { "",          1 },
   { "b",         1<< 0 },
@@ -68,11 +67,9 @@ const struct unit_table_t memory_units[] = {
   { "tbit",      UINT64_C(1)<<37 },
   { NULL, 0 },
 };
-// clang-format on
 
 /** Table to map the names of time units to the number of seconds they
  * contain. */
-// clang-format off
 const struct unit_table_t time_units[] = {
   { "",         1 },
   { "second",   1 },
@@ -89,11 +86,9 @@ const struct unit_table_t time_units[] = {
   { "months",   2629728, },
   { NULL, 0 },
 };
-// clang-format on
 
 /** Table to map the names of time units to the number of milliseconds
  * they contain. */
-// clang-format off
 const struct unit_table_t time_msec_units[] = {
   { "",         1 },
   { "msec",     1 },
@@ -111,7 +106,6 @@ const struct unit_table_t time_msec_units[] = {
   { "weeks",    7*24*60*60*1000 },
   { NULL, 0 },
 };
-// clang-format on
 
 /** Parse a string <b>val</b> containing a number, zero or more
  * spaces, and an optional unit string.  If the unit appears in the

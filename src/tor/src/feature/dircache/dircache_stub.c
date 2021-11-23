@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -14,7 +14,6 @@
 #include "feature/dircache/dirserv.h"
 #include "feature/dircommon/dir_connection_st.h"
 
-DISABLE_GCC_WARNING("-Wmissing-noreturn")
 int
 directory_handle_command(dir_connection_t *conn)
 {
@@ -30,7 +29,6 @@ connection_dirserv_flushed_some(dir_connection_t *conn)
   tor_assert_nonfatal_unreached_once();
   return -1;
 }
-ENABLE_GCC_WARNING("-Wmissing-noreturn")
 
 void
 dir_conn_clear_spool(dir_connection_t *conn)

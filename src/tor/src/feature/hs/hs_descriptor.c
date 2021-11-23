@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2021, The Tor Project, Inc. */
+/* Copyright (c) 2016-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -55,7 +55,6 @@
 /* For unit tests.*/
 #define HS_DESCRIPTOR_PRIVATE
 
-#include <stdbool.h>
 #include "core/or/or.h"
 #include "app/config/config.h"
 #include "trunnel/ed25519_cert.h" /* Trunnel interface. */
@@ -64,6 +63,7 @@
 #include "lib/crypt_ops/crypto_rand.h"
 #include "lib/crypt_ops/crypto_util.h"
 #include "feature/dirparse/parsecommon.h"
+#include "feature/rend/rendcache.h"
 #include "feature/hs/hs_cache.h"
 #include "feature/hs/hs_config.h"
 #include "feature/nodelist/torcert.h" /* tor_cert_encode_ed22519() */
@@ -136,7 +136,7 @@ static token_rule_t hs_desc_superencrypted_v3_token_table[] = {
 /** Descriptor ruleset for the encrypted section. */
 static token_rule_t hs_desc_encrypted_v3_token_table[] = {
   T1_START(str_create2_formats, R3_CREATE2_FORMATS, CONCAT_ARGS, NO_OBJ),
-  T01(str_intro_auth_required, R3_INTRO_AUTH_REQUIRED, GE(1), NO_OBJ),
+  T01(str_intro_auth_required, R3_INTRO_AUTH_REQUIRED, ARGS, NO_OBJ),
   T01(str_single_onion, R3_SINGLE_ONION_SERVICE, ARGS, NO_OBJ),
   END_OF_TABLE
 };
@@ -185,7 +185,7 @@ build_mac(const uint8_t *mac_key, size_t mac_key_len,
   crypto_digest_free(digest);
 }
 
-/** Using a secret data and a given descriptor object, build the secret
+/** Using a secret data and a given decriptor object, build the secret
  * input needed for the KDF.
  *
  * secret_input = SECRET_DATA | subcredential | INT_8(revision_counter)
@@ -212,7 +212,7 @@ build_secret_input(const hs_descriptor_t *desc,
   memcpy(secret_input, secret_data, secret_data_len);
   offset += secret_data_len;
   /* Copy subcredential. */
-  memcpy(secret_input + offset, desc->subcredential.subcred, DIGEST256_LEN);
+  memcpy(secret_input + offset, desc->subcredential, DIGEST256_LEN);
   offset += DIGEST256_LEN;
   /* Copy revision counter value. */
   set_uint64(secret_input + offset,
@@ -404,7 +404,7 @@ encode_enc_key(const hs_desc_intro_point_t *ip)
   tor_assert(ip);
 
   /* Base64 encode the encryption key for the "enc-key" field. */
-  curve25519_public_to_base64(key_b64, &ip->enc_key, true);
+  curve25519_public_to_base64(key_b64, &ip->enc_key);
   if (tor_cert_encode_ed22519(ip->enc_key_cert, &encoded_cert) < 0) {
     goto done;
   }
@@ -430,7 +430,7 @@ encode_onion_key(const hs_desc_intro_point_t *ip)
   tor_assert(ip);
 
   /* Base64 encode the encryption key for the "onion-key" field. */
-  curve25519_public_to_base64(key_b64, &ip->onion_key, true);
+  curve25519_public_to_base64(key_b64, &ip->onion_key);
   tor_asprintf(&encoded, "%s ntor %s", str_ip_onion_key, key_b64);
 
   return encoded;
@@ -813,7 +813,7 @@ get_outer_encrypted_layer_plaintext(const hs_descriptor_t *desc,
     tor_assert(!fast_mem_is_zero((char *) ephemeral_pubkey->public_key,
                                 CURVE25519_PUBKEY_LEN));
 
-    curve25519_public_to_base64(ephemeral_key_base64, ephemeral_pubkey, true);
+    curve25519_public_to_base64(ephemeral_key_base64, ephemeral_pubkey);
     smartlist_add_asprintf(lines, "%s %s\n",
                            str_desc_auth_key, ephemeral_key_base64);
 
@@ -1018,6 +1018,10 @@ desc_encode_v3(const hs_descriptor_t *desc,
   tor_assert(signing_kp);
   tor_assert(encoded_out);
   tor_assert(desc->plaintext_data.version == 3);
+
+  if (BUG(desc->subcredential == NULL)) {
+    goto err;
+  }
 
   /* Build the non-encrypted values. */
   {
@@ -1372,7 +1376,8 @@ encrypted_data_length_is_valid(size_t len)
  * and return the buffer's length. The caller should wipe and free its content
  * once done with it. This function can't fail. */
 static size_t
-build_descriptor_cookie_keys(const hs_subcredential_t *subcredential,
+build_descriptor_cookie_keys(const uint8_t *subcredential,
+                             size_t subcredential_len,
                              const curve25519_secret_key_t *sk,
                              const curve25519_public_key_t *pk,
                              uint8_t **keys_out)
@@ -1394,7 +1399,7 @@ build_descriptor_cookie_keys(const hs_subcredential_t *subcredential,
 
   /* Calculate KEYS = KDF(subcredential | SECRET_SEED, 40) */
   xof = crypto_xof_new();
-  crypto_xof_add_bytes(xof, subcredential->subcred, SUBCRED_LEN);
+  crypto_xof_add_bytes(xof, subcredential, subcredential_len);
   crypto_xof_add_bytes(xof, secret_seed, sizeof(secret_seed));
   crypto_xof_squeeze_bytes(xof, keystream, keystream_len);
   crypto_xof_free(xof);
@@ -1406,7 +1411,7 @@ build_descriptor_cookie_keys(const hs_subcredential_t *subcredential,
 }
 
 /** Decrypt the descriptor cookie given the descriptor, the auth client,
- * and the client secret key. On success, return 0 and a newly allocated
+ * and the client secret key. On sucess, return 0 and a newly allocated
  * descriptor cookie descriptor_cookie_out. On error or if the client id
  * is invalid, return -1 and descriptor_cookie_out is set to
  * NULL. */
@@ -1429,10 +1434,9 @@ decrypt_descriptor_cookie(const hs_descriptor_t *desc,
   tor_assert(!fast_mem_is_zero(
         (char *) &desc->superencrypted_data.auth_ephemeral_pubkey,
         sizeof(desc->superencrypted_data.auth_ephemeral_pubkey)));
-  tor_assert(!fast_mem_is_zero((char *) desc->subcredential.subcred,
-                               DIGEST256_LEN));
+  tor_assert(!fast_mem_is_zero((char *) desc->subcredential, DIGEST256_LEN));
 
-  /* Catch potential code-flow cases of an uninitialized private key sneaking
+  /* Catch potential code-flow cases of an unitialized private key sneaking
    * into this function. */
   if (BUG(fast_mem_is_zero((char *)client_auth_sk, sizeof(*client_auth_sk)))) {
     goto done;
@@ -1440,14 +1444,14 @@ decrypt_descriptor_cookie(const hs_descriptor_t *desc,
 
   /* Get the KEYS component to derive the CLIENT-ID and COOKIE-KEY. */
   keystream_length =
-    build_descriptor_cookie_keys(&desc->subcredential,
+    build_descriptor_cookie_keys(desc->subcredential, DIGEST256_LEN,
                              client_auth_sk,
                              &desc->superencrypted_data.auth_ephemeral_pubkey,
                              &keystream);
   tor_assert(keystream_length > 0);
 
   /* If the client id of auth client is not the same as the calculcated
-   * client id, it means that this auth client is invalid according to the
+   * client id, it means that this auth client is invaild according to the
    * client secret key client_auth_sk. */
   if (tor_memneq(client->client_id, keystream, HS_DESC_CLIENT_ID_LEN)) {
     goto done;
@@ -1480,7 +1484,7 @@ decrypt_descriptor_cookie(const hs_descriptor_t *desc,
  *  the descriptor object <b>desc</b> and <b>descriptor_cookie</b>
  *  to generate the right decryption keys; set <b>decrypted_out</b> to
  *  the plaintext. If <b>is_superencrypted_layer</b> is set, this is
- *  the outer encrypted layer of the descriptor.
+ *  the outter encrypted layer of the descriptor.
  *
  * On any error case, including an empty output, return 0 and set
  * *<b>decrypted_out</b> to NULL.
@@ -2002,7 +2006,7 @@ desc_sig_is_valid(const char *b64_sig,
   /* Signature length check. */
   if (strlen(b64_sig) != ED25519_SIG_BASE64_LEN) {
     log_warn(LD_REND, "Service descriptor has an invalid signature length."
-                      "Expected %d but got %lu",
+                      "Exptected %d but got %lu",
              ED25519_SIG_BASE64_LEN, (unsigned long) strlen(b64_sig));
     goto err;
   }
@@ -2321,7 +2325,6 @@ desc_decode_encrypted_v3(const hs_descriptor_t *desc,
   /* Authentication type. It's optional but only once. */
   tok = find_opt_by_keyword(tokens, R3_INTRO_AUTH_REQUIRED);
   if (tok) {
-    tor_assert(tok->n_args >= 1);
     if (!decode_auth_type(desc_encrypted_out, tok->args[0])) {
       log_warn(LD_REND, "Service descriptor authentication type has "
                         "invalid entry(ies).");
@@ -2569,7 +2572,7 @@ hs_desc_decode_plaintext(const char *encoded,
  * set to NULL. */
 hs_desc_decode_status_t
 hs_desc_decode_descriptor(const char *encoded,
-                          const hs_subcredential_t *subcredential,
+                          const uint8_t *subcredential,
                           const curve25519_secret_key_t *client_auth_sk,
                           hs_descriptor_t **desc_out)
 {
@@ -2587,7 +2590,7 @@ hs_desc_decode_descriptor(const char *encoded,
     goto err;
   }
 
-  memcpy(&desc->subcredential, subcredential, sizeof(desc->subcredential));
+  memcpy(desc->subcredential, subcredential, sizeof(desc->subcredential));
 
   ret = hs_desc_decode_plaintext(encoded, &desc->plaintext_data);
   if (ret != HS_DESC_DECODE_OK) {
@@ -2677,7 +2680,7 @@ hs_desc_encode_descriptor,(const hs_descriptor_t *desc,
    * symmetric only if the client auth is disabled. That is, the descriptor
    * cookie will be NULL. */
   if (!descriptor_cookie) {
-    ret = hs_desc_decode_descriptor(*encoded_out, &desc->subcredential,
+    ret = hs_desc_decode_descriptor(*encoded_out, desc->subcredential,
                                     NULL, NULL);
     if (BUG(ret != HS_DESC_DECODE_OK)) {
       ret = -1;
@@ -2881,7 +2884,7 @@ hs_desc_build_fake_authorized_client(void)
  * key, and descriptor cookie, build the auth client so we can then encode the
  * descriptor for publication. client_out must be already allocated. */
 void
-hs_desc_build_authorized_client(const hs_subcredential_t *subcredential,
+hs_desc_build_authorized_client(const uint8_t *subcredential,
                                 const curve25519_public_key_t *client_auth_pk,
                                 const curve25519_secret_key_t *
                                 auth_ephemeral_sk,
@@ -2909,7 +2912,7 @@ hs_desc_build_authorized_client(const hs_subcredential_t *subcredential,
 
   /* Get the KEYS part so we can derive the CLIENT-ID and COOKIE-KEY. */
   keystream_length =
-    build_descriptor_cookie_keys(subcredential,
+    build_descriptor_cookie_keys(subcredential, DIGEST256_LEN,
                                  auth_ephemeral_sk, client_auth_pk,
                                  &keystream);
   tor_assert(keystream_length > 0);

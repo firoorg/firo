@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 # Implementation of various source code metrics.
 # These are currently ad-hoc string operations and regexps.

@@ -71,11 +71,8 @@ TOR_LIBS = tor/src/core/libtor-app.a \
     tor/src/lib/libtor-string.a \
     tor/src/lib/libtor-malloc.a \
     tor/src/lib/libtor-version.a \
-    tor/src/lib/libtor-llharden.a \
-    tor/src/lib/libtor-trace.a \
     tor/src/lib/libtor-intmath.a \
 	  tor/src/lib/libtor-ctime.a \
-    tor/src/lib/libtor-metrics.a \
 	tor/src/trunnel/libor-trunnel.a \
 	tor/src/lib/libcurve25519_donna.a \
 	tor/src/ext/ed25519/donna/libed25519_donna.a \

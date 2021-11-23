@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 # Copyright 2018 The Tor Project, Inc.  See LICENSE file for licensing info.
 
 # This file is no longer here; see practracker/includes.py for this

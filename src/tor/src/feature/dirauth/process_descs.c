@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -56,9 +56,8 @@ static was_router_added_t dirserv_add_extrainfo(extrainfo_t *ei,
 static uint32_t
 dirserv_get_status_impl(const char *id_digest,
                         const ed25519_public_key_t *ed25519_public_key,
-                        const char *nickname, const tor_addr_t *ipv4_addr,
-                        uint16_t ipv4_orport, const char *platform,
-                        const char **msg, int severity);
+                        const char *nickname, uint32_t addr, uint16_t or_port,
+                        const char *platform, const char **msg, int severity);
 
 /** Should be static; exposed for testing. */
 static authdir_config_t *fingerprint_list = NULL;
@@ -308,9 +307,9 @@ dirserv_router_get_status(const routerinfo_t *router, const char **msg,
     /* This has an ed25519 identity key. */
     signing_key = &router->cache_info.signing_key_cert->signing_key;
   }
-  r = dirserv_get_status_impl(d, signing_key, router->nickname,
-                              &router->ipv4_addr, router->ipv4_orport,
-                              router->platform, msg, severity);
+  r = dirserv_get_status_impl(d, signing_key, router->nickname, router->addr,
+                              router->or_port, router->platform, msg,
+                              severity);
 
   if (r)
     return r;
@@ -322,9 +321,8 @@ dirserv_router_get_status(const routerinfo_t *router, const char **msg,
    * and is non-zero (clients check that it's non-zero before using it). */
   if (!routerinfo_has_curve25519_onion_key(router)) {
     log_fn(severity, LD_DIR,
-           "Descriptor from router %s (platform %s) "
-           "is missing an ntor curve25519 onion key.",
-           router_describe(router), router->platform);
+           "Descriptor from router %s is missing an ntor curve25519 onion "
+           "key.", router_describe(router));
     if (msg)
       *msg = "Missing ntor curve25519 onion key. Please upgrade!";
     return RTR_REJECT;
@@ -380,8 +378,7 @@ dirserv_would_reject_router(const routerstatus_t *rs,
   memcpy(&pk.pubkey, vrs->ed25519_id, ED25519_PUBKEY_LEN);
 
   res = dirserv_get_status_impl(rs->identity_digest, &pk, rs->nickname,
-                                &rs->ipv4_addr, rs->ipv4_orport, NULL, NULL,
-                                LOG_DEBUG);
+                                rs->addr, rs->or_port, NULL, NULL, LOG_DEBUG);
 
   return (res & RTR_REJECT) != 0;
 }
@@ -412,11 +409,11 @@ dirserv_rejects_tor_version(const char *platform,
     return true;
   }
 
-  /* Series between Tor 0.3.6 and 0.4.1 inclusive are unsupported. Reject
-   * them. 0.3.6.0-alpha-dev only existed for a short time, before it was
-   * renamed to 0.4.0.0-alpha-dev. */
+  /* Series between Tor 0.3.6 and 0.4.1.4-rc inclusive are unsupported.
+   * Reject them. 0.3.6.0-alpha-dev only existed for a short time, before
+   * it was renamed to 0.4.0.0-alpha-dev. */
   if (tor_version_as_new_as(platform,"0.3.6.0-alpha-dev") &&
-      !tor_version_as_new_as(platform,"0.4.2.1-alpha")) {
+      !tor_version_as_new_as(platform,"0.4.1.5")) {
     if (msg) {
       *msg = please_upgrade_string;
     }
@@ -436,9 +433,8 @@ dirserv_rejects_tor_version(const char *platform,
 static uint32_t
 dirserv_get_status_impl(const char *id_digest,
                         const ed25519_public_key_t *ed25519_public_key,
-                        const char *nickname, const tor_addr_t *ipv4_addr,
-                        uint16_t ipv4_orport, const char *platform,
-                        const char **msg, int severity)
+                        const char *nickname, uint32_t addr, uint16_t or_port,
+                        const char *platform, const char **msg, int severity)
 {
   uint32_t result = 0;
   rtr_flags_t *status_by_digest;
@@ -489,16 +485,16 @@ dirserv_get_status_impl(const char *id_digest,
       *msg = "Fingerprint and/or ed25519 identity is marked invalid";
   }
 
-  if (authdir_policy_badexit_address(ipv4_addr, ipv4_orport)) {
+  if (authdir_policy_badexit_address(addr, or_port)) {
     log_fn(severity, LD_DIRSERV,
            "Marking '%s' as bad exit because of address '%s'",
-               nickname, fmt_addr(ipv4_addr));
+               nickname, fmt_addr32(addr));
     result |= RTR_BADEXIT;
   }
 
-  if (!authdir_policy_permits_address(ipv4_addr, ipv4_orport)) {
+  if (!authdir_policy_permits_address(addr, or_port)) {
     log_fn(severity, LD_DIRSERV, "Rejecting '%s' because of address '%s'",
-               nickname, fmt_addr(ipv4_addr));
+               nickname, fmt_addr32(addr));
     if (msg)
       *msg = "Suspicious relay address range -- if you think this is a "
              "mistake please set a valid email address in ContactInfo and "
@@ -506,10 +502,10 @@ dirserv_get_status_impl(const char *id_digest,
              "your address(es) and fingerprint(s)?";
     return RTR_REJECT;
   }
-  if (!authdir_policy_valid_address(ipv4_addr, ipv4_orport)) {
+  if (!authdir_policy_valid_address(addr, or_port)) {
     log_fn(severity, LD_DIRSERV,
            "Not marking '%s' valid because of address '%s'",
-               nickname, fmt_addr(ipv4_addr));
+               nickname, fmt_addr32(addr));
     result |= RTR_INVALID;
   }
 
@@ -538,11 +534,13 @@ dirserv_free_fingerprint_list(void)
 STATIC int
 dirserv_router_has_valid_address(routerinfo_t *ri)
 {
+  tor_addr_t addr;
+
   if (get_options()->DirAllowPrivateAddresses)
     return 0; /* whatever it is, we're fine with it */
 
-  if (tor_addr_is_null(&ri->ipv4_addr) ||
-      tor_addr_is_internal(&ri->ipv4_addr, 0)) {
+  tor_addr_from_ipv4h(&addr, ri->addr);
+  if (tor_addr_is_null(&addr) || tor_addr_is_internal(&addr, 0)) {
     log_info(LD_DIRSERV,
              "Router %s published internal IPv4 address. Refusing.",
              router_describe(ri));
@@ -761,9 +759,6 @@ dirserv_add_descriptor(routerinfo_t *ri, const char **msg, const char *source)
     r = ROUTER_AUTHDIR_REJECTS;
     goto fail;
   }
-
-  log_info(LD_DIR, "Assessing new descriptor: %s: %s",
-           ri->nickname, ri->platform);
 
   /* Check whether this descriptor is semantically identical to the last one
    * from this server.  (We do this here and not in router_add_to_routerlist

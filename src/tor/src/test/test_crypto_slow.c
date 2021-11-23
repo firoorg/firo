@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
@@ -342,7 +342,7 @@ test_crypto_scrypt_vectors(void *arg)
 #endif
 
   /* Test vectors from
-     https://tools.ietf.org/html/draft-josefsson-scrypt-kdf-00 section 11.
+     http://tools.ietf.org/html/draft-josefsson-scrypt-kdf-00 section 11.
 
      Note that the names of 'r' and 'N' are switched in that section. Or
      possibly in libscrypt.

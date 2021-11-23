@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -18,7 +18,6 @@
 #include "lib/crypt_ops/crypto_ed25519.h"
 #include "lib/crypt_ops/crypto_rand.h"
 #include "feature/stats/predict_ports.h"
-#include "feature/stats/bwhist.h"
 #include "feature/stats/rephist.h"
 #include "lib/err/backtrace.h"
 #include "test/test.h"
@@ -274,7 +273,7 @@ main(int c, const char **v)
   int loglevel = LOG_ERR;
   int accel_crypto = 0;
 
-  subsystems_init();
+  subsystems_init_upto(SUBSYS_LEVEL_LIBS);
 
   options = options_new();
 
@@ -287,8 +286,6 @@ main(int c, const char **v)
   /* Don't add default logs; the tests manage their own. */
   quiet_level = QUIET_SILENT;
 
-  unsigned num=1, den=1;
-
   for (i_out = i = 1; i < c; ++i) {
     if (!strcmp(v[i], "--warn")) {
       loglevel = LOG_WARN;
@@ -300,19 +297,6 @@ main(int c, const char **v)
       loglevel = LOG_DEBUG;
     } else if (!strcmp(v[i], "--accel")) {
       accel_crypto = 1;
-    } else if (!strcmp(v[i], "--fraction")) {
-      if (i+1 == c) {
-        printf("--fraction needs an argument.\n");
-        return 1;
-      }
-      const char *fracstr = v[++i];
-      char ch;
-      if (sscanf(fracstr, "%u/%u%c", &num, &den, &ch) != 2) {
-        printf("--fraction expects a fraction as an input.\n");
-      }
-      if (den == 0 || num == 0 || num > den) {
-        printf("--fraction expects a valid fraction as an input.\n");
-      }
     } else {
       v[i_out++] = v[i];
     }
@@ -349,7 +333,6 @@ main(int c, const char **v)
     return 1;
   }
   rep_hist_init();
-  bwhist_init();
   setup_directory();
   initialize_mainloop_events();
   options_init(options);
@@ -388,33 +371,6 @@ main(int c, const char **v)
     } SMARTLIST_FOREACH_END(cp);
     printf("Skipping %d testcases.\n", n);
     smartlist_free(skip);
-  }
-
-  if (den != 1) {
-    // count the tests. Linear but fast.
-    unsigned n_tests = 0;
-    struct testgroup_t *tg;
-    struct testcase_t *tc;
-    for (tg = testgroups; tg->prefix != NULL; ++tg) {
-      for (tc = tg->cases; tc->name != NULL; ++tc) {
-        ++n_tests;
-      }
-    }
-    // Which tests should we run?  This can give iffy results if den is huge
-    // but it doesn't actually matter in practice.
-    unsigned tests_per_chunk = CEIL_DIV(n_tests, den);
-    unsigned start_at = (num-1) * tests_per_chunk;
-
-    // Skip the tests that are outside of the range.
-    unsigned idx = 0;
-    for (tg = testgroups; tg->prefix != NULL; ++tg) {
-      for (tc = tg->cases; tc->name != NULL; ++tc) {
-        if (idx < start_at || idx >= start_at + tests_per_chunk) {
-          tc->flags |= TT_SKIP;
-        }
-        ++idx;
-      }
-    }
   }
 
   int have_failed = (tinytest_main(c, v, testgroups) != 0);

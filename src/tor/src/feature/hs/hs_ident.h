@@ -1,10 +1,10 @@
-/* Copyright (c) 2017-2021, The Tor Project, Inc. */
+/* Copyright (c) 2017-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
  * \file hs_ident.h
  * \brief Header file containing circuit and connection identifier data for
- *        the whole HS subsystem.
+ *        the whole HS subsytem.
  *
  * \details
  * This interface is used to uniquely identify a hidden service on a circuit

@@ -1,7 +1,6 @@
-// When modifying, don't forget to update the defaults
-// for 'TestingTorNetwork' in 'doc/man/tor.1.txt'
 { "DirAllowPrivateAddresses", "1" },
 { "EnforceDistinctSubnets", "0" },
+{ "AssumeReachable", "1" },
 { "AuthDirMaxServersPerAddr", "0" },
 { "ClientBootstrapConsensusAuthorityDownloadInitialDelay", "0" },
 { "ClientBootstrapConsensusFallbackDownloadInitialDelay", "0" },
@@ -19,7 +18,6 @@
 { "TestingV3AuthInitialDistDelay", "20 seconds" },
 { "TestingAuthDirTimeToLearnReachability", "0 minutes" },
 { "MinUptimeHidServDirectoryV2", "0 minutes" },
-{ "TestingMinTimeToReportBandwidth", "0 seconds" },
 { "TestingServerDownloadInitialDelay", "0" },
 { "TestingClientDownloadInitialDelay", "0" },
 { "TestingServerConsensusDownloadInitialDelay", "0" },

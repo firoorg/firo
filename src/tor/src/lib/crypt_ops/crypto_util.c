@@ -1,7 +1,7 @@
 /* Copyright (c) 2001, Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -106,18 +106,4 @@ memwipe(void *mem, uint8_t byte, size_t sz)
    * if somebody accidentally calls memwipe() instead of memset().
    **/
   memset(mem, byte, sz);
-}
-
-/**
- * Securely all memory in <b>str</b>, then free it.
- *
- * As tor_free(), tolerates null pointers.
- **/
-void
-tor_str_wipe_and_free_(char *str)
-{
-  if (!str)
-    return;
-  memwipe(str, 0, strlen(str));
-  tor_free_(str);
 }

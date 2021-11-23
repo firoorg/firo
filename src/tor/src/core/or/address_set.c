@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2021, The Tor Project, Inc. */
+/* Copyright (c) 2018-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -15,6 +15,7 @@
 #include "lib/net/address.h"
 #include "lib/container/bloomfilt.h"
 #include "lib/crypt_ops/crypto_rand.h"
+#include "siphash.h"
 
 /** Wrap our hash function to have the signature that the bloom filter
  * needs. */

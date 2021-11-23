@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2021, The Tor Project, Inc. */
+/* Copyright (c) 2018-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -891,7 +891,7 @@ icdf_genpareto(double p, double mu, double sigma, double xi)
 
 /**
  * Compute the inverse of the SF of the GeneralizedPareto(mu, sigma,
- * xi) distribution.  Ill-conditioned for p near 1; condition number is
+ * xi) distribution.  Ill-conditioned for p near 1; conditon number is
  *
  *      -xi/(1 - p^{-xi})
  */
@@ -1000,7 +1000,7 @@ sample_uniform_interval(double p0, double a, double b)
      * since if we treat subnormals as having an implicit
      * zero bit before the `binary' point, their exponents
      * are all the same.  There is at most one carry/borrow
-     * bit, which can always be accommodated either in a
+     * bit, which can always be acommodated either in a
      * subnormal, or, at largest, in the implicit one bit
      * of a normal.
      *
@@ -1284,16 +1284,15 @@ sample_genpareto_locscale(uint32_t s, double p0, double mu, double sigma,
 /**
  * Deterministically sample from the geometric distribution with
  * per-trial success probability p.
- **/
-// clang-format off
-/*
+ *
  * XXX Quantify the error (KL divergence?) of this
  * ceiling-of-exponential sampler from a true geometric distribution,
  * which we could get by rejection sampling.  Relevant papers:
  *
  *      John F. Monahan, `Accuracy in Random Number Generation',
  *      Mathematics of Computation 45(172), October 1984, pp. 559--568.
-https://pdfs.semanticscholar.org/aca6/74b96da1df77b2224e8cfc5dd6d61a471632.pdf
+*https://pdfs.semanticscholar.org/aca6/74b96da1df77b2224e8cfc5dd6d61a471632.pdf
+ *
  *      Karl Bringmann and Tobias Friedrich, `Exact and Efficient
  *      Generation of Geometric Random Variates and Random Graphs', in
  *      Proceedings of the 40th International Colloaquium on Automata,
@@ -1302,7 +1301,6 @@ https://pdfs.semanticscholar.org/aca6/74b96da1df77b2224e8cfc5dd6d61a471632.pdf
  *      https://doi.org/10.1007/978-3-642-39206-1_23
  *      https://people.mpi-inf.mpg.de/~kbringma/paper/2013ICALP-1.pdf
  */
-// clang-format on
 static double
 sample_geometric(uint32_t s, double p0, double p)
 {

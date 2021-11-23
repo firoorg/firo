@@ -1,7 +1,7 @@
 /* Copyright (c) 2001, Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -17,11 +17,9 @@
 #include "lib/log/util_bug.h"
 #include "lib/malloc/malloc.h"
 
-DISABLE_GCC_WARNING("-Wstrict-prototypes")
 #include <cryptohi.h>
 #include <keyhi.h>
 #include <pk11pub.h>
-ENABLE_GCC_WARNING("-Wstrict-prototypes")
 
 static int dh_initialized = 0;
 static SECKEYDHParams tls_dh_param, circuit_dh_param;

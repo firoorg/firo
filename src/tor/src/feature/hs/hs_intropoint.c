@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2021, The Tor Project, Inc. */
+/* Copyright (c) 2016-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -285,11 +285,6 @@ handle_establish_intro_cell_dos_extension(
     }
   }
 
-  /* At this point, the extension is valid so any values out of it implies
-   * that it was set explicitly and thus flag the circuit that it should not
-   * look at the consensus for that reason for the defenses' values. */
-  circ->introduce2_dos_defense_explicit = 1;
-
   /* A value of 0 is valid in the sense that we accept it but we still disable
    * the defenses so return false. */
   if (intro2_rate_per_sec == 0 || intro2_burst_per_sec == 0) {
@@ -494,8 +489,8 @@ hs_intro_circuit_is_suitable_for_establish_intro(const or_circuit_t *circ)
   return circuit_is_suitable_intro_point(circ, "ESTABLISH_INTRO");
 }
 
-/** We just received an ESTABLISH_INTRO cell in <b>circ</b>. Pass it to the
- * appropriate handler. */
+/** We just received an ESTABLISH_INTRO cell in <b>circ</b>. Figure out of it's
+ * a legacy or a next gen cell, and pass it to the appropriate handler. */
 int
 hs_intro_received_establish_intro(or_circuit_t *circ, const uint8_t *request,
                             size_t request_len)
@@ -514,9 +509,7 @@ hs_intro_received_establish_intro(or_circuit_t *circ, const uint8_t *request,
   switch (first_byte) {
     case TRUNNEL_HS_INTRO_AUTH_KEY_TYPE_LEGACY0:
     case TRUNNEL_HS_INTRO_AUTH_KEY_TYPE_LEGACY1:
-      /* Likely version 2 onion service which is now obsolete. Avoid a
-       * protocol warning considering they still exists on the network. */
-      goto err;
+      return rend_mid_establish_intro_legacy(circ, request, request_len);
     case TRUNNEL_HS_INTRO_AUTH_KEY_TYPE_ED25519:
       return handle_establish_intro(circ, request, request_len);
     default:
@@ -719,6 +712,23 @@ handle_introduce1(or_circuit_t *client_circ, const uint8_t *request,
   return ret;
 }
 
+/** Identify if the encoded cell we just received is a legacy one or not. The
+ * <b>request</b> should be at least DIGEST_LEN bytes long. */
+STATIC int
+introduce1_cell_is_legacy(const uint8_t *request)
+{
+  tor_assert(request);
+
+  /* If the first 20 bytes of the cell (DIGEST_LEN) are NOT zeroes, it
+   * indicates a legacy cell (v2). */
+  if (!fast_mem_is_zero((const char *) request, DIGEST_LEN)) {
+    /* Legacy cell. */
+    return 1;
+  }
+  /* Not a legacy cell. */
+  return 0;
+}
+
 /** Return true iff the circuit <b>circ</b> is suitable for receiving an
  * INTRODUCE1 cell. */
 STATIC int
@@ -757,10 +767,13 @@ int
 hs_intro_received_introduce1(or_circuit_t *circ, const uint8_t *request,
                              size_t request_len)
 {
+  int ret;
+
   tor_assert(circ);
   tor_assert(request);
 
-  /* A cell that can't hold a DIGEST_LEN is invalid. */
+  /* A cell that can't hold a DIGEST_LEN is invalid as we need to check if
+   * it's a legacy cell or not using the first DIGEST_LEN bytes. */
   if (request_len < DIGEST_LEN) {
     log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL, "Invalid INTRODUCE1 cell length.");
     goto err;
@@ -776,8 +789,15 @@ hs_intro_received_introduce1(or_circuit_t *circ, const uint8_t *request,
    * DoS mitigation since one circuit with one client can hammer a service. */
   circ->already_received_introduce1 = 1;
 
-  /* Handle the cell. */
-  return handle_introduce1(circ, request, request_len);
+  /* We are sure here to have at least DIGEST_LEN bytes. */
+  if (introduce1_cell_is_legacy(request)) {
+    /* Handle a legacy cell. */
+    ret = rend_mid_introduce_legacy(circ, request, request_len);
+  } else {
+    /* Handle a non legacy cell. */
+    ret = handle_introduce1(circ, request, request_len);
+  }
+  return ret;
 
  err:
   circuit_mark_for_close(TO_CIRCUIT(circ), END_CIRC_REASON_TORPROTOCOL);

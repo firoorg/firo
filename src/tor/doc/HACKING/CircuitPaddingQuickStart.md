@@ -7,7 +7,7 @@ circuit padding framework from scratch. Notes were taken as part of porting
 [Adaptive Padding Early
 (APE)](https://www.cs.kau.se/pulls/hot/thebasketcase-ape/) from basket2 to the
 circuit padding framework. The goal is just to document the process and provide
-useful pointers along the way, not create a useful machine.
+useful pointers along the way, not create a useful machine. 
 
 The quick and dirty plan is to:
 1. clone and compile tor
@@ -18,20 +18,20 @@ The quick and dirty plan is to:
 
 ## Clone and compile tor
 
-```console
-$ git clone https://git.torproject.org/tor.git
-$ cd tor
-$ git checkout tor-0.4.1.5
+```bash
+git clone https://git.torproject.org/tor.git
+cd tor
+git checkout tor-0.4.1.5
 ```
 Above we use the tag for tor-0.4.1.5 where the circuit padding framework was
 released. Note that this version of the framework is missing many features and
 fixes that have since been merged to origin/master. If you need the newest
 framework features, you should use that master instead.
 
-```console
-$ sh autogen.sh
-$ ./configure
-$ make
+```bash
+sh autogen.sh 
+./configure
+make
 ```
 When you run `./configure` you'll be told of missing dependencies and packages
 to install on debian-based distributions. Important: if you plan to run `tor` on
@@ -47,7 +47,6 @@ If you want to install on your localsystem, run `make install`. For our case we
 just want the tor binary at `src/app/tor`.
 
 ## Use tor in TB and at a relay
-
 Download and install a fresh Tor Browser (TB) from torproject.org. Make sure it
 works. From the command line, relative to the folder created when you extracted
 TB, run `./Browser/start-tor-browser --verbose` to get some basic log output.
@@ -73,10 +72,9 @@ We have one more step left before we move on the machine: configure TB to always
 use our middle relay. Edit `Browser/TorBrowser/Data/Tor/torrc` and set
 `MiddleNodes <fingerprint>`, where `<fingerprint>` is the fingerprint of the
 relay. Start TB, visit a website, and manually confirm that the middle is used
-by looking at the circuit display.
+by looking at the circuit display. 
 
 ## Add a bare-bones APE padding machine
-
 Now the fun part. We have several resources at our disposal (mind that links
 might be broken in the future, just search for the headings):
 - The official [Circuit Padding Developer
@@ -89,10 +87,10 @@ might be broken in the future, just search for the headings):
   [circuitpadding_machines.h](https://gitweb.torproject.org/tor.git/tree/src/core/or/circuitpadding_machines.h).
 
 Please consult the above links for details. Moving forward, the focus is to
-describe what was done, not necessarily explaining all the details why.
+describe what was done, not necessarily explaining all the details why. 
 
 Since we plan to make changes to tor, create a new branch `git checkout -b
-circuit-padding-ape-machine tor-0.4.1.5`.
+circuit-padding-ape-machine tor-0.4.1.5`. 
 
 We start with declaring two functions, one for the machine at the client and one
 at the relay, in `circuitpadding_machines.h`:
@@ -107,8 +105,8 @@ The definitions go into `circuitpadding_machines.c`:
 ```c
 /**************** Adaptive Padding Early (APE) machine ****************/
 
-/**
- * Create a relay-side padding machine based on the APE design.
+/** 
+ * Create a relay-side padding machine based on the APE design. 
  */
 void
 circpad_machine_relay_wf_ape(smartlist_t *machines_sl)
@@ -137,14 +135,14 @@ circpad_machine_relay_wf_ape(smartlist_t *machines_sl)
   // register the machine
   relay_machine->machine_num = smartlist_len(machines_sl);
   circpad_register_padding_machine(relay_machine, machines_sl);
-
+  
   log_info(LD_CIRC,
            "Registered relay WF APE padding machine (%u)",
            relay_machine->machine_num);
 }
 
-/**
- * Create a client-side padding machine based on the APE design.
+/** 
+ * Create a client-side padding machine based on the APE design. 
  */
 void
 circpad_machine_client_wf_ape(smartlist_t *machines_sl)
@@ -186,18 +184,17 @@ We also have to modify `circpad_machines_init()` in `circuitpadding.c` to
 register our machines:
 
 ```c
-/* Register machines for the APE WF defense */
-circpad_machine_client_wf_ape(origin_padding_machines);
-circpad_machine_relay_wf_ape(relay_padding_machines);
+  /* Register machines for the APE WF defense */
+  circpad_machine_client_wf_ape(origin_padding_machines);
+  circpad_machine_relay_wf_ape(relay_padding_machines);
 ```
 
-We run `make` to get a new `tor` binary and copy it to our local TB.
+We run `make` to get a new `tor` binary and copy it to our local TB. 
 
 ## Run the machine
-
 To be able
 to view circuit info events in the console as we launch TB, we add `Log
-[circ]info notice stdout` to `torrc` of TB.
+[circ]info notice stdout` to `torrc` of TB. 
 
 Running TB to visit example.com we first find in the log:
 
@@ -224,13 +221,13 @@ Aug 30 18:36:55.000 [info] circpad_handle_padding_negotiated(): Middle node did 
 We see that our middle support padding (since we upgraded to tor-0.4.1.5), that
 we attempt to negotiate, our machine starts on the client, transitions to the
 end state, and is freed. The last line shows that the middle doesn't have a
-padding machine that can run.
+padding machine that can run. 
 
 Next, we follow the same steps as earlier and replace the modified `tor` at our
 middle relay. We don't update the logging there to avoid logging on the info
 level on the live network. Looking at the client log again we see that
 negotiation works as before except for the last line: it's missing, so the
-machine is running at the middle as well.
+machine is running at the middle as well.  
 
 ## Implementing the APE state machine
 
@@ -239,14 +236,14 @@ more machines (for the receive portion of WTFP-PAD, beyond AP), and pick
 reasonable parameters for the distributions (I completely winged it now, as when
 implementing APE). The [circuit-padding-ape-machine
 branch](https://github.com/pylls/tor/tree/circuit-padding-ape-machine) contains
-the commits for the full machines with plenty of comments.
+the commits for the full machines with plenty of comments. 
 
 Some comments on the process:
 
-- `tor-0.4.1.5` did not support two machines on the same circuit, the following
-  fix had to be made: https://bugs.torproject.org/tpo/core/tor/31111 .
+- `tor-0.4.1.5` does not support two machines on the same circuit, the following
+  fix has to be made: https://trac.torproject.org/projects/tor/ticket/31111 .
   The good news is that everything else seems to work after the small change in
-  the fix.
+  the fix. 
 - APE randomizes its distributions. Currently, this can only be done during
   start of `tor`. This makes sense in the censorship circumvention setting
   (`obfs4`), less so for WF defenses: further randomizing each circuit is likely

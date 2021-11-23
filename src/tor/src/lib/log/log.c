@@ -1,7 +1,7 @@
 /* Copyright (c) 2001, Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -51,6 +51,10 @@
 #include "lib/fdio/fdio.h"
 #include "lib/cc/ctassert.h"
 
+#ifdef HAVE_ANDROID_LOG_H
+#include <android/log.h>
+#endif // HAVE_ANDROID_LOG_H.
+
 /** @{ */
 /** The string we stick at the end of a log message when it is too long,
  * and its length. */
@@ -74,6 +78,8 @@ typedef struct logfile_t {
   int needs_close; /**< Boolean: true if the stream gets closed on shutdown. */
   int is_temporary; /**< Boolean: close after initializing logging subsystem.*/
   int is_syslog; /**< Boolean: send messages to syslog. */
+  int is_android; /**< Boolean: send messages to Android's log subsystem. */
+  char *android_tag; /**< Identity Tag used in Android's log subsystem. */
   log_callback callback; /**< If not NULL, send messages to this function. */
   log_severity_list_t *severities; /**< Which severity of messages should we
                                     * log for each log domain? */
@@ -119,6 +125,33 @@ should_log_function_name(log_domain_mask_t domain, int severity)
       raw_assert(0); return 0; // LCOV_EXCL_LINE
   }
 }
+
+#ifdef HAVE_ANDROID_LOG_H
+/** Helper function to convert Tor's log severity into the matching
+ * Android log priority.
+ */
+static int
+severity_to_android_log_priority(int severity)
+{
+  switch (severity) {
+    case LOG_DEBUG:
+      return ANDROID_LOG_VERBOSE;
+    case LOG_INFO:
+      return ANDROID_LOG_DEBUG;
+    case LOG_NOTICE:
+      return ANDROID_LOG_INFO;
+    case LOG_WARN:
+      return ANDROID_LOG_WARN;
+    case LOG_ERR:
+      return ANDROID_LOG_ERROR;
+    default:
+      // LCOV_EXCL_START
+      raw_assert(0);
+      return 0;
+      // LCOV_EXCL_STOP
+  }
+}
+#endif /* defined(HAVE_ANDROID_LOG_H) */
 
 /** A mutex to guard changes to logfiles and logging. */
 static tor_mutex_t log_mutex;
@@ -442,13 +475,13 @@ pending_log_message_free_(pending_log_message_t *msg)
 }
 
 /** Helper function: returns true iff the log file, given in <b>lf</b>, is
- * handled externally via the system log API, or is an
+ * handled externally via the system log API, the Android logging API, or is an
  * external callback function. */
 static inline int
 logfile_is_external(const logfile_t *lf)
 {
   raw_assert(lf);
-  return lf->is_syslog || lf->callback;
+  return lf->is_syslog || lf->is_android || lf->callback;
 }
 
 /** Return true iff <b>lf</b> would like to receive a message with the
@@ -490,7 +523,7 @@ logfile_deliver(logfile_t *lf, const char *buf, size_t msg_len,
      * pass them, and some very old ones do not detect overflow so well.
      * Regrettably, they call their maximum line length MAXLINE. */
 #if MAXLINE < 64
-#warning "MAXLINE is very low; it might not be from syslog.h."
+#warning "MAXLINE is a very low number; it might not be from syslog.h."
 #endif
     char *m = msg_after_prefix;
     if (msg_len >= MAXLINE)
@@ -504,6 +537,11 @@ logfile_deliver(logfile_t *lf, const char *buf, size_t msg_len,
     syslog(severity, "%s", msg_after_prefix);
 #endif /* defined(MAXLINE) */
 #endif /* defined(HAVE_SYSLOG_H) */
+  } else if (lf->is_android) {
+#ifdef HAVE_ANDROID_LOG_H
+    int priority = severity_to_android_log_priority(severity);
+    __android_log_write(priority, lf->android_tag, msg_after_prefix);
+#endif // HAVE_ANDROID_LOG_H.
   } else if (lf->callback) {
     if (domain & LD_NOCB) {
       if (!*callbacks_deferred && pending_cb_messages) {
@@ -639,7 +677,7 @@ tor_log_update_sigsafe_err_fds(void)
   n_fds = 1;
 
   for (lf = logfiles; lf; lf = lf->next) {
-     /* Don't try callback to the control port, syslogs, or any
+     /* Don't try callback to the control port, syslogs, android logs, or any
       * other non-file descriptor log: We can't call arbitrary functions from a
       * signal handler.
       */
@@ -737,6 +775,7 @@ log_free_(logfile_t *victim)
     return;
   tor_free(victim->severities);
   tor_free(victim->filename);
+  tor_free(victim->android_tag);
   tor_free(victim);
 }
 
@@ -784,7 +823,7 @@ logs_free_all(void)
 
 /** Flush the signal-safe log files.
  *
- * This function is safe to call from a signal handler. It is currently called
+ * This function is safe to call from a signal handler. It is currenly called
  * by the BUG() macros, when terminating the process on an abnormal condition.
  */
 void
@@ -1208,6 +1247,39 @@ add_syslog_log(const log_severity_list_t *severity,
 }
 #endif /* defined(HAVE_SYSLOG_H) */
 
+#ifdef HAVE_ANDROID_LOG_H
+/**
+ * Add a log handler to send messages to the Android platform log facility.
+ */
+int
+add_android_log(const log_severity_list_t *severity,
+                const char *android_tag)
+{
+  logfile_t *lf = NULL;
+
+  lf = tor_malloc_zero(sizeof(logfile_t));
+  lf->fd = -1;
+  lf->severities = tor_memdup(severity, sizeof(log_severity_list_t));
+  lf->filename = tor_strdup("<android>");
+  lf->is_android = 1;
+
+  if (android_tag == NULL)
+    lf->android_tag = tor_strdup("Tor");
+  else {
+    char buf[256];
+    tor_snprintf(buf, sizeof(buf), "Tor-%s", android_tag);
+    lf->android_tag = tor_strdup(buf);
+  }
+
+  LOCK_LOGS();
+  lf->next = logfiles;
+  logfiles = lf;
+  log_global_min_severity_ = get_min_log_level();
+  UNLOCK_LOGS();
+  return 0;
+}
+#endif /* defined(HAVE_ANDROID_LOG_H) */
+
 /** If <b>level</b> is a valid log severity, return the corresponding
  * numeric value.  Otherwise, return -1. */
 int
@@ -1236,7 +1308,7 @@ log_level_to_string(int level)
 /** NULL-terminated array of names for log domains such that domain_list[dom]
  * is a description of <b>dom</b>.
  *
- * Remember to update doc/man/tor.1.txt if you modify this list.
+ * Remember to update doc/tor.1.txt if you modify this list.
  * */
 static const char *domain_list[] = {
   "GENERAL", "CRYPTO", "NET", "CONFIG", "FS", "PROTOCOL", "MM",
@@ -1385,7 +1457,8 @@ parse_log_severity_config(const char **cfg_ptr,
     if (!strcasecmpstart(cfg, "file") ||
         !strcasecmpstart(cfg, "stderr") ||
         !strcasecmpstart(cfg, "stdout") ||
-        !strcasecmpstart(cfg, "syslog")) {
+        !strcasecmpstart(cfg, "syslog") ||
+        !strcasecmpstart(cfg, "android")) {
       goto done;
     }
     if (got_an_unqualified_range > 1)

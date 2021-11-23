@@ -150,13 +150,13 @@ might be recognized on the wire.
 The problem of differentiating Tor traffic from non-Tor traffic based on
 TCP/TLS packet sizes, initial handshake patterns, and DPI characteristics is the
 domain of [pluggable
-transports](https://gitlab.torproject.org/tpo/anti-censorship/team/-/wikis/AChildsGardenOfPluggableTransports),
+transports](https://trac.torproject.org/projects/tor/wiki/doc/AChildsGardenOfPluggableTransports),
 which may optionally be used in conjunction with this framework (or without
 it).
 
 This document focuses primarily on the circuit padding framework's cover
 traffic features, and will only briefly touch on the potential obfuscation and
-application layer coupling points of the framework. Explicit layer coupling
+application layer coupling points of the framework. Explicit layer coupling 
 points can be created by adding either new [machine application
 events](#62-machine-application-events) or new [internal machine
 events](#63-internal-machine-events) to the circuit padding framework, so that
@@ -178,7 +178,7 @@ Most importantly: this framing allows cover traffic defenses to be modeled as
 an optimization problem search space, expressed as fields of a C structure
 (which is simultaneously a compact opaque bitstring as well as a symbolic
 vector in an abstract feature space). This kind of space is particularly well
-suited to search by gradient descent, GAs, and GANs.
+suited to search by gradient descent, GAs, and GANs. 
 
 When performing this optimization search, each padding machine should have a
 fitness function, which will allow two padding machines to be compared for
@@ -186,7 +186,7 @@ relative effectiveness. Optimization searches work best if this fitness can be
 represented as a single number, for example the total amount by which it
 reduces the [Balanced
 Accuracy](https://en.wikipedia.org/wiki/Precision_and_recall#Imbalanced_Data)
-of an adversary's classifier, divided by an amount of traffic overhead.
+of an adversary's classifier, divided by an amount of traffic overhead. 
 
 Before you begin the optimization phase for your defense, you should
 also carefully consider the [features and
@@ -1024,11 +1024,11 @@ would gladly accept patches that do so.
 
 The following list gives an overview of these improvements, but as this
 document ages, it may become stale. The canonical list of improvements that
-researchers may find useful is labeled in our bugtracker with
-[Padding Research](https://gitlab.torproject.org/tpo/core/tor/-/issues?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Padding%20Research),
+researchers may find useful is tagged in our bugtracker with
+[circpad-researchers](https://trac.torproject.org/projects/tor/query?keywords=~circpad-researchers),
 and the list of improvements that are known to be necessary for some research
-areas are labeled with
-[Padding Research Requires](https://gitlab.torproject.org/tpo/core/tor/-/issues?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Padding%20Research%20Requires).
+areas are tagged with
+[circpad-researchers-want](https://trac.torproject.org/projects/tor/query?keywords=~circpad-researchers-want).
 
 Please consult those lists for the latest status of these issues. Note that
 not all fixes will be backported to all Tor versions, so be mindful of which

@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -290,20 +290,6 @@ subsystems_thread_cleanup(void)
       log_debug(LD_GENERAL, "Thread cleanup: %s", sys->name);
       sys->thread_cleanup();
     }
-  }
-}
-
-/**
- * Dump a human- and machine-readable list of all the subsystems to stdout,
- * in their initialization order, prefixed with their level.
- **/
-void
-subsystems_dump_list(void)
-{
-  for (unsigned i = 0; i < n_tor_subsystems; ++i) {
-    const subsys_fns_t *sys = tor_subsystems[i];
-    printf("% 4d\t%16s\t%s\n", sys->level, sys->name,
-           sys->location?sys->location:"");
   }
 }
 

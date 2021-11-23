@@ -1,7 +1,7 @@
 /* Copyright (c) 2001, Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -175,6 +175,10 @@ MOCK_DECL(int, add_file_log,(const log_severity_list_t *severity,
 int add_syslog_log(const log_severity_list_t *severity,
                    const char* syslog_identity_tag);
 #endif // HAVE_SYSLOG_H.
+#ifdef HAVE_ANDROID_LOG_H
+int add_android_log(const log_severity_list_t *severity,
+                    const char *android_identity_tag);
+#endif // HAVE_ANDROID_LOG_H.
 int add_callback_log(const log_severity_list_t *severity, log_callback cb);
 typedef void (*pending_callback_callback)(void);
 void logs_set_pending_callback_callback(pending_callback_callback cb);

@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define RENDCOMMON_PRIVATE
@@ -18,17 +18,19 @@
 #include "feature/dircache/dircache.h"
 #include "test/test.h"
 #include "lib/compress/compress.h"
+#include "feature/rend/rendcommon.h"
+#include "feature/rend/rendcache.h"
 #include "feature/relay/relay_config.h"
 #include "feature/relay/router.h"
 #include "feature/nodelist/authcert.h"
 #include "feature/nodelist/dirlist.h"
 #include "feature/nodelist/routerlist.h"
+#include "test/rend_test_helpers.h"
 #include "feature/nodelist/microdesc.h"
 #include "test/test_helpers.h"
 #include "feature/nodelist/nodelist.h"
 #include "feature/client/entrynodes.h"
 #include "feature/dirparse/authcert_parse.h"
-#include "feature/dirparse/sigcommon.h"
 #include "feature/nodelist/networkstatus.h"
 #include "core/proto/proto_http.h"
 #include "lib/geoip/geoip.h"
@@ -36,11 +38,12 @@
 #include "feature/dircache/dirserv.h"
 #include "feature/dirauth/dirvote.h"
 #include "test/log_test_helpers.h"
-#include "feature/dirauth/voting_schedule.h"
+#include "feature/dircommon/voting_schedule.h"
 
 #include "feature/dircommon/dir_connection_st.h"
 #include "feature/dirclient/dir_server_st.h"
 #include "feature/nodelist/networkstatus_st.h"
+#include "feature/rend/rend_encoded_v2_service_descriptor_st.h"
 #include "feature/nodelist/routerinfo_st.h"
 #include "feature/nodelist/routerlist_st.h"
 
@@ -69,23 +72,6 @@ ENABLE_GCC_WARNING("-Woverlength-strings")
   "Consensus not signed by sufficient number of requested authorities\r\n\r\n"
 
 #define consdiffmgr_add_consensus consdiffmgr_add_consensus_nulterm
-
-static int
-mock_ignore_signature_token(const char *digest,
-                            ssize_t digest_len,
-                            struct directory_token_t *tok,
-                            crypto_pk_t *pkey,
-                            int flags,
-                            const char *doctype)
-{
-  (void)digest;
-  (void)digest_len;
-  (void)tok;
-  (void)pkey;
-  (void)flags;
-  (void)doctype;
-  return 0;
-}
 
 static dir_connection_t *
 new_dir_conn(void)
@@ -257,6 +243,125 @@ test_dir_handle_get_robots_txt(void *data)
     tor_free(body);
 }
 
+#define RENDEZVOUS2_GET(descid) GET("/tor/rendezvous2/" descid)
+static void
+test_dir_handle_get_rendezvous2_not_found_if_not_encrypted(void *data)
+{
+  dir_connection_t *conn = NULL;
+  char *header = NULL;
+  (void) data;
+
+  MOCK(connection_write_to_buf_impl_, connection_write_to_buf_mock);
+
+  conn = new_dir_conn();
+
+  // connection is not encrypted
+  tt_assert(!connection_dir_is_encrypted(conn));
+
+  tt_int_op(directory_handle_command_get(conn, RENDEZVOUS2_GET(), NULL, 0),
+            OP_EQ, 0);
+  fetch_from_buf_http(TO_CONN(conn)->outbuf, &header, MAX_HEADERS_SIZE,
+                      NULL, NULL, 1, 0);
+
+  tt_str_op(NOT_FOUND, OP_EQ, header);
+
+  done:
+    UNMOCK(connection_write_to_buf_impl_);
+    connection_free_minimal(TO_CONN(conn));
+    tor_free(header);
+}
+
+static void
+test_dir_handle_get_rendezvous2_on_encrypted_conn_with_invalid_desc_id(
+  void *data)
+{
+  dir_connection_t *conn = NULL;
+  char *header = NULL;
+  (void) data;
+
+  MOCK(connection_write_to_buf_impl_, connection_write_to_buf_mock);
+  conn = new_dir_conn();
+
+  // connection is encrypted
+  TO_CONN(conn)->linked = 1;
+  tt_assert(connection_dir_is_encrypted(conn));
+
+  tt_int_op(directory_handle_command_get(conn,
+            RENDEZVOUS2_GET("invalid-desc-id"), NULL, 0), OP_EQ, 0);
+  fetch_from_buf_http(TO_CONN(conn)->outbuf, &header, MAX_HEADERS_SIZE,
+                      NULL, NULL, 1, 0);
+
+  tt_str_op(header, OP_EQ, BAD_REQUEST);
+
+  done:
+    UNMOCK(connection_write_to_buf_impl_);
+    connection_free_minimal(TO_CONN(conn));
+    tor_free(header);
+}
+
+static void
+test_dir_handle_get_rendezvous2_on_encrypted_conn_not_well_formed(void *data)
+{
+  dir_connection_t *conn = NULL;
+  char *header = NULL;
+  (void) data;
+
+  MOCK(connection_write_to_buf_impl_, connection_write_to_buf_mock);
+  conn = new_dir_conn();
+
+  // connection is encrypted
+  TO_CONN(conn)->linked = 1;
+  tt_assert(connection_dir_is_encrypted(conn));
+
+  //TODO: this cant be reached because rend_valid_descriptor_id() prevents this
+  //case to happen. This test is the same as
+  //test_dir_handle_get_rendezvous2_on_encrypted_conn_with_invalid_desc_id
+  //We should refactor to remove the case from the switch.
+
+  const char *req = RENDEZVOUS2_GET("1bababababababababababababababab");
+  tt_int_op(directory_handle_command_get(conn, req, NULL, 0), OP_EQ, 0);
+
+  fetch_from_buf_http(TO_CONN(conn)->outbuf, &header, MAX_HEADERS_SIZE,
+                      NULL, NULL, 1, 0);
+
+  tt_str_op(header, OP_EQ, BAD_REQUEST);
+
+  done:
+    UNMOCK(connection_write_to_buf_impl_);
+    connection_free_minimal(TO_CONN(conn));
+    tor_free(header);
+}
+
+static void
+test_dir_handle_get_rendezvous2_not_found(void *data)
+{
+  dir_connection_t *conn = NULL;
+  char *header = NULL;
+  (void) data;
+
+  MOCK(connection_write_to_buf_impl_, connection_write_to_buf_mock);
+  conn = new_dir_conn();
+
+  rend_cache_init();
+
+  // connection is encrypted
+  TO_CONN(conn)->linked = 1;
+  tt_assert(connection_dir_is_encrypted(conn));
+
+  const char *req = RENDEZVOUS2_GET("3xqunszqnaolrrfmtzgaki7mxelgvkje");
+  tt_int_op(directory_handle_command_get(conn, req, NULL, 0), OP_EQ, 0);
+  fetch_from_buf_http(TO_CONN(conn)->outbuf, &header, MAX_HEADERS_SIZE,
+                      NULL, NULL, 1, 0);
+
+  tt_str_op(NOT_FOUND, OP_EQ, header);
+
+  done:
+    UNMOCK(connection_write_to_buf_impl_);
+    connection_free_minimal(TO_CONN(conn));
+    tor_free(header);
+    rend_cache_free_all();
+}
+
 static const routerinfo_t * dhg_tests_router_get_my_routerinfo(void);
 ATTR_UNUSED static int dhg_tests_router_get_my_routerinfo_called = 0;
 
@@ -270,6 +375,76 @@ dhg_tests_router_get_my_routerinfo(void)
   }
 
   return mock_routerinfo;
+}
+
+static void
+test_dir_handle_get_rendezvous2_on_encrypted_conn_success(void *data)
+{
+  dir_connection_t *conn = NULL;
+  char *header = NULL;
+  char *body = NULL;
+  size_t body_used = 0;
+  char buff[30];
+  char req[70];
+  rend_encoded_v2_service_descriptor_t *desc_holder = NULL;
+  char *service_id = NULL;
+  char desc_id_base32[REND_DESC_ID_V2_LEN_BASE32 + 1];
+  size_t body_len = 0;
+  (void) data;
+
+  MOCK(connection_write_to_buf_impl_, connection_write_to_buf_mock);
+  MOCK(router_get_my_routerinfo,
+       dhg_tests_router_get_my_routerinfo);
+
+  rend_cache_init();
+
+  /* create a valid rend service descriptor */
+  #define RECENT_TIME -10
+  generate_desc(RECENT_TIME, &desc_holder, &service_id, 3);
+
+  tt_int_op(rend_cache_store_v2_desc_as_dir(desc_holder->desc_str),
+            OP_EQ, 0);
+
+  base32_encode(desc_id_base32, sizeof(desc_id_base32), desc_holder->desc_id,
+                DIGEST_LEN);
+
+  conn = new_dir_conn();
+
+  // connection is encrypted
+  TO_CONN(conn)->linked = 1;
+  tt_assert(connection_dir_is_encrypted(conn));
+
+  tor_snprintf(req, sizeof(req), RENDEZVOUS2_GET("%s"), desc_id_base32);
+
+  tt_int_op(directory_handle_command_get(conn, req, NULL, 0), OP_EQ, 0);
+
+  body_len = strlen(desc_holder->desc_str);
+  fetch_from_buf_http(TO_CONN(conn)->outbuf, &header, MAX_HEADERS_SIZE,
+                      &body, &body_used, body_len+1, 0);
+
+  tt_assert(header);
+  tt_assert(body);
+
+  tt_ptr_op(strstr(header, "HTTP/1.0 200 OK\r\n"), OP_EQ, header);
+  tt_assert(strstr(header, "Content-Type: text/plain\r\n"));
+  tt_assert(strstr(header, "Content-Encoding: identity\r\n"));
+  tt_assert(strstr(header, "Pragma: no-cache\r\n"));
+  tor_snprintf(buff, sizeof(buff), "Content-Length: %ld\r\n", (long) body_len);
+  tt_assert(strstr(header, buff));
+
+  tt_int_op(body_used, OP_EQ, strlen(body));
+  tt_str_op(body, OP_EQ, desc_holder->desc_str);
+
+  done:
+    UNMOCK(connection_write_to_buf_impl_);
+    UNMOCK(router_get_my_routerinfo);
+
+    connection_free_minimal(TO_CONN(conn));
+    tor_free(header);
+    tor_free(body);
+    rend_encoded_v2_service_descriptor_free(desc_holder);
+    tor_free(service_id);
+    rend_cache_free_all();
 }
 
 #define MICRODESC_GET(digest) GET("/tor/micro/d/" digest)
@@ -325,8 +500,7 @@ static const char microdesc[] =
   "MIGJAoGBAMjlHH/daN43cSVRaHBwgUfnszzAhg98EvivJ9Qxfv51mvQUxPjQ07es\n"
   "gV/3n8fyh3Kqr/ehi9jxkdgSRfSnmF7giaHL1SLZ29kA7KtST+pBvmTpDtHa3ykX\n"
   "Xorc7hJvIyTZoc1HU+5XSynj3gsBE5IGK1ZRzrNS688LnuZMVp1tAgMBAAE=\n"
-  "-----END RSA PUBLIC KEY-----\n"
-  "ntor-onion-key QlrOXAa8j3LD31LESsPm/lIKFBwevk2oXdqJcd9SEUc=\n";
+  "-----END RSA PUBLIC KEY-----\n";
 
 static void
 test_dir_handle_get_micro_d(void *data)
@@ -1802,8 +1976,7 @@ test_dir_handle_get_status_vote_current_not_found(void* data)
     tor_free(header);
 }
 
-/* What vote do we ask for, to get the vote in vote_descriptors.inc ? */
-#define VOTE_DIGEST "78400095d8e834d87135cfc46235c909f0e99911"
+#define VOTE_DIGEST "312A4890D4D832597ABBD3089C782DBBFB81E48D"
 
 static void
 status_vote_current_d_test(char **header, char **body, size_t *body_l)
@@ -1885,7 +2058,6 @@ test_dir_handle_get_status_vote_d(void* data)
   const char digest[DIGEST_LEN] = "";
   (void) data;
 
-  MOCK(check_signature_token, mock_ignore_signature_token);
   clear_dir_servers();
   dirvote_free_all();
 
@@ -1908,12 +2080,12 @@ test_dir_handle_get_status_vote_d(void* data)
   mock_options->TestingV3AuthInitialDistDelay = 1;
 
   time_t now = 1441223455 -1;
-  dirauth_sched_recalculate_timing(mock_options, now);
+  voting_schedule_recalculate_timing(mock_options, now);
 
   const char *msg_out = NULL;
   int status_out = 0;
-  struct pending_vote_t *pv = dirvote_add_vote(VOTE_BODY_V3, 0, "foo",
-                                               &msg_out, &status_out);
+  struct pending_vote_t *pv = dirvote_add_vote(VOTE_BODY_V3, &msg_out,
+                                               &status_out);
   tt_assert(pv);
 
   status_vote_current_d_test(&header, &body, &body_used);
@@ -1922,7 +2094,7 @@ test_dir_handle_get_status_vote_d(void* data)
   tt_ptr_op(strstr(header, "HTTP/1.0 200 OK\r\n"), OP_EQ, header);
   tt_assert(strstr(header, "Content-Type: text/plain\r\n"));
   tt_assert(strstr(header, "Content-Encoding: identity\r\n"));
-  tt_assert(strstr(header, "Content-Length: 4403\r\n"));
+  tt_assert(strstr(header, "Content-Length: 4135\r\n"));
 
   tt_str_op(VOTE_BODY_V3, OP_EQ, body);
 
@@ -1935,12 +2107,11 @@ test_dir_handle_get_status_vote_d(void* data)
   tt_ptr_op(strstr(header, "HTTP/1.0 200 OK\r\n"), OP_EQ, header);
   tt_assert(strstr(header, "Content-Type: text/plain\r\n"));
   tt_assert(strstr(header, "Content-Encoding: identity\r\n"));
-  tt_assert(strstr(header, "Content-Length: 4403\r\n"));
+  tt_assert(strstr(header, "Content-Length: 4135\r\n"));
 
   tt_str_op(VOTE_BODY_V3, OP_EQ, body);
 
   done:
-    UNMOCK(check_signature_token);
     tor_free(header);
     tor_free(body);
     or_options_free(mock_options); mock_options = NULL;
@@ -2017,7 +2188,6 @@ test_dir_handle_get_status_vote_current_authority_not_found(void* data)
   (void) data;
 
   MOCK(connection_write_to_buf_impl_, connection_write_to_buf_mock);
-  MOCK(check_signature_token, mock_ignore_signature_token);
 
   conn = new_dir_conn();
   tt_int_op(0, OP_EQ, directory_handle_command_get(conn,
@@ -2029,7 +2199,6 @@ test_dir_handle_get_status_vote_current_authority_not_found(void* data)
   tt_str_op(NOT_FOUND, OP_EQ, header);
 
   done:
-    UNMOCK(check_signature_token);
     UNMOCK(connection_write_to_buf_impl_);
     connection_free_minimal(TO_CONN(conn));
     tor_free(header);
@@ -2043,7 +2212,6 @@ test_dir_handle_get_status_vote_next_authority_not_found(void* data)
   (void) data;
 
   MOCK(connection_write_to_buf_impl_, connection_write_to_buf_mock);
-  MOCK(check_signature_token, mock_ignore_signature_token);
 
   conn = new_dir_conn();
   tt_int_op(0, OP_EQ, directory_handle_command_get(conn,
@@ -2055,7 +2223,6 @@ test_dir_handle_get_status_vote_next_authority_not_found(void* data)
   tt_str_op(NOT_FOUND, OP_EQ, header);
 
   done:
-    UNMOCK(check_signature_token);
     UNMOCK(connection_write_to_buf_impl_);
     connection_free_minimal(TO_CONN(conn));
     tor_free(header);
@@ -2069,7 +2236,7 @@ test_dir_handle_get_status_vote_next_bandwidth_not_found(void* data)
   (void) data;
 
   MOCK(connection_write_to_buf_impl_, connection_write_to_buf_mock);
-  MOCK(check_signature_token, mock_ignore_signature_token);
+
   conn = new_dir_conn();
 
   tt_int_op(0, OP_EQ, directory_handle_command_get(conn,
@@ -2081,7 +2248,6 @@ test_dir_handle_get_status_vote_next_bandwidth_not_found(void* data)
   tt_str_op(NOT_FOUND, OP_EQ, header);
 
   done:
-    UNMOCK(check_signature_token);
     UNMOCK(connection_write_to_buf_impl_);
     connection_free_minimal(TO_CONN(conn));
     tor_free(header);
@@ -2262,7 +2428,6 @@ test_dir_handle_get_status_vote_next_authority(void* data)
   const char digest[DIGEST_LEN] = "";
   (void) data;
 
-  MOCK(check_signature_token, mock_ignore_signature_token);
   clear_dir_servers();
   routerlist_free_all();
   dirvote_free_all();
@@ -2292,10 +2457,10 @@ test_dir_handle_get_status_vote_next_authority(void* data)
   mock_options->TestingV3AuthInitialDistDelay = 1;
 
   time_t now = 1441223455 -1;
-  dirauth_sched_recalculate_timing(mock_options, now);
+  voting_schedule_recalculate_timing(mock_options, now);
 
-  struct pending_vote_t *vote = dirvote_add_vote(VOTE_BODY_V3, 0, "foo",
-                                                 &msg_out, &status_out);
+  struct pending_vote_t *vote = dirvote_add_vote(VOTE_BODY_V3, &msg_out,
+                                                 &status_out);
   tt_assert(vote);
 
   MOCK(get_my_v3_authority_cert, get_my_v3_authority_cert_m);
@@ -2312,12 +2477,11 @@ test_dir_handle_get_status_vote_next_authority(void* data)
   tt_ptr_op(strstr(header, "HTTP/1.0 200 OK\r\n"), OP_EQ, header);
   tt_assert(strstr(header, "Content-Type: text/plain\r\n"));
   tt_assert(strstr(header, "Content-Encoding: identity\r\n"));
-  tt_assert(strstr(header, "Content-Length: 4403\r\n"));
+  tt_assert(strstr(header, "Content-Length: 4135\r\n"));
 
   tt_str_op(VOTE_BODY_V3, OP_EQ, body);
 
   done:
-    UNMOCK(check_signature_token);
     UNMOCK(connection_write_to_buf_impl_);
     UNMOCK(get_my_v3_authority_cert);
     connection_free_minimal(TO_CONN(conn));
@@ -2423,7 +2587,6 @@ test_dir_handle_get_status_vote_current_authority(void* data)
   dir_server_t *ds = NULL;
   (void) data;
 
-  MOCK(check_signature_token, mock_ignore_signature_token);
   clear_dir_servers();
   routerlist_free_all();
   dirvote_free_all();
@@ -2454,10 +2617,10 @@ test_dir_handle_get_status_vote_current_authority(void* data)
   mock_options->TestingV3AuthInitialDistDelay = 1;
 
   time_t now = 1441223455;
-  dirauth_sched_recalculate_timing(mock_options, now-1);
+  voting_schedule_recalculate_timing(mock_options, now-1);
 
-  struct pending_vote_t *vote = dirvote_add_vote(VOTE_BODY_V3, 0, "foo",
-                                                 &msg_out, &status_out);
+  struct pending_vote_t *vote = dirvote_add_vote(VOTE_BODY_V3, &msg_out,
+                                                 &status_out);
   tt_assert(vote);
 
   // move the pending vote to previous vote
@@ -2477,191 +2640,11 @@ test_dir_handle_get_status_vote_current_authority(void* data)
   tt_ptr_op(strstr(header, "HTTP/1.0 200 OK\r\n"), OP_EQ, header);
   tt_assert(strstr(header, "Content-Type: text/plain\r\n"));
   tt_assert(strstr(header, "Content-Encoding: identity\r\n"));
-  tt_assert(strstr(header, "Content-Length: 4403\r\n"));
+  tt_assert(strstr(header, "Content-Length: 4135\r\n"));
 
   tt_str_op(VOTE_BODY_V3, OP_EQ, body);
 
   done:
-    UNMOCK(check_signature_token);
-    UNMOCK(connection_write_to_buf_impl_);
-    UNMOCK(get_my_v3_authority_cert);
-    connection_free_minimal(TO_CONN(conn));
-    tor_free(header);
-    tor_free(body);
-    authority_cert_free(mock_cert); mock_cert = NULL;
-    or_options_free(mock_options); mock_options = NULL;
-
-    clear_dir_servers();
-    routerlist_free_all();
-    dirvote_free_all();
-}
-
-/* Test that a late vote is rejected, but an on-time vote is accepted. */
-static void
-test_dir_handle_get_status_vote_too_late(void* data)
-{
-  dir_connection_t *conn = NULL;
-  char *header = NULL, *body = NULL;
-  const char *msg_out = NULL;
-  int status_out = 0;
-  size_t body_used = 0;
-  const char digest[DIGEST_LEN] = "";
-
-  dir_server_t *ds = NULL;
-  const char* mode = (const char *)data;
-
-  MOCK(check_signature_token, mock_ignore_signature_token);
-  clear_dir_servers();
-  routerlist_free_all();
-  dirvote_free_all();
-
-  mock_cert = authority_cert_parse_from_string(TEST_CERTIFICATE,
-                                               strlen(TEST_CERTIFICATE),
-                                               NULL);
-
-  /* create a trusted ds */
-  ds = trusted_dir_server_new("ds", "127.0.0.1", 9059, 9060, NULL, digest,
-                              NULL, V3_DIRINFO, 1.0);
-  tt_assert(ds);
-  dir_server_add(ds);
-
-  /* ds v3_identity_digest is the certificate's identity_key */
-  base16_decode(ds->v3_identity_digest, DIGEST_LEN,
-                TEST_CERT_IDENT_KEY, HEX_DIGEST_LEN);
-
-  tt_int_op(0, OP_EQ, trusted_dirs_load_certs_from_string(TEST_CERTIFICATE,
-    TRUSTED_DIRS_CERTS_SRC_DL_BY_ID_DIGEST, 1, NULL));
-
-  init_mock_options();
-  mock_options->AuthoritativeDir = 1;
-  mock_options->V3AuthoritativeDir = 1;
-
-  int base_delay = 0;
-  int vote_interval = 0;
-  int start_offset = 0;
-
-  tt_assert(mode);
-  /* Set the required timings, see below for details */
-  if (strcmp(mode, "min") == 0) {
-    /* The minimum valid test network timing */
-    base_delay = 2;
-    vote_interval = 10;
-    start_offset = vote_interval - 5;
-  } else if (strcmp(mode, "chutney") == 0) {
-    /* The test network timing used by chutney */
-    base_delay = 4;
-    vote_interval = 20;
-    start_offset = vote_interval - 5;
-  } else if (strcmp(mode, "half-public") == 0) {
-    /* The short consensus failure timing used in the public network */
-    base_delay = 5*60;
-    vote_interval = 30*60;
-    start_offset = vote_interval - 9*60 - 5;
-  } else if (strcmp(mode, "public") == 0) {
-    /* The standard timing used in the public network */
-    base_delay = 5*60;
-    vote_interval = 60*60;
-    start_offset = vote_interval - 9*60 - 5;
-  }
-
-  tt_assert(base_delay > 0);
-  tt_assert(vote_interval > 0);
-  tt_assert(start_offset > 0);
-
-  /* Skew the time to fit the fixed time in the vote */
-  mock_options->TestingV3AuthVotingStartOffset = start_offset;
-  /* Calculate the rest of the timings */
-  mock_options->TestingV3AuthInitialVotingInterval = vote_interval;
-  mock_options->TestingV3AuthInitialVoteDelay = base_delay;
-  mock_options->TestingV3AuthInitialDistDelay = base_delay;
-
-  time_t now = 1441223455;
-  dirauth_sched_recalculate_timing(mock_options, now-1);
-  const time_t voting_starts = voting_schedule.voting_starts;
-  const time_t fetch_missing = voting_schedule.fetch_missing_votes;
-
-  struct pending_vote_t *vote = NULL;
-
-  /* Next voting interval */
-  vote = dirvote_add_vote(VOTE_BODY_V3,
-                          fetch_missing + vote_interval, "foo",
-                          &msg_out, &status_out);
-  tt_assert(!vote);
-  tt_int_op(status_out, OP_EQ, 400);
-  tt_str_op(msg_out, OP_EQ,
-            "Posted vote received too late, would be dangerous to count it");
-
-  /* Just after fetch missing */
-  vote = dirvote_add_vote(VOTE_BODY_V3,
-                          fetch_missing + 1, "foo",
-                          &msg_out, &status_out);
-  tt_assert(!vote);
-  tt_int_op(status_out, OP_EQ, 400);
-  tt_str_op(msg_out, OP_EQ,
-            "Posted vote received too late, would be dangerous to count it");
-
-  /* On fetch missing */
-  vote = dirvote_add_vote(VOTE_BODY_V3,
-                          fetch_missing, "foo",
-                          &msg_out, &status_out);
-  tt_assert(vote);
-
-  /* Move the pending vote to previous vote */
-  dirvote_act(mock_options, now+1);
-  /* And reset the timing */
-  dirauth_sched_recalculate_timing(mock_options, now-1);
-
-  /* Between voting starts and fetch missing */
-  vote = dirvote_add_vote(VOTE_BODY_V3,
-                          voting_starts + 1, "foo",
-                          &msg_out, &status_out);
-  tt_assert(vote);
-
-  /* Move the pending vote to previous vote */
-  dirvote_act(mock_options, now+1);
-  /* And reset the timing */
-  dirauth_sched_recalculate_timing(mock_options, now-1);
-
-  /* On voting starts */
-  vote = dirvote_add_vote(VOTE_BODY_V3,
-                          voting_starts, "foo",
-                          &msg_out, &status_out);
-  tt_assert(vote);
-
-  /* Move the pending vote to previous vote */
-  dirvote_act(mock_options, now+1);
-  /* And reset the timing */
-  dirauth_sched_recalculate_timing(mock_options, now-1);
-
-  /* Just before voting starts */
-  vote = dirvote_add_vote(VOTE_BODY_V3,
-                          voting_starts - 1, "foo",
-                          &msg_out, &status_out);
-  tt_assert(vote);
-
-  /* Move the pending vote to previous vote */
-  dirvote_act(mock_options, now+1);
-
-  MOCK(get_my_v3_authority_cert, get_my_v3_authority_cert_m);
-  MOCK(connection_write_to_buf_impl_, connection_write_to_buf_mock);
-
-  conn = new_dir_conn();
-  tt_int_op(0, OP_EQ, directory_handle_command_get(conn,
-    GET("/tor/status-vote/current/authority"), NULL, 0));
-
-  fetch_from_buf_http(TO_CONN(conn)->outbuf, &header, MAX_HEADERS_SIZE,
-                      &body, &body_used, strlen(VOTE_BODY_V3)+1, 0);
-
-  tt_assert(header);
-  tt_ptr_op(strstr(header, "HTTP/1.0 200 OK\r\n"), OP_EQ, header);
-  tt_assert(strstr(header, "Content-Type: text/plain\r\n"));
-  tt_assert(strstr(header, "Content-Encoding: identity\r\n"));
-  tt_assert(strstr(header, "Content-Length: 4403\r\n"));
-
-  tt_str_op(VOTE_BODY_V3, OP_EQ, body);
-
-  done:
-    UNMOCK(check_signature_token);
     UNMOCK(connection_write_to_buf_impl_);
     UNMOCK(get_my_v3_authority_cert);
     connection_free_minimal(TO_CONN(conn));
@@ -2725,22 +2708,17 @@ test_dir_handle_get_parse_accept_encoding(void *arg)
 #define DIR_HANDLE_CMD(name,flags) \
   { #name, test_dir_handle_get_##name, (flags), NULL, NULL }
 
-#ifdef COCCI
-/* Coccinelle doesn't like the stringification in this macro */
-#define DIR_HANDLE_CMD_ARG(name,flags,arg) \
-  DIR_HANDLE_CMD(name,flags)
-#else
-#define DIR_HANDLE_CMD_ARG(name,flags,arg) \
-  { #name "/" arg, test_dir_handle_get_##name, (flags), \
-    &passthrough_setup, (void *)(arg) }
-#endif /* defined(COCCI) */
-
 struct testcase_t dir_handle_get_tests[] = {
   DIR_HANDLE_CMD(not_found, 0),
   DIR_HANDLE_CMD(bad_request, 0),
   DIR_HANDLE_CMD(v1_command_not_found, 0),
   DIR_HANDLE_CMD(v1_command, 0),
   DIR_HANDLE_CMD(robots_txt, 0),
+  DIR_HANDLE_CMD(rendezvous2_not_found_if_not_encrypted, 0),
+  DIR_HANDLE_CMD(rendezvous2_not_found, 0),
+  DIR_HANDLE_CMD(rendezvous2_on_encrypted_conn_with_invalid_desc_id, 0),
+  DIR_HANDLE_CMD(rendezvous2_on_encrypted_conn_not_well_formed, 0),
+  DIR_HANDLE_CMD(rendezvous2_on_encrypted_conn_success, 0),
   DIR_HANDLE_CMD(micro_d_not_found, 0),
   DIR_HANDLE_CMD(micro_d_server_busy, 0),
   DIR_HANDLE_CMD(micro_d, 0),
@@ -2769,10 +2747,6 @@ struct testcase_t dir_handle_get_tests[] = {
   DIR_HANDLE_CMD(status_vote_next_not_found, 0),
   DIR_HANDLE_CMD(status_vote_current_authority_not_found, 0),
   DIR_HANDLE_CMD(status_vote_current_authority, 0),
-  DIR_HANDLE_CMD_ARG(status_vote_too_late, 0, "min"),
-  DIR_HANDLE_CMD_ARG(status_vote_too_late, 0, "chutney"),
-  DIR_HANDLE_CMD_ARG(status_vote_too_late, 0, "half-public"),
-  DIR_HANDLE_CMD_ARG(status_vote_too_late, 0, "public"),
   DIR_HANDLE_CMD(status_vote_next_authority_not_found, 0),
   DIR_HANDLE_CMD(status_vote_next_authority, 0),
   DIR_HANDLE_CMD(status_vote_next_bandwidth_not_found, 0),

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2021, The Tor Project, Inc. */
+/* Copyright (c) 2010-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -11,7 +11,6 @@
 
 #include "lib/testsupport/testsupport.h"
 
-void note_connection(bool inbound, int family);
 int log_heartbeat(time_t now);
 
 #ifdef STATUS_PRIVATE

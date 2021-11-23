@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2021, The Tor Project, Inc. */
+/* Copyright (c) 2017-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define CONSDIFFMGR_PRIVATE
@@ -689,7 +689,7 @@ static void
 test_consdiffmgr_cleanup_bad_valid_after(void *arg)
 {
   /* This will seem cleanable, but isn't, because its valid-after time is
-   * malformed. */
+   * misformed. */
 
   (void)arg;
   config_line_t *labels = NULL;

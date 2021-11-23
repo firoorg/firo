@@ -4,9 +4,6 @@
 
 @section welcome Welcome to Tor
 
-(For an up-to-date rendered copy of this documentation, see
-https://src-ref.docs.torproject.org/tor/index.html .)
-
 This documentation describes the general structure of the Tor codebase, how
 it fits together, what functionality is available for extending Tor, and
 gives some notes on how Tor got that way.  It also includes a reference for
@@ -83,9 +80,8 @@ will be scheduled.
 The codebase is divided into a few top-level subdirectories, each of
 which contains several sub-modules.
 
-   - \refdir{ext} -- Code maintained elsewhere that we include in the Tor
-     source distribution.  You should not edit this code if you can
-     avoid it: we try to keep it identical to the upstream versions.
+   - `ext` -- Code maintained elsewhere that we include in the Tor
+     source distribution.
 
    - \refdir{lib} -- Lower-level utility code, not necessarily
      tor-specific.

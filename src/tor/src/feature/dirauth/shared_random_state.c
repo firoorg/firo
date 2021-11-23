@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2021, The Tor Project, Inc. */
+/* Copyright (c) 2016-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -20,7 +20,7 @@
 #include "feature/dirauth/shared_random.h"
 #include "feature/hs_common/shared_random_client.h"
 #include "feature/dirauth/shared_random_state.h"
-#include "feature/dirauth/voting_schedule.h"
+#include "feature/dircommon/voting_schedule.h"
 #include "lib/encoding/confline.h"
 #include "lib/version/torversion.h"
 
@@ -60,7 +60,6 @@ DUMMY_TYPECHECK_INSTANCE(sr_disk_state_t);
 #define SR_DISK_STATE_MAGIC 0x98AB1254
 
 /** Array of variables that are saved to disk as a persistent state. */
-// clang-format off
 static const config_var_t state_vars[] = {
   V(Version,                    POSINT, "0"),
   V(TorVersion,                 STRING, NULL),
@@ -74,7 +73,6 @@ static const config_var_t state_vars[] = {
   VAR("SharedRandCurrentValue", LINELIST_S, SharedRandValues, NULL),
   END_OF_CONFIG_VARS
 };
-// clang-format on
 
 /** "Extra" variable in the state that receives lines we can't parse. This
  * lets us preserve options from versions of Tor newer than us. */
@@ -141,7 +139,7 @@ get_state_valid_until_time(time_t now)
 
   voting_interval = get_voting_interval();
   /* Find the time the current round started. */
-  beginning_of_current_round = dirauth_sched_get_cur_valid_after_time();
+  beginning_of_current_round = get_start_time_of_current_round();
 
   /* Find how many rounds are left till the end of the protocol run */
   current_round = (now / voting_interval) % total_rounds;
@@ -780,7 +778,7 @@ new_protocol_run(time_t valid_after)
     sr_compute_srv();
   }
 
-  /* Prepare for the new protocol run by resetting the state */
+  /* Prepare for the new protocol run by reseting the state */
   reset_state_for_new_protocol_run(valid_after);
 
   /* Do some logging */
@@ -1333,7 +1331,7 @@ sr_state_init(int save_to_disk, int read_from_disk)
   /* We have a state in memory, let's make sure it's updated for the current
    * and next voting round. */
   {
-    time_t valid_after = dirauth_sched_get_next_valid_after_time();
+    time_t valid_after = voting_schedule_get_next_valid_after_time();
     sr_state_update(valid_after);
   }
   return 0;

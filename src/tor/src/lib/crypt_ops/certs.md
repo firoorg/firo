@@ -1,5 +1,5 @@
 
-@page certificates Certificates in Tor
+@page certificates Certificates in Tor.
 
 We have, alas, several certificate types in Tor.
 
@@ -27,3 +27,4 @@ their associated keys.
 documents that include keys and which are signed by keys. You can
 consider these documents to be an additional kind of certificate if you
 want.)
+

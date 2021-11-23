@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2021, The Tor Project, Inc. */
+/* Copyright (c) 2010-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -17,7 +17,6 @@
 #include "core/or/or.h"
 #include "core/or/circuituse.h"
 #include "app/config/config.h"
-#include "feature/dirclient/dirclient.h"
 #include "core/or/status.h"
 #include "feature/nodelist/nodelist.h"
 #include "core/or/relay.h"
@@ -105,46 +104,12 @@ log_onion_service_stats(void)
   }
 
   log_notice(LD_HEARTBEAT,
-             "Heartbeat: Our onion service%s received %u v3 INTRODUCE2 cells "
+             "Our onion service%s received %u v2 and %u v3 INTRODUCE2 cells "
              "and attempted to launch %d rendezvous circuits.",
              num_services == 1 ? "" : "s",
+             hs_stats_get_n_introduce2_v2_cells(),
              hs_stats_get_n_introduce2_v3_cells(),
              hs_stats_get_n_rendezvous_launches());
-}
-
-/**
- * @name connection counts for heartbeat
- *
- * Tracks incoming and outgoing connections on IPv4/IPv6, for heartbeat
- * logs.
- **/
-/**@{*/
-static unsigned n_incoming_ipv4;
-static unsigned n_incoming_ipv6;
-static unsigned n_outgoing_ipv4;
-static unsigned n_outgoing_ipv6;
-/**@}*/
-
-/**
- * Note that a connection has arrived or has been made, for use in the
- * heartbeat message.
- **/
-void
-note_connection(bool inbound, int family)
-{
-  if (family == AF_INET) {
-    if (inbound) {
-      ++n_incoming_ipv4;
-    } else {
-      ++n_outgoing_ipv4;
-    }
-  } else if (family == AF_INET6) {
-    if (inbound) {
-      ++n_incoming_ipv6;
-    } else {
-      ++n_outgoing_ipv6;
-    }
-  }
 }
 
 /** Log a "heartbeat" message describing Tor's status and history so that the
@@ -177,15 +142,9 @@ log_heartbeat(time_t now)
   bw_sent = bytes_to_usage(get_bytes_written());
 
   log_fn(LOG_NOTICE, LD_HEARTBEAT, "Heartbeat: Tor's uptime is %s, with %d "
-         "circuits open. I've sent %s and received %s. I've received %u "
-         "connections on IPv4 and %u on IPv6. I've made %u connections "
-         "with IPv4 and %u with IPv6.%s",
+         "circuits open. I've sent %s and received %s.%s",
          uptime, count_circuits(), bw_sent, bw_rcvd,
-         n_incoming_ipv4, n_incoming_ipv6,
-         n_outgoing_ipv4, n_outgoing_ipv6,
          hibernating?" We are currently hibernating.":"");
-
-  dirclient_dump_total_dls();
 
   if (server_mode(options) && accounting_is_enabled(options) && !hibernating) {
     log_accounting(now, options);

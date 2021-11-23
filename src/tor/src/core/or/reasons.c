@@ -1,5 +1,5 @@
 /* Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -244,8 +244,6 @@ orconn_end_reason_to_control_string(int r)
       return "IOERROR";
     case END_OR_CONN_REASON_RESOURCE_LIMIT:
       return "RESOURCELIMIT";
-    case END_OR_CONN_REASON_TLS_ERROR:
-      return "TLS_ERROR";
     case END_OR_CONN_REASON_MISC:
       return "MISC";
     case END_OR_CONN_REASON_PT_MISSING:
@@ -278,8 +276,6 @@ tls_error_to_orconn_end_reason(int e)
     case TOR_TLS_CLOSE:
     case TOR_TLS_DONE:
       return END_OR_CONN_REASON_DONE;
-    case TOR_TLS_ERROR_MISC:
-      return END_OR_CONN_REASON_TLS_ERROR;
     default:
       return END_OR_CONN_REASON_MISC;
   }

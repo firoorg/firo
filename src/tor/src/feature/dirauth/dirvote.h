@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -53,22 +53,13 @@
 #define MIN_SUPPORTED_CONSENSUS_METHOD 28
 
 /** The highest consensus method that we currently support. */
-#define MAX_SUPPORTED_CONSENSUS_METHOD 31
+#define MAX_SUPPORTED_CONSENSUS_METHOD 29
 
 /**
  * Lowest consensus method where microdescriptor lines are put in canonical
  * form for improved compressibility and ease of storage. See proposal 298.
  **/
 #define MIN_METHOD_FOR_CANONICAL_FAMILIES_IN_MICRODESCS 29
-
-/** Lowest consensus method where an unpadded base64 onion-key-ntor is allowed
- * See #7869 */
-#define MIN_METHOD_FOR_UNPADDED_NTOR_KEY 30
-
-/** Lowest consensus method for which we use the correct algorithm for
- * extracting the bwweightscale= and maxunmeasuredbw= parameters. See #19011.
- */
-#define MIN_METHOD_FOR_CORRECT_BWWEIGHTSCALE 31
 
 /** Default bandwidth to clip unmeasured bandwidths to using method >=
  * MIN_METHOD_TO_CLIP_UNMEASURED_BW.  (This is not a consensus method; do not
@@ -103,8 +94,6 @@ void dirvote_dirreq_get_status_vote(const char *url, smartlist_t *items,
 
 /* Storing signatures and votes functions */
 struct pending_vote_t * dirvote_add_vote(const char *vote_body,
-                                         time_t time_posted,
-                                         const char *where_from,
                                          const char **msg_out,
                                          int *status_out);
 int dirvote_add_signatures(const char *detached_signatures_body,
@@ -153,15 +142,9 @@ dirvote_dirreq_get_status_vote(const char *url, smartlist_t *items,
 }
 
 static inline struct pending_vote_t *
-dirvote_add_vote(const char *vote_body,
-                 time_t time_posted,
-                 const char *where_from,
-                 const char **msg_out,
-                 int *status_out)
+dirvote_add_vote(const char *vote_body, const char **msg_out, int *status_out)
 {
   (void) vote_body;
-  (void) time_posted;
-  (void) where_from;
   /* If the dirauth module is disabled, this should NEVER be called else we
    * failed to safeguard the dirauth module. */
   tor_assert_nonfatal_unreached();
@@ -191,8 +174,6 @@ dirvote_add_signatures(const char *detached_signatures_body,
 /* Item access */
 MOCK_DECL(const char*, dirvote_get_pending_consensus,
           (consensus_flavor_t flav));
-MOCK_DECL(uint32_t,dirserv_get_bandwidth_for_router_kb,
-        (const routerinfo_t *ri));
 MOCK_DECL(const char*, dirvote_get_pending_detached_signatures, (void));
 const cached_dir_t *dirvote_get_vote(const char *fp, int flags);
 
@@ -244,87 +225,10 @@ int networkstatus_add_detached_signatures(networkstatus_t *target,
                                           const char *source,
                                           int severity,
                                           const char **msg_out);
-STATIC int
-compare_routerinfo_usefulness(const routerinfo_t *first,
-                              const routerinfo_t *second);
-STATIC
-int compare_routerinfo_by_ipv4(const void **a, const void **b);
-
-STATIC
-int compare_routerinfo_by_ipv6(const void **a, const void **b);
-
-STATIC
-digestmap_t * get_sybil_list_by_ip_version(
-    const smartlist_t *routers, sa_family_t family);
-
-STATIC
-digestmap_t * get_all_possible_sybil(const smartlist_t *routers);
-
 STATIC
 char *networkstatus_get_detached_signatures(smartlist_t *consensuses);
 STATIC microdesc_t *dirvote_create_microdescriptor(const routerinfo_t *ri,
                                                    int consensus_method);
-STATIC int64_t extract_param_buggy(const char *params,
-                                   const char *param_name,
-                                   int64_t default_value);
-
-/** The recommended relay protocols for this authority's votes.
- * Recommending a new protocol causes old tor versions to log a warning.
- */
-#define DIRVOTE_RECOMMEND_RELAY_PROTO           \
-  "Cons=2 "                                     \
-  "Desc=2 "                                     \
-  "DirCache=2 "                                 \
-  "HSDir=2 "                                    \
-  "HSIntro=4 "                                  \
-  "HSRend=2 "                                   \
-  "Link=4-5 "                                   \
-  "LinkAuth=3 "                                 \
-  "Microdesc=2 "                                \
-  "Relay=2"
-
-/** The recommended client protocols for this authority's votes.
- * Recommending a new protocol causes old tor versions to log a warning.
- */
-#define DIRVOTE_RECOMMEND_CLIENT_PROTO          \
-  "Cons=2 "                                     \
-  "Desc=2 "                                     \
-  "DirCache=2 "                                 \
-  "HSDir=2 "                                    \
-  "HSIntro=4 "                                  \
-  "HSRend=2 "                                   \
-  "Link=4-5 "                                   \
-  "Microdesc=2 "                                \
-  "Relay=2"
-
-/** The required relay protocols for this authority's votes.
- * WARNING: Requiring a new protocol causes old tor versions to shut down.
- *          Requiring the wrong protocols can break the tor network.
- * See Proposal 303: When and how to remove support for protocol versions.
- */
-#define DIRVOTE_REQUIRE_RELAY_PROTO             \
-  "Cons=2 "                                     \
-  "Desc=2 "                                     \
-  "DirCache=2 "                                 \
-  "HSDir=2 "                                    \
-  "HSIntro=4 "                                  \
-  "HSRend=2 "                                   \
-  "Link=4-5 "                                   \
-  "LinkAuth=3 "                                 \
-  "Microdesc=2 "                                \
-  "Relay=2"
-
-/** The required relay protocols for this authority's votes.
- * WARNING: Requiring a new protocol causes old tor versions to shut down.
- *          Requiring the wrong protocols can break the tor network.
- * See Proposal 303: When and how to remove support for protocol versions.
- */
-#define DIRVOTE_REQUIRE_CLIENT_PROTO            \
-  "Cons=2 "                                     \
-  "Desc=2 "                                     \
-  "Link=4 "                                     \
-  "Microdesc=2 "                                \
-  "Relay=2"
 
 #endif /* defined(DIRVOTE_PRIVATE) */
 

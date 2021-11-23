@@ -40,10 +40,6 @@ function usage()
   echo "       (current: $GITHUB_PULL)"
   echo "   TOR_GITHUB_PUSH: the tor-github remote push URL"
   echo "       (current: $GITHUB_PUSH)"
-  echo "   TOR_GITLAB_PULL: the tor-gitlab remote pull URL"
-  echo "       (current: $GITLAB_PULL)"
-  echo "   TOR_GITLAB_PUSH: the tor-gitlab remote push URL"
-  echo "       (current: $GITLAB_PUSH)"
   echo "   TOR_EXTRA_CLONE_ARGS: extra arguments to git clone"
   echo "       (current: $TOR_EXTRA_CLONE_ARGS)"
   echo "   TOR_EXTRA_REMOTE_NAME: the name of an extra remote"
@@ -87,10 +83,6 @@ fi
 GITHUB_PULL=${TOR_GITHUB_PULL:-"https://github.com/torproject/tor.git"}
 GITHUB_PUSH=${TOR_GITHUB_PUSH:-"No_Pushing_To_GitHub"}
 
-# GitLab repositories
-GITLAB_PULL=${TOR_GITLAB_PULL:-"https://gitlab.torproject.org/tpo/core/tor.git"}
-GITLAB_PUSH=${TOR_GITLAB_PUSH:-"No_Pushing_To_GitLab"}
-
 ##########################
 # Git branches to manage #
 ##########################
@@ -98,14 +90,40 @@ GITLAB_PUSH=${TOR_GITLAB_PUSH:-"No_Pushing_To_GitLab"}
 # The branches and worktrees need to be modified when there is a new branch,
 # and when an old branch is no longer supported.
 
-set -e
-eval "$(git-list-tor-branches.sh -b)"
-set +e
+# Configuration of the branches that needs merging. The values are in order:
+#   (0) current maint/release branch name
+#   (1) Full path of the git worktree
+#
+# First set of arrays are the maint-* branch and then the release-* branch.
+# New arrays need to be in the WORKTREE= array else they aren't considered.
+MAINT_035=( "maint-0.3.5" "$GIT_PATH/$TOR_WKT_NAME/maint-0.3.5" )
+MAINT_040=( "maint-0.4.0" "$GIT_PATH/$TOR_WKT_NAME/maint-0.4.0" )
+MAINT_041=( "maint-0.4.1" "$GIT_PATH/$TOR_WKT_NAME/maint-0.4.1" )
+MAINT_042=( "maint-0.4.2" "$GIT_PATH/$TOR_WKT_NAME/maint-0.4.2" )
+MAINT_MASTER=( "master" "$GIT_PATH/$TOR_MASTER_NAME" )
+
+RELEASE_035=( "release-0.3.5" "$GIT_PATH/$TOR_WKT_NAME/release-0.3.5" )
+RELEASE_040=( "release-0.4.0" "$GIT_PATH/$TOR_WKT_NAME/release-0.4.0" )
+RELEASE_041=( "release-0.4.1" "$GIT_PATH/$TOR_WKT_NAME/release-0.4.1" )
+RELEASE_042=( "release-0.4.2" "$GIT_PATH/$TOR_WKT_NAME/release-0.4.2" )
 
 # The master branch path has to be the main repository thus contains the
 # origin that will be used to fetch the updates. All the worktrees are created
 # from that repository.
 ORIGIN_PATH="$GIT_PATH/$TOR_MASTER_NAME"
+
+# SC2034 -- shellcheck thinks that these are unused.  We know better.
+ACTUALLY_THESE_ARE_USED=<<EOF
+${MAINT_035[0]}
+${MAINT_040[0]}
+${MAINT_041[0]}
+${MAINT_042[0]}
+${MAINT_MASTER[0]}
+${RELEASE_035[0]}
+${RELEASE_040[0]}
+${RELEASE_041[0]}
+${RELEASE_042[0]}
+EOF
 
 #######################
 # Argument processing #
@@ -142,6 +160,22 @@ done
 ###########################
 # Git worktrees to manage #
 ###########################
+
+WORKTREE=(
+  MAINT_035[@]
+  RELEASE_035[@]
+
+  MAINT_040[@]
+  RELEASE_040[@]
+
+  MAINT_041[@]
+  RELEASE_041[@]
+
+  MAINT_042[@]
+  RELEASE_042[@]
+
+  MAINT_MASTER[@]
+)
 
 COUNT=${#WORKTREE[@]}
 
@@ -351,20 +385,6 @@ function set_tor_github_pr_fetch_config
     "refs/pull.*pr"
 }
 
-# Set up the tor-github PR config, so tor-gitlab/mr/NNNN points to GitHub
-# MR NNNN. In some repositories, "/head" is optional.
-function set_tor_gitlab_mr_fetch_config
-{
-  # standard branches
-  replace_fetch_config tor-gitlab \
-    "+refs/heads/*:refs/remotes/tor-gitlab/*" \
-    "refs/heads"
-  # MRs
-  replace_fetch_config tor-gitlab \
-    "+refs/merge-requests/*/head:refs/remotes/tor-gitlab/mr/*" \
-    "refs/merge-requests.*mr"
-}
-
 # Add a new worktree for branch at path.
 # If the directory already exists: fail if $USE_EXISTING is 0, otherwise skip.
 function add_worktree
@@ -492,15 +512,6 @@ set_remote_push "tor-github" "$GITHUB_PUSH"
 set_tor_github_pr_fetch_config
 # Now fetch them all
 fetch_remote "tor-github"
-
-# GitLab remote
-printf "%s Setting up remote %s\\n" "$MARKER" "${BYEL}tor-gitlab${CNRM}"
-add_remote "tor-gitlab" "$GITLAB_PULL"
-set_remote_push "tor-gitlab" "$GITLAB_PUSH"
-# Add custom fetch for MRs
-set_tor_gitlab_mr_fetch_config
-# Now fetch them all
-fetch_remote "tor-gitlab"
 
 # Extra remote
 if [ "$TOR_EXTRA_REMOTE_NAME" ]; then

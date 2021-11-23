@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 # Copyright (c) 2014-2019, The Tor Project, Inc.
 # See LICENSE for licensing information
 #
@@ -291,7 +291,7 @@ class ChangeLog(object):
             self.curgraf.append(line)
 
         else:
-            assert False  # This should be unreachable.
+            assert "This" is "unreachable"  # noqa: F632
 
     def lint_head(self, line, head):
         m = re.match(r'^ *o ([^\(]+)((?:\([^\)]+\))?):', head)
@@ -405,31 +405,10 @@ class ChangeLog(object):
         self.dumpEndOfSections()
         self.dumpEndOfChangelog()
 
-# Map from issue prefix to pair of (visible prefix, url prefix)
-ISSUE_PREFIX_MAP = {
-    "" : ( "", "tpo/core/tor" ),
-    "tor#" : ( "", "tpo/core/tor" ),
-    "chutney#" : ( "chutney#", "tpo/core/chutney" ),
-    "torspec#" : ( "torspec#", "tpo/core/torspec" ),
-    "trunnel#" : ( "trunnel#", "tpo/core/trunnel" ),
-    "torsocks#" : ( "torsocks#", "tpo/core/torsocks"),
-}
-
 # Let's turn bugs to html.
-BUG_PAT = re.compile('(bug|ticket|issue|feature)\s+([\w/]+#)?(\d{4,6})', re.I)
+BUG_PAT = re.compile('(bug|ticket|issue|feature)\s+(\d{4,5})', re.I)
 def bug_html(m):
-    kind = m.group(1)
-    prefix = m.group(2) or ""
-    bugno = m.group(3)
-    try:
-        disp_prefix, url_prefix = ISSUE_PREFIX_MAP[prefix]
-    except KeyError:
-        print("Can't figure out URL for {}{}".formt(prefix,bugno),
-              file=sys.stderr)
-        return "{} {}{}".format(kind, prefix, bugno)
-
-    return "{} <a href='https://bugs.torproject.org/{}/{}'>{}{}</a>".format(
-        kind, url_prefix, bugno, disp_prefix, bugno)
+    return "%s <a href='https://bugs.torproject.org/%s'>%s</a>" % (m.group(1), m.group(2), m.group(2))
 
 class HTMLChangeLog(ChangeLog):
     def __init__(self, *args, **kwargs):

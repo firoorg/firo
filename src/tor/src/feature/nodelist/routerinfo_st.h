@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -21,12 +21,14 @@ struct routerinfo_t {
   signed_descriptor_t cache_info;
   char *nickname; /**< Human-readable OR name. */
 
-  /** A router's IPv4 address. */
-  tor_addr_t ipv4_addr;
-  uint16_t ipv4_orport;
-  uint16_t ipv4_dirport;
+  uint32_t addr; /**< IPv4 address of OR, in host order. */
+  uint16_t or_port; /**< Port for TLS connections. */
+  uint16_t dir_port; /**< Port for HTTP directory connections. */
 
   /** A router's IPv6 address, if it has one. */
+  /* XXXXX187 Actually these should probably be part of a list of addresses,
+   * not just a special case.  Use abstractions to access these; don't do it
+   * directly. */
   tor_addr_t ipv6_addr;
   uint16_t ipv6_orport;
 

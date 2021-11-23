@@ -1,4 +1,4 @@
-/* * Copyright (c) 2012-2021, The Tor Project, Inc. */
+/* * Copyright (c) 2012-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -169,18 +169,17 @@ chanid_circid_entries_eq(chanid_circid_muxinfo_t *a,
 static inline unsigned int
 chanid_circid_entry_hash(chanid_circid_muxinfo_t *a)
 {
-  uint8_t data[8 + 4];
-  set_uint64(data, a->chan_id);
-  set_uint32(data + 8, a->circ_id);
-  return (unsigned) siphash24g(data, sizeof(data));
+    return (((unsigned int)(a->circ_id) << 8) ^
+            ((unsigned int)((a->chan_id >> 32) & 0xffffffff)) ^
+            ((unsigned int)(a->chan_id & 0xffffffff)));
 }
 
 /* Emit a bunch of hash table stuff */
 HT_PROTOTYPE(chanid_circid_muxinfo_map, chanid_circid_muxinfo_t, node,
-             chanid_circid_entry_hash, chanid_circid_entries_eq);
+             chanid_circid_entry_hash, chanid_circid_entries_eq)
 HT_GENERATE2(chanid_circid_muxinfo_map, chanid_circid_muxinfo_t, node,
              chanid_circid_entry_hash, chanid_circid_entries_eq, 0.6,
-             tor_reallocarray_, tor_free_);
+             tor_reallocarray_, tor_free_)
 
 /*
  * Circuitmux alloc/free functions

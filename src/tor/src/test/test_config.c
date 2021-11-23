@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
@@ -18,7 +18,6 @@
 #include "core/or/circuitmux_ewma.h"
 #include "core/or/circuitbuild.h"
 #include "app/config/config.h"
-#include "app/config/resolve_addr.h"
 #include "feature/relay/relay_config.h"
 #include "feature/relay/transport_config.h"
 #include "lib/confmgt/confmgt.h"
@@ -41,7 +40,8 @@
 #include "feature/nodelist/networkstatus.h"
 #include "feature/nodelist/nodelist.h"
 #include "core/or/policies.h"
-#include "feature/relay/relay_find_addr.h"
+#include "feature/rend/rendclient.h"
+#include "feature/rend/rendservice.h"
 #include "feature/relay/router.h"
 #include "feature/relay/routermode.h"
 #include "feature/nodelist/dirlist.h"
@@ -51,7 +51,6 @@
 
 #include "test/test_helpers.h"
 #include "test/resolve_test_helpers.h"
-#include "test/log_test_helpers.h"
 
 #include "feature/dirclient/dir_server_st.h"
 #include "core/or/port_cfg_st.h"
@@ -406,7 +405,7 @@ good_bridge_line_test(const char *string, const char *test_addrport,
     tor_free(tmp);
   }
 
-  /* If we were asked to validate a transport name, make sure that it
+  /* If we were asked to validate a transport name, make sure tha it
      matches with the transport name that was parsed. */
   if (test_transport && !bridge_line->transport_name)
     tt_abort();
@@ -704,13 +703,11 @@ test_config_parse_tcp_proxy_line(void *arg)
   tor_free(msg);
 
   /* Bad TCPProxy line - unparsable address/port. */
-  MOCK(tor_addr_lookup, mock_tor_addr_lookup__fail_on_bad_addrs);
-  ret = parse_tcp_proxy_line("haproxy bogus_address!/300", options, &msg);
+  ret = parse_tcp_proxy_line("haproxy 95.216.163.36/443", options, &msg);
   tt_int_op(ret, OP_EQ, -1);
   tt_str_op(msg, OP_EQ, "TCPProxy address/port failed to parse or resolve. "
                         "Please fix.");
   tor_free(msg);
-  UNMOCK(tor_addr_lookup);
 
   /* Good TCPProxy line - ipv4. */
   ret = parse_tcp_proxy_line("haproxy 95.216.163.36:443", options, &msg);
@@ -723,7 +720,7 @@ test_config_parse_tcp_proxy_line(void *arg)
   tor_free(msg);
 
  done:
-  UNMOCK(tor_addr_lookup);
+  ;
 }
 
 /**
@@ -990,117 +987,58 @@ test_config_fix_my_family(void *arg)
 }
 
 static int n_hostname_01010101 = 0;
-static const char *ret_addr_lookup_01010101[2] = {
-  "1.1.1.1", "0101::0101",
-};
 
-/** This mock function is meant to replace tor_addr_lookup().
- * It answers with 1.1.1.1 as IP address that resulted from lookup.
+/** This mock function is meant to replace tor_lookup_hostname().
+ * It answers with 1.1.1.1 as IP adddress that resulted from lookup.
  * This function increments <b>n_hostname_01010101</b> counter by one
  * every time it is called.
  */
 static int
-tor_addr_lookup_01010101(const char *name, uint16_t family, tor_addr_t *addr)
+tor_lookup_hostname_01010101(const char *name, uint32_t *addr)
 {
   n_hostname_01010101++;
 
-  if (family == AF_INET) {
-    if (name && addr) {
-      int ret = tor_addr_parse(addr, ret_addr_lookup_01010101[0]);
-      tt_int_op(ret, OP_EQ, family);
-    }
-  } else if (family == AF_INET6) {
-    if (name && addr) {
-      int ret = tor_addr_parse(addr, ret_addr_lookup_01010101[1]);
-      tt_int_op(ret, OP_EQ, family);
-    }
+  if (name && addr) {
+    *addr = ntohl(0x01010101);
   }
- done:
+
   return 0;
 }
 
 static int n_hostname_localhost = 0;
 
-/** This mock function is meant to replace tor_addr_lookup().
- * It answers with 127.0.0.1 as IP address that resulted from lookup.
+/** This mock function is meant to replace tor_lookup_hostname().
+ * It answers with 127.0.0.1 as IP adddress that resulted from lookup.
  * This function increments <b>n_hostname_localhost</b> counter by one
  * every time it is called.
  */
 static int
-tor_addr_lookup_localhost(const char *name, uint16_t family, tor_addr_t *addr)
+tor_lookup_hostname_localhost(const char *name, uint32_t *addr)
 {
   n_hostname_localhost++;
 
-  if (family == AF_INET) {
-    if (name && addr) {
-      tor_addr_from_ipv4h(addr, 0x7f000001);
-    }
-  } else if (family == AF_INET6) {
-    if (name && addr) {
-      int ret = tor_addr_parse(addr, "::1");
-      tt_int_op(ret, OP_EQ, AF_INET6);
-    }
+  if (name && addr) {
+    *addr = 0x7f000001;
   }
- done:
+
   return 0;
 }
 
 static int n_hostname_failure = 0;
 
-/** This mock function is meant to replace tor_addr_lookup().
+/** This mock function is meant to replace tor_lookup_hostname().
  * It pretends to fail by returning -1 to caller. Also, this function
  * increments <b>n_hostname_failure</b> every time it is called.
  */
 static int
-tor_addr_lookup_failure(const char *name, uint16_t family, tor_addr_t *addr)
+tor_lookup_hostname_failure(const char *name, uint32_t *addr)
 {
   (void)name;
-  (void)family;
   (void)addr;
 
   n_hostname_failure++;
 
   return -1;
-}
-
-/** Mock function for tor_addr_lookup().
- *
- * Depending on the given hostname and family, resolve either to IPv4 or IPv6.
- *
- * If the requested hostname family is not the same as the family provided, an
- * error is returned.
- *
- * Possible hostnames:
- *  - www.torproject.org.v4 for IPv4 -> 1.1.1.1
- *  - www.torproject.org.v6 for IPv6 -> [0101::0101]
- */
-static int
-tor_addr_lookup_mixed(const char *name, uint16_t family, tor_addr_t *addr)
-{
-  tt_assert(addr);
-  tt_assert(name);
-
-  if (!strcmp(name, "www.torproject.org.v4")) {
-    if (family == AF_INET) {
-      tor_addr_from_ipv4h(addr, 0x01010101);
-      return 0;
-    }
-    /* Resolving AF_INET but the asked family is different. Failure. */
-    return -1;
-  }
-
-  if (!strcmp(name, "www.torproject.org.v6")) {
-    if (family == AF_INET6) {
-      int ret = tor_addr_parse(addr, "0101::0101");
-      tt_int_op(ret, OP_EQ, AF_INET6);
-      return 0;
-    }
-    /* Resolving AF_INET6 but the asked family is not. Failure. */
-    return -1;
-  }
-
- done:
-  return 0;
 }
 
 static int n_gethostname_replacement = 0;
@@ -1157,38 +1095,28 @@ tor_gethostname_failure(char *name, size_t namelen)
   return -1;
 }
 
-static int n_get_interface_address6 = 0;
-static sa_family_t last_address6_family;
-static const char *ret_get_interface_address6_08080808[2] = {
-  "8.8.8.8", "0808::0808",
-};
+static int n_get_interface_address = 0;
 
 /** This mock function is meant to replace get_interface_address().
  * It answers with address 8.8.8.8. This function increments
  * <b>n_get_interface_address</b> by one every time it is called.
  */
 static int
-get_interface_address6_08080808(int severity, sa_family_t family,
-                                tor_addr_t *addr)
+get_interface_address_08080808(int severity, uint32_t *addr)
 {
   (void)severity;
 
-  n_get_interface_address6++;
+  n_get_interface_address++;
 
-  if (family == AF_INET) {
-    if (addr) {
-      int ret = tor_addr_parse(addr, ret_get_interface_address6_08080808[0]);
-      tt_int_op(ret, OP_EQ, AF_INET);
-    }
-  } else if (family == AF_INET6) {
-    if (addr) {
-      int ret = tor_addr_parse(addr, ret_get_interface_address6_08080808[1]);
-      tt_int_op(ret, OP_EQ, AF_INET6);
-    }
+  if (addr) {
+    *addr = ntohl(0x08080808);
   }
- done:
+
   return 0;
 }
+
+static int n_get_interface_address6 = 0;
+static sa_family_t last_address6_family;
 
 /** This mock function is meant to replace get_interface_address6().
  * It answers with IP address 9.9.9.9 iff both of the following are true:
@@ -1197,7 +1125,6 @@ get_interface_address6_08080808(int severity, sa_family_t family,
  * This function increments <b>n_get_interface_address6</b> by one every
  * time it is called.
  */
-#if 0
 static int
 get_interface_address6_replacement(int severity, sa_family_t family,
                                    tor_addr_t *addr)
@@ -1215,7 +1142,25 @@ get_interface_address6_replacement(int severity, sa_family_t family,
 
   return 0;
 }
-#endif /* 0 */
+
+static int n_get_interface_address_failure = 0;
+
+/**
+ * This mock function is meant to replace get_interface_address().
+ * It pretends to fail getting interface address by returning -1.
+ * <b>n_get_interface_address_failure</b> is incremented by one
+ * every time this function is called.
+ */
+static int
+get_interface_address_failure(int severity, uint32_t *addr)
+{
+  (void)severity;
+  (void)addr;
+
+  n_get_interface_address_failure++;
+
+  return -1;
+}
 
 static int n_get_interface_address6_failure = 0;
 
@@ -1238,44 +1183,24 @@ get_interface_address6_failure(int severity, sa_family_t family,
    return -1;
 }
 
-/** Helper macro: to validate the returned value from find_my_address() so we
- * don't copy those all the time. */
-#undef VALIDATE_FOUND_ADDRESS
-#define VALIDATE_FOUND_ADDRESS(ret, method, hostname)     \
-  do {                                                    \
-    tt_int_op(retval, OP_EQ, ret);                        \
-    tt_int_op(method, OP_EQ, method_used);                \
-    if (hostname == NULL) tt_assert(!hostname_out);       \
-    else tt_str_op(hostname_out, OP_EQ, hostname);        \
-    if (ret == true) {                                    \
-      tt_assert(tor_addr_eq(&resolved_addr, &test_addr)); \
-    }                                                     \
-  } while (0)
-
-/** Helper macro: Cleanup the address and variables used after a
- * find_my_address() call. */
-#undef CLEANUP_FOUND_ADDRESS
-#define CLEANUP_FOUND_ADDRESS                 \
-  do {                                        \
-    config_free_lines(options->Address);      \
-    config_free_lines(options->ORPort_lines); \
-    options->AddressDisableIPv6 = 0;          \
-    options->ORPort_set = 0;                  \
-    tor_free(options->DirAuthorities);        \
-    tor_free(hostname_out);                   \
-    tor_addr_make_unspec(&resolved_addr);     \
-    tor_addr_make_unspec(&test_addr);         \
-  } while (0)
-
-/** Test both IPv4 and IPv6 coexisting together in the configuration. */
 static void
-test_config_find_my_address_mixed(void *arg)
+test_config_resolve_my_address(void *arg)
 {
   or_options_t *options;
-  tor_addr_t resolved_addr, test_addr;
-  resolved_addr_method_t method_used;
+  uint32_t resolved_addr;
+  const char *method_used;
   char *hostname_out = NULL;
-  bool retval;
+  int retval;
+  int prev_n_hostname_01010101;
+  int prev_n_hostname_localhost;
+  int prev_n_hostname_failure;
+  int prev_n_gethostname_replacement;
+  int prev_n_gethostname_failure;
+  int prev_n_gethostname_localhost;
+  int prev_n_get_interface_address;
+  int prev_n_get_interface_address_failure;
+  int prev_n_get_interface_address6;
+  int prev_n_get_interface_address6_failure;
 
   (void)arg;
 
@@ -1283,530 +1208,369 @@ test_config_find_my_address_mixed(void *arg)
 
   options_init(options);
 
-  /*
-   * CASE 1: Only IPv6 address. Accepted.
-   */
-  config_line_append(&options->Address, "Address",
-                     "2a01:4f8:fff0:4f:266:37ff:fe2c:5d19");
-  tor_addr_parse(&test_addr, "2a01:4f8:fff0:4f:266:37ff:fe2c:5d19");
+ /*
+  * CASE 1:
+  * If options->Address is a valid IPv4 address string, we want
+  * the corresponding address to be parsed and returned.
+  */
 
-  /* IPv6 address should be found and considered configured. */
-  retval = find_my_address(options, AF_INET6, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_CONFIGURED, NULL);
+  options->Address = tor_strdup("128.52.128.105");
 
-  CLEANUP_FOUND_ADDRESS;
+  retval = resolve_my_address(LOG_NOTICE,options,&resolved_addr,
+                              &method_used,&hostname_out);
 
-  /*
-   * Case 2: IPv4 _and_ IPv6 given. Accepted.
-   */
-  config_line_append(&options->Address, "Address",
-                     "2a01:4f8:fff0:4f:266:37ff:fe2c:5d19");
-  config_line_append(&options->Address, "Address", "1.1.1.1");
-  tor_addr_parse(&test_addr, "1.1.1.1");
+  tt_want(retval == 0);
+  tt_want_str_op(method_used,OP_EQ,"CONFIGURED");
+  tt_want(hostname_out == NULL);
+  tt_assert(resolved_addr == 0x80348069);
 
-  /* IPv4 address should be found and considered configured. */
-  retval = find_my_address(options, AF_INET, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_CONFIGURED, NULL);
+  tor_free(options->Address);
 
-  /* IPv6 address should be found and considered configured. */
-  tor_addr_parse(&test_addr, "2a01:4f8:fff0:4f:266:37ff:fe2c:5d19");
-  retval = find_my_address(options, AF_INET6, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_CONFIGURED, NULL);
+/*
+ * CASE 2:
+ * If options->Address is a valid DNS address, we want resolve_my_address()
+ * function to ask tor_lookup_hostname() for help with resolving it
+ * and return the address that was resolved (in host order).
+ */
 
-  CLEANUP_FOUND_ADDRESS;
+  MOCK(tor_lookup_hostname,tor_lookup_hostname_01010101);
 
-  /*
-   * Case 3: Two hostnames, IPv4 and IPv6.
-   */
-  config_line_append(&options->Address, "Address", "www.torproject.org.v4");
-  config_line_append(&options->Address, "Address", "www.torproject.org.v6");
-
-  /* Looks at specific hostname to learn which address family to use. */
-  MOCK(tor_addr_lookup, tor_addr_lookup_mixed);
-
-  /* IPv4 address should be found and considered resolved. */
-  tor_addr_parse(&test_addr, "1.1.1.1");
-  retval = find_my_address(options, AF_INET, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_RESOLVED,
-                         "www.torproject.org.v4");
-  tor_free(hostname_out);
-
-  /* IPv6 address should be found and considered resolved. */
-  tor_addr_parse(&test_addr, "0101::0101");
-  retval = find_my_address(options, AF_INET6, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_RESOLVED,
-                         "www.torproject.org.v6");
-
-  CLEANUP_FOUND_ADDRESS;
-  UNMOCK(tor_addr_lookup);
-
-  /*
-   * Case 4: IPv4 address and a hostname resolving to IPV6.
-   */
-  config_line_append(&options->Address, "Address", "1.1.1.1");
-  config_line_append(&options->Address, "Address", "www.torproject.org.v6");
-
-  /* Looks at specific hostname to learn which address family to use. */
-  MOCK(tor_addr_lookup, tor_addr_lookup_mixed);
-
-  /* IPv4 address should be found and configured. */
-  tor_addr_parse(&test_addr, "1.1.1.1");
-  retval = find_my_address(options, AF_INET, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_CONFIGURED, NULL);
-
-  /* IPv6 address should be found and considered resolved. */
-  tor_addr_parse(&test_addr, "0101::0101");
-  retval = find_my_address(options, AF_INET6, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_RESOLVED,
-                         "www.torproject.org.v6");
-
-  CLEANUP_FOUND_ADDRESS;
-  UNMOCK(tor_addr_lookup);
-
-  /*
-   * Case 5: Hostname resolving to IPv4 and an IPv6 address.
-   */
-  config_line_append(&options->Address, "Address", "0101::0101");
-  config_line_append(&options->Address, "Address", "www.torproject.org.v4");
-
-  /* Looks at specific hostname to learn which address family to use. */
-  MOCK(tor_addr_lookup, tor_addr_lookup_mixed);
-
-  /* IPv4 address should be found and resolved. */
-  tor_addr_parse(&test_addr, "1.1.1.1");
-  retval = find_my_address(options, AF_INET, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_RESOLVED,
-                         "www.torproject.org.v4");
-  tor_free(hostname_out);
-
-  /* IPv6 address should be found and considered resolved. */
-  tor_addr_parse(&test_addr, "0101::0101");
-  retval = find_my_address(options, AF_INET6, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_CONFIGURED, NULL);
-  CLEANUP_FOUND_ADDRESS;
-
-  UNMOCK(tor_addr_lookup);
-
- done:
-  config_free_lines(options->Address);
-  or_options_free(options);
-  tor_free(hostname_out);
-
-  UNMOCK(tor_addr_lookup);
-}
-
-/** Parameters for the find_my_address() test. We test both AF_INET and
- * AF_INET6 but we have one interface to do so thus we run the same exact unit
- * tests for both without copying them. */
-typedef struct find_my_address_params_t {
-  /* Index where the mock function results are located. For instance,
-   * tor_addr_lookup_01010101() will have its returned value depending on the
-   * family in ret_addr_lookup_01010101[].
-   *
-   * Values that can be found:
-   *    AF_INET : index 0.
-   *    AF_INET6: index 1.
-   */
-  int idx;
-  int family;
-  const char *public_ip;
-  const char *internal_ip;
-  const char *orport;
-} find_my_address_params_t;
-
-static find_my_address_params_t addr_param_v4 = {
-  .idx = 0,
-  .family = AF_INET,
-  .public_ip = "128.52.128.105",
-  .internal_ip = "127.0.0.1",
-};
-
-static find_my_address_params_t addr_param_v6 = {
-  .idx = 1,
-  .family = AF_INET6,
-  .public_ip = "[4242::4242]",
-  .internal_ip = "[::1]",
-};
-
-static void
-test_config_find_my_address(void *arg)
-{
-  or_options_t *options;
-  tor_addr_t resolved_addr, test_addr;
-  resolved_addr_method_t method_used;
-  char *hostname_out = NULL;
-  bool retval;
-  int prev_n_hostname_01010101;
-  int prev_n_hostname_failure;
-  int prev_n_hostname_localhost;
-  int prev_n_gethostname_replacement;
-  int prev_n_gethostname_failure;
-  int prev_n_gethostname_localhost;
-  int prev_n_get_interface_address6;
-  int prev_n_get_interface_address6_failure;
-
-  const find_my_address_params_t *p = arg;
-
-  options = options_new();
-  options_init(options);
-  options->PublishServerDescriptor_ = V3_DIRINFO;
-
-  /*
-   * Case 0:
-   *    AddressDisableIPv6 is set.
-   *
-   * Only run this if we are in the IPv6 test.
-   */
-  if (p->family == AF_INET6) {
-    options->AddressDisableIPv6 = 1;
-    /* Set a valid IPv6. However, the discovery should still fail. */
-    config_line_append(&options->Address, "Address", p->public_ip);
-    tor_addr_parse(&test_addr, p->public_ip);
-
-    retval = find_my_address(options, p->family, LOG_NOTICE, &resolved_addr,
-                             &method_used, &hostname_out);
-    VALIDATE_FOUND_ADDRESS(false, RESOLVED_ADDR_NONE, NULL);
-    CLEANUP_FOUND_ADDRESS;
-  }
-
-  /*
-   * Case 1:
-   *    1. Address is a valid address.
-   *
-   * Expected to succeed.
-   */
-  config_line_append(&options->Address, "Address", p->public_ip);
-  tor_addr_parse(&test_addr, p->public_ip);
-
-  retval = find_my_address(options, p->family, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_CONFIGURED, NULL);
-  CLEANUP_FOUND_ADDRESS;
-
-  /*
-   * Case 2: Address is a resolvable address. Expected to succeed.
-   */
-  MOCK(tor_addr_lookup, tor_addr_lookup_01010101);
-
-  config_line_append(&options->Address, "Address", "www.torproject.org");
-  tor_addr_parse(&test_addr, ret_addr_lookup_01010101[p->idx]);
+  tor_free(options->Address);
+  options->Address = tor_strdup("www.torproject.org");
 
   prev_n_hostname_01010101 = n_hostname_01010101;
 
-  retval = find_my_address(options, p->family, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
+  retval = resolve_my_address(LOG_NOTICE,options,&resolved_addr,
+                              &method_used,&hostname_out);
 
-  tt_int_op(n_hostname_01010101, OP_EQ, ++prev_n_hostname_01010101);
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_RESOLVED, "www.torproject.org");
-  CLEANUP_FOUND_ADDRESS;
+  tt_want(retval == 0);
+  tt_want(n_hostname_01010101 == prev_n_hostname_01010101 + 1);
+  tt_want_str_op(method_used,OP_EQ,"RESOLVED");
+  tt_want_str_op(hostname_out,OP_EQ,"www.torproject.org");
+  tt_assert(resolved_addr == 0x01010101);
 
-  UNMOCK(tor_addr_lookup);
+  UNMOCK(tor_lookup_hostname);
 
-  /*
-   * Case 3: Address is a local addressi (internal). Expected to fail.
-   */
-  config_line_append(&options->Address, "Address", p->internal_ip);
+  tor_free(options->Address);
+  tor_free(hostname_out);
 
-  setup_full_capture_of_logs(LOG_NOTICE);
+/*
+ * CASE 3:
+ * Given that options->Address is NULL, we want resolve_my_address()
+ * to try and use tor_gethostname() to get hostname AND use
+ * tor_lookup_hostname() to get IP address.
+ */
 
-  retval = find_my_address(options, p->family, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-
-  expect_log_msg_containing("is a private IP address. Tor relays that "
-                            "use the default DirAuthorities must have "
-                            "public IP addresses.");
-  teardown_capture_of_logs();
-
-  VALIDATE_FOUND_ADDRESS(false, RESOLVED_ADDR_NONE, NULL);
-  CLEANUP_FOUND_ADDRESS;
-
-  /*
-   * Case 4: Address is a local address but custom authorities. Expected to
-   * succeed.
-   */
-  config_line_append(&options->Address, "Address", p->internal_ip);
-  options->DirAuthorities = tor_malloc_zero(sizeof(config_line_t));
-  tor_addr_parse(&test_addr, p->internal_ip);
-
-  retval = find_my_address(options, p->family, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_CONFIGURED, NULL);
-  CLEANUP_FOUND_ADDRESS;
-
-  /*
-   * Case 5: Multiple address in Address. Expected to fail.
-   */
-  config_line_append(&options->Address, "Address", p->public_ip);
-  config_line_append(&options->Address, "Address", p->public_ip);
-
-  setup_full_capture_of_logs(LOG_NOTICE);
-
-  retval = find_my_address(options, p->family, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-
-  expect_log_msg_containing("Found 2 Address statement of address family");
-  teardown_capture_of_logs();
-
-  VALIDATE_FOUND_ADDRESS(false, RESOLVED_ADDR_NONE, NULL);
-  CLEANUP_FOUND_ADDRESS;
-
-  /*
-   * Case 8:
-   *    1. Address is NULL
-   *    2. Interface address is a valid address.
-   *
-   * Expected to succeed.
-   */
+  resolved_addr = 0;
+  tor_free(options->Address);
   options->Address = NULL;
-  tor_addr_parse(&test_addr, ret_get_interface_address6_08080808[p->idx]);
 
-  MOCK(get_interface_address6, get_interface_address6_08080808);
+  MOCK(tor_gethostname,tor_gethostname_replacement);
+  MOCK(tor_lookup_hostname,tor_lookup_hostname_01010101);
 
-  prev_n_get_interface_address6 = n_get_interface_address6;
-
-  retval = find_my_address(options, p->family, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-
-  tt_int_op(n_get_interface_address6, OP_EQ, ++prev_n_get_interface_address6);
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_INTERFACE, NULL);
-  CLEANUP_FOUND_ADDRESS;
-
-  UNMOCK(get_interface_address6);
-
-  /*
-   * Case 9:
-   *    1. Address is NULL
-   *    2. Interface address fails to be found.
-   *    3. Local hostname resolves to a valid address.
-   *
-   * Expected to succeed.
-   */
-  options->Address = NULL;
-  tor_addr_parse(&test_addr, ret_addr_lookup_01010101[p->idx]);
-
-  MOCK(get_interface_address6, get_interface_address6_failure);
-  MOCK(tor_gethostname, tor_gethostname_replacement);
-  MOCK(tor_addr_lookup, tor_addr_lookup_01010101);
-
-  prev_n_get_interface_address6_failure = n_get_interface_address6_failure;
+  prev_n_gethostname_replacement = n_gethostname_replacement;
   prev_n_hostname_01010101 = n_hostname_01010101;
-  prev_n_gethostname_replacement = n_gethostname_replacement;
 
-  retval = find_my_address(options, p->family, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
+  retval = resolve_my_address(LOG_NOTICE,options,&resolved_addr,
+                              &method_used,&hostname_out);
 
-  tt_int_op(n_get_interface_address6_failure, OP_EQ,
-            ++prev_n_get_interface_address6_failure);
-  tt_int_op(n_hostname_01010101, OP_EQ,
-            ++prev_n_hostname_01010101);
-  tt_int_op(n_gethostname_replacement, OP_EQ,
-            ++prev_n_gethostname_replacement);
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_GETHOSTNAME, "onionrouter!");
-  CLEANUP_FOUND_ADDRESS;
+  tt_want(retval == 0);
+  tt_want(n_gethostname_replacement == prev_n_gethostname_replacement + 1);
+  tt_want(n_hostname_01010101 == prev_n_hostname_01010101 + 1);
+  tt_want_str_op(method_used,OP_EQ,"GETHOSTNAME");
+  tt_want_str_op(hostname_out,OP_EQ,"onionrouter!");
+  tt_assert(resolved_addr == 0x01010101);
 
-  UNMOCK(get_interface_address6);
   UNMOCK(tor_gethostname);
-  UNMOCK(tor_addr_lookup);
+  UNMOCK(tor_lookup_hostname);
 
-  /*
-   * Case 10:
-   *    1. Address is NULL
-   *    2. Interface address fails to be found.
-   *    3. Local hostname resolves to an internal address.
-   *
-   * Expected to fail.
-   */
-  options->Address = NULL;
+  tor_free(hostname_out);
 
-  MOCK(get_interface_address6, get_interface_address6_failure);
-  MOCK(tor_gethostname, tor_gethostname_localhost);
-  MOCK(tor_addr_lookup, tor_addr_lookup_localhost);
+/*
+ * CASE 4:
+ * Given that options->Address is a local host address, we want
+ * resolve_my_address() function to fail.
+ */
 
-  prev_n_get_interface_address6_failure = n_get_interface_address6_failure;
-  prev_n_hostname_localhost = n_hostname_localhost;
-  prev_n_gethostname_localhost = n_gethostname_localhost;
+  resolved_addr = 0;
+  tor_free(options->Address);
+  options->Address = tor_strdup("127.0.0.1");
 
-  retval = find_my_address(options, p->family, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
+  retval = resolve_my_address(LOG_NOTICE,options,&resolved_addr,
+                              &method_used,&hostname_out);
 
-  tt_int_op(n_get_interface_address6_failure, OP_EQ,
-            ++prev_n_get_interface_address6_failure);
-  tt_int_op(n_hostname_localhost, OP_EQ,
-            ++prev_n_hostname_localhost);
-  tt_int_op(n_gethostname_localhost, OP_EQ,
-            ++prev_n_gethostname_localhost);
-  VALIDATE_FOUND_ADDRESS(false, RESOLVED_ADDR_NONE, NULL);
-  CLEANUP_FOUND_ADDRESS;
+  tt_want(resolved_addr == 0);
+  tt_int_op(retval, OP_EQ, -1);
 
-  UNMOCK(get_interface_address6);
-  UNMOCK(tor_gethostname);
-  UNMOCK(tor_addr_lookup);
+  tor_free(options->Address);
+  tor_free(hostname_out);
 
-  /*
-   * Case 11:
-   *    1. Address is NULL
-   *    2. Interface address fails to be found.
-   *    3. Local hostname fails to be found.
-   *
-   * Expected to fail.
-   */
-  options->Address = NULL;
+/*
+ * CASE 5:
+ * We want resolve_my_address() to fail if DNS address in options->Address
+ * cannot be resolved.
+ */
 
-  MOCK(get_interface_address6, get_interface_address6_failure);
-  MOCK(tor_gethostname, tor_gethostname_failure);
+  MOCK(tor_lookup_hostname,tor_lookup_hostname_failure);
 
-  prev_n_get_interface_address6_failure = n_get_interface_address6_failure;
-  prev_n_gethostname_failure = n_gethostname_failure;
-
-  retval = find_my_address(options, p->family, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-
-  tt_int_op(n_get_interface_address6_failure, OP_EQ,
-            ++prev_n_get_interface_address6_failure);
-  tt_int_op(n_gethostname_failure, OP_EQ,
-            ++prev_n_gethostname_failure);
-  VALIDATE_FOUND_ADDRESS(false, RESOLVED_ADDR_NONE, NULL);
-  CLEANUP_FOUND_ADDRESS;
-
-  UNMOCK(get_interface_address6);
-  UNMOCK(tor_gethostname);
-
-  /*
-   * Case 12:
-   *    1. Address is NULL
-   *    2. Interface address fails to be found.
-   *    3. Local hostname can't be resolved.
-   *
-   * Expected to fail.
-   */
-  options->Address = NULL;
-
-  MOCK(get_interface_address6, get_interface_address6_failure);
-  MOCK(tor_gethostname, tor_gethostname_replacement);
-  MOCK(tor_addr_lookup, tor_addr_lookup_failure);
-
-  prev_n_get_interface_address6_failure = n_get_interface_address6_failure;
-  prev_n_gethostname_replacement = n_gethostname_replacement;
   prev_n_hostname_failure = n_hostname_failure;
 
-  retval = find_my_address(options, p->family, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
+  tor_free(options->Address);
+  options->Address = tor_strdup("www.tor-project.org");
 
-  tt_int_op(n_get_interface_address6_failure, OP_EQ,
-            ++prev_n_get_interface_address6_failure);
-  tt_int_op(n_gethostname_replacement, OP_EQ,
-            ++prev_n_gethostname_replacement);
-  tt_int_op(n_hostname_failure, OP_EQ,
-            ++prev_n_hostname_failure);
-  VALIDATE_FOUND_ADDRESS(false, RESOLVED_ADDR_NONE, NULL);
-  CLEANUP_FOUND_ADDRESS;
+  retval = resolve_my_address(LOG_NOTICE,options,&resolved_addr,
+                              &method_used,&hostname_out);
 
-  /*
-   * Case 13:
-   *    1. Address is NULL.
-   *    2. ORPort has a valid public address.
-   */
-  {
-    char *msg = NULL;
-    int n, w, ret;
-    char *orport_line = NULL;
+  tt_want(n_hostname_failure == prev_n_hostname_failure + 1);
+  tt_int_op(retval, OP_EQ, -1);
 
-    options->Address = NULL;
-    tor_asprintf(&orport_line, "%s:9001", p->public_ip);
-    config_line_append(&options->ORPort_lines, "ORPort", orport_line);
-    tor_free(orport_line);
+  UNMOCK(tor_lookup_hostname);
 
-    if (p->family == AF_INET6) {
-      /* XXX: Tor does _not_ allow an IPv6 only ORPort thus we need to add a
-       * bogus IPv4 at the moment. */
-      config_line_append(&options->ORPort_lines, "ORPort", "1.1.1.1:9001");
-    }
+  tor_free(options->Address);
+  tor_free(hostname_out);
 
-    ret = parse_ports(options, 0, &msg, &n, &w);
-    tt_int_op(ret, OP_EQ, 0);
-    tor_addr_parse(&test_addr, p->public_ip);
-  }
+/*
+ * CASE 6:
+ * If options->Address is NULL AND gettting local hostname fails, we want
+ * resolve_my_address() to fail as well.
+ */
 
-  retval = find_my_address(options, p->family, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_CONFIGURED_ORPORT, NULL);
-  CLEANUP_FOUND_ADDRESS;
+  MOCK(tor_gethostname,tor_gethostname_failure);
 
-  /*
-   * Case 14:
-   *    1. Address is NULL.
-   *    2. ORPort has an internal address thus fails.
-   *    3. Interface as a valid address.
-   */
-  {
-    char *msg = NULL;
-    int n, w, ret;
-    char *orport_line = NULL;
+  prev_n_gethostname_failure = n_gethostname_failure;
 
-    options->Address = NULL;
-    tor_asprintf(&orport_line, "%s:9001", p->internal_ip);
-    config_line_append(&options->ORPort_lines, "ORPort", orport_line);
-    tor_free(orport_line);
+  retval = resolve_my_address(LOG_NOTICE,options,&resolved_addr,
+                              &method_used,&hostname_out);
 
-    if (p->family == AF_INET6) {
-      /* XXX: Tor does _not_ allow an IPv6 only ORPort thus we need to add a
-       * bogus IPv4 at the moment. */
-      config_line_append(&options->ORPort_lines, "ORPort", "1.1.1.1:9001");
-    }
+  tt_want(n_gethostname_failure == prev_n_gethostname_failure + 1);
+  tt_int_op(retval, OP_EQ, -1);
 
-    ret = parse_ports(options, 0, &msg, &n, &w);
-    tt_int_op(ret, OP_EQ, 0);
-  }
-  tor_addr_parse(&test_addr, ret_get_interface_address6_08080808[p->idx]);
+  UNMOCK(tor_gethostname);
+  tor_free(hostname_out);
 
-  MOCK(get_interface_address6, get_interface_address6_08080808);
+/*
+ * CASE 7:
+ * We want resolve_my_address() to try and get network interface address via
+ * get_interface_address() if hostname returned by tor_gethostname() cannot be
+ * resolved into IP address.
+ */
 
+  MOCK(tor_gethostname,tor_gethostname_replacement);
+  MOCK(tor_lookup_hostname,tor_lookup_hostname_failure);
+  MOCK(get_interface_address,get_interface_address_08080808);
+
+  prev_n_gethostname_replacement = n_gethostname_replacement;
+  prev_n_get_interface_address = n_get_interface_address;
+
+  retval = resolve_my_address(LOG_NOTICE,options,&resolved_addr,
+                              &method_used,&hostname_out);
+
+  tt_want(retval == 0);
+  tt_want_int_op(n_gethostname_replacement, OP_EQ,
+                 prev_n_gethostname_replacement + 1);
+  tt_want_int_op(n_get_interface_address, OP_EQ,
+                 prev_n_get_interface_address + 1);
+  tt_want_str_op(method_used,OP_EQ,"INTERFACE");
+  tt_want(hostname_out == NULL);
+  tt_assert(resolved_addr == 0x08080808);
+
+  UNMOCK(get_interface_address);
+  tor_free(hostname_out);
+
+/*
+ * CASE 8:
+ * Suppose options->Address is NULL AND hostname returned by tor_gethostname()
+ * is unresolvable. We want resolve_my_address to fail if
+ * get_interface_address() fails.
+ */
+
+  MOCK(get_interface_address,get_interface_address_failure);
+
+  prev_n_get_interface_address_failure = n_get_interface_address_failure;
+  prev_n_gethostname_replacement = n_gethostname_replacement;
+
+  retval = resolve_my_address(LOG_NOTICE,options,&resolved_addr,
+                              &method_used,&hostname_out);
+
+  tt_want(n_get_interface_address_failure ==
+          prev_n_get_interface_address_failure + 1);
+  tt_want(n_gethostname_replacement ==
+          prev_n_gethostname_replacement + 1);
+  tt_int_op(retval, OP_EQ, -1);
+
+  UNMOCK(get_interface_address);
+  tor_free(hostname_out);
+
+/*
+ * CASE 9:
+ * Given that options->Address is NULL AND tor_lookup_hostname()
+ * fails AND hostname returned by gethostname() resolves
+ * to local IP address, we want resolve_my_address() function to
+ * call get_interface_address6(.,AF_INET,.) and return IP address
+ * the latter function has found.
+ */
+
+  MOCK(tor_lookup_hostname,tor_lookup_hostname_failure);
+  MOCK(tor_gethostname,tor_gethostname_replacement);
+  MOCK(get_interface_address6,get_interface_address6_replacement);
+
+  prev_n_gethostname_replacement = n_gethostname_replacement;
+  prev_n_hostname_failure = n_hostname_failure;
   prev_n_get_interface_address6 = n_get_interface_address6;
 
-  retval = find_my_address(options, p->family, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
+  retval = resolve_my_address(LOG_NOTICE,options,&resolved_addr,
+                              &method_used,&hostname_out);
 
-  tt_int_op(n_get_interface_address6, OP_EQ, ++prev_n_get_interface_address6);
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_INTERFACE, NULL);
-  CLEANUP_FOUND_ADDRESS;
+  tt_want(last_address6_family == AF_INET);
+  tt_want(n_get_interface_address6 == prev_n_get_interface_address6 + 1);
+  tt_want(n_hostname_failure == prev_n_hostname_failure + 1);
+  tt_want(n_gethostname_replacement == prev_n_gethostname_replacement + 1);
+  tt_want(retval == 0);
+  tt_want_str_op(method_used,OP_EQ,"INTERFACE");
+  tt_assert(resolved_addr == 0x09090909);
+
+  UNMOCK(tor_lookup_hostname);
+  UNMOCK(tor_gethostname);
+  UNMOCK(get_interface_address6);
+
+  tor_free(hostname_out);
 
   /*
-   * Case 15: Address is a local address (internal) but we unset
-   * PublishServerDescriptor_ so we are allowed to hold it.
+   * CASE 10: We want resolve_my_address() to fail if all of the following
+   * are true:
+   *   1. options->Address is not NULL
+   *   2. ... but it cannot be converted to struct in_addr by
+   *      tor_inet_aton()
+   *   3. ... and tor_lookup_hostname() fails to resolve the
+   *      options->Address
    */
-  options->PublishServerDescriptor_ = NO_DIRINFO;
-  if (p->family == AF_INET) {
-    options->AssumeReachable = 1;
-  }
-  config_line_append(&options->Address, "Address", p->internal_ip);
 
-  tor_addr_parse(&test_addr, p->internal_ip);
-  retval = find_my_address(options, p->family, LOG_NOTICE, &resolved_addr,
-                           &method_used, &hostname_out);
-  VALIDATE_FOUND_ADDRESS(true, RESOLVED_ADDR_CONFIGURED, NULL);
-  CLEANUP_FOUND_ADDRESS;
+  MOCK(tor_lookup_hostname,tor_lookup_hostname_failure);
+
+  prev_n_hostname_failure = n_hostname_failure;
+
+  tor_free(options->Address);
+  options->Address = tor_strdup("some_hostname");
+
+  retval = resolve_my_address(LOG_NOTICE, options, &resolved_addr,
+                              &method_used,&hostname_out);
+
+  tt_want(n_hostname_failure == prev_n_hostname_failure + 1);
+  tt_int_op(retval, OP_EQ, -1);
+
+  UNMOCK(tor_gethostname);
+  UNMOCK(tor_lookup_hostname);
+
+  tor_free(hostname_out);
+
+  /*
+   * CASE 11:
+   * Suppose the following sequence of events:
+   *   1. options->Address is NULL
+   *   2. tor_gethostname() succeeds to get hostname of machine Tor
+   *      if running on.
+   *   3. Hostname from previous step cannot be converted to
+   *      address by using tor_inet_aton() function.
+   *   4. However, tor_lookup_hostname() succeeds in resolving the
+   *      hostname from step 2.
+   *   5. Unfortunately, tor_addr_is_internal() deems this address
+   *      to be internal.
+   *   6. get_interface_address6(.,AF_INET,.) returns non-internal
+   *      IPv4
+   *
+   *   We want resolve_my_addr() to succeed with method "INTERFACE"
+   *   and address from step 6.
+   */
+
+  tor_free(options->Address);
+  options->Address = NULL;
+
+  MOCK(tor_gethostname,tor_gethostname_replacement);
+  MOCK(tor_lookup_hostname,tor_lookup_hostname_localhost);
+  MOCK(get_interface_address6,get_interface_address6_replacement);
+
+  prev_n_gethostname_replacement = n_gethostname_replacement;
+  prev_n_hostname_localhost = n_hostname_localhost;
+  prev_n_get_interface_address6 = n_get_interface_address6;
+
+  retval = resolve_my_address(LOG_DEBUG, options, &resolved_addr,
+                              &method_used,&hostname_out);
+
+  tt_want(n_gethostname_replacement == prev_n_gethostname_replacement + 1);
+  tt_want(n_hostname_localhost == prev_n_hostname_localhost + 1);
+  tt_want(n_get_interface_address6 == prev_n_get_interface_address6 + 1);
+
+  tt_str_op(method_used,OP_EQ,"INTERFACE");
+  tt_ptr_op(hostname_out, OP_EQ, NULL);
+  tt_int_op(retval, OP_EQ, 0);
+
+  /*
+   * CASE 11b:
+   *   1-5 as above.
+   *   6. get_interface_address6() fails.
+   *
+   *   In this subcase, we want resolve_my_address() to fail.
+   */
 
   UNMOCK(get_interface_address6);
+  MOCK(get_interface_address6,get_interface_address6_failure);
+
+  prev_n_gethostname_replacement = n_gethostname_replacement;
+  prev_n_hostname_localhost = n_hostname_localhost;
+  prev_n_get_interface_address6_failure = n_get_interface_address6_failure;
+
+  retval = resolve_my_address(LOG_DEBUG, options, &resolved_addr,
+                              &method_used,&hostname_out);
+
+  tt_want(n_gethostname_replacement == prev_n_gethostname_replacement + 1);
+  tt_want(n_hostname_localhost == prev_n_hostname_localhost + 1);
+  tt_want(n_get_interface_address6_failure ==
+          prev_n_get_interface_address6_failure + 1);
+
+  tt_int_op(retval, OP_EQ, -1);
+
   UNMOCK(tor_gethostname);
-  UNMOCK(tor_addr_lookup);
+  UNMOCK(tor_lookup_hostname);
+  UNMOCK(get_interface_address6);
+
+  /* CASE 12:
+   * Suppose the following happens:
+   *   1. options->Address is NULL AND options->DirAuthorities is non-NULL
+   *   2. tor_gethostname() succeeds in getting hostname of a machine ...
+   *   3. ... which is successfully parsed by tor_inet_aton() ...
+   *   4. into IPv4 address that tor_addr_is_inernal() considers to be
+   *      internal.
+   *
+   *  In this case, we want resolve_my_address() to fail.
+   */
+
+  tor_free(options->Address);
+  options->Address = NULL;
+  options->DirAuthorities = tor_malloc_zero(sizeof(config_line_t));
+
+  MOCK(tor_gethostname,tor_gethostname_localhost);
+
+  prev_n_gethostname_localhost = n_gethostname_localhost;
+
+  retval = resolve_my_address(LOG_DEBUG, options, &resolved_addr,
+                              &method_used,&hostname_out);
+
+  tt_want(n_gethostname_localhost == prev_n_gethostname_localhost + 1);
+  tt_int_op(retval, OP_EQ, -1);
+
+  UNMOCK(tor_gethostname);
 
  done:
+  tor_free(options->Address);
+  tor_free(options->DirAuthorities);
   or_options_free(options);
+  tor_free(hostname_out);
 
   UNMOCK(tor_gethostname);
-  UNMOCK(tor_addr_lookup);
+  UNMOCK(tor_lookup_hostname);
+  UNMOCK(get_interface_address);
   UNMOCK(get_interface_address6);
+  UNMOCK(tor_gethostname);
 }
 
 static void
@@ -2305,7 +2069,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 1);
@@ -2317,7 +2081,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 0);
@@ -2329,7 +2093,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 0);
@@ -2348,7 +2112,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 1);
@@ -2360,7 +2124,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 0);
@@ -2372,7 +2136,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 0);
@@ -2384,7 +2148,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_non_default_fallback +=
-                        (ds->ipv4_dirport == 60093 ?
+                        (ds->dir_port == 60093 ?
                          1 : 0)
                         );
       tt_int_op(found_non_default_fallback, OP_EQ, 1);
@@ -2396,7 +2160,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_default_fallback +=
-                        (ds->ipv4_dirport == 60099 ?
+                        (ds->dir_port == 60099 ?
                          1 : 0)
                         );
       tt_int_op(found_default_fallback, OP_EQ, 0);
@@ -2448,7 +2212,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 1);
@@ -2460,7 +2224,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 0);
@@ -2472,7 +2236,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 0);
@@ -2491,7 +2255,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 1);
@@ -2503,7 +2267,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 0);
@@ -2515,7 +2279,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 0);
@@ -2527,7 +2291,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_non_default_fallback +=
-                        (ds->ipv4_dirport == 60093 ?
+                        (ds->dir_port == 60093 ?
                          1 : 0)
                         );
       tt_int_op(found_non_default_fallback, OP_EQ, 0);
@@ -2539,7 +2303,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_default_fallback +=
-                        (ds->ipv4_dirport == 60099 ?
+                        (ds->dir_port == 60099 ?
                          1 : 0)
                         );
       tt_int_op(found_default_fallback, OP_EQ, 0);
@@ -2591,7 +2355,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -2603,7 +2367,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 1);
@@ -2615,7 +2379,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 1);
@@ -2634,7 +2398,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -2646,7 +2410,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 1);
@@ -2658,7 +2422,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 1);
@@ -2670,7 +2434,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_non_default_fallback +=
-                        (ds->ipv4_dirport == 60093 ?
+                        (ds->dir_port == 60093 ?
                          1 : 0)
                         );
       tt_int_op(found_non_default_fallback, OP_EQ, 1);
@@ -2682,7 +2446,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_default_fallback +=
-                        (ds->ipv4_dirport == 60099 ?
+                        (ds->dir_port == 60099 ?
                          1 : 0)
                         );
       tt_int_op(found_default_fallback, OP_EQ, 0);
@@ -2735,7 +2499,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -2747,7 +2511,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 1);
@@ -2759,7 +2523,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 1);
@@ -2778,7 +2542,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -2790,7 +2554,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 1);
@@ -2802,7 +2566,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 1);
@@ -2814,7 +2578,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_non_default_fallback +=
-                        (ds->ipv4_dirport == 60093 ?
+                        (ds->dir_port == 60093 ?
                          1 : 0)
                         );
       tt_int_op(found_non_default_fallback, OP_EQ, 0);
@@ -2826,7 +2590,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_default_fallback +=
-                        (ds->ipv4_dirport == 60099 ?
+                        (ds->dir_port == 60099 ?
                          1 : 0)
                         );
       tt_int_op(found_default_fallback, OP_EQ, 0);
@@ -2889,7 +2653,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -2901,7 +2665,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 1);
@@ -2913,7 +2677,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 0);
@@ -2939,7 +2703,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -2951,7 +2715,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 1);
@@ -2963,7 +2727,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 0);
@@ -2975,7 +2739,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_non_default_fallback +=
-                        (ds->ipv4_dirport == 60093 ?
+                        (ds->dir_port == 60093 ?
                          1 : 0)
                         );
       tt_int_op(found_non_default_fallback, OP_EQ, 1);
@@ -2987,7 +2751,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_default_fallback +=
-                        (ds->ipv4_dirport == 60099 ?
+                        (ds->dir_port == 60099 ?
                          1 : 0)
                         );
       tt_int_op(found_default_fallback, OP_EQ, 0);
@@ -3045,7 +2809,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -3057,7 +2821,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 1);
@@ -3069,7 +2833,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 0);
@@ -3095,7 +2859,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -3107,7 +2871,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 1);
@@ -3119,7 +2883,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 0);
@@ -3131,7 +2895,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_non_default_fallback +=
-                        (ds->ipv4_dirport == 60093 ?
+                        (ds->dir_port == 60093 ?
                          1 : 0)
                         );
       tt_int_op(found_non_default_fallback, OP_EQ, 0);
@@ -3143,7 +2907,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_default_fallback +=
-                        (ds->ipv4_dirport == 60099 ?
+                        (ds->dir_port == 60099 ?
                          1 : 0)
                         );
       tt_int_op(found_default_fallback, OP_EQ, 1);
@@ -3211,7 +2975,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -3223,7 +2987,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 0);
@@ -3235,7 +2999,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 1);
@@ -3262,7 +3026,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -3274,7 +3038,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 0);
@@ -3286,7 +3050,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 1);
@@ -3298,7 +3062,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_non_default_fallback +=
-                        (ds->ipv4_dirport == 60093 ?
+                        (ds->dir_port == 60093 ?
                          1 : 0)
                         );
       tt_int_op(found_non_default_fallback, OP_EQ, 1);
@@ -3310,7 +3074,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_default_fallback +=
-                        (ds->ipv4_dirport == 60099 ?
+                        (ds->dir_port == 60099 ?
                          1 : 0)
                         );
       tt_int_op(found_default_fallback, OP_EQ, 0);
@@ -3371,7 +3135,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -3383,7 +3147,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 0);
@@ -3395,7 +3159,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 1);
@@ -3422,7 +3186,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -3434,7 +3198,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 0);
@@ -3446,7 +3210,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 1);
@@ -3458,7 +3222,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_non_default_fallback +=
-                        (ds->ipv4_dirport == 60093 ?
+                        (ds->dir_port == 60093 ?
                          1 : 0)
                         );
       tt_int_op(found_non_default_fallback, OP_EQ, 0);
@@ -3470,7 +3234,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_default_fallback +=
-                        (ds->ipv4_dirport == 60099 ?
+                        (ds->dir_port == 60099 ?
                          1 : 0)
                         );
       tt_int_op(found_default_fallback, OP_EQ, 0);
@@ -3538,7 +3302,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -3550,7 +3314,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 0);
@@ -3562,7 +3326,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 0);
@@ -3589,7 +3353,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -3601,7 +3365,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 0);
@@ -3613,7 +3377,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 0);
@@ -3625,7 +3389,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_non_default_fallback +=
-                        (ds->ipv4_dirport == 60093 ?
+                        (ds->dir_port == 60093 ?
                          1 : 0)
                         );
       tt_int_op(found_non_default_fallback, OP_EQ, 1);
@@ -3637,7 +3401,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_default_fallback +=
-                        (ds->ipv4_dirport == 60099 ?
+                        (ds->dir_port == 60099 ?
                          1 : 0)
                         );
       tt_int_op(found_default_fallback, OP_EQ, 0);
@@ -3703,7 +3467,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -3715,7 +3479,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 0);
@@ -3727,7 +3491,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 0);
@@ -3754,7 +3518,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_D0 +=
-                        (ds->ipv4_dirport == 60090 ?
+                        (ds->dir_port == 60090 ?
                          1 : 0)
                         );
       tt_int_op(found_D0, OP_EQ, 0);
@@ -3766,7 +3530,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_B1 +=
-                        (ds->ipv4_dirport == 60091 ?
+                        (ds->dir_port == 60091 ?
                          1 : 0)
                         );
       tt_int_op(found_B1, OP_EQ, 0);
@@ -3778,7 +3542,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_A2 +=
-                        (ds->ipv4_dirport == 60092 ?
+                        (ds->dir_port == 60092 ?
                          1 : 0)
                         );
       tt_int_op(found_A2, OP_EQ, 0);
@@ -3790,7 +3554,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_non_default_fallback +=
-                        (ds->ipv4_dirport == 60093 ?
+                        (ds->dir_port == 60093 ?
                          1 : 0)
                         );
       tt_int_op(found_non_default_fallback, OP_EQ, 0);
@@ -3802,7 +3566,7 @@ test_config_adding_dir_servers(void *arg)
                         ds,
                         /* increment the found counter if dir_port matches */
                         found_default_fallback +=
-                        (ds->ipv4_dirport == 60099 ?
+                        (ds->dir_port == 60099 ?
                          1 : 0)
                         );
       tt_int_op(found_default_fallback, OP_EQ, 1);
@@ -3881,17 +3645,16 @@ test_config_default_dir_servers(void *arg)
   or_options_free(opts);
 }
 
-static bool mock_relay_find_addr_to_publish_result = true;
+static int mock_router_pick_published_address_result = 0;
 
-static bool
-mock_relay_find_addr_to_publish(const or_options_t *options, int family,
-                                int flags, tor_addr_t *addr_out)
+static int
+mock_router_pick_published_address(const or_options_t *options,
+                                   uint32_t *addr, int cache_only)
 {
-  (void) options;
-  (void) family;
-  (void) flags;
-  (void) addr_out;
-  return mock_relay_find_addr_to_publish_result;
+  (void)options;
+  (void)addr;
+  (void)cache_only;
+  return mock_router_pick_published_address_result;
 }
 
 static int mock_router_my_exit_policy_is_reject_star_result = 0;
@@ -3927,11 +3690,11 @@ test_config_directory_fetch(void *arg)
   or_options_t *options = options_new();
   routerinfo_t routerinfo;
   memset(&routerinfo, 0, sizeof(routerinfo));
-  mock_relay_find_addr_to_publish_result = false;
+  mock_router_pick_published_address_result = -1;
   mock_router_my_exit_policy_is_reject_star_result = 1;
   mock_advertised_server_mode_result = 0;
   mock_router_get_my_routerinfo_result = NULL;
-  MOCK(relay_find_addr_to_publish, mock_relay_find_addr_to_publish);
+  MOCK(router_pick_published_address, mock_router_pick_published_address);
   MOCK(router_my_exit_policy_is_reject_star,
        mock_router_my_exit_policy_is_reject_star);
   MOCK(advertised_server_mode, mock_advertised_server_mode);
@@ -3980,6 +3743,27 @@ test_config_directory_fetch(void *arg)
   tt_int_op(networkstatus_consensus_can_use_multiple_directories(options),
             OP_EQ, 1);
 
+  /* OR servers only fetch the consensus from the authorities when they don't
+   * know their own address, but never use multiple directories for bootstrap
+   */
+  or_options_free(options);
+  options = options_new();
+  options->ORPort_set = 1;
+
+  mock_router_pick_published_address_result = -1;
+  tt_assert(server_mode(options) == 1);
+  tt_assert(public_server_mode(options) == 1);
+  tt_int_op(dirclient_fetches_from_authorities(options), OP_EQ, 1);
+  tt_int_op(networkstatus_consensus_can_use_multiple_directories(options),
+            OP_EQ, 0);
+
+  mock_router_pick_published_address_result = 0;
+  tt_assert(server_mode(options) == 1);
+  tt_assert(public_server_mode(options) == 1);
+  tt_int_op(dirclient_fetches_from_authorities(options), OP_EQ, 0);
+  tt_int_op(networkstatus_consensus_can_use_multiple_directories(options),
+            OP_EQ, 0);
+
   /* Exit OR servers only fetch the consensus from the authorities when they
    * refuse unknown exits, but never use multiple directories for bootstrap
    */
@@ -3987,7 +3771,7 @@ test_config_directory_fetch(void *arg)
   options = options_new();
   options->ORPort_set = 1;
   options->ExitRelay = 1;
-  mock_relay_find_addr_to_publish_result = true;
+  mock_router_pick_published_address_result = 0;
   mock_router_my_exit_policy_is_reject_star_result = 0;
   mock_advertised_server_mode_result = 1;
   mock_router_get_my_routerinfo_result = &routerinfo;
@@ -4002,7 +3786,7 @@ test_config_directory_fetch(void *arg)
             OP_EQ, 0);
 
   options->RefuseUnknownExits = 0;
-  mock_relay_find_addr_to_publish_result = true;
+  mock_router_pick_published_address_result = 0;
   tt_assert(server_mode(options) == 1);
   tt_assert(public_server_mode(options) == 1);
   tt_int_op(dirclient_fetches_from_authorities(options), OP_EQ, 0);
@@ -4019,11 +3803,11 @@ test_config_directory_fetch(void *arg)
   options->DirPort_set = 1;
   options->ORPort_set = 1;
   options->DirCache = 1;
-  mock_relay_find_addr_to_publish_result = true;
+  mock_router_pick_published_address_result = 0;
   mock_router_my_exit_policy_is_reject_star_result = 1;
 
   mock_advertised_server_mode_result = 1;
-  routerinfo.ipv4_dirport =  1;
+  routerinfo.dir_port = 1;
   mock_router_get_my_routerinfo_result = &routerinfo;
   tt_assert(server_mode(options) == 1);
   tt_assert(public_server_mode(options) == 1);
@@ -4032,7 +3816,7 @@ test_config_directory_fetch(void *arg)
             OP_EQ, 0);
 
   mock_advertised_server_mode_result = 0;
-  routerinfo.ipv4_dirport =  1;
+  routerinfo.dir_port = 1;
   mock_router_get_my_routerinfo_result = &routerinfo;
   tt_assert(server_mode(options) == 1);
   tt_assert(public_server_mode(options) == 1);
@@ -4049,7 +3833,7 @@ test_config_directory_fetch(void *arg)
             OP_EQ, 0);
 
   mock_advertised_server_mode_result = 1;
-  routerinfo.ipv4_dirport =  0;
+  routerinfo.dir_port = 0;
   routerinfo.supports_tunnelled_dir_requests = 0;
   mock_router_get_my_routerinfo_result = &routerinfo;
   tt_assert(server_mode(options) == 1);
@@ -4059,7 +3843,7 @@ test_config_directory_fetch(void *arg)
             OP_EQ, 0);
 
   mock_advertised_server_mode_result = 1;
-  routerinfo.ipv4_dirport =  1;
+  routerinfo.dir_port = 1;
   routerinfo.supports_tunnelled_dir_requests = 1;
   mock_router_get_my_routerinfo_result = &routerinfo;
   tt_assert(server_mode(options) == 1);
@@ -4070,7 +3854,7 @@ test_config_directory_fetch(void *arg)
 
  done:
   or_options_free(options);
-  UNMOCK(relay_find_addr_to_publish);
+  UNMOCK(router_pick_published_address);
   UNMOCK(router_get_my_routerinfo);
   UNMOCK(advertised_server_mode);
   UNMOCK(router_my_exit_policy_is_reject_star);
@@ -4374,6 +4158,8 @@ test_config_parse_port_config__ports__ports_given(void *data)
   /* Test entry port defaults as initialised in port_parse_config */
   tt_int_op(port_cfg->entry_cfg.dns_request, OP_EQ, 1);
   tt_int_op(port_cfg->entry_cfg.ipv4_traffic, OP_EQ, 1);
+  tt_int_op(port_cfg->entry_cfg.ipv6_traffic, OP_EQ, 1);
+  tt_int_op(port_cfg->entry_cfg.prefer_ipv6, OP_EQ, 0);
   tt_int_op(port_cfg->entry_cfg.onion_traffic, OP_EQ, 1);
   tt_int_op(port_cfg->entry_cfg.cache_ipv4_answers, OP_EQ, 0);
   tt_int_op(port_cfg->entry_cfg.prefer_ipv6_virtaddr, OP_EQ, 1);
@@ -4908,7 +4694,7 @@ test_config_parse_port_config__ports__ports_given(void *data)
   port_cfg = (port_cfg_t *)smartlist_get(slout, 0);
   tt_int_op(port_cfg->entry_cfg.session_group, OP_EQ, 1111122);
 
-  // Test success with a zero unix domain socket, and doesn't add it to out
+  // Test success with a zero unix domain socket, and doesnt add it to out
   config_free_lines(config_port_valid); config_port_valid = NULL;
   SMARTLIST_FOREACH(slout,port_cfg_t *,pf,port_cfg_free(pf));
   smartlist_clear(slout);
@@ -4918,7 +4704,7 @@ test_config_parse_port_config__ports__ports_given(void *data)
   tt_int_op(ret, OP_EQ, 0);
   tt_int_op(smartlist_len(slout), OP_EQ, 0);
 
-  // Test success with a one unix domain socket, and doesn't add it to out
+  // Test success with a one unix domain socket, and doesnt add it to out
   config_free_lines(config_port_valid); config_port_valid = NULL;
   SMARTLIST_FOREACH(slout,port_cfg_t *,pf,port_cfg_free(pf));
   smartlist_clear(slout);
@@ -5161,115 +4947,12 @@ test_config_parse_port_config__ports__server_options(void *data)
                           0, CL_PORT_SERVER_OPTIONS);
   tt_int_op(ret, OP_EQ, -1);
 
-  /* Default address is IPv4 but pass IPv6Only flag. Should be ignored. */
-  config_free_lines(config_port_invalid); config_port_invalid = NULL;
-  SMARTLIST_FOREACH(slout,port_cfg_t *,pf,port_cfg_free(pf));
-  smartlist_clear(slout);
-  config_port_invalid = mock_config_line("ORPort", "9050 IPv6Only");
-  ret = port_parse_config(slout, config_port_invalid, "ORPort", 0,
-                          "127.0.0.1", 0, CL_PORT_SERVER_OPTIONS);
-  tt_int_op(ret, OP_EQ, 0);
-
-  /* Default address is IPv6 but pass IPv4Only flag. Should be ignored. */
-  config_free_lines(config_port_invalid); config_port_invalid = NULL;
-  SMARTLIST_FOREACH(slout,port_cfg_t *,pf,port_cfg_free(pf));
-  smartlist_clear(slout);
-  config_port_invalid = mock_config_line("ORPort", "9050 IPv4Only");
-  ret = port_parse_config(slout, config_port_invalid, "ORPort", 0,
-                          "[::]", 0, CL_PORT_SERVER_OPTIONS);
-  tt_int_op(ret, OP_EQ, 0);
-
-  /* Explicit address is IPv6 but pass IPv4Only flag. Should error. */
-  config_free_lines(config_port_invalid); config_port_invalid = NULL;
-  SMARTLIST_FOREACH(slout,port_cfg_t *,pf,port_cfg_free(pf));
-  smartlist_clear(slout);
-  config_port_invalid = mock_config_line("ORPort",
-                                         "[4242::4242]:9050 IPv4Only");
-  ret = port_parse_config(slout, config_port_invalid, "ORPort", 0,
-                          "[::]", 0, CL_PORT_SERVER_OPTIONS);
-  tt_int_op(ret, OP_EQ, -1);
-
-  /* Explicit address is IPv4 but pass IPv6Only flag. Should error. */
-  config_free_lines(config_port_invalid); config_port_invalid = NULL;
-  SMARTLIST_FOREACH(slout,port_cfg_t *,pf,port_cfg_free(pf));
-  smartlist_clear(slout);
-  config_port_invalid = mock_config_line("ORPort",
-                                         "1.2.3.4:9050 IPv6Only");
-  ret = port_parse_config(slout, config_port_invalid, "ORPort", 0,
-                          "127.0.0.1", 0, CL_PORT_SERVER_OPTIONS);
-  tt_int_op(ret, OP_EQ, -1);
-
  done:
   if (slout)
     SMARTLIST_FOREACH(slout,port_cfg_t *,pf,port_cfg_free(pf));
   smartlist_free(slout);
   config_free_lines(config_port_invalid); config_port_invalid = NULL;
   config_free_lines(config_port_valid); config_port_valid = NULL;
-}
-
-static void
-test_config_get_first_advertised(void *data)
-{
-  (void)data;
-  int r, w=0, n=0;
-  char *msg=NULL;
-  or_options_t *opts = options_new();
-  int port;
-  const tor_addr_t *addr;
-
-  // no ports are configured? We get NULL.
-  port = portconf_get_first_advertised_port(CONN_TYPE_OR_LISTENER,
-                                              AF_INET);
-  tt_int_op(port, OP_EQ, 0);
-  addr = portconf_get_first_advertised_addr(CONN_TYPE_OR_LISTENER,
-                                              AF_INET);
-  tt_ptr_op(addr, OP_EQ, NULL);
-
-  port = portconf_get_first_advertised_port(CONN_TYPE_OR_LISTENER,
-                                              AF_INET6);
-  tt_int_op(port, OP_EQ, 0);
-  addr = portconf_get_first_advertised_addr(CONN_TYPE_OR_LISTENER,
-                                              AF_INET6);
-  tt_ptr_op(addr, OP_EQ, NULL);
-
-  config_line_append(&opts->ORPort_lines, "ORPort", "[1234::5678]:8080");
-  config_line_append(&opts->ORPort_lines, "ORPort",
-                     "1.2.3.4:9999 noadvertise");
-  config_line_append(&opts->ORPort_lines, "ORPort",
-                     "5.6.7.8:9911 nolisten");
-
-  r = parse_ports(opts, 0, &msg, &n, &w);
-  tt_assert(r == 0);
-
-  // UNSPEC gets us nothing.
-  port = portconf_get_first_advertised_port(CONN_TYPE_OR_LISTENER,
-                                              AF_UNSPEC);
-  tt_int_op(port, OP_EQ, 0);
-  addr = portconf_get_first_advertised_addr(CONN_TYPE_OR_LISTENER,
-                                              AF_UNSPEC);
-  tt_ptr_op(addr, OP_EQ, NULL);
-
-  // Try AF_INET.
-  port = portconf_get_first_advertised_port(CONN_TYPE_OR_LISTENER,
-                                              AF_INET);
-  tt_int_op(port, OP_EQ, 9911);
-  addr = portconf_get_first_advertised_addr(CONN_TYPE_OR_LISTENER,
-                                              AF_INET);
-  tt_ptr_op(addr, OP_NE, NULL);
-  tt_str_op(fmt_addrport(addr,port), OP_EQ, "5.6.7.8:9911");
-
-  // Try AF_INET6
-  port = portconf_get_first_advertised_port(CONN_TYPE_OR_LISTENER,
-                                              AF_INET6);
-  tt_int_op(port, OP_EQ, 8080);
-  addr = portconf_get_first_advertised_addr(CONN_TYPE_OR_LISTENER,
-                                              AF_INET6);
-  tt_ptr_op(addr, OP_NE, NULL);
-  tt_str_op(fmt_addrport(addr,port), OP_EQ, "[1234::5678]:8080");
-
- done:
-  or_options_free(opts);
-  config_free_all();
 }
 
 static void
@@ -5885,7 +5568,6 @@ test_config_include_flag_both_without(void *data)
 
  done:
   tor_free(errmsg);
-  config_free_all();
 }
 
 static void
@@ -5926,7 +5608,6 @@ test_config_include_flag_torrc_only(void *data)
   tor_free(errmsg);
   tor_free(path);
   tor_free(dir);
-  config_free_all();
 }
 
 static void
@@ -5966,287 +5647,6 @@ test_config_include_flag_defaults_only(void *data)
  done:
   tor_free(errmsg);
   tor_free(path);
-  tor_free(dir);
-  config_free_all();
-}
-
-static void
-test_config_include_wildcards(void *data)
-{
-  (void)data;
-
-  char *temp = NULL, *folder = NULL;
-  config_line_t *result = NULL;
-  char *dir = tor_strdup(get_fname("test_include_wildcards"));
-  tt_ptr_op(dir, OP_NE, NULL);
-
-#ifdef _WIN32
-  tt_int_op(mkdir(dir), OP_EQ, 0);
-#else
-  tt_int_op(mkdir(dir, 0700), OP_EQ, 0);
-#endif
-
-  tor_asprintf(&temp, "%s"PATH_SEPARATOR"%s", dir, "01_one.conf");
-  tt_int_op(write_str_to_file(temp, "Test 1\n", 0), OP_EQ, 0);
-  tor_free(temp);
-
-  tor_asprintf(&temp, "%s"PATH_SEPARATOR"%s", dir, "02_two.conf");
-  tt_int_op(write_str_to_file(temp, "Test 2\n", 0), OP_EQ, 0);
-  tor_free(temp);
-
-  tor_asprintf(&temp, "%s"PATH_SEPARATOR"%s", dir, "aa_three.conf");
-  tt_int_op(write_str_to_file(temp, "Test 3\n", 0), OP_EQ, 0);
-  tor_free(temp);
-
-  tor_asprintf(&temp, "%s"PATH_SEPARATOR"%s", dir, "foo");
-  tt_int_op(write_str_to_file(temp, "Test 6\n", 0), OP_EQ, 0);
-  tor_free(temp);
-
-  tor_asprintf(&folder, "%s"PATH_SEPARATOR"%s", dir, "folder");
-
-#ifdef _WIN32
-  tt_int_op(mkdir(folder), OP_EQ, 0);
-#else
-  tt_int_op(mkdir(folder, 0700), OP_EQ, 0);
-#endif
-
-  tor_asprintf(&temp, "%s"PATH_SEPARATOR"%s", folder, "04_four.conf");
-  tt_int_op(write_str_to_file(temp, "Test 4\n", 0), OP_EQ, 0);
-  tor_free(temp);
-
-  tor_asprintf(&temp, "%s"PATH_SEPARATOR"%s", folder, "05_five.conf");
-  tt_int_op(write_str_to_file(temp, "Test 5\n", 0), OP_EQ, 0);
-  tor_free(temp);
-
-  char torrc_contents[1000];
-  int include_used;
-
-  // test pattern that matches no file
-  tor_snprintf(torrc_contents, sizeof(torrc_contents),
-               "%%include %s"PATH_SEPARATOR"not-exist*\n",
-               dir);
-  tt_int_op(config_get_lines_include(torrc_contents, &result, 0, &include_used,
-            NULL), OP_EQ, 0);
-  tt_ptr_op(result, OP_EQ, NULL);
-  tt_int_op(include_used, OP_EQ, 1);
-  config_free_lines(result);
-
-#ifndef _WIN32
-  // test wildcard escaping
-  tor_snprintf(torrc_contents, sizeof(torrc_contents),
-               "%%include %s"PATH_SEPARATOR"\\*\n",
-               dir);
-  tt_int_op(config_get_lines_include(torrc_contents, &result, 0, &include_used,
-            NULL), OP_EQ, -1);
-  tt_ptr_op(result, OP_EQ, NULL);
-  tt_int_op(include_used, OP_EQ, 1);
-  config_free_lines(result);
-#endif /* !defined(_WIN32) */
-
-  // test pattern *.conf
-  tor_snprintf(torrc_contents, sizeof(torrc_contents),
-               "%%include %s"PATH_SEPARATOR"*.conf\n",
-               dir);
-  tt_int_op(config_get_lines_include(torrc_contents, &result, 0, &include_used,
-            NULL), OP_EQ, 0);
-  tt_ptr_op(result, OP_NE, NULL);
-  tt_int_op(include_used, OP_EQ, 1);
-
-  int len = 0;
-  config_line_t *next;
-  char expected[10];
-  for (next = result; next != NULL; next = next->next) {
-    tor_snprintf(expected, sizeof(expected), "%d", len + 1);
-    tt_str_op(next->key, OP_EQ, "Test");
-    tt_str_op(next->value, OP_EQ, expected);
-    len++;
-  }
-  tt_int_op(len, OP_EQ, 3);
-  config_free_lines(result);
-
-  // test pattern that matches folder and files
-  tor_snprintf(torrc_contents, sizeof(torrc_contents),
-               "%%include %s"PATH_SEPARATOR"*\n",
-               dir);
-  tt_int_op(config_get_lines_include(torrc_contents, &result, 0, &include_used,
-            NULL), OP_EQ, 0);
-  tt_ptr_op(result, OP_NE, NULL);
-  tt_int_op(include_used, OP_EQ, 1);
-
-  len = 0;
-  for (next = result; next != NULL; next = next->next) {
-    tor_snprintf(expected, sizeof(expected), "%d", len + 1);
-    tt_str_op(next->key, OP_EQ, "Test");
-    tt_str_op(next->value, OP_EQ, expected);
-    len++;
-  }
-  tt_int_op(len, OP_EQ, 6);
-  config_free_lines(result);
-
-  // test pattern ending in PATH_SEPARATOR, test linux path separator
-  tor_snprintf(torrc_contents, sizeof(torrc_contents),
-               "%%include %s/f*/\n",
-               dir);
-  tt_int_op(config_get_lines_include(torrc_contents, &result, 0, &include_used,
-            NULL), OP_EQ, 0);
-  tt_ptr_op(result, OP_NE, NULL);
-  tt_int_op(include_used, OP_EQ, 1);
-
-  len = 0;
-  for (next = result; next != NULL; next = next->next) {
-    tor_snprintf(expected, sizeof(expected), "%d", len + 1 + 3);
-    tt_str_op(next->key, OP_EQ, "Test");
-    tt_str_op(next->value, OP_EQ, expected);
-    len++;
-  }
-  tt_int_op(len, OP_EQ, 2);
-  config_free_lines(result);
-
-  // test pattern with wildcards in folder and file
-  tor_snprintf(torrc_contents, sizeof(torrc_contents),
-               "%%include %s"PATH_SEPARATOR"*"PATH_SEPARATOR"*.conf\n",
-               dir);
-  tt_int_op(config_get_lines_include(torrc_contents, &result, 0, &include_used,
-            NULL), OP_EQ, 0);
-  tt_ptr_op(result, OP_NE, NULL);
-  tt_int_op(include_used, OP_EQ, 1);
-
-  len = 0;
-  for (next = result; next != NULL; next = next->next) {
-    tor_snprintf(expected, sizeof(expected), "%d", len + 1 + 3);
-    tt_str_op(next->key, OP_EQ, "Test");
-    tt_str_op(next->value, OP_EQ, expected);
-    len++;
-  }
-  tt_int_op(len, OP_EQ, 2);
-  config_free_lines(result);
-
- done:
-  config_free_lines(result);
-  tor_free(folder);
-  tor_free(temp);
-  tor_free(dir);
-}
-
-static void
-test_config_include_hidden(void *data)
-{
-  (void)data;
-
-  char *temp = NULL, *folder = NULL;
-  config_line_t *result = NULL;
-  char *dir = tor_strdup(get_fname("test_include_hidden"));
-  tt_ptr_op(dir, OP_NE, NULL);
-
-#ifdef _WIN32
-  tt_int_op(mkdir(dir), OP_EQ, 0);
-#else
-  tt_int_op(mkdir(dir, 0700), OP_EQ, 0);
-#endif
-
-  tor_asprintf(&folder, "%s"PATH_SEPARATOR"%s", dir, ".dotdir");
-
-#ifdef _WIN32
-  tt_int_op(mkdir(folder), OP_EQ, 0);
-#else
-  tt_int_op(mkdir(folder, 0700), OP_EQ, 0);
-#endif
-
-  tor_asprintf(&temp, "%s"PATH_SEPARATOR"%s", folder, ".dotfile");
-  tt_int_op(write_str_to_file(temp, "Test 1\n", 0), OP_EQ, 0);
-  tor_free(temp);
-
-  tor_asprintf(&temp, "%s"PATH_SEPARATOR"%s", folder, "file");
-  tt_int_op(write_str_to_file(temp, "Test 2\n", 0), OP_EQ, 0);
-  tor_free(temp);
-
-  char torrc_contents[1000];
-  int include_used;
-  int len = 0;
-  config_line_t *next;
-  char expected[10];
-
-  // test wildcards do not expand to dot folders (except for windows)
-  tor_snprintf(torrc_contents, sizeof(torrc_contents),
-               "%%include %s"PATH_SEPARATOR"*\n",
-               dir);
-  tt_int_op(config_get_lines_include(torrc_contents, &result, 0, &include_used,
-            NULL), OP_EQ, 0);
-  tt_int_op(include_used, OP_EQ, 1);
-#ifdef _WIN32 // wildcard expansion includes dot files on Windows
-  for (next = result; next != NULL; next = next->next) {
-    tor_snprintf(expected, sizeof(expected), "%d", len + 2);
-    tt_str_op(next->key, OP_EQ, "Test");
-    tt_str_op(next->value, OP_EQ, expected);
-    len++;
-  }
-  tt_int_op(len, OP_EQ, 1);
-#else /* !defined(_WIN32) */
-  tt_ptr_op(result, OP_EQ, NULL);
-#endif /* defined(_WIN32) */
-  config_free_lines(result);
-
-  // test wildcards match hidden folders when explicitly in the pattern
-  tor_snprintf(torrc_contents, sizeof(torrc_contents),
-               "%%include %s"PATH_SEPARATOR".*\n",
-               dir);
-  tt_int_op(config_get_lines_include(torrc_contents, &result, 0, &include_used,
-            NULL), OP_EQ, 0);
-  tt_ptr_op(result, OP_NE, NULL);
-  tt_int_op(include_used, OP_EQ, 1);
-
-  len = 0;
-  for (next = result; next != NULL; next = next->next) {
-    tor_snprintf(expected, sizeof(expected), "%d", len + 2);
-    tt_str_op(next->key, OP_EQ, "Test");
-    tt_str_op(next->value, OP_EQ, expected);
-    len++;
-  }
-  tt_int_op(len, OP_EQ, 1);
-  config_free_lines(result);
-
-  // test hidden dir when explicitly included
-  tor_snprintf(torrc_contents, sizeof(torrc_contents),
-               "%%include %s"PATH_SEPARATOR".dotdir\n",
-               dir);
-  tt_int_op(config_get_lines_include(torrc_contents, &result, 0, &include_used,
-            NULL), OP_EQ, 0);
-  tt_ptr_op(result, OP_NE, NULL);
-  tt_int_op(include_used, OP_EQ, 1);
-
-  len = 0;
-  for (next = result; next != NULL; next = next->next) {
-    tor_snprintf(expected, sizeof(expected), "%d", len + 2);
-    tt_str_op(next->key, OP_EQ, "Test");
-    tt_str_op(next->value, OP_EQ, expected);
-    len++;
-  }
-  tt_int_op(len, OP_EQ, 1);
-  config_free_lines(result);
-
-  // test hidden file when explicitly included
-  tor_snprintf(torrc_contents, sizeof(torrc_contents),
-               "%%include %s"PATH_SEPARATOR".dotdir"PATH_SEPARATOR".dotfile\n",
-               dir);
-  tt_int_op(config_get_lines_include(torrc_contents, &result, 0, &include_used,
-            NULL), OP_EQ, 0);
-  tt_ptr_op(result, OP_NE, NULL);
-  tt_int_op(include_used, OP_EQ, 1);
-
-  len = 0;
-  for (next = result; next != NULL; next = next->next) {
-    tor_snprintf(expected, sizeof(expected), "%d", len + 1);
-    tt_str_op(next->key, OP_EQ, "Test");
-    tt_str_op(next->value, OP_EQ, expected);
-    len++;
-  }
-  tt_int_op(len, OP_EQ, 1);
-  config_free_lines(result);
-
- done:
-  config_free_lines(result);
-  tor_free(folder);
-  tor_free(temp);
   tor_free(dir);
 }
 
@@ -6379,7 +5779,7 @@ test_config_include_opened_file_list(void *data)
   smartlist_t *opened_files = smartlist_new();
   char *torrcd = NULL;
   char *subfolder = NULL;
-  char *in_subfolder = NULL;
+  char *path = NULL;
   char *empty = NULL;
   char *file = NULL;
   char *dot = NULL;
@@ -6408,9 +5808,9 @@ test_config_include_opened_file_list(void *data)
   tt_int_op(mkdir(subfolder, 0700), OP_EQ, 0);
 #endif
 
-  tor_asprintf(&in_subfolder, "%s"PATH_SEPARATOR"%s", subfolder,
+  tor_asprintf(&path, "%s"PATH_SEPARATOR"%s", subfolder,
                "01_file_in_subfolder");
-  tt_int_op(write_str_to_file(in_subfolder, "Test 1\n", 0), OP_EQ, 0);
+  tt_int_op(write_str_to_file(path, "Test 1\n", 0), OP_EQ, 0);
 
   tor_asprintf(&empty, "%s"PATH_SEPARATOR"%s", torrcd, "empty");
   tt_int_op(write_str_to_file(empty, "", 0), OP_EQ, 0);
@@ -6441,69 +5841,13 @@ test_config_include_opened_file_list(void *data)
   // dot files are not opened as we ignore them when we get their name from
   // their parent folder
 
-  // test with wildcards
-  SMARTLIST_FOREACH(opened_files, char *, f, tor_free(f));
-  smartlist_clear(opened_files);
-  config_free_lines(result);
-  tor_snprintf(torrc_contents, sizeof(torrc_contents),
-               "%%include %s"PATH_SEPARATOR"*\n",
-               torrcd);
-  tt_int_op(config_get_lines_include(torrc_contents, &result, 0, &include_used,
-            opened_files), OP_EQ, 0);
-  tt_ptr_op(result, OP_NE, NULL);
-  tt_int_op(include_used, OP_EQ, 1);
-
-#ifdef _WIN32
-  tt_int_op(smartlist_len(opened_files), OP_EQ, 6);
-#else
-  tt_int_op(smartlist_len(opened_files), OP_EQ, 5);
-#endif
-  tt_int_op(smartlist_contains_string(opened_files, torrcd), OP_EQ, 1);
-  tt_int_op(smartlist_contains_string(opened_files, subfolder), OP_EQ, 1);
-  // * will match the subfolder inside torrc.d, so it will be included
-  tt_int_op(smartlist_contains_string(opened_files, in_subfolder), OP_EQ, 1);
-  tt_int_op(smartlist_contains_string(opened_files, empty), OP_EQ, 1);
-  tt_int_op(smartlist_contains_string(opened_files, file), OP_EQ, 1);
-#ifdef _WIN32
-  // * matches the dot file on Windows
-  tt_int_op(smartlist_contains_string(opened_files, dot), OP_EQ, 1);
-#endif
-
-  // test with wildcards in folder and file
-  SMARTLIST_FOREACH(opened_files, char *, f, tor_free(f));
-  smartlist_clear(opened_files);
-  config_free_lines(result);
-  tor_snprintf(torrc_contents, sizeof(torrc_contents),
-               "%%include %s"PATH_SEPARATOR"*"PATH_SEPARATOR"*\n",
-               torrcd);
-  tt_int_op(config_get_lines_include(torrc_contents, &result, 0, &include_used,
-            opened_files), OP_EQ, 0);
-  tt_ptr_op(result, OP_NE, NULL);
-  tt_int_op(include_used, OP_EQ, 1);
-
-#ifdef _WIN32
-  tt_int_op(smartlist_len(opened_files), OP_EQ, 6);
-#else
-  tt_int_op(smartlist_len(opened_files), OP_EQ, 5);
-#endif
-  tt_int_op(smartlist_contains_string(opened_files, torrcd), OP_EQ, 1);
-  tt_int_op(smartlist_contains_string(opened_files, subfolder), OP_EQ, 1);
-  tt_int_op(smartlist_contains_string(opened_files, in_subfolder), OP_EQ, 1);
-  // stat is called on the following files, so they count as opened
-  tt_int_op(smartlist_contains_string(opened_files, empty), OP_EQ, 1);
-  tt_int_op(smartlist_contains_string(opened_files, file), OP_EQ, 1);
-#ifdef _WIN32
-  // * matches the dot file on Windows
-  tt_int_op(smartlist_contains_string(opened_files, dot), OP_EQ, 1);
-#endif
-
  done:
   SMARTLIST_FOREACH(opened_files, char *, f, tor_free(f));
   smartlist_free(opened_files);
   config_free_lines(result);
   tor_free(torrcd);
   tor_free(subfolder);
-  tor_free(in_subfolder);
+  tor_free(path);
   tor_free(empty);
   tor_free(file);
   tor_free(dot);
@@ -6832,168 +6176,8 @@ test_config_getinfo_config_names(void *arg)
   tor_free(answer);
 }
 
-static void
-test_config_duplicate_orports(void *arg)
-{
-  (void)arg;
-
-  config_line_t *config_port = NULL;
-  smartlist_t *ports = smartlist_new();
-
-  // Pretend that the user has specified an implicit 0.0.0.0:9050, an implicit
-  // [::]:9050, and an explicit on [::1]:9050.
-  config_line_append(&config_port, "ORPort", "9050"); // two implicit entries.
-  config_line_append(&config_port, "ORPort", "[::1]:9050");
-
-  // Parse IPv4, then IPv6.
-  port_parse_config(ports, config_port, "OR", CONN_TYPE_OR_LISTENER, "0.0.0.0",
-                    0, CL_PORT_SERVER_OPTIONS);
-  port_parse_config(ports, config_port, "OR", CONN_TYPE_OR_LISTENER, "[::]",
-                    0, CL_PORT_SERVER_OPTIONS);
-
-  /* There should be 4 ports at this point that is:
-   *    - 0.0.0.0:9050
-   *    - [::]:9050
-   *    - [::1]:9050
-   *    - [::1]:9050
-   */
-  tt_int_op(smartlist_len(ports), OP_EQ, 4);
-
-  /* This will remove the [::] and the extra [::1]. */
-  remove_duplicate_orports(ports);
-
-  tt_int_op(smartlist_len(ports), OP_EQ, 2);
-  tt_str_op(describe_relay_port(smartlist_get(ports, 0)), OP_EQ,
-            "ORPort 9050");
-  tt_str_op(describe_relay_port(smartlist_get(ports, 1)), OP_EQ,
-            "ORPort [::1]:9050");
-
-  /* Reset. Test different ORPort value. */
-  SMARTLIST_FOREACH(ports, port_cfg_t *, p, port_cfg_free(p));
-  smartlist_free(ports);
-  config_free_lines(config_port);
-  config_port = NULL;
-  ports = smartlist_new();
-
-  /* Implicit port and then specific IPv6 addresses but more than one. */
-  config_line_append(&config_port, "ORPort", "9050"); // two implicit entries.
-  config_line_append(&config_port, "ORPort", "[4242::1]:9051");
-  config_line_append(&config_port, "ORPort", "[4242::2]:9051");
-
-  // Parse IPv4, then IPv6.
-  port_parse_config(ports, config_port, "OR", CONN_TYPE_OR_LISTENER, "0.0.0.0",
-                    0, CL_PORT_SERVER_OPTIONS);
-  port_parse_config(ports, config_port, "OR", CONN_TYPE_OR_LISTENER, "[::]",
-                    0, CL_PORT_SERVER_OPTIONS);
-
-  /* There should be 6 ports at this point that is:
-   *    - 0.0.0.0:9050
-   *    - [::]:9050
-   *    - [4242::1]:9051
-   *    - [4242::1]:9051
-   *    - [4242::2]:9051
-   *    - [4242::2]:9051
-   */
-  tt_int_op(smartlist_len(ports), OP_EQ, 6);
-
-  /* This will remove the [::] and the duplicates. */
-  remove_duplicate_orports(ports);
-
-  /* We have four address here, 1 IPv4 on 9050, IPv6 on 9050, IPv6 on 9051 and
-   * a different IPv6 on 9051. */
-  tt_int_op(smartlist_len(ports), OP_EQ, 4);
-  tt_str_op(describe_relay_port(smartlist_get(ports, 0)), OP_EQ,
-            "ORPort 9050");
-  tt_str_op(describe_relay_port(smartlist_get(ports, 1)), OP_EQ,
-            "ORPort [4242::1]:9051");
-  tt_str_op(describe_relay_port(smartlist_get(ports, 2)), OP_EQ,
-            "ORPort [4242::2]:9051");
-  tt_str_op(describe_relay_port(smartlist_get(ports, 3)), OP_EQ,
-            "ORPort 9050");
-
-  /* Reset. Test different ORPort value. */
-  SMARTLIST_FOREACH(ports, port_cfg_t *, p, port_cfg_free(p));
-  smartlist_free(ports);
-  config_free_lines(config_port);
-  config_port = NULL;
-  ports = smartlist_new();
-
-  /* Three different ports. */
-  config_line_append(&config_port, "ORPort", "9050"); // two implicit entries.
-  config_line_append(&config_port, "ORPort", "[4242::1]:9051");
-  config_line_append(&config_port, "ORPort", "[4242::2]:9052");
-
-  // Parse IPv4, then IPv6.
-  port_parse_config(ports, config_port, "OR", CONN_TYPE_OR_LISTENER, "0.0.0.0",
-                    0, CL_PORT_SERVER_OPTIONS);
-  port_parse_config(ports, config_port, "OR", CONN_TYPE_OR_LISTENER, "[::]",
-                    0, CL_PORT_SERVER_OPTIONS);
-
-  /* There should be 6 ports at this point that is:
-   *    - 0.0.0.0:9050
-   *    - [::]:9050
-   *    - [4242::1]:9051
-   *    - [4242::1]:9051
-   *    - [4242::2]:9052
-   *    - [4242::2]:9052
-   */
-  tt_int_op(smartlist_len(ports), OP_EQ, 6);
-
-  /* This will remove the [::] and the duplicates. */
-  remove_duplicate_orports(ports);
-
-  /* We have four address here, 1 IPv4 on 9050, IPv6 on 9050, IPv6 on 9051 and
-   * IPv6 on 9052. */
-  tt_int_op(smartlist_len(ports), OP_EQ, 4);
-  tt_str_op(describe_relay_port(smartlist_get(ports, 0)), OP_EQ,
-            "ORPort 9050");
-  tt_str_op(describe_relay_port(smartlist_get(ports, 1)), OP_EQ,
-            "ORPort [4242::1]:9051");
-  tt_str_op(describe_relay_port(smartlist_get(ports, 2)), OP_EQ,
-            "ORPort [4242::2]:9052");
-  tt_str_op(describe_relay_port(smartlist_get(ports, 3)), OP_EQ,
-            "ORPort 9050");
-
- done:
-  SMARTLIST_FOREACH(ports,port_cfg_t *,pf,port_cfg_free(pf));
-  smartlist_free(ports);
-  config_free_lines(config_port);
-}
-
-static void
-test_config_multifamily_port(void *arg)
-{
-  (void) arg;
-
-  config_line_t *config_port = NULL;
-  smartlist_t *ports = smartlist_new();
-
-  config_line_append(&config_port, "SocksPort", "9050");
-  config_line_append(&config_port, "SocksPort", "[::1]:9050");
-
-  // Parse IPv4, then IPv6.
-  port_parse_config(ports, config_port, "SOCKS", CONN_TYPE_AP_LISTENER,
-                    "0.0.0.0", 9050, 0);
-
-  /* There should be 2 ports at this point that is:
-   *    - 0.0.0.0:9050
-   *    - [::1]:9050
-   */
-  tt_int_op(smartlist_len(ports), OP_EQ, 2);
-
- done:
-  SMARTLIST_FOREACH(ports, port_cfg_t *, cfg, port_cfg_free(cfg));
-  smartlist_free(ports);
-  config_free_lines(config_port);
-}
-
-#ifndef COCCI
 #define CONFIG_TEST(name, flags)                          \
   { #name, test_config_ ## name, flags, NULL, NULL }
-
-#define CONFIG_TEST_SETUP(suffix, name, flags, setup, setup_data) \
-  { #name#suffix, test_config_ ## name, flags, setup, setup_data }
-#endif /* !defined(COCCI) */
 
 struct testcase_t config_tests[] = {
   CONFIG_TEST(adding_trusted_dir_server, TT_FORK),
@@ -7005,11 +6189,7 @@ struct testcase_t config_tests[] = {
   CONFIG_TEST(adding_dir_servers, TT_FORK),
   CONFIG_TEST(default_dir_servers, TT_FORK),
   CONFIG_TEST(default_fallback_dirs, 0),
-  CONFIG_TEST_SETUP(_v4, find_my_address, TT_FORK,
-                    &passthrough_setup, &addr_param_v4),
-  CONFIG_TEST_SETUP(_v6, find_my_address, TT_FORK,
-                    &passthrough_setup, &addr_param_v6),
-  CONFIG_TEST(find_my_address_mixed, TT_FORK),
+  CONFIG_TEST(resolve_my_address, TT_FORK),
   CONFIG_TEST(addressmap, 0),
   CONFIG_TEST(parse_bridge_line, 0),
   CONFIG_TEST(parse_transport_options_line, 0),
@@ -7023,7 +6203,6 @@ struct testcase_t config_tests[] = {
   CONFIG_TEST(parse_port_config__ports__no_ports_given, 0),
   CONFIG_TEST(parse_port_config__ports__server_options, 0),
   CONFIG_TEST(parse_port_config__ports__ports_given, 0),
-  CONFIG_TEST(get_first_advertised, TT_FORK),
   CONFIG_TEST(parse_log_severity, 0),
   CONFIG_TEST(include_limit, 0),
   CONFIG_TEST(include_does_not_exist, 0),
@@ -7042,8 +6221,6 @@ struct testcase_t config_tests[] = {
   CONFIG_TEST(include_flag_both_without, TT_FORK),
   CONFIG_TEST(include_flag_torrc_only, TT_FORK),
   CONFIG_TEST(include_flag_defaults_only, TT_FORK),
-  CONFIG_TEST(include_wildcards, 0),
-  CONFIG_TEST(include_hidden, 0),
   CONFIG_TEST(dup_and_filter, 0),
   CONFIG_TEST(check_bridge_distribution_setting_not_a_bridge, TT_FORK),
   CONFIG_TEST(check_bridge_distribution_setting_valid, 0),
@@ -7054,7 +6231,5 @@ struct testcase_t config_tests[] = {
   CONFIG_TEST(extended_fmt, 0),
   CONFIG_TEST(kvline_parse, 0),
   CONFIG_TEST(getinfo_config_names, 0),
-  CONFIG_TEST(duplicate_orports, 0),
-  CONFIG_TEST(multifamily_port, 0),
   END_OF_TESTCASES
 };

@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -30,8 +30,6 @@ void subsystems_shutdown_downto(int level);
 void subsystems_prefork(void);
 void subsystems_postfork(void);
 void subsystems_thread_cleanup(void);
-
-void subsystems_dump_list(void);
 
 struct config_mgr_t;
 int subsystems_register_options_formats(struct config_mgr_t *mgr);

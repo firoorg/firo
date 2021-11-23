@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -104,11 +104,12 @@ typedef struct {
 #endif /* defined(USE_LIBSECCOMP) */
 
 #ifdef USE_LIBSECCOMP
+/** Returns a registered protected string used with the sandbox, given that
+ * it matches the parameter.
+ */
 const char* sandbox_intern_string(const char *param);
-bool sandbox_interned_string_is_missing(const char *s);
 #else /* !defined(USE_LIBSECCOMP) */
 #define sandbox_intern_string(s) (s)
-#define sandbox_interned_string_is_missing(s) (false)
 #endif /* defined(USE_LIBSECCOMP) */
 
 /** Creates an empty sandbox configuration file.*/
@@ -133,13 +134,6 @@ int sandbox_cfg_allow_rename(sandbox_cfg_t **cfg, char *file1, char *file2);
  * that file.
  */
 int sandbox_cfg_allow_openat_filename(sandbox_cfg_t **cfg, char *file);
-
-/**
- * Function used to add a opendir allowed filename to a supplied configuration.
- * The (char*) specifies the path to the allowed dir; we steal the pointer to
- * that dir.
- */
-int sandbox_cfg_allow_opendir_dirname(sandbox_cfg_t **cfg, char *dir);
 
 /**
  * Function used to add a stat/stat64 allowed filename to a configuration.
