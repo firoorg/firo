@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2021, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -26,7 +26,7 @@ MOCK_DECL(STATIC int, directory_handle_command_post,(dir_connection_t *conn,
 
 STATIC int handle_post_hs_descriptor(const char *url, const char *body);
 enum compression_level_t;
-STATIC enum compression_level_t choose_compression_level(ssize_t n_bytes);
+STATIC enum compression_level_t choose_compression_level(void);
 
 struct get_handler_args_t;
 STATIC int handle_get_hs_descriptor_v3(dir_connection_t *conn,
