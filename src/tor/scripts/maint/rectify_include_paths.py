@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 # Future imports for Python 2.7, mandatory in 3.0
 from __future__ import division
@@ -29,12 +29,6 @@ def get_include_map():
         exclude(["ext", "win32"], dirnames)
 
         for fname in fnames:
-            # Avoid editor temporary files
-            if fname.startswith("."):
-                continue
-            if fname.startswith("#"):
-                continue
-
             if fname.endswith(".h"):
                 if fname in includes:
                     warn("Multiple headers named %s"%fname)
@@ -69,12 +63,6 @@ for dirpath,dirnames,fnames in os.walk("src"):
     exclude(["trunnel"], dirnames)
 
     for fname in fnames:
-        # Avoid editor temporary files
-        if fname.startswith("."):
-            continue
-        if fname.startswith("#"):
-            continue
-
         if fname.endswith(".c") or fname.endswith(".h"):
             fname = os.path.join(dirpath, fname)
             tmpfile = fname+".tmp"

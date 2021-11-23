@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2021, The Tor Project, Inc. */
+/* Copyright (c) 2014-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -16,47 +16,29 @@
 #include "core/or/or.h"
 
 #include "lib/buf/buffers.h"
+#include "app/config/config.h"
 #include "lib/confmgt/confmgt.h"
+#include "app/main/subsysmgr.h"
+#include "core/mainloop/connection.h"
+#include "core/or/connection_or.h"
 #include "lib/crypt_ops/crypto_rand.h"
+#include "core/mainloop/mainloop.h"
+#include "feature/nodelist/nodelist.h"
+#include "core/or/relay.h"
+#include "feature/nodelist/routerlist.h"
 #include "lib/dispatch/dispatch.h"
 #include "lib/dispatch/dispatch_naming.h"
-#include "lib/encoding/confline.h"
-#include "lib/net/resolve.h"
 #include "lib/pubsub/pubsub_build.h"
 #include "lib/pubsub/pubsub_connect.h"
-
-#include "core/mainloop/connection.h"
-#include "core/mainloop/mainloop.h"
-#include "core/or/connection_or.h"
-#include "core/or/crypt_path.h"
-#include "core/or/relay.h"
-
-#include "feature/nodelist/nodelist.h"
-#include "feature/nodelist/routerlist.h"
-
-#include "app/config/config.h"
-#include "app/main/subsysmgr.h"
+#include "lib/encoding/confline.h"
+#include "lib/net/resolve.h"
 
 #include "core/or/cell_st.h"
 #include "core/or/connection_st.h"
-#include "core/or/cpath_build_state_st.h"
-#include "core/or/crypt_path_st.h"
-#include "core/or/origin_circuit_st.h"
 #include "core/or/or_connection_st.h"
-
 #include "feature/nodelist/node_st.h"
+#include "core/or/origin_circuit_st.h"
 #include "feature/nodelist/routerlist_st.h"
-
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-
-#ifdef _WIN32
-/* For mkdir() */
-#include <direct.h>
-#else
-#include <dirent.h>
-#endif /* defined(_WIN32) */
 
 #include "test/test.h"
 #include "test/test_helpers.h"
@@ -113,16 +95,11 @@ helper_setup_fake_routerlist(void)
   MOCK(router_descriptor_is_older_than,
        router_descriptor_is_older_than_replacement);
 
-  // Pick a time when these descriptors' certificates were valid.
-  update_approx_time(1603981036);
-
   /* Load all the test descriptors to the routerlist. */
   retval = router_load_routers_from_string(TEST_DESCRIPTORS,
                                            NULL, SAVED_IN_JOURNAL,
                                            NULL, 0, NULL);
   tt_int_op(retval, OP_EQ, HELPER_NUMBER_OF_DESCRIPTORS);
-
-  update_approx_time(0); // this restores the regular approx_time behavior
 
   /* Sanity checking of routerlist and nodelist. */
   our_routerlist = router_get_routerlist();
@@ -208,78 +185,6 @@ mock_tor_addr_lookup__fail_on_bad_addrs(const char *name,
     return -1;
   }
   return tor_addr_lookup__real(name, family, out);
-}
-
-static char *
-create_directory(const char *parent_dir, const char *name)
-{
-  char *dir = NULL;
-  tor_asprintf(&dir, "%s"PATH_SEPARATOR"%s", parent_dir, name);
-#ifdef _WIN32
-  tt_int_op(mkdir(dir), OP_EQ, 0);
-#else
-  tt_int_op(mkdir(dir, 0700), OP_EQ, 0);
-#endif
-  return dir;
-
- done:
-  tor_free(dir);
-  return NULL;
-}
-
-static char *
-create_file(const char *parent_dir, const char *name, const char *contents)
-{
-  char *path = NULL;
-  tor_asprintf(&path, "%s"PATH_SEPARATOR"%s", parent_dir, name);
-  contents = contents == NULL ? "" : contents;
-  tt_int_op(write_str_to_file(path, contents, 0), OP_EQ, 0);
-  return path;
-
- done:
-  tor_free(path);
-  return NULL;
-}
-
-int
-create_test_directory_structure(const char *parent_dir)
-{
-  int ret = -1;
-  char *dir1 = NULL;
-  char *dir2 = NULL;
-  char *file1 = NULL;
-  char *file2 = NULL;
-  char *dot = NULL;
-  char *empty = NULL;
-  char *forbidden = NULL;
-
-  dir1 = create_directory(parent_dir, "dir1");
-  tt_assert(dir1);
-  dir2 = create_directory(parent_dir, "dir2");
-  tt_assert(dir2);
-  file1 = create_file(parent_dir, "file1", "Test 1");
-  tt_assert(file1);
-  file2 = create_file(parent_dir, "file2", "Test 2");
-  tt_assert(file2);
-  dot = create_file(parent_dir, ".test-hidden", "Test .");
-  tt_assert(dot);
-  empty = create_file(parent_dir, "empty", NULL);
-  tt_assert(empty);
-  forbidden = create_directory(parent_dir, "forbidden");
-  tt_assert(forbidden);
-#ifndef _WIN32
-  tt_int_op(chmod(forbidden, 0), OP_EQ, 0);
-#endif
-  ret = 0;
- done:
-  tor_free(dir1);
-  tor_free(dir2);
-  tor_free(file1);
-  tor_free(file2);
-  tor_free(dot);
-  tor_free(empty);
-  tor_free(forbidden);
-  return ret;
 }
 
 /*********** Helper funcs for making new connections/streams *****************/
@@ -536,36 +441,3 @@ helper_cleanup_pubsub(const struct testcase_t *testcase, void *dispatcher_)
 const struct testcase_setup_t helper_pubsub_setup = {
   helper_setup_pubsub, helper_cleanup_pubsub
 };
-
-origin_circuit_t *
-new_test_origin_circuit(bool has_opened,
-                        struct timeval circ_start_time,
-                        int path_len,
-                        extend_info_t **ei_list)
-{
-  origin_circuit_t *origin_circ = origin_circuit_new();
-
-  TO_CIRCUIT(origin_circ)->purpose = CIRCUIT_PURPOSE_C_GENERAL;
-
-  origin_circ->build_state = tor_malloc_zero(sizeof(cpath_build_state_t));
-  origin_circ->build_state->desired_path_len = path_len;
-
-  if (ei_list) {
-    for (int i = 0; i < path_len; i++) {
-      extend_info_t *ei = ei_list[i];
-      cpath_append_hop(&origin_circ->cpath, ei);
-    }
-  }
-
-  if (has_opened) {
-    origin_circ->has_opened = 1;
-    TO_CIRCUIT(origin_circ)->state = CIRCUIT_STATE_OPEN;
-    origin_circ->cpath->state = CPATH_STATE_OPEN;
-  } else {
-    TO_CIRCUIT(origin_circ)->timestamp_began = circ_start_time;
-    TO_CIRCUIT(origin_circ)->timestamp_created = circ_start_time;
-    origin_circ->cpath->state = CPATH_STATE_CLOSED;
-  }
-
-  return origin_circ;
-}

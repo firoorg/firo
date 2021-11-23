@@ -1,4 +1,6 @@
-# Writing tests for Tor: an incomplete guide
+
+Writing tests for Tor: an incomplete guide
+==========================================
 
 Tor uses a variety of testing frameworks and methodologies to try to
 keep from introducing bugs.  The major ones are:
@@ -17,7 +19,8 @@ keep from introducing bugs.  The major ones are:
 
    5. The Shadow network simulator.
 
-## How to run these tests
+How to run these tests
+----------------------
 
 ### The easy version
 
@@ -61,7 +64,7 @@ The former are those that should finish in a few seconds; the latter tend to
 take more time, and may include CPU-intensive operations, deliberate delays,
 and stuff like that.
 
-## Finding test coverage
+### Finding test coverage
 
 Test coverage is a measurement of which lines your tests actually visit.
 
@@ -107,11 +110,9 @@ covered or uncovered.
 
 To count new or modified uncovered lines in D2, you can run:
 
-```console
-$ ./scripts/test/cov-diff ${D1} ${D2}" | grep '^+ *\#' | wc -l
-```
+    ./scripts/test/cov-diff ${D1} ${D2}" | grep '^+ *\#' | wc -l
 
-## Marking lines as unreachable by tests
+### Marking lines as unreachable by tests
 
 You can mark a specific line as unreachable by using the special
 string LCOV_EXCL_LINE.  You can mark a range of lines as unreachable
@@ -125,7 +126,9 @@ unreached lines with 'x', and excluded reached lines with '!!!'.
 Note: you should never do this unless the line is meant to 100%
 unreachable by actual code.
 
-## What kinds of test should I write?
+
+What kinds of test should I write?
+----------------------------------
 
 Integration testing and unit testing are complementary: it's probably a
 good idea to make sure that your code is hit by both if you can.
@@ -140,7 +143,8 @@ If your code adds new externally visible functionality to Tor, it would
 be great to have a test for that functionality.  That's where
 integration tests more usually come in.
 
-## Unit and regression tests: Does this function do what it's supposed to?
+Unit and regression tests: Does this function do what it's supposed to?
+-----------------------------------------------------------------------
 
 Most of Tor's unit tests are made using the "tinytest" testing framework.
 You can see a guide to using it in the tinytest manual at
@@ -161,34 +165,32 @@ If you have created a new test file, you will need to:
 
 I use the term "unit test" and "regression tests" very sloppily here.
 
-## A simple example
+### A simple example
 
 Here's an example of a test function for a simple function in util.c:
 
-```c
-static void
-test_util_writepid(void *arg)
-{
-    (void) arg;
+    static void
+    test_util_writepid(void *arg)
+    {
+      (void) arg;
 
-    char *contents = NULL;
-    const char *fname = get_fname("tmp_pid");
-    unsigned long pid;
-    char c;
+      char *contents = NULL;
+      const char *fname = get_fname("tmp_pid");
+      unsigned long pid;
+      char c;
 
-    write_pidfile(fname);
+      write_pidfile(fname);
 
-    contents = read_file_to_str(fname, 0, NULL);
-    tt_assert(contents);
+      contents = read_file_to_str(fname, 0, NULL);
+      tt_assert(contents);
 
-    int n = sscanf(contents, "%lu\n%c", &pid, &c);
-    tt_int_op(n, OP_EQ, 1);
-    tt_int_op(pid, OP_EQ, getpid());
+      int n = sscanf(contents, "%lu\n%c", &pid, &c);
+      tt_int_op(n, OP_EQ, 1);
+      tt_int_op(pid, OP_EQ, getpid());
 
-done:
-    tor_free(contents);
-}
-```
+    done:
+      tor_free(contents);
+    }
 
 This should look pretty familiar to you if you've read the tinytest
 manual.  One thing to note here is that we use the testing-specific
@@ -205,7 +207,7 @@ Finally, remember that by convention, all `*_free()` functions that
 Tor defines are defined to accept NULL harmlessly.  Thus, you don't
 need to say `if (contents)` in the cleanup block.
 
-## Exposing static functions for testing
+### Exposing static functions for testing
 
 Sometimes you need to test a function, but you don't want to expose
 it outside its usual module.
@@ -218,17 +220,15 @@ macro-protected declaration of the function in the module's header.
 
 For example, `crypto_curve25519.h` contains:
 
-```c
-#ifdef CRYPTO_CURVE25519_PRIVATE
-STATIC int curve25519_impl(uint8_t *output, const uint8_t *secret,
-        const uint8_t *basepoint);
-#endif
-```
+    #ifdef CRYPTO_CURVE25519_PRIVATE
+    STATIC int curve25519_impl(uint8_t *output, const uint8_t *secret,
+                           const uint8_t *basepoint);
+    #endif
 
 The `crypto_curve25519.c` file and the `test_crypto.c` file both define
 `CRYPTO_CURVE25519_PRIVATE`, so they can see this declaration.
 
-## STOP!  Does this test really test?
+### STOP!  Does this test really test?
 
 When writing tests, it's not enough to just generate coverage on all the
 lines of the code that you're testing:  It's important to make sure that
@@ -237,29 +237,28 @@ the test _really tests_ the code.
 For example, here is a _bad_ test for the unlink() function (which is
 supposed to remove a file).
 
-```c
-static void
-test_unlink_badly(void *arg)
-{
-    (void) arg;
-    int r;
+    static void
+    test_unlink_badly(void *arg)
+    {
+      (void) arg;
+      int r;
 
-    const char *fname = get_fname("tmpfile");
+      const char *fname = get_fname("tmpfile");
 
-    /* If the file isn't there, unlink returns -1 and sets ENOENT */
-    r = unlink(fname);
-    tt_int_op(n, OP_EQ, -1);
-    tt_int_op(errno, OP_EQ, ENOENT);
+      /* If the file isn't there, unlink returns -1 and sets ENOENT */
+      r = unlink(fname);
+      tt_int_op(n, OP_EQ, -1);
+      tt_int_op(errno, OP_EQ, ENOENT);
 
-    /* If the file DOES exist, unlink returns 0. */
-    write_str_to_file(fname, "hello world", 0);
-    r = unlink(fnme);
-    tt_int_op(r, OP_EQ, 0);
+      /* If the file DOES exist, unlink returns 0. */
+      write_str_to_file(fname, "hello world", 0);
+      r = unlink(fnme);
+      tt_int_op(r, OP_EQ, 0);
 
-done:
-    tor_free(contents);
-}
-```
+    done:
+      tor_free(contents);
+    }
+
 
 This test might get very high coverage on unlink().  So why is it a
 bad test? Because it doesn't check that unlink() *actually removes the
@@ -270,7 +269,8 @@ it's supposed to do, and fail otherwise.  Try to design your tests so
 that they check for the code's intended and documented functionality
 as much as possible.
 
-## Mock functions for testing in isolation
+
+### Mock functions for testing in isolation
 
 Often we want to test that a function works right, but the function to
 be tested depends on other functions whose behavior is hard to observe,
@@ -280,25 +280,20 @@ To write tests for this case, you can replace the underlying functions
 with testing stubs while your unit test is running.  You need to declare
 the underlying function as 'mockable', as follows:
 
-```c
-MOCK_DECL(returntype, functionname, (argument list));
-```
+    MOCK_DECL(returntype, functionname, (argument list));
 
 and then later implement it as:
 
-```c
-MOCK_IMPL(returntype, functionname, (argument list))
-{
-    /* implementation here */
-}
-```
+    MOCK_IMPL(returntype, functionname, (argument list))
+    {
+       /* implementation here */
+    }
 
 For example, if you had a 'connect to remote server' function, you could
 declare it as:
 
-```c
-MOCK_DECL(int, connect_to_remote, (const char *name, status_t *status));
-```
+
+    MOCK_DECL(int, connect_to_remote, (const char *name, status_t *status));
 
 When you declare a function this way, it will be declared as normal in
 regular builds, but when the module is built for testing, it is declared
@@ -307,20 +302,16 @@ as a function pointer initialized to the actual implementation.
 In your tests, if you want to override the function with a temporary
 replacement, you say:
 
-```c
-MOCK(functionname, replacement_function_name);
-```
+    MOCK(functionname, replacement_function_name);
 
 And later, you can restore the original function with:
 
-```c
-UNMOCK(functionname);
-```
+    UNMOCK(functionname);
 
 For more information, see the definitions of this mocking logic in
 `testsupport.h`.
 
-## Okay but what should my tests actually do?
+### Okay but what should my tests actually do?
 
 We talk above about "test coverage" -- making sure that your tests visit
 every line of code, or every branch of code.  But visiting the code isn't
@@ -340,13 +331,11 @@ cases and failure csaes.
 
 For example, consider testing this function:
 
-```c
-/** Remove all elements E from sl such that E==element.  Preserve
- * the order of any elements before E, but elements after E can be
- * rearranged.
- */
-void smartlist_remove(smartlist_t *sl, const void *element);
-```
+    /** Remove all elements E from sl such that E==element.  Preserve
+     * the order of any elements before E, but elements after E can be
+     * rearranged.
+     */
+    void smartlist_remove(smartlist_t *sl, const void *element);
 
 In order to test it well, you should write tests for at least all of the
 following cases.  (These would be black-box tests, since we're only looking
@@ -373,21 +362,19 @@ When you consider edge cases, you might try:
 
 Now let's look at the implementation:
 
-```c
-void
-smartlist_remove(smartlist_t *sl, const void *element)
-{
-    int i;
-    if (element == NULL)
+    void
+    smartlist_remove(smartlist_t *sl, const void *element)
+    {
+      int i;
+      if (element == NULL)
         return;
-    for (i=0; i < sl->num_used; i++)
+      for (i=0; i < sl->num_used; i++)
         if (sl->list[i] == element) {
-            sl->list[i] = sl->list[--sl->num_used]; /* swap with the end */
-            i--; /* so we process the new i'th element */
-            sl->list[sl->num_used] = NULL;
+          sl->list[i] = sl->list[--sl->num_used]; /* swap with the end */
+          i--; /* so we process the new i'th element */
+          sl->list[sl->num_used] = NULL;
         }
-}
-```
+    }
 
 Based on the implementation, we now see three more edge cases to test:
 
@@ -395,7 +382,8 @@ Based on the implementation, we now see three more edge cases to test:
    * Removing an element from the end of the list
    * Removing an element from a position other than the end of the list.
 
-## What should my tests NOT do?
+
+### What should my tests NOT do?
 
 Tests shouldn't require a network connection.
 
@@ -413,7 +401,8 @@ When possible, tests should not be over-fit to the implementation.  That is,
 the test should verify that the documented behavior is implemented, but
 should not break if other permissible behavior is later implemented.
 
-## Advanced techniques: Namespaces
+
+### Advanced techniques: Namespaces
 
 Sometimes, when you're doing a lot of mocking at once, it's convenient to
 isolate your identifiers within a single namespace.  If this were C++, we'd
@@ -425,7 +414,9 @@ them, you define `NS_MODULE` to a prefix to be used for your identifiers, and
 then use other macros in place of identifier names.  See `src/test/test.h` for
 more documentation.
 
-## Integration tests: Calling Tor from the outside
+
+Integration tests: Calling Tor from the outside
+-----------------------------------------------
 
 Some tests need to invoke Tor from the outside, and shouldn't run from the
 same process as the Tor test program.  Reasons for doing this might include:
@@ -445,7 +436,8 @@ wrapped, add a new shell script to `TESTS`, and the new program to
 makefile (eg `${PYTHON}` for a python interpreter), then make sure that the
 makefile exports them.
 
-## Writing integration tests with Stem
+Writing integration tests with Stem
+-----------------------------------
 
 The 'stem' library includes extensive tests for the Tor controller protocol.
 You can run stem tests from tor with `make test-stem`, or see
@@ -491,7 +483,8 @@ you notice any strange behaviour that seems totally unreasonable.
 Check out the `test_exit_policy()` function in abovementioned file to see the
 final implementation for this test.
 
-## System testing with Chutney
+System testing with Chutney
+---------------------------
 
 The 'chutney' program configures and launches a set of Tor relays,
 authorities, and clients on your local host.  It has a `test network`
@@ -504,15 +497,3 @@ targets in `Makefile.am`.
 
 (Adding new kinds of program to chutney will still require hacking the
 code.)
-
-## Other integration tests
-
-It's fine to write tests that use a POSIX shell to invoke Tor or test other
-aspects of the system.  When you do this, have a look at our existing tests
-of this kind in `src/test/` to make sure that you haven't forgotten anything
-important.  For example: it can be tricky to make sure you're invoking Tor at
-the right path in various build scenarios.
-
-We use a POSIX shell whenever possible here, and we use the shellcheck tool
-to make sure that our scripts portable.  We should only require bash for
-scripts that are developer-only.

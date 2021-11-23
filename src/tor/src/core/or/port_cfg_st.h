@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -26,8 +26,6 @@ struct port_cfg_t {
   unsigned is_group_writable : 1;
   unsigned is_world_writable : 1;
   unsigned relax_dirmode_check : 1;
-  unsigned explicit_addr : 1; /** Indicate if address was explicitly set or
-                               * we are using the default address. */
 
   entry_port_cfg_t entry_cfg;
 

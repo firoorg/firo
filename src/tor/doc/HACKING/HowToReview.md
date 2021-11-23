@@ -1,4 +1,5 @@
-# How to review a patch
+How to review a patch
+=====================
 
 Some folks have said that they'd like to review patches more often, but they
 don't know how.
@@ -8,7 +9,9 @@ So, here are a bunch of things to check for when reviewing a patch!
 Note that if you can't do every one of these, that doesn't mean you can't do
 a good review!  Just make it clear what you checked for and what you didn't.
 
-## Top-level smell-checks
+
+Top-level smell-checks
+----------------------
 
 (Difficulty: easy)
 
@@ -34,9 +37,10 @@ a good review!  Just make it clear what you checked for and what you didn't.
 - If this changes anything in the code, is there a "changes" file?
 
 
-## Let's look at the code!
+Let's look at the code!
+-----------------------
 
-- Does the code conform to `CodingStandards.md`?
+- Does the code conform to CodingStandards.txt?
 
 - Does the code leak memory?
 
@@ -56,7 +60,8 @@ a good review!  Just make it clear what you checked for and what you didn't.
 - Is there duplicated code that could be turned into a function?
 
 
-## Let's look at the documentation!
+Let's look at the documentation!
+--------------------------------
 
 - Does the documentation conform to CodingStandards.txt?
 
@@ -65,7 +70,8 @@ a good review!  Just make it clear what you checked for and what you didn't.
 - Can you predict what the function will do from its documentation?
 
 
-## Let's think about security!
+Let's think about security!
+---------------------------
 
 - If there are any arrays, buffers, are you 100% sure that they cannot
   overflow?

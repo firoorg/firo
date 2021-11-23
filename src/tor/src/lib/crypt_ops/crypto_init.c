@@ -1,7 +1,7 @@
 /* Copyright (c) 2001, Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -317,7 +317,6 @@ crypto_set_options(void *arg)
 
 const struct subsys_fns_t sys_crypto = {
   .name = "crypto",
-  SUBSYS_DECLARE_LOCATION(),
   .supported = true,
   .level = -60,
   .initialize = subsys_crypto_initialize,

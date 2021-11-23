@@ -1,6 +1,6 @@
 /* Copyright (c) 2003, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -456,7 +456,6 @@ subsys_tortls_shutdown(void)
 
 const subsys_fns_t sys_tortls = {
   .name = "tortls",
-  SUBSYS_DECLARE_LOCATION(),
   .level = -50,
   .shutdown = subsys_tortls_shutdown
 };

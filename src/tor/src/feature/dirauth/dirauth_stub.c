@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -26,7 +26,6 @@ static const config_format_t dirauth_options_stub_fmt = {
 
 const struct subsys_fns_t sys_dirauth = {
   .name = "dirauth",
-  SUBSYS_DECLARE_LOCATION(),
   .supported = false,
   .level = DIRAUTH_SUBSYS_LEVEL,
 

@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -13,7 +13,6 @@
 #define TOR_DIRECTORY_H
 
 dir_connection_t *TO_DIR_CONN(connection_t *c);
-const dir_connection_t *CONST_TO_DIR_CONN(const connection_t *c);
 
 #define DIR_CONN_STATE_MIN_ 1
 /** State for connection to directory server: waiting for connect(). */
@@ -30,7 +29,10 @@ const dir_connection_t *CONST_TO_DIR_CONN(const connection_t *c);
 #define DIR_CONN_STATE_SERVER_WRITING 6
 #define DIR_CONN_STATE_MAX_ 6
 
-#define DIR_PURPOSE_MIN_ 6
+#define DIR_PURPOSE_MIN_ 4
+/** A connection to a directory server: set after a v2 rendezvous
+ * descriptor is downloaded. */
+#define DIR_PURPOSE_HAS_FETCHED_RENDDESC_V2 4
 /** A connection to a directory server: download one or more server
  * descriptors. */
 #define DIR_PURPOSE_FETCH_SERVERDESC 6
@@ -58,9 +60,12 @@ const dir_connection_t *CONST_TO_DIR_CONN(const connection_t *c);
 
 /** Purpose for connection at a directory server. */
 #define DIR_PURPOSE_SERVER 16
-
-/** Value 17 and 18 were onion service v2 purposes. */
-
+/** A connection to a hidden service directory server: upload a v2 rendezvous
+ * descriptor. */
+#define DIR_PURPOSE_UPLOAD_RENDDESC_V2 17
+/** A connection to a hidden service directory server: download a v2 rendezvous
+ * descriptor. */
+#define DIR_PURPOSE_FETCH_RENDDESC_V2 18
 /** A connection to a directory server: download a microdescriptor. */
 #define DIR_PURPOSE_FETCH_MICRODESC 19
 /** A connection to a hidden service directory: upload a v3 descriptor. */
@@ -78,13 +83,8 @@ const dir_connection_t *CONST_TO_DIR_CONN(const connection_t *c);
   ((p)==DIR_PURPOSE_UPLOAD_DIR ||               \
    (p)==DIR_PURPOSE_UPLOAD_VOTE ||              \
    (p)==DIR_PURPOSE_UPLOAD_SIGNATURES ||        \
+   (p)==DIR_PURPOSE_UPLOAD_RENDDESC_V2 ||       \
    (p)==DIR_PURPOSE_UPLOAD_HSDESC)
-
-/** True iff p is a purpose corresponding to onion service that is either
- * uploading or fetching actions. */
-#define DIR_PURPOSE_IS_HS(p)          \
-  ((p) == DIR_PURPOSE_FETCH_HSDESC || \
-   (p) == DIR_PURPOSE_UPLOAD_HSDESC)
 
 enum compress_method_t;
 int parse_http_response(const char *headers, int *code, time_t *date,

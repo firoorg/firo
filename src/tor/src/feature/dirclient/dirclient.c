@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -21,7 +21,6 @@
 #include "feature/client/entrynodes.h"
 #include "feature/control/control_events.h"
 #include "feature/dirauth/authmode.h"
-#include "feature/dirclient/dirclient.h"
 #include "feature/dirauth/dirvote.h"
 #include "feature/dirauth/shared_random.h"
 #include "feature/dircache/dirserv.h"
@@ -44,13 +43,14 @@
 #include "feature/nodelist/routerinfo.h"
 #include "feature/nodelist/routerlist.h"
 #include "feature/nodelist/routerset.h"
-#include "feature/relay/relay_find_addr.h"
 #include "feature/relay/routermode.h"
 #include "feature/relay/selftest.h"
+#include "feature/rend/rendcache.h"
+#include "feature/rend/rendclient.h"
 #include "feature/rend/rendcommon.h"
+#include "feature/rend/rendservice.h"
 #include "feature/stats/predict_ports.h"
 
-#include "lib/cc/ctassert.h"
 #include "lib/compress/compress.h"
 #include "lib/crypt_ops/crypto_format.h"
 #include "lib/crypt_ops/crypto_util.h"
@@ -64,6 +64,7 @@
 #include "feature/nodelist/networkstatus_st.h"
 #include "feature/nodelist/node_st.h"
 #include "feature/nodelist/routerinfo_st.h"
+#include "feature/rend/rend_service_descriptor_st.h"
 
 /** Maximum size, in bytes, for any directory object that we've downloaded. */
 #define MAX_DIR_DL_SIZE ((1<<24)-1) /* 16 MB - 1 */
@@ -116,6 +117,10 @@ dir_conn_purpose_to_string(int purpose)
       return "status vote fetch";
     case DIR_PURPOSE_FETCH_DETACHED_SIGNATURES:
       return "consensus signature fetch";
+    case DIR_PURPOSE_FETCH_RENDDESC_V2:
+      return "hidden-service v2 descriptor fetch";
+    case DIR_PURPOSE_UPLOAD_RENDDESC_V2:
+      return "hidden-service v2 descriptor upload";
     case DIR_PURPOSE_FETCH_HSDESC:
       return "hidden-service descriptor fetch";
     case DIR_PURPOSE_UPLOAD_HSDESC:
@@ -276,10 +281,10 @@ directory_post_to_dirservers(uint8_t dir_purpose, uint8_t router_purpose,
       }
       if (purpose_needs_anonymity(dir_purpose, router_purpose, NULL)) {
         indirection = DIRIND_ANONYMOUS;
-      } else if (!reachable_addr_allows_dir_server(ds,
+      } else if (!fascist_firewall_allows_dir_server(ds,
                                                      FIREWALL_DIR_CONNECTION,
                                                      0)) {
-        if (reachable_addr_allows_dir_server(ds, FIREWALL_OR_CONNECTION, 0))
+        if (fascist_firewall_allows_dir_server(ds, FIREWALL_OR_CONNECTION, 0))
           indirection = DIRIND_ONEHOP;
         else
           indirection = DIRIND_ANONYMOUS;
@@ -479,7 +484,7 @@ directory_get_from_dirserver,(
         tor_addr_port_t or_ap;
         directory_request_t *req = directory_request_new(dir_purpose);
         /* we are willing to use a non-preferred address if we need to */
-        reachable_addr_choose_from_node(node, FIREWALL_OR_CONNECTION, 0,
+        fascist_firewall_choose_address_node(node, FIREWALL_OR_CONNECTION, 0,
                                              &or_ap);
         directory_request_set_or_addr_port(req, &or_ap);
         directory_request_set_directory_id_digest(req,
@@ -646,11 +651,11 @@ directory_choose_address_routerstatus(const routerstatus_t *status,
 
   /* ORPort connections */
   if (indirection == DIRIND_ANONYMOUS) {
-    if (!tor_addr_is_null(&status->ipv4_addr)) {
+    if (status->addr) {
       /* Since we're going to build a 3-hop circuit and ask the 2nd relay
        * to extend to this address, always use the primary (IPv4) OR address */
-      tor_addr_copy(&use_or_ap->addr, &status->ipv4_addr);
-      use_or_ap->port = status->ipv4_orport;
+      tor_addr_from_ipv4h(&use_or_ap->addr, status->addr);
+      use_or_ap->port = status->or_port;
       have_or = 1;
     }
   } else if (indirection == DIRIND_ONEHOP) {
@@ -658,7 +663,7 @@ directory_choose_address_routerstatus(const routerstatus_t *status,
      * Use the preferred address and port if they are reachable, otherwise,
      * use the alternate address and port (if any).
      */
-    reachable_addr_choose_from_rs(status, FIREWALL_OR_CONNECTION, 0,
+    fascist_firewall_choose_address_rs(status, FIREWALL_OR_CONNECTION, 0,
                                        use_or_ap);
     have_or = tor_addr_port_is_valid_ap(use_or_ap, 0);
   }
@@ -669,7 +674,7 @@ directory_choose_address_routerstatus(const routerstatus_t *status,
       indirection == DIRIND_ANON_DIRPORT ||
       (indirection == DIRIND_ONEHOP
        && !dirclient_must_use_begindir(options))) {
-    reachable_addr_choose_from_rs(status, FIREWALL_DIR_CONNECTION, 0,
+    fascist_firewall_choose_address_rs(status, FIREWALL_DIR_CONNECTION, 0,
                                        use_dir_ap);
     have_dir = tor_addr_port_is_valid_ap(use_dir_ap, 0);
   }
@@ -678,14 +683,12 @@ directory_choose_address_routerstatus(const routerstatus_t *status,
    * connect to it. */
   if (!have_or && !have_dir) {
     static int logged_backtrace = 0;
-    char *ipv6_str = tor_addr_to_str_dup(&status->ipv6_addr);
     log_info(LD_BUG, "Rejected all OR and Dir addresses from %s when "
              "launching an outgoing directory connection to: IPv4 %s OR %d "
              "Dir %d IPv6 %s OR %d Dir %d", routerstatus_describe(status),
-             fmt_addr(&status->ipv4_addr), status->ipv4_orport,
-             status->ipv4_dirport, ipv6_str, status->ipv6_orport,
-             status->ipv4_dirport);
-    tor_free(ipv6_str);
+             fmt_addr32(status->addr), status->or_port,
+             status->dir_port, fmt_addr(&status->ipv6_addr),
+             status->ipv6_orport, status->dir_port);
     if (!logged_backtrace) {
       log_backtrace(LOG_INFO, LD_BUG, "Addresses came from");
       logged_backtrace = 1;
@@ -693,6 +696,24 @@ directory_choose_address_routerstatus(const routerstatus_t *status,
     return -1;
   }
 
+  return 0;
+}
+
+/** Return true iff <b>conn</b> is the client side of a directory connection
+ * we launched to ourself in order to determine the reachability of our
+ * dir_port. */
+static int
+directory_conn_is_self_reachability_test(dir_connection_t *conn)
+{
+  if (conn->requested_resource &&
+      !strcmpstart(conn->requested_resource,"authority")) {
+    const routerinfo_t *me = router_get_my_routerinfo();
+    if (me &&
+        router_digest_is_me(conn->identity_digest) &&
+        tor_addr_eq_ipv4h(&conn->base_.addr, me->addr) && /*XXXX prop 118*/
+        me->dir_port == conn->base_.port)
+      return 1;
+  }
   return 0;
 }
 
@@ -708,28 +729,16 @@ connection_dir_client_request_failed(dir_connection_t *conn)
      * failed. */
     entry_guard_failed(&conn->guard_state);
   }
+  if (directory_conn_is_self_reachability_test(conn)) {
+    return; /* this was a test fetch. don't retry. */
+  }
   if (!entry_list_is_constrained(get_options()))
-    /* We must not set a directory to non-running for HS purposes else we end
-     * up flagging nodes from the hashring has unusable. It doesn't have direct
-     * effect on the HS subsystem because the nodes are selected regardless of
-     * their status but still, we shouldn't flag them as non running.
-     *
-     * One example where this can go bad is if a tor instance gets added a lot
-     * of ephemeral services and with a network with problem then many nodes in
-     * the consenus ends up unusable.
-     *
-     * Furthermore, a service does close any pending directory connections
-     * before uploading a descriptor and thus we can end up here in a natural
-     * way since closing a pending directory connection leads to this code
-     * path. */
-    if (!DIR_PURPOSE_IS_HS(TO_CONN(conn)->purpose)) {
-      router_set_status(conn->identity_digest, 0);
-    }
+    router_set_status(conn->identity_digest, 0); /* don't try this one again */
   if (conn->base_.purpose == DIR_PURPOSE_FETCH_SERVERDESC ||
              conn->base_.purpose == DIR_PURPOSE_FETCH_EXTRAINFO) {
     log_info(LD_DIR, "Giving up on serverdesc/extrainfo fetch from "
-             "directory server at %s; retrying",
-             connection_describe_peer(TO_CONN(conn)));
+             "directory server at '%s'; retrying",
+             conn->base_.address);
     if (conn->router_purpose == ROUTER_PURPOSE_BRIDGE)
       connection_dir_bridge_routerdesc_failed(conn);
     connection_dir_download_routerdesc_failed(conn);
@@ -738,19 +747,18 @@ connection_dir_client_request_failed(dir_connection_t *conn)
       networkstatus_consensus_download_failed(0, conn->requested_resource);
   } else if (conn->base_.purpose == DIR_PURPOSE_FETCH_CERTIFICATE) {
     log_info(LD_DIR, "Giving up on certificate fetch from directory server "
-             "at %s; retrying",
-             connection_describe_peer(TO_CONN(conn)));
+             "at '%s'; retrying",
+             conn->base_.address);
     connection_dir_download_cert_failed(conn, 0);
   } else if (conn->base_.purpose == DIR_PURPOSE_FETCH_DETACHED_SIGNATURES) {
-    log_info(LD_DIR, "Giving up downloading detached signatures from %s",
-             connection_describe_peer(TO_CONN(conn)));
+    log_info(LD_DIR, "Giving up downloading detached signatures from '%s'",
+             conn->base_.address);
   } else if (conn->base_.purpose == DIR_PURPOSE_FETCH_STATUS_VOTE) {
-    log_info(LD_DIR, "Giving up downloading votes from %s",
-             connection_describe_peer(TO_CONN(conn)));
+    log_info(LD_DIR, "Giving up downloading votes from '%s'",
+             conn->base_.address);
   } else if (conn->base_.purpose == DIR_PURPOSE_FETCH_MICRODESC) {
     log_info(LD_DIR, "Giving up on downloading microdescriptors from "
-             "directory server at %s; will retry",
-             connection_describe_peer(TO_CONN(conn)));
+             "directory server at '%s'; will retry", conn->base_.address);
     connection_dir_download_routerdesc_failed(conn);
   }
 }
@@ -907,7 +915,7 @@ directory_command_should_use_begindir(const or_options_t *options,
   }
   if (indirection == DIRIND_ONEHOP) {
     /* We're firewalled and want a direct OR connection */
-    if (!reachable_addr_allows_addr(or_addr, or_port,
+    if (!fascist_firewall_allows_address_addr(or_addr, or_port,
                                               FIREWALL_OR_CONNECTION, 0, 0)) {
       *reason = "ORPort not reachable";
       return 0;
@@ -936,6 +944,7 @@ directory_request_new(uint8_t dir_purpose)
   tor_assert(dir_purpose >= DIR_PURPOSE_MIN_);
   tor_assert(dir_purpose <= DIR_PURPOSE_MAX_);
   tor_assert(dir_purpose != DIR_PURPOSE_SERVER);
+  tor_assert(dir_purpose != DIR_PURPOSE_HAS_FETCHED_RENDDESC_V2);
   tor_assert(dir_purpose != DIR_PURPOSE_HAS_FETCHED_HSDESC);
 
   directory_request_t *result = tor_malloc_zero(sizeof(*result));
@@ -1071,6 +1080,21 @@ directory_request_add_header(directory_request_t *req,
                              const char *val)
 {
   config_line_prepend(&req->additional_headers, key, val);
+}
+/**
+ * Set an object containing HS data to be associated with this request.  Note
+ * that only an alias to <b>query</b> is stored, so the <b>query</b> object
+ * must outlive the request.
+ */
+void
+directory_request_set_rend_query(directory_request_t *req,
+                                 const rend_data_t *query)
+{
+  if (query) {
+    tor_assert(req->dir_purpose == DIR_PURPOSE_FETCH_RENDDESC_V2 ||
+               req->dir_purpose == DIR_PURPOSE_UPLOAD_RENDDESC_V2);
+  }
+  req->rend_query = query;
 }
 /**
  * Set an object containing HS connection identifier to be associated with
@@ -1220,6 +1244,7 @@ directory_initiate_request,(directory_request_t *request))
   const uint8_t router_purpose = request->router_purpose;
   const dir_indirection_t indirection = request->indirection;
   const char *resource = request->resource;
+  const rend_data_t *rend_query = request->rend_query;
   const hs_ident_dir_conn_t *hs_ident = request->hs_ident;
   circuit_guard_state_t *guard_state = request->guard_state;
 
@@ -1255,7 +1280,7 @@ directory_initiate_request,(directory_request_t *request))
 
   if (purpose_needs_anonymity(dir_purpose, router_purpose, resource)) {
     tor_assert(anonymized_connection ||
-               hs_service_non_anonymous_mode_enabled(options));
+               rend_non_anonymous_mode_enabled(options));
   }
 
   /* use encrypted begindir connections for everything except relays
@@ -1307,7 +1332,15 @@ directory_initiate_request,(directory_request_t *request))
   /* XXXX This is a bad name for this field now. */
   conn->dirconn_direct = !anonymized_connection;
 
+  /* copy rendezvous data, if any */
+  if (rend_query) {
+    /* We can't have both v2 and v3+ identifier. */
+    tor_assert_nonfatal(!hs_ident);
+    conn->rend_data = rend_data_dup(rend_query);
+  }
   if (hs_ident) {
+    /* We can't have both v2 and v3+ identifier. */
+    tor_assert_nonfatal(!rend_query);
     conn->hs_ident = hs_ident_dir_conn_dup(hs_ident);
   }
 
@@ -1410,7 +1443,9 @@ compare_strs_(const void **a, const void **b)
 }
 
 #define CONDITIONAL_CONSENSUS_FPR_LEN 3
-CTASSERT(CONDITIONAL_CONSENSUS_FPR_LEN <= DIGEST_LEN);
+#if (CONDITIONAL_CONSENSUS_FPR_LEN > DIGEST_LEN)
+#error "conditional consensus fingerprint length is larger than digest length"
+#endif
 
 /** Return the URL we should use for a consensus download.
  *
@@ -1642,12 +1677,25 @@ directory_send_command(dir_connection_t *conn,
       httpcommand = "POST";
       url = tor_strdup("/tor/post/consensus-signature");
       break;
+    case DIR_PURPOSE_FETCH_RENDDESC_V2:
+      tor_assert(resource);
+      tor_assert(strlen(resource) <= REND_DESC_ID_V2_LEN_BASE32);
+      tor_assert(!payload);
+      httpcommand = "GET";
+      tor_asprintf(&url, "/tor/rendezvous2/%s", resource);
+      break;
     case DIR_PURPOSE_FETCH_HSDESC:
       tor_assert(resource);
       tor_assert(strlen(resource) <= ED25519_BASE64_LEN);
       tor_assert(!payload);
       httpcommand = "GET";
       tor_asprintf(&url, "/tor/hs/3/%s", resource);
+      break;
+    case DIR_PURPOSE_UPLOAD_RENDDESC_V2:
+      tor_assert(!resource);
+      tor_assert(payload);
+      httpcommand = "POST";
+      url = tor_strdup("/tor/rendezvous2/publish");
       break;
     case DIR_PURPOSE_UPLOAD_HSDESC:
       tor_assert(resource);
@@ -1705,10 +1753,10 @@ directory_send_command(dir_connection_t *conn,
   smartlist_free(headers);
 
   log_debug(LD_DIR,
-            "Sent request to directory server %s "
+            "Sent request to directory server '%s:%d': "
             "(purpose: %d, request size: %"TOR_PRIuSZ", "
             "payload size: %"TOR_PRIuSZ")",
-            connection_describe_peer(TO_CONN(conn)),
+            conn->base_.address, conn->base_.port,
             conn->base_.purpose,
             (total_request_len),
             (payload ? payload_len : 0));
@@ -1792,6 +1840,10 @@ static int handle_response_upload_vote(dir_connection_t *,
                                        const response_handler_args_t *);
 static int handle_response_upload_signatures(dir_connection_t *,
                                              const response_handler_args_t *);
+static int handle_response_fetch_renddesc_v2(dir_connection_t *,
+                                             const response_handler_args_t *);
+static int handle_response_upload_renddesc_v2(dir_connection_t *,
+                                              const response_handler_args_t *);
 static int handle_response_upload_hsdesc(dir_connection_t *,
                                          const response_handler_args_t *);
 
@@ -1840,10 +1892,9 @@ dir_client_decompress_response_body(char **bodyp, size_t *bodylenp,
   }
 
   tor_log(severity, LD_HTTP,
-          "HTTP body from %s was labeled as %s, "
+          "HTTP body from server '%s:%d' was labeled as %s, "
           "%s it seems to be %s.%s",
-          connection_describe(TO_CONN(conn)),
-          description1,
+          conn->base_.address, conn->base_.port, description1,
           guessed != compression?"but":"and",
           description2,
           (compression>0 && guessed>0 && want_to_try_both)?
@@ -1888,13 +1939,12 @@ dir_client_decompress_response_body(char **bodyp, size_t *bodylenp,
   /* If we're pretty sure that we have a compressed directory, and
    * we didn't manage to uncompress it, then warn and bail. */
   if (!plausible && !new_body) {
-    static ratelim_t warning_limit = RATELIM_INIT(60 * 60);
-    log_fn_ratelim(&warning_limit, LOG_WARN, LD_HTTP,
-           "Unable to decompress HTTP body (tried %s%s%s, on %s).",
+    log_fn(LOG_PROTOCOL_WARN, LD_HTTP,
+           "Unable to decompress HTTP body (tried %s%s%s, server '%s:%d').",
            description1,
            tried_both?" and ":"",
            tried_both?description2:"",
-           connection_describe(TO_CONN(conn)));
+           conn->base_.address, conn->base_.port);
     rv = -1;
     goto done;
   }
@@ -1912,48 +1962,6 @@ dir_client_decompress_response_body(char **bodyp, size_t *bodylenp,
   }
 
   return rv;
-}
-
-/**
- * Total number of bytes downloaded of each directory purpose, when
- * bootstrapped, and when not bootstrapped.
- *
- * (For example, the number of bytes downloaded of purpose p while
- * not fully bootstrapped is total_dl[p][false].)
- **/
-static uint64_t total_dl[DIR_PURPOSE_MAX_][2];
-
-/**
- * Heartbeat: dump a summary of how many bytes of which purpose we've
- * downloaded, when bootstrapping and when not bootstrapping.
- **/
-void
-dirclient_dump_total_dls(void)
-{
-  const or_options_t *options = get_options();
-  for (int bootstrapped = 0; bootstrapped < 2; ++bootstrapped) {
-    smartlist_t *lines = smartlist_new();
-    for (int i=0; i < DIR_PURPOSE_MAX_; ++i) {
-      uint64_t n = total_dl[i][bootstrapped];
-      if (n == 0)
-        continue;
-      if (options->SafeLogging_ != SAFELOG_SCRUB_NONE &&
-          purpose_needs_anonymity(i, ROUTER_PURPOSE_GENERAL, NULL))
-        continue;
-      smartlist_add_asprintf(lines, "%"PRIu64" (%s)",
-                             n, dir_conn_purpose_to_string(i));
-    }
-
-    if (smartlist_len(lines) > 0) {
-      char *log_line = smartlist_join_strings(lines, "; ", 0, NULL);
-      log_notice(LD_NET, "While %sbootstrapping, fetched this many bytes: %s",
-                 bootstrapped?"not ":"", log_line);
-      tor_free(log_line);
-
-      SMARTLIST_FOREACH(lines, char *, s, tor_free(s));
-    }
-    smartlist_free(lines);
-  }
 }
 
 /** We are a client, and we've finished reading the server's
@@ -1989,24 +1997,14 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
 
   received_bytes = connection_get_inbuf_len(TO_CONN(conn));
 
-  log_debug(LD_DIR, "Downloaded %"TOR_PRIuSZ" bytes on connection of purpose "
-             "%s; bootstrap %d%%",
-             received_bytes,
-             dir_conn_purpose_to_string(conn->base_.purpose),
-             control_get_bootstrap_percent());
-  {
-    bool bootstrapped = control_get_bootstrap_percent() == 100;
-    total_dl[conn->base_.purpose][bootstrapped] += received_bytes;
-  }
-
   switch (connection_fetch_from_buf_http(TO_CONN(conn),
                               &headers, MAX_HEADERS_SIZE,
                               &body, &body_len, MAX_DIR_DL_SIZE,
                               allow_partial)) {
     case -1: /* overflow */
       log_warn(LD_PROTOCOL,
-               "'fetch' response too large (%s). Closing.",
-               connection_describe(TO_CONN(conn)));
+               "'fetch' response too large (server '%s:%d'). Closing.",
+               conn->base_.address, conn->base_.port);
       return -1;
     case 0:
       log_info(LD_HTTP,
@@ -2017,22 +2015,22 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
 
   if (parse_http_response(headers, &status_code, &date_header,
                           &compression, &reason) < 0) {
-    log_warn(LD_HTTP,"Unparseable headers (%s). Closing.",
-             connection_describe(TO_CONN(conn)));
+    log_warn(LD_HTTP,"Unparseable headers (server '%s:%d'). Closing.",
+             conn->base_.address, conn->base_.port);
+
     rv = -1;
     goto done;
   }
   if (!reason) reason = tor_strdup("[no reason given]");
 
   tor_log(LOG_DEBUG, LD_DIR,
-            "Received response on %s: %d %s "
+            "Received response from directory server '%s:%d': %d %s "
             "(purpose: %d, response size: %"TOR_PRIuSZ
 #ifdef MEASUREMENTS_21206
             ", data cells received: %d, data cells sent: %d"
 #endif
             ", compression: %d)",
-            connection_describe(TO_CONN(conn)),
-            status_code,
+            conn->base_.address, conn->base_.port, status_code,
             escaped(reason), conn->base_.purpose,
             (received_bytes),
 #ifdef MEASUREMENTS_21206
@@ -2057,13 +2055,7 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
   if (conn->dirconn_direct) {
     char *guess = http_get_header(headers, X_ADDRESS_HEADER);
     if (guess) {
-      tor_addr_t addr;
-      if (tor_addr_parse(&addr, guess) < 0) {
-        log_debug(LD_DIR, "Malformed X-Your-Address-Is header %s. Ignoring.",
-                  escaped(guess));
-      } else {
-        relay_address_new_suggestion(&addr, &TO_CONN(conn)->addr, NULL);
-      }
+      router_new_address_suggestion(guess, conn);
       tor_free(guess);
     }
   }
@@ -2092,9 +2084,9 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
     dir_server_t *ds;
     const char *id_digest = conn->identity_digest;
     log_info(LD_DIR,"Received http status code %d (%s) from server "
-             "%s. I'll try again soon.",
-             status_code, escaped(reason),
-             connection_describe_peer(TO_CONN(conn)));
+             "'%s:%d'. I'll try again soon.",
+             status_code, escaped(reason), conn->base_.address,
+             conn->base_.port);
     time_t now = approx_time();
     if ((rs = router_get_mutable_consensus_status_by_id(id_digest)))
       rs->last_dir_503_at = now;
@@ -2139,6 +2131,9 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
     case DIR_PURPOSE_FETCH_MICRODESC:
       rv = handle_response_fetch_microdesc(conn, &args);
       break;
+    case DIR_PURPOSE_FETCH_RENDDESC_V2:
+      rv = handle_response_fetch_renddesc_v2(conn, &args);
+      break;
     case DIR_PURPOSE_UPLOAD_DIR:
       rv = handle_response_upload_dir(conn, &args);
       break;
@@ -2147,6 +2142,9 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
       break;
     case DIR_PURPOSE_UPLOAD_VOTE:
       rv = handle_response_upload_vote(conn, &args);
+      break;
+    case DIR_PURPOSE_UPLOAD_RENDDESC_V2:
+      rv = handle_response_upload_renddesc_v2(conn, &args);
       break;
     case DIR_PURPOSE_UPLOAD_HSDESC:
       rv = handle_response_upload_hsdesc(conn, &args);
@@ -2193,32 +2191,27 @@ handle_response_fetch_consensus(dir_connection_t *conn,
     int severity = (status_code == 304) ? LOG_INFO : LOG_WARN;
     tor_log(severity, LD_DIR,
             "Received http status code %d (%s) from server "
-            "%s while fetching consensus directory.",
-            status_code, escaped(reason),
-            connection_describe_peer(TO_CONN(conn)));
+            "'%s:%d' while fetching consensus directory.",
+            status_code, escaped(reason), conn->base_.address,
+            conn->base_.port);
     networkstatus_consensus_download_failed(status_code, flavname);
     return -1;
   }
 
   if (looks_like_a_consensus_diff(body, body_len)) {
     /* First find our previous consensus. Maybe it's in ram, maybe not. */
-    cached_dir_t *cd = NULL;
+    cached_dir_t *cd = dirserv_get_consensus(flavname);
     const char *consensus_body = NULL;
     size_t consensus_body_len;
     tor_mmap_t *mapped_consensus = NULL;
-
-    /* We prefer the mmap'd version over the cached_dir_t version,
-     * since that matches the logic we used when we picked a consensus
-     * back in dir_consensus_request_set_additional_headers. */
-    mapped_consensus = networkstatus_map_cached_consensus(flavname);
-    if (mapped_consensus) {
-      consensus_body = mapped_consensus->data;
-      consensus_body_len = mapped_consensus->size;
+    if (cd) {
+      consensus_body = cd->dir;
+      consensus_body_len = cd->dir_len;
     } else {
-      cd = dirserv_get_consensus(flavname);
-      if (cd) {
-        consensus_body = cd->dir;
-        consensus_body_len = cd->dir_len;
+      mapped_consensus = networkstatus_map_cached_consensus(flavname);
+      if (mapped_consensus) {
+        consensus_body = mapped_consensus->data;
+        consensus_body_len = mapped_consensus->size;
       }
     }
     if (!consensus_body) {
@@ -2235,21 +2228,21 @@ handle_response_fetch_consensus(dir_connection_t *conn,
     tor_munmap_file(mapped_consensus);
     if (new_consensus == NULL) {
       log_warn(LD_DIR, "Could not apply consensus diff received from server "
-               "%s", connection_describe_peer(TO_CONN(conn)));
+               "'%s:%d'", conn->base_.address, conn->base_.port);
       // XXXX If this happens too many times, we should maybe not use
       // XXXX this directory for diffs any more?
       networkstatus_consensus_download_failed(0, flavname);
       return -1;
     }
     log_info(LD_DIR, "Applied consensus diff (size %d) from server "
-             "%s, resulting in a new consensus document (size %d).",
-             (int)body_len, connection_describe_peer(TO_CONN(conn)),
+             "'%s:%d', resulting in a new consensus document (size %d).",
+             (int)body_len, conn->base_.address, conn->base_.port,
              (int)strlen(new_consensus));
     consensus = new_consensus;
     sourcename = "generated based on a diff";
   } else {
     log_info(LD_DIR,"Received consensus directory (body size %d) from server "
-             "%s", (int)body_len, connection_describe_peer(TO_CONN(conn)));
+             "'%s:%d'", (int)body_len, conn->base_.address, conn->base_.port);
     consensus = body;
     sourcename = "downloaded";
   }
@@ -2260,9 +2253,8 @@ handle_response_fetch_consensus(dir_connection_t *conn,
                                              conn->identity_digest))<0) {
     log_fn(r<-1?LOG_WARN:LOG_INFO, LD_DIR,
            "Unable to load %s consensus directory %s from "
-           "server %s. I'll try again soon.",
-           flavname, sourcename,
-           connection_describe_peer(TO_CONN(conn)));
+           "server '%s:%d'. I'll try again soon.",
+           flavname, sourcename, conn->base_.address, conn->base_.port);
     networkstatus_consensus_download_failed(0, flavname);
     tor_free(new_consensus);
     return -1;
@@ -2303,16 +2295,15 @@ handle_response_fetch_certificate(dir_connection_t *conn,
   if (status_code != 200) {
     log_warn(LD_DIR,
              "Received http status code %d (%s) from server "
-             "%s while fetching \"/tor/keys/%s\".",
-             status_code, escaped(reason),
-             connection_describe_peer(TO_CONN(conn)),
-             conn->requested_resource);
+             "'%s:%d' while fetching \"/tor/keys/%s\".",
+             status_code, escaped(reason), conn->base_.address,
+             conn->base_.port, conn->requested_resource);
     connection_dir_download_cert_failed(conn, status_code);
     return -1;
   }
   log_info(LD_DIR,"Received authority certificates (body size %d) from "
-           "server %s",
-           (int)body_len, connection_describe_peer(TO_CONN(conn)));
+           "server '%s:%d'",
+           (int)body_len, conn->base_.address, conn->base_.port);
 
   /*
    * Tell trusted_dirs_load_certs_from_string() whether it was by fp
@@ -2363,18 +2354,17 @@ handle_response_fetch_status_vote(dir_connection_t *conn,
 
   const char *msg;
   int st;
-  log_notice(LD_DIR,"Got votes (body size %d) from server %s",
-             (int)body_len, connection_describe_peer(TO_CONN(conn)));
+  log_info(LD_DIR,"Got votes (body size %d) from server %s:%d",
+           (int)body_len, conn->base_.address, conn->base_.port);
   if (status_code != 200) {
     log_warn(LD_DIR,
              "Received http status code %d (%s) from server "
-             "%s while fetching \"/tor/status-vote/next/%s.z\".",
-             status_code, escaped(reason),
-             connection_describe_peer(TO_CONN(conn)),
-             conn->requested_resource);
+             "'%s:%d' while fetching \"/tor/status-vote/next/%s.z\".",
+             status_code, escaped(reason), conn->base_.address,
+             conn->base_.port, conn->requested_resource);
     return -1;
   }
-  dirvote_add_vote(body, 0, TO_CONN(conn)->address, &msg, &st);
+  dirvote_add_vote(body, &msg, &st);
   if (st > 299) {
     log_warn(LD_DIR, "Error adding retrieved vote: %s", msg);
   } else {
@@ -2399,21 +2389,19 @@ handle_response_fetch_detached_signatures(dir_connection_t *conn,
   const size_t body_len = args->body_len;
 
   const char *msg = NULL;
-  log_info(LD_DIR,"Got detached signatures (body size %d) from server %s",
-           (int)body_len,
-           connection_describe_peer(TO_CONN(conn)));
+  log_info(LD_DIR,"Got detached signatures (body size %d) from server %s:%d",
+           (int)body_len, conn->base_.address, conn->base_.port);
   if (status_code != 200) {
     log_warn(LD_DIR,
-        "Received http status code %d (%s) from server %s while fetching "
+        "Received http status code %d (%s) from server '%s:%d' while fetching "
         "\"/tor/status-vote/next/consensus-signatures.z\".",
-        status_code, escaped(reason),
-        connection_describe_peer(TO_CONN(conn)));
+        status_code, escaped(reason), conn->base_.address,
+        conn->base_.port);
     return -1;
   }
   if (dirvote_add_signatures(body, conn->base_.address, &msg)<0) {
-    log_warn(LD_DIR, "Problem adding detached signatures from %s: %s",
-             connection_describe_peer(TO_CONN(conn)),
-             msg?msg:"???");
+    log_warn(LD_DIR, "Problem adding detached signatures from %s:%d: %s",
+             conn->base_.address, conn->base_.port, msg?msg:"???");
   }
 
   return 0;
@@ -2439,9 +2427,9 @@ handle_response_fetch_desc(dir_connection_t *conn,
   int n_asked_for = 0;
   int descriptor_digests = conn->requested_resource &&
     !strcmpstart(conn->requested_resource,"d/");
-  log_info(LD_DIR,"Received %s (body size %d) from server %s",
+  log_info(LD_DIR,"Received %s (body size %d) from server '%s:%d'",
            was_ei ? "extra server info" : "server info",
-           (int)body_len, connection_describe_peer(TO_CONN(conn)));
+           (int)body_len, conn->base_.address, conn->base_.port);
   if (conn->requested_resource &&
       (!strcmpstart(conn->requested_resource,"d/") ||
        !strcmpstart(conn->requested_resource,"fp/"))) {
@@ -2453,18 +2441,14 @@ handle_response_fetch_desc(dir_connection_t *conn,
   }
   if (status_code != 200) {
     int dir_okay = status_code == 404 ||
-      (status_code == 400 && !strcmp(reason, "Servers unavailable.")) ||
-       status_code == 301;
+      (status_code == 400 && !strcmp(reason, "Servers unavailable."));
     /* 404 means that it didn't have them; no big deal.
-     * Older (pre-0.1.1.8) servers said 400 Servers unavailable instead.
-     * 301 is considered as an error since Tor does not follow redirects,
-     * which means we failed to reach the server we wanted. */
+     * Older (pre-0.1.1.8) servers said 400 Servers unavailable instead. */
     log_fn(dir_okay ? LOG_INFO : LOG_WARN, LD_DIR,
-           "Received http status code %d (%s) from server %s "
+           "Received http status code %d (%s) from server '%s:%d' "
            "while fetching \"/tor/server/%s\". I'll try again soon.",
-           status_code, escaped(reason),
-           connection_describe_peer(TO_CONN(conn)),
-           conn->requested_resource);
+           status_code, escaped(reason), conn->base_.address,
+           conn->base_.port, conn->requested_resource);
     if (!which) {
       connection_dir_download_routerdesc_failed(conn);
     } else {
@@ -2504,10 +2488,10 @@ handle_response_fetch_desc(dir_connection_t *conn,
     }
   }
   if (which) { /* mark remaining ones as failed */
-    log_info(LD_DIR, "Received %d/%d %s requested from %s",
+    log_info(LD_DIR, "Received %d/%d %s requested from %s:%d",
              n_asked_for-smartlist_len(which), n_asked_for,
              was_ei ? "extra-info documents" : "router descriptors",
-             connection_describe_peer(TO_CONN(conn)));
+             conn->base_.address, (int)conn->base_.port);
     if (smartlist_len(which)) {
       dir_routerdesc_download_failed(which, status_code,
                                      conn->router_purpose,
@@ -2516,6 +2500,8 @@ handle_response_fetch_desc(dir_connection_t *conn,
     SMARTLIST_FOREACH(which, char *, cp, tor_free(cp));
     smartlist_free(which);
   }
+  if (directory_conn_is_self_reachability_test(conn))
+    router_dirport_found_reachable();
 
   return 0;
 }
@@ -2536,9 +2522,9 @@ handle_response_fetch_microdesc(dir_connection_t *conn,
 
   smartlist_t *which = NULL;
   log_info(LD_DIR,"Received answer to microdescriptor request (status %d, "
-           "body size %d) from server %s",
-           status_code, (int)body_len,
-           connection_describe_peer(TO_CONN(conn)));
+           "body size %d) from server '%s:%d'",
+           status_code, (int)body_len, conn->base_.address,
+           conn->base_.port);
   tor_assert(conn->requested_resource &&
              !strcmpstart(conn->requested_resource, "d/"));
   tor_assert_nonfatal(!fast_mem_is_zero(conn->identity_digest, DIGEST_LEN));
@@ -2548,11 +2534,10 @@ handle_response_fetch_microdesc(dir_connection_t *conn,
                                        DSR_DIGEST256|DSR_BASE64);
   if (status_code != 200) {
     log_info(LD_DIR, "Received status code %d (%s) from server "
-             "%s while fetching \"/tor/micro/%s\".  I'll try again "
+             "'%s:%d' while fetching \"/tor/micro/%s\".  I'll try again "
              "soon.",
-             status_code, escaped(reason),
-             connection_describe_peer(TO_CONN(conn)),
-             conn->requested_resource);
+             status_code, escaped(reason), conn->base_.address,
+             (int)conn->base_.port, conn->requested_resource);
     dir_microdesc_download_failed(which, status_code, conn->identity_digest);
     SMARTLIST_FOREACH(which, char *, cp, tor_free(cp));
     smartlist_free(which);
@@ -2627,8 +2612,8 @@ handle_response_upload_dir(dir_connection_t *conn,
     break;
   case 400:
     log_warn(LD_GENERAL,"http status 400 (%s) response from "
-             "dirserver %s. Please correct.",
-             escaped(reason), connection_describe_peer(TO_CONN(conn)));
+             "dirserver '%s:%d'. Please correct.",
+             escaped(reason), conn->base_.address, conn->base_.port);
     control_event_server_status(LOG_WARN,
                     "BAD_SERVER_DESCRIPTOR DIRAUTH=%s:%d REASON=\"%s\"",
                     conn->base_.address, conn->base_.port, escaped(reason));
@@ -2636,10 +2621,10 @@ handle_response_upload_dir(dir_connection_t *conn,
   default:
     log_warn(LD_GENERAL,
              "HTTP status %d (%s) was unexpected while uploading "
-             "descriptor to server %s'. Possibly the server is "
+             "descriptor to server '%s:%d'. Possibly the server is "
              "misconfigured?",
-             status_code, escaped(reason),
-             connection_describe_peer(TO_CONN(conn)));
+             status_code, escaped(reason), conn->base_.address,
+             conn->base_.port);
     break;
   }
   /* return 0 in all cases, since we don't want to mark any
@@ -2662,21 +2647,21 @@ handle_response_upload_vote(dir_connection_t *conn,
 
   switch (status_code) {
   case 200: {
-    log_notice(LD_DIR,"Uploaded my vote to dirserver %s",
-               connection_describe_peer(TO_CONN(conn)));
+    log_notice(LD_DIR,"Uploaded a vote to dirserver %s:%d",
+               conn->base_.address, conn->base_.port);
   }
     break;
   case 400:
     log_warn(LD_DIR,"http status 400 (%s) response after uploading "
-             "vote to dirserver %s. Please correct.",
-             escaped(reason), connection_describe_peer(TO_CONN(conn)));
+             "vote to dirserver '%s:%d'. Please correct.",
+             escaped(reason), conn->base_.address, conn->base_.port);
     break;
   default:
     log_warn(LD_GENERAL,
              "HTTP status %d (%s) was unexpected while uploading "
-             "vote to server %s.",
-             status_code, escaped(reason),
-             connection_describe_peer(TO_CONN(conn)));
+             "vote to server '%s:%d'.",
+             status_code, escaped(reason), conn->base_.address,
+             conn->base_.port);
     break;
   }
   /* return 0 in all cases, since we don't want to mark any
@@ -2698,21 +2683,21 @@ handle_response_upload_signatures(dir_connection_t *conn,
 
   switch (status_code) {
   case 200: {
-    log_notice(LD_DIR,"Uploaded signature(s) to dirserver %s",
-               connection_describe_peer(TO_CONN(conn)));
+    log_notice(LD_DIR,"Uploaded signature(s) to dirserver %s:%d",
+               conn->base_.address, conn->base_.port);
   }
     break;
   case 400:
     log_warn(LD_DIR,"http status 400 (%s) response after uploading "
-             "signatures to dirserver %s. Please correct.",
-             escaped(reason), connection_describe_peer(TO_CONN(conn)));
+             "signatures to dirserver '%s:%d'. Please correct.",
+             escaped(reason), conn->base_.address, conn->base_.port);
     break;
   default:
     log_warn(LD_GENERAL,
              "HTTP status %d (%s) was unexpected while uploading "
-             "signatures to server %s.",
-             status_code, escaped(reason),
-             connection_describe_peer(TO_CONN(conn)));
+             "signatures to server '%s:%d'.",
+             status_code, escaped(reason), conn->base_.address,
+             conn->base_.port);
     break;
   }
   /* return 0 in all cases, since we don't want to mark any
@@ -2740,6 +2725,153 @@ handle_response_fetch_hsdesc_v3(dir_connection_t *conn,
            (int)body_len, status_code, escaped(reason));
 
   hs_client_dir_fetch_done(conn, reason, body, status_code);
+  return 0;
+}
+
+/**
+ * Handler function: processes a response to a request for a v2 hidden service
+ * descriptor.
+ **/
+static int
+handle_response_fetch_renddesc_v2(dir_connection_t *conn,
+                                  const response_handler_args_t *args)
+{
+  tor_assert(conn->base_.purpose == DIR_PURPOSE_FETCH_RENDDESC_V2);
+  const int status_code = args->status_code;
+  const char *reason = args->reason;
+  const char *body = args->body;
+  const size_t body_len = args->body_len;
+
+#define SEND_HS_DESC_FAILED_EVENT(reason)                               \
+  (control_event_hsv2_descriptor_failed(conn->rend_data,                \
+                                        conn->identity_digest,          \
+                                        reason))
+#define SEND_HS_DESC_FAILED_CONTENT()                                   \
+  (control_event_hs_descriptor_content(                                 \
+                                rend_data_get_address(conn->rend_data), \
+                                conn->requested_resource,               \
+                                conn->identity_digest,                  \
+                                NULL))
+
+  tor_assert(conn->rend_data);
+  log_info(LD_REND,"Received rendezvous descriptor (body size %d, status %d "
+           "(%s))",
+           (int)body_len, status_code, escaped(reason));
+  switch (status_code) {
+  case 200:
+    {
+      rend_cache_entry_t *entry = NULL;
+
+      if (rend_cache_store_v2_desc_as_client(body,
+                                             conn->requested_resource,
+                                             conn->rend_data, &entry) < 0) {
+        log_warn(LD_REND,"Fetching v2 rendezvous descriptor failed. "
+                 "Retrying at another directory.");
+        /* We'll retry when connection_about_to_close_connection()
+         * cleans this dir conn up. */
+        SEND_HS_DESC_FAILED_EVENT("BAD_DESC");
+        SEND_HS_DESC_FAILED_CONTENT();
+      } else {
+        char service_id[REND_SERVICE_ID_LEN_BASE32 + 1];
+        /* Should never be NULL here if we found the descriptor. */
+        tor_assert(entry);
+        rend_get_service_id(entry->parsed->pk, service_id);
+
+        /* success. notify pending connections about this. */
+        log_info(LD_REND, "Successfully fetched v2 rendezvous "
+                 "descriptor.");
+        control_event_hsv2_descriptor_received(service_id,
+                                               conn->rend_data,
+                                               conn->identity_digest);
+        control_event_hs_descriptor_content(service_id,
+                                            conn->requested_resource,
+                                            conn->identity_digest,
+                                            body);
+        conn->base_.purpose = DIR_PURPOSE_HAS_FETCHED_RENDDESC_V2;
+        rend_client_desc_trynow(service_id);
+        memwipe(service_id, 0, sizeof(service_id));
+      }
+      break;
+    }
+  case 404:
+    /* Not there. We'll retry when
+     * connection_about_to_close_connection() cleans this conn up. */
+    log_info(LD_REND,"Fetching v2 rendezvous descriptor failed: "
+             "Retrying at another directory.");
+    SEND_HS_DESC_FAILED_EVENT("NOT_FOUND");
+    SEND_HS_DESC_FAILED_CONTENT();
+    break;
+  case 400:
+    log_warn(LD_REND, "Fetching v2 rendezvous descriptor failed: "
+             "http status 400 (%s). Dirserver didn't like our "
+             "v2 rendezvous query? Retrying at another directory.",
+             escaped(reason));
+    SEND_HS_DESC_FAILED_EVENT("QUERY_REJECTED");
+    SEND_HS_DESC_FAILED_CONTENT();
+    break;
+  default:
+    log_warn(LD_REND, "Fetching v2 rendezvous descriptor failed: "
+             "http status %d (%s) response unexpected while "
+             "fetching v2 hidden service descriptor (server '%s:%d'). "
+             "Retrying at another directory.",
+             status_code, escaped(reason), conn->base_.address,
+             conn->base_.port);
+    SEND_HS_DESC_FAILED_EVENT("UNEXPECTED");
+    SEND_HS_DESC_FAILED_CONTENT();
+    break;
+  }
+
+  return 0;
+}
+
+/**
+ * Handler function: processes a response to a POST request to upload a v2
+ * hidden service descriptor.
+ **/
+static int
+handle_response_upload_renddesc_v2(dir_connection_t *conn,
+                                   const response_handler_args_t *args)
+{
+  tor_assert(conn->base_.purpose == DIR_PURPOSE_UPLOAD_RENDDESC_V2);
+  const int status_code = args->status_code;
+  const char *reason = args->reason;
+
+#define SEND_HS_DESC_UPLOAD_FAILED_EVENT(reason)                        \
+    (control_event_hs_descriptor_upload_failed(                         \
+                                conn->identity_digest,                  \
+                                rend_data_get_address(conn->rend_data), \
+                                reason))
+
+  log_info(LD_REND,"Uploaded rendezvous descriptor (status %d "
+           "(%s))",
+           status_code, escaped(reason));
+  /* Without the rend data, we'll have a problem identifying what has been
+   * uploaded for which service. */
+  tor_assert(conn->rend_data);
+  switch (status_code) {
+  case 200:
+    log_info(LD_REND,
+             "Uploading rendezvous descriptor: finished with status "
+             "200 (%s)", escaped(reason));
+    control_event_hs_descriptor_uploaded(conn->identity_digest,
+                                   rend_data_get_address(conn->rend_data));
+    rend_service_desc_has_uploaded(conn->rend_data);
+    break;
+  case 400:
+    log_warn(LD_REND,"http status 400 (%s) response from dirserver "
+             "'%s:%d'. Malformed rendezvous descriptor?",
+             escaped(reason), conn->base_.address, conn->base_.port);
+    SEND_HS_DESC_UPLOAD_FAILED_EVENT("UPLOAD_REJECTED");
+    break;
+  default:
+    log_warn(LD_REND,"http status %d (%s) response unexpected (server "
+             "'%s:%d').",
+             status_code, escaped(reason), conn->base_.address,
+             conn->base_.port);
+    SEND_HS_DESC_UPLOAD_FAILED_EVENT("UNEXPECTED");
+    break;
+  }
+
   return 0;
 }
 
@@ -2773,17 +2905,17 @@ handle_response_upload_hsdesc(dir_connection_t *conn,
     log_fn(LOG_PROTOCOL_WARN, LD_REND,
            "Uploading hidden service descriptor: http "
            "status 400 (%s) response from dirserver "
-           "%s. Malformed hidden service descriptor?",
-           escaped(reason), connection_describe_peer(TO_CONN(conn)));
+           "'%s:%d'. Malformed hidden service descriptor?",
+           escaped(reason), conn->base_.address, conn->base_.port);
     hs_control_desc_event_failed(conn->hs_ident, conn->identity_digest,
                                  "UPLOAD_REJECTED");
     break;
   default:
     log_warn(LD_REND, "Uploading hidden service descriptor: http "
                       "status %d (%s) response unexpected (server "
-                      "%s').",
-             status_code, escaped(reason),
-             connection_describe_peer(TO_CONN(conn)));
+                      "'%s:%d').",
+             status_code, escaped(reason), conn->base_.address,
+             conn->base_.port);
     hs_control_desc_event_failed(conn->hs_ident, conn->identity_digest,
                                  "UNEXPECTED");
     break;
@@ -2818,6 +2950,17 @@ void
 connection_dir_client_refetch_hsdesc_if_needed(dir_connection_t *dir_conn)
 {
   connection_t *conn = TO_CONN(dir_conn);
+
+  /* If we were trying to fetch a v2 rend desc and did not succeed, retry as
+   * needed. (If a fetch is successful, the connection state is changed to
+   * DIR_PURPOSE_HAS_FETCHED_RENDDESC_V2 or DIR_PURPOSE_HAS_FETCHED_HSDESC to
+   * mark that refetching is unnecessary.) */
+  if (conn->purpose == DIR_PURPOSE_FETCH_RENDDESC_V2 &&
+      dir_conn->rend_data &&
+      rend_valid_v2_service_id(
+           rend_data_get_address(dir_conn->rend_data))) {
+    rend_client_refetch_v2_renddesc(dir_conn->rend_data);
+  }
 
   /* Check for v3 rend desc fetch */
   if (conn->purpose == DIR_PURPOSE_FETCH_HSDESC &&
@@ -2924,7 +3067,7 @@ connection_dir_close_consensus_fetches(dir_connection_t *except_this_one,
     if (d == except_this_one)
       continue;
     log_info(LD_DIR, "Closing consensus fetch (to %s) since one "
-             "has just arrived.", connection_describe_peer(TO_CONN(d)));
+             "has just arrived.", TO_CONN(d)->address);
     connection_mark_for_close(TO_CONN(d));
   } SMARTLIST_FOREACH_END(d);
   smartlist_free(conns_to_close);

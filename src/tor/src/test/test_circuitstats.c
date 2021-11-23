@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2021, The Tor Project, Inc. */
+/* Copyright (c) 2017-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define CIRCUITBUILD_PRIVATE
@@ -17,13 +17,18 @@
 #include "core/or/circuituse.h"
 #include "core/or/channel.h"
 
+#include "core/or/cpath_build_state_st.h"
 #include "core/or/crypt_path_st.h"
 #include "core/or/extend_info_st.h"
 #include "core/or/origin_circuit_st.h"
 
-static origin_circuit_t *add_opened_threehop(void);
-static origin_circuit_t *build_unopened_fourhop(struct timeval);
-static origin_circuit_t *subtest_fourhop_circuit(struct timeval, int);
+void test_circuitstats_timeout(void *arg);
+void test_circuitstats_hoplen(void *arg);
+origin_circuit_t *subtest_fourhop_circuit(struct timeval, int);
+origin_circuit_t *add_opened_threehop(void);
+origin_circuit_t *build_unopened_fourhop(struct timeval);
+
+int cpath_append_hop(crypt_path_t **head_ptr, extend_info_t *choice);
 
 static int marked_for_close;
 /* Mock function because we are not trying to test the close circuit that does
@@ -40,71 +45,85 @@ mock_circuit_mark_for_close(circuit_t *circ, int reason, int line,
   return;
 }
 
-static origin_circuit_t *
+origin_circuit_t *
 add_opened_threehop(void)
 {
-  struct timeval circ_start_time;
-  memset(&circ_start_time, 0, sizeof(circ_start_time));
+  origin_circuit_t *or_circ = origin_circuit_new();
   extend_info_t fakehop;
   memset(&fakehop, 0, sizeof(fakehop));
-  extend_info_t *fakehop_list[DEFAULT_ROUTE_LEN] = {&fakehop,
-                                                    &fakehop,
-                                                    &fakehop};
 
-  return new_test_origin_circuit(true,
-                                 circ_start_time,
-                                 DEFAULT_ROUTE_LEN,
-                                 fakehop_list);
+  TO_CIRCUIT(or_circ)->purpose = CIRCUIT_PURPOSE_C_GENERAL;
+
+  or_circ->build_state = tor_malloc_zero(sizeof(cpath_build_state_t));
+  or_circ->build_state->desired_path_len = DEFAULT_ROUTE_LEN;
+
+  cpath_append_hop(&or_circ->cpath, &fakehop);
+  cpath_append_hop(&or_circ->cpath, &fakehop);
+  cpath_append_hop(&or_circ->cpath, &fakehop);
+
+  or_circ->has_opened = 1;
+  TO_CIRCUIT(or_circ)->state = CIRCUIT_STATE_OPEN;
+  TO_CIRCUIT(or_circ)->purpose = CIRCUIT_PURPOSE_C_GENERAL;
+
+  return or_circ;
 }
 
-static origin_circuit_t *
+origin_circuit_t *
 build_unopened_fourhop(struct timeval circ_start_time)
 {
-  extend_info_t fakehop;
-  memset(&fakehop, 0, sizeof(fakehop));
-  extend_info_t *fakehop_list[4] = {&fakehop,
-                                    &fakehop,
-                                    &fakehop,
-                                    &fakehop};
+  origin_circuit_t *or_circ = origin_circuit_new();
+  extend_info_t *fakehop = tor_malloc_zero(sizeof(extend_info_t));
+  memset(fakehop, 0, sizeof(extend_info_t));
 
-  return new_test_origin_circuit(false,
-                                 circ_start_time,
-                                 4,
-                                 fakehop_list);
+  TO_CIRCUIT(or_circ)->purpose = CIRCUIT_PURPOSE_C_GENERAL;
+  TO_CIRCUIT(or_circ)->timestamp_began = circ_start_time;
+  TO_CIRCUIT(or_circ)->timestamp_created = circ_start_time;
+
+  or_circ->build_state = tor_malloc_zero(sizeof(cpath_build_state_t));
+  or_circ->build_state->desired_path_len = 4;
+
+  cpath_append_hop(&or_circ->cpath, fakehop);
+  cpath_append_hop(&or_circ->cpath, fakehop);
+  cpath_append_hop(&or_circ->cpath, fakehop);
+  cpath_append_hop(&or_circ->cpath, fakehop);
+
+  tor_free(fakehop);
+
+  return or_circ;
 }
 
-static origin_circuit_t *
+origin_circuit_t *
 subtest_fourhop_circuit(struct timeval circ_start_time, int should_timeout)
 {
-  origin_circuit_t *origin_circ = build_unopened_fourhop(circ_start_time);
+  origin_circuit_t *or_circ = build_unopened_fourhop(circ_start_time);
 
   // Now make them open one at a time and call
   // circuit_build_times_handle_completed_hop();
-  origin_circ->cpath->state = CPATH_STATE_OPEN;
-  circuit_build_times_handle_completed_hop(origin_circ);
+  or_circ->cpath->state = CPATH_STATE_OPEN;
+  circuit_build_times_handle_completed_hop(or_circ);
   tt_int_op(get_circuit_build_times()->total_build_times, OP_EQ, 0);
 
-  origin_circ->cpath->next->state = CPATH_STATE_OPEN;
-  circuit_build_times_handle_completed_hop(origin_circ);
+  or_circ->cpath->next->state = CPATH_STATE_OPEN;
+  circuit_build_times_handle_completed_hop(or_circ);
   tt_int_op(get_circuit_build_times()->total_build_times, OP_EQ, 0);
 
   // Third hop: We should count it now.
-  origin_circ->cpath->next->next->state = CPATH_STATE_OPEN;
-  circuit_build_times_handle_completed_hop(origin_circ);
+  or_circ->cpath->next->next->state = CPATH_STATE_OPEN;
+  circuit_build_times_handle_completed_hop(or_circ);
   tt_int_op(get_circuit_build_times()->total_build_times, OP_EQ,
             !should_timeout); // 1 if counted, 0 otherwise
 
   // Fourth hop: Don't double count
-  origin_circ->cpath->next->next->next->state = CPATH_STATE_OPEN;
-  circuit_build_times_handle_completed_hop(origin_circ);
+  or_circ->cpath->next->next->next->state = CPATH_STATE_OPEN;
+  circuit_build_times_handle_completed_hop(or_circ);
   tt_int_op(get_circuit_build_times()->total_build_times, OP_EQ,
             !should_timeout);
 
  done:
-  return origin_circ;
+  return or_circ;
 }
 
-static void
+void
 test_circuitstats_hoplen(void *arg)
 {
   /* Plan:

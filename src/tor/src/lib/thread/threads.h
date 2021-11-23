@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -42,7 +42,12 @@ typedef struct tor_cond_t {
 #ifdef USE_PTHREADS
   pthread_cond_t cond;
 #elif defined(USE_WIN32_THREADS)
-  CONDITION_VARIABLE cond;
+  HANDLE event;
+
+  CRITICAL_SECTION lock;
+  int n_waiting;
+  int n_to_wake;
+  int generation;
 #else
 #error no known condition implementation.
 #endif /* defined(USE_PTHREADS) || ... */

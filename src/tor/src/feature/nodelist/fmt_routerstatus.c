@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -15,11 +15,11 @@
 #include "feature/nodelist/fmt_routerstatus.h"
 
 #include "core/or/policies.h"
-#include "feature/dirauth/dirvote.h"
-#include "feature/nodelist/routerinfo_st.h"
 #include "feature/nodelist/routerlist.h"
+#include "feature/dirauth/dirvote.h"
+
+#include "feature/nodelist/routerinfo_st.h"
 #include "feature/nodelist/vote_routerstatus_st.h"
-#include "feature/stats/rephist.h"
 
 #include "lib/crypt_ops/crypto_format.h"
 
@@ -53,24 +53,20 @@ routerstatus_format_entry(const routerstatus_t *rs, const char *version,
   char digest64[BASE64_DIGEST_LEN+1];
   smartlist_t *chunks = smartlist_new();
 
-  const char *ip_str = fmt_addr(&rs->ipv4_addr);
-  if (ip_str[0] == '\0')
-    goto err;
-
   format_iso_time(published, rs->published_on);
   digest_to_base64(identity64, rs->identity_digest);
   digest_to_base64(digest64, rs->descriptor_digest);
 
   smartlist_add_asprintf(chunks,
-                   "r %s %s %s%s%s %s %" PRIu16 " %" PRIu16 "\n",
+                   "r %s %s %s%s%s %s %d %d\n",
                    rs->nickname,
                    identity64,
                    (format==NS_V3_CONSENSUS_MICRODESC)?"":digest64,
                    (format==NS_V3_CONSENSUS_MICRODESC)?"":" ",
                    published,
-                   ip_str,
-                   rs->ipv4_orport,
-                   rs->ipv4_dirport);
+                   fmt_addr32(rs->addr),
+                   (int)rs->or_port,
+                   (int)rs->dir_port);
 
   /* TODO: Maybe we want to pass in what we need to build the rest of
    * this here, instead of in the caller. Then we could use the
@@ -87,7 +83,7 @@ routerstatus_format_entry(const routerstatus_t *rs, const char *version,
     goto done;
 
   smartlist_add_asprintf(chunks,
-                   "s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+                   "s%s%s%s%s%s%s%s%s%s%s%s\n",
                   /* These must stay in alphabetical order. */
                    rs->is_authority?" Authority":"",
                    rs->is_bad_exit?" BadExit":"",
@@ -98,7 +94,6 @@ routerstatus_format_entry(const routerstatus_t *rs, const char *version,
                    rs->is_flagged_running?" Running":"",
                    rs->is_stable?" Stable":"",
                    rs->is_staledesc?" StaleDesc":"",
-                   rs->is_sybil?" Sybil":"",
                    rs->is_v2_dir?" V2Dir":"",
                    rs->is_valid?" Valid":"");
 
@@ -195,15 +190,6 @@ routerstatus_format_entry(const routerstatus_t *rs, const char *version,
         digest256_to_base64(ed_b64, (const char*)vrs->ed25519_id);
         smartlist_add_asprintf(chunks, "id ed25519 %s\n", ed_b64);
       }
-
-      /* We'll add a series of statistics to the vote per relays so we are
-       * able to assess what each authorities sees and help our health and
-       * performance work. */
-      time_t now = time(NULL);
-      smartlist_add_asprintf(chunks, "stats wfu=%.6f tk=%lu mtbf=%.0f\n",
-        rep_hist_get_weighted_fractional_uptime(rs->identity_digest, now),
-        rep_hist_get_weighted_time_known(rs->identity_digest, now),
-        rep_hist_get_stability(rs->identity_digest, now));
     }
   }
 

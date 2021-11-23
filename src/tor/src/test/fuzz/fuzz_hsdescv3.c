@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2021, The Tor Project, Inc. */
+/* Copyright (c) 2017-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define HS_DESCRIPTOR_PRIVATE
@@ -85,12 +85,12 @@ int
 fuzz_main(const uint8_t *data, size_t sz)
 {
   hs_descriptor_t *desc = NULL;
-  hs_subcredential_t subcredential;
+  uint8_t subcredential[DIGEST256_LEN];
 
   char *fuzzing_data = tor_memdup_nulterm(data, sz);
-  memset(&subcredential, 'A', sizeof(subcredential));
+  memset(subcredential, 'A', sizeof(subcredential));
 
-  hs_desc_decode_descriptor(fuzzing_data, &subcredential, NULL, &desc);
+  hs_desc_decode_descriptor(fuzzing_data, subcredential, NULL, &desc);
   if (desc) {
     log_debug(LD_GENERAL, "Decoding okay");
     hs_descriptor_free(desc);
@@ -101,3 +101,4 @@ fuzz_main(const uint8_t *data, size_t sz)
   tor_free(fuzzing_data);
   return 0;
 }
+

@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -29,6 +29,7 @@
 #include "core/mainloop/connection.h"
 #include "core/mainloop/cpuworker.h"
 #include "core/mainloop/mainloop.h"
+#include "core/or/circuitbuild.h"
 #include "core/or/connection_or.h"
 #include "core/or/port_cfg_st.h"
 
@@ -36,7 +37,6 @@
 #include "feature/nodelist/nickname.h"
 #include "feature/stats/geoip_stats.h"
 #include "feature/stats/predict_ports.h"
-#include "feature/stats/connstats.h"
 #include "feature/stats/rephist.h"
 
 #include "feature/dirauth/authmode.h"
@@ -44,7 +44,6 @@
 #include "feature/dircache/consdiffmgr.h"
 #include "feature/relay/dns.h"
 #include "feature/relay/routermode.h"
-#include "feature/relay/selftest.h"
 
 /** Contents of most recently read DirPortFrontPage file. */
 static char *global_dirfrontpagecontents = NULL;
@@ -133,208 +132,12 @@ port_warn_nonlocal_ext_orports(const smartlist_t *ports, const char *portname)
   } SMARTLIST_FOREACH_END(port);
 }
 
-/**
- * Return a static buffer describing the port number in @a port, which may
- * CFG_AUTO_PORT.
- **/
-static const char *
-describe_portnum(int port)
-{
-  static char buf[16];
-  if (port == CFG_AUTO_PORT) {
-    return "auto";
-  } else {
-    tor_snprintf(buf, sizeof(buf), "%d", port);
-    return buf;
-  }
-}
-
-/** Return a static buffer containing the human readable logging string that
- * describes the given port object. */
-STATIC const char *
-describe_relay_port(const port_cfg_t *port)
-{
-  IF_BUG_ONCE(!port) {
-    return "<null port>";
-  }
-
-  static char buf[256];
-  const char *type, *addr;
-
-  switch (port->type) {
-  case CONN_TYPE_OR_LISTENER:
-    type = "OR";
-    break;
-  case CONN_TYPE_DIR_LISTENER:
-    type = "Dir";
-    break;
-  case CONN_TYPE_EXT_OR_LISTENER:
-    type = "ExtOR";
-    break;
-  default:
-    type = "";
-    break;
-  }
-
-  if (port->explicit_addr) {
-    addr = fmt_and_decorate_addr(&port->addr);
-  } else {
-    addr = "";
-  }
-
-  tor_snprintf(buf, sizeof(buf), "%sPort %s%s%s",
-               type, addr, (strlen(addr) > 0) ? ":" : "",
-               describe_portnum(port->port));
-  return buf;
-}
-
-/** Return true iff port p1 is equal to p2.
- *
- * This does a field by field comparaison. */
-static bool
-port_cfg_eq(const port_cfg_t *p1, const port_cfg_t *p2)
-{
-  bool ret = true;
-
-  tor_assert(p1);
-  tor_assert(p2);
-
-  /* Address, port and type. */
-  ret &= tor_addr_eq(&p1->addr, &p2->addr);
-  ret &= (p1->port == p2->port);
-  ret &= (p1->type == p2->type);
-
-  /* Mode. */
-  ret &= (p1->is_unix_addr == p2->is_unix_addr);
-  ret &= (p1->is_group_writable == p2->is_group_writable);
-  ret &= (p1->is_world_writable == p2->is_world_writable);
-  ret &= (p1->relax_dirmode_check == p2->relax_dirmode_check);
-  ret &= (p1->explicit_addr == p2->explicit_addr);
-
-  /* Entry config flags. */
-  ret &= tor_memeq(&p1->entry_cfg, &p2->entry_cfg,
-                    sizeof(entry_port_cfg_t));
-  /* Server config flags. */
-  ret &= tor_memeq(&p1->server_cfg, &p2->server_cfg,
-                    sizeof(server_port_cfg_t));
-  /* Unix address path if any. */
-  ret &= !strcmp(p1->unix_addr, p2->unix_addr);
-
-  return ret;
-}
-
-/** Attempt to find duplicate ORPort that would be superseded by another and
- * remove them from the given ports list. This is possible if we have for
- * instance:
- *
- *    ORPort 9050
- *    ORPort [4242::1]:9050
- *
- * First one binds to both v4 and v6 address but second one is specific to an
- * address superseding the global bind one.
- *
- * Another example is this one:
- *
- *    ORPort 9001
- *    ORPort [4242::1]:9002
- *    ORPort [4242::2]:9003
- *
- * In this case, all IPv4 and IPv6 are kept since we do allow multiple ORPorts
- * but the published port will be the first explicit one if any to be
- * published or else the implicit.
- *
- * The following is O(n^2) but it is done at bootstrap or config reload and
- * the list is not very long usually. */
-STATIC void
-remove_duplicate_orports(smartlist_t *ports)
-{
-  /* First we'll decide what to remove, then we'll remove it. */
-  bool *removing = tor_calloc(smartlist_len(ports), sizeof(bool));
-
-  for (int i = 0; i < smartlist_len(ports); ++i) {
-    const port_cfg_t *current = smartlist_get(ports, i);
-    if (removing[i]) {
-      continue;
-    }
-
-    /* Skip non ORPorts. */
-    if (current->type != CONN_TYPE_OR_LISTENER) {
-      continue;
-    }
-
-    for (int j = 0; j < smartlist_len(ports); ++j) {
-      const port_cfg_t *next = smartlist_get(ports, j);
-
-      /* Avoid comparing the same object. */
-      if (current == next) {
-        continue;
-      }
-      if (removing[j]) {
-        continue;
-      }
-      /* Skip non ORPorts. */
-      if (next->type != CONN_TYPE_OR_LISTENER) {
-        continue;
-      }
-      /* Remove duplicates. */
-      if (port_cfg_eq(current, next)) {
-        removing[j] = true;
-        continue;
-      }
-      /* Don't compare addresses of different family. */
-      if (tor_addr_family(&current->addr) != tor_addr_family(&next->addr)) {
-        continue;
-      }
-      /* At this point, we have a port of the same type and same address
-       * family. Now, we want to avoid comparing addresses that are different
-       * but are both explicit. As an example, these are not duplicates:
-       *
-       *    ORPort 127.0.0.:9001 NoAdvertise
-       *    ORPort 1.2.3.4:9001 NoListen
-       *
-       * Any implicit address must be considered for removal since an explicit
-       * one will always supersedes it. */
-      if (!tor_addr_eq(&current->addr, &next->addr) &&
-          current->explicit_addr && next->explicit_addr) {
-        continue;
-      }
-
-      /* Port value is the same so we either have a duplicate or a port that
-       * supersedes another. */
-      if (current->port == next->port) {
-        /* Do not remove the explicit address. As stated before above, we keep
-         * explicit addresses which supersedes implicit ones. */
-        if (!current->explicit_addr && next->explicit_addr) {
-          continue;
-        }
-        removing[j] = true;
-        char *next_str = tor_strdup(describe_relay_port(next));
-        log_warn(LD_CONFIG, "Configuration port %s superseded by %s",
-                 next_str, describe_relay_port(current));
-        tor_free(next_str);
-      }
-    }
-  }
-
-  /* Iterate over array in reverse order to keep indices valid. */
-  for (int i = smartlist_len(ports)-1; i >= 0; --i) {
-    tor_assert(i < smartlist_len(ports));
-    if (removing[i]) {
-      port_cfg_t *current = smartlist_get(ports, i);
-      smartlist_del_keeporder(ports, i);
-      port_cfg_free(current);
-    }
-  }
-
-  tor_free(removing);
-}
-
 /** Given a list of <b>port_cfg_t</b> in <b>ports</b>, check them for internal
  * consistency and warn as appropriate.  On Unix-based OSes, set
  * *<b>n_low_ports_out</b> to the number of sub-1024 ports we will be
  * binding, and warn if we may be unable to re-bind after hibernation. */
 static int
-check_and_prune_server_ports(smartlist_t *ports,
+check_server_ports(const smartlist_t *ports,
                    const or_options_t *options,
                    int *n_low_ports_out)
 {
@@ -354,9 +157,6 @@ check_and_prune_server_ports(smartlist_t *ports,
   int n_dirport_listeners = 0;
   int n_low_port = 0;
   int r = 0;
-
-  /* Remove possible duplicate ORPorts before inspecting the list. */
-  remove_duplicate_orports(ports);
 
   SMARTLIST_FOREACH_BEGIN(ports, const port_cfg_t *, port) {
     if (port->type == CONN_TYPE_DIR_LISTENER) {
@@ -470,14 +270,6 @@ port_parse_ports_relay(or_options_t *options,
     goto err;
   }
   if (port_parse_config(ports,
-                        options->ORPort_lines,
-                        "OR", CONN_TYPE_OR_LISTENER,
-                        "[::]", 0,
-                        CL_PORT_SERVER_OPTIONS) < 0) {
-    *msg = tor_strdup("Invalid ORPort configuration");
-    goto err;
-  }
-  if (port_parse_config(ports,
                         options->ExtORPort_lines,
                         "ExtOR", CONN_TYPE_EXT_OR_LISTENER,
                         "127.0.0.1", 0,
@@ -494,7 +286,7 @@ port_parse_ports_relay(or_options_t *options,
     goto err;
   }
 
-  if (check_and_prune_server_ports(ports, options, &n_low_ports) < 0) {
+  if (check_server_ports(ports, options, &n_low_ports) < 0) {
     *msg = tor_strdup("Misconfigured server ports");
     goto err;
   }
@@ -1112,7 +904,7 @@ options_validate_relay_mode(const or_options_t *old_options,
         "Tor is currently configured as a relay and a hidden service. "
         "That's not very secure: you should probably run your hidden service "
         "in a separate Tor process, at least -- see "
-        "https://bugs.torproject.org/tpo/core/tor/8742.");
+        "https://trac.torproject.org/8742");
 
   if (options->BridgeRelay && options->DirPort_set) {
     log_warn(LD_CONFIG, "Can't set a DirPort on a bridge relay; disabling "
@@ -1237,7 +1029,7 @@ options_transition_affects_descriptor(const or_options_t *old_options,
 
   YES_IF_CHANGED_STRING(DataDirectory);
   YES_IF_CHANGED_STRING(Nickname);
-  YES_IF_CHANGED_LINELIST(Address);
+  YES_IF_CHANGED_STRING(Address);
   YES_IF_CHANGED_LINELIST(ExitPolicy);
   YES_IF_CHANGED_BOOL(ExitRelay);
   YES_IF_CHANGED_BOOL(ExitPolicyRejectPrivate);
@@ -1322,6 +1114,8 @@ options_act_relay(const or_options_t *old_options)
 
       if (server_mode_turned_on) {
         ip_address_changed(0);
+        if (have_completed_a_circuit() || !any_predicted_circuits(time(NULL)))
+          inform_testing_reachability();
       }
       cpuworkers_rotate_keyinfo();
     }
@@ -1515,7 +1309,7 @@ options_act_relay_stats(const or_options_t *old_options,
     }
     if ((!old_options || !old_options->ConnDirectionStatistics) &&
         options->ConnDirectionStatistics) {
-      conn_stats_init(now);
+      rep_hist_conn_stats_init(now);
     }
     if ((!old_options || !old_options->HiddenServiceStatistics) &&
         options->HiddenServiceStatistics) {
@@ -1545,7 +1339,7 @@ options_act_relay_stats(const or_options_t *old_options,
     rep_hist_exit_stats_term();
   if (old_options && old_options->ConnDirectionStatistics &&
       !options->ConnDirectionStatistics)
-    conn_stats_terminate();
+    rep_hist_conn_stats_term();
 
   return 0;
 }

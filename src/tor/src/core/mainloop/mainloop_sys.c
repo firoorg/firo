@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -78,7 +78,6 @@ mainloop_flush_state(void *arg)
 
 const struct subsys_fns_t sys_mainloop = {
   .name = "mainloop",
-  SUBSYS_DECLARE_LOCATION(),
   .supported = true,
   .level = 5,
   .initialize = subsys_mainloop_initialize,

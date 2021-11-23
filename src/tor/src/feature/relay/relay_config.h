@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -84,16 +84,9 @@ int options_act_relay_dir(const struct or_options_t *old_options);
 
 #ifdef RELAY_CONFIG_PRIVATE
 
-STATIC void remove_duplicate_orports(struct smartlist_t *ports);
 STATIC int check_bridge_distribution_setting(const char *bd);
 STATIC int have_enough_mem_for_dircache(const struct or_options_t *options,
                                         size_t total_mem, char **msg);
-#ifdef TOR_UNIT_TESTS
-
-struct port_cfg_t;
-STATIC const char *describe_relay_port(const struct port_cfg_t *port);
-
-#endif /* defined(TOR_UNIT_TESTS) */
 
 #endif /* defined(RELAY_CONFIG_PRIVATE) */
 

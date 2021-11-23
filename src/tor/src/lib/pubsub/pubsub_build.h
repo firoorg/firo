@@ -1,7 +1,7 @@
 /* Copyright (c) 2001, Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -55,7 +55,7 @@ void pubsub_builder_free_(pubsub_builder_t *);
 
 /**
  * Create a pubsub connector that a single subsystem will use to
- * register its messages.  The main-init code does this during subsystem
+ * register its messages.  The main-init code does this during susbsystem
  * initialization.
  */
 struct pubsub_connector_t *pubsub_connector_for_subsystem(pubsub_builder_t *,

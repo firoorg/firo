@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2021, The Tor Project, Inc. */
+/* Copyright (c) 2014-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define ROUTERSET_PRIVATE
@@ -1417,60 +1417,10 @@ test_rset_contains_router(void *arg)
   ri.nickname = (char *)nickname;
 
   r = routerset_contains_router(set, &ri, country);
-  tt_int_op(r, OP_EQ, 4);
 
+  tt_int_op(r, OP_EQ, 4);
   done:
     routerset_free(set);
-}
-
-static void
-test_rset_contains_router_ipv4(void *arg)
-{
-  routerset_t *set;
-  routerinfo_t ri;
-  country_t country = 1;
-  int r;
-  const char *s;
-  (void) arg;
-
-  /* IPv4 address test. */
-  memset(&ri, 0, sizeof(ri));
-  set = routerset_new();
-  s = "10.0.0.1";
-  r = routerset_parse(set, s, "");
-  tor_addr_from_ipv4h(&ri.ipv4_addr, 0x0a000001);
-  ri.ipv4_orport = 1234;
-
-  r = routerset_contains_router(set, &ri, country);
-  tt_int_op(r, OP_EQ, 3);
-
- done:
-  routerset_free(set);
-}
-
-static void
-test_rset_contains_router_ipv6(void *arg)
-{
-  routerset_t *set;
-  routerinfo_t ri;
-  country_t country = 1;
-  int r;
-  const char *s;
-  (void) arg;
-
-  /* IPv6 address test. */
-  memset(&ri, 0, sizeof(ri));
-  set = routerset_new();
-  s = "2600::1";
-  r = routerset_parse(set, s, "");
-  tor_addr_parse(&ri.ipv6_addr, "2600::1");
-  ri.ipv6_orport = 12345;
-
-  r = routerset_contains_router(set, &ri, country);
-  tt_int_op(r, OP_EQ, 3);
-
- done:
-  routerset_free(set);
 }
 
 /*
@@ -2194,10 +2144,6 @@ struct testcase_t routerset_tests[] = {
   { "contains_extendinfo", test_rset_contains_extendinfo,
     TT_FORK, NULL, NULL },
   { "contains_router", test_rset_contains_router, TT_FORK, NULL, NULL },
-  { "contains_router_ipv4", test_rset_contains_router_ipv4,
-    TT_FORK, NULL, NULL },
-  { "contains_router_ipv6", test_rset_contains_router_ipv6,
-    TT_FORK, NULL, NULL },
   { "contains_routerstatus", test_rset_contains_routerstatus,
     TT_FORK, NULL, NULL },
   { "contains_none", test_rset_contains_none, TT_FORK, NULL, NULL },

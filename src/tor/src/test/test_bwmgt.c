@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2021, The Tor Project, Inc. */
+/* Copyright (c) 2018-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -317,8 +317,8 @@ test_bwmgt_dir_conn_global_write_low(void *arg)
   memcpy(rs->descriptor_digest, md->digest, DIGEST256_LEN);
 
   /* Set IP address. */
-  tor_addr_copy(&rs->ipv4_addr, &relay_addr);
-  tor_addr_copy(&ri->ipv4_addr, &rs->ipv4_addr);
+  rs->addr = tor_addr_to_ipv4h(&relay_addr);
+  ri->addr = rs->addr;
   /* Add the rs to the consensus becoming a node_t. */
   smartlist_add(dummy_ns->routerstatus_list, rs);
 

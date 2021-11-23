@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -91,9 +91,10 @@
 #include "feature/relay/routerkeys.h"
 #include "feature/relay/routermode.h"
 #include "feature/relay/selftest.h"
+#include "feature/rend/rendcache.h"
+#include "feature/rend/rendservice.h"
 #include "feature/stats/geoip_stats.h"
 #include "feature/stats/predict_ports.h"
-#include "feature/stats/connstats.h"
 #include "feature/stats/rephist.h"
 #include "lib/buf/buffers.h"
 #include "lib/crypt_ops/crypto_rand.h"
@@ -965,6 +966,7 @@ conn_close_if_marked(int i)
     return 0; /* nothing to see here, move along */
   now = time(NULL);
   assert_connection_ok(conn, now);
+  /* assert_all_pending_dns_resolves_ok(); */
 
   log_debug(LD_NET,"Cleaning up connection (fd "TOR_SOCKET_T_FORMAT").",
             conn->s);
@@ -983,29 +985,33 @@ conn_close_if_marked(int i)
     if (!conn->hold_open_until_flushed)
       log_info(LD_NET,
                "Conn (addr %s, fd %d, type %s, state %d) marked, but wants "
-               "to flush %"TOR_PRIuSZ" bytes. (Marked at %s:%d)",
+               "to flush %d bytes. (Marked at %s:%d)",
                escaped_safe_str_client(conn->address),
                (int)conn->s, conn_type_to_string(conn->type), conn->state,
-               connection_get_outbuf_len(conn),
-               conn->marked_for_close_file, conn->marked_for_close);
+               (int)conn->outbuf_flushlen,
+                conn->marked_for_close_file, conn->marked_for_close);
     if (conn->linked_conn) {
-      retval = (int) buf_move_all(conn->linked_conn->inbuf, conn->outbuf);
+      retval = buf_move_to_buf(conn->linked_conn->inbuf, conn->outbuf,
+                               &conn->outbuf_flushlen);
       if (retval >= 0) {
         /* The linked conn will notice that it has data when it notices that
          * we're gone. */
         connection_start_reading_from_linked_conn(conn->linked_conn);
       }
       log_debug(LD_GENERAL, "Flushed last %d bytes from a linked conn; "
-               "%d left; wants-to-flush==%d", retval,
+               "%d left; flushlen %d; wants-to-flush==%d", retval,
                 (int)connection_get_outbuf_len(conn),
+                (int)conn->outbuf_flushlen,
                 connection_wants_to_flush(conn));
     } else if (connection_speaks_cells(conn)) {
       if (conn->state == OR_CONN_STATE_OPEN) {
-        retval = buf_flush_to_tls(conn->outbuf, TO_OR_CONN(conn)->tls, sz);
+        retval = buf_flush_to_tls(conn->outbuf, TO_OR_CONN(conn)->tls, sz,
+                               &conn->outbuf_flushlen);
       } else
         retval = -1; /* never flush non-open broken tls connections */
     } else {
-      retval = buf_flush_to_socket(conn->outbuf, conn->s, sz);
+      retval = buf_flush_to_socket(conn->outbuf, conn->s, sz,
+                                   &conn->outbuf_flushlen);
     }
     if (retval >= 0 && /* Technically, we could survive things like
                           TLS_WANT_WRITE here. But don't bother for now. */
@@ -1146,7 +1152,7 @@ directory_info_has_arrived(time_t now, int from_cache, int suppress_logs)
 
   if (server_mode(options) && !net_is_disabled() && !from_cache &&
       (have_completed_a_circuit() || !any_predicted_circuits(now)))
-   router_do_reachability_checks();
+   router_do_reachability_checks(1, 1);
 }
 
 /** Perform regular maintenance tasks for a single connection.  This
@@ -1222,7 +1228,7 @@ run_connection_housekeeping(int i, time_t now)
      * mark it now. */
     log_info(LD_OR,
              "Expiring non-used OR connection to fd %d (%s:%d) [Too old].",
-             (int)conn->s, fmt_and_decorate_addr(&conn->addr), conn->port);
+             (int)conn->s, conn->address, conn->port);
     if (conn->state == OR_CONN_STATE_CONNECTING)
       connection_or_connect_failed(TO_OR_CONN(conn),
                                    END_OR_CONN_REASON_TIMEOUT,
@@ -1232,7 +1238,7 @@ run_connection_housekeeping(int i, time_t now)
     if (past_keepalive) {
       /* We never managed to actually get this connection open and happy. */
       log_info(LD_OR,"Expiring non-open OR connection to fd %d (%s:%d).",
-               (int)conn->s, fmt_and_decorate_addr(&conn->addr), conn->port);
+               (int)conn->s,conn->address, conn->port);
       connection_or_close_normally(TO_OR_CONN(conn), 0);
     }
   } else if (we_are_hibernating() &&
@@ -1242,7 +1248,7 @@ run_connection_housekeeping(int i, time_t now)
      * flush.*/
     log_info(LD_OR,"Expiring non-used OR connection to fd %d (%s:%d) "
              "[Hibernating or exiting].",
-             (int)conn->s, fmt_and_decorate_addr(&conn->addr), conn->port);
+             (int)conn->s,conn->address, conn->port);
     connection_or_close_normally(TO_OR_CONN(conn), 1);
   } else if (!have_any_circuits &&
              now - or_conn->idle_timeout >=
@@ -1250,7 +1256,7 @@ run_connection_housekeeping(int i, time_t now)
     log_info(LD_OR,"Expiring non-used OR connection %"PRIu64" to fd %d "
              "(%s:%d) [no circuits for %d; timeout %d; %scanonical].",
              (chan->global_identifier),
-             (int)conn->s, fmt_and_decorate_addr(&conn->addr), conn->port,
+             (int)conn->s, conn->address, conn->port,
              (int)(now - chan->timestamp_last_had_circuits),
              or_conn->idle_timeout,
              or_conn->is_canonical ? "" : "non");
@@ -1262,14 +1268,14 @@ run_connection_housekeeping(int i, time_t now)
     log_fn(LOG_PROTOCOL_WARN,LD_PROTOCOL,
            "Expiring stuck OR connection to fd %d (%s:%d). (%d bytes to "
            "flush; %d seconds since last write)",
-           (int)conn->s, fmt_and_decorate_addr(&conn->addr), conn->port,
+           (int)conn->s, conn->address, conn->port,
            (int)connection_get_outbuf_len(conn),
            (int)(now-conn->timestamp_last_write_allowed));
     connection_or_close_normally(TO_OR_CONN(conn), 0);
   } else if (past_keepalive && !connection_get_outbuf_len(conn)) {
     /* send a padding cell */
     log_fn(LOG_DEBUG,LD_OR,"Sending keepalive to (%s:%d)",
-           fmt_and_decorate_addr(&conn->addr), conn->port);
+           conn->address, conn->port);
     memset(&cell,0,sizeof(cell_t));
     cell.command = CELL_PADDING;
     connection_or_write_cell_to_buf(&cell, or_conn);
@@ -1466,13 +1472,14 @@ get_my_roles(const or_options_t *options)
   int is_relay = server_mode(options);
   int is_dirauth = authdir_mode_v3(options);
   int is_bridgeauth = authdir_mode_bridge(options);
-  int is_hidden_service = !!hs_service_get_num_services();
+  int is_hidden_service = !!hs_service_get_num_services() ||
+                          !!rend_num_services();
   int is_dirserver = dir_server_mode(options);
   int sending_control_events = control_any_per_second_event_enabled();
 
   /* We also consider tor to have the role of a client if the ControlPort is
    * set because a lot of things can be done over the control port which
-   * requires tor to have basic functionalities. */
+   * requires tor to have basic functionnalities. */
   int is_client = options_any_client_port_set(options) ||
                   options->ControlPort_set ||
                   options->OwningControllerFD != UINT64_MAX;
@@ -1820,16 +1827,10 @@ check_network_participation_callback(time_t now, const or_options_t *options)
     goto found_activity;
   }
 
-  /* If we aren't allowed to become dormant, then participation doesn't
-     matter */
-  if (! options->DormantTimeoutEnabled) {
-    goto found_activity;
-  }
-
   /* If we're running an onion service, we can't become dormant. */
   /* XXXX this would be nice to change, so that we can be dormant with a
    * service. */
-  if (hs_service_get_num_services()) {
+  if (hs_service_get_num_services() || rend_num_services()) {
     goto found_activity;
   }
 
@@ -1940,11 +1941,7 @@ write_stats_file_callback(time_t now, const or_options_t *options)
       next_time_to_write_stats_files = next_write;
   }
   if (options->HiddenServiceStatistics) {
-    time_t next_write = rep_hist_hs_stats_write(now, false);
-    if (next_write && next_write < next_time_to_write_stats_files)
-      next_time_to_write_stats_files = next_write;
-
-    next_write = rep_hist_hs_stats_write(now, true);
+    time_t next_write = rep_hist_hs_stats_write(now);
     if (next_write && next_write < next_time_to_write_stats_files)
       next_time_to_write_stats_files = next_write;
   }
@@ -1954,7 +1951,7 @@ write_stats_file_callback(time_t now, const or_options_t *options)
       next_time_to_write_stats_files = next_write;
   }
   if (options->ConnDirectionStatistics) {
-    time_t next_write = conn_stats_save(now);
+    time_t next_write = rep_hist_conn_stats_write(now);
     if (next_write && next_write < next_time_to_write_stats_files)
       next_time_to_write_stats_files = next_write;
   }
@@ -2016,6 +2013,7 @@ clean_caches_callback(time_t now, const or_options_t *options)
 {
   /* Remove old information from rephist and the rend cache. */
   rep_history_clean(now - options->RephistTrackTime);
+  rend_cache_clean(now, REND_CACHE_TYPE_SERVICE);
   hs_cache_clean_as_client(now);
   hs_cache_clean_as_dir(now);
   microdesc_cache_rebuild(NULL, 0);
@@ -2034,6 +2032,7 @@ rend_cache_failure_clean_callback(time_t now, const or_options_t *options)
   /* We don't keep entries that are more than five minutes old so we try to
    * clean it as soon as we can since we want to make sure the client waits
    * as little as possible for reachability reasons. */
+  rend_cache_failure_clean(now);
   hs_cache_client_intro_state_clean(now);
   return 30;
 }
@@ -2156,8 +2155,7 @@ hs_service_callback(time_t now, const or_options_t *options)
   /* We need to at least be able to build circuits and that we actually have
    * a working network. */
   if (!have_completed_a_circuit() || net_is_disabled() ||
-      !networkstatus_get_reasonably_live_consensus(now,
-                                         usable_consensus_flavor())) {
+      networkstatus_get_live_consensus(now) == NULL) {
     goto end;
   }
 

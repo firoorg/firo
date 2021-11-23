@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2021, The Tor Project, Inc. */
+/* Copyright (c) 2017-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -132,15 +132,6 @@ consensus_cache_may_overallocate(consensus_cache_t *cache)
 #endif
 }
 
-// HACK: GCC on Appveyor hates that we may assert before returning. Work around
-// the error.
-#ifdef _WIN32
-#ifndef COCCI
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wsuggest-attribute=noreturn"
-#endif
-#endif /* defined(_WIN32) */
-
 /**
  * Tell the sandbox (if any) configured by <b>cfg</b> to allow the
  * operations that <b>cache</b> will need.
@@ -164,12 +155,6 @@ consensus_cache_register_with_sandbox(consensus_cache_t *cache,
 #endif /* defined(MUST_UNMAP_TO_UNLINK) */
   return storage_dir_register_with_sandbox(cache->dir, cfg);
 }
-
-#ifdef _WIN32
-#ifndef COCCI
-#pragma GCC diagnostic pop
-#endif
-#endif
 
 /**
  * Helper: clear all entries from <b>cache</b> (but do not delete

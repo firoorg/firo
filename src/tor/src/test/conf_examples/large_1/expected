@@ -3,6 +3,7 @@ AccountingRule sum
 AccountingStart day 05:15
 Address 128.66.8.8
 AllowNonRFC953Hostnames 1
+AndroidIdentityTag droidy
 AutomapHostsOnResolve 1
 AutomapHostsSuffixes .onions
 AvoidDiskWrites 1
@@ -14,6 +15,7 @@ CellStatistics 1
 CircuitBuildTimeout 200
 CircuitsAvailableTimeout 10
 CircuitStreamTimeout 20
+ClientAutoIPv6ORPort 1
 ClientOnly 1
 ClientPreferIPv6DirPort 1
 ClientPreferIPv6ORPort 1
@@ -110,6 +112,7 @@ NumDirectoryGuards 4
 NumEntryGuards 5
 NumPrimaryGuards 8
 OfflineMasterKey 1
+OptimisticData 1
 ORPort 2222
 OutboundBindAddress 10.0.0.7
 OutboundBindAddressExit 10.0.0.8

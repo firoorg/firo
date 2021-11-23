@@ -23,7 +23,6 @@
 #include "core/or/circuitbuild.h"
 #include "core/or/circuitpadding.h"
 #include "core/or/circuitpadding_machines.h"
-#include "core/or/extendinfo.h"
 #include "core/mainloop/netstatus.h"
 #include "core/crypto/relay_crypto.h"
 #include "core/or/protover.h"
@@ -1362,7 +1361,7 @@ test_circuitpadding_wronghop(void *arg)
 
   /* 5. Test that asking to stop the wrong machine does nothing */
   circpad_negotiate_padding(TO_ORIGIN_CIRCUIT(client_side),
-                            255, 2, CIRCPAD_COMMAND_STOP, 0);
+                            255, 2, CIRCPAD_COMMAND_STOP);
   tt_ptr_op(client_side->padding_machine[0], OP_NE, NULL);
   tt_ptr_op(client_side->padding_info[0], OP_NE, NULL);
   tt_ptr_op(relay_side->padding_machine[0], OP_NE, NULL);
@@ -1374,7 +1373,7 @@ test_circuitpadding_wronghop(void *arg)
   ret = circpad_handle_padding_negotiated(relay_side, &cell, NULL);
   tt_int_op(ret, OP_EQ, -1);
 
-  /* 7. Test garbled negotiated cell (bad command 255) */
+  /* 7. Test garbled negotated cell (bad command 255) */
   memset(&cell, 0, sizeof(cell));
   ret = circpad_handle_padding_negotiate(relay_side, &cell);
   tt_int_op(ret, OP_EQ, -1);
@@ -1410,7 +1409,7 @@ test_circuitpadding_wronghop(void *arg)
   circpad_padding_negotiated(relay_side,
                              CIRCPAD_MACHINE_CIRC_SETUP,
                              CIRCPAD_COMMAND_START,
-                             CIRCPAD_RESPONSE_OK, 0);
+                             CIRCPAD_RESPONSE_OK);
 
   /* verify no padding was negotiated */
   tt_ptr_op(relay_side->padding_machine[0], OP_EQ, NULL);
@@ -1419,7 +1418,7 @@ test_circuitpadding_wronghop(void *arg)
   circpad_padding_negotiated(relay_side,
                              CIRCPAD_MACHINE_CIRC_SETUP,
                              CIRCPAD_COMMAND_START,
-                             CIRCPAD_RESPONSE_ERR, 0);
+                             CIRCPAD_RESPONSE_ERR);
 
   /* verify no padding was negotiated */
   tt_ptr_op(relay_side->padding_machine[0], OP_EQ, NULL);
@@ -1522,7 +1521,7 @@ test_circuitpadding_negotiation(void *arg)
   /* Force negotiate padding. */
   circpad_negotiate_padding(TO_ORIGIN_CIRCUIT(client_side),
                             CIRCPAD_MACHINE_CIRC_SETUP,
-                            2, CIRCPAD_COMMAND_START, 0);
+                            2, CIRCPAD_COMMAND_START);
 
   /* verify no padding was negotiated */
   tt_ptr_op(relay_side->padding_machine[0], OP_EQ, NULL);
@@ -1733,9 +1732,9 @@ helper_create_conditional_machines(void)
 
   add->conditions.requires_vanguards = 0;
   add->conditions.min_hops = 2;
-  add->conditions.apply_state_mask = CIRCPAD_CIRC_BUILDING|
+  add->conditions.state_mask = CIRCPAD_CIRC_BUILDING|
            CIRCPAD_CIRC_NO_STREAMS|CIRCPAD_CIRC_HAS_RELAY_EARLY;
-  add->conditions.apply_purpose_mask = CIRCPAD_PURPOSE_ALL;
+  add->conditions.purpose_mask = CIRCPAD_PURPOSE_ALL;
   circpad_register_padding_machine(add, origin_padding_machines);
 
   add = helper_create_conditional_machine();
@@ -1752,9 +1751,9 @@ helper_create_conditional_machines(void)
 
   add->conditions.requires_vanguards = 1;
   add->conditions.min_hops = 3;
-  add->conditions.apply_state_mask = CIRCPAD_CIRC_OPENED|
+  add->conditions.state_mask = CIRCPAD_CIRC_OPENED|
            CIRCPAD_CIRC_STREAMS|CIRCPAD_CIRC_HAS_NO_RELAY_EARLY;
-  add->conditions.apply_purpose_mask = CIRCPAD_PURPOSE_ALL;
+  add->conditions.purpose_mask = CIRCPAD_PURPOSE_ALL;
   circpad_register_padding_machine(add, origin_padding_machines);
 
   add = helper_create_conditional_machine();
@@ -2338,7 +2337,7 @@ helper_circpad_circ_distribution_machine_setup(int min, int max)
 }
 
 /** Simple test that the padding delays sampled from a uniform distribution
- *  actually fail within the uniform distribution range. */
+ *  actually faill within the uniform distribution range. */
 static void
 test_circuitpadding_sample_distribution(void *arg)
 {
@@ -2728,8 +2727,8 @@ helper_create_ender_machine(void)
   circ_client_machine.states[CIRCPAD_STATE_START].
       next_state[CIRCPAD_EVENT_NONPADDING_RECV] = CIRCPAD_STATE_END;
 
-  circ_client_machine.conditions.apply_state_mask = CIRCPAD_STATE_ALL;
-  circ_client_machine.conditions.apply_purpose_mask = CIRCPAD_PURPOSE_ALL;
+  circ_client_machine.conditions.state_mask = CIRCPAD_STATE_ALL;
+  circ_client_machine.conditions.purpose_mask = CIRCPAD_PURPOSE_ALL;
 }
 
 static time_t mocked_timeofday;
@@ -3032,7 +3031,7 @@ test_circuitpadding_hs_machines(void *arg)
 
   /* Test logic:
    *
-   * 1) Register the HS machines, which aim to hide the presence of
+   * 1) Register the HS machines, which aim to hide the presense of
    *    onion service traffic on the client-side
    *
    * 2) Call helper_test_hs_machines() to perform tests for the intro circuit

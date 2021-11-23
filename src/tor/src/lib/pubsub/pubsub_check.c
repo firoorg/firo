@@ -1,7 +1,7 @@
 /* Copyright (c) 2001, Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -31,7 +31,7 @@ static void pubsub_adjmap_add(pubsub_adjmap_t *map,
                                 const pubsub_cfg_t *item);
 
 /**
- * Helper: construct and return a new pubsub_adjacency_map from <b>cfg</b>.
+ * Helper: contruct and return a new pubsub_adjacency_map from <b>cfg</b>.
  * Return NULL on error.
  **/
 static pubsub_adjmap_t *

@@ -15,4 +15,3 @@ lib/string/*.h
 lib/subsys/*.h
 lib/testsupport/*.h
 lib/malloc/*.h
-lib/smartlist_core/*.h

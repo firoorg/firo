@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2021, The Tor Project, Inc. */
+/* Copyright (c) 2009-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -90,10 +90,10 @@ microdesc_eq_(microdesc_t *a, microdesc_t *b)
 }
 
 HT_PROTOTYPE(microdesc_map, microdesc_t, node,
-             microdesc_hash_, microdesc_eq_);
+             microdesc_hash_, microdesc_eq_)
 HT_GENERATE2(microdesc_map, microdesc_t, node,
              microdesc_hash_, microdesc_eq_, 0.6,
-             tor_reallocarray_, tor_free_);
+             tor_reallocarray_, tor_free_)
 
 /************************* md fetch fail cache *****************************/
 
@@ -129,9 +129,8 @@ microdesc_note_outdated_dirserver(const char *relay_digest)
   tor_assert(outdated_dirserver_list);
 
   /* If the list grows too big, clean it up */
-  if (smartlist_len(outdated_dirserver_list) > TOO_MANY_OUTDATED_DIRSERVERS) {
-    log_info(LD_GENERAL,"Too many outdated directory servers (%d). Resetting.",
-             smartlist_len(outdated_dirserver_list));
+  if (BUG(smartlist_len(outdated_dirserver_list) >
+          TOO_MANY_OUTDATED_DIRSERVERS)) {
     microdesc_reset_outdated_dirservers_list();
   }
 

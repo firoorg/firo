@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -500,8 +500,7 @@ nt_service_command_line(int *using_default_torrc)
     if (!strcmp(backup_argv[i], "--options") ||
         !strcmp(backup_argv[i], "-options")) {
       while (++i < backup_argc) {
-        if (!strcmp(backup_argv[i], "-f") ||
-            !strcmp(backup_argv[i], "--torrc-file"))
+        if (!strcmp(backup_argv[i], "-f"))
           *using_default_torrc = 0;
         smartlist_add(sl, backup_argv[i]);
       }
@@ -604,7 +603,7 @@ nt_service_install(int argc, char **argv)
       /* Genericity is apparently _so_ last year in Redmond, where some
        * accounts are accounts that you can look up, and some accounts
        * are magic and undetectable via the security subsystem. See
-       * https://msdn2.microsoft.com/en-us/library/ms684188.aspx
+       * http://msdn2.microsoft.com/en-us/library/ms684188.aspx
        */
       printf("Running on a Post-Win2K OS, so we'll assume that the "
              "LocalService account exists.\n");

@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -24,41 +24,16 @@ struct config_suite_t;
 struct routerset_t;
 
 /** Enumeration of outbound address configuration types:
- * Exit-only, OR-only, PT-only, or any of them */
-typedef enum {
-  /** Outbound IP address for Exit connections. Controlled by the
-   * `OutboundBindAddressExit` configuration entry in torrc. */
-  OUTBOUND_ADDR_EXIT,
-
-  /** Outbound IP address for OR connections. Controlled by the
-   * `OutboundBindAddressOR` configuration entry in torrc. */
-  OUTBOUND_ADDR_OR,
-
-  /** Outbound IP address for PT connections. Controlled by the
-   * `OutboundBindAddressPT` configuration entry in torrc. */
-  OUTBOUND_ADDR_PT,
-
-  /** Outbound IP address for any outgoing connections. Controlled by the
-   * OutboundBindAddress configuration entry in torrc. This value is used as
-   * fallback if the more specific OUTBOUND_ADDR_EXIT, OUTBOUND_ADDR_OR, and
-   * OUTBOUND_ADDR_PT are unset. */
-  OUTBOUND_ADDR_ANY,
-
-  /** Max value for this enum. Must be the last element in this enum. */
-  OUTBOUND_ADDR_MAX
-} outbound_addr_t;
+ * Exit-only, OR-only, or both */
+typedef enum {OUTBOUND_ADDR_EXIT, OUTBOUND_ADDR_OR,
+              OUTBOUND_ADDR_EXIT_AND_OR,
+              OUTBOUND_ADDR_MAX} outbound_addr_t;
 
 /** Which protocol to use for TCPProxy. */
 typedef enum {
   /** Use the HAProxy proxy protocol. */
   TCP_PROXY_PROTOCOL_HAPROXY
 } tcp_proxy_protocol_t;
-
-/** Enumeration of available time formats for output of --key-expiration */
-typedef enum {
-  KEY_EXPIRATION_FORMAT_ISO8601 = 0,
-  KEY_EXPIRATION_FORMAT_TIMESTAMP
-} key_expiration_format_t;
 
 /** Configuration options for a Tor process. */
 struct or_options_t {
@@ -77,6 +52,7 @@ struct or_options_t {
   int TruncateLogFile; /**< Boolean: Should we truncate the log file
                             before we start writing? */
   char *SyslogIdentityTag; /**< Identity tag to add for syslog logging. */
+  char *AndroidIdentityTag; /**< Identity tag to add for Android logging. */
 
   char *DebugLogFile; /**< Where to send verbose log messages. */
   char *DataDirectory_option; /**< Where to store long-term data, as
@@ -95,14 +71,7 @@ struct or_options_t {
   int CacheDirectoryGroupReadable; /**< Boolean: Is the CacheDirectory g+r? */
 
   char *Nickname; /**< OR only: nickname of this onion router. */
-  /** OR only: configured address for this onion router. Up to two times this
-   * options is accepted as in IPv4 and IPv6. */
-  struct config_line_t *Address;
-
-  /** Boolean: If set, disable IPv6 address resolution, IPv6 ORPorts, IPv6
-   * reachability checks, and publishing an IPv6 ORPort in its descriptor. */
-  int AddressDisableIPv6;
-
+  char *Address; /**< OR only: configured address for this onion router. */
   char *PidFile; /**< Where to store PID of Tor process. */
 
   struct routerset_t *ExitNodes; /**< Structure containing nicknames, digests,
@@ -149,8 +118,6 @@ struct or_options_t {
   struct config_line_t *OutboundBindAddressOR;
   /** Local address to bind outbound exit sockets */
   struct config_line_t *OutboundBindAddressExit;
-  /** Local address to bind outbound PT sockets */
-  struct config_line_t *OutboundBindAddressPT;
   /** Addresses derived from the various OutboundBindAddress lines.
    * [][0] is IPv4, [][1] is IPv6
    */
@@ -164,8 +131,6 @@ struct or_options_t {
   struct config_line_t *ORPort_lines;
   /** Ports to listen on for extended OR connections. */
   struct config_line_t *ExtORPort_lines;
-  /** Ports to listen on for Metrics connections. */
-  struct config_line_t *MetricsPort_lines;
   /** Ports to listen on for SOCKS connections. */
   struct config_line_t *SocksPort_lines;
   /** Ports to listen on for transparent pf/netfilter connections. */
@@ -225,17 +190,9 @@ struct or_options_t {
   unsigned int DNSPort_set : 1;
   unsigned int ExtORPort_set : 1;
   unsigned int HTTPTunnelPort_set : 1;
-  unsigned int MetricsPort_set : 1;
   /**@}*/
 
-  /** Whether to publish our descriptor regardless of all our self-tests
-   */
-  int AssumeReachable;
-  /** Whether to publish our descriptor regardless of IPv6 self-tests.
-   *
-   * This is an autobool; when set to AUTO, it uses AssumeReachable.
-   **/
-  int AssumeReachableIPv6;
+  int AssumeReachable; /**< Whether to publish our descriptor regardless. */
   int AuthoritativeDir; /**< Boolean: is this an authoritative directory? */
   int V3AuthoritativeDir; /**< Boolean: is this an authoritative directory
                            * for version 3 directories? */
@@ -336,7 +293,7 @@ struct or_options_t {
   /* Makes hidden service clients and servers non-anonymous on this tor
    * instance. Allows the non-anonymous HiddenServiceSingleHopMode. Enables
    * non-anonymous behaviour in the hidden service protocol.
-   * Use hs_service_non_anonymous_mode_enabled() instead of using this option
+   * Use rend_service_non_anonymous_mode_enabled() instead of using this option
    * directly.
    */
   int HiddenServiceNonAnonymousMode;
@@ -428,6 +385,9 @@ struct or_options_t {
   int NumCPUs; /**< How many CPUs should we try to use? */
   struct config_line_t *RendConfigLines; /**< List of configuration lines
                                           * for rendezvous services. */
+  struct config_line_t *HidServAuth; /**< List of configuration lines for
+                               * client-side authorizations for hidden
+                               * services */
   char *ClientOnionAuthDir; /**< Directory to keep client
                              * onion service authorization secret keys */
   char *ContactInfo; /**< Contact info to be published in the directory. */
@@ -674,9 +634,6 @@ struct or_options_t {
   /** If true, include statistics file contents in extra-info documents. */
   int ExtraInfoStatistics;
 
-  /** If true, include overload statistics in extra-info documents. */
-  int OverloadStatistics;
-
   /** If true, do not believe anybody who tells us that a domain resolves
    * to an internal address, or that an internal address has a PTR mapping.
    * Helps avoid some cross-site attacks. */
@@ -691,7 +648,7 @@ struct or_options_t {
   int ClientUseIPv4;
   /** If true, clients may connect over IPv6. If false, they will avoid
    * connecting over IPv4. We enforce this for OR and Dir connections.
-   * Use reachable_addr_use_ipv6() instead of accessing this value
+   * Use fascist_firewall_use_ipv6() instead of accessing this value
    * directly. */
   int ClientUseIPv6;
   /** If true, prefer an IPv6 OR port over an IPv4 one for entry node
@@ -701,9 +658,12 @@ struct or_options_t {
   int ClientPreferIPv6ORPort;
   /** If true, prefer an IPv6 directory port over an IPv4 one for direct
    * directory connections. If auto, bridge clients prefer IPv6, and other
-   * clients prefer IPv4. Use reachable_addr_prefer_ipv6_dirport() instead of
+   * clients prefer IPv4. Use fascist_firewall_prefer_ipv6_dirport() instead of
    * accessing this value directly.  */
   int ClientPreferIPv6DirPort;
+
+  /** If true, prefer an IPv4 or IPv6 OR port at random. */
+  int ClientAutoIPv6ORPort;
 
   /** The length of time that we think a consensus should be fresh. */
   int V3AuthVotingInterval;
@@ -871,6 +831,10 @@ struct or_options_t {
    * once. */
   int MaxClientCircuitsPending;
 
+  /** If 1, we always send optimistic data when it's supported.  If 0, we
+   * never use it.  If -1, we do what the consensus says. */
+  int OptimisticData;
+
   /** If 1, we accept and launch no external network connections, except on
    * control ports. */
   int DisableNetwork;
@@ -969,8 +933,6 @@ struct or_options_t {
    * ed25519 identity key except from tor --keygen */
   int OfflineMasterKey;
 
-  key_expiration_format_t key_expiration_format;
-
   enum {
     FORCE_PASSPHRASE_AUTO=0,
     FORCE_PASSPHRASE_ON,
@@ -1031,17 +993,39 @@ struct or_options_t {
    */
   int DisableSignalHandlers;
 
+  /** Autobool: Is the circuit creation DoS mitigation subsystem enabled? */
+  int DoSCircuitCreationEnabled;
+  /** Minimum concurrent connection needed from one single address before any
+   * defense is used. */
+  int DoSCircuitCreationMinConnections;
+  /** Circuit rate used to refill the token bucket. */
+  int DoSCircuitCreationRate;
+  /** Maximum allowed burst of circuits. Reaching that value, the address is
+   * detected as malicious and a defense might be used. */
+  int DoSCircuitCreationBurst;
+  /** When an address is marked as malicous, what defense should be used
+   * against it. See the dos_cc_defense_type_t enum. */
+  int DoSCircuitCreationDefenseType;
+  /** For how much time (in seconds) the defense is applicable for a malicious
+   * address. A random time delta is added to the defense time of an address
+   * which will be between 1 second and half of this value. */
+  int DoSCircuitCreationDefenseTimePeriod;
+
+  /** Autobool: Is the DoS connection mitigation subsystem enabled? */
+  int DoSConnectionEnabled;
+  /** Maximum concurrent connection allowed per address. */
+  int DoSConnectionMaxConcurrentCount;
+  /** When an address is reaches the maximum count, what defense should be
+   * used against it. See the dos_conn_defense_type_t enum. */
+  int DoSConnectionDefenseType;
+
+  /** Autobool: Do we refuse single hop client rendezvous? */
+  int DoSRefuseSingleHopClientRendezvous;
+
   /** Interval: how long without activity does it take for a client
    * to become dormant?
    **/
   int DormantClientTimeout;
-
-  /**
-   * Boolean: If enabled, then we consider the timeout when deciding whether
-   * to be dormant.  If not enabled, then only the SIGNAL ACTIVE/DORMANT
-   * controls can change our status.
-   **/
-  int DormantTimeoutEnabled;
 
   /** Boolean: true if having an idle stream is sufficient to prevent a client
    * from becoming dormant.
@@ -1056,13 +1040,6 @@ struct or_options_t {
    * a possible previous dormant state.
    **/
   int DormantCanceledByStartup;
-
-  /** List of policy allowed to query the Metrics port. */
-  struct config_line_t *MetricsPortPolicy;
-
-  /** How far must we be into the current bandwidth-measurement period to
-   * report bandwidth observations from this period? */
-  int TestingMinTimeToReportBandwidth;
 
   /**
    * Configuration objects for individual modules.

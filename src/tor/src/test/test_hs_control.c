@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2021, The Tor Project, Inc. */
+/* Copyright (c) 2017-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -7,17 +7,15 @@
  **/
 
 #define CONTROL_EVENTS_PRIVATE
-#define CONTROL_CMD_PRIVATE
 #define HS_CLIENT_PRIVATE
-#define HS_SERVICE_PRIVATE
 
 #include "core/or/or.h"
 #include "test/test.h"
 #include "test/test_helpers.h"
 #include "core/mainloop/connection.h"
 #include "feature/control/control.h"
-#include "feature/control/control_cmd.h"
 #include "feature/control/control_events.h"
+#include "feature/control/control_cmd.h"
 #include "feature/control/control_fmt.h"
 #include "feature/control/control_connection_st.h"
 #include "app/config/config.h"
@@ -28,7 +26,6 @@
 
 #include "feature/nodelist/node_st.h"
 #include "feature/nodelist/routerstatus_st.h"
-#include "lib/container/smartlist.h"
 #include "lib/crypt_ops/crypto_format.h"
 
 #ifdef HAVE_SYS_STAT_H
@@ -215,8 +212,7 @@ test_hs_control_good_onion_client_auth_add(void *arg)
   MOCK(connection_write_to_buf_impl_, connection_write_to_buf_mock);
 
   int retval;
-  ed25519_public_key_t service_identity_pk_2fv, service_identity_pk_jt4,
-                       service_identity_pk_jam;
+  ed25519_public_key_t service_identity_pk_2fv, service_identity_pk_jt4;
   control_connection_t conn;
   char *args = NULL;
   char *cp1 = NULL;
@@ -240,12 +236,6 @@ test_hs_control_good_onion_client_auth_add(void *arg)
     retval = hs_parse_address(
                  "jt4grrjwzyz3pjkylwfau5xnjaj23vxmhskqaeyfhrfylelw4hvxcuyd",
                  &service_identity_pk_jt4,
-                 NULL, NULL);
-    tt_int_op(retval, OP_EQ, 0);
-
-    retval = hs_parse_address(
-                 "jamie3vkiwibfiwucd6vxijskbhpjdyajmzeor4mc4i7yopvpo4p7cyd",
-                 &service_identity_pk_jam,
                  NULL, NULL);
     tt_int_op(retval, OP_EQ, 0);
   }
@@ -278,24 +268,10 @@ test_hs_control_good_onion_client_auth_add(void *arg)
   cp1 = buf_get_contents(TO_CONN(&conn)->outbuf, &sz);
   tt_str_op(cp1, OP_EQ, "250 OK\r\n");
   tor_free(cp1);
-  tor_free(args);
-
-  /* Register second service (even with an unrecognized argument) */
-  args = tor_strdup("jamie3vkiwibfiwucd6vxijskbhpjdyajmzeor4mc4i7yopvpo4p7cyd "
-           "x25519:FCV0c0ELDKKDpSFgVIB8Yow8Evj5iD+GoiTtK878NkQ= "
-           "ClientName=MeganNicole ");
-
-  retval = handle_control_command(&conn, (uint32_t) strlen(args), args);
-  tt_int_op(retval, OP_EQ, 0);
-
-  /* Check contents */
-  cp1 = buf_get_contents(TO_CONN(&conn)->outbuf, &sz);
-  tt_str_op(cp1, OP_EQ, "250 OK\r\n");
-  tor_free(cp1);
 
   client_auths = get_hs_client_auths_map();
   tt_assert(client_auths);
-  tt_uint_op(digest256map_size(client_auths), OP_EQ, 3);
+  tt_uint_op(digest256map_size(client_auths), OP_EQ, 2);
 
   hs_client_service_authorization_t *client_2fv =
     digest256map_get(client_auths, service_identity_pk_2fv.pubkey);
@@ -306,11 +282,6 @@ test_hs_control_good_onion_client_auth_add(void *arg)
     digest256map_get(client_auths, service_identity_pk_jt4.pubkey);
   tt_assert(client_jt4);
   tt_int_op(client_jt4->flags, OP_EQ, 0);
-
-  hs_client_service_authorization_t *client_jam =
-    digest256map_get(client_auths, service_identity_pk_jam.pubkey);
-  tt_assert(client_jam);
-  tt_int_op(client_jam->flags, OP_EQ, 0);
 
   /* Now let's VIEW the auth credentials */
   tor_free(conn.current_cmd);
@@ -323,9 +294,6 @@ test_hs_control_good_onion_client_auth_add(void *arg)
 #define VIEW_CORRECT_REPLY_NO_ADDR "250-ONION_CLIENT_AUTH_VIEW\r\n"   \
   "250-CLIENT 2fvhjskjet3n5syd6yfg5lhvwcs62bojmthr35ko5bllr3iqdb4ctdyd "  \
     "x25519:iJ1tjKCrMAbiFT2bVrCjhbfMDnE1fpaRbIS5ZHKUvEQ=\r\n"   \
-  "250-CLIENT jamie3vkiwibfiwucd6vxijskbhpjdyajmzeor4mc4i7yopvpo4p7cyd " \
-    "x25519:FCV0c0ELDKKDpSFgVIB8Yow8Evj5iD+GoiTtK878NkQ= " \
-    "ClientName=MeganNicole\r\n" \
   "250-CLIENT jt4grrjwzyz3pjkylwfau5xnjaj23vxmhskqaeyfhrfylelw4hvxcuyd " \
     "x25519:eIIdIGoSZwI2Q/lSzpf92akGki5I+PZIDz37MA5BhlA=\r\n"             \
   "250 OK\r\n"
@@ -396,19 +364,7 @@ test_hs_control_good_onion_client_auth_add(void *arg)
 
   /* Now also remove the other one */
   tor_free(args);
-  args =
-    tor_strdup("2fvhjskjet3n5syd6yfg5lhvwcs62bojmthr35ko5bllr3iqdb4ctdyd");
-
-  retval = handle_control_command(&conn, (uint32_t) strlen(args), args);
-  tt_int_op(retval, OP_EQ, 0);
-  cp1 = buf_get_contents(TO_CONN(&conn)->outbuf, &sz);
-  tt_str_op(cp1, OP_EQ, "250 OK\r\n");
-  tor_free(cp1);
-
-  /* Now also remove the other one */
-  tor_free(args);
-  args =
-    tor_strdup("jamie3vkiwibfiwucd6vxijskbhpjdyajmzeor4mc4i7yopvpo4p7cyd");
+  args =tor_strdup("2fvhjskjet3n5syd6yfg5lhvwcs62bojmthr35ko5bllr3iqdb4ctdyd");
 
   retval = handle_control_command(&conn, (uint32_t) strlen(args), args);
   tt_int_op(retval, OP_EQ, 0);
@@ -437,7 +393,7 @@ test_hs_control_good_onion_client_auth_add(void *arg)
   retval = handle_control_command(&conn, (uint32_t) strlen(args), args);
   tt_int_op(retval, OP_EQ, 0);
   cp1 = buf_get_contents(TO_CONN(&conn)->outbuf, &sz);
-  tt_str_op(cp1, OP_EQ, "512 Invalid v3 address \"house\"\r\n");
+  tt_str_op(cp1, OP_EQ, "512 Invalid v3 addr \"house\"\r\n");
 
  done:
   tor_free(args);
@@ -622,7 +578,7 @@ test_hs_control_store_permanent_creds(void *arg)
   tt_assert(creds_file_str);
   tt_str_op(creds_file_str, OP_EQ,
          "2fvhjskjet3n5syd6yfg5lhvwcs62bojmthr35ko5bllr3iqdb4ctdyd:descriptor:"
-         /* base32 representation of the base64 iJ1t... key above */
+         /* This is the base32 represenation of the base64 iJ1t... key above */
          "x25519:rcow3dfavmyanyqvhwnvnmfdqw34ydtrgv7jnelmqs4wi4uuxrca");
 
   tor_free(args);
@@ -646,7 +602,7 @@ test_hs_control_store_permanent_creds(void *arg)
   tt_assert(creds_file_str);
   tt_str_op(creds_file_str, OP_EQ,
          "2fvhjskjet3n5syd6yfg5lhvwcs62bojmthr35ko5bllr3iqdb4ctdyd:descriptor:"
-         /* base32 representation of the base64 UDRv... key above */
+         /* This is the base32 represenation of the base64 UDRv... key above */
          "x25519:ka2g6zf33qti2ecexpbx4stan3nsu3sijbiqm4t2rwctigxajnpq");
 
   /* Now for our next act!!! Actually get the HS client subsystem to parse the
@@ -738,130 +694,6 @@ test_hs_control_add_onion_with_bad_pubkey(void *arg)
   tor_free(conn.current_cmd);
 }
 
-/** Test that we can add the service via the control port. */
-static void
-test_hs_control_add_auth_onion_service(void *arg)
-{
-  control_connection_t conn;
-  char *args = NULL, *cp1 = NULL;
-  size_t sz;
-
-  (void) arg;
-
-  hs_init();
-
-  memset(&conn, 0, sizeof(control_connection_t));
-  TO_CONN(&conn)->outbuf = buf_new();
-  conn.current_cmd = tor_strdup("ADD_ONION");
-  args = tor_strdup("ED25519-V3:KLMQ4CLKwlDCHuMPn8j3od33cU5LhnrLNoZh7CWChl3VkY"
-    "pNAkeP5dGW8xeKR9HxQBWQ/w7Kr12lA/U8Pd/oxw== "
-    "ClientAuthV3=dz4q5xqlb4ldnbs72iarrml4ephk3du4i7o2cgiva5lwr6wkquja "
-    "Flags=V3Auth Port=9735,127.0.0.1");
-  handle_control_command(&conn, (uint32_t) strlen(args), args);
-  cp1 = buf_get_contents(TO_CONN(&conn)->outbuf, &sz);
-  tt_str_op(cp1, OP_EQ,
-   "250-ServiceID=n35etu3yjxrqjpntmfziom5sjwspoydchmelc4xleoy4jk2u4lziz2yd\r\n"
-   "250-ClientAuthV3=dz4q5xqlb4ldnbs72iarrml4ephk3du4i7o2cgiva5lwr6wkquja\r\n"
-   "250 OK\r\n");
-  tor_free(args);
-  tor_free(cp1);
-
-  args = tor_strdup("ED25519-V3:iIU8EBi71qE7G6UTsROU1kWN0JMrRP/YukC0Xk5WLGyil3"
-    "gm4u3wEBXr+/TaCpXS+65Pcdqz+PG+4+oWHLN05A== "
-    "ClientAuthV3=dummy Flags=V3Auth Port=9735,127.0.0.1");
-  handle_control_command(&conn, (uint32_t) strlen(args), args);
-  cp1 = buf_get_contents(TO_CONN(&conn)->outbuf, &sz);
-  tt_str_op(cp1, OP_EQ, "512 Cannot decode v3 client auth key\r\n");
-
- done:
-  tor_free(args);
-  tor_free(cp1);
-  tor_free(conn.current_cmd);
-  buf_free(TO_CONN(&conn)->outbuf);
-  SMARTLIST_FOREACH(conn.ephemeral_onion_services, char *,
-                    service, tor_free(service));
-  smartlist_free(conn.ephemeral_onion_services);
-  hs_client_free_all();
-}
-
-/** Test that add_onion_helper_add_service can add the service. */
-static void
-test_hs_control_add_onion_helper_add_service(void *arg)
-{
-  int hs_version_good, hs_version_bad;
-  add_onion_secret_key_t sk_good, sk_bad;
-  ed25519_public_key_t pk_good, pk_bad;
-  char *key_new_blob_good = NULL, *key_new_blob_bad = NULL;
-  const char *key_new_alg_good = NULL, *key_new_alg_bad = NULL;
-  hs_service_authorized_client_t *client_good, *client_bad;
-  smartlist_t *list_good, *list_bad;
-  hs_service_ht *global_map;
-  hs_port_config_t *portcfg;
-  smartlist_t *portcfgs;
-  char *address_out_good, *address_out_bad;
-  hs_service_t *service_good = NULL;
-  hs_service_t *service_bad = NULL;
-
-  (void) arg;
-
-  hs_init();
-  global_map = get_hs_service_map();
-
-  portcfg = hs_parse_port_config("8080", ",", NULL);
-  portcfgs = smartlist_new();
-  smartlist_add(portcfgs, portcfg);
-
-  memset(&sk_good, 0, sizeof(sk_good));
-  memset(&sk_bad, 0, sizeof(sk_bad));
-
-  add_onion_helper_keyarg("NEW:ED25519-V3", 0, &key_new_alg_good,
-                         &key_new_blob_good, &sk_good, &hs_version_good, NULL);
-  add_onion_helper_keyarg("NEW:ED25519-V3", 0, &key_new_alg_bad,
-                         &key_new_blob_bad, &sk_bad, &hs_version_bad, NULL);
-
-  ed25519_public_key_generate(&pk_good, sk_good.v3);
-  ed25519_public_key_generate(&pk_bad, sk_bad.v3);
-
-  client_good = parse_authorized_client_key(
-            "N2NU7BSRL6YODZCYPN4CREB54TYLKGIE2KYOQWLFYC23ZJVCE5DQ", LOG_INFO);
-  client_bad = parse_authorized_client_key("dummy", LOG_INFO);
-
-  list_good = smartlist_new();
-  smartlist_add(list_good, client_good);
-
-  add_onion_helper_add_service(HS_VERSION_THREE, &sk_good, portcfgs, 1, 1,
-                               list_good, &address_out_good);
-
-  service_good = find_service(global_map, &pk_good);
-  tt_int_op(smartlist_len(service_good->config.clients), OP_EQ, 1);
-
-  remove_service(global_map, service_good);
-  hs_service_free(service_good);
-
-  list_bad = smartlist_new();
-  smartlist_add(list_bad, client_bad);
-
-  portcfg = hs_parse_port_config("8080", ",", NULL);
-  portcfgs = smartlist_new();
-  smartlist_add(portcfgs, portcfg);
-
-  add_onion_helper_add_service(HS_VERSION_THREE, &sk_bad, portcfgs, 1, 1,
-                               list_bad, &address_out_bad);
-
-  service_bad = find_service(global_map, &pk_bad);
-
-  tt_int_op(smartlist_len(service_bad->config.clients), OP_EQ, 0);
-
- done:
-  tor_free(key_new_blob_good);
-  tor_free(key_new_blob_bad);
-  tor_free(address_out_good);
-  tor_free(address_out_bad);
-
-  hs_service_free(service_good);
-  hs_service_free(service_bad);
-}
-
 struct testcase_t hs_control_tests[] = {
   { "hs_desc_event", test_hs_desc_event, TT_FORK,
     NULL, NULL },
@@ -875,10 +707,6 @@ struct testcase_t hs_control_tests[] = {
     test_hs_control_store_permanent_creds, TT_FORK, NULL, NULL },
   { "hs_control_add_onion_with_bad_pubkey",
     test_hs_control_add_onion_with_bad_pubkey, TT_FORK, NULL, NULL },
-  { "hs_control_add_auth_onion_service",
-    test_hs_control_add_auth_onion_service, TT_FORK, NULL, NULL},
-  { "hs_control_add_onion_helper_add_service",
-    test_hs_control_add_onion_helper_add_service, TT_FORK, NULL, NULL},
 
   END_OF_TESTCASES
 };

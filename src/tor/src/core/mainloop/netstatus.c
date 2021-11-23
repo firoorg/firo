@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -72,7 +72,7 @@ note_user_activity(time_t now)
 }
 
 /**
- * Change the time at which "user activity" was last seen to <b>now</b>.
+ * Change the time at which "user activitiy" was last seen to <b>now</b>.
  *
  * Unlike note_user_actity, this function sets the time without checking
  * whether it is in the past, and without causing any rescan of periodic events
@@ -152,9 +152,6 @@ netstatus_load_from_state(const mainloop_state_t *state, time_t now)
   }
   if (get_options()->DormantCanceledByStartup) {
     last_activity = now;
-    participating_on_network = true;
-  }
-  if (! get_options()->DormantTimeoutEnabled) {
     participating_on_network = true;
   }
   reset_user_activity(last_activity);

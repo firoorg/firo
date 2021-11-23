@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -20,9 +20,8 @@
 /* Required for dirinfo_type_t in or_options_t */
 #include "core/or/or.h"
 #include "app/config/config.h"
-#include "app/config/resolve_addr.h"
 
-#include "feature/dirauth/voting_schedule.h"
+#include "feature/dircommon/voting_schedule.h"
 #include "feature/stats/rephist.h"
 
 #include "feature/dirauth/authmode.h"
@@ -77,8 +76,8 @@ options_validate_dirauth_mode(const or_options_t *old_options,
     return 0;
 
   /* confirm that our address isn't broken, so we can complain now */
-  tor_addr_t tmp;
-  if (!find_my_address(options, AF_INET, LOG_WARN, &tmp, NULL, NULL))
+  uint32_t tmp;
+  if (resolve_my_address(LOG_WARN, options, &tmp, NULL, NULL) < 0)
     REJECT("Failed to resolve/guess local address. See logs for details.");
 
   if (!options->ContactInfo && !options->TestingTorNetwork)
@@ -306,7 +305,7 @@ options_act_dirauth(const or_options_t *old_options)
   /* We may need to reschedule some dirauth stuff if our status changed. */
   if (old_options) {
     if (options_transition_affects_dirauth_timing(old_options, options)) {
-      dirauth_sched_recalculate_timing(options, time(NULL));
+      voting_schedule_recalculate_timing(options, time(NULL));
       reschedule_dirvote(options);
     }
   }

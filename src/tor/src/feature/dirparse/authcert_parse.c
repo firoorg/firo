@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -21,13 +21,11 @@
 #include "feature/dirparse/authcert_members.h"
 
 /** List of tokens recognized in V3 authority certificates. */
-// clang-format off
 static token_rule_t dir_key_certificate_table[] = {
   AUTHCERT_MEMBERS,
   T1("fingerprint",      K_FINGERPRINT,              CONCAT_ARGS, NO_OBJ ),
   END_OF_TABLE
 };
-// clang-format on
 
 /** Parse a key certificate from <b>s</b>; point <b>end-of-string</b> to
  * the first character after the certificate. */
@@ -130,13 +128,13 @@ authority_cert_parse_from_string(const char *s, size_t maxlen,
     tor_assert(tok->n_args);
     /* XXX++ use some tor_addr parse function below instead. -RD */
     if (tor_addr_port_split(LOG_WARN, tok->args[0], &address,
-                            &cert->ipv4_dirport) < 0 ||
+                            &cert->dir_port) < 0 ||
         tor_inet_aton(address, &in) == 0) {
       log_warn(LD_DIR, "Couldn't parse dir-address in certificate");
       tor_free(address);
       goto err;
     }
-    tor_addr_from_in(&cert->ipv4_addr, &in);
+    cert->addr = ntohl(in.s_addr);
     tor_free(address);
   }
 

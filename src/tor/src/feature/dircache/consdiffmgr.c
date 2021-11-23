@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2021, The Tor Project, Inc. */
+/* Copyright (c) 2017-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -177,16 +177,6 @@ typedef struct cdm_diff_t {
 /** Hashtable mapping flavor and source consensus digest to status. */
 static HT_HEAD(cdm_diff_ht, cdm_diff_t) cdm_diff_ht = HT_INITIALIZER();
 
-#ifdef _WIN32
-   // XXX(ahf): For tor#24857, a contributor suggested that on Windows, the CPU
-   // begins to spike at 100% once the number of files handled by the consensus
-   // diff manager becomes larger than 64. To see if the issue goes away, we
-   // hardcode this value to 64 now while we investigate a better solution.
-#  define CACHE_MAX_NUM 64
-#else /* !defined(_WIN32) */
-#  define CACHE_MAX_NUM 128
-#endif /* defined(_WIN32) */
-
 /**
  * Configuration for this module
  */
@@ -194,7 +184,7 @@ static consdiff_cfg_t consdiff_cfg = {
   // XXXX I'd like to make this number bigger, but it interferes with the
   // XXXX seccomp2 syscall filter, which tops out at BPF_MAXINS (4096)
   // XXXX rules.
-  /* .cache_max_num = */ CACHE_MAX_NUM
+  /* .cache_max_num = */ 128
 };
 
 static int consdiffmgr_ensure_space_for_files(int n);
@@ -228,9 +218,9 @@ cdm_diff_eq(const cdm_diff_t *diff1, const cdm_diff_t *diff2)
     diff1->compress_method == diff2->compress_method;
 }
 
-HT_PROTOTYPE(cdm_diff_ht, cdm_diff_t, node, cdm_diff_hash, cdm_diff_eq);
+HT_PROTOTYPE(cdm_diff_ht, cdm_diff_t, node, cdm_diff_hash, cdm_diff_eq)
 HT_GENERATE2(cdm_diff_ht, cdm_diff_t, node, cdm_diff_hash, cdm_diff_eq,
-             0.6, tor_reallocarray, tor_free_);
+             0.6, tor_reallocarray, tor_free_)
 
 #define cdm_diff_free(diff) \
   FREE_AND_NULL(cdm_diff_t, cdm_diff_free_, (diff))

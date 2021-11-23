@@ -36,7 +36,7 @@ impl Display for ProtoverError {
             ProtoverError::Unparseable => write!(f, "The protover string was unparseable."),
             ProtoverError::ExceedsMax => write!(
                 f,
-                "The high in a (low, high) protover range exceeds 63."
+                "The high in a (low, high) protover range exceeds u32::MAX."
             ),
             ProtoverError::ExceedsExpansionLimit => write!(
                 f,

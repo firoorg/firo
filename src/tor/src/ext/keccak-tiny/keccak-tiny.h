@@ -21,7 +21,7 @@ typedef struct keccak_state {
   size_t offset;
 
   uint8_t finalized : 1;
-} __attribute__((aligned(8))) keccak_state;
+} keccak_state;
 
 /* Initialize a Keccak instance suitable for SHA-3 hash functions. */
 int keccak_digest_init(keccak_state *s, size_t bits);

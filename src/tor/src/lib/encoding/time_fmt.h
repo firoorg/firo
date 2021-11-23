@@ -1,7 +1,7 @@
 /* Copyright (c) 2001, Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -17,8 +17,6 @@
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
-
-#include "lib/testsupport/testsupport.h"
 
 struct tm;
 struct timeval;
@@ -42,9 +40,5 @@ int parse_iso_time(const char *buf, time_t *t);
 int parse_iso_time_nospace(const char *cp, time_t *t);
 int parse_http_time(const char *buf, struct tm *tm);
 int format_time_interval(char *out, size_t out_len, long interval);
-
-#ifdef TIME_FMT_PRIVATE
-STATIC int tor_timegm_impl(const struct tm *tm, time_t *time_out);
-#endif
 
 #endif /* !defined(TOR_TIME_FMT_H) */

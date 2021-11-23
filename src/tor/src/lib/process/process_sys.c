@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2021, The Tor Project, Inc. */
+/* Copyright (c) 2018-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -26,8 +26,7 @@ subsys_process_shutdown(void)
 
 const subsys_fns_t sys_process = {
   .name = "process",
-  SUBSYS_DECLARE_LOCATION(),
-  .level = -18,
+  .level = -35,
   .supported = true,
   .initialize = subsys_process_initialize,
   .shutdown = subsys_process_shutdown

@@ -1,5 +1,5 @@
 /* Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -122,11 +122,15 @@ circuit_describe_status_for_controller(origin_circuit_t *circ)
     }
   }
 
-  if (circ->hs_ident != NULL) {
+  if (circ->rend_data != NULL || circ->hs_ident != NULL) {
     char addr[HS_SERVICE_ADDR_LEN_BASE32 + 1];
     const char *onion_address;
-    hs_build_address(&circ->hs_ident->identity_pk, HS_VERSION_THREE, addr);
-    onion_address = addr;
+    if (circ->rend_data) {
+      onion_address = rend_data_get_address(circ->rend_data);
+    } else {
+      hs_build_address(&circ->hs_ident->identity_pk, HS_VERSION_THREE, addr);
+      onion_address = addr;
+    }
     smartlist_add_asprintf(descparts, "REND_QUERY=%s", onion_address);
   }
 
@@ -202,8 +206,6 @@ entry_connection_describe_status_for_controller(const entry_connection_t *conn)
       case CONN_TYPE_AP_DNS_LISTENER: client_protocol = "DNS"; break;
       case CONN_TYPE_AP_HTTP_CONNECT_LISTENER:
         client_protocol = "HTTPCONNECT"; break;
-      case CONN_TYPE_METRICS_LISTENER:
-        client_protocol = "METRICS"; break;
       default: client_protocol = "UNKNOWN";
       }
     smartlist_add_asprintf(descparts, "CLIENT_PROTOCOL=%s",

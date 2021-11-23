@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -84,11 +84,12 @@ struct node_t {
 
   /* Local info: derived. */
 
-  /** True if the IPv6 OR port is preferred over the IPv4 OR port. */
+  /** True if the IPv6 OR port is preferred over the IPv4 OR port.
+   * XX/teor - can this become out of date if the torrc changes? */
   unsigned int ipv6_preferred:1;
 
   /** According to the geoip db what country is this router in? */
-  /* IPv6: what is this supposed to mean with multiple OR ports? */
+  /* XXXprop186 what is this suppose to mean with multiple OR ports? */
   country_t country;
 
   /* The below items are used only by authdirservers for
