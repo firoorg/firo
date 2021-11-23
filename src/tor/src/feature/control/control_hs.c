@@ -1,5 +1,5 @@
 /* Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2019-2021, The Tor Project, Inc. */
+ * Copyright (c) 2019-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -134,13 +134,6 @@ handle_control_onion_client_auth_add(control_connection_t *conn,
         }
       } SMARTLIST_FOREACH_END(flag);
     }
-    if (!strcasecmp(line->key, "ClientName")) {
-      if (strlen(line->value) > REND_CLIENTNAME_MAX_LEN) {
-        control_printf_endreply(conn, 512, "ClientName longer than %d chars",
-                                REND_CLIENTNAME_MAX_LEN);
-      }
-      creds->client_name = tor_strdup(line->value);
-    }
   }
 
   hs_client_register_auth_status_t register_status;
@@ -262,10 +255,6 @@ encode_client_auth_cred_for_control_port(
     }
   }
 
-  if (cred->client_name) {
-    smartlist_add_asprintf(control_line, " ClientName=%s", cred->client_name);
-  }
-
   /* Join all the components into a single string */
   msg_str = smartlist_join_strings(control_line, "", 0, NULL);
 
@@ -302,8 +291,7 @@ handle_control_onion_client_auth_view(control_connection_t *conn,
   if (argc >= 1) {
     hsaddress = smartlist_get(args->args, 0);
     if (!hs_address_is_valid(hsaddress)) {
-      control_printf_endreply(conn, 512, "Invalid v3 address \"%s\"",
-                              hsaddress);
+      control_printf_endreply(conn, 512, "Invalid v3 addr \"%s\"", hsaddress);
       goto err;
     }
   }

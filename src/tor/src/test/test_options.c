@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define CONFIG_PRIVATE
@@ -302,6 +302,8 @@ test_options_validate(void *arg)
                "ServerTransportOptions did not parse",
                LOG_WARN, "\"slingsnappy\" is not a k=v", PH_VALIDATE);
 
+  WANT_ERR("DirPort 8080\nDirCache 0",
+           "DirPort configured but DirCache disabled.", PH_VALIDATE);
   WANT_ERR("BridgeRelay 1\nDirCache 0",
            "We're a bridge but DirCache is disabled.", PH_VALIDATE);
 
@@ -1011,7 +1013,7 @@ test_options_validate__relay_with_hidden_services(void *ignored)
             "Tor is currently configured as a relay and a hidden service. "
             "That's not very secure: you should probably run your hidden servi"
             "ce in a separate Tor process, at least -- see "
-            "https://bugs.torproject.org/tpo/core/tor/8742.\n");
+            "https://trac.torproject.org/8742\n");
 
  done:
   teardown_capture_of_logs();
@@ -1930,6 +1932,18 @@ test_options_validate__publish_server_descriptor(void *ignored)
             "PublishServerDescriptor line.");
   tor_free(msg);
 
+  free_options_test_data(tdata);
+  tdata = get_options_test_data("BridgeRelay 1\n"
+                                "DirPort 999\n");
+
+  mock_clean_saved_logs();
+  ret = options_validate(NULL, tdata->opt, &msg);
+  tt_int_op(ret, OP_EQ, -1);
+  expect_log_msg("Can't set a DirPort on a bridge "
+            "relay; disabling DirPort\n");
+  tt_assert(!tdata->opt->DirPort_lines);
+  tt_assert(!tdata->opt->DirPort_set);
+
  done:
   teardown_capture_of_logs();
   policies_free_all();
@@ -2348,7 +2362,7 @@ test_options_validate__rend(void *ignored)
   expect_log_msg("UseEntryGuards is disabled, but you"
             " have configured one or more hidden services on this Tor "
             "instance.  Your hidden services will be very easy to locate using"
-            " a well-known attack -- see https://freehaven.net/anonbib/#hs-"
+            " a well-known attack -- see http://freehaven.net/anonbib/#hs-"
             "attack06 for details.\n");
   tor_free(msg);
 
@@ -2364,7 +2378,7 @@ test_options_validate__rend(void *ignored)
   expect_no_log_msg("UseEntryGuards is disabled, but you"
             " have configured one or more hidden services on this Tor "
             "instance.  Your hidden services will be very easy to locate using"
-            " a well-known attack -- see https://freehaven.net/anonbib/#hs-"
+            " a well-known attack -- see http://freehaven.net/anonbib/#hs-"
             "attack06 for details.\n");
 
   free_options_test_data(tdata);
@@ -2373,6 +2387,14 @@ test_options_validate__rend(void *ignored)
   tt_int_op(ret, OP_EQ, -1);
   tt_str_op(msg, OP_EQ,
             "Failed to configure rendezvous options. See logs for details.");
+  tor_free(msg);
+
+  free_options_test_data(tdata);
+  tdata = get_options_test_data("HidServAuth failed\n");
+  ret = options_validate(NULL, tdata->opt, &msg);
+  tt_int_op(ret, OP_EQ, -1);
+  tt_str_op(msg, OP_EQ, "Failed to configure client authorization for hidden "
+            "services. See logs for details.");
   tor_free(msg);
 
  done:
@@ -3440,6 +3462,35 @@ test_options_validate__constrained_sockets(void *ignored)
   tt_int_op(ret, OP_EQ, -1);
   tt_str_op(msg, OP_EQ, "ConstrainedSockSize is invalid.  Must be a value "
             "between 2048 and 262144 in 1024 byte increments.");
+  tor_free(msg);
+
+  free_options_test_data(tdata);
+  tdata = get_options_test_data("ConstrainedSockets 1\n"
+                                "ConstrainedSockSize 2048\n"
+                                "DirPort 999\n"
+                                "DirCache 1\n"
+                                );
+  mock_clean_saved_logs();
+  ret = options_validate(NULL, tdata->opt, &msg);
+  tt_int_op(ret, OP_EQ, 0);
+  expect_log_msg("You have requested constrained "
+            "socket buffers while also serving directory entries via DirPort."
+            "  It is strongly suggested that you disable serving directory"
+            " requests when system TCP buffer resources are scarce.\n");
+  tor_free(msg);
+
+  free_options_test_data(tdata);
+  tdata = get_options_test_data("ConstrainedSockets 1\n"
+                                "ConstrainedSockSize 2048\n"
+                                );
+  mock_clean_saved_logs();
+  ret = options_validate(NULL, tdata->opt, &msg);
+  tt_int_op(ret, OP_EQ, 0);
+  expect_no_log_msg(
+            "You have requested constrained socket buffers while also serving"
+            " directory entries via DirPort.  It is strongly suggested that "
+            "you disable serving directory requests when system TCP buffer "
+            "resources are scarce.\n");
   tor_free(msg);
 
  done:

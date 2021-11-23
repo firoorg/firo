@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -141,7 +141,7 @@ router_pick_dirserver_generic(smartlist_t *sourcelist,
 #define RETRY_ALTERNATE_IP_VERSION(retry_label)                               \
   STMT_BEGIN                                                                  \
     if (result == NULL && try_ip_pref && options->ClientUseIPv4               \
-        && reachable_addr_use_ipv6(options) && !server_mode(options)        \
+        && fascist_firewall_use_ipv6(options) && !server_mode(options)        \
         && !n_busy) {                                                         \
       n_excluded = 0;                                                         \
       n_busy = 0;                                                             \
@@ -212,20 +212,18 @@ router_picked_poor_directory_log(const routerstatus_t *rs)
     log_debug(LD_DIR, "Wanted to make an outgoing directory connection, but "
               "we couldn't find a directory that fit our criteria. "
               "Perhaps we will succeed next time with less strict criteria.");
-  } else if (!reachable_addr_allows_rs(rs, FIREWALL_OR_CONNECTION, 1)
-             && !reachable_addr_allows_rs(rs, FIREWALL_DIR_CONNECTION, 1)
+  } else if (!fascist_firewall_allows_rs(rs, FIREWALL_OR_CONNECTION, 1)
+             && !fascist_firewall_allows_rs(rs, FIREWALL_DIR_CONNECTION, 1)
              ) {
     /* This is rare, and might be interesting to users trying to diagnose
      * connection issues on dual-stack machines. */
-    char *ipv4_str = tor_addr_to_str_dup(&rs->ipv4_addr);
     log_info(LD_DIR, "Selected a directory %s with non-preferred OR and Dir "
              "addresses for launching an outgoing connection: "
              "IPv4 %s OR %d Dir %d IPv6 %s OR %d Dir %d",
              routerstatus_describe(rs),
-             ipv4_str, rs->ipv4_orport,
-             rs->ipv4_dirport, fmt_addr(&rs->ipv6_addr),
-             rs->ipv6_orport, rs->ipv4_dirport);
-    tor_free(ipv4_str);
+             fmt_addr32(rs->addr), rs->or_port,
+             rs->dir_port, fmt_addr(&rs->ipv6_addr),
+             rs->ipv6_orport, rs->dir_port);
   }
 }
 
@@ -268,7 +266,7 @@ router_is_already_dir_fetching(const tor_addr_port_t *ap, int serverdesc,
  * If so, return 1, if not, return 0.
  */
 static int
-router_is_already_dir_fetching_(const tor_addr_t *ipv4_addr,
+router_is_already_dir_fetching_(uint32_t ipv4_addr,
                                 const tor_addr_t *ipv6_addr,
                                 uint16_t dir_port,
                                 int serverdesc,
@@ -277,7 +275,7 @@ router_is_already_dir_fetching_(const tor_addr_t *ipv4_addr,
   tor_addr_port_t ipv4_dir_ap, ipv6_dir_ap;
 
   /* Assume IPv6 DirPort is the same as IPv4 DirPort */
-  tor_addr_copy(&ipv4_dir_ap.addr, ipv4_addr);
+  tor_addr_from_ipv4h(&ipv4_dir_ap.addr, ipv4_addr);
   ipv4_dir_ap.port = dir_port;
   tor_addr_copy(&ipv6_dir_ap.addr, ipv6_addr);
   ipv6_dir_ap.port = dir_port;
@@ -323,12 +321,8 @@ router_pick_directory_server_impl(dirinfo_type_t type, int flags,
   overloaded_direct = smartlist_new();
   overloaded_tunnel = smartlist_new();
 
-  const int skip_or_fw = router_or_conn_should_skip_reachable_address_check(
-                                                            options,
-                                                            try_ip_pref);
-  const int skip_dir_fw = router_dir_conn_should_skip_reachable_address_check(
-                                                            options,
-                                                            try_ip_pref);
+  const int skip_or_fw = router_skip_or_reachability(options, try_ip_pref);
+  const int skip_dir_fw = router_skip_dir_reachability(options, try_ip_pref);
   const int must_have_or = dirclient_must_use_begindir(options);
 
   /* Find all the running dirservers we know about. */
@@ -354,9 +348,9 @@ router_pick_directory_server_impl(dirinfo_type_t type, int flags,
       continue;
     }
 
-    if (router_is_already_dir_fetching_(&status->ipv4_addr,
+    if (router_is_already_dir_fetching_(status->addr,
                                         &status->ipv6_addr,
-                                        status->ipv4_dirport,
+                                        status->dir_port,
                                         no_serverdesc_fetching,
                                         no_microdesc_fetching)) {
       ++n_busy;
@@ -374,12 +368,12 @@ router_pick_directory_server_impl(dirinfo_type_t type, int flags,
      * we try routers that only have one address both times.)
      */
     if (!fascistfirewall || skip_or_fw ||
-        reachable_addr_allows_node(node, FIREWALL_OR_CONNECTION,
+        fascist_firewall_allows_node(node, FIREWALL_OR_CONNECTION,
                                      try_ip_pref))
       smartlist_add(is_trusted ? trusted_tunnel :
                     is_overloaded ? overloaded_tunnel : tunnel, (void*)node);
     else if (!must_have_or && (skip_dir_fw ||
-             reachable_addr_allows_node(node, FIREWALL_DIR_CONNECTION,
+             fascist_firewall_allows_node(node, FIREWALL_DIR_CONNECTION,
                                           try_ip_pref)))
       smartlist_add(is_trusted ? trusted_direct :
                     is_overloaded ? overloaded_direct : direct, (void*)node);
@@ -932,25 +926,81 @@ nodelist_subtract(smartlist_t *sl, const smartlist_t *excluded)
   bitarray_free(excluded_idx);
 }
 
-/* Node selection helper for router_choose_random_node().
- *
- * Populates a node list based on <b>flags</b>, ignoring nodes in
- * <b>excludednodes</b> and <b>excludedset</b>. Chooses the node based on
- * <b>rule</b>. */
-static const node_t *
-router_choose_random_node_helper(smartlist_t *excludednodes,
-                                 routerset_t *excludedset,
-                                 router_crn_flags_t flags,
-                                 bandwidth_weight_rule_t rule)
-{
-  smartlist_t *sl=smartlist_new();
-  const node_t *choice = NULL;
+/** Return a random running node from the nodelist. Never
+ * pick a node that is in
+ * <b>excludedsmartlist</b>, or which matches <b>excludedset</b>,
+ * even if they are the only nodes available.
+ * If <b>CRN_NEED_UPTIME</b> is set in flags and any router has more than
+ * a minimum uptime, return one of those.
+ * If <b>CRN_NEED_CAPACITY</b> is set in flags, weight your choice by the
+ * advertised capacity of each router.
+ * If <b>CRN_NEED_GUARD</b> is set in flags, consider only Guard routers.
+ * If <b>CRN_WEIGHT_AS_EXIT</b> is set in flags, we weight bandwidths as if
+ * picking an exit node, otherwise we weight bandwidths for picking a relay
+ * node (that is, possibly discounting exit nodes).
+ * If <b>CRN_NEED_DESC</b> is set in flags, we only consider nodes that
+ * have a routerinfo or microdescriptor -- that is, enough info to be
+ * used to build a circuit.
+ * If <b>CRN_PREF_ADDR</b> is set in flags, we only consider nodes that
+ * have an address that is preferred by the ClientPreferIPv6ORPort setting
+ * (regardless of this flag, we exclude nodes that aren't allowed by the
+ * firewall, including ClientUseIPv4 0 and fascist_firewall_use_ipv6() == 0).
+ */
+const node_t *
+router_choose_random_node(smartlist_t *excludedsmartlist,
+                          routerset_t *excludedset,
+                          router_crn_flags_t flags)
+{ /* XXXX MOVE */
+  const int need_uptime = (flags & CRN_NEED_UPTIME) != 0;
+  const int need_capacity = (flags & CRN_NEED_CAPACITY) != 0;
+  const int need_guard = (flags & CRN_NEED_GUARD) != 0;
+  const int weight_for_exit = (flags & CRN_WEIGHT_AS_EXIT) != 0;
+  const int need_desc = (flags & CRN_NEED_DESC) != 0;
+  const int pref_addr = (flags & CRN_PREF_ADDR) != 0;
+  const int direct_conn = (flags & CRN_DIRECT_CONN) != 0;
+  const int rendezvous_v3 = (flags & CRN_RENDEZVOUS_V3) != 0;
 
-  router_add_running_nodes_to_smartlist(sl, flags);
+  const smartlist_t *node_list = nodelist_get_list();
+  smartlist_t *sl=smartlist_new(),
+    *excludednodes=smartlist_new();
+  const node_t *choice = NULL;
+  const routerinfo_t *r;
+  bandwidth_weight_rule_t rule;
+
+  tor_assert(!(weight_for_exit && need_guard));
+  rule = weight_for_exit ? WEIGHT_FOR_EXIT :
+    (need_guard ? WEIGHT_FOR_GUARD : WEIGHT_FOR_MID);
+
+  SMARTLIST_FOREACH_BEGIN(node_list, const node_t *, node) {
+    if (node_allows_single_hop_exits(node)) {
+      /* Exclude relays that allow single hop exit circuits. This is an
+       * obsolete option since 0.2.9.2-alpha and done by default in
+       * 0.3.1.0-alpha. */
+      smartlist_add(excludednodes, (node_t*)node);
+    } else if (rendezvous_v3 &&
+               !node_supports_v3_rendezvous_point(node)) {
+      /* Exclude relays that do not support to rendezvous for a hidden service
+       * version 3. */
+      smartlist_add(excludednodes, (node_t*)node);
+    }
+  } SMARTLIST_FOREACH_END(node);
+
+  /* If the node_t is not found we won't be to exclude ourself but we
+   * won't be able to pick ourself in router_choose_random_node() so
+   * this is fine to at least try with our routerinfo_t object. */
+  if ((r = router_get_my_routerinfo()))
+    routerlist_add_node_and_family(excludednodes, r);
+
+  router_add_running_nodes_to_smartlist(sl, need_uptime, need_capacity,
+                                        need_guard, need_desc, pref_addr,
+                                        direct_conn);
   log_debug(LD_CIRC,
            "We found %d running nodes.",
             smartlist_len(sl));
 
+  if (excludedsmartlist) {
+    smartlist_add_all(excludednodes, excludedsmartlist);
+  }
   nodelist_subtract(sl, excludednodes);
 
   if (excludedset) {
@@ -964,66 +1014,18 @@ router_choose_random_node_helper(smartlist_t *excludednodes,
   choice = node_sl_choose_by_bandwidth(sl, rule);
 
   smartlist_free(sl);
-
-  return choice;
-}
-
-/** Return a random running node from the nodelist. Never pick a node that is
- * in <b>excludedsmartlist</b>, or which matches <b>excludedset</b>, even if
- * they are the only nodes available.
- *
- * <b>flags</b> is a set of CRN_* flags, see
- * router_add_running_nodes_to_smartlist() for details.
- */
-const node_t *
-router_choose_random_node(smartlist_t *excludedsmartlist,
-                          routerset_t *excludedset,
-                          router_crn_flags_t flags)
-{
-  /* A limited set of flags, used for fallback node selection.
-   */
-  const bool need_uptime = (flags & CRN_NEED_UPTIME) != 0;
-  const bool need_capacity = (flags & CRN_NEED_CAPACITY) != 0;
-  const bool need_guard = (flags & CRN_NEED_GUARD) != 0;
-  const bool pref_addr = (flags & CRN_PREF_ADDR) != 0;
-
-  smartlist_t *excludednodes=smartlist_new();
-  const node_t *choice = NULL;
-  const routerinfo_t *r;
-  bandwidth_weight_rule_t rule;
-
-  rule = (need_guard ? WEIGHT_FOR_GUARD : WEIGHT_FOR_MID);
-
-  /* If the node_t is not found we won't be to exclude ourself but we
-   * won't be able to pick ourself in router_choose_random_node() so
-   * this is fine to at least try with our routerinfo_t object. */
-  if ((r = router_get_my_routerinfo()))
-    routerlist_add_node_and_family(excludednodes, r);
-
-  if (excludedsmartlist) {
-    smartlist_add_all(excludednodes, excludedsmartlist);
-  }
-
-  choice = router_choose_random_node_helper(excludednodes,
-                                            excludedset,
-                                            flags,
-                                            rule);
-
   if (!choice && (need_uptime || need_capacity || need_guard || pref_addr)) {
-    /* try once more, with fewer restrictions. */
+    /* try once more -- recurse but with fewer restrictions. */
     log_info(LD_CIRC,
-             "We couldn't find any live%s%s%s%s routers; falling back "
+             "We couldn't find any live%s%s%s routers; falling back "
              "to list of all routers.",
              need_capacity?", fast":"",
              need_uptime?", stable":"",
-             need_guard?", guard":"",
-             pref_addr?", preferred address":"");
+             need_guard?", guard":"");
     flags &= ~ (CRN_NEED_UPTIME|CRN_NEED_CAPACITY|CRN_NEED_GUARD|
                 CRN_PREF_ADDR);
-    choice = router_choose_random_node_helper(excludednodes,
-                                              excludedset,
-                                              flags,
-                                              rule);
+    choice = router_choose_random_node(
+                     excludedsmartlist, excludedset, flags);
   }
   smartlist_free(excludednodes);
   if (!choice) {
@@ -1118,12 +1120,8 @@ router_pick_trusteddirserver_impl(const smartlist_t *sourcelist,
   overloaded_direct = smartlist_new();
   overloaded_tunnel = smartlist_new();
 
-  const int skip_or_fw = router_or_conn_should_skip_reachable_address_check(
-                                                            options,
-                                                            try_ip_pref);
-  const int skip_dir_fw = router_dir_conn_should_skip_reachable_address_check(
-                                                            options,
-                                                            try_ip_pref);
+  const int skip_or_fw = router_skip_or_reachability(options, try_ip_pref);
+  const int skip_dir_fw = router_skip_dir_reachability(options, try_ip_pref);
   const int must_have_or = dirclient_must_use_begindir(options);
 
   SMARTLIST_FOREACH_BEGIN(sourcelist, const dir_server_t *, d)
@@ -1145,9 +1143,9 @@ router_pick_trusteddirserver_impl(const smartlist_t *sourcelist,
         continue;
       }
 
-      if (router_is_already_dir_fetching_(&d->ipv4_addr,
+      if (router_is_already_dir_fetching_(d->addr,
                                           &d->ipv6_addr,
-                                          d->ipv4_dirport,
+                                          d->dir_port,
                                           no_serverdesc_fetching,
                                           no_microdesc_fetching)) {
         ++n_busy;
@@ -1162,11 +1160,11 @@ router_pick_trusteddirserver_impl(const smartlist_t *sourcelist,
        * we try routers that only have one address both times.)
        */
       if (!fascistfirewall || skip_or_fw ||
-          reachable_addr_allows_dir_server(d, FIREWALL_OR_CONNECTION,
+          fascist_firewall_allows_dir_server(d, FIREWALL_OR_CONNECTION,
                                              try_ip_pref))
         smartlist_add(is_overloaded ? overloaded_tunnel : tunnel, (void*)d);
       else if (!must_have_or && (skip_dir_fw ||
-               reachable_addr_allows_dir_server(d, FIREWALL_DIR_CONNECTION,
+               fascist_firewall_allows_dir_server(d, FIREWALL_DIR_CONNECTION,
                                                   try_ip_pref)))
         smartlist_add(is_overloaded ? overloaded_direct : direct, (void*)d);
     }

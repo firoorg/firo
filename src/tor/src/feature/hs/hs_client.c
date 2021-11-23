@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2021, The Tor Project, Inc. */
+/* Copyright (c) 2016-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -16,7 +16,6 @@
 #include "core/or/circuitlist.h"
 #include "core/or/circuituse.h"
 #include "core/or/connection_edge.h"
-#include "core/or/extendinfo.h"
 #include "core/or/reasons.h"
 #include "feature/client/circpathbias.h"
 #include "feature/dirclient/dirclient.h"
@@ -30,10 +29,10 @@
 #include "feature/hs/hs_descriptor.h"
 #include "feature/hs/hs_ident.h"
 #include "feature/nodelist/describe.h"
-#include "feature/nodelist/microdesc.h"
 #include "feature/nodelist/networkstatus.h"
 #include "feature/nodelist/nodelist.h"
 #include "feature/nodelist/routerset.h"
+#include "feature/rend/rendclient.h"
 #include "lib/crypt_ops/crypto_format.h"
 #include "lib/crypt_ops/crypto_rand.h"
 #include "lib/crypt_ops/crypto_util.h"
@@ -329,7 +328,7 @@ retry_all_socks_conn_waiting_for_desc(void)
        * a descriptor but we do have it in the cache.
        *
        * This can happen is tor comes back from suspend where it previously
-       * had the descriptor but the intro points were not usable. Once it
+       * had the descriptor but the intro points were not usuable. Once it
        * came back to life, the intro point failure cache was cleaned up and
        * thus the descriptor became usable again leaving us in this code path.
        *
@@ -359,6 +358,16 @@ note_connection_attempt_succeeded(const hs_ident_edge_conn_t *hs_conn_ident)
   /* Remove from the hid serv cache all requests for that service so we can
    * query the HSDir again later on for various reasons. */
   purge_hid_serv_request(&hs_conn_ident->identity_pk);
+
+  /* The v2 subsystem cleans up the intro point time out flag at this stage.
+   * We don't try to do it here because we still need to keep intact the intro
+   * point state for future connections. Even though we are able to connect to
+   * the service, doesn't mean we should reset the timed out intro points.
+   *
+   * It is not possible to have successfully connected to an intro point
+   * present in our cache that was on error or timed out. Every entry in that
+   * cache have a 2 minutes lifetime so ultimately the intro point(s) state
+   * will be reset and thus possible to be retried. */
 }
 
 /** Given the pubkey of a hidden service in <b>onion_identity_pk</b>, fetch its
@@ -637,7 +646,7 @@ send_introduce1(origin_circuit_t *intro_circ,
 
   /* Send the INTRODUCE1 cell. */
   if (hs_circ_send_introduce1(intro_circ, rend_circ, ip,
-                              &desc->subcredential) < 0) {
+                              desc->subcredential) < 0) {
     if (TO_CIRCUIT(intro_circ)->marked_for_close) {
       /* If the introduction circuit was closed, we were unable to send the
        * cell for some reasons. In any case, the intro circuit has to be
@@ -695,11 +704,8 @@ send_introduce1(origin_circuit_t *intro_circ,
 }
 
 /** Using the introduction circuit circ, setup the authentication key of the
- * intro point this circuit has extended to.
- *
- * Return 0 if everything went well, otherwise return -1 in the case of errors.
- */
-static int
+ * intro point this circuit has extended to. */
+static void
 setup_intro_circ_auth_key(origin_circuit_t *circ)
 {
   const hs_descriptor_t *desc;
@@ -713,28 +719,27 @@ setup_intro_circ_auth_key(origin_circuit_t *circ)
      * and the client descriptor cache that gets purged (NEWNYM) or the
      * cleaned up because it expired. Mark the circuit for close so a new
      * descriptor fetch can occur. */
-    goto err;
+    circuit_mark_for_close(TO_CIRCUIT(circ), END_CIRC_REASON_INTERNAL);
+    goto end;
   }
 
   /* We will go over every intro point and try to find which one is linked to
    * that circuit. Those lists are small so it's not that expensive. */
   ip = find_desc_intro_point_by_legacy_id(
                        circ->build_state->chosen_exit->identity_digest, desc);
-  if (!ip) {
-    /* Reaching this point means we didn't find any intro point for this
-     * circuit which is not supposed to happen. */
-    log_info(LD_REND,"Could not match opened intro circuit with intro point.");
-    goto err;
+  if (ip) {
+    /* We got it, copy its authentication key to the identifier. */
+    ed25519_pubkey_copy(&circ->hs_ident->intro_auth_pk,
+                        &ip->auth_key_cert->signed_key);
+    goto end;
   }
 
-  /* We got it, copy its authentication key to the identifier. */
-  ed25519_pubkey_copy(&circ->hs_ident->intro_auth_pk,
-                      &ip->auth_key_cert->signed_key);
-  return 0;
+  /* Reaching this point means we didn't find any intro point for this circuit
+   * which is not supposed to happen. */
+  tor_assert_nonfatal_unreached();
 
- err:
-  circuit_mark_for_close(TO_CIRCUIT(circ), END_CIRC_REASON_INTERNAL);
-  return -1;
+ end:
+  return;
 }
 
 /** Called when an introduction circuit has opened. */
@@ -749,9 +754,7 @@ client_intro_circ_has_opened(origin_circuit_t *circ)
   /* This is an introduction circuit so we'll attach the correct
    * authentication key to the circuit identifier so it can be identified
    * properly later on. */
-  if (setup_intro_circ_auth_key(circ) < 0) {
-    return;
-  }
+  setup_intro_circ_auth_key(circ);
 
   connection_ap_attach_pending(1);
 }
@@ -769,16 +772,10 @@ client_rendezvous_circ_has_opened(origin_circuit_t *circ)
    * the v3 rendezvous protocol */
   if (rp_ei) {
     const node_t *rp_node = node_get_by_id(rp_ei->identity_digest);
-    if (rp_node && !node_supports_v3_rendezvous_point(rp_node)) {
-      /* Even tho we checked that this node supported v3 when we created the
-         rendezvous circuit, there is a chance that we might think it does
-         not support v3 anymore. This might happen if we got a new consensus
-         in the meanwhile, where the relay is still listed but its listed
-         descriptor digest has changed and hence we can't access its 'ri' or
-         'md'. */
-      log_info(LD_REND, "Rendezvous node %s did not support v3 after circuit "
-               "has opened.", safe_str_client(extend_info_describe(rp_ei)));
-      return;
+    if (rp_node) {
+      if (BUG(!node_supports_v3_rendezvous_point(rp_node))) {
+        return;
+      }
     }
   }
 
@@ -964,87 +961,6 @@ client_get_random_intro(const ed25519_public_key_t *service_pk)
   return ei;
 }
 
-/** Return true iff all intro points for the given service have timed out. */
-static bool
-intro_points_all_timed_out(const ed25519_public_key_t *service_pk)
-{
-  bool ret = false;
-
-  tor_assert(service_pk);
-
-  const hs_descriptor_t *desc = hs_cache_lookup_as_client(service_pk);
-  if (BUG(!desc)) {
-    /* We can't introduce without a descriptor so ending up here means somehow
-     * between the introduction failure and this, the cache entry was removed
-     * which shouldn't be possible in theory. */
-    goto end;
-  }
-
-  SMARTLIST_FOREACH_BEGIN(desc->encrypted_data.intro_points,
-                          const hs_desc_intro_point_t *, ip) {
-    const hs_cache_intro_state_t *state =
-      hs_cache_client_intro_state_find(service_pk,
-                                       &ip->auth_key_cert->signed_key);
-    if (!state || !state->timed_out) {
-      /* No state or if this intro point has not timed out, we are done since
-       * clearly not all of them have timed out. */
-      goto end;
-    }
-  } SMARTLIST_FOREACH_END(ip);
-
-  /* Exiting the loop here means that all intro points we've looked at have
-   * timed out. Note that we can _not_ have a descriptor without intro points
-   * in the client cache. */
-  ret = true;
-
- end:
-  return ret;
-}
-
-/** Called when a rendezvous circuit has timed out. Every stream attached to
- * the circuit will get set with the SOCKS5_HS_REND_FAILED (0xF3) extended
- * error code so if the connection to the rendezvous point ends up not
- * working, this code could be sent back as a reason. */
-static void
-socks_mark_rend_circuit_timed_out(const origin_circuit_t *rend_circ)
-{
-  tor_assert(rend_circ);
-
-  /* For each entry connection attached to this rendezvous circuit, report
-   * the error. */
-  for (edge_connection_t *edge = rend_circ->p_streams; edge;
-       edge = edge->next_stream) {
-     entry_connection_t *entry = EDGE_TO_ENTRY_CONN(edge);
-     if (entry->socks_request) {
-       entry->socks_request->socks_extended_error_code =
-         SOCKS5_HS_REND_FAILED;
-     }
-  }
-}
-
-/** Called when introduction has failed meaning there is no more usable
- * introduction points to be used (either NACKed or failed) for the given
- * entry connection.
- *
- * This function only reports back the SOCKS5_HS_INTRO_FAILED (0xF2) code or
- * SOCKS5_HS_INTRO_TIMEDOUT (0xF7) if all intros have timed out. The caller
- * has to make sure to close the entry connections. */
-static void
-socks_mark_introduction_failed(entry_connection_t *conn,
-                                 const ed25519_public_key_t *identity_pk)
-{
-  socks5_reply_status_t code = SOCKS5_HS_INTRO_FAILED;
-
-  tor_assert(conn);
-  tor_assert(conn->socks_request);
-  tor_assert(identity_pk);
-
-  if (intro_points_all_timed_out(identity_pk)) {
-    code = SOCKS5_HS_INTRO_TIMEDOUT;
-  }
-  conn->socks_request->socks_extended_error_code = code;
-}
-
 /** For this introduction circuit, we'll look at if we have any usable
  * introduction point left for this service. If so, we'll use the circuit to
  * re-extend to a new intro point. Else, we'll close the circuit and its
@@ -1062,10 +978,8 @@ close_or_reextend_intro_circ(origin_circuit_t *intro_circ)
   tor_assert(intro_circ);
 
   desc = hs_cache_lookup_as_client(&intro_circ->hs_ident->identity_pk);
-  if (desc == NULL) {
-    /* We can't continue without a descriptor. This is possible if the cache
-     * was cleaned up between the intro point established and the reception of
-     * the introduce ack. */
+  if (BUG(desc == NULL)) {
+    /* We can't continue without a descriptor. */
     goto close;
   }
   /* We still have the descriptor, great! Let's try to see if we can
@@ -1120,7 +1034,7 @@ handle_introduce_ack_success(origin_circuit_t *intro_circ)
   rend_circ =
   hs_circuitmap_get_established_rend_circ_client_side(rendezvous_cookie);
   if (rend_circ == NULL) {
-    log_info(LD_REND, "Can't find any rendezvous circuit. Stopping");
+    log_warn(LD_REND, "Can't find any rendezvous circuit. Stopping");
     goto end;
   }
 
@@ -1293,10 +1207,9 @@ can_client_refetch_desc(const ed25519_public_key_t *identity_pk,
     goto cannot;
   }
 
-  /* Without a usable consensus we can't do any client actions. It is needed
-   * to compute the hashring for a service. */
-  if (!networkstatus_get_reasonably_live_consensus(approx_time(),
-                                         usable_consensus_flavor())) {
+  /* Without a live consensus we can't do any client actions. It is needed to
+   * compute the hashring for a service. */
+  if (!networkstatus_get_live_consensus(approx_time())) {
     log_info(LD_REND, "Can't fetch descriptor for service %s because we "
                       "are missing a live consensus. Stalling connection.",
              safe_str_client(ed25519_fmt(identity_pk)));
@@ -1400,10 +1313,6 @@ client_desc_has_arrived(const smartlist_t *entry_conns)
     if (!hs_client_any_intro_points_usable(identity_pk, desc)) {
       log_info(LD_REND, "Hidden service descriptor is unusable. "
                         "Closing streams.");
-      /* Report the extended socks error code that we were unable to introduce
-       * to the service. */
-      socks_mark_introduction_failed(entry_conn, identity_pk);
-
       connection_mark_unattached_ap(entry_conn,
                                     END_STREAM_REASON_RESOLVEFAILED);
       /* We are unable to use the descriptor so remove the directory request
@@ -1551,9 +1460,9 @@ client_dir_fetch_unexpected(dir_connection_t *dir_conn, const char *reason,
 
   log_warn(LD_REND, "Fetching v3 hidden service descriptor failed: "
                     "http status %d (%s) response unexpected from HSDir "
-                    "server %s'. Retrying at another directory.",
-           status_code, escaped(reason),
-           connection_describe_peer(TO_CONN(dir_conn)));
+                    "server '%s:%d'. Retrying at another directory.",
+           status_code, escaped(reason), TO_CONN(dir_conn)->address,
+           TO_CONN(dir_conn)->port);
   /* Fire control port FAILED event. */
   hs_control_desc_event_failed(dir_conn->hs_ident, dir_conn->identity_digest,
                                "UNEXPECTED");
@@ -1747,7 +1656,7 @@ remove_client_auth_creds_file(const char *filename)
     goto end;
   }
 
-  log_warn(LD_REND, "Successfully removed client auth file (%s).",
+  log_warn(LD_REND, "Successfuly removed client auth file (%s).",
            creds_file_path);
 
  end:
@@ -1853,37 +1762,6 @@ get_hs_client_auths_map(void)
 /* ========== */
 
 /** Called when a circuit was just cleaned up. This is done right before the
- * circuit is marked for close. */
-void
-hs_client_circuit_cleanup_on_close(const circuit_t *circ)
-{
-  bool has_timed_out;
-
-  tor_assert(circ);
-  tor_assert(CIRCUIT_IS_ORIGIN(circ));
-
-  has_timed_out =
-    (circ->marked_for_close_orig_reason == END_CIRC_REASON_TIMEOUT);
-
-  switch (circ->purpose) {
-  case CIRCUIT_PURPOSE_C_ESTABLISH_REND:
-  case CIRCUIT_PURPOSE_C_REND_READY:
-  case CIRCUIT_PURPOSE_C_REND_READY_INTRO_ACKED:
-  case CIRCUIT_PURPOSE_C_REND_JOINED:
-    /* Report extended SOCKS error code when a rendezvous circuit times out.
-     * This MUST be done on_close() because it is possible the entry
-     * connection would get closed before the circuit is freed and thus
-     * would fail to report the error code. */
-    if (has_timed_out) {
-      socks_mark_rend_circuit_timed_out(CONST_TO_ORIGIN_CIRCUIT(circ));
-    }
-    break;
-  default:
-    break;
-  }
-}
-
-/** Called when a circuit was just cleaned up. This is done right before the
  * circuit is freed. */
 void
 hs_client_circuit_cleanup_on_free(const circuit_t *circ)
@@ -1940,8 +1818,16 @@ hs_client_note_connection_attempt_succeeded(const edge_connection_t *conn)
 {
   tor_assert(connection_edge_is_rendezvous_stream(conn));
 
+  if (BUG(conn->rend_data && conn->hs_ident)) {
+    log_warn(LD_BUG, "Stream had both rend_data and hs_ident..."
+             "Prioritizing hs_ident");
+  }
+
   if (conn->hs_ident) { /* It's v3: pass it to the prop224 handler */
     note_connection_attempt_succeeded(conn->hs_ident);
+    return;
+  } else if (conn->rend_data) { /* It's v2: pass it to the legacy handler */
+    rend_client_note_connection_attempt_ended(conn->rend_data);
     return;
   }
 }
@@ -1959,7 +1845,7 @@ hs_client_decode_descriptor(const char *desc_str,
                             hs_descriptor_t **desc)
 {
   hs_desc_decode_status_t ret;
-  hs_subcredential_t subcredential;
+  uint8_t subcredential[DIGEST256_LEN];
   ed25519_public_key_t blinded_pubkey;
   hs_client_service_authorization_t *client_auth = NULL;
   curve25519_secret_key_t *client_auth_sk = NULL;
@@ -1979,13 +1865,13 @@ hs_client_decode_descriptor(const char *desc_str,
     uint64_t current_time_period = hs_get_time_period_num(0);
     hs_build_blinded_pubkey(service_identity_pk, NULL, 0, current_time_period,
                             &blinded_pubkey);
-    hs_get_subcredential(service_identity_pk, &blinded_pubkey, &subcredential);
+    hs_get_subcredential(service_identity_pk, &blinded_pubkey, subcredential);
   }
 
   /* Parse descriptor */
-  ret = hs_desc_decode_descriptor(desc_str, &subcredential,
+  ret = hs_desc_decode_descriptor(desc_str, subcredential,
                                   client_auth_sk, desc);
-  memwipe(&subcredential, 0, sizeof(subcredential));
+  memwipe(subcredential, 0, sizeof(subcredential));
   if (ret != HS_DESC_DECODE_OK) {
     goto err;
   }
@@ -2068,7 +1954,9 @@ int
 hs_client_send_introduce1(origin_circuit_t *intro_circ,
                           origin_circuit_t *rend_circ)
 {
-  return send_introduce1(intro_circ, rend_circ);
+  return (intro_circ->hs_ident) ? send_introduce1(intro_circ, rend_circ) :
+                                  rend_client_send_introduction(intro_circ,
+                                                                rend_circ);
 }
 
 /** Called when the client circuit circ has been established. It can be either
@@ -2079,15 +1967,21 @@ hs_client_circuit_has_opened(origin_circuit_t *circ)
 {
   tor_assert(circ);
 
+  /* Handle both version. v2 uses rend_data and v3 uses the hs circuit
+   * identifier hs_ident. Can't be both. */
   switch (TO_CIRCUIT(circ)->purpose) {
   case CIRCUIT_PURPOSE_C_INTRODUCING:
     if (circ->hs_ident) {
       client_intro_circ_has_opened(circ);
+    } else {
+      rend_client_introcirc_has_opened(circ);
     }
     break;
   case CIRCUIT_PURPOSE_C_ESTABLISH_REND:
     if (circ->hs_ident) {
       client_rendezvous_circ_has_opened(circ);
+    } else {
+      rend_client_rendcirc_has_opened(circ);
     }
     break;
   default:
@@ -2143,8 +2037,6 @@ client_service_authorization_free_(hs_client_service_authorization_t *auth)
   if (!auth) {
     return;
   }
-
-  tor_free(auth->client_name);
 
   memwipe(auth, 0, sizeof(*auth));
   tor_free(auth);
@@ -2401,7 +2293,9 @@ hs_client_get_random_intro_from_edge(const edge_connection_t *edge_conn)
 {
   tor_assert(edge_conn);
 
-  return client_get_random_intro(&edge_conn->hs_ident->identity_pk);
+  return (edge_conn->hs_ident) ?
+    client_get_random_intro(&edge_conn->hs_ident->identity_pk) :
+    rend_client_get_random_intro(edge_conn->rend_data);
 }
 
 /** Called when get an INTRODUCE_ACK cell on the introduction circuit circ.
@@ -2423,7 +2317,9 @@ hs_client_receive_introduce_ack(origin_circuit_t *circ,
     goto end;
   }
 
-  ret = handle_introduce_ack(circ, payload, payload_len);
+  ret = (circ->hs_ident) ? handle_introduce_ack(circ, payload, payload_len) :
+                           rend_client_introduction_acked(circ, payload,
+                                                          payload_len);
   /* For path bias: This circuit was used successfully. NACK or ACK counts. */
   pathbias_mark_use_success(circ);
 
@@ -2457,8 +2353,9 @@ hs_client_receive_rendezvous2(origin_circuit_t *circ,
   log_info(LD_REND, "Got RENDEZVOUS2 cell from hidden service on circuit %u.",
            TO_CIRCUIT(circ)->n_circ_id);
 
-  ret = handle_rendezvous2(circ, payload, payload_len);
-
+  ret = (circ->hs_ident) ? handle_rendezvous2(circ, payload, payload_len) :
+                           rend_client_receive_rendezvous(circ, payload,
+                                                          payload_len);
  end:
   return ret;
 }
@@ -2479,7 +2376,9 @@ hs_client_reextend_intro_circuit(origin_circuit_t *circ)
 
   tor_assert(circ);
 
-  ei = client_get_random_intro(&circ->hs_ident->identity_pk);
+  ei = (circ->hs_ident) ?
+    client_get_random_intro(&circ->hs_ident->identity_pk) :
+    rend_client_get_random_intro(circ->rend_data);
   if (ei == NULL) {
     log_warn(LD_REND, "No usable introduction points left. Closing.");
     circuit_mark_for_close(TO_CIRCUIT(circ), END_CIRC_REASON_INTERNAL);
@@ -2557,6 +2456,9 @@ hs_client_free_all(void)
 void
 hs_client_purge_state(void)
 {
+  /* v2 subsystem. */
+  rend_client_purge_state();
+
   /* Cancel all descriptor fetches. Do this first so once done we are sure
    * that our descriptor cache won't modified. */
   cancel_descriptor_fetches();

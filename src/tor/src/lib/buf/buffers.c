@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -14,7 +14,7 @@
  *
  * All socket-backed and TLS-based connection_t objects have a pair of
  * buffers: one for incoming data, and one for outcoming data.  These are fed
- * and drained from functions in connection.c, triggered by events that are
+ * and drained from functions in connection.c, trigged by events that are
  * monitored in main.c.
  *
  * This module only handles the buffer implementation itself. To use a buffer
@@ -285,7 +285,7 @@ buf_t *
 buf_new_with_data(const char *cp, size_t sz)
 {
   /* Validate arguments */
-  if (!cp || sz <= 0 || sz > BUF_MAX_LEN) {
+  if (!cp || sz <= 0 || sz >= INT_MAX) {
     return NULL;
   }
 
@@ -530,9 +530,9 @@ buf_add(buf_t *buf, const char *string, size_t string_len)
     return (int)buf->datalen;
   check();
 
-  if (BUG(buf->datalen > BUF_MAX_LEN))
+  if (BUG(buf->datalen >= INT_MAX))
     return -1;
-  if (BUG(buf->datalen > BUF_MAX_LEN - string_len))
+  if (BUG(buf->datalen >= INT_MAX - string_len))
     return -1;
 
   while (string_len) {
@@ -551,7 +551,7 @@ buf_add(buf_t *buf, const char *string, size_t string_len)
   }
 
   check();
-  tor_assert(buf->datalen <= BUF_MAX_LEN);
+  tor_assert(buf->datalen < INT_MAX);
   return (int)buf->datalen;
 }
 
@@ -645,7 +645,7 @@ buf_get_bytes(buf_t *buf, char *string, size_t string_len)
   buf_peek(buf, string, string_len);
   buf_drain(buf, string_len);
   check();
-  tor_assert(buf->datalen <= BUF_MAX_LEN);
+  tor_assert(buf->datalen < INT_MAX);
   return (int)buf->datalen;
 }
 
@@ -660,9 +660,9 @@ buf_move_to_buf(buf_t *buf_out, buf_t *buf_in, size_t *buf_flushlen)
   char b[4096];
   size_t cp, len;
 
-  if (BUG(buf_out->datalen > BUF_MAX_LEN || *buf_flushlen > BUF_MAX_LEN))
+  if (BUG(buf_out->datalen >= INT_MAX || *buf_flushlen >= INT_MAX))
     return -1;
-  if (BUG(buf_out->datalen > BUF_MAX_LEN - *buf_flushlen))
+  if (BUG(buf_out->datalen >= INT_MAX - *buf_flushlen))
     return -1;
 
   len = *buf_flushlen;
@@ -670,7 +670,7 @@ buf_move_to_buf(buf_t *buf_out, buf_t *buf_in, size_t *buf_flushlen)
     len = buf_in->datalen;
 
   cp = len; /* Remember the number of bytes we intend to copy. */
-  tor_assert(cp <= BUF_MAX_LEN);
+  tor_assert(cp < INT_MAX);
   while (len) {
     /* This isn't the most efficient implementation one could imagine, since
      * it does two copies instead of 1, but I kinda doubt that this will be
@@ -685,22 +685,17 @@ buf_move_to_buf(buf_t *buf_out, buf_t *buf_in, size_t *buf_flushlen)
 }
 
 /** Moves all data from <b>buf_in</b> to <b>buf_out</b>, without copying.
- * Return the number of bytes that were moved.
  */
-size_t
+void
 buf_move_all(buf_t *buf_out, buf_t *buf_in)
 {
   tor_assert(buf_out);
   if (!buf_in)
-    return 0;
-  if (buf_datalen(buf_in) == 0)
-    return 0;
-  if (BUG(buf_out->datalen > BUF_MAX_LEN || buf_in->datalen > BUF_MAX_LEN))
-    return 0;
-  if (BUG(buf_out->datalen > BUF_MAX_LEN - buf_in->datalen))
-    return 0;
-
-  size_t n_bytes_moved = buf_in->datalen;
+    return;
+  if (BUG(buf_out->datalen >= INT_MAX || buf_in->datalen >= INT_MAX))
+    return;
+  if (BUG(buf_out->datalen >= INT_MAX - buf_in->datalen))
+    return;
 
   if (buf_out->head == NULL) {
     buf_out->head = buf_in->head;
@@ -713,8 +708,6 @@ buf_move_all(buf_t *buf_out, buf_t *buf_in)
   buf_out->datalen += buf_in->datalen;
   buf_in->head = buf_in->tail = NULL;
   buf_in->datalen = 0;
-
-  return n_bytes_moved;
 }
 
 /** Internal structure: represents a position in a buffer. */
@@ -755,7 +748,7 @@ buf_find_pos_of_char(char ch, buf_pos_t *out)
     char *cp = memchr(chunk->data+pos, ch, chunk->datalen - pos);
     if (cp) {
       out->chunk = chunk;
-      tor_assert(cp - chunk->data <= BUF_MAX_LEN);
+      tor_assert(cp - chunk->data < INT_MAX);
       out->pos = (int)(cp - chunk->data);
       return out->chunk_pos + out->pos;
     } else {
@@ -771,7 +764,7 @@ buf_find_pos_of_char(char ch, buf_pos_t *out)
 static inline int
 buf_pos_inc(buf_pos_t *pos)
 {
-  tor_assert(pos->pos < BUF_MAX_LEN);
+  tor_assert(pos->pos < INT_MAX - 1);
   ++pos->pos;
   if (pos->pos == (ptrdiff_t)pos->chunk->datalen) {
     if (!pos->chunk->next)
@@ -818,7 +811,7 @@ buf_find_string_offset(const buf_t *buf, const char *s, size_t n)
   buf_pos_init(buf, &pos);
   while (buf_find_pos_of_char(*s, &pos) >= 0) {
     if (buf_matches_at_pos(&pos, s, n)) {
-      tor_assert(pos.chunk_pos + pos.pos <= BUF_MAX_LEN);
+      tor_assert(pos.chunk_pos + pos.pos < INT_MAX);
       return (int)(pos.chunk_pos + pos.pos);
     } else {
       if (buf_pos_inc(&pos)<0)
@@ -852,7 +845,7 @@ buf_find_offset_of_char(buf_t *buf, char ch)
 {
   chunk_t *chunk;
   ptrdiff_t offset = 0;
-  tor_assert(buf->datalen <= BUF_MAX_LEN);
+  tor_assert(buf->datalen < INT_MAX);
   for (chunk = buf->head; chunk; chunk = chunk->next) {
     char *cp = memchr(chunk->data, ch, chunk->datalen);
     if (cp)
@@ -922,7 +915,7 @@ buf_assert_ok(buf_t *buf)
     for (ch = buf->head; ch; ch = ch->next) {
       total += ch->datalen;
       tor_assert(ch->datalen <= ch->memlen);
-      tor_assert(ch->datalen <= BUF_MAX_LEN);
+      tor_assert(ch->datalen < INT_MAX);
       tor_assert(ch->data >= &ch->mem[0]);
       tor_assert(ch->data <= &ch->mem[0]+ch->memlen);
       if (ch->data == &ch->mem[0]+ch->memlen) {

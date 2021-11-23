@@ -1,4 +1,4 @@
-/* Copyright (c) 2007-2021, The Tor Project, Inc. */
+/* Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -56,9 +56,8 @@ btrack_add_pubsub(pubsub_connector_t *connector)
 
 const subsys_fns_t sys_btrack = {
   .name = "btrack",
-  SUBSYS_DECLARE_LOCATION(),
   .supported = true,
-  .level = 55,
+  .level = -30,
   .initialize = btrack_init,
   .shutdown = btrack_fini,
   .add_pubsub = btrack_add_pubsub,

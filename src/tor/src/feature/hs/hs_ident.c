@@ -1,10 +1,10 @@
-/* Copyright (c) 2017-2021, The Tor Project, Inc. */
+/* Copyright (c) 2017-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
  * \file hs_ident.c
  * \brief Contains circuit and connection identifier code for the whole HS
- *        subsystem.
+ *        subsytem.
  **/
 
 #include "lib/crypt_ops/crypto_util.h"

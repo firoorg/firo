@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -81,7 +81,6 @@
 /****************************************************************************/
 
 /** List of tokens recognized in router descriptors */
-// clang-format off
 const token_rule_t routerdesc_token_table[] = {
   T0N("reject",              K_REJECT,              ARGS,    NO_OBJ ),
   T0N("accept",              K_ACCEPT,              ARGS,    NO_OBJ ),
@@ -91,24 +90,24 @@ const token_rule_t routerdesc_token_table[] = {
   T01("ipv6-policy",         K_IPV6_POLICY,         CONCAT_ARGS, NO_OBJ),
   T1( "signing-key",         K_SIGNING_KEY,         NO_ARGS, NEED_KEY_1024 ),
   T1( "onion-key",           K_ONION_KEY,           NO_ARGS, NEED_KEY_1024 ),
-  T1("ntor-onion-key",       K_ONION_KEY_NTOR,      GE(1), NO_OBJ ),
+  T01("ntor-onion-key",      K_ONION_KEY_NTOR,      GE(1), NO_OBJ ),
   T1_END( "router-signature",    K_ROUTER_SIGNATURE,    NO_ARGS, NEED_OBJ ),
   T1( "published",           K_PUBLISHED,       CONCAT_ARGS, NO_OBJ ),
   T01("uptime",              K_UPTIME,              GE(1),   NO_OBJ ),
   T01("fingerprint",         K_FINGERPRINT,     CONCAT_ARGS, NO_OBJ ),
   T01("hibernating",         K_HIBERNATING,         GE(1),   NO_OBJ ),
   T01("platform",            K_PLATFORM,        CONCAT_ARGS, NO_OBJ ),
-  T1("proto",                K_PROTO,           CONCAT_ARGS, NO_OBJ ),
+  T01("proto",               K_PROTO,           CONCAT_ARGS, NO_OBJ ),
   T01("contact",             K_CONTACT,         CONCAT_ARGS, NO_OBJ ),
   T01("read-history",        K_READ_HISTORY,        ARGS,    NO_OBJ ),
   T01("write-history",       K_WRITE_HISTORY,       ARGS,    NO_OBJ ),
   T01("extra-info-digest",   K_EXTRA_INFO_DIGEST,   GE(1),   NO_OBJ ),
   T01("hidden-service-dir",  K_HIDDEN_SERVICE_DIR,  NO_ARGS, NO_OBJ ),
-  T1("identity-ed25519",     K_IDENTITY_ED25519,    NO_ARGS, NEED_OBJ ),
-  T1("master-key-ed25519",   K_MASTER_KEY_ED25519,  GE(1),   NO_OBJ ),
-  T1("router-sig-ed25519",   K_ROUTER_SIG_ED25519,  GE(1),   NO_OBJ ),
-  T1("onion-key-crosscert",  K_ONION_KEY_CROSSCERT, NO_ARGS, NEED_OBJ ),
-  T1("ntor-onion-key-crosscert", K_NTOR_ONION_KEY_CROSSCERT,
+  T01("identity-ed25519",    K_IDENTITY_ED25519,    NO_ARGS, NEED_OBJ ),
+  T01("master-key-ed25519",  K_MASTER_KEY_ED25519,  GE(1),   NO_OBJ ),
+  T01("router-sig-ed25519",  K_ROUTER_SIG_ED25519,  GE(1),   NO_OBJ ),
+  T01("onion-key-crosscert", K_ONION_KEY_CROSSCERT, NO_ARGS, NEED_OBJ ),
+  T01("ntor-onion-key-crosscert", K_NTOR_ONION_KEY_CROSSCERT,
                                                     EQ(1),   NEED_OBJ ),
 
   T01("allow-single-hop-exits",K_ALLOW_SINGLE_HOP_EXITS,    NO_ARGS, NO_OBJ ),
@@ -124,15 +123,13 @@ const token_rule_t routerdesc_token_table[] = {
 
   END_OF_TABLE
 };
-// clang-format on
 
 /** List of tokens recognized in extra-info documents. */
-// clang-format off
 static token_rule_t extrainfo_token_table[] = {
   T1_END( "router-signature",    K_ROUTER_SIGNATURE,    NO_ARGS, NEED_OBJ ),
   T1( "published",           K_PUBLISHED,       CONCAT_ARGS, NO_OBJ ),
-  T1("identity-ed25519",    K_IDENTITY_ED25519,    NO_ARGS, NEED_OBJ ),
-  T1("router-sig-ed25519",  K_ROUTER_SIG_ED25519,  GE(1),   NO_OBJ ),
+  T01("identity-ed25519",    K_IDENTITY_ED25519,    NO_ARGS, NEED_OBJ ),
+  T01("router-sig-ed25519",  K_ROUTER_SIG_ED25519,  GE(1),   NO_OBJ ),
   T0N("opt",                 K_OPT,             CONCAT_ARGS, OBJ_OK ),
   T01("read-history",        K_READ_HISTORY,        ARGS,    NO_OBJ ),
   T01("write-history",       K_WRITE_HISTORY,       ARGS,    NO_OBJ ),
@@ -165,7 +162,6 @@ static token_rule_t extrainfo_token_table[] = {
 
   END_OF_TABLE
 };
-// clang-format on
 
 #undef T
 
@@ -456,12 +452,6 @@ router_parse_entry_from_string(const char *s, const char *end,
     }
   }
 
-  if (!tor_memstr(s, end-s, "\nproto ")) {
-    log_debug(LD_DIR, "Found an obsolete router descriptor. "
-              "Rejecting quietly.");
-    goto err;
-  }
-
   if (router_get_router_hash(s, end - s, digest) < 0) {
     log_warn(LD_DIR, "Couldn't compute router hash.");
     goto err;
@@ -525,15 +515,15 @@ router_parse_entry_from_string(const char *s, const char *end,
     log_warn(LD_DIR,"Router address is not an IP address.");
     goto err;
   }
-  tor_addr_from_in(&router->ipv4_addr, &in);
+  router->addr = ntohl(in.s_addr);
 
-  router->ipv4_orport =
+  router->or_port =
     (uint16_t) tor_parse_long(tok->args[2],10,0,65535,&ok,NULL);
   if (!ok) {
     log_warn(LD_DIR,"Invalid OR port %s", escaped(tok->args[2]));
     goto err;
   }
-  router->ipv4_dirport =
+  router->dir_port =
     (uint16_t) tor_parse_long(tok->args[4],10,0,65535,&ok,NULL);
   if (!ok) {
     log_warn(LD_DIR,"Invalid dir port %s", escaped(tok->args[4]));
@@ -659,18 +649,17 @@ router_parse_entry_from_string(const char *s, const char *end,
         goto err;
       }
       if (strcmp(ed_cert_tok->object_type, "ED25519 CERT")) {
-        log_warn(LD_DIR, "Wrong object type on identity-ed25519 "
-                         "in descriptor");
+        log_warn(LD_DIR, "Wrong object type on identity-ed25519 in decriptor");
         goto err;
       }
       if (strcmp(cc_ntor_tok->object_type, "ED25519 CERT")) {
         log_warn(LD_DIR, "Wrong object type on ntor-onion-key-crosscert "
-                 "in descriptor");
+                 "in decriptor");
         goto err;
       }
       if (strcmp(cc_tap_tok->object_type, "CROSSCERT")) {
         log_warn(LD_DIR, "Wrong object type on onion-key-crosscert "
-                 "in descriptor");
+                 "in decriptor");
         goto err;
       }
       if (strcmp(cc_ntor_tok->args[0], "0") &&
@@ -914,14 +903,13 @@ router_parse_entry_from_string(const char *s, const char *end,
 
   /* This router accepts tunnelled directory requests via begindir if it has
    * an open dirport or it included "tunnelled-dir-server". */
-  if (find_opt_by_keyword(tokens, K_DIR_TUNNELLED) ||
-      router->ipv4_dirport > 0) {
+  if (find_opt_by_keyword(tokens, K_DIR_TUNNELLED) || router->dir_port > 0) {
     router->supports_tunnelled_dir_requests = 1;
   }
 
   tok = find_by_keyword(tokens, K_ROUTER_SIGNATURE);
 
-  if (!router->ipv4_orport) {
+  if (!router->or_port) {
     log_warn(LD_DIR,"or_port unreadable or 0. Failing.");
     goto err;
   }
@@ -996,11 +984,6 @@ extrainfo_parse_entry_from_string(const char *s, const char *end,
   /* point 'end' to a point immediately after the final newline. */
   while (end > s+2 && *(end-1) == '\n' && *(end-2) == '\n')
     --end;
-
-  if (!tor_memstr(s, end-s, "\nidentity-ed25519")) {
-    log_debug(LD_DIR, "Found an obsolete extrainfo. Rejecting quietly.");
-    goto err;
-  }
 
   if (router_get_extrainfo_hash(s, end-s, digest) < 0) {
     log_warn(LD_DIR, "Couldn't compute router hash.");
@@ -1077,8 +1060,7 @@ extrainfo_parse_entry_from_string(const char *s, const char *end,
         goto err;
       }
       if (strcmp(ed_cert_tok->object_type, "ED25519 CERT")) {
-        log_warn(LD_DIR, "Wrong object type on identity-ed25519 "
-                         "in descriptor");
+        log_warn(LD_DIR, "Wrong object type on identity-ed25519 in decriptor");
         goto err;
       }
 

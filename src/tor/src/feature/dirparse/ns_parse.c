@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -13,7 +13,6 @@
 
 #include "core/or/or.h"
 #include "app/config/config.h"
-#include "core/or/protover.h"
 #include "core/or/versions.h"
 #include "feature/client/entrynodes.h"
 #include "feature/dirauth/dirvote.h"
@@ -44,7 +43,6 @@
 
 /** List of tokens recognized in the body part of v3 networkstatus
  * documents. */
-// clang-format off
 static token_rule_t rtrstatus_token_table[] = {
   T01("p",                   K_P,               CONCAT_ARGS, NO_OBJ ),
   T1( "r",                   K_R,                   GE(7),   NO_OBJ ),
@@ -54,14 +52,12 @@ static token_rule_t rtrstatus_token_table[] = {
   T01("w",                   K_W,                   ARGS,    NO_OBJ ),
   T0N("m",                   K_M,               CONCAT_ARGS, NO_OBJ ),
   T0N("id",                  K_ID,                  GE(2),   NO_OBJ ),
-  T1("pr",                   K_PROTO,           CONCAT_ARGS, NO_OBJ ),
+  T01("pr",                  K_PROTO,           CONCAT_ARGS, NO_OBJ ),
   T0N("opt",                 K_OPT,             CONCAT_ARGS, OBJ_OK ),
   END_OF_TABLE
 };
-// clang-format on
 
 /** List of tokens recognized in V3 networkstatus votes. */
-// clang-format off
 static token_rule_t networkstatus_token_table[] = {
   T1_START("network-status-version", K_NETWORK_STATUS_VERSION,
                                                    GE(1),       NO_OBJ ),
@@ -102,10 +98,8 @@ static token_rule_t networkstatus_token_table[] = {
 
   END_OF_TABLE
 };
-// clang-format on
 
 /** List of tokens recognized in V3 networkstatus consensuses. */
-// clang-format off
 static token_rule_t networkstatus_consensus_token_table[] = {
   T1_START("network-status-version", K_NETWORK_STATUS_VERSION,
                                                    GE(1),       NO_OBJ ),
@@ -142,17 +136,14 @@ static token_rule_t networkstatus_consensus_token_table[] = {
 
   END_OF_TABLE
 };
-// clang-format on
 
 /** List of tokens recognized in the footer of v1 directory footers. */
-// clang-format off
 static token_rule_t networkstatus_vote_footer_token_table[] = {
   T01("directory-footer",    K_DIRECTORY_FOOTER,    NO_ARGS,   NO_OBJ ),
   T01("bandwidth-weights",   K_BW_WEIGHTS,          ARGS,      NO_OBJ ),
   T(  "directory-signature", K_DIRECTORY_SIGNATURE, GE(2),     NEED_OBJ ),
   END_OF_TABLE
 };
-// clang-format on
 
 /** Try to find the start and end of the signed portion of a networkstatus
  * document in <b>s</b>. On success, set <b>start_out</b> to the first
@@ -247,7 +238,7 @@ routerstatus_parse_guardfraction(const char *guardfraction_str,
 
   tor_assert(bool_eq(vote, vote_rs));
 
-  /* If this info comes from a consensus, but we shouldn't apply
+  /* If this info comes from a consensus, but we should't apply
      guardfraction, just exit. */
   if (is_consensus && !should_apply_guardfraction(NULL)) {
     return 0;
@@ -385,12 +376,12 @@ routerstatus_parse_entry_from_string(memarea_t *area,
              escaped(tok->args[5+offset]));
     goto err;
   }
-  tor_addr_from_in(&rs->ipv4_addr, &in);
+  rs->addr = ntohl(in.s_addr);
 
-  rs->ipv4_orport = (uint16_t) tor_parse_long(tok->args[6+offset],
-                                              10,0,65535,NULL,NULL);
-  rs->ipv4_dirport = (uint16_t) tor_parse_long(tok->args[7+offset],
-                                               10,0,65535,NULL,NULL);
+  rs->or_port = (uint16_t) tor_parse_long(tok->args[6+offset],
+                                         10,0,65535,NULL,NULL);
+  rs->dir_port = (uint16_t) tor_parse_long(tok->args[7+offset],
+                                           10,0,65535,NULL,NULL);
 
   {
     smartlist_t *a_lines = find_all_by_keyword(tokens, K_A);
@@ -446,8 +437,6 @@ routerstatus_parse_entry_from_string(memarea_t *area,
         rs->is_v2_dir = 1;
       } else if (!strcmp(tok->args[i], "StaleDesc")) {
         rs->is_staledesc = 1;
-      } else if (!strcmp(tok->args[i], "Sybil")) {
-        rs->is_sybil = 1;
       }
     }
     /* These are implied true by having been included in a consensus made
@@ -469,10 +458,6 @@ routerstatus_parse_entry_from_string(memarea_t *area,
       }
     }
 
-    // If the protover line is malformed, reject this routerstatus.
-    if (protocols && protover_list_is_invalid(protocols)) {
-      goto err;
-    }
     summarize_protover_flags(&rs->pv, protocols, version);
   }
 
@@ -570,7 +555,7 @@ routerstatus_parse_entry_from_string(memarea_t *area,
       log_info(LD_BUG, "Found an entry in networkstatus with no "
                "microdescriptor digest. (Router %s ($%s) at %s:%d.)",
                rs->nickname, hex_str(rs->identity_digest, DIGEST_LEN),
-               fmt_addr(&rs->ipv4_addr), rs->ipv4_orport);
+               fmt_addr32(rs->addr), rs->or_port);
     }
   }
 
@@ -1070,19 +1055,6 @@ extract_shared_random_srvs(networkstatus_t *ns, smartlist_t *tokens)
   }
 }
 
-/** Allocate a copy of a protover line, if present. If present but malformed,
- * set *error to true. */
-static char *
-dup_protocols_string(smartlist_t *tokens, bool *error, directory_keyword kw)
-{
-  directory_token_t *tok = find_opt_by_keyword(tokens, kw);
-  if (!tok)
-    return NULL;
-  if (protover_list_is_invalid(tok->args[0]))
-    *error = true;
-  return tor_strdup(tok->args[0]);
-}
-
 /** Parse a v3 networkstatus vote, opinion, or consensus (depending on
  * ns_type), from <b>s</b>, and return the result.  Return NULL on failure. */
 networkstatus_t *
@@ -1204,18 +1176,14 @@ networkstatus_parse_vote_from_string(const char *s,
     }
   }
 
-  // Reject the vote if any of the protocols lines are malformed.
-  bool unparseable = false;
-  ns->recommended_client_protocols = dup_protocols_string(tokens, &unparseable,
-                                         K_RECOMMENDED_CLIENT_PROTOCOLS);
-  ns->recommended_relay_protocols = dup_protocols_string(tokens, &unparseable,
-                                         K_RECOMMENDED_RELAY_PROTOCOLS);
-  ns->required_client_protocols = dup_protocols_string(tokens, &unparseable,
-                                         K_REQUIRED_CLIENT_PROTOCOLS);
-  ns->required_relay_protocols = dup_protocols_string(tokens, &unparseable,
-                                         K_REQUIRED_RELAY_PROTOCOLS);
-  if (unparseable)
-    goto err;
+  if ((tok = find_opt_by_keyword(tokens, K_RECOMMENDED_CLIENT_PROTOCOLS)))
+    ns->recommended_client_protocols = tor_strdup(tok->args[0]);
+  if ((tok = find_opt_by_keyword(tokens, K_RECOMMENDED_RELAY_PROTOCOLS)))
+    ns->recommended_relay_protocols = tor_strdup(tok->args[0]);
+  if ((tok = find_opt_by_keyword(tokens, K_REQUIRED_CLIENT_PROTOCOLS)))
+    ns->required_client_protocols = tor_strdup(tok->args[0]);
+  if ((tok = find_opt_by_keyword(tokens, K_REQUIRED_RELAY_PROTOCOLS)))
+    ns->required_relay_protocols = tor_strdup(tok->args[0]);
 
   tok = find_by_keyword(tokens, K_VALID_AFTER);
   if (parse_iso_time(tok->args[0], &ns->valid_after))
@@ -1378,8 +1346,8 @@ networkstatus_parse_vote_from_string(const char *s,
         goto err;
       }
       if (ns->type != NS_TYPE_CONSENSUS) {
-        if (authority_cert_is_denylisted(ns->cert)) {
-          log_warn(LD_DIR, "Rejecting vote signature made with denylisted "
+        if (authority_cert_is_blacklisted(ns->cert)) {
+          log_warn(LD_DIR, "Rejecting vote signature made with blacklisted "
                    "signing key %s",
                    hex_str(ns->cert->signing_key_digest, DIGEST_LEN));
           goto err;
@@ -1391,13 +1359,13 @@ networkstatus_parse_vote_from_string(const char *s,
                  escaped(tok->args[3]));
         goto err;
       }
-      tor_addr_from_in(&voter->ipv4_addr, &in);
+      voter->addr = ntohl(in.s_addr);
       int ok;
-      voter->ipv4_dirport = (uint16_t)
+      voter->dir_port = (uint16_t)
         tor_parse_long(tok->args[4], 10, 0, 65535, &ok, NULL);
       if (!ok)
         goto err;
-      voter->ipv4_orport = (uint16_t)
+      voter->or_port = (uint16_t)
         tor_parse_long(tok->args[5], 10, 0, 65535, &ok, NULL);
       if (!ok)
         goto err;
@@ -1477,7 +1445,6 @@ networkstatus_parse_vote_from_string(const char *s,
         smartlist_add(ns->routerstatus_list, rs);
       } else {
         vote_routerstatus_free(rs);
-        goto err; // Malformed routerstatus, reject this vote.
       }
     } else {
       routerstatus_t *rs;
@@ -1488,8 +1455,6 @@ networkstatus_parse_vote_from_string(const char *s,
                                                      flav))) {
         /* Use exponential-backoff scheduling when downloading microdescs */
         smartlist_add(ns->routerstatus_list, rs);
-      } else {
-        goto err; // Malformed routerstatus, reject this vote.
       }
     }
   }

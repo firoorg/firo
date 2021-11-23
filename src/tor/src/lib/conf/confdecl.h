@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -136,11 +136,11 @@
   },
 /**@}*/
 
-/** @defgroup STUB_TABLE_MACROS Internal macros: stub table declarations,
+/* @defgroup STUB_TABLE_MACROS Internal macros: stub table declarations,
  * for use when a module is disabled.
  * Implementation helpers: the regular confdecl macros expand to these
  * when CONF_CONTEXT is defined to LL_TABLE.  Don't use them directly.
- * @{ */
+ * @{*/
 #define BEGIN_CONF_STRUCT__STUB_TABLE(structname)                       \
   static const config_var_t structname##_vars[] = {
 #define END_CONF_STRUCT__STUB_TABLE(structname)   \
@@ -166,7 +166,7 @@
  * when the macro sees us declare a configuration option "foo" of type STRING,
  * it can emit `config_decl_STRING foo;`, which is an alias for `char *foo`.
  */
-/**@{*/
+/**{*/
 typedef char *config_decl_STRING;
 typedef char *config_decl_FILENAME;
 /* Yes, "POSINT" is really an int, and not an unsigned int.  For

@@ -1,5 +1,5 @@
 /* Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -17,7 +17,6 @@
 #include "core/mainloop/mainloop.h"
 #include "core/or/channeltls.h"
 #include "core/or/circuitlist.h"
-#include "core/or/circuitstats.h"
 #include "core/or/command.h"
 #include "core/or/connection_edge.h"
 #include "core/or/connection_or.h"
@@ -142,64 +141,6 @@ clear_circ_bw_fields(void)
   SMARTLIST_FOREACH_END(circ);
 }
 
-/* Helper to emit the BUILDTIMEOUT_SET circuit build time event */
-void
-cbt_control_event_buildtimeout_set(const circuit_build_times_t *cbt,
-                                   buildtimeout_set_event_t type)
-{
-  char *args = NULL;
-  double qnt;
-  double timeout_rate = 0.0;
-  double close_rate = 0.0;
-
-  switch (type) {
-    case BUILDTIMEOUT_SET_EVENT_RESET:
-    case BUILDTIMEOUT_SET_EVENT_SUSPENDED:
-    case BUILDTIMEOUT_SET_EVENT_DISCARD:
-      qnt = 1.0;
-      break;
-    case BUILDTIMEOUT_SET_EVENT_COMPUTED:
-    case BUILDTIMEOUT_SET_EVENT_RESUME:
-    default:
-      qnt = circuit_build_times_quantile_cutoff();
-      break;
-  }
-
-  /* The timeout rate is the ratio of the timeout count over
-   * the total number of circuits attempted. The total number of
-   * circuits is (timeouts+succeeded), since every circuit
-   * either succeeds, or times out. "Closed" circuits are
-   * MEASURE_TIMEOUT circuits whose measurement period expired.
-   * All MEASURE_TIMEOUT circuits are counted in the timeouts stat
-   * before transitioning to MEASURE_TIMEOUT (in
-   * circuit_build_times_mark_circ_as_measurement_only()).
-   * MEASURE_TIMEOUT circuits that succeed are *not* counted as
-   * "succeeded". See circuit_build_times_handle_completed_hop().
-   *
-   * We cast the denominator
-   * to promote it to double before the addition, to avoid int32
-   * overflow. */
-  const double total_circuits =
-    ((double)cbt->num_circ_timeouts) + cbt->num_circ_succeeded;
-  if (total_circuits >= 1.0) {
-    timeout_rate = cbt->num_circ_timeouts / total_circuits;
-    close_rate = cbt->num_circ_closed / total_circuits;
-  }
-
-  tor_asprintf(&args, "TOTAL_TIMES=%lu "
-               "TIMEOUT_MS=%lu XM=%lu ALPHA=%f CUTOFF_QUANTILE=%f "
-               "TIMEOUT_RATE=%f CLOSE_MS=%lu CLOSE_RATE=%f",
-               (unsigned long)cbt->total_build_times,
-               (unsigned long)cbt->timeout_ms,
-               (unsigned long)cbt->Xm, cbt->alpha, qnt,
-               timeout_rate,
-               (unsigned long)cbt->close_ms,
-               close_rate);
-
-  control_event_buildtimeout_set(type, args);
-
-  tor_free(args);
-}
 /** Set <b>global_event_mask*</b> to the bitwise OR of each live control
  * connection's event_mask field. */
 void
@@ -818,7 +759,6 @@ control_event_stream_status(entry_connection_t *conn, stream_status_event_t tp,
     case STREAM_EVENT_NEW_RESOLVE: status = "NEWRESOLVE"; break;
     case STREAM_EVENT_FAILED_RETRIABLE: status = "DETACHED"; break;
     case STREAM_EVENT_REMAP: status = "REMAP"; break;
-    case STREAM_EVENT_CONTROLLER_WAIT: status = "CONTROLLER_WAIT"; break;
     default:
       log_warn(LD_BUG, "Unrecognized status code %d", (int)tp);
       return 0;
@@ -1352,27 +1292,6 @@ enable_control_logging(void)
     tor_assert(0);
 }
 
-/** Remove newline and carriage-return characters from @a msg, replacing them
- * with spaces, and discarding any that appear at the end of the message */
-void
-control_logmsg_strip_newlines(char *msg)
-{
-  char *cp;
-  for (cp = msg; *cp; ++cp) {
-    if (*cp == '\r' || *cp == '\n') {
-      *cp = ' ';
-    }
-  }
-  if (cp == msg)
-    return;
-  /* Remove trailing spaces */
-  for (--cp; *cp == ' '; --cp) {
-    *cp = '\0';
-    if (cp == msg)
-      break;
-  }
-}
-
 /** We got a log message: tell any interested control connections. */
 void
 control_event_logmsg(int severity, log_domain_mask_t domain, const char *msg)
@@ -1401,8 +1320,11 @@ control_event_logmsg(int severity, log_domain_mask_t domain, const char *msg)
     char *b = NULL;
     const char *s;
     if (strchr(msg, '\n')) {
+      char *cp;
       b = tor_strdup(msg);
-      control_logmsg_strip_newlines(b);
+      for (cp = b; *cp; ++cp)
+        if (*cp == '\r' || *cp == '\n')
+          *cp = ' ';
     }
     switch (severity) {
       case LOG_DEBUG: s = "DEBUG"; break;
@@ -1477,39 +1399,30 @@ control_event_descriptors_changed(smartlist_t *routers)
  * mode of the mapping.
  */
 int
-control_event_address_mapped(const char *from, const char *to,
-                             time_t expires, const char *error,
-                             const int cached, uint64_t stream_id)
+control_event_address_mapped(const char *from, const char *to, time_t expires,
+                             const char *error, const int cached)
 {
-  char *stream_id_str = NULL;
   if (!EVENT_IS_INTERESTING(EVENT_ADDRMAP))
     return 0;
-
-  if (stream_id) {
-    tor_asprintf(&stream_id_str, " STREAMID=%"PRIu64"", stream_id);
-  }
 
   if (expires < 3 || expires == TIME_MAX)
     send_control_event(EVENT_ADDRMAP,
                                 "650 ADDRMAP %s %s NEVER %s%s"
-                                "CACHED=\"%s\"%s\r\n",
-                                from, to, error ? error : "", error ? " " : "",
-                                cached ? "YES" : "NO",
-                                stream_id ? stream_id_str : "");
+                                "CACHED=\"%s\"\r\n",
+                                  from, to, error?error:"", error?" ":"",
+                                cached?"YES":"NO");
   else {
     char buf[ISO_TIME_LEN+1];
     char buf2[ISO_TIME_LEN+1];
     format_local_iso_time(buf,expires);
     format_iso_time(buf2,expires);
     send_control_event(EVENT_ADDRMAP,
-                                "650 ADDRMAP %s %s \"%s\" %s%sEXPIRES=\"%s\" "
-                                "CACHED=\"%s\"%s\r\n",
-                                from, to, buf, error ? error : "",
-                                error ? " " : "", buf2, cached ? "YES" : "NO",
-                                stream_id ? stream_id_str: "");
+                                "650 ADDRMAP %s %s \"%s\""
+                                " %s%sEXPIRES=\"%s\" CACHED=\"%s\"\r\n",
+                                from, to, buf,
+                                error?error:"", error?" ":"",
+                                buf2, cached?"YES":"NO");
   }
-
-  tor_free(stream_id_str);
 
   return 0;
 }
@@ -1930,8 +1843,11 @@ rend_auth_type_to_string(rend_auth_type_t auth_type)
     case REND_NO_AUTH:
       str = "NO_AUTH";
       break;
-    case REND_V3_AUTH:
-      str = "REND_V3_AUTH";
+    case REND_BASIC_AUTH:
+      str = "BASIC_AUTH";
+      break;
+    case REND_STEALTH_AUTH:
+      str = "STEALTH_AUTH";
       break;
     default:
       str = "UNKNOWN";
@@ -2060,6 +1976,8 @@ control_event_hs_descriptor_upload(const char *onion_address,
 /** send HS_DESC event after got response from hs directory.
  *
  * NOTE: this is an internal function used by following functions:
+ * control_event_hsv2_descriptor_received
+ * control_event_hsv2_descriptor_failed
  * control_event_hsv3_descriptor_failed
  *
  * So do not call this function directly.
@@ -2130,6 +2048,82 @@ control_event_hs_descriptor_upload_end(const char *action,
   tor_free(reason_field);
 }
 
+/** For an HS descriptor query <b>rend_data</b>, using the
+ * <b>onion_address</b> and HSDir fingerprint <b>hsdir_fp</b>, find out
+ * which descriptor ID in the query is the right one.
+ *
+ * Return a pointer of the binary descriptor ID found in the query's object
+ * or NULL if not found. */
+static const char *
+get_desc_id_from_query(const rend_data_t *rend_data, const char *hsdir_fp)
+{
+  int replica;
+  const char *desc_id = NULL;
+  const rend_data_v2_t *rend_data_v2 = TO_REND_DATA_V2(rend_data);
+
+  /* Possible if the fetch was done using a descriptor ID. This means that
+   * the HSFETCH command was used. */
+  if (!tor_digest_is_zero(rend_data_v2->desc_id_fetch)) {
+    desc_id = rend_data_v2->desc_id_fetch;
+    goto end;
+  }
+
+  /* Without a directory fingerprint at this stage, we can't do much. */
+  if (hsdir_fp == NULL) {
+     goto end;
+  }
+
+  /* OK, we have an onion address so now let's find which descriptor ID
+   * is the one associated with the HSDir fingerprint. */
+  for (replica = 0; replica < REND_NUMBER_OF_NON_CONSECUTIVE_REPLICAS;
+       replica++) {
+    const char *digest = rend_data_get_desc_id(rend_data, replica, NULL);
+
+    SMARTLIST_FOREACH_BEGIN(rend_data->hsdirs_fp, char *, fingerprint) {
+      if (tor_memcmp(fingerprint, hsdir_fp, DIGEST_LEN) == 0) {
+        /* Found it! This descriptor ID is the right one. */
+        desc_id = digest;
+        goto end;
+      }
+    } SMARTLIST_FOREACH_END(fingerprint);
+  }
+
+ end:
+  return desc_id;
+}
+
+/** send HS_DESC RECEIVED event
+ *
+ * called when we successfully received a hidden service descriptor.
+ */
+void
+control_event_hsv2_descriptor_received(const char *onion_address,
+                                       const rend_data_t *rend_data,
+                                       const char *hsdir_id_digest)
+{
+  char *desc_id_field = NULL;
+  const char *desc_id;
+
+  if (BUG(!rend_data || !hsdir_id_digest || !onion_address)) {
+    return;
+  }
+
+  desc_id = get_desc_id_from_query(rend_data, hsdir_id_digest);
+  if (desc_id != NULL) {
+    char desc_id_base32[REND_DESC_ID_V2_LEN_BASE32 + 1];
+    /* Set the descriptor ID digest to base32 so we can send it. */
+    base32_encode(desc_id_base32, sizeof(desc_id_base32), desc_id,
+                  DIGEST_LEN);
+    /* Extra whitespace is needed before the value. */
+    tor_asprintf(&desc_id_field, " %s", desc_id_base32);
+  }
+
+  event_hs_descriptor_receive_end("RECEIVED", onion_address, desc_id_field,
+                                  TO_REND_DATA_V2(rend_data)->auth_type,
+                                  hsdir_id_digest, NULL);
+  tor_free(desc_id_field);
+}
+
 /* Send HS_DESC RECEIVED event
  *
  * Called when we successfully received a hidden service descriptor. */
@@ -2167,6 +2161,40 @@ control_event_hs_descriptor_uploaded(const char *id_digest,
 
   control_event_hs_descriptor_upload_end("UPLOADED", onion_address,
                                          id_digest, NULL);
+}
+
+/** Send HS_DESC event to inform controller that query <b>rend_data</b>
+ * failed to retrieve hidden service descriptor from directory identified by
+ * <b>id_digest</b>. If NULL, "UNKNOWN" is used. If <b>reason</b> is not NULL,
+ * add it to REASON= field.
+ */
+void
+control_event_hsv2_descriptor_failed(const rend_data_t *rend_data,
+                                     const char *hsdir_id_digest,
+                                     const char *reason)
+{
+  char *desc_id_field = NULL;
+  const char *desc_id;
+
+  if (BUG(!rend_data)) {
+    return;
+  }
+
+  desc_id = get_desc_id_from_query(rend_data, hsdir_id_digest);
+  if (desc_id != NULL) {
+    char desc_id_base32[REND_DESC_ID_V2_LEN_BASE32 + 1];
+    /* Set the descriptor ID digest to base32 so we can send it. */
+    base32_encode(desc_id_base32, sizeof(desc_id_base32), desc_id,
+                  DIGEST_LEN);
+    /* Extra whitespace is needed before the value. */
+    tor_asprintf(&desc_id_field, " %s", desc_id_base32);
+  }
+
+  event_hs_descriptor_receive_end("FAILED", rend_data_get_address(rend_data),
+                                  desc_id_field,
+                                  TO_REND_DATA_V2(rend_data)->auth_type,
+                                  hsdir_id_digest, reason);
+  tor_free(desc_id_field);
 }
 
 /** Send HS_DESC event to inform controller that the query to

@@ -1,6 +1,6 @@
 /* Copyright (c) 2003, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -59,7 +59,6 @@ subsys_wallclock_initialize(void)
  **/
 const subsys_fns_t sys_wallclock = {
   .name = "wallclock",
-  SUBSYS_DECLARE_LOCATION(),
   .supported = true,
   /* Approximate time is a diagnostic feature, we want it to init right after
    * low-level error handling. */

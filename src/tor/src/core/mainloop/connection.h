@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -31,8 +31,6 @@ struct tor_addr_t;
 struct or_options_t;
 
 struct listener_connection_t *TO_LISTENER_CONN(struct connection_t *);
-const struct listener_connection_t *CONST_TO_LISTENER_CONN(
-                                      const struct connection_t *);
 
 struct buf_t;
 
@@ -73,12 +71,8 @@ struct buf_t;
 #define CONN_TYPE_EXT_OR_LISTENER 17
 /** Type for sockets listening for HTTP CONNECT tunnel connections. */
 #define CONN_TYPE_AP_HTTP_CONNECT_LISTENER 18
-/** Type for sockets listening for Metrics query connections. */
-#define CONN_TYPE_METRICS_LISTENER 19
-/** Type for connections from metrics listener. */
-#define CONN_TYPE_METRICS 20
 
-#define CONN_TYPE_MAX_ 21
+#define CONN_TYPE_MAX_ 19
 /* !!!! If _CONN_TYPE_MAX is ever over 31, we must grow the type field in
  * struct connection_t. */
 
@@ -121,9 +115,6 @@ typedef struct
 const char *conn_type_to_string(int type);
 const char *conn_state_to_string(int type, int state);
 int conn_listener_type_supports_af_unix(int type);
-
-const char *connection_describe(const connection_t *conn);
-const char *connection_describe_peer(const connection_t *conn);
 
 struct dir_connection_t *dir_connection_new(int socket_family);
 struct or_connection_t *or_connection_new(int type, int socket_family);

@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -33,7 +33,6 @@
 #include "core/or/circuitlist.h"
 #include "core/or/onion.h"
 #include "feature/nodelist/networkstatus.h"
-#include "feature/stats/rephist.h"
 
 #include "core/or/or_circuit_st.h"
 
@@ -50,12 +49,10 @@ typedef struct onion_queue_t {
 /** 5 seconds on the onion queue til we just send back a destroy */
 #define ONIONQUEUE_WAIT_CUTOFF 5
 
-TOR_TAILQ_HEAD(onion_queue_head_t, onion_queue_t);
-typedef struct onion_queue_head_t onion_queue_head_t;
-
 /** Array of queues of circuits waiting for CPU workers. An element is NULL
  * if that queue is empty.*/
-static onion_queue_head_t ol_list[MAX_ONION_HANDSHAKE_TYPE+1] =
+static TOR_TAILQ_HEAD(onion_queue_head_t, onion_queue_t)
+              ol_list[MAX_ONION_HANDSHAKE_TYPE+1] =
 { TOR_TAILQ_HEAD_INITIALIZER(ol_list[0]), /* tap */
   TOR_TAILQ_HEAD_INITIALIZER(ol_list[1]), /* fast */
   TOR_TAILQ_HEAD_INITIALIZER(ol_list[2]), /* ntor */
@@ -164,19 +161,15 @@ onion_pending_add(or_circuit_t *circ, create_cell_t *onionskin)
 #define WARN_TOO_MANY_CIRC_CREATIONS_INTERVAL (60)
     static ratelim_t last_warned =
       RATELIM_INIT(WARN_TOO_MANY_CIRC_CREATIONS_INTERVAL);
-    if (onionskin->handshake_type == ONION_HANDSHAKE_TYPE_NTOR) {
-      char *m;
-      /* Note this ntor onionskin drop as an overload */
-      rep_hist_note_overload(OVERLOAD_GENERAL);
-      if ((m = rate_limit_log(&last_warned, approx_time()))) {
-        log_warn(LD_GENERAL,
-                 "Your computer is too slow to handle this many circuit "
-                 "creation requests! Please consider using the "
-                 "MaxAdvertisedBandwidth config option or choosing a more "
-                 "restricted exit policy.%s",
-                 m);
-        tor_free(m);
-      }
+    char *m;
+    if (onionskin->handshake_type == ONION_HANDSHAKE_TYPE_NTOR &&
+        (m = rate_limit_log(&last_warned, approx_time()))) {
+      log_warn(LD_GENERAL,
+               "Your computer is too slow to handle this many circuit "
+               "creation requests! Please consider using the "
+               "MaxAdvertisedBandwidth config option or choosing a more "
+               "restricted exit policy.%s",m);
+      tor_free(m);
     }
     tor_free(tmp);
     return -1;

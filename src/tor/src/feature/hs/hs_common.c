@@ -1,10 +1,12 @@
-/* Copyright (c) 2016-2021, The Tor Project, Inc. */
+/* Copyright (c) 2016-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
  * \file hs_common.c
  * \brief Contains code shared between different HS protocol version as well
  *        as useful data structures and accessors used by other subsystems.
+ *        The rendcommon.c should only contains code relating to the v2
+ *        protocol.
  **/
 
 #define HS_COMMON_PRIVATE
@@ -14,27 +16,24 @@
 #include "app/config/config.h"
 #include "core/or/circuitbuild.h"
 #include "core/or/policies.h"
-#include "core/or/extendinfo.h"
 #include "feature/dirauth/shared_random_state.h"
 #include "feature/hs/hs_cache.h"
 #include "feature/hs/hs_circuitmap.h"
 #include "feature/hs/hs_client.h"
 #include "feature/hs/hs_common.h"
 #include "feature/hs/hs_dos.h"
-#include "feature/hs/hs_ob.h"
 #include "feature/hs/hs_ident.h"
 #include "feature/hs/hs_service.h"
 #include "feature/hs_common/shared_random_client.h"
 #include "feature/nodelist/describe.h"
-#include "feature/nodelist/microdesc.h"
 #include "feature/nodelist/networkstatus.h"
 #include "feature/nodelist/nodelist.h"
 #include "feature/nodelist/routerset.h"
 #include "feature/rend/rendcommon.h"
+#include "feature/rend/rendservice.h"
 #include "feature/relay/routermode.h"
 #include "lib/crypt_ops/crypto_rand.h"
 #include "lib/crypt_ops/crypto_util.h"
-#include "lib/net/resolve.h"
 
 #include "core/or/edge_connection_st.h"
 #include "feature/nodelist/networkstatus_st.h"
@@ -55,12 +54,12 @@ static const char *str_ed25519_basepoint =
 
 #ifdef HAVE_SYS_UN_H
 
-/** Given <b>ports</b>, a smartlist containing hs_port_config_t,
+/** Given <b>ports</b>, a smarlist containing rend_service_port_config_t,
  * add the given <b>p</b>, a AF_UNIX port to the list. Return 0 on success
  * else return -ENOSYS if AF_UNIX is not supported (see function in the
  * #else statement below). */
 static int
-add_unix_port(smartlist_t *ports, hs_port_config_t *p)
+add_unix_port(smartlist_t *ports, rend_service_port_config_t *p)
 {
   tor_assert(ports);
   tor_assert(p);
@@ -74,7 +73,7 @@ add_unix_port(smartlist_t *ports, hs_port_config_t *p)
  * on success else return -ENOSYS if AF_UNIX is not supported (see function
  * in the #else statement below). */
 static int
-set_unix_port(edge_connection_t *conn, hs_port_config_t *p)
+set_unix_port(edge_connection_t *conn, rend_service_port_config_t *p)
 {
   tor_assert(conn);
   tor_assert(p);
@@ -90,7 +89,7 @@ set_unix_port(edge_connection_t *conn, hs_port_config_t *p)
 #else /* !defined(HAVE_SYS_UN_H) */
 
 static int
-set_unix_port(edge_connection_t *conn, hs_port_config_t *p)
+set_unix_port(edge_connection_t *conn, rend_service_port_config_t *p)
 {
   (void) conn;
   (void) p;
@@ -98,7 +97,7 @@ set_unix_port(edge_connection_t *conn, hs_port_config_t *p)
 }
 
 static int
-add_unix_port(smartlist_t *ports, hs_port_config_t *p)
+add_unix_port(smartlist_t *ports, rend_service_port_config_t *p)
 {
   (void) ports;
   (void) p;
@@ -276,9 +275,7 @@ hs_get_time_period_num(time_t now)
   if (now != 0) {
     current_time = now;
   } else {
-    networkstatus_t *ns =
-      networkstatus_get_reasonably_live_consensus(approx_time(),
-                                                  usable_consensus_flavor());
+    networkstatus_t *ns = networkstatus_get_live_consensus(approx_time());
     current_time = ns ? ns->valid_after : approx_time();
   }
 
@@ -332,6 +329,258 @@ hs_get_start_time_of_next_time_period(time_t now)
   /* Apply rotation offset as specified by prop224 section [TIME-PERIODS] */
   unsigned int time_period_rotation_offset = sr_state_get_phase_duration();
   return (time_t)(start_of_next_tp_in_mins * 60 + time_period_rotation_offset);
+}
+
+/** Create a new rend_data_t for a specific given <b>version</b>.
+ * Return a pointer to the newly allocated data structure. */
+static rend_data_t *
+rend_data_alloc(uint32_t version)
+{
+  rend_data_t *rend_data = NULL;
+
+  switch (version) {
+  case HS_VERSION_TWO:
+  {
+    rend_data_v2_t *v2 = tor_malloc_zero(sizeof(*v2));
+    v2->base_.version = HS_VERSION_TWO;
+    v2->base_.hsdirs_fp = smartlist_new();
+    rend_data = &v2->base_;
+    break;
+  }
+  default:
+    tor_assert(0);
+    break;
+  }
+
+  return rend_data;
+}
+
+/** Free all storage associated with <b>data</b> */
+void
+rend_data_free_(rend_data_t *data)
+{
+  if (!data) {
+    return;
+  }
+  /* By using our allocation function, this should always be set. */
+  tor_assert(data->hsdirs_fp);
+  /* Cleanup the HSDir identity digest. */
+  SMARTLIST_FOREACH(data->hsdirs_fp, char *, d, tor_free(d));
+  smartlist_free(data->hsdirs_fp);
+  /* Depending on the version, cleanup. */
+  switch (data->version) {
+  case HS_VERSION_TWO:
+  {
+    rend_data_v2_t *v2_data = TO_REND_DATA_V2(data);
+    tor_free(v2_data);
+    break;
+  }
+  default:
+    tor_assert(0);
+  }
+}
+
+/** Allocate and return a deep copy of <b>data</b>. */
+rend_data_t *
+rend_data_dup(const rend_data_t *data)
+{
+  rend_data_t *data_dup = NULL;
+  smartlist_t *hsdirs_fp = smartlist_new();
+
+  tor_assert(data);
+  tor_assert(data->hsdirs_fp);
+
+  SMARTLIST_FOREACH(data->hsdirs_fp, char *, fp,
+                    smartlist_add(hsdirs_fp, tor_memdup(fp, DIGEST_LEN)));
+
+  switch (data->version) {
+  case HS_VERSION_TWO:
+  {
+    rend_data_v2_t *v2_data = tor_memdup(TO_REND_DATA_V2(data),
+                                         sizeof(*v2_data));
+    data_dup = &v2_data->base_;
+    data_dup->hsdirs_fp = hsdirs_fp;
+    break;
+  }
+  default:
+    tor_assert(0);
+    break;
+  }
+
+  return data_dup;
+}
+
+/** Compute the descriptor ID for each HS descriptor replica and save them. A
+ * valid onion address must be present in the <b>rend_data</b>.
+ *
+ * Return 0 on success else -1. */
+static int
+compute_desc_id(rend_data_t *rend_data)
+{
+  int ret = 0;
+  unsigned replica;
+  time_t now = time(NULL);
+
+  tor_assert(rend_data);
+
+  switch (rend_data->version) {
+  case HS_VERSION_TWO:
+  {
+    rend_data_v2_t *v2_data = TO_REND_DATA_V2(rend_data);
+    /* Compute descriptor ID for each replicas. */
+    for (replica = 0; replica < ARRAY_LENGTH(v2_data->descriptor_id);
+         replica++) {
+      ret = rend_compute_v2_desc_id(v2_data->descriptor_id[replica],
+                                    v2_data->onion_address,
+                                    v2_data->descriptor_cookie,
+                                    now, replica);
+      if (ret < 0) {
+        goto end;
+      }
+    }
+    break;
+  }
+  default:
+    tor_assert(0);
+  }
+
+ end:
+  return ret;
+}
+
+/** Allocate and initialize a rend_data_t object for a service using the
+ * provided arguments. All arguments are optional (can be NULL), except from
+ * <b>onion_address</b> which MUST be set. The <b>pk_digest</b> is the hash of
+ * the service private key. The <b>cookie</b> is the rendezvous cookie and
+ * <b>auth_type</b> is which authentiation this service is configured with.
+ *
+ * Return a valid rend_data_t pointer. This only returns a version 2 object of
+ * rend_data_t. */
+rend_data_t *
+rend_data_service_create(const char *onion_address, const char *pk_digest,
+                         const uint8_t *cookie, rend_auth_type_t auth_type)
+{
+  /* Create a rend_data_t object for version 2. */
+  rend_data_t *rend_data = rend_data_alloc(HS_VERSION_TWO);
+  rend_data_v2_t *v2= TO_REND_DATA_V2(rend_data);
+
+  /* We need at least one else the call is wrong. */
+  tor_assert(onion_address != NULL);
+
+  if (pk_digest) {
+    memcpy(v2->rend_pk_digest, pk_digest, sizeof(v2->rend_pk_digest));
+  }
+  if (cookie) {
+    memcpy(rend_data->rend_cookie, cookie, sizeof(rend_data->rend_cookie));
+  }
+
+  strlcpy(v2->onion_address, onion_address, sizeof(v2->onion_address));
+  v2->auth_type = auth_type;
+
+  return rend_data;
+}
+
+/** Allocate and initialize a rend_data_t object for a client request using the
+ * given arguments. Either an onion address or a descriptor ID is needed. Both
+ * can be given but in this case only the onion address will be used to make
+ * the descriptor fetch. The <b>cookie</b> is the rendezvous cookie and
+ * <b>auth_type</b> is which authentiation the service is configured with.
+ *
+ * Return a valid rend_data_t pointer or NULL on error meaning the
+ * descriptor IDs couldn't be computed from the given data. */
+rend_data_t *
+rend_data_client_create(const char *onion_address, const char *desc_id,
+                        const char *cookie, rend_auth_type_t auth_type)
+{
+  /* Create a rend_data_t object for version 2. */
+  rend_data_t *rend_data = rend_data_alloc(HS_VERSION_TWO);
+  rend_data_v2_t *v2= TO_REND_DATA_V2(rend_data);
+
+  /* We need at least one else the call is wrong. */
+  tor_assert(onion_address != NULL || desc_id != NULL);
+
+  if (cookie) {
+    memcpy(v2->descriptor_cookie, cookie, sizeof(v2->descriptor_cookie));
+  }
+  if (desc_id) {
+    memcpy(v2->desc_id_fetch, desc_id, sizeof(v2->desc_id_fetch));
+  }
+  if (onion_address) {
+    strlcpy(v2->onion_address, onion_address, sizeof(v2->onion_address));
+    if (compute_desc_id(rend_data) < 0) {
+      goto error;
+    }
+  }
+
+  v2->auth_type = auth_type;
+
+  return rend_data;
+
+ error:
+  rend_data_free(rend_data);
+  return NULL;
+}
+
+/** Return the onion address from the rend data. Depending on the version,
+ * the size of the address can vary but it's always NUL terminated. */
+const char *
+rend_data_get_address(const rend_data_t *rend_data)
+{
+  tor_assert(rend_data);
+
+  switch (rend_data->version) {
+  case HS_VERSION_TWO:
+    return TO_REND_DATA_V2(rend_data)->onion_address;
+  default:
+    /* We should always have a supported version. */
+    tor_assert_unreached();
+  }
+}
+
+/** Return the descriptor ID for a specific replica number from the rend
+ * data. The returned data is a binary digest and depending on the version its
+ * size can vary. The size of the descriptor ID is put in <b>len_out</b> if
+ * non NULL. */
+const char *
+rend_data_get_desc_id(const rend_data_t *rend_data, uint8_t replica,
+                      size_t *len_out)
+{
+  tor_assert(rend_data);
+
+  switch (rend_data->version) {
+  case HS_VERSION_TWO:
+    tor_assert(replica < REND_NUMBER_OF_NON_CONSECUTIVE_REPLICAS);
+    if (len_out) {
+      *len_out = DIGEST_LEN;
+    }
+    return TO_REND_DATA_V2(rend_data)->descriptor_id[replica];
+  default:
+    /* We should always have a supported version. */
+    tor_assert_unreached();
+  }
+}
+
+/** Return the public key digest using the given <b>rend_data</b>. The size of
+ * the digest is put in <b>len_out</b> (if set) which can differ depending on
+ * the version. */
+const uint8_t *
+rend_data_get_pk_digest(const rend_data_t *rend_data, size_t *len_out)
+{
+  tor_assert(rend_data);
+
+  switch (rend_data->version) {
+  case HS_VERSION_TWO:
+  {
+    const rend_data_v2_t *v2_data = TO_REND_DATA_V2(rend_data);
+    if (len_out) {
+      *len_out = sizeof(v2_data->rend_pk_digest);
+    }
+    return (const uint8_t *) v2_data->rend_pk_digest;
+  }
+  default:
+    /* We should always have a supported version. */
+    tor_assert_unreached();
+  }
 }
 
 /** Using the given time period number, compute the disaster shared random
@@ -559,12 +808,12 @@ hs_parse_address_impl(const char *address, ed25519_public_key_t *key_out,
 }
 
 /** Using the given identity public key and a blinded public key, compute the
- * subcredential and put it in subcred_out.
+ * subcredential and put it in subcred_out (must be of size DIGEST256_LEN).
  * This can't fail. */
 void
 hs_get_subcredential(const ed25519_public_key_t *identity_pk,
                      const ed25519_public_key_t *blinded_pk,
-                     hs_subcredential_t *subcred_out)
+                     uint8_t *subcred_out)
 {
   uint8_t credential[DIGEST256_LEN];
   crypto_digest_t *digest;
@@ -592,8 +841,7 @@ hs_get_subcredential(const ed25519_public_key_t *identity_pk,
                           sizeof(credential));
   crypto_digest_add_bytes(digest, (const char *) blinded_pk->pubkey,
                           ED25519_PUBKEY_LEN);
-  crypto_digest_get_digest(digest, (char *) subcred_out->subcred,
-                           SUBCRED_LEN);
+  crypto_digest_get_digest(digest, (char *) subcred_out, DIGEST256_LEN);
   crypto_digest_free(digest);
 
   memwipe(credential, 0, sizeof(credential));
@@ -605,7 +853,7 @@ hs_get_subcredential(const ed25519_public_key_t *identity_pk,
 int
 hs_set_conn_addr_port(const smartlist_t *ports, edge_connection_t *conn)
 {
-  hs_port_config_t *chosen_port;
+  rend_service_port_config_t *chosen_port;
   unsigned int warn_once = 0;
   smartlist_t *matching_ports;
 
@@ -613,7 +861,7 @@ hs_set_conn_addr_port(const smartlist_t *ports, edge_connection_t *conn)
   tor_assert(conn);
 
   matching_ports = smartlist_new();
-  SMARTLIST_FOREACH_BEGIN(ports, hs_port_config_t *, p) {
+  SMARTLIST_FOREACH_BEGIN(ports, rend_service_port_config_t *, p) {
     if (TO_CONN(conn)->port != p->virtual_port) {
       continue;
     }
@@ -636,13 +884,12 @@ hs_set_conn_addr_port(const smartlist_t *ports, edge_connection_t *conn)
   chosen_port = smartlist_choose(matching_ports);
   smartlist_free(matching_ports);
   if (chosen_port) {
-    if (conn->hs_ident) {
-      /* There is always a connection identifier at this point. Regardless of a
-       * Unix or TCP port, note the virtual port. */
-      conn->hs_ident->orig_virtual_port = chosen_port->virtual_port;
-    }
-
     if (!(chosen_port->is_unix_addr)) {
+      /* save the original destination before we overwrite it */
+      if (conn->hs_ident) {
+        conn->hs_ident->orig_virtual_port = TO_CONN(conn)->port;
+      }
+
       /* Get a non-AF_UNIX connection ready for connection_exit_connect() */
       tor_addr_copy(&TO_CONN(conn)->addr, &chosen_port->real_addr);
       TO_CONN(conn)->port = chosen_port->real_port;
@@ -657,172 +904,35 @@ hs_set_conn_addr_port(const smartlist_t *ports, edge_connection_t *conn)
   return (chosen_port) ? 0 : -1;
 }
 
-/** Return a new hs_port_config_t with its path set to
- * <b>socket_path</b> or empty if <b>socket_path</b> is NULL */
-static hs_port_config_t *
-hs_port_config_new(const char *socket_path)
-{
-  if (!socket_path)
-    return tor_malloc_zero(sizeof(hs_port_config_t) + 1);
-
-  const size_t pathlen = strlen(socket_path) + 1;
-  hs_port_config_t *conf =
-    tor_malloc_zero(sizeof(hs_port_config_t) + pathlen);
-  memcpy(conf->unix_addr, socket_path, pathlen);
-  conf->is_unix_addr = 1;
-  return conf;
-}
-
-/** Parses a virtual-port to real-port/socket mapping separated by
- * the provided separator and returns a new hs_port_config_t,
- * or NULL and an optional error string on failure.
- *
- * The format is: VirtualPort SEP (IP|RealPort|IP:RealPort|'socket':path)?
- *
- * IP defaults to 127.0.0.1; RealPort defaults to VirtualPort.
- */
-hs_port_config_t *
-hs_parse_port_config(const char *string, const char *sep,
-                               char **err_msg_out)
-{
-  smartlist_t *sl;
-  int virtport;
-  int realport = 0;
-  uint16_t p;
-  tor_addr_t addr;
-  hs_port_config_t *result = NULL;
-  unsigned int is_unix_addr = 0;
-  const char *socket_path = NULL;
-  char *err_msg = NULL;
-  char *addrport = NULL;
-
-  sl = smartlist_new();
-  smartlist_split_string(sl, string, sep,
-                         SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK, 2);
-  if (smartlist_len(sl) < 1 || BUG(smartlist_len(sl) > 2)) {
-    err_msg = tor_strdup("Bad syntax in hidden service port configuration.");
-    goto err;
-  }
-  virtport = (int)tor_parse_long(smartlist_get(sl,0), 10, 1, 65535, NULL,NULL);
-  if (!virtport) {
-    tor_asprintf(&err_msg, "Missing or invalid port %s in hidden service "
-                   "port configuration", escaped(smartlist_get(sl,0)));
-
-    goto err;
-  }
-  if (smartlist_len(sl) == 1) {
-    /* No addr:port part; use default. */
-    realport = virtport;
-    tor_addr_from_ipv4h(&addr, 0x7F000001u); /* 127.0.0.1 */
-  } else {
-    int ret;
-
-    const char *addrport_element = smartlist_get(sl,1);
-    const char *rest = NULL;
-    int is_unix;
-    ret = port_cfg_line_extract_addrport(addrport_element, &addrport,
-                                         &is_unix, &rest);
-
-    if (ret < 0) {
-      tor_asprintf(&err_msg, "Couldn't process address <%s> from hidden "
-                   "service configuration", addrport_element);
-      goto err;
-    }
-
-    if (rest && strlen(rest)) {
-      err_msg = tor_strdup("HiddenServicePort parse error: invalid port "
-                           "mapping");
-      goto err;
-    }
-
-    if (is_unix) {
-      socket_path = addrport;
-      is_unix_addr = 1;
-    } else if (strchr(addrport, ':') || strchr(addrport, '.')) {
-      /* else try it as an IP:port pair if it has a : or . in it */
-      if (tor_addr_port_lookup(addrport, &addr, &p)<0) {
-        err_msg = tor_strdup("Unparseable address in hidden service port "
-                             "configuration.");
-        goto err;
-      }
-      realport = p?p:virtport;
-    } else {
-      /* No addr:port, no addr -- must be port. */
-      realport = (int)tor_parse_long(addrport, 10, 1, 65535, NULL, NULL);
-      if (!realport) {
-        tor_asprintf(&err_msg, "Unparseable or out-of-range port %s in "
-                     "hidden service port configuration.",
-                     escaped(addrport));
-        goto err;
-      }
-      tor_addr_from_ipv4h(&addr, 0x7F000001u); /* Default to 127.0.0.1 */
-    }
-  }
-
-  /* Allow room for unix_addr */
-  result = hs_port_config_new(socket_path);
-  result->virtual_port = virtport;
-  result->is_unix_addr = is_unix_addr;
-  if (!is_unix_addr) {
-    result->real_port = realport;
-    tor_addr_copy(&result->real_addr, &addr);
-    result->unix_addr[0] = '\0';
-  }
-
- err:
-  tor_free(addrport);
-  if (err_msg_out != NULL) {
-    *err_msg_out = err_msg;
-  } else {
-    tor_free(err_msg);
-  }
-  SMARTLIST_FOREACH(sl, char *, c, tor_free(c));
-  smartlist_free(sl);
-
-  return result;
-}
-
-/** Release all storage held in a hs_port_config_t. */
-void
-hs_port_config_free_(hs_port_config_t *p)
-{
-  tor_free(p);
-}
-
 /** Using a base32 representation of a service address, parse its content into
  * the key_out, checksum_out and version_out. Any out variable can be NULL in
  * case the caller would want only one field. checksum_out MUST at least be 2
  * bytes long.
  *
- * Return 0 if parsing went well; return -1 in case of error and if errmsg is
- * non NULL, a human readable string message is set. */
+ * Return 0 if parsing went well; return -1 in case of error. */
 int
-hs_parse_address_no_log(const char *address, ed25519_public_key_t *key_out,
-                        uint8_t *checksum_out, uint8_t *version_out,
-                        const char **errmsg)
+hs_parse_address(const char *address, ed25519_public_key_t *key_out,
+                 uint8_t *checksum_out, uint8_t *version_out)
 {
   char decoded[HS_SERVICE_ADDR_LEN];
 
   tor_assert(address);
 
-  if (errmsg) {
-    *errmsg = NULL;
-  }
-
   /* Obvious length check. */
   if (strlen(address) != HS_SERVICE_ADDR_LEN_BASE32) {
-    if (errmsg) {
-      *errmsg = "Invalid length";
-    }
+    log_warn(LD_REND, "Service address %s has an invalid length. "
+                      "Expected %lu but got %lu.",
+             escaped_safe_str(address),
+             (unsigned long) HS_SERVICE_ADDR_LEN_BASE32,
+             (unsigned long) strlen(address));
     goto invalid;
   }
 
   /* Decode address so we can extract needed fields. */
   if (base32_decode(decoded, sizeof(decoded), address, strlen(address))
       != sizeof(decoded)) {
-    if (errmsg) {
-      *errmsg = "Unable to base32 decode";
-    }
+    log_warn(LD_REND, "Service address %s can't be decoded.",
+             escaped_safe_str(address));
     goto invalid;
   }
 
@@ -832,22 +942,6 @@ hs_parse_address_no_log(const char *address, ed25519_public_key_t *key_out,
   return 0;
  invalid:
   return -1;
-}
-
-/** Same has hs_parse_address_no_log() but emits a log warning on parsing
- * failure. */
-int
-hs_parse_address(const char *address, ed25519_public_key_t *key_out,
-                 uint8_t *checksum_out, uint8_t *version_out)
-{
-  const char *errmsg = NULL;
-  int ret = hs_parse_address_no_log(address, key_out, checksum_out,
-                                    version_out, &errmsg);
-  if (ret < 0) {
-    log_warn(LD_REND, "Service address %s failed to be parsed: %s",
-             escaped_safe_str(address), errmsg);
-  }
-  return ret;
 }
 
 /** Validate a given onion address. The length, the base32 decoding, and
@@ -990,8 +1084,7 @@ hs_in_period_between_tp_and_srv,(const networkstatus_t *consensus, time_t now))
   time_t srv_start_time, tp_start_time;
 
   if (!consensus) {
-    consensus = networkstatus_get_reasonably_live_consensus(now,
-                                                  usable_consensus_flavor());
+    consensus = networkstatus_get_live_consensus(now);
     if (!consensus) {
       return 0;
     }
@@ -1017,7 +1110,7 @@ hs_service_requires_uptime_circ(const smartlist_t *ports)
 {
   tor_assert(ports);
 
-  SMARTLIST_FOREACH_BEGIN(ports, hs_port_config_t *, p) {
+  SMARTLIST_FOREACH_BEGIN(ports, rend_service_port_config_t *, p) {
     if (smartlist_contains_int_as_string(get_options()->LongLivedPorts,
                                          p->virtual_port)) {
       return 1;
@@ -1236,9 +1329,7 @@ hs_get_responsible_hsdirs(const ed25519_public_key_t *blinded_pk,
   sorted_nodes = smartlist_new();
 
   /* Make sure we actually have a live consensus */
-  networkstatus_t *c =
-    networkstatus_get_reasonably_live_consensus(approx_time(),
-                                                usable_consensus_flavor());
+  networkstatus_t *c = networkstatus_get_live_consensus(approx_time());
   if (!c || smartlist_len(c->routerstatus_list) == 0) {
       log_warn(LD_REND, "No live consensus so we can't get the responsible "
                "hidden service directories.");
@@ -1347,8 +1438,8 @@ hs_hsdir_requery_period(const or_options_t *options)
 
 /** Tracks requests for fetching hidden service descriptors. It's used by
  *  hidden service clients, to avoid querying HSDirs that have already failed
- *  giving back a descriptor. The same data structure is used to track v3 HS
- *  descriptor requests.
+ *  giving back a descriptor. The same data structure is used to track both v2
+ *  and v3 HS descriptor requests.
  *
  * The string map is a key/value store that contains the last request times to
  * hidden service directories for certain queries. Specifically:
@@ -1357,7 +1448,8 @@ hs_hsdir_requery_period(const or_options_t *options)
  *   value = time_t of last request for that hs_identity to that HSDir
  *
  * where 'hsdir_identity' is the identity digest of the HSDir node, and
- * 'hs_identity' is the ed25519 blinded public key of the HS for v3. */
+ * 'hs_identity' is the descriptor ID of the HS in the v2 case, or the ed25519
+ * blinded public key of the HS in the v3 case. */
 static strmap_t *last_hid_serv_requests_ = NULL;
 
 /** Returns last_hid_serv_requests_, initializing it to a new strmap if
@@ -1371,10 +1463,10 @@ get_last_hid_serv_requests(void)
 }
 
 /** Look up the last request time to hidden service directory <b>hs_dir</b>
- * for descriptor request key <b>req_key_str</b> which is the blinded key for
- * v3. If <b>set</b> is non-zero, assign the current time <b>now</b> and
- * return that. Otherwise, return the most recent request time, or 0 if no
- * such request has been sent before. */
+ * for descriptor request key <b>req_key_str</b> which is the descriptor ID
+ * for a v2 service or the blinded key for v3. If <b>set</b> is non-zero,
+ * assign the current time <b>now</b> and return that.  Otherwise, return the
+ * most recent request time, or 0 if no such request has been sent before. */
 time_t
 hs_lookup_last_hid_serv_request(routerstatus_t *hs_dir,
                                 const char *req_key_str,
@@ -1435,8 +1527,9 @@ hs_clean_last_hid_serv_requests(time_t now)
  * <b>req_key_str</b> from the history of times of requests to hidden service
  * directories.
  *
- * This is called from purge_hid_serv_request(), which must be idempotent, so
- * any future changes to this function must leave it idempotent too. */
+ * This is called from rend_client_note_connection_attempt_ended(), which
+ * must be idempotent, so any future changes to this function must leave it
+ * idempotent too. */
 void
 hs_purge_hid_serv_from_last_hid_serv_requests(const char *req_key_str)
 {
@@ -1456,7 +1549,8 @@ hs_purge_hid_serv_from_last_hid_serv_requests(const char *req_key_str)
      * check on the strings we are about to compare. The key is variable sized
      * since it's composed as follows:
      *   key = base32(hsdir_identity) + base32(req_key_str)
-     * where 'req_key_str' is the ed25519 blinded public key of the HS v3. */
+     * where 'req_key_str' is the descriptor ID of the HS in the v2 case, or
+     * the ed25519 blinded public key of the HS in the v3 case. */
     if (strlen(key) < REND_DESC_ID_V2_LEN_BASE32 + strlen(req_key_str)) {
       iter = strmap_iter_next(last_hid_serv_requests, iter);
       continue;
@@ -1626,7 +1720,7 @@ hs_get_extend_info_from_lspecs(const smartlist_t *lspecs,
     switch (link_specifier_get_ls_type(ls)) {
     case LS_IPV4:
       /* Skip if we already seen a v4. If direct_conn is true, we skip this
-       * block because reachable_addr_choose_from_ls() will set ap. If
+       * block because fascist_firewall_choose_address_ls() will set ap. If
        * direct_conn is false, set ap to the first IPv4 address and port in
        * the link specifiers.*/
       if (have_v4 || direct_conn) continue;
@@ -1658,7 +1752,7 @@ hs_get_extend_info_from_lspecs(const smartlist_t *lspecs,
 
   /* Choose a preferred address first, but fall back to an allowed address. */
   if (direct_conn)
-    reachable_addr_choose_from_ls(lspecs, 0, &ap);
+    fascist_firewall_choose_address_ls(lspecs, 0, &ap);
 
   /* Legacy ID is mandatory, and we require an IP address. */
   if (!tor_addr_port_is_valid_ap(&ap, 0)) {
@@ -1694,7 +1788,7 @@ hs_get_extend_info_from_lspecs(const smartlist_t *lspecs,
 
 /***********************************************************************/
 
-/** Initialize the entire HS subsystem. This is called in tor_init() before any
+/** Initialize the entire HS subsytem. This is called in tor_init() before any
  * torrc options are loaded. Only for >= v3. */
 void
 hs_init(void)
@@ -1713,7 +1807,6 @@ hs_free_all(void)
   hs_service_free_all();
   hs_cache_free_all();
   hs_client_free_all();
-  hs_ob_free_all();
 }
 
 /** For the given origin circuit circ, decrement the number of rendezvous
@@ -1723,7 +1816,9 @@ hs_dec_rdv_stream_counter(origin_circuit_t *circ)
 {
   tor_assert(circ);
 
-  if (circ->hs_ident) {
+  if (circ->rend_data) {
+    circ->rend_data->nr_streams--;
+  } else if (circ->hs_ident) {
     circ->hs_ident->num_rdv_streams--;
   } else {
     /* Should not be called if this circuit is not for hidden service. */
@@ -1738,7 +1833,9 @@ hs_inc_rdv_stream_counter(origin_circuit_t *circ)
 {
   tor_assert(circ);
 
-  if (circ->hs_ident) {
+  if (circ->rend_data) {
+    circ->rend_data->nr_streams++;
+  } else if (circ->hs_ident) {
     circ->hs_ident->num_rdv_streams++;
   } else {
     /* Should not be called if this circuit is not for hidden service. */

@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /*
@@ -344,7 +344,7 @@ test_confparse_assign_deprecated(void *arg)
   config_mgr_free(mgr);
 }
 
-/* Try to re-assign an option name that has been deprecated in favor of
+/* Try to re-assign an option name that has been depreacted in favor of
  * another. */
 static void
 test_confparse_assign_replaced(void *arg)

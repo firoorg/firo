@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -63,7 +63,6 @@
 #include "feature/relay/dns.h"
 #include "feature/relay/router.h"
 #include "feature/relay/routermode.h"
-#include "feature/stats/rephist.h"
 #include "lib/crypt_ops/crypto_rand.h"
 #include "lib/evloop/compat_libevent.h"
 #include "lib/sandbox/sandbox.h"
@@ -147,9 +146,9 @@ cached_resolve_hash(cached_resolve_t *a)
 }
 
 HT_PROTOTYPE(cache_map, cached_resolve_t, node, cached_resolve_hash,
-             cached_resolves_eq);
+             cached_resolves_eq)
 HT_GENERATE2(cache_map, cached_resolve_t, node, cached_resolve_hash,
-             cached_resolves_eq, 0.6, tor_reallocarray_, tor_free_);
+             cached_resolves_eq, 0.6, tor_reallocarray_, tor_free_)
 
 /** Initialize the DNS cache. */
 static void
@@ -212,11 +211,20 @@ evdns_log_cb(int warn, const char *msg)
   tor_log(severity, LD_EXIT, "eventdns: %s", msg);
 }
 
+/** Helper: passed to eventdns.c as a callback so it can generate random
+ * numbers for transaction IDs and 0x20-hack coding. */
+static void
+dns_randfn_(char *b, size_t n)
+{
+  crypto_rand(b,n);
+}
+
 /** Initialize the DNS subsystem; called by the OR process. */
 int
 dns_init(void)
 {
   init_cache_map();
+  evdns_set_random_bytes_fn(dns_randfn_);
   if (server_mode(get_options())) {
     int r = configure_nameservers(1);
     return r;
@@ -258,6 +266,22 @@ int
 has_dns_init_failed(void)
 {
   return nameserver_config_failed;
+}
+
+/** Helper: Given a TTL from a DNS response, determine what TTL to give the
+ * OP that asked us to resolve it, and how long to cache that record
+ * ourselves. */
+uint32_t
+dns_clip_ttl(uint32_t ttl)
+{
+  /* This logic is a defense against "DefectTor" DNS-based traffic
+   * confirmation attacks, as in https://nymity.ch/tor-dns/tor-dns.pdf .
+   * We only give two values: a "low" value and a "high" value.
+   */
+  if (ttl < MIN_DNS_TTL_AT_EXIT)
+    return MIN_DNS_TTL_AT_EXIT;
+  else
+    return MAX_DNS_TTL_AT_EXIT;
 }
 
 /** Helper: free storage held by an entry in the DNS cache. */
@@ -497,7 +521,7 @@ send_resolved_cell,(edge_connection_t *conn, uint8_t answer_type,
   uint32_t ttl;
 
   buf[0] = answer_type;
-  ttl = clip_dns_ttl(conn->address_ttl);
+  ttl = dns_clip_ttl(conn->address_ttl);
 
   switch (answer_type)
     {
@@ -569,7 +593,7 @@ send_resolved_hostname_cell,(edge_connection_t *conn,
   size_t namelen = strlen(hostname);
 
   tor_assert(namelen < 256);
-  ttl = clip_dns_ttl(conn->address_ttl);
+  ttl = dns_clip_ttl(conn->address_ttl);
 
   buf[0] = RESOLVED_TYPE_HOSTNAME;
   buf[1] = (uint8_t)namelen;
@@ -963,6 +987,25 @@ assert_connection_edge_not_dns_pending(edge_connection_t *conn)
 #endif /* 1 */
 }
 
+/** Log an error and abort if any connection waiting for a DNS resolve is
+ * corrupted. */
+void
+assert_all_pending_dns_resolves_ok(void)
+{
+  pending_connection_t *pend;
+  cached_resolve_t **resolve;
+
+  HT_FOREACH(resolve, cache_map, &cache_root) {
+    for (pend = (*resolve)->pending_connections;
+         pend;
+         pend = pend->next) {
+      assert_connection_ok(TO_CONN(pend->conn), 0);
+      tor_assert(!SOCKET_OK(pend->conn->base_.s));
+      tor_assert(!connection_in_array(TO_CONN(pend->conn)));
+    }
+  }
+}
+
 /** Remove <b>conn</b> from the list of connections waiting for conn-\>address.
  */
 void
@@ -1020,7 +1063,7 @@ connection_dns_remove(edge_connection_t *conn)
  * the resolve for <b>address</b> itself, and remove any cached results for
  * <b>address</b> from the cache.
  */
-MOCK_IMPL(STATIC void,
+MOCK_IMPL(void,
 dns_cancel_pending_resolve,(const char *address))
 {
   pending_connection_t *pend;
@@ -1295,7 +1338,7 @@ make_pending_resolve_cached(cached_resolve_t *resolve)
         resolve->ttl_hostname < ttl)
       ttl = resolve->ttl_hostname;
 
-    set_expiry(new_resolve, time(NULL) + clip_dns_ttl(ttl));
+    set_expiry(new_resolve, time(NULL) + dns_clip_ttl(ttl));
   }
 
   assert_cache_ok();
@@ -1583,17 +1626,12 @@ evdns_callback(int result, char type, int count, int ttl, void *addresses,
     } else if (type == DNS_IPv6_AAAA && count) {
       char answer_buf[TOR_ADDR_BUF_LEN];
       char *escaped_address;
-      const char *ip_str;
       struct in6_addr *addrs = addresses;
       tor_addr_from_in6(&addr, &addrs[0]);
-      ip_str = tor_inet_ntop(AF_INET6, &addrs[0], answer_buf,
-                             sizeof(answer_buf));
+      tor_inet_ntop(AF_INET6, &addrs[0], answer_buf, sizeof(answer_buf));
       escaped_address = esc_for_log(string_address);
 
-      if (BUG(ip_str == NULL)) {
-        log_warn(LD_EXIT, "tor_inet_ntop() failed!");
-        result = DNS_ERR_NOTEXIST;
-      } else if (answer_is_wildcarded(answer_buf)) {
+      if (answer_is_wildcarded(answer_buf)) {
         log_debug(LD_EXIT, "eventdns said that %s resolves to ISP-hijacked "
                   "address %s; treating as a failure.",
                   safe_str(escaped_address),
@@ -1640,10 +1678,6 @@ evdns_callback(int result, char type, int count, int ttl, void *addresses,
     dns_found_answer(string_address, orig_query_type,
                      result, &addr, hostname, ttl);
 
-  /* The result can be changed within this function thus why we note the result
-   * at the end. */
-  rep_hist_note_dns_query(type, result);
-
   tor_free(arg_);
 }
 
@@ -1687,7 +1721,7 @@ launch_one_resolve(const char *address, uint8_t query_type,
       log_warn(LD_BUG, "Called with PTR query and unexpected address family");
     break;
   default:
-    log_warn(LD_BUG, "Called with unexpected query type %d", (int)query_type);
+    log_warn(LD_BUG, "Called with unexpectd query type %d", (int)query_type);
     break;
   }
 
@@ -1864,7 +1898,6 @@ evdns_wildcard_check_callback(int result, char type, int count, int ttl,
                               void *addresses, void *arg)
 {
   (void)ttl;
-  const char *ip_str;
   ++n_wildcard_requests;
   if (result == DNS_ERR_NONE && count) {
     char *string_address = arg;
@@ -1874,22 +1907,16 @@ evdns_wildcard_check_callback(int result, char type, int count, int ttl,
       for (i = 0; i < count; ++i) {
         char answer_buf[INET_NTOA_BUF_LEN+1];
         struct in_addr in;
-        int ntoa_res;
         in.s_addr = addrs[i];
-        ntoa_res = tor_inet_ntoa(&in, answer_buf, sizeof(answer_buf));
-        tor_assert_nonfatal(ntoa_res >= 0);
-        if (ntoa_res > 0)
-          wildcard_increment_answer(answer_buf);
+        tor_inet_ntoa(&in, answer_buf, sizeof(answer_buf));
+        wildcard_increment_answer(answer_buf);
       }
     } else if (type == DNS_IPv6_AAAA) {
       const struct in6_addr *addrs = addresses;
       for (i = 0; i < count; ++i) {
         char answer_buf[TOR_ADDR_BUF_LEN+1];
-        ip_str = tor_inet_ntop(AF_INET6, &addrs[i], answer_buf,
-                               sizeof(answer_buf));
-        tor_assert_nonfatal(ip_str);
-        if (ip_str)
-          wildcard_increment_answer(answer_buf);
+        tor_inet_ntop(AF_INET6, &addrs[i], answer_buf, sizeof(answer_buf));
+        wildcard_increment_answer(answer_buf);
       }
     }
 
@@ -2024,12 +2051,12 @@ dns_launch_correctness_checks(void)
 
   /* Wait a while before launching requests for test addresses, so we can
    * get the results from checking for wildcarding. */
-  if (!launch_event)
+  if (! launch_event)
     launch_event = tor_evtimer_new(tor_libevent_get_base(),
                                    launch_test_addresses, NULL);
   timeout.tv_sec = 30;
   timeout.tv_usec = 0;
-  if (evtimer_add(launch_event, &timeout) < 0) {
+  if (evtimer_add(launch_event, &timeout)<0) {
     log_warn(LD_BUG, "Couldn't add timer for checking for dns hijacking");
   }
 }
@@ -2161,7 +2188,7 @@ dns_cache_handle_oom(time_t now, size_t min_remove_bytes)
     total_bytes_removed += bytes_removed;
 
     /* Increase time_inc by a reasonable fraction. */
-    time_inc += (MAX_DNS_TTL / 4);
+    time_inc += (MAX_DNS_TTL_AT_EXIT / 4);
   } while (total_bytes_removed < min_remove_bytes);
 
   return total_bytes_removed;

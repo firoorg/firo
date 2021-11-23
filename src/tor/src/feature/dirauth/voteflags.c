@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -487,6 +487,7 @@ dirserv_set_router_is_running(routerinfo_t *router, time_t now)
     unreachable.
    */
   int answer;
+  const or_options_t *options = get_options();
   const dirauth_options_t *dirauth_options = dirauth_get_options();
   node_t *node = node_get_mutable_by_id(router->cache_info.identity_digest);
   tor_assert(node);
@@ -500,9 +501,8 @@ dirserv_set_router_is_running(routerinfo_t *router, time_t now)
     /* A hibernating router is down unless we (somehow) had contact with it
      * since it declared itself to be hibernating. */
     answer = 0;
-  } else if (! dirauth_options->AuthDirTestReachability) {
-    /* If we aren't testing reachability, then everybody is up unless they say
-     * they are down. */
+  } else if (options->AssumeReachable) {
+    /* If AssumeReachable, everybody is up unless they say they are down! */
     answer = 1;
   } else {
     /* Otherwise, a router counts as up if we found all announced OR

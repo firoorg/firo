@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -37,7 +37,6 @@ typedef enum {
   SOCKS5_HS_MISSING_CLIENT_AUTH     = 0xF4,
   SOCKS5_HS_BAD_CLIENT_AUTH         = 0xF5,
   SOCKS5_HS_BAD_ADDRESS             = 0xF6,
-  SOCKS5_HS_INTRO_TIMEDOUT          = 0xF7,
 } socks5_reply_status_t;
 
 #endif /* !defined(TOR_SOCKS5_STATUS_H) */

@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -116,13 +116,6 @@ struct entry_guard_t {
    * successfully and decide to keep it?) This field is zero if this is not a
    * confirmed guard. */
   time_t confirmed_on_date; /* 0 if not confirmed */
-  /**
-   * In what order was this guard sampled? Guards with
-   * lower indices appear earlier on the sampled list, the confirmed list and
-   * the primary list as a result of Prop 310
-   */
-  int sampled_idx;
-
   /**
    * In what order was this guard confirmed? Guards with lower indices
    * appear earlier on the confirmed list.  If the confirmed list is compacted,
@@ -249,9 +242,8 @@ struct guard_selection_t {
    * Ordered list (from highest to lowest priority) of guards that we
    * have successfully contacted and decided to use. Every member of
    * this list is a member of sampled_entry_guards. Every member should
-   * have confirmed_on_date set.
-   * The ordering of the list should be by sampled idx. The reasoning behind
-   * it is linked to Proposal 310.
+   * have confirmed_on_date set, and have confirmed_idx greater than
+   * any earlier member of the list.
    *
    * This list is persistent. It is a subset of the elements in
    * sampled_entry_guards, and its pointers point to elements of
@@ -278,12 +270,6 @@ struct guard_selection_t {
   /** What confirmed_idx value should the next-added member of
    * confirmed_entry_guards receive? */
   int next_confirmed_idx;
-
-  /** What sampled_idx value should the next-added member of
-   * sampled_entry_guards receive? This should follow the size of the sampled
-   * list until sampled relays get pruned for some reason
-   */
-  int next_sampled_idx;
 
 };
 
@@ -529,8 +515,7 @@ MOCK_DECL(STATIC circuit_guard_state_t *,
 STATIC entry_guard_t *entry_guard_add_to_sample(guard_selection_t *gs,
                                                 const node_t *node);
 STATIC entry_guard_t *entry_guards_expand_sample(guard_selection_t *gs);
-STATIC char *entry_guard_encode_for_state(entry_guard_t *guard, int
-    dense_sampled_index);
+STATIC char *entry_guard_encode_for_state(entry_guard_t *guard);
 STATIC entry_guard_t *entry_guard_parse_from_state(const char *s);
 #define entry_guard_free(e) \
   FREE_AND_NULL(entry_guard_t, entry_guard_free_, (e))
@@ -538,7 +523,7 @@ STATIC void entry_guard_free_(entry_guard_t *e);
 STATIC void entry_guards_update_filtered_sets(guard_selection_t *gs);
 STATIC int entry_guards_all_primary_guards_are_down(guard_selection_t *gs);
 /**
- * @name Flags for first_reachable_filtered_entry_guard()
+ * @name Flags for sample_reachable_filtered_entry_guards()
  */
 /**@{*/
 #define SAMPLE_EXCLUDE_CONFIRMED   (1u<<0)
@@ -547,7 +532,7 @@ STATIC int entry_guards_all_primary_guards_are_down(guard_selection_t *gs);
 #define SAMPLE_NO_UPDATE_PRIMARY   (1u<<3)
 #define SAMPLE_EXCLUDE_NO_DESCRIPTOR (1u<<4)
 /**@}*/
-STATIC entry_guard_t *first_reachable_filtered_entry_guard(
+STATIC entry_guard_t *sample_reachable_filtered_entry_guards(
                                     guard_selection_t *gs,
                                     const entry_guard_restriction_t *rst,
                                     unsigned flags);

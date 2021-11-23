@@ -1,6 +1,6 @@
 /* Copyright (c) 2003, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #ifndef TOR_TORTLS_ST_H
@@ -67,8 +67,6 @@ struct tor_tls_t {
    */
   unsigned long last_write_count;
   unsigned long last_read_count;
-  /** Most recent error value from ERR_get_error(). */
-  unsigned long last_error;
   /** If set, a callback to invoke whenever the client tries to renegotiate
    * the handshake. */
   void (*negotiated_callback)(tor_tls_t *tls, void *arg);
@@ -79,8 +77,7 @@ struct tor_tls_t {
   /** Last values retried from tor_get_prfiledesc_byte_counts(). */
   uint64_t last_write_count;
   uint64_t last_read_count;
-  long last_error;
-#endif /* defined(ENABLE_NSS) */
+#endif
 };
 
 #endif /* !defined(TOR_TORTLS_ST_H) */

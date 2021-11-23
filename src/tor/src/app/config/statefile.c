@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -40,7 +40,7 @@
 #include "feature/control/control_events.h"
 #include "feature/client/entrynodes.h"
 #include "feature/hibernate/hibernate.h"
-#include "feature/stats/bwhist.h"
+#include "feature/stats/rephist.h"
 #include "feature/relay/router.h"
 #include "feature/relay/routermode.h"
 #include "lib/sandbox/sandbox.h"
@@ -58,36 +58,14 @@
 
 /** A list of state-file "abbreviations," for compatibility. */
 static config_abbrev_t state_abbrevs_[] = {
+  { "AccountingBytesReadInterval", "AccountingBytesReadInInterval", 0, 0 },
+  { "HelperNode", "EntryGuard", 0, 0 },
+  { "HelperNodeDownSince", "EntryGuardDownSince", 0, 0 },
+  { "HelperNodeUnlistedSince", "EntryGuardUnlistedSince", 0, 0 },
+  { "EntryNode", "EntryGuard", 0, 0 },
+  { "EntryNodeDownSince", "EntryGuardDownSince", 0, 0 },
+  { "EntryNodeUnlistedSince", "EntryGuardUnlistedSince", 0, 0 },
   { NULL, NULL, 0, 0},
-};
-
-/** A list of obsolete keys that we do not and should not preserve.
- *
- * We could just let these live in ExtraLines indefinitely, but they're
- * never going to be used again, and every version that used them
- * has been obsolete for a long time.
- * */
-static const char *obsolete_state_keys[] = {
-  /* These were renamed in 0.1.1.11-alpha */
-  "AccountingBytesReadInterval",
-  "HelperNode",
-  "HelperNodeDownSince",
-  "HelperNodeUnlistedSince",
-  "EntryNode",
-  "HelperNodeDownSince",
-  "EntryNodeUnlistedSince",
-  /* These were replaced by "Guard" in 0.3.0.1-alpha. */
-  "EntryGuard",
-  "EntryGuardDownSince",
-  "EntryGuardUnlistedSince",
-  "EntryGuardAddedBy",
-  "EntryGuardPathBias",
-  "EntryGuardPathUseBias",
-  /* This was replaced by OPE-based revision numbers in 0.3.5.1-alpha,
-   * and was never actually used in a released version. */
-  "HidServRevCounter",
-
-  NULL,
 };
 
 /** dummy instance of or_state_t, used for type-checking its
@@ -100,7 +78,6 @@ DUMMY_TYPECHECK_INSTANCE(or_state_t);
   VAR(#member, conftype, member, initvalue)
 
 /** Array of "state" variables saved to the ~/.tor/state file. */
-// clang-format off
 static const config_var_t state_vars_[] = {
   /* Remember to document these in state-contents.txt ! */
 
@@ -113,8 +90,18 @@ static const config_var_t state_vars_[] = {
   V(AccountingSoftLimitHitAt,         ISOTIME,  NULL),
   V(AccountingBytesAtSoftLimit,       MEMUNIT,  NULL),
 
+  VAR("EntryGuard",              LINELIST_S,  EntryGuards,             NULL),
+  VAR("EntryGuardDownSince",     LINELIST_S,  EntryGuards,             NULL),
+  VAR("EntryGuardUnlistedSince", LINELIST_S,  EntryGuards,             NULL),
+  VAR("EntryGuardAddedBy",       LINELIST_S,  EntryGuards,             NULL),
+  VAR("EntryGuardPathBias",      LINELIST_S,  EntryGuards,             NULL),
+  VAR("EntryGuardPathUseBias",   LINELIST_S,  EntryGuards,             NULL),
+  V(EntryGuards,                 LINELIST_V,  NULL),
+
   VAR("TransportProxy",               LINELIST_S, TransportProxies, NULL),
   V(TransportProxies,                 LINELIST_V, NULL),
+
+  V(HidServRevCounter,            LINELIST, NULL),
 
   V(BWHistoryReadEnds,                ISOTIME,  NULL),
   V(BWHistoryReadInterval,            POSINT,     "900"),
@@ -124,14 +111,6 @@ static const config_var_t state_vars_[] = {
   V(BWHistoryWriteInterval,           POSINT,     "900"),
   V(BWHistoryWriteValues,             CSV,      ""),
   V(BWHistoryWriteMaxima,             CSV,      ""),
-  V(BWHistoryIPv6ReadEnds,                ISOTIME,  NULL),
-  V(BWHistoryIPv6ReadInterval,            POSINT,     "900"),
-  V(BWHistoryIPv6ReadValues,              CSV,      ""),
-  V(BWHistoryIPv6ReadMaxima,              CSV,      ""),
-  V(BWHistoryIPv6WriteEnds,               ISOTIME,  NULL),
-  V(BWHistoryIPv6WriteInterval,           POSINT,     "900"),
-  V(BWHistoryIPv6WriteValues,             CSV,      ""),
-  V(BWHistoryIPv6WriteMaxima,             CSV,      ""),
   V(BWHistoryDirReadEnds,             ISOTIME,  NULL),
   V(BWHistoryDirReadInterval,         POSINT,     "900"),
   V(BWHistoryDirReadValues,           CSV,      ""),
@@ -155,7 +134,6 @@ static const config_var_t state_vars_[] = {
 
   END_OF_CONFIG_VARS
 };
-// clang-format on
 
 #undef VAR
 #undef V
@@ -344,7 +322,7 @@ or_state_set(or_state_t *new_state)
     tor_free(err);
     ret = -1;
   }
-  if (bwhist_load_state(global_state, &err)<0) {
+  if (rep_hist_load_state(global_state, &err)<0) {
     log_warn(LD_GENERAL,"Unparseable bandwidth history state: %s",err);
     tor_free(err);
     ret = -1;
@@ -487,7 +465,6 @@ or_state_load(void)
   } else {
     log_info(LD_GENERAL, "Initialized state");
   }
-  or_state_remove_obsolete_lines(&new_state->ExtraLines);
   if (or_state_set(new_state) == -1) {
     or_state_save_broken(fname);
   }
@@ -505,36 +482,6 @@ or_state_load(void)
     config_free(get_state_mgr(), new_state);
 
   return r;
-}
-
-/** Remove from `extra_lines` every element whose key appears in
- * `obsolete_state_keys`. */
-STATIC void
-or_state_remove_obsolete_lines(config_line_t **extra_lines)
-{
-  /* make a strmap for the obsolete state names, so we can have O(1)
-     lookup. */
-  strmap_t *bad_keys = strmap_new();
-  for (unsigned i = 0; obsolete_state_keys[i] != NULL; ++i) {
-    strmap_set_lc(bad_keys, obsolete_state_keys[i], (void*)"rmv");
-  }
-
-  config_line_t **line = extra_lines;
-  while (*line) {
-    if (strmap_get_lc(bad_keys, (*line)->key) != NULL) {
-      /* This key is obsolete; remove it. */
-      config_line_t *victim = *line;
-      *line = (*line)->next;
-
-      victim->next = NULL; // prevent double-free.
-      config_free_lines(victim);
-    } else {
-      /* This is just an unrecognized key; keep it. */
-      line = &(*line)->next;
-    }
-  }
-
-  strmap_free(bad_keys, NULL);
 }
 
 /** Did the last time we tried to write the state file fail? If so, we
@@ -574,7 +521,7 @@ or_state_save(time_t now)
    * to avoid redundant writes. */
   (void) subsystems_flush_state(get_state_mgr(), global_state);
   entry_guards_update_state(global_state);
-  bwhist_update_state(global_state);
+  rep_hist_update_state(global_state);
   circuit_build_times_update_state(get_circuit_build_times(), global_state);
 
   if (accounting_is_enabled(get_options()))

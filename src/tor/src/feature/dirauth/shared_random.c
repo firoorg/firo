@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2021, The Tor Project, Inc. */
+/* Copyright (c) 2016-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -52,7 +52,7 @@
  *   saves the current state of the protocol on disk so that it can resume
  *   normally in case of reboot. The disk state (sr_disk_state_t) is managed by
  *   shared_random_state.c:state_query() and we go to extra lengths to ensure
- *   that the state is flushed on disk every time we receive any useful
+ *   that the state is flushed on disk everytime we receive any useful
  *   information like commits or SRVs.
  *
  * - When we receive a commit from a vote, we examine it to see if it's useful
@@ -62,7 +62,7 @@
  *   receive the reveal information corresponding to a commitment, we verify
  *   that they indeed match using verify_commit_and_reveal().
  *
- * - We treat consensuses as the ground truth, so every time we generate a new
+ * - We treat consensuses as the ground truth, so everytime we generate a new
  *   consensus we update our SR state accordingly even if our local view was
  *   different (see sr_act_post_consensus()).
  *
@@ -99,7 +99,7 @@
 #include "feature/nodelist/dirlist.h"
 #include "feature/hs_common/shared_random_client.h"
 #include "feature/dirauth/shared_random_state.h"
-#include "feature/dirauth/voting_schedule.h"
+#include "feature/dircommon/voting_schedule.h"
 
 #include "feature/dirauth/dirvote.h"
 #include "feature/dirauth/authmode.h"
@@ -170,7 +170,7 @@ commit_log(const sr_commit_t *commit)
 
 /** Make sure that the commitment and reveal information in <b>commit</b>
  * match. If they match return 0, return -1 otherwise. This function MUST be
- * used every time we receive a new reveal value. Furthermore, the commit
+ * used everytime we receive a new reveal value. Furthermore, the commit
  * object MUST have a reveal value and the hash of the reveal value. */
 STATIC int
 verify_commit_and_reveal(const sr_commit_t *commit)
@@ -1261,7 +1261,7 @@ sr_act_post_consensus(const networkstatus_t *consensus)
   }
 
   /* Prepare our state so that it's ready for the next voting period. */
-  sr_state_update(dirauth_sched_get_next_valid_after_time());
+  sr_state_update(voting_schedule_get_next_valid_after_time());
 }
 
 /** Initialize shared random subsystem. This MUST be called early in the boot

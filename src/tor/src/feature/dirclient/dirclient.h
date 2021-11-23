@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -13,8 +13,6 @@
 #define TOR_DIRCLIENT_H
 
 #include "feature/hs/hs_ident.h"
-
-void dirclient_dump_total_dls(void);
 
 int directories_have_accepted_server_descriptor(void);
 void directory_post_to_dirservers(uint8_t dir_purpose, uint8_t router_purpose,
@@ -74,6 +72,8 @@ void directory_request_set_payload(directory_request_t *req,
                                    size_t payload_len);
 void directory_request_set_if_modified_since(directory_request_t *req,
                                              time_t if_modified_since);
+void directory_request_set_rend_query(directory_request_t *req,
+                                      const rend_data_t *query);
 void directory_request_upload_set_hs_ident(directory_request_t *req,
                                            const hs_ident_dir_conn_t *ident);
 void directory_request_fetch_set_hs_ident(directory_request_t *req,
@@ -123,6 +123,8 @@ struct directory_request_t {
   size_t payload_len;
   /** Value to send in an if-modified-since header, or 0 for none. */
   time_t if_modified_since;
+  /** Hidden-service-specific information v2. */
+  const rend_data_t *rend_query;
   /** Extra headers to append to the request */
   struct config_line_t *additional_headers;
   /** Hidden-service-specific information for v3+. */

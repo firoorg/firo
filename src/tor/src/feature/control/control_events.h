@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -12,7 +12,6 @@
 #ifndef TOR_CONTROL_EVENTS_H
 #define TOR_CONTROL_EVENTS_H
 
-#include "lib/cc/ctassert.h"
 #include "core/or/ocirc_event.h"
 #include "core/or/orconn_event.h"
 
@@ -36,8 +35,7 @@ typedef enum stream_status_event_t {
   STREAM_EVENT_NEW          = 5,
   STREAM_EVENT_NEW_RESOLVE  = 6,
   STREAM_EVENT_FAILED_RETRIABLE = 7,
-  STREAM_EVENT_REMAP        = 8,
-  STREAM_EVENT_CONTROLLER_WAIT = 9
+  STREAM_EVENT_REMAP        = 8
 } stream_status_event_t;
 
 /** Used to indicate the type of a buildtime event */
@@ -137,7 +135,7 @@ void control_event_logmsg_pending(void);
 int control_event_descriptors_changed(smartlist_t *routers);
 int control_event_address_mapped(const char *from, const char *to,
                                  time_t expires, const char *error,
-                                 const int cached, uint64_t stream_id);
+                                 const int cached);
 int control_event_my_descriptor_changed(void);
 int control_event_network_liveness_update(int liveness);
 int control_event_networkstatus_changed(smartlist_t *statuses);
@@ -166,7 +164,6 @@ int control_event_buildtimeout_set(buildtimeout_set_event_t type,
 int control_event_signal(uintptr_t signal);
 
 void control_event_bootstrap(bootstrap_status_t status, int progress);
-int control_get_bootstrap_percent(void);
 MOCK_DECL(void, control_event_bootstrap_prob_or,(const char *warn,
                                                  int reason,
                                                  or_connection_t *or_conn));
@@ -202,6 +199,13 @@ void control_event_hs_descriptor_upload_end(const char *action,
                                             const char *reason);
 void control_event_hs_descriptor_uploaded(const char *hs_dir,
                                           const char *onion_address);
+/* Hidden service v2 HS_DESC specific. */
+void control_event_hsv2_descriptor_failed(const rend_data_t *rend_data,
+                                          const char *id_digest,
+                                          const char *reason);
+void control_event_hsv2_descriptor_received(const char *onion_address,
+                                            const rend_data_t *rend_data,
+                                            const char *id_digest);
 /* Hidden service v3 HS_DESC specific. */
 void control_event_hsv3_descriptor_failed(const char *onion_address,
                                           const char *desc_id,
@@ -217,10 +221,6 @@ void control_event_hs_descriptor_content(const char *onion_address,
                                          const char *desc_id,
                                          const char *hsdir_fp,
                                          const char *content);
-void cbt_control_event_buildtimeout_set(const circuit_build_times_t *cbt,
-                                        buildtimeout_set_event_t type);
-
-int control_event_enter_controller_wait(void);
 
 void control_events_free_all(void);
 
@@ -287,7 +287,10 @@ typedef uint64_t event_mask_t;
 
 /* If EVENT_MAX_ ever hits 0x0040, we need to make the mask into a
  * different structure, as it can only handle a maximum left shift of 1<<63. */
-CTASSERT(EVENT_MAX_ < EVENT_CAPACITY_);
+
+#if EVENT_MAX_ >= EVENT_CAPACITY_
+#error control_connection_t.event_mask has an event greater than its capacity
+#endif
 
 #define EVENT_MASK_(e)               (((uint64_t)1)<<(e))
 
@@ -333,8 +336,6 @@ struct control_event_t {
 };
 
 extern const struct control_event_t control_event_table[];
-
-void control_logmsg_strip_newlines(char *msg);
 
 #ifdef TOR_UNIT_TESTS
 MOCK_DECL(STATIC void,

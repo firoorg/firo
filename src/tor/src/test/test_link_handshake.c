@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2021, The Tor Project, Inc. */
+/* Copyright (c) 2014-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
@@ -18,7 +18,6 @@
 #include "feature/relay/routerkeys.h"
 #include "core/or/scheduler.h"
 #include "feature/nodelist/torcert.h"
-#include "feature/relay/relay_handshake.h"
 
 #include "core/or/or_connection_st.h"
 #include "core/or/or_handshake_certs_st.h"
@@ -710,7 +709,7 @@ CERTS_FAIL(missing_signing_key, /* ed25519 */
      * signing key. */
     const ed25519_keypair_t *mk = get_master_identity_keypair();
     const ed25519_keypair_t *sk = get_master_signing_keypair();
-    tor_cert_t *bad_cert = tor_cert_create_ed25519(mk, CERT_TYPE_ID_SIGNING,
+    tor_cert_t *bad_cert = tor_cert_create(mk, CERT_TYPE_ID_SIGNING,
                                            &sk->pubkey, time(NULL), 86400,
                                            0 /* don't include signer */);
     certs_cell_cert_setlen_body(cert, bad_cert->encoded_len);

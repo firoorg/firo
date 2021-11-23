@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -29,9 +29,9 @@ struct routerstatus_t {
   /** Digest of the router's most recent descriptor or microdescriptor.
    * If it's a descriptor, we only use the first DIGEST_LEN bytes. */
   char descriptor_digest[DIGEST256_LEN];
-  tor_addr_t ipv4_addr;
-  uint16_t ipv4_orport; /**< IPv4 OR port for this router. */
-  uint16_t ipv4_dirport; /**< Directory port for this router. */
+  uint32_t addr; /**< IPv4 address for this router, in host order. */
+  uint16_t or_port; /**< IPv4 OR port for this router. */
+  uint16_t dir_port; /**< Directory port for this router. */
   tor_addr_t ipv6_addr; /**< IPv6 address for this router. */
   uint16_t ipv6_orport; /**< IPv6 OR port for this router. */
   unsigned int is_authority:1; /**< True iff this router is an authority. */
@@ -58,7 +58,6 @@ struct routerstatus_t {
                              */
   unsigned int is_staledesc:1; /** True iff the authorities think this router
                                 * should upload a new descriptor soon. */
-  unsigned int is_sybil:1; /** True iff this router is a sybil. */
 
   unsigned int has_bandwidth:1; /**< The vote/consensus had bw info */
   unsigned int has_exitsummary:1; /**< The vote/consensus had exit summaries */

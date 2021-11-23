@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -156,7 +156,7 @@ typed_var_copy(void *dest, const void *src, const var_type_def_t *def)
   if (BUG(!def))
     return -1; // LCOV_EXCL_LINE
   if (def->fns->copy) {
-    // If we have been provided a copy function, use it.
+    // If we have been provided a copy fuction, use it.
     return def->fns->copy(dest, src, def);
   }
 

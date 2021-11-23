@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -15,7 +15,6 @@
 
 struct pubsub_connector_t;
 struct config_format_t;
-struct smartlist_t;
 
 /**
  * A subsystem is a part of Tor that is initialized, shut down, configured,
@@ -41,11 +40,6 @@ typedef struct subsys_fns_t {
    * identifier.
    **/
   const char *name;
-
-  /**
-   * The file in which the subsystem object is declared. Used for debugging.
-   **/
-  const char *location;
 
   /**
    * Whether this subsystem is supported -- that is, whether it is compiled
@@ -191,26 +185,7 @@ typedef struct subsys_fns_t {
    * to disk.
    **/
   int (*flush_state)(void *);
-
-  /**
-   * Return a list of metrics store of this subsystem. This is called
-   * every time a request arrives on the MetricsPort.
-   *
-   * The list MUST contain metrics_store_t object and contains entries so it
-   * can be formatted for the metrics port.
-   *
-   * This can return NULL or be NULL.
-   **/
-  const struct smartlist_t *(*get_metrics)(void);
 } subsys_fns_t;
-
-#ifndef COCCI
-/**
- * Macro to declare a subsystem's location.
- **/
-#define SUBSYS_DECLARE_LOCATION() \
-  .location = __FILE__
-#endif /* !defined(COCCI) */
 
 /**
  * Lowest allowed subsystem level.

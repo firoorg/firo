@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -260,7 +260,6 @@ typedef struct config_deprecation_t {
   const char *why_deprecated;
 } config_deprecation_t;
 
-#ifndef COCCI
 /**
  * Handy macro for declaring "In the config file or on the command line, you
  * can abbreviate <b>tok</b>s as <b>tok</b>". Used inside an array of
@@ -269,11 +268,10 @@ typedef struct config_deprecation_t {
  * For example, to declare "NumCpu" as an abbreviation for "NumCPUs",
  * you can say PLURAL(NumCpu).
  **/
-#define PLURAL(tok) { (#tok), (#tok "s"), 0, 0 }
-#endif /* !defined(COCCI) */
+#define PLURAL(tok) { #tok, #tok "s", 0, 0 }
 
 /**
- * Validation function: verify whether a configuration object is well-formed
+ * Validation function: verify whether a configuation object is well-formed
  * and consistent.
  *
  * On success, return 0.  On failure, set <b>msg_out</b> to a newly allocated

@@ -1,5 +1,5 @@
 /* Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson
- * Copyright (c) 2007-2021, The Tor Project, Inc.
+ * Copyright (c) 2007-2020, The Tor Project, Inc.
  */
 /* See LICENSE for licensing information */
 
@@ -509,7 +509,7 @@ do_resolve(const char *hostname,
     } else if (atype == SOCKS5_ATYPE_IPV6) {
       /* IPv6 address */
       tor_addr_from_ipv6_bytes(result_addr,
-        socks5_server_reply_getarray_bind_addr_ipv6(reply));
+        (const char *)socks5_server_reply_getarray_bind_addr_ipv6(reply));
     } else if (atype == SOCKS5_ATYPE_HOSTNAME) {
       /* Domain name */
       domainname_t *dn =

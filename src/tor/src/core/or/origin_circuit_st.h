@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -54,7 +54,7 @@ enum path_state_t {
     /** Did any SOCKS streams or hidserv introductions actually succeed on
       * this circuit?
       *
-      * If any streams detach/fail from this circuit, the code transitions
+      * If any streams detatch/fail from this circuit, the code transitions
       * the circuit back to PATH_STATE_USE_ATTEMPTED to ensure we probe. See
       * pathbias_mark_use_rollback() for that.
       */
@@ -128,6 +128,9 @@ struct origin_circuit_t {
    */
   crypt_path_t *cpath;
 
+  /** Holds all rendezvous data on either client or service side. */
+  rend_data_t *rend_data;
+
   /** Holds hidden service identifier on either client or service side. This
    * is for both introduction and rendezvous circuit. */
   struct hs_ident_circuit_t *hs_ident;
@@ -166,18 +169,6 @@ struct origin_circuit_t {
   /* If this flag is set (due to padding negotiation failure), we should
    * not try to negotiate further circuit padding. */
   unsigned padding_negotiation_failed : 1;
-
-  /**
-   * If this flag is set, then a controller chose the first hop of this
-   * circuit's path, and it's okay to ignore checks that we'd usually do
-   * on this circuit's first hop.
-   *
-   * This flag is distinct from the CIRCUIT_PURPOSE_CONTROLLER purpose: the
-   * purpose indicates _what tor can use the circuit for_.  Controller-created
-   * circuits can still have the CIRCUIT_PURPOSE_GENERAL purpose if Tor is
-   * allowed to attach streams to them.
-   */
-  unsigned first_hop_from_controller : 1;
 
   /**
    * Tristate variable to guard against pathbias miscounting

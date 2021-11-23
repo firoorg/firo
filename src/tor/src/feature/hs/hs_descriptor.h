@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2021, The Tor Project, Inc. */
+/* Copyright (c) 2016-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -14,7 +14,6 @@
 #include "core/or/or.h"
 #include "trunnel/ed25519_cert.h" /* needed for trunnel */
 #include "feature/nodelist/torcert.h"
-#include "core/crypto/hs_ntor.h" /* for hs_subcredential_t */
 
 /* Trunnel */
 struct link_specifier_t;
@@ -239,7 +238,7 @@ typedef struct hs_descriptor_t {
 
   /** Subcredentials of a service, used by the client and service to decrypt
    * the encrypted data. */
-  hs_subcredential_t subcredential;
+  uint8_t subcredential[DIGEST256_LEN];
 } hs_descriptor_t;
 
 /** Return true iff the given descriptor format version is supported. */
@@ -278,7 +277,7 @@ MOCK_DECL(int,
                                      char **encoded_out));
 
 int hs_desc_decode_descriptor(const char *encoded,
-                              const hs_subcredential_t *subcredential,
+                              const uint8_t *subcredential,
                               const curve25519_secret_key_t *client_auth_sk,
                               hs_descriptor_t **desc_out);
 int hs_desc_decode_plaintext(const char *encoded,
@@ -303,7 +302,7 @@ void hs_desc_authorized_client_free_(hs_desc_authorized_client_t *client);
 
 hs_desc_authorized_client_t *hs_desc_build_fake_authorized_client(void);
 
-void hs_desc_build_authorized_client(const hs_subcredential_t *subcredential,
+void hs_desc_build_authorized_client(const uint8_t *subcredential,
                                      const curve25519_public_key_t *
                                      client_auth_pk,
                                      const curve25519_secret_key_t *

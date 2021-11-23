@@ -1,9 +1,9 @@
-/* Copyright (c) 2017-2021, The Tor Project, Inc. */
+/* Copyright (c) 2017-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
  * \file hs_client.h
- * \brief Header file containing client data for the HS subsystem.
+ * \brief Header file containing client data for the HS subsytem.
  **/
 
 #ifndef TOR_HS_CLIENT_H
@@ -35,12 +35,12 @@ typedef enum {
 
 /* Status code of client auth credential registration */
 typedef enum {
-  /* We successfully registered these credentials */
+  /* We successfuly registered these credentials */
   REGISTER_SUCCESS,
   /* We successfully registered these credentials, but had to replace some
    * existing ones. */
   REGISTER_SUCCESS_ALREADY_EXISTS,
-  /* We successfully registered these credentials, and also decrypted a cached
+  /* We successfuly registered these credentials, and also decrypted a cached
    * descriptor. */
   REGISTER_SUCCESS_AND_DECRYPTED,
   /* We failed to register these credentials, because of a bad HS address. */
@@ -51,7 +51,7 @@ typedef enum {
 
 /* Status code of client auth credential removal */
 typedef enum {
-  /* We successfully removed these credentials */
+  /* We successfuly removed these credentials */
   REMOVAL_SUCCESS,
   /* No need to remove those credentials, because they were not there. */
   REMOVAL_SUCCESS_NOT_FOUND,
@@ -70,9 +70,6 @@ typedef struct hs_client_service_authorization_t {
 
   /** An onion address that is used to connect to the onion service. */
   char onion_address[HS_SERVICE_ADDR_LEN_BASE32+1];
-
-  /** An client name used to connect to the onion service. */
-  char *client_name;
 
   /* Optional flags for this client. */
   int flags;
@@ -113,7 +110,6 @@ int hs_client_send_introduce1(origin_circuit_t *intro_circ,
                               origin_circuit_t *rend_circ);
 
 void hs_client_circuit_has_opened(origin_circuit_t *circ);
-void hs_client_circuit_cleanup_on_close(const circuit_t *circ);
 void hs_client_circuit_cleanup_on_free(const circuit_t *circ);
 
 int hs_client_receive_rendezvous_acked(origin_circuit_t *circ,

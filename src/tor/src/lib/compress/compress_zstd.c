@@ -1,6 +1,6 @@
 /* Copyright (c) 2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -49,8 +49,8 @@ memory_level(compression_level_t level)
     default:
     case BEST_COMPRESSION:
     case HIGH_COMPRESSION: return 9;
-    case MEDIUM_COMPRESSION: return 3;
-    case LOW_COMPRESSION: return 1;
+    case MEDIUM_COMPRESSION: return 8;
+    case LOW_COMPRESSION: return 7;
   }
 }
 #endif /* defined(HAVE_ZSTD) */

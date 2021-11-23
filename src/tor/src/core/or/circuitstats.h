@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -43,23 +43,22 @@ int circuit_build_times_needs_circuits_now(const circuit_build_times_t *cbt);
 void circuit_build_times_init(circuit_build_times_t *cbt);
 void circuit_build_times_free_timeouts(circuit_build_times_t *cbt);
 void circuit_build_times_new_consensus_params(circuit_build_times_t *cbt,
-                                              const networkstatus_t *ns);
+                                              networkstatus_t *ns);
 double circuit_build_times_timeout_rate(const circuit_build_times_t *cbt);
 double circuit_build_times_close_rate(const circuit_build_times_t *cbt);
 
 void circuit_build_times_update_last_circ(circuit_build_times_t *cbt);
 void circuit_build_times_mark_circ_as_measurement_only(origin_circuit_t *circ);
-void circuit_build_times_reset(circuit_build_times_t *cbt);
 
 /** Total size of the circuit timeout history to accumulate.
  * 1000 is approx 2.5 days worth of continual-use circuits. */
 #define CBT_NCIRCUITS_TO_OBSERVE 1000
 
 /** Width of the histogram bins in milliseconds */
-#define CBT_BIN_WIDTH ((build_time_t)10)
+#define CBT_BIN_WIDTH ((build_time_t)50)
 
 /** Number of modes to use in the weighted-avg computation of Xm */
-#define CBT_DEFAULT_NUM_XM_MODES 10
+#define CBT_DEFAULT_NUM_XM_MODES 3
 #define CBT_MIN_NUM_XM_MODES 1
 #define CBT_MAX_NUM_XM_MODES 20
 
@@ -79,7 +78,7 @@ void circuit_build_times_reset(circuit_build_times_t *cbt);
  * How long to wait before actually closing circuits that take too long to
  * build in terms of CDF quantile.
  */
-#define CBT_DEFAULT_CLOSE_QUANTILE 99
+#define CBT_DEFAULT_CLOSE_QUANTILE 95
 #define CBT_MIN_CLOSE_QUANTILE CBT_MIN_QUANTILE_CUTOFF
 #define CBT_MAX_CLOSE_QUANTILE CBT_MAX_QUANTILE_CUTOFF
 
@@ -120,8 +119,8 @@ double circuit_build_times_quantile_cutoff(void);
 #define CBT_MAX_TEST_FREQUENCY INT32_MAX
 
 /** Lowest allowable value for CircuitBuildTimeout in milliseconds */
-#define CBT_DEFAULT_TIMEOUT_MIN_VALUE (CBT_BIN_WIDTH)
-#define CBT_MIN_TIMEOUT_MIN_VALUE CBT_BIN_WIDTH
+#define CBT_DEFAULT_TIMEOUT_MIN_VALUE (1500)
+#define CBT_MIN_TIMEOUT_MIN_VALUE 500
 #define CBT_MAX_TIMEOUT_MIN_VALUE INT32_MAX
 
 /** Initial circuit build timeout in milliseconds */
@@ -138,11 +137,11 @@ int32_t circuit_build_times_initial_timeout(void);
 STATIC double circuit_build_times_calculate_timeout(circuit_build_times_t *cbt,
                                              double quantile);
 STATIC int circuit_build_times_update_alpha(circuit_build_times_t *cbt);
+STATIC void circuit_build_times_reset(circuit_build_times_t *cbt);
 
 /* Network liveness functions */
 STATIC int circuit_build_times_network_check_changed(
                                              circuit_build_times_t *cbt);
-STATIC build_time_t circuit_build_times_get_xm(circuit_build_times_t *cbt);
 #endif /* defined(CIRCUITSTATS_PRIVATE) */
 
 #ifdef TOR_UNIT_TESTS
@@ -159,6 +158,7 @@ void circuit_build_times_network_is_live(circuit_build_times_t *cbt);
 int circuit_build_times_network_check_live(const circuit_build_times_t *cbt);
 void circuit_build_times_network_circ_success(circuit_build_times_t *cbt);
 
+#ifdef CIRCUITSTATS_PRIVATE
 /** Information about the state of our local network connection */
 typedef struct {
   /** The timestamp we last completed a TLS handshake or received a cell */
@@ -208,5 +208,6 @@ struct circuit_build_times_t {
   uint32_t num_circ_closed;
 
 };
+#endif /* defined(CIRCUITSTATS_PRIVATE) */
 
 #endif /* !defined(TOR_CIRCUITSTATS_H) */

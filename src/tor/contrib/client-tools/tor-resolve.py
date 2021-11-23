@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 # Future imports for Python 2.7, mandatory in 3.0
 from __future__ import division

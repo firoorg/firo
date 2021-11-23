@@ -1,7 +1,7 @@
 /* Copyright (c) 2001, Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -101,21 +101,12 @@ static char *crypto_openssl_version_str = NULL;
 const char *
 crypto_openssl_get_version_str(void)
 {
-#ifdef OPENSSL_VERSION
-  const int query = OPENSSL_VERSION;
-#else
-  /* This old name was changed around OpenSSL 1.1.0 */
-  const int query = SSLEAY_VERSION;
-#endif /* defined(OPENSSL_VERSION) */
-
   if (crypto_openssl_version_str == NULL) {
-    const char *raw_version = OpenSSL_version(query);
+    const char *raw_version = OpenSSL_version(OPENSSL_VERSION);
     crypto_openssl_version_str = parse_openssl_version_str(raw_version);
   }
   return crypto_openssl_version_str;
 }
-
-#undef QUERY_OPENSSL_VERSION
 
 static char *crypto_openssl_header_version_str = NULL;
 /* Return a human-readable version of the compile-time openssl version
@@ -222,8 +213,8 @@ crypto_openssl_early_init(void)
 
     setup_openssl_threading();
 
-    unsigned long version_num = tor_OpenSSL_version_num();
-    const char *version_str = crypto_openssl_get_version_str();
+    unsigned long version_num = OpenSSL_version_num();
+    const char *version_str = OpenSSL_version(OPENSSL_VERSION);
     if (version_num == OPENSSL_VERSION_NUMBER &&
         !strcmp(version_str, OPENSSL_VERSION_TEXT)) {
       log_info(LD_CRYPTO, "OpenSSL version matches version from headers "

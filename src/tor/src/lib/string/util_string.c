@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -140,15 +140,6 @@ tor_strupper(char *s)
   while (*s) {
     *s = TOR_TOUPPER(*s);
     ++s;
-  }
-}
-
-/** Replaces <b>old</b> with <b>replacement</b> in <b>s</b> */
-void
-tor_strreplacechar(char *s, char find, char replacement)
-{
-  for (s = strchr(s, find); s; s = strchr(s + 1, find)) {
-    *s = replacement;
   }
 }
 

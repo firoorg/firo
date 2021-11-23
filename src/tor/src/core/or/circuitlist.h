@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2021, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -60,7 +60,9 @@
  *     to becoming open, or they are open and have sent the
  *     establish_rendezvous cell but haven't received an ack.
  *   circuits that are c_rend_ready are open and have received a
- *     rend ack, but haven't heard from the service yet.
+ *     rend ack, but haven't heard from the service yet. if they have a
+ *     buildstate->pending_final_cpath then they're expecting a
+ *     cell from the service, else they're not.
  *   circuits that are c_rend_ready_intro_acked are open, and
  *     some intro circ has sent its intro and received an ack.
  *   circuits that are c_rend_joined are open, have heard from
@@ -112,12 +114,9 @@
 #define CIRCUIT_PURPOSE_S_HSDIR_POST 20
 #define CIRCUIT_PURPOSE_S_HS_MAX_ 20
 
-/** A testing circuit; not meant to be used for actual traffic. It is used for
- * bandwidth measurement, reachability test and address discovery from an
- * authority using the NETINFO cell. */
+/** A testing circuit; not meant to be used for actual traffic. */
 #define CIRCUIT_PURPOSE_TESTING 21
-/** A controller made this circuit and Tor should not cannibalize it or attach
- * streams to it without explicitly being told. */
+/** A controller made this circuit and Tor should not use it. */
 #define CIRCUIT_PURPOSE_CONTROLLER 22
 /** This circuit is used for path bias probing only */
 #define CIRCUIT_PURPOSE_PATH_BIAS_TESTING 23
@@ -205,8 +204,10 @@ int circuit_id_in_use_on_channel(circid_t circ_id, channel_t *chan);
 circuit_t *circuit_get_by_edge_conn(edge_connection_t *conn);
 void circuit_unlink_all_from_channel(channel_t *chan, int reason);
 origin_circuit_t *circuit_get_by_global_id(uint32_t id);
-origin_circuit_t *circuit_get_next_by_purpose(origin_circuit_t *start,
-                                              uint8_t purpose);
+origin_circuit_t *circuit_get_ready_rend_circ_by_rend_data(
+  const rend_data_t *rend_data);
+origin_circuit_t *circuit_get_next_by_pk_and_purpose(origin_circuit_t *start,
+                                     const uint8_t *digest, uint8_t purpose);
 origin_circuit_t *circuit_get_next_intro_circ(const origin_circuit_t *start,
                                               bool want_client_circ);
 origin_circuit_t *circuit_get_next_service_rp_circ(origin_circuit_t *start);
