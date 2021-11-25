@@ -1109,8 +1109,8 @@ UniValue getcoinsforrecovery(const JSONRPCRequest& request)
                 "\nResult:\n"
                 "{\n"
                 "  \"setID\" (int) Set id\n"
-                "  \"mints\" (Pair<string,Pair<<string, uint64_t>>) Public coins paired with mint tag and mint value\n"
-                "  \"jmints\"(Pair<string,Pair<<string, string>>) Public coins paired with mint tag and encrypted mint value \n"
+                "  \"mints\" (Pair<string,Pair<string,Pair<<string, uint64_t>>) Public coins paired with block hash which is paired with mint tag and mint value\n"
+                "  \"jmints\"(Pair<string,Pair<string, Pair<<string, string>>>) Public coins paired with block hash which is paired with mint tag and encrypted mint value \n"
                 "}\n"
         );
 
@@ -1121,21 +1121,28 @@ UniValue getcoinsforrecovery(const JSONRPCRequest& request)
     while (latestCoinId) {
         ret.push_back(Pair("setID", latestCoinId));
         std::vector<std::pair <lelantus::PublicCoin,std::pair<lelantus::MintValueData, uint256>>> coins;
-        lelantusState->GetCoinsForRecovery(latestCoinId, coins);
+        std::vector<uint256> blockHashes;
+        lelantusState->GetCoinsForRecovery(latestCoinId, coins, blockHashes);
         UniValue mints(UniValue::VARR);
         UniValue jmints(UniValue::VARR);
+        int i = 0;
         for (const auto& coin : coins) {
             if (coin.second.first.isJMint) {
                 std::vector<unsigned char> vch = coin.first.getValue().getvch();
                 UniValue data(UniValue::VARR);
                 data.push_back(Pair(coin.second.second.GetHex(), HexStr(coin.second.first.encryptedValue.begin(), coin.second.first.encryptedValue.end())));
+                UniValue dataAndBlockHash(UniValue::VARR);
+                dataAndBlockHash.push_back(Pair(blockHashes[i].GetHex(), data));
                 jmints.push_back(Pair(HexStr(vch.begin(), vch.end()), data));
             } else {
                 std::vector<unsigned char> vch = coin.first.getValue().getvch();
                 UniValue data(UniValue::VARR);
                 data.push_back(Pair(coin.second.second.GetHex(), coin.second.first.amount));
+                UniValue dataAndBlockHash(UniValue::VARR);
+                dataAndBlockHash.push_back(Pair(blockHashes[i].GetHex(), data));
                 mints.push_back(Pair(HexStr(vch.begin(), vch.end()), data));
             }
+            i++;
         }
         ret.push_back(Pair("mints", mints));
         ret.push_back(Pair("jmints", jmints));
