@@ -14,6 +14,9 @@
 
 class CHDMint;
 
+static const unsigned int DEFAULT_MINTPOOL_SIZE = 20;
+static const unsigned int MAX_MINTPOOL_SIZE = 200;
+
 class CHDMintWallet
 {
 private:

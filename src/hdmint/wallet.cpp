@@ -148,10 +148,12 @@ void CHDMintWallet::GenerateMintPool(CWalletDB& walletdb, bool forceGenerate, in
 
     LOCK(pwalletMain->cs_wallet);
 
+    unsigned int mintpoolsize = std::min((unsigned int)GetArg("-mintpoolsize", DEFAULT_MINTPOOL_SIZE), MAX_MINTPOOL_SIZE);
+
     int32_t nLastCount = nCountNextGenerate;
-    int32_t nStop = nLastCount + 20;
+    int32_t nStop = nLastCount + mintpoolsize;
     if(nIndex > 0 && nIndex >= nLastCount)
-        nStop = nIndex + 20;
+        nStop = nIndex + mintpoolsize;
     LogPrintf("%s : nLastCount=%d nStop=%d\n", __func__, nLastCount, nStop - 1);
     for (; nLastCount <= nStop; ++nLastCount) {
         if (ShutdownRequested())
