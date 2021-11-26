@@ -419,7 +419,9 @@ RES_ICONS = \
   qt/res/images/radio_checked_light.png \
   qt/res/images/radio_checked_hover_light.png \
   qt/res/images/radio_normal_disabled_light.png \
-  qt/res/images/radio_checked_disabled_light.png
+  qt/res/images/radio_checked_disabled_light.png \
+  qt/res/icons/ext_add.png \
+  qt/res/icons/ext_add_light.png
 
 RES_CSS = \
   qt/res/css/firo.css

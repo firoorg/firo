@@ -500,6 +500,10 @@ QMenu::item {
     font: 8pt 'Source Sans Pro';
 }
 
+QMenu::item:checked {
+    padding-left: 18px;
+}
+
 QMenu::item:selected:!disabled {
     background-color: #d2d2d2;
 }
@@ -810,15 +814,17 @@ QTableWidget {
 /* QTabWidget */
 
 QTabWidget QTabBar {
-    background-color: #9b1c2e;
-    /* min-width: 2000px; */
-    border: 1px solid #9b1c2e;
+    background-color: #f4f4f4;
 }
 
 QTabWidget QTabBar::tab {
-    background-color: #9b1c2e; 
+    background-color: #f4f4f4;
     height: 35px;
-    color: #FFFFFF
+    color: #9b1c2e;
+    border-bottom: 1px solid;
+    border-color: #cfcccc;
+    padding-left: 1em;
+    padding-right: 1em;
 }
 
 QTabWidget QTabBar::tab > .QLabel {
@@ -827,11 +833,14 @@ QTabWidget QTabBar::tab > .QLabel {
 
 QTabWidget QTabBar::tab:hover {
     background-color: #7c1624;
+    color: #f4f4f4;
+    border-bottom: 0px solid;    
 }
 
 QTabWidget QTabBar::tab::selected {
-    background-color: #f4f4f4;
-    color: #9b1c2e;
+    background-color: #9b1c2e;
+    color: #f4f4f4;
+    border-bottom: 0px solid;
 }
 
 /* QTextEdit */
@@ -852,7 +861,7 @@ QToolBar {
     margin: 0;
     spacing: 0;
     min-height: 2.5em;
-    background-color: #9b1c2e;
+    background-color: #f4f4f4;
     font: 8pt 'Source Sans Pro';
 }
 
@@ -860,10 +869,11 @@ QToolBar > QToolButton {
     border: none;
     min-height: 2.5em;
     min-width: 140px;
-    padding: 0px;
+    padding: 1px;
     text-align: center;
-    background-color: #9b1c2e;
-    color: #f4f4f4;
+    background-color: #f4f4f4;
+    color: #9b1c2e;
+    font-weight: bold;
     font: 12pt 'Saira Semi Condensed';
 }
 
@@ -877,12 +887,12 @@ QToolBar > QToolButton:hover:!checked {
 }
 
 QToolBar > QToolButton:checked {
-    background-color: #f4f4f4;
-    color: #9b1c2e;
-    border-top: 1px solid #cfcccc;
+    background-color: #9b1c2e;
+    color: #f4f4f4;
 }
 
 QToolBar > QToolButton:disabled {
+    background-color: #f4f4f4;
     color: #a7a7a7;
 }
 
@@ -890,8 +900,24 @@ QToolBar QLabel#lblToolbarLogo {
     padding: 2px;
     image: url(':/images/firo_logo_toolbar');
     height: 2.5em;
-    background-color: #9b1c2e;
+    min-height: 1em;
+    background-color: #f4f4f4;
     min-width: 120px;
+}
+
+QToolButton#qt_toolbar_ext_button {
+    min-width: -1px;
+    min-height: -1px;
+    qproperty-icon: url(':/icons/ext_add_light');
+    background-color: #9b1c2e;
+}
+
+QToolButton#qt_toolbar_ext_button:hover,
+QToolButton#qt_toolbar_ext_button:checked {
+    min-width: -1px;
+    min-height: -1px;
+    qproperty-icon: url(':/icons/ext_add_light');
+    background-color: #7c1624;
 }
 
 /* QToolTip */
@@ -1525,8 +1551,6 @@ QWidget#RPCConsole QLabel#label_10,
 QWidget#RPCConsole QLabel#labelMempoolTitle {
     qproperty-alignment: 'AlignLeft | AlignBottom';
     min-height: 25px;
-    margin-top: 10px;
-    margin-left: -4px;
     font-weight: bold;
 }
 

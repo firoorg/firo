@@ -73,6 +73,8 @@
         <file alias="elysium_hourglass">res/icons/elysium_hourglass.png</file>
         <file alias="lelantus">res/icons/lelantus.png</file>
         <file alias="paymentcode">res/icons/paymentcode.png</file>
+        <file alias="ext_add">res/icons/ext_add.png</file>
+        <file alias="ext_add_light">res/icons/ext_add_light.png</file>
     </qresource>
     <qresource prefix="/movies">
         <file alias="spinner-000">res/movies/spinner-000.png</file>
