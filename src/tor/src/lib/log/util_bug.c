@@ -1,6 +1,6 @@
 /* Copyright (c) 2003, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -172,7 +172,7 @@ tor_bug_occurred_(const char *fname, unsigned int line,
 void
 tor_abort_(void)
 {
-  logs_close_sigsafe();
+  logs_flush_sigsafe();
   tor_raw_abort_();
 }
 

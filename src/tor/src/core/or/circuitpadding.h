@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, The Tor Project, Inc. */
+ * Copyright (c) 2017-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -301,7 +301,7 @@ typedef struct circpad_state_t {
    *         |    |    |     |     |         |               |
    *         |    |    |     |     |         |               |
    *       0 +----+----+-----+-----+---------+---------------+
-   *         0   100  200   350   500      1000              ∞  microseconds
+   *         0   100  200   350   500      1000             inf  microseconds
    *
    * would be specified the following way:
    *    histogram_len = 6;
@@ -388,7 +388,7 @@ typedef struct circpad_state_t {
    *
    * States are allowed to transition to themselves, which means re-schedule
    * a new padding timer. They are also allowed to temporarily "transition"
-   * to the "IGNORE" and "CANCEL" pseudo-states. See #defines below
+   * to the "IGNORE" and "CANCEL" pseudo-states. See defines below
    * for details on state behavior and meaning.
    */
   circpad_statenum_t next_state[CIRCPAD_NUM_EVENTS];

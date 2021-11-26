@@ -1,7 +1,12 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
+
+/**
+ * @file dircache.c
+ * @brief Cache directories and serve them to clients.
+ **/
 
 #define DIRCACHE_PRIVATE
 
@@ -23,6 +28,7 @@
 #include "feature/nodelist/authcert.h"
 #include "feature/nodelist/networkstatus.h"
 #include "feature/nodelist/routerlist.h"
+#include "feature/relay/relay_config.h"
 #include "feature/relay/routermode.h"
 #include "feature/rend/rendcache.h"
 #include "feature/stats/geoip_stats.h"
@@ -328,7 +334,7 @@ typedef struct get_handler_args_t {
  * an arguments structure, and must return 0 on success or -1 if we should
  * close the connection.
  **/
-typedef struct url_table_ent_s {
+typedef struct url_table_ent_t {
   const char *string;
   int is_prefix;
   int (*handler)(dir_connection_t *conn, const get_handler_args_t *args);
@@ -473,7 +479,7 @@ static int
 handle_get_frontpage(dir_connection_t *conn, const get_handler_args_t *args)
 {
   (void) args; /* unused */
-  const char *frontpage = get_dirportfrontpage();
+  const char *frontpage = relay_get_dirportfrontpage();
 
   if (frontpage) {
     size_t dlen;
@@ -560,7 +566,7 @@ parse_one_diff_hash(uint8_t *digest, const char *hex, const char *location,
 }
 
 /** If there is an X-Or-Diff-From-Consensus header included in <b>headers</b>,
- * set <b>digest_out<b> to a new smartlist containing every 256-bit
+ * set <b>digest_out</b> to a new smartlist containing every 256-bit
  * hex-encoded digest listed in that header and return 0.  Otherwise return
  * -1.  */
 static int
@@ -1378,7 +1384,7 @@ handle_get_hs_descriptor_v2(dir_connection_t *conn,
   return 0;
 }
 
-/** Helper function for GET /tor/hs/3/<z>. Only for version 3.
+/** Helper function for GET `/tor/hs/3/...`. Only for version 3.
  */
 STATIC int
 handle_get_hs_descriptor_v3(dir_connection_t *conn,

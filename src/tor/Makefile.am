@@ -21,7 +21,12 @@ AM_CPPFLAGS=\
 	-I$(top_srcdir)/src/ext/trunnel \
 	-I$(top_srcdir)/src/trunnel
 
-AM_CFLAGS=@TOR_SYSTEMD_CFLAGS@ @CFLAGS_BUGTRAP@ @TOR_LZMA_CFLAGS@ @TOR_ZSTD_CFLAGS@
+AM_CFLAGS=					\
+	@TOR_SYSTEMD_CFLAGS@			\
+	@CFLAGS_BUGTRAP@			\
+	@TOR_LZMA_CFLAGS@			\
+	@TOR_ZSTD_CFLAGS@
+
 SHELL=@SHELL@
 
 if COVERAGE_ENABLED
@@ -158,37 +163,52 @@ include doc/include.am
 include contrib/include.am
 
 EXTRA_DIST+= \
-	ChangeLog					\
-	CONTRIBUTING					\
-	CODE_OF_CONDUCT                                 \
-	INSTALL						\
-	LICENSE						\
-	Makefile.nmake					\
-	README						\
-	ReleaseNotes					\
-	scripts/maint/checkIncludes.py                  \
-	scripts/maint/checkSpace.pl 			\
-	scripts/maint/checkShellScripts.sh			\
-	scripts/maint/practracker/README                \
-	scripts/maint/practracker/exceptions.txt	\
-	scripts/maint/practracker/includes.py		\
-	scripts/maint/practracker/metrics.py		\
-	scripts/maint/practracker/practracker.py	\
-	scripts/maint/practracker/practracker_tests.py	\
-	scripts/maint/practracker/problem.py		\
-	scripts/maint/practracker/testdata/.may_include	\
-	scripts/maint/practracker/testdata/a.c		\
-	scripts/maint/practracker/testdata/b.c 		\
-	scripts/maint/practracker/testdata/ex0-expected.txt \
-	scripts/maint/practracker/testdata/ex0.txt 	\
-	scripts/maint/practracker/testdata/ex1-expected.txt \
-	scripts/maint/practracker/testdata/ex1.txt 	\
-	scripts/maint/practracker/testdata/ex1-overbroad-expected.txt 	\
-	scripts/maint/practracker/testdata/ex.txt 	\
-	scripts/maint/practracker/testdata/header.h 	\
-	scripts/maint/practracker/testdata/not_c_file	\
-	scripts/maint/practracker/test_practracker.sh   \
-	scripts/maint/practracker/util.py
+	ChangeLog							\
+	CONTRIBUTING							\
+	CODE_OF_CONDUCT							\
+	INSTALL								\
+	LICENSE								\
+	Makefile.nmake							\
+	README								\
+	ReleaseNotes							\
+	scripts/maint/checkIncludes.py					\
+	scripts/maint/checkSpace.pl					\
+	scripts/maint/checkSpaceTest.sh					\
+	scripts/maint/checkspace_tests/dubious.c			\
+	scripts/maint/checkspace_tests/dubious.h			\
+	scripts/maint/checkspace_tests/expected.txt			\
+	scripts/maint/checkspace_tests/good_guard.h			\
+	scripts/maint/checkspace_tests/same_guard.h			\
+	scripts/maint/checkspace_tests/subdir/dubious.c			\
+	scripts/maint/checkShellScripts.sh				\
+	scripts/maint/practracker/README				\
+	scripts/maint/practracker/exceptions.txt			\
+	scripts/maint/practracker/includes.py				\
+	scripts/maint/practracker/metrics.py				\
+	scripts/maint/practracker/practracker.py			\
+	scripts/maint/practracker/practracker_tests.py			\
+	scripts/maint/practracker/problem.py				\
+	scripts/maint/practracker/testdata/.may_include			\
+	scripts/maint/practracker/testdata/a.c				\
+	scripts/maint/practracker/testdata/b.c				\
+	scripts/maint/practracker/testdata/ex0-expected.txt		\
+	scripts/maint/practracker/testdata/ex0.txt			\
+	scripts/maint/practracker/testdata/ex1-expected.txt		\
+	scripts/maint/practracker/testdata/ex1.txt			\
+	scripts/maint/practracker/testdata/ex1-overbroad-expected.txt	\
+	scripts/maint/practracker/testdata/ex1-regen-expected.txt	\
+	scripts/maint/practracker/testdata/ex1-regen-overbroad-expected.txt \
+	scripts/maint/practracker/testdata/ex.txt			\
+	scripts/maint/practracker/testdata/header.h			\
+	scripts/maint/practracker/testdata/not_c_file			\
+	scripts/maint/practracker/test_practracker.sh			\
+	scripts/maint/practracker/util.py				\
+	scripts/coccinelle/apply.sh					\
+	scripts/coccinelle/check_cocci_parse.sh				\
+	scripts/coccinelle/exceptions.txt				\
+	scripts/coccinelle/test-operator-cleanup			\
+	scripts/coccinelle/tor-coccinelle.h				\
+	scripts/coccinelle/try_parse.sh
 
 ## This tells etags how to find mockable function definitions.
 AM_ETAGSFLAGS=--regex='{c}/MOCK_IMPL([^,]+,\W*\([a-zA-Z0-9_]+\)\W*,/\1/s'
@@ -236,8 +256,10 @@ dist-rpm: dist-gzip
 	echo "RPM build finished";						\
 	#end of dist-rpm
 
-doxygen:
-	doxygen && cd doc/doxygen/latex && make
+.PHONY: doxygen
+doxygen: Doxyfile
+	mkdir -p doc/doxygen
+	(cd "$(top_srcdir)" && doxygen "$(abs_top_builddir)/Doxyfile")
 
 test: all
 	$(top_builddir)/src/test/test
@@ -245,7 +267,12 @@ test: all
 shellcheck:
 	$(top_srcdir)/scripts/maint/checkShellScripts.sh
 
-check-local: check-spaces check-changes check-includes check-best-practices shellcheck
+check-local:					\
+	check-spaces				\
+	check-changes				\
+	check-includes				\
+	shellcheck				\
+	check-cocci
 
 need-chutney-path:
 	@if test ! -d "$$CHUTNEY_PATH"; then \
@@ -315,9 +342,19 @@ test-stem: need-stem-path $(TESTING_TOR_BINARY)
 test-stem-full: need-stem-path $(TESTING_TOR_BINARY)
 	@$(PYTHON) "$$STEM_SOURCE_DIR"/run_tests.py --tor "$(TESTING_TOR_BINARY)" --all --log notice --target RUN_ALL,ONLINE -v;
 
-test-full: need-stem-path need-chutney-path check test-network test-stem
+test-full:					\
+	need-stem-path				\
+	need-chutney-path			\
+	check					\
+	test-network				\
+	test-stem
 
-test-full-online: need-stem-path need-chutney-path check test-network test-stem-full
+test-full-online:				\
+	need-stem-path				\
+	need-chutney-path			\
+	check					\
+	test-network				\
+	test-stem-full
 
 # We can't delete the gcno files, because they are created when tor is compiled
 reset-gcov:
@@ -353,6 +390,10 @@ coverage-html-full: all
 	genhtml --branch-coverage -o "$(HTML_COVER_DIR)" "$(HTML_COVER_DIR)/lcov.info"
 
 # For scripts: avoid src/ext and src/trunnel.
+# Keep these lists consistent:
+#   - OWNED_TOR_C_FILES in Makefile.am
+#   - CHECK_FILES in pre-commit.git-hook and pre-push.git-hook
+#   - try_parse in check_cocci_parse.sh
 OWNED_TOR_C_FILES=\
 		$(top_srcdir)/src/lib/*/*.[ch] \
 		$(top_srcdir)/src/core/*/*.[ch] \
@@ -377,6 +418,9 @@ check-best-practices:
 if USEPYTHON
 	@$(PYTHON) $(top_srcdir)/scripts/maint/practracker/practracker.py $(top_srcdir) $(TOR_PRACTRACKER_OPTIONS)
 endif
+
+check-cocci:
+	VERBOSE=1 $(top_srcdir)/scripts/coccinelle/check_cocci_parse.sh $(OWNED_TOR_C_FILES)
 
 practracker-regen:
 	$(PYTHON) $(top_srcdir)/scripts/maint/practracker/practracker.py --regen $(top_srcdir)
@@ -467,7 +511,7 @@ update-versions:
 
 .PHONY: callgraph
 callgraph:
-	$(top_builddir)/scripts/maint/run_calltool.sh
+	cd $(top_builddir); $(abs_top_srcdir)/scripts/maint/run_calltool.sh
 
 version:
 	@echo "Tor @VERSION@"
@@ -478,19 +522,19 @@ version:
 
 .PHONY: autostyle-ifdefs
 autostyle-ifdefs:
-	$(PYTHON) scripts/maint/annotate_ifdef_directives.py $(OWNED_TOR_C_FILES)
+	$(PYTHON) $(top_srcdir)/scripts/maint/annotate_ifdef_directives.py $(OWNED_TOR_C_FILES)
 
 .PHONY: autostyle-ifdefs
 autostyle-operators:
-	$(PERL) scripts/coccinelle/test-operator-cleanup $(OWNED_TOR_C_FILES)
+	$(PERL) $(top_srcdir)/scripts/coccinelle/test-operator-cleanup $(OWNED_TOR_C_FILES)
 
 .PHONY: rectify-includes
 rectify-includes:
-	$(PYTHON) scripts/maint/rectify_include_paths.py
+	cd $(top_srcdir); $(PYTHON) $(abs_top_srcdir)/scripts/maint/rectify_include_paths.py
 
 .PHONY: update-copyright
 update-copyright:
-	$(PERL) scripts/maint/updateCopyright.pl $(OWNED_TOR_C_FILES)
+	$(PERL) $(top_srcdir)/scripts/maint/updateCopyright.pl $(OWNED_TOR_C_FILES)
 
 .PHONY: autostyle
 autostyle: update-versions rustfmt autostyle-ifdefs rectify-includes

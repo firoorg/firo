@@ -1,6 +1,6 @@
 /* Copyright (c) 2003, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -255,9 +255,10 @@ alloc_getcwd(void)
 #endif /* !defined(_WIN32) */
 
 /** Expand possibly relative path <b>fname</b> to an absolute path.
- * Return a newly allocated string, possibly equal to <b>fname</b>. */
+ * Return a newly allocated string, which may be a duplicate of <b>fname</b>.
+ */
 char *
-make_path_absolute(char *fname)
+make_path_absolute(const char *fname)
 {
 #ifdef _WIN32
   char *absfname_malloced = _fullpath(NULL, fname, 1);

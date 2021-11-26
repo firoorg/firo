@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, The Tor Project, Inc. */
+/* Copyright (c) 2019-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -293,7 +293,7 @@ send_circuit_level_sendme(circuit_t *circ, crypt_path_t *layer_hint,
     log_debug(LD_PROTOCOL, "Emitting SENDME version 1 cell.");
     break;
   case 0x00:
-    /* Fallthrough because default is to use v0. */
+    FALLTHROUGH;
   default:
     /* Unknown version, fallback to version 0 meaning no payload. */
     payload_len = 0;

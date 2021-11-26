@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define DIRVOTE_PRIVATE
@@ -41,10 +41,12 @@
 #include "feature/dirauth/dirvote.h"
 #include "feature/dirauth/authmode.h"
 #include "feature/dirauth/shared_random_state.h"
+#include "feature/dirauth/dirauth_sys.h"
 
 #include "feature/nodelist/authority_cert_st.h"
 #include "feature/dircache/cached_dir_st.h"
 #include "feature/dirclient/dir_server_st.h"
+#include "feature/dirauth/dirauth_options_st.h"
 #include "feature/nodelist/document_signature_st.h"
 #include "feature/nodelist/microdesc_st.h"
 #include "feature/nodelist/networkstatus_st.h"
@@ -382,7 +384,6 @@ format_networkstatus_vote(crypto_pk_t *private_signing_key,
     rsf = routerstatus_format_entry(&vrs->status,
                                     vrs->version, vrs->protocols,
                                     NS_V3_VOTE,
-                                    ROUTERSTATUS_FORMAT_NO_CONSENSUS_METHOD,
                                     vrs);
     if (rsf)
       smartlist_add(chunks, rsf);
@@ -1538,14 +1539,11 @@ networkstatus_compute_consensus(smartlist_t *votes,
     consensus_method = MAX_SUPPORTED_CONSENSUS_METHOD;
   }
 
-  if (consensus_method >= MIN_METHOD_FOR_INIT_BW_WEIGHTS_ONE) {
+  {
     /* It's smarter to initialize these weights to 1, so that later on,
      * we can't accidentally divide by zero. */
     G = M = E = D = 1;
     T = 4;
-  } else {
-    /* ...but originally, they were set to zero. */
-    G = M = E = D = T = 0;
   }
 
   /* Compute medians of time-related things, and figure out how many
@@ -2246,7 +2244,7 @@ networkstatus_compute_consensus(smartlist_t *votes,
         /* Okay!! Now we can write the descriptor... */
         /*     First line goes into "buf". */
         buf = routerstatus_format_entry(&rs_out, NULL, NULL,
-                                        rs_format, consensus_method, NULL);
+                                        rs_format, NULL);
         if (buf)
           smartlist_add(chunks, buf);
       }
@@ -2266,8 +2264,7 @@ networkstatus_compute_consensus(smartlist_t *votes,
         smartlist_add_strdup(chunks, chosen_version);
       }
       smartlist_add_strdup(chunks, "\n");
-      if (chosen_protocol_list &&
-          consensus_method >= MIN_METHOD_FOR_RS_PROTOCOLS) {
+      if (chosen_protocol_list) {
         smartlist_add_asprintf(chunks, "pr %s\n", chosen_protocol_list);
       }
       /*     Now the weight line. */
@@ -2530,9 +2527,12 @@ compute_consensus_package_lines(smartlist_t *votes)
  * any new signatures in <b>src_voter_list</b> that should be added to
  * <b>target</b>. (A signature should be added if we have no signature for that
  * voter in <b>target</b> yet, or if we have no verifiable signature and the
- * new signature is verifiable.)  Return the number of signatures added or
- * changed, or -1 if the document signed by <b>sigs</b> isn't the same
- * document as <b>target</b>. */
+ * new signature is verifiable.)
+ *
+ * Return the number of signatures added or changed, or -1 if the document
+ * signatures are invalid. Sets *<b>msg_out</b> to a string constant
+ * describing the signature status.
+ */
 STATIC int
 networkstatus_add_detached_signatures(networkstatus_t *target,
                                       ns_detached_signatures_t *sigs,
@@ -3567,6 +3567,14 @@ dirvote_add_signatures_to_pending_consensus(
   return r;
 }
 
+/** Helper: we just got the <b>detached_signatures_body</b> sent to us as
+ * signatures on the currently pending consensus.  Add them to the pending
+ * consensus (if we have one).
+ *
+ * Set *<b>msg</b> to a string constant describing the status, regardless of
+ * success or failure.
+ *
+ * Return negative on failure, nonnegative on success. */
 static int
 dirvote_add_signatures_to_all_pending_consensuses(
                        const char *detached_signatures_body,
@@ -3629,7 +3637,12 @@ dirvote_add_signatures_to_all_pending_consensuses(
 /** Helper: we just got the <b>detached_signatures_body</b> sent to us as
  * signatures on the currently pending consensus.  Add them to the pending
  * consensus (if we have one); otherwise queue them until we have a
- * consensus.  Return negative on failure, nonnegative on success. */
+ * consensus.
+ *
+ * Set *<b>msg</b> to a string constant describing the status, regardless of
+ * success or failure.
+ *
+ * Return negative on failure, nonnegative on success. */
 int
 dirvote_add_signatures(const char *detached_signatures_body,
                        const char *source,
@@ -3803,13 +3816,6 @@ dirvote_create_microdescriptor(const routerinfo_t *ri, int consensus_method)
     smartlist_add_asprintf(chunks, "ntor-onion-key %s", kbuf);
   }
 
-  /* We originally put a lines in the micrdescriptors, but then we worked out
-   * that we needed them in the microdesc consensus. See #20916. */
-  if (consensus_method < MIN_METHOD_FOR_NO_A_LINES_IN_MICRODESC &&
-      !tor_addr_is_null(&ri->ipv6_addr) && ri->ipv6_orport)
-    smartlist_add_asprintf(chunks, "a %s\n",
-                           fmt_addrport(&ri->ipv6_addr, ri->ipv6_orport));
-
   if (family) {
     if (consensus_method < MIN_METHOD_FOR_CANONICAL_FAMILIES_IN_MICRODESCS) {
       smartlist_add_asprintf(chunks, "family %s\n", family);
@@ -3915,8 +3921,7 @@ static const struct consensus_method_range_t {
   int low;
   int high;
 } microdesc_consensus_methods[] = {
-  {MIN_SUPPORTED_CONSENSUS_METHOD, MIN_METHOD_FOR_NO_A_LINES_IN_MICRODESC - 1},
-  {MIN_METHOD_FOR_NO_A_LINES_IN_MICRODESC,
+  {MIN_SUPPORTED_CONSENSUS_METHOD,
    MIN_METHOD_FOR_CANONICAL_FAMILIES_IN_MICRODESCS - 1},
   {MIN_METHOD_FOR_CANONICAL_FAMILIES_IN_MICRODESCS,
    MAX_SUPPORTED_CONSENSUS_METHOD},
@@ -4228,7 +4233,7 @@ compare_routerinfo_by_ip_and_bw_(const void **a, const void **b)
 static digestmap_t *
 get_possible_sybil_list(const smartlist_t *routers)
 {
-  const or_options_t *options = get_options();
+  const dirauth_options_t *options = dirauth_get_options();
   digestmap_t *omit_as_sybil;
   smartlist_t *routers_by_ip = smartlist_new();
   uint32_t last_addr;
@@ -4417,6 +4422,7 @@ dirserv_generate_networkstatus_vote_obj(crypto_pk_t *private_key,
                                         authority_cert_t *cert)
 {
   const or_options_t *options = get_options();
+  const dirauth_options_t *d_options = dirauth_get_options();
   networkstatus_t *v3_out = NULL;
   uint32_t addr;
   char *hostname = NULL, *client_versions = NULL, *server_versions = NULL;
@@ -4424,7 +4430,7 @@ dirserv_generate_networkstatus_vote_obj(crypto_pk_t *private_key,
   smartlist_t *routers, *routerstatuses;
   char identity_digest[DIGEST_LEN];
   char signing_key_digest[DIGEST_LEN];
-  int listbadexits = options->AuthDirListBadExits;
+  const int listbadexits = d_options->AuthDirListBadExits;
   routerlist_t *rl = router_get_routerlist();
   time_t now = time(NULL);
   time_t cutoff = now - ROUTER_MAX_AGE_TO_PUBLISH;
@@ -4456,11 +4462,11 @@ dirserv_generate_networkstatus_vote_obj(crypto_pk_t *private_key,
     hostname = tor_dup_ip(addr);
   }
 
-  if (options->VersioningAuthoritativeDir) {
+  if (d_options->VersioningAuthoritativeDirectory) {
     client_versions =
-      format_recommended_version_list(options->RecommendedClientVersions, 0);
+      format_recommended_version_list(d_options->RecommendedClientVersions, 0);
     server_versions =
-      format_recommended_version_list(options->RecommendedServerVersions, 0);
+      format_recommended_version_list(d_options->RecommendedServerVersions, 0);
   }
 
   contact = get_options()->ContactInfo;
@@ -4661,10 +4667,10 @@ dirserv_generate_networkstatus_vote_obj(crypto_pk_t *private_key,
     smartlist_add_strdup(v3_out->known_flags, "BadExit");
   smartlist_sort_strings(v3_out->known_flags);
 
-  if (options->ConsensusParams) {
+  if (d_options->ConsensusParams) {
     v3_out->net_params = smartlist_new();
     smartlist_split_string(v3_out->net_params,
-                           options->ConsensusParams, NULL, 0, 0);
+                           d_options->ConsensusParams, NULL, 0, 0);
     smartlist_sort_strings(v3_out->net_params);
   }
   v3_out->bw_file_headers = bw_file_headers;

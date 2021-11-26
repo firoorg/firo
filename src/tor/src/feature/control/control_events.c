@@ -1,5 +1,5 @@
 /* Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -38,6 +38,7 @@
 #include "core/or/origin_circuit_st.h"
 
 #include "lib/evloop/compat_libevent.h"
+#include "lib/encoding/confline.h"
 
 static void flush_queued_events_cb(mainloop_event_t *event, void *arg);
 static void control_get_bytes_rw_last_sec(uint64_t *r, uint64_t *w);
@@ -317,7 +318,7 @@ control_per_second_events(void)
 
 /** Represents an event that's queued to be sent to one or more
  * controllers. */
-typedef struct queued_event_s {
+typedef struct queued_event_t {
   uint16_t event;
   char *msg;
 } queued_event_t;
@@ -833,13 +834,19 @@ control_event_stream_status(entry_connection_t *conn, stream_status_event_t tp,
   circ = circuit_get_by_edge_conn(ENTRY_TO_EDGE_CONN(conn));
   if (circ && CIRCUIT_IS_ORIGIN(circ))
     origin_circ = TO_ORIGIN_CIRCUIT(circ);
-  send_control_event(EVENT_STREAM_STATUS,
-                        "650 STREAM %"PRIu64" %s %lu %s%s%s%s\r\n",
+
+  {
+    char *conndesc = entry_connection_describe_status_for_controller(conn);
+    const char *sp = strlen(conndesc) ? " " : "";
+    send_control_event(EVENT_STREAM_STATUS,
+                        "650 STREAM %"PRIu64" %s %lu %s%s%s%s%s%s\r\n",
                      (ENTRY_TO_CONN(conn)->global_identifier),
                      status,
                         origin_circ?
                            (unsigned long)origin_circ->global_identifier : 0ul,
-                        buf, reason_buf, addrport_buf, purpose);
+                        buf, reason_buf, addrport_buf, purpose, sp, conndesc);
+    tor_free(conndesc);
+  }
 
   /* XXX need to specify its intended exit, etc? */
 
@@ -1211,7 +1218,7 @@ control_event_circuit_cell_stats(void)
 static int next_measurement_idx = 0;
 /* number of entries set in n_measurements */
 static int n_measurements = 0;
-static struct cached_bw_event_s {
+static struct cached_bw_event_t {
   uint32_t n_read;
   uint32_t n_written;
 } cached_bw_events[N_BW_EVENTS_TO_CACHE];
@@ -1250,7 +1257,7 @@ get_bw_samples(void)
 
   for (i = 0; i < n_measurements; ++i) {
     tor_assert(0 <= idx && idx < N_BW_EVENTS_TO_CACHE);
-    const struct cached_bw_event_s *bwe = &cached_bw_events[idx];
+    const struct cached_bw_event_t *bwe = &cached_bw_events[idx];
 
     smartlist_add_asprintf(elements, "%u,%u",
                            (unsigned)bwe->n_read,
@@ -1552,29 +1559,17 @@ control_event_signal(uintptr_t signal_num)
   if (!control_event_is_interesting(EVENT_GOT_SIGNAL))
     return 0;
 
-  switch (signal_num) {
-    case SIGHUP:
-      signal_string = "RELOAD";
+  for (unsigned i = 0; signal_table[i].signal_name != NULL; ++i) {
+    if ((int)signal_num == signal_table[i].sig) {
+      signal_string = signal_table[i].signal_name;
       break;
-    case SIGUSR1:
-      signal_string = "DUMP";
-      break;
-    case SIGUSR2:
-      signal_string = "DEBUG";
-      break;
-    case SIGNEWNYM:
-      signal_string = "NEWNYM";
-      break;
-    case SIGCLEARDNSCACHE:
-      signal_string = "CLEARDNSCACHE";
-      break;
-    case SIGHEARTBEAT:
-      signal_string = "HEARTBEAT";
-      break;
-    default:
-      log_warn(LD_BUG, "Unrecognized signal %lu in control_event_signal",
-               (unsigned long)signal_num);
-      return -1;
+    }
+  }
+
+  if (signal_string == NULL) {
+    log_warn(LD_BUG, "Unrecognized signal %lu in control_event_signal",
+             (unsigned long)signal_num);
+    return -1;
   }
 
   send_control_event(EVENT_GOT_SIGNAL,  "650 SIGNAL %s\r\n",
@@ -1653,13 +1648,17 @@ control_event_status(int type, int severity, const char *format, va_list args)
     log_warn(LD_BUG, "Format string too long.");
     return -1;
   }
-  tor_vasprintf(&user_buf, format, args);
+  if (tor_vasprintf(&user_buf, format, args)<0) {
+    log_warn(LD_BUG, "Failed to create user buffer.");
+    return -1;
+  }
 
   send_control_event(type,  "%s %s\r\n", format_buf, user_buf);
   tor_free(user_buf);
   return 0;
 }
 
+#ifndef COCCI
 #define CONTROL_EVENT_STATUS_BODY(event, sev)                   \
   int r;                                                        \
   do {                                                          \
@@ -1671,6 +1670,7 @@ control_event_status(int type, int severity, const char *format, va_list args)
     r = control_event_status((event), (sev), format, ap);       \
     va_end(ap);                                                 \
   } while (0)
+#endif /* !defined(COCCI) */
 
 /** Format and send an EVENT_STATUS_GENERAL event whose main text is obtained
  * by formatting the arguments using the printf-style <b>format</b>. */
@@ -1759,27 +1759,24 @@ control_event_guard(const char *nickname, const char *digest,
 }
 
 /** Called when a configuration option changes. This is generally triggered
- * by SETCONF requests and RELOAD/SIGHUP signals. The <b>elements</b> is
- * a smartlist_t containing (key, value, ...) pairs in sequence.
- * <b>value</b> can be NULL. */
-int
-control_event_conf_changed(const smartlist_t *elements)
+ * by SETCONF requests and RELOAD/SIGHUP signals. The <b>changes</b> are
+ * a linked list of configuration key-values.
+ * <b>changes</b> can be NULL, meaning "no changes".
+ */
+void
+control_event_conf_changed(const config_line_t *changes)
 {
-  int i;
   char *result;
   smartlist_t *lines;
-  if (!EVENT_IS_INTERESTING(EVENT_CONF_CHANGED) ||
-      smartlist_len(elements) == 0) {
-    return 0;
+  if (!EVENT_IS_INTERESTING(EVENT_CONF_CHANGED) || !changes) {
+    return;
   }
   lines = smartlist_new();
-  for (i = 0; i < smartlist_len(elements); i += 2) {
-    char *k = smartlist_get(elements, i);
-    char *v = smartlist_get(elements, i+1);
-    if (v == NULL) {
-      smartlist_add_asprintf(lines, "650-%s", k);
+  for (const config_line_t *line = changes; line; line = line->next) {
+    if (line->value == NULL) {
+      smartlist_add_asprintf(lines, "650-%s", line->key);
     } else {
-      smartlist_add_asprintf(lines, "650-%s=%s", k, v);
+      smartlist_add_asprintf(lines, "650-%s=%s", line->key, line->value);
     }
   }
   result = smartlist_join_strings(lines, "\r\n", 0, NULL);
@@ -1788,7 +1785,6 @@ control_event_conf_changed(const smartlist_t *elements)
   tor_free(result);
   SMARTLIST_FOREACH(lines, char *, cp, tor_free(cp));
   smartlist_free(lines);
-  return 0;
 }
 
 /** We just generated a new summary of which countries we've seen clients

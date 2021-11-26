@@ -1,11 +1,11 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
- * \file or_state_t
+ * \file or_state_st.h
  *
  * \brief The or_state_t structure, which represents Tor's state file.
  */
@@ -88,13 +88,6 @@ struct or_state_t {
 
   /** When did we last rotate our onion key?  "0" for 'no idea'. */
   time_t LastRotatedOnionKey;
-
-  /** Number of minutes since the last user-initiated request (as defined by
-   * the dormant net-status system.) Set to zero if we are dormant. */
-  int MinutesSinceUserActivity;
-  /** True if we were dormant when we last wrote the file; false if we
-   * weren't.  "auto" on initial startup. */
-  int Dormant;
 
   /**
    * State objects for individual modules.

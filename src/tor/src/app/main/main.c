@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -13,6 +13,7 @@
 
 #include "app/config/config.h"
 #include "app/config/statefile.h"
+#include "app/config/quiet_level.h"
 #include "app/main/main.h"
 #include "app/main/ntmain.h"
 #include "app/main/shutdown.h"
@@ -66,7 +67,6 @@
 #include "lib/osinfo/uname.h"
 #include "lib/sandbox/sandbox.h"
 #include "lib/fs/lockfile.h"
-#include "lib/net/resolve.h"
 #include "lib/tls/tortls.h"
 #include "lib/evloop/compat_libevent.h"
 #include "lib/encoding/confline.h"
@@ -107,16 +107,6 @@ void rust_log_welcome_string(void);
 static void dumpmemusage(int severity);
 static void dumpstats(int severity); /* log stats */
 static void process_signal(int sig);
-
-/********* START VARIABLES **********/
-
-/** Decides our behavior when no logs are configured/before any
- * logs have been configured.  For 0, we log notice to stdout as normal.
- * For 1, we log warnings only.  For 2, we log nothing.
- */
-int quiet_level = 0;
-
-/********* END VARIABLES ************/
 
 /** Called when we get a SIGHUP: reload configuration files and keys,
  * retry all connections, and so on. */
@@ -528,7 +518,7 @@ int
 tor_init(int argc, char *argv[])
 {
   char progname[256];
-  int quiet = 0;
+  quiet_level_t quiet = QUIET_NONE;
 
   time_of_process_start = time(NULL);
   tor_init_connection_lists();
@@ -547,43 +537,17 @@ tor_init(int argc, char *argv[])
   hs_init();
 
   {
-  /* We search for the "quiet" option first, since it decides whether we
-   * will log anything at all to the command line. */
-    config_line_t *opts = NULL, *cmdline_opts = NULL;
-    const config_line_t *cl;
-    (void) config_parse_commandline(argc, argv, 1, &opts, &cmdline_opts);
-    for (cl = cmdline_opts; cl; cl = cl->next) {
-      if (!strcmp(cl->key, "--hush"))
-        quiet = 1;
-      if (!strcmp(cl->key, "--quiet") ||
-          !strcmp(cl->key, "--dump-config"))
-        quiet = 2;
-      /* The following options imply --hush */
-      if (!strcmp(cl->key, "--version") || !strcmp(cl->key, "--digests") ||
-          !strcmp(cl->key, "--list-torrc-options") ||
-          !strcmp(cl->key, "--library-versions") ||
-          !strcmp(cl->key, "--list-modules") ||
-          !strcmp(cl->key, "--hash-password") ||
-          !strcmp(cl->key, "-h") || !strcmp(cl->key, "--help")) {
-        if (quiet < 1)
-          quiet = 1;
-      }
-    }
-    config_free_lines(opts);
-    config_free_lines(cmdline_opts);
+    /* We check for the "quiet"/"hush" settings first, since they decide
+       whether we log anything at all to stdout. */
+    parsed_cmdline_t *cmdline;
+    cmdline = config_parse_commandline(argc, argv, 1);
+    if (cmdline)
+      quiet = cmdline->quiet_level;
+    parsed_cmdline_free(cmdline);
   }
 
  /* give it somewhere to log to initially */
-  switch (quiet) {
-    case 2:
-      /* no initial logging */
-      break;
-    case 1:
-      add_temp_log(LOG_WARN);
-      break;
-    default:
-      add_temp_log(LOG_NOTICE);
-  }
+  add_default_log_for_quiet_level(quiet);
   quiet_level = quiet;
 
   {
@@ -627,9 +591,6 @@ tor_init(int argc, char *argv[])
     return 1;
   }
 
-  /* The options are now initialised */
-  const or_options_t *options = get_options();
-
   /* Initialize channelpadding and circpad parameters to defaults
    * until we get a consensus */
   channelpadding_new_consensus_params(NULL);
@@ -650,13 +611,6 @@ tor_init(int argc, char *argv[])
     log_warn(LD_GENERAL,"You are running Tor as root. You don't need to, "
              "and you probably shouldn't.");
 #endif
-
-  if (crypto_global_init(options->HardwareAccel,
-                         options->AccelName,
-                         options->AccelDir)) {
-    log_err(LD_BUG, "Unable to initialize OpenSSL. Exiting.");
-    return -1;
-  }
 
   /* Scan/clean unparseable descriptors; after reading config */
   routerparse_init();
@@ -1284,15 +1238,10 @@ tor_run_main(const tor_main_configuration_t *tor_cfg)
     memcpy(argv + tor_cfg->argc, tor_cfg->argv_owned,
            tor_cfg->argc_owned*sizeof(char*));
 
-#ifdef NT_SERVICE
-  {
-     int done = 0;
-     result = nt_service_parse_options(argc, argv, &done);
-     if (done) {
-       goto done;
-     }
-  }
-#endif /* defined(NT_SERVICE) */
+  int done = 0;
+  result = nt_service_parse_options(argc, argv, &done);
+  if (POSSIBLE(done))
+    goto done;
 
   pubsub_install();
 
@@ -1327,9 +1276,7 @@ tor_run_main(const tor_main_configuration_t *tor_cfg)
 
   switch (get_options()->command) {
   case CMD_RUN_TOR:
-#ifdef NT_SERVICE
     nt_service_set_state(SERVICE_RUNNING);
-#endif
     result = run_tor_main_loop();
     break;
   case CMD_KEYGEN:
@@ -1347,7 +1294,7 @@ tor_run_main(const tor_main_configuration_t *tor_cfg)
     result = 0;
     break;
   case CMD_VERIFY_CONFIG:
-    if (quiet_level == 0)
+    if (quiet_level == QUIET_NONE)
       printf("Configuration was valid\n");
     result = 0;
     break;
@@ -1355,6 +1302,7 @@ tor_run_main(const tor_main_configuration_t *tor_cfg)
     result = do_dump_config();
     break;
   case CMD_RUN_UNITTESTS: /* only set by test.c */
+  case CMD_IMMEDIATE: /* Handled in config.c */
   default:
     log_warn(LD_BUG,"Illegal command number %d: internal error.",
              get_options()->command);

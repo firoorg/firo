@@ -117,7 +117,7 @@ QT_TRANSLATE_NOOP("firo-core", ""
 "Found unconfirmed denominated outputs, will wait till they confirm to "
 "continue."),
 QT_TRANSLATE_NOOP("firo-core", ""
-"Has to have at least two mint coins with at least 2 confirmation in order to "
+"Has to have at least two mint coins with at least 1 confirmation in order to "
 "spend a coin"),
 QT_TRANSLATE_NOOP("firo-core", ""
 "How thorough the block verification of -checkblocks is (0-4, default: %u)"),

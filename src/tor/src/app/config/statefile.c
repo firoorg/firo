@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -12,7 +12,7 @@
  *
  * This 'state' file is a typed key-value store that allows multiple
  * entries for the same key.  It follows the same metaformat as described
- * in confparse.c, and uses the same code to read and write itself.
+ * in confmgt.c, and uses the same code to read and write itself.
  *
  * The state file is most suitable for small values that don't change too
  * frequently.  For values that become very large, we typically use a separate
@@ -32,7 +32,8 @@
 #include "core/or/or.h"
 #include "core/or/circuitstats.h"
 #include "app/config/config.h"
-#include "lib/confmgt/confparse.h"
+#include "feature/relay/transport_config.h"
+#include "lib/confmgt/confmgt.h"
 #include "core/mainloop/mainloop.h"
 #include "core/mainloop/netstatus.h"
 #include "core/mainloop/connection.h"
@@ -44,6 +45,7 @@
 #include "feature/relay/routermode.h"
 #include "lib/sandbox/sandbox.h"
 #include "app/config/statefile.h"
+#include "app/main/subsysmgr.h"
 #include "lib/encoding/confline.h"
 #include "lib/net/resolve.h"
 #include "lib/version/torversion.h"
@@ -130,9 +132,6 @@ static const config_var_t state_vars_[] = {
   VAR("CircuitBuildTimeBin",          LINELIST_S, BuildtimeHistogram, NULL),
   VAR("BuildtimeHistogram",           LINELIST_V, BuildtimeHistogram, NULL),
 
-  V(MinutesSinceUserActivity,         POSINT,     NULL),
-  V(Dormant,                          AUTOBOOL, "auto"),
-
   END_OF_CONFIG_VARS
 };
 
@@ -141,9 +140,8 @@ static const config_var_t state_vars_[] = {
 
 static int or_state_validate(or_state_t *state, char **msg);
 
-static int or_state_validate_cb(void *old_options, void *options,
-                                void *default_options,
-                                int from_setconf, char **msg);
+static int or_state_validate_cb(const void *old_options,
+                                void *options, char **msg);
 
 /** Magic value for or_state_t. */
 #define OR_STATE_MAGIC 0x57A73f57
@@ -158,34 +156,39 @@ static struct_member_t state_extra_var = {
 
 /** Configuration format for or_state_t. */
 static const config_format_t state_format = {
-  sizeof(or_state_t),
-  {
+  .size = sizeof(or_state_t),
+  .magic = {
    "or_state_t",
    OR_STATE_MAGIC,
    offsetof(or_state_t, magic_),
   },
-  state_abbrevs_,
-  NULL,
-  state_vars_,
-  or_state_validate_cb,
-  NULL,
-  &state_extra_var,
-  offsetof(or_state_t, substates_),
+  .abbrevs = state_abbrevs_,
+  .vars = state_vars_,
+  .legacy_validate_fn = or_state_validate_cb,
+  .extra = &state_extra_var,
+  .has_config_suite = true,
+  .config_suite_offset = offsetof(or_state_t, substates_),
 };
 
 /* A global configuration manager for state-file objects */
 static config_mgr_t *state_mgr = NULL;
 
 /** Return the configuration manager for state-file objects. */
-static const config_mgr_t *
+STATIC const config_mgr_t *
 get_state_mgr(void)
 {
   if (PREDICT_UNLIKELY(state_mgr == NULL)) {
     state_mgr = config_mgr_new(&state_format);
+    int rv = subsystems_register_state_formats(state_mgr);
+    tor_assert(rv == 0);
     config_mgr_freeze(state_mgr);
   }
   return state_mgr;
 }
+
+#define CHECK_STATE_MAGIC(s) STMT_BEGIN                        \
+    config_check_toplevel_magic(get_state_mgr(), (s));         \
+  STMT_END
 
 /** Persistent serialized state. */
 static or_state_t *global_state = NULL;
@@ -268,19 +271,6 @@ validate_transports_in_state(or_state_t *state)
   return 0;
 }
 
-static int
-or_state_validate_cb(void *old_state, void *state, void *default_state,
-                     int from_setconf, char **msg)
-{
-  /* We don't use these; only options do. Still, we need to match that
-   * signature. */
-  (void) from_setconf;
-  (void) default_state;
-  (void) old_state;
-
-  return or_state_validate(state, msg);
-}
-
 /** Return 0 if every setting in <b>state</b> is reasonable, and a
  * permissible transition from <b>old_state</b>.  Else warn and return -1.
  * Should have no side effects, except for normalizing the contents of
@@ -289,6 +279,23 @@ or_state_validate_cb(void *old_state, void *state, void *default_state,
 static int
 or_state_validate(or_state_t *state, char **msg)
 {
+  return config_validate(get_state_mgr(), NULL, state, msg);
+}
+
+/**
+ * Legacy validation/normalization callback for or_state_t.  See
+ * legacy_validate_fn_t for more information.
+ */
+static int
+or_state_validate_cb(const void *old_state, void *state_, char **msg)
+{
+  /* There is not a meaningful concept of a state-to-state transition,
+   * since we do not reload the state after we start. */
+  (void) old_state;
+  CHECK_STATE_MAGIC(state_);
+
+  or_state_t *state = state_;
+
   if (entry_guards_parse_state(state, 0, msg)<0)
     return -1;
 
@@ -307,6 +314,9 @@ or_state_set(or_state_t *new_state)
   tor_assert(new_state);
   config_free(get_state_mgr(), global_state);
   global_state = new_state;
+  if (subsystems_set_state(get_state_mgr(), global_state) < 0) {
+    ret = -1;
+  }
   if (entry_guards_parse_state(global_state, 1, &err)<0) {
     log_warn(LD_GENERAL,"%s",err);
     tor_free(err);
@@ -321,7 +331,6 @@ or_state_set(or_state_t *new_state)
       get_circuit_build_times_mutable(),global_state) < 0) {
     ret = -1;
   }
-  netstatus_load_from_state(global_state, time(NULL));
 
   return ret;
 }
@@ -510,10 +519,10 @@ or_state_save(time_t now)
 
   /* Call everything else that might dirty the state even more, in order
    * to avoid redundant writes. */
+  (void) subsystems_flush_state(get_state_mgr(), global_state);
   entry_guards_update_state(global_state);
   rep_hist_update_state(global_state);
   circuit_build_times_update_state(get_circuit_build_times(), global_state);
-  netstatus_flush_to_state(global_state, now);
 
   if (accounting_is_enabled(get_options()))
     accounting_run_housekeeping(now);
@@ -633,7 +642,7 @@ get_stored_bindaddr_for_server_transport(const char *transport)
   {
     /* See if the user explicitly asked for a specific listening
        address for this transport. */
-    char *conf_bindaddr = get_transport_bindaddr_from_config(transport);
+    char *conf_bindaddr = pt_get_bindaddr_from_config(transport);
     if (conf_bindaddr)
       return conf_bindaddr;
   }

@@ -1,5 +1,5 @@
 /* Copyright (c) 2014, Daniel Martí
- * Copyright (c) 2014-2019, The Tor Project, Inc. */
+ * Copyright (c) 2014-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -530,10 +530,12 @@ typedef struct router_id_iterator_t {
   cdline_t hash;
 } router_id_iterator_t;
 
+#ifndef COCCI
 /**
  * Initializer for a router_id_iterator_t.
  */
 #define ROUTER_ID_ITERATOR_INIT { { NULL, 0 }, { NULL, 0 } }
+#endif /* !defined(COCCI) */
 
 /** Given an index *<b>idxp</b> into the consensus at <b>cons</b>, advance
  * the index to the next router line ("r ...") in the consensus, or to
@@ -570,7 +572,7 @@ find_next_router_line(const smartlist_t *cons,
 /** Pre-process a consensus in <b>cons</b> (represented as a list of cdline_t)
  * to remove the signatures from it.  If the footer is removed, return a
  * cdline_t containing a delete command to delete the footer, allocated in
- * <b>area</>.  If no footer is removed, return NULL.
+ * <b>area</b>.  If no footer is removed, return NULL.
  *
  * We remove the signatures here because they are not themselves signed, and
  * as such there might be different encodings for them.
@@ -1048,7 +1050,7 @@ consdiff_gen_diff(const smartlist_t *cons1,
   if (smartlist_len(cons2) == smartlist_len(ed_cons2)) {
     SMARTLIST_FOREACH_BEGIN(cons2, const cdline_t *, line1) {
       const cdline_t *line2 = smartlist_get(ed_cons2, line1_sl_idx);
-      if (! lines_eq(line1, line2) ) {
+      if (!lines_eq(line1, line2)) {
         cons2_eq = 0;
         break;
       }
