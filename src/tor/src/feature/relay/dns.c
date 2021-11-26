@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -546,9 +546,9 @@ send_resolved_cell,(edge_connection_t *conn, uint8_t answer_type,
         break;
       } else {
         answer_type = RESOLVED_TYPE_ERROR;
-        /* fall through. */
+        /* We let this fall through and treat it as an error. */
       }
-      /* Falls through. */
+      FALLTHROUGH;
     case RESOLVED_TYPE_ERROR_TRANSIENT:
     case RESOLVED_TYPE_ERROR:
       {

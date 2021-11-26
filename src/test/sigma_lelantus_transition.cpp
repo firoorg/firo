@@ -111,7 +111,7 @@ BOOST_AUTO_TEST_CASE(sigma_lelantus_transition_test)
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mints were not removed from mempool");
     GenerateBlocks(6);
     recipients = {
-        {GetScriptForDestination(randomAddr.Get()), 100 * COIN, true},
+        {GetScriptForDestination(randomAddr.Get()), 105 * COIN, true},
     };
     wtx.Init(NULL);
     BOOST_CHECK_NO_THROW(pwalletMain->JoinSplitLelantus(recipients, {}, wtx));
@@ -121,6 +121,7 @@ BOOST_AUTO_TEST_CASE(sigma_lelantus_transition_test)
     GenerateBlock({CMutableTransaction(*wtx.tx)});
     BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "JoinSplit is not removed from mempool");
+    int joinSplitHeight = chainActive.Height();
 
     coins = pwalletMain->GetAvailableCoins(nullptr, false);
     BOOST_CHECK_MESSAGE(coins.size() == 0, "All sigma coins should be marked used, but something went wrong");
@@ -132,7 +133,10 @@ BOOST_AUTO_TEST_CASE(sigma_lelantus_transition_test)
     GenerateBlocks(6);
 
     auto currentLelantusCoins = pwalletMain->GetAvailableLelantusCoins(nullptr, false);
-    BOOST_CHECK_MESSAGE(currentLelantusCoins.size() > lelantusCoins.size(), "Newly created jmint should be marked as spendable, but something went wrong");
+    // There should be a mint with height equal to join split height in list of available lelantus coins
+    BOOST_CHECK_MESSAGE(std::find_if(currentLelantusCoins.begin(), currentLelantusCoins.end(),
+            [=](const CLelantusEntry &coin) { return coin.nHeight == joinSplitHeight; }) != currentLelantusCoins.end(),
+            "Newly created jmint should be marked as spendable, but something went wrong");
 
     mempool.clear();
     sigma::CSigmaState::GetState()->Reset();

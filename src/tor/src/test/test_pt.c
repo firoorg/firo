@@ -1,17 +1,16 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
 #define PT_PRIVATE
-#define UTIL_PRIVATE
 #define STATEFILE_PRIVATE
 #define CONTROL_EVENTS_PRIVATE
 #define PROCESS_PRIVATE
 #include "core/or/or.h"
 #include "app/config/config.h"
-#include "lib/confmgt/confparse.h"
+#include "lib/confmgt/confmgt.h"
 #include "feature/control/control.h"
 #include "feature/control/control_events.h"
 #include "feature/client/transports.h"

@@ -1,15 +1,23 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
+
+/**
+ * @file circuit_st.h
+ * @brief Base circuit structure.
+ **/
 
 #ifndef CIRCUIT_ST_H
 #define CIRCUIT_ST_H
 
 #include "core/or/or.h"
 
+#include "lib/container/handles.h"
+
 #include "core/or/cell_queue_st.h"
+#include "ext/ht.h"
 
 struct hs_token_t;
 struct circpad_machine_spec_t;
@@ -53,6 +61,9 @@ struct circpad_machine_runtime_t;
 struct circuit_t {
   uint32_t magic; /**< For memory and type debugging: must equal
                    * ORIGIN_CIRCUIT_MAGIC or OR_CIRCUIT_MAGIC. */
+
+  /** Handle entry for handle-based lookup */
+  HANDLE_ENTRY(circuit, circuit_t);
 
   /** The channel that is next in this circuit. */
   channel_t *n_chan;

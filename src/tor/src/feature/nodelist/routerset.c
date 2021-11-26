@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -17,7 +17,7 @@
  *
  * Routersets are typically used for user-specified restrictions, and
  * are created by invoking routerset_new and routerset_parse from
- * config.c and confparse.c.  To use a routerset, invoke one of
+ * config.c and confmgt.c.  To use a routerset, invoke one of
  * routerset_contains_...() functions , or use
  * routerstatus_get_all_nodes() / routerstatus_subtract_nodes() to
  * manipulate a smartlist of node_t pointers.

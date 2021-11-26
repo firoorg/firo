@@ -324,25 +324,6 @@ BOOST_AUTO_TEST_CASE(get_coin_not_enough)
     sigmaState->Reset();
 }
 
-BOOST_AUTO_TEST_CASE(get_coin_cannot_spend_unconfirmed_coins)
-{
-    AddOneCoinForEachGroup();
-    std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
-    GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1, 1, 1);
-    GenerateBlockWithCoins(newCoins);
-    // Intentionally do not create 5 more blocks after this one, so coins can not be spent.
-    // GenerateEmptyBlocks(5);
-
-    CAmount require(11150 * CENT); // 111.5
-
-    std::vector<CSigmaEntry> coins;
-    std::vector<sigma::CoinDenomination> coinsToMint;
-    std::list<CSigmaEntry> availableCoins = pwalletMain->GetAvailableCoins();
-
-    BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint, availableCoins), InsufficientFunds);
-    sigmaState->Reset();
-}
-
 BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
 {
     std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
@@ -450,41 +431,6 @@ BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_10, 1) });
     GenerateEmptyBlocks(5);
-
-    recipients.push_back(CRecipient{
-        .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
-        .nAmount = 5 * COIN,
-        .fSubtractFeeFromAmount = false
-    });
-
-    recipients.push_back(CRecipient{
-        .scriptPubKey = GetScriptForDestination(randomAddr2.Get()),
-        .nAmount = 5 * COIN,
-        .fSubtractFeeFromAmount = false
-    });
-
-    recipients.push_back(CRecipient{
-        .scriptPubKey = GetScriptForDestination(randomAddr3.Get()),
-        .nAmount = 1 * COIN,
-        .fSubtractFeeFromAmount = false
-    });
-
-    bool fChangeAddedToFee;
-    BOOST_CHECK_EXCEPTION(
-        pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes, fChangeAddedToFee),
-        InsufficientFunds,
-        [](const InsufficientFunds& e) { return e.what() == std::string("Insufficient funds"); });
-    sigmaState->Reset();
-}
-
-BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
-{
-    CAmount fee;
-    std::vector<CSigmaEntry> selected;
-    std::vector<CHDMint> changes;
-    std::vector<CRecipient> recipients;
-
-    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_10, 2) });
 
     recipients.push_back(CRecipient{
         .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
