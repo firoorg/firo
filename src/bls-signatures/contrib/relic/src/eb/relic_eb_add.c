@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -54,7 +55,7 @@ static void eb_add_basic_imp(eb_t r, const eb_t p, const eb_t q) {
 	fb_null(t1);
 	fb_null(t2);
 
-	TRY {
+	RLC_TRY {
 		fb_new(t0);
 		fb_new(t1);
 		fb_new(t2);
@@ -85,12 +86,12 @@ static void eb_add_basic_imp(eb_t r, const eb_t p, const eb_t q) {
 			fb_add(t2, t2, t1);
 
 			switch (eb_curve_opt_a()) {
-				case OPT_ZERO:
+				case RLC_ZERO:
 					break;
-				case OPT_ONE:
+				case RLC_ONE:
 					fb_add_dig(t2, t2, (dig_t)1);
 					break;
-				case OPT_DIGIT:
+				case RLC_TINY:
 					fb_add_dig(t2, t2, eb_curve_get_a()[0]);
 					break;
 				default:
@@ -108,13 +109,13 @@ static void eb_add_basic_imp(eb_t r, const eb_t p, const eb_t q) {
 			fb_copy(r->x, t2);
 			fb_copy(r->z, p->z);
 
-			r->norm = 1;
+			r->coord = BASIC;
 		}
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		fb_free(t0);
 		fb_free(t1);
 		fb_free(t2);
@@ -145,7 +146,7 @@ static void eb_add_projc_mix(eb_t r, const eb_t p, const eb_t q) {
 	fb_null(t4);
 	fb_null(t5);
 
-	TRY {
+	RLC_TRY {
 		fb_new(t0);
 		fb_new(t1);
 		fb_new(t2);
@@ -156,7 +157,7 @@ static void eb_add_projc_mix(eb_t r, const eb_t p, const eb_t q) {
 		/* madd-2005-dl formulas: 7M + 4S + 9add + 1*4 + 3*2. */
 		/* http://www.hyperelliptic.org/EFD/g12o/auto-shortw-lopezdahab-1.html#addition-madd-2005-dl */
 
-		if (!p->norm) {
+		if (p->coord != BASIC) {
 			/* A = y1 + y2 * z1^2. */
 			fb_sqr(t0, p->z);
 			fb_mul(t0, t0, q->y);
@@ -180,7 +181,7 @@ static void eb_add_projc_mix(eb_t r, const eb_t p, const eb_t q) {
 				eb_set_infty(r);
 			}
 		} else {
-			if (!p->norm) {
+			if (p->coord != BASIC) {
 				/* t2 = C = B * z1. */
 				fb_mul(t2, p->z, t1);
 				/* z3 = C^2. */
@@ -209,12 +210,12 @@ static void eb_add_projc_mix(eb_t r, const eb_t p, const eb_t q) {
 
 			/* t1 = A + B^2 + a2 * C. */
 			switch (eb_curve_opt_a()) {
-				case OPT_ZERO:
+				case RLC_ZERO:
 					break;
-				case OPT_ONE:
+				case RLC_ONE:
 					fb_add(t1, t1, t2);
 					break;
-				case OPT_DIGIT:
+				case RLC_TINY:
 					/* t5 = a2 * C. */
 					fb_mul_dig(t5, t2, eb_curve_get_a()[0]);
 					fb_add(t1, t1, t5);
@@ -246,12 +247,12 @@ static void eb_add_projc_mix(eb_t r, const eb_t p, const eb_t q) {
 			fb_add(r->y, r->y, t0);
 		}
 
-		r->norm = 0;
+		r->coord = PROJC;
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		fb_free(t0);
 		fb_free(t1);
 		fb_free(t2);
@@ -279,7 +280,7 @@ static void eb_add_projc_imp(eb_t r, const eb_t p, const eb_t q) {
 
 #if defined(EB_MIXED) || !defined(STRIP)
 	/* Test if z2 = 1 only if mixed coordinates are turned on. */
-	if (q->norm) {
+	if (q->coord == BASIC) {
 		eb_add_projc_mix(r, p, q);
 		return;
 	}
@@ -295,7 +296,7 @@ static void eb_add_projc_imp(eb_t r, const eb_t p, const eb_t q) {
 	fb_null(t6);
 	fb_null(t7);
 
-	TRY {
+	RLC_TRY {
 		fb_new(t0);
 		fb_new(t1);
 		fb_new(t2);
@@ -372,12 +373,12 @@ static void eb_add_projc_imp(eb_t r, const eb_t p, const eb_t q) {
 			fb_add(r->y, r->y, t7);
 		}
 
-		r->norm = 0;
+		r->coord = PROJC;
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		fb_free(t0);
 		fb_free(t1);
 		fb_free(t2);
@@ -422,18 +423,18 @@ void eb_sub_basic(eb_t r, const eb_t p, const eb_t q) {
 		return;
 	}
 
-	TRY {
+	RLC_TRY {
 		eb_new(t);
 
 		eb_neg_basic(t, q);
 		eb_add_basic(r, p, t);
 
-		r->norm = 1;
+		r->coord = BASIC;
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		eb_free(t);
 	}
 }
@@ -466,16 +467,16 @@ void eb_sub_projc(eb_t r, const eb_t p, const eb_t q) {
 		return;
 	}
 
-	TRY {
+	RLC_TRY {
 		eb_new(t);
 
 		eb_neg_projc(t, q);
 		eb_add_projc(r, p, t);
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		eb_free(t);
 	}
 }

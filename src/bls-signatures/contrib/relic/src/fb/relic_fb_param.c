@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -134,7 +135,7 @@ void fb_param_set(int param) {
 			fb_poly_set_trino(255);
 			break;
 		default:
-			THROW(ERR_NO_VALID);
+			RLC_THROW(ERR_NO_VALID);
 			break;
 	}
 	core_get()->fb_id = param;
@@ -229,7 +230,7 @@ void fb_param_set_any(void) {
 #elif FB_POLYN == 1223
 	fb_param_set(TRINO_1223);
 #else
-	THROW(ERR_NO_FIELD);
+	RLC_THROW(ERR_NO_FIELD);
 #endif
 }
 
@@ -240,9 +241,9 @@ void fb_param_print(void) {
 
 	if (fb == 0) {
 		util_banner("Irreducible trinomial:", 0);
-		util_print("   z^%d + z^%d + 1\n", FB_BITS, fa);
+		util_print("   z^%d + z^%d + 1\n", RLC_FB_BITS, fa);
 	} else {
 		util_banner("Irreducible pentanomial:", 0);
-		util_print("   z^%d + z^%d + z^%d + z^%d + 1\n", FB_BITS, fa, fb, fc);
+		util_print("   z^%d + z^%d + z^%d + z^%d + 1\n", RLC_FB_BITS, fa, fb, fc);
 	}
 }

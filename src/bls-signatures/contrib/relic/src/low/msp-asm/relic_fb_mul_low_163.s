@@ -56,21 +56,21 @@
     push r11
 .endm
 
-.macro RELIC_MULN_TABLE
+.macro RLC_MULN_TABLE
     mov     r1, T_PTR
-    RELIC_FILL_TABLE 0, 10 /* fill 11 columns */
+    RLC_FILL_TABLE 0, 10 /* fill 11 columns */
 .endm
 
-.macro RELIC_MULN_TABLE_KARATSUBA
+.macro RLC_MULN_TABLE_KARATSUBA
     mov     r1, T_PTR
-    RELIC_FILL_TABLE 0, 8 /* fill 9 columns */
+    RLC_FILL_TABLE 0, 8 /* fill 9 columns */
     PREP_LAST   r6, r7, r8, r9 /* fill last column */
     FILL_COLUMN r6, r7, r8, r9
     sub #2*T_LINE, T_PTR /* restore T_PTR */
     sub #2*T_LINE, B_PTR /* restore B_PTR */
 .endm
 
-.macro RELIC_FILL_TABLE i, j
+.macro RLC_FILL_TABLE i, j
     .if \i == 0
         PREP_FIRST  r6, r7, r8, r9
         FILL_COLUMN r6, r7, r8, r9
@@ -80,7 +80,7 @@
     .endif
     incd T_PTR
     .if \i < \j
-        RELIC_FILL_TABLE \i + 1, \j
+        RLC_FILL_TABLE \i + 1, \j
     .endif
 .endm
 
@@ -222,7 +222,7 @@ fb_muln_low:
 
     sub #512,r1
 
-    RELIC_MULN_TABLE
+    RLC_MULN_TABLE
 
 #include "fb_mul_163_ld.inc"
 
@@ -234,7 +234,7 @@ fb_muln_low:
 #else
 
 #define TEMP_SIZE 72
-#define RELIC_TABLE_SIZE 512
+#define RLC_TABLE_SIZE 512
 
 fb_muln_low:
     /* r15: c
@@ -328,13 +328,13 @@ fb_muln_low:
 
 fb_muln_low_karatsuba:
 
-    sub #RELIC_TABLE_SIZE,r1
+    sub #RLC_TABLE_SIZE,r1
 
-    RELIC_MULN_TABLE_KARATSUBA
+    RLC_MULN_TABLE_KARATSUBA
 
 #include "ld_mult_271_karatsuba.inc"
 
-    add #RELIC_TABLE_SIZE,r1
+    add #RLC_TABLE_SIZE,r1
 
     ret
 

@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -47,11 +48,10 @@
  * @param[in] level			- the number of Karatsuba steps to apply.
  */
 static void bn_mul_karat_imp(bn_t c, const bn_t a, const bn_t b, int level) {
-	int h;
-	bn_t a0, a1, b0, b1, a0b0, a1b1;
-	bn_t t;
-	const dig_t *tmpa, *tmpb;
-	dig_t *t0;
+	bn_t a0, a1, b0, b1, a0b0, a1b1, t;
+
+	/* Compute half the digits of a or b. */
+	int h = RLC_MIN(a->used, b->used) >> 1;
 
 	bn_null(a0);
 	bn_null(a1);
@@ -61,42 +61,24 @@ static void bn_mul_karat_imp(bn_t c, const bn_t a, const bn_t b, int level) {
 	bn_null(a1b1);
 	bn_null(t);
 
-	/* Compute half the digits of a or b. */
-	h = MIN(a->used, b->used) >> 1;
-
-	TRY {
+	RLC_TRY {
 		/* Allocate the temp variables. */
-		bn_new(a0);
-		bn_new(a1);
-		bn_new(b0);
-		bn_new(b1);
+		bn_new_size(a0, h);
+		bn_new_size(b0, h);
+		bn_new_size(a1, a->used - h);
+		bn_new_size(b1, b->used - h);
 		bn_new(a0b0);
 		bn_new(a1b1);
 		bn_new(t);
 
+		/* a = a1 || a0, b = b1 || b0 */
 		a0->used = b0->used = h;
 		a1->used = a->used - h;
 		b1->used = b->used - h;
-
-		tmpa = a->dp;
-		tmpb = b->dp;
-
-		/* a = a1 || a0 */
-		t0 = a0->dp;
-		for (int i = 0; i < h; i++, t0++, tmpa++)
-			*t0 = *tmpa;
-		t0 = a1->dp;
-		for (int i = 0; i < a1->used; i++, t0++, tmpa++)
-			*t0 = *tmpa;
-
-		/* b = b1 || b0 */
-		t0 = b0->dp;
-		for (int i = 0; i < h; i++, t0++, tmpb++)
-			*t0 = *tmpb;
-		t0 = b1->dp;
-		for (int i = 0; i < b1->used; i++, t0++, tmpb++)
-			*t0 = *tmpb;
-
+		dv_copy(a0->dp, a->dp, h);
+		dv_copy(a1->dp, a->dp + h, a->used - h);
+		dv_copy(b0->dp, b->dp, h);
+		dv_copy(b1->dp, b->dp + h, b->used - h);
 		bn_trim(a0);
 		bn_trim(b0);
 		bn_trim(a1);
@@ -138,10 +120,10 @@ static void bn_mul_karat_imp(bn_t c, const bn_t a, const bn_t b, int level) {
 		bn_sub(t, t, a1b1);
 
 		/* t = (a1 + a0)*(b1 + b0) - (a0*b0 + a1*b1) << h digits */
-		bn_lsh(t, t, h * BN_DIGIT);
+		bn_lsh(t, t, h * RLC_DIG);
 
 		/* t2 = a1 * b1 << 2*h digits */
-		bn_lsh(a1b1, a1b1, 2 * h * BN_DIGIT);
+		bn_lsh(a1b1, a1b1, 2 * h * RLC_DIG);
 
 		/* t = t + a0*b0 */
 		bn_add(t, t, a0b0);
@@ -153,10 +135,10 @@ static void bn_mul_karat_imp(bn_t c, const bn_t a, const bn_t b, int level) {
 		bn_copy(c, t);
 		bn_trim(c);
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		bn_free(a0);
 		bn_free(a1);
 		bn_free(b0);
@@ -174,11 +156,15 @@ static void bn_mul_karat_imp(bn_t c, const bn_t a, const bn_t b, int level) {
 /*============================================================================*/
 
 void bn_mul_dig(bn_t c, const bn_t a, dig_t b) {
-	bn_grow(c, a->used + 1);
-	c->sign = a->sign;
-	c->dp[a->used] = bn_mul1_low(c->dp, a->dp, b, a->used);
-	c->used = a->used + 1;
-	bn_trim(c);
+	RLC_TRY {
+		bn_grow(c, a->used + 1);
+		c->sign = a->sign;
+		c->dp[a->used] = bn_mul1_low(c->dp, a->dp, b, a->used);
+		c->used = a->used + 1;
+		bn_trim(c);
+	} RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
+	}
 }
 
 #if BN_MUL == BASIC || !defined(STRIP)
@@ -190,7 +176,7 @@ void bn_mul_basic(bn_t c, const bn_t a, const bn_t b) {
 
 	bn_null(t);
 
-	TRY {
+	RLC_TRY {
 		/* We need a temporary variable so that c can be a or b. */
 		bn_new_size(t, a->used + b->used);
 		bn_zero(t);
@@ -206,10 +192,10 @@ void bn_mul_basic(bn_t c, const bn_t a, const bn_t b) {
 		/* Swap c and t. */
 		bn_copy(c, t);
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		bn_free(t);
 	}
 }
@@ -219,17 +205,14 @@ void bn_mul_basic(bn_t c, const bn_t a, const bn_t b) {
 #if BN_MUL == COMBA || !defined(STRIP)
 
 void bn_mul_comba(bn_t c, const bn_t a, const bn_t b) {
-	int digits;
 	bn_t t;
 
 	bn_null(t);
 
-	TRY {
-		digits = a->used + b->used;
-
+	RLC_TRY {
 		/* We need a temporary variable so that c can be a or b. */
-		bn_new_size(t, digits);
-		t->used = digits;
+		bn_new_size(t, a->used + b->used);
+		t->used = a->used + b->used;
 
 		if (a->used == b->used) {
 			bn_muln_low(t->dp, a->dp, b->dp, a->used);
@@ -247,10 +230,10 @@ void bn_mul_comba(bn_t c, const bn_t a, const bn_t b) {
 		bn_trim(t);
 		bn_copy(c, t);
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		bn_free(t);
 	}
 }

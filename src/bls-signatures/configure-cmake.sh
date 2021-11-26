@@ -14,7 +14,7 @@ esac
 
 if test "x$enable_tests" == "xyes"
 then
-  cmake_osflags="$cmake_osflags -DENABLE_TESTS=1"
+  cmake_osflags="$cmake_osflags -DENABLE_TESTS=0"
 fi
 
 cmake -Bbuild -H. -DCMAKE_INSTALL_PREFIX=$depends_prefix -DWSIZE=64 -DMULTI=PTHREAD -DARITH=gmp $cmake_osflags

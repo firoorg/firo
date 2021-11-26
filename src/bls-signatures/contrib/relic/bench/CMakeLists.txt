@@ -7,10 +7,6 @@ macro(ADD_MODULE MODULE)
 			target_link_libraries(bench_${MODULE} ${RELIC})
 		endif(SHLIB)
 	endif(STLIB)
-	if (STBIN)
-		set_target_properties(bench_${MODULE} PROPERTIES LINK_SEARCH_END_STATIC 1)
-	endif(STBIN)
-	add_test(bench_${MODULE} ${SIMUL} ${SIMAR} ${EXECUTABLE_OUTPUT_PATH}/bench_${MODULE})
 endmacro(ADD_MODULE)
 
 if (CHECK)
@@ -69,8 +65,16 @@ if (WITH_PC)
 	ADD_MODULE(pc)
 endif(WITH_PC)
 
+if (WITH_MD)
+	ADD_MODULE(md)
+endif(WITH_MD)
+
 if (WITH_CP)
 	ADD_MODULE(cp)
 endif(WITH_CP)
+
+if (WITH_MPC)
+	ADD_MODULE(mpc)
+endif(WITH_MPC)
 
 ADD_MODULE(rand)
