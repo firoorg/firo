@@ -1129,18 +1129,24 @@ UniValue getcoinsforrecovery(const JSONRPCRequest& request)
         for (const auto& coin : coins) {
             if (coin.second.first.isJMint) {
                 std::vector<unsigned char> vch = coin.first.getValue().getvch();
-                UniValue data(UniValue::VARR);
-                data.push_back(Pair(coin.second.second.GetHex(), HexStr(coin.second.first.encryptedValue.begin(), coin.second.first.encryptedValue.end())));
-                UniValue dataAndBlockHash(UniValue::VARR);
-                dataAndBlockHash.push_back(Pair(blockHashes[i].GetHex(), data));
-                jmints.push_back(Pair(HexStr(vch.begin(), vch.end()), data));
+                std::vector<UniValue> data;
+                data.push_back(HexStr(vch.begin(), vch.end()));
+                data.push_back(coin.second.second.GetHex());
+                data.push_back(HexStr(coin.second.first.encryptedValue.begin(), coin.second.first.encryptedValue.end()));
+                data.push_back(blockHashes[i].GetHex());
+                UniValue entity(UniValue::VARR);
+                entity.push_backV(data);
+                jmints.push_back(entity);
             } else {
                 std::vector<unsigned char> vch = coin.first.getValue().getvch();
-                UniValue data(UniValue::VARR);
-                data.push_back(Pair(coin.second.second.GetHex(), coin.second.first.amount));
-                UniValue dataAndBlockHash(UniValue::VARR);
-                dataAndBlockHash.push_back(Pair(blockHashes[i].GetHex(), data));
-                mints.push_back(Pair(HexStr(vch.begin(), vch.end()), data));
+                std::vector<UniValue> data;
+                data.push_back(HexStr(vch.begin(), vch.end()));
+                data.push_back(coin.second.second.GetHex());
+                data.push_back(coin.second.first.amount);
+                data.push_back(blockHashes[i].GetHex());
+                UniValue entity(UniValue::VARR);
+                entity.push_backV(data);
+                mints.push_back(entity);
             }
             i++;
         }
