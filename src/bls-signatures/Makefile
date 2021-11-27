@@ -16,7 +16,6 @@ distclean:
 	rm -rf ./build/
 
 check: all
-	./build/src/runtest
 
 install:
 	$(AM_V_at)$(MAKE) -C ./build/ install
