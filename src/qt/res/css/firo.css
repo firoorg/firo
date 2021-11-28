@@ -23,7 +23,7 @@ QFrame {
 
 QDialog,
 QMainWindow,
-QMessageBox
+QMessageBox,
 WalletFrame {
     background-color: #f4f4f4;
     font: 8pt 'Source Sans Pro';
@@ -782,12 +782,16 @@ QStatusBar #lblStatusBarProgress {
 }
 
 QTableView::item {
-    height: 53px;
+    height: 2.5em;
     border-bottom: 1px solid;
     background-color: #f4f4f4;
-    border-color: #878787;
+    border-color: #cfcccc;
     color: #110202;
     font: 8pt 'Source Sans Pro';
+}
+
+QTableView::item:alternate {
+    background-color: #f7f0f1;
 }
 
 QTableView::item:selected {
@@ -910,7 +914,7 @@ QToolTip {
 
 QTreeWidget {
     border: 1px solid;
-    alternate-background-color: #cfcccc;
+    alternate-background-color: #f7f0f1;
     background-color: #f4f4f4;
     border-color: #cfcccc;
     color: #110202;
@@ -997,12 +1001,6 @@ QDialog#AboutDialog QLabel#label_2 {
 /* AddressBookPage */
 
 QWidget#AddressBookPage {
-}
-
-QWidget#AddressBookPage QTableView {
-}
-
-QWidget#AddressBookPage QTableView::item {
 }
 
  /* Min width for Windows fix */
@@ -1487,14 +1485,6 @@ QWidget#ReceiveCoinsDialog .QFrame#frame .QLabel#label_6 {
     min-width: 0px;
 }
 
-QWidget#ReceiveCoinsDialog .QFrame#frame QTableView#recentRequestsView::item {
-
-}
-
-ReceiveCoinsDialog QTableView {
-    color: #110202;
-}
-
 ReceiveCoinsDialog#label_6 {
     font-weight: bold;
 }
@@ -1585,10 +1575,6 @@ QWidget#RPCConsole .QGroupBox #line_2 {
 
 QWidget#RPCConsole {
     background-color: #f4f4f4;
-}
-
-RPCConsole QTableView {
-    color: #cfcccc;
 }
 
 #rpcAutoCompleter {
