@@ -2207,7 +2207,7 @@ bool CWalletTx::RelayWalletTransaction(CConnman* connman)
             }
         }
     }
-    LogPrintf("CWalletTx::RelayWalletTransaction() --> invalid condition\n");
+
     return false;
 }
 
