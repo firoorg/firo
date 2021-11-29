@@ -49,6 +49,7 @@
 #include "definition.h"
 #include "utiltime.h"
 #include "mtpstate.h"
+#include "blockfilterindex.h"
 
 #include "coins.h"
 
@@ -2418,6 +2419,14 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
                 return DISCONNECT_FAILED;
             }
         }
+        bool fBlockFilterIndex = true;
+        if (fBlockFilterIndex) {
+            if (!pblocktree->UpdateBlockFilterIndex(block.GetHash(), {}, {})) {
+                AbortNode(state, "Failed to write block filter index");
+                error("Failed to write block filter index");
+                return DISCONNECT_FAILED;
+            }
+        }
     }
 
     /*
@@ -2942,6 +2951,25 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     if (fTimestampIndex)
         if (!pblocktree->WriteTimestampIndex(CTimestampIndexKey(pindex->nTime, pindex->GetBlockHash())))
             return AbortNode(state, "Failed to write timestamp index");
+
+    bool fBlockFilterIndex = true;
+    if (fBlockFilterIndex)
+    {
+        uint256 prevBlockHash {};
+        std::pair<std::vector<unsigned char>, uint256> prevFilter {};
+        if (pindex->nHeight > 1) {
+            prevBlockHash = pindex->pprev->GetBlockHash();
+            prevFilter = pblocktree->ReadBlockFilterIndex(prevBlockHash);
+        }
+
+        if (pindex->nHeight > 1 && prevFilter.first.empty()) {
+            LogPrintf("ConnectBlock: Could not read block filter index for height: %d\n", pindex->nHeight);
+        } else {
+            BlockFilterIndex bfidx(block, blockundo, prevFilter.second);
+            if (!pblocktree->UpdateBlockFilterIndex(block.GetHash(), bfidx.GetEncoded(), bfidx.GetHeader()))
+                return AbortNode(state, "Failed to write block filter index");
+        }
+    }
 
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());

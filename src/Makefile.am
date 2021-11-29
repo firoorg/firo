@@ -175,6 +175,7 @@ BITCOIN_CORE_H = \
   bloom.h \
   blockencodings.h \
   blockfilter.h \
+  blockfilterindex.h \
   chain.h \
   chainparams.h \
   chainparamsbase.h \
@@ -397,6 +398,7 @@ libbitcoin_server_a_SOURCES = \
   bloom.cpp \
   blockencodings.cpp \
   blockfilter.cpp \
+  blockfilterindex.cpp \
   chain.cpp \
   checkpoints.cpp \
   dsnotificationinterface.cpp \

@@ -33,6 +33,8 @@ static const char DB_REINDEX_FLAG = 'R';
 static const char DB_LAST_BLOCK = 'l';
 static const char DB_TOTAL_SUPPLY = 'S';
 
+static const char DB_BLOCK_FILTER_INDEX = '0';
+
 namespace {
 
 struct CoinEntry {
@@ -233,6 +235,34 @@ bool CBlockTreeDB::UpdateAddressUnspentIndex(const std::vector<std::pair<CAddres
     }
     return WriteBatch(batch);
 }
+
+std::pair<std::vector<unsigned char>, uint256> CBlockTreeDB::ReadBlockFilterIndex(uint256 blockHash)
+{
+    boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
+    pcursor->Seek(std::make_pair(DB_BLOCK_FILTER_INDEX, blockHash));
+    if(!pcursor->Valid())
+        return {};
+
+    std::pair<char, uint256> key;
+    if (!pcursor->GetKey(key) || key.first != DB_BLOCK_FILTER_INDEX || key.second != blockHash)
+        return {};
+
+    std::pair<std::vector<unsigned char>, uint256> value {};
+    pcursor->GetValue(value);
+
+    return value;
+}
+
+bool CBlockTreeDB::UpdateBlockFilterIndex(uint256 blockHash, std::vector<unsigned char> const & filter, uint256 header)
+{
+    CDBBatch batch(*this);
+    if (filter.empty())
+        batch.Erase(std::make_pair(DB_BLOCK_FILTER_INDEX, blockHash));
+    else
+        batch.Write(std::make_pair(DB_BLOCK_FILTER_INDEX, blockHash), std::make_pair(filter, header));
+    return WriteBatch(batch);
+}
+
 
 bool CBlockTreeDB::ReadAddressUnspentIndex(uint160 addressHash, AddressType type,
                                            std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs) {

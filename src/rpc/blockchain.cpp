@@ -38,6 +38,8 @@
 #include <mutex>
 #include <condition_variable>
 
+#include "txdb.h"
+
 struct CUpdatedBlock
 {
     uint256 hash;
@@ -1626,6 +1628,95 @@ UniValue getspecialtxes(const JSONRPCRequest& request)
     return result;
 }
 
+static UniValue getblockfilter(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2) {
+        throw std::runtime_error(
+                "getblockfilter \"blockhash\" \"filtertype\""
+                "\nRetrieve a BIP 157 content filter for a particular block.\n"
+                "1.blockhash        (string, required)       The hash of the block\n"
+                "2.filtertype       (string, default=\"basic\" The type name of the filter\n"
+                "\nArguments:\n"
+                "{\n"
+                "  \"filter\" : (string) the hex-encoded filter data\n"
+                "  \"header\" : (string) the hex-encoded filter header\n"
+                "}\n"
+                "\nExamples:\n"
+                +HelpExampleCli("getblockfilter", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\" \"basic\"")
+        );
+    }
+
+    uint256 block_hash = ParseHashV(request.params[0], "blockhash");
+    std::string filtertype_name = "basic";
+    if (!request.params[1].isNull()) {
+        filtertype_name = request.params[1].get_str();
+    }
+
+    bool block_was_connected;
+    CBlockIndex* block_index;
+    {
+        LOCK(cs_main);
+        BlockMap::const_iterator it = mapBlockIndex.find(block_hash);
+        if(it == mapBlockIndex.end())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+        block_index = it->second;
+        block_was_connected = block_index->IsValid(BLOCK_VALID_SCRIPTS);
+    }
+
+    if (!block_was_connected)
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block was not connected to active chain.");
+
+    std::pair<std::vector<unsigned char>, uint256> filter = pblocktree->ReadBlockFilterIndex(block_hash);
+
+    UniValue ret(UniValue::VOBJ);
+    ret.pushKV("filter", HexStr(filter.first));
+    ret.pushKV("header", filter.second.GetHex());
+    return ret;
+
+
+
+//    BlockFilterIndex* index = GetBlockFilterIndex(filtertype);
+//    if (!index) {
+//        throw JSONRPCError(RPC_MISC_ERROR, "Index is not enabled for filtertype " + filtertype_name);
+//    }
+//
+//    const CBlockIndex* block_index;
+//    bool block_was_connected;
+//    {
+//        LOCK(cs_main);
+//        block_index = LookupBlockIndex(block_hash);
+//        if (!block_index) {
+//            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+//        }
+//        block_was_connected = block_index->IsValid(BLOCK_VALID_SCRIPTS);
+//    }
+//
+//    bool index_ready = index->BlockUntilSyncedToCurrentChain();
+//
+//    BlockFilter filter;
+//    uint256 filter_header;
+//    if (!index->LookupFilter(block_index, filter) ||
+//        !index->LookupFilterHeader(block_index, filter_header)) {
+//        int err_code;
+//        std::string errmsg = "Filter not found.";
+//
+//        if (!block_was_connected) {
+//            err_code = RPC_INVALID_ADDRESS_OR_KEY;
+//            errmsg += " Block was not connected to active chain.";
+//        } else if (!index_ready) {
+//            err_code = RPC_MISC_ERROR;
+//            errmsg += " Block filters are still in the process of being indexed.";
+//        } else {
+//            err_code = RPC_INTERNAL_ERROR;
+//            errmsg += " This error is unexpected and indicates index corruption.";
+//        }
+//
+//        throw JSONRPCError(err_code, errmsg);
+//    }
+//
+}
+
+
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafe argNames
   //  --------------------- ------------------------  -----------------------  ------ ----------
@@ -1651,6 +1742,8 @@ static const CRPCCommand commands[] =
     { "blockchain",         "verifychain",            &verifychain,            true,  {"checklevel","nblocks"} },
 
     { "blockchain",         "preciousblock",          &preciousblock,          true,  {"blockhash"} },
+    { "blockchain",         "getblockfilter",         &getblockfilter,         true,  {"blockhash", "filtertype"} },
+
 
     /* Not shown in help */
     { "hidden",             "invalidateblock",        &invalidateblock,        true,  {"blockhash"} },

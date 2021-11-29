@@ -11,6 +11,49 @@ BOOST_FIXTURE_TEST_SUITE(amount_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(GetFeeTest)
 {
+    CNetAddr addr;
+    addr.SetRaw(NET_IPV4, {});
+    CService ser(addr, 1234);
+    CAddress ad(ser, ServiceFlags::NODE_NETWORK);
+    CDataStream cds(SER_NETWORK, PROTOCOL_VERSION );
+
+    cds << ad;
+
+    std::cerr << cds.vch.size() << std::endl;
+    for(auto a : cds.vch)
+        std::cerr << std::hex << int(a) << ", ";
+    std::cerr << std::endl;
+
+    {
+        CDataStream cds(SER_NETWORK, PROTOCOL_VERSION );
+
+        int64_t nTime;
+        CAddress addrMe;
+        CAddress addrFrom;
+        uint64_t nNonce = 1;
+        uint64_t nServiceInt;
+        ServiceFlags nServices;
+        int nVersion;
+        int nSendVersion;
+        std::string strSubVer;
+        std::string cleanSubVer;
+        int nStartingHeight = -1;
+        bool fRelay = true;
+
+        cds << nVersion << nServiceInt << nTime << addrMe;
+        cds << addrFrom << nNonce;
+        std::string s = "/nakamoto:0.2.0";
+        LimitedString<120> ls(s);
+        cds << ls;
+        cds << nStartingHeight;
+        cds << fRelay;
+        std::cerr << cds.vch.size() << std::endl;
+
+    }
+
+
+
+
     CFeeRate feeRate;
 
     feeRate = CFeeRate(0);
