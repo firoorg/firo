@@ -21,20 +21,14 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
             self.nodes[0].generatetoaddress(min(10, remaining), self.addrs[0])
             remaining -= 10
 
-        self.sync_all()
-
-        assert_equal(lelantus_starting_block, self.nodes[0].getblockcount())
-
         # non-lelantus
-        self.nodes[0].elysium_sendissuancefixed(self.addrs[0], 1, 1, 0, 'main', \
-            'indivisible', 'non-lelantus', '', '', '1000000')
-        self.nodes[0].generate(1)
+        self.mine_tx(self.nodes[0].elysium_sendissuancefixed(self.addrs[0], 1, 1, 0, 'main', \
+            'indivisible', 'non-lelantus', '', '', '1000000'))
 
         non_lelantus_property = 3
 
         addr = self.nodes[1].getnewaddress()
-        self.nodes[0].elysium_send(self.addrs[0], addr, non_lelantus_property, '100')
-        self.nodes[0].generate(1)
+        self.mine_tx(self.nodes[0].elysium_send(self.addrs[0], addr, non_lelantus_property, '100'))
 
         self.sync_all()
 
@@ -44,16 +38,14 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
             self.nodes[1].elysium_sendlelantusspend, self.addrs[1], non_lelantus_property, "10"
         )
 
-        self.nodes[0].elysium_sendissuancefixed(self.addrs[0], 1, 1, 0, 'main', \
-            'indivisible', 'foo', '', '', '1000000', 1)
-        self.nodes[0].generate(1)
+        self.mine_tx(self.nodes[0].elysium_sendissuancefixed(self.addrs[0], 1, 1, 0, 'main', \
+            'indivisible', 'foo', '', '', '1000000', 1))
 
         lelantus_property = 4
 
         addr = self.nodes[1].getnewaddress()
-        self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property, '100')
+        self.mine_tx(self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property, '100'))
 
-        self.nodes[0].generate(1)
         self.sync_all()
 
         # spend without any mint
@@ -66,12 +58,11 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         # have lelantus mint but have no elysium mint
         testing_node = self.nodes[1] # fresh node
         addr = testing_node.getnewaddress()
-        self.nodes[0].sendtoaddress(addr, '100')
-        self.nodes[0].generate(1)
+        self.mine_tx(self.nodes[0].sendtoaddress(addr, '100'))
         self.sync_all()
 
-        testing_node.mintlelantus(2)
-        self.nodes[0].generate(2)
+        for tx in testing_node.mintlelantus(2): self.mine_tx(tx)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         assert_raises_message(
@@ -83,15 +74,13 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         # have elysium mint have no lelantus mint to spend
         testing_node = self.nodes[2] # fresh node
         addr = testing_node.getnewaddress()
-        for _ in range(0, 10):
-            self.nodes[0].sendtoaddress(addr, '1')
-        self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property, '100')
-        self.nodes[0].generate(2)
+        self.mine_tx(self.nodes[0].sendtoaddress(addr, '1'))
+        self.mine_tx(self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property, '100'))
+        self.nodes[0].generate(1)
         self.sync_all()
 
-        testing_node.elysium_sendlelantusmint(addr, lelantus_property, '10')
-        testing_node.elysium_sendlelantusmint(addr, lelantus_property, '10')
-        testing_node.generate(1)
+        self.mine_tx(testing_node.elysium_sendlelantusmint(addr, lelantus_property, '10'))
+        self.mine_tx(testing_node.elysium_sendlelantusmint(addr, lelantus_property, '10'))
         self.sync_all()
         time.sleep(1)
 
@@ -103,17 +92,16 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
 
         # met all requirements
         for _ in range(0, 10):
-            testing_node.mintlelantus(1)
+            self.mine_tx(testing_node.mintlelantus(1)[0])
 
-        testing_node.generate(2)
+        testing_node.generate(1)
         self.sync_all()
 
         receiver = self.nodes[0].getnewaddress()
 
-        testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '1')
-        testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '1')
+        self.mine_tx(testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '1'))
+        self.mine_tx(testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '1'))
 
-        testing_node.generate(1)
         self.sync_all()
 
         assert_equal('2', self.nodes[0].elysium_getbalance(receiver, lelantus_property)['balance'])
@@ -124,9 +112,9 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
             testing_node.elysium_sendlelantusspend, receiver, lelantus_property, '19'
         )
 
-        testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '16')
+        self.mine_tx(testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '16'))
 
-        testing_node.generate(2)
+        testing_node.generate(1)
         self.sync_all()
         assert_equal('18', self.nodes[0].elysium_getbalance(receiver, lelantus_property)['balance'])
 
@@ -155,9 +143,9 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         )
 
         testing_node.walletpassphrase(passphrase, 2)
-        testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '2')
+        self.mine_tx(testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '2'))
 
-        testing_node.generate(2)
+        testing_node.generate(1)
         time.sleep(2)
 
         assert_equal('20', self.nodes[0].elysium_getbalance(receiver, lelantus_property)['balance'])
@@ -173,9 +161,9 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         mints = testing_node.elysium_listlelantusmints(lelantus_property, True)
         assert_equal(0, len(mints))
 
-        testing_node.walletpassphrase(passphrase, 2)
-        testing_node.elysium_sendlelantusmint(addr, lelantus_property, '10')
-        testing_node.elysium_sendlelantusmint(addr, lelantus_property, '10')
+        testing_node.walletpassphrase(passphrase, 2000)
+        self.mine_tx(testing_node.elysium_sendlelantusmint(addr, lelantus_property, '10'))
+        self.mine_tx(testing_node.elysium_sendlelantusmint(addr, lelantus_property, '10'))
 
         testing_node.generate(2)
         self.sync_all()
@@ -183,47 +171,41 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         mints = testing_node.elysium_listlelantusmints(lelantus_property, True)
         assert_equal(2, len(mints))
 
-        time.sleep(2)
+        testing_node.walletlock()
         assert_raises_message(
             JSONRPCException,
             'Unable to retrieve generated key for mint seed. Is the wallet locked?',
             testing_node.elysium_sendlelantusspend, receiver, lelantus_property, '15'
         )
 
-        testing_node.walletpassphrase(passphrase, 2)
-        testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '15')
-        testing_node.generate(2)
+        testing_node.walletpassphrase(passphrase, 2000)
+        self.mine_tx(testing_node.elysium_sendlelantusspend(receiver, lelantus_property, '15'))
+        testing_node.generate(1)
         self.sync_all()
 
         assert_equal('35', self.nodes[0].elysium_getbalance(receiver, lelantus_property)['balance'])
 
         # try to spend on divisible asset
-        self.nodes[0].elysium_sendissuancefixed(self.addrs[0], 1, 2, 0, 'main', \
-            'divisible', 'foo', '', '', '1000000', 1)
-        self.nodes[0].generate(1)
+        self.mine_tx(self.nodes[0].elysium_sendissuancefixed(self.addrs[0], 1, 2, 0, 'main', \
+            'divisible', 'foo', '', '', '1000000', 1))
 
         lelantus_property_2 = 5
 
-        self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property_2, '100000')
-        self.nodes[0].generate(1)
+        self.mine_tx(self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property_2, '100000'))
         self.sync_all()
 
-        testing_node.walletpassphrase(passphrase, 10)
+        self.mine_tx(testing_node.elysium_sendlelantusmint(addr, lelantus_property_2, '5002'))
 
-        testing_node.elysium_sendlelantusmint(addr, lelantus_property_2, '5002')
-
-        testing_node.elysium_sendlelantusmint(addr, lelantus_property_2, '4010.5')
-        testing_node.elysium_sendlelantusmint(addr, lelantus_property_2, '4010.5')
-        testing_node.generate(2)
-        self.sync_all()
-
-        testing_node.elysium_sendlelantusspend(receiver, lelantus_property_2, '5002')
+        self.mine_tx(testing_node.elysium_sendlelantusmint(addr, lelantus_property_2, '4010.5'))
+        self.mine_tx(testing_node.elysium_sendlelantusmint(addr, lelantus_property_2, '4010.5'))
         testing_node.generate(1)
+        self.sync_all()
+
+        self.mine_tx(testing_node.elysium_sendlelantusspend(receiver, lelantus_property_2, '5002'))
         self.sync_all()
 
         assert_equal(5002, float(testing_node.elysium_getbalance(receiver, lelantus_property_2)['balance']))
-        testing_node.elysium_sendlelantusspend(receiver, lelantus_property_2, '15.5')
-        testing_node.generate(1)
+        self.mine_tx(testing_node.elysium_sendlelantusspend(receiver, lelantus_property_2, '15.5'))
         self.sync_all()
 
         assert_equal('5017.5', testing_node.elysium_getbalance(receiver, lelantus_property_2)['balance'].rstrip('0'))

@@ -82,67 +82,58 @@ class ElysiumIssuanceManagedTest(ElysiumTestFramework):
 
         assert_raises_message(
             JSONRPCException,
-            'Sigma status is not valid',
+            'Lelantus status is not valid',
             self.nodes[0].elysium_sendissuancemanaged, self.addrs[0], 1, 1, 0, 'category1', 'subcategory1', 'token1', 'http://foo.com', 'data1', 4
         )
 
         assert_raises_message(
             JSONRPCException,
-            'Sigma feature is not activated yet',
+            'Lelantus feature is not activated yet',
             self.nodes[0].elysium_sendissuancemanaged, self.addrs[0], 1, 1, 0, 'category1', 'subcategory1', 'token1', 'http://foo.com', 'data1', 1
         )
 
+        lelantus_starting_block = 1000
+        remaining = lelantus_starting_block - self.nodes[0].getblockcount()
+        while remaining > 0:
+            # Generate in blocks of 10 so we don't run into timeout issues.
+            self.nodes[0].generatetoaddress(min(10, remaining), self.addrs[0])
+            remaining -= 10
+
+        self.sync_all()
+
         # create properties
         tx1 = self.nodes[0].elysium_sendissuancemanaged(self.addrs[0], 1, 1, 0, 'main', 'indivisible', 'token1', 'http://token1.com', 'data1')
-        self.nodes[0].generate(150) # we need 100 blocks in order to specify sigma flag
-        self.sync_all()
+        self.mine_tx(tx1)
 
         tx2 = self.nodes[1].elysium_sendissuancemanaged(self.addrs[1], 1, 2, 0, 'main', 'divisible', 'token2', 'http://token2.com', 'data2', 0)
-        self.nodes[1].generate(1)
-        self.sync_all()
+        self.mine_tx(tx2)
 
         tx3 = self.nodes[2].elysium_sendissuancemanaged(self.addrs[2], 2, 1, 0, 'test', 'indivisible', 'token3', 'http://token3.com', 'data3', 1)
-        self.nodes[2].generate(1)
-        self.sync_all()
+        self.mine_tx(tx3)
 
         tx4 = self.nodes[3].elysium_sendissuancemanaged(self.addrs[3], 2, 2, 0, 'test', 'divisible', 'token4', 'http://token4.com', 'data4', 2)
-        self.nodes[3].generate(1)
-        self.sync_all()
+        self.mine_tx(tx4)
 
         tx5 = self.nodes[0].elysium_sendissuancemanaged(self.addrs[0], 1, 1, 0, 'main', 'indivisible', 'token5', 'http://token5.com', 'data5', 3)
-        self.nodes[0].generate(1)
-        self.sync_all()
+        self.mine_tx(tx5)
 
         assert_raises_message(
             JSONRPCException,
             'Lelantus status is not valid',
-            self.nodes[0].elysium_sendissuancemanaged, self.addrs[0], 1, 1, 0, 'category1', 'subcategory1', 'token1', 'http://foo.com', 'data1', 0, 4
+            self.nodes[0].elysium_sendissuancemanaged, self.addrs[0], 1, 1, 0, 'category1', 'subcategory1', 'token1', 'http://foo.com', 'data1', 4
         )
 
-        assert_raises_message(
-            JSONRPCException,
-            'Lelantus feature is not activated yet',
-            self.nodes[0].elysium_sendissuancemanaged, self.addrs[0], 1, 1, 0, 'category1', 'subcategory1', 'token1', 'http://foo.com', 'data1', 0, 1
-        )
+        tx6 = self.nodes[1].elysium_sendissuancemanaged(self.addrs[1], 1, 2, 0, 'main', 'divisible', 'token6', 'http://token6.com', 'data6', 0)
+        self.mine_tx(tx6)
 
-        self.nodes[0].generate(500) # we need 1000 blocks in order to specify lelantus flag
-        self.sync_all()
+        tx7 = self.nodes[2].elysium_sendissuancemanaged(self.addrs[2], 2, 1, 0, 'test', 'indivisible', 'token7', 'http://token7.com', 'data7', 1)
+        self.mine_tx(tx7)
 
-        tx6 = self.nodes[1].elysium_sendissuancemanaged(self.addrs[1], 1, 2, 0, 'main', 'divisible', 'token6', 'http://token6.com', 'data6', 0, 0)
-        self.nodes[1].generate(1)
-        self.sync_all()
+        tx8 = self.nodes[3].elysium_sendissuancemanaged(self.addrs[3], 2, 2, 0, 'test', 'divisible', 'token8', 'http://token8.com', 'data8', 2)
+        self.mine_tx(tx8)
 
-        tx7 = self.nodes[2].elysium_sendissuancemanaged(self.addrs[2], 2, 1, 0, 'test', 'indivisible', 'token7', 'http://token7.com', 'data7', 0, 1)
-        self.nodes[2].generate(1)
-        self.sync_all()
-
-        tx8 = self.nodes[3].elysium_sendissuancemanaged(self.addrs[3], 2, 2, 0, 'test', 'divisible', 'token8', 'http://token8.com', 'data8', 0, 2)
-        self.nodes[3].generate(1)
-        self.sync_all()
-
-        tx9 = self.nodes[0].elysium_sendissuancemanaged(self.addrs[0], 1, 1, 0, 'main', 'indivisible', 'token9', 'http://token9.com', 'data9', 0, 3)
-        self.nodes[0].generate(1)
-        self.sync_all()
+        tx9 = self.nodes[0].elysium_sendissuancemanaged(self.addrs[0], 1, 1, 0, 'main', 'indivisible', 'token9', 'http://token9.com', 'data9', 3)
+        self.mine_tx(tx9)
 
         # check property creation
         props = self.nodes[0].elysium_listproperties()
@@ -171,7 +162,6 @@ class ElysiumIssuanceManagedTest(ElysiumTestFramework):
             'http://token1.com',
             'data1',
             '0',
-            'SoftDisabled',
             tx1,
             [],
             'SoftDisabled')
@@ -187,7 +177,6 @@ class ElysiumIssuanceManagedTest(ElysiumTestFramework):
             'http://token2.com',
             'data2',
             '0.00000000',
-            'SoftDisabled',
             tx2,
             [],
             'SoftDisabled')
@@ -203,10 +192,9 @@ class ElysiumIssuanceManagedTest(ElysiumTestFramework):
             'http://token5.com',
             'data5',
             '0',
-            'HardEnabled',
             tx5,
             [],
-            'SoftDisabled')
+            'HardEnabled')
         self.assert_property_info(
             self.nodes[3].elysium_getproperty(2147483651),
             2147483651,
@@ -219,10 +207,9 @@ class ElysiumIssuanceManagedTest(ElysiumTestFramework):
             'http://token3.com',
             'data3',
             '0',
-            'SoftEnabled',
             tx3,
             [],
-            'SoftDisabled')
+            'SoftEnabled')
         self.assert_property_info(
             self.nodes[0].elysium_getproperty(2147483652),
             2147483652,
@@ -235,10 +222,9 @@ class ElysiumIssuanceManagedTest(ElysiumTestFramework):
             'http://token4.com',
             'data4',
             '0.00000000',
-            'HardDisabled',
             tx4,
             [],
-            'SoftDisabled')
+            'HardDisabled')
         self.assert_property_info(
             self.nodes[2].elysium_getproperty(6),
             6,
@@ -251,7 +237,6 @@ class ElysiumIssuanceManagedTest(ElysiumTestFramework):
             'http://token6.com',
             'data6',
             '0.00000000',
-            'SoftDisabled',
             tx6,
             [],
             'SoftDisabled')
@@ -267,7 +252,6 @@ class ElysiumIssuanceManagedTest(ElysiumTestFramework):
             'http://token9.com',
             'data9',
             '0',
-            'SoftDisabled',
             tx9,
             [],
             'HardEnabled')
@@ -283,7 +267,6 @@ class ElysiumIssuanceManagedTest(ElysiumTestFramework):
             'http://token7.com',
             'data7',
             '0',
-            'SoftDisabled',
             tx7,
             [],
             'SoftEnabled')
@@ -299,7 +282,6 @@ class ElysiumIssuanceManagedTest(ElysiumTestFramework):
             'http://token8.com',
             'data8',
             '0.00000000',
-            'SoftDisabled',
             tx8,
             [],
             'HardDisabled')

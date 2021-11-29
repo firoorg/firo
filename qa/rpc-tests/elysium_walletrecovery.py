@@ -51,21 +51,19 @@ class ElysiumWalletRecoveryTest(ElysiumTestFramework):
             self.nodes[0].generatetoaddress(min(10, remaining), owner)
             remaining -= 10
 
-        self.nodes[0].elysium_sendissuancefixed(owner, 1, 1, 0, '', '', 'Test Lelantus', '', '', '6', 1)
-
-        self.nodes[0].generate(1)
+        self.mine_tx(self.nodes[0].elysium_sendissuancefixed(owner, 1, 1, 0, '', '', 'Test Lelantus', '', '', '6', 1))
         prop = 3
 
-        self.nodes[0].elysium_sendlelantusmint(owner, prop, '3')
-        self.nodes[0].elysium_sendlelantusmint(owner, prop, '3')
+        self.mine_tx(self.nodes[0].elysium_sendlelantusmint(owner, prop, '3'))
+        self.mine_tx(self.nodes[0].elysium_sendlelantusmint(owner, prop, '3'))
 
         for _ in range(10):
-            self.nodes[0].mintlelantus(1)
+            self.mine_tx(self.nodes[0].mintlelantus(1)[0])
 
-        self.nodes[0].generate(2)
+        self.nodes[0].generate(1)
 
-        self.nodes[0].elysium_sendlelantusspend(owner, prop, '2')
-        self.nodes[0].generate(2)
+        self.mine_tx(self.nodes[0].elysium_sendlelantusspend(owner, prop, '2'))
+        self.nodes[0].generate(1)
 
         sync_blocks(self.nodes)
 

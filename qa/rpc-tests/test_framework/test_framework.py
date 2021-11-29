@@ -133,6 +133,24 @@ class BitcoinTestFramework(object):
         stop_nodes(self.nodes)
         self.setup_network(False)
 
+    def mine_tx(self, txid, maximum=100):
+        """
+        Keep mining blocks until txid is mined, up to a maximum number of blocks.
+        """
+
+        self.sync_all()
+
+        for i in range(maximum):
+            self.nodes[0].generate(1)
+            self.sync_all()
+
+            data = self.nodes[0].getrawtransaction(txid, True)
+            if 'confirmations' in data and data['confirmations'] >= 1:
+                return
+
+        raise Exception(f"Couldn't mine {txid} within {maximum} blocks.")
+
+
     def main(self):
 
         parser = optparse.OptionParser(usage="%prog [options]")
@@ -315,7 +333,7 @@ class ElysiumTestFramework(BitcoinTestFramework):
         assert_equal(prop['url'], url)
         assert_equal(prop['divisible'], divisible)
 
-    def assert_property_info(self, prop, id, fixed, issuer, divisible, cat, subcat, name, url, data, tokens, sigma, createtx, denoms, lelantus):
+    def assert_property_info(self, prop, id, fixed, issuer, divisible, cat, subcat, name, url, data, tokens, createtx, denoms, lelantus):
         assert_equal(prop['propertyid'], id)
         assert_equal(prop['name'], name)
         assert_equal(prop['category'], cat)
@@ -328,7 +346,6 @@ class ElysiumTestFramework(BitcoinTestFramework):
         assert_equal(prop['fixedissuance'], fixed)
         assert_equal(prop['managedissuance'], not fixed)
         assert_equal(prop['totaltokens'], tokens)
-        assert_equal(prop['sigmastatus'], sigma)
         assert_equal(len(prop['denominations']), len(denoms))
 
         for i in range(len(denoms)):
