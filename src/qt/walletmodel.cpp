@@ -54,6 +54,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
 {
     fHaveWatchOnly = wallet->HaveWatchOnly();
     fForceCheckBalanceChanged = false;
+    fForceCheckBalanceChanged = false;
 
     addressTableModel = new AddressTableModel(wallet, this);
     pcodeAddressTableModel = new PcodeAddressTableModel(wallet, this);
@@ -444,12 +445,12 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 }
 
 WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
-    WalletModelTransaction &transaction,
+    std::vector<WalletModelTransaction>& transactions,
     const CCoinControl *coinControl)
 {
     CAmount total = 0;
     bool fSubtractFeeFromAmount = false;
-    QList<SendCoinsRecipient> recipients = transaction.getRecipients();
+    QList<SendCoinsRecipient> recipients = transactions[0].getRecipients();
     std::vector<CRecipient> vecSend;
 
     if(recipients.empty())
