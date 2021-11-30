@@ -9,7 +9,7 @@
  * network protocol versioning
  */
 
-static const int PROTOCOL_VERSION = 90030;
+static const int PROTOCOL_VERSION = 90031;
 
 //! legacy znode protocol version
 static const int LEGACY_ZNODES_PROTOCOL_VERSION = 90026;
@@ -59,5 +59,8 @@ static const int DMN_PROTO_VERSION = 90030;
 
 //! introduction of LLMQs
 static const int LLMQS_PROTO_VERSION = 90030;
+
+//! introducing blocks with stripped MTP data
+static const int MTPDATA_STRIPPED_VERSION = 90031;
 
 #endif // BITCOIN_VERSION_H
