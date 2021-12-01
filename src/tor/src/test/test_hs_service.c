@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2019, The Tor Project, Inc. */
+/* Copyright (c) 2016-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -19,7 +19,7 @@
 #define MAINLOOP_PRIVATE
 #define NETWORKSTATUS_PRIVATE
 #define STATEFILE_PRIVATE
-#define TOR_CHANNEL_INTERNAL_
+#define CHANNEL_OBJECT_PRIVATE
 #define HS_CLIENT_PRIVATE
 #define CRYPT_PATH_PRIVATE
 
@@ -183,9 +183,8 @@ test_e2e_rend_circuit_setup(void *arg)
   /* Setup the circuit: do the ntor key exchange */
   {
     uint8_t ntor_key_seed[DIGEST256_LEN] = {2};
-    retval = hs_circuit_setup_e2e_rend_circ(or_circ,
-                                       ntor_key_seed, sizeof(ntor_key_seed),
-                                       1);
+    retval = hs_circuit_setup_e2e_rend_circ(or_circ, ntor_key_seed,
+                                            sizeof(ntor_key_seed), 1);
     tt_int_op(retval, OP_EQ, 0);
   }
 
@@ -194,11 +193,9 @@ test_e2e_rend_circuit_setup(void *arg)
   tt_int_op(retval, OP_EQ, 1);
 
   /* Check the digest algo */
-  tt_int_op(
-         crypto_digest_get_algorithm(or_circ->cpath->pvt_crypto.f_digest),
+  tt_int_op(crypto_digest_get_algorithm(or_circ->cpath->pvt_crypto.f_digest),
             OP_EQ, DIGEST_SHA3_256);
-  tt_int_op(
-         crypto_digest_get_algorithm(or_circ->cpath->pvt_crypto.b_digest),
+  tt_int_op(crypto_digest_get_algorithm(or_circ->cpath->pvt_crypto.b_digest),
             OP_EQ, DIGEST_SHA3_256);
   tt_assert(or_circ->cpath->pvt_crypto.f_crypto);
   tt_assert(or_circ->cpath->pvt_crypto.b_crypto);
@@ -1013,7 +1010,6 @@ test_intro_established(void *arg)
   /* Send an empty payload. INTRO_ESTABLISHED cells are basically zeroes. */
   ret = hs_service_receive_intro_established(circ, payload, sizeof(payload));
   tt_int_op(ret, OP_EQ, 0);
-  tt_u64_op(ip->circuit_established, OP_EQ, 1);
   tt_int_op(TO_CIRCUIT(circ)->purpose, OP_EQ, CIRCUIT_PURPOSE_S_INTRO);
 
  done:
@@ -1296,18 +1292,11 @@ test_service_event(void *arg)
      * descriptor map so we can retry it. */
     ip = helper_create_service_ip();
     service_intro_point_add(service->desc_current->intro_points.map, ip);
-    ip->circuit_established = 1;  /* We'll test that, it MUST be 0 after. */
-    run_housekeeping_event(now);
-    tt_int_op(digest256map_size(service->desc_current->intro_points.map),
-              OP_EQ, 1);
-    /* No removal if we have an established circuit after retries. */
-    ip->circuit_retries = MAX_INTRO_POINT_CIRCUIT_RETRIES + 1;
     run_housekeeping_event(now);
     tt_int_op(digest256map_size(service->desc_current->intro_points.map),
               OP_EQ, 1);
     /* Remove the IP object at once for the next test. */
     ip->circuit_retries = MAX_INTRO_POINT_CIRCUIT_RETRIES + 1;
-    ip->circuit_established = 0;
     run_housekeeping_event(now);
     tt_int_op(digest256map_size(service->desc_current->intro_points.map),
               OP_EQ, 0);

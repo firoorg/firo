@@ -22,10 +22,10 @@ static const struct {
     /** Extra padding/spacing in transactionview */
     const bool useExtraSpacing;
 } platform_styles[] = {
-    {"macosx", false, false, true},
-    {"windows", true, false, false},
+    {"macosx", false, true, true},
+    {"windows", false, true, false},
     /* Other: linux, unix, ... */
-    {"other", true, true, false}
+    {"other", false, true, false}
 };
 static const unsigned platform_styles_count = sizeof(platform_styles)/sizeof(*platform_styles);
 
@@ -40,7 +40,8 @@ void MakeSingleColorImage(QImage& img, const QColor& colorbase)
         for (int y = img.height(); y--; )
         {
             const QRgb rgb = img.pixel(x, y);
-            img.setPixel(x, y, qRgba(colorbase.red(), colorbase.green(), colorbase.blue(), qAlpha(rgb)));
+            // set default to firo red
+            img.setPixel(x, y, qRgba(155, 28, 46, qAlpha(rgb)));
         }
     }
 }
@@ -94,8 +95,8 @@ PlatformStyle::PlatformStyle(const QString &_name, bool _imagesOnButtons, bool _
             colorbase = colorHighlightFg;
         singleColor = colorbase;
     }
-    // Determine text color
-    textColor = QColor(QApplication::palette().color(QPalette::WindowText));
+    // Determine text color // customized in stylesheet
+    textColor = QColor(0,0,0);
 }
 
 QImage PlatformStyle::SingleColorImage(const QString& filename) const

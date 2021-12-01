@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2019, The Tor Project, Inc. */
+/* Copyright (c) 2011-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -97,6 +97,8 @@
 #include "core/or/circuitbuild.h"
 #include "feature/client/transports.h"
 #include "feature/relay/router.h"
+/* 31851: split the server transport code out of the client module */
+#include "feature/relay/transport_config.h"
 #include "app/config/statefile.h"
 #include "core/or/connection_or.h"
 #include "feature/relay/ext_orport.h"
@@ -733,6 +735,9 @@ get_pt_proxy_uri(void)
   const or_options_t *options = get_options();
   char *uri = NULL;
 
+  /* XXX: Currently TCPProxy is not supported in TOR_PT_PROXY because
+   * there isn't a standard URI scheme for some proxy protocols, such as
+   * haproxy. */
   if (options->Socks4Proxy || options->Socks5Proxy || options->HTTPSProxy) {
     char addr[TOR_ADDR_BUF_LEN+1];
 
@@ -1279,7 +1284,7 @@ get_transport_options_for_server_proxy(const managed_proxy_t *mp)
       string. */
   SMARTLIST_FOREACH_BEGIN(mp->transports_to_launch, const char *, transport) {
     smartlist_t *options_tmp_sl = NULL;
-    options_tmp_sl = get_options_for_server_transport(transport);
+    options_tmp_sl = pt_get_options_for_server_transport(transport);
     if (!options_tmp_sl)
       continue;
 
@@ -1853,7 +1858,9 @@ managed_proxy_stderr_callback(process_t *process,
   if (BUG(mp == NULL))
     return;
 
-  log_warn(LD_PT, "Managed proxy at '%s' reported: %s", mp->argv[0], line);
+  log_info(LD_PT,
+           "Managed proxy at '%s' reported via standard error: %s",
+           mp->argv[0], line);
 }
 
 /** Callback function that is called when our PT process terminates. The

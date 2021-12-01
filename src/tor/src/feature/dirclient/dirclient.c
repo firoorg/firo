@@ -1,7 +1,12 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
+
+/**
+ * @file dirclient.c
+ * @brief Download directory information
+ **/
 
 #define DIRCLIENT_PRIVATE
 
@@ -20,6 +25,7 @@
 #include "feature/dirauth/shared_random.h"
 #include "feature/dircache/dirserv.h"
 #include "feature/dirclient/dirclient.h"
+#include "feature/dirclient/dirclient_modes.h"
 #include "feature/dirclient/dlstatus.h"
 #include "feature/dircommon/consdiff.h"
 #include "feature/dircommon/directory.h"
@@ -448,7 +454,7 @@ directory_get_from_dirserver,(
 {
   const routerstatus_t *rs = NULL;
   const or_options_t *options = get_options();
-  int prefer_authority = (directory_fetches_from_authorities(options)
+  int prefer_authority = (dirclient_fetches_from_authorities(options)
                           || want_authority == DL_WANT_AUTHORITY);
   int require_authority = 0;
   int get_via_tor = purpose_needs_anonymity(dir_purpose, router_purpose,
@@ -667,7 +673,7 @@ directory_choose_address_routerstatus(const routerstatus_t *status,
   if (indirection == DIRIND_DIRECT_CONN ||
       indirection == DIRIND_ANON_DIRPORT ||
       (indirection == DIRIND_ONEHOP
-       && !directory_must_use_begindir(options))) {
+       && !dirclient_must_use_begindir(options))) {
     fascist_firewall_choose_address_rs(status, FIREWALL_DIR_CONNECTION, 0,
                                        use_dir_ap);
     have_dir = tor_addr_port_is_valid_ap(use_dir_ap, 0);
@@ -866,16 +872,6 @@ connection_dir_download_cert_failed(dir_connection_t *conn, int status)
   update_certificate_downloads(time(NULL));
 }
 
-/* Should this tor instance only use begindir for all its directory requests?
- */
-int
-directory_must_use_begindir(const or_options_t *options)
-{
-  /* Clients, onion services, and bridges must use begindir,
-   * relays and authorities do not have to */
-  return !public_server_mode(options);
-}
-
 /** Evaluate the situation and decide if we should use an encrypted
  * "begindir-style" connection for this directory request.
  * 0) If there is no DirPort, yes.
@@ -927,7 +923,7 @@ directory_command_should_use_begindir(const or_options_t *options,
   }
   /* Reasons why we want to avoid using begindir */
   if (indirection == DIRIND_ONEHOP) {
-    if (!directory_must_use_begindir(options)) {
+    if (!dirclient_must_use_begindir(options)) {
       *reason = "in relay mode";
       return 0;
     }
@@ -1289,7 +1285,7 @@ directory_initiate_request,(directory_request_t *request))
 
   /* use encrypted begindir connections for everything except relays
    * this provides better protection for directory fetches */
-  if (!use_begindir && directory_must_use_begindir(options)) {
+  if (!use_begindir && dirclient_must_use_begindir(options)) {
     log_warn(LD_BUG, "Client could not use begindir connection: %s",
              begindir_reason ? begindir_reason : "(NULL)");
     return;
@@ -1369,7 +1365,7 @@ directory_initiate_request,(directory_request_t *request))
       case 1:
         /* start flushing conn */
         conn->base_.state = DIR_CONN_STATE_CLIENT_SENDING;
-        /* fall through */
+        FALLTHROUGH;
       case 0:
         /* queue the command on the outbuf */
         directory_send_command(conn, 1, request);
@@ -2728,62 +2724,7 @@ handle_response_fetch_hsdesc_v3(dir_connection_t *conn,
   log_info(LD_REND,"Received v3 hsdesc (body size %d, status %d (%s))",
            (int)body_len, status_code, escaped(reason));
 
-  switch (status_code) {
-  case 200:
-    /* We got something: Try storing it in the cache. */
-    if (hs_cache_store_as_client(body, &conn->hs_ident->identity_pk) < 0) {
-      log_info(LD_REND, "Failed to store hidden service descriptor");
-      /* Fire control port FAILED event. */
-      hs_control_desc_event_failed(conn->hs_ident, conn->identity_digest,
-                                   "BAD_DESC");
-      hs_control_desc_event_content(conn->hs_ident, conn->identity_digest,
-                                    NULL);
-    } else {
-      log_info(LD_REND, "Stored hidden service descriptor successfully.");
-      TO_CONN(conn)->purpose = DIR_PURPOSE_HAS_FETCHED_HSDESC;
-      hs_client_desc_has_arrived(conn->hs_ident);
-      /* Fire control port RECEIVED event. */
-      hs_control_desc_event_received(conn->hs_ident, conn->identity_digest);
-      hs_control_desc_event_content(conn->hs_ident, conn->identity_digest,
-                                    body);
-    }
-    break;
-  case 404:
-    /* Not there. We'll retry when connection_about_to_close_connection()
-     * tries to clean this conn up. */
-    log_info(LD_REND, "Fetching hidden service v3 descriptor not found: "
-                      "Retrying at another directory.");
-    /* Fire control port FAILED event. */
-    hs_control_desc_event_failed(conn->hs_ident, conn->identity_digest,
-                                 "NOT_FOUND");
-    hs_control_desc_event_content(conn->hs_ident, conn->identity_digest,
-                                  NULL);
-    break;
-  case 400:
-    log_warn(LD_REND, "Fetching v3 hidden service descriptor failed: "
-                      "http status 400 (%s). Dirserver didn't like our "
-                      "query? Retrying at another directory.",
-             escaped(reason));
-    /* Fire control port FAILED event. */
-    hs_control_desc_event_failed(conn->hs_ident, conn->identity_digest,
-                                 "QUERY_REJECTED");
-    hs_control_desc_event_content(conn->hs_ident, conn->identity_digest,
-                                  NULL);
-    break;
-  default:
-    log_warn(LD_REND, "Fetching v3 hidden service descriptor failed: "
-             "http status %d (%s) response unexpected from HSDir server "
-             "'%s:%d'. Retrying at another directory.",
-             status_code, escaped(reason), TO_CONN(conn)->address,
-             TO_CONN(conn)->port);
-    /* Fire control port FAILED event. */
-    hs_control_desc_event_failed(conn->hs_ident, conn->identity_digest,
-                                 "UNEXPECTED");
-    hs_control_desc_event_content(conn->hs_ident, conn->identity_digest,
-                                  NULL);
-    break;
-  }
-
+  hs_client_dir_fetch_done(conn, reason, body, status_code);
   return 0;
 }
 
@@ -3143,7 +3084,7 @@ dir_routerdesc_download_failed(smartlist_t *failed, int status_code,
 {
   char digest[DIGEST_LEN];
   time_t now = time(NULL);
-  int server = directory_fetches_from_authorities(get_options());
+  int server = dirclient_fetches_from_authorities(get_options());
   if (!was_descriptor_digests) {
     if (router_purpose == ROUTER_PURPOSE_BRIDGE) {
       tor_assert(!was_extrainfo);
@@ -3188,7 +3129,7 @@ dir_microdesc_download_failed(smartlist_t *failed,
   routerstatus_t *rs;
   download_status_t *dls;
   time_t now = time(NULL);
-  int server = directory_fetches_from_authorities(get_options());
+  int server = dirclient_fetches_from_authorities(get_options());
 
   if (! consensus)
     return;

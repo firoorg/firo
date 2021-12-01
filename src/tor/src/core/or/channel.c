@@ -1,5 +1,5 @@
 
-/* * Copyright (c) 2012-2019, The Tor Project, Inc. */
+/* * Copyright (c) 2012-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -52,10 +52,10 @@
  * Define this so channel.h gives us things only channel_t subclasses
  * should touch.
  */
-#define TOR_CHANNEL_INTERNAL_
+#define CHANNEL_OBJECT_PRIVATE
 
 /* This one's for stuff only channel.c and the test suite should see */
-#define CHANNEL_PRIVATE_
+#define CHANNEL_FILE_PRIVATE
 
 #include "core/or/or.h"
 #include "app/config/config.h"
@@ -106,7 +106,7 @@ static smartlist_t *finished_listeners = NULL;
 
 /** Map from channel->global_identifier to channel.  Contains the same
  * elements as all_channels. */
-static HT_HEAD(channel_gid_map, channel_s) channel_gid_map = HT_INITIALIZER();
+static HT_HEAD(channel_gid_map, channel_t) channel_gid_map = HT_INITIALIZER();
 
 static unsigned
 channel_id_hash(const channel_t *chan)
@@ -118,13 +118,13 @@ channel_id_eq(const channel_t *a, const channel_t *b)
 {
   return a->global_identifier == b->global_identifier;
 }
-HT_PROTOTYPE(channel_gid_map, channel_s, gidmap_node,
+HT_PROTOTYPE(channel_gid_map, channel_t, gidmap_node,
              channel_id_hash, channel_id_eq)
-HT_GENERATE2(channel_gid_map, channel_s, gidmap_node,
+HT_GENERATE2(channel_gid_map, channel_t, gidmap_node,
              channel_id_hash, channel_id_eq,
              0.6, tor_reallocarray_, tor_free_)
 
-HANDLE_IMPL(channel, channel_s,)
+HANDLE_IMPL(channel, channel_t,)
 
 /* Counter for ID numbers */
 static uint64_t n_channels_allocated = 0;
@@ -137,13 +137,13 @@ static uint64_t n_channels_allocated = 0;
  * If more than one channel exists, follow the next_with_same_id pointer
  * as a linked list.
  */
-static HT_HEAD(channel_idmap, channel_idmap_entry_s) channel_identity_map =
+static HT_HEAD(channel_idmap, channel_idmap_entry_t) channel_identity_map =
   HT_INITIALIZER();
 
-typedef struct channel_idmap_entry_s {
-  HT_ENTRY(channel_idmap_entry_s) node;
+typedef struct channel_idmap_entry_t {
+  HT_ENTRY(channel_idmap_entry_t) node;
   uint8_t digest[DIGEST_LEN];
-  TOR_LIST_HEAD(channel_list_s, channel_s) channel_list;
+  TOR_LIST_HEAD(channel_list_t, channel_t) channel_list;
 } channel_idmap_entry_t;
 
 static inline unsigned
@@ -159,9 +159,9 @@ channel_idmap_eq(const channel_idmap_entry_t *a,
   return tor_memeq(a->digest, b->digest, DIGEST_LEN);
 }
 
-HT_PROTOTYPE(channel_idmap, channel_idmap_entry_s, node, channel_idmap_hash,
+HT_PROTOTYPE(channel_idmap, channel_idmap_entry_t, node, channel_idmap_hash,
              channel_idmap_eq)
-HT_GENERATE2(channel_idmap, channel_idmap_entry_s, node, channel_idmap_hash,
+HT_GENERATE2(channel_idmap, channel_idmap_entry_t, node, channel_idmap_hash,
              channel_idmap_eq, 0.5,  tor_reallocarray_, tor_free_)
 
 /* Functions to maintain the digest map */
@@ -1067,23 +1067,6 @@ channel_get_cell_handler(channel_t *chan)
 }
 
 /**
- * Return the variable-length cell handler for a channel.
- *
- * This function gets the handler for incoming variable-length cells
- * installed on a channel.
- */
-channel_var_cell_handler_fn_ptr
-channel_get_var_cell_handler(channel_t *chan)
-{
-  tor_assert(chan);
-
-  if (CHANNEL_CAN_HANDLE_CELLS(chan))
-    return chan->var_cell_handler;
-
-  return NULL;
-}
-
-/**
  * Set both cell handlers for a channel.
  *
  * This function sets both the fixed-length and variable length cell handlers
@@ -1091,9 +1074,7 @@ channel_get_var_cell_handler(channel_t *chan)
  */
 void
 channel_set_cell_handlers(channel_t *chan,
-                          channel_cell_handler_fn_ptr cell_handler,
-                          channel_var_cell_handler_fn_ptr
-                            var_cell_handler)
+                          channel_cell_handler_fn_ptr cell_handler)
 {
   tor_assert(chan);
   tor_assert(CHANNEL_CAN_HANDLE_CELLS(chan));
@@ -1101,13 +1082,9 @@ channel_set_cell_handlers(channel_t *chan,
   log_debug(LD_CHANNEL,
            "Setting cell_handler callback for channel %p to %p",
            chan, cell_handler);
-  log_debug(LD_CHANNEL,
-           "Setting var_cell_handler callback for channel %p to %p",
-           chan, var_cell_handler);
 
   /* Change them */
   chan->cell_handler = cell_handler;
-  chan->var_cell_handler = var_cell_handler;
 }
 
 /*
@@ -1882,7 +1859,7 @@ channel_do_open_actions(channel_t *chan)
         tor_free(transport_name);
         /* Notify the DoS subsystem of a new client. */
         if (tlschan && tlschan->conn) {
-          dos_new_client_conn(tlschan->conn);
+          dos_new_client_conn(tlschan->conn, transport_name);
         }
       }
       /* Otherwise the underlying transport can't tell us this, so skip it */
@@ -3406,7 +3383,7 @@ channel_sort_by_ed25519_identity(const void **a_, const void **b_)
  * all of which MUST have the same RSA ID.  (They MAY have different
  * Ed25519 IDs.) */
 static void
-channel_rsa_id_group_set_badness(struct channel_list_s *lst, int force)
+channel_rsa_id_group_set_badness(struct channel_list_t *lst, int force)
 {
   /*XXXX This function should really be about channels. 15056 */
   channel_t *chan = TOR_LIST_FIRST(lst);

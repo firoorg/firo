@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2019, The Tor Project, Inc. */
+/* Copyright (c) 2016-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -222,7 +222,7 @@ token_check_object(memarea_t *area, const char *kwd,
                      kwd, crypto_pk_num_bits(tok->key));
         RET_ERR(ebuf);
       }
-      /* fall through */
+      FALLTHROUGH;
     case NEED_KEY: /* There must be some kind of key. */
       if (!tok->key) {
         tor_snprintf(ebuf, sizeof(ebuf), "Missing public key for %s", kwd);

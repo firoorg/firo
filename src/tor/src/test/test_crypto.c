@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
@@ -29,9 +29,9 @@
 
 #if defined(ENABLE_OPENSSL)
 #include "lib/crypt_ops/compat_openssl.h"
-DISABLE_GCC_WARNING(redundant-decls)
+DISABLE_GCC_WARNING("-Wredundant-decls")
 #include <openssl/dh.h>
-ENABLE_GCC_WARNING(redundant-decls)
+ENABLE_GCC_WARNING("-Wredundant-decls")
 #endif /* defined(ENABLE_OPENSSL) */
 
 /** Run unit tests for Diffie-Hellman functionality. */
@@ -3009,6 +3009,7 @@ test_crypto_failure_modes(void *arg)
   ;
 }
 
+#ifndef COCCI
 #define CRYPTO_LEGACY(name)                                            \
   { #name, test_crypto_ ## name , 0, NULL, NULL }
 
@@ -3019,6 +3020,7 @@ test_crypto_failure_modes(void *arg)
 #define ED25519_TEST(name, fl)                  \
   ED25519_TEST_ONE(name, (fl), "donna"),        \
   ED25519_TEST_ONE(name, (fl), "ref10")
+#endif /* !defined(COCCI) */
 
 struct testcase_t crypto_tests[] = {
   CRYPTO_LEGACY(formats),

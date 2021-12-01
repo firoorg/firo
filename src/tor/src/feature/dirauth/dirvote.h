@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -49,35 +49,11 @@
 #define MIN_VOTE_INTERVAL_TESTING_INITIAL \
                 ((MIN_VOTE_SECONDS_TESTING)+(MIN_DIST_SECONDS_TESTING)+1)
 
-/* A placeholder for routerstatus_format_entry() when the consensus method
- * argument is not applicable. */
-#define ROUTERSTATUS_FORMAT_NO_CONSENSUS_METHOD 0
-
 /** The lowest consensus method that we currently support. */
-#define MIN_SUPPORTED_CONSENSUS_METHOD 25
+#define MIN_SUPPORTED_CONSENSUS_METHOD 28
 
 /** The highest consensus method that we currently support. */
 #define MAX_SUPPORTED_CONSENSUS_METHOD 29
-
-/** Lowest consensus method where authorities vote on required/recommended
- * protocols. */
-#define MIN_METHOD_FOR_RECOMMENDED_PROTOCOLS 25
-
-/** Lowest consensus method where authorities add protocols to routerstatus
- * entries. */
-#define MIN_METHOD_FOR_RS_PROTOCOLS 25
-
-/** Lowest consensus method where authorities initialize bandwidth weights to 1
- * instead of 0. See #14881 */
-#define MIN_METHOD_FOR_INIT_BW_WEIGHTS_ONE 26
-
-/** Lowest consensus method where the microdesc consensus contains relay IPv6
- * addresses. See #23826 and #20916. */
-#define MIN_METHOD_FOR_A_LINES_IN_MICRODESC_CONSENSUS 27
-
-/** Lowest consensus method where microdescriptors do not contain relay IPv6
- * addresses. See #23828 and #20916. */
-#define MIN_METHOD_FOR_NO_A_LINES_IN_MICRODESC 28
 
 /**
  * Lowest consensus method where microdescriptor lines are put in canonical
@@ -186,7 +162,7 @@ dirvote_add_signatures(const char *detached_signatures_body,
 {
   (void) detached_signatures_body;
   (void) source;
-  (void) msg_out;
+  *msg_out = "No directory authority support";
   /* If the dirauth module is disabled, this should NEVER be called else we
    * failed to safeguard the dirauth module. */
   tor_assert_nonfatal_unreached();

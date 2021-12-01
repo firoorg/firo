@@ -20,6 +20,9 @@ Recover::Recover(QWidget *parent) :
     ui(new Ui::Recover),
     thread(0)
 {
+    // load stylesheet
+    GUIUtil::loadTheme();
+    
     ui->setupUi(this);
     setCreateNew();
     thread = new QThread(this);

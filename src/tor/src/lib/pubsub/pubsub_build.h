@@ -1,7 +1,7 @@
 /* Copyright (c) 2001, Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2018, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -85,6 +85,11 @@ struct dispatch_t *pubsub_builder_finalize(pubsub_builder_t *,
  **/
 void pubsub_items_clear_bindings(pubsub_items_t *items);
 
+/**
+ * @copydoc pubsub_items_free_
+ *
+ * Additionally, set the pointer <b>cfg</b> to NULL.
+ **/
 #define pubsub_items_free(cfg) \
   FREE_AND_NULL(pubsub_items_t, pubsub_items_free_, (cfg))
 void pubsub_items_free_(pubsub_items_t *cfg);

@@ -191,7 +191,6 @@ testScripts = [
     'sigma_listsigmamints_validation.py',
     'sigma_listsigmaspends_validation.py',
     'sigma_listunspentmints_sigma_validation.py',
-    'sigma_listsigmapubcoins_validation.py',
     'sigma_resetsigmamint_validation.py',
     'sigma_setsigmamintstatus_validation.py',
     'sigma_spend_gettransaction.py',

@@ -1,18 +1,17 @@
-/* Copyright (c) 2013-2019, The Tor Project, Inc. */
+/* Copyright (c) 2013-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "core/or/or.h"
 #include "app/config/config.h"
 
 #include "lib/evloop/compat_libevent.h"
-#define SCHEDULER_PRIVATE_
+#define SCHEDULER_PRIVATE
 #define SCHEDULER_KIST_PRIVATE
 #include "core/or/scheduler.h"
 #include "core/mainloop/mainloop.h"
 #include "lib/buf/buffers.h"
-#define TOR_CHANNEL_INTERNAL_
+#define CHANNEL_OBJECT_PRIVATE
 #include "core/or/channeltls.h"
-#include "lib/evloop/compat_libevent.h"
 
 #include "core/or/or_connection_st.h"
 
@@ -192,7 +191,7 @@ get_scheduler_type_string(scheduler_types_t type)
   case SCHEDULER_KIST_LITE:
     return "KISTLite";
   case SCHEDULER_NONE:
-    /* fallthrough */
+    FALLTHROUGH;
   default:
     tor_assert_unreached();
     return "(N/A)";
@@ -288,7 +287,7 @@ select_scheduler(void)
       scheduler_kist_set_lite_mode();
       goto end;
     case SCHEDULER_NONE:
-      /* fallthrough */
+      FALLTHROUGH;
     default:
       /* Our option validation should have caught this. */
       tor_assert_unreached();

@@ -337,20 +337,12 @@
          <property name="text">
           <string>&amp;Mint</string>
          </property>
-         <property name="icon">
-          <iconset>
-           <normaloff>../res/icons/add.png</normaloff>../res/icons/add.png</iconset>
-         </property>
         </widget>
        </item>
        <item>
         <widget class="QPushButton" name="clearAllButton">
          <property name="text">
           <string>&amp;Clear All</string>
-         </property>
-         <property name="icon">
-          <iconset>
-           <normaloff>../res/icons/quit.png</normaloff>../res/icons/quit.png</iconset>
          </property>
         </widget>
        </item>

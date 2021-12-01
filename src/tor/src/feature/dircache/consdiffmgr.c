@@ -1,8 +1,8 @@
-/* Copyright (c) 2017-2019, The Tor Project, Inc. */
+/* Copyright (c) 2017-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
- * \file consdiffmsr.c
+ * \file consdiffmgr.c
  *
  * \brief consensus diff manager functions
  *
@@ -844,7 +844,7 @@ consdiffmgr_configure(const consdiff_cfg_t *cfg)
  * operations that the consensus diff manager will need.
  */
 int
-consdiffmgr_register_with_sandbox(struct sandbox_cfg_elem **cfg)
+consdiffmgr_register_with_sandbox(struct sandbox_cfg_elem_t **cfg)
 {
   return consensus_cache_register_with_sandbox(cdm_cache_get(), cfg);
 }
@@ -1293,7 +1293,7 @@ typedef struct compressed_result_t {
 
 /**
  * Compress the bytestring <b>input</b> of length <b>len</b> using the
- * <n>n_methods</b> compression methods listed in the array <b>methods</b>.
+ * <b>n_methods</b> compression methods listed in the array <b>methods</b>.
  *
  * For each successful compression, set the fields in the <b>results_out</b>
  * array in the position corresponding to the compression method. Use

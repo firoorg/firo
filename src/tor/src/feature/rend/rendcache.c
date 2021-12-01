@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Tor Project, Inc. */
+/* Copyright (c) 2015-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -226,6 +226,17 @@ static void
 rend_cache_entry_free_void(void *p)
 {
   rend_cache_entry_free_(p);
+}
+
+/** Check if a failure cache entry exists for the given intro point. */
+bool
+rend_cache_intro_failure_exists(const char *service_id,
+                                const uint8_t *intro_identity)
+{
+  tor_assert(service_id);
+  tor_assert(intro_identity);
+
+  return cache_failure_intro_lookup(intro_identity, service_id, NULL);
 }
 
 /** Free all storage held by the service descriptor cache. */
@@ -515,8 +526,15 @@ rend_cache_lookup_entry(const char *query, int version, rend_cache_entry_t **e)
   rend_cache_entry_t *entry = NULL;
   static const int default_version = 2;
 
-  tor_assert(rend_cache);
   tor_assert(query);
+
+  /* This is possible if we are in the shutdown process and the cache was
+   * freed while some other subsystem might do a lookup to the cache for
+   * cleanup reasons such HS circuit cleanup for instance. */
+  if (!rend_cache) {
+    ret = -ENOENT;
+    goto end;
+  }
 
   if (!rend_valid_v2_service_id(query)) {
     ret = -EINVAL;
