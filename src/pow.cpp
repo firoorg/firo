@@ -155,8 +155,9 @@ bool CheckMerkleTreeProof(const CBlockHeader &block, const Consensus::Params &pa
     if (!block.IsMTP() || block.IsProgPow())
 	    return true;
 
-    if (!block.mtpHashData)
-        return false;
+    if (!block.mtpHashData || block.mtpHashData->IsMTPDataStripped())
+        // MTP data was stripped from the block, can't verify. Return true
+        return true;
 
     uint256 calculatedMtpHashValue;
     bool isVerified = mtp::verify(block.nNonce, block, Params().GetConsensus().powLimit, &calculatedMtpHashValue) &&
