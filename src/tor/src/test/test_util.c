@@ -1,14 +1,11 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
-#define COMPAT_PRIVATE
 #define COMPAT_TIME_PRIVATE
-#define UTIL_PRIVATE
 #define UTIL_MALLOC_PRIVATE
-#define SOCKET_PRIVATE
 #define PROCESS_WIN32_PRIVATE
 #include "lib/testsupport/testsupport.h"
 #include "core/or/or.h"
@@ -33,6 +30,7 @@
 #include "lib/process/env.h"
 #include "lib/process/pidfile.h"
 #include "lib/intmath/weakrng.h"
+#include "lib/intmath/muldiv.h"
 #include "lib/thread/numcpus.h"
 #include "lib/math/fp.h"
 #include "lib/math/laplace.h"
@@ -73,6 +71,11 @@
 #include <math.h>
 #include <ctype.h>
 #include <float.h>
+
+/* These platforms don't have meaningful pwdb or homedirs. */
+#if defined(_WIN32) || defined(__ANDROID__)
+#define DISABLE_PWDB_TESTS
+#endif
 
 #define INFINITY_DBL ((double)INFINITY)
 #define NAN_DBL ((double)NAN)
@@ -304,6 +307,7 @@ test_util_write_chunks_to_file(void *arg)
   tor_free(temp_str);
 }
 
+#ifndef COCCI
 #define _TFE(a, b, f)  tt_int_op((a).f, OP_EQ, (b).f)
 /** test the minimum set of struct tm fields needed for a unique epoch value
  * this is also the set we use to test tor_timegm */
@@ -316,6 +320,7 @@ test_util_write_chunks_to_file(void *arg)
             _TFE(a, b, tm_min ); \
             _TFE(a, b, tm_sec ); \
           TT_STMT_END
+#endif /* !defined(COCCI) */
 
 static void
 test_util_time(void *arg)
@@ -1845,7 +1850,7 @@ test_util_config_line_crlf(void *arg)
   tor_free(k); tor_free(v);
 }
 
-#ifndef _WIN32
+#ifndef DISABLE_PWDB_TESTS
 static void
 test_util_expand_filename(void *arg)
 {
@@ -1942,7 +1947,7 @@ test_util_expand_filename(void *arg)
  done:
   tor_free(str);
 }
-#endif /* !defined(_WIN32) */
+#endif /* !defined(DISABLE_PWDB_TESTS) */
 
 /** Test tor_escape_str_for_pt_args(). */
 static void
@@ -4104,9 +4109,42 @@ test_util_string_is_utf8(void *ptr)
   tt_int_op(0, OP_EQ, string_is_utf8("\xed\xbf\xbf", 3));
   tt_int_op(1, OP_EQ, string_is_utf8("\xee\x80\x80", 3));
 
-  // The maximum legal codepoint, 10FFFF.
+  // The minimum legal codepoint, 0x00.
+  tt_int_op(1, OP_EQ, string_is_utf8("\0", 1));
+
+  // The maximum legal codepoint, 0x10FFFF.
   tt_int_op(1, OP_EQ, string_is_utf8("\xf4\x8f\xbf\xbf", 4));
   tt_int_op(0, OP_EQ, string_is_utf8("\xf4\x90\x80\x80", 4));
+
+  /* Test cases that vary between programming languages /
+   * UTF-8 implementations.
+   * Source: POC||GTFO 19, page 43
+   * https://www.alchemistowl.org/pocorgtfo/
+   */
+
+  // Invalid (in most implementations)
+  // surrogate
+  tt_int_op(0, OP_EQ, string_is_utf8("\xed\xa0\x81", 3));
+  // nullsurrog
+  tt_int_op(0, OP_EQ, string_is_utf8("\x30\x00\xed\xa0\x81", 5));
+  // threehigh
+  tt_int_op(0, OP_EQ, string_is_utf8("\xed\xbf\xbf", 3));
+  // fourhigh
+  tt_int_op(0, OP_EQ, string_is_utf8("\xf4\x90\xbf\xbf", 4));
+  // fivebyte
+  tt_int_op(0, OP_EQ, string_is_utf8("\xfb\x80\x80\x80\x80", 5));
+  // sixbyte
+  tt_int_op(0, OP_EQ, string_is_utf8("\xfd\x80\x80\x80\x80", 5));
+  // sixhigh
+  tt_int_op(0, OP_EQ, string_is_utf8("\xfd\xbf\xbf\xbf\xbf", 5));
+
+  // Valid (in most implementations)
+  // fourbyte
+  tt_int_op(1, OP_EQ, string_is_utf8("\xf0\x90\x8d\x88", 4));
+  // fourbyte2
+  tt_int_op(1, OP_EQ, string_is_utf8("\xf0\xbf\xbf\xbf", 4));
+  // nullbyte
+  tt_int_op(1, OP_EQ, string_is_utf8("\x30\x31\x32\x00\x33", 5));
 
  done:
   ;
@@ -5653,7 +5691,7 @@ test_util_touch_file(void *arg)
   ;
 }
 
-#ifndef _WIN32
+#ifndef DISABLE_PWDB_TESTS
 static void
 test_util_pwdb(void *arg)
 {
@@ -5725,7 +5763,7 @@ test_util_pwdb(void *arg)
   tor_free(dir);
   teardown_capture_of_logs();
 }
-#endif /* !defined(_WIN32) */
+#endif /* !defined(DISABLE_PWDB_TESTS) */
 
 static void
 test_util_calloc_check(void *arg)
@@ -5972,6 +6010,14 @@ test_util_nowrap_math(void *arg)
   tt_u64_op(UINT32_MAX, OP_EQ, tor_add_u32_nowrap(UINT32_MAX-1, 2));
   tt_u64_op(UINT32_MAX, OP_EQ, tor_add_u32_nowrap(2, UINT32_MAX-1));
   tt_u64_op(UINT32_MAX, OP_EQ, tor_add_u32_nowrap(UINT32_MAX, UINT32_MAX));
+
+  tt_u64_op(0, OP_EQ, tor_mul_u64_nowrap(0, 0));
+  tt_u64_op(1, OP_EQ, tor_mul_u64_nowrap(1, 1));
+  tt_u64_op(2, OP_EQ, tor_mul_u64_nowrap(2, 1));
+  tt_u64_op(4, OP_EQ, tor_mul_u64_nowrap(2, 2));
+  tt_u64_op(UINT64_MAX, OP_EQ, tor_mul_u64_nowrap(UINT64_MAX, 1));
+  tt_u64_op(UINT64_MAX, OP_EQ, tor_mul_u64_nowrap(2, UINT64_MAX));
+  tt_u64_op(UINT64_MAX, OP_EQ, tor_mul_u64_nowrap(UINT64_MAX, UINT64_MAX));
 
  done:
   ;
@@ -6257,6 +6303,7 @@ test_util_map_anon_nofork(void *arg)
 #endif /* defined(_WIN32) */
 }
 
+#ifndef COCCI
 #define UTIL_LEGACY(name)                                               \
   { #name, test_util_ ## name , 0, NULL, NULL }
 
@@ -6281,16 +6328,19 @@ test_util_map_anon_nofork(void *arg)
   { "compress_dos/" #name, test_util_decompress_dos, 0,                 \
     &compress_setup,                                                    \
     (char*)(identifier) }
+#endif /* !defined(COCCI) */
 
 #ifdef _WIN32
-#define UTIL_TEST_NO_WIN(n, f) { #n, NULL, TT_SKIP, NULL, NULL }
 #define UTIL_TEST_WIN_ONLY(n, f) UTIL_TEST(n, (f))
-#define UTIL_LEGACY_NO_WIN(n) UTIL_TEST_NO_WIN(n, 0)
 #else
-#define UTIL_TEST_NO_WIN(n, f) UTIL_TEST(n, (f))
 #define UTIL_TEST_WIN_ONLY(n, f) { #n, NULL, TT_SKIP, NULL, NULL }
-#define UTIL_LEGACY_NO_WIN(n) UTIL_LEGACY(n)
-#endif /* defined(_WIN32) */
+#endif
+
+#ifdef DISABLE_PWDB_TESTS
+#define UTIL_TEST_PWDB(n, f) { #n, NULL, TT_SKIP, NULL, NULL }
+#else
+#define UTIL_TEST_PWDB(n, f) UTIL_TEST(n, (f))
+#endif
 
 struct testcase_t util_tests[] = {
   UTIL_LEGACY(time),
@@ -6300,7 +6350,7 @@ struct testcase_t util_tests[] = {
   UTIL_LEGACY(config_line_comment_character),
   UTIL_LEGACY(config_line_escaped_content),
   UTIL_LEGACY(config_line_crlf),
-  UTIL_LEGACY_NO_WIN(expand_filename),
+  UTIL_TEST_PWDB(expand_filename, 0),
   UTIL_LEGACY(escape_string_socks),
   UTIL_LEGACY(string_is_key_value),
   UTIL_LEGACY(strmisc),
@@ -6385,7 +6435,7 @@ struct testcase_t util_tests[] = {
   UTIL_TEST(writepid, 0),
   UTIL_TEST(get_avail_disk_space, 0),
   UTIL_TEST(touch_file, 0),
-  UTIL_TEST_NO_WIN(pwdb, TT_FORK),
+  UTIL_TEST_PWDB(pwdb, TT_FORK),
   UTIL_TEST(calloc_check, 0),
   UTIL_TEST(monotonic_time, 0),
   UTIL_TEST(monotonic_time_ratchet, TT_FORK),

@@ -319,6 +319,9 @@ struct Params {
     /** reduction coefficient for rewards after MTP kicks in */
     int nMTPRewardReduction;
 
+    /** after this time MTP data is stripped from all the outgoing blocks */
+    uint32_t nMTPStripDataTime;
+
     /** block number to disable zerocoin on consensus level */
     int nDisableZerocoinStartBlock;
 

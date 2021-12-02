@@ -37,8 +37,7 @@ class ElysiumLelantusStatusTest(ElysiumTestFramework):
         if status is not None:
             args.append(status)
 
-        self.nodes[0].elysium_sendissuancefixed(*args)
-        self.nodes[0].generate(1)
+        self.mine_tx(self.nodes[0].elysium_sendissuancefixed(*args))
 
         after_properties = set([p['propertyid'] for p in self.nodes[0].elysium_listproperties()])
         diff = after_properties - before_properties
@@ -79,8 +78,7 @@ class ElysiumLelantusStatusTest(ElysiumTestFramework):
             statuses = statuses[:len(statuses) - 1]
 
         for s in statuses:
-            self.update_status(p, s)
-            self.nodes[0].generate(1)
+            self.mine_tx(self.update_status(p, s))
             self.verify_property(p, {LELANTUS_STATUS: status_str(s)})
 
         if last is not None:
@@ -114,8 +112,7 @@ class ElysiumLelantusStatusTest(ElysiumTestFramework):
         lelantus1 = self.new_property()
         self.verify_property(lelantus1, {LELANTUS_STATUS: status_str(SOFT_DISABLED)})
 
-        self.update_status(lelantus1, SOFT_ENABLED)
-        node.generate(1)
+        self.mine_tx(self.update_status(lelantus1, SOFT_ENABLED))
 
         self.verify_property(lelantus1, {LELANTUS_STATUS: status_str(SOFT_ENABLED)})
 
@@ -138,12 +135,10 @@ class ElysiumLelantusStatusTest(ElysiumTestFramework):
         raw = node.getrawtransaction(tx)
         node.clearmempool()
 
-        self.update_status(property, HARD_ENABLED)
-        node.generate(1)
+        self.mine_tx(self.update_status(property, HARD_ENABLED))
         self.verify_property(property, {LELANTUS_STATUS: status_str(HARD_ENABLED)})
 
-        node.sendrawtransaction(raw)
-        node.generate(1)
+        self.mine_tx(node.sendrawtransaction(raw))
         self.verify_property(property, {LELANTUS_STATUS: status_str(HARD_ENABLED)})
 
         # verify the transaction is on chain

@@ -74,10 +74,6 @@
         <file alias="lelantus">res/icons/lelantus.png</file>
         <file alias="paymentcode">res/icons/paymentcode.png</file>
     </qresource>
-    <qresource prefix="/images">
-        <file alias="splash">res/images/splash.png</file>
-        <file alias="splash_testnet">res/images/splash_testnet.png</file>
-    </qresource>
     <qresource prefix="/movies">
         <file alias="spinner-000">res/movies/spinner-000.png</file>
         <file alias="spinner-001">res/movies/spinner-001.png</file>
@@ -119,6 +115,41 @@
     <qresource prefix="/images">
         <file alias="about">res/images/about.png</file>
         <file alias="splash">res/images/splash.png</file>
-        <file alias="splash_testnet">res/images/splash-testnet.png</file>
+        <file alias="splash_testnet">res/images/splash_testnet.png</file>
+        <file alias="arrow_down_dark">res/images/arrow_down_dark.png</file>
+        <file alias="arrow_down_light">res/images/arrow_down_light.png</file>
+        <file alias="arrow_left_dark">res/images/arrow_left_dark.png</file>
+        <file alias="arrow_left_light">res/images/arrow_left_light.png</file>
+        <file alias="arrow_right_dark">res/images/arrow_right_dark.png</file>
+        <file alias="arrow_right_light">res/images/arrow_right_light.png</file>
+        <file alias="arrow_up_dark">res/images/arrow_up_dark.png</file>
+        <file alias="arrow_up_light">res/images/arrow_up_light.png</file>
+        <file alias="arrow_light_down_normal">res/images/arrow_light_down_normal.png</file>
+        <file alias="arrow_light_down_hover">res/images/arrow_light_down_hover.png</file>
+        <file alias="arrow_light_left_normal">res/images/arrow_light_left_normal.png</file>
+        <file alias="arrow_light_left_hover">res/images/arrow_light_left_hover.png</file>
+        <file alias="arrow_light_right_normal">res/images/arrow_light_right_normal.png</file>
+        <file alias="arrow_light_right_hover">res/images/arrow_light_right_hover.png</file>
+        <file alias="arrow_light_up_normal">res/images/arrow_light_up_normal.png</file>
+        <file alias="arrow_light_up_hover">res/images/arrow_light_up_hover.png</file>
+        <file alias="checkbox_normal_light">res/images/checkbox_normal_light.png</file>
+        <file alias="checkbox_normal_hover_light">res/images/checkbox_normal_hover_light.png</file>
+        <file alias="checkbox_normal_disabled_light">res/images/checkbox_normal_disabled_light.png</file>
+        <file alias="checkbox_checked_light">res/images/checkbox_checked_light.png</file>
+        <file alias="checkbox_checked_hover_light">res/images/checkbox_checked_hover_light.png</file>
+        <file alias="checkbox_checked_disabled_light">res/images/checkbox_checked_disabled_light.png</file>
+        <file alias="checkbox_partly_checked_light">res/images/checkbox_partly_checked_light.png</file>
+        <file alias="checkbox_partly_checked_hover_light">res/images/checkbox_partly_checked_hover_light.png</file>
+        <file alias="checkbox_partly_checked_disabled_light">res/images/checkbox_partly_checked_disabled_light.png</file>
+        <file alias="firo_logo_toolbar">res/images/firo_logo_white.png</file>
+        <file alias="radio_normal_light">res/images/radio_normal_light.png</file>
+        <file alias="radio_normal_hover_light">res/images/radio_normal_hover_light.png</file>
+        <file alias="radio_checked_light">res/images/radio_checked_light.png</file>
+        <file alias="radio_checked_hover_light">res/images/radio_checked_hover_light.png</file>
+        <file alias="radio_normal_disabled_light">res/images/radio_normal_disabled_light.png</file>
+        <file alias="radio_checked_disabled_light">res/images/radio_checked_disabled_light.png</file>
+    </qresource>
+    <qresource prefix="/css">
+        <file alias="firoTheme">res/css/firo.css</file>
     </qresource>
 </RCC>

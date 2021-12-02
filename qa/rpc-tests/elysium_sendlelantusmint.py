@@ -21,33 +21,29 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
             remaining -= 10
 
         # create non-lelantus
-        self.nodes[0].elysium_sendissuancefixed(
+        self.mine_tx(self.nodes[0].elysium_sendissuancefixed(
             self.addrs[0], 1, 1, 0, '', '', 'Non-lelantus', '', '', '1000000'
-        )
-        self.nodes[0].generate(1)
+        ))
         non_lelantus_property = 3
 
         # create lelantus
-        self.nodes[0].elysium_sendissuancefixed(
+        self.mine_tx(self.nodes[0].elysium_sendissuancefixed(
             self.addrs[0], 1, 1, 0, '', '', 'Lelantus', '', '', '1000000', 1
-        )
+        ))
 
-        self.nodes[0].generate(1)
         lelantus_property = 4
 
         # create one more divisible
-        self.nodes[0].elysium_sendissuancefixed(
+        self.mine_tx(self.nodes[0].elysium_sendissuancefixed(
             self.addrs[0], 1, 2, 0, '', '', 'Lelantus2', '', '', '1000000.00000', 1
-        )
+        ))
 
-        self.nodes[0].generate(1)
         lelantus_property_2 = 5
 
         # non-lelantus
         addr = self.nodes[0].getnewaddress()
-        self.nodes[0].elysium_send(self.addrs[0], addr, non_lelantus_property, "100")
-        self.nodes[0].sendtoaddress(addr, 100)
-        self.nodes[0].generate(1)
+        self.mine_tx(self.nodes[0].elysium_send(self.addrs[0], addr, non_lelantus_property, "100"))
+        self.mine_tx(self.nodes[0].sendtoaddress(addr, 100))
 
         assert_raises_message(
             JSONRPCException,
@@ -68,8 +64,7 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
 
         # mint without firo then fail
         addr = self.nodes[0].getnewaddress()
-        self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property, "100")
-        self.nodes[0].generate(1)
+        self.mine_tx(self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property, "100"))
 
         assert_raises_message(
             JSONRPCException,
@@ -82,8 +77,7 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
 
         # mint without token then fail
         addr = self.nodes[0].getnewaddress()
-        self.nodes[0].sendtoaddress(addr, 100)
-        self.nodes[0].generate(1)
+        self.mine_tx(self.nodes[0].sendtoaddress(addr, 100))
 
         assert_raises_message(
             JSONRPCException,
@@ -96,37 +90,46 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
 
         # success to mint should be shown on pending
         addr = self.nodes[0].getnewaddress()
+        addr2 = self.nodes[0].getnewaddress()
 
-        self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property, "100")
-        for _ in range(0, 100):
-            self.nodes[0].sendtoaddress(addr, 1)
-        self.nodes[0].generate(10)
+        self.mine_tx(self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property, "100"))
+        self.mine_tx(self.nodes[0].elysium_send(self.addrs[0], addr2, lelantus_property, "100"))
 
-        self.nodes[0].elysium_sendlelantusmint(addr, lelantus_property, "10")
-        self.nodes[0].elysium_sendlelantusmint(addr, lelantus_property, "11")
+        self.mine_tx(self.nodes[0].sendmany('', {addr2: 1, addr: 1}))
+
+        x = [
+            self.nodes[0].elysium_sendlelantusmint(addr, lelantus_property, "10"),
+            self.nodes[0].elysium_sendlelantusmint(addr2, lelantus_property, "11")
+        ]
 
         assert_equal(2, len(self.nodes[0].elysium_listpendinglelantusmints()))
-        assert_equal("79", self.nodes[0].elysium_getbalance(addr, lelantus_property)['balance'])
+        assert_equal("90", self.nodes[0].elysium_getbalance(addr, lelantus_property)['balance'])
+        assert_equal("89", self.nodes[0].elysium_getbalance(addr2, lelantus_property)['balance'])
+
+        for tx in x: self.mine_tx(tx)
 
         self.nodes[0].generate(2)
         assert_equal(0, len(self.nodes[0].elysium_listpendinglelantusmints()))
         assert_equal(2, len(self.nodes[0].elysium_listlelantusmints()))
 
         # mint other asset
-        addr2 = self.nodes[0].getnewaddress()
-        self.nodes[0].elysium_send(self.addrs[0], addr2, lelantus_property_2, "100")
+        self.mine_tx(self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property_2, "100"))
+        self.mine_tx(self.nodes[0].elysium_send(self.addrs[0], addr2, lelantus_property_2, "100"))
 
-        for _ in range(0, 100):
-            self.nodes[0].sendtoaddress(addr2, 1)
-        self.nodes[0].generate(1)
+        self.mine_tx(self.nodes[0].sendmany('', {addr2: 1, addr: 1}))
 
-        self.nodes[0].elysium_sendlelantusmint(addr2, lelantus_property_2, "10.10")
-        self.nodes[0].elysium_sendlelantusmint(addr2, lelantus_property_2, "10.20")
+        x = [
+            self.nodes[0].elysium_sendlelantusmint(addr, lelantus_property_2, "10.10"),
+            self.nodes[0].elysium_sendlelantusmint(addr2, lelantus_property_2, "10.20")
+        ]
 
         assert_equal(2, len(self.nodes[0].elysium_listpendinglelantusmints()))
-        assert_equal("79.7", self.nodes[0].elysium_getbalance(addr2, lelantus_property_2)['balance'].rstrip('0'))
+        assert_equal("89.9", self.nodes[0].elysium_getbalance(addr, lelantus_property_2)['balance'].rstrip('0'))
+        assert_equal("89.8", self.nodes[0].elysium_getbalance(addr2, lelantus_property_2)['balance'].rstrip('0'))
 
-        self.nodes[0].generate(2)
+        for tx in x: self.mine_tx(tx)
+
+        self.nodes[0].generate(1)
         assert_equal(0, len(self.nodes[0].elysium_listpendinglelantusmints()))
         assert_equal(4, len(self.nodes[0].elysium_listlelantusmints()))
 
@@ -147,6 +150,8 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
 
         bitcoind_processes[0].wait()
         self.nodes[0] = start_node(0, self.options.tmpdir, ['-elysium'])
+        connect_nodes_bi(self.nodes, 0, 1)
+        self.sync_all()
 
         assert_equal(0, len(self.nodes[0].elysium_listpendinglelantusmints()))
         assert_equal(4, len(self.nodes[0].elysium_listlelantusmints()))
@@ -162,25 +167,42 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
             'Wallet locked, unable to create transaction!',
             self.nodes[0].elysium_sendlelantusmint, addr2, lelantus_property_2, "5"
         )
-        self.nodes[0].walletpassphrase(passphrase, 20)
+        self.nodes[0].walletpassphrase(passphrase, 200)
 
-        self.nodes[0].sendtoaddress(addr, 1)
+        self.mine_tx(self.nodes[0].sendmany('', {
+            addr: 10,
+            addr2: 10
+        }))
+
+        x = [
+            self.nodes[0].elysium_sendlelantusmint(addr, lelantus_property, "5"),
+            self.nodes[0].elysium_sendlelantusmint(addr2, lelantus_property_2, "5.1"),
+        ]
+
+        assert_equal(2, len(self.nodes[0].elysium_listpendinglelantusmints()))
+
+        for tx in x: self.mine_tx(tx)
+
+        self.mine_tx(self.nodes[0].sendmany('', {
+            addr: 10,
+            addr2: 10
+        }))
+
+        x = [
+            self.nodes[0].elysium_sendlelantusmint(addr, lelantus_property, "6"),
+            self.nodes[0].elysium_sendlelantusmint(addr2, lelantus_property_2, "5.2")
+        ]
+
+        assert_equal(2, len(self.nodes[0].elysium_listpendinglelantusmints()))
+
+        for tx in x: self.mine_tx(tx)
         self.nodes[0].generate(1)
 
-        self.nodes[0].elysium_sendlelantusmint(addr, lelantus_property, "5")
-        self.nodes[0].elysium_sendlelantusmint(addr, lelantus_property, "6")
-
-        self.nodes[0].elysium_sendlelantusmint(addr2, lelantus_property_2, "5.1")
-        self.nodes[0].elysium_sendlelantusmint(addr2, lelantus_property_2, "5.2")
-
-        assert_equal(4, len(self.nodes[0].elysium_listpendinglelantusmints()))
-
-        self.nodes[0].generate(10)
         mints = self.nodes[0].elysium_listlelantusmints()
         assert_equal(8, len(mints))
 
-        assert_equal("68", self.nodes[0].elysium_getbalance(addr, lelantus_property)['balance'])
-        assert_equal("69.4", self.nodes[0].elysium_getbalance(addr2, lelantus_property_2)['balance'].rstrip('0'))
+        assert_equal("79", self.nodes[0].elysium_getbalance(addr, lelantus_property)['balance'])
+        assert_equal("79.5", self.nodes[0].elysium_getbalance(addr2, lelantus_property_2)['balance'].rstrip('0'))
 
         prop_mints = [m for m in mints if m['propertyid'] == lelantus_property]
         prop_mints_amount = [m['value'] for m in prop_mints]

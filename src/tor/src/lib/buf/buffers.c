@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -99,6 +99,7 @@
 #define DBG_S(s) (void)0
 #endif
 
+#ifndef COCCI
 #ifdef DISABLE_MEMORY_SENTINELS
 #define CHUNK_SET_SENTINEL(chunk, alloclen) STMT_NIL
 #else
@@ -109,6 +110,7 @@
     memset(a,0,SENTINEL_LEN);                                           \
   } while (0)
 #endif /* defined(DISABLE_MEMORY_SENTINELS) */
+#endif /* !defined(COCCI) */
 
 /** Move all bytes stored in <b>chunk</b> to the front of <b>chunk</b>->mem,
  * to free up space at the end. */
@@ -578,6 +580,7 @@ buf_add_vprintf(buf_t *buf, const char *format, va_list args)
   /* XXXX Faster implementations are easy enough, but let's optimize later */
   char *tmp;
   tor_vasprintf(&tmp, format, args);
+  tor_assert(tmp != NULL);
   buf_add(buf, tmp, strlen(tmp));
   tor_free(tmp);
 }

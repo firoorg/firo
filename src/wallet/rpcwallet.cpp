@@ -709,9 +709,9 @@ UniValue getreceivedbyaddress(const JSONRPCRequest& request)
             "\nThe amount including unconfirmed transactions, zero confirmations\n"
             + HelpExampleCli("getreceivedbyaddress", "\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\" 0") +
             "\nThe amount with at least 2 confirmation, very safe\n"
-            + HelpExampleCli("getreceivedbyaddress", "\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\" 6") +
+            + HelpExampleCli("getreceivedbyaddress", "\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\" 2") +
             "\nAs a json rpc call\n"
-            + HelpExampleRpc("getreceivedbyaddress", "\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\", 6")
+            + HelpExampleRpc("getreceivedbyaddress", "\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\", 2")
        );
 
     LOCK2(cs_main, pwallet->cs_wallet);
@@ -771,9 +771,9 @@ UniValue getreceivedbyaccount(const JSONRPCRequest& request)
             "\nAmount received at the tabby account including unconfirmed amounts with zero confirmations\n"
             + HelpExampleCli("getreceivedbyaccount", "\"tabby\" 0") +
             "\nThe amount with at least 2 confirmation, very safe\n"
-            + HelpExampleCli("getreceivedbyaccount", "\"tabby\" 6") +
+            + HelpExampleCli("getreceivedbyaccount", "\"tabby\" 2") +
             "\nAs a json rpc call\n"
-            + HelpExampleRpc("getreceivedbyaccount", "\"tabby\", 6")
+            + HelpExampleRpc("getreceivedbyaccount", "\"tabby\", 2")
         );
 
     LOCK2(cs_main, pwallet->cs_wallet);
@@ -1023,9 +1023,9 @@ UniValue sendfrom(const JSONRPCRequest& request)
             "\nSend 0.01 " + CURRENCY_UNIT + " from the default account to the address, must have at least 1 confirmation\n"
             + HelpExampleCli("sendfrom", "\"\" \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.01") +
             "\nSend 0.01 from the tabby account to the given address, funds must have at least 2 confirmations\n"
-            + HelpExampleCli("sendfrom", "\"tabby\" \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.01 6 \"donation\" \"seans outpost\"") +
+            + HelpExampleCli("sendfrom", "\"tabby\" \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.01 2 \"donation\" \"seans outpost\"") +
             "\nAs a json rpc call\n"
-            + HelpExampleRpc("sendfrom", "\"tabby\", \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\", 0.01, 6, \"donation\", \"seans outpost\"")
+            + HelpExampleRpc("sendfrom", "\"tabby\", \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\", 0.01, 2, \"donation\", \"seans outpost\"")
         );
 
     LOCK2(cs_main, pwallet->cs_wallet);
@@ -1839,9 +1839,9 @@ UniValue listaccounts(const JSONRPCRequest& request)
             "\nList account balances including zero confirmation transactions\n"
             + HelpExampleCli("listaccounts", "0") +
             "\nList account balances for 2 or more confirmations\n"
-            + HelpExampleCli("listaccounts", "6") +
+            + HelpExampleCli("listaccounts", "2") +
             "\nAs json rpc call\n"
-            + HelpExampleRpc("listaccounts", "6")
+            + HelpExampleRpc("listaccounts", "2")
         );
 
     LOCK2(cs_main, pwallet->cs_wallet);

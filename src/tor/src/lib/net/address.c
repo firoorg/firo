@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -929,6 +929,7 @@ tor_addr_copy_tight(tor_addr_t *dest, const tor_addr_t *src)
       break;
     case AF_INET6:
       memcpy(dest->addr.in6_addr.s6_addr, src->addr.in6_addr.s6_addr, 16);
+      break;
     case AF_UNSPEC:
       break;
       // LCOV_EXCL_START
@@ -1392,7 +1393,7 @@ get_interface_addresses_win32(int severity, sa_family_t family)
 
 /* This is defined on Mac OS X */
 #ifndef _SIZEOF_ADDR_IFREQ
-#define _SIZEOF_ADDR_IFREQ sizeof
+#define _SIZEOF_ADDR_IFREQ(x) sizeof(x)
 #endif
 
 /* Free ifc->ifc_buf safely. */
@@ -2001,7 +2002,7 @@ tor_addr_port_new(const tor_addr_t *addr, uint16_t port)
   return ap;
 }
 
-/** Return true iff <a>a</b> and <b>b</b> are the same address and port */
+/** Return true iff <b>a</b> and <b>b</b> are the same address and port */
 int
 tor_addr_port_eq(const tor_addr_port_t *a,
                  const tor_addr_port_t *b)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Tor Project, Inc. */
+/* Copyright (c) 2017-2020, The Tor Project, Inc. */
 /* Copyright (c) 2017, isis agora lovecruft  */
 /* See LICENSE for licensing information     */
 
@@ -31,12 +31,13 @@
 #include "test/test.h"
 #include "test/log_test_helpers.h"
 
-NS_DECL(const routerinfo_t *, router_get_my_routerinfo, (void));
+static const routerinfo_t * rtr_tests_router_get_my_routerinfo(void);
+ATTR_UNUSED static int rtr_tests_router_get_my_routerinfo_called = 0;
 
 static routerinfo_t* mock_routerinfo;
 
 static const routerinfo_t*
-NS(router_get_my_routerinfo)(void)
+rtr_tests_router_get_my_routerinfo(void)
 {
   crypto_pk_t* ident_key;
   crypto_pk_t* tap_key;
@@ -86,19 +87,20 @@ test_router_dump_router_to_string_no_bridge_distribution_method(void *arg)
   char* found = NULL;
   (void)arg;
 
-  NS_MOCK(router_get_my_routerinfo);
+  MOCK(router_get_my_routerinfo,
+       rtr_tests_router_get_my_routerinfo);
 
   options->ORPort_set = 1;
   options->BridgeRelay = 1;
 
   /* Generate keys which router_dump_router_to_string() expects to exist. */
-  tt_int_op(0, ==, curve25519_keypair_generate(&ntor_keypair, 0));
-  tt_int_op(0, ==, ed25519_keypair_generate(&signing_keypair, 0));
+  tt_int_op(0, OP_EQ, curve25519_keypair_generate(&ntor_keypair, 0));
+  tt_int_op(0, OP_EQ, ed25519_keypair_generate(&signing_keypair, 0));
 
   /* Set up part of our routerinfo_t so that we don't trigger any other
    * assertions in router_dump_router_to_string(). */
   router = (routerinfo_t*)router_get_my_routerinfo();
-  tt_ptr_op(router, !=, NULL);
+  tt_ptr_op(router, OP_NE, NULL);
 
   /* The real router_get_my_routerinfo() looks up onion_curve25519_pkey using
    * get_current_curve25519_keypair(), but we don't initialise static data in
@@ -115,12 +117,12 @@ test_router_dump_router_to_string_no_bridge_distribution_method(void *arg)
                                       &ntor_keypair,
                                       &signing_keypair);
   crypto_pk_free(onion_pkey);
-  tt_ptr_op(desc, !=, NULL);
+  tt_ptr_op(desc, OP_NE, NULL);
   found = strstr(desc, needle);
-  tt_ptr_op(found, !=, NULL);
+  tt_ptr_op(found, OP_NE, NULL);
 
  done:
-  NS_UNMOCK(router_get_my_routerinfo);
+  UNMOCK(router_get_my_routerinfo);
 
   tor_free(desc);
 }

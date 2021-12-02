@@ -1,8 +1,13 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
+
+/**
+ * @file extend_info_st.h
+ * @brief Extend-info structure.
+ **/
 
 #ifndef EXTEND_INFO_ST_H
 #define EXTEND_INFO_ST_H

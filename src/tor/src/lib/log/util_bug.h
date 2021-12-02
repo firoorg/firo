@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -131,7 +131,9 @@
 #undef BUG
 // Coverity defines this in global headers; let's override it.  This is a
 // magic coverity-only preprocessor thing.
+#ifndef COCCI
 #nodef BUG(x) (x)
+#endif
 #endif /* defined(__COVERITY__) */
 
 #if defined(__COVERITY__) || defined(__clang_analyzer__)
@@ -196,10 +198,11 @@
   STMT_END
 #define BUG(cond)                                                       \
   (ASSERT_PREDICT_UNLIKELY_(cond) ?                                     \
-  (tor_bug_occurred_(SHORT_FILE__,__LINE__,__func__,"!("#cond")",1,NULL),1) \
+  (tor_bug_occurred_(SHORT_FILE__,__LINE__,__func__,"!("#cond")",0,NULL),1) \
    : 0)
 #endif /* defined(ALL_BUGS_ARE_FATAL) || ... */
 
+#ifndef COCCI
 #ifdef __GNUC__
 #define IF_BUG_ONCE__(cond,var)                                         \
   if (( {                                                               \
@@ -208,7 +211,7 @@
       if (bool_result && !var) {                                        \
         var = 1;                                                        \
         tor_bug_occurred_(SHORT_FILE__, __LINE__, __func__,             \
-                          "!("#cond")", 1, NULL);                       \
+                          ("!("#cond")"), 1, NULL);                     \
       }                                                                 \
       bool_result; } ))
 #else /* !defined(__GNUC__) */
@@ -218,10 +221,12 @@
       (var ? 1 :                                                        \
        (var=1,                                                          \
         tor_bug_occurred_(SHORT_FILE__, __LINE__, __func__,             \
-                           "!("#cond")", 1, NULL),                      \
+                          ("!("#cond")"), 1, NULL),                     \
         1))                                                             \
       : 0)
 #endif /* defined(__GNUC__) */
+#endif /* !defined(COCCI) */
+
 #define IF_BUG_ONCE_VARNAME_(a)               \
   warning_logged_on_ ## a ## __
 #define IF_BUG_ONCE_VARNAME__(a)              \

@@ -21,7 +21,7 @@ function usage()
   echo "   -r: push to remote-name, rather than the default upstream remote."
   echo "       (default: $DEFAULT_UPSTREAM_REMOTE, current: $UPSTREAM_REMOTE)"
   echo "   -t: test branch mode: push test branches to remote-name. Pushes"
-  echo "       branches prefix_029, prefix_035, ... , prefix_master."
+  echo "       branches prefix_035, prefix_040,  ... , prefix_master."
   echo "       (default: push maint-*, release-*, and master)"
   echo "   -s: push branches whose tips match upstream maint, release, or"
   echo "       master branches. The default is to skip these branches,"
@@ -29,6 +29,8 @@ function usage()
   echo "       CI environment failures, using code that previously passed CI."
   echo "       (default: skip; current: $CURRENT_PUSH_SAME matching branches)"
   echo "   --: pass further arguments to git push."
+  echo "       All unrecognised arguments are passed to git push, but complex"
+  echo "       arguments before -- may be mangled by getopt."
   echo "       (default: git push --atomic, current: $GIT_PUSH)"
   echo
   echo " env vars:"
@@ -95,9 +97,10 @@ PUSH_SAME=${TOR_PUSH_SAME:-0}
 # Argument processing #
 #######################
 
-# Controlled by the -t <test-branch-prefix> option. The test branch base
-# name option makes git-merge-forward.sh create new test branches:
-# <tbbn>_029, <tbbn>_035, ... , <tbbn>_master, and merge forward.
+# Controlled by the -t <test-branch-prefix> option. The test branch prefix
+# option makes git-merge-forward.sh create new test branches:
+# <tbp>_035, <tbp>_040, ... , <tbp>_master, and merge each branch forward into
+# the next one.
 TEST_BRANCH_PREFIX=
 
 while getopts ":hr:st:" opt; do
@@ -127,9 +130,11 @@ while getopts ":hr:st:" opt; do
        OPTIND=$((OPTIND - 2))
        ;;
     *)
-       # Assume we're done with script arguments,
-       # and git push will handle the option
-       break
+       # Make git push handle the option
+       # This might mangle options with spaces, use -- for complex options
+       GIT_PUSH="$GIT_PUSH $1"
+       shift
+       OPTIND=$((OPTIND - 1))
        ;;
   esac
 done
@@ -151,7 +156,7 @@ if [ "$TEST_BRANCH_PREFIX" ]; then
 fi
 
 if [ "$TOR_GIT_PUSH_PATH" ]; then
-  echo "Changing to $GIT_PUSH_PATH before pushing"
+  echo "Changing to $TOR_GIT_PUSH_PATH before pushing"
   cd "$TOR_GIT_PUSH_PATH"
 else
   echo "Pushing from the current directory"
@@ -167,19 +172,19 @@ DEFAULT_UPSTREAM_BRANCHES=
 if [ "$DEFAULT_UPSTREAM_REMOTE" != "$UPSTREAM_REMOTE" ]; then
   DEFAULT_UPSTREAM_BRANCHES=$(echo \
     "$DEFAULT_UPSTREAM_REMOTE"/master \
+    "$DEFAULT_UPSTREAM_REMOTE"/{release,maint}-0.4.2 \
     "$DEFAULT_UPSTREAM_REMOTE"/{release,maint}-0.4.1 \
     "$DEFAULT_UPSTREAM_REMOTE"/{release,maint}-0.4.0 \
     "$DEFAULT_UPSTREAM_REMOTE"/{release,maint}-0.3.5 \
-    "$DEFAULT_UPSTREAM_REMOTE"/{release,maint}-0.2.9 \
     )
 fi
 
 UPSTREAM_BRANCHES=$(echo \
   "$UPSTREAM_REMOTE"/master \
+  "$UPSTREAM_REMOTE"/{release,maint}-0.4.2 \
   "$UPSTREAM_REMOTE"/{release,maint}-0.4.1 \
   "$UPSTREAM_REMOTE"/{release,maint}-0.4.0 \
   "$UPSTREAM_REMOTE"/{release,maint}-0.3.5 \
-  "$UPSTREAM_REMOTE"/{release,maint}-0.2.9 \
   )
 
 ########################
@@ -188,35 +193,35 @@ UPSTREAM_BRANCHES=$(echo \
 
 PUSH_BRANCHES=$(echo \
   master \
+  {release,maint}-0.4.2 \
   {release,maint}-0.4.1 \
   {release,maint}-0.4.0 \
   {release,maint}-0.3.5 \
-  {release,maint}-0.2.9 \
   )
 
 if [ -z "$TEST_BRANCH_PREFIX" ]; then
 
-  # maint/release push mode
+  # maint/release push mode: push all branches.
   #
   # List of branches to push. Ordering is not important.
   PUSH_BRANCHES=$(echo \
     master \
+    {release,maint}-0.4.2 \
     {release,maint}-0.4.1 \
     {release,maint}-0.4.0 \
     {release,maint}-0.3.5 \
-    {release,maint}-0.2.9 \
     )
 else
 
-  # Test branch mode: merge to maint only, and create a new branch for 0.2.9
+  # Test branch push mode: push test branches, based on each maint branch.
   #
   # List of branches to push. Ordering is not important.
   PUSH_BRANCHES=" \
     ${TEST_BRANCH_PREFIX}_master \
+    ${TEST_BRANCH_PREFIX}_042 \
     ${TEST_BRANCH_PREFIX}_041 \
     ${TEST_BRANCH_PREFIX}_040 \
     ${TEST_BRANCH_PREFIX}_035 \
-    ${TEST_BRANCH_PREFIX}_029 \
     "
 fi
 
@@ -224,20 +229,32 @@ fi
 # Entry point #
 ###############
 
-# Skip the test branches that are the same as the upstream branches
-if [ "$PUSH_SAME" -eq 0 ] && [ "$TEST_BRANCH_PREFIX" ]; then
+if [ "$TEST_BRANCH_PREFIX" ]; then
+  # Skip the test branches that are the same as the default or current
+  # upstream branches (they have already been tested)
+  UPSTREAM_SKIP_SAME_AS="$UPSTREAM_BRANCHES $DEFAULT_UPSTREAM_BRANCHES"
+else
+  # Skip the local maint-*, release-*, master branches that are the same as the
+  # current upstream branches, but ignore the default upstream
+  # (we want to update a non-default remote, even if it matches the default)
+  UPSTREAM_SKIP_SAME_AS="$UPSTREAM_BRANCHES"
+fi
+
+# Skip branches that match the relevant upstream(s)
+if [ "$PUSH_SAME" -eq 0 ]; then
   NEW_PUSH_BRANCHES=
   for b in $PUSH_BRANCHES; do
     PUSH_COMMIT=$(git rev-parse "$b")
     SKIP_UPSTREAM=
-    for u in $DEFAULT_UPSTREAM_BRANCHES $UPSTREAM_BRANCHES; do
-      UPSTREAM_COMMIT=$(git rev-parse "$u")
+    for u in $UPSTREAM_SKIP_SAME_AS; do
+      # Skip the branch check on error
+      UPSTREAM_COMMIT=$(git rev-parse "$u" 2>/dev/null) || continue
       if [ "$PUSH_COMMIT" = "$UPSTREAM_COMMIT" ]; then
         SKIP_UPSTREAM="$u"
       fi
     done
     if [ "$SKIP_UPSTREAM" ]; then
-      printf "Skipping unchanged: %s remote: %s\\n" \
+      printf "Skipping unchanged: %s matching remote: %s\\n" \
         "$b" "$SKIP_UPSTREAM"
     else
       if [ "$NEW_PUSH_BRANCHES" ]; then
@@ -248,6 +265,12 @@ if [ "$PUSH_SAME" -eq 0 ] && [ "$TEST_BRANCH_PREFIX" ]; then
     fi
   done
   PUSH_BRANCHES=${NEW_PUSH_BRANCHES}
+fi
+
+if [ ! "$PUSH_BRANCHES" ]; then
+  echo "No branches to push!"
+  # We expect the rest of the script to run without errors, even if there
+  # are no branches
 fi
 
 if [ "$PUSH_DELAY" -le 0 ]; then
@@ -262,28 +285,43 @@ if [ "$PUSH_DELAY" -le 0 ]; then
 else
   # Push the branches in optimal CI order, with a delay between each push
   PUSH_BRANCHES=$(echo "$PUSH_BRANCHES" | tr " " "\\n" | sort -V)
-  MASTER_BRANCH=$(echo "$PUSH_BRANCHES" | tr " " "\\n" | grep master)
+  MASTER_BRANCH=$(echo "$PUSH_BRANCHES" | tr " " "\\n" | grep master) \
+      || true # Skipped master branch
   if [ -z "$TEST_BRANCH_PREFIX" ]; then
-    MAINT_BRANCHES=$(echo "$PUSH_BRANCHES" | tr " " "\\n" | grep maint)
+    MAINT_BRANCHES=$(echo "$PUSH_BRANCHES" | tr " " "\\n" | grep maint) \
+        || true # Skipped all maint branches
     RELEASE_BRANCHES=$(echo "$PUSH_BRANCHES" | tr " " "\\n" | grep release | \
-      tr "\\n" " ")
-    printf \
-      "Pushing with %ss delays, so CI runs in this order:\\n%s\\n%s\\n%s\\n" \
-      "$PUSH_DELAY" "$MASTER_BRANCH" "$MAINT_BRANCHES" "$RELEASE_BRANCHES"
+      tr "\\n" " ") || true # Skipped all release branches
   else
     # Actually test branches based on maint branches
-    MAINT_BRANCHES=$(echo "$PUSH_BRANCHES" | tr " " "\\n" | grep -v master)
-    printf "Pushing with %ss delays, so CI runs in this order:\\n%s\\n%s\\n" \
-      "$PUSH_DELAY" "$MASTER_BRANCH" "$MAINT_BRANCHES"
+    MAINT_BRANCHES=$(echo "$PUSH_BRANCHES" | tr " " "\\n" | grep -v master) \
+        || true # Skipped all maint test branches
     # No release branches
     RELEASE_BRANCHES=
   fi
-  $GIT_PUSH "$@" "$UPSTREAM_REMOTE" "$MASTER_BRANCH"
-  sleep "$PUSH_DELAY"
+  if [ "$MASTER_BRANCH" ] || [ "$MAINT_BRANCHES" ] \
+      || [ "$RELEASE_BRANCHES" ]; then
+    printf "Pushing with %ss delays, so CI runs in this order:\\n" \
+           "$PUSH_DELAY"
+    if [ "$MASTER_BRANCH" ]; then
+      printf "%s\\n" "$MASTER_BRANCH"
+    fi
+    if [ "$MAINT_BRANCHES" ]; then
+      printf "%s\\n" "$MAINT_BRANCHES"
+    fi
+    if [ "$RELEASE_BRANCHES" ]; then
+      printf "%s\\n" "$RELEASE_BRANCHES"
+    fi
+  fi
   # shellcheck disable=SC2086
-  for b in $MAINT_BRANCHES; do
+  for b in $MASTER_BRANCH $MAINT_BRANCHES; do
     $GIT_PUSH "$@" "$UPSTREAM_REMOTE" "$b"
-    sleep "$PUSH_DELAY"
+    # If we are pushing more than one branch, delay.
+    # In the unlikely scenario where we are pushing maint without master,
+    # or maint without release, there may be an extra delay
+    if [ "$MAINT_BRANCHES" ] || [ "$RELEASE_BRANCHES" ]; then
+      sleep "$PUSH_DELAY"
+    fi
   done
   if [ "$RELEASE_BRANCHES" ]; then
     # shellcheck disable=SC2086

@@ -1,12 +1,16 @@
-/* Copyright (c) 2017-2019, The Tor Project, Inc. */
+/* Copyright (c) 2017-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
+
+#define HS_CLIENT_PRIVATE
 
 #include "core/or/or.h"
 #include "lib/crypt_ops/crypto_ed25519.h"
 #include "test/test.h"
 #include "feature/nodelist/torcert.h"
 
+#include "feature/hs/hs_client.h"
 #include "feature/hs/hs_common.h"
+#include "feature/hs/hs_service.h"
 #include "test/hs_test_helpers.h"
 
 hs_desc_intro_point_t *
@@ -53,7 +57,7 @@ hs_helper_build_intro_point(const ed25519_keypair_t *signing_kp, time_t now,
   }
 
   ret = ed25519_keypair_generate(&auth_kp, 0);
-  tt_int_op(ret, ==, 0);
+  tt_int_op(ret, OP_EQ, 0);
   ip->auth_key_cert = tor_cert_create(signing_kp, CERT_TYPE_AUTH_HS_IP_KEY,
                                       &auth_kp.pubkey, now,
                                       HS_DESC_CERT_LIFETIME,
@@ -64,7 +68,7 @@ hs_helper_build_intro_point(const ed25519_keypair_t *signing_kp, time_t now,
     ip->legacy.key = crypto_pk_new();
     tt_assert(ip->legacy.key);
     ret = crypto_pk_generate_key(ip->legacy.key);
-    tt_int_op(ret, ==, 0);
+    tt_int_op(ret, OP_EQ, 0);
     ssize_t cert_len = tor_make_rsa_ed25519_crosscert(
                                     &signing_kp->pubkey, ip->legacy.key,
                                     now + HS_DESC_CERT_LIFETIME,
@@ -82,7 +86,7 @@ hs_helper_build_intro_point(const ed25519_keypair_t *signing_kp, time_t now,
     tor_cert_t *cross_cert;
 
     ret = curve25519_keypair_generate(&curve25519_kp, 0);
-    tt_int_op(ret, ==, 0);
+    tt_int_op(ret, OP_EQ, 0);
     ed25519_keypair_from_curve25519_keypair(&ed25519_kp, &signbit,
                                             &curve25519_kp);
     cross_cert = tor_cert_create(signing_kp, CERT_TYPE_CROSS_HS_IP_KEYS,
@@ -140,7 +144,7 @@ hs_helper_build_hs_desc_impl(unsigned int no_ip,
 
   /* Setup superencrypted data section. */
   ret = curve25519_keypair_generate(&auth_ephemeral_kp, 0);
-  tt_int_op(ret, ==, 0);
+  tt_int_op(ret, OP_EQ, 0);
   memcpy(&desc->superencrypted_data.auth_ephemeral_pubkey,
          &auth_ephemeral_kp.pubkey,
          sizeof(curve25519_public_key_t));
@@ -207,6 +211,35 @@ hs_helper_build_hs_desc_no_ip(const ed25519_keypair_t *signing_kp)
   return hs_helper_build_hs_desc_impl(1, signing_kp);
 }
 
+hs_descriptor_t *
+hs_helper_build_hs_desc_with_client_auth(
+                        const uint8_t *descriptor_cookie,
+                        const curve25519_public_key_t *client_pk,
+                        const ed25519_keypair_t *signing_kp)
+{
+  curve25519_keypair_t auth_ephemeral_kp;
+  hs_descriptor_t *desc = hs_helper_build_hs_desc_impl(0, signing_kp);
+  hs_desc_authorized_client_t *desc_client;
+
+  /* The number of client authorized auth has tobe a multiple of
+   * HS_DESC_AUTH_CLIENT_MULTIPLE so remove one that we'll replace. */
+  desc_client = smartlist_get(desc->superencrypted_data.clients, 0);
+  smartlist_remove(desc->superencrypted_data.clients, desc_client);
+  hs_desc_authorized_client_free(desc_client);
+
+  desc_client = tor_malloc_zero(sizeof(hs_desc_authorized_client_t));
+
+  curve25519_keypair_generate(&auth_ephemeral_kp, 0);
+  memcpy(&desc->superencrypted_data.auth_ephemeral_pubkey,
+         &auth_ephemeral_kp.pubkey, sizeof(curve25519_public_key_t));
+
+  hs_desc_build_authorized_client(desc->subcredential, client_pk,
+                                  &auth_ephemeral_kp.seckey,
+                                  descriptor_cookie, desc_client);
+  smartlist_add(desc->superencrypted_data.clients, desc_client);
+  return desc;
+}
+
 void
 hs_helper_desc_equal(const hs_descriptor_t *desc1,
                      const hs_descriptor_t *desc2)
@@ -224,7 +257,7 @@ hs_helper_desc_equal(const hs_descriptor_t *desc1,
   tt_mem_op(desc1->plaintext_data.blinded_pubkey.pubkey, OP_EQ,
             desc2->plaintext_data.blinded_pubkey.pubkey,
             ED25519_PUBKEY_LEN);
-  tt_u64_op(desc1->plaintext_data.revision_counter, ==,
+  tt_u64_op(desc1->plaintext_data.revision_counter, OP_EQ,
             desc2->plaintext_data.revision_counter);
 
   /* NOTE: We can't compare the encrypted blob because when encoding the
@@ -241,7 +274,7 @@ hs_helper_desc_equal(const hs_descriptor_t *desc1,
   {
     tt_assert(desc1->superencrypted_data.clients);
     tt_assert(desc2->superencrypted_data.clients);
-    tt_int_op(smartlist_len(desc1->superencrypted_data.clients), ==,
+    tt_int_op(smartlist_len(desc1->superencrypted_data.clients), OP_EQ,
               smartlist_len(desc2->superencrypted_data.clients));
     for (int i=0;
          i < smartlist_len(desc1->superencrypted_data.clients);
@@ -259,15 +292,15 @@ hs_helper_desc_equal(const hs_descriptor_t *desc1,
   }
 
   /* Encrypted data section. */
-  tt_uint_op(desc1->encrypted_data.create2_ntor, ==,
+  tt_uint_op(desc1->encrypted_data.create2_ntor, OP_EQ,
              desc2->encrypted_data.create2_ntor);
 
   /* Authentication type. */
-  tt_int_op(!!desc1->encrypted_data.intro_auth_types, ==,
+  tt_int_op(!!desc1->encrypted_data.intro_auth_types, OP_EQ,
             !!desc2->encrypted_data.intro_auth_types);
   if (desc1->encrypted_data.intro_auth_types &&
       desc2->encrypted_data.intro_auth_types) {
-    tt_int_op(smartlist_len(desc1->encrypted_data.intro_auth_types), ==,
+    tt_int_op(smartlist_len(desc1->encrypted_data.intro_auth_types), OP_EQ,
               smartlist_len(desc2->encrypted_data.intro_auth_types));
     for (int i = 0;
          i < smartlist_len(desc1->encrypted_data.intro_auth_types);
@@ -281,7 +314,7 @@ hs_helper_desc_equal(const hs_descriptor_t *desc1,
   {
     tt_assert(desc1->encrypted_data.intro_points);
     tt_assert(desc2->encrypted_data.intro_points);
-    tt_int_op(smartlist_len(desc1->encrypted_data.intro_points), ==,
+    tt_int_op(smartlist_len(desc1->encrypted_data.intro_points), OP_EQ,
               smartlist_len(desc2->encrypted_data.intro_points));
     for (int i=0; i < smartlist_len(desc1->encrypted_data.intro_points); i++) {
       hs_desc_intro_point_t *ip1 = smartlist_get(desc1->encrypted_data
@@ -296,12 +329,12 @@ hs_helper_desc_equal(const hs_descriptor_t *desc1,
         tt_mem_op(&ip1->enc_key, OP_EQ, &ip2->enc_key, CURVE25519_PUBKEY_LEN);
       }
 
-      tt_int_op(smartlist_len(ip1->link_specifiers), ==,
+      tt_int_op(smartlist_len(ip1->link_specifiers), OP_EQ,
                 smartlist_len(ip2->link_specifiers));
       for (int j = 0; j < smartlist_len(ip1->link_specifiers); j++) {
         link_specifier_t *ls1 = smartlist_get(ip1->link_specifiers, j),
                          *ls2 = smartlist_get(ip2->link_specifiers, j);
-        tt_int_op(link_specifier_get_ls_type(ls1), ==,
+        tt_int_op(link_specifier_get_ls_type(ls1), OP_EQ,
                   link_specifier_get_ls_type(ls2));
         switch (link_specifier_get_ls_type(ls1)) {
           case LS_IPV4:
@@ -311,7 +344,7 @@ hs_helper_desc_equal(const hs_descriptor_t *desc1,
               tt_int_op(addr1, OP_EQ, addr2);
               uint16_t port1 = link_specifier_get_un_ipv4_port(ls1);
               uint16_t port2 = link_specifier_get_un_ipv4_port(ls2);
-              tt_int_op(port1, ==, port2);
+              tt_int_op(port1, OP_EQ, port2);
             }
             break;
           case LS_IPV6:
@@ -326,7 +359,7 @@ hs_helper_desc_equal(const hs_descriptor_t *desc1,
                         link_specifier_getlen_un_ipv6_addr(ls1));
               uint16_t port1 = link_specifier_get_un_ipv6_port(ls1);
               uint16_t port2 = link_specifier_get_un_ipv6_port(ls2);
-              tt_int_op(port1, ==, port2);
+              tt_int_op(port1, OP_EQ, port2);
             }
             break;
           case LS_LEGACY_ID:
@@ -353,3 +386,19 @@ hs_helper_desc_equal(const hs_descriptor_t *desc1,
   ;
 }
 
+void
+hs_helper_add_client_auth(const ed25519_public_key_t *service_pk,
+                          const curve25519_secret_key_t *client_sk)
+{
+  digest256map_t *client_auths = get_hs_client_auths_map();
+  if (client_auths == NULL) {
+    client_auths = digest256map_new();
+    set_hs_client_auths_map(client_auths);
+  }
+
+  hs_client_service_authorization_t *auth =
+    tor_malloc_zero(sizeof(hs_client_service_authorization_t));
+  memcpy(&auth->enc_seckey, client_sk, sizeof(curve25519_secret_key_t));
+  hs_build_address(service_pk, HS_VERSION_THREE, auth->onion_address);
+  digest256map_set(client_auths, service_pk->pubkey, auth);
+}

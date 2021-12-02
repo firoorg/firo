@@ -944,7 +944,7 @@
             </widget>
            </item>
            <item row="10" column="0">
-            <widget class="QLabel" name="label_12">
+            <widget class="QLabel" name="label_121">
              <property name="font">
               <font>
                <weight>75</weight>
@@ -1108,10 +1108,6 @@
                <property name="text">
                 <string>&amp;Mint</string>
                </property>
-               <property name="icon">
-                <iconset>
-                 <normaloff>../res/icons/add.png</normaloff>../res/icons/add.png</iconset>
-               </property>
               </widget>
              </item>
              <item>
@@ -1121,10 +1117,6 @@
                </property>
                <property name="text">
                 <string>Select Denominations</string>
-               </property>
-               <property name="icon">
-                <iconset>
-                 <normaloff>../res/icons/edit.png</normaloff>../res/icons/edit.png</iconset>
                </property>
               </widget>
              </item>

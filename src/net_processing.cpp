@@ -1091,6 +1091,20 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     CBlock block;
                     if (!ReadBlockFromDisk(block, (*mi).second, consensusParams))
                         assert(!"cannot load block from disk");
+                    // Strip MTP data if past specific point of time
+                    if (!block.IsProgPow() && block.IsMTP() && GetTime() >= consensusParams.nMTPStripDataTime) {
+                        if (pfrom->nVersion >= MTPDATA_STRIPPED_VERSION) {
+                            if (block.mtpHashData)
+                                block.mtpHashData->StripMTPData();
+                        }
+                        else {
+                            // node is not ready for a block with stripped MTP data. Skip the block if MTP
+                            // data has already been stripped locally
+                            if (!block.mtpHashData || block.mtpHashData->IsMTPDataStripped())
+                                continue;
+                        }
+                    }
+
                     if (inv.type == MSG_BLOCK)
                         connman.PushMessage(pfrom, msgMaker.Make(SERIALIZE_TRANSACTION_NO_WITNESS, NetMsgType::BLOCK, block));
                     else if (inv.type == MSG_WITNESS_BLOCK)
@@ -2709,6 +2723,12 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     {
         std::shared_ptr<CBlock> pblock = std::make_shared<CBlock>();
         vRecv >> *pblock;
+
+        if (pblock->IsMTP() && !pblock->IsProgPow() && pblock->mtpHashData && GetTime() >= chainparams.GetConsensus().nMTPStripDataTime)
+        {
+            // we don't need MTP data anymore
+            pblock->mtpHashData->StripMTPData();
+        }
 
         LogPrint("net", "received block %s peer=%d\n", pblock->GetHash().ToString(), pfrom->id);
 

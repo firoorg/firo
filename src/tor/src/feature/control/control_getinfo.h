@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -47,6 +47,10 @@ STATIC void getinfo_helper_downloads_bridge(
 STATIC int getinfo_helper_downloads(
     control_connection_t *control_conn,
     const char *question, char **answer,
+    const char **errmsg);
+STATIC int getinfo_helper_current_consensus(
+    consensus_flavor_t flavor,
+    char **answer,
     const char **errmsg);
 STATIC int getinfo_helper_dir(
     control_connection_t *control_conn,

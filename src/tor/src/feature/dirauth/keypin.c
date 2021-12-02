@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2019, The Tor Project, Inc. */
+/* Copyright (c) 2014-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -15,8 +15,6 @@
 #include "lib/cc/torint.h"
 #include "lib/crypt_ops/crypto_digest.h"
 #include "lib/crypt_ops/crypto_format.h"
-#include "lib/crypt_ops/crypto_format.h"
-#include "lib/ctime/di_ops.h"
 #include "lib/ctime/di_ops.h"
 #include "lib/encoding/binascii.h"
 #include "lib/encoding/time_fmt.h"
@@ -267,7 +265,7 @@ keypin_add_or_replace_entry_in_map(keypin_ent_t *ent)
     }
     tor_free(ent2);
     r = -1;
-    /* Fall through */
+    /* Note lack of return here: we fall through to the next line. */
   }
 
   keypin_add_entry_to_map(ent);

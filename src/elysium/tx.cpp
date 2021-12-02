@@ -272,7 +272,7 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
         }
         break;
     case 2:
-        if (raw.size() < 27) {
+        if (raw.size() < 26) {
             return false;
         }
         break;
@@ -348,7 +348,7 @@ bool CMPTransaction::interpret_CreatePropertyManaged()
         }
         break;
     case 2:
-        if (raw.size() < 19) {
+        if (raw.size() < 18) {
             return false;
         }
         break;

@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -29,7 +29,7 @@
 #include "core/or/circuitbuild.h"
 #include "core/or/circuitstats.h"
 #include "app/config/config.h"
-#include "lib/confmgt/confparse.h"
+#include "lib/confmgt/confmgt.h"
 #include "feature/control/control_events.h"
 #include "lib/crypt_ops/crypto_rand.h"
 #include "core/mainloop/mainloop.h"

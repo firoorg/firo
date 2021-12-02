@@ -30,35 +30,30 @@ class ElysiumMultipleWalletsTest(ElysiumTestFramework):
 
         sync_blocks(self.nodes, timeout=1000)
 
-        self.nodes[0].elysium_sendissuancefixed(owner, 1, 1, 0, '', '', 'Test Lelantus', '', '', '1000', 1)
-        self.nodes[0].generate(1)
+        for _ in range(2):
+            self.mine_tx(self.nodes[0].mintlelantus(1)[0])
+
+        self.mine_tx(self.nodes[0].elysium_sendissuancefixed(owner, 1, 1, 0, '', '', 'Test Lelantus', '', '', '1000', 1))
 
         prop = 3
-
-        sync_blocks(self.nodes)
 
         addrs = [n.getnewaddress() for n in self.nodes]
 
         for i in range(len(self.nodes)):
-            self.nodes[0].sendtoaddress(addrs[i], 1)
-            self.nodes[0].elysium_send(owner, addrs[i], prop, '2')
+            self.mine_tx(self.nodes[0].elysium_send(owner, addrs[i], prop, '2'))
 
-        self.nodes[0].generate(1)
-        sync_blocks(self.nodes)
+        self.mine_tx(self.nodes[0].sendmany('', {a: 1 for a in addrs}))
 
         for i in range(len(self.nodes)):
-            self.nodes[i].mintlelantus(1)
-            self.nodes[i].elysium_sendlelantusmint(addrs[i], prop, '1')
-            self.nodes[i].generate(1)
-            sync_blocks(self.nodes)
+           self.mine_tx(self.nodes[i].elysium_sendlelantusmint(addrs[i], prop, '1'))
 
         self.nodes[0].generate(1)
-        sync_blocks(self.nodes)
+        self.sync_all()
 
-        for i in range(len(self.nodes)):
-            self.nodes[i].elysium_sendlelantusspend(receiver, prop, '1')
-            self.nodes[i].generate(1)
-            sync_blocks(self.nodes)
+        for node in self.nodes:
+            self.mine_tx(node.mintlelantus(1)[0])
+            node.generate(1)
+            self.mine_tx(node.elysium_sendlelantusspend(receiver, prop, '1'))
 
         # Assert that all the funds have successfully reached their destination.
         assert_equal(len(self.nodes), int(self.nodes[0].elysium_getbalance(receiver, prop)['balance']))
