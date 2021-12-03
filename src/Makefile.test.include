@@ -134,7 +134,6 @@ BITCOIN_TESTS = \
   test/merkle_tests.cpp \
   test/miner_tests.cpp \
   test/mtp_halving_tests.cpp \
-  test/mtp_malformed_tests.cpp \
   test/mtp_tests.cpp \
   test/mtp_trans_tests.cpp \
   test/firopow_tests.cpp \
