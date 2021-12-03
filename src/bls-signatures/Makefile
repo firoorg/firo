@@ -18,4 +18,4 @@ distclean:
 check: all
 
 install:
-	$(AM_V_at)$(MAKE) -C ./build/ install
+# do nothing

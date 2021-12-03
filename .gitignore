@@ -71,6 +71,7 @@ src/tor/src/or
 *.log
 *.trs
 *.dmg
+*.iso
 
 *.json.h
 *.raw.h
