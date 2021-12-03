@@ -2419,8 +2419,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
                 return DISCONNECT_FAILED;
             }
         }
-        bool fBlockFilterIndex = true;
-        if (fBlockFilterIndex) {
+        if (GetBoolArg("-peerblockfilters", DEFAULT_PEERBLOCKFILTERS)) {
             if (!pblocktree->UpdateBlockFilterIndex(block.GetHash(), {}, {})) {
                 AbortNode(state, "Failed to write block filter index");
                 error("Failed to write block filter index");
@@ -2952,8 +2951,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         if (!pblocktree->WriteTimestampIndex(CTimestampIndexKey(pindex->nTime, pindex->GetBlockHash())))
             return AbortNode(state, "Failed to write timestamp index");
 
-    bool fBlockFilterIndex = true;
-    if (fBlockFilterIndex)
+    if (GetBoolArg("-peerblockfilters", DEFAULT_PEERBLOCKFILTERS))
     {
         uint256 prevBlockHash {};
         std::pair<std::vector<unsigned char>, uint256> prevFilter {};
@@ -5050,6 +5048,13 @@ CBlockIndex * InsertBlockIndex(uint256 hash)
     pindexNew->phashBlock = &((*mi).first);
 
     return pindexNew;
+}
+
+CBlockIndex* LookupBlockIndex(const uint256& hash)
+{
+    AssertLockHeld(cs_main);
+    BlockMap::const_iterator it = mapBlockIndex.find(hash);
+    return it == mapBlockIndex.end() ? nullptr : it->second;
 }
 
 bool static LoadBlockIndexDB(const CChainParams& chainparams)

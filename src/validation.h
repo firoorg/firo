@@ -147,6 +147,7 @@ static const bool DEFAULT_ADDRESSINDEX = false;
 static const bool DEFAULT_SPENTINDEX = false;
 static const bool DEFAULT_TOR_SETUP = false;
 static const bool DEFAULT_ZAP_WALLET = false;
+static const bool DEFAULT_PEERBLOCKFILTERS = true;
 static const unsigned int DEFAULT_BANSCORE_THRESHOLD = 100;
 
 /** Default for -mempoolreplacement */
@@ -347,6 +348,8 @@ void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune);
 
 /** Create a new block index entry for a given block hash */
 CBlockIndex * InsertBlockIndex(uint256 hash);
+/** Searches for the block in the index */
+CBlockIndex* LookupBlockIndex(const uint256& hash);
 /** Abort with a message */
 bool AbortNode(const std::string &strMessage, const std::string &userMessage);
 /** Sends out an alert */
