@@ -2,6 +2,14 @@
 
 #include "primitives/block.h"
 #include "blockfilter.h"
+#include "chain.h"
+#include "txdb.h"
+#include "batchproof_container.h"
+
+
+extern CBlockTreeDB *pblocktree;
+extern CCriticalSection cs_main;
+
 
 BlockFilterIndex::BlockFilterIndex()
 {}
@@ -25,23 +33,58 @@ uint256 BlockFilterIndex::GetHeader() const
 
 bool BlockFilterIndex::LookupFilter(const CBlockIndex* block_index, BlockFilter& filter_out) const
 {
-    return false;
+    std::pair<std::vector<unsigned char>, uint256> rawFilter =
+        pblocktree->ReadBlockFilterIndex(block_index->GetBlockHash());
+    if (rawFilter.first.empty())
+        return false;
+    filter_out = BlockFilter{BlockFilterType::Basic, block_index->GetBlockHash(), rawFilter.first};
+    return true;
 }
 
-bool BlockFilterIndex::LookupFilterHeader(const CBlockIndex* block_index, uint256& header_out)
+bool BlockFilterIndex::LookupFilterHeader(const CBlockIndex* block_index, uint256& header_out) const
 {
-    return false;
+    std::pair<std::vector<unsigned char>, uint256> rawFilter =
+        pblocktree->ReadBlockFilterIndex(block_index->GetBlockHash());
+    if (rawFilter.first.empty())
+        return false;
+    header_out = rawFilter.second;
+    return true;
 }
 
 bool BlockFilterIndex::LookupFilterRange(int start_height, const CBlockIndex* stop_index, std::vector<BlockFilter>& filters_out) const
 {
-    return false;
+    while (stop_index->nHeight >= start_height) {
+        BlockFilter out;
+        if (LookupFilter(stop_index, out))
+            filters_out.emplace_back(std::move(out));
+        {
+            LOCK(cs_main);
+            if (!stop_index->pprev)
+                return false;
+            stop_index = stop_index->pprev;
+        }
+    }
+    std::reverse(filters_out.begin(), filters_out.end());
+    return true;
 }
 
 
 bool BlockFilterIndex::LookupFilterHashRange(int start_height, const CBlockIndex* stop_index, std::vector<uint256>& hashes_out) const
 {
-    return false;
+    while (stop_index->nHeight >= start_height) {
+        uint256 out;
+        if (LookupFilterHeader(stop_index, out))
+            hashes_out.emplace_back(std::move(out));
+        {
+            LOCK(cs_main);
+            if (!stop_index->pprev)
+                return false;
+            stop_index = stop_index->pprev;
+        }
+    }
+    std::reverse(hashes_out.begin(), hashes_out.end());
+
+    return true;
 }
 
 
