@@ -1392,6 +1392,8 @@ static void ProcessGetCFilters(CNode& pfrom, CDataStream& vRecv, const CChainPar
 
     vRecv >> filter_type_ser >> start_height >> stop_hash;
 
+    std::cerr << "ProcessGetCFilters: " << stop_hash.ToString() << std::endl;
+
     const BlockFilterType filter_type = static_cast<BlockFilterType>(filter_type_ser);
 
     const CBlockIndex* stop_index;
@@ -1433,6 +1435,8 @@ static void ProcessGetCFHeaders(CNode& pfrom, CDataStream& vRecv, const CChainPa
     uint32_t start_height;
     uint256 stop_hash;
     vRecv >> filter_type_ser >> start_height >> stop_hash;
+
+    std::cerr << "ProcessGetCFHeaders: " << stop_hash.ToString() << std::endl;
     const BlockFilterType filter_type = static_cast<BlockFilterType>(filter_type_ser);
     const CBlockIndex* stop_index;
     BlockFilterIndex* filter_index;

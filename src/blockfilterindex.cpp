@@ -53,38 +53,55 @@ bool BlockFilterIndex::LookupFilterHeader(const CBlockIndex* block_index, uint25
 
 bool BlockFilterIndex::LookupFilterRange(int start_height, const CBlockIndex* stop_index, std::vector<BlockFilter>& filters_out) const
 {
+    bool result = true;
     while (stop_index->nHeight >= start_height) {
         BlockFilter out;
-        if (LookupFilter(stop_index, out))
+        if (LookupFilter(stop_index, out)) {
             filters_out.emplace_back(std::move(out));
+        } else {
+            result = false;
+            break;
+        }
+        if (stop_index->nHeight == start_height)
+            break;
         {
             LOCK(cs_main);
-            if (!stop_index->pprev)
-                return false;
+            if (!stop_index->pprev) {
+                result = false;
+                break;
+            }
             stop_index = stop_index->pprev;
         }
     }
     std::reverse(filters_out.begin(), filters_out.end());
-    return true;
+    return result;
 }
 
 
 bool BlockFilterIndex::LookupFilterHashRange(int start_height, const CBlockIndex* stop_index, std::vector<uint256>& hashes_out) const
 {
+    bool result = true;
     while (stop_index->nHeight >= start_height) {
         uint256 out;
-        if (LookupFilterHeader(stop_index, out))
+        if (LookupFilterHeader(stop_index, out)) {
             hashes_out.emplace_back(std::move(out));
+        } else {
+            result = false;
+            break;
+        }
+        if (stop_index->nHeight == start_height)
+            break;
         {
             LOCK(cs_main);
-            if (!stop_index->pprev)
-                return false;
+            if (!stop_index->pprev) {
+                result = false;
+                break;
+            }
             stop_index = stop_index->pprev;
         }
     }
     std::reverse(hashes_out.begin(), hashes_out.end());
-
-    return true;
+    return result;
 }
 
 
@@ -92,4 +109,12 @@ BlockFilterIndex * GetBlockFilterIndex(BlockFilterType filterType)
 {
     static BlockFilterIndex inst;
     return &inst;
+}
+
+bool UpdateGenesisBlockFilterIndex(CBlock const & block)
+{
+    BlockFilterIndex bfidx(block, CBlockUndo{}, uint256{});
+    if (!pblocktree->UpdateBlockFilterIndex(block.GetHash(), bfidx.GetEncoded(), bfidx.GetHeader()))
+        return error("Failed to write block filter index");
+    return true;
 }

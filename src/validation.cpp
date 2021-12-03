@@ -2955,12 +2955,12 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     {
         uint256 prevBlockHash {};
         std::pair<std::vector<unsigned char>, uint256> prevFilter {};
-        if (pindex->nHeight > 1) {
+        if (pindex->nHeight > 0) {
             prevBlockHash = pindex->pprev->GetBlockHash();
             prevFilter = pblocktree->ReadBlockFilterIndex(prevBlockHash);
         }
 
-        if (pindex->nHeight > 1 && prevFilter.first.empty()) {
+        if (pindex->nHeight > 0 && prevFilter.first.empty()) {
             LogPrintf("ConnectBlock: Could not read block filter index for height: %d\n", pindex->nHeight);
         } else {
             BlockFilterIndex bfidx(block, blockundo, prevFilter.second);

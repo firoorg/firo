@@ -41,5 +41,7 @@ private:
 
 BlockFilterIndex * GetBlockFilterIndex(BlockFilterType filterType);
 
+bool UpdateGenesisBlockFilterIndex(CBlock const & block);
+
 #endif /* BLOCKFILTERINDEX_H */
 
