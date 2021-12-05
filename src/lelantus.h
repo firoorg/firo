@@ -80,7 +80,7 @@ bool ConnectBlockLelantus(
   const CBlock *pblock,
   bool fJustCheck=false);
 
-uint256 GetBlockHashFromPubcoin(const lelantus::PublicCoin& pubCoin);
+uint256 GetTxHashFromPubcoin(const lelantus::PublicCoin& pubCoin);
 
 /*
  * Get COutPoint(txHash, index) from the chain using pubcoin value alone.
@@ -204,7 +204,7 @@ public:
     void GetCoinsForRecovery(
             int coinGroupID,
             std::vector<std::pair<lelantus::PublicCoin, std::pair<lelantus::MintValueData, uint256>>>& coins,
-            std::vector<uint256>& blockHashes);
+            std::vector<uint256>& txHashes);
 
     // Return height of mint transaction and id of minted coin
     std::pair<int, int> GetMintedCoinHeightAndId(const lelantus::PublicCoin& pubCoin);
