@@ -974,17 +974,10 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue,
     return false;
 }
 
-uint256 GetBlockHashFromPubcoin(const lelantus::PublicCoin& pubCoin) {
-    lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
-    auto mintedCoinHeightAndId = lelantusState->GetMintedCoinHeightAndId(pubCoin);
-    int mintHeight = mintedCoinHeightAndId.first;
-    int coinId = mintedCoinHeightAndId.second;
-
-    if(mintHeight==-1 && coinId==-1)
-        return uint256();
-
-    // get hash of theblock containing mint
-    return  chainActive[mintHeight]->GetBlockHash();
+uint256 GetTxHashFromPubcoin(const lelantus::PublicCoin& pubCoin) {
+    COutPoint outPoint;
+    GetOutPoint(outPoint, pubCoin.getValue());
+    return  outPoint.hash;
 }
 
 bool GetOutPoint(COutPoint& outPoint, const lelantus::PublicCoin &pubCoin) {
@@ -1488,10 +1481,10 @@ int CLelantusState::GetCoinSetForSpend(
 void CLelantusState::GetCoinsForRecovery(
         int coinGroupID,
         std::vector<std::pair<lelantus::PublicCoin, std::pair<lelantus::MintValueData, uint256>>>& coins,
-        std::vector<uint256>& blockHashes) {
+        std::vector<uint256>& txHashes) {
 
     coins.clear();
-    blockHashes.clear();
+    txHashes.clear();
     if (coinGroups.count(coinGroupID) == 0) {
         return;
     }
@@ -1511,7 +1504,7 @@ void CLelantusState::GetCoinsForRecovery(
             if (block->lelantusMintedPubCoins.count(id) > 0) {
                 for (const auto &coin : block->lelantusMintedPubCoins[id]) {
                     coins.push_back(coin);
-                    blockHashes.push_back(GetBlockHashFromPubcoin(coin.first));
+                    txHashes.push_back(GetTxHashFromPubcoin(coin.first));
                 }
             }
         }

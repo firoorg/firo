@@ -1109,8 +1109,8 @@ UniValue getcoinsforrecovery(const JSONRPCRequest& request)
                 "\nResult:\n"
                 "{\n"
                 "  \"setID\" (int) Set id\n"
-                "  \"mints\" (Pair<string,Pair<string,Pair<<string, uint64_t>>) Public coins paired with block hash which is paired with mint tag and mint value\n"
-                "  \"jmints\"(Pair<string,Pair<string, Pair<<string, string>>>) Public coins paired with block hash which is paired with mint tag and encrypted mint value \n"
+                "  \"mints\" (Pair<string,Pair<string,Pair<<string, uint64_t>>) Public coins paired with txhash which is paired with mint tag and mint value\n"
+                "  \"jmints\"(Pair<string,Pair<string, Pair<<string, string>>>) Public coins paired with txhash which is paired with mint tag and encrypted mint value \n"
                 "}\n"
         );
 
@@ -1121,8 +1121,8 @@ UniValue getcoinsforrecovery(const JSONRPCRequest& request)
     while (latestCoinId) {
         ret.push_back(Pair("setID", latestCoinId));
         std::vector<std::pair <lelantus::PublicCoin,std::pair<lelantus::MintValueData, uint256>>> coins;
-        std::vector<uint256> blockHashes;
-        lelantusState->GetCoinsForRecovery(latestCoinId, coins, blockHashes);
+        std::vector<uint256> txHashes;
+        lelantusState->GetCoinsForRecovery(latestCoinId, coins, txHashes);
         UniValue mints(UniValue::VARR);
         UniValue jmints(UniValue::VARR);
         int i = 0;
@@ -1133,7 +1133,7 @@ UniValue getcoinsforrecovery(const JSONRPCRequest& request)
                 data.push_back(HexStr(vch.begin(), vch.end()));
                 data.push_back(coin.second.second.GetHex());
                 data.push_back(HexStr(coin.second.first.encryptedValue.begin(), coin.second.first.encryptedValue.end()));
-                data.push_back(blockHashes[i].GetHex());
+                data.push_back(txHashes[i].GetHex());
                 UniValue entity(UniValue::VARR);
                 entity.push_backV(data);
                 jmints.push_back(entity);
@@ -1143,7 +1143,7 @@ UniValue getcoinsforrecovery(const JSONRPCRequest& request)
                 data.push_back(HexStr(vch.begin(), vch.end()));
                 data.push_back(coin.second.second.GetHex());
                 data.push_back(coin.second.first.amount);
-                data.push_back(blockHashes[i].GetHex());
+                data.push_back(txHashes[i].GetHex());
                 UniValue entity(UniValue::VARR);
                 entity.push_backV(data);
                 mints.push_back(entity);
