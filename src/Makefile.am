@@ -55,6 +55,7 @@ LIBBITCOIN_CONSENSUS=libbitcoin_consensus.a
 LIBBITCOIN_CLI=libbitcoin_cli.a
 LIBBITCOIN_UTIL=libbitcoin_util.a
 LIBLELANTUS=liblelantus.a
+LIBSPARK=libspark.a
 LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
 LIBBITCOINQT=qt/libfiroqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
@@ -86,7 +87,8 @@ EXTRA_LIBRARIES += \
   $(LIBBITCOIN_WALLET) \
   $(LIBBITCOIN_ZMQ) \
   $(LIBFIRO_SIGMA) \
-  $(LIBLELANTUS)
+  $(LIBLELANTUS) \
+  $(LIBSPARK)
 
 lib_LTLIBRARIES = $(LIBBITCOINCONSENSUS)
 
@@ -625,6 +627,42 @@ libbitcoin_util_a_SOURCES = \
   crypto/MerkleTreeProof/merkle-tree.cpp \
   $(BITCOIN_CORE_H)
 
+libspark_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libspark_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libspark_a_SOURCES = \
+  libspark/transcript.h \
+  libspark/transcript.cpp \
+  libspark/params.h \
+  libspark/params.cpp \
+  libspark/schnorr_proof.h \
+  libspark/schnorr.h \
+  libspark/schnorr.cpp \
+  libspark/chaum_proof.h \
+  libspark/chaum.h \
+  libspark/chaum.cpp \
+  libspark/coin.h \
+  libspark/coin.cpp \
+  libspark/bpplus_proof.h \
+  libspark/bpplus.h \
+  libspark/bpplus.cpp \
+  libspark/grootle_proof.h \
+  libspark/grootle.h \
+  libspark/grootle.cpp \
+  libspark/keys.h \
+  libspark/keys.cpp \
+  libspark/util.h \
+  libspark/util.cpp \
+  libspark/aead.h \
+  libspark/aead.cpp \
+  libspark/kdf.h \
+  libspark/kdf.cpp \
+  libspark/hash.h \
+  libspark/hash.cpp \
+  libspark/mint_transaction.h \
+  libspark/mint_transaction.cpp \
+  libspark/spend_transaction.h \
+  libspark/spend_transaction.cpp
+
 liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 liblelantus_a_SOURCES = \
@@ -729,6 +767,7 @@ firod_LDADD = \
   $(LIBBITCOIN_WALLET) \
   $(LIBFIRO_SIGMA) \
   $(LIBLELANTUS) \
+  $(LIBSPARK) \
   $(LIBBITCOIN_ZMQ) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
