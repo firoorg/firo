@@ -787,7 +787,7 @@ QStatusBar #lblStatusBarProgress {
 
 QTableView::item {
     height: 2.5em;
-    border-bottom: 1px solid;
+    border-bottom: 0px solid;
     background-color: #cfcccc;
     border-color: #cfcccc;
     color: #110202;
@@ -800,8 +800,7 @@ QTableView::item:alternate {
 
 QTableView::item:selected {
     background-color: #878787;
-    border-color: #d2d2d2;
-    color: #110202;
+    color: #FFFFFF;
     font: 12pt 'Source Sans Pro';
 }
 
@@ -940,8 +939,8 @@ QToolTip {
 
 QTreeWidget {
     border: 1px solid;
-    alternate-background-color: #ffffff;
-    background-color: #cfcccc;
+    alternate-background-color: #cfcccc;
+    background-color: #ffffff;
     border-color: #cfcccc;
     color: #110202;
     font: 12pt 'Source Sans Pro';
@@ -1118,7 +1117,6 @@ QDialog#CoinControlDialog QHeaderView::section:first {
 
 
 QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::item:hover {
-    background-color: #f4f4f4;
 }
 
 QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::branch:selected {
@@ -1135,17 +1133,20 @@ QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::seperator {
 }
 
 QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::item {
-    border-bottom: 1px solid;
+    border-bottom: 0px solid;
     min-height: 25px;
-    border-color: #878787;
+}
+
+
+QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::branch:selected,
+QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::branch:checked  {
+    color: #110202;
 }
 
 QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::item:selected,
-QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::item:checked,
-QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::branch:selected,
-QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::branch:checked  {
-    background-color: #d2d2d2;
-    color: #110202;
+QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::item:checked  {
+    background-color: #878787;
+    color: #FFFFFF;
 }
 
 /* CreatePcodeDialog */
