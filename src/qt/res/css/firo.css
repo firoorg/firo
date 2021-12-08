@@ -788,18 +788,18 @@ QStatusBar #lblStatusBarProgress {
 QTableView::item {
     height: 2.5em;
     border-bottom: 1px solid;
-    background-color: #f4f4f4;
+    background-color: #cfcccc;
     border-color: #cfcccc;
     color: #110202;
     font: 12pt 'Source Sans Pro';
 }
 
 QTableView::item:alternate {
-    background-color: #f7f0f1;
+    background-color: #ffffff;
 }
 
 QTableView::item:selected {
-    background-color: #d2d2d2;
+    background-color: #878787;
     border-color: #d2d2d2;
     color: #110202;
     font: 12pt 'Source Sans Pro';
@@ -940,8 +940,8 @@ QToolTip {
 
 QTreeWidget {
     border: 1px solid;
-    alternate-background-color: #f7f0f1;
-    background-color: #f4f4f4;
+    alternate-background-color: #ffffff;
+    background-color: #cfcccc;
     border-color: #cfcccc;
     color: #110202;
     font: 12pt 'Source Sans Pro';
