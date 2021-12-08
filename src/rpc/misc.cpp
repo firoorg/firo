@@ -1116,8 +1116,7 @@ UniValue getcoinsforrecovery(const JSONRPCRequest& request)
 
     lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
     int latestCoinId = lelantusState->GetLatestCoinID();
-
-    std::vector<UniValue> vSet;
+    UniValue ret(UniValue::VOBJ);
     while (latestCoinId) {
         UniValue setEntity(UniValue::VOBJ);
         setEntity.push_back(Pair("setID", latestCoinId));
@@ -1153,11 +1152,10 @@ UniValue getcoinsforrecovery(const JSONRPCRequest& request)
         }
         setEntity.push_back(Pair("mints", mints));
         setEntity.push_back(Pair("jmints", jmints));
+        ret.push_back(Pair(std::to_string(latestCoinId), setEntity));
         latestCoinId--;
-        vSet.push_back(setEntity);
     }
-    UniValue ret(UniValue::VOBJ);
-    ret.push_backV(vSet);
+
     return ret;
 }
 
