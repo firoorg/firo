@@ -413,7 +413,7 @@ RES_ICONS = \
   qt/res/images/checkbox_partly_checked_light.png \
   qt/res/images/checkbox_partly_checked_hover_light.png \
   qt/res/images/checkbox_partly_checked_disabled_light.png \
-  qt/res/images/firo_logo_white.png \
+  qt/res/images/firo_logo.png \
   qt/res/images/radio_normal_light.png \
   qt/res/images/radio_normal_hover_light.png \
   qt/res/images/radio_checked_light.png \
