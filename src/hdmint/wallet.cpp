@@ -270,11 +270,10 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             if (setChecked.count(pMint.first))
                 continue;
             setChecked.insert(pMint.first);
-            // uiInterface.ShowProgress(_(), setChecked.size() * 100.0q / listMints.get().size());
             uiInterface.UpdateProgressBarLabel("Synchronizing mints...");
+
             if (ShutdownRequested())
                 return;
- 
             uint160& mintHashSeedMaster = std::get<0>(pMint.second);
             int32_t& mintCount = std::get<2>(pMint.second);
 
