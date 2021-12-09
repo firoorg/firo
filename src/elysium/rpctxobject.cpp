@@ -115,6 +115,10 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
     if (confirmations <= 0) extendedDetails = false;
     populateRPCTypeInfo(mp_obj, txobj, mp_obj.getType(), extendedDetails, extendedDetailsFilter, confirmations);
 
+    if (mp_obj.getType() == ELYSIUM_TYPE_LELANTUS_MINT) {
+        txobj.push_back(Pair("lelantusMintId", mp_obj.getLelantusMintId().GetHex()));
+    }
+
     // state and chain related information
     if (confirmations != 0 && !blockHash.IsNull()) {
         txobj.push_back(Pair("valid", valid));

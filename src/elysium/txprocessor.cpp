@@ -93,12 +93,17 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
 
     if (!lelantus::VerifyMintSchnorrProof(mintValue, coin.getValue(), proof)) {
         PrintToLog("%s(): rejected: schnorr proof is not exist\n", __func__);
-        return PKT_ERROR_LELANTUS - 907;
+        return PKT_ERROR_LELANTUS - 908;
     }
 
     if (lelantusDb->HasMint(property, coin)) {
         PrintToLog("%s(): rejected: public coin are already found on chain\n", __func__);
-        return PKT_ERROR_LELANTUS - 907;
+        return PKT_ERROR_LELANTUS - 909;
+    }
+
+    if (lelantusDb->HasMintId(tx.getLelantusMintId())) {
+        PrintToLog("%s(): rejected: a mint with the same id was already found on chain\n", __func__);
+        return PKT_ERROR_LELANTUS - 917;
     }
 
     auto& sender = tx.getSender();
@@ -119,7 +124,7 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
     assert(update_tally_map(sender, property, -mintValue, BALANCE));
     if (!lelantusDb->WriteMint(property, coin, tx.getBlock(), tx.getLelantusMintId(), mintValue, rawProof)) {
         PrintToLog("%s(): rejected: fail to write mint to database\n", __func__);
-        return PKT_ERROR_LELANTUS - 907;
+        return PKT_ERROR_LELANTUS - 910;
     }
 
     PrintToLog("%s(): Lelantus mint for Elysium property %d accepted from %s: %d\n", __func__, property, sender, tx.getLelantusMintValue());
@@ -135,7 +140,7 @@ int TxProcessor::ProcessLelantusJoinSplit(const CBlockIndex *pBlockIndex, const 
     auto block = tx.getBlock();
     if (block < 0) {
         PrintToLog("%s(): rejected unconfirmed transaction %s\n", __func__, tx.getHash().GetHex());
-        return PKT_ERROR_LELANTUS - 907;
+        return PKT_ERROR_LELANTUS - 911;
     }
 
     assert(pBlockIndex->nHeight == block);
@@ -151,17 +156,17 @@ int TxProcessor::ProcessLelantusJoinSplit(const CBlockIndex *pBlockIndex, const 
             version,
             property,
             block);
-        return PKT_ERROR_LELANTUS - 22;
+        return PKT_ERROR_LELANTUS - 26;
     }
 
     if (!IsPropertyIdValid(property)) {
         PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
-        return PKT_ERROR_LELANTUS - 24;
+        return PKT_ERROR_LELANTUS - 27;
     }
 
     if (!IsLelantusEnabled(property)) {
         PrintToLog("%s(): rejected: property %d does not enable lelantus\n", __func__, property);
-        return PKT_ERROR_LELANTUS - 901;
+        return PKT_ERROR_LELANTUS - 902;
     }
 
     lelantus::JoinSplit joinSplit = tx.getLelantusJoinSplit();
@@ -181,7 +186,7 @@ int TxProcessor::ProcessLelantusJoinSplit(const CBlockIndex *pBlockIndex, const 
         uint256 spendTx;
         if (txSerials.count(s) || lelantusDb->HasSerial(property, s, spendTx)) {
             PrintToLog("%s(): rejected: serial is duplicated\n", __func__);
-            return PKT_ERROR_LELANTUS - 907;
+            return PKT_ERROR_LELANTUS - 912;
         }
 
         txSerials.insert(s);
@@ -198,14 +203,14 @@ int TxProcessor::ProcessLelantusJoinSplit(const CBlockIndex *pBlockIndex, const 
         auto coinBlock = mapBlockIndex.find(idAndBlockHash.second);
         if (coinBlock == mapBlockIndex.end()) {
             PrintToLog("%s(): rejected: joinsplit has unknown block as an input\n", __func__);
-            return PKT_ERROR_LELANTUS - 907;
+            return PKT_ERROR_LELANTUS - 913;
         }
 
         int blockHeight = coinBlock->second->nHeight;
 
         if (blockHeight >= pBlockIndex->nHeight || *pBlockIndex->GetAncestor(blockHeight)->phashBlock != *coinBlock->second->phashBlock) {
             PrintToLog("%s(): rejected: joinsplit has a non-ancestor as anonymity group source\n", __func__);
-            return PKT_ERROR_LELANTUS - 907;
+            return PKT_ERROR_LELANTUS - 914;
         }
 
         anonss[idAndBlockHash.first] = lelantusDb->GetAnonymityGroup(property, idAndBlockHash.first, SIZE_MAX, blockHeight);
@@ -233,14 +238,14 @@ int TxProcessor::ProcessLelantusJoinSplit(const CBlockIndex *pBlockIndex, const 
     // verify
     if (!joinSplit.VerifyElysium(anonss, anonymitySetHashes, cout, spendAmount, metadata)) {
         PrintToLog("%s(): rejected: joinsplit is invalid\n", __func__);
-        return PKT_ERROR_LELANTUS - 907;
+        return PKT_ERROR_LELANTUS - 915;
     }
 
     // record serial and change
     for (auto const &s : serials) {
         if (!lelantusDb->WriteSerial(property, s, block, tx.getHash())) {
             PrintToLog("%s(): rejected: serial is duplicated\n", __func__);
-            return PKT_ERROR_LELANTUS - 907;
+            return PKT_ERROR_LELANTUS - 916;
         }
     }
 
@@ -286,7 +291,7 @@ int TxProcessor::ProcessChangeLelantusStatus(const CMPTransaction& tx)
             version,
             property,
             block);
-        return PKT_ERROR_LELANTUS - 22;
+        return PKT_ERROR_LELANTUS - 28;
     }
 
     if (!IsPropertyIdValid(property)) {
