@@ -626,6 +626,9 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
         // Show progress dialog
         connect(_clientModel, SIGNAL(showProgress(QString,int)), this, SLOT(showProgress(QString,int)));
 
+        // Update progress bar label textw
+        connect(_clientModel, SIGNAL(updateProgressBarLabel(QString)), this, SLOT(updateProgressBarLabel(QString)));
+
         // Update Elysium pending status
         connect(_clientModel, SIGNAL(refreshElysiumPending(bool)), this, SLOT(setElysiumPendingStatus(bool)));
 
@@ -1431,6 +1434,15 @@ void BitcoinGUI::showProgress(const QString &title, int nProgress)
     }
     else if (progressDialog)
         progressDialog->setValue(nProgress);
+}
+
+void BitcoinGUI::updateProgressBarLabel(const QString& text)
+{
+    if (progressBarLabel) 
+    {
+        progressBarLabel->setVisible(!text.isEmpty());
+        progressBarLabel->setText(text);
+    }
 }
 
 void BitcoinGUI::setTrayIconVisible(bool fHideTrayIcon)
