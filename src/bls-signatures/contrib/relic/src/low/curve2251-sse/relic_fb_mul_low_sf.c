@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2012 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -41,7 +42,7 @@
 
 #define INV(A,B,C,D)	D,C,B,A
 
-const relic_align uint32_t tm[] = {
+const rlc_align uint32_t tm[] = {
 	INV(0x00000000, 0x00000000, 0x00000000, 0x00000000),
 	INV(0x0F0E0D0C, 0x0B0A0908, 0x07060504, 0x03020100),
 	INV(0x1E1C1A18, 0x16141210, 0x0E0C0A08, 0x06040200),
@@ -69,25 +70,25 @@ void fb_mul1_low(dig_t *c, const dig_t *a, dig_t digit) {
 	dig_t b1, b2;
 
 	if (digit == 0) {
-		dv_zero(c, FB_DIGS + 1);
+		dv_zero(c, RLC_FB_DIGS + 1);
 		return;
 	}
 	if (digit == 1) {
 		fb_copy(c, a);
 		return;
 	}
-	c[FB_DIGS] = fb_lshb_low(c, a, util_bits_dig(digit) - 1);
+	c[RLC_FB_DIGS] = fb_lshb_low(c, a, util_bits_dig(digit) - 1);
 	for (int i = util_bits_dig(digit) - 2; i > 0; i--) {
 		if (digit & ((dig_t)1 << i)) {
-			j = FB_DIGIT - i;
+			j = RLC_DIG - i;
 			b1 = a[0];
 			c[0] ^= (b1 << i);
-			for (k = 1; k < FB_DIGS; k++) {
+			for (k = 1; k < RLC_FB_DIGS; k++) {
 				b2 = a[k];
 				c[k] ^= ((b2 << i) | (b1 >> j));
 				b1 = b2;
 			}
-			c[FB_DIGS] ^= (b1 >> j);
+			c[RLC_FB_DIGS] ^= (b1 >> j);
 		}
 	}
 	if (digit & (dig_t)1) {
@@ -96,8 +97,8 @@ void fb_mul1_low(dig_t *c, const dig_t *a, dig_t digit) {
 }
 
 void fb_mulm_low(dig_t *c, const dig_t *a, const dig_t *b) {
-	__m128i rl[FB_DIGS], rh[FB_DIGS], l0, l1, h0, h1;
-	__m128i t0, t1, mask, m[FB_DIGS], m0, m1, m2, m3, m8, m9;
+	__m128i rl[RLC_FB_DIGS], rh[RLC_FB_DIGS], l0, l1, h0, h1;
+	__m128i t0, t1, mask, m[RLC_FB_DIGS], m0, m1, m2, m3, m8, m9;
 	dig_t r0, r1, r2, r3;
 	int i, j, k, ta;
 	dig_t x[2];
@@ -206,7 +207,7 @@ void fb_mulm_low(dig_t *c, const dig_t *a, const dig_t *b) {
 	m[3] = m3;
 
 	/* m = m + rh + rl */
-	for (i = 0; i < FB_DIGS; i++) {
+	for (i = 0; i < RLC_FB_DIGS; i++) {
 		m[i] = _mm_xor_si128(m[i], rh[i]);
 		m[i] = _mm_xor_si128(m[i], rl[i]);
 	}
@@ -216,7 +217,7 @@ void fb_mulm_low(dig_t *c, const dig_t *a, const dig_t *b) {
 	LSHIFT4(m);
 	LSHIFT8V(rh);
 
-	for (i = 0; i < FB_DIGS; i++) {
+	for (i = 0; i < RLC_FB_DIGS; i++) {
 		m[i] = _mm_xor_si128(m[i], rh[i]);
 		m[i] = _mm_xor_si128(m[i], rl[i]);
 	}
@@ -234,8 +235,8 @@ void fb_mulm_low(dig_t *c, const dig_t *a, const dig_t *b) {
 }
 
 void fb_muln_low(dig_t *c, const dig_t * a, const dig_t * b) {
-	__m128i rl[FB_DIGS], rh[FB_DIGS], l0, l1, h0, h1;
-	__m128i t0, t1, mask, m[FB_DIGS], m0, m1, m2, m3;
+	__m128i rl[RLC_FB_DIGS], rh[RLC_FB_DIGS], l0, l1, h0, h1;
+	__m128i t0, t1, mask, m[RLC_FB_DIGS], m0, m1, m2, m3;
 	dig_t r0, r1, r2, r3;
 	int i, j, k, ta;
 
@@ -343,7 +344,7 @@ void fb_muln_low(dig_t *c, const dig_t * a, const dig_t * b) {
 	m[3] = m3;
 
 	/* m = m + rh + rl */
-	for (i = 0; i < FB_DIGS; i++) {
+	for (i = 0; i < RLC_FB_DIGS; i++) {
 		m[i] = _mm_xor_si128(m[i], rh[i]);
 		m[i] = _mm_xor_si128(m[i], rl[i]);
 	}
@@ -353,7 +354,7 @@ void fb_muln_low(dig_t *c, const dig_t * a, const dig_t * b) {
 	LSHIFT4(m);
 	LSHIFT8V(rh);
 
-	for (i = 0; i < FB_DIGS; i++) {
+	for (i = 0; i < RLC_FB_DIGS; i++) {
 		m[i] = _mm_xor_si128(m[i], rh[i]);
 		m[i] = _mm_xor_si128(m[i], rl[i]);
 	}

@@ -7,9 +7,6 @@ macro(ADD_MODULE MODULE)
 			target_link_libraries(test_${MODULE} ${RELIC})
 		endif(SHLIB)
 	endif(STLIB)
-	if (STBIN)
-		set_target_properties(test_${MODULE} PROPERTIES LINK_SEARCH_END_STATIC 1)
-	endif(STBIN)
 	add_test(test_${MODULE} ${SIMUL} ${SIMAR} ${EXECUTABLE_OUTPUT_PATH}/test_${MODULE})
 endmacro(ADD_MODULE)
 
@@ -47,7 +44,7 @@ endif(WITH_EP)
 
 if (WITH_EPX)
 	ADD_MODULE(epx)
-endif(WITH_EPX)	
+endif(WITH_EPX)
 
 if (WITH_EB)
 	ADD_MODULE(eb)
@@ -67,7 +64,7 @@ endif(WITH_PC)
 
 if (WITH_PP)
 	ADD_MODULE(pp)
-endif(WITH_PP)	
+endif(WITH_PP)
 
 if (WITH_MD)
 	ADD_MODULE(md)
@@ -76,6 +73,10 @@ endif(WITH_MD)
 if (WITH_CP)
 	ADD_MODULE(cp)
 endif(WITH_CP)
+
+if (WITH_MPC)
+	ADD_MODULE(mpc)
+endif(WITH_MPC)
 
 ADD_MODULE(rand)
 ADD_MODULE(core)

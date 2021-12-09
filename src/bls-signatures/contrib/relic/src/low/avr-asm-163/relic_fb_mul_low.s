@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2011 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -236,7 +237,7 @@ fb_sqrm_table2:
 	std		y + 32, RT		; tab[15][i] = r6^r9
 .endm
 
-.macro RELIC_FILL_TABLE i, j
+.macro RLC_FILL_TABLE i, j
 	/*
 	 * We do not need to initialize the first row with zeroes, as the .data
 	 * section is already initialized with null bytes.
@@ -257,7 +258,7 @@ fb_sqrm_table2:
 		.endif
 	.endif
 	.if \i < \j
-		RELIC_FILL_TABLE \i + 1, \j
+		RLC_FILL_TABLE \i + 1, \j
 	.endif
 .endm
 
@@ -382,12 +383,12 @@ fb_sqrm_table2:
 
 #if FB_POLYN == 163
 
-.macro RELIC_MULN_TABLE
+.macro RLC_MULN_TABLE
 	ldi		RC, 0x40
 	ldi		r29, hi8(fb_muln_table0)
-	RELIC_FILL_TABLE 0, 15
+	RLC_FILL_TABLE 0, 15
 	ldi		r29, hi8(fb_muln_table1)
-	RELIC_FILL_TABLE 16, 20
+	RLC_FILL_TABLE 16, 20
 .endm
 
 .macro MULN_DO
@@ -431,7 +432,7 @@ fb_muln_low:
 	movw	r26, r22		; copy a to x
 	movw	r30, r20		; copy b to z
 
-	RELIC_MULN_TABLE
+	RLC_MULN_TABLE
 	movw	r30, r24		; z = &c
 	MULN_DO
 
@@ -527,7 +528,7 @@ fb_muli_low:
 	movw	r26, r20		; copy a to x
 	movw	r30, r18		; copy b to z
 
-	RELIC_MULN_TABLE
+	RLC_MULN_TABLE
 	movw	r30, r14		; z = &t
 	MULN_DO
 

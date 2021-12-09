@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2012 RELIC Authors
+ * Copyright (c) 2017 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 #include "relic_fp_low.h"
@@ -43,6 +44,20 @@ p3: .quad P3
 p4: .quad P4
 p5: .quad P5
 
+.global p0
+.global p1
+.global p2
+.global p3
+.global p4
+.global p5
+
+.hidden p0
+.hidden p1
+.hidden p2
+.hidden p3
+.hidden p4
+.hidden p5
+
 .text
 
 .global fp_add1_low
@@ -66,19 +81,43 @@ fp_add1_low:
 	addq	%rdx   , %r10
 	movq	%r10   , 0(%rdi)
 
-	ADD1 1 (FP_DIGS - 1)
+	ADD1 1 (RLC_FP_DIGS - 1)
 	xorq	%rax, %rax
 
 	ret
 
 fp_addn_low:
+	xorq	%rax, %rax
 	movq	0(%rdx), %r11
 	addq	0(%rsi), %r11
 	movq	%r11   , 0(%rdi)
 
-	ADDN 	1 (FP_DIGS - 1)
+	ADDN 	1 (RLC_FP_DIGS - 1)
 
+	adcq    $0, %rax
+
+	ret
+
+bn_incp_low:
+	movq	0(%rsi), %r10
+	addq	%rdx   , %r10
+	movq	%r10   , 0(%rdi)
+
+	ADD1 1 (RLC_FP_DIGS)
 	xorq	%rax, %rax
+
+	ret
+
+.global bn_addp_low
+bn_addp_low:
+	xorq	%rax, %rax
+	movq	0(%rdx), %r11
+	addq	0(%rsi), %r11
+	movq	%r11   , 0(%rdi)
+
+	ADDN 	1 (RLC_FP_DIGS)
+
+	adcq    $0, %rax
 
 	ret
 
@@ -108,12 +147,12 @@ fp_addm_low:
 	movq	%r12, %rbx
 	movq	%r13, %rbp
 
-	subq	p0, %rax
-	sbbq	p1, %rcx
-	sbbq	p2, %rdx
-	sbbq	p3, %rsi
-	sbbq	p4, %rbx
-	sbbq	p5, %rbp
+	subq	p0(%rip), %rax
+	sbbq	p1(%rip), %rcx
+	sbbq	p2(%rip), %rdx
+	sbbq	p3(%rip), %rsi
+	sbbq	p4(%rip), %rbx
+	sbbq	p5(%rip), %rbp
 
 	cmovnc	%rax, %r8
 	cmovnc	%rcx, %r9
@@ -128,7 +167,6 @@ fp_addm_low:
 	movq	%r11, 24(%rdi)
 	movq	%r12, 32(%rdi)
 	movq	%r13, 40(%rdi)
-	xorq	%rax, %rax
 
 	pop		%r13
 	pop		%r12
@@ -141,7 +179,7 @@ fp_addd_low:
 	addq	0(%rsi), %r11
 	movq	%r11   , 0(%rdi)
 
-	ADDN 	1 (2 * FP_DIGS - 1)
+	ADDN 	1 (2 * RLC_FP_DIGS - 1)
 
 	ret
 
@@ -155,7 +193,7 @@ fp_addc_low:
 	addq	0(%rdx), %r8
 	movq	%r8    , 0(%rdi)
 
-	ADDN	1 (FP_DIGS - 1)
+	ADDN	1 (RLC_FP_DIGS - 1)
 
 	movq     48(%rsi), %r8
 	adcq     48(%rdx), %r8
@@ -177,12 +215,12 @@ fp_addc_low:
 	movq	%r12, %rbx
 	movq	%r13, %rbp
 
-	subq	p0, %rax
-	sbbq	p1, %rcx
-	sbbq	p2, %rdx
-	sbbq	p3, %rsi
-	sbbq	p4, %rbx
-	sbbq	p5, %rbp
+	subq	p0(%rip), %rax
+	sbbq	p1(%rip), %rcx
+	sbbq	p2(%rip), %rdx
+	sbbq	p3(%rip), %rsi
+	sbbq	p4(%rip), %rbx
+	sbbq	p5(%rip), %rbp
 
 	cmovnc	%rax, %r8
 	cmovnc	%rcx, %r9
@@ -210,7 +248,7 @@ fp_sub1_low:
 	subq	%rdx   , %r10
 	movq	%r10   , 0(%rdi)
 
-	SUB1 	1 (FP_DIGS - 1)
+	SUB1 	1 (RLC_FP_DIGS - 1)
 	xorq	%rax, %rax
 
 	ret
@@ -221,49 +259,71 @@ fp_subn_low:
 	subq	0(%rdx), %r11
 	movq	%r11   , 0(%rdi)
 
-	SUBN 1 (FP_DIGS - 1)
+	SUBN 1 (RLC_FP_DIGS - 1)
 
 	adcq	$0, %rax
 
 	ret
 
 fp_subm_low:
-	xorq	%rax, %rax
-	xorq	%rcx, %rcx
+    push	%rbx
+    push	%rbp
+    push	%r12
+    push	%r13
 
-	movq	0(%rsi), %r8
-	subq	0(%rdx), %r8
-	movq	%r8    , 0(%rdi)
+    movq	 0(%rsi), %r8
+    subq	 0(%rdx), %r8
+    movq	 8(%rsi), %r9
+    sbbq	 8(%rdx), %r9
+    movq	16(%rsi), %r10
+    sbbq	16(%rdx), %r10
+    movq	24(%rsi), %r11
+    sbbq	24(%rdx), %r11
+    movq	32(%rsi), %r12
+    sbbq	32(%rdx), %r12
+    movq	40(%rsi), %r13
+    sbbq	40(%rdx), %r13
 
-	SUBN	1 (FP_DIGS - 1)
+    movq 	$0, %rax
+    movq 	$0, %rcx
+    movq 	$0, %rdx
+    movq 	$0, %rsi
+    movq	$0, %rbx
+    movq	$0, %rbp
 
-	movq	$0, %r8
-	movq	$0, %r9
-	movq	$0, %r10
-	movq	$0, %r11
+    cmovc	p0(%rip), %rax
+    cmovc	p1(%rip), %rcx
+    cmovc	p2(%rip), %rdx
+    cmovc	p3(%rip), %rsi
+    cmovc	p4(%rip), %rbx
+    cmovc	p5(%rip), %rbp
 
-	cmovc	p0, %rax
-	cmovc	p1, %rcx
-	cmovc	p2, %r8
-	cmovc	p3, %r9
-	cmovc	p4, %r10
-	cmovc	p5, %r11
+    addq	%rax, %r8
+    adcq	%rcx, %r9
+    adcq	%rdx, %r10
+    adcq	%rsi, %r11
+    adcq	%rbx, %r12
+    adcq	%rbp, %r13
 
-	addq	%rax,  0(%rdi)
-	adcq	%rcx,  8(%rdi)
-	adcq	%r8,  16(%rdi)
-	adcq	%r9,  24(%rdi)
-	adcq	%r10, 32(%rdi)
-	adcq	%r11, 40(%rdi)
+    movq	%r8 ,  0(%rdi)
+    movq	%r9 ,  8(%rdi)
+    movq	%r10, 16(%rdi)
+    movq	%r11, 24(%rdi)
+    movq	%r12, 32(%rdi)
+    movq	%r13, 40(%rdi)
 
-	ret
+    pop		%r13
+    pop		%r12
+    pop		%rbp
+    pop		%rbx
+    ret
 
 fp_subd_low:
 	movq	0(%rsi), %r8
 	subq	0(%rdx), %r8
 	movq	%r8, 0(%rdi)
 
-	SUBN 	1 (2 * FP_DIGS - 1)
+	SUBN 	1 (2 * RLC_FP_DIGS - 1)
 
 	ret
 
@@ -275,19 +335,19 @@ fp_subc_low:
 	subq    0(%rdx), %r8
 	movq    %r8,     0(%rdi)
 
-	SUBN 	1 (2 * FP_DIGS - 1)
+	SUBN 	1 (2 * RLC_FP_DIGS - 1)
 
 	movq	$0, %r8
 	movq	$0, %r9
 	movq	$0, %r10
 	movq	$0, %r11
 
-	cmovc	p0, %rax
-	cmovc	p1, %rcx
-	cmovc	p2, %r8
-	cmovc	p3, %r9
-	cmovc	p4, %r10
-	cmovc	p5, %r11
+	cmovc	p0(%rip), %rax
+	cmovc	p1(%rip), %rcx
+	cmovc	p2(%rip), %r8
+	cmovc	p3(%rip), %r9
+	cmovc	p4(%rip), %r10
+	cmovc	p5(%rip), %r11
 
 	addq	%rax, 48(%rdi)
 	adcq	%rcx, 56(%rdi)
@@ -299,22 +359,29 @@ fp_subc_low:
 	ret
 
 fp_negm_low:
-	movq 	$P0      , %r8
+    movq    0(%rsi) , %r8
+    or 	    8(%rsi) , %r8
+    or 	    16(%rsi), %r8
+    or 	    24(%rsi), %r8
+    or 	    32(%rsi), %r8
+    or 	    40(%rsi), %r8
+    test    %r8, %r8
+	cmovnz 	p0(%rip), %r8
 	subq 	0(%rsi) , %r8
 	movq 	%r8     , 0(%rdi)
-	movq 	$P1      , %r8
+	cmovnz 	p1(%rip), %r8
 	sbbq 	8(%rsi) , %r8
 	movq 	%r8     , 8(%rdi)
-	movq 	$P2      , %r8
+	cmovnz 	p2(%rip), %r8
 	sbbq 	16(%rsi), %r8
 	movq 	%r8     , 16(%rdi)
-	movq 	$P3      , %r8
+	cmovnz 	p3(%rip), %r8
 	sbbq 	24(%rsi), %r8
 	movq 	%r8     , 24(%rdi)
-	movq 	$P4      , %r8
+	cmovnz 	p4(%rip), %r8
 	sbbq 	32(%rsi), %r8
 	movq 	%r8     , 32(%rdi)
-	movq 	$P5      , %r8
+	cmovnz 	p5(%rip), %r8
 	sbbq 	40(%rsi), %r8
 	movq 	%r8     , 40(%rdi)
   	ret
@@ -324,7 +391,7 @@ fp_dbln_low:
 	addq	%r8    , %r8
 	movq	%r8    , 0(%rdi)
 
-	DBLN 1 (FP_DIGS - 1)
+	DBLN 1 (RLC_FP_DIGS - 1)
 
 	xorq	%rax,%rax
 	ret
@@ -359,12 +426,12 @@ fp_dblm_low:
 	movq	%r12, %rbx
 	movq	%r13, %rbp
 
-	subq	p0, %rax
-	sbbq	p1, %rcx
-	sbbq	p2, %rdx
-	sbbq	p3, %rsi
-	sbbq	p4, %rbx
-	sbbq	p5, %rbp
+	subq	p0(%rip), %rax
+	sbbq	p1(%rip), %rcx
+	sbbq	p2(%rip), %rdx
+	sbbq	p3(%rip), %rsi
+	sbbq	p4(%rip), %rbx
+	sbbq	p5(%rip), %rbp
 
 	cmovnc	%rax, %r8
 	cmovnc	%rcx, %r9

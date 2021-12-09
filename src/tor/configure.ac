@@ -358,7 +358,6 @@ AM_CONDITIONAL(BUILD_MANPAGE, [test "x$enable_manpage" != "xno"])
 AM_CONDITIONAL(BUILD_HTML_DOCS, [test "x$enable_html_manual" != "xno"])
 
 AM_PROG_CC_C_O
-AC_PROG_CC_C99
 
 AC_CACHE_CHECK([for Python 3], [tor_cv_PYTHON],
    [AC_PATH_PROGS_FEATURE_CHECK([PYTHON], [ \
