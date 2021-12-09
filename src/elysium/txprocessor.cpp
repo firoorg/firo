@@ -101,6 +101,11 @@ int TxProcessor::ProcessLelantusMint(const CMPTransaction& tx)
         return PKT_ERROR_LELANTUS - 909;
     }
 
+    if (lelantusDb->HasMintId(tx.getLelantusMintId())) {
+        PrintToLog("%s(): rejected: a mint with the same id was already found on chain\n", __func__);
+        return PKT_ERROR_LELANTUS - 917;
+    }
+
     auto& sender = tx.getSender();
     int64_t balance = getMPbalance(sender, property, BALANCE);
 

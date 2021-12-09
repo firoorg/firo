@@ -389,6 +389,11 @@ bool LelantusDb::HasMint(PropertyId propertyId, lelantus::PublicCoin const &pubK
     return pdb->Get(readoptions, CoinParser().GetKey(propertyId, pubKey) , &val).ok();
 }
 
+bool LelantusDb::HasMintId(MintEntryId const &id) {
+    std::string val;
+    return pdb->Get(readoptions, CoinIdParser().GetKey(id), &val).ok();
+}
+
 bool LelantusDb::WriteMint(
     PropertyId propertyId,
     lelantus::PublicCoin const &pubKey,
