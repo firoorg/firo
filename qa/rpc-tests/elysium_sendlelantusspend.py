@@ -162,7 +162,9 @@ class ElysiumSendSpendTest(ElysiumTestFramework):
         assert_equal(0, len(mints))
 
         testing_node.walletpassphrase(passphrase, 2000)
+        self.mine_tx(testing_node.sendtoaddress(addr, 1))
         self.mine_tx(testing_node.elysium_sendlelantusmint(addr, lelantus_property, '10'))
+        self.mine_tx(testing_node.sendtoaddress(addr, 1))
         self.mine_tx(testing_node.elysium_sendlelantusmint(addr, lelantus_property, '10'))
 
         testing_node.generate(2)
