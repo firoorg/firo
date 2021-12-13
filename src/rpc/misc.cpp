@@ -1103,58 +1103,63 @@ UniValue getlatestcoinid(const JSONRPCRequest& request)
 
 UniValue getcoinsforrecovery(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 0)
+    if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
                 "getcoinsforrecovery\n"
+                "\nArguments:\n"
+                "{\n"
+                "      \"coinGroupId\"  (int)\n"
+                "}\n"
                 "\nResult:\n"
                 "{\n"
-                "  \"setID\" (int) Set id\n"
                 "  \"mints\" (Pair<string,Pair<string,Pair<<string, uint64_t>>) Public coins paired with txhash which is paired with mint tag and mint value\n"
                 "  \"jmints\"(Pair<string,Pair<string, Pair<<string, string>>>) Public coins paired with txhash which is paired with mint tag and encrypted mint value \n"
                 "}\n"
         );
 
-    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-    int latestCoinId = lelantusState->GetLatestCoinID();
-    UniValue ret(UniValue::VOBJ);
-    while (latestCoinId) {
-        UniValue setEntity(UniValue::VOBJ);
-        setEntity.push_back(Pair("setID", latestCoinId));
-        std::vector<std::pair <lelantus::PublicCoin,std::pair<lelantus::MintValueData, uint256>>> coins;
-        std::vector<uint256> txHashes;
-        lelantusState->GetCoinsForRecovery(latestCoinId, coins, txHashes);
-        UniValue mints(UniValue::VARR);
-        UniValue jmints(UniValue::VARR);
-        int i = 0;
-        for (const auto& coin : coins) {
-            if (coin.second.first.isJMint) {
-                std::vector<unsigned char> vch = coin.first.getValue().getvch();
-                std::vector<UniValue> data;
-                data.push_back(HexStr(vch.begin(), vch.end()));
-                data.push_back(coin.second.second.GetHex());
-                data.push_back(HexStr(coin.second.first.encryptedValue.begin(), coin.second.first.encryptedValue.end()));
-                data.push_back(txHashes[i].GetHex());
-                UniValue entity(UniValue::VARR);
-                entity.push_backV(data);
-                jmints.push_back(entity);
-            } else {
-                std::vector<unsigned char> vch = coin.first.getValue().getvch();
-                std::vector<UniValue> data;
-                data.push_back(HexStr(vch.begin(), vch.end()));
-                data.push_back(coin.second.second.GetHex());
-                data.push_back(coin.second.first.amount);
-                data.push_back(txHashes[i].GetHex());
-                UniValue entity(UniValue::VARR);
-                entity.push_backV(data);
-                mints.push_back(entity);
-            }
-            i++;
-        }
-        setEntity.push_back(Pair("mints", mints));
-        setEntity.push_back(Pair("jmints", jmints));
-        ret.push_back(Pair(std::to_string(latestCoinId), setEntity));
-        latestCoinId--;
+    int coinGroupId;
+    try {
+        coinGroupId = request.params[0].get_int();
+    } catch (std::logic_error const & e) {
+        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
     }
+
+
+    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
+    UniValue ret(UniValue::VOBJ);
+
+    std::vector<std::pair <lelantus::PublicCoin,std::pair<lelantus::MintValueData, uint256>>> coins;
+    std::vector<uint256> txHashes;
+    lelantusState->GetCoinsForRecovery(coinGroupId, coins, txHashes);
+    UniValue mints(UniValue::VARR);
+    UniValue jmints(UniValue::VARR);
+    int i = 0;
+    for (const auto& coin : coins) {
+        if (coin.second.first.isJMint) {
+            std::vector<unsigned char> vch = coin.first.getValue().getvch();
+            std::vector<UniValue> data;
+            data.push_back(HexStr(vch.begin(), vch.end()));
+            data.push_back(coin.second.second.GetHex());
+            data.push_back(HexStr(coin.second.first.encryptedValue.begin(), coin.second.first.encryptedValue.end()));
+            data.push_back(txHashes[i].GetHex());
+            UniValue entity(UniValue::VARR);
+            entity.push_backV(data);
+            jmints.push_back(entity);
+        } else {
+            std::vector<unsigned char> vch = coin.first.getValue().getvch();
+            std::vector<UniValue> data;
+            data.push_back(HexStr(vch.begin(), vch.end()));
+            data.push_back(coin.second.second.GetHex());
+            data.push_back(coin.second.first.amount);
+            data.push_back(txHashes[i].GetHex());
+            UniValue entity(UniValue::VARR);
+            entity.push_backV(data);
+            mints.push_back(entity);
+        }
+        i++;
+    }
+    ret.push_back(Pair("mints", mints));
+    ret.push_back(Pair("jmints", jmints));
 
     return ret;
 }
