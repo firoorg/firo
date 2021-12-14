@@ -202,6 +202,7 @@ std::string ScriptType(const CScript &script) {
     else if (script.IsLelantusMint()) return "lelantus-mint";
     else if (script.IsLelantusJMint()) return "lelantus-jmint";
     else if (script.IsLelantusJoinSplit()) return "lelantus-joinsplit";
+    else if (script.IsElysium()) return "elysium";
     else return "unknown";
 }
 
