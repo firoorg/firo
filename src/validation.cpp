@@ -2420,7 +2420,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
             }
         }
         if (GetBoolArg("-peerblockfilters", DEFAULT_PEERBLOCKFILTERS)) {
-            if (!pblocktree->UpdateBlockFilterIndex(block.GetHash(), {}, {})) {
+            if (!pblocktree->UpdateBlockFilterIndex(block.GetHash(), {}, {}, {})) {
                 AbortNode(state, "Failed to write block filter index");
                 error("Failed to write block filter index");
                 return DISCONNECT_FAILED;
@@ -2953,18 +2953,23 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     if (GetBoolArg("-peerblockfilters", DEFAULT_PEERBLOCKFILTERS))
     {
+        if (pindex->nHeight == 1) {
+            if (!UpdateGenesisBlockFilterIndex(chainparams.GenesisBlock()))
+                return AbortNode(_("Cannot update the block filter for the genesis block"));
+        }
+
         uint256 prevBlockHash {};
-        std::pair<std::vector<unsigned char>, uint256> prevFilter {};
+        std::tuple<std::vector<unsigned char>, uint256, uint256> prevFilter {};
         if (pindex->nHeight > 0) {
             prevBlockHash = pindex->pprev->GetBlockHash();
             prevFilter = pblocktree->ReadBlockFilterIndex(prevBlockHash);
         }
 
-        if (pindex->nHeight > 0 && prevFilter.first.empty()) {
+        if (pindex->nHeight > 0 && std::get<0>(prevFilter).empty()) {
             LogPrintf("ConnectBlock: Could not read block filter index for height: %d\n", pindex->nHeight);
         } else {
-            BlockFilterIndex bfidx(block, blockundo, prevFilter.second);
-            if (!pblocktree->UpdateBlockFilterIndex(block.GetHash(), bfidx.GetEncoded(), bfidx.GetHeader()))
+            BlockFilterIndex bfidx(block, blockundo, std::get<2>(prevFilter));
+            if (!pblocktree->UpdateBlockFilterIndex(block.GetHash(), bfidx.GetEncoded(), bfidx.GetHash(), bfidx.GetHeader()))
                 return AbortNode(state, "Failed to write block filter index");
         }
     }

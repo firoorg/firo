@@ -18,12 +18,18 @@ BlockFilterIndex::BlockFilterIndex(CBlock const & block, CBlockUndo const & bloc
 {
     BlockFilter bf(BlockFilterType::Basic, block, blockUndo);
     encoded = bf.GetEncodedFilter();
+    hash = bf.GetHash();
     header = bf.ComputeHeader(prevHeader);
 }
 
 std::vector<unsigned char> BlockFilterIndex::GetEncoded() const
 {
     return encoded;
+}
+
+uint256 BlockFilterIndex::GetHash() const
+{
+    return hash;
 }
 
 uint256 BlockFilterIndex::GetHeader() const
@@ -33,21 +39,31 @@ uint256 BlockFilterIndex::GetHeader() const
 
 bool BlockFilterIndex::LookupFilter(const CBlockIndex* block_index, BlockFilter& filter_out) const
 {
-    std::pair<std::vector<unsigned char>, uint256> rawFilter =
+    std::tuple<std::vector<unsigned char>, uint256, uint256> rawFilter =
         pblocktree->ReadBlockFilterIndex(block_index->GetBlockHash());
-    if (rawFilter.first.empty())
+    if (std::get<0>(rawFilter).empty())
         return false;
-    filter_out = BlockFilter{BlockFilterType::Basic, block_index->GetBlockHash(), rawFilter.first};
+    filter_out = BlockFilter{BlockFilterType::Basic, block_index->GetBlockHash(), std::get<0>(rawFilter)};
     return true;
 }
 
-bool BlockFilterIndex::LookupFilterHeader(const CBlockIndex* block_index, uint256& header_out) const
+bool BlockFilterIndex::LookupFilterHash(const CBlockIndex* block_index, uint256& header_out) const
 {
-    std::pair<std::vector<unsigned char>, uint256> rawFilter =
+    std::tuple<std::vector<unsigned char>, uint256, uint256> rawFilter =
         pblocktree->ReadBlockFilterIndex(block_index->GetBlockHash());
-    if (rawFilter.first.empty())
+    if (std::get<0>(rawFilter).empty())
         return false;
-    header_out = rawFilter.second;
+    header_out = std::get<1>(rawFilter);
+    return true;
+}
+
+bool BlockFilterIndex::LookupHeaderHash(const CBlockIndex* block_index, uint256& header_out) const
+{
+    std::tuple<std::vector<unsigned char>, uint256, uint256> rawFilter =
+        pblocktree->ReadBlockFilterIndex(block_index->GetBlockHash());
+    if (std::get<0>(rawFilter).empty())
+        return false;
+    header_out = std::get<2>(rawFilter);
     return true;
 }
 
@@ -78,12 +94,12 @@ bool BlockFilterIndex::LookupFilterRange(int start_height, const CBlockIndex* st
 }
 
 
-bool BlockFilterIndex::LookupFilterHashRange(int start_height, const CBlockIndex* stop_index, std::vector<uint256>& hashes_out) const
+bool BlockFilterIndex::LookupHeaderHashRange(int start_height, const CBlockIndex* stop_index, std::vector<uint256>& hashes_out) const
 {
     bool result = true;
     while (stop_index->nHeight >= start_height) {
         uint256 out;
-        if (LookupFilterHeader(stop_index, out)) {
+        if (LookupFilterHash(stop_index, out)) {
             hashes_out.emplace_back(std::move(out));
         } else {
             result = false;
@@ -114,7 +130,7 @@ BlockFilterIndex * GetBlockFilterIndex(BlockFilterType filterType)
 bool UpdateGenesisBlockFilterIndex(CBlock const & block)
 {
     BlockFilterIndex bfidx(block, CBlockUndo{}, uint256{});
-    if (!pblocktree->UpdateBlockFilterIndex(block.GetHash(), bfidx.GetEncoded(), bfidx.GetHeader()))
+    if (!pblocktree->UpdateBlockFilterIndex(block.GetHash(), bfidx.GetEncoded(), bfidx.GetHash(), bfidx.GetHeader()))
         return error("Failed to write block filter index");
     return true;
 }

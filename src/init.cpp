@@ -2013,8 +2013,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     if (GetBoolArg("-peerblockfilters", DEFAULT_PEERBLOCKFILTERS)) {
         nLocalServices = ServiceFlags(nLocalServices | NODE_COMPACT_FILTERS);
-        if (!UpdateGenesisBlockFilterIndex(chainparams.GenesisBlock()))
-            return InitError(_("Cannot update the block filter for the genesis block"));
     }
 
     // ********************************************************* Step 10a: Prepare znode related stuff

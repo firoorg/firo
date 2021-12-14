@@ -1666,11 +1666,11 @@ static UniValue getblockfilter(const JSONRPCRequest& request)
     if (!block_was_connected)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block was not connected to active chain.");
 
-    std::pair<std::vector<unsigned char>, uint256> filter = pblocktree->ReadBlockFilterIndex(block_hash);
+    std::tuple<std::vector<unsigned char>, uint256, uint256> filter = pblocktree->ReadBlockFilterIndex(block_hash);
 
     UniValue ret(UniValue::VOBJ);
-    ret.pushKV("filter", HexStr(filter.first));
-    ret.pushKV("header", filter.second.GetHex());
+    ret.pushKV("filter", HexStr(std::get<0>(filter)));
+    ret.pushKV("header", std::get<2>(filter).GetHex());
     return ret;
 
 

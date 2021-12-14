@@ -236,7 +236,7 @@ bool CBlockTreeDB::UpdateAddressUnspentIndex(const std::vector<std::pair<CAddres
     return WriteBatch(batch);
 }
 
-std::pair<std::vector<unsigned char>, uint256> CBlockTreeDB::ReadBlockFilterIndex(uint256 blockHash)
+std::tuple<std::vector<unsigned char>, uint256, uint256> CBlockTreeDB::ReadBlockFilterIndex(uint256 blockHash)
 {
     boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
     pcursor->Seek(std::make_pair(DB_BLOCK_FILTER_INDEX, blockHash));
@@ -247,19 +247,19 @@ std::pair<std::vector<unsigned char>, uint256> CBlockTreeDB::ReadBlockFilterInde
     if (!pcursor->GetKey(key) || key.first != DB_BLOCK_FILTER_INDEX || key.second != blockHash)
         return {};
 
-    std::pair<std::vector<unsigned char>, uint256> value {};
+    std::tuple<std::vector<unsigned char>, uint256, uint256> value {};
     pcursor->GetValue(value);
 
     return value;
 }
 
-bool CBlockTreeDB::UpdateBlockFilterIndex(uint256 blockHash, std::vector<unsigned char> const & filter, uint256 header)
+bool CBlockTreeDB::UpdateBlockFilterIndex(uint256 blockHash, std::vector<unsigned char> const & filter, uint256 const & filterHash, uint256 const & headerHash)
 {
     CDBBatch batch(*this);
     if (filter.empty())
         batch.Erase(std::make_pair(DB_BLOCK_FILTER_INDEX, blockHash));
     else
-        batch.Write(std::make_pair(DB_BLOCK_FILTER_INDEX, blockHash), std::make_pair(filter, header));
+        batch.Write(std::make_pair(DB_BLOCK_FILTER_INDEX, blockHash), std::make_tuple(filter, filterHash, headerHash));
     return WriteBatch(batch);
 }
 

@@ -65,7 +65,7 @@ struct IteratorComparator
     }
 };
 /** Maximum number of compact filters that may be requested with one getcfilters. See BIP 157. */
-static constexpr uint32_t MAX_GETCFILTERS_SIZE = 1000;
+static constexpr uint32_t MAX_GETCFILTERS_SIZE = 2000;
 /** Maximum number of cf hashes that may be requested with one getcfheaders. See BIP 157. */
 static constexpr uint32_t MAX_GETCFHEADERS_SIZE = 2000;
 
@@ -1392,7 +1392,6 @@ static void ProcessGetCFilters(CNode& pfrom, CDataStream& vRecv, const CChainPar
 
     vRecv >> filter_type_ser >> start_height >> stop_hash;
 
-    std::cerr << "ProcessGetCFilters: " << stop_hash.ToString() << std::endl;
 
     const BlockFilterType filter_type = static_cast<BlockFilterType>(filter_type_ser);
 
@@ -1436,7 +1435,6 @@ static void ProcessGetCFHeaders(CNode& pfrom, CDataStream& vRecv, const CChainPa
     uint256 stop_hash;
     vRecv >> filter_type_ser >> start_height >> stop_hash;
 
-    std::cerr << "ProcessGetCFHeaders: " << stop_hash.ToString() << std::endl;
     const BlockFilterType filter_type = static_cast<BlockFilterType>(filter_type_ser);
     const CBlockIndex* stop_index;
     BlockFilterIndex* filter_index;
@@ -1448,14 +1446,14 @@ static void ProcessGetCFHeaders(CNode& pfrom, CDataStream& vRecv, const CChainPa
     if (start_height > 0) {
         const CBlockIndex* const prev_block =
             stop_index->GetAncestor(static_cast<int>(start_height - 1));
-        if (!filter_index->LookupFilterHeader(prev_block, prev_header)) {
+        if (!filter_index->LookupHeaderHash(prev_block, prev_header)) {
             LogPrint("net", "Failed to find block filter header in index: filter_type=%s, block_hash=%s\n",
                          BlockFilterTypeName(filter_type), prev_block->GetBlockHash().ToString());
             return;
         }
     }
     std::vector<uint256> filter_hashes;
-    if (!filter_index->LookupFilterHashRange(start_height, stop_index, filter_hashes)) {
+    if (!filter_index->LookupHeaderHashRange(start_height, stop_index, filter_hashes)) {
         LogPrint("net", "Failed to find block filter hashes in index: filter_type=%s, start_height=%d, stop_hash=%s\n",
                      BlockFilterTypeName(filter_type), start_height, stop_hash.ToString());
         return;
@@ -1498,7 +1496,7 @@ static void ProcessGetCFCheckPt(CNode& pfrom, CDataStream& vRecv, const CChainPa
     for (int i = headers.size() - 1; i >= 0; i--) {
         int height = (i + 1) * CFCHECKPT_INTERVAL;
         block_index = block_index->GetAncestor(height);
-        if (!filter_index->LookupFilterHeader(block_index, headers[i])) {
+        if (!filter_index->LookupHeaderHash(block_index, headers[i])) {
             LogPrint("net", "Failed to find block filter header in index: filter_type=%s, block_hash=%s\n",
                          BlockFilterTypeName(filter_type), block_index->GetBlockHash().ToString());
             return;
@@ -3166,18 +3164,15 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     }
 
     if (strCommand == NetMsgType::GETCFILTERS) {
-        std::cerr << "GETCFILTERS" << std::endl;
         ProcessGetCFilters(*pfrom, vRecv, chainparams, connman);
         return true;
     }
 
     if (strCommand == NetMsgType::GETCFHEADERS) {
-        std::cerr << "GETCFHEADERS" << std::endl;
         ProcessGetCFHeaders(*pfrom, vRecv, chainparams, connman);
         return true;
     }
     if (strCommand == NetMsgType::GETCFCHECKPT) {
-        std::cerr << "GETCFCHECKPT" << std::endl;
         ProcessGetCFCheckPt(*pfrom, vRecv, chainparams, connman);
         return true;
     }

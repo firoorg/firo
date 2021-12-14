@@ -129,8 +129,8 @@ public:
     bool UpdateSpentIndex(const std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> >&vect);
     bool UpdateAddressUnspentIndex(const std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue > >&vect);
 
-    std::pair<std::vector<unsigned char>, uint256> ReadBlockFilterIndex(uint256 blockHash);
-    bool UpdateBlockFilterIndex(uint256 blockHash, std::vector<unsigned char> const & filter, uint256 header);
+    std::tuple<std::vector<unsigned char>, uint256, uint256> ReadBlockFilterIndex(uint256 blockHash);
+    bool UpdateBlockFilterIndex(uint256 blockHash, std::vector<unsigned char> const & filter, uint256 const & filterHash, uint256 const & headerHash);
 
     bool ReadAddressUnspentIndex(uint160 addressHash, AddressType type,
                                  std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &vect);
