@@ -31,7 +31,6 @@
 #include "lookupaddressdialog.h"
 #include "lookupspdialog.h"
 #include "lookuptxdialog.h"
-#include "sendmpdialog.h"
 #include "txhistorydialog.h"
 
 #include "../elysium/elysium.h"
@@ -57,8 +56,8 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
 #ifdef ENABLE_ELYSIUM
     elysiumTransactionsView(0),
     transactionTabs(0),
-    sendElysiumView(0),
     sendCoinsTabs(0),
+    elysiumPrivateSendPage(0),
 #endif
     sigmaView(0),
     blankSigmaView(0),
@@ -70,7 +69,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     overviewPage = new OverviewPage(platformStyle);
     transactionsPage = new QWidget(this);
 #ifdef ENABLE_ELYSIUM
-    elyAssetsPage = new ElyAssetsDialog();
+    elysiumTokensPage = new QWidget(this);
 #endif
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
     createPcodePage = new CreatePcodeDialog(platformStyle);
@@ -80,9 +79,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     lelantusPage = new QWidget(this);
 
     sendCoinsPage = new QWidget(this);
-#ifdef ENABLE_ELYSIUM
-    toolboxPage = new QWidget(this);
-#endif
     masternodeListPage = new MasternodeList(platformStyle);
 
     automintNotification = new AutomintNotification(this);
@@ -91,14 +87,14 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     setupTransactionPage();
     setupSendCoinPage();
 #ifdef ENABLE_ELYSIUM
-    setupToolboxPage();
+    setupElysiumTokensPage();
 #endif
     setupSigmaPage();
     setupLelantusPage();
 
     addWidget(overviewPage);
 #ifdef ENABLE_ELYSIUM
-    addWidget(elyAssetsPage);
+    addWidget(elysiumTokensPage);
 #endif
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
@@ -106,9 +102,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     addWidget(sendCoinsPage);
     addWidget(sigmaPage);
     addWidget(lelantusPage);
-#ifdef ENABLE_ELYSIUM
-    addWidget(toolboxPage);
-#endif
     addWidget(masternodeListPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
@@ -156,29 +149,50 @@ void WalletView::setupTransactionPage()
     firoTransactionsView = new QWidget();
     firoTransactionsView->setLayout(firoLayout);
 
-#ifdef ENABLE_ELYSIUM
-    // Create tabs for transaction categories
-    if (isElysiumEnabled()) {
-        elysiumTransactionsView = new TXHistoryDialog();
-
-        transactionTabs = new QTabWidget();
-        transactionTabs->addTab(firoTransactionsView, tr("Firo"));
-        transactionTabs->addTab(elysiumTransactionsView, tr("Elysium"));
-    }
-#endif
-
     // Set layout for transaction page
     auto pageLayout = new QVBoxLayout();
 
-#ifdef ENABLE_ELYSIUM
-    if (transactionTabs) {
-        pageLayout->addWidget(transactionTabs);
-    } else
-#endif
-        pageLayout->addWidget(firoTransactionsView);
+    pageLayout->addWidget(firoTransactionsView);
 
     transactionsPage->setLayout(pageLayout);
 }
+
+#ifdef ENABLE_ELYSIUM
+void WalletView::setupElysiumTokensPage()
+{
+    if (!isElysiumEnabled()) {
+        return;
+    }
+
+    elysiumPrivateSendPage = new ElysiumPrivateSendDialog(platformStyle);
+    connect(elysiumPrivateSendPage, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
+    createTokenPage = new CreateTokenDialog();
+    connect(createTokenPage, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
+    mintTokenPage = new MintTokenDialog();
+    connect(mintTokenPage, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
+    manageTokenPage = new ManageTokenDialog();
+    connect(manageTokenPage, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
+  
+    elysiumTransactionsView = new TXHistoryDialog();
+    elyAssetsPage = new ElyAssetsDialog();
+
+    toolboxPage = new QWidget(this);
+    setupToolboxPage();
+
+    elysiumTokensTabs = new QTabWidget();
+    elysiumTokensTabs->addTab(elysiumPrivateSendPage, tr("Send"));
+    elysiumTokensTabs->addTab(elyAssetsPage, tr("Balances"));
+    elysiumTokensTabs->addTab(elysiumTransactionsView, tr("Transactions"));
+    elysiumTokensTabs->addTab(createTokenPage, tr("Create"));
+    elysiumTokensTabs->addTab(mintTokenPage, tr("Anonymize"));
+    elysiumTokensTabs->addTab(manageTokenPage, tr("Manage Tokens"));
+    elysiumTokensTabs->addTab(toolboxPage, tr("Toolbox"));
+
+    auto pageLayout = new QVBoxLayout();
+    pageLayout->addWidget(elysiumTokensTabs);
+    elysiumTokensPage->setLayout(pageLayout);
+}
+#endif
 
 void WalletView::setupSendCoinPage()
 {
@@ -186,26 +200,10 @@ void WalletView::setupSendCoinPage()
 
     connect(sendFiroView, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
 
-#ifdef ENABLE_ELYSIUM
-    // Create tab for coin type
-    if (isElysiumEnabled()) {
-        sendElysiumView = new SendMPDialog(platformStyle);
-
-        sendCoinsTabs = new QTabWidget();
-        sendCoinsTabs->addTab(sendFiroView, tr("Firo"));
-        sendCoinsTabs->addTab(sendElysiumView, tr("Elysium"));
-    }
-#endif
-
     // Set layout for send coin page
     auto pageLayout = new QVBoxLayout();
 
-#ifdef ENABLE_ELYSIUM
-    if (sendCoinsTabs) {
-        pageLayout->addWidget(sendCoinsTabs);
-    } else
-#endif
-        pageLayout->addWidget(sendFiroView);
+    pageLayout->addWidget(sendFiroView);
 
     sendCoinsPage->setLayout(pageLayout);
 }
@@ -303,6 +301,9 @@ void WalletView::setClientModel(ClientModel *_clientModel)
     masternodeListPage->setClientModel(clientModel);
 #ifdef ENABLE_ELYSIUM
     elyAssetsPage->setClientModel(clientModel);
+    createTokenPage->setClientModel(clientModel);
+    mintTokenPage->setClientModel(clientModel);
+    manageTokenPage->setClientModel(clientModel);
 #endif
     if (pwalletMain->IsHDSeedAvailable()) {
         sigmaView->setClientModel(clientModel);
@@ -314,8 +315,8 @@ void WalletView::setClientModel(ClientModel *_clientModel)
         elysiumTransactionsView->setClientModel(clientModel);
     }
 
-    if (sendElysiumView) {
-        sendElysiumView->setClientModel(clientModel);
+    if (elysiumPrivateSendPage) {
+        elysiumPrivateSendPage->setClientModel(clientModel);
     }
 #endif
 }
@@ -342,13 +343,16 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     automintNotification->setModel(_walletModel);
 #ifdef ENABLE_ELYSIUM
     elyAssetsPage->setWalletModel(walletModel);
+    createTokenPage->setModel(walletModel);
+    mintTokenPage->setModel(walletModel);
+    manageTokenPage->setModel(walletModel);
 
     if (elysiumTransactionsView) {
         elysiumTransactionsView->setWalletModel(walletModel);
     }
 
-    if (sendElysiumView) {
-        sendElysiumView->setWalletModel(walletModel);
+    if (elysiumPrivateSendPage) {
+        elysiumPrivateSendPage->setWalletModel(walletModel);
     }
 #endif
 
@@ -419,9 +423,9 @@ void WalletView::gotoOverviewPage()
 }
 
 #ifdef ENABLE_ELYSIUM
-void WalletView::gotoElyAssetsPage()
+void WalletView::gotoElysiumTokensPage()
 {
-    setCurrentWidget(elyAssetsPage);
+    setCurrentWidget(elysiumTokensPage);
 }
 #endif
 
@@ -495,13 +499,6 @@ void WalletView::gotoLelantusPage()
 {
     setCurrentWidget(lelantusPage);
 }
-
-#ifdef ENABLE_ELYSIUM
-void WalletView::gotoToolboxPage()
-{
-    setCurrentWidget(toolboxPage);
-}
-#endif
 
 void WalletView::gotoSendCoinsPage(QString addr)
 {

@@ -11,6 +11,7 @@
 #include <QPushButton>
 #include <QTextEdit>
 #include <QVBoxLayout>
+#include <QLineEdit>
 
 namespace elysium
 {
@@ -109,4 +110,28 @@ std::string ReplaceStr(const std::string& findText, const std::string& replaceTe
     return outputStr;
 }
 
+/**
+ * Format Elysium amount field text
+ */
+void FormatElysiumAmount(QLineEdit *amountLineEdit, bool divisible)
+{
+    if (amountLineEdit->text().isEmpty()) {
+        // ignore empty string
+        return;
+    }
+    QString amount = amountLineEdit->text();
+    int decimalIndex = amount.lastIndexOf(".");
+    if (divisible) {
+        if (decimalIndex == -1) {
+            amount.append(".00000000");
+        }
+    } else {
+        if (decimalIndex == 0) {
+            amount = "0";
+        } else if (decimalIndex > 0) {
+            amount.resize(decimalIndex);
+        }
+    }
+    amountLineEdit->setText(amount);
+}
 } // end namespace

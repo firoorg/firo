@@ -122,14 +122,17 @@ QT_FORMS_UI = \
   qt/forms/sendtopcodedialog.ui \
   qt/forms/signverifymessagedialog.ui \
   qt/forms/transactiondescdialog.ui \
-  qt/forms/sendmpdialog.ui \
   qt/forms/lookupaddressdialog.ui \
   qt/forms/lookupspdialog.ui \
   qt/forms/lookuptxdialog.ui \
   qt/forms/txhistorydialog.ui \
   qt/forms/elyassetsdialog.ui \
   qt/forms/lelantusdialog.ui \
-  qt/forms/createpcodedialog.ui
+  qt/forms/createpcodedialog.ui \
+  qt/forms/createtokendialog.ui \
+  qt/forms/elysiumprivatesenddialog.ui \
+  qt/forms/minttokendialog.ui \
+  qt/forms/managetokendialog.ui
 
 QT_MOC_CPP = \
   qt/moc_addressbookpage.cpp \
@@ -188,7 +191,6 @@ QT_MOC_CPP = \
   qt/moc_walletframe.cpp \
   qt/moc_walletmodel.cpp \
   qt/moc_walletview.cpp \
-  qt/moc_sendmpdialog.cpp \
   qt/moc_lookupaddressdialog.cpp \
   qt/moc_lookupspdialog.cpp \
   qt/moc_lookuptxdialog.cpp \
@@ -199,7 +201,11 @@ QT_MOC_CPP = \
   qt/moc_lelantuscoincontroldialog.cpp \
   qt/moc_automintmodel.cpp \
   qt/moc_automintnotification.cpp \
-  qt/moc_pcodemodel.cpp
+  qt/moc_pcodemodel.cpp \
+  qt/moc_createtokendialog.cpp \
+  qt/moc_elysiumprivatesenddialog.cpp \
+  qt/moc_minttokendialog.cpp \
+  qt/moc_managetokendialog.cpp
 
 BITCOIN_MM = \
   qt/macdockiconhandler.mm \
@@ -291,12 +297,15 @@ BITCOIN_QT_H = \
   qt/lookuptxdialog.h \
   qt/txhistorydialog.h \
   qt/elyassetsdialog.h \
-  qt/sendmpdialog.h \
   qt/elysium_qtutils.h \
   qt/lelantusmodel.h \
   qt/lelantusdialog.h \
   qt/lelantuscoincontroldialog.h \
-  qt/automintmodel.h
+  qt/automintmodel.h \
+  qt/createtokendialog.h \
+  qt/elysiumprivatesenddialog.h \
+  qt/minttokendialog.h \
+  qt/managetokendialog.h
 
 RES_ICONS = \
   qt/res/icons/add.png \
@@ -485,14 +494,17 @@ BITCOIN_QT_WALLET_CPP = \
   qt/lelantusmodel.cpp \
   qt/lelantusdialog.cpp \
   qt/lelantuscoincontroldialog.cpp \
-  qt/automintmodel.cpp
+  qt/automintmodel.cpp \
+  qt/createtokendialog.cpp \
+  qt/elysiumprivatesenddialog.cpp \
+  qt/minttokendialog.cpp \
+  qt/managetokendialog.cpp
 
 FIRO_QT_ELYSIUM_CPP = \
   qt/elyassetsdialog.cpp \
   qt/lookupaddressdialog.cpp \
   qt/lookupspdialog.cpp \
   qt/lookuptxdialog.cpp \
-  qt/sendmpdialog.cpp \
   qt/txhistorydialog.cpp
 
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)

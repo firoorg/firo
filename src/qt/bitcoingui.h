@@ -96,8 +96,7 @@ private:
     QMenuBar *appMenuBar;
     QAction *overviewAction;
 #ifdef ENABLE_ELYSIUM
-    QAction *elyAssetsAction;
-    QAction *toolboxAction;
+    QAction *elysiumTokensAction;
 #endif
     QAction *historyAction;
     QAction *quitAction;
@@ -123,7 +122,6 @@ private:
     QAction *lelantusAction;
     QAction *masternodeAction;
     QAction *createPcodeAction;
-    QAction *logoAction;
 
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
@@ -217,12 +215,10 @@ private Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
 #ifdef ENABLE_ELYSIUM
-    /** Switch to ElyAssets page */
-    void gotoElyAssetsPage();
-    /** Switch to utility page */
-    void gotoToolboxPage();
     /** Switch directly to Elysium history tab */
     void gotoElysiumHistoryTab();
+    /** Switch to Elysium Tokens Page */
+    void gotoElysiumTokensPage();
 #endif
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
