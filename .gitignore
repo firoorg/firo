@@ -135,3 +135,5 @@ firo.creator
 firo.creator.user
 firo.files
 firo.includes
+
+/guix-build-*
