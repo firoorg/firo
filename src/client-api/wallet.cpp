@@ -20,6 +20,8 @@
 #include "consensus/consensus.h"
 #include <fstream>
 #include <boost/algorithm/string.hpp>
+#include "../elysium/wallettxs.h"
+#include "../elysium/tx.h"
 
 namespace fs = boost::filesystem;
 using namespace boost::chrono;
@@ -314,15 +316,118 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         outputs.push_back(output);
     }
 
-    UniValue txData = UniValue::VOBJ;
+    CBlockIndex *block = nullptr;
     if (!wtx.hashBlock.IsNull()) {
-        txData.pushKV("blockHash", wtx.hashBlock.ToString());
-        auto block = mapBlockIndex.find(wtx.hashBlock);
-        if (block != mapBlockIndex.end()) {
-            txData.pushKV("blockTime", block->second->GetBlockTime());
-            txData.pushKV("blockHeight", block->second->nHeight);
+        auto blockIt = mapBlockIndex.find(wtx.hashBlock);
+        if (blockIt != mapBlockIndex.end()) {
+            block = blockIt->second;
         }
     }
+
+    UniValue txData = UniValue::VOBJ;
+
+    int nHeight = block ? block->nHeight : 0;
+    int nTime = block ? block->nTime : 0;
+    CMPTransaction mp_obj;
+    if (ParseTransaction(*wtx.tx, nHeight, 0, mp_obj, nTime) >= 0 && mp_obj.interpret_Transaction()) {
+        UniValue elysiumData = UniValue::VOBJ;
+
+        elysiumData.pushKV("isFromMe", (bool)IsMine(*pwalletMain, CBitcoinAddress(mp_obj.getSender()).Get()));
+        elysiumData.pushKV("isToMe", (bool)IsMine(*pwalletMain, CBitcoinAddress(mp_obj.getReceiver()).Get()));
+        elysiumData.pushKV("sender", mp_obj.getSender());
+        elysiumData.pushKV("receiver", mp_obj.getReceiver());
+        elysiumData.pushKV("type", mp_obj.getTypeString());
+        elysiumData.pushKV("version", mp_obj.getVersion());
+
+        if (nHeight > 0) elysiumData.pushKV("valid", elysium::getValidMPTX(wtx.tx->GetHash()));
+        else elysiumData.pushKV("valid", false);
+
+        int txType = mp_obj.getType();
+
+        CMPSPInfo::Entry info;
+        UniValue propertyData = UniValue::VNULL;
+        switch (txType) {
+            case ELYSIUM_TYPE_SIMPLE_SEND:
+            case ELYSIUM_TYPE_LELANTUS_MINT:
+            case ELYSIUM_TYPE_LELANTUS_JOINSPLIT:
+            case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS:
+            case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS:
+                if (elysium::_my_sps->getSP(mp_obj.getProperty(), info)) {
+                    propertyData = UniValue::VOBJ;
+                    propertyData.pushKV("id", (uint64_t)mp_obj.getProperty());
+                    propertyData.pushKV("issuer", info.issuer);
+                    propertyData.pushKV("creationTx", info.txid.GetHex());
+                    propertyData.pushKV("isDivisible", info.isDivisible());
+                    propertyData.pushKV("ecosystem", mp_obj.getProperty() >= TEST_ECO_PROPERTY_1 ? "test" : "main");
+                    propertyData.pushKV("isFixed", info.fixed);
+                    propertyData.pushKV("isManaged", info.manual);
+                    propertyData.pushKV("lelantusStatus", std::to_string(info.lelantusStatus));
+                    propertyData.pushKV("name", info.name);
+                    propertyData.pushKV("category", info.category);
+                    propertyData.pushKV("subcategory", info.subcategory);
+                    propertyData.pushKV("data", info.data);
+                    propertyData.pushKV("url", info.url);
+                }
+
+                break;
+
+            case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE:
+            case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED:
+            case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL: {
+                propertyData = UniValue::VOBJ;
+
+                int propertyId = 0;
+                if (block && block->nHeight > 0) propertyId = elysium::_my_sps->findSPByTX(wtx.tx->GetHash());
+                if (propertyId > 0 && elysium::_my_sps->getSP(mp_obj.getProperty(), info)) {
+                    propertyData.pushKV("id", propertyId);
+                    // Note that this is the current lelantus status, not the lelantus status at the time of property creation.
+                    propertyData.pushKV("lelantusStatus", std::to_string(info.lelantusStatus));
+                } else {
+                    propertyData.pushKV("id", UniValue::VNULL);
+                    propertyData.pushKV("lelantusStatus", std::to_string(mp_obj.getLelantusStatus()));
+                }
+
+                propertyData.pushKV("issuer", mp_obj.getSender());
+                propertyData.pushKV("creationTx", wtx.tx->GetHash().GetHex());
+                propertyData.pushKV("isDivisible", mp_obj.getPropertyType() == ELYSIUM_PROPERTY_TYPE_DIVISIBLE);
+                propertyData.pushKV("ecosystem", elysium::strEcosystem(mp_obj.getEcosystem()));
+                propertyData.pushKV("isFixed", txType == ELYSIUM_TYPE_CREATE_PROPERTY_FIXED);
+                propertyData.pushKV("isManaged", txType == ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL);
+                propertyData.pushKV("name", mp_obj.getSPName());
+                propertyData.pushKV("category", mp_obj.getSPCategory());
+                propertyData.pushKV("subcategory", mp_obj.getSPSubCategory());
+                propertyData.pushKV("data", mp_obj.getSPData());
+                propertyData.pushKV("url", mp_obj.getSPUrl());
+
+                break;
+            }
+        }
+        elysiumData.pushKV("property", propertyData);
+
+        switch (txType) {
+            case ELYSIUM_TYPE_SIMPLE_SEND:
+            case ELYSIUM_TYPE_LELANTUS_MINT:
+            case ELYSIUM_TYPE_LELANTUS_JOINSPLIT:
+            case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED:
+            case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS:
+            case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS:
+                // If the property is divisible, the actual amount is 1/1e8 of the value here.
+                uint64_t amount;
+                if (txType == ELYSIUM_TYPE_LELANTUS_MINT) amount = mp_obj.getLelantusMintValue();
+                else if (txType == ELYSIUM_TYPE_LELANTUS_JOINSPLIT) amount = mp_obj.getLelantusSpendAmount();
+                else amount = mp_obj.getAmount();
+                elysiumData.pushKV("amount", amount);
+                break;
+
+            default:
+                elysiumData.pushKV("amount", UniValue::VNULL);
+        }
+
+        txData.pushKV("elysium", elysiumData);
+    } else {
+        txData.pushKV("elysium", UniValue::VNULL);
+    }
+
     txData.pushKV("isInstantSendLocked", wtx.IsLockedByLLMQInstantSend());
     txData.pushKV("txid", wtx.GetHash().ToString());
     txData.pushKV("inputType", inputType);
@@ -330,6 +435,12 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     txData.pushKV("firstSeenAt", wtx.GetTxTime());
     txData.pushKV("fee", fee);
     txData.pushKV("outputs", outputs);
+
+    if (block) {
+        txData.pushKV("blockHash", wtx.hashBlock.ToString());
+        txData.pushKV("blockTime", block->GetBlockTime());
+        txData.pushKV("blockHeight", block->nHeight);
+    }
 
     return txData;
 }

@@ -23,15 +23,3 @@ if(Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
     target_link_libraries(firod ${Boost_LIBRARIES})
 endif()
-
-find_package(OpenSSL)
-if(OpenSSL_FOUND)
-    target_link_libraries(firod OpenSSL::SSL)
-endif()
-
-# Qt's path must be added to the CMAKE_PREFIX_PATH envvar for this to work. e.g. CMAKE_PREFIX_PATH=/usr/local/Cellar/qt/5.15.2/lib/cmake/
-foreach(module Core Widgets Gui)
-    find_package(Qt5${module} REQUIRED)
-    target_link_libraries(firod Qt5::${module})
-endforeach()
-
