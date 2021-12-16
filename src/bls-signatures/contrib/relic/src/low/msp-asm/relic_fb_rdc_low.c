@@ -1,6 +1,6 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007, 2008, 2009 RELIC Authors
+ * Copyright (c) 2007, 2008, 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
@@ -45,52 +45,52 @@ void fb_rdc1_low(dig_t *c, dig_t *a) {
 
 	sh = lh = rh = sa = la = ra = sb = lb = rb = sc = lc = rc = 0;
 
-	SPLIT(rh, sh, FB_BITS, FB_DIG_LOG);
+	RLC_RIP(rh, sh, RLC_FB_BITS);
 	sh++;
-	lh = FB_DIGIT - rh;
+	lh = RLC_DIG - rh;
 
-	SPLIT(ra, sa, FB_BITS - fa, FB_DIG_LOG);
+	RLC_RIP(ra, sa, RLC_FB_BITS - fa);
 	sa++;
-	la = FB_DIGIT - ra;
+	la = RLC_DIG - ra;
 
 	if (fb != -1) {
-		SPLIT(rb, sb, FB_BITS - fb, FB_DIG_LOG);
+		RLC_RIP(rb, sb, RLC_FB_BITS - fb);
 		sb++;
-		lb = FB_DIGIT - rb;
+		lb = RLC_DIG - rb;
 
-		SPLIT(rc, sc, FB_BITS - fc, FB_DIG_LOG);
+		RLC_RIP(rc, sc, RLC_FB_BITS - fc);
 		sc++;
-		lc = FB_DIGIT - rc;
+		lc = RLC_DIG - rc;
 	}
 
-	d = a[FB_DIGS];
-	a[FB_DIGS] = 0;
+	d = a[RLC_FB_DIGS];
+	a[RLC_FB_DIGS] = 0;
 
 	if (rh == 0) {
-		a[FB_DIGS - sh + 1] ^= d;
+		a[RLC_FB_DIGS - sh + 1] ^= d;
 	} else {
-		a[FB_DIGS - sh + 1] ^= (d >> rh);
-		a[FB_DIGS - sh] ^= (d << lh);
+		a[RLC_FB_DIGS - sh + 1] ^= (d >> rh);
+		a[RLC_FB_DIGS - sh] ^= (d << lh);
 	}
 	if (ra == 0) {
-		a[FB_DIGS - sa + 1] ^= d;
+		a[RLC_FB_DIGS - sa + 1] ^= d;
 	} else {
-		a[FB_DIGS - sa + 1] ^= (d >> ra);
-		a[FB_DIGS - sa] ^= (d << la);
+		a[RLC_FB_DIGS - sa + 1] ^= (d >> ra);
+		a[RLC_FB_DIGS - sa] ^= (d << la);
 	}
 
 	if (fb != -1) {
 		if (rb == 0) {
-			a[FB_DIGS - sb + 1] ^= d;
+			a[RLC_FB_DIGS - sb + 1] ^= d;
 		} else {
-			a[FB_DIGS - sb + 1] ^= (d >> rb);
-			a[FB_DIGS - sb] ^= (d << lb);
+			a[RLC_FB_DIGS - sb + 1] ^= (d >> rb);
+			a[RLC_FB_DIGS - sb] ^= (d << lb);
 		}
 		if (rc == 0) {
-			a[FB_DIGS - sc + 1] ^= d;
+			a[RLC_FB_DIGS - sc + 1] ^= d;
 		} else {
-			a[FB_DIGS - sc + 1] ^= (d >> rc);
-			a[FB_DIGS - sc] ^= (d << lc);
+			a[RLC_FB_DIGS - sc + 1] ^= (d >> rc);
+			a[RLC_FB_DIGS - sc] ^= (d << lc);
 		}
 	}
 

@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -52,8 +53,8 @@
 	(R0) += (dig_t)s;														\
 	(R1) += (R0) < (dig_t)s;												\
 	(R2) += (R1) < _r;														\
-	(R1) += (dig_t)(s >> (dbl_t)BN_DIGIT);									\
-	(R2) += (R1) < (dig_t)(s >> (dbl_t)BN_DIGIT);							\
+	(R1) += (dig_t)(s >> (dbl_t)RLC_DIG);									\
+	(R2) += (R1) < (dig_t)(s >> (dbl_t)RLC_DIG);							\
 	(R2) += (s < r);														\
 
 /**
@@ -70,46 +71,40 @@
 	(R0) += (dig_t)(r);														\
 	(R1) += (R0) < (dig_t)r;												\
 	(R2) += (R1) < _r;														\
-	(R1) += (dig_t)(r >> (dbl_t)BN_DIGIT);									\
-	(R2) += (R1) < (dig_t)(r >> (dbl_t)BN_DIGIT);							\
+	(R1) += (dig_t)(r >> (dbl_t)RLC_DIG);									\
+	(R2) += (R1) < (dig_t)(r >> (dbl_t)RLC_DIG);							\
 
 /*============================================================================*/
 /* Public definitions                                                         */
 /*============================================================================*/
 
-void bn_sqra_low(dig_t *c, const dig_t *a, int size) {
+dig_t bn_sqra_low(dig_t *c, const dig_t *a, int size) {
 	int i;
 	dig_t c0, c1;
-	dig_t digit;
 	dbl_t r, r0, r1;
 
-	digit = *a;
-
 	/* Accumulate this column with the square of a->dp[i]. */
-	r = (dbl_t)(*c) + (dbl_t)(digit) * (dbl_t)(digit);
-
-	*c = (dig_t)r;
+	r = (dbl_t)(*c) + (dbl_t)(a[0]) * (dbl_t)(a[0]);
+	c[0] = (dig_t)r;
 
 	/* Update the carry. */
-	c0 = (dig_t)(r >> (dbl_t)BN_DIGIT);
+	c0 = (dig_t)(r >> (dbl_t)RLC_DIG);
 	c1 = 0;
 
-	c++;
-	a++;
-	for (i = 0; i < size - 1; i++, a++, c++) {
-		r = (dbl_t)(digit) * (dbl_t)(*a);
+	for (i = 1; i < size; i++) {
+		r = (dbl_t)(a[0]) * (dbl_t)(a[i]);
 		r0 = r + r;
-		r1 = r0 + (dbl_t)(*c) + (dbl_t)(c0);
-		*c = (dig_t)r1;
+		r1 = r0 + (dbl_t)(c[i]) + (dbl_t)(c0);
+		c[i] = (dig_t)r1;
 
 		/* Accumulate the old delayed carry. */
-		c0 = (dig_t)((r1 >> (dbl_t)BN_DIGIT) + c1);
+		c0 = (dig_t)((r1 >> (dbl_t)RLC_DIG) + c1);
 		/* Compute the new delayed carry. */
 		c1 = (r0 < r) || (r1 < r0) || (c0 < c1);
 	}
-	*c += c0;
-	c1 += (*c++ < c0);
-	*c += c1;
+	c[size] += c0;
+	c1 += (c[size] < c0);
+	return c1;
 }
 
 void bn_sqrn_low(dig_t *c, const dig_t *a, int size) {

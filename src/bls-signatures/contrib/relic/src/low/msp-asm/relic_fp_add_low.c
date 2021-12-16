@@ -1,6 +1,6 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007, 2008, 2009 RELIC Authors
+ * Copyright (c) 2007, 2008, 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
@@ -40,14 +40,14 @@
 void fp_subc_low(dig_t *c, const dig_t *a, const dig_t *b) {
 	dig_t carry = fp_subd_low(c, a, b);
 	if (carry) {
-		fp_addn_low(c + FP_DIGS, c + FP_DIGS, fp_prime_get());
+		fp_addn_low(c + RLC_FP_DIGS, c + RLC_FP_DIGS, fp_prime_get());
 	}
 }
 
 void fp_addc_low(dig_t *c, const dig_t *a, const dig_t *b) {
 	dig_t carry = fp_addd_low(c, a, b);
-	if (carry || (fp_cmpn_low(c + FP_DIGS, fp_prime_get()) != CMP_LT)) {
-		fp_subn_low(c + FP_DIGS, c + FP_DIGS, fp_prime_get());
+	if (carry || (dv_cmp(c + RLC_FP_DIGS, fp_prime_get(), RLC_FP_DIGS) != RLC_LT)) {
+		fp_subn_low(c + RLC_FP_DIGS, c + RLC_FP_DIGS, fp_prime_get());
 	}
 }
 
@@ -73,11 +73,11 @@ void fp_hlvd_low(dig_t *c, const dig_t *a) {
 		fp_copy(c, a);
 	}
 
-	fp_add1_low(c + FP_DIGS, a + FP_DIGS, carry);
+	fp_add1_low(c + RLC_FP_DIGS, a + RLC_FP_DIGS, carry);
 
-	carry = fp_rsh1_low(c + FP_DIGS, c + FP_DIGS);
+	carry = fp_rsh1_low(c + RLC_FP_DIGS, c + RLC_FP_DIGS);
 	fp_rsh1_low(c, c);
 	if (carry) {
-		c[FP_DIGS - 1] ^= ((dig_t)1 << (FP_DIGIT - 1));
+		c[RLC_FP_DIGS - 1] ^= ((dig_t)1 << (RLC_DIG - 1));
 	}
 }

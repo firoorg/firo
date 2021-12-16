@@ -13,7 +13,7 @@ message("   ** Available binary elliptic curve methods (default = PROJC;LWNAF;CO
 
 message("      Point representation:")
 message("      EB_METHD=BASIC    Affine coordinates.")
-message("      EB_METHD=PROJC    Projective coordinates (López-Dahab for ordinary curves).\n")
+message("      EB_METHD=PROJC    Projective coordinates (Lï¿½pez-Dahab for ordinary curves).\n")
 
 message("      Variable-base scalar multiplication:")
 message("      EB_METHD=BASIC    Binary double-and-add method.")
@@ -24,8 +24,6 @@ message("      EB_METHD=HALVE    Halving method.\n")
 
 message("      Fixed-base scalar multiplication:")
 message("      EB_METHD=BASIC    Binary method for fixed point multiplication.")
-message("      EB_METHD=YAOWI    Yao's windowing method for fixed point multiplication")
-message("      EB_METHD=NAFWI    NAF windowing method for fixed point multiplication.")
 message("      EB_METHD=COMBS    Single-table Comb method for fixed point multiplication.")
 message("      EB_METHD=COMBD    Double-table Comb method for fixed point multiplication.")
 message("      EB_METHD=LWNAF    Left-to-right window (T)NAF method.\n")
@@ -38,10 +36,10 @@ message("      EB_METHD=JOINT    Joint sparse form.\n")
 
 if (NOT EB_DEPTH)
 	set(EB_DEPTH 4)
-endif(NOT EB_DEPTH)	
+endif(NOT EB_DEPTH)
 if (NOT EB_WIDTH)
 	set(EB_WIDTH 4)
-endif(NOT EB_WIDTH)	
+endif(NOT EB_WIDTH)
 set(EB_DEPTH "${EB_DEPTH}" CACHE STRING "Width of precomputation table for fixed point methods.")
 set(EB_WIDTH "${EB_WIDTH}" CACHE STRING "Width of window processing for unknown point methods.")
 

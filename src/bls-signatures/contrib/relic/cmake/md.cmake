@@ -1,7 +1,6 @@
 message(STATUS "Message digest configuration (MD module):\n")
 
 message("   ** Available hash functions (default = SH256):\n")
-message("      MD_METHD=SHONE        SHA-1 hash function.")
 message("      MD_METHD=SH224        SHA-224 hash function.")
 message("      MD_METHD=SH256        SHA-256 hash function.")
 message("      MD_METHD=SH384        SHA-384 hash function.")
