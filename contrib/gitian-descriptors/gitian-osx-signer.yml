@@ -42,7 +42,7 @@ script: |
   export PATH="$HOME/.local/bin":$PATH
   cd ..
 
-  UNSIGNED_TARBALL=firon-osx-unsigned.tar.gz
+  UNSIGNED_TARBALL=firo-osx-unsigned.tar.gz
   UNSIGNED_APP=dist/Firo-Qt.app
   SIGNED=firo-osx-signed.dmg
 
