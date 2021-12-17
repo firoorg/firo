@@ -38,7 +38,7 @@ define $(package)_config_cmds
 endef
 
 define $(package)_build_cmds
-  b2 -d2 -j2 -d1 --prefix=$($(package)_staging_prefix_dir) $($(package)_config_opts) toolset=$($(package)_toolset_$(host_os)) stage
+  b2 -d2 -j2 -d1 --prefix=$($(package)_staging_prefix_dir) $($(package)_config_opts) toolset=$($(package)_toolset_$(host_os)) define=BOOST_UUID_RANDOM_PROVIDER_FORCE_POSIX define=BOOST_FILESYSTEM_DISABLE_STATX define=BOOST_FILESYSTEM_DISABLE_GETRANDOM define=BOOST_FILESYSTEM_DISABLE_GETENTROPY stage
 endef
 
 define $(package)_stage_cmds
