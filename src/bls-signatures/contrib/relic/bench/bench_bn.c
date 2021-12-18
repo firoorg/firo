@@ -51,7 +51,7 @@ static void memory(void) {
 		bn_new(a[i]);
 		bn_clean(a[i]);
 	}
-	BENCH_FEW("bn_init", bn_init(a[i], RLC_BN_DIGS), 1);
+	BENCH_FEW("bn_make", bn_make(a[i], RLC_BN_DIGS), 1);
 	for (int i = 0; i < BENCH; i++) {
 		bn_free(a[i]);
 	}

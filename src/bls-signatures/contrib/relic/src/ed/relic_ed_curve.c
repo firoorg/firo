@@ -40,8 +40,8 @@ void ed_curve_init(void) {
 	}
 #endif
 	ed_set_infty(&ctx->ed_g);
-	bn_init(&ctx->ed_r, RLC_FP_DIGS);
-	bn_init(&ctx->ed_h, RLC_FP_DIGS);
+	bn_make(&ctx->ed_r, RLC_FP_DIGS);
+	bn_make(&ctx->ed_h, RLC_FP_DIGS);
 }
 
 void ed_curve_clean(void) {

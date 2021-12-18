@@ -43,7 +43,7 @@
 void fp_invm_low(dig_t *c, const dig_t *a) {
 	bn_st e;
 
-	bn_init(&e, RLC_FP_DIGS);
+	bn_make(&e, RLC_FP_DIGS);
 
 	e.used = RLC_FP_DIGS;
 	dv_copy(e.dp, fp_prime_get(), RLC_FP_DIGS);

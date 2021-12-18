@@ -148,11 +148,11 @@ typedef bn_st *bn_t;
 	if ((A) == NULL) {														\
 		RLC_THROW(ERR_NO_MEMORY);											\
 	}																		\
-	bn_init(A, RLC_BN_SIZE);												\
+	bn_make(A, RLC_BN_SIZE);												\
 
 #elif ALLOC == AUTO
 #define bn_new(A)															\
-	bn_init(A, RLC_BN_SIZE);												\
+	bn_make(A, RLC_BN_SIZE);												\
 
 #endif
 
@@ -172,11 +172,11 @@ typedef bn_st *bn_t;
 	if (A == NULL) {														\
 		RLC_THROW(ERR_NO_MEMORY);											\
 	}																		\
-	bn_init(A, D);															\
+	bn_make(A, D);															\
 
 #elif ALLOC == AUTO
 #define bn_new_size(A, D)													\
-	bn_init(A, D);															\
+	bn_make(A, D);															\
 
 #endif
 
@@ -374,7 +374,7 @@ typedef bn_st *bn_t;
  * @throw ERR_PRECISION		- if the required precision cannot be represented
  * 							by the library.
  */
-void bn_init(bn_t a, int digits);
+void bn_make(bn_t a, int digits);
 
 /**
  * Cleans a multiple precision integer.

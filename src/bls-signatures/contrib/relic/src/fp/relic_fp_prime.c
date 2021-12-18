@@ -146,15 +146,15 @@ static void fp_prime_set(const bn_t p) {
 void fp_prime_init(void) {
 	ctx_t *ctx = core_get();
 	ctx->fp_id = 0;
-	bn_init(&(ctx->prime), RLC_FP_DIGS);
-	bn_init(&(ctx->par), RLC_FP_DIGS);
+	bn_make(&(ctx->prime), RLC_FP_DIGS);
+	bn_make(&(ctx->par), RLC_FP_DIGS);
 #if FP_RDC == QUICK || !defined(STRIP)
 	ctx->sps_len = 0;
 	memset(ctx->sps, 0, sizeof(ctx->sps));
 #endif
 #if FP_RDC == MONTY || !defined(STRIP)
-	bn_init(&(ctx->conv), RLC_FP_DIGS);
-	bn_init(&(ctx->one), RLC_FP_DIGS);
+	bn_make(&(ctx->conv), RLC_FP_DIGS);
+	bn_make(&(ctx->one), RLC_FP_DIGS);
 #endif
 }
 

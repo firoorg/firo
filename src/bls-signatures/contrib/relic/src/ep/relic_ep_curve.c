@@ -209,12 +209,12 @@ void ep_curve_init(void) {
 	}
 #endif
 	ep_set_infty(&ctx->ep_g);
-	bn_init(&ctx->ep_r, RLC_FP_DIGS);
-	bn_init(&ctx->ep_h, RLC_FP_DIGS);
+	bn_make(&ctx->ep_r, RLC_FP_DIGS);
+	bn_make(&ctx->ep_h, RLC_FP_DIGS);
 #if defined(EP_ENDOM) && (EP_MUL == LWNAF || EP_FIX == COMBS || EP_FIX == LWNAF || !defined(STRIP))
 	for (int i = 0; i < 3; i++) {
-		bn_init(&(ctx->ep_v1[i]), RLC_FP_DIGS);
-		bn_init(&(ctx->ep_v2[i]), RLC_FP_DIGS);
+		bn_make(&(ctx->ep_v1[i]), RLC_FP_DIGS);
+		bn_make(&(ctx->ep_v2[i]), RLC_FP_DIGS);
 	}
 #endif
 }
