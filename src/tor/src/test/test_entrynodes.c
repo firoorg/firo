@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2019, The Tor Project, Inc. */
+/* Copyright (c) 2014-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #include "orconfig.h"
@@ -18,7 +18,7 @@
 #include "core/or/circuitlist.h"
 #include "core/or/circuitbuild.h"
 #include "app/config/config.h"
-#include "lib/confmgt/confparse.h"
+#include "lib/confmgt/confmgt.h"
 #include "lib/crypt_ops/crypto_rand.h"
 #include "feature/dircommon/directory.h"
 #include "feature/dirclient/dirclient.h"
@@ -3039,6 +3039,7 @@ static const struct testcase_setup_t upgrade_circuits = {
   upgrade_circuits_setup, upgrade_circuits_cleanup
 };
 
+#ifndef COCCI
 #define NO_PREFIX_TEST(name) \
   { #name, test_ ## name, 0, NULL, NULL }
 
@@ -3061,6 +3062,7 @@ static const struct testcase_setup_t upgrade_circuits = {
     &upgrade_circuits, (void*)(arg REASONABLY_FUTURE) }, \
   { #name "_reasonably_past", test_entry_guard_ ## name, TT_FORK, \
     &upgrade_circuits, (void*)(arg REASONABLY_PAST) }
+#endif /* !defined(COCCI) */
 
 struct testcase_t entrynodes_tests[] = {
   NO_PREFIX_TEST(node_preferred_orport),

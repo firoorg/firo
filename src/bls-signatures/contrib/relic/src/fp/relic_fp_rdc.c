@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -46,20 +47,20 @@ void fp_rdc_basic(fp_t c, dv_t a) {
 	dv_null(t2);
 	dv_null(t3);
 
-	TRY {
+	RLC_TRY {
 		dv_new(t0);
 		dv_new(t1);
 		dv_new(t2);
 		dv_new(t3);
 
-		dv_copy(t2, a, 2 * FP_DIGS);
-		dv_copy(t3, fp_prime_get(), FP_DIGS);
-		bn_divn_low(t0, t1, t2, 2 * FP_DIGS, t3, FP_DIGS);
+		dv_copy(t2, a, 2 * RLC_FP_DIGS);
+		dv_copy(t3, fp_prime_get(), RLC_FP_DIGS);
+		bn_divn_low(t0, t1, t2, 2 * RLC_FP_DIGS, t3, RLC_FP_DIGS);
 		fp_copy(c, t1);
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
-	} FINALLY {
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
+	} RLC_FINALLY {
 		dv_free(t0);
 		dv_free(t1);
 		dv_free(t2);
@@ -79,11 +80,11 @@ void fp_rdc_monty_basic(fp_t c, dv_t a) {
 
 	u0 = *(fp_prime_get_rdc());
 
-	for (i = 0; i < FP_DIGS; i++, a++) {
+	for (i = 0; i < RLC_FP_DIGS; i++, a++) {
 		r = (dig_t)(*a * u0);
 		*a = fp_mula_low(a, fp_prime_get(), r);
 	}
-	fp_addm_low(c, a, a - FP_DIGS);
+	fp_addm_low(c, a, a - RLC_FP_DIGS);
 }
 
 #endif

@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -69,9 +69,9 @@ buf_read_from_tls(buf_t *buf, tor_tls_t *tls, size_t at_most)
   check_no_tls_errors();
 
   IF_BUG_ONCE(buf->datalen >= INT_MAX)
-    return -1;
+    return TOR_TLS_ERROR_MISC;
   IF_BUG_ONCE(buf->datalen >= INT_MAX - at_most)
-    return -1;
+    return TOR_TLS_ERROR_MISC;
 
   while (at_most > total_read) {
     size_t readlen = at_most - total_read;

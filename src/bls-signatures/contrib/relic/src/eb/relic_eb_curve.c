@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -44,15 +45,15 @@
  */
 static void detect_opt(int *opt, fb_t a) {
 	if (fb_is_zero(a)) {
-		*opt = OPT_ZERO;
+		*opt = RLC_ZERO;
 	} else {
-		if (fb_cmp_dig(a, 1) == CMP_EQ) {
-			*opt = OPT_ONE;
+		if (fb_cmp_dig(a, 1) == RLC_EQ) {
+			*opt = RLC_ONE;
 		} else {
-			if (fb_bits(a) <= FB_DIGIT) {
-				*opt = OPT_DIGIT;
+			if (fb_bits(a) <= RLC_DIG) {
+				*opt = RLC_TINY;
 			} else {
-				*opt = RELIC_OPT_NONE;
+				*opt = RLC_HUGE;
 			}
 		}
 	}
@@ -65,41 +66,23 @@ static void detect_opt(int *opt, fb_t a) {
 void eb_curve_init(void) {
 	ctx_t *ctx = core_get();
 #ifdef EB_PRECO
-	for (int i = 0; i < RELIC_EB_TABLE; i++) {
+	for (int i = 0; i < RLC_EB_TABLE; i++) {
 		ctx->eb_ptr[i] = &(ctx->eb_pre[i]);
-	}
-#endif
-#if ALLOC == STATIC
-	fb_new(ctx->eb_g.x);
-	fb_new(ctx->eb_g.y);
-	fb_new(ctx->eb_g.z);
-	for (int i = 0; i < RELIC_EB_TABLE; i++) {
-		fb_new(ctx->eb_pre[i].x);
-		fb_new(ctx->eb_pre[i].y);
-		fb_new(ctx->eb_pre[i].z);
 	}
 #endif
 	fb_zero(ctx->eb_g.x);
 	fb_zero(ctx->eb_g.y);
 	fb_zero(ctx->eb_g.z);
-	bn_init(&(ctx->eb_r), FB_DIGS);
-	bn_init(&(ctx->eb_h), FB_DIGS);
+	bn_init(&(ctx->eb_r), RLC_FB_DIGS);
+	bn_init(&(ctx->eb_h), RLC_FB_DIGS);
 }
 
 void eb_curve_clean(void) {
 	ctx_t *ctx = core_get();
-#if ALLOC == STATIC
-	fb_free(ctx->eb_g.x);
-	fb_free(ctx->eb_g.y);
-	fb_free(ctx->eb_g.z);
-	for (int i = 0; i < RELIC_EB_TABLE; i++) {
-		fb_free(ctx->eb_pre[i].x);
-		fb_free(ctx->eb_pre[i].y);
-		fb_free(ctx->eb_pre[i].z);
+	if (ctx != NULL) {
+		bn_clean(&(ctx->eb_r));
+		bn_clean(&(ctx->eb_h));
 	}
-#endif
-	bn_clean(&(ctx->eb_r));
-	bn_clean(&(ctx->eb_h));
 }
 
 dig_t *eb_curve_get_a(void) {
@@ -159,14 +142,16 @@ void eb_curve_set(const fb_t a, const fb_t b, const eb_t g, const bn_t r,
 	detect_opt(&(ctx->eb_opt_a), ctx->eb_a);
 	detect_opt(&(ctx->eb_opt_b), ctx->eb_b);
 
-	if (fb_cmp_dig(ctx->eb_b, 1) == CMP_EQ) {
+	if (fb_cmp_dig(ctx->eb_b, 1) == RLC_EQ) {
 		ctx->eb_is_kbltz = 1;
 	} else {
 		ctx->eb_is_kbltz = 0;
 	}
+
 	eb_norm(&(ctx->eb_g), g);
 	bn_copy(&(ctx->eb_r), r);
 	bn_copy(&(ctx->eb_h), h);
+
 #if defined(EB_PRECO)
 	eb_mul_pre((eb_t *)eb_curve_get_tab(), &(ctx->eb_g));
 #endif

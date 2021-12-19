@@ -1,7 +1,7 @@
 /* Copyright 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -99,7 +99,6 @@
 #include "lib/compress/compress_zstd.h"
 #include "lib/buf/buffers.h"
 
-#define OCIRC_EVENT_PRIVATE
 #include "core/or/ocirc_event.h"
 
 #include "ht.h"
@@ -146,6 +145,9 @@ static void circuit_about_to_free(circuit_t *circ);
 static int any_opened_circs_cached_val = 0;
 
 /********* END VARIABLES ************/
+
+/* Implement circuit handle helpers. */
+HANDLE_IMPL(circuit, circuit_t,)
 
 or_circuit_t *
 TO_OR_CIRCUIT(circuit_t *x)
@@ -844,7 +846,7 @@ circuit_purpose_to_controller_hs_state_string(uint8_t purpose)
              "Unrecognized circuit purpose: %d",
              (int)purpose);
       tor_fragile_assert();
-      /* fall through */
+      FALLTHROUGH;
 
     case CIRCUIT_PURPOSE_OR:
     case CIRCUIT_PURPOSE_C_GENERAL:
@@ -1134,7 +1136,7 @@ circuit_free_(circuit_t *circ)
    * circuit is closed. This is to avoid any code path that free registered
    * circuits without closing them before. This needs to be done before the
    * hs identifier is freed. */
-  hs_circ_cleanup(circ);
+  hs_circ_cleanup_on_free(circ);
 
   if (CIRCUIT_IS_ORIGIN(circ)) {
     origin_circuit_t *ocirc = TO_ORIGIN_CIRCUIT(circ);
@@ -1246,6 +1248,9 @@ circuit_free_(circuit_t *circ)
 
   /* Free any circuit padding structures */
   circpad_circuit_free_all_machineinfos(circ);
+
+  /* Clear all dangling handle references. */
+  circuit_handles_clear(circ);
 
   if (should_free) {
     memwipe(mem, 0xAA, memlen); /* poison memory */
@@ -2255,7 +2260,7 @@ circuit_mark_for_close_, (circuit_t *circ, int reason, int line,
   }
 
   /* Notify the HS subsystem that this circuit is closing. */
-  hs_circ_cleanup(circ);
+  hs_circ_cleanup_on_close(circ);
 
   if (circuits_pending_close == NULL)
     circuits_pending_close = smartlist_new();
@@ -2335,43 +2340,6 @@ circuit_about_to_free(circuit_t *circ)
       circ->state == CIRCUIT_STATE_GUARD_WAIT) ?
                                  CIRC_EVENT_CLOSED:CIRC_EVENT_FAILED,
      orig_reason);
-  }
-
-  if (circ->purpose == CIRCUIT_PURPOSE_C_INTRODUCE_ACK_WAIT) {
-    origin_circuit_t *ocirc = TO_ORIGIN_CIRCUIT(circ);
-    int timed_out = (reason == END_CIRC_REASON_TIMEOUT);
-    tor_assert(circ->state == CIRCUIT_STATE_OPEN);
-    tor_assert(ocirc->build_state->chosen_exit);
-    if (orig_reason != END_CIRC_REASON_IP_NOW_REDUNDANT &&
-        ocirc->rend_data) {
-      /* treat this like getting a nack from it */
-      log_info(LD_REND, "Failed intro circ %s to %s (awaiting ack). %s",
-          safe_str_client(rend_data_get_address(ocirc->rend_data)),
-          safe_str_client(build_state_get_exit_nickname(ocirc->build_state)),
-          timed_out ? "Recording timeout." : "Removing from descriptor.");
-      rend_client_report_intro_point_failure(ocirc->build_state->chosen_exit,
-                                             ocirc->rend_data,
-                                             timed_out ?
-                                             INTRO_POINT_FAILURE_TIMEOUT :
-                                             INTRO_POINT_FAILURE_GENERIC);
-    }
-  } else if (circ->purpose == CIRCUIT_PURPOSE_C_INTRODUCING &&
-             reason != END_CIRC_REASON_TIMEOUT) {
-    origin_circuit_t *ocirc = TO_ORIGIN_CIRCUIT(circ);
-    if (ocirc->build_state->chosen_exit && ocirc->rend_data) {
-      if (orig_reason != END_CIRC_REASON_IP_NOW_REDUNDANT &&
-          ocirc->rend_data) {
-        log_info(LD_REND, "Failed intro circ %s to %s "
-            "(building circuit to intro point). "
-            "Marking intro point as possibly unreachable.",
-            safe_str_client(rend_data_get_address(ocirc->rend_data)),
-            safe_str_client(build_state_get_exit_nickname(
-                                              ocirc->build_state)));
-        rend_client_report_intro_point_failure(ocirc->build_state->chosen_exit,
-                                              ocirc->rend_data,
-                                              INTRO_POINT_FAILURE_UNREACHABLE);
-      }
-    }
   }
 
   if (circ->n_chan) {

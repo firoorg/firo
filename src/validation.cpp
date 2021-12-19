@@ -2861,8 +2861,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                                  REJECT_INVALID, "conflict-tx-lock");
             }
         }
-    } else {
-        LogPrintf("ConnectBlock(): spork is off, skipping transaction locking checks\n");
     }
 
     int64_t nTime5_1 = GetTimeMicros(); nTimeISFilter += nTime5_1 - nTime4;
@@ -4235,6 +4233,11 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
         uint256 final_hash;
         if (block.IsProgPow())
         {
+            // if nHeight is too big progpow_hash_full will use too much memory. This condition allows
+            // progpow usage until block 2600000
+            if (block.nHeight >= progpow::epoch_length*2000)
+                return state.DoS(50, false, REJECT_INVALID, "invalid-progpow-epoch", false, "invalid epoch number");
+
             uint256 exp_mix_hash;
             final_hash = block.GetProgPowHashFull(exp_mix_hash);
             if (exp_mix_hash != block.mix_hash)

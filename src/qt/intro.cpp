@@ -121,6 +121,9 @@ Intro::Intro(QWidget *parent) :
     thread(0),
     signalled(false)
 {
+    // load stylesheet
+    GUIUtil::loadTheme();
+    
     ui->setupUi(this);
     ui->welcomeLabel->setText(ui->welcomeLabel->text().arg(tr(PACKAGE_NAME)));
     ui->storageLabel->setText(ui->storageLabel->text().arg(tr(PACKAGE_NAME)));

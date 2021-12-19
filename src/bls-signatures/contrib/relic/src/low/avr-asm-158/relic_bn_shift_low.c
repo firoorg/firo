@@ -1,21 +1,24 @@
 /*
- * Copyright 2007 Project RELIC
+ * RELIC is an Efficient LIbrary for Cryptography
+ * Copyright (c) 2012 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
- * whose names are not listed here. Please refer to the COPYRIGHT file.
+ * whose names are not listed here. Please refer to the COPYRIGHT file
+ * for contact information.
  *
- * RELIC is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -41,33 +44,17 @@ dig_t bn_lshb_low(dig_t *c, const dig_t *a, int size, int bits) {
 	if (bits == 1)
 		return bn_lsh1_low(c, a, size);
 
-	shift = BN_DIGIT - bits;
+	shift = RLC_DIG - bits;
 	carry = 0;
 	for (i = 0; i < size; i++, a++, c++) {
 		/* Get the needed least significant bits. */
-		r = ((*a) >> shift) & MASK(bits);
+		r = ((*a) >> shift) & RLC_MASK(bits);
 		/* Shift left the operand. */
 		*c = ((*a) << bits) | carry;
 		/* Update the carry. */
 		carry = r;
 	}
 	return carry;
-}
-
-void bn_lshd_low(dig_t *c, const dig_t *a, int size, int digits) {
-	dig_t *top;
-	const dig_t *bot;
-	int i;
-
-	top = c + size + digits - 1;
-	bot = a + size - 1;
-
-	for (i = 0; i < size; i++, top--, bot--) {
-		*top = *bot;
-	}
-	for (i = 0; i < digits; i++, c++) {
-		*c = 0;
-	}
 }
 
 dig_t bn_rshb_low(dig_t *c, const dig_t *a, int size, int bits) {
@@ -80,28 +67,15 @@ dig_t bn_rshb_low(dig_t *c, const dig_t *a, int size, int bits) {
 	c += size - 1;
 	a += size - 1;
 	/* Prepare the bit mask. */
-	shift = BN_DIGIT - bits;
+	shift = RLC_DIG - bits;
 	carry = 0;
 	for (i = size - 1; i >= 0; i--, a--, c--) {
 		/* Get the needed least significant bits. */
-		r = (*a) & MASK(bits);
+		r = (*a) & RLC_MASK(bits);
 		/* Shift left the operand. */
 		*c = ((*a) >> bits) | (carry << shift);
 		/* Update the carry. */
 		carry = r;
 	}
 	return carry;
-}
-
-void bn_rshd_low(dig_t *c, const dig_t *a, int size, int digits) {
-	const dig_t *top;
-	dig_t *bot;
-	int i;
-
-	top = a + digits;
-	bot = c;
-
-	for (i = 0; i < size - digits; i++, top++, bot++) {
-		*bot = *top;
-	}
 }

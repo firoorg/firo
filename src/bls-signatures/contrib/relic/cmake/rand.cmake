@@ -1,20 +1,29 @@
-message(STATUS "Available pseudo-random number generators (default = HASH):\n")
+message(STATUS "Available pseudo-random number generators (default = HASHD):\n")
 
-message("   RAND=HASH      Use the HASH-DRBG generator. (recommended)")
+message("   RAND=HASHD     Use the HASH-DRBG generator. (recommended)")
+message("   RAND=RDRND     Use Intel RdRand instruction directly.")
 message("   RAND=UDEV      Use the operating system underlying generator.")
-message("   RAND=FIPS      Use the FIPS 186-2 (CN1) SHA1-based generator.")
 message("   RAND=CALL      Override the generator with a callback.\n")
 
 message(STATUS "Available random number generator seeders (default = UDEV):\n")
 
-message("   SEED=WCGR      Use Windows' CryptGenRandom. (recommended)")
-message("   SEED=DEV       Use blocking /dev/random. (recommended)")
+message("   SEED=          Use a zero seed. (horribly insecure!)")
+message("   SEED=LIBC      Use rand()/random() functions. (insecure!)")
+message("   SEED=RDRND     Use Intel RdRand instruction directly.")
 message("   SEED=UDEV      Use non-blocking /dev/urandom. (recommended)")
-message("   SEED=LIBC      Use the libc rand()/random() functions. (insecure!)")
-message("   SEED=ZERO      Use a zero seed. (insecure!)\n")
+message("   SEED=WCGR      Use Windows' CryptGenRandom. (recommended)\n")
 
 # Choose the pseudo-random number generator.
-set(RAND "HASH" CACHE STRING "Pseudo-random number generator")
+set(RAND "HASHD" CACHE STRING "Pseudo-random number generator")
 
-# Choose the pseudo-random number generator.
-set(SEED "UDEV" CACHE STRING "Random number generator seeder")
+if(MSVC)
+
+    # Choose the pseudo-random number generator.
+    set(SEED "WCGR" CACHE STRING "Random number generator seeder")
+
+else()
+
+    # Choose the pseudo-random number generator.
+    set(SEED "UDEV" CACHE STRING "Random number generator seeder")
+
+endif()

@@ -82,6 +82,8 @@ Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin);
 #include <QTextCodec>
 #endif
 
+#include <QFontDatabase>
+
 static bool newWallet = false;
 
 // Declare meta types used for QMetaObject::invokeMethod
@@ -658,7 +660,6 @@ int main(int argc, char *argv[])
     Q_INIT_RESOURCE(bitcoin);
     Q_INIT_RESOURCE(bitcoin_locale);
 
-    BitcoinApplication app(argc, argv);
 #if QT_VERSION > 0x050100
     // Generate high-dpi pixmaps
     QApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
@@ -669,6 +670,8 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_MAC
     QApplication::setAttribute(Qt::AA_DontShowIconsInMenus);
 #endif
+
+    BitcoinApplication app(argc, argv);
 
     // Register meta types used for QMetaObject::invokeMethod
     qRegisterMetaType< bool* >();
@@ -683,7 +686,12 @@ int main(int argc, char *argv[])
     QApplication::setOrganizationName(QAPP_ORG_NAME);
     QApplication::setOrganizationDomain(QAPP_ORG_DOMAIN);
     QApplication::setApplicationName(QAPP_APP_NAME_DEFAULT);
-    GUIUtil::SubstituteFonts(GetLangTerritory());
+
+    // GUIUtil::SubstituteFonts(GetLangTerritory()); // use inlcuded fonts below
+    // load included fonts
+    QFontDatabase::addApplicationFont(":/fonts/Saira_SemiCondensed-Bold");
+    QFontDatabase::addApplicationFont(":/fonts/SourceSansPro-Bold");
+    QFontDatabase::addApplicationFont(":/fonts/SourceSansPro-Regular");
 
     /// 4. Initialization of translations, so that intro dialog is in user's language
     // Now that QSettings are accessible, initialize translations

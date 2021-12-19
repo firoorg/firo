@@ -87,6 +87,7 @@ private:
     QAction *reconsiderBip47TxAction;
 
     QWidget *createDateRangeWidget();
+    void updateCalendarWidgets();
 
     GUIUtil::TableViewLastColumnResizingFixer *columnResizingFixer;
 

@@ -116,6 +116,7 @@ STATIC smartlist_t *origin_padding_machines = NULL;
  *  runtime and as long as circuits are alive. */
 STATIC smartlist_t *relay_padding_machines = NULL;
 
+#ifndef COCCI
 /** Loop over the current padding state machines using <b>loop_var</b> as the
  *  loop variable. */
 #define FOR_EACH_CIRCUIT_MACHINE_BEGIN(loop_var)                         \
@@ -130,6 +131,7 @@ STATIC smartlist_t *relay_padding_machines = NULL;
   if (!(circ)->padding_info[loop_var])                           \
     continue;
 #define FOR_EACH_ACTIVE_CIRCUIT_MACHINE_END } STMT_END ;
+#endif /* !defined(COCCI) */
 
 /**
  * Free the machineinfo at an index
@@ -686,7 +688,7 @@ circpad_distribution_sample(circpad_distribution_t dist)
     case CIRCPAD_DIST_UNIFORM:
       {
         // param2 is upper bound, param1 is lower
-        const struct uniform my_uniform = {
+        const struct uniform_t my_uniform = {
           .base = UNIFORM(my_uniform),
           .a = dist.param1,
           .b = dist.param2,
@@ -696,7 +698,7 @@ circpad_distribution_sample(circpad_distribution_t dist)
     case CIRCPAD_DIST_LOGISTIC:
       {
       /* param1 is Mu, param2 is sigma. */
-        const struct logistic my_logistic = {
+        const struct logistic_t my_logistic = {
           .base = LOGISTIC(my_logistic),
           .mu = dist.param1,
           .sigma = dist.param2,
@@ -706,7 +708,7 @@ circpad_distribution_sample(circpad_distribution_t dist)
     case CIRCPAD_DIST_LOG_LOGISTIC:
       {
         /* param1 is Alpha, param2 is 1.0/Beta */
-        const struct log_logistic my_log_logistic = {
+        const struct log_logistic_t my_log_logistic = {
           .base = LOG_LOGISTIC(my_log_logistic),
           .alpha = dist.param1,
           .beta = dist.param2,
@@ -716,7 +718,7 @@ circpad_distribution_sample(circpad_distribution_t dist)
     case CIRCPAD_DIST_GEOMETRIC:
       {
         /* param1 is 'p' (success probability) */
-        const struct geometric my_geometric = {
+        const struct geometric_t my_geometric = {
           .base = GEOMETRIC(my_geometric),
           .p = dist.param1,
         };
@@ -725,7 +727,7 @@ circpad_distribution_sample(circpad_distribution_t dist)
     case CIRCPAD_DIST_WEIBULL:
       {
         /* param1 is k, param2 is Lambda */
-        const struct weibull my_weibull = {
+        const struct weibull_t my_weibull = {
           .base = WEIBULL(my_weibull),
           .k = dist.param1,
           .lambda = dist.param2,
@@ -735,7 +737,7 @@ circpad_distribution_sample(circpad_distribution_t dist)
     case CIRCPAD_DIST_PARETO:
       {
         /* param1 is sigma, param2 is xi, no more params for mu so we use 0 */
-        const struct genpareto my_genpareto = {
+        const struct genpareto_t my_genpareto = {
           .base = GENPARETO(my_genpareto),
           .mu = 0,
           .sigma = dist.param1,
@@ -2179,8 +2181,8 @@ circpad_add_matching_machines(origin_circuit_t *on_circ,
           circ->padding_machine[i] = NULL;
           on_circ->padding_negotiation_failed = 1;
         } else {
-          /* Success. Don't try any more machines */
-          return;
+          /* Success. Don't try any more machines on this index */
+          break;
         }
       }
     } SMARTLIST_FOREACH_END(machine);

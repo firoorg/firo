@@ -277,10 +277,6 @@ border: 1px solid rgb(142,61,0);padding:5px 5px 5px 5px;background-repeat: no-re
        <property name="text">
         <string>S&amp;end</string>
        </property>
-       <property name="icon">
-        <iconset resource="../bitcoin.qrc">
-         <normaloff>:/icons/send</normaloff>:/icons/send</iconset>
-       </property>
        <property name="default">
         <bool>true</bool>
        </property>
@@ -299,10 +295,6 @@ border: 1px solid rgb(142,61,0);padding:5px 5px 5px 5px;background-repeat: no-re
        </property>
        <property name="text">
         <string>Clear &amp;All</string>
-       </property>
-       <property name="icon">
-        <iconset resource="../bitcoin.qrc">
-         <normaloff>:/icons/remove</normaloff>:/icons/remove</iconset>
        </property>
        <property name="autoRepeatDelay">
         <number>300</number>

@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2011 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -66,33 +67,17 @@ dig_t fb_lshb_low(dig_t *c, const dig_t *a, int bits) {
 		return fb_lsh1_low(c, a);
 
 	/* Prepare the bit mask. */
-	shift = FB_DIGIT - bits;
+	shift = RLC_DIG - bits;
 	carry = 0;
-	for (i = 0; i < FB_DIGS; i++, a++, c++) {
+	for (i = 0; i < RLC_FB_DIGS; i++, a++, c++) {
 		/* Get the needed least significant bits. */
-		r = ((*a) >> shift) & MASK(bits);
+		r = ((*a) >> shift) & RLC_MASK(bits);
 		/* Shift left the operand. */
 		*c = ((*a) << bits) | carry;
 		/* Update the carry. */
 		carry = r;
 	}
 	return carry;
-}
-
-void fb_lshd_low(dig_t *c, const dig_t *a, int digits) {
-	dig_t *top;
-	const dig_t *bot;
-	int i;
-
-	top = c + FB_DIGS + digits - 1;
-	bot = a + FB_DIGS - 1;
-
-	for (i = 0; i < FB_DIGS; i++, top--, bot--) {
-		*top = *bot;
-	}
-	for (i = 0; i < digits; i++, c++) {
-		*c = 0;
-	}
 }
 
 dig_t fb_rshb_low(dig_t *c, const dig_t *a, int bits) {
@@ -102,13 +87,13 @@ dig_t fb_rshb_low(dig_t *c, const dig_t *a, int bits) {
 	if (bits == 1)
 		return fb_rsh1_low(c, a);
 
-	c += FB_DIGS - 1;
-	a += FB_DIGS - 1;
+	c += RLC_FB_DIGS - 1;
+	a += RLC_FB_DIGS - 1;
 	/* Prepare the bit mask. */
 	mask = ((dig_t)1 << (dig_t)bits) - 1;
-	shift = FB_DIGIT - bits;
+	shift = RLC_DIG - bits;
 	carry = 0;
-	for (i = FB_DIGS - 1; i >= 0; i--, a--, c--) {
+	for (i = RLC_FB_DIGS - 1; i >= 0; i--, a--, c--) {
 		/* Get the needed least significant bits. */
 		r = (*a) & mask;
 		/* Shift left the operand. */
@@ -117,22 +102,6 @@ dig_t fb_rshb_low(dig_t *c, const dig_t *a, int bits) {
 		carry = r;
 	}
 	return carry;
-}
-
-void fb_rshd_low(dig_t *c, const dig_t *a, int digits) {
-	const dig_t *top;
-	dig_t *bot;
-	int i;
-
-	top = a + digits;
-	bot = c;
-
-	for (i = 0; i < FB_DIGS - digits; i++, top++, bot++) {
-		*bot = *top;
-	}
-	for (; i < FB_DIGS; i++, bot++) {
-		*bot = 0;
-	}
 }
 
 #if FB_INV == EXGCD || !defined(STRIP)
@@ -153,7 +122,7 @@ dig_t fb_lsha_low(dig_t *c, const dig_t *a, int bits, int size) {
 	if (bits == 7)
 		return fb_lsha7_low(c, a, size);
 
-	for (int i = 0; i < FB_DIGS; i++, c++, a++)
+	for (int i = 0; i < RLC_FB_DIGS; i++, c++, a++)
 		(*c) ^= (*a);
 	return 0;
 }
@@ -164,11 +133,11 @@ dig_t fb_lsha_low(dig_t *c, const dig_t *a, int bits, int size) {
 	int i, j;
 	dig_t b1, b2;
 
-	j = FB_DIGIT - bits;
+	j = RLC_DIG - bits;
 	b1 = a[0];
 	c[0] ^= (b1 << bits);
-	if (size == FB_DIGS) {
-		for (i = 1; i < FB_DIGS; i++) {
+	if (size == RLC_FB_DIGS) {
+		for (i = 1; i < RLC_FB_DIGS; i++) {
 			b2 = a[i];
 			c[i] ^= ((b2 << bits) | (b1 >> j));
 			b1 = b2;

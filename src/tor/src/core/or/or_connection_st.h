@@ -1,8 +1,13 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
+
+/**
+ * @file or_connection_st.h
+ * @brief OR connection structure.
+ **/
 
 #ifndef OR_CONNECTION_ST_H
 #define OR_CONNECTION_ST_H
@@ -58,7 +63,7 @@ struct or_connection_t {
 
   /** True iff this is an outgoing connection. */
   unsigned int is_outgoing:1;
-  unsigned int proxy_type:2; /**< One of PROXY_NONE...PROXY_SOCKS5 */
+  unsigned int proxy_type:3; /**< One of PROXY_NONE...PROXY_HAPROXY */
   unsigned int wide_circ_ids:1;
   /** True iff this connection has had its bootstrap failure logged with
    * control_event_bootstrap_problem. */

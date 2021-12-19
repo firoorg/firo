@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2010 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -36,9 +37,9 @@
 static void memory1(void) {
 	g1_t a[BENCH];
 
-	BENCH_SMALL("g1_null", g1_null(a[i]));
+	BENCH_FEW("g1_null", g1_null(a[i]), 1);
 
-	BENCH_SMALL("g1_new", g1_new(a[i]));
+	BENCH_FEW("g1_new", g1_new(a[i]), 1);
 	for (int i = 0; i < BENCH; i++) {
 		g1_free(a[i]);
 	}
@@ -46,14 +47,14 @@ static void memory1(void) {
 	for (int i = 0; i < BENCH; i++) {
 		g1_new(a[i]);
 	}
-	BENCH_SMALL("g1_free", g1_free(a[i]));
+	BENCH_FEW("g1_free", g1_free(a[i]), 1);
 
 	(void)a;
 }
 
 static void util1(void) {
 	g1_t p, q;
-	uint8_t bin[2 * PC_BYTES + 1];
+	uint8_t bin[2 * RLC_PC_BYTES + 1];
 	int l;
 
 	g1_null(p);
@@ -62,26 +63,26 @@ static void util1(void) {
 	g1_new(p);
 	g1_new(q);
 
-	BENCH_BEGIN("g1_is_infty") {
+	BENCH_RUN("g1_is_infty") {
 		g1_rand(p);
 		BENCH_ADD(g1_is_infty(p));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g1_set_infty") {
+	BENCH_RUN("g1_set_infty") {
 		g1_rand(p);
 		BENCH_ADD(g1_set_infty(p));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g1_copy") {
+	BENCH_RUN("g1_copy") {
 		g1_rand(p);
 		g1_rand(q);
 		BENCH_ADD(g1_copy(p, q));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g1_cmp") {
+	BENCH_RUN("g1_cmp") {
 		g1_rand(p);
 		g1_dbl(p, p);
 		g1_rand(q);
@@ -89,59 +90,59 @@ static void util1(void) {
 		BENCH_ADD(g1_cmp(p, q));
 	} BENCH_END;
 
-	BENCH_BEGIN("g1_cmp (1 norm)") {
+	BENCH_RUN("g1_cmp (1 norm)") {
 		g1_rand(p);
 		g1_dbl(p, p);
 		g1_rand(q);
 		BENCH_ADD(g1_cmp(p, q));
 	} BENCH_END;
 
-	BENCH_BEGIN("g1_cmp (2 norm)") {
+	BENCH_RUN("g1_cmp (2 norm)") {
 		g1_rand(p);
 		g1_rand(q);
 		BENCH_ADD(g1_cmp(p, q));
 	} BENCH_END;
 
-	BENCH_BEGIN("g1_rand") {
+	BENCH_RUN("g1_rand") {
 		BENCH_ADD(g1_rand(p));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g1_is_valid") {
+	BENCH_RUN("g1_is_valid") {
 		g1_rand(p);
 		BENCH_ADD(g1_is_valid(p));
 	} BENCH_END;
 
-	BENCH_BEGIN("g1_size_bin (0)") {
+	BENCH_RUN("g1_size_bin (0)") {
 		g1_rand(p);
 		BENCH_ADD(g1_size_bin(p, 0));
 	} BENCH_END;
 
-	BENCH_BEGIN("g1_size_bin (1)") {
+	BENCH_RUN("g1_size_bin (1)") {
 		g1_rand(p);
 		BENCH_ADD(g1_size_bin(p, 1));
 	} BENCH_END;
 
-	BENCH_BEGIN("g1_write_bin (0)") {
+	BENCH_RUN("g1_write_bin (0)") {
 		g1_rand(p);
 		l = g1_size_bin(p, 0);
 		BENCH_ADD(g1_write_bin(bin, l, p, 0));
 	} BENCH_END;
 
-	BENCH_BEGIN("g1_write_bin (1)") {
+	BENCH_RUN("g1_write_bin (1)") {
 		g1_rand(p);
 		l = g1_size_bin(p, 1);
 		BENCH_ADD(g1_write_bin(bin, l, p, 1));
 	} BENCH_END;
 
-	BENCH_BEGIN("g1_read_bin (0)") {
+	BENCH_RUN("g1_read_bin (0)") {
 		g1_rand(p);
 		l = g1_size_bin(p, 0);
 		g1_write_bin(bin, l, p, 0);
 		BENCH_ADD(g1_read_bin(p, bin, l));
 	} BENCH_END;
 
-	BENCH_BEGIN("g1_read_bin (1)") {
+	BENCH_RUN("g1_read_bin (1)") {
 		g1_rand(p);
 		l = g1_size_bin(p, 1);
 		g1_write_bin(bin, l, p, 1);
@@ -150,13 +151,13 @@ static void util1(void) {
 }
 
 static void arith1(void) {
-	g1_t p, q, r, t[RELIC_G1_TABLE];
+	g1_t p, q, r, t[RLC_G1_TABLE];
 	bn_t k, l, n;
 
 	g1_null(p);
 	g1_null(q);
 	g1_null(r);
-	for (int i = 0; i < RELIC_G1_TABLE; i++) {
+	for (int i = 0; i < RLC_G1_TABLE; i++) {
 		g1_null(t[i]);
 	}
 
@@ -167,9 +168,9 @@ static void arith1(void) {
 	bn_new(n);
 	bn_new(l);
 
-	g1_get_ord(n);
+	pc_get_ord(n);
 
-	BENCH_BEGIN("g1_add") {
+	BENCH_RUN("g1_add") {
 		g1_rand(p);
 		g1_rand(q);
 		g1_add(p, p, q);
@@ -180,7 +181,7 @@ static void arith1(void) {
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g1_sub") {
+	BENCH_RUN("g1_sub") {
 		g1_rand(p);
 		g1_rand(q);
 		g1_add(p, p, q);
@@ -191,7 +192,7 @@ static void arith1(void) {
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g1_dbl") {
+	BENCH_RUN("g1_dbl") {
 		g1_rand(p);
 		g1_rand(q);
 		g1_add(p, p, q);
@@ -199,7 +200,7 @@ static void arith1(void) {
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g1_neg") {
+	BENCH_RUN("g1_neg") {
 		g1_rand(p);
 		g1_rand(q);
 		g1_add(p, p, q);
@@ -207,40 +208,40 @@ static void arith1(void) {
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g1_mul") {
-		bn_rand(k, BN_POS, bn_bits(n));
+	BENCH_RUN("g1_mul") {
+		bn_rand(k, RLC_POS, bn_bits(n));
 		bn_rand_mod(k, n);
 		g1_rand(p);
 		BENCH_ADD(g1_mul(q, p, k));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g1_mul_gen") {
-		bn_rand(k, BN_POS, bn_bits(n));
+	BENCH_RUN("g1_mul_gen") {
+		bn_rand(k, RLC_POS, bn_bits(n));
 		bn_rand_mod(k, n);
 		BENCH_ADD(g1_mul_gen(q, k));
 	}
 	BENCH_END;
 
-	for (int i = 0; i < RELIC_G1_TABLE; i++) {
+	for (int i = 0; i < RLC_G1_TABLE; i++) {
 		g1_new(t[i]);
 	}
 
-	BENCH_BEGIN("g1_mul_pre") {
+	BENCH_RUN("g1_mul_pre") {
 		BENCH_ADD(g1_mul_pre(t, p));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g1_mul_fix") {
-		bn_rand(k, BN_POS, bn_bits(n));
+	BENCH_RUN("g1_mul_fix") {
+		bn_rand(k, RLC_POS, bn_bits(n));
 		bn_rand_mod(k, n);
 		g1_mul_pre(t, p);
 		BENCH_ADD(g1_mul_fix(q, (const g1_t *)t, k));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g1_mul_sim") {
-		bn_rand(k, BN_POS, bn_bits(n));
+	BENCH_RUN("g1_mul_sim") {
+		bn_rand(k, RLC_POS, bn_bits(n));
 		bn_rand_mod(k, n);
 		bn_rand_mod(l, n);
 		g1_rand(p);
@@ -249,8 +250,8 @@ static void arith1(void) {
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g1_mul_sim_gen") {
-		bn_rand(k, BN_POS, bn_bits(n));
+	BENCH_RUN("g1_mul_sim_gen") {
+		bn_rand(k, RLC_POS, bn_bits(n));
 		bn_rand_mod(k, n);
 		bn_rand_mod(l, n);
 		g1_rand(q);
@@ -258,7 +259,15 @@ static void arith1(void) {
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g1_map") {
+	BENCH_RUN("g1_mul_dig") {
+		bn_rand(k, RLC_POS, bn_bits(n));
+		bn_rand_mod(k, n);
+		g1_rand(p);
+		BENCH_ADD(g1_mul_dig(q, p, k->dp[0]));
+	}
+	BENCH_END;
+
+	BENCH_RUN("g1_map") {
 		uint8_t msg[5];
 		rand_bytes(msg, 5);
 		BENCH_ADD(g1_map(p, msg, 5));
@@ -269,7 +278,7 @@ static void arith1(void) {
 	bn_free(k);
 	bn_free(l);
 	bn_free(n);
-	for (int i = 0; i < RELIC_G1_TABLE; i++) {
+	for (int i = 0; i < RLC_G1_TABLE; i++) {
 		g1_free(t[i]);
 	}
 }
@@ -277,9 +286,9 @@ static void arith1(void) {
 static void memory2(void) {
 	g2_t a[BENCH];
 
-	BENCH_SMALL("g2_null", g2_null(a[i]));
+	BENCH_FEW("g2_null", g2_null(a[i]), 1);
 
-	BENCH_SMALL("g2_new", g2_new(a[i]));
+	BENCH_FEW("g2_new", g2_new(a[i]), 1);
 	for (int i = 0; i < BENCH; i++) {
 		g2_free(a[i]);
 	}
@@ -287,14 +296,14 @@ static void memory2(void) {
 	for (int i = 0; i < BENCH; i++) {
 		g2_new(a[i]);
 	}
-	BENCH_SMALL("g2_free", g2_free(a[i]));
+	BENCH_FEW("g2_free", g2_free(a[i]), 1);
 
 	(void)a;
 }
 
 static void util2(void) {
 	g2_t p, q;
-	uint8_t bin[4 * PC_BYTES + 1];
+	uint8_t bin[4 * RLC_PC_BYTES + 1];
 	int l;
 
 	g2_null(p);
@@ -303,26 +312,26 @@ static void util2(void) {
 	g2_new(p);
 	g2_new(q);
 
-	BENCH_BEGIN("g2_is_infty") {
+	BENCH_RUN("g2_is_infty") {
 		g2_rand(p);
 		BENCH_ADD(g2_is_infty(p));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g2_set_infty") {
+	BENCH_RUN("g2_set_infty") {
 		g2_rand(p);
 		BENCH_ADD(g2_set_infty(p));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g2_copy") {
+	BENCH_RUN("g2_copy") {
 		g2_rand(p);
 		g2_rand(q);
 		BENCH_ADD(g2_copy(p, q));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g2_cmp") {
+	BENCH_RUN("g2_cmp") {
 		g2_rand(p);
 		g2_dbl(p, p);
 		g2_rand(q);
@@ -330,59 +339,59 @@ static void util2(void) {
 		BENCH_ADD(g2_cmp(p, q));
 	} BENCH_END;
 
-	BENCH_BEGIN("g2_cmp (1 norm)") {
+	BENCH_RUN("g2_cmp (1 norm)") {
 		g2_rand(p);
 		g2_dbl(p, p);
 		g2_rand(q);
 		BENCH_ADD(g2_cmp(p, q));
 	} BENCH_END;
 
-	BENCH_BEGIN("g2_cmp (2 norm)") {
+	BENCH_RUN("g2_cmp (2 norm)") {
 		g2_rand(p);
 		g2_rand(q);
 		BENCH_ADD(g2_cmp(p, q));
 	} BENCH_END;
 
-	BENCH_BEGIN("g2_rand") {
+	BENCH_RUN("g2_rand") {
 		BENCH_ADD(g2_rand(p));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g2_is_valid") {
+	BENCH_RUN("g2_is_valid") {
 		BENCH_ADD(g2_is_valid(p));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g2_size_bin (0)") {
+	BENCH_RUN("g2_size_bin (0)") {
 		g2_rand(p);
 		BENCH_ADD(g2_size_bin(p, 0));
 	} BENCH_END;
 
-	BENCH_BEGIN("g2_size_bin (1)") {
+	BENCH_RUN("g2_size_bin (1)") {
 		g2_rand(p);
 		BENCH_ADD(g2_size_bin(p, 1));
 	} BENCH_END;
 
-	BENCH_BEGIN("g2_write_bin (0)") {
+	BENCH_RUN("g2_write_bin (0)") {
 		g2_rand(p);
 		l = g2_size_bin(p, 0);
 		BENCH_ADD(g2_write_bin(bin, l, p, 0));
 	} BENCH_END;
 
-	BENCH_BEGIN("g2_write_bin (1)") {
+	BENCH_RUN("g2_write_bin (1)") {
 		g2_rand(p);
 		l = g2_size_bin(p, 1);
 		BENCH_ADD(g2_write_bin(bin, l, p, 1));
 	} BENCH_END;
 
-	BENCH_BEGIN("g2_read_bin (0)") {
+	BENCH_RUN("g2_read_bin (0)") {
 		g2_rand(p);
 		l = g2_size_bin(p, 0);
 		g2_write_bin(bin, l, p, 0);
 		BENCH_ADD(g2_read_bin(p, bin, l));
 	} BENCH_END;
 
-	BENCH_BEGIN("g2_read_bin (1)") {
+	BENCH_RUN("g2_read_bin (1)") {
 		g2_rand(p);
 		l = g2_size_bin(p, 1);
 		g2_write_bin(bin, l, p, 1);
@@ -394,13 +403,13 @@ static void util2(void) {
 }
 
 static void arith2(void) {
-	g2_t p, q, r, t[RELIC_G1_TABLE];
+	g2_t p, q, r, t[RLC_G2_TABLE];
 	bn_t k, l, n;
 
 	g2_null(p);
 	g2_null(q);
 	g2_null(r);
-	for (int i = 0; i < RELIC_G1_TABLE; i++) {
+	for (int i = 0; i < RLC_G2_TABLE; i++) {
 		g2_null(t[i]);
 	}
 
@@ -411,9 +420,9 @@ static void arith2(void) {
 	bn_new(n);
 	bn_new(l);
 
-	g2_get_ord(n);
+	pc_get_ord(n);
 
-	BENCH_BEGIN("g2_add") {
+	BENCH_RUN("g2_add") {
 		g2_rand(p);
 		g2_rand(q);
 		g2_add(p, p, q);
@@ -424,7 +433,7 @@ static void arith2(void) {
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g2_sub") {
+	BENCH_RUN("g2_sub") {
 		g2_rand(p);
 		g2_rand(q);
 		g2_add(p, p, q);
@@ -435,7 +444,7 @@ static void arith2(void) {
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g2_dbl") {
+	BENCH_RUN("g2_dbl") {
 		g2_rand(p);
 		g2_rand(q);
 		g2_add(p, p, q);
@@ -443,7 +452,7 @@ static void arith2(void) {
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g2_neg") {
+	BENCH_RUN("g2_neg") {
 		g2_rand(p);
 		g2_rand(q);
 		g2_add(p, p, q);
@@ -451,40 +460,40 @@ static void arith2(void) {
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g2_mul") {
-		bn_rand(k, BN_POS, bn_bits(n));
+	BENCH_RUN("g2_mul") {
+		bn_rand(k, RLC_POS, bn_bits(n));
 		bn_rand_mod(k, n);
 		g2_rand(p);
 		BENCH_ADD(g2_mul(q, p, k));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g2_mul_gen") {
-		bn_rand(k, BN_POS, bn_bits(n));
+	BENCH_RUN("g2_mul_gen") {
+		bn_rand(k, RLC_POS, bn_bits(n));
 		bn_rand_mod(k, n);
 		BENCH_ADD(g2_mul_gen(q, k));
 	}
 	BENCH_END;
 
-	for (int i = 0; i < RELIC_G1_TABLE; i++) {
+	for (int i = 0; i < RLC_G1_TABLE; i++) {
 		g2_new(t[i]);
 	}
 
-	BENCH_BEGIN("g2_mul_pre") {
+	BENCH_RUN("g2_mul_pre") {
 		BENCH_ADD(g2_mul_pre(t, p));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g2_mul_fix") {
-		bn_rand(k, BN_POS, bn_bits(n));
+	BENCH_RUN("g2_mul_fix") {
+		bn_rand(k, RLC_POS, bn_bits(n));
 		bn_rand_mod(k, n);
 		g2_mul_pre(t, p);
 		BENCH_ADD(g2_mul_fix(q, t, k));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g2_mul_sim") {
-		bn_rand(k, BN_POS, bn_bits(n));
+	BENCH_RUN("g2_mul_sim") {
+		bn_rand(k, RLC_POS, bn_bits(n));
 		bn_rand_mod(k, n);
 		bn_rand_mod(l, n);
 		g2_rand(p);
@@ -493,8 +502,8 @@ static void arith2(void) {
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g2_mul_sim_gen") {
-		bn_rand(k, BN_POS, bn_bits(n));
+	BENCH_RUN("g2_mul_sim_gen") {
+		bn_rand(k, RLC_POS, bn_bits(n));
 		bn_rand_mod(k, n);
 		bn_rand_mod(l, n);
 		g2_rand(q);
@@ -502,10 +511,18 @@ static void arith2(void) {
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("g2_map") {
+	BENCH_RUN("g2_mul_dig") {
+		bn_rand(k, RLC_POS, bn_bits(n));
+		bn_rand_mod(k, n);
+		g2_rand(p);
+		BENCH_ADD(g2_mul_dig(q, p, k->dp[0]));
+	}
+	BENCH_END;
+
+	BENCH_RUN("g2_map") {
 		uint8_t msg[5];
 		rand_bytes(msg, 5);
-		BENCH_ADD(g2_map(p, msg, 5, 1));
+		BENCH_ADD(g2_map(p, msg, 5));
 	} BENCH_END;
 
 	g2_free(p);
@@ -513,7 +530,7 @@ static void arith2(void) {
 	bn_free(k);
 	bn_free(l);
 	bn_free(n);
-	for (int i = 0; i < RELIC_G1_TABLE; i++) {
+	for (int i = 0; i < RLC_G1_TABLE; i++) {
 		g2_free(t[i]);
 	}
 }
@@ -521,9 +538,9 @@ static void arith2(void) {
 static void memory(void) {
 	gt_t a[BENCH];
 
-	BENCH_SMALL("gt_null", gt_null(a[i]));
+	BENCH_FEW("gt_null", gt_null(a[i]), 1);
 
-	BENCH_SMALL("gt_new", gt_new(a[i]));
+	BENCH_FEW("gt_new", gt_new(a[i]), 1);
 	for (int i = 0; i < BENCH; i++) {
 		gt_free(a[i]);
 	}
@@ -531,14 +548,14 @@ static void memory(void) {
 	for (int i = 0; i < BENCH; i++) {
 		gt_new(a[i]);
 	}
-	BENCH_SMALL("gt_free", gt_free(a[i]));
+	BENCH_FEW("gt_free", gt_free(a[i]), 1);
 
 	(void)a;
 }
 
 static void util(void) {
 	gt_t a, b;
-	uint8_t bin[12 * PC_BYTES];
+	uint8_t bin[12 * RLC_PC_BYTES];
 	int l;
 
 	gt_null(a);
@@ -547,76 +564,83 @@ static void util(void) {
 	gt_new(a);
 	gt_new(b);
 
-	BENCH_BEGIN("gt_copy") {
+	BENCH_RUN("gt_copy") {
 		gt_rand(a);
 		BENCH_ADD(gt_copy(b, a));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("gt_zero") {
+	BENCH_RUN("gt_zero") {
 		gt_rand(a);
 		BENCH_ADD(gt_zero(a));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("gt_set_unity") {
+	BENCH_RUN("gt_set_unity") {
 		gt_rand(a);
 		BENCH_ADD(gt_set_unity(a));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("gt_is_unity") {
+	BENCH_RUN("gt_is_unity") {
 		gt_rand(a);
 		BENCH_ADD((void)gt_is_unity(a));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("gt_rand") {
+	BENCH_RUN("gt_rand") {
 		BENCH_ADD(gt_rand(a));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("gt_cmp") {
+	BENCH_RUN("gt_cmp") {
 		gt_rand(a);
 		gt_rand(b);
 		BENCH_ADD(gt_cmp(b, a));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("gt_size_bin (0)") {
+	BENCH_RUN("gt_size_bin (0)") {
 		gt_rand(a);
 		BENCH_ADD(gt_size_bin(a, 0));
 	} BENCH_END;
 
-	BENCH_BEGIN("gt_size_bin (1)") {
-		gt_rand(a);
-		BENCH_ADD(gt_size_bin(a, 1));
-	} BENCH_END;
-
-	BENCH_BEGIN("gt_write_bin (0)") {
+	BENCH_RUN("gt_write_bin (0)") {
 		gt_rand(a);
 		l = gt_size_bin(a, 0);
 		BENCH_ADD(gt_write_bin(bin, l, a, 0));
 	} BENCH_END;
 
-	BENCH_BEGIN("gt_write_bin (1)") {
-		gt_rand(a);
-		l = gt_size_bin(a, 1);
-		BENCH_ADD(gt_write_bin(bin, l, a, 1));
-	} BENCH_END;
-
-	BENCH_BEGIN("gt_read_bin (0)") {
+	BENCH_RUN("gt_read_bin (0)") {
 		gt_rand(a);
 		l = gt_size_bin(a, 0);
 		gt_write_bin(bin, l, a, 0);
 		BENCH_ADD(gt_read_bin(a, bin, l));
 	} BENCH_END;
 
-	BENCH_BEGIN("gt_read_bin (1)") {
+	if (ep_param_embed() == 12) {
+		BENCH_RUN("gt_size_bin (1)") {
+			gt_rand(a);
+			BENCH_ADD(gt_size_bin(a, 1));
+		} BENCH_END;
+
+		BENCH_RUN("gt_write_bin (1)") {
+			gt_rand(a);
+			l = gt_size_bin(a, 1);
+			BENCH_ADD(gt_write_bin(bin, l, a, 1));
+		} BENCH_END;
+
+		BENCH_RUN("gt_read_bin (1)") {
+			gt_rand(a);
+			l = gt_size_bin(a, 1);
+			gt_write_bin(bin, l, a, 1);
+			BENCH_ADD(gt_read_bin(a, bin, l));
+		} BENCH_END;
+	}
+
+	BENCH_RUN("gt_is_valid") {
 		gt_rand(a);
-		l = gt_size_bin(a, 1);
-		gt_write_bin(bin, l, a, 1);
-		BENCH_ADD(gt_read_bin(a, bin, l));
+		BENCH_ADD(gt_is_valid(a));
 	} BENCH_END;
 
 	gt_free(a);
@@ -625,39 +649,58 @@ static void util(void) {
 
 static void arith(void) {
 	gt_t a, b, c;
-	bn_t d, e;
+	bn_t d, e, f;
 
 	gt_new(a);
 	gt_new(b);
 	gt_new(c);
 	bn_new(d);
 	bn_new(e);
+	bn_new(f);
 
-	BENCH_BEGIN("gt_mul") {
+	BENCH_RUN("gt_mul") {
 		gt_rand(a);
 		gt_rand(b);
 		BENCH_ADD(gt_mul(c, a, b));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("gt_sqr") {
+	BENCH_RUN("gt_sqr") {
 		gt_rand(a);
 		gt_rand(b);
 		BENCH_ADD(gt_sqr(c, a));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("gt_inv") {
+	BENCH_RUN("gt_inv") {
 		gt_rand(a);
 		BENCH_ADD(gt_inv(c, a));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("gt_exp") {
+	BENCH_RUN("gt_exp") {
 		gt_rand(a);
-		gt_get_ord(d);
+		pc_get_ord(d);
 		bn_rand_mod(e, d);
 		BENCH_ADD(gt_exp(c, a, e));
+	}
+	BENCH_END;
+
+	BENCH_RUN("gt_exp_sim") {
+		gt_rand(a);
+		gt_rand(b);
+		gt_get_ord(d);
+		bn_rand_mod(e, d);
+		bn_rand_mod(f, d);
+		BENCH_ADD(gt_exp_sim(c, a, e, b, f));
+	}
+	BENCH_END;
+
+	BENCH_RUN("gt_exp_dig") {
+		gt_rand(a);
+		pc_get_ord(d);
+		bn_rand(e, RLC_POS, bn_bits(d));
+		BENCH_ADD(gt_exp_dig(c, a, e->dp[0]));
 	}
 	BENCH_END;
 
@@ -666,6 +709,7 @@ static void arith(void) {
 	gt_free(c);
 	bn_free(d);
 	bn_free(e);
+	bn_free(f);
 }
 
 static void pairing(void) {
@@ -679,20 +723,20 @@ static void pairing(void) {
 	g2_new(q[1]);
 	gt_new(r);
 
-	BENCH_BEGIN("pc_map") {
+	BENCH_RUN("pc_map") {
 		g1_rand(p[0]);
 		g2_rand(q[0]);
 		BENCH_ADD(pc_map(r, p[0], q[0]));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("pc_exp") {
+	BENCH_RUN("pc_exp") {
 		gt_rand(r);
 		BENCH_ADD(pc_exp(r, r));
 	}
 	BENCH_END;
 
-	BENCH_BEGIN("pc_map_sim (2)") {
+	BENCH_RUN("pc_map_sim (2)") {
 		g1_rand(p[1]);
 		g2_rand(q[1]);
 		BENCH_ADD(pc_map_sim(r, p, q, 2));
@@ -707,7 +751,7 @@ static void pairing(void) {
 }
 
 int main(void) {
-	if (core_init() != STS_OK) {
+	if (core_init() != RLC_OK) {
 		core_clean();
 		return 1;
 	}
@@ -715,8 +759,8 @@ int main(void) {
 	conf_print();
 	util_banner("Benchmarks for the PC module:", 0);
 
-	if (pc_param_set_any() != STS_OK) {
-		THROW(ERR_NO_CURVE);
+	if (pc_param_set_any() != RLC_OK) {
+		RLC_THROW(ERR_NO_CURVE);
 		core_clean();
 		return 0;
 	}

@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define ROUTER_PRIVATE
@@ -35,6 +35,7 @@
 #include "feature/nodelist/routerlist.h"
 #include "feature/nodelist/torcert.h"
 #include "feature/relay/dns.h"
+#include "feature/relay/relay_config.h"
 #include "feature/relay/router.h"
 #include "feature/relay/routerkeys.h"
 #include "feature/relay/routermode.h"
@@ -372,6 +373,8 @@ assert_identity_keys_ok(void)
   }
 }
 
+#ifdef HAVE_MODULE_RELAY
+
 /** Returns the current server identity key; requires that the key has
  * been set, and that we are running as a Tor server.
  */
@@ -383,6 +386,8 @@ get_server_identity_key,(void))
   assert_identity_keys_ok();
   return server_identitykey;
 }
+
+#endif /* defined(HAVE_MODULE_RELAY) */
 
 /** Return true iff we are a server and the server identity key
  * has been set. */
@@ -882,15 +887,6 @@ init_keys_common(void)
   if (!key_lock)
     key_lock = tor_mutex_new();
 
-  /* There are a couple of paths that put us here before we've asked
-   * openssl to initialize itself. */
-  if (crypto_global_init(get_options()->HardwareAccel,
-                         get_options()->AccelName,
-                         get_options()->AccelDir)) {
-    log_err(LD_BUG, "Unable to initialize OpenSSL. Exiting.");
-    return -1;
-  }
-
   return 0;
 }
 
@@ -1078,8 +1074,10 @@ init_keys(void)
   if (authdir_mode_v3(options)) {
     const char *m = NULL;
     routerinfo_t *ri;
-    /* We need to add our own fingerprint so it gets recognized. */
-    if (dirserv_add_own_fingerprint(get_server_identity_key())) {
+    /* We need to add our own fingerprint and ed25519 key so it gets
+     * recognized. */
+    if (dirserv_add_own_fingerprint(get_server_identity_key(),
+                                    get_master_identity_key())) {
       log_err(LD_GENERAL,"Error adding own fingerprint to set of relays");
       return -1;
     }
@@ -1218,7 +1216,7 @@ router_should_be_dirserver(const or_options_t *options, int dir_port)
      * much larger effect on output than input so there is no reason to turn it
      * off if using AccountingRule in. */
     int interval_length = accounting_get_interval_length();
-    uint32_t effective_bw = get_effective_bwrate(options);
+    uint32_t effective_bw = relay_get_effective_bwrate(options);
     uint64_t acc_bytes;
     if (!interval_length) {
       log_warn(LD_BUG, "An accounting interval is not allowed to be zero "
@@ -1400,7 +1398,7 @@ consider_publishable_server(int force)
 }
 
 /** Return the port of the first active listener of type
- *  <b>listener_type</b>. */
+ *  <b>listener_type</b>. Returns 0 if no port is found. */
 /** XXX not a very good interface. it's not reliable when there are
     multiple listeners. */
 uint16_t
@@ -1422,8 +1420,7 @@ router_get_active_listener_port_by_type_af(int listener_type,
 
 /** Return the port that we should advertise as our ORPort; this is either
  * the one configured in the ORPort option, or the one we actually bound to
- * if ORPort is "auto".
- */
+ * if ORPort is "auto". Returns 0 if no port is found. */
 uint16_t
 router_get_advertised_or_port(const or_options_t *options)
 {
@@ -2037,10 +2034,10 @@ router_build_fresh_unsigned_routerinfo,(routerinfo_t **ri_out))
   ri->protocol_list = tor_strdup(protover_get_supported_protocols());
 
   /* compute ri->bandwidthrate as the min of various options */
-  ri->bandwidthrate = get_effective_bwrate(options);
+  ri->bandwidthrate = relay_get_effective_bwrate(options);
 
   /* and compute ri->bandwidthburst similarly */
-  ri->bandwidthburst = get_effective_bwburst(options);
+  ri->bandwidthburst = relay_get_effective_bwburst(options);
 
   /* Report bandwidth, unless we're hibernating or shutting down */
   ri->bandwidthcapacity = hibernating ? 0 : rep_hist_bandwidth_assess();

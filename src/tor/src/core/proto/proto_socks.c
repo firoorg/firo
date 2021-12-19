@@ -1,8 +1,13 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
+
+/**
+ * @file proto_socks.c
+ * @brief Implementations for SOCKS4 and SOCKS5 protocols.
+ **/
 
 #include "core/or/or.h"
 #include "feature/client/addressmap.h"
@@ -105,7 +110,7 @@ socks_request_free_(socks_request_t *req)
 /**
  * Parse a single SOCKS4 request from buffer <b>raw_data</b> of length
  * <b>datalen</b> and update relevant fields of <b>req</b>. If SOCKS4a
- * request is detected, set <b>*is_socks4a<b> to true. Set <b>*drain_out</b>
+ * request is detected, set <b>*is_socks4a</b> to true. Set <b>*drain_out</b>
  * to number of bytes we parsed so far.
  *
  * Return SOCKS_RESULT_DONE if parsing succeeded, SOCKS_RESULT_INVALID if
@@ -615,6 +620,7 @@ process_socks5_client_request(socks_request_t *req,
                               int safe_socks)
 {
   socks_result_t res = SOCKS_RESULT_DONE;
+  tor_addr_t tmpaddr;
 
   if (req->command != SOCKS_COMMAND_CONNECT &&
       req->command != SOCKS_COMMAND_RESOLVE &&
@@ -625,11 +631,10 @@ process_socks5_client_request(socks_request_t *req,
   }
 
   if (req->command == SOCKS_COMMAND_RESOLVE_PTR &&
-      !string_is_valid_ipv4_address(req->address) &&
-      !string_is_valid_ipv6_address(req->address)) {
+      tor_addr_parse(&tmpaddr, req->address) < 0) {
     socks_request_set_socks5_error(req, SOCKS5_ADDRESS_TYPE_NOT_SUPPORTED);
     log_warn(LD_APP, "socks5 received RESOLVE_PTR command with "
-                     "hostname type. Rejecting.");
+                     "a malformed address. Rejecting.");
 
     res = SOCKS_RESULT_INVALID;
     goto end;
@@ -856,7 +861,7 @@ fetch_from_buf_socks(buf_t *buf, socks_request_t *req,
       case SOCKS_RESULT_TRUNCATED:
         if (datalen == n_pullup)
           return 0;
-        /* FALLTHRU */
+        FALLTHROUGH;
       case SOCKS_RESULT_MORE_EXPECTED:
         res = 0;
         break;
@@ -962,7 +967,7 @@ parse_socks(const char *data, size_t datalen, socks_request_t *req,
       strlcpy((char*)req->reply, SOCKS_PROXY_IS_NOT_AN_HTTP_PROXY_MSG,
               MAX_SOCKS_REPLY_LEN);
       req->replylen = strlen((char*)req->reply)+1;
-      /* fall through */
+      FALLTHROUGH;
     default: /* version is not socks4 or socks5 */
       log_warn(LD_APP,
                "Socks version %d not recognized. (This port is not an "
@@ -1067,7 +1072,10 @@ parse_socks_client(const uint8_t *data, size_t datalen,
           log_info(LD_NET, "SOCKS 5 client: need authentication.");
           *drain_out = -1;
           return 2;
-        /* fall through */
+        default:
+          /* This wasn't supposed to be exhaustive; there are other
+           * authentication methods too. */
+          ;
       }
 
       *reason = tor_strdup("server doesn't support any of our available "

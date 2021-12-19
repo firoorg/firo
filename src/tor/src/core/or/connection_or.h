@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -134,7 +134,14 @@ void connection_or_group_set_badness_(smartlist_t *group, int force);
 #ifdef CONNECTION_OR_PRIVATE
 STATIC int should_connect_to_relay(const or_connection_t *or_conn);
 STATIC void note_or_connect_failed(const or_connection_t *or_conn);
-#endif
+
+/*
+ * Call this when changing connection state, so notifications to the owning
+ * channel can be handled.
+ */
+MOCK_DECL(STATIC void,connection_or_change_state,
+          (or_connection_t *conn, uint8_t state));
+#endif /* defined(CONNECTION_OR_PRIVATE) */
 
 #ifdef TOR_UNIT_TESTS
 extern int certs_cell_ed25519_disabled_for_testing;

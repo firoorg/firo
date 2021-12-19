@@ -259,10 +259,10 @@ LelantusCoinControlDialog::LelantusCoinControlDialog(
     const PlatformStyle *_platformStyle,
     QWidget *parent) :
     QDialog(parent),
+    storage(_storage),
     ui(new Ui::CoinControlDialog),
     model(0),
-    platformStyle(_platformStyle),
-    storage(_storage)
+    platformStyle(_platformStyle)
 {
     ui->setupUi(this);
 

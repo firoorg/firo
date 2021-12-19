@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Tor Project, Inc. */
+/* Copyright (c) 2015-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -29,7 +29,6 @@
 #include "app/config/config.h"
 #include "core/mainloop/mainloop.h"
 #include "core/mainloop/periodic.h"
-#include "lib/evloop/compat_libevent.h"
 
 /** We disable any interval greater than this number of seconds, on the
  * grounds that it is probably an absolute time mistakenly passed in as a
@@ -39,7 +38,7 @@ static const int MAX_INTERVAL = 10 * 365 * 86400;
 
 /**
  * Global list of periodic events that have been registered with
- * <b>periodic_event_register</a>.
+ * <b>periodic_event_register</b>.
  **/
 static smartlist_t *the_periodic_events = NULL;
 

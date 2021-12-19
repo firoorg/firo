@@ -1,6 +1,6 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007, 2008, 2009 RELIC Authors
+ * Copyright (c) 2007, 2008, 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
@@ -51,9 +51,9 @@ dig_t fb_lsh1_low(dig_t *c, const dig_t *a) {
 
 	/* Prepare the bit mask. */
 	carry = 0;
-	for (i = 0; i < FB_DIGS; i++, a++, c++) {
+	for (i = 0; i < RLC_FB_DIGS; i++, a++, c++) {
 		/* Get the most significant bit. */
-		r = *a >> (FB_DIGIT - 1);
+		r = *a >> (RLC_DIG - 1);
 		/* Shift the operand and insert the carry, */
 		*c = (*a << 1) | carry;
 		/* Update the carry. */
@@ -67,10 +67,10 @@ dig_t fb_lshb_low(dig_t *c, const dig_t *a, int bits) {
 	dig_t r, carry, mask, shift;
 
 	/* Prepare the bit mask. */
-	shift = FB_DIGIT - bits;
+	shift = RLC_DIG - bits;
 	carry = 0;
-	mask = MASK(bits);
-	for (i = 0; i < FB_DIGS; i++, a++, c++) {
+	mask = RLC_MASK(bits);
+	for (i = 0; i < RLC_FB_DIGS; i++, a++, c++) {
 		/* Get the needed least significant bits. */
 		r = ((*a) >> shift) & mask;
 		/* Shift left the operand. */
@@ -81,34 +81,18 @@ dig_t fb_lshb_low(dig_t *c, const dig_t *a, int bits) {
 	return carry;
 }
 
-void fb_lshd_low(dig_t *c, const dig_t *a, int digits) {
-	dig_t *top;
-	const dig_t *bot;
-	int i;
-
-	top = c + FB_DIGS - 1;
-	bot = a + FB_DIGS - 1 - digits;
-
-	for (i = 0; i < FB_DIGS - digits; i++, top--, bot--) {
-		*top = *bot;
-	}
-	for (i = 0; i < digits; i++, c++) {
-		*c = 0;
-	}
-}
-
 dig_t fb_rsh1_low(dig_t *c, const dig_t *a) {
 	int i;
 	dig_t r, carry;
 
-	c += FB_DIGS - 1;
-	a += FB_DIGS - 1;
+	c += RLC_FB_DIGS - 1;
+	a += RLC_FB_DIGS - 1;
 	carry = 0;
-	for (i = FB_DIGS - 1; i >= 0; i--, a--, c--) {
+	for (i = RLC_FB_DIGS - 1; i >= 0; i--, a--, c--) {
 		/* Get the least significant bit. */
 		r = *a & 0x01;
 		/* Shift the operand and insert the carry. */
-		carry <<= FB_DIGIT - 1;
+		carry <<= RLC_DIG - 1;
 		*c = (*a >> 1) | carry;
 		/* Update the carry. */
 		carry = r;
@@ -120,13 +104,13 @@ dig_t fb_rshb_low(dig_t *c, const dig_t *a, int bits) {
 	int i;
 	dig_t r, carry, mask, shift;
 
-	c += FB_DIGS - 1;
-	a += FB_DIGS - 1;
+	c += RLC_FB_DIGS - 1;
+	a += RLC_FB_DIGS - 1;
 	/* Prepare the bit mask. */
-	shift = FB_DIGIT - bits;
+	shift = RLC_DIG - bits;
 	carry = 0;
-	mask = MASK(bits);
-	for (i = FB_DIGS - 1; i >= 0; i--, a--, c--) {
+	mask = RLC_MASK(bits);
+	for (i = RLC_FB_DIGS - 1; i >= 0; i--, a--, c--) {
 		/* Get the needed least significant bits. */
 		r = (*a) & mask;
 		/* Shift left the operand. */
@@ -135,22 +119,6 @@ dig_t fb_rshb_low(dig_t *c, const dig_t *a, int bits) {
 		carry = r;
 	}
 	return carry;
-}
-
-void fb_rshd_low(dig_t *c, const dig_t *a, int digits) {
-	const dig_t *top;
-	dig_t *bot;
-	int i;
-
-	top = a + digits;
-	bot = c;
-
-	for (i = 0; i < FB_DIGS - digits; i++, top++, bot++) {
-		*bot = *top;
-	}
-	for (; i < FB_DIGS; i++, bot++) {
-		*bot = 0;
-	}
 }
 
 dig_t fb_lsha_low(dig_t *c, const dig_t *a, int bits, int size) {
@@ -178,7 +146,7 @@ dig_t fb_lsha_low(dig_t *c, const dig_t *a, int bits, int size) {
 		return fb_lshadd8_low(c, a, size);
 	}
 
-	j = FB_DIGIT - bits;
+	j = RLC_DIG - bits;
 	b1 = a[0];
 	c[0] ^= (b1 << bits);
 	for (i = 1; i < size; i++) {

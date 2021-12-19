@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -32,8 +33,8 @@
  * @ingroup util
  */
 
-#ifndef RELIC_UTIL_H
-#define RELIC_UTIL_H
+#ifndef RLC_UTIL_H
+#define RLC_UTIL_H
 
 #include "relic_arch.h"
 #include "relic_types.h"
@@ -48,18 +49,16 @@
  *
  * @param[in] A		- the first number.
  * @param[in] B		- the second number.
- * @returns			- the smaller number.
  */
-#define MIN(A, B)			((A) < (B) ? (A) : (B))
+#define RLC_MIN(A, B)			((A) < (B) ? (A) : (B))
 
 /**
  * Returns the maximum between two numbers.
  *
  * @param[in] A		- the first number.
  * @param[in] B		- the second number.
- * @returns			- the bigger number.
  */
-#define MAX(A, B)			((A) > (B) ? (A) : (B))
+#define RLC_MAX(A, B)			((A) > (B) ? (A) : (B))
 
 /**
  * Splits a bit count in a digit count and an updated bit count.
@@ -67,9 +66,9 @@
  * @param[out] B		- the resulting bit count.
  * @param[out] D		- the resulting digit count.
  * @param[out] V		- the bit count.
- * @param[in] L			- the logarithm of the digit size.
  */
-#define SPLIT(B, D, V, L)	D = (V) >> (L); B = (V) - ((D) << (L));
+#define RLC_RIP(B, D, V)													\
+	D = (V) >> (RLC_DIG_LOG); B = (V) - ((D) * (1 << RLC_DIG_LOG));
 
 /**
  * Computes the ceiling function of an integer division.
@@ -77,65 +76,80 @@
  * @param[in] A			- the dividend.
  * @param[in] B			- the divisor.
  */
-#define CEIL(A, B)			(((A) - 1) / (B) + 1)
+#define RLC_CEIL(A, B)			(((A) - 1) / (B) + 1)
 
 /**
  * Returns a bit mask to isolate the lowest part of a digit.
  *
  * @param[in] B			- the number of bits to isolate.
  */
-#define MASK(B)				(((dig_t)1 << (B)) - 1)
+#define RLC_MASK(B)															\
+	((-(dig_t)((B) >= WSIZE)) | (((dig_t)1 << ((B) % WSIZE)) - 1))
 
 /**
  * Returns a bit mask to isolate the lowest half of a digit.
  */
-#define LMASK				(MASK(DIGIT >> 1))
+#define RLC_LMASK				(RLC_MASK(RLC_DIG >> 1))
 
 /**
  * Returns a bit mask to isolate the highest half of a digit.
  */
-#define HMASK				(LMASK << (DIGIT >> 1))
+#define RLC_HMASK				(RLC_LMASK << (RLC_DIG >> 1))
 
 /**
  * Bit mask used to return an entire digit.
  */
-#define DMASK				(HMASK | LMASK)
+#define RLC_DMASK				(RLC_HMASK | RLC_LMASK)
 
 /**
  * Returns the lowest half of a digit.
  *
  * @param[in] D			- the digit.
  */
-#define LOW(D)				(D & LMASK)
+#define RLC_LOW(D)				(D & RLC_LMASK)
 
 /**
  * Returns the highest half of a digit.
  *
  * @param[in] D			- the digit.
  */
-#define HIGH(D)				(D >> (DIGIT >> 1))
+#define RLC_HIGH(D)				(D >> (RLC_DIG >> 1))
+
+/**
+ * Selects between two values based on the value of a given flag.
+ *
+ * @param[in] A			- the first argument.
+ * @param[in] B			- the second argument.
+ * @param[in] C			- the selection flag.
+ */
+#define RLC_SEL(A, B, C) 		((-(C) & ((A) ^ (B))) ^ (A))
+
+/**
+ * Swaps two values.
+ *
+ * @param[in] A			- the first argument.
+ * @param[in] B			- the second argument.
+ */
+#define RLC_SWAP(A, B) 			((A) ^= (B), (B) ^= (A), (A) ^= (B))
 
 /**
  * Returns the given character in upper case.
  *
  * @param[in] C			- the character.
  */
-#define TOUPPER(C)			((C) - 0x20 * (((C) >= 'a') && ((C) <= 'z')))
+#define RLC_UPP(C)				((C) - 0x20 * (((C) >= 'a') && ((C) <= 'z')))
+
+/**
+  *  Indirection to help some compilers expand symbols.
+  */
+#define RLC_ECHO(A) 			A
 
 /**
  * Concatenates two tokens.
  */
 /** @{ */
-#define CAT(A, B)			_CAT(A, B)
-#define _CAT(A, B)			A ## B
-/** @} */
-
- /**
-  * Inserts quotation marks in the macro argument.
-  */
- /** @{ */
-#define QUOTE(A)			_QUOTE(A)
-#define _QUOTE(A)			#A
+#define RLC_CAT(A, B)			_RLC_CAT(A, B)
+#define _RLC_CAT(A, B)			A ## B
 /** @} */
 
 /**
@@ -143,8 +157,8 @@
  * additional argument was passed.
  */
 /** @{ */
-#define OPT(...)				_OPT(__VA_ARGS__, _imp, _basic, _error)
-#define _OPT(...)				__OPT(__VA_ARGS__)
+#define RLC_OPT(...)			_OPT(__VA_ARGS__, _imp, _basic, _error)
+#define _OPT(...)				RLC_ECHO(__OPT(__VA_ARGS__))
 #define __OPT(_1, _2, N, ...)	N
 /** @} */
 
@@ -154,7 +168,7 @@
  * @param[in] F			- the format string.
  */
 #ifndef QUIET
-#define util_print(F, ...)		util_printf(STRING(F), ##__VA_ARGS__)
+#define util_print(F, ...)		util_printf(RLC_STR(F), ##__VA_ARGS__)
 #else
 #define util_print(F, ...)		/* empty */
 #endif
@@ -210,7 +224,7 @@ int util_bits_dig(dig_t a);
  * @param[in] a				- the first buffer.
  * @param[in] b				- the second buffer.
  * @param[in] n				- the length in bytes of the buffers.
- * @return CMP_EQ if they are equal and CMP_NE otherwise.
+ * @return RLC_EQ if they are equal and RLC_NE otherwise.
  */
 int util_cmp_const(const void *a, const void *b, int n);
 
@@ -231,4 +245,4 @@ void util_printf(const char *format, ...);
  */
 void util_print_dig(dig_t a, int pad);
 
-#endif /* !RELIC_UTIL_H */
+#endif /* !RLC_UTIL_H */

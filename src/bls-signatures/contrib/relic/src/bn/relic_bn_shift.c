@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -38,27 +39,27 @@
 void bn_dbl(bn_t c, const bn_t a) {
 	dig_t carry;
 
-	bn_grow(c, a->used + 1);
+	RLC_TRY {
+		bn_grow(c, a->used + 1);
 
-	c->used = a->used;
-	carry = bn_lsh1_low(c->dp, a->dp, c->used);
+		c->used = a->used;
+		carry = bn_lsh1_low(c->dp, a->dp, c->used);
 
-	/* If there is an additional carry. */
-	if (carry != 0) {
-		c->dp[c->used] = carry;
-		(c->used)++;
+		/* If there is an additional carry. */
+		if (carry != 0) {
+			c->dp[c->used] = carry;
+			(c->used)++;
+		}
+
+		c->sign = a->sign;
+	} RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-
-	c->sign = a->sign;
 }
 
 void bn_hlv(bn_t c, const bn_t a) {
-	bn_grow(c, a->used);
-
-	c->used = a->used;
-	bn_rsh1_low(c->dp, a->dp, c->used);
-
-	c->sign = a->sign;
+	bn_copy(c, a);
+	bn_rsh1_low(c->dp, c->dp, c->used);
 	bn_trim(c);
 }
 
@@ -67,52 +68,52 @@ void bn_lsh(bn_t c, const bn_t a, int bits) {
 	dig_t carry;
 
 	bn_copy(c, a);
+
 	if (bits <= 0) {
 		return;
 	}
 
-	SPLIT(bits, digits, bits, BN_DIG_LOG);
+	RLC_RIP(bits, digits, bits);
 
-	if (bits > 0) {
-		if (bn_bits(c) + bits > c->used * (int)BN_DIGIT) {
-			bn_grow(c, c->used + digits + 1);
-		}
-	} else {
-		bn_grow(c, c->used + digits);
-	}
+	RLC_TRY {
+		bn_grow(c, c->used + digits + (bits > 0));
 
-	if (digits > 0) {
-		bn_lshd_low(c->dp, a->dp, a->used, digits);
-	}
-	c->used = a->used + digits;
-	c->sign = a->sign;
+		c->used = a->used + digits;
+		c->sign = a->sign;
+		if (digits > 0) {
+			dv_lshd(c->dp, a->dp, c->used, digits);
+		}
 
-	if (bits > 0) {
-		if (c != a) {
-			carry = bn_lshb_low(c->dp + digits, a->dp, a->used, bits);
-		} else {
-			carry = bn_lshb_low(c->dp + digits, c->dp + digits, c->used - digits, bits);
+		if (bits > 0) {
+			if (c != a) {
+				carry = bn_lshb_low(c->dp + digits, a->dp, a->used, bits);
+			} else {
+				carry = bn_lshb_low(c->dp + digits, c->dp + digits, c->used - digits, bits);
+			}
+			if (carry != 0) {
+				c->dp[c->used] = carry;
+				(c->used)++;
+			}
 		}
-		if (carry != 0) {
-			c->dp[c->used] = carry;
-			(c->used)++;
-		}
+		bn_trim(c);
+	} RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	bn_trim(c);
 }
 
 void bn_rsh(bn_t c, const bn_t a, int bits) {
 	int digits = 0;
 
+	bn_copy(c, a);
+
 	if (bits <= 0) {
-		bn_copy(c, a);
 		return;
 	}
 
-	SPLIT(bits, digits, bits, BN_DIG_LOG);
+	RLC_RIP(bits, digits, bits);
 
 	if (digits > 0) {
-		bn_rshd_low(c->dp, a->dp, a->used, digits);
+		dv_rshd(c->dp, a->dp, a->used, digits);
 	}
 	c->used = a->used - digits;
 	c->sign = a->sign;

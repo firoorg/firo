@@ -1,5 +1,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.1.0 FATAL_ERROR)
-set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_STANDARD 17)
+
+find_program(BASH bash HINTS /bin)
 
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 source_group("SrcHeaders" FILES ${HEADERS})
@@ -11,19 +13,20 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/catch
   )
 
-set(C_LIB ${CMAKE_BINARY_DIR}/libchiabls.a)
+set(C_LIB ${CMAKE_BINARY_DIR}/.libs/libchiabls.a)
 
-add_library(chiabls ${CMAKE_CURRENT_SOURCE_DIR}/chaincode.cpp)
+add_library(chiabls ${CMAKE_CURRENT_SOURCE_DIR}/privatekey.cpp)
 
 add_library(chiablstmp ${HEADERS}
-  ${CMAKE_CURRENT_SOURCE_DIR}/extendedpublickey.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/extendedprivatekey.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/chaincode.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/signature.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/publickey.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/privatekey.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/bls.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/aggregationinfo.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/chaincode.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/elements.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/extendedprivatekey.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/extendedpublickey.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/legacy.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/schemes.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/threshold.cpp
 )
 
 set(OPREFIX object_)
@@ -49,8 +52,15 @@ add_custom_target(combined_custom
         DEPENDS chiablstmp relic_s
         )
 
+add_custom_command(OUTPUT "${CMAKE_BINARY_DIR}/libchiabls.la"
+	COMMAND ${BASH} -c "sed \"s^__LIBDIR__^${CMAKE_BINARY_DIR}^\" ${CMAKE_CURRENT_SOURCE_DIR}/libchiabls.la.in >${CMAKE_BINARY_DIR}/libchiabls.la"
+	COMMAND ${BASH} -c "mkdir -p ${CMAKE_BINARY_DIR}/.libs"
+	DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/libchiabls.la.in"
+	)	
+add_custom_target(chiabls_la DEPENDS "${CMAKE_BINARY_DIR}/libchiabls.la")
+
 add_library(combined STATIC IMPORTED GLOBAL)
-add_dependencies(combined combined_custom)
+add_dependencies(combined combined_custom chiabls_la)
 
 target_link_libraries(chiabls combined)
 

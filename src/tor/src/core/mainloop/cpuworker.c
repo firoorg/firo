@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -37,7 +37,7 @@
 
 static void queue_pending_tasks(void);
 
-typedef struct worker_state_s {
+typedef struct worker_state_t {
   int generation;
   server_onion_keys_t *onion_keys;
 } worker_state_t;
@@ -160,7 +160,7 @@ typedef struct cpuworker_reply_t {
   uint8_t rend_auth_material[DIGEST_LEN];
 } cpuworker_reply_t;
 
-typedef struct cpuworker_job_u {
+typedef struct cpuworker_job_u_t {
   or_circuit_t *circ;
   union {
     cpuworker_request_t request;

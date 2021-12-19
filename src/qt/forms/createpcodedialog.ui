@@ -70,10 +70,6 @@
             <property name="text">
              <string>C&amp;reate payment code</string>
             </property>
-            <property name="icon">
-             <iconset resource="../bitcoin.qrc">
-              <normaloff>:/icons/paymentcode</normaloff>:/icons/paymentcode</iconset>
-            </property>
            </widget>
           </item>
           <item>
@@ -89,10 +85,6 @@
             </property>
             <property name="text">
              <string>Clear</string>
-            </property>
-            <property name="icon">
-             <iconset resource="../bitcoin.qrc">
-              <normaloff>:/icons/remove</normaloff>:/icons/remove</iconset>
             </property>
             <property name="autoDefault">
              <bool>false</bool>
@@ -218,10 +210,6 @@
           </property>
           <property name="text">
            <string>Show</string>
-          </property>
-          <property name="icon">
-           <iconset resource="../bitcoin.qrc">
-            <normaloff>:/icons/edit</normaloff>:/icons/edit</iconset>
           </property>
           <property name="autoDefault">
            <bool>false</bool>
