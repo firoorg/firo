@@ -2013,6 +2013,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     if (GetBoolArg("-peerblockfilters", DEFAULT_PEERBLOCKFILTERS)) {
         nLocalServices = ServiceFlags(nLocalServices | NODE_COMPACT_FILTERS);
+        nRelevantServices = ServiceFlags(nRelevantServices | NODE_COMPACT_FILTERS);
     }
 
     // ********************************************************* Step 10a: Prepare znode related stuff
