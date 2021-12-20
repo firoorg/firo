@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2012 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -43,7 +44,7 @@
 /* Private definitions                                                        */
 /*============================================================================*/
 
-#define HALF ((int)((FB_BITS / 2)/(FB_DIGIT) + ((FB_BITS / 2) % FB_DIGIT > 0)))
+#define HALF ((int)((RLC_FB_BITS / 2)/(RLC_DIG) + ((RLC_FB_BITS / 2) % RLC_DIG > 0)))
 
 #ifndef __PCLMUL__
 
@@ -51,8 +52,7 @@ void fb_mulh_low(dig_t *c, const dig_t *a) {
 	__m128i m0, m1, m2, m3, m8, m9, t0, t1;
 	uint8_t ta;
 	int j;
-	relic_align dig_t x[2];
-	dig_t *tab;
+	rlc_align dig_t x[2];
 
 #define LSHIFT8(m2,m1,m0)\
 	m2=_mm_alignr_epi8(m2,m1,15);\
@@ -60,7 +60,7 @@ void fb_mulh_low(dig_t *c, const dig_t *a) {
 	m0=_mm_slli_si128(m0,1);
 
 #define M(m1,m0,ta)\
-	tab = fb_poly_tab_srz(ta);\
+	const dig_t *tab = fb_poly_tab_srz(ta);\
 	m0=_mm_xor_si128(m0, ((__m128i *)tab)[0]);\
 	m1=_mm_xor_si128(m1, ((__m128i *)tab)[1]);\
 
@@ -118,7 +118,7 @@ void fb_mulh_low(dig_t *c, const dig_t *a) {
 
 	m1 = XOR(m1, m4);
 
-	relic_align dig_t _x[2];
+	rlc_align dig_t _x[2];
 
 	RED251(m2,m1,m0);													\
 	m8 = _mm_srli_si128(m1,8);											\
@@ -144,8 +144,8 @@ void fb_mulh_low(dig_t *c, const dig_t *a) {
 
 void fb_srtn_low(dig_t *c, const dig_t *a) {
 	__m128i m0, m1, m2, perm, mask0, mask1, sqrt0, sqrt1;
-	relic_align dig_t x[2], d0, d1;
-	relic_align dig_t t_e[FB_DIGS] = {0}, t_o[FB_DIGS] = {0};
+	rlc_align dig_t x[2], d0, d1;
+	rlc_align dig_t t_e[RLC_FB_DIGS] = {0}, t_o[RLC_FB_DIGS] = {0};
 	int i, n;
 
 	//sqrt1 = sqrt0<<2
@@ -156,7 +156,7 @@ void fb_srtn_low(dig_t *c, const dig_t *a) {
 	mask0 = _mm_set_epi32(0x0F0F0F0F, 0x0F0F0F0F, 0x0F0F0F0F, 0x0F0F0F0F);
 
 	n = 0;
-	for (i = 0; i < FB_DIGS; i += 2) {
+	for (i = 0; i < RLC_FB_DIGS; i += 2) {
 		m1 = _mm_load_si128((__m128i *) & a[i]);
 		m0 = _mm_shuffle_epi8(m1, perm);
 		m1 = _mm_and_si128(m0, mask0);

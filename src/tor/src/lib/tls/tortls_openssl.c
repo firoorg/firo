@@ -1,6 +1,6 @@
 /* Copyright (c) 2003, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -37,7 +37,7 @@
 
 /* Some versions of OpenSSL declare SSL_get_selected_srtp_profile twice in
  * srtp.h. Suppress the GCC warning so we can build with -Wredundant-decl. */
-DISABLE_GCC_WARNING(redundant-decls)
+DISABLE_GCC_WARNING("-Wredundant-decls")
 
 #include <openssl/opensslv.h>
 
@@ -54,7 +54,7 @@ DISABLE_GCC_WARNING(redundant-decls)
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 
-ENABLE_GCC_WARNING(redundant-decls)
+ENABLE_GCC_WARNING("-Wredundant-decls")
 
 #include "lib/tls/tortls.h"
 #include "lib/tls/tortls_st.h"
@@ -464,7 +464,9 @@ static const char UNRESTRICTED_SERVER_CIPHER_LIST[] =
 /** List of ciphers that clients should advertise, omitting items that
  * our OpenSSL doesn't know about. */
 static const char CLIENT_CIPHER_LIST[] =
+#ifndef COCCI
 #include "lib/tls/ciphers.inc"
+#endif
   /* Tell it not to use SSLv2 ciphers, so that it can select an SSLv3 version
    * of any cipher we say. */
   "!SSLv2"

@@ -123,6 +123,7 @@ private:
     QAction *lelantusAction;
     QAction *masternodeAction;
     QAction *createPcodeAction;
+    QAction *logoAction;
 
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
@@ -273,6 +274,9 @@ private Q_SLOTS:
 
     /** Show progress dialog e.g. for verifychain */
     void showProgress(const QString &title, int nProgress);
+    
+    /** Update progress bar label text */
+    void updateProgressBarLabel(const QString& text);
 
     /** When hideTrayIcon setting is changed in OptionsModel hide or show the icon accordingly. */
     void setTrayIconVisible(bool);

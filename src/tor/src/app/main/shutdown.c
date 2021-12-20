@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2018, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -43,8 +43,8 @@
 #include "feature/nodelist/networkstatus.h"
 #include "feature/nodelist/nodelist.h"
 #include "feature/nodelist/routerlist.h"
-#include "feature/nodelist/routerlist.h"
 #include "feature/relay/ext_orport.h"
+#include "feature/relay/relay_config.h"
 #include "feature/rend/rendcache.h"
 #include "feature/rend/rendclient.h"
 #include "feature/stats/geoip_stats.h"
@@ -143,6 +143,7 @@ tor_free_all(int postfork)
 
   if (!postfork) {
     config_free_all();
+    relay_config_free_all();
     or_state_free_all();
   }
   if (!postfork) {

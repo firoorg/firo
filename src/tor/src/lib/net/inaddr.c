@@ -1,6 +1,6 @@
 /* Copyright (c) 2003-2004, Roger Dingledine
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -35,11 +35,11 @@
  * (Like inet_aton(str,addr), but works on Windows and Solaris.)
  */
 int
-tor_inet_aton(const char *str, struct in_addr* addr)
+tor_inet_aton(const char *str, struct in_addr *addr)
 {
-  unsigned a,b,c,d;
+  unsigned a, b, c, d;
   char more;
-  if (tor_sscanf(str, "%3u.%3u.%3u.%3u%c", &a,&b,&c,&d,&more) != 4)
+  if (tor_sscanf(str, "%3u.%3u.%3u.%3u%c", &a, &b, &c, &d, &more) != 4)
     return 0;
   if (a > 255) return 0;
   if (b > 255) return 0;

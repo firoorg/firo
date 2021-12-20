@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2012 RELIC Authors
+ * Copyright (c) 2013 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 #include "relic_fp_low.h"
@@ -103,7 +104,7 @@
 
 /* Montgomery reduction, comba, optimized for BN254 */
 .macro FP_RDCN_LOW C, A
-	xorq	%r10, %r10    
+	xorq	%r10, %r10
 	movq	U0, %rcx
 // i=0
 	movq	0(\A), %r8
@@ -116,23 +117,23 @@
 	movq	P1, %r12
 	adcq	8(\A),%rdx
     movq    %rdx,%r9
-    adcq    $0,%r10      
-// i=1, j=0    
+    adcq    $0,%r10
+// i=1, j=0
 	movq	%r14, %rax
 	mulq	%r12          // z0*m1
 	addq	%rax,%r9
-	movq	%r9, %rax     
+	movq	%r9, %rax
 	adcq	%rdx,%r10
 
 	mulq	%rcx          // v*U0
 	movq	%rax, 8(\A)
-	xorq    %r8,%r8       
+	xorq    %r8,%r8
 	mulq	%r11          // z1*m0
 	addq	%rax,%r9
 	movq	P2, %r13
 	adcq	%rdx,%r10
 	adcq	$0,%r8
-// i=2, j=0,1 
+// i=2, j=0,1
 	movq	%r14, %rax
 	mulq	%r13         // z0*m2
 	addq	16(\A),%r10
@@ -141,13 +142,13 @@
 	addq	%rax,%r10
 	adcq	%rdx,%r8
 
-    xorq    %r9,%r9  
-	movq	8(\A), %rax  
+    xorq    %r9,%r9
+	movq	8(\A), %rax
 	mulq	%r12         // z1*m1
 	addq	%rax,%r10
 	adcq	%rdx,%r8
 	adcq	$0,%r9
-	movq	%r10, %rax   
+	movq	%r10, %rax
 	mulq	%rcx         // v*U0
 	movq	%rax, 16(\A)
 	mulq	%r11         // z2*m0
@@ -156,26 +157,26 @@
 	adcq	%rdx,%r8
 	movq	P3, %r14
 	adcq	$0,%r9
-// i=3, j=0,1,2  
+// i=3, j=0,1,2
 	mulq	%r14           // z0*m3
-	addq    24(\A),%r8    
-	adcq	$0,%r9          
+	addq    24(\A),%r8
+	adcq	$0,%r9
 
 	addq	%rax,%r8
 	adcq	%rdx,%r9
-	     
-	movq	8(\A), %rax 
+
+	movq	8(\A), %rax
 	mulq	%r13           // z1*m2
 	addq	%rax,%r8
-	movq	16(\A), %rax  
+	movq	16(\A), %rax
 	adcq	%rdx,%r9
- 
-	xorq	%r10, %r10  
+
+	xorq	%r10, %r10
 	mulq	%r12           // z2*m1
 	addq	%rax,%r8
-	movq	%r8, %rax 
+	movq	%r8, %rax
 	adcq	%rdx,%r9
-	adcq	$0,%r10 
+	adcq	$0,%r10
 
 	mulq	%rcx           // v*U0
 	movq    %rax, 24(\A)
@@ -184,8 +185,8 @@
 	adcq	%rdx,%r9
 	adcq	$0,%r10
 // loop 2
-// i=4, j=1,2,3  
-	movq	8(\A), %rax  
+// i=4, j=1,2,3
+	movq	8(\A), %rax
 	mulq	%r14           // z1*m3
 	addq	32(\A),%r9
 	adcq	$0,%r10
@@ -193,13 +194,13 @@
 	addq	%rax,%r9
 	adcq	%rdx,%r10
 
-	movq	16(\A), %rax  
+	movq	16(\A), %rax
 	mulq	%r13           // z2*m2
 	addq	%rax,%r9
 
 	adcq	%rdx,%r10
-	xorq	%r8, %r8    
-	movq	24(\A), %rax  
+	xorq	%r8, %r8
+	movq	24(\A), %rax
 
 	mulq	%r12           // z3*m1
 	addq	%rax,%r9
@@ -207,7 +208,7 @@
 	movq	%r9,%r12       // Z0
 	adcq	$0,%r8
 // i=5, j=2,3
-	xorq	%r11, %r11     
+	xorq	%r11, %r11
 	movq	16(\A), %rax
 	mulq	%r14           // z2*m3
 	addq	%rax,%r10
@@ -232,7 +233,7 @@
 	adcq	$0,%r11
 
 	addq	56(\A),%r11
-	movq	%r11,%rcx      // Z3 
+	movq	%r11,%rcx      // Z3
 
 	movq	P0,%rax
 	subq	%rax,%r9
@@ -242,7 +243,7 @@
 	sbbq	%rax,%r8
 	movq	P3,%rax
 	sbbq	%rax,%r11
-	cmovnc	%r9,%r12       
+	cmovnc	%r9,%r12
 	movq	%r12,0(\C)
 	cmovnc	%r10,%r13
 	movq	%r13,8(\C)
@@ -344,7 +345,7 @@
 	addq %rax,\R1
 	adcq %rdx,\R2
 
-    xorq \R0,\R0	
+    xorq \R0,\R0
 	movq \A3,%rax
 	mulq \B2
 	addq %rax,\R1

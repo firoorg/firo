@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Tor Project, Inc. */
+/* Copyright (c) 2018-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -8,12 +8,14 @@
 
 #define CONFIG_PRIVATE
 #define CONNECTION_PRIVATE
+#define DIRAUTH_SYS_PRIVATE
 #define TOKEN_BUCKET_PRIVATE
 
 #include "core/or/or.h"
 
 #include "app/config/config.h"
 #include "core/mainloop/connection.h"
+#include "feature/dirauth/dirauth_sys.h"
 #include "feature/dircommon/directory.h"
 #include "feature/nodelist/microdesc.h"
 #include "feature/nodelist/networkstatus.h"
@@ -26,6 +28,7 @@
 
 #include "app/config/or_options_st.h"
 #include "core/or/connection_st.h"
+#include "feature/dirauth/dirauth_options_st.h"
 #include "feature/nodelist/microdesc_st.h"
 #include "feature/nodelist/networkstatus_st.h"
 #include "feature/nodelist/routerinfo_st.h"
@@ -277,6 +280,7 @@ test_bwmgt_dir_conn_global_write_low(void *arg)
   connection_t *conn = NULL;
   routerstatus_t *rs = NULL; microdesc_t *md = NULL; routerinfo_t *ri = NULL;
   tor_addr_t relay_addr;
+  dirauth_options_t *dirauth_opts = NULL;
 
   (void) arg;
 
@@ -329,6 +333,10 @@ test_bwmgt_dir_conn_global_write_low(void *arg)
 
   nodelist_set_consensus(dummy_ns);
 
+  dirauth_opts = tor_malloc_zero(sizeof(dirauth_options_t));
+  dirauth_opts->AuthDirRejectRequestsUnderLoad = 0;
+  dirauth_set_options(dirauth_opts);
+
   /* Ok, now time to control which options we use. */
   MOCK(get_options, mock_get_options);
 
@@ -365,7 +373,7 @@ test_bwmgt_dir_conn_global_write_low(void *arg)
   /* Now, we will reject requests under load so try again a non authority non
    * relay IP thus a client. We should get a warning that our limit is too
    * low. */
-  mock_options.AuthDirRejectRequestsUnderLoad = 1;
+  dirauth_opts->AuthDirRejectRequestsUnderLoad = 1;
 
   addr_family = tor_addr_parse(&conn->addr, "1.1.1.1");
   tt_int_op(addr_family, OP_EQ, AF_INET);

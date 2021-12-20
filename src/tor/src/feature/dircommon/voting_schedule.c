@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Tor Project, Inc. */
+/* Copyright (c) 2018-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -8,7 +8,6 @@
  *        tor. The full feature is built as part of the dirauth module.
  **/
 
-#define VOTING_SCHEDULE_PRIVATE
 #include "feature/dircommon/voting_schedule.h"
 
 #include "core/or/or.h"

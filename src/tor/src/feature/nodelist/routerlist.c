@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -73,6 +73,7 @@
 #include "feature/dirauth/reachability.h"
 #include "feature/dircache/dirserv.h"
 #include "feature/dirclient/dirclient.h"
+#include "feature/dirclient/dirclient_modes.h"
 #include "feature/dirclient/dlstatus.h"
 #include "feature/dircommon/directory.h"
 #include "feature/nodelist/authcert.h"
@@ -1936,9 +1937,7 @@ routerlist_descriptors_added(smartlist_t *sl, int from_cache)
       learned_bridge_descriptor(ri, from_cache);
     if (ri->needs_retest_if_added) {
       ri->needs_retest_if_added = 0;
-#ifdef HAVE_MODULE_DIRAUTH
       dirserv_single_reachability_test(approx_time(), ri);
-#endif
     }
   } SMARTLIST_FOREACH_END(ri);
 }
@@ -2406,7 +2405,7 @@ max_dl_per_request(const or_options_t *options, int purpose)
   }
   /* If we're going to tunnel our connections, we can ask for a lot more
    * in a request. */
-  if (directory_must_use_begindir(options)) {
+  if (dirclient_must_use_begindir(options)) {
     max = 500;
   }
   return max;
@@ -2449,7 +2448,7 @@ launch_descriptor_downloads(int purpose,
   if (!n_downloadable)
     return;
 
-  if (!directory_fetches_dir_info_early(options)) {
+  if (!dirclient_fetches_dir_info_early(options)) {
     if (n_downloadable >= MAX_DL_TO_DELAY) {
       log_debug(LD_DIR,
                 "There are enough downloadable %ss to launch requests.",
@@ -2540,7 +2539,7 @@ update_consensus_router_descriptor_downloads(time_t now, int is_vote,
   int n_delayed=0, n_have=0, n_would_reject=0, n_wouldnt_use=0,
     n_inprogress=0, n_in_oldrouters=0;
 
-  if (directory_too_idle_to_fetch_descriptors(options, now))
+  if (dirclient_too_idle_to_fetch_descriptors(options, now))
     goto done;
   if (!consensus)
     goto done;
@@ -2560,8 +2559,15 @@ update_consensus_router_descriptor_downloads(time_t now, int is_vote,
   map = digestmap_new();
   list_pending_descriptor_downloads(map, 0);
   SMARTLIST_FOREACH_BEGIN(consensus->routerstatus_list, void *, rsp) {
-      routerstatus_t *rs =
-        is_vote ? &(((vote_routerstatus_t *)rsp)->status) : rsp;
+      routerstatus_t *rs;
+      vote_routerstatus_t *vrs;
+      if (is_vote) {
+        rs = &(((vote_routerstatus_t *)rsp)->status);
+        vrs = rsp;
+      } else {
+        rs = rsp;
+        vrs = NULL;
+      }
       signed_descriptor_t *sd;
       if ((sd = router_get_by_descriptor_digest(rs->descriptor_digest))) {
         const routerinfo_t *ri;
@@ -2586,7 +2592,7 @@ update_consensus_router_descriptor_downloads(time_t now, int is_vote,
         ++n_delayed; /* Not ready for retry. */
         continue;
       }
-      if (authdir && dirserv_would_reject_router(rs)) {
+      if (authdir && is_vote && dirserv_would_reject_router(rs, vrs)) {
         ++n_would_reject;
         continue; /* We would throw it out immediately. */
       }

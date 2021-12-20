@@ -17,6 +17,7 @@
 #include "keystore.h"
 #include <boost/optional.hpp>
 #include "masternode-sync.h"
+#include "ui_interface.h"
 
 /**
  * Constructor for CHDMintWallet object.
@@ -273,10 +274,10 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             if (setChecked.count(pMint.first))
                 continue;
             setChecked.insert(pMint.first);
+            uiInterface.UpdateProgressBarLabel("Synchronizing mints...");
 
             if (ShutdownRequested())
                 return;
-
             uint160& mintHashSeedMaster = std::get<0>(pMint.second);
             int32_t& mintCount = std::get<2>(pMint.second);
 
@@ -439,6 +440,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             if (found)
                 mintsFound++;
         }
+        uiInterface.UpdateProgressBarLabel("");
         // Clear listMints to allow it to be repopulated by the mintPool on the next iteration
         if(found)
             listMints = boost::none;

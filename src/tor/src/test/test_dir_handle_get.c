@@ -1,6 +1,6 @@
 /* Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 #define RENDCOMMON_PRIVATE
@@ -20,6 +20,7 @@
 #include "lib/compress/compress.h"
 #include "feature/rend/rendcommon.h"
 #include "feature/rend/rendcache.h"
+#include "feature/relay/relay_config.h"
 #include "feature/relay/router.h"
 #include "feature/nodelist/authcert.h"
 #include "feature/nodelist/dirlist.h"
@@ -54,16 +55,14 @@
 #endif /* defined(_WIN32) */
 
 #ifdef HAVE_CFLAG_WOVERLENGTH_STRINGS
-DISABLE_GCC_WARNING(overlength-strings)
+DISABLE_GCC_WARNING("-Woverlength-strings")
 /* We allow huge string constants in the unit tests, but not in the code
  * at large. */
 #endif
 #include "vote_descriptors.inc"
 #ifdef HAVE_CFLAG_WOVERLENGTH_STRINGS
-ENABLE_GCC_WARNING(overlength-strings)
+ENABLE_GCC_WARNING("-Woverlength-strings")
 #endif
-
-#define NS_MODULE dir_handle_get
 
 #define NOT_FOUND "HTTP/1.0 404 Not found\r\n\r\n"
 #define BAD_REQUEST "HTTP/1.0 400 Bad request\r\n\r\n"
@@ -118,7 +117,7 @@ test_dir_handle_get_v1_command_not_found(void *data)
   conn = new_dir_conn();
 
   // no frontpage configured
-  tt_ptr_op(get_dirportfrontpage(), OP_EQ, NULL);
+  tt_ptr_op(relay_get_dirportfrontpage(), OP_EQ, NULL);
 
   /* V1 path */
   tt_int_op(directory_handle_command_get(conn, GET("/tor/"), NULL, 0),
@@ -152,9 +151,9 @@ test_dir_handle_get_v1_command(void *data)
   (void) data;
 
   MOCK(connection_write_to_buf_impl_, connection_write_to_buf_mock);
-  MOCK(get_dirportfrontpage, mock_get_dirportfrontpage);
+  MOCK(relay_get_dirportfrontpage, mock_get_dirportfrontpage);
 
-  exp_body = get_dirportfrontpage();
+  exp_body = relay_get_dirportfrontpage();
   body_len = strlen(exp_body);
 
   conn = new_dir_conn();
@@ -177,7 +176,7 @@ test_dir_handle_get_v1_command(void *data)
 
   done:
     UNMOCK(connection_write_to_buf_impl_);
-    UNMOCK(get_dirportfrontpage);
+    UNMOCK(relay_get_dirportfrontpage);
     connection_free_minimal(TO_CONN(conn));
     tor_free(header);
     tor_free(body);
@@ -257,7 +256,7 @@ test_dir_handle_get_rendezvous2_not_found_if_not_encrypted(void *data)
   conn = new_dir_conn();
 
   // connection is not encrypted
-  tt_assert(!connection_dir_is_encrypted(conn))
+  tt_assert(!connection_dir_is_encrypted(conn));
 
   tt_int_op(directory_handle_command_get(conn, RENDEZVOUS2_GET(), NULL, 0),
             OP_EQ, 0);
@@ -363,12 +362,13 @@ test_dir_handle_get_rendezvous2_not_found(void *data)
     rend_cache_free_all();
 }
 
-NS_DECL(const routerinfo_t *, router_get_my_routerinfo, (void));
+static const routerinfo_t * dhg_tests_router_get_my_routerinfo(void);
+ATTR_UNUSED static int dhg_tests_router_get_my_routerinfo_called = 0;
 
 static routerinfo_t *mock_routerinfo;
 
 static const routerinfo_t *
-NS(router_get_my_routerinfo)(void)
+dhg_tests_router_get_my_routerinfo(void)
 {
   if (!mock_routerinfo) {
     mock_routerinfo = tor_malloc_zero(sizeof(routerinfo_t));
@@ -393,7 +393,8 @@ test_dir_handle_get_rendezvous2_on_encrypted_conn_success(void *data)
   (void) data;
 
   MOCK(connection_write_to_buf_impl_, connection_write_to_buf_mock);
-  NS_MOCK(router_get_my_routerinfo);
+  MOCK(router_get_my_routerinfo,
+       dhg_tests_router_get_my_routerinfo);
 
   rend_cache_init();
 
@@ -436,7 +437,7 @@ test_dir_handle_get_rendezvous2_on_encrypted_conn_success(void *data)
 
   done:
     UNMOCK(connection_write_to_buf_impl_);
-    NS_UNMOCK(router_get_my_routerinfo);
+    UNMOCK(router_get_my_routerinfo);
 
     connection_free_minimal(TO_CONN(conn));
     tor_free(header);
@@ -768,7 +769,8 @@ test_dir_handle_get_server_descriptors_all(void* data)
   helper_setup_fake_routerlist();
 
   //TODO: change to router_get_my_extrainfo when testing "extra" path
-  NS_MOCK(router_get_my_routerinfo);
+  MOCK(router_get_my_routerinfo,
+       dhg_tests_router_get_my_routerinfo);
   MOCK(connection_write_to_buf_impl_, connection_write_to_buf_mock);
 
   // We are one of the routers
@@ -810,7 +812,7 @@ test_dir_handle_get_server_descriptors_all(void* data)
   tt_ptr_op(conn->spool, OP_EQ, NULL);
 
   done:
-    NS_UNMOCK(router_get_my_routerinfo);
+    UNMOCK(router_get_my_routerinfo);
     UNMOCK(connection_write_to_buf_impl_);
     connection_free_minimal(TO_CONN(conn));
     tor_free(header);
@@ -867,7 +869,8 @@ test_dir_handle_get_server_descriptors_authority(void* data)
   crypto_pk_t *identity_pkey = pk_generate(0);
   (void) data;
 
-  NS_MOCK(router_get_my_routerinfo);
+  MOCK(router_get_my_routerinfo,
+       dhg_tests_router_get_my_routerinfo);
   MOCK(connection_write_to_buf_impl_, connection_write_to_buf_mock);
 
   /* init mock */
@@ -912,7 +915,7 @@ test_dir_handle_get_server_descriptors_authority(void* data)
   tt_ptr_op(conn->spool, OP_EQ, NULL);
 
   done:
-    NS_UNMOCK(router_get_my_routerinfo);
+    UNMOCK(router_get_my_routerinfo);
     UNMOCK(connection_write_to_buf_impl_);
     tor_free(mock_routerinfo->cache_info.signed_descriptor_body);
     tor_free(mock_routerinfo);
@@ -932,7 +935,8 @@ test_dir_handle_get_server_descriptors_fp(void* data)
   crypto_pk_t *identity_pkey = pk_generate(0);
   (void) data;
 
-  NS_MOCK(router_get_my_routerinfo);
+  MOCK(router_get_my_routerinfo,
+       dhg_tests_router_get_my_routerinfo);
   MOCK(connection_write_to_buf_impl_, connection_write_to_buf_mock);
 
   /* init mock */
@@ -984,7 +988,7 @@ test_dir_handle_get_server_descriptors_fp(void* data)
   tt_ptr_op(conn->spool, OP_EQ, NULL);
 
   done:
-    NS_UNMOCK(router_get_my_routerinfo);
+    UNMOCK(router_get_my_routerinfo);
     UNMOCK(connection_write_to_buf_impl_);
     tor_free(mock_routerinfo->cache_info.signed_descriptor_body);
     tor_free(mock_routerinfo);
@@ -1788,13 +1792,14 @@ test_dir_handle_get_status_vote_current_consensus_too_old(void *data)
     or_options_free(mock_options); mock_options = NULL;
 }
 
-NS_DECL(int, geoip_get_country_by_addr, (const tor_addr_t *addr));
+static int dhg_tests_geoip_get_country_by_addr(const tor_addr_t *addr);
+ATTR_UNUSED static int dhg_tests_geoip_get_country_by_addr_called = 0;
 
 int
-NS(geoip_get_country_by_addr)(const tor_addr_t *addr)
+dhg_tests_geoip_get_country_by_addr(const tor_addr_t *addr)
 {
   (void)addr;
-  CALLED(geoip_get_country_by_addr)++;
+  dhg_tests_geoip_get_country_by_addr_called++;
   return 1;
 }
 
@@ -1858,7 +1863,8 @@ test_dir_handle_get_status_vote_current_consensus_ns(void* data)
   dirserv_free_all();
   clear_geoip_db();
 
-  NS_MOCK(geoip_get_country_by_addr);
+  MOCK(geoip_get_country_by_addr,
+       dhg_tests_geoip_get_country_by_addr);
   MOCK(get_options, mock_get_options);
 
   init_mock_options();
@@ -1895,7 +1901,7 @@ test_dir_handle_get_status_vote_current_consensus_ns(void* data)
   tt_str_op("ab=8", OP_EQ, hist);
 
   done:
-    NS_UNMOCK(geoip_get_country_by_addr);
+    UNMOCK(geoip_get_country_by_addr);
     UNMOCK(get_options);
     tor_free(header);
     tor_free(comp_body);
@@ -2247,11 +2253,11 @@ test_dir_handle_get_status_vote_next_bandwidth_not_found(void* data)
     tor_free(header);
 }
 
-NS_DECL(const char*,
-dirvote_get_pending_consensus, (consensus_flavor_t flav));
+static const char* dhg_tests_dirvote_get_pending_consensus(
+                                           consensus_flavor_t flav);
 
 const char*
-NS(dirvote_get_pending_consensus)(consensus_flavor_t flav)
+dhg_tests_dirvote_get_pending_consensus(consensus_flavor_t flav)
 {
   (void)flav;
   return "pending consensus";
@@ -2264,7 +2270,8 @@ test_dir_handle_get_status_vote_next_consensus(void* data)
   size_t body_used = 0;
   (void) data;
 
-  NS_MOCK(dirvote_get_pending_consensus);
+  MOCK(dirvote_get_pending_consensus,
+       dhg_tests_dirvote_get_pending_consensus);
 
   status_vote_next_consensus_test(&header, &body, &body_used);
   tt_assert(header);
@@ -2277,7 +2284,7 @@ test_dir_handle_get_status_vote_next_consensus(void* data)
   tt_str_op("pending consensus", OP_EQ, body);
 
   done:
-    NS_UNMOCK(dirvote_get_pending_consensus);
+    UNMOCK(dirvote_get_pending_consensus);
     tor_free(header);
     tor_free(body);
 }
@@ -2290,7 +2297,8 @@ test_dir_handle_get_status_vote_next_consensus_busy(void* data)
   (void) data;
 
   MOCK(get_options, mock_get_options);
-  NS_MOCK(dirvote_get_pending_consensus);
+  MOCK(dirvote_get_pending_consensus,
+       dhg_tests_dirvote_get_pending_consensus);
 
   //Make it busy
   init_mock_options();
@@ -2302,7 +2310,7 @@ test_dir_handle_get_status_vote_next_consensus_busy(void* data)
   tt_str_op(SERVER_BUSY, OP_EQ, header);
 
   done:
-    NS_UNMOCK(dirvote_get_pending_consensus);
+    UNMOCK(dirvote_get_pending_consensus);
     UNMOCK(get_options);
     tor_free(header);
     tor_free(body);
@@ -2346,11 +2354,10 @@ test_dir_handle_get_status_vote_next_consensus_signatures_not_found(void* data)
     tor_free(body);
 }
 
-NS_DECL(const char*,
-dirvote_get_pending_detached_signatures, (void));
+static const char* dhg_tests_dirvote_get_pending_detached_signatures(void);
 
 const char*
-NS(dirvote_get_pending_detached_signatures)(void)
+dhg_tests_dirvote_get_pending_detached_signatures(void)
 {
   return "pending detached sigs";
 }
@@ -2362,7 +2369,8 @@ test_dir_handle_get_status_vote_next_consensus_signatures(void* data)
   size_t body_used = 0;
   (void) data;
 
-  NS_MOCK(dirvote_get_pending_detached_signatures);
+  MOCK(dirvote_get_pending_detached_signatures,
+       dhg_tests_dirvote_get_pending_detached_signatures);
 
   status_vote_next_consensus_signatures_test(&header, &body, &body_used);
   tt_assert(header);
@@ -2375,7 +2383,7 @@ test_dir_handle_get_status_vote_next_consensus_signatures(void* data)
   tt_str_op("pending detached sigs", OP_EQ, body);
 
   done:
-    NS_UNMOCK(dirvote_get_pending_detached_signatures);
+    UNMOCK(dirvote_get_pending_detached_signatures);
     tor_free(header);
     tor_free(body);
 }
@@ -2387,7 +2395,8 @@ test_dir_handle_get_status_vote_next_consensus_signatures_busy(void* data)
   size_t body_used;
   (void) data;
 
-  NS_MOCK(dirvote_get_pending_detached_signatures);
+  MOCK(dirvote_get_pending_detached_signatures,
+       dhg_tests_dirvote_get_pending_detached_signatures);
   MOCK(get_options, mock_get_options);
 
   //Make it busy
@@ -2401,7 +2410,7 @@ test_dir_handle_get_status_vote_next_consensus_signatures_busy(void* data)
 
   done:
     UNMOCK(get_options);
-    NS_UNMOCK(dirvote_get_pending_detached_signatures);
+    UNMOCK(dirvote_get_pending_detached_signatures);
     tor_free(header);
     tor_free(body);
     or_options_free(mock_options); mock_options = NULL;

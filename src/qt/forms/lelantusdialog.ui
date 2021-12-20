@@ -601,7 +601,7 @@
         </widget>
        </item>
        <item row="3" column="0">
-        <widget class="QLabel" name="unspentText">
+        <widget class="QLabel" name="labelUnspentText">
          <property name="minimumSize">
           <size>
            <width>0</width>
@@ -643,7 +643,7 @@
         </widget>
        </item>
        <item row="0" column="0">
-        <widget class="QLabel" name="globalLelantusPoolText">
+        <widget class="QLabel" name="labelGlobalLelantusPoolText">
          <property name="font">
           <font>
            <weight>75</weight>
@@ -651,7 +651,7 @@
           </font>
          </property>
          <property name="text">
-          <string>Global Lelantus Pool:</string>
+          <string>Global Lelantus Pool</string>
          </property>
         </widget>
        </item>
@@ -763,7 +763,7 @@
         </widget>
        </item>
        <item row="4" column="0">
-        <widget class="QLabel" name="yourAnoymizedCoinsText">
+        <widget class="QLabel" name="labelYourAnoymizedCoinsText">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
            <horstretch>0</horstretch>
@@ -783,7 +783,7 @@
           </font>
          </property>
          <property name="text">
-          <string>Your Anonymized Coins:</string>
+          <string>Your Anonymized Coins</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignBottom|Qt::AlignLeading|Qt::AlignLeft</set>
@@ -817,7 +817,7 @@
         </widget>
        </item>
        <item row="1" column="0">
-        <widget class="QLabel" name="totalAnonymizedCoinsText">
+        <widget class="QLabel" name="labelTotalAnonymizedCoinsText">
          <property name="minimumSize">
           <size>
            <width>0</width>
@@ -846,7 +846,7 @@
         </widget>
        </item>
        <item row="2" column="0">
-        <widget class="QLabel" name="label">
+        <widget class="QLabel" name="labelLatestGroupText">
          <property name="text">
           <string>Latest group:</string>
          </property>
@@ -1063,6 +1063,22 @@
             <property name="spacing">
              <number>0</number>
             </property>
+            <item>
+             <spacer name="verticalSpacer_8">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Fixed</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>1</width>
+                <height>5</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
             <item>
              <layout class="QHBoxLayout" name="horizontalLayoutSmartFee">
               <property name="spacing">
@@ -1578,10 +1594,6 @@
        </property>
        <property name="text">
         <string>Anonymize</string>
-       </property>
-       <property name="icon">
-        <iconset resource="../bitcoin.qrc">
-         <normaloff>:/icons/send</normaloff>:/icons/send</iconset>
        </property>
        <property name="autoDefault">
         <bool>false</bool>

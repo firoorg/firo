@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -44,65 +45,14 @@ void eb_set_infty(eb_t p) {
 	fb_zero(p->x);
 	fb_zero(p->y);
 	fb_zero(p->z);
-	p->norm = 1;
+	p->coord = BASIC;
 }
 
 void eb_copy(eb_t r, const eb_t p) {
 	fb_copy(r->x, p->x);
 	fb_copy(r->y, p->y);
 	fb_copy(r->z, p->z);
-	r->norm = p->norm;
-}
-
-int eb_cmp(const eb_t p, const eb_t q) {
-    eb_t r, s;
-    int result = CMP_EQ;
-
-    eb_null(r);
-    eb_null(s);
-
-    TRY {
-        eb_new(r);
-        eb_new(s);
-
-        if ((p->norm == 0) && (q->norm == 0)) {
-            /* If the two points are not normalized, it is faster to compare
-             * x1 * z2 == x2 * z1 and y1 * z2^2 == y2 * z1^2. */
-            fb_mul(r->x, p->x, q->z);
-            fb_mul(s->x, q->x, p->z);
-            fb_sqr(r->z, p->z);
-            fb_sqr(s->z, q->z);
-            fb_mul(r->y, p->y, s->z);
-            fb_mul(s->y, q->y, r->z);
-        } else {
-            if (p->norm == 1) {
-                eb_copy(r, p);
-            } else {
-                eb_norm(r, p);
-            }
-
-            if (q->norm == 1) {
-                eb_copy(s, q);
-            } else {
-                eb_norm(s, q);
-            }
-        }
-
-        if (fb_cmp(r->x, s->x) != CMP_EQ) {
-            result = CMP_NE;
-        }
-
-        if (fb_cmp(r->y, s->y) != CMP_EQ) {
-            result = CMP_NE;
-        }
-    } CATCH_ANY {
-        THROW(ERR_CAUGHT);
-    } FINALLY {
-        eb_free(r);
-        eb_free(s);
-    }
-
-    return result;
+	r->coord = p->coord;
 }
 
 void eb_rand(eb_t p) {
@@ -111,7 +61,7 @@ void eb_rand(eb_t p) {
 	bn_null(n);
 	bn_null(k);
 
-	TRY {
+	RLC_TRY {
 		bn_new(k);
 		bn_new(n);
 
@@ -120,9 +70,9 @@ void eb_rand(eb_t p) {
 		bn_rand_mod(k, n);
 
 		eb_mul_gen(p, k);
-	} CATCH_ANY {
-		THROW(ERR_CAUGHT);
-	} FINALLY {
+	} RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
+	} RLC_FINALLY {
 		bn_free(k);
 		bn_free(n);
 	}
@@ -134,7 +84,7 @@ void eb_rhs(fb_t rhs, const eb_t p) {
 	fb_null(t0);
 	fb_null(t1);
 
-	TRY {
+	RLC_TRY {
 		fb_new(t0);
 		fb_new(t1);
 
@@ -145,12 +95,12 @@ void eb_rhs(fb_t rhs, const eb_t p) {
 
 		/* t1 = x1^3 + a * x1^2 + b. */
 		switch (eb_curve_opt_a()) {
-			case OPT_ZERO:
+			case RLC_ZERO:
 				break;
-			case OPT_ONE:
+			case RLC_ONE:
 				fb_add(t1, t1, t0);
 				break;
-			case OPT_DIGIT:
+			case RLC_TINY:
 				fb_mul_dig(t0, t0, eb_curve_get_a()[0]);
 				fb_add(t1, t1, t0);
 				break;
@@ -161,12 +111,12 @@ void eb_rhs(fb_t rhs, const eb_t p) {
 		}
 
 		switch (eb_curve_opt_b()) {
-			case OPT_ZERO:
+			case RLC_ZERO:
 				break;
-			case OPT_ONE:
+			case RLC_ONE:
 				fb_add_dig(t1, t1, 1);
 				break;
-			case OPT_DIGIT:
+			case RLC_TINY:
 				fb_add_dig(t1, t1, eb_curve_get_b()[0]);
 				break;
 			default:
@@ -176,16 +126,37 @@ void eb_rhs(fb_t rhs, const eb_t p) {
 
 		fb_copy(rhs, t1);
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		fb_free(t0);
 		fb_free(t1);
 	}
 }
 
-int eb_is_valid(const eb_t p) {
+void eb_blind(eb_t r, const eb_t p) {
+	fb_t rand;
+
+	fb_null(rand);
+
+	RLC_TRY {
+		fb_new(rand);
+
+		fb_rand(rand);
+		fb_mul(r->z, p->z, rand);
+		fb_mul(r->x, p->x, rand);
+		fb_sqr(rand, rand);
+		fb_mul(r->y, p->y, rand);
+		r->coord = PROJC;
+	} RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
+	} RLC_FINALLY {
+		fb_free(rand);
+	}
+}
+
+int eb_on_curve(const eb_t p) {
 	eb_t t;
 	fb_t lhs;
 	int r = 0;
@@ -193,7 +164,7 @@ int eb_is_valid(const eb_t p) {
 	eb_null(t);
 	fb_null(lhs);
 
-	TRY {
+	RLC_TRY {
 		eb_new(t);
 		fb_new(lhs);
 
@@ -203,12 +174,12 @@ int eb_is_valid(const eb_t p) {
 		eb_rhs(t->x, t);
 		fb_sqr(t->y, t->y);
 		fb_add(lhs, lhs, t->y);
-		r = (fb_cmp(lhs, t->x) == CMP_EQ) || eb_is_infty(p);
+		r = (fb_cmp(lhs, t->x) == RLC_EQ) || eb_is_infty(p);
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		eb_free(t);
 		fb_free(lhs);
 	}
@@ -239,13 +210,13 @@ void eb_tab(eb_t *t, const eb_t p, int w) {
 
 #if defined(EB_KBLTZ)
 	if (eb_curve_is_kbltz()) {
-		u = (eb_curve_opt_a() == OPT_ZERO ? -1 : 1);
+		u = (eb_curve_opt_a() == RLC_ZERO ? -1 : 1);
 
 		/* Prepare the precomputation table. */
 		for (int i = 0; i < 1 << (w - 2); i++) {
 			eb_set_infty(t[i]);
 			fb_set_dig(t[i]->z, 1);
-			t[i]->norm = 1;
+			t[i]->coord = BASIC;
 		}
 
 		switch (w) {
@@ -515,28 +486,15 @@ void eb_print(const eb_t p) {
 }
 
 int eb_size_bin(const eb_t a, int pack) {
-	eb_t t;
 	int size = 0;
-
-	eb_null(t);
 
 	if (eb_is_infty(a)) {
 		return 1;
 	}
 
-	TRY {
-		eb_new(t);
-
-		eb_norm(t, a);
-
-		size = 1 + FB_BYTES;
-		if (!pack) {
-			size += FB_BYTES;
-		}
-	} CATCH_ANY {
-		THROW(ERR_CAUGHT);
-	} FINALLY {
-		eb_free(t);
+	size = 1 + RLC_FB_BYTES;
+	if (!pack) {
+		size += RLC_FB_BYTES;
 	}
 
 	return size;
@@ -548,20 +506,20 @@ void eb_read_bin(eb_t a, const uint8_t *bin, int len) {
 			eb_set_infty(a);
 			return;
 		} else {
-			THROW(ERR_NO_BUFFER);
+			RLC_THROW(ERR_NO_BUFFER);
 			return;
 		}
 	}
 
-	if (len != (FB_BYTES + 1) && len != (2 * FB_BYTES + 1)) {
-		THROW(ERR_NO_BUFFER);
+	if (len != (RLC_FB_BYTES + 1) && len != (2 * RLC_FB_BYTES + 1)) {
+		RLC_THROW(ERR_NO_BUFFER);
 		return;
 	}
 
-	a->norm = 1;
+	a->coord = BASIC;
 	fb_set_dig(a->z, 1);
-	fb_read_bin(a->x, bin + 1, FB_BYTES);
-	if (len == FB_BYTES + 1) {
+	fb_read_bin(a->x, bin + 1, RLC_FB_BYTES);
+	if (len == RLC_FB_BYTES + 1) {
 		switch(bin[0]) {
 			case 2:
 				fb_zero(a->y);
@@ -571,17 +529,18 @@ void eb_read_bin(eb_t a, const uint8_t *bin, int len) {
 				fb_set_bit(a->y, 0, 1);
 				break;
 			default:
-				THROW(ERR_NO_VALID);
+				RLC_THROW(ERR_NO_VALID);
 				break;
 		}
 		eb_upk(a, a);
 	}
 
-	if (len == 2 * FB_BYTES + 1) {
+	if (len == 2 * RLC_FB_BYTES + 1) {
 		if (bin[0] == 4) {
-			fb_read_bin(a->y, bin + FB_BYTES + 1, FB_BYTES);
+			fb_read_bin(a->y, bin + RLC_FB_BYTES + 1, RLC_FB_BYTES);
 		} else {
-			THROW(ERR_NO_VALID);
+			RLC_THROW(ERR_NO_VALID);
+			return;
 		}
 	}
 }
@@ -592,40 +551,41 @@ void eb_write_bin(uint8_t *bin, int len, const eb_t a, int pack) {
 	eb_null(t);
 
 	if (eb_is_infty(a)) {
-		if (len != 1) {
-			THROW(ERR_NO_BUFFER);
+		if (len < 1) {
+			RLC_THROW(ERR_NO_BUFFER);
+			return;
 		} else {
 			bin[0] = 0;
 			return;
 		}
 	}
 
-	TRY {
+	RLC_TRY {
 		eb_new(t);
 
 		eb_norm(t, a);
 
 		if (pack) {
-			if (len < FB_BYTES + 1) {
-				THROW(ERR_NO_BUFFER);
+			if (len < RLC_FB_BYTES + 1) {
+				RLC_THROW(ERR_NO_BUFFER);
 			} else {
 				eb_pck(t, t);
 				bin[0] = 2 | fb_get_bit(t->y, 0);
-				fb_write_bin(bin + 1, FB_BYTES, t->x);
+				fb_write_bin(bin + 1, RLC_FB_BYTES, t->x);
 			}
 		} else {
-			if (len < 2 * FB_BYTES + 1) {
-				THROW(ERR_NO_BUFFER);
+			if (len < 2 * RLC_FB_BYTES + 1) {
+				RLC_THROW(ERR_NO_BUFFER);
 			} else {
 				bin[0] = 4;
-				fb_write_bin(bin + 1, FB_BYTES, t->x);
-				fb_write_bin(bin + FB_BYTES + 1, FB_BYTES, t->y);
+				fb_write_bin(bin + 1, RLC_FB_BYTES, t->x);
+				fb_write_bin(bin + RLC_FB_BYTES + 1, RLC_FB_BYTES, t->y);
 			}
 		}
-	} CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	} RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		eb_free(t);
 	}
 }

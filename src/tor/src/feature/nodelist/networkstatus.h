@@ -1,7 +1,7 @@
 /* Copyright (c) 2001 Matej Pfajfar.
  * Copyright (c) 2001-2004, Roger Dingledine.
  * Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson.
- * Copyright (c) 2007-2019, The Tor Project, Inc. */
+ * Copyright (c) 2007-2020, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
 /**
@@ -16,6 +16,9 @@
 
 void networkstatus_reset_warnings(void);
 void networkstatus_reset_download_failures(void);
+MOCK_DECL(char *,networkstatus_get_cache_fname,(int flav,
+                                                const char *flavorname,
+                                                int unverified_consensus));
 tor_mmap_t *networkstatus_map_cached_consensus(const char *flavorname);
 int router_reload_consensus_networkstatus(void);
 void routerstatus_free_(routerstatus_t *rs);
@@ -101,7 +104,6 @@ int networkstatus_consensus_can_use_multiple_directories(
 MOCK_DECL(int, networkstatus_consensus_can_use_extra_fallbacks,(
                                                 const or_options_t *options));
 int networkstatus_consensus_is_already_downloading(const char *resource);
-int networkstatus_consensus_has_ipv6(const or_options_t* options);
 
 #define NSSET_FROM_CACHE 1
 #define NSSET_WAS_WAITING_FOR_CERTS 2
@@ -161,6 +163,8 @@ STATIC void warn_early_consensus(const networkstatus_t *c, const char *flavor,
 extern networkstatus_t *current_ns_consensus;
 extern networkstatus_t *current_md_consensus;
 #endif /* defined(TOR_UNIT_TESTS) */
+STATIC int routerstatus_has_visibly_changed(const routerstatus_t *a,
+                                    const routerstatus_t *b);
 #endif /* defined(NETWORKSTATUS_PRIVATE) */
 
 #endif /* !defined(TOR_NETWORKSTATUS_H) */
