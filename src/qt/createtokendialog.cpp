@@ -125,7 +125,7 @@ void CreateTokenDialog::onCreateButtonClicked()
     }
 
     std::string fromAddress = ui->addressLineEdit->text().toStdString();
-    if (fromAddress.size() == 0 || !!model->validateAddress(ui->addressLineEdit->text())) {
+    if (fromAddress.size() == 0 || !model->validateAddress(ui->addressLineEdit->text())) {
         ui->addressLineEdit->setValid(false);
         Q_EMIT message(tr("Invalid address"), tr("Invalid FIRO address entered."), CClientUIInterface::MSG_ERROR);
         return;

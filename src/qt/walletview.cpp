@@ -180,11 +180,11 @@ void WalletView::setupElysiumTokensPage()
     setupToolboxPage();
 
     elysiumTokensTabs = new QTabWidget();
-    elysiumTokensTabs->addTab(elysiumPrivateSendPage, tr("Send"));
     elysiumTokensTabs->addTab(elyAssetsPage, tr("Balances"));
+    elysiumTokensTabs->addTab(elysiumPrivateSendPage, tr("Send"));
+    elysiumTokensTabs->addTab(mintTokenPage, tr("Anonymize"));
     elysiumTokensTabs->addTab(elysiumTransactionsView, tr("Transactions"));
     elysiumTokensTabs->addTab(createTokenPage, tr("Create"));
-    elysiumTokensTabs->addTab(mintTokenPage, tr("Anonymize"));
     elysiumTokensTabs->addTab(manageTokenPage, tr("Manage Tokens"));
     elysiumTokensTabs->addTab(toolboxPage, tr("Toolbox"));
 
