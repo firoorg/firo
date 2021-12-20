@@ -185,7 +185,7 @@ void WalletView::setupElysiumTokensPage()
     elysiumTokensTabs->addTab(mintTokenPage, tr("Anonymize"));
     elysiumTokensTabs->addTab(elysiumTransactionsView, tr("Transactions"));
     elysiumTokensTabs->addTab(createTokenPage, tr("Create"));
-    elysiumTokensTabs->addTab(manageTokenPage, tr("Manage Tokens"));
+    elysiumTokensTabs->addTab(manageTokenPage, tr("Managed Tokens"));
     elysiumTokensTabs->addTab(toolboxPage, tr("Toolbox"));
 
     auto pageLayout = new QVBoxLayout();
