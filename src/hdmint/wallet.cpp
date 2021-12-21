@@ -257,7 +257,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
     std::set<uint256> setChecked;
     int mintsFound = 1;
     bool firstIteration = true;
-    while (found || mintsFound > 0) {
+    do {
         found = false;
         mintsFound = 0;
         if (fGenerateMintPool)
@@ -446,7 +446,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             listMints = boost::none;
         if (!fGenerateMintPool)
             mintsFound = 0;
-    }
+    } while (found || mintsFound > 0);
 }
 
 /**
