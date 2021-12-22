@@ -69,12 +69,10 @@ public Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
 #ifdef ENABLE_ELYSIUM
-    /** Switch to ElyAssets page */
-    void gotoElyAssetsPage();
-    /** Switch to utility page */
-    void gotoToolboxPage();
     /** Switch directory to Elysium tx history tab */
     void gotoElysiumHistoryTab();
+    /** Switch to Elysium tab */
+    void gotoElysiumTokensPage();
 #endif
     /** Switch to history (transactions) page */
     void gotoHistoryPage();

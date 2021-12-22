@@ -3,6 +3,12 @@
 
 #include <string>
 
+#include <QLineEdit>
+
+QT_BEGIN_NAMESPACE
+class QLineEdit;
+QT_END_NAMESPACE
+
 namespace elysium
 {
     /**
@@ -30,6 +36,11 @@ namespace elysium
     * with replaceText.
     */
     std::string ReplaceStr(const std::string& findText, const std::string& replaceText, const std::string& inputStr);
+
+    /**
+     * Format Elysium amount field string
+     */
+    void FormatElysiumAmount(QLineEdit *amountLineEdit, bool divisible);
 }
 
 #endif // ELYSIUM_QTUTILS

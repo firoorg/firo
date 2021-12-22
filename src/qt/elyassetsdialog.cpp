@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2013 The Bitcoin developers
+// Copyright (c) 2021 The Firo developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -12,6 +13,7 @@
 #include "elysium/elysium.h"
 #include "elysium/sp.h"
 #include "elysium/tally.h"
+#include "elysium/wallet.h"
 #include "elysium/wallettxs.h"
 
 #include "amount.h"
@@ -21,6 +23,7 @@
 
 #include <stdint.h>
 #include <map>
+#include <regex>
 #include <sstream>
 #include <string>
 
@@ -41,15 +44,16 @@ using std::string;
 using namespace elysium;
 
 ElyAssetsDialog::ElyAssetsDialog(QWidget *parent) :
-    QDialog(parent), ui(new Ui::ElyAssetsDialog()), clientModel(0), walletModel(0)
+    QWidget(parent), ui(new Ui::ElyAssetsDialog()), clientModel(0), walletModel(0)
 {
     // setup
     ui->setupUi(this);
-    ui->balancesTable->setColumnCount(4);
-    ui->balancesTable->setHorizontalHeaderItem(0, new QTableWidgetItem("Property ID"));
-    ui->balancesTable->setHorizontalHeaderItem(1, new QTableWidgetItem("Property Name"));
-    ui->balancesTable->setHorizontalHeaderItem(2, new QTableWidgetItem("Reserved"));
-    ui->balancesTable->setHorizontalHeaderItem(3, new QTableWidgetItem("Available"));
+    ui->balancesTable->setColumnCount(5);
+    ui->balancesTable->setHorizontalHeaderItem(0, new QTableWidgetItem("ID"));
+    ui->balancesTable->setHorizontalHeaderItem(1, new QTableWidgetItem("Ticker"));
+    ui->balancesTable->setHorizontalHeaderItem(2, new QTableWidgetItem("Name"));
+    ui->balancesTable->setHorizontalHeaderItem(3, new QTableWidgetItem("Pending"));
+    ui->balancesTable->setHorizontalHeaderItem(4, new QTableWidgetItem("Available"));
     borrowedColumnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(ui->balancesTable, 100, 100, this);
     // note neither resizetocontents or stretch allow user to adjust - go interactive then manually set widths
     #if QT_VERSION < 0x050000
@@ -57,23 +61,26 @@ ElyAssetsDialog::ElyAssetsDialog(QWidget *parent) :
        ui->balancesTable->horizontalHeader()->setResizeMode(1, QHeaderView::Interactive);
        ui->balancesTable->horizontalHeader()->setResizeMode(2, QHeaderView::Interactive);
        ui->balancesTable->horizontalHeader()->setResizeMode(3, QHeaderView::Interactive);
+       ui->balancesTable->horizontalHeader()->setResizeMode(4, QHeaderView::Interactive);
     #else
        ui->balancesTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Interactive);
        ui->balancesTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Interactive);
        ui->balancesTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Interactive);
        ui->balancesTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Interactive);
+       ui->balancesTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Interactive);
     #endif
     ui->balancesTable->setAlternatingRowColors(true);
+    ui->balancesTable->setSortingEnabled(true);
 
     // do an initial population
-    UpdatePropSelector();
-    PopulateBalances(2147483646); // 2147483646 = summary (last possible ID for test eco props)
+    populateBalances();
 
     // initial resizing
     ui->balancesTable->resizeColumnToContents(0);
-    ui->balancesTable->resizeColumnToContents(2);
+    ui->balancesTable->resizeColumnToContents(1);
     ui->balancesTable->resizeColumnToContents(3);
-    borrowedColumnResizingFixer->stretchColumnWidth(1);
+    ui->balancesTable->resizeColumnToContents(4);
+    borrowedColumnResizingFixer->stretchColumnWidth(2);
     ui->balancesTable->verticalHeader()->setVisible(false);
     ui->balancesTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     ui->balancesTable->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -85,32 +92,26 @@ ElyAssetsDialog::ElyAssetsDialog(QWidget *parent) :
 
     // Actions
     QAction *balancesCopyIDAction = new QAction(tr("Copy property ID"), this);
+    QAction *balancesCopyTickerAction = new QAction(tr("Copy ticker"), this);
     QAction *balancesCopyNameAction = new QAction(tr("Copy property name"), this);
-    QAction *balancesCopyAddressAction = new QAction(tr("Copy address"), this);
-    QAction *balancesCopyLabelAction = new QAction(tr("Copy label"), this);
-    QAction *balancesCopyReservedAmountAction = new QAction(tr("Copy reserved amount"), this);
+    QAction *balancesCopyPendingAmountAction = new QAction(tr("Copy pending amount"), this);
     QAction *balancesCopyAvailableAmountAction = new QAction(tr("Copy available amount"), this);
 
     contextMenu = new QMenu();
-    contextMenu->addAction(balancesCopyLabelAction);
-    contextMenu->addAction(balancesCopyAddressAction);
-    contextMenu->addAction(balancesCopyReservedAmountAction);
+    contextMenu->addAction(balancesCopyIDAction);
+    contextMenu->addAction(balancesCopyTickerAction);
+    contextMenu->addAction(balancesCopyNameAction);
+    contextMenu->addAction(balancesCopyPendingAmountAction);
     contextMenu->addAction(balancesCopyAvailableAmountAction);
-    contextMenuSummary = new QMenu();
-    contextMenuSummary->addAction(balancesCopyIDAction);
-    contextMenuSummary->addAction(balancesCopyNameAction);
-    contextMenuSummary->addAction(balancesCopyReservedAmountAction);
-    contextMenuSummary->addAction(balancesCopyAvailableAmountAction);
 
     // Connect actions
     connect(ui->balancesTable, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
-    connect(ui->propSelectorWidget, SIGNAL(activated(int)), this, SLOT(propSelectorChanged()));
+
     connect(balancesCopyIDAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol0()));
-    connect(balancesCopyNameAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol1()));
-    connect(balancesCopyLabelAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol0()));
-    connect(balancesCopyAddressAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol1()));
-    connect(balancesCopyReservedAmountAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol2()));
-    connect(balancesCopyAvailableAmountAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol3()));
+    connect(balancesCopyTickerAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol1()));
+    connect(balancesCopyNameAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol2()));
+    connect(balancesCopyPendingAmountAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol3()));
+    connect(balancesCopyAvailableAmountAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol4()));
 }
 
 ElyAssetsDialog::~ElyAssetsDialog()
@@ -118,20 +119,12 @@ ElyAssetsDialog::~ElyAssetsDialog()
     delete ui;
 }
 
-void ElyAssetsDialog::reinitEly()
-{
-    ui->propSelectorWidget->clear();
-    ui->balancesTable->setRowCount(0);
-    UpdatePropSelector();
-    PopulateBalances(2147483646); // 2147483646 = summary (last possible ID for test eco props)
-}
-
 void ElyAssetsDialog::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
     if (model != NULL) {
-        connect(model, SIGNAL(refreshElysiumBalance()), this, SLOT(balancesUpdated()));
-        connect(model, SIGNAL(reinitElysiumState()), this, SLOT(reinitEly()));
+        connect(model, SIGNAL(refreshElysiumBalance()), this, SLOT(populateBalances()));
+        connect(model, SIGNAL(reinitElysiumState()), this, SLOT(populateBalances()));
     }
 }
 
@@ -141,123 +134,75 @@ void ElyAssetsDialog::setWalletModel(WalletModel *model)
     if (model != NULL) { } // do nothing, signals from walletModel no longer needed
 }
 
-void ElyAssetsDialog::UpdatePropSelector()
-{
-    LOCK(cs_main);
-
-    // don't waste time updating if there are no new properties
-    if ((uint32_t)ui->propSelectorWidget->count() > global_wallet_property_list.size()) return;
-
-    // a new property has been added to the wallet, update the property selector
-    QString spId = ui->propSelectorWidget->itemData(ui->propSelectorWidget->currentIndex()).toString();
-    ui->propSelectorWidget->clear();
-    ui->propSelectorWidget->addItem("Wallet Totals (Summary)","2147483646"); //use last possible ID for summary for now
-    // populate property selector
-    for (std::set<uint32_t>::iterator it = global_wallet_property_list.begin() ; it != global_wallet_property_list.end(); ++it) {
-        uint32_t propertyId = *it;
-        std::string spId = strprintf("%d", propertyId);
-        std::string spName = getPropertyName(propertyId).c_str();
-        if(spName.size()>20) spName=spName.substr(0,20)+"...";
-        spName += " (#" + spId + ")";
-        ui->propSelectorWidget->addItem(spName.c_str(), spId.c_str());
-    }
-    int propIdx = ui->propSelectorWidget->findData(spId);
-    if (propIdx != -1) { ui->propSelectorWidget->setCurrentIndex(propIdx); }
-}
-
-void ElyAssetsDialog::AddRow(const std::string& label, const std::string& address, const std::string& reserved, const std::string& available)
+void ElyAssetsDialog::addRow(const std::string& id, const std::string& ticker, const std::string& name, const std::string& pending, const std::string& available)
 {
     int workingRow = ui->balancesTable->rowCount();
     ui->balancesTable->insertRow(workingRow);
-    QTableWidgetItem *labelCell = new QTableWidgetItem(QString::fromStdString(label));
-    QTableWidgetItem *addressCell = new QTableWidgetItem(QString::fromStdString(address));
-    QTableWidgetItem *reservedCell = new QTableWidgetItem(QString::fromStdString(reserved));
+    QTableWidgetItem *idCell = new QTableWidgetItem(QString::fromStdString(id));
+    QTableWidgetItem *tickerCell = new QTableWidgetItem(QString::fromStdString(ticker));
+    QTableWidgetItem *nameCell = new QTableWidgetItem(QString::fromStdString(name));
+    QTableWidgetItem *pendingCell = new QTableWidgetItem(QString::fromStdString(pending));
     QTableWidgetItem *availableCell = new QTableWidgetItem(QString::fromStdString(available));
-    labelCell->setTextAlignment(Qt::AlignLeft + Qt::AlignVCenter);
-    addressCell->setTextAlignment(Qt::AlignLeft + Qt::AlignVCenter);
-    reservedCell->setTextAlignment(Qt::AlignRight + Qt::AlignVCenter);
+    idCell->setTextAlignment(Qt::AlignLeft + Qt::AlignVCenter);
+    tickerCell->setTextAlignment(Qt::AlignLeft + Qt::AlignVCenter);
+    nameCell->setTextAlignment(Qt::AlignLeft + Qt::AlignVCenter);
+    pendingCell->setTextAlignment(Qt::AlignRight + Qt::AlignVCenter);
     availableCell->setTextAlignment(Qt::AlignRight + Qt::AlignVCenter);
-    ui->balancesTable->setItem(workingRow, 0, labelCell);
-    ui->balancesTable->setItem(workingRow, 1, addressCell);
-    ui->balancesTable->setItem(workingRow, 2, reservedCell);
-    ui->balancesTable->setItem(workingRow, 3, availableCell);
+    ui->balancesTable->setItem(workingRow, 0, idCell);
+    ui->balancesTable->setItem(workingRow, 1, tickerCell);
+    ui->balancesTable->setItem(workingRow, 2, nameCell);
+    ui->balancesTable->setItem(workingRow, 3, pendingCell);
+    ui->balancesTable->setItem(workingRow, 4, availableCell);
 }
 
-void ElyAssetsDialog::PopulateBalances(unsigned int propertyId)
+void ElyAssetsDialog::populateBalances()
 {
     ui->balancesTable->setRowCount(0); // fresh slate (note this will automatically cleanup all existing QWidgetItems in the table)
 
-    LOCK(cs_main);
-    //are we summary?
-    if(propertyId==2147483646) {
-        ui->balancesTable->setHorizontalHeaderItem(0, new QTableWidgetItem("Property ID"));
-        ui->balancesTable->setHorizontalHeaderItem(1, new QTableWidgetItem("Property Name"));
+    LOCK2(cs_main, pwalletMain->cs_wallet); 
 
-        // loop over the wallet property list and add the wallet totals
-        for (std::set<uint32_t>::iterator it = global_wallet_property_list.begin() ; it != global_wallet_property_list.end(); ++it) {
-            uint32_t propertyId = *it;
-            std::string spId = strprintf("%d", propertyId);
-            std::string spName = getPropertyName(propertyId).c_str();
-            std::string available = FormatMP(propertyId, global_balance_money[propertyId]);
-            std::string reserved = FormatMP(propertyId, global_balance_reserved[propertyId]);
-            AddRow(spId, spName, reserved, available);
+    // get anonymous balances
+    std::vector<LelantusMint> mints;
+    wallet->ListLelantusMints(boost::make_function_output_iterator([&](const std::pair<MintEntryId, LelantusMint>& m) {
+        if (m.second.IsSpent() || !m.second.IsOnChain()) {
+            return;
         }
-    } else {
-        ui->balancesTable->setHorizontalHeaderItem(0, new QTableWidgetItem("Label"));
-        ui->balancesTable->setHorizontalHeaderItem(1, new QTableWidgetItem("Address"));
-        bool propertyIsDivisible = isPropertyDivisible(propertyId); // only fetch the SP once, not for every address
+        mints.push_back(m.second);
+    }));
 
-        // iterate mp_tally_map looking for addresses that hold a balance in propertyId
-        for(std::unordered_map<string, CMPTally>::iterator my_it = mp_tally_map.begin(); my_it != mp_tally_map.end(); ++my_it) {
-            const std::string& address = my_it->first;
-            CMPTally& tally = my_it->second;
-            tally.init();
-
-            uint32_t id;
-            bool watchAddress = false, includeAddress = false;
-            while (0 != (id = (tally.next()))) {
-                if (id == propertyId) {
-                    includeAddress = true;
-                    break;
-                }
-            }
-            if (!includeAddress) continue; //ignore this address, has never transacted in this propertyId
-
-            // determine if this address is in the wallet
-            int addressIsMine = IsMyAddress(address);
-            if (!addressIsMine) continue; // ignore this address, not in wallet
-            if (addressIsMine != ISMINE_SPENDABLE) watchAddress = true;
-
-            // obtain the balances for the address directly form tally
-            int64_t available = tally.getMoney(propertyId, BALANCE);
-            available += tally.getMoney(propertyId, PENDING);
-			int64_t reserved = 0;
-
-            // format the balances
-            string reservedStr, availableStr;
-            if (propertyIsDivisible) {
-                reservedStr = FormatDivisibleMP(reserved);
-                availableStr = FormatDivisibleMP(available);
-            } else {
-                reservedStr = FormatIndivisibleMP(reserved);
-                availableStr = FormatIndivisibleMP(available);
-            }
-
-            // add the row
-            if (!watchAddress) {
-                AddRow(GetAddressLabel(my_it->first), address, reservedStr, availableStr);
-            } else {
-                AddRow(GetAddressLabel(my_it->first), address + " (watch-only)", reservedStr, availableStr);
-            }
-        }
+    //         ID                     pending           anon
+    std::map<PropertyId, std::pair<LelantusAmount, LelantusAmount>> balances;
+    for (const auto& mint : mints) {
+        std::pair<LelantusAmount, LelantusAmount>& p = balances[mint.property];
+        p.second = mint.amount;
     }
-}
 
-void ElyAssetsDialog::propSelectorChanged()
-{
-    QString spId = ui->propSelectorWidget->itemData(ui->propSelectorWidget->currentIndex()).toString();
-    unsigned int propertyId = spId.toUInt();
-    PopulateBalances(propertyId);
+    // get "pending" (not anonymous) balances
+    // loop over the wallet property list and add the wallet totals
+    for (const auto propertyId : global_wallet_property_list) {
+        std::pair<LelantusAmount, LelantusAmount>& p = balances[propertyId];
+        p.first = global_balance_money[propertyId];
+    }
+
+    std::regex rgx("\\(([A-Z0-9]{3,4}\\))$"); // ticker regex
+
+    for (const auto& balance : balances) {
+        std::string id = strprintf("%d", balance.first);
+        std::string name = getPropertyName(balance.first);
+        std::string pending = FormatMP(balance.first, balance.second.first);
+        std::string available = FormatMP(balance.first, balance.second.second);
+        
+        std::smatch matches;
+        std::string ticker = "";
+        std::regex_search(name, matches, rgx);
+        if (matches.size() != 0 && matches[0] != "(FIRO)") { // ignore special exception "(FIRO)""
+            ticker = matches[0];
+            name = name.substr(0, name.length() - ticker.length()); // remove ticker from name to be displayed
+            ticker = ticker.substr(1, ticker.length() - 2); // remove brackets
+        }
+
+        addRow(id, ticker, name, pending, available);
+    }
 }
 
 void ElyAssetsDialog::contextualMenu(const QPoint &point)
@@ -265,13 +210,7 @@ void ElyAssetsDialog::contextualMenu(const QPoint &point)
     QModelIndex index = ui->balancesTable->indexAt(point);
     if(index.isValid())
     {
-        QString spId = ui->propSelectorWidget->itemData(ui->propSelectorWidget->currentIndex()).toString();
-        unsigned int propertyId = spId.toUInt();
-        if (propertyId == 2147483646) {
-            contextMenuSummary->exec(QCursor::pos());
-        } else {
-            contextMenu->exec(QCursor::pos());
-        }
+        contextMenu->exec(QCursor::pos());
     }
 }
 
@@ -295,10 +234,9 @@ void ElyAssetsDialog::balancesCopyCol3()
     GUIUtil::setClipboard(ui->balancesTable->item(ui->balancesTable->currentRow(),3)->text());
 }
 
-void ElyAssetsDialog::balancesUpdated()
+void ElyAssetsDialog::balancesCopyCol4()
 {
-    UpdatePropSelector();
-    propSelectorChanged(); // refresh the table with the currently selected property ID
+    GUIUtil::setClipboard(ui->balancesTable->item(ui->balancesTable->currentRow(),4)->text());
 }
 
 // We override the virtual resizeEvent of the QWidget to adjust tables column
@@ -306,5 +244,5 @@ void ElyAssetsDialog::balancesUpdated()
 void ElyAssetsDialog::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
-    borrowedColumnResizingFixer->stretchColumnWidth(1);
+    borrowedColumnResizingFixer->stretchColumnWidth(2);
 }

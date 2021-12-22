@@ -1852,3 +1852,65 @@ QPushButton#warningIcon {
     background-color: #f4f4f4;
     height: 33px;
 }
+
+/* CreateTokenDialog */
+
+CreateTokenDialog QLabel#nameLabel,
+CreateTokenDialog QLabel#addressLabel,
+CreateTokenDialog QLabel#categoryLabel,
+CreateTokenDialog QLabel#subcategoryLabel,
+CreateTokenDialog QLabel#urlLabel,
+CreateTokenDialog QLabel#dataLabel,
+CreateTokenDialog QLabel#ecosystemLabel,
+CreateTokenDialog QLabel#previousIDLabel,
+CreateTokenDialog QLabel#quantityLabel,
+CreateTokenDialog QLabel#emptyLabel,
+CreateTokenDialog QLabel#emptyLabel2,
+CreateTokenDialog QLabel#lelantusStatusLabel {
+    min-width: 6em;
+    qproperty-alignment: 'AlignCenter | AlignRight';
+    margin-right: 12px;
+}
+
+/* ElysiumPrivateSendDialog */
+
+ElysiumPrivateSendDialog QLabel#tokenLabel,
+ElysiumPrivateSendDialog QLabel#sendToLabel,
+ElysiumPrivateSendDialog QLabel#amountLabel,
+ElysiumPrivateSendDialog QLabel#referenceAmountLabel {
+    min-width: 8em;
+    qproperty-alignment: 'AlignCenter | AlignRight';
+    margin-right: 12px;
+}
+
+ElysiumPrivateSendDialog QToolButton {
+    background-color: #f4f4f4;
+    margin-left: 5px;
+    margin-right: 5px;
+    border: 0;
+}
+
+ElysiumPrivateSendDialog QToolButton#addressBookButton {
+    margin-left: 10px;
+}
+
+/* MintTokenDialog */
+
+MintTokenDialog QLabel#addressLabel,
+MintTokenDialog QLabel#tokenLabel,
+MintTokenDialog QLabel#quantityLabel {
+    min-width: 5em;
+    qproperty-alignment: 'AlignCenter | AlignRight';
+    margin-right: 12px;
+}
+
+/* ManageTokenDialog */
+
+ManageTokenDialog QLabel#fromAddressLabel,
+ManageTokenDialog QLabel#toAddressLabel,
+ManageTokenDialog QLabel#amountLabel,
+ManageTokenDialog QLabel#memoLabel {
+    min-width: 4.5em;
+    qproperty-alignment: 'AlignCenter | AlignRight';
+    margin-right: 12px;
+}
