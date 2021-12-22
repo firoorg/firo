@@ -1,13 +1,13 @@
-// Copyright (c) 2018 The Dash Core developers
+// Copyright (c) 2018-2021 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #ifndef DASH_CRYPTO_BLS_WORKER_H
 #define DASH_CRYPTO_BLS_WORKER_H
 
-#include "bls.h"
+#include <bls/bls.h>
 
-#include "ctpl.h"
+#include <ctpl.h>
 
 #include <future>
 #include <mutex>
@@ -56,7 +56,7 @@ public:
     void Start();
     void Stop();
 
-    bool GenerateContributions(int threshold, const BLSIdVector& ids, BLSVerificationVectorPtr& vvecRet, BLSSecretKeyVector& skShares);
+    bool GenerateContributions(int threshold, const BLSIdVector& ids, BLSVerificationVectorPtr& vvecRet, BLSSecretKeyVector& skSharesRet);
 
     // The following functions are all used to aggregate verification (public key) vectors
     // Inputs are in the following form:
@@ -158,7 +158,7 @@ private:
     std::map<uint256, std::shared_future<CBLSPublicKey> > publicKeyShareCache;
 
 public:
-    CBLSWorkerCache(CBLSWorker& _worker) :
+    explicit CBLSWorkerCache(CBLSWorker& _worker) :
         worker(_worker) {}
 
     BLSVerificationVectorPtr BuildQuorumVerificationVector(const uint256& cacheKey, const std::vector<BLSVerificationVectorPtr>& vvecs)

@@ -1,6 +1,6 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007, 2008, 2009 RELIC Authors
+ * Copyright (c) 2007, 2008, 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
@@ -40,7 +40,7 @@
 /* Private definitions                                                        */
 /*============================================================================*/
 
-#define HALF ((int)((FB_BITS / 2)/(FB_DIGIT) + ((FB_BITS / 2) % FB_DIGIT > 0)))
+#define HALF ((int)((RLC_FB_BITS / 2)/(RLC_DIG) + ((RLC_FB_BITS / 2) % RLC_DIG > 0)))
 
 static const dig_t table_evens[16] = {
 	0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15
@@ -52,22 +52,22 @@ static const dig_t table_odds[16] = {
 static void fb_srtt_low(dig_t *c, const dig_t *a, int fa) {
 	int i, j, n, h, sh, rh, lh, sa, la, ra;
 	dig_t d, d_e, d_o;
-	align dig_t t[2 * FB_DIGS] = { 0 };
+	align dig_t t[2 * RLC_FB_DIGS] = { 0 };
 
-	sh = 1 + (FB_BITS >> FB_DIG_LOG);
+	sh = 1 + (RLC_FB_BITS >> RLC_DIG_LOG);
 	h = (sh + 1) >> 1;
-	rh = (h << FB_DIG_LOG) - 1 - (FB_BITS - 1) / 2;
-	lh = FB_DIGIT - rh;
+	rh = (h << RLC_DIG_LOG) - 1 - (RLC_FB_BITS - 1) / 2;
+	lh = RLC_DIG - rh;
 
-	SPLIT(la, sa, (fa + 1) >> 1, FB_DIG_LOG);
-	ra = FB_DIGIT - la;
+	RLC_RIP(la, sa, (fa + 1) >> 1);
+	ra = RLC_DIG - la;
 
-	for (i = 0; i < FB_DIGS; i++) {
+	for (i = 0; i < RLC_FB_DIGS; i++) {
 		n = i >> 1;
 		d = a[i];
 
 		d_e = d_o = 0;
-		for (j = 0; j < FB_DIGIT / 8; j++) {
+		for (j = 0; j < RLC_DIG / 8; j++) {
 			d_e |= table_evens[((d & 0x05) + ((d & 0x50) >> 3))] << (j << 2);
 			d_o |= table_odds[((d & 0x0A) + ((d & 0xA0) >> 5))] << (j << 2);
 			d >>= 8;
@@ -77,11 +77,11 @@ static void fb_srtt_low(dig_t *c, const dig_t *a, int fa) {
 		if (i < sh) {
 			d = a[i];
 
-			for (j = 0; j < FB_DIGIT / 8; j++) {
+			for (j = 0; j < RLC_DIG / 8; j++) {
 				d_e |= table_evens[((d & 0x05) + ((d & 0x50) >> 3))] <<
-						((FB_DIGIT / 2) + (j << 2));
+						((RLC_DIG / 2) + (j << 2));
 				d_o |= table_odds[((d & 0x0A) + ((d & 0xA0) >> 5))] <<
-						((FB_DIGIT / 2) + (j << 2));
+						((RLC_DIG / 2) + (j << 2));
 				d >>= 8;
 			}
 		}
@@ -107,28 +107,28 @@ static void fb_srtt_low(dig_t *c, const dig_t *a, int fa) {
 static void fb_srtp_low(dig_t *c, const dig_t *a, int fa, int fb, int fc) {
 	int i, j, n, h, sh, rh, lh, sa, la, ra, sb, lb, rb, sc, lc, rc;
 	dig_t d, d_e, d_o;
-	align dig_t t[DV_DIGS] = { 0 };
+	align dig_t t[] = { 0 };
 
-	sh = 1 + (FB_BITS >> FB_DIG_LOG);
+	sh = 1 + (RLC_FB_BITS >> RLC_DIG_LOG);
 	h = (sh + 1) >> 1;
-	rh = (h << FB_DIG_LOG) - 1 - (FB_BITS - 1) / 2;
-	lh = FB_DIGIT - rh;
+	rh = (h << RLC_DIG_LOG) - 1 - (RLC_FB_BITS - 1) / 2;
+	lh = RLC_DIG - rh;
 
-	SPLIT(la, sa, (fa + 1) >> 1, FB_DIG_LOG);
-	ra = FB_DIGIT - la;
+	RLC_RIP(la, sa, (fa + 1) >> 1);
+	ra = RLC_DIG - la;
 
-	SPLIT(lb, sb, (fb + 1) >> 1, FB_DIG_LOG);
-	rb = FB_DIGIT - lb;
+	RLC_RIP(lb, sb, (fb + 1) >> 1);
+	rb = RLC_DIG - lb;
 
-	SPLIT(lc, sc, (fc + 1) >> 1, FB_DIG_LOG);
-	rc = FB_DIGIT - lc;
+	RLC_RIP(lc, sc, (fc + 1) >> 1);
+	rc = RLC_DIG - lc;
 
 	for (i = 0; i < sh; i++) {
 		n = i >> 1;
 		d = a[i];
 
 		d_e = d_o = 0;
-		for (j = 0; j < FB_DIGIT / 8; j++) {
+		for (j = 0; j < RLC_DIG / 8; j++) {
 			d_e |= table_evens[((d & 0x5) + ((d & 0x50) >> 3))] << (j << 2);
 			d_o |= table_odds[((d & 0xA) + ((d & 0xA0) >> 5))] << (j << 2);
 			d >>= 8;
@@ -137,11 +137,11 @@ static void fb_srtp_low(dig_t *c, const dig_t *a, int fa, int fb, int fc) {
 
 		if (i < sh) {
 			d = a[i];
-			for (j = 0; j < FB_DIGIT / 8; j++) {
+			for (j = 0; j < RLC_DIG / 8; j++) {
 				d_e |= table_evens[((d & 0x5) + ((d & 0x50) >> 3))] <<
-						(FB_DIGIT / 2 + (j << 2));
+						(RLC_DIG / 2 + (j << 2));
 				d_o |= table_odds[((d & 0xA) + ((d & 0xA0) >> 5))] <<
-						(FB_DIGIT / 2 + (j << 2));
+						(RLC_DIG / 2 + (j << 2));
 				d >>= 8;
 			}
 		}
@@ -179,31 +179,31 @@ static void fb_srtp_low(dig_t *c, const dig_t *a, int fa, int fb, int fc) {
 static void fb_sqrt_low(dig_t *c, const dig_t *a) {
 	int i, j, n, sh;
 	dig_t d, d_e, d_o;
-	align dig_t t[2 * FB_DIGS] = { 0 }, s[FB_DIGS + 1] = { 0 };
-	align dig_t t_e[FB_DIGS] = { 0 }, t_o[FB_DIGS] = { 0 };
+	align dig_t t[2 * RLC_FB_DIGS] = { 0 }, s[RLC_FB_DIGS + 1] = { 0 };
+	align dig_t t_e[RLC_FB_DIGS] = { 0 }, t_o[RLC_FB_DIGS] = { 0 };
 
-	sh = 1 + (FB_BITS >> FB_DIG_LOG);
+	sh = 1 + (RLC_FB_BITS >> RLC_DIG_LOG);
 
-	for (i = 0; i < FB_DIGS; i++) {
+	for (i = 0; i < RLC_FB_DIGS; i++) {
 		n = i >> 1;
 		d = a[i];
 
 		d_e = d_o = 0;
-		for (j = 0; j < FB_DIGIT / 8; j++) {
+		for (j = 0; j < RLC_DIG / 8; j++) {
 			d_e |= table_evens[((d & 0x05) + ((d & 0x50) >> 3))] << (j << 2);
 			d_o |= table_odds[((d & 0x0A) + ((d & 0xA0) >> 5))] << (j << 2);
 			d >>= 8;
 		}
 
 		i++;
-		if (i < sh && i < FB_DIGS) {
+		if (i < sh && i < RLC_FB_DIGS) {
 			d = a[i];
 
-			for (j = 0; j < FB_DIGIT / 8; j++) {
+			for (j = 0; j < RLC_DIG / 8; j++) {
 				d_e |= table_evens[((d & 0x05) + ((d & 0x50) >> 3))] <<
-						((FB_DIGIT / 2) + (j << 2));
+						((RLC_DIG / 2) + (j << 2));
 				d_o |= table_odds[((d & 0x0A) + ((d & 0xA0) >> 5))] <<
-						((FB_DIGIT / 2) + (j << 2));
+						((RLC_DIG / 2) + (j << 2));
 				d >>= 8;
 			}
 		}
@@ -212,16 +212,16 @@ static void fb_sqrt_low(dig_t *c, const dig_t *a) {
 		t_o[n] = d_o;
 	}
 	if (fb_poly_tab_srz(0) == NULL) {
-		dv_copy(s, fb_poly_get_srz() + HALF, FB_DIGS - HALF);
+		dv_copy(s, fb_poly_get_srz() + HALF, RLC_FB_DIGS - HALF);
 		fb_muld_low(t + HALF, t_o, s, HALF);
 		fb_muld_low(s, t_o, fb_poly_get_srz(), HALF);
-		fb_addd_low(t, t, s, FB_DIGS + 1);
+		fb_addd_low(t, t, s, RLC_FB_DIGS + 1);
 		fb_rdcn_low(c, t);
 		fb_addd_low(c, c, t_e, HALF);
 	} else {
 		dig_t u, carry, *tmpa, *tmpc;
 
-		for (i = FB_DIGIT - 8; i > 0; i -= 8) {
+		for (i = RLC_DIG - 8; i > 0; i -= 8) {
 			tmpa = t_o;
 			tmpc = t;
 			for (j = 0; j < HALF; j++, tmpa++, tmpc++) {
@@ -229,8 +229,8 @@ static void fb_sqrt_low(dig_t *c, const dig_t *a) {
 				fb_addn_low(tmpc, tmpc, fb_poly_tab_srz(u));
 			}
 			carry = fb_lshb_low(t, t, 8);
-			fb_lshb_low(t + FB_DIGS, t + FB_DIGS, 8);
-			t[FB_DIGS] ^= carry;
+			fb_lshb_low(t + RLC_FB_DIGS, t + RLC_FB_DIGS, 8);
+			t[RLC_FB_DIGS] ^= carry;
 		}
 		for (j = 0; j < HALF; j++) {
 			u = t_o[j] & 0xFF;

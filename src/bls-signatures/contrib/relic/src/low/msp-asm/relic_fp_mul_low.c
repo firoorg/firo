@@ -40,14 +40,14 @@ dig_t fp_mula_low(dig_t *c, const dig_t *a, dig_t digit) {
 	dbl_t r;
 
 	carry = 0;
-	for (i = 0; i < FP_DIGS; i++, a++, c++) {
+	for (i = 0; i < RLC_FP_DIGS; i++, a++, c++) {
 		/* Multiply the digit *tmpa by b and accumulate with the previous
 		 * result in the same columns and the propagated carry. */
 		r = (dbl_t)(*c) + (dbl_t)(*a) * (dbl_t)(digit) + (dbl_t)(carry);
 		/* Increment the column and assign the result. */
 		*c = (dig_t)r;
 		/* Update the carry. */
-		carry = (dig_t)(r >> (dbl_t)FP_DIGIT);
+		carry = (dig_t)(r >> (dbl_t)RLC_DIG);
 	}
 	return carry;
 }
@@ -58,14 +58,14 @@ dig_t fp_mul1_low(dig_t *c, const dig_t *a, dig_t digit) {
 	dbl_t r;
 
 	carry = 0;
-	for (i = 0; i < FP_DIGS; i++, a++, c++) {
+	for (i = 0; i < RLC_FP_DIGS; i++, a++, c++) {
 		/* Multiply the digit *tmpa by b and accumulate with the previous
 		 * result in the same columns and the propagated carry. */
 		r = (dbl_t)(*a) * (dbl_t)(digit) + (dbl_t)(carry);
 		/* Increment the column and assign the result. */
 		*c = (dig_t)r;
 		/* Update the carry. */
-		carry = (dig_t)(r >> (dbl_t)FP_DIGIT);
+		carry = (dig_t)(r >> (dbl_t)RLC_DIG);
 	}
 	return carry;
 }

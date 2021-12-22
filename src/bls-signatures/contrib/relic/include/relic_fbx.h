@@ -1,27 +1,28 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2012 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
- * @defgroup fbx Extensions of binary fields
+ * @defgroup fbx Binary field extensions.
  */
 
 /**
@@ -32,8 +33,8 @@
  * @ingroup fbx
  */
 
-#ifndef RELIC_FBX_H
-#define RELIC_FBX_H
+#ifndef RLC_FBX_H
+#define RLC_FBX_H
 
 #include "relic_fb.h"
 #include "relic_types.h"
@@ -135,11 +136,11 @@ typedef fb_t fb2_t[2];
  *
  * @param[in] A				- the first quadratic extension field element.
  * @param[in] B				- the second quadratic extension field element.
- * @return CMP_NE if a != b, CMP_EQ if a == b.
+ * @return RLC_NE if a != b, RLC_EQ if a == b.
  */
 #define fb2_cmp(A, B)														\
-		((fb_cmp(A[0], B[0]) == CMP_EQ) && (fb_cmp(A[1], B[1]) == CMP_EQ)	\
-		? CMP_EQ : CMP_NE)													\
+		((fb_cmp(A[0], B[0]) == RLC_EQ) && (fb_cmp(A[1], B[1]) == RLC_EQ)	\
+		? RLC_EQ : RLC_NE)													\
 
 /**
  * Adds two quadratic extension field elements. Computes c = a + b.
@@ -150,17 +151,6 @@ typedef fb_t fb2_t[2];
  */
 #define fb2_add(C, A, B)													\
 		fb_add(C[0], A[0], B[0]); fb_add(C[1], A[1], B[1]);					\
-
-/**
- * Subtracts a quadratic extension field element from another. Computes
- * c = a - b.
- *
- * @param[out] C			- the result.
- * @param[in] A				- the quadratic extension binary field element.
- * @param[in] B				- the quadratic extension binary field element.
- */
-#define fb2_sub(C, A, B)													\
-		fb_sub(C[0], A[0], B[0]); fb_sub(C[1], A[1], B[1]);					\
 
 /*============================================================================*/
 /* Function prototypes                                                        */
@@ -211,4 +201,4 @@ void fb2_slv(fb2_t c, fb2_t a);
  */
 void fb2_inv(fb2_t c, fb2_t a);
 
-#endif /* !RELIC_FBX_H */
+#endif /* !RLC_FBX_H */

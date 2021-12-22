@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -43,19 +44,24 @@ void fp_inv_basic(fp_t c, const fp_t a) {
 
 	bn_null(e);
 
-	TRY {
+	if (fp_is_zero(a)) {
+		RLC_THROW(ERR_NO_VALID);
+		return;
+	}
+
+	RLC_TRY {
 		bn_new(e);
 
-		e->used = FP_DIGS;
-		dv_copy(e->dp, fp_prime_get(), FP_DIGS);
+		e->used = RLC_FP_DIGS;
+		dv_copy(e->dp, fp_prime_get(), RLC_FP_DIGS);
 		bn_sub_dig(e, e, 2);
 
 		fp_exp(c, a, e);
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		bn_free(e);
 	}
 }
@@ -73,7 +79,12 @@ void fp_inv_binar(fp_t c, const fp_t a) {
 	bn_null(g2);
 	bn_null(p);
 
-	TRY {
+	if (fp_is_zero(a)) {
+		RLC_THROW(ERR_NO_VALID);
+		return;
+	}
+
+	RLC_TRY {
 		bn_new(u);
 		bn_new(v);
 		bn_new(g1);
@@ -82,8 +93,8 @@ void fp_inv_binar(fp_t c, const fp_t a) {
 
 		/* u = a, v = p, g1 = 1, g2 = 0. */
 		fp_prime_back(u, a);
-		p->used = FP_DIGS;
-		dv_copy(p->dp, fp_prime_get(), FP_DIGS);
+		p->used = RLC_FP_DIGS;
+		dv_copy(p->dp, fp_prime_get(), RLC_FP_DIGS);
 		bn_copy(v, p);
 		bn_set_dig(g1, 1);
 		bn_zero(g2);
@@ -125,7 +136,7 @@ void fp_inv_binar(fp_t c, const fp_t a) {
 				break;
 
 			/* If u > v then u = u - v, g1 = g1 - g2. */
-			if (bn_cmp(u, v) == CMP_GT) {
+			if (bn_cmp(u, v) == RLC_GT) {
 				bn_sub(u, u, v);
 				bn_sub(g1, g1, g2);
 			} else {
@@ -134,36 +145,36 @@ void fp_inv_binar(fp_t c, const fp_t a) {
 			}
 		}
 		/* If u == 1 then return g1; else return g2. */
-		if (bn_cmp_dig(u, 1) == CMP_EQ) {
-			while (bn_sign(g1) == BN_NEG) {
+		if (bn_cmp_dig(u, 1) == RLC_EQ) {
+			while (bn_sign(g1) == RLC_NEG) {
 				bn_add(g1, g1, p);
 			}
-			while (bn_cmp(g1, p) != CMP_LT) {
+			while (bn_cmp(g1, p) != RLC_LT) {
 				bn_sub(g1, g1, p);
 			}
 #if FP_RDC == MONTY
 			fp_prime_conv(c, g1);
 #else
-			dv_copy(c, g1->dp, FP_DIGS);
+			dv_copy(c, g1->dp, RLC_FP_DIGS);
 #endif
 		} else {
-			while (bn_sign(g2) == BN_NEG) {
+			while (bn_sign(g2) == RLC_NEG) {
 				bn_add(g2, g2, p);
 			}
-			while (bn_cmp(g2, p) != CMP_LT) {
+			while (bn_cmp(g2, p) != RLC_LT) {
 				bn_sub(g2, g2, p);
 			}
 #if FP_RDC == MONTY
 			fp_prime_conv(c, g2);
 #else
-			dv_copy(c, g2->dp, FP_DIGS);
+			dv_copy(c, g2->dp, RLC_FP_DIGS);
 #endif
 		}
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		bn_free(u);
 		bn_free(v);
 		bn_free(g1);
@@ -189,7 +200,12 @@ void fp_inv_monty(fp_t c, const fp_t a) {
 	bn_null(x1);
 	bn_null(x2);
 
-	TRY {
+	if (fp_is_zero(a)) {
+		RLC_THROW(ERR_NO_VALID);
+		return;
+	}
+
+	RLC_TRY {
 		bn_new(_a);
 		bn_new(_p);
 		bn_new(u);
@@ -205,13 +221,13 @@ void fp_inv_monty(fp_t c, const fp_t a) {
 		bn_zero(x2);
 
 #if FP_RDC != MONTY
-		bn_read_raw(_a, a, FP_DIGS);
-		bn_read_raw(_p, p, FP_DIGS);
+		bn_read_raw(_a, a, RLC_FP_DIGS);
+		bn_read_raw(_p, p, RLC_FP_DIGS);
 		bn_mod_monty_conv(u, _a, _p);
 #else
-		bn_read_raw(u, a, FP_DIGS);
+		bn_read_raw(u, a, RLC_FP_DIGS);
 #endif
-		bn_read_raw(v, p, FP_DIGS);
+		bn_read_raw(v, p, RLC_FP_DIGS);
 
 		while (!bn_is_zero(v)) {
 			/* If v is even then v = v/2, x1 = 2 * x1. */
@@ -225,7 +241,7 @@ void fp_inv_monty(fp_t c, const fp_t a) {
 					bn_dbl(x2, x2);
 					/* If v >= u,then v = (v - u)/2, x2 += x1, x1 = 2 * x1. */
 				} else {
-					if (bn_cmp(v, u) != CMP_LT) {
+					if (bn_cmp(v, u) != RLC_LT) {
 						fp_subn_low(v->dp, v->dp, u->dp);
 						fp_rsh1_low(v->dp, v->dp);
 						bn_add(x2, x2, x1);
@@ -245,27 +261,27 @@ void fp_inv_monty(fp_t c, const fp_t a) {
 		}
 
 		/* If x1 > p then x1 = x1 - p. */
-		for (i = x1->used; i < FP_DIGS; i++) {
+		for (i = x1->used; i < RLC_FP_DIGS; i++) {
 			x1->dp[i] = 0;
 		}
 
-		while (x1->used > FP_DIGS) {
-			carry = bn_subn_low(x1->dp, x1->dp, fp_prime_get(), FP_DIGS);
-			bn_sub1_low(x1->dp + FP_DIGS, x1->dp + FP_DIGS, carry,
-					x1->used - FP_DIGS);
+		while (x1->used > RLC_FP_DIGS) {
+			carry = bn_subn_low(x1->dp, x1->dp, fp_prime_get(), RLC_FP_DIGS);
+			bn_sub1_low(x1->dp + RLC_FP_DIGS, x1->dp + RLC_FP_DIGS, carry,
+					x1->used - RLC_FP_DIGS);
 			bn_trim(x1);
 		}
-		if (fp_cmpn_low(x1->dp, fp_prime_get()) == CMP_GT) {
+		if (dv_cmp(x1->dp, fp_prime_get(), RLC_FP_DIGS) == RLC_GT) {
 			fp_subn_low(x1->dp, x1->dp, fp_prime_get());
 		}
 
-		dv_copy(x2->dp, fp_prime_get_conv(), FP_DIGS);
+		dv_copy(x2->dp, fp_prime_get_conv(), RLC_FP_DIGS);
 
 		/* If k < Wt then x1 = x1 * R^2 * R^{-1} mod p. */
-		if (k <= FP_DIGS * FP_DIGIT) {
+		if (k <= RLC_FP_DIGS * RLC_DIG) {
 			flag = 1;
 			fp_mul(x1->dp, x1->dp, x2->dp);
-			k = k + FP_DIGS * FP_DIGIT;
+			k = k + RLC_FP_DIGS * RLC_DIG;
 		}
 
 		/* x1 = x1 * R^2 * R^{-1} mod p. */
@@ -273,8 +289,8 @@ void fp_inv_monty(fp_t c, const fp_t a) {
 
 		/* c = x1 * 2^(2Wt - k) * R^{-1} mod p. */
 		fp_copy(c, x1->dp);
-		dv_zero(x1->dp, FP_DIGS);
-		bn_set_2b(x1, 2 * FP_DIGS * FP_DIGIT - k);
+		dv_zero(x1->dp, RLC_FP_DIGS);
+		bn_set_2b(x1, 2 * RLC_FP_DIGS * RLC_DIG - k);
 		fp_mul(c, c, x1->dp);
 
 #if FP_RDC != MONTY
@@ -283,8 +299,8 @@ void fp_inv_monty(fp_t c, const fp_t a) {
 		 * a^{-1}R^3 mod p or a^{-1}R^4 mod p, depending on flag.
 		 * Hence we must reduce the result three or four times.
 		 */
-		_a->used = FP_DIGS;
-		dv_copy(_a->dp, c, FP_DIGS);
+		_a->used = RLC_FP_DIGS;
+		dv_copy(_a->dp, c, RLC_FP_DIGS);
 		bn_mod_monty_back(_a, _a, _p);
 		bn_mod_monty_back(_a, _a, _p);
 		bn_mod_monty_back(_a, _a, _p);
@@ -297,10 +313,10 @@ void fp_inv_monty(fp_t c, const fp_t a) {
 #endif
 		(void)flag;
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		bn_free(_a);
 		bn_free(_p);
 		bn_free(u);
@@ -325,7 +341,12 @@ void fp_inv_exgcd(fp_t c, const fp_t a) {
 	bn_null(q);
 	bn_null(r);
 
-	TRY {
+	if (fp_is_zero(a)) {
+		RLC_THROW(ERR_NO_VALID);
+		return;
+	}
+
+	RLC_TRY {
 		bn_new(u);
 		bn_new(v);
 		bn_new(g1);
@@ -336,14 +357,14 @@ void fp_inv_exgcd(fp_t c, const fp_t a) {
 
 		/* u = a, v = p, g1 = 1, g2 = 0. */
 		fp_prime_back(u, a);
-		p->used = FP_DIGS;
-		dv_copy(p->dp, fp_prime_get(), FP_DIGS);
+		p->used = RLC_FP_DIGS;
+		dv_copy(p->dp, fp_prime_get(), RLC_FP_DIGS);
 		bn_copy(v, p);
 		bn_set_dig(g1, 1);
 		bn_zero(g2);
 
 		/* While (u != 1. */
-		while (bn_cmp_dig(u, 1) != CMP_EQ) {
+		while (bn_cmp_dig(u, 1) != RLC_EQ) {
 			/* q = [v/u], r = v mod u. */
 			bn_div_rem(q, r, v, u);
 			/* v = u, u = r. */
@@ -357,19 +378,15 @@ void fp_inv_exgcd(fp_t c, const fp_t a) {
 			bn_copy(g1, r);
 		}
 
-		if (bn_sign(g1) == BN_NEG) {
+		if (bn_sign(g1) == RLC_NEG) {
 			bn_add(g1, g1, p);
 		}
-#if FP_RDC == MONTY
 		fp_prime_conv(c, g1);
-#else
-		dv_copy(c, g1->dp, FP_DIGS);
-#endif
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		bn_free(u);
 		bn_free(v);
 		bn_free(g1);
@@ -382,25 +399,135 @@ void fp_inv_exgcd(fp_t c, const fp_t a) {
 
 #endif
 
+#include "assert.h"
+
+#if FP_INV == DIVST || !defined(STRIP)
+
+void fp_inv_divst(fp_t c, const fp_t a) {
+	/* Compute number of iteratios based on modulus size. */
+#if FP_PRIME < 46
+	int d = (49 * FP_PRIME + 80)/17;
+#else
+	int d = (49 * FP_PRIME + 57)/17;
+#endif
+	int g0, d0;
+	dig_t fs, gs, delta = 1;
+	bn_t _t;
+	dv_t f, g, t, u;
+	fp_t precomp, v, r;
+
+	bn_null(_t);
+	dv_null(f);
+	dv_null(g);
+	dv_null(t);
+	dv_null(u);
+	fp_null(v);
+	fp_null(r);
+	fp_null(precomp);
+
+	if (fp_is_zero(a)) {
+		RLC_THROW(ERR_NO_VALID);
+		return;
+	}
+
+	RLC_TRY {
+		bn_new(_t);
+		dv_new(f);
+		dv_new(g);
+		dv_new(t);
+		dv_new(u);
+		fp_new(v);
+		fp_new(r);
+		fp_new(precomp);
+
+		bn_set_dig(_t, d);
+		dv_copy(precomp, fp_prime_get(), RLC_FP_DIGS);
+		fp_add_dig(precomp, precomp, 1);
+		fp_hlv(precomp, precomp);
+		fp_exp(precomp, precomp, _t);
+
+		fp_zero(v);
+		fp_set_dig(r, 1);
+		fp_prime_back(_t, a);
+		dv_zero(g, RLC_FP_DIGS);
+		dv_copy(g, _t->dp, _t->used);
+		dv_copy(f, fp_prime_get(), RLC_FP_DIGS);
+		fs = gs = RLC_POS;
+
+		for (int i = 0; i < d; i++) {
+			g0 = g[0] & 1;
+			d0 = delta >> (RLC_DIG - 1);
+			d0 = g0 & ~d0;
+			/* Conditionally negate delta if d0 is set. */
+			delta = (delta ^ -d0) + d0;
+			/* Conditionally swap based on d0. */
+			dv_swap_cond(r, v, RLC_FP_DIGS, d0);
+			fp_negm_low(t, r);
+			dv_swap_cond(f, g, RLC_FP_DIGS, d0);
+			dv_copy_cond(r, t, RLC_FP_DIGS, d0);
+			for (int j = 0; j < RLC_FP_DIGS; j++) {
+				g[j] = RLC_SEL(g[j], ~g[j], d0);
+			}
+			fp_add1_low(g, g, d0);
+			t[0] = (fs ^ gs) & (-d0);
+			fs ^= t[0];
+			gs ^= t[0] ^ d0;
+
+			delta++;
+			g0 = g[0] & 1;
+			for (int j = 0; j < RLC_FP_DIGS; j++) {
+				t[j] = v[j] & (-g0);
+				u[j] = f[j] & (-g0);
+			}
+			fp_addm_low(r, r, t);
+			fp_dblm_low(v, v);
+
+			/* Compute g = (g + g0*f) div 2 by conditionally copying f to u and
+			 * updating the sign of g. */
+			gs ^= g0 & (fs ^ bn_addn_low(g, g, u, RLC_FP_DIGS));
+			/* Shift and restore the sign. */
+			fp_rsh1_low(g, g);
+			g[RLC_FP_DIGS - 1] |= (dig_t)gs << (RLC_DIG - 1);
+		}
+		fp_neg(t, v);
+		dv_copy_cond(v, t, RLC_FP_DIGS, fs);
+		fp_mul(c, v, precomp);
+	} RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT)
+	} RLC_FINALLY {
+		bn_free(_t);
+		dv_free(f);
+		dv_free(g);
+		dv_free(t);
+		dv_free(u);
+		fp_free(v);
+		fp_free(r);
+		fp_free(precomp);
+	}
+}
+
+#endif
+
 #if FP_INV == LOWER || !defined(STRIP)
 
 void fp_inv_lower(fp_t c, const fp_t a) {
-	fp_invn_low(c, a);
+	fp_invm_low(c, a);
 }
 
 #endif
 
 void fp_inv_sim(fp_t *c, const fp_t *a, int n) {
 	int i;
-	fp_t u, t[n];
+	fp_t u, *t = RLC_ALLOCA(fp_t, n);
 
-	for (i = 0; i < n; i++) {
-		fp_null(t[i]);
-	}
 	fp_null(u);
 
-	TRY {
+	RLC_TRY {
+		if (t == NULL) {
+			RLC_THROW(ERR_NO_MEMORY);
+		}
 		for (i = 0; i < n; i++) {
+			fp_null(t[i]);
 			fp_new(t[i]);
 		}
 		fp_new(u);
@@ -421,67 +548,14 @@ void fp_inv_sim(fp_t *c, const fp_t *a, int n) {
 		}
 		fp_copy(c[0], u);
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		for (i = 0; i < n; i++) {
 			fp_free(t[i]);
 		}
 		fp_free(u);
+		RLC_FREE(t);
 	}
-}
-
-
-void fp_inv_exgcd_bn(bn_t c, const bn_t u, const bn_t p) {
-	bn_t v, g1, g2, q, r;
-
-	bn_null(v);
-	bn_null(g1);
-	bn_null(g2);
-	bn_null(q);
-	bn_null(r);
-
-	TRY {
-		bn_new(v);
-		bn_new(g1);
-		bn_new(g2);
-		bn_new(q);
-		bn_new(r);
-
-		/* u = a, v = p, g1 = 1, g2 = 0. */
-		bn_copy(v, p);
-		bn_set_dig(g1, 1);
-		bn_zero(g2);
-
-		/* While (u != 1. */
-		while (bn_cmp_dig(u, 1) != CMP_EQ) {
-			/* q = [v/u], r = v mod u. */
-			bn_div_rem(q, r, v, u);
-			/* v = u, u = r. */
-			bn_copy(v, u);
-			bn_copy(u, r);
-			/* r = g2 - q * g1. */
-			bn_mul(r, q, g1);
-			bn_sub(r, g2, r);
-			/* g2 = g1, g1 = r. */
-			bn_copy(g2, g1);
-			bn_copy(g1, r);
-		}
-
-		if (bn_sign(g1) == BN_NEG) {
-			bn_add(g1, g1, p);
-		}
-		bn_copy(c, g1);
-	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
-	}
-	FINALLY {
-		bn_free(v);
-		bn_free(g1);
-		bn_free(g2);
-		bn_free(q);
-		bn_free(r);
-	};
 }

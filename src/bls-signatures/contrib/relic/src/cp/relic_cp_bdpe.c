@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2013 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -44,12 +45,12 @@
 
 int cp_bdpe_gen(bdpe_t pub, bdpe_t prv, dig_t block, int bits) {
 	bn_t t, r;
-	int result = STS_OK;
+	int result = RLC_OK;
 
 	bn_null(t);
 	bn_null(r);
 
-	TRY {
+	RLC_TRY {
 		bn_new(t);
 		bn_new(r);
 
@@ -58,7 +59,7 @@ int cp_bdpe_gen(bdpe_t pub, bdpe_t prv, dig_t block, int bits) {
 		/* Make sure that block size is prime. */
 		bn_set_dig(t, block);
 		if (bn_is_prime_basic(t) == 0) {
-			THROW(ERR_NO_VALID);
+			RLC_THROW(ERR_NO_VALID);
 		}
 
 		/* Generate prime q such that gcd(block, (q - 1)) = 1. */
@@ -67,21 +68,21 @@ int cp_bdpe_gen(bdpe_t pub, bdpe_t prv, dig_t block, int bits) {
 			bn_sub_dig(prv->q, prv->q, 1);
 			bn_gcd_dig(t, prv->q, block);
 			bn_add_dig(prv->q, prv->q, 1);
-		} while (bn_cmp_dig(t, 1) != CMP_EQ);
+		} while (bn_cmp_dig(t, 1) != RLC_EQ);
 
 		/* Generate different primes p and q. */
 		do {
 			/* Compute p = block * (x * block + b) + 1, 0 < b < block random. */
-			bn_rand(prv->p, BN_POS, bits / 2 - 2 * util_bits_dig(block));
+			bn_rand(prv->p, RLC_POS, bits / 2 - 2 * util_bits_dig(block));
 			bn_mul_dig(prv->p, prv->p, block);
-			bn_rand(t, BN_POS, util_bits_dig(block));
+			bn_rand(t, RLC_POS, util_bits_dig(block));
 			bn_add_dig(prv->p, prv->p, t->dp[0]);
 
 			/* We know that block divides (p-1). */
 			bn_gcd_dig(t, prv->p, block);
 			bn_mul_dig(prv->p, prv->p, block);
 			bn_add_dig(prv->p, prv->p, 1);
-		} while (bn_cmp_dig(t, 1) != CMP_EQ || bn_is_prime(prv->p) == 0);
+		} while (bn_cmp_dig(t, 1) != RLC_EQ || bn_is_prime(prv->p) == 0);
 
 		/* Compute t = (p-1)*(q-1). */
 		bn_sub_dig(prv->q, prv->q, 1);
@@ -97,16 +98,16 @@ int cp_bdpe_gen(bdpe_t pub, bdpe_t prv, dig_t block, int bits) {
 
 		/* Select random y such that y^{(p-1)(q-1)}/block \neq 1 mod N. */
 		do {
-			bn_rand(pub->y, BN_POS, bits);
+			bn_rand(pub->y, RLC_POS, bits);
 			bn_mxp(r, pub->y, t, pub->n);
-		} while (bn_cmp_dig(r, 1) == CMP_EQ);
+		} while (bn_cmp_dig(r, 1) == RLC_EQ);
 
 		bn_copy(prv->y, pub->y);
 	}
-	CATCH_ANY {
-		result = STS_ERR;
+	RLC_CATCH_ANY {
+		result = RLC_ERR;
 	}
-	FINALLY {
+	RLC_FINALLY {
 		bn_free(t);
 		bn_free(r);
 	}
@@ -116,7 +117,7 @@ int cp_bdpe_gen(bdpe_t pub, bdpe_t prv, dig_t block, int bits) {
 
 int cp_bdpe_enc(uint8_t *out, int *out_len, dig_t in, bdpe_t pub) {
 	bn_t m, u;
-	int size, result = STS_OK;
+	int size, result = RLC_OK;
 
 	bn_null(m);
 	bn_null(u);
@@ -124,10 +125,10 @@ int cp_bdpe_enc(uint8_t *out, int *out_len, dig_t in, bdpe_t pub) {
 	size = bn_size_bin(pub->n);
 
 	if (in > pub->t) {
-		return STS_ERR;
+		return RLC_ERR;
 	}
 
-	TRY {
+	RLC_TRY {
 		bn_new(m);
 		bn_new(u);
 
@@ -144,13 +145,13 @@ int cp_bdpe_enc(uint8_t *out, int *out_len, dig_t in, bdpe_t pub) {
 			memset(out, 0, *out_len);
 			bn_write_bin(out, size, m);
 		} else {
-			result = STS_ERR;
+			result = RLC_ERR;
 		}
 	}
-	CATCH_ANY {
-		result = STS_ERR;
+	RLC_CATCH_ANY {
+		result = RLC_ERR;
 	}
-	FINALLY {
+	RLC_FINALLY {
 		bn_free(m);
 		bn_free(u);
 	}
@@ -160,20 +161,20 @@ int cp_bdpe_enc(uint8_t *out, int *out_len, dig_t in, bdpe_t pub) {
 
 int cp_bdpe_dec(dig_t *out, uint8_t *in, int in_len, bdpe_t prv) {
 	bn_t m, t, z;
-	int size, result = STS_OK;
+	int size, result = RLC_OK;
 	dig_t i;
 
 	size = bn_size_bin(prv->n);
 
 	if (in_len < 0 || in_len != size) {
-		return STS_ERR;
+		return RLC_ERR;
 	}
 
 	bn_null(m);
 	bn_null(t);
 	bn_null(z);
 
-	TRY {
+	RLC_TRY {
 		bn_new(m);
 		bn_new(t);
 		bn_new(z);
@@ -190,19 +191,19 @@ int cp_bdpe_dec(dig_t *out, uint8_t *in, int in_len, bdpe_t prv) {
 
 		for (i = 0; i < prv->t; i++) {
 			bn_mxp_dig(z, t, i, prv->n);
-			if (bn_cmp(z, m) == CMP_EQ) {
+			if (bn_cmp(z, m) == RLC_EQ) {
 				*out = i;
 				break;
 			}
 		}
 
 		if (i == prv->t) {
-			result = STS_ERR;
+			result = RLC_ERR;
 		}
-	} CATCH_ANY {
-		result = STS_ERR;
+	} RLC_CATCH_ANY {
+		result = RLC_ERR;
 	}
-	FINALLY {
+	RLC_FINALLY {
 		bn_free(m);
 		bn_free(t);
 		bn_free(z);

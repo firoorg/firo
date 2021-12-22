@@ -35,6 +35,7 @@ message("      FP_METHD=BASIC    Inversion by Fermat's Little Theorem.")
 message("      FP_METHD=BINAR    Binary Inversion algorithm.")
 message("      FP_METHD=MONTY    Montgomery inversion.")
 message("      FP_METHD=EXGCD    Inversion by the Extended Euclidean algorithm.")
+message("      FP_METHD=DIVST    Constant-time inversion by division steps.")
 message("      FP_METHD=LOWER    Pass inversion to the lower level.\n")
 
 message("      Field exponentiation")
@@ -46,25 +47,25 @@ message("      FP_METHD=MONTY    Constant-time Montgomery powering ladder.\n")
 if (NOT FP_PRIME)
 	set(FP_PRIME 256)
 endif(NOT FP_PRIME)
-set(FP_PRIME ${FP_PRIME} CACHE INTEGER "Prime modulus size")
+set(FP_PRIME ${FP_PRIME} CACHE STRING "Prime modulus size")
 
 # Fix the number of Karatsuba instances
 if (NOT FP_KARAT)
 	set(FP_KARAT 0)
 endif(NOT FP_KARAT)
-set(FP_KARAT ${FP_KARAT} CACHE INTEGER "Number of Karatsuba levels.")
+set(FP_KARAT ${FP_KARAT} CACHE STRING "Number of Karatsuba levels.")
 
 if (NOT FP_WIDTH)
 	set(FP_WIDTH 4)
 endif(NOT FP_WIDTH)
-set(FP_WIDTH ${FP_WIDTH} CACHE INTEGER "Width of window processing for exponentiation methods.")
+set(FP_WIDTH ${FP_WIDTH} CACHE STRING "Width of window processing for exponentiation methods.")
 
 option(FP_PMERS "Prefer special form primes over random primes." off)
 option(FP_QNRES "Use -1 as quadratic non-residue." off)
 
 # Choose the arithmetic methods.
 if (NOT FP_METHD)
-	set(FP_METHD "BASIC;COMBA;COMBA;MONTY;MONTY;SLIDE")
+	set(FP_METHD "INTEG;INTEG;INTEG;MONTY;MONTY;SLIDE")
 endif(NOT FP_METHD)
 list(LENGTH FP_METHD FP_LEN)
 if (FP_LEN LESS 6)

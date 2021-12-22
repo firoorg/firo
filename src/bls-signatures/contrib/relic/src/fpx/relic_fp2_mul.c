@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2012 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -36,45 +37,6 @@
 /* Public definitions                                                         */
 /*============================================================================*/
 
-void fp2_mul_frb(fp2_t c, fp2_t a, int i, int j) {
-	ctx_t *ctx = core_get();
-
-	if (i == 2) {
-		fp_mul(c[0], a[0], ctx->fp2_p2[j - 1]);
-		fp_mul(c[1], a[1], ctx->fp2_p2[j - 1]);
-	} else {
-#if ALLOC == AUTO
-		if (i == 1) {
-			fp2_mul(c, a, ctx->fp2_p[j - 1]);
-		} else {
-			fp2_mul(c, a, ctx->fp2_p3[j - 1]);
-		}
-#else
-		fp2_t t;
-
-		fp2_null(t);
-
-		TRY {
-			fp2_new(t);
-			if (i == 1) {
-				fp_copy(t[0], ctx->fp2_p[j - 1][0]);
-				fp_copy(t[1], ctx->fp2_p[j - 1][1]);
-			} else {
-				fp_copy(t[0], ctx->fp2_p3[j - 1][0]);
-				fp_copy(t[1], ctx->fp2_p3[j - 1][1]);
-			}
-			fp2_mul(c, a, t);
-		}
-		CATCH_ANY {
-			THROW(ERR_CAUGHT);
-		}
-		FINALLY {
-			fp2_free(t);
-		}
-#endif
-	}
-}
-
 #if FPX_QDR == BASIC || !defined(STRIP)
 
 void fp2_mul_basic(fp2_t c, fp2_t a, fp2_t b) {
@@ -86,7 +48,7 @@ void fp2_mul_basic(fp2_t c, fp2_t a, fp2_t b) {
 	dv_null(t3);
 	dv_null(t4);
 
-	TRY {
+	RLC_TRY {
 		dv_new(t0);
 		dv_new(t1);
 		dv_new(t2);
@@ -109,14 +71,14 @@ void fp2_mul_basic(fp2_t c, fp2_t a, fp2_t b) {
 		/* t2 = (a_0 * b_0) + (a_1 * b_1). */
 		fp_addc_low(t2, t0, t4);
 
-		/* t1 = (a_0 * b_0) + u^2 * (a_1 * b_1). */
+		/* t1 = (a_0 * b_0) + i^2 * (a_1 * b_1). */
 		fp_subc_low(t1, t0, t4);
 
 		/* t1 = u^2 * (a_1 * b_1). */
 		for (int i = -1; i > fp_prime_get_qnr(); i--) {
 			fp_subc_low(t1, t1, t4);
 		}
-		for (int i = 0; i <= fp_prime_get_qnr(); i++) {
+		for (int i = 1; i < fp_prime_get_qnr(); i++) {
 			fp_addc_low(t1, t1, t4);
 		}
 
@@ -129,10 +91,10 @@ void fp2_mul_basic(fp2_t c, fp2_t a, fp2_t b) {
 		/* c_1 = t4 mod p. */
 		fp_rdc(c[1], t4);
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		dv_free(t0);
 		dv_free(t1);
 		dv_free(t2);
@@ -148,7 +110,7 @@ void fp2_mul_nor_basic(fp2_t c, fp2_t a) {
 	fp2_null(t);
 	bn_null(b);
 
-	TRY {
+	RLC_TRY {
 		fp2_new(t);
 		bn_new(b);
 
@@ -158,34 +120,40 @@ void fp2_mul_nor_basic(fp2_t c, fp2_t a) {
 		fp_add(c[1], a[0], a[1]);
 		fp_add(c[0], t[0], a[0]);
 #else
+		int qnr = fp2_field_get_qnr();
+
 		switch (fp_prime_get_mod8()) {
 			case 3:
-				/* If p = 3 mod 8, (1 + u) is a QNR/CNR. */
+				/* If p = 3 mod 8, (1 + i) is a QNR/CNR. */
 				fp_neg(t[0], a[1]);
 				fp_add(c[1], a[0], a[1]);
 				fp_add(c[0], t[0], a[0]);
 				break;
 			case 1:
 			case 5:
-				/* If p = 5 mod 8, (u) is a QNR/CNR. */
+				/* If p = 1,5 mod 8, (i) is a QNR/CNR. */
 				fp2_mul_art(c, a);
 				break;
 			case 7:
-				/* If p = 7 mod 8, we choose (4 + u) as a QNR/CNR. */
+				/* If p = 7 mod 8, we choose (2^k + i) as a QNR/CNR. */
 				fp2_mul_art(t, a);
-				fp2_dbl(c, a);
-				fp2_dbl(c, c);
+				fp2_copy(c, a);
+				while (qnr > 1) {
+					fp2_dbl(c, c);
+					qnr = qnr >> 1;
+				}
 				fp2_add(c, c, t);
 				break;
 			default:
-				THROW(ERR_NO_VALID);
+				RLC_THROW(ERR_NO_VALID);
+				break;
 		}
 #endif
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		fp2_free(t);
 		bn_free(b);
 	}
@@ -210,7 +178,7 @@ void fp2_mul_art(fp2_t c, fp2_t a) {
 
 	fp_null(t);
 
-	TRY {
+	RLC_TRY {
 		fp_new(t);
 
 #ifdef FP_QNRES
@@ -219,22 +187,69 @@ void fp2_mul_art(fp2_t c, fp2_t a) {
 		fp_neg(c[0], a[1]);
 		fp_copy(c[1], t);
 #else
-		/* (a_0 + a_1 * u) * u = (a_1 * u^2) + a_0 * u. */
+		/* (a_0 + a_1 * i) * i = (a_1 * i^2) + a_0 * i. */
 		fp_copy(t, a[0]);
 		fp_neg(c[0], a[1]);
 		for (int i = -1; i > fp_prime_get_qnr(); i--) {
 			fp_sub(c[0], c[0], a[1]);
 		}
-		for (int i = 1; i <= fp_prime_get_qnr() + 1; i++) {
+		for (int i = 0; i <= fp_prime_get_qnr(); i++) {
 			fp_add(c[0], c[0], a[1]);
 		}
 		fp_copy(c[1], t);
 #endif
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		fp_free(t);
 	}
+}
+
+void fp2_mul_frb(fp2_t c, fp2_t a, int i, int j) {
+	ctx_t *ctx = core_get();
+
+#if ALLOC == AUTO
+	switch(i) {
+		case 1:
+			fp2_mul(c, a, ctx->fp2_p1[j - 1]);
+			break;
+		case 2:
+			fp2_mul(c, a, ctx->fp2_p2[j - 1]);
+			break;
+	}
+#else
+	fp2_t t;
+
+	fp2_null(t);
+
+	RLC_TRY {
+		fp2_new(t);
+
+		switch(i) {
+			case 1:
+				fp_copy(t[0], ctx->fp2_p1[j - 1][0]);
+				fp_copy(t[1], ctx->fp2_p1[j - 1][1]);
+				break;
+			case 2:
+				fp_copy(t[0], ctx->fp2_p2[j - 1][0]);
+				fp_copy(t[1], ctx->fp2_p2[j - 1][1]);
+				break;
+		}
+
+		fp2_mul(c, a, t);
+	}
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
+	}
+	RLC_FINALLY {
+		fp2_free(t);
+	}
+#endif
+}
+
+void fp2_mul_dig(fp2_t c, const fp2_t a, dig_t b) {
+	fp_mul_dig(c[0], a[0], b);
+	fp_mul_dig(c[1], a[1], b);
 }

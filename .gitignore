@@ -71,6 +71,7 @@ src/tor/src/or
 *.log
 *.trs
 *.dmg
+*.iso
 
 *.json.h
 *.raw.h
@@ -141,6 +142,8 @@ firo.creator
 firo.creator.user
 firo.files
 firo.includes
+
+/guix-build-*
 
 # VS
 .vs

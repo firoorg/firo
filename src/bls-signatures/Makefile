@@ -1,7 +1,7 @@
 
-all: build/libchiabls.a
+all: build/libchiabls.la
 
-build/libchiabls.a:
+build/libchiabls.la:
 	$(AM_V_at)$(MAKE) -C ./build/
 
 .PHONY distdir: 
@@ -10,13 +10,12 @@ build/libchiabls.a:
 
 clean: 
 	$(AM_V_at)$(MAKE) -C ./build/ clean
-	rm -f ./build/libchiabls.a
+	rm -f ./build/libchiabls.la ./build/.libs/libchiabls.a
 	
 distclean:
 	rm -rf ./build/
 
 check: all
-	./build/src/runtest
 
 install:
-	$(AM_V_at)$(MAKE) -C ./build/ install
+# do nothing

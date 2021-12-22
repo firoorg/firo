@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2015 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 #include "relic_dv_low.h"
@@ -134,7 +135,7 @@ cdecl(fp2_mulm_low):
 		movq	%r8, \i(%rsp)
 	.endr
 
-	addq $(FP_DIGS * 8), %rdi
+	addq $(RLC_FP_DIGS * 8), %rdi
 	FP_RDCN_LOW %rdi, %rsp
 
 	addq $256, %rsp
@@ -217,28 +218,28 @@ cdecl(fp2_muln_low):
 	/* rsp[0..8] = t4 = t3 - t2 */
 	movq	128(%rsp), %rcx
 	subq	%r8, %rcx
-	movq	%rcx, 8*DV_DIGS(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS(%rdi)
 	movq	136(%rsp), %rcx
 	sbbq	%r9, %rcx
-	movq	%rcx, 8*DV_DIGS+8(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS+8(%rdi)
 	movq	144(%rsp), %rcx
 	sbbq	%r10, %rcx
-	movq	%rcx, 8*DV_DIGS+16(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS+16(%rdi)
 	movq	152(%rsp), %rcx
 	sbbq	%r11, %rcx
-	movq	%rcx, 8*DV_DIGS+24(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS+24(%rdi)
 	movq	160(%rsp), %rcx
 	sbbq	%r12, %rcx
-	movq	%rcx, 8*DV_DIGS+32(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS+32(%rdi)
 	movq	168(%rsp), %rcx
 	sbbq	%r13, %rcx
-	movq	%rcx, 8*DV_DIGS+40(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS+40(%rdi)
 	movq	176(%rsp), %rcx
 	sbbq	%r14, %rcx
-	movq	%rcx, 8*DV_DIGS+48(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS+48(%rdi)
 	movq	184(%rsp), %rcx
 	sbbq	%r15, %rcx
-	movq	%rcx, 8*DV_DIGS+56(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS+56(%rdi)
 	xorq	%rax,%rax
 	xorq	%rcx,%rcx
 	movq	0(%rsp), %r8
@@ -347,28 +348,28 @@ cdecl(fp2_mulc_low):
 	/* rsp[0..8] = t4 = t3 - t2 */
 	movq	128(%rsp), %rcx
 	subq	%r8, %rcx
-	movq	%rcx, 8*DV_DIGS(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS(%rdi)
 	movq	136(%rsp), %rcx
 	sbbq	%r9, %rcx
-	movq	%rcx, 8*DV_DIGS+8(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS+8(%rdi)
 	movq	144(%rsp), %rcx
 	sbbq	%r10, %rcx
-	movq	%rcx, 8*DV_DIGS+16(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS+16(%rdi)
 	movq	152(%rsp), %rcx
 	sbbq	%r11, %rcx
-	movq	%rcx, 8*DV_DIGS+24(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS+24(%rdi)
 	movq	160(%rsp), %rcx
 	sbbq	%r12, %rcx
-	movq	%rcx, 8*DV_DIGS+32(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS+32(%rdi)
 	movq	168(%rsp), %rcx
 	sbbq	%r13, %rcx
-	movq	%rcx, 8*DV_DIGS+40(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS+40(%rdi)
 	movq	176(%rsp), %rcx
 	sbbq	%r14, %rcx
-	movq	%rcx, 8*DV_DIGS+48(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS+48(%rdi)
 	movq	184(%rsp), %rcx
 	sbbq	%r15, %rcx
-	movq	%rcx, 8*DV_DIGS+56(%rdi)
+	movq	%rcx, 8*RLC_DV_DIGS+56(%rdi)
 
 	/* rsp[0..8] = t1 = (a0 * a1) + u^2 * (a1 * b1) */
 	movq    NP40, %rax

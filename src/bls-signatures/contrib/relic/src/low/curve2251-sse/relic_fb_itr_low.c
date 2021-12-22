@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2012 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -42,23 +43,24 @@
 
 void fb_itrn_low(dig_t *c, const dig_t *a, dig_t *t) {
 	int i, j;
-	dig_t u, *tmp, *p;
+	dig_t u, *p;
+	const dig_t *tmp;
 
 	__m128i r0, r1;
 	r0 = r1 = _mm_setzero_si128();
-	for (i = FB_DIGIT - 4; i >= 0; i -= 4) {
+	for (i = RLC_DIG - 4; i >= 0; i -= 4) {
 		tmp = a;
-		for (j = 0; j < FB_DIGS - 1; j++, tmp++) {
+		for (j = 0; j < RLC_FB_DIGS - 1; j++, tmp++) {
 			u = (*tmp >> i) & 0x0F;
-			p = (t + ((j * FB_DIGIT + i) * 4 + u) * FB_DIGS);
+			p = (t + ((j * RLC_DIG + i) * 4 + u) * RLC_FB_DIGS);
 			r0 = _mm_xor_si128(r0, *(__m128i *)(p));
 			r1 = _mm_xor_si128(r1, *(__m128i *)(p + 2));
 		}
 	}
-	for (i = FB_DIGIT - 8; i >= 0; i -= 4) {
-		tmp = a + FB_DIGS - 1;
+	for (i = RLC_DIG - 8; i >= 0; i -= 4) {
+		tmp = a + RLC_FB_DIGS - 1;
 		u = (*tmp >> i) & 0x0F;
-		p = (t + ((j * FB_DIGIT + i) * 4 + u) * FB_DIGS);
+		p = (t + ((j * RLC_DIG + i) * 4 + u) * RLC_FB_DIGS);
 		r0 = _mm_xor_si128(r0, *(__m128i *)(p));
 		r1 = _mm_xor_si128(r1, *(__m128i *)(p + 2));
 	}

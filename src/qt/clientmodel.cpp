@@ -356,6 +356,13 @@ static void ShowProgress(ClientModel *clientmodel, const std::string &title, int
                               Q_ARG(int, nProgress));
 }
 
+static void UpdateProgressBarLabel(ClientModel *clientmodel, const std::string &title)
+{
+    // emits signal "updateProgressBarLabel"
+    QMetaObject::invokeMethod(clientmodel, "updateProgressBarLabel", Qt::QueuedConnection,
+                              Q_ARG(QString, QString::fromStdString(title)));
+}
+
 static void NotifyNumConnectionsChanged(ClientModel *clientmodel, int newNumConnections)
 {
     // Too noisy: qDebug() << "NotifyNumConnectionsChanged: " + QString::number(newNumConnections);
@@ -424,6 +431,7 @@ void ClientModel::subscribeToCoreSignals()
 {
     // Connect signals to client
     uiInterface.ShowProgress.connect(boost::bind(ShowProgress, this, _1, _2));
+    uiInterface.UpdateProgressBarLabel.connect(boost::bind(UpdateProgressBarLabel, this, _1));
     uiInterface.NotifyNumConnectionsChanged.connect(boost::bind(NotifyNumConnectionsChanged, this, _1));
     uiInterface.NotifyNetworkActiveChanged.connect(boost::bind(NotifyNetworkActiveChanged, this, _1));
     uiInterface.NotifyAlertChanged.connect(boost::bind(NotifyAlertChanged, this));
@@ -444,6 +452,7 @@ void ClientModel::unsubscribeFromCoreSignals()
 {
     // Disconnect signals from client
     uiInterface.ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
+    uiInterface.UpdateProgressBarLabel.disconnect(boost::bind(UpdateProgressBarLabel, this, _1));
     uiInterface.NotifyNumConnectionsChanged.disconnect(boost::bind(NotifyNumConnectionsChanged, this, _1));
     uiInterface.NotifyNetworkActiveChanged.disconnect(boost::bind(NotifyNetworkActiveChanged, this, _1));
     uiInterface.NotifyAlertChanged.disconnect(boost::bind(NotifyAlertChanged, this));

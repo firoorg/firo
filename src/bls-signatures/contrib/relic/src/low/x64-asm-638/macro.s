@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2012 RELIC Authors
+ * Copyright (c) 2017 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 #include "relic_fp_low.h"
@@ -31,23 +32,31 @@
  * @ingroup fp
  */
 
-#define P0	$0xAAAAAAAABEAB000B
-#define P1	$0xEAF3FF000AAAAAAA
-#define P2	$0xAAAAAAAAAAAAAA93
-#define P3	$0x00000AC79600D2AB
-#define P4	$0x5C75D6C2AB000000
-#define P5	$0x3955555555529C00
-#define P6	$0x00631BBD42171501
-#define P7	$0xFC01DCDE95D40000
-#define P8	$0xE80015554DD25DB0
-#define P9	$0x3CB868653D300B3F
-#define U0	$0xFAD7AB621D14745D
-
-#define NP40 $0xC000000000000000
-#define NP41 $0xE9C0000000000004
-#define NP42 $0x1848400000000004
-#define NP43 $0x6E8D136000000002
-#define NP44 $0x0948D92090000000
+#ifdef FP_QNRES
+#define P0	0xAAAAAAAABEAB000B
+#define P1	0xEAF3FF000AAAAAAA
+#define P2	0xAAAAAAAAAAAAAA93
+#define P3	0x00000AC79600D2AB
+#define P4	0x5C75D6C2AB000000
+#define P5	0x3955555555529C00
+#define P6	0x00631BBD42171501
+#define P7	0xFC01DCDE95D40000
+#define P8	0xE80015554DD25DB0
+#define P9	0x3CB868653D300B3F
+#define U0	0xFAD7AB621D14745D
+#else
+#define P0	0x0000000000000067
+#define P1	0xFFFFFFFFFFFFECE0
+#define P2	0x0000004C80015ACD
+#define P3	0xFFFFF51FFFF4EB80
+#define P4	0xC00086520021E55B
+#define P5	0xFFFDD0E00008DE55
+#define P6	0x3FFF94870000D52F
+#define P7	0xFFFFF942D000165E
+#define P8	0x7FFFFFB8000001D3
+#define P9	0x23FFFFFDC000000D
+#define U0	0x254813E22CBCE4A9
+#endif
 
 #if defined(__APPLE__)
 #define cdecl(S) _PREFIX(,S)
@@ -221,7 +230,7 @@
 // r8, r9, r10, r11, r12, r13, r14, r15, rbp, rbx, rsp, //rsi, rdi, //rax, rcx, rdx
 .macro FP_RDCN_LOW C, R0, R1, R2, A, P
 	xorq	\R1, \R1
-	movq	U0, %rcx
+	movq	$U0, %rcx
 
 	movq	0(\A), \R0
 	movq	\R0  , %rax
@@ -265,16 +274,16 @@
 	movq	144(\A), %r8
 	movq	152(\A), %r9
 
-	subq	p0, %r11
-	sbbq	p1, %r12
-	sbbq	p2, %r13
-	sbbq	p3, %r14
-	sbbq	p4, %r15
-	sbbq	p5, %rcx
-	sbbq	p6, %rbp
-	sbbq	p7, %rdx
-	sbbq	p8, %r8
-	sbbq	p9, %r9
+	subq	p0(%rip), %r11
+	sbbq	p1(%rip), %r12
+	sbbq	p2(%rip), %r13
+	sbbq	p3(%rip), %r14
+	sbbq	p4(%rip), %r15
+	sbbq	p5(%rip), %rcx
+	sbbq	p6(%rip), %rbp
+	sbbq	p7(%rip), %rdx
+	sbbq	p8(%rip), %r8
+	sbbq	p9(%rip), %r9
 
 	cmovc	80(\A), %r11
 	cmovc	88(\A), %r12
