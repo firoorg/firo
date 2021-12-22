@@ -137,14 +137,14 @@ void ElysiumPrivateSendDialog::updateAmountFieldValidators()
     bool divisible = isPropertyDivisible(propertyId);
     if (divisible) {
         ui->amountLineEdit->setValidator(divisibleQuantityValidator);
-        ui->referenceAmountLineEdit->setValidator(divisibleQuantityValidator);
+        // ui->referenceAmountLineEdit->setValidator(divisibleQuantityValidator);
     } else {
         ui->amountLineEdit->setValidator(indivisibleQuantityValidator);
-        ui->referenceAmountLineEdit->setValidator(indivisibleQuantityValidator);
+        // ui->referenceAmountLineEdit->setValidator(indivisibleQuantityValidator);
     }
 
     FormatElysiumAmount(ui->amountLineEdit, divisible);
-    FormatElysiumAmount(ui->referenceAmountLineEdit, divisible);
+    // FormatElysiumAmount(ui->referenceAmountLineEdit, divisible);
 }
 
 void ElysiumPrivateSendDialog::onClearButtonClicked()
@@ -156,7 +156,7 @@ void ElysiumPrivateSendDialog::clear()
 {
     ui->sendToLineEdit->clear();
     ui->amountLineEdit->clear();
-    ui->referenceAmountLineEdit->clear();
+    // ui->referenceAmountLineEdit->clear();
 }
 
 void ElysiumPrivateSendDialog::onSendButtonClicked()
@@ -189,12 +189,12 @@ void ElysiumPrivateSendDialog::onSendButtonClicked()
         return;
     }
 
-    amountString = ui->referenceAmountLineEdit->text().toStdString();
-    int64_t referenceAmount = amountString.size() == 0 ? 0 : elysium::StrToInt64(amountString, divisible);
-    if ((0.01 * COIN) < referenceAmount) {
-        Q_EMIT message(tr("Invalid reference amount"), tr("Reference amount higher is than 0.01 FIRO."), CClientUIInterface::MSG_ERROR);
-        return;
-    }
+    // amountString = ui->referenceAmountLineEdit->text().toStdString();
+    int64_t referenceAmount = 0; //amountString.size() == 0 ? 0 : elysium::StrToInt64(amountString, divisible);
+    // if ((0.01 * COIN) < referenceAmount) {
+    //     Q_EMIT message(tr("Invalid reference amount"), tr("Reference amount higher is than 0.01 FIRO."), CClientUIInterface::MSG_ERROR);
+    //     return;
+    // }
 
     if (!IsFeatureActivated(FEATURE_LELANTUS, GetHeight())) {
         Q_EMIT message(tr("Lelantus Error"), tr("Lelantus feature is not activated yet."), CClientUIInterface::MSG_ERROR);
