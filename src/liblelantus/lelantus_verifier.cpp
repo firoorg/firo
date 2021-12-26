@@ -78,7 +78,7 @@ bool LelantusVerifier::verify(
     try {
         // we are passing challengeGenerator ptr here, as after LELANTUS_TX_VERSION_4_5 we need  it back, with filled data, to use in schnorr proof,
         if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, ecdsaPubkeys, Cout, proof.sigma_proofs, qkSchnorrProof, x, challengeGenerator, zV, zR, fSkipVerification) &&
-             verify_rangeproof(Cout, proof.bulletproofs) &&
+             verify_rangeproof(Cout, proof.bulletproofs, fSkipVerification) &&
              verify_schnorrproof(x, zV, zR, Vin, Vout, fee, Cout, proof, challengeGenerator)))
             return false;
     } catch (std::invalid_argument&) {
@@ -181,8 +181,9 @@ bool LelantusVerifier::verify_sigma(
 
 bool LelantusVerifier::verify_rangeproof(
         const std::vector<PublicCoin>& Cout,
-        const RangeProof& bulletproof) {
-    if (Cout.empty())
+        const RangeProof& bulletproof,
+        bool fSkipVerification) {
+    if (Cout.empty() || fSkipVerification)
         return true;
 
     std::size_t n = params->get_bulletproofs_n();

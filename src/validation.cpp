@@ -3254,6 +3254,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
 
     std::unordered_map<Scalar, int> lelantusSerialsToRemove;
+    std::vector<lelantus::RangeProof> rangeProofsToRemove;
     sigma::spend_info_container sigmaSerialsToRemove;
 
     for (CTransactionRef tx : block.vtx) {
@@ -3280,6 +3281,8 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
                 for (size_t i = 0; i < serials.size(); i++) {
                     lelantusSerialsToRemove.insert(std::make_pair(serials[i], ids[i]));
                 }
+
+                rangeProofsToRemove.push_back(joinsplit->getLelantusProof().bulletproofs);
             } else if (tx->IsSigmaSpend()) {
                 for (const CTxIn &txin : tx->vin) {
                     std::unique_ptr<sigma::CoinSpend> spend;
@@ -3325,6 +3328,11 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     if (lelantusSerialsToRemove.size() > 0) {
         batchProofContainer->removeLelantus(lelantusSerialsToRemove);
     }
+
+    if (rangeProofsToRemove.size() > 0) {
+        batchProofContainer->remove(rangeProofsToRemove);
+    }
+
 
     // Roll back MTP state
     MTPState::GetMTPState()->SetLastBlock(pindexDelete->pprev, chainparams.GetConsensus());

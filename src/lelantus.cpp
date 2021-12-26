@@ -531,6 +531,7 @@ bool CheckLelantusJoinSplitTransaction(
             idAndSizes[itr.first] = itr.second.size();
 
         batchProofContainer->add(joinsplit.get(), idAndSizes, challenge, nHeight >= params.nLelantusFixesStartBlock);
+        batchProofContainer->add(joinsplit.get(), Cout);
     }
 
     if (passVerify) {

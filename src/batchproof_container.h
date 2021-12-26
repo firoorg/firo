@@ -62,12 +62,16 @@ public:
              const Scalar& challenge,
              bool fStartLelantusBlacklist);
 
+    void add(lelantus::JoinSplit* joinSplit, const std::vector<lelantus::PublicCoin>& Cout);
+
     void removeSigma(const sigma::spend_info_container& spendSerials);
     void removeLelantus(std::unordered_map<Scalar, int> spentSerials);
+    void remove(const std::vector<lelantus::RangeProof>& rangeProofsToRemove);
     void erase(std::vector<LelantusSigmaProofData>* vProofs, const Scalar& serial);
 
     void batch_sigma();
     void batch_lelantus();
+    void batch_rangeProofs();
 
 public:
     bool fCollectProofs = 0;
@@ -79,10 +83,14 @@ private:
     std::map<std::pair<sigma::CoinDenomination, std::pair<int, bool>>, std::vector<SigmaProofData>> tempSigmaProofs;
     // map ((id, afterFixes), fIsSigmaToLelantus) to (sigma proof, serial, set size, challenge)
     std::map<std::pair<std::pair<uint32_t, bool>, bool>, std::vector<LelantusSigmaProofData>> tempLelantusSigmaProofs;
+    // map (version to (Range proof, Pubcoins))
+    std::map<unsigned int, std::vector<std::pair<lelantus::RangeProof, std::vector<lelantus::PublicCoin>>>> tempRangeProofs;
 
     // containers to keep proofs for batching
     std::map<std::pair<sigma::CoinDenomination, std::pair<int, bool>>, std::vector<SigmaProofData>> sigmaProofs;
     std::map<std::pair<std::pair<uint32_t, bool>, bool>, std::vector<LelantusSigmaProofData>> lelantusSigmaProofs;
+    std::map<unsigned int, std::vector<std::pair<lelantus::RangeProof, std::vector<lelantus::PublicCoin>>>> rangeProofs;
+
 };
 
 #endif //FIRO_BATCHPROOF_CONTAINER_H
