@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2012 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -47,7 +48,7 @@
 void fb_slvn_low(dig_t *c, const dig_t *a) {
 	int i;
 	dig_t *p, u0, u1, u2, u3;
-	void *tab = fb_poly_get_slv();
+	const void *tab = fb_poly_get_slv();
 	__m128i m0, m1, m2, m3, m4, sqrt0, sqrt1, mask0, mask1, mask2, r0, r1, t0, t1, perm;
 
 	perm = _mm_set_epi32(0x0F0D0B09, 0x07050301, 0x0E0C0A08, 0x06040200);
@@ -164,7 +165,7 @@ void fb_slvn_low(dig_t *c, const dig_t *a) {
 	m1 = _mm_or_si128(m1, m2);
 	m3 = _mm_or_si128(m3, m4);
 #ifndef __PCLMUL__
-	align dig_t x[2];
+	rlc_align dig_t x[2];
 	_mm_store_si128((__m128i *)x, m1);
 	u0 = x[0];
 	u1 = x[1];

@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -31,8 +32,8 @@
  * @ingroup fb
  */
 
-#ifndef RELIC_FB_LOW_H
-#define RELIC_FB_LOW_H
+#ifndef RLC_FB_LOW_H
+#define RLC_FB_LOW_H
 
 /*============================================================================*/
 /* Constant definitions                                                       */
@@ -42,11 +43,11 @@
 
 #include "relic_conf.h"
 
-#undef FB_DIGS
+#undef RLC_FB_DIGS
 #if (FB_POLYN % WSIZE) > 0
-#define FB_DIGS	(FB_POLYN/WSIZE + 1)
+#define RLC_FB_DIGS		(FB_POLYN/WSIZE + 1)
 #else
-#define FB_DIGS	(FB_POLYN/WSIZE)
+#define RLC_FB_DIGS		(FB_POLYN/WSIZE)
 #endif
 
 #else
@@ -87,24 +88,6 @@ void fb_addn_low(dig_t *c, const dig_t *a, const dig_t *b);
 void fb_addd_low(dig_t *c, const dig_t *a, const dig_t *b, int size);
 
 /**
- * Compares two digits.
- *
- * @param[in] a				- the first digit to compare.
- * @param[in] b				- the second digit to compare.
- * @return CMP_LT if a < b, CMP_EQ if a == b and CMP_GT if a > b.
- */
-int fb_cmp1_low(dig_t a, dig_t b);
-
-/**
- * Compares two digit vectors of the same size.
- *
- * @param[in] a				- the first digit vector to compare.
- * @param[in] b				- the second digit vector to compare.
- * @return CMP_LT if a < b, CMP_EQ if a == b and CMP_GT if a > b.
- */
-int fb_cmpn_low(const dig_t *a, const dig_t *b);
-
-/**
  * Shifts a digit vector to the left by 1 bit. Computes c = a * z.
  *
  * @param[out] c			- the result
@@ -115,7 +98,7 @@ dig_t fb_lsh1_low(dig_t *c, const dig_t *a);
 
 /**
  * Shifts a digit vector to the left by an amount smaller than a digit.
- * The shift amount must be bigger than 0 and smaller than FB_DIGIT. Computes
+ * The shift amount must be bigger than 0 and smaller than RLC_DIG. Computes
  * c = a * z^bits.
  *
  * @param[out] c			- the result
@@ -124,16 +107,6 @@ dig_t fb_lsh1_low(dig_t *c, const dig_t *a);
  * @return the carry of the last digit shift.
  */
 dig_t fb_lshb_low(dig_t *c, const dig_t *a, int bits);
-
-/**
- * Shifts a digit vector to the left by some digits.
- * Computes c = a * z^(digits * DIGIT).
- *
- * @param[out] c			- the result.
- * @param[in] a				- the multiple precision integer to shift.
- * @param[in] digits		- the shift amount.
- */
-void fb_lshd_low(dig_t *c, const dig_t *a, int digits);
 
 /**
  * Shifts a digit vector to the right by 1 bit. Computes c = a / z.
@@ -146,7 +119,7 @@ dig_t fb_rsh1_low(dig_t *c, const dig_t *a);
 
 /**
  * Shifts a digit vector to the right by an amount smaller than a digit.
- * The shift amount must be bigger than 0 and smaller than FB_DIGIT.
+ * The shift amount must be bigger than 0 and smaller than RLC_DIG.
  * Computes c = a / (z^bits).
  *
  * @param[out] c			- the result
@@ -155,16 +128,6 @@ dig_t fb_rsh1_low(dig_t *c, const dig_t *a);
  * @return the carry of the last digit shift.
  */
 dig_t fb_rshb_low(dig_t *c, const dig_t *a, int bits);
-
-/**
- * Shifts a digit vector to the right by some digits.
- * Computes c = a / z^(digits * DIGIT).
- *
- * @param[out] c			- the result.
- * @param[in] a				- the multiple precision integer to shift.
- * @param[in] digits		- the shift amount.
- */
-void fb_rshd_low(dig_t *c, const dig_t *a, int digits);
 
 /**
  * Adds a left-shifted digit vector to another digit vector.
@@ -304,4 +267,4 @@ void fb_invn_low(dig_t *c, const dig_t *a);
 
 #endif /* !ASM */
 
-#endif /* !RELIC_FB_LOW_H */
+#endif /* !RLC_FB_LOW_H */

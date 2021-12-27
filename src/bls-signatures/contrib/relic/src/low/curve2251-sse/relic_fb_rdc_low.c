@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2012 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -115,29 +116,29 @@ void fb_rdc1_low(dig_t *c, dig_t *a) {
 	const int fb = 4;
 	const int fc = 2;
 
-	const int rh = FB_BITS % FB_DIGIT;
-	const int sh = FB_BITS / FB_DIGIT + 1;
-	const int lh = FB_DIGIT - rh;;
-	const int ra = (FB_BITS - fa) % FB_DIGIT;
-	const int sa = (FB_BITS - fa) / FB_DIGIT + 1;
-	const int la = FB_DIGIT - ra;
-	const int rb = (FB_BITS - fb) % FB_DIGIT;
-	const int sb = (FB_BITS - fb) / FB_DIGIT + 1;
-	const int lb = FB_DIGIT - rb;
-	const int rc = (FB_BITS - fc) % FB_DIGIT;
-	const int sc = (FB_BITS - fc) / FB_DIGIT + 1;
-	const int lc = FB_DIGIT - rc;
+	const int rh = RLC_FB_BITS % RLC_DIG;
+	const int sh = RLC_FB_BITS / RLC_DIG + 1;
+	const int lh = RLC_DIG - rh;;
+	const int ra = (RLC_FB_BITS - fa) % RLC_DIG;
+	const int sa = (RLC_FB_BITS - fa) / RLC_DIG + 1;
+	const int la = RLC_DIG - ra;
+	const int rb = (RLC_FB_BITS - fb) % RLC_DIG;
+	const int sb = (RLC_FB_BITS - fb) / RLC_DIG + 1;
+	const int lb = RLC_DIG - rb;
+	const int rc = (RLC_FB_BITS - fc) % RLC_DIG;
+	const int sc = (RLC_FB_BITS - fc) / RLC_DIG + 1;
+	const int lc = RLC_DIG - rc;
 
-	d = a[FB_DIGS];
+	d = a[RLC_FB_DIGS];
 
-	a[FB_DIGS - sh] ^= (d << lh);
-	a[FB_DIGS - sa + 1] ^= (d >> ra);
-	a[FB_DIGS - sa] ^= (d << la);
+	a[RLC_FB_DIGS - sh] ^= (d << lh);
+	a[RLC_FB_DIGS - sa + 1] ^= (d >> ra);
+	a[RLC_FB_DIGS - sa] ^= (d << la);
 
-	a[FB_DIGS - sb + 1] ^= (d >> rb);
-	a[FB_DIGS - sb] ^= (d << lb);
-	a[FB_DIGS - sc + 1] ^= (d >> rc);
-	a[FB_DIGS - sc] ^= (d << lc);
+	a[RLC_FB_DIGS - sb + 1] ^= (d >> rb);
+	a[RLC_FB_DIGS - sb] ^= (d << lb);
+	a[RLC_FB_DIGS - sc + 1] ^= (d >> rc);
+	a[RLC_FB_DIGS - sc] ^= (d << lc);
 
 	d = a[sh - 1] >> rh;
 

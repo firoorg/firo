@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2013 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -39,7 +40,7 @@
 #include "relic_md.h"
 #include "relic_err.h"
 
-#if RAND == UDEV || SEED == DEV || SEED == UDEV
+#if RAND == UDEV || SEED == UDEV
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -69,9 +70,9 @@
  * The path to the char device that supplies entropy.
  */
 #if SEED == DEV
-#define RAND_PATH		"/dev/random"
+#define RLC_RAND_PATH		"/dev/random"
 #else
-#define RAND_PATH		"/dev/urandom"
+#define RLC_RAND_PATH		"/dev/urandom"
 #endif
 
 /*============================================================================*/
@@ -79,51 +80,56 @@
 /*============================================================================*/
 
 void rand_init(void) {
-	uint8_t buf[SEED_SIZE];
+	uint8_t buf[RLC_RAND_SEED];
 
 #if RAND == UDEV
 	int *fd = (int *)&(core_get()->rand);
 
-	*fd = open(RAND_PATH, O_RDONLY);
+	*fd = open(RLC_RAND_PATH, O_RDONLY);
 	if (*fd == -1) {
-		THROW(ERR_NO_FILE);
+		RLC_THROW(ERR_NO_FILE);
+		return;
 	}
 #else
 
-#if SEED == ZERO
+#if !defined(SEED)
 
-	memset(buf, 0, SEED_SIZE);
+	memset(buf, 0, RLC_RAND_SEED);
 
 #elif SEED == DEV || SEED == UDEV
 	int fd, c, l;
 
-	fd = open(RAND_PATH, O_RDONLY);
+	fd = open(RLC_RAND_PATH, O_RDONLY);
 	if (fd == -1) {
-		THROW(ERR_NO_FILE);
+		RLC_THROW(ERR_NO_FILE);
+		return;
 	}
 
 	l = 0;
 	do {
-		c = read(fd, buf + l, SEED_SIZE - l);
+		c = read(fd, buf + l, RLC_RAND_SEED - l);
 		l += c;
 		if (c == -1) {
-			THROW(ERR_NO_READ);
+			RLC_THROW(ERR_NO_READ);
+			return;
 		}
-	} while (l < SEED_SIZE);
+	} while (l < RLC_RAND_SEED);
 
 	if (fd != -1) {
 		close(fd);
 	}
 #elif SEED == LIBC
 
-#if OPSYS == FREEBSD
-	srandom(1);
-	for (int i = 0; i < SEED_SIZE; i++) {
+#if OPSYS == FREEBSD || OPSYS == NETBSD
+	/* This is better than using a fixed value. */
+	srandomdev();
+	for (int i = 0; i < RLC_RAND_SEED; i++) {
 		buf[i] = (uint8_t)random();
 	}
 #else
+	/* This is horribly insecure, serves only for benchmarking. */
 	srand(1);
-	for (int i = 0; i < SEED_SIZE; i++) {
+	for (int i = 0; i < RLC_RAND_SEED; i++) {
 		buf[i] = (uint8_t)rand();
 	}
 #endif
@@ -134,13 +140,16 @@ void rand_init(void) {
 
 	if (!CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL,
 					CRYPT_VERIFYCONTEXT | CRYPT_SILENT)) {
-		THROW(ERR_NO_FILE);
+		RLC_THROW(ERR_NO_FILE);
+		return;
 	}
-	if (hCryptProv && !CryptGenRandom(hCryptProv, SEED_SIZE, buf)) {
-		THROW(ERR_NO_READ);
+	if (hCryptProv && !CryptGenRandom(hCryptProv, RLC_RAND_SEED, buf)) {
+		RLC_THROW(ERR_NO_READ);
+		return;
 	}
 	if (hCryptProv && !CryptReleaseContext(hCryptProv, 0)) {
-		THROW(ERR_NO_READ);
+		RLC_THROW(ERR_NO_READ);
+		return;
 	}
 
 #elif SEED == RDRND
@@ -148,13 +157,13 @@ void rand_init(void) {
 	int i, j;
 	ull_t r;
 
-	while (i < SEED_SIZE) {
+	while (i < RLC_RAND_SEED) {
 #ifdef __RDRND__
 		while (_rdrand64_step(&r) == 0);
 #else
 #error "RdRand not available, check your compiler settings."
 #endif
-		for (j = 0; i < SEED_SIZE && j < sizeof(ull_t); i++, j++) {
+		for (j = 0; i < RLC_RAND_SEED && j < sizeof(ull_t); i++, j++) {
 			buf[i] = r & 0xFF;
 		}
 	}
@@ -165,24 +174,25 @@ void rand_init(void) {
 
 #if RAND != CALL
 	core_get()->seeded = 0;
-	rand_seed(buf, SEED_SIZE);
+	rand_seed(buf, RLC_RAND_SEED);
 #else
 	rand_seed(NULL, NULL);
 #endif
 }
 
 void rand_clean(void) {
-
+	ctx_t *ctx = core_get();
+	if (ctx != NULL) {
 #if RAND == UDEV
-	int *fd = (int *)&(core_get()->rand);
-	close(*fd);
+		int *fd = (int *)&(ctx->rand);
+		close(*fd);
 #endif
-
 #if RAND != CALL
-	memset(core_get()->rand, 0, sizeof(core_get()->rand));
+		memset(ctx->rand, 0, sizeof(ctx->rand));
 #else
-	core_get()->rand_call = NULL;
-	core_get()->rand_args = NULL;
+		ctx->rand_call = NULL;
+		ctx->rand_args = NULL;
 #endif
-	core_get()->seeded = 0;
+		ctx->seeded = 0;
+	}
 }

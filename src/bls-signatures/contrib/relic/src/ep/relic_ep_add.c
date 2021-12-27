@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -52,7 +53,7 @@ static void ep_add_basic_imp(ep_t r, fp_t s, const ep_t p, const ep_t q) {
 	fp_null(t1);
 	fp_null(t2);
 
-	TRY {
+	RLC_TRY {
 		fp_new(t0);
 		fp_new(t1);
 		fp_new(t2);
@@ -94,16 +95,16 @@ static void ep_add_basic_imp(ep_t r, fp_t s, const ep_t p, const ep_t q) {
 				fp_copy(s, t2);
 			}
 
-			r->norm = 1;
+			r->coord = BASIC;
 		}
 		fp_free(t0);
 		fp_free(t1);
 		fp_free(t2);
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		fp_free(t0);
 		fp_free(t1);
 		fp_free(t2);
@@ -115,7 +116,7 @@ static void ep_add_basic_imp(ep_t r, fp_t s, const ep_t p, const ep_t q) {
 #if EP_ADD == PROJC || !defined(STRIP)
 
 /**
- * Adds a point represented in affine coordinates to a point represented in
+ * Adds a point represented in homogeneous coordinates to a point represented in
  * projective coordinates.
  *
  * @param[out] r			- the result.
@@ -123,6 +124,340 @@ static void ep_add_basic_imp(ep_t r, fp_t s, const ep_t p, const ep_t q) {
  * @param[in] q				- the affine point.
  */
 static void ep_add_projc_mix(ep_t r, const ep_t p, const ep_t q) {
+	fp_t t0, t1, t2, t3, t4, t5;
+
+	fp_null(t0);
+	fp_null(t1);
+	fp_null(t2);
+	fp_null(t3);
+	fp_null(t4);
+	fp_null(t5);
+
+	RLC_TRY {
+		fp_new(t0);
+		fp_new(t1);
+		fp_new(t2);
+		fp_new(t3);
+		fp_new(t4);
+		fp_new(t5);
+
+		/* Formulas for mixed addition from
+		 * "Complete addition formulas for prime order elliptic curves"
+		 * by Joost Renes, Craig Costello, and Lejla Batina
+		 * https://eprint.iacr.org/2015/1060.pdf
+		 */
+
+		 fp_mul(t0, p->x, q->x);
+		 fp_mul(t1, p->y, q->y);
+		 fp_add(t3, q->x, q->y);
+		 fp_add(t4, p->x, p->y);
+		 fp_mul(t3, t3, t4);
+		 fp_add(t4, t0, t1);
+		 fp_sub(t3, t3, t4);
+
+		 if (ep_curve_opt_a() == RLC_ZERO) {
+ 			/* Cost of 11M + 2m_3b + 13a. */
+			if (p->coord == BASIC) {
+				/* Save 1M + 1m_3b if z1 = 1. */
+				fp_add(t4, q->y, p->y);
+	 			fp_add(r->y, q->x, p->x);
+				fp_add(r->z, t1, ep_curve_get_b3());
+	 			fp_sub(t1, t1, ep_curve_get_b3());
+			} else {
+				fp_mul(t4, q->y, p->z);
+				fp_add(t4, t4, p->y);
+	 			fp_mul(r->y, q->x, p->z);
+	 			fp_add(r->y, r->y, p->x);
+	 			ep_curve_mul_b3(t2, p->z);
+				fp_add(r->z, t1, t2);
+	 			fp_sub(t1, t1, t2);
+			}
+			fp_dbl(r->x, t0);
+			fp_add(t0, t0, r->x);
+ 			ep_curve_mul_b3(r->y, r->y);
+ 			fp_mul(r->x, t4, r->y);
+ 			fp_mul(t2, t3, t1);
+ 			fp_sub(r->x, t2, r->x);
+ 			fp_mul(r->y, t0, r->y);
+ 			fp_mul(t1, t1, r->z);
+ 			fp_add(r->y, t1, r->y);
+ 			fp_mul(t0, t0, t3);
+ 			fp_mul(r->z, r->z, t4);
+ 			fp_add(r->z, r->z, t0);
+ 		 } else if (ep_curve_opt_a() == RLC_MIN3) {
+ 			/* Cost of 11M + 2m_b + 23a. */
+			if (p->coord == BASIC) {
+				/* Save 2M + 3a if z1 = 1. */
+				fp_set_dig(t2, 3);
+	 			fp_add(t4, q->y, p->y);
+	 			fp_add(r->y, q->x, p->x);
+	 			fp_sub(r->x, r->y, ep_curve_get_b());
+			} else {
+				fp_dbl(t2, p->z);
+	 			fp_add(t2, t2, p->z);
+				fp_mul(t4, q->y, p->z);
+	 			fp_add(t4, t4, p->y);
+	 			fp_mul(r->y, q->x, p->z);
+	 			fp_add(r->y, r->y, p->x);
+				ep_curve_mul_b(r->z, p->z);
+	 			fp_sub(r->x, r->y, r->z);
+			}
+ 			fp_dbl(r->z, r->x);
+ 			fp_add(r->x, r->x, r->z);
+ 			fp_sub(r->z, t1, r->x);
+ 			fp_add(r->x, t1, r->x);
+ 			ep_curve_mul_b(r->y, r->y);
+ 			fp_sub(r->y, r->y, t2);
+ 			fp_sub(r->y, r->y, t0);
+ 			fp_dbl(t1, r->y);
+ 			fp_add(r->y, t1, r->y);
+ 			fp_dbl(t1, t0);
+ 			fp_add(t0, t1, t0);
+ 			fp_sub(t0, t0, t2);
+ 			fp_mul(t1, t4, r->y);
+ 			fp_mul(t2, t0, r->y);
+ 			fp_mul(r->y, r->x, r->z);
+ 			fp_add(r->y, r->y, t2);
+ 			fp_mul(r->x, t3, r->x);
+ 			fp_sub(r->x, r->x, t1);
+ 			fp_mul(r->z, t4, r->z);
+ 			fp_mul(t1, t3, t0);
+ 			fp_add(r->z, r->z, t1);
+ 		} else {
+			/* Cost of 11M + 3m_a + 2m_3b + 17a. */
+			if (p->coord == BASIC) {
+				/* Save 1M + 1m_a + 1m_3b if z1 = 1. */
+				fp_copy(t2, ep_curve_get_a());
+				fp_add(t4, q->x, p->x);
+				fp_add(t5, q->y, p->y);
+				ep_curve_mul_a(r->z, t4);
+				fp_add(r->z, r->z, ep_curve_get_b3());
+			} else {
+				ep_curve_mul_a(t2, p->z);
+				fp_mul(t4, q->x, p->z);
+				fp_add(t4, t4, p->x);
+				fp_mul(t5, q->y, p->z);
+				fp_add(t5, t5, p->y);
+				ep_curve_mul_b3(r->x, p->z);
+				ep_curve_mul_a(r->z, t4);
+				fp_add(r->z, r->x, r->z);
+			}
+			fp_sub(r->x, t1, r->z);
+			fp_add(r->z, t1, r->z);
+			fp_mul(r->y, r->x, r->z);
+			fp_dbl(t1, t0);
+			fp_add(t1, t1, t0);
+			ep_curve_mul_b3(t4, t4);
+			fp_add(t1, t1, t2);
+			fp_sub(t2, t0, t2);
+			ep_curve_mul_a(t2, t2);
+			fp_add(t4, t4, t2);
+			fp_mul(t0, t1, t4);
+			fp_add(r->y, r->y, t0);
+			fp_mul(t0, t5, t4);
+			fp_mul(r->x, t3, r->x);
+			fp_sub(r->x, r->x, t0);
+			fp_mul(t0, t3, t1);
+			fp_mul(r->z, t5, r->z);
+			fp_add(r->z, r->z, t0);
+		}
+
+		r->coord = PROJC;
+	}
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
+	}
+	RLC_FINALLY {
+		fp_free(t0);
+		fp_free(t1);
+		fp_free(t2);
+		fp_free(t3);
+		fp_free(t4);
+		fp_free(t5);
+	}
+}
+
+/**
+ * Adds two points represented in homogeneous coordinates on an ordinary prime
+ * elliptic curve.
+ *
+ * @param[out] r			- the result.
+ * @param[in] p				- the first point to add.
+ * @param[in] q				- the second point to add.
+ */
+static void ep_add_projc_imp(ep_t r, const ep_t p, const ep_t q) {
+#if defined(EP_MIXED) && defined(STRIP)
+	/* If code size is a problem, leave only the mixed version. */
+	ep_add_projc_mix(r, p, q);
+#else /* General addition. */
+
+#if defined(EP_MIXED) || !defined(STRIP)
+	/* Test if z2 = 1 only if mixed coordinates are turned on. */
+	if (q->coord == BASIC) {
+		ep_add_projc_mix(r, p, q);
+		return;
+	}
+#endif
+
+	fp_t t0, t1, t2, t3, t4, t5;
+
+	fp_null(t0);
+	fp_null(t1);
+	fp_null(t2);
+	fp_null(t3);
+	fp_null(t4);
+	fp_null(t5);
+
+	RLC_TRY {
+		fp_new(t0);
+		fp_new(t1);
+		fp_new(t2);
+		fp_new(t3);
+		fp_new(t4);
+		fp_new(t5);
+
+		/* Formulas for point addition from
+		 * "Complete addition formulas for prime order elliptic curves"
+		 * by Joost Renes, Craig Costello, and Lejla Batina
+		 * https://eprint.iacr.org/2015/1060.pdf
+		 */
+		fp_mul(t0, p->x, q->x);
+		fp_mul(t1, p->y, q->y);
+		fp_mul(t2, p->z, q->z);
+		fp_add(t3, p->x, p->y);
+		fp_add(t4, q->x, q->y);
+		fp_mul(t3, t3, t4);
+		fp_add(t4, t0, t1);
+		fp_sub(t3, t3, t4);
+		if (ep_curve_opt_a() == RLC_ZERO) {
+			/* Cost of 12M + 2m_3b + 19a. */
+			fp_add(t4, p->y, p->z);
+			fp_add(t5, q->y, q->z);
+			fp_mul(t4, t4, t5);
+			fp_add(t5, t1, t2);
+			fp_sub(t4, t4, t5);
+			fp_add(r->y, q->x, q->z);
+			fp_add(r->x, p->x, p->z);
+			fp_mul(r->x, r->x, r->y);
+			fp_add(r->y, t0, t2);
+			fp_sub(r->y, r->x, r->y);
+			fp_dbl(r->x, t0);
+			fp_add(t0, t0, r->x);
+			ep_curve_mul_b3(t2, t2);
+			fp_add(r->z, t1, t2);
+			fp_sub(t1, t1, t2);
+			ep_curve_mul_b3(r->y, r->y);
+			fp_mul(r->x, t4, r->y);
+			fp_mul(t2, t3, t1);
+			fp_sub(r->x, t2, r->x);
+			fp_mul(r->y, t0, r->y);
+			fp_mul(t1, t1, r->z);
+			fp_add(r->y, t1, r->y);
+			fp_mul(t0, t0, t3);
+			fp_mul(r->z, r->z, t4);
+			fp_add(r->z, r->z, t0);
+		} else if (ep_curve_opt_a() == RLC_MIN3) {
+			/* Cost of 12M + 2m_b + 29a. */
+			fp_add(t4, p->y, p->z);
+			fp_add(t5, q->y, q->z);
+			fp_mul(t4, t4, t5);
+			fp_add(t5, t1, t2);
+			fp_sub(t4, t4, t5);
+			fp_add(r->x, p->x, p->z);
+			fp_add(r->y, q->x, q->z);
+			fp_mul(r->x, r->x, r->y);
+			fp_add(r->y, t0, t2);
+			fp_sub(r->y, r->x, r->y);
+			ep_curve_mul_b(r->z, t2);
+			fp_sub(r->x, r->y, r->z);
+			fp_dbl(r->z, r->x);
+			fp_add(r->x, r->x, r->z);
+			fp_sub(r->z, t1, r->x);
+			fp_add(r->x, t1, r->x);
+			ep_curve_mul_b(r->y, r->y);
+			fp_dbl(t1, t2);
+			fp_add(t2, t1, t2);
+			fp_sub(r->y, r->y, t2);
+			fp_sub(r->y, r->y, t0);
+			fp_dbl(t1, r->y);
+			fp_add(r->y, t1, r->y);
+			fp_dbl(t1, t0);
+			fp_add(t0, t1, t0);
+			fp_sub(t0, t0, t2);
+			fp_mul(t1, t4, r->y);
+			fp_mul(t2, t0, r->y);
+			fp_mul(r->y, r->x, r->z);
+			fp_add(r->y, r->y, t2);
+			fp_mul(r->x, t3, r->x);
+			fp_sub(r->x, r->x, t1);
+			fp_mul(r->z, t4, r->z);
+			fp_mul(t1, t3, t0);
+			fp_add(r->z, r->z, t1);
+		} else {
+			 /* Cost of 12M + 3m_a + 2_m3b + 23a. */
+			fp_add(t4, p->x, p->z);
+			fp_add(t5, q->x, q->z);
+			fp_mul(t4, t4, t5);
+			fp_add(t5, t0, t2);
+			fp_sub(t4, t4, t5);
+			fp_add(t5, p->y, p->z);
+			fp_add(r->x, q->y, q->z);
+			fp_mul(t5, t5, r->x);
+			fp_add(r->x, t1, t2);
+			fp_sub(t5, t5, r->x);
+			ep_curve_mul_a(r->z, t4);
+			ep_curve_mul_b3(r->x, t2);
+			fp_add(r->z, r->x, r->z);
+			fp_sub(r->x, t1, r->z);
+			fp_add(r->z, t1, r->z);
+			fp_mul(r->y, r->x, r->z);
+			fp_dbl(t1, t0);
+			fp_add(t1, t1, t0);
+			ep_curve_mul_a(t2, t2);
+			ep_curve_mul_b3(t4, t4);
+			fp_add(t1, t1, t2);
+			fp_sub(t2, t0, t2);
+			ep_curve_mul_a(t2, t2);
+			fp_add(t4, t4, t2);
+			fp_mul(t0, t1, t4);
+			fp_add(r->y, r->y, t0);
+			fp_mul(t0, t5, t4);
+			fp_mul(r->x, t3, r->x);
+			fp_sub(r->x, r->x, t0);
+			fp_mul(t0, t3, t1);
+			fp_mul(r->z, t5, r->z);
+			fp_add(r->z, r->z, t0);
+		}
+
+		r->coord = PROJC;
+	}
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
+	}
+	RLC_FINALLY {
+		fp_free(t0);
+		fp_free(t1);
+		fp_free(t2);
+		fp_free(t3);
+		fp_free(t4);
+		fp_free(t5);
+	}
+#endif
+}
+
+#endif /* EP_ADD == PROJC */
+
+#if EP_ADD == JACOB || !defined(STRIP)
+
+/**
+ * Adds a point represented in Jacobian coordinates to a point represented in
+ * projective coordinates.
+ *
+ * @param[out] r			- the result.
+ * @param[in] p				- the projective point.
+ * @param[in] q				- the affine point.
+ */
+static void ep_add_jacob_mix(ep_t r, const ep_t p, const ep_t q) {
 	fp_t t0, t1, t2, t3, t4, t5, t6;
 
 	fp_null(t0);
@@ -133,7 +468,7 @@ static void ep_add_projc_mix(ep_t r, const ep_t p, const ep_t q) {
 	fp_null(t5);
 	fp_null(t6);
 
-	TRY {
+	RLC_TRY {
 		fp_new(t0);
 		fp_new(t1);
 		fp_new(t2);
@@ -145,7 +480,7 @@ static void ep_add_projc_mix(ep_t r, const ep_t p, const ep_t q) {
 		/* madd-2007-bl formulas: 7M + 4S + 9add + 1*4 + 3*2. */
 		/* http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-madd-2007-bl */
 
-		if (!p->norm) {
+		if (p->coord != BASIC) {
 			/* t0 = z1^2. */
 			fp_sqr(t0, p->z);
 
@@ -174,11 +509,11 @@ static void ep_add_projc_mix(ep_t r, const ep_t p, const ep_t q) {
 		/* t2 = HH = H^2. */
 		fp_sqr(t2, t3);
 
-		/* If E is zero. */
+		/* If H is zero. */
 		if (fp_is_zero(t3)) {
 			if (fp_is_zero(t1)) {
 				/* If I is zero, p = q, should have doubled. */
-				ep_dbl_projc(r, p);
+				ep_dbl_jacob(r, p);
 			} else {
 				/* If I is not zero, q = -p, r = infinity. */
 				ep_set_infty(r);
@@ -207,7 +542,7 @@ static void ep_add_projc_mix(ep_t r, const ep_t p, const ep_t q) {
 			fp_dbl(t1, t1);
 			fp_sub(r->y, t4, t1);
 
-			if (!p->norm) {
+			if (p->coord != BASIC) {
 				/* z3 = (z1 + H)^2 - z1^2 - HH. */
 				fp_add(r->z, p->z, t3);
 				fp_sqr(r->z, r->z);
@@ -218,12 +553,12 @@ static void ep_add_projc_mix(ep_t r, const ep_t p, const ep_t q) {
 				fp_dbl(r->z, t3);
 			}
 		}
-		r->norm = 0;
+		r->coord = JACOB;
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		fp_free(t0);
 		fp_free(t1);
 		fp_free(t2);
@@ -235,23 +570,23 @@ static void ep_add_projc_mix(ep_t r, const ep_t p, const ep_t q) {
 }
 
 /**
- * Adds two points represented in projective coordinates on an ordinary prime
+ * Adds two points represented in Jacobian coordinates on an ordinary prime
  * elliptic curve.
  *
  * @param[out] r			- the result.
  * @param[in] p				- the first point to add.
  * @param[in] q				- the second point to add.
  */
-static void ep_add_projc_imp(ep_t r, const ep_t p, const ep_t q) {
+static void ep_add_jacob_imp(ep_t r, const ep_t p, const ep_t q) {
 #if defined(EP_MIXED) && defined(STRIP)
 	/* If code size is a problem, leave only the mixed version. */
-	ep_add_projc_mix(r, p, q);
+	ep_add_jacob_mix(r, p, q);
 #else /* General addition. */
 
 #if defined(EP_MIXED) || !defined(STRIP)
 	/* Test if z2 = 1 only if mixed coordinates are turned on. */
-	if (q->norm) {
-		ep_add_projc_mix(r, p, q);
+	if (q->coord == BASIC) {
+		ep_add_jacob_mix(r, p, q);
 		return;
 	}
 #endif
@@ -266,7 +601,7 @@ static void ep_add_projc_imp(ep_t r, const ep_t p, const ep_t q) {
 	fp_null(t5);
 	fp_null(t6);
 
-	TRY {
+	RLC_TRY {
 		fp_new(t0);
 		fp_new(t1);
 		fp_new(t2);
@@ -312,7 +647,7 @@ static void ep_add_projc_imp(ep_t r, const ep_t p, const ep_t q) {
 		if (fp_is_zero(t3)) {
 			if (fp_is_zero(t0)) {
 				/* If I is zero, p = q, should have doubled. */
-				ep_dbl_projc(r, p);
+				ep_dbl_jacob(r, p);
 			} else {
 				/* If I is not zero, q = -p, r = infinity. */
 				ep_set_infty(r);
@@ -347,12 +682,12 @@ static void ep_add_projc_imp(ep_t r, const ep_t p, const ep_t q) {
 			fp_sub(r->z, r->z, t6);
 			fp_mul(r->z, r->z, t3);
 		}
-		r->norm = 0;
+		r->coord = JACOB;
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		fp_free(t0);
 		fp_free(t1);
 		fp_free(t2);
@@ -364,7 +699,7 @@ static void ep_add_projc_imp(ep_t r, const ep_t p, const ep_t q) {
 #endif
 }
 
-#endif /* EP_ADD == PROJC */
+#endif /* EP_ADD == JACOB */
 
 /*============================================================================*/
 	/* Public definitions                                                         */
@@ -400,32 +735,6 @@ void ep_add_slp_basic(ep_t r, fp_t s, const ep_t p, const ep_t q) {
 	ep_add_basic_imp(r, s, p, q);
 }
 
-void ep_sub_basic(ep_t r, const ep_t p, const ep_t q) {
-	ep_t t;
-
-	ep_null(t);
-
-	if (p == q) {
-		ep_set_infty(r);
-		return;
-	}
-
-	TRY {
-		ep_new(t);
-
-		ep_neg_basic(t, q);
-		ep_add_basic(r, p, t);
-
-		r->norm = 1;
-	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
-	}
-	FINALLY {
-		ep_free(t);
-	}
-}
-
 #endif
 
 #if EP_ADD == PROJC || !defined(STRIP)
@@ -444,7 +753,27 @@ void ep_add_projc(ep_t r, const ep_t p, const ep_t q) {
 	ep_add_projc_imp(r, p, q);
 }
 
-void ep_sub_projc(ep_t r, const ep_t p, const ep_t q) {
+#endif
+
+#if EP_ADD == JACOB || !defined(STRIP)
+
+void ep_add_jacob(ep_t r, const ep_t p, const ep_t q) {
+	if (ep_is_infty(p)) {
+		ep_copy(r, q);
+		return;
+	}
+
+	if (ep_is_infty(q)) {
+		ep_copy(r, p);
+		return;
+	}
+
+	ep_add_jacob_imp(r, p, q);
+}
+
+#endif
+
+void ep_sub(ep_t r, const ep_t p, const ep_t q) {
 	ep_t t;
 
 	ep_null(t);
@@ -454,18 +783,15 @@ void ep_sub_projc(ep_t r, const ep_t p, const ep_t q) {
 		return;
 	}
 
-	TRY {
+	RLC_TRY {
 		ep_new(t);
-
-		ep_neg_projc(t, q);
-		ep_add_projc(r, p, t);
+		ep_neg(t, q);
+		ep_add(r, p, t);
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		ep_free(t);
 	}
 }
-
-#endif

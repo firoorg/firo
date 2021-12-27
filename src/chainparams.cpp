@@ -275,6 +275,7 @@ public:
         consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
         consensus.nMTPStartBlock = 117564;
         consensus.nMTPFiveMinutesStartBlock = SWITCH_TO_MTP_5MIN_BLOCK;
+        consensus.nMTPStripDataTime = 1638954000;   // December 08, 2021 09:00 UTC
 
         consensus.nDifficultyAdjustStartBlock = 0;
         consensus.nFixedDifficulty = 0x2000ffff;
@@ -409,7 +410,7 @@ public:
 
         consensus.evoSporkKeyID = "a78fERshquPsTv2TuKMSsxTeKom56uBwLP";
         consensus.nEvoSporkStartBlock = ZC_LELANTUS_STARTING_BLOCK;
-        consensus.nEvoSporkStopBlock = ZC_LELANTUS_STARTING_BLOCK + 24*12*365;  // one year after lelantus
+        consensus.nEvoSporkStopBlock = ZC_LELANTUS_STARTING_BLOCK + 2*24*12*365;  // two years after lelantus
 
         // reorg
         consensus.nMaxReorgDepth = 5;
@@ -567,6 +568,8 @@ public:
         consensus.nMTPSwitchTime = 1539172800;
         consensus.nMTPStartBlock = 1;
         consensus.nMTPFiveMinutesStartBlock = 0;
+        consensus.nMTPStripDataTime = 1636362000;      // November 08 2021, 09:00 UTC
+
         consensus.nDifficultyAdjustStartBlock = 100;
         consensus.nFixedDifficulty = 0x2000ffff;
         consensus.nPowTargetSpacingMTP = 5*60;
@@ -807,6 +810,8 @@ public:
         consensus.nMTPSwitchTime = 0;
         consensus.nMTPStartBlock = 1;
         consensus.nMTPFiveMinutesStartBlock = 0;
+        consensus.nMTPStripDataTime = INT_MAX;
+
         consensus.nDifficultyAdjustStartBlock = 800;
         consensus.nFixedDifficulty = 0x2000ffff;
         consensus.nPowTargetSpacingMTP = 5*60;
@@ -1012,6 +1017,8 @@ public:
         consensus.nMTPSwitchTime = INT_MAX;
         consensus.nMTPStartBlock = 0;
         consensus.nMTPFiveMinutesStartBlock = 0;
+        consensus.nMTPStripDataTime = INT_MAX;
+
         consensus.nDifficultyAdjustStartBlock = 5000;
         consensus.nFixedDifficulty = 0x207fffff;
         consensus.nPowTargetSpacingMTP = 5*60;

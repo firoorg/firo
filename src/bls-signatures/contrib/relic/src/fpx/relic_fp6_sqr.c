@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2012 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -36,7 +37,7 @@
 /* Public definitions                                                         */
 /*============================================================================*/
 
-#if PP_EXT == BASIC || !defined(STRIP)
+#if FPX_RDC == BASIC || !defined(STRIP)
 
 void fp6_sqr_basic(fp6_t c, fp6_t a) {
 	fp2_t t0, t1, t2, t3, t4;
@@ -47,7 +48,7 @@ void fp6_sqr_basic(fp6_t c, fp6_t a) {
 	fp2_null(t3);
 	fp2_null(t4);
 
-	TRY {
+	RLC_TRY {
 		fp2_new(t0);
 		fp2_new(t1);
 		fp2_new(t2);
@@ -95,9 +96,9 @@ void fp6_sqr_basic(fp6_t c, fp6_t a) {
 		/* c1 = t3 + t2 * E. */
 		fp2_mul_nor(t4, t2);
 		fp2_add(c[1], t3, t4);
-	} CATCH_ANY {
-		THROW(ERR_CAUGHT);
-	} FINALLY {
+	} RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
+	} RLC_FINALLY {
 		fp2_free(t0);
 		fp2_free(t1);
 		fp2_free(t2);
@@ -125,7 +126,7 @@ void fp6_sqr_unr(dv6_t c, fp6_t a) {
 	fp2_null(t2);
 	fp2_null(t3);
 
-	TRY {
+	RLC_TRY {
 		dv2_new(u0);
 		dv2_new(u1);
 		dv2_new(u2);
@@ -143,7 +144,7 @@ void fp6_sqr_unr(dv6_t c, fp6_t a) {
 		/* t1 = 2 * a_1 * a_2 */
 		fp2_dblm_low(t0, a[1]);
 
-#ifdef FP_SPACE
+#ifdef RLC_FP_ROOM
 		fp2_mulc_low(u1, t0, a[2]);
 #else
 		fp2_muln_low(u1, t0, a[2]);
@@ -164,7 +165,7 @@ void fp6_sqr_unr(dv6_t c, fp6_t a) {
 		fp2_sqrn_low(u4, t1);
 
 		/* u4 = (u4 + u3)/2. */
-#ifdef FP_SPACE
+#ifdef RLC_FP_ROOM
 		fp2_addd_low(u4, u4, u3);
 #else
 		fp2_addc_low(u4, u4, u3);
@@ -173,7 +174,7 @@ void fp6_sqr_unr(dv6_t c, fp6_t a) {
 		fp_hlvd_low(u4[1], u4[1]);
 
 		/* u3 = u3 - u4 - u1. */
-#ifdef FP_SPACE
+#ifdef RLC_FP_ROOM
 		fp2_addd_low(u5, u1, u4);
 #else
 		fp2_addc_low(u5, u1, u4);
@@ -181,7 +182,7 @@ void fp6_sqr_unr(dv6_t c, fp6_t a) {
 		fp2_subc_low(u3, u3, u5);
 
 		/* c2 = u4 - u0 - u2. */
-#ifdef FP_SPACE
+#ifdef RLC_FP_ROOM
 		fp2_addd_low(u5, u0, u2);
 #else
 		fp2_addc_low(u5, u0, u2);
@@ -195,9 +196,9 @@ void fp6_sqr_unr(dv6_t c, fp6_t a) {
 		/* c1 = u3 + u2 * E. */
 		fp2_nord_low(u4, u2);
 		fp2_addc_low(c[1], u3, u4);
-	} CATCH_ANY {
-		THROW(ERR_CAUGHT);
-	} FINALLY {
+	} RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
+	} RLC_FINALLY {
 		dv2_free(u0);
 		dv2_free(u1);
 		dv2_free(u2);
@@ -216,15 +217,15 @@ void fp6_sqr_lazyr(fp6_t c, fp6_t a) {
 
 	dv6_null(t);
 
-	TRY {
+	RLC_TRY {
 		dv6_new(t);
 		fp6_sqr_unr(t, a);
 		fp2_rdcn_low(c[0], t[0]);
 		fp2_rdcn_low(c[1], t[1]);
 		fp2_rdcn_low(c[2], t[2]);
-	} CATCH_ANY {
-		THROW(ERR_CAUGHT);
-	} FINALLY {
+	} RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
+	} RLC_FINALLY {
 		dv6_free(t);
 	}
 }

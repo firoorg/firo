@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -53,41 +54,41 @@ void fb_rdc_basic(fb_t c, dv_t a) {
 
 	dv_null(r);
 
-	TRY {
+	RLC_TRY {
 		dv_new(r);
 
-		tmpa = a + FB_DIGS;
+		tmpa = a + RLC_FB_DIGS;
 
 		/* First reduce the high part. */
 		for (int i = fb_bits(tmpa) - 1; i >= 0; i--) {
 			if (fb_get_bit(tmpa, i)) {
-				SPLIT(k, j, i - FB_BITS, FB_DIG_LOG);
+				RLC_RIP(k, j, i - RLC_FB_BITS);
 				if (k <= 0) {
-					fb_addd_low(tmpa + j, tmpa + j, fb_poly_get(), FB_DIGS);
+					fb_addd_low(tmpa + j, tmpa + j, fb_poly_get(), RLC_FB_DIGS);
 				} else {
-					r[FB_DIGS] = fb_lshb_low(r, fb_poly_get(), k);
-					fb_addd_low(tmpa + j, tmpa + j, r, FB_DIGS + 1);
+					r[RLC_FB_DIGS] = fb_lshb_low(r, fb_poly_get(), k);
+					fb_addd_low(tmpa + j, tmpa + j, r, RLC_FB_DIGS + 1);
 				}
 			}
 		}
-		for (int i = fb_bits(a) - 1; i >= FB_BITS; i--) {
+		for (int i = fb_bits(a) - 1; i >= RLC_FB_BITS; i--) {
 			if (fb_get_bit(a, i)) {
-				SPLIT(k, j, i - FB_BITS, FB_DIG_LOG);
+				RLC_RIP(k, j, i - RLC_FB_BITS);
 				if (k == 0) {
-					fb_addd_low(a + j, a + j, fb_poly_get(), FB_DIGS);
+					fb_addd_low(a + j, a + j, fb_poly_get(), RLC_FB_DIGS);
 				} else {
-					r[FB_DIGS] = fb_lshb_low(r, fb_poly_get(), k);
-					fb_addd_low(a + j, a + j, r, FB_DIGS + 1);
+					r[RLC_FB_DIGS] = fb_lshb_low(r, fb_poly_get(), k);
+					fb_addd_low(a + j, a + j, r, RLC_FB_DIGS + 1);
 				}
 			}
 		}
 
 		fb_copy(c, a);
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		fb_free(r);
 	}
 }

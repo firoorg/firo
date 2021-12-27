@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2014 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -32,222 +33,200 @@
 #include "relic_core.h"
 #include "relic_label.h"
 
-#if ED_ADD == PROJC
+/*============================================================================*/
+/* Public definitions                                                         */
+/*============================================================================*/
 
-static void ed_dbl_projc(ed_t r, const ed_t p) {
-	fp_t B;
-	fp_t C;
-	fp_t D;
-	fp_t E;
-	fp_t F;
-	fp_t H;
-	fp_t J;
+#if ED_ADD == BASIC || !defined(STRIP)
 
-	fp_new(B);
-	fp_new(C);
-	fp_new(D);
-	fp_new(E);
-	fp_new(F);
-	fp_new(H);
-	fp_new(J);
+void ed_dbl_basic(ed_t r, const ed_t p) {
+	fp_t t0, t1, t2;
 
-	// B = (X_1 + Y_1)^2
-	fp_add(B, p->x, p->y);
-	fp_sqr(B, B);
+	fp_null(t0);
+	fp_null(t1);
+	fp_null(t2);
 
-	// C = X_1^2
-	fp_sqr(C, p->x);
+	RLC_TRY {
+		fp_new(t0);
+		fp_new(t1);
+		fp_new(t2);
 
-	// D = Y_1^2
-	fp_sqr(D, p->y);
+		/* x3 = (x1*y1+y1*x1)/(1+d*x1*x1*y1*y1)
+		 * y3 = (y1*y1-a*x1*x1)/(1-d*x1*x1*y1*y1) */
 
-	// E = aC
-	fp_mul(E, core_get()->ed_a, C);
+		fp_mul(t0, p->x, p->y);
+		fp_sqr(t1, t0);
 
-	// F = E + D
-	fp_add(F, E, D);
+		fp_mul(t1, t1, core_get()->ed_d);
+		fp_add_dig(t2, t1, 1);
+		fp_inv(t2, t2);
+		fp_sub_dig(t1, t1, 1);
+		fp_neg(t1, t1);
+		fp_inv(t1, t1);
 
-	// H = Z^2
-	fp_sqr(H, p->z);
+		fp_dbl(t0, t0);
+		fp_mul(t0, t0, t2);
 
-	// J = F - 2H
-	fp_dbl(J, H);
-	fp_sub(J, F, J);
+		fp_sqr(t2, p->x);
+		fp_mul(t2, t2, core_get()->ed_a);
+		fp_sqr(r->y, p->y);
+		fp_sub(r->y, r->y, t2);
+		fp_mul(r->y, r->y, t1);
 
-	// X_3 = (B - C - D) * J
-	fp_sub(r->x, B, C);
-	fp_sub(r->x, r->x, D);
-	fp_mul(r->x, r->x, J);
+		fp_copy(r->x, t0);
+		fp_copy(r->z, p->z);
 
-	// Y_3 = F * (E - D)
-	fp_sub(r->y, E, D);
-	fp_mul(r->y, F, r->y);
-
-	// Z_3 = F * J
-	fp_mul(r->z, F, J);
-
-	// 3M + 4S + 1D + 7add
-
-	fp_free(B);
-	fp_free(C);
-	fp_free(D);
-	fp_free(E);
-	fp_free(F);
-	fp_free(H);
-	fp_free(J);
+		r->coord = BASIC;
+	}
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
+	}
+	RLC_FINALLY {
+		fp_free(t0);
+		fp_free(t1);
+		fp_free(t2);
+	}
 }
 
-#endif
+#endif /* ED_ADD == BASIC */
 
-#if ED_ADD == EXTND
+#if ED_ADD == PROJC || !defined(STRIP)
 
-static void ed_dbl_extnd(ed_t r, const ed_t p) {
-	fp_t A;
-	fp_t B;
-	fp_t E;
-	fp_t F;
-	fp_t G;
+void ed_dbl_projc(ed_t r, const ed_t p) {
+	fp_t t0, t1, t2, t3, t4, t5, t6;
 
-	fp_new(A);
-	fp_new(B);
-	fp_new(E);
-	fp_new(F);
-	fp_new(G);
+	fp_null(t0);
+	fp_null(t1);
+	fp_null(t2);
+	fp_null(t3);
+	fp_null(t4);
+	fp_null(t5);
+	fp_null(t6);
 
-	// A = X^2
-	fp_sqr(A, p->x);
+	RLC_TRY {
+		fp_new(t0);
+		fp_new(t1);
+		fp_new(t2);
+		fp_new(t3);
+		fp_new(t4);
+		fp_new(t5);
+		fp_new(t6);
 
-	// B = Y^2
-	fp_sqr(B, p->y);
+		// 3M + 4S + 1D + 7add
 
-	// C = 2 * Z^2
-#define C (r->z)
-	fp_sqr(C, p->z);
-	fp_dbl(C, C);
+		/* B = (x1 + y1)^2 */
+		fp_add(t0, p->x, p->y);
+		fp_sqr(t0, t0);
 
-	// D = a * A
-#define D (r->t)
-	fp_mul(D, core_get()->ed_a, A);
+		/* C = x1^2 */
+		fp_sqr(t1, p->x);
 
-	// E = (X + Y) ^ 2 - A - B
-	fp_add(E, p->x, p->y);
-	fp_sqr(E, E);
-	fp_sub(E, E, A);
-	fp_sub(E, E, B);
+		/*  D = y1^2 */
+		fp_sqr(t2, p->y);
 
-	// G = D + B
-	fp_add(G, D, B);
+		/* E = a * C */
+		fp_mul(t3, core_get()->ed_a, t1);
 
-	// F = G - C
-	fp_sub(F, G, C);
-#undef C
+		/* F = E + D, H = Z^2 */
+		fp_add(t4, t3, t2);
+		fp_sqr(t5, p->z);
 
-	// H = D - B
-#define H (r->z)
-	fp_sub(H, D, B);
-#undef D
+		// J = F - 2H
+		fp_dbl(t6, t5);
+		fp_sub(t6, t4, t6);
 
-	// X = E * F
-	fp_mul(r->x, E, F);
+		// x3 = (B - C - D) * J
+		fp_sub(r->x, t0, t1);
+		fp_sub(r->x, r->x, t2);
+		fp_mul(r->x, r->x, t6);
 
-	// Y = G * H
-	fp_mul(r->y, G, H);
+		// x3 = F * (E - D)
+		fp_sub(r->y, t3, t2);
+		fp_mul(r->y, t4, r->y);
 
-	// T = E * H
-	fp_mul(r->t, E, H);
-#undef H
+		/* x3 = F * J */
+		fp_mul(r->z, t4, t6);
 
-	// Z = F * G
-	fp_mul(r->z, F, G);
-
-	// 4M + 4S + 1D + 7add
-
-	fp_free(A);
-	fp_free(B);
-	fp_free(E);
-	fp_free(F);
-	fp_free(G);
+		r->coord = PROJC;
+	} RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
+	} RLC_FINALLY {
+		fp_free(t0);
+		fp_free(t1);
+		fp_free(t2);
+		fp_free(t3);
+		fp_free(t4);
+		fp_free(t5);
+		fp_free(t6);
+	}
 }
 
-static void ed_dbl_extnd_short(ed_t r, const ed_t p) {
-	fp_t A;
-	fp_t B;
-	fp_t F;
-	fp_t G;
+#endif /* ED_PROJC */
 
+#if ED_ADD == EXTND || !defined(STRIP)
 
-	fp_new(A);
-	fp_new(B);
-	fp_new(F);
-	fp_new(G);
+void ed_dbl_extnd(ed_t r, const ed_t p) {
+	fp_t t0, t1, t2, t3, t4;
 
-	// A = X^2
-	fp_sqr(A, p->x);
+	fp_null(t0);
+	fp_null(t1);
+	fp_null(t2);
+	fp_null(t3);
+	fp_null(t4);
 
-	// B = Y^2
-	fp_sqr(B, p->y);
+	RLC_TRY {
+		fp_new(t0);
+		fp_new(t1);
+		fp_new(t2);
+		fp_new(t3);
+		fp_new(t4);
 
-	// C = 2 * Z^2
-#define C (r->z)
-	fp_sqr(C, p->z);
-	fp_dbl(C, C);
+		// efd: dbl-2008-hwcd, rfc edition
+		// 4M + 4S + 1D + 7add
 
-	// D = a * A
-#define D (r->t)
-	fp_mul(D, core_get()->ed_a, A);
+		/* A = X^2, B = Y^2 */
+		fp_sqr(t0, p->x);
+		fp_sqr(t1, p->y);
 
-	// E = (X + Y) ^ 2 - A - B
-#define E (r->y)
-	fp_add(E, p->x, p->y);
-	fp_sqr(E, E);
-	fp_sub(E, E, A);
-	fp_sub(E, E, B);
+		/* C = 2 * Z^2 */
+		fp_sqr(r->z, p->z);
+		fp_dbl(r->z, r->z);
 
-	// G = D + B
-	fp_add(G, D, B);
+		/* D = a * A */
+		fp_mul(r->t, core_get()->ed_a, t0);
 
-	// F = G - C
-	fp_sub(F, G, C);
-#undef C
+		/* E = (X + Y) ^ 2 - A - B */
+		fp_add(t2, p->x, p->y);
+		fp_sqr(t2, t2);
+		fp_sub(t2, t2, t0);
+		fp_sub(t2, t2, t1);
 
-	// H = D - B
-#define H (r->z)
-	fp_sub(H, D, B);
-#undef D
+		/* G = D + B, F = G - C, H = D - B */
+		fp_add(t4, r->t, t1);
+		fp_sub(t3, t4, r->z);
+		fp_sub(r->z, r->t, t1);
 
-	// X = E * F
-	fp_mul(r->x, E, F);
-#undef E
+		/* X = E * F */
+		fp_mul(r->x, t2, t3);
+		/* Y = G * H */
+		fp_mul(r->y, t4, r->z);
+		if (r->coord != EXTND) {
+			/* T = E * H */
+			fp_mul(r->t, t2, r->z);
+		}
+		/* Z = F * G */
+		fp_mul(r->z, t3, t4);
 
-	// Y = G * H
-	fp_mul(r->y, G, H);
-#undef H
-
-	// Z = F * G
-	fp_mul(r->z, F, G);
-
-	// 4M + 4S + 1D + 7add
-
-	fp_free(A);
-	fp_free(B);
-	fp_free(F);
-	fp_free(G);
+		r->coord = PROJC;
+	} RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
+	} RLC_FINALLY {
+		fp_free(t0);
+		fp_free(t1);
+		fp_free(t2);
+		fp_free(t3);
+		fp_free(t4);
+	}
 }
 
-#endif
-
-void ed_dbl(ed_t r, const ed_t p) {
-#if ED_ADD == PROJC
-	ed_dbl_projc(r, p);
-#elif ED_ADD == EXTND
-	ed_dbl_extnd(r, p);
-#endif
-}
-
-void ed_dbl_short(ed_t r, const ed_t p) {
-#if ED_ADD == PROJC
-	ed_dbl(r, p);
-#elif ED_ADD == EXTND
-	ed_dbl_extnd_short(r, p);
-#endif
-}
+#endif /* ED_EXTND */

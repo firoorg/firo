@@ -168,6 +168,11 @@ std::vector<CWalletTx> LelantusJoinSplitBuilder::Build(
         outputs.push_back(out);
     }
 
+    {
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        pwalletMain->zwallet->ResetCount(walletdb);
+    }
+
     std::size_t i = 0;
     while (required > 0 && !outputs.empty() && i < fees.size()) {
 //        for (;;) {

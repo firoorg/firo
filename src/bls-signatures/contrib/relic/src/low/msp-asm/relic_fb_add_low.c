@@ -1,6 +1,6 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007, 2008, 2009 RELIC Authors
+ * Copyright (c) 2007, 2008, 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
@@ -42,7 +42,7 @@ void fb_add1_low(dig_t *c, const dig_t *a, dig_t digit) {
 	(*c) = (*a) ^ digit;
 	c++;
 	a++;
-	for (i = 0; i < FB_DIGS - 1; i++, a++, c++)
+	for (i = 0; i < RLC_FB_DIGS - 1; i++, a++, c++)
 		(*c) = (*a);
 }
 

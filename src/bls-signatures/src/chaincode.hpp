@@ -29,12 +29,13 @@
 #include "relic_test.h"
 
 #include "util.hpp"
+
 namespace bls {
 class ChainCode {
  public:
-    static const size_t CHAIN_CODE_SIZE = 32;
+    static const size_t SIZE = 32;
 
-    static ChainCode FromBytes(const uint8_t* bytes);
+    static ChainCode FromBytes(const Bytes& bytes);
 
     ChainCode(const ChainCode &cc);
 
@@ -46,9 +47,9 @@ class ChainCode {
     void Serialize(uint8_t *buffer) const;
     std::vector<uint8_t> Serialize() const;
 
- private:
     // Prevent direct construction, use static constructor
     ChainCode() {}
+private:
 
     bn_t chainCode;
 };

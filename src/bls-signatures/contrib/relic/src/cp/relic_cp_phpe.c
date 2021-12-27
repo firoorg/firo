@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2014 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -31,6 +32,7 @@
 #include <string.h>
 
 #include "relic_core.h"
+#include "relic_multi.h"
 #include "relic_conf.h"
 #include "relic_rand.h"
 #include "relic_bn.h"
@@ -42,88 +44,81 @@
 /* Public definitions                                                         */
 /*============================================================================*/
 
-int cp_phpe_gen(bn_t n, bn_t l, int bits) {
-	bn_t p, q;
-	int result = STS_OK;
+int cp_phpe_gen(bn_t pub, phpe_t prv, int bits) {
+	int result = RLC_OK;
 
-	bn_null(p);
-	bn_null(q);
+	/* Generate primes p and q of equivalent length. */
+	do {
+		bn_gen_prime(prv->p, bits / 2);
+		bn_gen_prime(prv->q, bits / 2);
+	} while (bn_cmp(prv->p, prv->q) == RLC_EQ);
 
-	TRY {
-		bn_new(p);
-		bn_new(q);
+	/* Compute n = pq and l = \phi(n). */
+	bn_mul(prv->n, prv->p, prv->q);
 
-		/* Generate primes p and q of equivalent length. */
-		do {
-			bn_gen_prime(p, bits / 2);
-			bn_gen_prime(q, bits / 2);
-		} while (bn_cmp(p, q) == CMP_EQ);
+#ifdef CP_CRT
+	/* Fix g = n + 1. */
+	bn_add_dig(pub, prv->n, 1);
 
-		/* Compute n = pq and l = \phi(n). */
-		bn_mul(n, p, q);
-		bn_sub_dig(p, p, 1);
-		bn_sub_dig(q, q, 1);
-		bn_mul(l, p, q);
-	}
-	CATCH_ANY {
-		result = STS_ERR;
-	}
-	FINALLY {
-		bn_free(p);
-		bn_free(q);
-	}
+	/* Precompute dp = 1/(pow(g, p-1, p^2)//p mod p. */
+	bn_sqr(prv->dp, prv->p);
+	bn_sub_dig(prv->p, prv->p, 1);
+	bn_mxp(prv->dp, pub, prv->p, prv->dp);
+	bn_sub_dig(prv->dp, prv->dp, 1);
+	bn_div(prv->dp, prv->dp, prv->p);
+	/* Precompute dq = 1/(pow(g, q-1, q^2)//q mod q. */
+	bn_sqr(prv->dq, prv->q);
+	bn_sub_dig(prv->q, prv->q, 1);
+	bn_mxp(prv->dq, pub, prv->q, prv->dq);
+	bn_sub_dig(prv->dq, prv->dq, 1);
+	bn_div(prv->dq, prv->dq, prv->q);
 
+	/* Restore p and q. */
+	bn_add_dig(prv->p, prv->p, 1);
+	bn_add_dig(prv->q, prv->q, 1);
+	bn_mod_inv(prv->dp, prv->dp, prv->p);
+	bn_mod_inv(prv->dq, prv->dq, prv->q);
+
+	/* qInv = q^(-1) mod p. */
+	bn_mod_inv(prv->qi, prv->q, prv->p);
+#endif
+
+	bn_copy(pub, prv->n);
 	return result;
 }
 
-int cp_phpe_enc(uint8_t *out, int *out_len, uint8_t *in, int in_len, bn_t n) {
-	bn_t g, m, r, s;
-	int size, result = STS_OK;
+int cp_phpe_enc(bn_t c, bn_t m, bn_t pub) {
+	bn_t g, r, s;
+	int result = RLC_OK;
 
 	bn_null(g);
-	bn_null(m);
 	bn_null(r);
 	bn_null(s);
 
-	size = bn_size_bin(n);
-
-	if (n == NULL || in_len <= 0 || in_len > size) {
-		return STS_ERR;
+	if (pub == NULL || bn_bits(m) > bn_bits(pub)) {
+		return RLC_ERR;
 	}
 
-	TRY {
+	RLC_TRY {
 		bn_new(g);
-		bn_new(m);
 		bn_new(r);
 		bn_new(s);
 
-		/* Represent m as a padded element of Z_n. */
-		bn_read_bin(m, in, in_len);
-
 		/* Generate r in Z_n^*. */
-		bn_rand_mod(r, n);
-
+		bn_rand_mod(r, pub);
 		/* Compute c = (g^m)(r^n) mod n^2. */
-		bn_add_dig(g, n, 1);
-		bn_sqr(s, n);
-		bn_mxp(m, g, m, s);
-		bn_mxp(r, r, n, s);
-		bn_mul(m, m, r);
-		bn_mod(m, m, s);
-		if (2 * size <= *out_len) {
-			*out_len = 2 * size;
-			memset(out, 0, *out_len);
-			bn_write_bin(out, *out_len, m);
-		} else {
-			result = STS_ERR;
-		}
+		bn_add_dig(g, pub, 1);
+		bn_sqr(s, pub);
+		bn_mxp(c, g, m, s);
+		bn_mxp(r, r, pub, s);
+		bn_mul(c, c, r);
+		bn_mod(c, c, s);
 	}
-	CATCH_ANY {
-		result = STS_ERR;
+	RLC_CATCH_ANY {
+		result = RLC_ERR;
 	}
-	FINALLY {
+	RLC_FINALLY {
 		bn_free(g);
-		bn_free(m);
 		bn_free(r);
 		bn_free(s);
 	}
@@ -131,53 +126,98 @@ int cp_phpe_enc(uint8_t *out, int *out_len, uint8_t *in, int in_len, bn_t n) {
 	return result;
 }
 
-int cp_phpe_dec(uint8_t *out, int out_len, uint8_t *in, int in_len, bn_t n,
-	bn_t l) {
-	bn_t c, u, s;
-	int size, result = STS_OK;
+int cp_phpe_dec(bn_t m, bn_t c, phpe_t prv) {
+	bn_t s, t, u, v;
+	int result = RLC_OK;
 
-	size = bn_size_bin(n);
-
-	if (in_len < 0 || in_len != 2 * size) {
-		return STS_ERR;
+	if (prv == NULL || bn_bits(c) > 2 * bn_bits(prv->n)) {
+		return RLC_ERR;
 	}
 
-	bn_null(c);
-	bn_null(u);
 	bn_null(s);
+	bn_null(t);
+	bn_null(u);
+	bn_null(v);
 
-	TRY {
-		bn_new(c);
-		bn_new(u);
+	RLC_TRY {
 		bn_new(s);
+		bn_new(t);
+		bn_new(u);
+		bn_new(v);
 
+#if !defined(CP_CRT)
+		bn_sub_dig(s, prv->p, 1);
+		bn_sub_dig(t, prv->q, 1);
+		bn_mul(s, s, t);
 		/* Compute (c^l mod n^2) * u mod n. */
-		bn_sqr(s, n);
-		bn_read_bin(c, in, in_len);
-		bn_mxp(c, c, l, s);
-		bn_sub_dig(c, c, 1);
-		bn_div(c, c, n);
-		bn_gcd_ext(s, u, NULL, l, n);
-		if (bn_sign(u) == BN_NEG) {
-			bn_add(u, u, n);
-		}
-		bn_mul(c, c, u);
-		bn_mod(c, c, n);
+		bn_sqr(t, prv->n);
+		bn_mxp(m, c, s, t);
 
-		size = bn_size_bin(c);
-		if (size <= out_len) {
-			memset(out, 0, out_len);
-			bn_write_bin(out + (out_len - size), size, c);
-		} else {
-			result = STS_ERR;
+		bn_sub_dig(m, m, 1);
+		bn_div(m, m, prv->n);
+		bn_mod_inv(t, s, prv->n);
+		bn_mul(m, m, t);
+		bn_mod(m, m, prv->n);
+#else
+
+#if MULTI == OPENMP
+		omp_set_num_threads(CORES);
+		#pragma omp parallel copyin(core_ctx) firstprivate(c, prv)
+		{
+			#pragma omp sections
+			{
+				#pragma omp section
+				{
+#endif
+					/* Compute m_p = (c^(p-1) mod p^2) * dp mod p. */
+					bn_sub_dig(t, prv->p, 1);
+					bn_sqr(s, prv->p);
+					bn_mxp(s, c, t, s);
+					bn_sub_dig(s, s, 1);
+					bn_div(s, s, prv->p);
+					bn_mul(s, s, prv->dp);
+					bn_mod(s, s, prv->p);
+#if MULTI == OPENMP
+				}
+				#pragma omp section
+				{
+#endif
+					/* Compute m_q = (c^(q-1) mod q^2) * dq mod q. */
+					bn_sub_dig(v, prv->q, 1);
+					bn_sqr(u, prv->q);
+					bn_mxp(u, c, v, u);
+					bn_sub_dig(u, u, 1);
+					bn_div(u, u, prv->q);
+					bn_mul(u, u, prv->dq);
+					bn_mod(u, u, prv->q);
+#if MULTI == OPENMP
+				}
+			}
 		}
-	} CATCH_ANY {
-		result = STS_ERR;
+#endif
+
+		/* m = (m_p - m_q) mod p. */
+		bn_sub(m, s, u);
+		while (bn_sign(m) == RLC_NEG) {
+			bn_add(m, m, prv->p);
+		}
+		bn_mod(m, m, prv->p);
+		/* m1 = qInv(m_p - m_q) mod p. */
+		bn_mul(m, m, prv->qi);
+		bn_mod(m, m, prv->p);
+		/* m = m2 + m1 * q. */
+		bn_mul(m, m, prv->q);
+		bn_add(m, m, u);
+		bn_mod(m, m, prv->n);
+#endif
+	} RLC_CATCH_ANY {
+		result = RLC_ERR;
 	}
-	FINALLY {
-		bn_free(c);
-		bn_free(u);
+	RLC_FINALLY {
 		bn_free(s);
+		bn_free(t);
+		bn_free(u);
+		bn_free(v);
 	}
 
 	return result;

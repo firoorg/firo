@@ -1,6 +1,6 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2011 RELIC Authors
+ * Copyright (c) 2007-2011 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
@@ -96,7 +96,7 @@ void fp2_norm_low(fp2_t c, fp2_t a) {
 	fp2_null(t);
 	bn_null(b);
 
-	TRY {
+	RLC_TRY {
 		fp2_new(t);
 		bn_new(b);
 
@@ -136,15 +136,15 @@ void fp2_norm_low(fp2_t c, fp2_t a) {
 				fp2_add(c, c, t);
 				break;
 			default:
-				THROW(ERR_NO_VALID);
+				RLC_THROW(ERR_NO_VALID);
 				break;
 		}
 #endif
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		fp2_free(t);
 		bn_free(b);
 	}
@@ -157,7 +157,7 @@ void fp2_nord_low(dv2_t c, dv2_t a) {
 	dv2_null(t);
 	bn_null(b);
 
-	TRY {
+	RLC_TRY {
 		dv2_new(t);
 		bn_new(b);
 
@@ -168,11 +168,11 @@ void fp2_nord_low(dv2_t c, dv2_t a) {
 		fp_addc_low(t[1], a[1], a[1]);
 		fp_addc_low(t[1], t[1], t[1]);
 		fp_addc_low(c[1], a[0], t[1]);
-		dv_copy(c[0], t[0], 2 * FP_DIGS);
+		dv_copy(c[0], t[0], 2 * RLC_FP_DIGS);
 #elif defined(FP_QNRES)
 		/* If p = 3 mod 8, (1 + i) is a QNR/CNR. */
 		/* (a_0 + a_1 * i) * (1 + i) = (a_0 - a_1) + (a_0 + a_1) * u. */
-		dv_copy(t[0], a[1], 2 * FP_DIGS);
+		dv_copy(t[0], a[1], 2 * RLC_FP_DIGS);
 		fp_addc_low(c[1], a[0], a[1]);
 		fp_subc_low(c[0], a[0], t[0]);
 #else
@@ -180,20 +180,20 @@ void fp2_nord_low(dv2_t c, dv2_t a) {
 			case 3:
 				/* If p = 3 mod 8, (1 + u) is a QNR, u^2 = -1. */
 				/* (a_0 + a_1 * u) * (1 + u) = (a_0 - a_1) + (a_0 + a_1) * u. */
-				dv_copy(t[0], a[1], 2 * FP_DIGS);
+				dv_copy(t[0], a[1], 2 * RLC_FP_DIGS);
 				fp_addc_low(c[1], a[0], a[1]);
 				fp_subc_low(c[0], a[0], t[0]);
 				break;
 			case 5:
 				/* If p = 5 mod 8, (u) is a QNR. */
-				dv_copy(t[0], a[0], 2 * FP_DIGS);
-				dv_zero(t[1], FP_DIGS);
-				dv_copy(t[1] + FP_DIGS, fp_prime_get(), FP_DIGS);
+				dv_copy(t[0], a[0], 2 * RLC_FP_DIGS);
+				dv_zero(t[1], RLC_FP_DIGS);
+				dv_copy(t[1] + RLC_FP_DIGS, fp_prime_get(), RLC_FP_DIGS);
 				fp_subc_low(c[0], t[1], a[1]);
 				for (int i = -1; i > fp_prime_get_qnr(); i--) {
 					fp_subc_low(c[0], c[0], a[1]);
 				}
-				dv_copy(c[1], t[0], 2 * FP_DIGS);
+				dv_copy(c[1], t[0], 2 * RLC_FP_DIGS);
 				break;
 			case 7:
 				/* If p = 7 mod 8, (2^lg_4(b-1) + u) is a QNR/CNR.   */
@@ -208,15 +208,15 @@ void fp2_nord_low(dv2_t c, dv2_t a) {
 				fp_addc_low(c[1], t[1], a[0]);
 				break;
 			default:
-				THROW(ERR_NO_VALID);
+				RLC_THROW(ERR_NO_VALID);
 				break;
 		}
 #endif
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		dv2_free(t);
 		bn_free(b);
 	}
