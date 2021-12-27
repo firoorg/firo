@@ -526,6 +526,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
     {
         LOCK2(cs_main, wallet->cs_wallet);
 
+        auto &transaction = transactions[0];
         auto &spendCoins = transaction.getSpendCoins();
         auto &sigmaSpendCoins = transaction.getSigmaSpendCoins();
         auto &mintCoins = transaction.getMintCoins();
@@ -533,9 +534,13 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
         CAmount feeRequired = 0;
         std::string strFailReason;
 
-        CWalletTx *newTx = transaction.getTransaction();
+        std::vector<CWalletTx> newTXs;
+        std::vector<CAmount> fees;
         try {
-            *newTx = wallet->CreateLelantusJoinSplitTransaction(vecSend, feeRequired, {}, spendCoins, sigmaSpendCoins, mintCoins, coinControl);
+
+            newTXs = wallet->CreateLelantusJoinSplitTransaction(vecSend, fees, {}, spendCoins, sigmaSpendCoins, mintCoins, coinControl);
+            for (const auto& fee : fees)
+                feeRequired += fee;
         } catch (InsufficientFunds const&) {
             transaction.setTransactionFee(feeRequired);
             if (!fSubtractFeeFromAmount && (total + feeRequired) > nBalance) {
@@ -565,19 +570,18 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
             return AbsurdFee;
         }
 
-        int changePos = -1;
-        if (!mintCoins.empty()) {
-            for (changePos = 0; changePos < newTx->tx->vout.size(); changePos++) {
-                if (newTx->tx->vout[changePos].scriptPubKey.IsLelantusJMint()) {
+        for (size_t i = 0; i < newTXs.size(); i++) {
+            int changePos = -1;
+            for (changePos = 0; changePos < newTXs[i].tx->vout.size(); changePos++) {
+                if (newTXs[i].tx->vout[changePos].scriptPubKey.IsLelantusJMint()) {
                     break;
                 }
             }
 
-            changePos = changePos >= newTx->tx->vout.size() ? -1 : changePos;
+            changePos = changePos >= newTXs[i].tx->vout.size() ? -1 : changePos;
+//            transaction.setTransactionFee(feeRequired);
+//            transaction.reassignAmounts(changePos);
         }
-
-        transaction.setTransactionFee(feeRequired);
-        transaction.reassignAmounts(changePos);
     }
 
     return SendCoinsReturn(OK);

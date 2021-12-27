@@ -41,9 +41,9 @@ LelantusJoinSplitBuilder::~LelantusJoinSplitBuilder()
     cs_main.unlock();
 }
 
-CWalletTx LelantusJoinSplitBuilder::Build(
+std::vector<CWalletTx> LelantusJoinSplitBuilder::Build(
     const std::vector<CRecipient>& recipients,
-    CAmount &fee,
+    std::vector<CAmount> &fees,
     const std::vector<CAmount>& newMints,
     std::function<void(CTxOut & , LelantusJoinSplitBuilder const &)> outModifier)
 {
@@ -119,219 +119,271 @@ CWalletTx LelantusJoinSplitBuilder::Build(
     if (pwalletMain->zwallet) {
         nCountNextUse = pwalletMain->zwallet->GetCount();
     }
+    uint32_t mintNumber = 0;
 
     std::list<CSigmaEntry> sigmaCoins = pwalletMain->GetAvailableCoins(coinControl);
     std::list<CLelantusEntry> coins = pwalletMain->GetAvailableLelantusCoins(coinControl);
-    std::tie(fee, std::ignore) = wallet.EstimateJoinSplitFee(vOut + mint, recipientsToSubtractFee, sigmaCoins, coins, coinControl);
+    CAmount required = vOut + mint;
+    std::vector<CAmount> spendAmounts;
+    CAmount fullFee = wallet.EstimateJoinSplitFee(required, recipientsToSubtractFee, sigmaCoins, coins, fees, spendAmounts, coinControl);
+    if (!recipientsToSubtractFee)
+        required += fullFee;
 
-    for (;;) {
-        // In case of not enough fee, reset mint seed counter
-        if (pwalletMain->zwallet) {
-            pwalletMain->zwallet->SetCount(nCountNextUse);
-        }
-        CAmount required = vOut + mint;
-        CAmount currentVout = vOut;
-        tx.vin.clear();
-        tx.vout.clear();
 
-        result.fFromMe = true;
-        result.changes.clear();
+    bool remainderSubtracted = false;
+    std::vector<CTxOut> outputs;
+    std::vector<CWalletTx> results;
+    for (size_t i = 0; i < recipients.size(); i++) {
+        auto &recipient = recipients[i];
+        CTxOut out(recipient.nAmount, recipient.scriptPubKey);
 
-        // If no any recipients to subtract fee then the sender need to pay by themself.
-        if (!recipientsToSubtractFee) {
-            required += fee;
-        } else {
-            currentVout -= fee;
-        }
-        // fill outputs
-        bool remainderSubtracted = false;
+        if (recipient.fSubtractFeeFromAmount) {
+            // Subtract fee equally from each selected recipient.
+            out.nValue -= fullFee / recipientsToSubtractFee;
 
-        for (size_t i = 0; i < recipients.size(); i++) {
-            auto& recipient = recipients[i];
-            CTxOut vout(recipient.nAmount, recipient.scriptPubKey);
-
-            if (recipient.fSubtractFeeFromAmount) {
-                // Subtract fee equally from each selected recipient.
-                vout.nValue -= fee / recipientsToSubtractFee;
-
-                if (!remainderSubtracted) {
-                    // First receiver pays the remainder not divisible by output count.
-                    vout.nValue -= fee % recipientsToSubtractFee;
-                    remainderSubtracted = true;
-                }
+            if (!remainderSubtracted) {
+                // First receiver pays the remainder not divisible by output count.
+                out.nValue -= fullFee % recipientsToSubtractFee;
+                remainderSubtracted = true;
             }
+        }
 
-            if (vout.IsDust(minRelayTxFee)) {
-                std::string err;
-
-                if (recipient.fSubtractFeeFromAmount && fee > 0) {
-                    if (vout.nValue < 0) {
-                        err = boost::str(boost::format(_("Amount for recipient %1% is too small to pay the fee")) % i);
-                    } else {
-                        err = boost::str(boost::format(_("Amount for recipient %1% is too small to send after the fee has been deducted")) % i);
-                    }
+        if (out.IsDust(minRelayTxFee)) {
+            std::string err;
+            if (recipient.fSubtractFeeFromAmount && fullFee > 0) {
+                if (out.nValue < 0) {
+                    err = boost::str(
+                            boost::format(_("Amount for recipient %1% is too small to pay the fee")) % i);
                 } else {
-                    err = boost::str(boost::format(_("Amount for recipient %1% is too small")) % i);
+                    err = boost::str(boost::format(
+                            _("Amount for recipient %1% is too small to send after the fee has been deducted")) %
+                                     i);
+                }
+            } else {
+                err = boost::str(boost::format(_("Amount for recipient %1% is too small")) % i);
+            }
+
+            throw std::runtime_error(err);
+        }
+        outputs.push_back(out);
+    }
+
+    std::size_t i = 0;
+    while (required > 0 && !outputs.empty() && i < fees.size()) {
+//        for (;;) {
+//            // In case of not enough fee, reset mint seed counter
+//            if (pwalletMain->zwallet) {
+//                pwalletMain->zwallet->SetCount(nCountNextUse + mintNumber);
+//            }
+
+            CAmount currentVout;
+            if (spendAmounts[i] > vOut)
+                currentVout = vOut;
+            else
+                currentVout = spendAmounts[i];
+            tx.vin.clear();
+            tx.vout.clear();
+
+            result.fFromMe = true;
+            result.changes.clear();
+
+            // If no any recipients to subtract fee then the sender need to pay by themself.
+            if (recipientsToSubtractFee || i < (spendAmounts.size() - 1)) {
+                currentVout -= fees[i];
+            }
+            // fill outputs
+            CAmount remainingVout = currentVout;
+            for (size_t i = 0; i < outputs.size(); i++) {
+                if (remainingVout == 0)
+                    break;
+
+                auto &output = outputs[i];
+                CAmount value;
+                if (remainingVout >= output.nValue) {
+                    value = output.nValue;
+                    remainingVout -= value;
+                    outputs.erase(outputs.begin() + i);
+                    --i;
+                } else {
+                    value = remainingVout;
+                    remainingVout = 0;
+                    output.nValue -= value;
                 }
 
-                throw std::runtime_error(err);
+                CTxOut vout(value, output.scriptPubKey);
+                if (vout.IsDust(minRelayTxFee)) {
+                    fees[i] += output.nValue;
+                    currentVout -= output.nValue;
+                    continue;
+//                    std::string err = boost::str(boost::format(_("Amount for recipient %1% is too small")) % i);
+//                    throw std::runtime_error(err);
+                }
+                tx.vout.push_back(vout);
             }
 
-            tx.vout.push_back(vout);
-        }
+            // get coins
+            spendCoins.clear();
+            sigmaSpendCoins.clear();
 
-        // get coins
-        spendCoins.clear();
-        sigmaSpendCoins.clear();
+            auto &consensusParams = Params().GetConsensus();
+            CAmount changeToMint = 0;
 
-        auto& consensusParams = Params().GetConsensus();
-        CAmount changeToMint = 0;
+            std::vector<sigma::CoinDenomination> denomChanges;
+            try {
+                CAmount availableBalance(0);
+                for (auto coin: sigmaCoins) {
+                    availableBalance += coin.get_denomination_value();
+                }
+                if (availableBalance > 0) {
+                    CAmount inputFromSigma;
+                    if (required > availableBalance)
+                        inputFromSigma = availableBalance;
+                    else
+                        inputFromSigma = required;
 
-        std::vector<sigma::CoinDenomination> denomChanges;
-        try {
-            CAmount availableBalance(0);
-            for (auto coin : sigmaCoins) {
-                availableBalance += coin.get_denomination_value();
+                    std::list<CSigmaEntry> sigmaCoinsCp = sigmaCoins;
+                    wallet.GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges,
+                                           sigmaCoinsCp, //try to spend sigma first
+                                           consensusParams.nMaxLelantusInputPerTransaction,
+                                           consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
+
+                    required -= inputFromSigma;
+
+                    isSigmaToLelantusJoinSplit = true;
+                }
+            } catch (std::runtime_error const &) {
             }
-            if(availableBalance > 0) {
-                CAmount inputFromSigma;
-                if (required > availableBalance)
-                    inputFromSigma = availableBalance;
-                else
-                    inputFromSigma = required;
 
-                std::list<CSigmaEntry> sigmaCoinsCp = sigmaCoins;
-                wallet.GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges, sigmaCoinsCp, //try to spend sigma first
-                                       consensusParams.nMaxLelantusInputPerTransaction,
-                                       consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
-
-                required -= inputFromSigma;
-
-                isSigmaToLelantusJoinSplit = true;
+            if (required > 0) {
+                if (!wallet.GetCoinsToJoinSplit(required, spendCoins, changeToMint, coins,
+                                                consensusParams.nMaxLelantusInputPerTransaction,
+                                                consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl)) {
+                    throw InsufficientFunds();
+                }
             }
-        } catch (std::runtime_error const &) {
-        }
 
-        if(required > 0) {
-            if (!wallet.GetCoinsToJoinSplit(required, spendCoins, changeToMint, coins,
-                                            consensusParams.nMaxLelantusInputPerTransaction,
-                                            consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl)) {
-                throw InsufficientFunds();
+            if ((sigmaSpendCoins.size() + spendCoins.size()) > consensusParams.nMaxLelantusInputPerTransaction)
+                throw std::invalid_argument(
+                        _("Number of inputs is bigger then limit."));
+
+            for (const auto &demon: denomChanges) {
+                int64_t intDenom;
+                sigma::DenominationToInteger(demon, intDenom);
+                changeToMint += intDenom;
             }
-        }
 
-        if ((sigmaSpendCoins.size() + spendCoins.size()) > consensusParams.nMaxLelantusInputPerTransaction)
-            throw std::invalid_argument(
-                    _("Number of inputs is bigger then limit."));
+            CAmount input(0);
+            for (const auto &spend: sigmaSpendCoins) {
+                input += spend.get_denomination_value();
+            }
+            for (const auto &spend: spendCoins) {
+                input += spend.amount;
+            }
 
-        for(const auto& demon : denomChanges) {
-            int64_t intDenom;
-            sigma::DenominationToInteger(demon, intDenom);
-            changeToMint += intDenom;
-        }
+            changeToMint += (input - currentVout -  fees[i] - changeToMint - mint);
 
-        CAmount input(0);
-        for (const auto &spend : sigmaSpendCoins) {
-            input += spend.get_denomination_value();
-        }
-        for (const auto &spend : spendCoins) {
-            input += spend.amount;
-        }
+            if (changeToMint > consensusParams.nMaxValueLelantusMint) {
+                throw std::invalid_argument(
+                        _("Value of change exceeds the limit"));
+            }
 
-        changeToMint += (input - currentVout - fee - changeToMint - mint);
+            // get outputs
+            mintCoins.clear();
+            std::vector<CTxOut> outputMints;
+            std::vector<lelantus::PrivateCoin> Cout;
+            GenerateMints(newMints, changeToMint, Cout, outputMints);
 
-        if(changeToMint > consensusParams.nMaxValueLelantusMint) {
-            throw std::invalid_argument(
-                    _("Value of change exceeds the limit"));
-        }
+            // shuffle outputs to provide some privacy
+            std::vector<std::reference_wrapper<CTxOut>> outputs;
+            outputs.reserve(outputMints.size());
 
-        // get outputs
-        mintCoins.clear();
-        std::vector<CTxOut> outputMints;
-        std::vector<lelantus::PrivateCoin> Cout;
-        GenerateMints(newMints, changeToMint, Cout, outputMints);
+            for (auto &output: outputMints) {
+                outputs.push_back(std::ref(output));
+            }
 
-        // shuffle outputs to provide some privacy
-        std::vector<std::reference_wrapper<CTxOut>> outputs;
-        outputs.reserve(outputMints.size());
+            std::shuffle(outputs.begin(), outputs.end(), std::random_device());
 
-        for (auto& output : outputMints) {
-            outputs.push_back(std::ref(output));
-        }
+            // replace outputs with shuffled one
+            size_t coinIdx = 0;
+            for (size_t i = 0; i < outputs.size(); i++) {
+                auto &output = outputs[i];
 
-        std::shuffle(outputs.begin(), outputs.end(), std::random_device());
+                result.changes.insert(static_cast<uint32_t>(tx.vout.size() + i));
 
-        // replace outputs with shuffled one
-        size_t coinIdx = 0;
-        for (size_t i = 0; i < outputs.size(); i++) {
-            auto& output = outputs[i];
+                CScript script;
+                if ((script = output.get().scriptPubKey).IsLelantusJMint()) {
+                    GroupElement g;
+                    std::vector<unsigned char> enc;
+                    lelantus::ParseLelantusJMintScript(script, g, enc);
 
-            result.changes.insert(static_cast<uint32_t>(tx.vout.size() + i));
-
-            CScript script;
-            if ((script = output.get().scriptPubKey).IsLelantusJMint()) {
-                GroupElement g;
-                std::vector<unsigned char> enc;
-                lelantus::ParseLelantusJMintScript(script, g, enc);
-
-                for (size_t i = coinIdx; i != Cout.size(); i++) {
-                    if (Cout[i].getPublicCoin() == g) {
-                        std::swap(Cout[i], Cout[coinIdx++]);
-                        break;
+                    for (size_t i = coinIdx; i != Cout.size(); i++) {
+                        if (Cout[i].getPublicCoin() == g) {
+                            std::swap(Cout[i], Cout[coinIdx++]);
+                            break;
+                        }
                     }
                 }
             }
-        }
 
-        tx.vout.insert(tx.vout.end(), outputs.begin(), outputs.end());
+            tx.vout.insert(tx.vout.end(), outputs.begin(), outputs.end());
 
-        // fill inputs
-        uint32_t sequence = CTxIn::SEQUENCE_FINAL;
-        tx.vin.emplace_back(COutPoint(), CScript(), sequence);
+            // fill inputs
+            uint32_t sequence = CTxIn::SEQUENCE_FINAL;
+            tx.vin.emplace_back(COutPoint(), CScript(), sequence);
 
-        if(outModifier) {
-            for(CTxOut & out : tx.vout) {
-                outModifier(out, *this);
+            if (outModifier) {
+                for (CTxOut &out: tx.vout) {
+                    outModifier(out, *this);
+                }
             }
-        }
 
-        // clear vExtraPayload to calculate metadata hash correctly
-        tx.vExtraPayload.clear();
+            // clear vExtraPayload to calculate metadata hash correctly
+            tx.vExtraPayload.clear();
 
-        // set correct type of transaction (this affects metadata hash)
-        if (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock) {
-            tx.nVersion = 3;
-            tx.nType = TRANSACTION_LELANTUS;
-        }
+            // set correct type of transaction (this affects metadata hash)
+            if (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock) {
+                tx.nVersion = 3;
+                tx.nType = TRANSACTION_LELANTUS;
+            }
 
-        // now every fields is populated then we can sign transaction
-        uint256 sig = tx.GetHash();
+            // now every fields is populated then we can sign transaction
+            uint256 sig = tx.GetHash();
 
-        CreateJoinSplit(sig, Cout, currentVout, fee, tx);
+            CreateJoinSplit(sig, Cout, currentVout, fees[i], tx);
 
-        // check fee
-        result.SetTx(MakeTransactionRef(tx));
+            // check fee
+            result.SetTx(MakeTransactionRef(tx));
 
-        unsigned int szLimit = (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock) ? MAX_LELANTUS_TX_WEIGHT : MAX_STANDARD_TX_WEIGHT;
-        if (GetTransactionWeight(tx) >= szLimit) {
-            throw std::runtime_error(_("Transaction too large"));
-        }
+            unsigned int szLimit = (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock)
+                                   ? MAX_LELANTUS_TX_WEIGHT : MAX_STANDARD_TX_WEIGHT;
+            if (GetTransactionWeight(tx) >= szLimit) {
+                throw std::runtime_error(_("Transaction too large"));
+            }
 
-        // check fee
-        unsigned size = GetVirtualTransactionSize(tx);
-        CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
+            // check fee
+            unsigned size = GetVirtualTransactionSize(tx);
+            CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
 
-        // If we made it here and we aren't even able to meet the relay fee on the next pass, give up
-        // because we must be at the maximum allowed fee.
-        if (feeNeeded < minRelayTxFee.GetFee(size)) {
-            throw std::invalid_argument(_("Transaction too large for fee policy"));
-        }
+            // If we made it here and we aren't even able to meet the relay fee on the next pass, give up
+            // because we must be at the maximum allowed fee.
+            if (feeNeeded < minRelayTxFee.GetFee(size)) {
+                throw std::invalid_argument(_("Transaction too large for fee policy"));
+            }
 
-        if (fee >= feeNeeded) {
-            break;
-        }
-
-        fee = feeNeeded;
+            if (fees[i] < feeNeeded) {
+                throw std::invalid_argument(_("Fee is low from minimum, transaction creation failed"));
+            }
+            mintNumber += outputMints.size();
+//            if (fee >= feeNeeded) {
+//                mintNumber += outputMints.size();
+//                break;
+//            }
+//
+//            fee = feeNeeded;
+//        }
+        required -= spendAmounts[i];
+        ++i;
+        results.push_back(result);
     }
 
     if (GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS)) {
@@ -350,7 +402,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         }
     }
 
-    return result;
+    return results;
 
 }
 

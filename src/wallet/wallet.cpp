@@ -18,9 +18,6 @@
 #include "keystore.h"
 #include "validation.h"
 #include "sigma.h"
-#include "../sigma/coinspend.h"
-#include "../sigma/spend_metadata.h"
-#include "../sigma/coin.h"
 #include "lelantus.h"
 #include "llmq/quorums_instantsend.h"
 #include "llmq/quorums_chainlocks.h"
@@ -35,8 +32,6 @@
 #include "util.h"
 #include "ui_interface.h"
 #include "utilmoneystr.h"
-#include "validation.h"
-#include "masternode-sync.h"
 #include "random.h"
 #include "init.h"
 #include "hdmint/wallet.h"
@@ -3192,16 +3187,15 @@ bool CWallet::GetCoinsToSpend(
     return true;
 }
 
-bool CWallet::GetCoinsToJoinSplit(
+CAmount CWallet::GetCoinsToJoinSplit(
         CAmount required,
         std::vector<CLelantusEntry>& coinsToSpend_out,
         CAmount& changeToMint,
-        std::list<CLelantusEntry> coins,
+        std::list<CLelantusEntry>& coins,
         const size_t coinsToSpendLimit,
         const CAmount amountToSpendLimit,
         const CCoinControl *coinControl) const
 {
-
     EnsureMintWalletAvailable();
     Consensus::Params consensusParams = Params().GetConsensus();
 
@@ -3229,12 +3223,13 @@ bool CWallet::GetCoinsToJoinSplit(
     bool coinControlUsed = false;
     if(coinControl != NULL) {
         if(coinControl->HasSelected()) {
-            auto coinIt = coins.rbegin();
-            for (; coinIt != coins.rend(); coinIt++) {
-                spend_val += coinIt->amount;
+            while (coinsToSpend.size() < coinsToSpendLimit && !coins.empty()) {
+                auto itr = coins.begin();
+                spend_val += itr->amount;
+                coinsToSpend.push_back(*itr);
+                coins.erase(itr);
             }
             coinControlUsed = true;
-            coinsToSpend.insert(coinsToSpend.begin(), coins.begin(), coins.end());
         }
     }
 
@@ -3265,19 +3260,25 @@ bool CWallet::GetCoinsToJoinSplit(
 
             spend_val += choosen.amount;
             coinsToSpend.push_back(choosen);
+            if (coinsToSpend.size() == coinsToSpendLimit)
+                break;
         }
     }
 
-    // sort by group id ay ascending order. it is mandatory for creting proper joinsplit
+    // sort by group id ay ascending order. it is mandatory for creating proper joinsplit
     auto idComparer = [](const CLelantusEntry& a, const CLelantusEntry& b) -> bool {
         return a.id < b.id;
     };
     coinsToSpend.sort(idComparer);
 
-    changeToMint = spend_val - required;
+    if (spend_val <= required)
+        changeToMint = 0;
+    else
+        changeToMint = spend_val - required;
+
     coinsToSpend_out.insert(coinsToSpend_out.begin(), coinsToSpend.begin(), coinsToSpend.end());
 
-    return true;
+    return spend_val;
 }
 
 CAmount CWallet::GetUnconfirmedBalance() const {
@@ -5346,17 +5347,17 @@ std::vector<CLelantusEntry> CWallet::JoinSplitLelantus(const std::vector<CRecipi
     std::vector<CLelantusEntry> spendCoins; //spends
     std::vector<CSigmaEntry> sigmaSpendCoins;
     std::vector<CHDMint> mintCoins; // new mints
-    CAmount fee;
-    result = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins);
+    std::vector<CAmount> fees;
+    result = CreateLelantusJoinSplitTransaction(recipients, fees, newMints, spendCoins, sigmaSpendCoins, mintCoins)[0];
 
     CommitLelantusTransaction(result, spendCoins, sigmaSpendCoins, mintCoins);
 
     return spendCoins;
 }
 
-CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
+std::vector<CWalletTx> CWallet::CreateLelantusJoinSplitTransaction(
         const std::vector<CRecipient>& recipients,
-        CAmount &fee,
+        std::vector<CAmount>& fees,
         const std::vector<CAmount>& newMints,
         std::vector<CLelantusEntry>& spendCoins,
         std::vector<CSigmaEntry>& sigmaSpendCoins,
@@ -5374,81 +5375,97 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
     // create transaction
     LelantusJoinSplitBuilder builder(*this, *zwallet, coinControl);
 
-    CWalletTx tx = builder.Build(recipients, fee, newMints, modifier);
+    std::vector<CWalletTx> txs = builder.Build(recipients, fees, newMints, modifier);
     spendCoins = builder.spendCoins;
     sigmaSpendCoins = builder.sigmaSpendCoins;
     mintCoins = builder.mintCoins;
 
-    return tx;
+    return txs;
 }
 
-std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(
+CAmount CWallet::EstimateJoinSplitFee(
         CAmount required,
         bool subtractFeeFromAmount,
         std::list<CSigmaEntry> sigmaCoins,
         std::list<CLelantusEntry> coins,
+        std::vector<CAmount>& fees,
+        std::vector<CAmount>& spendAmounts,
         const CCoinControl *coinControl) {
-    CAmount fee;
-    unsigned size;
+
     std::vector<CLelantusEntry> spendCoins;
     std::vector<CSigmaEntry> sigmaSpendCoins;
-
     CAmount availableSigmaBalance(0);
+    CAmount fullFee = 0;
+
     for (auto coin : sigmaCoins) {
         availableSigmaBalance += coin.get_denomination_value();
     }
 
-    for (fee = payTxFee.GetFeePerK();;) {
-        CAmount currentRequired = required;
+    while (required > 0) {
+        CAmount fee;
+        unsigned size;
+        auto coinsForThisRound = coins;
+        CAmount spendForThisRound = 0;
+        CAmount currentRequired = 0;
+        for (fee = payTxFee.GetFeePerK();;) {
+            currentRequired = required;
 
-        if (!subtractFeeFromAmount)
-            currentRequired += fee;
+            if (!subtractFeeFromAmount)
+                currentRequired += fee;
 
-        spendCoins.clear();
-        sigmaSpendCoins.clear();
-        auto &consensusParams = Params().GetConsensus();
-        CAmount changeToMint = 0;
+            spendCoins.clear();
+            sigmaSpendCoins.clear();
+            auto &consensusParams = Params().GetConsensus();
+            CAmount changeToMint = 0;
 
-        std::vector<sigma::CoinDenomination> denomChanges;
-        try {
-            if (availableSigmaBalance > 0) {
-                CAmount inputFromSigma;
-                if (currentRequired > availableSigmaBalance)
-                    inputFromSigma = availableSigmaBalance;
-                else
-                    inputFromSigma = currentRequired;
-                this->GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges, sigmaCoins, //try to spend sigma first
-                                       consensusParams.nMaxLelantusInputPerTransaction,
-                                       consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
-                currentRequired -= inputFromSigma;
-            }
-
-            if (currentRequired > 0) {
-                if (!this->GetCoinsToJoinSplit(currentRequired, spendCoins, changeToMint, coins,
-                                                consensusParams.nMaxLelantusInputPerTransaction,
-                                                consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl)) {
-                    return std::make_pair(0, 0);
+            std::vector<sigma::CoinDenomination> denomChanges;
+            try {
+                if (availableSigmaBalance > 0) {
+                    CAmount inputFromSigma;
+                    if (currentRequired > availableSigmaBalance)
+                        inputFromSigma = availableSigmaBalance;
+                    else
+                        inputFromSigma = currentRequired;
+                    this->GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges,
+                                          sigmaCoins, //try to spend sigma first
+                                          consensusParams.nMaxLelantusInputPerTransaction,
+                                          consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
+                    currentRequired -= inputFromSigma;
                 }
+
+                if (currentRequired > 0) {
+                    currentRequired -= this->GetCoinsToJoinSplit(currentRequired, spendCoins, changeToMint, coinsForThisRound,
+                                              consensusParams.nMaxLelantusInputPerTransaction - sigmaSpendCoins.size(),
+                                              consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
+                }
+            } catch (std::runtime_error const &) {
             }
-        } catch (std::runtime_error const &) {
+
+            // 1054 is constant part, mainly Schnorr and Range proofs, 2560 is for each sigma/aux data
+            // 179 other parts of tx, assuming 1 utxo and 1 jmint
+            size = 1054 + 2560 * (spendCoins.size() + sigmaSpendCoins.size()) + 179;
+            CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
+
+            if (fee >= feeNeeded) {
+                break;
+            }
+
+            fee = feeNeeded;
+
+            if (subtractFeeFromAmount)
+                break;
         }
 
-        // 1054 is constant part, mainly Schnorr and Range proofs, 2560 is for each sigma/aux data
-        // 179 other parts of tx, assuming 1 utxo and 1 jmint
-        size = 1054 + 2560 * (spendCoins.size() + sigmaSpendCoins.size()) + 179;
-        CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
-
-        if (fee >= feeNeeded) {
-            break;
-        }
-
-        fee = feeNeeded;
-
-        if(subtractFeeFromAmount)
-            break;
+        fullFee += fee;
+        fees.push_back(fee);
+        spendAmounts.push_back(required - currentRequired);
+        required = currentRequired;
+        if (!subtractFeeFromAmount)
+            required += fee;
+        coins = coinsForThisRound;
     }
 
-    return std::make_pair(fee, size);
+    return fullFee;
 }
 
 bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CSigmaEntry>& sigmaSpendCoins, std::vector<CHDMint>& mintCoins) {
@@ -6981,9 +6998,9 @@ CWalletTx CWallet::PrepareAndSendNotificationTx(bip47::CPaymentCode const & thei
         std::vector<CLelantusEntry> spendCoins;
         std::vector<CSigmaEntry> sigmaSpendCoins;
         std::vector<CHDMint> mintCoins;
-        CAmount fee;
+        std::vector<CAmount> fees;
 
-        wtxNew = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins, nullptr,
+        wtxNew = CreateLelantusJoinSplitTransaction(recipients, fees, newMints, spendCoins, sigmaSpendCoins, mintCoins, nullptr,
                 [&pchannel, &throwSigma](CTxOut & out, LelantusJoinSplitBuilder const & builder) {
                     if(out.scriptPubKey[0] == OP_RETURN) {
                         CKey spendPrivKey;
@@ -6995,7 +7012,10 @@ CWalletTx CWallet::PrepareAndSendNotificationTx(bip47::CPaymentCode const & thei
                         bip47::Bytes const pcode = pchannel.getMaskedPayload((unsigned char const *)ds.vch.data(), ds.vch.size(), spendPrivKey);
                         out.scriptPubKey = CScript() << OP_RETURN << pcode;
                     }
-                });
+                })[0];
+
+        if (fees.size() > 1)
+            throw std::runtime_error(std::string("Cannot create a Lelantus spend in one transaction").c_str());
 
         if (!sigmaSpendCoins.empty())
             throwSigma();

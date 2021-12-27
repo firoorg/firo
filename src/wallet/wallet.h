@@ -968,11 +968,11 @@ public:
         const CAmount amountLimit = MAX_MONEY,
         const CCoinControl *coinControl = NULL) const;
 
-    bool GetCoinsToJoinSplit(
+    CAmount GetCoinsToJoinSplit(
             CAmount required,
             std::vector<CLelantusEntry>& coinsToSpend_out,
             CAmount& changeToMint,
-            std::list<CLelantusEntry> coins,
+            std::list<CLelantusEntry>& coins,
             const size_t coinsToSpendLimit = SIZE_MAX,
             const CAmount amountToSpendLimit = MAX_MONEY,
             const CCoinControl *coinControl = NULL) const;
@@ -1014,9 +1014,9 @@ public:
         bool& fChangeAddedToFee,
         const CCoinControl *coinControl = NULL);
 
-    CWalletTx CreateLelantusJoinSplitTransaction(
+    std::vector<CWalletTx> CreateLelantusJoinSplitTransaction(
         const std::vector<CRecipient>& recipients,
-        CAmount& fee,
+        std::vector<CAmount>& fee,
         const std::vector<CAmount>& newMints,
         std::vector<CLelantusEntry>& spendCoins,
         std::vector<CSigmaEntry>& sigmaSpendCoins,
@@ -1050,7 +1050,7 @@ public:
 
     std::vector<CLelantusEntry> JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result);
 
-    std::pair<CAmount, unsigned int> EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, std::list<CSigmaEntry> sigmaCoins, std::list<CLelantusEntry> coins, const CCoinControl *coinControl);
+    CAmount EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, std::list<CSigmaEntry> sigmaCoins, std::list<CLelantusEntry> coins, std::vector<CAmount>& fees, std::vector<CAmount>& spendAmounts, const CCoinControl *coinControl);
 
     bool GetMint(const uint256& hashSerial, CSigmaEntry& sigmaEntry, bool forEstimation = false) const;
 

@@ -15,9 +15,9 @@ public:
     LelantusJoinSplitBuilder(CWallet& wallet, CHDMintWallet& mintWallet, const CCoinControl *coinControl = nullptr);
     ~LelantusJoinSplitBuilder();
 
-    CWalletTx Build(
+    std::vector<CWalletTx> Build(
         const std::vector<CRecipient>& recipients,
-        CAmount &fee,
+        std::vector<CAmount> &fees,
         const std::vector<CAmount>& newMintss,
         std::function<void(CTxOut & , LelantusJoinSplitBuilder const &)> outModifier = nullptr);
 
@@ -39,7 +39,6 @@ public:
     const CCoinControl *coinControl;
 
     bool isSigmaToLelantusJoinSplit = false;
-    CAmount fee = 0;
 
 private:
     CHDMintWallet& mintWallet;
