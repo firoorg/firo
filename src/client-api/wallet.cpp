@@ -15,10 +15,10 @@
 #include "client-api/wallet.h"
 #include "wallet/coincontrol.h"
 #include "univalue.h"
+#include "./elysium.h"
 #include "wallet/bip39.h"
 #include "validation.h"
 #include "consensus/consensus.h"
-#include <fstream>
 #include <boost/algorithm/string.hpp>
 #include "../elysium/wallettxs.h"
 #include "../elysium/tx.h"
@@ -352,21 +352,10 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
             case ELYSIUM_TYPE_LELANTUS_JOINSPLIT:
             case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS:
             case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS:
-                if (elysium::_my_sps->getSP(mp_obj.getProperty(), info)) {
-                    propertyData = UniValue::VOBJ;
-                    propertyData.pushKV("id", (uint64_t)mp_obj.getProperty());
-                    propertyData.pushKV("issuer", info.issuer);
-                    propertyData.pushKV("creationTx", info.txid.GetHex());
-                    propertyData.pushKV("isDivisible", info.isDivisible());
-                    propertyData.pushKV("ecosystem", mp_obj.getProperty() >= TEST_ECO_PROPERTY_1 ? "test" : "main");
-                    propertyData.pushKV("isFixed", info.fixed);
-                    propertyData.pushKV("isManaged", info.manual);
-                    propertyData.pushKV("lelantusStatus", std::to_string(info.lelantusStatus));
-                    propertyData.pushKV("name", info.name);
-                    propertyData.pushKV("category", info.category);
-                    propertyData.pushKV("subcategory", info.subcategory);
-                    propertyData.pushKV("data", info.data);
-                    propertyData.pushKV("url", info.url);
+                try {
+                    propertyData = getPropertyData(mp_obj.getProperty());
+                } catch(UniValue &e) {
+                    PrintToLog("failed to get property data for transactions %d", mp_obj.getProperty());
                 }
 
                 break;
@@ -374,30 +363,25 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
             case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE:
             case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED:
             case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL: {
-                propertyData = UniValue::VOBJ;
+                try {
+                    propertyData = getPropertyData(wtx.tx->GetHash());
+                } catch(UniValue &e) {
+                    propertyData = UniValue::VOBJ;
 
-                int propertyId = 0;
-                if (block && block->nHeight > 0) propertyId = elysium::_my_sps->findSPByTX(wtx.tx->GetHash());
-                if (propertyId > 0 && elysium::_my_sps->getSP(mp_obj.getProperty(), info)) {
-                    propertyData.pushKV("id", propertyId);
-                    // Note that this is the current lelantus status, not the lelantus status at the time of property creation.
-                    propertyData.pushKV("lelantusStatus", std::to_string(info.lelantusStatus));
-                } else {
                     propertyData.pushKV("id", UniValue::VNULL);
                     propertyData.pushKV("lelantusStatus", std::to_string(mp_obj.getLelantusStatus()));
+                    propertyData.pushKV("issuer", mp_obj.getSender());
+                    propertyData.pushKV("creationTx", wtx.tx->GetHash().GetHex());
+                    propertyData.pushKV("isDivisible", mp_obj.getPropertyType() == ELYSIUM_PROPERTY_TYPE_DIVISIBLE);
+                    propertyData.pushKV("ecosystem", elysium::strEcosystem(mp_obj.getEcosystem()));
+                    propertyData.pushKV("isFixed", txType == ELYSIUM_TYPE_CREATE_PROPERTY_FIXED);
+                    propertyData.pushKV("isManaged", txType == ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL);
+                    propertyData.pushKV("name", mp_obj.getSPName());
+                    propertyData.pushKV("category", mp_obj.getSPCategory());
+                    propertyData.pushKV("subcategory", mp_obj.getSPSubCategory());
+                    propertyData.pushKV("data", mp_obj.getSPData());
+                    propertyData.pushKV("url", mp_obj.getSPUrl());
                 }
-
-                propertyData.pushKV("issuer", mp_obj.getSender());
-                propertyData.pushKV("creationTx", wtx.tx->GetHash().GetHex());
-                propertyData.pushKV("isDivisible", mp_obj.getPropertyType() == ELYSIUM_PROPERTY_TYPE_DIVISIBLE);
-                propertyData.pushKV("ecosystem", elysium::strEcosystem(mp_obj.getEcosystem()));
-                propertyData.pushKV("isFixed", txType == ELYSIUM_TYPE_CREATE_PROPERTY_FIXED);
-                propertyData.pushKV("isManaged", txType == ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL);
-                propertyData.pushKV("name", mp_obj.getSPName());
-                propertyData.pushKV("category", mp_obj.getSPCategory());
-                propertyData.pushKV("subcategory", mp_obj.getSPSubCategory());
-                propertyData.pushKV("data", mp_obj.getSPData());
-                propertyData.pushKV("url", mp_obj.getSPUrl());
 
                 break;
             }

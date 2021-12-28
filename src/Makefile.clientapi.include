@@ -1,4 +1,5 @@
 CLIENTAPI_H = \
+  client-api/elysium.h \
   client-api/protocol.h \
   client-api/register.h \
   client-api/send.h \
@@ -13,6 +14,7 @@ CLIENTAPI_H = \
   zmqserver/zmqreplier.h
 
 CLIENTAPI_CPP = \
+  client-api/elysium.cpp \
   client-api/blockchain.cpp \
   client-api/masternode.cpp \
   client-api/misc.cpp \
