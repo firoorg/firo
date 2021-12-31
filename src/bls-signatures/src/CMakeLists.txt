@@ -13,7 +13,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/catch
   )
 
-set(C_LIB ${CMAKE_BINARY_DIR}/.libs/libchiabls.a)
+set(C_LIB ${CMAKE_BINARY_DIR}/libchiabls.a)
 
 add_library(chiabls ${CMAKE_CURRENT_SOURCE_DIR}/privatekey.cpp)
 
