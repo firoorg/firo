@@ -142,7 +142,7 @@ void MintTokenDialog::onMintButtonClicked()
     std::string rawHex;
 
     auto payload = CreatePayload_CreateLelantusMint(propertyId, coin.getPublicCoin(), mint.id, amount, {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
-    auto result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+    auto result = WalletTxBuilder(fromAddress, "", "", payload, txid, rawHex, autoCommit);
 
     QMessageBox messageBox;
     if (result != 0) {

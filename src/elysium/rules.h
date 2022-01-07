@@ -181,6 +181,11 @@ public:
     CAmount PROPERTY_CREATION_FEE;
 
     /**
+     * This amount of Firo must be used for a reference amount. Transactions using less will be considered invalid.
+     */
+    CAmount REFERENCE_AMOUNT;
+
+    /**
      * The address to receive property creation fee.
      **/
     CBitcoinAddress PROPERTY_CREATION_FEE_RECEIVER;

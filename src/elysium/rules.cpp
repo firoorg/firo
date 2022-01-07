@@ -99,7 +99,7 @@ CMainConsensusParams::CMainConsensusParams()
     ELYSIUM_SP_BLOCK = 0;
     ELYSIUM_MANUALSP_BLOCK = 0;
     ELYSIUM_STO_BLOCK = 0;
-    ELYSIUM_SEND_ALL_BLOCK = 0;
+    ELYSIUM_SEND_ALL_BLOCK = INT_MAX;
     ELYSIUM_STOV1_BLOCK = 999999;
 
     // Other feature activations:
@@ -114,6 +114,8 @@ CMainConsensusParams::CMainConsensusParams()
     PROPERTY_CREATION_FEE_BLOCK = 0;
     PROPERTY_CREATION_FEE = 1000 * COIN;
     PROPERTY_CREATION_FEE_RECEIVER.SetString("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U");
+
+    REFERENCE_AMOUNT = 100000;
 }
 
 /**
@@ -142,7 +144,7 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     ELYSIUM_SP_BLOCK = 0;
     ELYSIUM_MANUALSP_BLOCK = 0;
     ELYSIUM_STO_BLOCK = 0;
-    ELYSIUM_SEND_ALL_BLOCK = 0;
+    ELYSIUM_SEND_ALL_BLOCK = INT_MAX;
     ELYSIUM_STOV1_BLOCK = 29000;
 
     // Other feature activations:
@@ -156,6 +158,8 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     PROPERTY_CREATION_FEE_BLOCK = 29000;
     PROPERTY_CREATION_FEE = 10 * COIN;
     PROPERTY_CREATION_FEE_RECEIVER.SetString("TKPbcG9QVLSfNvrtowQ7GzEEXq4zPjkej6");
+
+    REFERENCE_AMOUNT = 100000;
 }
 
 /**
@@ -184,7 +188,7 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     ELYSIUM_SP_BLOCK = 0;
     ELYSIUM_MANUALSP_BLOCK = 0;
     ELYSIUM_STO_BLOCK = 0;
-    ELYSIUM_SEND_ALL_BLOCK = 0;
+    ELYSIUM_SEND_ALL_BLOCK = INT_MAX;
     ELYSIUM_STOV1_BLOCK = 999999;
 
     // Other feature activations:
@@ -198,6 +202,8 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     PROPERTY_CREATION_FEE_BLOCK = 250;
     PROPERTY_CREATION_FEE = 10 * COIN;
     PROPERTY_CREATION_FEE_RECEIVER.SetString("TKPbcG9QVLSfNvrtowQ7GzEEXq4zPjkej6");
+
+    REFERENCE_AMOUNT = 100000;
 }
 
 //! Consensus parameters for mainnet

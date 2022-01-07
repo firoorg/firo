@@ -226,7 +226,7 @@ void CreateTokenDialog::onCreateButtonClicked()
         fee = consensus.PROPERTY_CREATION_FEE;
     }
 
-    int result = elysium::WalletTxBuilder(fromAddress, receiver, "", fee, payload, txid, rawHex, autoCommit);
+    int result = elysium::WalletTxBuilder(fromAddress, receiver, "", payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {

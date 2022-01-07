@@ -253,7 +253,7 @@ void ElysiumPrivateSendDialog::onSendButtonClicked()
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder("", toAddress, "", referenceAmount, payload, txid, rawHex, autoCommit, InputMode::LELANTUS);
+    int result = WalletTxBuilder("", toAddress, "", payload, txid, rawHex, autoCommit, InputMode::LELANTUS);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {

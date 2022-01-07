@@ -212,7 +212,7 @@ void ManageTokenDialog::onIssueButtonClicked()
     uint256 txid;
     std::string rawHex;
 
-    int result = WalletTxBuilder(fromAddress, toAddress, "", 0, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, toAddress, "", payload, txid, rawHex, autoCommit);
     if (result != 0) {
         std::string errorMessage = strprintf("The token issuance transaction has failed.\n\nThe error code was: %d\nThe error message was:\n%s", result, error_str(result).c_str());
         Q_EMIT message(tr("Transaction Failed"), tr(errorMessage.c_str()), CClientUIInterface::MSG_ERROR);
