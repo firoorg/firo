@@ -839,7 +839,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         for (const auto& in : tx.vin) {
             auto dmn = newList.GetMNByCollateral(in.prevout);
             if (dmn && dmn->collateralOutpoint == in.prevout) {
-                // can't spend collateral in the same block
+                // can't spend collateral funded by proreg tx in the same block
                 if (dmn->pdmnState && dmn->collateralOutpoint.hash == dmn->proTxHash && dmn->pdmnState->nRegisteredHeight == nHeight)
                     return _state.DoS(100, false, REJECT_CONFLICT, "bad-protx-collateral-spend");
 
