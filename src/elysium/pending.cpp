@@ -86,12 +86,16 @@ void PendingCheck()
     std::vector<uint256> vecMemPoolTxids;
     mempool.queryHashes(vecMemPoolTxids);
 
+    std::vector<uint256> toDelete;
     for (PendingMap::iterator it = my_pending.begin(); it != my_pending.end(); ++it) {
         const uint256& txid = it->first;
         if (std::find(vecMemPoolTxids.begin(), vecMemPoolTxids.end(), txid) == vecMemPoolTxids.end()) {
             PrintToLog("WARNING: Pending transaction %s is no longer in this nodes mempool and will be discarded\n", txid.GetHex());
-            PendingDelete(txid);
+            toDelete.push_back(txid);
         }
+    }
+    for (uint256 txid: toDelete) {
+        PendingDelete(txid);
     }
 }
 
