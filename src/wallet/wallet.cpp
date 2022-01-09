@@ -60,6 +60,11 @@
 #include "bip47/paymentcode.h"
 #include "bip47/bip47utils.h"
 
+#ifdef ENABLE_ELYSIUM
+#include "../elysium/rules.h"
+#include "../elysium/packetencoder.h"
+#endif
+
 CWallet* pwalletMain = NULL;
 
 /** Transaction fee set by the user */
@@ -3414,7 +3419,7 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
                 bool found = false;
                 if(nCoinType == CoinType::ALL_COINS){
-                    // We are now taking ALL_COINS to mean everything sans mints
+                    // We are now taking ALL_COINS to mean everything sans mints and Elysium reference outputs
                     found = !(pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint()
                             || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint()
                             || pcoin->tx->vout[i].scriptPubKey.IsLelantusMint()
@@ -3431,8 +3436,16 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
                     found = !(fMasternodeMode && pcoin->tx->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN);
                 } else if (nCoinType == CoinType::ONLY_NONDENOMINATED_NOT1000IFMN) {
                     if (fMasternodeMode) found = pcoin->tx->vout[i].nValue != ZNODE_COIN_REQUIRED * COIN; // do not use Hot MN funds
-		} else if (nCoinType == CoinType::ONLY_1000) {
+                } else if (nCoinType == CoinType::ONLY_1000) {
                     found = pcoin->tx->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN;
+#ifdef ENABLE_ELYSIUM
+                } else if (
+                    nCoinType != CoinType::WITH_ELYSIUM_REFERENCE_OUTPUTS &&
+                    elysium::DeterminePacketClass(*pcoin->tx, elysium::ConsensusParams().NULLDATA_BLOCK + 1).has_value() &&
+                    i == pcoin->tx->vout.size() - 1
+                ) {
+                    found = false;
+#endif
                 } else {
                     found = true;
                 }

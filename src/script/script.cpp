@@ -282,6 +282,20 @@ bool CScript::IsWitnessProgram(int& version, std::vector<unsigned char>& program
     return false;
 }
 
+#ifdef ENABLE_ELYSIUM
+bool CScript::IsElysium() const {
+    const_iterator pc = begin();
+    opcodetype op;
+    std::vector<unsigned char> data;
+
+    if (!GetOp(pc, op, data) || op != OP_RETURN) return false;
+    if (!GetOp(pc, op, data)) return false;
+
+    const std::array<unsigned char, 7> magic = { 0x65, 0x6c, 0x79, 0x73, 0x69, 0x75, 0x6d }; // "elysium"
+    return (data.size() >= magic.size() && std::equal(magic.begin(), magic.end(), data.begin()));
+}
+#endif
+
 bool CScript::IsZerocoinMint() const
 {
     // Extra-fast test for Zerocoin Mint CScripts:

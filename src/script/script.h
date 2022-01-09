@@ -676,6 +676,10 @@ public:
 
     bool IsMint() const;
 
+#ifdef ENABLE_ELYSIUM
+    bool IsElysium() const;
+#endif
+
     // Called by IsStandardTx.
     bool HasCanonicalPushes() const;
 
