@@ -36,30 +36,6 @@ namespace elysium {
 
 BOOST_FIXTURE_TEST_SUITE(elysium_build_tx_tests, ZerocoinTestingSetup200)
 
-BOOST_AUTO_TEST_CASE(wallettxbuilder_create_normal_b)
-{
-    std::vector<unsigned char> data(nMaxDatacarrierBytes + 1);
-
-    std::string fromAddress = CBitcoinAddress(pubkey.GetID()).ToString();
-
-    uint256 txid;
-    std::string rawHex;
-    BOOST_CHECK_EQUAL(
-        0, // No error
-        elysium::WalletTxBuilder(fromAddress, "", "", 0, data, txid, rawHex, false)
-    );
-
-    CMutableTransaction decTx;
-    BOOST_CHECK(DecodeHexTx(decTx, rawHex));
-
-    BOOST_CHECK(!CTransaction(decTx).IsSigmaSpend());
-
-    BOOST_CHECK_EQUAL(
-        PacketClass::B,
-        DeterminePacketClass(decTx, chainActive.Height())
-    );
-}
-
 BOOST_AUTO_TEST_CASE(wallettxbuilder_create_normal_c)
 {
     std::vector<unsigned char> data(80);
