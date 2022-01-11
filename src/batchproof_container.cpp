@@ -127,10 +127,16 @@ void BatchProofContainer::erase(std::vector<LelantusSigmaProofData>* vProofs, co
 void BatchProofContainer::batch_sigma() {
     if (!sigmaProofs.empty())
         LogPrintf("Sigma batch verification started.\n");
+    else
+        return;
     std::size_t threadsMaxCount = std::min((unsigned int)sigmaProofs.size(), std::thread::hardware_concurrency());
     std::vector<std::future<bool>> parallelTasks;
     parallelTasks.reserve(threadsMaxCount);
     ParallelOpThreadPool<bool> threadPool(threadsMaxCount);
+
+    auto params = sigma::Params::get_default();
+    sigma::SigmaPlusVerifier<Scalar, GroupElement> sigmaVerifier(params->get_g(), params->get_h(), params->get_n(), params->get_m());
+
     auto itr = sigmaProofs.begin();
     for (std::size_t j = 0; j < sigmaProofs.size(); j += threadsMaxCount) {
         for (std::size_t i = j; i < j + threadsMaxCount; ++i) {
@@ -159,9 +165,6 @@ void BatchProofContainer::batch_sigma() {
                     setSizes.emplace_back(proofData.anonymitySetSize);
                     proofs.emplace_back(proofData.sigmaProof);
                 }
-
-                auto params = sigma::Params::get_default();
-                sigma::SigmaPlusVerifier<Scalar, GroupElement> sigmaVerifier(params->get_g(), params->get_h(), params->get_n(), params->get_m());
 
                 parallelTasks.emplace_back(threadPool.PostTask([=]() {
                     return sigmaVerifier.batch_verify(anonymity_set, serials, fPadding, setSizes, proofs);
@@ -192,6 +195,8 @@ void BatchProofContainer::batch_sigma() {
 void BatchProofContainer::batch_lelantus() {
     if (!lelantusSigmaProofs.empty())
         LogPrintf("Lelantus batch verification started.\n");
+    else
+        return;
 
     auto params = lelantus::Params::get_default();
 
@@ -201,6 +206,8 @@ void BatchProofContainer::batch_lelantus() {
     ParallelOpThreadPool<bool> threadPool(threadsMaxCount);
     auto itr = lelantusSigmaProofs.begin();
 
+    lelantus::SigmaExtendedVerifier sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
+                                                  params->get_sigma_m());
     for (std::size_t j = 0; j < lelantusSigmaProofs.size(); j += threadsMaxCount) {
         for (std::size_t i = j; i < j + threadsMaxCount; ++i) {
             if (i < lelantusSigmaProofs.size()) {
@@ -252,8 +259,7 @@ void BatchProofContainer::batch_lelantus() {
                     challenges.emplace_back(proofData.challenge);
                 }
 
-                lelantus::SigmaExtendedVerifier sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
-                                                              params->get_sigma_m());
+
 
                 parallelTasks.emplace_back(threadPool.PostTask([=]() {
                     return sigmaVerifier.batchverify(anonymity_set, challenges, serials, setSizes, proofs);

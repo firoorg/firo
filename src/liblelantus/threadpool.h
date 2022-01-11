@@ -31,26 +31,23 @@ private:
 
     void ThreadProc() {
         for (;;) {
-            std::packaged_task<Result()> job;
-            {
-                std::unique_lock<std::mutex> lock(task_queue_mutex);
+            std::unique_lock<std::mutex> lock(task_queue_mutex);
 
-                task_queue_condition.wait_for(lock, std::chrono::seconds(secondsBeforeThreadShutdown),
-                                              [this] { return !task_queue.empty() || shutdown; });
-                if (task_queue.empty()) {
-                    // Either timeout or shutdown. If it's a timeout we need to delete ourself from the thread list and detach the thread
-                    // In case of shutdown thread list will be empty and destructor will wait for this thread completion
-                    std::thread::id currentId = std::this_thread::get_id();
-                    auto pThread = std::find_if(threads.begin(), threads.end(), [=](const std::thread &t) { return t.get_id() == currentId; });
-                    if (pThread != threads.end()) {
-                        pThread->detach();
-                        threads.erase(pThread);
-                    }
-                    break;
+            task_queue_condition.wait_for(lock, std::chrono::seconds(secondsBeforeThreadShutdown),
+                                          [this] { return !task_queue.empty() || shutdown; });
+            if (task_queue.empty()) {
+                // Either timeout or shutdown. If it's a timeout we need to delete ourself from the thread list and detach the thread
+                // In case of shutdown thread list will be empty and destructor will wait for this thread completion
+                std::thread::id currentId = std::this_thread::get_id();
+                auto pThread = std::find_if(threads.begin(), threads.end(), [=](const std::thread &t) { return t.get_id() == currentId; });
+                if (pThread != threads.end()) {
+                    pThread->detach();
+                    threads.erase(pThread);
                 }
-                job = std::move(task_queue.front());
-                task_queue.pop();
+                break;
             }
+            std::packaged_task<Result()> job (std::move(task_queue.front()));
+            task_queue.pop();
             job();
         }
     }
@@ -69,7 +66,7 @@ public:
         std::list<std::thread> threadsToJoin;
 
         {
-            std::unique_lock<std::mutex> lock(task_queue_mutex);
+            std::scoped_lock<std::mutex> lock(task_queue_mutex);
             shutdown = true;
             task_queue_condition.notify_all();
 
@@ -87,7 +84,7 @@ public:
         std::packaged_task<Result()> packagedTask(std::move(task));
         std::future<Result> ret = packagedTask.get_future();
 
-        std::unique_lock<std::mutex> lock(task_queue_mutex);
+        std::scoped_lock<std::mutex> lock(task_queue_mutex);
 
         // lazy start threads on first request or after shutdown
         if (threads.size() < number_of_threads)
