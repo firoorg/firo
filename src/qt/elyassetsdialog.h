@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2013 The Bitcoin developers
+// Copyright (c) 2021 The Firo developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -24,7 +25,7 @@ namespace Ui {
     class ElyAssetsDialog;
 }
 
-class ElyAssetsDialog : public QDialog
+class ElyAssetsDialog : public QWidget
 {
     Q_OBJECT
 
@@ -34,24 +35,19 @@ public:
 
     void setClientModel(ClientModel *model);
     void setWalletModel(WalletModel *model);
-    void AddRow(const std::string& label, const std::string& address, const std::string& reserved, const std::string& available);
-    void PopulateBalances(unsigned int propertyId);
-    void UpdatePropSelector();
+    void addRow(const std::string& id, const std::string& ticker, const std::string& name, const std::string& pending, const std::string& available);
 
 private:
     Ui::ElyAssetsDialog *ui;
     ClientModel *clientModel;
     WalletModel *walletModel;
     QMenu *contextMenu;
-    QMenu *contextMenuSummary;
 
     GUIUtil::TableViewLastColumnResizingFixer *borrowedColumnResizingFixer;
     virtual void resizeEvent(QResizeEvent *event);
 
 public Q_SLOTS:
-    void propSelectorChanged();
-    void balancesUpdated();
-    void reinitEly();
+    void populateBalances();
 
 private Q_SLOTS:
     void contextualMenu(const QPoint &point);
@@ -59,6 +55,7 @@ private Q_SLOTS:
     void balancesCopyCol1();
     void balancesCopyCol2();
     void balancesCopyCol3();
+    void balancesCopyCol4();
 
 Q_SIGNALS:
     /**  Fired when a message should be reported to the user */

@@ -7,9 +7,6 @@
 
 #include "tinyformat.h"
 #include "utilstrencodings.h"
-#ifdef ENABLE_ELYSIUM
-#include "../elysium/packetencoder.h"
-#endif
 
 const char* GetOpName(opcodetype opcode)
 {
@@ -304,7 +301,8 @@ bool CScript::IsElysium() const {
     if (!GetOp(pc, op, data) || op != OP_RETURN) return false;
     if (!GetOp(pc, op, data)) return false;
 
-    return (data.size() >= elysium::magic.size() && std::equal(elysium::magic.begin(), elysium::magic.end(), data.begin()));
+    const std::array<unsigned char, 7> magic = { 0x65, 0x6c, 0x79, 0x73, 0x69, 0x75, 0x6d }; // "elysium"
+    return (data.size() >= magic.size() && std::equal(magic.begin(), magic.end(), data.begin()));
 }
 #endif
 

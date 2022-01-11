@@ -1411,10 +1411,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     if (tx.IsSigmaSpend()) {
         if(markFiroSpendTransactionSerial)
             sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
-        LogPrintf("Updating mint tracker state from Mempool..");
+        LogPrintf("Updating mint tracker state from Mempool..\n");
 #ifdef ENABLE_WALLET
         if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-            LogPrintf("Updating spend state from Mempool..");
+            LogPrintf("Updating spend state from Mempool..\n");
             pwalletMain->zwallet->GetTracker().UpdateSpendStateFromMempool(zcSpendSerialsV3);
         }
 #endif
@@ -1425,10 +1425,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             for (const auto &spendSerial: lelantusSpendSerials)
                 pool.lelantusState.AddSpendToMempool(spendSerial, hash);
         }
-        LogPrintf("Updating mint tracker state from Mempool..");
+        LogPrintf("Updating mint tracker state from Mempool..\n");
 #ifdef ENABLE_WALLET
         if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-            LogPrintf("Updating spend state from Mempool..");
+            LogPrintf("Updating spend state from Mempool..\n");
             pwalletMain->zwallet->GetTracker().UpdateJoinSplitStateFromMempool(lelantusSpendSerials);
             pwalletMain->zwallet->GetTracker().UpdateSpendStateFromMempool(lelantusSpendSerials);
         }
@@ -1444,12 +1444,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
 #ifdef ENABLE_WALLET
     if(tx.IsSigmaMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        LogPrintf("Updating mint state from Mempool..");
+        LogPrintf("Updating mint state from Mempool..\n");
         pwalletMain->zwallet->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
     }
 
     if(tx.IsLelantusMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        LogPrintf("Updating mint state from Mempool..");
+        LogPrintf("Updating mint state from Mempool..\n");
         BOOST_FOREACH(const CTxOut &txout, tx.vout)
         {
             if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {

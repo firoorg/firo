@@ -110,8 +110,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     appMenuBar(0),
     overviewAction(0),
 #ifdef ENABLE_ELYSIUM
-    elyAssetsAction(0),
-    toolboxAction(0),
+    elysiumTokensAction(0),
 #endif
     historyAction(0),
     quitAction(0),
@@ -137,7 +136,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     lelantusAction(0),
     masternodeAction(0),
     createPcodeAction(0),
-    logoAction(0),
     trayIcon(0),
     trayIconMenu(0),
     notificator(0),
@@ -393,19 +391,12 @@ void BitcoinGUI::createActions()
     bool elysiumEnabled = isElysiumEnabled();
 
     if (elysiumEnabled) {
-        elyAssetsAction = new QAction(tr("E&lyAssets"), this);
-        elyAssetsAction->setStatusTip(tr("Show Elysium balances"));
-        elyAssetsAction->setToolTip(elyAssetsAction->statusTip());
-        elyAssetsAction->setCheckable(true);
-        elyAssetsAction->setShortcut(QKeySequence(Qt::ALT + key++));
-        tabGroup->addAction(elyAssetsAction);
-
-        toolboxAction = new QAction(tr("&Toolbox"), this);
-        toolboxAction->setStatusTip(tr("Tools to obtain varions Elysium information and transaction information"));
-        toolboxAction->setToolTip(toolboxAction->statusTip());
-        toolboxAction->setCheckable(true);
-        toolboxAction->setShortcut(QKeySequence(Qt::ALT + key++));
-        tabGroup->addAction(toolboxAction);
+        elysiumTokensAction = new QAction(tr("El&ysium"), this);
+        elysiumTokensAction->setStatusTip(tr("Manage Elysium tokens"));
+        elysiumTokensAction->setToolTip(elysiumTokensAction->statusTip());
+        elysiumTokensAction->setCheckable(true);
+        elysiumTokensAction->setShortcut(QKeySequence(Qt::ALT + key++));
+        tabGroup->addAction(elysiumTokensAction);
     }
 #endif
 
@@ -436,10 +427,8 @@ void BitcoinGUI::createActions()
 	connect(createPcodeAction, SIGNAL(triggered()), this, SLOT(gotoCreatePcodePage()));
 #ifdef ENABLE_ELYSIUM
     if (elysiumEnabled) {
-        connect(elyAssetsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-        connect(elyAssetsAction, SIGNAL(triggered()), this, SLOT(gotoElyAssetsPage()));
-        connect(toolboxAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-        connect(toolboxAction, SIGNAL(triggered()), this, SLOT(gotoToolboxPage()));
+        connect(elysiumTokensAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+        connect(elysiumTokensAction, SIGNAL(triggered()), this, SLOT(gotoElysiumTokensPage()));
     }
 #endif
 #endif // ENABLE_WALLET
@@ -584,8 +573,7 @@ void BitcoinGUI::createToolBars()
 
 #ifdef ENABLE_ELYSIUM
         if (isElysiumEnabled()) {
-            toolbar->addAction(elyAssetsAction);
-            toolbar->addAction(toolboxAction);
+            toolbar->addAction(elysiumTokensAction);
         }
 #endif
         toolbar->addAction(createPcodeAction);
@@ -730,8 +718,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
 
 #ifdef ENABLE_ELYSIUM
     if (isElysiumEnabled()) {
-        elyAssetsAction->setEnabled(enabled);
-        toolboxAction->setEnabled(enabled);
+        elysiumTokensAction->setEnabled(enabled);
     }
 #endif
 }
@@ -851,10 +838,10 @@ void BitcoinGUI::gotoOverviewPage()
 }
 
 #ifdef ENABLE_ELYSIUM
-void BitcoinGUI::gotoElyAssetsPage()
+void BitcoinGUI::gotoElysiumTokensPage()
 {
-    elyAssetsAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoElyAssetsPage();
+    elysiumTokensAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoElysiumTokensPage();
 }
 #endif
 
@@ -877,14 +864,6 @@ void BitcoinGUI::gotoBitcoinHistoryTab()
     historyAction->setChecked(true);
     if (walletFrame) walletFrame->gotoBitcoinHistoryTab();
 }
-
-#ifdef ENABLE_ELYSIUM
-void BitcoinGUI::gotoToolboxPage()
-{
-    toolboxAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoToolboxPage();
-}
-#endif
 
 void BitcoinGUI::gotoMasternodePage()
 {

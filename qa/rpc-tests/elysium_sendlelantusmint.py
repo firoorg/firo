@@ -66,12 +66,6 @@ class ElysiumSendLelantusMintTest(ElysiumTestFramework):
         addr = self.nodes[0].getnewaddress()
         self.mine_tx(self.nodes[0].elysium_send(self.addrs[0], addr, lelantus_property, "100"))
 
-        assert_raises_message(
-            JSONRPCException,
-            'Error choosing inputs for the send transaction',
-            self.nodes[0].elysium_sendlelantusmint, addr, lelantus_property, "10"
-        )
-
         assert_equal("100", self.nodes[0].elysium_getbalance(addr, lelantus_property)['balance'])
         assert_equal(0, len(self.nodes[0].elysium_listpendinglelantusmints()))
 

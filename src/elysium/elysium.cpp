@@ -1738,16 +1738,9 @@ bool elysium::UseEncodingClassC(size_t nDataSize)
 }
 
 // This function requests the wallet create an Elysium transaction using the supplied parameters and payload
-int elysium::WalletTxBuilder(
-    const std::string& senderAddress,
-    const std::string& receiverAddress,
-    const std::string& redemptionAddress,
-    int64_t referenceAmount,
-    const std::vector<unsigned char>& data,
-    uint256& txid,
-    std::string& rawHex,
-    bool commit,
-    InputMode inputMode)
+int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string &receiverAddress,
+                             const std::string &redemptionAddress, const std::vector<unsigned char> &data,
+                             uint256 &txid, std::string &rawHex, bool commit, InputMode inputMode)
 {
 	if (inputMode == InputMode::NORMAL) LogPrintf("inputMode Normal \n");
 	else if (inputMode == InputMode::LELANTUS) LogPrintf("inputMode Lelantus \n");
@@ -1771,7 +1764,7 @@ int elysium::WalletTxBuilder(
     coinControl.destChange = addr.Get();
 
     // Select the inputs
-    if (0 >= SelectCoins(senderAddress, coinControl, referenceAmount, inputMode)) {
+    if (0 >= SelectCoins(senderAddress, coinControl, ConsensusParams().REFERENCE_AMOUNT, inputMode)) {
         switch (inputMode) {
         case InputMode::NORMAL:
             return MP_INPUTS_INVALID;
@@ -1806,7 +1799,7 @@ int elysium::WalletTxBuilder(
     // Then add a paytopubkeyhash output for the recipient (if needed) - note we do this last as we want this to be the highest vout
     if (!receiverAddress.empty()) {
         CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(receiverAddress).Get());
-        vecSend.push_back(CTxOut(referenceAmount > 0 ? referenceAmount : GetDustThreshold(scriptPubKey), scriptPubKey));
+        vecSend.push_back(CTxOut(ConsensusParams().REFERENCE_AMOUNT, scriptPubKey));
     }
 
     // Now we have what we need to pass to the wallet to create the transaction, perform some checks first

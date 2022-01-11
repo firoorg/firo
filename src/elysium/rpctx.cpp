@@ -63,7 +63,7 @@ UniValue elysium_sendrawtx(const JSONRPCRequest& request)
     //some sanity checking of the data supplied?
     uint256 newTX;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, toAddress, redeemAddress, referenceAmount, data, newTX, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, toAddress, redeemAddress, data, newTX, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -121,7 +121,7 @@ UniValue elysium_send(const JSONRPCRequest& request)
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, toAddress, redeemAddress, referenceAmount, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, toAddress, redeemAddress, payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -176,7 +176,7 @@ UniValue elysium_sendall(const JSONRPCRequest& request)
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, toAddress, redeemAddress, referenceAmount, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, toAddress, redeemAddress, payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -271,7 +271,7 @@ UniValue elysium_sendissuancefixed(const JSONRPCRequest& request)
         fee = consensus.PROPERTY_CREATION_FEE;
     }
 
-    int result = WalletTxBuilder(fromAddress, receiver, "", fee, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, receiver, "", payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -363,7 +363,7 @@ UniValue elysium_sendissuancemanaged(const JSONRPCRequest& request)
         fee = consensus.PROPERTY_CREATION_FEE;
     }
 
-    int result = WalletTxBuilder(fromAddress, receiver, "", fee, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, receiver, "", payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -418,7 +418,7 @@ UniValue elysium_sendgrant(const JSONRPCRequest& request)
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, toAddress, "", 0, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, toAddress, "", payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -473,7 +473,7 @@ UniValue elysium_sendrevoke(const JSONRPCRequest& request)
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, "", "", payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -523,7 +523,7 @@ UniValue elysium_sendchangeissuer(const JSONRPCRequest& request)
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, toAddress, "", 0, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, toAddress, "", payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -573,7 +573,7 @@ UniValue elysium_sendenablefreezing(const JSONRPCRequest& request)
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, "", "", payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -624,7 +624,7 @@ UniValue elysium_senddisablefreezing(const JSONRPCRequest& request)
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, "", "", payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -676,7 +676,7 @@ UniValue elysium_sendfreeze(const JSONRPCRequest& request)
     // Note: no ref address is sent to WalletTxBuilder as the ref address is contained within the payload
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, "", "", payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -728,7 +728,7 @@ UniValue elysium_sendunfreeze(const JSONRPCRequest& request)
     // Note: no ref address is sent to WalletTxBuilder as the ref address is contained within the payload
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, "", "", payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -774,7 +774,7 @@ UniValue elysium_sendactivation(const JSONRPCRequest& request)
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, "", "", payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -816,7 +816,7 @@ UniValue elysium_senddeactivation(const JSONRPCRequest& request)
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, "", "", payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -870,7 +870,7 @@ UniValue elysium_sendalert(const JSONRPCRequest& request)
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, "", "", payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {
@@ -924,7 +924,7 @@ UniValue elysium_sendlelantusmint(const JSONRPCRequest& request)
     std::string rawHex;
 
     auto payload = CreatePayload_CreateLelantusMint(propertyId, coin.getPublicCoin(), mint.id, amount, {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
-    auto result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+    auto result = WalletTxBuilder(fromAddress, "", "", payload, txid, rawHex, autoCommit);
 
     if (result != 0) {
         throw JSONRPCError(result, error_str(result));
@@ -945,13 +945,12 @@ UniValue elysium_sendlelantusspend(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 3 || request.params.size() > 4) {
         throw std::runtime_error(
-            "elysium_sendlelantusspend \"toaddress\" propertyid amount ( \"referenceamount\" )\n"
+            "elysium_sendlelantusspend \"toaddress\" propertyid amount\n"
             "\nCreate spend.\n"
             "\nArguments:\n"
             "1. toaddress                    (string, required) the address to spend to\n"
             "2. propertyid                   (number, required) the property to spend\n"
             "3. amount                       (number, required) the amount to spend\n"
-            "4. referenceamount              (string, optional) a firo amount that is sent to the receiver (minimal by default)\n"
             "\nResult:\n"
             "\"hash\"                          (string) the hex-encoded transaction hash\n"
             "\nExamples:\n"
@@ -964,7 +963,7 @@ UniValue elysium_sendlelantusspend(const JSONRPCRequest& request)
     auto toAddress = ParseAddress(request.params[0]);
     auto propertyId = ParsePropertyId(request.params[1]);
     auto amount = ParseAmount(request.params[2], isPropertyDivisible(propertyId));
-    auto referenceAmount = (request.params.size() > 3) ? ParseAmount(request.params[3], true): 0;
+    auto referenceAmount = ConsensusParams().REFERENCE_AMOUNT;
 
     // perform checks
     RequireExistingProperty(propertyId);
@@ -976,10 +975,6 @@ UniValue elysium_sendlelantusspend(const JSONRPCRequest& request)
 
     // calculate reference amount
     CBitcoinAddress address(toAddress);
-    if (referenceAmount <= 0) {
-        CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(address).Get());
-        referenceAmount = GetDustThreshold(scriptPubKey);
-    }
 
     auto metaData = PrepareSpendMetadata(address, referenceAmount);
 
@@ -1016,15 +1011,14 @@ UniValue elysium_sendlelantusspend(const JSONRPCRequest& request)
     uint256 txid;
     std::string rawHex;
     int result = WalletTxBuilder(
-        "",
-        toAddress,
-        "",
-        referenceAmount,
-        payload,
-        txid,
-        rawHex,
-        autoCommit,
-        InputMode::LELANTUS
+            "",
+            toAddress,
+            "",
+            payload,
+            txid,
+            rawHex,
+            autoCommit,
+            InputMode::LELANTUS
     );
 
     // check error and return the txid (or raw hex depending on autocommit)
@@ -1101,7 +1095,7 @@ UniValue elysium_sendchangelelantusstatus(const JSONRPCRequest& request)
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, "", "", 0, payload, txid, rawHex, autoCommit);
+    int result = WalletTxBuilder(fromAddress, "", "", payload, txid, rawHex, autoCommit);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {

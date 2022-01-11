@@ -859,6 +859,11 @@ int CMPTransaction::logicMath_SimpleSend()
         return (PKT_ERROR_SEND -25);
     }
 
+    if (!referenceAmount || referenceAmount.get() < ConsensusParams().REFERENCE_AMOUNT) {
+        LogPrintf("%s() rejected: tx insufficient reference amount\n", __func__ );
+        return PKT_ERROR_SEND - 26;
+    }
+
     // ------------------------------------------
 
     // Special case: if can't find the receiver -- assume send to self!

@@ -169,6 +169,11 @@ int TxProcessor::ProcessLelantusJoinSplit(const CBlockIndex *pBlockIndex, const 
         return PKT_ERROR_LELANTUS - 902;
     }
 
+    if (!tx.getReferenceAmount() || tx.getReferenceAmount().get() < ConsensusParams().REFERENCE_AMOUNT) {
+        LogPrintf("%s(): rejected: insufficient reference amount\n", __func__);
+        return PKT_ERROR_LELANTUS - 29;
+    }
+
     lelantus::JoinSplit joinSplit = tx.getLelantusJoinSplit();
 
     CBitcoinAddress receiver(tx.getReceiver());

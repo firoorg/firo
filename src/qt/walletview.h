@@ -18,6 +18,10 @@
 
 #ifdef ENABLE_ELYSIUM
 #include "elyassetsdialog.h"
+#include "createtokendialog.h"
+#include "minttokendialog.h"
+#include "managetokendialog.h"
+#include "elysiumprivatesenddialog.h"
 #endif
 
 #include <QStackedWidget>
@@ -29,7 +33,6 @@ class PlatformStyle;
 class ReceiveCoinsDialog;
 class CreatePcodeDialog;
 class SendCoinsDialog;
-class SendMPDialog;
 class TradeHistoryDialog;
 class LookupSPDialog;
 class LookupTXDialog;
@@ -41,6 +44,13 @@ class TransactionView;
 class TXHistoryDialog;
 class WalletModel;
 class AddressBookPage;
+
+#ifdef ENABLE_ELYSIUM
+class CreateTokenDialog;
+class ElysiumPrivateSendDialog;
+class MintTokenDialog;
+class ManageTokenDialog;
+#endif
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
@@ -84,6 +94,7 @@ private:
     void setupSendCoinPage();
 #ifdef ENABLE_ELYSIUM
     void setupToolboxPage();
+    void setupElysiumTokensPage();
 #endif
     void setupSigmaPage();
     void setupLelantusPage();
@@ -98,8 +109,14 @@ private:
     QWidget *toolboxPage;
     TXHistoryDialog *elysiumTransactionsView;
     QTabWidget *transactionTabs;
-    SendMPDialog *sendElysiumView;
     QTabWidget *sendCoinsTabs;
+
+    QWidget *elysiumTokensPage;
+    CreateTokenDialog *createTokenPage;
+    ElysiumPrivateSendDialog *elysiumPrivateSendPage;
+    MintTokenDialog *mintTokenPage;
+    ManageTokenDialog *manageTokenPage;
+    QTabWidget *elysiumTokensTabs;
 #endif
     QWidget *transactionsPage;
     QWidget *smartPropertyPage;
@@ -131,14 +148,12 @@ public Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
 #ifdef ENABLE_ELYSIUM
-    /** Switch to ExoAssets page */
-    void gotoElyAssetsPage();
-    /** Switch to utility page */
-    void gotoToolboxPage();
     /** Switch specifically to elysium tx history tab */
     void gotoElysiumHistoryTab();
     /** Switch to elysium tx history tab and focus on specific transaction */
     void focusElysiumTransaction(const uint256& txid);
+    /** Switch to Elysium Tokens Page */
+    void  gotoElysiumTokensPage();
 #endif
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
