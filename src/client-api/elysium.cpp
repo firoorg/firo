@@ -6,6 +6,9 @@
 #include "protocol.h"
 #include "../elysium/wallettxs.h"
 #include "../elysium/tx.h"
+#include "../elysium/createpayload.h"
+#include "../elysium/rules.h"
+#include "../elysium/errors.h"
 
 UniValue getPropertyData(uint32_t propertyId) {
     CMPSPInfo::Entry info;
@@ -55,10 +58,85 @@ UniValue getElysiumPropertyInfo(Type type, const UniValue& data, const UniValue&
     throw JSONAPIError(API_INVALID_PARAMS, "propertyId or propertyCreationTxid must be specified");
 }
 
+UniValue createElysiumProperty(Type type, const UniValue &data, const UniValue &auth, bool fHelp) {
+    LOCK(cs_main);
+
+    std::string fromAddress;
+    CAmount minAmount = elysium::ConsensusParams().REFERENCE_AMOUNT * 2;
+    std::map<CTxDestination, CAmount> balances = pwalletMain->GetAddressBalances();
+    for (auto& balance : balances) {
+        if (balance.second >= minAmount) {
+            fromAddress = CBitcoinAddress(balance.first).ToString();
+            break;
+        }
+    }
+    if (fromAddress.empty()) {
+        throw JSONAPIError(API_INVALID_PARAMS, "no addresses with public balance >= 0.002 FIRO");
+    }
+
+    bool isFixed = data["isFixed"].get_bool();
+    bool isMainEcosystem = true;
+    bool isDivisible = data["isDivisible"].get_bool();
+    int previousId = 0;
+    std::string category = data["category"].get_str();
+    if (category.length() > 255) throw JSONAPIError(API_INVALID_PARAMS, "category must be <256 chars");
+    std::string subcategory = data["subcategory"].get_str();
+    if (subcategory.length() > 255) throw JSONAPIError(API_INVALID_PARAMS, "subcategory must be <256 chars");
+    std::string name = data["name"].get_str();
+    if (name.empty() || name.length() > 255) throw JSONAPIError(API_INVALID_PARAMS, "name must be between 1 and 255 chars");
+    std::string url = data["url"].get_str();
+    if (url.length() > 255) throw JSONAPIError(API_INVALID_PARAMS, "url must be <256 chars");
+    std::string propertyData = data["data"].get_str();
+    if (propertyData.length() > 255) throw JSONAPIError(API_INVALID_PARAMS, "data must be <256 chars");
+    int64_t amount = 0;
+    if (isFixed) {
+        amount = boost::lexical_cast<int64_t>(data["amount"].get_str());
+        if (amount <= 0) throw JSONAPIError(API_INVALID_PARAMS, "amount must be between 0 and 2^63-1");
+    }
+    elysium::LelantusStatus lelantusStatus = elysium::LelantusStatus::HardEnabled;
+
+    // create a payload for the transaction
+    std::vector<unsigned char> payload;
+    if (isFixed) {
+        payload = CreatePayload_IssuanceFixed(
+                isMainEcosystem ? 1 : 2,
+                isDivisible ? 2 : 1,
+                previousId,
+                category,
+                subcategory,
+                name,
+                url,
+                propertyData,
+                amount,
+                lelantusStatus
+        );
+    } else {
+        payload = CreatePayload_IssuanceManaged(
+                isMainEcosystem ? 1 : 2,
+                isDivisible ? 2 : 1,
+                previousId,
+                category,
+                subcategory,
+                name,
+                url,
+                propertyData,
+                lelantusStatus
+        );
+    }
+
+    uint256 txid;
+    std::string rawHex;
+    std::string receiver;
+    int result = elysium::WalletTxBuilder(fromAddress, receiver, "", payload, txid, rawHex, autoCommit);
+    if (result != 0) throw JSONAPIError(API_INTERNAL_ERROR, error_str(result));
+    else return txid.GetHex();
+}
+
 static const CAPICommand commands[] =
         { //  category collection actor authPort authPassphrase  warmupOk
           //  -------- ---------- ----- -------- --------------  --------
           { "elysium", "getElysiumPropertyInfo", &getElysiumPropertyInfo, true, false, false  },
+          { "elysium", "createElysiumProperty", &createElysiumProperty, true, true, false  },
         };
 
 void RegisterElysiumAPICommands(CAPITable &tableAPI)
