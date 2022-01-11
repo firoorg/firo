@@ -9,6 +9,8 @@
 #include "../elysium/createpayload.h"
 #include "../elysium/rules.h"
 #include "../elysium/errors.h"
+#include "../elysium/wallet.h"
+#include "../elysium/pending.h"
 
 UniValue getPropertyData(uint32_t propertyId) {
     CMPSPInfo::Entry info;
@@ -132,11 +134,45 @@ UniValue createElysiumProperty(Type type, const UniValue &data, const UniValue &
     else return txid.GetHex();
 }
 
+UniValue mintElysium(Type type, const UniValue &data, const UniValue &auth, bool fHelp) {
+    LOCK(cs_main);
+
+    std::string address = data["address"].get_str();
+    uint32_t propertyId = data["propertyId"].get_int64();
+
+    CMPSPInfo::Entry info;
+    if (!elysium::_my_sps->getSP(propertyId, info))
+        throw JSONAPIError(API_INVALID_PARAMS, "invalid propertyId");
+    if (info.lelantusStatus == elysium::LelantusStatus::SoftDisabled || info.lelantusStatus == elysium::LelantusStatus::HardDisabled)
+        throw JSONAPIError(API_INVALID_PARAMS, "lelantus not enabled for this property");
+
+    int64_t balance = std::min(getMPbalance(address, propertyId, BALANCE), getUserAvailableMPbalance(address, propertyId));
+    if (!balance) return UniValue::VNULL;
+
+    elysium::LelantusWallet::MintReservation mint = elysium::wallet->CreateLelantusMint(propertyId, balance);
+    lelantus::PrivateCoin coin = mint.coin;
+
+    CDataStream serializedSchnorrProof(SER_NETWORK, PROTOCOL_VERSION);
+    lelantus::GenerateMintSchnorrProof(coin, serializedSchnorrProof);
+
+    uint256 txid;
+    std::string rawHex;
+    std::vector<unsigned char> payload = CreatePayload_CreateLelantusMint(propertyId, coin.getPublicCoin(), mint.id, balance, {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
+    auto result = elysium::WalletTxBuilder(address, "", "", payload, txid, rawHex, true);
+    if (result != 0) throw JSONAPIError(API_INTERNAL_ERROR, error_str(result));
+
+    mint.Commit();
+    elysium::PendingAdd(txid, address, ELYSIUM_TYPE_LELANTUS_MINT, propertyId, balance);
+
+    return txid.GetHex();
+}
+
 static const CAPICommand commands[] =
         { //  category collection actor authPort authPassphrase  warmupOk
           //  -------- ---------- ----- -------- --------------  --------
           { "elysium", "getElysiumPropertyInfo", &getElysiumPropertyInfo, true, false, false  },
           { "elysium", "createElysiumProperty", &createElysiumProperty, true, true, false  },
+          { "elysium", "mintElysium", &mintElysium, true, true, false  },
         };
 
 void RegisterElysiumAPICommands(CAPITable &tableAPI)
