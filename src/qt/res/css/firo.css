@@ -282,6 +282,7 @@ QCalendarWidget QAbstractItemView:disabled {
 /* QCheckBox */
 
 QCheckBox {
+    color: #110202;
     background-color: #f4f4f4;
     min-height: 25px;
     margin-right: 10px;

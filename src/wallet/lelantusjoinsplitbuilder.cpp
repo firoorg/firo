@@ -249,6 +249,10 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         mintCoins.clear();
         std::vector<CTxOut> outputMints;
         std::vector<lelantus::PrivateCoin> Cout;
+        {
+            CWalletDB walletdb(pwalletMain->strWalletFile);
+            pwalletMain->zwallet->ResetCount(walletdb);
+        }
         GenerateMints(newMints, changeToMint, Cout, outputMints);
 
         // shuffle outputs to provide some privacy

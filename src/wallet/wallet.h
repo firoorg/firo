@@ -701,6 +701,8 @@ private:
 
     std::set<int64_t> setKeyPool;
 
+    std::map<CKeyID, int64_t> m_pool_key_to_index;
+
     int64_t nTimeFirstKey;
 
     std::shared_ptr<bip47::CWallet> bip47wallet;
@@ -732,6 +734,7 @@ public:
     {
         setKeyPool.insert(nIndex);
 
+        m_pool_key_to_index[keypool.vchPubKey.GetID()] = nIndex;
         // If no metadata exists yet, create a default with the pool key's
         // creation time. Note that this may be overwritten by actually
         // stored metadata for that key later, which is fine.
@@ -1092,10 +1095,14 @@ public:
     bool TopUpKeyPool(unsigned int kpSize = 0);
     void ReserveKeyFromKeyPool(int64_t& nIndex, CKeyPool& keypool);
     void KeepKey(int64_t nIndex);
-    void ReturnKey(int64_t nIndex);
+    void ReturnKey(int64_t nIndex, const CPubKey& pubkey);
     bool GetKeyFromPool(CPubKey &key);
     int64_t GetOldestKeyPoolTime();
-    void GetAllReserveKeys(std::set<CKeyID>& setAddress) const;
+    /**
+     * Marks all keys in the keypool up to and including reserve_key as used.
+     */
+    void MarkReserveKeysAsUsed(int64_t keypool_id);
+    const std::map<CKeyID, int64_t>& GetAllReserveKeys() const { return m_pool_key_to_index; }
 
     std::set< std::set<CTxDestination> > GetAddressGroupings();
     std::map<CTxDestination, CAmount> GetAddressBalances();
