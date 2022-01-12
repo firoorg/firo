@@ -332,7 +332,6 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     if (ParseTransaction(*wtx.tx, nHeight, 0, mp_obj, nTime) >= 0 && mp_obj.interpret_Transaction()) {
         UniValue elysiumData = UniValue::VOBJ;
 
-        elysiumData.pushKV("isFromMe", (bool)IsMine(*pwalletMain, CBitcoinAddress(mp_obj.getSender()).Get()));
         elysiumData.pushKV("isToMe", (bool)IsMine(*pwalletMain, CBitcoinAddress(mp_obj.getReceiver()).Get()));
         elysiumData.pushKV("sender", mp_obj.getSender());
         elysiumData.pushKV("receiver", mp_obj.getReceiver());
