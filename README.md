@@ -43,7 +43,7 @@ docker pull firoorg/firod
 Start Firo daemon:
 
 ```sh
-docker run --detach --name firod firoorg/firod
+docker run -d --name firod -v "${HOME}/.firo:/home/firod/.firo" firoorg/firod
 ```
 
 View current block count (this might take a while since the daemon needs to find other nodes and download blocks first):
