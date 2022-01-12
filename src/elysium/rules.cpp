@@ -270,6 +270,7 @@ bool IsAllowedInputType(int whichType, int nBlock)
 
     switch (whichType)
     {
+        case TX_PUBKEY:
         case TX_PUBKEYHASH:
             return (params.PUBKEYHASH_BLOCK <= nBlock);
 
