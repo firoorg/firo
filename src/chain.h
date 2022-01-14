@@ -538,7 +538,7 @@ public:
         if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nEvoSporkStartBlock) {
             if (nHeight < params.nEvoSporkStopBlock &&
                 // Workaround for late rollout of version 0.14.9.3 in which nEvoSporkStopBlock was extended
-                // If a record on disk for block is less than 140903 and nHeight is greater than previous value
+                // If version of a record for block is less than 140903 and nHeight is greater than previous value
                 // of nEvoSporkStopBlock we don't read activeDisablingSpork from index database
                 !(params.nEvoSporkStopBlockExtensionVersion != 0 &&
                     nVersion < params.nEvoSporkStopBlockExtensionVersion &&
