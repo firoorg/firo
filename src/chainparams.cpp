@@ -413,7 +413,7 @@ public:
         consensus.nEvoSporkStopBlock = ZC_LELANTUS_STARTING_BLOCK + 2*24*12*365;  // two years after lelantus
         consensus.nEvoSporkStopBlockExtensionVersion = 140903;
         consensus.nEvoSporkStopBlockPrevious = ZC_LELANTUS_STARTING_BLOCK + 1*24*12*365; // one year after lelantus
-        consensus.nEvoSporkStopBlockExtensionGracefulPeriod = 24*12*7; // one week
+        consensus.nEvoSporkStopBlockExtensionGracefulPeriod = 24*12*14; // two weeks
 
         // reorg
         consensus.nMaxReorgDepth = 5;
