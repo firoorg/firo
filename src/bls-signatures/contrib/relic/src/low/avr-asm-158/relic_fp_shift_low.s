@@ -1,21 +1,24 @@
 /*
- * Copyright 2007 Project RELIC
+ * RELIC is an Efficient LIbrary for Cryptography
+ * Copyright (c) 2012 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
- * whose names are not listed here. Please refer to the COPYRIGHT file.
+ * whose names are not listed here. Please refer to the COPYRIGHT file
+ * for contact information.
  *
- * RELIC is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -51,14 +54,14 @@
 fp_rsh1_low:
 	movw 	r30, r24
 	movw 	r26, r22
-	ldi		r20, FP_DIGS
+	ldi		r20, RLC_FP_DIGS
 	add     r30, r20
 	adc     r31, r1
 	add		r26, r20
 	adc		r27, r1
 
 	clc
-	RSH1_STEP 0, FP_DIGS - 1
+	RSH1_STEP 0, RLC_FP_DIGS - 1
 
 	clr		r24
 	adc		r24, r1
@@ -78,9 +81,8 @@ fp_lsh1_low:
 	movw 	r26, r22
 
 	clc
-	LSH1_STEP 0, FP_DIGS - 1
+	LSH1_STEP 0, RLC_FP_DIGS - 1
 
 	clr		r24
 	adc		r24, r1
 	ret
-

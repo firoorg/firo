@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2014 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -43,7 +44,7 @@ static void test_bytes(uint8_t *buf, int size, void *args) {
 	int c, l, fd = *(int *)args;
 
 	if (fd == -1) {
-		THROW(ERR_NO_FILE);
+		RLC_THROW(ERR_NO_FILE);
 	}
 
 	l = 0;
@@ -51,7 +52,7 @@ static void test_bytes(uint8_t *buf, int size, void *args) {
 		c = read(fd, buf + l, size - l);
 		l += c;
 		if (c == -1) {
-			THROW(ERR_NO_READ);
+			RLC_THROW(ERR_NO_READ);
 		}
 	} while (l < size);
 }
@@ -60,13 +61,13 @@ static void rng(void) {
 	uint8_t buffer[64];
 	int fd = open("/dev/urandom", O_RDONLY);
 
-	BENCH_BEGIN("rand_seed") {
+	BENCH_RUN("rand_seed") {
 		rand_bytes(buffer, k);
 		BENCH_ADD(rand_seed(&test_bytes, (void *)&fd));
 	} BENCH_END;
 
 	for (int k = 1; k <= sizeof(buffer); k *= 2) {
-		BENCH_BEGIN("rand_bytes (from 1 to 256)") {
+		BENCH_RUN("rand_bytes (from 1 to 256)") {
 			BENCH_ADD(rand_bytes(buffer, k));
 		} BENCH_END;
 	}
@@ -79,13 +80,13 @@ static void rng(void) {
 static void rng(void) {
 	uint8_t buffer[256];
 
-	BENCH_BEGIN("rand_seed (20)") {
+	BENCH_RUN("rand_seed (20)") {
 		rand_bytes(buffer, 20);
 		BENCH_ADD(rand_seed(buffer, 20));
 	} BENCH_END;
 
 	for (int k = 1; k <= sizeof(buffer); k *= 2) {
-		BENCH_BEGIN("rand_bytes (from 1 to 256)") {
+		BENCH_RUN("rand_bytes (from 1 to 256)") {
 			BENCH_ADD(rand_bytes(buffer, k));
 		} BENCH_END;
 	}
@@ -94,7 +95,7 @@ static void rng(void) {
 #endif
 
 int main(void) {
-	if (core_init() != STS_OK) {
+	if (core_init() != RLC_OK) {
 		core_clean();
 		return 1;
 	}

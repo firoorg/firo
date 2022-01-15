@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2010 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -44,14 +45,19 @@ int fp_srt(fp_t c, const fp_t a) {
 	fp_null(t0);
 	fp_null(t1);
 
-	TRY {
+	if (fp_is_zero(a)) {
+		fp_zero(c);
+		return 1;
+	}
+
+	RLC_TRY {
 		bn_new(e);
 		fp_new(t0);
 		fp_new(t1);
 
 		/* Make e = p. */
-		e->used = FP_DIGS;
-		dv_copy(e->dp, fp_prime_get(), FP_DIGS);
+		e->used = RLC_FP_DIGS;
+		dv_copy(e->dp, fp_prime_get(), RLC_FP_DIGS);
 
 		if (fp_prime_get_mod8() == 3 || fp_prime_get_mod8() == 7) {
 			/* Easy case, compute a^((p + 1)/4). */
@@ -60,7 +66,7 @@ int fp_srt(fp_t c, const fp_t a) {
 
 			fp_exp(t0, a, e);
 			fp_sqr(t1, t0);
-			r = (fp_cmp(t1, a) == CMP_EQ);
+			r = (fp_cmp(t1, a) == RLC_EQ);
 			fp_copy(c, t0);
 		} else {
 			int f = 0, m = 0;
@@ -69,7 +75,7 @@ int fp_srt(fp_t c, const fp_t a) {
 			bn_rsh(e, e, 1);
 			fp_exp(t0, a, e);
 
-			if (fp_cmp_dig(t0, 1) != CMP_EQ) {
+			if (fp_cmp_dig(t0, 1) != RLC_EQ) {
 				/* Nope, there is no square root. */
 				r = 0;
 			} else {
@@ -79,7 +85,7 @@ int fp_srt(fp_t c, const fp_t a) {
 				do {
 					fp_rand(t1);
 					fp_exp(t0, t1, e);
-				} while (fp_cmp_dig(t0, 1) == CMP_EQ);
+				} while (fp_cmp_dig(t0, 1) == RLC_EQ);
 
 				/* Write p - 1 as (e * 2^f), odd e. */
 				bn_lsh(e, e, 1);
@@ -100,11 +106,11 @@ int fp_srt(fp_t c, const fp_t a) {
 				fp_copy(c, e->dp);
 
 				while (1) {
-					if (fp_cmp_dig(t0, 1) == CMP_EQ) {
+					if (fp_cmp_dig(t0, 1) == RLC_EQ) {
 						break;
 					}
 					fp_copy(e->dp, t0);
-					for (m = 0; (m < f) && (fp_cmp_dig(t0, 1) != CMP_EQ); m++) {
+					for (m = 0; (m < f) && (fp_cmp_dig(t0, 1) != RLC_EQ); m++) {
 						fp_sqr(t0, t0);
 					}
 					fp_copy(t0, e->dp);
@@ -119,10 +125,10 @@ int fp_srt(fp_t c, const fp_t a) {
 			}
 		}
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		bn_free(e);
 		fp_free(t0);
 		fp_free(t1);

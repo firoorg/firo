@@ -14,6 +14,9 @@
 
 class CHDMint;
 
+static const unsigned int DEFAULT_MINTPOOL_SIZE = 20;
+static const unsigned int MAX_MINTPOOL_SIZE = 200;
+
 class CHDMintWallet
 {
 private:
@@ -43,7 +46,7 @@ public:
     bool IsLelantusSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransactionRef & tx);
     bool TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pubCoin, CValidationState& state);
     std::pair<uint256,uint256> RegenerateMintPoolEntry(CWalletDB& walletdb, const uint160& mintHashSeedMaster, CKeyID& seedId, const int32_t& nCount);
-    void GenerateMintPool(CWalletDB& walletdb, int32_t nIndex = 0);
+    void GenerateMintPool(CWalletDB& walletdb, bool forceGenerate = false, int32_t nIndex = 0);
     bool SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, int nHeight, const uint256& txid, const sigma::CoinDenomination& denom);
     bool SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, int nHeight, const uint256& txid, uint64_t amount);
     bool SeedToMint(const uint512& mintSeed, GroupElement& bnValue, sigma::PrivateCoin& coin);

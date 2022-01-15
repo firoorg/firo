@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -43,18 +44,26 @@
 #include "relic_bench.h"
 
 /*============================================================================*/
+/* Private definitions                                                        */
+/*============================================================================*/
+
+/**
+ * Inserts quotation marks in the macro argument.
+ */
+/** @{ */
+#define QUOTE(A)			_QUOTE(A)
+#define _QUOTE(A)			#A
+/** @} */
+
+/*============================================================================*/
 /* Public definitions                                                         */
 /*============================================================================*/
 
 void conf_print(void) {
 #ifndef QUIET
-	util_print("-- RELIC " RELIC_VERSION " configuration:\n\n");
-#if ALLOC == STATIC
-	util_print("** Allocation mode: STATIC\n\n");
-#elif ALLOC == DYNAMIC
+	util_print("-- RELIC " RLC_VERSION " configuration:\n\n");
+#if ALLOC == DYNAMIC
 	util_print("** Allocation mode: DYNAMIC\n\n");
-#elif ALLOC == STACK
-	util_print("** Allocation mode: STACK\n\n");
 #elif ALLOC == AUTO
 	util_print("** Allocation mode: AUTO\n\n");
 #endif
@@ -63,6 +72,8 @@ void conf_print(void) {
 	util_print("** Arithmetic backend: easy\n\n");
 #elif ARITH == GMP
 	util_print("** Arithmetic backend: gmp\n\n");
+#elif ARITH == GMP_SEC
+	util_print("** Arithmetic backend: gmp-sec\n\n");
 #else
 	util_print("** Arithmetic backend: " QUOTE(ARITH) "\n\n");
 #endif
@@ -83,13 +94,13 @@ void conf_print(void) {
 
 #ifdef WITH_BN
 	util_print("** Multiple precision module options:\n");
-	util_print("   Precision: %d bits, %d words\n", RELIC_BN_BITS, BN_DIGS);
+	util_print("   Precision: %d bits, %d words\n", RLC_BN_BITS, RLC_BN_DIGS);
 	util_print("   Arithmetic method: " BN_METHD "\n\n");
 #endif
 
 #ifdef WITH_FP
 	util_print("** Prime field module options:\n");
-	util_print("   Prime size: %d bits, %d words\n", FP_BITS, FP_DIGS);
+	util_print("   Prime size: %d bits, %d words\n", RLC_FP_BITS, RLC_FP_DIGS);
 	util_print("   Arithmetic method: " FP_METHD "\n\n");
 #endif
 
@@ -110,7 +121,7 @@ void conf_print(void) {
 
 #ifdef WITH_FB
 	util_print("** Binary field module options:\n");
-	util_print("   Polynomial size: %d bits, %d words\n", FB_BITS, FB_DIGS);
+	util_print("   Polynomial size: %d bits, %d words\n", RLC_FB_BITS, RLC_FB_DIGS);
 	util_print("   Arithmetic method: " FB_METHD "\n\n");
 #endif
 

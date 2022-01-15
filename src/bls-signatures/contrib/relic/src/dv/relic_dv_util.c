@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -53,22 +54,22 @@ void dv_print(dig_t *a, int digits) {
 void dv_zero(dig_t *a, int digits) {
 	int i;
 
-	if (digits > DV_DIGS) {
-		THROW(ERR_NO_PRECI);
+#if ALLOC != DYNAMIC
+	if (digits > RLC_DV_DIGS) {
+		RLC_THROW(ERR_NO_PRECI);
+		return;
 	}
+#endif
 
-	for (i = 0; i < digits; i++, a++)
+	for (i = 0; i < digits; i++, a++) {
 		(*a) = 0;
+	}
 
 	return;
 }
 
 void dv_copy(dig_t *c, const dig_t *a, int digits) {
-	const dig_t *tmp = a;
-
-	for (int i = 0; i < digits; i++, c++, tmp++) {
-		*c = *tmp;
-	}
+	memcpy(c, a, digits * sizeof(dig_t));
 }
 
 void dv_copy_cond(dig_t *c, const dig_t *a, int digits, dig_t cond) {
@@ -92,12 +93,59 @@ void dv_swap_cond(dig_t *c, dig_t *a, int digits, dig_t cond) {
 	}
 }
 
+int dv_cmp(const dig_t *a, const dig_t *b, int size) {
+	int i, r;
+
+	a += (size - 1);
+	b += (size - 1);
+
+	r = RLC_EQ;
+	for (i = 0; i < size; i++, --a, --b) {
+		if (*a != *b && r == RLC_EQ) {
+			r = (*a > *b ? RLC_GT : RLC_LT);
+		}
+	}
+	return r;
+}
+
 int dv_cmp_const(const dig_t *a, const dig_t *b, int size) {
-	int result = 0;
+	int r = 0;
 
 	for (int i = 0; i < size; i++) {
-		result |= a[i] ^ b[i];
+		r |= a[i] ^ b[i];
 	}
 
-	return (result == 0 ? CMP_EQ : CMP_NE);
+	return (r == 0 ? RLC_EQ : RLC_NE);
+}
+
+void dv_rshd(dig_t *c, const dig_t *a, int size, int digits) {
+	const dig_t *top;
+	dig_t *bot;
+	int i;
+
+	top = a + digits;
+	bot = c;
+
+	for (i = 0; i < size - digits; i++, top++, bot++) {
+		*bot = *top;
+	}
+	for (; i < size; i++, bot++) {
+		*bot = 0;
+	}
+}
+
+void dv_lshd(dig_t *c, const dig_t *a, int size, int digits) {
+	dig_t *top;
+	const dig_t *bot;
+	int i;
+
+	top = c + size - 1;
+	bot = a + size - 1 - digits;
+
+	for (i = 0; i < size - digits; i++, top--, bot--) {
+		*top = *bot;
+	}
+	for (i = 0; i < digits; i++, c++) {
+		*c = 0;
+	}
 }

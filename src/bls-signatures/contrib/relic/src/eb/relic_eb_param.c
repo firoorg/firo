@@ -1,29 +1,30 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2009 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
  * @file
  *
- * Implementation of the binary elliptic curve utilities.
+ * Implementation of the binary elliptic curve parameters.
  *
  * @ingroup eb
  */
@@ -228,17 +229,17 @@
  */
 #define ASSIGN(CURVE, FIELD)												\
 	fb_param_set(FIELD);													\
-	FETCH(str, CURVE##_A, sizeof(CURVE##_A));								\
+	RLC_GET(str, CURVE##_A, sizeof(CURVE##_A));								\
 	fb_read_str(a, str, strlen(str), 16);									\
-	FETCH(str, CURVE##_B, sizeof(CURVE##_B));								\
+	RLC_GET(str, CURVE##_B, sizeof(CURVE##_B));								\
 	fb_read_str(b, str, strlen(str), 16);									\
-	FETCH(str, CURVE##_X, sizeof(CURVE##_X));								\
+	RLC_GET(str, CURVE##_X, sizeof(CURVE##_X));								\
 	fb_read_str(g->x, str, strlen(str), 16);								\
-	FETCH(str, CURVE##_Y, sizeof(CURVE##_Y));								\
+	RLC_GET(str, CURVE##_Y, sizeof(CURVE##_Y));								\
 	fb_read_str(g->y, str, strlen(str), 16);								\
-	FETCH(str, CURVE##_R, sizeof(CURVE##_R));								\
+	RLC_GET(str, CURVE##_R, sizeof(CURVE##_R));								\
 	bn_read_str(r, str, strlen(str), 16);									\
-	FETCH(str, CURVE##_H, sizeof(CURVE##_H));								\
+	RLC_GET(str, CURVE##_H, sizeof(CURVE##_H));								\
 	bn_read_str(h, str, strlen(str), 16);									\
 
 /*============================================================================*/
@@ -250,7 +251,7 @@ int eb_param_get(void) {
 }
 
 void eb_param_set(int param) {
-	char str[2 * FB_BYTES + 1];
+	char str[2 * RLC_FB_BYTES + 1];
 	fb_t a, b;
 	eb_t g;
 	bn_t r;
@@ -262,7 +263,7 @@ void eb_param_set(int param) {
 	bn_null(r);
 	bn_null(h);
 
-	TRY {
+	RLC_TRY {
 		fb_new(a);
 		fb_new(b);
 		eb_new(g);
@@ -339,20 +340,20 @@ void eb_param_set(int param) {
 #endif
 			default:
 				(void)str;
-				THROW(ERR_NO_VALID);
+				RLC_THROW(ERR_NO_VALID);
 				break;
 		}
 		fb_zero(g->z);
 		fb_set_bit(g->z, 0, 1);
-		g->norm = 1;
+		g->coord = BASIC;
 
 		eb_curve_set(a, b, g, r, h);
 		core_get()->eb_id = param;
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		fb_free(a);
 		fb_free(b);
 		eb_free(g);
@@ -362,20 +363,18 @@ void eb_param_set(int param) {
 }
 
 int eb_param_set_any(void) {
-	int r0, r1;
-
-	r0 = eb_param_set_any_plain();
-	if (r0 == STS_ERR) {
-		r1 = eb_param_set_any_kbltz();
-		if (r1 == STS_ERR) {
-			return STS_ERR;
+	int r = eb_param_set_any_plain();
+	if (r == RLC_ERR) {
+		r = eb_param_set_any_kbltz();
+		if (r == RLC_ERR) {
+			return RLC_ERR;
 		}
 	}
-	return STS_OK;
+	return RLC_OK;
 }
 
 int eb_param_set_any_plain(void) {
-	int r = STS_OK;
+	int r = RLC_OK;
 #if defined(EB_PLAIN)
 #if FB_POLYN == 163
 	eb_param_set(NIST_B163);
@@ -392,16 +391,16 @@ int eb_param_set_any_plain(void) {
 #elif FB_POLYN == 571
 	eb_param_set(NIST_B571);
 #else
-	r = STS_ERR;
+	r = RLC_ERR;
 #endif
 #else
-	r = STS_ERR;
+	r = RLC_ERR;
 #endif
 	return r;
 }
 
 int eb_param_set_any_kbltz(void) {
-	int r = STS_OK;
+	int r = RLC_OK;
 #if defined(EB_KBLTZ)
 #if FB_POLYN == 163
 	eb_param_set(NIST_K163);
@@ -416,10 +415,10 @@ int eb_param_set_any_kbltz(void) {
 #elif FB_POLYN == 571
 	eb_param_set(NIST_K571);
 #else
-	r = STS_ERR;
+	r = RLC_ERR;
 #endif
 #else
-	r = STS_ERR;
+	r = RLC_ERR;
 #endif
 	return r;
 }

@@ -1,23 +1,24 @@
 /*
  * RELIC is an Efficient LIbrary for Cryptography
- * Copyright (C) 2007-2017 RELIC Authors
+ * Copyright (c) 2012 RELIC Authors
  *
  * This file is part of RELIC. RELIC is legal property of its developers,
  * whose names are not listed here. Please refer to the COPYRIGHT file
  * for contact information.
  *
- * RELIC is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * RELIC is free software; you can redistribute it and/or modify it under the
+ * terms of the version 2.1 (or later) of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; or version 2.0 of the Apache
+ * License as published by the Apache Software Foundation. See the LICENSE files
+ * for more details.
  *
- * RELIC is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
+ * RELIC is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the LICENSE files for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with RELIC. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public or the
+ * Apache License along with RELIC. If not, see <https://www.gnu.org/licenses/>
+ * or <https://www.apache.org/licenses/>.
  */
 
 /**
@@ -52,7 +53,7 @@ static void ep2_dbl_basic_imp(ep2_t r, fp2_t s, ep2_t p) {
 	fp2_null(t1);
 	fp2_null(t2);
 
-	TRY {
+	RLC_TRY {
 		fp2_new(t0);
 		fp2_new(t1);
 		fp2_new(t2);
@@ -67,8 +68,7 @@ static void ep2_dbl_basic_imp(ep2_t r, fp2_t s, ep2_t p) {
 		fp2_dbl(t1, t1);
 		fp2_add(t1, t1, t2);
 
-		ep2_curve_get_a(t2);
-		fp2_add(t1, t1, t2);
+		fp2_add(t1, t1, ep2_curve_get_a());
 
 		/* t1 = (3 * x1^2 + a)/(2 * y1). */
 		fp2_mul(t1, t1, t0);
@@ -93,12 +93,12 @@ static void ep2_dbl_basic_imp(ep2_t r, fp2_t s, ep2_t p) {
 		fp2_copy(r->x, t0);
 		fp2_copy(r->z, p->z);
 
-		r->norm = 1;
+		r->coord = BASIC;
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		fp2_free(t0);
 		fp2_free(t1);
 		fp2_free(t2);
@@ -126,8 +126,8 @@ static void ep2_dbl_projc_imp(ep2_t r, ep2_t p) {
 	fp2_null(t4);
 	fp2_null(t5);
 
-	TRY {
-		if (ep_curve_opt_a() == OPT_ZERO) {
+	RLC_TRY {
+		if (ep_curve_opt_a() == RLC_ZERO) {
 			fp2_new(t0);
 			fp2_new(t1);
 			fp2_new(t2);
@@ -164,11 +164,11 @@ static void ep2_dbl_projc_imp(ep2_t r, ep2_t p) {
 			fp2_sqr(t1, p->y);
 			fp2_sqr(t2, t1);
 
-			if (!p->norm) {
+			if (p->coord != BASIC) {
 				/* t3 = z1^2. */
 				fp2_sqr(t3, p->z);
 
-				if (ep_curve_get_a() == OPT_ZERO) {
+				if (ep_curve_get_a() == RLC_ZERO) {
 					/* z3 = 2 * y1 * z1. */
 					fp2_mul(r->z, p->y, p->z);
 					fp2_dbl(r->z, r->z);
@@ -194,13 +194,12 @@ static void ep2_dbl_projc_imp(ep2_t r, ep2_t p) {
 			/* t5 = M = 3 * x1^2 + a * z1^4. */
 			fp2_dbl(t5, t0);
 			fp2_add(t5, t5, t0);
-			ep2_curve_get_a(t0);
-			if (!p->norm) {
+			if (p->coord != BASIC) {
 				fp2_sqr(t3, t3);
-				fp2_mul(t1, t0, t3);
+				fp2_mul(t1, t3, ep2_curve_get_a());
 				fp2_add(t5, t5, t1);
 			} else {
-				fp2_add(t5, t5, t0);
+				fp2_add(t5, t5, ep2_curve_get_a());
 			}
 
 			/* x3 = T = M^2 - 2 * S. */
@@ -217,15 +216,12 @@ static void ep2_dbl_projc_imp(ep2_t r, ep2_t p) {
 			fp2_sub(r->y, t5, t2);
 		}
 
-		r->norm = 0;
-
-
-		r->norm = 0;
+		r->coord = PROJC;
 	}
-	CATCH_ANY {
-		THROW(ERR_CAUGHT);
+	RLC_CATCH_ANY {
+		RLC_THROW(ERR_CAUGHT);
 	}
-	FINALLY {
+	RLC_FINALLY {
 		fp2_free(t0);
 		fp2_free(t1);
 		fp2_free(t2);

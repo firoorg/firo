@@ -2047,8 +2047,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         std::string strMasterNodeBLSPrivKey = GetArg("-znodeblsprivkey", "");
         if(!strMasterNodeBLSPrivKey.empty()) {
             auto binKey = ParseHex(strMasterNodeBLSPrivKey);
-            CBLSSecretKey keyOperator;
-            keyOperator.SetBuf(binKey);
+            CBLSSecretKey keyOperator(binKey);
             if (keyOperator.IsValid()) {
                 activeMasternodeInfo.blsKeyOperator = std::make_unique<CBLSSecretKey>(keyOperator);
                 activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>(activeMasternodeInfo.blsKeyOperator->GetPublicKey());
