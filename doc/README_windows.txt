@@ -1,4 +1,4 @@
-Firo Core 0.14.8.x
+Firo Core 0.14.9.x
 =====================
 
 Intro
@@ -11,7 +11,7 @@ with each other, with the help of a P2P network to check for double-spending.
 
 Setup
 -----
-Unpack the files into a directory and run bitcoin-qt.exe.
+Unpack the files into a directory and run firo-qt.exe.
 
 Firo Core is the original Firo client and it builds the backbone of the network.
 However, it downloads and stores the entire history of Firo transactions;
