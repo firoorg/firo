@@ -5478,8 +5478,9 @@ CAmount CWallet::EstimateJoinSplitFee(
 
             std::vector<sigma::CoinDenomination> denomChanges;
             try {
+                CAmount inputFromSigma = 0;
                 if (availableSigmaBalance > 0) {
-                    CAmount inputFromSigma;
+
                     if (currentRequired > availableSigmaBalance)
                         inputFromSigma = availableSigmaBalance;
                     else
@@ -5488,16 +5489,17 @@ CAmount CWallet::EstimateJoinSplitFee(
                                           sigmaCoins, //try to spend sigma first
                                           consensusParams.nMaxLelantusInputPerTransaction,
                                           consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
-                    currentRequired -= inputFromSigma;
                 }
 
-                if (currentRequired > 0) {
-                    currentRequired -= this->GetCoinsToJoinSplit(currentRequired, spendCoins, changeToMint, coinsForThisRound,
+                if (currentRequired - inputFromSigma > 0) {
+                    this->GetCoinsToJoinSplit(currentRequired, spendCoins, changeToMint, coinsForThisRound,
                                               consensusParams.nMaxLelantusInputPerTransaction - sigmaSpendCoins.size(),
                                               consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
                 }
+
             } catch (std::runtime_error const &) {
             }
+
 
             // 1054 is constant part, mainly Schnorr and Range proofs, 2560 is for each sigma/aux data
             // 179 other parts of tx, assuming 1 utxo and 1 jmint
@@ -5516,10 +5518,10 @@ CAmount CWallet::EstimateJoinSplitFee(
 
         fullFee += fee;
         fees.push_back(fee);
-        spendAmounts.push_back(required - currentRequired);
-        required = currentRequired;
         if (!subtractFeeFromAmount)
-            required += fee;
+            currentRequired -= fee;
+        spendAmounts.push_back(currentRequired);
+        required -= currentRequired;
         coins = coinsForThisRound;
     }
 

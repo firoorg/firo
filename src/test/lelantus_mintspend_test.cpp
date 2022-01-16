@@ -77,8 +77,8 @@ BOOST_AUTO_TEST_CASE(lelantus_mintspend_test)
     CWalletTx result;
     {
         std::vector<CHDMint> mintCoins; // new mints
-        CAmount fee;
-        result = pwalletMain->CreateLelantusJoinSplitTransaction(recipients, fee, {}, spendCoins, sigmaSpendCoins, mintCoins);
+        std::vector<CAmount> fee;
+        result = pwalletMain->CreateLelantusJoinSplitTransaction(recipients, fee, {}, spendCoins, sigmaSpendCoins, mintCoins)[0];
         pwalletMain->CommitLelantusTransaction(result, spendCoins, sigmaSpendCoins, mintCoins);
     }
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Joinsplit was not added to mempool");
@@ -105,8 +105,8 @@ BOOST_AUTO_TEST_CASE(lelantus_mintspend_test)
     result.Init(NULL);
     {
         std::vector<CHDMint> mintCoins; // new mints
-        CAmount fee;
-        result = pwalletMain->CreateLelantusJoinSplitTransaction(recipients, fee, {}, spendCoins, sigmaSpendCoins, mintCoins);
+        std::vector<CAmount> fee;
+        result = pwalletMain->CreateLelantusJoinSplitTransaction(recipients, fee, {}, spendCoins, sigmaSpendCoins, mintCoins)[0];
         pwalletMain->CommitLelantusTransaction(result, spendCoins, sigmaSpendCoins, mintCoins);
     }
 
