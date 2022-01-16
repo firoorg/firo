@@ -1,7 +1,7 @@
 
-all: build/libchiabls.la build/.libs/libchiabls.a
+all: build/libchiabls.la
 
-build/libchiabls.la build/.libs/libchiabls.a:
+build/libchiabls.la:
 	$(AM_V_at)$(MAKE) -C ./build/
 
 .PHONY distdir: 
