@@ -966,7 +966,7 @@ AC_ARG_WITH(ssl-dir,
   ])
 
 AC_MSG_NOTICE([Now, we'll look for OpenSSL >= 1.0.1])
-TOR_SEARCH_LIBRARY(openssl, $tryssldir, [-lssl -lcrypto $TOR_LIB_GDI $TOR_LIB_WS32],
+TOR_SEARCH_LIBRARY(openssl, $tryssldir, [-lssl -lcrypto $TOR_LIB_WS32 $TOR_LIB_CRYPT32 $TOR_LIB_BCRYPT -pthread],
     [#include <openssl/ssl.h>
      char *getenv(const char *);],
     [struct ssl_cipher_st;
@@ -987,10 +987,10 @@ if test "$enable_static_openssl" = "yes"; then
    if test "$tor_cv_library_openssl_dir" = "(system)"; then
      AC_MSG_ERROR("You must specify an explicit --with-openssl-dir=x option when using --enable-static-openssl")
    else
-     TOR_OPENSSL_LIBS="$TOR_LIBDIR_openssl/libssl.a $TOR_LIBDIR_openssl/libcrypto.a"
+     TOR_OPENSSL_LIBS="$TOR_LIBDIR_openssl/libssl.a $TOR_LIBDIR_openssl/libcrypto.a $TOR_LIB_WS32 $TOR_LIB_CRYPT32 $TOR_LIB_BCRYPT -pthread"
    fi
 else
-     TOR_OPENSSL_LIBS="-lssl -lcrypto"
+     TOR_OPENSSL_LIBS="-lssl -lcrypto $TOR_LIB_WS32 $TOR_LIB_CRYPT32 $TOR_LIB_BCRYPT -pthread"
 fi
 AC_SUBST(TOR_OPENSSL_LIBS)
 
