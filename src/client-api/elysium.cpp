@@ -11,6 +11,7 @@
 #include "../elysium/errors.h"
 #include "../elysium/wallet.h"
 #include "../elysium/pending.h"
+#include "../elysium/lelantusdb.h"
 
 UniValue getPropertyData(uint32_t propertyId) {
     CMPSPInfo::Entry info;
@@ -149,6 +150,34 @@ UniValue mintElysium(Type type, const UniValue &data, const UniValue &auth, bool
     int64_t balance = std::min(getMPbalance(address, propertyId, BALANCE), getUserAvailableMPbalance(address, propertyId));
     if (!balance) return UniValue::VNULL;
 
+    UniValue ret = UniValue::VARR;
+
+    int b = INT_MAX;
+    if (elysium::lelantusDb->GetAnonymityGroup(propertyId, 0, 1, b).empty()) {
+        if (balance == 1) throw JSONAPIError(API_INTERNAL_ERROR, "minting logic requires two initial mints; this condition cannot be fulfilled");
+
+        int64_t premintAmount = balance / 2;
+        balance = balance - premintAmount;
+
+        elysium::LelantusWallet::MintReservation mint = elysium::wallet->CreateLelantusMint(propertyId, premintAmount);
+        lelantus::PrivateCoin coin = mint.coin;
+
+        CDataStream serializedSchnorrProof(SER_NETWORK, PROTOCOL_VERSION);
+        lelantus::GenerateMintSchnorrProof(coin, serializedSchnorrProof);
+
+        uint256 txid;
+        std::string rawHex;
+        std::vector<unsigned char> payload = CreatePayload_CreateLelantusMint(propertyId, coin.getPublicCoin(), mint.id, premintAmount, {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
+        auto result = elysium::WalletTxBuilder(address, "", "", payload, txid, rawHex, true);
+        if (result != 0) throw JSONAPIError(API_INTERNAL_ERROR, error_str(result));
+
+        mint.Commit();
+        elysium::PendingAdd(txid, address, ELYSIUM_TYPE_LELANTUS_MINT, propertyId, premintAmount);
+        ret.push_back(txid.GetHex());
+
+        GetMainSignals().WalletTransaction(pwalletMain->mapWallet.at(txid));
+    }
+
     elysium::LelantusWallet::MintReservation mint = elysium::wallet->CreateLelantusMint(propertyId, balance);
     lelantus::PrivateCoin coin = mint.coin;
 
@@ -163,8 +192,11 @@ UniValue mintElysium(Type type, const UniValue &data, const UniValue &auth, bool
 
     mint.Commit();
     elysium::PendingAdd(txid, address, ELYSIUM_TYPE_LELANTUS_MINT, propertyId, balance);
+    ret.push_back(txid.GetHex());
 
-    return txid.GetHex();
+    GetMainSignals().WalletTransaction(pwalletMain->mapWallet.at(txid));
+
+    return ret;
 }
 
 static const CAPICommand commands[] =
