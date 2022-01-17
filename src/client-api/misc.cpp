@@ -25,6 +25,8 @@
 namespace fs = boost::filesystem;
 using namespace boost::chrono;
 
+static std::atomic<uint256> block1;
+
 /* Parse help string as JSON object.
 */
 void parseHelpString(UniValue& result, std::string helpString)
@@ -157,6 +159,15 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
         obj.push_back(Pair("hasMnemonic", doesWalletHaveMnemonics()));
         CWalletDB db(pwalletMain->strWalletFile);
         obj.push_back(Pair("shouldShowWarning", db.ReadShowMnemonicsWarning()));
+    }
+
+    uint256 b1 = block1.load(std::memory_order_relaxed);
+    if (b1.IsNull() && chainActive.Tip() && chainActive.Height() > 1) {
+        b1 = chainActive[1]->GetBlockHash();
+        block1.store(b1, std::memory_order_relaxed);
+    }
+    if (!b1.IsNull()) {
+        obj.push_back(Pair("block1", b1.GetHex()));
     }
 
     // This is the number of blocks we would like our transaction to be confirmed within.
