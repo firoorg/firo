@@ -12,6 +12,7 @@
 #include "../elysium/wallet.h"
 #include "../elysium/pending.h"
 #include "../elysium/lelantusdb.h"
+#include "../elysium/lelantusutils.h"
 
 UniValue getPropertyData(uint32_t propertyId) {
     CMPSPInfo::Entry info;
@@ -199,12 +200,102 @@ UniValue mintElysium(Type type, const UniValue &data, const UniValue &auth, bool
     return ret;
 }
 
-static const CAPICommand commands[] =
+UniValue sendElysium(Type type, const UniValue &data, const UniValue &auth, bool fHelp) {
+    LOCK(cs_main);
+
+    // obtain parameters & info
+    std::string sAddress = data["address"].get_str();
+    CBitcoinAddress address(sAddress);
+    int64_t propertyId = data["propertyId"].get_int64();
+    int64_t amount = data["amount"].get_int64();
+    int64_t referenceAmount = elysium::ConsensusParams().REFERENCE_AMOUNT;
+
+    CMPSPInfo::Entry info;
+    if (!elysium::_my_sps->getSP(propertyId, info))
+        throw JSONAPIError(API_INVALID_PARAMS, "invalid propertyId");
+    if (info.lelantusStatus == elysium::LelantusStatus::SoftDisabled || info.lelantusStatus == elysium::LelantusStatus::HardDisabled)
+        throw JSONAPIError(API_INVALID_PARAMS, "lelantus not enabled for this property");
+
+    std::vector<unsigned char> payload;
+
+    uint256 metaData = elysium::PrepareSpendMetadata(address, referenceAmount);
+
+    std::vector<elysium::SpendableCoin> spendables;
+    boost::optional<elysium::LelantusWallet::MintReservation> reservation;
+    elysium::LelantusAmount changeValue = 0;
+
+    try {
+        auto joinSplit = elysium::wallet->CreateLelantusJoinSplit(propertyId, amount, metaData, spendables, reservation, changeValue);
+
+        boost::optional<elysium::JoinSplitMint> joinSplitMint;
+        if (reservation.get_ptr() != nullptr) {
+            auto pub = reservation->coin.getPublicCoin();
+            elysium::EncryptedValue enc;
+            elysium::EncryptMintAmount(changeValue, pub.getValue(), enc);
+
+            joinSplitMint = elysium::JoinSplitMint(
+                    reservation->id,
+                    pub,
+                    enc
+            );
+        }
+
+        payload = CreatePayload_CreateLelantusJoinSplit(
+                propertyId, amount, joinSplit, joinSplitMint);
+    } catch (InsufficientFunds& e) {
+        throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, e.what());
+    } catch (WalletError &e) {
+        throw JSONAPIError(API_INTERNAL_ERROR, e.what());
+    }
+
+    // request the wallet build the transaction (and if needed commit it)
+    uint256 txid;
+    std::string rawHex;
+    int result = WalletTxBuilder(
+            "",
+            sAddress,
+            "",
+            payload,
+            txid,
+            rawHex,
+            autoCommit,
+            elysium::InputMode::LELANTUS
+    );
+
+    // check error and return the txid (or raw hex depending on autocommit)
+    if (result != 0) {
+        throw JSONAPIError(result, error_str(result));
+    } else {
+        // mark the coin as used
+        for (auto const &s : spendables) {
+            elysium::wallet->SetLelantusMintUsedTransaction(s.id, txid);
+        }
+
+        if (reservation.get_ptr() != nullptr) {
+            reservation->Commit();
+        }
+
+        elysium::PendingAdd(
+                txid,
+                "Lelantus Joinsplit",
+                ELYSIUM_TYPE_LELANTUS_JOINSPLIT,
+                propertyId,
+                amount,
+                false,
+                sAddress);
+
+        GetMainSignals().WalletTransaction(pwalletMain->mapWallet.at(txid));
+        return txid.GetHex();
+    }
+}
+
+    static const CAPICommand commands[] =
         { //  category collection actor authPort authPassphrase  warmupOk
           //  -------- ---------- ----- -------- --------------  --------
           { "elysium", "getElysiumPropertyInfo", &getElysiumPropertyInfo, true, false, false  },
           { "elysium", "createElysiumProperty", &createElysiumProperty, true, true, false  },
           { "elysium", "mintElysium", &mintElysium, true, true, false  },
+          { "elysium", "sendElysium", &sendElysium, true, true, false  },
         };
 
 void RegisterElysiumAPICommands(CAPITable &tableAPI)
