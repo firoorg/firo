@@ -60,9 +60,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
         headerLayout->addSpacing(23);
     }
 
-    statusSpacer = new QSpacerItem(1, 1, QSizePolicy::MinimumExpanding);
-    headerLayout->addSpacerItem(statusSpacer);
-
     watchOnlyWidget = new QComboBox(this);
     watchOnlyWidget->setFixedWidth(24);
     watchOnlyWidget->addItem("", TransactionFilterProxy::WatchOnlyFilter_All);
@@ -71,7 +68,11 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     headerLayout->addWidget(watchOnlyWidget);
 
     instantsendWidget = new QComboBox(this);
-    instantsendWidget->setFixedWidth(24);
+    if (platformStyle->getUseExtraSpacing()) {
+        instantsendWidget->setFixedWidth(121);
+    } else {
+        instantsendWidget->setFixedWidth(120);
+    }
     instantsendWidget->addItem(tr("All"), TransactionFilterProxy::InstantSendFilter_All);
     instantsendWidget->addItem(tr("Locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_Yes);
     instantsendWidget->addItem(tr("Not locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_No);
