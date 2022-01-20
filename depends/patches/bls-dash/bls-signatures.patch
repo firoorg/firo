@@ -1,0 +1,13 @@
+diff --git a/src/privatekey.cpp b/src/privatekey.cpp
+index 3a9c8d6..e8e51aa 100644
+--- a/src/privatekey.cpp
++++ b/src/privatekey.cpp
+@@ -258,7 +258,7 @@ void PrivateKey::AllocateKeyData()
+ {
+     assert(!keydata);
+     keydata = Util::SecAlloc<bn_st>(1);
+-    bn_init(keydata, RLC_BN_SIZE);
++    keydata->alloc = RLC_BN_SIZE;
+     bn_zero(keydata);
+ }
+ 

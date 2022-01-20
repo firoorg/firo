@@ -2,8 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-DIST_SUBDIRS = secp256k1 univalue bls-signatures
-SUBDIRS = bls-signatures
+DIST_SUBDIRS = secp256k1 univalue
 
 AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS) $(HARDENED_LDFLAGS)
 AM_CXXFLAGS = $(HARDENED_CXXFLAGS) $(ERROR_CXXFLAGS)
@@ -40,12 +39,8 @@ endif
 
 TOR_LIBS = -ltor
 
-LIBBLSSIG_INCLUDES=-I./bls-signatures/build/contrib/relic/include -I./bls-signatures/contrib/relic/include
-LIBBLSSIG_LIBS=bls-signatures/build/libchiabls.la
+LIBBLSSIG_LIBS=-lbls-dash
 LIBBLSSIG_DEPENDS=-lgmp
-
-$(LIBBLSSIG_LIBS): $(wildcard bls-signatures/src/*.cpp) $(wildcard bls-signatures/src/*.hpp)
-	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C bls-signatures/build
 
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
 BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS)
@@ -332,7 +327,7 @@ obj/build.h: FORCE
 libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 
 # server: shared between firod and firo-qt
-libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
+libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
   addrman.cpp \
@@ -411,7 +406,7 @@ libbitcoin_server_a_SOURCES = \
   $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
-libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS) $(LIBBLSSIG_INCLUDES)
+libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)
 libbitcoin_zmq_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_zmq_a_SOURCES = \
   zmq/zmqabstractnotifier.cpp \
@@ -422,7 +417,7 @@ endif
 
 # wallet: shared between firod and firo-qt, but only linked
 # when wallet enabled
-libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES)
+libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   activemasternode.cpp \
@@ -507,7 +502,7 @@ crypto_libbitcoin_crypto_a_SOURCES += \
   crypto/progpow.cpp
 
 # consensus: shared between all executables that validate any consensus rules.
-libbitcoin_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES) $(PIC_FLAGS)
+libbitcoin_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(PIC_FLAGS)
 libbitcoin_consensus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) $(PIC_FLAGS)
 libbitcoin_consensus_a_SOURCES = \
   amount.h \
@@ -569,7 +564,7 @@ libbitcoin_consensus_a_SOURCES = \
   crypto/MerkleTreeProof/blake2/blake2b.c
 
 # common: shared between firod, and firo-qt and non-server tools
-libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES)
+libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_common_a_SOURCES = \
   amount.cpp \
@@ -595,7 +590,7 @@ libbitcoin_common_a_SOURCES = \
 # util: shared between all executables.
 # This library *must* be included to make sure that the glibc
 # backward-compatibility objects and their sanity checks are linked.
-libbitcoin_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES)
+libbitcoin_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_util_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_util_a_SOURCES = \
   bls/bls_batchverifier.h \
@@ -721,7 +716,6 @@ firod_SOURCES = bitcoind.cpp
 firod_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 firod_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 firod_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
-EXTRA_firod_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
 if TARGET_WINDOWS
 firod_SOURCES += bitcoind-res.rc
@@ -838,14 +832,10 @@ $(top_srcdir)/$(subdir)/config/bitcoin-config.h.in:  $(am__configure_deps)
 clean-local:
 	-$(MAKE) -C secp256k1 clean
 	-$(MAKE) -C univalue clean
-	-$(MAKE) -C bls-signatures clean
 	-rm -f leveldb/*/*.gcda leveldb/*/*.gcno leveldb/helpers/memenv/*.gcda leveldb/helpers/memenv/*.gcno
 	-rm -f config.h
 	-rm -rf test/__pycache__
 	-rm -rf *.dSYM test/*.dSYM bench/*.dSYM qt/*.dSYM qt/test/*.dSYM
-
-distclean-local:
-	-rm -rf bls-signatures/build
 
 .rc.o:
 	@test -f $(WINDRES)
