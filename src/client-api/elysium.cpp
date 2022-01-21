@@ -131,9 +131,14 @@ UniValue createElysiumProperty(Type type, const UniValue &data, const UniValue &
     uint256 txid;
     std::string rawHex;
     std::string receiver;
-    int result = elysium::WalletTxBuilder(fromAddress, receiver, "", payload, txid, rawHex, autoCommit);
+    UniValue inputs = UniValue::VARR;
+    int result = elysium::WalletTxBuilder(fromAddress, receiver, "", payload, txid, rawHex, autoCommit, elysium::InputMode::NORMAL, &inputs);
     if (result != 0) throw JSONAPIError(API_INTERNAL_ERROR, error_str(result));
-    else return txid.GetHex();
+
+    UniValue ret = UniValue::VOBJ;
+    ret.pushKV("txid", txid.GetHex());
+    ret.pushKV("inputs", inputs);
+    return ret;
 }
 
 UniValue mintElysium(Type type, const UniValue &data, const UniValue &auth, bool fHelp) {
@@ -151,7 +156,8 @@ UniValue mintElysium(Type type, const UniValue &data, const UniValue &auth, bool
     int64_t balance = std::min(getMPbalance(address, propertyId, BALANCE), getUserAvailableMPbalance(address, propertyId));
     if (!balance) return UniValue::VNULL;
 
-    UniValue ret = UniValue::VARR;
+    UniValue txids = UniValue::VARR;
+    UniValue inputs = UniValue::VARR;
 
     int b = INT_MAX;
     if (elysium::lelantusDb->GetAnonymityGroup(propertyId, 0, 1, b).empty()) {
@@ -169,12 +175,12 @@ UniValue mintElysium(Type type, const UniValue &data, const UniValue &auth, bool
         uint256 txid;
         std::string rawHex;
         std::vector<unsigned char> payload = CreatePayload_CreateLelantusMint(propertyId, coin.getPublicCoin(), mint.id, premintAmount, {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
-        auto result = elysium::WalletTxBuilder(address, "", "", payload, txid, rawHex, true);
+        auto result = elysium::WalletTxBuilder(address, "", "", payload, txid, rawHex, true, elysium::InputMode::NORMAL, &inputs);
         if (result != 0) throw JSONAPIError(API_INTERNAL_ERROR, error_str(result));
 
         mint.Commit();
         elysium::PendingAdd(txid, address, ELYSIUM_TYPE_LELANTUS_MINT, propertyId, premintAmount);
-        ret.push_back(txid.GetHex());
+        txids.push_back(txid.GetHex());
 
         GetMainSignals().WalletTransaction(pwalletMain->mapWallet.at(txid));
     }
@@ -188,15 +194,18 @@ UniValue mintElysium(Type type, const UniValue &data, const UniValue &auth, bool
     uint256 txid;
     std::string rawHex;
     std::vector<unsigned char> payload = CreatePayload_CreateLelantusMint(propertyId, coin.getPublicCoin(), mint.id, balance, {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
-    auto result = elysium::WalletTxBuilder(address, "", "", payload, txid, rawHex, true);
+    auto result = elysium::WalletTxBuilder(address, "", "", payload, txid, rawHex, true, elysium::InputMode::NORMAL, &inputs);
     if (result != 0) throw JSONAPIError(API_INTERNAL_ERROR, error_str(result));
 
     mint.Commit();
     elysium::PendingAdd(txid, address, ELYSIUM_TYPE_LELANTUS_MINT, propertyId, balance);
-    ret.push_back(txid.GetHex());
+    txids.push_back(txid.GetHex());
 
     GetMainSignals().WalletTransaction(pwalletMain->mapWallet.at(txid));
 
+    UniValue ret = UniValue::VOBJ;
+    ret.pushKV("txids", txids);
+    ret.pushKV("inputs", inputs);
     return ret;
 }
 
@@ -251,6 +260,7 @@ UniValue sendElysium(Type type, const UniValue &data, const UniValue &auth, bool
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
+    UniValue baseLayerInputs = UniValue::VARR;
     int result = WalletTxBuilder(
             "",
             sAddress,
@@ -259,7 +269,8 @@ UniValue sendElysium(Type type, const UniValue &data, const UniValue &auth, bool
             txid,
             rawHex,
             autoCommit,
-            elysium::InputMode::LELANTUS
+            elysium::InputMode::LELANTUS,
+            &baseLayerInputs
     );
 
     // check error and return the txid (or raw hex depending on autocommit)
@@ -285,7 +296,11 @@ UniValue sendElysium(Type type, const UniValue &data, const UniValue &auth, bool
                 sAddress);
 
         GetMainSignals().WalletTransaction(pwalletMain->mapWallet.at(txid));
-        return txid.GetHex();
+
+        UniValue ret = UniValue::VOBJ;
+        ret.pushKV("txid", txid.GetHex());
+        ret.pushKV("inputs", baseLayerInputs);
+        return ret;
     }
 }
 
