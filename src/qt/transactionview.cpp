@@ -437,7 +437,7 @@ void TransactionView::updateHeaderSizes(int logicalIndex, int oldSize, int newSi
         {TransactionTableModel::Amount, amountWidget}
     };
 
-    if(logicalIndex < TransactionTableModel::ToAddress)
+    if(logicalIndex <= TransactionTableModel::ToAddress)
         return;
 
     for(std::pair<int, QWidget*> const & p : headerWidgets) {

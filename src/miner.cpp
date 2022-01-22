@@ -904,12 +904,27 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
 
         if (tx.nVersion >= 3 && tx.nType == TRANSACTION_PROVIDER_REGISTER) {
             CProRegTx proTx;
-            if (GetTxPayload(tx, proTx) && !proTx.collateralOutpoint.hash.IsNull() &&
-                    // ProRegTx referencing external collateral can't be in same block with the collateral itself
-                    (mempool.get(proTx.collateralOutpoint.hash) ||
-                    // ProRegTx cannot be in the same block as transaction spending external collateral
-                        mempool.isSpent(proTx.collateralOutpoint)))
-                mempool.CalculateDescendants(mi, txBlackList);
+            if (GetTxPayload(tx, proTx)) {
+                if (!proTx.collateralOutpoint.hash.IsNull()) {
+                    if (
+                        // ProRegTx referencing external collateral can't be in same block with the collateral itself
+                        mempool.get(proTx.collateralOutpoint.hash) ||
+                        // ProRegTx cannot be in the same block as transaction spending external collateral
+                        mempool.isSpent(proTx.collateralOutpoint))
+                    mempool.CalculateDescendants(mi, txBlackList);
+                }
+                else {
+                    COutPoint   fundedCollateral(mi->GetTx().GetHash(), proTx.collateralOutpoint.n);
+                    if (mempool.isSpent(fundedCollateral)) {
+                        // Transaction spending collateral funded by ProRegTx cannot be in the same block
+                        // We need to blacklist spending tx otherwise two transactions will stuck in the mempool forever.
+                        // Easiest way to do it is to block all the descendants (spending transaction is technically a
+                        // descendant here) but let the ProRegTx into the block.
+                        mempool.CalculateDescendants(mi, txBlackList);
+                        txBlackList.erase(mi);
+                    }
+                }
+            }
         }
 
         if (tx.nVersion >= 3 && tx.nType == TRANSACTION_SPORK) {
