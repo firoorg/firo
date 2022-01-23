@@ -49,6 +49,9 @@ define $(package)_set_vars
   ifneq ($(darwin_native_toolchain),)
     $(package)_config_opts_darwin+= -DCMAKE_AR="$(host_prefix)/native/bin/$($(package)_ar)"
     $(package)_config_opts_darwin+= -DCMAKE_RANLIB="$(host_prefix)/native/bin/$($(package)_ranlib)"
+  else
+    $(package)_config_opts_darwin+= -DCMAKE_AR="$($(package)_ar)"
+    $(package)_config_opts_darwin+= -DCMAKE_RANLIB="$($(package)_ranlib)"
   endif
 
   $(package)_cppflags+=-UBLSALLOC_SODIUM
