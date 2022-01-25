@@ -290,6 +290,7 @@ mkdir -p "$DISTSRC"
                     --disable-maintainer-mode \
                     --disable-dependency-tracking \
 		    --enable-elysium \
+            --enable-clientapi \
 		    --enable-crash-hooks \
 		    --without-libs \
                     ${CONFIGFLAGS} \
