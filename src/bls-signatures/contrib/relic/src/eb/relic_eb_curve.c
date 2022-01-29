@@ -73,8 +73,8 @@ void eb_curve_init(void) {
 	fb_zero(ctx->eb_g.x);
 	fb_zero(ctx->eb_g.y);
 	fb_zero(ctx->eb_g.z);
-	bn_init(&(ctx->eb_r), RLC_FB_DIGS);
-	bn_init(&(ctx->eb_h), RLC_FB_DIGS);
+	bn_make(&(ctx->eb_r), RLC_FB_DIGS);
+	bn_make(&(ctx->eb_h), RLC_FB_DIGS);
 }
 
 void eb_curve_clean(void) {

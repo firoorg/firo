@@ -41,7 +41,7 @@
 /* Public definitions                                                         */
 /*============================================================================*/
 
-void bn_init(bn_t a, int digits) {
+void bn_make(bn_t a, int digits) {
 	if (digits < 0) {
 		RLC_THROW(ERR_NO_VALID);
 	}

@@ -174,7 +174,7 @@
 #define bn_st     	RLC_PREFIX(bn_st)
 #define bn_t      	RLC_PREFIX(bn_t)
 
-#undef bn_init
+#undef bn_make
 #undef bn_clean
 #undef bn_grow
 #undef bn_trim
@@ -277,7 +277,7 @@
 #undef bn_rec_jsf
 #undef bn_rec_glv
 
-#define bn_init 	RLC_PREFIX(bn_init)
+#define bn_make 	RLC_PREFIX(bn_make)
 #define bn_clean 	RLC_PREFIX(bn_clean)
 #define bn_grow 	RLC_PREFIX(bn_grow)
 #define bn_trim 	RLC_PREFIX(bn_trim)
