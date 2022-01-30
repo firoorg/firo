@@ -15,6 +15,8 @@
 #include "../elysium/lelantusutils.h"
 
 UniValue getPropertyData(uint32_t propertyId) {
+    AssertLockHeld(cs_main);
+
     CMPSPInfo::Entry info;
 
     if (elysium::_my_sps->getSP(propertyId, info)) {
@@ -40,10 +42,39 @@ UniValue getPropertyData(uint32_t propertyId) {
 }
 
 UniValue getPropertyData(uint256 propertyCreationTxid) {
-    uint32_t propertyId = elysium::_my_sps->findSPByTX(propertyCreationTxid);
-    if (propertyId <= 0) throw JSONAPIError(API_INTERNAL_ERROR, "tried to get information about an Elysium property that does not exist");
+    AssertLockHeld(cs_main);
 
-    return getPropertyData(propertyId);
+    uint32_t propertyId = elysium::_my_sps->findSPByTX(propertyCreationTxid);
+    if (propertyId > 0) {
+        return getPropertyData(propertyId);
+    } else {
+        auto wtxIt = pwalletMain->mapWallet.find(propertyCreationTxid);
+        if (wtxIt == pwalletMain->mapWallet.end())
+            throw JSONAPIError(API_INTERNAL_ERROR, "tried to get information about an Elysium property that does not exist");
+        CWalletTx *wtx = &wtxIt->second;
+
+        CMPTransaction mp_obj;
+        if (ParseTransaction(*wtx->tx, 0, 0, mp_obj, wtx->GetTxTime()) < 0 || !mp_obj.interpret_Transaction()) {
+            throw JSONAPIError(API_INTERNAL_ERROR, "tried to get information about an Elysium property that does not exist");
+        }
+
+        UniValue propertyData = UniValue::VOBJ;
+        propertyData.pushKV("id", UniValue::VNULL);
+        propertyData.pushKV("lelantusStatus", std::to_string(mp_obj.getLelantusStatus()));
+        propertyData.pushKV("issuer", mp_obj.getSender());
+        propertyData.pushKV("creationTx", wtx->tx->GetHash().GetHex());
+        propertyData.pushKV("isDivisible", mp_obj.getPropertyType() == ELYSIUM_PROPERTY_TYPE_DIVISIBLE);
+        propertyData.pushKV("ecosystem", elysium::strEcosystem(mp_obj.getEcosystem()));
+        propertyData.pushKV("isFixed", mp_obj.getType() == ELYSIUM_TYPE_CREATE_PROPERTY_FIXED);
+        propertyData.pushKV("isManaged", mp_obj.getType() == ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL);
+        propertyData.pushKV("name", mp_obj.getSPName());
+        propertyData.pushKV("category", mp_obj.getSPCategory());
+        propertyData.pushKV("subcategory", mp_obj.getSPSubCategory());
+        propertyData.pushKV("data", mp_obj.getSPData());
+        propertyData.pushKV("url", mp_obj.getSPUrl());
+        return propertyData;
+    }
+
 }
 
 UniValue getElysiumPropertyInfo(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {

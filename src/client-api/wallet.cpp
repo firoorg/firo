@@ -354,7 +354,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                 try {
                     propertyData = getPropertyData(mp_obj.getProperty());
                 } catch(UniValue &e) {
-                    PrintToLog("failed to get property data for transactions %d", mp_obj.getProperty());
+                    PrintToLog("failed to get property data for transaction %s", wtx.tx->GetHash().GetHex());
                 }
 
                 break;
@@ -365,21 +365,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                 try {
                     propertyData = getPropertyData(wtx.tx->GetHash());
                 } catch(UniValue &e) {
-                    propertyData = UniValue::VOBJ;
-
-                    propertyData.pushKV("id", UniValue::VNULL);
-                    propertyData.pushKV("lelantusStatus", std::to_string(mp_obj.getLelantusStatus()));
-                    propertyData.pushKV("issuer", mp_obj.getSender());
-                    propertyData.pushKV("creationTx", wtx.tx->GetHash().GetHex());
-                    propertyData.pushKV("isDivisible", mp_obj.getPropertyType() == ELYSIUM_PROPERTY_TYPE_DIVISIBLE);
-                    propertyData.pushKV("ecosystem", elysium::strEcosystem(mp_obj.getEcosystem()));
-                    propertyData.pushKV("isFixed", txType == ELYSIUM_TYPE_CREATE_PROPERTY_FIXED);
-                    propertyData.pushKV("isManaged", txType == ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL);
-                    propertyData.pushKV("name", mp_obj.getSPName());
-                    propertyData.pushKV("category", mp_obj.getSPCategory());
-                    propertyData.pushKV("subcategory", mp_obj.getSPSubCategory());
-                    propertyData.pushKV("data", mp_obj.getSPData());
-                    propertyData.pushKV("url", mp_obj.getSPUrl());
+                    PrintToLog("failed to get property data for transactions %s", wtx.tx->GetHash().GetHex());
                 }
 
                 break;
