@@ -189,9 +189,14 @@ int TxProcessor::ProcessLelantusJoinSplit(const CBlockIndex *pBlockIndex, const 
     std::unordered_set<secp_primitives::Scalar> txSerials;
     for (auto const &s : serials) {
         uint256 spendTx;
-        if (txSerials.count(s) || lelantusDb->HasSerial(property, s, spendTx)) {
-            PrintToLog("%s(): rejected: serial is duplicated\n", __func__);
+        if (txSerials.count(s)) {
+            PrintToLog("%s(): rejected: serial is duplicated in the same transaction (%s)\n", __func__,
+                       tx.getHash().GetHex());
             return PKT_ERROR_LELANTUS - 912;
+        } else if (lelantusDb->HasSerial(property, s, spendTx)) {
+            PrintToLog("%s(): rejected: transaction %s duplicates a serial from transaction %s\n", __func__,
+                       tx.getHash().GetHex(), spendTx.GetHex());
+            return PKT_ERROR_LELANTUS - 918;
         }
 
         txSerials.insert(s);
