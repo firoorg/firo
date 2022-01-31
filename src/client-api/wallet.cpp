@@ -338,8 +338,14 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         elysiumData.pushKV("type", mp_obj.getTypeString());
         elysiumData.pushKV("version", mp_obj.getVersion());
 
-        if (nHeight > 0) elysiumData.pushKV("valid", elysium::getValidMPTX(wtx.tx->GetHash()));
-        else elysiumData.pushKV("valid", false);
+        if (nHeight > 0) {
+            bool isValid = elysium::getValidMPTX(wtx.tx->GetHash());
+            elysiumData.pushKV("valid", isValid);
+            if (!isValid)
+                elysiumData.pushKV("invalidReason", elysium::p_ElysiumTXDB->FetchInvalidReason(wtx.tx->GetHash()));
+        } else {
+            elysiumData.pushKV("valid", false);
+        }
 
         int txType = mp_obj.getType();
 
