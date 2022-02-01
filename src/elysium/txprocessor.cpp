@@ -251,18 +251,23 @@ int TxProcessor::ProcessLelantusJoinSplit(const CBlockIndex *pBlockIndex, const 
         return PKT_ERROR_LELANTUS - 915;
     }
 
+    if (joinSplitMint.get_ptr() != nullptr) {
+        if (lelantusDb->HasMintId(joinSplitMint.get().id)) {
+            PrintToLog("%s(): rejected: joinmint id was already found on chain\n", __func__);
+            return PKT_ERROR_LELANTUS - 920;
+        }
+
+        if (!lelantusDb->WriteMint(property, joinSplitMint.get(), block)) {
+            PrintToLog("%s(): error writing mint; this is probably a database error but will lead to consensus differences\n", __func__);
+            return PKT_ERROR_LELANTUS - 919;
+        }
+    }
+
     // record serial and change
     for (auto const &s : serials) {
         if (!lelantusDb->WriteSerial(property, s, block, tx.getHash())) {
             PrintToLog("%s(): rejected: serial is duplicated\n", __func__);
             return PKT_ERROR_LELANTUS - 916;
-        }
-    }
-
-    if (joinSplitMint.get_ptr() != nullptr) {
-        if (!lelantusDb->WriteMint(property, joinSplitMint.get(), block)) {
-            PrintToLog("%s(): error writing mint; this is probably a database error but will lead to consensus differences\n", __func__);
-            return PKT_ERROR_LELANTUS - 919;
         }
     }
 
