@@ -261,8 +261,8 @@ int TxProcessor::ProcessLelantusJoinSplit(const CBlockIndex *pBlockIndex, const 
 
     if (joinSplitMint.get_ptr() != nullptr) {
         if (!lelantusDb->WriteMint(property, joinSplitMint.get(), block)) {
-            PrintToLog("%s(): error writing mint\n", __func__);
-            // Accept the spend even if the mint is invalid. The mint will be unusable though.
+            PrintToLog("%s(): error writing mint; this is probably a database error but will lead to consensus differences\n", __func__);
+            return PKT_ERROR_LELANTUS - 919;
         }
     }
 
