@@ -333,6 +333,8 @@ LelantusWallet::MintReservation LelantusWallet::GenerateMint(PropertyId property
     auto priv = GeneratePrivateKey(seedId.get());
     auto id = MintEntryId(priv.serial, priv.randomness, seedId.get());
 
+    assert(!lelantusDb->HasMintId(id));
+
     // Create a new mint.
     auto serialId = GetSerialId(priv.serial);
     LelantusMint mint(property, amount, seedId.get(), serialId);
