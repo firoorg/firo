@@ -50,6 +50,8 @@
 #include "../wallet/wallet.h"
 #endif
 
+#include "elysium/lelantusdb.h"
+
 #include <univalue.h>
 
 #include <map>
@@ -922,17 +924,15 @@ UniValue elysium_listlelantusmints(const JSONRPCRequest& request)
         verbose = request.params[1].get_bool();
     }
 
+    LOCK(cs_main);
+
     // Get mints that meet criteria.
     std::vector<LelantusMint> mints;
 
     wallet->ListLelantusMints(boost::make_function_output_iterator([&] (const std::pair<MintEntryId, LelantusMint>& m) {
-        if (m.second.IsSpent() || !m.second.IsOnChain()) {
-            return;
-        }
-
-        if (property && m.second.property != property.get()) {
-            return;
-        }
+        if (m.second.IsSpent()) return;
+        if (property && m.second.property != property.get()) return;
+        if (!lelantusDb->HasMintId(m.first)) return;
 
         mints.push_back(m.second);
     }));
@@ -960,14 +960,12 @@ UniValue elysium_listpendinglelantusmints(const JSONRPCRequest& request)
         );
     }
 
+    LOCK(cs_main);
+
     std::vector<LelantusMint> mints;
 
     wallet->ListLelantusMints(boost::make_function_output_iterator([&] (const std::pair<MintEntryId, LelantusMint>& m) {
-        if (m.second.IsOnChain()) {
-            return;
-        }
-
-        mints.push_back(m.second);
+        if (!elysium::lelantusDb->HasMintId(m.first)) mints.push_back(m.second);
     }));
 
     return LelantusMintsToJson(mints.begin(), mints.end());
