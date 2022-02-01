@@ -40,10 +40,7 @@ define $(package)_set_vars
   $(package)_config_opts_linux=-DOPSYS=LINUX -DCMAKE_SYSTEM_NAME=Linux
   $(package)_config_opts_darwin=-DOPSYS=MACOSX -DCMAKE_SYSTEM_NAME=Darwin
   $(package)_config_opts_mingw32=-DOPSYS=WINDOWS -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SHARED_LIBRARY_LINK_C_FLAGS=""
-  $(package)_config_opts_i686+= -DWSIZE=32
-  $(package)_config_opts_x86_64+= -DWSIZE=64
-  $(package)_config_opts_arm+= -DWSIZE=32
-  $(package)_config_opts_armv7l+= -DWSIZE=32
+  $(package)_config_opts+= -DWSIZE=64
   $(package)_config_opts_debug=-DDEBUG=ON -DCMAKE_BUILD_TYPE=Debug
 
   ifneq ($(darwin_native_toolchain),)
