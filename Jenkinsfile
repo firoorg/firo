@@ -9,14 +9,17 @@ pipeline {
         stage('Build') {
             steps {
                 sh 'git clean -d -f -f -q -x'
+                dir('depends') {
+                    sh 'make -j`nproc` HOST=x86_64-linux-gnu'
+                }
                 sh './autogen.sh'
-                sh './configure'
+                sh './configure --prefix=`pwd`/depends/x86_64-linux-gnu'
                 sh 'make dist'
                 sh 'mkdir -p dist'
                 sh 'tar -C dist --strip-components=1 -xzf firo-*.tar.gz'
                 dir('dist') {
-                    sh './configure --enable-elysium --enable-tests --enable-crash-hooks'
-                    sh 'make -j6'
+                    sh './configure --prefix=`pwd`/../depends/x86_64-linux-gnu --enable-elysium --enable-tests --enable-crash-hooks'
+                    sh 'make -j`nproc`'
                 }
             }
         }
