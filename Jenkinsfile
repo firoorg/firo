@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        docker { image 'firoorg/firo-builder:latest' }
+        docker { image 'firoorg/firo-builder-depends:latest' }
     }
     environment {
         CCACHE_DIR = '/tmp/.ccache'
