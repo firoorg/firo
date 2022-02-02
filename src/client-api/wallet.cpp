@@ -22,6 +22,9 @@
 #include <boost/algorithm/string.hpp>
 #include "../elysium/wallettxs.h"
 #include "../elysium/tx.h"
+#include "../elysium/lelantusdb.h"
+#include "../elysium/lelantuswallet.h"
+#include "../elysium/wallet.h"
 
 namespace fs = boost::filesystem;
 using namespace boost::chrono;
@@ -211,6 +214,8 @@ std::string ScriptType(const CScript &script) {
 UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
 {
     AssertLockHeld(cs_main);
+    assert(elysium::wallet);
+    assert(elysium::wallet->lelantusWallet.database);
 
     bool fIsFromMe = false;
     bool fIsMining = false;
@@ -352,9 +357,23 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         CMPSPInfo::Entry info;
         UniValue propertyData = UniValue::VNULL;
         switch (txType) {
+            case ELYSIUM_TYPE_LELANTUS_JOINSPLIT: {
+                boost::optional<elysium::JoinSplitMint> jsm = mp_obj.getLelantusJoinSplitMint();
+                if (jsm) {
+                    elysium::LelantusMint mint;
+                    if (elysium::wallet->lelantusWallet.database->ReadMint(jsm->id, mint, &db)) {
+                        elysiumData.pushKV("joinmintAmount", mint.amount);
+                    } else {
+                        LogPrintf("Error retrieving joinmintAmount for Elysium tx %s\n", wtx.GetHash().GetHex());
+                        elysiumData.pushKV("joinmintAmount", -1);
+                    }
+                } else {
+                    elysiumData.pushKV("joinmintAmount", 0);
+                }
+            }
+
             case ELYSIUM_TYPE_SIMPLE_SEND:
             case ELYSIUM_TYPE_LELANTUS_MINT:
-            case ELYSIUM_TYPE_LELANTUS_JOINSPLIT:
             case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS:
             case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS:
                 try {

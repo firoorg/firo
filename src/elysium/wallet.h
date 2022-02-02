@@ -53,6 +53,7 @@ public:
 
     bool HasLelantusMint(const MintEntryId& id);
     bool HasLelantusMint(const secp_primitives::Scalar &serial);
+    LelantusWallet lelantusWallet;
 
 protected:
 
@@ -74,7 +75,6 @@ private:
 private:
     std::string walletFile;
     std::forward_list<boost::signals2::scoped_connection> eventConnections;
-    LelantusWallet lelantusWallet;
 };
 
 extern Wallet *wallet;
