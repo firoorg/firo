@@ -97,15 +97,7 @@ lelantus::JoinSplit CreateJoinSplit(
         throw std::runtime_error("spend amount would violate consensus limits");
     }
 
-    // 4966 is the fixed size part of the transaction. It includes:
-    // + 1 Lelantus input
-    // + 1 Lelantus joinmint output
-    // + 1 reference output
-    // + the Elysium metadata
-    // + the Elysium Lelantus outputs
-    //
-    // Then for every Elysium Lelantus input, there is an additional 2560 bytes of data.
-    return {params, coins, anonss, anonymitySetHashes, amount, coinOuts, (uint64_t)payTxFee.GetFee(4966 + coins.size() * 2560), groupBlockHashs, metaData, LELANTUS_TX_TPAYLOAD};
+    return {params, coins, anonss, anonymitySetHashes, amount, coinOuts, 0, groupBlockHashs, metaData, LELANTUS_TX_TPAYLOAD};
 }
 
 } // namespace elysium
