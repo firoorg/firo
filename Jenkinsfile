@@ -6,12 +6,16 @@ pipeline {
         CCACHE_DIR = '/tmp/.ccache'
     }
     stages {
-        stage('Build') {
+        stage('Build dependencies') {
             steps {
                 sh 'git clean -d -f -f -q -x'
                 dir('depends') {
                     sh 'make -j`nproc` HOST=x86_64-linux-gnu'
                 }
+            }
+        }
+        stage('Build') {
+            steps {
                 sh './autogen.sh'
                 sh './configure --prefix=`pwd`/depends/x86_64-linux-gnu'
                 sh 'make dist'

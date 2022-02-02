@@ -1,9 +1,7 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 # install required packages
 RUN apt-get update && apt-get install -y software-properties-common
-
-RUN add-apt-repository ppa:bitcoin/bitcoin
 
 RUN apt-get update && apt-get install -y \
     autoconf automake bsdmainutils ccache cmake curl g++ g++-mingw-w64-x86-64 gcc gcc-mingw-w64-x86-64 git \
@@ -13,7 +11,7 @@ RUN apt-get update && apt-get install -y \
 RUN update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
 RUN update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
 
-RUN pip install ez_setup
+RUN pip3 install ez_setup
 
 # create user to use
 RUN useradd -m -U firo-builder
