@@ -63,6 +63,7 @@
 #ifdef ENABLE_ELYSIUM
 #include "../elysium/rules.h"
 #include "../elysium/packetencoder.h"
+#include "../elysium/elysium.h"
 #endif
 
 #ifdef ENABLE_CLIENTAPI
@@ -3547,8 +3548,17 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
             }
 
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
+#ifdef ENABLE_ELYSIUM
+                bool isElysiumReferenceOutput =
+                    i == 1 &&
+                    pcoin->tx->vout[i].nValue == elysium::ConsensusParams().REFERENCE_AMOUNT &&
+                    !pcoin->IsChange(i) &&
+                    elysium::DeterminePacketClass(*pcoin->tx, elysium::ConsensusParams().NULLDATA_BLOCK + 1).has_value();
+                if (isElysiumReferenceOutput && nCoinType != CoinType::APPROPRIATE_FOR_ELYSIUM) continue;
+#endif
+
                 bool found = false;
-                if(nCoinType == CoinType::ALL_COINS){
+                if(nCoinType == CoinType::ALL_COINS || nCoinType == CoinType::APPROPRIATE_FOR_ELYSIUM){
                     // We are now taking ALL_COINS to mean everything sans mints and Elysium reference outputs
                     found = !(pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint()
                             || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint()
@@ -3568,14 +3578,6 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
                     if (fMasternodeMode) found = pcoin->tx->vout[i].nValue != ZNODE_COIN_REQUIRED * COIN; // do not use Hot MN funds
                 } else if (nCoinType == CoinType::ONLY_1000) {
                     found = pcoin->tx->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN;
-#ifdef ENABLE_ELYSIUM
-                } else if (
-                    nCoinType != CoinType::WITH_ELYSIUM_REFERENCE_OUTPUTS &&
-                    elysium::DeterminePacketClass(*pcoin->tx, elysium::ConsensusParams().NULLDATA_BLOCK + 1).has_value() &&
-                    i == pcoin->tx->vout.size() - 1
-                ) {
-                    found = false;
-#endif
                 } else {
                     found = true;
                 }

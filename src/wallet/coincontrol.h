@@ -17,7 +17,7 @@ enum class CoinType
     ONLY_PRIVATESEND_COLLATERAL = 6,
     ONLY_MINTS = 7,
     WITH_MINTS = 8,
-    WITH_ELYSIUM_REFERENCE_OUTPUTS = 9
+    APPROPRIATE_FOR_ELYSIUM = 9
 };
 
 /** Coin Control Features. */

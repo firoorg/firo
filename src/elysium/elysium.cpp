@@ -1764,6 +1764,8 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
     CBitcoinAddress addr = CBitcoinAddress(senderAddress);
     coinControl.destChange = addr.Get();
 
+    coinControl.nCoinType = CoinType::APPROPRIATE_FOR_ELYSIUM;
+
     // Select the inputs
     if (0 >= SelectCoins(senderAddress, coinControl, ConsensusParams().REFERENCE_AMOUNT, inputMode)) {
         switch (inputMode) {
