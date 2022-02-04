@@ -377,8 +377,6 @@ void LelantusWallet::ClearMintsChainState()
 
 bool LelantusWallet::SyncWithChain()
 {
-    AssertLockHeld(cs_main);
-
     EnsureMasterKeyIsLoaded();
     EnsureWalletIsUnlocked(pwalletMain);
 
@@ -413,8 +411,9 @@ bool LelantusWallet::SyncWithChain()
 
     std::vector<MintEntryId> idsToUpdate;
     ListMints(boost::make_function_output_iterator([&] (const std::pair<MintEntryId, LelantusMint>& m) {
-        if (m.second.IsSpent()) return;
-        if (lelantusDb->HasMintId(m.first)) return;
+        if (m.second.IsSpent() || m.second.IsOnChain()) {
+            return;
+        }
 
         idsToUpdate.push_back(m.first);
     }));
@@ -629,14 +628,12 @@ void LelantusWallet::RemoveInvalidMintPoolEntries() // Remove MintPool entry tha
 
 void LelantusWallet::DeleteUnconfirmedMint(MintEntryId const &id)
 {
-    AssertLockHeld(cs_main);
-
     LelantusMint mint;
     if (!database->ReadMint(id, mint)) {
         throw std::runtime_error("no mint data in wallet");
     }
 
-    if (lelantusDb->HasMintId(id)) {
+    if (mint.IsOnChain()) {
         throw std::invalid_argument("try to delete onchain mint");
     }
 
@@ -755,15 +752,17 @@ bool LelantusWallet::RemoveFromMintPool(MintEntryId const &id)
 
 CAmount LelantusWallet::GetCoinsToJoinSplit(PropertyId property, LelantusAmount required, std::vector<SpendableCoin> &coins, LelantusAmount &change, CWalletDB *db)
 {
-    AssertLockHeld(cs_main);
-
     coins.clear();
 
     std::vector<std::pair<MintEntryId, LelantusMint>> mints;
     ListMints(boost::make_function_output_iterator([&] (const std::pair<MintEntryId, LelantusMint>& m) {
-        if (property && m.second.property != property) return;
-        if (m.second.IsSpent()) return;
-        if (!lelantusDb->HasMintId(m.first)) return;
+        if (m.second.IsSpent() || !m.second.IsOnChain()) {
+            return;
+        }
+
+        if (property && m.second.property != property) {
+            return;
+        }
 
         mints.push_back(m);
     }));

@@ -67,6 +67,11 @@ public:
     bool operator==(const LelantusMint& other) const;
     bool operator!=(const LelantusMint& other) const;
 
+    bool IsOnChain() const
+    {
+        return chainState.block >= 0;
+    }
+
     bool IsSpent() const
     {
         return !spendTx.IsNull();
