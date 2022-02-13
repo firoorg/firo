@@ -120,7 +120,8 @@ enum ChainType {
     chainMain,
     chainTestnet,
     chainDevnet,
-    chainRegtest
+    chainRegtest,
+    chainRegtestQl
 };
 
 /**
@@ -362,7 +363,7 @@ struct Params {
     bool IsMain() const { return chainType == chainMain; }
     bool IsTestnet() const { return chainType == chainTestnet; }
     bool IsDevnet() const { return chainType == chainDevnet; }
-    bool IsRegtest() const { return chainType == chainRegtest; }
+    bool IsRegtest() const { return chainType == chainRegtest || chainType == chainRegtestQl; }
 };
 } // namespace Consensus
 

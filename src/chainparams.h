@@ -75,6 +75,7 @@ public:
     bool AllowMultiplePorts() const { return fAllowMultiplePorts; }
     /** Return the BIP70 network string (main, test or regtest) */
     std::string NetworkIDString() const { return strNetworkID; }
+    bool IsRegtest() const { return strNetworkID == CBaseChainParams::REGTEST || strNetworkID == CBaseChainParams::REGTEST_QL; }
     const std::vector<CDNSSeedData>& DNSSeeds() const { return vSeeds; }
     const std::vector<unsigned char>& Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
     const std::vector<SeedSpec6>& FixedSeeds() const { return vFixedSeeds; }

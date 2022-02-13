@@ -239,6 +239,17 @@ public:
     virtual ~CRegTestConsensusParams() {}
 };
 
+/** Consensus parameters for regtest-ql mode.
+ */
+class CRegTestQlConsensusParams: public CRegTestConsensusParams
+{
+public:
+    /** Constructor for regtest consensus parameters. */
+    CRegTestQlConsensusParams();
+    /** Destructor. */
+    virtual ~CRegTestQlConsensusParams() {}
+};
+
 /** Returns consensus parameters for the given network. */
 CConsensusParams& ConsensusParams(const std::string& network);
 /** Returns currently active consensus parameter. */

@@ -157,7 +157,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
         if(pnode->fZnode || (fMasternodeMode && pnode->fInbound)) continue;
 
         // QUICK MODE (REGTEST ONLY!)
-        if(Params().NetworkIDString() == CBaseChainParams::REGTEST)
+        if(Params().IsRegtest())
         {
             if (nCurrentAsset == MASTERNODE_SYNC_WAITING) {
                 SwitchToNextAsset(connman);

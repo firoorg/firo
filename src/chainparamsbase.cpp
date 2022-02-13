@@ -14,6 +14,7 @@ const std::string CBaseChainParams::MAIN = "main";
 const std::string CBaseChainParams::TESTNET = "test";
 const std::string CBaseChainParams::DEVNET = "dev";
 const std::string CBaseChainParams::REGTEST = "regtest";
+const std::string CBaseChainParams::REGTEST_QL = "regtest-ql";
 
 void AppendParamsHelpMessages(std::string& strUsage, bool debugHelp)
 {
@@ -23,6 +24,7 @@ void AppendParamsHelpMessages(std::string& strUsage, bool debugHelp)
     if (debugHelp) {
         strUsage += HelpMessageOpt("-regtest", "Enter regression test mode, which uses a special chain in which blocks can be solved instantly. "
                                    "This is intended for regression testing tools and app development.");
+        strUsage += HelpMessageOpt("-regtest-ql", "Like -regtest but with Lelantus transactions starting at block 1");
     }
 }
 
@@ -96,6 +98,16 @@ public:
 };
 static CBaseRegTestParams regTestParams;
 
+class CBaseRegTestQlParams : public CBaseRegTestParams
+{
+public:
+    CBaseRegTestQlParams()
+    {
+        strDataDir = "regtest-ql";
+    }
+};
+static CBaseRegTestQlParams regTestQlParams;
+
 static CBaseChainParams* pCurrentBaseParams = 0;
 
 const CBaseChainParams& BaseParams()
@@ -114,6 +126,8 @@ CBaseChainParams& BaseParams(const std::string& chain)
         return devNetParams;
     else if (chain == CBaseChainParams::REGTEST)
         return regTestParams;
+    else if (chain == CBaseChainParams::REGTEST_QL)
+        return regTestQlParams;
     else
         throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
 }
@@ -126,11 +140,14 @@ void SelectBaseParams(const std::string& chain)
 std::string ChainNameFromCommandLine()
 {
     bool fRegTest = GetBoolArg("-regtest", false);
+    bool fRegTestQl = GetBoolArg("-regtest-ql", false);
     bool fDevNet = GetBoolArg("-devnet", false);
     bool fTestNet = GetBoolArg("-testnet", false);
 
     if ((int)fTestNet + (int)fDevNet + (int)fRegTest > 1)
         throw std::runtime_error("Invalid combination of -regtest, -devnet and -testnet.");
+    if (fRegTestQl)
+        return CBaseChainParams::REGTEST_QL;
     if (fRegTest)
         return CBaseChainParams::REGTEST;
     if (fDevNet)
@@ -143,13 +160,14 @@ std::string ChainNameFromCommandLine()
 std::string ChainNameFromCommandLineAPI()
 {
     boost::optional<bool> regTest = GetOptBoolArg("-regtest")
+        , regTestQl = GetOptBoolArg("-regtest-ql")
         , testNet = GetOptBoolArg("-testnet")
         , mainNet = GetOptBoolArg("-mainnet");
 
-    if (testNet && regTest && *testNet && *regTest ||
-        testNet && mainNet && *testNet && *mainNet ||
-        mainNet && regTest && *mainNet && *regTest)
-        throw std::runtime_error("Invalid combination of network flags (-mainnet, -testnet and -regtest)");
+    if ((int)!!(regTest && *regTest) + (int)!!(regTestQl && *regTestQl) + (int)!!(testNet && *testNet) + (int)!!(mainNet && *mainNet) > 1)
+        throw std::runtime_error("Invalid combination of network flags (-mainnet, -testnet, -regtest-ql, and -regtest)");
+    if (regTestQl && *regTestQl)
+        return CBaseChainParams::REGTEST_QL;
     if (regTest && *regTest)
         return CBaseChainParams::REGTEST;
     if (testNet && *testNet)

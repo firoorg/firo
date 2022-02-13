@@ -929,7 +929,7 @@ bool CHDMintWallet::GetLelantusHDMintFromMintPoolEntry(CWalletDB& walletdb, lela
  */
 bool CHDMintWallet::GenerateMint(CWalletDB& walletdb, const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry, bool fAllowUnsynced)
 {
-    if (!masternodeSync.IsBlockchainSynced() && !fAllowUnsynced && !(Params().NetworkIDString() == CBaseChainParams::REGTEST))
+    if (!masternodeSync.IsBlockchainSynced() && !fAllowUnsynced && !Params().IsRegtest())
         throw std::runtime_error("Unable to generate mint: Blockchain not yet synced.");
 
     if(mintPoolEntry!=boost::none)
@@ -982,7 +982,7 @@ bool CHDMintWallet::GenerateMint(CWalletDB& walletdb, const sigma::CoinDenominat
  */
 bool CHDMintWallet::GenerateLelantusMint(CWalletDB& walletdb, lelantus::PrivateCoin& coin, CHDMint& dMint, uint160& seedIdOut, boost::optional<MintPoolEntry> mintPoolEntry, bool fAllowUnsynced)
 {
-    if(!masternodeSync.IsBlockchainSynced() && !fAllowUnsynced && !(Params().NetworkIDString() == CBaseChainParams::REGTEST))
+    if(!masternodeSync.IsBlockchainSynced() && !fAllowUnsynced && !Params().IsRegtest())
         throw std::runtime_error("Unable to generate mint: Blockchain not yet synced.");
 
     if(mintPoolEntry!=boost::none)

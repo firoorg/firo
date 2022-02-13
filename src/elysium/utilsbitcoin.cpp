@@ -62,7 +62,7 @@ bool TestNet()
 
 bool RegTest()
 {
-    return Params().NetworkIDString() == "regtest";
+    return Params().IsRegtest();
 }
 
 bool UnitTest()

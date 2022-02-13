@@ -205,6 +205,14 @@ CRegTestConsensusParams::CRegTestConsensusParams()
 
     REFERENCE_AMOUNT = 100000;
 }
+/**
+ * Constructor for regtest consensus parameters.
+ */
+CRegTestQlConsensusParams::CRegTestQlConsensusParams()
+{
+    GENESIS_BLOCK = 1;
+    LELANTUS_FEATURE_BLOCK = 1;
+}
 
 //! Consensus parameters for mainnet
 static CMainConsensusParams mainConsensusParams;
@@ -212,6 +220,7 @@ static CMainConsensusParams mainConsensusParams;
 static CTestNetConsensusParams testNetConsensusParams;
 //! Consensus parameters for regtest mode
 static CRegTestConsensusParams regTestConsensusParams;
+static CRegTestQlConsensusParams regTestQlConsensusParams;
 
 /**
  * Returns consensus parameters for the given network.
@@ -226,6 +235,9 @@ CConsensusParams& ConsensusParams(const std::string& network)
     }
     if (network == "regtest") {
         return regTestConsensusParams;
+    }
+    if (network == "regtest-ql") {
+        return regTestQlConsensusParams;
     }
     // Fallback:
     return mainConsensusParams;

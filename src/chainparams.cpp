@@ -1148,6 +1148,56 @@ public:
 };
 static CRegTestParams regTestParams;
 
+/**
+ * Regression test
+ */
+class CRegTestQuickLelantusParams : public CRegTestParams {
+public:
+    CRegTestQuickLelantusParams() {
+        strNetworkID = "regtest-ql";
+
+        consensus.chainType = Consensus::chainRegtestQl;
+
+        consensus.nCheckBugFixedAtBlock = 1;
+        consensus.nZnodePaymentsBugFixedAtBlock = 1;
+        consensus.nSpendV15StartBlock = 1;
+        consensus.nSpendV2ID_1 = 1;
+        consensus.nSpendV2ID_10 = 1;
+        consensus.nSpendV2ID_25 = 1;
+        consensus.nSpendV2ID_50 = 1;
+        consensus.nSpendV2ID_100 = 1;
+        consensus.nModulusV2StartBlock = 1;
+        consensus.nModulusV1MempoolStopBlock = 1;
+        consensus.nModulusV1StopBlock = 1;
+        consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
+        consensus.nDontAllowDupTxsStartBlock = 1;
+
+        consensus.nDisableZerocoinStartBlock = 1;
+
+        consensus.nSigmaStartBlock = 1;
+        consensus.nSigmaPaddingBlock = 1;
+        consensus.nDisableUnpaddedSigmaBlock = 1;
+        consensus.nStartSigmaBlacklist = 1;
+        consensus.nRestartSigmaWithBlacklistCheck = 1;
+        consensus.nOldSigmaBanBlock = 1;
+
+        consensus.nLelantusStartBlock = 1;
+        consensus.nLelantusFixesStartBlock = 1;
+
+        consensus.nZerocoinV2MintMempoolGracefulPeriod = 1;
+        consensus.nZerocoinV2MintGracefulPeriod = 1;
+        consensus.nZerocoinV2SpendMempoolGracefulPeriod = 1;
+        consensus.nZerocoinV2SpendGracefulPeriod = 1;
+        consensus.nZerocoinToSigmaRemintWindowSize = 0;
+
+        consensus.nLelantusV3PayloadStartBlock = 1;
+
+        consensus.DIP0003Height = 1;
+        consensus.DIP0003EnforcementHeight = 1;
+    }
+};
+static CRegTestQuickLelantusParams regTestQlParams;
+
 static CChainParams *pCurrentParams = 0;
 
 const CChainParams &Params() {
@@ -1165,6 +1215,8 @@ CChainParams& Params(const std::string& chain)
             return devNetParams;
     else if (chain == CBaseChainParams::REGTEST)
             return regTestParams;
+    else if (chain == CBaseChainParams::REGTEST_QL)
+            return regTestQlParams;
     else
         throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
 }
