@@ -68,11 +68,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     headerLayout->addWidget(watchOnlyWidget);
 
     instantsendWidget = new QComboBox(this);
-    if (platformStyle->getUseExtraSpacing()) {
-        instantsendWidget->setFixedWidth(121);
-    } else {
-        instantsendWidget->setFixedWidth(120);
-    }
+    instantsendWidget->setFixedWidth(24);
     instantsendWidget->addItem(tr("All"), TransactionFilterProxy::InstantSendFilter_All);
     instantsendWidget->addItem(tr("Locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_Yes);
     instantsendWidget->addItem(tr("Not locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_No);
