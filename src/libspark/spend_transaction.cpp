@@ -7,6 +7,7 @@ SpendTransaction::SpendTransaction(
 	const FullViewKey& full_view_key,
 	const SpendKey& spend_key,
 	const std::vector<Coin>& in_coins,
+	const std::vector<std::vector<unsigned char>>& roots,
 	const std::vector<InputCoinData>& inputs,
 	const uint64_t f,
 	const std::vector<OutputCoinData>& outputs
@@ -17,6 +18,12 @@ SpendTransaction::SpendTransaction(
 	const std::size_t w = inputs.size(); // number of consumed coins
 	const std::size_t t = outputs.size(); // number of generated coins
 	const std::size_t N = in_coins.size(); // size of cover set
+
+	// Ensure we have enough Merkle roots
+	if (roots.size() != w) {
+		throw std::invalid_argument("Bad number of roots for spend transaction");
+	}
+	this->roots = roots;
 
 	// Prepare input-related vectors
 	this->in_coins = in_coins; // input cover set
@@ -79,6 +86,7 @@ SpendTransaction::SpendTransaction(
 			SparkUtils::hash_val(inputs[u].k) - SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D()),
 			C,
 			this->C1.back(),
+			this->roots[u],
 			this->grootle_proofs.back()
 		);
 
@@ -150,7 +158,7 @@ SpendTransaction::SpendTransaction(
 
 	// Compute the binding hash
 	Scalar mu = hash_bind(
-		this->in_coins,
+		this->roots,
 		this->out_coins,
 		this->f,
 		this->S1,
@@ -186,7 +194,7 @@ bool SpendTransaction::verify() {
 	const std::size_t N = this->in_coins.size();
 
 	// Semantics
-	if (this->S1.size() != w || this->C1.size() != w || this->T.size() != w) {
+	if (this->S1.size() != w || this->C1.size() != w || this->T.size() != w || this->roots.size() != w) {
 		throw std::invalid_argument("Bad spend transaction semantics");
 	}
 	if (N > (std::size_t)pow(this->params->get_n_grootle(), this->params->get_m_grootle())) {
@@ -223,13 +231,13 @@ bool SpendTransaction::verify() {
 	for (std::size_t u = 0; u < w; u++) {
 		sizes.emplace_back(N);
 	}
-	if (!grootle.verify(S, this->S1, C, this->C1, sizes, this->grootle_proofs)) {
+	if (!grootle.verify(S, this->S1, C, this->C1, this->roots, sizes, this->grootle_proofs)) {
 		return false;
 	}
 	
 	// Compute the binding hash
 	Scalar mu = hash_bind(
-		this->in_coins,
+		this->roots,
 		this->out_coins,
 		this->f,
 		this->S1,
@@ -285,7 +293,7 @@ bool SpendTransaction::verify() {
 
 // Hash-to-scalar function H_bind
 Scalar SpendTransaction::hash_bind(
-    const std::vector<Coin>& in_coins,
+	const std::vector<std::vector<unsigned char>>& roots,
     const std::vector<Coin>& out_coins,
     const uint64_t f,
     const std::vector<GroupElement>& S1,
@@ -300,7 +308,7 @@ Scalar SpendTransaction::hash_bind(
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
 
 	// Perform the serialization and hashing
-	stream << in_coins;
+	stream << roots,
     stream << out_coins;
     stream << f;
     stream << S1;

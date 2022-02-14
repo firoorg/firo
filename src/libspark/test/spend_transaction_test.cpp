@@ -51,10 +51,18 @@ BOOST_AUTO_TEST_CASE(generate_verify)
     // Choose coins to spend, recover them, and prepare them for spending
     std::vector<std::size_t> spend_indices = { 1, 3, 5 };
     std::vector<InputCoinData> spend_coin_data;
+    std::vector<std::vector<unsigned char>> roots;
     const std::size_t w = spend_indices.size();
     for (std::size_t u = 0; u < w; u++) {
         IdentifiedCoinData identified_coin_data = in_coins[spend_indices[u]].identify(incoming_view_key);
         RecoveredCoinData recovered_coin_data = in_coins[spend_indices[u]].recover(full_view_key, identified_coin_data);
+
+        Scalar temp;
+        temp.randomize();
+        std::vector<unsigned char> root;
+        root.resize(SCALAR_ENCODING);
+        temp.serialize(root.data());
+        roots.emplace_back(root);
 
         spend_coin_data.emplace_back();
         spend_coin_data.back().index = spend_indices[u];
@@ -96,6 +104,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         full_view_key,
         spend_key,
         in_coins,
+        roots,
         spend_coin_data,
         f,
         out_coin_data

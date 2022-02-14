@@ -33,6 +33,7 @@ public:
 		const FullViewKey& full_view_key,
 		const SpendKey& spend_key,
 		const std::vector<Coin>& in_coins,
+		const std::vector<std::vector<unsigned char>>& roots,
 		const std::vector<InputCoinData>& inputs,
 		const uint64_t f,
 		const std::vector<OutputCoinData>& outputs
@@ -40,7 +41,7 @@ public:
 	bool verify();
     
 	static Scalar hash_bind(
-        const std::vector<Coin>& in_coins,
+		const std::vector<std::vector<unsigned char>>& roots,
         const std::vector<Coin>& out_coins,
         const uint64_t f,
         const std::vector<GroupElement>& S1,
@@ -54,6 +55,7 @@ public:
 private:
 	const Params* params;
 	std::vector<Coin> in_coins;
+	std::vector<std::vector<unsigned char>> roots;
 	std::vector<Coin> out_coins;
 	uint64_t f;
 	std::vector<GroupElement> S1, C1, T;

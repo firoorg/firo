@@ -38,6 +38,7 @@ BOOST_AUTO_TEST_CASE(batch)
     std::vector<std::size_t> indexes = { 0, 1, 3, 59 };
     std::vector<std::size_t> sizes = { 60, 60, 59, 16 };
     std::vector<GroupElement> S1, V1;
+    std::vector<std::vector<unsigned char>> roots;
     std::vector<Scalar> s, v;
     for (std::size_t index : indexes) {
         Scalar s_, v_;
@@ -51,6 +52,14 @@ BOOST_AUTO_TEST_CASE(batch)
 
         S[index] += H*s_;
         V[index] += H*v_;
+
+        // Prepare random data in place of Merkle root
+        Scalar temp;
+        temp.randomize();
+        std::vector<unsigned char> root;
+        root.reserve(SCALAR_ENCODING);
+        temp.serialize(root.data());
+        roots.emplace_back(root);
     }
 
     // Prepare proving system
@@ -69,14 +78,15 @@ BOOST_AUTO_TEST_CASE(batch)
             v[i],
             V_,
             V1[i],
+            roots[i],
             proofs.back()
         );
 
         // Verify single proof
-        BOOST_CHECK(grootle.verify(S, S1[i], V, V1[i], sizes[i], proofs.back()));
+        BOOST_CHECK(grootle.verify(S, S1[i], V, V1[i], roots[i], sizes[i], proofs.back()));
     }
 
-    BOOST_CHECK(grootle.verify(S, S1, V, V1, sizes, proofs));
+    BOOST_CHECK(grootle.verify(S, S1, V, V1, roots, sizes, proofs));
 }
 
 BOOST_AUTO_TEST_CASE(invalid_batch)
@@ -101,6 +111,7 @@ BOOST_AUTO_TEST_CASE(invalid_batch)
     std::vector<std::size_t> indexes = { 0, 1, 3, 59 };
     std::vector<std::size_t> sizes = { 60, 60, 59, 16 };
     std::vector<GroupElement> S1, V1;
+    std::vector<std::vector<unsigned char>> roots;
     std::vector<Scalar> s, v;
     for (std::size_t index : indexes) {
         Scalar s_, v_;
@@ -114,6 +125,14 @@ BOOST_AUTO_TEST_CASE(invalid_batch)
 
         S[index] += H*s_;
         V[index] += H*v_;
+
+        // Prepare random data in place of Merkle root
+        Scalar temp;
+        temp.randomize();
+        std::vector<unsigned char> root;
+        root.reserve(SCALAR_ENCODING);
+        temp.serialize(root.data());
+        roots.emplace_back(root);
     }
 
     // Prepare proving system
@@ -132,11 +151,12 @@ BOOST_AUTO_TEST_CASE(invalid_batch)
             v[i],
             V_,
             V1[i],
+            roots[i],
             proofs.back()
         );
     }
 
-    BOOST_CHECK(grootle.verify(S, S1, V, V1, sizes, proofs));
+    BOOST_CHECK(grootle.verify(S, S1, V, V1, roots, sizes, proofs));
 
     // Add an invalid proof
     proofs.emplace_back(proofs.back());
@@ -145,7 +165,7 @@ BOOST_AUTO_TEST_CASE(invalid_batch)
     S1.back().randomize();
     sizes.emplace_back(sizes.back());
 
-    BOOST_CHECK(!grootle.verify(S, S1, V, V1, sizes, proofs));
+    BOOST_CHECK(!grootle.verify(S, S1, V, V1, roots, sizes, proofs));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

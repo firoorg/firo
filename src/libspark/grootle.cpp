@@ -146,6 +146,7 @@ void Grootle::prove(
         const Scalar& v,
         const std::vector<GroupElement>& V,
         const GroupElement& V1,
+        const std::vector<unsigned char>& root,
         GrootleProof& proof) {
     // Check statement validity
     std::size_t N = (std::size_t) pow(n, m); // padded input size
@@ -173,9 +174,8 @@ void Grootle::prove(
     transcript.add("Hi", Hi);
     transcript.add("n", Scalar(n));
     transcript.add("m", Scalar(m));
-    transcript.add("S", S);
+    transcript.add("root", root);
     transcript.add("S1", S1);
-    transcript.add("V", V);
     transcript.add("V1", V1);
 
     // Compute A
@@ -348,14 +348,16 @@ bool Grootle::verify(
         const GroupElement& S1,
         const std::vector<GroupElement>& V,
         const GroupElement& V1,
+        const std::vector<unsigned char>& root,
         const std::size_t size,
         const GrootleProof& proof) {
     std::vector<GroupElement> S1_batch = {S1};
     std::vector<GroupElement> V1_batch = {V1};
     std::vector<std::size_t> size_batch = {size};
+    std::vector<std::vector<unsigned char>> root_batch = {root};
     std::vector<GrootleProof> proof_batch = {proof};
 
-    return verify(S, S1_batch, V, V1_batch, size_batch, proof_batch);
+    return verify(S, S1_batch, V, V1_batch, root_batch, size_batch, proof_batch);
 }
 
 // Verify a batch of proofs
@@ -364,6 +366,7 @@ bool Grootle::verify(
         const std::vector<GroupElement>& S1,
         const std::vector<GroupElement>& V,
         const std::vector<GroupElement>& V1,
+        const std::vector<std::vector<unsigned char>>& roots,
         const std::vector<std::size_t>& sizes,
         const std::vector<GrootleProof>& proofs) {
     // Sanity checks
@@ -392,6 +395,10 @@ bool Grootle::verify(
     }
     if (sizes.size() != M) {
         LogPrintf("Invalid set size vector size");
+        return false;
+    }
+    if (roots.size() != M) {
+        LogPrintf("Invalid root vector size");
         return false;
     }
 
@@ -462,9 +469,8 @@ bool Grootle::verify(
         transcript.add("Hi", Hi);
         transcript.add("n", Scalar(n));
         transcript.add("m", Scalar(m));
-        transcript.add("S", std::vector<GroupElement>(S.begin() + S.size() - sizes[t], S.end()));
+        transcript.add("root", roots[t]);
         transcript.add("S1", S1[t]);
-        transcript.add("V", std::vector<GroupElement>(V.begin() + V.size() - sizes[t], V.end()));
         transcript.add("V1", V1[t]);
         transcript.add("A", proof.A);
         transcript.add("B", proof.B);

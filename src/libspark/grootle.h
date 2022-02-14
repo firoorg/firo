@@ -26,17 +26,20 @@ public:
         const Scalar& v,
         const std::vector<GroupElement>& V,
         const GroupElement& V1,
+        const std::vector<unsigned char>& root,
         GrootleProof& proof);
     bool verify(const std::vector<GroupElement>& S,
         const GroupElement& S1,
         const std::vector<GroupElement>& V,
         const GroupElement& V1,
+        const std::vector<unsigned char>& root,
         const std::size_t size,
         const GrootleProof& proof); // single proof
     bool verify(const std::vector<GroupElement>& S,
         const std::vector<GroupElement>& S1,
         const std::vector<GroupElement>& V,
         const std::vector<GroupElement>& V1,
+        const std::vector<std::vector<unsigned char>>& roots,
         const std::vector<std::size_t>& sizes,
         const std::vector<GrootleProof>& proofs); // batch of proofs
 
