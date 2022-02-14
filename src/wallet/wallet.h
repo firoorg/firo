@@ -1053,7 +1053,7 @@ public:
 
     std::vector<CLelantusEntry> JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result);
 
-    CAmount EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, std::list<CSigmaEntry> sigmaCoins, std::list<CLelantusEntry> coins, std::vector<CAmount>& fees, std::vector<CAmount>& spendAmounts, const CCoinControl *coinControl);
+    CAmount EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, std::size_t mintNum, std::size_t recipienttNum, std::list<CSigmaEntry> sigmaCoins, std::list<CLelantusEntry> coins, std::vector<CAmount>& fees, std::vector<CAmount>& spendAmounts, const CCoinControl *coinControl);
 
     bool GetMint(const uint256& hashSerial, CSigmaEntry& sigmaEntry, bool forEstimation = false) const;
 

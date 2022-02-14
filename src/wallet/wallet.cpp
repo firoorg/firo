@@ -5406,10 +5406,16 @@ std::vector<CLelantusEntry> CWallet::JoinSplitLelantus(const std::vector<CRecipi
     std::vector<CSigmaEntry> sigmaSpendCoins;
     std::vector<CHDMint> mintCoins; // new mints
     std::vector<CAmount> fees;
-    result = CreateLelantusJoinSplitTransaction(recipients, fees, newMints, spendCoins, sigmaSpendCoins, mintCoins)[0];
+    std::vector<CWalletTx> newTXs = CreateLelantusJoinSplitTransaction(recipients, fees, newMints, spendCoins, sigmaSpendCoins, mintCoins);
 
-    CommitLelantusTransaction(result, spendCoins, sigmaSpendCoins, mintCoins);
+    for (auto& tx : newTXs) {
+        CommitLelantusTransaction(tx, spendCoins, sigmaSpendCoins, mintCoins);
+        spendCoins.clear();
+        sigmaSpendCoins.clear();
+        mintCoins.clear();
+    }
 
+    result = newTXs[0];
     return spendCoins;
 }
 
@@ -5444,6 +5450,8 @@ std::vector<CWalletTx> CWallet::CreateLelantusJoinSplitTransaction(
 CAmount CWallet::EstimateJoinSplitFee(
         CAmount required,
         bool subtractFeeFromAmount,
+        std::size_t mintNum,
+        std::size_t recipienttNum,
         std::list<CSigmaEntry> sigmaCoins,
         std::list<CLelantusEntry> coins,
         std::vector<CAmount>& fees,
@@ -5492,18 +5500,23 @@ CAmount CWallet::EstimateJoinSplitFee(
                 }
 
                 if (currentRequired - inputFromSigma > 0) {
-                    this->GetCoinsToJoinSplit(currentRequired, spendCoins, changeToMint, coinsForThisRound,
+                    this->GetCoinsToJoinSplit(currentRequired - inputFromSigma, spendCoins, changeToMint, coinsForThisRound,
                                               consensusParams.nMaxLelantusInputPerTransaction - sigmaSpendCoins.size(),
                                               consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
                 }
-
             } catch (std::runtime_error const &) {
             }
 
+            std::unordered_set<int> groupIds;
+            for(auto& spendCoin : spendCoins)
+                groupIds.insert(spendCoin.id);
 
-            // 1054 is constant part, mainly Schnorr and Range proofs, 2560 is for each sigma/aux data
-            // 179 other parts of tx, assuming 1 utxo and 1 jmint
-            size = 1054 + 2560 * (spendCoins.size() + sigmaSpendCoins.size()) + 179;
+            // 1083 is constant part, mainly Schnorr and Range proofs, 2560 is for each sigma/aux data
+            std::size_t m = mintNum + mintNum % 2;
+            std::size_t groupNum = groupIds.size() + !sigmaSpendCoins.empty();
+
+            size = 936 + 2560 * (spendCoins.size() + sigmaSpendCoins.size()) + mintNum * 92 + groupNum * 147 + m *34 + recipienttNum * 59;
+
             CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
 
             if (fee >= feeNeeded) {
@@ -7027,7 +7040,7 @@ CWalletTx CWallet::PrepareAndSendNotificationTx(bip47::CPaymentCode const & thei
 
     recipients.emplace_back(receiver);
     CScript opReturnScript = CScript() << OP_RETURN << std::vector<unsigned char>(80); // Passing empty array to calc fees
-    recipients.push_back({opReturnScript, 0, false});
+    recipients.insert(recipients.begin(), 1, {opReturnScript, 0, false});
 
     auto throwSigma =
         [](){throw std::runtime_error(std::string("There are unspent Sigma coins in your wallet. Using Sigma coins for BIP47 is not supported. Please spend your Sigma coins before establishing a BIP47 channel."));};
@@ -7041,6 +7054,7 @@ CWalletTx CWallet::PrepareAndSendNotificationTx(bip47::CPaymentCode const & thei
         wtxNew = CreateLelantusJoinSplitTransaction(recipients, fees, newMints, spendCoins, sigmaSpendCoins, mintCoins, nullptr,
                 [&pchannel, &throwSigma](CTxOut & out, LelantusJoinSplitBuilder const & builder) {
                     if(out.scriptPubKey[0] == OP_RETURN) {
+
                         CKey spendPrivKey;
                         if (builder.spendCoins.empty())
                             throwSigma();

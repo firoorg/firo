@@ -54,6 +54,8 @@ std::vector<CWalletTx> LelantusJoinSplitBuilder::Build(
     // calculate total value to spend
     CAmount vOut = 0;
     CAmount mint = 0;
+    spendCoins.clear();
+    sigmaSpendCoins.clear();
     unsigned recipientsToSubtractFee = 0;
 
     for (size_t i = 0; i < recipients.size(); i++) {
@@ -125,7 +127,7 @@ std::vector<CWalletTx> LelantusJoinSplitBuilder::Build(
     std::list<CLelantusEntry> coins = pwalletMain->GetAvailableLelantusCoins(coinControl);
     CAmount required = vOut + mint;
     std::vector<CAmount> spendAmounts;
-    CAmount fullFee = wallet.EstimateJoinSplitFee(required, recipientsToSubtractFee, sigmaCoins, coins, fees, spendAmounts, coinControl);
+    CAmount fullFee = wallet.EstimateJoinSplitFee(required, recipientsToSubtractFee, newMints.size() + 1, recipients.size(), sigmaCoins, coins, fees, spendAmounts, coinControl);
     if (!recipientsToSubtractFee)
         required += fullFee;
 
@@ -133,6 +135,8 @@ std::vector<CWalletTx> LelantusJoinSplitBuilder::Build(
     bool remainderSubtracted = false;
     std::vector<CTxOut> outputs;
     std::vector<CWalletTx> results;
+    std::vector<CLelantusEntry> currentSpendCoins;
+    std::vector<CSigmaEntry> currentSigmaSpendCoins;
     for (size_t i = 0; i < recipients.size(); i++) {
         auto &recipient = recipients[i];
         CTxOut out(recipient.nAmount, recipient.scriptPubKey);
@@ -202,7 +206,7 @@ std::vector<CWalletTx> LelantusJoinSplitBuilder::Build(
                 if (remainingVout == 0)
                     break;
 
-                auto &output = outputs[i];
+                auto output = outputs[i];
                 CAmount value;
                 if (remainingVout >= output.nValue) {
                     value = output.nValue;
@@ -227,47 +231,43 @@ std::vector<CWalletTx> LelantusJoinSplitBuilder::Build(
             }
 
             // get coins
-            spendCoins.clear();
-            sigmaSpendCoins.clear();
+            currentSpendCoins.clear();
+            currentSigmaSpendCoins.clear();
 
             auto &consensusParams = Params().GetConsensus();
             CAmount changeToMint = 0;
 
             std::vector<sigma::CoinDenomination> denomChanges;
+            CAmount inputFromSigma(0);
             try {
                 CAmount availableBalance(0);
                 for (auto coin: sigmaCoins) {
                     availableBalance += coin.get_denomination_value();
                 }
                 if (availableBalance > 0) {
-                    CAmount inputFromSigma;
                     if (required > availableBalance)
                         inputFromSigma = availableBalance;
                     else
                         inputFromSigma = required;
 
                     std::list<CSigmaEntry> sigmaCoinsCp = sigmaCoins;
-                    wallet.GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges,
+                    wallet.GetCoinsToSpend(inputFromSigma, currentSigmaSpendCoins, denomChanges,
                                            sigmaCoinsCp, //try to spend sigma first
                                            consensusParams.nMaxLelantusInputPerTransaction,
                                            consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
-
-                    required -= inputFromSigma;
-
                     isSigmaToLelantusJoinSplit = true;
                 }
             } catch (std::runtime_error const &) {
             }
-
-            if (required > 0) {
-                if (!wallet.GetCoinsToJoinSplit(required, spendCoins, changeToMint, coins,
+            if (required - inputFromSigma > 0) {
+                if (!wallet.GetCoinsToJoinSplit(required - inputFromSigma, currentSpendCoins, changeToMint, coins,
                                                 consensusParams.nMaxLelantusInputPerTransaction,
                                                 consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl)) {
                     throw InsufficientFunds();
                 }
             }
 
-            if ((sigmaSpendCoins.size() + spendCoins.size()) > consensusParams.nMaxLelantusInputPerTransaction)
+            if ((currentSigmaSpendCoins.size() + currentSpendCoins.size()) > consensusParams.nMaxLelantusInputPerTransaction)
                 throw std::invalid_argument(
                         _("Number of inputs is bigger then limit."));
 
@@ -278,10 +278,10 @@ std::vector<CWalletTx> LelantusJoinSplitBuilder::Build(
             }
 
             CAmount input(0);
-            for (const auto &spend: sigmaSpendCoins) {
+            for (const auto &spend: currentSigmaSpendCoins) {
                 input += spend.get_denomination_value();
             }
-            for (const auto &spend: spendCoins) {
+            for (const auto &spend: currentSpendCoins) {
                 input += spend.amount;
             }
 
@@ -335,6 +335,8 @@ std::vector<CWalletTx> LelantusJoinSplitBuilder::Build(
             // fill inputs
             uint32_t sequence = CTxIn::SEQUENCE_FINAL;
             tx.vin.emplace_back(COutPoint(), CScript(), sequence);
+            spendCoins.insert(spendCoins.begin(), currentSpendCoins.begin(), currentSpendCoins.end());
+            sigmaSpendCoins.insert(sigmaSpendCoins.begin(), currentSigmaSpendCoins.begin(), currentSigmaSpendCoins.end());
 
             if (outModifier) {
                 for (CTxOut &out: tx.vout) {
@@ -354,7 +356,7 @@ std::vector<CWalletTx> LelantusJoinSplitBuilder::Build(
             // now every fields is populated then we can sign transaction
             uint256 sig = tx.GetHash();
 
-            CreateJoinSplit(sig, Cout, currentVout, fees[i], tx);
+            CreateJoinSplit(sig, Cout, currentVout, fees[i], currentSpendCoins, currentSigmaSpendCoins, tx);
 
             // check fee
             result.SetTx(MakeTransactionRef(tx));
@@ -388,6 +390,7 @@ std::vector<CWalletTx> LelantusJoinSplitBuilder::Build(
 //        }
         required -= spendAmounts[i];
         ++i;
+
         results.push_back(result);
     }
 
@@ -474,13 +477,15 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
         const std::vector<lelantus::PrivateCoin>& Cout,
         const uint64_t& Vout,
         const uint64_t& fee,
+        const std::vector<CLelantusEntry>& spendCoins_,
+        const std::vector<CSigmaEntry>& sigmaSpendCoins_,
         CMutableTransaction& tx) {
 
     lelantus::CLelantusState* state = lelantus::CLelantusState::GetState();
     auto params = lelantus::Params::get_default();
 
     std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> coins;
-    coins.reserve(spendCoins.size());
+    coins.reserve(spendCoins_.size());
     std::map<uint32_t, std::vector<lelantus::PublicCoin>> anonymity_sets;
     std::map<uint32_t, uint256> groupBlockHashes;
     int version = 0;
@@ -499,7 +504,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
     }
 
     std::vector<std::vector<unsigned char>> anonymity_set_hashes;
-    for (const auto &spend : spendCoins) {
+    for (const auto &spend : spendCoins_) {
         // construct public part of the mint
         lelantus::PublicCoin pub(spend.value);
         // construct private part of the mint
@@ -543,7 +548,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
 
     sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
 
-    for (const auto &spend : sigmaSpendCoins) {
+    for (const auto &spend : sigmaSpendCoins_) {
         int64_t denom = spend.get_denomination_value();
         // construct public part of the mint
         sigma::PublicCoin pub(spend.value, spend.get_denomination());

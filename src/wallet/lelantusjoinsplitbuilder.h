@@ -28,6 +28,8 @@ private:
             const std::vector<lelantus::PrivateCoin>& Cout,
             const uint64_t& Vout,
             const uint64_t& fee,
+            const std::vector<CLelantusEntry>& spendCoins_,
+            const std::vector<CSigmaEntry>& sigmaSpendCoins_,
             CMutableTransaction& tx);
 
 public:
