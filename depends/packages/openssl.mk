@@ -50,7 +50,7 @@ $(package)_config_opts_arm_darwin=darwin64-arm64-cc
 endef
 
 define $(package)_preprocess_cmds
-  sed -i.old "s/built on: \$date//" util/mkbuildinf.pl
+  sed -i.old 's/"built on: .*"/""/;s/"compiler: .*"/""/' util/mkbuildinf.pl
 endef
 
 define $(package)_config_cmds
