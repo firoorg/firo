@@ -39,6 +39,9 @@ public:
     /** Colorize an icon (given object) with the text color */
     QIcon TextColorIcon(const QIcon& icon) const;
 
+    /** Coincontrol lock icon */
+    QIcon LockIcon(const QString& filename) const;
+
 private:
     PlatformStyle(const QString &name, bool imagesOnButtons, bool colorizeIcons, bool useExtraSpacing);
 

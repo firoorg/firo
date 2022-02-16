@@ -1411,10 +1411,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     if (tx.IsSigmaSpend()) {
         if(markFiroSpendTransactionSerial)
             sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
-        LogPrintf("Updating mint tracker state from Mempool..");
+        LogPrintf("Updating mint tracker state from Mempool..\n");
 #ifdef ENABLE_WALLET
         if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-            LogPrintf("Updating spend state from Mempool..");
+            LogPrintf("Updating spend state from Mempool..\n");
             pwalletMain->zwallet->GetTracker().UpdateSpendStateFromMempool(zcSpendSerialsV3);
         }
 #endif
@@ -1425,10 +1425,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             for (const auto &spendSerial: lelantusSpendSerials)
                 pool.lelantusState.AddSpendToMempool(spendSerial, hash);
         }
-        LogPrintf("Updating mint tracker state from Mempool..");
+        LogPrintf("Updating mint tracker state from Mempool..\n");
 #ifdef ENABLE_WALLET
         if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-            LogPrintf("Updating spend state from Mempool..");
+            LogPrintf("Updating spend state from Mempool..\n");
             pwalletMain->zwallet->GetTracker().UpdateJoinSplitStateFromMempool(lelantusSpendSerials);
             pwalletMain->zwallet->GetTracker().UpdateSpendStateFromMempool(lelantusSpendSerials);
         }
@@ -1444,12 +1444,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
 #ifdef ENABLE_WALLET
     if(tx.IsSigmaMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        LogPrintf("Updating mint state from Mempool..");
+        LogPrintf("Updating mint state from Mempool..\n");
         pwalletMain->zwallet->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
     }
 
     if(tx.IsLelantusMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        LogPrintf("Updating mint state from Mempool..");
+        LogPrintf("Updating mint state from Mempool..\n");
         BOOST_FOREACH(const CTxOut &txout, tx.vout)
         {
             if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
@@ -2545,6 +2545,29 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     if (!CheckBlock(block, state, chainparams.GetConsensus(), !fJustCheck, !fJustCheck, pindex->nHeight, false)) {
         LogPrintf("--> failed\n");
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
+    }
+
+    if (block.IsProgPow() && !fJustCheck)
+    {
+        // do full PP hash check
+
+        // if nHeight is too big progpow_hash_full will use too much memory. This condition allows
+        // progpow usage until block 2600000
+        if (block.nHeight >= progpow::epoch_length*2000)
+            return state.DoS(50, false, REJECT_INVALID, "invalid-progpow-epoch", false, "invalid epoch number");
+
+        uint256 exp_mix_hash, final_hash;
+        final_hash = block.GetProgPowHashFull(exp_mix_hash);
+        if (exp_mix_hash != block.mix_hash)
+        {
+            return state.DoS(50, false, REJECT_INVALID, "invalid-mixhash", false, "mix_hash validity failed");
+        }
+
+        // This check is redundand but for the piece of mind we are leaving it here
+        if (!CheckProofOfWork(final_hash, block.nBits, chainparams.GetConsensus()))
+        {
+            return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
+        }
     }
 
     // verify that the view's current state corresponds to the previous block
@@ -4241,18 +4264,13 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
         uint256 final_hash;
         if (block.IsProgPow())
         {
-            // if nHeight is too big progpow_hash_full will use too much memory. This condition allows
-            // progpow usage until block 2600000
-            if (block.nHeight >= progpow::epoch_length*2000)
-                return state.DoS(50, false, REJECT_INVALID, "invalid-progpow-epoch", false, "invalid epoch number");
-
-            uint256 exp_mix_hash;
-            final_hash = block.GetProgPowHashFull(exp_mix_hash);
-            if (exp_mix_hash != block.mix_hash)
-            {
-                return state.DoS(50, false, REJECT_INVALID, "invalid-mixhash", false, "mix_hash validity failed");
-            }
-        } else {
+            // If we use GetProgPowHashFull user may experience very slow header sync
+            // We use simplified function for header check and then will use full check in ConnectBlock()
+            // This won't make sync faster but it will give user a better experience
+            final_hash = block.GetProgPowHashLight();
+        }
+        else
+        {
             final_hash = block.GetPoWHash(nHeight);
         }
         if (!CheckProofOfWork(final_hash, block.nBits, consensusParams))
