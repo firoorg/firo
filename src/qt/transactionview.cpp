@@ -60,9 +60,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
         headerLayout->addSpacing(23);
     }
 
-    statusSpacer = new QSpacerItem(1, 1, QSizePolicy::MinimumExpanding);
-    headerLayout->addSpacerItem(statusSpacer);
-
     watchOnlyWidget = new QComboBox(this);
     watchOnlyWidget->setFixedWidth(24);
     watchOnlyWidget->addItem("", TransactionFilterProxy::WatchOnlyFilter_All);
@@ -437,7 +434,7 @@ void TransactionView::updateHeaderSizes(int logicalIndex, int oldSize, int newSi
         {TransactionTableModel::Amount, amountWidget}
     };
 
-    if(logicalIndex < TransactionTableModel::ToAddress)
+    if(logicalIndex <= TransactionTableModel::ToAddress)
         return;
 
     for(std::pair<int, QWidget*> const & p : headerWidgets) {
