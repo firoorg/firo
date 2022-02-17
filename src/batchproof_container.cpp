@@ -1,5 +1,6 @@
 #include "batchproof_container.h"
 #include "liblelantus/sigmaextended_verifier.h"
+#include "liblelantus/range_verifier.h"
 #include "sigma/sigmaplus_verifier.h"
 #include "sigma.h"
 #include "lelantus.h"
@@ -18,6 +19,7 @@ BatchProofContainer* BatchProofContainer::get_instance() {
 void BatchProofContainer::init() {
     tempSigmaProofs.clear();
     tempLelantusSigmaProofs.clear();
+    tempRangeProofs.clear();
 }
 
 void BatchProofContainer::finalize() {
@@ -29,6 +31,10 @@ void BatchProofContainer::finalize() {
         for (const auto& itr : tempLelantusSigmaProofs) {
             lelantusSigmaProofs[itr.first].insert(lelantusSigmaProofs[itr.first].begin(), itr.second.begin(), itr.second.end());
         }
+
+        for (const auto& itr : tempRangeProofs) {
+            rangeProofs[itr.first].insert(rangeProofs[itr.first].begin(), itr.second.begin(), itr.second.end());
+        }
     }
     fCollectProofs = false;
 }
@@ -37,6 +43,7 @@ void BatchProofContainer::verify() {
     if (!fCollectProofs) {
         batch_sigma();
         batch_lelantus();
+        batch_rangeProofs();
     }
     fCollectProofs = false;
 }
@@ -70,6 +77,11 @@ void BatchProofContainer::add(lelantus::JoinSplit* joinSplit,
         std::pair<std::pair<uint32_t, bool>, bool> idAndFlag = std::make_pair(std::make_pair(groupIds[i], fStartLelantusBlacklist), isSigma);
         tempLelantusSigmaProofs[idAndFlag].push_back(LelantusSigmaProofData(sigma_proofs[i], serials[i], challenge, setSizes.at(groupIds[i])));
     }
+}
+
+
+void BatchProofContainer::add(lelantus::JoinSplit* joinSplit, const std::vector<lelantus::PublicCoin>& Cout) {
+    tempRangeProofs[joinSplit->getVersion()].push_back(std::make_pair(joinSplit->getLelantusProof().bulletproofs, Cout));
 }
 
 void BatchProofContainer::removeSigma(const sigma::spend_info_container& spendSerials) {
@@ -111,6 +123,27 @@ void BatchProofContainer::removeLelantus(std::unordered_map<Scalar, int> spentSe
         if (lelantusSigmaProofs.count(key2) > 0) {
             vProofs = &lelantusSigmaProofs[key2];
             erase(vProofs, spendSerial.first);
+        }
+    }
+}
+
+void BatchProofContainer::remove(const std::vector<lelantus::RangeProof>& rangeProofsToRemove) {
+    for (auto& itrRemove : rangeProofsToRemove) {
+        for (auto itrVersions = rangeProofs.begin(); itrVersions != rangeProofs.end(); ++itrVersions) {
+            bool found = false;
+            for (auto itr = itrVersions->second.begin(); itr != itrVersions->second.end(); ++itr) {
+                if (itr->first.T_x1 == itrRemove.T_x1 && itr->first.T_x2 == itrRemove.T_x2 && itr->first.u == itrRemove.u) {
+                    itrVersions->second.erase(itr);
+                    found = true;
+                    break;
+                }
+            }
+            if (itrVersions->second.empty()) {
+                rangeProofs.erase(itrVersions);
+                itrVersions--;
+            }
+            if (found)
+                break;
         }
     }
 }
@@ -240,6 +273,54 @@ void BatchProofContainer::batch_lelantus() {
     if (!lelantusSigmaProofs.empty())
         LogPrintf("Lelantus batch verification finished successfully.\n");
     lelantusSigmaProofs.clear();
+}
+
+void BatchProofContainer::batch_rangeProofs() {
+    if (!rangeProofs.empty())
+        LogPrintf("RangeProof batch verification started.\n");
+
+    auto params = lelantus::Params::get_default();
+    for (const auto& itr : rangeProofs) {
+        lelantus::RangeVerifier  rangeVerifier(params->get_h1(), params->get_h0(), params->get_g(), params->get_bulletproofs_g(), params->get_bulletproofs_h(), params->get_bulletproofs_n(), itr.first);
+        std::vector<std::vector<GroupElement>> V;
+        std::vector<std::vector<GroupElement>> commitments;
+        size_t proofSize = itr.second.size();
+        V.resize(proofSize); //size of batch
+        commitments.resize(proofSize); // size of batch
+        std::vector<lelantus::RangeProof> proofs;
+        proofs.reserve(proofSize); // size of batch
+        for (size_t i = 0; i < proofSize; ++i) {
+            size_t coutSize = itr.second[i].second.size();
+            std::size_t m = coutSize * 2;
+
+            while (m & (m - 1))
+                m++;
+            proofs.emplace_back(itr.second[i].first);
+            V[i].reserve(m); // aggregation size
+            commitments[i].reserve(2 * coutSize);
+            commitments[i].resize(coutSize); // prepend zero elements, to match the prover's behavior
+            auto& Cout = itr.second[i].second;
+            for (std::size_t j = 0; j < coutSize; ++j) {
+                V[i].push_back(Cout[j].getValue());
+                V[i].push_back(Cout[j].getValue() + params->get_h1_limit_range());
+                commitments[i].emplace_back(Cout[j].getValue());
+            }
+
+            // Pad with zero elements
+            for (std::size_t t = coutSize * 2; t < m; ++t)
+                V[i].push_back(GroupElement());
+        }
+
+        if (!rangeVerifier.verify(V, commitments, proofs)) {
+            LogPrintf("RangeProof batch verification failed.\n");
+            throw std::invalid_argument("RangeProof batch verification failed, please run Firo with -reindex -batching=0");
+        }
+    }
+
+    if (!rangeProofs.empty())
+        LogPrintf("RangeProof batch verification finished successfully.\n");
+
+    rangeProofs.clear();
 }
 
 
