@@ -13,11 +13,11 @@
 // bls-signatures uses relic, which may define DEBUG and ERROR, which leads to many warnings in some build setups
 #undef ERROR
 #undef DEBUG
-#include <bls-signatures/src/bls.hpp>
-#include <bls-signatures/src/privatekey.hpp>
-#include <bls-signatures/src/elements.hpp>
-#include <bls-signatures/src/schemes.hpp>
-#include <bls-signatures/src/threshold.hpp>
+#include <bls-dash/bls.hpp>
+#include <bls-dash/privatekey.hpp>
+#include <bls-dash/elements.hpp>
+#include <bls-dash/schemes.hpp>
+#include <bls-dash/threshold.hpp>
 #undef DOUBLE
 
 #include <array>

@@ -5,6 +5,7 @@ $(package)_file_name=$($(package)_version).tar.gz
 $(package)_sha256_hash=56fbdc48ec110966342f0ecddd6f8f89202f4143ed2a3336e42bbf88f940850c
 $(package)_build_subdir=build
 $(package)_patches=remove-libcrypto-dependency.patch
+$(package)_dependencies=native_cmake
 
 define $(package)_preprocess_cmds
   patch -p1 < $($(package)_patch_dir)/remove-libcrypto-dependency.patch && \
@@ -12,7 +13,7 @@ define $(package)_preprocess_cmds
 endef
 
 define $(package)_config_cmds
-  $($(package)_cmake) -DCMAKE_C_FLAGS="$$($(1)_cflags) -Wl,--build-id=none" -DCMAKE_SKIP_RPATH="ON" -DCMAKE_EXE_LINKER_FLAGS="-static" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" ..
+  $(build_prefix)/bin/cmake -DCMAKE_C_FLAGS="$$($(1)_cflags) -Wl,--build-id=none" -DCMAKE_SKIP_RPATH="ON" -DCMAKE_EXE_LINKER_FLAGS="-static" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" -DCMAKE_INSTALL_PREFIX:PATH=$(build_prefix) ..
 endef
 
 define $(package)_build_cmds
