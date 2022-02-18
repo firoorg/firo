@@ -428,7 +428,7 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
     // Check transaction against sigma limits
     if (tx.IsSigmaSpend()) {
         CAmount spendAmount = sigma::GetSpendAmount(tx);
-        auto &params = chainparams.GetConsensus();
+        const auto &params = chainparams.GetConsensus();
 
         if (tx.vin.size() > params.nMaxSigmaInputPerTransaction || spendAmount > params.nMaxValueSigmaSpendPerTransaction)
             return false;
@@ -444,7 +444,7 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
     if(tx.IsLelantusJoinSplit()) {
         CAmount spendAmount = lelantus::GetSpendTransparentAmount(tx);
         size_t spendNumber = lelantus::GetSpendInputs(tx);
-        auto &params = chainparams.GetConsensus();
+        const auto &params = chainparams.GetConsensus();
 
         if (spendNumber > params.nMaxLelantusInputPerTransaction || spendAmount > params.nMaxValueLelantusSpendPerTransaction)
             return false;
@@ -476,7 +476,7 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
     if(tx.IsLelantusJoinSplit()) {
         CAmount spendAmount = lelantus::GetSpendTransparentAmount(tx);
         size_t spendNumber = lelantus::GetSpendInputs(tx);
-        auto &params = chainparams.GetConsensus();
+        const auto &params = chainparams.GetConsensus();
 
         if (spendAmount > params.nMaxValueLelantusSpendPerTransaction)
             return;
@@ -801,7 +801,7 @@ void BlockAssembler::addPriorityTxs()
 }
 
 void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fMTP) {
-    auto &params = chainparams.GetConsensus();
+    const auto &params = chainparams.GetConsensus();
     CAmount coin = COIN / (fMTP ? params.nMTPRewardReduction : 1);
 
     if (nHeight >= params.nSubsidyHalvingFirst && nHeight < params.nSubsidyHalvingFirst + params.nSubsidyHalvingInterval) {

@@ -900,7 +900,7 @@ bool ConnectBlockLelantus(
         if (fJustCheck)
             return true;
 
-        auto& params = ::Params().GetConsensus();
+        const auto& params = ::Params().GetConsensus();
         CHash256 hash;
         std::vector<unsigned char> data(GroupElement::serialize_size);
         bool updateHash = false;
@@ -1472,7 +1472,7 @@ void CLelantusState::GetAnonymitySet(
     }
 
     LelantusCoinGroupInfo &coinGroup = coinGroups[coinGroupID];
-    auto params = ::Params().GetConsensus();
+    const auto &params = ::Params().GetConsensus();
     LOCK(cs_main);
     int maxHeight = fStartLelantusBlacklist ? (chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1)) : (params.nLelantusFixesStartBlock - 1);
 
