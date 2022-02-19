@@ -60,9 +60,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
         headerLayout->addSpacing(23);
     }
 
-    statusSpacer = new QSpacerItem(1, 1, QSizePolicy::MinimumExpanding);
-    headerLayout->addSpacerItem(statusSpacer);
-
     watchOnlyWidget = new QComboBox(this);
     watchOnlyWidget->setFixedWidth(24);
     watchOnlyWidget->addItem("", TransactionFilterProxy::WatchOnlyFilter_All);

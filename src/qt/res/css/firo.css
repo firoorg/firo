@@ -282,6 +282,7 @@ QCalendarWidget QAbstractItemView:disabled {
 /* QCheckBox */
 
 QCheckBox {
+    color: #110202;
     background-color: #f4f4f4;
     min-height: 25px;
     margin-right: 10px;
@@ -1812,13 +1813,6 @@ QWidget#ShutdownWindow {
 }
 
 /* TransactionView */
-
-TransactionView QLineEdit {
-    margin-bottom: 2px;
-    margin-right: 1px;
-    min-width: 101px;
-    text-align: center;
-}
 
 TransactionView QLineEdit#addressWidget {
     margin-bottom: 2px;

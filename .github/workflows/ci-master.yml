@@ -20,11 +20,11 @@ jobs:
     - name: Install Required Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y libboost-all-dev libdb-dev libdb++-dev libevent-dev
+        sudo apt-get install -y libboost-all-dev libdb-dev libdb++-dev libevent-dev bison
     - name: Create Distribution Tarball
       run: |
         ./autogen.sh
-        ./configure --with-incompatible-bdb
+        ./configure --with-incompatible-bdb ac_cv_lib_tor_tor_main=yes
         make dist
     - name: Download Dependencies
       run: make -C depends download

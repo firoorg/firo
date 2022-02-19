@@ -1,0 +1,25 @@
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 2779a2e..fa9ef40 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -16,6 +16,7 @@ FetchContent_Declare(
+   relic
+   GIT_REPOSITORY https://github.com/relic-toolkit/relic.git
+   GIT_TAG        ${RELIC_GIT_TAG}
++  PATCH_COMMAND  find . -type f -name "*.[ch]" -exec sed -i.old -e s/bn_init/bn_make/g {} +
+ )
+ FetchContent_MakeAvailable(relic)
+ 
+diff --git a/src/privatekey.cpp b/src/privatekey.cpp
+index 3a9c8d6..e8e51aa 100644
+--- a/src/privatekey.cpp
++++ b/src/privatekey.cpp
+@@ -258,7 +258,7 @@ void PrivateKey::AllocateKeyData()
+ {
+     assert(!keydata);
+     keydata = Util::SecAlloc<bn_st>(1);
+-    bn_init(keydata, RLC_BN_SIZE);
++    bn_make(keydata, RLC_BN_SIZE);
+     bn_zero(keydata);
+ }
+ 
