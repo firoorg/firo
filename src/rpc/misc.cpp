@@ -1075,8 +1075,12 @@ UniValue getusedcoinserials(const JSONRPCRequest& request)
     }
 
     UniValue serializedSerials(UniValue::VARR);
-    for ( auto it = serials.begin() + startNumber; it != serials.end(); ++it )
+    int i = 0;
+    for ( auto it = serials.begin(); it != serials.end(); ++it, ++i) {
+        if (i < startNumber)
+            continue;
         serializedSerials.push_back(it->first.GetHex());
+    }
 
     UniValue ret(UniValue::VOBJ);
     ret.push_back(Pair("serials", serializedSerials));
