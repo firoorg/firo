@@ -1492,8 +1492,13 @@ int CLelantusState::GetCoinSetForSpend(
 }
 
 void CLelantusState::GetCoinsForRecovery(
+        CChain *chain,
+        int maxHeight,
         int coinGroupID,
+        std::string start_block_hash,
+        uint256& blockHash_out,
         std::vector<std::pair<lelantus::PublicCoin, std::pair<lelantus::MintValueData, uint256>>>& coins,
+        std::vector<unsigned char>& setHash_out,
         std::vector<uint256>& txHashes) {
 
     coins.clear();
@@ -1504,7 +1509,17 @@ void CLelantusState::GetCoinsForRecovery(
 
     LelantusCoinGroupInfo &coinGroup = coinGroups[coinGroupID];
 
+    int numberOfCoins = 0;
     for (CBlockIndex *block = coinGroup.lastBlock;; block = block->pprev) {
+        // ignore block heigher than max height
+        if (block->nHeight > maxHeight) {
+            continue;
+        }
+
+        if (block->GetBlockHash().GetHex() == start_block_hash) {
+            break;
+        }
+
         // check coins in group coinGroupID - 1 in the case that using coins from prev group.
         int id = 0;
         if (CountCoinInBlock(block, coinGroupID)) {
@@ -1514,8 +1529,24 @@ void CLelantusState::GetCoinsForRecovery(
         }
 
         if (id) {
+            if (numberOfCoins == 0) {
+                // latest block satisfying given conditions
+                // remember block hash and set hash
+                blockHash_out = block->GetBlockHash();
+                setHash_out =  GetAnonymitySetHash(block, id);
+            }
+
+            numberOfCoins += block->lelantusMintedPubCoins[id].size();
             if (block->lelantusMintedPubCoins.count(id) > 0) {
                 for (const auto &coin : block->lelantusMintedPubCoins[id]) {
+                    LOCK(cs_main);
+                    // skip mints from blacklist if nLelantusFixesStartBlock is passed
+                    if (chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
+                        if (::Params().GetConsensus().lelantusBlacklist.count(coin.first.getValue()) > 0) {
+                            continue;
+                        }
+                    }
+
                     coins.push_back(coin);
                     txHashes.push_back(GetTxHashFromPubcoin(coin.first));
                 }

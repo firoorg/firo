@@ -202,9 +202,14 @@ public:
             std::vector<lelantus::PublicCoin>& coins_out);
 
     void GetCoinsForRecovery(
-            int coinGroupID,
-            std::vector<std::pair<lelantus::PublicCoin, std::pair<lelantus::MintValueData, uint256>>>& coins,
-            std::vector<uint256>& txHashes);
+        CChain *chain,
+        int maxHeight,
+        int coinGroupID,
+        std::string start_block_hash,
+        uint256& blockHash_out,
+        std::vector<std::pair<lelantus::PublicCoin, std::pair<lelantus::MintValueData, uint256>>>& coins,
+        std::vector<unsigned char>& setHash_out,
+        std::vector<uint256>& txHashes);
 
     // Return height of mint transaction and id of minted coin
     std::pair<int, int> GetMintedCoinHeightAndId(const lelantus::PublicCoin& pubCoin);

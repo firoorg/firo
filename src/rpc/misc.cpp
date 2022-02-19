@@ -935,7 +935,8 @@ UniValue getanonymityset(const JSONRPCRequest& request)
                         "\nResult:\n"
                         "{\n"
                         "  \"blockHash\"   (string) Latest block hash for anonymity set\n"
-                        "  \"anonymityset\"(std::string[]) array of Serialized GroupElements\n"
+                        "  \"setHash\"   (string) Anonymity set hash\n"
+                        "  \"mints\" (Pair<string,Pair<string,Pair<<string, uint64_t>>) Serialized GroupElements paired with txhash which is paired with mint tag and mint value\n"
                         "}\n"
                 + HelpExampleCli("getanonymityset", "100000000 1")
                 + HelpExampleRpc("getanonymityset", "\"100000000\", \"1\"")
@@ -952,31 +953,47 @@ UniValue getanonymityset(const JSONRPCRequest& request)
     }
 
     uint256 blockHash;
-    std::vector<lelantus::PublicCoin> coins;
+    std::vector<std::pair <lelantus::PublicCoin,std::pair<lelantus::MintValueData, uint256>>> coins;
     std::vector<unsigned char> setHash;
+    std::vector<uint256> txHashes;
     {
         LOCK(cs_main);
         lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-        lelantusState->GetCoinSetForSpend(
+        lelantusState->GetCoinsForRecovery(
                 &chainActive,
                 chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
                 coinGroupId,
+                startBlockHash,
                 blockHash,
                 coins,
                 setHash,
-                startBlockHash);
-    }
-
-    UniValue serializedCoins(UniValue::VARR);
-    for(lelantus::PublicCoin const & coin : coins) {
-        std::vector<unsigned char> vch = coin.getValue().getvch();
-        serializedCoins.push_back(HexStr(vch.begin(), vch.end()));
+                txHashes);
     }
 
     UniValue ret(UniValue::VOBJ);
+    UniValue mints(UniValue::VARR);
+
+    int i = 0;
+    for (const auto& coin : coins) {
+        std::vector<unsigned char> vch = coin.first.getValue().getvch();
+        std::vector<UniValue> data;
+        data.push_back(HexStr(vch.begin(), vch.end()));
+        data.push_back(coin.second.second.GetHex());
+        if (coin.second.first.isJMint) {
+            data.push_back(HexStr(coin.second.first.encryptedValue.begin(), coin.second.first.encryptedValue.end()));
+        } else {
+            data.push_back(coin.second.first.amount);
+        }
+        data.push_back(txHashes[i].GetHex());
+        UniValue entity(UniValue::VARR);
+        entity.push_backV(data);
+        mints.push_back(entity);
+        i++;
+    }
+
     ret.push_back(Pair("blockHash", blockHash.GetHex()));
     ret.push_back(Pair("setHash", UniValue(HexStr(setHash.begin(), setHash.end()))));
-    ret.push_back(Pair("serializedCoins", serializedCoins));
+    ret.push_back(Pair("coins", mints));
 
     return ret;
 }
@@ -1033,11 +1050,22 @@ UniValue getusedcoinserials(const JSONRPCRequest& request)
         throw std::runtime_error(
                 "getusedcoinserials\n"
                 "\nReturns the set of used coin serial.\n"
+                "\nArguments:\n"
+                "{\n"
+                "      \"startNumber \"  (int) Number of elements already existing on user side\n"
+                "}\n"
                 "\nResult:\n"
                 "{\n"
                 "  \"serials\" (std::string[]) array of Serialized Scalars\n"
                 "}\n"
         );
+
+    int startNumber;
+    try {
+        startNumber = std::stol(request.params[0].get_str());
+    } catch (std::logic_error const & e) {
+        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
 
     lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
     std::unordered_map<Scalar, int>  serials;
@@ -1047,7 +1075,7 @@ UniValue getusedcoinserials(const JSONRPCRequest& request)
     }
 
     UniValue serializedSerials(UniValue::VARR);
-    for ( auto it = serials.begin(); it != serials.end(); ++it )
+    for ( auto it = serials.begin() + startNumber; it != serials.end(); ++it )
         serializedSerials.push_back(it->first.GetHex());
 
     UniValue ret(UniValue::VOBJ);
@@ -1099,69 +1127,6 @@ UniValue getlatestcoinid(const JSONRPCRequest& request)
     }
 
     return UniValue(latestCoinId);
-}
-
-UniValue getcoinsforrecovery(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 1)
-        throw std::runtime_error(
-                "getcoinsforrecovery\n"
-                "\nArguments:\n"
-                "{\n"
-                "      \"coinGroupId\"  (int)\n"
-                "}\n"
-                "\nResult:\n"
-                "{\n"
-                "  \"mints\" (Pair<string,Pair<string,Pair<<string, uint64_t>>) Public coins paired with txhash which is paired with mint tag and mint value\n"
-                "  \"jmints\"(Pair<string,Pair<string, Pair<<string, string>>>) Public coins paired with txhash which is paired with mint tag and encrypted mint value \n"
-                "}\n"
-        );
-
-    int coinGroupId;
-    try {
-        coinGroupId = request.params[0].get_int();
-    } catch (std::logic_error const & e) {
-        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
-    }
-
-
-    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-    UniValue ret(UniValue::VOBJ);
-
-    std::vector<std::pair <lelantus::PublicCoin,std::pair<lelantus::MintValueData, uint256>>> coins;
-    std::vector<uint256> txHashes;
-    lelantusState->GetCoinsForRecovery(coinGroupId, coins, txHashes);
-    UniValue mints(UniValue::VARR);
-    UniValue jmints(UniValue::VARR);
-    int i = 0;
-    for (const auto& coin : coins) {
-        if (coin.second.first.isJMint) {
-            std::vector<unsigned char> vch = coin.first.getValue().getvch();
-            std::vector<UniValue> data;
-            data.push_back(HexStr(vch.begin(), vch.end()));
-            data.push_back(coin.second.second.GetHex());
-            data.push_back(HexStr(coin.second.first.encryptedValue.begin(), coin.second.first.encryptedValue.end()));
-            data.push_back(txHashes[i].GetHex());
-            UniValue entity(UniValue::VARR);
-            entity.push_backV(data);
-            jmints.push_back(entity);
-        } else {
-            std::vector<unsigned char> vch = coin.first.getValue().getvch();
-            std::vector<UniValue> data;
-            data.push_back(HexStr(vch.begin(), vch.end()));
-            data.push_back(coin.second.second.GetHex());
-            data.push_back(coin.second.first.amount);
-            data.push_back(txHashes[i].GetHex());
-            UniValue entity(UniValue::VARR);
-            entity.push_backV(data);
-            mints.push_back(entity);
-        }
-        i++;
-    }
-    ret.push_back(Pair("mints", mints));
-    ret.push_back(Pair("jmints", jmints));
-
-    return ret;
 }
 
 UniValue getaddresstxids(const JSONRPCRequest& request)
@@ -1449,10 +1414,9 @@ static const CRPCCommand commands[] =
         /* Mobile related */
     { "mobile",             "getanonymityset",        &getanonymityset,        false  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
-    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     true  },
+    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     false  },
     { "mobile",             "getfeerate",             &getfeerate,             true  },
     { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
-    { "mobile",             "getcoinsforrecovery",    &getcoinsforrecovery,    true  },
 
 
     { "hidden",             "setmocktime",            &setmocktime,            true,  {"timestamp"}},
