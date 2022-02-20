@@ -39,7 +39,7 @@ endif
 
 TOR_LIBS = -ltor
 
-LIBBLSSIG_LIBS=-lbls-dash
+LIBBLSSIG_LIBS=-lbls-dash -lrelic_s
 LIBBLSSIG_DEPENDS=-lgmp
 
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
