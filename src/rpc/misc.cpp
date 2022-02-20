@@ -1046,7 +1046,7 @@ UniValue getmintmetadata(const JSONRPCRequest& request)
 
 UniValue getusedcoinserials(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 0)
+    if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
                 "getusedcoinserials\n"
                 "\nReturns the set of used coin serial.\n"
