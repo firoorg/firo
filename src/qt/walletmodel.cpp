@@ -445,12 +445,13 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 }
 
 WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
-    std::vector<WalletModelTransaction>& transactions,
+    WalletModelTransaction& transaction,
+    std::vector<CWalletTx>& newTXs,
     const CCoinControl *coinControl)
 {
     CAmount total = 0;
     bool fSubtractFeeFromAmount = false;
-    QList<SendCoinsRecipient> recipients = transactions[0].getRecipients();
+    QList<SendCoinsRecipient> recipients = transaction.getRecipients();
     std::vector<CRecipient> vecSend;
 
     if(recipients.empty())
@@ -525,8 +526,6 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
 
     {
         LOCK2(cs_main, wallet->cs_wallet);
-
-        auto &transaction = transactions[0];
         auto &spendCoins = transaction.getSpendCoins();
         auto &sigmaSpendCoins = transaction.getSigmaSpendCoins();
         auto &mintCoins = transaction.getMintCoins();
@@ -534,7 +533,6 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
         CAmount feeRequired = 0;
         std::string strFailReason;
 
-        std::vector<CWalletTx> newTXs;
         std::vector<CAmount> fees;
         try {
 
@@ -579,7 +577,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
             }
 
             changePos = changePos >= newTXs[i].tx->vout.size() ? -1 : changePos;
-//            transaction.setTransactionFee(feeRequired);
+            transaction.setTransactionFee(feeRequired);
 //            transaction.reassignAmounts(changePos);
         }
     }
@@ -736,7 +734,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
     return SendCoinsReturn(OK);
 }
 
-WalletModel::SendCoinsReturn WalletModel::sendPrivateCoins(WalletModelTransaction &transaction)
+WalletModel::SendCoinsReturn WalletModel::sendPrivateCoins(WalletModelTransaction &transaction, std::vector<CWalletTx>& newTXs)
 {
     QByteArray transaction_array; /* store serialized transaction */
 
@@ -764,8 +762,13 @@ WalletModel::SendCoinsReturn WalletModel::sendPrivateCoins(WalletModelTransactio
         }
 
         try {
-            if (!wallet->CommitLelantusTransaction(*newTx, transaction.getSpendCoins(), transaction.getSigmaSpendCoins(), transaction.getMintCoins()))
-                return SendCoinsReturn(TransactionCommitFailed);
+            for (auto& tx : newTXs) {
+                if (!wallet->CommitLelantusTransaction(tx, transaction.getSpendCoins(), transaction.getSigmaSpendCoins(), transaction.getMintCoins()))
+                    return SendCoinsReturn(TransactionCommitFailed);
+                transaction.getSpendCoins().clear();
+                transaction.getSigmaSpendCoins().clear();
+                transaction.getMintCoins().clear();
+            }
         } catch (std::runtime_error const &e) {
             return SendCoinsReturn(TransactionCommitFailed, e.what());
         }

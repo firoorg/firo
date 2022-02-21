@@ -23,6 +23,7 @@
 #include "validation.h" // mempool and minRelayTxFee
 #include "ui_interface.h"
 #include "txmempool.h"
+#include "policy/policy.h"
 #include "wallet/wallet.h"
 #include "sendtopcodedialog.h"
 #include "pcodemodel.h"
@@ -299,26 +300,19 @@ void SendCoinsDialog::on_sendButton_clicked()
     else
         ctrl.nConfirmTarget = 0;
 
-    std::vector<WalletModelTransaction> transactions;
-    transactions.push_back(currentTransaction);
-    CAmount txFee = 0;
     unsigned int txSize = 0;
-    CAmount totalAmount = 0;
-
+    std::vector<CWalletTx> newTXs;
     if (fAnonymousMode) {
-        prepareStatus = model->prepareJoinSplitTransaction(transactions, &ctrl);
-        for (auto &tx : transactions) {
-            txFee += tx.getTransactionFee();
-            txSize += tx.getTransactionSize();
-            totalAmount += currentTransaction.getTotalTransactionAmount() + tx.getTransactionFee();
-        }
+        prepareStatus = model->prepareJoinSplitTransaction(currentTransaction, newTXs, &ctrl);
+        for (auto &tx : newTXs)
+            txSize += ::GetVirtualTransactionSize(tx);
     } else {
         prepareStatus = model->prepareTransaction(currentTransaction, &ctrl);
-        txFee = currentTransaction.getTransactionFee();
         txSize = currentTransaction.getTransactionSize();
-        totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
     }
 
+    CAmount txFee = currentTransaction.getTransactionFee();
+    CAmount totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
     // process prepareStatus and on error generate message shown to user
     processSendCoinsReturn(prepareStatus,
         BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), txFee));
@@ -329,45 +323,38 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     // Format confirmation message
-    if (!fAnonymousMode) {
-        transactions.clear();
-        transactions.push_back(currentTransaction);
-    }
-
     QStringList formatted;
-    for (auto& transaction : transactions) {
-        Q_FOREACH(const SendCoinsRecipient &rcp, transaction.getRecipients()) {
-                // generate bold amount string
-                QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(),
-                                                                          rcp.amount);
-                amount.append("</b>");
-                // generate monospace address string
-                QString address = "<span style='font-family: monospace;'>" + rcp.address;
-                address.append("</span>");
+    Q_FOREACH(const SendCoinsRecipient &rcp, currentTransaction.getRecipients()) {
+            // generate bold amount string
+            QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(),
+                                                                      rcp.amount);
+            amount.append("</b>");
+            // generate monospace address string
+            QString address = "<span style='font-family: monospace;'>" + rcp.address;
+            address.append("</span>");
 
-                QString recipientElement;
+            QString recipientElement;
 
-                if (!rcp.paymentRequest.IsInitialized()) // normal payment
+            if (!rcp.paymentRequest.IsInitialized()) // normal payment
+            {
+                if (rcp.label.length() > 0) // label with address
                 {
-                    if (rcp.label.length() > 0) // label with address
-                    {
-                        recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
-                        recipientElement.append(QString(" (%1)").arg(address));
-                    } else // just address
-                    {
-                        recipientElement = tr("%1 to %2").arg(amount, address);
-                    }
-                } else if (!rcp.authenticatedMerchant.isEmpty()) // authenticated payment request
-                {
-                    recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.authenticatedMerchant));
-                } else // unauthenticated payment request
+                    recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
+                    recipientElement.append(QString(" (%1)").arg(address));
+                } else // just address
                 {
                     recipientElement = tr("%1 to %2").arg(amount, address);
                 }
-
-                formatted.append(recipientElement);
+            } else if (!rcp.authenticatedMerchant.isEmpty()) // authenticated payment request
+            {
+                recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.authenticatedMerchant));
+            } else // unauthenticated payment request
+            {
+                recipientElement = tr("%1 to %2").arg(amount, address);
             }
-    }
+
+            formatted.append(recipientElement);
+        }
 
     QString questionString = tr("Are you sure you want to send?");
     questionString.append("<br /><br />%1");
@@ -394,7 +381,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     if (fAnonymousMode)
-        questionString.append("Number of transactions " + QString::number(transactions.size()));
+        questionString.append("Number of transactions " + QString::number(newTXs.size()) + ". ");
     questionString.append(tr("Total Amount %1")
         .arg(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), totalAmount)));
     questionString.append(QString("<span style='font-size:10pt;font-weight:normal;'><br />(=%2)</span>")
@@ -415,8 +402,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     WalletModel::SendCoinsReturn sendStatus;
 
     if (fAnonymousMode) {
-        for (auto& transaction : transactions)
-            sendStatus = model->sendPrivateCoins(transaction);
+        sendStatus = model->sendPrivateCoins(currentTransaction, newTXs);
     } else {
         sendStatus = model->sendCoins(currentTransaction);
     }
