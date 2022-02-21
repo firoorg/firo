@@ -661,7 +661,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
                 return false;
         }
 
-        auto params = ::Params().GetConsensus();
+        const auto &params = ::Params().GetConsensus();
         if (tx.IsZerocoinSpend() || tx.IsZerocoinMint()) {
             if (!isVerifyDB && nHeight >= params.nDisableZerocoinStartBlock)
                 return state.DoS(1, error("Zerocoin is disabled at this point"));
