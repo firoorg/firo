@@ -234,7 +234,7 @@ std::vector<CWalletTx> LelantusJoinSplitBuilder::Build(
             currentSpendCoins.clear();
             currentSigmaSpendCoins.clear();
 
-            auto &consensusParams = Params().GetConsensus();
+            const auto &consensusParams = Params().GetConsensus();
             CAmount changeToMint = 0;
 
             std::vector<sigma::CoinDenomination> denomChanges;
