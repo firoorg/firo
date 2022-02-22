@@ -11,6 +11,9 @@ MintTransaction::MintTransaction(
 	this->params = params;
 	Schnorr schnorr(this->params->get_H());
 
+	std::vector<GroupElement> value_statement;
+	std::vector<Scalar> value_witness;
+
 	for (std::size_t j = 0; j < outputs.size(); j++) {
 		MintedCoinData output = outputs[j];
 
@@ -26,36 +29,25 @@ MintTransaction::MintTransaction(
 			output.memo
 		));
 
-		// Generate the value proof
-		this->value_proofs.emplace_back();
-		schnorr.prove(
-			SparkUtils::hash_val(k),
-			this->coins[j].C + this->params->get_G().inverse()*Scalar(this->coins[j].v),
-			this->value_proofs.back()
-		);
+		// Prepare the value proof
+		value_statement.emplace_back(this->coins[j].C + this->params->get_G().inverse()*Scalar(this->coins[j].v));
+		value_witness.emplace_back(SparkUtils::hash_val(k));
 	}
 
+	// Complete the value proof
+	schnorr.prove(value_witness, value_statement, this->value_proof);
 }
 
 bool MintTransaction::verify() {
-	// Size check
-	if (this->coins.size() != this->value_proofs.size()) {
-		throw std::invalid_argument("Bad mint transaction semantics");
-	}
-
-	// Verify the value proofs
+	// Verify the value proof
 	Schnorr schnorr(this->params->get_H());
+	std::vector<GroupElement> value_statement;
 
 	for (std::size_t j = 0; j < this->coins.size(); j++) {
-		if (!schnorr.verify(
-			this->coins[j].C + this->params->get_G().inverse()*Scalar(this->coins[j].v),
-			this->value_proofs[j]
-		)) {
-			return false;
-		}
+		value_statement.emplace_back(this->coins[j].C + this->params->get_G().inverse()*Scalar(this->coins[j].v));
 	}
 
-	return true;
+	return schnorr.verify(value_statement, this->value_proof);
 }
 
 }

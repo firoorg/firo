@@ -29,7 +29,7 @@ BOOST_AUTO_TEST_CASE(serialization)
     SchnorrProof deserialized;
     serialized >> deserialized;
 
-    BOOST_CHECK(proof.c == deserialized.c);
+    BOOST_CHECK(proof.A == deserialized.A);
     BOOST_CHECK(proof.t == deserialized.t);
 }
 
@@ -41,6 +41,31 @@ BOOST_AUTO_TEST_CASE(completeness)
     Scalar y;
     y.randomize();
     GroupElement Y = G*y;
+
+    SchnorrProof proof;
+
+    Schnorr schnorr(G);
+    schnorr.prove(y, Y, proof);
+
+    BOOST_CHECK(schnorr.verify(Y, proof));
+}
+
+BOOST_AUTO_TEST_CASE(completeness_aggregate)
+{
+    const std::size_t n = 3;
+
+    GroupElement G;
+    G.randomize();
+
+    std::vector<Scalar> y;
+	std::vector<GroupElement> Y;
+
+    for (std::size_t i = 0; i < n; i++) {
+        y.emplace_back();
+        y.back().randomize();
+
+        Y.emplace_back(G*y.back());
+    }
 
     SchnorrProof proof;
 
@@ -69,9 +94,9 @@ BOOST_AUTO_TEST_CASE(bad_proofs)
     evil_Y.randomize();
     BOOST_CHECK(!(schnorr.verify(evil_Y, proof)));
 
-    // Bad c
+    // Bad A
     SchnorrProof evil_proof = proof;
-    evil_proof.c.randomize();
+    evil_proof.A.randomize();
     BOOST_CHECK(!(schnorr.verify(Y, evil_proof)));
 
     // Bad t

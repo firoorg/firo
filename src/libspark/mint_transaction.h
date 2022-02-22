@@ -26,7 +26,7 @@ public:
 private:
 	const Params* params;
 	std::vector<Coin> coins;
-	std::vector<SchnorrProof> value_proofs;
+	SchnorrProof value_proof;
 };
 
 }
