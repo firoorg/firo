@@ -9,20 +9,24 @@ namespace spark {
 
 using namespace secp_primitives;
 
+struct MintedCoinData {
+	Address address;
+	uint64_t v;
+	std::string memo;
+};
+
 class MintTransaction {
 public:
 	MintTransaction(
 		const Params* params,
-		const Address& address,
-		uint64_t v,
-		const std::string memo
+		const std::vector<MintedCoinData>& outputs
 	);
 	bool verify();
 
 private:
 	const Params* params;
-	Coin coin;
-	SchnorrProof balance_proof;
+	std::vector<Coin> coins;
+	std::vector<SchnorrProof> value_proofs;
 };
 
 }

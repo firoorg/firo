@@ -14,29 +14,33 @@ BOOST_AUTO_TEST_CASE(generate_verify)
     // Parameters
     const Params* params;
     params = Params::get_default();
+    const std::size_t t = 3; // number of coins to generate
     
-    const uint64_t i = 12345;
-    const uint64_t v = 86;
-    const std::string memo = "Spam and eggs";
-
     // Generate keys
     SpendKey spend_key(params);
     FullViewKey full_view_key(spend_key);
     IncomingViewKey incoming_view_key(full_view_key);
 
-    // Generate address
-    Address address(incoming_view_key, i);
+    std::vector<MintedCoinData> outputs;
+
+    // Generate addresses and coins
+    for (std::size_t j = 0; j < t; j++) {
+        MintedCoinData output;
+        output.address = Address(incoming_view_key, 12345 + j);
+        output.v = 678 + j;
+        output.memo = "Spam and eggs";
+
+        outputs.emplace_back(output);
+    }
 
     // Generate mint transaction
-    MintTransaction t(
+    MintTransaction mint(
         params,
-        address,
-        v,
-        memo
+        outputs
     );
 
     // Verify
-    BOOST_CHECK(t.verify());
+    BOOST_CHECK(mint.verify());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
