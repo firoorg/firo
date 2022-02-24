@@ -31,20 +31,22 @@ BOOST_AUTO_TEST_CASE(group_element_invalid)
     buffer[0] = std::rand();
     buffer[1] = std::rand();
 
+    // Making the point not infinity as it is allowed in deserialization
+    buffer[33] = 0;
+
     secp_primitives::GroupElement resulted;
     BOOST_CHECK_THROW(resulted.deserialize(buffer), std::exception);
 }
 
-//This test is not valid already, as infinity point is invalid in check secp256k1_ge_is_valid_var, GroupElement.cpp:533
-//BOOST_AUTO_TEST_CASE(group_element_serialize_infinity)
-//{
-//    secp_primitives::GroupElement initial;
-//    unsigned char buffer [initial.memoryRequired()];
-//    initial.serialize(buffer);
-//    secp_primitives::GroupElement resulted;
-//    resulted.deserialize(buffer);
-//    BOOST_CHECK(initial == resulted);
-//}
+BOOST_AUTO_TEST_CASE(group_element_serialize_infinity)
+{
+    secp_primitives::GroupElement initial;
+    unsigned char buffer [initial.memoryRequired()];
+    initial.serialize(buffer);
+    secp_primitives::GroupElement resulted;
+    resulted.deserialize(buffer);
+    BOOST_CHECK(initial == resulted);
+}
 
 BOOST_AUTO_TEST_CASE(scalar_serialize)
 {
