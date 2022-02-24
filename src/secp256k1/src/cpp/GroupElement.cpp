@@ -531,7 +531,7 @@ const unsigned char* GroupElement::deserialize(const unsigned char* buffer) {
     secp256k1_gej_set_ge(reinterpret_cast<secp256k1_gej *>(g_), &result);
 
     if (!secp256k1_ge_is_valid_var(&result)) {
-        throw "GroupElement: deserialize failed";
+        throw std::runtime_error("GroupElement: deserialize failed");
     }
     return buffer + memoryRequired();
 }
