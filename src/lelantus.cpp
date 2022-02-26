@@ -384,6 +384,12 @@ bool CheckLelantusJoinSplitTransaction(
             REJECT_MALFORMED,
             "CheckLelantusJoinSplitTransaction: invalid joinsplit transaction");
     }
+    catch (...) {
+        return state.DoS(100,
+                         false,
+                         REJECT_MALFORMED,
+                         "CheckLelantusJoinSplitTransaction: failed to deserialize joinsplit");
+    }
 
     int jSplitVersion = joinsplit->getVersion();
 
@@ -698,18 +704,6 @@ bool CheckLelantusTransaction(
 {
     Consensus::Params const & consensus = ::Params().GetConsensus();
 
-
-    if(tx.IsLelantusJoinSplit()) {
-        CAmount nFees;
-        try {
-            nFees = lelantus::ParseLelantusJoinSplit(tx)->getFee();
-        }
-        catch (CBadTxIn&) {
-            return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
-        }
-
-    }
-
     int realHeight = nHeight;
 
     if (realHeight == INT_MAX) {
@@ -779,7 +773,7 @@ void RemoveLelantusJoinSplitReferencingBlock(CTxMemPool& pool, CBlockIndex* bloc
                     try {
                         joinsplit = ParseLelantusJoinSplit(tx);
                     }
-                    catch (const std::ios_base::failure &) {
+                    catch (...) {
                         txn_to_remove.push_back(tx);
                         break;
                     }
@@ -818,7 +812,7 @@ std::vector<Scalar> GetLelantusJoinSplitSerialNumbers(const CTransaction &tx, co
     try {
         return ParseLelantusJoinSplit(tx)->getCoinSerialNumbers();
     }
-    catch (const std::ios_base::failure &) {
+    catch (...) {
         return std::vector<Scalar>();
     }
 }
@@ -830,7 +824,7 @@ std::vector<uint32_t> GetLelantusJoinSplitIds(const CTransaction &tx, const CTxI
     try {
         return ParseLelantusJoinSplit(tx)->getCoinGroupIds();
     }
-    catch (const std::ios_base::failure &) {
+    catch (...) {
         return std::vector<uint32_t>();
     }
 }
@@ -961,7 +955,12 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue,
         uint32_t nIndex = 0;
         for (const CTxOut &txout: tx->vout) {
             if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
-                ParseLelantusMintScript(txout.scriptPubKey, txPubCoinValue);
+                try {
+                    ParseLelantusMintScript(txout.scriptPubKey, txPubCoinValue);
+                }
+                catch (...) {
+                    continue;
+                }
                 if(pubCoinValue==txPubCoinValue){
                     outPoint = COutPoint(tx->GetHash(), nIndex);
                     return true;
