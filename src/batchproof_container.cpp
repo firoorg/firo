@@ -207,16 +207,19 @@ void BatchProofContainer::batch_sigma() {
             ++itr;
         }
 
+        bool isFail = false;
         for (auto& th : parallelTasks) {
             try {
-                if (!th.get()) {
-                    LogPrintf("Sigma batch verification failed.");
-                    throw std::invalid_argument(
-                            "Sigma batch verification failed, please run Firo with -reindex -batching=0");
-                }
-            } catch (std::exception& except) {
-                std::runtime_error(except.what());
+                if (!th.get())
+                    isFail = true;
+            } catch (...) {
+                isFail = true;
             }
+        }
+        if(isFail) {
+            LogPrintf("Sigma batch verification failed.");
+            throw std::invalid_argument(
+                    "Sigma batch verification failed, please run Firo with -reindex -batching=0");
         }
         parallelTasks.clear();
     }
@@ -300,22 +303,19 @@ void BatchProofContainer::batch_lelantus() {
             }
             ++itr;
         }
-
+        bool isFail = false;
         for (auto& th : parallelTasks) {
-            bool isFail = false;
             try {
-                if (!th.get()) {
+                if (!th.get())
                     isFail = true;
-                }
-            } catch (std::exception& except) {
-                std::runtime_error(except.what());
+            } catch (...) {
                 isFail = true;
             }
+        }
 
-            if (isFail) {
-                LogPrintf("Lelantus batch verification failed.");
-                throw std::invalid_argument("Lelantus batch verification failed, please run Firo with -reindex -batching=0");
-            }
+        if (isFail) {
+            LogPrintf("Lelantus batch verification failed.");
+            throw std::invalid_argument("Lelantus batch verification failed, please run Firo with -reindex -batching=0");
         }
 
         parallelTasks.clear();

@@ -1,5 +1,6 @@
 #include "lelantus_prover.h"
 #include "threadpool.h"
+#include "util.h"
 
 namespace lelantus {
 
@@ -157,14 +158,22 @@ void LelantusProver::generate_sigma_proofs(
                 break;
         }
 
+        bool isFail = false;
         for (auto& th : parallelTasks) {
             try {
                 th.get();
             } catch (std::exception& except) {
-                std::runtime_error(except.what());
+                LogPrintf(except.what());
+                isFail = true;
+            }  catch (...) {
+                LogPrintf("Lelantus proof creation failed.");
+                isFail = true;
             }
-
         }
+
+        if (isFail)
+            throw std::runtime_error("Lelantus proof creation failed.");
+
         parallelTasks.clear();
     }
 
