@@ -200,7 +200,13 @@ void BatchProofContainer::batch_sigma() {
                 }
 
                 parallelTasks.emplace_back(threadPool.PostTask([=]() {
-                    return sigmaVerifier.batch_verify(anonymity_set, serials, fPadding, setSizes, proofs);
+                    try {
+                        if (!sigmaVerifier.batch_verify(anonymity_set, serials, fPadding, setSizes, proofs))
+                            return false;
+                    } catch (...) {
+                        return false;
+                    }
+                    return true;
                 }));
             }
 
@@ -209,14 +215,10 @@ void BatchProofContainer::batch_sigma() {
 
         bool isFail = false;
         for (auto& th : parallelTasks) {
-            try {
-                if (!th.get())
-                    isFail = true;
-            } catch (...) {
+            if (!th.get())
                 isFail = true;
-            }
         }
-        if(isFail) {
+        if (isFail) {
             LogPrintf("Sigma batch verification failed.");
             throw std::invalid_argument(
                     "Sigma batch verification failed, please run Firo with -reindex -batching=0");
@@ -298,19 +300,21 @@ void BatchProofContainer::batch_lelantus() {
 
 
                 parallelTasks.emplace_back(threadPool.PostTask([=]() {
-                    return sigmaVerifier.batchverify(anonymity_set, challenges, serials, setSizes, proofs);
+                    try {
+                        if (!sigmaVerifier.batchverify(anonymity_set, challenges, serials, setSizes, proofs))
+                            return false;
+                    } catch (...) {
+                        return false;
+                    }
+                    return true;
                 }));
             }
             ++itr;
         }
         bool isFail = false;
         for (auto& th : parallelTasks) {
-            try {
-                if (!th.get())
-                    isFail = true;
-            } catch (...) {
+            if (!th.get())
                 isFail = true;
-            }
         }
 
         if (isFail) {

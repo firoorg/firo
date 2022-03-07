@@ -105,9 +105,9 @@ void LelantusProver::generate_sigma_proofs(
     serialNumbers.reserve(N);
 
     std::size_t threadsMaxCount = std::min((unsigned int)N, boost::thread::hardware_concurrency());
-    std::vector<boost::shared_future<void>> parallelTasks;
+    std::vector<boost::shared_future<bool>> parallelTasks;
     parallelTasks.reserve(threadsMaxCount);
-    ParallelOpThreadPool<void> threadPool(threadsMaxCount);
+    ParallelOpThreadPool<bool> threadPool(threadsMaxCount);
 
     std::vector<std::vector<GroupElement>> C_;
     C_.resize(N);
@@ -152,7 +152,12 @@ void LelantusProver::generate_sigma_proofs(
                 auto& index = indexes[i];
                 auto& proof = sigma_proofs[i];
                 parallelTasks.emplace_back(threadPool.PostTask([&]() {
-                    return prover.sigma_commit(commits, index, rA_i, rB_i, rC_i, rD_i, a_i, Tk_i, Pk_i, Yk_i, sigma_i, proof);
+                    try {
+                        prover.sigma_commit(commits, index, rA_i, rB_i, rC_i, rD_i, a_i, Tk_i, Pk_i, Yk_i, sigma_i, proof);
+                    } catch (...) {
+                        return false;
+                    }
+                    return true;
                 }));
             } else
                 break;
@@ -160,15 +165,8 @@ void LelantusProver::generate_sigma_proofs(
 
         bool isFail = false;
         for (auto& th : parallelTasks) {
-            try {
-                th.get();
-            } catch (std::exception& except) {
-                LogPrintf(except.what());
+            if (!th.get())
                 isFail = true;
-            }  catch (...) {
-                LogPrintf("Lelantus proof creation failed.");
-                isFail = true;
-            }
         }
 
         if (isFail)
