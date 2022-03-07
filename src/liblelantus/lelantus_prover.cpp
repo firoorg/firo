@@ -104,8 +104,8 @@ void LelantusProver::generate_sigma_proofs(
     std::vector<Scalar> serialNumbers;
     serialNumbers.reserve(N);
 
-    std::size_t threadsMaxCount = std::min((unsigned int)N, std::thread::hardware_concurrency());
-    std::vector<std::shared_future<void>> parallelTasks;
+    std::size_t threadsMaxCount = std::min((unsigned int)N, boost::thread::hardware_concurrency());
+    std::vector<boost::shared_future<void>> parallelTasks;
     parallelTasks.reserve(threadsMaxCount);
     ParallelOpThreadPool<void> threadPool(threadsMaxCount);
 

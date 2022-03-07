@@ -162,8 +162,8 @@ void BatchProofContainer::batch_sigma() {
         LogPrintf("Sigma batch verification started.\n");
     else
         return;
-    std::size_t threadsMaxCount = std::min((unsigned int)sigmaProofs.size(), std::thread::hardware_concurrency());
-    std::vector<std::future<bool>> parallelTasks;
+    std::size_t threadsMaxCount = std::min((unsigned int)sigmaProofs.size(), boost::thread::hardware_concurrency());
+    std::vector<boost::future<bool>> parallelTasks;
     parallelTasks.reserve(threadsMaxCount);
     ParallelOpThreadPool<bool> threadPool(threadsMaxCount);
 
@@ -236,8 +236,8 @@ void BatchProofContainer::batch_lelantus() {
 
     auto params = lelantus::Params::get_default();
 
-    std::size_t threadsMaxCount = std::min((unsigned int)lelantusSigmaProofs.size(), std::thread::hardware_concurrency());
-    std::vector<std::future<bool>> parallelTasks;
+    std::size_t threadsMaxCount = std::min((unsigned int)lelantusSigmaProofs.size(), boost::thread::hardware_concurrency());
+    std::vector<boost::future<bool>> parallelTasks;
     parallelTasks.reserve(threadsMaxCount);
     ParallelOpThreadPool<bool> threadPool(threadsMaxCount);
     auto itr = lelantusSigmaProofs.begin();
