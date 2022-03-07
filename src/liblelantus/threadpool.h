@@ -110,7 +110,15 @@ public:
     int GetNumberOfThreads() const {
         return number_of_threads;
     }
+};
 
+
+// helper class to put thread interruption on pause
+class DoNotDisturb {
+private:
+    boost::this_thread::disable_interruption dnd;
+public:
+    DoNotDisturb() {}
 };
 
 
