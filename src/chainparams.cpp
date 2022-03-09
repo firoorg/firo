@@ -398,13 +398,21 @@ public:
 
         for (const auto& str : lelantus::lelantus_blacklist) {
             GroupElement coin;
-            coin.deserialize(ParseHex(str).data());
+            try {
+                coin.deserialize(ParseHex(str).data());
+            } catch (...) {
+                continue;
+            }
             consensus.lelantusBlacklist.insert(coin);
         }
 
         for (const auto& str : sigma::sigma_blacklist) {
             GroupElement coin;
-            coin.deserialize(ParseHex(str).data());
+            try {
+                coin.deserialize(ParseHex(str).data());
+            } catch (...) {
+                continue;
+            }
             consensus.sigmaBlacklist.insert(coin);
         }
 
@@ -677,7 +685,11 @@ public:
 
         for (const auto& str : lelantus::lelantus_testnet_blacklist) {
             GroupElement coin;
-            coin.deserialize(ParseHex(str).data());
+            try {
+                coin.deserialize(ParseHex(str).data());
+            } catch (...) {
+                continue;
+            }
             consensus.lelantusBlacklist.insert(coin);
         }
 
