@@ -8,6 +8,9 @@ on:
     - master
 env:
   SOURCE_ARTIFACT: source
+permissions:
+  contents: read
+
 jobs:
   create-source-distribution:
     name: Create Source Distribution
@@ -40,6 +43,8 @@ jobs:
         name: ${{ env.SOURCE_ARTIFACT }}
         path: ${{ env.ARTIFACT_DIR }}
   build-linux:
+    permissions:
+      contents: none
     name: Build for Linux
     needs: create-source-distribution
     runs-on: ubuntu-18.04
@@ -107,6 +112,8 @@ jobs:
         name: test-logs
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
   build-windows:
+    permissions:
+      contents: none
     name: Build for Windows
     needs: create-source-distribution
     runs-on: ubuntu-20.04
@@ -148,6 +155,8 @@ jobs:
         name: windows-binaries
         path: ${{ env.ARTIFACT_DIR }}
   build-mac:
+    permissions:
+      contents: none
     name: Build for macOS
     needs: create-source-distribution
     runs-on: macos-10.15
