@@ -10,7 +10,7 @@ Schnorr::Schnorr(const GroupElement& G_):
 Scalar Schnorr::challenge(
         const std::vector<GroupElement>& Y,
         const GroupElement& A) {
-    Transcript transcript("SPARK_SCHNORR");
+    Transcript transcript(LABEL_TRANSCRIPT_SCHNORR);
     transcript.add("G", G);
     transcript.add("Y", Y);
     transcript.add("A", A);

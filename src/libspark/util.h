@@ -8,8 +8,6 @@
 #include "../util.h"
 #include "kdf.h"
 #include "hash.h"
-#include "grootle_proof.h"
-#include "schnorr_proof.h"
 
 namespace spark {
 
@@ -26,6 +24,12 @@ const unsigned char HASH_MODE_TRANSCRIPT = 0; // a Fiat-Shamir transcript
 const unsigned char HASH_MODE_GROUP_GENERATOR = 1; // a prime-order group generator derived from a label
 const unsigned char HASH_MODE_FUNCTION = 2; // a hash function derived from a label
 const unsigned char HASH_MODE_KDF = 3; // a key derivation function derived from a label
+
+// Transcript labels
+const std::string LABEL_TRANSCRIPT_BPPLUS = "BULLETPROOF_PLUS_V1";
+const std::string LABEL_TRANSCRIPT_CHAUM = "CHAUM_V1";
+const std::string LABEL_TRANSCRIPT_GROOTLE = "GROOTLE_V1";
+const std::string LABEL_TRANSCRIPT_SCHNORR = "SCHNORR_V1";
 
 // Generator labels
 const std::string LABEL_GENERATOR_F = "F";

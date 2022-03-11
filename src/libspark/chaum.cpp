@@ -14,7 +14,7 @@ Scalar Chaum::challenge(
     const GroupElement& A1,
     const std::vector<GroupElement>& A2
 ) {
-    Transcript transcript("SPARK_CHAUM");
+    Transcript transcript(LABEL_TRANSCRIPT_CHAUM);
     transcript.add("F", F);
     transcript.add("G", G);
     transcript.add("H", H);

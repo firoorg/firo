@@ -66,7 +66,7 @@ void BPPlus::prove(
     }
 
     // Set up transcript
-    Transcript transcript("SPARK_BPPLUS");
+    Transcript transcript(LABEL_TRANSCRIPT_BPPLUS);
     transcript.add("G", G);
     transcript.add("H", H);
     transcript.add("Gi", Gi);
@@ -327,7 +327,7 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& C, const std::
         }
 
         // Set up transcript
-        Transcript transcript("SPARK_BPPLUS");
+        Transcript transcript(LABEL_TRANSCRIPT_BPPLUS);
         transcript.add("G", G);
         transcript.add("H", H);
         transcript.add("Gi", Gi);

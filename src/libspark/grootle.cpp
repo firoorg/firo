@@ -168,7 +168,7 @@ void Grootle::prove(
     }
 
     // Set up transcript
-    Transcript transcript("SPARK_GROOTLE");
+    Transcript transcript(LABEL_TRANSCRIPT_GROOTLE);
     transcript.add("H", H);
     transcript.add("Gi", Gi);
     transcript.add("Hi", Hi);
@@ -463,7 +463,7 @@ bool Grootle::verify(
         GrootleProof proof = proofs[t];
 
         // Reconstruct the challenge
-        Transcript transcript("SPARK_GROOTLE");
+        Transcript transcript(LABEL_TRANSCRIPT_GROOTLE);
         transcript.add("H", H);
         transcript.add("Gi", Gi);
         transcript.add("Hi", Hi);
