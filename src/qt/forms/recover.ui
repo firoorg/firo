@@ -52,7 +52,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
       <bool>true</bool>
      </property>
      <property name="margin">
-      <number>10</number>
+      <number>5</number>
      </property>
     </widget>
    </item>
