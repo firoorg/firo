@@ -49,10 +49,10 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
       </string>
      </property>
      <property name="wordWrap">
-      <bool>true</bool>
+      <bool>false</bool>
      </property>
      <property name="margin">
-      <number>5</number>
+      <number>10</number>
      </property>
     </widget>
    </item>
