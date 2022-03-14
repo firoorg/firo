@@ -21,21 +21,10 @@ BOOST_AUTO_TEST_CASE(group_element_serialize)
 
 BOOST_AUTO_TEST_CASE(group_element_invalid)
 {
-    secp_primitives::GroupElement initial;
-    initial.randomize();
-    unsigned char buffer [initial.memoryRequired()];
-    initial.serialize(buffer);
-    //Shift all elements to right by 2, to make it invalid
-    for (int i = initial.memoryRequired() - 1; i > 1; i--)
-        buffer[i] = buffer[i - 2];
-    buffer[0] = std::rand();
-    buffer[1] = std::rand();
-
-    // Making the point not infinity as it is allowed in deserialization
-    buffer[33] = 0;
-
+    // Invalid GroupElement generated in advance
+    std::string buffer = "956f89850d79edd157360bb8608b8a336ca6e00dc057b4182540db5536745ef57b00";
     secp_primitives::GroupElement resulted;
-    BOOST_CHECK_THROW(resulted.deserialize(buffer), std::exception);
+    BOOST_CHECK_THROW(resulted.deserialize(ParseHex(buffer).data()), std::exception);
 }
 
 BOOST_AUTO_TEST_CASE(group_element_serialize_infinity)
@@ -44,7 +33,8 @@ BOOST_AUTO_TEST_CASE(group_element_serialize_infinity)
     unsigned char buffer [initial.memoryRequired()];
     initial.serialize(buffer);
     secp_primitives::GroupElement resulted;
-    resulted.deserialize(buffer);
+    BOOST_CHECK_NO_THROW(resulted.deserialize(buffer));
+    BOOST_CHECK(resulted.isInfinity());
     BOOST_CHECK(initial == resulted);
 }
 
