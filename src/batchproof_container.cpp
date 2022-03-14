@@ -200,6 +200,7 @@ void BatchProofContainer::batch_sigma() {
                 }
 
                 parallelTasks.emplace_back(threadPool.PostTask([=]() {
+                    DoNotDisturb dnd;
                     try {
                         if (!sigmaVerifier.batch_verify(anonymity_set, serials, fPadding, setSizes, proofs))
                             return false;
@@ -300,6 +301,7 @@ void BatchProofContainer::batch_lelantus() {
 
 
                 parallelTasks.emplace_back(threadPool.PostTask([=]() {
+                    DoNotDisturb dnd;
                     try {
                         if (!sigmaVerifier.batchverify(anonymity_set, challenges, serials, setSizes, proofs))
                             return false;
