@@ -1,5 +1,4 @@
 #include "sigmaextended_prover.h"
-#include "threadpool.h"
 
 namespace lelantus {
 
@@ -29,8 +28,6 @@ void SigmaExtendedProver::sigma_commit(
         std::vector<Scalar>& Yk,
         std::vector<Scalar>& sigma,
         SigmaExtendedProof& proof_out) {
-        DoNotDisturb dnd;
-
     // Sanity checks
     if (n_ < 2 || m_ < 2) {
         throw std::invalid_argument("Prover parameters are invalid");

@@ -162,6 +162,8 @@ void BatchProofContainer::batch_sigma() {
         LogPrintf("Sigma batch verification started.\n");
     else
         return;
+
+    DoNotDisturb dnd;
     std::size_t threadsMaxCount = std::min((unsigned int)sigmaProofs.size(), boost::thread::hardware_concurrency());
     std::vector<boost::future<bool>> parallelTasks;
     parallelTasks.reserve(threadsMaxCount);
@@ -200,7 +202,6 @@ void BatchProofContainer::batch_sigma() {
                 }
 
                 parallelTasks.emplace_back(threadPool.PostTask([=]() {
-                    DoNotDisturb dnd;
                     try {
                         if (!sigmaVerifier.batch_verify(anonymity_set, serials, fPadding, setSizes, proofs))
                             return false;
@@ -239,6 +240,7 @@ void BatchProofContainer::batch_lelantus() {
 
     auto params = lelantus::Params::get_default();
 
+    DoNotDisturb dnd;
     std::size_t threadsMaxCount = std::min((unsigned int)lelantusSigmaProofs.size(), boost::thread::hardware_concurrency());
     std::vector<boost::future<bool>> parallelTasks;
     parallelTasks.reserve(threadsMaxCount);
@@ -301,7 +303,6 @@ void BatchProofContainer::batch_lelantus() {
 
 
                 parallelTasks.emplace_back(threadPool.PostTask([=]() {
-                    DoNotDisturb dnd;
                     try {
                         if (!sigmaVerifier.batchverify(anonymity_set, challenges, serials, setSizes, proofs))
                             return false;

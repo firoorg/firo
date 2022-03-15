@@ -111,6 +111,7 @@ void LelantusProver::generate_sigma_proofs(
 
     std::vector<std::vector<GroupElement>> C_;
     C_.resize(N);
+    DoNotDisturb dnd;
     for (std::size_t j = 0; j < N; j += threadsMaxCount) {
         for (std::size_t i = j; i < j + threadsMaxCount; ++i) {
             if (i < N) {
