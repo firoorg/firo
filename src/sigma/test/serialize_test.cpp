@@ -22,9 +22,13 @@ BOOST_AUTO_TEST_CASE(group_element_serialize)
 BOOST_AUTO_TEST_CASE(group_element_invalid)
 {
     // Invalid GroupElement generated in advance
-    std::string buffer = "956f89850d79edd157360bb8608b8a336ca6e00dc057b4182540db5536745ef57b00";
+    std::string str = " F I R O   T E S T   S T R I N G ";
+    std::vector<unsigned char> buffer(str.begin(), str.end());
+    buffer.push_back(0);
+    std::cout<<buffer.size()<<std::endl;
     secp_primitives::GroupElement resulted;
-    BOOST_CHECK_THROW(resulted.deserialize(ParseHex(buffer).data()), std::exception);
+    BOOST_CHECK_THROW(resulted.deserialize(buffer.data()), std::exception);
+
 }
 
 BOOST_AUTO_TEST_CASE(group_element_serialize_infinity)
