@@ -1387,8 +1387,8 @@ void BitcoinGUI::showNormalIfMinimized(bool fToggleHidden)
         } else {
             show();
         }
-        activateWindow();
         raise();
+        activateWindow();
     }
 }
 
