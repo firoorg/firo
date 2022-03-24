@@ -1,5 +1,5 @@
-packages:=boost openssl libevent gmp zlib backtrace zeromq minizip
-native_packages := native_ccache native_comparisontool
+packages:=boost openssl libevent gmp zlib backtrace tor bls-dash zeromq minizip
+native_packages := native_ccache native_comparisontool native_cmake
 
 qt_native_packages = native_protobuf
 qt_packages = qrencode protobuf

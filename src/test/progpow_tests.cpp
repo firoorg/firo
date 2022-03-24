@@ -45,11 +45,17 @@ struct ProgpowTestingSetup : public TestChain100Setup
         SetMockTime(0);
     }
 
-    bool VerifyBlockCheckStatus(const CBlock &block, const std::string &correctError) {
+    bool VerifyBlockCheckStatus(const CBlock &block, const std::string &correctError, bool shouldPassPowCheck=true) {
         ProgpowValidationInterface validationInterface;
 
         RegisterValidationInterface(&validationInterface);
-        ProcessNewBlock(Params(), std::make_shared<CBlock>(block), false, nullptr);
+        CBlock newBlock = block;
+        // brute force correct nOnce64 value
+        CValidationState state;
+        const Consensus::Params &params = Params().GetConsensus();
+        while (CheckBlockHeader(newBlock, state, params, true) != shouldPassPowCheck)
+            newBlock.nNonce64++;
+        ProcessNewBlock(Params(), std::make_shared<CBlock>(newBlock), false, nullptr);
         UnregisterValidationInterface(&validationInterface);
 
         return correctError == validationInterface.errorCode;
@@ -114,12 +120,11 @@ BOOST_AUTO_TEST_CASE(corruption)
     // try to modify nHeight
     modifiedBlock = block;
     modifiedBlock.nHeight++;
-    BOOST_ASSERT(VerifyBlockCheckStatus(modifiedBlock, "invalid-mixhash"));
+    BOOST_ASSERT(VerifyBlockCheckStatus(modifiedBlock, "bad-blk-progpow"));
 
-    // try to modify nNonce64
+    // try to modify nNonce64 so the block wouldn't pass PoW check
     modifiedBlock = block;
-    modifiedBlock.nNonce64++;
-    BOOST_ASSERT(VerifyBlockCheckStatus(modifiedBlock, "invalid-mixhash"));
+    BOOST_ASSERT(VerifyBlockCheckStatus(modifiedBlock, "high-hash", false));
 
     // try to modify mix_hash
     modifiedBlock = block;

@@ -77,6 +77,8 @@ public:
   static constexpr size_t memoryRequired() { return serialize_size; }
   unsigned char* serialize() const;
   unsigned char* serialize(unsigned char* buffer) const;
+  // The function deserializes the GroupElement and checks the validity,
+  // it accepts infinity point, handle it based on your use case
   unsigned const char* deserialize(unsigned const char* buffer);
 
   // These functions are for READWRITE() in serialize.h

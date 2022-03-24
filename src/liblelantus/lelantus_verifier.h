@@ -58,7 +58,8 @@ private:
             bool fSkipVerification = false);
     bool verify_rangeproof(
             const std::vector<PublicCoin>& Cout,
-            const RangeProof& bulletproofs);
+            const RangeProof& bulletproofs,
+            bool fSkipVerification);
     bool verify_schnorrproof(
             const Scalar& x,
             const Scalar& zV,

@@ -136,7 +136,7 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
     selected.clear();
     denomChanges.clear();
 
-    auto& consensusParams = Params().GetConsensus();
+    const auto& consensusParams = Params().GetConsensus();
     std::list<CSigmaEntry> sigmaCoins = pwalletMain->GetAvailableCoins(coinControl);
 
     if (!wallet.GetCoinsToSpend(required, selected, denomChanges, sigmaCoins,

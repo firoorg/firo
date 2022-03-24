@@ -398,19 +398,30 @@ public:
 
         for (const auto& str : lelantus::lelantus_blacklist) {
             GroupElement coin;
-            coin.deserialize(ParseHex(str).data());
+            try {
+                coin.deserialize(ParseHex(str).data());
+            } catch (...) {
+                continue;
+            }
             consensus.lelantusBlacklist.insert(coin);
         }
 
         for (const auto& str : sigma::sigma_blacklist) {
             GroupElement coin;
-            coin.deserialize(ParseHex(str).data());
+            try {
+                coin.deserialize(ParseHex(str).data());
+            } catch (...) {
+                continue;
+            }
             consensus.sigmaBlacklist.insert(coin);
         }
 
         consensus.evoSporkKeyID = "a78fERshquPsTv2TuKMSsxTeKom56uBwLP";
         consensus.nEvoSporkStartBlock = ZC_LELANTUS_STARTING_BLOCK;
         consensus.nEvoSporkStopBlock = ZC_LELANTUS_STARTING_BLOCK + 2*24*12*365;  // two years after lelantus
+        consensus.nEvoSporkStopBlockExtensionVersion = 140903;
+        consensus.nEvoSporkStopBlockPrevious = ZC_LELANTUS_STARTING_BLOCK + 1*24*12*365; // one year after lelantus
+        consensus.nEvoSporkStopBlockExtensionGracefulPeriod = 24*12*14; // two weeks
 
         // reorg
         consensus.nMaxReorgDepth = 5;
@@ -674,13 +685,18 @@ public:
 
         for (const auto& str : lelantus::lelantus_testnet_blacklist) {
             GroupElement coin;
-            coin.deserialize(ParseHex(str).data());
+            try {
+                coin.deserialize(ParseHex(str).data());
+            } catch (...) {
+                continue;
+            }
             consensus.lelantusBlacklist.insert(coin);
         }
 
         consensus.evoSporkKeyID = "TWSEa1UsZzDHywDG6CZFDNdeJU6LzhbbBL";
         consensus.nEvoSporkStartBlock = 22000;
         consensus.nEvoSporkStopBlock = 40000;
+        consensus.nEvoSporkStopBlockExtensionVersion = 0;
 
         // reorg
         consensus.nMaxReorgDepth = 4;
@@ -898,6 +914,7 @@ public:
         consensus.evoSporkKeyID = "TdxR3tfoHiQUkowcfjEGiMBfk6GXFdajUA";
         consensus.nEvoSporkStartBlock = 1;
         consensus.nEvoSporkStopBlock = 40000;
+        consensus.nEvoSporkStopBlockExtensionVersion = 0;
 
         // reorg
         consensus.nMaxReorgDepth = 4;
@@ -1116,6 +1133,7 @@ public:
         consensus.evoSporkKeyID = "TSpmHGzQT4KJrubWa4N2CRmpA7wKMMWDg4";  // private key is cW2YM2xaeCaebfpKguBahUAgEzLXgSserWRuD29kSyKHq1TTgwRQ
         consensus.nEvoSporkStartBlock = 1000;
         consensus.nEvoSporkStopBlock = 1500;
+        consensus.nEvoSporkStopBlockExtensionVersion = 0;
 
         // reorg
         consensus.nMaxReorgDepth = 4;

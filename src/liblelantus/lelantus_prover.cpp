@@ -1,4 +1,6 @@
 #include "lelantus_prover.h"
+#include "threadpool.h"
+#include "util.h"
 
 namespace lelantus {
 
@@ -101,32 +103,77 @@ void LelantusProver::generate_sigma_proofs(
     a.resize(N);
     std::vector<Scalar> serialNumbers;
     serialNumbers.reserve(N);
-    for (std::size_t i = 0; i < N; ++i)
-    {
-        if (!c.count(Cin[i].second))
-            throw std::invalid_argument("No such anonymity set or id is not correct");
 
-        GroupElement gs = (params->get_g() * Cin[i].first.getSerialNumber().negate());
-        serialNumbers.emplace_back(Cin[i].first.getSerialNumber());
-        std::vector<GroupElement> C_;
-        C_.reserve(c.size());
+    std::size_t threadsMaxCount = std::min((unsigned int)N, boost::thread::hardware_concurrency());
+    std::vector<boost::shared_future<bool>> parallelTasks;
+    parallelTasks.reserve(threadsMaxCount);
+    ParallelOpThreadPool<bool> threadPool(threadsMaxCount);
 
-        const auto& set = c.find(Cin[i].second);
-        if (set == c.end())
-            throw std::invalid_argument("No such anonymity set");
+    std::vector<std::vector<GroupElement>> C_;
+    C_.resize(N);
+    DoNotDisturb dnd;
+    for (std::size_t j = 0; j < N; j += threadsMaxCount) {
+        for (std::size_t i = j; i < j + threadsMaxCount; ++i) {
+            if (i < N) {
+                if (!c.count(Cin[i].second))
+                    throw std::invalid_argument("No such anonymity set or id is not correct");
 
-        for (auto const &coin : set->second)
-            C_.emplace_back(coin.getValue() + gs);
+                GroupElement gs = (params->get_g() * Cin[i].first.getSerialNumber().negate());
+                serialNumbers.emplace_back(Cin[i].first.getSerialNumber());
 
-        rA[i].randomize();
-        rB[i].randomize();
-        rC[i].randomize();
-        rD[i].randomize();
-        Tk[i].resize(params->get_sigma_m());
-        Pk[i].resize(params->get_sigma_m());
-        Yk[i].resize(params->get_sigma_m());
-        a[i].resize(params->get_sigma_n() * params->get_sigma_m());
-        sigmaProver.sigma_commit(C_, indexes[i], rA[i], rB[i], rC[i], rD[i], a[i], Tk[i], Pk[i], Yk[i], sigma[i], sigma_proofs[i]);
+                C_[i].reserve(c.size());
+
+                const auto& set = c.find(Cin[i].second);
+                if (set == c.end())
+                    throw std::invalid_argument("No such anonymity set");
+
+                for (auto const &coin : set->second)
+                    C_[i].emplace_back(coin.getValue() + gs);
+
+                rA[i].randomize();
+                rB[i].randomize();
+                rC[i].randomize();
+                rD[i].randomize();
+                Tk[i].resize(params->get_sigma_m());
+                Pk[i].resize(params->get_sigma_m());
+                Yk[i].resize(params->get_sigma_m());
+                a[i].resize(params->get_sigma_n() * params->get_sigma_m());
+
+                auto& sigma_i = sigma[i];
+                auto& rA_i = rA[i];
+                auto& rB_i = rB[i];
+                auto& rC_i = rC[i];
+                auto& rD_i = rD[i];
+                auto& a_i = a[i];
+                auto& Tk_i = Tk[i];
+                auto& Pk_i = Pk[i];
+                auto& Yk_i = Yk[i];
+                auto& prover = sigmaProver;
+                auto& commits = C_[i];
+                auto& index = indexes[i];
+                auto& proof = sigma_proofs[i];
+                parallelTasks.emplace_back(threadPool.PostTask([&]() {
+                    try {
+                        prover.sigma_commit(commits, index, rA_i, rB_i, rC_i, rD_i, a_i, Tk_i, Pk_i, Yk_i, sigma_i, proof);
+                    } catch (...) {
+                        return false;
+                    }
+                    return true;
+                }));
+            } else
+                break;
+        }
+
+        bool isFail = false;
+        for (auto& th : parallelTasks) {
+            if (!th.get())
+                isFail = true;
+        }
+
+        if (isFail)
+            throw std::runtime_error("Lelantus proof creation failed.");
+
+        parallelTasks.clear();
     }
 
     std::vector<GroupElement> PubcoinsOut;
@@ -203,11 +250,13 @@ void LelantusProver::generate_bulletproofs(
     v_s.reserve(m);
     serials.reserve(m);
     randoms.reserve(m);
+    // NOTE: this prepends zero-value group elements, apparently as an earlier coding error
+    // This doesn't hurt anything, and so is retained here for compatibility reasons
     std::vector<GroupElement> commitments(Cout.size());
     for (std::size_t i = 0; i < Cout.size(); ++i)
     {
-        v_s.push_back(Cout[i].getV());
-        v_s.push_back(Cout[i].getVScalar() +  params->get_limit_range());
+        v_s.push_back(Cout[i].getV()); // Ensure that v >= 0
+        v_s.push_back(Cout[i].getVScalar() +  params->get_limit_range()); // Ensure that v <= ZC_LELANTUS_MAX_MINT
         serials.insert(serials.end(), 2, Cout[i].getSerialNumber());
         randoms.insert(randoms.end(), 2, Cout[i].getRandomness());
         commitments.emplace_back(Cout[i].getPublicCoin().getValue());
@@ -226,7 +275,7 @@ void LelantusProver::generate_bulletproofs(
     h_.insert(h_.end(), params->get_bulletproofs_h().begin(), params->get_bulletproofs_h().begin() + (n * m));
 
     RangeProver rangeProver(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n, version);
-    rangeProver.batch_proof(v_s, serials, randoms, commitments, bulletproofs);
+    rangeProver.proof(v_s, serials, randoms, commitments, bulletproofs);
 
 }
 

@@ -1156,7 +1156,11 @@ bool CHDMintWallet::TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pu
     std::vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
                                           txout.scriptPubKey.end());
     secp_primitives::GroupElement publicSigma;
-    publicSigma.deserialize(&coin_serialised[0]);
+    try {
+        publicSigma.deserialize(&coin_serialised[0]);
+    } catch (...) {
+        return state.DoS(100, error("TxOutToPublicCoin : deserialize failed"));
+    }
 
     sigma::CoinDenomination denomination;
     if(!IntegerToDenomination(txout.nValue, denomination))
