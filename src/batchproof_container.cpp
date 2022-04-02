@@ -210,9 +210,9 @@ void BatchProofContainer::batch_sigma() {
                     }
                     return true;
                 }));
-            }
 
-            ++itr;
+                ++itr;
+            }
         }
 
         bool isFail = false;
@@ -311,8 +311,9 @@ void BatchProofContainer::batch_lelantus() {
                     }
                     return true;
                 }));
+                
+                ++itr;
             }
-            ++itr;
         }
         bool isFail = false;
         for (auto& th : parallelTasks) {
