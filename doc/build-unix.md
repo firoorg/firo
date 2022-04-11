@@ -1,8 +1,16 @@
 UNIX BUILD NOTES
 ====================
-Some notes on how to build Firo Core in Unix.
 
-(for OpenBSD specific instructions, see [build-openbsd.md](build-openbsd.md))
+Quick Install
+---------------------
+
+The instructions below describe how to manually build Firo with system level or
+manually compiled dependencies. It is only recommended for experienced users.
+
+For most users it is easier to use the simple install instructions in the
+[quick install instructions](../README.md) in the top level README.
+
+For OpenBSD specific instructions, see [build-openbsd.md](build-openbsd.md)
 
 Note
 ---------------------

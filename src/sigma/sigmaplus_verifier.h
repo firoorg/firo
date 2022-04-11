@@ -11,11 +11,16 @@ class SigmaPlusVerifier{
 public:
     SigmaPlusVerifier(const GroupElement& g,
                       const std::vector<GroupElement>& h_gens,
-                      int n, int m_);
+                      std::size_t n, std::size_t m_);
 
     bool verify(const std::vector<GroupElement>& commits,
                 const SigmaPlusProof<Exponent, GroupElement>& proof,
                 bool fPadding) const;
+
+    bool verify(const std::vector<GroupElement>& commits,
+                const SigmaPlusProof<Exponent, GroupElement>& proof,
+                bool fPadding,
+                std::size_t setSize) const;
 
     bool batch_verify(const std::vector<GroupElement>& commits,
                       const std::vector<Exponent>& serials,
@@ -25,7 +30,6 @@ public:
 
     bool membership_checks(const SigmaPlusProof<Exponent, GroupElement>& proof) const;
     bool compute_fs(const SigmaPlusProof<Exponent, GroupElement>& proof, const Exponent& x, std::vector<Exponent>& f_) const;
-    bool abcd_checks(const SigmaPlusProof<Exponent, GroupElement>& proof, const Exponent& x, const std::vector<Exponent>& f_) const;
 
     void compute_fis(int j, const std::vector<Exponent>& f, std::vector<Exponent>& f_i_) const;
     void compute_fis(const Exponent& f_i, int j, const std::vector<Exponent>& f, typename std::vector<Exponent>::iterator& ptr, typename std::vector<Exponent>::iterator end_ptr) const;
@@ -43,8 +47,8 @@ public:
 private:
     GroupElement g_;
     std::vector<GroupElement> h_;
-    int n;
-    int m;
+    std::size_t n;
+    std::size_t m;
 };
 
 } // namespace sigma

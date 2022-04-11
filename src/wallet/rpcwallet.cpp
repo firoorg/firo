@@ -2082,8 +2082,14 @@ UniValue gettransaction(const JSONRPCRequest& request)
     CAmount nDebit = wtx.GetDebit(filter);
     CAmount nNet = nCredit - nDebit;
     CAmount nFee = (wtx.IsFromMe(filter) ? wtx.tx->GetValueOut() - nDebit : 0);
-    if (wtx.tx->vin[0].IsLelantusJoinSplit())
-        nFee = (0 - lelantus::ParseLelantusJoinSplit(*wtx.tx)->getFee());
+    if (wtx.tx->vin[0].IsLelantusJoinSplit()) {
+        try {
+            nFee = (0 - lelantus::ParseLelantusJoinSplit(*wtx.tx)->getFee());
+        }
+        catch (...) {
+            // do nothing
+        }
+    }
 
     entry.push_back(Pair("amount", ValueFromAmount(nNet - nFee)));
 
@@ -3486,18 +3492,10 @@ UniValue joinsplit(const JSONRPCRequest& request) {
 
 
     UniValue sendTo = request.params[0].get_obj();
-    UniValue mintAmounts;
-    if(request.params.size() >= 3) {
-        try {
-                mintAmounts = request.params[2].get_obj();
-        } catch (std::runtime_error const &) {
-            //may be empty
-        }
-    }
 
     std::unordered_set<std::string> subtractFeeFromAmountSet;
     UniValue subtractFeeFromAmount(UniValue::VARR);
-    if (request.params.size() > 2) {
+    if (request.params.size() > 1) {
         try {
             subtractFeeFromAmount = request.params[1].get_array();
         }  catch (std::runtime_error const &) {
@@ -3505,6 +3503,15 @@ UniValue joinsplit(const JSONRPCRequest& request) {
         }
         for (int i = subtractFeeFromAmount.size(); i--;) {
             subtractFeeFromAmountSet.insert(subtractFeeFromAmount[i].get_str());
+        }
+    }
+
+    UniValue mintAmounts;
+    if(request.params.size() > 2) {
+        try {
+                mintAmounts = request.params[2].get_obj();
+        } catch (std::runtime_error const &) {
+            //may be empty
         }
     }
 
@@ -4112,7 +4119,7 @@ UniValue listlelantusjoinsplits(const JSONRPCRequest& request) {
         std::unique_ptr<lelantus::JoinSplit> joinsplit;
         try {
             joinsplit = lelantus::ParseLelantusJoinSplit(*pwtx->tx);
-        } catch (std::invalid_argument&) {
+        } catch (...) {
             continue;
         }
 

@@ -360,6 +360,31 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                 if(!SetLelantusMintSeedSeen(walletdb, pMint, pindex->nHeight, txHash, amount))
                     continue;
 
+                if (tx->IsLelantusJoinSplit()) {
+                    std::vector<Scalar> serials = lelantus::GetLelantusJoinSplitSerialNumbers(*tx, tx->vin[0]);
+                    for (auto& serial : serials) {
+                        CLelantusMintMeta mMeta;
+                        if (!tracker.GetMetaFromSerial(primitives::GetSerialHash(serial), mMeta))
+                            continue;
+
+                        if (mMeta.isUsed)
+                            continue;
+
+                        tracker.SetLelantusPubcoinUsed(mMeta.GetPubCoinValueHash(), tx->GetHash());
+
+                        // add CLelantusSpendEntry
+                        CLelantusSpendEntry spend;
+                        spend.coinSerial = serial;
+                        spend.hashTx = tx->GetHash();
+                        spend.pubCoin = mMeta.GetPubCoinValue();
+                        spend.id = mMeta.nId;
+                        spend.amount = mMeta.amount;
+                        if (!walletdb.WriteLelantusSpendSerialEntry(spend)) {
+                            throw std::runtime_error(_("Failed to write coin serial number into wallet"));
+                        }
+                    }
+                }
+
                 // Only update if the current hashSeedMaster matches the mints'
                 if(hashSeedMaster == mintHashSeedMaster && mintCount >= GetCount()){
                     SetCount(++mintCount);
@@ -1156,7 +1181,11 @@ bool CHDMintWallet::TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pu
     std::vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
                                           txout.scriptPubKey.end());
     secp_primitives::GroupElement publicSigma;
-    publicSigma.deserialize(&coin_serialised[0]);
+    try {
+        publicSigma.deserialize(&coin_serialised[0]);
+    } catch (...) {
+        return state.DoS(100, error("TxOutToPublicCoin : deserialize failed"));
+    }
 
     sigma::CoinDenomination denomination;
     if(!IntegerToDenomination(txout.nValue, denomination))

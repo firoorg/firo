@@ -95,7 +95,7 @@ bool LelantusVerifier::verify(
     try {
         // we are passing challengeGenerator ptr here, as after LELANTUS_TX_VERSION_4_5 we need  it back, with filled data, to use in schnorr proof,
         if (!(verify_sigma(vAnonymity_sets, anonymity_set_hashes, vSin, serialNumbers, ecdsaPubkeys, Cout, proof.sigma_proofs, qkSchnorrProof, x, challengeGenerator, zV, zR, fSkipVerification) &&
-             verify_rangeproof(Cout, proof.bulletproofs) &&
+             verify_rangeproof(Cout, proof.bulletproofs, fSkipVerification) &&
              verify_schnorrproof(x, zV, zR, Vin, Vout, fee, Cout, proof, challengeGenerator)))
             return false;
     } catch (std::invalid_argument&) {
@@ -198,8 +198,9 @@ bool LelantusVerifier::verify_sigma(
 
 bool LelantusVerifier::verify_rangeproof(
         const std::vector<PublicCoin>& Cout,
-        const RangeProof& bulletproofs) {
-    if (Cout.empty())
+        const RangeProof& bulletproof,
+        bool fSkipVerification) {
+    if (Cout.empty() || fSkipVerification)
         return true;
 
     std::size_t n = params->get_bulletproofs_n();
@@ -208,26 +209,38 @@ bool LelantusVerifier::verify_rangeproof(
     while (m & (m - 1))
         m++;
 
+    // NOTE: for actual deployment, need to ensure this vector is constructed to accommodate the largest proof
     std::vector<GroupElement> g_, h_;
     g_.reserve(n * m);
     h_.reserve(n * m);
     g_.insert(g_.end(), params->get_bulletproofs_g().begin(), params->get_bulletproofs_g().begin() + (n * m));
     h_.insert(h_.end(), params->get_bulletproofs_h().begin(), params->get_bulletproofs_h().begin() + (n * m));
 
-    std::vector<GroupElement> V;
-    V.reserve(m);
-    std::vector<GroupElement> commitments(Cout.size());
+    std::vector<std::vector<GroupElement> > V;
+    V.reserve(1); // size of batch
+    V.resize(1);
+    V[0].reserve(m); // aggregation size
+    std::vector<std::vector<GroupElement> > commitments;
+    commitments.reserve(1); // size of batch
+    commitments.resize(1);
+    commitments[0].reserve(2 * Cout.size());
+    commitments[0].resize(Cout.size()); // prepend zero elements, to match the prover's behavior
     for (std::size_t i = 0; i < Cout.size(); ++i) {
-        V.push_back(Cout[i].getValue());
-        V.push_back(Cout[i].getValue() + params->get_h1_limit_range());
-        commitments.emplace_back(Cout[i].getValue());
+        V[0].push_back(Cout[i].getValue());
+        V[0].push_back(Cout[i].getValue() + params->get_h1_limit_range());
+        commitments[0].emplace_back(Cout[i].getValue());
     }
 
+    std::vector<RangeProof> proofs;
+    proofs.reserve(1); // size of batch
+    proofs.emplace_back(bulletproof);
+
+    // Pad with zero elements
     for (std::size_t i = Cout.size() * 2; i < m; ++i)
-        V.push_back(GroupElement());
+        V[0].push_back(GroupElement());
 
     RangeVerifier  rangeVerifier(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n, version);
-    if (!rangeVerifier.verify_batch(V, commitments, bulletproofs)) {
+    if (!rangeVerifier.verify(V, commitments, proofs)) {
         LogPrintf("Lelantus verification failed due range proof verification failed.\n");
         return false;
     }

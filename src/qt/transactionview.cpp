@@ -60,9 +60,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
         headerLayout->addSpacing(23);
     }
 
-    statusSpacer = new QSpacerItem(1, 1, QSizePolicy::MinimumExpanding);
-    headerLayout->addSpacerItem(statusSpacer);
-
     watchOnlyWidget = new QComboBox(this);
     watchOnlyWidget->setFixedWidth(24);
     watchOnlyWidget->addItem("", TransactionFilterProxy::WatchOnlyFilter_All);
@@ -687,6 +684,9 @@ void TransactionView::focusTransaction(const QModelIndex &idx)
 // sizes as the tables width is proportional to the dialogs width.
 void TransactionView::resizeEvent(QResizeEvent* event)
 {
+    if(!transactionView || !transactionView->selectionModel())
+        return;
+
     QWidget::resizeEvent(event);
     disconnect(transactionView->horizontalHeader(), SIGNAL(sectionResized(int,int,int)), this, SLOT(updateHeaderSizes(int,int,int)));
     columnResizingFixer->stretchColumnWidth(TransactionTableModel::ToAddress);

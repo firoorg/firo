@@ -246,6 +246,16 @@ struct Params {
     // The block number to stop using evo sporks
     int nEvoSporkStopBlock;
 
+    // Workaround for a late rollout of version 0.14.9.3
+    // If non-zero allow special behavior for reading index when block index version < nEvoSporkStopBlockExtensionVersion
+    int nEvoSporkStopBlockExtensionVersion;
+
+    // Previous value of stop block
+    int nEvoSporkStopBlockPrevious;
+
+    // Graceful period (number of blocks) to allow this workaround
+    int nEvoSporkStopBlockExtensionGracefulPeriod;
+
     // Key to sign spork txs
     std::string evoSporkKeyID;
 

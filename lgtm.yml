@@ -45,10 +45,12 @@ extraction:
         - protobuf-compiler
         - qtbase5-dev
         - qttools5-dev-tools
+        - bison
     configure:
       command:
+        - cd depends && make -j`nproc` HOST=x86_64-linux-gnu && cd ..
         - ./autogen.sh
-        - ./configure --with-incompatible-bdb
+        - ./configure --with-incompatible-bdb --prefix=`pwd`/depends/x86_64-linux-gnu
     index:
       build_command:
-        - make
+        - make -j`nproc`
