@@ -3,7 +3,7 @@ AC_PREREQ([2.60])
 define(_CLIENT_VERSION_MAJOR, 0)
 define(_CLIENT_VERSION_MINOR, 14)
 define(_CLIENT_VERSION_REVISION, 9)
-define(_CLIENT_VERSION_BUILD, 4)
+define(_CLIENT_VERSION_BUILD, 5)
 define(_CLIENT_VERSION_IS_RELEASE, true)
 define(_COPYRIGHT_YEAR, 2022)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
@@ -454,8 +454,6 @@ case $host in
      LEVELDB_TARGET_FLAGS="-DOS_${OTHER_OS}"
      ;;
 esac
-
-AC_CHECK_LIB([tor], [tor_main], [AC_MSG_NOTICE([Tor found])], [AC_MSG_ERROR([Can't find Tor library])], [-lssl -lcrypto -levent -lz -pthread])
 
 if test x$use_pkgconfig = xyes; then
   m4_ifndef([PKG_PROG_PKG_CONFIG], [AC_MSG_ERROR(PKG_PROG_PKG_CONFIG macro not found. Please install pkg-config and re-run autogen.sh.)])
@@ -981,6 +979,11 @@ dnl Check for libcap
 
 AC_CHECK_HEADERS([sys/capability.h])
 AC_SEARCH_LIBS(cap_get_proc, [cap])
+
+dnl ============================================================
+dnl Check for libtor
+
+AC_CHECK_LIB([tor], [tor_main], [AC_MSG_NOTICE([Tor found])], [AC_MSG_ERROR([Can't find Tor library])], [-lssl -lcrypto -levent -lz -pthread])
 
 ac_configure_args="${ac_configure_args} --disable-shared"
 

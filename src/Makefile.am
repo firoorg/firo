@@ -663,6 +663,7 @@ liblelantus_a_SOURCES = \
   liblelantus/joinsplit.cpp \
   liblelantus/spend_metadata.h \
   liblelantus/spend_metadata.cpp \
+  liblelantus/threadpool.h \
   liblelantus/params.h \
   liblelantus/params.cpp
 

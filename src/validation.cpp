@@ -661,7 +661,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
                 return false;
         }
 
-        auto params = ::Params().GetConsensus();
+        const auto &params = ::Params().GetConsensus();
         if (tx.IsZerocoinSpend() || tx.IsZerocoinMint()) {
             if (!isVerifyDB && nHeight >= params.nDisableZerocoinStartBlock)
                 return state.DoS(1, error("Zerocoin is disabled at this point"));
@@ -830,6 +830,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
             catch (CBadTxIn&) {
                 return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
+            }
+            catch (...) {
+                return state.Invalid(false, REJECT_CONFLICT, "failed to deserialize joinsplit");
             }
 
             const std::vector<uint32_t> &ids = joinsplit->getCoinGroupIds();
@@ -1079,6 +1082,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
+                }
+                catch (...) {
+                    return state.DoS(0, false, REJECT_INVALID, "failed to deserialize joinsplit");
                 }
             }
             // nModifiedFees includes any fee deltas from PrioritiseTransaction
@@ -1965,6 +1971,9 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
             catch (CBadTxIn&) {
                 return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
             }
+            catch (...) {
+                return state.DoS(0, false, REJECT_INVALID, "failed to deserialize joinsplit");
+            }
         }
         if (nTxFee < 0)
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-negative");
@@ -2389,7 +2398,12 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
         if(tx.IsSigmaSpend())
             nFees += sigma::GetSigmaSpendInput(tx) - tx.GetValueOut();
         else if (tx.IsLelantusJoinSplit()) {
-            nFees += lelantus::ParseLelantusJoinSplit(tx)->getFee();
+            try {
+                nFees += lelantus::ParseLelantusJoinSplit(tx)->getFee();
+            }
+            catch (...) {
+                // do nothing
+            }
         }
 
         dbIndexHelper.DisconnectTransactionInputs(tx, pindex->nHeight, i, view);
@@ -2776,6 +2790,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
+                }
+                catch (...) {
+                    return state.DoS(0, false, REJECT_INVALID, "failed to deserialize joinsplit");
                 }
             }
 
@@ -3277,6 +3294,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
 
     std::unordered_map<Scalar, int> lelantusSerialsToRemove;
+    std::vector<lelantus::RangeProof> rangeProofsToRemove;
     sigma::spend_info_container sigmaSerialsToRemove;
 
     for (CTransactionRef tx : block.vtx) {
@@ -3289,7 +3307,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
                 try {
                     joinsplit = lelantus::ParseLelantusJoinSplit(*tx);
                 }
-                catch (CBadTxIn &) {
+                catch (...) {
                     continue;
                 }
 
@@ -3303,6 +3321,8 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
                 for (size_t i = 0; i < serials.size(); i++) {
                     lelantusSerialsToRemove.insert(std::make_pair(serials[i], ids[i]));
                 }
+
+                rangeProofsToRemove.push_back(joinsplit->getLelantusProof().bulletproofs);
             } else if (tx->IsSigmaSpend()) {
                 for (const CTxIn &txin : tx->vin) {
                     std::unique_ptr<sigma::CoinSpend> spend;
@@ -3348,6 +3368,11 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     if (lelantusSerialsToRemove.size() > 0) {
         batchProofContainer->removeLelantus(lelantusSerialsToRemove);
     }
+
+    if (rangeProofsToRemove.size() > 0) {
+        batchProofContainer->remove(rangeProofsToRemove);
+    }
+
 
     // Roll back MTP state
     MTPState::GetMTPState()->SetLastBlock(pindexDelete->pprev, chainparams.GetConsensus());
