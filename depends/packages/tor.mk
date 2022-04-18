@@ -47,10 +47,11 @@ $(package)_lib_files = \
     src/ext/keccak-tiny/libkeccak-tiny.a
 
 define $(package)_set_vars
-$(package)_config_opts+=--disable-system-torrc --disable-systemd --disable-lzma --disable-asciidoc --disable-libscrypt --disable-gcc-hardening --enable-pic --disable-unittests --disable-tool-name-check
+  $(package)_config_opts+=--disable-system-torrc --disable-systemd --disable-lzma --disable-asciidoc --disable-libscrypt --disable-gcc-hardening --enable-pic --disable-unittests --disable-tool-name-check
 endef
 
 define $(package)_preprocess_cmds
+  cp -f $(BASEDIR)/config.guess $(BASEDIR)/config.sub . && \
   patch -p1 < $($(package)_patch_dir)/configure.patch
 endef
 
