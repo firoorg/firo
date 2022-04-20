@@ -5,6 +5,7 @@
 #include "sigma/sigmaplus_verifier.h"
 #include "sigma.h"
 #include "lelantus.h"
+#include "ui_interface.h"
 
 std::unique_ptr<BatchProofContainer> BatchProofContainer::instance;
 
@@ -158,8 +159,10 @@ void BatchProofContainer::erase(std::vector<LelantusSigmaProofData>* vProofs, co
 }
 
 void BatchProofContainer::batch_sigma() {
-    if (!sigmaProofs.empty())
+    if (!sigmaProofs.empty()){
         LogPrintf("Sigma batch verification started.\n");
+        uiInterface.UpdateProgressBarLabel("Sigma batch verification started.");
+    }
     else
         return;
 
@@ -227,14 +230,18 @@ void BatchProofContainer::batch_sigma() {
         }
         parallelTasks.clear();
     }
-    if (!sigmaProofs.empty())
+    if (!sigmaProofs.empty()){
         LogPrintf("Sigma batch verification finished successfully.\n");
+        uiInterface.UpdateProgressBarLabel("Sigma batch verification finished successfully.");
+    }
     sigmaProofs.clear();
 }
 
 void BatchProofContainer::batch_lelantus() {
-    if (!lelantusSigmaProofs.empty())
+    if (!lelantusSigmaProofs.empty()){
         LogPrintf("Lelantus batch verification started.\n");
+        uiInterface.UpdateProgressBarLabel("Lelantus batch verification started.");
+    }
     else
         return;
 
@@ -328,14 +335,18 @@ void BatchProofContainer::batch_lelantus() {
 
         parallelTasks.clear();
     }
-    if (!lelantusSigmaProofs.empty())
+    if (!lelantusSigmaProofs.empty()){
         LogPrintf("Lelantus batch verification finished successfully.\n");
+        uiInterface.UpdateProgressBarLabel("Lelantus batch verification finished successfully.");
+    }
     lelantusSigmaProofs.clear();
 }
 
 void BatchProofContainer::batch_rangeProofs() {
-    if (!rangeProofs.empty())
+    if (!rangeProofs.empty()){
         LogPrintf("RangeProof batch verification started.\n");
+        uiInterface.UpdateProgressBarLabel("RangeProof batch verification started.");
+    }
 
     auto params = lelantus::Params::get_default();
     for (const auto& itr : rangeProofs) {
@@ -375,8 +386,10 @@ void BatchProofContainer::batch_rangeProofs() {
         }
     }
 
-    if (!rangeProofs.empty())
+    if (!rangeProofs.empty()){
         LogPrintf("RangeProof batch verification finished successfully.\n");
+        uiInterface.UpdateProgressBarLabel("RangeProof batch verification finished successfully.");
+    }
 
     rangeProofs.clear();
 }
