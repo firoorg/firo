@@ -62,18 +62,6 @@ bool LelantusVerifier::verify(
         return false;
     }
 
-    // number of serials should be equal to number of sigma proofs, we need one proof for each serial
-    if (serialNumbers.size() != proof.sigma_proofs.size()) {
-        LogPrintf("Lelantus verification failed due to sizes of serials  and sigma proofs are not equal.");
-        return false;
-    }
-
-    // max possible number of output coins is 8,
-    if (Cout.size() > (params->get_bulletproofs_max_m() / 2)) {
-        LogPrintf("Number of output coins are more than allowed.");
-        return false;
-    }
-
     std::vector<std::vector<PublicCoin>> vAnonymity_sets;
     std::vector<std::vector<Scalar>> vSin;
     vAnonymity_sets.reserve(anonymity_sets.size());

@@ -1,4 +1,4 @@
-packages:=boost openssl libevent gmp zlib backtrace zeromq minizip tor bls-dash
+packages:=boost openssl libevent gmp zlib backtrace tor bls-dash minizip
 darwin_packages:=zeromq
 linux_packages:=zeromq
 native_packages := native_ccache native_comparisontool native_cmake
