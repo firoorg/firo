@@ -754,7 +754,11 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
             return meta.isUsed;
         } else if (zwallet && (script.IsLelantusMint() || script.IsLelantusJMint())) {
             secp_primitives::GroupElement pubcoin;
-            lelantus::ParseLelantusMintScript(script, pubcoin);
+            try {
+                lelantus::ParseLelantusMintScript(script, pubcoin);
+            } catch (std::invalid_argument &) {
+                return false;
+            }
             uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
             CLelantusMintMeta meta;
             if(!zwallet->GetTracker().GetLelantusMetaFromPubcoin(hashPubcoin, meta)){
@@ -1434,7 +1438,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
             try {
                 joinsplit = lelantus::ParseLelantusJoinSplit(*wtx.tx);
             }
-            catch (CBadTxIn&) {
+            catch (...) {
                 continue;
             }
 
@@ -1602,7 +1606,7 @@ isminetype CWallet::IsMine(const CTxIn &txin, const CTransaction& tx) const
         try {
             joinsplit = lelantus::ParseLelantusJoinSplit(tx);
         }
-        catch (CBadTxIn&) {
+        catch (...) {
             return ISMINE_NO;
         }
 
@@ -1663,7 +1667,7 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const CTransaction& tx, const ismin
         try {
             joinsplit = lelantus::ParseLelantusJoinSplit(tx);
         }
-        catch (CBadTxIn&) {
+        catch (...) {
             goto end;
         }
 
@@ -2159,7 +2163,12 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
             nFee = nDebit - nValueOut;
         }
         else
-            nFee = lelantus::ParseLelantusJoinSplit(*tx)->getFee();
+            try {
+                nFee = lelantus::ParseLelantusJoinSplit(*tx)->getFee();
+            }
+            catch (...) {
+                // do nothing
+            }
     }
 
     // Sent/received.
@@ -3335,7 +3344,7 @@ bool CWallet::GetCoinsToJoinSplit(
 {
 
     EnsureMintWalletAvailable();
-    Consensus::Params consensusParams = Params().GetConsensus();
+    const Consensus::Params &consensusParams = Params().GetConsensus();
 
     if (required > consensusParams.nMaxValueLelantusSpendPerTransaction) {
         throw std::invalid_argument(_("The required amount exceeds spend limit"));
@@ -3792,7 +3801,11 @@ void CWallet::ListAvailableLelantusMintCoins(std::vector<COutput> &vCoins, bool 
             if (pcoin->tx->vout[i].scriptPubKey.IsLelantusMint() || pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint()) {
                 CTxOut txout = pcoin->tx->vout[i];
                 secp_primitives::GroupElement pubCoin;
-                lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoin);
+                try {
+                    lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoin);
+                } catch (std::invalid_argument &) {
+                    continue;
+                }
                 LogPrintf("Pubcoin=%s\n", pubCoin.tostring());
                 // CHECKING PROCESS
                 BOOST_FOREACH(const CLelantusEntry& ownCoinItem, listOwnCoins) {
@@ -5574,7 +5587,7 @@ std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(
 
         spendCoins.clear();
         sigmaSpendCoins.clear();
-        auto &consensusParams = Params().GetConsensus();
+        const auto &consensusParams = Params().GetConsensus();
         CAmount changeToMint = 0;
 
         std::vector<sigma::CoinDenomination> denomChanges;

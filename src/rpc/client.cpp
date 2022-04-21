@@ -184,6 +184,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "listlelantusjoinsplits", 0 },
     { "listlelantusjoinsplits", 1 },
     { "joinsplit", 0 },
+    { "joinsplit", 1 },
     { "joinsplit", 2 },
     { "spendallzerocoin", 0 },
     { "remintzerocointosigma", 0 },
