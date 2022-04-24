@@ -1,6 +1,6 @@
-# Bootstrappable Bitcoin Core Builds
+# Bootstrappable Firo Core Builds
 
-This directory contains the files necessary to perform bootstrappable Bitcoin
+This directory contains the files necessary to perform bootstrappable Firo
 Core builds.
 
 [Bootstrappability][b17e] furthers our binary security guarantees by allowing us
@@ -57,7 +57,7 @@ and examples](#common-guix-build-invocation-patterns-and-examples) section below
 before starting a build. For a full list of customization options, see the
 [recognized environment variables][env-vars-list] section.*
 
-To build Bitcoin Core reproducibly with all default options, invoke the
+To build Firo Core reproducibly with all default options, invoke the
 following from the top of a clean repository:
 
 ```sh
@@ -75,12 +75,12 @@ crucial differences:
 
 1. Since only Windows and macOS build outputs require codesigning, the `HOSTS`
    environment variable will have a sane default value of `x86_64-w64-mingw32
-   x86_64-apple-darwin19` instead of all the platforms.
+   x86_64-apple-darwin` instead of all the platforms.
 2. The `guix-codesign` command ***requires*** a `DETACHED_SIGS_REPO` flag.
     * _**DETACHED_SIGS_REPO**_
 
       Set the directory where detached codesignatures can be found for the current
-      Bitcoin Core version being built.
+      Firo Core version being built.
 
       _REQUIRED environment variable_
 
@@ -159,7 +159,7 @@ which case you can override the default list by setting the space-separated
 `HOSTS` environment variable:
 
 ```sh
-env HOSTS='x86_64-w64-mingw32 x86_64-apple-darwin19' ./contrib/guix/guix-build
+env HOSTS='x86_64-w64-mingw32 x86_64-apple-darwin' ./contrib/guix/guix-build
 ```
 
 See the [recognized environment variables][env-vars-list] section for more
@@ -222,9 +222,8 @@ details.
   Override the space-separated list of platform triples for which to perform a
   bootstrappable build.
 
-  _(defaults to "x86\_64-linux-gnu arm-linux-gnueabihf aarch64-linux-gnu
-  riscv64-linux-gnu powerpc64-linux-gnu powerpc64le-linux-gnu
-  x86\_64-w64-mingw32 x86\_64-apple-darwin arm64-apple-darwin")_
+  _(defaults to "x86\_64-linux-gnu x86\_64-w64-mingw32 x86\_64-apple-darwin
+  arm64-apple-darwin")_
 
 * _**SOURCES_PATH**_
 
