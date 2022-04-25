@@ -597,6 +597,9 @@ if ENABLE_CLIENTAPI
 qt_firo_qt_LDADD += $(MINIZIP_LIBS)
 endif
 
+qt_firo_qt_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(QT_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+qt_firo_qt_LIBTOOLFLAGS = $(AM_LIBTOOLFLAGS) --tag CXX
+
 #locale/foo.ts -> locale/foo.qm
 QT_QM=$(QT_TS:.ts=.qm)
 
