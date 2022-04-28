@@ -26,8 +26,11 @@ To Build
 ---------------------
 
 ```bash
+cd depends
+make -j`nproc`
+cd ..
 ./autogen.sh
-./configure
+./configure --prefix=`pwd`/depends/`depends/config.guess`
 make
 make install # optional
 ```
@@ -73,7 +76,7 @@ Dependency Build Instructions: Ubuntu & Debian
 ----------------------------------------------
 Build requirements:
 
-    sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils cmake libgmp-dev
+    sudo apt-get install git curl python build-essential libtool automake pkg-config cmake
 
 Options when installing required Boost library files:
 
@@ -115,22 +118,13 @@ ZMQ dependencies (provides ZMQ API):
 Dependencies for the GUI: Ubuntu & Debian
 -----------------------------------------
 
-If you want to build Bitcoin-Qt, make sure that the required packages for Qt development
-are installed. Either Qt 5 or Qt 4 are necessary to build the GUI.
-If both Qt 4 and Qt 5 are installed, Qt 5 will be used. Pass `--with-gui=qt4` to configure to choose Qt4.
+If you want to build Firo-Qt, make sure that the required packages for Qt development
+are installed.
 To build without GUI pass `--without-gui`.
 
-To build with Qt 5 (recommended) you need the following:
+To build with Qt 5  you need the following:
 
-    sudo apt-get install libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler
-
-Alternatively, to build with Qt 4 you need the following:
-
-    sudo apt-get install libqt4-dev libprotobuf-dev protobuf-compiler
-
-libqrencode (optional) can be installed with:
-
-    sudo apt-get install libqrencode-dev
+    sudo apt-get install qttools5-dev qttools5-dev-tools libxcb-xkb-dev bison
 
 Once these are installed, they will be found by configure and a firo-qt executable will be
 built by default.
@@ -139,7 +133,7 @@ Dependency Build Instructions: Fedora
 -------------------------------------
 Build requirements:
 
-    sudo dnf install gcc-c++ libtool make autoconf automake openssl-devel libevent-devel boost-devel libdb4-devel libdb4-cxx-devel cmake libgmp-dev
+    sudo dnf install bzip2 perl-lib perl-FindBin gcc-c++ libtool make autoconf automake cmake patch which
 
 Optional:
 
@@ -147,7 +141,9 @@ Optional:
 
 To build with Qt 5 (recommended) you need the following:
 
-    sudo dnf install qt5-qttools-devel qt5-qtbase-devel protobuf-devel
+    sudo dnf install qt5-qttools-devel qt5-qtbase-devel xz bison
+
+    sudo ln /usr/bin/bison /usr/bin/yacc
 
 libqrencode (optional) can be installed with:
 
@@ -283,7 +279,7 @@ Setup and Build Example: Arch Linux
 -----------------------------------
 This example lists the steps necessary to setup and build a command line only, non-wallet distribution of the latest changes on Arch Linux:
 
-    pacman -S git base-devel boost libevent python
+    pacman -S git base-devel python cmake
     git clone https://github.com/bitcoin/bitcoin.git
     cd bitcoin/
     ./autogen.sh
