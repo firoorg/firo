@@ -94,19 +94,6 @@ install necessary parts of boost:
 
 BerkeleyDB is required for the wallet.
 
-**For Ubuntu only:** db4.8 packages are available [here](https://launchpad.net/~bitcoin/+archive/bitcoin).
-You can add the repository and install using the following commands:
-
-    sudo apt-get install software-properties-common
-    sudo add-apt-repository ppa:bitcoin/bitcoin
-    sudo apt-get update
-    sudo apt-get install libdb4.8-dev libdb4.8++-dev
-
-Ubuntu and Debian have their own libdb-dev and libdb++-dev packages, but these will install
-BerkeleyDB 5.1 or later, which break binary wallet compatibility with the distributed executables which
-are based on BerkeleyDB 4.8. If you do not care about wallet compatibility,
-pass `--with-incompatible-bdb` to configure.
-
 See the section "Disable-wallet mode" to build Bitcoin Core without wallet.
 
 Optional (see --with-miniupnpc and --enable-upnp-default):
@@ -168,37 +155,6 @@ turned off by default.  See the configure options for upnp behavior desired:
 	--disable-upnp-default   (the default) UPnP support turned off by default at runtime
 	--enable-upnp-default    UPnP support turned on by default at runtime
 
-
-Berkeley DB
------------
-It is recommended to use Berkeley DB 4.8. If you have to build it yourself:
-
-```bash
-FIRO_ROOT=$(pwd)
-
-# Pick some path to install BDB to, here we create a directory within the bitcoin directory
-BDB_PREFIX="${FIRO_ROOT}/db4"
-mkdir -p $BDB_PREFIX
-
-# Fetch the source and verify that it is not tampered with
-wget 'http://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz'
-echo '12edc0df75bf9abd7f82f821795bcee50f42cb2e5f76a6a281b85732798364ef  db-4.8.30.NC.tar.gz' | sha256sum -c
-# -> db-4.8.30.NC.tar.gz: OK
-tar -xzvf db-4.8.30.NC.tar.gz
-
-# Build the library and install to our prefix
-cd db-4.8.30.NC/build_unix/
-#  Note: Do a static build so that it can be embedded into the executable, instead of having to find a .so at runtime
-../dist/configure --enable-cxx --disable-shared --with-pic --prefix=$BDB_PREFIX
-make install
-
-# Configure Bitcoin Core to use our own-built instance of BDB
-cd $FIRO_ROOT
-./autogen.sh
-./configure LDFLAGS="-L${BDB_PREFIX}/lib/" CPPFLAGS="-I${BDB_PREFIX}/include/" # (other args...)
-```
-
-**Note**: You only need Berkeley DB if the wallet is enabled (see the section *Disable-Wallet mode* below).
 
 Boost
 -----
