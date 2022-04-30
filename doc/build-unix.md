@@ -37,31 +37,6 @@ make install # optional
 
 This will build firo-qt as well if the dependencies are met.
 
-Dependencies
----------------------
-
-These dependencies are required:
-
- Library     | Purpose          | Description
- ------------|------------------|----------------------
- libssl      | Crypto           | Random Number Generation, Elliptic Curve Cryptography
- libboost    | Utility          | Library for threading, data structures, etc
- libevent    | Networking       | OS independent asynchronous networking
-
-Optional dependencies:
-
- Library     | Purpose          | Description
- ------------|------------------|----------------------
- miniupnpc   | UPnP Support     | Firewall-jumping support
- libdb4.8    | Berkeley DB      | Wallet storage (only needed when wallet enabled)
- qt          | GUI              | GUI toolkit (only needed when GUI enabled)
- protobuf    | Payments in GUI  | Data interchange format used for payment protocol (only needed when GUI enabled)
- libqrencode | QR codes in GUI  | Optional for generating QR codes (only needed when GUI enabled)
- univalue    | Utility          | JSON parsing and encoding (bundled version will be used unless --with-system-univalue passed to configure)
- libzmq3     | ZMQ notification | Optional, allows generating ZMQ notifications (requires ZMQ version >= 4.0.0)
-
-For the versions used in the release, see [release-process.md](release-process.md) under *Fetch and build inputs*.
-
 Memory Requirements
 --------------------
 
@@ -79,18 +54,6 @@ Building requires Ubuntu 18.04 at minimum.
 Build requirements:
 
     sudo apt-get install git curl python build-essential libtool automake pkg-config cmake
-
-Options when installing required Boost library files:
-
-1. On at least Ubuntu 14.04+ and Debian 7+ there are generic names for the
-individual boost development packages, so the following can be used to only
-install necessary parts of boost:
-
-        sudo apt-get install libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-program-options-dev libboost-test-dev libboost-thread-dev
-
-2. If that doesn't work, you can install all boost development packages with:
-
-        sudo apt-get install libboost-all-dev
 
 BerkeleyDB is required for the wallet.
 
