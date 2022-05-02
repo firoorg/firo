@@ -214,16 +214,33 @@ CHECKS = {
     ('DYNAMIC_BASE', check_PE_DYNAMIC_BASE),
     ('HIGH_ENTROPY_VA', check_PE_HIGH_ENTROPY_VA),
     ('NX', check_NX),
-    ('RELOC_SECTION', check_PE_RELOC_SECTION)
-],
-'MACHO': [
-    ('PIE', check_PIE),
+    ('RELOC_SECTION', check_PE_RELOC_SECTION),
+    ('CONTROL_FLOW', check_PE_control_flow),
+]
+
+BASE_MACHO = [
     ('NOUNDEFS', check_MACHO_NOUNDEFS),
-    ('NX', check_NX),
     ('LAZY_BINDINGS', check_MACHO_LAZY_BINDINGS),
     ('Canary', check_MACHO_Canary),
-    ('CONTROL_FLOW', check_control_flow),
 ]
+
+CHECKS = {
+    lief.EXE_FORMATS.ELF: {
+        lief.ARCHITECTURES.X86: BASE_ELF + [('CONTROL_FLOW', check_ELF_control_flow)],
+        lief.ARCHITECTURES.ARM: BASE_ELF,
+        lief.ARCHITECTURES.ARM64: BASE_ELF,
+        lief.ARCHITECTURES.PPC: BASE_ELF,
+        LIEF_ELF_ARCH_RISCV: BASE_ELF,
+    },
+    lief.EXE_FORMATS.PE: {
+        lief.ARCHITECTURES.X86: BASE_PE,
+    },
+    lief.EXE_FORMATS.MACHO: {
+        lief.ARCHITECTURES.X86: BASE_MACHO + [('PIE', check_PIE),
+                                              ('NX', check_NX),
+                                              ('CONTROL_FLOW', check_MACHO_control_flow)],
+        lief.ARCHITECTURES.ARM64: BASE_MACHO,
+    }
 }
 
 def identify_executable(executable) -> Optional[str]:
