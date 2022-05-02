@@ -373,8 +373,6 @@ public Q_SLOTS:
     void updateWatchOnlyFlag(bool fHaveWatchonly);
     /* Current, immature or unconfirmed balance might have changed - emit 'balanceChanged' if so */
     void pollBalanceChanged();
-    /* Update Amount of sigma change */
-    void updateSigmaCoins(const QString &pubCoin, const QString &isUsed, int status);
     // Handle the changed BIP47 privkeys
     void handleBip47Keys(int receiverAccountNum, void * pBlockIndex);
     // Locks wallet from timer calls
