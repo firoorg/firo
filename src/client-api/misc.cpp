@@ -25,7 +25,7 @@
 namespace fs = boost::filesystem;
 using namespace boost::chrono;
 
-static std::atomic<uint256> block1;
+static std::atomic<uint256*> block1{nullptr};
 
 /* Parse help string as JSON object.
 */
@@ -161,13 +161,15 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
         obj.push_back(Pair("shouldShowWarning", db.ReadShowMnemonicsWarning()));
     }
 
-    uint256 b1 = block1.load(std::memory_order_relaxed);
-    if (b1.IsNull() && chainActive.Tip() && chainActive.Height() > 1) {
-        b1 = chainActive[1]->GetBlockHash();
+    uint256 *b1 = block1.load(std::memory_order_relaxed);
+    if (b1 == nullptr && chainActive.Tip() && chainActive.Height() > 1) {
+        // This will leak memory in the event that it races, but it's just a few bytes at most a few times.
+        b1 = (uint256*)malloc(sizeof(uint256));
+        *b1 = chainActive[1]->GetBlockHash();
         block1.store(b1, std::memory_order_relaxed);
     }
-    if (!b1.IsNull()) {
-        obj.push_back(Pair("block1", b1.GetHex()));
+    if (b1 != nullptr) {
+        obj.push_back(Pair("block1", b1->GetHex()));
     }
 
     // This is the number of blocks we would like our transaction to be confirmed within.
