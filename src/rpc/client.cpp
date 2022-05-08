@@ -175,6 +175,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "setlelantusmintstatus", 1 },
     { "listmintzerocoins", 0 },
     { "listsigmamints", 0 },
+    { "listlelantusmints", 0 },
     { "listpubcoins", 0 },
     { "listsigmapubcoins", 0 },
     { "listspendzerocoins", 0 },

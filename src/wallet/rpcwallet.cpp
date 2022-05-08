@@ -3677,7 +3677,7 @@ UniValue listlelantusmints(const JSONRPCRequest& request) {
         throw std::runtime_error(
                 "listlelantusmints <all>(false/true)\n"
                 "\nArguments:\n"
-                "1. <all> (boolean, optional) false (default) to return own listlelantusmints. true to return every listlelantusmints.\n"
+                "1. <all> (boolean, optional) false (default) to return real listlelantusmints. true to return every listlelantusmints.\n"
                 "\nResults are an array of Objects, each of which has:\n"
                 "{id, IsUsed, amount, value, serialNumber, nHeight, randomness}");
 
@@ -3697,7 +3697,7 @@ UniValue listlelantusmints(const JSONRPCRequest& request) {
     UniValue results(UniValue::VARR);
 
     BOOST_FOREACH(const CLelantusEntry &lelantusItem, listCoin) {
-        if (fAllStatus || lelantusItem.IsUsed || (lelantusItem.randomness != uint64_t(0) && lelantusItem.serialNumber != uint64_t(0))) {
+        if ((fAllStatus || lelantusItem.amount != uint64_t(0))  && (lelantusItem.IsUsed || (lelantusItem.randomness != uint64_t(0) && lelantusItem.serialNumber != uint64_t(0)))) {
             UniValue entry(UniValue::VOBJ);
             entry.push_back(Pair("id", lelantusItem.id));
             entry.push_back(Pair("isUsed", lelantusItem.IsUsed));
