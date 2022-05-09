@@ -3557,6 +3557,9 @@ UniValue joinsplit(const JSONRPCRequest& request) {
     catch (const std::exception& e) {
         throw JSONRPCError(RPC_WALLET_ERROR, e.what());
     }
+    catch (...) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Joinsplit creation failed");
+    }
 
     return wtx.GetHash().GetHex();
 }

@@ -555,6 +555,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
                     CClientUIInterface::MSG_ERROR);
 
             return TransactionCreationFailed;
+        } catch (...) {
+            return TransactionCreationFailed;
         }
 
         // reject absurdly high fee. (This can never happen because the
