@@ -186,6 +186,13 @@ public:
         consensus.stage2ZnodeShare = 35;
         consensus.stage2DevelopmentFundAddress = "aFrAVZFr8pva5mG8XKaUH8EXcFVVNxLiuB";
 
+        consensus.stage3StartTime = 1655380800; // Thursday, 16 June 2022 12:00:00 UTC
+        consensus.stage3DevelopmentFundShare = 15;
+        consensus.stage3CommunityFundShare = 10;
+        consensus.stage3MasternodeShare = 50;
+        consensus.stage3DevelopmentFundAddress = "aLgRaYSFk6iVw2FqY1oei8Tdn2aTsGPVmP";
+        consensus.stage3CommunityFundAddress = "aFA2TbqG9cnhhzX5Yny2pBJRK5EaEqLCH7";
+
         consensus.nStartBlacklist = 293990;
         consensus.nStartDuplicationCheck = 293526;
 
@@ -445,6 +452,7 @@ public:
         
         // ProgPow
         consensus.nPPSwitchTime = 1635228000;           // Tue Oct 26 2021 06:00:00 GMT+0000
+        consensus.nPPBlockNumber = 419264;
         consensus.nInitialPPDifficulty = 0x1b1774cd;    // 40GH/s
     }
     virtual bool SkipUndoForBlock(int nHeight) const
@@ -720,6 +728,7 @@ public:
         
         // ProgPow
         consensus.nPPSwitchTime = 1630069200;           // August 27 2021, 13:00 UTC
+        consensus.nPPBlockNumber = 37305;
         consensus.nInitialPPDifficulty = 0x1d016e81;    // 10MH/s
     }
 };
@@ -937,6 +946,7 @@ public:
 
         // ProgPow
         consensus.nPPSwitchTime = 1631261566;           // immediately after network start
+        consensus.nPPBlockNumber = 1;
         consensus.nInitialPPDifficulty = 0x2000ffff;
     }
 };
@@ -1155,6 +1165,7 @@ public:
         // ProgPow
         // this can be overridden with either -ppswitchtime or -ppswitchtimefromnow flags
         consensus.nPPSwitchTime = INT_MAX;
+        consensus.nPPBlockNumber = INT_MAX;
         consensus.nInitialPPDifficulty = 0x2000ffff;
     }
 
