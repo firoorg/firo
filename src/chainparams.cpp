@@ -964,14 +964,21 @@ public:
         consensus.chainType = Consensus::chainRegtest;
 
         // To be changed for specific tests
-        consensus.nSubsidyHalvingFirst = 302438;
-        consensus.nSubsidyHalvingInterval = 420000;
-        consensus.nSubsidyHalvingStopBlock = 3646849;
+        consensus.nSubsidyHalvingFirst = 1500;
+        consensus.nSubsidyHalvingInterval = 1000;
+        consensus.nSubsidyHalvingStopBlock = 10000;
 
         consensus.nStartBlacklist = 0;
         consensus.nStartDuplicationCheck = 0;
         consensus.stage2DevelopmentFundShare = 15;
         consensus.stage2ZnodeShare = 35;
+
+        consensus.stage3StartTime = INT_MAX; // Thursday, 16 June 2022 12:00:00 UTC
+        consensus.stage3DevelopmentFundShare = 15;
+        consensus.stage3CommunityFundShare = 10;
+        consensus.stage3MasternodeShare = 50;
+        consensus.stage3DevelopmentFundAddress = "TGEGf26GwyUBE2P2o2beBAfE9Y438dCp5t";  // private key cMrz8Df36VR9TvZjtvSqLPhUQR7pcpkXRXaLNYUxfkKsRuCzHpAN
+        consensus.stage3CommunityFundAddress = "TJmPzeJF4DECrBwUftc265U7rTPxKmpa4F";  // private key cTyPWqTMM1CgT5qy3K3LSgC1H6Q2RHvnXZHvjWtKB4vq9qXqKmMu
 
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
