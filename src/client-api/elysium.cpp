@@ -335,17 +335,19 @@ UniValue sendElysium(Type type, const UniValue &data, const UniValue &auth, bool
     }
 }
 
-    static const CAPICommand commands[] =
-        { //  category collection actor authPort authPassphrase  warmupOk
-          //  -------- ---------- ----- -------- --------------  --------
-          { "elysium", "getElysiumPropertyInfo", &getElysiumPropertyInfo, true, false, false  },
-          { "elysium", "createElysiumProperty", &createElysiumProperty, true, true, false  },
-          { "elysium", "mintElysium", &mintElysium, true, true, false  },
-          { "elysium", "sendElysium", &sendElysium, true, true, false  },
-        };
+static const CAPICommand commands[] =
+    { //  category collection actor authPort authPassphrase  warmupOk
+      //  -------- ---------- ----- -------- --------------  --------
+      { "elysium", "getElysiumPropertyInfo", &getElysiumPropertyInfo, true, false, false  },
+      { "elysium", "createElysiumProperty", &createElysiumProperty, true, true, false  },
+      { "elysium", "mintElysium", &mintElysium, true, true, false  },
+      { "elysium", "sendElysium", &sendElysium, true, true, false  },
+    };
 
 void RegisterElysiumAPICommands(CAPITable &tableAPI)
 {
+    if (!isElysiumEnabled()) return;
+
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
         tableAPI.appendCommand(commands[vcidx].collection, &commands[vcidx]);
 }

@@ -214,8 +214,10 @@ std::string ScriptType(const CScript &script) {
 UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
 {
     AssertLockHeld(cs_main);
-    assert(elysium::wallet);
-    assert(elysium::wallet->lelantusWallet.database);
+    if (isElysiumEnabled()) {
+        assert(elysium::wallet);
+        assert(elysium::wallet->lelantusWallet.database);
+    }
 
     bool fIsFromMe = false;
     bool fIsMining = false;
@@ -334,7 +336,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     int nHeight = block ? block->nHeight : 0;
     int nTime = block ? block->nTime : 0;
     CMPTransaction mp_obj;
-    if (ParseTransaction(*wtx.tx, nHeight, 0, mp_obj, nTime) >= 0 && mp_obj.interpret_Transaction()) {
+    if (isElysiumEnabled() && ParseTransaction(*wtx.tx, nHeight, 0, mp_obj, nTime) >= 0 && mp_obj.interpret_Transaction()) {
         UniValue elysiumData = UniValue::VOBJ;
 
         elysiumData.pushKV("isToMe", (bool)IsMine(*pwalletMain, CBitcoinAddress(mp_obj.getReceiver()).Get()));
