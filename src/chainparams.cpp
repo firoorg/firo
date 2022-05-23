@@ -490,7 +490,7 @@ public:
         consensus.chainType = Consensus::chainTestnet;
 
         consensus.nSubsidyHalvingFirst = 12000;
-        consensus.nSubsidyHalvingInterval = 100000;
+        consensus.nSubsidyHalvingInterval = 150000;
         consensus.nSubsidyHalvingStopBlock = 1000000;
 
         consensus.stage2DevelopmentFundShare = 15;
@@ -501,8 +501,8 @@ public:
         consensus.stage3DevelopmentFundShare = 15;
         consensus.stage3CommunityFundShare = 10;
         consensus.stage3MasternodeShare = 50;
-        consensus.stage3DevelopmentFundAddress = "aLgRaYSFk6iVw2FqY1oei8Tdn2aTsGPVmP";
-        consensus.stage3CommunityFundAddress = "aFA2TbqG9cnhhzX5Yny2pBJRK5EaEqLCH7";
+        consensus.stage3DevelopmentFundAddress = "TWDxLLKsFp6qcV1LL4U2uNmW4HwMcapmMU";
+        consensus.stage3CommunityFundAddress = "TCkC4uoErEyCB4MK3d6ouyJELoXnuyqe9L";
 
         consensus.nStartBlacklist = 0;
         consensus.nStartDuplicationCheck = 0;
@@ -759,6 +759,13 @@ public:
         consensus.stage2DevelopmentFundShare = 15;
         consensus.stage2ZnodeShare = 35;
         consensus.stage2DevelopmentFundAddress = "TixHByoJ21dmx5xfMAXTVC4V7k53U7RncU";
+
+        consensus.stage3StartTime = INT_MAX;
+        consensus.stage3DevelopmentFundShare = 15;
+        consensus.stage3CommunityFundShare = 10;
+        consensus.stage3MasternodeShare = 50;
+        consensus.stage3DevelopmentFundAddress = "TepVKkmUo1N6sazuM2wWwV7aiG4m1BUShU";
+        consensus.stage3CommunityFundAddress = "TZpbhfvQE61USHsxd55XdPpWBqu3SXB1EP";
 
         consensus.nStartBlacklist = 0;
         consensus.nStartDuplicationCheck = 0;
