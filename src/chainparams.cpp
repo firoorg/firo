@@ -497,6 +497,13 @@ public:
         consensus.stage2ZnodeShare = 35;
         consensus.stage2DevelopmentFundAddress = "TUuKypsbbnHHmZ2auC2BBWfaP1oTEnxjK2";
 
+        consensus.stage3StartTime = INT_MAX;
+        consensus.stage3DevelopmentFundShare = 15;
+        consensus.stage3CommunityFundShare = 10;
+        consensus.stage3MasternodeShare = 50;
+        consensus.stage3DevelopmentFundAddress = "aLgRaYSFk6iVw2FqY1oei8Tdn2aTsGPVmP";
+        consensus.stage3CommunityFundAddress = "aFA2TbqG9cnhhzX5Yny2pBJRK5EaEqLCH7";
+
         consensus.nStartBlacklist = 0;
         consensus.nStartDuplicationCheck = 0;
         consensus.nMajorityEnforceBlockUpgrade = 51;

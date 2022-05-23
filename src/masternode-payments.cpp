@@ -112,7 +112,7 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, int nTime, C
 
 void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, int nTime, CAmount blockReward, std::vector<CTxOut>& voutMasternodePaymentsRet, std::vector<CTxOut>& /*voutSuperblockPaymentsRet*/)
 {
-    if (!mnpayments.GetMasternodeTxOuts(nBlockHeight, blockReward, nTime, voutMasternodePaymentsRet)) {
+    if (!mnpayments.GetMasternodeTxOuts(nBlockHeight, nTime, blockReward, voutMasternodePaymentsRet)) {
         LogPrint("mnpayments", "%s -- no znode to pay (MN list probably empty)\n", __func__);
     }
 
@@ -268,7 +268,7 @@ bool CMasternodePayments::IsTransactionValid(const CTransaction& txNew, int nBlo
     }
 
     std::vector<CTxOut> voutMasternodePayments;
-    if (!GetBlockTxOuts(nBlockHeight, blockReward, nTime, voutMasternodePayments)) {
+    if (!GetBlockTxOuts(nBlockHeight, nTime, blockReward, voutMasternodePayments)) {
         LogPrintf("CMasternodePayments::%s -- ERROR failed to get payees for block at height %s\n", __func__, nBlockHeight);
         return true;
     }
