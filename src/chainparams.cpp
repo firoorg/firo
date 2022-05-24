@@ -760,7 +760,7 @@ public:
         consensus.stage2ZnodeShare = 35;
         consensus.stage2DevelopmentFundAddress = "TixHByoJ21dmx5xfMAXTVC4V7k53U7RncU";
 
-        consensus.stage3StartTime = INT_MAX;
+        consensus.stage3StartTime = 1653382800;
         consensus.stage3DevelopmentFundShare = 15;
         consensus.stage3CommunityFundShare = 10;
         consensus.stage3MasternodeShare = 50;
