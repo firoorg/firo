@@ -497,7 +497,7 @@ public:
         consensus.stage2ZnodeShare = 35;
         consensus.stage2DevelopmentFundAddress = "TUuKypsbbnHHmZ2auC2BBWfaP1oTEnxjK2";
 
-        consensus.stage3StartTime = INT_MAX;
+        consensus.stage3StartTime = 1653409800;  // May 24th 2022 04:30 UTC
         consensus.stage3DevelopmentFundShare = 15;
         consensus.stage3CommunityFundShare = 10;
         consensus.stage3MasternodeShare = 50;
