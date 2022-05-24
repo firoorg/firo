@@ -3697,7 +3697,7 @@ UniValue listlelantusmints(const JSONRPCRequest& request) {
     UniValue results(UniValue::VARR);
 
     BOOST_FOREACH(const CLelantusEntry &lelantusItem, listCoin) {
-        if ((fAllStatus || lelantusItem.amount != uint64_t(0))  && (lelantusItem.IsUsed || (lelantusItem.randomness != uint64_t(0) && lelantusItem.serialNumber != uint64_t(0)))) {
+        if ((fAllStatus || lelantusItem.amount != uint64_t(0)) && (lelantusItem.IsUsed || (lelantusItem.randomness != uint64_t(0) && lelantusItem.serialNumber != uint64_t(0)))) {
             UniValue entry(UniValue::VOBJ);
             entry.push_back(Pair("id", lelantusItem.id));
             entry.push_back(Pair("isUsed", lelantusItem.IsUsed));
