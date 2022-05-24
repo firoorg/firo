@@ -933,6 +933,8 @@ static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
     }
     stats.nTotalAmount += 44666700000000; // The estimated amount of coins forged during the Zerocoin attacks
     stats.nTotalAmount += 23750000000000; // The estimated amount of coins forged during the Lelantus attacks.
+    stats.nTotalAmount -= 17326986000000; // Total locked in code after CVE-2018-17144 attacks.
+    stats.nTotalAmount -= 16810168037691; // Total burnt Coins sent to unrecoverable address https://explorer.firo.org/tx/0b53178c1b22bae4c04ef943ee6d6d30f2483327fe9beb54952951592e8ce368
 
     stats.hashSerialized = ss.GetHash();
     stats.nDiskSize = view->EstimateSize();
