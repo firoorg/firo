@@ -84,6 +84,8 @@ such as cross compilation, read the [depends instructions](depends/README.md)
 
 Alternatively, you can build dependencies manually. See the full [unix build instructions](doc/build-unix.md).
 
+Bootstrappable builds can [be achieved with Guix.](contrib/guix/README.md)
+
 Development Dependencies (compiler and build tools)
 ----------------------
 

@@ -1688,7 +1688,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         nMaxOutboundLimit = GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024;
     }
 
-    // ********************************************************* Prepare ProgPow/MTP tests
+    // ********************************************************* Prepare ProgPow/MTP/Stage3 tests
 
     Consensus::Params &mutableParams = const_cast<Consensus::Params &>(Params().GetConsensus());
     if (Params().GetConsensus().IsRegtest()) {
@@ -1701,6 +1701,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             mutableParams.nMTPSwitchTime = GetArg("-mtpswitchtime", INT_MAX);
         else if (IsArgSet("-mtpswitchtimefromnow"))
             mutableParams.nMTPSwitchTime = GetArg("-mtpswitchtimefromnow", 0) + (uint32_t)GetTime();
+
+        else if (IsArgSet("-stage3switchtime"))
+            mutableParams.stage3StartTime = GetArg("-stage3switchtime", INT_MAX);
+        else if (IsArgSet("-stage3switchtimefromnow"))
+            mutableParams.stage3StartTime = GetArg("-stage3switchtimefromnow", 0) + (uint32_t)GetTime();
     }
 
     if (IsArgSet("-mtpstripdatatime"))
