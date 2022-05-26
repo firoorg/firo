@@ -829,7 +829,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     // Get expected MN/superblock payees. The call to GetBlockTxOuts might fail on regtest/devnet or when
     // testnet is reset. This is fine and we ignore failure (blocks will be accepted)
     std::vector<CTxOut> voutMasternodePayments;
-    mnpayments.GetBlockTxOuts(chainActive.Height() + 1, 0, voutMasternodePayments);
+    mnpayments.GetBlockTxOuts(chainActive.Height() + 1, pblock->nTime, 0, voutMasternodePayments);
 
     UniValue masternodeObj(UniValue::VARR);
     for (const auto& txout : pblocktemplate->voutMasternodePayments) {
