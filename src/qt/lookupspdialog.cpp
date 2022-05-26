@@ -40,8 +40,8 @@ LookupSPDialog::LookupSPDialog(QWidget *parent) :
 #endif
 
     // connect actions
-    connect(ui->matchingComboBox, SIGNAL(activated(int)), this, SLOT(matchingComboBoxChanged(int)));
-    connect(ui->searchButton, SIGNAL(clicked()), this, SLOT(searchButtonClicked()));
+    connect(ui->matchingComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated), this, &LookupSPDialog::matchingComboBoxChanged);
+    connect(ui->searchButton, &QPushButton::clicked, this, &LookupSPDialog::searchButtonClicked);
 
     // hide crowd info
     ui->desired->setVisible(false);

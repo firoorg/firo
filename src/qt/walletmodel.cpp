@@ -64,7 +64,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
 
     // This timer will be fired repeatedly to update the balance
     pollTimer = new QTimer(this);
-    connect(pollTimer, SIGNAL(timeout()), this, SLOT(pollBalanceChanged()));
+    connect(pollTimer, &QTimer::timeout, this, &WalletModel::pollBalanceChanged);
     pollTimer->start(MODEL_UPDATE_DELAY);
 
     subscribeToCoreSignals();
@@ -916,7 +916,7 @@ bool WalletModel::lockWallet()
 
 void WalletModel::lockWalletDelayed(int seconds)
 {
-    QTimer::singleShot(seconds * 1000, this, SLOT(lockWallet()));
+    QTimer::singleShot(seconds * 1000, this, &WalletModel::lockWallet);
 }
 
 bool WalletModel::changePassphrase(const SecureString &oldPass, const SecureString &newPass)

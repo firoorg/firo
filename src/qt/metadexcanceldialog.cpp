@@ -44,11 +44,11 @@ MetaDExCancelDialog::MetaDExCancelDialog(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    connect(ui->radioCancelPair, SIGNAL(clicked()),this, SLOT(UpdateCancelCombo()));
-    connect(ui->radioCancelPrice, SIGNAL(clicked()),this, SLOT(UpdateCancelCombo()));
-    connect(ui->radioCancelEverything, SIGNAL(clicked()),this, SLOT(UpdateCancelCombo()));
-    connect(ui->cancelButton, SIGNAL(clicked()),this, SLOT(SendCancelTransaction()));
-    connect(ui->fromCombo, SIGNAL(activated(int)), this, SLOT(fromAddressComboBoxChanged(int)));
+    connect(ui->radioCancelPair, &QRadioButton::clicked,this, &MetaDExCancelDialog::UpdateCancelCombo);
+    connect(ui->radioCancelPrice, &QRadioButton::clicked,this, &MetaDExCancelDialog::UpdateCancelCombo);
+    connect(ui->radioCancelEverything, &QRadioButton::clicked,this, &MetaDExCancelDialog::UpdateCancelCombo);
+    connect(ui->cancelButton, &QPushButton::clicked,this, &MetaDExCancelDialog::SendCancelTransaction);
+    connect(ui->fromCombo, qOverload<int>(&QComboBox::activated), this, &MetaDExCancelDialog::fromAddressComboBoxChanged);
 
     // perform initial from address population
     UpdateAddressSelector();

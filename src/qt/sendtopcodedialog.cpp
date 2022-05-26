@@ -91,11 +91,7 @@ void SendtoPcodeDialog::setModel(WalletModel *_model)
     std::pair<CAmount, CAmount> lelantusBalance = model->getLelantusModel()->getPrivateBalance();
     setLelantusBalance(lelantusBalance.first, lelantusBalance.second);
 
-    connect(
-        model,
-        SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)),
-        this,
-        SLOT(onBalanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)));
+    connect(model, &WalletModel::balanceChanged, this, &SendtoPcodeDialog::onBalanceChanged);
 
     updateButtons();
 
@@ -239,7 +235,7 @@ void SendtoPcodeDialog::showEvent( QShowEvent* event ) {
     adjustSize();
     ui->balanceSpacer->sizeHint().setHeight(ui->sendButton->size().height());
 
-    QTimer::singleShot(10, this, SLOT(onWindowShown()));
+    QTimer::singleShot(10, this, &SendtoPcodeDialog::onWindowShown);
 }
 
 void SendtoPcodeDialog::setNotifTxId()

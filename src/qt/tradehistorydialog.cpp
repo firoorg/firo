@@ -120,11 +120,11 @@ TradeHistoryDialog::TradeHistoryDialog(QWidget *parent) :
     contextMenu = new QMenu();
     contextMenu->addAction(copyTxIDAction);
     contextMenu->addAction(showDetailsAction);
-    connect(ui->tradeHistoryTable, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
-    connect(ui->tradeHistoryTable, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(showDetails()));
-    connect(ui->hideInactiveTrades, SIGNAL(stateChanged(int)), this, SLOT(RepopulateTradeHistoryTable(int)));
-    connect(copyTxIDAction, SIGNAL(triggered()), this, SLOT(copyTxID()));
-    connect(showDetailsAction, SIGNAL(triggered()), this, SLOT(showDetails()));
+    connect(ui->tradeHistoryTable, &QWidget::customContextMenuRequested, this, &TradeHistoryDialog::contextualMenu);
+    connect(ui->tradeHistoryTable, &QAbstractItemView::doubleClicked, this, &TradeHistoryDialog::showDetails);
+    connect(ui->hideInactiveTrades, &QCheckBox::stateChanged, this, &TradeHistoryDialog::RepopulateTradeHistoryTable);
+    connect(copyTxIDAction, &QAction::triggered, this, &TradeHistoryDialog::copyTxID);
+    connect(showDetailsAction, &QAction::triggered, this, &TradeHistoryDialog::showDetails);
 }
 
 TradeHistoryDialog::~TradeHistoryDialog()

@@ -27,7 +27,7 @@ Recover::Recover(QWidget *parent) :
     setCreateNew();
     thread = new QThread(this);
 
-    connect(this, SIGNAL(stopThread()), thread, SLOT(quit()));
+    connect(this, &Recover::stopThread, thread, &QThread::quit);
     thread->start();
 }
 

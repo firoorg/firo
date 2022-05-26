@@ -1020,26 +1020,7 @@
               </widget>
              </item>
              <item>
-              <widget class="QDoubleSpinBox" name="amountToMint">
-               <property name="minimumSize">
-                <size>
-                 <width>120</width>
-                 <height>0</height>
-                </size>
-               </property>
-               <property name="alignment">
-                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-               </property>
-               <property name="decimals">
-                <number>2</number>
-               </property>
-               <property name="maximum">
-                <double>21000000.000000000000000</double>
-               </property>
-               <property name="singleStep">
-                <double>0.050000000000000</double>
-               </property>
-              </widget>
+              <widget class="BitcoinAmountField" name="amountToMint"/>
              </item>
              <item>
               <widget class="QLabel" name="label_2">

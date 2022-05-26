@@ -37,19 +37,9 @@ LelantusDialog::LelantusDialog(const PlatformStyle *platformStyle, QWidget *pare
     ui->globalUnspentAmount->setVisible(false);
 
     // Coin Control
-    connect(
-        ui->pushButtonCoinControl, SIGNAL(clicked()),
-        this, SLOT(coinControlButtonClicked()));
-
-    connect(
-        ui->checkBoxCoinControlChange, SIGNAL(stateChanged(int)),
-        this, SLOT(coinControlChangeChecked(int)));
-
-    connect(
-        ui->lineEditCoinControlChange,
-        SIGNAL(textEdited(const QString &)),
-        this,
-        SLOT(coinControlChangeEdited(const QString &)));
+    connect(ui->pushButtonCoinControl, &QPushButton::clicked, this, &LelantusDialog::coinControlButtonClicked);
+    connect(ui->checkBoxCoinControlChange, &QCheckBox::stateChanged, this, &LelantusDialog::coinControlChangeChecked);
+    connect(ui->lineEditCoinControlChange, &QValidatedLineEdit::textEdited, this, &LelantusDialog::coinControlChangeEdited);
 
     // Coin Control: clipboard actions
     QAction *clipboardQuantityAction = new QAction(tr("Copy quantity"), this);
@@ -59,13 +49,13 @@ LelantusDialog::LelantusDialog(const PlatformStyle *platformStyle, QWidget *pare
     QAction *clipboardBytesAction = new QAction(tr("Copy bytes"), this);
     QAction *clipboardLowOutputAction = new QAction(tr("Copy dust"), this);
     QAction *clipboardChangeAction = new QAction(tr("Copy change"), this);
-    connect(clipboardQuantityAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardQuantity()));
-    connect(clipboardAmountAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardAmount()));
-    connect(clipboardFeeAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardFee()));
-    connect(clipboardAfterFeeAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardAfterFee()));
-    connect(clipboardBytesAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardBytes()));
-    connect(clipboardLowOutputAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardLowOutput()));
-    connect(clipboardChangeAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardChange()));
+    connect(clipboardQuantityAction, &QAction::triggered, this, &LelantusDialog::coinControlClipboardQuantity);
+    connect(clipboardAmountAction, &QAction::triggered, this, &LelantusDialog::coinControlClipboardAmount);
+    connect(clipboardFeeAction, &QAction::triggered, this, &LelantusDialog::coinControlClipboardFee);
+    connect(clipboardAfterFeeAction, &QAction::triggered, this, &LelantusDialog::coinControlClipboardAfterFee);
+    connect(clipboardBytesAction, &QAction::triggered, this, &LelantusDialog::coinControlClipboardBytes);
+    connect(clipboardLowOutputAction, &QAction::triggered, this, &LelantusDialog::coinControlClipboardLowOutput);
+    connect(clipboardChangeAction, &QAction::triggered, this, &LelantusDialog::coinControlClipboardChange);
 
     // init transaction fee section.
     QSettings settings;
@@ -121,19 +111,8 @@ void LelantusDialog::setClientModel(ClientModel *_clientModel)
     this->clientModel = _clientModel;
 
     if (_clientModel) {
-        connect(
-            _clientModel,
-            SIGNAL(numBlocksChanged(int,QDateTime,double,bool)),
-            this,
-            SLOT(updateSmartFeeLabel()));
-
-        connect(
-            _clientModel,
-            SIGNAL(numBlocksChanged(int,QDateTime,double,bool)),
-            this,
-            SLOT(updateGlobalState()));
-
-        updateGlobalState();
+        connect(_clientModel, &ClientModel::numBlocksChanged, this, &LelantusDialog::updateSmartFeeLabel);
+        connect(_clientModel, &ClientModel::numBlocksChanged, this, &LelantusDialog::updateGlobalState);
     }
 }
 
@@ -142,17 +121,8 @@ void LelantusDialog::setWalletModel(WalletModel *_walletModel)
     this->walletModel = _walletModel;
 
     if (_walletModel) {
-        connect(
-            _walletModel,
-            SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)),
-            this,
-            SLOT(setBalance(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)));
-
-        connect(
-            _walletModel->getOptionsModel(),
-            SIGNAL(displayUnitChanged(int)),
-            this,
-            SLOT(updateDisplayUnit(int)));
+        connect(_walletModel, &WalletModel::balanceChanged, this, &LelantusDialog::setBalance);
+        connect(_walletModel->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &LelantusDialog::updateDisplayUnit);
 
         auto privateBalance = _walletModel->getLelantusModel()->getPrivateBalance();
         setBalance(0, 0, 0, 0, 0, 0,
@@ -161,15 +131,8 @@ void LelantusDialog::setWalletModel(WalletModel *_walletModel)
             _walletModel->getAnonymizableBalance());
 
         // Coin Control
-        connect(
-            _walletModel->getOptionsModel(),
-            SIGNAL(displayUnitChanged(int)),
-            this, SLOT(coinControlUpdateLabels()));
-        connect(
-            _walletModel->getOptionsModel(),
-            SIGNAL(coinControlFeaturesChanged(bool)),
-            this,
-            SLOT(coinControlFeatureChanged(bool)));
+        connect(_walletModel->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &LelantusDialog::coinControlUpdateLabels);
+        connect(_walletModel->getOptionsModel(), &OptionsModel::coinControlFeaturesChanged, this, &LelantusDialog::coinControlFeatureChanged);
         ui->frameCoinControl->setVisible(
             _walletModel->getOptionsModel()->getCoinControlFeatures());
         coinControlUpdateLabels();
@@ -179,20 +142,20 @@ void LelantusDialog::setWalletModel(WalletModel *_walletModel)
         updateDisplayUnit(unit);
 
         // fee section
-        connect(ui->sliderSmartFee, SIGNAL(valueChanged(int)), this, SLOT(updateSmartFeeLabel()));
-        connect(ui->sliderSmartFee, SIGNAL(valueChanged(int)), this, SLOT(updateGlobalFeeVariables()));
-        connect(ui->sliderSmartFee, SIGNAL(valueChanged(int)), this, SLOT(coinControlUpdateLabels()));
-        connect(ui->groupFee, SIGNAL(buttonClicked(int)), this, SLOT(updateFeeSectionControls()));
-        connect(ui->groupFee, SIGNAL(buttonClicked(int)), this, SLOT(updateGlobalFeeVariables()));
-        connect(ui->groupFee, SIGNAL(buttonClicked(int)), this, SLOT(coinControlUpdateLabels()));
-        connect(ui->groupCustomFee, SIGNAL(buttonClicked(int)), this, SLOT(updateGlobalFeeVariables()));
-        connect(ui->groupCustomFee, SIGNAL(buttonClicked(int)), this, SLOT(coinControlUpdateLabels()));
-        connect(ui->customFee, SIGNAL(valueChanged()), this, SLOT(updateGlobalFeeVariables()));
-        connect(ui->customFee, SIGNAL(valueChanged()), this, SLOT(coinControlUpdateLabels()));
-        connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(setMinimumFee()));
-        connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(updateFeeSectionControls()));
-        connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(updateGlobalFeeVariables()));
-        connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(coinControlUpdateLabels()));
+        connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &LelantusDialog::updateSmartFeeLabel);
+        connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &LelantusDialog::updateGlobalFeeVariables);
+        connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &LelantusDialog::coinControlUpdateLabels);
+        connect(ui->groupFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &LelantusDialog::updateFeeSectionControls);
+        connect(ui->groupFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &LelantusDialog::updateGlobalFeeVariables);
+        connect(ui->groupFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &LelantusDialog::coinControlUpdateLabels);
+        connect(ui->groupCustomFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &LelantusDialog::updateGlobalFeeVariables);
+        connect(ui->groupCustomFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &LelantusDialog::coinControlUpdateLabels);
+        connect(ui->customFee, &BitcoinAmountField::valueChanged, this, &LelantusDialog::updateGlobalFeeVariables);
+        connect(ui->customFee, &BitcoinAmountField::valueChanged, this, &LelantusDialog::coinControlUpdateLabels);
+        connect(ui->checkBoxMinimumFee, &QCheckBox::stateChanged, this, &LelantusDialog::setMinimumFee);
+        connect(ui->checkBoxMinimumFee, &QCheckBox::stateChanged, this, &LelantusDialog::updateFeeSectionControls);
+        connect(ui->checkBoxMinimumFee, &QCheckBox::stateChanged, this, &LelantusDialog::updateGlobalFeeVariables);
+        connect(ui->checkBoxMinimumFee, &QCheckBox::stateChanged, this, &LelantusDialog::coinControlUpdateLabels);
         ui->customFee->setSingleStep(CWallet::GetRequiredFee(1000));
         updateFeeSectionControls();
         updateMinFeeLabel();

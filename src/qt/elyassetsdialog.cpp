@@ -103,14 +103,14 @@ ElyAssetsDialog::ElyAssetsDialog(QWidget *parent) :
     contextMenuSummary->addAction(balancesCopyAvailableAmountAction);
 
     // Connect actions
-    connect(ui->balancesTable, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
-    connect(ui->propSelectorWidget, SIGNAL(activated(int)), this, SLOT(propSelectorChanged()));
-    connect(balancesCopyIDAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol0()));
-    connect(balancesCopyNameAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol1()));
-    connect(balancesCopyLabelAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol0()));
-    connect(balancesCopyAddressAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol1()));
-    connect(balancesCopyReservedAmountAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol2()));
-    connect(balancesCopyAvailableAmountAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol3()));
+    connect(ui->balancesTable, &QWidget::customContextMenuRequested, this, &ElyAssetsDialog::contextualMenu);
+    connect(ui->propSelectorWidget, qOverload<int>(&QComboBox::activated) , this, &ElyAssetsDialog::propSelectorChanged);
+    connect(balancesCopyIDAction, &QAction::triggered, this, &ElyAssetsDialog::balancesCopyCol0);
+    connect(balancesCopyNameAction, &QAction::triggered, this, &ElyAssetsDialog::balancesCopyCol1);
+    connect(balancesCopyLabelAction, &QAction::triggered, this, &ElyAssetsDialog::balancesCopyCol0);
+    connect(balancesCopyAddressAction, &QAction::triggered, this, &ElyAssetsDialog::balancesCopyCol1);
+    connect(balancesCopyReservedAmountAction, &QAction::triggered, this, &ElyAssetsDialog::balancesCopyCol2);
+    connect(balancesCopyAvailableAmountAction, &QAction::triggered, this, &ElyAssetsDialog::balancesCopyCol3);
 }
 
 ElyAssetsDialog::~ElyAssetsDialog()
@@ -130,8 +130,8 @@ void ElyAssetsDialog::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
     if (model != NULL) {
-        connect(model, SIGNAL(refreshElysiumBalance()), this, SLOT(balancesUpdated()));
-        connect(model, SIGNAL(reinitElysiumState()), this, SLOT(reinitEly()));
+        connect(model, &ClientModel::refreshElysiumBalance, this, &ElyAssetsDialog::balancesUpdated);
+        connect(model, &ClientModel::reinitElysiumState, this, &ElyAssetsDialog::reinitEly);
     }
 }
 

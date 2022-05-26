@@ -18,11 +18,7 @@ IncomingFundNotifier::IncomingFundNotifier(
     timer = new QTimer(this);
     timer->setSingleShot(true);
 
-    connect(timer,
-        SIGNAL(timeout()),
-        this,
-        SLOT(check()),
-        Qt::QueuedConnection);
+    connect(timer, &QTimer::timeout, this, &IncomingFundNotifier::check, Qt::QueuedConnection);
 
     importTransactions();
     subscribeToCoreSignals();
@@ -184,13 +180,13 @@ AutoMintModel::AutoMintModel(
     autoMintCheckTimer = new QTimer(this);
     autoMintCheckTimer->setSingleShot(false);
 
-    connect(autoMintCheckTimer, SIGNAL(timeout()), this, SLOT(checkAutoMint()));
+    connect(autoMintCheckTimer, &QTimer::timeout, [this]{ checkAutoMint(); });
 
     notifier = new IncomingFundNotifier(wallet, this);
 
-    connect(notifier, SIGNAL(matureFund(CAmount)), this, SLOT(startAutoMint()));
+    connect(notifier, &IncomingFundNotifier::matureFund, this, &AutoMintModel::startAutoMint);
 
-    connect(optionsModel, SIGNAL(autoAnonymizeChanged(bool)), this, SLOT(updateAutoMintOption(bool)));
+    connect(optionsModel, &OptionsModel::autoAnonymizeChanged, this, &AutoMintModel::updateAutoMintOption);
 }
 
 AutoMintModel::~AutoMintModel()

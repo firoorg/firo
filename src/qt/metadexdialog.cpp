@@ -76,17 +76,17 @@ MetaDExDialog::MetaDExDialog(QWidget *parent) :
     ui->sellList->setEditTriggers(QAbstractItemView::NoEditTriggers);
     ui->sellList->setSelectionMode(QAbstractItemView::SingleSelection);
 
-    connect(ui->comboPairTokenA, SIGNAL(activated(int)), this, SLOT(SwitchMarket()));
-    connect(ui->comboPairTokenB, SIGNAL(activated(int)), this, SLOT(SwitchMarket()));
-    connect(ui->comboAddress, SIGNAL(activated(int)), this, SLOT(UpdateBalance()));
-    connect(ui->chkTestEco, SIGNAL(clicked(bool)), this, SLOT(FullRefresh()));
-    connect(ui->buttonInvertPair, SIGNAL(clicked(bool)), this, SLOT(InvertPair()));
-    connect(ui->buttonTradeHistory, SIGNAL(clicked(bool)), this, SLOT(ShowHistory()));
-    connect(ui->sellAmountSaleLE, SIGNAL(textEdited(const QString &)), this, SLOT(RecalcSellValues()));
-    connect(ui->sellAmountDesiredLE, SIGNAL(textEdited(const QString &)), this, SLOT(RecalcSellValues()));
-    connect(ui->sellUnitPriceLE, SIGNAL(textEdited(const QString &)), this, SLOT(RecalcSellValues()));
-    connect(ui->sellList, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(ShowDetails()));
-    connect(ui->sellButton, SIGNAL(clicked()), this, SLOT(sendTrade()));
+    connect(ui->comboPairTokenA, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated), this, &MetaDExDialog::SwitchMarket);
+    connect(ui->comboPairTokenB, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated), this, &MetaDExDialog::SwitchMarket);
+    connect(ui->comboAddress, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated), this, &MetaDExDialog::UpdateBalance);
+    connect(ui->chkTestEco, &QCheckBox::clicked, this, &MetaDExDialog::FullRefresh);
+    connect(ui->buttonInvertPair, &QPushButton::clicked, this, &MetaDExDialog::InvertPair);
+    connect(ui->buttonTradeHistory, &QPushButton::clicked, this, &MetaDExDialog::ShowHistory);
+    connect(ui->sellAmountSaleLE, &QLineEdit::textEdited, this, &MetaDExDialog::RecalcSellValues);
+    connect(ui->sellAmountDesiredLE, &QLineEdit::textEdited, this, &MetaDExDialog::RecalcSellValues);
+    connect(ui->sellUnitPriceLE, &QLineEdit::textEdited, this, &MetaDExDialog::RecalcSellValues);
+    connect(ui->sellList, &QAbstractItemView::doubleClicked, this, &MetaDExDialog::ShowDetails);
+    connect(ui->sellButton, &QPushButton::clicked, this, &MetaDExDialog::sendTrade);
 
     FullRefresh();
 }
@@ -114,9 +114,9 @@ void MetaDExDialog::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
     if (NULL != model) {
-        connect(model, SIGNAL(refreshElysiumState()), this, SLOT(UpdateOffers()));
-        connect(model, SIGNAL(refreshElysiumBalance()), this, SLOT(BalanceOrderRefresh()));
-        connect(model, SIGNAL(reinitElysiumState()), this, SLOT(FullRefresh()));
+        connect(model, &ClientModel::refreshElysiumState, this, &MetaDExDialog::UpdateOffers);
+        connect(model, &ClientModel::refreshElysiumBalance, this, &MetaDExDialog::BalanceOrderRefresh);
+        connect(model, &ClientModel::reinitElysiumState, this, &MetaDExDialog::FullRefresh);
     }
 }
 
@@ -125,7 +125,7 @@ void MetaDExDialog::setWalletModel(WalletModel *model)
     // use wallet model to get visibility into FIRO balance changes for fees
     this->walletModel = model;
     if (model != NULL) {
-       connect(model, SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)), this, SLOT(UpdateBalances()));
+       connect(model, &WalletModel::balanceChanged, this, &MetaDExDialog::UpdateBalance);
     }
 }
 
