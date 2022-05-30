@@ -95,31 +95,19 @@ void Wallet::OnLelantusMintAdded(
     int block)
 {
     LogPrintf("%s : Mint added = block : %d, group : %d, idx : %d\n", __func__, block, group, idx);
-    auto locked = pwalletMain->IsLocked();
-    auto knowAmount = amount.get_ptr() != nullptr;
-
-    // Can set state if wallet is not encrypt or encrypted but amount is known
-    auto canSetState = !locked || knowAmount;
-    if (!canSetState) {
-        LogPrintf("%s : Can not set state\n", __func__);
-        return;
-    }
 
     if (HasLelantusMint(id)) {
-
         // 1. is in wallet then update state
         SetLelantusMintChainState(id, {block, group, idx});
         return;
     }
 
-    if (!locked) {
-
+    if (!pwalletMain->IsLocked() && amount.get_ptr() != nullptr) {
         // 2. try to recover new mint from pool
         LelantusMintChainState state(block, group, idx);
         if (lelantusWallet.TryRecoverMint(id, state, property, amount.get())) {
             LogPrintf("%s : Found new mint when try to recover\n", __func__);
         }
-        return;
     }
 }
 

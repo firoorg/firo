@@ -191,7 +191,10 @@ UniValue mintElysium(Type type, const UniValue &data, const UniValue &auth, bool
     UniValue inputs = UniValue::VARR;
 
     int b = INT_MAX;
+    bool initialMint = false;
     if (elysium::lelantusDb->GetAnonymityGroup(propertyId, 0, 1, b).empty()) {
+        initialMint = true;
+
         if (balance == 1) throw JSONAPIError(API_INTERNAL_ERROR, "minting logic requires two initial mints; this condition cannot be fulfilled");
 
         int64_t premintAmount = balance / 2;
@@ -206,7 +209,7 @@ UniValue mintElysium(Type type, const UniValue &data, const UniValue &auth, bool
         uint256 txid;
         std::string rawHex;
         std::vector<unsigned char> payload = CreatePayload_CreateLelantusMint(propertyId, coin.getPublicCoin(), mint.id, premintAmount, {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
-        auto result = elysium::WalletTxBuilder(address, "", "", payload, txid, rawHex, true, elysium::InputMode::NORMAL, &inputs);
+        auto result = elysium::WalletTxBuilder(address, "", "", payload, txid, rawHex, true, elysium::InputMode::MINT, &inputs);
         if (result != 0) throw JSONAPIError(API_INTERNAL_ERROR, error_str(result));
 
         mint.Commit();
@@ -225,7 +228,7 @@ UniValue mintElysium(Type type, const UniValue &data, const UniValue &auth, bool
     uint256 txid;
     std::string rawHex;
     std::vector<unsigned char> payload = CreatePayload_CreateLelantusMint(propertyId, coin.getPublicCoin(), mint.id, balance, {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
-    auto result = elysium::WalletTxBuilder(address, "", "", payload, txid, rawHex, true, elysium::InputMode::NORMAL, &inputs);
+    auto result = elysium::WalletTxBuilder(address, "", "", payload, txid, rawHex, true, initialMint ? elysium::InputMode::NORMAL : elysium::InputMode::MINT, &inputs);
     if (result != 0) throw JSONAPIError(API_INTERNAL_ERROR, error_str(result));
 
     mint.Commit();

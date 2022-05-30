@@ -318,6 +318,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         output.pushKV("isLocked", !!pwalletMain->setLockedCoins.count(COutPoint(wtx.tx->GetHash(), n)));
         output.pushKV("isSpent", fIsSpent);
         output.pushKV("isToMe", fIsToMe);
+        output.pushKV("isElysiumReferenceOutput", wtx.tx->IsElysiumReferenceOutput(n));
         if (hasDestination) output.pushKV("destination", CBitcoinAddress(destination).ToString());
 
         outputs.push_back(output);

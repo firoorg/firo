@@ -1764,12 +1764,13 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
     CBitcoinAddress addr = CBitcoinAddress(senderAddress);
     coinControl.destChange = addr.Get();
 
-    coinControl.nCoinType = CoinType::APPROPRIATE_FOR_ELYSIUM;
+    if (inputMode == InputMode::MINT) coinControl.nCoinType = CoinType::APPROPRIATE_FOR_ELYSIUM_MINT;
 
     // Select the inputs
-    if (0 >= SelectCoins(senderAddress, coinControl, ConsensusParams().REFERENCE_AMOUNT, inputMode)) {
+    if (0 >= SelectCoins(senderAddress, coinControl, inputMode == InputMode::MINT ? 0 : ConsensusParams().REFERENCE_AMOUNT, inputMode)) {
         switch (inputMode) {
         case InputMode::NORMAL:
+        case InputMode::MINT:
             return MP_INPUTS_INVALID;
         case InputMode::LELANTUS:
             return MP_LELANTUS_INPUTS_INVALID;
@@ -1799,11 +1800,13 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
         
     }
 
-    // Then add a paytopubkeyhash output for the recipient (if needed) - note we do this last as we want this to be the highest vout
-    if (!receiverAddress.empty()) {
-        CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(receiverAddress).Get());
+    // This notification transaction is used for internal accounting purposes and to make sure the recipient has enough
+    // funds to perform a subsequent transaction.
+    std::string notificationAddress = receiverAddress.empty() ? senderAddress : receiverAddress;
+    CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(notificationAddress).Get());
+
+    if (inputMode != InputMode::MINT)
         vecSend.push_back(CTxOut(ConsensusParams().REFERENCE_AMOUNT, scriptPubKey));
-    }
 
     // Now we have what we need to pass to the wallet to create the transaction, perform some checks first
 
@@ -1824,8 +1827,9 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
 
 	
 
-	if(inputMode == InputMode::NORMAL) {
+	if(inputMode == InputMode::NORMAL || inputMode == InputMode::MINT) {
 		LogPrintf("inputMode Normal \n");
+		nChangePosInOut = vecRecipients.size();
 		// Ask the wallet to create the transaction (note mining fee determined by Bitcoin Core params)
 		if (!pwalletMain->CreateTransaction(vecRecipients, wtxNew, reserveKey, nFeeRet, nChangePosInOut, strFailReason, &coinControl)) {
 			PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, strFailReason);
@@ -1892,6 +1896,7 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
         // Commit the transaction to the wallet and broadcast)
         PrintToLog("%s: %s; nFeeRet = %d\n", __func__, wtxNew.tx->ToString(), nFeeRet);
         switch (inputMode) {
+        case InputMode::MINT:
         case InputMode::NORMAL:
             {
                 CValidationState state;

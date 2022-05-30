@@ -238,6 +238,21 @@ bool CTransaction::HasNoRegularInputs() const {
     return IsZerocoinSpend() || IsSigmaSpend() || IsZerocoinRemint() || IsLelantusJoinSplit();
 }
 
+bool CTransaction::IsElysiumReferenceOutput(uint32_t i) const {
+    // This needs to be kept in sync with elysium::ConsensusParams().REFERENCE_AMOUNT
+    CAmount REFERENCE_AMOUNT = 100000;
+
+    if (i != 1) return false;
+    if (!vout[i].scriptPubKey.IsNormalPaymentScript()) return false;
+    if (vout[i].nValue != REFERENCE_AMOUNT) return false;
+
+    for (CTxOut const &out: vout) {
+        if (out.scriptPubKey.IsElysium()) return true;
+    }
+
+    return false;
+}
+
 unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const
 {
     // In order to avoid disincentivizing cleaning up the UTXO set we don't count

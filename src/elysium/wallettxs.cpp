@@ -22,6 +22,8 @@
 #include "script/ismine.h"
 #include "wallet/wallet.h"
 #include "wallet/walletexcept.h"
+#include "packetencoder.h"
+
 #endif
 
 #include <stdint.h>
@@ -225,6 +227,7 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     switch (inputMode) {
+    case InputMode::MINT:
     case InputMode::NORMAL:
         // iterate over the wallet
         for (std::map<uint256, CWalletTx>::const_iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it) {
@@ -232,9 +235,6 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
             const CWalletTx& wtx = it->second;
 
             if (!wtx.IsTrusted()) {
-                continue;
-            }
-            if (!wtx.GetAvailableCredit()) {
                 continue;
             }
 
@@ -247,6 +247,10 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
                 }
 
                 if (!IsMine(*pwalletMain, dest)) {
+                    continue;
+                }
+
+                if (wtx.tx->IsCoinBase() && wtx.GetBlocksToMaturity() > 0) {
                     continue;
                 }
 
@@ -265,19 +269,22 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
                     PrintToLog("%s: sender: %s, outpoint: %s:%d, value: %d\n", __func__, sAddress, txid.GetHex(), n, txOut.nValue);
 
                 // only use funds from the sender's address
-                if (fromAddress == sAddress) {
-                    COutPoint outpoint(txid, n);
-                    coinControl.Select(outpoint);
+                if (fromAddress != sAddress) continue;
 
-                    nTotal += txOut.nValue;
+                if ((inputMode == InputMode::MINT) != wtx.tx->IsElysiumReferenceOutput(n)) continue;
 
-                    if (nMax <= nTotal) break;
-                }
+                COutPoint outpoint(txid, n);
+                coinControl.Select(outpoint);
+
+                nTotal += txOut.nValue;
+
+                if (nMax <= nTotal) break;
             }
 
             if (nMax <= nTotal) break;
         }
         break;
+
     case InputMode::LELANTUS:
         {
             std::vector<CLelantusEntry> coinsToSpend;

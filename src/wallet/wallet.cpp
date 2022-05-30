@@ -3557,17 +3557,10 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
             }
 
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
-#ifdef ENABLE_ELYSIUM
-                bool isElysiumReferenceOutput =
-                    i == 1 &&
-                    pcoin->tx->vout[i].nValue == elysium::ConsensusParams().REFERENCE_AMOUNT &&
-                    !pcoin->IsChange(i) &&
-                    elysium::DeterminePacketClass(*pcoin->tx, elysium::ConsensusParams().NULLDATA_BLOCK + 1).has_value();
-                if (isElysiumReferenceOutput && nCoinType != CoinType::APPROPRIATE_FOR_ELYSIUM) continue;
-#endif
+                if (pcoin->tx->IsElysiumReferenceOutput(i) && nCoinType != CoinType::APPROPRIATE_FOR_ELYSIUM_MINT) continue;
 
                 bool found = false;
-                if(nCoinType == CoinType::ALL_COINS || nCoinType == CoinType::APPROPRIATE_FOR_ELYSIUM){
+                if(nCoinType == CoinType::ALL_COINS || nCoinType == CoinType::APPROPRIATE_FOR_ELYSIUM_MINT){
                     // We are now taking ALL_COINS to mean everything sans mints and Elysium reference outputs
                     found = !(pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint()
                             || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint()
