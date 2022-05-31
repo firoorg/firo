@@ -20,6 +20,12 @@ uint256 MintMeta::GetPubCoinValueHash() const {
     return *pubCoinValueHash;
 }
 
+uint256 CSparkMintMeta::GetNonceHash() const {
+    if(!nonceHash)
+        nonceHash.reset(primitives::GetSerialHash(k));
+    return *nonceHash;
+}
+
 namespace primitives {
 
 uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial) {
