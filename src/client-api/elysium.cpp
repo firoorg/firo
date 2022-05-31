@@ -96,19 +96,7 @@ UniValue getElysiumPropertyInfo(Type type, const UniValue& data, const UniValue&
 UniValue createElysiumProperty(Type type, const UniValue &data, const UniValue &auth, bool fHelp) {
     LOCK(cs_main);
 
-    std::string fromAddress;
-    CAmount minAmount = elysium::ConsensusParams().REFERENCE_AMOUNT * 2;
-    std::map<CTxDestination, CAmount> balances = pwalletMain->GetAddressBalances();
-    for (auto& balance : balances) {
-        if (balance.second >= minAmount) {
-            fromAddress = CBitcoinAddress(balance.first).ToString();
-            break;
-        }
-    }
-    if (fromAddress.empty()) {
-        throw JSONAPIError(API_INVALID_PARAMS, "no addresses with public balance >= 0.002 FIRO");
-    }
-
+    std::string fromAddress = data["fromAddress"].get_str();
     bool isFixed = data["isFixed"].get_bool();
     bool isMainEcosystem = true;
     bool isDivisible = data["isDivisible"].get_bool();
