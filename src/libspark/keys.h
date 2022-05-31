@@ -11,6 +11,7 @@ class SpendKey {
 public:
 	SpendKey();
 	SpendKey(const Params* params);
+    SpendKey(const Params* params, const Scalar& r_);
 	const Params* get_params() const;
 	const Scalar& get_s1() const;
 	const Scalar& get_s2() const;
@@ -40,11 +41,19 @@ private:
 class IncomingViewKey {
 public:
 	IncomingViewKey();
+    IncomingViewKey(const Params* params);
 	IncomingViewKey(const FullViewKey& full_view_key);
 	const Params* get_params() const;
 	const Scalar& get_s1() const;
 	const GroupElement& get_P2() const;
 	uint64_t get_diversifier(const std::vector<unsigned char>& d) const;
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(s1);
+        READWRITE(P2);
+    }
 
 private:
 	const Params* params;
@@ -60,6 +69,8 @@ public:
 	const std::vector<unsigned char>& get_d() const;
 	const GroupElement& get_Q1() const;
 	const GroupElement& get_Q2() const;
+    std::string GetHex() const;
+    void SetHex(const std::string& str);
 
 private:
 	const Params* params;
