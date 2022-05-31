@@ -13,6 +13,7 @@
 #include "util.h"
 #include "utiltime.h"
 #include "wallet/wallet.h"
+
 #include "bip47/account.h"
 
 #include <atomic>
@@ -1438,6 +1439,27 @@ bool CWalletDB::WriteMintSeedCount(const int32_t& nCount)
     return Write(std::string("dzsc"), nCount);
 }
 
+bool CWalletDB::readDiversifier(int32_t& diversifier)
+{
+    return Read(std::string("div"), diversifier);
+
+}
+
+bool CWalletDB::writeDiversifier(const int32_t& diversifier)
+{
+    return Write(std::string("div"), diversifier);
+}
+
+bool CWalletDB::readIncomingViewKey(spark::IncomingViewKey& viewKey)
+{
+    return Read(std::string("viewkey"), viewKey);
+}
+
+bool CWalletDB::writeIncomingViewKey(const spark::IncomingViewKey& viewKey)
+{
+    return Write(std::string("viewkey"), viewKey);
+}
+
 bool CWalletDB::WritePubcoin(const uint256& hashSerial, const GroupElement& pubcoin)
 {
     return Write(std::make_pair(std::string("pubcoin"), hashSerial), pubcoin);
@@ -1679,6 +1701,65 @@ void CWalletDB::IncrementUpdateCounter()
 unsigned int CWalletDB::GetUpdateCounter()
 {
     return nWalletDBUpdateCounter;
+}
+
+std::list<CSparkMintMeta> CWalletDB::ListSparkMints()
+{
+    std::list<CSparkMintMeta> listMints;
+    Dbc* pcursor = GetCursor();
+    if (!pcursor)
+        throw std::runtime_error(std::string(__func__)+" : cannot create DB cursor");
+    std::string mintName = "sparkMint";
+    bool setRange = true;
+    for (;;)
+    {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (setRange)
+            ssKey << std::make_pair(mintName, ArithToUint256(arith_uint256(0)));
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
+        setRange = false;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0)
+        {
+            pcursor->close();
+            throw std::runtime_error(std::string(__func__)+" : error scanning DB");
+        }
+
+        // Unserialize
+        std::string strType;
+        ssKey >> strType;
+        if (strType != mintName)
+            break;
+
+        uint256 nonceHash;
+        ssKey >> nonceHash;
+
+        CSparkMintMeta mint;
+        ssValue >> mint;
+
+        listMints.emplace_back(mint);
+    }
+
+    pcursor->close();
+    return listMints;
+}
+
+bool CWalletDB::WriteSparkMint(const uint256& nonceHash, const CSparkMintMeta& mint)
+{
+    return Write(std::make_pair(std::string("sparkMint"), nonceHash), mint);
+}
+
+bool CWalletDB::ReadSparkMint(const uint256& nonceHash, CSparkMintMeta& mint)
+{
+    return Read(std::make_pair(std::string("sparkMint"), nonceHash), mint);
+}
+
+bool CWalletDB::EraseSparkMint(const uint256& nonceHash)
+{
+    return Erase(std::make_pair(std::string("sparkMint"), nonceHash));
 }
 
 

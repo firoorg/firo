@@ -18,6 +18,7 @@
 #include "hdmint/mintpool.h"
 #include "../secp256k1/include/GroupElement.h"
 #include "../secp256k1/include/Scalar.h"
+#include "../libspark/keys.h"
 
 #include <list>
 #include <stdint.h>
@@ -272,6 +273,12 @@ public:
     bool ReadMintSeedCount(int32_t& nCount);
     bool WriteMintSeedCount(const int32_t& nCount);
 
+    bool readDiversifier(int32_t& nCount);
+    bool writeDiversifier(const int32_t& nCount);
+
+    bool readIncomingViewKey(spark::IncomingViewKey& viewKey);
+    bool writeIncomingViewKey(const spark::IncomingViewKey& viewKey);
+
     bool ArchiveDeterministicOrphan(const CHDMint& dMint);
     bool UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& sigma);
     bool UnarchiveHDMint(const uint256& hashPubcoin, bool isLelantus, CHDMint& dMint);
@@ -294,6 +301,11 @@ public:
     bool WriteMintPoolPair(const uint256& hashPubcoin, const std::tuple<uint160, CKeyID, int32_t>& hashSeedMintPool);
     bool ReadMintPoolPair(const uint256& hashPubcoin, uint160& hashSeedMaster, CKeyID& seedId, int32_t& nCount);
     std::vector<std::pair<uint256, MintPoolEntry>> ListMintPool();
+
+    std::list<CSparkMintMeta> ListSparkMints();
+    bool WriteSparkMint(const uint256& nonceHash, const CSparkMintMeta& mint);
+    bool ReadSparkMint(const uint256& nonceHash, CSparkMintMeta& mint);
+    bool EraseSparkMint(const uint256& nonceHash);
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);
