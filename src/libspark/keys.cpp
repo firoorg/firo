@@ -1,4 +1,5 @@
 #include "keys.h"
+#include "../hash.h"
 
 namespace spark {
 
@@ -10,6 +11,19 @@ SpendKey::SpendKey(const Params* params) {
 	this->s1.randomize();
 	this->s2.randomize();
 	this->r.randomize();
+}
+
+SpendKey::SpendKey(const Params* params, const Scalar& r_) {
+    this->params = params;
+    this->r = r_;
+    std::vector<unsigned char> data;
+    r.serialize(data.data());
+    std::vector<unsigned char> result(CSHA512().OUTPUT_SIZE);
+    CHash512 hash512;
+    hash512.Write(data.data(), data.size()).Finalize(&result[0]);
+
+    this->s1.memberFromSeed(&result[0]);
+    this->s2.memberFromSeed(&result[32]);
 }
 
 const Params* SpendKey::get_params() const {
@@ -58,6 +72,11 @@ const GroupElement& FullViewKey::get_P2() const {
 }
 
 IncomingViewKey::IncomingViewKey() {}
+
+IncomingViewKey::IncomingViewKey(const Params* params) {
+    this->params = params;
+}
+
 IncomingViewKey::IncomingViewKey(const FullViewKey& full_view_key) {
 	this->params = full_view_key.get_params();
 	this->s1 = full_view_key.get_s1();
@@ -113,6 +132,49 @@ const GroupElement& Address::get_Q1() const {
 
 const GroupElement& Address::get_Q2() const {
 	return this->Q2;
+}
+
+std::string Address::GetHex() const {
+    const std::size_t size = 2* GroupElement::serialize_size + AES_BLOCKSIZE;
+    std::vector<unsigned char> buffer;
+    buffer.reserve(size);
+    buffer.resize(2* GroupElement::serialize_size);
+    unsigned char* ptr = buffer.data();
+    ptr = Q1.serialize(ptr);
+    Q2.serialize(ptr);
+    buffer.insert(buffer.end(), d.begin(), d.end());
+
+    std::stringstream ss;
+    ss << std::hex;
+    for (const auto b : buffer) {
+        ss << (b >> 4);
+        ss << (b & 0xF);
+    }
+
+    return ss.str();
+}
+
+void Address::SetHex(const std::string& str) {
+    const std::size_t size = 2 * GroupElement::serialize_size + AES_BLOCKSIZE;
+    if (str.size() != size * 2) {
+        throw "Address: SetHex failed, invalid length";
+    }
+
+    std::array<unsigned char, size> buffer;
+
+    for (std::size_t i = 0; i < buffer.size(); i++) {
+        auto hexs = str.substr(2 * i, 2);
+
+        if (::isxdigit(hexs[0]) && ::isxdigit(hexs[1])) {
+            buffer[i] = strtol(hexs.c_str(), NULL, 16);
+        } else {
+            throw "Address: SetHex failed, invalid hex";
+        }
+    }
+
+    const unsigned char* ptr = Q1.deserialize(buffer.data());
+    Q2.deserialize(ptr);
+    d.insert(d.end(), buffer.begin() + 2 * GroupElement::serialize_size, buffer.end());
 }
 
 }
