@@ -201,7 +201,10 @@ enum opcodetype
     OP_LELANTUSJOINSPLITPAYLOAD = 0xc9,
 
     // input for reminting zerocoin to sigma (v3)
-    OP_ZEROCOINTOSIGMAREMINT = 0xc8
+    OP_ZEROCOINTOSIGMAREMINT = 0xc8,
+
+    // spark params
+    OP_SPARKMINT = 0xd1,
 };
 
 const char* GetOpName(opcodetype opcode);
@@ -671,6 +674,9 @@ public:
     bool IsLelantusMint() const;
     bool IsLelantusJMint() const;
     bool IsLelantusJoinSplit() const;
+
+    // Spark
+    bool IsSparkMint() const;
 
     bool IsZerocoinRemint() const;
 
