@@ -326,6 +326,11 @@ bool CScript::IsLelantusJoinSplit() const {
             ((*this)[0] == OP_LELANTUSJOINSPLIT || (*this)[0] == OP_LELANTUSJOINSPLITPAYLOAD));
 }
 
+bool CScript::IsSparkMint() const {
+    return (this->size() > 0 &&
+            (*this)[0] == OP_SPARKMINT);
+}
+
 bool CScript::IsMint() const {
     return IsZerocoinMint() || IsSigmaMint() || IsZerocoinRemint() || IsLelantusMint() || IsLelantusJMint();
 }

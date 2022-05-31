@@ -19,9 +19,15 @@ class MintTransaction {
 public:
 	MintTransaction(
 		const Params* params,
-		const std::vector<MintedCoinData>& outputs
+		const std::vector<MintedCoinData>& outputs,
+        bool generate = true
 	);
 	bool verify();
+
+    // returns the vector of serialized coins, with first one it puts also the chnorr proof;
+    std::vector<CDataStream> getMintedCoinsSerialized();
+
+    void getCoins(std::vector<Coin>& coins_);
 
 private:
 	const Params* params;

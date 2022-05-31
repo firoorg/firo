@@ -9,6 +9,7 @@
 #include "amount.h"
 #include "../sigma/coin.h"
 #include "../liblelantus/coin.h"
+#include "../libspark/mint_transaction.h"
 #include "streams.h"
 #include "tinyformat.h"
 #include "ui_interface.h"
@@ -20,6 +21,7 @@
 #include "wallet/walletdb.h"
 #include "wallet/rpcwallet.h"
 #include "wallet/mnemoniccontainer.h"
+#include "wallet/spark_wallet.h"
 #include "../base58.h"
 #include "firo_params.h"
 #include "univalue.h"
@@ -104,6 +106,8 @@ const uint32_t BIP44_ELYSIUM_MINT_INDEX_V0 = 0x3;
 const uint32_t BIP44_ELYSIUM_MINT_INDEX_V1 = 0x4;
 #endif
 const uint32_t BIP44_MINT_VALUE_INDEX = 0x5;
+
+const uint32_t BIP44_SPARK_INDEX = 0x6;
 
 class CBlockIndex;
 class CCoinControl;
@@ -753,6 +757,8 @@ public:
 
     std::unique_ptr<CHDMintWallet> zwallet;
 
+    std::unique_ptr<CSparkWallet> sparkWallet;
+
     CWallet()
     {
         SetNull();
@@ -931,6 +937,11 @@ public:
         CHDMint& vDMint,
         bool generate = true);
 
+    // generate recipient data for mint transaction,
+    static std::vector<CRecipient> CreateSparkMintRecipients(
+            const std::vector<spark::MintedCoinData>& outputs,
+            bool generate);
+
     static int GetRequiredCoinCountForAmount(
         const CAmount& required,
         const std::vector<sigma::CoinDenomination>& denominations);
@@ -950,6 +961,9 @@ public:
     std::list<CSigmaEntry> GetAvailableCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false, bool forEstimation = false) const;
 
     std::list<CLelantusEntry> GetAvailableLelantusCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false, bool forEstimation = false) const;
+
+    // Returns the list of pairs of coins and meta data for that coin,
+    std::list<std::pair<spark::Coin, CSparkMintMeta>> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
 
     std::vector<unsigned char> EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pubcoin) const;
 
@@ -1009,6 +1023,11 @@ public:
                                         std::list<CReserveKey>& reservekeys, int& nChangePosInOut,
                                         std::string& strFailReason, const CCoinControl *coinControl, bool autoMintAll = false, bool sign = true);
 
+    bool CreateSparkMintTransactions(const std::vector<spark::MintedCoinData>&  outputs, std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+                                     CAmount& nAllFeeRet,
+                                     std::list<CReserveKey>& reservekeys, int& nChangePosInOut,
+                                     std::string& strFailReason, const CCoinControl *coinControl, bool autoMintAll = false);
+
     CWalletTx CreateSigmaSpendTransaction(
         const std::vector<CRecipient>& recipients,
         CAmount& fee,
@@ -1044,6 +1063,13 @@ public:
             const CAmount& value,
             std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
             std::vector<CHDMint>& mints,
+            bool autoMintAll = false,
+            bool fAskFee = false,
+            const CCoinControl *coinControl = NULL);
+
+    std::string MintAndStoreSpark(
+            const std::vector<spark::MintedCoinData>&  outputs,
+            std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
             bool autoMintAll = false,
             bool fAskFee = false,
             const CCoinControl *coinControl = NULL);
