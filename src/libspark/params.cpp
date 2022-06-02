@@ -56,7 +56,7 @@ Params::Params(
 {
     // Global generators
     this->F = SparkUtils::hash_generator(LABEL_GENERATOR_F);
-    this->G = SparkUtils::hash_generator(LABEL_GENERATOR_G);
+    this->G.set_base_g();
     this->H = SparkUtils::hash_generator(LABEL_GENERATOR_H);
     this->U = SparkUtils::hash_generator(LABEL_GENERATOR_U);
 
