@@ -4,9 +4,11 @@ namespace spark {
 
 MintTransaction::MintTransaction(
 	const Params* params,
-	const std::vector<MintedCoinData>& outputs
+	const std::vector<MintedCoinData>& outputs,
+	const std::vector<unsigned char>& serial_context
 ) {
 	// Important note: This construction assumes that the public coin values are correct according to higher-level consensus rules!
+	// Important note: For pool transition transactions, the serial context should contain unique references to all base-layer spent assets, in order to ensure the resulting serial commitment is bound to this transaction
 
 	this->params = params;
 	Schnorr schnorr(this->params->get_H());
@@ -26,7 +28,8 @@ MintTransaction::MintTransaction(
 			k,
 			output.address,
 			output.v,
-			output.memo
+			output.memo,
+			serial_context
 		));
 
 		// Prepare the value proof

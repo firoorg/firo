@@ -71,7 +71,8 @@ public:
 		const Scalar& k,
 		const Address& address,
 		const uint64_t v,
-		const std::string memo
+		const std::string memo,
+		const std::vector<unsigned char> serial_context
 	);
 
 	// Given an incoming view key, extract the coin's nonce, diversifier, value, and memo
@@ -89,6 +90,7 @@ public:
 	GroupElement S, K, C; // serial commitment, recovery key, value commitment
 	AEADEncryptedData r_; // encrypted recipient data
 	uint64_t v; // value
+	std::vector<unsigned char> serial_context; // context to which the serial commitment should be bound (not serialized, but inferred)
 
 	// Serialization depends on the coin type
 	ADD_SERIALIZE_METHODS;

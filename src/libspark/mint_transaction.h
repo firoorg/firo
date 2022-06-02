@@ -19,7 +19,8 @@ class MintTransaction {
 public:
 	MintTransaction(
 		const Params* params,
-		const std::vector<MintedCoinData>& outputs
+		const std::vector<MintedCoinData>& outputs,
+		const std::vector<unsigned char>& serial_context
 	);
 	bool verify();
 

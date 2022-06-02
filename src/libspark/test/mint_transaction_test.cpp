@@ -7,6 +7,17 @@ namespace spark {
 
 using namespace secp_primitives;
 
+// Generate a random char vector from a random scalar
+static std::vector<unsigned char> random_char_vector() {
+    Scalar temp;
+    temp.randomize();
+    std::vector<unsigned char> result;
+    result.resize(SCALAR_ENCODING);
+    temp.serialize(result.data());
+
+    return result;
+}
+
 BOOST_FIXTURE_TEST_SUITE(spark_mint_transaction_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(generate_verify)
@@ -36,7 +47,8 @@ BOOST_AUTO_TEST_CASE(generate_verify)
     // Generate mint transaction
     MintTransaction mint(
         params,
-        outputs
+        outputs,
+        random_char_vector()
     );
 
     // Verify

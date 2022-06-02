@@ -100,6 +100,11 @@ SpendTransaction::SpendTransaction(
 	std::vector<Scalar> range_v;
 	std::vector<Scalar> range_r;
 	std::vector<GroupElement> range_C;
+
+	// Serial context for all outputs is the set of linking tags for this transaction, which must always be in a fixed order
+    CDataStream serial_context(SER_NETWORK, PROTOCOL_VERSION);
+	serial_context << this->T;
+
 	for (std::size_t j = 0; j < t; j++) {
 		// Nonce
 		k.emplace_back();
@@ -113,7 +118,8 @@ SpendTransaction::SpendTransaction(
 			k.back(),
 			outputs[j].address,
 			outputs[j].v,
-			outputs[j].memo
+			outputs[j].memo,
+			std::vector<unsigned char>(serial_context.begin(), serial_context.end())
 		);
 
 		// Range data
