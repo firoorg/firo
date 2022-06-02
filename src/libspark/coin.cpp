@@ -12,9 +12,11 @@ Coin::Coin(
 	const Scalar& k,
 	const Address& address,
 	const uint64_t v,
-	const std::string memo
+	const std::string memo,
+	const std::vector<unsigned char> serial_context
 ) {
 	this->params = params;
+	this->serial_context = serial_context;
 
 	// Validate the type
 	if (type != COIN_TYPE_MINT && type != COIN_TYPE_SPEND) {
@@ -31,7 +33,7 @@ Coin::Coin(
 	this->K = SparkUtils::hash_div(address.get_d())*SparkUtils::hash_k(k);
 
 	// Construct the serial commitment
-	this->S = this->params->get_F()*SparkUtils::hash_ser(k) + address.get_Q2();
+	this->S = this->params->get_F()*SparkUtils::hash_ser(k, serial_context) + address.get_Q2();
 
 	// Construct the value commitment
 	this->C = this->params->get_G()*Scalar(v) + this->params->get_H()*SparkUtils::hash_val(k);
@@ -90,7 +92,7 @@ bool Coin::validate(
 	// Check serial commitment
 	data.i = incoming_view_key.get_diversifier(data.d);
 
-	if (this->params->get_F()*(SparkUtils::hash_ser(data.k) + SparkUtils::hash_Q2(incoming_view_key.get_s1(), data.i)) + incoming_view_key.get_P2() != this->S) {
+	if (this->params->get_F()*(SparkUtils::hash_ser(data.k, this->serial_context) + SparkUtils::hash_Q2(incoming_view_key.get_s1(), data.i)) + incoming_view_key.get_P2() != this->S) {
 		return false;
 	}
 
@@ -100,7 +102,7 @@ bool Coin::validate(
 // Recover a coin
 RecoveredCoinData Coin::recover(const FullViewKey& full_view_key, const IdentifiedCoinData& data) {
 	RecoveredCoinData recovered_data;
-	recovered_data.s = SparkUtils::hash_ser(data.k) + SparkUtils::hash_Q2(full_view_key.get_s1(), data.i) + full_view_key.get_s2();
+	recovered_data.s = SparkUtils::hash_ser(data.k, this->serial_context) + SparkUtils::hash_Q2(full_view_key.get_s1(), data.i) + full_view_key.get_s2();
 	recovered_data.T = (this->params->get_U() + full_view_key.get_D().inverse())*recovered_data.s.inverse();
 
 	return recovered_data;

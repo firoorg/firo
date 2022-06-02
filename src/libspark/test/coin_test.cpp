@@ -7,6 +7,17 @@ namespace spark {
 
 using namespace secp_primitives;
 
+// Generate a random char vector from a random scalar
+static std::vector<unsigned char> random_char_vector() {
+    Scalar temp;
+    temp.randomize();
+    std::vector<unsigned char> result;
+    result.resize(SCALAR_ENCODING);
+    temp.serialize(result.data());
+
+    return result;
+}
+
 BOOST_FIXTURE_TEST_SUITE(spark_coin_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(mint_identify_recover)
@@ -36,7 +47,8 @@ BOOST_AUTO_TEST_CASE(mint_identify_recover)
         k,
         address,
         v,
-        memo
+        memo,
+        random_char_vector()
     );
 
     // Identify coin
@@ -50,7 +62,7 @@ BOOST_AUTO_TEST_CASE(mint_identify_recover)
     // Recover coin
     RecoveredCoinData r_data = coin.recover(full_view_key, i_data);
     BOOST_CHECK_EQUAL(
-        params->get_F()*(SparkUtils::hash_ser(k) + SparkUtils::hash_Q2(incoming_view_key.get_s1(), i) + full_view_key.get_s2()) + full_view_key.get_D(),
+        params->get_F()*(SparkUtils::hash_ser(k, coin.serial_context) + SparkUtils::hash_Q2(incoming_view_key.get_s1(), i) + full_view_key.get_s2()) + full_view_key.get_D(),
         params->get_F()*r_data.s + full_view_key.get_D()
     );
     BOOST_CHECK_EQUAL(r_data.T*r_data.s + full_view_key.get_D(), params->get_U());
@@ -83,7 +95,8 @@ BOOST_AUTO_TEST_CASE(spend_identify_recover)
         k,
         address,
         v,
-        memo
+        memo,
+        random_char_vector()
     );
 
     // Identify coin
@@ -97,7 +110,7 @@ BOOST_AUTO_TEST_CASE(spend_identify_recover)
     // Recover coin
     RecoveredCoinData r_data = coin.recover(full_view_key, i_data);
     BOOST_CHECK_EQUAL(
-        params->get_F()*(SparkUtils::hash_ser(k) + SparkUtils::hash_Q2(incoming_view_key.get_s1(), i) + full_view_key.get_s2()) + full_view_key.get_D(),
+        params->get_F()*(SparkUtils::hash_ser(k, coin.serial_context) + SparkUtils::hash_Q2(incoming_view_key.get_s1(), i) + full_view_key.get_s2()) + full_view_key.get_D(),
         params->get_F()*r_data.s + full_view_key.get_D()
     );
     BOOST_CHECK_EQUAL(r_data.T*r_data.s + full_view_key.get_D(), params->get_U());
