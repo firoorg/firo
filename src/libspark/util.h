@@ -33,7 +33,6 @@ const std::string LABEL_TRANSCRIPT_SCHNORR = "SCHNORR_V1";
 
 // Generator labels
 const std::string LABEL_GENERATOR_F = "F";
-const std::string LABEL_GENERATOR_G = "G";
 const std::string LABEL_GENERATOR_H = "H";
 const std::string LABEL_GENERATOR_U = "U";
 const std::string LABEL_GENERATOR_G_RANGE = "G_RANGE";
