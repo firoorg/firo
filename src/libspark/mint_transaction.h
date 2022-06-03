@@ -20,6 +20,7 @@ public:
 	MintTransaction(
 		const Params* params,
 		const std::vector<MintedCoinData>& outputs,
+		const std::vector<unsigned char>& serial_context,
         bool generate = true
 	);
 	bool verify();

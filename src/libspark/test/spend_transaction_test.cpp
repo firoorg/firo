@@ -7,6 +7,17 @@ namespace spark {
 
 using namespace secp_primitives;
 
+// Generate a random char vector from a random scalar
+static std::vector<unsigned char> random_char_vector() {
+    Scalar temp;
+    temp.randomize();
+    std::vector<unsigned char> result;
+    result.resize(SCALAR_ENCODING);
+    temp.serialize(result.data());
+
+    return result;
+}
+
 BOOST_FIXTURE_TEST_SUITE(spark_spend_transaction_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(generate_verify)
@@ -41,7 +52,8 @@ BOOST_AUTO_TEST_CASE(generate_verify)
             k,
             address,
             v,
-            memo
+            memo,
+            random_char_vector()
         ));
     }
 
@@ -57,12 +69,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         IdentifiedCoinData identified_coin_data = in_coins[spend_indices[u]].identify(incoming_view_key);
         RecoveredCoinData recovered_coin_data = in_coins[spend_indices[u]].recover(full_view_key, identified_coin_data);
 
-        Scalar temp;
-        temp.randomize();
-        std::vector<unsigned char> root;
-        root.resize(SCALAR_ENCODING);
-        temp.serialize(root.data());
-        roots.emplace_back(root);
+        roots.emplace_back(random_char_vector());
 
         spend_coin_data.emplace_back();
         spend_coin_data.back().index = spend_indices[u];

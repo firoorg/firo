@@ -184,11 +184,12 @@ Scalar SparkUtils::hash_k(const Scalar& k) {
 }
 
 // Hash-to-scalar function H_ser
-Scalar SparkUtils::hash_ser(const Scalar& k) {
+Scalar SparkUtils::hash_ser(const Scalar& k, const std::vector<unsigned char>& serial_context) {
     Hash hash(LABEL_HASH_SER);
 
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
     stream << k;
+    stream << serial_context;
     hash.include(stream);
 
     return hash.finalize_scalar();

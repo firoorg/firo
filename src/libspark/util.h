@@ -33,7 +33,6 @@ const std::string LABEL_TRANSCRIPT_SCHNORR = "SCHNORR_V1";
 
 // Generator labels
 const std::string LABEL_GENERATOR_F = "F";
-const std::string LABEL_GENERATOR_G = "G";
 const std::string LABEL_GENERATOR_H = "H";
 const std::string LABEL_GENERATOR_U = "U";
 const std::string LABEL_GENERATOR_G_RANGE = "G_RANGE";
@@ -69,7 +68,7 @@ public:
     static GroupElement hash_div(const std::vector<unsigned char>& d);
     static Scalar hash_Q2(const Scalar& s1, const Scalar& i);
     static Scalar hash_k(const Scalar& k);
-    static Scalar hash_ser(const Scalar& k);
+    static Scalar hash_ser(const Scalar& k, const std::vector<unsigned char>& serial_context);
     static Scalar hash_val(const Scalar& k);
     static Scalar hash_ser1(const Scalar& s, const GroupElement& D);
     static Scalar hash_val1(const Scalar& s, const GroupElement& D);
