@@ -33,7 +33,7 @@ public:
     // list spark mint, mint metadata in memory and in db should be the same at this moment, so get from memory
     std::vector<CSparkMintMeta> ListSparkMints(bool fUnusedOnly = false, bool fMatureOnly = false);
     // generate spark Coin from meta data
-    spark::Coin getCoinFromMeta(const CSparkMintMeta& meta);
+    spark::Coin getCoinFromMeta(const CSparkMintMeta& meta, const std::vector<unsigned char>& serial_context);
 
     // functions to get spark balance
     CAmount getFullBalance();

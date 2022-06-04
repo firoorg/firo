@@ -167,12 +167,12 @@ std::vector<CSparkMintMeta> CSparkWallet::ListSparkMints(bool fUnusedOnly, bool 
     return setMints;
 }
 
-spark::Coin CSparkWallet::getCoinFromMeta(const CSparkMintMeta& meta) {
+spark::Coin CSparkWallet::getCoinFromMeta(const CSparkMintMeta& meta, const std::vector<unsigned char>& serial_context) {
     const spark::Params* params = spark::Params::get_default();
     spark::Address address = getAddress(meta.i);
     // type we are passing 0; as we don't care about type now
     char type = 0;
-    return spark::Coin(params, type, meta.k, address, meta.v, meta.memo);
+    return spark::Coin(params, type, meta.k, address, meta.v, meta.memo, serial_context);
 }
 
 void CSparkWallet::clearAllMints(CWalletDB& walletdb) {

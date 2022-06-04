@@ -2824,7 +2824,9 @@ std::list<std::pair<spark::Coin, CSparkMintMeta>> CWallet::GetAvailableSparkCoin
         if(mint.v == 0) // ignore 0 mints which where created to increase privacy
             continue;
         // get actual spark coin
-        spark::Coin coin = sparkWallet->getCoinFromMeta(mint);
+        //TODO levon  get transaction to generate serial_context vector for coins
+        std::vector<unsigned char> serial_context;
+        spark::Coin coin = sparkWallet->getCoinFromMeta(mint, serial_context);
         coins.push_back(std::make_pair(coin, mint));
     }
 
@@ -2861,12 +2863,13 @@ std::list<std::pair<spark::Coin, CSparkMintMeta>> CWallet::GetAvailableSparkCoin
 
 std::vector<CRecipient> CWallet::CreateSparkMintRecipients(
 		const std::vector<spark::MintedCoinData>& outputs,
+        const std::vector<unsigned char>& serial_context,
         bool generate)
 {
     const spark::Params* params = spark::Params::get_default();
 
     // create spark mints, if generate is false, skip actual math operations
-    spark::MintTransaction sparkMint(params, outputs, generate);
+    spark::MintTransaction sparkMint(params, outputs, serial_context, generate);
 
     // verify if the mint is valid
     if (generate && !sparkMint.verify()) {
@@ -5342,7 +5345,8 @@ bool CWallet::CreateSparkMintTransactions(
                     }
 
                     // Generate dummy mint coins to save time
-                    std::vector<CRecipient> recipients = CWallet::CreateSparkMintRecipients(singleTxOutputs, false);
+                    std::vector<unsigned char> serial_context;
+                    std::vector<CRecipient> recipients = CWallet::CreateSparkMintRecipients(singleTxOutputs, serial_context, false);
                     for (auto& recipient : recipients) {
                         // vout to create mint
                         CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
@@ -5525,7 +5529,13 @@ bool CWallet::CreateSparkMintTransactions(
                         }
 
                         // Generate real mint coins
-                        recipients = CWallet::CreateSparkMintRecipients(singleTxOutputs, true);
+                        CDataStream serialContextStream(SER_NETWORK, PROTOCOL_VERSION);
+                        for (auto& input : tx.vin) {
+                            serialContextStream << input;
+                        }
+
+                        recipients = CWallet::CreateSparkMintRecipients(singleTxOutputs, std::vector<unsigned char>(serial_context.begin(), serial_context.end()), true);
+
                         size_t i = 0;
                         for (auto& recipient : recipients) {
                             CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
