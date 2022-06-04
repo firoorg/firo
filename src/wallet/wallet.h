@@ -940,6 +940,7 @@ public:
     // generate recipient data for mint transaction,
     static std::vector<CRecipient> CreateSparkMintRecipients(
             const std::vector<spark::MintedCoinData>& outputs,
+            const std::vector<unsigned char>& serial_context,
             bool generate);
 
     static int GetRequiredCoinCountForAmount(
