@@ -16,6 +16,7 @@ public:
 
     // increment diversifier and generate address for that
     spark::Address generateNextAddress();
+    spark::Address getDefaultAddress();
     // assign difersifier to the value from db
     void resetDiversifierFromDB(CWalletDB& walletdb);
     // assign diversifier in to to current value
