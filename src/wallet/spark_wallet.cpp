@@ -25,9 +25,9 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 
         // Write incoming view key into db, it is safe to be kept in db, it is used to identify incoming coins belonging to the wallet
         walletdb.writeIncomingViewKey(viewKey);
-        lastDiversifier = -1;
         // generate one initial address for wallet
-        addresses[lastDiversifier] = generateNextAddress();
+        lastDiversifier = 0;
+        addresses[lastDiversifier] = getDefaultAddress();
         // set 0 as last diversifier into db, we will update it later, in case coin comes, or user manually generates new address
         walletdb.writeDiversifier(lastDiversifier);
     } else {
@@ -98,6 +98,13 @@ CAmount CSparkWallet::getUnconfirmedBalance() {
 
 spark::Address CSparkWallet::generateNextAddress() {
     lastDiversifier++;
+    return spark::Address(viewKey, lastDiversifier);
+}
+
+spark::Address CSparkWallet::getDefaultAddress() {
+    if (addresses.count(0))
+        return addresses[0];
+    lastDiversifier = 0;
     return spark::Address(viewKey, lastDiversifier);
 }
 

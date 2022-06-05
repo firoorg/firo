@@ -5317,12 +5317,10 @@ bool CWallet::CreateSparkMintTransactions(
                     std::vector<spark::MintedCoinData>  remainingOutputs = outputs_;
                     std::vector<spark::MintedCoinData> singleTxOutputs;
                     if (autoMintAll) {
-                        CWalletDB walletdb(strWalletFile);
-                        sparkWallet->resetDiversifierFromDB(walletdb);
                         spark::MintedCoinData  mintedCoinData;
                         mintedCoinData.v = mintedValue;
                         mintedCoinData.memo = "";
-                        mintedCoinData.address = sparkWallet->generateNextAddress();
+                        mintedCoinData.address = sparkWallet->getDefaultAddress();
                         singleTxOutputs.push_back(mintedCoinData);
                     } else {
                         uint64_t remainingMintValue = mintedValue;
@@ -5552,11 +5550,6 @@ bool CWallet::CreateSparkMintTransactions(
 
                         //remove output from outputs_ vector if it got all requested value
                         outputs_ = remainingOutputs;
-
-                        if (autoMintAll) {
-                            CWalletDB walletdb(strWalletFile);
-                            sparkWallet->updatetDiversifierInDB(walletdb);
-                        }
 
                         break; // Done, enough fee included.
                     }
