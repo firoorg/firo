@@ -37,8 +37,12 @@
 #include "ui_interface.h"
 #include "undo.h"
 #include "util.h"
+
+#ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
+#endif
+
 #include "batchproof_container.h"
 #include "sigma.h"
 #include "lelantus.h"

@@ -10,8 +10,11 @@
 
 #include "support/allocators/secure.h"
 
-#include "wallet/walletdb.h"
+#ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
+#include "wallet/walletdb.h"
+#endif
+
 #include "wallet/coincontrol.h"
 
 #include <map>

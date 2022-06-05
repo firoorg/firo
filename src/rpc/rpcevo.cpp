@@ -12,11 +12,11 @@
 #include "validation.h"
 
 #ifdef ENABLE_WALLET
-#include "wallet/coincontrol.h"
 #include "wallet/wallet.h"
 #include "wallet/rpcwallet.h"
 #endif//ENABLE_WALLET
 
+#include "wallet/coincontrol.h"
 #include "netbase.h"
 
 #include "evo/specialtx.h"
@@ -666,7 +666,6 @@ UniValue protx_update_service(const JSONRPCRequest& request)
     }
 
     FundSpecialTx(pwallet, tx, ptx, feeSource);
-
     SignSpecialTxPayloadByHash(tx, ptx, keyOperator);
     SetTxPayload(tx, ptx);
 
@@ -932,12 +931,11 @@ UniValue protx_list(const JSONRPCRequest& request)
     if (request.fHelp) {
         protx_list_help();
     }
-
 #ifdef ENABLE_WALLET
     CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
 #else
     CWallet* const pwallet = nullptr;
-#endif
+#endif // ENABLE_WALLET
 
     std::string type = "registered";
     if (request.params.size() > 1) {
@@ -1278,6 +1276,7 @@ static UniValue spork_listToJSON(const std::map<std::string, std::pair<int, int6
 
 UniValue spork(const JSONRPCRequest& request)
 {
+
     if (request.fHelp || request.params.size() < 1)
         spork_help();
 
@@ -1298,6 +1297,8 @@ UniValue spork(const JSONRPCRequest& request)
         spork_help();
 
     // create spork
+
+#ifdef ENABLE_WALLET
     CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
     CKey secretKey = ParsePrivKey(pwallet, request.params[0].get_str(), true);
     CKeyID publicKeyID;
@@ -1305,6 +1306,7 @@ UniValue spork(const JSONRPCRequest& request)
     if (!CBitcoinAddress(Params().GetConsensus().evoSporkKeyID).GetKeyID(publicKeyID) || secretKey.GetPubKey().GetID() != publicKeyID) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "incorrect spork secret key");
     }
+#endif // ENABLE_WALLET
 
     CBitcoinAddress feeAddress(request.params[1].get_str());
     if (!feeAddress.IsValid()) {
@@ -1419,11 +1421,12 @@ UniValue spork(const JSONRPCRequest& request)
     // make sure fee calculation works correctly
     sporkTx.vchSig.resize(65);
 
+#ifdef ENABLE_WALLET
     FundSpecialTx(pwallet, tx, sporkTx, feeAddress.Get());
     SignSpecialTxPayloadByHash(tx, sporkTx, secretKey);
     SetTxPayload(tx, sporkTx);
-
     return SignAndSendSpecialTx(tx);
+#endif // ENABLE_WALLET
 }
 
 static const CRPCCommand commands[] =

@@ -14,13 +14,16 @@
 #include "txmempool.h"
 #include "util.h"
 #include "utilstrencodings.h"
+
 #ifdef ENABLE_WALLET
 #include "wallet/rpcwallet.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif
+
 #include "txdb.h"
 
+#include "sigma.h"
 #include "masternode-sync.h"
 
 #include <stdint.h>

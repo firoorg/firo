@@ -9,7 +9,9 @@
 #include "amount.h"
 #include "primitives/transaction.h"
 #include "primitives/mint_spend.h"
+
 #include "wallet/db.h"
+
 #include "mnemoniccontainer.h"
 #include "streams.h"
 #include "key.h"

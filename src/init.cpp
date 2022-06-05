@@ -971,6 +971,7 @@ void InitParameterInteraction()
             LogPrintf("%s: parameter interaction: -whitelistforcerelay=1 -> setting -whitelistrelay=1\n", __func__);
     }
 
+#ifdef ENABLE_WALLET
     // Forcing all mnemonic settings off if -usehd is off.
     if (!GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET)) {
         if (SoftSetBoolArg("-usemnemonic", false) && SoftSetArg("-mnemonic", "") && SoftSetArg("-mnemonicpassphrase", "") && SoftSetArg("-hdseed", "not hex"))
@@ -982,6 +983,7 @@ void InitParameterInteraction()
         if (SoftSetArg("-mnemonic", "") && SoftSetArg("-mnemonicpassphrase", "") && SoftSetArg("-hdseed", "not hex"))
             LogPrintf("%s: Potential parameter interaction: -usemnemonic=0 -> setting -mnemonic=\"\", -mnemonicpassphrase=\"\"\n, -hdseed=\"not hex\"\n", __func__);
     }
+#endif // ENABLE_WALLET
 }
 
 static std::string ResolveErrMsg(const char *const optname, const std::string &strBind) {

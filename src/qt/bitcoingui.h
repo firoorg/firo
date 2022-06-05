@@ -191,11 +191,12 @@ public Q_SLOTS:
     */
     void message(const QString &title, const QString &message, unsigned int style, bool *ret = NULL);
 
-#ifdef ENABLE_WALLET
+
     /** Set the encryption status as shown in the UI.
        @param[in] status            current encryption status
        @see WalletModel::EncryptionStatus
     */
+#ifdef ENABLE_WALLET
     void setEncryptionStatus(int status);
 
     /** Set the Elysium pending transactions label **/
@@ -210,7 +211,7 @@ public Q_SLOTS:
 
     /** Show incoming transaction notification for new transactions. */
     void incomingTransaction(const QString& date, int unit, const CAmount& amount, const QString& type, const QString& address, const QString& label);
-#endif // ENABLE_WALLET
+#endif
 
 private Q_SLOTS:
 #ifdef ENABLE_WALLET

@@ -25,7 +25,11 @@
 #include "util.h"
 #include "utilmoneystr.h"
 #include "validationinterface.h"
+
+#ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
+#endif
+
 #include "definition.h"
 #include "crypto/scrypt.h"
 #include "crypto/MerkleTreeProof/mtp.h"

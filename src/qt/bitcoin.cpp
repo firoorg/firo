@@ -475,7 +475,6 @@ void BitcoinApplication::initializeResult(int retval)
         PaymentServer::LoadRootCAs();
         paymentServer->setOptionsModel(optionsModel);
 #endif
-
         clientModel = new ClientModel(optionsModel);
         window->setClientModel(clientModel);
 

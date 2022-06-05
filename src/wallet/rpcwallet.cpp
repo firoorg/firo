@@ -41,6 +41,7 @@
 int64_t nWalletUnlockTime;
 static CCriticalSection cs_nWalletUnlockTime;
 
+
 CWallet *GetWalletForJSONRPCRequest(const JSONRPCRequest& request)
 {
     return pwalletMain;

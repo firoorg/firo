@@ -14,6 +14,7 @@
 #include "masternode-sync.h"
 #include "net_processing.h"
 #include "validation.h"
+#include "primitives/mint_spend.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
