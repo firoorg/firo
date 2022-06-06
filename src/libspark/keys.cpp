@@ -159,24 +159,29 @@ std::string Address::GetHex() const {
 
     std::stringstream ss;
     ss << std::hex;
+    ss << version;
+
     for (const auto b : buffer) {
         ss << (b >> 4);
         ss << (b & 0xF);
     }
 
+    std::string str = ss.str();
+    uint160 checksum = Hash160(str.begin(), str.end());
+    ss << checksum.GetHex();
     return ss.str();
 }
 
 void Address::SetHex(const std::string& str) {
     const std::size_t size = 2 * GroupElement::serialize_size + AES_BLOCKSIZE;
-    if (str.size() != size * 2) {
+    if (str.size() != ((size + 20) * 2 + 1)) {
         throw "Address: SetHex failed, invalid length";
     }
 
+    version = *str.c_str();
     std::array<unsigned char, size> buffer;
-
     for (std::size_t i = 0; i < buffer.size(); i++) {
-        auto hexs = str.substr(2 * i, 2);
+        auto hexs = str.substr(2 * i + 1, 2);
 
         if (::isxdigit(hexs[0]) && ::isxdigit(hexs[1])) {
             buffer[i] = strtol(hexs.c_str(), NULL, 16);
@@ -188,6 +193,13 @@ void Address::SetHex(const std::string& str) {
     const unsigned char* ptr = Q1.deserialize(buffer.data());
     Q2.deserialize(ptr);
     d.insert(d.end(), buffer.begin() + 2 * GroupElement::serialize_size, buffer.end());
+
+    // check for checksum validity
+    std::string checksum = str.substr (size * 2 + 1, str.size() - 1);
+    // get checksum from newly deserialized address to compare with checksum form input
+    std::string resultChecksum= GetHex().substr (size * 2 + 1, str.size() - 1);
+    if (checksum != resultChecksum)
+        throw "Address: SetHex failed, invalid checksum";
 }
 
 }
