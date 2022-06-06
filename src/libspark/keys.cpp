@@ -18,12 +18,25 @@ SpendKey::SpendKey(const Params* params, const Scalar& r_) {
     this->r = r_;
     std::vector<unsigned char> data;
     r.serialize(data.data());
-    std::vector<unsigned char> result(CSHA512().OUTPUT_SIZE);
-    CHash512 hash512;
-    hash512.Write(data.data(), data.size()).Finalize(&result[0]);
+    std::vector<unsigned char> result(CSHA256().OUTPUT_SIZE);
 
+    CHash256 hash256;
+    std::string prefix1 = "s1_generation";
+    hash256.Write(reinterpret_cast<const unsigned char*>(prefix1.c_str()), prefix1.size());
+    hash256.Write(data.data(), data.size());
+    hash256.Finalize(&result[0]);
     this->s1.memberFromSeed(&result[0]);
-    this->s2.memberFromSeed(&result[32]);
+
+    data.clear();
+    result.clear();
+    hash256.Reset();
+    s1.serialize(data.data());
+
+    std::string prefix2 = "s2_generation";
+    hash256.Write(reinterpret_cast<const unsigned char*>(prefix2.c_str()), prefix2.size());
+    hash256.Write(data.data(), data.size());
+    hash256.Finalize(&result[0]);
+    this->s2.memberFromSeed(&result[0]);
 }
 
 const Params* SpendKey::get_params() const {
