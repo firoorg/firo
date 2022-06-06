@@ -124,6 +124,8 @@ spark::SpendKey CSparkWallet::generateSpendKey() {
 
     std::string nCountStr = std::to_string(nCount);
     CHash256 hasher;
+    std::string prefix = "r_generation";
+    hasher.Write(reinterpret_cast<const unsigned char*>(prefix.c_str()), prefix.size());
     hasher.Write(secret.begin(), secret.size());
     hasher.Write(reinterpret_cast<const unsigned char*>(nCountStr.c_str()), nCountStr.size());
     unsigned char hash[CSHA256::OUTPUT_SIZE];
