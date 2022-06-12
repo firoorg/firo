@@ -2823,10 +2823,8 @@ std::list<std::pair<spark::Coin, CSparkMintMeta>> CWallet::GetAvailableSparkCoin
     for (const auto& mint : vecMints) {
         if(mint.v == 0) // ignore 0 mints which where created to increase privacy
             continue;
-        // get actual spark coin
-        //TODO levon  get transaction to generate serial_context vector for coins
-        std::vector<unsigned char> serial_context;
-        spark::Coin coin = sparkWallet->getCoinFromMeta(mint, serial_context);
+
+        spark::Coin coin = sparkWallet->getCoinFromMeta(mint);
         coins.push_back(std::make_pair(coin, mint));
     }
 
