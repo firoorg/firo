@@ -218,7 +218,8 @@ BITCOIN_CORE_H = \
   wallet/sigmaspendbuilder.h \
   wallet/txbuilder.h \
   wallet/lelantusjoinsplitbuilder.h \
-  wallet/spark_wallet.h \
+  spark/wallet.h \
+  spark/primitives.h \
   wallet/wallet.h \
   wallet/walletexcept.h \
   wallet/walletdb.h \
@@ -242,7 +243,7 @@ BITCOIN_CORE_H = \
   bip47/secretpoint.h \
   sigma.h \
   lelantus.h \
-  spark.h \
+  spark/state.h \
   blacklists.h \
   coin_containers.h \
   firo_params.h \
@@ -405,7 +406,7 @@ libbitcoin_server_a_SOURCES = \
   versionbits.cpp \
   sigma.cpp \
   lelantus.cpp \
-  spark.cpp \
+  spark/state.cpp \
   coin_containers.cpp \
   mtpstate.cpp \
   $(BITCOIN_CORE_H)
@@ -432,7 +433,7 @@ libbitcoin_wallet_a_SOURCES = \
   hdmint/wallet.cpp \
   sigma.cpp \
   lelantus.cpp \
-  spark.cpp \
+  spark/state.cpp \
   wallet/crypter.cpp \
   wallet/bip39.cpp \
   wallet/mnemoniccontainer.cpp \
@@ -444,7 +445,8 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/lelantusjoinsplitbuilder.cpp \
   wallet/walletexcept.cpp \
   wallet/wallet.cpp \
-  wallet/spark_wallet.cpp \
+  spark/wallet.cpp \
+  spark/primitives.cpp \
   wallet/walletdb.cpp \
   wallet/authhelper.cpp \
   hdmint/tracker.cpp \

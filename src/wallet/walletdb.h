@@ -19,6 +19,7 @@
 #include "../secp256k1/include/GroupElement.h"
 #include "../secp256k1/include/Scalar.h"
 #include "../libspark/keys.h"
+#include "../spark/primitives.h"
 
 #include <list>
 #include <stdint.h>

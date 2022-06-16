@@ -5,10 +5,18 @@
 #ifndef FIRO_SPARK_WALLET_H
 #define FIRO_SPARK_WALLET_H
 
+#include "primitives.h"
 #include "../libspark/keys.h"
-#include "../coin_containers.h"
-#include "../primitives/mint_spend.h"
-#include "walletdb.h"
+#include "../libspark/mint_transaction.h"
+#include "../wallet/walletdb.h"
+
+class CRecipient;
+class CReserveKey;
+class CCoinControl;
+
+extern CChain chainActive;
+
+const uint32_t BIP44_SPARK_INDEX = 0x6;
 
 class CSparkWallet  {
 public:
@@ -32,9 +40,9 @@ public:
     // get address for a diversifier
     spark::Address getAddress(const int32_t& i);
     // list spark mint, mint metadata in memory and in db should be the same at this moment, so get from memory
-    std::vector<CSparkMintMeta> ListSparkMints(bool fUnusedOnly = false, bool fMatureOnly = false);
+    std::vector<CSparkMintMeta> ListSparkMints(bool fUnusedOnly = false, bool fMatureOnly = false) const;
     // generate spark Coin from meta data
-    spark::Coin getCoinFromMeta(const CSparkMintMeta& meta);
+    spark::Coin getCoinFromMeta(const CSparkMintMeta& meta) const;
 
     // functions to get spark balance
     CAmount getFullBalance();
@@ -51,6 +59,27 @@ public:
 
     // get the vector of mint metadata for a single address
     std::vector<CSparkMintMeta> listAddressCoins(const int32_t& i, bool fUnusedOnly = false);
+
+
+    // generate recipient data for mint transaction,
+    static std::vector<CRecipient> CreateSparkMintRecipients(
+            const std::vector<spark::MintedCoinData>& outputs,
+            const std::vector<unsigned char>& serial_context,
+            bool generate);
+
+    bool CreateSparkMintTransactions(
+            const std::vector<spark::MintedCoinData>&  outputs,
+            std::vector<std::pair<CWalletTx,
+            CAmount>>& wtxAndFee,
+            CAmount& nAllFeeRet,
+            std::list<CReserveKey>& reservekeys,
+            int& nChangePosInOut,
+            std::string& strFailReason,
+            const CCoinControl *coinControl,
+            bool autoMintAll = false);
+
+    // Returns the list of pairs of coins and meta data for that coin,
+    std::list<std::pair<spark::Coin, CSparkMintMeta>> GetAvailableSparkCoins(CWalletDB& walletdb, const CCoinControl *coinControl = NULL) const;
 
 private:
     // this is latest used diversifier

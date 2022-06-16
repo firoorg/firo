@@ -9,7 +9,6 @@
 #include "amount.h"
 #include "../sigma/coin.h"
 #include "../liblelantus/coin.h"
-#include "../libspark/mint_transaction.h"
 #include "streams.h"
 #include "tinyformat.h"
 #include "ui_interface.h"
@@ -21,7 +20,7 @@
 #include "wallet/walletdb.h"
 #include "wallet/rpcwallet.h"
 #include "wallet/mnemoniccontainer.h"
-#include "wallet/spark_wallet.h"
+#include "../spark/wallet.h"
 #include "../base58.h"
 #include "firo_params.h"
 #include "univalue.h"
@@ -106,8 +105,6 @@ const uint32_t BIP44_ELYSIUM_MINT_INDEX_V0 = 0x3;
 const uint32_t BIP44_ELYSIUM_MINT_INDEX_V1 = 0x4;
 #endif
 const uint32_t BIP44_MINT_VALUE_INDEX = 0x5;
-
-const uint32_t BIP44_SPARK_INDEX = 0x6;
 
 class CBlockIndex;
 class CCoinControl;
@@ -652,6 +649,8 @@ class LelantusJoinSplitBuilder;
 class CWallet : public CCryptoKeyStore, public CValidationInterface
 {
 private:
+    friend class CSparkWallet;
+
     static std::atomic<bool> fFlushThreadRunning;
 
     /**
@@ -937,12 +936,6 @@ public:
         CHDMint& vDMint,
         bool generate = true);
 
-    // generate recipient data for mint transaction,
-    static std::vector<CRecipient> CreateSparkMintRecipients(
-            const std::vector<spark::MintedCoinData>& outputs,
-            const std::vector<unsigned char>& serial_context,
-            bool generate);
-
     static int GetRequiredCoinCountForAmount(
         const CAmount& required,
         const std::vector<sigma::CoinDenomination>& denominations);
@@ -1024,10 +1017,7 @@ public:
                                         std::list<CReserveKey>& reservekeys, int& nChangePosInOut,
                                         std::string& strFailReason, const CCoinControl *coinControl, bool autoMintAll = false, bool sign = true);
 
-    bool CreateSparkMintTransactions(const std::vector<spark::MintedCoinData>&  outputs, std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
-                                     CAmount& nAllFeeRet,
-                                     std::list<CReserveKey>& reservekeys, int& nChangePosInOut,
-                                     std::string& strFailReason, const CCoinControl *coinControl, bool autoMintAll = false);
+
 
     CWalletTx CreateSigmaSpendTransaction(
         const std::vector<CRecipient>& recipients,

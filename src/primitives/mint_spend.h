@@ -13,42 +13,6 @@
 #include "sigma/coin.h"
 #include "serialize.h"
 #include "firo_params.h"
-#include "libspark/coin.h"
-
-struct CSparkMintMeta
-{
-    int nHeight;
-    int nId;
-    bool isUsed;
-    uint256 txid;
-    uint64_t i; // diversifier
-    std::vector<unsigned char> d; // encrypted diversifier
-    uint64_t v; // value
-    Scalar k; // nonce
-    std::string memo; // memo
-    std::vector<unsigned char> serial_context;
-    mutable boost::optional<uint256> nonceHash;
-
-    uint256 GetNonceHash() const;
-
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action)
-    {
-        READWRITE(nHeight);
-        READWRITE(nId);
-        READWRITE(isUsed);
-        READWRITE(txid);
-        READWRITE(i);
-        READWRITE(d);
-        READWRITE(v);
-        READWRITE(k);
-        READWRITE(memo);
-        READWRITE(serial_context);
-    };
-};
-
 
 //struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
 struct MintMeta
@@ -304,7 +268,6 @@ public:
 };
 
 namespace primitives {
-uint256 GetNonceHash(const secp_primitives::Scalar& nonce);
 uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial);
 uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue);
 }
