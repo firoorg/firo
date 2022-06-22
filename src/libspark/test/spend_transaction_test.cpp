@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
     }
 
     // Generate new output coins and compute the fee
-    const std::size_t t = 2;
+    const std::size_t t = 3;
     std::vector<OutputCoinData> out_coin_data;
     for (std::size_t j = 0; j < t; j++) {
         out_coin_data.emplace_back();

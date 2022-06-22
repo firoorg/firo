@@ -75,6 +75,7 @@ Coin::Coin(
 }
 
 // Validate a coin for identification
+// NOTE: This assumes the coin has a valid associated range proof, which MUST be separately checked as part of the valid transaction that produced it
 bool Coin::validate(
 	const IncomingViewKey& incoming_view_key,
 	IdentifiedCoinData& data
