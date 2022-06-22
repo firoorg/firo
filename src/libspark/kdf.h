@@ -7,14 +7,15 @@ namespace spark {
 
 class KDF {
 public:
-	KDF(const std::string label);
+	KDF(const std::string label, std::size_t derived_key_size);
 	~KDF();
 	void include(CDataStream& data);
-	std::vector<unsigned char> finalize(std::size_t size);
+	std::vector<unsigned char> finalize();
 
 private:
 	void include_size(std::size_t size);
 	EVP_MD_CTX* ctx;
+	std::size_t derived_key_size;
 };
 
 }
