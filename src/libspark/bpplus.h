@@ -6,6 +6,9 @@
 
 namespace spark {
     
+std::size_t log2(std::size_t n);
+bool is_nonzero_power_of_2(std::size_t n);
+
 class BPPlus {
 public:
     BPPlus(
@@ -15,9 +18,9 @@ public:
         const std::vector<GroupElement>& Hi,
         const std::size_t N);
     
-    void prove(const std::vector<Scalar>& v, const std::vector<Scalar>& r, const std::vector<GroupElement>& C, BPPlusProof& proof);
-    bool verify(const std::vector<GroupElement>& C, const BPPlusProof& proof); // single proof
-    bool verify(const std::vector<std::vector<GroupElement>>& C, const std::vector<BPPlusProof>& proofs); // batch of proofs
+    void prove(const std::vector<Scalar>& unpadded_v, const std::vector<Scalar>& unpadded_r, const std::vector<GroupElement>& unpadded_C, BPPlusProof& proof);
+    bool verify(const std::vector<GroupElement>& unpadded_C, const BPPlusProof& proof); // single proof
+    bool verify(const std::vector<std::vector<GroupElement>>& unpadded_C, const std::vector<BPPlusProof>& proofs); // batch of proofs
 
 private:
     GroupElement G;
