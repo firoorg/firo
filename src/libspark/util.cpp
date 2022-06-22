@@ -129,24 +129,24 @@ GroupElement SparkUtils::hash_generator(const std::string label) {
 
 // Derive an AES key for diversifier encryption/decryption
 std::vector<unsigned char> SparkUtils::kdf_diversifier(const Scalar& s1) {
-    KDF kdf(LABEL_KDF_DIVERSIFIER);
+    KDF kdf(LABEL_KDF_DIVERSIFIER, AES256_KEYSIZE);
     
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
     stream << s1;
     kdf.include(stream);
 
-    return kdf.finalize(AES256_KEYSIZE);
+    return kdf.finalize();
 }
 
 // Derive a ChaCha20 key for AEAD operations
 std::vector<unsigned char> SparkUtils::kdf_aead(const GroupElement& K_der) {
-    KDF kdf(LABEL_KDF_AEAD);
+    KDF kdf(LABEL_KDF_AEAD, AEAD_KEY_SIZE);
 
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
     stream << K_der;
     kdf.include(stream);
 
-    return kdf.finalize(AEAD_KEY_SIZE);
+    return kdf.finalize();
 }
 
 // Hash-to-group function H_div

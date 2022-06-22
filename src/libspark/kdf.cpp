@@ -3,7 +3,7 @@
 namespace spark {
 
 // Set up a labeled KDF
-KDF::KDF(const std::string label) {
+KDF::KDF(const std::string label, std::size_t derived_key_size) {
 	this->ctx = EVP_MD_CTX_new();
 	EVP_DigestInit_ex(this->ctx, EVP_blake2b512(), NULL);
 
@@ -16,6 +16,13 @@ KDF::KDF(const std::string label) {
 	include_size(label.size());
 	std::vector<unsigned char> label_bytes(label.begin(), label.end());
 	EVP_DigestUpdate(this->ctx, label_bytes.data(), label_bytes.size());
+
+	// Embed and set the derived key size
+	if (derived_key_size > EVP_MD_size(EVP_blake2b512())) {
+		throw std::invalid_argument("Requested KDF size is too large");
+	}
+	include_size(derived_key_size);
+	this->derived_key_size = derived_key_size;
 }
 
 // Clean up
@@ -30,19 +37,13 @@ void KDF::include(CDataStream& data) {
 }
 
 // Finalize the KDF with arbitrary size
-std::vector<unsigned char> KDF::finalize(std::size_t size) {
-	// Assert valid size
-	const std::size_t hash_size = EVP_MD_size(EVP_blake2b512());
-	if (size > hash_size) {
-		throw std::invalid_argument("Requested KDF size is too large");
-	}
-
+std::vector<unsigned char> KDF::finalize() {
 	std::vector<unsigned char> result;
-	result.resize(hash_size);
+	result.resize(EVP_MD_size(EVP_blake2b512()));
 
 	unsigned int TEMP;
 	EVP_DigestFinal_ex(this->ctx, result.data(), &TEMP);
-	result.resize(size);
+	result.resize(this->derived_key_size);
 
 	return result;
 }
