@@ -24,8 +24,8 @@ BPPlus::BPPlus(
         throw std::invalid_argument("Bad BPPlus generator sizes!");
     }
 
-    // Bit length must be a power of two
-    if ((N & (N - 1) != 0)) {
+    // Bit length must be a nonzero power of two
+    if (!is_nonzero_power_of_2(N)) {
         throw std::invalid_argument("Bad BPPlus bit length!");
     }
 
@@ -37,7 +37,8 @@ BPPlus::BPPlus(
     TWO_N_MINUS_ONE -= ONE;
 }
 
-static inline std::size_t log2(std::size_t n) {
+// The floor function of log2
+std::size_t log2(std::size_t n) {
     std::size_t l = 0;
     while ((n >>= 1) != 0) {
         l++;
@@ -46,33 +47,68 @@ static inline std::size_t log2(std::size_t n) {
     return l;
 }
 
+// Is this value a nonzero power of 2?
+bool is_nonzero_power_of_2(std::size_t n) {
+    return n > 0 && (n & (n - 1)) == 0;
+}
+
 void BPPlus::prove(
-        const std::vector<Scalar>& v,
-        const std::vector<Scalar>& r,
-        const std::vector<GroupElement>& C,  
+        const std::vector<Scalar>& unpadded_v,
+        const std::vector<Scalar>& unpadded_r,
+        const std::vector<GroupElement>& unpadded_C,  
         BPPlusProof& proof) {
-    // Check statement validity
-    std::size_t M = C.size();
-    if (N*M > Gi.size()) {
-        throw std::invalid_argument("Bad BPPlus statement!");   
+    // Bulletproofs+ are only defined when the input set size is a nonzero power of two
+    // To get around this, we can trivially pad the input set with zero commitments
+    // We make sure this is done canonically in a way that's transparent to the caller
+
+    // Define the original and padded sizes
+    std::size_t unpadded_M = unpadded_C.size();
+    if (unpadded_M == 0) {
+        throw std::invalid_argument("Bad BPPlus statement!1");
     }
-    if (!(v.size() == M && r.size() == M)) {
-        throw std::invalid_argument("Bad BPPlus statement!");
-    }
-    for (std::size_t j = 0; j < M; j++) {
-        if (!(G*v[j] + H*r[j] == C[j])) {
-            throw std::invalid_argument("Bad BPPlus statement!");
-        }
+    std::size_t M = unpadded_M;
+    if (!is_nonzero_power_of_2(M)) {
+        M = 1 << (log2(unpadded_M) + 1);
     }
 
-    // Set up transcript
+    // Set up transcript, using the unpadded values
+    // This is fine since the verifier canonically generates the same transcript
     Transcript transcript(LABEL_TRANSCRIPT_BPPLUS);
     transcript.add("G", G);
     transcript.add("H", H);
     transcript.add("Gi", Gi);
     transcript.add("Hi", Hi);
     transcript.add("N", Scalar(N));
-    transcript.add("C", C);
+    transcript.add("C", unpadded_C);
+
+    // Now pad the input set to produce a valid statement
+    std::vector<Scalar> v(unpadded_v);
+    std::vector<Scalar> r(unpadded_r);
+    std::vector<GroupElement> C(unpadded_C);
+    for (std::size_t i = unpadded_M; i < M; i++) {
+        v.emplace_back(); // zero scalar
+        r.emplace_back(); // zero scalar
+        C.emplace_back(); // identity group element, a valid commitment using the corresponding scalars
+    }
+
+    // Check statement validity
+    if (C.size() != M) {
+        throw std::invalid_argument("Bad BPPlus statement!2");
+    }
+    if (!is_nonzero_power_of_2(M)) {
+        throw std::invalid_argument("Unexpected bad padding!3");
+    }
+    if (N*M > Gi.size()) {
+        throw std::invalid_argument("Bad BPPlus statement!4");   
+    }
+    if (!(v.size() == M && r.size() == M)) {
+        throw std::invalid_argument("Bad BPPlus statement!5");
+    }
+    for (std::size_t j = 0; j < M; j++) {
+        if (!(G*v[j] + H*r[j] == C[j])) {
+            throw std::invalid_argument("Bad BPPlus statement!6");
+        }
+    }
 
     // Decompose bits
     std::vector<std::vector<bool>> bits;
@@ -254,31 +290,32 @@ void BPPlus::prove(
     proof.d1 = eta_ + d_*e1 + alpha1*e1.square();
 }
 
-bool BPPlus::verify(const std::vector<GroupElement>& C, const BPPlusProof& proof) {
-    std::vector<std::vector<GroupElement>> C_batch = {C};
+bool BPPlus::verify(const std::vector<GroupElement>& unpadded_C, const BPPlusProof& proof) {
+    std::vector<std::vector<GroupElement>> unpadded_C_batch = {unpadded_C};
     std::vector<BPPlusProof> proof_batch = {proof};
 
-    return verify(C_batch, proof_batch);
+    return verify(unpadded_C_batch, proof_batch);
 }
 
-bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& C, const std::vector<BPPlusProof>& proofs) {
+bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, const std::vector<BPPlusProof>& proofs) {
     // Preprocess all proofs
-    if (!(C.size() == proofs.size())) {
+    if (!(unpadded_C.size() == proofs.size())) {
         return false;
     }
     std::size_t N_proofs = proofs.size();
-    std::size_t max_M = 0; // maximum number of aggregated values across all proofs
+    std::size_t max_M = 0; // maximum number of padded aggregated values across all proofs
 
     // Check aggregated input consistency
     for (std::size_t k = 0; k < N_proofs; k++) {
-        std::size_t M = C[k].size();
+        std::size_t unpadded_M = unpadded_C[k].size();
+        std::size_t M = unpadded_M;
 
         // Require a power of two
         if (M == 0) {
             return false;
         }
-        if ((M & (M - 1)) != 0) {
-            return false;
+        if (!is_nonzero_power_of_2(M)) {
+            M = 1 << log2(unpadded_M) + 1;
         }
 
         // Track the maximum value
@@ -286,7 +323,7 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& C, const std::
             max_M = M;
         }
 
-        // Check inner produce round consistency
+        // Check inner product round consistency
         std::size_t rounds = proofs[k].L.size();
         if (proofs[k].R.size() != rounds) {
             return false;
@@ -317,7 +354,7 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& C, const std::
     // Process each proof and add to the batch
     for (std::size_t k_proofs = 0; k_proofs < N_proofs; k_proofs++) {
         const BPPlusProof proof = proofs[k_proofs];
-        const std::size_t M = C[k_proofs].size();
+        const std::size_t unpadded_M = unpadded_C[k_proofs].size();
         const std::size_t rounds = proof.L.size();
 
         // Weight this proof in the batch
@@ -333,8 +370,18 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& C, const std::
         transcript.add("Gi", Gi);
         transcript.add("Hi", Hi);
         transcript.add("N", Scalar(N));
-        transcript.add("C", C[k_proofs]);
+        transcript.add("C", unpadded_C[k_proofs]);
         transcript.add("A", proof.A);
+
+        // Pad to a valid statement if needed
+        std::size_t M = unpadded_M;
+        if (!is_nonzero_power_of_2(M)) {
+            M = 1 << (log2(unpadded_M) + 1);
+        }
+        std::vector<GroupElement> C(unpadded_C[k_proofs]);
+        for (std::size_t i = unpadded_M; i < M; i++) {
+            C.emplace_back();
+        }
 
         // Get challenges
         Scalar y = transcript.challenge("y");
@@ -365,7 +412,7 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& C, const std::
         // C_j: -e1**2 * z**(2*(j + 1)) * y**(N*M + 1) * w
         Scalar C_scalar = e1_square.negate()*z_square*y_NM_1*w;
         for (std::size_t j = 0; j < M; j++) {
-            points.emplace_back(C[k_proofs][j]);
+            points.emplace_back(C[j]);
             scalars.emplace_back(C_scalar);
 
             C_scalar *= z.square();
