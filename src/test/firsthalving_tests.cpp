@@ -154,7 +154,8 @@ BOOST_FIXTURE_TEST_CASE(devpayout, TestChainDIP3BeforeActivationSetup)
 
     consensusParams.nSubsidyHalvingFirst = 600;
     consensusParams.stage3StartTime = INT_MAX;
-    consensusParams.nSubsidyHalvingInterval = 20;
+    consensusParams.nSubsidyHalvingSecond = 620;
+    consensusParams.nSubsidyHalvingInterval = 30;
     consensusParams.nSubsidyHalvingStopBlock = 1000;
 
     CScript devPayoutScript = GenerateRandomAddress();
@@ -281,6 +282,7 @@ BOOST_FIXTURE_TEST_CASE(devpayoutverification, TestChainDIP3BeforeActivationSetu
     Consensus::Params   consensusParamsBackup = consensusParams;
 
     consensusParams.nSubsidyHalvingFirst = 600;
+    consensusParams.nSubsidyHalvingSecond = 610;
     consensusParams.nSubsidyHalvingInterval = 10;
     consensusParams.nSubsidyHalvingStopBlock = 1000;
 
