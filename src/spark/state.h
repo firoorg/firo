@@ -39,13 +39,8 @@ bool IsSparkAllowed(int height);
 
 // Pass Scripts form mint transaction and get spark MintTransaction object
 void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransaction& mintTransaction);
+void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin);
 
-bool CheckSparkMintTransaction(
-        const std::vector<CScript>& scripts,
-        CValidationState &state,
-        uint256 hashTx,
-        bool fStatefulSigmaCheck,
-        CSparkTxInfo* sparkTxInfo);
 
 bool CheckSparkTransaction(
         const CTransaction &tx,
@@ -57,7 +52,9 @@ bool CheckSparkTransaction(
         bool fStatefulSigmaCheck,
         CSparkTxInfo* sparkTxInfo);
 
-bool GetOutPoint(COutPoint& outPoint, const spark::Coin coin);
+bool GetOutPoint(COutPoint& outPoint, const spark::Coin& coin);
+bool GetOutPoint(COutPoint& outPoint, const uint256& coinHash);
+bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CBlock &block);
 
 
 class CSparkMempoolState {
@@ -120,10 +117,14 @@ public:
     // Query if the hash of a linking tag was previously used. If so, store preimage in coinSerial param
     bool IsUsedLTagHash(GroupElement& lTag, const uint256 &coinLTaglHash);
 
+    // Return height of mint transaction and id of minted coin
+    std::pair<int, int> GetMintedCoinHeightAndId(const spark::Coin& coin);
+
     // Query if there is a coin with given pubCoin value
     bool HasCoin(const spark::Coin& coin);
 
-    bool IsSurgeConditionDetected() const;
+    // Query if there is a coin with given hash of a coin value.
+    bool HasCoinHash(spark::Coin& coin, const uint256& coinHash);
 
     // Query coin group with given id
     bool GetCoinGroupInfo(int group_id, SparkCoinGroupInfo &result);
@@ -141,8 +142,27 @@ public:
     void AddSpend(const GroupElement& lTag, int coinGroupId);
     void RemoveSpend(const GroupElement& lTag);
 
+    // Add spend into the mempool.
+    // Check if there is a coin with such serial in either blockchain or mempool
+    bool AddSpendToMempool(const std::vector<GroupElement>& lTags, uint256 txHash);
+
+    void AddMintsToMempool(const std::vector<spark::Coin>& coins);
+    void RemoveMintFromMempool(const spark::Coin& coin);
+
+    // Get conflicting tx hash by coin linking tag
+    uint256 GetMempoolConflictingTxHash(const GroupElement& lTag);
+
+    // Remove spend from the mempool (usually as the result of adding tx to the block)
+    void RemoveSpendFromMempool(const std::vector<GroupElement>& lTags);
+
     std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & GetMints() const;
     std::unordered_map<GroupElement, int, spark::CLTagHash> const & GetSpends() const;
+    std::unordered_map<int, SparkCoinGroupInfo> const & GetCoinGroups() const;
+    std::unordered_map<GroupElement, uint256, spark::CLTagHash> const & GetMempoolLTags() const;
+
+    static CSparkState* GetState();
+
+    std::size_t GetTotalCoins() const { return mintedCoins.size(); }
 
 private:
     // Group Limit
@@ -155,8 +175,6 @@ private:
     // Collection of coin groups. Map from id to LelantusCoinGroupInfo structure
     std::unordered_map<int, SparkCoinGroupInfo> coinGroups;
 
-    std::atomic<bool> surgeCondition;
-
     // Set of all minted coins
     std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> mintedCoins;
     // Set of all used coin linking tags.
@@ -164,9 +182,6 @@ private:
 
     typedef std::map<int, size_t> metainfo_container_t;
     metainfo_container_t extendedMintMetaInfo, mintMetaInfo, spendMetaInfo;
-
-    void CheckSurgeCondition();
-
 };
 
 } // namespace spark

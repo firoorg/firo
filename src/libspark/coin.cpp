@@ -1,4 +1,5 @@
 #include "coin.h"
+#include "../hash.h"
 
 namespace spark {
 
@@ -160,6 +161,16 @@ std::size_t Coin::memoryRequired() {
 
 bool Coin::operator==(const Coin& other) const {
     return this->S == other.S;
+}
+
+uint256 Coin::getHash() const {
+    CDataStream ss(SER_GETHASH, 0);
+    ss << "coin_hash";
+    ss << S;
+    ss << K;
+    ss << C;
+    ss << r_;
+    return ::Hash(ss.begin(), ss.end());
 }
 
 }

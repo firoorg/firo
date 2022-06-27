@@ -6,6 +6,7 @@
 #include "params.h"
 #include "aead.h"
 #include "util.h"
+#include "../uint256.h"
 
 namespace spark {
 
@@ -84,6 +85,9 @@ public:
     static std::size_t memoryRequired();
 
     bool operator==(const Coin& other) const;
+
+    // type and v are not included in hash
+    uint256 getHash() const;
 
 protected:
 	bool validate(const IncomingViewKey& incoming_view_key, IdentifiedCoinData& data);

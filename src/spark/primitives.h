@@ -43,6 +43,7 @@ struct CSparkMintMeta
 namespace primitives {
     uint256 GetNonceHash(const secp_primitives::Scalar& nonce);
     uint256 GetLTagHash(const secp_primitives::GroupElement& tag);
+    uint256 GetSparkCoinHash(const spark::Coin& coin);
 }
 
 namespace spark {

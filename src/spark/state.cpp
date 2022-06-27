@@ -57,7 +57,6 @@ bool IsSparkAllowed(int height)
 void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransaction& mintTransaction)
 {
     std::vector<CDataStream> serializedCoins;
-    bool first = true;
     for (const auto& script : scripts) {
         if (!script.IsSparkMint())
             throw std::invalid_argument("Script is not a Spark mint");
@@ -79,6 +78,22 @@ void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransact
 
     mintTransaction.setMintTransaction(serializedCoins);
 }
+
+void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin)
+{
+    if (!script.IsSparkMint() && !script.IsSparkSMint())
+        throw std::invalid_argument("Script is not a Spark mint");
+
+    std::vector<unsigned char> serialized(script.begin() + 1, script.end());
+    CDataStream stream(
+            std::vector<unsigned char>(serialized.begin(), serialized.end()),
+            SER_NETWORK,
+            PROTOCOL_VERSION
+    );
+
+    stream >> txCoin;
+}
+
 
 bool CheckSparkMintTransaction(
         const std::vector<CScript>& scripts,
@@ -122,7 +137,7 @@ bool CheckSparkMintTransaction(
             break;
 
         if (sparkTxInfo != NULL && !sparkTxInfo->fInfoIsComplete) {
-            BOOST_FOREACH(const auto& mint, sparkTxInfo->mints) {
+            for (const auto& mint : sparkTxInfo->mints) {
                 if (mint == coin) {
                     hasCoin = true;
                     break;
@@ -160,14 +175,6 @@ bool CheckSparkTransaction(
 
     bool const allowSpark = IsSparkAllowed();
 
-    if (!isVerifyDB && !isCheckWallet) {
-        if (allowSpark && sparkState.IsSurgeConditionDetected()) {
-            return state.DoS(100, false,
-                             REJECT_INVALID,
-                             "Spark surge protection is ON.");
-        }
-    }
-
     // Check Spark Mint Transaction
     if (allowSpark && !isVerifyDB) {
         for (const CTxOut &txout : tx.vout) {
@@ -185,10 +192,60 @@ bool CheckSparkTransaction(
     return true;
 }
 
-bool GetOutPoint(COutPoint& outPoint, const spark::Coin coin)
+bool GetOutPoint(COutPoint& outPoint, const spark::Coin& coin)
 {
-    // TODO levon, implement this function after state implementation
+    spark::CSparkState *sparkState = spark::CSparkState::GetState();
+    auto mintedCoinHeightAndId = sparkState->GetMintedCoinHeightAndId(coin);
+    int mintHeight = mintedCoinHeightAndId.first;
+    int coinId = mintedCoinHeightAndId.second;
+
+    if(mintHeight==-1 && coinId==-1)
+        return false;
+
+    // get block containing mint
+    CBlockIndex *mintBlock = chainActive[mintHeight];
+    CBlock block;
+    if(!ReadBlockFromDisk(block, mintBlock, ::Params().GetConsensus()))
+        LogPrintf("can't read block from disk.\n");
+
+    return GetOutPointFromBlock(outPoint, coin, block);
 }
+
+bool GetOutPoint(COutPoint& outPoint, const uint256& coinHash)
+{
+    spark::Coin coin;
+    spark::CSparkState *sparkState = spark::CSparkState::GetState();
+    if(!sparkState->HasCoinHash(coin, coinHash)) {
+        return false;
+    }
+
+    return GetOutPoint(outPoint, coin);
+}
+
+bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CBlock &block) {
+    spark::Coin txCoin;
+    // cycle transaction hashes, looking for this coin
+    for (CTransactionRef tx : block.vtx){
+        uint32_t nIndex = 0;
+        for (const CTxOut &txout : tx->vout) {
+            if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+                try {
+                    ParseSparkMintCoin(txout.scriptPubKey, txCoin);
+                }
+                catch (...) {
+                    continue;
+                }
+                if(coin == txCoin){
+                    outPoint = COutPoint(tx->GetHash(), nIndex);
+                    return true;
+                }
+            }
+            nIndex++;
+        }
+    }
+    return false;
+}
+
 
 /******************************************************************************/
 // CLelantusState
@@ -211,16 +268,31 @@ void CSparkState::Reset() {
     usedLTags.clear();
     mintMetaInfo.clear();
     spendMetaInfo.clear();
-    surgeCondition = false;
 }
 
-bool CSparkState::IsSurgeConditionDetected() const {
-    return surgeCondition;
+std::pair<int, int> CSparkState::GetMintedCoinHeightAndId(const spark::Coin& coin) {
+    auto coinIt = mintedCoins.find(coin);
+
+    if (coinIt != mintedCoins.end()) {
+        return std::make_pair(coinIt->second.nHeight, coinIt->second.coinGroupId);
+    }
+    return std::make_pair(-1, -1);
 }
 
 bool CSparkState::HasCoin(const spark::Coin& coin) {
     return mintedCoins.find(coin) != mintedCoins.end();
 
+}
+
+bool CSparkState::HasCoinHash(spark::Coin& coin, const uint256& coinHash) {
+    for (auto it = mintedCoins.begin(); it != mintedCoins.end(); ++it ){
+        const spark::Coin& coin_ = (*it).first;
+        if(primitives::GetSparkCoinHash(coin_) == coinHash){
+            coin = coin_;
+            return true;
+        }
+    }
+    return false;
 }
 
 bool CSparkState::GetCoinGroupInfo(
@@ -292,11 +364,60 @@ void CSparkState::RemoveSpend(const GroupElement& lTag) {
     }
 }
 
+bool CSparkState::AddSpendToMempool(const std::vector<GroupElement>& lTags, uint256 txHash) {
+    LOCK(mempool.cs);
+    for (const auto& lTag : lTags){
+        if (IsUsedLTag(lTag) || mempool.sparkState.HasLTag(lTag))
+            return false;
+
+        mempool.sparkState.AddSpendToMempool(lTag, txHash);
+    }
+
+    return true;
+}
+
+void CSparkState::RemoveSpendFromMempool(const std::vector<GroupElement>& lTags) {
+    LOCK(mempool.cs);
+    for (const auto& lTag : lTags) {
+        mempool.sparkState.RemoveSpendFromMempool(lTag);
+    }
+}
+
+void CSparkState::AddMintsToMempool(const std::vector<spark::Coin>& coins) {
+    LOCK(mempool.cs);
+    for (const auto& coin : coins) {
+        mempool.sparkState.AddMintToMempool(coin);
+    }
+}
+
+void CSparkState::RemoveMintFromMempool(const spark::Coin& coin) {
+    LOCK(mempool.cs);
+    mempool.sparkState.RemoveMintFromMempool(coin);
+}
+
+uint256 CSparkState::GetMempoolConflictingTxHash(const GroupElement& lTag) {
+    LOCK(mempool.cs);
+    return mempool.sparkState.GetMempoolConflictingTxHash(lTag);
+}
+
+CSparkState* CSparkState::GetState() {
+    return &sparkState;
+}
+
 std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & CSparkState::GetMints() const {
     return mintedCoins;
 }
 std::unordered_map<GroupElement, int, spark::CLTagHash> const & CSparkState::GetSpends() const {
     return usedLTags;
+}
+
+std::unordered_map<int, CSparkState::SparkCoinGroupInfo> const& CSparkState::GetCoinGroups() const {
+    return coinGroups;
+}
+
+std::unordered_map<GroupElement, uint256, spark::CLTagHash> const& CSparkState::GetMempoolLTags() const {
+    LOCK(mempool.cs);
+    return mempool.sparkState.GetMempoolLTags();
 }
 
 // CSparkMempoolState
