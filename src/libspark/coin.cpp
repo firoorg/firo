@@ -153,4 +153,13 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key) {
 	return data;
 }
 
+std::size_t Coin::memoryRequired() {
+    secp_primitives::GroupElement groupElement;
+    return 1 + groupElement.memoryRequired() * 3 + 32 + AEAD_TAG_SIZE;
+}
+
+bool Coin::operator==(const Coin& other) const {
+    return this->S == other.S;
+}
+
 }

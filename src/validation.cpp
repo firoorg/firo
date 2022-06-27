@@ -773,12 +773,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     const Consensus::Params& consensus = Params().GetConsensus();
 
-    if (tx.IsSigmaMint() || tx.IsSigmaSpend()) {
-        if (consensus.nStartSigmaBlacklist != INT_MAX && chainActive.Height() < consensus.nRestartSigmaWithBlacklistCheck)
-            return state.DoS(100, error("Sigma is temporarily disabled"),
-                             REJECT_INVALID, "bad-txns-zerocoin");
-    }
-
     bool startLelantusRejectSigma = (chainActive.Height() >= consensus.nLelantusStartBlock);
     if (startLelantusRejectSigma) {
         if(tx.IsSigmaMint() || tx.IsSigmaSpend()) {
@@ -788,6 +782,26 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     } else {
         if(tx.IsLelantusTransaction()) {
             return state.DoS(100, error("Lelantus transactions are not allowed in mempool yet"),
+                             REJECT_INVALID, "bad-txns-zerocoin");
+        }
+    }
+
+    bool startSpark = (chainActive.Height() >= consensus.nSparkStartBlock);
+    if (startSpark) {
+        if (tx.IsLelantusMint() && !tx.IsLelantusJoinSplit()) {
+            return state.DoS(100, error("Lelantus mints no more allowed in mempool"),
+                             REJECT_INVALID, "bad-txns-zerocoin");
+        }
+    } else {
+        if(tx.IsSparkTransaction()) {
+            return state.DoS(100, error("Spark transactions are not allowed in mempool yet"),
+                             REJECT_INVALID, "bad-txns-zerocoin");
+        }
+    }
+
+    if (chainActive.Height() >= consensus.nLelantusGracefulPeriod) {
+        if(tx.IsLelantusTransaction()) {
+            return state.DoS(100, error("Lelantus transactions are no more allowed into mempool"),
                              REJECT_INVALID, "bad-txns-zerocoin");
         }
     }

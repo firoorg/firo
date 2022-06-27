@@ -251,6 +251,10 @@ struct Params {
 
     int nLelantusFixesStartBlock;
 
+    int nSparkStartBlock;
+
+    int nLelantusGracefulPeriod;
+
     // Lelantus Blacklist
     std::unordered_set<secp_primitives::GroupElement> lelantusBlacklist;
 

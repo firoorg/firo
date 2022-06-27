@@ -331,6 +331,11 @@ bool CScript::IsSparkMint() const {
             (*this)[0] == OP_SPARKMINT);
 }
 
+bool CScript::IsSparkSMint() const {
+    return (this->size() > 0 &&
+            (*this)[0] == OP_SPARKSMINT);
+}
+
 bool CScript::IsMint() const {
     return IsZerocoinMint() || IsSigmaMint() || IsZerocoinRemint() || IsLelantusMint() || IsLelantusJMint();
 }
