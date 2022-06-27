@@ -81,6 +81,10 @@ public:
 	// Given a full view key, extract the coin's serial number and tag
 	RecoveredCoinData recover(const FullViewKey& full_view_key, const IdentifiedCoinData& data);
 
+    static std::size_t memoryRequired();
+
+    bool operator==(const Coin& other) const;
+
 protected:
 	bool validate(const IncomingViewKey& incoming_view_key, IdentifiedCoinData& data);
 

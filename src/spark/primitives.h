@@ -42,6 +42,27 @@ struct CSparkMintMeta
 
 namespace primitives {
     uint256 GetNonceHash(const secp_primitives::Scalar& nonce);
+    uint256 GetLTagHash(const secp_primitives::GroupElement& tag);
+}
+
+namespace spark {
+// Custom hash for the spark coin. norte. THIS IS NOT SECURE HASH FUNCTION
+struct CoinHash {
+    std::size_t operator()(const spark::Coin& coin) const noexcept;
+};
+
+// Custom hash for the linking tag. THIS IS NOT SECURE HASH FUNCTION
+struct CLTagHash {
+    std::size_t operator()(const secp_primitives::GroupElement& tag) const noexcept;
+};
+
+struct CMintedCoinInfo {
+    int coinGroupId;
+    int nHeight;
+
+    static CMintedCoinInfo make(int coinGroupId, int nHeight);
+};
+
 }
 
 

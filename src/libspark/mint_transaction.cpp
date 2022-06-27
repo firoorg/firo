@@ -2,6 +2,10 @@
 
 namespace spark {
 
+MintTransaction::MintTransaction(const Params* params) {
+    this->params = params;
+}
+
 MintTransaction::MintTransaction(
 	const Params* params,
 	const std::vector<MintedCoinData>& outputs,
@@ -72,6 +76,20 @@ std::vector<CDataStream> MintTransaction::getMintedCoinsSerialized() {
         serializedCoins.push_back(serializedCoin);
     }
     return serializedCoins;
+}
+
+void MintTransaction::setMintTransaction(std::vector<CDataStream>& serializedCoins) {
+    bool first = true;
+    coins.resize(serializedCoins.size());
+    size_t i = 0;
+    for (auto& stream : serializedCoins) {
+        stream >> coins[i];
+        i++;
+        if (first) {
+            stream >> value_proof;
+            first = false;
+        }
+    }
 }
 
 void MintTransaction::getCoins(std::vector<Coin>& coins_) {

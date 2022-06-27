@@ -17,6 +17,7 @@ struct MintedCoinData {
 
 class MintTransaction {
 public:
+    MintTransaction(const Params* params);
 	MintTransaction(
 		const Params* params,
 		const std::vector<MintedCoinData>& outputs,
@@ -27,6 +28,9 @@ public:
 
     // returns the vector of serialized coins, with first one it puts also the chnorr proof;
     std::vector<CDataStream> getMintedCoinsSerialized();
+
+    // deserialize from the vector of CDataStreams
+    void setMintTransaction(std::vector<CDataStream>& serializedCoins);
 
     void getCoins(std::vector<Coin>& coins_);
 

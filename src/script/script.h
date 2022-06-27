@@ -205,6 +205,7 @@ enum opcodetype
 
     // spark params
     OP_SPARKMINT = 0xd1,
+    OP_SPARKSMINT = 0xd2,
 };
 
 const char* GetOpName(opcodetype opcode);
@@ -677,6 +678,8 @@ public:
 
     // Spark
     bool IsSparkMint() const;
+
+    bool IsSparkSMint() const;
 
     bool IsZerocoinRemint() const;
 
