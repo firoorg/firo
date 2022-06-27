@@ -816,6 +816,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     std::vector<Scalar> lelantusSpendSerials;
     std::vector<GroupElement> lelantusMintPubcoins;
     std::vector<uint64_t> lelantusAmounts;
+
+    // Spark
+    spark::CSparkState *sparkState = spark::CSparkState::GetState();
+    std::vector<spark::Coin> sparkMintCoins;
+    std::vector<GroupElement> sparkUsedLTags;
+
     {
         LOCK(pool.cs);
         if (tx.IsSigmaSpend()) {

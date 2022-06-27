@@ -24,17 +24,16 @@ uint256 GetLTagHash(const secp_primitives::GroupElement& tag) {
     return Hash(ss.begin(), ss.end());
 }
 
+uint256 GetSparkCoinHash(const spark::Coin& coin) {
+    return coin.getHash();
+}
 
 } // namespace primitives
 
 namespace spark {
 
 std::size_t CoinHash::operator ()(const spark::Coin& coin) const noexcept {
-    CDataStream ss(SER_GETHASH, 0);
-    ss << "coin_hash";
-    ss << coin;
-
-    uint256 hash = ::Hash(ss.begin(), ss.end());
+    uint256 hash = primitives::GetSparkCoinHash(coin);
 
     std::size_t result;
     std::memcpy(&result, hash.begin(), sizeof(std::size_t));
@@ -42,10 +41,7 @@ std::size_t CoinHash::operator ()(const spark::Coin& coin) const noexcept {
 }
 
 std::size_t CLTagHash::operator ()(const secp_primitives::GroupElement& tag) const noexcept {
-    CDataStream ss(SER_GETHASH, 0);
-    ss << "tag_hash";
-    ss << tag;
-    uint256 hash = ::Hash(ss.begin(), ss.end());
+    uint256 hash = primitives::GetLTagHash(tag);
 
     std::size_t result;
     std::memcpy(&result, hash.begin(), sizeof(std::size_t));
