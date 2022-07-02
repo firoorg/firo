@@ -162,7 +162,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     }
 
     uint256 *b1 = block1.load(std::memory_order_relaxed);
-    if (b1 == nullptr && chainActive.Tip() && chainActive.Height() > 1) {
+    if (b1 == nullptr && chainActive.Tip() && chainActive.Height() > 1 && chainActive[1]->phashBlock) {
         // This will leak memory in the event that it races, but it's just a few bytes at most a few times.
         b1 = (uint256*)malloc(sizeof(uint256));
         *b1 = chainActive[1]->GetBlockHash();
