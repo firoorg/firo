@@ -914,7 +914,7 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
 
         // transactions depending (directly or not) on sigma spends in the mempool cannot be included in the
         // same block with spend transaction
-        if (tx.IsSigmaSpend()) {
+        if (tx.IsSigmaSpend() || tx.IsLelantusJoinSplit()) {
             mempool.CalculateDescendants(mi, txBlackList);
             // remove privacy transaction itself
             txBlackList.erase(mi);
