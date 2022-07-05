@@ -154,7 +154,7 @@ UniValue autoMintLelantus(Type type, const UniValue& data, const UniValue& auth,
 
     std::string strError = pwalletMain->MintAndStoreLelantus(0, wtxAndFees, mints, true);
 
-    if (strError != "") {
+    if (strError != "" && strError != "Insufficient funds") {
         throw JSONAPIError(RPC_WALLET_ERROR, strError);
     }
 
