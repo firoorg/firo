@@ -28,6 +28,9 @@ struct OutputCoinData {
 
 class SpendTransaction {
 public:
+    SpendTransaction(
+            const Params* params);
+
 	SpendTransaction(
 		const Params* params,
 		const FullViewKey& full_view_key,
@@ -39,6 +42,9 @@ public:
 		const std::vector<OutputCoinData>& outputs
 	);
 	bool verify();
+
+	uint64_t getFee();
+    std::vector<GroupElement>& getUsedLTags();
     
 	static Scalar hash_bind(
 		const std::vector<std::vector<unsigned char>>& roots,

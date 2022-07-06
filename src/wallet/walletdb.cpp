@@ -1704,9 +1704,9 @@ unsigned int CWalletDB::GetUpdateCounter()
     return nWalletDBUpdateCounter;
 }
 
-std::list<CSparkMintMeta> CWalletDB::ListSparkMints()
+std::unordered_map<uint256, CSparkMintMeta> CWalletDB::ListSparkMints()
 {
-    std::list<CSparkMintMeta> listMints;
+    std::unordered_map<uint256, CSparkMintMeta> listMints;
     Dbc* pcursor = GetCursor();
     if (!pcursor)
         throw std::runtime_error(std::string(__func__)+" : cannot create DB cursor");
@@ -1735,32 +1735,32 @@ std::list<CSparkMintMeta> CWalletDB::ListSparkMints()
         if (strType != mintName)
             break;
 
-        uint256 nonceHash;
-        ssKey >> nonceHash;
+        uint256 lTagHash;
+        ssKey >> lTagHash;
 
         CSparkMintMeta mint;
         ssValue >> mint;
 
-        listMints.emplace_back(mint);
+        listMints[lTagHash] = mint;
     }
 
     pcursor->close();
     return listMints;
 }
 
-bool CWalletDB::WriteSparkMint(const uint256& nonceHash, const CSparkMintMeta& mint)
+bool CWalletDB::WriteSparkMint(const uint256& lTagHash, const CSparkMintMeta& mint)
 {
-    return Write(std::make_pair(std::string("sparkMint"), nonceHash), mint);
+    return Write(std::make_pair(std::string("sparkMint"), lTagHash), mint);
 }
 
-bool CWalletDB::ReadSparkMint(const uint256& nonceHash, CSparkMintMeta& mint)
+bool CWalletDB::ReadSparkMint(const uint256& lTagHash, CSparkMintMeta& mint)
 {
-    return Read(std::make_pair(std::string("sparkMint"), nonceHash), mint);
+    return Read(std::make_pair(std::string("sparkMint"), lTagHash), mint);
 }
 
-bool CWalletDB::EraseSparkMint(const uint256& nonceHash)
+bool CWalletDB::EraseSparkMint(const uint256& lTagHash)
 {
-    return Erase(std::make_pair(std::string("sparkMint"), nonceHash));
+    return Erase(std::make_pair(std::string("sparkMint"), lTagHash));
 }
 
 

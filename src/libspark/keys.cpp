@@ -17,6 +17,7 @@ SpendKey::SpendKey(const Params* params, const Scalar& r_) {
     this->params = params;
     this->r = r_;
     std::vector<unsigned char> data;
+    data.resize(32);
     r.serialize(data.data());
     std::vector<unsigned char> result(CSHA256().OUTPUT_SIZE);
 

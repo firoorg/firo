@@ -703,7 +703,8 @@ bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state,
                 tx.nType != TRANSACTION_COINBASE &&
                 tx.nType != TRANSACTION_QUORUM_COMMITMENT &&
                 tx.nType != TRANSACTION_SPORK &&
-                tx.nType != TRANSACTION_LELANTUS) {
+                tx.nType != TRANSACTION_LELANTUS &&
+                tx.nType != TRANSACTION_SPARK) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
             }
             if (tx.IsCoinBase() && tx.nType != TRANSACTION_COINBASE)
@@ -712,6 +713,8 @@ bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state,
                     !(nHeight >= consensusParams.nEvoSporkStartBlock && nHeight < consensusParams.nEvoSporkStopBlock))
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
             if (tx.nType == TRANSACTION_LELANTUS && nHeight < consensusParams.nLelantusV3PayloadStartBlock)
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
+            if (tx.nType == TRANSACTION_SPARK && nHeight < consensusParams.nSparkStartBlock)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
         }
         else if (tx.nType != TRANSACTION_NORMAL) {
@@ -886,6 +889,25 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 }
                 lelantusSpendSerials.push_back(serials[i]);
             }
+        } else if (tx.IsSparkSpend()) {
+            if (tx.vin.size() > 1) {
+                return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-spark-spend");
+            }
+
+            try {
+                sparkUsedLTags = spark::GetSparkUsedTags(tx);
+            }
+            catch (...) {
+                return state.Invalid(false, REJECT_CONFLICT, "failed to deserialize spark spend");
+            }
+
+            for (const auto& lTag : sparkUsedLTags) {
+                if (sparkState->IsUsedLTag(lTag) || pool.sparkState.HasLTag(lTag)) {
+                    LogPrintf("AcceptToMemoryPool(): spark linking tag %s has been used\n",
+                              lTag.tostring());
+                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+                }
+            }
         }
 
         BOOST_FOREACH(const CTxOut &txout, tx.vout)
@@ -916,6 +938,22 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                     return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                 }
                 lelantusMintPubcoins.push_back(pubCoinValue);
+            }
+        }
+
+        if (tx.IsSparkSpend() || tx.IsSparkMint()) {
+            try {
+                sparkMintCoins = spark::GetSparkMintCoins(tx);
+            }
+            catch (...) {
+                return state.Invalid(false, REJECT_CONFLICT, "failed to deserialize spark mint");
+            }
+
+            for (const auto& coin : sparkMintCoins) {
+                if (sparkState->HasCoin(coin) || pool.sparkState.HasMint(coin)) {
+                    LogPrintf("AcceptToMemoryPool(): Spark mint with the same value %s is already in the mempool\n", coin.getHash().GetHex());
+                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+                }
             }
         }
     }
@@ -979,7 +1017,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     std::set<uint256> setConflicts;
     {
     LOCK(pool.cs); // protect pool.mapNextTx
-    if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit()) {
+    if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit() && !tx.IsSparkSpend()) {
         BOOST_FOREACH(const CTxIn &txin, tx.vin)
         {
             auto itConflicting = pool.mapNextTx.find(txin.prevout);
@@ -1045,7 +1083,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
         }
 
-        if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit()) {
+        if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit() && !tx.IsSparkSpend()) {
             // do all inputs exist?
             BOOST_FOREACH(const CTxIn txin, tx.vin) {
                 if (!pcoinsTip->HaveCoinInCache(txin.prevout)) {
@@ -1094,11 +1132,21 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
             CAmount nValueOut = tx.GetValueOut();
             CAmount nFees;
-            if (!tx.IsLelantusJoinSplit()) {
+            if (!tx.IsLelantusJoinSplit() && !tx.IsSparkSpend()) {
                 nFees = nValueIn - nValueOut;
-            } else {
+            } else if (tx.IsLelantusJoinSplit()) {
                 try {
                     nFees = lelantus::ParseLelantusJoinSplit(tx)->getFee();
+                }
+                catch (CBadTxIn&) {
+                    return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
+                }
+                catch (...) {
+                    return state.DoS(0, false, REJECT_INVALID, "failed to deserialize joinsplit");
+                }
+            } else {
+                try {
+                    nFees = spark::ParseSparkSpend(tx).getFee();
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
@@ -1114,7 +1162,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
             CAmount inChainInputValue = 0;
             bool fSpendsCoinbase = false;
-            if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit()) {
+            if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit() && !tx.IsSparkSpend()) {
                 // Keep track of transactions that spend a coinbase, which we re-scan
                 // during reorgs to ensure COINBASE_MATURITY is still met.
                 BOOST_FOREACH(const CTxIn &txin, tx.vin) {
@@ -1461,17 +1509,40 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 #endif
     }
 
+
+    if (tx.IsSparkSpend()) {
+        if(markFiroSpendTransactionSerial) {
+            LogPrintf("Adding spends to mempool state..\n");
+            for (const auto &usedLTag: sparkUsedLTags)
+                pool.sparkState.AddSpendToMempool(usedLTag, hash);
+        }
+
+#ifdef ENABLE_WALLET
+        if (!GetBoolArg("-disablewallet", false) && pwalletMain->sparkWallet) {
+            LogPrintf("Adding spends to wallet from Mempool..\n");
+            pwalletMain->sparkWallet->UpdateSpendStateFromMempool(sparkUsedLTags);
+        }
+#endif
+    }
+
     if(markFiroSpendTransactionSerial) {
         sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
         for (const auto &pubCoin: lelantusMintPubcoins)
             pool.lelantusState.AddMintToMempool(pubCoin);
-    }
 
+        //  Add spark mints to mempool
+        sparkState->AddMintsToMempool(sparkMintCoins);
+    }
 
 #ifdef ENABLE_WALLET
     if(tx.IsSigmaMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
         LogPrintf("Updating mint state from Mempool..\n");
         pwalletMain->zwallet->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
+    }
+
+    if(tx.IsSparkMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->sparkWallet) {
+        LogPrintf("Adding Spark mints to Mempool..\n");
+        pwalletMain->sparkWallet->UpdateMintStateFromMempool(sparkMintCoins);
     }
 
     if(tx.IsLelantusMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
@@ -2141,7 +2212,7 @@ bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state
 
 bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheStore, PrecomputedTransactionData& txdata, std::vector<CScriptCheck> *pvChecks)
 {
-    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit())
+    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit() &&!tx.IsSparkSpend())
     {
         if (!Consensus::CheckTxInputs(tx, state, inputs, GetSpendHeight(inputs)))
             return false;
@@ -2226,6 +2297,13 @@ bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsVi
         }
     } else if (tx.IsLelantusJoinSplit()) {
         if(tx.vin.size() > 1 || !tx.vin[0].scriptSig.IsLelantusJoinSplit()) {
+            return state.DoS(
+                    100, false,
+                    REJECT_MALFORMED,
+                    " Can't mix Lelantus joinsplit input with regular ones or have more than one input");
+        }
+    } else if (tx.IsSparkSpend()) {
+        if(tx.vin.size() > 1) {
             return state.DoS(
                     100, false,
                     REJECT_MALFORMED,
