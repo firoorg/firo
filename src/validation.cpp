@@ -1803,7 +1803,7 @@ bool ReadBlockHeaderFromDisk(CBlock &block, const CDiskBlockPos &pos) {
     return true;
 }
 
-CAmount GetBlockSubsidyWithMTPFlag(int nHeight, const Consensus::Params &consensusParams, bool fMTP) {
+CAmount GetBlockSubsidyWithMTPFlag(int nHeight, const Consensus::Params &consensusParams, bool fMTP, bool fShorterBlockDistance) {
     // Genesis block is 0 coin
     if (nHeight == 0)
         return 0;
@@ -1823,17 +1823,24 @@ CAmount GetBlockSubsidyWithMTPFlag(int nHeight, const Consensus::Params &consens
     if (nHeight > 0 && fMTP)
         nSubsidy /= consensusParams.nMTPRewardReduction;
 
+    if (nHeight > 0 && fShorterBlockDistance)
+        nSubsidy /= 2;
+
     return nSubsidy;
 }
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, int nTime) {
-    return GetBlockSubsidyWithMTPFlag(nHeight, consensusParams, nTime >= (int)consensusParams.nMTPSwitchTime);
+    return GetBlockSubsidyWithMTPFlag(nHeight, consensusParams,
+            nTime >= (int)consensusParams.nMTPSwitchTime,
+            nTime >= (int)consensusParams.stage3StartTime);
 }
 
-CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
+CAmount GetMasternodePayment(int nHeight, int nTime, CAmount blockValue)
 {
     const Consensus::Params &params = Params().GetConsensus();
-    if (nHeight >= params.nSubsidyHalvingFirst)
+    if (nTime >= params.stage3StartTime)
+        return blockValue*params.stage3MasternodeShare/100;
+    else if (nHeight >= params.nSubsidyHalvingFirst)
         return blockValue*params.stage2ZnodeShare/100;
     else
         return blockValue*3/10; // 30%
@@ -2965,7 +2972,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         return state.DoS(0, error("ConnectBlock(EVOZNODES): %s", strError), REJECT_INVALID, "bad-cb-amount");
     }
 
-    if (!IsBlockPayeeValid(*block.vtx[0], pindex->nHeight, blockSubsidy)) {
+    if (!IsBlockPayeeValid(*block.vtx[0], pindex->nHeight, pindex->nTime, blockSubsidy)) {
         mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
         return state.DoS(0, error("ConnectBlock(EVPZNODES): couldn't find evo znode payments"),
                                 REJECT_INVALID, "bad-cb-payee");
@@ -4637,6 +4644,9 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
     if (pindexPrev && pindexPrev->nTime >= consensusParams.nPPSwitchTime && block.nTime < consensusParams.nPPSwitchTime)
         return state.Invalid(false, REJECT_INVALID, "bad-blk-progpow-state", "Cannot go back from ProgPOW");
 
+    if (pindexPrev && pindexPrev->nTime >= consensusParams.stage3StartTime && block.nTime < consensusParams.stage3StartTime)
+        return state.Invalid(false, REJECT_INVALID, "bad-blk-stage3-state", "Cannot go back to 5 minutes between blocks");
+
     if (block.IsProgPow() && block.nHeight != nHeight)
         return state.DoS(100, false, REJECT_INVALID, "bad-blk-progpow", "ProgPOW height doesn't match chain height");
 
@@ -4665,16 +4675,34 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 
     if (nHeight >= consensusParams.nSubsidyHalvingFirst) {
         if (nHeight < consensusParams.nSubsidyHalvingFirst + consensusParams.nSubsidyHalvingInterval) {
-            // "stage 2" interval between first and second halvings
-            CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage2DevelopmentFundAddress).Get());
-            CAmount devPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * consensusParams.stage2DevelopmentFundShare) / 100;
-            bool found = false;
-            for (const CTxOut &txout: block.vtx[0]->vout) {
-                if ((found = txout.scriptPubKey == devPayoutScript && txout.nValue == devPayoutValue) == true)
-                    break;
+            if (block.nTime >= consensusParams.stage3StartTime) {
+                CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get());
+                CAmount devPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * consensusParams.stage3DevelopmentFundShare) / 100;
+                CScript communityPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3CommunityFundAddress).Get());
+                CAmount communityPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * consensusParams.stage3CommunityFundShare) / 100;
+
+                bool devFound = false, communityFound = false;
+                for (const CTxOut &txout: block.vtx[0]->vout) {
+                    if (txout.scriptPubKey == devPayoutScript && txout.nValue == devPayoutValue)
+                        devFound = true;
+                    else if (txout.scriptPubKey == communityPayoutScript && txout.nValue == communityPayoutValue)
+                        communityFound = true;
+                }
+                if (!devFound || !communityFound)
+                    return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Stage 3 developer/community reward check failed");
             }
-            if (!found)
-                return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Stage 2 developer reward check failed");
+            else {
+                // "stage 2" interval between first and second halvings
+                CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage2DevelopmentFundAddress).Get());
+                CAmount devPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * consensusParams.stage2DevelopmentFundShare) / 100;
+                bool found = false;
+                for (const CTxOut &txout: block.vtx[0]->vout) {
+                    if ((found = txout.scriptPubKey == devPayoutScript && txout.nValue == devPayoutValue) == true)
+                        break;
+                }
+                if (!found)
+                    return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Stage 2 developer reward check failed");
+            }
         }
     }
     else if (!CheckZerocoinFoundersInputs(*block.vtx[0], state, consensusParams, nHeight, block.IsMTP())) {

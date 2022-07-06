@@ -684,6 +684,9 @@ void TransactionView::focusTransaction(const QModelIndex &idx)
 // sizes as the tables width is proportional to the dialogs width.
 void TransactionView::resizeEvent(QResizeEvent* event)
 {
+    if(!transactionView || !transactionView->selectionModel())
+        return;
+
     QWidget::resizeEvent(event);
     disconnect(transactionView->horizontalHeader(), SIGNAL(sectionResized(int,int,int)), this, SLOT(updateHeaderSizes(int,int,int)));
     columnResizingFixer->stretchColumnWidth(TransactionTableModel::ToAddress);

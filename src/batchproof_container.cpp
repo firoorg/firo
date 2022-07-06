@@ -5,6 +5,7 @@
 #include "sigma/sigmaplus_verifier.h"
 #include "sigma.h"
 #include "lelantus.h"
+#include "ui_interface.h"
 
 std::unique_ptr<BatchProofContainer> BatchProofContainer::instance;
 
@@ -158,8 +159,10 @@ void BatchProofContainer::erase(std::vector<LelantusSigmaProofData>* vProofs, co
 }
 
 void BatchProofContainer::batch_sigma() {
-    if (!sigmaProofs.empty())
+    if (!sigmaProofs.empty()){
         LogPrintf("Sigma batch verification started.\n");
+        uiInterface.UpdateProgressBarLabel("Batch verifying Sigma...");
+    }
     else
         return;
 
@@ -210,9 +213,9 @@ void BatchProofContainer::batch_sigma() {
                     }
                     return true;
                 }));
-            }
 
-            ++itr;
+                ++itr;
+            }
         }
 
         bool isFail = false;
@@ -233,8 +236,10 @@ void BatchProofContainer::batch_sigma() {
 }
 
 void BatchProofContainer::batch_lelantus() {
-    if (!lelantusSigmaProofs.empty())
+    if (!lelantusSigmaProofs.empty()){
         LogPrintf("Lelantus batch verification started.\n");
+        uiInterface.UpdateProgressBarLabel("Batch verifying Lelantus...");
+    }
     else
         return;
 
@@ -311,8 +316,9 @@ void BatchProofContainer::batch_lelantus() {
                     }
                     return true;
                 }));
+                
+                ++itr;
             }
-            ++itr;
         }
         bool isFail = false;
         for (auto& th : parallelTasks) {
@@ -333,8 +339,10 @@ void BatchProofContainer::batch_lelantus() {
 }
 
 void BatchProofContainer::batch_rangeProofs() {
-    if (!rangeProofs.empty())
+    if (!rangeProofs.empty()){
         LogPrintf("RangeProof batch verification started.\n");
+        uiInterface.UpdateProgressBarLabel("Batch verifying Range Proofs...");
+    }
 
     auto params = lelantus::Params::get_default();
     for (const auto& itr : rangeProofs) {

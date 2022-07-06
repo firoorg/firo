@@ -360,6 +360,31 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                 if(!SetLelantusMintSeedSeen(walletdb, pMint, pindex->nHeight, txHash, amount))
                     continue;
 
+                if (tx->IsLelantusJoinSplit()) {
+                    std::vector<Scalar> serials = lelantus::GetLelantusJoinSplitSerialNumbers(*tx, tx->vin[0]);
+                    for (auto& serial : serials) {
+                        CLelantusMintMeta mMeta;
+                        if (!tracker.GetMetaFromSerial(primitives::GetSerialHash(serial), mMeta))
+                            continue;
+
+                        if (mMeta.isUsed)
+                            continue;
+
+                        tracker.SetLelantusPubcoinUsed(mMeta.GetPubCoinValueHash(), tx->GetHash());
+
+                        // add CLelantusSpendEntry
+                        CLelantusSpendEntry spend;
+                        spend.coinSerial = serial;
+                        spend.hashTx = tx->GetHash();
+                        spend.pubCoin = mMeta.GetPubCoinValue();
+                        spend.id = mMeta.nId;
+                        spend.amount = mMeta.amount;
+                        if (!walletdb.WriteLelantusSpendSerialEntry(spend)) {
+                            throw std::runtime_error(_("Failed to write coin serial number into wallet"));
+                        }
+                    }
+                }
+
                 // Only update if the current hashSeedMaster matches the mints'
                 if(hashSeedMaster == mintHashSeedMaster && mintCount >= GetCount()){
                     SetCount(++mintCount);

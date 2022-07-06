@@ -187,6 +187,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     pblock->nTime = GetAdjustedTime();
     bool fMTP = (pblock->nTime >= params.nMTPSwitchTime);
+    bool fShorterBlockDistance = (pblock->nTime >= params.stage3StartTime);
     const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
 
     pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus()) | (fMTP ? 0x1000 : 0);
@@ -248,7 +249,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vout[0].nValue = nFees + nBlockSubsidy;
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
 
-    FillFoundersReward(coinbaseTx, fMTP);
+    FillFoundersReward(coinbaseTx, fMTP, fShorterBlockDistance);
 
     if (fDIP0003Active_context) {
         coinbaseTx.vin[0].scriptSig = CScript() << OP_RETURN;
@@ -281,7 +282,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     }
         
     std::vector<CTxOut> sbPayments;
-    FillBlockPayments(coinbaseTx, nHeight, nBlockSubsidy, pblocktemplate->voutMasternodePayments, sbPayments);
+    FillBlockPayments(coinbaseTx, nHeight, pblock->nTime, nBlockSubsidy, pblocktemplate->voutMasternodePayments, sbPayments);
 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vTxFees[0] = -nFees;
@@ -800,17 +801,34 @@ void BlockAssembler::addPriorityTxs()
     fNeedSizeAccounting = fSizeAccounting;
 }
 
-void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fMTP) {
+void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fMTP, bool fShorterBlockDistance) {
     const auto &params = chainparams.GetConsensus();
     CAmount coin = COIN / (fMTP ? params.nMTPRewardReduction : 1);
+    if (fShorterBlockDistance)
+        coin /= 2;
 
     if (nHeight >= params.nSubsidyHalvingFirst && nHeight < params.nSubsidyHalvingFirst + params.nSubsidyHalvingInterval) {
-        // Stage 2
-        CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(params.stage2DevelopmentFundAddress).Get());
-        CAmount devPayoutValue = (GetBlockSubsidyWithMTPFlag(nHeight, params, fMTP) * params.stage2DevelopmentFundShare) / 100;
+        if (fShorterBlockDistance) {
+            // Stage 3
+            CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(params.stage3DevelopmentFundAddress).Get());
+            CAmount devPayoutValue = (GetBlockSubsidyWithMTPFlag(nHeight, params, fMTP, true) * params.stage3DevelopmentFundShare) / 100;
+            CScript communityPayoutScript = GetScriptForDestination(CBitcoinAddress(params.stage3CommunityFundAddress).Get());
+            CAmount communityPayoutValue = (GetBlockSubsidyWithMTPFlag(nHeight, params, fMTP, true) * params.stage3CommunityFundShare) / 100;
 
-        coinbaseTx.vout[0].nValue -= devPayoutValue;
-        coinbaseTx.vout.push_back(CTxOut(devPayoutValue, devPayoutScript));
+            coinbaseTx.vout[0].nValue -= devPayoutValue;
+            coinbaseTx.vout.push_back(CTxOut(devPayoutValue, devPayoutScript));
+
+            coinbaseTx.vout[0].nValue -= communityPayoutValue;
+            coinbaseTx.vout.push_back(CTxOut(communityPayoutValue, communityPayoutScript));
+        }
+        else {
+            // Stage 2
+            CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(params.stage2DevelopmentFundAddress).Get());
+            CAmount devPayoutValue = (GetBlockSubsidyWithMTPFlag(nHeight, params, fMTP, false) * params.stage2DevelopmentFundShare) / 100;
+
+            coinbaseTx.vout[0].nValue -= devPayoutValue;
+            coinbaseTx.vout.push_back(CTxOut(devPayoutValue, devPayoutScript));
+        }
     }
 
     else if ((nHeight > 0) && (nHeight < params.nSubsidyHalvingFirst)) {
@@ -896,7 +914,7 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
 
         // transactions depending (directly or not) on sigma spends in the mempool cannot be included in the
         // same block with spend transaction
-        if (tx.IsSigmaSpend()) {
+        if (tx.IsSigmaSpend() || tx.IsLelantusJoinSplit()) {
             mempool.CalculateDescendants(mi, txBlackList);
             // remove privacy transaction itself
             txBlackList.erase(mi);
