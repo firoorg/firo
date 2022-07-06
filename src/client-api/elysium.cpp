@@ -326,6 +326,12 @@ UniValue sendElysium(Type type, const UniValue &data, const UniValue &auth, bool
     }
 }
 
+UniValue recoverElysium(Type type, const UniValue &data, const UniValue &auth, bool fHelp) {
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    elysium::wallet->SyncWithChain();
+    return UniValue::VNULL;
+}
+
 static const CAPICommand commands[] =
     { //  category collection actor authPort authPassphrase  warmupOk
       //  -------- ---------- ----- -------- --------------  --------
@@ -333,6 +339,7 @@ static const CAPICommand commands[] =
       { "elysium", "createElysiumProperty", &createElysiumProperty, true, true, false  },
       { "elysium", "mintElysium", &mintElysium, true, true, false  },
       { "elysium", "sendElysium", &sendElysium, true, true, false  },
+      { "elysium", "recoverElysium", &recoverElysium, true, true, false  },
     };
 
 void RegisterElysiumAPICommands(CAPITable &tableAPI)
