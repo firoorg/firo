@@ -94,6 +94,32 @@ void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin)
     stream >> txCoin;
 }
 
+spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
+{
+    //TODO levon implement this after spark spend implementation
+
+}
+
+
+std::vector<GroupElement>  GetSparkUsedTags(const CTransaction &tx)
+{
+    const spark::Params* params = spark::Params::get_default();
+
+    spark::SpendTransaction spendTransaction(params);
+    try {
+        spendTransaction = ParseSparkSpend(tx);
+    } catch (...) {
+        return std::vector<GroupElement>();
+    }
+
+    return  spendTransaction.getUsedLTags();
+}
+
+std::vector<spark::Coin>&  GetSparkMintCoins(const CTransaction &tx)
+{
+    //TODO levon implement this after spark spend implementation
+}
+
 
 bool CheckSparkMintTransaction(
         const std::vector<CScript>& scripts,

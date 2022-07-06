@@ -303,10 +303,10 @@ public:
     bool ReadMintPoolPair(const uint256& hashPubcoin, uint160& hashSeedMaster, CKeyID& seedId, int32_t& nCount);
     std::vector<std::pair<uint256, MintPoolEntry>> ListMintPool();
 
-    std::list<CSparkMintMeta> ListSparkMints();
-    bool WriteSparkMint(const uint256& nonceHash, const CSparkMintMeta& mint);
-    bool ReadSparkMint(const uint256& nonceHash, CSparkMintMeta& mint);
-    bool EraseSparkMint(const uint256& nonceHash);
+    std::unordered_map<uint256, CSparkMintMeta> ListSparkMints();
+    bool WriteSparkMint(const uint256& lTagHash, const CSparkMintMeta& mint);
+    bool ReadSparkMint(const uint256& lTagHash, CSparkMintMeta& mint);
+    bool EraseSparkMint(const uint256& lTagHash);
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);

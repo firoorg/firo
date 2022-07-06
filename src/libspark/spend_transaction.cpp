@@ -3,6 +3,11 @@
 namespace spark {
 
 SpendTransaction::SpendTransaction(
+        const Params* params) {
+    this->params = params;
+}
+
+SpendTransaction::SpendTransaction(
 	const Params* params,
 	const FullViewKey& full_view_key,
 	const SpendKey& spend_key,
@@ -192,6 +197,15 @@ SpendTransaction::SpendTransaction(
 		this->chaum_proof
 	);
 }
+
+uint64_t SpendTransaction::getFee() {
+    return f;
+}
+
+std::vector<GroupElement>& SpendTransaction::getUsedLTags() {
+    return T;
+}
+
 
 bool SpendTransaction::verify() {
 	// Size parameters

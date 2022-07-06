@@ -54,8 +54,11 @@ public:
     // erase mint meta data from memory and from db
     void eraseMint(const uint256& hash, CWalletDB& walletdb);
     // add mint meta data to memory and to db
-    void addOrUpdate(const CSparkMintMeta& mint, CWalletDB& walletdb);
+    void addOrUpdate(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb);
     CSparkMintMeta getMintMeta(const uint256& hash);
+
+    void UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags);
+    void UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins);
 
     // get the vector of mint metadata for a single address
     std::vector<CSparkMintMeta> listAddressCoins(const int32_t& i, bool fUnusedOnly = false);
@@ -91,7 +94,7 @@ private:
     // map diversifier to address.
     std::unordered_map<int32_t, spark::Address> addresses;
 
-    // map nonceHash to coin meta
+    // map lTagHash to coin meta
     std::unordered_map<uint256, CSparkMintMeta> coinMeta;
 };
 

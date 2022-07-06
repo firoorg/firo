@@ -8,6 +8,7 @@
 #include "libspark/coin.h"
 #include "chain.h"
 #include "../libspark/mint_transaction.h"
+#include "../libspark/spend_transaction.h"
 #include "primitives.h"
 
 namespace spark {
@@ -40,6 +41,11 @@ bool IsSparkAllowed(int height);
 // Pass Scripts form mint transaction and get spark MintTransaction object
 void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransaction& mintTransaction);
 void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin);
+
+spark::SpendTransaction ParseSparkSpend(const CTransaction &tx);
+
+std::vector<GroupElement>  GetSparkUsedTags(const CTransaction &tx);
+std::vector<spark::Coin>&  GetSparkMintCoins(const CTransaction &tx);
 
 
 bool CheckSparkTransaction(

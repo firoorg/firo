@@ -46,10 +46,7 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
          }
 
          // get the list of coin metadata from db
-         std::list<CSparkMintMeta> listMints = walletdb.ListSparkMints();
-         for (const auto& itr : listMints) {
-             coinMeta[itr.GetNonceHash()] = itr;
-         }
+        coinMeta = walletdb.ListSparkMints();
     }
 }
 
@@ -203,13 +200,13 @@ void CSparkWallet::eraseMint(const uint256& hash, CWalletDB& walletdb) {
     walletdb.EraseSparkMint(hash);
     coinMeta.erase(hash);
 }
-void CSparkWallet::addOrUpdate(const CSparkMintMeta& mint, CWalletDB& walletdb) {
+void CSparkWallet::addOrUpdate(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb) {
     if (mint.i > lastDiversifier) {
         lastDiversifier = mint.i;
         walletdb.writeDiversifier(lastDiversifier);
     }
-    coinMeta[mint.GetNonceHash()] = mint;
-    walletdb.WriteSparkMint(mint.GetNonceHash(), mint);
+    coinMeta[lTagHash] = mint;
+    walletdb.WriteSparkMint(lTagHash, mint);
 }
 
 CSparkMintMeta CSparkWallet::getMintMeta(const uint256& hash) {
@@ -217,6 +214,15 @@ CSparkMintMeta CSparkWallet::getMintMeta(const uint256& hash) {
         return coinMeta[hash];
     return CSparkMintMeta();
 }
+
+void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags) {
+  //TODO levon
+}
+
+void CSparkWallet::UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins) {
+    //TODO levon
+}
+
 
 std::vector<CSparkMintMeta> CSparkWallet::listAddressCoins(const int32_t& i, bool fUnusedOnly) {
     std::vector<CSparkMintMeta> listMints;
