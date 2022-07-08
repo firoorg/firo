@@ -219,11 +219,19 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         assert(elysium::wallet->lelantusWallet.database);
     }
 
+    UniValue txData = UniValue::VOBJ;
+
     bool fIsFromMe = false;
     bool fIsMining = false;
 
+    UniValue publicInputs = UniValue::VARR;
     std::string inputType = "public";
     for (const CTxIn &txin: wtx.tx->vin) {
+        UniValue pin = UniValue::VARR;
+        pin.push_back(txin.prevout.hash.ToString());
+        pin.push_back((uint64_t)txin.prevout.n);
+        publicInputs.push_back(pin);
+
         if (txin.IsZerocoinSpend() || txin.IsZerocoinRemint()) inputType = "zerocoin";
         else if (txin.IsSigmaSpend()) inputType = "sigma";
         else if (txin.IsLelantusJoinSplit()) inputType = "lelantus";
@@ -232,6 +240,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         inputType = "mined";
         fIsMining = true;
     }
+    txData.pushKV("publicInputs", publicInputs);
 
     std::unique_ptr<lelantus::JoinSplit> joinSplit;
     if (wtx.tx->IsLelantusJoinSplit()) joinSplit = lelantus::ParseLelantusJoinSplit(*wtx.tx);
@@ -331,8 +340,6 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
             block = blockIt->second;
         }
     }
-
-    UniValue txData = UniValue::VOBJ;
 
     int nHeight = block ? block->nHeight : 0;
     int nTime = block ? block->nTime : 0;
