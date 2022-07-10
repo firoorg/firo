@@ -834,6 +834,10 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
     return true;
 }
 
+UniValue createRapAddress(Type type, const UniValue &data, const UniValue &auth, bool fHelp) {
+    return UniValue(pwalletMain->GeneratePcode(data["label"].get_str()).toString());
+}
+
 static const CAPICommand commands[] =
 { //  category              collection                        actor (function)                 authPort   authPassphrase   warmupOk
   //  --------------------- ------------                      ----------------                 --------   --------------   --------
@@ -848,7 +852,8 @@ static const CAPICommand commands[] =
     { "wallet",             "verifyMnemonicValidity",         &verifymnemonicvalidity,         true,      false,           false  },
     { "wallet",             "readAddressBook",                &readaddressbook,                true,      false,           false  },
     { "wallet",             "editAddressBook",                &editaddressbook,                true,      false,           false  },
-    { "wallet",             "lockStatus",                     &lockStatus,                     true,      false,           false  }
+    { "wallet",             "lockStatus",                     &lockStatus,                     true,      false,           false  },
+    { "wallet",             "createRapAddress",               &createRapAddress,               true,      true,            false  }
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {
