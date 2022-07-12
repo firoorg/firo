@@ -31,6 +31,8 @@ bool CEvoDB::VerifyBestBlock(const uint256& hash)
     uint256 hashBestBlock;
     bool fHasBestBlock = Read(EVODB_BEST_BLOCK, hashBestBlock);
     uint256 hashBlockIndex = fHasBestBlock ? hash : uint256();
+    if (hashBestBlock != hashBlockIndex)
+        LogPrintf("EvoDB best block is inconsistent: expected %s, got %s; aborting\n", hashBlockIndex.ToString(), hashBestBlock.ToString());
     assert(hashBestBlock == hashBlockIndex);
 
     return fHasBestBlock;
