@@ -187,7 +187,6 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("devAuth",       CZMQAbstract::DEV_AUTH));
     obj.push_back(Pair("synced",        masternodeSync.IsBlockchainSynced()));
     obj.push_back(Pair("walletinitialized",    fWalletInitialized));
-    // have to wait for the API to be loaded before getting the correct reindexing state
     obj.push_back(Pair("safeMode",      GetWarnings("api") != ""));
     obj.push_back(Pair("hasSentInitialStateWallet", fHasSentInitialStateWallet));
 

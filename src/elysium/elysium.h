@@ -243,7 +243,8 @@ std::string FormatIndivisibleMP(int64_t n);
 enum class InputMode {
     NORMAL,
     LELANTUS,
-    MINT
+    MINT,
+    CREATE_PROPERTY
 };
 
 int WalletTxBuilder(const std::string &senderAddress, const std::string &receiverAddress,

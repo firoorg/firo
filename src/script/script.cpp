@@ -304,6 +304,22 @@ bool CScript::IsElysium() const {
     const std::array<unsigned char, 7> magic = { 0x65, 0x6c, 0x79, 0x73, 0x69, 0x75, 0x6d }; // "elysium"
     return (data.size() >= magic.size() && std::equal(magic.begin(), magic.end(), data.begin()));
 }
+
+bool CScript::IsElysiumCreateProperty() const {
+    int ELYSIUM_TYPE_CREATE_PROPERTY_FIXED = 50;
+    int ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL = 54;
+
+    const_iterator pc = begin();
+    opcodetype op;
+    std::vector<unsigned char> data;
+
+    if (!GetOp(pc, op, data) || op != OP_RETURN) return false;
+    if (!GetOp(pc, op, data)) return false;
+
+    const std::array<unsigned char, 7> magic = {0x65, 0x6c, 0x79, 0x73, 0x69, 0x75, 0x6d}; // "elysium"
+    if (!(data.size() >= magic.size() + 4 && std::equal(magic.begin(), magic.end(), data.begin()))) return false;
+    return (data[magic.size() + 2] == 0 && (data[magic.size() + 3] == ELYSIUM_TYPE_CREATE_PROPERTY_FIXED) || data[magic.size() + 3] == ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL);
+}
 #endif
 
 bool CScript::IsZerocoinMint() const

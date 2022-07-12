@@ -242,12 +242,13 @@ bool CTransaction::IsElysiumReferenceOutput(uint32_t i) const {
     // This needs to be kept in sync with elysium::ConsensusParams().REFERENCE_AMOUNT
     CAmount REFERENCE_AMOUNT = 100000;
 
-    if (i != 1) return false;
+    if (i != 1 && i != 2) return false;
     if (!vout[i].scriptPubKey.IsNormalPaymentScript()) return false;
     if (vout[i].nValue != REFERENCE_AMOUNT) return false;
 
     for (CTxOut const &out: vout) {
-        if (out.scriptPubKey.IsElysium()) return true;
+        if (i == 1 && out.scriptPubKey.IsElysium()) return true;
+        if (i == 2 && out.scriptPubKey.IsElysiumCreateProperty()) return true;
     }
 
     return false;

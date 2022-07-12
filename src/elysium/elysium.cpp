@@ -1767,10 +1767,14 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
     if (inputMode == InputMode::MINT) coinControl.nCoinType = CoinType::APPROPRIATE_FOR_ELYSIUM_MINT;
 
     // Select the inputs
-    if (0 >= SelectCoins(senderAddress, coinControl, inputMode == InputMode::MINT ? 0 : ConsensusParams().REFERENCE_AMOUNT, inputMode)) {
+    int64_t additional = 0;
+    if (inputMode == InputMode::CREATE_PROPERTY) additional = ConsensusParams().REFERENCE_AMOUNT * 2;
+    else if (inputMode != InputMode::MINT) additional = ConsensusParams().REFERENCE_AMOUNT;
+    if (0 >= SelectCoins(senderAddress, coinControl, additional, inputMode)) {
         switch (inputMode) {
         case InputMode::NORMAL:
         case InputMode::MINT:
+        case InputMode::CREATE_PROPERTY:
             return MP_INPUTS_INVALID;
         case InputMode::LELANTUS:
             return MP_LELANTUS_INPUTS_INVALID;
@@ -1805,7 +1809,9 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
     std::string notificationAddress = receiverAddress.empty() ? senderAddress : receiverAddress;
     CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(notificationAddress).Get());
 
-    if (inputMode != InputMode::MINT)
+    if (inputMode == InputMode::CREATE_PROPERTY)
+        vecSend.push_back(CTxOut(ConsensusParams().REFERENCE_AMOUNT, scriptPubKey));
+    if (inputMode != InputMode::MINT) // this is INTENTIONALLY not an "else if"
         vecSend.push_back(CTxOut(ConsensusParams().REFERENCE_AMOUNT, scriptPubKey));
 
     // Now we have what we need to pass to the wallet to create the transaction, perform some checks first
@@ -1827,7 +1833,7 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
 
 	
 
-	if(inputMode == InputMode::NORMAL || inputMode == InputMode::MINT) {
+	if(inputMode == InputMode::NORMAL || inputMode == InputMode::MINT || inputMode == InputMode::CREATE_PROPERTY) {
 		LogPrintf("inputMode Normal \n");
 		nChangePosInOut = vecRecipients.size();
 		// Ask the wallet to create the transaction (note mining fee determined by Bitcoin Core params)
@@ -1896,6 +1902,7 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
         // Commit the transaction to the wallet and broadcast)
         PrintToLog("%s: %s; nFeeRet = %d\n", __func__, wtxNew.tx->ToString(), nFeeRet);
         switch (inputMode) {
+        case InputMode::CREATE_PROPERTY:
         case InputMode::MINT:
         case InputMode::NORMAL:
             {
