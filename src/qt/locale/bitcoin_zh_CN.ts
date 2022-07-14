@@ -117,23 +117,18 @@
         <translation>创建或恢复钱包</translation>
     </message>
     <message>
-        <source>Let's create your Firo wallet!
+        <source>Let's create or restore your Firo wallet!
 
-Please save these words on paper (order is important). These words serve as your seed and will allow you to recover your wallet in case of a computer failure.
+You will be prompted to write down a recovery seed phrase that allows you to restore your wallet in the future.
 
-By default we create a 24 word seed but you may choose a 12 word seed should you require it for compatibility reasons.
+Please ensure that you store this securely as anyone with access to the recovery seed phrase can access your funds!
 
-You can also choose to further encrypt your seed with a passphrase for added security.
+By default, we recommend a 24 word recovery seed phrase.
 
-Warning:
-* Never disclose your seed
-* Never type it on a website
-* Do not store it electronically.
-* If you encrypt your seed with an additional passphrase, please also record this.
+You can also choose to further encrypt your recovery seed phrase with an additional passphrase (only recommended for advanced users).
+You will need to save this passphrase as well with the recovery seed phrase. Failing to save the passphrase will lead to your funds being irrecoverable.
 
-If you have an existing seed that you wish to restore, please select "Recover existing wallet" and enter your passphrase (if you have set one for your seed).
-
-Advanced: If you don't wish to generate a wallet with a seed phrase backup (not recommended), you can set usemnemonic=0 in firo.conf.
+If you have an existing recovery seed phrase, please select "Recover existing wallet". If you have secured your recovery seed phrase with an additional passphrase, enter it too.
       </source>
         <translation>让我们一起创建你的 Firo 钱包吧！
 
@@ -171,19 +166,19 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
         <translation>24 个字</translation>
     </message>
     <message>
-        <source>Input words here:</source>
+        <source>Input recovery seed phrase here:</source>
         <translation>请在这里输入：</translation>
     </message>
     <message>
-        <source>Use seed passphrase (optional):</source>
+        <source>Use additional passphrase (optional) [Recommended for advanced users only]</source>
         <translation>使用种子口令（可选）：</translation>
     </message>
     <message>
-        <source>Input mnemonic passphrase here:</source>
+        <source>Enter passphrase:</source>
         <translation>在这里输入记忆口令：</translation>
     </message>
     <message>
-        <source>Input mnemonic passphrase again:</source>
+        <source>Enter passphrase again:</source>
         <translation>再次输入记忆口令：</translation>
     </message>
     <message>
@@ -191,11 +186,11 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
         <translation>字数错误。请再试一次。</translation>
     </message>
     <message>
-        <source>Mnemonic can't be empty.</source>
+        <source>Recovery seed phrase can't be empty.</source>
         <translation>助记词不能是空的。</translation>
     </message>
     <message>
-        <source>Something went wrong. Please try again.</source>
+        <source>You have entered an invalid recovery seed phrase. Please double check the spelling and order.</source>
         <translation>出现问题。请再试一次。</translation>
     </message>
     <message>
@@ -207,7 +202,11 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
         <translation>密码口令不能为空。</translation>
     </message>
     <message>
-        <source>RAP addresses to be created:</source>
+        <source>If you use RAP addresses, and are restoring a wallet, enter the number of RAP addresses you have created to recover funds received using RAP addresses.</source>
+        <translation> </translation>
+    </message>
+    <message>
+        <source>Number of RAP addresses:</source>
         <translation>将要创建的 RAP 地址数量：</translation>
     </message>
     <message>
@@ -1210,23 +1209,23 @@ After the notification transaction is received by the RAP address issuer, funds 
         <translation>注意</translation>
     </message>
     <message>
-        <source>Please write down these words and keep them in a secure location such as a safe.</source>
+        <source>Please write down the recovery seed phrase and keep them in a secure location.</source>
         <translation>请写下这些单词，并将其保存在安全的地方，如保险箱。</translation>
     </message>
     <message>
-        <source>Your wallet has been created successfully. Using the following sequence of words, you will be able to recover your wallet at any time.</source>
+        <source>Your wallet has been created successfully. Using the following recovery seed phrase, you will be able to recover your wallet and balances at any time.</source>
         <translation>你的钱包已经创建成功。使用下面的顺序词，你就可以随时找回你的钱包。</translation>
     </message>
     <message>
-        <source>Mnemonic words:</source>
+        <source>Recovery seed phrase:</source>
         <translation>助记词：</translation>
     </message>
     <message>
-        <source>WARNING: Anyone with access to these words can recover your wallet and will have control over your funds!</source>
+        <source>WARNING: Anyone with access to the recovery seed phrase can recover your wallet and will have control over your funds!</source>
         <translation>警告：任何有机会接触到这些词的人都可以找回你的钱包，并将控制你的资金！</translation>
     </message>
     <message>
-        <source>Please re-enter the mnemonic words to ensure that you have written it down correctly.</source>
+        <source>Please re-enter the recovery seed phrase to ensure you have written it down correctly.</source>
         <translation>请重新输入助记词，以确保你正确地写下了它。</translation>
     </message>
     <message>

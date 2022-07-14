@@ -29,23 +29,18 @@
       </sizepolicy>
      </property>
      <property name="text">
-      <string>Let's create your Firo wallet!
+      <string>Let's create or restore your Firo wallet!
 
-Please save these words on paper (order is important). These words serve as your seed and will allow you to recover your wallet in case of a computer failure.
+You will be prompted to write down a recovery seed phrase that allows you to restore your wallet in the future.
 
-By default we create a 24 word seed but you may choose a 12 word seed should you require it for compatibility reasons.
+Please ensure that you store this securely as anyone with access to the recovery seed phrase can access your funds!
 
-You can also choose to further encrypt your seed with a passphrase for added security.
+By default, we recommend a 24 word recovery seed phrase.
 
-Warning:
-* Never disclose your seed
-* Never type it on a website
-* Do not store it electronically.
-* If you encrypt your seed with an additional passphrase, please also record this.
+You can also choose to further encrypt your recovery seed phrase with an additional passphrase (only recommended for advanced users).
+You will need to save this passphrase as well with the recovery seed phrase. Failing to save the passphrase will lead to your funds being irrecoverable.
 
-If you have an existing seed that you wish to restore, please select "Recover existing wallet" and enter your passphrase (if you have set one for your seed).
-
-Advanced: If you don't wish to generate a wallet with a seed phrase backup (not recommended), you can set usemnemonic=0 in firo.conf.
+If you have an existing recovery seed phrase, please select "Recover existing wallet". If you have secured your recovery seed phrase with an additional passphrase, enter it too.
       </string>
      </property>
      <property name="wordWrap">
@@ -143,7 +138,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
      <item>
       <widget class="QLabel" name="textLabel2">
        <property name="text">
-        <string>Input words here:</string>
+        <string>Input recovery seed phrase here:</string>
        </property>
        <property name="wordWrap">
         <bool>true</bool>
@@ -177,7 +172,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
       <item>
        <widget class="QCheckBox" name="usePassphrase">
         <property name="text">
-         <string>Use seed passphrase (optional):</string>
+         <string>Use additional passphrase (optional) [Recommended for advanced users only]</string>
         </property>
        </widget>
       </item>
@@ -192,7 +187,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
      <item row="0" column="0">
       <widget class="QLabel" name="textLabel4">
        <property name="text">
-        <string>Input mnemonic passphrase here:</string>
+        <string>Enter passphrase:</string>
        </property>
        <property name="wordWrap">
         <bool>true</bool>
@@ -215,7 +210,7 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
      <item row="1" column="0">
       <widget class="QLabel" name="textLabel3">
        <property name="text">
-        <string>Input mnemonic passphrase again:</string>
+        <string>Enter passphrase again:</string>
        </property>
        <property name="wordWrap">
         <bool>true</bool>
@@ -254,11 +249,30 @@ Advanced: If you don't wish to generate a wallet with a seed phrase backup (not 
     </widget>
    </item>
    <item>
+    <widget class="QLabel" name="textLabelPcodes">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>If you use RAP addresses, and are restoring a wallet, enter the number of RAP addresses you have created to recover funds received using RAP addresses.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>false</bool>
+     </property>
+     <property name="margin">
+      <number>10</number>
+     </property>
+    </widget>
+   </item>
+   <item>
     <layout class="QHBoxLayout" name="horizontalLayout_2">
      <item>
       <widget class="QLabel" name="labelPcodes">
        <property name="text">
-        <string>RAP addresses to be created:</string>
+        <string>Number of RAP addresses:</string>
        </property>
       </widget>
      </item>
