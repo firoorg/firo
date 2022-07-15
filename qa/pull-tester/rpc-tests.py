@@ -151,6 +151,7 @@ testScripts = [
     'rest.py',
     'httpbasics.py',
     'reindex.py',
+    'p2p-addr.py',
     'multi_rpc.py',
     'zapwallettxes.py',
     'proxy_test.py',
