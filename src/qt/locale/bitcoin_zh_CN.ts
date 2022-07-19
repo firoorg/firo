@@ -130,23 +130,19 @@ You will need to save this passphrase as well with the recovery seed phrase. Fai
 
 If you have an existing recovery seed phrase, please select "Recover existing wallet". If you have secured your recovery seed phrase with an additional passphrase, enter it too.
       </source>
-        <translation>让我们一起创建你的 Firo 钱包吧！
+        <translation>让我们创建或恢复你的Firo钱包!
 
-请将这些字保存在纸上（顺序很重要）。这些字将作为你的种子，以便于允许你在计算机故障的情况下恢复你的钱包。
+你会被提示写下一个恢复种子短语，允许你在未来恢复你的钱包。
 
-默认情况下，我们会创建一个 24 个字的种子，但如果你出于兼容性的原因需要，你也可以选择一个 12 个字的种子。
+请确保你安全地存储它，因为任何能够访问恢复种子短语的人都可以访问你的资金!
 
-你也可以选择用密码口令进一步加密你的种子，以增加安全性。
+默认情况下，我们建议使用24个字的恢复种子短语。
 
-警告：
-* 切勿透露你的种子
-* 不要在网站上打出来
-* 请不要以电子方式存储
-* 如果你用额外的口令加密种子，也请记录下来。
+你也可以选择用一个额外的口令进一步加密你的恢复种子短语（只推荐给高级用户）。
+你将需要把这个密码和恢复种子短语一起保存。如果不保存口令，将导致你的资金无法恢复。
 
-如果你有一个想要恢复的现有种子，请选择“恢复现有钱包”，然后输入你的密码（如果你已经为种子设置了密码）。
-
-高级设置：如果你不希望生成一个带有种子短语备份的钱包（不推荐），你可以在 firo.conf 中设置 usemnemonic=0。
+如果你有一个现有的恢复种子短语，请选择 "恢复现有钱包"。
+如果你用一个额外的口令来保证你的恢复种子短语，也请输入它。
         </translation>
     </message>
     <message>
@@ -167,19 +163,19 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     </message>
     <message>
         <source>Input recovery seed phrase here:</source>
-        <translation>请在这里输入：</translation>
+        <translation>在这里输入恢复种子短语：</translation>
     </message>
     <message>
         <source>Use additional passphrase (optional) [Recommended for advanced users only]</source>
-        <translation>使用种子口令（可选）：</translation>
+        <translation>使用额外的口令（可选） [仅推荐给高级用户]  </translation>
     </message>
     <message>
         <source>Enter passphrase:</source>
-        <translation>在这里输入记忆口令：</translation>
+        <translation>输入口令：</translation>
     </message>
     <message>
         <source>Enter passphrase again:</source>
-        <translation>再次输入记忆口令：</translation>
+        <translation>再次输入口令：</translation>
     </message>
     <message>
         <source>Wrong number of words. Please try again.</source>
@@ -187,11 +183,11 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     </message>
     <message>
         <source>Recovery seed phrase can't be empty.</source>
-        <translation>助记词不能是空的。</translation>
+        <translation>恢复助记词不能是空的。</translation>
     </message>
     <message>
         <source>You have entered an invalid recovery seed phrase. Please double check the spelling and order.</source>
-        <translation>出现问题。请再试一次。</translation>
+        <translation>你输入了一个无效的恢复种子短语。请仔细检查拼写和顺序。</translation>
     </message>
     <message>
         <source>Passphrases don't match.</source>
@@ -203,11 +199,11 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     </message>
     <message>
         <source>If you use RAP addresses, and are restoring a wallet, enter the number of RAP addresses you have created to recover funds received using RAP addresses.</source>
-        <translation> </translation>
+        <translation>如果你使用RAP地址，并且正在恢复一个钱包，请输入你创建的RAP地址的数量，以恢复使用RAP地址收到的资金。</translation>
     </message>
     <message>
         <source>Number of RAP addresses:</source>
-        <translation>将要创建的 RAP 地址数量：</translation>
+        <translation>RAP地址的数量：</translation>
     </message>
     <message>
         <source>The number of RAP addresses will be created in the wallet for the initial blockchain scan</source>
@@ -1210,23 +1206,23 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Please write down the recovery seed phrase and keep them in a secure location.</source>
-        <translation>请写下这些单词，并将其保存在安全的地方，如保险箱。</translation>
+        <translation>请写下恢复种子短语，并将它们保存在一个安全的地方。</translation>
     </message>
     <message>
         <source>Your wallet has been created successfully. Using the following recovery seed phrase, you will be able to recover your wallet and balances at any time.</source>
-        <translation>你的钱包已经创建成功。使用下面的顺序词，你就可以随时找回你的钱包。</translation>
+        <translation>你的钱包已经成功创建。使用以下恢复种子短语，你将能够随时恢复你的钱包和余额。</translation>
     </message>
     <message>
         <source>Recovery seed phrase:</source>
-        <translation>助记词：</translation>
+        <translation>恢复种子短语：</translation>
     </message>
     <message>
         <source>WARNING: Anyone with access to the recovery seed phrase can recover your wallet and will have control over your funds!</source>
-        <translation>警告：任何有机会接触到这些词的人都可以找回你的钱包，并将控制你的资金！</translation>
+        <translation>警告：任何能够接触到恢复种子短语的人都可以恢复你的钱包，并将控制你的资金！</translation>
     </message>
     <message>
         <source>Please re-enter the recovery seed phrase to ensure you have written it down correctly.</source>
-        <translation>请重新输入助记词，以确保你正确地写下了它。</translation>
+        <translation>请重新输入恢复助记词，以确保你正确地写下了它。</translation>
     </message>
     <message>
         <source>Your entered words do not match, please press back to re-check your mnemonic.</source>
