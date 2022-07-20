@@ -109,25 +109,31 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
             return (exponent << 24) | base;
         }
 
-        if (pblock->nTime < params.stage3StartTime + BlocksTargetSpacing*PastBlocksMax*3) {
+        uint32_t  numberOfStage3Blocks = pindexLast->nHeight;
+
+        if (params.stage3StartBlock != 0) {
+            // we know the first stage3 block
+            numberOfStage3Blocks = pindexLast->nHeight - params.stage3StartBlock + 1;
+        }
+        else if (pblock->nTime < params.stage3StartTime + BlocksTargetSpacing*PastBlocksMax*3) {
             // transition to stage3 happened recently, look for the last block before the transition
             const CBlockIndex *pindex = pindexLast;
             while (pindex && pindex->nTime >= params.stage3StartTime)
                 pindex = pindex->pprev;
 
-            if (pindex) {
-                uint32_t numberOfStage3Blocks = pindexLast->nHeight - pindex->nHeight;
-                if (numberOfStage3Blocks < params.DifficultyAdjustmentInterval(true)/2)
-                    // do not retarget if too few stage3 blocks
-                    return pindexLast->nBits;
-                    
-                PastBlocksMin = std::min(PastBlocksMin, numberOfStage3Blocks);
-                PastBlocksMax = std::min(PastBlocksMax, numberOfStage3Blocks);
-            }
+            if (pindex)
+                numberOfStage3Blocks = pindexLast->nHeight - pindex->nHeight;
         }
+
+        if (numberOfStage3Blocks < params.DifficultyAdjustmentInterval(true)/2)
+            // do not retarget if too few stage3 blocks
+            return pindexLast->nBits;
+            
+        PastBlocksMin = std::min(PastBlocksMin, numberOfStage3Blocks);
+        PastBlocksMax = std::min(PastBlocksMax, numberOfStage3Blocks);
     }
     else if (pblock->IsProgPow()) {
-        uint32_t numberOfPPBlocks = 0;
+        uint32_t numberOfPPBlocks = pindexLast->nHeight;
 
         if (params.nPPBlockNumber != 0) {
             // we know the first ProgPow block

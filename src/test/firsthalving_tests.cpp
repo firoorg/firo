@@ -154,7 +154,8 @@ BOOST_FIXTURE_TEST_CASE(devpayout, TestChainDIP3BeforeActivationSetup)
 
     consensusParams.nSubsidyHalvingFirst = 600;
     consensusParams.stage3StartTime = INT_MAX;
-    consensusParams.nSubsidyHalvingInterval = 20;
+    consensusParams.nSubsidyHalvingSecond = 620;
+    consensusParams.nSubsidyHalvingInterval = 10;
     consensusParams.nSubsidyHalvingStopBlock = 1000;
 
     CScript devPayoutScript = GenerateRandomAddress();
@@ -252,13 +253,34 @@ BOOST_FIXTURE_TEST_CASE(devpayout, TestChainDIP3BeforeActivationSetup)
         BOOST_ASSERT(block.vtx[0]->GetValueOut() == 25*COIN/2);
     }
 
+    for (int i=620; i<630; i++) {
+        CBlock block = CreateAndProcessBlock({}, coinbaseKey);
+        deterministicMNManager->UpdatedBlockTip(chainActive.Tip());
+
+        CAmount nValue;
+        auto dmnPayout = FindPayoutDmn(block, nValue);
+
+        BOOST_ASSERT(dmnPayout != nullptr && nValue == 3125*COIN/1000);   // 3.125 (6.25*0.5)
+
+        // there should be no more payment to devs fund
+        for (const CTxOut &txout: block.vtx[0]->vout) {
+            BOOST_ASSERT(txout.scriptPubKey != GetScriptForDestination(CBitcoinAddress(consensusParams.stage2DevelopmentFundAddress).Get()));
+        }
+
+        // miner's reward should be 6.25-3.125 = 3.125
+        BOOST_ASSERT(block.vtx[0]->vout[0].nValue == 3125*COIN/1000);
+        // should be only 2 vouts in coinbase
+        BOOST_ASSERT(block.vtx[0]->vout.size() == 2);
+    }
+
+    // the third halving should occur at block 630
     CBlock block = CreateAndProcessBlock({}, coinbaseKey);
     deterministicMNManager->UpdatedBlockTip(chainActive.Tip());
 
     CAmount nValue;
     auto dmnPayout = FindPayoutDmn(block, nValue);
 
-    BOOST_ASSERT(dmnPayout != nullptr && nValue == 3125*COIN/1000);   //  (25/4*0.5)
+    BOOST_ASSERT(dmnPayout != nullptr && nValue == 3125*COIN/1000/2);   // 3.125/2 (3.125*0.5)
 
     // there should be no more payment to devs/community funds fund
     for (const CTxOut &txout: block.vtx[0]->vout) {
@@ -267,8 +289,8 @@ BOOST_FIXTURE_TEST_CASE(devpayout, TestChainDIP3BeforeActivationSetup)
                         txout.scriptPubKey != GetScriptForDestination(CBitcoinAddress(consensusParams.stage3CommunityFundAddress).Get()));
     }
 
-    // miner's reward should be 3.125
-    BOOST_ASSERT(block.vtx[0]->vout[0].nValue == 3125*COIN/1000);
+    // miner's reward should be 3.125/2
+    BOOST_ASSERT(block.vtx[0]->vout[0].nValue == 3125*COIN/1000/2);
     // should be only 2 vouts in coinbase
     BOOST_ASSERT(block.vtx[0]->vout.size() == 2);
 
@@ -281,6 +303,7 @@ BOOST_FIXTURE_TEST_CASE(devpayoutverification, TestChainDIP3BeforeActivationSetu
     Consensus::Params   consensusParamsBackup = consensusParams;
 
     consensusParams.nSubsidyHalvingFirst = 600;
+    consensusParams.nSubsidyHalvingSecond = 610;
     consensusParams.nSubsidyHalvingInterval = 10;
     consensusParams.nSubsidyHalvingStopBlock = 1000;
 

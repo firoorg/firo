@@ -807,7 +807,7 @@ void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fM
     if (fShorterBlockDistance)
         coin /= 2;
 
-    if (nHeight >= params.nSubsidyHalvingFirst && nHeight < params.nSubsidyHalvingFirst + params.nSubsidyHalvingInterval) {
+    if (nHeight >= params.nSubsidyHalvingFirst && nHeight < params.nSubsidyHalvingSecond) {
         if (fShorterBlockDistance) {
             // Stage 3
             CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(params.stage3DevelopmentFundAddress).Get());

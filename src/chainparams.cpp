@@ -23,6 +23,17 @@
 
 using namespace secp_primitives;
 
+// If some feature is enabled at block intervalStart and its duration is intervalLength halving distance between blocks
+// causes the end to happen sooner in real time. This function adjusts the end block number so the approximate ending time
+// is left intact
+static constexpr int AdjustEndingBlockNumberAfterSubsidyHalving(int intervalStart, int intervalLength, int halvingPoint) {
+    if (halvingPoint < intervalStart || halvingPoint >= intervalStart + intervalLength)
+        // halving occurs outside of interval
+        return intervalStart + intervalLength;
+    else
+        return halvingPoint + (intervalStart + intervalLength - halvingPoint)*2;
+}
+
 static CBlock CreateGenesisBlock(const char *pszTimestamp, const CScript &genesisOutputScript, uint32_t nTime, uint32_t nNonce,
         uint32_t nBits, int32_t nVersion, const CAmount &genesisReward,
         std::vector<unsigned char> extraNonce) {
@@ -179,14 +190,16 @@ public:
         consensus.chainType = Consensus::chainMain;
 
         consensus.nSubsidyHalvingFirst = 302438;
-        consensus.nSubsidyHalvingInterval = 420000;
-        consensus.nSubsidyHalvingStopBlock = 3646849;
+        consensus.nSubsidyHalvingSecond = AdjustEndingBlockNumberAfterSubsidyHalving(302438, 420000, 486221); // =958665
+        consensus.nSubsidyHalvingInterval = 420000*2;
+        consensus.nSubsidyHalvingStopBlock = AdjustEndingBlockNumberAfterSubsidyHalving(0, 3646849, 486221);  // =6807477
 
         consensus.stage2DevelopmentFundShare = 15;
         consensus.stage2ZnodeShare = 35;
         consensus.stage2DevelopmentFundAddress = "aFrAVZFr8pva5mG8XKaUH8EXcFVVNxLiuB";
 
         consensus.stage3StartTime = 1655380800; // Thursday, 16 June 2022 12:00:00 UTC
+        consensus.stage3StartBlock = 486221;
         consensus.stage3DevelopmentFundShare = 15;
         consensus.stage3CommunityFundShare = 10;
         consensus.stage3MasternodeShare = 50;
@@ -425,7 +438,7 @@ public:
 
         consensus.evoSporkKeyID = "a78fERshquPsTv2TuKMSsxTeKom56uBwLP";
         consensus.nEvoSporkStartBlock = ZC_LELANTUS_STARTING_BLOCK;
-        consensus.nEvoSporkStopBlock = ZC_LELANTUS_STARTING_BLOCK + 2*24*12*365;  // two years after lelantus
+        consensus.nEvoSporkStopBlock = AdjustEndingBlockNumberAfterSubsidyHalving(ZC_LELANTUS_STARTING_BLOCK, 2*24*12*365, 486221);  // =608035, two years after lelantus
         consensus.nEvoSporkStopBlockExtensionVersion = 140903;
         consensus.nEvoSporkStopBlockPrevious = ZC_LELANTUS_STARTING_BLOCK + 1*24*12*365; // one year after lelantus
         consensus.nEvoSporkStopBlockExtensionGracefulPeriod = 24*12*14; // two weeks
@@ -490,6 +503,7 @@ public:
         consensus.chainType = Consensus::chainTestnet;
 
         consensus.nSubsidyHalvingFirst = 12000;
+        consensus.nSubsidyHalvingSecond = 150000;
         consensus.nSubsidyHalvingInterval = 150000;
         consensus.nSubsidyHalvingStopBlock = 1000000;
 
@@ -498,6 +512,7 @@ public:
         consensus.stage2DevelopmentFundAddress = "TUuKypsbbnHHmZ2auC2BBWfaP1oTEnxjK2";
 
         consensus.stage3StartTime = 1653409800;  // May 24th 2022 04:30 UTC
+        consensus.stage3StartBlock = 84459;
         consensus.stage3DevelopmentFundShare = 15;
         consensus.stage3CommunityFundShare = 10;
         consensus.stage3MasternodeShare = 50;
@@ -753,6 +768,7 @@ public:
         consensus.chainType = Consensus::chainDevnet;
 
         consensus.nSubsidyHalvingFirst = 120;
+        consensus.nSubsidyHalvingSecond = 100000;
         consensus.nSubsidyHalvingInterval = 100000;
         consensus.nSubsidyHalvingStopBlock = 1000000;
 
@@ -761,6 +777,7 @@ public:
         consensus.stage2DevelopmentFundAddress = "TixHByoJ21dmx5xfMAXTVC4V7k53U7RncU";
 
         consensus.stage3StartTime = 1653382800;
+        consensus.stage3StartBlock = 1514;
         consensus.stage3DevelopmentFundShare = 15;
         consensus.stage3CommunityFundShare = 10;
         consensus.stage3MasternodeShare = 50;
@@ -979,6 +996,7 @@ public:
 
         // To be changed for specific tests
         consensus.nSubsidyHalvingFirst = 1500;
+        consensus.nSubsidyHalvingSecond = 2500;
         consensus.nSubsidyHalvingInterval = 1000;
         consensus.nSubsidyHalvingStopBlock = 10000;
 
@@ -987,7 +1005,8 @@ public:
         consensus.stage2DevelopmentFundShare = 15;
         consensus.stage2ZnodeShare = 35;
 
-        consensus.stage3StartTime = INT_MAX; // Thursday, 16 June 2022 12:00:00 UTC
+        consensus.stage3StartTime = INT_MAX;
+        consensus.stage3StartBlock = 0;
         consensus.stage3DevelopmentFundShare = 15;
         consensus.stage3CommunityFundShare = 10;
         consensus.stage3MasternodeShare = 50;
