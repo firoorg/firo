@@ -256,6 +256,7 @@ void Shutdown()
     llmq::StopLLMQSystem();
 
     BatchProofContainer::get_instance()->finalize();
+    BatchProofContainer::get_instance()->verify();
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)
