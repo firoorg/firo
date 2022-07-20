@@ -32,7 +32,7 @@ public:
     CZMQPublisherInterface();
     bool StartWorker();
     virtual ~CZMQPublisherInterface();
-    CZMQPublisherInterface* Create();
+    static CZMQPublisherInterface* Create();
 
 protected:
     // CValidationInterface
@@ -51,7 +51,7 @@ class CZMQReplierInterface : public CZMQInterface
 public:
     CZMQReplierInterface();
     virtual ~CZMQReplierInterface();
-    CZMQReplierInterface* Create();
+    static CZMQReplierInterface* Create();
 };
 
 #endif // ZCOIN_ZMQ_ZMQNOTIFICATIONINTERFACE_H

@@ -1714,8 +1714,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
         bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);
         CZMQAbstract::CreateCerts(resetapicerts);
-        pzmqPublisherInterface = pzmqPublisherInterface->Create();
-        pzmqReplierInterface = pzmqReplierInterface->Create();
+        pzmqPublisherInterface = CZMQPublisherInterface::Create();
+        pzmqReplierInterface = CZMQReplierInterface::Create();
 
         if(!(pzmqPublisherInterface) || !(pzmqReplierInterface))
             return InitError(_("Unable to start ZMQ API. See debug log for details."));
