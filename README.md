@@ -19,7 +19,7 @@ Our research created the [Lelantus privacy protocol](https://eprint.iacr.org/201
 
 Firo also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as Tor/i2P.
 
-Firo developed and utilizes [Merkle Tree Proofs (MTP)](https://arxiv.org/pdf/1606.03588.pdf) as its Proof-of-Work algorithm which aims to be memory hard with fast verification to encourage mining using commodity hardware.
+Firo uses FiroPoW (a ProgPoW variant) as its Proof-of-Work GPU focused algorithm which is FPGA/ASIC resistant.
 
 How Firo’s Privacy Technology Compares to the Competition
 --------------
