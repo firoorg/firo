@@ -3015,6 +3015,22 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
         if (coin.IsUsed)
             return true;
 
+        COutPoint outPoint;
+        lelantus::PublicCoin pubCoin(coin.value);
+        lelantus::GetOutPoint(outPoint, pubCoin);
+
+        if(lockedCoins.count(outPoint) > 0){
+            return true;
+        }
+
+        if(coinControl != NULL){
+            if(coinControl->HasSelected()){
+                if(!coinControl->IsSelected(outPoint)){
+                    return true;
+                }
+            }
+        }
+
         int coinHeight, coinId;
         std::tie(coinHeight, coinId) =  state->GetMintedCoinHeightAndId(lelantus::PublicCoin(coin.value));
 
@@ -3044,22 +3060,6 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
             // Remove the coin from the candidates list, since it does not have the
             // required number of confirmations.
             return true;
-        }
-
-        COutPoint outPoint;
-        lelantus::PublicCoin pubCoin(coin.value);
-        lelantus::GetOutPoint(outPoint, pubCoin);
-
-        if(lockedCoins.count(outPoint) > 0){
-            return true;
-        }
-
-        if(coinControl != NULL){
-            if(coinControl->HasSelected()){
-                if(!coinControl->IsSelected(outPoint)){
-                    return true;
-                }
-            }
         }
 
         return false;

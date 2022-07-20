@@ -53,6 +53,13 @@ static bool CheckLelantusSpendSerial(
     return true;
 }
 
+/*
+ * Util funtions
+ */
+size_t CountCoinInBlock(CBlockIndex *index, int id) {
+    return index->lelantusMintedPubCoins.count(id) > 0
+        ? index->lelantusMintedPubCoins[id].size() : 0;
+}
 
 std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id, bool generation = false) {
     std::vector<unsigned char> out_hash;
@@ -501,17 +508,25 @@ bool CheckLelantusJoinSplitTransaction(
             // This list of public coins is required by function "Verify" of JoinSplit.
 
             while (true) {
-                if(index->lelantusMintedPubCoins.count(idAndHash.first) > 0) {
-                    BOOST_FOREACH(
-                    const auto& pubCoinValue,
-                    index->lelantusMintedPubCoins[idAndHash.first]) {
-                        // skip mints from blacklist if nLelantusFixesStartBlock is passed
-                        if (chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
-                            if (::Params().GetConsensus().lelantusBlacklist.count(pubCoinValue.first.getValue()) > 0) {
-                                continue;
+                int id = 0;
+                if (CountCoinInBlock(index, idAndHash.first)) {
+                    id = idAndHash.first;
+                } else if (CountCoinInBlock(index, idAndHash.first - 1)) {
+                    id = idAndHash.first - 1;
+                }
+                if (id) {
+                    if(index->lelantusMintedPubCoins.count(id) > 0) {
+                        BOOST_FOREACH(
+                        const auto& pubCoinValue,
+                        index->lelantusMintedPubCoins[id]) {
+                            // skip mints from blacklist if nLelantusFixesStartBlock is passed
+                            if (chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
+                                if (::Params().GetConsensus().lelantusBlacklist.count(pubCoinValue.first.getValue()) > 0) {
+                                    continue;
+                                }
                             }
+                            anonymity_set.push_back(pubCoinValue.first);
                         }
-                        anonymity_set.push_back(pubCoinValue.first);
                     }
                 }
                 if (index == coinGroup.firstBlock)
@@ -1044,14 +1059,6 @@ void CLelantusTxInfo::Complete() {
 
     // Mark this info as complete
     fInfoIsComplete = true;
-}
-
-/*
- * Util funtions
- */
-size_t CountCoinInBlock(CBlockIndex *index, int id) {
-    return index->lelantusMintedPubCoins.count(id) > 0
-        ? index->lelantusMintedPubCoins[id].size() : 0;
 }
 
 /******************************************************************************/
