@@ -89,7 +89,7 @@ Bootstrappable builds can [be achieved with Guix.](contrib/guix/README.md)
 Development Dependencies (compiler and build tools)
 ----------------------
 
-- Debian/Ubuntu/Mint:
+- Debian/Ubuntu/Mint (minimum Ubuntu 18.04):
 
     ```
     sudo apt-get update
