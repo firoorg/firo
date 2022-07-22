@@ -190,7 +190,7 @@ public:
         consensus.chainType = Consensus::chainMain;
 
         consensus.nSubsidyHalvingFirst = 302438;
-        consensus.nSubsidyHalvingSecond = AdjustEndingBlockNumberAfterSubsidyHalving(302438, 420000, 486221); // =958665
+        consensus.nSubsidyHalvingSecond = AdjustEndingBlockNumberAfterSubsidyHalving(302438, 420000, 486221); // =958655
         consensus.nSubsidyHalvingInterval = 420000*2;
         consensus.nSubsidyHalvingStopBlock = AdjustEndingBlockNumberAfterSubsidyHalving(0, 3646849, 486221);  // =6807477
 
