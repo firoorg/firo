@@ -132,6 +132,8 @@ struct Params {
     uint256 hashGenesisBlock;
     /** First subsidy halving */
     int nSubsidyHalvingFirst;
+    /** Second subsidy halving */
+    int nSubsidyHalvingSecond;
     /** Subsequent subsidy halving intervals */
     int nSubsidyHalvingInterval;
     /** Stop subsidy at this block number */
@@ -148,6 +150,8 @@ struct Params {
     /** parameters for coinbase payment distribution after stage two and before second halving (aka stage 3) */
     /** start time of stage 3 */
     int stage3StartTime;
+    /** starting block number of stage 3 (zero if unknown) */
+    int stage3StartBlock;
     /** P2PKH or P2SH address for developer funds */
     std::string stage3DevelopmentFundAddress;
     /** P2PKH or P2SH address for community funds */

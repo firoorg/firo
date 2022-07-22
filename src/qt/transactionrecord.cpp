@@ -105,7 +105,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             parts.append(sub);
         } else {
             for (const CTxOut& txout : wtx.tx->vout) {
-                if (wtx.IsChange(txout)) {
+                if (wtx.IsChange(txout) || txout.scriptPubKey.IsLelantusJMint()) {
                     continue;
                 }
                 isminetype mine = wallet->IsMine(txout);
