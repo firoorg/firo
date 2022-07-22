@@ -46,29 +46,35 @@ BOOST_AUTO_TEST_CASE(subsidy_limit_test)
 {
     Consensus::Params consensusParams = Params(CBaseChainParams::MAIN).GetConsensus();
     CAmount nSum = 0;
-    const int nMTPFirstBlock = 117564;
-    int lastHalving = (consensusParams.nSubsidyHalvingStopBlock - consensusParams.nSubsidyHalvingFirst)/consensusParams.nSubsidyHalvingInterval;
-    int lastHalvingBlock = consensusParams.nSubsidyHalvingFirst + lastHalving*consensusParams.nSubsidyHalvingInterval;
+    int lastHalving = (consensusParams.nSubsidyHalvingStopBlock - consensusParams.nSubsidyHalvingSecond)/consensusParams.nSubsidyHalvingInterval;
+    int lastHalvingBlock = consensusParams.nSubsidyHalvingSecond + lastHalving*consensusParams.nSubsidyHalvingInterval;
 
     int step = 1;
 
     for(int nHeight = 0; nHeight < 14000000; nHeight += step)
     {
-        if (nHeight == consensusParams.nSubsidyHalvingFirst)
+        if (nHeight == consensusParams.nSubsidyHalvingSecond)
             step = 1000;
         else if (nHeight == lastHalvingBlock)
             step = 1;
         else if (nHeight == consensusParams.nSubsidyHalvingStopBlock)
             step = 10000;
 
-        CAmount nSubsidy = GetBlockSubsidy(nHeight, consensusParams, nHeight<nMTPFirstBlock ? consensusParams.nMTPSwitchTime-1000 : consensusParams.nMTPSwitchTime);
+        int nTime;
+        if (nHeight < consensusParams.nMTPStartBlock)
+            nTime = consensusParams.nMTPSwitchTime-1000;
+        else if (nHeight < consensusParams.stage3StartBlock)
+            nTime = consensusParams.stage3StartTime-1000;
+        else
+            nTime = consensusParams.stage3StartTime;
+        CAmount nSubsidy = GetBlockSubsidy(nHeight, consensusParams, nTime);
         if (nHeight == 0)
             nSubsidy = 50*COIN;
         BOOST_CHECK(nSubsidy <= 50 * COIN);
         nSum += nSubsidy * step;
         BOOST_CHECK(MoneyRange(nSum));
     }
-    BOOST_CHECK_EQUAL(nSum, 2095751201171875ULL);
+    BOOST_CHECK_EQUAL(nSum, 2095751200767464ULL);
 }
 
 bool ReturnFalse() { return false; }

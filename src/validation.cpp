@@ -1717,11 +1717,19 @@ CAmount GetBlockSubsidyWithMTPFlag(int nHeight, const Consensus::Params &consens
     if (nHeight == 0)
         return 0;
 
-    // Subsidy is cut in half after nSubsidyHalvingFirst block, then every nSubsidyHalvingInterval blocks.
+    // Subsidy is cut in half after nSubsidyHalvingFirst block, then after nSubsidyHalvingSecond, then every nSubsidyHalvingInterval blocks.
     // After block nSubsidyHalvingStopBlock there will be no subsidy at all
     if (nHeight >= consensusParams.nSubsidyHalvingStopBlock)
         return 0;
-    int halvings = nHeight < consensusParams.nSubsidyHalvingFirst ? 0 : (nHeight - consensusParams.nSubsidyHalvingFirst) / consensusParams.nSubsidyHalvingInterval + 1;
+
+    int halvings;
+    if (nHeight < consensusParams.nSubsidyHalvingFirst)
+        halvings = 0;
+    else if (nHeight < consensusParams.nSubsidyHalvingSecond)
+        halvings = 1;
+    else
+        halvings = (nHeight - consensusParams.nSubsidyHalvingSecond) / consensusParams.nSubsidyHalvingInterval + 2;
+
     // Force block reward to zero when right shift is undefined.
     if (halvings >= 64)
         return 0;
@@ -4576,7 +4584,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
     }
 
     if (nHeight >= consensusParams.nSubsidyHalvingFirst) {
-        if (nHeight < consensusParams.nSubsidyHalvingFirst + consensusParams.nSubsidyHalvingInterval) {
+        if (nHeight < consensusParams.nSubsidyHalvingSecond) {
             if (block.nTime >= consensusParams.stage3StartTime) {
                 CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get());
                 CAmount devPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * consensusParams.stage3DevelopmentFundShare) / 100;
