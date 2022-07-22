@@ -939,6 +939,12 @@ bool ConnectBlockLelantus(
                     std::vector<unsigned char> prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId, true);
                     if (!prev_hash.empty())
                         hash.Write(prev_hash.data(), 32);
+                    else {
+                        if(latestCoinId > 1) {
+                            prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId - 1, true);
+                            hash.Write(prev_hash.data(), 32);
+                        }
+                    }
                 }
 
                 for (auto &coin : pindexNew->lelantusMintedPubCoins[latestCoinId]) {
