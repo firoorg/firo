@@ -135,12 +135,12 @@ void ReadAPISettingsFile()
 
     settingsData.erase("restartNow");
 
-    UniValue setting(UniValue::VOBJ);
 
     for(std::map<std::string, std::string>:: iterator it = mapArgs.begin(); it != mapArgs.end(); it++){
         std::string name = (*it).first;
         std::string value = (*it).second;
-        setting.setObject();
+
+        UniValue setting(UniValue::VOBJ);
         setting.replace("data", value);
         setting.replace("changed", false);
         setting.replace("disabled", true);
@@ -150,7 +150,7 @@ void ReadAPISettingsFile()
     std::vector<std::string> keys = settingsData.getKeys();
     BOOST_FOREACH(const std::string& strKey, keys)
     {
-        setting.setObject();
+        UniValue setting(UniValue::VOBJ);
         setting = find_value(settingsData, strKey);
         if(guiSettings.count(strKey)){
             if(!mapArgs.count(strKey)){
