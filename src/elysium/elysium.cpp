@@ -129,6 +129,9 @@ CElysiumTransactionDB *elysium::p_ElysiumTXDB;
 // used to write/read files, for breakout mode, debugging, etc.
 static bool writePersistence(int block_now)
 {
+  // Occasionally persist blocks during rescan so we won't have to start from 0 if the user stops firod before rescan is
+  // completed.
+  if (block_now % 1000 == 0) return true;
   // if too far away from the top -- do not write
   if (GetHeight() > (block_now + MAX_STATE_HISTORY)) return false;
 
