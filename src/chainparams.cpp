@@ -1260,9 +1260,6 @@ public:
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
         consensus.nLelantusV3PayloadStartBlock = 1;
-
-        consensus.DIP0003Height = 1;
-        consensus.DIP0003EnforcementHeight = 1;
     }
 };
 static CRegTestQuickLelantusParams regTestQlParams;
