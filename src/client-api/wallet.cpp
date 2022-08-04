@@ -569,6 +569,8 @@ UniValue lockwallet(Type type, const UniValue& data, const UniValue& auth, bool 
 
 UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
+    LOCK(cs_main);
+
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
 
