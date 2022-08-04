@@ -136,11 +136,7 @@ bool parseFromCommandLine(std::vector<std::string> &args, const std::string &str
 
 UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
-#ifdef ENABLE_WALLET
-    LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
-#else
     LOCK(cs_main);
-#endif
 
     UniValue obj(UniValue::VOBJ);
     UniValue modules(UniValue::VOBJ);
