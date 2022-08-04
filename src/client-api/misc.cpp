@@ -147,14 +147,11 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("version", CLIENT_BUILD));
     obj.push_back(Pair("protocolVersion", PROTOCOL_VERSION));
     if (pwalletMain) {
-        obj.push_back(Pair("walletVersion", pwalletMain->GetVersion()));
         obj.push_back(Pair("walletLock",    pwalletMain->IsCrypted()));
         if(pwalletMain->nRelockTime>0){
             obj.push_back(Pair("unlockedUntil", pwalletMain->nRelockTime));
         }
         obj.push_back(Pair("hasMnemonic", doesWalletHaveMnemonics()));
-        CWalletDB db(pwalletMain->strWalletFile);
-        obj.push_back(Pair("shouldShowWarning", db.ReadShowMnemonicsWarning()));
     }
 
     uint256 *b1 = block1.load(std::memory_order_relaxed);
