@@ -593,6 +593,38 @@ static bool FillTxInputCache(const CTransaction& tx)
     return true;
 }
 
+// Get the address associated with the first input of a transaction, if there is one.
+// WARNING: This function is very slow.
+static std::string GetTxOriginUncached(const CTransaction &tx) {
+    if (tx.vin.empty()) return "";
+    if (tx.vin[0].prevout.hash.IsNull()) return "";
+
+    CTransactionRef txIn;
+    uint256 hashBlock;
+    if (!GetTransaction(tx.vin[0].prevout.hash, txIn, Params().GetConsensus(), hashBlock, true))
+        throw std::out_of_range("Can't find outpoint");
+
+    CTxDestination destination;
+    if (!ExtractDestination(txIn->vout.at(tx.vin[0].prevout.n).scriptPubKey, destination))
+        return "";
+
+    return CBitcoinAddress(destination).ToString();
+}
+
+static std::string GetTxOriginCached(const CTransaction &tx) {
+    LOCK(pwalletMain->cs_wallet);
+    uint256 hash = tx.GetHash();
+
+    if (pwalletMain->mapTxOrigins.count(hash))
+        return pwalletMain->mapTxOrigins.at(hash);
+
+    std::string origin = GetTxOriginUncached(tx);
+    CWalletDB(pwalletMain->strWalletFile).WriteTxOrigin(hash, origin);
+    pwalletMain->LoadTxOrigin(hash, origin);
+
+    return origin;
+}
+
 // idx is position within the block, 0-based
 // int elysium_tx_push(const CTransaction &wtx, int nBlock, unsigned int idx)
 // INPUT: bRPConly -- set to true to avoid moving funds; to be called from various RPC calls like this
@@ -621,27 +653,33 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         return -1; // No Elysium/Elysium marker, thus not a valid Elysium transaction
     }
 
+    LOCK(cs_main);
+
     if (!bRPConly || elysium_debug_parser_readonly) {
 		LogPrintf("____________________________________________________________________________________________________________________________________\n");
 		LogPrintf("%s(block=%d, %s idx= %d); txid: %s\n", __FUNCTION__, nBlock, DateTimeStrFormat("%Y-%m-%d %H:%M:%S", nTime), idx, wtx.GetHash().GetHex());
     }
 
-    // ### SENDER IDENTIFICATION ###
-    boost::optional<CBitcoinAddress> sender;
-    int64_t inAll = 0;
-
-    { // needed to ensure the cache isn't cleared in the meantime when doing parallel queries
-    LOCK(cs_main);
-
-    // Add previous transaction inputs to the cache
-    if (!FillTxInputCache(wtx)) {
-		LogPrintf("%s() ERROR: failed to get inputs for %s\n", __func__, wtx.GetHash().GetHex());
-        return -101;
+    // We cache the origins of transactions in our wallet because these transactions will need to be parsed again when
+    // we start again. This cache is persisted to wallet.dat and is fully loaded into memory on every boot.
+    std::string sender;
+    if (pwalletMain->IsMine(wtx) || pwalletMain->IsFromMe(wtx)) {
+        sender = GetTxOriginCached(wtx);
+    } else {
+        sender = GetTxOriginUncached(wtx);
     }
 
-    assert(view.HaveInputs(wtx));
-
     if (elysiumClass != PacketClass::C) {
+        boost::optional<CBitcoinAddress> sender_;
+
+        // Add previous transaction inputs to the cache
+        if (!FillTxInputCache(wtx)) {
+            LogPrintf("%s() ERROR: failed to get inputs for %s\n", __func__, wtx.GetHash().GetHex());
+            return -101;
+        }
+
+        assert(view.HaveInputs(wtx));
+
         if (inputMode != InputMode::NORMAL) {
             PrintToLog("%s() ERROR: other input than normal is not allowed when packet class is not C\n", __func__, wtx.GetHash().GetHex());
             return -101;
@@ -674,55 +712,19 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         for (auto it = inputs_sum_of_values.begin(); it != inputs_sum_of_values.end(); ++it) { // find largest by sum
             int64_t nTemp = it->second;
             if (nTemp > nMax) {
-                sender = it->first;
-                if (elysium_debug_ely) PrintToLog("looking for The Sender: %s , nMax=%lu, nTemp=%d\n", sender->ToString(), nMax, nTemp);
+                sender_ = it->first;
+                if (elysium_debug_ely) PrintToLog("looking for The Sender: %s , nMax=%lu, nTemp=%d\n", sender_->ToString(), nMax, nTemp);
                 nMax = nTemp;
             }
         }
 
-        if (!sender) {
+        if (!sender_) {
             PrintToLog("Failed to determine sender for transaction %s\n", wtx.GetHash().GetHex());
             return -5;
         }
+
+        sender = sender_->ToString();
     }
-    else if (inputMode != InputMode::LELANTUS)
-    {
-        // NEW LOGIC - the sender is chosen based on the first vin
-
-        // determine the sender, but invalidate transaction, if the input is not accepted
-
-        // do not need to check sigma.
-
-        unsigned int vin_n = 0; // the first input
-        // if (elysium_debug_vin) 
-		LogPrintf("vin=%d:%s\n", vin_n, ScriptToAsmStr(wtx.vin[vin_n].scriptSig));
-
-        const CTxIn& txIn = wtx.vin[vin_n];
-        const Coin& txOut = view.AccessCoin(txIn.prevout);
-
-        txnouttype whichType;
-        if (!GetOutputType(txOut.out.scriptPubKey, whichType)) {
-            return -108;
-        }
-        if (!IsAllowedInputType(whichType, nBlock)) {
-            return -109;
-        }
-        CTxDestination source;
-        if (ExtractDestination(txOut.out.scriptPubKey, source)) {
-            sender = source;
-        }
-        else return -110;
-    }
-
-	if (inputMode == InputMode::LELANTUS) {
-		inAll = lelantus::GetSpendTransparentAmount(wtx);
-	}else{
-        inAll = view.GetValueIn(wtx);
-    }
-
-    } // end of LOCK(cs_main)
-
-    int64_t outAll = wtx.GetValueOut();
 
     // ### DATA POPULATION ### - save output addresses, values and scripts
     boost::optional<CBitcoinAddress> referenceAddr;
@@ -777,7 +779,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         for (unsigned k = 0; k < address_data.size(); ++k) {
             auto& addr = address_data[k];
 
-            if (sender && !changeRemoved && addr == *sender) {
+            if (!sender.empty() && !changeRemoved && addr.ToString() == sender) {
                 changeRemoved = true; // per spec ignore first output to sender as change if multiple possible ref addresses
 				LogPrintf("Removed change\n");
             } else {
@@ -838,7 +840,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
     }
 
     mp_tx.Set(
-        sender ? sender->ToString() : "",
+        sender,
         referenceAddr ? referenceAddr->ToString() : "",
         0,
         wtx.GetHash(),
@@ -847,7 +849,6 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         payload.data(),
         payload.size(),
         elysiumClass,
-        inAll - outAll,
         referenceAmount
     );
 

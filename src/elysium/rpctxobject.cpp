@@ -100,7 +100,6 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
     bool fMine = false;
     if (IsMyAddress(mp_obj.getSender()) || IsMyAddress(mp_obj.getReceiver())) fMine = true;
     txobj.push_back(Pair("txid", txid.GetHex()));
-    txobj.push_back(Pair("fee", FormatDivisibleMP(mp_obj.getFeePaid())));
     txobj.push_back(Pair("sendingaddress", mp_obj.getSender()));
     if (showRefForTx(mp_obj.getType())) txobj.push_back(Pair("referenceaddress", mp_obj.getReceiver()));
     txobj.push_back(Pair("ismine", fMine));

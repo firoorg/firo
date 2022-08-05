@@ -89,7 +89,6 @@ BOOST_AUTO_TEST_CASE(reference_identification)
         CMPTransaction metaTx;
         BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
         BOOST_CHECK(metaTx.getReceiver().empty());
-        BOOST_CHECK_EQUAL(metaTx.getFeePaid(), 2300000);
         BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
         BOOST_CHECK_EQUAL(HexStr(metaTx.getRaw()), "00000000000000070000000006dac2c0");
     }
@@ -107,7 +106,6 @@ BOOST_AUTO_TEST_CASE(reference_identification)
 
         CMPTransaction metaTx;
         BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
-        BOOST_CHECK_EQUAL(metaTx.getFeePaid(), 0);
         BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
         BOOST_CHECK_EQUAL(metaTx.getReceiver(), "a11WeUi6HFkHNdG5puD9LHCXTySddeNcu8");
         BOOST_CHECK_EQUAL(HexStr(metaTx.getRaw()), "00000000000000070000000006dac2c0");
@@ -126,7 +124,6 @@ BOOST_AUTO_TEST_CASE(reference_identification)
 
         CMPTransaction metaTx;
         BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
-        BOOST_CHECK_EQUAL(metaTx.getFeePaid(), 74000);
         BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
         BOOST_CHECK_EQUAL(metaTx.getReceiver(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
         BOOST_CHECK_EQUAL(HexStr(metaTx.getRaw()), "00000000000000070000000006dac2c0");

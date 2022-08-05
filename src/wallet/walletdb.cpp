@@ -93,6 +93,12 @@ bool CWalletDB::EraseTx(uint256 hash)
     return Erase(std::make_pair(std::string("tx"), hash));
 }
 
+#ifdef ENABLE_ELYSIUM
+bool CWalletDB::WriteTxOrigin(uint256 tx, const std::string& origin) {
+    return Write(std::make_pair(std::string("txorigin"), tx), origin);
+}
+#endif
+
 bool CWalletDB::WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey, const CKeyMetadata& keyMeta)
 {
     nWalletDBUpdateCounter++;
@@ -884,6 +890,15 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 strErr = "Error reading wallet database: SetMnemonicContainer failed";
                 return false;
             }
+#ifdef ENABLE_ELYSIUM
+        } else if (strType == "txorigin") {
+            // This is used to identify the origin of Elysium transactions quickly.
+            uint256 tx;
+            std::string origin;
+            ssKey >> tx;
+            ssValue >> origin;
+            pwallet->LoadTxOrigin(tx, origin);
+#endif
         }
     } catch (...)
     {

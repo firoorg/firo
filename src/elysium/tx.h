@@ -63,7 +63,6 @@ private:
     int block = -1;
     int64_t blockTime;  // internally nTime is still an "unsigned int"
     unsigned int tx_idx;  // tx # within the block, 0-based
-    uint64_t tx_fee_paid;
 
     boost::optional<elysium::PacketClass> packetClass;
 
@@ -179,7 +178,6 @@ public:
     unsigned int getProperty() const { return property; }
     unsigned short getVersion() const { return version; }
     unsigned short getPropertyType() const { return prop_type; }
-    uint64_t getFeePaid() const { return tx_fee_paid; }
     const std::string& getSender() const { return sender; }
     const std::string& getReceiver() const { return receiver; }
     const boost::optional<CAmount>& getReferenceAmount() const { return referenceAmount; }
@@ -228,7 +226,6 @@ public:
         blockTime = 0;
         raw.clear();
         tx_idx = 0;
-        tx_fee_paid = 0;
         packetClass = boost::none;
         sender.clear();
         receiver.clear();
@@ -277,7 +274,6 @@ public:
         unsigned char *p,
         unsigned int size,
         const boost::optional<elysium::PacketClass>& packetClass,
-        uint64_t txf,
         const boost::optional<CAmount>& referenceAmount);
 
     /** Parses the packet or payload. */

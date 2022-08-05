@@ -7645,6 +7645,13 @@ void CWallet::NotifyChainLock(const CBlockIndex* pindexChainLock)
     NotifyChainLockReceived(pindexChainLock->nHeight);
 }
 
+#ifdef ENABLE_ELYSIUM
+void CWallet::LoadTxOrigin(uint256 tx, std::string& origin) {
+    AssertLockHeld(cs_wallet);
+    mapTxOrigins.emplace(tx, origin);
+}
+#endif
+
 
 /******************************************************************************/
 /*                                                                            */

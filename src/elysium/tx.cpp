@@ -77,7 +77,6 @@ void CMPTransaction::Set(
     unsigned char *p,
     unsigned int size,
     const boost::optional<elysium::PacketClass>& packetClass,
-    uint64_t txf,
     const boost::optional<CAmount>& referenceAmount)
 {
     sender = s;
@@ -88,7 +87,6 @@ void CMPTransaction::Set(
     nValue = n;
     nNewValue = n;
     this->packetClass = packetClass;
-    tx_fee_paid = txf;
     raw.clear();
     raw.insert(raw.end(), p, p + size);
     this->referenceAmount = referenceAmount;
