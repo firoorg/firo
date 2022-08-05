@@ -88,12 +88,19 @@ UniValue rebroadcast(Type type, const UniValue& data, const UniValue& auth, bool
     uint256 hash = uint256S(find_value(data, "txHash").get_str());
     CWalletTx *wtx = const_cast<CWalletTx*>(pwalletMain->GetWalletTx(hash));
 
-    if (!wtx || wtx->isAbandoned() || wtx->GetDepthInMainChain() > 0){
+    if (!wtx) {
         ret.push_back(Pair("result", false));
-        ret.push_back(Pair("error", "Transaction is abandoned or already in chain"));
+        ret.push_back(Pair("error", "Transaction cannot be found."));
         return ret;
     }
-    if (wtx->GetRequestCount() > 0){
+
+    if (wtx->GetDepthInMainChain() > 0) {
+        ret.push_back(Pair("result", false));
+        ret.push_back(Pair("error", "Transaction is already in chain"));
+        return ret;
+    }
+
+    if (wtx->GetRequestCount() > 0) {
         ret.push_back(Pair("result", false));
         ret.push_back(Pair("error", "Transaction has already been requested to be rebroadcast"));
         return ret;
