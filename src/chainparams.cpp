@@ -1259,7 +1259,8 @@ public:
         consensus.nZerocoinV2SpendGracefulPeriod = 1;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
-        consensus.nLelantusV3PayloadStartBlock = 1;
+        consensus.nLelantusV3PayloadStartBlock = 101;
+        consensus.DIP0003Height = 101;
     }
 };
 static CRegTestQuickLelantusParams regTestQlParams;
