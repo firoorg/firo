@@ -150,7 +150,7 @@ jobs:
   build-mac:
     name: Build for macOS
     needs: create-source-distribution
-    runs-on: macos-10.15
+    runs-on: macos-12
     env:
       ARTIFACT_DIR: mac-binaries
     steps:
