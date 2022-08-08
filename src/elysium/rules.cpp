@@ -79,7 +79,7 @@ std::vector<ConsensusCheckpoint> CConsensusParams::GetCheckpoints() const
  */
 CMainConsensusParams::CMainConsensusParams()
 {
-    GENESIS_BLOCK = 108888;
+    GENESIS_BLOCK = 514600;
 
     // Notice range for feature activations:
     MIN_ACTIVATION_BLOCKS = 2048;  // ~2 weeks
