@@ -9,6 +9,7 @@
 #include "client-api/server.h"
 #include "client-api/protocol.h"
 #include "client-api/wallet.h"
+#include "client-api/misc.h"
 #include "rpc/server.h"
 #include "rpc/client.h"
 #include "wallet/wallet.h"
@@ -26,6 +27,9 @@ namespace fs = boost::filesystem;
 using namespace boost::chrono;
 
 static std::atomic<uint256*> block1{nullptr};
+
+CCriticalSection cs_clientApiLogMessages;
+std::vector<std::string> clientApiLogMessages;
 
 /* Parse help string as JSON object.
 */
@@ -140,6 +144,16 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
 
     UniValue obj(UniValue::VOBJ);
     UniValue modules(UniValue::VOBJ);
+
+    {
+        LOCK(cs_clientApiLogMessages);
+        UniValue newLogMessages = UniValue::VARR;
+        for (std::string& msg: clientApiLogMessages) {
+            newLogMessages.push_back(msg);
+        }
+        clientApiLogMessages.clear();
+        obj.pushKV("newLogMessages", newLogMessages);
+    }
     
     modules.push_back(Pair("API", !APIIsInWarmup()));
     modules.push_back(Pair("Masternode", masternodeSync.IsSynced()));

@@ -24,6 +24,7 @@
 #include "minizip/zip.h"
 #include <zlib.h>
 #include <fstream>
+#include "client-api/misc.h"
 #endif
 
 #include "warnings.h"
@@ -326,6 +327,11 @@ int LogPrintStr(const std::string &str)
     static std::atomic_bool fStartedNewLine(true);
 
     std::string strTimestamped = LogTimestampStr(str, &fStartedNewLine);
+
+    {
+        LOCK(cs_clientApiLogMessages);
+        clientApiLogMessages.emplace_back(strTimestamped);
+    }
 
     if (fPrintToConsole)
     {
