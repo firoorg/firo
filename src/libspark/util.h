@@ -53,11 +53,13 @@ const std::string LABEL_HASH_BIND = "BIND";
 // KDF labels
 const std::string LABEL_KDF_DIVERSIFIER = "DIVERSIFIER";
 const std::string LABEL_KDF_AEAD = "AEAD";
+const std::string LABEL_COMMIT_AEAD = "COMMIT_AEAD";
 
 // AEAD constants
 const int AEAD_IV_SIZE = 12; // byte length of the IV
 const int AEAD_KEY_SIZE = 32; // byte length of the key
 const int AEAD_TAG_SIZE = 16; // byte length of the tag
+const int AEAD_COMMIT_SIZE = 32; // byte length of the key commitment
 
 class SparkUtils {
 public:
@@ -76,6 +78,7 @@ public:
     // Key derivation functions
     static std::vector<unsigned char> kdf_diversifier(const Scalar& s1);
     static std::vector<unsigned char> kdf_aead(const GroupElement& K_der);
+    static std::vector<unsigned char> commit_aead(const GroupElement& K_der);
 
     // Diversifier encryption/decryption
     static std::vector<unsigned char> diversifier_encrypt(const std::vector<unsigned char>& key, const uint64_t i);

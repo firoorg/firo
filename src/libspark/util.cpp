@@ -149,6 +149,18 @@ std::vector<unsigned char> SparkUtils::kdf_aead(const GroupElement& K_der) {
     return kdf.finalize();
 }
 
+// Derive a ChaCha20 key commitment for AEAD operations
+std::vector<unsigned char> SparkUtils::commit_aead(const GroupElement& K_der) {
+    // We use a KDF here because of the output size
+    KDF kdf(LABEL_COMMIT_AEAD, AEAD_COMMIT_SIZE);
+
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    stream << K_der;
+    kdf.include(stream);
+
+    return kdf.finalize();
+}
+
 // Hash-to-group function H_div
 GroupElement SparkUtils::hash_div(const std::vector<unsigned char>& d) {
     Hash hash(LABEL_HASH_DIV);
