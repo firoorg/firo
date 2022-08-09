@@ -2,15 +2,14 @@
 
 namespace spark {
 
-// Perform authenticated encryption with ChaCha20-Poly1305
-AEADEncryptedData AEAD::encrypt(const std::vector<unsigned char>& key, const std::string additional_data, CDataStream& data) {
-	// Check key size
-	if (key.size() != AEAD_KEY_SIZE) {
-		throw std::invalid_argument("Bad AEAD key size");
-	}
-
+// Perform authenticated encryption with ChaCha20-Poly1305 using key commitment
+AEADEncryptedData AEAD::encrypt(const GroupElement& prekey, const std::string additional_data, CDataStream& data) {
 	// Set up the result structure
 	AEADEncryptedData result;
+
+	// Derive the key and commitment
+	std::vector<unsigned char> key = SparkUtils::kdf_aead(prekey);
+	result.key_commitment = SparkUtils::commit_aead(prekey);
 
 	// Internal size tracker; we know the size of the data already, and can ignore
 	int TEMP;
@@ -43,11 +42,15 @@ AEADEncryptedData AEAD::encrypt(const std::vector<unsigned char>& key, const std
 	return result;
 }
 
-// Perform authenticated decryption with ChaCha20-Poly1305
-CDataStream AEAD::decrypt_and_verify(const std::vector<unsigned char>& key, const std::string additional_data, AEADEncryptedData& data) {
-	// Check key size
-	if (key.size() != AEAD_KEY_SIZE) {
-		throw std::invalid_argument("Bad AEAD key size");
+// Perform authenticated decryption with ChaCha20-Poly1305 using key commitment
+CDataStream AEAD::decrypt_and_verify(const GroupElement& prekey, const std::string additional_data, AEADEncryptedData& data) {
+	// Derive the key and commitment
+	std::vector<unsigned char> key = SparkUtils::kdf_aead(prekey);
+	std::vector<unsigned char> key_commitment = SparkUtils::commit_aead(prekey);
+
+	// Assert that the key commitment is valid
+	if (key_commitment != data.key_commitment) {
+		throw std::runtime_error("Bad AEAD key commitment");
 	}
 
 	// Set up the result

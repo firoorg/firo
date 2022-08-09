@@ -61,7 +61,7 @@ Coin::Coin(
 		r.memo = std::string(memo.begin(), memo.end());
 		CDataStream r_stream(SER_NETWORK, PROTOCOL_VERSION);
 		r_stream << r;
-		this->r_ = AEAD::encrypt(SparkUtils::kdf_aead(address.get_Q1()*SparkUtils::hash_k(k)), "Mint coin data", r_stream);
+		this->r_ = AEAD::encrypt(address.get_Q1()*SparkUtils::hash_k(k), "Mint coin data", r_stream);
 	} else {
 		// Encrypt recipient data
 		SpendCoinRecipientData r;
@@ -71,7 +71,7 @@ Coin::Coin(
 		r.memo = std::string(memo.begin(), memo.end());
 		CDataStream r_stream(SER_NETWORK, PROTOCOL_VERSION);
 		r_stream << r;
-		this->r_ = AEAD::encrypt(SparkUtils::kdf_aead(address.get_Q1()*SparkUtils::hash_k(k)), "Spend coin data", r_stream);
+		this->r_ = AEAD::encrypt(address.get_Q1()*SparkUtils::hash_k(k), "Spend coin data", r_stream);
 	}
 }
 
@@ -120,7 +120,7 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key) {
 
 		try {
 			// Decrypt recipient data
-			CDataStream stream = AEAD::decrypt_and_verify(SparkUtils::kdf_aead(this->K*incoming_view_key.get_s1()), "Mint coin data", this->r_);
+			CDataStream stream = AEAD::decrypt_and_verify(this->K*incoming_view_key.get_s1(), "Mint coin data", this->r_);
 			stream >> r;
 		} catch (...) {
 			throw std::runtime_error("Unable to identify coin");
@@ -135,7 +135,7 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key) {
 
 		try {
 			// Decrypt recipient data
-			CDataStream stream = AEAD::decrypt_and_verify(SparkUtils::kdf_aead(this->K*incoming_view_key.get_s1()), "Spend coin data", this->r_);
+			CDataStream stream = AEAD::decrypt_and_verify(this->K*incoming_view_key.get_s1(), "Spend coin data", this->r_);
 			stream >> r;
 		} catch (...) {
 			throw std::runtime_error("Unable to identify coin");
