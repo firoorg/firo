@@ -1097,6 +1097,8 @@ UniValue sendmany(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
     }
 
+    LogPrintf("Start sendmany rpc call \n");
+
     std::string strAccount = AccountFromValue(request.params[0]);
     UniValue sendTo = request.params[1].get_obj();
     int nMinDepth = 1;
@@ -1148,6 +1150,10 @@ UniValue sendmany(const JSONRPCRequest& request)
 
     // Check funds
     CAmount nBalance = pwallet->GetLegacyBalance(ISMINE_SPENDABLE, nMinDepth, strAccount.empty() ? nullptr : &strAccount);
+    LogPrintf("Total amount is %d\n", totalAmount);
+    LogPrintf("Balance is %d\n", nBalance);
+
+
     if (totalAmount > nBalance)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
 

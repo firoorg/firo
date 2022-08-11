@@ -3766,6 +3766,11 @@ static void ApproximateBestSubset(std::vector<std::pair<CAmount, std::pair<const
 bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMine, const int nConfTheirs, const uint64_t nMaxAncestors, std::vector<COutput> vCoins,
                                  std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, bool fForUseInInstantSend) const
 {
+    LogPrintf("SelectCoinsMinConf called, target value %d\n", nTargetValue);
+    LogPrintf("nConfMine is %d\n", nConfMine);
+    LogPrintf("nConfTheirs is %d\n", nConfTheirs);
+    LogPrintf("nMaxAncestors is %d\n", nMaxAncestors);
+
     setCoinsRet.clear();
     nValueRet = 0;
 
@@ -3777,21 +3782,31 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
     CAmount nTotalLower = 0;
 
     Shuffle(vCoins.begin(), vCoins.end(), FastRandomContext());
+    LogPrintf("vCoins size %d\n", vCoins.size());
 
+    CAmount allSpendable = 0;
     BOOST_FOREACH(const COutput &output, vCoins)
     {
-        if (!output.fSpendable)
+        if (!output.fSpendable) {
+            LogPrintf("continue is not fSpendable %s", output.tx->tx->GetHash().ToString());
+            LogPrintf("value %d\n", output.tx->tx->vout[output.i].nValue);
             continue;
+        }
 
         const CWalletTx *pcoin = output.tx;
 
-            bool fLockedByIS = pcoin->IsLockedByLLMQInstantSend();
+        bool fLockedByIS = pcoin->IsLockedByLLMQInstantSend();
 
-        if (output.nDepth < ((pcoin->IsFromMe(ISMINE_ALL) || pcoin->tx->IsLelantusMint()) ? nConfMine : nConfTheirs) && !fLockedByIS)
-            continue;
+        allSpendable += pcoin->tx->vout[output.i].nValue;
 
-        if (!mempool.TransactionWithinChainLimit(pcoin->GetHash(), nMaxAncestors))
+        if (output.nDepth < ((pcoin->IsFromMe(ISMINE_ALL) || pcoin->tx->IsLelantusMint()) ? nConfMine : nConfTheirs) && !fLockedByIS) {
+            LogPrintf("continue invalid depth %s\n", pcoin->tx->GetHash().ToString());
             continue;
+        }
+        if (!mempool.TransactionWithinChainLimit(pcoin->GetHash(), nMaxAncestors)) {
+            LogPrintf("continue is not in chain limit %s\n", pcoin->tx->GetHash().ToString());
+            continue;
+        }
 
         int i = output.i;
         CAmount n = pcoin->tx->vout[i].nValue;
@@ -3811,9 +3826,14 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
         }
         else if (n < coinLowestLarger.first)
         {
+            LogPrintf("coinLowestLarger is assigned\n");
             coinLowestLarger = coin;
         }
     }
+
+    LogPrintf("All spendable %d\n", allSpendable);
+    LogPrintf("nTotalLower %d\n", nTotalLower);
+
 
     if (nTotalLower == nTargetValue)
     {
@@ -3827,8 +3847,11 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
 
     if (nTotalLower < nTargetValue)
     {
-        if (coinLowestLarger.second.first == NULL)
+        if (coinLowestLarger.second.first == NULL) {
+            LogPrintf("coinLowestLarger is null\n");
             return false;
+        }
+
         setCoinsRet.insert(coinLowestLarger.second);
         nValueRet += coinLowestLarger.first;
         return true;
@@ -3874,10 +3897,14 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
 {
     std::vector<COutput> vCoins(vAvailableCoins);
     CoinType nCoinType = coinControl ? coinControl->nCoinType : CoinType::ALL_COINS;
+    LogPrintf("SelectCoins called, bSpendZeroConfChange %d\n", bSpendZeroConfChange);
+    LogPrintf("TargetValue is %d\n", nTargetValue);
 
     // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
     if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs)
     {
+        LogPrintf("Coincontrol selected\n");
+
         BOOST_FOREACH(const COutput& out, vCoins)
         {
             if (!out.fSpendable)
@@ -3885,6 +3912,8 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
             nValueRet += out.tx->tx->vout[out.i].nValue;
             setCoinsRet.insert(std::make_pair(out.tx, out.i));
         }
+
+        LogPrintf("ValueRet is %d\n", nValueRet);
         return (nValueRet >= nTargetValue);
     }
 
@@ -3893,8 +3922,11 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
     CAmount nValueFromPresetInputs = 0;
 
     std::vector<COutPoint> vPresetInputs;
-    if (coinControl)
+    if (coinControl) {
         coinControl->ListSelected(vPresetInputs);
+        LogPrintf("vPresetInputs size is %d\n", vPresetInputs.size());
+    }
+
     BOOST_FOREACH(const COutPoint& outpoint, vPresetInputs)
     {
         std::map<uint256, CWalletTx>::const_iterator it = mapWallet.find(outpoint.hash);
@@ -3902,12 +3934,16 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
         {
             const CWalletTx* pcoin = &it->second;
             // Clearly invalid input, fail
-            if (pcoin->tx->vout.size() <= outpoint.n)
+            if (pcoin->tx->vout.size() <= outpoint.n) {
+                LogPrintf("Clearly invalid input %s\n", pcoin->tx->GetHash().ToString());
                 return false;
+            }
             nValueFromPresetInputs += pcoin->tx->vout[outpoint.n].nValue;
             setPresetCoins.insert(std::make_pair(pcoin, outpoint.n));
-        } else
+        } else {
+            LogPrintf("Selected coin is not in wallet\n");
             return false; // TODO: Allow non-wallet inputs
+        }
     }
 
     // remove preset inputs from vCoins
@@ -4017,6 +4053,7 @@ bool CWallet::ConvertList(std::vector <CTxIn> vecTxIn, std::vector <CAmount> &ve
 bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
                                 int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, int nExtraPayloadSize, bool fUseInstantSend)
 {
+    LogPrintf("CreateTransaction called\n");
     CAmount nFeePay = 0;
 
     CAmount nValue = 0;
@@ -4137,6 +4174,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                 setCoins.clear();
                 if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coinControl, fUseInstantSend))
                 {
+                    LogPrintf("FAILED\n");
                     strFailReason = _("Insufficient funds");
                     return false;
                 }
