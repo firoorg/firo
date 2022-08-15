@@ -61,6 +61,10 @@
 #include "elysium/elysium.h"
 #endif
 
+#ifdef ENABLE_CLIENTAPI
+#include "client-api/misc.h"
+#endif
+
 #include "masternode-payments.h"
 
 #include "evo/specialtx.h"
@@ -3225,10 +3229,21 @@ void PruneAndFlush() {
     FlushStateToDisk(state, FLUSH_STATE_NONE);
 }
 
+#ifdef ENABLE_CLIENTAPI
+void NotifyClientApiOfNewBlockIndex(CBlockIndex* pindexNew) {
+    currentBlockHeight.store(pindexNew->nHeight, std::memory_order_relaxed);
+    currentBlockTimestamp.store(pindexNew->nTime, std::memory_order_relaxed);
+}
+#else
+void NotifyClientApiOfNewBlockIndex(CBlockIndex* pindexNew) {}
+#endif
+
 /** Update chainActive and related internal data structures. */
 void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
     LogPrintf("UpdateTip() pindexNew.nHeight=%s\n", pindexNew->nHeight);
     chainActive.SetTip(pindexNew);
+
+    NotifyClientApiOfNewBlockIndex(pindexNew);
 
     // New best block
     txpools.AddTransactionsUpdated(1);
@@ -3372,7 +3387,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     }
     LogPrint("bench", "- Disconnect block: %.2fms\n", (GetTimeMicros() - nStart) * 0.001);
 
-	sigma::DisconnectTipSigma(block, pindexDelete);
+    sigma::DisconnectTipSigma(block, pindexDelete);
     lelantus::DisconnectTipLelantus(block, pindexDelete);
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
@@ -3611,9 +3626,9 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
 
 #ifdef ENABLE_ELYSIUM
     //! Elysium: end of block connect notification
-    if (fElysium) {        
+    if (fElysium) {
         elysium_handler_block_end(GetHeight(), pindexNew, nNumMetaTxs);
-		LogPrint("handler", "Elysium handler: block connect end [new height: %d, found: %u txs]\n", GetHeight(), nNumMetaTxs);
+        LogPrint("handler", "Elysium handler: block connect end [new height: %d, found: %u txs]\n", GetHeight(), nNumMetaTxs);
     }
 #endif
 
@@ -3849,7 +3864,7 @@ static bool ActivateBestChainStep(CValidationState& state, const CChainParams& c
                          GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000,
                          GetArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY) * 60 * 60);
 
-	    // Changes to mempool should also be made to Dandelion stempool
+        // Changes to mempool should also be made to Dandelion stempool
         LimitMempoolSize(txpools.getStemTxPool(),
                          GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000,
                          GetArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY) * 60 * 60);
@@ -4489,13 +4504,13 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
 
 bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, CBlockIndex * const pindexPrev, int64_t nAdjustedTime)
 {
-	// Firo - MTP
+    // Firo - MTP
     bool fBlockHasMTP = (block.nVersion & 4096) != 0 || (pindexPrev && consensusParams.nMTPSwitchTime == 0);
 
     if (block.IsMTP() != fBlockHasMTP)
-		return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),strprintf("rejected nVersion=0x%08x block", block.nVersion));
+        return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),strprintf("rejected nVersion=0x%08x block", block.nVersion));
 
-	// Check proof of work
+    // Check proof of work
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
 
@@ -5221,6 +5236,8 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams)
     if (it == mapBlockIndex.end())
         return true;
     chainActive.SetTip(it->second);
+
+    NotifyClientApiOfNewBlockIndex(it->second);
 
     PruneBlockIndexCandidates();
 

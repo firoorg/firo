@@ -44,6 +44,9 @@
 #include <miniupnpc/upnperrors.h>
 #endif
 
+#ifdef ENABLE_CLIENTAPI
+#include "client-api/misc.h"
+#endif
 
 #include <math.h>
 
@@ -649,6 +652,14 @@ void CConnman::AddWhitelistedRange(const CSubNet &subnet) {
     vWhitelistedRange.push_back(subnet);
 }
 
+#ifdef ENABLE_CLIENTAPI
+void CConnman::NotifyClientApi() {
+    LOCK(cs_vNodes);
+    currentConnectionCount.store(vNodes.size(), std::memory_order_relaxed);
+}
+#else
+void CConnman::NotifyClientApi() {}
+#endif
 
 std::string CNode::GetAddrName() const {
     LOCK(cs_addrName);
@@ -1271,6 +1282,7 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
     {
         LOCK(cs_vNodes);
         vNodes.push_back(pnode);
+        NotifyClientApi();
         // Dandelion: new inbound connection
         CNode::vDandelionInbound.push_back(pnode);
         CNode* pto = CNode::SelectFromDandelionDestinations();
@@ -1428,6 +1440,7 @@ void CConnman::ThreadSocketHandler()
             if(clientInterface){
                 clientInterface->NotifyNumConnectionsChanged(nPrevNodeCount);
                 GetMainSignals().NumConnectionsChanged();
+                NotifyClientApi();
             }
         }
 
@@ -1495,8 +1508,11 @@ void CConnman::ThreadSocketHandler()
 
         int nSelect = select(have_fds ? hSocketMax + 1 : 0,
                              &fdsetRecv, &fdsetSend, &fdsetError, &timeout);
-        if (interruptNet)
+        if (interruptNet) {
+            LOCK(cs_vNodes);
+            NotifyClientApi();
             return;
+        }
 
         if (nSelect == SOCKET_ERROR)
         {
@@ -1509,8 +1525,10 @@ void CConnman::ThreadSocketHandler()
             }
             FD_ZERO(&fdsetSend);
             FD_ZERO(&fdsetError);
-            if (!interruptNet.sleep_for(std::chrono::milliseconds(timeout.tv_usec/1000)))
+            if (!interruptNet.sleep_for(std::chrono::milliseconds(timeout.tv_usec/1000))) {
+                NotifyClientApi();
                 return;
+            }
         }
 
         //
@@ -1536,8 +1554,10 @@ void CConnman::ThreadSocketHandler()
         }
         BOOST_FOREACH(CNode* pnode, vNodesCopy)
         {
-            if (interruptNet)
+            if (interruptNet) {
+                NotifyClientApi();
                 return;
+            }
 
             //
             // Receive
@@ -1660,6 +1680,8 @@ void CConnman::ThreadSocketHandler()
             LOCK(cs_vNodes);
             BOOST_FOREACH(CNode* pnode, vNodesCopy)
                 pnode->Release();
+
+            NotifyClientApi();
         }
     }
 }
@@ -2326,6 +2348,7 @@ bool CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
     {
         LOCK(cs_vNodes);
         vNodes.push_back(pnode);
+        NotifyClientApi();
     }
 
     return true;
@@ -2927,6 +2950,7 @@ bool CConnman::AddNode(const std::string& strNode)
     }
 
     vAddedNodes.push_back(strNode);
+    NotifyClientApi();
     return true;
 }
 
@@ -3033,6 +3057,7 @@ bool CConnman::RemoveAddedNode(const std::string& strNode)
             return true;
         }
     }
+    NotifyClientApi();
     return false;
 }
 

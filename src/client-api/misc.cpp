@@ -26,10 +26,13 @@
 namespace fs = boost::filesystem;
 using namespace boost::chrono;
 
-static std::atomic<uint256*> block1{nullptr};
-
 CCriticalSection cs_clientApiLogMessages;
 std::vector<std::string> clientApiLogMessages;
+std::atomic<int> currentBlockHeight{0};
+std::atomic<int64_t> currentBlockTimestamp{0};
+std::atomic<int> currentConnectionCount{0};
+std::atomic<bool> isBlockchainSynced{false};
+std::atomic<bool> isLelantusDisabled{false};
 
 /* Parse help string as JSON object.
 */
@@ -138,96 +141,72 @@ bool parseFromCommandLine(std::vector<std::string> &args, const std::string &str
     }
 }
 
+#define LOAD(x) x.load(std::memory_order_relaxed)
 UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
-    LOCK(cs_main);
+    UniValue ret = UniValue::VOBJ;
 
-    UniValue obj(UniValue::VOBJ);
-    UniValue modules(UniValue::VOBJ);
+    static uint256 block1;
+    static int64_t block1Timestamp = 0;
+    static bool isCrypted = false;
+    static std::string dataDir;
+    if (block1.IsNull()) {
+        LOCK(cs_main);
+        if (pwalletMain != nullptr && chainActive.Height() >= 1) {
+            isCrypted = pwalletMain->IsCrypted();
+            block1 = chainActive[1]->GetBlockHash();
+            block1Timestamp = chainActive[1]->GetBlockTime();
+            dataDir = GetDataDir(true).string();
+        }
+    }
+
+    ret.pushKV("block1", block1.GetHex());
+    ret.pushKV("dataDir", dataDir);
+    ret.pushKV("network", Params().NetworkIDString());
+    ret.pushKV("version", CLIENT_BUILD);
+    ret.pushKV("protocolVersion", PROTOCOL_VERSION);
+    ret.pushKV("smartFeePerKb", 1000);
+    ret.pushKV("blocks", LOAD(currentBlockHeight));
+    ret.pushKV("synced", LOAD(isBlockchainSynced));
+    ret.pushKV("rescanning", fRescanning);
+    ret.pushKV("reindexing", fReindex);
+    ret.pushKV("latestBlockTimestamp", LOAD(currentBlockTimestamp));
+    ret.pushKV("connections", LOAD(currentConnectionCount));
+    ret.pushKV("walletLock", isCrypted);
+
+    UniValue modules = UniValue::VOBJ;
+    modules.pushKV("API", !APIIsInWarmup());
+    ret.pushKV("modules", modules);
+
+    // This measure of reindexing progress is different from what QT uses.
+    if (!block1.IsNull() && (fReindex || fRescanning)) {
+        long double reindexElapsed = LOAD(currentBlockTimestamp) - block1Timestamp;
+        long double realTimeElapsed = time(NULL) - block1Timestamp;
+        ret.pushKV("reindexingProgress", (double)(reindexElapsed / realTimeElapsed));
+    }
+
+    UniValue disabledSporks = UniValue::VARR;
+    if (LOAD(isLelantusDisabled)) disabledSporks.push_back("lelantus");
+    ret.pushKV("disabledSporks", disabledSporks);
 
     {
         LOCK(cs_clientApiLogMessages);
         UniValue newLogMessages = UniValue::VARR;
-        for (std::string& msg: clientApiLogMessages) {
+        for (std::string &msg: clientApiLogMessages) {
             newLogMessages.push_back(msg);
         }
         clientApiLogMessages.clear();
-        obj.pushKV("newLogMessages", newLogMessages);
-    }
-    
-    modules.push_back(Pair("API", !APIIsInWarmup()));
-    modules.push_back(Pair("Masternode", masternodeSync.IsSynced()));
-
-    obj.push_back(Pair("version", CLIENT_BUILD));
-    obj.push_back(Pair("protocolVersion", PROTOCOL_VERSION));
-    if (pwalletMain) {
-        obj.push_back(Pair("walletLock",    pwalletMain->IsCrypted()));
-        if(pwalletMain->nRelockTime>0){
-            obj.push_back(Pair("unlockedUntil", pwalletMain->nRelockTime));
-        }
-        obj.push_back(Pair("hasMnemonic", doesWalletHaveMnemonics()));
-    }
-
-    uint256 *b1 = block1.load(std::memory_order_relaxed);
-    if (b1 == nullptr && chainActive.Tip() && chainActive.Height() > 1 && chainActive[1] && chainActive[1]->phashBlock) {
-        // This will leak memory in the event that it races, but it's just a few bytes at most a few times.
-        b1 = (uint256*)malloc(sizeof(uint256));
-        *b1 = chainActive[1]->GetBlockHash();
-        block1.store(b1, std::memory_order_relaxed);
-    }
-    if (b1 != nullptr) {
-        obj.push_back(Pair("block1", b1->GetHex()));
-    }
-
-    // This is the number of blocks we would like our transaction to be confirmed within.
-    int nBlocksToConfirm = 2;
-    // This will be set by estimateSmartFee to the number of blocks actually estimated to be required for confirmation,
-    // which may be different than the above.
-    int estimateFoundAtBlock = nBlocksToConfirm;
-    CFeeRate smartFee = mempool.estimateSmartFee(nBlocksToConfirm, &estimateFoundAtBlock);
-    obj.push_back(Pair("smartFeePerKb", smartFee.GetFeePerK()));
-    obj.push_back(Pair("dataDir",       GetDataDir(true).string()));
-    obj.push_back(Pair("network",       ChainNameFromCommandLine()));
-    obj.push_back(Pair("blocks",        (int)chainActive.Height()));
-    if (g_connman) // g_connman will be NULL if called during shutdown.
-        obj.push_back(Pair("connections",   (int)g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL)));
-    obj.push_back(Pair("devAuth",       CZMQAbstract::DEV_AUTH));
-    obj.push_back(Pair("synced",        masternodeSync.IsBlockchainSynced()));
-    obj.push_back(Pair("walletinitialized",    fWalletInitialized));
-    obj.push_back(Pair("safeMode",      GetWarnings("api") != ""));
-    obj.push_back(Pair("hasSentInitialStateWallet", fHasSentInitialStateWallet));
-
-
-    obj.push_back(Pair("rescanning",    fRescanning));
-    obj.push_back(Pair("reindexing",    fReindex));
-
-    // This measure of reindexing progress is different than what QT uses.
-    if (chainActive.Tip() != NULL && chainActive[1] != NULL && (fReindex || fRescanning)) {
-        // Block 1 is used because the genesis block on regtest is very old.
-        long double genesisBlockTime = chainActive[1]->GetBlockTime();
-        long double latestBlockTime = chainActive.Tip()->GetBlockTime();
-        long double now = time(NULL);
-        obj.push_back(Pair("reindexingProgress", (double)((latestBlockTime-genesisBlockTime) / (now-genesisBlockTime))));
-    }
-
-    if (chainActive.Tip() != NULL) {
-        UniValue sporks = UniValue::VARR;
-        for (auto spork : chainActive.Tip()->activeDisablingSporks) {
-            sporks.push_back(spork.first);
-        }
-        obj.push_back(Pair("disabledSporks", sporks));
-
-        obj.pushKV("latestBlockTimestamp", (int64_t)chainActive.Tip()->nTime);
+        ret.pushKV("newLogMessages", newLogMessages);
     }
 
 #ifdef WIN32
-    obj.push_back(Pair("pid",           (int)GetCurrentProcessId()));
+    int pid = GetCurrentProcessId();
 #else
-    obj.push_back(Pair("pid",           getpid()));
+    int pid = getpid();
 #endif
-    obj.push_back(Pair("modules",       modules));
+    ret.pushKV("pid", pid);
 
-    return obj;
+    return ret;
 }
 
 UniValue backup(Type type, const UniValue& data, const UniValue& auth, bool fHelp)

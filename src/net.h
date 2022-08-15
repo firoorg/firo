@@ -434,6 +434,8 @@ private:
     void ThreadOpenMasternodeConnections();
     void ThreadDandelionShuffle();
 
+    void NotifyClientApi();
+
     uint64_t CalculateKeyedNetGroup(const CAddress& ad) const;
 
     CNode* FindNode(const CNetAddr& ip);

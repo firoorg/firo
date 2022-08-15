@@ -7,6 +7,10 @@
 #include "messagesigner.h"
 #include "univalue.h"
 
+#ifdef ENABLE_CLIENTAPI
+#include "client-api/misc.h"
+#endif
+
 bool CheckSporkTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state) {
     const Consensus::Params &chainParams = Params().GetConsensus();
 
@@ -110,7 +114,13 @@ CSporkManager *CSporkManager::sharedSporkManager = new CSporkManager();
 
 bool CSporkManager::BlockConnected(const CBlock &block, CBlockIndex *pindex)
 {
-    return UpdateActiveSporkMap(pindex->activeDisablingSporks, pindex->pprev->activeDisablingSporks, pindex->nHeight, block.vtx);
+    bool ret = UpdateActiveSporkMap(pindex->activeDisablingSporks, pindex->pprev->activeDisablingSporks, pindex->nHeight, block.vtx);
+
+#ifdef ENABLE_CLIENTAPI
+    isLelantusDisabled.store(IsFeatureEnabled("lelantus", pindex), std::memory_order_relaxed);
+#endif
+
+    return ret;
 }
 
 bool CSporkManager::UpdateActiveSporkMap(ActiveSporkMap &sporkMap, const ActiveSporkMap &previousSporkMap, int nHeight, const std::vector<CTransactionRef> &sporkTransactions)
