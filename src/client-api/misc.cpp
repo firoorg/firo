@@ -138,17 +138,19 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
 {
     UniValue ret = UniValue::VOBJ;
 
+    // apistatus must never run in two threads at once prior to dataDir and block1 being set.
+    static std::string dataDir;
+    if (dataDir.empty()) dataDir = GetDataDir(true).string();
+
     static uint256 block1;
     static int64_t block1Timestamp = 0;
     static bool isCrypted = false;
-    static std::string dataDir;
     if (block1.IsNull()) {
         LOCK(cs_main);
         if (pwalletMain != nullptr && chainActive.Height() >= 1) {
             isCrypted = pwalletMain->IsCrypted();
             block1 = chainActive[1]->GetBlockHash();
             block1Timestamp = chainActive[1]->GetBlockTime();
-            dataDir = GetDataDir(true).string();
         }
     }
 
