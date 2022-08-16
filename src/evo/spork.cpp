@@ -8,7 +8,7 @@
 #include "univalue.h"
 
 #ifdef ENABLE_CLIENTAPI
-#include "client-api/misc.h"
+#include "client-api/externs.h"
 #endif
 
 bool CheckSporkTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state) {

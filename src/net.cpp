@@ -45,7 +45,7 @@
 #endif
 
 #ifdef ENABLE_CLIENTAPI
-#include "client-api/misc.h"
+#include "client-api/externs.h"
 #endif
 
 #include <math.h>

@@ -24,7 +24,7 @@
 #include "minizip/zip.h"
 #include <zlib.h>
 #include <fstream>
-#include "client-api/misc.h"
+#include "client-api/externs.h"
 #endif
 
 #include "warnings.h"
