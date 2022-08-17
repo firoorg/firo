@@ -144,11 +144,9 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
 
     static uint256 block1;
     static int64_t block1Timestamp = 0;
-    static bool isCrypted = false;
     if (block1.IsNull()) {
         LOCK(cs_main);
-        if (pwalletMain != nullptr && chainActive.Height() >= 1) {
-            isCrypted = pwalletMain->IsCrypted();
+        if (pwalletMain && chainActive.Height() >= 1) {
             block1 = chainActive[1]->GetBlockHash();
             block1Timestamp = chainActive[1]->GetBlockTime();
         }
@@ -166,7 +164,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     ret.pushKV("reindexing", fReindex);
     ret.pushKV("latestBlockTimestamp", LOAD(currentBlockTimestamp));
     ret.pushKV("connections", LOAD(currentConnectionCount));
-    ret.pushKV("walletLock", isCrypted);
+    ret.pushKV("walletLock", pwalletMain && pwalletMain->IsCrypted());
 
     UniValue modules = UniValue::VOBJ;
     modules.pushKV("API", !APIIsInWarmup());
