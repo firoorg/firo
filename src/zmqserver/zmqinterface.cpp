@@ -130,7 +130,7 @@ CZMQPublisherInterface::~CZMQPublisherInterface()
     }
 
     //destroy worker
-    worker->interrupt();
+    if (worker) worker->interrupt();
 }
 
 CZMQPublisherInterface* CZMQPublisherInterface::Create()
