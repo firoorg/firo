@@ -117,7 +117,7 @@ bool CSporkManager::BlockConnected(const CBlock &block, CBlockIndex *pindex)
     bool ret = UpdateActiveSporkMap(pindex->activeDisablingSporks, pindex->pprev->activeDisablingSporks, pindex->nHeight, block.vtx);
 
 #ifdef ENABLE_CLIENTAPI
-    isLelantusDisabled.store(IsFeatureEnabled("lelantus", pindex), std::memory_order_relaxed);
+    isLelantusDisabled.store(!IsFeatureEnabled("lelantus", pindex), std::memory_order_relaxed);
 #endif
 
     return ret;
