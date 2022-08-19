@@ -9,11 +9,14 @@
 #include "evo/deterministicmns.h"
 #include "validation.h"
 #include "rpc/rpcevo.h"
+#include "externs.h"
 
 UniValue masternodelist(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
 
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return false;
+
+    if (!isBlockchainSynced.load()) return UniValue(UniValue::VOBJ);
 
     UniValue ret(UniValue::VOBJ);
     CDeterministicMNList mnList = deterministicMNManager->GetListForBlock(chainActive.Tip());
