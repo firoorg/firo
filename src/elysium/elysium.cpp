@@ -129,13 +129,16 @@ CElysiumTransactionDB *elysium::p_ElysiumTXDB;
 // used to write/read files, for breakout mode, debugging, etc.
 static bool writePersistence(int block_now)
 {
-  // Occasionally persist blocks during rescan so we won't have to start from 0 if the user stops firod before rescan is
-  // completed.
-  if (block_now % 1000 == 0) return true;
-  // if too far away from the top -- do not write
-  if (GetHeight() > (block_now + MAX_STATE_HISTORY)) return false;
+    AssertLockHeld(cs_main);
+    static int lastBlockPersisted = 0;
+    assert(lastBlockPersisted <= block_now);
 
-  return true;
+    // Only persist once every 1000 blocks when rescanning or reindexing.
+    if ((block_now - lastBlockPersisted < 1000) && (fRescanning || fReindex))
+        return false;
+
+    lastBlockPersisted = block_now;
+    return true;
 }
 
 bool isElysiumEnabled()
@@ -1450,6 +1453,8 @@ static void prune_state_files( CBlockIndex const *topIndex )
 
 int elysium_save_state( CBlockIndex const *pBlockIndex )
 {
+    LogPrintf("Writing Elysium state for block %d\n", pBlockIndex->nHeight);
+
     // write the new state as of the given block
     write_state_file(pBlockIndex, FILETYPE_BALANCES);
     write_state_file(pBlockIndex, FILETYPE_GLOBALS);
@@ -2876,6 +2881,9 @@ int elysium_handler_block_begin(int nBlockPrev, CBlockIndex const * pBlockIndex)
 int elysium_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex,
         unsigned int countMP)
 {
+    // Only perform processing on checkpoint blocks or blocks that contain Elysium transactions.
+    if (!countMP && !(nBlockNow % 10000)) return 0;
+
     LOCK(cs_main);
 
     lelantusDb->CommitCoins();
