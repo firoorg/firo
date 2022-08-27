@@ -20,6 +20,7 @@
 #include "../sync.h"
 #include "../wallet/wallet.h"
 #include "../wallet/walletexcept.h"
+#include "lelantusdb.h"
 
 #include <univalue.h>
 
@@ -418,7 +419,10 @@ UniValue elysium_sendgrant(const JSONRPCRequest& request)
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    int result = WalletTxBuilder(fromAddress, toAddress, "", payload, txid, rawHex, autoCommit);
+    InputMode inputMode = InputMode::NORMAL;
+    int b = INT_MAX;
+    if (elysium::lelantusDb->GetAnonymityGroup(propertyId, 0, 1, b).empty()) inputMode = InputMode::INITIAL_GRANT;
+    int result = WalletTxBuilder(fromAddress, toAddress, "", payload, txid, rawHex, autoCommit, inputMode);
 
     // check error and return the txid (or raw hex depending on autocommit)
     if (result != 0) {

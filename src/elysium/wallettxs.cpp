@@ -227,6 +227,7 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     switch (inputMode) {
+    case InputMode::INITIAL_GRANT:
     case InputMode::CREATE_PROPERTY:
     case InputMode::MINT:
     case InputMode::NORMAL:

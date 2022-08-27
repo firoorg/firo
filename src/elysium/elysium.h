@@ -244,7 +244,8 @@ enum class InputMode {
     NORMAL,
     LELANTUS,
     MINT,
-    CREATE_PROPERTY
+    CREATE_PROPERTY,
+    INITIAL_GRANT
 };
 
 int WalletTxBuilder(const std::string &senderAddress, const std::string &receiverAddress,

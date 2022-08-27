@@ -680,6 +680,7 @@ public:
 #ifdef ENABLE_ELYSIUM
     bool IsElysium() const;
     bool IsElysiumCreateProperty() const;
+    bool IsElysiumGrant() const;
 #endif
 
     // Called by IsStandardTx.

@@ -249,6 +249,7 @@ bool CTransaction::IsElysiumReferenceOutput(uint32_t i) const {
     for (CTxOut const &out: vout) {
         if (i == 1 && out.scriptPubKey.IsElysium()) return true;
         if (i == 2 && out.scriptPubKey.IsElysiumCreateProperty()) return true;
+        if (i == 2 && out.scriptPubKey.IsElysiumGrant()) return true;
     }
 
     return false;

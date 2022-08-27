@@ -1777,13 +1777,14 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
 
     // Select the inputs
     int64_t additional = 0;
-    if (inputMode == InputMode::CREATE_PROPERTY) additional = ConsensusParams().REFERENCE_AMOUNT * 2;
+    if (inputMode == InputMode::CREATE_PROPERTY || inputMode == InputMode::INITIAL_GRANT) additional = ConsensusParams().REFERENCE_AMOUNT * 2;
     else if (inputMode != InputMode::MINT) additional = ConsensusParams().REFERENCE_AMOUNT;
     if (0 >= SelectCoins(senderAddress, coinControl, additional, inputMode)) {
         switch (inputMode) {
         case InputMode::NORMAL:
         case InputMode::MINT:
         case InputMode::CREATE_PROPERTY:
+        case InputMode::INITIAL_GRANT:
             return MP_INPUTS_INVALID;
         case InputMode::LELANTUS:
             return MP_LELANTUS_INPUTS_INVALID;
@@ -1820,6 +1821,8 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
 
     if (inputMode == InputMode::CREATE_PROPERTY)
         vecSend.push_back(CTxOut(ConsensusParams().REFERENCE_AMOUNT, scriptPubKey));
+    if (inputMode == InputMode::INITIAL_GRANT)
+        vecSend.push_back(CTxOut(ConsensusParams().REFERENCE_AMOUNT, scriptPubKey));
     if (inputMode != InputMode::MINT) // this is INTENTIONALLY not an "else if"
         vecSend.push_back(CTxOut(ConsensusParams().REFERENCE_AMOUNT, scriptPubKey));
 
@@ -1842,7 +1845,8 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
 
 	
 
-	if(inputMode == InputMode::NORMAL || inputMode == InputMode::MINT || inputMode == InputMode::CREATE_PROPERTY) {
+	if(inputMode == InputMode::NORMAL || inputMode == InputMode::MINT || inputMode == InputMode::CREATE_PROPERTY ||
+       inputMode == InputMode::INITIAL_GRANT) {
 		LogPrintf("inputMode Normal \n");
 		nChangePosInOut = vecRecipients.size();
 		// Ask the wallet to create the transaction (note mining fee determined by Bitcoin Core params)
@@ -1914,6 +1918,7 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
         case InputMode::CREATE_PROPERTY:
         case InputMode::MINT:
         case InputMode::NORMAL:
+        case InputMode::INITIAL_GRANT:
             {
                 CValidationState state;
                 if (!pwalletMain->CommitTransaction(wtxNew, reserveKey, g_connman.get(), state)) return MP_ERR_COMMIT_TX;
