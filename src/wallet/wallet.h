@@ -1065,6 +1065,12 @@ public:
             bool fAskFee = false,
             const CCoinControl *coinControl = NULL);
 
+    std::vector<CWalletTx> CreateSparkSpendTransaction(
+            const std::vector<CRecipient>& recipients,
+            const std::vector<spark::MintedCoinData>&  privateRecipients,
+            CAmount &fee,
+            const CCoinControl *coinControl = NULL);
+
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result);
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 

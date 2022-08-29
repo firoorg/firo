@@ -277,8 +277,8 @@ public:
     bool readDiversifier(int32_t& nCount);
     bool writeDiversifier(const int32_t& nCount);
 
-    bool readIncomingViewKey(spark::IncomingViewKey& viewKey);
-    bool writeIncomingViewKey(const spark::IncomingViewKey& viewKey);
+    bool readFullViewKey(spark::FullViewKey& viewKey);
+    bool writeFullViewKey(const spark::FullViewKey& viewKey);
 
     bool ArchiveDeterministicOrphan(const CHDMint& dMint);
     bool UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& sigma);
@@ -307,6 +307,11 @@ public:
     bool WriteSparkMint(const uint256& lTagHash, const CSparkMintMeta& mint);
     bool ReadSparkMint(const uint256& lTagHash, CSparkMintMeta& mint);
     bool EraseSparkMint(const uint256& lTagHash);
+    void ListSparkSpends(std::list<CSparkSpendEntry>& listSparkSpends);
+    bool WriteSparkSpendEntry(const CSparkSpendEntry& sparkSpend);
+    bool ReadSparkSpendEntry(const secp_primitives::GroupElement& lTag, CSparkSpendEntry& sparkSpend);
+    bool HasSparkSpendEntry(const secp_primitives::GroupElement& lTag);
+    bool EraseSparkSpendEntry(const CSparkSpendEntry& sparkSpend);
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);

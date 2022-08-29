@@ -39,6 +39,35 @@ struct CSparkMintMeta
     };
 };
 
+class CSparkSpendEntry
+{
+public:
+    GroupElement lTag;
+    uint256 lTagHash;
+    uint256 hashTx;
+    int64_t amount;
+
+    CSparkSpendEntry()
+    {
+        SetNull();
+    }
+
+    void SetNull()
+    {
+        lTag = GroupElement();
+        lTagHash = uint256();
+        amount = 0;
+    }
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(lTag);
+        READWRITE(lTagHash);
+        READWRITE(hashTx);
+        READWRITE(amount);
+    }
+};
 
 namespace primitives {
     uint256 GetNonceHash(const secp_primitives::Scalar& nonce);

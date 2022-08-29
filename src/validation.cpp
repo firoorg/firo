@@ -822,7 +822,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     // Spark
     spark::CSparkState *sparkState = spark::CSparkState::GetState();
-    std::vector<spark::Coin> sparkMintCoins;
+    std::vector<std::pair<spark::Coin, std::vector<unsigned char>>> sparkMintCoins;
     std::vector<GroupElement> sparkUsedLTags;
 
     {
@@ -950,8 +950,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
 
             for (const auto& coin : sparkMintCoins) {
-                if (sparkState->HasCoin(coin) || pool.sparkState.HasMint(coin)) {
-                    LogPrintf("AcceptToMemoryPool(): Spark mint with the same value %s is already in the mempool\n", coin.getHash().GetHex());
+                if (sparkState->HasCoin(coin.first) || pool.sparkState.HasMint(coin.first)) {
+                    LogPrintf("AcceptToMemoryPool(): Spark mint with the same value %s is already in the mempool\n", coin.first.getHash().GetHex());
                     return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                 }
             }
@@ -1520,7 +1520,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 #ifdef ENABLE_WALLET
         if (!GetBoolArg("-disablewallet", false) && pwalletMain->sparkWallet) {
             LogPrintf("Adding spends to wallet from Mempool..\n");
-            pwalletMain->sparkWallet->UpdateSpendStateFromMempool(sparkUsedLTags);
+            pwalletMain->sparkWallet->UpdateSpendStateFromMempool(sparkUsedLTags, hash);
         }
 #endif
     }
@@ -1542,7 +1542,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     if(tx.IsSparkMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->sparkWallet) {
         LogPrintf("Adding Spark mints to Mempool..\n");
-        pwalletMain->sparkWallet->UpdateMintStateFromMempool(sparkMintCoins);
+        pwalletMain->sparkWallet->UpdateMintStateFromMempool(sparkMintCoins, hash);
     }
 
     if(tx.IsLelantusMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {

@@ -1451,14 +1451,14 @@ bool CWalletDB::writeDiversifier(const int32_t& diversifier)
     return Write(std::string("div"), diversifier);
 }
 
-bool CWalletDB::readIncomingViewKey(spark::IncomingViewKey& viewKey)
+bool CWalletDB::readFullViewKey(spark::FullViewKey& fullViewKey)
 {
-    return Read(std::string("viewkey"), viewKey);
+    return Read(std::string("fullViewKey"), fullViewKey);
 }
 
-bool CWalletDB::writeIncomingViewKey(const spark::IncomingViewKey& viewKey)
+bool CWalletDB::writeFullViewKey(const spark::FullViewKey& fullViewKey)
 {
-    return Write(std::string("viewkey"), viewKey);
+    return Write(std::string("fullViewKey"), fullViewKey);
 }
 
 bool CWalletDB::WritePubcoin(const uint256& hashSerial, const GroupElement& pubcoin)
@@ -1763,6 +1763,57 @@ bool CWalletDB::EraseSparkMint(const uint256& lTagHash)
     return Erase(std::make_pair(std::string("sparkMint"), lTagHash));
 }
 
+void CWalletDB::ListSparkSpends(std::list<CSparkSpendEntry>& listSparkSpends)
+{
+    Dbc *pcursor = GetCursor();
+    if (!pcursor)
+        throw std::runtime_error("CWalletDB::ListCoinSpendSerial() : cannot create DB cursor");
+    bool setRange = true;
+    while (true) {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (setRange)
+            ssKey << std::make_pair(std::string("spark_spend"), secp_primitives::GroupElement());
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
+        setRange = false;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0) {
+            pcursor->close();
+            throw std::runtime_error("CWalletDB::ListSparkSpends() : error scanning DB");
+        }
+
+        // Unserialize
+        std::string strType;
+        ssKey >> strType;
+        if (strType != "spark_spend")
+            break;
+        GroupElement value;
+        ssKey >> value;
+        CSparkSpendEntry sparkSpendItem;
+        ssValue >> sparkSpendItem;
+        listSparkSpends.push_back(sparkSpendItem);
+    }
+
+    pcursor->close();
+}
+
+bool CWalletDB::WriteSparkSpendEntry(const CSparkSpendEntry& sparkSpend) {
+    return Write(std::make_pair(std::string("spark_spend"), sparkSpend.lTag), sparkSpend, true);
+}
+
+bool CWalletDB::ReadSparkSpendEntry(const secp_primitives::GroupElement& lTag, CSparkSpendEntry& sparkSpend) {
+    return Read(std::make_pair(std::string("spark_spend"), lTag), sparkSpend);
+}
+
+bool CWalletDB::HasSparkSpendEntry(const secp_primitives::GroupElement& lTag) {
+    return Exists(std::make_pair(std::string("spark_spend"), lTag));
+}
+
+bool CWalletDB::EraseSparkSpendEntry(const CSparkSpendEntry& sparkSpend) {
+    return Erase(std::make_pair(std::string("spark_spend"), sparkSpend.lTag));
+}
 
 /******************************************************************************/
 // BIP47

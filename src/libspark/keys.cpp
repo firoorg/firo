@@ -57,6 +57,9 @@ const Scalar& SpendKey::get_r() const {
 }
 
 FullViewKey::FullViewKey() {}
+FullViewKey::FullViewKey(const Params* params) {
+    this->params = params;
+}
 FullViewKey::FullViewKey(const SpendKey& spend_key) {
 	this->params = spend_key.get_params();
 	this->s1 = spend_key.get_s1();

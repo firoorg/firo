@@ -5521,6 +5521,21 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
     return tx;
 }
 
+std::vector<CWalletTx> CWallet::CreateSparkSpendTransaction(
+        const std::vector<CRecipient>& recipients,
+        const std::vector<spark::MintedCoinData>&  privateRecipients,
+        CAmount &fee,
+        const CCoinControl *coinControl)
+{
+    // sanity check
+    EnsureMintWalletAvailable();
+
+    if (IsLocked()) {
+        throw std::runtime_error(_("Wallet locked"));
+    }
+
+    return sparkWallet->CreateSparkSpendTransaction(recipients, privateRecipients, fee, coinControl);
+}
 std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(
         CAmount required,
         bool subtractFeeFromAmount,
