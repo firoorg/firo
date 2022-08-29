@@ -7,34 +7,37 @@
 #include "../script/sign.h"
 #include "state.h"
 
+#include <boost/format.hpp>
+
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
 
 CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 
     CWalletDB walletdb(strWalletFile);
-
+    this->strWalletFile = strWalletFile;
     const spark::Params* params = spark::Params::get_default();
     viewKey = spark::IncomingViewKey(params);
 
     // try to get incoming view key from db, if it fails, that means it is first start
-    if (!walletdb.readIncomingViewKey(viewKey)) {
+    if (!walletdb.readFullViewKey(fullViewKey)) {
         if (pwalletMain->IsLocked()) {
             LogPrintf("Spark wallet creation FAILED, wallet is locked\n");
             return;
         }
         // Generating spark key set first time
         spark::SpendKey spendKey = generateSpendKey();
-        spark::FullViewKey fullViewKey = generateFullViewKey(spendKey);
+        fullViewKey = generateFullViewKey(spendKey);
         viewKey = generateIncomingViewKey(fullViewKey);
 
         // Write incoming view key into db, it is safe to be kept in db, it is used to identify incoming coins belonging to the wallet
-        walletdb.writeIncomingViewKey(viewKey);
+        walletdb.writeFullViewKey(fullViewKey);
         // generate one initial address for wallet
         lastDiversifier = 0;
         addresses[lastDiversifier] = getDefaultAddress();
         // set 0 as last diversifier into db, we will update it later, in case coin comes, or user manually generates new address
         walletdb.writeDiversifier(lastDiversifier);
     } else {
+        viewKey = generateIncomingViewKey(fullViewKey);
         int32_t diversifierInDB = 0;
         // read diversifier from db
         walletdb.readDiversifier(diversifierInDB);
@@ -200,7 +203,7 @@ void CSparkWallet::eraseMint(const uint256& hash, CWalletDB& walletdb) {
     walletdb.EraseSparkMint(hash);
     coinMeta.erase(hash);
 }
-void CSparkWallet::addOrUpdate(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb) {
+void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb) {
     if (mint.i > lastDiversifier) {
         lastDiversifier = mint.i;
         walletdb.writeDiversifier(lastDiversifier);
@@ -215,12 +218,66 @@ CSparkMintMeta CSparkWallet::getMintMeta(const uint256& hash) {
     return CSparkMintMeta();
 }
 
-void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags) {
-  //TODO levon
+void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint) {
+    for (const auto& lTag : lTags) {
+        uint256 lTagHash = primitives::GetLTagHash(lTag);
+        if (coinMeta.count(lTagHash)) {
+            auto mintMeta = coinMeta[lTagHash];
+
+            CSparkSpendEntry spendEntry;
+            spendEntry.lTag = lTag;
+            spendEntry.lTagHash = lTagHash;
+            spendEntry.hashTx = txHash;
+            spendEntry.amount = mintMeta.v;
+
+            CWalletDB walletdb(strWalletFile);
+            walletdb.WriteSparkSpendEntry(spendEntry);
+
+            if (fUpdateMint) {
+                mintMeta.isUsed = true;
+                addOrUpdateMint(mintMeta, lTagHash, walletdb);
+            }
+        }
+    }
 }
 
-void CSparkWallet::UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins) {
-    //TODO levon
+void CSparkWallet::UpdateMintStateFromMempool(const std::vector<std::pair<spark::Coin, std::vector<unsigned char>>>& coins, const uint256& txHash) {
+    for (auto coin : coins) {
+        try {
+            spark::IdentifiedCoinData identifiedCoinData = coin.first.identify(this->viewKey);
+            spark::RecoveredCoinData recoveredCoinData = coin.first.recover(this->fullViewKey, identifiedCoinData);
+            CSparkMintMeta mintMeta;
+            mintMeta.nHeight = -1;
+            mintMeta.nId = -1;
+            mintMeta.isUsed = false;
+            mintMeta.txid = txHash;
+            mintMeta.i = identifiedCoinData.i;
+            mintMeta.d = identifiedCoinData.d;
+            mintMeta.v = identifiedCoinData.v;
+            mintMeta.k = identifiedCoinData.k;
+            mintMeta.memo = identifiedCoinData.memo;
+            mintMeta.serial_context = coin.second;
+            //! Check whether this mint has been spent and is considered 'pending' or 'confirmed'
+            {
+                LOCK(mempool.cs);
+                mintMeta.isUsed = mempool.sparkState.HasLTag(recoveredCoinData.T);
+            }
+
+            CWalletDB walletdb(strWalletFile);
+            uint256 lTagHash = primitives::GetLTagHash(recoveredCoinData.T);
+            addOrUpdateMint(mintMeta, lTagHash, walletdb);
+
+            if (mintMeta.isUsed) {
+                LOCK(mempool.cs);
+                uint256 spendTxHash = mempool.sparkState.GetMempoolConflictingTxHash(recoveredCoinData.T);
+                std::vector<GroupElement> lTags;
+                lTags.push_back(recoveredCoinData.T);
+                UpdateSpendStateFromMempool(lTags, spendTxHash, false);
+            }
+        } catch (const std::runtime_error& e) {
+            continue;
+        }
+    }
 }
 
 
@@ -696,6 +753,49 @@ bool CSparkWallet::CreateSparkMintTransactions(
     }
 
     return true;
+}
+
+std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
+        const std::vector<CRecipient>& recipients,
+        const std::vector<spark::MintedCoinData>&  privateRecipients,
+        CAmount &fee,
+        const CCoinControl *coinControl) {
+
+    if (recipients.empty() && privateRecipients.empty()) {
+        throw std::runtime_error(_("Either recipients or newMints has to be nonempty."));
+    }
+
+    // calculate total value to spend
+    CAmount vOut = 0;
+    CAmount mintVOut = 0;
+    unsigned recipientsToSubtractFee = 0;
+
+    for (size_t i = 0; i < recipients.size(); i++) {
+        auto& recipient = recipients[i];
+
+        if (!MoneyRange(recipient.nAmount)) {
+            throw std::runtime_error(boost::str(boost::format(_("Recipient has invalid amount")) % i));
+        }
+
+        vOut += recipient.nAmount;
+
+        if (recipient.fSubtractFeeFromAmount) {
+            recipientsToSubtractFee++;
+        }
+    }
+
+    for(const auto& privRecipient : privateRecipients) {
+        mintVOut += privRecipient.v;
+    }
+
+    std::vector<CWalletTx> result;
+    CWalletTx wtxNew;
+    CMutableTransaction tx;
+    wtxNew.fTimeReceivedIsTxTime = true;
+    wtxNew.BindWallet(pwalletMain);
+
+
+    return result;
 }
 
 std::list<std::pair<spark::Coin, CSparkMintMeta>> CSparkWallet::GetAvailableSparkCoins(CWalletDB& walletdb, const CCoinControl *coinControl) const {

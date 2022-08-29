@@ -45,7 +45,7 @@ void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin);
 spark::SpendTransaction ParseSparkSpend(const CTransaction &tx);
 
 std::vector<GroupElement>  GetSparkUsedTags(const CTransaction &tx);
-std::vector<spark::Coin>&  GetSparkMintCoins(const CTransaction &tx);
+std::vector<std::pair<spark::Coin, std::vector<unsigned char>>>  GetSparkMintCoins(const CTransaction &tx);
 
 
 bool CheckSparkTransaction(
@@ -152,7 +152,7 @@ public:
     // Check if there is a coin with such serial in either blockchain or mempool
     bool AddSpendToMempool(const std::vector<GroupElement>& lTags, uint256 txHash);
 
-    void AddMintsToMempool(const std::vector<spark::Coin>& coins);
+    void AddMintsToMempool(const std::vector<std::pair<spark::Coin, std::vector<unsigned char>>>& coins);
     void RemoveMintFromMempool(const spark::Coin& coin);
 
     // Get conflicting tx hash by coin linking tag

@@ -54,11 +54,11 @@ public:
     // erase mint meta data from memory and from db
     void eraseMint(const uint256& hash, CWalletDB& walletdb);
     // add mint meta data to memory and to db
-    void addOrUpdate(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb);
+    void addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb);
     CSparkMintMeta getMintMeta(const uint256& hash);
 
-    void UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags);
-    void UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins);
+    void UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint = true);
+    void UpdateMintStateFromMempool(const std::vector<std::pair<spark::Coin, std::vector<unsigned char>>>& coins, const uint256& txHash);
 
     // get the vector of mint metadata for a single address
     std::vector<CSparkMintMeta> listAddressCoins(const int32_t& i, bool fUnusedOnly = false);
@@ -81,14 +81,23 @@ public:
             const CCoinControl *coinControl,
             bool autoMintAll = false);
 
-    // Returns the list of pairs of coins and meta data for that coin,
+    std::vector<CWalletTx> CreateSparkSpendTransaction(
+            const std::vector<CRecipient>& recipients,
+            const std::vector<spark::MintedCoinData>&  privateRecipients,
+            CAmount &fee,
+            const CCoinControl *coinControl = NULL);
+
+    // Returns the list of pairs of coins and metadata for that coin,
     std::list<std::pair<spark::Coin, CSparkMintMeta>> GetAvailableSparkCoins(CWalletDB& walletdb, const CCoinControl *coinControl = NULL) const;
 
 private:
+    std::string strWalletFile;
     // this is latest used diversifier
     int32_t lastDiversifier;
 
-    // this is incoming view key, which is saved into db and is used to identify our coins
+    // this is full view key, which is saved into db
+    spark::FullViewKey fullViewKey;
+    // this is incoming view key
     spark::IncomingViewKey viewKey;
 
     // map diversifier to address.

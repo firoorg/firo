@@ -115,7 +115,7 @@ std::vector<GroupElement>  GetSparkUsedTags(const CTransaction &tx)
     return  spendTransaction.getUsedLTags();
 }
 
-std::vector<spark::Coin>&  GetSparkMintCoins(const CTransaction &tx)
+std::vector<std::pair<spark::Coin, std::vector<unsigned char>>> GetSparkMintCoins(const CTransaction &tx)
 {
     //TODO levon implement this after spark spend implementation
 }
@@ -409,10 +409,10 @@ void CSparkState::RemoveSpendFromMempool(const std::vector<GroupElement>& lTags)
     }
 }
 
-void CSparkState::AddMintsToMempool(const std::vector<spark::Coin>& coins) {
+void CSparkState::AddMintsToMempool(const std::vector<std::pair<spark::Coin, std::vector<unsigned char>>>& coins) {
     LOCK(mempool.cs);
     for (const auto& coin : coins) {
-        mempool.sparkState.AddMintToMempool(coin);
+        mempool.sparkState.AddMintToMempool(coin.first);
     }
 }
 
