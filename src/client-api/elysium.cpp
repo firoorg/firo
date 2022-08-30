@@ -323,6 +323,37 @@ UniValue sendElysium(Type type, const UniValue &data, const UniValue &auth, bool
     }
 }
 
+UniValue grantElysium(Type type, const UniValue &data, const UniValue &auth, bool fHelp) {
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    uint32_t propertyId = data["propertyId"].get_int();
+    std::string recipient = data["address"].get_str();
+    uint64_t amount = data["amount"].get_int64();
+
+    UniValue propertyData = getPropertyData(propertyId);
+    if (!propertyData["isManaged"].get_bool())
+        throw JSONAPIError(API_INVALID_PARAMS, "not a managed property");
+
+    std::string issuer = propertyData["issuer"].get_str();
+
+    int b = INT_MAX;
+    elysium::InputMode inputMode = elysium::InputMode::NORMAL;
+    if (elysium::lelantusDb->GetAnonymityGroup(propertyId, 0, 1, b).empty())
+        inputMode = elysium::InputMode::INITIAL_GRANT;
+
+    uint256 txid;
+    std::string rawHex;
+    UniValue inputs = UniValue::VARR;
+    std::vector<unsigned char> payload = CreatePayload_Grant(propertyId, amount, "");
+    int res = WalletTxBuilder(issuer, recipient, "", payload, txid, rawHex, true, inputMode, &inputs);
+    if (res) throw JSONAPIError(API_INTERNAL_ERROR, error_str(res));
+
+    UniValue ret = UniValue::VOBJ;
+    ret.pushKV("txid", txid.GetHex());
+    ret.pushKV("inputs", inputs);
+    return ret;
+}
+
 UniValue recoverElysium(Type type, const UniValue &data, const UniValue &auth, bool fHelp) {
     LOCK2(cs_main, pwalletMain->cs_wallet);
     elysium::wallet->SyncWithChain();
@@ -337,6 +368,7 @@ static const CAPICommand commands[] =
       { "elysium", "mintElysium", &mintElysium, true, true, false  },
       { "elysium", "sendElysium", &sendElysium, true, true, false  },
       { "elysium", "recoverElysium", &recoverElysium, true, true, false  },
+      { "elysium", "grantElysium", &grantElysium, true, true, false  }
     };
 
 void RegisterElysiumAPICommands(CAPITable &tableAPI)
