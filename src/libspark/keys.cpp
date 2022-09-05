@@ -1,5 +1,9 @@
 #include "keys.h"
+<<<<<<< HEAD
 #include "../hash.h"
+=======
+#include "f4grumble.h"
+>>>>>>> 65e408e1b... Adds an encoding method for address scrambling
 
 namespace spark {
 
@@ -151,59 +155,115 @@ const GroupElement& Address::get_Q2() const {
 	return this->Q2;
 }
 
-std::string Address::GetHex() const {
-    const std::size_t size = 2* GroupElement::serialize_size + AES_BLOCKSIZE;
-    std::vector<unsigned char> buffer;
-    buffer.reserve(size);
-    buffer.resize(2* GroupElement::serialize_size);
-    unsigned char* ptr = buffer.data();
-    ptr = Q1.serialize(ptr);
-    Q2.serialize(ptr);
-    buffer.insert(buffer.end(), d.begin(), d.end());
+// Compute a CRC32-C checksum and convert to hex encoding
+std::string Address::get_checksum(const std::string data) {
+	uint32_t checksum = leveldb::crc32c::Value(data.data(), data.size());
 
-    std::stringstream ss;
-    ss << std::hex;
-    ss << version;
+	// Get bytes
+	std::vector<unsigned char> bytes;
+	bytes.resize(4);
+	bytes[0] = checksum;
+	bytes[1] = checksum >> 8;
+	bytes[2] = checksum >> 16;
+	bytes[3] = checksum >> 24;
 
-    for (const auto b : buffer) {
-        ss << (b >> 4);
-        ss << (b & 0xF);
-    }
-
-    std::string str = ss.str();
-    uint160 checksum = Hash160(str.begin(), str.end());
-    ss << checksum.GetHex();
-    return ss.str();
+	// Hex encode
+	std::stringstream result;
+	result << std::hex;
+	for (const unsigned char b : bytes) {
+		result << (b >> 4);
+		result << (b & 0xF);
+	}
+	return result.str();
 }
 
-void Address::SetHex(const std::string& str) {
-    const std::size_t size = 2 * GroupElement::serialize_size + AES_BLOCKSIZE;
-    if (str.size() != ((size + 20) * 2 + 1)) {
-        throw "Address: SetHex failed, invalid length";
-    }
+// Encode the address to string, given a network identifier
+std::string Address::encode(const unsigned char network) const {
+	// Serialize the address components
+	std::vector<unsigned char> raw;
+	raw.reserve(2 * GroupElement::serialize_size + AES_BLOCKSIZE);
 
-    version = *str.c_str();
-    std::array<unsigned char, size> buffer;
-    for (std::size_t i = 0; i < buffer.size(); i++) {
-        auto hexs = str.substr(2 * i + 1, 2);
+	raw.insert(raw.end(), this->d.begin(), this->d.end());
 
-        if (::isxdigit(hexs[0]) && ::isxdigit(hexs[1])) {
-            buffer[i] = strtol(hexs.c_str(), NULL, 16);
+	std::vector<unsigned char> component;
+	component.resize(GroupElement::serialize_size);
+
+	this->get_Q1().serialize(component.data());
+	raw.insert(raw.end(), component.begin(), component.end());
+
+	this->get_Q2().serialize(component.data());
+	raw.insert(raw.end(), component.begin(), component.end());
+
+	// Apply the scramble encoding and prepend the network byte
+	std::vector<unsigned char> scrambled = F4Grumble(network, raw.size()).encode(raw);
+
+	// Encode to hex
+	std::stringstream encoded;
+	encoded << std::hex;
+	encoded << ADDRESS_ENCODING_PREFIX;
+	encoded << network;
+	for (const unsigned char c : scrambled) {
+		encoded << (c >> 4);
+		encoded << (c & 0xF);
+	}
+
+	// Compute and apply the checksum
+	encoded << get_checksum(encoded.str());
+
+	return encoded.str();
+}
+
+// Decode an address (if possible) from a string, returning the network identifier
+unsigned char Address::decode(const std::string& str) {
+	const int CHECKSUM_BYTES = 4;
+
+	// Assert the proper address size
+	if (str.size() != (2 * GroupElement::serialize_size + AES_BLOCKSIZE + CHECKSUM_BYTES) * 2 + 2) {
+		throw std::invalid_argument("Bad address size");
+	}
+
+	// Check the encoding prefix
+	if (str[0] != ADDRESS_ENCODING_PREFIX) {
+		throw std::invalid_argument("Bad address prefix");
+	}
+
+	// Check the checksum
+	std::string checksum = str.substr(str.size() - 2 * CHECKSUM_BYTES);
+	std::string computed_checksum = get_checksum(str.substr(0, str.size() - 2 * CHECKSUM_BYTES));
+	if (computed_checksum != checksum) {
+		throw std::invalid_argument("Bad address checksum");
+	}
+
+	// Track the network identifier
+	unsigned char network = str[1];
+
+	// Decode the scrambled data and checksum from hex
+	std::string scrambled_hex = str.substr(2, str.size() - CHECKSUM_BYTES);
+	std::vector<unsigned char> scrambled;
+	scrambled.resize(2 * GroupElement::serialize_size + AES_BLOCKSIZE);
+	for (std::size_t i = 0; i < scrambled.size(); i++) {
+		std::string hexs = scrambled_hex.substr(2 * i, 2);
+
+		if (::isxdigit(hexs[0]) && ::isxdigit(hexs[1])) {
+            scrambled[i] = strtol(hexs.c_str(), NULL, 16);
         } else {
-            throw "Address: SetHex failed, invalid hex";
+            throw std::invalid_argument("Bad address encoding");
         }
-    }
+	}
 
-    const unsigned char* ptr = Q1.deserialize(buffer.data());
-    Q2.deserialize(ptr);
-    d.insert(d.end(), buffer.begin() + 2 * GroupElement::serialize_size, buffer.end());
+	// Apply the scramble decoding
+	std::vector<unsigned char> raw = F4Grumble(network, scrambled.size()).decode(scrambled);
 
-    // check for checksum validity
-    std::string checksum = str.substr (size * 2 + 1, str.size() - 1);
-    // get checksum from newly deserialized address to compare with checksum form input
-    std::string resultChecksum= GetHex().substr (size * 2 + 1, str.size() - 1);
-    if (checksum != resultChecksum)
-        throw "Address: SetHex failed, invalid checksum";
+	// Deserialize the adddress components
+	this->d = std::vector<unsigned char>(raw.begin(), raw.begin() + AES_BLOCKSIZE);
+
+	std::vector<unsigned char> component(raw.begin() + AES_BLOCKSIZE, raw.begin() + AES_BLOCKSIZE + GroupElement::serialize_size);
+	this->Q1.deserialize(component.data());
+	
+	component = std::vector<unsigned char>(raw.begin() + AES_BLOCKSIZE + GroupElement::serialize_size, raw.end());
+	this->Q2.deserialize(component.data());
+
+	return network;
 }
 
 }

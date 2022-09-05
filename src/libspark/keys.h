@@ -1,5 +1,6 @@
 #ifndef FIRO_SPARK_KEYS_H
 #define FIRO_SPARK_KEYS_H
+#include "../leveldb/util/crc32c.h"
 #include "params.h"
 #include "util.h"
 
@@ -76,14 +77,17 @@ public:
 	const std::vector<unsigned char>& get_d() const;
 	const GroupElement& get_Q1() const;
 	const GroupElement& get_Q2() const;
-    std::string GetHex() const;
-    void SetHex(const std::string& str);
+
+	std::string encode(const unsigned char network) const;
+	unsigned char decode(const std::string& str);
 
 private:
     char version = SPARK_ADDRESS_VERSION;
 	const Params* params;
 	std::vector<unsigned char> d;
 	GroupElement Q1, Q2;
+
+	static std::string get_checksum(const std::string data);
 };
 
 }
