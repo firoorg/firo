@@ -242,8 +242,15 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     }
     txData.pushKV("publicInputs", publicInputs);
 
+    UniValue lelantusInputSerialHashes = UniValue::VARR;
     std::unique_ptr<lelantus::JoinSplit> joinSplit;
-    if (wtx.tx->IsLelantusJoinSplit()) joinSplit = lelantus::ParseLelantusJoinSplit(*wtx.tx);
+    if (wtx.tx->IsLelantusJoinSplit()) {
+        joinSplit = lelantus::ParseLelantusJoinSplit(*wtx.tx);
+        for (const Scalar& serial: joinSplit->getCoinSerialNumbers()) {
+            lelantusInputSerialHashes.push_back(primitives::GetSerialHash(serial).GetHex());
+        }
+    }
+    txData.pushKV("lelantusInputSerialHashes", lelantusInputSerialHashes);
 
     int64_t fee;
     if (fIsMining) { // mining transaction
@@ -268,6 +275,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         bool fIsToMe = false;
         bool fIsSpent = true;
 
+        uint256 lelantusSerialHash;
         int64_t amount = 0;
         if (txout.scriptPubKey.IsLelantusMint()) {
             secp_primitives::GroupElement pub;
@@ -286,6 +294,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                     fIsSpent = dMint.IsUsed();
                     fIsFromMe = true; // If we can parse a Lelantus mint, the transaction is from us.
                     fIsToMe = true;
+                    lelantusSerialHash = dMint.GetSerialHash();
                 }
             }
         } else if (txout.scriptPubKey.IsLelantusJMint()) {
@@ -306,6 +315,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                     fIsSpent = dMint.IsUsed();
                     fIsFromMe = true; // If we can parse a Lelantus mint, the transaction is from us.
                     fIsToMe = true;
+                    lelantusSerialHash = dMint.GetSerialHash();
                 }
             }
         } else {
@@ -329,6 +339,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         output.pushKV("isToMe", fIsToMe);
         output.pushKV("isElysiumReferenceOutput", wtx.tx->IsElysiumReferenceOutput(n));
         if (hasDestination) output.pushKV("destination", CBitcoinAddress(destination).ToString());
+        if (!lelantusSerialHash.IsNull()) output.pushKV("lelantusSerialHash", lelantusSerialHash.GetHex());
 
         outputs.push_back(output);
     }
