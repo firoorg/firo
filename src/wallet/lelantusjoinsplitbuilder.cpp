@@ -467,7 +467,7 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
         }
 
         // Check if the coin is at overlapping parts of sets, use next set for proof creation if it is also in next set.
-        CLelantusState::LelantusCoinGroupInfo nextCoinGroupInfo;
+        lelantus::CLelantusState::LelantusCoinGroupInfo nextCoinGroupInfo;
         if (state->GetLatestCoinID() > groupId && state->GetCoinGroupInfo(groupId + 1, nextCoinGroupInfo)) {
             if (nextCoinGroupInfo.firstBlock->nHeight <= mintHeight)
                 groupId += 1;
