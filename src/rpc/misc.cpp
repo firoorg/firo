@@ -930,7 +930,7 @@ UniValue getanonymityset(const JSONRPCRequest& request)
                         "\nArguments:\n"
                         "{\n"
                         "      \"coinGroupId\"  (int)\n"
-                        "      \"startBlockHash\"    (string)\n"
+                        "      \"startBlockHash\"    (string)\n" // if this is empty it returns the full set
                         "}\n"
                         "\nResult:\n"
                         "{\n"
@@ -938,8 +938,8 @@ UniValue getanonymityset(const JSONRPCRequest& request)
                         "  \"setHash\"   (string) Anonymity set hash\n"
                         "  \"mints\" (Pair<string,Pair<string,Pair<<string, uint64_t>>) Serialized GroupElements paired with txhash which is paired with mint tag and mint value\n"
                         "}\n"
-                + HelpExampleCli("getanonymityset", "100000000 1")
-                + HelpExampleRpc("getanonymityset", "\"100000000\", \"1\"")
+                + HelpExampleCli("getanonymityset", "\"1\"" "\"f2d16ca8c1e220912f11dfe0797c88b367bcbb9b8c13aa2bc5892114da47f7b7\"")
+                + HelpExampleRpc("getanonymityset", "\"1\"" "\"f2d16ca8c1e220912f11dfe0797c88b367bcbb9b8c13aa2bc5892114da47f7b7\"")
         );
 
 
@@ -977,22 +977,22 @@ UniValue getanonymityset(const JSONRPCRequest& request)
     for (const auto& coin : coins) {
         std::vector<unsigned char> vch = coin.first.getValue().getvch();
         std::vector<UniValue> data;
-        data.push_back(HexStr(vch.begin(), vch.end()));
-        data.push_back(coin.second.second.GetHex());
+        data.push_back(EncodeBase64(vch.data(), size_t(34)));
+        data.push_back(EncodeBase64(coin.second.second.begin(), coin.second.second.size()));
         if (coin.second.first.isJMint) {
-            data.push_back(HexStr(coin.second.first.encryptedValue.begin(), coin.second.first.encryptedValue.end()));
+            data.push_back(EncodeBase64(coin.second.first.encryptedValue.data(), coin.second.first.encryptedValue.size()));
         } else {
             data.push_back(coin.second.first.amount);
         }
-        data.push_back(txHashes[i].GetHex());
+        data.push_back(EncodeBase64(txHashes[i].begin(), txHashes[i].size()));
         UniValue entity(UniValue::VARR);
         entity.push_backV(data);
         mints.push_back(entity);
         i++;
     }
 
-    ret.push_back(Pair("blockHash", blockHash.GetHex()));
-    ret.push_back(Pair("setHash", UniValue(HexStr(setHash.begin(), setHash.end()))));
+    ret.push_back(Pair("blockHash", EncodeBase64(blockHash.begin(), blockHash.size())));
+    ret.push_back(Pair("setHash", UniValue(EncodeBase64(setHash.data(), setHash.size()))));
     ret.push_back(Pair("coins", mints));
 
     return ret;
@@ -1079,7 +1079,10 @@ UniValue getusedcoinserials(const JSONRPCRequest& request)
     for ( auto it = serials.begin(); it != serials.end(); ++it, ++i) {
         if (i < startNumber)
             continue;
-        serializedSerials.push_back(it->first.GetHex());
+        std::vector<unsigned char> serialized;
+        serialized.resize(32);
+        it->first.serialize(serialized.data());
+        serializedSerials.push_back(EncodeBase64(serialized.data(), 32));
     }
 
     UniValue ret(UniValue::VOBJ);
