@@ -250,8 +250,7 @@ enum class InputMode {
 
 int WalletTxBuilder(const std::string &senderAddress, const std::string &receiverAddress,
                     const std::string &redemptionAddress, const std::vector<unsigned char> &data,
-                    uint256 &txid, std::string &rawHex, bool commit, InputMode inputMode=InputMode::NORMAL,
-                    UniValue *baseLayerInputs=NULL);
+                    uint256 &txid, std::string &rawHex, bool commit, InputMode inputMode=InputMode::NORMAL);
 
 bool isTestEcosystemProperty(uint32_t propertyId);
 bool isMainEcosystemProperty(uint32_t propertyId);

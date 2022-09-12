@@ -6,6 +6,7 @@
 #include "validation.h"
 #include "init.h"
 #include "util.h"
+#include "client-api/bigint.h"
 #include "client-api/server.h"
 #include "client-api/protocol.h"
 #include "client-api/wallet.h"
@@ -157,7 +158,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     ret.pushKV("network", Params().NetworkIDString());
     ret.pushKV("version", CLIENT_BUILD);
     ret.pushKV("protocolVersion", PROTOCOL_VERSION);
-    ret.pushKV("smartFeePerKb", 1000);
+    ret.pushKV("smartFeePerKb", BigInt(1000));
     ret.pushKV("blocks", LOAD(currentBlockHeight));
     ret.pushKV("synced", LOAD(isBlockchainSynced));
     ret.pushKV("rescanning", fRescanning);

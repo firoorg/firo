@@ -179,19 +179,8 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
             if (!pwalletMain->CommitTransaction(wtx, keyChange, g_connman.get(), state))
                 throw JSONAPIError(API_WALLET_ERROR, "Transaction commit failed");
 
-
-            UniValue inputs = UniValue::VARR;
-            for (CTxIn txin: wtx.tx->vin) {
-                UniValue input = UniValue::VARR;
-                input.push_back(txin.prevout.hash.ToString());
-                input.push_back((uint64_t)txin.prevout.n);
-                inputs.push_back(input);
-            }
-
-
             UniValue retval(UniValue::VOBJ);
             retval.push_back(Pair("txid",  wtx.GetHash().GetHex()));
-            retval.push_back(Pair("inputs", inputs));
             return retval;
         }
         default: {

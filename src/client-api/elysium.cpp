@@ -150,13 +150,11 @@ UniValue createElysiumProperty(Type type, const UniValue &data, const UniValue &
     uint256 txid;
     std::string rawHex;
     std::string receiver;
-    UniValue inputs = UniValue::VARR;
-    int result = elysium::WalletTxBuilder(fromAddress, receiver, "", payload, txid, rawHex, autoCommit, elysium::InputMode::CREATE_PROPERTY, &inputs);
+    int result = elysium::WalletTxBuilder(fromAddress, receiver, "", payload, txid, rawHex, autoCommit, elysium::InputMode::CREATE_PROPERTY);
     if (result != 0) throw JSONAPIError(API_INTERNAL_ERROR, error_str(result));
 
     UniValue ret = UniValue::VOBJ;
     ret.pushKV("txid", txid.GetHex());
-    ret.pushKV("inputs", inputs);
     return ret;
 }
 
@@ -176,7 +174,6 @@ UniValue mintElysium(Type type, const UniValue &data, const UniValue &auth, bool
     if (!balance) return UniValue::VNULL;
 
     UniValue txids = UniValue::VARR;
-    UniValue inputs = UniValue::VARR;
 
     int b = INT_MAX;
     if (elysium::lelantusDb->GetAnonymityGroup(propertyId, 0, 1, b).empty()) {
@@ -194,7 +191,7 @@ UniValue mintElysium(Type type, const UniValue &data, const UniValue &auth, bool
         uint256 txid;
         std::string rawHex;
         std::vector<unsigned char> payload = CreatePayload_CreateLelantusMint(propertyId, coin.getPublicCoin(), mint.id, premintAmount, {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
-        auto result = elysium::WalletTxBuilder(address, "", "", payload, txid, rawHex, true, elysium::InputMode::MINT, &inputs);
+        auto result = elysium::WalletTxBuilder(address, "", "", payload, txid, rawHex, true, elysium::InputMode::MINT);
         if (result != 0) throw JSONAPIError(API_INTERNAL_ERROR, error_str(result));
 
         mint.Commit();
@@ -213,7 +210,7 @@ UniValue mintElysium(Type type, const UniValue &data, const UniValue &auth, bool
     uint256 txid;
     std::string rawHex;
     std::vector<unsigned char> payload = CreatePayload_CreateLelantusMint(propertyId, coin.getPublicCoin(), mint.id, balance, {serializedSchnorrProof.begin(), serializedSchnorrProof.end()});
-    auto result = elysium::WalletTxBuilder(address, "", "", payload, txid, rawHex, true, elysium::InputMode::MINT, &inputs);
+    auto result = elysium::WalletTxBuilder(address, "", "", payload, txid, rawHex, true, elysium::InputMode::MINT);
     if (result != 0) throw JSONAPIError(API_INTERNAL_ERROR, error_str(result));
 
     mint.Commit();
@@ -224,7 +221,6 @@ UniValue mintElysium(Type type, const UniValue &data, const UniValue &auth, bool
 
     UniValue ret = UniValue::VOBJ;
     ret.pushKV("txids", txids);
-    ret.pushKV("inputs", inputs);
     return ret;
 }
 
@@ -279,7 +275,6 @@ UniValue sendElysium(Type type, const UniValue &data, const UniValue &auth, bool
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;
     std::string rawHex;
-    UniValue baseLayerInputs = UniValue::VARR;
     int result = WalletTxBuilder(
             "",
             sAddress,
@@ -288,8 +283,7 @@ UniValue sendElysium(Type type, const UniValue &data, const UniValue &auth, bool
             txid,
             rawHex,
             autoCommit,
-            elysium::InputMode::LELANTUS,
-            &baseLayerInputs
+            elysium::InputMode::LELANTUS
     );
 
     // check error and return the txid (or raw hex depending on autocommit)
@@ -318,7 +312,6 @@ UniValue sendElysium(Type type, const UniValue &data, const UniValue &auth, bool
 
         UniValue ret = UniValue::VOBJ;
         ret.pushKV("txid", txid.GetHex());
-        ret.pushKV("inputs", baseLayerInputs);
         return ret;
     }
 }
@@ -343,14 +336,12 @@ UniValue grantElysium(Type type, const UniValue &data, const UniValue &auth, boo
 
     uint256 txid;
     std::string rawHex;
-    UniValue inputs = UniValue::VARR;
     std::vector<unsigned char> payload = CreatePayload_Grant(propertyId, amount, "");
-    int res = WalletTxBuilder(issuer, recipient, "", payload, txid, rawHex, true, inputMode, &inputs);
+    int res = WalletTxBuilder(issuer, recipient, "", payload, txid, rawHex, true, inputMode);
     if (res) throw JSONAPIError(API_INTERNAL_ERROR, error_str(res));
 
     UniValue ret = UniValue::VOBJ;
     ret.pushKV("txid", txid.GetHex());
-    ret.pushKV("inputs", inputs);
     return ret;
 }
 

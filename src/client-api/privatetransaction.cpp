@@ -69,7 +69,6 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
         std::vector<CHDMint> mintCoins;
 
         UniValue retval = UniValue::VOBJ;
-        UniValue inputs = UniValue::VARR;
 
         CWalletTx transaction = pwalletMain->CreateLelantusJoinSplitTransaction(
             recipients,
@@ -91,34 +90,7 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
 
         GetMainSignals().WalletTransaction(transaction);
 
-        for (CLelantusEntry& spendCoin: spendCoins) {
-            lelantus::PublicCoin pubCoin(spendCoin.value);
-
-            COutPoint outPoint;
-            lelantus::GetOutPoint(outPoint, pubCoin);
-
-            UniValue input = UniValue::VARR;
-            input.push_back(outPoint.hash.ToString());
-            input.push_back((uint64_t)outPoint.n);
-
-            inputs.push_back(input);
-        }
-
-        for (CSigmaEntry& spendCoin: sigmaSpendCoins) {
-            sigma::PublicCoin pubCoin(spendCoin.value, spendCoin.get_denomination());
-
-            COutPoint outPoint;
-            sigma::GetOutPoint(outPoint, pubCoin);
-
-            UniValue input = UniValue::VARR;
-            input.push_back(outPoint.hash.ToString());
-            input.push_back((uint64_t)outPoint.n);
-
-            inputs.push_back(input);
-        }
-
         retval.pushKV("txid", transaction.GetHash().ToString());
-        retval.pushKV("inputs", inputs);
 
         return retval;
     }
@@ -150,7 +122,6 @@ UniValue autoMintLelantus(Type type, const UniValue& data, const UniValue& auth,
     std::vector<CHDMint> mints;
 
     UniValue mintTxs = UniValue::VARR;
-    UniValue inputs = UniValue::VARR;
 
     std::string strError = pwalletMain->MintAndStoreLelantus(0, wtxAndFees, mints, true);
 
@@ -163,18 +134,10 @@ UniValue autoMintLelantus(Type type, const UniValue& data, const UniValue& auth,
         GetMainSignals().WalletTransaction(tx);
 
         mintTxs.push_back(tx.GetHash().GetHex());
-
-        for (CTxIn txin: wtxAndFee.first.tx->vin) {
-            UniValue input = UniValue::VARR;
-            input.push_back(txin.prevout.hash.ToString());
-            input.push_back((uint64_t) txin.prevout.n);
-            inputs.push_back(input);
-        }
     }
 
     UniValue retval(UniValue::VOBJ);
     retval.push_back(Pair("mints", mintTxs));
-    retval.push_back(Pair("inputs", inputs));
     return retval;
 }
 

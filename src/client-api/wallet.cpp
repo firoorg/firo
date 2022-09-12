@@ -8,6 +8,7 @@
 #include "wallet/wallet.h"
 #include "wallet/rpcwallet.h"
 #include "lelantus.h"
+#include "client-api/bigint.h"
 #include "client-api/server.h"
 #include "client-api/send.h"
 #include "client-api/privatetransaction.h"
@@ -332,7 +333,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
 
         UniValue output = UniValue::VOBJ;
         output.pushKV("scriptType", ScriptType(txout.scriptPubKey));
-        output.pushKV("amount", amount);
+        output.pushKV("amount", BigInt(amount));
         output.pushKV("isChange", fIsChange);
         output.pushKV("isLocked", !!pwalletMain->setLockedCoins.count(COutPoint(wtx.tx->GetHash(), n)));
         output.pushKV("isSpent", fIsSpent);
@@ -383,13 +384,13 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                 if (jsm) {
                     elysium::LelantusMint mint;
                     if (elysium::wallet->lelantusWallet.database->ReadMint(jsm->id, mint, &db)) {
-                        elysiumData.pushKV("joinmintAmount", mint.amount);
+                        elysiumData.pushKV("joinmintAmount", BigInt(mint.amount));
                     } else {
                         LogPrintf("Error retrieving joinmintAmount for Elysium tx %s\n", wtx.GetHash().GetHex());
-                        elysiumData.pushKV("joinmintAmount", -1);
+                        elysiumData.pushKV("joinmintAmount", BigInt(-1));
                     }
                 } else {
-                    elysiumData.pushKV("joinmintAmount", 0);
+                    elysiumData.pushKV("joinmintAmount", BigInt(0));
                 }
             }
 
@@ -431,7 +432,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                 if (txType == ELYSIUM_TYPE_LELANTUS_MINT) amount = mp_obj.getLelantusMintValue();
                 else if (txType == ELYSIUM_TYPE_LELANTUS_JOINSPLIT) amount = mp_obj.getLelantusSpendAmount();
                 else amount = mp_obj.getAmount();
-                elysiumData.pushKV("amount", amount);
+                elysiumData.pushKV("amount", BigInt(amount));
                 break;
 
             default:
@@ -448,7 +449,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     txData.pushKV("inputType", inputType);
     txData.pushKV("isFromMe", fIsFromMe);
     txData.pushKV("firstSeenAt", wtx.GetTxTime());
-    txData.pushKV("fee", fee);
+    txData.pushKV("fee", BigInt(fee));
     txData.pushKV("outputs", outputs);
 
     if (block) {

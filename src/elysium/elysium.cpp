@@ -1749,8 +1749,7 @@ bool elysium::UseEncodingClassC(size_t nDataSize)
 // This function requests the wallet create an Elysium transaction using the supplied parameters and payload
 int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string &receiverAddress,
                              const std::string &redemptionAddress, const std::vector<unsigned char> &data,
-                             uint256 &txid, std::string &rawHex, bool commit, InputMode inputMode,
-                             UniValue *baseLayerInputs)
+                             uint256 &txid, std::string &rawHex, bool commit, InputMode inputMode)
 {
 	if (inputMode == InputMode::NORMAL) LogPrintf("inputMode Normal \n");
 	else if (inputMode == InputMode::LELANTUS) LogPrintf("inputMode Lelantus \n");
@@ -1854,16 +1853,6 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
 			PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, strFailReason);
 			return MP_ERR_CREATE_TX;
 		}
-
-        if (baseLayerInputs) {
-            for (CTxIn txin: wtxNew.tx->vin) {
-                UniValue input = UniValue::VARR;
-                input.push_back(txin.prevout.hash.GetHex());
-                input.push_back((int)txin.prevout.n);
-
-                baseLayerInputs->push_back(input);
-            }
-        }
 	}else if (inputMode == InputMode::LELANTUS) {
 		LogPrintf("inputMode Lelantus \n");
 		try {
@@ -1873,34 +1862,6 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
 		catch (std::exception const &err) {
 			PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, err.what());
 			return MP_ERR_CREATE_LELANTUS_TX;
-		}
-
-        if (baseLayerInputs) {
-            for (CLelantusEntry& spendCoin: lelantusSpendCoins) {
-                lelantus::PublicCoin pubCoin(spendCoin.value);
-
-                COutPoint outPoint;
-                lelantus::GetOutPoint(outPoint, pubCoin);
-
-                UniValue input = UniValue::VARR;
-                input.push_back(outPoint.hash.ToString());
-                input.push_back((uint64_t)outPoint.n);
-
-                baseLayerInputs->push_back(input);
-            }
-
-            for (CSigmaEntry& spendCoin: sigmaSpendCoins) {
-                sigma::PublicCoin pubCoin(spendCoin.value, spendCoin.get_denomination());
-
-                COutPoint outPoint;
-                sigma::GetOutPoint(outPoint, pubCoin);
-
-                UniValue input = UniValue::VARR;
-                input.push_back(outPoint.hash.ToString());
-                input.push_back((uint64_t)outPoint.n);
-
-                baseLayerInputs->push_back(input);
-            }
         }
 	}else{
         PrintToLog("%s: ERROR: wallet transaction creation failed: input mode is invalid\n", __func__);
