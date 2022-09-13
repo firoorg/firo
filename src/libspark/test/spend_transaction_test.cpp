@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         Scalar k;
         k.randomize();
 
-        uint64_t v = 12 + i; // arbitrary value
+        uint64_t v = 123 + i; // arbitrary value
 
         in_coins.emplace_back(Coin(
             params,
@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         spend_coin_data.back().T = recovered_coin_data.T;
         spend_coin_data.back().v = identified_coin_data.v;
 
-        f -= identified_coin_data.v;
+        f += identified_coin_data.v;
     }
 
     // Generate new output coins and compute the fee
@@ -88,20 +88,21 @@ BOOST_AUTO_TEST_CASE(generate_verify)
     for (std::size_t j = 0; j < t; j++) {
         out_coin_data.emplace_back();
         out_coin_data.back().address = address;
-        out_coin_data.back().v = 123 + j; // arbitrary value
+        out_coin_data.back().v = 12 + j; // arbitrary value
         out_coin_data.back().memo = memo;
 
-        f += out_coin_data.back().v;
+        f -= out_coin_data.back().v;
     }
 
     // Assert the fee is correct
     uint64_t fee_test = f;
-    for (std::size_t u = 0; u < w; u++) {
-        fee_test += spend_coin_data[u].v;
-    }
     for (std::size_t j = 0; j < t; j++) {
-        fee_test -= out_coin_data[j].v;
+        fee_test += out_coin_data[j].v;
     }
+    for (std::size_t u = 0; u < w; u++) {
+        fee_test -= spend_coin_data[u].v;
+    }
+
     if (fee_test != 0) {
         throw std::runtime_error("Bad fee assertion");
     }

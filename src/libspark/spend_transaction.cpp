@@ -161,7 +161,7 @@ SpendTransaction::SpendTransaction(
 		balance_statement += this->out_coins[j].C.inverse();
 		balance_witness -= SparkUtils::hash_val(k[j]);
 	}
-	balance_statement += this->params->get_G()*Scalar(f);
+	balance_statement += (this->params->get_G()*Scalar(f)).inverse();
 	schnorr.prove(
 		balance_witness,
 		balance_statement,
@@ -306,7 +306,7 @@ bool SpendTransaction::verify(const Params* params, const std::vector<SpendTrans
 		for (std::size_t j = 0; j < t; j++) {
 			balance_statement += tx.out_coins[j].C.inverse();
 		}
-		balance_statement += tx.params->get_G()*Scalar(tx.f);
+		balance_statement += (tx.params->get_G()*Scalar(tx.f)).inverse();
 		if(!schnorr.verify(
 			balance_statement,
 			tx.balance_proof
