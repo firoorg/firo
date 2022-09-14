@@ -1,4 +1,5 @@
 CLIENTAPI_H = \
+  client-api/bigint.h \
   client-api/externs.h \
   client-api/elysium.h \
   client-api/protocol.h \
@@ -15,6 +16,7 @@ CLIENTAPI_H = \
   zmqserver/zmqreplier.h
 
 CLIENTAPI_CPP = \
+  client-api/bigint.cpp \
   client-api/externs.cpp \
   client-api/elysium.cpp \
   client-api/blockchain.cpp \
