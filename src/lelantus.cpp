@@ -1223,6 +1223,9 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
         if (pblock->lelantusTxInfo->encryptedJmintValues.count(mint.first) > 0) {
             mintdata.isJMint = true;
             mintdata.encryptedValue = pblock->lelantusTxInfo->encryptedJmintValues[mint.first];
+            COutPoint outPoint;
+            GetOutPointFromBlock(outPoint, mint.first.getValue(), *pblock);
+            mintdata.txHash = outPoint.hash;
         }
 
         blockMints.push_back(std::make_pair(mint.first, std::make_pair(mintdata, mint.second.second)));
@@ -1498,11 +1501,9 @@ void CLelantusState::GetCoinsForRecovery(
         std::string start_block_hash,
         uint256& blockHash_out,
         std::vector<std::pair<lelantus::PublicCoin, std::pair<lelantus::MintValueData, uint256>>>& coins,
-        std::vector<unsigned char>& setHash_out,
-        std::vector<uint256>& txHashes) {
+        std::vector<unsigned char>& setHash_out) {
 
     coins.clear();
-    txHashes.clear();
     if (coinGroups.count(coinGroupID) == 0) {
         return;
     }
@@ -1548,7 +1549,6 @@ void CLelantusState::GetCoinsForRecovery(
                     }
 
                     coins.push_back(coin);
-                    txHashes.push_back(GetTxHashFromPubcoin(coin.first));
                 }
             }
         }

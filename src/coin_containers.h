@@ -65,6 +65,7 @@ struct MintValueData {
     bool isJMint = false;
     uint64_t amount;
     std::vector<unsigned char> encryptedValue;
+    uint256 txHash;
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
@@ -73,6 +74,7 @@ struct MintValueData {
         READWRITE(isJMint);
         READWRITE(amount);
         READWRITE(encryptedValue);
+        READWRITE(txHash);
     }
 };
 
