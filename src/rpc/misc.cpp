@@ -955,7 +955,7 @@ UniValue getanonymityset(const JSONRPCRequest& request)
     uint256 blockHash;
     std::vector<std::pair <lelantus::PublicCoin,std::pair<lelantus::MintValueData, uint256>>> coins;
     std::vector<unsigned char> setHash;
-    std::vector<uint256> txHashes;
+
     {
         LOCK(cs_main);
         lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
@@ -966,8 +966,7 @@ UniValue getanonymityset(const JSONRPCRequest& request)
                 startBlockHash,
                 blockHash,
                 coins,
-                setHash,
-                txHashes);
+                setHash);
     }
 
     UniValue ret(UniValue::VOBJ);
@@ -984,7 +983,8 @@ UniValue getanonymityset(const JSONRPCRequest& request)
         } else {
             data.push_back(coin.second.first.amount);
         }
-        data.push_back(EncodeBase64(txHashes[i].begin(), txHashes[i].size()));
+        data.push_back(EncodeBase64(coin.second.first.txHash.begin(), coin.second.first.txHash.size()));
+
         UniValue entity(UniValue::VARR);
         entity.push_backV(data);
         mints.push_back(entity);

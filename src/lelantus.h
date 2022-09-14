@@ -208,8 +208,7 @@ public:
         std::string start_block_hash,
         uint256& blockHash_out,
         std::vector<std::pair<lelantus::PublicCoin, std::pair<lelantus::MintValueData, uint256>>>& coins,
-        std::vector<unsigned char>& setHash_out,
-        std::vector<uint256>& txHashes);
+        std::vector<unsigned char>& setHash_out);
 
     // Return height of mint transaction and id of minted coin
     std::pair<int, int> GetMintedCoinHeightAndId(const lelantus::PublicCoin& pubCoin);
