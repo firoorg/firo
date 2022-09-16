@@ -1223,10 +1223,11 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
         if (pblock->lelantusTxInfo->encryptedJmintValues.count(mint.first) > 0) {
             mintdata.isJMint = true;
             mintdata.encryptedValue = pblock->lelantusTxInfo->encryptedJmintValues[mint.first];
-            COutPoint outPoint;
-            GetOutPointFromBlock(outPoint, mint.first.getValue(), *pblock);
-            mintdata.txHash = outPoint.hash;
         }
+
+        COutPoint outPoint;
+        GetOutPointFromBlock(outPoint, mint.first.getValue(), *pblock);
+        mintdata.txHash = outPoint.hash;
 
         blockMints.push_back(std::make_pair(mint.first, std::make_pair(mintdata, mint.second.second)));
     }
