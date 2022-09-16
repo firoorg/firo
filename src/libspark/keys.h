@@ -1,6 +1,7 @@
 #ifndef FIRO_SPARK_KEYS_H
 #define FIRO_SPARK_KEYS_H
-#include "../leveldb/util/crc32c.h"
+#include "bech32.h"
+#include "f4grumble.h"
 #include "params.h"
 #include "util.h"
 
