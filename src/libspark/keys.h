@@ -1,5 +1,7 @@
 #ifndef FIRO_SPARK_KEYS_H
 #define FIRO_SPARK_KEYS_H
+#include "bech32.h"
+#include "f4grumble.h"
 #include "params.h"
 #include "util.h"
 
@@ -79,11 +81,16 @@ public:
     std::string GetHex() const;
     void SetHex(const std::string& str);
 
+	std::string encode(const unsigned char network) const;
+	unsigned char decode(const std::string& str);
+
 private:
     char version = SPARK_ADDRESS_VERSION;
 	const Params* params;
 	std::vector<unsigned char> d;
 	GroupElement Q1, Q2;
+
+	static std::string get_checksum(const std::string data);
 };
 
 }

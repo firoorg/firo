@@ -194,16 +194,89 @@ void Address::SetHex(const std::string& str) {
         }
     }
 
-    const unsigned char* ptr = Q1.deserialize(buffer.data());
+    const unsigned char *ptr = Q1.deserialize(buffer.data());
     Q2.deserialize(ptr);
     d.insert(d.end(), buffer.begin() + 2 * GroupElement::serialize_size, buffer.end());
 
     // check for checksum validity
-    std::string checksum = str.substr (size * 2 + 1, str.size() - 1);
+    std::string checksum = str.substr(size * 2 + 1, str.size() - 1);
     // get checksum from newly deserialized address to compare with checksum form input
-    std::string resultChecksum= GetHex().substr (size * 2 + 1, str.size() - 1);
+    std::string resultChecksum = GetHex().substr(size * 2 + 1, str.size() - 1);
     if (checksum != resultChecksum)
         throw "Address: SetHex failed, invalid checksum";
+}
+
+// Encode the address to string, given a network identifier
+std::string Address::encode(const unsigned char network) const {
+	// Serialize the address components
+	std::vector<unsigned char> raw;
+	raw.reserve(2 * GroupElement::serialize_size + AES_BLOCKSIZE);
+
+	raw.insert(raw.end(), this->d.begin(), this->d.end());
+
+	std::vector<unsigned char> component;
+	component.resize(GroupElement::serialize_size);
+
+	this->get_Q1().serialize(component.data());
+	raw.insert(raw.end(), component.begin(), component.end());
+
+	this->get_Q2().serialize(component.data());
+	raw.insert(raw.end(), component.begin(), component.end());
+
+	// Apply the scramble encoding and prepend the network byte
+	std::vector<unsigned char> scrambled = F4Grumble(network, raw.size()).encode(raw);
+
+	// Encode using `bech32m`
+	std::string hrp;
+	hrp.push_back(ADDRESS_ENCODING_PREFIX);
+	hrp.push_back(network);
+
+	std::vector<uint8_t> bit_converted;
+	bech32::convertbits(bit_converted, scrambled, 8, 5, true);
+	
+	return bech32::encode(hrp, bit_converted, bech32::Encoding::BECH32M);
+}
+
+// Decode an address (if possible) from a string, returning the network identifier
+unsigned char Address::decode(const std::string& str) {
+	// Decode using `bech32m`
+	bech32::DecodeResult decoded = bech32::decode(str);
+
+	// Check the encoding
+	if (decoded.encoding != bech32::Encoding::BECH32M) {
+		throw std::invalid_argument("Bad address encoding");
+	}
+
+	// Check the encoding prefix
+	if (decoded.hrp[0] != ADDRESS_ENCODING_PREFIX) {
+		throw std::invalid_argument("Bad address prefix");
+	}
+
+	// Get the network identifier
+	unsigned char network = decoded.hrp[1];
+
+	// Convert the address components to bytes
+	std::vector<uint8_t> scrambled;
+	bech32::convertbits(scrambled, decoded.data, 5, 8, false);
+
+	// Assert the proper address size
+	if (scrambled.size() != 2 * GroupElement::serialize_size + AES_BLOCKSIZE) {
+		throw std::invalid_argument("Bad address size");
+	}
+
+	// Apply the scramble decoding
+	std::vector<unsigned char> raw = F4Grumble(network, scrambled.size()).decode(scrambled);
+
+	// Deserialize the adddress components
+	this->d = std::vector<unsigned char>(raw.begin(), raw.begin() + AES_BLOCKSIZE);
+
+	std::vector<unsigned char> component(raw.begin() + AES_BLOCKSIZE, raw.begin() + AES_BLOCKSIZE + GroupElement::serialize_size);
+	this->Q1.deserialize(component.data());
+	
+	component = std::vector<unsigned char>(raw.begin() + AES_BLOCKSIZE + GroupElement::serialize_size, raw.end());
+	this->Q2.deserialize(component.data());
+
+	return network;
 }
 
 }
