@@ -18,14 +18,16 @@ using namespace secp_primitives;
 // This relationship _must_ be checked elsewhere, as we simply use the largest `cover_set` for each `cover_set_id`!
 struct InputCoinData {
 	uint64_t cover_set_id; // an identifier for the monotonically-growing set of which `cover_set` is a subset
-	std::vector<Coin> cover_set; // set of coins used as a cover set for the spend
-	std::vector<unsigned char> cover_set_representation; // a unique representation for the ordered elements of the partial `cover_set` used in the spend
-	std::size_t cover_set_size; // the size of the partial cover set used by the spend; should be canonical with `cover_set_representation`
-	std::size_t index; // index of the coin in the cover set
+    std::size_t index; // index of the coin in the cover set
 	Scalar s; // serial number
 	GroupElement T; // tag
 	uint64_t v; // value
 	Scalar k; // nonce
+};
+
+struct CoverSetData {
+    std::vector<Coin> cover_set; // set of coins used as a cover set for the spend
+    std::vector<unsigned char> cover_set_representation; // a unique representation for the ordered elements of the partial `cover_set` used in the spend
 };
 
 struct OutputCoinData {
@@ -44,6 +46,7 @@ public:
 		const FullViewKey& full_view_key,
 		const SpendKey& spend_key,
 		const std::vector<InputCoinData>& inputs,
+        const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
 		const uint64_t f,
 		const std::vector<OutputCoinData>& outputs
 	);
@@ -51,13 +54,13 @@ public:
 	uint64_t getFee();
     std::vector<GroupElement>& getUsedLTags();
 
-	static bool verify(const Params* params, const std::vector<SpendTransaction>& transactions);
-	static bool verify(const SpendTransaction& transaction);
-
+	static bool verify(const Params* params, const std::vector<SpendTransaction>& transactions, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
+	static bool verify(const SpendTransaction& transaction, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
+    
 	static Scalar hash_bind(
         const std::vector<Coin>& out_coins,
         const uint64_t f,
-		const std::vector<std::vector<unsigned char>>& cover_set_representations,
+		const std::unordered_map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
         const std::vector<GroupElement>& S1,
         const std::vector<GroupElement>& C1,
         const std::vector<GroupElement>& T,
@@ -66,13 +69,43 @@ public:
 		const BPPlusProof& range_proof
     );
 
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(cover_set_ids);
+        READWRITE(set_id_blockHash);
+        READWRITE(f);
+        READWRITE(S1);
+        READWRITE(C1);
+        READWRITE(T);
+        READWRITE(grootle_proofs);
+        READWRITE(chaum_proof);
+        READWRITE(balance_proof);
+        READWRITE(range_proof);
+    }
+
+    void setOutCoins(const std::vector<Coin>& out_coins_) {
+        this->out_coins = out_coins_;
+    }
+
+    void setCoverSets(const std::unordered_map<uint64_t, CoverSetData>& cover_set_data) {
+        for (const auto& data : cover_set_data) {
+            this->cover_set_sizes[data.first] = data.second.cover_set.size();
+            this->cover_set_representations[data.first] = data.second.cover_set_representation;
+        }
+    }
+
 private:
 	const Params* params;
-	std::vector<uint64_t> cover_set_ids;
-	std::vector<std::vector<Coin>> cover_sets;
-	std::vector<std::vector<unsigned char>> cover_set_representations;
-	std::vector<std::size_t> cover_set_sizes;
+    // We need to construct and pass this data before running verification
+	std::unordered_map<uint64_t, std::size_t> cover_set_sizes;
+    std::unordered_map<uint64_t, std::vector<unsigned char>> cover_set_representations;
 	std::vector<Coin> out_coins;
+
+    // All this data we need to serialize
+    std::vector<std::pair<uint64_t, uint256>> set_id_blockHash;
+    std::vector<uint64_t> cover_set_ids;
 	uint64_t f;
 	std::vector<GroupElement> S1, C1, T;
 	std::vector<GrootleProof> grootle_proofs;
