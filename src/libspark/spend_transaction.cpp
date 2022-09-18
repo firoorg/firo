@@ -13,6 +13,7 @@ SpendTransaction::SpendTransaction(
 	const FullViewKey& full_view_key,
 	const SpendKey& spend_key,
 	const std::vector<InputCoinData>& inputs,
+    const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
 	const uint64_t f,
 	const std::vector<OutputCoinData>& outputs
 ) {
@@ -25,9 +26,7 @@ SpendTransaction::SpendTransaction(
 
 	// Prepare input-related vectors
 	this->cover_set_ids.reserve(w); // cover set data and metadata
-	this->cover_sets.reserve(w);
-	this->cover_set_representations.reserve(w);
-	this->cover_set_sizes.reserve(w);
+    this->setCoverSets(cover_set_data);
 	this->S1.reserve(w); // serial commitment offsets
 	this->C1.reserve(w); // value commitment offsets
 	this->grootle_proofs.reserve(w); // Grootle one-of-many proofs
@@ -52,17 +51,22 @@ SpendTransaction::SpendTransaction(
 	);
 	for (std::size_t u = 0; u < w; u++) {
 		// Parse out cover set data for this spend
-		this->cover_set_ids.emplace_back(inputs[u].cover_set_id);
-		this->cover_sets.emplace_back(inputs[u].cover_set);
-		this->cover_set_representations.emplace_back(inputs[u].cover_set_representation);
-		this->cover_set_sizes.emplace_back(inputs[u].cover_set_size);
+        uint64_t set_id = inputs[u].cover_set_id;
+		this->cover_set_ids.emplace_back(set_id);
+        if (cover_set_data.count(set_id) == 0)
+            throw std::invalid_argument("Required set is not passed");
 
-		std::vector<GroupElement> S, C;
-		S.reserve(N);
-		C.reserve(N);
-		for (std::size_t i = 0; i < N; i++) {
-			S.emplace_back(inputs[u].cover_set[i].S);
-			C.emplace_back(inputs[u].cover_set[i].C);
+        const auto& cover_set = cover_set_data.at(set_id).cover_set;
+        std::size_t set_size = cover_set.size();
+        if (set_size > N)
+            throw std::invalid_argument("Wrong set size");
+
+        std::vector<GroupElement> S, C;
+		S.reserve(set_size);
+		C.reserve(set_size);
+		for (std::size_t i = 0; i < set_size; i++) {
+			S.emplace_back(cover_set[i].S);
+			C.emplace_back(cover_set[i].C);
 		}
 
 		// Serial commitment offset
@@ -92,7 +96,7 @@ SpendTransaction::SpendTransaction(
 			SparkUtils::hash_val(inputs[u].k) - SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D()),
 			C,
 			this->C1.back(),
-			this->cover_set_representations[u],
+			this->cover_set_representations[set_id],
 			this->grootle_proofs.back()
 		);
 
@@ -208,15 +212,20 @@ std::vector<GroupElement>& SpendTransaction::getUsedLTags() {
 }
 
 // Convenience wrapper for verifying a single spend transaction
-bool SpendTransaction::verify(const SpendTransaction& transaction) {
+bool SpendTransaction::verify(
+        const SpendTransaction& transaction,
+        const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets) {
 	std::vector<SpendTransaction> transactions = { transaction };
-	return verify(transaction.params, transactions);
+	return verify(transaction.params, transactions, cover_sets);
 }
 
 // Determine if a set of spend transactions is collectively valid
 // NOTE: This assumes that the relationship between a `cover_set_id` and the provided `cover_set` is already valid and canonical!
 // NOTE: This assumes that validity criteria relating to chain context have been externally checked!
-bool SpendTransaction::verify(const Params* params, const std::vector<SpendTransaction>& transactions) {
+bool SpendTransaction::verify(
+        const Params* params,
+        const std::vector<SpendTransaction>& transactions,
+        const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets) {
 	// The idea here is to perform batching as broadly as possible
 	// - Grootle proofs can be batched if they share a (partial) cover set
 	// - Range proofs can always be batched arbitrarily
@@ -248,15 +257,14 @@ bool SpendTransaction::verify(const Params* params, const std::vector<SpendTrans
 		if (tx.S1.size() != w ||
 			tx.C1.size() != w ||
 			tx.T.size() != w ||
-			tx.grootle_proofs.size() != w ||
-			tx.cover_sets.size() != w ||
-			tx.cover_set_representations.size() != w) {
+			tx.grootle_proofs.size() != w,
+			tx.cover_set_sizes.size() != tx.cover_set_representations.size()) {
 			throw std::invalid_argument("Bad spend transaction semantics");
 		}
 
 		// Cover set semantics
-		for (std::size_t u = 0; u < w; u++) {
-			if (tx.cover_sets[u].size() > N) {
+		for (const auto& set : cover_sets) {
+			if (set.second.size() > N) {
 				throw std::invalid_argument("Bad spend transaction semantics");
 			}
 		}
@@ -347,21 +355,30 @@ bool SpendTransaction::verify(const Params* params, const std::vector<SpendTrans
 		std::vector<GrootleProof> proofs;
 
 		for (auto proof_index : proof_indexes) {
+            const auto& tx = transactions[proof_index.first];
+            if (!cover_sets.count(cover_set_id))
+                throw std::invalid_argument("Cover set missing");
 			// Because we assume all proofs in this list share a monotonic cover set, the largest such set is the one to use for verification
-			std::size_t this_cover_set_size = transactions[proof_index.first].cover_sets[proof_index.second].size();
+            if (!tx.cover_set_sizes.count(cover_set_id))
+                throw std::invalid_argument("Cover set size missing");
+
+			std::size_t this_cover_set_size = tx.cover_set_sizes.at(cover_set_id);
 			if (this_cover_set_size > S.size()) {
 				for (std::size_t i = S.size(); i < this_cover_set_size; i++) {
-					S.emplace_back(transactions[proof_index.first].cover_sets[proof_index.second][i].S);
-					V.emplace_back(transactions[proof_index.first].cover_sets[proof_index.second][i].C);
+					S.emplace_back(cover_sets.at(cover_set_id)[i].S);
+					V.emplace_back(cover_sets.at(cover_set_id)[i].C);
 				}
 			}
 
 			// We always use the other elements
-			S1.emplace_back(transactions[proof_index.first].S1[proof_index.second]);
-			V1.emplace_back(transactions[proof_index.first].C1[proof_index.second]);
-			cover_set_representations.emplace_back(transactions[proof_index.first].cover_set_representations[proof_index.second]);
-			sizes.emplace_back(transactions[proof_index.first].cover_set_sizes[proof_index.second]);
-			proofs.emplace_back(transactions[proof_index.first].grootle_proofs[proof_index.second]);
+			S1.emplace_back(tx.S1[proof_index.second]);
+			V1.emplace_back(tx.C1[proof_index.second]);
+            if (!tx.cover_set_representations.count(cover_set_id))
+                throw std::invalid_argument("Cover set representation missing");
+
+			cover_set_representations.emplace_back(tx.cover_set_representations.at(cover_set_id));
+			sizes.emplace_back(this_cover_set_size);
+			proofs.emplace_back(tx.grootle_proofs[proof_index.second]);
 		}
 
 		// Verify the batch
@@ -376,7 +393,7 @@ bool SpendTransaction::verify(const Params* params, const std::vector<SpendTrans
 Scalar SpendTransaction::hash_bind(
     const std::vector<Coin>& out_coins,
     const uint64_t f,
-	const std::vector<std::vector<unsigned char>>& cover_set_representations,
+	const std::unordered_map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
     const std::vector<GroupElement>& S1,
     const std::vector<GroupElement>& C1,
     const std::vector<GroupElement>& T,
