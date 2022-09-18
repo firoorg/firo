@@ -54,11 +54,11 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 }
 
 void CSparkWallet::resetDiversifierFromDB(CWalletDB& walletdb) {
-    walletdb.writeDiversifier(lastDiversifier);
+    walletdb.readDiversifier(lastDiversifier);
 }
 
 void CSparkWallet::updatetDiversifierInDB(CWalletDB& walletdb) {
-    walletdb.readDiversifier(lastDiversifier);
+    walletdb.writeDiversifier(lastDiversifier);
 }
 
 CAmount CSparkWallet::getFullBalance() {
@@ -642,7 +642,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                             serialContextStream << input;
                         }
 
-                        recipients = CSparkWallet::CreateSparkMintRecipients(singleTxOutputs, std::vector<unsigned char>(serial_context.begin(), serial_context.end()), true);
+                        recipients = CSparkWallet::CreateSparkMintRecipients(singleTxOutputs, std::vector<unsigned char>(serialContextStream.begin(), serialContextStream.end()), true);
 
                         size_t i = 0;
                         for (auto& recipient : recipients) {
@@ -795,6 +795,67 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
     wtxNew.BindWallet(pwalletMain);
 
 
+    // Discourage fee sniping.
+    //
+    // For a large miner the value of the transactions in the best block and
+    // the mempool can exceed the cost of deliberately attempting to mine two
+    // blocks to orphan the current best block. By setting nLockTime such that
+    // only the next block can include the transaction, we discourage this
+    // practice as the height restricted and limited blocksize gives miners
+    // considering fee sniping fewer options for pulling off this attack.
+    //
+    // A simple way to think about this is from the wallet's point of view we
+    // always want the blockchain to move forward. By setting nLockTime this
+    // way we're basically making the statement that we only want this
+    // transaction to appear in the next block; we don't want to potentially
+    // encourage reorgs by allowing transactions to appear at lower heights
+    // than the next block in forks of the best chain.
+    //
+    // Of course, the subsidy is high enough, and transaction volume low
+    // enough, that fee sniping isn't a problem yet, but by implementing a fix
+    // now we ensure code won't be written that makes assumptions about
+    // nLockTime that preclude a fix later.
+    tx.nLockTime = chainActive.Height();
+
+    // Secondly occasionally randomly pick a nLockTime even further back, so
+    // that transactions that are delayed after signing for whatever reason,
+    // e.g. high-latency mix networks and some CoinJoin implementations, have
+    // better privacy.
+    if (GetRandInt(10) == 0) {
+        tx.nLockTime = std::max(0, static_cast<int>(tx.nLockTime) - GetRandInt(100));
+    }
+
+    assert(tx.nLockTime <= static_cast<unsigned>(chainActive.Height()));
+    assert(tx.nLockTime < LOCKTIME_THRESHOLD);
+    CWalletDB walletdb(strWalletFile);
+    std::list<std::pair<spark::Coin, CSparkMintMeta>> coins = GetAvailableSparkCoins(walletdb, coinControl);
+
+    std::map<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>> estimated =
+            SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, coinControl);
+
+    {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        {
+
+        }
+    }
+
+
+
+    return result;
+}
+
+std::map<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>> CSparkWallet::SelectSparkCoins(
+        CAmount required,
+        bool subtractFeeFromAmount,
+        std::list<std::pair<spark::Coin, CSparkMintMeta>> coins,
+        const CCoinControl *coinControl) {
+
+    std::map<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>> result;
+
+    while (required > 0) {
+
+    }
     return result;
 }
 

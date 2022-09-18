@@ -42,13 +42,21 @@ MintTransaction::MintTransaction(
             value_statement.emplace_back(this->coins[j].C + this->params->get_G().inverse()*Scalar(this->coins[j].v));
             value_witness.emplace_back(SparkUtils::hash_val(k));
         } else {
-            this->coins.emplace_back(Coin());
+            Coin coin;
+            coin.type = 0;
+            coin.r_.ciphertext.resize(32);
+            coin.r_.key_commitment.resize(64);
+            coin.r_.tag.resize(16);
+            coin.v = 0;
+            this->coins.emplace_back(coin);
         }
 	}
 
 	// Complete the value proof
     if (generate)
 	    schnorr.prove(value_witness, value_statement, this->value_proof);
+    else
+        value_proof = SchnorrProof();
 }
 
 bool MintTransaction::verify() {

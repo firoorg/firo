@@ -87,6 +87,12 @@ public:
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
+    std::map<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>> SelectSparkCoins(
+            CAmount required,
+            bool subtractFeeFromAmount,
+            std::list<std::pair<spark::Coin, CSparkMintMeta>> coins,
+            const CCoinControl *coinControl);
+
     // Returns the list of pairs of coins and metadata for that coin,
     std::list<std::pair<spark::Coin, CSparkMintMeta>> GetAvailableSparkCoins(CWalletDB& walletdb, const CCoinControl *coinControl = NULL) const;
 
