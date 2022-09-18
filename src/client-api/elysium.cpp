@@ -1,5 +1,6 @@
 #include "client-api/server.h"
 #include "client-api/wallet.h"
+#include "client-api/bigint.h"
 #include "univalue.h"
 #include "chain.h"
 #include "validation.h"
@@ -113,7 +114,7 @@ UniValue createElysiumProperty(Type type, const UniValue &data, const UniValue &
     if (propertyData.length() > 255) throw JSONAPIError(API_INVALID_PARAMS, "data must be <256 chars");
     int64_t amount = 0;
     if (isFixed) {
-        amount = boost::lexical_cast<int64_t>(data["amount"].get_str());
+        amount = get_bigint(data["amount"]);
         if (amount <= 0) throw JSONAPIError(API_INVALID_PARAMS, "amount must be between 0 and 2^63-1");
     }
     elysium::LelantusStatus lelantusStatus = elysium::LelantusStatus::HardEnabled;
@@ -231,7 +232,7 @@ UniValue sendElysium(Type type, const UniValue &data, const UniValue &auth, bool
     std::string sAddress = data["address"].get_str();
     CBitcoinAddress address(sAddress);
     int64_t propertyId = data["propertyId"].get_int64();
-    int64_t amount = data["amount"].get_int64();
+    int64_t amount = get_bigint(data["amount"]);
     int64_t referenceAmount = elysium::ConsensusParams().REFERENCE_AMOUNT;
 
     CMPSPInfo::Entry info;
@@ -321,7 +322,7 @@ UniValue grantElysium(Type type, const UniValue &data, const UniValue &auth, boo
 
     uint32_t propertyId = data["propertyId"].get_int();
     std::string recipient = data["address"].get_str();
-    uint64_t amount = data["amount"].get_int64();
+    uint64_t amount = get_bigint(data["amount"]);
 
     UniValue propertyData = getPropertyData(propertyId);
     if (!propertyData["isManaged"].get_bool())

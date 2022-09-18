@@ -16,11 +16,11 @@
 #include "lelantus.h"
 #include <sigma.h>
 #include <vector>
-
+#include "client-api/bigint.h"
 #include "univalue.h"
 
 UniValue lelantusTxFee(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
-    CAmount nAmount = data["amount"].get_int64();
+    CAmount nAmount = get_bigint(data["amount"]);
     bool fSubtractFeeFromAmount = data["subtractFeeFromAmount"].get_bool();
 
     CCoinControl coinControl;
@@ -29,7 +29,7 @@ UniValue lelantusTxFee(Type type, const UniValue& data, const UniValue& auth, bo
     CCoinControl *ccp = coinControl.HasSelected() ? &coinControl : NULL;
 
     // payTxFee is a global variable that will be used to estimate the fee.
-    payTxFee = CFeeRate(data["feePerKb"].get_int64());
+    payTxFee = CFeeRate(get_bigint(data["feePerKb"]));
 
     std::list<CSigmaEntry> sigmaCoins = pwalletMain->GetAvailableCoins(ccp, false, true);
     std::list<CLelantusEntry> lelantusCoins = pwalletMain->GetAvailableLelantusCoins(ccp, false, true);
@@ -43,7 +43,7 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
     }
 
     CBitcoinAddress address = find_value(data, "recipient").get_str();
-    CAmount amount = find_value(data, "amount").get_int64();
+    CAmount amount = get_bigint(data["amount"]);
 
     if (!address.IsValid()) throw JSONAPIError(API_INVALID_REQUEST, "invalid address");
     if (!amount) throw JSONAPIError(API_INVALID_REQUEST, "amount must be greater than 0");
@@ -52,7 +52,7 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
     bool fHasCoinControl = GetCoinControl(data, coinControl);
 
     // payTxFee is a global variable that will be used in CreateLelantusJoinSplitTransaction.
-    payTxFee = CFeeRate(data["feePerKb"].get_int64());
+    payTxFee = CFeeRate(get_bigint(data["feePerKb"]));
 
     bool fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
     CScript scriptPubKey = GetScriptForDestination(address.Get());

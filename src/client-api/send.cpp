@@ -12,6 +12,7 @@
 #include "wallet/wallet.h"
 #include <client-api/wallet.h>
 #include "client-api/protocol.h"
+#include "client-api/bigint.h"
 #include "rpc/server.h"
 #include "univalue.h"
 #include "wallet/coincontrol.h"
@@ -113,18 +114,11 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
 
     switch(type){
         case Create: {
-            UniValue feePerKb;
             UniValue sendTo(UniValue::VOBJ);
             bool fSubtractFeeFromAmount;
-            try{
-                feePerKb = find_value(data,"feePerKb");
-                sendTo = find_value(data,"addresses").get_obj();
-                fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
-            }catch (const std::exception& e){
-                throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
-            }
-
-            setTxFee(feePerKb);
+            payTxFee = CFeeRate(get_bigint(data["feePerKb"]));
+            sendTo = find_value(data,"addresses").get_obj();
+            fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
 
             int nMinDepth = 1;
 
@@ -154,7 +148,7 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
                 setAddress.insert(address);
 
                 CScript scriptPubKey = GetScriptForDestination(address.Get());
-                CAmount nAmount = find_value(entry, "amount").get_int64();
+                CAmount nAmount = get_bigint(entry["amount"]);
                 std::string label = find_value(entry, "label").get_str();
                 if (nAmount <= 0)
                     throw JSONAPIError(API_TYPE_ERROR, "Invalid amount for send");
