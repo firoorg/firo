@@ -81,17 +81,36 @@ UniValue getPropertyData(uint256 propertyCreationTxid) {
 UniValue getElysiumPropertyInfo(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     LOCK(cs_main);
 
-    if (data.exists("propertyId")) {
-        return getPropertyData(data["propertyId"].get_int64());
+    UniValue ret = UniValue::VARR;
+
+    if (data.exists("propertyIds")) {
+        for (const UniValue& propertyId: data["propertyIds"].get_array().getValues()) {
+            uint32_t id = propertyId.get_int();
+
+            try {
+                ret.push_back(getPropertyData(id));
+            } catch (UniValue& e) {
+                LogPrintf("Failed to get info about property id %d\n", id);
+            }
+        }
     }
 
-    if (data.exists("propertyCreationTxid")) {
-        uint256 txid;
-        txid.SetHex(data["propertyCreationTxid"].get_str());
-        return getPropertyData(txid);
+    if (data.exists("propertyCreationTxids")) {
+        for (const UniValue &propertyId: data["propertyCreationTxids"].get_array().getValues()) {
+            const std::string& id = propertyId.get_str();
+
+            uint256 txid;
+            txid.SetHex(id);
+
+            try {
+                ret.push_back(getPropertyData(txid));
+            } catch (UniValue &e) {
+                LogPrintf("Failed to get info about property %s\n", id);
+            }
+        }
     }
 
-    throw JSONAPIError(API_INVALID_PARAMS, "propertyId or propertyCreationTxid must be specified");
+    return ret;
 }
 
 UniValue createElysiumProperty(Type type, const UniValue &data, const UniValue &auth, bool fHelp) {
