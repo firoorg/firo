@@ -291,7 +291,13 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "elysium_createrawtx_change", 4 },
 
 	/* Elysium - payload creation */
-	{ "elysium_createpayload_simplesend", 0 },
+    {"elysium_createpayload_disablefreezing", 0},
+    {"elysium_createpayload_enablefreezing", 0},
+    {"elysium_createpayload_freeze", 1},
+    {"elysium_createpayload_freeze", 2},
+    {"elysium_createpayload_unfreeze", 1},
+    {"elysium_createpayload_unfreeze", 2},
+    { "elysium_createpayload_simplesend", 0 },
 	{ "elysium_createpayload_sendall", 0 },
 	{ "elysium_createpayload_dexsell", 0 },
 	{ "elysium_createpayload_dexsell", 3 },
