@@ -56,6 +56,21 @@ const Scalar& SpendKey::get_r() const {
 	return this->r;
 }
 
+SpendKey& SpendKey::operator=(const SpendKey& other) {
+    this->s1 = other.s1;
+    this->s2 = other.s2;
+    this->r = other.r;
+    return *this;
+}
+
+bool SpendKey::operator==(const SpendKey& other) const {
+    if (this->s1 != other.s1 ||
+    this->s2 != other.s2 ||
+    this->r != other.r)
+        return false;
+    return true;
+}
+
 FullViewKey::FullViewKey() {}
 FullViewKey::FullViewKey(const Params* params) {
     this->params = params;

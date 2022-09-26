@@ -22,6 +22,9 @@ public:
 	const Scalar& get_s2() const;
 	const Scalar& get_r() const;
 
+    SpendKey& operator=(const SpendKey& other);
+    bool operator==(const SpendKey& other) const;
+
 private:
 	const Params* params;
 	Scalar s1, s2, r;

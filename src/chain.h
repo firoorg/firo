@@ -15,6 +15,7 @@
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
 #include "sigma/coin.h"
+#include "libspark/coin.h"
 #include "evo/spork.h"
 #include "firo_params.h"
 #include "util.h"
@@ -246,6 +247,10 @@ public:
     std::map<int, std::vector<std::pair<lelantus::PublicCoin, uint256>>>  lelantusMintedPubCoins;
     //! Map id to <hash of the set>
     std::map<int, std::vector<unsigned char>> anonymitySetHash;
+    //! Map id to spark coin
+    std::map<int, std::vector<spark::Coin>> sparkMintedCoins;
+    //! Map id to <hash of the set>
+    std::map<int, std::vector<unsigned char>> sparkSetHash;
 
     //! Values of coin serials spent in this block
     sigma::spend_info_container sigmaSpentSerials;
@@ -288,6 +293,8 @@ public:
         sigmaMintedPubCoins.clear();
         lelantusMintedPubCoins.clear();
         anonymitySetHash.clear();
+        sparkMintedCoins.clear();
+        sparkSetHash.clear();
         sigmaSpentSerials.clear();
         lelantusSpentSerials.clear();
         activeDisablingSporks.clear();
@@ -530,6 +537,12 @@ public:
             } else
                 READWRITE(lelantusMintedPubCoins);
             READWRITE(lelantusSpentSerials);
+
+            if (!(s.GetType() & SER_GETHASH)
+                && nHeight >= params.nSparkStartBlock) {
+                READWRITE(sparkMintedCoins);
+                READWRITE(sparkSetHash);
+            }
 
             if (nHeight >= params.nLelantusFixesStartBlock)
                 READWRITE(anonymitySetHash);

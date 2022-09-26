@@ -206,6 +206,7 @@ enum opcodetype
     // spark params
     OP_SPARKMINT = 0xd1,
     OP_SPARKSMINT = 0xd2,
+    OP_SPARKSPEND = 0xd3,
 };
 
 const char* GetOpName(opcodetype opcode);
