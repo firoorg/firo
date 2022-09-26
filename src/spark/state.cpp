@@ -96,8 +96,20 @@ void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin)
 
 spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
 {
-    //TODO levon implement this after spark spend implementation
+    if (tx.vin.size() != 1 || tx.vin[0].scriptSig.size() < 1) {
+        throw CBadTxIn();
+    }
+    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
 
+    if (tx.vin[0].scriptSig[0] == OP_SPARKSPEND && tx.nVersion >= 3 && tx.nType == TRANSACTION_SPARK) {
+        serialized.write((const char *)tx.vExtraPayload.data(), tx.vExtraPayload.size());
+    }
+    else
+        throw CBadTxIn();
+    const spark::Params* params = spark::Params::get_default();
+    spark::SpendTransaction spendTransaction(params);
+    serialized >> spendTransaction;
+    return std::move(spendTransaction);
 }
 
 
@@ -272,6 +284,33 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
     return false;
 }
 
+/*
+ * Util funtions
+ */
+size_t CountCoinInBlock(CBlockIndex *index, int id) {
+    return index->sparkMintedCoins.count(id) > 0
+           ? index->sparkMintedCoins[id].size() : 0;
+}
+
+std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id, bool generation = false) {
+    std::vector<unsigned char> out_hash;
+
+    CSparkState::SparkCoinGroupInfo coinGroup;
+    if (!sparkState.GetCoinGroupInfo(group_id, coinGroup))
+        return out_hash;
+
+    if ((coinGroup.firstBlock == coinGroup.lastBlock && generation) || (coinGroup.nCoins == 0))
+        return out_hash;
+
+    while (index != coinGroup.firstBlock) {
+        if (index->sparkSetHash.count(group_id) > 0) {
+            out_hash = index->sparkSetHash[group_id];
+            break;
+        }
+        index = index->pprev;
+    }
+    return out_hash;
+}
 
 /******************************************************************************/
 // CLelantusState
@@ -428,6 +467,61 @@ uint256 CSparkState::GetMempoolConflictingTxHash(const GroupElement& lTag) {
 
 CSparkState* CSparkState::GetState() {
     return &sparkState;
+}
+
+int CSparkState::GetCoinSetForSpend(
+        CChain *chain,
+        int maxHeight,
+        int coinGroupID,
+        uint256& blockHash_out,
+        std::vector<spark::Coin>& coins_out,
+        std::vector<unsigned char>& setHash_out) {
+
+    coins_out.clear();
+
+    if (coinGroups.count(coinGroupID) == 0) {
+        return 0;
+    }
+
+    SparkCoinGroupInfo &coinGroup = coinGroups[coinGroupID];
+
+    int numberOfCoins = 0;
+    for (CBlockIndex *block = coinGroup.lastBlock;; block = block->pprev) {
+
+        // ignore block heigher than max height
+        if (block->nHeight > maxHeight) {
+            continue;
+        }
+
+        // check coins in group coinGroupID - 1 in the case that using coins from prev group.
+        int id = 0;
+        if (CountCoinInBlock(block, coinGroupID)) {
+            id = coinGroupID;
+        } else if (CountCoinInBlock(block, coinGroupID - 1)) {
+            id = coinGroupID - 1;
+        }
+
+        if (id) {
+            if (numberOfCoins == 0) {
+                // latest block satisfying given conditions
+                // remember block hash and set hash
+                blockHash_out = block->GetBlockHash();
+                setHash_out =  GetAnonymitySetHash(block, id);
+            }
+            numberOfCoins += block->sparkMintedCoins[id].size();
+            if (block->sparkMintedCoins.count(id) > 0) {
+                for (const auto &coin : block->sparkMintedCoins[id]) {
+                    coins_out.push_back(coin);
+                }
+            }
+        }
+
+        if (block == coinGroup.firstBlock) {
+            break ;
+        }
+    }
+
+    return numberOfCoins;
 }
 
 std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & CSparkState::GetMints() const {

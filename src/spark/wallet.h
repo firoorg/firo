@@ -8,6 +8,7 @@
 #include "primitives.h"
 #include "../libspark/keys.h"
 #include "../libspark/mint_transaction.h"
+#include "../libspark/spend_transaction.h"
 #include "../wallet/walletdb.h"
 
 class CRecipient;
@@ -83,14 +84,16 @@ public:
 
     std::vector<CWalletTx> CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
-            const std::vector<spark::MintedCoinData>&  privateRecipients,
+            const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
-    std::map<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>> SelectSparkCoins(
+    std::vector<std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>>> SelectSparkCoins(
             CAmount required,
             bool subtractFeeFromAmount,
             std::list<std::pair<spark::Coin, CSparkMintMeta>> coins,
+            std::size_t mintNum,
+            std::size_t utxoNum,
             const CCoinControl *coinControl);
 
     // Returns the list of pairs of coins and metadata for that coin,

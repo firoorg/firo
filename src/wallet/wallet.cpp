@@ -5523,7 +5523,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
 
 std::vector<CWalletTx> CWallet::CreateSparkSpendTransaction(
         const std::vector<CRecipient>& recipients,
-        const std::vector<spark::MintedCoinData>&  privateRecipients,
+        const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
         CAmount &fee,
         const CCoinControl *coinControl)
 {

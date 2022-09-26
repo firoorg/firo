@@ -211,6 +211,10 @@ std::vector<GroupElement>& SpendTransaction::getUsedLTags() {
     return T;
 }
 
+std::vector<Coin>& SpendTransaction::getOutCoins() {
+    return out_coins;
+}
+
 // Convenience wrapper for verifying a single spend transaction
 bool SpendTransaction::verify(
         const SpendTransaction& transaction,
@@ -418,6 +422,14 @@ Scalar SpendTransaction::hash_bind(
     hash.include(stream);
 
     return hash.finalize_scalar();
+}
+
+void SpendTransaction::setBlockHashes(const std::map<uint64_t, uint256>& idAndHashes) {
+    set_id_blockHash = idAndHashes;
+}
+
+std::map<uint64_t, uint256>& SpendTransaction::getBlockHashes() {
+    return set_id_blockHash;
 }
 
 }

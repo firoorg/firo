@@ -161,6 +161,17 @@ public:
     // Remove spend from the mempool (usually as the result of adding tx to the block)
     void RemoveSpendFromMempool(const std::vector<GroupElement>& lTags);
 
+    // Given id returns latest anonymity set and corresponding block hash
+    // Do not take into account coins with height more than maxHeight
+    // Returns number of coins satisfying conditions
+    int GetCoinSetForSpend(
+            CChain *chain,
+            int maxHeight,
+            int id,
+            uint256& blockHash_out,
+            std::vector<spark::Coin>& coins_out,
+            std::vector<unsigned char>& setHash_out);
+
     std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & GetMints() const;
     std::unordered_map<GroupElement, int, spark::CLTagHash> const & GetSpends() const;
     std::unordered_map<int, SparkCoinGroupInfo> const & GetCoinGroups() const;
