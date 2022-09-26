@@ -459,11 +459,18 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
 
         // get coin group
         int groupId;
-
-        std::tie(std::ignore, groupId) = state->GetMintedCoinHeightAndId(pub);
+        int mintHeight;
+        std::tie(mintHeight, groupId) = state->GetMintedCoinHeightAndId(pub);
 
         if (groupId < 0) {
             throw std::runtime_error(_("One of the lelantus coins has not been found in the chain!"));
+        }
+
+        // Check if the coin is at overlapping parts of sets, use next set for proof creation if it is also in next set.
+        lelantus::CLelantusState::LelantusCoinGroupInfo nextCoinGroupInfo;
+        if (state->GetLatestCoinID() > groupId && state->GetCoinGroupInfo(groupId + 1, nextCoinGroupInfo)) {
+            if (nextCoinGroupInfo.firstBlock->nHeight <= mintHeight)
+                groupId += 1;
         }
 
         coins.emplace_back(std::make_pair(priv, groupId));
