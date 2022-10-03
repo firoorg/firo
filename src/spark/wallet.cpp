@@ -1053,7 +1053,7 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
 
                 spark::SpendTransaction spendTransaction(params, fullViewKey, spendKey, inputs, cover_set_data, fee, privOutputs);
                 spendTransaction.setBlockHashes(idAndBlockHashes);
-                std::vector<spark::Coin>& outCoins = spendTransaction.getOutCoins();
+                const std::vector<spark::Coin>& outCoins = spendTransaction.getOutCoins();
                 for (auto& outCoin : outCoins) {
                     // construct spend script
                     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);

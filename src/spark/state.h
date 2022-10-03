@@ -47,6 +47,10 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx);
 std::vector<GroupElement>  GetSparkUsedTags(const CTransaction &tx);
 std::vector<std::pair<spark::Coin, std::vector<unsigned char>>>  GetSparkMintCoins(const CTransaction &tx);
 
+size_t GetSpendInputs(const CTransaction &tx);
+CAmount GetSpendTransparentAmount(const CTransaction& tx);
+
+bool CheckSparkBlock(CValidationState &state, const CBlock& block);
 
 bool CheckSparkTransaction(
         const CTransaction &tx,
@@ -161,7 +165,7 @@ public:
     // Remove spend from the mempool (usually as the result of adding tx to the block)
     void RemoveSpendFromMempool(const std::vector<GroupElement>& lTags);
 
-    // Given id returns latest anonymity set and corresponding block hash
+    // Given id returns the latest anonymity set and corresponding block hash
     // Do not take into account coins with height more than maxHeight
     // Returns number of coins satisfying conditions
     int GetCoinSetForSpend(

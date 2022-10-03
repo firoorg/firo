@@ -387,3 +387,24 @@ void BatchProofContainer::batch_rangeProofs() {
 
     rangeProofs.clear();
 }
+
+//TODO levon
+void BatchProofContainer::add(const spark::SpendTransaction& tx) {
+
+}
+
+void BatchProofContainer::remove(const spark::SpendTransaction& tx) {
+
+}
+
+void BatchProofContainer::batch_spark() {
+    if (!sparkTransactions.empty()){
+        LogPrintf("Spark batch verification started.\n");
+        uiInterface.UpdateProgressBarLabel("Batch verifying Spark Proofs...");
+    }
+
+
+    if (!sparkTransactions.empty())
+        LogPrintf("Spark batch verification finished successfully.\n");
+    sparkTransactions.clear();
+}
