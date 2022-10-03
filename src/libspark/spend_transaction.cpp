@@ -207,11 +207,15 @@ uint64_t SpendTransaction::getFee() {
     return f;
 }
 
-std::vector<GroupElement>& SpendTransaction::getUsedLTags() {
+const std::vector<GroupElement>& SpendTransaction::getUsedLTags() {
     return T;
 }
 
-std::vector<Coin>& SpendTransaction::getOutCoins() {
+const std::vector<uint64_t>& SpendTransaction::getCoinGroupIds() {
+    return cover_set_ids;
+}
+
+const std::vector<Coin>& SpendTransaction::getOutCoins() {
     return out_coins;
 }
 
@@ -428,7 +432,7 @@ void SpendTransaction::setBlockHashes(const std::map<uint64_t, uint256>& idAndHa
     set_id_blockHash = idAndHashes;
 }
 
-std::map<uint64_t, uint256>& SpendTransaction::getBlockHashes() {
+const std::map<uint64_t, uint256>& SpendTransaction::getBlockHashes() {
     return set_id_blockHash;
 }
 

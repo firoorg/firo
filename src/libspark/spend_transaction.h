@@ -52,8 +52,9 @@ public:
 	);
 
 	uint64_t getFee();
-    std::vector<GroupElement>& getUsedLTags();
-    std::vector<Coin>& getOutCoins();
+    const std::vector<GroupElement>& getUsedLTags();
+    const std::vector<Coin>& getOutCoins();
+    const std::vector<uint64_t>& getCoinGroupIds();
 
 	static bool verify(const Params* params, const std::vector<SpendTransaction>& transactions, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
 	static bool verify(const SpendTransaction& transaction, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
@@ -99,7 +100,7 @@ public:
 
     void setBlockHashes(const std::map<uint64_t, uint256>& idAndHashes);
 
-    std::map<uint64_t, uint256>& getBlockHashes();
+    const std::map<uint64_t, uint256>& getBlockHashes();
 private:
 	const Params* params;
     // We need to construct and pass this data before running verification

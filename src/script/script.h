@@ -682,6 +682,8 @@ public:
 
     bool IsSparkSMint() const;
 
+    bool IsSparkSpend() const;
+
     bool IsZerocoinRemint() const;
 
     bool IsMint() const;
