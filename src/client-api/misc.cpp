@@ -182,15 +182,15 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     if (LOAD(isLelantusDisabled)) disabledSporks.push_back("lelantus");
     ret.pushKV("disabledSporks", disabledSporks);
 
+    UniValue newLogMessages = UniValue::VARR;
     {
         LOCK(cs_clientApiLogMessages);
-        UniValue newLogMessages = UniValue::VARR;
         for (std::string &msg: clientApiLogMessages) {
             newLogMessages.push_back(msg);
         }
         clientApiLogMessages.clear();
-        ret.pushKV("newLogMessages", newLogMessages);
     }
+    ret.pushKV("newLogMessages", newLogMessages);
 
 #ifdef WIN32
     int pid = GetCurrentProcessId();
