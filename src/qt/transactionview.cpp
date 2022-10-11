@@ -206,6 +206,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     connect(copyTxPlainText, &QAction::triggered, this, &TransactionView::copyTxPlainText);
     connect(editLabelAction, &QAction::triggered, this, &TransactionView::editLabel);
     connect(showDetailsAction, &QAction::triggered, this, &TransactionView::showDetails);
+    connect(this, &TransactionView::doubleClicked, this, &TransactionView::showDetails);
     connect(resendAction, &QAction::triggered, this, &TransactionView::rebroadcastTx);
     connect(reconsiderBip47TxAction, &QAction::triggered, this, &TransactionView::reconsiderBip47Tx);
 }
