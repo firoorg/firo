@@ -153,7 +153,7 @@ void WalletView::setupTransactionPage()
     firoLayout->addWidget(firoTransactionList);
     firoLayout->addLayout(exportLayout);
     // TODO: fix this
-    connect(overviewPage, &OverviewPage::transactionClicked, firoTransactionList, static_cast<void (TransactionView::*)(const QModelIndex&)>(&TransactionView::focusTransaction));
+    connect(overviewPage, &OverviewPage::transactionClicked, firoTransactionList, qOverload<const QModelIndex&>(&TransactionView::focusTransaction));
     connect(overviewPage, &OverviewPage::outOfSyncWarningClicked, this, &WalletView::requestedSyncWarningInfo);
 
     firoTransactionsView = new QWidget();

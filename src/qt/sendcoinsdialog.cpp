@@ -178,11 +178,11 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &SendCoinsDialog::updateSmartFeeLabel);
         connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &SendCoinsDialog::updateGlobalFeeVariables);
         connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
-        connect(ui->groupFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::updateFeeSectionControls);
-        connect(ui->groupFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::updateGlobalFeeVariables);
-        connect(ui->groupFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::coinControlUpdateLabels);
-        connect(ui->groupCustomFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::updateGlobalFeeVariables);
-        connect(ui->groupCustomFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::coinControlUpdateLabels);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::updateFeeSectionControls);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::updateGlobalFeeVariables);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::coinControlUpdateLabels);
+        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::updateGlobalFeeVariables);
+        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::coinControlUpdateLabels);
         connect(ui->customFee, &BitcoinAmountField::valueChanged, this, &SendCoinsDialog::updateGlobalFeeVariables);
         connect(ui->customFee, &BitcoinAmountField::valueChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
         connect(ui->checkBoxMinimumFee, &QCheckBox::stateChanged, this, &SendCoinsDialog::setMinimumFee);

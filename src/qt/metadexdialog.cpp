@@ -76,9 +76,9 @@ MetaDExDialog::MetaDExDialog(QWidget *parent) :
     ui->sellList->setEditTriggers(QAbstractItemView::NoEditTriggers);
     ui->sellList->setSelectionMode(QAbstractItemView::SingleSelection);
 
-    connect(ui->comboPairTokenA, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated), this, &MetaDExDialog::SwitchMarket);
-    connect(ui->comboPairTokenB, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated), this, &MetaDExDialog::SwitchMarket);
-    connect(ui->comboAddress, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated), this, &MetaDExDialog::UpdateBalance);
+    connect(ui->comboPairTokenA, qOverload<int>(&QComboBox::activated), this, &MetaDExDialog::SwitchMarket);
+    connect(ui->comboPairTokenB, qOverload<int>(&QComboBox::activated), this, &MetaDExDialog::SwitchMarket);
+    connect(ui->comboAddress, qOverload<int>(&QComboBox::activated), this, &MetaDExDialog::UpdateBalance);
     connect(ui->chkTestEco, &QCheckBox::clicked, this, &MetaDExDialog::FullRefresh);
     connect(ui->buttonInvertPair, &QPushButton::clicked, this, &MetaDExDialog::InvertPair);
     connect(ui->buttonTradeHistory, &QPushButton::clicked, this, &MetaDExDialog::ShowHistory);

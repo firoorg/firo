@@ -186,10 +186,10 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
 
     // Connect actions
 
-    connect(dateWidget, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated), this, &TransactionView::chooseDate);
-    connect(typeWidget, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated), this, &TransactionView::chooseType);
-    connect(watchOnlyWidget, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated), this, &TransactionView::chooseWatchonly);
-    connect(instantsendWidget, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated), this, &TransactionView::chooseInstantSend);
+    connect(dateWidget, qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseDate);
+    connect(typeWidget, qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseType);
+    connect(watchOnlyWidget, qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseWatchonly);
+    connect(instantsendWidget, qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseInstantSend);
     connect(addressWidget, &QLineEdit::textChanged, this, &TransactionView::changedPrefix);
     connect(amountWidget, &QLineEdit::textChanged, this, &TransactionView::changedAmount);
 

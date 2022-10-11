@@ -145,11 +145,11 @@ void LelantusDialog::setWalletModel(WalletModel *_walletModel)
         connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &LelantusDialog::updateSmartFeeLabel);
         connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &LelantusDialog::updateGlobalFeeVariables);
         connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &LelantusDialog::coinControlUpdateLabels);
-        connect(ui->groupFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &LelantusDialog::updateFeeSectionControls);
-        connect(ui->groupFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &LelantusDialog::updateGlobalFeeVariables);
-        connect(ui->groupFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &LelantusDialog::coinControlUpdateLabels);
-        connect(ui->groupCustomFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &LelantusDialog::updateGlobalFeeVariables);
-        connect(ui->groupCustomFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &LelantusDialog::coinControlUpdateLabels);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &LelantusDialog::updateFeeSectionControls);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &LelantusDialog::updateGlobalFeeVariables);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &LelantusDialog::coinControlUpdateLabels);
+        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &LelantusDialog::updateGlobalFeeVariables);
+        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &LelantusDialog::coinControlUpdateLabels);
         connect(ui->customFee, &BitcoinAmountField::valueChanged, this, &LelantusDialog::updateGlobalFeeVariables);
         connect(ui->customFee, &BitcoinAmountField::valueChanged, this, &LelantusDialog::coinControlUpdateLabels);
         connect(ui->checkBoxMinimumFee, &QCheckBox::stateChanged, this, &LelantusDialog::setMinimumFee);

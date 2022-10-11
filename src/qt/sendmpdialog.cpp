@@ -73,8 +73,8 @@ SendMPDialog::SendMPDialog(const PlatformStyle *platformStyle, QWidget *parent) 
 #endif
 
     // connect actions
-    connect(ui->propertyComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated), this, &SendMPDialog::propertyComboBoxChanged);
-    connect(ui->sendFromComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated), this, &SendMPDialog::sendFromComboBoxChanged);
+    connect(ui->propertyComboBox, qOverload<int>(&QComboBox::activated), this, &SendMPDialog::propertyComboBoxChanged);
+    connect(ui->sendFromComboBox, qOverload<int>(&QComboBox::activated), this, &SendMPDialog::sendFromComboBoxChanged);
     connect(ui->clearButton, &QPushButton::clicked, this, &SendMPDialog::clearButtonClicked);
     connect(ui->sendButton, &QPushButton::clicked, this, &SendMPDialog::sendButtonClicked);
 
