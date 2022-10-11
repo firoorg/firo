@@ -1,8 +1,8 @@
 PACKAGE=tor
-$(package)_version=0.4.3.5
+$(package)_version=0.4.7.7
 $(package)_download_path=https://archive.torproject.org/tor-package-archive
 $(package)_file_name=$(package)-$($(package)_version).tar.gz
-$(package)_sha256_hash=616a0e4ae688d0e151d46e3e4258565da4d443d1ddbd316db0b90910e2d5d868
+$(package)_sha256_hash=3e131158b52b9435d7e43d1c47ef288b96d005342cc44b8c950bb403851a5b44
 $(package)_dependencies=zlib openssl libevent
 $(package)_patches = configure.patch
 $(package)_lib_files = \
@@ -40,6 +40,9 @@ $(package)_lib_files = \
     src/lib/libtor-version.a \
     src/lib/libtor-intmath.a \
     src/lib/libtor-ctime.a \
+    src/lib/libtor-llharden.a \
+    src/lib/libtor-metrics.a \
+    src/lib/libtor-trace.a \
     src/trunnel/libor-trunnel.a \
     src/lib/libcurve25519_donna.a \
     src/ext/ed25519/donna/libed25519_donna.a \
@@ -52,7 +55,8 @@ endef
 
 define $(package)_preprocess_cmds
   cp -f $(BASEDIR)/config.guess $(BASEDIR)/config.sub . && \
-  patch -p1 < $($(package)_patch_dir)/configure.patch
+  patch -p1 < $($(package)_patch_dir)/configure.patch && \
+  sed -i.old 's/^PROGRAMS =.*/PROGRAMS =/' Makefile.in
 endef
 
 define $(package)_config_cmds

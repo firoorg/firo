@@ -87,7 +87,7 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
     return isBlockRewardValueMet;
 }
 
-bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward)
+bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, int nTime, CAmount blockReward)
 {
     if(fLiteMode) {
         //there is no budget data to use to check anything, let's just accept the longest chain
@@ -101,7 +101,7 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
     // Check for correct masternode payment
-    if(mnpayments.IsTransactionValid(txNew, nBlockHeight, blockReward)) {
+    if(mnpayments.IsTransactionValid(txNew, nBlockHeight, nTime, blockReward)) {
         LogPrint("mnpayments", "%s -- Valid znode payment at height %d: %s", __func__, nBlockHeight, txNew.ToString());
         return true;
     }
@@ -110,9 +110,9 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
     return false;
 }
 
-void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& voutMasternodePaymentsRet, std::vector<CTxOut>& /*voutSuperblockPaymentsRet*/)
+void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, int nTime, CAmount blockReward, std::vector<CTxOut>& voutMasternodePaymentsRet, std::vector<CTxOut>& /*voutSuperblockPaymentsRet*/)
 {
-    if (!mnpayments.GetMasternodeTxOuts(nBlockHeight, blockReward, voutMasternodePaymentsRet)) {
+    if (!mnpayments.GetMasternodeTxOuts(nBlockHeight, nTime, blockReward, voutMasternodePaymentsRet)) {
         LogPrint("mnpayments", "%s -- no znode to pay (MN list probably empty)\n", __func__);
     }
 
@@ -188,12 +188,12 @@ std::map<int, std::string> GetRequiredPaymentsStrings(int nStartHeight, int nEnd
 *   Get masternode payment tx outputs
 */
 
-bool CMasternodePayments::GetMasternodeTxOuts(int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& voutMasternodePaymentsRet) const
+bool CMasternodePayments::GetMasternodeTxOuts(int nBlockHeight, int nTime, CAmount blockReward, std::vector<CTxOut>& voutMasternodePaymentsRet) const
 {
     // make sure it's not filled yet
     voutMasternodePaymentsRet.clear();
 
-    if(!GetBlockTxOuts(nBlockHeight, blockReward, voutMasternodePaymentsRet)) {
+    if(!GetBlockTxOuts(nBlockHeight, nTime, blockReward, voutMasternodePaymentsRet)) {
         LogPrintf("CMasternodePayments::%s -- no payee (deterministic znode list empty)\n", __func__);
         return false;
     }
@@ -209,14 +209,14 @@ bool CMasternodePayments::GetMasternodeTxOuts(int nBlockHeight, CAmount blockRew
     return true;
 }
 
-bool CMasternodePayments::GetBlockTxOuts(int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& voutMasternodePaymentsRet) const
+bool CMasternodePayments::GetBlockTxOuts(int nBlockHeight, int nTime, CAmount blockReward, std::vector<CTxOut>& voutMasternodePaymentsRet) const
 {
     voutMasternodePaymentsRet.clear();
     if (nBlockHeight == 0) {
         return false;
     }
 
-    CAmount masternodeReward = GetMasternodePayment(nBlockHeight, blockReward);
+    CAmount masternodeReward = GetMasternodePayment(nBlockHeight, nTime, blockReward);
 
     const CBlockIndex* pindex;
     {
@@ -260,7 +260,7 @@ bool CMasternodePayments::IsScheduled(const CDeterministicMNCPtr& dmnIn, int nNo
     return false;
 }
 
-bool CMasternodePayments::IsTransactionValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward) const
+bool CMasternodePayments::IsTransactionValid(const CTransaction& txNew, int nBlockHeight, int nTime, CAmount blockReward) const
 {
     if (!deterministicMNManager->IsDIP3Enforced(nBlockHeight)) {
         // can't verify historical blocks here
@@ -268,7 +268,7 @@ bool CMasternodePayments::IsTransactionValid(const CTransaction& txNew, int nBlo
     }
 
     std::vector<CTxOut> voutMasternodePayments;
-    if (!GetBlockTxOuts(nBlockHeight, blockReward, voutMasternodePayments)) {
+    if (!GetBlockTxOuts(nBlockHeight, nTime, blockReward, voutMasternodePayments)) {
         LogPrintf("CMasternodePayments::%s -- ERROR failed to get payees for block at height %s\n", __func__, nBlockHeight);
         return true;
     }

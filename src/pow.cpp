@@ -81,9 +81,12 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
         return params.nInitialMTPDifficulty;
     }
 
-    const uint32_t BlocksTargetSpacing = 
+    uint32_t BlocksTargetSpacing =
         (params.nMTPFiveMinutesStartBlock == 0 && fMTP) || (params.nMTPFiveMinutesStartBlock > 0 && pindexLast->nHeight >= params.nMTPFiveMinutesStartBlock) ?
             params.nPowTargetSpacingMTP : params.nPowTargetSpacing;
+    if (pindexLast->nTime >= params.stage3StartTime)
+        BlocksTargetSpacing /= 2;
+
     unsigned int TimeDaySeconds = 60 * 60 * 24;
     int64_t PastSecondsMin = TimeDaySeconds * 0.25; // 21600
     int64_t PastSecondsMax = TimeDaySeconds * 7;// 604800
@@ -91,23 +94,67 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     uint32_t PastBlocksMax = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
     uint32_t StartingPoWBlock = 0;
 
-    if (pblock->IsProgPow()) {
-        if (pblock->nTime < params.nPPSwitchTime + BlocksTargetSpacing*PastBlocksMax*3) {
+    if (pblock->IsShorterBlocksSpacing()) {
+        if (pindexLast->nTime < params.stage3StartTime) {
+            // first time we see a block with shorter interval
+            // Normally we should take difficulty and halve it. But to give some leeway to the miners
+            // we divide it by 4
+            uint32_t base = (pindexLast->nBits & 0x007fffff) << 2;
+            uint32_t exponent = pindexLast->nBits >> 24;
+
+            if (base > 0x007fffff) {
+                base >>= 8;
+                exponent++;
+            }
+            return (exponent << 24) | base;
+        }
+
+        uint32_t  numberOfStage3Blocks = pindexLast->nHeight;
+
+        if (params.stage3StartBlock != 0) {
+            // we know the first stage3 block
+            numberOfStage3Blocks = pindexLast->nHeight - params.stage3StartBlock + 1;
+        }
+        else if (pblock->nTime < params.stage3StartTime + BlocksTargetSpacing*PastBlocksMax*3) {
+            // transition to stage3 happened recently, look for the last block before the transition
+            const CBlockIndex *pindex = pindexLast;
+            while (pindex && pindex->nTime >= params.stage3StartTime)
+                pindex = pindex->pprev;
+
+            if (pindex)
+                numberOfStage3Blocks = pindexLast->nHeight - pindex->nHeight;
+        }
+
+        if (numberOfStage3Blocks < params.DifficultyAdjustmentInterval(true)/2)
+            // do not retarget if too few stage3 blocks
+            return pindexLast->nBits;
+            
+        PastBlocksMin = std::min(PastBlocksMin, numberOfStage3Blocks);
+        PastBlocksMax = std::min(PastBlocksMax, numberOfStage3Blocks);
+    }
+    else if (pblock->IsProgPow()) {
+        uint32_t numberOfPPBlocks = pindexLast->nHeight;
+
+        if (params.nPPBlockNumber != 0) {
+            // we know the first ProgPow block
+            numberOfPPBlocks = pindexLast->nHeight - params.nPPBlockNumber + 1;
+        }
+        else if (pblock->nTime < params.nPPSwitchTime + BlocksTargetSpacing*PastBlocksMax*3) {
             // transition to progpow happened recently, look for the first PP block
             const CBlockIndex *pindex = pindexLast;
             while (pindex && pindex->nTime >= params.nPPSwitchTime)
                 pindex = pindex->pprev;
 
-            if (pindex) {
-                uint32_t numberOfPPBlocks = pindexLast->nHeight - pindex->nHeight;
-                if (numberOfPPBlocks < params.DifficultyAdjustmentInterval(true)/2)
-                    // do not retarget if too few PP blocks
-                    return params.nInitialPPDifficulty;
-                    
-                PastBlocksMin = std::min(PastBlocksMin, numberOfPPBlocks);
-                PastBlocksMax = std::min(PastBlocksMax, numberOfPPBlocks);
-            }
+            if (pindex)
+                numberOfPPBlocks = pindexLast->nHeight - pindex->nHeight;
         }
+
+        if (numberOfPPBlocks < params.DifficultyAdjustmentInterval(true)/2)
+            // do not retarget if too few PP blocks
+            return params.nInitialPPDifficulty;
+
+        PastBlocksMin = std::min(PastBlocksMin, numberOfPPBlocks);
+        PastBlocksMax = std::min(PastBlocksMax, numberOfPPBlocks);
     }
     else if (nFirstMTPBlock > 1) {
         // There are both legacy and MTP blocks in the chain. Limit PoW calculation scope to MTP blocks only

@@ -127,13 +127,13 @@ bool Recover::askRecover(bool& newWallet)
                     }
 
                     if(mnemonic.empty()) {
-                        recover.ui->errorMessage->setText("Mnemonic can't be empty.");
+                        recover.ui->errorMessage->setText("Recovery seed phrase can't be empty.");
                         continue;
                     }
 
                     SecureString secmnemonic(mnemonic.begin(), mnemonic.end());
                     if(!Mnemonic::mnemonic_check(secmnemonic)){
-                        recover.ui->errorMessage->setText(tr("Something went wrong. Please try again."));
+                        recover.ui->errorMessage->setText(tr("You have entered an invalid recovery seed phrase. Please double check the spelling and order."));
                         continue;
                     }
 
@@ -161,7 +161,7 @@ bool Recover::askRecover(bool& newWallet)
                     SoftSetBoolArg("-use12", true);
 
                 if(recover.ui->spinBoxPcodes->value() > 0)
-                    SoftSetArg("-defaultpcodenumber", std::to_string(recover.ui->spinBoxPcodes->value()));
+                    SoftSetArg("-defaultrapaddressnumber", std::to_string(recover.ui->spinBoxPcodes->value()));
 
                 break;
             }

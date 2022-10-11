@@ -261,8 +261,10 @@ public:
     void InvalidateCachedPoWHash(int nHeight) const;
 
     bool IsMTP() const;
-
     bool IsProgPow() const;
+    bool IsShorterBlocksSpacing() const;
+
+    int GetTargetBlocksSpacing() const;
 
     CProgPowHeader GetProgPowHeader() const;
     uint256 GetProgPowHeaderHash() const;

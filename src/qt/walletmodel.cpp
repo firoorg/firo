@@ -157,41 +157,6 @@ void WalletModel::pollBalanceChanged()
         checkBalanceChanged();
         if(transactionTableModel)
             transactionTableModel->updateConfirmations();
-
-        // check sigma
-        // support only hd
-        if (wallet->zwallet) {
-            checkSigmaAmount(false);
-        }
-    }
-}
-
-void WalletModel::updateSigmaCoins(const QString &pubCoin, const QString &isUsed, int status)
-{
-    if (status == ChangeType::CT_UPDATED) {
-        // some coin have been updated to be used
-        LOCK2(cs_main, wallet->cs_wallet);
-        checkSigmaAmount(true);
-
-    } else if (status == ChangeType::CT_NEW) {
-        // new mint
-        LOCK2(cs_main, wallet->cs_wallet);
-        auto coins = wallet->zwallet->GetTracker().ListMints(true, false, false);
-
-        int block = cachedNumBlocks;
-        for (const auto& coin : coins) {
-            if (!coin.isUsed) {
-                int coinHeight = coin.nHeight;
-                if (coinHeight == -1
-                    || (coinHeight <= block && coinHeight > block - ZC_MINT_CONFIRMATIONS)) {
-                    cachedHavePendingCoin = true;
-                }
-            }
-        }
-
-        if (cachedHavePendingCoin) {
-            checkSigmaAmount(true);
-        }
     }
 }
 
@@ -966,14 +931,6 @@ static void NotifyZerocoinChanged(WalletModel *walletmodel, CWallet *wallet, con
                               Q_ARG(QString, QString::fromStdString(pubCoin)),
                               Q_ARG(QString, QString::fromStdString(isUsed)),
                               Q_ARG(int, status));
-
-    // disable sigma
-    if (wallet->zwallet) {
-        QMetaObject::invokeMethod(walletmodel, "updateSigmaCoins", Qt::QueuedConnection,
-                              Q_ARG(QString, QString::fromStdString(pubCoin)),
-                              Q_ARG(QString, QString::fromStdString(isUsed)),
-                              Q_ARG(int, status));
-    }
 }
 
 static void NotifyTransactionChanged(WalletModel *walletmodel, CWallet *wallet, const uint256 &hash, ChangeType status)

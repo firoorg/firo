@@ -224,7 +224,7 @@ private:
     int UpdatePackagesForAdded(const CTxMemPool::setEntries& alreadyAdded, indexed_modified_transaction_set &mapModifiedTx);
 
     /** Firo: fill in founders' reward and znode payout outputs */
-    void FillFoundersReward(CMutableTransaction &coinbaseTx, bool fMTP);
+    void FillFoundersReward(CMutableTransaction &coinbaseTx, bool fMTP, bool fShorterBlockDistance);
 
     /** Fill txBlackList set */
     void FillBlackListForBlockTemplate();
