@@ -99,6 +99,28 @@ public:
     CScript script;
 };
 
+struct SparkTestingSetup : public TestChain100Setup
+{
+public:
+    SparkTestingSetup();
+
+public:
+    CBlockIndex* GenerateBlock(std::vector<CMutableTransaction> const &txns = {}, CScript *script = nullptr);
+    void GenerateBlocks(size_t blocks, CScript *script = nullptr);
+    CPubKey GenerateAddress();
+
+    std::vector<CSparkMintMeta> GenerateMints(
+            std::vector<CAmount> const &amounts,
+            std::vector<CMutableTransaction> &txs);
+
+    ~SparkTestingSetup();
+
+public:
+    spark::Params const *params;
+    CScript script;
+
+};
+
 // for the duration of the test set network type to testnet
 class FakeTestnet {
     Consensus::Params &params;

@@ -255,6 +255,7 @@ public:
     //! Values of coin serials spent in this block
     sigma::spend_info_container sigmaSpentSerials;
     std::unordered_map<Scalar, int> lelantusSpentSerials;
+    std::unordered_map<GroupElement, int> spentLTags;
 
     //! list of disabling sporks active at this block height
     //! std::map {feature name} -> {block number when feature is re-enabled again, parameter}
@@ -295,6 +296,7 @@ public:
         anonymitySetHash.clear();
         sparkMintedCoins.clear();
         sparkSetHash.clear();
+        spentLTags.clear();
         sigmaSpentSerials.clear();
         lelantusSpentSerials.clear();
         activeDisablingSporks.clear();
@@ -542,6 +544,7 @@ public:
                 && nHeight >= params.nSparkStartBlock) {
                 READWRITE(sparkMintedCoins);
                 READWRITE(sparkSetHash);
+                READWRITE(spentLTags);
             }
 
             if (nHeight >= params.nLelantusFixesStartBlock)

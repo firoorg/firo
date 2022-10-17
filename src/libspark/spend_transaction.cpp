@@ -207,7 +207,7 @@ uint64_t SpendTransaction::getFee() {
     return f;
 }
 
-const std::vector<GroupElement>& SpendTransaction::getUsedLTags() {
+const std::vector<GroupElement>& SpendTransaction::getUsedLTags() const {
     return T;
 }
 

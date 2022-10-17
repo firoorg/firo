@@ -612,6 +612,34 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         }
     }
 
+    else if (it->GetTx().IsSparkTransaction()) {
+        // Remove mints and spends from spark mempool state
+        const CTransaction &tx = it->GetTx();
+        if (tx.IsSparkSpend()) {
+            std::vector<GroupElement> lTags;
+            try {
+                lTags = spark::GetSparkUsedTags(tx);
+                for (const auto& lTag : lTags)
+                    sparkState.RemoveSpendFromMempool(lTag);
+            }
+            catch (CBadTxIn&) {
+            }
+        }
+
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        {
+            if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+                try {
+                    spark::Coin txCoin;
+                    spark::ParseSparkMintCoin(txout.scriptPubKey, txCoin);
+                    sparkState.RemoveMintFromMempool(txCoin);
+                }
+                catch (std::invalid_argument&) {
+                }
+            }
+        }
+    }
+
     totalTxSize -= it->GetTxSize();
     cachedInnerUsage -= it->DynamicMemoryUsage();
     cachedInnerUsage -= memusage::DynamicUsage(mapLinks[it].parents) + memusage::DynamicUsage(mapLinks[it].children);

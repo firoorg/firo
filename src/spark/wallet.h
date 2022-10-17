@@ -58,9 +58,12 @@ public:
     void addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb);
     CSparkMintMeta getMintMeta(const uint256& hash);
 
+    void UpdateSpendState(const GroupElement& lTag, const uint256& lTagHash, const uint256& txHash, bool fUpdateMint = true);
     void UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint = true);
-    void UpdateMintStateFromMempool(const std::vector<std::pair<spark::Coin, std::vector<unsigned char>>>& coins, const uint256& txHash);
-
+    void UpdateSpendStateFromBlock(const CBlock& block);
+    void UpdateMintState(const std::vector<spark::Coin>& coins, const uint256& txHash);
+    void UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins, const uint256& txHash);
+    void UpdateMintStateFromBlock(const CBlock& block);
     // get the vector of mint metadata for a single address
     std::vector<CSparkMintMeta> listAddressCoins(const int32_t& i, bool fUnusedOnly = false);
 
@@ -72,7 +75,7 @@ public:
             bool generate);
 
     bool CreateSparkMintTransactions(
-            const std::vector<spark::MintedCoinData>&  outputs,
+            const std::vector<spark::MintedCoinData>& outputs,
             std::vector<std::pair<CWalletTx,
             CAmount>>& wtxAndFee,
             CAmount& nAllFeeRet,

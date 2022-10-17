@@ -45,12 +45,24 @@ void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin);
 spark::SpendTransaction ParseSparkSpend(const CTransaction &tx);
 
 std::vector<GroupElement>  GetSparkUsedTags(const CTransaction &tx);
-std::vector<std::pair<spark::Coin, std::vector<unsigned char>>>  GetSparkMintCoins(const CTransaction &tx);
+std::vector<spark::Coin>  GetSparkMintCoins(const CTransaction &tx);
 
 size_t GetSpendInputs(const CTransaction &tx);
 CAmount GetSpendTransparentAmount(const CTransaction& tx);
 
 bool CheckSparkBlock(CValidationState &state, const CBlock& block);
+
+//void DisconnectTipLelantus(CBlock &block, CBlockIndex *pindexDelete);
+
+bool ConnectBlockSpark(
+        CValidationState& state,
+        const CChainParams& chainparams,
+        CBlockIndex* pindexNew,
+        const CBlock *pblock,
+        bool fJustCheck=false);
+
+void DisconnectTipSpark(CBlock &block, CBlockIndex *pindexDelete);
+
 
 bool CheckSparkTransaction(
         const CTransaction &tx,
@@ -66,6 +78,7 @@ bool GetOutPoint(COutPoint& outPoint, const spark::Coin& coin);
 bool GetOutPoint(COutPoint& outPoint, const uint256& coinHash);
 bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CBlock &block);
 
+bool BuildSparkStateFromIndex(CChain *chain);
 
 class CSparkMempoolState {
 private:
@@ -148,15 +161,21 @@ public:
 
     void AddMint(const spark::Coin& coin, const CMintedCoinInfo& coinInfo);
     void RemoveMint(const spark::Coin& coin);
+    // Add mints in block, automatically assigning id to it
+    void AddMintsToStateAndBlockIndex(CBlockIndex *index, const CBlock* pblock);
 
     void AddSpend(const GroupElement& lTag, int coinGroupId);
     void RemoveSpend(const GroupElement& lTag);
+    // Add everything from the block to the state
+    void AddBlock(CBlockIndex *index);
+    // Disconnect block from the chain rolling back mints and spends
+    void RemoveBlock(CBlockIndex *index);
 
     // Add spend into the mempool.
     // Check if there is a coin with such serial in either blockchain or mempool
     bool AddSpendToMempool(const std::vector<GroupElement>& lTags, uint256 txHash);
 
-    void AddMintsToMempool(const std::vector<std::pair<spark::Coin, std::vector<unsigned char>>>& coins);
+    void AddMintsToMempool(const std::vector<spark::Coin>& coins);
     void RemoveMintFromMempool(const spark::Coin& coin);
 
     // Get conflicting tx hash by coin linking tag
@@ -168,6 +187,10 @@ public:
     // Given id returns the latest anonymity set and corresponding block hash
     // Do not take into account coins with height more than maxHeight
     // Returns number of coins satisfying conditions
+    void GetCoinSet(
+            int coinGroupID,
+            std::vector<spark::Coin>& coins_out);
+
     int GetCoinSetForSpend(
             CChain *chain,
             int maxHeight,
@@ -184,6 +207,9 @@ public:
     static CSparkState* GetState();
 
     std::size_t GetTotalCoins() const { return mintedCoins.size(); }
+
+private:
+    size_t CountLastNCoins(int groupId, size_t required, CBlockIndex* &first);
 
 private:
     // Group Limit

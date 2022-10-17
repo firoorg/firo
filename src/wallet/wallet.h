@@ -1059,7 +1059,7 @@ public:
             const CCoinControl *coinControl = NULL);
 
     std::string MintAndStoreSpark(
-            const std::vector<spark::MintedCoinData>&  outputs,
+            const std::vector<spark::MintedCoinData>& outputs,
             std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
             bool autoMintAll = false,
             bool fAskFee = false,

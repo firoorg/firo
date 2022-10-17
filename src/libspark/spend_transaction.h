@@ -52,7 +52,7 @@ public:
 	);
 
 	uint64_t getFee();
-    const std::vector<GroupElement>& getUsedLTags();
+    const std::vector<GroupElement>& getUsedLTags() const;
     const std::vector<Coin>& getOutCoins();
     const std::vector<uint64_t>& getCoinGroupIds();
 

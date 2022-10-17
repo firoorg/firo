@@ -7,14 +7,19 @@ using namespace secp_primitives;
 
 Coin::Coin() {}
 
+Coin::Coin(const Params* params)
+{
+    this->params = params;
+}
+
 Coin::Coin(
 	const Params* params,
 	const char type,
 	const Scalar& k,
 	const Address& address,
-	const uint64_t v,
-	const std::string memo,
-	const std::vector<unsigned char> serial_context
+	const uint64_t& v,
+	const std::string& memo,
+	const std::vector<unsigned char>& serial_context
 ) {
 	this->params = params;
 	this->serial_context = serial_context;
@@ -83,19 +88,19 @@ bool Coin::validate(
 ) {
 	// Check recovery key
 	if (SparkUtils::hash_div(data.d)*SparkUtils::hash_k(data.k) != this->K) {
-		return false;
+        return false;
 	}
 
 	// Check value commitment
 	if (this->params->get_G()*Scalar(data.v) + this->params->get_H()*SparkUtils::hash_val(data.k) != this->C) {
-		return false;
+        return false;
 	}
 
 	// Check serial commitment
 	data.i = incoming_view_key.get_diversifier(data.d);
 
 	if (this->params->get_F()*(SparkUtils::hash_ser(data.k, this->serial_context) + SparkUtils::hash_Q2(incoming_view_key.get_s1(), data.i)) + incoming_view_key.get_P2() != this->S) {
-		return false;
+        return false;
 	}
 
 	return true;
@@ -172,6 +177,10 @@ uint256 Coin::getHash() const {
     ss << C;
     ss << r_;
     return ::Hash(ss.begin(), ss.end());
+}
+
+void Coin::setSerialContext(const std::vector<unsigned char>& serial_context_) {
+    serial_context = serial_context_;
 }
 
 }
