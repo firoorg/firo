@@ -5320,7 +5320,7 @@ std::string CWallet::MintAndStoreLelantus(const CAmount& value,
 }
 
 std::string CWallet::MintAndStoreSpark(
-        const std::vector<spark::MintedCoinData>&  outputs,
+        const std::vector<spark::MintedCoinData>& outputs,
         std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
         bool autoMintAll,
         bool fAskFee,
@@ -5331,7 +5331,7 @@ std::string CWallet::MintAndStoreSpark(
 
     if (IsLocked()) {
         strError = _("Error: Wallet locked, unable to create transaction!");
-        LogPrintf("MintLelantus() : %s", strError);
+        LogPrintf("MintSpark() : %s", strError);
         return strError;
     }
 
@@ -5353,7 +5353,7 @@ std::string CWallet::MintAndStoreSpark(
     }
 
     if (fAskFee && !uiInterface.ThreadSafeAskFee(nFeeRequired)){
-        LogPrintf("MintLelantus: returning aborted..\n");
+        LogPrintf("MintSpark: returning aborted..\n");
         return "ABORTED";
     }
 

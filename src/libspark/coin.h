@@ -66,14 +66,15 @@ struct SpendCoinRecipientData {
 class Coin {
 public:
 	Coin();
+    Coin(const Params* params);
 	Coin(
 		const Params* params,
 		const char type,
 		const Scalar& k,
 		const Address& address,
-		const uint64_t v,
-		const std::string memo,
-		const std::vector<unsigned char> serial_context
+		const uint64_t& v,
+		const std::string& memo,
+		const std::vector<unsigned char>& serial_context
 	);
 
 	// Given an incoming view key, extract the coin's nonce, diversifier, value, and memo
@@ -89,6 +90,7 @@ public:
     // type and v are not included in hash
     uint256 getHash() const;
 
+    void setSerialContext(const std::vector<unsigned char>& serial_context_);
 protected:
 	bool validate(const IncomingViewKey& incoming_view_key, IdentifiedCoinData& data);
 

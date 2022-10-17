@@ -88,10 +88,12 @@ std::vector<CDataStream> MintTransaction::getMintedCoinsSerialized() {
 
 void MintTransaction::setMintTransaction(std::vector<CDataStream>& serializedCoins) {
     bool first = true;
-    coins.resize(serializedCoins.size());
+    coins.reserve(serializedCoins.size());
     size_t i = 0;
     for (auto& stream : serializedCoins) {
-        stream >> coins[i];
+        Coin coin(params);
+        stream >> coin;
+        coins.push_back(coin);
         i++;
         if (first) {
             stream >> value_proof;

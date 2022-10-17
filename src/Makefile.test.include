@@ -102,6 +102,7 @@ BITCOIN_TESTS = \
   libspark/test/spend_transaction_test.cpp \
   libspark/test/f4grumble_test.cpp \
   libspark/test/address_test.cpp \
+  test/spark_tests.cpp \
   sigma/test/coin_spend_tests.cpp \
   sigma/test/coin_tests.cpp \
   sigma/test/primitives_tests.cpp \
