@@ -911,6 +911,31 @@ static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
     if (!outputs.empty()) {
         ApplyStats(stats, ss, prevkey, outputs);
     }
+
+    // We need to remove amount of private spends from nTotalAmount;
+    // There are 3 type of private spend transactions
+    std::vector<std::pair<uint160, AddressType> > addresses;
+    addresses.push_back(std::make_pair(uint160(), AddressType::lelantusJSplit));
+    addresses.push_back(std::make_pair(uint160(), AddressType::sigmaSpend));
+    addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinSpend));
+
+    // Iterate over all types of transactions
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    for (std::vector<std::pair<uint160, AddressType> >::iterator itr = addresses.begin(); itr != addresses.end(); itr++) {
+        // Get address index for each transaction type
+        if (GetAddressIndex((*itr).first, (*itr).second, addressIndex)) {
+            for (std::vector < std::pair < CAddressIndexKey, CAmount > > ::const_iterator it = addressIndex.begin();
+                    it != addressIndex.end(); it++) {
+                stats.nTotalAmount += it->second;
+            }
+        }
+        addressIndex.clear();
+    }
+    stats.nTotalAmount += 44666700000000; // The estimated amount of coins forged during the Zerocoin attacks
+    stats.nTotalAmount += 23750000000000; // The estimated amount of coins forged during the Lelantus attacks.
+    stats.nTotalAmount -= 17326986000000; // Total locked in code after CVE-2018-17144 attacks.
+    stats.nTotalAmount -= 16810168037691; // Total burnt Coins sent to unrecoverable address https://explorer.firo.org/tx/0b53178c1b22bae4c04ef943ee6d6d30f2483327fe9beb54952951592e8ce368
+
     stats.hashSerialized = ss.GetHash();
     stats.nDiskSize = view->EstimateSize();
     return true;

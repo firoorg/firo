@@ -1613,7 +1613,7 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
                     bool its_znode_payment = false;
                     if (!fSkipMnpayoutCheck) {
                         std::vector<CTxOut> voutMasternodePaymentsRet;
-                        mnpayments.GetBlockTxOuts(txHeight, CAmount(), voutMasternodePaymentsRet);
+                        mnpayments.GetBlockTxOuts(txHeight, GetTime(), CAmount(), voutMasternodePaymentsRet);
                         //compare address of payee to addr.
                         for(CTxOut const & out : voutMasternodePaymentsRet) {
                             CTxDestination payeeDest;
@@ -3479,18 +3479,10 @@ UniValue joinsplit(const JSONRPCRequest& request) {
 
 
     UniValue sendTo = request.params[0].get_obj();
-    UniValue mintAmounts;
-    if(request.params.size() >= 3) {
-        try {
-                mintAmounts = request.params[2].get_obj();
-        } catch (std::runtime_error const &) {
-            //may be empty
-        }
-    }
 
     std::unordered_set<std::string> subtractFeeFromAmountSet;
     UniValue subtractFeeFromAmount(UniValue::VARR);
-    if (request.params.size() > 2) {
+    if (request.params.size() > 1) {
         try {
             subtractFeeFromAmount = request.params[1].get_array();
         }  catch (std::runtime_error const &) {
@@ -3498,6 +3490,15 @@ UniValue joinsplit(const JSONRPCRequest& request) {
         }
         for (int i = subtractFeeFromAmount.size(); i--;) {
             subtractFeeFromAmountSet.insert(subtractFeeFromAmount[i].get_str());
+        }
+    }
+
+    UniValue mintAmounts;
+    if(request.params.size() > 2) {
+        try {
+                mintAmounts = request.params[2].get_obj();
+        } catch (std::runtime_error const &) {
+            //may be empty
         }
     }
 
@@ -3676,7 +3677,7 @@ UniValue listlelantusmints(const JSONRPCRequest& request) {
         throw std::runtime_error(
                 "listlelantusmints <all>(false/true)\n"
                 "\nArguments:\n"
-                "1. <all> (boolean, optional) false (default) to return own listlelantusmints. true to return every listlelantusmints.\n"
+                "1. <all> (boolean, optional) false (default) to return real listlelantusmints. true to return every listlelantusmints.\n"
                 "\nResults are an array of Objects, each of which has:\n"
                 "{id, IsUsed, amount, value, serialNumber, nHeight, randomness}");
 
@@ -3696,7 +3697,7 @@ UniValue listlelantusmints(const JSONRPCRequest& request) {
     UniValue results(UniValue::VARR);
 
     BOOST_FOREACH(const CLelantusEntry &lelantusItem, listCoin) {
-        if (fAllStatus || lelantusItem.IsUsed || (lelantusItem.randomness != uint64_t(0) && lelantusItem.serialNumber != uint64_t(0))) {
+        if ((fAllStatus || lelantusItem.amount != uint64_t(0)) && (lelantusItem.IsUsed || (lelantusItem.randomness != uint64_t(0) && lelantusItem.serialNumber != uint64_t(0)))) {
             UniValue entry(UniValue::VOBJ);
             entry.push_back(Pair("id", lelantusItem.id));
             entry.push_back(Pair("isUsed", lelantusItem.IsUsed));

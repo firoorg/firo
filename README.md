@@ -19,7 +19,7 @@ Our research created the [Lelantus privacy protocol](https://eprint.iacr.org/201
 
 Firo also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as Tor/i2P.
 
-Firo developed and utilizes [Merkle Tree Proofs (MTP)](https://arxiv.org/pdf/1606.03588.pdf) as its Proof-of-Work algorithm which aims to be memory hard with fast verification to encourage mining using commodity hardware.
+Firo uses FiroPoW (a ProgPoW variant) as its Proof-of-Work GPU focused algorithm which is FPGA/ASIC resistant.
 
 How Firo’s Privacy Technology Compares to the Competition
 --------------
@@ -84,10 +84,12 @@ such as cross compilation, read the [depends instructions](depends/README.md)
 
 Alternatively, you can build dependencies manually. See the full [unix build instructions](doc/build-unix.md).
 
+Bootstrappable builds can [be achieved with Guix.](contrib/guix/README.md)
+
 Development Dependencies (compiler and build tools)
 ----------------------
 
-- Debian/Ubuntu/Mint:
+- Debian/Ubuntu/Mint (minimum Ubuntu 18.04):
 
     ```
     sudo apt-get update

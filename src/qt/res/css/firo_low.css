@@ -1,0 +1,27 @@
+/**********************************************************************
+ * Copyright (c) 2021-2021 The Firo Core developers
+ * Distributed under the MIT software license, see the accompanying
+ * file COPYING or http://www.opensource.org/licenses/mit-license.php.
+ **********************************************************************/
+
+/* Recover */
+
+QWidget#Recover QLabel#textLabel,
+QWidget#Recover QLabel#textLabel2,
+QWidget#Recover QLabel#textLabel3,
+QWidget#Recover QLabel#textLabel4,
+QWidget#Recover QRadioButton#use12,
+QWidget#Recover QRadioButton#use24,
+QWidget#Recover QRadioButton#createNew,
+QWidget#Recover QRadioButton#recoverExisting,
+QWidget#Recover QLabel#errorMessage,
+QWidget#Recover QLabel#labelPcodes,
+QWidget#Recover QLineEdit#mnemonicWords,
+QWidget#Recover QLineEdit#mnemonicPassPhrase,
+QWidget#Recover QLineEdit#mnemonicPassPhrase2,
+QWidget#Recover QCheckBox#usePassphrase{
+    min-height: 0px;
+    border-radius: 1px;
+    font: 10pt 'Source Sans Pro';
+}
+

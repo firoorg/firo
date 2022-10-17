@@ -764,18 +764,6 @@
        </item>
        <item row="4" column="0">
         <widget class="QLabel" name="labelYourAnoymizedCoinsText">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>40</height>
-          </size>
-         </property>
          <property name="font">
           <font>
            <weight>75</weight>
@@ -784,12 +772,6 @@
          </property>
          <property name="text">
           <string>Your Anonymized Coins</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignBottom|Qt::AlignLeading|Qt::AlignLeft</set>
-         </property>
-         <property name="margin">
-          <number>0</number>
          </property>
         </widget>
        </item>
