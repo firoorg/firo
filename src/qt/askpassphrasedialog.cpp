@@ -72,9 +72,9 @@ AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent, const QStr
     }
     textChanged();
     adjustSize();
-    connect(ui->passEdit1, SIGNAL(textChanged(QString)), this, SLOT(textChanged()));
-    connect(ui->passEdit2, SIGNAL(textChanged(QString)), this, SLOT(textChanged()));
-    connect(ui->passEdit3, SIGNAL(textChanged(QString)), this, SLOT(textChanged()));
+    connect(ui->passEdit1, &QLineEdit::textChanged, this, &AskPassphraseDialog::textChanged);
+    connect(ui->passEdit2, &QLineEdit::textChanged, this, &AskPassphraseDialog::textChanged);
+    connect(ui->passEdit3, &QLineEdit::textChanged, this, &AskPassphraseDialog::textChanged);
 }
 
 AskPassphraseDialog::~AskPassphraseDialog()

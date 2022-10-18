@@ -9,7 +9,7 @@ CancelPasswordDialog::CancelPasswordDialog(const QString &title, const QString &
     setDefaultButton(QMessageBox::Yes);
     cancelButton = button(QMessageBox::Cancel);
     updateCancelButton();
-    connect(&countDownTimer, SIGNAL(timeout()), this, SLOT(countDown()));
+    connect(&countDownTimer, &QTimer::timeout, this, &CancelPasswordDialog::countDown);
 }
 
 int CancelPasswordDialog::exec()
