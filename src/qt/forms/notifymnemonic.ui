@@ -42,7 +42,7 @@
                             </sizepolicy>
                         </property>
                         <property name="text">
-                            <string>Your wallet has been created successfully. Using the following sequence of words, you will be able to recover your wallet at any time.</string>
+                            <string>Your wallet has been created successfully. Using the following recovery seed phrase, you will be able to recover your wallet and balances at any time.</string>
                         </property>
                         <property name="wordWrap">
                             <bool>true</bool>
@@ -52,7 +52,7 @@
                 <item>
                     <widget class="QLabel" name="textLabel4">
                         <property name="text">
-                            <string>Mnemonic words:</string>
+                            <string>Recovery seed phrase:</string>
                         </property>
                         <property name="wordWrap">
                             <bool>true</bool>
@@ -112,7 +112,7 @@
                 <item>
                     <widget class="QLabel" name="textLabel2">
                         <property name="text">
-                            <string>Please write down these words and keep them in a secure location such as a safe.</string>
+                            <string>Please write down these recovery seed phrase and keep them in a secure location.</string>
                         </property>
                         <property name="wordWrap">
                             <bool>true</bool>
@@ -122,7 +122,7 @@
                 <item>
                     <widget class="QLabel" name="textLabel3">
                         <property name="text">
-                            <string>WARNING: Anyone with access to these words can recover your wallet and will have control over your funds!</string>
+                            <string>WARNING: Anyone with access to the recovery seed phrase can recover your wallet and will have control over your funds!</string>
                         </property>
                         <property name="wordWrap">
                             <bool>true</bool>
@@ -142,7 +142,7 @@
                 <item>
                     <widget class="QLabel" name="textLabel5">
                         <property name="text">
-                            <string>Please re-enter the mnemonic words to ensure that you have written it down correctly.</string>
+                            <string>Please re-enter the recovery seed phrase to ensure you have written it down correctly.</string>
                         </property>
                         <property name="wordWrap">
                             <bool>true</bool>
