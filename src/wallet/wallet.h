@@ -1071,6 +1071,12 @@ public:
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
+    std::vector<CWalletTx> SpendAndStoreSpark(
+            const std::vector<CRecipient>& recipients,
+            const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
+            CAmount &fee,
+            const CCoinControl *coinControl = NULL);
+
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result);
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 

@@ -119,6 +119,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         spend_coin_data,
         cover_set_data,
         f,
+        0,
         out_coin_data
     );
 

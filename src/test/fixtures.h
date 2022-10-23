@@ -7,6 +7,8 @@
 
 #include <boost/test/unit_test.hpp>
 
+class CCoinControl;
+
 struct TestDerivation {
     std::string pub;
     std::string prv;
@@ -112,6 +114,11 @@ public:
     std::vector<CSparkMintMeta> GenerateMints(
             std::vector<CAmount> const &amounts,
             std::vector<CMutableTransaction> &txs);
+
+    std::vector<CTransaction> GenerateSparkSpend(
+            std::vector<CAmount> const &outs,
+            std::vector<CAmount> const &mints,
+            CCoinControl const *coinControl );
 
     ~SparkTestingSetup();
 

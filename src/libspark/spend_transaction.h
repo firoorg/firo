@@ -48,6 +48,7 @@ public:
 		const std::vector<InputCoinData>& inputs,
         const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
 		const uint64_t f,
+        const uint64_t vout,
 		const std::vector<OutputCoinData>& outputs
 	);
 
@@ -98,6 +99,10 @@ public:
         }
     }
 
+    void setVout(const uint64_t& vout_) {
+        this->vout = vout_;
+    }
+
     void setBlockHashes(const std::map<uint64_t, uint256>& idAndHashes);
 
     const std::map<uint64_t, uint256>& getBlockHashes();
@@ -112,6 +117,7 @@ private:
     std::map<uint64_t, uint256> set_id_blockHash;
     std::vector<uint64_t> cover_set_ids;
 	uint64_t f;
+    uint64_t vout;
 	std::vector<GroupElement> S1, C1, T;
 	std::vector<GrootleProof> grootle_proofs;
 	ChaumProof chaum_proof;
