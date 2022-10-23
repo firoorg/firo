@@ -15,6 +15,7 @@ SpendTransaction::SpendTransaction(
 	const std::vector<InputCoinData>& inputs,
     const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
 	const uint64_t f,
+    const uint64_t vout,
 	const std::vector<OutputCoinData>& outputs
 ) {
 	this->params = params;
@@ -33,6 +34,7 @@ SpendTransaction::SpendTransaction(
 	this->T.reserve(w); // linking tags
 
 	this->f = f; // fee
+    this->vout = vout; // transparent output value
 
 	// Prepare Chaum vectors
 	std::vector<Scalar> chaum_x, chaum_y, chaum_z;
@@ -165,7 +167,7 @@ SpendTransaction::SpendTransaction(
 		balance_statement += this->out_coins[j].C.inverse();
 		balance_witness -= SparkUtils::hash_val(k[j]);
 	}
-	balance_statement += (this->params->get_G()*Scalar(f)).inverse();
+	balance_statement += (this->params->get_G()*Scalar(f + vout)).inverse();
 	schnorr.prove(
 		balance_witness,
 		balance_statement,
@@ -175,7 +177,7 @@ SpendTransaction::SpendTransaction(
 	// Compute the binding hash
 	Scalar mu = hash_bind(
 		this->out_coins,
-		this->f,
+		this->f + vout,
 		this->cover_set_representations,
 		this->S1,
 		this->C1,
@@ -292,7 +294,7 @@ bool SpendTransaction::verify(
 		// Compute the binding hash
 		Scalar mu = hash_bind(
 			tx.out_coins,
-			tx.f,
+			tx.f + tx.vout,
 			tx.cover_set_representations,
 			tx.S1,
 			tx.C1,
@@ -322,7 +324,9 @@ bool SpendTransaction::verify(
 		for (std::size_t j = 0; j < t; j++) {
 			balance_statement += tx.out_coins[j].C.inverse();
 		}
-		balance_statement += (tx.params->get_G()*Scalar(tx.f)).inverse();
+
+        balance_statement += (tx.params->get_G()*Scalar(tx.f + tx.vout)).inverse();
+        
 		if(!schnorr.verify(
 			balance_statement,
 			tx.balance_proof

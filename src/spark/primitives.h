@@ -17,6 +17,7 @@ struct CSparkMintMeta
     Scalar k; // nonce
     std::string memo; // memo
     std::vector<unsigned char> serial_context;
+    char type;
     mutable boost::optional<uint256> nonceHash;
 
     uint256 GetNonceHash() const;
@@ -36,6 +37,7 @@ struct CSparkMintMeta
         READWRITE(k);
         READWRITE(memo);
         READWRITE(serial_context);
+        READWRITE(type);
     };
 };
 

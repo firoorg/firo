@@ -16,7 +16,7 @@ static bool CheckLTag(
     if (sparkTxInfo &&
         !sparkTxInfo->fInfoIsComplete &&
             sparkTxInfo->spentLTags.find(lTag) != sparkTxInfo->spentLTags.end())
-        return state.DoS(0, error("CTransaction::CheckTransaction() : two or more spands with same linking tag in the same block"));
+        return state.DoS(0, error("CTransaction::CheckTransaction() : two or more spends with same linking tag in the same block"));
 
     // check for used linking tags in state
     if (sparkState.IsUsedLTag(lTag)) {
@@ -117,14 +117,21 @@ void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransact
 
         serializedCoins.push_back(stream);
     }
-
-    mintTransaction.setMintTransaction(serializedCoins);
+    try {
+        mintTransaction.setMintTransaction(serializedCoins);
+    } catch (...) {
+        throw std::invalid_argument("Unable to deserialize Spark mint transaction");
+    }
 }
 
 void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin)
 {
     if (!script.IsSparkMint() && !script.IsSparkSMint())
         throw std::invalid_argument("Script is not a Spark mint");
+
+    if (script.size() < 213) {
+        throw std::invalid_argument("Script is not a valid Spark Mint");
+    }
 
     std::vector<unsigned char> serialized(script.begin() + 1, script.end());
     CDataStream stream(
@@ -133,7 +140,11 @@ void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin)
             PROTOCOL_VERSION
     );
 
-    stream >> txCoin;
+    try {
+        stream >> txCoin;
+    } catch (...) {
+        throw std::invalid_argument("Unable to deserialize Spark mint");
+    }
 }
 
 spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
@@ -215,7 +226,7 @@ size_t GetSpendInputs(const CTransaction &tx) {
 
 CAmount GetSpendTransparentAmount(const CTransaction& tx) {
     CAmount result = 0;
-    if(!tx.IsSparkSpend())
+    if (!tx.IsSparkSpend())
         return 0;
 
     for (const CTxOut &txout : tx.vout)
@@ -279,7 +290,7 @@ bool ConnectBlockSpark(
             if (!prev_hash.empty())
                 hash.Write(prev_hash.data(), 32);
             else {
-                if(latestCoinId > 1) {
+                if (latestCoinId > 1) {
                     prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId - 1, true);
                     hash.Write(prev_hash.data(), 32);
                 }
@@ -418,7 +429,7 @@ bool CheckSparkMintTransaction(
     }
 
     //checking whether MintTransaction is valid
-    if(!mintTransaction.verify()) {
+    if (!mintTransaction.verify()) {
         return state.DoS(100,
                          false,
                          PUBCOIN_NOT_VALIDATE,
@@ -551,7 +562,7 @@ bool CheckSparkSpendTransaction(
         CSparkTxInfo* sparkTxInfo) {
     std::unordered_set<GroupElement, spark::CLTagHash> txLTags;
 
-    if(tx.vin.size() != 1 || !tx.vin[0].scriptSig.IsSparkSpend()) {
+    if (tx.vin.size() != 1 || !tx.vin[0].scriptSig.IsSparkSpend()) {
         // mixing spark spend input with non-spark inputs is prohibited
         return state.DoS(100, false,
                          REJECT_MALFORMED,
@@ -610,7 +621,7 @@ bool CheckSparkSpendTransaction(
         const auto& script = txout.scriptPubKey;
         if (!script.empty() && script.IsSparkSMint()) {
             vout.push_back(txout);
-        } else if(script.IsSparkMint() ||
+        } else if (script.IsSparkMint() ||
                 script.IsLelantusMint() ||
                 script.IsLelantusJMint() ||
                 script.IsSigmaMint()) {
@@ -652,7 +663,7 @@ bool CheckSparkSpendTransaction(
                 id = idAndHash.first - 1;
             }
             if (id) {
-                if(index->sparkMintedCoins.count(idAndHash.first) > 0) {
+                if (index->sparkMintedCoins.count(idAndHash.first) > 0) {
                     BOOST_FOREACH(
                     const auto& coin,
                     index->sparkMintedCoins[idAndHash.first]) {
@@ -684,7 +695,7 @@ bool CheckSparkSpendTransaction(
 
     // if we are collecting proofs, skip verification and collect proofs
     // add proofs into container
-    if(useBatching) {
+    if (useBatching) {
         passVerify = true;
         batchProofContainer->add(*spend);
     } else {
@@ -732,7 +743,7 @@ bool CheckSparkSpendTransaction(
         return false;
     }
 
-    if(!isVerifyDB && !isCheckWallet) {
+    if (!isVerifyDB && !isCheckWallet) {
         if (sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
             sparkTxInfo->spTransactions.insert(hashTx);
         }
@@ -776,7 +787,7 @@ bool CheckSparkTransaction(
     }
 
     // Check Spark Spend
-    if(tx.IsSparkSpend()) {
+    if (tx.IsSparkSpend()) {
         // First check number of inputs does not exceed transaction limit
         if (GetSpendInputs(tx) > consensus.nMaxLelantusInputPerTransaction) { //TODO levon define spark limits and refactor here
             return state.DoS(100, false,
@@ -809,13 +820,14 @@ bool GetOutPoint(COutPoint& outPoint, const spark::Coin& coin)
     int mintHeight = mintedCoinHeightAndId.first;
     int coinId = mintedCoinHeightAndId.second;
 
-    if(mintHeight==-1 && coinId==-1)
+    if (mintHeight==-1 && coinId==-1)
         return false;
 
     // get block containing mint
     CBlockIndex *mintBlock = chainActive[mintHeight];
     CBlock block;
-    if(!ReadBlockFromDisk(block, mintBlock, ::Params().GetConsensus()))
+    //TODO levon, try to optimize this
+    if (!ReadBlockFromDisk(block, mintBlock, ::Params().GetConsensus()))
         LogPrintf("can't read block from disk.\n");
 
     return GetOutPointFromBlock(outPoint, coin, block);
@@ -825,7 +837,7 @@ bool GetOutPoint(COutPoint& outPoint, const uint256& coinHash)
 {
     spark::Coin coin(Params::get_default());
     spark::CSparkState *sparkState = spark::CSparkState::GetState();
-    if(!sparkState->HasCoinHash(coin, coinHash)) {
+    if (!sparkState->HasCoinHash(coin, coinHash)) {
         return false;
     }
 
@@ -845,7 +857,7 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
                 catch (...) {
                     continue;
                 }
-                if(coin == txCoin){
+                if (coin == txCoin) {
                     outPoint = COutPoint(tx->GetHash(), nIndex);
                     return true;
                 }
@@ -879,7 +891,7 @@ static bool CheckSparkSpendTAg(
 }
 
 /******************************************************************************/
-// CLelantusState
+// CSparkState
 /******************************************************************************/
 
 CSparkState::CSparkState(
@@ -918,7 +930,7 @@ bool CSparkState::HasCoin(const spark::Coin& coin) {
 bool CSparkState::HasCoinHash(spark::Coin& coin, const uint256& coinHash) {
     for (auto it = mintedCoins.begin(); it != mintedCoins.end(); ++it ){
         const spark::Coin& coin_ = (*it).first;
-        if(primitives::GetSparkCoinHash(coin_) == coinHash){
+        if (primitives::GetSparkCoinHash(coin_) == coinHash) {
             coin = coin_;
             return true;
         }

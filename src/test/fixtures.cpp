@@ -323,10 +323,12 @@ SparkTestingSetup::SparkTestingSetup() : params(spark::Params::get_default()) {
 
 CBlockIndex* SparkTestingSetup::GenerateBlock(std::vector<CMutableTransaction> const &txns, CScript *script) {
     auto last = chainActive.Tip();
+
     CreateAndProcessBlock(txns, script ? *script : this->script);
     auto block = chainActive.Tip();
+
     if (block != last) {
-    pwalletMain->ScanForWalletTransactions(block, true);
+        pwalletMain->ScanForWalletTransactions(block, true);
     }
 
     return block != last ? block : nullptr;
@@ -391,6 +393,37 @@ std::vector<CSparkMintMeta> SparkTestingSetup::GenerateMints(
 
     return mints;
 }
+
+std::vector<CTransaction> SparkTestingSetup::GenerateSparkSpend(
+        std::vector<CAmount> const &outs,
+        std::vector<CAmount> const &mints,
+        CCoinControl const *coinControl = nullptr) {
+
+    std::vector<CRecipient> vecs;
+    for (auto const &out : outs) {
+        LOCK(pwalletMain->cs_wallet);
+        auto pub = pwalletMain->GenerateNewKey();
+
+        vecs.push_back(
+                {
+                        GetScriptForDestination(pub.GetID()),
+                        out,
+                        false
+                });
+    }
+
+    CAmount fee;
+    auto txs = pwalletMain->SpendAndStoreSpark(
+            vecs, {}, fee, coinControl);
+
+    std::vector<CTransaction> result;
+    for (auto& itr : txs) {
+        result.push_back(*itr.tx);
+    }
+
+    return result;
+}
+
 
 SparkTestingSetup::~SparkTestingSetup()
 {
