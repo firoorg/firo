@@ -244,20 +244,20 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     frameBlocksLayout->addStretch();
 
     // Notification for pending transactions
-    QFrame *framePending = new QFrame();
-    framePending->setContentsMargins(0,0,0,0);
-    framePending->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
-    QHBoxLayout *framePendingLayout = new QHBoxLayout(framePending);
-    framePendingLayout->setContentsMargins(3,0,3,0);
-    framePendingLayout->setSpacing(3);
-    framePendingLayout->addStretch();
-    labelElysiumPendingIcon = new QLabel();
-    labelElysiumPendingText = new QLabel("You have Elysium transactions awaiting confirmation.");
-    framePendingLayout->addWidget(labelElysiumPendingIcon);
-    framePendingLayout->addWidget(labelElysiumPendingText);
-    framePendingLayout->addStretch();
-    labelElysiumPendingIcon->hide();
-    labelElysiumPendingText->hide();
+    // QFrame *framePending = new QFrame();
+    // framePending->setContentsMargins(0,0,0,0);
+    // framePending->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+    // QHBoxLayout *framePendingLayout = new QHBoxLayout(framePending);
+    // framePendingLayout->setContentsMargins(3,0,3,0);
+    // framePendingLayout->setSpacing(3);
+    // framePendingLayout->addStretch();
+    // labelElysiumPendingIcon = new QLabel();
+    // labelElysiumPendingText = new QLabel("You have Elysium transactions awaiting confirmation.");
+    // framePendingLayout->addWidget(labelElysiumPendingIcon);
+    // framePendingLayout->addWidget(labelElysiumPendingText);
+    // framePendingLayout->addStretch();
+    // labelElysiumPendingIcon->hide();
+    // labelElysiumPendingText->hide();
 
     // Progress bar and label for blocks download
     progressBarLabel = new QLabel();
@@ -275,7 +275,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
         progressBar->setStyleSheet("QProgressBar { background-color: #e8e8e8; border: 1px solid grey; border-radius: 7px; padding: 1px; text-align: center; } QProgressBar::chunk { background: QLinearGradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 #FF8000, stop: 1 orange); border-radius: 7px; margin: 0px; }");
     }
 
-    statusBar()->addWidget(framePending);
+    // statusBar()->addWidget(framePending);
     statusBar()->addWidget(progressBarLabel);
     statusBar()->addWidget(progressBar);
     statusBar()->addPermanentWidget(frameBlocks);
@@ -415,6 +415,7 @@ void BitcoinGUI::createActions()
     createPcodeAction->setCheckable(true);
     createPcodeAction->setShortcut(QKeySequence(Qt::ALT + key++));
     tabGroup->addAction(createPcodeAction);
+    createPcodeAction->setVisible(false);
 
 #ifdef ENABLE_WALLET
     connect(masternodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -649,6 +650,11 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
 
             // update lelantus page if option is changed.
             connect(optionsModel,SIGNAL(lelantusPageChanged(bool)),this,SLOT(updateLelantusPage()));
+
+            // update RAP Addresses page if option is changed.
+            connect(optionsModel, &OptionsModel::enableRapAddressesChanged, this, &BitcoinGUI::setRapAddressesVisible);
+            setRapAddressesVisible(optionsModel->getRapAddresses());
+            // createPcodeAction->setVisible(optionsModel->getRapAddresses());
 
             // initialize the disable state of the tray icon with the current value in the model.
             setTrayIconVisible(optionsModel->getHideTrayIcon());
@@ -1457,6 +1463,12 @@ void BitcoinGUI::updateLelantusPage()
 {
     auto blocks = clientModel->getNumBlocks();
     checkLelantusVisibility(blocks);
+}
+
+void BitcoinGUI::setRapAddressesVisible(bool checked)
+{
+    gotoOverviewPage();
+    createPcodeAction->setVisible(checked)
 }
 
 static bool ThreadSafeMessageBox(BitcoinGUI *gui, const std::string& message, const std::string& caption, unsigned int style)
