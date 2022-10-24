@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>760</width>
-    <height>640</height>
+    <width>660</width>
+    <height>540</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -180,16 +180,6 @@
              </property>
              <property name="text">
                 <string>Display RAP addresses</string>
-             </property>
-            </widget>
-          </item>
-          <item>
-            <widget class="QCheckBox" name="enableRestoreScreen">
-             <property name="toolTip">
-                <string>Whether to show Restore screen or not.</string>
-             </property>
-             <property name="text">
-                <string>Display Restore screen</string>
              </property>
             </widget>
           </item>
