@@ -393,7 +393,9 @@ bool SpendTransaction::verify(
 		}
 
 		// Verify the batch
-		grootle.verify(S, S1, V, V1, cover_set_representations, sizes, proofs);
+		if (!grootle.verify(S, S1, V, V1, cover_set_representations, sizes, proofs)) {
+            return false;
+        }
 	}
 
 	// Any failures have been identified already, so the batch is valid
@@ -403,7 +405,7 @@ bool SpendTransaction::verify(
 // Hash-to-scalar function H_bind
 Scalar SpendTransaction::hash_bind(
     const std::vector<Coin>& out_coins,
-    const uint64_t f,
+    const uint64_t f_,
 	const std::unordered_map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
     const std::vector<GroupElement>& S1,
     const std::vector<GroupElement>& C1,
@@ -418,7 +420,7 @@ Scalar SpendTransaction::hash_bind(
 
 	// Perform the serialization and hashing
     stream << out_coins;
-    stream << f;
+    stream << f_;
 	stream << cover_set_representations;
     stream << S1;
     stream << C1;

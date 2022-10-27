@@ -157,8 +157,9 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
     if (tx.vin[0].scriptSig[0] == OP_SPARKSPEND && tx.nVersion >= 3 && tx.nType == TRANSACTION_SPARK) {
         serialized.write((const char *)tx.vExtraPayload.data(), tx.vExtraPayload.size());
     }
-    else
+    else {
         throw CBadTxIn();
+    }
     const spark::Params* params = spark::Params::get_default();
     spark::SpendTransaction spendTransaction(params);
     serialized >> spendTransaction;
@@ -361,7 +362,7 @@ void RemoveSpendReferencingBlock(CTxMemPool& pool, CBlockIndex* blockIndex) {
 void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
     sparkState.RemoveBlock(pindexDelete);
 
-    // Also remove from mempool lelantus joinsplits that reference given block hash.
+    // Also remove from mempool spends that reference given block hash.
     RemoveSpendReferencingBlock(mempool, pindexDelete);
     RemoveSpendReferencingBlock(txpools.getStemTxPool(), pindexDelete);
 }
@@ -574,7 +575,7 @@ bool CheckSparkSpendTransaction(
     if (!isVerifyDB) {
             if (height >= params.nSparkStartBlock) {
                 // data should be moved to v3 payload
-                if (tx.nVersion < 3 || tx.nType != TRANSACTION_LELANTUS)
+                if (tx.nVersion < 3 || tx.nType != TRANSACTION_SPARK)
                     return state.DoS(100, false, NSEQUENCE_INCORRECT,
                                      "CheckSparkSpendTransaction: spark data should reside in transaction payload");
             }
@@ -599,12 +600,15 @@ bool CheckSparkSpendTransaction(
     }
 
     uint256 txHashForMetadata;
-
-    // Obtain the hash of the transaction sans the zerocoin part
+    // Obtain the hash of the transaction sans the Spark part
     CMutableTransaction txTemp = tx;
-    txTemp.vin[0].scriptSig.clear();
     txTemp.vExtraPayload.clear();
-
+    for (auto itr = txTemp.vout.begin(); itr < txTemp.vout.end(); ++itr) {
+        if (itr->scriptPubKey.IsSparkSMint()) {
+            txTemp.vout.erase(itr);
+            --itr;
+        }
+    }
     txHashForMetadata = txTemp.GetHash();
 
     LogPrintf("CheckSparkSpendTransaction: tx metadata hash=%s\n", txHashForMetadata.ToString());
@@ -636,7 +640,6 @@ bool CheckSparkSpendTransaction(
     if (!CheckSparkSMintTransaction(vout, state, hashTx, fStatefulSigmaCheck, out_coins, sparkTxInfo))
         return false;
     spend->setOutCoins(out_coins);
-
     std::unordered_map<uint64_t, std::vector<Coin>> cover_sets;
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
     const auto idAndBlockHashes = spend->getBlockHashes();
@@ -678,7 +681,7 @@ bool CheckSparkSpendTransaction(
         }
 
         // take the hash from last block of anonymity set
-        std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, idAndHash.first);
+        std::vector<unsigned char> set_hash = GetAnonymitySetHash(coinGroup.lastBlock, idAndHash.first);
         CoverSetData setData;
         setData.cover_set = cover_set;
         if (!set_hash.empty())
@@ -689,6 +692,7 @@ bool CheckSparkSpendTransaction(
         cover_set_data [idAndHash.first] = setData;
     }
     spend->setCoverSets(cover_set_data);
+    spend->setVout(Vout);
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
     bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
@@ -699,7 +703,11 @@ bool CheckSparkSpendTransaction(
         passVerify = true;
         batchProofContainer->add(*spend);
     } else {
-        passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
+        try {
+            passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
+        } catch (...) {
+            passVerify = false;
+        }
     }
 
     if (passVerify) {

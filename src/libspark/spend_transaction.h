@@ -62,7 +62,7 @@ public:
     
 	static Scalar hash_bind(
         const std::vector<Coin>& out_coins,
-        const uint64_t f,
+        const uint64_t f_,
 		const std::unordered_map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
         const std::vector<GroupElement>& S1,
         const std::vector<GroupElement>& C1,

@@ -56,7 +56,11 @@ public:
     void eraseMint(const uint256& hash, CWalletDB& walletdb);
     // add mint meta data to memory and to db
     void addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb);
+    void updateMintInMemory(const CSparkMintMeta& mint);
+    // get mint meta from linking tag hash
     CSparkMintMeta getMintMeta(const uint256& hash);
+    // get mint tag from nonce
+    CSparkMintMeta getMintMeta(const secp_primitives::Scalar& nonce);
 
     void UpdateSpendState(const GroupElement& lTag, const uint256& lTagHash, const uint256& txHash, bool fUpdateMint = true);
     void UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint = true);
@@ -64,6 +68,8 @@ public:
     void UpdateMintState(const std::vector<spark::Coin>& coins, const uint256& txHash);
     void UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins, const uint256& txHash);
     void UpdateMintStateFromBlock(const CBlock& block);
+    void RemoveSparkMints(const std::vector<spark::Coin>& mints);
+    void RemoveSparkSpends(const std::unordered_map<GroupElement, int>& spends);
     // get the vector of mint metadata for a single address
     std::vector<CSparkMintMeta> listAddressCoins(const int32_t& i, bool fUnusedOnly = false);
 

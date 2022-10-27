@@ -473,7 +473,8 @@ public:
             || (vin[0].scriptSig[0] != OP_ZEROCOINSPEND
             && vin[0].scriptSig[0] != OP_ZEROCOINTOSIGMAREMINT
             && vin[0].scriptSig[0] != OP_LELANTUSJOINSPLIT
-            && vin[0].scriptSig[0] != OP_LELANTUSJOINSPLITPAYLOAD)));
+            && vin[0].scriptSig[0] != OP_LELANTUSJOINSPLITPAYLOAD
+            && vin[0].scriptSig[0] != OP_SPARKSPEND)));
     }
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)

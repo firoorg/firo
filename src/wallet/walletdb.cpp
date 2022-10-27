@@ -1811,8 +1811,8 @@ bool CWalletDB::HasSparkSpendEntry(const secp_primitives::GroupElement& lTag) {
     return Exists(std::make_pair(std::string("spark_spend"), lTag));
 }
 
-bool CWalletDB::EraseSparkSpendEntry(const CSparkSpendEntry& sparkSpend) {
-    return Erase(std::make_pair(std::string("spark_spend"), sparkSpend.lTag));
+bool CWalletDB::EraseSparkSpendEntry(const secp_primitives::GroupElement& lTag) {
+    return Erase(std::make_pair(std::string("spark_spend"), lTag));
 }
 
 /******************************************************************************/

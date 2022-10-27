@@ -75,7 +75,7 @@ CAmount CSparkWallet::getAvailableBalance() {
             continue;
 
         // Not confirmed
-        if (!mint.nHeight)
+        if (mint.nHeight < 1)
             continue;
 
         result += mint.v;
@@ -92,7 +92,7 @@ CAmount CSparkWallet::getUnconfirmedBalance() {
             continue;
 
         // Continue if confirmed
-        if (mint.nHeight)
+        if (mint.nHeight > 1)
             continue;
 
         result += mint.v;
@@ -172,7 +172,7 @@ std::vector<CSparkMintMeta> CSparkWallet::ListSparkMints(bool fUnusedOnly, bool 
             continue;
 
         // Not confirmed
-        if (fMatureOnly && !mint.nHeight)
+        if (fMatureOnly && mint.nHeight < 1)
             continue;
 
         setMints.push_back(mint);
@@ -202,6 +202,7 @@ void CSparkWallet::eraseMint(const uint256& hash, CWalletDB& walletdb) {
     walletdb.EraseSparkMint(hash);
     coinMeta.erase(hash);
 }
+
 void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb) {
     if (mint.i > lastDiversifier) {
         lastDiversifier = mint.i;
@@ -211,9 +212,27 @@ void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lT
     walletdb.WriteSparkMint(lTagHash, mint);
 }
 
+void CSparkWallet::updateMintInMemory(const CSparkMintMeta& mint) {
+    for (auto& itr : coinMeta) {
+        if (itr.second == mint) {
+            coinMeta[itr.first] = mint;
+            break;
+        }
+    }
+}
+
 CSparkMintMeta CSparkWallet::getMintMeta(const uint256& hash) {
     if (coinMeta.count(hash))
         return coinMeta[hash];
+    return CSparkMintMeta();
+}
+
+CSparkMintMeta CSparkWallet::getMintMeta(const secp_primitives::Scalar& nonce) {
+    for (const auto& meta : coinMeta) {
+        if (meta.second.k == nonce)
+            return meta.second;
+    }
+
     return CSparkMintMeta();
 }
 
@@ -333,6 +352,35 @@ void CSparkWallet::UpdateMintStateFromBlock(const CBlock& block) {
     }
 }
 
+void CSparkWallet::RemoveSparkMints(const std::vector<spark::Coin>& mints) {
+    for (auto coin : mints) {
+        try {
+            spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
+            spark::RecoveredCoinData recoveredCoinData = coin.recover(this->fullViewKey, identifiedCoinData);
+
+            CWalletDB walletdb(strWalletFile);
+            uint256 lTagHash = primitives::GetLTagHash(recoveredCoinData.T);
+
+            eraseMint(lTagHash, walletdb);
+        } catch (const std::runtime_error &e) {
+            continue;
+        }
+    }
+}
+
+
+void CSparkWallet::RemoveSparkSpends(const std::unordered_map<GroupElement, int>& spends) {
+    for (const auto& spend : spends) {
+        uint256 lTagHash = primitives::GetLTagHash(spend.first);
+        if (coinMeta.count(lTagHash)) {
+            auto mintMeta = coinMeta[lTagHash];
+            mintMeta.isUsed = false;
+            CWalletDB walletdb(strWalletFile);
+            addOrUpdateMint(mintMeta, lTagHash, walletdb);
+            walletdb.EraseSparkSpendEntry(spend.first);
+        }
+    }
+}
 
 
 std::vector<CSparkMintMeta> CSparkWallet::listAddressCoins(const int32_t& i, bool fUnusedOnly) {
@@ -367,7 +415,7 @@ std::vector<CRecipient> CSparkWallet::CreateSparkMintRecipients(
     std::vector<CDataStream> serializedCoins = sparkMint.getMintedCoinsSerialized();
 
     if (outputs.size() != serializedCoins.size())
-        throw std::runtime_error("Spark mit output number should be equal to required number.");
+        throw std::runtime_error("Spark mint output number should be equal to required number.");
 
     std::vector<CRecipient> results;
     results.reserve(outputs.size());
@@ -1033,7 +1081,9 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
 
                 // fill inputs
                 uint32_t sequence = CTxIn::SEQUENCE_FINAL;
-                tx.vin.emplace_back(COutPoint(), CScript(), sequence);
+                CScript script;
+                script << OP_SPARKSPEND;
+                tx.vin.emplace_back(COutPoint(), script, sequence);
 
                 // clear vExtraPayload to calculate metadata hash correctly
                 tx.vExtraPayload.clear();
@@ -1108,6 +1158,11 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
 
                 spark::SpendTransaction spendTransaction(params, fullViewKey, spendKey, inputs, cover_set_data, fee, transparentOut, privOutputs);
                 spendTransaction.setBlockHashes(idAndBlockHashes);
+                CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+                serialized << spendTransaction;
+                tx.vExtraPayload.assign(serialized.begin(), serialized.end());
+
+
                 const std::vector<spark::Coin>& outCoins = spendTransaction.getOutCoins();
                 for (auto& outCoin : outCoins) {
                     // construct spend script
