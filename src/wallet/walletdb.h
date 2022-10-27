@@ -311,7 +311,7 @@ public:
     bool WriteSparkSpendEntry(const CSparkSpendEntry& sparkSpend);
     bool ReadSparkSpendEntry(const secp_primitives::GroupElement& lTag, CSparkSpendEntry& sparkSpend);
     bool HasSparkSpendEntry(const secp_primitives::GroupElement& lTag);
-    bool EraseSparkSpendEntry(const CSparkSpendEntry& sparkSpend);
+    bool EraseSparkSpendEntry(const secp_primitives::GroupElement& lTag);
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);

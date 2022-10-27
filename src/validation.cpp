@@ -538,7 +538,7 @@ int64_t GetTransactionSigOpCost(const CTransaction &tx, const CCoinsViewCache &i
 {
     int64_t nSigOps = GetLegacySigOpCount(tx) * WITNESS_SCALE_FACTOR;
 
-    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsLelantusJoinSplit())
+    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsLelantusJoinSplit() || tx.IsSparkSpend())
         return nSigOps;
 
     if (flags & SCRIPT_VERIFY_P2SH) {
@@ -648,7 +648,8 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         for (const auto& txin : tx.vin)
             if (txin.prevout.IsNull() && !(txin.scriptSig.IsZerocoinSpend()
                 || txin.IsZerocoinRemint()
-                || txin.IsLelantusJoinSplit() ))
+                || txin.IsLelantusJoinSplit()
+                || tx.IsSparkSpend()))
                 return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 
         if (tx.IsZerocoinV3SigmaTransaction()) {
@@ -2523,6 +2524,14 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
                 // do nothing
             }
         }
+        else if (tx.IsSparkSpend()) {
+            try {
+                nFees = spark::ParseSparkSpend(tx).getFee();
+            }
+            catch (...) {
+                // do nothing
+            }
+        }
 
         dbIndexHelper.DisconnectTransactionInputs(tx, pindex->nHeight, i, view);
     }
@@ -2871,7 +2880,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             return state.DoS(100, error("ConnectBlock(): invalid joinsplit tx"),
                              REJECT_INVALID, "bad-txns-input-invalid");
 
-
         if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit() && !tx.IsSparkSpend())
         {
             if (!view.HaveInputs(tx))
@@ -2981,7 +2989,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     block.sigmaTxInfo->Complete();
     block.lelantusTxInfo->Complete();
     block.sparkTxInfo->Complete();
-
 
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint("bench", "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs]\n", (unsigned)block.vtx.size(), 0.001 * (nTime3 - nTime2), 0.001 * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : 0.001 * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * 0.000001);
@@ -3116,7 +3123,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     if (fSpentIndex)
         if (!pblocktree->UpdateSpentIndex(dbIndexHelper.getSpentIndex()))
             return AbortNode(state, "Failed to write transaction index");
-
 
     if (fTimestampIndex)
         if (!pblocktree->WriteTimestampIndex(CTimestampIndexKey(pindex->nTime, pindex->GetBlockHash())))
@@ -3471,7 +3477,6 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
     block.sparkTxInfo = std::make_shared<spark::CSparkTxInfo>();
 
-
     std::unordered_map<Scalar, int> lelantusSerialsToRemove;
     std::vector<lelantus::RangeProof> rangeProofsToRemove;
     sigma::spend_info_container sigmaSerialsToRemove;
@@ -3629,6 +3634,14 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
         if (block.lelantusTxInfo->mints.size() > 0) {
             pwalletMain->zwallet->GetTracker().UpdateMintStateFromBlock(block.lelantusTxInfo->mints);
         }
+
+        if (block.sparkTxInfo->spentLTags.size() > 0) {
+            pwalletMain->sparkWallet->RemoveSparkSpends(block.sparkTxInfo->spentLTags);
+        }
+
+        if (block.sparkTxInfo->mints.size() > 0) {
+            pwalletMain->sparkWallet->RemoveSparkMints(block.sparkTxInfo->mints);
+        }
     }
 #endif
 
@@ -3784,7 +3797,7 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
         }
 
         if (blockConnecting.sparkTxInfo->spentLTags.size() > 0) {
-            LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
+            LogPrintf("SparkWallet: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
             pwalletMain->sparkWallet->UpdateSpendStateFromBlock(blockConnecting);
         }
 

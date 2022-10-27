@@ -256,7 +256,7 @@ bool CTransaction::IsZerocoinRemint() const
 }
 
 bool CTransaction::HasNoRegularInputs() const {
-    return IsZerocoinSpend() || IsSigmaSpend() || IsZerocoinRemint() || IsLelantusJoinSplit();
+    return IsZerocoinSpend() || IsSigmaSpend() || IsZerocoinRemint() || IsLelantusJoinSplit() || IsSparkSpend();
 }
 
 unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const

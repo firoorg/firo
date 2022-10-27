@@ -22,6 +22,16 @@ struct CSparkMintMeta
 
     uint256 GetNonceHash() const;
 
+    bool operator==(const CSparkMintMeta& other)
+    {
+        return this->k == other.k;
+    }
+
+    bool operator!=(const CSparkMintMeta& other)
+    {
+        return this->k != other.k;
+    }
+
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>

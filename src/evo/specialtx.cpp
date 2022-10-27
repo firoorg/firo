@@ -73,6 +73,8 @@ bool ProcessSpecialTx(const CTransaction& tx, const CBlockIndex* pindex, CValida
         return true;
     case TRANSACTION_LELANTUS:
         return true;
+    case TRANSACTION_SPARK:
+        return true;
     }
 
     return state.DoS(100, false, REJECT_INVALID, "bad-tx-type-proc");
@@ -97,6 +99,8 @@ bool UndoSpecialTx(const CTransaction& tx, const CBlockIndex* pindex)
     case TRANSACTION_SPORK:
         return true;
     case TRANSACTION_LELANTUS:
+        return true;
+    case TRANSACTION_SPARK:
         return true;
     }
 

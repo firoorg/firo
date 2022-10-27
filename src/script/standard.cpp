@@ -120,7 +120,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::v
     if (scriptPubKey.IsSparkMint())
     {
         typeRet = TX_SPARKMINT;
-        if (scriptPubKey.size() < 213 && scriptPubKey.size() < 279) return false;
+        if (scriptPubKey.size() < 213) return false;
         vSolutionsRet.emplace_back(scriptPubKey.begin() + 1, scriptPubKey.end());
         return true;
     }
@@ -128,7 +128,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::v
     if (scriptPubKey.IsSparkSMint())
     {
         typeRet = TX_SPARKSMINT;
-//        if (scriptPubKey.size() < 213 && scriptPubKey.size() < 279) return false;
+        if (scriptPubKey.size() < 213) return false;
         vSolutionsRet.emplace_back(scriptPubKey.begin() + 1, scriptPubKey.end());
         return true;
     }
