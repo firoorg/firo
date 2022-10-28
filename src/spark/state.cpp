@@ -67,6 +67,16 @@ bool IsSparkAllowed(int height)
     return height >= ::Params().GetConsensus().nSparkStartBlock;
 }
 
+unsigned char GetNetworkType() {
+    if (::Params().GetConsensus().IsMain())
+        return ADDRESS_NETWORK_MAINNET;
+    else if (::Params().GetConsensus().IsTestnet())
+        return ADDRESS_NETWORK_TESTNET;
+    else if (::Params().GetConsensus().IsDevnet())
+        return ADDRESS_NETWORK_DEVNET;
+    else
+        return ADDRESS_NETWORK_REGTEST;
+}
 
 /*
  * Util funtions

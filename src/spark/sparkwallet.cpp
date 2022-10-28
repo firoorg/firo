@@ -953,8 +953,7 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
 
     assert(tx.nLockTime <= static_cast<unsigned>(chainActive.Height()));
     assert(tx.nLockTime < LOCKTIME_THRESHOLD);
-    CWalletDB walletdb(strWalletFile);
-    std::list<std::pair<spark::Coin, CSparkMintMeta>> coins = GetAvailableSparkCoins(walletdb, coinControl);
+    std::list<std::pair<spark::Coin, CSparkMintMeta>> coins = GetAvailableSparkCoins(coinControl);
     // TODO levon check spend limit
     std::vector<std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>>> estimated =
             SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size(), recipients.size(), coinControl);
@@ -1377,7 +1376,7 @@ std::vector<std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta
     return result;
 }
 
-std::list<std::pair<spark::Coin, CSparkMintMeta>> CSparkWallet::GetAvailableSparkCoins(CWalletDB& walletdb, const CCoinControl *coinControl) const {
+std::list<std::pair<spark::Coin, CSparkMintMeta>> CSparkWallet::GetAvailableSparkCoins(const CCoinControl *coinControl) const {
     std::list<std::pair<spark::Coin, CSparkMintMeta>> coins;
     // get all unsued coins from spark wallet
     std::vector<CSparkMintMeta> vecMints = this->ListSparkMints(true, true);

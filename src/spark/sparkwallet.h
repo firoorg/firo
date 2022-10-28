@@ -107,7 +107,7 @@ public:
             const CCoinControl *coinControl);
 
     // Returns the list of pairs of coins and metadata for that coin,
-    std::list<std::pair<spark::Coin, CSparkMintMeta>> GetAvailableSparkCoins(CWalletDB& walletdb, const CCoinControl *coinControl = NULL) const;
+    std::list<std::pair<spark::Coin, CSparkMintMeta>> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
 
 private:
     std::string strWalletFile;
