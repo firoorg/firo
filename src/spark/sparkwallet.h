@@ -25,6 +25,7 @@ public:
 
     // increment diversifier and generate address for that
     spark::Address generateNextAddress();
+    spark::Address generateNewAddress();
     spark::Address getDefaultAddress();
     // assign difersifier to the value from db
     void resetDiversifierFromDB(CWalletDB& walletdb);
@@ -32,7 +33,7 @@ public:
     void updatetDiversifierInDB(CWalletDB& walletdb);
 
     // functions for key set generation
-    spark::SpendKey generateSpendKey();
+    spark::SpendKey generateSpendKey(const spark::Params* params);
     spark::FullViewKey generateFullViewKey(const spark::SpendKey& spend_key);
     spark::IncomingViewKey generateIncomingViewKey(const spark::FullViewKey& full_view_key);
 

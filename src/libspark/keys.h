@@ -14,7 +14,6 @@ using namespace secp_primitives;
 
 class SpendKey {
 public:
-	SpendKey();
 	SpendKey(const Params* params);
     SpendKey(const Params* params, const Scalar& r_);
 	const Params* get_params() const;

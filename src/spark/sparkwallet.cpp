@@ -1,4 +1,4 @@
-#include "wallet.h"
+#include "sparkwallet.h"
 #include "../wallet/wallet.h"
 #include "../wallet/coincontrol.h"
 #include "../wallet/walletexcept.h"
@@ -17,6 +17,7 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
     CWalletDB walletdb(strWalletFile);
     this->strWalletFile = strWalletFile;
     const spark::Params* params = spark::Params::get_default();
+    fullViewKey = spark::FullViewKey(params);
     viewKey = spark::IncomingViewKey(params);
 
     // try to get incoming view key from db, if it fails, that means it is first start
@@ -26,7 +27,7 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
             return;
         }
         // Generating spark key set first time
-        spark::SpendKey spendKey = generateSpendKey();
+        spark::SpendKey spendKey = generateSpendKey(params);
         fullViewKey = generateFullViewKey(spendKey);
         viewKey = generateIncomingViewKey(fullViewKey);
 
@@ -106,6 +107,16 @@ spark::Address CSparkWallet::generateNextAddress() {
     return spark::Address(viewKey, lastDiversifier);
 }
 
+spark::Address CSparkWallet::generateNewAddress() {
+    lastDiversifier++;
+    spark::Address address(viewKey, lastDiversifier);
+
+    addresses[lastDiversifier] = address;
+    CWalletDB walletdb(strWalletFile);
+    updatetDiversifierInDB(walletdb);
+    return  address;
+}
+
 spark::Address CSparkWallet::getDefaultAddress() {
     if (addresses.count(0))
         return addresses[0];
@@ -113,10 +124,10 @@ spark::Address CSparkWallet::getDefaultAddress() {
     return spark::Address(viewKey, lastDiversifier);
 }
 
-spark::SpendKey CSparkWallet::generateSpendKey() {
+spark::SpendKey CSparkWallet::generateSpendKey(const spark::Params* params) {
     if (pwalletMain->IsLocked()) {
         LogPrintf("Spark spend key generation FAILED, wallet is locked\n");
-        return spark::SpendKey();
+        return spark::SpendKey(params);
     }
 
     CKey secret;
@@ -138,7 +149,6 @@ spark::SpendKey CSparkWallet::generateSpendKey() {
 
     secp_primitives::Scalar r;
     r.memberFromSeed(hash);
-    const spark::Params* params = spark::Params::get_default();
     spark::SpendKey key(params, r);
     return key;
 }
@@ -989,15 +999,16 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
         {
+            const spark::Params* params = spark::Params::get_default();
             spark::CSparkState *sparkState = spark::CSparkState::GetState();
-            spark::SpendKey spendKey;
+            spark::SpendKey spendKey(params);
             try {
-                spendKey = std::move(generateSpendKey());
+                spendKey = std::move(generateSpendKey(params));
             } catch (std::exception& e) {
                 throw std::runtime_error(_("Unable to generate spend key."));
             }
 
-            if (spendKey == spark::SpendKey())
+            if (spendKey == spark::SpendKey(params))
                 throw std::runtime_error(_("Unable to generate spend key, looks wallet locked."));
 
 
@@ -1096,7 +1107,6 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
                 // We will write this into cover set representation, with anonymity set hash
                 uint256 sig = tx.GetHash();
 
-                const spark::Params* params = spark::Params::get_default();
                 std::vector<spark::InputCoinData> inputs;
                 std::map<uint64_t, uint256> idAndBlockHashes;
                 std::unordered_map<uint64_t, spark::CoverSetData> cover_set_data;
@@ -1390,11 +1400,6 @@ std::list<std::pair<spark::Coin, CSparkMintMeta>> CSparkWallet::GetAvailableSpar
             return true;
         }
 
-        // ignore if coin is locked
-        if (lockedCoins.count(outPoint) > 0){
-            return true;
-        }
-
         // if we are using coincontrol, filter out unselected coins
         if (coinControl != NULL){
             if (coinControl->HasSelected()){
@@ -1402,6 +1407,11 @@ std::list<std::pair<spark::Coin, CSparkMintMeta>> CSparkWallet::GetAvailableSpar
                     return true;
                 }
             }
+        }
+
+        // ignore if coin is locked
+        if (lockedCoins.count(outPoint) > 0){
+            return true;
         }
 
         return false;

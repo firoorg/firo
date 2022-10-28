@@ -371,7 +371,6 @@ bool CheckSparkBlock(CValidationState &state, const CBlock& block) {
     auto& consensus = ::Params().GetConsensus();
 
     size_t blockSpendsAmount = 0;
-    CAmount blockSpendsValue(0);
 
     for (const auto& tx : block.vtx) {
         auto txSpendsValue =  GetSpendTransparentAmount(*tx);
@@ -388,15 +387,9 @@ bool CheckSparkBlock(CValidationState &state, const CBlock& block) {
         }
 
         blockSpendsAmount += txSpendNumber;
-        blockSpendsValue += txSpendsValue;
     }
 
     if (blockSpendsAmount > consensus.nMaxLelantusInputPerBlock) {
-        return state.DoS(100, false, REJECT_INVALID,
-                         "bad-txns-spark-spend-invalid");
-    }
-
-    if (blockSpendsValue > consensus.nMaxValueLelantusSpendPerBlock) {
         return state.DoS(100, false, REJECT_INVALID,
                          "bad-txns-spark-spend-invalid");
     }

@@ -218,7 +218,7 @@ BITCOIN_CORE_H = \
   wallet/sigmaspendbuilder.h \
   wallet/txbuilder.h \
   wallet/lelantusjoinsplitbuilder.h \
-  spark/wallet.h \
+  spark/sparkwallet.h \
   spark/primitives.h \
   wallet/wallet.h \
   wallet/walletexcept.h \
@@ -445,7 +445,7 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/lelantusjoinsplitbuilder.cpp \
   wallet/walletexcept.cpp \
   wallet/wallet.cpp \
-  spark/wallet.cpp \
+  spark/sparkwallet.cpp \
   spark/primitives.cpp \
   wallet/walletdb.cpp \
   wallet/authhelper.cpp \
