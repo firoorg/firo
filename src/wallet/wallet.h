@@ -20,7 +20,7 @@
 #include "wallet/walletdb.h"
 #include "wallet/rpcwallet.h"
 #include "wallet/mnemoniccontainer.h"
-#include "../spark/wallet.h"
+#include "../spark/sparkwallet.h"
 #include "../base58.h"
 #include "firo_params.h"
 #include "univalue.h"

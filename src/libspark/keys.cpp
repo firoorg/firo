@@ -5,7 +5,6 @@ namespace spark {
 
 using namespace secp_primitives;
 
-SpendKey::SpendKey() {}
 SpendKey::SpendKey(const Params* params) {
 	this->params = params;
 	this->s1.randomize();

@@ -157,6 +157,8 @@ bool Chaum::verify(
     }
 
     secp_primitives::MultiExponent multiexp(points, scalars);
+    // merged equalities and doing check in one multiexponentation,
+    // for weighting we use random w
     return multiexp.get_multiple().isInfinity();
 }
 
