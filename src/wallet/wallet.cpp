@@ -2815,9 +2815,7 @@ std::list<std::pair<spark::Coin, CSparkMintMeta>> CWallet::GetAvailableSparkCoin
     EnsureSparkWalletAvailable();
 
     LOCK2(cs_main, cs_wallet);
-    CWalletDB walletdb(strWalletFile);
-
-     return sparkWallet->GetAvailableSparkCoins(walletdb, coinControl);
+    return sparkWallet->GetAvailableSparkCoins(coinControl);
 }
 
 // coinsIn has to be sorted in descending order.

@@ -70,6 +70,8 @@ const unsigned char ADDRESS_ENCODING_PREFIX = 'p';
 // TODO: Extend/update/replace these as needed! These are just initial examples
 const unsigned char ADDRESS_NETWORK_MAINNET = 'm';
 const unsigned char ADDRESS_NETWORK_TESTNET = 't';
+const unsigned char ADDRESS_NETWORK_REGTEST = 'r';
+const unsigned char ADDRESS_NETWORK_DEVNET =  'd';
 
 class SparkUtils {
 public:
