@@ -43,6 +43,8 @@ public:
     spark::Address getAddress(const int32_t& i);
     // list spark mint, mint metadata in memory and in db should be the same at this moment, so get from memory
     std::vector<CSparkMintMeta> ListSparkMints(bool fUnusedOnly = false, bool fMatureOnly = false) const;
+    std::list<CSparkSpendEntry> ListSparkSpends() const;
+    std::unordered_map<uint256, CSparkMintMeta> getMintMap() const;
     // generate spark Coin from meta data
     spark::Coin getCoinFromMeta(const CSparkMintMeta& meta) const;
 
@@ -51,12 +53,18 @@ public:
     CAmount getAvailableBalance();
     CAmount getUnconfirmedBalance();
 
+    CAmount getAddressFullBalance(const spark::Address& address);
+    CAmount getAddressAvailableBalance(const spark::Address& address);
+    CAmount getAddressUnconfirmedBalance(const spark::Address& address);
+
     // function to be used for zap wallet
     void clearAllMints(CWalletDB& walletdb);
     // erase mint meta data from memory and from db
     void eraseMint(const uint256& hash, CWalletDB& walletdb);
     // add mint meta data to memory and to db
     void addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb);
+    void updateMint(const CSparkMintMeta& mint, CWalletDB& walletdb);
+
     void updateMintInMemory(const CSparkMintMeta& mint);
     // get mint meta from linking tag hash
     CSparkMintMeta getMintMeta(const uint256& hash);

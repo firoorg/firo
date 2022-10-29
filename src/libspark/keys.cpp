@@ -140,6 +140,11 @@ uint64_t IncomingViewKey::get_diversifier(const std::vector<unsigned char>& d) c
 }
 
 Address::Address() {}
+
+Address::Address(const Params* params) {
+    this->params = params;
+}
+
 Address::Address(const IncomingViewKey& incoming_view_key, const uint64_t i) {
 	// Encrypt the diversifier
 	std::vector<unsigned char> key = SparkUtils::kdf_diversifier(incoming_view_key.get_s1());

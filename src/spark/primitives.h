@@ -22,12 +22,12 @@ struct CSparkMintMeta
 
     uint256 GetNonceHash() const;
 
-    bool operator==(const CSparkMintMeta& other)
+    bool operator==(const CSparkMintMeta& other) const
     {
         return this->k == other.k;
     }
 
-    bool operator!=(const CSparkMintMeta& other)
+    bool operator!=(const CSparkMintMeta& other) const
     {
         return this->k != other.k;
     }
