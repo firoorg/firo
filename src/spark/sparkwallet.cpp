@@ -81,6 +81,7 @@ CAmount CSparkWallet::getAvailableBalance() {
 
         result += mint.v;
     }
+
     return result;
 }
 
@@ -94,6 +95,52 @@ CAmount CSparkWallet::getUnconfirmedBalance() {
 
         // Continue if confirmed
         if (mint.nHeight > 1)
+            continue;
+
+        result += mint.v;
+    }
+
+    return result;
+}
+
+CAmount CSparkWallet::getAddressFullBalance(const spark::Address& address) {
+    return getAddressAvailableBalance(address) + getAddressUnconfirmedBalance(address);
+}
+
+CAmount CSparkWallet::getAddressAvailableBalance(const spark::Address& address) {
+    CAmount result = 0;
+    for (auto& it : coinMeta) {
+        CSparkMintMeta mint = it.second;
+
+        if (mint.isUsed)
+            continue;
+
+        // Not confirmed
+        if (mint.nHeight < 1)
+            continue;
+
+        if (address.get_d() != mint.d)
+            continue;
+
+        result += mint.v;
+    }
+
+    return result;
+}
+
+CAmount CSparkWallet::getAddressUnconfirmedBalance(const spark::Address& address) {
+    CAmount result = 0;
+    for (auto& it : coinMeta) {
+        CSparkMintMeta mint = it.second;
+
+        if (mint.isUsed)
+            continue;
+
+        // Not confirmed
+        if (mint.nHeight > 1)
+            continue;
+
+        if (address.get_d() != mint.d)
             continue;
 
         result += mint.v;
@@ -191,6 +238,18 @@ std::vector<CSparkMintMeta> CSparkWallet::ListSparkMints(bool fUnusedOnly, bool 
     return setMints;
 }
 
+std::list<CSparkSpendEntry> CSparkWallet::ListSparkSpends() const {
+    std::list<CSparkSpendEntry> result;
+    CWalletDB walletdb(strWalletFile);
+    walletdb.ListSparkSpends(result);
+    return result;
+}
+
+std::unordered_map<uint256, CSparkMintMeta> CSparkWallet::getMintMap() const {
+    return coinMeta;
+}
+
+
 spark::Coin CSparkWallet::getCoinFromMeta(const CSparkMintMeta& meta) const {
     const spark::Params* params = spark::Params::get_default();
     spark::Address address(viewKey, meta.i);
@@ -220,6 +279,14 @@ void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lT
     }
     coinMeta[lTagHash] = mint;
     walletdb.WriteSparkMint(lTagHash, mint);
+}
+
+void CSparkWallet::updateMint(const CSparkMintMeta& mint, CWalletDB& walletdb) {
+    for (const auto& coin : coinMeta) {
+        if (mint ==  coin.second) {
+            addOrUpdateMint(mint, coin.first, walletdb);
+        }
+    }
 }
 
 void CSparkWallet::updateMintInMemory(const CSparkMintMeta& mint) {

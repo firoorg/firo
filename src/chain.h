@@ -540,16 +540,17 @@ public:
                 READWRITE(lelantusMintedPubCoins);
             READWRITE(lelantusSpentSerials);
 
-            if (!(s.GetType() & SER_GETHASH)
-                && nHeight >= params.nSparkStartBlock) {
-                READWRITE(sparkMintedCoins);
-                READWRITE(sparkSetHash);
-                READWRITE(spentLTags);
-            }
-
             if (nHeight >= params.nLelantusFixesStartBlock)
                 READWRITE(anonymitySetHash);
         }
+
+        if (!(s.GetType() & SER_GETHASH)
+            && nHeight >= params.nSparkStartBlock) {
+            READWRITE(sparkMintedCoins);
+            READWRITE(sparkSetHash);
+            READWRITE(spentLTags);
+        }
+
 
         if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nEvoSporkStartBlock) {
             if (nHeight < params.nEvoSporkStopBlock &&

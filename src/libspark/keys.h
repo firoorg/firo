@@ -74,7 +74,8 @@ private:
 
 class Address {
 public:
-	Address();
+    Address();
+	Address(const Params* params);
 	Address(const IncomingViewKey& incoming_view_key, const uint64_t i);
 	const Params* get_params() const;
 	const std::vector<unsigned char>& get_d() const;
