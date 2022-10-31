@@ -1087,7 +1087,7 @@ public:
         consensus.llmqForInstantSend = Consensus::LLMQ_5_60;
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 6;
-        consensus.nInstantSendBlockFilteringStartHeight = 800;
+        consensus.nInstantSendBlockFilteringStartHeight = 500;
 
         consensus.nMTPSwitchTime = INT_MAX;
         consensus.nMTPStartBlock = 0;
@@ -1191,8 +1191,8 @@ public:
 
         // evo spork
         consensus.evoSporkKeyID = "TSpmHGzQT4KJrubWa4N2CRmpA7wKMMWDg4";  // private key is cW2YM2xaeCaebfpKguBahUAgEzLXgSserWRuD29kSyKHq1TTgwRQ
-        consensus.nEvoSporkStartBlock = 1000;
-        consensus.nEvoSporkStopBlock = 1500;
+        consensus.nEvoSporkStartBlock = 550;
+        consensus.nEvoSporkStopBlock = 950;
         consensus.nEvoSporkStopBlockExtensionVersion = 0;
 
         // reorg
@@ -1210,7 +1210,7 @@ public:
         consensus.nMnemonicBlock = 0;
 
         // moving lelantus data to v3 payload
-        consensus.nLelantusV3PayloadStartBlock = 1000;
+        consensus.nLelantusV3PayloadStartBlock = 800;
         
         // ProgPow
         // this can be overridden with either -ppswitchtime or -ppswitchtimefromnow flags
