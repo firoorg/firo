@@ -10,4 +10,5 @@ int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     spark::F4Grumble f4grumble_fuzz = spark::F4Grumble(test_string[0], len);
     f4grumble_fuzz.encode(test_char_vec);
     f4grumble_fuzz.decode(test_char_vec);
+    return 0;
 }
