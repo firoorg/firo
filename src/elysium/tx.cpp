@@ -1105,8 +1105,6 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
 
     // NotifyTotalTokensChanged(propertyId, block);
 
-	LogPrintf("CREATED MANUAL PROPERTY id: %d admin: %s\n", propertyId, sender);
-
     return 0;
 }
 

@@ -283,7 +283,6 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
                 if (nMax <= nTotal) break;
 
                 if (inputMode == InputMode::MINT) {
-                    LogPrintf("Short-circuiting input selection for Elysium mint after finding a reference output (asked for: %d, got: %d)\n", nMax, nTotal);
                     goto done;
                 }
             }

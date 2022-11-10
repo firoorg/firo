@@ -94,8 +94,6 @@ void Wallet::OnLelantusMintAdded(
     boost::optional<LelantusAmount> amount,
     int block)
 {
-    LogPrintf("%s : Mint added = block : %d, group : %d, idx : %d\n", __func__, block, group, idx);
-
     if (HasLelantusMint(id)) {
         // 1. is in wallet then update state
         SetLelantusMintChainState(id, {block, group, idx});

@@ -652,20 +652,11 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
     // ### CLASS IDENTIFICATION AND MARKER CHECK ###
 	boost::optional<PacketClass> elysiumClass = DeterminePacketClass(wtx, nBlock);
 
-	if (elysiumClass == PacketClass::C) {
-		LogPrintf("Class C\n");
-	} 
-
     if (!elysiumClass) {
         return -1; // No Elysium/Elysium marker, thus not a valid Elysium transaction
     }
 
     LOCK(cs_main);
-
-    if (!bRPConly || elysium_debug_parser_readonly) {
-		LogPrintf("____________________________________________________________________________________________________________________________________\n");
-		LogPrintf("%s(block=%d, %s idx= %d); txid: %s\n", __FUNCTION__, nBlock, DateTimeStrFormat("%Y-%m-%d %H:%M:%S", nTime), idx, wtx.GetHash().GetHex());
-    }
 
     // We cache the origins of transactions in our wallet because these transactions will need to be parsed again when
     // we start again. This cache is persisted to wallet.dat and is fully loaded into memory on every boot.
@@ -681,7 +672,6 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
 
         // Add previous transaction inputs to the cache
         if (!FillTxInputCache(wtx)) {
-            LogPrintf("%s() ERROR: failed to get inputs for %s\n", __func__, wtx.GetHash().GetHex());
             return -101;
         }
 
@@ -755,44 +745,35 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
                 // saving for reference
                 address_data.push_back(address);
                 value_data.push_back(wtx.vout[n].nValue);
-                LogPrintf("saving address_data #%d: %s:%s\n", n, address.ToString(), ScriptToAsmStr(wtx.vout[n].scriptPubKey));
             }
         }
     }
-    LogPrintf("address_data.size=%lu value_data.size=%lu\n", address_data.size(), value_data.size());
 
     // ### CLASS C PARSING ###
-    LogPrintf("Beginning reference identification\n");
 
     bool changeRemoved = false; // bool to hold whether we've ignored the first output to sender as change
     unsigned int potentialReferenceOutputs = 0; // int to hold number of potential reference outputs
     for (unsigned k = 0; k < address_data.size(); ++k) { // how many potential reference outputs do we have, if just one select it right here
         auto& addr = address_data[k];
-        LogPrintf("ref? data[%d]: %s (%s)\n", k, addr.ToString(), FormatIndivisibleMP(value_data[k]));
 
         ++potentialReferenceOutputs;
         if (1 == potentialReferenceOutputs) {
             referenceAddr = addr;
             referenceAmount = value_data[k];
-			LogPrintf("Single reference potentially id'd as follows: %s \n", referenceAddr->ToString());
         } else { //as soon as potentialReferenceOutputs > 1 we need to go fishing
             referenceAddr = boost::none; // avoid leaving referenceAddr populated for sanity
             referenceAmount = boost::none;
-			LogPrintf("More than one potential reference candidate, blanking referenceAddr, need to go fishing\n");
         }
     }
     if (!referenceAddr) { // do we have a reference now? or do we need to dig deeper
-		LogPrintf("Reference has not been found yet, going fishing\n");
         for (unsigned k = 0; k < address_data.size(); ++k) {
             auto& addr = address_data[k];
 
             if (!sender.empty() && !changeRemoved && addr.ToString() == sender) {
                 changeRemoved = true; // per spec ignore first output to sender as change if multiple possible ref addresses
-				LogPrintf("Removed change\n");
             } else {
                 referenceAddr = addr; // this may be set several times, but last time will be highest vout
                 referenceAmount = value_data[k];
-				LogPrintf("Resetting referenceAddr as follows: %s \n ", referenceAddr->ToString());
             }
         }
     }
@@ -828,9 +809,6 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
                     std::make_move_iterator(pushes.begin()),
                     std::make_move_iterator(pushes.end())
                 );
-
-				LogPrintf("Class C transaction detected: %s parsed to %s at vout %d\n", wtx.GetHash().GetHex(), HexStr(pushes[0]), n);
-                
             }
         }
         // ### EXTRACT PAYLOAD FOR CLASS C ###
@@ -1008,15 +986,19 @@ static int elysium_initial_scan(int nFirstBlock)
         // Parse block.
         unsigned parsed = 0;
 
-        elysium_handler_block_begin(nBlock, pblockindex);
+        {
+            LOCK(cs_main);
 
-        for (unsigned i = 0; i < block.vtx.size(); i++) {
-            if (elysium_handler_tx(*block.vtx[i], nBlock, i, pblockindex)) {
-                parsed++;
+            elysium_handler_block_begin(nBlock, pblockindex);
+
+            for (unsigned i = 0; i < block.vtx.size(); i++) {
+                if (elysium_handler_tx(*block.vtx[i], nBlock, i, pblockindex)) {
+                    parsed++;
+                }
             }
-        }
 
-        elysium_handler_block_end(nBlock, pblockindex, parsed);
+            elysium_handler_block_end(nBlock, pblockindex, parsed);
+        }
 
         // Sum total parsed.
         nTxsFoundTotal += parsed;
@@ -1686,7 +1668,7 @@ int elysium_shutdown()
  */
 bool elysium_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, const CBlockIndex* pBlockIndex)
 {
-    LOCK(cs_main);
+    AssertLockHeld(cs_main);
 
     if (!elysiumInitialized) {
         elysium_init();
@@ -1710,10 +1692,6 @@ bool elysium_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, co
 
     if (0 == pop_ret) {
         int interp_ret = txProcessor->ProcessTx(pBlockIndex, mp_obj);
-		LogPrintf("interp_ret = %d \n", interp_ret);
-        if (interp_ret) {
-            PrintToLog("!!! interpretPacket() returned %d !!!\n", interp_ret);
-        }
 
         // Only structurally valid transactions get recorded in levelDB
         // PKT_ERROR - 2 = interpret_Transaction failed, structurally invalid payload
@@ -1723,11 +1701,6 @@ bool elysium_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, co
             p_ElysiumTXDB->RecordTransaction(tx.GetHash(), idx, interp_ret);
         }
         fFoundTx |= (interp_ret == 0);
-    }
-
-    if (fFoundTx && elysium_debug_consensus_hash_every_transaction) {
-        uint256 consensusHash = GetConsensusHash();
-        PrintToLog("Consensus hash for transaction %s: %s\n", tx.GetHash().GetHex(), consensusHash.GetHex());
     }
 
     return fFoundTx;
@@ -1755,8 +1728,6 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
                              const std::string &redemptionAddress, const std::vector<unsigned char> &data,
                              uint256 &txid, std::string &rawHex, bool commit, InputMode inputMode)
 {
-	if (inputMode == InputMode::NORMAL) LogPrintf("inputMode Normal \n");
-	else if (inputMode == InputMode::LELANTUS) LogPrintf("inputMode Lelantus \n");
 #ifdef ENABLE_WALLET
     if (pwalletMain == NULL) return MP_ERR_WALLET_ACCESS;
 
@@ -1850,7 +1821,6 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
 
 	if(inputMode == InputMode::NORMAL || inputMode == InputMode::MINT || inputMode == InputMode::CREATE_PROPERTY ||
        inputMode == InputMode::INITIAL_GRANT) {
-		LogPrintf("inputMode Normal \n");
 		nChangePosInOut = vecRecipients.size();
 		// Ask the wallet to create the transaction (note mining fee determined by Bitcoin Core params)
 		if (!pwalletMain->CreateTransaction(vecRecipients, wtxNew, reserveKey, nFeeRet, nChangePosInOut, strFailReason, &coinControl)) {
@@ -1858,7 +1828,6 @@ int elysium::WalletTxBuilder(const std::string &senderAddress, const std::string
 			return MP_ERR_CREATE_TX;
 		}
 	}else if (inputMode == InputMode::LELANTUS) {
-		LogPrintf("inputMode Lelantus \n");
 		try {
 			wtxNew = pwalletMain->CreateLelantusJoinSplitTransaction(
 				vecRecipients, fee, {}, lelantusSpendCoins, sigmaSpendCoins, lelantusMintCoins, &coinControl);
@@ -2799,7 +2768,7 @@ int validity = 0;
 
 int elysium_handler_block_begin(int nBlockPrev, CBlockIndex const * pBlockIndex)
 {
-    LOCK(cs_main);
+    AssertLockHeld(cs_main);
 
     if (reorgRecoveryMode > 0) {
         reorgRecoveryMode = 0; // clear reorgRecovery here as this is likely re-entrant
@@ -2854,7 +2823,7 @@ int elysium_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex,
     // Only perform processing on checkpoint blocks or blocks that contain Elysium transactions.
     if (!countMP && !(nBlockNow % 10000)) return 0;
 
-    LOCK(cs_main);
+    AssertLockHeld(cs_main);
 
     lelantusDb->CommitCoins();
 
