@@ -137,6 +137,10 @@ static bool writePersistence(int block_now)
     if ((block_now - lastBlockPersisted < 1000) && (fRescanning || fReindex))
         return false;
 
+    // Otherwise persist state only every 100 blocks.
+    if (block_now - lastBlockPersisted < 100)
+        return false;
+
     lastBlockPersisted = block_now;
     return true;
 }
