@@ -52,7 +52,6 @@
 #include <QAction>
 #include <QApplication>
 #include <QDateTime>
-#include <QDesktopWidget>
 #include <QDragEnterEvent>
 #include <QIcon>
 #include <QLabel>
@@ -62,6 +61,7 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QProgressDialog>
+#include <QScreen>
 #include <QSettings>
 #include <QShortcut>
 #include <QStackedWidget>
@@ -151,7 +151,11 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     // load stylesheet
     GUIUtil::loadTheme();
 
-    GUIUtil::restoreWindowGeometry("nWindow", QSize(850, 550), this);
+    QSettings settings;
+    if (!restoreGeometry(settings.value("nWindow").toByteArray())) {
+        // Restore failed (perhaps missing setting), center the window
+        move(QGuiApplication::primaryScreen()->availableGeometry().center() - frameGeometry().center());
+    }
 
     QString windowTitle = tr(PACKAGE_NAME) + " - ";
 #ifdef ENABLE_WALLET
@@ -306,7 +310,8 @@ BitcoinGUI::~BitcoinGUI()
     // Unsubscribe from notifications from core
     unsubscribeFromCoreSignals();
 
-    GUIUtil::saveWindowGeometry("nWindow", this);
+    QSettings settings;
+    settings.setValue("nWindow", saveGeometry());
     if(trayIcon) // Hide tray icon, as deleting will let it linger until quit (on Ubuntu)
         trayIcon->hide();
 #ifdef Q_OS_MAC
