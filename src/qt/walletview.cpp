@@ -108,10 +108,11 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     addWidget(masternodeListPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
-    connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), this, SLOT(focusBitcoinHistoryTab(QModelIndex)));
+    connect(overviewPage, &OverviewPage::transactionClicked, this, &WalletView::focusBitcoinHistoryTab);
+
 #ifdef ENABLE_ELYSIUM
     if (isElysiumEnabled())
-        connect(overviewPage, SIGNAL(elysiumTransactionClicked(uint256)), this, SLOT(focusElysiumTransaction(uint256)));
+        connect(overviewPage, &OverviewPage::elysiumTransactionClicked, this, &WalletView::focusElysiumTransaction);
 #endif
 }
 
@@ -124,8 +125,7 @@ void WalletView::setupTransactionPage()
     // Create Firo transactions list
     firoTransactionList = new TransactionView(platformStyle);
 
-    connect(firoTransactionList, SIGNAL(doubleClicked(QModelIndex)), firoTransactionList, SLOT(showDetails()));
-    connect(firoTransactionList, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
+    connect(firoTransactionList, &TransactionView::message, this, &WalletView::message);
 
     // Create export panel for Firo transactions
     auto exportButton = new QPushButton(tr("&Export"));
@@ -136,7 +136,7 @@ void WalletView::setupTransactionPage()
         exportButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
     }
 
-    connect(exportButton, SIGNAL(clicked()), firoTransactionList, SLOT(exportClicked()));
+    connect(exportButton, &QPushButton::clicked, firoTransactionList, &TransactionView::exportClicked);
 
     auto exportLayout = new QHBoxLayout();
     exportLayout->addStretch();
@@ -147,8 +147,8 @@ void WalletView::setupTransactionPage()
     firoLayout->addWidget(firoTransactionList);
     firoLayout->addLayout(exportLayout);
     // TODO: fix this
-    //connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), transactionView, SLOT(focusTransaction(QModelIndex)));
-    connect(overviewPage, SIGNAL(outOfSyncWarningClicked()), this, SLOT(requestedSyncWarningInfo()));
+    connect(overviewPage, &OverviewPage::transactionClicked, firoTransactionList, qOverload<const QModelIndex&>(&TransactionView::focusTransaction));
+    connect(overviewPage, &OverviewPage::outOfSyncWarningClicked, this, &WalletView::requestedSyncWarningInfo);
 
     firoTransactionsView = new QWidget();
     firoTransactionsView->setLayout(firoLayout);
@@ -176,7 +176,7 @@ void WalletView::setupElysiumTokensPage()
     connect(mintTokenPage, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
     manageTokenPage = new ManageTokenDialog();
     connect(manageTokenPage, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
-  
+
     elysiumTransactionsView = new TXHistoryDialog();
     elyAssetsPage = new ElyAssetsDialog();
 
@@ -202,7 +202,7 @@ void WalletView::setupSendCoinPage()
 {
     sendFiroView = new SendCoinsDialog(platformStyle);
 
-    connect(sendFiroView, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
+    connect(sendFiroView, &SendCoinsDialog::message, this, &WalletView::message);
 
     // Set layout for send coin page
     auto pageLayout = new QVBoxLayout();
@@ -219,7 +219,7 @@ void WalletView::setupSigmaPage()
 
     if (pwalletMain->IsHDSeedAvailable()) {
         sigmaView = new SigmaDialog(platformStyle);
-        connect(sigmaView, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
+        connect(sigmaView, &SigmaDialog::message, this, &WalletView::message);
         pageLayout->addWidget(sigmaView);
         sigmaPage->setLayout(pageLayout);
     } else {
@@ -235,11 +235,7 @@ void WalletView::setupLelantusPage()
 
     if (pwalletMain->IsHDSeedAvailable()) {
         lelantusView = new LelantusDialog(platformStyle);
-        connect(lelantusView,
-            SIGNAL(message(QString, QString, unsigned int)),
-            this,
-            SIGNAL(message(QString, QString, unsigned int)));
-
+        connect(lelantusView, &LelantusDialog::message, this, &WalletView::message);
         pageLayout->addWidget(lelantusView);
     } else {
 
@@ -277,23 +273,25 @@ void WalletView::setBitcoinGUI(BitcoinGUI *gui)
     if (gui)
     {
         // Clicking on a transaction on the overview page simply sends you to transaction history page
-        connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), gui, SLOT(gotoBitcoinHistoryTab()));
+        connect(overviewPage, &OverviewPage::transactionClicked, gui, &BitcoinGUI::gotoHistoryPage);
 #ifdef ENABLE_ELYSIUM
         if (isElysiumEnabled())
-            connect(overviewPage, SIGNAL(elysiumTransactionClicked(uint256)), gui, SLOT(gotoElysiumHistoryTab()));
+            connect(overviewPage, &OverviewPage::elysiumTransactionClicked, gui, &BitcoinGUI::gotoElysiumHistoryTab);
 #endif
 
         // Receive and report messages
-        connect(this, SIGNAL(message(QString,QString,unsigned int)), gui, SLOT(message(QString,QString,unsigned int)));
+        connect(this, &WalletView::message, [gui](const QString &title, const QString &message, unsigned int style) {
+            gui->message(title, message, style);
+        });
 
         // Pass through encryption status changed signals
-        connect(this, SIGNAL(encryptionStatusChanged(int)), gui, SLOT(setEncryptionStatus(int)));
+        connect(this, &WalletView::encryptionStatusChanged, gui, &BitcoinGUI::setEncryptionStatus);
 
         // Pass through transaction notifications
-        connect(this, SIGNAL(incomingTransaction(QString,int,CAmount,QString,QString,QString)), gui, SLOT(incomingTransaction(QString,int,CAmount,QString,QString,QString)));
+        connect(this, &WalletView::incomingTransaction, gui, &BitcoinGUI::incomingTransaction);
 
         // Connect HD enabled state signal
-        connect(this, SIGNAL(hdEnabledStatusChanged(int)), gui, SLOT(setHDStatus(int)));
+        connect(this, &WalletView::hdEnabledStatusChanged, gui, &BitcoinGUI::setHDStatus);
     }
 }
 
@@ -370,40 +368,35 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     if (_walletModel)
     {
         // Receive and pass through messages from wallet model
-        connect(_walletModel, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
+        connect(_walletModel, &WalletModel::message, this, &WalletView::message);
 
         // Handle changes in encryption status
-        connect(_walletModel, SIGNAL(encryptionStatusChanged(int)), this, SIGNAL(encryptionStatusChanged(int)));
+        connect(_walletModel, &WalletModel::encryptionStatusChanged, this, &WalletView::encryptionStatusChanged);
         updateEncryptionStatus();
 
         // update HD status
         Q_EMIT hdEnabledStatusChanged(_walletModel->hdEnabled());
 
         // Balloon pop-up for new transaction
-        connect(_walletModel->getTransactionTableModel(), SIGNAL(rowsInserted(QModelIndex,int,int)),
-                this, SLOT(processNewTransaction(QModelIndex,int,int)));
+        connect(_walletModel->getTransactionTableModel(), &TransactionTableModel::rowsInserted, this, &WalletView::processNewTransaction);
 
         // Ask for passphrase if needed
-        connect(_walletModel, SIGNAL(requireUnlock(QString)), this, SLOT(unlockWallet(QString)));
+        connect(_walletModel, &WalletModel::requireUnlock, this, &WalletView::unlockWallet);
 
         // Show progress dialog
-        connect(_walletModel, SIGNAL(showProgress(QString,int)), this, SLOT(showProgress(QString,int)));
+        connect(_walletModel, &WalletModel::showProgress, this, &WalletView::showProgress);
 
         // Check mintable amount
-        connect(_walletModel, SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)),
-            this, SLOT(checkMintableAmount(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)));
+        connect(_walletModel, &WalletModel::balanceChanged, this, &WalletView::checkMintableAmount);
 
         auto lelantusModel = _walletModel->getLelantusModel();
         if (lelantusModel) {
-            connect(lelantusModel, SIGNAL(askMintAll(AutoMintMode)), this, SLOT(askMintAll(AutoMintMode)));
+            connect(lelantusModel, &LelantusModel::askMintAll, this, &WalletView::askMintAll);
 
             auto autoMintModel = lelantusModel->getAutoMintModel();
-            connect(autoMintModel, SIGNAL(message(QString,QString,unsigned int)),
-                this, SIGNAL(message(QString,QString,unsigned int)));
-            connect(autoMintModel, SIGNAL(requireShowAutomintNotification()),
-                this, SLOT(showAutomintNotification()));
-            connect(autoMintModel, SIGNAL(closeAutomintNotification()),
-                this, SLOT(closeAutomintNotification()));
+            connect(autoMintModel, &AutoMintModel::message, this, &WalletView::message);
+            connect(autoMintModel, &AutoMintModel::requireShowAutomintNotification, this, &WalletView::showAutomintNotification);
+            connect(autoMintModel, &AutoMintModel::closeAutomintNotification, this, &WalletView::closeAutomintNotification);
         }
     }
 }

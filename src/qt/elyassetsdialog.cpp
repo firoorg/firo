@@ -105,13 +105,10 @@ ElyAssetsDialog::ElyAssetsDialog(QWidget *parent) :
     contextMenu->addAction(balancesCopyAvailableAmountAction);
 
     // Connect actions
-    connect(ui->balancesTable, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
-
-    connect(balancesCopyIDAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol0()));
-    connect(balancesCopyTickerAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol1()));
-    connect(balancesCopyNameAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol2()));
-    connect(balancesCopyPendingAmountAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol3()));
-    connect(balancesCopyAvailableAmountAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol4()));
+    connect(ui->balancesTable, &QWidget::customContextMenuRequested, this, &ElyAssetsDialog::contextualMenu);
+    connect(balancesCopyIDAction, &QAction::triggered, this, &ElyAssetsDialog::balancesCopyCol0);
+    connect(balancesCopyNameAction, &QAction::triggered, this, &ElyAssetsDialog::balancesCopyCol1);
+    connect(balancesCopyAvailableAmountAction, &QAction::triggered, this, &ElyAssetsDialog::balancesCopyCol3);
 }
 
 ElyAssetsDialog::~ElyAssetsDialog()
@@ -123,8 +120,8 @@ void ElyAssetsDialog::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
     if (model != NULL) {
-        connect(model, SIGNAL(refreshElysiumBalance()), this, SLOT(populateBalances()));
-        connect(model, SIGNAL(reinitElysiumState()), this, SLOT(populateBalances()));
+        connect(model, &ClientModel::refreshElysiumBalance, this, &ElyAssetsDialog::populateBalances);
+        connect(model, &ClientModel::reinitElysiumState, this, &ElyAssetsDialog::populateBalances);
     }
 }
 
@@ -159,7 +156,7 @@ void ElyAssetsDialog::populateBalances()
 {
     ui->balancesTable->setRowCount(0); // fresh slate (note this will automatically cleanup all existing QWidgetItems in the table)
 
-    LOCK2(cs_main, pwalletMain->cs_wallet); 
+    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     // get anonymous balances
     std::vector<LelantusMint> mints;
@@ -191,7 +188,7 @@ void ElyAssetsDialog::populateBalances()
         std::string name = getPropertyName(balance.first);
         std::string pending = FormatMP(balance.first, balance.second.first);
         std::string available = FormatMP(balance.first, balance.second.second);
-        
+
         std::smatch matches;
         std::string ticker = "";
         std::regex_search(name, matches, rgx);

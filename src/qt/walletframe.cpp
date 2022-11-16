@@ -55,9 +55,9 @@ bool WalletFrame::addWallet(const QString& name, WalletModel *walletModel)
     mapWalletViews[name] = walletView;
 
     // Ensure a walletView is able to show the main window
-    connect(walletView, SIGNAL(showNormalIfMinimized()), gui, SLOT(showNormalIfMinimized()));
+    connect(walletView, &WalletView::showNormalIfMinimized, [this]{ gui->showNormalIfMinimized(); });
 
-    connect(walletView, SIGNAL(outOfSyncWarningClicked()), this, SLOT(outOfSyncWarningClicked()));
+    connect(walletView, &WalletView::outOfSyncWarningClicked, this, &WalletFrame::outOfSyncWarningClicked);
 
     // Ensure walletview is able to response to resize and move events
     gui->installEventFilter(walletView);
