@@ -1,6 +1,6 @@
 #include "FuzzedDataProvider.h"
-#include <secp256k1/include/Scalar.h>
-#include <secp256k1/include/GroupElement.h>
+#include "../secp256k1/include/Scalar.h"
+#include "../secp256k1/include/GroupElement.h"
 
 class FuzzedSecp256k1Object {
     public: 
