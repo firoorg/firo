@@ -1077,10 +1077,12 @@ public:
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
+    bool LelantusToSpark(std::string& strFailReason);
+
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result);
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 
-    std::vector<CLelantusEntry> JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result);
+    std::vector<CLelantusEntry> JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result,  const CCoinControl *coinControl = NULL);
 
     std::pair<CAmount, unsigned int> EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, std::list<CSigmaEntry> sigmaCoins, std::list<CLelantusEntry> coins, const CCoinControl *coinControl);
 

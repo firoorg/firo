@@ -3696,6 +3696,33 @@ UniValue spendspark(const JSONRPCRequest& request)
     return result;
 }
 
+UniValue lelantusToSpark(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() > 0) {
+        throw std::runtime_error(
+                "lelantusToSpark \n"
+                "Takes all your lelantus mints, spends all to transparent layer, takes all that UTX's and mints to Spark");
+    }
+
+    EnsureSparkWalletIsAvailable();
+
+    assert(pwallet != NULL);
+    std::string strFailReason;
+    bool failed = false;
+    try {
+        failed = pwallet->LelantusToSpark(strFailReason);
+    } catch (...) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus to Spark failed.");
+    }
+
+    if (failed || strFailReason != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus to Spark failed.");
+}
+
 UniValue mint(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -5443,7 +5470,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "setsparkmintstatus",     &setsparkmintstatus,     false },
     { "wallet",             "mintspark",              &mintspark,              false },
     { "wallet",             "spendspark",             &spendspark,             false },
-
+    { "wallet",             "lelantusToSpark",        &lelantusToSpark,        false },
 
     //bip47
     { "bip47",              "createrapaddress",         &createrapaddress,         true },
