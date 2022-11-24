@@ -89,7 +89,7 @@ bool IsLelantusAllowed()
 
 bool IsLelantusAllowed(int height)
 {
-	return height >= ::Params().GetConsensus().nLelantusStartBlock;
+	return height >= ::Params().GetConsensus().nLelantusStartBlock && height < ::Params().GetConsensus().nSparkStartBlock;
 }
 
 bool IsAvailableToMint(const CAmount& amount)
@@ -725,6 +725,22 @@ bool CheckLelantusTransaction(
     if (realHeight == INT_MAX) {
         LOCK(cs_main);
         realHeight = chainActive.Height();
+    }
+
+    // accept Lelantus mint tx into 5 more blocks, to allow mempool cleared
+    if (!isVerifyDB && realHeight >= (::Params().GetConsensus().nSparkStartBlock + 5)) {
+        if (tx.IsLelantusMint() && !tx.IsLelantusJoinSplit())
+            return state.DoS(100, false,
+                             REJECT_INVALID,
+                             "Lelantus already is not available, start using Spark.");
+    }
+
+    // accept lelantus spends until nLelantusGracefulPeriod passed, to allow migration of funds from lelantus to spark
+    if (!isVerifyDB && realHeight >= (::Params().GetConsensus().nLelantusGracefulPeriod)) {
+        if (tx.IsLelantusJoinSplit())
+            return state.DoS(100, false,
+                             REJECT_INVALID,
+                             "Lelantus is fully disabled.");
     }
 
     bool const allowLelantus = (realHeight >= consensus.nLelantusStartBlock);
