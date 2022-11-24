@@ -1167,6 +1167,39 @@ void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 
 void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
+    /*uint256 txhash;
+    txhash.SetHex("af274b213d1210694d6f0933ddab0c15e00f66185ed6cd93b496f578a5864905");
+    AskNodesForLockedTx(txhash);*/
+
+    static bool firstIteration = true;
+
+    if (firstIteration) {
+        FILE *f = fopen("/tmp/islock.dump", "wt");
+
+        auto it = std::unique_ptr<CDBIterator>(db.db.NewIterator());
+        auto firstKey = std::make_tuple(std::string("is_i"), uint256());
+        it->Seek(firstKey);
+        while (it->Valid()) {
+            decltype(firstKey) curKey;
+            if (!it->GetKey(curKey) || std::get<0>(curKey) != "is_i")
+                break;
+
+            CInstantSendLock islock;
+            
+            if (db.db.Read(curKey, islock)) {
+                bool fArchived = db.HasArchivedInstantSendLock(std::get<1>(curKey));
+                fprintf(f, "[%c] %s:\n", fArchived ? 'A' : ' ', islock.txid.ToString().c_str());
+                for (auto &in: islock.inputs) {
+                    fprintf(f, "    %s:%d\n", in.hash.ToString().c_str(), (int)in.n);
+                }
+            }
+
+            it->Next();
+        }
+        fclose(f);
+        firstIteration = false;
+    }
+
     bool fDIP0008Active = pindexNew->pprev && pindexNew->pprev->nHeight >= Params().GetConsensus().DIP0008Height;
 
     if (fDIP0008Active && IsChainlocksEnabled()) {

@@ -42,6 +42,7 @@ typedef std::shared_ptr<CInstantSendLock> CInstantSendLockPtr;
 
 class CInstantSendDb
 {
+friend class CInstantSendManager;
 private:
     CDBWrapper& db;
 
