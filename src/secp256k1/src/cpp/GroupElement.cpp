@@ -1,5 +1,5 @@
-#include "include/GroupElement.h"
-#include "include/secp256k1.h"
+#include "../../include/GroupElement.h"
+#include "../../include/secp256k1.h"
 
 #include "../field.h"
 #include "../field_impl.h"
