@@ -394,8 +394,5 @@ TS FuzzedDataProvider::ConvertUnsignedToSigned(TU value) {
   }
 }
 
-<<<<<<< HEAD
 #endif // LLVM_FUZZER_FUZZED_DATA_PROVIDER_H_
-=======
-#endif // LLVM_FUZZER_FUZZED_DATA_PROVIDER_H_
->>>>>>> ed77757b76c19431999120b9c4422c0eb6907e5e
+
