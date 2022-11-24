@@ -5478,13 +5478,13 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
     return true;
 }
 
-std::vector<CLelantusEntry> CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result) {
+std::vector<CLelantusEntry> CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result, const CCoinControl *coinControl) {
     // create transaction
     std::vector<CLelantusEntry> spendCoins; //spends
     std::vector<CSigmaEntry> sigmaSpendCoins;
     std::vector<CHDMint> mintCoins; // new mints
     CAmount fee;
-    result = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins);
+    result = CreateLelantusJoinSplitTransaction(recipients, fee, newMints, spendCoins, sigmaSpendCoins, mintCoins, coinControl);
 
     CommitLelantusTransaction(result, spendCoins, sigmaSpendCoins, mintCoins);
 
@@ -5563,6 +5563,66 @@ std::vector<CWalletTx> CWallet::SpendAndStoreSpark(
     }
 
     return result;
+}
+
+bool CWallet::LelantusToSpark(std::string& strFailReason) {
+    std::list<CLelantusEntry> coins = GetAvailableLelantusCoins();
+    CScript scriptChange;
+    {
+        // Reserve a new key pair from key pool
+        CPubKey vchPubKey;
+        bool ret;
+        ret = CReserveKey(this).GetReservedKey(vchPubKey);
+        if (!ret)
+        {
+            strFailReason = _("Keypool ran out, please call keypoolrefill first");
+            return false;
+        }
+
+        scriptChange = GetScriptForDestination(vchPubKey.GetID());
+    }
+
+    while (coins.size() > 0) {
+        bool addMoreCoins = true;
+        std::size_t selectedNum = 0;
+        CCoinControl coinControl;
+        CAmount spendValue = 0;
+        while (true) {
+            auto coin = coins.begin();
+            COutPoint outPoint;
+            lelantus::GetOutPoint(outPoint, coin->value);
+            coinControl.Select(outPoint);
+            spendValue += coin->amount;
+            selectedNum ++;
+            coins.erase(coin);
+             if (!coins.size())
+                 break;
+
+             if ((spendValue + coins.begin()->amount) > Params().GetConsensus().nMaxValueLelantusSpendPerTransaction)
+                 break;
+
+             if (selectedNum == Params().GetConsensus().nMaxLelantusInputPerTransaction)
+                 break;
+        }
+        CRecipient recipient = {scriptChange, spendValue, true};
+
+        CWalletTx result;
+        JoinSplitLelantus({recipient}, {}, result, &coinControl);
+        coinControl.UnSelectAll();
+
+        uint32_t i = 0;
+        for (; i < result.tx->vout.size(); ++i) {
+            if (result.tx->vout[i].scriptPubKey == recipient.scriptPubKey)
+                break;
+        }
+
+        COutPoint outPoint(result.GetHash(), i);
+        coinControl.Select(outPoint);
+        std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+        MintAndStoreSpark({}, wtxAndFee, true, true, &coinControl);
+    }
+
+    return true;
 }
 
 std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(
