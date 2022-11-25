@@ -51,7 +51,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
 
     size_t N1 = fdp.ConsumeIntegral<size_t>();
     size_t B = fdp.ConsumeIntegral<size_t>();
-    std::vector<size_t> sizes = fdp.ConsumeRemainingBytes<size_t>();
+    std::vector<uint8_t> sizes = fdp.ConsumeRemainingBytes<uint8_t>();
 
     // Generators
     GroupElement G1, H1;
