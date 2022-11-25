@@ -21,7 +21,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     std::vector<GroupElement> Gi0, Hi0;
     size_t generators_needed = N0*M0;
     if (!spark::is_nonzero_power_of_2(generators_needed)) {
-        generators_needed = 1 << (log2(N*M) + 1);
+        generators_needed = 1 << (log2(N0*M0) + 1);
     }
 
     Gi0.resize(generators_needed);
@@ -38,20 +38,20 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
 
     std::vector<GroupElement> C0;
     for (size_t i=0; i < M0; i++) {
-        C[i] = G0*v[i] + H0*r[i];
+        C0[i] = G0*v[i] + H0*r[i];
     }
 
-    spark::BPPlus bpplus(G0, H0, Gi0, Hi0, N0);
-    spark::BPPlusProof proof;
-    bpplus.prove(v, r, C0, proof);
-    assert(bpplus.verify(C0, proof));
+    spark::BPPlus bpplus0(G0, H0, Gi0, Hi0, N0);
+    spark::BPPlusProof proof0;
+    bpplus0.prove(v, r, C0, proof0);
+    assert(bpplus0.verify(C0, proof0));
     /** End of Single proof fuzz test**/
 
     /** Batch Proof **/
 
     size_t N1 = fdp.ConsumeIntegral<size_t>();
     size_t B = fdp.ConsumeIntegral<size_t>();
-    vector<size_t> sizes = fdp.ConsumeRemainingBytes<size_t>();
+    std::vector<size_t> sizes = fdp.ConsumeRemainingBytes<size_t>();
 
     // Generators
     GroupElement G1, H1;
@@ -66,7 +66,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
         Gi1[i].randomize();
     }
 
-    BBPlus bpplus(G1, H1, Gi1, Hi1, N1);
+    spark::BBPlus bpplus1(G1, H1, Gi1, Hi1, N1);
     std::vector<BPPlusProof> proofs;
     proofs.resize(B);
     std::vector<std::vector<GroupElement>> C1;
@@ -81,12 +81,12 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
         for (size_t j=0; j < M; j++) {
             v[j] = Scalar(uint64_t(j));
             r[j].randomize();
-            C_[j] = G1*v[j] + H1*r[j]
+            C_[j] = G1*v[j] + H1*r[j];
         }
         C1.emplace_back(C_);
-        bpplus.prove(v, r, C_, proofs[i]);
+        bpplus1.prove(v, r, C_, proofs[i]);
     }
-    assert(bpplus.verify(C, proofs));
+    assert(bpplus1.verify(C, proofs));
 
     /** End of Batch proof fuzz test **/
 
