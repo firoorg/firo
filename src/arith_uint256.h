@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
-#include <uint256.h>
+#include "uint256.h"
 
 class uint256;
 
