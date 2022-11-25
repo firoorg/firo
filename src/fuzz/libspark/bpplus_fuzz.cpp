@@ -21,7 +21,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     std::vector<GroupElement> Gi0, Hi0;
     size_t generators_needed = N0*M0;
     if (!spark::is_nonzero_power_of_2(generators_needed)) {
-        generators_needed = (double) 1 << (log2(N0*M0) + 1);
+        generators_needed = 1 << (spark::log2(N0*M0) + 1);
     }
 
     Gi0.resize(generators_needed);
@@ -86,7 +86,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
         C1.emplace_back(C_);
         bpplus1.prove(v, r, C_, proofs[i]);
     }
-    assert(bpplus1.verify(C, proofs));
+    assert(bpplus1.verify(C1, proofs));
 
     /** End of Batch proof fuzz test **/
 
