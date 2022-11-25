@@ -21,7 +21,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     std::vector<GroupElement> Gi0, Hi0;
     size_t generators_needed = N0*M0;
     if (!spark::is_nonzero_power_of_2(generators_needed)) {
-        generators_needed = 1 << (log2(N0*M0) + 1);
+        generators_needed = (double) 1 << (log2(N0*M0) + 1);
     }
 
     Gi0.resize(generators_needed);
@@ -66,8 +66,8 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
         Gi1[i].randomize();
     }
 
-    spark::BBPlus bpplus1(G1, H1, Gi1, Hi1, N1);
-    std::vector<BPPlusProof> proofs;
+    spark::BPPlus bpplus1(G1, H1, Gi1, Hi1, N1);
+    std::vector<spark::BPPlusProof> proofs;
     proofs.resize(B);
     std::vector<std::vector<GroupElement>> C1;
 
