@@ -20,8 +20,8 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     std::vector<GroupElement> S = fsp.GetGroupElements(commit_size);
     std::vector<GroupElement> V = fsp.GetGroupElements(commit_size);
 
-    std::vector<uint8_t> indexes = fdp.ConsumeBytes<uint8_t>();
-    std::vector<uint8_t> sizes = fdp.ConsumeBytes<uint8_t>();
+    std::vector<uint8_t> indexes = fdp.ConsumeBytes<uint8_t>(len);
+    std::vector<uint8_t> sizes = fdp.ConsumeBytes<uint8_t>(len);
     std::vector<GroupElement> S1, V1;
     std::vector<std::vector<unsigned char>> roots;
     std::vector<Scalar> s, v;
