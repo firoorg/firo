@@ -5,7 +5,6 @@
 class FuzzedSecp256k1Object {
     public: 
         FuzzedSecp256k1Object(FuzzedDataProvider *fdp);
-        ~FuzzedSecp256k1Object();
 
         FuzzedDataProvider *fdp;
 
