@@ -7,7 +7,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     FuzzedDataProvider fdp(buf, len);
     FuzzedSecp256k1Object fsp(&fdp);
 
-    const Params* params;
+    const spark::Params* params;
     params = spark::Params::get_default();
     const size_t t = fdp.ConsumeIntegral<uint8_t>();
 
@@ -25,7 +25,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
         outputs.emplace_back(output);
     }
 
-    spark::MintTransaction mint(params, outputs, fdp.ConsumeBytesAsString(spark::SCALAR_ENCODING));
+    spark::MintTransaction mint(params, outputs, fdp.ConsumeBytes<unsigned char>(spark::SCALAR_ENCODING));
     assert(mint.verify());
 
     
