@@ -4,7 +4,7 @@
 extern "C" {
 #include <inttypes.h>
 }
-#include "uint256.h"
+#include "../../uint256.h"
 #include <deque>
 #include <vector>
 

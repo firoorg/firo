@@ -6,8 +6,8 @@
 #ifndef BITCOIN_SCRIPT_SCRIPT_H
 #define BITCOIN_SCRIPT_SCRIPT_H
 
-#include "crypto/common.h"
-#include "prevector.h"
+#include "../crypto/common.h"
+#include "../prevector.h"
 
 #include <assert.h>
 #include <climits>
@@ -17,7 +17,7 @@
 #include <string.h>
 #include <string>
 #include <vector>
-#include <pubkey.h>
+#include "../pubkey.h"
 
 // Maximum number of bytes pushable to the stack
 static const unsigned int MAX_SCRIPT_ELEMENT_SIZE = 520;
