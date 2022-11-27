@@ -9,7 +9,6 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
 
     const spark::Params* params;
     params = spark::Params::get_default();
-    const size_t t = fdp.ConsumeIntegral<uint8_t>();
     const std::string memo = fdp.ConsumeBytesAsString(len);
 
     spark::SpendKey spend_key(params);
@@ -30,7 +29,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
 
     uint64_t f = 0;
 
-    std::vector<size_t> spend_indices = fdp.ConsumeBytes<uint8_t>(len);
+    std::vector<uint8_t> spend_indices = fdp.ConsumeBytes<uint8_t>(len);
     std::vector<spark::InputCoinData> spend_coin_data;
     std::unordered_map<uint64_t, spark::CoverSetData> cover_set_data;
     const size_t w = spend_indices.size();
@@ -72,7 +71,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     }
 
     for (size_t j = 0; j < t; j++) {
-        fee_test -= spend_coin_data[u].v;
+        fee_test -= spend_coin_data[j].v;
     }
     assert(fee_test == 0);
 
