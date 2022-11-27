@@ -366,6 +366,12 @@ bool SpendTransaction::verify(
 		std::vector<std::size_t> sizes;
 		std::vector<GrootleProof> proofs;
 
+        std::size_t full_cover_set_size = cover_sets.at(cover_set_id).size();
+        for (std::size_t i = 0; i < full_cover_set_size; i++) {
+            S.emplace_back(cover_sets.at(cover_set_id)[i].S);
+            V.emplace_back(cover_sets.at(cover_set_id)[i].C);
+        }
+
 		for (auto proof_index : proof_indexes) {
             const auto& tx = transactions[proof_index.first];
             if (!cover_sets.count(cover_set_id))
@@ -375,12 +381,6 @@ bool SpendTransaction::verify(
                 throw std::invalid_argument("Cover set size missing");
 
 			std::size_t this_cover_set_size = tx.cover_set_sizes.at(cover_set_id);
-			if (this_cover_set_size > S.size()) {
-				for (std::size_t i = S.size(); i < this_cover_set_size; i++) {
-					S.emplace_back(cover_sets.at(cover_set_id)[i].S);
-					V.emplace_back(cover_sets.at(cover_set_id)[i].C);
-				}
-			}
 
 			// We always use the other elements
 			S1.emplace_back(tx.S1[proof_index.second]);
