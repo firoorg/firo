@@ -10,6 +10,7 @@
 #include "../libspark/mint_transaction.h"
 #include "../libspark/spend_transaction.h"
 #include "../wallet/walletdb.h"
+#include "../sync.h"
 
 class CRecipient;
 class CReserveKey;
@@ -116,6 +117,10 @@ public:
 
     // Returns the list of pairs of coins and metadata for that coin,
     std::list<std::pair<spark::Coin, CSparkMintMeta>> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
+
+public:
+    // to protect coinMeta
+    mutable CCriticalSection cs_spark_wallet;
 
 private:
     std::string strWalletFile;
