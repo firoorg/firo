@@ -3708,19 +3708,19 @@ UniValue lelantustospark(const JSONRPCRequest& request) {
                 "Takes all your lelantus mints, spends all to transparent layer, takes all that UTX's and mints to Spark");
     }
 
+    EnsureWalletIsUnlocked(pwallet);
     EnsureSparkWalletIsAvailable();
 
     assert(pwallet != NULL);
-    std::string strFailReason;
-    bool failed = false;
+    std::string strFailReason = "";
+    bool passed = false;
     try {
-        failed = pwallet->LelantusToSpark(strFailReason);
+        passed = pwallet->LelantusToSpark(strFailReason);
     } catch (...) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus to Spark failed.");
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus to Spark failed!");
     }
-
-    if (failed || strFailReason != "")
-        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus to Spark failed.");
+    if (!passed || strFailReason != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus to Spark failed. " + strFailReason);
 
     return NullUniValue;
 }
