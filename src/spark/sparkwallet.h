@@ -72,6 +72,9 @@ public:
     // get mint tag from nonce
     CSparkMintMeta getMintMeta(const secp_primitives::Scalar& nonce);
 
+    bool isMine(spark::Coin coin) const;
+    bool isMine(const std::vector<GroupElement>& lTags) const;
+
     void UpdateSpendState(const GroupElement& lTag, const uint256& lTagHash, const uint256& txHash, bool fUpdateMint = true);
     void UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint = true);
     void UpdateSpendStateFromBlock(const CBlock& block);
