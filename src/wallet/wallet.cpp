@@ -1610,6 +1610,16 @@ isminetype CWallet::IsMine(const CTxIn &txin, const CTransaction& tx) const
         }
     } else if (txin.IsZerocoinRemint()) {
         return ISMINE_NO;
+    }  else if (tx.IsSparkSpend()) {
+        std::vector<GroupElement> lTags;
+        try {
+            lTags = spark::ParseSparkSpend(tx).getUsedLTags();
+        }
+        catch (...) {
+            return ISMINE_NO;
+        }
+
+        return sparkWallet->isMine(lTags) ? ISMINE_SPENDABLE : ISMINE_NO;
     }
     else {
         std::map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
@@ -1714,6 +1724,15 @@ isminetype CWallet::IsMine(const CTxOut &txout) const
                 }
             }
         return db.HasHDMint(pub) ? ISMINE_SPENDABLE : ISMINE_NO;
+    } else if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+        spark::Coin coin;
+        try {
+            spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
+        } catch (std::invalid_argument &) {
+            return ISMINE_NO;
+        }
+
+        return sparkWallet->isMine(coin) ? ISMINE_SPENDABLE : ISMINE_NO;
     } else {
         return ::IsMine(*this, txout.scriptPubKey);
     }

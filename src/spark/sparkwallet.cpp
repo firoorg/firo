@@ -386,6 +386,28 @@ void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
     }).detach();
 }
 
+bool CSparkWallet::isMine(spark::Coin coin) const {
+    try {
+        spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
+    } catch (const std::runtime_error& e) {
+        return false;
+    }
+
+    return true;
+}
+
+bool CSparkWallet::isMine(const std::vector<GroupElement>& lTags) const {
+    LOCK(cs_spark_wallet);
+    for (const auto& lTag : lTags) {
+        uint256 lTagHash = primitives::GetLTagHash(lTag);
+        if (coinMeta.count(lTagHash)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void CSparkWallet::UpdateMintState(const std::vector<spark::Coin>& coins, const uint256& txHash) {
     spark::CSparkState *sparkState = spark::CSparkState::GetState();
     for (auto coin : coins) {
