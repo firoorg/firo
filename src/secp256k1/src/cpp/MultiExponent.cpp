@@ -9,8 +9,8 @@
 #include "../scalar_impl.h"
 #include "../ecmult.h"
 #include "../ecmult_impl.h"
-#include "../src/scratch_impl.h"
-#include "../src/ecmult_impl.h"
+#include "../scratch_impl.h"
+#include "../ecmult_impl.h"
 
 
 typedef struct {
