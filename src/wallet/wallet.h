@@ -1352,6 +1352,9 @@ public:
     /*Checks if this is a BIP47 transaction and handles it. May send an unlock request if wallet is locked.*/
     void HandleBip47Transaction(CWalletTx const & wtx);
 
+    // Checks if this is a spark transaction and handles it.
+    void HandleSparkTransaction(CWalletTx const & wtx);
+
     /*Attaches a new label to a sending payment code.*/
     void LabelSendingPcode(bip47::CPaymentCode const & pcode, std::string const & label, bool remove = false);
     std::string GetSendingPcodeLabel(bip47::CPaymentCode const & pcode) const;

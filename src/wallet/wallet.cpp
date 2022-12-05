@@ -1233,6 +1233,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
     if (fInsertedNew)
     {
         HandleBip47Transaction(wtx);
+        HandleSparkTransaction(wtx);
     }
 
     // Break debit/credit balance caches:
@@ -1293,7 +1294,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
         AssertLockHeld(cs_wallet);
 
         if (posInBlock != -1) {
-            if(!(tx.IsCoinBase() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsZerocoinSpend()) || tx.IsLelantusJoinSplit()) {
+            if(!(tx.IsCoinBase() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsZerocoinSpend()) || tx.IsLelantusJoinSplit() || tx.IsSparkSpend()) {
                 BOOST_FOREACH(const CTxIn& txin, tx.vin) {
                     std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range = mapTxSpends.equal_range(txin.prevout);
                     while (range.first != range.second) {
@@ -1618,7 +1619,8 @@ isminetype CWallet::IsMine(const CTxIn &txin, const CTransaction& tx) const
         catch (...) {
             return ISMINE_NO;
         }
-
+        if (!sparkWallet)
+            return ISMINE_NO;
         return sparkWallet->isMine(lTags) ? ISMINE_SPENDABLE : ISMINE_NO;
     }
     else {
@@ -1725,13 +1727,15 @@ isminetype CWallet::IsMine(const CTxOut &txout) const
             }
         return db.HasHDMint(pub) ? ISMINE_SPENDABLE : ISMINE_NO;
     } else if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
-        spark::Coin coin;
+        spark::Coin coin(spark::Params::get_default());
         try {
             spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
         } catch (std::invalid_argument &) {
             return ISMINE_NO;
         }
 
+        if (!sparkWallet)
+            return ISMINE_NO;
         return sparkWallet->isMine(coin) ? ISMINE_SPENDABLE : ISMINE_NO;
     } else {
         return ::IsMine(*this, txout.scriptPubKey);
@@ -5954,6 +5958,12 @@ CAmount CWallet::GetMinimumFee(unsigned int nTxBytes, unsigned int nConfirmTarge
 
 DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
 {
+    MnemonicContainer mContainer = GetMnemonicContainer();
+    SecureString mnemonic;
+    //Don't dump mnemonic words in case user has set only hd seed during wallet creation
+    if(mContainer.GetMnemonic(mnemonic))
+        std::cout << "# mnemonic: " << mnemonic << "\n";
+
     if (!fFileBacked)
         return DB_LOAD_OK;
     fFirstRunRet = false;
@@ -7533,6 +7543,26 @@ notifTxExit:
             }
         }
     }
+}
+
+void CWallet::HandleSparkTransaction(CWalletTx const & wtx) {
+    if (!wtx.tx->IsSparkTransaction())
+        return;
+
+    uint256 txHash = wtx.GetHash();
+
+    // get spend linking tags and add to spark wallet
+    if (wtx.tx->IsSparkSpend()) {
+        std::vector<GroupElement> lTags;
+        lTags = spark::GetSparkUsedTags(*wtx.tx);
+        for (const auto& lTag : lTags) {
+            sparkWallet->UpdateSpendState(lTag, txHash);
+        }
+    }
+
+    // get spark coins and add into wallet
+    std::vector<spark::Coin>  coins = spark::GetSparkMintCoins(*wtx.tx);
+    sparkWallet->UpdateMintState(coins, txHash);
 }
 
 void CWallet::LabelSendingPcode(bip47::CPaymentCode const & pcode_, std::string const & label, bool remove)
