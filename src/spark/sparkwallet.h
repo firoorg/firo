@@ -76,6 +76,7 @@ public:
     bool isMine(const std::vector<GroupElement>& lTags) const;
 
     void UpdateSpendState(const GroupElement& lTag, const uint256& lTagHash, const uint256& txHash, bool fUpdateMint = true);
+    void UpdateSpendState(const GroupElement& lTag, const uint256& txHash, bool fUpdateMint = true);
     void UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint = true);
     void UpdateSpendStateFromBlock(const CBlock& block);
     void UpdateMintState(const std::vector<spark::Coin>& coins, const uint256& txHash);

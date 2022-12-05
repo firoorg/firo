@@ -17,7 +17,9 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 
     CWalletDB walletdb(strWalletFile);
     this->strWalletFile = strWalletFile;
+
     const spark::Params* params = spark::Params::get_default();
+
     fullViewKey = spark::FullViewKey(params);
     viewKey = spark::IncomingViewKey(params);
 
@@ -354,6 +356,11 @@ void CSparkWallet::UpdateSpendState(const GroupElement& lTag, const uint256& lTa
     }
 }
 
+void CSparkWallet::UpdateSpendState(const GroupElement& lTag, const uint256& txHash, bool fUpdateMint) {
+    uint256 lTagHash = primitives::GetLTagHash(lTag);
+    UpdateSpendState(lTag, lTagHash, txHash, fUpdateMint);
+}
+
 void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint) {
     std::thread([=]() {
         LOCK(cs_spark_wallet);
@@ -389,7 +396,7 @@ void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
 bool CSparkWallet::isMine(spark::Coin coin) const {
     try {
         spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
-    } catch (const std::runtime_error& e) {
+    } catch (...) {
         return false;
     }
 
