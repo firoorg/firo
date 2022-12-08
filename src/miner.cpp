@@ -469,10 +469,10 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
         if (spendNumber > params.nMaxLelantusInputPerTransaction || spendAmount > params.nMaxValueLelantusSpendPerTransaction)
             return false;
 
-        if (spendNumber + nSparkSpendInputs > params.nMaxLelantusInputPerBlock)
+        if (spendNumber + nSparkSpendInputs > params.nMaxSparkInputPerBlock)
             return false;
 
-        if (spendAmount + nSparkSpendAmount > params.nMaxValueLelantusSpendPerBlock)
+        if (spendAmount + nSparkSpendAmount > params.nMaxValueSparkSpendPerBlock)
             return false;
     }
 
@@ -516,10 +516,10 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
         if (spendAmount > params.nMaxValueLelantusSpendPerTransaction)
             return;
 
-        if ((nSparkSpendAmount += spendAmount) > params.nMaxValueLelantusSpendPerBlock)
+        if ((nSparkSpendAmount += spendAmount) > params.nMaxValueSparkSpendPerBlock)
             return;
 
-        if ((nSparkSpendInputs += spendNumber) > params.nMaxLelantusInputPerBlock)
+        if ((nSparkSpendInputs += spendNumber) > params.nMaxSparkInputPerBlock)
             return;
     }
 

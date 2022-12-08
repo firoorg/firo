@@ -386,12 +386,12 @@ bool CheckSparkBlock(CValidationState &state, const CBlock& block) {
         auto txSpendsValue =  GetSpendTransparentAmount(*tx);
         size_t txSpendNumber = GetSpendInputs(*tx);
 
-        if (txSpendNumber > consensus.nMaxLelantusInputPerTransaction) { //TODO levon define spark limits and refactor here
+        if (txSpendNumber > consensus.nMaxSparkInputPerTransaction) {
             return state.DoS(100, false, REJECT_INVALID,
                              "bad-txns-spark-spend-invalid");
         }
 
-        if (txSpendsValue > consensus.nMaxValueLelantusSpendPerTransaction) {
+        if (txSpendsValue > consensus.nMaxValueSparkSpendPerTransaction) {
             return state.DoS(100, false, REJECT_INVALID,
                              "bad-txns-spark-spend-invalid");
         }
@@ -639,6 +639,9 @@ bool CheckSparkSpendTransaction(
 
     }
 
+    if (vout.size() > ::Params().GetConsensus().nMaxSparkOutLimitPerTx)
+        return false;
+
     std::vector<Coin> out_coins;
     if (!CheckSparkSMintTransaction(vout, state, hashTx, fStatefulSigmaCheck, out_coins, sparkTxInfo))
         return false;
@@ -800,13 +803,13 @@ bool CheckSparkTransaction(
     // Check Spark Spend
     if (tx.IsSparkSpend()) {
         // First check number of inputs does not exceed transaction limit
-        if (GetSpendInputs(tx) > consensus.nMaxLelantusInputPerTransaction) { //TODO levon define spark limits and refactor here
+        if (GetSpendInputs(tx) > consensus.nMaxSparkInputPerTransaction) {
             return state.DoS(100, false,
                              REJECT_INVALID,
                              "bad-txns-spend-invalid");
         }
 
-        if (GetSpendTransparentAmount(tx) > consensus.nMaxValueLelantusSpendPerTransaction) {
+        if (GetSpendTransparentAmount(tx) > consensus.nMaxValueSparkSpendPerTransaction) {
             return state.DoS(100, false,
                              REJECT_INVALID,
                              "bad-txns-spend-invalid");

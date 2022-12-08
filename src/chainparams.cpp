@@ -416,6 +416,11 @@ public:
         consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusSpendPerTransaction = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
+        consensus.nMaxSparkInputPerTransaction = SPARK_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxSparkInputPerBlock = SPARK_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 50000;
 
         for (const auto& str : lelantus::lelantus_blacklist) {
@@ -716,6 +721,11 @@ public:
         consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusSpendPerTransaction = 1001 * COIN;
         consensus.nMaxValueLelantusMint = 1001 * COIN;
+        consensus.nMaxSparkInputPerTransaction = SPARK_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxSparkInputPerBlock = SPARK_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
         for (const auto& str : lelantus::lelantus_testnet_blacklist) {
@@ -957,6 +967,11 @@ public:
         consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusSpendPerTransaction = 1001 * COIN;
         consensus.nMaxValueLelantusMint = 1001 * COIN;
+        consensus.nMaxSparkInputPerTransaction = SPARK_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxSparkInputPerBlock = SPARK_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
         consensus.evoSporkKeyID = "TdxR3tfoHiQUkowcfjEGiMBfk6GXFdajUA";
@@ -1187,6 +1202,11 @@ public:
         consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusSpendPerTransaction = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
+        consensus.nMaxSparkInputPerTransaction = SPARK_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxSparkInputPerBlock = SPARK_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 1000;
 
         // evo spork
