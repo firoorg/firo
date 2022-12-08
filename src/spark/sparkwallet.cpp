@@ -623,10 +623,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
 
                 auto itr = valueAndUTXO.begin();
 
-                // TODO(levon) do we need mint limit? if yes, define new MaxValue Mint for spark
-                CAmount valueToMintInTx = std::min(
-                        ::Params().GetConsensus().nMaxValueLelantusMint,
-                        itr->first);
+                CAmount valueToMintInTx = itr->first;
 
                 if (!autoMintAll) {
                     valueToMintInTx = std::min(valueToMintInTx, valueToMint);
@@ -1010,6 +1007,10 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
         throw std::runtime_error(_("Either recipients or newMints has to be nonempty."));
     }
 
+    const auto &consensusParams = Params().GetConsensus();
+    if (privateRecipients.size() >= consensusParams.nMaxSparkOutLimitPerTx)
+        throw std::runtime_error(_("Spark shielded output limit exceeded."));
+
     // calculate total value to spend
     CAmount vOut = 0;
     CAmount mintVOut = 0;
@@ -1373,6 +1374,10 @@ bool GetCoinsToSpend(
 {
     CAmount availableBalance = CalculateBalance(coins.begin(), coins.end());
 
+    if (required > Params().GetConsensus().nMaxValueSparkSpendPerTransaction) {
+        throw std::invalid_argument(_("The required amount exceeds spend limit"));
+    }
+
     if (required > availableBalance) {
         throw InsufficientFunds();
     }
@@ -1471,7 +1476,7 @@ std::vector<std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta
             spendCoins.clear();
             const auto &consensusParams = Params().GetConsensus();
             if (!GetCoinsToSpend(currentRequired, spendCoins, coins, changeToMint,
-                                           consensusParams.nMaxLelantusInputPerTransaction, coinControl)) {
+                                           consensusParams.nMaxSparkInputPerTransaction, coinControl)) {
                 throw std::invalid_argument(_("Unable to select cons for spend"));
             }
 
