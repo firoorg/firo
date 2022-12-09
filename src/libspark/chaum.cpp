@@ -139,10 +139,12 @@ bool Chaum::verify(
     points.emplace_back(proof.A1);
 
     // {A2}
-    for (std::size_t i = 0; i < n; i++) {
-        scalars.emplace_back(w);
-        points.emplace_back(proof.A2[i]);
+    GroupElement A2_sum = proof.A2[0];
+    for (std::size_t i = 1; i < n; i++) {
+        A2_sum += proof.A2[i];
     }
+    scalars.emplace_back(w);
+    points.emplace_back(A2_sum);
 
     // {S}
     for (std::size_t i = 0; i < n; i++) {
