@@ -4258,13 +4258,17 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                     nBytes += GetSizeOfCompactSize(nExtraPayloadSize) + nExtraPayloadSize;
                 }
 
-                if (nBytes > MAX_STANDARD_TX_SIZE) {
-                    // Do not create oversized transactions (bad-txns-oversize).
+                // TODO Check calculate nBytes with GetVirtualTransactionSize(tx);
+                
+
+                CTransaction txNewConst(txNew);
+
+                // Limit size
+                if (GetTransactionWeight(txNewConst) >= MAX_STANDARD_TX_WEIGHT) {
                     strFailReason = _("Transaction too large");
                     return false;
                 }
 
-                CTransaction txNewConst(txNew);
                 dPriority = txNewConst.ComputePriority(dPriority, nBytes);
 
                 // Remove scriptSigs to eliminate the fee calculation dummy signatures
