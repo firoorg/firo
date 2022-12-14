@@ -170,61 +170,6 @@ const GroupElement& Address::get_Q2() const {
 	return this->Q2;
 }
 
-std::string Address::GetHex() const {
-    const std::size_t size = 2* GroupElement::serialize_size + AES_BLOCKSIZE;
-    std::vector<unsigned char> buffer;
-    buffer.reserve(size);
-    buffer.resize(2* GroupElement::serialize_size);
-    unsigned char* ptr = buffer.data();
-    ptr = Q1.serialize(ptr);
-    Q2.serialize(ptr);
-    buffer.insert(buffer.end(), d.begin(), d.end());
-
-    std::stringstream ss;
-    ss << std::hex;
-    ss << version;
-
-    for (const auto b : buffer) {
-        ss << (b >> 4);
-        ss << (b & 0xF);
-    }
-
-    std::string str = ss.str();
-    uint160 checksum = Hash160(str.begin(), str.end());
-    ss << checksum.GetHex();
-    return ss.str();
-}
-
-void Address::SetHex(const std::string& str) {
-    const std::size_t size = 2 * GroupElement::serialize_size + AES_BLOCKSIZE;
-    if (str.size() != ((size + 20) * 2 + 1)) {
-        throw "Address: SetHex failed, invalid length";
-    }
-
-    version = *str.c_str();
-    std::array<unsigned char, size> buffer;
-    for (std::size_t i = 0; i < buffer.size(); i++) {
-        auto hexs = str.substr(2 * i + 1, 2);
-
-        if (::isxdigit(hexs[0]) && ::isxdigit(hexs[1])) {
-            buffer[i] = strtol(hexs.c_str(), NULL, 16);
-        } else {
-            throw "Address: SetHex failed, invalid hex";
-        }
-    }
-
-    const unsigned char *ptr = Q1.deserialize(buffer.data());
-    Q2.deserialize(ptr);
-    d.insert(d.end(), buffer.begin() + 2 * GroupElement::serialize_size, buffer.end());
-
-    // check for checksum validity
-    std::string checksum = str.substr(size * 2 + 1, str.size() - 1);
-    // get checksum from newly deserialized address to compare with checksum form input
-    std::string resultChecksum = GetHex().substr(size * 2 + 1, str.size() - 1);
-    if (checksum != resultChecksum)
-        throw "Address: SetHex failed, invalid checksum";
-}
-
 // Encode the address to string, given a network identifier
 std::string Address::encode(const unsigned char network) const {
 	// Serialize the address components

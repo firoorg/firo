@@ -81,8 +81,6 @@ public:
 	const std::vector<unsigned char>& get_d() const;
 	const GroupElement& get_Q1() const;
 	const GroupElement& get_Q2() const;
-    std::string GetHex() const;
-    void SetHex(const std::string& str);
 
 	std::string encode(const unsigned char network) const;
 	unsigned char decode(const std::string& str);
