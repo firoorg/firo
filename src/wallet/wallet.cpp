@@ -1687,6 +1687,23 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const CTransaction& tx, const ismin
                 amount += lelantusSpend.amount;
         }
         return amount;
+    } else if (tx.IsSparkSpend()) {
+        if (!(filter & ISMINE_SPENDABLE)) {
+            goto end;
+        }
+        std::vector<GroupElement> lTags;
+        try {
+            lTags = spark::ParseSparkSpend(tx).getUsedLTags();
+        }
+        catch (...) {
+            goto end;
+        }
+        if (!sparkWallet)
+            goto end;
+
+        CAmount amount = sparkWallet->getMySpendAmount(lTags);
+
+        return amount;
     } else {
         std::map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
         if (mi != mapWallet.end())

@@ -415,6 +415,19 @@ bool CSparkWallet::isMine(const std::vector<GroupElement>& lTags) const {
     return false;
 }
 
+CAmount CSparkWallet::getMySpendAmount(const std::vector<GroupElement>& lTags) const {
+    CAmount result = 0;
+    LOCK(cs_spark_wallet);
+    for (const auto& lTag : lTags) {
+        uint256 lTagHash = primitives::GetLTagHash(lTag);
+        if (coinMeta.count(lTagHash)) {
+            result += coinMeta.at(lTagHash).v;
+        }
+    }
+
+    return result;
+}
+
 void CSparkWallet::UpdateMintState(const std::vector<spark::Coin>& coins, const uint256& txHash) {
     spark::CSparkState *sparkState = spark::CSparkState::GetState();
     for (auto coin : coins) {
