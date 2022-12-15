@@ -2083,6 +2083,13 @@ UniValue gettransaction(const JSONRPCRequest& request)
         catch (...) {
             // do nothing
         }
+    } else if (wtx.tx->IsSparkSpend()) {
+        try {
+            nFee = (0 - spark::ParseSparkSpend(*wtx.tx).getFee());
+        }
+        catch (...) {
+            // do nothing
+        }
     }
 
     entry.push_back(Pair("amount", ValueFromAmount(nNet - nFee)));
