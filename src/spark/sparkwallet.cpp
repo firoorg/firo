@@ -380,7 +380,8 @@ void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
         for (const auto& tx : transactions) {
             if (tx->IsSparkSpend()) {
                 try {
-                    const auto& txLTags = spark::ParseSparkSpend(*tx).getUsedLTags();
+                    spark::SpendTransaction spend = spark::ParseSparkSpend(*tx);
+                    const auto& txLTags = spend.getUsedLTags();
                     for (const auto& txLTag : txLTags) {
                         uint256 txHash = tx->GetHash();
                         uint256 lTagHash = primitives::GetLTagHash(txLTag);

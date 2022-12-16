@@ -1614,7 +1614,8 @@ isminetype CWallet::IsMine(const CTxIn &txin, const CTransaction& tx) const
     }  else if (tx.IsSparkSpend()) {
         std::vector<GroupElement> lTags;
         try {
-            lTags = spark::ParseSparkSpend(tx).getUsedLTags();
+            spark::SpendTransaction spend = spark::ParseSparkSpend(tx);
+            lTags = spend.getUsedLTags();
         }
         catch (...) {
             return ISMINE_NO;
@@ -1693,7 +1694,8 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const CTransaction& tx, const ismin
         }
         std::vector<GroupElement> lTags;
         try {
-            lTags = spark::ParseSparkSpend(tx).getUsedLTags();
+            spark::SpendTransaction spend = spark::ParseSparkSpend(tx);
+            lTags = spend.getUsedLTags();
         }
         catch (...) {
             goto end;
