@@ -3400,9 +3400,9 @@ UniValue getsparkbalance(const JSONRPCRequest& request) {
     EnsureSparkWalletIsAvailable();
     assert(pwallet != NULL);
     UniValue results(UniValue::VOBJ);
-    results.push_back(Pair("availableBalance: ",pwallet->sparkWallet->getAvailableBalance()));
-    results.push_back(Pair("unconfirmedBalance: ",pwallet->sparkWallet->getUnconfirmedBalance()));
-    results.push_back(Pair("fullBalance: ",pwallet->sparkWallet->getFullBalance()));
+    results.push_back(Pair("availableBalance",pwallet->sparkWallet->getAvailableBalance()));
+    results.push_back(Pair("unconfirmedBalance",pwallet->sparkWallet->getUnconfirmedBalance()));
+    results.push_back(Pair("fullBalance",pwallet->sparkWallet->getFullBalance()));
 
     return results;
 }
