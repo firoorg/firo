@@ -28,7 +28,7 @@ class LLMQ_IS_Lelantus(EvoZnodeTestFramework):
         self.mine_quorum()
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
 
-        self.nodes[0].generate(1000 - self.nodes[0].getblockcount())
+        self.nodes[0].generate(401 - self.nodes[0].getblockcount())
         for i in range(0, 3):
             mintTxids = self.nodes[0].mintlelantus(1)
 
