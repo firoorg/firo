@@ -86,7 +86,6 @@ namespace GUIUtil {
 
 static QString stylesheetDirectory = ":css";
 static QString firoTheme = "firoTheme";
-static QString firoLowTheme = "firoLowTheme";
 static CCriticalSection cs_css;
 
 QString dateTimeStr(const QDateTime &date)
@@ -1015,17 +1014,6 @@ void loadTheme()
     stylesheet = std::make_unique<QString>(); 
 
     stylesheet->append(strStyle);
-
-    if (QApplication::desktop()->screenGeometry().height() <= 800) {
-        fileName = stylesheetDirectory + "/" + firoLowTheme;
-        QFile qFile_(fileName);
-        if (!qFile_.open(QFile::ReadOnly)) {
-            throw std::runtime_error(strprintf("%s: Failed to open file: %s", __func__, fileName.toStdString()));
-        }
-
-        QString strLowStyle = QLatin1String(qFile_.readAll());
-        stylesheet->append(strLowStyle);
-    }
 
     qApp->setStyleSheet(*stylesheet);
 }
