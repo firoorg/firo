@@ -86,7 +86,6 @@ namespace GUIUtil {
 
 static QString stylesheetDirectory = ":css";
 static QString firoTheme = "firoTheme";
-static QString firoLowTheme = "firoLowTheme";
 static CCriticalSection cs_css;
 
 QString dateTimeStr(const QDateTime &date)
@@ -847,29 +846,6 @@ bool SetStartOnSystemStartup(bool fAutoStart) { return false; }
 
 #endif
 
-void saveWindowGeometry(const QString& strSetting, QWidget *parent)
-{
-    QSettings settings;
-    settings.setValue(strSetting + "Pos", parent->pos());
-    settings.setValue(strSetting + "Size", parent->size());
-}
-
-void restoreWindowGeometry(const QString& strSetting, const QSize& defaultSize, QWidget *parent)
-{
-    QSettings settings;
-    QPoint pos = settings.value(strSetting + "Pos").toPoint();
-    QSize size = settings.value(strSetting + "Size", defaultSize).toSize();
-
-    if (!pos.x() && !pos.y()) {
-        QRect screen = QApplication::desktop()->screenGeometry();
-        pos.setX((screen.width() - size.width()) / 2);
-        pos.setY((screen.height() - size.height()) / 2);
-    }
-
-    parent->resize(size);
-    parent->move(pos);
-}
-
 void setClipboard(const QString& str)
 {
     QApplication::clipboard()->setText(str, QClipboard::Clipboard);
@@ -1038,17 +1014,6 @@ void loadTheme()
     stylesheet = std::make_unique<QString>(); 
 
     stylesheet->append(strStyle);
-
-    if (QApplication::desktop()->screenGeometry().height() <= 800) {
-        fileName = stylesheetDirectory + "/" + firoLowTheme;
-        QFile qFile_(fileName);
-        if (!qFile_.open(QFile::ReadOnly)) {
-            throw std::runtime_error(strprintf("%s: Failed to open file: %s", __func__, fileName.toStdString()));
-        }
-
-        QString strLowStyle = QLatin1String(qFile_.readAll());
-        stylesheet->append(strLowStyle);
-    }
 
     qApp->setStyleSheet(*stylesheet);
 }
