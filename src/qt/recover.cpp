@@ -27,7 +27,7 @@ Recover::Recover(QWidget *parent) :
     setCreateNew();
     thread = new QThread(this);
 
-    connect(this, SIGNAL(stopThread()), thread, SLOT(quit()));
+    connect(this, &Recover::stopThread, thread, &QThread::quit);
     thread->start();
 }
 
@@ -161,7 +161,7 @@ bool Recover::askRecover(bool& newWallet)
                     SoftSetBoolArg("-use12", true);
 
                 if(recover.ui->spinBoxPcodes->value() > 0)
-                    SoftSetArg("-defaultpcodenumber", std::to_string(recover.ui->spinBoxPcodes->value()));
+                    SoftSetArg("-defaultrapaddressnumber", std::to_string(recover.ui->spinBoxPcodes->value()));
 
                 break;
             }

@@ -55,7 +55,8 @@ endef
 
 define $(package)_preprocess_cmds
   cp -f $(BASEDIR)/config.guess $(BASEDIR)/config.sub . && \
-  patch -p1 < $($(package)_patch_dir)/configure.patch
+  patch -p1 < $($(package)_patch_dir)/configure.patch && \
+  sed -i.old 's/^PROGRAMS =.*/PROGRAMS =/' Makefile.in
 endef
 
 define $(package)_config_cmds

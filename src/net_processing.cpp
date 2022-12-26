@@ -639,8 +639,7 @@ bool AddOrphanTx(const CTransactionRef& tx, NodeId peer) EXCLUSIVE_LOCKS_REQUIRE
     // 100 orphans, each of which is at most 99,999 bytes big is
     // at most 10 megabytes of orphans and somewhat more byprev index (in the worst case):
     unsigned int sz = GetTransactionWeight(*tx);
-    unsigned int szLimit = tx->IsLelantusJoinSplit() ? MAX_LELANTUS_TX_WEIGHT : MAX_STANDARD_TX_WEIGHT;
-    if (sz >= szLimit)
+    if (sz >= MAX_NEW_TX_WEIGHT)
     {
         LogPrint("mempool", "ignoring large orphan tx (size: %u, hash: %s)\n", sz, hash.ToString());
         return false;

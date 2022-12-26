@@ -19,8 +19,8 @@ NotifyMnemonic::NotifyMnemonic(QWidget *parent) :
         ui(new Ui::NotifyMnemonic)
 {
     ui->setupUi(this);
-    disconnect(QWizard::button(QWizard::CancelButton), SIGNAL(clicked()), this, SLOT(reject()));
-    connect(QWizard::button(QWizard::CancelButton), SIGNAL(clicked()), this, SLOT( cancelEvent()));
+    disconnect(QWizard::button(QWizard::CancelButton), &QAbstractButton::clicked, this, &QDialog::reject);
+    connect(QWizard::button(QWizard::CancelButton), &QAbstractButton::clicked, this, &NotifyMnemonic::cancelEvent);
 }
 
 NotifyMnemonic::~NotifyMnemonic()

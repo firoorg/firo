@@ -73,10 +73,10 @@ SendMPDialog::SendMPDialog(const PlatformStyle *platformStyle, QWidget *parent) 
 #endif
 
     // connect actions
-    connect(ui->propertyComboBox, SIGNAL(activated(int)), this, SLOT(propertyComboBoxChanged(int)));
-    connect(ui->sendFromComboBox, SIGNAL(activated(int)), this, SLOT(sendFromComboBoxChanged(int)));
-    connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clearButtonClicked()));
-    connect(ui->sendButton, SIGNAL(clicked()), this, SLOT(sendButtonClicked()));
+    connect(ui->propertyComboBox, qOverload<int>(&QComboBox::activated), this, &SendMPDialog::propertyComboBoxChanged);
+    connect(ui->sendFromComboBox, qOverload<int>(&QComboBox::activated), this, &SendMPDialog::sendFromComboBoxChanged);
+    connect(ui->clearButton, &QPushButton::clicked, this, &SendMPDialog::clearButtonClicked);
+    connect(ui->sendButton, &QPushButton::clicked, this, &SendMPDialog::sendButtonClicked);
 
     // initial update
     balancesUpdated();
@@ -91,8 +91,8 @@ void SendMPDialog::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
     if (model != NULL) {
-        connect(model, SIGNAL(refreshElysiumBalance()), this, SLOT(balancesUpdated()));
-        connect(model, SIGNAL(reinitElysiumState()), this, SLOT(balancesUpdated()));
+        connect(model, &ClientModel::refreshElysiumBalance, this, &SendMPDialog::balancesUpdated);
+        connect(model, &ClientModel::reinitElysiumState, this, &SendMPDialog::balancesUpdated);
     }
 }
 
@@ -101,7 +101,7 @@ void SendMPDialog::setWalletModel(WalletModel *model)
     // use wallet model to get visibility into BTC balance changes for fees
     this->walletModel = model;
     if (model != NULL) {
-       connect(model, SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)), this, SLOT(updateFrom()));
+       connect(model, &WalletModel::balanceChanged, this, &SendMPDialog::updateFrom);
     }
 }
 

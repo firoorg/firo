@@ -52,8 +52,8 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode,
         case SendingTab: setWindowTitle(tr("Choose the address to send coins to")); break;
         case ReceivingTab: setWindowTitle(tr("Choose the address to receive coins with")); break;
         }
-        connect(ui->tableView, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(accept()));
-        connect(ui->tableViewPcodes, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(accept()));
+        connect(ui->tableView, &QTableView::doubleClicked, this, &QDialog::accept);
+        connect(ui->tableViewPcodes, &QTableView::doubleClicked, this, &QDialog::accept);
         ui->tableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
         ui->tableView->setFocus();
         ui->closeButton->setText(tr("C&hoose"));
@@ -72,8 +72,8 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode,
     case SendingTab:
         ui->labelExplanation->setText(tr("These are your Firo addresses for sending payments. Always check the amount and the receiving address before sending coins."));
         ui->deleteAddress->setVisible(true);
-        connect(ui->tabWidget, SIGNAL(currentChanged(int)), this, SLOT(selectionChanged()));
-        connect(ui->tableViewPcodes, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
+        connect(ui->tabWidget, &QTabWidget::currentChanged, this, &AddressBookPage::selectionChanged);
+        connect(ui->tableViewPcodes, &QWidget::customContextMenuRequested, this, &AddressBookPage::contextualMenu);
         break;
     case ReceivingTab:
         ui->labelExplanation->setText(tr("These are your Firo addresses for receiving payments. It is recommended to use a new receiving address for each transaction."));
@@ -99,14 +99,14 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode,
     contextMenu->addSeparator();
 
     // Connect signals for context menu actions
-    connect(copyAddressAction, SIGNAL(triggered()), this, SLOT(on_copyAddress_clicked()));
-    connect(copyLabelAction, SIGNAL(triggered()), this, SLOT(onCopyLabelAction()));
-    connect(editAction, SIGNAL(triggered()), this, SLOT(onEditAction()));
-    connect(deleteAction, SIGNAL(triggered()), this, SLOT(on_deleteAddress_clicked()));
+    connect(copyAddressAction, &QAction::triggered, this, &AddressBookPage::on_copyAddress_clicked);
+    connect(copyLabelAction, &QAction::triggered, this, &AddressBookPage::onCopyLabelAction);
+    connect(editAction, &QAction::triggered, this, &AddressBookPage::onEditAction);
+    connect(deleteAction, &QAction::triggered, this, &AddressBookPage::on_deleteAddress_clicked);
 
-    connect(ui->tableView, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
+    connect(ui->tableView, &QWidget::customContextMenuRequested, this, &AddressBookPage::contextualMenu);
 
-    connect(ui->closeButton, SIGNAL(clicked()), this, SLOT(accept()));
+    connect(ui->closeButton, &QPushButton::clicked, this, &QDialog::accept);
 }
 
 AddressBookPage::~AddressBookPage()
@@ -145,8 +145,7 @@ void AddressBookPage::setModel(AddressTableModel *_model)
         proxyModelPcode->setFilterCaseSensitivity(Qt::CaseInsensitive);
         ui->tableViewPcodes->setModel(proxyModelPcode);
         ui->tableViewPcodes->sortByColumn(0, Qt::AscendingOrder);
-        connect(ui->tableViewPcodes->selectionModel(), SIGNAL(selectionChanged(QItemSelection,QItemSelection)),
-            this, SLOT(selectionChanged()));
+        connect(ui->tableViewPcodes->selectionModel(), &QItemSelectionModel::selectionChanged, this, &AddressBookPage::selectionChanged);
 
 #if QT_VERSION < 0x050000
         ui->tableViewPcodes->horizontalHeader()->setResizeMode(AddressTableModel::Label, QHeaderView::Stretch);
@@ -169,11 +168,10 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     ui->tableView->horizontalHeader()->setSectionResizeMode(AddressTableModel::Address, QHeaderView::ResizeToContents);
 #endif
 
-    connect(ui->tableView->selectionModel(), SIGNAL(selectionChanged(QItemSelection,QItemSelection)),
-        this, SLOT(selectionChanged()));
+    connect(ui->tableView->selectionModel(), &QItemSelectionModel::selectionChanged, this, &AddressBookPage::selectionChanged);
 
     // Select row for newly created address
-    connect(_model, SIGNAL(rowsInserted(QModelIndex,int,int)), this, SLOT(selectNewAddress(QModelIndex,int,int)));
+    connect(_model, &AddressTableModel::rowsInserted, this, &AddressBookPage::selectNewAddress);
 
     selectionChanged();
 }
