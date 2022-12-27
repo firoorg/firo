@@ -42,7 +42,7 @@ class CBLSWrapper
     friend class CBLSPublicKey;
     friend class CBLSSignature;
 
-    bool fLegacy{false};
+    bool fLegacy{fLegacyDefault};
 
 protected:
     ImplType impl;

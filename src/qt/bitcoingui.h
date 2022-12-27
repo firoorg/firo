@@ -291,6 +291,9 @@ public Q_SLOTS:
 
     /** Update Lelantus page visibility */
     void updateLelantusPage();
+
+    /** Update RAP Addresses page visibility */
+    void setRapAddressesVisible(bool);
 };
 
 class UnitDisplayStatusBarControl : public QLabel

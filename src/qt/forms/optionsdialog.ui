@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>560</width>
-    <height>440</height>
+    <width>660</width>
+    <height>540</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -172,6 +172,16 @@
              <string>&amp;Reindex Lelantus</string>
             </property>
            </widget>
+          </item>
+          <item>
+            <widget class="QCheckBox" name="enableRapAddresses">
+             <property name="toolTip">
+                <string>Whether to show RAP addresses or not.</string>
+             </property>
+             <property name="text">
+                <string>Display RAP addresses</string>
+             </property>
+            </widget>
           </item>
          </layout>
         </widget>
