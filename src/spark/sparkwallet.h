@@ -15,7 +15,6 @@
 class CRecipient;
 class CReserveKey;
 class CCoinControl;
-
 extern CChain chainActive;
 
 const uint32_t BIP44_SPARK_INDEX = 0x6;
@@ -23,7 +22,7 @@ const uint32_t BIP44_SPARK_INDEX = 0x6;
 class CSparkWallet  {
 public:
     CSparkWallet(const std::string& strWalletFile);
-
+    ~CSparkWallet();
     // increment diversifier and generate address for that
     spark::Address generateNextAddress();
     spark::Address generateNewAddress();
@@ -81,7 +80,7 @@ public:
     void UpdateSpendState(const GroupElement& lTag, const uint256& txHash, bool fUpdateMint = true);
     void UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint = true);
     void UpdateSpendStateFromBlock(const CBlock& block);
-    void UpdateMintState(const std::vector<spark::Coin>& coins, const uint256& txHash);
+    void UpdateMintState(const std::vector<spark::Coin>& coins, const uint256& txHash, CWalletDB& walletdb);
     void UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins, const uint256& txHash);
     void UpdateMintStateFromBlock(const CBlock& block);
     void RemoveSparkMints(const std::vector<spark::Coin>& mints);
@@ -143,6 +142,8 @@ private:
 
     // map lTagHash to coin meta
     std::unordered_map<uint256, CSparkMintMeta> coinMeta;
+
+    void* threadPool;
 };
 
 
