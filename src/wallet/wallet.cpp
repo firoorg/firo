@@ -7569,6 +7569,7 @@ void CWallet::HandleSparkTransaction(CWalletTx const & wtx) {
         return;
 
     uint256 txHash = wtx.GetHash();
+    CWalletDB walletdb(strWalletFile);
 
     // get spend linking tags and add to spark wallet
     if (wtx.tx->IsSparkSpend()) {
@@ -7581,7 +7582,7 @@ void CWallet::HandleSparkTransaction(CWalletTx const & wtx) {
 
     // get spark coins and add into wallet
     std::vector<spark::Coin>  coins = spark::GetSparkMintCoins(*wtx.tx);
-    sparkWallet->UpdateMintState(coins, txHash);
+    sparkWallet->UpdateMintState(coins, txHash, walletdb);
 }
 
 void CWallet::LabelSendingPcode(bip47::CPaymentCode const & pcode_, std::string const & label, bool remove)
