@@ -367,6 +367,10 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
     }
 
     auto sTx1 = GenerateSparkSpend({1 * COIN}, {}, &coinControl);
+
+    // wait while another thread updates mint status in wallet, and then continue
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
     // Update isused status
     {
         CSparkMintMeta meta = pwalletMain->sparkWallet->getMintMeta(mints[1].k);
