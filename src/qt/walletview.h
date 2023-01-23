@@ -13,7 +13,6 @@
 #include "automintnotification.h"
 #include "amount.h"
 #include "masternodelist.h"
-#include "sigmadialog.h"
 #include "lelantusdialog.h"
 
 #ifdef ENABLE_ELYSIUM
@@ -85,7 +84,6 @@ private:
 #ifdef ENABLE_ELYSIUM
     void setupToolboxPage();
 #endif
-    void setupSigmaPage();
     void setupLelantusPage();
 
 private:
@@ -112,12 +110,8 @@ private:
     TradeHistoryDialog *tradeHistoryTab;
     MetaDExDialog *metaDExTab;
     MetaDExCancelDialog *cancelTab;
-    SigmaDialog *sigmaView;
-    BlankSigmaDialog *blankSigmaView;
     LelantusDialog *lelantusView;
-    BlankSigmaDialog *blankLelantusView;
     QWidget *lelantusPage;
-    QWidget *sigmaPage;
     TransactionView *firoTransactionList;
     QWidget *firoTransactionsView;
     MasternodeList *masternodeListPage;
@@ -153,8 +147,6 @@ public Q_SLOTS:
     void gotoCreatePcodePage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-    /** Switch to sigma page */
-    void gotoSigmaPage();
     /** Switch to lelantus page */
     void gotoLelantusPage();
 
