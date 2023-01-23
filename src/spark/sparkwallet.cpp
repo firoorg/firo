@@ -353,11 +353,11 @@ void CSparkWallet::UpdateSpendState(const GroupElement& lTag, const uint256& lTa
             addOrUpdateMint(mintMeta, lTagHash, walletdb);
         }
 
-        pwalletMain->NotifyZerocoinChanged(
-                pwalletMain,
-                lTagHash.GetHex(),
-                std::string("used (") + std::to_string((double)mintMeta.v / COIN) + "mint)",
-                CT_UPDATED);
+//        pwalletMain->NotifyZerocoinChanged(
+//                pwalletMain,
+//                lTagHash.GetHex(),
+//                std::string("used (") + std::to_string((double)mintMeta.v / COIN) + "mint)",
+//                CT_UPDATED);
     }
 }
 
