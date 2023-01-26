@@ -226,7 +226,6 @@ BITCOIN_QT_H = \
   qt/addressbookpage.h \
   qt/automintdialog.h \
   qt/automintnotification.h \
-  qt/sigmacoincontroldialog.h \
   qt/addresstablemodel.h \
   qt/askpassphrasedialog.h \
   qt/bantablemodel.h \
