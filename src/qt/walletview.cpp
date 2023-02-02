@@ -21,7 +21,6 @@
 #include "platformstyle.h"
 #include "receivecoinsdialog.h"
 #include "sendcoinsdialog.h"
-#include "sigmadialog.h"
 #include "signverifymessagedialog.h"
 #include "tradehistorydialog.h"
 #include "transactiontablemodel.h"
@@ -63,10 +62,8 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     sendElysiumView(0),
     sendCoinsTabs(0),
 #endif
-    sigmaView(0),
-    blankSigmaView(0),
     lelantusView(0),
-    blankLelantusView(0),
+    // blankLelantusView(0),
     firoTransactionsView(0),
     platformStyle(_platformStyle)
 {
@@ -79,7 +76,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     createPcodePage = new CreatePcodeDialog(platformStyle);
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
-    sigmaPage = new QWidget(this);
     lelantusPage = new QWidget(this);
 
     sendCoinsPage = new QWidget(this);
@@ -96,7 +92,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
 #ifdef ENABLE_ELYSIUM
     setupToolboxPage();
 #endif
-    setupSigmaPage();
     setupLelantusPage();
 
     addWidget(overviewPage);
@@ -107,7 +102,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     addWidget(receiveCoinsPage);
     addWidget(createPcodePage);
     addWidget(sendCoinsPage);
-    addWidget(sigmaPage);
     addWidget(lelantusPage);
 #ifdef ENABLE_ELYSIUM
     addWidget(toolboxPage);
@@ -213,36 +207,19 @@ void WalletView::setupSendCoinPage()
     sendCoinsPage->setLayout(pageLayout);
 }
 
-void WalletView::setupSigmaPage()
-{
-    // Set layout for Sigma page
-    auto pageLayout = new QVBoxLayout();
-
-    if (pwalletMain->IsHDSeedAvailable()) {
-        sigmaView = new SigmaDialog(platformStyle);
-        connect(sigmaView, &SigmaDialog::message, this, &WalletView::message);
-        pageLayout->addWidget(sigmaView);
-        sigmaPage->setLayout(pageLayout);
-    } else {
-        blankSigmaView = new BlankSigmaDialog();
-        pageLayout->addWidget(blankSigmaView);
-        sigmaPage->setLayout(pageLayout);
-    }
-}
-
 void WalletView::setupLelantusPage()
 {
     auto pageLayout = new QVBoxLayout();
 
-    if (pwalletMain->IsHDSeedAvailable()) {
+    // if (pwalletMain->IsHDSeedAvailable()) {
         lelantusView = new LelantusDialog(platformStyle);
         connect(lelantusView, &LelantusDialog::message, this, &WalletView::message);
         pageLayout->addWidget(lelantusView);
-    } else {
+    // } else {
 
-        blankLelantusView = new BlankSigmaDialog();
-        pageLayout->addWidget(blankLelantusView);
-    }
+    //     blankLelantusView = new BlankSigmaDialog();
+    //     pageLayout->addWidget(blankLelantusView);
+    // }
 
     lelantusPage->setLayout(pageLayout);
 }
@@ -306,7 +283,6 @@ void WalletView::setClientModel(ClientModel *_clientModel)
     elyAssetsPage->setClientModel(clientModel);
 #endif
     if (pwalletMain->IsHDSeedAvailable()) {
-        sigmaView->setClientModel(clientModel);
         lelantusView->setClientModel(clientModel);
     }
 
@@ -333,7 +309,6 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     // TODO: fix this
     //sendCoinsPage->setModel(_walletModel);
     if (pwalletMain->IsHDSeedAvailable()) {
-        sigmaView->setWalletModel(_walletModel);
         lelantusView->setWalletModel(_walletModel);
     }
     usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
@@ -480,11 +455,6 @@ void WalletView::gotoReceiveCoinsPage()
 void WalletView::gotoCreatePcodePage()
 {
     setCurrentWidget(createPcodePage);
-}
-
-void WalletView::gotoSigmaPage()
-{
-    setCurrentWidget(sigmaPage);
 }
 
 void WalletView::gotoLelantusPage()
