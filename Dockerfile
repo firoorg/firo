@@ -1,5 +1,5 @@
 # This is a Dockerfile for firod.
-FROM debian:stretch
+FROM debian:bullseye as build-image
 
 # Install required system packages
 RUN apt-get update && apt-get install -y \
@@ -13,59 +13,44 @@ RUN apt-get update && apt-get install -y \
     libtool \
     libzmq3-dev \
     make \
-    openjdk-8-jdk \
+    openjdk-11-jdk \
     pkg-config \
-    zlib1g-dev
-
-# Install Berkeley DB 4.8
-RUN curl -L http://download.oracle.com/berkeley-db/db-4.8.30.tar.gz | tar -xz -C /tmp && \
-    cd /tmp/db-4.8.30/build_unix && \
-    ../dist/configure --enable-cxx --includedir=/usr/include/bdb4.8 --libdir=/usr/lib && \
-    make -j$(nproc) && make install && \
-    cd / && rm -rf /tmp/db-4.8.30
-
-# Install minizip from source (unavailable from apt on Ubuntu 14.04)
-RUN curl -L https://www.zlib.net/zlib-1.2.11.tar.gz | tar -xz -C /tmp && \
-    cd /tmp/zlib-1.2.11/contrib/minizip && \
-    autoreconf -fi && \
-    ./configure --enable-shared=no --with-pic && \
-    make -j$(nproc) install && \
-    cd / && rm -rf /tmp/zlib-1.2.11
-
-# Install zmq from source (outdated version from apt on Ubuntu 14.04)
-RUN curl -L https://github.com/zeromq/libzmq/releases/download/v4.3.1/zeromq-4.3.1.tar.gz | tar -xz -C /tmp && \
-    cd /tmp/zeromq-4.3.1/ && ./configure --disable-shared --without-libsodium --with-pic && \
-    make -j$(nproc) install && \
-    cd / && rm -rf /tmp/zeromq-4.3.1/
-
-# Create user to run daemon
-RUN useradd -m -U firod
+    zlib1g-dev \
+    patch 
 
 # Build Firo
 COPY . /tmp/firo/
 
-RUN cd /tmp/firo && \
-    ./autogen.sh && \
-    ./configure --without-gui --prefix=/usr && \
+WORKDIR /tmp/firo
+
+RUN cd depends && \
+    NO_QT=true make HOST=$(uname -m)-linux-gnu -j$(nproc)
+
+RUN ./autogen.sh && \
+    ./configure --without-gui --enable-tests --prefix=/tmp/firo/depends/$(uname -m)-linux-gnu && \
     make -j$(nproc) && \
     make check && \
-    make install && \
-    cd / && rm -rf /tmp/firo
+    make install
 
-# Remove unused packages
-RUN apt-get remove -y \
-    automake \
-    bsdmainutils \
-    curl \
-    g++ \
-    libboost-all-dev \
-    libevent-dev \
-    libssl-dev \
-    libtool \
-    libzmq3-dev \
-    make
+# extract shared dependencies of firod and firo-cli
+# copy relevant binaries to /usr/bin, the COPY --from cannot use $(uname -m) variable in argument
+RUN mkdir /tmp/ldd && \
+    ./depends/ldd_copy.sh -b "./depends/$(uname -m)-linux-gnu/bin/firod" -t "/tmp/ldd" && \
+    ./depends/ldd_copy.sh -b "./depends/$(uname -m)-linux-gnu/bin/firo-cli" -t "/tmp/ldd" && \
+    cp ./depends/$(uname -m)-linux-gnu/bin/* /usr/bin/
 
-# Start Firo Daemon
+FROM debian:bullseye-slim
+
+COPY --from=build-image /usr/bin/firod /usr/bin/firod
+COPY --from=build-image /usr/bin/firo-cli /usr/bin/firo-cli
+COPY --from=build-image /tmp/ldd /tmp/ldd
+
+# restore ldd files in correct paths
+RUN cp --verbose -RT /tmp/ldd / && \
+    ldd /usr/bin/firod
+
+# Create user to run daemon
+RUN useradd -m -U firod
 USER firod
 
 RUN mkdir /home/firod/.firo
@@ -83,4 +68,5 @@ EXPOSE 18888
 EXPOSE 18444
 EXPOSE 28888
 
-ENTRYPOINT [ "/usr/bin/firod" ]
+ENTRYPOINT ["/usr/bin/firod", "-printtoconsole"]
+
