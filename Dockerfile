@@ -7,15 +7,9 @@ RUN apt-get update && apt-get install -y \
     bsdmainutils \
     curl \
     g++ \
-    libboost-all-dev \
-    libevent-dev \
-    libssl-dev \
     libtool \
-    libzmq3-dev \
     make \
-    openjdk-11-jdk \
     pkg-config \
-    zlib1g-dev \
     patch 
 
 # Build Firo
