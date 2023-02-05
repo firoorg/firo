@@ -41,6 +41,7 @@ COPY --from=build-image /tmp/ldd /tmp/ldd
 
 # restore ldd files in correct paths
 RUN cp --verbose -RT /tmp/ldd / && \
+    rm -rf /tmp/ldd && \
     ldd /usr/bin/firod
 
 # Create user to run daemon
