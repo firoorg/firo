@@ -123,7 +123,6 @@ private:
     QAction *openRPCConsoleAction;
     QAction *openAction;
     QAction *showHelpMessageAction;
-    QAction *sigmaAction;
     QAction *lelantusAction;
     QAction *masternodeAction;
     QAction *createPcodeAction;
@@ -162,8 +161,6 @@ private:
 
     /** Updates Znode visibility */
     void checkZnodeVisibility(int numBlocks);
-    /** Updates Sigma visibility */
-    void checkSigmaVisibility(int numBlocks);
     /** Updates Lelantus visibility */
     void checkLelantusVisibility(int numBlocks);
     /** Update UI with latest network info from model. */
@@ -237,8 +234,6 @@ public Q_SLOTS:
     void gotoCreatePcodePage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-    /** Switch to sigma page */
-    void gotoSigmaPage();
     /** Switch to lelantus page */
     void gotoLelantusPage();
 

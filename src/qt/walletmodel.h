@@ -118,7 +118,6 @@ public:
         AmountExceedsBalance,
         AmountWithFeeExceedsBalance,
         DuplicateAddress,
-        SigmaDisabled,
         TransactionCreationFailed, // Error returned when wallet is still locked
         TransactionCommitFailed,
         AbsurdFee,
@@ -263,22 +262,6 @@ public:
     bool transactionCanBeRebroadcast(uint256 hash) const;
     bool rebroadcastTransaction(uint256 hash, CValidationState &state);
 
-    // Sigma
-    SendCoinsReturn prepareSigmaSpendTransaction(WalletModelTransaction &transaction,
-        std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes,
-        bool& fChangeAddedToFee,
-        const CCoinControl *coinControl = NULL);
-
-    // Send coins to a list of recipients
-    SendCoinsReturn sendSigma(WalletModelTransaction &transaction,
-        std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes);
-
-    // Mint sigma
-    void sigmaMint(const CAmount& n, const CCoinControl *coinControl = NULL);
-    void checkSigmaAmount(bool forced);
-
-    std::vector<CSigmaEntry> GetUnsafeCoins(const CCoinControl* coinControl = NULL);
-
     CAmount GetJMintCredit(const CTxOut& txout) const;
 
 private:
@@ -310,10 +293,6 @@ private:
     CAmount cachedUnconfirmedPrivateBalance;
     EncryptionStatus cachedEncryptionStatus;
     int cachedNumBlocks;
-
-    // Sigma
-    bool cachedHavePendingCoin = true;
-    int lastBlockCheckSigma = 0;
 
     QTimer *pollTimer;
 
@@ -354,8 +333,6 @@ Q_SIGNALS:
     // Watch-only address added
     void notifyWatchonlyChanged(bool fHaveWatchonly);
 
-    // Update sigma changed
-    void notifySigmaChanged(const std::vector<CMintMeta>& spendable, const std::vector<CMintMeta>& pending);
 public Q_SLOTS:
     /* Wallet status might have changed */
     void updateStatus();

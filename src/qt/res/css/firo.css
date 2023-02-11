@@ -1744,38 +1744,6 @@ QStackedWidget#SendCoinsEntry .QToolButton#addressBookButton {
     margin-left: 10px;
 }
 
-/* SigmaCoinControlDialog */
-
-QDialog#SigmaCoinControlDialog QLabel#labelCoinControlQuantityText,
-QDialog#SigmaCoinControlDialog QLabel#labelCoinControlBytesText,
-QDialog#SigmaCoinControlDialog QLabel#labelCoinControlAmountText,
-QDialog#SigmaCoinControlDialog QLabel#labelCoinControlPriorityText,
-QDialog#SigmaCoinControlDialog QLabel#labelCoinControlFeeText,
-QDialog#SigmaCoinControlDialog QLabel#labelCoinControlLowOutputText,
-QDialog#SigmaCoinControlDialog QLabel#labelCoinControlAfterFeeText,
-QDialog#SigmaCoinControlDialog QLabel#labelCoinControlChangeText {
-    font-weight: bold;
-}
-
-/* SigmaDialog */
-
-QWidget#SigmaDialog QLabel#labelCoinControlFeatures,
-QWidget#SigmaDialog QLabel#labelCoinControlInsuffFunds,
-QWidget#SigmaDialog QLabel#label_3,
-QWidget#SigmaDialog QLabel#label_121,
-QWidget#SigmaDialog QLabel#total,
-QWidget#SigmaDialog QLabel#availableAmount,
-QWidget#SigmaDialog QLabel#labelCoinControlQuantityText,
-QWidget#SigmaDialog QLabel#labelCoinControlBytesText,
-QWidget#SigmaDialog QLabel#labelCoinControlAmountText,
-QWidget#SigmaDialog QLabel#labelCoinControlPriorityText,
-QWidget#SigmaDialog QLabel#labelCoinControlFeeText,
-QWidget#SigmaDialog QLabel#labelCoinControlLowOutputText,
-QWidget#SigmaDialog QLabel#labelCoinControlAfterFeeText,
-QWidget#SigmaDialog QLabel#labelCoinControlChangeText {
-    font-weight: bold;
-}
-
 /* SignVerifyMessageDialog */
 
 QDialog#SignVerifyMessageDialog {
