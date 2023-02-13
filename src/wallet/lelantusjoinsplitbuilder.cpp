@@ -316,8 +316,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         // check fee
         result.SetTx(MakeTransactionRef(tx));
 
-        unsigned int szLimit = (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock) ? MAX_LELANTUS_TX_WEIGHT : MAX_STANDARD_TX_WEIGHT;
-        if (GetTransactionWeight(tx) >= szLimit) {
+        if (GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT) {
             throw std::runtime_error(_("Transaction too large"));
         }
 

@@ -40,8 +40,8 @@ LookupSPDialog::LookupSPDialog(QWidget *parent) :
 #endif
 
     // connect actions
-    connect(ui->matchingComboBox, SIGNAL(activated(int)), this, SLOT(matchingComboBoxChanged(int)));
-    connect(ui->searchButton, SIGNAL(clicked()), this, SLOT(searchButtonClicked()));
+    connect(ui->matchingComboBox, qOverload<int>(&QComboBox::activated), this, &LookupSPDialog::matchingComboBoxChanged);
+    connect(ui->searchButton, &QPushButton::clicked, this, &LookupSPDialog::searchButtonClicked);
 
     // hide crowd info
     ui->desired->setVisible(false);
@@ -334,7 +334,7 @@ void LookupSPDialog::updateDisplayedProperty()
     bool manualIssuance = sp.manual;
 
     // sigma
-    ui->sigmaStatusLabel->setText(QString::fromStdString(std::to_string(sp.sigmaStatus)));
+    // ui->sigmaStatusLabel->setText(QString::fromStdString(std::to_string(sp.sigmaStatus)));
     ui->denominationTable->setRowCount(0);
 
     for (size_t i = 0; i < sp.denominations.size(); i++) {

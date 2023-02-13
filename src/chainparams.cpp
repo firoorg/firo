@@ -445,7 +445,7 @@ public:
 
         consensus.evoSporkKeyID = "a78fERshquPsTv2TuKMSsxTeKom56uBwLP";
         consensus.nEvoSporkStartBlock = ZC_LELANTUS_STARTING_BLOCK;
-        consensus.nEvoSporkStopBlock = AdjustEndingBlockNumberAfterSubsidyHalving(ZC_LELANTUS_STARTING_BLOCK, 2*24*12*365, 486221);  // =608035, two years after lelantus
+        consensus.nEvoSporkStopBlock = AdjustEndingBlockNumberAfterSubsidyHalving(ZC_LELANTUS_STARTING_BLOCK, 3*24*12*365, 486221);  // =818275, three years after lelantus
         consensus.nEvoSporkStopBlockExtensionVersion = 140903;
         consensus.nEvoSporkStopBlockPrevious = ZC_LELANTUS_STARTING_BLOCK + 1*24*12*365; // one year after lelantus
         consensus.nEvoSporkStopBlockExtensionGracefulPeriod = 24*12*14; // two weeks

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>914</width>
-    <height>815</height>
+    <height>699</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -582,10 +582,13 @@
      <item>
       <layout class="QGridLayout" name="gridLayout_2">
        <property name="leftMargin">
-        <number>10</number>
+        <number>5</number>
        </property>
        <property name="topMargin">
-        <number>10</number>
+        <number>1</number>
+       </property>
+       <property name="spacing">
+        <number>3</number>
        </property>
        <item row="5" column="0">
         <widget class="QLabel" name="spendableText">
@@ -764,6 +767,9 @@
        </item>
        <item row="4" column="0">
         <widget class="QLabel" name="labelYourAnoymizedCoinsText">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
          <property name="font">
           <font>
            <weight>75</weight>
@@ -772,6 +778,12 @@
          </property>
          <property name="text">
           <string>Your Anonymized Coins</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignBottom|Qt::AlignLeading|Qt::AlignLeft</set>
+         </property>
+         <property name="margin">
+          <number>0</number>
          </property>
         </widget>
        </item>
@@ -952,8 +964,7 @@
          </widget>
         </item>
         <item>
-         <widget class="BitcoinAmountField" name="anonymizeAmount">
-         </widget>
+         <widget class="BitcoinAmountField" name="anonymizeAmount"/>
         </item>
         <item>
          <widget class="QLabel" name="anonymizeUnit">
@@ -1627,7 +1638,7 @@
  </resources>
  <connections/>
  <buttongroups>
-  <buttongroup name="groupFee"/>
   <buttongroup name="groupCustomFee"/>
+  <buttongroup name="groupFee"/>
  </buttongroups>
 </ui>

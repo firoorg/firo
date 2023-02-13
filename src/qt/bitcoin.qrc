@@ -29,7 +29,6 @@
         <file alias="history">res/icons/history.png</file>
         <file alias="qrcode">res/icons/qrcode.png</file>
         <file alias="zerocoin">res/icons/zerocoin.png</file>
-        <file alias="sigma">res/icons/sigma.png</file>
         <file alias="znodes">res/icons/masternodes.png</file>
         <file alias="overview">res/icons/overview.png</file>
         <file alias="export">res/icons/export.png</file>
@@ -153,9 +152,6 @@
     </qresource>
     <qresource prefix="/css">
         <file alias="firoTheme">res/css/firo.css</file>
-    </qresource>
-    <qresource prefix="/css">
-        <file alias="firoLowTheme">res/css/firo_low.css</file>
     </qresource>
     <qresource prefix="/fonts">
         <file alias="Saira_SemiCondensed-Bold">res/fonts/Saira_SemiCondensed-Bold.ttf</file>
