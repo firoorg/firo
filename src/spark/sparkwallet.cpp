@@ -1332,7 +1332,7 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
                 // check fee
                 wtxNew.SetTx(MakeTransactionRef(std::move(tx)));
 
-                if (GetTransactionWeight(tx) >= MAX_LELANTUS_TX_WEIGHT) {
+                if (GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT) {
                     throw std::runtime_error(_("Transaction too large"));
                 }
 
