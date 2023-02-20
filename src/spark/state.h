@@ -200,6 +200,15 @@ public:
             std::vector<spark::Coin>& coins_out,
             std::vector<unsigned char>& setHash_out);
 
+    void GetCoinsForRecovery(
+            CChain *chain,
+            int maxHeight,
+            int coinGroupID,
+            std::string start_block_hash,
+            uint256& blockHash_out,
+            std::vector<std::pair<spark::Coin, uint256>> coins,
+            std::vector<unsigned char>& setHash_out);
+
     std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & GetMints() const;
     std::unordered_map<GroupElement, int, spark::CLTagHash> const & GetSpends() const;
     std::unordered_map<int, SparkCoinGroupInfo> const & GetCoinGroups() const;
