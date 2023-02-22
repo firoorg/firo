@@ -335,6 +335,7 @@ bool CheckLelantusJMintTransaction(
 
         // Update public coin list in the info
         lelantusTxInfo->mints.push_back(std::make_pair(pubCoin, std::make_pair(amount, mintTag)));
+        lelantusTxInfo->encryptedJmintValues.insert(std::make_pair(pubCoin, encryptedValue));
         lelantusTxInfo->zcTransactions.insert(hashTx);
     }
 
@@ -1010,6 +1011,12 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue,
     return false;
 }
 
+uint256 GetTxHashFromPubcoin(const lelantus::PublicCoin& pubCoin) {
+    COutPoint outPoint;
+    GetOutPoint(outPoint, pubCoin.getValue());
+    return  outPoint.hash;
+}
+
 bool GetOutPoint(COutPoint& outPoint, const lelantus::PublicCoin &pubCoin) {
 
     lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
@@ -1225,9 +1232,20 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
         CBlockIndex *index,
         const CBlock* pblock) {
 
-    std::vector<std::pair<lelantus::PublicCoin, uint256>> blockMints;
+    std::vector<std::pair<lelantus::PublicCoin, std::pair<lelantus::MintValueData, uint256>>> blockMints;
     for (const auto& mint : pblock->lelantusTxInfo->mints) {
-        blockMints.push_back(std::make_pair(mint.first, mint.second.second));
+        lelantus::MintValueData mintdata;
+        mintdata.amount = mint.second.first;
+        if (pblock->lelantusTxInfo->encryptedJmintValues.count(mint.first) > 0) {
+            mintdata.isJMint = true;
+            mintdata.encryptedValue = pblock->lelantusTxInfo->encryptedJmintValues[mint.first];
+        }
+
+        COutPoint outPoint;
+        GetOutPointFromBlock(outPoint, mint.first.getValue(), *pblock);
+        mintdata.txHash = outPoint.hash;
+
+        blockMints.push_back(std::make_pair(mint.first, std::make_pair(mintdata, mint.second.second)));
     }
 
     latestCoinId = std::max(1, latestCoinId);
@@ -1262,7 +1280,7 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
     }
 
     for (const auto& mint : blockMints) {
-        containers.AddMint(mint.first, CMintedCoinInfo::make(latestCoinId, index->nHeight), mint.second);
+        containers.AddMint(mint.first, CMintedCoinInfo::make(latestCoinId, index->nHeight), mint.second.second);
 
         LogPrintf("AddMintsToStateAndBlockIndex: Lelantus mint added id=%d\n", latestCoinId);
         index->lelantusMintedPubCoins[latestCoinId].push_back(mint);
@@ -1297,7 +1315,7 @@ void CLelantusState::AddBlock(CBlockIndex *index) {
 
         latestCoinId = pubCoins.first;
         for (auto const &coin : pubCoins.second) {
-            containers.AddMint(coin.first, CMintedCoinInfo::make(pubCoins.first, index->nHeight), coin.second);
+            containers.AddMint(coin.first, CMintedCoinInfo::make(pubCoins.first, index->nHeight), coin.second.second);
         }
     }
 
@@ -1432,7 +1450,8 @@ int CLelantusState::GetCoinSetForSpend(
     int coinGroupID,
     uint256& blockHash_out,
     std::vector<lelantus::PublicCoin>& coins_out,
-    std::vector<unsigned char>& setHash_out) {
+    std::vector<unsigned char>& setHash_out,
+    std::string start_block_hash) {
 
     coins_out.clear();
 
@@ -1448,6 +1467,10 @@ int CLelantusState::GetCoinSetForSpend(
         // ignore block heigher than max height
         if (block->nHeight > maxHeight) {
             continue;
+        }
+
+        if (block->GetBlockHash().GetHex() == start_block_hash) {
+            break ;
         }
 
         // check coins in group coinGroupID - 1 in the case that using coins from prev group.
@@ -1486,6 +1509,72 @@ int CLelantusState::GetCoinSetForSpend(
     }
 
     return numberOfCoins;
+}
+
+void CLelantusState::GetCoinsForRecovery(
+        CChain *chain,
+        int maxHeight,
+        int coinGroupID,
+        std::string start_block_hash,
+        uint256& blockHash_out,
+        std::vector<std::pair<lelantus::PublicCoin, std::pair<lelantus::MintValueData, uint256>>>& coins,
+        std::vector<unsigned char>& setHash_out) {
+
+    coins.clear();
+    if (coinGroups.count(coinGroupID) == 0) {
+        return;
+    }
+
+    LelantusCoinGroupInfo &coinGroup = coinGroups[coinGroupID];
+
+    int numberOfCoins = 0;
+    for (CBlockIndex *block = coinGroup.lastBlock;; block = block->pprev) {
+        // ignore block heigher than max height
+        if (block->nHeight > maxHeight) {
+            continue;
+        }
+
+        if (block->GetBlockHash().GetHex() == start_block_hash) {
+            break;
+        }
+
+        // check coins in group coinGroupID - 1 in the case that using coins from prev group.
+        int id = 0;
+        if (CountCoinInBlock(block, coinGroupID)) {
+            id = coinGroupID;
+        } else if (CountCoinInBlock(block, coinGroupID - 1)) {
+            id = coinGroupID - 1;
+        }
+
+        if (id) {
+            if (numberOfCoins == 0) {
+                // latest block satisfying given conditions
+                // remember block hash and set hash
+                blockHash_out = block->GetBlockHash();
+                setHash_out =  GetAnonymitySetHash(block, id);
+            }
+
+            numberOfCoins += block->lelantusMintedPubCoins[id].size();
+            if (block->lelantusMintedPubCoins.count(id) > 0) {
+                for (const auto &coin : block->lelantusMintedPubCoins[id]) {
+                    LOCK(cs_main);
+                    // skip mints from blacklist if nLelantusFixesStartBlock is passed
+                    if (chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
+                        if (::Params().GetConsensus().lelantusBlacklist.count(coin.first.getValue()) > 0) {
+                            continue;
+                        }
+                    }
+
+                    coins.push_back(coin);
+                }
+            }
+        }
+
+        if (block == coinGroup.firstBlock) {
+            break ;
+        }
+    }
+
 }
 
 void CLelantusState::GetAnonymitySet(

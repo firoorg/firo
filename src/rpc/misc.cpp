@@ -929,55 +929,71 @@ UniValue getanonymityset(const JSONRPCRequest& request)
                         "\nReturns the anonymity set and latest block hash.\n"
                         "\nArguments:\n"
                         "{\n"
-                        "      \"denomination\"  (int64_t) int denomination\n"
                         "      \"coinGroupId\"  (int)\n"
+                        "      \"startBlockHash\"    (string)\n" // if this is empty it returns the full set
                         "}\n"
                         "\nResult:\n"
                         "{\n"
                         "  \"blockHash\"   (string) Latest block hash for anonymity set\n"
-                        "  \"anonymityset\"(std::string[]) array of Serialized GroupElements\n"
+                        "  \"setHash\"   (string) Anonymity set hash\n"
+                        "  \"mints\" (Pair<string,Pair<string,Pair<<string, uint64_t>>) Serialized GroupElements paired with txhash which is paired with mint tag and mint value\n"
                         "}\n"
-                + HelpExampleCli("getanonymityset", "100000000 1")
-                + HelpExampleRpc("getanonymityset", "\"100000000\", \"1\"")
+                + HelpExampleCli("getanonymityset", "\"1\"" "\"f2d16ca8c1e220912f11dfe0797c88b367bcbb9b8c13aa2bc5892114da47f7b7\"")
+                + HelpExampleRpc("getanonymityset", "\"1\"" "\"f2d16ca8c1e220912f11dfe0797c88b367bcbb9b8c13aa2bc5892114da47f7b7\"")
         );
 
 
-    int64_t intDenom;
     int coinGroupId;
+    std::string startBlockHash;
     try {
-        intDenom = std::stol(request.params[0].get_str());
-        coinGroupId = std::stol(request.params[1].get_str());
+        coinGroupId = std::stol(request.params[0].get_str());
+        startBlockHash = request.params[1].get_str();
     } catch (std::logic_error const & e) {
         throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
     }
 
-    sigma::CoinDenomination denomination;
-    sigma::IntegerToDenomination(intDenom, denomination);
-
     uint256 blockHash;
-    std::vector<sigma::PublicCoin> coins;
+    std::vector<std::pair <lelantus::PublicCoin,std::pair<lelantus::MintValueData, uint256>>> coins;
+    std::vector<unsigned char> setHash;
 
     {
         LOCK(cs_main);
-        sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-        sigmaState->GetCoinSetForSpend(
+        lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
+        lelantusState->GetCoinsForRecovery(
                 &chainActive,
                 chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
-                denomination,
                 coinGroupId,
+                startBlockHash,
                 blockHash,
-                coins);
-    }
-
-    UniValue serializedCoins(UniValue::VARR);
-    for(sigma::PublicCoin const & coin : coins) {
-        std::vector<unsigned char> vch = coin.getValue().getvch();
-        serializedCoins.push_back(HexStr(vch.begin(), vch.end()));
+                coins,
+                setHash);
     }
 
     UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("blockHash", blockHash.GetHex()));
-    ret.push_back(Pair("serializedCoins", serializedCoins));
+    UniValue mints(UniValue::VARR);
+
+    int i = 0;
+    for (const auto& coin : coins) {
+        std::vector<unsigned char> vch = coin.first.getValue().getvch();
+        std::vector<UniValue> data;
+        data.push_back(EncodeBase64(vch.data(), size_t(34)));
+        data.push_back(EncodeBase64(coin.second.second.begin(), coin.second.second.size()));
+        if (coin.second.first.isJMint) {
+            data.push_back(EncodeBase64(coin.second.first.encryptedValue.data(), coin.second.first.encryptedValue.size()));
+        } else {
+            data.push_back(coin.second.first.amount);
+        }
+        data.push_back(EncodeBase64(coin.second.first.txHash.begin(), coin.second.first.txHash.size()));
+
+        UniValue entity(UniValue::VARR);
+        entity.push_backV(data);
+        mints.push_back(entity);
+        i++;
+    }
+
+    ret.push_back(Pair("blockHash", EncodeBase64(blockHash.begin(), blockHash.size())));
+    ret.push_back(Pair("setHash", UniValue(EncodeBase64(setHash.data(), setHash.size()))));
+    ret.push_back(Pair("coins", mints));
 
     return ret;
 }
@@ -992,7 +1008,6 @@ UniValue getmintmetadata(const JSONRPCRequest& request)
                         "  \"mints\"\n"
                         "    [\n"
                         "      {\n"
-                        "        \"denom\"   (int) The mint denomination\n"
                         "        \"pubcoin\" (string) The PubCoin value\n"
                         "      }\n"
                         "      ,...\n"
@@ -1009,7 +1024,7 @@ UniValue getmintmetadata(const JSONRPCRequest& request)
     if (!mintValues.isArray()) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "mints is expected to be an array");
     }
-    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
     UniValue ret(UniValue::VARR);
     for(UniValue const & mintData : mintValues.getValues()){
         std::vector<unsigned char> serializedCoin = ParseHex(find_value(mintData, "pubcoin").get_str().c_str());
@@ -1017,14 +1032,10 @@ UniValue getmintmetadata(const JSONRPCRequest& request)
         secp_primitives::GroupElement pubCoin;
         pubCoin.deserialize(serializedCoin.data());
 
-        int64_t intDenom = find_value(mintData, "denom").get_int64();
-        sigma::CoinDenomination denomination;
-        sigma::IntegerToDenomination(intDenom, denomination);
-
         std::pair<int, int> coinHeightAndId;
         {
             LOCK(cs_main);
-            coinHeightAndId = sigmaState->GetMintedCoinHeightAndId(sigma::PublicCoin(pubCoin, denomination));
+            coinHeightAndId = lelantusState->GetMintedCoinHeightAndId(lelantus::PublicCoin(pubCoin));
         }
         UniValue metaData(UniValue::VOBJ);
         metaData.pushKV(std::to_string(coinHeightAndId.first), coinHeightAndId.second);
@@ -1035,26 +1046,44 @@ UniValue getmintmetadata(const JSONRPCRequest& request)
 
 UniValue getusedcoinserials(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 0)
+    if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
                 "getusedcoinserials\n"
                 "\nReturns the set of used coin serial.\n"
+                "\nArguments:\n"
+                "{\n"
+                "      \"startNumber \"  (int) Number of elements already existing on user side\n"
+                "}\n"
                 "\nResult:\n"
                 "{\n"
                 "  \"serials\" (std::string[]) array of Serialized Scalars\n"
                 "}\n"
         );
 
-    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-    sigma::spend_info_container serials;
+    int startNumber;
+    try {
+        startNumber = std::stol(request.params[0].get_str());
+    } catch (std::logic_error const & e) {
+        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
+    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
+    std::unordered_map<Scalar, int>  serials;
     {
         LOCK(cs_main);
-        serials = sigmaState->GetSpends();
+        serials = lelantusState->GetSpends();
     }
 
     UniValue serializedSerials(UniValue::VARR);
-    for ( auto it = serials.begin(); it != serials.end(); ++it )
-        serializedSerials.push_back(it->first.GetHex());
+    int i = 0;
+    for ( auto it = serials.begin(); it != serials.end(); ++it, ++i) {
+        if (i < startNumber)
+            continue;
+        std::vector<unsigned char> serialized;
+        serialized.resize(32);
+        it->first.serialize(serialized.data());
+        serializedSerials.push_back(EncodeBase64(serialized.data(), 32));
+    }
 
     UniValue ret(UniValue::VOBJ);
     ret.push_back(Pair("serials", serializedSerials));
@@ -1062,17 +1091,34 @@ UniValue getusedcoinserials(const JSONRPCRequest& request)
     return ret;
 }
 
-UniValue getlatestcoinids(const JSONRPCRequest& request)
+UniValue getfeerate(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
-                "getlatestcoinids\n"
+                "getfeerate\n"
+                "\nReturns the fee rate.\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"rate\" (int) Fee rate\n"
+                "}\n"
+        );
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("rate", ::minRelayTxFee.GetFeePerK()));
+
+    return ret;
+}
+
+UniValue getlatestcoinid(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getlatestcoinid\n"
                 "\nReturns the set of used coin serial.\n"
                 "\nResult:\n"
                 "{\n"
                 "  [\n"
                 "      {\n"
-                "        \"denom\"       (int64_t) The mint denomination\n"
                 "        \"coinGroupId\" (int) The latest group id\n"
                 "      }\n"
                 "      ,...\n"
@@ -1080,26 +1126,14 @@ UniValue getlatestcoinids(const JSONRPCRequest& request)
                 "}\n"
         );
 
-    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-    std::unordered_map<sigma::CoinDenomination, int> latestCoinIds;
+    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
+    int latestCoinId;
     {
         LOCK(cs_main);
-        latestCoinIds = sigmaState->GetLatestCoinIds();
+        latestCoinId = lelantusState->GetLatestCoinID();
     }
 
-    UniValue ret(UniValue::VARR);
-    for (const auto& it : latestCoinIds ) {
-        int64_t denom;
-        sigma::DenominationToInteger(it.first, denom);
-
-        UniValue denomandid(UniValue::VOBJ);
-        denomandid.push_back(Pair("denom", denom));
-        denomandid.push_back(Pair("id", it.second));
-
-        ret.push_back(denomandid);
-    }
-
-    return ret;
+    return UniValue(latestCoinId);
 }
 
 UniValue getaddresstxids(const JSONRPCRequest& request)
@@ -1385,10 +1419,12 @@ static const CRPCCommand commands[] =
     { "addressindex",       "gettotalsupply",         &gettotalsupply,         false },
 
         /* Mobile related */
-    { "mobile",             "getanonymityset",        &getanonymityset,        true  },
+    { "mobile",             "getanonymityset",        &getanonymityset,        false  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
-    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     true  },
-    { "mobile",             "getlatestcoinids",       &getlatestcoinids,       true  },
+    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     false  },
+    { "mobile",             "getfeerate",             &getfeerate,             true  },
+    { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
+
 
     { "hidden",             "setmocktime",            &setmocktime,            true,  {"timestamp"}},
     { "hidden",             "echo",                   &echo,                   true,  {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"}},
