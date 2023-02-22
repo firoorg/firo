@@ -63,7 +63,7 @@ Coin::Coin(
 		MintCoinRecipientData r;
 		r.d = address.get_d();
 		r.k = k;
-		r.memo = std::string(memo.begin(), memo.end());
+		r.memo = std::string(padded_memo.begin(), padded_memo.end());
 		CDataStream r_stream(SER_NETWORK, PROTOCOL_VERSION);
 		r_stream << r;
 		this->r_ = AEAD::encrypt(address.get_Q1()*SparkUtils::hash_k(k), "Mint coin data", r_stream);
@@ -73,7 +73,7 @@ Coin::Coin(
 		r.v = v;
 		r.d = address.get_d();
 		r.k = k;
-		r.memo = std::string(memo.begin(), memo.end());
+		r.memo = std::string(padded_memo.begin(), padded_memo.end());
 		CDataStream r_stream(SER_NETWORK, PROTOCOL_VERSION);
 		r_stream << r;
 		this->r_ = AEAD::encrypt(address.get_Q1()*SparkUtils::hash_k(k), "Spend coin data", r_stream);
