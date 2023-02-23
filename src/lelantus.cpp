@@ -1232,20 +1232,24 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
         CBlockIndex *index,
         const CBlock* pblock) {
 
-    std::vector<std::pair<lelantus::PublicCoin, std::pair<lelantus::MintValueData, uint256>>> blockMints;
+    std::vector<std::pair<lelantus::PublicCoin, uint256>> blockMints;
+    std::unordered_map<GroupElement, lelantus::MintValueData> lelantusMintData;
+
     for (const auto& mint : pblock->lelantusTxInfo->mints) {
-        lelantus::MintValueData mintdata;
-        mintdata.amount = mint.second.first;
-        if (pblock->lelantusTxInfo->encryptedJmintValues.count(mint.first) > 0) {
-            mintdata.isJMint = true;
-            mintdata.encryptedValue = pblock->lelantusTxInfo->encryptedJmintValues[mint.first];
+        if (GetBoolArg("-mobile", false)) {
+            lelantus::MintValueData mintdata;
+            mintdata.amount = mint.second.first;
+            if (pblock->lelantusTxInfo->encryptedJmintValues.count(mint.first) > 0) {
+                mintdata.isJMint = true;
+                mintdata.encryptedValue = pblock->lelantusTxInfo->encryptedJmintValues[mint.first];
+            }
+
+            COutPoint outPoint;
+            GetOutPointFromBlock(outPoint, mint.first.getValue(), *pblock);
+            mintdata.txHash = outPoint.hash;
+            lelantusMintData[mint.first.getValue()] = mintdata;
         }
-
-        COutPoint outPoint;
-        GetOutPointFromBlock(outPoint, mint.first.getValue(), *pblock);
-        mintdata.txHash = outPoint.hash;
-
-        blockMints.push_back(std::make_pair(mint.first, std::make_pair(mintdata, mint.second.second)));
+        blockMints.push_back(std::make_pair(mint.first, mint.second.second));
     }
 
     latestCoinId = std::max(1, latestCoinId);
@@ -1280,10 +1284,14 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
     }
 
     for (const auto& mint : blockMints) {
-        containers.AddMint(mint.first, CMintedCoinInfo::make(latestCoinId, index->nHeight), mint.second.second);
+        containers.AddMint(mint.first, CMintedCoinInfo::make(latestCoinId, index->nHeight), mint.second);
 
         LogPrintf("AddMintsToStateAndBlockIndex: Lelantus mint added id=%d\n", latestCoinId);
         index->lelantusMintedPubCoins[latestCoinId].push_back(mint);
+
+        if (GetBoolArg("-mobile", false)) {
+            index->lelantusMintData[mint.first.getValue()] = lelantusMintData[mint.first.getValue()];
+        }
     }
 }
 
@@ -1315,7 +1323,7 @@ void CLelantusState::AddBlock(CBlockIndex *index) {
 
         latestCoinId = pubCoins.first;
         for (auto const &coin : pubCoins.second) {
-            containers.AddMint(coin.first, CMintedCoinInfo::make(pubCoins.first, index->nHeight), coin.second.second);
+            containers.AddMint(coin.first, CMintedCoinInfo::make(pubCoins.first, index->nHeight), coin.second);
         }
     }
 
@@ -1565,7 +1573,11 @@ void CLelantusState::GetCoinsForRecovery(
                         }
                     }
 
-                    coins.push_back(coin);
+                    lelantus::MintValueData lelantusMintData;
+                    if (block->lelantusMintData.count(coin.first.getValue()))
+                        lelantusMintData = block->lelantusMintData[coin.first.getValue()];
+                    coins.push_back(std::make_pair(coin.first, std::make_pair(lelantusMintData, coin.second)));
+
                 }
             }
         }
