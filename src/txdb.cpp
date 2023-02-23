@@ -395,6 +395,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->sigmaSpentSerials     = diskindex.sigmaSpentSerials;
 
                 pindexNew->lelantusMintedPubCoins   = diskindex.lelantusMintedPubCoins;
+                pindexNew->lelantusMintData         = diskindex.lelantusMintData;
                 pindexNew->lelantusSpentSerials     = diskindex.lelantusSpentSerials;
                 pindexNew->anonymitySetHash         = diskindex.anonymitySetHash;
 

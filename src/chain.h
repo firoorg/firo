@@ -244,7 +244,10 @@ public:
     //! Maps <denomination,id> to vector of public coins
     std::map<std::pair<sigma::CoinDenomination, int>, std::vector<sigma::PublicCoin>> sigmaMintedPubCoins;
     //! Map id to <public coin, tag>
-    std::map<int, std::vector<std::pair<lelantus::PublicCoin, std::pair<lelantus::MintValueData, uint256>>>>  lelantusMintedPubCoins;
+    std::map<int, std::vector<std::pair<lelantus::PublicCoin, uint256>>>  lelantusMintedPubCoins;
+
+    std::unordered_map<GroupElement, lelantus::MintValueData> lelantusMintData;
+
     //! Map id to <hash of the set>
     std::map<int, std::vector<unsigned char>> anonymitySetHash;
     //! Map id to spark coin
@@ -295,6 +298,7 @@ public:
 
         sigmaMintedPubCoins.clear();
         lelantusMintedPubCoins.clear();
+        lelantusMintData.clear();
         anonymitySetHash.clear();
         sparkMintedCoins.clear();
         sparkSetHash.clear();
@@ -536,11 +540,15 @@ public:
                 for(auto& itr : lelantusPubCoins) {
                     if(!itr.second.empty()) {
                         for(auto& coin : itr.second)
-                        lelantusMintedPubCoins[itr.first].push_back(std::make_pair(coin, std::make_pair(lelantus::MintValueData(), uint256())));
+                        lelantusMintedPubCoins[itr.first].push_back(std::make_pair(coin,uint256()));
                     }
                 }
             } else
                 READWRITE(lelantusMintedPubCoins);
+            if (GetBoolArg("-mobile", false)) {
+                READWRITE(lelantusMintData);
+            }
+
             READWRITE(lelantusSpentSerials);
 
             if (nHeight >= params.nLelantusFixesStartBlock)
