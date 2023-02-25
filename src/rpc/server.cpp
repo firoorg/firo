@@ -337,6 +337,13 @@ static const CRPCCommand vRPCCommands[] =
     { "mobile",             "getusedcoinserials",     &getusedcoinserials,     false  },
     { "mobile",             "getfeerate",             &getfeerate,             true  },
     { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
+
+        /* Mobile Spark */
+    { "mobile",             "getsparkanonymityset",   &getsparkanonymityset, false },
+    { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true  },
+    { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
+    { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true  },
+
 };
 
 CRPCTable::CRPCTable()

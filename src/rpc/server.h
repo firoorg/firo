@@ -213,6 +213,11 @@ extern UniValue getusedcoinserials(const JSONRPCRequest& params);
 extern UniValue getfeerate(const JSONRPCRequest& params);
 extern UniValue getlatestcoinid(const JSONRPCRequest& params);
 
+extern UniValue getsparkanonymityset(const JSONRPCRequest& params);
+extern UniValue getsparkmintmetadata(const JSONRPCRequest& params);
+extern UniValue getusedcoinstags(const JSONRPCRequest& params);
+extern UniValue getsparklatestcoinid(const JSONRPCRequest& params);
+
 extern UniValue znode(const JSONRPCRequest &request);
 extern UniValue znodelist(const JSONRPCRequest &request);
 extern UniValue znodebroadcast(const JSONRPCRequest &request);
