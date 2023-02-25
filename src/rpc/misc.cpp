@@ -1136,6 +1136,197 @@ UniValue getlatestcoinid(const JSONRPCRequest& request)
     return UniValue(latestCoinId);
 }
 
+UniValue getsparkanonymityset(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 2)
+        throw std::runtime_error(
+                "getsparkanonymityset\n"
+                "\nReturns the anonymity set and latest block hash.\n"
+                "\nArguments:\n"
+                "{\n"
+                "      \"coinGroupId\"  (int)\n"
+                "      \"startBlockHash\"    (string)\n" // if this is empty it returns the full set
+                "}\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"blockHash\"   (string) Latest block hash for anonymity set\n"
+                "  \"setHash\"   (string) Anonymity set hash\n"
+                "  \"mints\" (Pair<string, string>) Serialized Spark coin paired with txhash\n"
+                "}\n"
+        );
+
+
+    int coinGroupId;
+    std::string startBlockHash;
+    try {
+        coinGroupId = std::stol(request.params[0].get_str());
+        startBlockHash = request.params[1].get_str();
+    } catch (std::logic_error const & e) {
+        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
+    uint256 blockHash;
+    std::vector<std::pair<spark::Coin, uint256>> coins;
+    std::vector<unsigned char> setHash;
+
+    {
+        LOCK(cs_main);
+        spark::CSparkState* sparkState = spark::CSparkState::GetState();
+        sparkState->GetCoinsForRecovery(
+                &chainActive,
+                chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+                coinGroupId,
+                startBlockHash,
+                blockHash,
+                coins,
+                setHash);
+    }
+
+    UniValue ret(UniValue::VOBJ);
+    UniValue mints(UniValue::VARR);
+
+    for (const auto& coin : coins) {
+        CDataStream serializedCoin(SER_NETWORK, PROTOCOL_VERSION);
+        serializedCoin << coin;
+        std::vector<unsigned char> vch(serializedCoin.begin(), serializedCoin.end());
+
+        std::vector<UniValue> data;
+        data.push_back(EncodeBase64(vch.data(), size_t(vch.size()))); // coin
+        data.push_back(EncodeBase64(coin.second.begin(), coin.second.size())); // tx hash
+
+        UniValue entity(UniValue::VARR);
+        entity.push_backV(data);
+        mints.push_back(entity);
+    }
+
+    ret.push_back(Pair("blockHash", EncodeBase64(blockHash.begin(), blockHash.size())));
+    ret.push_back(Pair("setHash", UniValue(EncodeBase64(setHash.data(), setHash.size()))));
+    ret.push_back(Pair("coins", mints));
+
+    return ret;
+}
+
+UniValue getsparkmintmetadata(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+                "getmintmetadata\n"
+                "\nReturns the anonymity set id and nHeight of mint.\n"
+                "\nArguments:\n"
+                "  \"coinHashes\"\n"
+                "    [\n"
+                "      {\n"
+                "        \"coinHash\" (string) The hash of the spark mint\n"
+                "      }\n"
+                "      ,...\n"
+                "    ]\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"metadata\"   (Pair<string,int>) nHeight and id for each coin\n"
+                "}\n"
+        );
+
+    UniValue coinHashes = find_value(request.params[0].get_obj(), "coinHashes");
+    if (!coinHashes.isArray()) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "mints is expected to be an array");
+    }
+
+    spark::CSparkState* sparkState =  spark::CSparkState::GetState();
+
+    UniValue ret(UniValue::VARR);
+    for(UniValue const & element : coinHashes.getValues()) {
+        uint256 coinHash;
+        coinHash.SetHex(element.get_str());
+        spark::Coin coin(spark::Params::get_default());
+        if(!sparkState->HasCoinHash(coin, coinHash))
+            continue;
+
+        std::pair<int, int> coinHeightAndId;
+        {
+            LOCK(cs_main);
+            coinHeightAndId = sparkState->GetMintedCoinHeightAndId(coin);
+        }
+        UniValue metaData(UniValue::VOBJ);
+        metaData.pushKV(std::to_string(coinHeightAndId.first), coinHeightAndId.second);
+        ret.push_back(metaData);
+    }
+
+    return ret;
+}
+
+UniValue getusedcoinstags(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+                "getusedcoinstags\n"
+                "\nReturns the set of used coin tags.\n"
+                "\nArguments:\n"
+                "{\n"
+                "      \"startNumber \"  (int) Number of elements already existing on user side\n"
+                "}\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"tags\" (std::string[]) array of Serialized GroupElements\n"
+                "}\n"
+        );
+
+    int startNumber;
+    try {
+        startNumber = std::stol(request.params[0].get_str());
+    } catch (std::logic_error const & e) {
+        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
+    spark::CSparkState* sparkState =  spark::CSparkState::GetState();
+    std::unordered_map<GroupElement, int, spark::CLTagHash>  tags;
+    {
+        LOCK(cs_main);
+        tags = sparkState->GetSpends();
+    }
+    UniValue serializedTags(UniValue::VARR);
+    int i = 0;
+    for ( auto it = tags.begin(); it != tags.end(); ++it, ++i) {
+        if (i < startNumber)
+            continue;
+        std::vector<unsigned char> serialized;
+        serialized.resize(34);
+        it->first.serialize(serialized.data());
+        serializedTags.push_back(EncodeBase64(serialized.data(), 34));
+    }
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("tags", serializedTags));
+
+    return ret;
+}
+
+UniValue getsparklatestcoinid(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getlatestcoinid\n"
+                "\nReturns the last coin group ID for Spark.\n"
+                "\nResult:\n"
+                "{\n"
+                "  [\n"
+                "      {\n"
+                "        \"coinGroupId\" (int) The latest group id\n"
+                "      }\n"
+                "      ,...\n"
+                "    ]\n"
+                "}\n"
+        );
+
+    spark::CSparkState* sparkState =  spark::CSparkState::GetState();
+    int latestCoinId;
+    {
+        LOCK(cs_main);
+        latestCoinId = sparkState->GetLatestCoinID();
+    }
+
+    return UniValue(latestCoinId);
+}
+
 UniValue getaddresstxids(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
@@ -1424,6 +1615,12 @@ static const CRPCCommand commands[] =
     { "mobile",             "getusedcoinserials",     &getusedcoinserials,     false  },
     { "mobile",             "getfeerate",             &getfeerate,             true  },
     { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
+
+        /* Mobile Spark */
+    { "mobile",             "getsparkanonymityset",   &getsparkanonymityset, false },
+    { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true  },
+    { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
+    { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true  },
 
 
     { "hidden",             "setmocktime",            &setmocktime,            true,  {"timestamp"}},

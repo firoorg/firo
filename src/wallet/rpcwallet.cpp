@@ -3361,7 +3361,7 @@ UniValue listsparkspends(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() > 0) {
         throw std::runtime_error(
                 "listsparkspends \n"
-                "Returns array  spark address in encoded form\n"
+                "Returns array  spark spends\n"
                 "Results are an array of Objects, each of which has:\n"
                 "{txid, lTagHash, lTag and amount}");
     }
@@ -3481,9 +3481,7 @@ UniValue setsparkmintstatus(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() != 2)
         throw std::runtime_error(
                 "setsparkmintstatus \"lTagHash\" <isused>(true/false)\n"
-                "Set mintIsUsed status to True or False\n"
-                "Results are an array of one or no Objects, each of which has:\n"
-                "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
+                "Set mintIsUsed status to True or False");
 
     EnsureSparkWalletIsAvailable();
 
