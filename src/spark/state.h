@@ -11,6 +11,8 @@
 #include "../libspark/spend_transaction.h"
 #include "primitives.h"
 
+namespace spark_mintspend { class spark_mintspend_test; }
+
 namespace spark {
 
 // Spark transaction info, added to the CBlock to ensure spark mint/spend transactions got their info stored into index
@@ -239,6 +241,8 @@ private:
 
     typedef std::map<int, size_t> metainfo_container_t;
     metainfo_container_t extendedMintMetaInfo, mintMetaInfo, spendMetaInfo;
+
+    friend class spark_mintspend::spark_mintspend_test;
 };
 
 } // namespace spark

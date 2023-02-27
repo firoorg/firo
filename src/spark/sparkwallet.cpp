@@ -271,6 +271,22 @@ spark::Coin CSparkWallet::getCoinFromMeta(const CSparkMintMeta& meta) const {
     return spark::Coin(params, meta.type, meta.k, address, meta.v, meta.memo, meta.serial_context);
 }
 
+spark::Coin CSparkWallet::getCoinFromLTagHash(const uint256& lTagHash) const {
+    LOCK(cs_spark_wallet);
+    CSparkMintMeta meta;
+    if (coinMeta.count(lTagHash)) {
+        meta = coinMeta.at(lTagHash);
+        return getCoinFromMeta(meta);
+    }
+    return spark::Coin();
+}
+
+spark::Coin CSparkWallet::getCoinFromLTag(const GroupElement& lTag) const {
+    uint256 lTagHash = primitives::GetLTagHash(lTag);
+    return getCoinFromLTagHash(lTagHash);
+}
+
+
 void CSparkWallet::clearAllMints(CWalletDB& walletdb) {
     LOCK(cs_spark_wallet);
     for (auto& itr : coinMeta) {
@@ -305,6 +321,18 @@ void CSparkWallet::updateMint(const CSparkMintMeta& mint, CWalletDB& walletdb) {
         if (mint ==  coin.second) {
             addOrUpdateMint(mint, coin.first, walletdb);
         }
+    }
+}
+
+void CSparkWallet::setCoinUnused(const GroupElement& lTag) {
+    LOCK(cs_spark_wallet);
+    CWalletDB walletdb(strWalletFile);
+    uint256 lTagHash = primitives::GetLTagHash(lTag);
+    CSparkMintMeta coinMeta = getMintMeta(lTagHash);
+
+    if (coinMeta != CSparkMintMeta()) {
+        coinMeta.isUsed = false;
+        updateMint(coinMeta, walletdb);
     }
 }
 

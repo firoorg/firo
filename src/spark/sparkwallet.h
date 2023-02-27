@@ -47,6 +47,8 @@ public:
     std::unordered_map<uint256, CSparkMintMeta> getMintMap() const;
     // generate spark Coin from meta data
     spark::Coin getCoinFromMeta(const CSparkMintMeta& meta) const;
+    spark::Coin getCoinFromLTag(const GroupElement& lTag) const;
+    spark::Coin getCoinFromLTagHash(const uint256& lTagHash) const;
 
     // functions to get spark balance
     CAmount getFullBalance();
@@ -64,6 +66,8 @@ public:
     // add mint meta data to memory and to db
     void addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb);
     void updateMint(const CSparkMintMeta& mint, CWalletDB& walletdb);
+
+    void setCoinUnused(const  GroupElement& lTag);
 
     void updateMintInMemory(const CSparkMintMeta& mint);
     // get mint meta from linking tag hash
