@@ -390,6 +390,7 @@ std::vector<CSparkMintMeta> SparkTestingSetup::GenerateMints(
             }
         }
     }
+    reverse(mints.begin(), mints.end());
 
     return mints;
 }

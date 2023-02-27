@@ -938,8 +938,8 @@ UniValue getanonymityset(const JSONRPCRequest& request)
                         "  \"setHash\"   (string) Anonymity set hash\n"
                         "  \"mints\" (Pair<string,Pair<string,Pair<<string, uint64_t>>) Serialized GroupElements paired with txhash which is paired with mint tag and mint value\n"
                         "}\n"
-                + HelpExampleCli("getanonymityset", "\"1\"" "\"f2d16ca8c1e220912f11dfe0797c88b367bcbb9b8c13aa2bc5892114da47f7b7\"")
-                + HelpExampleRpc("getanonymityset", "\"1\"" "\"f2d16ca8c1e220912f11dfe0797c88b367bcbb9b8c13aa2bc5892114da47f7b7\"")
+                + HelpExampleCli("getanonymityset", "\"1\"" "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
+                + HelpExampleRpc("getanonymityset", "\"1\"" "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
         );
 
 
@@ -950,6 +950,10 @@ UniValue getanonymityset(const JSONRPCRequest& request)
         startBlockHash = request.params[1].get_str();
     } catch (std::logic_error const & e) {
         throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
+    if(!GetBoolArg("-mobile", false)){
+        throw std::runtime_error(std::string("Please rerun Firo with -mobile "));
     }
 
     uint256 blockHash;
@@ -1153,6 +1157,8 @@ UniValue getsparkanonymityset(const JSONRPCRequest& request)
                 "  \"setHash\"   (string) Anonymity set hash\n"
                 "  \"mints\" (Pair<string, string>) Serialized Spark coin paired with txhash\n"
                 "}\n"
+                + HelpExampleCli("getsparkanonymityset", "\"1\"" "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
+                + HelpExampleRpc("getsparkanonymityset", "\"1\"" "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
         );
 
 
@@ -1163,6 +1169,10 @@ UniValue getsparkanonymityset(const JSONRPCRequest& request)
         startBlockHash = request.params[1].get_str();
     } catch (std::logic_error const & e) {
         throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
+    if(!GetBoolArg("-mobile", false)){
+        throw std::runtime_error(std::string("Please rerun Firo with -mobile "));
     }
 
     uint256 blockHash;
