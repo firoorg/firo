@@ -192,8 +192,8 @@ BOOST_AUTO_TEST_CASE(get_outpoint)
 
     BOOST_CHECK_EQUAL(mints.size(), amounts.size());
 
-    auto mint = mints[1];
-    auto nonCommitted = mints[0];
+    auto mint = mints[0];
+    auto nonCommitted = mints[1];
     auto tx = txs[0];
     size_t mintIdx = 0;
 
@@ -373,7 +373,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
     // Update isused status
     {
-        CSparkMintMeta meta = pwalletMain->sparkWallet->getMintMeta(mints[1].k);
+        CSparkMintMeta meta = pwalletMain->sparkWallet->getMintMeta(mints[0].k);
 
         BOOST_CHECK(meta != CSparkMintMeta());
         BOOST_CHECK(meta.isUsed);
@@ -381,7 +381,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
         meta.isUsed = false;
         pwalletMain->sparkWallet->updateMintInMemory(meta);
         meta = CSparkMintMeta();
-        meta = pwalletMain->sparkWallet->getMintMeta(mints[1].k);
+        meta = pwalletMain->sparkWallet->getMintMeta(mints[0].k);
         BOOST_CHECK(!meta.isUsed);
     }
 
@@ -618,7 +618,7 @@ BOOST_AUTO_TEST_CASE(coingroup)
     mempool.clear();
     auto idx1 = GenerateBlock(txRange(0, 1));
     auto block1 = GetCBlock(idx1);
-    checker.coins.push_back(pwalletMain->sparkWallet->getCoinFromMeta(mints[mints.size()-1]));
+    checker.coins.push_back(pwalletMain->sparkWallet->getCoinFromMeta(mints[0]));
     checker.lastId = 1;
     checker.first = idx1;
     checker.last = idx1;

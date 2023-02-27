@@ -184,7 +184,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 // Spark
 #define SPARK_START_BLOCK 700000
 #define SPARK_TESTNET_START_BLOCK 150000
-#define LELANTUS_GRACEFUL_PERIOD 600000
+#define LELANTUS_GRACEFUL_PERIOD 800000
 #define LELANTUS_TESTNET_GRACEFUL_PERIOD 200000
 
 // Versions of zerocoin mint/spend transactions
