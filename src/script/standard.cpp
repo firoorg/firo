@@ -35,7 +35,8 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_ZEROCOINMINTV3: return "zerocoinmintv3";
     case TX_LELANTUSMINT: return "lelantusmint";
     case TX_LELANTUSJMINT: return "lelantusmint";
-
+    case TX_SPARKMINT: return "sparkmint";
+    case TX_SPARKSMINT: return "sparksmint";
     }
     return NULL;
 }
