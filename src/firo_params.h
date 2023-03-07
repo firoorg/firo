@@ -143,6 +143,21 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 // Amount of lelantus spends allowed per transaction
 #define ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION            50
 
+// Amount of spark spends allowed per transaction
+#define SPARK_INPUT_LIMIT_PER_TRANSACTION            50
+
+// Amount of saprk spends allowed per block
+#define SPARK_INPUT_LIMIT_PER_BLOCK         100
+
+// Bumner of shielded spark outputs pet tx
+#define SPARK_OUT_LIMIT_PER_TX         16
+
+// Value of spark spends allowed per transaction
+#define SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION     (10000 * COIN)
+
+// Value of spark spends allowed per block
+#define SPARK_VALUE_SPEND_LIMIT_PER_BLOCK  (20000 * COIN)
+
 // Maximum amount of lelantus mint
 #define ZC_LELANTUS_MAX_MINT            (5001 * COIN)
 
@@ -165,6 +180,12 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 
 /** Probability (percentage) that a Dandelion transaction enters fluff phase */
 #define DANDELION_FLUFF 10
+
+// Spark
+#define SPARK_START_BLOCK 700000
+#define SPARK_TESTNET_START_BLOCK 150000
+#define LELANTUS_GRACEFUL_PERIOD 800000
+#define LELANTUS_TESTNET_GRACEFUL_PERIOD 200000
 
 // Versions of zerocoin mint/spend transactions
 #define ZEROCOIN_TX_VERSION_3               30

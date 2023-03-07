@@ -101,6 +101,7 @@ if ENABLE_CLIENTAPI:
         raise
 
 testScripts = [
+<<<<<<< HEAD
     #'lelantus_mint.py',
     #'lelantus_setmintstatus_validation.py',
     #'lelantus_mintspend.py',
@@ -119,6 +120,9 @@ testScripts = [
     #'elysium_sendspend_wallet_encryption.py',
     #'elysium_sigma_reindex.py',
     #'elysium_sigma_reorg.py',
+    'spark_mint.py',
+    'spark_spend_gettransaction.py',
+    'spark_setmintstatus_validation.py',
     'elysium_walletrecovery.py',
     #'mempool_doublesend_oneblock.py',
     #'mempool_reorg.py',

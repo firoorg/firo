@@ -25,7 +25,6 @@ BOOST_AUTO_TEST_CASE(group_element_invalid)
     std::string str = " F I R O   T E S T   S T R I N G ";
     std::vector<unsigned char> buffer(str.begin(), str.end());
     buffer.push_back(0);
-    std::cout<<buffer.size()<<std::endl;
     secp_primitives::GroupElement resulted;
     BOOST_CHECK_THROW(resulted.deserialize(buffer.data()), std::exception);
 

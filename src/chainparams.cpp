@@ -401,6 +401,8 @@ public:
         consensus.nOldSigmaBanBlock = ZC_OLD_SIGMA_BAN_BLOCK;
         consensus.nLelantusStartBlock = ZC_LELANTUS_STARTING_BLOCK;
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_FIXES_START_BLOCK;
+        consensus.nSparkStartBlock = SPARK_START_BLOCK;
+        consensus.nLelantusGracefulPeriod = LELANTUS_GRACEFUL_PERIOD;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD;
@@ -414,6 +416,11 @@ public:
         consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusSpendPerTransaction = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
+        consensus.nMaxSparkInputPerTransaction = SPARK_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxSparkInputPerBlock = SPARK_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 50000;
 
         for (const auto& str : lelantus::lelantus_blacklist) {
@@ -698,6 +705,9 @@ public:
         consensus.nLelantusStartBlock = ZC_LELANTUS_TESTNET_STARTING_BLOCK;
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_TESTNET_FIXES_START_BLOCK;
 
+        consensus.nSparkStartBlock = SPARK_TESTNET_START_BLOCK;
+        consensus.nLelantusGracefulPeriod = LELANTUS_TESTNET_GRACEFUL_PERIOD;
+
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
@@ -711,6 +721,11 @@ public:
         consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusSpendPerTransaction = 1001 * COIN;
         consensus.nMaxValueLelantusMint = 1001 * COIN;
+        consensus.nMaxSparkInputPerTransaction = SPARK_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxSparkInputPerBlock = SPARK_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
         for (const auto& str : lelantus::lelantus_testnet_blacklist) {
@@ -940,6 +955,9 @@ public:
         consensus.nLelantusStartBlock = 1;
         consensus.nLelantusFixesStartBlock = 1;
 
+        consensus.nSparkStartBlock = 2000;
+        consensus.nLelantusGracefulPeriod = 2500;
+
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
         consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
         consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
@@ -949,6 +967,11 @@ public:
         consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusSpendPerTransaction = 1001 * COIN;
         consensus.nMaxValueLelantusMint = 1001 * COIN;
+        consensus.nMaxSparkInputPerTransaction = SPARK_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxSparkInputPerBlock = SPARK_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
         consensus.evoSporkKeyID = "TdxR3tfoHiQUkowcfjEGiMBfk6GXFdajUA";
@@ -1079,7 +1102,7 @@ public:
         consensus.llmqForInstantSend = Consensus::LLMQ_5_60;
         consensus.nInstantSendConfirmationsRequired = 2;
         consensus.nInstantSendKeepLock = 6;
-        consensus.nInstantSendBlockFilteringStartHeight = 800;
+        consensus.nInstantSendBlockFilteringStartHeight = 500;
 
         consensus.nMTPSwitchTime = INT_MAX;
         consensus.nMTPStartBlock = 0;
@@ -1164,6 +1187,8 @@ public:
         consensus.nOldSigmaBanBlock = 1;
         consensus.nLelantusStartBlock = 400;
         consensus.nLelantusFixesStartBlock = 400;
+        consensus.nSparkStartBlock = 1000;
+        consensus.nLelantusGracefulPeriod = 1500;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = 1;
         consensus.nZerocoinV2MintGracefulPeriod = 1;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = 1;
@@ -1177,12 +1202,17 @@ public:
         consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusSpendPerTransaction = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
+        consensus.nMaxSparkInputPerTransaction = SPARK_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxSparkInputPerBlock = SPARK_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 1000;
 
         // evo spork
         consensus.evoSporkKeyID = "TSpmHGzQT4KJrubWa4N2CRmpA7wKMMWDg4";  // private key is cW2YM2xaeCaebfpKguBahUAgEzLXgSserWRuD29kSyKHq1TTgwRQ
-        consensus.nEvoSporkStartBlock = 1000;
-        consensus.nEvoSporkStopBlock = 1500;
+        consensus.nEvoSporkStartBlock = 550;
+        consensus.nEvoSporkStopBlock = 950;
         consensus.nEvoSporkStopBlockExtensionVersion = 0;
 
         // reorg
@@ -1200,7 +1230,7 @@ public:
         consensus.nMnemonicBlock = 0;
 
         // moving lelantus data to v3 payload
-        consensus.nLelantusV3PayloadStartBlock = 1000;
+        consensus.nLelantusV3PayloadStartBlock = 800;
         
         // ProgPow
         // this can be overridden with either -ppswitchtime or -ppswitchtimefromnow flags
