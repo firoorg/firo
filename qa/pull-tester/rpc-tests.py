@@ -101,7 +101,6 @@ if ENABLE_CLIENTAPI:
         raise
 
 testScripts = [
-<<<<<<< HEAD
     #'lelantus_mint.py',
     #'lelantus_setmintstatus_validation.py',
     #'lelantus_mintspend.py',
