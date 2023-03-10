@@ -77,9 +77,9 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
     auto blockIdx2 = GenerateBlock({txs[1]});
     auto block2 = GetCBlock(blockIdx2);
     PopulateSparkTxInfo(block2, {pwalletMain->sparkWallet->getCoinFromMeta(mints[1])}, {});
-    
+
     sparkState->AddMintsToStateAndBlockIndex(blockIdx2, &block2);
-   
+
     //verify heigh and id was assigned.
     BOOST_CHECK_EQUAL(std::make_pair(chainActive.Height() - 1, 1), sparkState->GetMintedCoinHeightAndId(pwalletMain->sparkWallet->getCoinFromMeta(mints[0])));
     BOOST_CHECK_EQUAL(std::make_pair(chainActive.Height(), 1), sparkState->GetMintedCoinHeightAndId(pwalletMain->sparkWallet->getCoinFromMeta(mints[1])));
@@ -289,6 +289,184 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     BOOST_CHECK(sparkState->IsUsedLTag(lTag1));
     BOOST_CHECK(sparkState->IsUsedLTag(lTag2));
     BOOST_CHECK(!sparkState->IsUsedLTag(lTag3));
+
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(get_coin_group)
+{
+    GenerateBlocks(500);
+
+    std::vector<CAmount> amounts(12, COIN);
+    std::vector<CMutableTransaction> txs;
+
+    auto mints = GenerateMints(amounts, txs);
+
+    std::vector<spark::Coin> coins;
+    std::vector<CBlockIndex*> indexes;
+    std::vector<CBlock> blocks;
+
+    for (size_t i = 0; i != mints.size(); i += 2) {
+        auto index = GenerateBlock({txs[i], txs[i + 1]});
+
+    auto block = GetCBlock(index);
+        coins.push_back(pwalletMain->sparkWallet->getCoinFromMeta(mints[i + 1]));
+        coins.push_back(pwalletMain->sparkWallet->getCoinFromMeta(mints[i]));
+
+        PopulateSparkTxInfo(
+             block,
+             {
+                pwalletMain->sparkWallet->getCoinFromMeta(mints[i]),
+                pwalletMain->sparkWallet->getCoinFromMeta(mints[i + 1])
+             },
+             {});
+
+        indexes.push_back(index);
+        blocks.push_back(block);
+
+        GenerateBlock({});
+    }
+
+    size_t maxSize = 6;
+    size_t startCoin = 2;
+    auto sparkState = new spark::CSparkState(maxSize, startCoin);
+
+    auto addMintsToState = [&](CBlockIndex* index, CBlock const& block) {
+        sparkState->AddMintsToStateAndBlockIndex(index, &block);
+    };
+
+    auto verifyMints = [&](size_t i, size_t j, std::vector<spark::Coin> const& coinSet) {
+        std::vector<spark::Coin> expected(coins.begin() + i, coins.begin() + j);
+        std::reverse(expected.begin(), expected.end());
+
+        BOOST_CHECK(expected == coinSet);
+    };
+
+    auto verifyGroup = [&](int expectedId, size_t expectedCoins, CBlockIndex* expectedFirst, CBlockIndex* expectedLast, int testId = 0) -> void {
+        if (!testId) {
+            testId = sparkState->GetLatestCoinID();
+        }
+
+        spark::CSparkState::SparkCoinGroupInfo group;
+
+        BOOST_CHECK(sparkState->GetCoinGroupInfo(testId, group));
+        if (expectedId > 0) { // verify last Id
+            BOOST_CHECK_EQUAL(expectedId, testId);
+        }
+
+        BOOST_CHECK_EQUAL(expectedCoins, group.nCoins);
+        BOOST_CHECK_EQUAL(expectedFirst, group.firstBlock);
+        BOOST_CHECK_EQUAL(expectedLast, group.lastBlock);
+    };
+
+
+    addMintsToState(indexes[0], blocks[0]);
+    addMintsToState(indexes[1], blocks[1]);
+    addMintsToState(indexes[2], blocks[2]);
+
+    verifyGroup(1, 6, indexes[0], indexes[2]);
+
+    uint256 blockHashOut1;
+    std::vector<spark::Coin> coinOut1;
+    std::vector<unsigned char> setHash;
+
+    BOOST_CHECK_EQUAL(6, sparkState->GetCoinSetForSpend(
+        &chainActive,
+        indexes[2]->nHeight,
+        1,
+        blockHashOut1,
+        coinOut1,
+        setHash));
+
+    verifyMints(0, 6, coinOut1);
+    BOOST_CHECK(indexes[2]->GetBlockHash() == blockHashOut1);
+
+    // 8 coins, 1(6), 2(4)
+    addMintsToState(indexes[3], blocks[3]);
+    verifyGroup(2, 4, indexes[2], indexes[3]);
+    verifyGroup(1, 6, indexes[0], indexes[2], 1);
+
+    uint256 blockHashOut2;
+    std::vector<spark::Coin> coinOut2;
+    BOOST_CHECK_EQUAL(4, sparkState->GetCoinSetForSpend(
+        &chainActive,
+        indexes[3]->nHeight + 1,
+        2,
+        blockHashOut2,
+        coinOut2,
+        setHash));
+
+    verifyMints(4, 8, coinOut2);
+    BOOST_CHECK(indexes[3]->GetBlockHash() == blockHashOut2);
+
+    // 10 coins, 1(6), 2(6)
+    addMintsToState(indexes[4], blocks[4]);
+
+    verifyGroup(2, 6, indexes[2], indexes[4]);
+    verifyGroup(1, 6, indexes[0], indexes[2], 1);
+
+    uint256 blockHashOut3;
+    std::vector<spark::Coin> coinOut3;
+    BOOST_CHECK_EQUAL(6, sparkState->GetCoinSetForSpend(
+        &chainActive,
+        indexes[4]->nHeight,
+        2,
+        blockHashOut3,
+        coinOut3,
+        setHash));
+
+    verifyMints(4, 10, coinOut3);
+    BOOST_CHECK(indexes[4]->GetBlockHash() == blockHashOut3);
+
+    // 12 coins, 1(6), 2(6), 3(4)
+    addMintsToState(indexes[5], blocks[5]);
+
+    verifyGroup(3, 4, indexes[4], indexes[5]);
+    verifyGroup(2, 6, indexes[2], indexes[4], 2);
+    verifyGroup(1, 6, indexes[0], indexes[2], 1);
+
+    uint256 blockHashOut4;
+    std::vector<spark::Coin> coinOut4;
+    BOOST_CHECK_EQUAL(4, sparkState->GetCoinSetForSpend(
+        &chainActive,
+        indexes[5]->nHeight,
+        3,
+        blockHashOut4,
+        coinOut4,
+        setHash));
+        verifyMints(8, 12, coinOut4);
+
+    // Get first group
+    uint256 blockHashOut5;
+    std::vector<spark::Coin> coinOut5;
+    BOOST_CHECK_EQUAL(6, sparkState->GetCoinSetForSpend(
+        &chainActive,
+        indexes[5]->nHeight,
+        1,
+        blockHashOut5,
+        coinOut5,
+        setHash));
+
+    verifyMints(0, 6, coinOut5);
+    BOOST_CHECK(indexes[2]->GetBlockHash() == blockHashOut5);
+
+    // Get first group with low max height
+    uint256 blockHashOut6;
+    std::vector<spark::Coin>  coinOut6;
+    BOOST_CHECK_EQUAL(2, sparkState->GetCoinSetForSpend(
+        &chainActive,
+        indexes[0]->nHeight,
+        1,
+        blockHashOut6,
+        coinOut6,
+        setHash));
+
+    verifyMints(0, 2, coinOut6);
+    BOOST_CHECK(indexes[0]->GetBlockHash() == blockHashOut6);
+
+    sparkState->RemoveBlock(indexes[5]);
+    verifyGroup(2, 6, indexes[2], indexes[4]);
+    verifyGroup(1, 6, indexes[0], indexes[2], 1);
 
     sparkState->Reset();
 }
