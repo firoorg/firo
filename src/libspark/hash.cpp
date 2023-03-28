@@ -141,7 +141,7 @@ GroupElement Hash::finalize_group() {
 // Include a serialized size in the hash function
 void Hash::include_size(std::size_t size) {
 	CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-	stream << size;
+	stream << (uint64_t)size;
 	EVP_DigestUpdate(this->ctx, reinterpret_cast<unsigned char *>(stream.data()), stream.size());
 }
 
