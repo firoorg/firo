@@ -51,7 +51,7 @@ std::vector<unsigned char> KDF::finalize() {
 // Include a serialized size in the KDF
 void KDF::include_size(std::size_t size) {
 	CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-	stream << size;
+	stream << (uint64_t)size;
 	EVP_DigestUpdate(this->ctx, reinterpret_cast<unsigned char *>(stream.data()), stream.size());
 }
 
