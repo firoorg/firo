@@ -3377,7 +3377,7 @@ UniValue listsparkspends(const JSONRPCRequest& request) {
         entry.push_back(Pair("txid", itr.hashTx.GetHex()));
         entry.push_back(Pair("lTagHash", itr.lTagHash.GetHex()));
         entry.push_back(Pair("lTag", itr.lTag.GetHex()));
-        entry.push_back(Pair("amount", itr.lTag.GetHex()));
+        entry.push_back(Pair("amount", itr.amount));
         results.push_back(entry);
     }
     return results;
