@@ -41,6 +41,8 @@ public:
     std::unordered_map<int32_t, spark::Address> getAllAddresses();
     // get address for a diversifier
     spark::Address getAddress(const int32_t& i);
+    bool isAddressMine(const std::string& encodedAddr);
+
     // list spark mint, mint metadata in memory and in db should be the same at this moment, so get from memory
     std::vector<CSparkMintMeta> ListSparkMints(bool fUnusedOnly = false, bool fMatureOnly = false) const;
     std::list<CSparkSpendEntry> ListSparkSpends() const;
