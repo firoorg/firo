@@ -234,6 +234,35 @@ spark::Address CSparkWallet::getAddress(const int32_t& i) {
     return addresses[i];
 }
 
+bool CSparkWallet::isAddressMine(const std::string& encodedAddr) {
+    const spark::Params* params = spark::Params::get_default();
+    spark::Address address(params);
+    try {
+        address.decode(encodedAddr);
+    } catch (...) {
+        return false;
+    }
+
+    for (const auto& itr : addresses) {
+        if (itr.second.get_Q1() == address.get_Q1() && itr.second.get_Q2() == address.get_Q2())
+            return true;
+    }
+
+    uint64_t d;
+
+    try {
+        d = viewKey.get_diversifier(address.get_d());
+    } catch (...) {
+        return false;
+    }
+
+    spark::Address newAddr = getAddress(int32_t(d));
+    if (newAddr.get_Q1() == address.get_Q1() && newAddr.get_Q2() == address.get_Q2())
+        return true;
+
+    return false;
+}
+
 std::vector<CSparkMintMeta> CSparkWallet::ListSparkMints(bool fUnusedOnly, bool fMatureOnly) const {
     std::vector<CSparkMintMeta> setMints;
     LOCK(cs_spark_wallet);
