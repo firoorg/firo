@@ -3189,7 +3189,7 @@ UniValue listunspentsparkmints(const JSONRPCRequest& request) {
                 "listunspentsparkmints \n"
                 "Returns array of unspent mints coins\n"
                 "Results are an array of Objects, each of which has:\n"
-                "{txid, nHeight, scriptPubKey, amount}");
+                "{txid, nHeight, memo, scriptPubKey, amount}");
     }
 
     if (pwallet->IsLocked()) {
@@ -3236,7 +3236,7 @@ UniValue listsparkmints(const JSONRPCRequest& request) {
                 "listsparkmints \n"
                 "Returns array of mint coins\n"
                 "Results are an array of Objects, each of which has:\n"
-                "{txid, nHeight, nId, isUsed, lTagHash, scriptPubKey, amount}");
+                "{txid, nHeight, nId, isUsed, lTagHash, memo, scriptPubKey, amount}");
     }
 
     if (pwallet->IsLocked()) {
@@ -3455,7 +3455,9 @@ UniValue resetsparkmints(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
                 "resetsparkmints"
-                + HelpRequiringPassphrase(pwallet));
+                + HelpRequiringPassphrase(pwallet) + "\nResets all your Spark mints' status to unsued and unconfirmed. To make it valid again, you have to rescan or reindex.\n"
+                                                     "WARNING: Run this only for testing and if you fully understand what it does.\n"
+                );
 
     EnsureSparkWalletIsAvailable();
 
@@ -3610,12 +3612,12 @@ UniValue spendspark(const JSONRPCRequest& request)
                                                      "\"txid\"                   (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
                                                      "                                    the number of addresses.\n"
                                                      "\nExamples:\n"
-                                                     "\nSend two amounts to two different transparent addresses:\n"
+                                                     "\nSend an amount to transparent address:\n"
                  + HelpExampleCli("spendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":[0.02, false]}\" \"{}\"") +
-                 "\nSend two amounts to two different transparent addresses and two different private addresses:\n"
+                 "\nSend an amount to a transparent address and two different private addresses:\n"
                  + HelpExampleCli("spendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":[0.02, false]}\" \"{\\\"pr18qqntc8e60x0ygnv0ey7skekve73tmvhhlkaehka6qfv56zc4w2j75jldrf8wjf8dy0hu33vsww7fj34fd3k7rnwgv7jdvtmgv2g37xqmm59krmgycgkdes37jqupc62s7khafqynlxsy\\\":[0.01, \\\"\\\", false],\\\"pr1t0l6vu9h9a8nr203tfcesps46agtm0aa9uzsty0tp4wqqrg42rg35yf4r839t3fenlfmsgkpwwklxg5r68tvenn5uy29wwykany3t0qrkjy2res6thzwx90nha6wpkegwrm0n8g2cjawq\\\":[0.01, \\\"\\\", false]}\"") +
                  "\nSend two amounts to two different transparent addresses and two different private addresses:\n"
-                 + HelpExampleRpc("spendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":[0.02, false]}\" \"{\\\"pr18qqntc8e60x0ygnv0ey7skekve73tmvhhlkaehka6qfv56zc4w2j75jldrf8wjf8dy0hu33vsww7fj34fd3k7rnwgv7jdvtmgv2g37xqmm59krmgycgkdes37jqupc62s7khafqynlxsy\\\":[0.01, \\\"\\\", false],\\\"pr1t0l6vu9h9a8nr203tfcesps46agtm0aa9uzsty0tp4wqqrg42rg35yf4r839t3fenlfmsgkpwwklxg5r68tvenn5uy29wwykany3t0qrkjy2res6thzwx90nha6wpkegwrm0n8g2cjawq\\\":[0.01, \\\"\\\", false]}\"")
+                 + HelpExampleRpc("spendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":[0.02, false],\\\"TuzUyNtTznSNnT2rPXG6Mk7hHG8Svuuoci\\\":[0.04,false]}\" \"{\\\"pr18qqntc8e60x0ygnv0ey7skekve73tmvhhlkaehka6qfv56zc4w2j75jldrf8wjf8dy0hu33vsww7fj34fd3k7rnwgv7jdvtmgv2g37xqmm59krmgycgkdes37jqupc62s7khafqynlxsy\\\":[0.01, \\\"\\\", false],\\\"pr1t0l6vu9h9a8nr203tfcesps46agtm0aa9uzsty0tp4wqqrg42rg35yf4r839t3fenlfmsgkpwwklxg5r68tvenn5uy29wwykany3t0qrkjy2res6thzwx90nha6wpkegwrm0n8g2cjawq\\\":[0.01, \\\"\\\", false]}\"")
         );
 
     EnsureWalletIsUnlocked(pwallet);
