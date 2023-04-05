@@ -541,6 +541,9 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
     BOOST_CHECK(!CheckSparkTransaction(
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
+
+    mempool.clear();
+    sparkState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(coingroup)
@@ -681,6 +684,7 @@ BOOST_AUTO_TEST_CASE(coingroup)
     reconnect(block5);
     checker.Verify();
 
+    mempool.clear();
     sparkState->Reset();
 }
 
