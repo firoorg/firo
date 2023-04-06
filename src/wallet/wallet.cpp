@@ -1746,12 +1746,31 @@ isminetype CWallet::IsMine(const CTxOut &txout) const
             }
         return db.HasHDMint(pub) ? ISMINE_SPENDABLE : ISMINE_NO;
     } else if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+        std::vector<unsigned char> serialContext;
+        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+            const CWalletTx *pcoin = &(*it).second;
+            for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
+                if (txout == pcoin->tx->vout[i]) {
+                    serialContext = spark::getSerialContext(*pcoin->tx);
+                    break;
+                }
+            }
+
+            if (!serialContext.empty())
+                break;
+        }
+
+        if (serialContext.empty())
+            return ISMINE_NO;
+
         spark::Coin coin(spark::Params::get_default());
         try {
             spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
         } catch (std::invalid_argument &) {
             return ISMINE_NO;
         }
+
+        coin.setSerialContext(serialContext);
 
         if (!sparkWallet)
             return ISMINE_NO;
