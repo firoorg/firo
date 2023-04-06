@@ -196,22 +196,7 @@ std::vector<spark::Coin> GetSparkMintCoins(const CTransaction &tx)
     std::vector<spark::Coin> result;
 
     if (tx.IsSparkTransaction()) {
-        CDataStream serialContextStream(SER_NETWORK, PROTOCOL_VERSION);
-        if (tx.IsSparkSpend()) {
-            try {
-                spark::SpendTransaction spend = ParseSparkSpend(tx);
-                serialContextStream << spend.getUsedLTags();
-            } catch (...) {
-                return result;
-            }
-        } else {
-            for (auto input: tx.vin) {
-                input.scriptSig.clear();
-                serialContextStream << input;
-            }
-        }
-
-        std::vector<unsigned char> serial_context(serialContextStream.begin(), serialContextStream.end());
+        std::vector<unsigned char> serial_context = getSerialContext(tx);
         for (const auto& vout : tx.vout) {
             const auto& script = vout.scriptPubKey;
             if (script.IsSparkMint() || script.IsSparkSMint()) {
@@ -847,8 +832,10 @@ bool GetOutPoint(COutPoint& outPoint, const spark::Coin& coin)
     CBlockIndex *mintBlock = chainActive[mintHeight];
     CBlock block;
     //TODO levon, try to optimize this
-    if (!ReadBlockFromDisk(block, mintBlock, ::Params().GetConsensus()))
+    if (!ReadBlockFromDisk(block, mintBlock, ::Params().GetConsensus())) {
         LogPrintf("can't read block from disk.\n");
+        return false;
+    }
 
     return GetOutPointFromBlock(outPoint, coin, block);
 }
@@ -886,6 +873,26 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
         }
     }
     return false;
+}
+
+std::vector<unsigned char> getSerialContext(const CTransaction &tx) {
+    CDataStream serialContextStream(SER_NETWORK, PROTOCOL_VERSION);
+    if (tx.IsSparkSpend()) {
+        try {
+            spark::SpendTransaction spend = ParseSparkSpend(tx);
+            serialContextStream << spend.getUsedLTags();
+        } catch (...) {
+            return std::vector<unsigned char>();
+        }
+    } else {
+        for (auto input: tx.vin) {
+            input.scriptSig.clear();
+            serialContextStream << input;
+        }
+    }
+
+    std::vector<unsigned char> serial_context(serialContextStream.begin(), serialContextStream.end());
+    return serial_context;
 }
 
 static bool CheckSparkSpendTAg(
