@@ -47,8 +47,13 @@ if 'ENABLE_BITCOIND' not in vars():
     ENABLE_BITCOIND=0
 if 'ENABLE_UTILS' not in vars():
     ENABLE_UTILS=0
+if 'ENABLE_ZMQ' not in vars():
+    ENABLE_ZMQ=0
 if 'ENABLE_CLIENTAPI' not in vars():
     ENABLE_CLIENTAPI=0
+
+if ENABLE_CLIENTAPI:
+    ENABLE_ZMQ=1
 
 ENABLE_COVERAGE=0
 
@@ -91,38 +96,36 @@ if not (ENABLE_WALLET == 1 and ENABLE_UTILS == 1 and ENABLE_BITCOIND == 1):
     sys.exit(0)
 
 # python3-zmq may not be installed. Handle this gracefully and with some helpful info
-if ENABLE_CLIENTAPI:
+if ENABLE_ZMQ:
     try:
         import zmq
     except ImportError:
-        print("ERROR: \"import zmq\" failed. Set ENABLE_CLIENTAPI=0 or "
+        print("ERROR: \"import zmq\" failed. Set ENABLE_ZMQ=0 or "
               "to run zmq tests, see dependency info in /qa/README.md.")
-        # ENABLE_CLIENTAPI=0
+        # ENABLE_ZMQ=0
         raise
 
 testScripts = [
-    #'lelantus_mint.py',
-    #'lelantus_setmintstatus_validation.py',
-    #'lelantus_mintspend.py',
-    #'lelantus_spend_gettransaction.py',
-
-	# Elysium-specific tests
-    #'elysium_create_denomination.py',
-    #'elysium_property_creation_fee.py',
+    'lelantus_mint.py',
+    'lelantus_setmintstatus_validation.py',
+    'lelantus_mintspend.py',
+    'lelantus_spend_gettransaction.py',
+    'elysium_create_denomination.py',
+    'elysium_property_creation_fee.py',
     'elysium_recoverlelantusmint.py',
     'elysium_lelantusstatus.py',
     'elysium_sendlelantusmint.py',
     'elysium_sendlelantusspend.py',
-    #'elysium_sendmint.py',
-    #'elysium_sendmint_wallet_encryption.py',
-    #'elysium_sendspend.py',
-    #'elysium_sendspend_wallet_encryption.py',
-    #'elysium_sigma_reindex.py',
-    #'elysium_sigma_reorg.py',
+    'elysium_sendmint.py',
+    'elysium_sendmint_wallet_encryption.py',
+    'elysium_sendspend.py',
+    'elysium_sendspend_wallet_encryption.py',
+    'elysium_sigma_reindex.py',
+    'elysium_sigma_reorg.py',
     'elysium_walletrecovery.py',
-    #'mempool_doublesend_oneblock.py',
-    #'mempool_reorg.py',
-    #'mempool_spendcoinbase.py',
+    'mempool_doublesend_oneblock.py',
+    'mempool_reorg.py',
+    'mempool_spendcoinbase.py',
     # longest test should go first, to favor running tests in parallel
     # vv Tests less than 5m vv
     # 'p2p-fullblocktest.py',
@@ -132,55 +135,56 @@ testScripts = [
     # 'p2p-compactblocks.py',
     # 'segwit.py',
     # vv Tests less than 2m vv
-    #'wallet.py',
-    #'wallet-encryption.py',
-    #'wallet-hd.py',
-    #'wallet-dump.py',
-    #'walletbackup.py',
+    'wallet.py',
+    'wallet-encryption.py',
+    'wallet-hd.py',
+    'wallet-dump.py',
+    'walletbackup.py',
     # 'wallet-accounts.py',
     # 'p2p-segwit.py',
-    #'listtransactions.py',
+    'listtransactions.py',
     # vv Tests less than 60s vv
     # 'sendheaders.py',
     # 'importmulti.py',
     # 'mempool_limit.py',
     # 'merkle_blocks.py',
-    #'receivedby.py',
+    'receivedby.py',
     # 'abandonconflict.py',
     # 'bip68-112-113-p2p.py',
     # 'rawtransactions.py',
     # vv Tests less than 30s vv
-    #'mempool_resurrect_test.py',
-    #'txn_doublespend.py --mineblock',
-    #'txn_clone.py',
-    #'getchaintips.py',
-    #'rest.py',
-    #'httpbasics.py',
-    #'reindex.py',
-    #'multi_rpc.py',
-    #'zapwallettxes.py',
-    #'proxy_test.py',
-    #'signrawtransactions.py',
-    #'nodehandling.py',
-    #'decodescript.py',
+    'mempool_resurrect_test.py',
+    'txn_doublespend.py --mineblock',
+    'txn_clone.py',
+    'getchaintips.py',
+    'rest.py',
+    'httpbasics.py',
+    'reindex.py',
+    'p2p-addr.py',
+    'multi_rpc.py',
+    'zapwallettxes.py',
+    'proxy_test.py',
+    'signrawtransactions.py',
+    'nodehandling.py',
+    'decodescript.py',
     # 'blockchain.py',
-    #'disablewallet.py',
-    #'keypool.py',
-    #'p2p-mempool.py',
+    'disablewallet.py',
+    'keypool.py',
+    'p2p-mempool.py',
     # 'prioritise_transaction.py',
-    #'invalidblockrequest.py',
+    'invalidblockrequest.py',
     # 'invalidtxrequest.py',
     # 'p2p-versionbits-warning.py',
-    #'preciousblock.py',
-    #'importprunedfunds.py',
-    #'signmessages.py',
+    'preciousblock.py',
+    'importprunedfunds.py',
+    'signmessages.py',
     # 'nulldummy.py',
     # 'import-rescan.py',
     # 'bumpfee.py',
     # 'rpcnamedargs.py',
-    #'listsinceblock.py',
-    #'p2p-leaktests.py',
-    #'notifications.py',
+    'listsinceblock.py',
+    'p2p-leaktests.py',
+    'notifications.py',
 
     # Firo-specific tests
     'wallet_dumpsigma.py',
@@ -203,7 +207,6 @@ testScripts = [
     'sigma_zapwalletmints_unconf_trans.py',
 
     # Evo Znodes
-    #'dip3-deterministicmns.py'
     'dip3-deterministicmns.py',
     'llmq-signing.py',
     'llmq-dkgerrors.py',
@@ -221,7 +224,7 @@ testScripts = [
     'bip47-sendreceive.py',
     'bip47-walletrestore.py'
 ]
-# if ENABLE_CLIENTAPI:
+# if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')
 
 testScriptsExt = [
