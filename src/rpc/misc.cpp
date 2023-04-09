@@ -593,6 +593,17 @@ void handleSingleAddress(const UniValue& uniAddress, std::vector<std::pair<uint1
         addresses.push_back(std::make_pair(uint160(), AddressType::lelantusJMint));
         addresses.push_back(std::make_pair(uint160(), AddressType::lelantusJSplit));
 
+    } else if(zerocoin::utils::isSparkMint(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::sparkMint));
+    } else if(zerocoin::utils::isSparkSMint(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::sparksMint));
+    } else if(zerocoin::utils::isSparkSpend(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::sparkSpend));
+    } else if(zerocoin::utils::isSpark(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::sparkMint));
+        addresses.push_back(std::make_pair(uint160(), AddressType::sparksMint));
+        addresses.push_back(std::make_pair(uint160(), AddressType::sparkSpend));
+
     } else if(zerocoin::utils::isZerocoinRemint(addr)) {
         addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinRemint));
     } else {
