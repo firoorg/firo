@@ -80,6 +80,7 @@ public:
     bool isMine(spark::Coin coin) const;
     bool isMine(const std::vector<GroupElement>& lTags) const;
 
+    CAmount getMyCoinV(spark::Coin coin) const;
     CAmount getMySpendAmount(const std::vector<GroupElement>& lTags) const;
 
     void UpdateSpendState(const GroupElement& lTag, const uint256& lTagHash, const uint256& txHash, bool fUpdateMint = true);

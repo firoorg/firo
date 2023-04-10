@@ -44,7 +44,7 @@ class SpendGettransactionTest(BitcoinTestFramework):
         assert int(spendto_wo_tx['amount']) == int('-1')
         assert spendto_wo_tx['fee'] < Decimal('0')
         assert isinstance(spendto_wo_tx['details'], list)
-        assert len(spendto_wo_tx['details']) == 2
+        assert len(spendto_wo_tx['details']) == 1
         assert spendto_wo_tx['details'][0]['involvesWatchonly']
 
         # case 2: Spend many with watchonly address and valid address
