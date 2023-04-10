@@ -713,8 +713,10 @@ bool CSparkWallet::CreateSparkMintTransactions(
 
                 auto itr = valueAndUTXO.begin();
 
-                CAmount valueToMintInTx = std::min(
-                        ::Params().GetConsensus().nMaxValueLelantusMint, itr->first);
+//                CAmount valueToMintInTx = std::min(
+//                        ::Params().GetConsensus().nMaxValueLelantusMint, itr->first);
+
+                CAmount valueToMintInTx = itr->first;
 
                 if (!autoMintAll) {
                     valueToMintInTx = std::min(valueToMintInTx, valueToMint);

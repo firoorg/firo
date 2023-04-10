@@ -444,11 +444,11 @@ bool CheckSparkMintTransaction(
                              PUBCOIN_NOT_VALIDATE,
                              "CheckSparkMintTransaction : mintTransaction failed, wrong amount");
 
-        if (coin.v > ::Params().GetConsensus().nMaxValueLelantusMint)
-            return state.DoS(100,
-                             false,
-                             REJECT_INVALID,
-                             "CTransaction::CheckTransaction() : Spark Mint is out of limit.");
+//        if (coin.v > ::Params().GetConsensus().nMaxValueLelantusMint)
+//            return state.DoS(100,
+//                             false,
+//                             REJECT_INVALID,
+//                             "CTransaction::CheckTransaction() : Spark Mint is out of limit.");
 
         hasCoin = sparkState.HasCoin(coin);
 
