@@ -478,6 +478,17 @@ bool CSparkWallet::isMine(const std::vector<GroupElement>& lTags) const {
     return false;
 }
 
+CAmount CSparkWallet::getMyCoinV(spark::Coin coin) const {
+    CAmount v(0);
+    try {
+        spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
+        v = identifiedCoinData.v;
+    } catch (const std::runtime_error& e) {
+        //don nothing
+    }
+    return v;
+}
+
 CAmount CSparkWallet::getMySpendAmount(const std::vector<GroupElement>& lTags) const {
     CAmount result = 0;
     LOCK(cs_spark_wallet);
@@ -1288,6 +1299,7 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
                         output.v = spendInCurrentTx;
                     else
                         output.v = 0;
+                    wtxNew.changes.insert(static_cast<uint32_t>(tx.vout.size() + privOutputs.size()));
                     privOutputs.push_back(output);
                 }
 
