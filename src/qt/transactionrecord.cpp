@@ -229,7 +229,16 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 // Mint to self
                 parts.append(TransactionRecord(hash, nTime, TransactionRecord::Anonymize, "",
                     -(nDebit - nChange), 0));
-            } else {
+            }
+            else if (wtx.tx->IsSparkMint()) {
+                parts.append(TransactionRecord(hash, nTime, TransactionRecord::MintSparkToSelf, "",
+                    -(nDebit - nChange), 0));
+            }
+            else if (wtx.tx->IsSparkSpend()) {
+                parts.append(TransactionRecord(hash, nTime, TransactionRecord::SpendSparkToSelf, "",
+                    -(nDebit - nChange), 0));
+            }
+            else {
                 // Payment to self
                 parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToSelf, "",
                     -(nDebit - nChange), nCredit - nChange));
@@ -273,6 +282,14 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 else if(wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint())
                 {
                     sub.type = TransactionRecord::Anonymize;
+                }
+                else if(wtx.tx->IsSparkMint())
+                {
+                    sub.type = TransactionRecord::MintSparkTo;
+                }
+                else if(wtx.tx->IsSparkSpend())
+                {
+                    sub.type = TransactionRecord::SpendSparkTo;
                 }
                 else
                 {

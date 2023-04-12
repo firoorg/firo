@@ -710,6 +710,7 @@ void CoinControlDialog::updateView()
                 amount = out.tx->tx->vout[out.i].nValue;
             }
 
+            if(amount == 0) continue;
             nSum += amount;
             nChildren++;
 

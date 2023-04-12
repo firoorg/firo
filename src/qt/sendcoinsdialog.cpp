@@ -96,7 +96,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->frameFee->setAutoFillBackground(true);
 
     {
-        auto allowed = lelantus::IsLelantusAllowed();
+        auto allowed = lelantus::IsLelantusAllowed() || spark::IsSparkAllowed();
         setAnonymizeMode(allowed);
 
         if (!allowed) {
@@ -158,6 +158,8 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         }
 
         auto privateBalance = _model->getLelantusModel()->getPrivateBalance();
+        std::pair<CAmount, CAmount> sparkBalance = _model->getSparkBalance();
+        privateBalance = privateBalance.first + privateBalance.second == 0 ? sparkBalance : privateBalance;
 
         setBalance(
             _model->getBalance(), _model->getUnconfirmedBalance(), _model->getImmatureBalance(),
@@ -225,6 +227,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         return;
 
     QList<SendCoinsRecipient> recipients;
+    QList<SendCoinsRecipient> sparkRecipients;
     bool valid = true;
 
     using UnlockContext = WalletModel::UnlockContext;
@@ -282,6 +285,8 @@ void SendCoinsDialog::on_sendButton_clicked()
     // prepare transaction for getting txFee earlier
     WalletModelTransaction currentTransaction(recipients);
     WalletModel::SendCoinsReturn prepareStatus;
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    std::list<CReserveKey> reservekeys;
 
     // Always use a CCoinControl instance, use the CoinControlDialog instance if CoinControl has been enabled
     CCoinControl ctrl;
@@ -294,9 +299,30 @@ void SendCoinsDialog::on_sendButton_clicked()
     else
         ctrl.nConfirmTarget = 0;
 
-    if (fAnonymousMode) {
+    int sparkAddressCount = 0;
+    for(int i = 0; i < recipients.size(); ++i){
+        bool check = model->validateSparkAddress(recipients[i].address);
+        if(check) {
+            sparkAddressCount++;
+        }
+    }
+    auto lelantusBalance = model->getLelantusModel()->getPrivateBalance();
+    std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
+    
+    std::vector<CWalletTx> results;
+    if ((fAnonymousMode == true) && (lelantusBalance.first > 0)) {
         prepareStatus = model->prepareJoinSplitTransaction(currentTransaction, &ctrl);
+    } else if ((fAnonymousMode == true) && (lelantusBalance.first == 0)) {
+        prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, &ctrl, results);
+    } else if (fAnonymousMode == false && recipients.size() == sparkAddressCount) {
+        prepareStatus = model->prepareMintSparkTransaction(currentTransaction, wtxAndFee, reservekeys, &ctrl);
     } else {
+        SendGoPrivateDialog goPrivateDialog;
+        bool clickedButton = goPrivateDialog.getClickedButton();
+        if(clickedButton) {
+            fNewRecipientAllowed = true;
+            return;
+        }
         prepareStatus = model->prepareTransaction(currentTransaction, &ctrl);
     }
 
@@ -391,8 +417,12 @@ void SendCoinsDialog::on_sendButton_clicked()
     // now send the prepared transaction
     WalletModel::SendCoinsReturn sendStatus;
 
-    if (fAnonymousMode) {
+    if ((fAnonymousMode == true) && (lelantusBalance.first > 0)) {
         sendStatus = model->sendPrivateCoins(currentTransaction);
+    } else if ((fAnonymousMode == true) && (lelantusBalance.first == 0)) {
+        sendStatus = model->spendSparkCoins(currentTransaction, results);
+    } else if (fAnonymousMode == false && sparkAddressCount == recipients.size()) {
+        sendStatus = model->mintSparkCoins(currentTransaction, wtxAndFee, reservekeys);
     } else {
         sendStatus = model->sendCoins(currentTransaction);
     }
@@ -474,7 +504,7 @@ void SendCoinsDialog::updateBlocks(int count, const QDateTime& blockDate, double
         return;
     }
 
-    auto allowed = lelantus::IsLelantusAllowed(count);
+    auto allowed = lelantus::IsLelantusAllowed() || spark::IsSparkAllowed();
 
     if (allowed && !ui->switchFundButton->isEnabled())
     {
@@ -603,7 +633,10 @@ void SendCoinsDialog::setBalance(
 
 void SendCoinsDialog::updateDisplayUnit()
 {
-    setBalance(model->getBalance(), 0, 0, 0, 0, 0, model->getLelantusModel()->getPrivateBalance().first, 0, 0);
+    auto privateBalance = model->getLelantusModel()->getPrivateBalance();
+    std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
+    privateBalance = privateBalance.first + privateBalance.second == 0 ? sparkBalance : privateBalance;
+    setBalance(model->getBalance(), 0, 0, 0, 0, 0, privateBalance.first, 0, 0);
     ui->customFee->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
     updateMinFeeLabel();
     updateSmartFeeLabel();
@@ -762,7 +795,10 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
     }
 
     if (model) {
-        setBalance(model->getBalance(), 0, 0, 0, 0, 0, model->getLelantusModel()->getPrivateBalance().first, 0, 0);
+        auto privateBalance = model->getLelantusModel()->getPrivateBalance();
+        std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
+        privateBalance = privateBalance.first + privateBalance.second == 0 ? sparkBalance : privateBalance;
+        setBalance(model->getBalance(), 0, 0, 0, 0, 0, privateBalance.first, 0, 0);
     }
 }
 
@@ -1059,4 +1095,75 @@ void SendConfirmationDialog::updateYesButton()
         yesButton->setEnabled(true);
         yesButton->setText(tr("Yes"));
     }
+}
+
+SendGoPrivateDialog::SendGoPrivateDialog():QMessageBox()
+{
+        QDialog::setWindowTitle("Make this a private transaction");
+        
+        QLabel *ic = new QLabel();
+        QIcon icon_;
+        icon_.addFile(QString::fromUtf8(":/icons/ic_info"), QSize(), QIcon::Normal, QIcon::On);
+        ic->setPixmap(icon_.pixmap(18, 18));
+        ic->setFixedWidth(50);
+        ic->setAlignment(Qt::AlignRight);
+        ic->setStyleSheet("color:#92400E");
+
+        QLabel *text = new QLabel();
+        text->setText(tr("You are using a transparent transaction, please go private. If this is a masternode transaction, you do not have to go private"));
+        text->setAlignment(Qt::AlignLeft);
+        text->setWordWrap(true);
+        text->setStyleSheet("color:#92400E;");
+        
+        QPushButton *ignore = new QPushButton(this);
+        ignore->setText("Ignore");
+        ignore->setStyleSheet("color:#9b1c2e;background-color:none;margin-top:30px;margin-bottom:60px;margin-left:50px;margin-right:20px;border:1px solid #9b1c2e;");
+
+        QPushButton *goPrivate = new QPushButton(this);
+        goPrivate->setText("Go Private");
+        goPrivate->setStyleSheet("margin-top:30px;margin-bottom:60px;margin-left:20px;margin-right:50px;");
+
+        QHBoxLayout *groupButton = new QHBoxLayout(this);
+        groupButton->addWidget(ignore);
+        groupButton->addWidget(goPrivate);
+        
+        QHBoxLayout *hlayout = new QHBoxLayout(this);
+        hlayout->addWidget(ic);
+        hlayout->addWidget(text);
+        
+        QWidget *layout_ = new QWidget();
+        layout_->setLayout(hlayout);
+        layout_->setStyleSheet("background-color:#FEF3C7;");
+        
+        QVBoxLayout *vlayout = new QVBoxLayout(this);
+        vlayout->addWidget(layout_);
+        vlayout->addLayout(groupButton);
+        vlayout->setContentsMargins(0,0,0,0);
+
+        QWidget *wbody = new QWidget();
+        wbody->setLayout(vlayout);
+
+        layout()->addWidget(wbody);
+        setContentsMargins(0, 0, 0, 0);
+        setStyleSheet("margin-right:-30px;");
+        setStandardButtons(0);    
+
+        connect(ignore, &QPushButton::clicked, this, &SendGoPrivateDialog::onIgnoreClicked);
+        connect(goPrivate, &QPushButton::clicked, this, &SendGoPrivateDialog::onGoPrivateClicked);
+        exec();
+}
+void SendGoPrivateDialog::onIgnoreClicked()
+{
+    setVisible(false);
+    clickedButton = false;
+}
+void SendGoPrivateDialog::onGoPrivateClicked()
+{
+    setVisible(false);
+    clickedButton = true;
+}
+
+bool SendGoPrivateDialog::getClickedButton()
+{
+    return clickedButton;
 }

@@ -12,6 +12,8 @@
 #include "streams.h"
 
 #include <boost/foreach.hpp>
+const QString RecentRequestsTableModel::Transparent = "Transparent";
+const QString RecentRequestsTableModel::Spark = "Spark";
 
 RecentRequestsTableModel::RecentRequestsTableModel(CWallet *wallet, WalletModel *parent) :
     QAbstractTableModel(parent), walletModel(parent)
@@ -26,7 +28,7 @@ RecentRequestsTableModel::RecentRequestsTableModel(CWallet *wallet, WalletModel 
         addNewRequest(request);
 
     /* These columns must match the indices in the ColumnIndex enumeration */
-    columns << tr("Date") << tr("Label") << tr("Message") << getAmountTitle();
+    columns << tr("Date") << tr("Label") << tr("Address Type") << tr("Message") << getAmountTitle();
 
     connect(walletModel->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &RecentRequestsTableModel::updateDisplayUnit);
 }
@@ -71,6 +73,15 @@ QVariant RecentRequestsTableModel::data(const QModelIndex &index, int role) cons
             else
             {
                 return rec->recipient.label;
+            }
+        case AddressType:
+            if(rec->recipient.addressType == RecentRequestsTableModel::Transparent)
+            {
+                return tr("transparent");
+            }
+            else if(rec->recipient.addressType == RecentRequestsTableModel::Spark)
+            {
+                return tr("spark");
             }
         case Message:
             if(rec->recipient.message.isEmpty() && role == Qt::DisplayRole)

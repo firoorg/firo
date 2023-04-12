@@ -6,6 +6,8 @@
 #define BITCOIN_QT_BITCOINADDRESSVALIDATOR_H
 
 #include <QValidator>
+#include "../spark/sparkwallet.h"
+#include "../spark/state.h"
 
 /** Base58 entry widget validator, checks for valid characters and
  * removes some whitespace.
@@ -30,6 +32,8 @@ public:
     explicit BitcoinAddressCheckValidator(QObject *parent);
 
     State validate(QString &input, int &pos) const;
+
+    bool validateSparkAddress(const std::string& address) const;
 };
 
 #endif // BITCOIN_QT_BITCOINADDRESSVALIDATOR_H
