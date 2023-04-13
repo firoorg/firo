@@ -14,6 +14,8 @@
 #include "walletmodel.h"
 
 #include <QSettings>
+#include <QMessageBox>
+#include <QTimer>
 
 class ClientModel;
 class TransactionFilterProxy;
@@ -85,6 +87,8 @@ private:
 
     TxViewDelegate *txdelegate;
     std::unique_ptr<TransactionFilterProxy> filter;
+    QTimer countDownTimer;
+    int secDelay;
 
 private Q_SLOTS:
     void updateDisplayUnit();
@@ -93,6 +97,19 @@ private Q_SLOTS:
     void updateAlerts(const QString &warnings);
     void updateWatchOnlyLabels(bool showWatchOnly);
     void handleOutOfSyncWarningClicks();
+    void countDown();
+};
+
+class MigrateLelantusToSparkDialog : public QMessageBox
+{
+    Q_OBJECT
+private:
+        WalletModel *model;
+public:
+    MigrateLelantusToSparkDialog(WalletModel *model);
+
+private Q_SLOTS:
+    void onMigrateClicked();
 };
 
 #endif // BITCOIN_QT_OVERVIEWPAGE_H

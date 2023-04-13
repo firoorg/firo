@@ -159,8 +159,7 @@ void SendCoinsDialog::setModel(WalletModel *_model)
 
         auto privateBalance = _model->getLelantusModel()->getPrivateBalance();
         std::pair<CAmount, CAmount> sparkBalance = _model->getSparkBalance();
-        privateBalance = privateBalance.first + privateBalance.second == 0 ? sparkBalance : privateBalance;
-
+        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
         setBalance(
             _model->getBalance(), _model->getUnconfirmedBalance(), _model->getImmatureBalance(),
             _model->getWatchBalance(), _model->getWatchUnconfirmedBalance(), _model->getWatchImmatureBalance(),
@@ -227,7 +226,6 @@ void SendCoinsDialog::on_sendButton_clicked()
         return;
 
     QList<SendCoinsRecipient> recipients;
-    QList<SendCoinsRecipient> sparkRecipients;
     bool valid = true;
 
     using UnlockContext = WalletModel::UnlockContext;
@@ -308,15 +306,15 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
     auto lelantusBalance = model->getLelantusModel()->getPrivateBalance();
     std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
-    
+
     std::vector<CWalletTx> results;
-    if ((fAnonymousMode == true) && (lelantusBalance.first > 0)) {
+    if ((fAnonymousMode == true) && !spark::IsSparkAllowed()) {
         prepareStatus = model->prepareJoinSplitTransaction(currentTransaction, &ctrl);
-    } else if ((fAnonymousMode == true) && (lelantusBalance.first == 0)) {
+    } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
         prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, &ctrl, results);
-    } else if (fAnonymousMode == false && recipients.size() == sparkAddressCount) {
+    } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) {
         prepareStatus = model->prepareMintSparkTransaction(currentTransaction, wtxAndFee, reservekeys, &ctrl);
-    } else {
+    } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)){
         SendGoPrivateDialog goPrivateDialog;
         bool clickedButton = goPrivateDialog.getClickedButton();
         if(clickedButton) {
@@ -324,6 +322,8 @@ void SendCoinsDialog::on_sendButton_clicked()
             return;
         }
         prepareStatus = model->prepareTransaction(currentTransaction, &ctrl);
+    } else {
+        return;
     }
 
     // process prepareStatus and on error generate message shown to user
@@ -417,14 +417,16 @@ void SendCoinsDialog::on_sendButton_clicked()
     // now send the prepared transaction
     WalletModel::SendCoinsReturn sendStatus;
 
-    if ((fAnonymousMode == true) && (lelantusBalance.first > 0)) {
+    if ((fAnonymousMode == true) && !spark::IsSparkAllowed()) {
         sendStatus = model->sendPrivateCoins(currentTransaction);
-    } else if ((fAnonymousMode == true) && (lelantusBalance.first == 0)) {
+    } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
         sendStatus = model->spendSparkCoins(currentTransaction, results);
-    } else if (fAnonymousMode == false && sparkAddressCount == recipients.size()) {
+    } else if ((fAnonymousMode == false) && (sparkAddressCount == recipients.size()) && spark::IsSparkAllowed()) {
         sendStatus = model->mintSparkCoins(currentTransaction, wtxAndFee, reservekeys);
-    } else {
+    } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
         sendStatus = model->sendCoins(currentTransaction);
+    } else {
+        return;
     }
     // process sendStatus and on error generate message shown to user
     processSendCoinsReturn(sendStatus);
@@ -635,7 +637,7 @@ void SendCoinsDialog::updateDisplayUnit()
 {
     auto privateBalance = model->getLelantusModel()->getPrivateBalance();
     std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
-    privateBalance = privateBalance.first + privateBalance.second == 0 ? sparkBalance : privateBalance;
+    privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
     setBalance(model->getBalance(), 0, 0, 0, 0, 0, privateBalance.first, 0, 0);
     ui->customFee->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
     updateMinFeeLabel();
@@ -797,7 +799,7 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
     if (model) {
         auto privateBalance = model->getLelantusModel()->getPrivateBalance();
         std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
-        privateBalance = privateBalance.first + privateBalance.second == 0 ? sparkBalance : privateBalance;
+        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
         setBalance(model->getBalance(), 0, 0, 0, 0, 0, privateBalance.first, 0, 0);
     }
 }

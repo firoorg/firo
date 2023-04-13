@@ -584,7 +584,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             CBitcoinAddress addressParsed(strAddress);
             if(addressParsed.IsValid()){
                 ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].name;
-            }else {
+            } else {
                 ssValue >> pwallet->mapSparkAddressBook[strAddress].name;
             }
         }
@@ -595,7 +595,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             CBitcoinAddress addressParsed(strAddress);
             if(addressParsed.IsValid()){
                 ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].purpose;
-            }else {
+            } else {
                 ssValue >> pwallet->mapSparkAddressBook[strAddress].purpose;
             }
         }

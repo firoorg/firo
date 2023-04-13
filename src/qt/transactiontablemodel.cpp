@@ -471,6 +471,7 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
     case TransactionRecord::SpendSparkToSelf:
     case TransactionRecord::MintSparkTo:
     case TransactionRecord::SpendSparkTo:
+        return QIcon(":/icons/spark");
     default:
         return QIcon(":/icons/tx_inout");
     }
