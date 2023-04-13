@@ -355,9 +355,9 @@ void OverviewPage::countDown()
 {
     secDelay--;
     if(secDelay <= 0) {
-        // if(walletModel->getAvailableLelantusCoins()){
+        if(walletModel->getAvailableLelantusCoins()){
             MigrateLelantusToSparkDialog migrate(walletModel);
-        // }
+        }
         countDownTimer.stop();
     }
 }
