@@ -155,6 +155,21 @@ bool CWalletDB::ErasePaymentRequestAddress() {
     return Erase(std::string("paymentrequestaddress"));
 }
 
+bool CWalletDB::WritePaymentRequestSparkAddress(const std::string& address) {
+    nWalletDBUpdateCounter++;
+    return Write(std::string("paymentrequestsparkaddress"), address);
+}
+
+bool CWalletDB::ReadPaymentRequestSparkAddress(std::string& address) {
+    nWalletDBUpdateCounter++;
+    return Read(std::string("paymentrequestsparkaddress"), address);
+}
+
+bool CWalletDB::ErasePaymentRequestSparkAddress() {
+    nWalletDBUpdateCounter++;
+    return Erase(std::string("paymentrequestsparkaddress"));
+}
+
 bool CWalletDB::WriteShowMnemonicsWarning(bool shouldShow) {
     nWalletDBUpdateCounter++;
     return Write(std::string("mnemonicswarning"), shouldShow);
@@ -628,13 +643,24 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         {
             std::string strAddress;
             ssKey >> strAddress;
-            ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].name;
+            CBitcoinAddress addressParsed(strAddress);
+            if(addressParsed.IsValid()){
+                ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].name;
+            }else {
+                ssValue >> pwallet->mapSparkAddressBook[strAddress].name;
+            }
+            
         }
         else if (strType == "purpose")
         {
             std::string strAddress;
             ssKey >> strAddress;
-            ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].purpose;
+            CBitcoinAddress addressParsed(strAddress);
+            if(addressParsed.IsValid()){
+                ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].purpose;
+            } else {
+                ssValue >> pwallet->mapSparkAddressBook[strAddress].purpose;
+            }
         }
         else if (strType == "addressBookItemCreatedAt")
         {
@@ -869,7 +895,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             ssKey >> strAddress;
             ssKey >> strKey;
             ssValue >> strValue;
-            if (!pwallet->LoadDestData(CBitcoinAddress(strAddress).Get(), strKey, strValue))
+            if (!pwallet->LoadDestData(strAddress, strKey, strValue))
             {
                 strErr = "Error reading wallet database: LoadDestData failed";
                 return false;

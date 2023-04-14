@@ -13,3 +13,4 @@ bool GetCoinControl(const UniValue& data, CCoinControl& cc);
 bool doesWalletHaveMnemonics();
 
 extern std::atomic<bool> fHasSentInitialStateWallet;
+bool isSparkAddress(const std::string& address);

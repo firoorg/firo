@@ -756,7 +756,22 @@ UniValue readaddressbook(Type type, const UniValue& data, const UniValue& auth, 
         if (addr.Set(it->first)) 
         {
             UniValue item(UniValue::VOBJ);
+            item.push_back(Pair("addressType", "Transparent"));
             item.push_back(Pair("address", addr.ToString()));
+            item.push_back(Pair("label", it->second.name));
+            item.push_back(Pair("purpose", it->second.purpose.empty()? "unknown":it->second.purpose));
+            item.push_back(Pair("createdAt", it->second.nCreatedAt));
+            addressBook.push_back(item);
+        }
+    }
+
+    for (std::map<std::string, CAddressBookData>::const_iterator it = pwalletMain->mapSparkAddressBook.begin(); it != pwalletMain->mapSparkAddressBook.end(); ++it) {
+        std::string addr = it->first;
+        if (isSparkAddress(addr)) 
+        {
+            UniValue item(UniValue::VOBJ);
+            item.push_back(Pair("addressType", "Spark"));
+            item.push_back(Pair("address", addr));
             item.push_back(Pair("label", it->second.name));
             item.push_back(Pair("purpose", it->second.purpose.empty()? "unknown":it->second.purpose));
             item.push_back(Pair("createdAt", it->second.nCreatedAt));
@@ -788,7 +803,7 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
 
     CTxDestination inputAddress = CBitcoinAddress(address).Get();
     // Refuse to set invalid address, set error status and return false
-    if(boost::get<CNoDestination>(&inputAddress)) 
+    if(boost::get<CNoDestination>(&inputAddress) && !isSparkAddress(address))
     {
        throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
@@ -801,43 +816,90 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
         }
         if (action == "add") 
         {
-            pwalletMain->SetAddressBook(inputAddress, find_value(data, "label").getValStr(), find_value(data, "purpose").getValStr());
+            if(isSparkAddress(address)) {
+                pwalletMain->SetSparkAddressBook(address, find_value(data, "label").getValStr(), find_value(data, "purpose").getValStr());
+            } else {
+                pwalletMain->SetAddressBook(inputAddress, find_value(data, "label").getValStr(), find_value(data, "purpose").getValStr());
+            }
         }
         else {
             if (find_value(data, "updatedlabel").isNull() || find_value(data, "updatedaddress").isNull()) {
                 throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
             }
             std::string updatedLabel = find_value(data, "updatedlabel").getValStr();
-            CTxDestination updatedAddress = CBitcoinAddress(find_value(data, "updatedaddress").getValStr()).Get();
-            if(boost::get<CNoDestination>(&updatedAddress)) 
+            std::string updatedStrAddress = find_value(data, "updatedaddress").getValStr();
+            CTxDestination updatedAddress = CBitcoinAddress(updatedStrAddress).Get();
+            if(boost::get<CNoDestination>(&updatedAddress) && !isSparkAddress(updatedStrAddress)) 
             {
                 throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address");
             }
-            pwalletMain->SetAddressBook(updatedAddress, updatedLabel, find_value(data, "purpose").getValStr());
+            if(isSparkAddress(address)) {
+                pwalletMain->SetSparkAddressBook(updatedStrAddress, updatedLabel, find_value(data, "purpose").getValStr());
+            } else {
+                pwalletMain->SetAddressBook(updatedAddress, updatedLabel, find_value(data, "purpose").getValStr());
+            }
         }
     } else {
-        pwalletMain->DelAddressBook(inputAddress);
+        pwalletMain->DelAddressBook(address);
     }
 
     // If we're manipulating the default payment request address, create a new one to take our place.
     CWalletDB walletdb(pwalletMain->strWalletFile);
     std::string defaultPaymentRequestAddress;
-    walletdb.ReadPaymentRequestAddress(defaultPaymentRequestAddress);
-    if (defaultPaymentRequestAddress == address) {
-        CPubKey newKey;
-        if (!pwalletMain->GetKeyFromPool(newKey))
-            throw JSONAPIError(API_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
-        CKeyID keyID = newKey.GetID();
-
-        pwalletMain->SetAddressBook(keyID, "", "receive");
-
-        CBitcoinAddress newPaymentRequestAddress {keyID};
-        walletdb.WritePaymentRequestAddress(newPaymentRequestAddress.ToString());
+    if(isSparkAddress(address)) {
+        walletdb.ReadPaymentRequestSparkAddress(defaultPaymentRequestAddress);
+    } else {
+        walletdb.ReadPaymentRequestAddress(defaultPaymentRequestAddress);
     }
+    if (defaultPaymentRequestAddress == address) {
+        if(isSparkAddress(address)) {
+            //CHECK POOL
+            pwalletMain->SetSparkAddressBook(address, "", "receive");
+            walletdb.WritePaymentRequestSparkAddress(address);
+        } else {
+            CPubKey newKey;
+            if (!pwalletMain->GetKeyFromPool(newKey))
+                throw JSONAPIError(API_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
+            CKeyID keyID = newKey.GetID();
 
+            pwalletMain->SetAddressBook(keyID, "", "receive");
 
+            CBitcoinAddress newPaymentRequestAddress {keyID};
+            walletdb.WritePaymentRequestAddress(newPaymentRequestAddress.ToString());
+        }
+    }
     return true;
 }
+
+UniValue validateSparkAddress(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    std::string address = find_value(data, "address").getValStr();
+    const spark::Params* params = spark::Params::get_default();
+    unsigned char network = spark::GetNetworkType();
+    unsigned char coinNetwork;
+    spark::Address addr(params);
+    try {
+        coinNetwork = addr.decode(address);
+    } catch (...) {
+        return false;
+    }
+    return network == coinNetwork;
+}
+
+bool isSparkAddress(const std::string& address)
+{
+    const spark::Params* params = spark::Params::get_default();
+    unsigned char network = spark::GetNetworkType();
+    unsigned char coinNetwork;
+    spark::Address addr(params);
+    try {
+        coinNetwork = addr.decode(address);
+    } catch (...) {
+        return false;
+    }
+    return network == coinNetwork;
+}
+
 
 static const CAPICommand commands[] =
 { //  category              collection                        actor (function)                 authPort   authPassphrase   warmupOk
@@ -854,6 +916,7 @@ static const CAPICommand commands[] =
     { "wallet",             "readAddressBook",                &readaddressbook,                true,      false,           false  },
     { "wallet",             "editAddressBook",                &editaddressbook,                true,      false,           false  },
     { "wallet",             "lockStatus",                     &lockStatus,                     true,      false,           false  },
+    { "wallet",             "validateSparkAddress",           &validateSparkAddress,           true,      false,           false  },
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {

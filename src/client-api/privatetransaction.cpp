@@ -18,6 +18,7 @@
 #include <vector>
 #include "client-api/bigint.h"
 #include "univalue.h"
+#include "privatetransaction.h"
 
 UniValue lelantusTxFee(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     CAmount nAmount = get_bigint(data["amount"]);
@@ -141,12 +142,164 @@ UniValue autoMintLelantus(Type type, const UniValue& data, const UniValue& auth,
     return retval;
 }
 
+UniValue mintSpark(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (type != Create) {
+        throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
+    }
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    EnsureWalletIsUnlocked(pwalletMain);
+    if (!pwalletMain || !pwalletMain->zwallet) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "lelantus mint/joinsplit is not allowed for legacy wallet");
+    }
+
+    const spark::Params* params = spark::Params::get_default();
+    spark::Address address(params);
+
+    std::string strAddress = find_value(data, "recipient").get_str();
+    if (!isSparkAddress(address, strAddress)) throw JSONAPIError(API_INVALID_REQUEST, "invalid address");
+    CAmount amount = get_bigint(data["amount"]);
+    if (!amount) throw JSONAPIError(API_INVALID_REQUEST, "amount must be greater than 0");
+    std::string label = find_value(data, "label").get_str();
+    CCoinControl coinControl;
+    bool fHasCoinControl = GetCoinControl(data, coinControl);
+    // payTxFee is a global variable that will be used in CreateLelantusJoinSplitTransaction.
+    payTxFee = CFeeRate(get_bigint(data["feePerKb"]));
+    bool fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
+
+    std::vector<spark::MintedCoinData> outputs;
+    spark::MintedCoinData mdata;
+    mdata.address = address;
+    mdata.memo = "";
+    mdata.v = amount;
+    outputs.push_back(mdata);
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    wtxAndFee[0].first.mapValue["label"] = label;
+    std::string strError = pwalletMain->MintAndStoreSpark(outputs, wtxAndFee, false, fSubtractFeeFromAmount, fHasCoinControl? (&coinControl):NULL);
+    if (strError != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    UniValue retval(UniValue::VOBJ);
+    retval.push_back(Pair("mintSpark", wtxAndFee[0].first.GetHash().GetHex()));
+    return retval;
+}
+
+UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (type != Create) {
+        throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
+    }
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    EnsureWalletIsUnlocked(pwalletMain);
+    if (!pwalletMain || !pwalletMain->zwallet) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "lelantus mint/joinsplit is not allowed for legacy wallet");
+    }
+
+    const spark::Params* params = spark::Params::get_default();
+    spark::Address address(params);
+
+    std::string strAddress = find_value(data, "recipient").get_str();
+
+    if (!isSparkAddress(address, strAddress) && !CBitcoinAddress(strAddress).IsValid()) throw JSONAPIError(API_INVALID_REQUEST, "invalid address");
+    CAmount amount = get_bigint(data["amount"]);
+    if (!amount) throw JSONAPIError(API_INVALID_REQUEST, "amount must be greater than 0");
+    std::string label = find_value(data, "label").get_str();
+    CCoinControl coinControl;
+    bool fHasCoinControl = GetCoinControl(data, coinControl);
+    // payTxFee is a global variable that will be used in CreateLelantusJoinSplitTransaction.
+    payTxFee = CFeeRate(get_bigint(data["feePerKb"]));
+    bool fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
+
+    std::vector<CRecipient> recipients;
+    std::vector<std::pair<spark::OutputCoinData, bool>> privateRecipients;
+
+    if(CBitcoinAddress(strAddress).IsValid()) {
+        CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(strAddress).Get());
+        CRecipient recipient = {scriptPubKey, amount, fSubtractFeeFromAmount};
+        recipients.push_back(recipient);
+    } else {
+        spark::OutputCoinData data;
+        data.address = address;
+        data.memo = "";
+        data.v = amount;
+        privateRecipients.push_back(std::make_pair(data, fSubtractFeeFromAmount));
+    }
+
+    CAmount fee;
+    std::vector<CWalletTx> wtxs;
+    wtxs[0].mapValue["label"] = label;
+    try {
+        wtxs = pwalletMain->SpendAndStoreSpark(recipients, privateRecipients, fee, fHasCoinControl? (&coinControl):NULL);
+    } catch (...) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
+    }
+
+    if (fee > 10000000) {
+        throw JSONAPIError(API_INTERNAL_ERROR, "We have produced a transaction with a fee above 1 FIRO. This is almost certainly a bug.");
+    }
+
+    GetMainSignals().WalletTransaction(wtxs[0]);
+    UniValue retval(UniValue::VOBJ);
+    retval.push_back(Pair("spendSpark", wtxs[0].GetHash().GetHex()));
+    return retval;
+}
+
+UniValue lelantusToSpark(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (type != Create) {
+        throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
+    }
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    EnsureWalletIsUnlocked(pwalletMain);
+    if (!pwalletMain || !pwalletMain->zwallet) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "lelantus mint/joinsplit is not allowed for legacy wallet");
+    }
+
+    std::string strFailReason = "";
+    bool passed = false;
+    try {
+        passed = pwalletMain->LelantusToSpark(strFailReason);
+    } catch (...) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus to Spark failed!");
+    }
+    if (!passed || strFailReason != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus to Spark failed. " + strFailReason);
+
+    return NullUniValue;
+}
+
+bool isSparkAddress(spark::Address addr, const std::string& address)
+{
+    const spark::Params* params = spark::Params::get_default();
+    unsigned char network = spark::GetNetworkType();
+    unsigned char coinNetwork;
+    try {
+        coinNetwork = addr.decode(address);
+    } catch (...) {
+        return false;
+    }
+    return network == coinNetwork;
+}
+
 static const CAPICommand commands[] =
 { //  category               collection            actor (function)          authPort   authPassphrase   warmupOk
   //  ---------------------  ------------          ----------------          --------   --------------   --------
     { "privatetransaction",  "lelantusTxFee",      &lelantusTxFee,           true,      false,           false  },
     { "privatetransaction",  "sendLelantus",       &sendLelantus,            true,      true,            false  },
-    { "privatetransaction",  "autoMintLelantus",   &autoMintLelantus,        true,      true,            false  }
+    { "privatetransaction",  "autoMintLelantus",   &autoMintLelantus,        true,      true,            false  },
+    { "privatetransaction",  "mintSpark",          &mintSpark,               true,      true,            false  },
+    { "privatetransaction",  "spendSpark",         &spendSpark,              true,      true,            false  },
+    { "privatetransaction",  "lelantusToSpark",    &lelantusToSpark,         true,      true,            false  }
 };
 void RegisterSigmaAPICommands(CAPITable &tableAPI)
 {
