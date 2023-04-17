@@ -1101,7 +1101,7 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
     }
 
     const auto &consensusParams = Params().GetConsensus();
-    if (privateRecipients.size() >= consensusParams.nMaxSparkOutLimitPerTx)
+    if (privateRecipients.size() >= (consensusParams.nMaxSparkOutLimitPerTx - 1))
         throw std::runtime_error(_("Spark shielded output limit exceeded."));
 
     // calculate total value to spend
@@ -1129,6 +1129,9 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
             recipientsToSubtractFee++;
         }
     }
+
+    if (vOut > consensusParams.nMaxValueSparkSpendPerTransaction)
+        throw std::runtime_error(_("Spend to transparent address limit exceeded (10,000 Firo per transaction)."));
 
     std::vector<CWalletTx> result;
     std::vector<CMutableTransaction> txs;
@@ -1467,10 +1470,6 @@ bool GetCoinsToSpend(
         const CCoinControl *coinControl)
 {
     CAmount availableBalance = CalculateBalance(coins.begin(), coins.end());
-
-    if (required > Params().GetConsensus().nMaxValueSparkSpendPerTransaction) {
-        throw std::invalid_argument(_("The required amount exceeds spend limit"));
-    }
 
     if (required > availableBalance) {
         throw InsufficientFunds();
