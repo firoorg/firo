@@ -209,6 +209,9 @@ std::string ScriptType(const CScript &script) {
     else if (script.IsLelantusJMint()) return "lelantus-jmint";
     else if (script.IsLelantusJoinSplit()) return "lelantus-joinsplit";
     else if (script.IsElysium()) return "elysium";
+    else if (script.IsSparkMint()) return "spark-mint";
+    else if (script.IsSparkSMint()) return "spark-smint";
+    else if (script.IsSparkSpend()) return "spark-spend";
     else return "unknown";
 }
 
@@ -236,6 +239,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         if (txin.IsZerocoinSpend() || txin.IsZerocoinRemint()) inputType = "zerocoin";
         else if (txin.IsSigmaSpend()) inputType = "sigma";
         else if (txin.IsLelantusJoinSplit()) inputType = "lelantus";
+        else if (wtx.tx->IsSparkSpend() || wtx.tx->IsSparkMint()) inputType = "spark";
     }
     if (inputType == "public" && wtx.tx->vin.size() == 1 && wtx.tx->vin[0].prevout.IsNull()) {
         inputType = "mined";
@@ -359,7 +363,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     if (isElysiumEnabled() && ParseTransaction(*wtx.tx, nHeight, 0, mp_obj, nTime) >= 0 && mp_obj.interpret_Transaction()) {
         UniValue elysiumData = UniValue::VOBJ;
 
-        elysiumData.pushKV("isToMe", (bool)IsMine(*pwalletMain, CBitcoinAddress(mp_obj.getReceiver()).Get()));
+        elysiumData.pushKV("isToMe", (bool)IsMine(*pwalletMain, CBitcoinAddress(mp_obj.getReceiver()).Get()) || pwalletMain->IsSparkAddressMine(mp_obj.getReceiver()));
         elysiumData.pushKV("sender", mp_obj.getSender());
         elysiumData.pushKV("receiver", mp_obj.getReceiver());
         elysiumData.pushKV("type", mp_obj.getTypeString());
@@ -833,7 +837,7 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
             {
                 throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address");
             }
-            if(isSparkAddress(address)) {
+            if(isSparkAddress(updatedStrAddress)) {
                 pwalletMain->SetSparkAddressBook(updatedStrAddress, updatedLabel, find_value(data, "purpose").getValStr());
             } else {
                 pwalletMain->SetAddressBook(updatedAddress, updatedLabel, find_value(data, "purpose").getValStr());
@@ -886,6 +890,20 @@ UniValue validateSparkAddress(Type type, const UniValue& data, const UniValue& a
     return network == coinNetwork;
 }
 
+UniValue getAvailableSparkBalance(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    UniValue retval(UniValue::VOBJ);
+    retval.push_back(Pair("amount", pwalletMain->GetAvailableSparkBalance()));
+    return retval;
+}
+
+UniValue getUnconfirmedSparkBalance(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    UniValue retval(UniValue::VOBJ);
+    retval.push_back(Pair("amount", pwalletMain->GetUnconfirmedSparkBalance()));
+    return retval;
+}
+
 bool isSparkAddress(const std::string& address)
 {
     const spark::Params* params = spark::Params::get_default();
@@ -899,7 +917,6 @@ bool isSparkAddress(const std::string& address)
     }
     return network == coinNetwork;
 }
-
 
 static const CAPICommand commands[] =
 { //  category              collection                        actor (function)                 authPort   authPassphrase   warmupOk
@@ -917,6 +934,8 @@ static const CAPICommand commands[] =
     { "wallet",             "editAddressBook",                &editaddressbook,                true,      false,           false  },
     { "wallet",             "lockStatus",                     &lockStatus,                     true,      false,           false  },
     { "wallet",             "validateSparkAddress",           &validateSparkAddress,           true,      false,           false  },
+    { "wallet",             "getAvailableSparkBalance",       &getAvailableSparkBalance,           true,      false,           false  },
+    { "wallet",             "getUnconfirmedSparkBalance",     &getUnconfirmedSparkBalance,           true,      false,           false  },
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {

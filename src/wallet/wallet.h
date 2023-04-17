@@ -1389,6 +1389,8 @@ public:
     void NotifyTransactionLock(const CTransaction &tx) override;
     void NotifyChainLock(const CBlockIndex* pindexChainLock) override;
     bool IsSparkAddressMine(const std::string& address);
+    CAmount GetAvailableSparkBalance();
+    CAmount GetUnconfirmedSparkBalance();
 
 #ifdef ENABLE_ELYSIUM
     void LoadTxOrigin(uint256, std::string& destination);

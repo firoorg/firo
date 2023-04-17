@@ -986,7 +986,7 @@ void WalletModel::unsubscribeFromCoreSignals()
 WalletModel::UnlockContext WalletModel::requestUnlock(const QString & info)
 {
     bool was_locked = getEncryptionStatus() == Locked;
-    if(was_locked
+    if(was_locked)
     {
         // Request UI to unlock wallet
         Q_EMIT requireUnlock(info);

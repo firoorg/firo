@@ -88,19 +88,42 @@ UniValue getNewAddress()
     return CBitcoinAddress(keyID).ToString();
 }
 
+UniValue getNewSparkAddress()
+{
+    if (!EnsureWalletIsAvailable(pwalletMain, false))
+        return NullUniValue;
+
+    if (!pwalletMain || !pwalletMain->zwallet) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "lelantus mint/joinsplit is not allowed for legacy wallet");
+    }
+    spark::Address address = pwalletMain->sparkWallet->generateNewAddress();
+    unsigned char network = spark::GetNetworkType();
+    return address.encode(network);
+}
 
 UniValue paymentrequestaddress(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
 
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
 
+    std::string addressType = find_value(data, "addressType").getValStr();
     UniValue ret(UniValue::VOBJ);
     std::string address = "";
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    if(!walletdb.ReadPaymentRequestAddress(address)){
-       address = getNewAddress().get_str();
-       walletdb.WritePaymentRequestAddress(address);
+    if(addressType == "Spark") {
+        // if(!walletdb.ReadPaymentRequestSparkAddress(address)){
+        address = getNewSparkAddress().get_str();
+        // walletdb.WritePaymentRequestSparkAddress(address);
+        // }
+    } else if (addressType == "Transparent") {
+        // if(!walletdb.ReadPaymentRequestAddress(address)){
+        address = getNewAddress().get_str();
+        // walletdb.WritePaymentRequestAddress(address);
+        // }
+    } else {
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid addressType");
     }
+
     ret.push_back(Pair("address", address));
     return ret;
 }

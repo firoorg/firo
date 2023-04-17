@@ -19,6 +19,7 @@
 #include "client-api/bigint.h"
 #include "univalue.h"
 #include "privatetransaction.h"
+#include "net.h"
 
 UniValue lelantusTxFee(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     CAmount nAmount = get_bigint(data["amount"]);
@@ -170,6 +171,7 @@ UniValue mintSpark(Type type, const UniValue& data, const UniValue& auth, bool f
     payTxFee = CFeeRate(get_bigint(data["feePerKb"]));
     bool fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
 
+    address.decode(strAddress);
     std::vector<spark::MintedCoinData> outputs;
     spark::MintedCoinData mdata;
     mdata.address = address;
@@ -178,13 +180,13 @@ UniValue mintSpark(Type type, const UniValue& data, const UniValue& auth, bool f
     outputs.push_back(mdata);
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-    wtxAndFee[0].first.mapValue["label"] = label;
+    // wtxAndFee[0].first.mapValue["label"] = label;
     std::string strError = pwalletMain->MintAndStoreSpark(outputs, wtxAndFee, false, fSubtractFeeFromAmount, fHasCoinControl? (&coinControl):NULL);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
     UniValue retval(UniValue::VOBJ);
-    retval.push_back(Pair("mintSpark", wtxAndFee[0].first.GetHash().GetHex()));
+    retval.push_back(Pair("txid", wtxAndFee[0].first.GetHash().GetHex()));
     return retval;
 }
 
@@ -226,6 +228,7 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
         recipients.push_back(recipient);
     } else {
         spark::OutputCoinData data;
+        address.decode(strAddress);
         data.address = address;
         data.memo = "";
         data.v = amount;
@@ -234,20 +237,45 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
 
     CAmount fee;
     std::vector<CWalletTx> wtxs;
-    wtxs[0].mapValue["label"] = label;
-    try {
-        wtxs = pwalletMain->SpendAndStoreSpark(recipients, privateRecipients, fee, fHasCoinControl? (&coinControl):NULL);
-    } catch (...) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
+    // wtxs[0].mapValue["label"] = label;
+    // try {
+        // wtxs = pwalletMain->SpendAndStoreSpark(recipients, privateRecipients, fee, fHasCoinControl? (&coinControl):NULL);
+    // } catch (...) {
+    //     throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
+    // }
+
+    auto result = pwalletMain->CreateSparkSpendTransaction(recipients, privateRecipients, fee, fHasCoinControl? (&coinControl):NULL);
+    if (true) {
+        throw JSONAPIError(API_INTERNAL_ERROR, "aaaaa");
+    }
+    // commit
+    for (auto& wtxNew : result) {
+        try {
+            CValidationState state;
+            CReserveKey reserveKey(pwalletMain);
+            pwalletMain->CommitTransaction(wtxNew, reserveKey, g_connman.get(), state);
+        } catch (...) {
+            auto error = _(
+                    "Error: The transaction was rejected! This might happen if some of "
+                    "the coins in your wallet were already spent, such as if you used "
+                    "a copy of wallet.dat and coins were spent in the copy but not "
+                    "marked as spent here."
+            );
+
+            std::throw_with_nested(std::runtime_error(error));
+        }
     }
 
     if (fee > 10000000) {
         throw JSONAPIError(API_INTERNAL_ERROR, "We have produced a transaction with a fee above 1 FIRO. This is almost certainly a bug.");
     }
 
-    GetMainSignals().WalletTransaction(wtxs[0]);
+    // GetMainSignals().WalletTransaction(wtxs[0]);
+    // UniValue retval(UniValue::VOBJ);
+    // retval.push_back(Pair("spendSpark", wtxs[0].GetHash().GetHex()));
+    // return retval;
     UniValue retval(UniValue::VOBJ);
-    retval.push_back(Pair("spendSpark", wtxs[0].GetHash().GetHex()));
+    retval.push_back(Pair("txid", wtxs[0].GetHash().GetHex()));
     return retval;
 }
 

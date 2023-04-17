@@ -6264,10 +6264,15 @@ bool CWallet::SetSparkAddressBook(const std::string& address, const std::string&
                              strPurpose, (fUpdated ? CT_UPDATED : CT_NEW) );
     if (!fFileBacked)
         return false;
-    if (!strPurpose.empty() && !CWalletDB(strWalletFile).WritePurpose(address, strPurpose))
-        return false;
-        
-    return CWalletDB(strWalletFile).WriteName(address, strName);
+    bool retval = true;
+
+    retval &= CWalletDB(strWalletFile).WriteName(address, strName);
+    if (!fUpdated)
+        retval &= CWalletDB(strWalletFile).WriteAddressBookItemCreatedAt(address, now);
+    if (!strPurpose.empty())
+        retval &= CWalletDB(strWalletFile).WritePurpose(address, strPurpose);
+
+    return retval;
 }
 
 bool CWallet::DelAddressBook(const CTxDestination& address)
@@ -8133,4 +8138,14 @@ bool CWallet::validateSparkAddress(const std::string& address)
         return false;
     }
     return network == coinNetwork;
+}
+
+CAmount CWallet::GetAvailableSparkBalance()
+{
+    return sparkWallet->getAvailableBalance();
+}
+
+CAmount CWallet::GetUnconfirmedSparkBalance()
+{
+    return sparkWallet->getUnconfirmedBalance();
 }
