@@ -882,12 +882,15 @@ UniValue validateSparkAddress(Type type, const UniValue& data, const UniValue& a
     unsigned char network = spark::GetNetworkType();
     unsigned char coinNetwork;
     spark::Address addr(params);
+    UniValue retval(UniValue::VOBJ);
     try {
         coinNetwork = addr.decode(address);
     } catch (...) {
-        return false;
+        retval.push_back(Pair("valid", false));
+        return retval;
     }
-    return network == coinNetwork;
+    retval.push_back(Pair("valid", network == coinNetwork));
+    return retval;
 }
 
 UniValue getAvailableSparkBalance(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
