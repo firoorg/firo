@@ -180,10 +180,35 @@ UniValue mintSpark(Type type, const UniValue& data, const UniValue& auth, bool f
     outputs.push_back(mdata);
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-    // wtxAndFee[0].first.mapValue["label"] = label;
-    std::string strError = pwalletMain->MintAndStoreSpark(outputs, wtxAndFee, false, fSubtractFeeFromAmount, fHasCoinControl? (&coinControl):NULL);
-    if (strError != "")
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    uint64_t value = 0;
+    for (auto& output : outputs)
+        value += output.v;
+
+    if ((value + payTxFee.GetFeePerK()) > pwalletMain->GetBalance())
+        return _("Insufficient funds");
+
+    LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
+    int64_t nFeeRequired = 0;
+
+    int nChangePosRet = -1;
+
+    std::list<CReserveKey> reservekeys;
+    std::string strError;
+    if (!pwalletMain->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, strError, fHasCoinControl? (&coinControl):NULL, false)) {
+        return strError;
+    }
+
+    CValidationState state;
+    auto reservekey = reservekeys.begin();
+    for(size_t i = 0; i < wtxAndFee.size(); i++) {
+        if (!pwalletMain->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state)) {
+            return _(
+                    "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+        } else {
+            LogPrintf("CommitTransaction success!\n");
+        }
+    }
 
     UniValue retval(UniValue::VOBJ);
     retval.push_back(Pair("txid", wtxAndFee[0].first.GetHash().GetHex()));
@@ -215,7 +240,6 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
     std::string label = find_value(data, "label").get_str();
     CCoinControl coinControl;
     bool fHasCoinControl = GetCoinControl(data, coinControl);
-    // payTxFee is a global variable that will be used in CreateLelantusJoinSplitTransaction.
     payTxFee = CFeeRate(get_bigint(data["feePerKb"]));
     bool fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
 
@@ -235,45 +259,22 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
         privateRecipients.push_back(std::make_pair(data, fSubtractFeeFromAmount));
     }
 
-    CAmount fee;
+    CAmount fee = 0;
     std::vector<CWalletTx> wtxs;
+
+    CAmount nBalance = pwalletMain->GetAvailableSparkBalance();
+
     // wtxs[0].mapValue["label"] = label;
-    // try {
-        // wtxs = pwalletMain->SpendAndStoreSpark(recipients, privateRecipients, fee, fHasCoinControl? (&coinControl):NULL);
-    // } catch (...) {
-    //     throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
-    // }
-
-    auto result = pwalletMain->CreateSparkSpendTransaction(recipients, privateRecipients, fee, fHasCoinControl? (&coinControl):NULL);
-    if (true) {
-        throw JSONAPIError(API_INTERNAL_ERROR, "aaaaa");
-    }
-    // commit
-    for (auto& wtxNew : result) {
-        try {
-            CValidationState state;
-            CReserveKey reserveKey(pwalletMain);
-            pwalletMain->CommitTransaction(wtxNew, reserveKey, g_connman.get(), state);
-        } catch (...) {
-            auto error = _(
-                    "Error: The transaction was rejected! This might happen if some of "
-                    "the coins in your wallet were already spent, such as if you used "
-                    "a copy of wallet.dat and coins were spent in the copy but not "
-                    "marked as spent here."
-            );
-
-            std::throw_with_nested(std::runtime_error(error));
-        }
+    try {
+        wtxs = pwalletMain->SpendAndStoreSpark(recipients, privateRecipients, fee, fHasCoinControl? (&coinControl):NULL);
+    } catch (...) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
     }
 
     if (fee > 10000000) {
         throw JSONAPIError(API_INTERNAL_ERROR, "We have produced a transaction with a fee above 1 FIRO. This is almost certainly a bug.");
     }
 
-    // GetMainSignals().WalletTransaction(wtxs[0]);
-    // UniValue retval(UniValue::VOBJ);
-    // retval.push_back(Pair("spendSpark", wtxs[0].GetHash().GetHex()));
-    // return retval;
     UniValue retval(UniValue::VOBJ);
     retval.push_back(Pair("txid", wtxs[0].GetHash().GetHex()));
     return retval;

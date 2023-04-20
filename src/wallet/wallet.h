@@ -1391,6 +1391,15 @@ public:
     bool IsSparkAddressMine(const std::string& address);
     CAmount GetAvailableSparkBalance();
     CAmount GetUnconfirmedSparkBalance();
+    bool CreateSparkMintTransactions(
+        const std::vector<spark::MintedCoinData>& outputs,
+        std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+        CAmount& nAllFeeRet,
+        std::list<CReserveKey>& reservekeys,
+        int& nChangePosInOut,
+        std::string& strFailReason,
+        const CCoinControl *coinControl,
+        bool autoMintAll);
 
 #ifdef ENABLE_ELYSIUM
     void LoadTxOrigin(uint256, std::string& destination);

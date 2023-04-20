@@ -8149,3 +8149,15 @@ CAmount CWallet::GetUnconfirmedSparkBalance()
 {
     return sparkWallet->getUnconfirmedBalance();
 }
+
+bool CWallet::CreateSparkMintTransactions(
+        const std::vector<spark::MintedCoinData>& outputs,
+        std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+        CAmount& nAllFeeRet,
+        std::list<CReserveKey>& reservekeys,
+        int& nChangePosInOut,
+        std::string& strFailReason,
+        const CCoinControl *coinControl,
+        bool autoMintAll) {
+            return sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nAllFeeRet,reservekeys,nChangePosInOut,strFailReason,coinControl,autoMintAll);
+        }
