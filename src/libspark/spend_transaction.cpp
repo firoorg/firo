@@ -178,9 +178,7 @@ SpendTransaction::SpendTransaction(
 	Scalar mu = hash_bind(
 		hash_bind_inner(
 			this->cover_set_representations,
-			this->S1,
 			this->C1,
-			this->T,
 			this->grootle_proofs,
 			this->balance_proof,
 			this->range_proof
@@ -297,9 +295,7 @@ bool SpendTransaction::verify(
 		Scalar mu = hash_bind(
 			hash_bind_inner(
 				tx.cover_set_representations,
-				tx.S1,
 				tx.C1,
-				tx.T,
 				tx.grootle_proofs,
 				tx.balance_proof,
 				tx.range_proof
@@ -411,9 +407,7 @@ bool SpendTransaction::verify(
 // Its value is then used as part of the binding hash, which a limited signer can verify as part of the signing process
 std::vector<unsigned char> SpendTransaction::hash_bind_inner(
 	const std::unordered_map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
-	const std::vector<GroupElement>& S1,
 	const std::vector<GroupElement>& C1,
-	const std::vector<GroupElement>& T,
 	const std::vector<GrootleProof>& grootle_proofs,
 	const SchnorrProof& balance_proof,
 	const BPPlusProof& range_proof
