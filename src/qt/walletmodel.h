@@ -190,19 +190,26 @@ public:
         const CCoinControl *coinControl);
 
     SendCoinsReturn prepareMintSparkTransaction(
-        WalletModelTransaction &transaction,
-        std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+        std::vector<WalletModelTransaction> &transactions,
+        QList<SendCoinsRecipient> recipients,
+        std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFees,
         std::list<CReserveKey> &reserveKeys,
         const CCoinControl *coinControl);
 
     SendCoinsReturn prepareSpendSparkTransaction(
-        WalletModelTransaction &transaction,
+        std::vector<WalletModelTransaction> &transactions,
+        QList<SendCoinsRecipient> recipients,
         const CCoinControl *coinControl,
         std::vector<CWalletTx> &results);
 
-    SendCoinsReturn spendSparkCoins(WalletModelTransaction &transaction, std::vector<CWalletTx> &results);
+    SendCoinsReturn spendSparkCoins(
+        std::vector<WalletModelTransaction> &transactions,
+        QList<SendCoinsRecipient> recipients,
+        std::vector<CWalletTx> &results);
+        
     SendCoinsReturn mintSparkCoins(
-        WalletModelTransaction &transaction,
+        std::vector<WalletModelTransaction> &transactions, 
+        QList<SendCoinsRecipient> recipients,
         std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
         std::list<CReserveKey> &reserveKeys
         );

@@ -26,6 +26,7 @@
 #include "wallet/wallet.h"
 #include "sendtopcodedialog.h"
 #include "pcodemodel.h"
+#include "overviewpage.h"
 
 #include <QFontMetrics>
 #include <QMessageBox>
@@ -282,8 +283,9 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     // prepare transaction for getting txFee earlier
     WalletModelTransaction currentTransaction(recipients);
+    std::vector<WalletModelTransaction> transactions;
     WalletModel::SendCoinsReturn prepareStatus;
-    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
     std::list<CReserveKey> reservekeys;
 
     // Always use a CCoinControl instance, use the CoinControlDialog instance if CoinControl has been enabled
@@ -308,12 +310,18 @@ void SendCoinsDialog::on_sendButton_clicked()
     std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
 
     std::vector<CWalletTx> results;
+
+    if (model->getLelantusModel()->getPrivateBalance().first > 0 && spark::IsSparkAllowed()) {
+        MigrateLelantusToSparkDialog migrateLelantusToSpark(model);
+        return;
+    }
+
     if ((fAnonymousMode == true) && !spark::IsSparkAllowed()) {
         prepareStatus = model->prepareJoinSplitTransaction(currentTransaction, &ctrl);
     } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
-        prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, &ctrl, results);
+        prepareStatus = model->prepareSpendSparkTransaction(transactions, recipients, &ctrl, results);
     } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) {
-        prepareStatus = model->prepareMintSparkTransaction(currentTransaction, wtxAndFee, reservekeys, &ctrl);
+        prepareStatus = model->prepareMintSparkTransaction(transactions, recipients, wtxAndFees, reservekeys, &ctrl);
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)){
         SendGoPrivateDialog goPrivateDialog;
         bool clickedButton = goPrivateDialog.getClickedButton();
@@ -420,9 +428,9 @@ void SendCoinsDialog::on_sendButton_clicked()
     if ((fAnonymousMode == true) && !spark::IsSparkAllowed()) {
         sendStatus = model->sendPrivateCoins(currentTransaction);
     } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
-        sendStatus = model->spendSparkCoins(currentTransaction, results);
+        sendStatus = model->spendSparkCoins(transactions, recipients, results);
     } else if ((fAnonymousMode == false) && (sparkAddressCount == recipients.size()) && spark::IsSparkAllowed()) {
-        sendStatus = model->mintSparkCoins(currentTransaction, wtxAndFee, reservekeys);
+        sendStatus = model->mintSparkCoins(transactions, recipients, wtxAndFees, reservekeys);
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
         sendStatus = model->sendCoins(currentTransaction);
     } else {
