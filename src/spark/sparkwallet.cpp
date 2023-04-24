@@ -1174,7 +1174,7 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
     assert(tx.nLockTime <= static_cast<unsigned>(chainActive.Height()));
     assert(tx.nLockTime < LOCKTIME_THRESHOLD);
     std::list<std::pair<spark::Coin, CSparkMintMeta>> coins = GetAvailableSparkCoins(coinControl);
-    // TODO levon check spend limit
+
     std::vector<std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>>> estimated =
             SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size(), recipients.size(), coinControl);
 
