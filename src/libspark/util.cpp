@@ -56,14 +56,14 @@ GroupElement SparkUtils::hash_generator(const std::string label) {
 	const int GROUP_ENCODING = 34;
 	const unsigned char ZERO = 0;
 
-    // Ensure we can properly populate a 
-    if (EVP_MD_size(EVP_blake2b512()) < GROUP_ENCODING) {
+    // Ensure we can properly populate a group element encoding
+    if (EVP_MD_size(EVP_sha512()) < GROUP_ENCODING) {
         throw std::runtime_error("Bad hash size!");
     }
 
     EVP_MD_CTX* ctx;
     ctx = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(ctx, EVP_blake2b512(), NULL);
+    EVP_DigestInit_ex(ctx, EVP_sha512(), NULL);
 
     // Write the protocol and mode
     std::vector<unsigned char> protocol(LABEL_PROTOCOL.begin(), LABEL_PROTOCOL.end());
@@ -75,16 +75,16 @@ GroupElement SparkUtils::hash_generator(const std::string label) {
     EVP_DigestUpdate(ctx, bytes.data(), bytes.size());
 
     std::vector<unsigned char> hash;
-    hash.resize(EVP_MD_size(EVP_blake2b512()));
+    hash.resize(EVP_MD_size(EVP_sha512()));
     unsigned char counter = 0;
 
     EVP_MD_CTX* state_counter;
     state_counter = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(state_counter, EVP_blake2b512(), NULL);
+    EVP_DigestInit_ex(state_counter, EVP_sha512(), NULL);
 
     EVP_MD_CTX* state_finalize;
     state_finalize = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(state_finalize, EVP_blake2b512(), NULL);
+    EVP_DigestInit_ex(state_finalize, EVP_sha512(), NULL);
 
     // Finalize the hash
     while (1) {
