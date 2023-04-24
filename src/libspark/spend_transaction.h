@@ -60,9 +60,7 @@ public:
 	static bool verify(const Params* params, const std::vector<SpendTransaction>& transactions, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
 	static bool verify(const SpendTransaction& transaction, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
     
-	static Scalar hash_bind(
-        const std::vector<Coin>& out_coins,
-        const uint64_t f_,
+    static std::vector<unsigned char> hash_bind_inner(
 		const std::unordered_map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
         const std::vector<GroupElement>& S1,
         const std::vector<GroupElement>& C1,
@@ -70,6 +68,11 @@ public:
         const std::vector<GrootleProof>& grootle_proofs,
         const SchnorrProof& balance_proof,
 		const BPPlusProof& range_proof
+    );
+	static Scalar hash_bind(
+        const std::vector<unsigned char> hash_bind_inner,
+        const std::vector<Coin>& out_coins,
+        const uint64_t f_
     );
 
     ADD_SERIALIZE_METHODS;

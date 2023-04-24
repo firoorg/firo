@@ -31,6 +31,18 @@ void Hash::include(CDataStream& data) {
 	EVP_DigestUpdate(this->ctx, reinterpret_cast<unsigned char *>(data.data()), data.size());
 }
 
+// Finalize the hash function to a byte array
+std::vector<unsigned char> Hash::finalize() {
+    // Use the full output size of the hash function
+    std::vector<unsigned char> result;
+    result.resize(EVP_MD_size(EVP_sha512()));
+
+    unsigned int TEMP;
+    EVP_DigestFinal_ex(this->ctx, result.data(), &TEMP);
+
+    return result;
+}
+
 // Finalize the hash function to a scalar
 Scalar Hash::finalize_scalar() {
     // Ensure we can properly populate a scalar
