@@ -239,7 +239,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         if (txin.IsZerocoinSpend() || txin.IsZerocoinRemint()) inputType = "zerocoin";
         else if (txin.IsSigmaSpend()) inputType = "sigma";
         else if (txin.IsLelantusJoinSplit()) inputType = "lelantus";
-        else if (wtx.tx->IsSparkSpend() || wtx.tx->IsSparkMint()) inputType = "spark";
+        else if (txin.IsSparkSpend()) inputType = "spark";
     }
     if (inputType == "public" && wtx.tx->vin.size() == 1 && wtx.tx->vin[0].prevout.IsNull()) {
         inputType = "mined";
