@@ -258,10 +258,26 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     txData.pushKV("lelantusInputSerialHashes", lelantusInputSerialHashes);
 
     int64_t fee;
+
+    UniValue sparkInputLTagHashes = UniValue::VARR;
+    if (wtx.tx->IsSparkSpend()) {
+        try {
+            spark::SpendTransaction spend = spark::ParseSparkSpend(*wtx.tx);
+            for (const auto& lTag : spend.getUsedLTags()) {
+                sparkInputLTagHashes.push_back(primitives::GetLTagHash(lTag).GetHex());
+            }
+            fee = spend.getFee();
+        } catch (...) {
+        }
+    }
+    txData.pushKV("sparkInputLTagHashes", sparkInputLTagHashes);
+
     if (fIsMining) { // mining transaction
         fee = 0;
     } else if (joinSplit) {
         fee = joinSplit->getFee();
+    } else if (wtx.tx->IsSparkSpend()) {
+        //already set
     } else {
         CAmount nDebit = wtx.GetDebit(ISMINE_SPENDABLE);
         CAmount nValueOut = wtx.tx->GetValueOut();
@@ -321,6 +337,24 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                     fIsFromMe = true; // If we can parse a Lelantus mint, the transaction is from us.
                     fIsToMe = true;
                     lelantusSerialHash = dMint.GetSerialHash();
+                }
+            }
+        } else if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+            spark::Coin coin(spark::Params::get_default());
+            bool ok = true;
+            try {
+                spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
+            } catch (std::invalid_argument&) {
+                ok = false;
+            }
+
+            if (ok) {
+                uint256 coinHash = primitives::GetSparkCoinHash(coin);
+                CSparkMintMeta mintMeta;
+                if (pwalletMain->sparkWallet->getMintMeta(coin, mintMeta)) {
+                    amount = mintMeta.v;
+                    fIsSpent = mintMeta.isUsed;
+                    fIsToMe = true;
                 }
             }
         } else {
