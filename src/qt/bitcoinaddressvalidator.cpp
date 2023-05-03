@@ -115,4 +115,3 @@ bool BitcoinAddressCheckValidator::validateSparkAddress(const std::string& addre
     }
     return network == coinNetwork;
 }
-

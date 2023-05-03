@@ -161,6 +161,7 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         auto privateBalance = _model->getLelantusModel()->getPrivateBalance();
         std::pair<CAmount, CAmount> sparkBalance = _model->getSparkBalance();
         privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
+
         setBalance(
             _model->getBalance(), _model->getUnconfirmedBalance(), _model->getImmatureBalance(),
             _model->getWatchBalance(), _model->getWatchUnconfirmedBalance(), _model->getWatchImmatureBalance(),
@@ -306,8 +307,6 @@ void SendCoinsDialog::on_sendButton_clicked()
             sparkAddressCount++;
         }
     }
-    auto lelantusBalance = model->getLelantusModel()->getPrivateBalance();
-    std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
 
     std::vector<CWalletTx> results;
 
@@ -315,13 +314,19 @@ void SendCoinsDialog::on_sendButton_clicked()
         MigrateLelantusToSparkDialog migrateLelantusToSpark(model);
         return;
     }
-
+    CAmount txFee = 0;
+    CAmount totalAmount = 0;
     if ((fAnonymousMode == true) && !spark::IsSparkAllowed()) {
         prepareStatus = model->prepareJoinSplitTransaction(currentTransaction, &ctrl);
+        txFee= currentTransaction.getTransactionFee();
     } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
         prepareStatus = model->prepareSpendSparkTransaction(transactions, recipients, &ctrl, results);
     } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) {
         prepareStatus = model->prepareMintSparkTransaction(transactions, recipients, wtxAndFees, reservekeys, &ctrl);
+        for (auto &wtxAndFee : wtxAndFees) {
+            auto fee = wtxAndFee.second;
+            txFee = txFee + fee;
+        }
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)){
         SendGoPrivateDialog goPrivateDialog;
         bool clickedButton = goPrivateDialog.getClickedButton();
@@ -330,6 +335,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             return;
         }
         prepareStatus = model->prepareTransaction(currentTransaction, &ctrl);
+        txFee= currentTransaction.getTransactionFee();
     } else {
         return;
     }
@@ -342,8 +348,6 @@ void SendCoinsDialog::on_sendButton_clicked()
         fNewRecipientAllowed = true;
         return;
     }
-
-    CAmount txFee = currentTransaction.getTransactionFee();
 
     // Format confirmation message
     QStringList formatted;
@@ -399,7 +403,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     // add total amount in all subdivision units
     questionString.append("<hr />");
-    CAmount totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
+    totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
     QStringList alternativeUnits;
     Q_FOREACH(BitcoinUnits::Unit u, BitcoinUnits::availableUnits())
     {
@@ -436,6 +440,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     } else {
         return;
     }
+
     // process sendStatus and on error generate message shown to user
     processSendCoinsReturn(sendStatus);
 

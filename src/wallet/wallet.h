@@ -1024,6 +1024,7 @@ public:
                                         CAmount& nAllFeeRet, std::vector<CHDMint>& dMints,
                                         std::list<CReserveKey>& reservekeys, int& nChangePosInOut,
                                         std::string& strFailReason, const CCoinControl *coinControl, bool autoMintAll = false, bool sign = true);
+
     std::pair<CAmount, CAmount> GetSparkBalance();
     bool IsSparkAddressMine(const std::string& address);
 
@@ -1036,7 +1037,6 @@ public:
         std::string& strFailReason,
         const CCoinControl *coinControl,
         bool autoMintAll = false);
-
 
     CWalletTx CreateSigmaSpendTransaction(
         const std::vector<CRecipient>& recipients,
@@ -1189,7 +1189,6 @@ public:
 
     bool SetAddressBook(const CTxDestination& address, const std::string& strName, const std::string& purpose);
     bool SetSparkAddressBook(const std::string& address, const std::string& strName, const std::string& purpose);
-
     bool DelAddressBook(const CTxDestination& address);
     bool DelAddressBook(const std::string& address);
 

@@ -229,7 +229,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 // Mint to self
                 parts.append(TransactionRecord(hash, nTime, TransactionRecord::Anonymize, "",
                     -(nDebit - nChange), 0));
-            }
+            } 
             else if (wtx.tx->IsSparkMint()) {
                 parts.append(TransactionRecord(hash, nTime, TransactionRecord::MintSparkToSelf, "",
                     -(nDebit - nChange), 0));

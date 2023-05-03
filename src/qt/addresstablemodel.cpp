@@ -23,6 +23,7 @@ const QString AddressTableModel::Receive = "R";
 const QString AddressTableModel::Zerocoin = "X";
 const QString AddressTableModel::Transparent = "Transparent";
 const QString AddressTableModel::Spark = "Spark";
+const QString AddressTableModel::RAP = "RAP";
 
 struct AddressTableEntry
 {
@@ -292,10 +293,6 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
             {
                 return tr("spark");
             }
-            else if(rec->addressType == "RAP")
-            {
-                return tr("RAP");
-            }
         }
     }
     else if (role == Qt::FontRole)
@@ -562,7 +559,7 @@ bool AddressTableModel::removeRows(int row, int count, const QModelIndex &parent
     }
     {
         LOCK(wallet->cs_wallet);
-        wallet->DelAddressBook(CBitcoinAddress(rec->address.toStdString()).Get());
+        wallet->DelAddressBook(rec->address.toStdString());
     }
     return true;
 }
@@ -660,7 +657,7 @@ QVariant PcodeAddressTableModel::data(const QModelIndex &index, int role) const
     if(row >= pcodeData.size())
         return QVariant();
 
-    if(role == Qt::DisplayRole || role == Qt::EditRole)
+    if(true)
     {
         switch(ColumnIndex(index.column()))
         {
@@ -668,6 +665,8 @@ QVariant PcodeAddressTableModel::data(const QModelIndex &index, int role) const
                 return QString::fromStdString(pcodeData[row].second);
             case ColumnIndex::Pcode:
                 return QString::fromStdString(pcodeData[row].first);
+            case ColumnIndex::AddressType:
+                return AddressTableModel::RAP;
         }
     }
     else if (role == Qt::FontRole)
@@ -759,7 +758,7 @@ Qt::ItemFlags PcodeAddressTableModel::flags(const QModelIndex &index) const
     return retval;
 }
 
-QString PcodeAddressTableModel::addRow(const QString &type, const QString &label, const QString &address)
+QString PcodeAddressTableModel::addRow(const QString &type, const QString &label, const QString &address, const QString &addressType)
 {
     std::string const strLabel = label.toStdString();
     std::string const strPcode = address.toStdString();

@@ -23,6 +23,7 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     isPcodeEntry(false)
 {
     ui->setupUi(this);
+
     QIcon icon_;
     icon_.addFile(QString::fromUtf8(":/icons/ic_warning"), QSize(), QIcon::Normal, QIcon::On);
     ui->iconWarning->setPixmap(icon_.pixmap(18, 18));

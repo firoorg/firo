@@ -179,13 +179,13 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
         }
     } else {
         /* Generate new receiving address */
-         if(ui->addressTypeCombobox->currentText() == AddressTableModel::Transparent) {
+        if(ui->addressTypeCombobox->currentText() == AddressTableModel::Transparent) {
             address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Transparent);
-         } else if(ui->addressTypeCombobox->currentText() == AddressTableModel::Spark) {
+        } else if(ui->addressTypeCombobox->currentText() == AddressTableModel::Spark) {
             address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Spark);
-         }
+        }
     }
-    SendCoinsRecipient info(address, addressType, label, 
+    SendCoinsRecipient info(address, addressType, label,
         ui->reqAmount->value(), ui->reqMessage->text());
     ReceiveRequestDialog *dialog = new ReceiveRequestDialog(this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);

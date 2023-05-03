@@ -126,10 +126,10 @@ void AddressBookPage::setModel(AddressTableModel *_model)
         return;
 
     proxyModel = new QSortFilterProxyModel(this);
-    if (ui->addressType->currentText() == "RAP") {
-        proxyModel->setSourceModel(_model->getPcodeAddressTableModel());
-    } else {
+    if (ui->addressType->currentText() == AddressTableModel::Transparent || ui->addressType->currentText() == AddressTableModel::Spark) {
         proxyModel->setSourceModel(_model);
+    } else {
+        proxyModel->setSourceModel(_model->getPcodeAddressTableModel());   
     }
     proxyModel->setDynamicSortFilter(true);
     proxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
@@ -158,6 +158,7 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     ui->tableView->setModel(fproxyModel);
     ui->tableView->sortByColumn(0, Qt::AscendingOrder);
     ui->tableView->setItemDelegateForColumn(AddressTableModel::Address, new GUIUtil::TextElideStyledItemDelegate(ui->tableView));
+
     // Set column widths
 #if QT_VERSION < 0x050000
     ui->tableView->horizontalHeader()->setResizeMode(AddressTableModel::Label, QHeaderView::Stretch);
@@ -169,13 +170,13 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     ui->tableView->horizontalHeader()->setSectionResizeMode(AddressTableModel::AddressType, QHeaderView::Stretch);
 #endif
 
+
     connect(ui->tableView->selectionModel(), &QItemSelectionModel::selectionChanged, this, &AddressBookPage::selectionChanged);
 
     // Select row for newly created address
     connect(_model, &AddressTableModel::rowsInserted, this, &AddressBookPage::selectNewAddress);
 
     selectionChanged();
-
     ui->tableView->setTextElideMode(Qt::ElideMiddle);
     chooseAddressType(0);
     connect(ui->addressType, qOverload<int>(&QComboBox::activated), this, &AddressBookPage::chooseAddressType);
@@ -198,10 +199,10 @@ void AddressBookPage::onEditAction()
     EditAddressDialog::Mode mode;
     AddressTableModel * pmodel;
     QSortFilterProxyModel *pproxyModel;
-    if (ui->addressType->currentText() == "RAP") {
+    if (ui->addressType->currentText() == AddressTableModel::RAP) {
         mode = EditAddressDialog::EditPcode;
         pmodel = model->getPcodeAddressTableModel();
-    } else if (ui->addressType->currentText() == "Transparent") {
+    } else if (ui->addressType->currentText() == AddressTableModel::Transparent) {
         mode = tab == SendingTab ? EditAddressDialog::EditSendingAddress : EditAddressDialog::EditReceivingAddress;
         pmodel = model;
     } else {
@@ -217,8 +218,8 @@ void AddressBookPage::onEditAction()
 
     EditAddressDialog dlg(mode, this);
     dlg.setModel(pmodel);
-    QModelIndex origIndex1 = pproxyModel->mapToSource(indexes.at(0));
-    QModelIndex origIndex2 = proxyModel->mapToSource(origIndex1);
+    QModelIndex origIndex1 = fproxyModel->mapToSource(indexes.at(0));
+    QModelIndex origIndex2 = pproxyModel->mapToSource(origIndex1);
     dlg.loadRow(origIndex2.row());
     dlg.exec();
 }
@@ -230,10 +231,10 @@ void AddressBookPage::on_newAddress_clicked()
 
     AddressTableModel *pmodel;
     EditAddressDialog::Mode mode;
-    if (ui->addressType->currentText() == "Transparent") {
+    if (ui->addressType->currentText() == AddressTableModel::Transparent) {
         pmodel = model;
         mode = tab == SendingTab ? EditAddressDialog::NewSendingAddress : EditAddressDialog::NewReceivingAddress;
-    } else if (ui->addressType->currentText() == "RAP") {
+    } else if (ui->addressType->currentText() == AddressTableModel::RAP) {
         pmodel = model->getPcodeAddressTableModel();
         mode = EditAddressDialog::NewPcode;
     } else {
@@ -256,7 +257,9 @@ void AddressBookPage::on_deleteAddress_clicked()
 
     if(!table->selectionModel())
         return;
+
     QModelIndexList indexes = table->selectionModel()->selectedRows();
+
     if(!indexes.isEmpty())
     {
         table->model()->removeRow(indexes.at(0).row());
@@ -337,11 +340,11 @@ void AddressBookPage::on_exportButton_clicked()
 
     QTableView *table;
     writer.setModel(proxyModel);
-    if (ui->addressType->currentText() == "Transparent") {
+    if (ui->addressType->currentText() == AddressTableModel::Transparent) {
         writer.addColumn("Label", AddressTableModel::Label, Qt::EditRole);
         writer.addColumn("Transparent Address", AddressTableModel::Address, Qt::EditRole);
         writer.addColumn("Address Type", AddressTableModel::AddressType, Qt::EditRole);
-    } else if (ui->addressType->currentText() == "RAP") {
+    } else if (ui->addressType->currentText() == AddressTableModel::RAP) {
         writer.addColumn("Label", AddressTableModel::Label, Qt::EditRole);
         writer.addColumn("PaymentCode", AddressTableModel::Address, Qt::EditRole);
         writer.addColumn("Address Type", AddressTableModel::AddressType, Qt::EditRole);
@@ -406,6 +409,7 @@ bool AddressBookFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &
     bool res0 = sourceModel()->data(index).toString().contains("spark");
     bool res1 = sourceModel()->data(index).toString().contains("transparent");
     bool res2 = sourceModel()->data(index).toString().contains("RAP");
+
     if(res0 && typeFilter == 0)
         return true;
     if(res1 && typeFilter == 1)
@@ -413,6 +417,7 @@ bool AddressBookFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &
     if(res2 && typeFilter == 2)
         return true;
     return false;
+    // return true;
 }
 
 void AddressBookFilterProxy::setTypeFilter(quint32 modes)

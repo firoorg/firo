@@ -48,7 +48,7 @@ public:
         Transparent,
         RAP
     };
-    
+
     explicit AddressBookPage(const PlatformStyle *platformStyle, Mode mode, Tabs tab, QWidget *parent);
     ~AddressBookPage();
 
@@ -64,7 +64,7 @@ private:
     Mode mode;
     Tabs tab;
     QString returnValue;
-    QSortFilterProxyModel *proxyModel;
+    QSortFilterProxyModel *proxyModel, pproxyModel;
     AddressBookFilterProxy *fproxyModel;
     QMenu *contextMenu;
     QAction *copyAddressAction;
@@ -91,8 +91,9 @@ private Q_SLOTS:
     void contextualMenu(const QPoint &point);
     /** New entry/entries were added to address table */
     void selectNewAddress(const QModelIndex &parent, int begin, int /*end*/);
-
+    
     void chooseAddressType(int idx);
+
 Q_SIGNALS:
     void sendCoins(QString addr);
 };
@@ -117,4 +118,5 @@ protected:
 private:
     quint32 typeFilter;
 };
+
 #endif // BITCOIN_QT_ADDRESSBOOKPAGE_H

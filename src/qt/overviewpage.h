@@ -87,6 +87,7 @@ private:
 
     TxViewDelegate *txdelegate;
     std::unique_ptr<TransactionFilterProxy> filter;
+    
     QTimer countDownTimer;
     int secDelay;
 
@@ -111,5 +112,4 @@ public:
 private Q_SLOTS:
     void onMigrateClicked();
 };
-
 #endif // BITCOIN_QT_OVERVIEWPAGE_H

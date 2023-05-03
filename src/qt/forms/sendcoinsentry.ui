@@ -160,15 +160,15 @@
        </widget>
       </item>
       <item>
-     <widget class="QLabel" name="textWarning">
-      <property name="text">
-       <string> You are using a transparent transaction, please go private. If this is a masternode transaction, you do not have to go private</string>
-      </property>
-      <property name="styleSheet">
-        <string>color: #FFA800; margin-left:-10px;</string>
-      </property>
-     </widget>
-    </item>
+        <widget class="QLabel" name="textWarning">
+          <property name="text">
+          <string> You are using a transparent transaction, please go private. If this is a masternode transaction, you do not have to go private</string>
+          </property>
+          <property name="styleSheet">
+            <string>color: #FFA800; margin-left:-10px;</string>
+          </property>
+        </widget>
+      </item>
      </layout>
     </item>
     <item row="2" column="0">

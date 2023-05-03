@@ -968,6 +968,7 @@ void WalletModel::subscribeToCoreSignals()
     wallet->NotifyWatchonlyChanged.connect(boost::bind(NotifyWatchonlyChanged, this, _1));
     wallet->NotifyZerocoinChanged.connect(boost::bind(NotifyZerocoinChanged, this, _1, _2, _3, _4));
     wallet->NotifyBip47KeysChanged.connect(boost::bind(NotifyBip47KeysChanged, this, _1, _2));
+
 }
 
 void WalletModel::unsubscribeFromCoreSignals()
@@ -1141,6 +1142,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, 
         CTxDestination address;
         auto const &vout = cout.tx->tx->vout[cout.i];
         if (vout.scriptPubKey.IsMint()) {
+
             mapCoins[QString::fromStdString("(mint)")].push_back(out);
             continue;
         }
@@ -1378,14 +1380,18 @@ WalletModel::SendCoinsReturn WalletModel::migrateLelantusToSpark()
 {
     std::list<CLelantusEntry> coins = wallet->GetAvailableLelantusCoins();
     CScript scriptChange;
-    CPubKey vchPubKey;
-    bool ret;
-    ret = CReserveKey(wallet).GetReservedKey(vchPubKey);
-    if (!ret) {
-        return OK;
-    }
+    {
+        // Reserve a new key pair from key pool
+        CPubKey vchPubKey;
+        bool ret;
+        ret = CReserveKey(wallet).GetReservedKey(vchPubKey);
+        if (!ret)
+        {
+            return OK;
+        }
 
-    scriptChange = GetScriptForDestination(vchPubKey.GetID());
+        scriptChange = GetScriptForDestination(vchPubKey.GetID());
+    }
 
     while (coins.size() > 0) {
         bool addMoreCoins = true;
@@ -1398,23 +1404,21 @@ WalletModel::SendCoinsReturn WalletModel::migrateLelantusToSpark()
             lelantus::GetOutPoint(outPoint, coin->value);
             coinControl.Select(outPoint);
             spendValue += coin->amount;
-            selectedNum++;
+            selectedNum ++;
             coins.erase(coin);
-            if (!coins.size())
-                break;
+             if (!coins.size())
+                 break;
 
-            if ((spendValue + coins.begin()->amount) > Params().GetConsensus().nMaxValueLelantusSpendPerTransaction)
-                break;
+             if ((spendValue + coins.begin()->amount) > Params().GetConsensus().nMaxValueLelantusSpendPerTransaction)
+                 break;
 
-            if (selectedNum == Params().GetConsensus().nMaxLelantusInputPerTransaction)
-                break;
+             if (selectedNum == Params().GetConsensus().nMaxLelantusInputPerTransaction)
+                 break;
         }
-
         CRecipient recipient = {scriptChange, spendValue, true};
 
         CWalletTx result;
         wallet->JoinSplitLelantus({recipient}, {}, result, &coinControl);
-
         coinControl.UnSelectAll();
 
         uint32_t i = 0;
@@ -1425,20 +1429,93 @@ WalletModel::SendCoinsReturn WalletModel::migrateLelantusToSpark()
 
         COutPoint outPoint(result.GetHash(), i);
         coinControl.Select(outPoint);
-        std::vector<std::pair<CWalletTx, CAmount> > wtxAndFee;
+        std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+        // MintAndStoreSpark({}, wtxAndFee, true, false, &coinControl);
+
+        if (!wallet || !wallet->sparkWallet) {
+            throw std::logic_error("Spark feature requires HD wallet");
+        }
+
+        if (wallet->IsLocked()) {
+            return OK;
+        }
+
+        uint64_t value = 0;
+        // for (auto& output : outputs)
+        //     value += output.v;
+
+        // if ((value + payTxFee.GetFeePerK()) > GetBalance())
+        //     return _("Insufficient funds");
+
+        // LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
         int64_t nFeeRequired = 0;
-        int nChangePosRet = -1;
         std::string strError;
+        int nChangePosRet = -1;
         std::list<CReserveKey> reservekeys;
-        wallet->CreateSparkMintTransactions({}, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, strError, &coinControl, true);
+        if (!wallet->CreateSparkMintTransactions({}, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, strError, &coinControl, false)) {
+            return OK;
+        }
 
         CValidationState state;
         auto reservekey = reservekeys.begin();
-        for (size_t i = 0; i < wtxAndFee.size(); i++) {
+        for(size_t i = 0; i < wtxAndFee.size(); i++) {
             if (!wallet->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state))
                 return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString(state.GetRejectReason()));
         }
     }
+
+    // while (coins.size() > 0) {
+    //     bool addMoreCoins = true;
+    //     std::size_t selectedNum = 0;
+    //     CCoinControl coinControl;
+    //     CAmount spendValue = 0;
+    //     while (true) {
+    //         auto coin = coins.begin();
+    //         COutPoint outPoint;
+    //         lelantus::GetOutPoint(outPoint, coin->value);
+    //         coinControl.Select(outPoint);
+    //         spendValue += coin->amount;
+    //         selectedNum++;
+    //         coins.erase(coin);
+    //         if (!coins.size())
+    //             break;
+
+    //         if ((spendValue + coins.begin()->amount) > Params().GetConsensus().nMaxValueLelantusSpendPerTransaction)
+    //             break;
+
+    //         if (selectedNum == Params().GetConsensus().nMaxLelantusInputPerTransaction)
+    //             break;
+    //     }
+
+    //     CRecipient recipient = {scriptChange, spendValue, true};
+
+    //     CWalletTx result;
+    //     wallet->JoinSplitLelantus({recipient}, {}, result, &coinControl);
+
+    //     coinControl.UnSelectAll();
+
+    //     uint32_t i = 0;
+    //     for (; i < result.tx->vout.size(); ++i) {
+    //         if (result.tx->vout[i].scriptPubKey == recipient.scriptPubKey)
+    //             break;
+    //     }
+
+    //     COutPoint outPoint(result.GetHash(), i);
+    //     coinControl.Select(outPoint);
+    //     std::vector<std::pair<CWalletTx, CAmount> > wtxAndFee;
+    //     int64_t nFeeRequired = 0;
+    //     int nChangePosRet = -1;
+    //     std::string strError;
+    //     std::list<CReserveKey> reservekeys;
+    //     wallet->CreateSparkMintTransactions({}, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, strError, &coinControl, true);
+
+    //     CValidationState state;
+    //     auto reservekey = reservekeys.begin();
+    //     for (size_t i = 0; i < wtxAndFee.size(); i++) {
+    //         if (!wallet->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state))
+    //             return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString(state.GetRejectReason()));
+    //     }
+    // }
     return SendCoinsReturn(OK);
 }
 
@@ -1648,6 +1725,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(std::vect
         CAmount nFeeRequired = 0;
         try {
         results = wallet->CreateSparkSpendTransaction(vecSend, privateRecipients, nFeeRequired, coinControl);
+        std::cout << "nFeeRequired" << nFeeRequired <<"\n";
         } catch (InsufficientFunds const&) {
             if (!fSubtractFeeFromAmount && (total + nFeeRequired) > nBalance) {
                 return SendCoinsReturn(AmountWithFeeExceedsBalance);
@@ -1673,10 +1751,10 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(std::vect
         }
         transactions.clear();
         transactions.reserve(results.size());
-        for (auto &r : results) {
+        for (auto &res : results) {
             int changePos = -1;
-            for (changePos = 0; changePos < r.tx->vout.size(); changePos++) {
-                if (r.tx->vout[changePos].scriptPubKey.IsSparkSMint()) {
+            for (changePos = 0; changePos < res.tx->vout.size(); changePos++) {
+                if (res.tx->vout[changePos].scriptPubKey.IsSparkSMint()) {
                     break;
                 }
             }
@@ -1684,9 +1762,9 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(std::vect
             transactions.emplace_back(recipients);
             auto &tx = transactions.back();
 
-            *tx.getTransaction() = r;
-            tx.setTransactionFee(nFeeRequired);
-            tx.reassignAmounts(changePos);
+            // *tx.getTransaction() = res;
+            // tx.setTransactionFee(nFeeRequired);
+            // tx.reassignAmounts(changePos);
         }
     }
 

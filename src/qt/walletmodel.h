@@ -213,7 +213,9 @@ public:
         std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
         std::list<CReserveKey> &reserveKeys
         );
+    
     SendCoinsReturn migrateLelantusToSpark();
+    
     bool getAvailableLelantusCoins();
 
     // Send coins to a list of recipients

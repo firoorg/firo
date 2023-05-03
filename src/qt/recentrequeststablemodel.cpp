@@ -12,6 +12,7 @@
 #include "streams.h"
 
 #include <boost/foreach.hpp>
+
 const QString RecentRequestsTableModel::Transparent = "Transparent";
 const QString RecentRequestsTableModel::Spark = "Spark";
 

@@ -168,7 +168,6 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     connect(ui->labelTransactionsStatus, &QPushButton::clicked, this, &OverviewPage::handleOutOfSyncWarningClicks);
 
     connect(&countDownTimer, &QTimer::timeout, this, &OverviewPage::countDown);
-
     countDownTimer.start(10000);
 }
 
@@ -355,7 +354,7 @@ void OverviewPage::countDown()
 {
     secDelay--;
     if(secDelay <= 0) {
-        if(walletModel->getAvailableLelantusCoins()){
+        if(walletModel->getAvailableLelantusCoins() && spark::IsSparkAllowed()){
             MigrateLelantusToSparkDialog migrate(walletModel);
         }
         countDownTimer.stop();

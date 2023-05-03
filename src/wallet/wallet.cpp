@@ -5646,7 +5646,7 @@ std::vector<CWalletTx> CWallet::SpendAndStoreSpark(
 {
     // create transaction
     auto result = CreateSparkSpendTransaction(recipients, privateRecipients, fee, coinControl);
-
+    std::vector<CWalletTx> r;
     // commit
     for (auto& wtxNew : result) {
         try {
@@ -7708,6 +7708,7 @@ void CWallet::LabelSendingPcode(bip47::CPaymentCode const & pcode_, std::string 
                 return;
             iter->second = label;
         }
+
         walletDb.EraseKV(pcodeLbl);
         walletDb.WriteKV(pcodeLbl, label);
     }
