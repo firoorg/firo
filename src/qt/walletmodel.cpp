@@ -170,14 +170,13 @@ void WalletModel::checkBalanceChanged()
     CAmount newWatchImmatureBalance = 0;
     CAmount newAnonymizableBalance = getAnonymizableBalance();
 
-
     CAmount newPrivateBalance, newUnconfirmedPrivateBalance;
     std::tie(newPrivateBalance, newUnconfirmedPrivateBalance) =
         lelantusModel->getPrivateBalance();
 
     std::pair<CAmount, CAmount> sparkBalance = getSparkBalance();
-    newPrivateBalance = spark::IsSparkAllowed() ? sparkBalance.first : newPrivateBalance;
-    newUnconfirmedPrivateBalance = spark::IsSparkAllowed() ? sparkBalance.second : newUnconfirmedPrivateBalance;
+    newPrivateBalance = spark::IsSparkAllowed() && newPrivateBalance == 0 ? sparkBalance.first : newPrivateBalance;
+    newUnconfirmedPrivateBalance = spark::IsSparkAllowed() && newPrivateBalance == 0 ? sparkBalance.second : newUnconfirmedPrivateBalance;
 
     if (haveWatchOnly())
     {
@@ -1464,58 +1463,6 @@ WalletModel::SendCoinsReturn WalletModel::migrateLelantusToSpark()
         }
     }
 
-    // while (coins.size() > 0) {
-    //     bool addMoreCoins = true;
-    //     std::size_t selectedNum = 0;
-    //     CCoinControl coinControl;
-    //     CAmount spendValue = 0;
-    //     while (true) {
-    //         auto coin = coins.begin();
-    //         COutPoint outPoint;
-    //         lelantus::GetOutPoint(outPoint, coin->value);
-    //         coinControl.Select(outPoint);
-    //         spendValue += coin->amount;
-    //         selectedNum++;
-    //         coins.erase(coin);
-    //         if (!coins.size())
-    //             break;
-
-    //         if ((spendValue + coins.begin()->amount) > Params().GetConsensus().nMaxValueLelantusSpendPerTransaction)
-    //             break;
-
-    //         if (selectedNum == Params().GetConsensus().nMaxLelantusInputPerTransaction)
-    //             break;
-    //     }
-
-    //     CRecipient recipient = {scriptChange, spendValue, true};
-
-    //     CWalletTx result;
-    //     wallet->JoinSplitLelantus({recipient}, {}, result, &coinControl);
-
-    //     coinControl.UnSelectAll();
-
-    //     uint32_t i = 0;
-    //     for (; i < result.tx->vout.size(); ++i) {
-    //         if (result.tx->vout[i].scriptPubKey == recipient.scriptPubKey)
-    //             break;
-    //     }
-
-    //     COutPoint outPoint(result.GetHash(), i);
-    //     coinControl.Select(outPoint);
-    //     std::vector<std::pair<CWalletTx, CAmount> > wtxAndFee;
-    //     int64_t nFeeRequired = 0;
-    //     int nChangePosRet = -1;
-    //     std::string strError;
-    //     std::list<CReserveKey> reservekeys;
-    //     wallet->CreateSparkMintTransactions({}, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, strError, &coinControl, true);
-
-    //     CValidationState state;
-    //     auto reservekey = reservekeys.begin();
-    //     for (size_t i = 0; i < wtxAndFee.size(); i++) {
-    //         if (!wallet->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state))
-    //             return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString(state.GetRejectReason()));
-    //     }
-    // }
     return SendCoinsReturn(OK);
 }
 
@@ -1725,7 +1672,6 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(std::vect
         CAmount nFeeRequired = 0;
         try {
         results = wallet->CreateSparkSpendTransaction(vecSend, privateRecipients, nFeeRequired, coinControl);
-        std::cout << "nFeeRequired" << nFeeRequired <<"\n";
         } catch (InsufficientFunds const&) {
             if (!fSubtractFeeFromAmount && (total + nFeeRequired) > nBalance) {
                 return SendCoinsReturn(AmountWithFeeExceedsBalance);

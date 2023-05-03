@@ -18,6 +18,7 @@
 #include "wallet/db.h"
 #include "wallet/wallet.h"
 #include "bip47/bip47utils.h"
+#include "../spark/sparkwallet.h"
 
 #include <stdint.h>
 #include <string>
@@ -248,6 +249,16 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
                     //do nothing
                 }
             }
+
+            if (wtx.tx->IsSparkSpend() && wtx.tx->vin.size() > 0) {
+                try {
+                    nTxFee = spark::ParseSparkSpend(*wtx.tx).getFee();
+                }
+                catch (...) {
+                    //do nothing
+                }
+            }
+
             if (nTxFee > 0)
                 strHTML += "<b>" + tr("Transaction fee") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -nTxFee) + "<br>";
         }

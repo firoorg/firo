@@ -160,7 +160,7 @@ void SendCoinsDialog::setModel(WalletModel *_model)
 
         auto privateBalance = _model->getLelantusModel()->getPrivateBalance();
         std::pair<CAmount, CAmount> sparkBalance = _model->getSparkBalance();
-        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
+        privateBalance = spark::IsSparkAllowed() && privateBalance.first == 0 ? sparkBalance : privateBalance;
 
         setBalance(
             _model->getBalance(), _model->getUnconfirmedBalance(), _model->getImmatureBalance(),
@@ -650,7 +650,7 @@ void SendCoinsDialog::updateDisplayUnit()
 {
     auto privateBalance = model->getLelantusModel()->getPrivateBalance();
     std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
-    privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
+    privateBalance = spark::IsSparkAllowed() && privateBalance.first == 0 ? sparkBalance : privateBalance;
     setBalance(model->getBalance(), 0, 0, 0, 0, 0, privateBalance.first, 0, 0);
     ui->customFee->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
     updateMinFeeLabel();
@@ -812,7 +812,7 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
     if (model) {
         auto privateBalance = model->getLelantusModel()->getPrivateBalance();
         std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
-        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
+        privateBalance = spark::IsSparkAllowed() && privateBalance.first == 0 ? sparkBalance : privateBalance;
         setBalance(model->getBalance(), 0, 0, 0, 0, 0, privateBalance.first, 0, 0);
     }
 }

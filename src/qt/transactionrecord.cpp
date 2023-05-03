@@ -236,7 +236,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             }
             else if (wtx.tx->IsSparkSpend()) {
                 parts.append(TransactionRecord(hash, nTime, TransactionRecord::SpendSparkToSelf, "",
-                    -(nDebit - nChange), 0));
+                    nNet, 0));
             }
             else {
                 // Payment to self
@@ -306,6 +306,11 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     nTxFee = 0;
                 }
                 sub.debit = -nValue;
+
+                if(wtx.tx->IsSparkSpend())
+                {
+                    sub.debit = nNet;
+                }
 
                 parts.append(sub);
             }
