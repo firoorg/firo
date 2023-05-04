@@ -239,8 +239,9 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         if (txin.IsZerocoinSpend() || txin.IsZerocoinRemint()) inputType = "zerocoin";
         else if (txin.IsSigmaSpend()) inputType = "sigma";
         else if (txin.IsLelantusJoinSplit()) inputType = "lelantus";
-        else if (txin.IsSparkSpend()) inputType = "spark";
     }
+    if (wtx.tx->IsSparkSpend()) inputType = "sparkspend";
+    if (wtx.tx->IsSparkMint()) inputType = "sparkmint";    
     if (inputType == "public" && wtx.tx->vin.size() == 1 && wtx.tx->vin[0].prevout.IsNull()) {
         inputType = "mined";
         fIsMining = true;
@@ -266,6 +267,8 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
             for (const auto& lTag : spend.getUsedLTags()) {
                 sparkInputLTagHashes.push_back(primitives::GetLTagHash(lTag).GetHex());
             }
+            CAmount nDebit = wtx.GetDebit(ISMINE_SPENDABLE);
+            if (nDebit > 0) fIsFromMe = true;
             fee = spend.getFee();
         } catch (...) {
         }

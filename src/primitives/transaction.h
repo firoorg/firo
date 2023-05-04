@@ -161,8 +161,6 @@ public:
     bool IsSigmaSpend() const;
     bool IsLelantusJoinSplit() const;
     bool IsZerocoinRemint() const;
-    bool IsSparkSpend() const;
-    bool IsSparkMint() const;
 };
 
 /** An output of a transaction.  It contains the public key that the next input

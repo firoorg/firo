@@ -62,16 +62,6 @@ bool CTxIn::IsZerocoinRemint() const
     return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINTOSIGMAREMINT));
 }
 
-bool CTxIn::IsSparkSpend() const
-{
-    return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_SPARKSPEND));
-}
-
-bool CTxIn::IsSparkMint() const
-{
-    return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_SPARKSMINT));
-}
-
 std::string CTxIn::ToString() const
 {
     std::string str;
