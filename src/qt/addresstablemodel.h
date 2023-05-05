@@ -117,12 +117,6 @@ public:
     explicit PcodeAddressTableModel(CWallet *wallet, WalletModel *parent = 0);
     ~PcodeAddressTableModel();
 
-    enum struct ColumnIndex : int {
-        Label = 0,
-        Pcode = 1,
-        AddressType = 2
-    };
-
     /** @name Methods overridden from QAbstractTableModel
         @{*/
     int rowCount(const QModelIndex &parent) const;

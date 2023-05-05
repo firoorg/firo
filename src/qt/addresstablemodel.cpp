@@ -628,7 +628,7 @@ static void NotifyPcodeLabeled(PcodeAddressTableModel *walletmodel, std::string 
 PcodeAddressTableModel::PcodeAddressTableModel(CWallet *wallet_, WalletModel *parent)
 :AddressTableModel(wallet_, parent)
 {
-    columns[AddressTableModel::Address] = tr("RAP payment code");
+    // columns[AddressTableModel::Address] = tr("RAP payment code");
     updatePcodeData();
     wallet->NotifyPcodeLabeled.connect(boost::bind(NotifyPcodeLabeled, this, _1, _2, _3));
 }
@@ -656,14 +656,13 @@ QVariant PcodeAddressTableModel::data(const QModelIndex &index, int role) const
     int const row = index.row();
     if(row >= pcodeData.size())
         return QVariant();
-
-    if(true)
+    if(role == Qt::DisplayRole || role == Qt::EditRole)
     {
         switch(ColumnIndex(index.column()))
         {
             case ColumnIndex::Label:
                 return QString::fromStdString(pcodeData[row].second);
-            case ColumnIndex::Pcode:
+            case ColumnIndex::Address:
                 return QString::fromStdString(pcodeData[row].first);
             case ColumnIndex::AddressType:
                 return AddressTableModel::RAP;
@@ -672,7 +671,7 @@ QVariant PcodeAddressTableModel::data(const QModelIndex &index, int role) const
     else if (role == Qt::FontRole)
     {
         QFont font;
-        if(ColumnIndex(index.column()) == ColumnIndex::Pcode)
+        if(ColumnIndex(index.column()) == ColumnIndex::Address)
         {
             font = GUIUtil::fixedPitchFont();
         }
@@ -705,7 +704,7 @@ bool PcodeAddressTableModel::setData(const QModelIndex &index, const QVariant &v
             editStatus = AddressTableModel::OK;
             Q_EMIT dataChanged(createIndex(row, 0), createIndex(row, columns.length() - 1));
         }
-        else if(ColumnIndex(index.column()) == ColumnIndex::Pcode)
+        else if(ColumnIndex(index.column()) == ColumnIndex::Address)
         {
             std::string const newPcode = value.toString().toStdString();
             if(!bip47::CPaymentCode::validate(newPcode))
