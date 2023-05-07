@@ -141,7 +141,7 @@ void AddressBookPage::setModel(AddressTableModel *_model)
 
 void AddressBookPage::internalSetMode()
 {
-    if (ui->addressType->currentText() == AddressTableModel::Transparent || ui->addressType->currentText() == AddressTableModel::Spark) {
+    if (ui->addressType->currentText() == AddressTableModel::Transparent || ui->addressType->currentText() == AddressTableModel::Spark || ui->addressType->isHidden()) {
         proxyModel->setSourceModel(model);
         switch(tab)
         {
@@ -227,8 +227,13 @@ void AddressBookPage::onEditAction()
     EditAddressDialog dlg(mode, this);
     dlg.setModel(pmodel);
     QModelIndex origIndex1, origIndex2;
-    origIndex1 = fproxyModel->mapToSource(indexes.at(0));
-    origIndex2 = proxyModel->mapToSource(origIndex1);
+    if (ui->addressType->currentText() == AddressTableModel::RAP) {
+        origIndex1 = rfproxyModel->mapToSource(indexes.at(0));
+        origIndex2 = rproxyModel->mapToSource(origIndex1);
+    } else {
+        origIndex1 = fproxyModel->mapToSource(indexes.at(0));
+        origIndex2 = proxyModel->mapToSource(origIndex1);
+    }
     dlg.loadRow(origIndex2.row());
     dlg.exec();
 }
@@ -240,15 +245,16 @@ void AddressBookPage::on_newAddress_clicked()
 
     AddressTableModel *pmodel;
     EditAddressDialog::Mode mode;
-    if (ui->addressType->currentText() == AddressTableModel::Transparent) {
+
+    if (ui->addressType->currentText() == AddressTableModel::Spark) {
         pmodel = model;
-        mode = tab == SendingTab ? EditAddressDialog::NewSendingAddress : EditAddressDialog::NewReceivingAddress;
+        mode = EditAddressDialog::NewSparkSendingAddress;
     } else if (ui->addressType->currentText() == AddressTableModel::RAP) {
         pmodel = model->getPcodeAddressTableModel();
         mode = EditAddressDialog::NewPcode;
     } else {
         pmodel = model;
-        mode = EditAddressDialog::NewSparkSendingAddress;
+        mode = tab == SendingTab ? EditAddressDialog::NewSendingAddress : EditAddressDialog::NewReceivingAddress;
     }
 
     EditAddressDialog dlg(mode, this);
@@ -281,10 +287,11 @@ void AddressBookPage::selectionChanged()
     QTableView *table;
     table = ui->tableView;
 
-    if(!table->selectionModel())
-        return;
+    // if(!table->selectionModel())
+    //     return;
 
-    if(table->selectionModel()->hasSelection())
+    // if(table->selectionModel()->hasSelection())
+    if(true)
     {
         switch(tab)
         {
@@ -301,6 +308,7 @@ void AddressBookPage::selectionChanged()
             deleteAction->setEnabled(false);
             break;
         }
+
         ui->copyAddress->setEnabled(true);
     }
     else
