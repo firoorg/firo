@@ -365,26 +365,19 @@ void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
 bool CheckSparkBlock(CValidationState &state, const CBlock& block) {
     auto& consensus = ::Params().GetConsensus();
 
-    size_t blockSpendsAmount = 0;
+    size_t blockSpendsValue = 0;
 
     for (const auto& tx : block.vtx) {
         auto txSpendsValue =  GetSpendTransparentAmount(*tx);
-        size_t txSpendNumber = GetSpendInputs(*tx);
-
-        if (txSpendNumber > consensus.nMaxSparkInputPerTransaction) {
-            return state.DoS(100, false, REJECT_INVALID,
-                             "bad-txns-spark-spend-invalid");
-        }
 
         if (txSpendsValue > consensus.nMaxValueSparkSpendPerTransaction) {
             return state.DoS(100, false, REJECT_INVALID,
                              "bad-txns-spark-spend-invalid");
         }
-
-        blockSpendsAmount += txSpendNumber;
+        blockSpendsValue += txSpendsValue;
     }
 
-    if (blockSpendsAmount > consensus.nMaxLelantusInputPerBlock) {
+    if (blockSpendsValue > consensus.nMaxValueSparkSpendPerBlock) {
         return state.DoS(100, false, REJECT_INVALID,
                          "bad-txns-spark-spend-invalid");
     }
@@ -787,13 +780,6 @@ bool CheckSparkTransaction(
 
     // Check Spark Spend
     if (tx.IsSparkSpend()) {
-        // First check number of inputs does not exceed transaction limit
-        if (GetSpendInputs(tx) > consensus.nMaxSparkInputPerTransaction) {
-            return state.DoS(100, false,
-                             REJECT_INVALID,
-                             "bad-txns-spend-invalid");
-        }
-
         if (GetSpendTransparentAmount(tx) > consensus.nMaxValueSparkSpendPerTransaction) {
             return state.DoS(100, false,
                              REJECT_INVALID,

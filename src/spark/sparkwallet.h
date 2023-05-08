@@ -114,13 +114,13 @@ public:
             const CCoinControl *coinControl,
             bool autoMintAll = false);
 
-    std::vector<CWalletTx> CreateSparkSpendTransaction(
+    CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
-    std::vector<std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>>> SelectSparkCoins(
+    std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>> SelectSparkCoins(
             CAmount required,
             bool subtractFeeFromAmount,
             std::list<std::pair<spark::Coin, CSparkMintMeta>> coins,

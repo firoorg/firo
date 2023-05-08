@@ -1111,7 +1111,7 @@ bool getIndex(const spark::Coin& coin, const std::vector<spark::Coin>& anonymity
     return false;
 }
 
-std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
+CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         const std::vector<CRecipient>& recipients,
         const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
         CAmount &fee,
@@ -1196,14 +1196,14 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
     assert(tx.nLockTime < LOCKTIME_THRESHOLD);
     std::list<std::pair<spark::Coin, CSparkMintMeta>> coins = GetAvailableSparkCoins(coinControl);
 
-    std::vector<std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>>> estimated =
+    std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>> estimated =
             SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size(), recipients.size(), coinControl);
 
     std::vector<CRecipient> recipients_ = recipients;
     std::vector<std::pair<spark::OutputCoinData, bool>> privateRecipients_ = privateRecipients;
-    for (auto& feeAndSpendCoins : estimated) {
+    {
         bool remainderSubtracted = false;
-        auto& fee = feeAndSpendCoins.first;
+        fee = estimated.first;
         for (size_t i = 0; i < recipients_.size(); i++) {
             auto &recipient = recipients_[i];
 
@@ -1252,202 +1252,192 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
                 throw std::runtime_error(_("Unable to generate spend key, looks wallet locked."));
 
 
-            for (auto& feeAndSpendCoins : estimated) {
-                tx.vin.clear();
-                tx.vout.clear();
-                wtxNew.fFromMe = true;
-                wtxNew.changes.clear();
+            tx.vin.clear();
+            tx.vout.clear();
+            wtxNew.fFromMe = true;
+            wtxNew.changes.clear();
 
-                CAmount spendInCurrentTx = 0;
-                for (auto& spendCoin : feeAndSpendCoins.second)
-                    spendInCurrentTx += spendCoin.second.v;
-                CAmount fee = feeAndSpendCoins.first;
-                spendInCurrentTx -= fee;
+            CAmount spendInCurrentTx = 0;
+            for (auto& spendCoin : estimated.second)
+                spendInCurrentTx += spendCoin.second.v;
+            spendInCurrentTx -= fee;
 
-                uint64_t transparentOut = 0;
-                // fill outputs
-                for (size_t i = 0; i < recipients_.size(); i++) {
-                    auto& recipient = recipients_[i];
-                    if (recipient.nAmount == 0)
-                        continue;
+            uint64_t transparentOut = 0;
+            // fill outputs
+            for (size_t i = 0; i < recipients_.size(); i++) {
+                auto& recipient = recipients_[i];
+                if (recipient.nAmount == 0)
+                    continue;
 
-                    if (spendInCurrentTx <= 0)
-                        break;
+                CTxOut vout(recipient.nAmount, recipient.scriptPubKey);
 
-                    CAmount recipientAmount = std::min(recipient.nAmount, spendInCurrentTx);
-                    spendInCurrentTx -= recipientAmount;
-                    recipient.nAmount -= recipientAmount;
-                    CTxOut vout(recipientAmount, recipient.scriptPubKey);
+                if (vout.IsDust(minRelayTxFee)) {
+                    std::string err;
 
-                    if (vout.IsDust(minRelayTxFee)) {
-                        std::string err;
-
-                        if (recipient.fSubtractFeeFromAmount && fee > 0) {
-                            if (vout.nValue < 0) {
-                                err = boost::str(boost::format(_("Amount for recipient %1% is too small to pay the fee")) % i);
-                            } else {
-                                err = boost::str(boost::format(_("Amount for recipient %1% is too small to send after the fee has been deducted")) % i);
-                            }
+                    if (recipient.fSubtractFeeFromAmount && fee > 0) {
+                        if (vout.nValue < 0) {
+                            err = boost::str(boost::format(_("Amount for recipient %1% is too small to pay the fee")) % i);
                         } else {
-                            err = boost::str(boost::format(_("Amount for recipient %1% is too small")) % i);
+                            err = boost::str(boost::format(_("Amount for recipient %1% is too small to send after the fee has been deducted")) % i);
                         }
-
-                        throw std::runtime_error(err);
+                    } else {
+                        err = boost::str(boost::format(_("Amount for recipient %1% is too small")) % i);
                     }
 
-                    transparentOut += vout.nValue;
-                    tx.vout.push_back(vout);
+                    throw std::runtime_error(err);
                 }
 
-                std::vector<spark::OutputCoinData> privOutputs;
-                // fill outputs
-                for (size_t i = 0; i < privateRecipients_.size(); i++) {
-                    auto& recipient = privateRecipients_[i];
-                    if (recipient.first.v == 0)
-                        continue;
+                transparentOut += vout.nValue;
+                tx.vout.push_back(vout);
+            }
 
-                    if (spendInCurrentTx <= 0)
-                        break;
+            spendInCurrentTx -= transparentOut;
+            std::vector<spark::OutputCoinData> privOutputs;
+            // fill outputs
+            for (size_t i = 0; i < privateRecipients_.size(); i++) {
+                auto& recipient = privateRecipients_[i];
+                if (recipient.first.v == 0)
+                    continue;
 
-                    CAmount recipientAmount = recipient.first.v;
-                    recipientAmount = std::min(recipientAmount, spendInCurrentTx);
-                    spendInCurrentTx -= recipientAmount;
-                    recipient.first.v -= recipientAmount;
-                    spark::OutputCoinData output = recipient.first;
-                    output.v = recipientAmount;
-                    privOutputs.push_back(output);
+                CAmount recipientAmount = recipient.first.v;
+                spendInCurrentTx -= recipientAmount;
+                spark::OutputCoinData output = recipient.first;
+                output.v = recipientAmount;
+                privOutputs.push_back(output);
+            }
+
+            if (spendInCurrentTx <= 0)
+                throw std::invalid_argument(_("Unable to create spend transaction."));;
+
+            if (!privOutputs.size() || spendInCurrentTx > 0) {
+                spark::OutputCoinData output;
+                output.address = getDefaultAddress();
+                output.memo = "";
+                if (spendInCurrentTx > 0)
+                    output.v = spendInCurrentTx;
+                else
+                    output.v = 0;
+                wtxNew.changes.insert(static_cast<uint32_t>(tx.vout.size() + privOutputs.size()));
+                privOutputs.push_back(output);
+            }
+
+
+            // fill inputs
+            uint32_t sequence = CTxIn::SEQUENCE_FINAL;
+            CScript script;
+            script << OP_SPARKSPEND;
+            tx.vin.emplace_back(COutPoint(), script, sequence);
+
+            // clear vExtraPayload to calculate metadata hash correctly
+            tx.vExtraPayload.clear();
+
+            // set correct type of transaction (this affects metadata hash)
+            tx.nVersion = 3;
+            tx.nType = TRANSACTION_SPARK;
+
+            // now every field is populated then we can sign transaction
+            // We will write this into cover set representation, with anonymity set hash
+            uint256 sig = tx.GetHash();
+
+            std::vector<spark::InputCoinData> inputs;
+            std::map<uint64_t, uint256> idAndBlockHashes;
+            std::unordered_map<uint64_t, spark::CoverSetData> cover_set_data;
+            for (auto& coin : estimated.second) {
+                spark::CSparkState::SparkCoinGroupInfo nextCoinGroupInfo;
+                uint64_t groupId = coin.second.nId;
+                if (sparkState->GetLatestCoinID() > groupId && sparkState->GetCoinGroupInfo(groupId + 1, nextCoinGroupInfo)) {
+                    if (nextCoinGroupInfo.firstBlock->nHeight <= coin.second.nHeight)
+                        groupId += 1;
                 }
 
-                if (!privOutputs.size() || spendInCurrentTx > 0) {
-                    spark::OutputCoinData output;
-                    output.address = getDefaultAddress();
-                    output.memo = "";
-                    if (spendInCurrentTx > 0)
-                        output.v = spendInCurrentTx;
-                    else
-                        output.v = 0;
-                    wtxNew.changes.insert(static_cast<uint32_t>(tx.vout.size() + privOutputs.size()));
-                    privOutputs.push_back(output);
-                }
-
-
-                // fill inputs
-                uint32_t sequence = CTxIn::SEQUENCE_FINAL;
-                CScript script;
-                script << OP_SPARKSPEND;
-                tx.vin.emplace_back(COutPoint(), script, sequence);
-
-                // clear vExtraPayload to calculate metadata hash correctly
-                tx.vExtraPayload.clear();
-
-                // set correct type of transaction (this affects metadata hash)
-                tx.nVersion = 3;
-                tx.nType = TRANSACTION_SPARK;
-
-                // now every field is populated then we can sign transaction
-                // We will write this into cover set representation, with anonymity set hash
-                uint256 sig = tx.GetHash();
-
-                std::vector<spark::InputCoinData> inputs;
-                std::map<uint64_t, uint256> idAndBlockHashes;
-                std::unordered_map<uint64_t, spark::CoverSetData> cover_set_data;
-                for (auto& coin : feeAndSpendCoins.second) {
-                    spark::CSparkState::SparkCoinGroupInfo nextCoinGroupInfo;
-                    uint64_t groupId = coin.second.nId;
-                    if (sparkState->GetLatestCoinID() > groupId && sparkState->GetCoinGroupInfo(groupId + 1, nextCoinGroupInfo)) {
-                        if (nextCoinGroupInfo.firstBlock->nHeight <= coin.second.nHeight)
-                            groupId += 1;
-                    }
-
-                    if (cover_set_data.count(groupId) == 0) {
-                        std::vector<spark::Coin> set;
-                        uint256 blockHash;
-                        std::vector<unsigned char> setHash;
-                        if (sparkState->GetCoinSetForSpend(
-                                &chainActive,
-                                chainActive.Height() -
-                                (ZC_MINT_CONFIRMATIONS - 1), // required 1 confirmation for mint to spend
-                                groupId,
-                                blockHash,
-                                set,
-                                setHash) < 2)
-                            throw std::runtime_error(
-                                    _("Has to have at least two mint coins with at least 1 confirmation in order to spend a coin"));
-
-                        spark::CoverSetData coverSetData;
-                        coverSetData.cover_set = set;
-                        coverSetData.cover_set_representation = setHash;
-                        coverSetData.cover_set_representation.insert(coverSetData.cover_set_representation.end(), sig.begin(), sig.end());
-                        cover_set_data[groupId] = coverSetData;
-                        idAndBlockHashes[groupId] = blockHash;
-                    }
-
-
-                    spark::InputCoinData inputCoinData;
-                    inputCoinData.cover_set_id = groupId;
-                    std::size_t index = 0;
-                    if (!getIndex(coin.first, cover_set_data[groupId].cover_set, index))
+                if (cover_set_data.count(groupId) == 0) {
+                    std::vector<spark::Coin> set;
+                    uint256 blockHash;
+                    std::vector<unsigned char> setHash;
+                    if (sparkState->GetCoinSetForSpend(
+                            &chainActive,
+                            chainActive.Height() -
+                            (ZC_MINT_CONFIRMATIONS - 1), // required 1 confirmation for mint to spend
+                            groupId,
+                            blockHash,
+                            set,
+                            setHash) < 2)
                         throw std::runtime_error(
-                                _("No such coin in set"));
-                    inputCoinData.index = index;
-                    inputCoinData.v = coin.second.v;
-                    inputCoinData.k = coin.second.k;
+                                _("Has to have at least two mint coins with at least 1 confirmation in order to spend a coin"));
 
-                    spark::IdentifiedCoinData identifiedCoinData;
-                    identifiedCoinData.i = coin.second.i;
-                    identifiedCoinData.d = coin.second.d;
-                    identifiedCoinData.v = coin.second.v;
-                    identifiedCoinData.k = coin.second.k;
-                    identifiedCoinData.memo = coin.second.memo;
-                    spark::RecoveredCoinData recoveredCoinData = coin.first.recover(fullViewKey, identifiedCoinData);
-
-                    inputCoinData.T = recoveredCoinData.T;
-                    inputCoinData.s = recoveredCoinData.s;
-                    inputs.push_back(inputCoinData);
-
+                    spark::CoverSetData coverSetData;
+                    coverSetData.cover_set = set;
+                    coverSetData.cover_set_representation = setHash;
+                    coverSetData.cover_set_representation.insert(coverSetData.cover_set_representation.end(), sig.begin(), sig.end());
+                    cover_set_data[groupId] = coverSetData;
+                    idAndBlockHashes[groupId] = blockHash;
                 }
 
-                spark::SpendTransaction spendTransaction(params, fullViewKey, spendKey, inputs, cover_set_data, fee, transparentOut, privOutputs);
-                spendTransaction.setBlockHashes(idAndBlockHashes);
+
+                spark::InputCoinData inputCoinData;
+                inputCoinData.cover_set_id = groupId;
+                std::size_t index = 0;
+                if (!getIndex(coin.first, cover_set_data[groupId].cover_set, index))
+                    throw std::runtime_error(
+                            _("No such coin in set"));
+                inputCoinData.index = index;
+                inputCoinData.v = coin.second.v;
+                inputCoinData.k = coin.second.k;
+
+                spark::IdentifiedCoinData identifiedCoinData;
+                identifiedCoinData.i = coin.second.i;
+                identifiedCoinData.d = coin.second.d;
+                identifiedCoinData.v = coin.second.v;
+                identifiedCoinData.k = coin.second.k;
+                identifiedCoinData.memo = coin.second.memo;
+                spark::RecoveredCoinData recoveredCoinData = coin.first.recover(fullViewKey, identifiedCoinData);
+
+                inputCoinData.T = recoveredCoinData.T;
+                inputCoinData.s = recoveredCoinData.s;
+                inputs.push_back(inputCoinData);
+
+            }
+
+            spark::SpendTransaction spendTransaction(params, fullViewKey, spendKey, inputs, cover_set_data, fee, transparentOut, privOutputs);
+            spendTransaction.setBlockHashes(idAndBlockHashes);
+            CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+            serialized << spendTransaction;
+            tx.vExtraPayload.assign(serialized.begin(), serialized.end());
+
+
+            const std::vector<spark::Coin>& outCoins = spendTransaction.getOutCoins();
+            for (auto& outCoin : outCoins) {
+                // construct spend script
                 CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
-                serialized << spendTransaction;
-                tx.vExtraPayload.assign(serialized.begin(), serialized.end());
+                serialized << outCoin;
+                CScript script;
+                script << OP_SPARKSMINT;
+                script.insert(script.end(), serialized.begin(), serialized.end());
+                tx.vout.push_back(CTxOut(0, script));
+            }
 
+            // check fee
+            wtxNew.SetTx(MakeTransactionRef(std::move(tx)));
 
-                const std::vector<spark::Coin>& outCoins = spendTransaction.getOutCoins();
-                for (auto& outCoin : outCoins) {
-                    // construct spend script
-                    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
-                    serialized << outCoin;
-                    CScript script;
-                    script << OP_SPARKSMINT;
-                    script.insert(script.end(), serialized.begin(), serialized.end());
-                    tx.vout.push_back(CTxOut(0, script));
-                }
+            if (GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT) {
+                throw std::runtime_error(_("Transaction too large"));
+            }
 
-                // check fee
-                wtxNew.SetTx(MakeTransactionRef(std::move(tx)));
+            // check fee
+            unsigned size = GetVirtualTransactionSize(tx);
+            CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
 
-                if (GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT) {
-                    throw std::runtime_error(_("Transaction too large"));
-                }
+            // If we made it here and we aren't even able to meet the relay fee on the next pass, give up
+            // because we must be at the maximum allowed fee.
+            if (feeNeeded < minRelayTxFee.GetFee(size)) {
+                throw std::invalid_argument(_("Transaction too large for fee policy"));
+            }
 
-                // check fee
-                unsigned size = GetVirtualTransactionSize(tx);
-                CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
-
-                // If we made it here and we aren't even able to meet the relay fee on the next pass, give up
-                // because we must be at the maximum allowed fee.
-                if (feeNeeded < minRelayTxFee.GetFee(size)) {
-                    throw std::invalid_argument(_("Transaction too large for fee policy"));
-                }
-
-                if (fee < feeNeeded) {
-                    throw std::invalid_argument(_("Not enough fee estimated"));
-                }
+            if (fee < feeNeeded) {
+                throw std::invalid_argument(_("Not enough fee estimated"));
+            }
 
                 result.push_back(wtxNew);
-            }
         }
     }
 
@@ -1470,7 +1460,7 @@ std::vector<CWalletTx> CSparkWallet::CreateSparkSpendTransaction(
         }
     }
 
-    return result;
+    return wtxNew;
 }
 
 template<typename Iterator>
@@ -1487,7 +1477,6 @@ bool GetCoinsToSpend(
         std::vector<std::pair<spark::Coin, CSparkMintMeta>>& coinsToSpend_out,
         std::list<std::pair<spark::Coin, CSparkMintMeta>> coins,
         int64_t& changeToMint,
-        const size_t coinsToSpendLimit,
         const CCoinControl *coinControl)
 {
     CAmount availableBalance = CalculateBalance(coins.begin(), coins.end());
@@ -1548,9 +1537,6 @@ bool GetCoinsToSpend(
 
             spend_val += choosen.second.v;
             coinsToSpend.push_back(choosen);
-
-            if (coinsToSpend.size() == coinsToSpendLimit) // if we pass input number limit, we stop and try to spend remaining part with another transaction
-                break;
         }
     }
 
@@ -1566,7 +1552,7 @@ bool GetCoinsToSpend(
     return true;
 }
 
-std::vector<std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>>> CSparkWallet::SelectSparkCoins(
+std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>> CSparkWallet::SelectSparkCoins(
         CAmount required,
         bool subtractFeeFromAmount,
         std::list<std::pair<spark::Coin, CSparkMintMeta>> coins,
@@ -1574,48 +1560,40 @@ std::vector<std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta
         std::size_t utxoNum,
         const CCoinControl *coinControl) {
 
-    std::vector<std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>>> result;
+    CAmount fee;
+    unsigned size;
+    int64_t changeToMint = 0; // this value can be negative, that means we need to spend remaining part of required value with another transaction (nMaxInputPerTransaction exceeded)
 
-    while (required > 0) {
-        CAmount fee;
-        unsigned size;
-        int64_t changeToMint = 0; // this value can be negative, that means we need to spend remaining part of required value with another transaction (nMaxInputPerTransaction exceeded)
+    std::vector<std::pair<spark::Coin, CSparkMintMeta>> spendCoins;
+    for (fee = payTxFee.GetFeePerK();;) {
+        CAmount currentRequired = required;
 
-        std::vector<std::pair<spark::Coin, CSparkMintMeta>> spendCoins;
-        for (fee = payTxFee.GetFeePerK();;) {
-            CAmount currentRequired = required;
-
-            if (!subtractFeeFromAmount)
-                currentRequired += fee;
-            spendCoins.clear();
-            const auto &consensusParams = Params().GetConsensus();
-            if (!GetCoinsToSpend(currentRequired, spendCoins, coins, changeToMint,
-                                           consensusParams.nMaxSparkInputPerTransaction, coinControl)) {
-                throw std::invalid_argument(_("Unable to select cons for spend"));
-            }
-
-            // 924 is constant part, mainly Schnorr and Range proofs, 2535 is for each grootle proof/aux data
-            // 213 for each private output, 144 other parts of tx,
-            size = 924 + 2535 * (spendCoins.size()) + 213 * mintNum + 144; //TODO (levon) take in account also utxoNum
-            CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
-
-            if (fee >= feeNeeded) {
-                break;
-            }
-
-            fee = feeNeeded;
-
-            if (subtractFeeFromAmount)
-                break;
+        if (!subtractFeeFromAmount)
+            currentRequired += fee;
+        spendCoins.clear();
+        if (!GetCoinsToSpend(currentRequired, spendCoins, coins, changeToMint, coinControl)) {
+            throw std::invalid_argument(_("Unable to select cons for spend"));
         }
 
-        result.push_back({fee, spendCoins});
-        if (changeToMint < 0)
-            required = - changeToMint;
-        else
-            required = 0;
+        // 924 is constant part, mainly Schnorr and Range proofs, 2535 is for each grootle proof/aux data
+        // 213 for each private output, 144 other parts of tx,
+        size = 924 + 2535 * (spendCoins.size()) + 213 * mintNum + 144; //TODO (levon) take in account also utxoNum
+        CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
+
+        if (fee >= feeNeeded) {
+            break;
+        }
+
+        fee = feeNeeded;
+
+        if (subtractFeeFromAmount)
+            break;
     }
-    return result;
+
+    if (changeToMint < 0)
+        throw std::invalid_argument(_("Unable to select cons for spend"));
+
+    return std::make_pair(fee, spendCoins);
 }
 
 std::list<std::pair<spark::Coin, CSparkMintMeta>> CSparkWallet::GetAvailableSparkCoins(const CCoinControl *coinControl) const {

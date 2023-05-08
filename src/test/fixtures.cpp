@@ -395,7 +395,7 @@ std::vector<CSparkMintMeta> SparkTestingSetup::GenerateMints(
     return mints;
 }
 
-std::vector<CTransaction> SparkTestingSetup::GenerateSparkSpend(
+CTransaction SparkTestingSetup::GenerateSparkSpend(
         std::vector<CAmount> const &outs,
         std::vector<CAmount> const &mints,
         CCoinControl const *coinControl = nullptr) {
@@ -414,15 +414,10 @@ std::vector<CTransaction> SparkTestingSetup::GenerateSparkSpend(
     }
 
     CAmount fee;
-    auto txs = pwalletMain->SpendAndStoreSpark(
+    auto wtx = pwalletMain->SpendAndStoreSpark(
             vecs, {}, fee, coinControl);
 
-    std::vector<CTransaction> result;
-    for (auto& itr : txs) {
-        result.push_back(*itr.tx);
-    }
-
-    return result;
+    return *wtx.tx;
 }
 
 

@@ -5623,7 +5623,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
     return tx;
 }
 
-std::vector<CWalletTx> CWallet::CreateSparkSpendTransaction(
+CWalletTx CWallet::CreateSparkSpendTransaction(
         const std::vector<CRecipient>& recipients,
         const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
         CAmount &fee,
@@ -5639,7 +5639,7 @@ std::vector<CWalletTx> CWallet::CreateSparkSpendTransaction(
     return sparkWallet->CreateSparkSpendTransaction(recipients, privateRecipients, fee, coinControl);
 }
 
-std::vector<CWalletTx> CWallet::SpendAndStoreSpark(
+CWalletTx CWallet::SpendAndStoreSpark(
         const std::vector<CRecipient>& recipients,
         const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
         CAmount &fee,
@@ -5649,21 +5649,19 @@ std::vector<CWalletTx> CWallet::SpendAndStoreSpark(
     auto result = CreateSparkSpendTransaction(recipients, privateRecipients, fee, coinControl);
 
     // commit
-    for (auto& wtxNew : result) {
-        try {
-            CValidationState state;
-            CReserveKey reserveKey(this);
-            CommitTransaction(wtxNew, reserveKey, g_connman.get(), state);
-        } catch (...) {
-            auto error = _(
-                    "Error: The transaction was rejected! This might happen if some of "
-                    "the coins in your wallet were already spent, such as if you used "
-                    "a copy of wallet.dat and coins were spent in the copy but not "
-                    "marked as spent here."
-            );
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(this);
+        CommitTransaction(result, reserveKey, g_connman.get(), state);
+    } catch (...) {
+        auto error = _(
+                "Error: The transaction was rejected! This might happen if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
 
-            std::throw_with_nested(std::runtime_error(error));
-        }
+        std::throw_with_nested(std::runtime_error(error));
     }
 
     return result;
