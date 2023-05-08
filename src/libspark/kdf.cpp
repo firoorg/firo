@@ -5,7 +5,7 @@ namespace spark {
 // Set up a labeled KDF
 KDF::KDF(const std::string label, std::size_t derived_key_size) {
 	this->ctx = EVP_MD_CTX_new();
-	EVP_DigestInit_ex(this->ctx, EVP_blake2b512(), NULL);
+	EVP_DigestInit_ex(this->ctx, EVP_sha512(), NULL);
 
 	// Write the protocol and mode information
 	std::vector<unsigned char> protocol(LABEL_PROTOCOL.begin(), LABEL_PROTOCOL.end());
@@ -18,7 +18,7 @@ KDF::KDF(const std::string label, std::size_t derived_key_size) {
 	EVP_DigestUpdate(this->ctx, label_bytes.data(), label_bytes.size());
 
 	// Embed and set the derived key size
-	if (derived_key_size > EVP_MD_size(EVP_blake2b512())) {
+	if (derived_key_size > EVP_MD_size(EVP_sha512())) {
 		throw std::invalid_argument("Requested KDF size is too large");
 	}
 	include_size(derived_key_size);
@@ -39,7 +39,7 @@ void KDF::include(CDataStream& data) {
 // Finalize the KDF with arbitrary size
 std::vector<unsigned char> KDF::finalize() {
 	std::vector<unsigned char> result;
-	result.resize(EVP_MD_size(EVP_blake2b512()));
+	result.resize(EVP_MD_size(EVP_sha512()));
 
 	unsigned int TEMP;
 	EVP_DigestFinal_ex(this->ctx, result.data(), &TEMP);

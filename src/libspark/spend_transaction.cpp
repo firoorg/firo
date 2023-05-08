@@ -176,15 +176,15 @@ SpendTransaction::SpendTransaction(
 
 	// Compute the binding hash
 	Scalar mu = hash_bind(
+		hash_bind_inner(
+			this->cover_set_representations,
+			this->C1,
+			this->grootle_proofs,
+			this->balance_proof,
+			this->range_proof
+		),
 		this->out_coins,
-		this->f + vout,
-		this->cover_set_representations,
-		this->S1,
-		this->C1,
-		this->T,
-		this->grootle_proofs,
-		this->balance_proof,
-		this->range_proof
+		this->f + vout
 	);
 
 	// Compute the authorizing Chaum proof
@@ -293,15 +293,15 @@ bool SpendTransaction::verify(
 
 		// Compute the binding hash
 		Scalar mu = hash_bind(
+			hash_bind_inner(
+				tx.cover_set_representations,
+				tx.C1,
+				tx.grootle_proofs,
+				tx.balance_proof,
+				tx.range_proof
+			),
 			tx.out_coins,
-			tx.f + tx.vout,
-			tx.cover_set_representations,
-			tx.S1,
-			tx.C1,
-			tx.T,
-			tx.grootle_proofs,
-			tx.balance_proof,
-			tx.range_proof
+			tx.f + tx.vout
 		);
 
 		// Verify the authorizing Chaum-Pedersen proof
@@ -403,25 +403,18 @@ bool SpendTransaction::verify(
 	return true;
 }
 
-// Hash-to-scalar function H_bind
-Scalar SpendTransaction::hash_bind(
-    const std::vector<Coin>& out_coins,
-    const uint64_t f_,
+// Hash function H_bind_inner
+// This function pre-hashes auxiliary data that makes things easier for a limited signer who cannot process the data directly
+// Its value is then used as part of the binding hash, which a limited signer can verify as part of the signing process
+std::vector<unsigned char> SpendTransaction::hash_bind_inner(
 	const std::unordered_map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
-    const std::vector<GroupElement>& S1,
-    const std::vector<GroupElement>& C1,
-    const std::vector<GroupElement>& T,
-    const std::vector<GrootleProof>& grootle_proofs,
-    const SchnorrProof& balance_proof,
+	const std::vector<GroupElement>& C1,
+	const std::vector<GrootleProof>& grootle_proofs,
+	const SchnorrProof& balance_proof,
 	const BPPlusProof& range_proof
 ) {
-    Hash hash(LABEL_HASH_BIND);
-
+    Hash hash(LABEL_HASH_BIND_INNER);
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-
-	// Perform the serialization and hashing
-    stream << out_coins;
-    stream << f_;
 	stream << cover_set_representations;
     stream << S1;
     stream << C1;
@@ -430,6 +423,23 @@ Scalar SpendTransaction::hash_bind(
     stream << balance_proof;
 	stream << range_proof;
     hash.include(stream);
+
+	return hash.finalize();
+}
+
+// Hash-to-scalar function H_bind
+// This function must accept pre-hashed data from `H_bind_inner` intended to correspond to the signing operation
+Scalar SpendTransaction::hash_bind(
+	const std::vector<unsigned char> hash_bind_inner,
+    const std::vector<Coin>& out_coins,
+    const uint64_t f_
+) {
+	Hash hash(LABEL_HASH_BIND);
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+	stream << hash_bind_inner,
+	stream << out_coins;
+	stream << f_;
+	hash.include(stream);
 
     return hash.finalize_scalar();
 }
