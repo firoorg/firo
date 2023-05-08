@@ -1066,13 +1066,13 @@ public:
             bool fAskFee = false,
             const CCoinControl *coinControl = NULL);
 
-    std::vector<CWalletTx> CreateSparkSpendTransaction(
+    CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
-    std::vector<CWalletTx> SpendAndStoreSpark(
+    CWalletTx SpendAndStoreSpark(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,

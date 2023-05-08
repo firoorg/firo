@@ -222,11 +222,10 @@ BOOST_AUTO_TEST_CASE(spend)
     wtxAndFee.clear();
 
     auto spTx = GenerateSparkSpend({1 * COIN}, {}, nullptr);
-    BOOST_CHECK(!(spTx.empty()));
 
     std::vector<spark::Coin> coins;
     std::vector<GroupElement> tags;
-    ExtractSpend(spTx[0], coins, tags);
+    ExtractSpend(spTx, coins, tags);
 
     BOOST_CHECK_EQUAL(1, coins.size());
     BOOST_CHECK_EQUAL(1, tags.size());

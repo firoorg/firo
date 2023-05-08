@@ -62,13 +62,13 @@ BOOST_AUTO_TEST_CASE(spark_mintspend_test)
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "SparkSpend is not added into mempool");
 
     previousHeight = chainActive.Height();
-    GenerateBlock({CMutableTransaction(wtx[0])});
+    GenerateBlock({CMutableTransaction(wtx)});
     BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "SparkSpend is not removed from mempool");
     GenerateBlocks(6);
 
     CAmount fee;
-    auto result = pwalletMain->CreateSparkSpendTransaction(recipients, {}, fee, nullptr)[0];
+    auto result = pwalletMain->CreateSparkSpendTransaction(recipients, {}, fee, nullptr);
     CWallet* wallet = pwalletMain;
     CReserveKey reserveKey(wallet);
     CValidationState state;
@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE(spark_mintspend_test)
 
          CAmount fee;
          result.Init(NULL);
-         result = pwalletMain->CreateSparkSpendTransaction(recipients, {}, fee, &coinControl)[0];
+         result = pwalletMain->CreateSparkSpendTransaction(recipients, {}, fee, &coinControl);
          CReserveKey reserveKey(pwalletMain);
          CValidationState state;
          pwalletMain->CommitTransaction(result, reserveKey, g_connman.get(), state);

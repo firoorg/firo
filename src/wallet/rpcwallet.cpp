@@ -3722,19 +3722,14 @@ UniValue spendspark(const JSONRPCRequest& request)
     }
 
     CAmount fee;
-    std::vector<CWalletTx> wtxs;
+    CWalletTx wtx;
     try {
-        wtxs = pwallet->SpendAndStoreSpark(recipients, privateRecipients, fee);
+        wtx = pwallet->SpendAndStoreSpark(recipients, privateRecipients, fee);
     } catch (...) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
     }
 
-    UniValue result(UniValue::VARR);
-    for(const auto& wtx : wtxs) {
-        result.push_back(wtx.GetHash().GetHex());
-    }
-
-    return result;
+    return wtx.GetHash().GetHex();
 }
 
 UniValue lelantustospark(const JSONRPCRequest& request) {

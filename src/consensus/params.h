@@ -322,12 +322,6 @@ struct Params {
     // Value of maximum lelantus mint.
     int64_t nMaxValueLelantusMint;
 
-    // Amount of maximum spark spend per transaction.
-    unsigned nMaxSparkInputPerTransaction;
-
-    // Amount of maximum spark spend per block.
-    unsigned nMaxSparkInputPerBlock;
-
     // Value of maximum spark spend per transaction
     int64_t nMaxValueSparkSpendPerTransaction;
 
