@@ -48,6 +48,7 @@ const std::string LABEL_HASH_SER = "SER";
 const std::string LABEL_HASH_VAL = "VAL";
 const std::string LABEL_HASH_SER1 = "SER1";
 const std::string LABEL_HASH_VAL1 = "VAL1";
+const std::string LABEL_HASH_BIND_INNER = "BIND_INNER";
 const std::string LABEL_HASH_BIND = "BIND";
 const std::string LABEL_F4GRUMBLE_G = "SPARK_F4GRUMBLE_G";
 const std::string LABEL_F4GRUMBLE_H = "SPARK_F4GRUMBLE_H";

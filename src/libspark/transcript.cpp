@@ -14,7 +14,7 @@ const unsigned char FLAG_CHALLENGE = 3;
 Transcript::Transcript(const std::string domain) {
     // Prepare the state
     this->ctx = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(this->ctx, EVP_blake2b512(), NULL);
+    EVP_DigestInit_ex(this->ctx, EVP_sha512(), NULL);
 
     // Write the protocol and mode information
     std::vector<unsigned char> protocol(LABEL_PROTOCOL.begin(), LABEL_PROTOCOL.end());
@@ -98,21 +98,21 @@ void Transcript::add(const std::string label, const std::vector<unsigned char>& 
 // Produce a challenge
 Scalar Transcript::challenge(const std::string label) {
     // Ensure we can properly populate a scalar
-    if (EVP_MD_size(EVP_blake2b512()) < SCALAR_ENCODING) {
+    if (EVP_MD_size(EVP_sha512()) < SCALAR_ENCODING) {
         throw std::runtime_error("Bad hash size!");
     }
 
     std::vector<unsigned char> hash;
-    hash.resize(EVP_MD_size(EVP_blake2b512()));
+    hash.resize(EVP_MD_size(EVP_sha512()));
     unsigned char counter = 0;
 
     EVP_MD_CTX* state_counter;
     state_counter = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(state_counter, EVP_blake2b512(), NULL);
+    EVP_DigestInit_ex(state_counter, EVP_sha512(), NULL);
 
     EVP_MD_CTX* state_finalize;
     state_finalize = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(state_finalize, EVP_blake2b512(), NULL);
+    EVP_DigestInit_ex(state_finalize, EVP_sha512(), NULL);
 
     include_flag(FLAG_CHALLENGE);
     include_label(label);
