@@ -663,6 +663,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
         CAmount& nAllFeeRet,
         std::list<CReserveKey>& reservekeys,
         int& nChangePosInOut,
+        bool subtractFeeFromAmount,
         std::string& strFailReason,
         const CCoinControl *coinControl,
         bool autoMintAll)
@@ -680,7 +681,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
 
     assert(txNew.nLockTime <= (unsigned int) chainActive.Height());
     assert(txNew.nLockTime < LOCKTIME_THRESHOLD);
-    std::vector<spark::MintedCoinData>  outputs_ = outputs;
+    std::vector<spark::MintedCoinData> outputs_ = outputs;
     CAmount valueToMint = 0;
 
     for (auto& output : outputs_)
@@ -729,12 +730,15 @@ bool CSparkWallet::CreateSparkMintTransactions(
                 // Start with no fee and loop until there is enough fee
                 while (true) {
                     mintedValue = valueToMintInTx;
-                    nValueToSelect = mintedValue + nFeeRet;
-
-                    // if have no enough coins in this group then subtract fee from mint
-                    if (nValueToSelect > itr->first) {
-                        mintedValue -= nFeeRet;
+                    if (subtractFeeFromAmount)
+                        nValueToSelect = mintedValue;
+                    else
                         nValueToSelect = mintedValue + nFeeRet;
+
+                    // if no enough coins in this group then subtract fee from mint
+                    if (nValueToSelect > itr->first && !subtractFeeFromAmount) {
+                        nValueToSelect = mintedValue;
+                        mintedValue -= nFeeRet;
                     }
 
                     if (!MoneyRange(mintedValue) || mintedValue == 0) {
@@ -774,6 +778,23 @@ bool CSparkWallet::CreateSparkMintTransactions(
 
                             if (remainingOutputs.begin()->v == 0)
                                 remainingOutputs.erase(remainingOutputs.begin());
+                        }
+                    }
+
+                    if (subtractFeeFromAmount) {
+                        CAmount singleFee = nFeeRet / singleTxOutputs.size();
+                        CAmount reminder = nFeeRet % singleTxOutputs.size();
+                        for (size_t i = 0; i < singleTxOutputs.size(); ++i) {
+                            if (singleTxOutputs[i].v <= singleFee) {
+                                singleTxOutputs.erase(singleTxOutputs.begin() + i);
+                                reminder += singleTxOutputs[i].v - singleFee;
+                                --i;
+                            }
+                            singleTxOutputs[i].v -= singleFee;
+                            if (reminder > 0 && singleTxOutputs[i].v > nFeeRet % singleTxOutputs.size()) {// first receiver pays the remainder not divisible by output count
+                                singleTxOutputs[i].v -= reminder;
+                                reminder = 0;
+                            }
                         }
                     }
 
@@ -1639,5 +1660,3 @@ std::list<std::pair<spark::Coin, CSparkMintMeta>> CSparkWallet::GetAvailableSpar
 
     return coins;
 }
-
-//TODO levon implement wallet scanning when restoring wallet, or opening wallet file witg synced chain
