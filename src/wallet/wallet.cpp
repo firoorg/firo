@@ -5423,6 +5423,7 @@ std::string CWallet::MintAndStoreLelantus(const CAmount& value,
 std::string CWallet::MintAndStoreSpark(
         const std::vector<spark::MintedCoinData>& outputs,
         std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+        bool subtractFeeFromAmount,
         bool autoMintAll,
         bool fAskFee,
         const CCoinControl *coinControl) {
@@ -5449,7 +5450,7 @@ std::string CWallet::MintAndStoreSpark(
     int nChangePosRet = -1;
 
     std::list<CReserveKey> reservekeys;
-    if (!sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, strError, coinControl, autoMintAll)) {
+    if (!sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, subtractFeeFromAmount, strError, coinControl, autoMintAll)) {
         return strError;
     }
 

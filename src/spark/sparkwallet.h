@@ -109,6 +109,7 @@ public:
             CAmount& nAllFeeRet,
             std::list<CReserveKey>& reservekeys,
             int& nChangePosInOut,
+            bool subtractFeeFromAmount,
             std::string& strFailReason,
             const CCoinControl *coinControl,
             bool autoMintAll = false);
