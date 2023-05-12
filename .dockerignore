@@ -118,3 +118,6 @@ doc/doxygen
 
 libfiroconsensus.pc
 contrib/devtools/split-debug.sh
+
+!depends
+!depends/**/*
