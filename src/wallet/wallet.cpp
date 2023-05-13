@@ -7658,7 +7658,7 @@ void CWallet::HandleSparkTransaction(CWalletTx const & wtx) {
 
     // get spark coins and add into wallet
     std::vector<spark::Coin>  coins = spark::GetSparkMintCoins(*wtx.tx);
-    sparkWallet->UpdateMintState(coins, txHash, walletdb);
+    sparkWallet->UpdateMintState(coins, txHash);
 }
 
 void CWallet::LabelSendingPcode(bip47::CPaymentCode const & pcode_, std::string const & label, bool remove)

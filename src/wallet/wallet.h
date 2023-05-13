@@ -755,7 +755,6 @@ public:
     unsigned int nMasterKeyMaxID;
 
     std::unique_ptr<CHDMintWallet> zwallet;
-
     std::unique_ptr<CSparkWallet> sparkWallet;
 
     CWallet()

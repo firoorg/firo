@@ -3467,7 +3467,7 @@ UniValue resetsparkmints(const JSONRPCRequest& request) {
     BOOST_FOREACH(CSparkMintMeta& mint, listMints) {
         mint.isUsed = false;
         mint.nHeight = -1;
-        pwallet->sparkWallet->updateMint(mint, walletdb);
+        pwallet->sparkWallet->updateMint(mint);
     }
 
     return NullUniValue;
@@ -3498,7 +3498,7 @@ UniValue setsparkmintstatus(const JSONRPCRequest& request) {
 
     if (coinMeta != CSparkMintMeta()) {
         coinMeta.isUsed = fStatus;
-        pwallet->sparkWallet->updateMint(coinMeta, walletdb);
+        pwallet->sparkWallet->updateMint(coinMeta);
     }
 
     return NullUniValue;
