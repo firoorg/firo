@@ -60,7 +60,7 @@ public:
 	static bool verify(const Params* params, const std::vector<SpendTransaction>& transactions, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
 	static bool verify(const SpendTransaction& transaction, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
     
-    static std::vector<unsigned char> hash_bind_inner(
+	std::vector<unsigned char> hash_bind_inner(
 		const std::unordered_map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
         const std::vector<GroupElement>& C1,
         const std::vector<GrootleProof>& grootle_proofs,

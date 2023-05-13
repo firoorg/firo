@@ -293,7 +293,7 @@ bool SpendTransaction::verify(
 
 		// Compute the binding hash
 		Scalar mu = hash_bind(
-			hash_bind_inner(
+			tx.hash_bind_inner(
 				tx.cover_set_representations,
 				tx.C1,
 				tx.grootle_proofs,
