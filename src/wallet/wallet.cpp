@@ -1852,6 +1852,20 @@ CAmount CWallet::GetChange(const uint256& tx, const CTxOut &txout) const
 {
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error(std::string(__func__) + ": value out of range");
+    if (txout.scriptPubKey.IsSparkSMint()) {
+        if (IsChange(tx, txout)) {
+            std::vector<unsigned char> serial_context = spark::getSerialContext(*GetWalletTx(tx)->tx);
+            spark::Coin coin(spark::Params::get_default());
+            try {
+                spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
+                coin.setSerialContext(serial_context);
+            } catch (...) {
+                return 0;
+            }
+            return sparkWallet->getMyCoinV(coin);
+        } else
+            return 0;
+    }
     return (IsChange(tx, txout) ? txout.nValue : 0);
 }
 
