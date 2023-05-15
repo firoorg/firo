@@ -2498,7 +2498,7 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache, bool fExcludeLocked) const
         return 0;
 
     // We cannot use cache if vout contains mints due to it will not update when it spend
-    if (fUseCache && fAvailableCreditCached && !tx->IsZerocoinMint() && !tx->IsSigmaMint() && !tx->IsLelantusMint() && !fExcludeLocked)
+    if (fUseCache && fAvailableCreditCached && !tx->IsZerocoinMint() && !tx->IsSigmaMint() && !tx->IsLelantusMint() &&  !tx->IsSparkMint() && !fExcludeLocked)
         return nAvailableCreditCached;
 
     CAmount nCredit = 0;
@@ -2508,7 +2508,9 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache, bool fExcludeLocked) const
         if (!pwallet->IsSpent(hashTx, i))
         {
             const CTxOut &txout = tx->vout[i];
-            bool isPrivate = txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint() || txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint();
+            bool isPrivate = txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint()
+                    || txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()
+                  || txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint();
             bool condition = isPrivate;
             if (fExcludeLocked)
                 condition = (isPrivate || pwallet->IsLockedCoin(hashTx, i));

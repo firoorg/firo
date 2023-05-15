@@ -19,11 +19,11 @@ class SparkMintSpendTest(BitcoinTestFramework):
 
         start_bal = self.nodes[0].getbalance()
 
-        sparkAddress = self.nodes[0].getnewsparkaddress()[0]
+        sparkAddress = self.nodes[0].getsparkdefaultaddress()[0]
 
         mint_trans = list()
-        mint_trans.append(self.nodes[0].mintspark({sparkAddress: [1, "Test memo"]}))
-        mint_trans.append(self.nodes[0].mintspark({sparkAddress: [2, "Test memo"]}))
+        mint_trans.append(self.nodes[0].mintspark({sparkAddress: {"amount": 1, "memo": "Test memo"}}))
+        mint_trans.append(self.nodes[0].mintspark({sparkAddress: {"amount": 2, "memo":"Test memo"}}))
 
         # Get last added transaction and fee for it
         info = self.nodes[0].gettransaction(mint_trans[-1][0])
@@ -47,20 +47,20 @@ class SparkMintSpendTest(BitcoinTestFramework):
                 'but was {}'.format(0, 0, confrms)
 
             tr_type = info['details'][0]['category']
-            assert tr_type == 'send', 'Unexpected transaction type: {}'.format(tr_type)
+            assert tr_type == 'mint', 'Unexpected transaction type: {}'.format(tr_type)
             # assert(self.wait_for_instantlock(tr, self.nodes[0]))
 
-        self.nodes[0].generate(2)
+        self.nodes[0].generate(1)
         self.sync_all()
 
         res = False
         firoAddress = self.nodes[0].getnewaddress()
         try:
-            res = self.nodes[0].spendspark({firoAddress: [1, False]}, {})
+            res = self.nodes[0].spendspark({firoAddress: {"amount": 1, "subtractFee": False}}, {})
         except JSONRPCException as ex:
-            assert ex.error['message'] == 'Insufficient funds'
+            assert ex.error['message'] == 'Spark spend creation failed.'
 
-        assert res, 'spendspark successfully called'
+        assert not res, 'Did not raise spend exception, but should be.'
 
         # generate last confirmation block - now all transactions should be confimed
         self.nodes[0].generate(1)
@@ -74,16 +74,16 @@ class SparkMintSpendTest(BitcoinTestFramework):
               'due to 3 blocks was generated after transaction was created,' \
               'but was {}.'.format(confrms)
             tr_type = info['details'][0]['category']
-            assert tr_type == 'send', 'Unexpected transaction type'
+            assert tr_type == 'mint', 'Unexpected transaction type'
 
         spend_trans = list()
         spend_total = Decimal(0)
 
         self.sync_all()
 
-        spend_trans.append(self.nodes[0].spendspark({firoAddress: [1, False]}, {}))
+        spend_trans.append(self.nodes[0].spendspark({firoAddress: {"amount": 1, "subtractFee": False}}, {}))
 
-        info = self.nodes[0].gettransaction(spend_trans[-1][0])
+        info = self.nodes[0].gettransaction(spend_trans[-1])
         confrms = info['confirmations']
         tr_type = info['details'][0]['category']
 
@@ -92,10 +92,10 @@ class SparkMintSpendTest(BitcoinTestFramework):
             'due to 0 blocks was generated after transaction was created,' \
             'but was {}.'.format(confrms)
 
-        assert tr_type == 'send', 'Unexpected transaction type'
+        assert tr_type == 'spend', 'Unexpected transaction type'
 
         before_bal = self.nodes[0].getbalance()
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(2)
         self.sync_all()
         after_new = self.nodes[0].getbalance()
         delta = after_new - before_bal
@@ -108,7 +108,7 @@ class SparkMintSpendTest(BitcoinTestFramework):
             'but start was {}'.format(cur_bal, spend_total, start_bal)
 
         for tr in spend_trans:
-            info = self.nodes[0].gettransaction(tr[0])
+            info = self.nodes[0].gettransaction(tr)
 
             confrms = info['confirmations']
             tr_type = info['details'][0]['category']
@@ -116,7 +116,7 @@ class SparkMintSpendTest(BitcoinTestFramework):
                 'Confirmations should be 1 or more, ' \
                 'due to 1 blocks was generated after transaction was created,' \
                 'but was {}.'.format(confrms)
-            assert tr_type == 'send', 'Unexpected transaction type'
+            assert tr_type == 'spend', 'Unexpected transaction type'
 
 
 if __name__ == '__main__':
