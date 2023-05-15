@@ -888,6 +888,26 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
     return false;
 }
 
+std::vector<unsigned char> getSerialContext(const CTransaction &tx) {
+    CDataStream serialContextStream(SER_NETWORK, PROTOCOL_VERSION);
+    if (tx.IsSparkSpend()) {
+        try {
+            spark::SpendTransaction spend = ParseSparkSpend(tx);
+            serialContextStream << spend.getUsedLTags();
+        } catch (...) {
+            return std::vector<unsigned char>();
+        }
+    } else {
+        for (auto input: tx.vin) {
+            input.scriptSig.clear();
+            serialContextStream << input;
+        }
+    }
+
+    std::vector<unsigned char> serial_context(serialContextStream.begin(), serialContextStream.end());
+    return serial_context;
+}
+
 static bool CheckSparkSpendTAg(
         CValidationState& state,
         CSparkTxInfo* sparkTxInfo,

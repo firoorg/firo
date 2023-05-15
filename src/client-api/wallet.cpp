@@ -352,8 +352,8 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
             }
 
             if (ok) {
-                uint256 coinHash = primitives::GetSparkCoinHash(coin);
                 CSparkMintMeta mintMeta;
+                coin.setSerialContext(spark::getSerialContext(* wtx.tx));
                 if (pwalletMain->sparkWallet->getMintMeta(coin, mintMeta)) {
                     amount = mintMeta.v;
                     fIsSpent = mintMeta.isUsed;
