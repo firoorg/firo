@@ -19,7 +19,7 @@ class SetSparkMintSatusValidation(BitcoinTestFramework):
 
         sparkAddress = self.nodes[0].getnewsparkaddress()[0]
         txid = list()
-        txid.append(self.nodes[0].mintspark({sparkAddress: [1, "Test memo"]}))
+        txid.append(self.nodes[0].mintspark({sparkAddress: {"amount": 1, "memo":"Test memo"}}))
 
         spark_mint = self.nodes[0].listsparkmints()
 
