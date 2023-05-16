@@ -126,6 +126,23 @@ public:
                     }
                 }
             }
+
+            BOOST_FOREACH(const PAIRTYPE(std::string, CAddressBookData)& item, wallet->mapRAPAddressBook)
+            {
+                const std::string& address = item.first;
+                bip47::CPaymentCode pcode(address);
+                boost::optional<bip47::CPaymentCodeDescription> pcodeDesc;
+                pcodeDesc = wallet->FindPcode(pcode);
+                if(pcodeDesc) {
+                    const std::string& strName = item.second.name;
+                    if(QString::fromStdString(item.second.purpose) == "send"){
+                        cachedAddressTable.append(AddressTableEntry(AddressTableEntry::Sending,
+                                        QString::fromStdString(strName),
+                                        QString::fromStdString(address),
+                                        AddressTableModel::RAP));
+                    }
+                }
+            }
         }
         // qLowerBound() and qUpperBound() require our cachedAddressTable list to be sorted in asc order
         // Even though the map is already sorted this re-sorting step is needed because the originating map
@@ -156,6 +173,8 @@ public:
             parent->beginInsertRows(QModelIndex(), lowerIndex, lowerIndex);
             if(addressParsed.IsValid()){
                 cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, AddressTableModel::Transparent));
+            } else if (bip47::CPaymentCode::validate(address.toStdString())){
+                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, AddressTableModel::RAP));
             } else if (newEntryType == AddressTableEntry::Sending){
                 cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, AddressTableModel::Spark));
             }
@@ -292,6 +311,9 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
             else if(rec->addressType == AddressTableModel::Spark)
             {
                 return tr("spark");
+            } else if(rec->addressType == AddressTableModel::RAP)
+            {
+                return tr("RAP");
             }
         }
     }
@@ -332,7 +354,7 @@ bool AddressTableModel::setData(const QModelIndex &index, const QVariant &value,
     {
         LOCK(wallet->cs_wallet); /* For SetAddressBook / DelAddressBook */
         CTxDestination curAddress = CBitcoinAddress(rec->address.toStdString()).Get();
-        std::string curSparkAddress = rec->address.toStdString();
+        std::string curSAddress = rec->address.toStdString();
         if(index.column() == Label)
         {
             // Do nothing, if old label == new label
@@ -342,9 +364,13 @@ bool AddressTableModel::setData(const QModelIndex &index, const QVariant &value,
                 return false;
             }
             if(rec->addressType == AddressTableModel::Spark){
-                wallet->SetSparkAddressBook(curSparkAddress, value.toString().toStdString(), strPurpose);
-            } else {
+                wallet->SetSparkAddressBook(curSAddress, value.toString().toStdString(), strPurpose);
+            } else if(rec->addressType == AddressTableModel::Transparent) {
                 wallet->SetAddressBook(curAddress, value.toString().toStdString(), strPurpose);
+            } else if(rec->addressType == AddressTableModel::RAP){
+                wallet->SetRAPAddressBook(curSAddress, value.toString().toStdString(), strPurpose);
+            } else {
+                return false;
             }
         } else if(index.column() == Address) {
             if(rec->addressType == AddressTableModel::Spark){
@@ -352,7 +378,7 @@ bool AddressTableModel::setData(const QModelIndex &index, const QVariant &value,
                 if(!walletModel->validateSparkAddress(value.toString())) {
                     editStatus = INVALID_ADDRESS;
                     return false;
-                } else if(newSparkAddress == curSparkAddress)
+                } else if(newSparkAddress == curSAddress)
                 {
                     editStatus = NO_CHANGES;
                     return false;
@@ -363,11 +389,11 @@ bool AddressTableModel::setData(const QModelIndex &index, const QVariant &value,
                 }else if(rec->type == AddressTableEntry::Sending)
                 {
                     // Remove old entry
-                    wallet->DelAddressBook(curSparkAddress);
+                    wallet->DelAddressBook(curSAddress);
                     // Add new entry with new address
                     wallet->SetSparkAddressBook(newSparkAddress, rec->label.toStdString(), strPurpose);
                 }
-            } else {
+            } else if(rec->addressType == AddressTableModel::Transparent){
                 CTxDestination newAddress = CBitcoinAddress(value.toString().toStdString()).Get();
                 // Refuse to set invalid address, set error status and return false
                 if(boost::get<CNoDestination>(&newAddress))
@@ -395,6 +421,26 @@ bool AddressTableModel::setData(const QModelIndex &index, const QVariant &value,
                     wallet->DelAddressBook(curAddress);
                     // Add new entry with new address
                     wallet->SetAddressBook(newAddress, rec->label.toStdString(), strPurpose);
+                }
+            } else if(rec->addressType == AddressTableModel::RAP){
+                std::string newPcode = value.toString().toStdString();
+                if(!bip47::CPaymentCode::validate(newPcode)) {
+                    editStatus = AddressTableModel::PCODE_VALIDATION_FAILURE;
+                    return false;
+                } else if(newPcode == curSAddress)
+                {
+                    editStatus = NO_CHANGES;
+                    return false;
+                } else if(wallet->mapRAPAddressBook.count(newPcode))
+                {
+                    editStatus = DUPLICATE_ADDRESS;
+                    return false;
+                }else if(rec->type == AddressTableEntry::Sending)
+                {
+                    // Remove old entry
+                    wallet->DelAddressBook(curSAddress);
+                    // Add new entry with new address
+                    wallet->SetRAPAddressBook(newPcode, rec->label.toStdString(), strPurpose);
                 }
             }
         }
@@ -466,7 +512,6 @@ QString AddressTableModel::addRow(const QString &type, const QString &label, con
     std::string strAddress = address.toStdString();
 
     editStatus = OK;
-
     if(type == Send)
     {
         if(addressType == AddressTableModel::Spark) {
@@ -484,7 +529,7 @@ QString AddressTableModel::addRow(const QString &type, const QString &label, con
                     return QString();
                 }
             }
-        } else {
+        } else if(addressType == AddressTableModel::Transparent){
             if(!walletModel->validateAddress(address))
             {
                 editStatus = INVALID_ADDRESS;
@@ -494,6 +539,22 @@ QString AddressTableModel::addRow(const QString &type, const QString &label, con
             {
                 LOCK(wallet->cs_wallet);
                 if(wallet->mapAddressBook.count(CBitcoinAddress(strAddress).Get()))
+                {
+                    editStatus = DUPLICATE_ADDRESS;
+                    return QString();
+                }
+            }
+        } else if(addressType == AddressTableModel::RAP){
+            if(!bip47::CPaymentCode::validate(strAddress))
+            {
+                editStatus = AddressTableModel::PCODE_VALIDATION_FAILURE;
+                return QString();
+            }
+
+            // Check for duplicate addresses
+            {
+                LOCK(wallet->cs_wallet);
+                if(wallet->mapRAPAddressBook.count(strAddress))
                 {
                     editStatus = DUPLICATE_ADDRESS;
                     return QString();
@@ -539,8 +600,11 @@ QString AddressTableModel::addRow(const QString &type, const QString &label, con
         if(addressType == AddressTableModel::Spark) {
             wallet->SetSparkAddressBook(strAddress, strLabel,
                                 (type == Send ? "send" : "receive"));
-        } else {
+        } else if(addressType == AddressTableModel::Transparent){
             wallet->SetAddressBook(CBitcoinAddress(strAddress).Get(), strLabel,
+                                (type == Send ? "send" : "receive"));
+        } else if(addressType == AddressTableModel::RAP) {
+            wallet->SetRAPAddressBook(strAddress, strLabel,
                                 (type == Send ? "send" : "receive"));
         }
     }
@@ -577,9 +641,15 @@ QString AddressTableModel::labelForAddress(const QString &address) const
             {
                 return QString::fromStdString(mi->second.name);
             }
-        } else {
+        } else if(walletModel->validateSparkAddress(address)) {
             std::map<std::string, CAddressBookData>::iterator mi = wallet->mapSparkAddressBook.find(address.toStdString());
             if(mi != wallet->mapSparkAddressBook.end())
+            {
+                return QString::fromStdString(mi->second.name);
+            }
+        } else if(bip47::CPaymentCode::validate(address.toStdString())) {
+            std::map<std::string, CAddressBookData>::iterator mi = wallet->mapRAPAddressBook.find(address.toStdString());
+            if(mi != wallet->mapRAPAddressBook.end())
             {
                 return QString::fromStdString(mi->second.name);
             }

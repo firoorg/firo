@@ -3512,7 +3512,7 @@ UniValue mintspark(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() != 1)
+    if (request.fHelp || request.params.size() == 0 || request.params.size() > 2)
         throw std::runtime_error(
             "mintspark {\"address\":amount,memo...}\n"
             + HelpRequiringPassphrase(pwallet) + "\n"
@@ -3581,9 +3581,11 @@ UniValue mintspark(const JSONRPCRequest& request)
         data.v = nAmount;
         outputs.push_back(data);
     }
-
+    bool subtractFeeFromAmount = false;
+    if (request.params.size() > 1)
+        subtractFeeFromAmount = request.params[1].get_bool();
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-    std::string strError = pwallet->MintAndStoreSpark(outputs, wtxAndFee);
+    std::string strError = pwallet->MintAndStoreSpark(outputs, wtxAndFee, subtractFeeFromAmount);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
@@ -3722,19 +3724,14 @@ UniValue spendspark(const JSONRPCRequest& request)
     }
 
     CAmount fee;
-    std::vector<CWalletTx> wtxs;
+    CWalletTx wtx;
     try {
-        wtxs = pwallet->SpendAndStoreSpark(recipients, privateRecipients, fee);
+        wtx = pwallet->SpendAndStoreSpark(recipients, privateRecipients, fee);
     } catch (...) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
     }
 
-    UniValue result(UniValue::VARR);
-    for(const auto& wtx : wtxs) {
-        result.push_back(wtx.GetHash().GetHex());
-    }
-
-    return result;
+    return wtx.GetHash().GetHex();
 }
 
 UniValue lelantustospark(const JSONRPCRequest& request) {

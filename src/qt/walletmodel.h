@@ -197,15 +197,11 @@ public:
         const CCoinControl *coinControl);
 
     SendCoinsReturn prepareSpendSparkTransaction(
-        std::vector<WalletModelTransaction> &transactions,
-        QList<SendCoinsRecipient> recipients,
-        const CCoinControl *coinControl,
-        std::vector<CWalletTx> &results);
+        WalletModelTransaction &transaction,
+        const CCoinControl *coinControl);
 
     SendCoinsReturn spendSparkCoins(
-        std::vector<WalletModelTransaction> &transactions,
-        QList<SendCoinsRecipient> recipients,
-        std::vector<CWalletTx> &results);
+        WalletModelTransaction &transaction);
         
     SendCoinsReturn mintSparkCoins(
         std::vector<WalletModelTransaction> &transactions, 
@@ -217,7 +213,7 @@ public:
     SendCoinsReturn migrateLelantusToSpark();
     
     bool getAvailableLelantusCoins();
-
+    
     // Send coins to a list of recipients
     SendCoinsReturn sendCoins(WalletModelTransaction &transaction);
 

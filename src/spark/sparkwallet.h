@@ -76,7 +76,8 @@ public:
     CSparkMintMeta getMintMeta(const uint256& hash);
     // get mint tag from nonce
     CSparkMintMeta getMintMeta(const secp_primitives::Scalar& nonce);
-
+    bool getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta);
+    
     bool isMine(spark::Coin coin) const;
     bool isMine(const std::vector<GroupElement>& lTags) const;
 
@@ -109,17 +110,18 @@ public:
             CAmount& nAllFeeRet,
             std::list<CReserveKey>& reservekeys,
             int& nChangePosInOut,
+            bool subtractFeeFromAmount,
             std::string& strFailReason,
             const CCoinControl *coinControl,
             bool autoMintAll = false);
 
-    std::vector<CWalletTx> CreateSparkSpendTransaction(
+    CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
-    std::vector<std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>>> SelectSparkCoins(
+    std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>> SelectSparkCoins(
             CAmount required,
             bool subtractFeeFromAmount,
             std::list<std::pair<spark::Coin, CSparkMintMeta>> coins,

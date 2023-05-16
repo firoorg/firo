@@ -308,8 +308,6 @@ void SendCoinsDialog::on_sendButton_clicked()
         }
     }
 
-    std::vector<CWalletTx> results;
-
     if (model->getLelantusModel()->getPrivateBalance().first > 0 && spark::IsSparkAllowed()) {
         MigrateLelantusToSparkDialog migrateLelantusToSpark(model);
         return;
@@ -320,7 +318,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         prepareStatus = model->prepareJoinSplitTransaction(currentTransaction, &ctrl);
         txFee= currentTransaction.getTransactionFee();
     } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
-        prepareStatus = model->prepareSpendSparkTransaction(transactions, recipients, &ctrl, results);
+        prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, &ctrl);
     } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) {
         prepareStatus = model->prepareMintSparkTransaction(transactions, recipients, wtxAndFees, reservekeys, &ctrl);
         for (auto &wtxAndFee : wtxAndFees) {
@@ -432,7 +430,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     if ((fAnonymousMode == true) && !spark::IsSparkAllowed()) {
         sendStatus = model->sendPrivateCoins(currentTransaction);
     } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
-        sendStatus = model->spendSparkCoins(transactions, recipients, results);
+        sendStatus = model->spendSparkCoins(currentTransaction);
     } else if ((fAnonymousMode == false) && (sparkAddressCount == recipients.size()) && spark::IsSparkAllowed()) {
         sendStatus = model->mintSparkCoins(transactions, recipients, wtxAndFees, reservekeys);
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {

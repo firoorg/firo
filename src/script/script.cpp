@@ -346,7 +346,7 @@ bool CScript::IsSparkSpend() const {
 }
 
 bool CScript::IsMint() const {
-    return IsZerocoinMint() || IsSigmaMint() || IsZerocoinRemint() || IsLelantusMint() || IsLelantusJMint();
+    return IsZerocoinMint() || IsSigmaMint() || IsZerocoinRemint() || IsLelantusMint() || IsLelantusJMint() || IsSparkMint() || IsSparkSMint();
 }
 
 bool CScript::HasCanonicalPushes() const

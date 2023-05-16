@@ -584,6 +584,8 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             CBitcoinAddress addressParsed(strAddress);
             if(addressParsed.IsValid()){
                 ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].name;
+            } else if (bip47::CPaymentCode::validate(strAddress)) {
+                ssValue >> pwallet->mapRAPAddressBook[strAddress].name;
             } else {
                 ssValue >> pwallet->mapSparkAddressBook[strAddress].name;
             }
@@ -595,6 +597,8 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             CBitcoinAddress addressParsed(strAddress);
             if(addressParsed.IsValid()){
                 ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].purpose;
+            } else if (bip47::CPaymentCode::validate(strAddress)) {
+                ssValue >> pwallet->mapRAPAddressBook[strAddress].purpose;
             } else {
                 ssValue >> pwallet->mapSparkAddressBook[strAddress].purpose;
             }

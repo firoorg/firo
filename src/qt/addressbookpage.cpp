@@ -124,11 +124,43 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     this->model = _model;
     if(!_model)
         return;
+
     proxyModel = new QSortFilterProxyModel(this);
     fproxyModel = new AddressBookFilterProxy(this);
-    rproxyModel = new QSortFilterProxyModel(this);
-    rfproxyModel = new AddressBookFilterProxy(this);
-    internalSetMode();
+    proxyModel->setSourceModel(model);
+    switch(tab)
+    {
+    case ReceivingTab:
+        // Receive filter
+        proxyModel->setFilterRole(AddressTableModel::TypeRole);
+        proxyModel->setFilterFixedString(AddressTableModel::Receive);
+        break;
+    case SendingTab:
+        // Send filter
+        proxyModel->setFilterRole(AddressTableModel::TypeRole);
+        proxyModel->setFilterFixedString(AddressTableModel::Send);
+        break;
+    }
+    proxyModel->setDynamicSortFilter(true);
+    proxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
+    proxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);  
+        
+    fproxyModel->setSourceModel(proxyModel);
+    fproxyModel->setDynamicSortFilter(true);
+    fproxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
+    fproxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
+    ui->tableView->setModel(fproxyModel);
+    // Set column widths
+    #if QT_VERSION < 0x050000
+        ui->tableView->horizontalHeader()->setResizeMode(AddressTableModel::Label, QHeaderView::Stretch);
+        ui->tableView->horizontalHeader()->setResizeMode(AddressTableModel::Address, QHeaderView::Stretch);
+        ui->tableView->horizontalHeader()->setResizeMode(AddressTableModel::AddressType, QHeaderView::Stretch);
+    #else
+        ui->tableView->horizontalHeader()->setSectionResizeMode(AddressTableModel::Label, QHeaderView::Stretch);
+        ui->tableView->horizontalHeader()->setSectionResizeMode(AddressTableModel::Address, QHeaderView::Stretch);
+        ui->tableView->horizontalHeader()->setSectionResizeMode(AddressTableModel::AddressType, QHeaderView::Stretch);
+    #endif
+        ui->tableView->setTextElideMode(Qt::ElideMiddle);
     connect(ui->tableView->selectionModel(), &QItemSelectionModel::selectionChanged, this, &AddressBookPage::selectionChanged);
 
     // Select row for newly created address
@@ -137,58 +169,6 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     selectionChanged();
     chooseAddressType(0);
     connect(ui->addressType, qOverload<int>(&QComboBox::activated), this, &AddressBookPage::chooseAddressType);
-}
-
-void AddressBookPage::internalSetMode()
-{
-    if (ui->addressType->currentText() == AddressTableModel::Transparent || ui->addressType->currentText() == AddressTableModel::Spark || ui->addressType->isHidden()) {
-        proxyModel->setSourceModel(model);
-        switch(tab)
-        {
-        case ReceivingTab:
-            // Receive filter
-            proxyModel->setFilterRole(AddressTableModel::TypeRole);
-            proxyModel->setFilterFixedString(AddressTableModel::Receive);
-            break;
-        case SendingTab:
-            // Send filter
-            proxyModel->setFilterRole(AddressTableModel::TypeRole);
-            proxyModel->setFilterFixedString(AddressTableModel::Send);
-            break;
-        }
-        proxyModel->setDynamicSortFilter(true);
-        proxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
-        proxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);  
-            
-        fproxyModel->setSourceModel(proxyModel);
-        fproxyModel->setDynamicSortFilter(true);
-        fproxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
-        fproxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
-        ui->tableView->setModel(fproxyModel);
-    } else {
-        rproxyModel->setSourceModel(model->getPcodeAddressTableModel());
-        rproxyModel->setDynamicSortFilter(true);
-        rproxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
-        rproxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);  
-            
-        rfproxyModel->setSourceModel(rproxyModel);
-        rfproxyModel->setDynamicSortFilter(true);
-        rfproxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
-        rfproxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
-        ui->tableView->setModel(rfproxyModel);
-    }
-
-    // Set column widths
-#if QT_VERSION < 0x050000
-    ui->tableView->horizontalHeader()->setResizeMode(AddressTableModel::Label, QHeaderView::Stretch);
-    ui->tableView->horizontalHeader()->setResizeMode(AddressTableModel::Address, QHeaderView::Stretch);
-    ui->tableView->horizontalHeader()->setResizeMode(AddressTableModel::AddressType, QHeaderView::Stretch);
-#else
-    ui->tableView->horizontalHeader()->setSectionResizeMode(AddressTableModel::Label, QHeaderView::Stretch);
-    ui->tableView->horizontalHeader()->setSectionResizeMode(AddressTableModel::Address, QHeaderView::Stretch);
-    ui->tableView->horizontalHeader()->setSectionResizeMode(AddressTableModel::AddressType, QHeaderView::Stretch);
-#endif
-    ui->tableView->setTextElideMode(Qt::ElideMiddle);
 }
 
 void AddressBookPage::on_copyAddress_clicked()
@@ -207,15 +187,13 @@ void AddressBookPage::onEditAction()
 
     EditAddressDialog::Mode mode;
     AddressTableModel * pmodel;
+    pmodel = model;
     if (ui->addressType->currentText() == AddressTableModel::RAP) {
         mode = EditAddressDialog::EditPcode;
-        pmodel = model->getPcodeAddressTableModel();
     } else if (ui->addressType->currentText() == AddressTableModel::Transparent) {
         mode = tab == SendingTab ? EditAddressDialog::EditSendingAddress : EditAddressDialog::EditReceivingAddress;
-        pmodel = model;
     } else {
         mode = EditAddressDialog::EditSparkSendingAddress;
-        pmodel = model;
     }
 
     if (!ui->tableView->selectionModel())
@@ -227,13 +205,8 @@ void AddressBookPage::onEditAction()
     EditAddressDialog dlg(mode, this);
     dlg.setModel(pmodel);
     QModelIndex origIndex1, origIndex2;
-    if (ui->addressType->currentText() == AddressTableModel::RAP) {
-        origIndex1 = rfproxyModel->mapToSource(indexes.at(0));
-        origIndex2 = rproxyModel->mapToSource(origIndex1);
-    } else {
-        origIndex1 = fproxyModel->mapToSource(indexes.at(0));
-        origIndex2 = proxyModel->mapToSource(origIndex1);
-    }
+    origIndex1 = fproxyModel->mapToSource(indexes.at(0));
+    origIndex2 = proxyModel->mapToSource(origIndex1);
     dlg.loadRow(origIndex2.row());
     dlg.exec();
 }
@@ -245,15 +218,12 @@ void AddressBookPage::on_newAddress_clicked()
 
     AddressTableModel *pmodel;
     EditAddressDialog::Mode mode;
-
+    pmodel = model;
     if (ui->addressType->currentText() == AddressTableModel::Spark) {
-        pmodel = model;
         mode = EditAddressDialog::NewSparkSendingAddress;
     } else if (ui->addressType->currentText() == AddressTableModel::RAP) {
-        pmodel = model->getPcodeAddressTableModel();
         mode = EditAddressDialog::NewPcode;
     } else {
-        pmodel = model;
         mode = tab == SendingTab ? EditAddressDialog::NewSendingAddress : EditAddressDialog::NewReceivingAddress;
     }
 
@@ -287,11 +257,10 @@ void AddressBookPage::selectionChanged()
     QTableView *table;
     table = ui->tableView;
 
-    // if(!table->selectionModel())
-    //     return;
+    if(!table->selectionModel())
+        return;
 
-    // if(table->selectionModel()->hasSelection())
-    if(true)
+    if(table->selectionModel()->hasSelection())
     {
         switch(tab)
         {
@@ -409,19 +378,10 @@ void AddressBookPage::selectNewAddress(const QModelIndex &parent, int begin, int
 
 void AddressBookPage::chooseAddressType(int idx)
 {
-    internalSetMode();
-
-    if (ui->addressType->currentText() == AddressTableModel::RAP) {
-        if(!rproxyModel)
-            return;
-        rfproxyModel->setTypeFilter(
-            ui->addressType->itemData(idx).toInt());
-    } else {
-        if(!proxyModel)
-            return;
-        fproxyModel->setTypeFilter(
-            ui->addressType->itemData(idx).toInt());
-    }
+    if(!proxyModel)
+        return;
+    fproxyModel->setTypeFilter(
+        ui->addressType->itemData(idx).toInt());
 }
 
 AddressBookFilterProxy::AddressBookFilterProxy(QObject *parent) :

@@ -21,13 +21,13 @@ class SparkMintTest(BitcoinTestFramework):
 
         # 10 confirmations
         address = self.nodes[0].getnewsparkaddress()[0]
-        self.nodes[0].mintspark({address: [amounts[0], "Test memo"]})
-        self.nodes[0].mintspark({address: [amounts[1], "Test memo"]})
+        self.nodes[0].mintspark({address: {"amount": amounts[0], "memo":"Test memo"}})
+        self.nodes[0].mintspark({address: {"amount": amounts[1], "memo": "Test memo"}})
         self.nodes[0].generate(5)
 
         # 5 confirmations
-        self.nodes[0].mintspark({address: [amounts[2], "Test memo"]})
-        self.nodes[0].mintspark({address: [amounts[3], "Test memo"]})
+        self.nodes[0].mintspark({address: {"amount": amounts[2], "memo": "Test memo"}})
+        self.nodes[0].mintspark({address: {"amount": amounts[3], "memo": "Test memo"}})
         self.nodes[0].generate(5)
 
         # get all mints and utxos

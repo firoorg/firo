@@ -66,8 +66,6 @@ private:
     QString returnValue;
     QSortFilterProxyModel *proxyModel;
     AddressBookFilterProxy *fproxyModel;
-    QSortFilterProxyModel *rproxyModel;
-    AddressBookFilterProxy *rfproxyModel;
     QMenu *contextMenu;
     QAction *copyAddressAction;
     QAction *deleteAction; // to be able to explicitly disable it
@@ -95,7 +93,6 @@ private Q_SLOTS:
     void selectNewAddress(const QModelIndex &parent, int begin, int /*end*/);
     
     void chooseAddressType(int idx);
-    void internalSetMode();
 
 Q_SIGNALS:
     void sendCoins(QString addr);

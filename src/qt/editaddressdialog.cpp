@@ -108,7 +108,7 @@ bool EditAddressDialog::saveCurrentRow()
         break;
     case NewPcode:
     case EditPcode:
-        address = model->getPcodeAddressTableModel()->addRow("", ui->labelEdit->text(), ui->addressEdit->text(), "");
+        address = model->addRow(AddressTableModel::Send, ui->labelEdit->text(), ui->addressEdit->text(), AddressTableModel::RAP);
         break;
     case NewSparkSendingAddress:
         address = model->addRow(

@@ -465,7 +465,9 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
                         || script.IsSigmaMint()
                         || script.IsZerocoinRemint()
                         || script.IsLelantusMint()
-                        || script.IsLelantusJMint();
+                        || script.IsLelantusJMint()
+                        || script.IsSparkMint()
+                        || script.IsSparkSMint();
 
             if (isMint != anonymousMode) {
                 continue;
@@ -486,7 +488,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
         nQuantity++;
 
         // Amount
-        if(out.tx->tx->vout[out.i].scriptPubKey.IsLelantusJMint()) {
+        if(out.tx->tx->vout[out.i].scriptPubKey.IsLelantusJMint() || out.tx->tx->vout[out.i].scriptPubKey.IsSparkSMint()) {
             nAmount += model->GetJMintCredit(out.tx->tx->vout[out.i]);
         } else {
             nAmount += out.tx->tx->vout[out.i].nValue;
@@ -706,7 +708,10 @@ void CoinControlDialog::updateView()
             CAmount amount;
             if(out.tx->tx->vout[out.i].scriptPubKey.IsLelantusJMint()) {
                 amount = model->GetJMintCredit(out.tx->tx->vout[out.i]);
-            } else {
+            } else if(out.tx->tx->vout[out.i].scriptPubKey.IsSparkSMint()) {
+                amount = model->GetJMintCredit(out.tx->tx->vout[out.i]);
+            }
+            else {
                 amount = out.tx->tx->vout[out.i].nValue;
             }
 
@@ -730,6 +735,12 @@ void CoinControlDialog::updateView()
                 // if listMode or change => show Firo address. In tree mode, address is not shown again for direct wallet address outputs
                 if (!treeMode || (!(sAddress == sWalletAddress)))
                     itemOutput->setText(COLUMN_ADDRESS, sAddress);
+            } else if (out.tx->tx->IsSparkMint() || out.tx->tx->IsSparkSpend()) {
+                sAddress = "spark";
+
+                // if listMode or change => show Firo address. In tree mode, address is not shown again for direct wallet address outputs
+                if (!treeMode || (!(sAddress == sWalletAddress)))
+                    itemOutput->setText(COLUMN_ADDRESS, sAddress);
             }
 
             // label
@@ -739,7 +750,7 @@ void CoinControlDialog::updateView()
                 itemOutput->setToolTip(COLUMN_LABEL, tr("change from %1 (%2)").arg(sWalletLabel).arg(sWalletAddress));
                 if(out.tx->tx->IsSigmaMint()) {
                     itemOutput->setText(COLUMN_LABEL, tr("(sigma mint)"));
-                } else if(out.tx->tx->IsLelantusMint()) {
+                } else if(out.tx->tx->IsLelantusMint() || out.tx->tx->IsSparkMint()) {
                     itemOutput->setText(COLUMN_LABEL, tr("(mint)"));
                 } else {
                     itemOutput->setText(COLUMN_LABEL, tr("(change)"));
