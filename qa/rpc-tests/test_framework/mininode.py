@@ -280,9 +280,10 @@ class CAddress(object):
         self.ip = socket.inet_ntoa(f.read(4))
         self.port = struct.unpack(">H", f.read(2))[0]
 
-    def serialize(self):
+    def serialize(self, with_time=True):
         r = b""
-        r += struct.pack("<I", 0)
+        if with_time:
+            r += struct.pack("<I", self.time)
         r += struct.pack("<Q", self.nServices)
         r += self.pchReserved
         r += socket.inet_aton(self.ip)
