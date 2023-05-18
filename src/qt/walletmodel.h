@@ -198,6 +198,7 @@ public:
 
     SendCoinsReturn prepareSpendSparkTransaction(
         WalletModelTransaction &transaction,
+        CAmount& nFeeRequired,
         const CCoinControl *coinControl);
 
     SendCoinsReturn spendSparkCoins(

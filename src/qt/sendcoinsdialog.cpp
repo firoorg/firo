@@ -318,7 +318,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         prepareStatus = model->prepareJoinSplitTransaction(currentTransaction, &ctrl);
         txFee= currentTransaction.getTransactionFee();
     } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
-        prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, &ctrl);
+        prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, txFee, &ctrl);
     } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) {
         prepareStatus = model->prepareMintSparkTransaction(transactions, recipients, wtxAndFees, reservekeys, &ctrl);
         for (auto &wtxAndFee : wtxAndFees) {
@@ -426,7 +426,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     // now send the prepared transaction
     WalletModel::SendCoinsReturn sendStatus;
-
+    
     if ((fAnonymousMode == true) && !spark::IsSparkAllowed()) {
         sendStatus = model->sendPrivateCoins(currentTransaction);
     } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
@@ -457,6 +457,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         CoinControlDialog::coinControl->UnSelectAll();
         coinControlUpdateLabels();
     }
+
     fNewRecipientAllowed = true;
 }
 

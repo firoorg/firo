@@ -763,6 +763,35 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
                 return false;
             }
             return meta.isUsed;
+        } else if (zwallet && (script.IsSparkMint() || script.IsSparkSMint())) {
+            std::vector<unsigned char> serialContext;
+            for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+                const CWalletTx *pcoin = &(*it).second;
+                for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
+                    if (tx->tx->vout[n] == pcoin->tx->vout[i]) {
+                        serialContext = spark::getSerialContext(*pcoin->tx);
+                        break;
+                    }
+                }
+                if (!serialContext.empty())
+                    break;
+            }
+
+            spark::Coin coin(spark::Params::get_default());
+            try {
+                spark::ParseSparkMintCoin(script, coin);
+            } catch (std::invalid_argument &) {
+                return false;
+            }
+            coin.setSerialContext(serialContext);
+            if (!pwalletMain->sparkWallet)
+                return false;
+            
+            CSparkMintMeta mintMeta;
+            if (pwalletMain->sparkWallet->getMintMeta(coin, mintMeta)) {
+                bool fIsSpent = mintMeta.isUsed;
+                return fIsSpent;
+            }
         }
     }
 
@@ -3640,7 +3669,7 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
 
                 if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
                     (!IsLockedCoin((*it).first, i) || nCoinType == CoinType::ONLY_1000) &&
-                    (pcoin->tx->vout[i].nValue > 0 || fIncludeZeroValue || ((pcoin->tx->vout[i].scriptPubKey.IsSparkSMint() || pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint()) && GetCredit(pcoin->tx->vout[i], ISMINE_SPENDABLE) > 0)) &&
+                    (pcoin->tx->vout[i].nValue > 0 || fIncludeZeroValue || ((pcoin->tx->vout[i].scriptPubKey.IsSparkMint() || pcoin->tx->vout[i].scriptPubKey.IsSparkSMint() || pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint()) && GetCredit(pcoin->tx->vout[i], ISMINE_SPENDABLE) > 0)) &&
                     (!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs || coinControl->IsSelected(COutPoint((*it).first, i)))) {
                         vCoins.push_back(COutput(pcoin, i, nDepth,
                                                  ((mine & ISMINE_SPENDABLE) != ISMINE_NO) ||
