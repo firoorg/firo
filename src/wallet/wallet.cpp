@@ -2534,16 +2534,15 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache, bool fExcludeLocked) const
     uint256 hashTx = GetHash();
     for (unsigned int i = 0; i < tx->vout.size(); i++)
     {
+        const CTxOut &txout = tx->vout[i];
+
+        bool isPrivate = txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint() || txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint() || txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint();
+        if (isPrivate) continue;
+        if (fExcludeLocked && pwallet->IsLockedCoin(hashTx, i)) continue;
+
         if (!pwallet->IsSpent(hashTx, i))
         {
-            const CTxOut &txout = tx->vout[i];
-            bool isPrivate = txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint()
-                    || txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()
-                  || txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint();
-            bool condition = isPrivate;
-            if (fExcludeLocked)
-                condition = (isPrivate || pwallet->IsLockedCoin(hashTx, i));
-            nCredit += condition ? 0 : pwallet->GetCredit(txout, ISMINE_SPENDABLE);
+            nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE);
             if (!MoneyRange(nCredit))
                 throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
         }
