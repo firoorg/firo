@@ -19,13 +19,26 @@ BOOST_AUTO_TEST_CASE(group_element_serialize)
     BOOST_CHECK(initial == resulted);
 }
 
+BOOST_AUTO_TEST_CASE(group_element_invalid)
+{
+    // Invalid GroupElement generated in advance
+    std::string str = " F I R O   T E S T   S T R I N G ";
+    std::vector<unsigned char> buffer(str.begin(), str.end());
+    buffer.push_back(0);
+    std::cout<<buffer.size()<<std::endl;
+    secp_primitives::GroupElement resulted;
+    BOOST_CHECK_THROW(resulted.deserialize(buffer.data()), std::exception);
+
+}
+
 BOOST_AUTO_TEST_CASE(group_element_serialize_infinity)
 {
     secp_primitives::GroupElement initial;
     unsigned char buffer [initial.memoryRequired()];
     initial.serialize(buffer);
     secp_primitives::GroupElement resulted;
-    resulted.deserialize(buffer);
+    BOOST_CHECK_NO_THROW(resulted.deserialize(buffer));
+    BOOST_CHECK(resulted.isInfinity());
     BOOST_CHECK(initial == resulted);
 }
 

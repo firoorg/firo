@@ -2,8 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-DIST_SUBDIRS = secp256k1 univalue tor bls-signatures
-SUBDIRS = tor bls-signatures
+DIST_SUBDIRS = secp256k1 univalue
 
 AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS) $(HARDENED_LDFLAGS)
 AM_CXXFLAGS = $(HARDENED_CXXFLAGS) $(ERROR_CXXFLAGS)
@@ -38,71 +37,10 @@ else
 LIBUNIVALUE = $(UNIVALUE_LIBS)
 endif
 
-TOR_LIBS = tor/src/core/libtor-app.a \
-    tor/src/lib/libtor-meminfo.a \
-    tor/src/lib/libtor-term.a \
-    tor/src/lib/libtor-osinfo.a \
-    tor/src/lib/libtor-geoip.a \
-    tor/src/lib/libtor-math.a \
-    tor/src/lib/libtor-tls.a \
-    tor/src/lib/libtor-process.a \
-    tor/src/lib/libtor-evloop.a \
-    tor/src/lib/libtor-thread.a \
-    tor/src/lib/libtor-compress.a \
-    @LIBZSTD@ \
-    tor/src/lib/libtor-net.a \
-    tor/src/lib/libtor-buf.a \
-    tor/src/lib/libtor-time.a \
-    tor/src/lib/libtor-err.a \
-    tor/src/lib/libtor-log.a \
-    tor/src/lib/libtor-pubsub.a \
-    tor/src/lib/libtor-dispatch.a \
-    tor/src/lib/libtor-confmgt.a \
-    tor/src/lib/libtor-container.a \
-    tor/src/lib/libtor-crypt-ops.a \
-    tor/src/lib/libtor-fs.a \
-    tor/src/lib/libtor-fdio.a \
-    tor/src/lib/libtor-sandbox.a \
-    tor/src/lib/libtor-memarea.a \
-    tor/src/lib/libtor-encoding.a \
-    tor/src/lib/libtor-smartlist-core.a \
-    tor/src/lib/libtor-lock.a \
-    tor/src/lib/libtor-wallclock.a \
-    tor/src/lib/libtor-string.a \
-    tor/src/lib/libtor-malloc.a \
-    tor/src/lib/libtor-version.a \
-    tor/src/lib/libtor-llharden.a \
-    tor/src/lib/libtor-trace.a \
-    tor/src/lib/libtor-intmath.a \
-	  tor/src/lib/libtor-ctime.a \
-    tor/src/lib/libtor-metrics.a \
-	tor/src/trunnel/libor-trunnel.a \
-	tor/src/lib/libcurve25519_donna.a \
-	tor/src/ext/ed25519/donna/libed25519_donna.a \
-	tor/src/ext/ed25519/ref10/libed25519_ref10.a \
-	tor/src/ext/keccak-tiny/libkeccak-tiny.a
+TOR_LIBS = -ltor
 
-tor.timestamp: $(wildcard tor/src/core/or/*.c) $(wildcard tor/src/core/or/*.h) \
-		$(wildcard tor/src/lib/*.c) $(wildcard tor/src/lib/*.h) \
-		$(wildcard tor/src/trunnel/*.c) $(wildcard tor/src/trunnel/*.h) \
-		$(wildcard tor/src/ext/*.c) $(wildcard tor/src/ext/*.h)
-	@rm -f tor.timestamp.tmp
-	@touch tor.timestamp.tmp
-	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C tor
-	@mv -f tor.timestamp.tmp tor.timestamp
-
-$(TOR_LIBS): tor.timestamp
-	@if test -f $@; then :; else \
-		rm -f tor.timestamp; \
-		$(MAKE) $(AM_MAKEFLAGS) tor.timestamp; \
-	fi
-
-LIBBLSSIG_INCLUDES=-I./bls-signatures/build/contrib/relic/include -I./bls-signatures/contrib/relic/include
-LIBBLSSIG_LIBS=bls-signatures/build/libchiabls.a
+LIBBLSSIG_LIBS=-lbls-dash
 LIBBLSSIG_DEPENDS=-lgmp
-
-$(LIBBLSSIG_LIBS): $(wildcard bls-signatures/src/*.cpp) $(wildcard bls-signatures/src/*.hpp)
-	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C bls-signatures/build
 
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
 BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS)
@@ -117,6 +55,7 @@ LIBBITCOIN_CONSENSUS=libbitcoin_consensus.a
 LIBBITCOIN_CLI=libbitcoin_cli.a
 LIBBITCOIN_UTIL=libbitcoin_util.a
 LIBLELANTUS=liblelantus.a
+LIBSPARK=libspark.a
 LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
 LIBBITCOINQT=qt/libfiroqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
@@ -148,7 +87,8 @@ EXTRA_LIBRARIES += \
   $(LIBBITCOIN_WALLET) \
   $(LIBBITCOIN_ZMQ) \
   $(LIBFIRO_SIGMA) \
-  $(LIBLELANTUS)
+  $(LIBLELANTUS) \
+  $(LIBSPARK)
 
 lib_LTLIBRARIES = $(LIBBITCOINCONSENSUS)
 
@@ -389,7 +329,7 @@ obj/build.h: FORCE
 libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 
 # server: shared between firod and firo-qt
-libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
+libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
   addrman.cpp \
@@ -468,7 +408,7 @@ libbitcoin_server_a_SOURCES = \
   $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
-libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS) $(LIBBLSSIG_INCLUDES)
+libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)
 libbitcoin_zmq_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_zmq_a_SOURCES = \
   zmq/zmqabstractnotifier.cpp \
@@ -479,7 +419,7 @@ endif
 
 # wallet: shared between firod and firo-qt, but only linked
 # when wallet enabled
-libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES)
+libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   activemasternode.cpp \
@@ -515,6 +455,7 @@ libbitcoin_wallet_a_SOURCES = \
 # crypto primitives library
 crypto_libbitcoin_crypto_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_CONFIG_INCLUDES)
 crypto_libbitcoin_crypto_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+crypto_libbitcoin_crypto_a_CFLAGS = $(AM_CFLAGS) $(PIE_FLAGS)
 crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/aes.cpp \
   crypto/aes.h \
@@ -563,7 +504,7 @@ crypto_libbitcoin_crypto_a_SOURCES += \
   crypto/progpow.cpp
 
 # consensus: shared between all executables that validate any consensus rules.
-libbitcoin_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES) $(PIC_FLAGS)
+libbitcoin_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(PIC_FLAGS)
 libbitcoin_consensus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) $(PIC_FLAGS)
 libbitcoin_consensus_a_SOURCES = \
   amount.h \
@@ -625,7 +566,7 @@ libbitcoin_consensus_a_SOURCES = \
   crypto/MerkleTreeProof/blake2/blake2b.c
 
 # common: shared between firod, and firo-qt and non-server tools
-libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES)
+libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_common_a_SOURCES = \
   amount.cpp \
@@ -651,7 +592,7 @@ libbitcoin_common_a_SOURCES = \
 # util: shared between all executables.
 # This library *must* be included to make sure that the glibc
 # backward-compatibility objects and their sanity checks are linked.
-libbitcoin_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES)
+libbitcoin_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_util_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_util_a_SOURCES = \
   bls/bls_batchverifier.h \
@@ -685,6 +626,42 @@ libbitcoin_util_a_SOURCES = \
   crypto/MerkleTreeProof/mtp.cpp \
   crypto/MerkleTreeProof/merkle-tree.cpp \
   $(BITCOIN_CORE_H)
+
+libspark_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libspark_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libspark_a_SOURCES = \
+  libspark/transcript.h \
+  libspark/transcript.cpp \
+  libspark/params.h \
+  libspark/params.cpp \
+  libspark/schnorr_proof.h \
+  libspark/schnorr.h \
+  libspark/schnorr.cpp \
+  libspark/chaum_proof.h \
+  libspark/chaum.h \
+  libspark/chaum.cpp \
+  libspark/coin.h \
+  libspark/coin.cpp \
+  libspark/bpplus_proof.h \
+  libspark/bpplus.h \
+  libspark/bpplus.cpp \
+  libspark/grootle_proof.h \
+  libspark/grootle.h \
+  libspark/grootle.cpp \
+  libspark/keys.h \
+  libspark/keys.cpp \
+  libspark/util.h \
+  libspark/util.cpp \
+  libspark/aead.h \
+  libspark/aead.cpp \
+  libspark/kdf.h \
+  libspark/kdf.cpp \
+  libspark/hash.h \
+  libspark/hash.cpp \
+  libspark/mint_transaction.h \
+  libspark/mint_transaction.cpp \
+  libspark/spend_transaction.h \
+  libspark/spend_transaction.cpp
 
 liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
@@ -724,6 +701,7 @@ liblelantus_a_SOURCES = \
   liblelantus/joinsplit.cpp \
   liblelantus/spend_metadata.h \
   liblelantus/spend_metadata.cpp \
+  liblelantus/threadpool.h \
   liblelantus/params.h \
   liblelantus/params.cpp
 
@@ -777,7 +755,6 @@ firod_SOURCES = bitcoind.cpp
 firod_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 firod_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 firod_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
-EXTRA_firod_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
 if TARGET_WINDOWS
 firod_SOURCES += bitcoind-res.rc
@@ -791,6 +768,7 @@ firod_LDADD = \
   $(LIBBITCOIN_WALLET) \
   $(LIBFIRO_SIGMA) \
   $(LIBLELANTUS) \
+  $(LIBSPARK) \
   $(LIBBITCOIN_ZMQ) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
@@ -851,11 +829,10 @@ if GLIBC_BACK_COMPAT
   libbitcoinconsensus_la_SOURCES += compat/glibc_compat.cpp
 endif
 
-libbitcoinconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS)
-libbitcoinconsensus_la_LIBADD = $(LIBSECP256K1)
+libbitcoinconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
+libbitcoinconsensus_la_LIBADD = $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS) $(LIBSECP256K1)
 libbitcoinconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include $(LIBBLSSIG_INCLUDES) -DBUILD_BITCOIN_INTERNAL
 libbitcoinconsensus_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-EXTRA_libbitcoinconsensus_la_DEPENDENCIES = $(LIBBLSSIG_LIBS)
 
 endif
 #
@@ -880,12 +857,10 @@ CLEANFILES += univalue/*.gcda univalue/*.gcno
 CLEANFILES += wallet/*.gcda wallet/*.gcno
 CLEANFILES += wallet/test/*.gcda wallet/test/*.gcno
 CLEANFILES += zmq/*.gcda zmq/*.gcno
-CLEANFILES += tor.timestamp tor.timestamp.tmp
 
 DISTCLEANFILES = obj/build.h
 
 EXTRA_DIST = $(CTAES_DIST)
-
 
 config/bitcoin-config.h: config/stamp-h1
 	@$(MAKE) -C $(top_builddir) $(subdir)/$(@)
@@ -897,24 +872,15 @@ $(top_srcdir)/$(subdir)/config/bitcoin-config.h.in:  $(am__configure_deps)
 clean-local:
 	-$(MAKE) -C secp256k1 clean
 	-$(MAKE) -C univalue clean
-	-$(MAKE) -C tor clean
-	-$(MAKE) -C bls-signatures clean
 	-rm -f leveldb/*/*.gcda leveldb/*/*.gcno leveldb/helpers/memenv/*.gcda leveldb/helpers/memenv/*.gcno
 	-rm -f config.h
 	-rm -rf test/__pycache__
 	-rm -rf *.dSYM test/*.dSYM bench/*.dSYM qt/*.dSYM qt/test/*.dSYM
 
-distclean-local:
-	-rm -rf bls-signatures/build
-
 .rc.o:
 	@test -f $(WINDRES)
 	## FIXME: How to get the appropriate modulename_CPPFLAGS in here?
 	$(AM_V_GEN) $(WINDRES) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(CPPFLAGS) -DWINDRES_PREPROC -i $< -o $@
-
-.mm.o:
-	$(AM_V_CXX) $(OBJCXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
-	  $(CPPFLAGS) $(AM_CXXFLAGS) $(QT_INCLUDES) $(AM_CXXFLAGS) $(PIE_FLAGS) $(CXXFLAGS) -c -o $@ $<
 
 check-symbols: $(bin_PROGRAMS)
 if GLIBC_BACK_COMPAT

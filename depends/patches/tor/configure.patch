@@ -1,0 +1,41 @@
+diff --git a/tor-0.4.7.7/configure b/tor-0.4.7.7/configure
+index 9ffb69e..5e8c248 100755
+--- tor-0.4.7.7/configure
++++ tor-0.4.7.7/configure
+@@ -9769,7 +9769,6 @@ for ac_func in _NSGetEnviron \
+ 	backtrace \
+ 	backtrace_symbols_fd \
+ 	eventfd \
+-	explicit_bzero \
+ 	timingsafe_memcmp \
+ 	flock \
+ 	fsync \
+@@ -10858,7 +10857,7 @@ else
+ 
+   for tor_trydir in "$tryopenssldir" "(system)" "$prefix" /usr/local /usr/pkg /usr/local/opt/openssl /usr/local/openssl /usr/lib/openssl /usr/local/ssl /usr/lib/ssl /usr/local /opt/openssl; do
+     LDFLAGS="$tor_saved_LDFLAGS"
+-    LIBS="-lssl -lcrypto $TOR_LIB_GDI $TOR_LIB_WS32 $TOR_LIB_CRYPT32 $tor_saved_LIBS"
++    LIBS="-lssl -lcrypto $TOR_LIB_WS32 $TOR_LIB_CRYPT32 $TOR_LIB_BCRYPT -pthread $tor_saved_LIBS"
+     CPPFLAGS="$tor_saved_CPPFLAGS"
+ 
+     if test -z "$tor_trydir" ; then
+@@ -11020,7 +11019,7 @@ fi
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $tor_cv_library_openssl_dir" >&5
+ $as_echo "$tor_cv_library_openssl_dir" >&6; }
+-LIBS="-lssl -lcrypto $TOR_LIB_GDI $TOR_LIB_WS32 $TOR_LIB_CRYPT32 $LIBS"
++LIBS="-lssl -lcrypto $TOR_LIB_WS32 $TOR_LIB_CRYPT32 $TOR_LIB_BCRYPT -pthread $LIBS"
+ if test "$tor_cv_library_openssl_dir" != "(system)"; then
+ 
+   if test -d "$tor_cv_library_openssl_dir/lib"; then
+@@ -11151,10 +11150,10 @@ if test "$enable_static_openssl" = "yes"; then
+    if test "$tor_cv_library_openssl_dir" = "(system)"; then
+      as_fn_error $? "\"You must specify an explicit --with-openssl-dir=x option when using --enable-static-openssl\"" "$LINENO" 5
+    else
+-     TOR_OPENSSL_LIBS="$TOR_LIBDIR_openssl/libssl.a $TOR_LIBDIR_openssl/libcrypto.a $TOR_LIB_WS32 $TOR_LIB_CRYPT32 $TOR_LIB_BCRYPT"
++     TOR_OPENSSL_LIBS="$TOR_LIBDIR_openssl/libssl.a $TOR_LIBDIR_openssl/libcrypto.a $TOR_LIB_WS32 $TOR_LIB_CRYPT32 $TOR_LIB_BCRYPT -pthread"
+    fi
+ else
+-     TOR_OPENSSL_LIBS="-lssl -lcrypto"
++     TOR_OPENSSL_LIBS="-lssl -lcrypto $TOR_LIB_WS32 $TOR_LIB_CRYPT32 $TOR_LIB_BCRYPT -pthread"
+ fi

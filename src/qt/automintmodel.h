@@ -62,6 +62,8 @@ private:
 
     std::vector<uint256> txs;
     mutable CCriticalSection cs;
+
+    int64_t lastUpdateTime;
 };
 
 class AutoMintModel : public QObject

@@ -19,7 +19,7 @@ Our research created the [Lelantus privacy protocol](https://eprint.iacr.org/201
 
 Firo also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as Tor/i2P.
 
-Firo developed and utilizes [Merkle Tree Proofs (MTP)](https://arxiv.org/pdf/1606.03588.pdf) as its Proof-of-Work algorithm which aims to be memory hard with fast verification to encourage mining using commodity hardware.
+Firo uses FiroPoW (a ProgPoW variant) as its Proof-of-Work GPU focused algorithm which is FPGA/ASIC resistant.
 
 How Firo’s Privacy Technology Compares to the Competition
 --------------
@@ -43,7 +43,7 @@ docker pull firoorg/firod
 Start Firo daemon:
 
 ```sh
-docker run --detach --name firod firoorg/firod
+docker run -d --name firod -v "${HOME}/.firo:/home/firod/.firo" firoorg/firod
 ```
 
 View current block count (this might take a while since the daemon needs to find other nodes and download blocks first):
@@ -79,51 +79,72 @@ docker start firod
 Linux Build Instructions and Notes
 ==================================
 
-Dependencies
+Firo contains build scripts for its dependencies to ensure all component versions are compatible. For additional options
+such as cross compilation, read the [depends instructions](depends/README.md)
+
+Alternatively, you can build dependencies manually. See the full [unix build instructions](doc/build-unix.md).
+
+Bootstrappable builds can [be achieved with Guix.](contrib/guix/README.md)
+
+Development Dependencies (compiler and build tools)
 ----------------------
-1.  Update packages
 
-        sudo apt-get update
+- Debian/Ubuntu/Mint (minimum Ubuntu 18.04):
 
-2.  Install required packages
+    ```
+    sudo apt-get update
+    sudo apt-get install git curl python build-essential libtool automake pkg-config cmake
+    # Also needed for GUI wallet only:
+    sudo apt-get install qttools5-dev qttools5-dev-tools libxcb-xkb-dev bison
+    ```
 
-        sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils libboost-all-dev libgmp-dev cmake
+- Redhat/Fedora:
 
-3.  Install Berkeley DB 4.8
+    ```
+    sudo dnf update
+    sudo dnf install bzip2 perl-lib perl-FindBin gcc-c++ libtool make autoconf automake cmake patch which
+    # Also needed for GUI wallet only:
+    sudo dnf install qt5-qttools-devel qt5-qtbase-devel xz bison
+    sudo ln /usr/bin/bison /usr/bin/yacc
+    ```
+- Arch:
 
-        sudo apt-get install software-properties-common
-        sudo add-apt-repository ppa:bitcoin/bitcoin
-        sudo apt-get update
-        sudo apt-get install libdb4.8-dev libdb4.8++-dev
+    ```
+    sudo pacman -Sy
+    sudo pacman -S git base-devel python cmake
+    ```
 
-4.  Install QT 5
-
-        sudo apt-get install libminiupnpc-dev libzmq3-dev
-        sudo apt-get install libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler libqrencode-dev
-
-Alternatively, you can use a [depends build](depends/README.md) to handle dependencies.
-
-Build
+Build Firo
 ----------------------
-1.  Clone the source:
+
+1.  Download the source:
 
         git clone https://github.com/firoorg/firo
+        cd firo
 
-2.  Build Firo-core:
+2.  Build dependencies and firo:
 
-    Configure and build the headless Firo binaries as well as the GUI (if Qt is found).
+    Headless (command-line only for servers etc.):
 
-    You can disable the GUI build by passing `--without-gui` to configure.
-        
+        cd depends
+        NO_QT=true make -j`nproc`
+        cd ..
         ./autogen.sh
-        ./configure
-        make
+        ./configure --prefix=`pwd`/depends/`depends/config.guess` --without-gui
+        make -j`nproc`
 
-    Note that the use of a [depends build](depends/README.md) necessitates passing the `--prefix` option to `./configure`.
+    Or with GUI wallet as well:
 
-3.  It is recommended to build and run the unit tests:
+        cd depends
+        make -j`nproc`
+        cd ..
+        ./autogen.sh
+        ./configure --prefix=`pwd`/depends/`depends/config.guess`
+        make -j`nproc`
 
-        ./configure --enable-tests
+3.  *(optional)* It is recommended to build and run the unit tests:
+
+        ./configure --prefix=`pwd`/depends/`depends/config.guess` --enable-tests
         make check
 
 

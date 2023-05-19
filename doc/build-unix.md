@@ -1,8 +1,16 @@
 UNIX BUILD NOTES
 ====================
-Some notes on how to build Firo Core in Unix.
 
-(for OpenBSD specific instructions, see [build-openbsd.md](build-openbsd.md))
+Quick Install
+---------------------
+
+The instructions below describe how to manually build Firo with system level or
+manually compiled dependencies. It is only recommended for experienced users.
+
+For most users it is easier to use the simple install instructions in the
+[quick install instructions](../README.md) in the top level README.
+
+For OpenBSD specific instructions, see [build-openbsd.md](build-openbsd.md)
 
 Note
 ---------------------
@@ -18,38 +26,16 @@ To Build
 ---------------------
 
 ```bash
+cd depends
+make -j`nproc`
+cd ..
 ./autogen.sh
-./configure
+./configure --prefix=`pwd`/depends/`depends/config.guess`
 make
 make install # optional
 ```
 
 This will build firo-qt as well if the dependencies are met.
-
-Dependencies
----------------------
-
-These dependencies are required:
-
- Library     | Purpose          | Description
- ------------|------------------|----------------------
- libssl      | Crypto           | Random Number Generation, Elliptic Curve Cryptography
- libboost    | Utility          | Library for threading, data structures, etc
- libevent    | Networking       | OS independent asynchronous networking
-
-Optional dependencies:
-
- Library     | Purpose          | Description
- ------------|------------------|----------------------
- miniupnpc   | UPnP Support     | Firewall-jumping support
- libdb4.8    | Berkeley DB      | Wallet storage (only needed when wallet enabled)
- qt          | GUI              | GUI toolkit (only needed when GUI enabled)
- protobuf    | Payments in GUI  | Data interchange format used for payment protocol (only needed when GUI enabled)
- libqrencode | QR codes in GUI  | Optional for generating QR codes (only needed when GUI enabled)
- univalue    | Utility          | JSON parsing and encoding (bundled version will be used unless --with-system-univalue passed to configure)
- libzmq3     | ZMQ notification | Optional, allows generating ZMQ notifications (requires ZMQ version >= 4.0.0)
-
-For the versions used in the release, see [release-process.md](release-process.md) under *Fetch and build inputs*.
 
 Memory Requirements
 --------------------
@@ -63,36 +49,13 @@ tuned to conserve memory with additional CXXFLAGS:
 
 Dependency Build Instructions: Ubuntu & Debian
 ----------------------------------------------
+Building requires Ubuntu 18.04 at minimum.
+
 Build requirements:
 
-    sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils cmake libgmp-dev
-
-Options when installing required Boost library files:
-
-1. On at least Ubuntu 14.04+ and Debian 7+ there are generic names for the
-individual boost development packages, so the following can be used to only
-install necessary parts of boost:
-
-        sudo apt-get install libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-program-options-dev libboost-test-dev libboost-thread-dev
-
-2. If that doesn't work, you can install all boost development packages with:
-
-        sudo apt-get install libboost-all-dev
+    sudo apt-get install git curl python build-essential libtool automake pkg-config cmake
 
 BerkeleyDB is required for the wallet.
-
-**For Ubuntu only:** db4.8 packages are available [here](https://launchpad.net/~bitcoin/+archive/bitcoin).
-You can add the repository and install using the following commands:
-
-    sudo apt-get install software-properties-common
-    sudo add-apt-repository ppa:bitcoin/bitcoin
-    sudo apt-get update
-    sudo apt-get install libdb4.8-dev libdb4.8++-dev
-
-Ubuntu and Debian have their own libdb-dev and libdb++-dev packages, but these will install
-BerkeleyDB 5.1 or later, which break binary wallet compatibility with the distributed executables which
-are based on BerkeleyDB 4.8. If you do not care about wallet compatibility,
-pass `--with-incompatible-bdb` to configure.
 
 See the section "Disable-wallet mode" to build Bitcoin Core without wallet.
 
@@ -107,22 +70,13 @@ ZMQ dependencies (provides ZMQ API):
 Dependencies for the GUI: Ubuntu & Debian
 -----------------------------------------
 
-If you want to build Bitcoin-Qt, make sure that the required packages for Qt development
-are installed. Either Qt 5 or Qt 4 are necessary to build the GUI.
-If both Qt 4 and Qt 5 are installed, Qt 5 will be used. Pass `--with-gui=qt4` to configure to choose Qt4.
+If you want to build Firo-Qt, make sure that the required packages for Qt development
+are installed.
 To build without GUI pass `--without-gui`.
 
-To build with Qt 5 (recommended) you need the following:
+To build with Qt 5  you need the following:
 
-    sudo apt-get install libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler
-
-Alternatively, to build with Qt 4 you need the following:
-
-    sudo apt-get install libqt4-dev libprotobuf-dev protobuf-compiler
-
-libqrencode (optional) can be installed with:
-
-    sudo apt-get install libqrencode-dev
+    sudo apt-get install qttools5-dev qttools5-dev-tools libxcb-xkb-dev bison
 
 Once these are installed, they will be found by configure and a firo-qt executable will be
 built by default.
@@ -131,7 +85,7 @@ Dependency Build Instructions: Fedora
 -------------------------------------
 Build requirements:
 
-    sudo dnf install gcc-c++ libtool make autoconf automake openssl-devel libevent-devel boost-devel libdb4-devel libdb4-cxx-devel cmake libgmp-dev
+    sudo dnf install bzip2 perl-lib perl-FindBin gcc-c++ libtool make autoconf automake cmake patch which
 
 Optional:
 
@@ -139,7 +93,9 @@ Optional:
 
 To build with Qt 5 (recommended) you need the following:
 
-    sudo dnf install qt5-qttools-devel qt5-qtbase-devel protobuf-devel
+    sudo dnf install qt5-qttools-devel qt5-qtbase-devel xz bison
+
+    sudo ln /usr/bin/bison /usr/bin/yacc
 
 libqrencode (optional) can be installed with:
 
@@ -162,37 +118,6 @@ turned off by default.  See the configure options for upnp behavior desired:
 	--disable-upnp-default   (the default) UPnP support turned off by default at runtime
 	--enable-upnp-default    UPnP support turned on by default at runtime
 
-
-Berkeley DB
------------
-It is recommended to use Berkeley DB 4.8. If you have to build it yourself:
-
-```bash
-FIRO_ROOT=$(pwd)
-
-# Pick some path to install BDB to, here we create a directory within the bitcoin directory
-BDB_PREFIX="${FIRO_ROOT}/db4"
-mkdir -p $BDB_PREFIX
-
-# Fetch the source and verify that it is not tampered with
-wget 'http://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz'
-echo '12edc0df75bf9abd7f82f821795bcee50f42cb2e5f76a6a281b85732798364ef  db-4.8.30.NC.tar.gz' | sha256sum -c
-# -> db-4.8.30.NC.tar.gz: OK
-tar -xzvf db-4.8.30.NC.tar.gz
-
-# Build the library and install to our prefix
-cd db-4.8.30.NC/build_unix/
-#  Note: Do a static build so that it can be embedded into the executable, instead of having to find a .so at runtime
-../dist/configure --enable-cxx --disable-shared --with-pic --prefix=$BDB_PREFIX
-make install
-
-# Configure Bitcoin Core to use our own-built instance of BDB
-cd $FIRO_ROOT
-./autogen.sh
-./configure LDFLAGS="-L${BDB_PREFIX}/lib/" CPPFLAGS="-I${BDB_PREFIX}/include/" # (other args...)
-```
-
-**Note**: You only need Berkeley DB if the wallet is enabled (see the section *Disable-Wallet mode* below).
 
 Boost
 -----
@@ -275,7 +200,7 @@ Setup and Build Example: Arch Linux
 -----------------------------------
 This example lists the steps necessary to setup and build a command line only, non-wallet distribution of the latest changes on Arch Linux:
 
-    pacman -S git base-devel boost libevent python
+    pacman -S git base-devel python cmake
     git clone https://github.com/bitcoin/bitcoin.git
     cd bitcoin/
     ./autogen.sh

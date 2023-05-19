@@ -73,6 +73,8 @@
         <file alias="elysium_hourglass">res/icons/elysium_hourglass.png</file>
         <file alias="lelantus">res/icons/lelantus.png</file>
         <file alias="paymentcode">res/icons/paymentcode.png</file>
+        <file alias="ext_add">res/icons/ext_add.png</file>
+        <file alias="ext_add_light">res/icons/ext_add_light.png</file>
     </qresource>
     <qresource prefix="/movies">
         <file alias="spinner-000">res/movies/spinner-000.png</file>
@@ -141,7 +143,7 @@
         <file alias="checkbox_partly_checked_light">res/images/checkbox_partly_checked_light.png</file>
         <file alias="checkbox_partly_checked_hover_light">res/images/checkbox_partly_checked_hover_light.png</file>
         <file alias="checkbox_partly_checked_disabled_light">res/images/checkbox_partly_checked_disabled_light.png</file>
-        <file alias="firo_logo_toolbar">res/images/firo_logo_white.png</file>
+        <file alias="firo_logo_toolbar">res/images/firo_logo.png</file>
         <file alias="radio_normal_light">res/images/radio_normal_light.png</file>
         <file alias="radio_normal_hover_light">res/images/radio_normal_hover_light.png</file>
         <file alias="radio_checked_light">res/images/radio_checked_light.png</file>
@@ -151,5 +153,13 @@
     </qresource>
     <qresource prefix="/css">
         <file alias="firoTheme">res/css/firo.css</file>
+    </qresource>
+    <qresource prefix="/css">
+        <file alias="firoLowTheme">res/css/firo_low.css</file>
+    </qresource>
+    <qresource prefix="/fonts">
+        <file alias="Saira_SemiCondensed-Bold">res/fonts/Saira_SemiCondensed-Bold.ttf</file>
+        <file alias="SourceSansPro-Regular">res/fonts/SourceSansPro-Regular.ttf</file>
+        <file alias="SourceSansPro-Bold">res/fonts/SourceSansPro-Bold.ttf</file>
     </qresource>
 </RCC>

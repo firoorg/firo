@@ -256,6 +256,7 @@ void Shutdown()
     llmq::StopLLMQSystem();
 
     BatchProofContainer::get_instance()->finalize();
+    BatchProofContainer::get_instance()->verify();
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -1688,15 +1689,30 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         nMaxOutboundLimit = GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024;
     }
 
-    // ********************************************************* Prepare ProgPow test in regtest mode
+    // ********************************************************* Prepare ProgPow/MTP/Stage3 tests
 
+    Consensus::Params &mutableParams = const_cast<Consensus::Params &>(Params().GetConsensus());
     if (Params().GetConsensus().IsRegtest()) {
-        Consensus::Params &mutableParams = const_cast<Consensus::Params &>(Params().GetConsensus());
         if (IsArgSet("-ppswitchtime"))
             mutableParams.nPPSwitchTime = GetArg("-ppswitchtime", INT_MAX);
         else if (IsArgSet("-ppswitchtimefromnow"))
             mutableParams.nPPSwitchTime = GetArg("-ppswitchtimefromnow", 0) + (uint32_t)GetTime();
+
+        if (IsArgSet("-mtpswitchtime"))
+            mutableParams.nMTPSwitchTime = GetArg("-mtpswitchtime", INT_MAX);
+        else if (IsArgSet("-mtpswitchtimefromnow"))
+            mutableParams.nMTPSwitchTime = GetArg("-mtpswitchtimefromnow", 0) + (uint32_t)GetTime();
+
+        else if (IsArgSet("-stage3switchtime"))
+            mutableParams.stage3StartTime = GetArg("-stage3switchtime", INT_MAX);
+        else if (IsArgSet("-stage3switchtimefromnow"))
+            mutableParams.stage3StartTime = GetArg("-stage3switchtimefromnow", 0) + (uint32_t)GetTime();
     }
+
+    if (IsArgSet("-mtpstripdatatime"))
+        mutableParams.nMTPStripDataTime = GetArg("-mtpstripdatatime", INT_MAX);
+    else if (IsArgSet("-mtpstripdatatimefromnow"))
+        mutableParams.nMTPStripDataTime = GetArg("-mtpstripdatatimefromnow", 0) + (uint32_t)GetTime();
 
     // ********************************************************* Step 7a: check lite mode
 
@@ -2037,8 +2053,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         std::string strMasterNodeBLSPrivKey = GetArg("-znodeblsprivkey", "");
         if(!strMasterNodeBLSPrivKey.empty()) {
             auto binKey = ParseHex(strMasterNodeBLSPrivKey);
-            CBLSSecretKey keyOperator;
-            keyOperator.SetBuf(binKey);
+            CBLSSecretKey keyOperator(binKey);
             if (keyOperator.IsValid()) {
                 activeMasternodeInfo.blsKeyOperator = std::make_unique<CBLSSecretKey>(keyOperator);
                 activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>(activeMasternodeInfo.blsKeyOperator->GetPublicKey());

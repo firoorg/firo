@@ -118,6 +118,38 @@ std::string COutput::ToString() const {
     return strprintf("COutput(%s, %d, %d) [%s]", tx->GetHash().ToString(), i, nDepth, FormatMoney(tx->tx->vout[i].nValue));
 }
 
+class CAffectedKeysVisitor : public boost::static_visitor<void> {
+private:
+    const CKeyStore &keystore;
+    std::vector<CKeyID> &vKeys;
+
+public:
+    CAffectedKeysVisitor(const CKeyStore &keystoreIn, std::vector<CKeyID> &vKeysIn) : keystore(keystoreIn), vKeys(vKeysIn) {}
+
+    void Process(const CScript &script) {
+        txnouttype type;
+        std::vector<CTxDestination> vDest;
+        int nRequired;
+        if (ExtractDestinations(script, type, vDest, nRequired)) {
+            BOOST_FOREACH(const CTxDestination &dest, vDest)
+                boost::apply_visitor(*this, dest);
+        }
+    }
+
+    void operator()(const CKeyID &keyId) {
+        if (keystore.HaveKey(keyId))
+            vKeys.push_back(keyId);
+    }
+
+    void operator()(const CScriptID &scriptId) {
+        CScript script;
+        if (keystore.GetCScript(scriptId, script))
+            Process(script);
+    }
+
+    void operator()(const CNoDestination &none) {}
+};
+
 const CWalletTx *CWallet::GetWalletTx(const uint256 &hash) const {
     LOCK(cs_wallet);
     std::map<uint256, CWalletTx>::const_iterator it = mapWallet.find(hash);
@@ -713,7 +745,11 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
             return meta.isUsed;
         } else if (zwallet && (script.IsLelantusMint() || script.IsLelantusJMint())) {
             secp_primitives::GroupElement pubcoin;
-            lelantus::ParseLelantusMintScript(script, pubcoin);
+            try {
+                lelantus::ParseLelantusMintScript(script, pubcoin);
+            } catch (std::invalid_argument &) {
+                return false;
+            }
             uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
             CLelantusMintMeta meta;
             if(!zwallet->GetTracker().GetLelantusMetaFromPubcoin(hashPubcoin, meta)){
@@ -1268,6 +1304,29 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
         if (fExisted && !fUpdate) return false;
         if (fExisted || IsMine(tx) || IsFromMe(tx))
         {
+            /* Check if any keys in the wallet keypool that were supposed to be unused
+         * have appeared in a new transaction. If so, remove those keys from the keypool.
+         * This can happen when restoring an old wallet backup that does not contain
+         * the mostly recently created transactions from newer versions of the wallet.
+         */
+            // loop though all outputs
+            for (const CTxOut& txout: tx.vout) {
+                // extract addresses and check if they match with an unused keypool key
+                std::vector<CKeyID> vAffected;
+                CAffectedKeysVisitor(*this, vAffected).Process(txout.scriptPubKey);
+                for (const CKeyID &keyid : vAffected) {
+                    std::map<CKeyID, int64_t>::const_iterator mi = m_pool_key_to_index.find(keyid);
+                    if (mi != m_pool_key_to_index.end()) {
+                        LogPrintf("%s: Detected a used keypool key, mark all keypool key up to this key as used\n", __func__);
+                        MarkReserveKeysAsUsed(mi->second);
+
+                        if (!TopUpKeyPool()) {
+                            LogPrintf("%s: Topping up keypool failed (locked wallet)\n", __func__);
+                        }
+                    }
+                }
+            }
+
             CWalletTx wtx(this, MakeTransactionRef(tx));
 
             // Get merkle branch if transaction was found in a block
@@ -1370,7 +1429,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
             try {
                 joinsplit = lelantus::ParseLelantusJoinSplit(*wtx.tx);
             }
-            catch (CBadTxIn&) {
+            catch (...) {
                 continue;
             }
 
@@ -1535,7 +1594,7 @@ isminetype CWallet::IsMine(const CTxIn &txin, const CTransaction& tx) const
         try {
             joinsplit = lelantus::ParseLelantusJoinSplit(tx);
         }
-        catch (CBadTxIn&) {
+        catch (...) {
             return ISMINE_NO;
         }
 
@@ -1596,7 +1655,7 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const CTransaction& tx, const ismin
         try {
             joinsplit = lelantus::ParseLelantusJoinSplit(tx);
         }
-        catch (CBadTxIn&) {
+        catch (...) {
             goto end;
         }
 
@@ -2024,7 +2083,12 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
             nFee = nDebit - nValueOut;
         }
         else
-            nFee = lelantus::ParseLelantusJoinSplit(*tx)->getFee();
+            try {
+                nFee = lelantus::ParseLelantusJoinSplit(*tx)->getFee();
+            }
+            catch (...) {
+                // do nothing
+            }
     }
 
     // Sent/received.
@@ -2207,7 +2271,7 @@ bool CWalletTx::RelayWalletTransaction(CConnman* connman)
             }
         }
     }
-    LogPrintf("CWalletTx::RelayWalletTransaction() --> invalid condition\n");
+
     return false;
 }
 
@@ -2951,6 +3015,22 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
         if (coin.IsUsed)
             return true;
 
+        COutPoint outPoint;
+        lelantus::PublicCoin pubCoin(coin.value);
+        lelantus::GetOutPoint(outPoint, pubCoin);
+
+        if(lockedCoins.count(outPoint) > 0){
+            return true;
+        }
+
+        if(coinControl != NULL){
+            if(coinControl->HasSelected()){
+                if(!coinControl->IsSelected(outPoint)){
+                    return true;
+                }
+            }
+        }
+
         int coinHeight, coinId;
         std::tie(coinHeight, coinId) =  state->GetMintedCoinHeightAndId(lelantus::PublicCoin(coin.value));
 
@@ -2980,22 +3060,6 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
             // Remove the coin from the candidates list, since it does not have the
             // required number of confirmations.
             return true;
-        }
-
-        COutPoint outPoint;
-        lelantus::PublicCoin pubCoin(coin.value);
-        lelantus::GetOutPoint(outPoint, pubCoin);
-
-        if(lockedCoins.count(outPoint) > 0){
-            return true;
-        }
-
-        if(coinControl != NULL){
-            if(coinControl->HasSelected()){
-                if(!coinControl->IsSelected(outPoint)){
-                    return true;
-                }
-            }
         }
 
         return false;
@@ -3203,7 +3267,7 @@ bool CWallet::GetCoinsToJoinSplit(
 {
 
     EnsureMintWalletAvailable();
-    Consensus::Params consensusParams = Params().GetConsensus();
+    const Consensus::Params &consensusParams = Params().GetConsensus();
 
     if (required > consensusParams.nMaxValueLelantusSpendPerTransaction) {
         throw std::invalid_argument(_("The required amount exceeds spend limit"));
@@ -3635,7 +3699,11 @@ void CWallet::ListAvailableLelantusMintCoins(std::vector<COutput> &vCoins, bool 
             if (pcoin->tx->vout[i].scriptPubKey.IsLelantusMint() || pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint()) {
                 CTxOut txout = pcoin->tx->vout[i];
                 secp_primitives::GroupElement pubCoin;
-                lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoin);
+                try {
+                    lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoin);
+                } catch (std::invalid_argument &) {
+                    continue;
+                }
                 LogPrintf("Pubcoin=%s\n", pubCoin.tostring());
                 // CHECKING PROCESS
                 BOOST_FOREACH(const CLelantusEntry& ownCoinItem, listOwnCoins) {
@@ -3772,9 +3840,9 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
     std::vector<char> vfBest;
     CAmount nBest;
 
-    ApproximateBestSubset(vValue, nTotalLower, nTargetValue, vfBest, nBest, fForUseInInstantSend);
+    ApproximateBestSubset(vValue, nTotalLower, nTargetValue, vfBest, nBest);
     if (nBest != nTargetValue && nTotalLower >= nTargetValue + MIN_CHANGE)
-        ApproximateBestSubset(vValue, nTotalLower, nTargetValue + MIN_CHANGE, vfBest, nBest, fForUseInInstantSend);
+        ApproximateBestSubset(vValue, nTotalLower, nTargetValue + MIN_CHANGE, vfBest, nBest);
 
     // If we have a bigger coin and (either the stochastic approximation didn't find a good solution,
     //                                   or the next bigger coin is closer), return the bigger coin
@@ -4700,7 +4768,10 @@ bool CWallet::CreateLelantusMintTransactions(
             AvailableCoinsForLMint(valueAndUTXO, coinControl);
 
             Shuffle(valueAndUTXO.begin(), valueAndUTXO.end(), FastRandomContext());
-
+            {
+                CWalletDB walletdb(pwalletMain->strWalletFile);
+                pwalletMain->zwallet->ResetCount(walletdb);
+            }
             while (!valueAndUTXO.empty()) {
 
                 // initialize
@@ -5406,7 +5477,7 @@ std::pair<CAmount, unsigned int> CWallet::EstimateJoinSplitFee(
 
         spendCoins.clear();
         sigmaSpendCoins.clear();
-        auto &consensusParams = Params().GetConsensus();
+        const auto &consensusParams = Params().GetConsensus();
         CAmount changeToMint = 0;
 
         std::vector<sigma::CoinDenomination> denomChanges;
@@ -5702,6 +5773,7 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
         {
             LOCK(cs_wallet);
             setKeyPool.clear();
+            m_pool_key_to_index.clear();
             // Note: can't top-up keypool here, because wallet is locked.
             // User will be prompted to unlock wallet the next operation
             // that requires a new key.
@@ -5757,6 +5829,7 @@ DBErrors CWallet::ZapSelectTx(std::vector<uint256>& vHashIn, std::vector<uint256
         {
             LOCK(cs_wallet);
             setKeyPool.clear();
+            m_pool_key_to_index.clear();
             // Note: can't top-up keypool here, because wallet is locked.
             // User will be prompted to unlock wallet the next operation
             // that requires a new key.
@@ -5783,6 +5856,7 @@ DBErrors CWallet::ZapWalletTx(std::vector<CWalletTx>& vWtx)
         {
             LOCK(cs_wallet);
             setKeyPool.clear();
+            m_pool_key_to_index.clear();
             // Note: can't top-up keypool here, because wallet is locked.
             // User will be prompted to unlock wallet the next operation
             // that requires a new key.
@@ -5903,6 +5977,7 @@ bool CWallet::NewKeyPool()
         BOOST_FOREACH(int64_t nIndex, setKeyPool)
             walletdb.ErasePool(nIndex);
         setKeyPool.clear();
+        m_pool_key_to_index.clear();
 
         if (IsLocked())
             return false;
@@ -5911,8 +5986,10 @@ bool CWallet::NewKeyPool()
         for (int i = 0; i < nKeys; i++)
         {
             int64_t nIndex = i+1;
-            walletdb.WritePool(nIndex, CKeyPool(GenerateNewKey()));
+            CPubKey pubkey(GenerateNewKey());
+            walletdb.WritePool(nIndex, CKeyPool(pubkey));
             setKeyPool.insert(nIndex);
+            m_pool_key_to_index[pubkey.GetID()] = nIndex;
         }
         LogPrintf("CWallet::NewKeyPool wrote %d new keys\n", nKeys);
     }
@@ -5941,10 +6018,12 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
             int64_t nEnd = 1;
             if (!setKeyPool.empty())
                 nEnd = *(--setKeyPool.end()) + 1;
-            if (!walletdb.WritePool(nEnd, CKeyPool(GenerateNewKey())))
+            CPubKey pubkey(GenerateNewKey());
+            if (!walletdb.WritePool(nEnd, CKeyPool(pubkey)))
                 throw std::runtime_error(std::string(__func__) + ": writing generated key failed");
             setKeyPool.insert(nEnd);
             LogPrintf("keypool added key %d, size=%u\n", nEnd, setKeyPool.size());
+            m_pool_key_to_index[pubkey.GetID()] = nEnd;
         }
     }
     return true;
@@ -5972,7 +6051,9 @@ void CWallet::ReserveKeyFromKeyPool(int64_t& nIndex, CKeyPool& keypool)
             throw std::runtime_error(std::string(__func__) + ": read failed");
         if (!HaveKey(keypool.vchPubKey.GetID()))
             throw std::runtime_error(std::string(__func__) + ": unknown key in key pool");
+
         assert(keypool.vchPubKey.IsValid());
+        m_pool_key_to_index.erase(keypool.vchPubKey.GetID());
         LogPrintf("keypool reserve %d\n", nIndex);
     }
 }
@@ -5988,12 +6069,13 @@ void CWallet::KeepKey(int64_t nIndex)
     LogPrintf("keypool keep %d\n", nIndex);
 }
 
-void CWallet::ReturnKey(int64_t nIndex)
+void CWallet::ReturnKey(int64_t nIndex, const CPubKey& pubkey)
 {
     // Return to key pool
     {
         LOCK(cs_wallet);
         setKeyPool.insert(nIndex);
+        m_pool_key_to_index[pubkey.GetID()] = nIndex;
     }
     LogPrintf("keypool return %d\n", nIndex);
 }
@@ -6211,28 +6293,23 @@ void CReserveKey::KeepKey()
 void CReserveKey::ReturnKey()
 {
     if (nIndex != -1)
-        pwallet->ReturnKey(nIndex);
+        pwallet->ReturnKey(nIndex, vchPubKey);
     nIndex = -1;
     vchPubKey = CPubKey();
 }
 
-void CWallet::GetAllReserveKeys(std::set<CKeyID>& setAddress) const
+void CWallet::MarkReserveKeysAsUsed(int64_t keypool_id)
 {
-    setAddress.clear();
+    AssertLockHeld(cs_wallet);
+    auto it = setKeyPool.begin();
 
     CWalletDB walletdb(strWalletFile);
+    while (it != std::end(setKeyPool)) {
+        const int64_t& index = *(it);
+        if (index > keypool_id) break; // set*KeyPool is ordered
 
-    LOCK2(cs_main, cs_wallet);
-    BOOST_FOREACH(const int64_t& id, setKeyPool)
-    {
-        CKeyPool keypool;
-        if (!walletdb.ReadPool(id, keypool))
-            throw std::runtime_error(std::string(__func__) + ": read failed");
-        assert(keypool.vchPubKey.IsValid());
-        CKeyID keyID = keypool.vchPubKey.GetID();
-        if (!HaveKey(keyID))
-            throw std::runtime_error(std::string(__func__) + ": unknown key in key pool");
-        setAddress.insert(keyID);
+        walletdb.ErasePool(index);
+        it = setKeyPool.erase(it);
     }
 }
 
@@ -6330,38 +6407,6 @@ void CWallet::ListProTxCoins(std::vector<COutPoint>& vOutpts)
 }
 
 /** @} */ // end of Actions
-
-class CAffectedKeysVisitor : public boost::static_visitor<void> {
-private:
-    const CKeyStore &keystore;
-    std::vector<CKeyID> &vKeys;
-
-public:
-    CAffectedKeysVisitor(const CKeyStore &keystoreIn, std::vector<CKeyID> &vKeysIn) : keystore(keystoreIn), vKeys(vKeysIn) {}
-
-    void Process(const CScript &script) {
-        txnouttype type;
-        std::vector<CTxDestination> vDest;
-        int nRequired;
-        if (ExtractDestinations(script, type, vDest, nRequired)) {
-            BOOST_FOREACH(const CTxDestination &dest, vDest)
-                boost::apply_visitor(*this, dest);
-        }
-    }
-
-    void operator()(const CKeyID &keyId) {
-        if (keystore.HaveKey(keyId))
-            vKeys.push_back(keyId);
-    }
-
-    void operator()(const CScriptID &scriptId) {
-        CScript script;
-        if (keystore.GetCScript(scriptId, script))
-            Process(script);
-    }
-
-    void operator()(const CNoDestination &none) {}
-};
 
 void CWallet::GetKeyBirthTimes(std::map<CTxDestination, int64_t> &mapKeyBirth) const {
     AssertLockHeld(cs_wallet); // mapKeyMetadata
@@ -6464,6 +6509,7 @@ std::string CWallet::GetWalletHelpString(bool showDebug)
     std::string strUsage = HelpMessageGroup(_("Wallet options:"));
     strUsage += HelpMessageOpt("-disablewallet", _("Do not load the wallet and disable wallet RPC calls"));
     strUsage += HelpMessageOpt("-keypool=<n>", strprintf(_("Set key pool size to <n> (default: %u)"), DEFAULT_KEYPOOL_SIZE));
+    strUsage += HelpMessageOpt("-mintpoolsize=<n>", strprintf(_("Set mint pool size to <n> (default: %u)"), DEFAULT_MINTPOOL_SIZE));
     strUsage += HelpMessageOpt("-fallbackfee=<amt>", strprintf(_("A fee rate (in %s/kB) that will be used when fee estimation has insufficient data (default: %s)"),
                                                                CURRENCY_UNIT, FormatMoney(DEFAULT_FALLBACK_FEE)));
     strUsage += HelpMessageOpt("-mintxfee=<amt>", strprintf(_("Fees (in %s/kB) smaller than this are considered zero fee for transaction creation (default: %s)"),
@@ -6648,12 +6694,15 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     walletInstance->bip47wallet = std::make_shared<bip47::CWallet>(walletInstance->vchDefaultKey.GetHash());
     walletInstance->LoadBip47Wallet();
     if (fFirstRun) {
-        int const defaultPcodeNumber = std::stoi(GetArg("-defaultpcodenumber", "0"));
+        int const defaultPcodeNumber = std::stoi(GetArg("-defaultrapaddressnumber", "0"));
         for(int i = 0; i < defaultPcodeNumber; ++i)
             walletInstance->GeneratePcode("Autogenerated RAP address " + std::to_string(i));
     }
 
     RegisterValidationInterface(walletInstance);
+
+    // Try to top up keypool. No-op if the wallet is locked.
+    walletInstance->TopUpKeyPool();
 
     CBlockIndex *pindexRescan = chainActive.Tip();
     if (GetBoolArg("-rescan", false))

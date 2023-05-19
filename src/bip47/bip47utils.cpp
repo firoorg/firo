@@ -168,7 +168,11 @@ GroupElement GeFromPubkey(CPubKey const & pubKey)
     std::copy(pubKey.begin()+ 1, pubKey.end(), std::back_inserter(serializedGe));
     serializedGe.push_back(*pubKey.begin() == 0x02 ? 0 : 1);
     serializedGe.push_back(0x0);
-    result.deserialize(&serializedGe[0]);
+    try {
+        result.deserialize(&serializedGe[0]);
+    } catch (...) {
+        result = GroupElement();
+    }
     return result;
 }
 

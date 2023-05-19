@@ -215,7 +215,7 @@ std::vector<uint256> CHDMintTracker::GetSerialHashes()
  * @param hashPubcoin mint pubcoin hash
  * @return success
  */
-bool CHDMintTracker::HasSigmaPubcoinHash(const uint256& hashPubcoin, CWalletDB& walletdb) const
+bool CHDMintTracker::HasPubcoinHash(const uint256& hashPubcoin, CWalletDB& walletdb) const
 {
     for (auto const & it : mapSerialHashes) {
         CMintMeta meta = it.second;
@@ -223,11 +223,6 @@ bool CHDMintTracker::HasSigmaPubcoinHash(const uint256& hashPubcoin, CWalletDB& 
             return true;
     }
 
-    return false;
-}
-
-bool CHDMintTracker::HasLelantusPubcoinHash(const uint256& hashPubcoin, CWalletDB& walletdb) const
-{
     for (auto const & it : mapLelantusSerialHashes) {
         CLelantusMintMeta meta = it.second;
         uint256 reducedHash;
@@ -551,9 +546,7 @@ bool CHDMintTracker::IsMempoolSpendOurs(const std::set<uint256>& setMempool, con
                 uint32_t pubcoinId;
                 try {
                     std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
-                } catch (CBadTxIn &) {
-                    return false;
-                } catch (std::ios_base::failure &) {
+                } catch (...) {
                     return false;
                 }
 
@@ -567,9 +560,7 @@ bool CHDMintTracker::IsMempoolSpendOurs(const std::set<uint256>& setMempool, con
                 std::unique_ptr<lelantus::JoinSplit> joinsplit;
                 try {
                     joinsplit = lelantus::ParseLelantusJoinSplit(tx);
-                } catch (CBadTxIn &) {
-                    return false;
-                } catch (std::ios_base::failure &) {
+                } catch (...) {
                     return false;
                 }
 

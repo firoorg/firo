@@ -13,7 +13,7 @@
 
 IncomingFundNotifier::IncomingFundNotifier(
     CWallet *_wallet, QObject *parent) :
-    QObject(parent), wallet(_wallet), timer(0)
+    QObject(parent), wallet(_wallet), timer(0), lastUpdateTime(0)
 {
     timer = new QTimer(this);
     timer->setSingleShot(true);
@@ -58,9 +58,12 @@ void IncomingFundNotifier::check()
 {
     LOCK(cs);
 
-    if (txs.empty()) {
+    // update only if there are transaction and last update was done more than 2 minutes ago, and in case it is first time
+    if (txs.empty() || (lastUpdateTime!= 0 && (GetSystemTimeInSeconds() - lastUpdateTime <= 120))) {
         return;
     }
+
+    lastUpdateTime = GetSystemTimeInSeconds();
 
     CAmount credit = 0;
     std::vector<uint256> immatures;

@@ -535,9 +535,18 @@ public:
                 READWRITE(anonymitySetHash);
         }
 
-        if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nEvoSporkStartBlock && nHeight < params.nEvoSporkStopBlock)
-            READWRITE(activeDisablingSporks);
+        if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nEvoSporkStartBlock) {
+            if (nHeight < params.nEvoSporkStopBlock &&
+                // Workaround for late rollout of version 0.14.9.3 in which nEvoSporkStopBlock was extended
+                // If version of a record for block is less than 140903 and nHeight is greater than previous value
+                // of nEvoSporkStopBlock we don't read activeDisablingSpork from index database
+                !(params.nEvoSporkStopBlockExtensionVersion != 0 &&
+                    nVersion < params.nEvoSporkStopBlockExtensionVersion &&
+                    nHeight >= params.nEvoSporkStopBlockPrevious &&
+                    nHeight < params.nEvoSporkStopBlockPrevious + params.nEvoSporkStopBlockExtensionGracefulPeriod))
 
+                READWRITE(activeDisablingSporks);
+        }
         nDiskBlockVersion = nVersion;
     }
 

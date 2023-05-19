@@ -2,10 +2,10 @@ dnl require autoconf 2.60 (AS_ECHO/AS_ECHO_N)
 AC_PREREQ([2.60])
 define(_CLIENT_VERSION_MAJOR, 0)
 define(_CLIENT_VERSION_MINOR, 14)
-define(_CLIENT_VERSION_REVISION, 9)
-define(_CLIENT_VERSION_BUILD, 2)
+define(_CLIENT_VERSION_REVISION, 11)
+define(_CLIENT_VERSION_BUILD, 1)
 define(_CLIENT_VERSION_IS_RELEASE, true)
-define(_COPYRIGHT_YEAR, 2021)
+define(_COPYRIGHT_YEAR, 2022)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
 define(_COPYRIGHT_HOLDERS_SUBSTITUTION,[[Firo Core]])
 AC_INIT([Firo Core],[_CLIENT_VERSION_MAJOR._CLIENT_VERSION_MINOR._CLIENT_VERSION_REVISION],[https://github.com/firoorg/firo/issues],[firo],[https://firo.org/])
@@ -419,7 +419,8 @@ case $host in
          *)
            AC_PATH_TOOL([INSTALLNAMETOOL], [install_name_tool], install_name_tool)
            AC_PATH_TOOL([OTOOL], [otool], otool)
-           AC_PATH_PROGS([GENISOIMAGE], [genisoimage mkisofs],genisoimage)
+           AC_PATH_PROGS([XORRISOFS], [xorrisofs], xorrisofs)
+           AC_PATH_PROGS([DMG], [dmg], dmg)
            AC_PATH_PROGS([RSVG_CONVERT], [rsvg-convert rsvg],rsvg-convert)
            AC_PATH_PROGS([IMAGEMAGICK_CONVERT], [convert],convert)
            AC_PATH_PROGS([TIFFCP], [tiffcp],tiffcp)
@@ -979,6 +980,11 @@ dnl Check for libcap
 AC_CHECK_HEADERS([sys/capability.h])
 AC_SEARCH_LIBS(cap_get_proc, [cap])
 
+dnl ============================================================
+dnl Check for libtor
+
+AC_CHECK_LIB([tor], [tor_main], [AC_MSG_NOTICE([Tor found])], [AC_MSG_ERROR([Can't find Tor library])], [-lssl -lcrypto -levent -lz -pthread])
+
 ac_configure_args="${ac_configure_args} --disable-shared"
 
 AM_CONDITIONAL([EMBEDDED_UNIVALUE],[test x$need_bundled_univalue = xyes])
@@ -1250,36 +1256,11 @@ if test x$need_bundled_univalue = xyes; then
   AC_CONFIG_SUBDIRS([src/univalue])
 fi
 
-PKG_CHECK_MODULES([ZSTD],
-                  [libzstd >= 1.1],
-                  have_zstd=yes,
-                  have_zstd=no)
-
-if test "x$have_zstd" = "xno" ; then
-    AC_MSG_WARN([Unable to find libzstd.])
-fi
-
-if test "x$have_zstd" = "xyes"; then
-    AC_DEFINE(HAVE_ZSTD,1,[Have Zstd])
-    LIBZSTD="${ZSTD_LIBS}"
-
-    dnl now check for zstd functions
-    save_LIBS="$LIBS"
-    LIBS="$LIBS $ZSTD_LIBS"
-    AC_CHECK_FUNCS(ZSTD_estimateCStreamSize \
-                   ZSTD_estimateDCtxSize)
-    LIBS="$save_LIBS"
-fi
-AC_SUBST(LIBZSTD)
-
 if test x$openssl_prefix != x; then
   ac_configure_args="$ac_configure_args --with-openssl-dir=$openssl_prefix"
 fi
 
 AX_SUBDIRS_CONFIGURE([src/secp256k1], [[--disable-shared], [--with-pic], [--with-bignum=no], [--enable-module-recovery], [--enable-experimental], [--enable-module-ecdh], [--enable-endomorphism]])
-AX_SUBDIRS_CONFIGURE([src/tor], [[--disable-system-torrc], [--disable-systemd], [--disable-lzma], [--disable-asciidoc], [--disable-libscrypt]])
-
-AC_CONFIG_SUBDIRS([src/bls-signatures])
 
 AC_OUTPUT
 

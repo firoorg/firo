@@ -132,18 +132,36 @@ struct Params {
     uint256 hashGenesisBlock;
     /** First subsidy halving */
     int nSubsidyHalvingFirst;
+    /** Second subsidy halving */
+    int nSubsidyHalvingSecond;
     /** Subsequent subsidy halving intervals */
     int nSubsidyHalvingInterval;
     /** Stop subsidy at this block number */
     int nSubsidyHalvingStopBlock;
 
-    /** parameters for coinbase payment distribution between first and second halvings (aka stage 2) */
+    /** parameters for coinbase payment distribution between first halving and stage 3 (aka stage 2) */
     /** P2PKH or P2SH address for developer funds */
     std::string stage2DevelopmentFundAddress;
     /** percentage of block subsidy going to developer fund */
     int stage2DevelopmentFundShare;
     /** percentage of block subsidy going to znode */
     int stage2ZnodeShare;
+
+    /** parameters for coinbase payment distribution after stage two and before second halving (aka stage 3) */
+    /** start time of stage 3 */
+    int stage3StartTime;
+    /** starting block number of stage 3 (zero if unknown) */
+    int stage3StartBlock;
+    /** P2PKH or P2SH address for developer funds */
+    std::string stage3DevelopmentFundAddress;
+    /** P2PKH or P2SH address for community funds */
+    std::string stage3CommunityFundAddress;
+    /** percentage of block subsidy going to developer fund */
+    int stage3DevelopmentFundShare;
+    /** percentage of block subsidy going to community fund */
+    int stage3CommunityFundShare;
+    /** percentage of block subsidy going to masternode */
+    int stage3MasternodeShare;
 
     int nStartDuplicationCheck;
     int nStartBlacklist;
@@ -245,6 +263,16 @@ struct Params {
     // The block number to stop using evo sporks
     int nEvoSporkStopBlock;
 
+    // Workaround for a late rollout of version 0.14.9.3
+    // If non-zero allow special behavior for reading index when block index version < nEvoSporkStopBlockExtensionVersion
+    int nEvoSporkStopBlockExtensionVersion;
+
+    // Previous value of stop block
+    int nEvoSporkStopBlockPrevious;
+
+    // Graceful period (number of blocks) to allow this workaround
+    int nEvoSporkStopBlockExtensionGracefulPeriod;
+
     // Key to sign spork txs
     std::string evoSporkKeyID;
 
@@ -304,6 +332,8 @@ struct Params {
     uint32_t nPPSwitchTime;
     /** initial difficulty for ProgPOW */
     int nInitialPPDifficulty;
+    /** block height at the moment of PP transition (0 if unknown) */
+    int nPPBlockNumber;
 
     /** don't adjust difficulty until some block number */
     int nDifficultyAdjustStartBlock;
@@ -318,6 +348,9 @@ struct Params {
 
     /** reduction coefficient for rewards after MTP kicks in */
     int nMTPRewardReduction;
+
+    /** after this time MTP data is stripped from all the outgoing blocks */
+    uint32_t nMTPStripDataTime;
 
     /** block number to disable zerocoin on consensus level */
     int nDisableZerocoinStartBlock;

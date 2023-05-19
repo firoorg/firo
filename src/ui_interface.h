@@ -103,6 +103,9 @@ public:
     /** Show progress e.g. for verifychain */
     boost::signals2::signal<void (const std::string &title, int nProgress)> ShowProgress;
 
+    /** Update progress bar label text */
+    boost::signals2::signal<void (const std::string &title)> UpdateProgressBarLabel;
+
     /** New block has been accepted */
     boost::signals2::signal<void (bool, const CBlockIndex *)> NotifyBlockTip;
 

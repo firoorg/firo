@@ -52,7 +52,17 @@ public:
     std::deque<std::vector<uint8_t>> nProofMTP[mtp::MTP_L*3];
 
     CMTPHashData() {
+        memset(hashRootMTP, 0, sizeof(hashRootMTP));
         memset(nBlockMTP, 0, sizeof(nBlockMTP));
+    }
+
+    bool IsMTPDataStripped() const {
+        // if MTP data is stripped for this block hashRootMTP is all zeroes
+        return std::all_of(hashRootMTP, hashRootMTP+16, [](uint8_t b) {return b==0;});
+    }
+
+    void StripMTPData() {
+        memset(hashRootMTP, 0, sizeof(hashRootMTP));
     }
 
     ADD_SERIALIZE_METHODS;
@@ -65,6 +75,9 @@ public:
     template <typename Stream, typename Operation, typename = typename std::enable_if<!std::is_base_of<CSerActionUnserialize, Operation>::value>::type>
     inline void SerializationOp(Stream &s, Operation ser_action) {
         READWRITE(hashRootMTP);
+        if (IsMTPDataStripped())
+            return;
+
         READWRITE(nBlockMTP);
         for (int i = 0; i < mtp::MTP_L*3; i++) {
             assert(nProofMTP[i].size() < 256);
@@ -82,6 +95,10 @@ public:
     template <typename Stream>
     inline void SerializationOp(Stream &s, CSerActionUnserialize ser_action) {
         READWRITE(hashRootMTP);
+
+        if (IsMTPDataStripped())
+            return;
+
         READWRITE(nBlockMTP);
         for (int i = 0; i < mtp::MTP_L*3; i++) {
             uint8_t numberOfProofBlocks;
@@ -244,8 +261,10 @@ public:
     void InvalidateCachedPoWHash(int nHeight) const;
 
     bool IsMTP() const;
-
     bool IsProgPow() const;
+    bool IsShorterBlocksSpacing() const;
+
+    int GetTargetBlocksSpacing() const;
 
     CProgPowHeader GetProgPowHeader() const;
     uint256 GetProgPowHeaderHash() const;

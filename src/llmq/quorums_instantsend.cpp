@@ -1547,7 +1547,13 @@ CTransaction AdaptJsplitTx(CTransaction const & tx)
     static size_t const jsplitSerialSize = 32;
 
     CTransaction result{tx};
-    std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(tx);
+    std::unique_ptr <lelantus::JoinSplit> jsplit;
+    try {
+        jsplit = lelantus::ParseLelantusJoinSplit(tx);
+    }
+    catch (...) {
+        return result;
+    }
     const_cast<std::vector<CTxIn>*>(&result.vin)->clear();                      //This const_cast was done intentionally as the current design allows for this way only
     for (Scalar const & serial : jsplit->getCoinSerialNumbers()) {
         CTxIn newin;

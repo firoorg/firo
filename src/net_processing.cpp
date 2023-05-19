@@ -1091,6 +1091,20 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     CBlock block;
                     if (!ReadBlockFromDisk(block, (*mi).second, consensusParams))
                         assert(!"cannot load block from disk");
+                    // Strip MTP data if past specific point of time
+                    if (!block.IsProgPow() && block.IsMTP() && GetTime() >= consensusParams.nMTPStripDataTime) {
+                        if (pfrom->nVersion >= MTPDATA_STRIPPED_VERSION) {
+                            if (block.mtpHashData)
+                                block.mtpHashData->StripMTPData();
+                        }
+                        else {
+                            // node is not ready for a block with stripped MTP data. Skip the block if MTP
+                            // data has already been stripped locally
+                            if (!block.mtpHashData || block.mtpHashData->IsMTPDataStripped())
+                                continue;
+                        }
+                    }
+
                     if (inv.type == MSG_BLOCK)
                         connman.PushMessage(pfrom, msgMaker.Make(SERIALIZE_TRANSACTION_NO_WITNESS, NetMsgType::BLOCK, block));
                     else if (inv.type == MSG_WITNESS_BLOCK)
@@ -1429,9 +1443,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if (!vRecv.empty()) {
             vRecv >> LIMITED_STRING(strSubVer, MAX_SUBVERSION_LENGTH);
             cleanSubVer = SanitizeString(strSubVer);
-            int parsedVersion[4];
+            int parsedVersion[4] = {0, 0, 0, 0};
             if (sscanf(cleanSubVer.c_str(), "/Satoshi:%2d.%2d.%2d.%2d/",
-                    &parsedVersion[0], &parsedVersion[1], &parsedVersion[2], &parsedVersion[3]) == 4) {
+                    &parsedVersion[0], &parsedVersion[1], &parsedVersion[2], &parsedVersion[3]) >= 2) {
                 int peerClientVersion = parsedVersion[0]*1000000 + parsedVersion[1]*10000 + parsedVersion[2]*100 + parsedVersion[3];
                 if (peerClientVersion < MIN_FIRO_CLIENT_VERSION) {
                     connman.PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE, "This version is banned from the network"));
@@ -2257,7 +2271,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                              txpools.getStemTxPool().size(),
                              txpools.getStemTxPool().DynamicMemoryUsage() / 1000);
                     int64_t nCurrTime = GetTimeMicros();
-                    auto& consensus = Params().GetConsensus();
+                    const auto& consensus = Params().GetConsensus();
                     int64_t nEmbargo = 1000000 * consensus.nDandelionEmbargoMinimum +
                         PoissonNextSend(nCurrTime, consensus.nDandelionEmbargoAvgAdd);
                     pfrom->insertDandelionEmbargo(tx.GetHash(), nEmbargo);
@@ -2709,6 +2723,12 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     {
         std::shared_ptr<CBlock> pblock = std::make_shared<CBlock>();
         vRecv >> *pblock;
+
+        if (pblock->IsMTP() && !pblock->IsProgPow() && pblock->mtpHashData && GetTime() >= chainparams.GetConsensus().nMTPStripDataTime)
+        {
+            // we don't need MTP data anymore
+            pblock->mtpHashData->StripMTPData();
+        }
 
         LogPrint("net", "received block %s peer=%d\n", pblock->GetHash().ToString(), pfrom->id);
 
