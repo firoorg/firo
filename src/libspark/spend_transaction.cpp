@@ -324,7 +324,6 @@ bool SpendTransaction::verify(
 		for (std::size_t j = 0; j < t; j++) {
 			balance_statement += tx.out_coins[j].C.inverse();
 		}
-
         balance_statement += (tx.params->get_G()*Scalar(tx.f + tx.vout)).inverse();
         
 		if(!schnorr.verify(

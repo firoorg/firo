@@ -3189,7 +3189,7 @@ UniValue listunspentsparkmints(const JSONRPCRequest& request) {
                 "listunspentsparkmints \n"
                 "Returns array of unspent mints coins\n"
                 "Results are an array of Objects, each of which has:\n"
-                "{txid, nHeight, scriptPubKey, amount}");
+                "{txid, nHeight, memo, scriptPubKey, amount}");
     }
 
     if (pwallet->IsLocked()) {
@@ -3236,7 +3236,7 @@ UniValue listsparkmints(const JSONRPCRequest& request) {
                 "listsparkmints \n"
                 "Returns array of mint coins\n"
                 "Results are an array of Objects, each of which has:\n"
-                "{txid, nHeight, nId, isUsed, lTagHash, scriptPubKey, amount}");
+                "{txid, nHeight, nId, isUsed, lTagHash, memo, scriptPubKey, amount}");
     }
 
     if (pwallet->IsLocked()) {
@@ -3455,7 +3455,8 @@ UniValue resetsparkmints(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
                 "resetsparkmints"
-                + HelpRequiringPassphrase(pwallet));
+                + HelpRequiringPassphrase(pwallet) + "\nResets all your Spark mints' status to unsued and unconfirmed. To make it valid again, you have to rescan or reindex.\n"
+                                                     "WARNING: Run this only for testing and if you fully understand what it does.\n");
 
     EnsureSparkWalletIsAvailable();
 
