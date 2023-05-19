@@ -96,9 +96,6 @@ QT_TS = \
 
 QT_FORMS_UI = \
   qt/forms/addressbookpage.ui \
-  qt/forms/blanksigmadialog.ui \
-  qt/forms/sigmadialog.ui \
-  qt/forms/sigmacoincontroldialog.ui \
   qt/forms/askpassphrasedialog.ui \
   qt/forms/automintdialog.ui \
   qt/forms/automintnotification.ui \
@@ -138,8 +135,6 @@ QT_MOC_CPP = \
   qt/moc_addressbookpage.cpp \
   qt/moc_automintdialog.cpp \
   qt/moc_automintnotification.cpp \
-  qt/moc_sigmadialog.cpp \
-  qt/moc_sigmacoincontroldialog.cpp \
   qt/moc_addresstablemodel.cpp \
   qt/moc_askpassphrasedialog.cpp \
   qt/moc_bantablemodel.cpp \
@@ -231,8 +226,6 @@ BITCOIN_QT_H = \
   qt/addressbookpage.h \
   qt/automintdialog.h \
   qt/automintnotification.h \
-  qt/sigmadialog.h \
-  qt/sigmacoincontroldialog.h \
   qt/addresstablemodel.h \
   qt/askpassphrasedialog.h \
   qt/bantablemodel.h \
@@ -318,7 +311,6 @@ RES_ICONS = \
   qt/res/icons/bitcoin.png \
   qt/res/icons/firo.png \
   qt/res/icons/zerocoin.png \
-  qt/res/icons/sigma.png \
   qt/res/icons/paymentcode.png \
   qt/res/icons/masternodes.png \
   qt/res/icons/qrcode.png \
@@ -466,8 +458,6 @@ BITCOIN_QT_WALLET_CPP = \
   qt/addressbookpage.cpp \
   qt/automintdialog.cpp \
   qt/automintnotification.cpp \
-  qt/sigmadialog.cpp \
-  qt/sigmacoincontroldialog.cpp \
   qt/addresstablemodel.cpp \
   qt/askpassphrasedialog.cpp \
   qt/coincontroldialog.cpp \

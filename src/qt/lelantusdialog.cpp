@@ -32,9 +32,9 @@ LelantusDialog::LelantusDialog(const PlatformStyle *platformStyle, QWidget *pare
     setWindowTitle(tr("Lelantus"));
 
     // hide amount of global pool
-    ui->globalTotalCoinsAmount->setVisible(false);
-    ui->globalLatestGroupCoinsAmount->setVisible(false);
-    ui->globalUnspentAmount->setVisible(false);
+    // ui->globalTotalCoinsAmount->setVisible(false);
+    // ui->globalLatestGroupCoinsAmount->setVisible(false);
+    // ui->globalUnspentAmount->setVisible(false);
 
     // Coin Control
     connect(ui->pushButtonCoinControl, &QPushButton::clicked, this, &LelantusDialog::coinControlButtonClicked);

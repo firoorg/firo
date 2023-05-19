@@ -34,7 +34,6 @@
 #include "chainparams.h"
 #include "init.h"
 #include "lelantus.h"
-#include "sigma.h"
 #include "ui_interface.h"
 #include "util.h"
 
@@ -133,7 +132,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     openRPCConsoleAction(0),
     openAction(0),
     showHelpMessageAction(0),
-    sigmaAction(0),
     lelantusAction(0),
     masternodeAction(0),
     createPcodeAction(0),
@@ -364,14 +362,6 @@ void BitcoinGUI::createActions()
 	tabGroup->addAction(historyAction);
 
 #ifdef ENABLE_WALLET
-    sigmaAction = new QAction(tr("Si&gma"), this);
-    sigmaAction->setStatusTip(tr("Anonymize your coins and perform private transfers using Sigma"));
-    sigmaAction->setToolTip(sigmaAction->statusTip());
-    sigmaAction->setCheckable(true);
-    sigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
-    tabGroup->addAction(sigmaAction);
-    sigmaAction->setVisible(false);
-
     lelantusAction = new QAction(tr("&Lelantus"), this);
     lelantusAction->setStatusTip(tr("Anonymize your coins"));
     lelantusAction->setToolTip(lelantusAction->statusTip());
@@ -436,7 +426,7 @@ void BitcoinGUI::createActions()
 	connect(receiveCoinsMenuAction, &QAction::triggered, this, &BitcoinGUI::gotoReceiveCoinsPage);
 	connect(historyAction, &QAction::triggered, this, [this]{ showNormalIfMinimized(); });
 	connect(historyAction, &QAction::triggered, this, &BitcoinGUI::gotoHistoryPage);
-	connect(sigmaAction, &QAction::triggered, this, &BitcoinGUI::gotoSigmaPage);
+
 	connect(lelantusAction, &QAction::triggered, this, &BitcoinGUI::gotoLelantusPage);
 	connect(createPcodeAction, &QAction::triggered, this, &BitcoinGUI::gotoCreatePcodePage);
 #ifdef ENABLE_ELYSIUM
@@ -583,7 +573,6 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
-        toolbar->addAction(sigmaAction);
         toolbar->addAction(lelantusAction);
         toolbar->addAction(masternodeAction);
 
@@ -670,7 +659,6 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
             checkZnodeVisibility(blocks);
 
 #ifdef ENABLE_WALLET
-            checkSigmaVisibility(blocks);
             checkLelantusVisibility(blocks);
 #endif // ENABLE_WALLET
         }
@@ -728,7 +716,6 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsMenuAction->setEnabled(enabled);
     createPcodeAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
-    sigmaAction->setEnabled(enabled);
     lelantusAction->setEnabled(enabled);
     masternodeAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
@@ -927,12 +914,6 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
     if (walletFrame) walletFrame->gotoSignMessageTab(addr);
 }
 
-void BitcoinGUI::gotoSigmaPage()
-{
-    sigmaAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoSigmaPage();
-}
-
 void BitcoinGUI::gotoLelantusPage()
 {
     lelantusAction->setChecked(true);
@@ -1103,7 +1084,6 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     progressBar->setToolTip(tooltip);
 
 #ifdef ENABLE_WALLET
-    checkSigmaVisibility(count);
     checkLelantusVisibility(count);
 #endif // ENABLE_WALLET
 
@@ -1515,17 +1495,6 @@ void BitcoinGUI::checkZnodeVisibility(int numBlocks) {
         masternodeAction->setVisible(false);
     } else {
         masternodeAction->setVisible(true);
-    }
-}
-
-void BitcoinGUI::checkSigmaVisibility(int numBlocks)
-{
-    auto allowSigmaPage = sigma::IsSigmaAllowed(numBlocks) && !lelantus::IsLelantusAllowed(numBlocks);
-    if (allowSigmaPage != sigmaAction->isVisible()) {
-        if (!allowSigmaPage && sigmaAction->isChecked()) {
-            gotoOverviewPage();
-        }
-        sigmaAction->setVisible(allowSigmaPage);
     }
 }
 
