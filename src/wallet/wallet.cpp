@@ -1765,12 +1765,31 @@ isminetype CWallet::IsMine(const CTxOut &txout) const
             }
         return db.HasHDMint(pub) ? ISMINE_SPENDABLE : ISMINE_NO;
     } else if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+        std::vector<unsigned char> serialContext;
+        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+            const CWalletTx *pcoin = &(*it).second;
+            for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
+                if (txout == pcoin->tx->vout[i]) {
+                    serialContext = spark::getSerialContext(*pcoin->tx);
+                    break;
+                }
+            }
+
+            if (!serialContext.empty())
+                break;
+        }
+
+        if (serialContext.empty())
+            return ISMINE_NO;
+
         spark::Coin coin(spark::Params::get_default());
         try {
             spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
         } catch (std::invalid_argument &) {
             return ISMINE_NO;
         }
+
+        coin.setSerialContext(serialContext);
 
         if (!sparkWallet)
             return ISMINE_NO;
@@ -1802,6 +1821,39 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter) cons
         }
         return 0;
     }
+
+    if (txout.scriptPubKey.IsSparkSMint()) {
+        if (!(filter & ISMINE_SPENDABLE))
+            return 0;
+        std::vector<unsigned char> serialContext;
+        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+            const CWalletTx *pcoin = &(*it).second;
+            for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
+                if (txout == pcoin->tx->vout[i]) {
+                    serialContext = spark::getSerialContext(*pcoin->tx);
+                    break;
+                }
+            }
+
+            if (!serialContext.empty())
+                break;
+        }
+
+        if (serialContext.empty())
+            return 0;
+
+        spark::Coin coin(spark::Params::get_default());
+        try {
+            spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
+        } catch (std::invalid_argument &) {
+            return 0;
+        }
+        coin.setSerialContext(serialContext);
+        if (!sparkWallet)
+            return 0;
+        return sparkWallet->getMyCoinV(coin);
+    }
+
     return ((IsMine(txout) & filter) ? txout.nValue : 0);
 }
 
@@ -1819,6 +1871,20 @@ CAmount CWallet::GetChange(const uint256& tx, const CTxOut &txout) const
 {
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error(std::string(__func__) + ": value out of range");
+    if (txout.scriptPubKey.IsSparkSMint()) {
+        if (IsChange(tx, txout)) {
+            std::vector<unsigned char> serial_context = spark::getSerialContext(*GetWalletTx(tx)->tx);
+            spark::Coin coin(spark::Params::get_default());
+            try {
+                spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
+                coin.setSerialContext(serial_context);
+            } catch (...) {
+                return 0;
+            }
+            return sparkWallet->getMyCoinV(coin);
+        } else
+            return 0;
+    }
     return (IsChange(tx, txout) ? txout.nValue : 0);
 }
 
@@ -2214,17 +2280,24 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
     CAmount nDebit = GetDebit(filter);
     if (nDebit > 0) // debit>0 means we signed/sent this transaction
     {
-        if (!tx->IsLelantusJoinSplit()) {
-            CAmount nValueOut = tx->GetValueOut();
-            nFee = nDebit - nValueOut;
-        }
-        else
+        if (tx->IsLelantusJoinSplit()) {
             try {
                 nFee = lelantus::ParseLelantusJoinSplit(*tx)->getFee();
             }
             catch (...) {
                 // do nothing
             }
+        } else if (tx->IsSparkSpend()) {
+            try {
+                nFee = spark::ParseSparkSpend(*tx).getFee();
+            }
+            catch (...) {
+                // do nothing
+            }
+        } else {
+            CAmount nValueOut = tx->GetValueOut();
+            nFee = nDebit - nValueOut;
+        }
     }
 
     // Sent/received.
@@ -2247,7 +2320,9 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
         // In either case, we need to get the destination address
         CTxDestination address;
 
-        if (txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint() || txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint())
+        if (txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint()
+        || txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()
+        || txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint())
         {
             address = CNoDestination();
         }
@@ -2259,7 +2334,7 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
         }
 
         CAmount nValue;
-        if(txout.scriptPubKey.IsLelantusJMint()) {
+        if(txout.scriptPubKey.IsLelantusJMint() || txout.scriptPubKey.IsSparkSMint()) {
             LOCK(pwalletMain->cs_wallet);
             nValue = pwallet->GetCredit(txout, ISMINE_SPENDABLE);
         } else {
@@ -2513,7 +2588,7 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache, bool fExcludeLocked) const
         return 0;
 
     // We cannot use cache if vout contains mints due to it will not update when it spend
-    if (fUseCache && fAvailableCreditCached && !tx->IsZerocoinMint() && !tx->IsSigmaMint() && !tx->IsLelantusMint() && !fExcludeLocked)
+    if (fUseCache && fAvailableCreditCached && !tx->IsZerocoinMint() && !tx->IsSigmaMint() && !tx->IsLelantusMint() &&  !tx->IsSparkMint() && !tx->IsSparkSpend() && !fExcludeLocked)
         return nAvailableCreditCached;
 
     CAmount nCredit = 0;
@@ -2522,7 +2597,7 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache, bool fExcludeLocked) const
     {
         const CTxOut &txout = tx->vout[i];
 
-        bool isPrivate = txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint() || txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint();
+        bool isPrivate = txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint() || txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint() || txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint();
         if (isPrivate) continue;
         if (fExcludeLocked && pwallet->IsLockedCoin(hashTx, i)) continue;
 
@@ -5459,6 +5534,7 @@ std::string CWallet::MintAndStoreLelantus(const CAmount& value,
 std::string CWallet::MintAndStoreSpark(
         const std::vector<spark::MintedCoinData>& outputs,
         std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+        bool subtractFeeFromAmount,
         bool autoMintAll,
         bool fAskFee,
         const CCoinControl *coinControl) {
@@ -5485,7 +5561,7 @@ std::string CWallet::MintAndStoreSpark(
     int nChangePosRet = -1;
 
     std::list<CReserveKey> reservekeys;
-    if (!sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, strError, coinControl, autoMintAll)) {
+    if (!sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, subtractFeeFromAmount, strError, coinControl, autoMintAll)) {
         return strError;
     }
 
@@ -5661,7 +5737,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
     return tx;
 }
 
-std::vector<CWalletTx> CWallet::CreateSparkSpendTransaction(
+CWalletTx CWallet::CreateSparkSpendTransaction(
         const std::vector<CRecipient>& recipients,
         const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
         CAmount &fee,
@@ -5677,7 +5753,7 @@ std::vector<CWalletTx> CWallet::CreateSparkSpendTransaction(
     return sparkWallet->CreateSparkSpendTransaction(recipients, privateRecipients, fee, coinControl);
 }
 
-std::vector<CWalletTx> CWallet::SpendAndStoreSpark(
+CWalletTx CWallet::SpendAndStoreSpark(
         const std::vector<CRecipient>& recipients,
         const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
         CAmount &fee,
@@ -5687,21 +5763,19 @@ std::vector<CWalletTx> CWallet::SpendAndStoreSpark(
     auto result = CreateSparkSpendTransaction(recipients, privateRecipients, fee, coinControl);
 
     // commit
-    for (auto& wtxNew : result) {
-        try {
-            CValidationState state;
-            CReserveKey reserveKey(this);
-            CommitTransaction(wtxNew, reserveKey, g_connman.get(), state);
-        } catch (...) {
-            auto error = _(
-                    "Error: The transaction was rejected! This might happen if some of "
-                    "the coins in your wallet were already spent, such as if you used "
-                    "a copy of wallet.dat and coins were spent in the copy but not "
-                    "marked as spent here."
-            );
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(this);
+        CommitTransaction(result, reserveKey, g_connman.get(), state);
+    } catch (...) {
+        auto error = _(
+                "Error: The transaction was rejected! This might happen if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
 
-            std::throw_with_nested(std::runtime_error(error));
-        }
+        std::throw_with_nested(std::runtime_error(error));
     }
 
     return result;

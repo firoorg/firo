@@ -1071,17 +1071,18 @@ public:
     std::string MintAndStoreSpark(
             const std::vector<spark::MintedCoinData>& outputs,
             std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+            bool subtractFeeFromAmount,
             bool autoMintAll = false,
             bool fAskFee = false,
             const CCoinControl *coinControl = NULL);
 
-    std::vector<CWalletTx> CreateSparkSpendTransaction(
+    CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
-    std::vector<CWalletTx> SpendAndStoreSpark(
+    CWalletTx SpendAndStoreSpark(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
