@@ -75,12 +75,12 @@ SigmaDialog::SigmaDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     // init coin control section
     GUIUtil::setupAddressWidget(ui->lineEditCoinControlChange, this);
 
-    connect(ui->addButton, SIGNAL(clicked()), this, SLOT(addEntry()));
-    connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
+    connect(ui->addButton, &QPushButton::clicked, this, &SigmaDialog::addEntry);
+    connect(ui->clearButton, &QPushButton::clicked, this, &SigmaDialog::clear);
     // Coin Control
-    connect(ui->pushButtonCoinControl, SIGNAL(clicked()), this, SLOT(coinControlButtonClicked()));
-    connect(ui->checkBoxCoinControlChange, SIGNAL(stateChanged(int)), this, SLOT(coinControlChangeChecked(int)));
-    connect(ui->lineEditCoinControlChange, SIGNAL(textEdited(const QString &)), this, SLOT(coinControlChangeEdited(const QString &)));
+    connect(ui->pushButtonCoinControl, &QPushButton::clicked, this, &SigmaDialog::coinControlButtonClicked);
+    connect(ui->checkBoxCoinControlChange, &QCheckBox::stateChanged, this, &SigmaDialog::coinControlChangeChecked);
+    connect(ui->lineEditCoinControlChange, &QValidatedLineEdit::textEdited, this, &SigmaDialog::coinControlChangeEdited);
     // Coin Control: clipboard actions
     QAction *clipboardQuantityAction = new QAction(tr("Copy quantity"), this);
     QAction *clipboardAmountAction = new QAction(tr("Copy amount"), this);
@@ -90,14 +90,14 @@ SigmaDialog::SigmaDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     QAction *clipboardPriorityAction = new QAction(tr("Copy priority"), this);
     QAction *clipboardLowOutputAction = new QAction(tr("Copy dust"), this);
     QAction *clipboardChangeAction = new QAction(tr("Copy change"), this);
-    connect(clipboardQuantityAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardQuantity()));
-    connect(clipboardAmountAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardAmount()));
-    connect(clipboardFeeAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardFee()));
-    connect(clipboardAfterFeeAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardAfterFee()));
-    connect(clipboardBytesAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardBytes()));
-    connect(clipboardPriorityAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardPriority()));
-    connect(clipboardLowOutputAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardLowOutput()));
-    connect(clipboardChangeAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardChange()));
+    connect(clipboardQuantityAction, &QAction::triggered, this, &SigmaDialog::coinControlClipboardQuantity);
+    connect(clipboardAmountAction, &QAction::triggered, this, &SigmaDialog::coinControlClipboardAmount);
+    connect(clipboardFeeAction, &QAction::triggered, this, &SigmaDialog::coinControlClipboardFee);
+    connect(clipboardAfterFeeAction, &QAction::triggered, this, &SigmaDialog::coinControlClipboardAfterFee);
+    connect(clipboardBytesAction, &QAction::triggered, this, &SigmaDialog::coinControlClipboardBytes);
+    connect(clipboardPriorityAction, &QAction::triggered, this, &SigmaDialog::coinControlClipboardPriority);
+    connect(clipboardLowOutputAction, &QAction::triggered, this, &SigmaDialog::coinControlClipboardLowOutput);
+    connect(clipboardChangeAction, &QAction::triggered, this, &SigmaDialog::coinControlClipboardChange);
     ui->labelCoinControlQuantity->addAction(clipboardQuantityAction);
     ui->labelCoinControlAmount->addAction(clipboardAmountAction);
     ui->labelCoinControlFee->addAction(clipboardFeeAction);
@@ -107,11 +107,10 @@ SigmaDialog::SigmaDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     ui->labelCoinControlLowOutput->addAction(clipboardLowOutputAction);
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
 
-    ui->amountToMint->setLocale(QLocale::c());
-    connect(ui->amountToMint, SIGNAL(valueChanged(double)), this, SLOT(coinControlUpdateLabels()));
+    connect(ui->amountToMint, &BitcoinAmountField::valueChanged, this, &SigmaDialog::coinControlUpdateLabels);
 
     //check if user clicked at a tab
-    connect(ui->tabWidget, SIGNAL(currentChanged(int)), this, SLOT(tabSelected()));
+    connect(ui->tabWidget, &QTabWidget::currentChanged, this, &SigmaDialog::tabSelected);
 }
 
 void SigmaDialog::setClientModel(ClientModel *model)
@@ -121,7 +120,7 @@ void SigmaDialog::setClientModel(ClientModel *model)
     if (model) {
         bool sigmaAllowed = sigma::IsSigmaAllowed(model->getNumBlocks());
 
-        connect(model, SIGNAL(numBlocksChanged(int, const QDateTime&, double, bool)), this, SLOT(numBlocksChanged(int, const QDateTime&, double, bool)));
+        connect(model, &ClientModel::numBlocksChanged, this, &SigmaDialog::numBlocksChanged);
 
         ui->mintButton->setEnabled(sigmaAllowed);
         ui->sendButton->setEnabled(sigmaAllowed);
@@ -133,12 +132,9 @@ void SigmaDialog::setWalletModel(WalletModel *model)
     this->walletModel = model;
 
     if (model && model->getOptionsModel()) {
-        connect(model, SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)),
-            this, SLOT(updateMintableBalance()));
-        connect(model, SIGNAL(updateMintable()), this, SLOT(updateMintableBalance()));
-        updateMintableBalance();
-        connect(model, SIGNAL(notifySigmaChanged(const std::vector<CMintMeta>, const std::vector<CMintMeta>)),
-            this, SLOT(updateCoins(const std::vector<CMintMeta>, const std::vector<CMintMeta>)));
+        connect(model, &WalletModel::balanceChanged, this, &SigmaDialog::updateMintableBalance);
+        connect(model, &WalletModel::updateMintable, this, &SigmaDialog::updateMintableBalance);
+        connect(model, &WalletModel::notifySigmaChanged, this, &SigmaDialog::updateCoins);
         model->checkSigmaAmount(true);
         for (int i = 0; i < ui->entries->count(); ++i) {
             SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
@@ -150,8 +146,8 @@ void SigmaDialog::setWalletModel(WalletModel *model)
     }
 
     // Coin Control
-    connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(coinControlUpdateLabels()));
-    connect(model->getOptionsModel(), SIGNAL(coinControlFeaturesChanged(bool)), this, SLOT(coinControlFeatureChanged(bool)));
+    connect(model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &SigmaDialog::coinControlUpdateLabels);
+    connect(model->getOptionsModel(), &OptionsModel::coinControlFeaturesChanged, this, &SigmaDialog::coinControlFeatureChanged);
     ui->frameCoinControl->setVisible(model->getOptionsModel()->getCoinControlFeatures());
     coinControlUpdateLabels();
 }
@@ -475,9 +471,9 @@ SendCoinsEntry *SigmaDialog::addEntry() {
     SendCoinsEntry *entry = new SendCoinsEntry(platformStyle, this);
     entry->setModel(walletModel);
     ui->entries->addWidget(entry);
-    connect(entry, SIGNAL(removeEntry(SendCoinsEntry*)), this, SLOT(removeEntry(SendCoinsEntry*)));
-    connect(entry, SIGNAL(payAmountChanged()), this, SLOT(coinControlUpdateLabels()));
-    connect(entry, SIGNAL(subtractFeeFromAmountChanged()), this, SLOT(coinControlUpdateLabels()));
+    connect(entry, &SendCoinsEntry::removeEntry, this, &SigmaDialog::removeEntry);
+    connect(entry, &SendCoinsEntry::payAmountChanged, this, &SigmaDialog::coinControlUpdateLabels);
+    connect(entry, &SendCoinsEntry::subtractFeeFromAmountChanged, this, &SigmaDialog::coinControlUpdateLabels);
 
     // Focus the field, so that entry can start immediately
     entry->clear();

@@ -154,9 +154,6 @@
     <qresource prefix="/css">
         <file alias="firoTheme">res/css/firo.css</file>
     </qresource>
-    <qresource prefix="/css">
-        <file alias="firoLowTheme">res/css/firo_low.css</file>
-    </qresource>
     <qresource prefix="/fonts">
         <file alias="Saira_SemiCondensed-Bold">res/fonts/Saira_SemiCondensed-Bold.ttf</file>
         <file alias="SourceSansPro-Regular">res/fonts/SourceSansPro-Regular.ttf</file>

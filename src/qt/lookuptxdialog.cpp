@@ -37,7 +37,7 @@ LookupTXDialog::LookupTXDialog(QWidget *parent) :
 #endif
 
     // connect actions
-    connect(ui->searchButton, SIGNAL(clicked()), this, SLOT(searchButtonClicked()));
+    connect(ui->searchButton, &QPushButton::clicked, this, &LookupTXDialog::searchButtonClicked);
 }
 
 LookupTXDialog::~LookupTXDialog()

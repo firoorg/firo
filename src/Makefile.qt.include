@@ -424,8 +424,7 @@ RES_ICONS = \
   qt/res/icons/ext_add_light.png
 
 RES_CSS = \
-  qt/res/css/firo.css \
-  qt/res/css/firo_low.css
+  qt/res/css/firo.css
 
 RES_FONTS = \
   qt/res/fonts/Saira_SemiCondensed-Bold.ttf \
