@@ -803,7 +803,7 @@ void CWallet::AddToSpends(const uint256& wtxid)
         return;
 
     BOOST_FOREACH(const CTxIn& txin, thisTx.tx->vin) {
-        if (!txin.IsZerocoinSpend() && !txin.IsSigmaSpend() && !txin.IsLelantusJoinSplit()) {
+        if (!txin.IsZerocoinSpend() && !txin.IsSigmaSpend() && !txin.IsLelantusJoinSplit() && !thisTx.tx->IsSparkSpend()) {
             AddToSpends(txin.prevout, wtxid);
         }
     }
@@ -3636,7 +3636,7 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
 
                 if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
                     (!IsLockedCoin((*it).first, i) || nCoinType == CoinType::ONLY_1000) &&
-                    (pcoin->tx->vout[i].nValue > 0 || fIncludeZeroValue || (pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint() && GetCredit(pcoin->tx->vout[i], ISMINE_SPENDABLE) > 0)) &&
+                    (pcoin->tx->vout[i].nValue > 0 || fIncludeZeroValue || ((pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint() || pcoin->tx->vout[i].scriptPubKey.IsSparkSMint()) && GetCredit(pcoin->tx->vout[i], ISMINE_SPENDABLE) > 0)) &&
                     (!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs || coinControl->IsSelected(COutPoint((*it).first, i)))) {
                         vCoins.push_back(COutput(pcoin, i, nDepth,
                                                  ((mine & ISMINE_SPENDABLE) != ISMINE_NO) ||
