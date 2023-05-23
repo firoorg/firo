@@ -29,7 +29,7 @@ class SpendGettransactionTest(BitcoinTestFramework):
         valid_address = self.nodes[0].getnewaddress()
 
         for _ in range(10):
-            self.nodes[0].mintspark({sparkAddress: [1, "Test memo"]})
+            self.nodes[0].mintspark({sparkAddress: {"amount": 1, "memo": "Test memo"}})
 
         self.nodes[0].generate(1)
         self.sync_all()
@@ -38,18 +38,18 @@ class SpendGettransactionTest(BitcoinTestFramework):
         assert balance['availableBalance'] / 1e8 == 10
 
         # case 1: Spend many with watchonly address
-        spendto_wo_id = self.nodes[0].spendspark({watchonly_address: [1, False]}, {})
-        spendto_wo_tx = self.nodes[0].gettransaction(spendto_wo_id[0])
+        spendto_wo_id = self.nodes[0].spendspark({watchonly_address: {"amount": 1, "subtractFee": False}}, {})
+        spendto_wo_tx = self.nodes[0].gettransaction(spendto_wo_id)
 
         assert int(spendto_wo_tx['amount']) == int('-1')
         assert spendto_wo_tx['fee'] < Decimal('0')
         assert isinstance(spendto_wo_tx['details'], list)
-        assert len(spendto_wo_tx['details']) == 2
+        assert len(spendto_wo_tx['details']) == 1
         assert spendto_wo_tx['details'][0]['involvesWatchonly']
 
         # case 2: Spend many with watchonly address and valid address
-        spendto_wo_and_valid_id = self.nodes[0].spendspark({watchonly_address: [1, False]}, {sparkAddress: [0.01, "Test", False]})
-        spendto_wo_and_valid_tx = self.nodes[0].gettransaction(spendto_wo_and_valid_id[0])
+        spendto_wo_and_valid_id = self.nodes[0].spendspark({watchonly_address: {"amount": 1, "subtractFee": False}}, {sparkAddress: {"amount": 0.01, "memo": "Test", "subtractFee": False}})
+        spendto_wo_and_valid_tx = self.nodes[0].gettransaction(spendto_wo_and_valid_id)
 
         assert int(spendto_wo_and_valid_tx['amount']) == int(-1)
         assert spendto_wo_and_valid_tx['fee'] < Decimal('0')

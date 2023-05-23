@@ -394,17 +394,17 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
     std::vector<spark::Coin> dupNewCoins1;
     std::vector<GroupElement> dupTags1;
-    ExtractSpend(dupTx1[0], dupNewCoins1, dupTags1);
+    ExtractSpend(dupTx1, dupNewCoins1, dupTags1);
 
     std::vector<spark::Coin> newCoins1;
     std::vector<GroupElement> tags1;
-    ExtractSpend(sTx1[0], newCoins1, tags1);
+    ExtractSpend(sTx1, newCoins1, tags1);
     BOOST_CHECK_EQUAL(1, newCoins1.size());
     BOOST_CHECK_EQUAL(1, tags1.size());
     BOOST_CHECK(dupTags1[0] == tags1[0]);
 
     mempool.clear();
-    auto blockIdx2 = GenerateBlock({sTx1[0]});
+    auto blockIdx2 = GenerateBlock({sTx1});
     BOOST_CHECK(blockIdx2);
 
     auto block2 = GetCBlock(blockIdx2);
@@ -430,14 +430,14 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
     std::vector<spark::Coin> newCoins2;
     std::vector<GroupElement> tags2;
-    ExtractSpend(sTx2[0], newCoins2, tags2);
+    ExtractSpend(sTx2, newCoins2, tags2);
     BOOST_CHECK_EQUAL(1, newCoins2.size());
     BOOST_CHECK_EQUAL(1, tags2.size());
 
     BOOST_CHECK(mempool.size() == 1);
     mempool.clear();
     std::vector<CMutableTransaction> blockTX;
-    auto blockIdx3 = GenerateBlock({mintTxs2[0], sTx2[0]});
+    auto blockIdx3 = GenerateBlock({mintTxs2[0], sTx2});
     BOOST_CHECK(blockIdx3);
     auto block3 = GetCBlock(blockIdx3);
 
@@ -472,7 +472,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
     // double spend
     auto currentBlock = chainActive.Tip()->nHeight;
-    BOOST_CHECK(!GenerateBlock({dupTx1[0]}));
+    BOOST_CHECK(!GenerateBlock({dupTx1}));
     BOOST_CHECK_EQUAL(currentBlock, chainActive.Tip()->nHeight);
     mempool.clear();
     sparkState->Reset();
@@ -510,7 +510,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     auto outputAmount = 1 * COIN;
     auto mintAmount = 2 * CENT - CENT; // a cent as fee
     CAmount fee;
-    CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, fee)[0];
+    CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, fee);
 
     CMutableTransaction spendTx(wtx);
     auto spend = ParseSparkSpend(spendTx);
@@ -541,6 +541,9 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
     BOOST_CHECK(!CheckSparkTransaction(
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
+
+    mempool.clear();
+    sparkState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(coingroup)
@@ -681,6 +684,7 @@ BOOST_AUTO_TEST_CASE(coingroup)
     reconnect(block5);
     checker.Verify();
 
+    mempool.clear();
     sparkState->Reset();
 }
 

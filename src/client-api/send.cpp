@@ -98,6 +98,8 @@ UniValue getNewSparkAddress()
     }
     spark::Address address = pwalletMain->sparkWallet->generateNewAddress();
     unsigned char network = spark::GetNetworkType();
+    pwalletMain->SetSparkAddressBook(address.encode(network), "", "receive");
+
     return address.encode(network);
 }
 
@@ -110,20 +112,20 @@ UniValue paymentrequestaddress(Type type, const UniValue& data, const UniValue& 
     UniValue ret(UniValue::VOBJ);
     std::string address = "";
     CWalletDB walletdb(pwalletMain->strWalletFile);
+
     if(addressType == "Spark") {
-        // if(!walletdb.ReadPaymentRequestSparkAddress(address)){
-        address = getNewSparkAddress().get_str();
-        // walletdb.WritePaymentRequestSparkAddress(address);
-        // }
+        if(!walletdb.ReadPaymentRequestSparkAddress(address)){
+            address = getNewSparkAddress().get_str();
+            walletdb.WritePaymentRequestSparkAddress(address);
+        }
     } else if (addressType == "Transparent") {
-        // if(!walletdb.ReadPaymentRequestAddress(address)){
-        address = getNewAddress().get_str();
-        // walletdb.WritePaymentRequestAddress(address);
-        // }
+        if(!walletdb.ReadPaymentRequestAddress(address)){
+            address = getNewAddress().get_str();
+            walletdb.WritePaymentRequestAddress(address);
+        }
     } else {
         throw JSONAPIError(API_INVALID_PARAMETER, "Invalid addressType");
     }
-
     ret.push_back(Pair("address", address));
     return ret;
 }

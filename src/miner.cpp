@@ -463,13 +463,9 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
     // Check transaction against spark limits
     if(tx.IsSparkSpend()) {
         CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
-        size_t spendNumber = spark::GetSpendInputs(tx);
         const auto &params = chainparams.GetConsensus();
 
-        if (spendNumber > params.nMaxLelantusInputPerTransaction || spendAmount > params.nMaxValueLelantusSpendPerTransaction)
-            return false;
-
-        if (spendNumber + nSparkSpendInputs > params.nMaxSparkInputPerBlock)
+        if (spendAmount > params.nMaxValueSparkSpendPerTransaction)
             return false;
 
         if (spendAmount + nSparkSpendAmount > params.nMaxValueSparkSpendPerBlock)
@@ -510,16 +506,12 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
 
     if(tx.IsSparkSpend()) {
         CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
-        size_t spendNumber = spark::GetSpendInputs(tx);
         const auto &params = chainparams.GetConsensus();
 
         if (spendAmount > params.nMaxValueLelantusSpendPerTransaction)
             return;
 
         if ((nSparkSpendAmount += spendAmount) > params.nMaxValueSparkSpendPerBlock)
-            return;
-
-        if ((nSparkSpendInputs += spendNumber) > params.nMaxSparkInputPerBlock)
             return;
     }
 

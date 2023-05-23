@@ -241,7 +241,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         else if (txin.IsLelantusJoinSplit()) inputType = "lelantus";
     }
     if (wtx.tx->IsSparkSpend()) inputType = "sparkspend";
-    if (wtx.tx->IsSparkMint()) inputType = "sparkmint";    
+    if (wtx.tx->IsSparkMint()) inputType = "sparkmint";  
     if (inputType == "public" && wtx.tx->vin.size() == 1 && wtx.tx->vin[0].prevout.IsNull()) {
         inputType = "mined";
         fIsMining = true;
@@ -886,29 +886,27 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
 
     // If we're manipulating the default payment request address, create a new one to take our place.
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    std::string defaultPaymentRequestAddress;
     if(isSparkAddress(address)) {
+        std::string defaultPaymentRequestAddress;
         walletdb.ReadPaymentRequestSparkAddress(defaultPaymentRequestAddress);
+        if (defaultPaymentRequestAddress == address) {
+            spark::Address newaddress = pwalletMain->sparkWallet->generateNewAddress();
+            unsigned char network = spark::GetNetworkType();
+            walletdb.WritePaymentRequestSparkAddress(newaddress.encode(network));
+        }
     } else {
+        std::string defaultPaymentRequestAddress;
         walletdb.ReadPaymentRequestAddress(defaultPaymentRequestAddress);
-    }
-    if (defaultPaymentRequestAddress == address) {
-        if(isSparkAddress(address)) {
-            //CHECK POOL
-            pwalletMain->SetSparkAddressBook(address, "", "receive");
-            walletdb.WritePaymentRequestSparkAddress(address);
-        } else {
+        if (defaultPaymentRequestAddress == address) {
             CPubKey newKey;
             if (!pwalletMain->GetKeyFromPool(newKey))
                 throw JSONAPIError(API_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
             CKeyID keyID = newKey.GetID();
-
-            pwalletMain->SetAddressBook(keyID, "", "receive");
-
             CBitcoinAddress newPaymentRequestAddress {keyID};
             walletdb.WritePaymentRequestAddress(newPaymentRequestAddress.ToString());
         }
     }
+
     return true;
 }
 
@@ -974,8 +972,8 @@ static const CAPICommand commands[] =
     { "wallet",             "editAddressBook",                &editaddressbook,                true,      false,           false  },
     { "wallet",             "lockStatus",                     &lockStatus,                     true,      false,           false  },
     { "wallet",             "validateSparkAddress",           &validateSparkAddress,           true,      false,           false  },
-    { "wallet",             "getAvailableSparkBalance",       &getAvailableSparkBalance,           true,      false,           false  },
-    { "wallet",             "getUnconfirmedSparkBalance",     &getUnconfirmedSparkBalance,           true,      false,           false  },
+    { "wallet",             "getAvailableSparkBalance",       &getAvailableSparkBalance,       true,      false,           false  },
+    { "wallet",             "getUnconfirmedSparkBalance",     &getUnconfirmedSparkBalance,     true,      false,           false  },
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {

@@ -19,11 +19,11 @@
 #include "univalue.h"
 #include "masternode-sync.h"
 #include "lelantus.h"
+#include "../spark/sparkwallet.h"
 
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/erase.hpp>
 #include <boost/range/algorithm/remove_if.hpp>
-#include "../spark/sparkwallet.h"
 
 namespace fs = boost::filesystem;
 using namespace boost::chrono;
@@ -186,7 +186,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     UniValue isSpark = UniValue::VARR;
     isSpark.push_back(spark::IsSparkAllowed());
     ret.pushKV("isSpark", isSpark);
-
+    
     UniValue newLogMessages = UniValue::VARR;
     {
         LOCK(cs_clientApiLogMessages);

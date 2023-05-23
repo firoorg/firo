@@ -1,10 +1,6 @@
 // A design for address scrambling based on `f4jumble`: https://zips.z.cash/zip-0316#jumbling
-// This design differs from `f4jumble` to account for OpenSSL limitations on Blake2b
+// This design differs from `f4jumble` to account for limitations on SHA512
 // These limitations are unfortunate, but such is life sometimes
-//
-// Namely, we have the following dependency limitations on Blake2b:
-// - Output is fixed at either 256 or 512 bits
-// - Personalization is not supported
 //
 // To account for these limitations, we do the following:
 // - Place extra restrictions on length to avoid XOF input encoding (and because we don't need it)
@@ -36,13 +32,13 @@ std::vector<unsigned char> F4Grumble::vec_xor(const std::vector<unsigned char>& 
 
 // Return the maximum allowed input size in bytes
 std::size_t F4Grumble::get_max_size() {
-    return 2 * EVP_MD_size(EVP_blake2b512());
+    return 2 * EVP_MD_size(EVP_sha512());
 }
 
 // Instantiate with a given network identifier and expected input length
 F4Grumble::F4Grumble(const unsigned char network, const int l_M) {
     // Assert the length is valid
-    if (l_M > 2 * EVP_MD_size(EVP_blake2b512())) {
+    if (l_M > 2 * EVP_MD_size(EVP_sha512())) {
         throw std::invalid_argument("Bad address size");
     }
 
@@ -101,7 +97,7 @@ std::vector<unsigned char> F4Grumble::decode(const std::vector<unsigned char>& i
 // Feistel round functions
 std::vector<unsigned char> F4Grumble::G(const unsigned char i, const std::vector<unsigned char>& u) {
 	EVP_MD_CTX* ctx = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(ctx, EVP_blake2b512(), NULL);
+    EVP_DigestInit_ex(ctx, EVP_sha512(), NULL);
 
     // Bind the domain separator and network
     std::vector<unsigned char> domain(LABEL_F4GRUMBLE_G.begin(), LABEL_F4GRUMBLE_G.end());
@@ -116,7 +112,7 @@ std::vector<unsigned char> F4Grumble::G(const unsigned char i, const std::vector
 
     // Finalize the hash and resize
     std::vector<unsigned char> result;
-    result.resize(EVP_MD_size(EVP_blake2b512()));
+    result.resize(EVP_MD_size(EVP_sha512()));
 
     unsigned int TEMP;
     EVP_DigestFinal_ex(ctx, result.data(), &TEMP);
@@ -128,7 +124,7 @@ std::vector<unsigned char> F4Grumble::G(const unsigned char i, const std::vector
 
 std::vector<unsigned char> F4Grumble::H(const unsigned char i, const std::vector<unsigned char>& u) {
 	EVP_MD_CTX* ctx = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(ctx, EVP_blake2b512(), NULL);
+    EVP_DigestInit_ex(ctx, EVP_sha512(), NULL);
 
     // Bind the domain separator and network
     std::vector<unsigned char> domain(LABEL_F4GRUMBLE_H.begin(), LABEL_F4GRUMBLE_H.end());
@@ -143,7 +139,7 @@ std::vector<unsigned char> F4Grumble::H(const unsigned char i, const std::vector
 
     // Finalize the hash and resize
     std::vector<unsigned char> result;
-    result.resize(EVP_MD_size(EVP_blake2b512()));
+    result.resize(EVP_MD_size(EVP_sha512()));
 
     unsigned int TEMP;
     EVP_DigestFinal_ex(ctx, result.data(), &TEMP);

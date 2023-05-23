@@ -48,6 +48,7 @@ const std::string LABEL_HASH_SER = "SER";
 const std::string LABEL_HASH_VAL = "VAL";
 const std::string LABEL_HASH_SER1 = "SER1";
 const std::string LABEL_HASH_VAL1 = "VAL1";
+const std::string LABEL_HASH_BIND_INNER = "BIND_INNER";
 const std::string LABEL_HASH_BIND = "BIND";
 const std::string LABEL_F4GRUMBLE_G = "SPARK_F4GRUMBLE_G";
 const std::string LABEL_F4GRUMBLE_H = "SPARK_F4GRUMBLE_H";
@@ -64,7 +65,7 @@ const int AEAD_TAG_SIZE = 16; // byte length of the tag
 const int AEAD_COMMIT_SIZE = 32; // byte length of the key commitment
 
 // Address encoding prefix
-const unsigned char ADDRESS_ENCODING_PREFIX = 'p';
+const unsigned char ADDRESS_ENCODING_PREFIX = 's';
 
 // Address encoding network identifiers
 // TODO: Extend/update/replace these as needed! These are just initial examples

@@ -721,9 +721,9 @@ private:
      * nTimeFirstKey more intelligently for more efficient rescans.
      */
     bool AddWatchOnly(const CScript& dest) override;
-    
     bool validateAddress(const std::string& address);
     bool validateSparkAddress(const std::string& address);
+
 public:
     /*
      * Main wallet lock.
@@ -1075,17 +1075,18 @@ public:
     std::string MintAndStoreSpark(
             const std::vector<spark::MintedCoinData>& outputs,
             std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+            bool subtractFeeFromAmount,
             bool autoMintAll = false,
             bool fAskFee = false,
             const CCoinControl *coinControl = NULL);
 
-    std::vector<CWalletTx> CreateSparkSpendTransaction(
+    CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
-    std::vector<CWalletTx> SpendAndStoreSpark(
+    CWalletTx SpendAndStoreSpark(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
@@ -1250,7 +1251,6 @@ public:
             &address, const std::string &label, bool isMine,
             const std::string &purpose,
             ChangeType status)> NotifySparkAddressBookChanged;
-            
     /**
      * Wallet transaction added, removed or updated.
      * @note called with lock cs_wallet held.
@@ -1397,10 +1397,11 @@ public:
         CAmount& nAllFeeRet,
         std::list<CReserveKey>& reservekeys,
         int& nChangePosInOut,
+        bool subtractFeeFromAmount,
         std::string& strFailReason,
         const CCoinControl *coinControl,
         bool autoMintAll);
-
+        
 #ifdef ENABLE_ELYSIUM
     void LoadTxOrigin(uint256, std::string& destination);
 #endif

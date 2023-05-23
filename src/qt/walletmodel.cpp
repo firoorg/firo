@@ -886,21 +886,6 @@ static void NotifyAddressBookChanged(WalletModel *walletmodel, CWallet *wallet,
                               Q_ARG(int, status));
 }
 
-static void NotifySparkAddressBookChanged(WalletModel* walletmodel, CWallet* wallet, const std::string& address, const std::string& label, bool isMine, const std::string& purpose, ChangeType status)
-{
-    QString strAddress = QString::fromStdString(address);
-    QString strLabel = QString::fromStdString(label);
-    QString strPurpose = QString::fromStdString(purpose);
-
-    qDebug() << "NotifySparkAddressBookChanged: " + strAddress + " " + strLabel + " isMine=" + QString::number(isMine) + " purpose=" + strPurpose + " status=" + QString::number(status);
-    QMetaObject::invokeMethod(walletmodel, "updateAddressBook", Qt::QueuedConnection,
-        Q_ARG(QString, strAddress),
-        Q_ARG(QString, strLabel),
-        Q_ARG(bool, isMine),
-        Q_ARG(QString, strPurpose),
-        Q_ARG(int, status));
-}
-
 static void NotifyZerocoinChanged(WalletModel *walletmodel, CWallet *wallet, const std::string &pubCoin, const std::string &isUsed, ChangeType status)
 {
     qDebug() << "NotifyZerocoinChanged:" + QString::fromStdString(pubCoin) + " " + QString::fromStdString(isUsed) + " status=" + QString::number(status);
@@ -956,7 +941,6 @@ void WalletModel::subscribeToCoreSignals()
     // Connect signals to wallet
     wallet->NotifyStatusChanged.connect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
     wallet->NotifyAddressBookChanged.connect(boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
-    wallet->NotifySparkAddressBookChanged.connect(boost::bind(NotifySparkAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
     wallet->NotifyTransactionChanged.connect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
     wallet->NotifyISLockReceived.connect(boost::bind(NotifyISLockReceived, this));
     wallet->NotifyChainLockReceived.connect(boost::bind(NotifyChainLockReceived, this, _1));
@@ -972,7 +956,6 @@ void WalletModel::unsubscribeFromCoreSignals()
     // Disconnect signals from wallet
     wallet->NotifyStatusChanged.disconnect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
     wallet->NotifyAddressBookChanged.disconnect(boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
-    wallet->NotifySparkAddressBookChanged.disconnect(boost::bind(NotifySparkAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
     wallet->NotifyTransactionChanged.disconnect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
     wallet->NotifyISLockReceived.disconnect(boost::bind(NotifyISLockReceived, this));
     wallet->NotifyChainLockReceived.disconnect(boost::bind(NotifyChainLockReceived, this, _1));

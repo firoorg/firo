@@ -195,7 +195,7 @@ UniValue mintSpark(Type type, const UniValue& data, const UniValue& auth, bool f
 
     std::list<CReserveKey> reservekeys;
     std::string strError;
-    if (!pwalletMain->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, strError, fHasCoinControl? (&coinControl):NULL, false)) {
+    if (!pwalletMain->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, fSubtractFeeFromAmount, strError, fHasCoinControl? (&coinControl):NULL, false)) {
         return strError;
     }
 
@@ -260,13 +260,13 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
     }
 
     CAmount fee = 0;
-    std::vector<CWalletTx> wtxs;
+    CWalletTx wtx;
 
     CAmount nBalance = pwalletMain->GetAvailableSparkBalance();
 
     // wtxs[0].mapValue["label"] = label;
     try {
-        wtxs = pwalletMain->SpendAndStoreSpark(recipients, privateRecipients, fee, fHasCoinControl? (&coinControl):NULL);
+        wtx = pwalletMain->SpendAndStoreSpark(recipients, privateRecipients, fee, fHasCoinControl? (&coinControl):NULL);
     } catch (...) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
     }
@@ -276,7 +276,7 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
     }
 
     UniValue retval(UniValue::VOBJ);
-    retval.push_back(Pair("txid", wtxs[0].GetHash().GetHex()));
+    retval.push_back(Pair("txid", wtx.GetHash().GetHex()));
     return retval;
 }
 
