@@ -91,6 +91,10 @@ public:
         Anonymize,
         SendToPcode,
         RecvWithPcode,
+        MintSparkToSelf,
+        SpendSparkToSelf,
+        MintSparkTo,
+        SpendSparkTo,
     };
 
     /** Number of confirmation recommended for accepting a transaction */

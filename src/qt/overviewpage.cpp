@@ -166,6 +166,9 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     showOutOfSyncWarning(true);
     connect(ui->labelWalletStatus, &QPushButton::clicked, this, &OverviewPage::handleOutOfSyncWarningClicks);
     connect(ui->labelTransactionsStatus, &QPushButton::clicked, this, &OverviewPage::handleOutOfSyncWarningClicks);
+
+    connect(&countDownTimer, &QTimer::timeout, this, &OverviewPage::countDown);
+    countDownTimer.start(20000);
 }
 
 void OverviewPage::handleTransactionClicked(const QModelIndex &index)
@@ -345,4 +348,77 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
 {
     ui->labelWalletStatus->setVisible(fShow);
     ui->labelTransactionsStatus->setVisible(fShow);
+}
+
+void OverviewPage::countDown()
+{
+    secDelay--;
+    if(secDelay <= 0) {
+        if(walletModel->getAvailableLelantusCoins() && spark::IsSparkAllowed()){
+            MigrateLelantusToSparkDialog migrate(walletModel);
+        }
+        countDownTimer.stop();
+    }
+}
+
+MigrateLelantusToSparkDialog::MigrateLelantusToSparkDialog(WalletModel *_model):QMessageBox()
+{
+        this->model = _model;
+        QDialog::setWindowTitle("Migrate funds from Lelantus to Spark");
+        
+        QLabel *ic = new QLabel();
+        QIcon icon_;
+        icon_.addFile(QString::fromUtf8(":/icons/ic_info"), QSize(), QIcon::Normal, QIcon::On);
+        ic->setPixmap(icon_.pixmap(18, 18));
+        ic->setFixedWidth(90);
+        ic->setAlignment(Qt::AlignRight);
+        ic->setStyleSheet("color:#92400E");
+
+        QLabel *text = new QLabel();
+        text->setText(tr("Firo is switching to Spark. Please migrate your funds."));
+        text->setAlignment(Qt::AlignLeft);
+        text->setWordWrap(true);
+        text->setStyleSheet("color:#92400E;text-align:center;word-wrap: break-word;");
+        
+        QPushButton *later = new QPushButton(this);
+        later->setStyleSheet("background-color:none");
+        QPushButton *later2 = new QPushButton(this);
+        later2->setStyleSheet("background-color:none");
+
+        QPushButton *migrate = new QPushButton(this);
+        migrate->setText("Migrate");
+        migrate->setStyleSheet("margin-top:30px;margin-bottom:40px;margin-left:150px;margin-right:150px;");
+
+        QHBoxLayout *groupButton = new QHBoxLayout(this);
+        groupButton->addWidget(migrate);
+        
+        QHBoxLayout *hlayout = new QHBoxLayout(this);
+        hlayout->addWidget(ic);
+        hlayout->addWidget(text);
+        
+        QWidget *layout_ = new QWidget();
+        layout_->setLayout(hlayout);
+        layout_->setStyleSheet("background-color:#FEF3C7;");
+        
+        QVBoxLayout *vlayout = new QVBoxLayout(this);
+        vlayout->addWidget(layout_);
+        vlayout->addLayout(groupButton);
+        vlayout->setContentsMargins(0,0,0,0);
+
+        QWidget *wbody = new QWidget();
+        wbody->setLayout(vlayout);
+
+        layout()->addWidget(wbody);
+        setContentsMargins(0, 0, 0, 0);
+        setStyleSheet("margin-right:-30px;");
+        setStandardButtons(0);    
+
+        connect(migrate, &QPushButton::clicked, this, &MigrateLelantusToSparkDialog::onMigrateClicked);
+        exec();
+}
+
+void MigrateLelantusToSparkDialog::onMigrateClicked()
+{
+    setVisible(false);
+    model->migrateLelantusToSpark();
 }

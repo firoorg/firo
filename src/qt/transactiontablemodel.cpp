@@ -36,6 +36,7 @@ static int column_alignments[] = {
         Qt::AlignLeft|Qt::AlignVCenter, /* date */
         Qt::AlignLeft|Qt::AlignVCenter, /* type */
         Qt::AlignLeft|Qt::AlignVCenter, /* address */
+        Qt::AlignLeft|Qt::AlignVCenter, /* address type */
         Qt::AlignRight|Qt::AlignVCenter /* amount */
     };
 
@@ -436,6 +437,14 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
             return tr("Sent to RAP address");
     case TransactionRecord::RecvWithPcode:
             return tr("Received with RAP address");
+    case TransactionRecord::MintSparkToSelf:
+            return tr("Mint spark to yourself");
+    case TransactionRecord::SpendSparkToSelf:
+            return tr("Spend spark to yourself");
+    case TransactionRecord::MintSparkTo:
+            return tr("Mint spark to");
+    case TransactionRecord::SpendSparkTo:
+            return tr("Spend spark to");
     default:
         return QString();
     }
@@ -458,6 +467,11 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
     case TransactionRecord::SendToPcode:
     case TransactionRecord::RecvWithPcode:
         return QIcon(":/icons/paymentcode");
+    case TransactionRecord::MintSparkToSelf:
+    case TransactionRecord::SpendSparkToSelf:
+    case TransactionRecord::MintSparkTo:
+    case TransactionRecord::SpendSparkTo:
+        return QIcon(":/icons/spark");
     default:
         return QIcon(":/icons/tx_inout");
     }
