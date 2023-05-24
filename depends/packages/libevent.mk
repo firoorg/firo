@@ -41,6 +41,5 @@ endef
 
 define $(package)_postprocess_cmds
   rm lib/*.la && \
-  rm include/ev*.h && \
-  rm include/event2/*_compat.h
+  rm include/ev*.h
 endef
