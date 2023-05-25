@@ -185,6 +185,10 @@ spark::Address CSparkWallet::getDefaultAddress() {
     return spark::Address(viewKey, lastDiversifier);
 }
 
+spark::Address CSparkWallet::getChangeAddress() {
+    return spark::Address(viewKey, SPARK_CHANGE_D);
+}
+
 spark::SpendKey CSparkWallet::generateSpendKey(const spark::Params* params) {
     if (pwalletMain->IsLocked()) {
         LogPrintf("Spark spend key generation FAILED, wallet is locked\n");
@@ -261,6 +265,10 @@ bool CSparkWallet::isAddressMine(const std::string& encodedAddr) {
         return true;
 
     return false;
+}
+
+bool CSparkWallet::isChangeAddress(const uint64_t& i) const {
+    return i == SPARK_CHANGE_D;
 }
 
 std::vector<CSparkMintMeta> CSparkWallet::ListSparkMints(bool fUnusedOnly, bool fMatureOnly) const {
@@ -487,6 +495,15 @@ CAmount CSparkWallet::getMyCoinV(spark::Coin coin) const {
         //don nothing
     }
     return v;
+}
+
+bool CSparkWallet::getMyCoinIsChange(spark::Coin coin) const {
+    try {
+        spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
+        return isChangeAddress(identifiedCoinData.i);
+    } catch (const std::runtime_error& e) {
+        return false;
+    }
 }
 
 CAmount CSparkWallet::getMySpendAmount(const std::vector<GroupElement>& lTags) const {
@@ -1311,7 +1328,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 
             if (!privOutputs.size() || spendInCurrentTx > 0) {
                 spark::OutputCoinData output;
-                output.address = getDefaultAddress();
+                output.address = getChangeAddress();
                 output.memo = "";
                 if (spendInCurrentTx > 0)
                     output.v = spendInCurrentTx;

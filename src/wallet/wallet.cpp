@@ -2647,6 +2647,18 @@ bool CWalletTx::IsChange(uint32_t out) const {
         return true;
     }
 
+    if (tx->IsSparkSpend()) {
+        std::vector<unsigned char> serial_context = spark::getSerialContext(*tx);
+        spark::Coin coin(spark::Params::get_default());
+        try {
+            spark::ParseSparkMintCoin(tx->vout[out].scriptPubKey, coin);
+            coin.setSerialContext(serial_context);
+        } catch (...) {
+            return false;
+        }
+        return pwallet->sparkWallet->getMyCoinIsChange(coin);
+    }
+
     // Legacy transaction handling.
     // Zerocoin spend have one special output mode to spend to yourself with change address,
     // we don't want to identify that output as change.

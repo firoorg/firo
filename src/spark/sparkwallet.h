@@ -18,6 +18,7 @@ class CCoinControl;
 extern CChain chainActive;
 
 const uint32_t BIP44_SPARK_INDEX = 0x6;
+const uint32_t SPARK_CHANGE_D = 0x270F;
 
 class CSparkWallet  {
 public:
@@ -27,6 +28,7 @@ public:
     spark::Address generateNextAddress();
     spark::Address generateNewAddress();
     spark::Address getDefaultAddress();
+    spark::Address getChangeAddress();
     // assign difersifier to the value from db
     void resetDiversifierFromDB(CWalletDB& walletdb);
     // assign diversifier in to to current value
@@ -42,6 +44,7 @@ public:
     // get address for a diversifier
     spark::Address getAddress(const int32_t& i);
     bool isAddressMine(const std::string& encodedAddr);
+    bool isChangeAddress(const uint64_t& i) const;
 
     // list spark mint, mint metadata in memory and in db should be the same at this moment, so get from memory
     std::vector<CSparkMintMeta> ListSparkMints(bool fUnusedOnly = false, bool fMatureOnly = false) const;
@@ -82,6 +85,7 @@ public:
 
     CAmount getMyCoinV(spark::Coin coin) const;
     CAmount getMySpendAmount(const std::vector<GroupElement>& lTags) const;
+    bool getMyCoinIsChange(spark::Coin coin) const;
 
     void UpdateSpendState(const GroupElement& lTag, const uint256& lTagHash, const uint256& txHash, bool fUpdateMint = true);
     void UpdateSpendState(const GroupElement& lTag, const uint256& txHash, bool fUpdateMint = true);
