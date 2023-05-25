@@ -318,7 +318,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     if ((fAnonymousMode == true) && !spark::IsSparkAllowed()) {
         prepareStatus = model->prepareJoinSplitTransaction(currentTransaction, &ctrl);
     } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
-        prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, txFee, &ctrl);
+        prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, &ctrl);
     } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) {
         prepareStatus = model->prepareMintSparkTransaction(transactions, recipients, wtxAndFees, reservekeys, &ctrl);
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)){
@@ -346,42 +346,52 @@ void SendCoinsDialog::on_sendButton_clicked()
     QStringList formatted;
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
+        for(int i = 0; i < recipients.size(); i++) {
+            recipients[i].amount = 0;
+        }
+
         for (auto &transaction : transactions)
         {
             for (auto &rcp : transaction.getRecipients()) 
             {
-                // generate bold amount string
-                QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
-                amount.append("</b>");
-                // generate monospace address string
-                QString address = "<span style='font-family: monospace;'>" + rcp.address;
-                address.append("</span>");
-
-                QString recipientElement;
-
-                if (!rcp.paymentRequest.IsInitialized()) // normal payment
-                {
-                    if(rcp.label.length() > 0) // label with address
-                    {
-                        recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
-                        recipientElement.append(QString(" (%1)").arg(address));
-                    }
-                    else // just address
-                    {
-                        recipientElement = tr("%1 to %2").arg(amount, address);
+                for(int i = 0; i < recipients.size(); i++) {
+                    if( recipients[i].address == rcp.address) {
+                        recipients[i].amount += rcp.amount;
                     }
                 }
-                else if(!rcp.authenticatedMerchant.isEmpty()) // authenticated payment request
+            }
+        }    
+
+        for (auto &rcp : recipients) 
+        {
+            // generate bold amount string
+            QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
+            amount.append("</b>");
+            // generate monospace address string
+            QString address = "<span style='font-family: monospace;'>" + rcp.address;
+            address.append("</span>");
+            QString recipientElement;
+            if (!rcp.paymentRequest.IsInitialized()) // normal payment
+            {
+                if(rcp.label.length() > 0) // label with address
                 {
-                    recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.authenticatedMerchant));
+                    recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
+                    recipientElement.append(QString(" (%1)").arg(address));
                 }
-                else // unauthenticated payment request
+                else // just address
                 {
                     recipientElement = tr("%1 to %2").arg(amount, address);
                 }
-
-                formatted.append(recipientElement);
             }
+            else if(!rcp.authenticatedMerchant.isEmpty()) // authenticated payment request
+            {
+                recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.authenticatedMerchant));
+            }
+            else // unauthenticated payment request
+            {
+                recipientElement = tr("%1 to %2").arg(amount, address);
+            }
+            formatted.append(recipientElement);
         }
     } else {
         Q_FOREACH(const SendCoinsRecipient &rcp, currentTransaction.getRecipients())

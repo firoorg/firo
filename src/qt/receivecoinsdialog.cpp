@@ -56,9 +56,9 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
         ui->reuseAddress->show();
     }
 
+    ui->addressTypeHistoryCombobox->addItem(tr("All"), All);
     ui->addressTypeHistoryCombobox->addItem(tr("Spark"), Spark);
     ui->addressTypeHistoryCombobox->addItem(tr("Transparent"), Transparent);
-    ui->addressTypeHistoryCombobox->addItem(tr("All"), All);
 
     // context menu actions
     QAction *copyURIAction = new QAction(tr("Copy URI"), this);

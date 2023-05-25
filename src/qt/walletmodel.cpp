@@ -1587,9 +1587,10 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vecto
     return SendCoinsReturn(OK);
 }
 
-WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(WalletModelTransaction &transaction, CAmount& nFeeRequired, const CCoinControl* coinControl)
+WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(WalletModelTransaction &transaction, const CCoinControl* coinControl)
 {
     CAmount total = 0;
+    CAmount nFeeRequired = 0;
     bool fSubtractFeeFromAmount = false;
     QList<SendCoinsRecipient> recipients = transaction.getRecipients();
     std::vector<CRecipient> vecSend;
