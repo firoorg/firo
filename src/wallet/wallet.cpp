@@ -1294,7 +1294,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
         AssertLockHeld(cs_wallet);
 
         if (posInBlock != -1) {
-            if(!(tx.IsCoinBase() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsZerocoinSpend()) || tx.IsLelantusJoinSplit() || tx.IsSparkSpend()) {
+            if(!(tx.IsCoinBase() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsZerocoinSpend() || tx.IsLelantusJoinSplit() || tx.IsSparkSpend())) {
                 BOOST_FOREACH(const CTxIn& txin, tx.vin) {
                     std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range = mapTxSpends.equal_range(txin.prevout);
                     while (range.first != range.second) {
