@@ -3596,6 +3596,41 @@ UniValue mintspark(const JSONRPCRequest& request)
     return result;
 }
 
+UniValue autoMintspark(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "This function automatically mints all unspent transparent funds\n"
+        );
+
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    // Ensure spark mints is already accepted by network so users will not lost their coins
+    // due to other nodes will treat it as garbage data.
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    std::vector<spark::MintedCoinData> outputs;
+    std::string strError = pwallet->MintAndStoreSpark(outputs, wtxAndFee, true, true);
+
+    if (strError != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    UniValue result(UniValue::VARR);
+    for(const auto& wtx : wtxAndFee) {
+        result.push_back(wtx.first.GetHash().GetHex());
+    }
+
+    return result;
+}
+
 UniValue spendspark(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -5508,6 +5543,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "resetsparkmints",        &resetsparkmints,        false },
     { "wallet",             "setsparkmintstatus",     &setsparkmintstatus,     false },
     { "wallet",             "mintspark",              &mintspark,              false },
+    { "wallet",             "autoMintspark",          &autoMintspark,          false },
     { "wallet",             "spendspark",             &spendspark,             false },
     { "wallet",             "lelantustospark",        &lelantustospark,        false },
 
