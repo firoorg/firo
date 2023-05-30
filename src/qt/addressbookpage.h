@@ -49,7 +49,7 @@ public:
         RAP
     };
 
-    explicit AddressBookPage(const PlatformStyle *platformStyle, Mode mode, Tabs tab, QWidget *parent);
+    explicit AddressBookPage(const PlatformStyle *platformStyle, Mode mode, Tabs tab, QWidget *parent, bool isReused = true);
     ~AddressBookPage();
 
     void setModel(AddressTableModel *model);

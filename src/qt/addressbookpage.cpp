@@ -23,7 +23,7 @@
 #include <QMessageBox>
 #include <QSortFilterProxyModel>
 
-AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode, Tabs _tab, QWidget *parent) :
+AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode, Tabs _tab, QWidget *parent, bool isReused) :
     QDialog(parent),
     ui(new Ui::AddressBookPage),
     model(0),
@@ -36,6 +36,9 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode,
         ui->addressType->addItem(tr("Spark"), Spark);
         ui->addressType->addItem(tr("Transparent"), Transparent);
         ui->addressType->addItem(tr("RAP"), RAP);
+    } else if(tab == ReceivingTab && !isReused) {
+        ui->addressType->addItem(tr("Spark"), Spark);
+        ui->addressType->addItem(tr("Transparent"), Transparent);
     } else {
         ui->addressType->addItem(tr(""), Transparent);
         ui->addressType->addItem(tr("Transparent"), Transparent);
@@ -193,7 +196,7 @@ void AddressBookPage::onEditAction()
     } else if (ui->addressType->currentText() == AddressTableModel::Transparent) {
         mode = tab == SendingTab ? EditAddressDialog::EditSendingAddress : EditAddressDialog::EditReceivingAddress;
     } else {
-        mode = EditAddressDialog::EditSparkSendingAddress;
+        mode = tab == SendingTab ? EditAddressDialog::EditSparkSendingAddress : EditAddressDialog::EditSparkReceivingAddress;
     }
 
     if (!ui->tableView->selectionModel())
@@ -220,7 +223,7 @@ void AddressBookPage::on_newAddress_clicked()
     EditAddressDialog::Mode mode;
     pmodel = model;
     if (ui->addressType->currentText() == AddressTableModel::Spark) {
-        mode = EditAddressDialog::NewSparkSendingAddress;
+        mode = tab == SendingTab ? EditAddressDialog::NewSparkSendingAddress : EditAddressDialog::NewSparkReceivingAddress;
     } else if (ui->addressType->currentText() == AddressTableModel::RAP) {
         mode = EditAddressDialog::NewPcode;
     } else {

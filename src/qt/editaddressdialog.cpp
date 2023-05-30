@@ -56,6 +56,14 @@ EditAddressDialog::EditAddressDialog(Mode _mode, QWidget *parent) :
         setWindowTitle(tr("Edit spark sending address"));
         ui->label_2->setText(tr("Spark address"));
         break;
+    case NewSparkReceivingAddress:
+        setWindowTitle(tr("New spark receiving address"));
+        ui->addressEdit->setEnabled(false);
+        break;
+    case EditSparkReceivingAddress:
+        setWindowTitle(tr("Edit spark receiving address"));
+        ui->addressEdit->setEnabled(false);
+        break;
     }
 
     mapper = new QDataWidgetMapper(this);
@@ -109,13 +117,15 @@ bool EditAddressDialog::saveCurrentRow()
     case EditPcode:
         address = model->addRow(AddressTableModel::Send, ui->labelEdit->text(), ui->addressEdit->text(), AddressTableModel::RAP);
         break;
+    case NewSparkReceivingAddress:
     case NewSparkSendingAddress:
         address = model->addRow(
-                AddressTableModel::Send,
+                mode == NewSparkSendingAddress ? AddressTableModel::Send : AddressTableModel::Receive,
                 ui->labelEdit->text(),
                 ui->addressEdit->text(),
                 AddressTableModel::Spark);
         break;
+    case EditSparkReceivingAddress:
     case EditSparkSendingAddress:
         if(mapper->submit())
         {

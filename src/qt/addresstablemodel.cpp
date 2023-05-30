@@ -107,24 +107,22 @@ public:
                         QString::fromStdString(item.second.purpose), fMine);
                 const std::string& strName = item.second.name;
                 cachedAddressTable.append(AddressTableEntry(addressType,
-                                  QString::fromStdString(strName),
-                                  QString::fromStdString(address.ToString()),
-                                  AddressTableModel::Transparent));
+                                QString::fromStdString(strName),
+                                QString::fromStdString(address.ToString()),
+                                AddressTableModel::Transparent));
             }
 
             BOOST_FOREACH(const PAIRTYPE(std::string, CAddressBookData)& item, wallet->mapSparkAddressBook)
             {
                 const std::string& address = item.first;
                 bool fMine = wallet->IsSparkAddressMine(address);
-                if(!fMine) {
-                    const std::string& strName = item.second.name;
-                    if(QString::fromStdString(item.second.purpose) == "send"){
-                        cachedAddressTable.append(AddressTableEntry(AddressTableEntry::Sending,
-                                        QString::fromStdString(strName),
-                                        QString::fromStdString(address),
-                                        AddressTableModel::Spark));
-                    }
-                }
+                AddressTableEntry::Type addressType = translateTransactionType(
+                        QString::fromStdString(item.second.purpose), fMine);
+                const std::string& strName = item.second.name;
+                cachedAddressTable.append(AddressTableEntry(addressType,
+                                QString::fromStdString(strName),
+                                QString::fromStdString(address),
+                                AddressTableModel::Spark));
             }
 
             BOOST_FOREACH(const PAIRTYPE(std::string, CAddressBookData)& item, wallet->mapRAPAddressBook)
