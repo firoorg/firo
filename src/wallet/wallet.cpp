@@ -1323,7 +1323,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
         AssertLockHeld(cs_wallet);
 
         if (posInBlock != -1) {
-            if(!(tx.IsCoinBase() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsZerocoinSpend()) || tx.IsLelantusJoinSplit() || tx.IsSparkSpend()) {
+            if(!(tx.IsCoinBase() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsZerocoinSpend() || tx.IsLelantusJoinSplit() || tx.IsSparkSpend())) {
                 BOOST_FOREACH(const CTxIn& txin, tx.vin) {
                     std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range = mapTxSpends.equal_range(txin.prevout);
                     while (range.first != range.second) {
@@ -2674,6 +2674,18 @@ bool CWalletTx::IsChange(uint32_t out) const {
 
     if (changes.count(out)) {
         return true;
+    }
+
+    if (tx->IsSparkSpend()) {
+        std::vector<unsigned char> serial_context = spark::getSerialContext(*tx);
+        spark::Coin coin(spark::Params::get_default());
+        try {
+            spark::ParseSparkMintCoin(tx->vout[out].scriptPubKey, coin);
+            coin.setSerialContext(serial_context);
+        } catch (...) {
+            return false;
+        }
+        return pwallet->sparkWallet->getMyCoinIsChange(coin);
     }
 
     // Legacy transaction handling.
@@ -5769,7 +5781,7 @@ bool CWallet::LelantusToSpark(std::string& strFailReason) {
         COutPoint outPoint(result.GetHash(), i);
         coinControl.Select(outPoint);
         std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-        MintAndStoreSpark({}, wtxAndFee, true, false, &coinControl);
+        MintAndStoreSpark({}, wtxAndFee, true, true, false, &coinControl);
     }
 
     return true;
