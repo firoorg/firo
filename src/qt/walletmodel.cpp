@@ -1393,7 +1393,7 @@ bool WalletModel::getAvailableLelantusCoins()
     }
 } 
 
-WalletModel::SendCoinsReturn WalletModel::migrateLelantusToSpark()
+bool WalletModel::migrateLelantusToSpark(std::string& strFailReason)
 {
     std::list<CLelantusEntry> coins = wallet->GetAvailableLelantusCoins();
     CScript scriptChange;
@@ -1404,7 +1404,8 @@ WalletModel::SendCoinsReturn WalletModel::migrateLelantusToSpark()
         ret = CReserveKey(wallet).GetReservedKey(vchPubKey);
         if (!ret)
         {
-            return OK;
+            strFailReason = _("Keypool ran out, please call keypoolrefill first");
+            return false;
         }
 
         scriptChange = GetScriptForDestination(vchPubKey.GetID());
@@ -1453,26 +1454,29 @@ WalletModel::SendCoinsReturn WalletModel::migrateLelantusToSpark()
         }
 
         if (wallet->IsLocked()) {
-            return OK;
+            strFailReason = _("Error: Wallet locked, unable to create transaction!");
+            return false;
         }
 
         int64_t nFeeRequired = 0;
-        std::string strError;
         int nChangePosRet = -1;
         std::list<CReserveKey> reservekeys;
-        if (!wallet->CreateSparkMintTransactions({}, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, false, strError, &coinControl, false)) {
-            return OK;
+        if (!wallet->CreateSparkMintTransactions({}, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, true, strFailReason, &coinControl, true)) {
+            Q_EMIT message(tr("Migrate Lelantus To Spark"), QString::fromStdString(strFailReason),
+                CClientUIInterface::MSG_ERROR);
+            return false;
         }
 
         CValidationState state;
         auto reservekey = reservekeys.begin();
         for(size_t i = 0; i < wtxAndFee.size(); i++) {
             if (!wallet->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state))
-                return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString(state.GetRejectReason()));
+                strFailReason = "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.";
+                return false;
         }
     }
 
-    return SendCoinsReturn(OK);
+    return true;
 }
 
 WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vector<WalletModelTransaction> &transactions, QList<SendCoinsRecipient> recipients, std::vector<std::pair<CWalletTx, CAmount> >& wtxAndFees, std::list<CReserveKey>& reservekeys, const CCoinControl* coinControl)

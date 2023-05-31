@@ -209,7 +209,7 @@ public:
         std::list<CReserveKey> &reserveKeys
         );
     
-    SendCoinsReturn migrateLelantusToSpark();
+    bool migrateLelantusToSpark(std::string& strFailReason);
     
     bool getAvailableLelantusCoins();
 

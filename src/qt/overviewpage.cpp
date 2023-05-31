@@ -420,5 +420,6 @@ MigrateLelantusToSparkDialog::MigrateLelantusToSparkDialog(WalletModel *_model):
 void MigrateLelantusToSparkDialog::onMigrateClicked()
 {
     setVisible(false);
-    model->migrateLelantusToSpark();
+    std::string strFailReason;
+    bool res = model->migrateLelantusToSpark(strFailReason);
 }
