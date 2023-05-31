@@ -892,6 +892,7 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
         if (defaultPaymentRequestAddress == address) {
             spark::Address newaddress = pwalletMain->sparkWallet->generateNewAddress();
             unsigned char network = spark::GetNetworkType();
+            pwalletMain->SetSparkAddressBook(newaddress.encode(network), "", "receive");
             walletdb.WritePaymentRequestSparkAddress(newaddress.encode(network));
         }
     } else {
@@ -902,6 +903,7 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
             if (!pwalletMain->GetKeyFromPool(newKey))
                 throw JSONAPIError(API_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
             CKeyID keyID = newKey.GetID();
+            pwalletMain->SetAddressBook(keyID, "", "receive");
             CBitcoinAddress newPaymentRequestAddress {keyID};
             walletdb.WritePaymentRequestAddress(newPaymentRequestAddress.ToString());
         }

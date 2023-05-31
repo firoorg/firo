@@ -2737,6 +2737,18 @@ bool CWalletTx::IsChange(uint32_t out) const {
         return true;
     }
 
+    if (tx->IsSparkSpend()) {
+        std::vector<unsigned char> serial_context = spark::getSerialContext(*tx);
+        spark::Coin coin(spark::Params::get_default());
+        try {
+            spark::ParseSparkMintCoin(tx->vout[out].scriptPubKey, coin);
+            coin.setSerialContext(serial_context);
+        } catch (...) {
+            return false;
+        }
+        return pwallet->sparkWallet->getMyCoinIsChange(coin);
+    }
+    
     // Legacy transaction handling.
     // Zerocoin spend have one special output mode to spend to yourself with change address,
     // we don't want to identify that output as change.
@@ -7237,6 +7249,13 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
 
         // if it is first run, we need to generate the full key set for spark, if not we are loading spark wallet from db
         walletInstance->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
+    }
+
+    spark::Address address = walletInstance->sparkWallet->getDefaultAddress();
+    unsigned char network = spark::GetNetworkType();
+    if (!walletInstance->SetSparkAddressBook(address.encode(network), "", "receive")) {
+        InitError(_("Cannot write default spark address") += "\n");
+        return NULL;
     }
 
     walletInstance->bip47wallet = std::make_shared<bip47::CWallet>(walletInstance->vchDefaultKey.GetHash());
