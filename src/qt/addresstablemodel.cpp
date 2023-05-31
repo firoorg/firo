@@ -174,7 +174,7 @@ public:
                 cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, AddressTableModel::Transparent));
             } else if (bip47::CPaymentCode::validate(address.toStdString())){
                 cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, AddressTableModel::RAP));
-            } else if (newEntryType == AddressTableEntry::Sending){
+            } else {
                 cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, AddressTableModel::Spark));
             }
             parent->endInsertRows();
