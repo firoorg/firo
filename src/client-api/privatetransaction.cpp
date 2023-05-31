@@ -280,6 +280,42 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
     return retval;
 }
 
+UniValue autoMintSpark(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    if (type != Create) {
+        throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
+    }
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    EnsureWalletIsUnlocked(pwalletMain);
+    if (!pwalletMain || !pwalletMain->zwallet) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "lelantus mint/joinsplit is not allowed for legacy wallet");
+    }
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    std::vector<spark::MintedCoinData> outputs;
+    std::string strError = pwalletMain->MintAndStoreSpark(outputs, wtxAndFee, true, true);
+
+    UniValue mintTxs = UniValue::VARR;
+
+    if (strError != "" && strError != "Insufficient funds") {
+        throw JSONAPIError(RPC_WALLET_ERROR, strError);
+    }
+
+    for (std::pair<CWalletTx, CAmount> wtx: wtxAndFee) {
+        CWalletTx tx = wtx.first;
+        GetMainSignals().WalletTransaction(tx);
+
+        mintTxs.push_back(tx.GetHash().GetHex());
+    }
+
+    UniValue retval(UniValue::VOBJ);
+    retval.push_back(Pair("mints", mintTxs));
+    return retval;
+}
+
 UniValue lelantusToSpark(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     if (type != Create) {
         throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
@@ -328,7 +364,8 @@ static const CAPICommand commands[] =
     { "privatetransaction",  "autoMintLelantus",   &autoMintLelantus,        true,      true,            false  },
     { "privatetransaction",  "mintSpark",          &mintSpark,               true,      true,            false  },
     { "privatetransaction",  "spendSpark",         &spendSpark,              true,      true,            false  },
-    { "privatetransaction",  "lelantusToSpark",    &lelantusToSpark,         true,      true,            false  }
+    { "privatetransaction",  "lelantusToSpark",    &lelantusToSpark,         true,      true,            false  },
+    { "privatetransaction",  "autoMintSpark",      &autoMintSpark,           true,      true,            false  }
 };
 void RegisterSigmaAPICommands(CAPITable &tableAPI)
 {
