@@ -3596,7 +3596,7 @@ UniValue mintspark(const JSONRPCRequest& request)
     return result;
 }
 
-UniValue autoMintspark(const JSONRPCRequest& request) {
+UniValue automintspark(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
         return NullUniValue;
@@ -5543,7 +5543,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "resetsparkmints",        &resetsparkmints,        false },
     { "wallet",             "setsparkmintstatus",     &setsparkmintstatus,     false },
     { "wallet",             "mintspark",              &mintspark,              false },
-    { "wallet",             "autoMintspark",          &autoMintspark,          false },
+    { "wallet",             "automintspark",          &automintspark,          false },
     { "wallet",             "spendspark",             &spendspark,             false },
     { "wallet",             "lelantustospark",        &lelantustospark,        false },
 

@@ -81,6 +81,8 @@ public:
     CSparkMintMeta getMintMeta(const secp_primitives::Scalar& nonce);
     bool getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta);
 
+    bool getMintAmount(spark::Coin coin, CAmount& amount);
+
     bool isMine(spark::Coin coin) const;
     bool isMine(const std::vector<GroupElement>& lTags) const;
 
