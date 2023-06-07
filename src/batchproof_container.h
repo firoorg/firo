@@ -5,6 +5,7 @@
 #include "chain.h"
 #include "sigma/coinspend.h"
 #include "liblelantus/joinsplit.h"
+#include "libspark/spend_transaction.h"
 
 extern CChain chainActive;
 
@@ -73,6 +74,9 @@ public:
     void batch_lelantus();
     void batch_rangeProofs();
 
+    void add(const spark::SpendTransaction& tx);
+    void remove(const spark::SpendTransaction& tx);
+    void batch_spark();
 public:
     bool fCollectProofs = 0;
 
@@ -85,12 +89,15 @@ private:
     std::map<std::pair<std::pair<uint32_t, bool>, bool>, std::vector<LelantusSigmaProofData>> tempLelantusSigmaProofs;
     // map (version to (Range proof, Pubcoins))
     std::map<unsigned int, std::vector<std::pair<lelantus::RangeProof, std::vector<lelantus::PublicCoin>>>> tempRangeProofs;
+    // temp spark transaction proofs
+    std::vector<spark::SpendTransaction> tempSparkTransactions;
 
     // containers to keep proofs for batching
     std::map<std::pair<sigma::CoinDenomination, std::pair<int, bool>>, std::vector<SigmaProofData>> sigmaProofs;
     std::map<std::pair<std::pair<uint32_t, bool>, bool>, std::vector<LelantusSigmaProofData>> lelantusSigmaProofs;
     std::map<unsigned int, std::vector<std::pair<lelantus::RangeProof, std::vector<lelantus::PublicCoin>>>> rangeProofs;
-
+    // spark transaction proofs
+    std::vector<spark::SpendTransaction> sparkTransactions;
 };
 
 #endif //FIRO_BATCHPROOF_CONTAINER_H

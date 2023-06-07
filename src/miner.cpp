@@ -153,6 +153,9 @@ void BlockAssembler::resetBlock()
 
     nLelantusSpendAmount = 0;
     nLelantusSpendInputs = 0;
+
+    nSparkSpendAmount = 0;
+    nSparkSpendInputs = 0;
 }
 
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn, bool fMineWitnessTx)
@@ -457,6 +460,18 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
             return false;
     }
 
+    // Check transaction against spark limits
+    if(tx.IsSparkSpend()) {
+        CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
+        const auto &params = chainparams.GetConsensus();
+
+        if (spendAmount > params.nMaxValueSparkSpendPerTransaction)
+            return false;
+
+        if (spendAmount + nSparkSpendAmount > params.nMaxValueSparkSpendPerBlock)
+            return false;
+    }
+
     return true;
 }
 
@@ -486,6 +501,17 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
             return;
 
         if ((nLelantusSpendInputs += spendNumber) > params.nMaxLelantusInputPerBlock)
+            return;
+    }
+
+    if(tx.IsSparkSpend()) {
+        CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
+        const auto &params = chainparams.GetConsensus();
+
+        if (spendAmount > params.nMaxValueLelantusSpendPerTransaction)
+            return;
+
+        if ((nSparkSpendAmount += spendAmount) > params.nMaxValueSparkSpendPerBlock)
             return;
     }
 
@@ -914,7 +940,7 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
 
         // transactions depending (directly or not) on sigma spends in the mempool cannot be included in the
         // same block with spend transaction
-        if (tx.IsSigmaSpend() || tx.IsLelantusJoinSplit()) {
+        if (tx.IsSigmaSpend() || tx.IsLelantusJoinSplit() || tx.IsSparkSpend()) {
             mempool.CalculateDescendants(mi, txBlackList);
             // remove privacy transaction itself
             txBlackList.erase(mi);

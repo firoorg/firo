@@ -20,6 +20,7 @@
 #include "wallet/walletdb.h"
 #include "wallet/rpcwallet.h"
 #include "wallet/mnemoniccontainer.h"
+#include "../spark/sparkwallet.h"
 #include "../base58.h"
 #include "firo_params.h"
 #include "univalue.h"
@@ -651,6 +652,8 @@ class LelantusJoinSplitBuilder;
 class CWallet : public CCryptoKeyStore, public CValidationInterface
 {
 private:
+    friend class CSparkWallet;
+
     static std::atomic<bool> fFlushThreadRunning;
 
     /**
@@ -755,6 +758,8 @@ public:
     unsigned int nMasterKeyMaxID;
 
     std::unique_ptr<CHDMintWallet> zwallet;
+
+    std::unique_ptr<CSparkWallet> sparkWallet;
 
     CWallet()
     {
@@ -959,6 +964,9 @@ public:
 
     std::list<CLelantusEntry> GetAvailableLelantusCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false, bool forEstimation = false) const;
 
+    // Returns the list of pairs of coins and meta data for that coin,
+    std::list<std::pair<spark::Coin, CSparkMintMeta>> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
+
     std::vector<unsigned char> EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pubcoin) const;
 
     bool DecryptMintAmount(const std::vector<unsigned char>& encryptedValue, const secp_primitives::GroupElement& pubcoin, uint64_t& amount) const;
@@ -1019,6 +1027,8 @@ public:
                                         std::list<CReserveKey>& reservekeys, int& nChangePosInOut,
                                         std::string& strFailReason, const CCoinControl *coinControl, bool autoMintAll = false, bool sign = true);
 
+
+
     CWalletTx CreateSigmaSpendTransaction(
         const std::vector<CRecipient>& recipients,
         CAmount& fee,
@@ -1058,10 +1068,32 @@ public:
             bool fAskFee = false,
             const CCoinControl *coinControl = NULL);
 
+    std::string MintAndStoreSpark(
+            const std::vector<spark::MintedCoinData>& outputs,
+            std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+            bool subtractFeeFromAmount,
+            bool autoMintAll = false,
+            bool fAskFee = false,
+            const CCoinControl *coinControl = NULL);
+
+    CWalletTx CreateSparkSpendTransaction(
+            const std::vector<CRecipient>& recipients,
+            const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
+            CAmount &fee,
+            const CCoinControl *coinControl = NULL);
+
+    CWalletTx SpendAndStoreSpark(
+            const std::vector<CRecipient>& recipients,
+            const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
+            CAmount &fee,
+            const CCoinControl *coinControl = NULL);
+
+    bool LelantusToSpark(std::string& strFailReason);
+
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result);
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 
-    std::vector<CLelantusEntry> JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result);
+    std::vector<CLelantusEntry> JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result,  const CCoinControl *coinControl = NULL);
 
     std::pair<CAmount, unsigned int> EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, std::list<CSigmaEntry> sigmaCoins, std::list<CLelantusEntry> coins, const CCoinControl *coinControl);
 
@@ -1330,6 +1362,9 @@ public:
 
     /*Checks if this is a BIP47 transaction and handles it. May send an unlock request if wallet is locked.*/
     void HandleBip47Transaction(CWalletTx const & wtx);
+
+    // Checks if this is a spark transaction and handles it.
+    void HandleSparkTransaction(CWalletTx const & wtx);
 
     /*Attaches a new label to a sending payment code.*/
     void LabelSendingPcode(bip47::CPaymentCode const & pcode, std::string const & label, bool remove = false);
