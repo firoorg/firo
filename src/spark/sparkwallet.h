@@ -80,6 +80,8 @@ public:
     // get mint tag from nonce
     CSparkMintMeta getMintMeta(const secp_primitives::Scalar& nonce);
 
+    bool getMintAmount(spark::Coin coin, CAmount& amount);
+
     bool isMine(spark::Coin coin) const;
     bool isMine(const std::vector<GroupElement>& lTags) const;
 
