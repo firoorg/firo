@@ -22,6 +22,7 @@
 class AddressTableModel;
 class PcodeAddressTableModel;
 class LelantusModel;
+class SparkModel;
 class OptionsModel;
 class PlatformStyle;
 class RecentRequestsTableModel;
@@ -141,6 +142,7 @@ public:
     AddressTableModel *getAddressTableModel();
     PcodeAddressTableModel *getPcodeAddressTableModel();
     LelantusModel *getLelantusModel();
+    SparkModel *getSparkModel();
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
     PcodeModel *getPcodeModel();
@@ -307,6 +309,7 @@ private:
     AddressTableModel *addressTableModel;
     PcodeAddressTableModel *pcodeAddressTableModel;
     LelantusModel *lelantusModel;
+    SparkModel *sparkModel;
     TransactionTableModel *transactionTableModel;
     RecentRequestsTableModel *recentRequestsTableModel;
     PcodeModel *pcodeModel;

@@ -12,6 +12,7 @@
 #include "guiconstants.h"
 #include "guiutil.h"
 #include "lelantusmodel.h"
+#include "sparkmodel.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "transactionfilterproxy.h"
@@ -207,12 +208,21 @@ void OverviewPage::on_anonymizeButton_clicked()
         return;
     }
 
-    auto lelantusModel = walletModel->getLelantusModel();
-    if (!lelantusModel) {
-        return;
-    }
+    if(lelantus::IsLelantusAllowed()) {
+        auto lelantusModel = walletModel->getLelantusModel();
+        if (!lelantusModel) {
+            return;
+        }
 
-    lelantusModel->mintAll(AutoMintMode::MintAll);
+        lelantusModel->mintAll(AutoMintMode::MintAll);
+    } else if (spark::IsSparkAllowed()) {
+        auto sparkModel = walletModel->getSparkModel();
+        if (!sparkModel) {
+            return;
+        }
+
+        sparkModel->mintSparkAll(AutoMintSparkMode::MintAll);
+    }
 }
 
 void OverviewPage::setBalance(
@@ -242,7 +252,7 @@ void OverviewPage::setBalance(
     ui->labelUnconfirmedPrivate->setText(BitcoinUnits::formatWithUnit(unit, unconfirmedPrivateBalance, false, BitcoinUnits::separatorAlways));
     ui->labelAnonymizable->setText(BitcoinUnits::formatWithUnit(unit, anonymizableBalance, false, BitcoinUnits::separatorAlways));
 
-    ui->anonymizeButton->setEnabled(lelantus::IsLelantusAllowed() && anonymizableBalance > 0);
+    ui->anonymizeButton->setEnabled((lelantus::IsLelantusAllowed() || spark::IsSparkAllowed()) && anonymizableBalance > 0);
 
     // only show immature (newly mined) balance if it's non-zero, so as not to complicate things
     // for the non-mining users

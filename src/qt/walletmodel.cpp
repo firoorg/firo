@@ -9,6 +9,7 @@
 #include "guiconstants.h"
 #include "guiutil.h"
 #include "lelantusmodel.h"
+#include "sparkmodel.h"
 #include "paymentserver.h"
 #include "recentrequeststablemodel.h"
 #include "transactiontablemodel.h"
@@ -44,6 +45,7 @@
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, OptionsModel *_optionsModel, QObject *parent) :
     QObject(parent), wallet(_wallet), optionsModel(_optionsModel), addressTableModel(0), pcodeAddressTableModel(0),
     lelantusModel(0),
+    sparkModel(0),
     transactionTableModel(0),
     recentRequestsTableModel(0),
     pcodeModel(0),
@@ -58,6 +60,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     addressTableModel = new AddressTableModel(wallet, this);
     pcodeAddressTableModel = new PcodeAddressTableModel(wallet, this);
     lelantusModel = new LelantusModel(platformStyle, wallet, _optionsModel, this);
+    sparkModel = new SparkModel(platformStyle, wallet, _optionsModel, this);
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
     pcodeModel = new PcodeModel(wallet, this);
@@ -94,7 +97,13 @@ CAmount WalletModel::getBalance(const CCoinControl *coinControl, bool fExcludeLo
 
 CAmount WalletModel::getAnonymizableBalance() const
 {
-    return lelantus::IsLelantusAllowed() ? lelantusModel->getMintableAmount() : 0;
+    CAmount amount = 0;
+    if(lelantus::IsLelantusAllowed()) {
+        amount = lelantusModel->getMintableAmount();
+    } else if (spark::IsSparkAllowed()){
+        amount = sparkModel->getMintableSparkAmount();
+    }
+    return amount;
 }
 
 CAmount WalletModel::getUnconfirmedBalance() const
@@ -779,6 +788,11 @@ PcodeAddressTableModel *WalletModel::getPcodeAddressTableModel()
 LelantusModel *WalletModel::getLelantusModel()
 {
     return lelantusModel;
+}
+
+SparkModel *WalletModel::getSparkModel()
+{
+    return sparkModel;
 }
 
 TransactionTableModel *WalletModel::getTransactionTableModel()
