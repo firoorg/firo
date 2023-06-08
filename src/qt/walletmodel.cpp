@@ -1409,88 +1409,12 @@ bool WalletModel::getAvailableLelantusCoins()
 
 bool WalletModel::migrateLelantusToSpark(std::string& strFailReason)
 {
-    std::list<CLelantusEntry> coins = wallet->GetAvailableLelantusCoins();
-    CScript scriptChange;
-    {
-        // Reserve a new key pair from key pool
-        CPubKey vchPubKey;
-        bool ret;
-        ret = CReserveKey(wallet).GetReservedKey(vchPubKey);
-        if (!ret)
-        {
-            strFailReason = _("Keypool ran out, please call keypoolrefill first");
-            return false;
-        }
-
-        scriptChange = GetScriptForDestination(vchPubKey.GetID());
+    bool res = wallet->LelantusToSpark(strFailReason);
+    if(!res) {
+        Q_EMIT message(tr("Lelantus To Spark"), QString::fromStdString(strFailReason),
+            CClientUIInterface::MSG_ERROR);
     }
-
-    while (coins.size() > 0) {
-        bool addMoreCoins = true;
-        std::size_t selectedNum = 0;
-        CCoinControl coinControl;
-        CAmount spendValue = 0;
-        while (true) {
-            auto coin = coins.begin();
-            COutPoint outPoint;
-            lelantus::GetOutPoint(outPoint, coin->value);
-            coinControl.Select(outPoint);
-            spendValue += coin->amount;
-            selectedNum ++;
-            coins.erase(coin);
-             if (!coins.size())
-                 break;
-
-             if ((spendValue + coins.begin()->amount) > Params().GetConsensus().nMaxValueLelantusSpendPerTransaction)
-                 break;
-
-             if (selectedNum == Params().GetConsensus().nMaxLelantusInputPerTransaction)
-                 break;
-        }
-        CRecipient recipient = {scriptChange, spendValue, true};
-
-        CWalletTx result;
-        wallet->JoinSplitLelantus({recipient}, {}, result, &coinControl);
-        coinControl.UnSelectAll();
-
-        uint32_t i = 0;
-        for (; i < result.tx->vout.size(); ++i) {
-            if (result.tx->vout[i].scriptPubKey == recipient.scriptPubKey)
-                break;
-        }
-
-        COutPoint outPoint(result.GetHash(), i);
-        coinControl.Select(outPoint);
-        std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-
-        if (!wallet || !wallet->sparkWallet) {
-            throw std::logic_error("Spark feature requires HD wallet");
-        }
-
-        if (wallet->IsLocked()) {
-            strFailReason = _("Error: Wallet locked, unable to create transaction!");
-            return false;
-        }
-
-        int64_t nFeeRequired = 0;
-        int nChangePosRet = -1;
-        std::list<CReserveKey> reservekeys;
-        if (!wallet->CreateSparkMintTransactions({}, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, true, strFailReason, &coinControl, true)) {
-            Q_EMIT message(tr("Migrate Lelantus To Spark"), QString::fromStdString(strFailReason),
-                CClientUIInterface::MSG_ERROR);
-            return false;
-        }
-
-        CValidationState state;
-        auto reservekey = reservekeys.begin();
-        for(size_t i = 0; i < wtxAndFee.size(); i++) {
-            if (!wallet->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state))
-                strFailReason = "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.";
-                return false;
-        }
-    }
-
-    return true;
+    return res;
 }
 
 WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vector<WalletModelTransaction> &transactions, QList<SendCoinsRecipient> recipients, std::vector<std::pair<CWalletTx, CAmount> >& wtxAndFees, std::list<CReserveKey>& reservekeys, const CCoinControl* coinControl)
