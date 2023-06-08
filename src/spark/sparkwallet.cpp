@@ -413,6 +413,17 @@ bool CSparkWallet::getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta) {
     return true;
 }
 
+bool CSparkWallet::getMintAmount(spark::Coin coin, CAmount& amount) {
+    spark::IdentifiedCoinData identifiedCoinData;
+    try {
+        identifiedCoinData = coin.identify(this->viewKey);
+    } catch (...) {
+        return false;
+    }
+    amount = identifiedCoinData.v;
+    return true;
+}
+
 void CSparkWallet::UpdateSpendState(const GroupElement& lTag, const uint256& lTagHash, const uint256& txHash, bool fUpdateMint) {
     if (coinMeta.count(lTagHash)) {
         auto mintMeta = coinMeta[lTagHash];
