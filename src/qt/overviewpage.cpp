@@ -375,6 +375,7 @@ MigrateLelantusToSparkDialog::MigrateLelantusToSparkDialog(WalletModel *_model):
 {
         this->model = _model;
         QDialog::setWindowTitle("Migrate funds from Lelantus to Spark");
+        QDialog::setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint);
         
         QLabel *ic = new QLabel();
         QIcon icon_;
