@@ -11,6 +11,7 @@
 
 #include <boost/foreach.hpp>
 #include <boost/thread.hpp>
+#include <set>
 
 #ifdef DEBUG_LOCKCONTENTION
 void PrintLockContention(const char* pszName, const char* pszFile, int nLine)
@@ -57,7 +58,7 @@ private:
 
 typedef std::vector<std::pair<void*, CLockLocation> > LockStack;
 typedef std::map<std::pair<void*, void*>, LockStack> LockOrders;
-typedef std::set<std::pair<void*, void*> > InvLockOrders;
+typedef std::set<std::pair<void*, void*>> InvLockOrders;
 
 struct LockData {
     // Very ugly hack: as the global constructs and destructors run single
