@@ -40,6 +40,7 @@
 #endif
 
 #include <stdint.h>
+#include <fstream>
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/thread.hpp>
@@ -629,7 +630,7 @@ void BitcoinApplication::migrateToFiro()
     }
     else if (doNotShowAgain) {
         // create file to block migration in the future
-        boost::filesystem::ofstream(dontMigrateFilePath).flush();
+        std::ofstream(dontMigrateFilePath.string()).flush();
     }
 }
 
