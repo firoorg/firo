@@ -1176,6 +1176,7 @@ void SendConfirmationDialog::updateYesButton()
 SendGoPrivateDialog::SendGoPrivateDialog():QMessageBox()
 {
         QDialog::setWindowTitle("Make this a private transaction");
+        QDialog::setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint);
         
         QLabel *ic = new QLabel();
         QIcon icon_;
