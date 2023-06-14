@@ -389,8 +389,8 @@ void OverviewPage::onRefreshClicked()
         currentBlock = QString::fromStdString(std::to_string(chainActive.Height()));
         migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
         migrateAmount.append("</b>");
-        ui->textWarning1->setText(tr("Firo is switching to Spark. Lelantus mode will be disabled at block %1. Current block is %2.").arg(lelantusGracefulPeriod, currentBlock));
-        ui->textWarning2->setText(tr("to migrate %1 in Lelantus to Spark.").arg(migrateAmount));
+        ui->textWarning1->setText(tr("Firo is migrating to Spark. Redemption of coins in Lelantus will be disabled at block %1. <i>Current block is %2</i>.").arg(lelantusGracefulPeriod, currentBlock));
+        ui->textWarning2->setText(tr("to migrate %1 from Lelantus.").arg(migrateAmount));
         QFont qFont = ui->migrateButton->font();
         qFont.setUnderline(true);
         ui->migrateButton->setFont(qFont);
@@ -416,7 +416,7 @@ MigrateLelantusToSparkDialog::MigrateLelantusToSparkDialog(WalletModel *_model):
         ic->setStyleSheet("color:#92400E");
 
         QLabel *text = new QLabel();
-        text->setText(tr("Firo is switching to Spark. Please migrate your funds."));
+        text->setText(tr("Firo is migrating to Spark. Please migrate your funds."));
         text->setAlignment(Qt::AlignLeft);
         text->setWordWrap(true);
         text->setStyleSheet("color:#92400E;text-align:center;word-wrap: break-word;");
