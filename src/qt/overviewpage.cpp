@@ -169,7 +169,7 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     connect(ui->labelTransactionsStatus, &QPushButton::clicked, this, &OverviewPage::handleOutOfSyncWarningClicks);
 
     connect(&countDownTimer, &QTimer::timeout, this, &OverviewPage::countDown);
-    countDownTimer.start(20000);
+    countDownTimer.start(30000);
 }
 
 void OverviewPage::handleTransactionClicked(const QModelIndex &index)
@@ -293,6 +293,8 @@ void OverviewPage::setClientModel(ClientModel *model)
 void OverviewPage::setWalletModel(WalletModel *model)
 {
     this->walletModel = model;
+
+    onRefreshClicked();
     if(model && model->getOptionsModel())
     {
         // Set up transaction list
@@ -308,6 +310,8 @@ void OverviewPage::setWalletModel(WalletModel *model)
         ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
 
         auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
+        std::pair<CAmount, CAmount> sparkBalance = walletModel->getSparkBalance();
+        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
 
         // Keep up to date with wallet
         setBalance(
@@ -364,10 +368,36 @@ void OverviewPage::countDown()
 {
     secDelay--;
     if(secDelay <= 0) {
-        if(walletModel->getAvailableLelantusCoins() && spark::IsSparkAllowed()){
+        if(walletModel->getAvailableLelantusCoins() && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod){
             MigrateLelantusToSparkDialog migrate(walletModel);
         }
         countDownTimer.stop();
+    }
+}
+
+void OverviewPage::onMigrateClicked()
+{
+    MigrateLelantusToSparkDialog migrate(walletModel);
+}
+
+void OverviewPage::onRefreshClicked()
+{
+    auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
+    auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
+    if(privateBalance.first > 0 && chainActive.Height() < lGracefulPeriod) {
+        lelantusGracefulPeriod = QString::fromStdString(std::to_string(lGracefulPeriod));
+        currentBlock = QString::fromStdString(std::to_string(chainActive.Height()));
+        migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
+        migrateAmount.append("</b>");
+        ui->textWarning1->setText(tr("Firo is switching to Spark. Lelantus mode will be disabled at block %1. Current block is %2.").arg(lelantusGracefulPeriod, currentBlock));
+        ui->textWarning2->setText(tr("to migrate %1 in Lelantus to Spark.").arg(migrateAmount));
+        QFont qFont = ui->migrateButton->font();
+        qFont.setUnderline(true);
+        ui->migrateButton->setFont(qFont);
+        connect(ui->migrateButton, &QPushButton::clicked, this, &OverviewPage::onMigrateClicked);
+        connect(ui->refreshButton, &QPushButton::clicked, this, &OverviewPage::onRefreshClicked);
+    } else {
+        ui->warningFrame->hide();
     }
 }
 
@@ -390,17 +420,15 @@ MigrateLelantusToSparkDialog::MigrateLelantusToSparkDialog(WalletModel *_model):
         text->setAlignment(Qt::AlignLeft);
         text->setWordWrap(true);
         text->setStyleSheet("color:#92400E;text-align:center;word-wrap: break-word;");
-        
-        QPushButton *later = new QPushButton(this);
-        later->setStyleSheet("background-color:none");
-        QPushButton *later2 = new QPushButton(this);
-        later2->setStyleSheet("background-color:none");
 
+        QPushButton *ignore = new QPushButton(this);
+        ignore->setText("Ignore");
+        ignore->setStyleSheet("color:#9b1c2e;background-color:none;margin-top:30px;margin-bottom:60px;margin-left:50px;margin-right:20px;border:1px solid #9b1c2e;");
         QPushButton *migrate = new QPushButton(this);
         migrate->setText("Migrate");
-        migrate->setStyleSheet("margin-top:30px;margin-bottom:40px;margin-left:150px;margin-right:150px;");
-
+        migrate->setStyleSheet("margin-top:30px;margin-bottom:60px;margin-left:20px;margin-right:50px;");
         QHBoxLayout *groupButton = new QHBoxLayout(this);
+        groupButton->addWidget(ignore);
         groupButton->addWidget(migrate);
         
         QHBoxLayout *hlayout = new QHBoxLayout(this);
@@ -424,13 +452,25 @@ MigrateLelantusToSparkDialog::MigrateLelantusToSparkDialog(WalletModel *_model):
         setStyleSheet("margin-right:-30px;");
         setStandardButtons(0);    
 
+        connect(ignore, &QPushButton::clicked, this, &MigrateLelantusToSparkDialog::onIgnoreClicked);
         connect(migrate, &QPushButton::clicked, this, &MigrateLelantusToSparkDialog::onMigrateClicked);
         exec();
+}
+
+void MigrateLelantusToSparkDialog::onIgnoreClicked()
+{
+    setVisible(false);
+    clickedButton = false;
 }
 
 void MigrateLelantusToSparkDialog::onMigrateClicked()
 {
     setVisible(false);
-    std::string strFailReason;
-    bool res = model->migrateLelantusToSpark(strFailReason);
+    clickedButton = true;
+    model->migrateLelantusToSpark();
+}
+
+bool MigrateLelantusToSparkDialog::getClickedButton()
+{
+    return clickedButton;
 }

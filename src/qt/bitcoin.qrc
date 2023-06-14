@@ -77,6 +77,7 @@
         <file alias="ic_info">res/icons/ic_info.png</file>
         <file alias="ic_warning">res/icons/ic_warning.png</file>
         <file alias="spark">res/icons/spark.png</file>
+        <file alias="refresh">res/icons/refresh.png</file>
     </qresource>
     <qresource prefix="/movies">
         <file alias="spinner-000">res/movies/spinner-000.png</file>

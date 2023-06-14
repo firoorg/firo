@@ -47,6 +47,8 @@ public:
 
 public Q_SLOTS:
     void on_anonymizeButton_clicked();
+    void onMigrateClicked();
+    void onRefreshClicked();
 
     void setBalance(
         const CAmount& balance,
@@ -65,6 +67,7 @@ Q_SIGNALS:
     void transactionClicked(const QModelIndex &index);
     void enabledTorChanged();
     void outOfSyncWarningClicked();
+
 #ifdef ENABLE_ELYSIUM
     void elysiumTransactionClicked(const uint256& txid);
 #endif
@@ -90,6 +93,9 @@ private:
 
     QTimer countDownTimer;
     int secDelay;
+    QString lelantusGracefulPeriod;
+    QString currentBlock;
+    QString migrateAmount;
 
 private Q_SLOTS:
     void updateDisplayUnit();
@@ -105,11 +111,14 @@ class MigrateLelantusToSparkDialog : public QMessageBox
 {
     Q_OBJECT
 private:
-        WalletModel *model;
+    bool clickedButton;
+    WalletModel *model;
 public:
     MigrateLelantusToSparkDialog(WalletModel *model);
+    bool getClickedButton();
 
 private Q_SLOTS:
+    void onIgnoreClicked();
     void onMigrateClicked();
 };
 

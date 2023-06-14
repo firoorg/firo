@@ -185,8 +185,8 @@ void WalletModel::checkBalanceChanged()
         lelantusModel->getPrivateBalance();
 
     std::pair<CAmount, CAmount> sparkBalance = getSparkBalance();
-    newPrivateBalance = spark::IsSparkAllowed() && newPrivateBalance == 0 ? sparkBalance.first : newPrivateBalance;
-    newUnconfirmedPrivateBalance = spark::IsSparkAllowed() && newPrivateBalance == 0 ? sparkBalance.second : newUnconfirmedPrivateBalance;
+    newPrivateBalance = spark::IsSparkAllowed() ? sparkBalance.first : newPrivateBalance;
+    newUnconfirmedPrivateBalance = spark::IsSparkAllowed() ? sparkBalance.second : newUnconfirmedPrivateBalance;
 
     if (haveWatchOnly())
     {
@@ -1407,8 +1407,9 @@ bool WalletModel::getAvailableLelantusCoins()
     }
 } 
 
-bool WalletModel::migrateLelantusToSpark(std::string& strFailReason)
+bool WalletModel::migrateLelantusToSpark()
 {
+    std::string strFailReason;
     bool res = wallet->LelantusToSpark(strFailReason);
     if(!res) {
         Q_EMIT message(tr("Lelantus To Spark"), QString::fromStdString(strFailReason),
