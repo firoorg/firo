@@ -167,7 +167,6 @@ UniValue mintSpark(Type type, const UniValue& data, const UniValue& auth, bool f
     std::string label = find_value(data, "label").get_str();
     CCoinControl coinControl;
     bool fHasCoinControl = GetCoinControl(data, coinControl);
-    // payTxFee is a global variable that will be used in CreateLelantusJoinSplitTransaction.
     payTxFee = CFeeRate(get_bigint(data["feePerKb"]));
     bool fSubtractFeeFromAmount = find_value(data, "subtractFeeFromAmount").get_bool();
 

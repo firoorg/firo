@@ -358,6 +358,22 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                     amount = mintMeta.v;
                     fIsSpent = mintMeta.isUsed;
                     fIsToMe = true;
+                    fIsFromMe = true;
+                } else {
+                    fIsToMe = false;
+                    fIsFromMe = true;
+                    fIsSpent = pwalletMain->IsSpent(wtx.tx->GetHash(), n);
+                    if(txout.scriptPubKey.IsSparkMint()){
+                        amount = txout.nValue;
+                    } else {
+                        CAmount nCredit = wtx.GetCredit(ISMINE_SPENDABLE);
+                        CAmount nDebit = wtx.GetDebit(ISMINE_SPENDABLE);
+                        if(nCredit > nDebit) {
+                            amount = nCredit - nDebit - fee;
+                        } else {
+                            amount = nDebit - nCredit - fee;
+                        }
+                    }
                 }
             }
         } else {
