@@ -102,6 +102,7 @@ BITCOIN_TESTS = \
   libspark/test/spend_transaction_test.cpp \
   libspark/test/f4grumble_test.cpp \
   libspark/test/address_test.cpp \
+  libspark/test/spark_performance.cpp \
   test/spark_tests.cpp \
   test/spark_state_test.cpp \
   test/spark_mintspend_test.cpp \
