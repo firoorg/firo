@@ -3469,8 +3469,7 @@ UniValue resetsparkmints(const JSONRPCRequest& request) {
         throw std::runtime_error(
                 "resetsparkmints"
                 + HelpRequiringPassphrase(pwallet) + "\nResets all your Spark mints' status to unsued and unconfirmed. To make it valid again, you have to rescan or reindex.\n"
-                                                     "WARNING: Run this only for testing and if you fully understand what it does.\n"
-                );
+                                                     "WARNING: Run this only for testing and if you fully understand what it does.\n");
 
     EnsureSparkWalletIsAvailable();
 
@@ -3540,9 +3539,9 @@ UniValue mintspark(const JSONRPCRequest& request)
                                                 "                                    the number of addresses.\n"
                                                 "\nExamples:\n"
                                                 "\nSend two amounts to two different spark addresses:\n"
-            + HelpExampleCli("mintspark", "\"{\\\"pr18qqntc8e60x0ygnv0ey7skekve73tmvhhlkaehka6qfv56zc4w2j75jldrf8wjf8dy0hu33vsww7fj34fd3k7rnwgv7jdvtmgv2g37xqmm59krmgycgkdes37jqupc62s7khafqynlxsy\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\"},\\\"pr1t0l6vu9h9a8nr203tfcesps46agtm0aa9uzsty0tp4wqqrg42rg35yf4r839t3fenlfmsgkpwwklxg5r68tvenn5uy29wwykany3t0qrkjy2res6thzwx90nha6wpkegwrm0n8g2cjawq\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"\\\"}}\"") +
+            + HelpExampleCli("mintspark", "\"{\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\"},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"\\\"}}\"") +
             "\nSend two amounts to two different spark addresses setting memo:\n"
-            + HelpExampleRpc("mintspark", "\"{\\\"pr18qqntc8e60x0ygnv0ey7skekve73tmvhhlkaehka6qfv56zc4w2j75jldrf8wjf8dy0hu33vsww7fj34fd3k7rnwgv7jdvtmgv2g37xqmm59krmgycgkdes37jqupc62s7khafqynlxsy\\\":{\\\"amount\\\":1},\\\"pr1t0l6vu9h9a8nr203tfcesps46agtm0aa9uzsty0tp4wqqrg42rg35yf4r839t3fenlfmsgkpwwklxg5r68tvenn5uy29wwykany3t0qrkjy2res6thzwx90nha6wpkegwrm0n8g2cjawq\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo2\\\"}}\"")
+            + HelpExampleRpc("mintspark", "\"{\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":1},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo2\\\"}}\"")
         );
     EnsureWalletIsUnlocked(pwallet);
     EnsureSparkWalletIsAvailable();
@@ -3610,6 +3609,41 @@ UniValue mintspark(const JSONRPCRequest& request)
     return result;
 }
 
+UniValue automintspark(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "This function automatically mints all unspent transparent funds\n"
+        );
+
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    // Ensure spark mints is already accepted by network so users will not lost their coins
+    // due to other nodes will treat it as garbage data.
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    std::vector<spark::MintedCoinData> outputs;
+    std::string strError = pwallet->MintAndStoreSpark(outputs, wtxAndFee, true, true);
+
+    if (strError != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    UniValue result(UniValue::VARR);
+    for(const auto& wtx : wtxAndFee) {
+        result.push_back(wtx.first.GetHash().GetHex());
+    }
+
+    return result;
+}
+
 UniValue spendspark(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -3639,9 +3673,9 @@ UniValue spendspark(const JSONRPCRequest& request)
                                                      "\nSend an amount to transparent address:\n"
                  + HelpExampleCli("spendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\" \"{}\"") +
                  "\nSend an amount to a transparent address and two different private addresses:\n"
-                 + HelpExampleCli("spendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\" \"{\\\"pr18qqntc8e60x0ygnv0ey7skekve73tmvhhlkaehka6qfv56zc4w2j75jldrf8wjf8dy0hu33vsww7fj34fd3k7rnwgv7jdvtmgv2g37xqmm59krmgycgkdes37jqupc62s7khafqynlxsy\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\", \\\"subtractFee\\\": false},\\\"pr1t0l6vu9h9a8nr203tfcesps46agtm0aa9uzsty0tp4wqqrg42rg35yf4r839t3fenlfmsgkpwwklxg5r68tvenn5uy29wwykany3t0qrkjy2res6thzwx90nha6wpkegwrm0n8g2cjawq\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"") +
+                 + HelpExampleCli("spendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\" \"{\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\", \\\"subtractFee\\\": false},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"") +
                  "\nSend two amounts to two different transparent addresses and two different private addresses:\n"
-                 + HelpExampleRpc("spendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false},\\\"TuzUyNtTznSNnT2rPXG6Mk7hHG8Svuuoci\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": true}}\" \"{\\\"pr18qqntc8e60x0ygnv0ey7skekve73tmvhhlkaehka6qfv56zc4w2j75jldrf8wjf8dy0hu33vsww7fj34fd3k7rnwgv7jdvtmgv2g37xqmm59krmgycgkdes37jqupc62s7khafqynlxsy\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"\\\", \\\"subtractFee\\\": false},\\\"pr1t0l6vu9h9a8nr203tfcesps46agtm0aa9uzsty0tp4wqqrg42rg35yf4r839t3fenlfmsgkpwwklxg5r68tvenn5uy29wwykany3t0qrkjy2res6thzwx90nha6wpkegwrm0n8g2cjawq\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\", \\\"subtractFee\\\": false}}\"")
+                 + HelpExampleRpc("spendspark", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false},\\\"TuzUyNtTznSNnT2rPXG6Mk7hHG8Svuuoci\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": true}}\" \"{\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"\\\", \\\"subtractFee\\\": false},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\", \\\"subtractFee\\\": false}}\"")
         );
 
     EnsureWalletIsUnlocked(pwallet);
@@ -5522,6 +5556,7 @@ static const CRPCCommand rpcCommands[] =
     { "wallet",             "resetsparkmints",        &resetsparkmints,        false },
     { "wallet",             "setsparkmintstatus",     &setsparkmintstatus,     false },
     { "wallet",             "mintspark",              &mintspark,              false },
+    { "wallet",             "automintspark",          &automintspark,          false },
     { "wallet",             "spendspark",             &spendspark,             false },
     { "wallet",             "lelantustospark",        &lelantustospark,        false },
 

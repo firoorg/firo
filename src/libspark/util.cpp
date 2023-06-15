@@ -22,7 +22,10 @@ std::vector<unsigned char> SparkUtils::diversifier_encrypt(const std::vector<uns
     iv.resize(AES_BLOCKSIZE);
 
     AES256CBCEncrypt aes(key.data(), iv.data(), true);
-    aes.Encrypt(reinterpret_cast<unsigned char *>(i_stream.data()), i_stream.size(), ciphertext.data());
+    std::vector<unsigned char> plaintext;
+    plaintext.insert(plaintext.begin(), i_stream.begin(), i_stream.end());
+    plaintext.resize(AES_BLOCKSIZE);
+    aes.Encrypt(plaintext.data(), i_stream.size(), ciphertext.data());
 
     return ciphertext;
 }
@@ -34,16 +37,17 @@ uint64_t SparkUtils::diversifier_decrypt(const std::vector<unsigned char>& key, 
         throw std::invalid_argument("Bad diversifier decryption key size");
     }
 
-    // Decrypt using padded AES-256 (CBC) using a zero IV
-    CDataStream i_stream(SER_NETWORK, PROTOCOL_VERSION);
-    i_stream.resize(sizeof(uint64_t));
-
     std::vector<unsigned char> iv;
     iv.resize(AES_BLOCKSIZE);
 
     AES256CBCDecrypt aes(key.data(), iv.data(), true);
-    aes.Decrypt(d.data(), d.size(), reinterpret_cast<unsigned char *>(i_stream.data()));
+    std::vector<unsigned char> plaintext;
+    plaintext.resize(AES_BLOCKSIZE);
+    aes.Decrypt(d.data(), d.size(), plaintext.data());
 
+    // Decrypt using padded AES-256 (CBC) using a zero IV
+    CDataStream i_stream(SER_NETWORK, PROTOCOL_VERSION);
+    i_stream.write((const char *)plaintext.data(), sizeof(uint64_t));
     // Deserialize the diversifier
     uint64_t i;
     i_stream >> i;

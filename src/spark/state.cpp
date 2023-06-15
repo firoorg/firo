@@ -638,6 +638,9 @@ bool CheckSparkSpendTransaction(
         while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
             index = index->pprev;
 
+        // take the hash from last block of anonymity set
+        std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, idAndHash.first);
+
         std::vector<Coin> cover_set;
         // Build a vector with all the public coins with given id before
         // the block on which the spend occurred.
@@ -664,8 +667,6 @@ bool CheckSparkSpendTransaction(
             index = index->pprev;
         }
 
-        // take the hash from last block of anonymity set
-        std::vector<unsigned char> set_hash = GetAnonymitySetHash(coinGroup.lastBlock, idAndHash.first);
         CoverSetData setData;
         setData.cover_set = cover_set;
         if (!set_hash.empty())

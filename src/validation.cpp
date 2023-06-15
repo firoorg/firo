@@ -619,7 +619,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
     bool const check_di = nHeight != INT_MAX && nHeight > ::Params().GetConsensus().nStartDuplicationCheck;
     if (fCheckDuplicateInputs || check_di) {
         std::set<COutPoint> vInOutPoints;
-        if (tx.IsSigmaSpend() || tx.IsLelantusJoinSplit()) {
+        if (tx.IsSigmaSpend() || tx.IsLelantusJoinSplit()  || tx.IsSparkSpend()) {
             std::set<CScript> spendScripts;
             for (const auto& txin: tx.vin)
             {

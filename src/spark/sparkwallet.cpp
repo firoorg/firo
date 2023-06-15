@@ -400,16 +400,14 @@ CSparkMintMeta CSparkWallet::getMintMeta(const secp_primitives::Scalar& nonce) {
     return CSparkMintMeta();
 }
 
-bool CSparkWallet::getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta) {
+bool CSparkWallet::getMintAmount(spark::Coin coin, CAmount& amount) {
     spark::IdentifiedCoinData identifiedCoinData;
     try {
         identifiedCoinData = coin.identify(this->viewKey);
     } catch (...) {
         return false;
     }
-    mintMeta = getMintMeta(identifiedCoinData.k);
-    if(mintMeta == CSparkMintMeta())
-        return false;
+    amount = identifiedCoinData.v;
     return true;
 }
 

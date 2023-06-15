@@ -819,7 +819,7 @@ void CWallet::AddToSpends(const uint256& wtxid)
         return;
 
     BOOST_FOREACH(const CTxIn& txin, thisTx.tx->vin) {
-        if (!txin.IsZerocoinSpend() && !txin.IsSigmaSpend() && !txin.IsLelantusJoinSplit()) {
+        if (!txin.IsZerocoinSpend() && !txin.IsSigmaSpend() && !txin.IsLelantusJoinSplit() && !thisTx.tx->IsSparkSpend()) {
             AddToSpends(txin.prevout, wtxid);
         }
     }
@@ -1310,7 +1310,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
         AssertLockHeld(cs_wallet);
 
         if (posInBlock != -1) {
-            if(!(tx.IsCoinBase() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsZerocoinSpend()) || tx.IsLelantusJoinSplit() || tx.IsSparkSpend()) {
+            if(!(tx.IsCoinBase() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsZerocoinSpend() || tx.IsLelantusJoinSplit() || tx.IsSparkSpend())) {
                 BOOST_FOREACH(const CTxIn& txin, tx.vin) {
                     std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range = mapTxSpends.equal_range(txin.prevout);
                     while (range.first != range.second) {
@@ -2748,7 +2748,7 @@ bool CWalletTx::IsChange(uint32_t out) const {
         }
         return pwallet->sparkWallet->getMyCoinIsChange(coin);
     }
-    
+
     // Legacy transaction handling.
     // Zerocoin spend have one special output mode to spend to yourself with change address,
     // we don't want to identify that output as change.
@@ -3739,7 +3739,7 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
 
                 if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
                     (!IsLockedCoin((*it).first, i) || coinControl || nCoinType == CoinType::ONLY_1000) &&
-                    (pcoin->tx->vout[i].nValue > 0 || fIncludeZeroValue || (pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint() && GetCredit(pcoin->tx->vout[i], ISMINE_SPENDABLE) > 0)) &&
+                    (pcoin->tx->vout[i].nValue > 0 || fIncludeZeroValue || ((pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint() || pcoin->tx->vout[i].scriptPubKey.IsSparkSMint()) && GetCredit(pcoin->tx->vout[i], ISMINE_SPENDABLE) > 0)) &&
                     (!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs || coinControl->IsSelected(COutPoint((*it).first, i)))) {
                         vCoins.push_back(COutput(pcoin, i, nDepth,
                                                  ((mine & ISMINE_SPENDABLE) != ISMINE_NO) ||
@@ -5847,7 +5847,7 @@ bool CWallet::LelantusToSpark(std::string& strFailReason) {
         COutPoint outPoint(result.GetHash(), i);
         coinControl.Select(outPoint);
         std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-        MintAndStoreSpark({}, wtxAndFee, true, false, &coinControl);
+        MintAndStoreSpark({}, wtxAndFee, true, true, false, &coinControl);
     }
 
     return true;
