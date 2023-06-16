@@ -31,7 +31,6 @@ public:
     const std::vector<GroupElement>& get_G_grootle() const;
     const std::vector<GroupElement>& get_H_grootle() const;
 
-private:
     Params(
         const std::size_t memo_bytes,
         const std::size_t max_M_range,

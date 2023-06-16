@@ -170,7 +170,7 @@ BOOST_AUTO_TEST_CASE(test_performance)
     run_test(8, 5, 50); //32768
     run_test(8, 5, 100); //32768
     run_test(16, 4, 1); //65536
-    run_test(16, 4, 110); //65536
+    run_test(16, 4, 10); //65536
     run_test(16, 4, 25); //65536
     run_test(16, 4, 50); //65536
     run_test(16, 4, 100); //65536
