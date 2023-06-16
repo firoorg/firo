@@ -384,7 +384,7 @@ void OverviewPage::onRefreshClicked()
 {
     auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
     auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
-    if(privateBalance.first > 0 && chainActive.Height() < lGracefulPeriod) {
+    if(privateBalance.first > 0 && chainActive.Height() < lGracefulPeriod && spark::IsSparkAllowed()) {
         lelantusGracefulPeriod = QString::fromStdString(std::to_string(lGracefulPeriod));
         currentBlock = QString::fromStdString(std::to_string(chainActive.Height()));
         migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
