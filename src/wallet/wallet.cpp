@@ -779,6 +779,35 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
                 return false;
             }
             return meta.isUsed;
+        } else if (zwallet && (script.IsSparkMint() || script.IsSparkSMint())) {
+            std::vector<unsigned char> serialContext;
+            for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+                const CWalletTx *pcoin = &(*it).second;
+                for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
+                    if (tx->tx->vout[n] == pcoin->tx->vout[i]) {
+                        serialContext = spark::getSerialContext(*pcoin->tx);
+                        break;
+                    }
+                }
+                if (!serialContext.empty())
+                    break;
+            }
+
+            spark::Coin coin(spark::Params::get_default());
+            try {
+                spark::ParseSparkMintCoin(script, coin);
+            } catch (std::invalid_argument &) {
+                return false;
+            }
+            coin.setSerialContext(serialContext);
+            if (!pwalletMain->sparkWallet)
+                return false;
+
+            CSparkMintMeta mintMeta;
+            if (pwalletMain->sparkWallet->getMintMeta(coin, mintMeta)) {
+                bool fIsSpent = mintMeta.isUsed;
+                return fIsSpent;
+            }
         }
     }
 
@@ -6331,6 +6360,36 @@ bool CWallet::SetAddressBook(const CTxDestination& address, const std::string& s
     return retval;
 }
 
+bool CWallet::SetSparkAddressBook(const std::string& address, const std::string& strName, const std::string& strPurpose)
+{
+    int64_t now = GetTimeMillis();
+    bool fUpdated = false;
+    {
+        LOCK(cs_wallet); // mapAddressBook
+        std::map<std::string, CAddressBookData>::iterator mi = mapSparkAddressBook.find(address);
+        fUpdated = mi != mapSparkAddressBook.end();
+        mapSparkAddressBook[address].name = strName;
+        if (!strPurpose.empty()) /* update purpose only if requested */
+            mapSparkAddressBook[address].purpose = strPurpose;
+        if (!fUpdated)
+            mapSparkAddressBook[address].nCreatedAt = now;
+    }
+
+    NotifySparkAddressBookChanged(this, address, strName, IsSparkAddressMine(address),
+                             strPurpose, (fUpdated ? CT_UPDATED : CT_NEW) );
+    if (!fFileBacked)
+        return false;
+    bool retval = true;
+
+    retval &= CWalletDB(strWalletFile).WriteName(address, strName);
+    if (!fUpdated)
+        retval &= CWalletDB(strWalletFile).WriteAddressBookItemCreatedAt(address, now);
+    if (!strPurpose.empty())
+        retval &= CWalletDB(strWalletFile).WritePurpose(address, strPurpose);
+
+    return retval;
+}
+
 bool CWallet::DelAddressBook(const CTxDestination& address)
 {
     {
@@ -6361,6 +6420,63 @@ bool CWallet::DelAddressBook(const CTxDestination& address)
     retval &= CWalletDB(strWalletFile).ErasePurpose(addr);
 
     return retval;
+}
+
+bool CWallet::DelAddressBook(const std::string& address)
+{
+    bool checkSpark = false;
+    {
+        LOCK(cs_wallet); // mapAddressBook
+        const spark::Params* params = spark::Params::get_default();
+        unsigned char network = spark::GetNetworkType();
+        unsigned char coinNetwork;
+        spark::Address addr(params);
+
+        try {
+            coinNetwork = addr.decode(address);
+        } catch (...) {
+            checkSpark = false;
+        }
+        if(network == coinNetwork){
+            checkSpark = true;
+        } else {
+            checkSpark = false;
+        }
+
+        if(fFileBacked)
+        {
+            // Delete destdata tuples associated with address
+            if(checkSpark){
+                BOOST_FOREACH(const PAIRTYPE(std::string, std::string) &item, mapSparkAddressBook[address].destdata)
+                {
+                    CWalletDB(strWalletFile).EraseDestData(address, item.first);
+                }
+            } else {
+                BOOST_FOREACH(const PAIRTYPE(std::string, std::string) &item, mapAddressBook[CBitcoinAddress(address).Get()].destdata)
+                {
+                    CWalletDB(strWalletFile).EraseDestData(address, item.first);
+                }
+            }
+
+        }
+        if(checkSpark){
+            mapSparkAddressBook.erase(address);
+        } else {
+            mapAddressBook.erase(CBitcoinAddress(address).Get());
+        }
+
+    }
+
+     if(checkSpark){
+        NotifySparkAddressBookChanged(this, address, "", IsSparkAddressMine(address), "", CT_DELETED);
+     } else {
+        NotifyAddressBookChanged(this, CBitcoinAddress(address).Get(), "", ::IsMine(*this, CBitcoinAddress(address).Get()) != ISMINE_NO, "", CT_DELETED);
+     }
+
+    if (!fFileBacked)
+        return false;
+    CWalletDB(strWalletFile).ErasePurpose(address);
+    return CWalletDB(strWalletFile).EraseName(address);
 }
 
 const std::string& CWallet::GetAccountName(const CScript& scriptPubKey) const
@@ -6940,6 +7056,17 @@ bool CWallet::LoadDestData(const CTxDestination &dest, const std::string &key, c
     return true;
 }
 
+bool CWallet::LoadDestData(const std::string &dest, const std::string &key, const std::string &value)
+{
+    if(validateAddress(dest)) {
+        CTxDestination _dest = CBitcoinAddress(dest).Get();
+        mapAddressBook[_dest].destdata.insert(std::make_pair(key, value));
+    } else if(validateSparkAddress(dest)) {
+        mapSparkAddressBook[dest].destdata.insert(std::make_pair(key, value));
+    }
+    return true;
+}
+
 bool CWallet::GetDestData(const CTxDestination &dest, const std::string &key, std::string *value) const
 {
     std::map<CTxDestination, CAddressBookData>::const_iterator i = mapAddressBook.find(dest);
@@ -7151,6 +7278,13 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
 
         // if it is first run, we need to generate the full key set for spark, if not we are loading spark wallet from db
         walletInstance->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
+    }
+
+    spark::Address address = walletInstance->sparkWallet->getDefaultAddress();
+    unsigned char network = spark::GetNetworkType();
+    if (!walletInstance->SetSparkAddressBook(address.encode(network), "", "receive")) {
+        InitError(_("Cannot write default spark address") += "\n");
+        return NULL;
     }
 
     walletInstance->bip47wallet = std::make_shared<bip47::CWallet>(walletInstance->vchDefaultKey.GetHash());
@@ -8103,3 +8237,51 @@ bool CMerkleTx::AcceptToMemoryPool(const CAmount &nAbsurdFee, CValidationState &
 
 bool CompSigmaHeight(const CSigmaEntry &a, const CSigmaEntry &b) { return a.nHeight < b.nHeight; }
 bool CompSigmaID(const CSigmaEntry &a, const CSigmaEntry &b) { return a.id < b.id; }
+
+bool CWallet::IsSparkAddressMine(const std::string& address) {
+    return sparkWallet->isAddressMine(address);
+}
+
+bool CWallet::validateAddress(const std::string& address)
+{
+    CBitcoinAddress addressParsed(address);
+    return addressParsed.IsValid();
+}
+
+bool CWallet::validateSparkAddress(const std::string& address)
+{
+    const spark::Params* params = spark::Params::get_default();
+    unsigned char network = spark::GetNetworkType();
+    unsigned char coinNetwork;
+    spark::Address addr(params);
+    try {
+        coinNetwork = addr.decode(address);
+    } catch (...) {
+        return false;
+    }
+    return network == coinNetwork;
+}
+
+CAmount CWallet::GetAvailableSparkBalance()
+{
+    return sparkWallet->getAvailableBalance();
+}
+
+CAmount CWallet::GetUnconfirmedSparkBalance()
+{
+    return sparkWallet->getUnconfirmedBalance();
+}
+
+bool CWallet::CreateSparkMintTransactions(
+    const std::vector<spark::MintedCoinData>& outputs,
+    std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+    CAmount& nAllFeeRet,
+    std::list<CReserveKey>& reservekeys,
+    int& nChangePosInOut,
+    bool subtractFeeFromAmount,
+    std::string& strFailReason,
+    const CCoinControl *coinControl,
+    bool autoMintAll)
+{
+    return sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nAllFeeRet,reservekeys,nChangePosInOut, subtractFeeFromAmount, strFailReason,coinControl,autoMintAll);
+}

@@ -721,6 +721,8 @@ private:
      * nTimeFirstKey more intelligently for more efficient rescans.
      */
     bool AddWatchOnly(const CScript& dest) override;
+    bool validateAddress(const std::string& address);
+    bool validateSparkAddress(const std::string& address);
 
 public:
     /*
@@ -813,6 +815,7 @@ public:
     std::map<uint256, int> mapRequestCount;
 
     std::map<CTxDestination, CAddressBookData> mapAddressBook;
+    std::map<std::string, CAddressBookData> mapSparkAddressBook;
     std::multimap<std::string, std::string> mapCustomKeyValues;
 
     CPubKey vchDefaultKey;
@@ -889,6 +892,7 @@ public:
     bool EraseDestData(const CTxDestination &dest, const std::string &key);
     //! Adds a destination data tuple to the store, without saving it to disk
     bool LoadDestData(const CTxDestination &dest, const std::string &key, const std::string &value);
+    bool LoadDestData(const std::string &dest, const std::string &key, const std::string &value);
     //! Look up a destination data tuple in the store, return true if found false otherwise
     bool GetDestData(const CTxDestination &dest, const std::string &key, std::string *value) const;
 
@@ -1180,8 +1184,10 @@ public:
     DBErrors ZapLelantusMints();
 
     bool SetAddressBook(const CTxDestination& address, const std::string& strName, const std::string& purpose);
+    bool SetSparkAddressBook(const std::string& address, const std::string& strName, const std::string& purpose);
 
     bool DelAddressBook(const CTxDestination& address);
+    bool DelAddressBook(const std::string& address);
 
     bool UpdatedTransaction(const uint256 &hashTx) override;
     const std::string& GetAccountName(const CScript& scriptPubKey) const;
@@ -1240,6 +1246,11 @@ public:
             &address, const std::string &label, bool isMine,
             const std::string &purpose,
             ChangeType status)> NotifyAddressBookChanged;
+
+    boost::signals2::signal<void (CWallet *wallet, const std::string
+            &address, const std::string &label, bool isMine,
+            const std::string &purpose,
+            ChangeType status)> NotifySparkAddressBookChanged;
 
     /**
      * Wallet transaction added, removed or updated.
@@ -1378,6 +1389,20 @@ public:
 
     void NotifyTransactionLock(const CTransaction &tx) override;
     void NotifyChainLock(const CBlockIndex* pindexChainLock) override;
+    
+    bool IsSparkAddressMine(const std::string& address);
+    CAmount GetAvailableSparkBalance();
+    CAmount GetUnconfirmedSparkBalance();
+    bool CreateSparkMintTransactions(
+        const std::vector<spark::MintedCoinData>& outputs,
+        std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+        CAmount& nAllFeeRet,
+        std::list<CReserveKey>& reservekeys,
+        int& nChangePosInOut,
+        bool subtractFeeFromAmount,
+        std::string& strFailReason,
+        const CCoinControl *coinControl,
+        bool autoMintAll);
 
 #ifdef ENABLE_ELYSIUM
     void LoadTxOrigin(uint256, std::string& destination);

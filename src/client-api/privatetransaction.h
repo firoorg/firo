@@ -5,3 +5,4 @@
 #include "univalue.h"
 
 UniValue GetSigmaDenominations();
+bool isSparkAddress(spark::Address addr, const std::string& address);

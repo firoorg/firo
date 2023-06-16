@@ -228,6 +228,9 @@ public:
     bool WritePaymentRequestAddress(const std::string& address);
     bool ReadPaymentRequestAddress(std::string& address);
     bool ErasePaymentRequestAddress();
+    bool WritePaymentRequestSparkAddress(const std::string& address);
+    bool ReadPaymentRequestSparkAddress(std::string& address);
+    bool ErasePaymentRequestSparkAddress();
 #endif
 
     bool WriteOrderPosNext(int64_t nOrderPosNext);
