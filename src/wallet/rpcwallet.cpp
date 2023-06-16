@@ -157,6 +157,38 @@ std::string AccountFromValue(const UniValue& value)
     return strAccount;
 }
 
+UniValue checkYourAllMintValidity(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        assert(false || "Invalid wallet");
+    }
+
+    if (request.fHelp) {
+        throw std::runtime_error(
+            "checkYourAllMintValidity\n"
+            "checkYourAllMintValidity returns invalid(valid in your wallet but invalid from the outside) mints vector\n"
+            "\nResult\n"
+            "\"vector of invalid mints\""
+            "\n\nExamples:\n"
+            + HelpExampleCli("checkYourAllMintValidity", "")
+            + HelpExampleRpc("checkYourAllMintValidity", "")
+        );
+    }
+
+    const auto listMints = pwallet->zwallet->GetTracker().ListLelantusMints(true, false, false);
+    Scalar s;
+
+    UniValue usedMints(UniValue::VARR);
+
+    for (auto it = listMints.begin(); it != listMints.end(); ++it) {
+        if (lelantus::CLelantusState::GetState()->IsUsedCoinSerialHash(s, it->hashSerial)) {
+            usedMints.push_back(it->GetPubCoinValueHash().GetHex());
+        }
+    }
+    return usedMints;
+}
+
 UniValue getnewaddress(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -4831,6 +4863,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "addwitnessaddress",        &addwitnessaddress,        true,   {"address"} },
     { "wallet",             "backupwallet",             &backupwallet,             true,   {"destination"} },
     { "wallet",             "bumpfee",                  &bumpfee,                  true,   {"txid", "options"} },
+    { "wallet",             "checkyourallMintValidity", &checkYourAllMintValidity, true,    {} },
     { "wallet",             "dumpprivkey",              &dumpprivkey_firo,        true,   {"address"}  },
     { "wallet",             "dumpwallet",               &dumpwallet_firo,         true,   {"filename"} },
     { "wallet",             "encryptwallet",            &encryptwallet,            true,   {"passphrase"} },
