@@ -259,7 +259,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     txData.pushKV("lelantusInputSerialHashes", lelantusInputSerialHashes);
 
     int64_t fee;
-
+    int64_t amount = 0;
     UniValue sparkInputLTagHashes = UniValue::VARR;
     if (wtx.tx->IsSparkSpend()) {
         try {
@@ -270,6 +270,12 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
             CAmount nDebit = wtx.GetDebit(ISMINE_SPENDABLE);
             if (nDebit > 0) fIsFromMe = true;
             fee = spend.getFee();
+            CAmount nCredit = wtx.GetCredit(ISMINE_SPENDABLE);
+            if(nCredit > nDebit) {
+                amount = nCredit - nDebit - fee;
+            } else {
+                amount = nDebit - nCredit - fee;
+            }
         } catch (...) {
         }
     }
@@ -300,7 +306,6 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         bool fIsSpent = true;
 
         uint256 lelantusSerialHash;
-        int64_t amount = 0;
         if (txout.scriptPubKey.IsLelantusMint()) {
             secp_primitives::GroupElement pub;
             bool ok = true;
@@ -352,27 +357,17 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
             }
 
             if (ok) {
-                CSparkMintMeta mintMeta;
-                coin.setSerialContext(spark::getSerialContext(* wtx.tx));
+                 CSparkMintMeta mintMeta;
+                 coin.setSerialContext(spark::getSerialContext(* wtx.tx));
                 if (pwalletMain->sparkWallet->getMintMeta(coin, mintMeta)) {
                     amount = mintMeta.v;
                     fIsSpent = mintMeta.isUsed;
                     fIsToMe = true;
-                    fIsFromMe = true;
                 } else {
                     fIsToMe = false;
-                    fIsFromMe = true;
                     fIsSpent = pwalletMain->IsSpent(wtx.tx->GetHash(), n);
-                    if(txout.scriptPubKey.IsSparkMint()){
+                    if(txout.scriptPubKey.IsSparkMint()) {
                         amount = txout.nValue;
-                    } else {
-                        CAmount nCredit = wtx.GetCredit(ISMINE_SPENDABLE);
-                        CAmount nDebit = wtx.GetDebit(ISMINE_SPENDABLE);
-                        if(nCredit > nDebit) {
-                            amount = nCredit - nDebit - fee;
-                        } else {
-                            amount = nDebit - nCredit - fee;
-                        }
                     }
                 }
             }

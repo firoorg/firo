@@ -183,10 +183,9 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     if (LOAD(isLelantusDisabled)) disabledSporks.push_back("lelantus");
     ret.pushKV("disabledSporks", disabledSporks);
 
-    UniValue isSpark = UniValue::VARR;
-    isSpark.push_back(spark::IsSparkAllowed());
-    ret.pushKV("isSpark", isSpark);
-    
+    ret.pushKV("isSpark", spark::IsSparkAllowed());
+    ret.pushKV("lelantusGracefulPeriod", ::Params().GetConsensus().nLelantusGracefulPeriod);
+
     UniValue newLogMessages = UniValue::VARR;
     {
         LOCK(cs_clientApiLogMessages);
