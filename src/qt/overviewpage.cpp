@@ -170,6 +170,7 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
 
     connect(&countDownTimer, &QTimer::timeout, this, &OverviewPage::countDown);
     countDownTimer.start(30000);
+    connect(ui->migrateButton, &QPushButton::clicked, this, &OverviewPage::migrateClicked);
 }
 
 void OverviewPage::handleTransactionClicked(const QModelIndex &index)
@@ -284,6 +285,7 @@ void OverviewPage::setClientModel(ClientModel *model)
     this->clientModel = model;
     if(model)
     {
+        connect(model, &ClientModel::numBlocksChanged, this, &OverviewPage::onRefreshClicked);
         // Show warning if this is a prerelease version
         connect(model, &ClientModel::alertsChanged, this, &OverviewPage::updateAlerts);
         updateAlerts(model->getStatusBarWarnings());
@@ -293,7 +295,6 @@ void OverviewPage::setClientModel(ClientModel *model)
 void OverviewPage::setWalletModel(WalletModel *model)
 {
     this->walletModel = model;
-
     onRefreshClicked();
     if(model && model->getOptionsModel())
     {
@@ -375,16 +376,12 @@ void OverviewPage::countDown()
     }
 }
 
-void OverviewPage::onMigrateClicked()
-{
-    MigrateLelantusToSparkDialog migrate(walletModel);
-}
-
 void OverviewPage::onRefreshClicked()
 {
     auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
     auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
     if(privateBalance.first > 0 && chainActive.Height() < lGracefulPeriod && spark::IsSparkAllowed()) {
+        ui->warningFrame->show();
         lelantusGracefulPeriod = QString::fromStdString(std::to_string(lGracefulPeriod));
         currentBlock = QString::fromStdString(std::to_string(chainActive.Height()));
         migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
@@ -394,10 +391,15 @@ void OverviewPage::onRefreshClicked()
         QFont qFont = ui->migrateButton->font();
         qFont.setUnderline(true);
         ui->migrateButton->setFont(qFont);
-        connect(ui->migrateButton, &QPushButton::clicked, this, &OverviewPage::onMigrateClicked);
-        connect(ui->refreshButton, &QPushButton::clicked, this, &OverviewPage::onRefreshClicked);
     } else {
         ui->warningFrame->hide();
+    }
+}
+
+void OverviewPage::migrateClicked()
+{
+    if(walletModel->getAvailableLelantusCoins() && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod){
+        MigrateLelantusToSparkDialog migrate(walletModel);
     }
 }
 

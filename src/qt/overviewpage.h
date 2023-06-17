@@ -47,7 +47,7 @@ public:
 
 public Q_SLOTS:
     void on_anonymizeButton_clicked();
-    void onMigrateClicked();
+    void migrateClicked();
     void onRefreshClicked();
 
     void setBalance(

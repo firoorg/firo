@@ -311,17 +311,17 @@ void SendCoinsDialog::on_sendButton_clicked()
     CAmount mintSparkAmount = 0;
     CAmount txFee = 0;
     CAmount totalAmount = 0;
+    if (model->getLelantusModel()->getPrivateBalance().first > 0 && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod) {
+        MigrateLelantusToSparkDialog migrateLelantusToSpark(model);
+        bool clickedButton = migrateLelantusToSpark.getClickedButton();
+        if(clickedButton) {
+            fNewRecipientAllowed = true;
+            return;
+        }
+    }
     if ((fAnonymousMode == true) && !spark::IsSparkAllowed()) {
         prepareStatus = model->prepareJoinSplitTransaction(currentTransaction, &ctrl);
     } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
-        if (model->getLelantusModel()->getPrivateBalance().first > 0 && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod) {
-            MigrateLelantusToSparkDialog migrateLelantusToSpark(model);
-            bool clickedButton = migrateLelantusToSpark.getClickedButton();
-            if(clickedButton) {
-                fNewRecipientAllowed = true;
-                return;
-            }
-        }
         prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, &ctrl);
     } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) {
         prepareStatus = model->prepareMintSparkTransaction(transactions, recipients, wtxAndFees, reservekeys, &ctrl);
@@ -329,6 +329,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         SendGoPrivateDialog goPrivateDialog;
         bool clickedButton = goPrivateDialog.getClickedButton();
         if(clickedButton) {
+            setAnonymizeMode(true);
             fNewRecipientAllowed = true;
             return;
         }

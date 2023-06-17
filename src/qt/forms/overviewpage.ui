@@ -70,27 +70,6 @@
          </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="refreshButton">
-         <property name="text">
-          <string/>
-         </property>
-         <property name="icon">
-          <iconset resource="../bitcoin.qrc">
-           <normaloff>:/icons/refresh</normaloff>
-           <disabledoff>:/icons/refresh</disabledoff>:/icons/refresh</iconset>
-         </property>
-         <property name="iconSize">
-          <size>
-           <width>20</width>
-           <height>20</height>
-          </size>
-         </property>
-         <property name="styleSheet">
-          <string>padding-left: -60px; padding-right: -60px;</string>
-         </property>
-        </widget>
-       </item>
-       <item>
         <spacer name="horizontalSpacer_warning2">
           <property name="orientation">
           <enum>Qt::Horizontal</enum>
