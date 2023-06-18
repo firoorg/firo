@@ -91,6 +91,7 @@ public:
     // type and v are not included in hash
     uint256 getHash() const;
 
+    void setParams(const Params* params);
     void setSerialContext(const std::vector<unsigned char>& serial_context_);
 protected:
 	bool validate(const IncomingViewKey& incoming_view_key, IdentifiedCoinData& data);

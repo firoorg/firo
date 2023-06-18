@@ -1457,6 +1457,17 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
                     walletdb.EraseLelantusSpendSerialEntry(spendEntry);
                 }
             }
+        } else if (wtx.tx->IsSparkSpend()) {
+            std::vector<GroupElement> lTags;
+            try {
+                spark::SpendTransaction spend = spark::ParseSparkSpend(*wtx.tx);
+                lTags = spend.getUsedLTags();
+            }
+            catch (...) {
+                continue;
+            }
+
+            sparkWallet->AbandonSpends(lTags);
         }
 
         if (wtx.tx->IsSigmaMint()) {
@@ -1494,6 +1505,11 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
                     continue;
                 }
             }
+        }
+
+        if (wtx.tx->IsSparkTransaction()) {
+            std::vector<spark::Coin> coins = spark::GetSparkMintCoins(*wtx.tx);
+            sparkWallet->AbandonSparkMints(coins);
         }
     }
 

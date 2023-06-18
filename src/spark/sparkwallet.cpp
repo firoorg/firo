@@ -57,6 +57,11 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
         {
             LOCK(cs_spark_wallet);
             coinMeta = walletdb.ListSparkMints();
+            for (auto& coin : coinMeta) {
+                coin.second.coin.setParams(params);
+                coin.second.coin.setSerialContext(coin.second.serial_context);
+
+            }
         }
     }
     threadPool = new ParallelOpThreadPool<void>(boost::thread::hardware_concurrency());
@@ -637,6 +642,23 @@ void CSparkWallet::RemoveSparkSpends(const std::unordered_map<GroupElement, int>
     }
 }
 
+void CSparkWallet::AbandonSparkMints(const std::vector<spark::Coin>& mints) {
+    RemoveSparkMints(mints);
+}
+
+void CSparkWallet::AbandonSpends(const std::vector<GroupElement>& spends) {
+    LOCK(cs_spark_wallet);
+    for (const auto& spend : spends) {
+        uint256 lTagHash = primitives::GetLTagHash(spend);
+        if (coinMeta.count(lTagHash)) {
+            auto mintMeta = coinMeta[lTagHash];
+            mintMeta.isUsed = false;
+            CWalletDB walletdb(strWalletFile);
+            addOrUpdateMint(mintMeta, lTagHash, walletdb);
+            walletdb.EraseSparkSpendEntry(spend);
+        }
+    }
+}
 
 std::vector<CSparkMintMeta> CSparkWallet::listAddressCoins(const int32_t& i, bool fUnusedOnly) {
     std::vector<CSparkMintMeta> listMints;

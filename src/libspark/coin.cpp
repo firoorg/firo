@@ -202,4 +202,8 @@ void Coin::setSerialContext(const std::vector<unsigned char>& serial_context_) {
     serial_context = serial_context_;
 }
 
+void Coin::setParams(const Params* params) {
+    this->params = params;
+}
+
 }

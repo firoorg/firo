@@ -3219,6 +3219,7 @@ UniValue listunspentsparkmints(const JSONRPCRequest& request) {
         script.insert(script.end(), serialized.begin(), serialized.end());
         entry.push_back(Pair("scriptPubKey", HexStr(script.begin(), script.end())));
         entry.push_back(Pair("amount", ValueFromAmount(coin.v)));
+        entry.push_back(Pair("coin", (coin.coin.getHash().GetHex())));
         results.push_back(entry);
     }
 

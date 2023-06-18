@@ -98,6 +98,9 @@ public:
     void UpdateMintStateFromBlock(const CBlock& block);
     void RemoveSparkMints(const std::vector<spark::Coin>& mints);
     void RemoveSparkSpends(const std::unordered_map<GroupElement, int>& spends);
+    void AbandonSparkMints(const std::vector<spark::Coin>& mints);
+    void AbandonSpends(const std::vector<GroupElement>& spends);
+
     // get the vector of mint metadata for a single address
     std::vector<CSparkMintMeta> listAddressCoins(const int32_t& i, bool fUnusedOnly = false);
 
