@@ -2941,7 +2941,7 @@ CRecipient CWallet::CreateLelantusMintRecipient(
     }
 }
 
-std::list<std::pair<spark::Coin, CSparkMintMeta>> CWallet::GetAvailableSparkCoins(const CCoinControl *coinControl) const {
+std::list<CSparkMintMeta> CWallet::GetAvailableSparkCoins(const CCoinControl *coinControl) const {
     EnsureSparkWalletAvailable();
 
     LOCK2(cs_main, cs_wallet);

@@ -86,6 +86,7 @@ public:
     static std::size_t memoryRequired();
 
     bool operator==(const Coin& other) const;
+    bool operator!=(const Coin& other) const;
 
     // type and v are not included in hash
     uint256 getHash() const;
