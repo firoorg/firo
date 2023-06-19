@@ -71,18 +71,23 @@ typedef std::pair<uint32_t,bool> Component;
 class CHDChain
 {
 public:
-    uint32_t nExternalChainCounter; // VERSION_BASIC
-    std::vector<uint32_t> nExternalChainCounters; // VERSION_WITH_BIP44: vector index corresponds to account value
-    CKeyID masterKeyID; //!< master key hash160
 
     static const int VERSION_BASIC = 1;
     static const int VERSION_WITH_BIP44 = 10;
     static const int VERSION_WITH_BIP39 = 11;
     static const int CURRENT_VERSION = VERSION_WITH_BIP39;
     static const int N_CHANGES = 5; // standard = 0/1, mint = 2, elysium = 3, elysiumv1 = 4
-    int nVersion;
+    int nVersion = CHDChain::CURRENT_VERSION;
 
-    CHDChain() { SetNull(); }
+    uint32_t nExternalChainCounter = 0; // VERSION_BASIC
+    // VERSION_WITH_BIP44: vector index corresponds to account value
+    std::vector<uint32_t> nExternalChainCounters;
+    CKeyID masterKeyID; //!< master key hash160
+
+    CHDChain() {
+        nExternalChainCounters.assign(N_CHANGES, 0);
+    }
+
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)
@@ -93,7 +98,7 @@ public:
         READWRITE(masterKeyID);
         if (this->nVersion >= VERSION_WITH_BIP44) {
             READWRITE(nExternalChainCounters);
-            nExternalChainCounters.resize(N_CHANGES);
+            nExternalChainCounters.assign(N_CHANGES, 0);
         }
     }
 
@@ -102,9 +107,7 @@ public:
         nVersion = CHDChain::CURRENT_VERSION;
         masterKeyID.SetNull();
         nExternalChainCounter = 0;
-        for(int index=0;index<N_CHANGES;index++){
-            nExternalChainCounters.push_back(0);
-        }
+        nExternalChainCounters.assign(N_CHANGES, 0);
     }
 };
 
