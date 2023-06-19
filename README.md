@@ -6,8 +6,6 @@
 [![GitHub commits-since-last-version](https://img.shields.io/github/commits-since/firoorg/firo/latest/master)](https://github.com/firoorg/firo/graphs/commit-activity)
 [![GitHub commits-per-month](https://img.shields.io/github/commit-activity/m/firoorg/firo)](https://github.com/firoorg/firo/graphs/code-frequency)
 [![GitHub last-commit](https://img.shields.io/github/last-commit/firoorg/firo)](https://github.com/firoorg/firo/commits/master)
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/firoorg/firo.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/firoorg/firo/alerts/)
-[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/firoorg/firo.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/firoorg/firo/context:cpp)
 
 [Firo](https://firo.org) formerly known as Zcoin, is a privacy focused cryptocurrency that utilizes zero-knowledge proofs which allows users to destroy coins and then redeem them later for brand new ones with no transaction history.
 
