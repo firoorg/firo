@@ -1,3 +1,5 @@
+# This file is used for IDE purposes only. We don't build with it.
+
 set(CMAKE_CXX_STANDARD 14)
 
 cmake_minimum_required(VERSION 3.0)
@@ -16,8 +18,5 @@ include_directories(${INCLUDE_DIRS})
 file(GLOB_RECURSE SRC_FILES *.h *.cpp *.ui)
 add_executable(firod ${SRC_FILES})
 
-find_package(Boost 1.45.0 COMPONENTS)
-if(Boost_FOUND)
-    include_directories(${Boost_INCLUDE_DIRS})
-    target_link_libraries(firod ${Boost_LIBRARIES})
-endif()
+# You need to set DEPENDS_TARGET to the directory that make depends uses, eg. "aarch64-apple-darwin22.5.0"
+include_directories(depends/${DEPENDS_TARGET}/include)
