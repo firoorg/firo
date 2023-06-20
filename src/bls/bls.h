@@ -60,6 +60,7 @@ public:
     CBLSWrapper(const std::vector<unsigned char>& vecBytes, const bool fLegacyIn = fLegacyDefault) : CBLSWrapper<ImplType, _SerSize, C>(fLegacyIn)
     {
         SetByteVector(vecBytes);
+        bls::BLS::CheckRelicErrors();
     }
 
     CBLSWrapper(const CBLSWrapper& ref) = default;
@@ -147,6 +148,12 @@ public:
             return false;
         }
         SetByteVector(b);
+        try {
+            bls::BLS::CheckRelicErrors();
+        } catch (std::invalid_argument& e) {
+            Reset();
+            return false;
+        }
         return IsValid();
     }
 
@@ -166,7 +173,10 @@ public:
     {
         std::vector<uint8_t> vecBytes(SerSize, 0);
         s.read((char*)vecBytes.data(), SerSize);
+
         SetByteVector(vecBytes);
+
+        bls::BLS::CheckRelicErrors();
 
         if (checkMalleable && !CheckMalleable(vecBytes)) {
             throw std::ios_base::failure("malleable BLS object");
@@ -387,6 +397,12 @@ public:
         }
         if (!objInitialized) {
             obj.SetByteVector(vecBytes);
+            try {
+                bls::BLS::CheckRelicErrors();
+            } catch (std::invalid_argument& e) {
+                return invalidObj;
+            }
+
             if (!obj.CheckMalleable(vecBytes)) {
                 bufValid = false;
                 objInitialized = false;

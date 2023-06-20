@@ -977,10 +977,12 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
         std::vector<uint8_t> buf = qc.sig.ToByteVector();
         buf[5]++;
         qc.sig.SetByteVector(buf);
+        bls::BLS::CheckRelicErrors();
     } else if (lieType == 4) {
         std::vector<uint8_t> buf = qc.quorumSig.ToByteVector();
         buf[5]++;
         qc.quorumSig.SetByteVector(buf);
+        bls::BLS::CheckRelicErrors();
     }
 
     t3.stop();
