@@ -399,6 +399,42 @@ void SendCoinsDialog::on_sendButton_clicked()
             }
             formatted.append(recipientElement);
         }
+    } else if ((fAnonymousMode == true) && (recipients.size() == 1) && spark::IsSparkAllowed()) {
+        for (auto &rcp : recipients)
+        {
+            // generate bold amount string
+            CAmount namount = rcp.amount;
+            if(rcp.fSubtractFeeFromAmount) {
+                namount = rcp.amount - currentTransaction.getTransactionFee();
+            }
+            QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), namount);
+            amount.append("</b>");
+            // generate monospace address string
+            QString address = "<span style='font-family: monospace;'>" + rcp.address;
+            address.append("</span>");
+            QString recipientElement;
+            if (!rcp.paymentRequest.IsInitialized()) // normal payment
+            {
+                if(rcp.label.length() > 0) // label with address
+                {
+                    recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
+                    recipientElement.append(QString(" (%1)").arg(address));
+                }
+                else // just address
+                {
+                    recipientElement = tr("%1 to %2").arg(amount, address);
+                }
+            }
+            else if(!rcp.authenticatedMerchant.isEmpty()) // authenticated payment request
+            {
+                recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.authenticatedMerchant));
+            }
+            else // unauthenticated payment request
+            {
+                recipientElement = tr("%1 to %2").arg(amount, address);
+            }
+            formatted.append(recipientElement);
+        }
     } else {
         Q_FOREACH(const SendCoinsRecipient &rcp, currentTransaction.getRecipients())
         {
@@ -464,6 +500,12 @@ void SendCoinsDialog::on_sendButton_clicked()
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
         totalAmount = mintSparkAmount + txFee;
+    } else if ((fAnonymousMode == true) && (recipients.size() == 1) && spark::IsSparkAllowed()) {
+        if(recipients[0].fSubtractFeeFromAmount) {
+            totalAmount = recipients[0].amount;
+        } else {
+            totalAmount = recipients[0].amount + currentTransaction.getTransactionFee();
+        }
     } else {
         totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
     }
