@@ -427,8 +427,6 @@ bool CheckSparkMintTransaction(
                          "CheckSparkMintTransaction : mintTransaction parsing failed");
 
 
-
-    bool hasCoin = false;
     for (size_t i = 0; i < coins.size(); i++) {
         auto& coin = coins[i];
         if (coin.v != txOuts[i].nValue)
@@ -443,31 +441,11 @@ bool CheckSparkMintTransaction(
 //                             REJECT_INVALID,
 //                             "CTransaction::CheckTransaction() : Spark Mint is out of limit.");
 
-        hasCoin = sparkState.HasCoin(coin);
-
-        if (!hasCoin && sparkTxInfo != NULL && !sparkTxInfo->fInfoIsComplete) {
-            for (const auto& mint : sparkTxInfo->mints) {
-                if (mint == coin) {
-                    hasCoin = true;
-                    break;
-                }
-            }
-
+        if (sparkTxInfo != NULL && !sparkTxInfo->fInfoIsComplete) {
             // Update coin list in the info
             sparkTxInfo->mints.push_back(coin);
             sparkTxInfo->spTransactions.insert(hashTx);
         }
-
-        if (hasCoin && fStatefulSigmaCheck)
-            break;
-    }
-
-    if (hasCoin && fStatefulSigmaCheck) {
-        LogPrintf("CheckSparkMintTransaction: double mint, tx=%s\n", hashTx.GetHex());
-        return state.DoS(100,
-                         false,
-                         PUBCOIN_NOT_VALIDATE,
-                         "CheckSparkMintTransaction: double mint");
     }
 
     return true;
@@ -499,35 +477,11 @@ bool CheckSparkSMintTransaction(
         }
     }
 
-    bool hasCoin = false;
     for (auto& coin : out_coins) {
-
-        hasCoin = sparkState.HasCoin(coin);
-
-        if (!hasCoin && sparkTxInfo != NULL && !sparkTxInfo->fInfoIsComplete) {
-            for (const auto& mint : sparkTxInfo->mints) {
-                if (mint == coin) {
-                    hasCoin = true;
-                    break;
-                }
-            }
-
+        if (sparkTxInfo != NULL && !sparkTxInfo->fInfoIsComplete) {
             // Update coin list in the info
             sparkTxInfo->mints.push_back(coin);
-            sparkTxInfo->spTransactions.insert(hashTx);
         }
-
-        if (hasCoin && fStatefulSigmaCheck)
-            break;
-
-    }
-
-    if (hasCoin && fStatefulSigmaCheck) {
-        LogPrintf("CheckSparkMintTransaction: double mint, tx=%s\n", hashTx.GetHex());
-        return state.DoS(100,
-                         false,
-                         PUBCOIN_NOT_VALIDATE,
-                         "CheckSparkMintTransaction: double mint");
     }
 
     return true;

@@ -99,6 +99,9 @@ public:
     void UpdateMintStateFromBlock(const CBlock& block);
     void RemoveSparkMints(const std::vector<spark::Coin>& mints);
     void RemoveSparkSpends(const std::unordered_map<GroupElement, int>& spends);
+    void AbandonSparkMints(const std::vector<spark::Coin>& mints);
+    void AbandonSpends(const std::vector<GroupElement>& spends);
+
     // get the vector of mint metadata for a single address
     std::vector<CSparkMintMeta> listAddressCoins(const int32_t& i, bool fUnusedOnly = false);
 
@@ -127,16 +130,16 @@ public:
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
-    std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>> SelectSparkCoins(
+    std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoins(
             CAmount required,
             bool subtractFeeFromAmount,
-            std::list<std::pair<spark::Coin, CSparkMintMeta>> coins,
+            std::list< CSparkMintMeta> coins,
             std::size_t mintNum,
             std::size_t utxoNum,
             const CCoinControl *coinControl);
 
     // Returns the list of pairs of coins and metadata for that coin,
-    std::list<std::pair<spark::Coin, CSparkMintMeta>> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
+    std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
 
 public:
     // to protect coinMeta

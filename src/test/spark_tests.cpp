@@ -538,7 +538,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     BOOST_CHECK(CheckSparkTransaction(
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
 
-
+    info.spTransactions.clear();
     BOOST_CHECK(!CheckSparkTransaction(
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
 

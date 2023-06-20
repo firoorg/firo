@@ -3202,23 +3202,24 @@ UniValue listunspentsparkmints(const JSONRPCRequest& request) {
     UniValue results(UniValue::VARR);;
     assert(pwallet != NULL);
 
-    std::list<std::pair<spark::Coin, CSparkMintMeta>> coins = pwallet->sparkWallet->GetAvailableSparkCoins();
+    std::list<CSparkMintMeta> coins = pwallet->sparkWallet->GetAvailableSparkCoins();
     LogPrintf("coins.size()=%s\n", coins.size());
     BOOST_FOREACH(const auto& coin, coins)
     {
         UniValue entry(UniValue::VOBJ);
-        entry.push_back(Pair("txid", coin.second.txid.GetHex()));
-        entry.push_back(Pair("nHeight", coin.second.nHeight));
-        entry.push_back(Pair("memo", coin.second.memo));
+        entry.push_back(Pair("txid", coin.txid.GetHex()));
+        entry.push_back(Pair("nHeight", coin.nHeight));
+        entry.push_back(Pair("memo", coin.memo));
 
         CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
-        serialized << coin.first;
+        serialized << coin.coin;
         CScript script;
         // opcode is inserted as 1 byte according to file script/script.h
         script << OP_SPARKMINT;
         script.insert(script.end(), serialized.begin(), serialized.end());
         entry.push_back(Pair("scriptPubKey", HexStr(script.begin(), script.end())));
-        entry.push_back(Pair("amount", ValueFromAmount(coin.second.v)));
+        entry.push_back(Pair("amount", ValueFromAmount(coin.v)));
+        entry.push_back(Pair("coin", (coin.coin.getHash().GetHex())));
         results.push_back(entry);
     }
 
