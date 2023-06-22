@@ -445,6 +445,8 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
             return tr("Mint spark to");
     case TransactionRecord::SpendSparkTo:
             return tr("Spend spark to");
+    case TransactionRecord::RecvSpark:
+        return tr("Received Spark");
     default:
         return QString();
     }
@@ -471,6 +473,7 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
     case TransactionRecord::SpendSparkToSelf:
     case TransactionRecord::MintSparkTo:
     case TransactionRecord::SpendSparkTo:
+    case TransactionRecord::RecvSpark:
         return QIcon(":/icons/spark");
     default:
         return QIcon(":/icons/tx_inout");

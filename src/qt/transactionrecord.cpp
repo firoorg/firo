@@ -177,8 +177,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     // Received by Bitcoin Address
                     sub.type = TransactionRecord::RecvWithAddress;
                     sub.address = CBitcoinAddress(address).ToString();
-                }
-                else
+                } else if(txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+                    sub.type = TransactionRecord::RecvSpark;
+                    sub.address = "(n/a)";
+                    if(txout.scriptPubKey.IsSparkSMint()){
+                        sub.debit = nNet;
+                    }
+                } else
                 {
                     // Received by IP connection (deprecated features), or a multisignature or other non-simple transaction
                     sub.type = TransactionRecord::RecvFromOther;

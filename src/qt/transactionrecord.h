@@ -95,6 +95,7 @@ public:
         SpendSparkToSelf,
         MintSparkTo,
         SpendSparkTo,
+        RecvSpark
     };
 
     /** Number of confirmation recommended for accepting a transaction */
