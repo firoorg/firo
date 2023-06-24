@@ -19,8 +19,8 @@ Params const* Params::get_default() {
 
         std::size_t memo_bytes = 32;
         std::size_t max_M_range = 16;
-        std::size_t n_grootle = 16;
-        std::size_t m_grootle = 4;
+        std::size_t n_grootle = 8;
+        std::size_t m_grootle = 5;
 
         instance.reset(new Params(memo_bytes, max_M_range, n_grootle, m_grootle));
         return instance.get();

@@ -132,8 +132,8 @@ public:
 
 public:
     CSparkState(
-            size_t maxCoinInGroup = ZC_LELANTUS_MAX_MINT_NUM,
-            size_t startGroupSize = ZC_LELANTUS_SET_START_SIZE);
+            size_t maxCoinInGroup = ZC_SPARK_MAX_MINT_NUM,
+            size_t startGroupSize = ZC_SPARK_SET_START_SIZE);
 
     // Reset to initial values
     void Reset();
