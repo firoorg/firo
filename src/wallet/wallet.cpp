@@ -1897,13 +1897,14 @@ bool CWallet::IsMine(const CTransaction& tx) const
                 try {
                     spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
                 } catch (std::invalid_argument &) {
-                    return ISMINE_NO;
+                    return false;
                 }
 
                 coin.setSerialContext(serialContext);
                 if(sparkWallet->isMine(coin))
                     return true;
-            }
+            } else if (IsMine(txout))
+                return true;
         }
         return false;
     }
