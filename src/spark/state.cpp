@@ -1168,7 +1168,7 @@ void CSparkState::GetCoinSet(
     {
         const auto &params = ::Params().GetConsensus();
         LOCK(cs_main);
-        int maxHeight = chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1);
+        maxHeight = chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1);
     }
     GetCoinSetForSpend(
             &chainActive,

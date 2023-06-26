@@ -98,6 +98,10 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 #define ZC_LELANTUS_MAX_MINT_NUM    65000
 #define ZC_LELANTUS_SET_START_SIZE  16000
 
+// limit of coins number per id in Spark
+#define ZC_SPARK_MAX_MINT_NUM    32000
+#define ZC_SPARK_SET_START_SIZE  8000
+
 // Version of index that introduced storing accumulators and coin serials
 #define ZC_ADVANCED_INDEX_VERSION           130500
 // Version of wallet.db entry that introduced storing extra information for mints
