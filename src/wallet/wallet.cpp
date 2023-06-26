@@ -1919,6 +1919,28 @@ CAmount CWallet::GetChange(const uint256& tx, const CTxOut &txout) const
 
 bool CWallet::IsMine(const CTransaction& tx) const
 {
+    if (tx.IsSparkTransaction()) {
+        if (!sparkWallet)
+            false;
+        std::vector<unsigned char> serialContext = spark::getSerialContext(tx);
+        for (const auto& txout : tx.vout) {
+            if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+                spark::Coin coin(spark::Params::get_default());
+                try {
+                    spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
+                } catch (std::invalid_argument &) {
+                    return false;
+                }
+
+                coin.setSerialContext(serialContext);
+                if(sparkWallet->isMine(coin))
+                    return true;
+            } else if (IsMine(txout))
+                return true;
+        }
+        return false;
+    }
+
     BOOST_FOREACH(const CTxOut& txout, tx.vout)
         if (IsMine(txout))
             return true;
