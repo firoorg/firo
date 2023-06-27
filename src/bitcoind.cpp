@@ -20,6 +20,8 @@
 #include "utilstrencodings.h"
 #include "stacktraces.h"
 
+#include <mutex>
+
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
@@ -56,6 +58,11 @@ void WaitForShutdown(boost::thread_group* threadGroup)
         Interrupt(*threadGroup);
         threadGroup->join_all();
     }
+}
+
+std::mutex usr1Mutex;
+void unlockUsr1Mutex(int) {
+    usr1Mutex.unlock();
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -174,6 +181,12 @@ bool AppInit(int argc, char* argv[])
             fprintf(stderr, "Error: -daemon is not supported on this operating system\n");
             return false;
 #endif // HAVE_DECL_DAEMON
+        }
+
+        if (IsArgSet("-wait-for-usr1")) {
+            usr1Mutex.lock();
+            signal(SIGUSR1, unlockUsr1Mutex);
+            usr1Mutex.lock();
         }
 
         fRet = AppInitMain(threadGroup, scheduler);
