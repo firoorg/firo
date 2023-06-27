@@ -20,6 +20,8 @@
 #include "utilstrencodings.h"
 #include "stacktraces.h"
 
+#include <mutex>
+
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
@@ -61,6 +63,11 @@ void WaitForShutdown(boost::thread_group* threadGroup)
         Interrupt(*threadGroup);
         threadGroup->join_all();
     }
+}
+
+std::mutex usr1Mutex;
+void unlockUsr1Mutex(int) {
+    usr1Mutex.unlock();
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -188,9 +195,16 @@ bool AppInit(int argc, char* argv[])
 #endif // HAVE_DECL_DAEMON
         }
 
+        if (IsArgSet("-wait-for-usr1")) {
+            usr1Mutex.lock();
+            signal(SIGUSR1, unlockUsr1Mutex);
+            usr1Mutex.lock();
+        }
+
         // Set this early so that parameter interactions go to console
         InitLogging();
         InitParameterInteraction();
+
 #ifdef ENABLE_CLIENTAPI
         if(GetBoolArg("-clientapi", false)){
             ReadAPISettingsFile();
@@ -198,6 +212,7 @@ bool AppInit(int argc, char* argv[])
                 return false;
         }
 #endif
+
         fRet = AppInitMain(threadGroup, scheduler);
         LogPrintf("AppInit done!\n");
     }
