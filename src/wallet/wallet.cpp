@@ -1473,6 +1473,17 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
                     walletdb.EraseLelantusSpendSerialEntry(spendEntry);
                 }
             }
+        } else if (wtx.tx->IsSparkSpend()) {
+            std::vector<GroupElement> lTags;
+            try {
+                spark::SpendTransaction spend = spark::ParseSparkSpend(*wtx.tx);
+                lTags = spend.getUsedLTags();
+            }
+            catch (...) {
+                continue;
+            }
+
+            sparkWallet->AbandonSpends(lTags);
         }
 
         if (wtx.tx->IsSigmaMint()) {
@@ -1510,6 +1521,11 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
                     continue;
                 }
             }
+        }
+
+        if (wtx.tx->IsSparkTransaction()) {
+            std::vector<spark::Coin> coins = spark::GetSparkMintCoins(*wtx.tx);
+            sparkWallet->AbandonSparkMints(coins);
         }
     }
 
@@ -1890,6 +1906,28 @@ CAmount CWallet::GetChange(const uint256& tx, const CTxOut &txout) const
 
 bool CWallet::IsMine(const CTransaction& tx) const
 {
+    if (tx.IsSparkTransaction()) {
+        if (!sparkWallet)
+            false;
+        std::vector<unsigned char> serialContext = spark::getSerialContext(tx);
+        for (const auto& txout : tx.vout) {
+            if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+                spark::Coin coin(spark::Params::get_default());
+                try {
+                    spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
+                } catch (std::invalid_argument &) {
+                    return false;
+                }
+
+                coin.setSerialContext(serialContext);
+                if(sparkWallet->isMine(coin))
+                    return true;
+            } else if (IsMine(txout))
+                return true;
+        }
+        return false;
+    }
+
     BOOST_FOREACH(const CTxOut& txout, tx.vout)
         if (IsMine(txout))
             return true;
@@ -3031,7 +3069,7 @@ CRecipient CWallet::CreateLelantusMintRecipient(
     }
 }
 
-std::list<std::pair<spark::Coin, CSparkMintMeta>> CWallet::GetAvailableSparkCoins(const CCoinControl *coinControl) const {
+std::list<CSparkMintMeta> CWallet::GetAvailableSparkCoins(const CCoinControl *coinControl) const {
     EnsureSparkWalletAvailable();
 
     LOCK2(cs_main, cs_wallet);
