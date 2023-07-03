@@ -969,7 +969,7 @@ public:
     std::list<CLelantusEntry> GetAvailableLelantusCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false, bool forEstimation = false) const;
 
     // Returns the list of pairs of coins and meta data for that coin,
-    std::list<std::pair<spark::Coin, CSparkMintMeta>> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
+    std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
 
     std::vector<unsigned char> EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pubcoin) const;
 

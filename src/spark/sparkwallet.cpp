@@ -57,6 +57,11 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
         {
             LOCK(cs_spark_wallet);
             coinMeta = walletdb.ListSparkMints();
+            for (auto& coin : coinMeta) {
+                coin.second.coin.setParams(params);
+                coin.second.coin.setSerialContext(coin.second.serial_context);
+
+            }
         }
     }
     threadPool = new ParallelOpThreadPool<void>(boost::thread::hardware_concurrency());
@@ -304,6 +309,9 @@ std::unordered_map<uint256, CSparkMintMeta> CSparkWallet::getMintMap() const {
 
 spark::Coin CSparkWallet::getCoinFromMeta(const CSparkMintMeta& meta) const {
     const spark::Params* params = spark::Params::get_default();
+    if (meta.coin != spark::Coin())
+        return meta.coin;
+
     spark::Address address(viewKey, meta.i);
     return spark::Coin(params, meta.type, meta.k, address, meta.v, meta.memo, meta.serial_context);
 }
@@ -561,6 +569,7 @@ void CSparkWallet::UpdateMintState(const std::vector<spark::Coin>& coins, const 
             mintMeta.k = identifiedCoinData.k;
             mintMeta.memo = identifiedCoinData.memo;
             mintMeta.serial_context = coin.serial_context;
+            mintMeta.coin = coin;
             mintMeta.type = coin.type;
             //! Check whether this mint has been spent and is considered 'pending' or 'confirmed'
             {
@@ -646,6 +655,23 @@ void CSparkWallet::RemoveSparkSpends(const std::unordered_map<GroupElement, int>
     }
 }
 
+void CSparkWallet::AbandonSparkMints(const std::vector<spark::Coin>& mints) {
+    RemoveSparkMints(mints);
+}
+
+void CSparkWallet::AbandonSpends(const std::vector<GroupElement>& spends) {
+    LOCK(cs_spark_wallet);
+    for (const auto& spend : spends) {
+        uint256 lTagHash = primitives::GetLTagHash(spend);
+        if (coinMeta.count(lTagHash)) {
+            auto mintMeta = coinMeta[lTagHash];
+            mintMeta.isUsed = false;
+            CWalletDB walletdb(strWalletFile);
+            addOrUpdateMint(mintMeta, lTagHash, walletdb);
+            walletdb.EraseSparkSpendEntry(spend);
+        }
+    }
+}
 
 std::vector<CSparkMintMeta> CSparkWallet::listAddressCoins(const int32_t& i, bool fUnusedOnly) {
     std::vector<CSparkMintMeta> listMints;
@@ -1235,9 +1261,9 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 
     assert(tx.nLockTime <= static_cast<unsigned>(chainActive.Height()));
     assert(tx.nLockTime < LOCKTIME_THRESHOLD);
-    std::list<std::pair<spark::Coin, CSparkMintMeta>> coins = GetAvailableSparkCoins(coinControl);
+    std::list<CSparkMintMeta> coins = GetAvailableSparkCoins(coinControl);
 
-    std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>> estimated =
+    std::pair<CAmount, std::vector<CSparkMintMeta>> estimated =
             SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size(), recipients.size(), coinControl);
 
     std::vector<CRecipient> recipients_ = recipients;
@@ -1300,7 +1326,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 
             CAmount spendInCurrentTx = 0;
             for (auto& spendCoin : estimated.second)
-                spendInCurrentTx += spendCoin.second.v;
+                spendInCurrentTx += spendCoin.v;
             spendInCurrentTx -= fee;
 
             uint64_t transparentOut = 0;
@@ -1385,9 +1411,9 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             std::unordered_map<uint64_t, spark::CoverSetData> cover_set_data;
             for (auto& coin : estimated.second) {
                 spark::CSparkState::SparkCoinGroupInfo nextCoinGroupInfo;
-                uint64_t groupId = coin.second.nId;
+                uint64_t groupId = coin.nId;
                 if (sparkState->GetLatestCoinID() > groupId && sparkState->GetCoinGroupInfo(groupId + 1, nextCoinGroupInfo)) {
-                    if (nextCoinGroupInfo.firstBlock->nHeight <= coin.second.nHeight)
+                    if (nextCoinGroupInfo.firstBlock->nHeight <= coin.nHeight)
                         groupId += 1;
                 }
 
@@ -1418,20 +1444,20 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 spark::InputCoinData inputCoinData;
                 inputCoinData.cover_set_id = groupId;
                 std::size_t index = 0;
-                if (!getIndex(coin.first, cover_set_data[groupId].cover_set, index))
+                if (!getIndex(coin.coin, cover_set_data[groupId].cover_set, index))
                     throw std::runtime_error(
                             _("No such coin in set"));
                 inputCoinData.index = index;
-                inputCoinData.v = coin.second.v;
-                inputCoinData.k = coin.second.k;
+                inputCoinData.v = coin.v;
+                inputCoinData.k = coin.k;
 
                 spark::IdentifiedCoinData identifiedCoinData;
-                identifiedCoinData.i = coin.second.i;
-                identifiedCoinData.d = coin.second.d;
-                identifiedCoinData.v = coin.second.v;
-                identifiedCoinData.k = coin.second.k;
-                identifiedCoinData.memo = coin.second.memo;
-                spark::RecoveredCoinData recoveredCoinData = coin.first.recover(fullViewKey, identifiedCoinData);
+                identifiedCoinData.i = coin.i;
+                identifiedCoinData.d = coin.d;
+                identifiedCoinData.v = coin.v;
+                identifiedCoinData.k = coin.k;
+                identifiedCoinData.memo = coin.memo;
+                spark::RecoveredCoinData recoveredCoinData = coin.coin.recover(fullViewKey, identifiedCoinData);
 
                 inputCoinData.T = recoveredCoinData.T;
                 inputCoinData.s = recoveredCoinData.s;
@@ -1508,15 +1534,15 @@ template<typename Iterator>
 static CAmount CalculateBalance(Iterator begin, Iterator end) {
     CAmount balance(0);
     for (auto itr = begin; itr != end; itr++) {
-        balance += itr->second.v;
+        balance += itr->v;
     }
     return balance;
 }
 
 bool GetCoinsToSpend(
         CAmount required,
-        std::vector<std::pair<spark::Coin, CSparkMintMeta>>& coinsToSpend_out,
-        std::list<std::pair<spark::Coin, CSparkMintMeta>> coins,
+        std::vector<CSparkMintMeta>& coinsToSpend_out,
+        std::list<CSparkMintMeta> coins,
         int64_t& changeToMint,
         const CCoinControl *coinControl)
 {
@@ -1526,17 +1552,15 @@ bool GetCoinsToSpend(
         throw InsufficientFunds();
     }
 
-    typedef std::pair<spark::Coin, CSparkMintMeta> CoinData;
-
     // sort by biggest amount. if it is same amount we will prefer the older block
-    auto comparer = [](const CoinData& a, const CoinData& b) -> bool {
-        return a.second.v != b.second.v ? a.second.v > b.second.v : a.second.nHeight < b.second.nHeight;
+    auto comparer = [](const CSparkMintMeta& a, const CSparkMintMeta& b) -> bool {
+        return a.v != b.v ? a.v > b.v : a.nHeight < b.nHeight;
     };
     coins.sort(comparer);
 
     CAmount spend_val(0);
 
-    std::list<CoinData> coinsToSpend;
+    std::list<CSparkMintMeta> coinsToSpend;
 
     // If coinControl, want to use all inputs
     bool coinControlUsed = false;
@@ -1544,7 +1568,7 @@ bool GetCoinsToSpend(
         if (coinControl->HasSelected()) {
             auto coinIt = coins.rbegin();
             for (; coinIt != coins.rend(); coinIt++) {
-                spend_val += coinIt->second.v;
+                spend_val += coinIt->v;
             }
             coinControlUsed = true;
             coinsToSpend.insert(coinsToSpend.begin(), coins.begin(), coins.end());
@@ -1556,11 +1580,11 @@ bool GetCoinsToSpend(
             if (coins.empty())
                 break;
 
-            CoinData choosen;
+            CSparkMintMeta choosen;
             CAmount need = required - spend_val;
 
             auto itr = coins.begin();
-            if (need >= itr->second.v) {
+            if (need >= itr->v) {
                 choosen = *itr;
                 coins.erase(itr);
             } else {
@@ -1568,7 +1592,7 @@ bool GetCoinsToSpend(
                     auto nextItr = coinIt;
                     nextItr++;
 
-                    if (coinIt->second.v >= need && (nextItr == coins.rend() || nextItr->second.v != coinIt->second.v)) {
+                    if (coinIt->v >= need && (nextItr == coins.rend() || nextItr->v != coinIt->v)) {
                         choosen = *coinIt;
                         coins.erase(std::next(coinIt).base());
                         break;
@@ -1576,14 +1600,14 @@ bool GetCoinsToSpend(
                 }
             }
 
-            spend_val += choosen.second.v;
+            spend_val += choosen.v;
             coinsToSpend.push_back(choosen);
         }
     }
 
     // sort by group id ay ascending order. it is mandatory for creting proper joinsplit
-    auto idComparer = [](const CoinData& a, const CoinData& b) -> bool {
-        return a.second.nId < b.second.nId;
+    auto idComparer = [](const CSparkMintMeta& a, const CSparkMintMeta& b) -> bool {
+        return a.nId < b.nId;
     };
     coinsToSpend.sort(idComparer);
 
@@ -1593,10 +1617,10 @@ bool GetCoinsToSpend(
     return true;
 }
 
-std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>> CSparkWallet::SelectSparkCoins(
+std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
         CAmount required,
         bool subtractFeeFromAmount,
-        std::list<std::pair<spark::Coin, CSparkMintMeta>> coins,
+        std::list<CSparkMintMeta> coins,
         std::size_t mintNum,
         std::size_t utxoNum,
         const CCoinControl *coinControl) {
@@ -1605,7 +1629,7 @@ std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>> CSparkWa
     unsigned size;
     int64_t changeToMint = 0; // this value can be negative, that means we need to spend remaining part of required value with another transaction (nMaxInputPerTransaction exceeded)
 
-    std::vector<std::pair<spark::Coin, CSparkMintMeta>> spendCoins;
+    std::vector<CSparkMintMeta> spendCoins;
     for (fee = payTxFee.GetFeePerK();;) {
         CAmount currentRequired = required;
 
@@ -1637,26 +1661,24 @@ std::pair<CAmount, std::vector<std::pair<spark::Coin, CSparkMintMeta>>> CSparkWa
     return std::make_pair(fee, spendCoins);
 }
 
-std::list<std::pair<spark::Coin, CSparkMintMeta>> CSparkWallet::GetAvailableSparkCoins(const CCoinControl *coinControl) const {
-    std::list<std::pair<spark::Coin, CSparkMintMeta>> coins;
+std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const CCoinControl *coinControl) const {
+    std::list<CSparkMintMeta> coins;
     // get all unsued coins from spark wallet
     std::vector<CSparkMintMeta> vecMints = this->ListSparkMints(true, true);
     for (const auto& mint : vecMints) {
         if (mint.v == 0) // ignore 0 mints which where created to increase privacy
             continue;
-
-        spark::Coin coin = this->getCoinFromMeta(mint);
-        coins.push_back(std::make_pair(coin, mint));
+        coins.push_back(mint);
     }
 
     std::set<COutPoint> lockedCoins = pwalletMain->setLockedCoins;
 
     // Filter out coins that have not been selected from CoinControl should that be used
-    coins.remove_if([lockedCoins, coinControl](const std::pair<spark::Coin, CSparkMintMeta>& coin) {
+    coins.remove_if([lockedCoins, coinControl](const CSparkMintMeta& coin) {
         COutPoint outPoint;
 
         // ignore if the coin is not actually on chain
-        if (!spark::GetOutPoint(outPoint, coin.first)) {
+        if (!spark::GetOutPoint(outPoint, coin.coin)) {
             return true;
         }
 
