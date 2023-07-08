@@ -508,7 +508,7 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
         CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
         const auto &params = chainparams.GetConsensus();
 
-        if (spendAmount > params.nMaxValueLelantusSpendPerTransaction)
+        if (spendAmount > params.nMaxValueSparkSpendPerTransaction)
             return;
 
         if ((nSparkSpendAmount += spendAmount) > params.nMaxValueSparkSpendPerBlock)
