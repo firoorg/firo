@@ -3781,6 +3781,11 @@ UniValue lelantustospark(const JSONRPCRequest& request) {
                 "Takes all your lelantus mints, spends all to transparent layer, takes all that UTX's and mints to Spark");
     }
 
+    if (!lelantus::IsLelantusGraceFulPeriod()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus spends are not allowed anymore");
+    }
+
+
     EnsureWalletIsUnlocked(pwallet);
     EnsureSparkWalletIsAvailable();
 
@@ -3893,7 +3898,7 @@ UniValue mintlelantus(const JSONRPCRequest& request)
     // Ensure Lelantus mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
     if (!lelantus::IsLelantusAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not activated yet");
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not active");
     }
 
     CAmount nAmount = AmountFromValue(request.params[0]);
@@ -3931,7 +3936,7 @@ UniValue autoMintlelantus(const JSONRPCRequest& request) {
     // Ensure Lelantus mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
     if (!lelantus::IsLelantusAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not activated yet");
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not active");
     }
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
@@ -4103,8 +4108,8 @@ UniValue joinsplit(const JSONRPCRequest& request) {
                 + HelpExampleCli("joinsplit", "\"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"\"[\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\",\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\"]\"")
         );
 
-    if (!lelantus::IsLelantusAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not activated yet");
+    if (!lelantus::IsLelantusGraceFulPeriod()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus spends are not allowed anymore");
     }
 
     EnsureLelantusWalletIsAvailable();
@@ -5313,7 +5318,7 @@ UniValue setupchannel(const JSONRPCRequest& request)
     bip47::CPaymentCode theirPcode(request.params[0].get_str());
 
     if (!lelantus::IsLelantusAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not active yet");
+        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not active");
     }
 
     EnsureLelantusWalletIsAvailable();
