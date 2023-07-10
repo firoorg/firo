@@ -903,7 +903,7 @@ UniValue gettotalbalance(const JSONRPCRequest& request)
             "gettotalbalance\n"
             "\nReturns total (transparent + private) balance.\n"
             "Transparent balance is the sum of coin amounts received as utxo.\n"
-            "Private balance is the sum of all confirmed sigma/lelantus mints which are created by the wallet.\n"
+            "Private balance is the sum of all confirmed sigma/lelantus/spark mints which are created by the wallet.\n"
             "\nResult:\n"
             "amount              (numeric) The total balance in " + CURRENCY_UNIT + " for the wallet.\n"
             "\nExamples:\n"
@@ -913,9 +913,10 @@ UniValue gettotalbalance(const JSONRPCRequest& request)
         );
 
     EnsureLelantusWalletIsAvailable();
+    EnsureSparkWalletIsAvailable();
     LOCK2(cs_main, pwallet->cs_wallet);
 
-    return  ValueFromAmount(pwallet->GetBalance() + pwallet->GetPrivateBalance().first);
+    return  ValueFromAmount(pwallet->GetBalance() + pwallet->GetPrivateBalance().first + pwallet->sparkWallet->getAvailableBalance());
 }
 
 UniValue getunconfirmedbalance(const JSONRPCRequest &request)
