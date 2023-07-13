@@ -92,6 +92,13 @@ bool IsLelantusAllowed(int height)
 	return height >= ::Params().GetConsensus().nLelantusStartBlock && height < ::Params().GetConsensus().nSparkStartBlock;
 }
 
+bool IsLelantusGraceFulPeriod()
+{
+    LOCK(cs_main);
+    int height = chainActive.Height();
+    return height >= ::Params().GetConsensus().nLelantusStartBlock && height < ::Params().GetConsensus().nLelantusGracefulPeriod;
+}
+
 bool IsAvailableToMint(const CAmount& amount)
 {
     return amount <= ::Params().GetConsensus().nMaxValueLelantusMint;
