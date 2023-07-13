@@ -76,11 +76,11 @@ QVariant RecentRequestsTableModel::data(const QModelIndex &index, int role) cons
                 return rec->recipient.label;
             }
         case AddressType:
-            if(rec->recipient.addressType == RecentRequestsTableModel::Transparent)
+            if(walletModel->validateAddress(rec->recipient.address))
             {
                 return tr("transparent");
             }
-            else if(rec->recipient.addressType == RecentRequestsTableModel::Spark)
+            else if(walletModel->validateSparkAddress(rec->recipient.address))
             {
                 return tr("spark");
             }

@@ -47,7 +47,7 @@ class SendCoinsRecipient
 public:
     explicit SendCoinsRecipient() : amount(0), fSubtractFeeFromAmount(false), nVersion(SendCoinsRecipient::CURRENT_VERSION) { }
     explicit SendCoinsRecipient(const QString &addr, const QString &addrType, const QString &_label, const CAmount& _amount, const QString &_message):
-        address(addr), addressType(addrType), label(_label), amount(_amount), message(_message), fSubtractFeeFromAmount(false), nVersion(SendCoinsRecipient::CURRENT_VERSION) {}
+        address(addr), label(_label), amount(_amount), message(_message), fSubtractFeeFromAmount(false), nVersion(SendCoinsRecipient::CURRENT_VERSION) {}
 
     // If from an unauthenticated payment request, this is used for storing
     // the addresses, e.g. address-A<br />address-B<br />address-C.
@@ -55,7 +55,6 @@ public:
     // payment requests, we can abuse it for displaying an address list.
     // Todo: This is a hack, should be replaced with a cleaner solution!
     QString address;
-    QString addressType;
     QString label;
     CAmount amount;
     // If from a payment request, this is used for storing the memo
@@ -76,7 +75,6 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         std::string sAddress = address.toStdString();
-        std::string sAddressType = addressType.toStdString();
         std::string sLabel = label.toStdString();
         std::string sMessage = message.toStdString();
         std::string sPaymentRequest;
@@ -86,7 +84,6 @@ public:
 
         READWRITE(this->nVersion);
         READWRITE(sAddress);
-        READWRITE(sAddressType);
         READWRITE(sLabel);
         READWRITE(amount);
         READWRITE(sMessage);
@@ -96,7 +93,6 @@ public:
         if (ser_action.ForRead())
         {
             address = QString::fromStdString(sAddress);
-            addressType = QString::fromStdString(sAddressType);
             label = QString::fromStdString(sLabel);
             message = QString::fromStdString(sMessage);
             if (!sPaymentRequest.empty())
