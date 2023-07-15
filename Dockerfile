@@ -40,7 +40,9 @@ COPY --from=build-image /usr/bin/firo-cli /usr/bin/firo-cli
 COPY --from=build-image /tmp/ldd /tmp/ldd
 
 # restore ldd files in correct paths
-RUN cp --verbose -RT /tmp/ldd / && \
+# -n will not override libraries already present in this image,
+# standard libraries like `libc` can crash when overriden at runtime
+RUN cp -vnrT /tmp/ldd / && \
     rm -rf /tmp/ldd && \
     ldd /usr/bin/firod
 
