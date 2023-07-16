@@ -43,6 +43,7 @@ public:
 
 bool IsLelantusAllowed();
 bool IsLelantusAllowed(int height);
+bool IsLelantusGraceFulPeriod();
 
 bool IsAvailableToMint(const CAmount& amount);
 
