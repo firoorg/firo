@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(mint_identify_recover)
         params->get_F()*(SparkUtils::hash_ser(k, coin.serial_context) + SparkUtils::hash_Q2(incoming_view_key.get_s1(), i) + full_view_key.get_s2()) + full_view_key.get_D(),
         params->get_F()*r_data.s + full_view_key.get_D()
     );
-    BOOST_CHECK_EQUAL(r_data.T*r_data.s + full_view_key.get_D(), params->get_U());
+    BOOST_CHECK((r_data.T*r_data.s + full_view_key.get_D()).isInfinity());
 }
 
 BOOST_AUTO_TEST_CASE(spend_identify_recover)
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(spend_identify_recover)
         params->get_F()*(SparkUtils::hash_ser(k, coin.serial_context) + SparkUtils::hash_Q2(incoming_view_key.get_s1(), i) + full_view_key.get_s2()) + full_view_key.get_D(),
         params->get_F()*r_data.s + full_view_key.get_D()
     );
-    BOOST_CHECK_EQUAL(r_data.T*r_data.s + full_view_key.get_D(), params->get_U());
+    BOOST_CHECK((r_data.T*r_data.s + full_view_key.get_D()).isInfinity());
 }
 BOOST_AUTO_TEST_SUITE_END()
 

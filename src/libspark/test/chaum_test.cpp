@@ -11,11 +11,10 @@ BOOST_FIXTURE_TEST_SUITE(spark_chaum_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(serialization)
 {
-    GroupElement F, G, H, U;
+    GroupElement F, G, H;
     F.randomize();
     G.randomize();
     H.randomize();
-    U.randomize();
 
     const std::size_t n = 3;
 
@@ -34,12 +33,12 @@ BOOST_AUTO_TEST_CASE(serialization)
         z[i].randomize();
 
         S[i] = F*x[i] + G*y[i] + H*z[i];
-        T[i] = (U + G*y[i].negate())*x[i].inverse();
+        T[i] = G*y[i].negate()*x[i].inverse();
     }
 
     ChaumProof proof;
 
-    Chaum chaum(F, G, H, U);
+    Chaum chaum(F, G, H);
     chaum.prove(mu, x, y, z, S, T, proof);
 
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
@@ -59,11 +58,10 @@ BOOST_AUTO_TEST_CASE(serialization)
 
 BOOST_AUTO_TEST_CASE(completeness)
 {
-    GroupElement F, G, H, U;
+    GroupElement F, G, H;
     F.randomize();
     G.randomize();
     H.randomize();
-    U.randomize();
 
     const std::size_t n = 3;
 
@@ -82,12 +80,12 @@ BOOST_AUTO_TEST_CASE(completeness)
         z[i].randomize();
 
         S[i] = F*x[i] + G*y[i] + H*z[i];
-        T[i] = (U + G*y[i].negate())*x[i].inverse();
+        T[i] = G*y[i].negate()*x[i].inverse();
     }
 
     ChaumProof proof;
 
-    Chaum chaum(F, G, H, U);
+    Chaum chaum(F, G, H);
     chaum.prove(mu, x, y, z, S, T, proof);
 
     BOOST_CHECK(chaum.verify(mu, S, T, proof));
@@ -95,11 +93,10 @@ BOOST_AUTO_TEST_CASE(completeness)
 
 BOOST_AUTO_TEST_CASE(bad_proofs)
 {
-    GroupElement F, G, H, U;
+    GroupElement F, G, H;
     F.randomize();
     G.randomize();
     H.randomize();
-    U.randomize();
 
     const std::size_t n = 3;
 
@@ -118,12 +115,12 @@ BOOST_AUTO_TEST_CASE(bad_proofs)
         z[i].randomize();
 
         S[i] = F*x[i] + G*y[i] + H*z[i];
-        T[i] = (U + G*y[i].negate())*x[i].inverse();
+        T[i] = G*y[i].negate()*x[i].inverse();
     }
 
     ChaumProof proof;
 
-    Chaum chaum(F, G, H, U);
+    Chaum chaum(F, G, H);
     chaum.prove(mu, x, y, z, S, T, proof);
 
     // Bad mu

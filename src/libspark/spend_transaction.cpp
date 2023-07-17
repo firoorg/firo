@@ -191,8 +191,7 @@ SpendTransaction::SpendTransaction(
 	Chaum chaum(
 		this->params->get_F(),
 		this->params->get_G(),
-		this->params->get_H(),
-		this->params->get_U()
+		this->params->get_H()
 	);
 	chaum.prove(
 		mu,
@@ -308,8 +307,7 @@ bool SpendTransaction::verify(
 		Chaum chaum(
 			tx.params->get_F(),
 			tx.params->get_G(),
-			tx.params->get_H(),
-			tx.params->get_U()
+			tx.params->get_H()
 		);
 		if (!chaum.verify(mu, tx.S1, tx.T, tx.chaum_proof)) {
 			return false;

@@ -3,8 +3,8 @@
 
 namespace spark {
 
-Chaum::Chaum(const GroupElement& F_, const GroupElement& G_, const GroupElement& H_, const GroupElement& U_):
-    F(F_), G(G_), H(H_), U(U_) {
+Chaum::Chaum(const GroupElement& F_, const GroupElement& G_, const GroupElement& H_):
+    F(F_), G(G_), H(H_) {
 }
 
 Scalar Chaum::challenge(
@@ -18,7 +18,6 @@ Scalar Chaum::challenge(
     transcript.add("F", F);
     transcript.add("G", G);
     transcript.add("H", H);
-    transcript.add("U", U);
     transcript.add("mu", mu);
     transcript.add("S", S);
     transcript.add("T", T);
@@ -43,7 +42,7 @@ void Chaum::prove(
         throw std::invalid_argument("Bad Chaum statement!");
     }
     for (std::size_t i = 0; i < n; i++) {
-        if (!(F*x[i] + G*y[i] + H*z[i] == S[i] && T[i]*x[i] + G*y[i] == U)) {
+        if (!(F*x[i] + G*y[i] + H*z[i] == S[i] && (T[i]*x[i] + G*y[i]).isInfinity())) {
             throw std::invalid_argument("Bad Chaum statement!");
         }
     }
@@ -133,15 +132,6 @@ bool Chaum::verify(
     // H
     scalars.emplace_back(proof.t3.negate());
     points.emplace_back(H);
-
-    // U
-    Scalar U_scalar;
-    for (std::size_t i = 0; i < n; i++) {
-        U_scalar += c_powers[i];
-    }
-    U_scalar *= w;
-    scalars.emplace_back(U_scalar);
-    points.emplace_back(U);
 
     // A1
     scalars.emplace_back(Scalar((uint64_t) 1));

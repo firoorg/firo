@@ -8,7 +8,7 @@ namespace spark {
 
 class Chaum {
 public:
-    Chaum(const GroupElement& F, const GroupElement& G, const GroupElement& H, const GroupElement& U);
+    Chaum(const GroupElement& F, const GroupElement& G, const GroupElement& H);
 
     void prove(
         const Scalar& mu,
@@ -37,7 +37,6 @@ private:
     const GroupElement& F;
     const GroupElement& G;
     const GroupElement& H;
-    const GroupElement& U;
 };
 
 }
