@@ -65,10 +65,12 @@ void WaitForShutdown(boost::thread_group* threadGroup)
     }
 }
 
+#ifdef SIGUSR1
 std::mutex usr1Mutex;
 void unlockUsr1Mutex(int) {
     usr1Mutex.unlock();
 }
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -195,11 +197,13 @@ bool AppInit(int argc, char* argv[])
 #endif // HAVE_DECL_DAEMON
         }
 
+#ifdef SIGUSR1
         if (IsArgSet("-wait-for-usr1")) {
             usr1Mutex.lock();
             signal(SIGUSR1, unlockUsr1Mutex);
             usr1Mutex.lock();
         }
+#endif
 
         // Set this early so that parameter interactions go to console
         InitLogging();
