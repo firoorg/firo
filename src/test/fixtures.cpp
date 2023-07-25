@@ -39,6 +39,7 @@
 
 #include "sigma.h"
 #include "lelantus.h"
+#include "../libspark/coin.h"
 
 
 ZerocoinTestingSetupBase::ZerocoinTestingSetupBase():
@@ -308,4 +309,118 @@ CPubKey LelantusTestingSetup::GenerateAddress() {
 
 LelantusTestingSetup::~LelantusTestingSetup() {
     lelantus::CLelantusState::GetState()->Reset();
+}
+
+// SparkTestingSetup
+SparkTestingSetup::SparkTestingSetup() : params(spark::Params::get_default()) {
+    CPubKey key;
+    {
+        LOCK(pwalletMain->cs_wallet);
+        key = pwalletMain->GenerateNewKey();
+    }
+    script = GetScriptForDestination(key.GetID());
+}
+
+CBlockIndex* SparkTestingSetup::GenerateBlock(std::vector<CMutableTransaction> const &txns, CScript *script) {
+    auto last = chainActive.Tip();
+
+    CreateAndProcessBlock(txns, script ? *script : this->script);
+    auto block = chainActive.Tip();
+
+    if (block != last) {
+        pwalletMain->ScanForWalletTransactions(block, true);
+    }
+
+    return block != last ? block : nullptr;
+}
+
+void SparkTestingSetup::GenerateBlocks(size_t blocks, CScript *script) {
+    while (blocks--) {
+        GenerateBlock({}, script);
+    }
+}
+
+CPubKey SparkTestingSetup::GenerateAddress() {
+    LOCK(pwalletMain->cs_wallet);
+    return pwalletMain->GenerateNewKey();
+}
+
+std::vector<CSparkMintMeta> SparkTestingSetup::GenerateMints(
+    std::vector<CAmount> const &amounts,
+    std::vector<CMutableTransaction> &txs) {
+
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    std::vector<CSparkMintMeta> mints;
+    // Parameters
+    const spark::Params* params;
+    params = spark::Params::get_default();
+
+    // Generate address
+    spark::Address address = pwalletMain->sparkWallet->getDefaultAddress();
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFeeAll;
+
+    for (auto& a : amounts) {
+        std::vector<spark::MintedCoinData> outputs;
+        std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+        spark::MintedCoinData data;
+        data.v = a;
+        data.memo = "memo";
+        data.address = address;
+        outputs.push_back(data);
+
+        auto result = pwalletMain->MintAndStoreSpark(outputs, wtxAndFee, false);
+
+        if (result != "") {
+            throw std::runtime_error(_("Fail to generate mints, ") + result);
+        }
+
+        for (auto itr: wtxAndFee) {
+            wtxAndFeeAll.push_back(itr);
+            txs.emplace_back(itr.first);
+        }
+
+    }
+    std::vector<CSparkMintMeta> walletMints = pwalletMain->sparkWallet->ListSparkMints();
+
+    for (int i = 0; i < walletMints.size(); ++i) {
+        for (int j = 0; j < wtxAndFeeAll.size(); ++j) {
+            if (walletMints[i].txid == wtxAndFeeAll[j].first.GetHash()) {
+                mints.push_back(walletMints[i]);
+            }
+        }
+    }
+    reverse(mints.begin(), mints.end());
+
+    return mints;
+}
+
+CTransaction SparkTestingSetup::GenerateSparkSpend(
+        std::vector<CAmount> const &outs,
+        std::vector<CAmount> const &mints,
+        CCoinControl const *coinControl = nullptr) {
+
+    std::vector<CRecipient> vecs;
+    for (auto const &out : outs) {
+        LOCK(pwalletMain->cs_wallet);
+        auto pub = pwalletMain->GenerateNewKey();
+
+        vecs.push_back(
+                {
+                        GetScriptForDestination(pub.GetID()),
+                        out,
+                        false
+                });
+    }
+
+    CAmount fee;
+    auto wtx = pwalletMain->SpendAndStoreSpark(
+            vecs, {}, fee, coinControl);
+
+    return *wtx.tx;
+}
+
+
+SparkTestingSetup::~SparkTestingSetup()
+{
 }

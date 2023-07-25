@@ -13,6 +13,8 @@
 #include "util.h"
 #include "utiltime.h"
 #include "wallet/wallet.h"
+#include "spark/sparkwallet.h"
+
 #include "bip47/account.h"
 
 #include <atomic>
@@ -151,6 +153,21 @@ bool CWalletDB::ReadPaymentRequestAddress(std::string& address) {
 bool CWalletDB::ErasePaymentRequestAddress() {
     nWalletDBUpdateCounter++;
     return Erase(std::string("paymentrequestaddress"));
+}
+
+bool CWalletDB::WritePaymentRequestSparkAddress(const std::string& address) {
+    nWalletDBUpdateCounter++;
+    return Write(std::string("paymentrequestsparkaddress"), address);
+}
+
+bool CWalletDB::ReadPaymentRequestSparkAddress(std::string& address) {
+    nWalletDBUpdateCounter++;
+    return Read(std::string("paymentrequestsparkaddress"), address);
+}
+
+bool CWalletDB::ErasePaymentRequestSparkAddress() {
+    nWalletDBUpdateCounter++;
+    return Erase(std::string("paymentrequestsparkaddress"));
 }
 
 bool CWalletDB::WriteShowMnemonicsWarning(bool shouldShow) {
@@ -626,13 +643,23 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         {
             std::string strAddress;
             ssKey >> strAddress;
-            ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].name;
+            CBitcoinAddress addressParsed(strAddress);
+            if(addressParsed.IsValid()){
+                ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].name;
+            } else {
+                ssValue >> pwallet->mapSparkAddressBook[strAddress].name;
+            }
         }
         else if (strType == "purpose")
         {
             std::string strAddress;
             ssKey >> strAddress;
-            ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].purpose;
+            CBitcoinAddress addressParsed(strAddress);
+            if(addressParsed.IsValid()){
+                ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].purpose;
+            } else {
+                ssValue >> pwallet->mapSparkAddressBook[strAddress].purpose;
+            }
         }
         else if (strType == "addressBookItemCreatedAt")
         {
@@ -641,7 +668,12 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             int64_t nCreatedAt;
             ssValue >> nCreatedAt;
 
-            pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].nCreatedAt = nCreatedAt;
+            CBitcoinAddress addressParsed(strAddress);
+            if(addressParsed.IsValid()){
+                pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].nCreatedAt = nCreatedAt;
+            } else {
+                pwallet->mapSparkAddressBook[strAddress].nCreatedAt = nCreatedAt;
+            }
         }
         else if (strType == "tx")
         {
@@ -867,7 +899,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             ssKey >> strAddress;
             ssKey >> strKey;
             ssValue >> strValue;
-            if (!pwallet->LoadDestData(CBitcoinAddress(strAddress).Get(), strKey, strValue))
+            if (!pwallet->LoadDestData(strAddress, strKey, strValue))
             {
                 strErr = "Error reading wallet database: LoadDestData failed";
                 return false;
@@ -1503,6 +1535,27 @@ bool CWalletDB::WriteMintSeedCount(const int32_t& nCount)
     return Write(std::string("dzsc"), nCount);
 }
 
+bool CWalletDB::readDiversifier(int32_t& diversifier)
+{
+    return Read(std::string("div"), diversifier);
+
+}
+
+bool CWalletDB::writeDiversifier(const int32_t& diversifier)
+{
+    return Write(std::string("div"), diversifier);
+}
+
+bool CWalletDB::readFullViewKey(spark::FullViewKey& fullViewKey)
+{
+    return Read(std::string("fullViewKey"), fullViewKey);
+}
+
+bool CWalletDB::writeFullViewKey(const spark::FullViewKey& fullViewKey)
+{
+    return Write(std::string("fullViewKey"), fullViewKey);
+}
+
 bool CWalletDB::WritePubcoin(const uint256& hashSerial, const GroupElement& pubcoin)
 {
     return Write(std::make_pair(std::string("pubcoin"), hashSerial), pubcoin);
@@ -1746,6 +1799,116 @@ unsigned int CWalletDB::GetUpdateCounter()
     return nWalletDBUpdateCounter;
 }
 
+std::unordered_map<uint256, CSparkMintMeta> CWalletDB::ListSparkMints()
+{
+    std::unordered_map<uint256, CSparkMintMeta> listMints;
+    Dbc* pcursor = GetCursor();
+    if (!pcursor)
+        throw std::runtime_error(std::string(__func__)+" : cannot create DB cursor");
+    std::string mintName = "sparkMint";
+    bool setRange = true;
+    for (;;)
+    {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (setRange)
+            ssKey << std::make_pair(mintName, ArithToUint256(arith_uint256(0)));
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
+        setRange = false;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0)
+        {
+            pcursor->close();
+            throw std::runtime_error(std::string(__func__)+" : error scanning DB");
+        }
+
+        // Unserialize
+        std::string strType;
+        ssKey >> strType;
+        if (strType != mintName)
+            break;
+
+        uint256 lTagHash;
+        ssKey >> lTagHash;
+
+        CSparkMintMeta mint;
+        ssValue >> mint;
+
+        listMints[lTagHash] = mint;
+    }
+
+    pcursor->close();
+    return listMints;
+}
+
+bool CWalletDB::WriteSparkMint(const uint256& lTagHash, const CSparkMintMeta& mint)
+{
+    return Write(std::make_pair(std::string("sparkMint"), lTagHash), mint);
+}
+
+bool CWalletDB::ReadSparkMint(const uint256& lTagHash, CSparkMintMeta& mint)
+{
+    return Read(std::make_pair(std::string("sparkMint"), lTagHash), mint);
+}
+
+bool CWalletDB::EraseSparkMint(const uint256& lTagHash)
+{
+    return Erase(std::make_pair(std::string("sparkMint"), lTagHash));
+}
+
+void CWalletDB::ListSparkSpends(std::list<CSparkSpendEntry>& listSparkSpends)
+{
+    Dbc *pcursor = GetCursor();
+    if (!pcursor)
+        throw std::runtime_error("CWalletDB::ListCoinSpendSerial() : cannot create DB cursor");
+    bool setRange = true;
+    while (true) {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (setRange)
+            ssKey << std::make_pair(std::string("spark_spend"), secp_primitives::GroupElement());
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
+        setRange = false;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0) {
+            pcursor->close();
+            throw std::runtime_error("CWalletDB::ListSparkSpends() : error scanning DB");
+        }
+
+        // Unserialize
+        std::string strType;
+        ssKey >> strType;
+        if (strType != "spark_spend")
+            break;
+        GroupElement value;
+        ssKey >> value;
+        CSparkSpendEntry sparkSpendItem;
+        ssValue >> sparkSpendItem;
+        listSparkSpends.push_back(sparkSpendItem);
+    }
+
+    pcursor->close();
+}
+
+bool CWalletDB::WriteSparkSpendEntry(const CSparkSpendEntry& sparkSpend) {
+    return Write(std::make_pair(std::string("spark_spend"), sparkSpend.lTag), sparkSpend, true);
+}
+
+bool CWalletDB::ReadSparkSpendEntry(const secp_primitives::GroupElement& lTag, CSparkSpendEntry& sparkSpend) {
+    return Read(std::make_pair(std::string("spark_spend"), lTag), sparkSpend);
+}
+
+bool CWalletDB::HasSparkSpendEntry(const secp_primitives::GroupElement& lTag) {
+    return Exists(std::make_pair(std::string("spark_spend"), lTag));
+}
+
+bool CWalletDB::EraseSparkSpendEntry(const secp_primitives::GroupElement& lTag) {
+    return Erase(std::make_pair(std::string("spark_spend"), lTag));
+}
 
 /******************************************************************************/
 // BIP47

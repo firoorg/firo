@@ -7,6 +7,8 @@
 
 #include <boost/test/unit_test.hpp>
 
+class CCoinControl;
+
 struct TestDerivation {
     std::string pub;
     std::string prv;
@@ -97,6 +99,33 @@ public:
 public:
     lelantus::Params const *params;
     CScript script;
+};
+
+struct SparkTestingSetup : public TestChain100Setup
+{
+public:
+    SparkTestingSetup();
+
+public:
+    CBlockIndex* GenerateBlock(std::vector<CMutableTransaction> const &txns = {}, CScript *script = nullptr);
+    void GenerateBlocks(size_t blocks, CScript *script = nullptr);
+    CPubKey GenerateAddress();
+
+    std::vector<CSparkMintMeta> GenerateMints(
+            std::vector<CAmount> const &amounts,
+            std::vector<CMutableTransaction> &txs);
+
+    CTransaction GenerateSparkSpend(
+            std::vector<CAmount> const &outs,
+            std::vector<CAmount> const &mints,
+            CCoinControl const *coinControl );
+
+    ~SparkTestingSetup();
+
+public:
+    spark::Params const *params;
+    CScript script;
+
 };
 
 // for the duration of the test set network type to testnet

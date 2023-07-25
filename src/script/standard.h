@@ -56,7 +56,9 @@ enum txnouttype
     TX_ZEROCOINMINT,
     TX_ZEROCOINMINTV3,
     TX_LELANTUSMINT,
-    TX_LELANTUSJMINT
+    TX_LELANTUSJMINT,
+    TX_SPARKMINT,
+    TX_SPARKSMINT
 };
 
 class CNoDestination {

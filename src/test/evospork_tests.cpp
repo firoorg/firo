@@ -142,10 +142,10 @@ BOOST_AUTO_TEST_CASE(general)
 
     auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
     CMutableTransaction sporkTx1 = CreateSporkTx(utxos, coinbaseKey, {
-        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 1010}
+        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 775}
     });
     CMutableTransaction sporkTx2 = CreateSporkTx(utxos, coinbaseKey, {
-        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 1020}
+        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 785}
     });
     CMutableTransaction sporkTx3 = CreateSporkTx(utxos, coinbaseKey, {
         {CSporkAction::sporkEnable, CSporkAction::featureLelantus, 0, 0}
@@ -159,7 +159,7 @@ BOOST_AUTO_TEST_CASE(general)
     GenerateBlock({sporkTx1});
     BOOST_ASSERT(chainActive.Height() == prevHeight);
 
-    for (int n=chainActive.Height(); n<1000; n++)
+    for (int n=chainActive.Height(); n<550; n++)
         GenerateBlock({});
 
     prevHeight = chainActive.Height();
@@ -176,7 +176,7 @@ BOOST_AUTO_TEST_CASE(general)
     BOOST_ASSERT(chainActive.Height() == prevHeight);
 
     // wait until the spork expires
-    for (int n=chainActive.Height(); n<1010; n++)
+    for (int n=chainActive.Height(); n<775; n++)
         GenerateBlock({});
     prevHeight = chainActive.Height();
     GenerateBlock({lelantusMints[0]});
@@ -202,15 +202,15 @@ BOOST_AUTO_TEST_CASE(mempool)
     int prevHeight;
     pwalletMain->SetBroadcastTransactions(true);
 
-    for (int n=chainActive.Height(); n<1001; n++)
+    for (int n=chainActive.Height(); n<600; n++)
         GenerateBlock({});
 
     auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
     CMutableTransaction sporkTx1 = CreateSporkTx(utxos, coinbaseKey, {
-        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 1010}
+        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 775}
     });
     CMutableTransaction sporkTx2 = CreateSporkTx(utxos, coinbaseKey, {
-        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 1020}
+        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 785}
     });
 
     std::vector<CMutableTransaction> lelantusMints;
@@ -246,7 +246,7 @@ BOOST_AUTO_TEST_CASE(mempool)
     // because there is active spork at the tip lelantus mint shouldn't get into the mempool
     BOOST_ASSERT(!CommitToMempool(lelantusMints[1]));
 
-    for (int n=chainActive.Height(); n<1010; n++)
+    for (int n=chainActive.Height(); n<775; n++)
         CreateAndProcessBlock({}, coinbaseKey);
 
     // spork expired, should accept now
@@ -271,12 +271,12 @@ BOOST_AUTO_TEST_CASE(limit)
     int prevHeight;
     pwalletMain->SetBroadcastTransactions(true);
 
-    for (int n=chainActive.Height(); n<1001; n++)
+    for (int n=chainActive.Height(); n<644; n++)
         GenerateBlock({});
 
     auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
     CMutableTransaction sporkTx1 = CreateSporkTx(utxos, coinbaseKey, {
-        {CSporkAction::sporkLimit, CSporkAction::featureLelantusTransparentLimit, 100*COIN, 1030}
+        {CSporkAction::sporkLimit, CSporkAction::featureLelantusTransparentLimit, 100*COIN, 750}
     });
 
     std::vector<CMutableTransaction> lelantusMints;
@@ -344,7 +344,7 @@ BOOST_AUTO_TEST_CASE(limit)
     BOOST_ASSERT(chainActive.Height() == prevHeight);
 
     // skip to 1030 (spork expiration block)
-    for (int n=chainActive.Height(); n<1030; n++)
+    for (int n=chainActive.Height(); n<750; n++)
         GenerateBlock({});
 
     // should be accepted into the mempool
@@ -365,18 +365,18 @@ BOOST_AUTO_TEST_CASE(startstopblock)
     int prevHeight;
     pwalletMain->SetBroadcastTransactions(true);
 
-    for (int n=chainActive.Height(); n<700; n++)
+    for (int n=chainActive.Height(); n<510; n++)
         GenerateBlock({});
 
     auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
     CMutableTransaction sporkTx1 = CreateSporkTx(utxos, coinbaseKey, {
-        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 1010}
+        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 560}
     });
     CMutableTransaction sporkTx2 = CreateSporkTx(utxos, coinbaseKey, {
         {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 0}
     });
     CMutableTransaction sporkTx3 = CreateSporkTx(utxos, coinbaseKey, {
-        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 2000}
+        {CSporkAction::sporkDisable, CSporkAction::featureLelantus, 0, 960}
     });
 
     // spork can't be put into the mempool/mined yet
@@ -385,7 +385,7 @@ BOOST_AUTO_TEST_CASE(startstopblock)
     CreateAndProcessBlock({sporkTx1}, coinbaseKey);
     BOOST_ASSERT(chainActive.Height() == prevHeight);
 
-    for (int n=chainActive.Height(); n<1001; n++)
+    for (int n=chainActive.Height(); n<551; n++)
         GenerateBlock({});
 
     // now we can mine sporkTx1
@@ -419,7 +419,7 @@ BOOST_AUTO_TEST_CASE(startstopblock)
     BOOST_ASSERT(chainActive.Height() == prevHeight);
 
     // go to the end of the spork window and try again
-    for (int n=chainActive.Height(); n<1500; n++)
+    for (int n=chainActive.Height(); n<950; n++)
         GenerateBlock({});
 
     // should work now

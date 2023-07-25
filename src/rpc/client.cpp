@@ -194,6 +194,11 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getusedcoinserials", 0 },
     { "getlatestcoinids", 0 },
 
+    //Lelantus
+    { "mintspark", 0 },
+    { "spendspark", 0 },
+    { "spendspark", 1 },
+
     /* Elysium - data retrieval calls */
 	{ "elysium_gettradehistoryforaddress", 1 },
 	{ "elysium_gettradehistoryforaddress", 2 },

@@ -332,10 +332,18 @@ static const CRPCCommand vRPCCommands[] =
     { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
         /* Mobile related */
-    { "mobile",             "getanonymityset",        &getanonymityset,        true  },
+    { "mobile",             "getanonymityset",        &getanonymityset,        false  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
-    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     true  },
-    { "mobile",             "getlatestcoinids",       &getlatestcoinids,       true  },
+    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     false  },
+    { "mobile",             "getfeerate",             &getfeerate,             true  },
+    { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
+
+        /* Mobile Spark */
+    { "mobile",             "getsparkanonymityset",   &getsparkanonymityset, false },
+    { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true  },
+    { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
+    { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true  },
+
 };
 
 CRPCTable::CRPCTable()

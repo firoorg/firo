@@ -11,5 +11,6 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx);
 
 bool GetCoinControl(const UniValue& data, CCoinControl& cc);
 bool doesWalletHaveMnemonics();
+bool isSparkAddress(const std::string& address);
 
 extern std::atomic<bool> fHasSentInitialStateWallet;

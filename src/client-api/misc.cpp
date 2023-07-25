@@ -19,6 +19,7 @@
 #include "univalue.h"
 #include "masternode-sync.h"
 #include "lelantus.h"
+#include "../spark/sparkwallet.h"
 
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/erase.hpp>
@@ -181,6 +182,9 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     UniValue disabledSporks = UniValue::VARR;
     if (LOAD(isLelantusDisabled)) disabledSporks.push_back("lelantus");
     ret.pushKV("disabledSporks", disabledSporks);
+
+    ret.pushKV("isSpark", spark::IsSparkAllowed());
+    ret.pushKV("lelantusGracefulPeriod", ::Params().GetConsensus().nLelantusGracefulPeriod);
 
     UniValue newLogMessages = UniValue::VARR;
     {
