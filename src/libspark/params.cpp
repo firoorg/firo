@@ -58,7 +58,6 @@ Params::Params(
     this->F = SparkUtils::hash_generator(LABEL_GENERATOR_F);
     this->G.set_base_g();
     this->H = SparkUtils::hash_generator(LABEL_GENERATOR_H);
-    this->U = SparkUtils::hash_generator(LABEL_GENERATOR_U);
 
     // Coin parameters
     this->memo_bytes = memo_bytes;
@@ -96,10 +95,6 @@ const GroupElement& Params::get_G() const {
 
 const GroupElement& Params::get_H() const {
     return this->H;
-}
-
-const GroupElement& Params::get_U() const {
-    return this->U;
 }
 
 const std::size_t Params::get_memo_bytes() const {

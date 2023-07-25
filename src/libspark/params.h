@@ -18,7 +18,6 @@ public:
     const GroupElement& get_F() const;
     const GroupElement& get_G() const;
     const GroupElement& get_H() const;
-    const GroupElement& get_U() const;
 
     const std::size_t get_memo_bytes() const;
 
@@ -47,7 +46,6 @@ private:
     GroupElement F;
     GroupElement G;
     GroupElement H;
-    GroupElement U;
 
     // Coin parameters
     std::size_t memo_bytes;
