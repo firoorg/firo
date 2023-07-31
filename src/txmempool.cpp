@@ -1103,6 +1103,7 @@ void CTxMemPool::_clear()
     blockSinceLastRollingFeeBump = false;
     rollingMinimumFeeRate = 0;
     lelantusState.Reset();
+    sparkState.Reset();
     ++nTransactionsUpdated;
 }
 
