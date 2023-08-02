@@ -262,21 +262,18 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     int64_t amount = 0;
     UniValue sparkInputLTagHashes = UniValue::VARR;
     if (wtx.tx->IsSparkSpend()) {
-        try {
-            spark::SpendTransaction spend = spark::ParseSparkSpend(*wtx.tx);
-            for (const auto& lTag : spend.getUsedLTags()) {
-                sparkInputLTagHashes.push_back(primitives::GetLTagHash(lTag).GetHex());
-            }
-            CAmount nDebit = wtx.GetDebit(ISMINE_SPENDABLE);
-            if (nDebit > 0) fIsFromMe = true;
-            fee = spend.getFee();
-            CAmount nCredit = wtx.GetCredit(ISMINE_SPENDABLE);
-            if(nCredit > nDebit) {
-                amount = nCredit - nDebit - fee;
-            } else {
-                amount = nDebit - nCredit - fee;
-            }
-        } catch (...) {
+        spark::SpendTransaction spend = spark::ParseSparkSpend(*wtx.tx);
+        for (const auto& lTag : spend.getUsedLTags()) {
+            sparkInputLTagHashes.push_back(primitives::GetLTagHash(lTag).GetHex());
+        }
+        CAmount nDebit = wtx.GetDebit(ISMINE_SPENDABLE);
+        if (nDebit > 0) fIsFromMe = true;
+        fee = spend.getFee();
+        CAmount nCredit = wtx.GetCredit(ISMINE_SPENDABLE);
+        if(nCredit > nDebit) {
+            amount = nCredit - nDebit - fee;
+        } else {
+            amount = nDebit - nCredit - fee;
         }
     }
     txData.pushKV("sparkInputLTagHashes", sparkInputLTagHashes);
@@ -941,20 +938,6 @@ UniValue validateSparkAddress(Type type, const UniValue& data, const UniValue& a
     return retval;
 }
 
-UniValue getAvailableSparkBalance(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
-{
-    UniValue retval(UniValue::VOBJ);
-    retval.push_back(Pair("amount", pwalletMain->GetAvailableSparkBalance()));
-    return retval;
-}
-
-UniValue getUnconfirmedSparkBalance(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
-{
-    UniValue retval(UniValue::VOBJ);
-    retval.push_back(Pair("amount", pwalletMain->GetUnconfirmedSparkBalance()));
-    return retval;
-}
-
 bool isSparkAddress(const std::string& address)
 {
     const spark::Params* params = spark::Params::get_default();
@@ -985,8 +968,6 @@ static const CAPICommand commands[] =
     { "wallet",             "editAddressBook",                &editaddressbook,                true,      false,           false  },
     { "wallet",             "lockStatus",                     &lockStatus,                     true,      false,           false  },
     { "wallet",             "validateSparkAddress",           &validateSparkAddress,           true,      false,           false  },
-    { "wallet",             "getAvailableSparkBalance",       &getAvailableSparkBalance,       true,      false,           false  },
-    { "wallet",             "getUnconfirmedSparkBalance",     &getUnconfirmedSparkBalance,     true,      false,           false  },
 };
 void RegisterWalletAPICommands(CAPITable &tableAPI)
 {

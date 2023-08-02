@@ -82,7 +82,7 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
             fHasCoinControl ? &coinControl : nullptr
         );
 
-        if (fee > 10000000) {
+        if (fee > COIN) {
             throw JSONAPIError(API_INTERNAL_ERROR, "We have produced a transaction with a fee above 1 FIRO. This is almost certainly a bug.");
         }
 
@@ -187,14 +187,11 @@ UniValue mintSpark(Type type, const UniValue& data, const UniValue& auth, bool f
     if ((value + payTxFee.GetFeePerK()) > pwalletMain->GetBalance())
         return _("Insufficient funds");
 
-    LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
     int64_t nFeeRequired = 0;
-
     int nChangePosRet = -1;
-
     std::list<CReserveKey> reservekeys;
     std::string strError;
-    if (!pwalletMain->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, fSubtractFeeFromAmount, strError, fHasCoinControl? (&coinControl):NULL, false)) {
+    if (!pwalletMain->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, fSubtractFeeFromAmount, strError, fHasCoinControl? &coinControl : nullptr, false)) {
         return strError;
     }
 
@@ -204,13 +201,16 @@ UniValue mintSpark(Type type, const UniValue& data, const UniValue& auth, bool f
         if (!pwalletMain->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state)) {
             return _(
                     "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
-        } else {
-            LogPrintf("CommitTransaction success!\n");
         }
     }
 
+    UniValue txids = UniValue::VARR;
+    for (std::pair<CWalletTx, CAmount> wtx: wtxAndFee) {
+        txids.push_back(wtx.first.GetHash().GetHex());
+    }
+
     UniValue retval(UniValue::VOBJ);
-    retval.push_back(Pair("txid", wtxAndFee[0].first.GetHash().GetHex()));
+    retval.push_back(Pair("txids", txids));
     return retval;
 }
 
@@ -261,22 +261,24 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
     CAmount fee = 0;
     CWalletTx wtx;
 
-    CAmount nBalance = pwalletMain->GetAvailableSparkBalance();
-
-    // wtxs[0].mapValue["label"] = label;
     try {
-        wtx = pwalletMain->SpendAndStoreSpark(recipients, privateRecipients, fee, fHasCoinControl? (&coinControl):NULL);
-    } catch (...) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
-    }
+        wtx = pwalletMain->CreateSparkSpendTransaction(recipients, privateRecipients, fee, fHasCoinControl ? &coinControl : nullptr);
 
-    if (fee > 10000000) {
-        throw JSONAPIError(API_INTERNAL_ERROR, "We have produced a transaction with a fee above 1 FIRO. This is almost certainly a bug.");
-    }
+        if (fee > COIN) {
+            throw JSONAPIError(API_INTERNAL_ERROR, "We have produced a transaction with a fee above 1 FIRO. This is almost certainly a bug.");
+        }
 
-    UniValue retval(UniValue::VOBJ);
-    retval.push_back(Pair("txid", wtx.GetHash().GetHex()));
-    return retval;
+        CValidationState state;
+        CReserveKey reserveKey(pwalletMain);
+        if (!pwalletMain->CommitTransaction(wtx, reserveKey, g_connman.get(), state))
+            throw JSONAPIError(API_WALLET_ERROR, "Transaction commit failed");
+
+        UniValue retval(UniValue::VOBJ);
+        retval.push_back(Pair("txid", wtx.GetHash().GetHex()));
+        return retval;
+    } catch (const std::exception& e) {
+        throw JSONAPIError(API_WALLET_ERROR, e.what());
+    }
 }
 
 UniValue autoMintSpark(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
@@ -330,12 +332,7 @@ UniValue lelantusToSpark(Type type, const UniValue& data, const UniValue& auth, 
     }
 
     std::string strFailReason = "";
-    bool passed = false;
-    try {
-        passed = pwalletMain->LelantusToSpark(strFailReason);
-    } catch (...) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus to Spark failed!");
-    }
+    bool passed = pwalletMain->LelantusToSpark(strFailReason);
     if (!passed || strFailReason != "")
         throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus to Spark failed. " + strFailReason);
 
