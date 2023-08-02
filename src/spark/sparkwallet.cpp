@@ -22,6 +22,7 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 
     fullViewKey = spark::FullViewKey(params);
     viewKey = spark::IncomingViewKey(params);
+    isSet = false;
 
     // try to get incoming view key from db, if it fails, that means it is first start
     if (!walletdb.readFullViewKey(fullViewKey)) {
@@ -31,6 +32,7 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
         }
         // Generating spark key set first time
         spark::SpendKey spendKey = generateSpendKey(params);
+        isSet = true;
         fullViewKey = generateFullViewKey(spendKey);
         viewKey = generateIncomingViewKey(fullViewKey);
 
@@ -42,6 +44,7 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
         // set 0 as last diversifier into db, we will update it later, in case coin comes, or user manually generates new address
         walletdb.writeDiversifier(lastDiversifier);
     } else {
+        isSet = true;
         viewKey = generateIncomingViewKey(fullViewKey);
         int32_t diversifierInDB = 0;
         // read diversifier from db
@@ -63,6 +66,7 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 
             }
         }
+
     }
     threadPool = new ParallelOpThreadPool<void>(boost::thread::hardware_concurrency());
 }
@@ -77,6 +81,10 @@ void CSparkWallet::resetDiversifierFromDB(CWalletDB& walletdb) {
 
 void CSparkWallet::updatetDiversifierInDB(CWalletDB& walletdb) {
     walletdb.writeDiversifier(lastDiversifier);
+}
+
+bool CSparkWallet::getIsSet() {
+    return isSet;
 }
 
 CAmount CSparkWallet::getFullBalance() {
@@ -169,11 +177,17 @@ CAmount CSparkWallet::getAddressUnconfirmedBalance(const spark::Address& address
 }
 
 spark::Address CSparkWallet::generateNextAddress() {
+    if (!isSet)
+        throw std::runtime_error("No Spark wallet.");
+
     lastDiversifier++;
     return spark::Address(viewKey, lastDiversifier);
 }
 
 spark::Address CSparkWallet::generateNewAddress() {
+    if (!isSet)
+        throw std::runtime_error("No Spark wallet.");
+
     lastDiversifier++;
     spark::Address address(viewKey, lastDiversifier);
 
@@ -184,6 +198,9 @@ spark::Address CSparkWallet::generateNewAddress() {
 }
 
 spark::Address CSparkWallet::getDefaultAddress() {
+    if (!isSet)
+        throw std::runtime_error("No Spark wallet.");
+
     if (addresses.count(0))
         return addresses[0];
     lastDiversifier = 0;
@@ -191,6 +208,9 @@ spark::Address CSparkWallet::getDefaultAddress() {
 }
 
 spark::Address CSparkWallet::getChangeAddress() {
+    if (!isSet)
+        throw std::runtime_error("No Spark wallet.");
+
     return spark::Address(viewKey, SPARK_CHANGE_D);
 }
 
@@ -224,10 +244,16 @@ spark::SpendKey CSparkWallet::generateSpendKey(const spark::Params* params) {
 }
 
 spark::FullViewKey CSparkWallet::generateFullViewKey(const spark::SpendKey& spend_key) {
+    if (!isSet)
+        throw std::runtime_error("No Spark wallet.");
+
     return spark::FullViewKey(spend_key);
 }
 
 spark::IncomingViewKey CSparkWallet::generateIncomingViewKey(const spark::FullViewKey& full_view_key) {
+    if (!isSet)
+        throw std::runtime_error("No Spark wallet.");
+
     viewKey = spark::IncomingViewKey(full_view_key);
     return viewKey;
 }
@@ -237,6 +263,9 @@ std::unordered_map<int32_t, spark::Address> CSparkWallet::getAllAddresses() {
 }
 
 spark::Address CSparkWallet::getAddress(const int32_t& i) {
+    if (!isSet)
+        throw std::runtime_error("No Spark wallet.");
+
     if (lastDiversifier < i || addresses.count(i) == 0)
         return spark::Address(viewKey, lastDiversifier);
 
@@ -244,6 +273,9 @@ spark::Address CSparkWallet::getAddress(const int32_t& i) {
 }
 
 bool CSparkWallet::isAddressMine(const std::string& encodedAddr) {
+    if (!isSet)
+        false;
+
     const spark::Params* params = spark::Params::get_default();
     spark::Address address(params);
     try {
@@ -308,6 +340,9 @@ std::unordered_map<uint256, CSparkMintMeta> CSparkWallet::getMintMap() const {
 
 
 spark::Coin CSparkWallet::getCoinFromMeta(const CSparkMintMeta& meta) const {
+    if (!isSet)
+        return spark::Coin();
+
     const spark::Params* params = spark::Params::get_default();
     if (meta.coin != spark::Coin())
         return meta.coin;
@@ -409,6 +444,9 @@ CSparkMintMeta CSparkWallet::getMintMeta(const secp_primitives::Scalar& nonce) {
 }
 
 bool CSparkWallet::getMintAmount(spark::Coin coin, CAmount& amount) {
+    if (!isSet)
+        return false;
+
     spark::IdentifiedCoinData identifiedCoinData;
     try {
         identifiedCoinData = coin.identify(this->viewKey);
@@ -484,6 +522,9 @@ void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
 }
 
 bool CSparkWallet::isMine(spark::Coin coin) const {
+    if (!isSet)
+        return false;
+
     try {
         spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
     } catch (...) {
@@ -506,6 +547,8 @@ bool CSparkWallet::isMine(const std::vector<GroupElement>& lTags) const {
 }
 
 CAmount CSparkWallet::getMyCoinV(spark::Coin coin) const {
+    if (!isSet)
+        return 0;
     CAmount v(0);
     try {
         spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
@@ -517,6 +560,9 @@ CAmount CSparkWallet::getMyCoinV(spark::Coin coin) const {
 }
 
 bool CSparkWallet::getMyCoinIsChange(spark::Coin coin) const {
+    if (!isSet)
+        return false;
+
     try {
         spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
         return isChangeAddress(identifiedCoinData.i);
@@ -539,6 +585,9 @@ CAmount CSparkWallet::getMySpendAmount(const std::vector<GroupElement>& lTags) c
 }
 
 void CSparkWallet::UpdateMintState(const std::vector<spark::Coin>& coins, const uint256& txHash, CWalletDB& walletdb) {
+    if (!isSet)
+        return;
+
     spark::CSparkState *sparkState = spark::CSparkState::GetState();
     for (auto coin : coins) {
         try {
@@ -612,6 +661,9 @@ void CSparkWallet::UpdateMintStateFromBlock(const CBlock& block) {
 }
 
 void CSparkWallet::RemoveSparkMints(const std::vector<spark::Coin>& mints) {
+    if (!isSet)
+        return;
+
     for (auto coin : mints) {
         try {
             spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
@@ -1170,6 +1222,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
         CAmount &fee,
         const CCoinControl *coinControl) {
+    if (!isSet)
+        throw std::runtime_error(_("No Spark wallet."));
 
     if (recipients.empty() && privateRecipients.empty()) {
         throw std::runtime_error(_("Either recipients or newMints has to be nonempty."));
