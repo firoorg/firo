@@ -220,9 +220,25 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
                     }
                 }
 
-                strHTML += "<b>" + tr("Debit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -txout.nValue) + "<br>";
-                if(toSelf)
-                    strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, txout.nValue) + "<br>";
+                int64_t sfee = 0;
+                if (wtx.tx->IsSparkSpend()) {
+                    try {
+                        spark::SpendTransaction spend = spark::ParseSparkSpend(*wtx.tx);
+                        sfee = spend.getFee();
+                    } catch (...) {
+                    }
+                    strHTML += "<b>" + tr("Debit") + ":</b> " +  BitcoinUnits::formatHtmlWithUnit(unit, nNet + sfee) + "<br>";
+                } else {
+                    strHTML += "<b>" + tr("Debit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -txout.nValue) + "<br>";
+                }
+
+                if(toSelf) {
+                    if (wtx.tx->IsSparkSpend()) {
+                        strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -nNet - sfee) + "<br>";
+                    } else {
+                        strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, txout.nValue) + "<br>";
+                    }
+                }
             }
 
             if (fAllToMe)
