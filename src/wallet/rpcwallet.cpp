@@ -887,7 +887,7 @@ UniValue getprivatebalance(const JSONRPCRequest& request)
     EnsureLelantusWalletIsAvailable();
     LOCK2(cs_main, pwallet->cs_wallet);
 
-    return  ValueFromAmount(pwallet->GetPrivateBalance().first);
+    return  ValueFromAmount(pwallet->GetPrivateBalance().first + pwallet->sparkWallet->getAvailableBalance());
 }
 
 UniValue gettotalbalance(const JSONRPCRequest& request)
