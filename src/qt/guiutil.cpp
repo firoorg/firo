@@ -514,9 +514,16 @@ void TableViewLastColumnResizingFixer::setViewHeaderResizeMode(int logicalIndex,
 
 void TableViewLastColumnResizingFixer::resizeColumn(int nColumnIndex, int width)
 {
-    tableView->setColumnWidth(nColumnIndex, width);
-    tableView->horizontalHeader()->resizeSection(nColumnIndex, width);
+    int nTableWidth = tableView->horizontalHeader()->width();
+    int nColumnsWidth = getColumnsWidth() - tableView->horizontalHeader()->sectionSize(nColumnIndex) + width;
+
+
+    if (nColumnsWidth <= nTableWidth && nColumnIndex != tableView->horizontalHeader()->count() - 1) {
+        tableView->setColumnWidth(nColumnIndex, width);
+        tableView->horizontalHeader()->resizeSection(nColumnIndex, width);
+    }
 }
+
 
 int TableViewLastColumnResizingFixer::getColumnsWidth()
 {
@@ -546,16 +553,20 @@ int TableViewLastColumnResizingFixer::getAvailableWidthForColumn(int column)
 void TableViewLastColumnResizingFixer::adjustTableColumnsWidth()
 {
     disconnectViewHeadersSignals();
-    resizeColumn(lastColumnIndex, getAvailableWidthForColumn(lastColumnIndex));
-    connectViewHeadersSignals();
 
     int nTableWidth = tableView->horizontalHeader()->width();
-    int nColsWidth = getColumnsWidth();
-    if (nColsWidth > nTableWidth)
-    {
-        resizeColumn(secondToLastColumnIndex,getAvailableWidthForColumn(secondToLastColumnIndex));
-    }
+    int nColumnCount = tableView->horizontalHeader()->count();
+    int nTotalWidth = getColumnsWidth();
+
+    int firstColumnWidth = nTableWidth * 0.3;
+    int secondColumnWidth = nTableWidth * 0.3;
+
+    resizeColumn(0, firstColumnWidth);
+    resizeColumn(1, secondColumnWidth);
+
+    connectViewHeadersSignals();
 }
+
 
 // Make column use all the space available, useful during window resizing.
 void TableViewLastColumnResizingFixer::stretchColumnWidth(int column)
