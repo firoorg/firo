@@ -973,7 +973,7 @@ static const CAPICommand commands[] =
 { //  category              collection                        actor (function)                 authPort   authPassphrase   warmupOk
   //  --------------------- ------------                      ----------------                 --------   --------------   --------
     { "wallet",             "lockWallet",                     &lockwallet,                     true,      false,           false  },
-    { "wallet",             "unlockWallet",                   &unlockwallet,                   true,      false,           false  },
+    { "wallet",             "unlockWallet",                   &unlockwallet,                   false,     false,           true   },
     { "wallet",             "stateWallet",                    &statewallet,                    true,      false,           false  },
     { "wallet",             "setPassphrase",                  &setpassphrase,                  true,      false,           false  },
     { "wallet",             "lockCoins",                      &lockcoins,                      true,      false,           false  },

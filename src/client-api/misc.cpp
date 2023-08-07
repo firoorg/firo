@@ -167,6 +167,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     ret.pushKV("latestBlockTimestamp", LOAD(currentBlockTimestamp));
     ret.pushKV("connections", LOAD(currentConnectionCount));
     ret.pushKV("walletLock", pwalletMain && pwalletMain->IsCrypted());
+    ret.pushKV("unlockRequested", pwalletMain && LOAD(pwalletMain->fUnlockRequested));
 
     UniValue modules = UniValue::VOBJ;
     modules.pushKV("API", !APIIsInWarmup());
