@@ -496,11 +496,32 @@ bool CWallet::Unlock(const SecureString &strWalletPassphrase, const bool& fFirst
                 return false;
             if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey))
                 continue; // try another master key
-            if (CCryptoKeyStore::Unlock(vMasterKey, fFirstUnlock))
+            if (CCryptoKeyStore::Unlock(vMasterKey, fFirstUnlock)) {
+                fUnlockRequested.store(false);
                 return true;
+            }
         }
     }
     return false;
+}
+
+void CWallet::RequestUnlock() {
+    if (!IsLocked())
+        return;
+
+    LogPrintf("Requesting wallet unlock\n");
+    fUnlockRequested.store(true);
+}
+
+bool CWallet::WaitForUnlock() {
+    while (IsLocked()) {
+        MilliSleep(100);
+
+        if (ShutdownRequested())
+            return false;
+    }
+
+    return true;
 }
 
 bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase)
