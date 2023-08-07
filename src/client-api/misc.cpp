@@ -304,7 +304,7 @@ static const CAPICommand commands[] =
     { "misc",               "apiStatus",       &apistatus,               false,     false,           true   },
     { "misc",               "backup",          &backup,                  true,      false,           false  },
     { "misc",               "rpc",             &rpc,                     true,      false,           false  },
-    { "misc",               "stop",            &stop,                    true,      false,           false  }
+    { "misc",               "stop",            &stop,                    true,      false,           true  }
 };
 
 void RegisterMiscAPICommands(CAPITable &tableAPI)
