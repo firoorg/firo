@@ -763,6 +763,8 @@ public:
 
     std::unique_ptr<CSparkWallet> sparkWallet;
 
+    std::atomic<bool> fUnlockRequested;
+
     CWallet()
     {
         SetNull();
@@ -908,6 +910,9 @@ public:
     bool Unlock(const SecureString& strWalletPassphrase, const bool& fFirstUnlock=false);
     bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
+
+    void RequestUnlock();
+    bool WaitForUnlock();
 
     void GetKeyBirthTimes(std::map<CTxDestination, int64_t> &mapKeyBirth) const;
 
