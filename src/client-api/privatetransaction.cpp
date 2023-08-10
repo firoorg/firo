@@ -261,9 +261,6 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
     CAmount fee = 0;
     CWalletTx wtx;
 
-    CAmount nBalance = pwalletMain->GetAvailableSparkBalance();
-
-    // wtxs[0].mapValue["label"] = label;
     try {
         wtx = pwalletMain->SpendAndStoreSpark(recipients, privateRecipients, fee, fHasCoinControl? (&coinControl):NULL);
     } catch (...) {
