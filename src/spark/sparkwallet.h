@@ -34,8 +34,6 @@ public:
     // assign diversifier in to to current value
     void updatetDiversifierInDB(CWalletDB& walletdb);
 
-    bool getIsSet();
-
     // functions for key set generation
     spark::SpendKey generateSpendKey(const spark::Params* params);
     spark::FullViewKey generateFullViewKey(const spark::SpendKey& spend_key);
@@ -147,8 +145,6 @@ public:
     mutable CCriticalSection cs_spark_wallet;
 
 private:
-    bool isSet;
-
     std::string strWalletFile;
     // this is latest used diversifier
     int32_t lastDiversifier;

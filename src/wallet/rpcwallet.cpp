@@ -916,8 +916,6 @@ UniValue gettotalbalance(const JSONRPCRequest& request)
     EnsureSparkWalletIsAvailable();
     LOCK2(cs_main, pwallet->cs_wallet);
 
-    if(!pwallet->sparkWallet->getIsSet())
-        throw std::runtime_error("No Spark Wallet, most probably your wallet is locked with password, please unclock it one time.\n");
 
     return  ValueFromAmount(pwallet->GetBalance() + pwallet->GetPrivateBalance().first + pwallet->sparkWallet->getAvailableBalance());
 }
@@ -3206,8 +3204,6 @@ UniValue listunspentsparkmints(const JSONRPCRequest& request) {
     UniValue results(UniValue::VARR);;
     assert(pwallet != NULL);
 
-    if(!pwallet->sparkWallet->getIsSet())
-        throw std::runtime_error("No Spark Wallet, most probably your wallet is locked with password, please unclock it one time\n");
 
     std::list<CSparkMintMeta> coins = pwallet->sparkWallet->GetAvailableSparkCoins();
     LogPrintf("coins.size()=%s\n", coins.size());
@@ -3254,8 +3250,6 @@ UniValue listsparkmints(const JSONRPCRequest& request) {
 
     EnsureSparkWalletIsAvailable();
 
-    if(!pwallet->sparkWallet->getIsSet())
-        throw std::runtime_error("No Spark Wallet, most probably your wallet is locked with password, please unclock it one time\n");
 
     UniValue results(UniValue::VARR);;
     assert(pwallet != NULL);
@@ -3302,8 +3296,6 @@ UniValue getsparkdefaultaddress(const JSONRPCRequest& request) {
     EnsureSparkWalletIsAvailable();
 
     assert(pwallet != NULL);
-    if(!pwallet->sparkWallet->getIsSet())
-        throw std::runtime_error("No Spark Wallet, most probably your wallet is locked with password, please unclock it one time\n");
 
     spark::Address address = pwallet->sparkWallet->getDefaultAddress();
     unsigned char network = spark::GetNetworkType();
@@ -3328,8 +3320,6 @@ UniValue getnewsparkaddress(const JSONRPCRequest& request) {
     EnsureSparkWalletIsAvailable();
 
     assert(pwallet != NULL);
-    if(!pwallet->sparkWallet->getIsSet())
-        throw std::runtime_error("No Spark Wallet, most probably your wallet is locked with password, please unclock it one time\n");
 
     spark::Address address = pwallet->sparkWallet->generateNewAddress();
     unsigned char network = spark::GetNetworkType();
@@ -3355,8 +3345,6 @@ UniValue getallsparkaddresses(const JSONRPCRequest& request) {
     EnsureSparkWalletIsAvailable();
 
     assert(pwallet != NULL);
-    if(!pwallet->sparkWallet->getIsSet())
-        throw std::runtime_error("No Spark Wallet, most probably your wallet is locked with password, please unclock it one time\n");
 
     std::unordered_map<int32_t, spark::Address> addresses = pwallet->sparkWallet->getAllAddresses();
     unsigned char network = spark::GetNetworkType();
@@ -3385,8 +3373,6 @@ UniValue listsparkspends(const JSONRPCRequest& request) {
 
     EnsureSparkWalletIsAvailable();
     assert(pwallet != NULL);
-    if(!pwallet->sparkWallet->getIsSet())
-        throw std::runtime_error("No Spark Wallet, most probably your wallet is locked with password, please unclock it one time\n");
 
     std::list<CSparkSpendEntry> spends = pwallet->sparkWallet->ListSparkSpends();
 
@@ -3418,8 +3404,6 @@ UniValue getsparkbalance(const JSONRPCRequest& request) {
 
     EnsureSparkWalletIsAvailable();
     assert(pwallet != NULL);
-    if(!pwallet->sparkWallet->getIsSet())
-        throw std::runtime_error("No Spark Wallet, most probably your wallet is locked with password, please unclock it one time\n");
 
     UniValue results(UniValue::VOBJ);
     results.push_back(Pair("availableBalance",pwallet->sparkWallet->getAvailableBalance()));
@@ -3445,8 +3429,6 @@ UniValue getsparkaddressbalance(const JSONRPCRequest& request) {
 
     EnsureSparkWalletIsAvailable();
     assert(pwallet != NULL);
-    if(!pwallet->sparkWallet->getIsSet())
-        throw std::runtime_error("No Spark Wallet, most probably your wallet is locked with password, please unclock it one time\n");
 
     std::string strAddress = request.params[0].get_str();
     const spark::Params* params = spark::Params::get_default();
@@ -3484,8 +3466,6 @@ UniValue resetsparkmints(const JSONRPCRequest& request) {
                                                      "WARNING: Run this only for testing and if you fully understand what it does.\n");
 
     EnsureSparkWalletIsAvailable();
-    if(!pwallet->sparkWallet->getIsSet())
-        throw std::runtime_error("No Spark Wallet, most probably your wallet is locked with password, please unclock it one time\n");
 
     std::vector<CSparkMintMeta> listMints;
     CWalletDB walletdb(pwallet->strWalletFile);
@@ -3512,8 +3492,6 @@ UniValue setsparkmintstatus(const JSONRPCRequest& request) {
                 "Set mintIsUsed status to True or False");
 
     EnsureSparkWalletIsAvailable();
-    if(!pwallet->sparkWallet->getIsSet())
-        throw std::runtime_error("No Spark Wallet, most probably your wallet is locked with password, please unclock it one time\n");
 
     uint256 lTagHash;
     lTagHash.SetHex(request.params[0].get_str());
@@ -3561,8 +3539,6 @@ UniValue mintspark(const JSONRPCRequest& request)
         );
     EnsureWalletIsUnlocked(pwallet);
     EnsureSparkWalletIsAvailable();
-    if(!pwallet->sparkWallet->getIsSet())
-        throw std::runtime_error("No Spark Wallet, most probably your wallet is locked with password, please unclock it one time\n");
 
     // Ensure spark mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
@@ -3640,8 +3616,6 @@ UniValue automintspark(const JSONRPCRequest& request) {
 
     EnsureWalletIsUnlocked(pwallet);
     EnsureSparkWalletIsAvailable();
-    if(!pwallet->sparkWallet->getIsSet())
-        throw std::runtime_error("No Spark Wallet, most probably your wallet is locked with password, please unclock it one time\n");
 
     // Ensure spark mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
@@ -3694,8 +3668,6 @@ UniValue spendspark(const JSONRPCRequest& request)
 
     EnsureWalletIsUnlocked(pwallet);
     EnsureSparkWalletIsAvailable();
-    if(!pwallet->sparkWallet->getIsSet())
-        throw std::runtime_error("No Spark Wallet, most probably your wallet is locked with password, please unclock it one time\n");
 
     // Ensure spark mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
@@ -3822,8 +3794,6 @@ UniValue lelantustospark(const JSONRPCRequest& request) {
 
     EnsureWalletIsUnlocked(pwallet);
     EnsureSparkWalletIsAvailable();
-    if(!pwallet->sparkWallet->getIsSet())
-        throw std::runtime_error("No Spark Wallet, most probably your wallet is locked with password, please unclock it one time\n");
 
     assert(pwallet != NULL);
     std::string strFailReason = "";

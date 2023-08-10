@@ -231,9 +231,6 @@ bool CCryptoKeyStore::Unlock(const CKeyingMaterial& vMasterKeyIn, const bool& fF
             pwalletMain->zwallet->SetupWallet(hashSeedMaster, false);
             pwalletMain->zwallet->SyncWithChain();
         }
-
-        if (pwalletMain->sparkWallet && !pwalletMain->sparkWallet->getIsSet())
-            pwalletMain->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
     }
     NotifyStatusChanged(this);
     return true;
