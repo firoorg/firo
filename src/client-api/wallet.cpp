@@ -258,30 +258,26 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     }
     txData.pushKV("lelantusInputSerialHashes", lelantusInputSerialHashes);
 
-    int64_t fee;
-    int64_t amount = 0;
     UniValue sparkInputLTagHashes = UniValue::VARR;
     if (wtx.tx->IsSparkSpend()) {
+        spark::SpendTransaction* spend = nullptr;
         try {
-            spark::SpendTransaction spend = spark::ParseSparkSpend(*wtx.tx);
-            for (const auto& lTag : spend.getUsedLTags()) {
+            *spend = spark::ParseSparkSpend(*wtx.tx);
+        } catch (CBadTxIn& e) {
+            LogPrintf("Unable to parse Spark spend transaction %s\n", wtx.GetHash().ToString());
+        }
+
+        if (spend) {
+            for (const auto& lTag : spend->getUsedLTags()) {
                 sparkInputLTagHashes.push_back(primitives::GetLTagHash(lTag).GetHex());
             }
-            CAmount nDebit = wtx.GetDebit(ISMINE_SPENDABLE);
-            if (nDebit > 0) fIsFromMe = true;
-            fee = spend.getFee();
-            CAmount nCredit = wtx.GetCredit(ISMINE_SPENDABLE);
-            if(nCredit > nDebit) {
-                amount = nCredit - nDebit - fee;
-            } else {
-                amount = nDebit - nCredit - fee;
-            }
-        } catch (...) {
         }
     }
     txData.pushKV("sparkInputLTagHashes", sparkInputLTagHashes);
 
-    if (fIsMining) { // mining transaction
+    int64_t fee = 0;
+    int64_t amount = 0;
+    if (fIsMining) {
         fee = 0;
     } else if (joinSplit) {
         fee = joinSplit->getFee();
@@ -366,7 +362,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                 } else {
                     fIsToMe = false;
                     fIsSpent = pwalletMain->IsSpent(wtx.tx->GetHash(), n);
-                    if(txout.scriptPubKey.IsSparkMint()) {
+                    if (txout.scriptPubKey.IsSparkMint()) {
                         amount = txout.nValue;
                     }
                 }
