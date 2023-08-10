@@ -43,7 +43,7 @@ char const * CopyRapText{"Copy RAP address/label"};
 
 TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *parent) :
     QWidget(parent), model(0), transactionProxyModel(0),
-    transactionView(0), abandonAction(0), columnResizingFixer(0)
+    transactionView(0), abandonAction(0)
 {
     // Build filter row
     setContentsMargins(0,0,0,0);
@@ -224,7 +224,6 @@ void TransactionView::setModel(WalletModel *_model)
 
         transactionProxyModel->setSortRole(Qt::EditRole);
 
-        transactionView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         transactionView->setModel(transactionProxyModel);
         transactionView->setAlternatingRowColors(true);
         transactionView->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -238,9 +237,10 @@ void TransactionView::setModel(WalletModel *_model)
         transactionView->setColumnWidth(TransactionTableModel::InstantSend, INSTANTSEND_COLUMN_WIDTH);
         transactionView->setColumnWidth(TransactionTableModel::Date, DATE_COLUMN_WIDTH);
         transactionView->setColumnWidth(TransactionTableModel::Type, TYPE_COLUMN_WIDTH);
-        transactionView->setColumnWidth(TransactionTableModel::Amount, AMOUNT_MINIMUM_COLUMN_WIDTH);
-
-        columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(transactionView, AMOUNT_MINIMUM_COLUMN_WIDTH, MINIMUM_COLUMN_WIDTH, this);
+        transactionView->horizontalHeader()->setSectionResizeMode(TransactionTableModel::Amount, QHeaderView::Fixed);
+         transactionView->horizontalHeader()->setMinimumSectionSize(23);
+        transactionView->horizontalHeader()->setStretchLastSection(true);
+        transactionView->horizontalHeader()->setMaximumSectionSize(260);
 
         if (_model->getOptionsModel())
         {
@@ -676,19 +676,6 @@ void TransactionView::focusTransaction(const QModelIndex &idx)
     transactionView->scrollTo(targetIdx);
     transactionView->setCurrentIndex(targetIdx);
     transactionView->setFocus();
-}
-
-// We override the virtual resizeEvent of the QWidget to adjust tables column
-// sizes as the tables width is proportional to the dialogs width.
-void TransactionView::resizeEvent(QResizeEvent* event)
-{
-    if(!transactionView || !transactionView->selectionModel())
-        return;
-
-    QWidget::resizeEvent(event);
-    disconnect(transactionView->horizontalHeader(), &QHeaderView::sectionResized, this, &TransactionView::updateHeaderSizes);
-    columnResizingFixer->stretchColumnWidth(TransactionTableModel::ToAddress);
-    connect(transactionView->horizontalHeader(), &QHeaderView::sectionResized, this, &TransactionView::updateHeaderSizes);
 }
 
 // Need to override default Ctrl+C action for amount as default behaviour is just to copy DisplayRole text
