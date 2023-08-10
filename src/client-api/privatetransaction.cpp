@@ -198,19 +198,20 @@ UniValue mintSpark(Type type, const UniValue& data, const UniValue& auth, bool f
         return strError;
     }
 
+    UniValue txids(UniValue::VARR);
     CValidationState state;
     auto reservekey = reservekeys.begin();
     for(size_t i = 0; i < wtxAndFee.size(); i++) {
         if (!pwalletMain->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state)) {
             return _(
                     "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
-        } else {
-            LogPrintf("CommitTransaction success!\n");
         }
+
+        txids.push_back(wtxAndFee[i].first.GetHash().GetHex());
     }
 
     UniValue retval(UniValue::VOBJ);
-    retval.push_back(Pair("txid", wtxAndFee[0].first.GetHash().GetHex()));
+    retval.pushKV("txids", txids);
     return retval;
 }
 
