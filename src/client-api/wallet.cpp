@@ -923,24 +923,6 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
     return true;
 }
 
-UniValue validateSparkAddress(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
-{
-    std::string address = find_value(data, "address").getValStr();
-    const spark::Params* params = spark::Params::get_default();
-    unsigned char network = spark::GetNetworkType();
-    unsigned char coinNetwork;
-    spark::Address addr(params);
-    UniValue retval(UniValue::VOBJ);
-    try {
-        coinNetwork = addr.decode(address);
-    } catch (...) {
-        retval.push_back(Pair("valid", false));
-        return retval;
-    }
-    retval.push_back(Pair("valid", network == coinNetwork));
-    return retval;
-}
-
 UniValue getAvailableSparkBalance(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     UniValue retval(UniValue::VOBJ);
@@ -984,7 +966,6 @@ static const CAPICommand commands[] =
     { "wallet",             "readAddressBook",                &readaddressbook,                true,      false,           false  },
     { "wallet",             "editAddressBook",                &editaddressbook,                true,      false,           false  },
     { "wallet",             "lockStatus",                     &lockStatus,                     true,      false,           false  },
-    { "wallet",             "validateSparkAddress",           &validateSparkAddress,           true,      false,           false  },
     { "wallet",             "getAvailableSparkBalance",       &getAvailableSparkBalance,       true,      false,           false  },
     { "wallet",             "getUnconfirmedSparkBalance",     &getUnconfirmedSparkBalance,     true,      false,           false  },
 };
