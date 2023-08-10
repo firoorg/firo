@@ -238,7 +238,7 @@ void TransactionView::setModel(WalletModel *_model)
         transactionView->setColumnWidth(TransactionTableModel::Date, DATE_COLUMN_WIDTH);
         transactionView->setColumnWidth(TransactionTableModel::Type, TYPE_COLUMN_WIDTH);
         transactionView->horizontalHeader()->setSectionResizeMode(TransactionTableModel::Amount, QHeaderView::Fixed);
-         transactionView->horizontalHeader()->setMinimumSectionSize(23);
+        transactionView->horizontalHeader()->setMinimumSectionSize(23);
         transactionView->horizontalHeader()->setStretchLastSection(true);
         transactionView->horizontalHeader()->setMaximumSectionSize(260);
 
@@ -432,7 +432,7 @@ void TransactionView::updateHeaderSizes(int logicalIndex, int oldSize, int newSi
         {TransactionTableModel::Amount, amountWidget}
     };
 
-    if(logicalIndex <= TransactionTableModel::ToAddress)
+    if(logicalIndex <= TransactionTableModel::Amount)
         return;
 
     for(std::pair<int, QWidget*> const & p : headerWidgets) {
