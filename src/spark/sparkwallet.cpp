@@ -1176,6 +1176,9 @@ bool CSparkWallet::CreateSparkMintTransactions(
         return false;
     }
 
+    // Just to make sure, as other places in the code will invoke UB if this doesn't hold.
+    assert(wtxAndFee.size() == reservekeys.size());
+
     return true;
 }
 
