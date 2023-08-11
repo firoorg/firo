@@ -115,10 +115,10 @@ UniValue autoMintLelantus(Type type, const UniValue& data, const UniValue& auth,
         throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus is not activated yet");
     }
 
-    EnsureWalletIsUnlocked(pwalletMain);
     if (!pwalletMain || !pwalletMain->zwallet) {
         throw JSONRPCError(RPC_WALLET_ERROR, "lelantus mint/joinsplit is not allowed for legacy wallet");
     }
+    EnsureWalletIsUnlocked(pwalletMain);
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
     std::vector<CHDMint> mints;
@@ -152,10 +152,10 @@ UniValue mintSpark(Type type, const UniValue& data, const UniValue& auth, bool f
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
     }
 
-    EnsureWalletIsUnlocked(pwalletMain);
     if (!pwalletMain || !pwalletMain->zwallet) {
         throw JSONRPCError(RPC_WALLET_ERROR, "lelantus mint/joinsplit is not allowed for legacy wallet");
     }
+    EnsureWalletIsUnlocked(pwalletMain);
 
     const spark::Params* params = spark::Params::get_default();
     spark::Address address(params);
@@ -224,10 +224,10 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
     }
 
-    EnsureWalletIsUnlocked(pwalletMain);
     if (!pwalletMain || !pwalletMain->zwallet) {
         throw JSONRPCError(RPC_WALLET_ERROR, "lelantus mint/joinsplit is not allowed for legacy wallet");
     }
+    EnsureWalletIsUnlocked(pwalletMain);
 
     const spark::Params* params = spark::Params::get_default();
     spark::Address address(params);
@@ -286,10 +286,10 @@ UniValue autoMintSpark(Type type, const UniValue& data, const UniValue& auth, bo
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
     }
 
-    EnsureWalletIsUnlocked(pwalletMain);
     if (!pwalletMain || !pwalletMain->zwallet) {
         throw JSONRPCError(RPC_WALLET_ERROR, "lelantus mint/joinsplit is not allowed for legacy wallet");
     }
+    EnsureWalletIsUnlocked(pwalletMain);
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
     std::vector<spark::MintedCoinData> outputs;
@@ -322,10 +322,10 @@ UniValue lelantusToSpark(Type type, const UniValue& data, const UniValue& auth, 
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
     }
 
-    EnsureWalletIsUnlocked(pwalletMain);
     if (!pwalletMain || !pwalletMain->zwallet) {
         throw JSONRPCError(RPC_WALLET_ERROR, "lelantus mint/joinsplit is not allowed for legacy wallet");
     }
+    EnsureWalletIsUnlocked(pwalletMain);
 
     std::string strFailReason = "";
     bool passed = false;
