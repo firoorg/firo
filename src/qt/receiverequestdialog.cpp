@@ -130,6 +130,7 @@ void ReceiveRequestDialog::update()
 {
     if(!model)
         return;
+    resize(width(), 700);
     QString target = info.label;
     if(target.isEmpty())
         target = info.address;
