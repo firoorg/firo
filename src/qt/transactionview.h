@@ -51,7 +51,7 @@ public:
     };
 
     enum ColumnWidths {
-        STATUS_COLUMN_WIDTH = 30,
+        STATUS_COLUMN_WIDTH = 170,
         WATCHONLY_COLUMN_WIDTH = 23,
         INSTANTSEND_COLUMN_WIDTH = 23,
         DATE_COLUMN_WIDTH = 120,
