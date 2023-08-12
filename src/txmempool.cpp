@@ -39,7 +39,7 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFe
     nSizeWithDescendants = GetTxSize();
     nModFeesWithDescendants = nFee;
     CAmount nValueIn = tx->GetValueOut()+nFee;
-    if (!tx->IsZerocoinSpend() && !tx->IsSigmaSpend() && !tx->IsZerocoinRemint() && !tx->IsLelantusJoinSplit()) {
+    if (!tx->IsZerocoinSpend() && !tx->IsSigmaSpend() && !tx->IsZerocoinRemint() && !tx->IsLelantusJoinSplit() && !tx->IsSparkSpend()) {
         assert(inChainInputValue <= nValueIn);
     }
 
@@ -417,7 +417,7 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
 
     const CTransaction& tx = newit->GetTx();
     std::set<uint256> setParentTransactions;
-    if (!entry.GetTx().IsSigmaSpend() && !entry.GetTx().IsLelantusJoinSplit()) {
+    if (!entry.GetTx().IsSigmaSpend() && !entry.GetTx().IsLelantusJoinSplit() && !entry.GetTx().IsSparkSpend()) {
         for (unsigned int i = 0; i < tx.vin.size(); i++) {
             mapNextTx.insert(std::make_pair(&tx.vin[i].prevout, &tx));
             setParentTransactions.insert(tx.vin[i].prevout.hash);
@@ -518,8 +518,8 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
 {
     NotifyEntryRemoved(it->GetSharedTx(), reason);
     const uint256 hash = it->GetTx().GetHash();
-    if (!it->GetTx().IsSigmaSpend() && !it->GetTx().IsLelantusJoinSplit()) {
-        LogPrintf("removeUnchecked txHash=%s, IsSpend()=%s\n", hash.ToString(), it->GetTx().IsSigmaSpend() || it->GetTx().IsLelantusJoinSplit());
+    if (!it->GetTx().IsSigmaSpend() && !it->GetTx().IsLelantusJoinSplit() && !it->GetTx().IsSparkSpend()) {
+        LogPrintf("removeUnchecked txHash=%s, IsSpend()=%s\n", hash.ToString(), it->GetTx().IsSigmaSpend() || it->GetTx().IsLelantusJoinSplit() || it->GetTx().IsSparkSpend());
         BOOST_FOREACH(const CTxIn& txin, it->GetTx().vin)
             mapNextTx.erase(txin.prevout);
     }
@@ -658,7 +658,7 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
     uint256 txhash = tx.GetHash();
     for (unsigned int j = 0; j < tx.vin.size(); j++) {
         const CTxIn input = tx.vin[j];
-        if (input.IsSigmaSpend() || input.IsLelantusJoinSplit()) {
+        if (input.IsSigmaSpend() || input.IsLelantusJoinSplit() || tx.IsSparkSpend()) {
             continue;
         }
 
@@ -737,7 +737,7 @@ void CTxMemPool::addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCac
     uint256 txhash = tx.GetHash();
     for (unsigned int j = 0; j < tx.vin.size(); j++) {
         const CTxIn input = tx.vin[j];
-        if (input.IsSigmaSpend() || input.IsLelantusJoinSplit()) {
+        if (input.IsSigmaSpend() || input.IsLelantusJoinSplit() || tx.IsSparkSpend()) {
             continue;
         }
 
