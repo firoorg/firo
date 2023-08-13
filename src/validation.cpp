@@ -519,7 +519,7 @@ unsigned int GetLegacySigOpCount(const CTransaction& tx)
 
 unsigned int GetP2SHSigOpCount(const CTransaction &tx, const CCoinsViewCache &inputs)
 {
-    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsLelantusJoinSplit())
+    if (tx.IsCoinBase() || tx.HasNoRegularInputs())
         return 0;
 
     unsigned int nSigOps = 0;
@@ -538,7 +538,7 @@ int64_t GetTransactionSigOpCost(const CTransaction &tx, const CCoinsViewCache &i
 {
     int64_t nSigOps = GetLegacySigOpCount(tx) * WITNESS_SCALE_FACTOR;
 
-    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsLelantusJoinSplit() || tx.IsSparkSpend())
+    if (tx.IsCoinBase() || tx.HasNoRegularInputs())
         return nSigOps;
 
     if (flags & SCRIPT_VERIFY_P2SH) {
@@ -615,7 +615,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
     bool const check_di = nHeight != INT_MAX && nHeight > ::Params().GetConsensus().nStartDuplicationCheck;
     if (fCheckDuplicateInputs || check_di) {
         std::set<COutPoint> vInOutPoints;
-        if (tx.IsSigmaSpend() || tx.IsLelantusJoinSplit()  || tx.IsSparkSpend()) {
+        if (tx.HasPrivateInputs()) {
             std::set<CScript> spendScripts;
             for (const auto& txin: tx.vin)
             {
@@ -1023,7 +1023,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     std::set<uint256> setConflicts;
     {
     LOCK(pool.cs); // protect pool.mapNextTx
-    if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit() && !tx.IsSparkSpend()) {
+    if (!tx.HasPrivateInputs()) {
         BOOST_FOREACH(const CTxIn &txin, tx.vin)
         {
             auto itConflicting = pool.mapNextTx.find(txin.prevout);
@@ -1089,7 +1089,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
         }
 
-        if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit() && !tx.IsSparkSpend()) {
+        if (!tx.HasPrivateInputs()) {
             // do all inputs exist?
             BOOST_FOREACH(const CTxIn txin, tx.vin) {
                 if (!pcoinsTip->HaveCoinInCache(txin.prevout)) {
@@ -1168,7 +1168,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
             CAmount inChainInputValue = 0;
             bool fSpendsCoinbase = false;
-            if (!tx.IsSigmaSpend() && !tx.IsLelantusJoinSplit() && !tx.IsSparkSpend()) {
+            if (!tx.HasPrivateInputs()) {
                 // Keep track of transactions that spend a coinbase, which we re-scan
                 // during reorgs to ensure COINBASE_MATURITY is still met.
                 BOOST_FOREACH(const CTxIn &txin, tx.vin) {
@@ -2004,7 +2004,7 @@ void static InvalidBlockFound(CBlockIndex *pindex, const CValidationState &state
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight)
 {
     // mark inputs spent
-    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit()) {
+    if (!tx.IsCoinBase() && !tx.HasNoRegularInputs()) {
         txundo.vprevout.reserve(tx.vin.size());
         BOOST_FOREACH(const CTxIn &txin, tx.vin) {
             txundo.vprevout.emplace_back();
@@ -2218,7 +2218,7 @@ bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state
 
 bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheStore, PrecomputedTransactionData& txdata, std::vector<CScriptCheck> *pvChecks)
 {
-    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit() &&!tx.IsSparkSpend())
+    if (!tx.IsCoinBase() && !tx.HasNoRegularInputs())
     {
         if (!Consensus::CheckTxInputs(tx, state, inputs, GetSpendHeight(inputs)))
             return false;
@@ -2880,7 +2880,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             return state.DoS(100, error("ConnectBlock(): invalid joinsplit tx"),
                              REJECT_INVALID, "bad-txns-input-invalid");
 
-        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit() && !tx.IsSparkSpend())
+        if (!tx.IsCoinBase() && !tx.HasNoRegularInputs())
         {
             if (!view.HaveInputs(tx))
                 return state.DoS(100, error("ConnectBlock(): inputs missing/spent"),
@@ -2954,12 +2954,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                              REJECT_INVALID, "bad-blk-sigops");
 
         txdata.emplace_back(tx);
-        if (!tx.IsCoinBase()
-        && !tx.IsZerocoinSpend()
-        && !tx.IsSigmaSpend()
-        && !tx.IsZerocoinRemint()
-        && !tx.IsLelantusJoinSplit()
-        && !tx.IsSparkSpend())
+        if (!tx.IsCoinBase() && !tx.HasNoRegularInputs())
         {
             nFees += view.GetValueIn(tx)-tx.GetValueOut();
 

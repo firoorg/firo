@@ -1576,7 +1576,7 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
             }
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination, addr);
-            if (wtx.tx->IsZerocoinSpend() || wtx.tx->IsSigmaSpend() || wtx.tx->IsZerocoinRemint() || wtx.tx->IsLelantusJoinSplit() || wtx.tx->IsSparkSpend()) {
+            if (wtx.tx->HasNoRegularInputs()) {
                 entry.push_back(Pair("category", "spend"));
             }
             else if (wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint() || wtx.tx->IsSparkMint()) {

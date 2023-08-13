@@ -824,7 +824,7 @@ void CWallet::AddToSpends(const uint256& wtxid)
         return;
 
     BOOST_FOREACH(const CTxIn& txin, thisTx.tx->vin) {
-        if (!txin.IsZerocoinSpend() && !txin.IsSigmaSpend() && !txin.IsLelantusJoinSplit() && !thisTx.tx->IsSparkSpend()) {
+        if (!thisTx.tx->HasNoRegularInputs()) {
             AddToSpends(txin.prevout, wtxid);
         }
     }
@@ -1315,7 +1315,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
         AssertLockHeld(cs_wallet);
 
         if (posInBlock != -1) {
-            if(!(tx.IsCoinBase() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsZerocoinSpend() || tx.IsLelantusJoinSplit() || tx.IsSparkSpend())) {
+            if(!(tx.IsCoinBase() || tx.HasNoRegularInputs())) {
                 BOOST_FOREACH(const CTxIn& txin, tx.vin) {
                     std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range = mapTxSpends.equal_range(txin.prevout);
                     while (range.first != range.second) {
@@ -2679,7 +2679,7 @@ bool CWalletTx::IsTrusted() const
     // Trusted if all inputs are from us and are in the mempool:
     BOOST_FOREACH(const CTxIn& txin, tx->vin)
     {
-        if (txin.IsZerocoinSpend() || txin.IsSigmaSpend() || txin.IsZerocoinRemint() || txin.IsLelantusJoinSplit()) {
+        if (tx->HasNoRegularInputs()) {
             if (!(pwallet->IsMine(txin, *tx) & ISMINE_SPENDABLE)) {
                 return false;
             }
