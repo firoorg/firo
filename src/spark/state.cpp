@@ -262,15 +262,17 @@ bool ConnectBlockSpark(
             )) {
                 return false;
             }
+        }
 
-            if (!fJustCheck) {
+        if (!fJustCheck) {
+            BOOST_FOREACH(auto& lTag, pblock->sparkTxInfo->spentLTags) {
                 pindexNew->spentLTags.insert(lTag);
                 sparkState.AddSpend(lTag.first, lTag.second);
             }
         }
-
-        if (fJustCheck)
+        else {
             return true;
+        }
 
         const auto& params = ::Params().GetConsensus();
         CHash256 hash;
