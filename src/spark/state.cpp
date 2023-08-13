@@ -1005,12 +1005,10 @@ void CSparkState::AddMintsToStateAndBlockIndex(
 }
 
 void CSparkState::AddSpend(const GroupElement& lTag, int coinGroupId) {
-    if (!mintMetaInfo.count(coinGroupId)) {
-        throw std::invalid_argument("group id doesn't exist");
+    if (mintMetaInfo.count(coinGroupId) > 0) {
+        usedLTags[lTag] = coinGroupId;
+        spendMetaInfo[coinGroupId] += 1;
     }
-
-    usedLTags[lTag] = coinGroupId;
-    spendMetaInfo[coinGroupId] += 1;
 }
 
 void CSparkState::RemoveSpend(const GroupElement& lTag) {
