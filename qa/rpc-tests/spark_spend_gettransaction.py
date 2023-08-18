@@ -38,7 +38,7 @@ class SpendGettransactionTest(BitcoinTestFramework):
         assert balance['availableBalance'] / 1e8 == 10
 
         # case 1: Spend many with watchonly address
-        spendto_wo_id = self.nodes[0].spendspark({watchonly_address: {"amount": 1, "subtractFee": False}}, {})
+        spendto_wo_id = self.nodes[0].spendspark({watchonly_address: {"amount": 1, "subtractFee": False}})
         spendto_wo_tx = self.nodes[0].gettransaction(spendto_wo_id)
 
         assert int(spendto_wo_tx['amount']) == int('-1')
@@ -48,7 +48,7 @@ class SpendGettransactionTest(BitcoinTestFramework):
         assert spendto_wo_tx['details'][0]['involvesWatchonly']
 
         # case 2: Spend many with watchonly address and valid address
-        spendto_wo_and_valid_id = self.nodes[0].spendspark({watchonly_address: {"amount": 1, "subtractFee": False}}, {sparkAddress: {"amount": 0.01, "memo": "Test", "subtractFee": False}})
+        spendto_wo_and_valid_id = self.nodes[0].spendspark({watchonly_address: {"amount": 1, "subtractFee": False}, sparkAddress: {"amount": 0.01, "memo": "Test", "subtractFee": False}})
         spendto_wo_and_valid_tx = self.nodes[0].gettransaction(spendto_wo_and_valid_id)
 
         assert int(spendto_wo_and_valid_tx['amount']) == int(-1)

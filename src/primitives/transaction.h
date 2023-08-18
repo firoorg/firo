@@ -459,6 +459,7 @@ public:
     bool IsSparkMint() const;
 
     bool HasNoRegularInputs() const;
+    bool HasPrivateInputs() const;
 
     bool IsElysiumReferenceOutput(uint32_t i) const;
 

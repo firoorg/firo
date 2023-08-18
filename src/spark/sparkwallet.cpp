@@ -71,6 +71,7 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 
             }
         }
+
     }
     threadPool = new ParallelOpThreadPool<void>(boost::thread::hardware_concurrency());
 
@@ -1387,8 +1388,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 privOutputs.push_back(output);
             }
 
-            if (spendInCurrentTx <= 0)
-                throw std::invalid_argument(_("Unable to create spend transaction."));;
+            if (spendInCurrentTx < 0)
+                throw std::invalid_argument(_("Unable to create spend transaction."));
 
             if (!privOutputs.size() || spendInCurrentTx > 0) {
                 spark::OutputCoinData output;

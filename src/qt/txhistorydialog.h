@@ -56,14 +56,12 @@ public:
     void setClientModel(ClientModel *model);
     void setWalletModel(WalletModel *model);
 
-    virtual void resizeEvent(QResizeEvent* event);
     std::string shrinkTxType(int txType, bool *fundsMoved);
 
 private:
     Ui::txHistoryDialog *ui;
     ClientModel *clientModel;
     WalletModel *walletModel;
-    GUIUtil::TableViewLastColumnResizingFixer *borrowedColumnResizingFixer;
     QMenu *contextMenu;
     HistoryMap txHistoryMap;
 

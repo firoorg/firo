@@ -193,7 +193,7 @@ bool CTransaction::IsSigmaMint() const
 {
     if (IsZerocoinRemint())
         return false;
-        
+
     for (const CTxOut &txout: vout) {
         if (txout.scriptPubKey.IsSigmaMint())
             return true;
@@ -274,6 +274,10 @@ bool CTransaction::IsElysiumReferenceOutput(uint32_t i) const {
     }
 
     return false;
+}
+
+bool CTransaction::HasPrivateInputs() const {
+    return IsSigmaSpend() || IsLelantusJoinSplit() || IsSparkSpend();
 }
 
 unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const
