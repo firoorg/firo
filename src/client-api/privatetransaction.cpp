@@ -40,10 +40,6 @@ UniValue lelantusTxFee(Type type, const UniValue& data, const UniValue& auth, bo
 }
 
 UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
-    if (type != Create) {
-        throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
-    }
-
     CBitcoinAddress address = find_value(data, "recipient").get_str();
     CAmount amount = get_bigint(data["amount"]);
 
@@ -105,10 +101,6 @@ UniValue sendLelantus(Type type, const UniValue& data, const UniValue& auth, boo
 }
 
 UniValue autoMintLelantus(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
-    if (type != Create) {
-        throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
-    }
-
     // Ensure Lelantus mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
     if (!lelantus::IsLelantusAllowed()) {
@@ -144,10 +136,6 @@ UniValue autoMintLelantus(Type type, const UniValue& data, const UniValue& auth,
 }
 
 UniValue mintSpark(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
-    if (type != Create) {
-        throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
-    }
-
     if (!spark::IsSparkAllowed()) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
     }
@@ -278,10 +266,6 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
 }
 
 UniValue autoMintSpark(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
-    if (type != Create) {
-        throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
-    }
-
     if (!spark::IsSparkAllowed()) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
     }
@@ -314,10 +298,6 @@ UniValue autoMintSpark(Type type, const UniValue& data, const UniValue& auth, bo
 }
 
 UniValue lelantusToSpark(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
-    if (type != Create) {
-        throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
-    }
-
     if (!spark::IsSparkAllowed()) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
     }
