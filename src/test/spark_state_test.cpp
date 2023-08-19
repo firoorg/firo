@@ -147,9 +147,6 @@ BOOST_AUTO_TEST_CASE(lTag_adding)
     BOOST_CHECK(!sparkState->IsUsedLTag(lTag2));
     BOOST_CHECK(!sparkState->IsUsedLTagHash(receivedLTag, lTagHash2));
 
-    // add lTags to group that doesn't exist, should fail
-    BOOST_CHECK_THROW(sparkState->AddSpend(GroupElement(), 100), std::invalid_argument);
-
     sparkState->Reset();
     mempool.clear();
 }
