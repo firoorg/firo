@@ -22,7 +22,7 @@ const uint32_t SPARK_CHANGE_D = 0x270F;
 
 class CSparkWallet  {
 public:
-    CSparkWallet(const std::string& strWalletFile);
+    CSparkWallet(const std::string &strWalletFile);
     ~CSparkWallet();
     // increment diversifier and generate address for that
     spark::Address generateNextAddress();
@@ -30,9 +30,9 @@ public:
     spark::Address getDefaultAddress();
     spark::Address getChangeAddress();
     // assign difersifier to the value from db
-    void resetDiversifierFromDB(CWalletDB& walletdb);
+    void resetDiversifierFromDB();
     // assign diversifier in to to current value
-    void updatetDiversifierInDB(CWalletDB& walletdb);
+    void updatetDiversifierInDB();
 
     // functions for key set generation
     spark::SpendKey generateSpendKey(const spark::Params* params);
@@ -48,7 +48,7 @@ public:
 
     // list spark mint, mint metadata in memory and in db should be the same at this moment, so get from memory
     std::vector<CSparkMintMeta> ListSparkMints(bool fUnusedOnly = false, bool fMatureOnly = false) const;
-    std::list<CSparkSpendEntry> ListSparkSpends() const;
+    std::list<CSparkSpendEntry> ListSparkSpends();
     std::unordered_map<uint256, CSparkMintMeta> getMintMap() const;
     // generate spark Coin from meta data
     spark::Coin getCoinFromMeta(const CSparkMintMeta& meta) const;
@@ -65,12 +65,12 @@ public:
     CAmount getAddressUnconfirmedBalance(const spark::Address& address);
 
     // function to be used for zap wallet
-    void clearAllMints(CWalletDB& walletdb);
+    void clearAllMints();
     // erase mint meta data from memory and from db
-    void eraseMint(const uint256& hash, CWalletDB& walletdb);
+    void eraseMint(const uint256& hash);
     // add mint meta data to memory and to db
-    void addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb);
-    void updateMint(const CSparkMintMeta& mint, CWalletDB& walletdb);
+    void addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash);
+    void updateMint(const CSparkMintMeta& mint);
 
     void setCoinUnused(const  GroupElement& lTag);
 
@@ -93,7 +93,7 @@ public:
     void UpdateSpendState(const GroupElement& lTag, const uint256& txHash, bool fUpdateMint = true);
     void UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint = true);
     void UpdateSpendStateFromBlock(const CBlock& block);
-    void UpdateMintState(const std::vector<spark::Coin>& coins, const uint256& txHash, CWalletDB& walletdb);
+    void UpdateMintState(const std::vector<spark::Coin>& coins, const uint256& txHash);
     void UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins, const uint256& txHash);
     void UpdateMintStateFromBlock(const CBlock& block);
     void RemoveSparkMints(const std::vector<spark::Coin>& mints);
@@ -145,7 +145,7 @@ public:
     mutable CCriticalSection cs_spark_wallet;
 
 private:
-    std::string strWalletFile;
+    CWalletDB walletdb;
     // this is latest used diversifier
     int32_t lastDiversifier;
 

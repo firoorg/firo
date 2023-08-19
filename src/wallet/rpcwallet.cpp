@@ -43,7 +43,8 @@ static CCriticalSection cs_nWalletUnlockTime;
 
 CWallet *GetWalletForJSONRPCRequest(const JSONRPCRequest& request)
 {
-    return pwalletMain;
+    // TODO: Some way to access secondary wallets
+    return vpwallets.empty() ? nullptr : vpwallets[0];
 }
 
 std::string HelpRequiringPassphrase(CWallet * const pwallet)
@@ -3474,7 +3475,7 @@ UniValue resetsparkmints(const JSONRPCRequest& request) {
     BOOST_FOREACH(CSparkMintMeta& mint, listMints) {
         mint.isUsed = false;
         mint.nHeight = -1;
-        pwallet->sparkWallet->updateMint(mint, walletdb);
+        pwallet->sparkWallet->updateMint(mint);
     }
 
     return NullUniValue;
@@ -3505,7 +3506,7 @@ UniValue setsparkmintstatus(const JSONRPCRequest& request) {
 
     if (coinMeta != CSparkMintMeta()) {
         coinMeta.isUsed = fStatus;
-        pwallet->sparkWallet->updateMint(coinMeta, walletdb);
+        pwallet->sparkWallet->updateMint(coinMeta);
     }
 
     return NullUniValue;

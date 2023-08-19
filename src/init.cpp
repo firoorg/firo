@@ -259,8 +259,9 @@ void Shutdown()
     BatchProofContainer::get_instance()->verify();
 
 #ifdef ENABLE_WALLET
-    if (pwalletMain)
-        pwalletMain->Flush(false);
+    for (CWalletRef pwallet : vpwallets) {
+        pwallet->Flush(false);
+    }
 #endif
     GenerateBitcoins(false, 0, Params());
     MapPort(false);
@@ -311,8 +312,9 @@ void Shutdown()
 #endif
 
 #ifdef ENABLE_WALLET
-    if (pwalletMain)
-        pwalletMain->Flush(true);
+    for (CWalletRef pwallet : vpwallets) {
+        pwallet->Flush(true);
+    }
 #endif
 
 #if ENABLE_ZMQ
@@ -345,8 +347,10 @@ void Shutdown()
 #endif
     UnregisterAllValidationInterfaces();
 #ifdef ENABLE_WALLET
-    delete pwalletMain;
-    pwalletMain = NULL;
+    for (CWalletRef pwallet : vpwallets) {
+        delete pwallet;
+    }
+    vpwallets.clear();
 #endif
     globalVerifyHandle.reset();
     ECC_Stop();
@@ -2170,8 +2174,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     uiInterface.InitMessage(_("Done loading"));
 
 #ifdef ENABLE_WALLET
-    if (pwalletMain)
-        pwalletMain->postInitProcess(threadGroup);
+    for (CWalletRef pwallet : vpwallets) {
+        pwallet->postInitProcess(scheduler);
+    }
 #endif
 
     return !fRequestShutdown;

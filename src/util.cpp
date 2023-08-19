@@ -465,6 +465,8 @@ void ForceSetArg(const std::string& strArg, const std::string& strValue)
 {
     LOCK(cs_args);
     mapArgs[strArg] = strValue;
+    mapMultiArgs[strArg].clear();
+    mapMultiArgs[strArg].push_back(strValue);
 }
 
 

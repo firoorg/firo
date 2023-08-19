@@ -60,8 +60,7 @@
 #include "bip47/paymentcode.h"
 #include "bip47/bip47utils.h"
 
-CWallet* pwalletMain = NULL;
-
+std::vector<CWalletRef> vpwallets;
 /** Transaction fee set by the user */
 CFeeRate payTxFee(DEFAULT_TRANSACTION_FEE);
 unsigned int nTxConfirmTarget = DEFAULT_TX_CONFIRM_TARGET;
@@ -655,55 +654,38 @@ bool CWallet::Verify()
     if (GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
         return true;
 
-    LogPrintf("Using BerkeleyDB version %s\n", DbEnv::version(0, 0, 0));
-    std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
+    uiInterface.InitMessage(_("Verifying wallet(s)..."));
 
-    LogPrintf("Using wallet %s\n", walletFile);
-    uiInterface.InitMessage(_("Verifying wallet..."));
-
-    // Wallet file must be a plain filename without a directory
-    if (walletFile != boost::filesystem::basename(walletFile) + boost::filesystem::extension(walletFile))
-        return InitError(strprintf(_("Wallet %s resides outside data directory %s"), walletFile, GetDataDir().string()));
-
-    if (!bitdb.Open(GetDataDir()))
-    {
-        // try moving the database env out of the way
-        boost::filesystem::path pathDatabase = GetDataDir() / "database";
-        boost::filesystem::path pathDatabaseBak = GetDataDir() / strprintf("database.%d.bak", GetTime());
-        try {
-            boost::filesystem::rename(pathDatabase, pathDatabaseBak);
-            LogPrintf("Moved old %s to %s. Retrying.\n", pathDatabase.string(), pathDatabaseBak.string());
-        } catch (const boost::filesystem::filesystem_error&) {
-            // failure is ok (well, not really, but it's not worse than what we started with)
+    for (const std::string& walletFile : gArgs.GetArgs("-wallet")) {
+        if (boost::filesystem::path(walletFile).filename() != walletFile) {
+            return InitError(_("-wallet parameter must only specify a filename (not a path)"));
+        } else if (SanitizeString(walletFile, SAFE_CHARS_FILENAME) != walletFile) {
+            return InitError(_("Invalid characters in -wallet filename"));
         }
 
-        // try again
-        if (!bitdb.Open(GetDataDir())) {
-            // if it still fails, it probably means we can't even create the database env
-            return InitError(strprintf(_("Error initializing wallet database environment %s!"), GetDataDir()));
+        std::string strError;
+        if (!CWalletDB::VerifyEnvironment(walletFile, GetDataDir().string(), strError)) {
+            return InitError(strError);
         }
-    }
 
-    if (GetBoolArg("-salvagewallet", false))
-    {
-        // Recover readable keypairs:
-        if (!CWalletDB::Recover(bitdb, walletFile, true))
+        if (GetBoolArg("-salvagewallet", false)) {
+            // Recover readable keypairs:
+            CWallet dummyWallet;
+            std::string backup_filename;
+            if (!CWalletDB::Recover(walletFile, (void *)&dummyWallet, CWalletDB::RecoverKeysOnlyFilter, backup_filename)) {
+                return false;
+            }
+        }
+
+        std::string strWarning;
+        bool dbV = CWalletDB::VerifyDatabaseFile(walletFile, GetDataDir().string(), strWarning, strError);
+        if (!strWarning.empty()) {
+            InitWarning(strWarning);
+        }
+        if (!dbV) {
+            InitError(strError);
             return false;
-    }
-
-    if (boost::filesystem::exists(GetDataDir() / walletFile))
-    {
-        CDBEnv::VerifyResult r = bitdb.Verify(walletFile, CWalletDB::Recover);
-        if (r == CDBEnv::RECOVER_OK)
-        {
-            InitWarning(strprintf(_("Warning: Wallet file corrupt, data salvaged!"
-                                         " Original %s saved as %s in %s; if"
-                                         " your balance or transactions are incorrect you should"
-                                         " restore from a backup."),
-                walletFile, "wallet.{timestamp}.bak", GetDataDir()));
         }
-        if (r == CDBEnv::RECOVER_FAIL)
-            return InitError(strprintf(_("%s corrupt, salvage failed"), walletFile));
     }
 
     return true;
@@ -6080,8 +6062,9 @@ bool CWallet::AddAccountingEntry(const CAccountingEntry& acentry)
 
 bool CWallet::AddAccountingEntry(const CAccountingEntry& acentry, CWalletDB *pwalletdb)
 {
-    if (!pwalletdb->WriteAccountingEntry_Backend(acentry))
+    if (!pwalletdb->WriteAccountingEntry(++nAccountingEntryNumber, acentry)) {
         return false;
+    }
 
     laccentries.push_back(acentry);
     CAccountingEntry & entry = laccentries.back();
@@ -7109,7 +7092,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         walletInstance->ScanForWalletTransactions(pindexRescan, true, fRecoverMnemonic);
         LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);
         walletInstance->SetBestChain(chainActive.GetLocator());
-        CWalletDB::IncrementUpdateCounter();
+        walletInstance->dbw->IncrementUpdateCounter();
 
         // Restore wallet transaction metadata after -zapwallettxes=1
         if (GetBoolArg("-zapwallettxes", false))
@@ -7173,24 +7156,17 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
 bool CWallet::InitLoadWallet()
 {
     if (GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET)) {
-        pwalletMain = NULL;
         LogPrintf("Wallet disabled!\n");
         return true;
     }
 
-    std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
-
-    if (walletFile.find_first_of("/\\") != std::string::npos) {
-        return InitError(_("-wallet parameter must only specify a filename (not a path)"));
-    } else if (SanitizeString(walletFile, SAFE_CHARS_FILENAME) != walletFile) {
-        return InitError(_("Invalid characters in -wallet filename"));
+    for (const std::string& walletFile : gArgs.GetArgs("-wallet")) {
+        CWallet * const pwallet = CreateWalletFromFile(walletFile);
+        if (!pwallet) {
+            return false;
+        }
+        vpwallets.push_back(pwallet);
     }
-
-    CWallet * const pwallet = CreateWalletFromFile(walletFile);
-    if (!pwallet) {
-        return false;
-    }
-    pwalletMain = pwallet;
 
     return true;
 }
@@ -7211,6 +7187,9 @@ void CWallet::postInitProcess(boost::thread_group& threadGroup)
 
 bool CWallet::ParameterInteraction()
 {
+    SoftSetArg("-wallet", DEFAULT_WALLET_DAT);
+    const bool is_multiwallet = gArgs.GetArgs("-wallet").size() > 1;
+
     if (GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
         return true;
 
@@ -7219,13 +7198,25 @@ bool CWallet::ParameterInteraction()
     }
 
     if (GetBoolArg("-salvagewallet", false) && SoftSetBoolArg("-rescan", true)) {
+        if (is_multiwallet) {
+            return InitError(strprintf("%s is only allowed with a single wallet file", "-salvagewallet"));
+        }
         // Rewrite just private keys: rescan to find transactions
         LogPrintf("%s: parameter interaction: -salvagewallet=1 -> setting -rescan=1\n", __func__);
     }
 
     // -zapwallettx implies a rescan
     if (GetBoolArg("-zapwallettxes", false) && SoftSetBoolArg("-rescan", true)) {
+        if (is_multiwallet) {
+            return InitError(strprintf("%s is only allowed with a single wallet file", "-zapwallettxes"));
+        }
         LogPrintf("%s: parameter interaction: -zapwallettxes=<mode> -> setting -rescan=1\n", __func__);
+    }
+
+    if (is_multiwallet) {
+        if (GetBoolArg("-upgradewallet", false)) {
+            return InitError(strprintf("%s is only allowed with a single wallet file", "-upgradewallet"));
+        }
     }
 
     if (GetBoolArg("-sysperms", false))
@@ -7729,7 +7720,7 @@ void CWallet::HandleSparkTransaction(CWalletTx const & wtx) {
 
     // get spark coins and add into wallet
     std::vector<spark::Coin>  coins = spark::GetSparkMintCoins(*wtx.tx);
-    sparkWallet->UpdateMintState(coins, txHash, walletdb);
+    sparkWallet->UpdateMintState(coins, txHash);
 }
 
 void CWallet::LabelSendingPcode(bip47::CPaymentCode const & pcode_, std::string const & label, bool remove)

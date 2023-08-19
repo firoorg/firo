@@ -56,7 +56,8 @@ public:
     enum VerifyResult { VERIFY_OK,
                         RECOVER_OK,
                         RECOVER_FAIL };
-    VerifyResult Verify(const std::string& strFile, bool (*recoverFunc)(CDBEnv& dbenv, const std::string& strFile));
+    typedef bool (*recoverFunc_type)(const std::string& strFile, std::string& out_backup_filename);
+    VerifyResult Verify(const std::string& strFile, recoverFunc_type recoverFunc, std::string& out_backup_filename);
     /**
      * Salvage data from a file that Verify says is bad.
      * fAggressive sets the DB_AGGRESSIVE flag (see berkeley DB->verify() method documentation).
@@ -87,6 +88,59 @@ public:
 
 extern CDBEnv bitdb;
 
+/** An instance of this class represents one database.
+ * For BerkeleyDB this is just a (env, strFile) tuple.
+ **/
+class CWalletDBWrapper
+{
+    friend class CDB;
+public:
+    /** Create dummy DB handle */
+    CWalletDBWrapper() : nLastSeen(0), nLastFlushed(0), nLastWalletUpdate(0), env(nullptr)
+    {
+    }
+
+    /** Create DB handle to real database */
+    CWalletDBWrapper(CDBEnv *env_in, const std::string &strFile_in) :
+        nLastSeen(0), nLastFlushed(0), nLastWalletUpdate(0), env(env_in), strFile(strFile_in)
+    {
+    }
+
+    /** Rewrite the entire database on disk, with the exception of key pszSkip if non-zero
+     */
+    bool Rewrite(const char* pszSkip=nullptr);
+
+    /** Back up the entire database to a file.
+     */
+    bool Backup(const std::string& strDest);
+
+    /** Get a name for this database, for debugging etc.
+     */
+    std::string GetName() const { return strFile; }
+
+    /** Make sure all changes are flushed to disk.
+     */
+    void Flush(bool shutdown);
+
+    void IncrementUpdateCounter();
+
+    std::atomic<unsigned int> nUpdateCounter;
+    unsigned int nLastSeen;
+    unsigned int nLastFlushed;
+    int64_t nLastWalletUpdate;
+
+private:
+    /** BerkeleyDB specific */
+    CDBEnv *env;
+    std::string strFile;
+
+    /** Return whether this database handle is a dummy for testing.
+     * Only to be used at a low level, application should ideally not care
+     * about this.
+     */
+    bool IsDummy() { return env == nullptr; }
+};
+
 
 /** RAII class that provides access to a Berkeley database */
 class CDB
@@ -104,6 +158,15 @@ protected:
 public:
     void Flush();
     void Close();
+    static bool Recover(const std::string& filename, void *callbackDataIn, bool (*recoverKVcallback)(void* callbackData, CDataStream ssKey, CDataStream ssValue), std::string& out_backup_filename);
+
+    /* flush the wallet passively (TRY_LOCK)
+       ideal to be called periodically */
+    static bool PeriodicFlush(CWalletDBWrapper& dbw);
+    /* verifies the database environment */
+    static bool VerifyEnvironment(const std::string& walletFile, const fs::path& dataDir, std::string& errorStr);
+    /* verifies the database file */
+    static bool VerifyDatabaseFile(const std::string& walletFile, const fs::path& dataDir, std::string& warningStr, std::string& errorStr, CDBEnv::recoverFunc_type recoverFunc);
 
 private:
     CDB(const CDB&);
