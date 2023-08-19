@@ -635,9 +635,16 @@ bool CheckSparkSpendTransaction(
     spend->setCoverSets(cover_set_data);
     spend->setVout(Vout);
 
+    const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
+    for (const auto& id : ids) {
+        if (!cover_sets.count(id) || !cover_set_data.count(id))
+            return state.DoS(100,
+                             error("CheckSparkSpendTransaction: No cover set found."));
+    }
+
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
     bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
-
+    
     // if we are collecting proofs, skip verification and collect proofs
     // add proofs into container
     if (useBatching) {
@@ -653,7 +660,6 @@ bool CheckSparkSpendTransaction(
 
     if (passVerify) {
         const std::vector<GroupElement>& lTags = spend->getUsedLTags();
-        const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
 
         if (lTags.size() != ids.size()) {
             return state.DoS(100,
