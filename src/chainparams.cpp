@@ -467,7 +467,7 @@ public:
 
         // moving lelantus data to v3 payload
         consensus.nLelantusV3PayloadStartBlock = 401580;
-        
+
         // ProgPow
         consensus.nPPSwitchTime = 1635228000;           // Tue Oct 26 2021 06:00:00 GMT+0000
         consensus.nPPBlockNumber = 419264;
@@ -758,7 +758,7 @@ public:
 
         // moving lelantus data to v3 payload
         consensus.nLelantusV3PayloadStartBlock = 35000;
-        
+
         // ProgPow
         consensus.nPPSwitchTime = 1630069200;           // August 27 2021, 13:00 UTC
         consensus.nPPBlockNumber = 37305;
@@ -1223,7 +1223,7 @@ public:
 
         // moving lelantus data to v3 payload
         consensus.nLelantusV3PayloadStartBlock = 800;
-        
+
         // ProgPow
         // this can be overridden with either -ppswitchtime or -ppswitchtimefromnow flags
         consensus.nPPSwitchTime = INT_MAX;
@@ -1283,6 +1283,8 @@ public:
 
         consensus.nLelantusV3PayloadStartBlock = 101;
         consensus.DIP0003Height = 101;
+
+        consensus.nSparkStartBlock = 150;
     }
 };
 static CRegTestQuickLelantusParams regTestQlParams;
@@ -1320,4 +1322,3 @@ void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime,
 {
     regTestParams.UpdateBIP9Parameters(d, nStartTime, nTimeout);
 }
-
