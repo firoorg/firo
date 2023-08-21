@@ -8,7 +8,7 @@ enum class Bech32EncodingForFuzzing {
     BECH32,
     BECH32M,
     kMaxValue = BECH32M
-}
+};
 
 extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     FuzzedDataProvider fuzzed_data(buf, len);

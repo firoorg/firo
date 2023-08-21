@@ -1,0 +1,13 @@
+<?xml version="1.0" ?>
+<!DOCTYPE coverage SYSTEM 'http://cobertura.sourceforge.net/xml/coverage-04.dtd'>
+<coverage line-rate="0.000" lines-covered="0" lines-valid="0" branch-rate="1.0" branches-covered="1.0" branches-rate="1.0" complexity="1.0" version="1.9" timestamp="1690556909">
+	<sources>
+		<source>not set/</source>
+	</sources>
+	<packages>
+		<package name="bech32_fuzz_2_gcc_instrumented" line-rate="0.000" lines-covered="0" lines-valid="0" branch-rate="1.0" complexity="1.0">
+			<classes>
+			</classes>
+		</package>
+	</packages>
+</coverage>

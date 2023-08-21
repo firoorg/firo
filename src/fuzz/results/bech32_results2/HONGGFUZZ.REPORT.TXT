@@ -1,0 +1,72 @@
+=====================================================================
+TIME: 2022-11-16.15:03:37
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./bech32_fuzz 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 00000000000000000000000000000000.00000000.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/libspark/SIGABRT.PC.7ffff7a8900b.STACK.1b5b5f0067.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 82977
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff7a8900b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000001b5b5f0067
+STACK:
+ <0x00007ffff7a68859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7a68729> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7a79fd6> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000042cb0e> [func:bech32::(anonymous namespace)::encoding_constant file:bech32.cpp line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bech32_fuzz]
+ <0x000000000042aabd> [func:bech32::(anonymous namespace)::create_checksum file:bech32.cpp line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bech32_fuzz]
+ <0x000000000042a59c> [func:bech32::encode file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bech32_fuzz]
+ <0x0000000000426231> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bech32_fuzz]
+ <0x0000000000439b3f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bech32_fuzz]
+ <0x00007ffff7a6a083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x0000000000405c5e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bech32_fuzz]
+=====================================================================
+=====================================================================
+TIME: 2022-11-16.15:03:37
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./bech32_fuzz 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 00000000000000000000000000000000.00000000.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/libspark/SIGABRT.PC.7ffff7a8900b.STACK.f5eb731a9.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 82978
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff7a8900b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000000f5eb731a9
+STACK:
+ <0x00007ffff7a68859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7a68729> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7a79fd6> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000042a55d> [func:bech32::encode file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bech32_fuzz]
+ <0x0000000000426231> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bech32_fuzz]
+ <0x0000000000439b3f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bech32_fuzz]
+ <0x00007ffff7a6a083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x0000000000405c5e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bech32_fuzz]
+=====================================================================

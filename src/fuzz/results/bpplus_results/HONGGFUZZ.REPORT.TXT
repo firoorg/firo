@@ -1,0 +1,229 @@
+=====================================================================
+TIME: 2023-08-17.16:51:37
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../../libspark/bpplus_hfuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 00000000000000000000000000000000.00000000.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/results/bpplus_results/SIGABRT.PC.7ffff76c700b.STACK.18731b5c22.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 1826748
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff76c700b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 00000018731b5c22
+STACK:
+ <0x00007ffff76a6859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a8d1> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba637c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63e7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba6699> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x000000000044dddd> [func:spark::BPPlus::prove file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000043d24a> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000052acff> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000041a55e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+=====================================================================
+=====================================================================
+TIME: 2023-08-17.16:51:37
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../../libspark/bpplus_hfuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 00000000000000000000000000000000.00000000.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/results/bpplus_results/SIGABRT.PC.7ffff76c700b.STACK.f839a5086.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 1826749
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff76c700b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000000f839a5086
+STACK:
+ <0x00007ffff76a6859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a8d1> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba637c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63e7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba6699> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x000000000044d994> [func:spark::BPPlus::BPPlus file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000043d20c> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000052acff> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000041a55e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+=====================================================================
+=====================================================================
+TIME: 2023-08-17.16:51:37
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../../libspark/bpplus_hfuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 0d800000000000000d80000000000000.00000001.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/results/bpplus_results/SIGABRT.PC.7ffff76c700b.STACK.d3aa6f9d8.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 1826861
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff76c700b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000000d3aa6f9d8
+STACK:
+ <0x00007ffff76a6859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a8d1> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba637c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63e7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba6699> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7b9d2e4> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00000000004450ee> [func:std::vector<secp_primitives::GroupElement, std::allocator<secp_primitives::GroupElement> >::_M_check_len file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x0000000000444bcc> [func:std::vector<secp_primitives::GroupElement, std::allocator<secp_primitives::GroupElement> >::_M_default_append file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000043e067> [func:std::vector<secp_primitives::GroupElement, std::allocator<secp_primitives::GroupElement> >::resize file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000043cd94> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000052acff> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000041a55e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+=====================================================================
+=====================================================================
+TIME: 2023-08-17.16:51:38
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../../libspark/bpplus_hfuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 00000000000000000000000000000000.00000001.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/results/bpplus_results/SIGABRT.PC.7ffff76c700b.STACK.f809c8567.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 1827728
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff76c700b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000000f809c8567
+STACK:
+ <0x00007ffff76a6859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a8d1> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba637c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63e7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba6699> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7b9d2e4> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x000000000044b97e> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::_M_check_len file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000044b45c> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::_M_default_append file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000043e877> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::resize file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x00000000004692f1> [func:FuzzedSecp256k1Object::GetScalars file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000043ceb6> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000052acff> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000041a55e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+=====================================================================
+=====================================================================
+TIME: 2023-08-17.16:51:38
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../../libspark/bpplus_hfuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 36000000000000003600000000000000.00000001.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/results/bpplus_results/SIGSEGV.PC.48440d.STACK.193d9dcaab.CODE.1.ADDR.0.INSTR.mov____(%rdx),%rdi.fuzz
+PID: 1827994
+SIGNAL: SIGSEGV (11)
+PC: 0x48440d
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____(%rdx),%rdi
+STACK HASH: 000000193d9dcaab
+STACK:
+ <0x00000000004843bf> [func:secp_primitives::GroupElement::operator= file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000043d026> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000052acff> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000041a55e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+=====================================================================
+=====================================================================
+TIME: 2023-08-17.16:51:38
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../../libspark/bpplus_hfuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 91b00090bd7e0fc05f30c30001869f50.0000000d.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/results/bpplus_results/SIGABRT.PC.7ffff76c700b.STACK.e745103bc.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 1828187
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff76c700b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000000e745103bc
+STACK:
+ <0x00007ffff76a6859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a8d1> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba637c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63e7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba6699> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7b9a4e2> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x0000000000445915> [func:__gnu_cxx::new_allocator<secp_primitives::GroupElement>::allocate file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x0000000000445853> [func:std::allocator_traits<std::allocator<secp_primitives::GroupElement> >::allocate file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x0000000000445294> [func:std::_Vector_base<secp_primitives::GroupElement, std::allocator<secp_primitives::GroupElement> >::_M_allocate file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x0000000000444bdd> [func:std::vector<secp_primitives::GroupElement, std::allocator<secp_primitives::GroupElement> >::_M_default_append file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000043e067> [func:std::vector<secp_primitives::GroupElement, std::allocator<secp_primitives::GroupElement> >::resize file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000043cd94> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x000000000052acff> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000041a55e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/bpplus_hfuzz]
+=====================================================================

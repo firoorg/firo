@@ -76,6 +76,14 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
 
     assert(grootle.verify(S, S1, V, V1, roots, sizes, proofs));
 
+    // Add an invalid proof
+    proofs.emplace_back(proofs.back());
+    S1.emplace_back(S1.back());
+    V1.emplace_back(V1.back());
+    S1.back().randomize();
+    sizes.emplace_back(sizes.back());
+    assert(!grootle.verify(S, S1, V, V1, roots, sizes, proofs));
+
     return 0;
 
 }

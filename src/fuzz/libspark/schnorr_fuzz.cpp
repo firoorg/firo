@@ -10,7 +10,13 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
 
     /** Serialization and Completeness tests **/
     GroupElement G0;
-    G0 = fsp.GetGroupElement();
+    // G0 = fsp.GetGroupElement();
+
+    // NOTE: all GetGroupElement() is replaced by GetMemberGroupElement()
+
+    // ensure that G0 is valid group element 
+    // thus the crash of valid fieldElement and groupElement will not occur
+    G0.generate(buf);
 
     Scalar y0;
     y0 = fsp.GetScalar();
@@ -38,7 +44,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     size_t n = fdp.ConsumeIntegral<size_t>();
 
     GroupElement G1;
-    G1 = fsp.GetGroupElement();
+    G1 = fsp.GetMemberGroupElement();
     std::vector<Scalar> y1;
     std::vector<GroupElement> Y1;
 
@@ -55,4 +61,35 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     assert(schnorr1.verify(Y1, proof1));
 
     /** End of aggregation test **/
+
+    /*
+        fuzzing bad proofs
+    */
+
+   // Bad Y
+    GroupElement evil_Y;
+    evil_Y.randomize();
+    assert(!(schnorr1.verify(evil_Y, proof1)));
+
+    // Bad A
+    spark::SchnorrProof evil_proof = proof1;
+    evil_proof.A.randomize();
+    assert(!(schnorr1.verify(Y1, evil_proof)));
+
+    // Bad t
+    evil_proof = proof1;
+    evil_proof.t.randomize();
+    assert(!(schnorr1.verify(Y1, evil_proof)));
+
+    // //checking empty proof
+    // std::vector<Scalar> y3;
+    // std::vector<GroupElement> Y3;
+    // y3.resize(0);
+    // Y3.resize(0);
+    // spark::SchnorrProof proof3;
+
+    // spark::Schnorr schnorr3(G1);
+    // schnorr3.prove(y3, Y3, proof3);
+    // assert(schnorr1.verify(Y3, proof3));
+
 }

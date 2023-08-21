@@ -61,6 +61,10 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     G1 = fsp.GetGroupElement();
     H1 = fsp.GetGroupElement();
     U1 = fsp.GetGroupElement();
+    //F1.randomize();
+    //G1.randomize();
+    //H1.randomize();
+    //U1.randomize();
 
     Scalar mu1;
     mu1 = fsp.GetScalar();
@@ -138,6 +142,11 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     G3 = fsp.GetGroupElement();
     H3 = fsp.GetGroupElement();
     U3 = fsp.GetGroupElement();
+    //F3.randomize();
+    //G3.randomize();
+    //H3.randomize();
+    //U3.randomize();
+    
 
     Scalar mu3;
     mu3 = fsp.GetScalar();
@@ -165,6 +174,56 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
 
     /** End of completeness tests**/
 
+    /* Fuzzing for bad proofs*/
+
+    // Bad mu
+    Scalar evil_mu;
+    evil_mu.randomize();
+    assert(!(chaum3.verify(evil_mu, S3, T3, proof3)));
+
+    // Bad S
+    for (std::size_t i = 0; i < n; i++) {
+        std::vector<GroupElement> evil_S(S3);
+        evil_S[i].randomize();
+        assert(!(chaum3.verify(mu3, evil_S, T3, proof3)));
+    }
+
+    // Bad T
+    for (std::size_t i = 0; i < n; i++) {
+        std::vector<GroupElement> evil_T(T3);
+        evil_T[i].randomize();
+        assert(!(chaum3.verify(mu3, S3, evil_T, proof3)));
+    }
+
+    // Bad A1
+    spark::ChaumProof evil_proof = proof3;
+    evil_proof.A1.randomize();
+    assert(!(chaum3.verify(mu3, S3, T3, evil_proof)));
+
+    // Bad A2
+    for (std::size_t i = 0; i < n; i++) {
+        evil_proof = proof3;
+        evil_proof.A2[i].randomize();
+        assert(!(chaum3.verify(mu3, S3, T3, evil_proof)));
+    }
+
+    // Bad t1
+    for (std::size_t i = 0; i < n; i++) {
+        evil_proof = proof3;
+        evil_proof.t1[i].randomize();
+        assert(!(chaum3.verify(mu3, S3, T3, evil_proof)));
+    }
+
+    // Bad t2
+    evil_proof = proof3;
+    evil_proof.t2.randomize();
+    assert(!(chaum3.verify(mu3, S3, T3, evil_proof)));
+
+    // Bad t3
+    evil_proof = proof3;
+    evil_proof.t3.randomize();
+    assert(!(chaum3.verify(mu3, S3, T3, evil_proof)));
+    
     return 0;
 
 }

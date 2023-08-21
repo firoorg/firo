@@ -1,0 +1,222 @@
+=====================================================================
+TIME: 2023-07-24.07:54:41
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../aead_fuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: glass.png
+FUZZ_FNAME: /root/fuzzing_firo/firo/aead_fuzz_result/SIGSEGV.PC.463024.STACK.16e8d259db.CODE.1.ADDR.0.INSTR.movsbl_(%rsi),%r8d.fuzz
+PID: 2509258
+SIGNAL: SIGSEGV (11)
+PC: 0x463024
+FAULT ADDRESS: 0x0
+INSTRUCTION: movsbl_(%rsi),%r8d
+STACK HASH: 00000016e8d259db
+STACK:
+ <0x0000000000462fae> [func:secp_primitives::GroupElement::GroupElement file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000443906> [func:FuzzedSecp256k1Object::GetGroupElement file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000430dae> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x000000000047ee9f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000040e75e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+=====================================================================
+=====================================================================
+TIME: 2023-07-24.07:54:42
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../aead_fuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: SIGSEGV.PC.463024.STACK.16ed5fb159.CODE.1.ADDR.0.INSTR.movsbl_(%rsi),%r8d.fuzz
+FUZZ_FNAME: /root/fuzzing_firo/firo/aead_fuzz_result/SIGSEGV.PC.463024.STACK.16ed5fb159.CODE.1.ADDR.0.INSTR.movsbl_(%rsi),%r8d.fuzz
+PID: 2509287
+SIGNAL: SIGSEGV (11)
+PC: 0x463024
+FAULT ADDRESS: 0x0
+INSTRUCTION: movsbl_(%rsi),%r8d
+STACK HASH: 00000016ed5fb159
+STACK:
+ <0x0000000000462f95> [func:secp_primitives::GroupElement::GroupElement file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000443906> [func:FuzzedSecp256k1Object::GetGroupElement file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000430dae> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x000000000047ee9f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000040e75e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+=====================================================================
+=====================================================================
+TIME: 2023-07-24.07:54:46
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../aead_fuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 0ede7f00c248db569496ff3e6752957f.0000002c.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/aead_fuzz_result/SIGABRT.PC.7ffff77ae00b.STACK.18305971f6.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 2521090
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff77ae00b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 00000018305971f6
+STACK:
+ <0x00007ffff778d859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a911> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba638c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63f7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba66a9> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00000000004632d6> [func:secp_primitives::_convertToFieldElement file:GroupElement.cpp line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000462f95> [func:secp_primitives::GroupElement::GroupElement file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000443906> [func:FuzzedSecp256k1Object::GetGroupElement file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000430dae> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x000000000047ee9f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000040e75e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+=====================================================================
+=====================================================================
+TIME: 2023-07-24.07:55:06
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../aead_fuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: c9c426369357d2c0487cbdc1dee5393c.00000100.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/aead_fuzz_result/SIGABRT.PC.7ffff77ae00b.STACK.1835d49974.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 2573765
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff77ae00b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000001835d49974
+STACK:
+ <0x00007ffff778d859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a911> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba638c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63f7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba66a9> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00000000004632d6> [func:secp_primitives::_convertToFieldElement file:GroupElement.cpp line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000462fae> [func:secp_primitives::GroupElement::GroupElement file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000443906> [func:FuzzedSecp256k1Object::GetGroupElement file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000430dae> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x000000000047ee9f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000040e75e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+=====================================================================
+=====================================================================
+TIME: 2023-08-03.06:32:30
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../aead_fuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 687457d430000000d447644810000000.00000004.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/aead_fuzz_result/SIGABRT.PC.7ffff77ae00b.STACK.18f75e2b88.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 430051
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff77ae00b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 00000018f75e2b88
+STACK:
+ <0x00007ffff778d859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a8d1> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba637c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63e7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba6699> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00000000004632d6> [func:secp_primitives::_convertToFieldElement file:GroupElement.cpp line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000462f95> [func:secp_primitives::GroupElement::GroupElement file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000443906> [func:FuzzedSecp256k1Object::GetGroupElement file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000430dae> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x000000000047ee9f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000040e75e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+=====================================================================
+=====================================================================
+TIME: 2023-08-03.06:32:30
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../aead_fuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: c9c426369357d2c0487cbdc1dee5393c.00000100.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/aead_fuzz_result/SIGABRT.PC.7ffff77ae00b.STACK.18f2d3c30a.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 430998
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff77ae00b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 00000018f2d3c30a
+STACK:
+ <0x00007ffff778d859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a8d1> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba637c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63e7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba6699> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00000000004632d6> [func:secp_primitives::_convertToFieldElement file:GroupElement.cpp line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000462fae> [func:secp_primitives::GroupElement::GroupElement file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000443906> [func:FuzzedSecp256k1Object::GetGroupElement file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x0000000000430dae> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x000000000047ee9f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000040e75e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/aead_fuzz]
+=====================================================================

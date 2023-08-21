@@ -1,0 +1,15 @@
+{
+  "files": [
+    {"file": "/root/fuzzing_firo/firo/src/libspark/bech32.cpp", "percent_covered": "0.00", "covered_lines": "0", "total_lines": "102"},
+    {"file": "/root/fuzzing_firo/firo/src/libspark/bech32.h", "percent_covered": "0.00", "covered_lines": "0", "total_lines": "3"},
+    {"file": "/root/fuzzing_firo/firo/src/fuzz/FuzzedDataProvider.h", "percent_covered": "0.00", "covered_lines": "0", "total_lines": "54"},
+    {"file": "/root/fuzzing_firo/firo/src/fuzz/libspark/bech32_fuzz_2.cpp", "percent_covered": "0.00", "covered_lines": "0", "total_lines": "36"}
+  ],
+  "percent_covered": "0.00",
+  "covered_lines": 0,
+  "total_lines": 195,
+  "percent_low": 25,
+  "percent_high": 75,
+  "command": "bech32_fuzz_2_gcc_instrumented",
+  "date": "2023-07-28 14:48:04"
+}

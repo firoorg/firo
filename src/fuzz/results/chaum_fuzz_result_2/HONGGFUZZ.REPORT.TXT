@@ -1,0 +1,522 @@
+=====================================================================
+TIME: 2023-07-25.06:12:14
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../chaum_fuzz_2 ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: bc662647c4cfdec8754e175d56577a62.00000020.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/chaum_fuzz_result/SIGSEGV.PC.45cb54.STACK.cb7adfada.CODE.1.ADDR.0.INSTR.movsbl_(%rsi),%r8d.fuzz
+PID: 888859
+SIGNAL: SIGSEGV (11)
+PC: 0x45cb54
+FAULT ADDRESS: 0x0
+INSTRUCTION: movsbl_(%rsi),%r8d
+STACK HASH: 0000000cb7adfada
+STACK:
+ <0x000000000045cade> [func:secp_primitives::GroupElement::GroupElement file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000044e1d6> [func:FuzzedSecp256k1Object::GetGroupElement file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000044e437> [func:FuzzedSecp256k1Object::GetGroupElements file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000043135a> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00000000004936cf> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000040ec8e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+=====================================================================
+=====================================================================
+TIME: 2023-07-25.06:12:15
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../chaum_fuzz_2 ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 9701ee24f9fb6a409be2f7e31bde3f39.00001000.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/chaum_fuzz_result/SIGSEGV.PC.45cb54.STACK.cb4323cc3.CODE.1.ADDR.0.INSTR.movsbl_(%rsi),%r8d.fuzz
+PID: 893155
+SIGNAL: SIGSEGV (11)
+PC: 0x45cb54
+FAULT ADDRESS: 0x0
+INSTRUCTION: movsbl_(%rsi),%r8d
+STACK HASH: 0000000cb4323cc3
+STACK:
+ <0x000000000045cac5> [func:secp_primitives::GroupElement::GroupElement file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000044e1d6> [func:FuzzedSecp256k1Object::GetGroupElement file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000044e437> [func:FuzzedSecp256k1Object::GetGroupElements file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000043135a> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00000000004936cf> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000040ec8e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+=====================================================================
+=====================================================================
+TIME: 2023-07-25.06:12:16
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../chaum_fuzz_2 ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 9701ee24f9fb6a409be2f7e31bde3f39.00001000.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/chaum_fuzz_result/SIGABRT.PC.7ffff77ae00b.STACK.1877560d02.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 893606
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff77ae00b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000001877560d02
+STACK:
+ <0x00007ffff778d859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a911> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba638c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63f7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba66a9> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7b9d326> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x000000000043efbe> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::_M_check_len file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000043ea9c> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::_M_default_append file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x0000000000433f27> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::resize file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00000000004314b4> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00000000004936cf> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000040ec8e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+=====================================================================
+=====================================================================
+TIME: 2023-07-25.06:12:22
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../chaum_fuzz_2 ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: cf76f8d7cfddc084f0c422583bf8a0c6.00000800.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/chaum_fuzz_result/SIGABRT.PC.7ffff77ae00b.STACK.1873eb6e60.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 906739
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff77ae00b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000001873eb6e60
+STACK:
+ <0x00007ffff778d859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a911> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba638c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63f7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba66a9> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x000000000044608e> [func:spark::Chaum::prove file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x0000000000431eb6> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00000000004936cf> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000040ec8e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+=====================================================================
+=====================================================================
+TIME: 2023-07-25.06:12:28
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../chaum_fuzz_2 ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 9701ee24f9fb6a409be2f7e31bde3f39.00001000.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/chaum_fuzz_result/SIGABRT.PC.7ffff77ae00b.STACK.1834690d10.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 920003
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff77ae00b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000001834690d10
+STACK:
+ <0x00007ffff778d859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a911> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba638c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63f7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba66a9> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7b9a522> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x000000000043aa35> [func:__gnu_cxx::new_allocator<secp_primitives::Scalar>::allocate file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000043a973> [func:std::allocator_traits<std::allocator<secp_primitives::Scalar> >::allocate file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000043a8f4> [func:std::_Vector_base<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::_M_allocate file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000043eaad> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::_M_default_append file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x0000000000433f27> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::resize file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00000000004314b4> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00000000004936cf> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000040ec8e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+=====================================================================
+=====================================================================
+TIME: 2023-07-25.06:23:27
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../chaum_fuzz_2 ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: bc662647c4cfdec8754e175d56577a62.00000020.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/chaum_fuzz_result/SIGSEGV.PC.457c64.STACK.18a6bbf905.CODE.1.ADDR.0.INSTR.movsbl_(%rsi),%r8d.fuzz
+PID: 2530166
+SIGNAL: SIGSEGV (11)
+PC: 0x457c64
+FAULT ADDRESS: 0x0
+INSTRUCTION: movsbl_(%rsi),%r8d
+STACK HASH: 00000018a6bbf905
+STACK:
+ <0x0000000000457bee> [func:secp_primitives::GroupElement::GroupElement file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00000000004492e6> [func:FuzzedSecp256k1Object::GetGroupElement file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x0000000000449547> [func:FuzzedSecp256k1Object::GetGroupElements file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000042c46a> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000047bf8f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x0000000000409d9e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+=====================================================================
+=====================================================================
+TIME: 2023-07-25.06:23:28
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../chaum_fuzz_2 ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 94b0359519fea9ad8266d81a3def71e1.00000a2b.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/chaum_fuzz_result/SIGABRT.PC.7ffff77ae00b.STACK.dbfdf782a.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 2533850
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff77ae00b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000000dbfdf782a
+STACK:
+ <0x00007ffff778d859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a911> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba638c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63f7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba66a9> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7b9d326> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x000000000043a0ce> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::_M_check_len file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x0000000000439bac> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::_M_default_append file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000042f037> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::resize file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000042c5c4> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000047bf8f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x0000000000409d9e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+=====================================================================
+=====================================================================
+TIME: 2023-07-25.06:23:28
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../chaum_fuzz_2 ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: cf76f8d7cfddc084f0c422583bf8a0c6.00000800.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/chaum_fuzz_result/SIGSEGV.PC.457c64.STACK.18a6a8ec50.CODE.1.ADDR.0.INSTR.movsbl_(%rsi),%r8d.fuzz
+PID: 2532868
+SIGNAL: SIGSEGV (11)
+PC: 0x457c64
+FAULT ADDRESS: 0x0
+INSTRUCTION: movsbl_(%rsi),%r8d
+STACK HASH: 00000018a6a8ec50
+STACK:
+ <0x0000000000457bd5> [func:secp_primitives::GroupElement::GroupElement file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00000000004492e6> [func:FuzzedSecp256k1Object::GetGroupElement file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x0000000000449547> [func:FuzzedSecp256k1Object::GetGroupElements file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000042c46a> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000047bf8f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x0000000000409d9e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+=====================================================================
+=====================================================================
+TIME: 2023-07-25.06:23:30
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../chaum_fuzz_2 ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 1bfda2bdff08835b3f1c215882c4ea51.00001128.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/chaum_fuzz_result/SIGABRT.PC.7ffff77ae00b.STACK.18f4289d46.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 2536905
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff77ae00b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 00000018f4289d46
+STACK:
+ <0x00007ffff778d859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a911> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba638c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63f7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba66a9> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7b9a522> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x0000000000435b45> [func:__gnu_cxx::new_allocator<secp_primitives::Scalar>::allocate file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x0000000000435a83> [func:std::allocator_traits<std::allocator<secp_primitives::Scalar> >::allocate file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x0000000000435a04> [func:std::_Vector_base<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::_M_allocate file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x0000000000439bbd> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::_M_default_append file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000042f037> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::resize file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000042c5c4> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000047bf8f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x0000000000409d9e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+=====================================================================
+=====================================================================
+TIME: 2023-07-25.06:23:31
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../chaum_fuzz_2 ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 9644a4ab1e93d0889a6c2bfdde80f79c.00000963.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/chaum_fuzz_result/SIGABRT.PC.7ffff77ae00b.STACK.18f18f309a.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 2540942
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff77ae00b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 00000018f18f309a
+STACK:
+ <0x00007ffff778d859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a911> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba638c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63f7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba66a9> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x000000000044119e> [func:spark::Chaum::prove file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000042cfc6> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000047bf8f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x0000000000409d9e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+=====================================================================
+=====================================================================
+TIME: 2023-08-03.06:32:30
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../chaum_fuzz_2 ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 4832ccea33fa8337a9b54e49468823c4.000010f1.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/chaum_fuzz_result_2/SIGABRT.PC.7ffff77ae00b.STACK.c31dd066.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 429998
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff77ae00b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 00000000c31dd066
+STACK:
+ <0x00007ffff778d859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a911> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+=====================================================================
+=====================================================================
+TIME: 2023-08-03.06:32:30
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../chaum_fuzz_2 ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: f900ae0d77d4c2ad13862cc368b6454f.00001007.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/chaum_fuzz_result_2/SIGABRT.PC.7ffff77ae00b.STACK.1806534339.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 430872
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff77ae00b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000001806534339
+STACK:
+ <0x00007ffff778d859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a8d1> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba637c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63e7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba6699> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7b9a4e2> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x0000000000435b45> [func:__gnu_cxx::new_allocator<secp_primitives::Scalar>::allocate file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x0000000000435a83> [func:std::allocator_traits<std::allocator<secp_primitives::Scalar> >::allocate file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x0000000000435a04> [func:std::_Vector_base<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::_M_allocate file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x0000000000439bbd> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::_M_default_append file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000042f037> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::resize file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000042c5c4> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000047bf8f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x0000000000409d9e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+=====================================================================
+=====================================================================
+TIME: 2023-08-03.06:32:30
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../chaum_fuzz_2 ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 00000000000000000000000000000000.00001000.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/chaum_fuzz_result_2/SIGABRT.PC.7ffff77ae00b.STACK.1836886ae4.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 430994
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff77ae00b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000001836886ae4
+STACK:
+ <0x00007ffff778d859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a8d1> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba637c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63e7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba6699> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x000000000044119e> [func:spark::Chaum::prove file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000042cfc6> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000047bf8f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x0000000000409d9e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+=====================================================================
+=====================================================================
+TIME: 2023-08-03.06:32:30
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../chaum_fuzz_2 ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 8703f1b7d6de07a8c113ef98547def7e.00001029.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/chaum_fuzz_result_2/SIGABRT.PC.7ffff77ae00b.STACK.d3ac7ebba.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 430881
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff77ae00b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000000d3ac7ebba
+STACK:
+ <0x00007ffff778d859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a8d1> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba637c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63e7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba6699> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7b9d2e4> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x000000000043a0ce> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::_M_check_len file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x0000000000439bac> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::_M_default_append file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000042f037> [func:std::vector<secp_primitives::Scalar, std::allocator<secp_primitives::Scalar> >::resize file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000042c5c4> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x000000000047bf8f> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+ <0x00007ffff778f083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x0000000000409d9e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/chaum_fuzz_2]
+=====================================================================
