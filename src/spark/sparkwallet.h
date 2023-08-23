@@ -145,15 +145,15 @@ public:
     // to protect coinMeta
     mutable CCriticalSection cs_spark_wallet;
 
-private:
-    std::string strWalletFile;
-    // this is latest used diversifier
-    int32_t lastDiversifier;
-
     // this is full view key, which is saved into db
     spark::FullViewKey fullViewKey;
     // this is incoming view key
     spark::IncomingViewKey viewKey;
+
+private:
+    std::string strWalletFile;
+    // this is latest used diversifier
+    int32_t lastDiversifier;
 
     // map diversifier to address.
     std::unordered_map<int32_t, spark::Address> addresses;

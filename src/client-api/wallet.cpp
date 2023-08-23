@@ -223,6 +223,8 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         assert(elysium::wallet->lelantusWallet.database);
     }
 
+    const spark::Params* sparkParams = Params().NetworkIDString() == "main" ? spark::Params::get_default() : spark::Params::get_test();
+
     UniValue txData = UniValue::VOBJ;
 
     bool fIsFromMe = false;
@@ -258,31 +260,32 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     }
     txData.pushKV("lelantusInputSerialHashes", lelantusInputSerialHashes);
 
-    UniValue sparkInputLTagHashes = UniValue::VARR;
+    UniValue sparkInputSerialHashes = UniValue::VARR;
+    std::unique_ptr<spark::SpendTransaction> sparkTx = nullptr;
     if (wtx.tx->IsSparkSpend()) {
-        spark::SpendTransaction* spend = nullptr;
+        bool ok = true;
+        spark::SpendTransaction spendTx(sparkParams);
         try {
-            *spend = spark::ParseSparkSpend(*wtx.tx);
-        } catch (CBadTxIn& e) {
-            LogPrintf("Unable to parse Spark spend transaction %s\n", wtx.GetHash().ToString());
+            spendTx = spark::ParseSparkSpend(wtx);
+        } catch (std::runtime_error& e) {
+            LogPrintf("Error parsing spark spend %s: %s\n", wtx.GetHash().ToString(), e.what());
+            ok = false;
         }
 
-        if (spend) {
-            for (const auto& lTag : spend->getUsedLTags()) {
-                sparkInputLTagHashes.push_back(primitives::GetLTagHash(lTag).GetHex());
-            }
+        if (ok) {
+            for (const secp_primitives::GroupElement& ltag: spendTx.getUsedLTags())
+                sparkInputSerialHashes.push_back(primitives::GetLTagHash(ltag).GetHex());
         }
     }
-    txData.pushKV("sparkInputLTagHashes", sparkInputLTagHashes);
+    txData.pushKV("sparkInputSerialHashes", sparkInputSerialHashes);
 
-    int64_t fee = 0;
-    int64_t amount = 0;
+    CAmount fee = 0;
     if (fIsMining) {
         fee = 0;
     } else if (joinSplit) {
         fee = joinSplit->getFee();
-    } else if (wtx.tx->IsSparkSpend()) {
-        //already set
+    } else if (sparkTx) {
+        fee = sparkTx->getFee();
     } else {
         CAmount nDebit = wtx.GetDebit(ISMINE_SPENDABLE);
         CAmount nValueOut = wtx.tx->GetValueOut();
@@ -291,6 +294,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         fee = nDebit - nValueOut;
     }
 
+    CAmount amount = 0;
     UniValue outputs = UniValue::VARR;
     int n = -1;
     for (const CTxOut &txout: wtx.tx->vout) {
@@ -300,14 +304,17 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         bool fIsChange = !fIsMining && wtx.IsChange(n);
         bool fIsToMe = false;
         bool fIsSpent = true;
+        bool fHasSparkSpend = false;
 
         uint256 lelantusSerialHash;
+        uint256 sparkSerialHash;
         if (txout.scriptPubKey.IsLelantusMint()) {
             secp_primitives::GroupElement pub;
             bool ok = true;
             try {
                 lelantus::ParseLelantusMintScript(txout.scriptPubKey, pub);
             } catch (std::invalid_argument&) {
+                LogPrintf("Unable to parse Lelantus mint script %s-%d\n", wtx.GetHash().ToString(), n);
                 ok = false;
             }
 
@@ -329,6 +336,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
             try {
                 lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pub, encryptedValue);
             } catch (std::invalid_argument&) {
+                LogPrintf("Unable to parse Lelantus jmint script %s-%d\n", wtx.GetHash().ToString(), n);
                 ok = false;
             }
 
@@ -344,13 +352,17 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                 }
             }
         } else if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
-            spark::Coin coin(spark::Params::get_default());
+            spark::Coin coin(sparkParams);
             bool ok = true;
             try {
                 spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
-            } catch (std::invalid_argument&) {
+            } catch (std::invalid_argument& e) {
+                LogPrintf("error in stateWallet: unable to parse spark mint %s-%d: %s\n", wtx.GetHash().ToString(), n, e.what());
                 ok = false;
             }
+
+            if (pwalletMain->sparkWallet == nullptr)
+                ok = false;
 
             if (ok) {
                  CSparkMintMeta mintMeta;
@@ -359,12 +371,20 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                     amount = mintMeta.v;
                     fIsSpent = mintMeta.isUsed;
                     fIsToMe = true;
+
+                    try {
+                        spark::IdentifiedCoinData identifiedCoinData = coin.identify(pwalletMain->sparkWallet->viewKey);
+                        spark::RecoveredCoinData recoveredCoinData = coin.recover(pwalletMain->sparkWallet->fullViewKey, identifiedCoinData);
+                        sparkSerialHash = primitives::GetLTagHash(recoveredCoinData.T);
+                    } catch (std::runtime_error& e) {
+                        LogPrintf("error in stateWallet: unable to recover spark mint %s-%d: %s\n", wtx.GetHash().ToString(), n, e.what());
+                        // mark the mint as not ours since we can't recover its linking tag
+                        fIsToMe = false;
+                    }
                 } else {
                     fIsToMe = false;
-                    fIsSpent = pwalletMain->IsSpent(wtx.tx->GetHash(), n);
-                    if (txout.scriptPubKey.IsSparkMint()) {
+                    if (txout.scriptPubKey.IsSparkMint())
                         amount = txout.nValue;
-                    }
                 }
             }
         } else {
@@ -384,11 +404,12 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         output.pushKV("amount", BigInt(amount));
         output.pushKV("isChange", fIsChange);
         output.pushKV("isLocked", !!pwalletMain->setLockedCoins.count(COutPoint(wtx.tx->GetHash(), n)));
-        output.pushKV("isSpent", fIsSpent);
         output.pushKV("isToMe", fIsToMe);
         output.pushKV("isElysiumReferenceOutput", wtx.tx->IsElysiumReferenceOutput(n));
+        if (fIsToMe) output.pushKV("isSpent", fIsSpent);
         if (hasDestination) output.pushKV("destination", CBitcoinAddress(destination).ToString());
         if (!lelantusSerialHash.IsNull()) output.pushKV("lelantusSerialHash", lelantusSerialHash.GetHex());
+        if (!sparkSerialHash.IsNull()) output.pushKV("sparkSerialHash", sparkSerialHash.GetHex());
 
         outputs.push_back(output);
     }
