@@ -45,9 +45,9 @@ docker run -d --name firod -v "${HOME}/.firo:/home/firod/.firo" firo-local
 
 This will start a detached docker container, which you can interact with using `docker exec`. See the section "Interact with the container" for a list of useful commands you can use to manage your node. Make sure to change `firod` with `firo-local`, if you have built the local Docker image.
 
-## Docker image on DokerHub
+## Docker image on DockerHub
 
-Pull our latest official Docker image:
+Pull our [latest official Docker image](https://hub.docker.com/r/firoorg/firod):
 
 ```sh
 docker pull firoorg/firod
