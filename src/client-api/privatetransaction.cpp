@@ -151,7 +151,7 @@ UniValue mintSpark(Type type, const UniValue& data, const UniValue& auth, bool f
     std::string strAddress = find_value(data, "recipient").get_str();
     if (!isSparkAddress(address, strAddress)) throw JSONAPIError(API_INVALID_REQUEST, "invalid address");
     CAmount amount = get_bigint(data["amount"]);
-    if (!amount) throw JSONAPIError(API_INVALID_REQUEST, "amount must be greater than 0");
+    if (amount <= 0) throw JSONAPIError(API_INVALID_REQUEST, "amount must be greater than 0");
     std::string label = find_value(data, "label").get_str();
     CCoinControl coinControl;
     bool fHasCoinControl = GetCoinControl(data, coinControl);
@@ -166,36 +166,30 @@ UniValue mintSpark(Type type, const UniValue& data, const UniValue& auth, bool f
     mdata.v = amount;
     outputs.push_back(mdata);
 
-    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    std::vector<std::pair<CWalletTx, CAmount>> wtxsAndFees;
 
     uint64_t value = 0;
     for (auto& output : outputs)
         value += output.v;
 
-    if ((value + payTxFee.GetFeePerK()) > pwalletMain->GetBalance())
-        return _("Insufficient funds");
-
-    LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
     int64_t nFeeRequired = 0;
-
     int nChangePosRet = -1;
-
     std::list<CReserveKey> reservekeys;
     std::string strError;
-    if (!pwalletMain->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, fSubtractFeeFromAmount, strError, fHasCoinControl? (&coinControl):NULL, false)) {
-        return strError;
+    if (!pwalletMain->CreateSparkMintTransactions(outputs, wtxsAndFees, nFeeRequired, reservekeys, nChangePosRet, fSubtractFeeFromAmount, strError, fHasCoinControl? (&coinControl) : nullptr, false)) {
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
 
     UniValue txids(UniValue::VARR);
     CValidationState state;
     auto reservekey = reservekeys.begin();
-    for(size_t i = 0; i < wtxAndFee.size(); i++) {
-        if (!pwalletMain->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state)) {
-            return _(
-                    "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+    for(size_t i = 0; i < wtxsAndFees.size(); i++) {
+        if (!pwalletMain->CommitTransaction(wtxsAndFees[i].first, *reservekey++, g_connman.get(), state)) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
         }
 
-        txids.push_back(wtxAndFee[i].first.GetHash().GetHex());
+        txids.push_back(wtxsAndFees[i].first.GetHash().GetHex());
+        GetMainSignals().WalletTransaction(wtxsAndFees[i].first);
     }
 
     UniValue retval(UniValue::VOBJ);
@@ -260,6 +254,8 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
         throw JSONAPIError(API_INTERNAL_ERROR, "We have produced a transaction with a fee above 1 FIRO. This is almost certainly a bug.");
     }
 
+    GetMainSignals().WalletTransaction(wtx);
+
     UniValue retval(UniValue::VOBJ);
     retval.push_back(Pair("txid", wtx.GetHash().GetHex()));
     return retval;
@@ -316,6 +312,8 @@ UniValue lelantusToSpark(Type type, const UniValue& data, const UniValue& auth, 
     }
     if (!passed || strFailReason != "")
         throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus to Spark failed. " + strFailReason);
+
+    // TODO: The client must call stateWallet after this method. We should send relevant transactions instead.
 
     return NullUniValue;
 }
