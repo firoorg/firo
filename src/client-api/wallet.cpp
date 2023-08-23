@@ -241,7 +241,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         else if (txin.IsLelantusJoinSplit()) inputType = "lelantus";
     }
     if (wtx.tx->IsSparkSpend()) inputType = "sparkspend";
-    if (wtx.tx->IsSparkMint()) inputType = "sparkmint";  
+    if (wtx.tx->IsSparkMint()) inputType = "sparkmint";
     if (inputType == "public" && wtx.tx->vin.size() == 1 && wtx.tx->vin[0].prevout.IsNull()) {
         inputType = "mined";
         fIsMining = true;
@@ -592,7 +592,7 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
             // slack space in .dat files; that is bad if the old data is
             // unencrypted private keys. So:
             StartShutdown();
-            return "wallet encrypted; zcoin server stopping, restart to run with encrypted wallet. The keypool has been flushed and a new HD seed was generated (if you are using HD). You need to make a new backup.";   
+            return "wallet encrypted; zcoin server stopping, restart to run with encrypted wallet. The keypool has been flushed and a new HD seed was generated (if you are using HD). You need to make a new backup.";
             break;
         }
         default: {
@@ -663,7 +663,7 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
     return true;
 }
 
-void parseCoins(const std::string input, std::vector<COutPoint>& output) 
+void parseCoins(const std::string input, std::vector<COutPoint>& output)
 {
     std::vector<std::string> selectedKeys;
     boost::split(selectedKeys, input, boost::is_any_of(":"));
@@ -801,7 +801,7 @@ UniValue readaddressbook(Type type, const UniValue& data, const UniValue& auth, 
 
     for (std::map<CTxDestination, CAddressBookData>::const_iterator it = pwalletMain->mapAddressBook.begin(); it != pwalletMain->mapAddressBook.end(); ++it) {
         CBitcoinAddress addr;
-        if (addr.Set(it->first)) 
+        if (addr.Set(it->first))
         {
             UniValue item(UniValue::VOBJ);
             item.push_back(Pair("addressType", "Transparent"));
@@ -815,7 +815,7 @@ UniValue readaddressbook(Type type, const UniValue& data, const UniValue& auth, 
 
     for (std::map<std::string, CAddressBookData>::const_iterator it = pwalletMain->mapSparkAddressBook.begin(); it != pwalletMain->mapSparkAddressBook.end(); ++it) {
         std::string addr = it->first;
-        if (isSparkAddress(addr)) 
+        if (isSparkAddress(addr))
         {
             UniValue item(UniValue::VOBJ);
             item.push_back(Pair("addressType", "Spark"));
@@ -834,16 +834,16 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
     LOCK(pwalletMain->cs_wallet);
-    if (find_value(data, "action").isNull()) 
+    if (find_value(data, "action").isNull())
     {
         throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
     }
     std::string action = find_value(data, "action").getValStr();
-    if (action != "add" && action != "edit" && action != "delete") 
+    if (action != "add" && action != "edit" && action != "delete")
     {
         throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
     }
-    if (find_value(data, "address").isNull()) 
+    if (find_value(data, "address").isNull())
     {
         throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
     }
@@ -856,13 +856,13 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
        throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
-    if (action != "delete") 
+    if (action != "delete")
     {
-        if (find_value(data, "label").isNull() || find_value(data, "purpose").isNull()) 
+        if (find_value(data, "label").isNull() || find_value(data, "purpose").isNull())
         {
             throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
         }
-        if (action == "add") 
+        if (action == "add")
         {
             if(isSparkAddress(address)) {
                 pwalletMain->SetSparkAddressBook(address, find_value(data, "label").getValStr(), find_value(data, "purpose").getValStr());
@@ -877,7 +877,7 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
             std::string updatedLabel = find_value(data, "updatedlabel").getValStr();
             std::string updatedStrAddress = find_value(data, "updatedaddress").getValStr();
             CTxDestination updatedAddress = CBitcoinAddress(updatedStrAddress).Get();
-            if(boost::get<CNoDestination>(&updatedAddress) && !isSparkAddress(updatedStrAddress)) 
+            if(boost::get<CNoDestination>(&updatedAddress) && !isSparkAddress(updatedStrAddress))
             {
                 throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid address");
             }
