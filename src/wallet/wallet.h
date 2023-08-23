@@ -1187,6 +1187,8 @@ public:
     DBErrors ZapSigmaMints();
     // Remove all Lelantus HDMint objects from WalletDB
     DBErrors ZapLelantusMints();
+    // Remove all Spark Mint objects from WalletDB
+    DBErrors ZapSparkMints();
 
     bool SetAddressBook(const CTxDestination& address, const std::string& strName, const std::string& purpose);
     bool SetSparkAddressBook(const std::string& address, const std::string& strName, const std::string& purpose);
