@@ -113,22 +113,31 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
         if (nNet > 0)
         {
             // Credit
+            strHTML += "<b>" + tr("From") + ":</b> " + tr("unknown") + "<br>";
+            strHTML += "<b>" + tr("To") + ":</b> ";
+            strHTML += GUIUtil::HtmlEscape(rec->address);
             if (CBitcoinAddress(rec->address).IsValid())
             {
                 CTxDestination address = CBitcoinAddress(rec->address).Get();
                 if (wallet->mapAddressBook.count(address))
                 {
-                    strHTML += "<b>" + tr("From") + ":</b> " + tr("unknown") + "<br>";
-                    strHTML += "<b>" + tr("To") + ":</b> ";
-                    strHTML += GUIUtil::HtmlEscape(rec->address);
                     QString addressOwned = (::IsMine(*wallet, address) == ISMINE_SPENDABLE) ? tr("own address") : tr("watch-only");
                     if (!wallet->mapAddressBook[address].name.empty())
                         strHTML += " (" + addressOwned + ", " + tr("label") + ": " + GUIUtil::HtmlEscape(wallet->mapAddressBook[address].name) + ")";
                     else
                         strHTML += " (" + addressOwned + ")";
-                    strHTML += "<br>";
+                }
+            } else if(wallet->validateSparkAddress(rec->address)) {
+                if (wallet->mapSparkAddressBook.count(rec->address))
+                {
+                    QString addressOwned = wallet->IsSparkAddressMine(rec->address) ? tr("own address") : tr("watch-only");
+                    if (!wallet->mapSparkAddressBook[rec->address].name.empty())
+                        strHTML += " (" + addressOwned + ", " + tr("label") + ": " + GUIUtil::HtmlEscape(wallet->mapSparkAddressBook[rec->address].name) + ")";
+                    else
+                        strHTML += " (" + addressOwned + ")";
                 }
             }
+            strHTML += "<br>";
         }
     }
 
@@ -201,40 +210,37 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
                 isminetype toSelf = wallet->IsMine(txout);
                 if ((toSelf == ISMINE_SPENDABLE) && (fAllFromMe == ISMINE_SPENDABLE))
                     continue;
-
+                CSparkOutputTx sparkOutput;
                 if (!wtx.mapValue.count("to") || wtx.mapValue["to"].empty())
                 {
                     // Offline transaction
                     CTxDestination address;
+                    strHTML += "<b>" + tr("To") + ":</b> ";
                     if (ExtractDestination(txout.scriptPubKey, address))
                     {
-                        strHTML += "<b>" + tr("To") + ":</b> ";
                         if (wallet->mapAddressBook.count(address) && !wallet->mapAddressBook[address].name.empty())
                             strHTML += GUIUtil::HtmlEscape(wallet->mapAddressBook[address].name) + " ";
                         strHTML += GUIUtil::HtmlEscape(CBitcoinAddress(address).ToString());
-                        if(toSelf == ISMINE_SPENDABLE)
-                            strHTML += " (own address)";
-                        else if(toSelf & ISMINE_WATCH_ONLY)
-                            strHTML += " (watch-only)";
-                        strHTML += "<br>";
+                    } else if(wallet->GetSparkOutputTx(txout.scriptPubKey, sparkOutput)) {
+                        if (wallet->mapSparkAddressBook.count(sparkOutput.address) && !wallet->mapSparkAddressBook[sparkOutput.address].name.empty())
+                            strHTML += GUIUtil::HtmlEscape(wallet->mapSparkAddressBook[sparkOutput.address].name) + " ";
+                        strHTML += GUIUtil::HtmlEscape(sparkOutput.address);
                     }
+                    if(toSelf == ISMINE_SPENDABLE)
+                        strHTML += " (own address)";
+                    else if(toSelf & ISMINE_WATCH_ONLY)
+                        strHTML += " (watch-only)";
+                    strHTML += "<br>";
                 }
-
-                int64_t sfee = 0;
-                if (wtx.tx->IsSparkSpend()) {
-                    try {
-                        spark::SpendTransaction spend = spark::ParseSparkSpend(*wtx.tx);
-                        sfee = spend.getFee();
-                    } catch (...) {
-                    }
-                    strHTML += "<b>" + tr("Debit") + ":</b> " +  BitcoinUnits::formatHtmlWithUnit(unit, nNet + sfee) + "<br>";
+                if(wtx.tx->IsSparkSpend() && wallet->validateSparkAddress(sparkOutput.address)) {
+                    strHTML += "<b>" + tr("Debit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -sparkOutput.amount) + "<br>";
                 } else {
                     strHTML += "<b>" + tr("Debit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -txout.nValue) + "<br>";
                 }
 
                 if(toSelf) {
-                    if (wtx.tx->IsSparkSpend()) {
-                        strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -nNet - sfee) + "<br>";
+                    if(wtx.tx->IsSparkSpend() && wallet->validateSparkAddress(sparkOutput.address)) {
+                        strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, sparkOutput.amount) + "<br>";
                     } else {
                         strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, txout.nValue) + "<br>";
                     }

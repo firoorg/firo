@@ -8182,7 +8182,7 @@ bool CWallet::validateAddress(const std::string& address)
     return addressParsed.IsValid();
 }
 
-bool CWallet::validateSparkAddress(const std::string& address)
+bool CWallet::validateSparkAddress(const std::string& address) const
 {
     const spark::Params* params = spark::Params::get_default();
     unsigned char network = spark::GetNetworkType();
@@ -8194,6 +8194,12 @@ bool CWallet::validateSparkAddress(const std::string& address)
         return false;
     }
     return network == coinNetwork;
+}
+
+bool CWallet::GetSparkOutputTx(const CScript& scriptPubKey, CSparkOutputTx& output) const
+{
+    CWalletDB walletdb(strWalletFile);
+    return  walletdb.ReadSparkOutputTx(scriptPubKey, output);
 }
 
 bool CWallet::SetRAPAddressBook(const std::string& address, const std::string& strName, const std::string& strPurpose)

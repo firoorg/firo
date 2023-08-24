@@ -190,6 +190,7 @@ struct CRecipient
     CScript scriptPubKey;
     CAmount nAmount;
     bool fSubtractFeeFromAmount;
+    std::string address;
 };
 
 typedef std::map<std::string, std::string> mapValue_t;
@@ -718,10 +719,6 @@ private:
      * nTimeFirstKey more intelligently for more efficient rescans.
      */
     bool AddWatchOnly(const CScript& dest) override;
-
-    bool validateAddress(const std::string& address);
-
-    bool validateSparkAddress(const std::string& address);
 
 public:
     /*
@@ -1401,6 +1398,10 @@ public:
 
     void NotifyTransactionLock(const CTransaction &tx) override;
     void NotifyChainLock(const CBlockIndex* pindexChainLock) override;
+
+    bool validateAddress(const std::string& address);
+    bool validateSparkAddress(const std::string& address) const;
+    bool GetSparkOutputTx(const CScript& scriptPubKey, CSparkOutputTx& output) const;
 };
 
 /** A key allocated from the key pool. */

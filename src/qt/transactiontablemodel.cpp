@@ -498,13 +498,18 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     case TransactionRecord::SpendToAddress:
     case TransactionRecord::SendToPcode:
     case TransactionRecord::Generated:
+    case TransactionRecord::RecvSpark:
+    case TransactionRecord::MintSparkTo:
+    case TransactionRecord::SpendSparkTo:
         return lookupAddress(wtx, tooltip) + watchAddress;
     case TransactionRecord::SendToOther:
         return QString::fromStdString(wtx->address) + watchAddress;
     case TransactionRecord::Anonymize:
+    case TransactionRecord::MintSparkToSelf:
         return tr("Anonymized");
     case TransactionRecord::SendToSelf:
     case TransactionRecord::SpendToSelf:
+    case TransactionRecord::SpendSparkToSelf:
     default:
         return tr("(n/a)") + watchAddress;
     }

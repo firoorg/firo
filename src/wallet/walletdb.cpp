@@ -1762,6 +1762,16 @@ std::unordered_map<uint256, CSparkMintMeta> CWalletDB::ListSparkMints()
     return listMints;
 }
 
+bool CWalletDB::WriteSparkOutputTx(const CScript& scriptPubKey, const CSparkOutputTx& output)
+{
+    return Write(std::make_pair(std::string("sparkOutputTx"), scriptPubKey), output);
+}
+
+bool CWalletDB::ReadSparkOutputTx(const CScript& scriptPubKey, CSparkOutputTx& output)
+{
+    return Read(std::make_pair(std::string("sparkOutputTx"), scriptPubKey), output);
+}
+
 bool CWalletDB::WriteSparkMint(const uint256& lTagHash, const CSparkMintMeta& mint)
 {
     return Write(std::make_pair(std::string("sparkMint"), lTagHash), mint);
