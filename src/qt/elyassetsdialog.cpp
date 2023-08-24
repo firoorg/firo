@@ -80,7 +80,6 @@ ElyAssetsDialog::ElyAssetsDialog(QWidget *parent) :
     ui->balancesTable->resizeColumnToContents(1);
     ui->balancesTable->resizeColumnToContents(3);
     ui->balancesTable->resizeColumnToContents(4);
-    borrowedColumnResizingFixer->stretchColumnWidth(2);
     ui->balancesTable->verticalHeader()->setVisible(false);
     ui->balancesTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     ui->balancesTable->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -234,12 +233,4 @@ void ElyAssetsDialog::balancesCopyCol3()
 void ElyAssetsDialog::balancesCopyCol4()
 {
     GUIUtil::setClipboard(ui->balancesTable->item(ui->balancesTable->currentRow(),4)->text());
-}
-
-// We override the virtual resizeEvent of the QWidget to adjust tables column
-// sizes as the tables width is proportional to the dialogs width.
-void ElyAssetsDialog::resizeEvent(QResizeEvent* event)
-{
-    QWidget::resizeEvent(event);
-    borrowedColumnResizingFixer->stretchColumnWidth(2);
 }
