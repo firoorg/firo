@@ -75,6 +75,7 @@ private:
 
     QModelIndex selectedRow();
     void copyColumnToClipboard(int column);
+    RecentRequestsFilterProxy *recentRequestsProxyModel;
 
 private Q_SLOTS:
     void on_receiveButton_clicked();
