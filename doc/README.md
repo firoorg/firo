@@ -1,38 +1,13 @@
-Firo Core 0.14.11.x
-=====================
+# Firo Core
+*Note: some of the documents in this repository might still refer to Bitcoin*
 
-Setup
----------------------
+## Setup
+
 [Firo Core] (https://firo.org/get-firo/download/) is the original Firo client and it builds the backbone of the network. However, it downloads and stores the entire history of Firo transactions (which is currently several hundreds MBs); depending on the speed of your computer and network connection, the synchronization process can take anywhere from a few hours to a day or more.
 
-Running
----------------------
-The following are some helpful notes on how to run Firo on your native platform.
 
-### Unix
+## Building
 
-Unpack the files into a directory and run:
-
-- `bin/firo-qt` (GUI) or
-- `bin/firod` (headless)
-
-### Windows
-
-Unpack the files into a directory, and then run firo-qt.exe.
-
-### OS X
-
-Drag Firo-Core to your applications folder, and then run Firo-Core.
-
-### Need Help?
-
-* See the documentation at the [Bitcoin Wiki](https://en.bitcoin.it/wiki/Main_Page)
-for help and more information.
-* Ask for help on [#bitcoin](http://webchat.freenode.net?channels=bitcoin) on Freenode. If you don't have an IRC client use [webchat here](http://webchat.freenode.net?channels=bitcoin).
-* Ask for help on the [BitcoinTalk](https://bitcointalk.org/) forums, in the [Technical Support board](https://bitcointalk.org/index.php?board=4.0).
-
-Building
----------------------
 The following are developer notes on how to build Firo on your native platform. They are not complete guides, but include notes on the necessary libraries, compile flags, etc.
 
 - [OS X Build Notes](build-osx.md)

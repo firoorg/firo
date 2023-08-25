@@ -23,12 +23,20 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
     fullViewKey = spark::FullViewKey(params);
     viewKey = spark::IncomingViewKey(params);
 
+    bool fWalletJustUnlocked = false;
+
     // try to get incoming view key from db, if it fails, that means it is first start
     if (!walletdb.readFullViewKey(fullViewKey)) {
         if (pwalletMain->IsLocked()) {
-            LogPrintf("Spark wallet creation FAILED, wallet is locked\n");
-            return;
+            pwalletMain->RequestUnlock();
+            if (pwalletMain->WaitForUnlock()) {
+                fWalletJustUnlocked = true;
+            } else {
+                throw std::runtime_error("Spark wallet creation FAILED, wallet could not be unlocked\n");
+                return;
+            }
         }
+
         // Generating spark key set first time
         spark::SpendKey spendKey = generateSpendKey(params);
         fullViewKey = generateFullViewKey(spendKey);
@@ -63,8 +71,12 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 
             }
         }
+
     }
     threadPool = new ParallelOpThreadPool<void>(boost::thread::hardware_concurrency());
+
+    if (fWalletJustUnlocked)
+        pwalletMain->Lock();
 }
 
 CSparkWallet::~CSparkWallet() {
@@ -1391,8 +1403,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 privOutputs.push_back(output);
             }
 
-            if (spendInCurrentTx <= 0)
-                throw std::invalid_argument(_("Unable to create spend transaction."));;
+            if (spendInCurrentTx < 0)
+                throw std::invalid_argument(_("Unable to create spend transaction."));
 
             if (!privOutputs.size() || spendInCurrentTx > 0) {
                 spark::OutputCoinData output;

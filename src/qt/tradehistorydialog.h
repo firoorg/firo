@@ -53,8 +53,6 @@ public:
     ~TradeHistoryDialog();
     void setWalletModel(WalletModel *model);
     void setClientModel(ClientModel *model);
-    GUIUtil::TableViewLastColumnResizingFixer *borrowedColumnResizingFixer;
-    virtual void resizeEvent(QResizeEvent* event);
 
 private:
     Ui::tradeHistoryDialog *ui;

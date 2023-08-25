@@ -887,7 +887,7 @@ UniValue getprivatebalance(const JSONRPCRequest& request)
     EnsureLelantusWalletIsAvailable();
     LOCK2(cs_main, pwallet->cs_wallet);
 
-    return  ValueFromAmount(pwallet->GetPrivateBalance().first);
+    return  ValueFromAmount(pwallet->GetPrivateBalance().first + pwallet->sparkWallet->getAvailableBalance());
 }
 
 UniValue gettotalbalance(const JSONRPCRequest& request)
@@ -915,6 +915,7 @@ UniValue gettotalbalance(const JSONRPCRequest& request)
     EnsureLelantusWalletIsAvailable();
     EnsureSparkWalletIsAvailable();
     LOCK2(cs_main, pwallet->cs_wallet);
+
 
     return  ValueFromAmount(pwallet->GetBalance() + pwallet->GetPrivateBalance().first + pwallet->sparkWallet->getAvailableBalance());
 }
@@ -1575,7 +1576,7 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
             }
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination, addr);
-            if (wtx.tx->IsZerocoinSpend() || wtx.tx->IsSigmaSpend() || wtx.tx->IsZerocoinRemint() || wtx.tx->IsLelantusJoinSplit() || wtx.tx->IsSparkSpend()) {
+            if (wtx.tx->HasNoRegularInputs()) {
                 entry.push_back(Pair("category", "spend"));
             }
             else if (wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint() || wtx.tx->IsSparkMint()) {
@@ -3203,6 +3204,7 @@ UniValue listunspentsparkmints(const JSONRPCRequest& request) {
     UniValue results(UniValue::VARR);;
     assert(pwallet != NULL);
 
+
     std::list<CSparkMintMeta> coins = pwallet->sparkWallet->GetAvailableSparkCoins();
     LogPrintf("coins.size()=%s\n", coins.size());
     BOOST_FOREACH(const auto& coin, coins)
@@ -3247,6 +3249,7 @@ UniValue listsparkmints(const JSONRPCRequest& request) {
     }
 
     EnsureSparkWalletIsAvailable();
+
 
     UniValue results(UniValue::VARR);;
     assert(pwallet != NULL);
@@ -3404,6 +3407,7 @@ UniValue getsparkbalance(const JSONRPCRequest& request) {
 
     EnsureSparkWalletIsAvailable();
     assert(pwallet != NULL);
+
     UniValue results(UniValue::VOBJ);
     results.push_back(Pair("availableBalance",pwallet->sparkWallet->getAvailableBalance()));
     results.push_back(Pair("unconfirmedBalance",pwallet->sparkWallet->getUnconfirmedBalance()));
@@ -3428,6 +3432,7 @@ UniValue getsparkaddressbalance(const JSONRPCRequest& request) {
 
     EnsureSparkWalletIsAvailable();
     assert(pwallet != NULL);
+
     std::string strAddress = request.params[0].get_str();
     const spark::Params* params = spark::Params::get_default();
     unsigned char network = spark::GetNetworkType();
@@ -3518,7 +3523,7 @@ UniValue mintspark(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() == 0 || request.params.size() > 2)
         throw std::runtime_error(
-            "mintspark {\"address\":amount,memo...}\n"
+            "mintspark {\"address\":{amount,memo...}}\n"
             + HelpRequiringPassphrase(pwallet) + "\n"
                                                  "\nArguments:\n"
                                                  "    {\n"
@@ -3645,7 +3650,7 @@ UniValue spendspark(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "spendspark {\"address\":amount,subtractfee...} {\"address\":amount,memo,subtractfee...}\n"
+                "spendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
                                                      "\nArguments:\n"
                                                      "{\n"

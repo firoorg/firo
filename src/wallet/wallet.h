@@ -759,6 +759,8 @@ public:
 
     std::unique_ptr<CSparkWallet> sparkWallet;
 
+    std::atomic<bool> fUnlockRequested;
+
     CWallet()
     {
         SetNull();
@@ -902,6 +904,9 @@ public:
     bool Unlock(const SecureString& strWalletPassphrase, const bool& fFirstUnlock=false);
     bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
+
+    void RequestUnlock();
+    bool WaitForUnlock();
 
     void GetKeyBirthTimes(std::map<CTxDestination, int64_t> &mapKeyBirth) const;
 
@@ -1186,6 +1191,8 @@ public:
     DBErrors ZapSigmaMints();
     // Remove all Lelantus HDMint objects from WalletDB
     DBErrors ZapLelantusMints();
+    // Remove all Spark Mint objects from WalletDB
+    DBErrors ZapSparkMints();
 
     bool SetAddressBook(const CTxDestination& address, const std::string& strName, const std::string& purpose);
     bool SetSparkAddressBook(const std::string& address, const std::string& strName, const std::string& purpose);

@@ -459,6 +459,7 @@ public:
     bool IsSparkMint() const;
 
     bool HasNoRegularInputs() const;
+    bool HasPrivateInputs() const;
 
     /**
      * Get the total transaction size in bytes, including witness data.

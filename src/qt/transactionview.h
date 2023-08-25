@@ -51,7 +51,7 @@ public:
     };
 
     enum ColumnWidths {
-        STATUS_COLUMN_WIDTH = 30,
+        STATUS_COLUMN_WIDTH = 170,
         WATCHONLY_COLUMN_WIDTH = 23,
         INSTANTSEND_COLUMN_WIDTH = 23,
         DATE_COLUMN_WIDTH = 120,
@@ -88,10 +88,6 @@ private:
     QWidget *createDateRangeWidget();
     void updateCalendarWidgets();
 
-    GUIUtil::TableViewLastColumnResizingFixer *columnResizingFixer;
-
-    virtual void resizeEvent(QResizeEvent* event);
-
     bool eventFilter(QObject *obj, QEvent *event);
 
 private Q_SLOTS:
@@ -111,7 +107,6 @@ private Q_SLOTS:
     void abandonTx();
     void rebroadcastTx();
     void reconsiderBip47Tx();
-
 Q_SIGNALS:
     void doubleClicked(const QModelIndex&);
 

@@ -496,11 +496,32 @@ bool CWallet::Unlock(const SecureString &strWalletPassphrase, const bool& fFirst
                 return false;
             if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey))
                 continue; // try another master key
-            if (CCryptoKeyStore::Unlock(vMasterKey, fFirstUnlock))
+            if (CCryptoKeyStore::Unlock(vMasterKey, fFirstUnlock)) {
+                fUnlockRequested.store(false);
                 return true;
+            }
         }
     }
     return false;
+}
+
+void CWallet::RequestUnlock() {
+    if (!IsLocked())
+        return;
+
+    LogPrintf("Requesting wallet unlock\n");
+    fUnlockRequested.store(true);
+}
+
+bool CWallet::WaitForUnlock() {
+    while (IsLocked()) {
+        MilliSleep(100);
+
+        if (ShutdownRequested())
+            return false;
+    }
+
+    return true;
 }
 
 bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase)
@@ -832,7 +853,7 @@ void CWallet::AddToSpends(const uint256& wtxid)
         return;
 
     BOOST_FOREACH(const CTxIn& txin, thisTx.tx->vin) {
-        if (!txin.IsZerocoinSpend() && !txin.IsSigmaSpend() && !txin.IsLelantusJoinSplit() && !thisTx.tx->IsSparkSpend()) {
+        if (!thisTx.tx->HasNoRegularInputs()) {
             AddToSpends(txin.prevout, wtxid);
         }
     }
@@ -1323,7 +1344,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
         AssertLockHeld(cs_wallet);
 
         if (posInBlock != -1) {
-            if(!(tx.IsCoinBase() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsZerocoinSpend() || tx.IsLelantusJoinSplit() || tx.IsSparkSpend())) {
+            if(!(tx.IsCoinBase() || tx.HasNoRegularInputs())) {
                 BOOST_FOREACH(const CTxIn& txin, tx.vin) {
                     std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range = mapTxSpends.equal_range(txin.prevout);
                     while (range.first != range.second) {
@@ -2687,7 +2708,7 @@ bool CWalletTx::IsTrusted() const
     // Trusted if all inputs are from us and are in the mempool:
     BOOST_FOREACH(const CTxIn& txin, tx->vin)
     {
-        if (txin.IsZerocoinSpend() || txin.IsSigmaSpend() || txin.IsZerocoinRemint() || txin.IsLelantusJoinSplit()) {
+        if (tx->HasNoRegularInputs()) {
             if (!(pwallet->IsMine(txin, *tx) & ISMINE_SPENDABLE)) {
                 return false;
             }
@@ -6271,6 +6292,17 @@ DBErrors CWallet::ZapLelantusMints() {
     return DB_LOAD_OK;
 }
 
+DBErrors CWallet::ZapSparkMints() {
+    if (!fFileBacked)
+        return DB_LOAD_OK;
+    DBErrors nZapSparkMintRet = CWalletDB(strWalletFile, "cr+").ZapSparkMints(this);
+    if (nZapSparkMintRet != DB_LOAD_OK){
+        LogPrintf("Failed to remove spark mints from CWalletDB");
+        return nZapSparkMintRet;
+    }
+
+    return DB_LOAD_OK;
+}
 
 bool CWallet::SetAddressBook(const CTxDestination& address, const std::string& strName, const std::string& strPurpose)
 {
@@ -6986,7 +7018,8 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         CWallet *tempWallet = new CWallet(walletFile);
         DBErrors nZapMintRet = tempWallet->ZapSigmaMints();
         DBErrors nZapLelantusMintRet = tempWallet->ZapLelantusMints();
-        if (nZapMintRet != DB_LOAD_OK || nZapLelantusMintRet != DB_LOAD_OK) {
+        DBErrors nZapSparkMintRet = tempWallet->ZapSparkMints();
+        if (nZapMintRet != DB_LOAD_OK || nZapLelantusMintRet != DB_LOAD_OK || nZapSparkMintRet != DB_LOAD_OK) {
             InitError(strprintf(_("Error loading %s: Wallet corrupted"), walletFile));
             return NULL;
         }
