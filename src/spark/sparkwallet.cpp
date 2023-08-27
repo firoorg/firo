@@ -1504,7 +1504,6 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 
             const std::vector<spark::Coin>& outCoins = spendTransaction.getOutCoins();
             unsigned char network = spark::GetNetworkType();
-            uint i = 0;
             for (auto& outCoin : outCoins) {
                 // construct spend script
                 CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
@@ -1518,7 +1517,6 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 output.amount = outCoin.v;
                 walletdb.WriteSparkOutputTx(script, output);
                 tx.vout.push_back(CTxOut(0, script));
-                i++;
             }
 
             // check fee
