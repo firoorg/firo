@@ -1059,9 +1059,8 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
     // roll back coin group updates
     for (auto &coins : index->sparkMintedCoins)
     {
-        if (coinGroups.count(coins.first) == 0) {
-            throw std::invalid_argument("Group Id does not exist");
-        }
+        if (coinGroups.count(coins.first) == 0)
+            continue;
 
         SparkCoinGroupInfo& coinGroup = coinGroups[coins.first];
         auto nMintsToForget = coins.second.size();
