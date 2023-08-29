@@ -19,6 +19,7 @@
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif
+#include "sigma.h"
 #include "txdb.h"
 
 #include "masternode-sync.h"

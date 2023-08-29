@@ -18,7 +18,7 @@
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
-
+#include "primitives/mint_spend.h"
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/thread.hpp>
 #include <limits>

@@ -17,7 +17,9 @@
 #include "script/ismine.h"
 #include "script/sign.h"
 #include "wallet/crypter.h"
+#ifdef ENABLE_WALLET
 #include "wallet/walletdb.h"
+#endif // ENABLE_WALLET
 #include "wallet/rpcwallet.h"
 #include "wallet/mnemoniccontainer.h"
 #include "../spark/sparkwallet.h"
