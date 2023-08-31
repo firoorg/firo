@@ -263,7 +263,7 @@ void CQuorumBlockProcessor::UpgradeDB()
 {
     LOCK(cs_main);
     uint256 bestBlock;
-    if (evoDb.GetRawDB().Read(DB_BEST_BLOCK_UPGRADE, bestBlock) && bestBlock == chainActive.Tip()->GetBlockHash()) {
+    if (evoDb.GetRawDB().Read(DB_BEST_BLOCK_UPGRADE, bestBlock) && chainActive.Tip() && bestBlock == chainActive.Tip()->GetBlockHash()) {
         return;
     }
 
