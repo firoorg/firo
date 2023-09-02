@@ -763,7 +763,7 @@ public:
 
     std::unique_ptr<CSparkWallet> sparkWallet;
 
-    std::atomic<bool> fUnlockRequested;
+    std::atomic<bool> fUnlockRequested{false};
 
     CWallet()
     {
@@ -1396,7 +1396,7 @@ public:
 
     void NotifyTransactionLock(const CTransaction &tx) override;
     void NotifyChainLock(const CBlockIndex* pindexChainLock) override;
-    
+
     bool IsSparkAddressMine(const std::string& address);
     CAmount GetAvailableSparkBalance();
     CAmount GetUnconfirmedSparkBalance();
