@@ -43,7 +43,7 @@ var data = {lines:[
 {"lineNum":"   42","line":"static const bool DEFAULT_LOGTIMESTAMPS = true;"},
 {"lineNum":"   43","line":""},
 {"lineNum":"   44","line":"/** Signals for translation. */"},
-{"lineNum":"   45","line":"class CTranslationInterface","class":"lineCov","hits":"1","order":"774",},
+{"lineNum":"   45","line":"class CTranslationInterface","class":"lineCov","hits":"1","order":"2035",},
 {"lineNum":"   46","line":"{"},
 {"lineNum":"   47","line":"public:"},
 {"lineNum":"   48","line":"    /** Translate a message to the native language of the user. */"},
@@ -281,5 +281,5 @@ var data = {lines:[
 {"lineNum":"  280","line":"#endif // BITCOIN_UTIL_H"},
 ]};
 var percent_low = 25;var percent_high = 75;
-var header = { "command" : "", "date" : "2023-08-17 17:25:59", "instrumented" : 5, "covered" : 1,};
+var header = { "command" : "", "date" : "2023-08-25 16:09:03", "instrumented" : 5, "covered" : 1,};
 var merged_data = [];

@@ -75,7 +75,7 @@ var data = {lines:[
 {"lineNum":"   74","line":"        return os;"},
 {"lineNum":"   75","line":"  }"},
 {"lineNum":"   76","line":""},
-{"lineNum":"   77","line":"  static constexpr size_t memoryRequired() { return serialize_size; }","class":"lineNoCov","hits":"0",},
+{"lineNum":"   77","line":"  static constexpr size_t memoryRequired() { return serialize_size; }","class":"lineCov","hits":"1","order":"1182",},
 {"lineNum":"   78","line":"  unsigned char* serialize() const;"},
 {"lineNum":"   79","line":"  unsigned char* serialize(unsigned char* buffer) const;"},
 {"lineNum":"   80","line":"  // The function deserializes the GroupElement and checks the validity,"},
@@ -84,13 +84,13 @@ var data = {lines:[
 {"lineNum":"   83","line":""},
 {"lineNum":"   84","line":"  // These functions are for READWRITE() in serialize.h"},
 {"lineNum":"   85","line":"  template<typename Stream>"},
-{"lineNum":"   86","line":"  inline void Serialize(Stream& s) const {","class":"lineNoCov","hits":"0",},
-{"lineNum":"   87","line":"        constexpr int size = memoryRequired();","class":"lineNoCov","hits":"0",},
+{"lineNum":"   86","line":"  inline void Serialize(Stream& s) const {","class":"lineCov","hits":"1","order":"1180",},
+{"lineNum":"   87","line":"        constexpr int size = memoryRequired();","class":"lineCov","hits":"1","order":"1179",},
 {"lineNum":"   88","line":"        unsigned char buffer[size];"},
-{"lineNum":"   89","line":"        serialize(buffer);","class":"lineNoCov","hits":"0",},
-{"lineNum":"   90","line":"        char* b = (char*)buffer;","class":"lineNoCov","hits":"0",},
-{"lineNum":"   91","line":"        s.write(b, size);","class":"lineNoCov","hits":"0",},
-{"lineNum":"   92","line":"  }","class":"lineNoCov","hits":"0",},
+{"lineNum":"   89","line":"        serialize(buffer);","class":"lineCov","hits":"1","order":"1178",},
+{"lineNum":"   90","line":"        char* b = (char*)buffer;","class":"lineCov","hits":"1","order":"1181",},
+{"lineNum":"   91","line":"        s.write(b, size);","class":"lineCov","hits":"1","order":"1177",},
+{"lineNum":"   92","line":"  }","class":"lineCov","hits":"1","order":"1176",},
 {"lineNum":"   93","line":""},
 {"lineNum":"   94","line":"  template<typename Stream>"},
 {"lineNum":"   95","line":"  inline void Unserialize(Stream& s) {"},
@@ -138,5 +138,5 @@ var data = {lines:[
 {"lineNum":"  137","line":"#endif // SECP_GROUP_ELEMENT_H__"},
 ]};
 var percent_low = 25;var percent_high = 75;
-var header = { "command" : "", "date" : "2023-08-17 10:56:36", "instrumented" : 7, "covered" : 0,};
+var header = { "command" : "", "date" : "2023-08-28 08:54:15", "instrumented" : 7, "covered" : 7,};
 var merged_data = [];

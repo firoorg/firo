@@ -1,0 +1,67 @@
+=====================================================================
+TIME: 2023-08-28.08:36:36
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../../libspark/coin_hfuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 00000000000000000000000000000000.00000000.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/results/coin_fuzz_results/SIGILL.PC.43b402.STACK.d780122a6.CODE.2.ADDR.43b402.INSTR.ud2____.fuzz
+PID: 1131193
+SIGNAL: SIGILL (4)
+PC: 0x43b402
+FAULT ADDRESS: 0x43b402
+INSTRUCTION: ud2____
+STACK HASH: 0000000d780122a6
+STACK:
+ <0x00000000004ba5af> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/coin_hfuzz]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000041802e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/coin_hfuzz]
+=====================================================================
+=====================================================================
+TIME: 2023-08-28.08:36:37
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../../libspark/coin_hfuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 51ca1d400000000027726c0000000000.0000000b.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/results/coin_fuzz_results/SIGABRT.PC.7ffff76c700b.STACK.cfc25fcfe.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 1131493
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff76c700b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000000cfc25fcfe
+STACK:
+ <0x00007ffff76a6859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a8d1> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba637c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63e7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba6699> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x000000000044327b> [func:spark::Coin::Coin file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/coin_hfuzz]
+ <0x000000000043a7f8> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/coin_hfuzz]
+ <0x00000000004ba5af> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/coin_hfuzz]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000041802e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/coin_hfuzz]
+=====================================================================

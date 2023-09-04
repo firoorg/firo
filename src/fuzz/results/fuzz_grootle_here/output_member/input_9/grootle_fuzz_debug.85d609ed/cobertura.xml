@@ -1,0 +1,187 @@
+<?xml version="1.0" ?>
+<!DOCTYPE coverage SYSTEM 'http://cobertura.sourceforge.net/xml/coverage-04.dtd'>
+<coverage line-rate="0.488" lines-covered="79" lines-valid="162" branch-rate="1.0" branches-covered="1.0" branches-rate="1.0" complexity="1.0" version="1.9" timestamp="1692872332">
+	<sources>
+		<source>/root/fuzzing_firo/firo/src/fuzz/</source>
+	</sources>
+	<packages>
+		<package name="grootle_fuzz_debug" line-rate="0.488" lines-covered="79" lines-valid="162" branch-rate="1.0" complexity="1.0">
+			<classes>
+				<class name="fuzzing_utilities_cpp" filename="fuzzing_utilities.cpp" branch-rate="1.0" complexity="1.0" line-rate="0.271">
+					<lines>
+						<line number="3" hits="2"/>
+						<line number="4" hits="1"/>
+						<line number="5" hits="1"/>
+						<line number="7" hits="0"/>
+						<line number="8" hits="0"/>
+						<line number="9" hits="0"/>
+						<line number="10" hits="0"/>
+						<line number="12" hits="0"/>
+						<line number="13" hits="0"/>
+						<line number="15" hits="2"/>
+						<line number="16" hits="1"/>
+						<line number="17" hits="1"/>
+						<line number="19" hits="1"/>
+						<line number="20" hits="1"/>
+						<line number="22" hits="0"/>
+						<line number="23" hits="0"/>
+						<line number="24" hits="0"/>
+						<line number="25" hits="0"/>
+						<line number="26" hits="0"/>
+						<line number="28" hits="0"/>
+						<line number="29" hits="0"/>
+						<line number="30" hits="0"/>
+						<line number="31" hits="0"/>
+						<line number="32" hits="0"/>
+						<line number="34" hits="0"/>
+						<line number="35" hits="0"/>
+						<line number="37" hits="2"/>
+						<line number="38" hits="1"/>
+						<line number="39" hits="1"/>
+						<line number="40" hits="2"/>
+						<line number="41" hits="1"/>
+						<line number="42" hits="1"/>
+						<line number="43" hits="1"/>
+						<line number="44" hits="1"/>
+						<line number="46" hits="0"/>
+						<line number="47" hits="0"/>
+						<line number="48" hits="0"/>
+						<line number="49" hits="0"/>
+						<line number="50" hits="0"/>
+						<line number="53" hits="0"/>
+						<line number="54" hits="0"/>
+						<line number="56" hits="0"/>
+						<line number="57" hits="0"/>
+						<line number="58" hits="0"/>
+						<line number="59" hits="0"/>
+						<line number="60" hits="0"/>
+						<line number="63" hits="0"/>
+						<line number="64" hits="0"/>
+						<line number="66" hits="0"/>
+						<line number="67" hits="0"/>
+						<line number="68" hits="0"/>
+						<line number="69" hits="0"/>
+						<line number="71" hits="0"/>
+						<line number="72" hits="0"/>
+						<line number="73" hits="0"/>
+						<line number="74" hits="0"/>
+						<line number="75" hits="0"/>
+						<line number="78" hits="0"/>
+						<line number="79" hits="0"/>
+					</lines>
+				</class>
+				<class name="FuzzedDataProvider_h" filename="FuzzedDataProvider.h" branch-rate="1.0" complexity="1.0" line-rate="0.854">
+					<lines>
+						<line number="36" hits="2"/>
+						<line number="108" hits="2"/>
+						<line number="109" hits="1"/>
+						<line number="110" hits="1"/>
+						<line number="194" hits="2"/>
+						<line number="195" hits="2"/>
+						<line number="196" hits="1"/>
+						<line number="204" hits="2"/>
+						<line number="208" hits="1"/>
+						<line number="209" hits="0"/>
+						<line number="212" hits="1"/>
+						<line number="213" hits="1"/>
+						<line number="214" hits="1"/>
+						<line number="216" hits="3"/>
+						<line number="217" hits="1"/>
+						<line number="224" hits="1"/>
+						<line number="225" hits="1"/>
+						<line number="226" hits="1"/>
+						<line number="230" hits="1"/>
+						<line number="231" hits="1"/>
+						<line number="233" hits="1"/>
+						<line number="338" hits="2"/>
+						<line number="339" hits="1"/>
+						<line number="340" hits="1"/>
+						<line number="341" hits="2"/>
+						<line number="343" hits="2"/>
+						<line number="344" hits="1"/>
+						<line number="345" hits="0"/>
+						<line number="347" hits="1"/>
+						<line number="348" hits="1"/>
+						<line number="349" hits="1"/>
+						<line number="352" hits="2"/>
+						<line number="361" hits="1"/>
+						<line number="362" hits="1"/>
+						<line number="363" hits="0"/>
+						<line number="364" hits="0"/>
+						<line number="365" hits="0"/>
+						<line number="368" hits="1"/>
+						<line number="373" hits="1"/>
+						<line number="374" hits="1"/>
+						<line number="375" hits="0"/>
+					</lines>
+				</class>
+				<class name="grootle_fuzz_member_cpp" filename="libspark/grootle_fuzz_member.cpp" branch-rate="1.0" complexity="1.0" line-rate="0.452">
+					<lines>
+						<line number="7" hits="2"/>
+						<line number="8" hits="1"/>
+						<line number="9" hits="1"/>
+						<line number="11" hits="1"/>
+						<line number="12" hits="1"/>
+						<line number="13" hits="1"/>
+						<line number="15" hits="1"/>
+						<line number="16" hits="1"/>
+						<line number="17" hits="1"/>
+						<line number="18" hits="1"/>
+						<line number="20" hits="1"/>
+						<line number="21" hits="1"/>
+						<line number="22" hits="1"/>
+						<line number="24" hits="1"/>
+						<line number="25" hits="1"/>
+						<line number="26" hits="1"/>
+						<line number="27" hits="2"/>
+						<line number="28" hits="1"/>
+						<line number="30" hits="1"/>
+						<line number="31" hits="1"/>
+						<line number="32" hits="1"/>
+						<line number="33" hits="1"/>
+						<line number="34" hits="1"/>
+						<line number="35" hits="1"/>
+						<line number="36" hits="1"/>
+						<line number="37" hits="1"/>
+						<line number="38" hits="1"/>
+						<line number="40" hits="1"/>
+						<line number="41" hits="0"/>
+						<line number="43" hits="0"/>
+						<line number="44" hits="0"/>
+						<line number="46" hits="0"/>
+						<line number="47" hits="0"/>
+						<line number="48" hits="0"/>
+						<line number="49" hits="0"/>
+						<line number="50" hits="0"/>
+						<line number="51" hits="0"/>
+						<line number="52" hits="0"/>
+						<line number="54" hits="0"/>
+						<line number="55" hits="0"/>
+						<line number="57" hits="0"/>
+						<line number="58" hits="0"/>
+						<line number="59" hits="0"/>
+						<line number="60" hits="0"/>
+						<line number="62" hits="0"/>
+						<line number="63" hits="0"/>
+						<line number="64" hits="0"/>
+						<line number="66" hits="0"/>
+						<line number="67" hits="0"/>
+						<line number="69" hits="0"/>
+						<line number="70" hits="0"/>
+						<line number="71" hits="0"/>
+						<line number="75" hits="0"/>
+						<line number="76" hits="0"/>
+						<line number="78" hits="0"/>
+						<line number="81" hits="0"/>
+						<line number="82" hits="0"/>
+						<line number="83" hits="0"/>
+						<line number="84" hits="0"/>
+						<line number="85" hits="0"/>
+						<line number="86" hits="0"/>
+						<line number="90" hits="0"/>
+					</lines>
+				</class>
+			</classes>
+		</package>
+	</packages>
+</coverage>

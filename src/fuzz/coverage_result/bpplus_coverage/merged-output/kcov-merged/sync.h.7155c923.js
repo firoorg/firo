@@ -53,7 +53,7 @@ var data = {lines:[
 {"lineNum":"   52","line":" * annotations to a subset of the mutex API."},
 {"lineNum":"   53","line":" */"},
 {"lineNum":"   54","line":"template <typename PARENT>"},
-{"lineNum":"   55","line":"class LOCKABLE AnnotatedMixin : public PARENT","class":"lineCov","hits":"1","order":"588",},
+{"lineNum":"   55","line":"class LOCKABLE AnnotatedMixin : public PARENT","class":"lineCov","hits":"1","order":"1517",},
 {"lineNum":"   56","line":"{"},
 {"lineNum":"   57","line":"public:"},
 {"lineNum":"   58","line":"    void lock() EXCLUSIVE_LOCK_FUNCTION()"},
@@ -83,7 +83,7 @@ var data = {lines:[
 {"lineNum":"   82","line":"void static inline LeaveCritical() {}","class":"lineNoCov","hits":"0",},
 {"lineNum":"   83","line":"void static inline AssertLockHeldInternal(const char* pszName, const char* pszFile, int nLine, void* cs) {}"},
 {"lineNum":"   84","line":"void static inline AssertLockNotHeldInternal(const char* pszName, const char* pszFile, int nLine, void* cs) {}"},
-{"lineNum":"   85","line":"void static inline DeleteLock(void* cs) {}","class":"lineNoCov","hits":"0",},
+{"lineNum":"   85","line":"void static inline DeleteLock(void* cs) {}","class":"lineCov","hits":"1","order":"1516",},
 {"lineNum":"   86","line":"#endif"},
 {"lineNum":"   87","line":"#define AssertLockHeld(cs) AssertLockHeldInternal(#cs, __FILE__, __LINE__, &cs)"},
 {"lineNum":"   88","line":"#define AssertLockNotHeld(cs) AssertLockNotHeldInternal(#cs, __FILE__, __LINE__, &cs)"},
@@ -92,12 +92,12 @@ var data = {lines:[
 {"lineNum":"   91","line":" * Wrapped boost mutex: supports recursive locking, but no waiting"},
 {"lineNum":"   92","line":" * TODO: We should move away from using the recursive lock by default."},
 {"lineNum":"   93","line":" */"},
-{"lineNum":"   94","line":"class CCriticalSection : public AnnotatedMixin<boost::recursive_mutex>","class":"lineCov","hits":"1","order":"587",},
+{"lineNum":"   94","line":"class CCriticalSection : public AnnotatedMixin<boost::recursive_mutex>","class":"lineCov","hits":"1","order":"1512",},
 {"lineNum":"   95","line":"{"},
 {"lineNum":"   96","line":"public:"},
-{"lineNum":"   97","line":"    ~CCriticalSection() {","class":"lineNoCov","hits":"0",},
-{"lineNum":"   98","line":"        DeleteLock((void*)this);","class":"lineNoCov","hits":"0",},
-{"lineNum":"   99","line":"    }","class":"lineNoCov","hits":"0",},
+{"lineNum":"   97","line":"    ~CCriticalSection() {","class":"lineCov","hits":"1","order":"1515",},
+{"lineNum":"   98","line":"        DeleteLock((void*)this);","class":"lineCov","hits":"1","order":"1514",},
+{"lineNum":"   99","line":"    }","class":"lineCov","hits":"1","order":"1513",},
 {"lineNum":"  100","line":"};"},
 {"lineNum":"  101","line":""},
 {"lineNum":"  102","line":"typedef CCriticalSection CDynamicCriticalSection;"},
@@ -294,5 +294,5 @@ var data = {lines:[
 {"lineNum":"  293","line":"#endif // BITCOIN_SYNC_H"},
 ]};
 var percent_low = 25;var percent_high = 75;
-var header = { "command" : "", "date" : "2023-08-17 17:25:59", "instrumented" : 36, "covered" : 2,};
+var header = { "command" : "", "date" : "2023-08-25 16:09:03", "instrumented" : 36, "covered" : 6,};
 var merged_data = [];

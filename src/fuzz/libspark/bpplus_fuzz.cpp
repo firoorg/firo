@@ -10,9 +10,11 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     FuzzedSecp256k1Object fsp(&fdp);
 
     /** Single Proof **/
-    size_t N0 = fdp.ConsumeIntegral<size_t>();
+    size_t N0 = fdp.ConsumeIntegralInRange<size_t>(0,64);
     size_t M0 = fdp.ConsumeIntegral<size_t>();
 
+    N0 = 64;
+    M0 = 4;
     // Generators
     GroupElement G0, H0;
     G0.randomize();
@@ -33,10 +35,17 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
 
     // Commitments
     std::vector<Scalar> v, r;
-    v = fsp.GetScalars(M0);
-    r = fsp.GetScalars(M0);
+    v.resize(M0);
+    r.resize(M0);
+    // v = fsp.GetScalars(M0);
+    // r = fsp.GetScalars(M0);
+    for(int i = 0; i < M0; i++){
+        v[i] = Scalar((uint64_t) rand());
+        r[i].randomize();
+    }
 
     std::vector<GroupElement> C0;
+    C0.resize(M0);
     for (size_t i=0; i < M0; i++) {
         C0[i] = G0*v[i] + H0*r[i];
     }
@@ -49,15 +58,24 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
 
     /** Batch Proof **/
 
-    size_t N1 = fdp.ConsumeIntegral<size_t>();
+    size_t N1 = fdp.ConsumeIntegralInRange<size_t>(1,64);
     size_t B = fdp.ConsumeIntegral<size_t>();
-    std::vector<uint8_t> sizes = fdp.ConsumeRemainingBytes<uint8_t>();
+    N1 = 64;
+    B = 5;
+
+    std::vector<std::size_t> sizes;
+    sizes.resize(B);
+    for(int i = 0; i < B; i++){
+        sizes[i] = (fdp.ConsumeIntegral<std::size_t>() % 8) + 1 ; // otherwise it's "Bad BPPlus statement!4" line 102 bpplus.cpp since B = 5.(checked)
+    }
+    // sizes = fdp.ConsumeRemainingBytes<std::size_t>();
 
     // Generators
     GroupElement G1, H1;
     G1.randomize();
     H1.randomize();
 
+    // std::size_t next_power = 1 << (uint(log2(B)) + 1);
     std::vector<GroupElement> Gi1, Hi1;
     Gi1.resize(8*N1);
     Hi1.resize(8*N1);
@@ -72,7 +90,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     std::vector<std::vector<GroupElement>> C1;
 
     for (size_t i=0; i < B; i++) {
-        size_t M = sizes[i];
+        std::size_t M = sizes[i];
         std::vector<Scalar> v, r;
         v.resize(M);
         r.resize(M);

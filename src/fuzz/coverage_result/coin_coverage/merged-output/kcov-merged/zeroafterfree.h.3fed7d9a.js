@@ -23,24 +23,24 @@ var data = {lines:[
 {"lineNum":"   22","line":"    typedef typename base::reference reference;"},
 {"lineNum":"   23","line":"    typedef typename base::const_reference const_reference;"},
 {"lineNum":"   24","line":"    typedef typename base::value_type value_type;"},
-{"lineNum":"   25","line":"    zero_after_free_allocator() throw() {}","class":"lineNoCov","hits":"0",},
+{"lineNum":"   25","line":"    zero_after_free_allocator() throw() {}","class":"lineCov","hits":"1","order":"1331",},
 {"lineNum":"   26","line":"    zero_after_free_allocator(const zero_after_free_allocator& a) throw() : base(a) {}"},
 {"lineNum":"   27","line":"    template <typename U>"},
 {"lineNum":"   28","line":"    zero_after_free_allocator(const zero_after_free_allocator<U>& a) throw() : base(a)"},
 {"lineNum":"   29","line":"    {"},
 {"lineNum":"   30","line":"    }"},
-{"lineNum":"   31","line":"    ~zero_after_free_allocator() throw() {}","class":"lineNoCov","hits":"0",},
+{"lineNum":"   31","line":"    ~zero_after_free_allocator() throw() {}","class":"lineCov","hits":"1","order":"1325",},
 {"lineNum":"   32","line":"    template <typename _Other>"},
 {"lineNum":"   33","line":"    struct rebind {"},
 {"lineNum":"   34","line":"        typedef zero_after_free_allocator<_Other> other;"},
 {"lineNum":"   35","line":"    };"},
 {"lineNum":"   36","line":""},
 {"lineNum":"   37","line":"    void deallocate(T* p, std::size_t n)"},
-{"lineNum":"   38","line":"    {","class":"lineNoCov","hits":"0",},
-{"lineNum":"   39","line":"        if (p != NULL)","class":"lineNoCov","hits":"0",},
-{"lineNum":"   40","line":"            memory_cleanse(p, sizeof(T) * n);","class":"lineNoCov","hits":"0",},
-{"lineNum":"   41","line":"        std::allocator<T>::deallocate(p, n);","class":"lineNoCov","hits":"0",},
-{"lineNum":"   42","line":"    }","class":"lineNoCov","hits":"0",},
+{"lineNum":"   38","line":"    {","class":"lineCov","hits":"1","order":"1330",},
+{"lineNum":"   39","line":"        if (p != NULL)","class":"lineCov","hits":"1","order":"1329",},
+{"lineNum":"   40","line":"            memory_cleanse(p, sizeof(T) * n);","class":"lineCov","hits":"1","order":"1328",},
+{"lineNum":"   41","line":"        std::allocator<T>::deallocate(p, n);","class":"lineCov","hits":"1","order":"1327",},
+{"lineNum":"   42","line":"    }","class":"lineCov","hits":"1","order":"1326",},
 {"lineNum":"   43","line":"};"},
 {"lineNum":"   44","line":""},
 {"lineNum":"   45","line":"// Byte-vector that clears its contents before deletion."},
@@ -49,5 +49,5 @@ var data = {lines:[
 {"lineNum":"   48","line":"#endif // BITCOIN_SUPPORT_ALLOCATORS_ZEROAFTERFREE_H"},
 ]};
 var percent_low = 25;var percent_high = 75;
-var header = { "command" : "", "date" : "2023-08-17 10:56:36", "instrumented" : 7, "covered" : 0,};
+var header = { "command" : "", "date" : "2023-08-28 08:54:15", "instrumented" : 7, "covered" : 7,};
 var merged_data = [];

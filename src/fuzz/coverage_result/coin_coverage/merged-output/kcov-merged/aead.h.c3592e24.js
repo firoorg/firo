@@ -6,7 +6,7 @@ var data = {lines:[
 {"lineNum":"    5","line":""},
 {"lineNum":"    6","line":"namespace spark {"},
 {"lineNum":"    7","line":""},
-{"lineNum":"    8","line":"struct AEADEncryptedData {","class":"lineNoCov","hits":"0",},
+{"lineNum":"    8","line":"struct AEADEncryptedData {","class":"lineCov","hits":"1","order":"1175",},
 {"lineNum":"    9","line":"\tstd::vector<unsigned char> ciphertext;"},
 {"lineNum":"   10","line":"\tstd::vector<unsigned char> tag;"},
 {"lineNum":"   11","line":"\tstd::vector<unsigned char> key_commitment;"},
@@ -32,5 +32,5 @@ var data = {lines:[
 {"lineNum":"   31","line":"#endif"},
 ]};
 var percent_low = 25;var percent_high = 75;
-var header = { "command" : "", "date" : "2023-08-17 10:56:36", "instrumented" : 7, "covered" : 0,};
+var header = { "command" : "", "date" : "2023-08-28 08:54:15", "instrumented" : 7, "covered" : 1,};
 var merged_data = [];

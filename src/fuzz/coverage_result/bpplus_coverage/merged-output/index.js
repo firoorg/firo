@@ -1,5 +1,5 @@
 var data = {files:[
-], merged_files:[{"link":"kcov-merged/index.html","title":"[merged]","summary_name":"[merged]","covered_class":"lineNoCov","covered":"21.2","covered_lines":"1076","uncovered_lines":"4010","total_lines" : "5086"},
+], merged_files:[{"link":"kcov-merged/index.html","title":"[merged]","summary_name":"[merged]","covered_class":"linePartCov","covered":"40.0","covered_lines":"2042","uncovered_lines":"3061","total_lines" : "5103"},
 ]};
 var percent_low = 25;var percent_high = 75;
-var header = { "command" : "", "date" : "2023-08-17 17:25:59", "instrumented" : 5086, "covered" : 1076,};
+var header = { "command" : "", "date" : "2023-08-25 16:09:03", "instrumented" : 5103, "covered" : 2042,};

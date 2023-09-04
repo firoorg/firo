@@ -89,7 +89,7 @@ var data = {lines:[
 {"lineNum":"   88","line":"\tunsigned char decode(const std::string& str);"},
 {"lineNum":"   89","line":""},
 {"lineNum":"   90","line":"private:"},
-{"lineNum":"   91","line":"    char version = SPARK_ADDRESS_VERSION;","class":"lineNoCov","hits":"0",},
+{"lineNum":"   91","line":"    char version = SPARK_ADDRESS_VERSION;","class":"lineCov","hits":"1","order":"1553",},
 {"lineNum":"   92","line":"\tconst Params* params;"},
 {"lineNum":"   93","line":"\tstd::vector<unsigned char> d;"},
 {"lineNum":"   94","line":"\tGroupElement Q1, Q2;"},
@@ -102,5 +102,5 @@ var data = {lines:[
 {"lineNum":"  101","line":"#endif"},
 ]};
 var percent_low = 25;var percent_high = 75;
-var header = { "command" : "", "date" : "2023-08-17 10:56:36", "instrumented" : 5, "covered" : 0,};
+var header = { "command" : "", "date" : "2023-08-28 08:54:15", "instrumented" : 5, "covered" : 1,};
 var merged_data = [];

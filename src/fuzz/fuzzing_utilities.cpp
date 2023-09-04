@@ -53,7 +53,17 @@ std::vector<secp_primitives::GroupElement> FuzzedSecp256k1Object::GetGroupElemen
     return ge_vec;
 }
 
-std::vector<secp_primitives::Scalar> FuzzedSecp256k1Object::GetScalars(int len) {
+std::vector<secp_primitives::Scalar> FuzzedSecp256k1Object::GetScalars(size_t len) {
+    std::vector<secp_primitives::Scalar> scalar_vec;
+    scalar_vec.resize(len);
+    for (int i = 0; i <= len; i++) {
+        scalar_vec.push_back(GetScalar());
+    }
+
+    return scalar_vec;
+}
+
+std::vector<secp_primitives::Scalar> FuzzedSecp256k1Object::GetScalarsVector(size_t len) {
     std::vector<secp_primitives::Scalar> scalar_vec;
     scalar_vec.resize(len);
     for (int i = 0; i <= len; i++) {

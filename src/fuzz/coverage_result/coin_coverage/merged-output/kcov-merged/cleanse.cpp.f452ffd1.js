@@ -9,10 +9,10 @@ var data = {lines:[
 {"lineNum":"    8","line":"#include <openssl/crypto.h>"},
 {"lineNum":"    9","line":""},
 {"lineNum":"   10","line":"void memory_cleanse(void *ptr, size_t len)"},
-{"lineNum":"   11","line":"{","class":"lineNoCov","hits":"0",},
-{"lineNum":"   12","line":"    OPENSSL_cleanse(ptr, len);","class":"lineNoCov","hits":"0",},
-{"lineNum":"   13","line":"}","class":"lineNoCov","hits":"0",},
+{"lineNum":"   11","line":"{","class":"lineCov","hits":"1","order":"945",},
+{"lineNum":"   12","line":"    OPENSSL_cleanse(ptr, len);","class":"lineCov","hits":"1","order":"944",},
+{"lineNum":"   13","line":"}","class":"lineCov","hits":"1","order":"943",},
 ]};
 var percent_low = 25;var percent_high = 75;
-var header = { "command" : "", "date" : "2023-08-17 10:56:37", "instrumented" : 3, "covered" : 0,};
+var header = { "command" : "", "date" : "2023-08-28 08:54:15", "instrumented" : 3, "covered" : 3,};
 var merged_data = [];

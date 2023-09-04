@@ -264,11 +264,11 @@ var data = {lines:[
 {"lineNum":"  263","line":"    rng->retry = 1;","class":"lineNoCov","hits":"0",},
 {"lineNum":"  264","line":"}","class":"lineNoCov","hits":"0",},
 {"lineNum":"  265","line":""},
-{"lineNum":"  266","line":"static void secp256k1_rfc6979_hmac_sha256_finalize(secp256k1_rfc6979_hmac_sha256_t *rng) {","class":"lineNoCov","hits":"0",},
-{"lineNum":"  267","line":"    memset(rng->k, 0, 32);","class":"lineNoCov","hits":"0",},
-{"lineNum":"  268","line":"    memset(rng->v, 0, 32);","class":"lineNoCov","hits":"0",},
-{"lineNum":"  269","line":"    rng->retry = 0;","class":"lineNoCov","hits":"0",},
-{"lineNum":"  270","line":"}","class":"lineNoCov","hits":"0",},
+{"lineNum":"  266","line":"static void secp256k1_rfc6979_hmac_sha256_finalize(secp256k1_rfc6979_hmac_sha256_t *rng) {"},
+{"lineNum":"  267","line":"    memset(rng->k, 0, 32);"},
+{"lineNum":"  268","line":"    memset(rng->v, 0, 32);"},
+{"lineNum":"  269","line":"    rng->retry = 0;"},
+{"lineNum":"  270","line":"}"},
 {"lineNum":"  271","line":""},
 {"lineNum":"  272","line":"#undef BE32"},
 {"lineNum":"  273","line":"#undef Round"},
@@ -282,5 +282,5 @@ var data = {lines:[
 {"lineNum":"  281","line":"#endif"},
 ]};
 var percent_low = 25;var percent_high = 75;
-var header = { "command" : "", "date" : "2023-08-17 10:56:36", "instrumented" : 186, "covered" : 0,};
+var header = { "command" : "", "date" : "2023-08-28 08:54:15", "instrumented" : 181, "covered" : 0,};
 var merged_data = [];

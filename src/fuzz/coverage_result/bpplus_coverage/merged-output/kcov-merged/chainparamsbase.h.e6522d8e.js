@@ -13,7 +13,7 @@ var data = {lines:[
 {"lineNum":"   12","line":" * CBaseChainParams defines the base parameters (shared between bitcoin-cli and bitcoind)"},
 {"lineNum":"   13","line":" * of a given instance of the Bitcoin system."},
 {"lineNum":"   14","line":" */"},
-{"lineNum":"   15","line":"class CBaseChainParams","class":"lineNoCov","hits":"0",},
+{"lineNum":"   15","line":"class CBaseChainParams","class":"lineCov","hits":"1","order":"1050",},
 {"lineNum":"   16","line":"{"},
 {"lineNum":"   17","line":"public:"},
 {"lineNum":"   18","line":"    /** BIP70 chain name strings (main, test or regtest) */"},
@@ -26,7 +26,7 @@ var data = {lines:[
 {"lineNum":"   25","line":"    int RPCPort() const { return nRPCPort; }"},
 {"lineNum":"   26","line":""},
 {"lineNum":"   27","line":"protected:"},
-{"lineNum":"   28","line":"    CBaseChainParams() {}","class":"lineCov","hits":"1","order":"438",},
+{"lineNum":"   28","line":"    CBaseChainParams() {}","class":"lineCov","hits":"1","order":"1051",},
 {"lineNum":"   29","line":""},
 {"lineNum":"   30","line":"    int nRPCPort;"},
 {"lineNum":"   31","line":"    std::string strDataDir;"},
@@ -64,5 +64,5 @@ var data = {lines:[
 {"lineNum":"   63","line":"#endif // BITCOIN_CHAINPARAMSBASE_H"},
 ]};
 var percent_low = 25;var percent_high = 75;
-var header = { "command" : "", "date" : "2023-08-17 17:25:59", "instrumented" : 3, "covered" : 1,};
+var header = { "command" : "", "date" : "2023-08-25 16:09:03", "instrumented" : 3, "covered" : 2,};
 var merged_data = [];

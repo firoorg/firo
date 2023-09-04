@@ -14,9 +14,10 @@ class FuzzedSecp256k1Object {
         secp_primitives::Scalar GetScalar_modified();
 
         std::vector<secp_primitives::GroupElement> GetGroupElements(int len);
-        std::vector<secp_primitives::Scalar> GetScalars(int len);
+        std::vector<secp_primitives::Scalar> GetScalars(size_t len);
         std::vector<secp_primitives::GroupElement> GetMemberGroupElements(size_t len);
         std::vector<secp_primitives::GroupElement> GetRandomGroupVector(size_t len);
         std::vector<secp_primitives::Scalar> GetScalars_modified(int len);
+        std::vector<secp_primitives::Scalar> GetScalarsVector(size_t len);
 
 };

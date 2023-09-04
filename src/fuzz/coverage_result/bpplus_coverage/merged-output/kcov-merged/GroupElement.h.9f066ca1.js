@@ -75,7 +75,7 @@ var data = {lines:[
 {"lineNum":"   74","line":"        return os;"},
 {"lineNum":"   75","line":"  }"},
 {"lineNum":"   76","line":""},
-{"lineNum":"   77","line":"  static constexpr size_t memoryRequired() { return serialize_size; }","class":"lineNoCov","hits":"0",},
+{"lineNum":"   77","line":"  static constexpr size_t memoryRequired() { return serialize_size; }","class":"lineCov","hits":"1","order":"1506",},
 {"lineNum":"   78","line":"  unsigned char* serialize() const;"},
 {"lineNum":"   79","line":"  unsigned char* serialize(unsigned char* buffer) const;"},
 {"lineNum":"   80","line":"  // The function deserializes the GroupElement and checks the validity,"},
@@ -138,5 +138,5 @@ var data = {lines:[
 {"lineNum":"  137","line":"#endif // SECP_GROUP_ELEMENT_H__"},
 ]};
 var percent_low = 25;var percent_high = 75;
-var header = { "command" : "", "date" : "2023-08-17 17:25:59", "instrumented" : 7, "covered" : 0,};
+var header = { "command" : "", "date" : "2023-08-25 16:09:03", "instrumented" : 7, "covered" : 1,};
 var merged_data = [];

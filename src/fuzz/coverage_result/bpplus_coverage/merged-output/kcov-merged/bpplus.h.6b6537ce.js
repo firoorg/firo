@@ -10,7 +10,7 @@ var data = {lines:[
 {"lineNum":"    9","line":"std::size_t log2(std::size_t n);"},
 {"lineNum":"   10","line":"bool is_nonzero_power_of_2(std::size_t n);"},
 {"lineNum":"   11","line":""},
-{"lineNum":"   12","line":"class BPPlus {","class":"lineNoCov","hits":"0",},
+{"lineNum":"   12","line":"class BPPlus {","class":"lineCov","hits":"1","order":"45",},
 {"lineNum":"   13","line":"public:"},
 {"lineNum":"   14","line":"    BPPlus("},
 {"lineNum":"   15","line":"        const GroupElement& G,"},
@@ -37,5 +37,5 @@ var data = {lines:[
 {"lineNum":"   36","line":"#endif"},
 ]};
 var percent_low = 25;var percent_high = 75;
-var header = { "command" : "", "date" : "2023-08-17 17:25:59", "instrumented" : 1, "covered" : 0,};
+var header = { "command" : "", "date" : "2023-08-25 16:09:03", "instrumented" : 1, "covered" : 1,};
 var merged_data = [];

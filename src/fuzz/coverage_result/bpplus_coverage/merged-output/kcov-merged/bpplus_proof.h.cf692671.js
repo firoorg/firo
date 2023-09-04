@@ -6,7 +6,7 @@ var data = {lines:[
 {"lineNum":"    5","line":""},
 {"lineNum":"    6","line":"namespace spark {"},
 {"lineNum":"    7","line":""},
-{"lineNum":"    8","line":"class BPPlusProof{","class":"lineCov","hits":"1","order":"849",},
+{"lineNum":"    8","line":"class BPPlusProof{","class":"lineCov","hits":"1","order":"2034",},
 {"lineNum":"    9","line":"public:"},
 {"lineNum":"   10","line":""},
 {"lineNum":"   11","line":"    static inline int int_log2(std::size_t number) {"},
@@ -45,5 +45,5 @@ var data = {lines:[
 {"lineNum":"   44","line":"#endif"},
 ]};
 var percent_low = 25;var percent_high = 75;
-var header = { "command" : "", "date" : "2023-08-17 17:25:59", "instrumented" : 1, "covered" : 1,};
+var header = { "command" : "", "date" : "2023-08-25 16:09:03", "instrumented" : 1, "covered" : 1,};
 var merged_data = [];

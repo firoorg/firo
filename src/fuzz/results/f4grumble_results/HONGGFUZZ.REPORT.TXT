@@ -1,0 +1,99 @@
+=====================================================================
+TIME: 2023-08-29.14:54:20
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../../libspark/f4grumble_hfuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 00000000000000000000000000000000.00000000.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/results/f4grumble_results/SIGBUS.PC.7ffff780c6e5.STACK.db10fc289.CODE.2.ADDR.7fffe53d1000.INSTR.vpcmpeqb_(%rdi),%ymm0,%ymm1.fuzz
+PID: 324413
+SIGNAL: SIGBUS (7)
+PC: 0x7ffff780c6e5
+FAULT ADDRESS: 0x7fffe53d1000
+INSTRUCTION: vpcmpeqb_(%rdi),%ymm0,%ymm1
+STACK HASH: 0000000db10fc289
+STACK:
+ <0x00007ffff7c41efa> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x0000000000431ce1> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/f4grumble_hfuzz]
+ <0x000000000047c6df> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/f4grumble_hfuzz]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000040f69e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/f4grumble_hfuzz]
+=====================================================================
+=====================================================================
+TIME: 2023-08-29.14:54:20
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../../libspark/f4grumble_hfuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 00000000000000000000000000000000.00000000.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/results/f4grumble_results/SIGSEGV.PC.431d8a.STACK.c3f17755c.CODE.1.ADDR.7ffffffff000.INSTR.mov____(%rax),%cl.fuzz
+PID: 324730
+SIGNAL: SIGSEGV (11)
+PC: 0x431d8a
+FAULT ADDRESS: 0x7ffffffff000
+INSTRUCTION: mov____(%rax),%cl
+STACK HASH: 0000000c3f17755c
+STACK:
+ <0x000000000047c6df> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/f4grumble_hfuzz]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000040f69e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/f4grumble_hfuzz]
+=====================================================================
+=====================================================================
+TIME: 2023-08-29.14:54:20
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./../../libspark/f4grumble_hfuzz ___FILE___ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 00000000000000000000000000000000.00000000.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/results/f4grumble_results/SIGABRT.PC.7ffff76c700b.STACK.c78aac0e1.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 324724
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff76c700b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000000c78aac0e1
+STACK:
+ <0x00007ffff76a6859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7b9a8d1> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba637c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba63e7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ba6699> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x0000000000439782> [func:spark::F4Grumble::F4Grumble file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/f4grumble_hfuzz]
+ <0x000000000043202a> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/f4grumble_hfuzz]
+ <0x000000000047c6df> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/f4grumble_hfuzz]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000040f69e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/libspark/f4grumble_hfuzz]
+=====================================================================

@@ -57,10 +57,10 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     /** Now fuzz all the things **/
 
     GroupElement F1, G1, H1, U1;
-    F1 = fsp.GetGroupElement();
-    G1 = fsp.GetGroupElement();
-    H1 = fsp.GetGroupElement();
-    U1 = fsp.GetGroupElement();
+    F1 = fsp.GetMemberGroupElement();
+    G1 = fsp.GetMemberGroupElement();
+    H1 = fsp.GetMemberGroupElement();
+    U1 = fsp.GetMemberGroupElement();
     //F1.randomize();
     //G1.randomize();
     //H1.randomize();
@@ -138,10 +138,10 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     /** Full all the things again**/
 
     GroupElement F3, G3, H3, U3;
-    F3 = fsp.GetGroupElement();
-    G3 = fsp.GetGroupElement();
-    H3 = fsp.GetGroupElement();
-    U3 = fsp.GetGroupElement();
+    F3 = fsp.GetMemberGroupElement();
+    G3 = fsp.GetMemberGroupElement();
+    H3 = fsp.GetMemberGroupElement();
+    U3 = fsp.GetMemberGroupElement();
     //F3.randomize();
     //G3.randomize();
     //H3.randomize();

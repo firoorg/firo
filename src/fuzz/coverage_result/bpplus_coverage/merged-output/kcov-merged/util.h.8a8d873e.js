@@ -66,12 +66,12 @@ var data = {lines:[
 {"lineNum":"   65","line":"#define VERIFY_SETUP(stmt)"},
 {"lineNum":"   66","line":"#endif"},
 {"lineNum":"   67","line":""},
-{"lineNum":"   68","line":"static SECP256K1_INLINE void *checked_malloc(const secp256k1_callback* cb, size_t size) {","class":"lineNoCov","hits":"0",},
-{"lineNum":"   69","line":"    void *ret = malloc(size);","class":"lineNoCov","hits":"0",},
-{"lineNum":"   70","line":"    if (ret == NULL) {","class":"lineNoCov","hits":"0",},
+{"lineNum":"   68","line":"static SECP256K1_INLINE void *checked_malloc(const secp256k1_callback* cb, size_t size) {","class":"lineCov","hits":"1","order":"194",},
+{"lineNum":"   69","line":"    void *ret = malloc(size);","class":"lineCov","hits":"1","order":"193",},
+{"lineNum":"   70","line":"    if (ret == NULL) {","class":"lineCov","hits":"1","order":"192",},
 {"lineNum":"   71","line":"        secp256k1_callback_call(cb, \"Out of memory\");","class":"lineNoCov","hits":"0",},
 {"lineNum":"   72","line":"    }"},
-{"lineNum":"   73","line":"    return ret;","class":"lineNoCov","hits":"0",},
+{"lineNum":"   73","line":"    return ret;","class":"lineCov","hits":"1","order":"191",},
 {"lineNum":"   74","line":"}"},
 {"lineNum":"   75","line":""},
 {"lineNum":"   76","line":"static SECP256K1_INLINE void *checked_realloc(const secp256k1_callback* cb, void *ptr, size_t size) {"},
@@ -119,5 +119,5 @@ var data = {lines:[
 {"lineNum":"  118","line":"#endif"},
 ]};
 var percent_low = 25;var percent_high = 75;
-var header = { "command" : "", "date" : "2023-08-17 17:25:59", "instrumented" : 8, "covered" : 0,};
+var header = { "command" : "", "date" : "2023-08-25 16:09:03", "instrumented" : 8, "covered" : 4,};
 var merged_data = [];

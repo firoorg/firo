@@ -18,6 +18,21 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     spark::Address address(incoming_view_key, fdp.ConsumeIntegral<uint64_t>());
 
     size_t N = (size_t) pow(params->get_n_grootle(), params->get_m_grootle());
+
+    bool exception_thrown = false;
+    if (memo.size() > params->get_memo_bytes()) {
+        try{
+            Scalar k;
+            k.randomize();
+            uint64_t v = rand();
+            spark::Coin(params, spark::COIN_TYPE_MINT, k, address, v, memo, fdp.ConsumeBytes<unsigned char>(spark::SCALAR_ENCODING));
+        } catch(const std::exception& ) {
+            exception_thrown = true;
+        }
+        assert(exception_thrown);
+        return 0;
+    }
+
     std::vector<spark::Coin> in_coins;
     for (size_t i = 0; i < N; i ++) {
         secp_primitives::Scalar k = fsp.GetScalar();

@@ -1,8 +1,8 @@
 #!/bin/bash
 
-input_folder="src/fuzz/inputs/bpplus_inputs"
-output_folder="src/fuzz/coverage_result/bpplus_coverage"
-fuzz_exe="src/fuzz/libspark/bpplus_hfuzz_debug"
+input_folder="../../src/fuzz/inputs/bpplus_inputs"
+output_folder="../../src/fuzz/coverage_result/bpplus_coverage"
+fuzz_exe="../../src/fuzz/libspark/bpplus_debug"
 
 mkdir $output_folder
 

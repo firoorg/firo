@@ -1,0 +1,185 @@
+=====================================================================
+TIME: 2023-08-24.09:51:56
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./results/fuzz_grootle_here/grootle_fuzz_member ___FILE___ @@ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 4fedef43189b8e95416c3ca0a229ae61.00000021.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/SIGABRT.PC.7ffff76c700b.STACK.de421c44e.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 328654
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff76c700b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000000de421c44e
+STACK:
+ <0x00007ffff76a6859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff76a6729> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff76b7fd6> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000043f0b2> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x0000000000531eef> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000041b92e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+=====================================================================
+=====================================================================
+TIME: 2023-08-24.09:51:56
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./results/fuzz_grootle_here/grootle_fuzz_member ___FILE___ @@ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 4fedef43189b8e95416c3ca0a229ae61.00000021.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/SIGSEGV.PC.7ffff780f7b9.STACK.ea51125a3.CODE.1.ADDR.0.INSTR.vmovdqu_(%rsi),%ymm0.fuzz
+PID: 328772
+SIGNAL: SIGSEGV (11)
+PC: 0x7ffff780f7b9
+FAULT ADDRESS: 0x0
+INSTRUCTION: vmovdqu_(%rsi),%ymm0
+STACK HASH: 0000000ea51125a3
+STACK:
+ <0x000000000048d2f2> [func:secp_primitives::GroupElement::GroupElement file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x000000000044be8b> [func:__gnu_cxx::new_allocator<secp_primitives::GroupElement>::construct<secp_primitives::GroupElement, secp_primitives::GroupElement&> file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x000000000044b9fa> [func:std::allocator_traits<std::allocator<secp_primitives::GroupElement> >::construct<secp_primitives::GroupElement, secp_primitives::GroupElement&> file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x000000000044bb19> [func:std::vector<secp_primitives::GroupElement, std::allocator<secp_primitives::GroupElement> >::_M_realloc_insert<secp_primitives::GroupElement&> file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x000000000043fd83> [func:std::vector<secp_primitives::GroupElement, std::allocator<secp_primitives::GroupElement> >::emplace_back<secp_primitives::GroupElement&> file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x000000000043e509> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x0000000000531eef> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000041b92e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+=====================================================================
+=====================================================================
+TIME: 2023-08-24.09:51:59
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./results/fuzz_grootle_here/grootle_fuzz_member ___FILE___ @@ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 865dc233294ee67787272aacd41c96c8.00000020.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/SIGABRT.PC.7ffff76c700b.STACK.19db163722.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 330245
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff76c700b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 00000019db163722
+STACK:
+ <0x00007ffff76a6859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7ab38d1> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7abf37c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7abf3e7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7abf699> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7ab34e2> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x0000000000449e25> [func:__gnu_cxx::new_allocator<unsigned long>::allocate file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x0000000000449d63> [func:std::allocator_traits<std::allocator<unsigned long> >::allocate file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x00000000004497f4> [func:std::_Vector_base<unsigned long, std::allocator<unsigned long> >::_M_allocate file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x0000000000449217> [func:std::vector<unsigned long, std::allocator<unsigned long> >::_M_default_append file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x000000000043f8c7> [func:std::vector<unsigned long, std::allocator<unsigned long> >::resize file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x000000000043e10f> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x0000000000531eef> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000041b92e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+=====================================================================
+=====================================================================
+TIME: 2023-08-24.09:51:59
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./results/fuzz_grootle_here/grootle_fuzz_member ___FILE___ @@ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 4fedef43189b8e95416c3ca0a229ae61.00000021.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/SIGABRT.PC.7ffff76c700b.STACK.c3a53a6c1.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax.fuzz
+PID: 329854
+SIGNAL: SIGABRT (6)
+PC: 0x7ffff76c700b
+FAULT ADDRESS: 0x0
+INSTRUCTION: mov____0x108(%rsp),%rax
+STACK HASH: 0000000c3a53a6c1
+STACK:
+ <0x00007ffff76a6859> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x00007ffff7ab38d1> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7abf37c> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7abf3e7> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x00007ffff7abf699> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.28]
+ <0x0000000000452b33> [func:spark::Grootle::prove file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x000000000043ed5b> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x0000000000531eef> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000041b92e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+=====================================================================
+=====================================================================
+TIME: 2023-08-24.09:51:59
+=====================================================================
+FUZZER ARGS:
+ mutationsPerRun : 5
+ externalCmd     : NULL
+ fuzzStdin       : FALSE
+ timeout         : 1 (sec)
+ ignoreAddr      : (nil)
+ ASLimit         : 0 (MiB)
+ RSSLimit        : 0 (MiB)
+ DATALimit       : 0 (MiB)
+ wordlistFile    : NULL
+ dynFileMethod   : 
+ fuzzTarget      : ./results/fuzz_grootle_here/grootle_fuzz_member ___FILE___ @@ 
+CRASH:
+DESCRIPTION: 
+ORIG_FNAME: 6199e3120b8166909405c66f6e5466a3.0000002d.honggfuzz.cov
+FUZZ_FNAME: /root/fuzzing_firo/firo/src/fuzz/SIGSEGV.PC.7ffff780f7b9.STACK.ea51125a3.CODE.128.ADDR.0.INSTR.vmovdqu_(%rsi),%ymm0.fuzz
+PID: 330343
+SIGNAL: SIGSEGV (11)
+PC: 0x7ffff780f7b9
+FAULT ADDRESS: 0x0
+INSTRUCTION: vmovdqu_(%rsi),%ymm0
+STACK HASH: 0000000ea51125a3
+STACK:
+ <0x000000000048d2f2> [func:secp_primitives::GroupElement::GroupElement file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x000000000044be8b> [func:__gnu_cxx::new_allocator<secp_primitives::GroupElement>::construct<secp_primitives::GroupElement, secp_primitives::GroupElement&> file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x000000000044b9fa> [func:std::allocator_traits<std::allocator<secp_primitives::GroupElement> >::construct<secp_primitives::GroupElement, secp_primitives::GroupElement&> file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x000000000044bb19> [func:std::vector<secp_primitives::GroupElement, std::allocator<secp_primitives::GroupElement> >::_M_realloc_insert<secp_primitives::GroupElement&> file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x000000000043fd83> [func:std::vector<secp_primitives::GroupElement, std::allocator<secp_primitives::GroupElement> >::emplace_back<secp_primitives::GroupElement&> file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x000000000043e509> [func:LLVMFuzzerTestOneInput file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x0000000000531eef> [func:HonggfuzzMain file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+ <0x00007ffff76a8083> [func:UNKNOWN file: line:0 module:/usr/lib/x86_64-linux-gnu/libc-2.31.so]
+ <0x000000000041b92e> [func:_start file: line:0 module:/root/fuzzing_firo/firo/src/fuzz/results/fuzz_grootle_here/grootle_fuzz_member]
+=====================================================================

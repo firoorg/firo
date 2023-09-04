@@ -1,5 +1,5 @@
 var data = {files:[
-{"link":"bpplus_hfuzz_debug.735dc4dd/index.html","title":"bpplus_hfuzz_debug","summary_name":"bpplus_hfuzz_debug","covered_class":"lineNoCov","covered":"15.3","covered_lines":"777","uncovered_lines":"4309","total_lines" : "5086"},
+{"link":"bpplus_debug.3319c8b0/index.html","title":"bpplus_debug","summary_name":"bpplus_debug","covered_class":"linePartCov","covered":"39.9","covered_lines":"2036","uncovered_lines":"3067","total_lines" : "5103"},
 ], merged_files:[]};
 var percent_low = 25;var percent_high = 75;
-var header = { "command" : "bpplus_hfuzz_debug", "date" : "2023-08-17 17:16:25", "instrumented" : 5086, "covered" : 777,};
+var header = { "command" : "bpplus_debug", "date" : "2023-08-25 16:08:32", "instrumented" : 5103, "covered" : 2036,};
