@@ -553,6 +553,13 @@ bool CheckLelantusJoinSplitTransaction(
         anonymity_sets[idAndHash.first] = anonymity_set;
     }
 
+    const std::vector<uint32_t>& ids = joinsplit->getCoinGroupIds();
+    for (const auto& id: ids) {
+        if (!anonymity_sets.count(id))
+            return state.DoS(100,
+                             error("CheckLelantusJoinSplitTransaction: No anonymity set found."));
+    }
+
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
     bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete;
 
@@ -941,15 +948,17 @@ bool ConnectBlockLelantus(
                     )) {
                 return false;
             }
+        }
 
-            if (!fJustCheck) {
+        if (!fJustCheck) {
+            BOOST_FOREACH(auto& serial, pblock->lelantusTxInfo->spentSerials) {
                 pindexNew->lelantusSpentSerials.insert(serial);
                 lelantusState.AddSpend(serial.first, serial.second);
             }
         }
-
-        if (fJustCheck)
+        else {
             return true;
+        }
 
         const auto& params = ::Params().GetConsensus();
         CHash256 hash;
@@ -1359,9 +1368,8 @@ void CLelantusState::RemoveBlock(CBlockIndex *index) {
     // roll back coin group updates
     for (auto &coins : index->lelantusMintedPubCoins)
     {
-        if (coinGroups.count(coins.first) == 0) {
-            throw std::invalid_argument("Group Id does not exist");
-        }
+        if (coinGroups.count(coins.first) == 0)
+            continue;
 
         LelantusCoinGroupInfo& coinGroup = coinGroups[coins.first];
         auto nMintsToForget = coins.second.size();
