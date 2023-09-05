@@ -225,7 +225,16 @@ bool CTransaction::IsSparkSpend() const
 bool CTransaction::IsSparkMint() const
 {
     for (const CTxOut &txout: vout) {
-        if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint())
+        if (txout.scriptPubKey.IsSparkMint())
+            return true;
+    }
+    return false;
+}
+
+bool CTransaction::IsSparkSMint() const
+{
+    for (const CTxOut &txout: vout) {
+        if (txout.scriptPubKey.IsSparkSMint())
             return true;
     }
     return false;

@@ -457,6 +457,7 @@ public:
     bool IsSparkTransaction() const;
     bool IsSparkSpend() const;
     bool IsSparkMint() const;
+    bool IsSparkSMint() const;
 
     bool HasNoRegularInputs() const;
     bool HasPrivateInputs() const;

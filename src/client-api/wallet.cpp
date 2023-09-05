@@ -243,7 +243,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         else if (txin.IsLelantusJoinSplit()) inputType = "lelantus";
     }
     if (wtx.tx->IsSparkSpend()) inputType = "sparkspend";
-    if (wtx.tx->IsSparkMint()) inputType = "sparkmint";
+    if (wtx.tx->IsSparkMint() || wtx.tx->IsSparkSMint()) inputType = "sparkmint";
     if (inputType == "public" && wtx.tx->vin.size() == 1 && wtx.tx->vin[0].prevout.IsNull()) {
         inputType = "mined";
         fIsMining = true;
