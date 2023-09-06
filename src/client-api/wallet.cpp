@@ -261,19 +261,18 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     txData.pushKV("lelantusInputSerialHashes", lelantusInputSerialHashes);
 
     UniValue sparkInputSerialHashes = UniValue::VARR;
-    std::unique_ptr<spark::SpendTransaction> sparkTx = nullptr;
+    std::optional<spark::SpendTransaction> sparkSpendTx;
     if (wtx.tx->IsSparkSpend()) {
         bool ok = true;
-        spark::SpendTransaction spendTx(sparkParams);
         try {
-            spendTx = spark::ParseSparkSpend(wtx);
+            sparkSpendTx = spark::ParseSparkSpend(wtx);
         } catch (std::runtime_error& e) {
             LogPrintf("Error parsing spark spend %s: %s\n", wtx.GetHash().ToString(), e.what());
             ok = false;
         }
 
         if (ok) {
-            for (const secp_primitives::GroupElement& ltag: spendTx.getUsedLTags())
+            for (const secp_primitives::GroupElement& ltag: sparkSpendTx.value().getUsedLTags())
                 sparkInputSerialHashes.push_back(primitives::GetLTagHash(ltag).GetHex());
         }
     }
@@ -284,8 +283,8 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         fee = 0;
     } else if (joinSplit) {
         fee = joinSplit->getFee();
-    } else if (sparkTx) {
-        fee = sparkTx->getFee();
+    } else if (sparkSpendTx.has_value()) {
+        fee = sparkSpendTx.value().getFee();
     } else {
         CAmount nDebit = wtx.GetDebit(ISMINE_SPENDABLE);
         CAmount nValueOut = wtx.tx->GetValueOut();
