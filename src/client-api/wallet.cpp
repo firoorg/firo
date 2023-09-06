@@ -305,7 +305,6 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         // IsChange incorrectly reports mining outputs as change.
         bool fIsChange = !fIsMining && wtx.IsChange(n);
         bool fIsToMe = false;
-        bool fIsSpent = true;
         bool fHasSparkSpend = false;
         std::optional<std::string> sparkMemo;
 
@@ -327,7 +326,6 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                 CHDMint dMint;
                 if (db.ReadHDMint(hashPubcoin, true, dMint)) {
                     amount = dMint.GetAmount();
-                    fIsSpent = dMint.IsUsed();
                     fIsFromMe = true; // If we can parse a Lelantus mint, the transaction is from us.
                     fIsToMe = true;
                     lelantusSerialHash = dMint.GetSerialHash();
@@ -350,7 +348,6 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                 CHDMint dMint;
                 if (db.ReadHDMint(hashPubcoin, true, dMint)) {
                     amount = dMint.GetAmount();
-                    fIsSpent = dMint.IsUsed();
                     fIsFromMe = true; // If we can parse a Lelantus mint, the transaction is from us.
                     fIsToMe = true;
                     lelantusSerialHash = dMint.GetSerialHash();
@@ -375,7 +372,6 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                 if (pwalletMain->sparkWallet->getMintMeta(coin, mintMeta)) {
                     sparkMemo = mintMeta.memo;
                     amount = mintMeta.v;
-                    fIsSpent = mintMeta.isUsed;
                     fIsToMe = true;
 
                     try {
@@ -394,7 +390,6 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                 }
             }
         } else {
-            fIsSpent = pwalletMain->IsSpent(wtx.tx->GetHash(), n);
             amount = txout.nValue;
         }
 
@@ -412,7 +407,6 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         output.pushKV("isLocked", !!pwalletMain->setLockedCoins.count(COutPoint(wtx.tx->GetHash(), n)));
         output.pushKV("isToMe", fIsToMe);
         output.pushKV("isElysiumReferenceOutput", wtx.tx->IsElysiumReferenceOutput(n));
-        if (fIsToMe) output.pushKV("isSpent", fIsSpent);
         if (hasDestination) output.pushKV("destination", CBitcoinAddress(destination).ToString());
         if (!lelantusSerialHash.IsNull()) output.pushKV("lelantusSerialHash", lelantusSerialHash.GetHex());
         if (!sparkSerialHash.IsNull()) output.pushKV("sparkSerialHash", sparkSerialHash.GetHex());
