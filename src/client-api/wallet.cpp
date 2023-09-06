@@ -412,7 +412,12 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         if (hasDestination) output.pushKV("destination", CBitcoinAddress(destination).ToString());
         if (!lelantusSerialHash.IsNull()) output.pushKV("lelantusSerialHash", lelantusSerialHash.GetHex());
         if (!sparkSerialHash.IsNull()) output.pushKV("sparkSerialHash", sparkSerialHash.GetHex());
-        if (sparkMemo.has_value()) output.pushKV("sparkMemo", sparkMemo.value());
+        if (sparkMemo.has_value()) {
+            size_t end = sparkMemo.value().find('\0');
+            if (end == -1) end = sparkMemo.value().length();
+
+            output.pushKV("sparkMemo", sparkMemo.value().substr(0, end));
+        }
 
         outputs.push_back(output);
     }
