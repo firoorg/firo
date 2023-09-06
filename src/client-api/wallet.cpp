@@ -227,7 +227,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
 
     UniValue txData = UniValue::VOBJ;
 
-    bool fIsFromMe = false;
+    std::optional<bool> fIsFromMe = false;
     bool fIsMining = false;
 
     UniValue publicInputs = UniValue::VARR;
@@ -291,6 +291,8 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         CAmount nValueOut = wtx.tx->GetValueOut();
 
         if (nDebit > 0) fIsFromMe = true;
+        else fIsFromMe = false;
+
         fee = nDebit - nValueOut;
     }
 
@@ -317,6 +319,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
             } catch (std::invalid_argument&) {
                 LogPrintf("Unable to parse Lelantus mint script %s-%d\n", wtx.GetHash().ToString(), n);
                 ok = false;
+                fIsFromMe = false;
             }
 
             if (ok) {
@@ -339,6 +342,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
             } catch (std::invalid_argument&) {
                 LogPrintf("Unable to parse Lelantus jmint script %s-%d\n", wtx.GetHash().ToString(), n);
                 ok = false;
+                fIsFromMe = false;
             }
 
             if (ok) {
@@ -521,10 +525,10 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         txData.pushKV("elysium", UniValue::VNULL);
     }
 
+    if (fIsFromMe.has_value()) txData.pushKV("isFromMe", fIsFromMe.value());
     txData.pushKV("isInstantSendLocked", wtx.IsLockedByLLMQInstantSend());
     txData.pushKV("txid", wtx.GetHash().ToString());
     txData.pushKV("inputType", inputType);
-    txData.pushKV("isFromMe", fIsFromMe);
     txData.pushKV("firstSeenAt", wtx.GetTxTime());
     txData.pushKV("fee", BigInt(fee));
     txData.pushKV("outputs", outputs);
