@@ -227,7 +227,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
 
     UniValue txData = UniValue::VOBJ;
 
-    std::optional<bool> fIsFromMe = false;
+    std::optional<bool> fIsFromMe;
     bool fIsMining = false;
 
     UniValue publicInputs = UniValue::VARR;
