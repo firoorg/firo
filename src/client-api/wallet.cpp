@@ -305,6 +305,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         bool fIsToMe = false;
         bool fIsSpent = true;
         bool fHasSparkSpend = false;
+        std::optional<std::string> sparkMemo;
 
         uint256 lelantusSerialHash;
         uint256 sparkSerialHash;
@@ -368,6 +369,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                  CSparkMintMeta mintMeta;
                  coin.setSerialContext(spark::getSerialContext(* wtx.tx));
                 if (pwalletMain->sparkWallet->getMintMeta(coin, mintMeta)) {
+                    sparkMemo = mintMeta.memo;
                     amount = mintMeta.v;
                     fIsSpent = mintMeta.isUsed;
                     fIsToMe = true;
@@ -410,6 +412,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         if (hasDestination) output.pushKV("destination", CBitcoinAddress(destination).ToString());
         if (!lelantusSerialHash.IsNull()) output.pushKV("lelantusSerialHash", lelantusSerialHash.GetHex());
         if (!sparkSerialHash.IsNull()) output.pushKV("sparkSerialHash", sparkSerialHash.GetHex());
+        if (sparkMemo.has_value()) output.pushKV("sparkMemo", sparkMemo.value());
 
         outputs.push_back(output);
     }

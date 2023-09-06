@@ -152,7 +152,7 @@ UniValue mintSpark(Type type, const UniValue& data, const UniValue& auth, bool f
     if (!isSparkAddress(address, strAddress)) throw JSONAPIError(API_INVALID_REQUEST, "invalid address");
     CAmount amount = get_bigint(data["amount"]);
     if (amount <= 0) throw JSONAPIError(API_INVALID_REQUEST, "amount must be greater than 0");
-    std::string label = find_value(data, "label").get_str();
+    std::string memo = find_value(data, "memo").get_str();
     CCoinControl coinControl;
     bool fHasCoinControl = GetCoinControl(data, coinControl);
     payTxFee = CFeeRate(get_bigint(data["feePerKb"]));
@@ -162,7 +162,7 @@ UniValue mintSpark(Type type, const UniValue& data, const UniValue& auth, bool f
     std::vector<spark::MintedCoinData> outputs;
     spark::MintedCoinData mdata;
     mdata.address = address;
-    mdata.memo = "";
+    mdata.memo = memo;
     mdata.v = amount;
     outputs.push_back(mdata);
 
@@ -219,7 +219,7 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
     if (!isSparkAddress(address, strAddress) && !CBitcoinAddress(strAddress).IsValid()) throw JSONAPIError(API_INVALID_REQUEST, "invalid address");
     CAmount amount = get_bigint(data["amount"]);
     if (!amount) throw JSONAPIError(API_INVALID_REQUEST, "amount must be greater than 0");
-    std::string label = find_value(data, "label").get_str();
+    std::string memo = find_value(data, "memo").get_str();
     CCoinControl coinControl;
     bool fHasCoinControl = GetCoinControl(data, coinControl);
     payTxFee = CFeeRate(get_bigint(data["feePerKb"]));
@@ -236,7 +236,7 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
         spark::OutputCoinData data;
         address.decode(strAddress);
         data.address = address;
-        data.memo = "";
+        data.memo = memo;
         data.v = amount;
         privateRecipients.push_back(std::make_pair(data, fSubtractFeeFromAmount));
     }
