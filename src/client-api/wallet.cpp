@@ -402,11 +402,11 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
 
         UniValue output = UniValue::VOBJ;
         output.pushKV("scriptType", ScriptType(txout.scriptPubKey));
-        output.pushKV("amount", BigInt(amount));
         output.pushKV("isChange", fIsChange);
         output.pushKV("isLocked", !!pwalletMain->setLockedCoins.count(COutPoint(wtx.tx->GetHash(), n)));
         output.pushKV("isToMe", fIsToMe);
         output.pushKV("isElysiumReferenceOutput", wtx.tx->IsElysiumReferenceOutput(n));
+        if (amount > 0) output.pushKV("amount", BigInt(amount));
         if (hasDestination) output.pushKV("destination", CBitcoinAddress(destination).ToString());
         if (!lelantusSerialHash.IsNull()) output.pushKV("lelantusSerialHash", lelantusSerialHash.GetHex());
         if (!sparkSerialHash.IsNull()) output.pushKV("sparkSerialHash", sparkSerialHash.GetHex());
