@@ -306,6 +306,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         bool fIsToMe = false;
         bool fHasSparkSpend = false;
         std::optional<std::string> sparkMemo;
+        std::string destination;
 
         uint256 lelantusSerialHash;
         uint256 sparkSerialHash;
@@ -377,6 +378,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                         spark::IdentifiedCoinData identifiedCoinData = coin.identify(pwalletMain->sparkWallet->viewKey);
                         spark::RecoveredCoinData recoveredCoinData = coin.recover(pwalletMain->sparkWallet->fullViewKey, identifiedCoinData);
                         sparkSerialHash = primitives::GetLTagHash(recoveredCoinData.T);
+                        destination = spark::Address(pwalletMain->sparkWallet->viewKey, identifiedCoinData.i).encode(spark::GetNetworkType());
                     } catch (std::runtime_error& e) {
                         LogPrintf("error in stateWallet: unable to recover spark mint %s-%d: %s\n", wtx.GetHash().ToString(), n, e.what());
                         // mark the mint as not ours since we can't recover its linking tag
@@ -392,10 +394,9 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
             amount = txout.nValue;
         }
 
-        bool hasDestination = false;
-        CTxDestination destination;
-        if (ExtractDestination(txout.scriptPubKey, destination)) {
-            hasDestination = true;
+        CTxDestination txDestination;
+        if (destination.empty() && ExtractDestination(txout.scriptPubKey, txDestination)) {
+            destination = CBitcoinAddress(txDestination).ToString();
             fIsToMe = pwalletMain->IsMine(txout);
         }
 
@@ -406,7 +407,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         output.pushKV("isToMe", fIsToMe);
         output.pushKV("isElysiumReferenceOutput", wtx.tx->IsElysiumReferenceOutput(n));
         if (amount > 0) output.pushKV("amount", BigInt(amount));
-        if (hasDestination) output.pushKV("destination", CBitcoinAddress(destination).ToString());
+        if (!destination.empty()) output.pushKV("destination", destination);
         if (!lelantusSerialHash.IsNull()) output.pushKV("lelantusSerialHash", lelantusSerialHash.GetHex());
         if (!sparkSerialHash.IsNull()) output.pushKV("sparkSerialHash", sparkSerialHash.GetHex());
         if (sparkMemo.has_value()) {
