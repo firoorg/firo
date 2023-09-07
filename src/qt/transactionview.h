@@ -58,7 +58,7 @@ public:
         TYPE_COLUMN_WIDTH = 113,
         AMOUNT_MINIMUM_COLUMN_WIDTH = 120,
         MINIMUM_COLUMN_WIDTH = 23,
-        ADDRESS_TYPE_COLUMN_WIDTH = 150
+        ADDRESS_COLUMN_WIDTH = 300
     };
 
 private:

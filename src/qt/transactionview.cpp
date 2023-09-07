@@ -242,10 +242,11 @@ void TransactionView::setModel(WalletModel *_model)
         transactionView->setColumnWidth(TransactionTableModel::InstantSend, INSTANTSEND_COLUMN_WIDTH);
         transactionView->setColumnWidth(TransactionTableModel::Date, DATE_COLUMN_WIDTH);
         transactionView->setColumnWidth(TransactionTableModel::Type, TYPE_COLUMN_WIDTH);
+        transactionView->setColumnWidth(TransactionTableModel::ToAddress, ADDRESS_COLUMN_WIDTH);
         transactionView->horizontalHeader()->setSectionResizeMode(TransactionTableModel::Amount, QHeaderView::Fixed);
         transactionView->horizontalHeader()->setMinimumSectionSize(23);
         transactionView->horizontalHeader()->setStretchLastSection(true);
-        transactionView->horizontalHeader()->setMaximumSectionSize(260);
+        transactionView->horizontalHeader()->setMaximumSectionSize(300);
 
         if (_model->getOptionsModel())
         {
@@ -551,7 +552,7 @@ void TransactionView::editLabel()
         {
             address = selection.at(0).data(TransactionTableModel::AddressRole).toString();
             addressBook = model->getAddressTableModel();
-            mode = EditAddressDialog::NewSendingAddress;
+            mode = model->validateAddress(address) ? EditAddressDialog::NewSendingAddress : EditAddressDialog::NewSparkSendingAddress;
         }
 
         if(!addressBook || address.isEmpty())
@@ -571,6 +572,12 @@ void TransactionView::editLabel()
                 mode = type == AddressTableModel::Receive
                     ? EditAddressDialog::EditReceivingAddress
                     : EditAddressDialog::EditSendingAddress;
+            }
+            else if(mode == EditAddressDialog::NewSparkSendingAddress)
+            {
+                mode = type == AddressTableModel::Receive
+                    ? EditAddressDialog::EditSparkReceivingAddress
+                    : EditAddressDialog::EditSparkSendingAddress;
             }
             else
                 mode = EditAddressDialog::EditPcode;
