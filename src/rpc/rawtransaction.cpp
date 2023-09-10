@@ -127,7 +127,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             try {
                 jsplit = lelantus::ParseLelantusJoinSplit(tx);
             }
-            catch (...) {
+            catch (const std::exception &) {
                 continue;
             }
             in.push_back(Pair("nFees", ValueFromAmount(jsplit->getFee())));

@@ -391,7 +391,7 @@ bool CheckLelantusJoinSplitTransaction(
             REJECT_MALFORMED,
             "CheckLelantusJoinSplitTransaction: invalid joinsplit transaction");
     }
-    catch (...) {
+    catch (const std::exception &) {
         return state.DoS(100,
                          false,
                          REJECT_MALFORMED,
@@ -788,7 +788,7 @@ void RemoveLelantusJoinSplitReferencingBlock(CTxMemPool& pool, CBlockIndex* bloc
                     try {
                         joinsplit = ParseLelantusJoinSplit(tx);
                     }
-                    catch (...) {
+                    catch (const std::exception &) {
                         txn_to_remove.push_back(tx);
                         break;
                     }
@@ -827,7 +827,7 @@ std::vector<Scalar> GetLelantusJoinSplitSerialNumbers(const CTransaction &tx, co
     try {
         return ParseLelantusJoinSplit(tx)->getCoinSerialNumbers();
     }
-    catch (...) {
+    catch (const std::exception &) {
         return std::vector<Scalar>();
     }
 }
@@ -839,7 +839,7 @@ std::vector<uint32_t> GetLelantusJoinSplitIds(const CTransaction &tx, const CTxI
     try {
         return ParseLelantusJoinSplit(tx)->getCoinGroupIds();
     }
-    catch (...) {
+    catch (const std::exception &) {
         return std::vector<uint32_t>();
     }
 }
@@ -979,7 +979,7 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue,
                 try {
                     ParseLelantusMintScript(txout.scriptPubKey, txPubCoinValue);
                 }
-                catch (...) {
+                catch (const std::exception &) {
                     continue;
                 }
                 if(pubCoinValue==txPubCoinValue){

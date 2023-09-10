@@ -1183,7 +1183,7 @@ bool CHDMintWallet::TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pu
     secp_primitives::GroupElement publicSigma;
     try {
         publicSigma.deserialize(&coin_serialised[0]);
-    } catch (...) {
+    } catch (const std::exception &) {
         return state.DoS(100, error("TxOutToPublicCoin : deserialize failed"));
     }
 

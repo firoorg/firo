@@ -1429,7 +1429,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
             try {
                 joinsplit = lelantus::ParseLelantusJoinSplit(*wtx.tx);
             }
-            catch (...) {
+            catch (const std::exception &) {
                 continue;
             }
 
@@ -1594,7 +1594,7 @@ isminetype CWallet::IsMine(const CTxIn &txin, const CTransaction& tx) const
         try {
             joinsplit = lelantus::ParseLelantusJoinSplit(tx);
         }
-        catch (...) {
+        catch (const std::exception &) {
             return ISMINE_NO;
         }
 
@@ -1655,7 +1655,7 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const CTransaction& tx, const ismin
         try {
             joinsplit = lelantus::ParseLelantusJoinSplit(tx);
         }
-        catch (...) {
+        catch (const std::exception &) {
             goto end;
         }
 
@@ -2086,7 +2086,7 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
             try {
                 nFee = lelantus::ParseLelantusJoinSplit(*tx)->getFee();
             }
-            catch (...) {
+            catch (const std::exception &) {
                 // do nothing
             }
     }
@@ -5334,7 +5334,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
         CValidationState state;
         CReserveKey reserveKey(this);
         CommitTransaction(wtxNew, reserveKey, g_connman.get(), state);
-    } catch (...) {
+    } catch (const std::exception &) {
         auto error = _(
             "Error: The transaction was rejected! This might happen if some of "
             "the coins in your wallet were already spent, such as if you used "
@@ -5530,7 +5530,7 @@ bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantus
         CValidationState state;
         CReserveKey reserveKey(this);
         CommitTransaction(wtxNew, reserveKey, g_connman.get(), state);
-    } catch (...) {
+    } catch (const std::exception &) {
         auto error = _(
                 "Error: The transaction was rejected! This might happen if some of "
                 "the coins in your wallet were already spent, such as if you used "

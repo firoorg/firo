@@ -663,7 +663,7 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue,
                                                       txout.scriptPubKey.end());
                 try {
                     txPubCoinValue.deserialize(&coin_serialised[0]);
-                } catch (...) {
+                } catch (const std::exception &) {
                     return false;
                 }
                 if(pubCoinValue==txPubCoinValue){

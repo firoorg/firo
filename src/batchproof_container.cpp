@@ -208,7 +208,7 @@ void BatchProofContainer::batch_sigma() {
                     try {
                         if (!sigmaVerifier.batch_verify(anonymity_set, serials, fPadding, setSizes, proofs))
                             return false;
-                    } catch (...) {
+                    } catch (const std::exception &) {
                         return false;
                     }
                     return true;
@@ -311,7 +311,7 @@ void BatchProofContainer::batch_lelantus() {
                     try {
                         if (!sigmaVerifier.batchverify(anonymity_set, challenges, serials, setSizes, proofs))
                             return false;
-                    } catch (...) {
+                    } catch (const std::exception &) {
                         return false;
                     }
                     return true;

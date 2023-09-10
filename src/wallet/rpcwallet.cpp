@@ -2073,7 +2073,7 @@ UniValue gettransaction(const JSONRPCRequest& request)
         try {
             nFee = (0 - lelantus::ParseLelantusJoinSplit(*wtx.tx)->getFee());
         }
-        catch (...) {
+        catch (const std::exception &) {
             // do nothing
         }
     }
@@ -4106,7 +4106,7 @@ UniValue listlelantusjoinsplits(const JSONRPCRequest& request) {
         std::unique_ptr<lelantus::JoinSplit> joinsplit;
         try {
             joinsplit = lelantus::ParseLelantusJoinSplit(*pwtx->tx);
-        } catch (...) {
+        } catch (const std::exception &) {
             continue;
         }
 
