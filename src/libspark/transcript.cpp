@@ -139,7 +139,7 @@ Scalar Transcript::challenge(const std::string label) {
             EVP_MD_CTX_free(state_finalize);
 
             return candidate;
-        } catch (...) {
+        } catch (const std::exception &) {
             counter++;
         }
     }

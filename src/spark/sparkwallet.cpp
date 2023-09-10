@@ -260,7 +260,7 @@ bool CSparkWallet::isAddressMine(const std::string& encodedAddr) {
     spark::Address address(params);
     try {
         address.decode(encodedAddr);
-    } catch (...) {
+    } catch (const std::exception &) {
         return false;
     }
 
@@ -273,7 +273,7 @@ bool CSparkWallet::isAddressMine(const std::string& encodedAddr) {
 
     try {
         d = viewKey.get_diversifier(address.get_d());
-    } catch (...) {
+    } catch (const std::exception &) {
         return false;
     }
 
@@ -424,7 +424,7 @@ bool CSparkWallet::getMintAmount(spark::Coin coin, CAmount& amount) {
     spark::IdentifiedCoinData identifiedCoinData;
     try {
         identifiedCoinData = coin.identify(this->viewKey);
-    } catch (...) {
+    } catch (const std::exception &) {
         return false;
     }
     amount = identifiedCoinData.v;
@@ -488,7 +488,7 @@ void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
                         uint256 lTagHash = primitives::GetLTagHash(txLTag);
                         UpdateSpendState(txLTag, lTagHash, txHash);
                     }
-                } catch (...) {
+                } catch (const std::exception &) {
                 }
             }
         }
@@ -498,7 +498,7 @@ void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
 bool CSparkWallet::isMine(spark::Coin coin) const {
     try {
         spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
-    } catch (...) {
+    } catch (const std::exception &) {
         return false;
     }
 
