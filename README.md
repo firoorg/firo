@@ -47,6 +47,12 @@ This will start a detached docker container, which you can interact with using `
 
 ## Docker image on DockerHub
 
+If it doesn't already exist, create a `.firo` folder in your home (this is a workaround until [#1241](https://github.com/firoorg/firo/issues/1241) is resolved):
+
+```sh
+mkdir -p ${HOME}/.firo
+```
+
 Pull our [latest official Docker image](https://hub.docker.com/r/firoorg/firod):
 
 ```sh
