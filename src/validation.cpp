@@ -4082,6 +4082,10 @@ static void NotifyHeaderTip() {
         LOCK(cs_main);
         pindexHeader = pindexBestHeader;
 
+#ifdef ENABLE_CLIENTAPI
+        bestHeaderHeight = pindexHeader->nHeight;
+#endif
+
         if (pindexHeader != pindexHeaderOld) {
             fNotify = true;
             fInitialBlockDownload = IsInitialBlockDownload();

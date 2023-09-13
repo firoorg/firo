@@ -229,10 +229,8 @@ void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitia
 {
     LogPrint("mnsync", "CMasternodeSync::UpdatedBlockTip -- pindexNew->nHeight: %d fInitialDownload=%d\n", pindexNew->nHeight, fInitialDownload);
 
-    if (IsFailed() || IsSynced() || !pindexBestHeader) {
-        NotifyClientApi();
+    if (IsFailed() || IsSynced() || !pindexBestHeader)
         return;
-    }
 
     if (!IsBlockchainSynced()) {
         // Postpone timeout each time new block arrives while we are still syncing blockchain
@@ -246,7 +244,6 @@ void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitia
         }
 
         // no need to check any further while still in IBD mode
-        NotifyClientApi();
         return;
     }
 
@@ -260,7 +257,6 @@ void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitia
         // because there is no way we can update tip not having best header
         Reset();
         fReachedBestHeader = false;
-        NotifyClientApi();
         return;
     }
 
@@ -273,7 +269,6 @@ void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitia
         if (fLiteMode) {
             // nothing to do in lite mode, just finish the process immediately
             nCurrentAsset = MASTERNODE_SYNC_FINISHED;
-            NotifyClientApi();
             return;
         }
         // Reached best header while being in initial mode.
@@ -300,8 +295,6 @@ void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitia
             delete pendingMNVerification;
         });
     }
-
-    NotifyClientApi();
 }
 
 void CMasternodeSync::DoMaintenance(CConnman &connman)
@@ -310,11 +303,3 @@ void CMasternodeSync::DoMaintenance(CConnman &connman)
 
     ProcessTick(connman);
 }
-
-#ifdef ENABLE_CLIENTAPI
-void CMasternodeSync::NotifyClientApi() {
-    isBlockchainSynced.store(IsSynced(), std::memory_order::memory_order_relaxed);
-}
-#else
-void CMasternodeSync::NotifyClientApi() {}
-#endif

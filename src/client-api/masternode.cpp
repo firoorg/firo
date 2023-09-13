@@ -16,8 +16,6 @@ UniValue masternodelist(Type type, const UniValue& data, const UniValue& auth, b
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return false;
 
-    if (!isBlockchainSynced.load()) return UniValue(UniValue::VOBJ);
-
     UniValue ret(UniValue::VOBJ);
     CDeterministicMNList mnList = deterministicMNManager->GetListForBlock(chainActive.Tip());
     mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
@@ -31,7 +29,7 @@ UniValue masternodelist(Type type, const UniValue& data, const UniValue& auth, b
 }
 
 UniValue masternodeupdate(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
-    
+
     UniValue ret(UniValue::VOBJ);
     UniValue masternode(UniValue::VOBJ);
     std::string strProTxHash;

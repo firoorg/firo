@@ -161,7 +161,8 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     ret.pushKV("protocolVersion", PROTOCOL_VERSION);
     ret.pushKV("smartFeePerKb", BigInt(1000));
     ret.pushKV("blocks", LOAD(currentBlockHeight));
-    ret.pushKV("synced", LOAD(isBlockchainSynced));
+    ret.pushKV("bestHeaderHeight", LOAD(bestHeaderHeight));
+    ret.pushKV("synced", Params().IsRegtest() || (LOAD(currentConnectionCount) >= 1 && LOAD(bestHeaderHeight) == LOAD(currentBlockHeight)));
     ret.pushKV("rescanning", fRescanning);
     ret.pushKV("reindexing", fReindex);
     ret.pushKV("latestBlockTimestamp", LOAD(currentBlockTimestamp));
@@ -254,7 +255,7 @@ UniValue rpc(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
             UniValue request(UniValue::VOBJ);
             UniValue reply(UniValue::VOBJ);
             UniValue result(UniValue::VOBJ);
-            
+
             std::string method = "help";
             std::vector<std::string> args;
             UniValue params = RPCConvertValues(method, args);
