@@ -209,6 +209,10 @@ public:
     bool WriteTx(const CWalletTx& wtx);
     bool EraseTx(uint256 hash);
 
+    bool ReadTxoLabel(COutPoint outpoint, std::string& label);
+    bool WriteTxoLabel(COutPoint outpoint, const std::string& label);
+    bool EraseTxoLabel(COutPoint outpoint);
+
 #ifdef ENABLE_ELYSIUM
     bool WriteTxOrigin(uint256 tx, const std::string& origin);
 #endif

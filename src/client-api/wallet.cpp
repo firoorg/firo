@@ -400,10 +400,17 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
             fIsToMe = pwalletMain->IsMine(txout);
         }
 
+        COutPoint outpoint(wtx.tx->GetHash(), n);
+
         UniValue output = UniValue::VOBJ;
+
+        std::string txoLabel;
+        if (db.ReadTxoLabel(outpoint, txoLabel))
+            output.pushKV("txoLabel", txoLabel);
+
         output.pushKV("scriptType", ScriptType(txout.scriptPubKey));
         output.pushKV("isChange", fIsChange);
-        output.pushKV("isLocked", !!pwalletMain->setLockedCoins.count(COutPoint(wtx.tx->GetHash(), n)));
+        output.pushKV("isLocked", !!pwalletMain->setLockedCoins.count(outpoint));
         output.pushKV("isToMe", fIsToMe);
         output.pushKV("isElysiumReferenceOutput", wtx.tx->IsElysiumReferenceOutput(n));
         if (amount > 0) output.pushKV("amount", BigInt(amount));
@@ -857,6 +864,29 @@ UniValue readaddressbook(Type type, const UniValue& data, const UniValue& auth, 
     return addressBook;
 }
 
+UniValue settxolabel(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+    assert(pwalletMain);
+
+    COutPoint outpoint(uint256S(data["txid"].get_str()), data["index"].get_int());
+
+    CWalletTx wtx;
+    {
+        LOCK(pwalletMain->cs_wallet);
+        if (pwalletMain->mapWallet.count(outpoint.hash) == 0)
+            throw JSONAPIError(API_WALLET_ERROR, "Error: Transaction not found");
+        wtx = pwalletMain->mapWallet[outpoint.hash];
+    }
+
+    std::string label = data["label"].get_str();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    if (!(label.empty() ? walletdb.EraseTxoLabel(outpoint) : walletdb.WriteTxoLabel(outpoint, label)))
+        throw JSONAPIError(API_INTERNAL_ERROR, "Failed to write label");
+
+    GetMainSignals().WalletTransaction(wtx);
+
+    return UniValue::VNULL;
+}
+
 UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
     if (!EnsureWalletIsAvailable(pwalletMain, false))
         return NullUniValue;
@@ -988,6 +1018,7 @@ static const CAPICommand commands[] =
     { "wallet",             "verifyMnemonicValidity",         &verifymnemonicvalidity,         true,      false,           false  },
     { "wallet",             "readAddressBook",                &readaddressbook,                true,      false,           false  },
     { "wallet",             "editAddressBook",                &editaddressbook,                true,      false,           false  },
+    { "wallet",             "settxolabel",                    &settxolabel,                    true,      false,           false  },
     { "wallet",             "lockStatus",                     &lockStatus,                     true,      false,           false  },
     { "wallet",             "getAvailableSparkBalance",       &getAvailableSparkBalance,       true,      false,           false  },
     { "wallet",             "getUnconfirmedSparkBalance",     &getUnconfirmedSparkBalance,     true,      false,           false  },

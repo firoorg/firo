@@ -95,6 +95,23 @@ bool CWalletDB::EraseTx(uint256 hash)
     return Erase(std::make_pair(std::string("tx"), hash));
 }
 
+bool CWalletDB::ReadTxoLabel(COutPoint outpoint, std::string& label)
+{
+    return Read(std::make_pair(std::string("txolabel"), outpoint), label);
+}
+
+bool CWalletDB::WriteTxoLabel(COutPoint outpoint, const std::string& label)
+{
+    nWalletDBUpdateCounter++;
+    return Write(std::make_pair(std::string("txolabel"), outpoint), label);
+}
+
+bool CWalletDB::EraseTxoLabel(COutPoint outpoint)
+{
+    nWalletDBUpdateCounter++;
+    return Erase(std::make_pair(std::string("txolabel"), outpoint));
+}
+
 #ifdef ENABLE_ELYSIUM
 bool CWalletDB::WriteTxOrigin(uint256 tx, const std::string& origin) {
     return Write(std::make_pair(std::string("txorigin"), tx), origin);
