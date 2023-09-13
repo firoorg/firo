@@ -18,7 +18,8 @@ static const struct {
     {"main", QAPP_APP_NAME_DEFAULT, 0, 0, ""},
     {"test", QAPP_APP_NAME_TESTNET, 70, 30, QT_TRANSLATE_NOOP("SplashScreen", "[testnet]")},
     {"dev", QAPP_APP_NAME_TESTNET, 70, 30, QT_TRANSLATE_NOOP("SplashScreen", "[devnet]")},
-    {"regtest", QAPP_APP_NAME_TESTNET, 160, 30, "[regtest]"}
+    {"regtest", QAPP_APP_NAME_TESTNET, 160, 30, "[regtest]"},
+    {"regtest-ql", QAPP_APP_NAME_TESTNET, 160, 30, "[regtest-ql]"}
 };
 static const unsigned network_styles_count = sizeof(network_styles)/sizeof(*network_styles);
 
