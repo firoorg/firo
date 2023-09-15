@@ -250,6 +250,28 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
     }
 
+    if (!privateRecipients.empty()) {
+        // Our code will only ever produce a single private recipient, but if it produced more, it wouldn't be possible
+        // to determine which txo went to which recipient without changing SpendAndStoreSpark's logic.
+        assert(privateRecipients.size() == 1);
+
+        size_t i = 0;
+        for (const CTxOut& txout: wtx.tx->vout) {
+            if (!wtx.IsChange(txout)) {
+                i++;
+
+                CSparkOutputTx sparkOutputTx;
+
+                sparkOutputTx.address = strAddress;
+                sparkOutputTx.amount = fSubtractFeeFromAmount ? amount - fee : amount;
+
+                CWalletDB walletdb(pwalletMain->strWalletFile);
+                walletdb.WriteSparkOutputTx(txout.scriptPubKey, sparkOutputTx);
+            }
+        }
+        assert(i == 1);
+    }
+
     GetMainSignals().WalletTransaction(wtx);
 
     UniValue retval(UniValue::VOBJ);

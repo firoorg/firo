@@ -83,6 +83,31 @@ public:
     }
 };
 
+class CSparkOutputTx
+{
+public:
+    std::string address;
+    int64_t amount;
+
+    CSparkOutputTx()
+    {
+        SetNull();
+    }
+
+    void SetNull()
+    {
+        address = "";
+        amount = 0;
+    }
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(address);
+        READWRITE(amount);
+    }
+};
+
 namespace primitives {
     uint256 GetNonceHash(const secp_primitives::Scalar& nonce);
     uint256 GetLTagHash(const secp_primitives::GroupElement& tag);

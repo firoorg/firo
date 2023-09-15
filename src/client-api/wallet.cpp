@@ -390,6 +390,12 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
                         amount = txout.nValue;
                 }
             }
+
+            if (sparkSpendTx.has_value() && destination.empty()) {
+                CSparkOutputTx outputTxData;
+                if (db.ReadSparkOutputTx(txout.scriptPubKey, outputTxData))
+                    destination = outputTxData.address;
+            }
         } else {
             amount = txout.nValue;
         }
