@@ -250,10 +250,6 @@ UniValue spendSpark(Type type, const UniValue& data, const UniValue& auth, bool 
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
     }
 
-    if (fee > 10000000) {
-        throw JSONAPIError(API_INTERNAL_ERROR, "We have produced a transaction with a fee above 1 FIRO. This is almost certainly a bug.");
-    }
-
     GetMainSignals().WalletTransaction(wtx);
 
     UniValue retval(UniValue::VOBJ);
