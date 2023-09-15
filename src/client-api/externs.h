@@ -2,9 +2,9 @@
 #define CLIENTAPI_EXTERNS_H
 
 #include <sync.h>
+#include <boost/lockfree/queue.hpp>
 
-extern CCriticalSection cs_clientApiLogMessages;
-extern std::vector<std::string> clientApiLogMessages;
+extern boost::lockfree::queue<std::string*> clientApiLogMessages;
 extern std::atomic<int> currentBlockHeight;
 extern std::atomic<int> bestHeaderHeight;
 extern std::atomic<int64_t> currentBlockTimestamp;

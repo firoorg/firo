@@ -189,12 +189,10 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     ret.pushKV("lelantusGracefulPeriod", ::Params().GetConsensus().nLelantusGracefulPeriod);
 
     UniValue newLogMessages = UniValue::VARR;
-    {
-        LOCK(cs_clientApiLogMessages);
-        for (std::string &msg: clientApiLogMessages) {
-            newLogMessages.push_back(msg);
-        }
-        clientApiLogMessages.clear();
+    std::string* msg;
+    while (clientApiLogMessages.pop(msg)) {
+        newLogMessages.push_back(*msg);
+        delete msg;
     }
     ret.pushKV("newLogMessages", newLogMessages);
 

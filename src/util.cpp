@@ -328,11 +328,6 @@ int LogPrintStr(const std::string &str)
 
     std::string strTimestamped = LogTimestampStr(str, &fStartedNewLine);
 
-    {
-        LOCK(cs_clientApiLogMessages);
-        clientApiLogMessages.emplace_back(strTimestamped);
-    }
-
     if (fPrintToConsole)
     {
         // print to console
@@ -363,6 +358,12 @@ int LogPrintStr(const std::string &str)
             ret = FileWriteStr(strTimestamped, fileout);
         }
     }
+
+    #ifdef ENABLE_CLIENTAPI
+        std::string* s = new std::string(std::move(strTimestamped));
+        clientApiLogMessages.push(s);
+    #endif
+
     return ret;
 }
 
@@ -1198,6 +1199,6 @@ std::string CopyrightHolders(const std::string& strPrefix)
     if (copyright_devs.find("Bitcoin Core") == std::string::npos) {
         strCopyrightHolders += '\n' + strPrefix + "The Bitcoin Core developers";
     }
-    
+
     return strCopyrightHolders;
 }

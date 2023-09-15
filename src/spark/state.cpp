@@ -644,7 +644,7 @@ bool CheckSparkSpendTransaction(
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
     bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
-    
+
     // if we are collecting proofs, skip verification and collect proofs
     // add proofs into container
     if (useBatching) {
