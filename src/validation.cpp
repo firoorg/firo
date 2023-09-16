@@ -1494,7 +1494,14 @@ bool AcceptToMemoryPoolWithTime(CTxMemPool& pool, CValidationState &state, const
 {
     LogPrintf("AcceptToMemoryPool(), transaction: %s\n", tx->GetHash().ToString());
     std::vector<COutPoint> coins_to_uncache;
-    bool res = AcceptToMemoryPoolWorker(pool, state, tx, fLimitFree, pfMissingInputs, nAcceptTime, plTxnReplaced, fOverrideMempoolLimit, nAbsurdFee, coins_to_uncache, isCheckWalletTransaction, markFiroSpendTransactionSerial);
+    bool res = false;
+    try {
+        res = AcceptToMemoryPoolWorker(pool, state, tx, fLimitFree, pfMissingInputs, nAcceptTime, plTxnReplaced, fOverrideMempoolLimit, nAbsurdFee, coins_to_uncache, isCheckWalletTransaction, markFiroSpendTransactionSerial);
+    }
+    catch (const std::exception &x) {
+        state.Error(x.what());
+        res = false;
+    }
     if (!res) {
         BOOST_FOREACH(const COutPoint& hashTx, coins_to_uncache)
             pcoinsTip->Uncache(hashTx);

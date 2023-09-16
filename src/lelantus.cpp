@@ -740,8 +740,13 @@ bool CheckLelantusTransaction(
     if (allowLelantus && !isVerifyDB) {
         for (const CTxOut &txout : tx.vout) {
             if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsLelantusMint()) {
-                if (!CheckLelantusMintTransaction(txout, state, hashTx, fStatefulSigmaCheck, lelantusTxInfo))
-                    return false;
+                try {
+                    if (!CheckLelantusMintTransaction(txout, state, hashTx, fStatefulSigmaCheck, lelantusTxInfo))
+                        return false;
+                }
+                catch (const std::exception &x) {
+                    return state.Error(x.what());
+                }
             }
         }
     }
@@ -762,10 +767,15 @@ bool CheckLelantusTransaction(
         }
 
         if (!isVerifyDB) {
-            if (!CheckLelantusJoinSplitTransaction(
-                tx, state, hashTx, isVerifyDB, nHeight, realHeight,
-                isCheckWallet, fStatefulSigmaCheck, sigmaTxInfo, lelantusTxInfo)) {
-                    return false;
+            try {
+                if (!CheckLelantusJoinSplitTransaction(
+                    tx, state, hashTx, isVerifyDB, nHeight, realHeight,
+                    isCheckWallet, fStatefulSigmaCheck, sigmaTxInfo, lelantusTxInfo)) {
+                        return false;
+                }
+            }
+            catch (const std::exception &x) {
+                return state.Error(x.what());
             }
         }
     }
