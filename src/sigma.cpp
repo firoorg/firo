@@ -455,8 +455,13 @@ bool CheckSigmaTransaction(
     if (allowSigma) {
         for (const CTxOut &txout : tx.vout) {
             if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsSigmaMint()) {
-                if (!CheckSigmaMintTransaction(txout, state, hashTx, fStatefulSigmaCheck, sigmaTxInfo))
-                    return false;
+                try {
+                    if (!CheckSigmaMintTransaction(txout, state, hashTx, fStatefulSigmaCheck, sigmaTxInfo))
+                        return false;
+                }
+                catch (const std::exception &x) {
+                    return state.Error(x.what());
+                }
             }
         }
     }
@@ -506,10 +511,15 @@ bool CheckSigmaTransaction(
         // Check vOut
         // Only one loop, we checked on the format before entering this case
         if (!isVerifyDB) {
-            if (!CheckSigmaSpendTransaction(
-                tx, denominations, state, hashTx, isVerifyDB, nHeight, realHeight,
-                isCheckWallet, fStatefulSigmaCheck, sigmaTxInfo)) {
-                    return false;
+            try {
+                if (!CheckSigmaSpendTransaction(
+                    tx, denominations, state, hashTx, isVerifyDB, nHeight, realHeight,
+                    isCheckWallet, fStatefulSigmaCheck, sigmaTxInfo)) {
+                        return false;
+                }
+            }
+            catch (const std::exception &x) {
+                return state.Error(x.what());
             }
         }
     }

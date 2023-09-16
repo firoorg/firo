@@ -730,9 +730,14 @@ bool CheckSparkTransaction(
             }
         }
         if (!txOuts.empty()) {
-            if (!CheckSparkMintTransaction(txOuts, state, hashTx, fStatefulSigmaCheck, sparkTxInfo)) {
-                LogPrintf("CheckSparkTransaction::Mint verification failed.\n");
-                return false;
+            try {
+                if (!CheckSparkMintTransaction(txOuts, state, hashTx, fStatefulSigmaCheck, sparkTxInfo)) {
+                    LogPrintf("CheckSparkTransaction::Mint verification failed.\n");
+                    return false;
+                }
+            }
+            catch (const std::exception &x) {
+                return state.Error(x.what());
             }
         } else {
             return state.DoS(100, false,
@@ -750,10 +755,15 @@ bool CheckSparkTransaction(
         }
 
         if (!isVerifyDB) {
-            if (!CheckSparkSpendTransaction(
-                    tx, state, hashTx, isVerifyDB, nHeight,
-                    isCheckWallet, fStatefulSigmaCheck, sparkTxInfo)) {
-                return false;
+            try {
+                if (!CheckSparkSpendTransaction(
+                        tx, state, hashTx, isVerifyDB, nHeight,
+                        isCheckWallet, fStatefulSigmaCheck, sparkTxInfo)) {
+                    return false;
+                }
+            }
+            catch (const std::exception &x) {
+                return state.Error(x.what());
             }
         }
     }
