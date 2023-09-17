@@ -278,7 +278,7 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     }
     txData.pushKV("sparkInputSerialHashes", sparkInputSerialHashes);
 
-    CAmount fee = 0;
+    std::optional<CAmount> fee;
     if (fIsMining) {
         fee = 0;
     } else if (joinSplit) {
@@ -289,10 +289,11 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         CAmount nDebit = wtx.GetDebit(ISMINE_SPENDABLE);
         CAmount nValueOut = wtx.tx->GetValueOut();
 
-        if (nDebit > 0) fIsFromMe = true;
-        else fIsFromMe = false;
-
-        fee = nDebit - nValueOut;
+        // It's not that we couldn't calculate a fee for incoming transactions, but that it would be slow.
+        if (nDebit > nValueOut) {
+            fIsFromMe = true;
+            fee = nDebit - nValueOut;
+        }
     }
 
     CAmount amount = 0;
@@ -533,11 +534,11 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     }
 
     if (fIsFromMe.has_value()) txData.pushKV("isFromMe", fIsFromMe.value());
+    if (fee.has_value()) txData.pushKV("fee", BigInt(fee.value()));
     txData.pushKV("isInstantSendLocked", wtx.IsLockedByLLMQInstantSend());
     txData.pushKV("txid", wtx.GetHash().ToString());
     txData.pushKV("inputType", inputType);
     txData.pushKV("firstSeenAt", wtx.GetTxTime());
-    txData.pushKV("fee", BigInt(fee));
     txData.pushKV("outputs", outputs);
 
     if (block) {
