@@ -51,11 +51,12 @@ public:
     };
 
     enum ColumnWidths {
-        STATUS_COLUMN_WIDTH = 170,
+        STATUS_COLUMN_WIDTH = 50,
         WATCHONLY_COLUMN_WIDTH = 23,
         INSTANTSEND_COLUMN_WIDTH = 23,
         DATE_COLUMN_WIDTH = 120,
         TYPE_COLUMN_WIDTH = 113,
+        ADDRESS_COLUMN_WIDTH = 300,
         AMOUNT_MINIMUM_COLUMN_WIDTH = 120,
         MINIMUM_COLUMN_WIDTH = 23
     };
