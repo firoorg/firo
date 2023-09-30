@@ -1,12 +1,12 @@
-#ifndef FIRO_LIBSPARK_GROOTLE_H
-#define FIRO_LIBSPARK_GROOTLE_H
+#ifndef FIRO_LIBSPATS_GROOTLE_H
+#define FIRO_LIBSPATS_GROOTLE_H
 
 #include "grootle_proof.h"
 #include <secp256k1/include/MultiExponent.h>
 #include <random>
 #include "util.h"
 
-namespace spark {
+namespace spats {
 
 class Grootle {
 

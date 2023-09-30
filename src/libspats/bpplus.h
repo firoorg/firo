@@ -1,10 +1,10 @@
-#ifndef FIRO_LIBSPARK_BPPLUS_H
-#define FIRO_LIBSPARK_BPPLUS_H
+#ifndef FIRO_LIBSPATS_BPPLUS_H
+#define FIRO_LIBSPATS_BPPLUS_H
 
 #include "bpplus_proof.h"
 #include <secp256k1/include/MultiExponent.h>
 
-namespace spark {
+namespace spats {
     
 std::size_t log2(std::size_t n);
 bool is_nonzero_power_of_2(std::size_t n);

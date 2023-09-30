@@ -1,9 +1,9 @@
-#ifndef FIRO_SPARK_KDF_H
-#define FIRO_SPARK_KDF_H
+#ifndef FIRO_SPATS_KDF_H
+#define FIRO_SPATS_KDF_H
 #include <openssl/evp.h>
 #include "util.h"
 
-namespace spark {
+namespace spats {
 
 class KDF {
 public:

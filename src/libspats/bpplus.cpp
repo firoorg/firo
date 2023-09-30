@@ -1,7 +1,7 @@
 #include "bpplus.h"
 #include "transcript.h"
 
-namespace spark {
+namespace spats {
 
 // Useful scalar constants
 const Scalar ZERO = Scalar((uint64_t) 0);

@@ -1,7 +1,7 @@
 #include "schnorr.h"
 #include "transcript.h"
 
-namespace spark {
+namespace spats {
 
 Schnorr::Schnorr(const GroupElement& G_):
     G(G_) {

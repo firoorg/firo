@@ -1,6 +1,6 @@
 #include "mint_transaction.h"
 
-namespace spark {
+namespace spats {
 
 MintTransaction::MintTransaction(const Params* params) {
     this->params = params;
@@ -40,7 +40,7 @@ MintTransaction::MintTransaction(
 
             // Prepare the value proof
             value_statement.emplace_back(this->coins[j].C + this->params->get_G().inverse()*Scalar(this->coins[j].v));
-            value_witness.emplace_back(SparkUtils::hash_val(k));
+            value_witness.emplace_back(SpatsUtils::hash_val(k));
         } else {
             Coin coin;
             coin.type = 0;
@@ -107,4 +107,4 @@ void MintTransaction::getCoins(std::vector<Coin>& coins_) {
 }
 
 
-} // namespace spark
+} // namespace spats

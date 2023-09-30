@@ -1,6 +1,6 @@
 #include "hash.h"
 
-namespace spark {
+namespace spats {
 
 using namespace secp_primitives;
 

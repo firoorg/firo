@@ -1,11 +1,11 @@
 #include "util.h"
 
-namespace spark {
+namespace spats {
 
 using namespace secp_primitives;
 
 // Encrypt a diversifier using AES-256
-std::vector<unsigned char> SparkUtils::diversifier_encrypt(const std::vector<unsigned char>& key, const uint64_t i) {
+std::vector<unsigned char> SpatsUtils::diversifier_encrypt(const std::vector<unsigned char>& key, const uint64_t i) {
     // Serialize the diversifier
     CDataStream i_stream(SER_NETWORK, PROTOCOL_VERSION);
     i_stream << i;
@@ -31,7 +31,7 @@ std::vector<unsigned char> SparkUtils::diversifier_encrypt(const std::vector<uns
 }
 
 // Decrypt a diversifier using AES-256
-uint64_t SparkUtils::diversifier_decrypt(const std::vector<unsigned char>& key, const std::vector<unsigned char>& d) {
+uint64_t SpatsUtils::diversifier_decrypt(const std::vector<unsigned char>& key, const std::vector<unsigned char>& d) {
     // Assert proper sizes
     if (key.size() != AES256_KEYSIZE) {
         throw std::invalid_argument("Bad diversifier decryption key size");
@@ -56,7 +56,7 @@ uint64_t SparkUtils::diversifier_decrypt(const std::vector<unsigned char>& key, 
 }
 
 // Produce a uniformly-sampled group element from a label
-GroupElement SparkUtils::hash_generator(const std::string label) {
+GroupElement SpatsUtils::hash_generator(const std::string label) {
 	const int GROUP_ENCODING = 34;
 	const unsigned char ZERO = 0;
 
@@ -132,7 +132,7 @@ GroupElement SparkUtils::hash_generator(const std::string label) {
 }
 
 // Derive an AES key for diversifier encryption/decryption
-std::vector<unsigned char> SparkUtils::kdf_diversifier(const Scalar& s1) {
+std::vector<unsigned char> SpatsUtils::kdf_diversifier(const Scalar& s1) {
     KDF kdf(LABEL_KDF_DIVERSIFIER, AES256_KEYSIZE);
     
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
@@ -143,7 +143,7 @@ std::vector<unsigned char> SparkUtils::kdf_diversifier(const Scalar& s1) {
 }
 
 // Derive a ChaCha20 key for AEAD operations
-std::vector<unsigned char> SparkUtils::kdf_aead(const GroupElement& K_der) {
+std::vector<unsigned char> SpatsUtils::kdf_aead(const GroupElement& K_der) {
     KDF kdf(LABEL_KDF_AEAD, AEAD_KEY_SIZE);
 
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
@@ -154,7 +154,7 @@ std::vector<unsigned char> SparkUtils::kdf_aead(const GroupElement& K_der) {
 }
 
 // Derive a ChaCha20 key commitment for AEAD operations
-std::vector<unsigned char> SparkUtils::commit_aead(const GroupElement& K_der) {
+std::vector<unsigned char> SpatsUtils::commit_aead(const GroupElement& K_der) {
     // We use a KDF here because of the output size
     KDF kdf(LABEL_COMMIT_AEAD, AEAD_COMMIT_SIZE);
 
@@ -166,7 +166,7 @@ std::vector<unsigned char> SparkUtils::commit_aead(const GroupElement& K_der) {
 }
 
 // Hash-to-group function H_div
-GroupElement SparkUtils::hash_div(const std::vector<unsigned char>& d) {
+GroupElement SpatsUtils::hash_div(const std::vector<unsigned char>& d) {
     Hash hash(LABEL_HASH_DIV);
 
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
@@ -177,7 +177,7 @@ GroupElement SparkUtils::hash_div(const std::vector<unsigned char>& d) {
 }
 
 // Hash-to-scalar function H_Q2
-Scalar SparkUtils::hash_Q2(const Scalar& s1, const Scalar& i) {
+Scalar SpatsUtils::hash_Q2(const Scalar& s1, const Scalar& i) {
     Hash hash(LABEL_HASH_Q2);
 
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
@@ -189,7 +189,7 @@ Scalar SparkUtils::hash_Q2(const Scalar& s1, const Scalar& i) {
 }
 
 // Hash-to-scalar function H_k
-Scalar SparkUtils::hash_k(const Scalar& k) {
+Scalar SpatsUtils::hash_k(const Scalar& k) {
     Hash hash(LABEL_HASH_K);
 
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
@@ -200,7 +200,7 @@ Scalar SparkUtils::hash_k(const Scalar& k) {
 }
 
 // Hash-to-scalar function H_ser
-Scalar SparkUtils::hash_ser(const Scalar& k, const std::vector<unsigned char>& serial_context) {
+Scalar SpatsUtils::hash_ser(const Scalar& k, const std::vector<unsigned char>& serial_context) {
     Hash hash(LABEL_HASH_SER);
 
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
@@ -212,7 +212,7 @@ Scalar SparkUtils::hash_ser(const Scalar& k, const std::vector<unsigned char>& s
 }
 
 // Hash-to-scalar function H_val
-Scalar SparkUtils::hash_val(const Scalar& k) {
+Scalar SpatsUtils::hash_val(const Scalar& k) {
     Hash hash(LABEL_HASH_VAL);
 
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
@@ -223,7 +223,7 @@ Scalar SparkUtils::hash_val(const Scalar& k) {
 }
 
 // Hash-to-scalar function H_ser1
-Scalar SparkUtils::hash_ser1(const Scalar& s, const GroupElement& D) {
+Scalar SpatsUtils::hash_ser1(const Scalar& s, const GroupElement& D) {
     Hash hash(LABEL_HASH_SER1);
 
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
@@ -235,7 +235,7 @@ Scalar SparkUtils::hash_ser1(const Scalar& s, const GroupElement& D) {
 }
 
 // Hash-to-scalar function H_val1
-Scalar SparkUtils::hash_val1(const Scalar& s, const GroupElement& D) {
+Scalar SpatsUtils::hash_val1(const Scalar& s, const GroupElement& D) {
     Hash hash(LABEL_HASH_VAL1);
 
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);

@@ -1,10 +1,10 @@
-#ifndef FIRO_LIBSPARK_CHAUM_H
-#define FIRO_LIBSPARK_CHAUM_H
+#ifndef FIRO_LIBSPATS_CHAUM_H
+#define FIRO_LIBSPATS_CHAUM_H
 
 #include "chaum_proof.h"
 #include <secp256k1/include/MultiExponent.h>
 
-namespace spark {
+namespace spats {
 
 class Chaum {
 public:

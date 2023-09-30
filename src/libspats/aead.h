@@ -1,9 +1,9 @@
-#ifndef FIRO_SPARK_AEAD_H
-#define FIRO_SPARK_AEAD_H
+#ifndef FIRO_SPATS_AEAD_H
+#define FIRO_SPATS_AEAD_H
 #include <openssl/evp.h>
 #include "util.h"
 
-namespace spark {
+namespace spats {
 
 struct AEADEncryptedData {
 	std::vector<unsigned char> ciphertext;

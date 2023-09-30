@@ -1,7 +1,7 @@
 #include "chaum.h"
 #include "transcript.h"
 
-namespace spark {
+namespace spats {
 
 Chaum::Chaum(const GroupElement& F_, const GroupElement& G_, const GroupElement& H_, const GroupElement& U_):
     F(F_), G(G_), H(H_), U(U_) {

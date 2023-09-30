@@ -1,5 +1,5 @@
-#ifndef FIRO_SPARK_UTIL_H
-#define FIRO_SPARK_UTIL_H
+#ifndef FIRO_SPATS_UTIL_H
+#define FIRO_SPATS_UTIL_H
 #include "../secp256k1/include/Scalar.h"
 #include "../secp256k1/include/GroupElement.h"
 #include "../crypto/aes.h"
@@ -9,7 +9,7 @@
 #include "kdf.h"
 #include "hash.h"
 
-namespace spark {
+namespace spats {
 
 using namespace secp_primitives;
 
@@ -17,7 +17,7 @@ using namespace secp_primitives;
 const std::size_t SCALAR_ENCODING = 32;
 
 // Base protocol separator
-const std::string LABEL_PROTOCOL = "SPARK";
+const std::string LABEL_PROTOCOL = "SPATS";
 
 // All hash operations have a mode flag to separate their use cases
 const unsigned char HASH_MODE_TRANSCRIPT = 0; // a Fiat-Shamir transcript
@@ -50,8 +50,8 @@ const std::string LABEL_HASH_SER1 = "SER1";
 const std::string LABEL_HASH_VAL1 = "VAL1";
 const std::string LABEL_HASH_BIND_INNER = "BIND_INNER";
 const std::string LABEL_HASH_BIND = "BIND";
-const std::string LABEL_F4GRUMBLE_G = "SPARK_F4GRUMBLE_G";
-const std::string LABEL_F4GRUMBLE_H = "SPARK_F4GRUMBLE_H";
+const std::string LABEL_F4GRUMBLE_G = "SPATS_F4GRUMBLE_G";
+const std::string LABEL_F4GRUMBLE_H = "SPATS_F4GRUMBLE_H";
 
 // KDF labels
 const std::string LABEL_KDF_DIVERSIFIER = "DIVERSIFIER";
@@ -74,7 +74,7 @@ const unsigned char ADDRESS_NETWORK_TESTNET = 't';
 const unsigned char ADDRESS_NETWORK_REGTEST = 'r';
 const unsigned char ADDRESS_NETWORK_DEVNET =  'd';
 
-class SparkUtils {
+class SpatsUtils {
 public:
     // Protocol-level hash functions
     static GroupElement hash_generator(const std::string label);

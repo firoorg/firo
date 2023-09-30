@@ -1,11 +1,11 @@
-#ifndef FIRO_SPARK_MINT_TRANSACTION_H
-#define FIRO_SPARK_MINT_TRANSACTION_H
+#ifndef FIRO_SPATS_MINT_TRANSACTION_H
+#define FIRO_SPATS_MINT_TRANSACTION_H
 #include "keys.h"
 #include "coin.h"
 #include "schnorr.h"
 #include "util.h"
 
-namespace spark {
+namespace spats {
 
 using namespace secp_primitives;
 

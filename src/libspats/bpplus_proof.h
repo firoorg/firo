@@ -1,9 +1,9 @@
-#ifndef FIRO_LIBSPARK_BPPLUS_PROOF_H
-#define FIRO_LIBSPARK_BPPLUS_PROOF_H
+#ifndef FIRO_LIBSPATS_BPPLUS_PROOF_H
+#define FIRO_LIBSPATS_BPPLUS_PROOF_H
 
 #include "params.h"
 
-namespace spark {
+namespace spats {
     
 class BPPlusProof{
 public:

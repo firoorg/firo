@@ -1,6 +1,6 @@
 #include "transcript.h"
 
-namespace spark {
+namespace spats {
 
 using namespace secp_primitives;
 

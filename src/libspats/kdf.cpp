@@ -1,6 +1,6 @@
 #include "kdf.h"
 
-namespace spark {
+namespace spats {
 
 // Set up a labeled KDF
 KDF::KDF(const std::string label, std::size_t derived_key_size) {

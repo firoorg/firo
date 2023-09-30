@@ -1,5 +1,5 @@
-#ifndef FIRO_LIBSPARK_PARAMS_H
-#define FIRO_LIBSPARK_PARAMS_H
+#ifndef FIRO_LIBSPATS_PARAMS_H
+#define FIRO_LIBSPATS_PARAMS_H
 
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
@@ -8,7 +8,7 @@
 
 using namespace secp_primitives;
 
-namespace spark {
+namespace spats {
 
 class Params {
 public:

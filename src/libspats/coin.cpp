@@ -1,7 +1,7 @@
 #include "coin.h"
 #include "../hash.h"
 
-namespace spark {
+namespace spats {
 
 using namespace secp_primitives;
 
@@ -36,13 +36,13 @@ Coin::Coin(
 	//
 
 	// Construct the recovery key
-	this->K = SparkUtils::hash_div(address.get_d())*SparkUtils::hash_k(k);
+	this->K = SpatsUtils::hash_div(address.get_d())*SpatsUtils::hash_k(k);
 
 	// Construct the serial commitment
-	this->S = this->params->get_F()*SparkUtils::hash_ser(k, serial_context) + address.get_Q2();
+	this->S = this->params->get_F()*SpatsUtils::hash_ser(k, serial_context) + address.get_Q2();
 
 	// Construct the value commitment
-	this->C = this->params->get_G()*Scalar(v) + this->params->get_H()*SparkUtils::hash_val(k);
+	this->C = this->params->get_G()*Scalar(v) + this->params->get_H()*SpatsUtils::hash_val(k);
 
 	// Check the memo validity, and pad if needed
 	if (memo.size() > this->params->get_memo_bytes()) {
@@ -66,7 +66,7 @@ Coin::Coin(
 		r.memo = std::string(padded_memo.begin(), padded_memo.end());
 		CDataStream r_stream(SER_NETWORK, PROTOCOL_VERSION);
 		r_stream << r;
-		this->r_ = AEAD::encrypt(address.get_Q1()*SparkUtils::hash_k(k), "Mint coin data", r_stream);
+		this->r_ = AEAD::encrypt(address.get_Q1()*SpatsUtils::hash_k(k), "Mint coin data", r_stream);
 	} else {
 		// Encrypt recipient data
 		SpendCoinRecipientData r;
@@ -76,7 +76,7 @@ Coin::Coin(
 		r.memo = std::string(padded_memo.begin(), padded_memo.end());
 		CDataStream r_stream(SER_NETWORK, PROTOCOL_VERSION);
 		r_stream << r;
-		this->r_ = AEAD::encrypt(address.get_Q1()*SparkUtils::hash_k(k), "Spend coin data", r_stream);
+		this->r_ = AEAD::encrypt(address.get_Q1()*SpatsUtils::hash_k(k), "Spend coin data", r_stream);
 	}
 }
 
@@ -87,19 +87,19 @@ bool Coin::validate(
 	IdentifiedCoinData& data
 ) {
 	// Check recovery key
-	if (SparkUtils::hash_div(data.d)*SparkUtils::hash_k(data.k) != this->K) {
+	if (SpatsUtils::hash_div(data.d)*SpatsUtils::hash_k(data.k) != this->K) {
         return false;
 	}
 
 	// Check value commitment
-	if (this->params->get_G()*Scalar(data.v) + this->params->get_H()*SparkUtils::hash_val(data.k) != this->C) {
+	if (this->params->get_G()*Scalar(data.v) + this->params->get_H()*SpatsUtils::hash_val(data.k) != this->C) {
         return false;
 	}
 
 	// Check serial commitment
 	data.i = incoming_view_key.get_diversifier(data.d);
 
-	if (this->params->get_F()*(SparkUtils::hash_ser(data.k, this->serial_context) + SparkUtils::hash_Q2(incoming_view_key.get_s1(), data.i)) + incoming_view_key.get_P2() != this->S) {
+	if (this->params->get_F()*(SpatsUtils::hash_ser(data.k, this->serial_context) + SpatsUtils::hash_Q2(incoming_view_key.get_s1(), data.i)) + incoming_view_key.get_P2() != this->S) {
         return false;
 	}
 
@@ -109,7 +109,7 @@ bool Coin::validate(
 // Recover a coin
 RecoveredCoinData Coin::recover(const FullViewKey& full_view_key, const IdentifiedCoinData& data) {
 	RecoveredCoinData recovered_data;
-	recovered_data.s = SparkUtils::hash_ser(data.k, this->serial_context) + SparkUtils::hash_Q2(full_view_key.get_s1(), data.i) + full_view_key.get_s2();
+	recovered_data.s = SpatsUtils::hash_ser(data.k, this->serial_context) + SpatsUtils::hash_Q2(full_view_key.get_s1(), data.i) + full_view_key.get_s2();
 	recovered_data.T = (this->params->get_U() + full_view_key.get_D().inverse())*recovered_data.s.inverse();
 
 	return recovered_data;

@@ -1,5 +1,5 @@
-#ifndef FIRO_SPARK_SPEND_TRANSACTION_H
-#define FIRO_SPARK_SPEND_TRANSACTION_H
+#ifndef FIRO_SPATS_SPEND_TRANSACTION_H
+#define FIRO_SPATS_SPEND_TRANSACTION_H
 #include "keys.h"
 #include "coin.h"
 #include "schnorr.h"
@@ -8,7 +8,7 @@
 #include "bpplus.h"
 #include "chaum.h"
 
-namespace spark {
+namespace spats {
 
 using namespace secp_primitives;
 

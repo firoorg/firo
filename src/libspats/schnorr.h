@@ -1,10 +1,10 @@
-#ifndef FIRO_LIBSPARK_SCHNORR_H
-#define FIRO_LIBSPARK_SCHNORR_H
+#ifndef FIRO_LIBSPATS_SCHNORR_H
+#define FIRO_LIBSPATS_SCHNORR_H
 
 #include "schnorr_proof.h"
 #include <secp256k1/include/MultiExponent.h>
 
-namespace spark {
+namespace spats {
 
 class Schnorr {
 public:

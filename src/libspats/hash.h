@@ -1,9 +1,9 @@
-#ifndef FIRO_SPARK_HASH_H
-#define FIRO_SPARK_HASH_H
+#ifndef FIRO_SPATS_HASH_H
+#define FIRO_SPATS_HASH_H
 #include <openssl/evp.h>
 #include "util.h"
 
-namespace spark {
+namespace spats {
 
 using namespace secp_primitives;
 

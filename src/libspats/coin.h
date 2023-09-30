@@ -1,5 +1,5 @@
-#ifndef FIRO_SPARK_COIN_H
-#define FIRO_SPARK_COIN_H
+#ifndef FIRO_SPATS_COIN_H
+#define FIRO_SPATS_COIN_H
 #include "bpplus.h"
 #include "keys.h"
 #include <math.h>
@@ -8,7 +8,7 @@
 #include "util.h"
 #include "../uint256.h"
 
-namespace spark {
+namespace spats {
 
 using namespace secp_primitives;
 

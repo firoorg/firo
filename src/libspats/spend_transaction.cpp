@@ -1,6 +1,6 @@
 #include "spend_transaction.h"
 
-namespace spark {
+namespace spats {
 
 // Generate a spend transaction that consumes existing coins and generates new ones
 SpendTransaction::SpendTransaction(
@@ -74,14 +74,14 @@ SpendTransaction::SpendTransaction(
 		// Serial commitment offset
 		this->S1.emplace_back(
 			this->params->get_F()*inputs[u].s
-			+ this->params->get_H().inverse()*SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D())
+			+ this->params->get_H().inverse()*SpatsUtils::hash_ser1(inputs[u].s, full_view_key.get_D())
 			+ full_view_key.get_D()
 		);
 
 		// Value commitment offset
 		this->C1.emplace_back(
 			this->params->get_G()*Scalar(inputs[u].v)
-			+ this->params->get_H()*SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D())
+			+ this->params->get_H()*SpatsUtils::hash_val1(inputs[u].s, full_view_key.get_D())
 		);
 
 		// Tags
@@ -92,10 +92,10 @@ SpendTransaction::SpendTransaction(
 		std::size_t l = inputs[u].index;
 		grootle.prove(
 			l,
-			SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D()),
+			SpatsUtils::hash_ser1(inputs[u].s, full_view_key.get_D()),
 			S,
 			this->S1.back(),
-			SparkUtils::hash_val(inputs[u].k) - SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D()),
+			SpatsUtils::hash_val(inputs[u].k) - SpatsUtils::hash_val1(inputs[u].s, full_view_key.get_D()),
 			C,
 			this->C1.back(),
 			this->cover_set_representations[set_id],
@@ -105,7 +105,7 @@ SpendTransaction::SpendTransaction(
 		// Chaum data
 		chaum_x.emplace_back(inputs[u].s);
 		chaum_y.emplace_back(spend_key.get_r());
-		chaum_z.emplace_back(SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D()).negate());
+		chaum_z.emplace_back(SpatsUtils::hash_ser1(inputs[u].s, full_view_key.get_D()).negate());
 	}
 
 	// Generate output coins and prepare range proof vectors
@@ -136,7 +136,7 @@ SpendTransaction::SpendTransaction(
 
 		// Range data
 		range_v.emplace_back(outputs[j].v);
-		range_r.emplace_back(SparkUtils::hash_val(k.back()));
+		range_r.emplace_back(SpatsUtils::hash_val(k.back()));
 		range_C.emplace_back(this->out_coins.back().C);
 	}
 
@@ -161,11 +161,11 @@ SpendTransaction::SpendTransaction(
 	Scalar balance_witness;
 	for (std::size_t u = 0; u < w; u++) {
 		balance_statement += this->C1[u];
-		balance_witness += SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D());
+		balance_witness += SpatsUtils::hash_val1(inputs[u].s, full_view_key.get_D());
 	}
 	for (std::size_t j = 0; j < t; j++) {
 		balance_statement += this->out_coins[j].C.inverse();
-		balance_witness -= SparkUtils::hash_val(k[j]);
+		balance_witness -= SpatsUtils::hash_val(k[j]);
 	}
 	balance_statement += (this->params->get_G()*Scalar(f + vout)).inverse();
 	schnorr.prove(

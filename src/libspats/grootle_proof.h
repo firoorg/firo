@@ -1,9 +1,9 @@
-#ifndef FIRO_LIBSPARK_GROOTLE_PROOF_H
-#define FIRO_LIBSPARK_GROOTLE_PROOF_H
+#ifndef FIRO_LIBSPATS_GROOTLE_PROOF_H
+#define FIRO_LIBSPATS_GROOTLE_PROOF_H
 
 #include "params.h"
 
-namespace spark {
+namespace spats {
 
 class GrootleProof {
 public:

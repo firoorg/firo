@@ -1,11 +1,11 @@
-#ifndef FIRO_SPARK_KEYS_H
-#define FIRO_SPARK_KEYS_H
+#ifndef FIRO_SPATS_KEYS_H
+#define FIRO_SPATS_KEYS_H
 #include "bech32.h"
 #include "f4grumble.h"
 #include "params.h"
 #include "util.h"
 
-namespace spark {
+namespace spats {
 
 using namespace secp_primitives;
 

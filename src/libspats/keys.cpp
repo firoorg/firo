@@ -1,7 +1,7 @@
 #include "keys.h"
 #include "../hash.h"
 
-namespace spark {
+namespace spats {
 
 using namespace secp_primitives;
 
@@ -133,8 +133,8 @@ uint64_t IncomingViewKey::get_diversifier(const std::vector<unsigned char>& d) c
 	}
 
 	// Decrypt the diversifier; this is NOT AUTHENTICATED and MUST be externally checked for validity against a claimed address
-	std::vector<unsigned char> key = SparkUtils::kdf_diversifier(this->s1);
-	uint64_t i = SparkUtils::diversifier_decrypt(key, d);
+	std::vector<unsigned char> key = SpatsUtils::kdf_diversifier(this->s1);
+	uint64_t i = SpatsUtils::diversifier_decrypt(key, d);
 
 	return i;
 }
@@ -147,11 +147,11 @@ Address::Address(const Params* params) {
 
 Address::Address(const IncomingViewKey& incoming_view_key, const uint64_t i) {
 	// Encrypt the diversifier
-	std::vector<unsigned char> key = SparkUtils::kdf_diversifier(incoming_view_key.get_s1());
+	std::vector<unsigned char> key = SpatsUtils::kdf_diversifier(incoming_view_key.get_s1());
 	this->params = incoming_view_key.get_params();
-	this->d = SparkUtils::diversifier_encrypt(key, i);
-	this->Q1 = SparkUtils::hash_div(this->d)*incoming_view_key.get_s1();
-	this->Q2 = this->params->get_F()*SparkUtils::hash_Q2(incoming_view_key.get_s1(), i) + incoming_view_key.get_P2();
+	this->d = SpatsUtils::diversifier_encrypt(key, i);
+	this->Q1 = SpatsUtils::hash_div(this->d)*incoming_view_key.get_s1();
+	this->Q2 = this->params->get_F()*SpatsUtils::hash_Q2(incoming_view_key.get_s1(), i) + incoming_view_key.get_P2();
 }
 
 const Params* Address::get_params() const {

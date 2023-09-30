@@ -1,9 +1,9 @@
-#ifndef FIRO_SPARK_F4GRUMBLE_H
-#define FIRO_SPARK_F4GRUMBLE_H
+#ifndef FIRO_SPATS_F4GRUMBLE_H
+#define FIRO_SPATS_F4GRUMBLE_H
 #include <openssl/evp.h>
 #include "util.h"
 
-namespace spark {
+namespace spats {
 
 using namespace secp_primitives;
 
