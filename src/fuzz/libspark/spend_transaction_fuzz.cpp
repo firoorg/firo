@@ -45,6 +45,11 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     uint64_t f = 0;
 
     std::vector<uint8_t> spend_indices = fdp.ConsumeBytes<uint8_t>(len);
+    if (spend_indices.size() < len) {
+        for (int i = spend_indices.size(); i < len; i++) {
+            spend_indices.push_back(std::rand());
+        }
+    }
     std::vector<spark::InputCoinData> spend_coin_data;
     std::unordered_map<uint64_t, spark::CoverSetData> cover_set_data;
     const size_t w = spend_indices.size();
