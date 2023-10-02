@@ -980,6 +980,8 @@ public:
             const CAmount amountToSpendLimit = MAX_MONEY,
             const CCoinControl *coinControl = NULL) const;
 
+    std::vector<unsigned char> ProvePrivateTxOwn(const uint256& txid, const std::string& message) const;
+
     /**
      * Insert additional inputs into the transaction by
      * calling CreateTransaction();
