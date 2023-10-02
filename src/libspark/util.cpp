@@ -22,7 +22,10 @@ std::vector<unsigned char> SparkUtils::diversifier_encrypt(const std::vector<uns
     iv.resize(AES_BLOCKSIZE);
 
     AES256CBCEncrypt aes(key.data(), iv.data(), true);
-    aes.Encrypt(reinterpret_cast<unsigned char *>(i_stream.data()), i_stream.size(), ciphertext.data());
+    std::vector<unsigned char> plaintext;
+    plaintext.insert(plaintext.begin(), i_stream.begin(), i_stream.end());
+    plaintext.resize(AES_BLOCKSIZE);
+    aes.Encrypt(plaintext.data(), i_stream.size(), ciphertext.data());
 
     return ciphertext;
 }
@@ -34,16 +37,17 @@ uint64_t SparkUtils::diversifier_decrypt(const std::vector<unsigned char>& key, 
         throw std::invalid_argument("Bad diversifier decryption key size");
     }
 
-    // Decrypt using padded AES-256 (CBC) using a zero IV
-    CDataStream i_stream(SER_NETWORK, PROTOCOL_VERSION);
-    i_stream.resize(sizeof(uint64_t));
-
     std::vector<unsigned char> iv;
     iv.resize(AES_BLOCKSIZE);
 
     AES256CBCDecrypt aes(key.data(), iv.data(), true);
-    aes.Decrypt(d.data(), d.size(), reinterpret_cast<unsigned char *>(i_stream.data()));
+    std::vector<unsigned char> plaintext;
+    plaintext.resize(AES_BLOCKSIZE);
+    aes.Decrypt(d.data(), d.size(), plaintext.data());
 
+    // Decrypt using padded AES-256 (CBC) using a zero IV
+    CDataStream i_stream(SER_NETWORK, PROTOCOL_VERSION);
+    i_stream.write((const char *)plaintext.data(), sizeof(uint64_t));
     // Deserialize the diversifier
     uint64_t i;
     i_stream >> i;
@@ -56,14 +60,14 @@ GroupElement SparkUtils::hash_generator(const std::string label) {
 	const int GROUP_ENCODING = 34;
 	const unsigned char ZERO = 0;
 
-    // Ensure we can properly populate a 
-    if (EVP_MD_size(EVP_blake2b512()) < GROUP_ENCODING) {
+    // Ensure we can properly populate a group element encoding
+    if (EVP_MD_size(EVP_sha512()) < GROUP_ENCODING) {
         throw std::runtime_error("Bad hash size!");
     }
 
     EVP_MD_CTX* ctx;
     ctx = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(ctx, EVP_blake2b512(), NULL);
+    EVP_DigestInit_ex(ctx, EVP_sha512(), NULL);
 
     // Write the protocol and mode
     std::vector<unsigned char> protocol(LABEL_PROTOCOL.begin(), LABEL_PROTOCOL.end());
@@ -75,16 +79,16 @@ GroupElement SparkUtils::hash_generator(const std::string label) {
     EVP_DigestUpdate(ctx, bytes.data(), bytes.size());
 
     std::vector<unsigned char> hash;
-    hash.resize(EVP_MD_size(EVP_blake2b512()));
+    hash.resize(EVP_MD_size(EVP_sha512()));
     unsigned char counter = 0;
 
     EVP_MD_CTX* state_counter;
     state_counter = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(state_counter, EVP_blake2b512(), NULL);
+    EVP_DigestInit_ex(state_counter, EVP_sha512(), NULL);
 
     EVP_MD_CTX* state_finalize;
     state_finalize = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(state_finalize, EVP_blake2b512(), NULL);
+    EVP_DigestInit_ex(state_finalize, EVP_sha512(), NULL);
 
     // Finalize the hash
     while (1) {

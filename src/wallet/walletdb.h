@@ -265,6 +265,7 @@ public:
     DBErrors ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
     DBErrors ZapSigmaMints(CWallet* pwallet);
     DBErrors ZapLelantusMints(CWallet *pwallet);
+    DBErrors ZapSparkMints(CWallet *pwallet);
     static bool Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKeys);
     static bool Recover(CDBEnv& dbenv, const std::string& filename);
 

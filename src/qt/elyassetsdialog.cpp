@@ -50,7 +50,7 @@ ElyAssetsDialog::ElyAssetsDialog(QWidget *parent) :
     ui->balancesTable->setHorizontalHeaderItem(1, new QTableWidgetItem("Property Name"));
     ui->balancesTable->setHorizontalHeaderItem(2, new QTableWidgetItem("Reserved"));
     ui->balancesTable->setHorizontalHeaderItem(3, new QTableWidgetItem("Available"));
-    borrowedColumnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(ui->balancesTable, 100, 100, this);
+
     // note neither resizetocontents or stretch allow user to adjust - go interactive then manually set widths
     #if QT_VERSION < 0x050000
        ui->balancesTable->horizontalHeader()->setResizeMode(0, QHeaderView::Interactive);
@@ -73,7 +73,6 @@ ElyAssetsDialog::ElyAssetsDialog(QWidget *parent) :
     ui->balancesTable->resizeColumnToContents(0);
     ui->balancesTable->resizeColumnToContents(2);
     ui->balancesTable->resizeColumnToContents(3);
-    borrowedColumnResizingFixer->stretchColumnWidth(1);
     ui->balancesTable->verticalHeader()->setVisible(false);
     ui->balancesTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     ui->balancesTable->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -103,14 +102,14 @@ ElyAssetsDialog::ElyAssetsDialog(QWidget *parent) :
     contextMenuSummary->addAction(balancesCopyAvailableAmountAction);
 
     // Connect actions
-    connect(ui->balancesTable, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
-    connect(ui->propSelectorWidget, SIGNAL(activated(int)), this, SLOT(propSelectorChanged()));
-    connect(balancesCopyIDAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol0()));
-    connect(balancesCopyNameAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol1()));
-    connect(balancesCopyLabelAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol0()));
-    connect(balancesCopyAddressAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol1()));
-    connect(balancesCopyReservedAmountAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol2()));
-    connect(balancesCopyAvailableAmountAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol3()));
+    connect(ui->balancesTable, &QWidget::customContextMenuRequested, this, &ElyAssetsDialog::contextualMenu);
+    connect(ui->propSelectorWidget, qOverload<int>(&QComboBox::activated) , this, &ElyAssetsDialog::propSelectorChanged);
+    connect(balancesCopyIDAction, &QAction::triggered, this, &ElyAssetsDialog::balancesCopyCol0);
+    connect(balancesCopyNameAction, &QAction::triggered, this, &ElyAssetsDialog::balancesCopyCol1);
+    connect(balancesCopyLabelAction, &QAction::triggered, this, &ElyAssetsDialog::balancesCopyCol0);
+    connect(balancesCopyAddressAction, &QAction::triggered, this, &ElyAssetsDialog::balancesCopyCol1);
+    connect(balancesCopyReservedAmountAction, &QAction::triggered, this, &ElyAssetsDialog::balancesCopyCol2);
+    connect(balancesCopyAvailableAmountAction, &QAction::triggered, this, &ElyAssetsDialog::balancesCopyCol3);
 }
 
 ElyAssetsDialog::~ElyAssetsDialog()
@@ -130,8 +129,8 @@ void ElyAssetsDialog::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
     if (model != NULL) {
-        connect(model, SIGNAL(refreshElysiumBalance()), this, SLOT(balancesUpdated()));
-        connect(model, SIGNAL(reinitElysiumState()), this, SLOT(reinitEly()));
+        connect(model, &ClientModel::refreshElysiumBalance, this, &ElyAssetsDialog::balancesUpdated);
+        connect(model, &ClientModel::reinitElysiumState, this, &ElyAssetsDialog::reinitEly);
     }
 }
 
@@ -301,12 +300,4 @@ void ElyAssetsDialog::balancesUpdated()
 {
     UpdatePropSelector();
     propSelectorChanged(); // refresh the table with the currently selected property ID
-}
-
-// We override the virtual resizeEvent of the QWidget to adjust tables column
-// sizes as the tables width is proportional to the dialogs width.
-void ElyAssetsDialog::resizeEvent(QResizeEvent* event)
-{
-    QWidget::resizeEvent(event);
-    borrowedColumnResizingFixer->stretchColumnWidth(1);
 }

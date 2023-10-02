@@ -416,6 +416,9 @@ public:
         consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusSpendPerTransaction = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
+        consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 50000;
 
         for (const auto& str : lelantus::lelantus_blacklist) {
@@ -440,7 +443,7 @@ public:
 
         consensus.evoSporkKeyID = "a78fERshquPsTv2TuKMSsxTeKom56uBwLP";
         consensus.nEvoSporkStartBlock = ZC_LELANTUS_STARTING_BLOCK;
-        consensus.nEvoSporkStopBlock = AdjustEndingBlockNumberAfterSubsidyHalving(ZC_LELANTUS_STARTING_BLOCK, 2*24*12*365, 486221);  // =608035, two years after lelantus
+        consensus.nEvoSporkStopBlock = AdjustEndingBlockNumberAfterSubsidyHalving(ZC_LELANTUS_STARTING_BLOCK, 3*24*12*365, 486221);  // =818275, three years after lelantus
         consensus.nEvoSporkStopBlockExtensionVersion = 140903;
         consensus.nEvoSporkStopBlockPrevious = ZC_LELANTUS_STARTING_BLOCK + 1*24*12*365; // one year after lelantus
         consensus.nEvoSporkStopBlockExtensionGracefulPeriod = 24*12*14; // two weeks
@@ -716,6 +719,9 @@ public:
         consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusSpendPerTransaction = 1001 * COIN;
         consensus.nMaxValueLelantusMint = 1001 * COIN;
+        consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
         for (const auto& str : lelantus::lelantus_testnet_blacklist) {
@@ -772,22 +778,22 @@ public:
 
         consensus.chainType = Consensus::chainDevnet;
 
-        consensus.nSubsidyHalvingFirst = 120;
+        consensus.nSubsidyHalvingFirst = 1;
         consensus.nSubsidyHalvingSecond = 100000;
         consensus.nSubsidyHalvingInterval = 100000;
         consensus.nSubsidyHalvingStopBlock = 1000000;
 
         consensus.stage2DevelopmentFundShare = 15;
         consensus.stage2ZnodeShare = 35;
-        consensus.stage2DevelopmentFundAddress = "TixHByoJ21dmx5xfMAXTVC4V7k53U7RncU";
+        consensus.stage2DevelopmentFundAddress = "Tq99tes2sRbQ1yNUJPJ7BforYnKcitgwWq";
 
         consensus.stage3StartTime = 1653382800;
         consensus.stage3StartBlock = 1514;
         consensus.stage3DevelopmentFundShare = 15;
         consensus.stage3CommunityFundShare = 10;
         consensus.stage3MasternodeShare = 50;
-        consensus.stage3DevelopmentFundAddress = "TepVKkmUo1N6sazuM2wWwV7aiG4m1BUShU";
-        consensus.stage3CommunityFundAddress = "TZpbhfvQE61USHsxd55XdPpWBqu3SXB1EP";
+        consensus.stage3DevelopmentFundAddress = "TfvbHyGTo8hexoKBBS8fz9Gq7g9VZQQpcg";
+        consensus.stage3CommunityFundAddress = "TgoL9nh8vDTz7UB5WkBbknBksBdUaD9qbT";
 
         consensus.nStartBlacklist = 0;
         consensus.nStartDuplicationCheck = 0;
@@ -892,17 +898,17 @@ public:
         nPruneAfterHeight = 1000;
 
         std::vector<unsigned char> extraNonce(4);
-        extraNonce[0] = 0x0a;
+        extraNonce[0] = 0x1a;
         extraNonce[1] = 0x00;
         extraNonce[2] = 0x00;
         extraNonce[3] = 0x00;
 
-        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 459834, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
+        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 440914, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
         consensus.hashGenesisBlock = genesis.GetHash();
         assert(consensus.hashGenesisBlock ==
-                uint256S("0x1fcfe26873831662874b5358c4a28611be641fbb997e62d8bf9c80f799f5caff"));
+                uint256S("0xc4c408cfedb0a03a259d4b3046425a0ac9582f4a33960d6a34d1555538621961"));
         assert(genesis.hashMerkleRoot ==
-                uint256S("0x3a0d54ae5549a8d75cd8d0cb73c6e3577ae6be8d5706fc9411bdebbe75c97210"));
+                uint256S("0xb84e4b6a3743eb4f24ed7e4b88355d7d5fc0aba0cbe8f04e96556ad35c52c873"));
         vFixedSeeds.clear();
         vSeeds.clear();
         // firo test seeds
@@ -945,8 +951,8 @@ public:
         consensus.nLelantusStartBlock = 1;
         consensus.nLelantusFixesStartBlock = 1;
 
-        consensus.nSparkStartBlock = 2000;
-        consensus.nLelantusGracefulPeriod = 2500;
+        consensus.nSparkStartBlock = 1500;
+        consensus.nLelantusGracefulPeriod = 6000;
 
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
         consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
@@ -957,9 +963,12 @@ public:
         consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusSpendPerTransaction = 1001 * COIN;
         consensus.nMaxValueLelantusMint = 1001 * COIN;
+        consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
-        consensus.evoSporkKeyID = "TdxR3tfoHiQUkowcfjEGiMBfk6GXFdajUA";
+        consensus.evoSporkKeyID = "Tg6CSyHKVTUhMGGNzUQMMDRk88nWW1MdHz";
         consensus.nEvoSporkStartBlock = 1;
         consensus.nEvoSporkStopBlock = 40000;
         consensus.nEvoSporkStopBlockExtensionVersion = 0;
@@ -1187,6 +1196,9 @@ public:
         consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusSpendPerTransaction = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
+        consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 1000;
 
         // evo spork

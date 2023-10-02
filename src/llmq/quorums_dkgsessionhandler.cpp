@@ -238,7 +238,8 @@ void CDKGSessionHandler::SleepBeforePhase(QuorumPhase curPhase,
         phaseTime = 0;
     }
 
-    int64_t sleepTime = (int64_t)(phaseTime * curSession->GetMyMemberIndex());
+    int64_t sleepTime = 0;
+    if (curSession->GetMyMemberIndex() != UINT64_MAX) sleepTime = (int64_t)(phaseTime * curSession->GetMyMemberIndex());
     int64_t endTime = GetTimeMillis() + sleepTime;
     while (GetTimeMillis() < endTime) {
         if (stopRequested || ShutdownRequested()) {

@@ -11,6 +11,8 @@
 #include "../libspark/spend_transaction.h"
 #include "primitives.h"
 
+namespace spark_mintspend { class spark_mintspend_test; }
+
 namespace spark {
 
 // Spark transaction info, added to the CBlock to ensure spark mint/spend transactions got their info stored into index
@@ -42,7 +44,7 @@ unsigned char GetNetworkType();
 // Pass Scripts form mint transaction and get spark MintTransaction object
 void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransaction& mintTransaction);
 void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin);
-
+std::vector<unsigned char> getSerialContext(const CTransaction &tx);
 spark::SpendTransaction ParseSparkSpend(const CTransaction &tx);
 
 std::vector<GroupElement>  GetSparkUsedTags(const CTransaction &tx);
@@ -130,8 +132,8 @@ public:
 
 public:
     CSparkState(
-            size_t maxCoinInGroup = ZC_LELANTUS_MAX_MINT_NUM,
-            size_t startGroupSize = ZC_LELANTUS_SET_START_SIZE);
+            size_t maxCoinInGroup = ZC_SPARK_MAX_MINT_NUM,
+            size_t startGroupSize = ZC_SPARK_SET_START_SIZE);
 
     // Reset to initial values
     void Reset();
@@ -200,6 +202,15 @@ public:
             std::vector<spark::Coin>& coins_out,
             std::vector<unsigned char>& setHash_out);
 
+    void GetCoinsForRecovery(
+            CChain *chain,
+            int maxHeight,
+            int coinGroupID,
+            std::string start_block_hash,
+            uint256& blockHash_out,
+            std::vector<std::pair<spark::Coin, uint256>> coins,
+            std::vector<unsigned char>& setHash_out);
+
     std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & GetMints() const;
     std::unordered_map<GroupElement, int, spark::CLTagHash> const & GetSpends() const;
     std::unordered_map<int, SparkCoinGroupInfo> const & GetCoinGroups() const;
@@ -230,6 +241,8 @@ private:
 
     typedef std::map<int, size_t> metainfo_container_t;
     metainfo_container_t extendedMintMetaInfo, mintMetaInfo, spendMetaInfo;
+
+    friend class spark_mintspend::spark_mintspend_test;
 };
 
 } // namespace spark

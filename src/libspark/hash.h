@@ -12,6 +12,7 @@ public:
 	Hash(const std::string label);
 	~Hash();
 	void include(CDataStream& data);
+	std::vector<unsigned char> finalize();
 	Scalar finalize_scalar();
 	GroupElement finalize_group();
 

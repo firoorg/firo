@@ -20,14 +20,12 @@ LelantusModel::LelantusModel(
 {
     autoMintModel = new AutoMintModel(this, optionsModel, wallet, this);
 
-    connect(this, SIGNAL(ackMintAll(AutoMintAck, CAmount, QString)),
-        autoMintModel, SLOT(ackMintAll(AutoMintAck, CAmount, QString)));
+    connect(this, &LelantusModel::ackMintAll, autoMintModel, &AutoMintModel::ackMintAll);
 }
 
 LelantusModel::~LelantusModel()
 {
-    disconnect(this, SIGNAL(ackMintAll(AutoMintAck, CAmount, QString)),
-        autoMintModel, SLOT(ackMintAll(AutoMintAck, CAmount, QString)));
+    disconnect(this, &LelantusModel::ackMintAll, autoMintModel, &AutoMintModel::ackMintAll);
 
     delete autoMintModel;
 
@@ -73,7 +71,7 @@ bool LelantusModel::unlockWallet(SecureString const &passphase, size_t msecs)
         return false;
     }
 
-    QTimer::singleShot(msecs, this, SLOT(lock()));
+    QTimer::singleShot(msecs, this, &LelantusModel::lock);
     return true;
 }
 
@@ -121,7 +119,7 @@ void LelantusModel::lock()
 {
     LOCK2(wallet->cs_wallet, cs);
     if (autoMintModel->isAnonymizing()) {
-        QTimer::singleShot(MODEL_UPDATE_DELAY, this, SLOT(lock()));
+        QTimer::singleShot(MODEL_UPDATE_DELAY, this, &LelantusModel::lock);
         return;
     }
 

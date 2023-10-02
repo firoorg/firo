@@ -758,6 +758,8 @@ public:
 
     std::unique_ptr<CSparkWallet> sparkWallet;
 
+    std::atomic<bool> fUnlockRequested;
+
     CWallet()
     {
         SetNull();
@@ -897,6 +899,9 @@ public:
     bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
 
+    void RequestUnlock();
+    bool WaitForUnlock();
+
     void GetKeyBirthTimes(std::map<CTxDestination, int64_t> &mapKeyBirth) const;
 
     /**
@@ -957,7 +962,7 @@ public:
     std::list<CLelantusEntry> GetAvailableLelantusCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false, bool forEstimation = false) const;
 
     // Returns the list of pairs of coins and meta data for that coin,
-    std::list<std::pair<spark::Coin, CSparkMintMeta>> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
+    std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
 
     std::vector<unsigned char> EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pubcoin) const;
 
@@ -1061,17 +1066,18 @@ public:
     std::string MintAndStoreSpark(
             const std::vector<spark::MintedCoinData>& outputs,
             std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+            bool subtractFeeFromAmount,
             bool autoMintAll = false,
             bool fAskFee = false,
             const CCoinControl *coinControl = NULL);
 
-    std::vector<CWalletTx> CreateSparkSpendTransaction(
+    CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
-    std::vector<CWalletTx> SpendAndStoreSpark(
+    CWalletTx SpendAndStoreSpark(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
@@ -1167,6 +1173,8 @@ public:
     DBErrors ZapSigmaMints();
     // Remove all Lelantus HDMint objects from WalletDB
     DBErrors ZapLelantusMints();
+    // Remove all Spark Mint objects from WalletDB
+    DBErrors ZapSparkMints();
 
     bool SetAddressBook(const CTxDestination& address, const std::string& strName, const std::string& purpose);
 
@@ -1351,6 +1359,9 @@ public:
 
     /*Checks if this is a BIP47 transaction and handles it. May send an unlock request if wallet is locked.*/
     void HandleBip47Transaction(CWalletTx const & wtx);
+
+    // Checks if this is a spark transaction and handles it.
+    void HandleSparkTransaction(CWalletTx const & wtx);
 
     /*Attaches a new label to a sending payment code.*/
     void LabelSendingPcode(bip47::CPaymentCode const & pcode, std::string const & label, bool remove = false);

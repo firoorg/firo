@@ -63,7 +63,7 @@ Coin::Coin(
 		MintCoinRecipientData r;
 		r.d = address.get_d();
 		r.k = k;
-		r.memo = std::string(memo.begin(), memo.end());
+		r.memo = std::string(padded_memo.begin(), padded_memo.end());
 		CDataStream r_stream(SER_NETWORK, PROTOCOL_VERSION);
 		r_stream << r;
 		this->r_ = AEAD::encrypt(address.get_Q1()*SparkUtils::hash_k(k), "Mint coin data", r_stream);
@@ -73,7 +73,7 @@ Coin::Coin(
 		r.v = v;
 		r.d = address.get_d();
 		r.k = k;
-		r.memo = std::string(memo.begin(), memo.end());
+		r.memo = std::string(padded_memo.begin(), padded_memo.end());
 		CDataStream r_stream(SER_NETWORK, PROTOCOL_VERSION);
 		r_stream << r;
 		this->r_ = AEAD::encrypt(address.get_Q1()*SparkUtils::hash_k(k), "Spend coin data", r_stream);
@@ -166,21 +166,44 @@ std::size_t Coin::memoryRequired() {
 }
 
 bool Coin::operator==(const Coin& other) const {
-    return this->S == other.S;
+    if(this->S != other.S)
+        return false;
+
+    if(this->K != other.K)
+        return false;
+
+    if(this->C != other.C)
+        return false;
+
+    if(this->r_.ciphertext != other.r_.ciphertext)
+        return false;
+
+    if(this->r_.key_commitment != other.r_.key_commitment)
+        return false;
+
+    if(this->r_.tag != other.r_.tag)
+        return false;
+
+    return true;
+}
+
+bool Coin::operator!=(const Coin& right) const {
+    return !operator==(right);
 }
 
 uint256 Coin::getHash() const {
     CDataStream ss(SER_GETHASH, 0);
     ss << "coin_hash";
-    ss << S;
-    ss << K;
-    ss << C;
-    ss << r_;
+    ss << *this;
     return ::Hash(ss.begin(), ss.end());
 }
 
 void Coin::setSerialContext(const std::vector<unsigned char>& serial_context_) {
     serial_context = serial_context_;
+}
+
+void Coin::setParams(const Params* params) {
+    this->params = params;
 }
 
 }

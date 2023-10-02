@@ -103,6 +103,8 @@ BITCOIN_TESTS = \
   libspark/test/f4grumble_test.cpp \
   libspark/test/address_test.cpp \
   test/spark_tests.cpp \
+  test/spark_state_test.cpp \
+  test/spark_mintspend_test.cpp \
   sigma/test/coin_spend_tests.cpp \
   sigma/test/coin_tests.cpp \
   sigma/test/primitives_tests.cpp \
@@ -203,6 +205,7 @@ BITCOIN_TESTS += \
   wallet/test/wallet_tests.cpp \
   wallet/test/crypto_tests.cpp \
   wallet/test/lelantus_tests.cpp \
+  wallet/test/spark_tests.cpp \
   wallet/test/sigma_tests.cpp \
   wallet/test/mnemonic_tests.cpp \
   wallet/test/txbuilder_tests.cpp

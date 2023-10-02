@@ -72,6 +72,9 @@ void Chaum::prove(
     proof.t3 = t;
     Scalar c_power(c);
     for (std::size_t i = 0; i < n; i++) {
+        if (c_power.isZero()) {
+            throw std::invalid_argument("Unexpected challenge!");
+        }
         proof.t1[i] = r[i] + c_power*x[i];
         proof.t2 += s[i] + c_power*y[i];
         proof.t3 += c_power*z[i];
@@ -92,10 +95,16 @@ bool Chaum::verify(
     }
 
     Scalar c = challenge(mu, S, T, proof.A1, proof.A2);
+    if (c.isZero()) {
+        throw std::invalid_argument("Unexpected challenge!");
+    }
     std::vector<Scalar> c_powers;
     c_powers.emplace_back(c);
     for (std::size_t i = 1; i < n; i++) {
         c_powers.emplace_back(c_powers[i-1]*c);
+        if (c_powers[i].isZero()) {
+            throw std::invalid_argument("Unexpected challenge!");
+        }
     }
 
     // Weight the verification equations
@@ -139,10 +148,12 @@ bool Chaum::verify(
     points.emplace_back(proof.A1);
 
     // {A2}
-    for (std::size_t i = 0; i < n; i++) {
-        scalars.emplace_back(w);
-        points.emplace_back(proof.A2[i]);
+    GroupElement A2_sum = proof.A2[0];
+    for (std::size_t i = 1; i < n; i++) {
+        A2_sum += proof.A2[i];
     }
+    scalars.emplace_back(w);
+    points.emplace_back(A2_sum);
 
     // {S}
     for (std::size_t i = 0; i < n; i++) {

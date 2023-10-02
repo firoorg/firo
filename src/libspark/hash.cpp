@@ -7,7 +7,7 @@ using namespace secp_primitives;
 // Set up a labeled hash function
 Hash::Hash(const std::string label) {
 	this->ctx = EVP_MD_CTX_new();
-	EVP_DigestInit_ex(this->ctx, EVP_blake2b512(), NULL);
+	EVP_DigestInit_ex(this->ctx, EVP_sha512(), NULL);
 
 	// Write the protocol and mode information
 	std::vector<unsigned char> protocol(LABEL_PROTOCOL.begin(), LABEL_PROTOCOL.end());
@@ -31,24 +31,36 @@ void Hash::include(CDataStream& data) {
 	EVP_DigestUpdate(this->ctx, reinterpret_cast<unsigned char *>(data.data()), data.size());
 }
 
+// Finalize the hash function to a byte array
+std::vector<unsigned char> Hash::finalize() {
+    // Use the full output size of the hash function
+    std::vector<unsigned char> result;
+    result.resize(EVP_MD_size(EVP_sha512()));
+
+    unsigned int TEMP;
+    EVP_DigestFinal_ex(this->ctx, result.data(), &TEMP);
+
+    return result;
+}
+
 // Finalize the hash function to a scalar
 Scalar Hash::finalize_scalar() {
     // Ensure we can properly populate a scalar
-    if (EVP_MD_size(EVP_blake2b512()) < SCALAR_ENCODING) {
+    if (EVP_MD_size(EVP_sha512()) < SCALAR_ENCODING) {
         throw std::runtime_error("Bad hash size!");
     }
 
     std::vector<unsigned char> hash;
-    hash.resize(EVP_MD_size(EVP_blake2b512()));
+    hash.resize(EVP_MD_size(EVP_sha512()));
     unsigned char counter = 0;
 
     EVP_MD_CTX* state_counter;
     state_counter = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(state_counter, EVP_blake2b512(), NULL);
+    EVP_DigestInit_ex(state_counter, EVP_sha512(), NULL);
 
     EVP_MD_CTX* state_finalize;
     state_finalize = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(state_finalize, EVP_blake2b512(), NULL);
+    EVP_DigestInit_ex(state_finalize, EVP_sha512(), NULL);
 
     while (1) {
         // Prepare temporary state for counter testing
@@ -83,21 +95,21 @@ GroupElement Hash::finalize_group() {
 	const unsigned char ZERO = 0;
 
     // Ensure we can properly populate a 
-    if (EVP_MD_size(EVP_blake2b512()) < GROUP_ENCODING) {
+    if (EVP_MD_size(EVP_sha512()) < GROUP_ENCODING) {
         throw std::runtime_error("Bad hash size!");
     }
 
     std::vector<unsigned char> hash;
-    hash.resize(EVP_MD_size(EVP_blake2b512()));
+    hash.resize(EVP_MD_size(EVP_sha512()));
     unsigned char counter = 0;
 
     EVP_MD_CTX* state_counter;
     state_counter = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(state_counter, EVP_blake2b512(), NULL);
+    EVP_DigestInit_ex(state_counter, EVP_sha512(), NULL);
 
     EVP_MD_CTX* state_finalize;
     state_finalize = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(state_finalize, EVP_blake2b512(), NULL);
+    EVP_DigestInit_ex(state_finalize, EVP_sha512(), NULL);
 
     while (1) {
         // Prepare temporary state for counter testing
@@ -141,7 +153,7 @@ GroupElement Hash::finalize_group() {
 // Include a serialized size in the hash function
 void Hash::include_size(std::size_t size) {
 	CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-	stream << size;
+	stream << (uint64_t)size;
 	EVP_DigestUpdate(this->ctx, reinterpret_cast<unsigned char *>(stream.data()), stream.size());
 }
 

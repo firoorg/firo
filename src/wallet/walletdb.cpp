@@ -1105,6 +1105,20 @@ DBErrors CWalletDB::ZapLelantusMints(CWallet *pwallet) {
     return DB_LOAD_OK;
 }
 
+DBErrors CWalletDB::ZapSparkMints(CWallet *pwallet) {
+    // get list of spark Mints
+    std::unordered_map<uint256, CSparkMintMeta> sparkMints = ListSparkMints();
+
+    // erase each Mint
+    BOOST_FOREACH(auto & mint, sparkMints)
+    {
+        if (!EraseSparkMint(mint.first))
+            return DB_CORRUPT;
+    }
+
+    return DB_LOAD_OK;
+}
+
 DBErrors CWalletDB::ZapWalletTx(CWallet* pwallet, std::vector<CWalletTx>& vWtx)
 {
     // build list of wallet TXs

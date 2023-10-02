@@ -87,6 +87,9 @@ public:
 	std::string encode(const unsigned char network) const;
 	unsigned char decode(const std::string& str);
 
+	std::string encode(const unsigned char network) const;
+	unsigned char decode(const std::string& str);
+
 private:
     char version = SPARK_ADDRESS_VERSION;
 	const Params* params;

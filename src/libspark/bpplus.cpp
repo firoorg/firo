@@ -137,7 +137,7 @@ void BPPlus::prove(
     std::vector<GroupElement> A_points;
     std::vector<Scalar> A_scalars;
     A_points.reserve(2*N*M + 1);
-    A_points.reserve(2*N*M + 1);
+    A_scalars.reserve(2*N*M + 1);
 
     A_points.emplace_back(H);
     A_scalars.emplace_back(alpha);
@@ -385,6 +385,9 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
 
         // Get challenges
         Scalar y = transcript.challenge("y");
+        if (y == ZERO) {
+            return false;
+        }
         Scalar y_inverse = y.inverse();
         Scalar y_NM = y;
         for (std::size_t i = 0; i < rounds; i++) {
@@ -393,6 +396,9 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
         Scalar y_NM_1 = y_NM*y;
 
         Scalar z = transcript.challenge("z");
+        if (z == ZERO) {
+            return false;
+        }
         Scalar z_square = z.square();
 
         std::vector<Scalar> e;
@@ -400,13 +406,20 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
         for (std::size_t j = 0; j < rounds; j++) {
             transcript.add("L", proof.L[j]);
             transcript.add("R", proof.R[j]);
-            e.emplace_back(transcript.challenge("e"));
+            Scalar e_ = transcript.challenge("e");
+            if (e_ == ZERO) {
+                return false;
+            }
+            e.emplace_back(e_);
             e_inverse.emplace_back(e[j].inverse());
         }
 
         transcript.add("A1", proof.A1);
         transcript.add("B", proof.B);
         Scalar e1 = transcript.challenge("e1");
+        if (e1 == ZERO) {
+            return false;
+        }
         Scalar e1_square = e1.square();
 
         // C_j: -e1**2 * z**(2*(j + 1)) * y**(N*M + 1) * w

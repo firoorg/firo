@@ -63,6 +63,9 @@ static inline std::vector<std::size_t> decompose(std::size_t num, const std::siz
 
 // Compute a double Pedersen vector commitment
 static inline GroupElement vector_commit(const std::vector<GroupElement>& Gi, const std::vector<GroupElement>& Hi, const std::vector<Scalar>& a, const std::vector<Scalar>& b, const GroupElement& H, const Scalar& r) {
+    if (Gi.size() != a.size() || Hi.size() != b.size()) {
+        throw std::runtime_error("Vector commitment size mismatch!");
+    }
     return secp_primitives::MultiExponent(Gi, a).get_multiple() + secp_primitives::MultiExponent(Hi, b).get_multiple() + H*r;
 }
 

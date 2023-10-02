@@ -80,7 +80,6 @@ TradeHistoryDialog::TradeHistoryDialog(QWidget *parent) :
     ui->tradeHistoryTable->setHorizontalHeaderItem(5, new QTableWidgetItem("Trade Details"));
     ui->tradeHistoryTable->setHorizontalHeaderItem(6, new QTableWidgetItem("Sold"));
     ui->tradeHistoryTable->setHorizontalHeaderItem(7, new QTableWidgetItem("Received"));
-    borrowedColumnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(ui->tradeHistoryTable, 100, 100, this);
     #if QT_VERSION < 0x050000
        ui->tradeHistoryTable->horizontalHeader()->setResizeMode(2, QHeaderView::Fixed);
        ui->tradeHistoryTable->horizontalHeader()->setResizeMode(3, QHeaderView::Interactive);
@@ -112,19 +111,19 @@ TradeHistoryDialog::TradeHistoryDialog(QWidget *parent) :
     ui->tradeHistoryTable->resizeColumnToContents(4);
     ui->tradeHistoryTable->resizeColumnToContents(6);
     ui->tradeHistoryTable->resizeColumnToContents(7);
-    borrowedColumnResizingFixer->stretchColumnWidth(5);
     ui->tradeHistoryTable->setSortingEnabled(true);
     ui->tradeHistoryTable->horizontalHeader()->setSortIndicator(3, Qt::DescendingOrder);
+
     QAction *copyTxIDAction = new QAction(tr("Copy transaction ID"), this);
     QAction *showDetailsAction = new QAction(tr("Show trade details"), this);
     contextMenu = new QMenu();
     contextMenu->addAction(copyTxIDAction);
     contextMenu->addAction(showDetailsAction);
-    connect(ui->tradeHistoryTable, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
-    connect(ui->tradeHistoryTable, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(showDetails()));
-    connect(ui->hideInactiveTrades, SIGNAL(stateChanged(int)), this, SLOT(RepopulateTradeHistoryTable(int)));
-    connect(copyTxIDAction, SIGNAL(triggered()), this, SLOT(copyTxID()));
-    connect(showDetailsAction, SIGNAL(triggered()), this, SLOT(showDetails()));
+    connect(ui->tradeHistoryTable, &QWidget::customContextMenuRequested, this, &TradeHistoryDialog::contextualMenu);
+    connect(ui->tradeHistoryTable, &QAbstractItemView::doubleClicked, this, &TradeHistoryDialog::showDetails);
+    connect(ui->hideInactiveTrades, &QCheckBox::stateChanged, this, &TradeHistoryDialog::RepopulateTradeHistoryTable);
+    connect(copyTxIDAction, &QAction::triggered, this, &TradeHistoryDialog::copyTxID);
+    connect(showDetailsAction, &QAction::triggered, this, &TradeHistoryDialog::showDetails);
 }
 
 TradeHistoryDialog::~TradeHistoryDialog()
@@ -569,10 +568,4 @@ void TradeHistoryDialog::showDetails()
     if (!strTXText.empty()) {
         PopulateSimpleDialog(strTXText, "Trade Information", "Trade Information");
     }
-}
-
-void TradeHistoryDialog::resizeEvent(QResizeEvent* event)
-{
-    QWidget::resizeEvent(event);
-    borrowedColumnResizingFixer->stretchColumnWidth(5);
 }

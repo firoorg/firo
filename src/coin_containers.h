@@ -59,6 +59,25 @@ using spend_info_container = std::unordered_map<Scalar, CSpendCoinInfo, sigma::C
 
 namespace lelantus {
 
+// This struct is used to keep mint and jmint value data into block index for mobile recovery, it will use more space,
+// Use this version of code in case you need mobile api
+struct MintValueData {
+    bool isJMint = false;
+    uint64_t amount;
+    std::vector<unsigned char> encryptedValue;
+    uint256 txHash;
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(isJMint);
+        READWRITE(amount);
+        READWRITE(encryptedValue);
+        READWRITE(txHash);
+    }
+};
+
 // Custom hash for the public coin.
 struct CPublicCoinHash {
     std::size_t operator()(const lelantus::PublicCoin& coin) const noexcept;

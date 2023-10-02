@@ -27,6 +27,8 @@ public:
     // Vector of <pubCoin, <amount, hash>> for all the mints.
     std::vector<std::pair<lelantus::PublicCoin, std::pair<uint64_t, uint256>>> mints;
 
+    std::unordered_map<lelantus::PublicCoin, std::vector<unsigned char>, lelantus::CPublicCoinHash> encryptedJmintValues;
+
     // serial for every spend (map from serial to coin group id)
     std::unordered_map<Scalar, int> spentSerials;
 
@@ -41,6 +43,7 @@ public:
 
 bool IsLelantusAllowed();
 bool IsLelantusAllowed(int height);
+bool IsLelantusGraceFulPeriod();
 
 bool IsAvailableToMint(const CAmount& amount);
 
@@ -77,6 +80,8 @@ bool ConnectBlockLelantus(
   CBlockIndex* pindexNew,
   const CBlock *pblock,
   bool fJustCheck=false);
+
+uint256 GetTxHashFromPubcoin(const lelantus::PublicCoin& pubCoin);
 
 /*
  * Get COutPoint(txHash, index) from the chain using pubcoin value alone.
@@ -189,12 +194,22 @@ public:
         int id,
         uint256& blockHash_out,
         std::vector<lelantus::PublicCoin>& coins_out,
-        std::vector<unsigned char>& setHash_out);
+        std::vector<unsigned char>& setHash_out,
+        std::string start_block_hash = "");
 
     void GetAnonymitySet(
             int coinGroupID,
             bool fStartLelantusBlacklist,
             std::vector<lelantus::PublicCoin>& coins_out);
+
+    void GetCoinsForRecovery(
+        CChain *chain,
+        int maxHeight,
+        int coinGroupID,
+        std::string start_block_hash,
+        uint256& blockHash_out,
+        std::vector<std::pair<lelantus::PublicCoin, std::pair<lelantus::MintValueData, uint256>>>& coins,
+        std::vector<unsigned char>& setHash_out);
 
     // Return height of mint transaction and id of minted coin
     std::pair<int, int> GetMintedCoinHeightAndId(const lelantus::PublicCoin& pubCoin);

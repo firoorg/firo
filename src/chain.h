@@ -245,12 +245,17 @@ public:
     std::map<std::pair<sigma::CoinDenomination, int>, std::vector<sigma::PublicCoin>> sigmaMintedPubCoins;
     //! Map id to <public coin, tag>
     std::map<int, std::vector<std::pair<lelantus::PublicCoin, uint256>>>  lelantusMintedPubCoins;
+
+    std::unordered_map<GroupElement, lelantus::MintValueData> lelantusMintData;
+
     //! Map id to <hash of the set>
     std::map<int, std::vector<unsigned char>> anonymitySetHash;
     //! Map id to spark coin
     std::map<int, std::vector<spark::Coin>> sparkMintedCoins;
     //! Map id to <hash of the set>
     std::map<int, std::vector<unsigned char>> sparkSetHash;
+    //! map spark coin S to tx hash, this is used when you run with -mobile
+    std::unordered_map<GroupElement, uint256> sparkTxHash;
 
     //! Values of coin serials spent in this block
     sigma::spend_info_container sigmaSpentSerials;
@@ -293,10 +298,12 @@ public:
 
         sigmaMintedPubCoins.clear();
         lelantusMintedPubCoins.clear();
+        lelantusMintData.clear();
         anonymitySetHash.clear();
         sparkMintedCoins.clear();
         sparkSetHash.clear();
         spentLTags.clear();
+        sparkTxHash.clear();
         sigmaSpentSerials.clear();
         lelantusSpentSerials.clear();
         activeDisablingSporks.clear();
@@ -533,11 +540,15 @@ public:
                 for(auto& itr : lelantusPubCoins) {
                     if(!itr.second.empty()) {
                         for(auto& coin : itr.second)
-                        lelantusMintedPubCoins[itr.first].push_back(std::make_pair(coin, uint256()));
+                        lelantusMintedPubCoins[itr.first].push_back(std::make_pair(coin,uint256()));
                     }
                 }
             } else
                 READWRITE(lelantusMintedPubCoins);
+            if (GetBoolArg("-mobile", false)) {
+                READWRITE(lelantusMintData);
+            }
+
             READWRITE(lelantusSpentSerials);
 
             if (nHeight >= params.nLelantusFixesStartBlock)
@@ -549,6 +560,10 @@ public:
             READWRITE(sparkMintedCoins);
             READWRITE(sparkSetHash);
             READWRITE(spentLTags);
+
+            if (GetBoolArg("-mobile", false)) {
+                READWRITE(sparkTxHash);
+            }
         }
 
 

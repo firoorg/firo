@@ -580,7 +580,8 @@ public:
         opcodeRet = (opcodetype)opcode;
 
         if (opcodeRet == opcodetype::OP_SIGMASPEND || opcodeRet == opcodetype::OP_SIGMAMINT ||
-            opcodeRet == opcodetype::OP_LELANTUSMINT || opcodeRet == opcodetype::OP_LELANTUSJMINT || opcodeRet == opcodetype::OP_LELANTUSJOINSPLIT) {
+            opcodeRet == opcodetype::OP_LELANTUSMINT || opcodeRet == opcodetype::OP_LELANTUSJMINT || opcodeRet == opcodetype::OP_LELANTUSJOINSPLIT ||
+            opcodeRet == opcodetype::OP_SPARKMINT || opcodeRet == opcodetype::OP_SPARKSMINT || opcodeRet == opcodetype::OP_SPARKSPEND) {
             if (pvchRet) {
                 pvchRet->assign(pc, end());
             }
