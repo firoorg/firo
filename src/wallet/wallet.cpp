@@ -188,7 +188,7 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild, CKey& secr
         MnemonicContainer mContainer = mnemonicContainer;
         DecryptMnemonicContainer(mContainer);
         SecureVector seed = mContainer.GetSeed();
-        masterKey.SetMaster(&seed[0], seed.size());
+        masterKey.SetMaster(&seed.at(0), seed.size());
     } else {
         // try to get the master key
         if (!GetKey(hdChain.masterKeyID, key))
