@@ -33,6 +33,7 @@
 #include "hdmint/wallet.h"
 #include "primitives/mint_spend.h"
 #include "bip47/paymentcode.h"
+#include "../llmq/quorums_instantsend.h"
 
 #include <algorithm>
 #include <atomic>
@@ -736,6 +737,7 @@ private:
                             std::vector<AbstractTxout>& vCoinControlInputs,
                             const CCoinControl* coinControl,
                             bool fUseInstantSend) const {
+        AssertLockHeld(llmq::quorumInstantSendManager->cs);
         AssertLockHeld(cs_wallet);
         vAvailableInputs.clear();
         vCoinControlInputs.clear();
@@ -795,17 +797,22 @@ private:
     // depending on the value of fSubtractFeeFromAmount); nConstantSize must be the size of the transaction minus the
     // inputs, input count, and P2SH_OUTPUT_SIZE in the event that input and output amounts aren't exactly equal. If
     // fUseInstantSend is not set, we will ignore UTXOs without a confirmation; if it is set, we will ignore only
-    // un-is-locked UTXOs. Fees will be automatically determined if not set in coinControl.
+    // un-is-locked UTXOs. Fees will be automatically determined if not set in coinControl. If fAllowPartial is set, we
+    // will collect as many inputs as we can and return even if we don't have enough to fulfill nRequired. We return
+    // true if we were able to collect enough inputs to fulfill nRequired, and false otherwise. If fAllowPartial is set,
+    // vInputs may be returned with a 0-length; this will occur if there vRelevantTransactions is empty or if no
+    // transactions could cover the required fees.
     template<typename AbstractTxout>
-    void GetInputsForTx(const std::vector<AbstractTxout>& vRelevantTransactions, std::vector<AbstractTxout>& vInputs,
+    bool GetInputsForTx(const std::vector<AbstractTxout>& vRelevantTransactions, std::vector<AbstractTxout>& vInputs,
                         CAmount& nFeeRet, CAmount& nCollectedRet, CAmount nRequired, size_t nConstantSize,
-                        const CCoinControl* coinControl, bool fUseInstantSend, bool fSubtractFeeFromAmount) {
+                        const CCoinControl* coinControl, bool fUseInstantSend, bool fSubtractFeeFromAmount,
+                        bool fAllowPartial=false) {
         AssertLockHeld(cs_wallet);
         vInputs.clear();
         nFeeRet = 0;
         nCollectedRet = 0;
 
-        size_t nMaxSize = coinControl && coinControl->nMaxSize ? coinControl->nMaxSize : MAX_STANDARD_TX_WEIGHT;
+        size_t nMaxSize = coinControl && coinControl->nMaxSize ? coinControl->nMaxSize : (MAX_STANDARD_TX_WEIGHT / 4);
 
         if (nRequired < 0)
             throw std::runtime_error("Transaction amounts must be positive");
@@ -995,13 +1002,13 @@ private:
 
             CAmount extraFee = fSubtractFeeFromAmount ? 0 : nFeeRet;
             // In this case, we don't need to make a change output, so we don't have to add the cost of a change output.
-            if (nCollectedRet == nRequired + extraFee) return;
+            if (nCollectedRet == nRequired + extraFee) return true;
             if (
                 nCollectedRet >= nRequired + extraFee &&
                 nCollectedRet <= nRequired + GetFee(coinControl, txSize + P2SH_OUTPUT_SIZE)
             ) {
                 nFeeRet = nCollectedRet - nRequired;
-                return;
+                return true;
             }
 
             // In this case, we have a change output too.
@@ -1030,7 +1037,19 @@ private:
             nFeeRet = GetFee(coinControl, txSize + P2SH_OUTPUT_SIZE);
             extraFee = fSubtractFeeFromAmount ? 0 : nFeeRet;
             if (fSubtractFeeFromAmount && nFeeRet > nCollectedRet) continue;
-            if (nCollectedRet >= extraFee + nRequired) return;
+            if (nCollectedRet >= extraFee + nRequired) return true;
+        }
+
+        if (fAllowPartial) {
+            if (nFeeRet > nCollectedRet) {
+                vInputs.clear();
+                nFeeRet = 0;
+                nCollectedRet = 0;
+            } else if (nCollectedRet + (fSubtractFeeFromAmount ? 0 : nFeeRet) >= nRequired) {
+                nFeeRet = GetFee(coinControl, txSize);
+            }
+
+            return false;
         }
 
         // If we've gotten this far, we don't have the funds to make the transaction.

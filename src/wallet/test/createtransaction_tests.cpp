@@ -111,10 +111,12 @@ void AssertHasKey(CReserveKey& reservekey, const CWalletTx& wtx, uint32_t voutN)
 #define ASSERT_HAS_KEY(voutN) AssertHasKey(reservekey, wtx, voutN)
 #define ASSERT_SUCCESS() if (!strFailReason.empty()) BOOST_FAIL(strFailReason)
 #define ASSERT_FAILURE(reason) BOOST_ASSERT(strFailReason == reason)
+#define ACQUIRE_LOCKS() LOCK2(cs_main, pwalletMain->cs_wallet);\
+    LOCK(llmq::quorumInstantSendManager->cs);
 
 BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     BOOST_AUTO_TEST_CASE(sends_money) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 20});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({1 << 19});
@@ -140,7 +142,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(multiple_recipients) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 20});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({1 << 19, 1 << 18, 1 << 17, 1 << 16, 1 << 15});
@@ -168,7 +170,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(mints_change) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 20});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({1 << 19, 1 << 18, 1 << 17, 1 << 16, 1 << 15});
@@ -220,7 +222,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(selects_smallest_input_required) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 17, 1 << 16, 1 << 15});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({1 << 15});
@@ -246,7 +248,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(insufficient_funds) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 15});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({1 << 15});
@@ -287,7 +289,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(no_unconfirmed_inputs) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 17, 1 << 16, 1 << 15});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({1 << 17});
@@ -331,7 +333,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(takes_from_front_and_back) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 17, 1 << 16, 1 << 15, 1 << 14, 1 << 13});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({(1 << 17) + (1 << 16) + (1 << 14)});
@@ -360,7 +362,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(doesnt_select_used_inputs) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 17, 1 << 16, 1 << 15, 1 << 14, 1 << 13});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({1 << 16});
@@ -391,7 +393,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(instantsend) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 17, 1 << 16, 1 << 15, 1 << 14, 1 << 13});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({1 << 17});
@@ -450,7 +452,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(change_position) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 17, 1 << 16, 1 << 15, 1 << 14, 1 << 13});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({1 << 17, 1 << 13, 1 << 16});
@@ -565,7 +567,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(watch_only_address) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 15, 1 << 14, 1 << 13});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({1 << 16});
@@ -627,7 +629,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(coincontrol_coin_type) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1000 * COIN});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({999 * COIN});
@@ -805,7 +807,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(coincontrol_input_count_limit) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 17, 1 << 15, 1 << 14, 1 << 13});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({(1 << 17) + (1 << 15)});
@@ -855,7 +857,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(coincontrol_transaction_size_limit) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 17, 1 << 15, 1 << 14, 1 << 13});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({(1 << 17) + (1 << 14)});
@@ -941,7 +943,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(coincontrol_destination_address) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 17, 1 << 15, 1 << 14, 1 << 13});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({1 << 16});
@@ -969,7 +971,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(coincontrol_minimum_total_fee) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 17, 1 << 15, 1 << 14, 1 << 13});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({1 << 17});
@@ -1038,7 +1040,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(coincontrol_confirm_target) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 17, 1 << 15, 1 << 14, 1 << 13});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({1 << 16});
@@ -1085,7 +1087,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     }
 
     BOOST_AUTO_TEST_CASE(coincontrol_require_all_inputs) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        ACQUIRE_LOCKS();
 
         std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 17, 1 << 15, 1 << 14, 1 << 13});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({1});

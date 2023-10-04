@@ -12,6 +12,7 @@
 #include "../wallet/walletdb.h"
 #include "../sync.h"
 
+class CTransparentTxout;
 class CRecipient;
 class CReserveKey;
 class CCoinControl;
@@ -112,16 +113,32 @@ public:
             bool generate);
 
     bool CreateSparkMintTransactions(
-            const std::vector<spark::MintedCoinData>& outputs,
-            std::vector<std::pair<CWalletTx,
-            CAmount>>& wtxAndFee,
-            CAmount& nAllFeeRet,
-            std::list<CReserveKey>& reservekeys,
-            int& nChangePosInOut,
-            bool subtractFeeFromAmount,
-            std::string& strFailReason,
-            const CCoinControl *coinControl,
-            bool autoMintAll = false);
+        const std::vector<spark::MintedCoinData>& outputs,
+        std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+        std::list<CReserveKey>& reservekeys,
+        bool subtractFeeFromAmount,
+        std::string& strFailReason,
+        const CCoinControl *coinControl,
+        bool autoMintAll = false);
+
+    bool CreateSparkMintTransactions(
+        const std::vector<spark::MintedCoinData>& outputs,
+        std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+        std::list<CReserveKey>& reservekeys,
+        bool subtractFeeFromAmount,
+        std::string& strFailReason,
+        const CCoinControl *coinControl,
+        bool autoMintAll,
+        const std::vector<CTransparentTxout>& vTransparentTxouts);
+
+    void CreateSparkMintTransaction(
+        const spark::MintedCoinData& sparkOutput,
+        CWalletTx& wtx,
+        CReserveKey& reservekey,
+        CAmount nFee,
+        CAmount& extraFee,
+        const std::vector<CTransparentTxout>& vInputTxs,
+        const CCoinControl* coinControl);
 
     CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,

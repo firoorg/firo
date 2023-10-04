@@ -4518,6 +4518,17 @@ void CWallet::CheckTransparentTransactionSanity(CMutableTransaction& tx,
             throw std::runtime_error("Created a dust output");
     }
 
+    assert(tx.vin.size() == vInputTxs.size());
+    for (const CTxIn& txin: tx.vin) {
+        bool nFound = 0;
+        for (const CTransparentTxout& txin_: vInputTxs) {
+            if (txin_.GetOutpoint() == txin.prevout)
+                nFound += 1;
+        }
+
+        assert(nFound == 1);
+    }
+
     CAmount totalInputValue = 0;
     CAmount totalOutputValue = 0;
     for (const CTransparentTxout& txin: vInputTxs) totalInputValue += txin.GetValue();
@@ -5617,11 +5628,14 @@ std::string CWallet::MintAndStoreLelantus(const CAmount& value,
 
 std::string CWallet::MintAndStoreSpark(
         const std::vector<spark::MintedCoinData>& outputs,
-        std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+        std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFees,
         bool subtractFeeFromAmount,
         bool autoMintAll,
         bool fAskFee,
         const CCoinControl *coinControl) {
+    LOCK(llmq::quorumInstantSendManager->cs);
+    LOCK2(cs_main, cs_wallet);
+
     std::string strError;
 
     EnsureSparkWalletAvailable();
@@ -5640,24 +5654,26 @@ std::string CWallet::MintAndStoreSpark(
         return _("Insufficient funds");
 
     LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
-    int64_t nFeeRequired = 0;
-
-    int nChangePosRet = -1;
 
     std::list<CReserveKey> reservekeys;
-    if (!sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, subtractFeeFromAmount, strError, coinControl, autoMintAll)) {
+    if (!sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFees, reservekeys, subtractFeeFromAmount || autoMintAll, strError, coinControl, autoMintAll)) {
         return strError;
     }
 
-    if (fAskFee && !uiInterface.ThreadSafeAskFee(nFeeRequired)){
+    CAmount nTotalFee;
+    for (const std::pair<CWalletTx, CAmount>& wtxAndFee: wtxAndFees)
+        nTotalFee += wtxAndFee.second;
+
+    if (fAskFee && !uiInterface.ThreadSafeAskFee(nTotalFee)){
         LogPrintf("MintSpark: returning aborted..\n");
         return "ABORTED";
     }
 
     CValidationState state;
+    assert(reservekeys.size() == wtxAndFees.size());
     auto reservekey = reservekeys.begin();
-    for(size_t i = 0; i < wtxAndFee.size(); i++) {
-        if (!CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state)) {
+    for(size_t i = 0; i < wtxAndFees.size(); i++) {
+        if (!CommitTransaction(wtxAndFees[i].first, *reservekey++, g_connman.get(), state)) {
             return _(
                     "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
         } else {

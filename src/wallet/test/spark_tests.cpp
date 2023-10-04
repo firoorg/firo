@@ -6,7 +6,7 @@
 #include <boost/test/unit_test.hpp>
 
 static std::vector<unsigned char> random_char_vector()
-{                                                    
+{
     Scalar temp;
     temp.randomize();
     std::vector<unsigned char> result;
@@ -25,7 +25,7 @@ CBlock GetCBlock(CBlockIndex const *blockIdx)
     return block;
 }
 
-void ExtractSpend(CTransaction const &tx,                                                 
+void ExtractSpend(CTransaction const &tx,
      std::vector<spark::Coin>& coins,
      std::vector<GroupElement>& lTags) {
 
