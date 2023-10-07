@@ -65,7 +65,7 @@ CBlock ZerocoinTestingSetupBase::CreateBlock(const CScript& scriptPubKey) {
     // IncrementExtraNonce creates a valid coinbase and merkleRoot
     unsigned int extraNonce = 0;
     IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
-    
+
     uint256 mix_hash;
     while (!CheckProofOfWork(block.GetHashFull(mix_hash), block.nBits, chainparams.GetConsensus())) {
         ++block.nNonce64;
@@ -383,9 +383,9 @@ std::vector<CSparkMintMeta> SparkTestingSetup::GenerateMints(
     }
     std::vector<CSparkMintMeta> walletMints = pwalletMain->sparkWallet->ListSparkMints();
 
-    for (int i = 0; i < walletMints.size(); ++i) {
-        for (int j = 0; j < wtxAndFeeAll.size(); ++j) {
-            if (walletMints[i].txid == wtxAndFeeAll[j].first.GetHash()) {
+    for (int i = 0; i < wtxAndFeeAll.size(); ++i) {
+        for (int j = 0; j < walletMints.size(); ++j) {
+            if (wtxAndFeeAll[i].first.GetHash() == walletMints[j].txid) {
                 mints.push_back(walletMints[i]);
             }
         }
