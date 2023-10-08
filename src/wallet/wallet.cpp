@@ -70,6 +70,7 @@ bool fSendFreeTransactions = DEFAULT_SEND_FREE_TRANSACTIONS;
 bool fWalletRbf = DEFAULT_WALLET_RBF;
 
 const char * DEFAULT_WALLET_DAT = "wallet.dat";
+boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
 
 /**
  * Fees smaller than this (in satoshi) are considered zero fee (for transaction creation)
@@ -510,6 +511,7 @@ void CWallet::RequestUnlock() {
         return;
 
     LogPrintf("Requesting wallet unlock\n");
+    UnlockWallet(this);
     fUnlockRequested.store(true);
 }
 
