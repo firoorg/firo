@@ -512,6 +512,8 @@ void CWallet::RequestUnlock() {
 
     LogPrintf("Requesting wallet unlock\n");
     UnlockWallet(this);
+    printf("Please unlock the wallet with your passphrase to allow spark wallet be created\nYou need to do this only one time.\n");
+
     fUnlockRequested.store(true);
 }
 

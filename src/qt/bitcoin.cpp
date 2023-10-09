@@ -379,13 +379,13 @@ BitcoinApplication::~BitcoinApplication()
 #ifdef ENABLE_WALLET
     delete paymentServer;
     paymentServer = 0;
+    UnlockWallet.disconnect(boost::bind(unlockWallet, this, _1));
+
 #endif
     delete optionsModel;
     optionsModel = 0;
     delete platformStyle;
     platformStyle = 0;
-    UnlockWallet.disconnect(boost::bind(unlockWallet, this, _1));
-
 }
 
 #ifdef ENABLE_WALLET
