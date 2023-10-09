@@ -391,7 +391,12 @@ bool VerifyPrivateTxOwn(const uint256& txid, const std::vector<unsigned char>& v
 
             count++;
         }
+    } else if (tx->IsCoinBase()) {
+        throw std::runtime_error("This is a coinbase transaction and not a private transaction");
+    } else {
+        throw std::runtime_error("Currently this is allowed only for Lelantus transactions");
     }
+
     return true;
 }
 

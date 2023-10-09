@@ -3396,6 +3396,10 @@ std::vector<unsigned char> CWallet::ProvePrivateTxOwn(const uint256& txid, const
 
             count++;
         }
+    } else if (wtx.tx->IsCoinBase()) {
+        throw std::runtime_error("This is a coinbase transaction and not a private transaction");
+    } else {
+        throw std::runtime_error("Currently this operation is allowed only for Lelantus transactions");
     }
 
     return result;
