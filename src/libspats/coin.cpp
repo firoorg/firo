@@ -24,6 +24,8 @@ Coin::Coin(
     const std::string& memo,
     const std::vector<unsigned char>& serial_context)
 {
+    this->a = a;
+    this->i = i;
     this->params = params;
     this->serial_context = serial_context;
 
@@ -39,7 +41,7 @@ Coin::Coin(
     //
 
     // Construct the recovery key
-    this->K = SpatsUtils::hash_k(k) * SpatsUtils::hash_div(address.get_d());
+    this->K = SpatsUtils::hash_div(address.get_d()) * SpatsUtils::hash_k(k);
 
     // Construct the serial commitment
     this->S = this->params->get_F() * SpatsUtils::hash_ser(k, serial_context) + address.get_Q2();

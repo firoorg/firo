@@ -62,7 +62,7 @@ struct SpendCoinRecipientData {
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
         READWRITE(a);
-        READWRITE(i)
+        READWRITE(i);
         READWRITE(v);
         READWRITE(d);
         READWRITE(k);
@@ -79,6 +79,8 @@ public:
         const Params* params,
         const char type,
         const Scalar& k,
+        const Scalar& a,
+        const Scalar& i,
         const Address& address,
         const uint64_t& v,
         const std::string& memo,
@@ -106,10 +108,12 @@ protected:
 
 public:
     const Params* params;
-    char type;                                 // type flag
-    GroupElement S, K, C;                      // serial commitment, recovery key, value commitment
-    AEADEncryptedData r_;                      // encrypted recipient data
-    uint64_t v;                                // value
+    char type;            // type flag
+    GroupElement S, K, C; // serial commitment, recovery key, value commitment
+    AEADEncryptedData r_; // encrypted recipient data
+    uint64_t v;
+    Scalar a;
+    Scalar i;                                  // value
     std::vector<unsigned char> serial_context; // context to which the serial commitment should be bound (not serialized, but inferred)
 
     // Serialization depends on the coin type
