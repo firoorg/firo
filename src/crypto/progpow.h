@@ -6,10 +6,10 @@
 #ifndef FIRO_PROGPOW_H
 #define FIRO_PROGPOW_H
 
-#include "./progpow/include/ethash/ethash.h"
-#include "./progpow/include/ethash/progpow.hpp"
-#include "../uint256.h"
-#include "../serialize.h"
+#include <crypto/progpow/include/ethash/ethash.h>
+#include <crypto/progpow/include/ethash/progpow.hpp>
+#include <uint256.h>
+#include <serialize.h>
 
 /**
  * Serializer for ProgPow BlockHeader input
