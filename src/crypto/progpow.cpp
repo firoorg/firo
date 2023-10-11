@@ -6,10 +6,10 @@
 
 #include <chainparams.h>
 #include <crypto/progpow/helpers.hpp>
-#include <crypto/progpow/lib/ethash/endianness.hpp>
-#include <crypto/progpow/include/ethash/ethash.hpp>
-#include <hash.h>
-#include <primitives/block.h>
+#include <crypto/progpow/include/ethash/ethash.h>
+#include <crypto/progpow/include/ethash/progpow.hpp>
+#include <uint256.h>
+#include <serialize.h>
 
 #include <sstream>
 

@@ -7,9 +7,6 @@
 
 namespace spark {
 
-// Let's define inital spark address version as P (private),
-const char SPARK_ADDRESS_VERSION = 'P';
-
 using namespace secp_primitives;
 
 class SpendKey {
@@ -81,17 +78,11 @@ public:
 	const std::vector<unsigned char>& get_d() const;
 	const GroupElement& get_Q1() const;
 	const GroupElement& get_Q2() const;
-    std::string GetHex() const;
-    void SetHex(const std::string& str);
-
-	std::string encode(const unsigned char network) const;
-	unsigned char decode(const std::string& str);
 
 	std::string encode(const unsigned char network) const;
 	unsigned char decode(const std::string& str);
 
 private:
-    char version = SPARK_ADDRESS_VERSION;
 	const Params* params;
 	std::vector<unsigned char> d;
 	GroupElement Q1, Q2;

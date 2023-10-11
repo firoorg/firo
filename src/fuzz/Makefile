@@ -1,6 +1,6 @@
 CXX := hfuzz-clang++
 
-CXXFLAGS := -DHAVE_CONFIG_H -iquote src/secp256k1/include/
+CXXFLAGS := -DHAVE_CONFIG_H -I../../src/  -iquote ../../src/config/  -iquote ../secp256k1/  -iquote ../secp256k1/src/  -iquote ../secp256k1/include/
 CXXFLAGS2 := -DHAVE_CONFIG_H
 
 LIBS := -lcrypto -lstdc++ -lboost_thread -lboost_filesystem -lboost_program_options -lboost_chrono
@@ -84,7 +84,7 @@ $(GROOTLE_OUTPUT_DEBUG): $(GROOTLE_SRCS)
 
 chaum: $(CHAUM_OUTPUT)
 $(CHAUM_OUTPUT): $(CHAUM_SRCS)
-	$(CXX) $(CXXFLAGS2) $^ -o $@ $(INCLUDE_HEADER) $(LIBS)
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(INCLUDE_HEADER) $(LIBS)
 
 chaum_debug: $(CHAUM_OUTPUT_DEBUG)
 $(CHAUM_OUTPUT_DEBUG): $(CHAUM_SRCS)
@@ -108,7 +108,7 @@ $(COIN_OUTPUT_DEBUG): $(COIN_SRCS)
 
 mint_transaction: $(MINT_TRANSACTION_OUTPUT)
 $(MINT_TRANSACTION_OUTPUT): $(MINT_TRANSACTION_SRCS)
-	$(CXX) $(CXXFLAGS2) $^ -o $@ $(LIBS2)
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LIBS2)
 
 mint_transaction_debug: $(MINT_TRANSACTION_OUTPUT_DEBUG)
 $(MINT_TRANSACTION_OUTPUT_DEBUG): $(MINT_TRANSACTION_SRCS)

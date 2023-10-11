@@ -1,5 +1,5 @@
 #include "params.h"
-#include "../chainparams.h"
+#include "chainparams.h"
 #include "util.h"
 
 namespace spark {

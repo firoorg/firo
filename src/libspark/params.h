@@ -1,10 +1,10 @@
 #ifndef FIRO_LIBSPARK_PARAMS_H
 #define FIRO_LIBSPARK_PARAMS_H
 
-#include "../secp256k1/include/Scalar.h"
-#include "../secp256k1/include/GroupElement.h"
-#include "../serialize.h"
-#include "../sync.h"
+#include <secp256k1/include/Scalar.h>
+#include <secp256k1/include/GroupElement.h>
+#include <serialize.h>
+#include <sync.h>
 
 using namespace secp_primitives;
 

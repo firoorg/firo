@@ -9,14 +9,14 @@
 #include <deque>
 #include <type_traits>
 #include <boost/foreach.hpp>
-#include "transaction.h"
-#include "../serialize.h"
-#include "../uint256.h"
-#include "../definition.h"
-#include "../crypto/MerkleTreeProof/mtp.h"
-#include "../crypto/progpow.h"
-#include "../firo_params.h"
-#include "../crypto/progpow.h"
+#include "primitives/transaction.h"
+#include "serialize.h"
+#include "uint256.h"
+#include "definition.h"
+#include "crypto/MerkleTreeProof/mtp.h"
+#include "crypto/progpow.h"
+#include "firo_params.h"
+#include "crypto/progpow.h"
 
 // Can't include sigma.h
 namespace sigma {
