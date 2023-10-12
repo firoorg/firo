@@ -189,7 +189,7 @@ void ReceiveRequestDialog::update()
             painter.setFont(font);
             QRect paddedRect = qrAddrImage.rect();
             paddedRect.setHeight(QR_IMAGE_SIZE+12);
-            painter.drawText(paddedRect, Qt::AlignBottom|Qt::AlignCenter, info.address);
+            painter.drawText(paddedRect, Qt::AlignBottom|Qt::AlignCenter, info.address.left(16) + "..." + info.address.right(16));
             painter.end();
 
             ui->lblQRCode->setPixmap(QPixmap::fromImage(qrAddrImage));
