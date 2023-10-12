@@ -6,8 +6,11 @@
 #include "base58.h"
 #include "definition.h"
 #include "txmempool.h"
+#ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
+#endif // ENABLE_WALLET
+#include "sigma.h"
 #include "crypto/sha256.h"
 #include "liblelantus/coin.h"
 #include "liblelantus/schnorr_prover.h"
