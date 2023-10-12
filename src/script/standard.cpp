@@ -56,6 +56,9 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::v
         // Bitcoin address tx, sender provides hash of pubkey, receiver provides signature and pubkey
         mTemplates.insert(std::make_pair(TX_PUBKEYHASH, CScript() << OP_DUP << OP_HASH160 << OP_PUBKEYHASH << OP_EQUALVERIFY << OP_CHECKSIG));
 
+        // Super transparent address txout, same as previous one but with a prefix opcode to indicate it
+        mTemplates.insert(std::make_pair(TX_PUBKEYHASH, CScript() <<  OP_SUPERTRANSPARENT << OP_DUP << OP_HASH160 << OP_EQUALVERIFY << OP_CHECKSIG));
+
         // Sender provides N pubkeys, receivers provides M signatures
         mTemplates.insert(std::make_pair(TX_MULTISIG, CScript() << OP_SMALLINTEGER << OP_PUBKEYS << OP_SMALLINTEGER << OP_CHECKMULTISIG));
     }

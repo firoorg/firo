@@ -704,6 +704,21 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         }
     }
 
+    bool hasSuperTransparentUTXOs = false;
+    for (const auto &vout : tx.vout) {
+        if (vout.scriptPubKey.size() >= 1 && vout.scriptPubKey[0] == OP_SUPERTRANSPARENT) {
+            hasSuperTransparentUTXOs = true;
+            break;
+        }
+    }
+    int nTxHeight = nHeight;
+    if (nTxHeight == INT_MAX) {
+        LOCK(cs_main);
+        nTxHeight = chainActive.Height();
+    }
+    if (hasSuperTransparentUTXOs && nTxHeight < ::Params().GetConsensus().nSuperTransparentAddressStartBlock)
+        return state.DoS(100, false, REJECT_INVALID, "bad-super-transparent");
+
     if (tx.IsCoinBase())
     {
         size_t minCbSize = 2;
@@ -713,6 +728,8 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         }
         if (tx.vin[0].scriptSig.size() < minCbSize || tx.vin[0].scriptSig.size() > 100)
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
+        if (hasSuperTransparentUTXOs)
+            return state.DoS(100, false, REJECT_INVALID, "bad-super-transparent");
     }
     else
     {
@@ -724,16 +741,22 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
                 return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 
         if (tx.IsZerocoinV3SigmaTransaction()) {
+            if (hasSuperTransparentUTXOs)
+                return state.DoS(100, false, REJECT_INVALID, "bad-super-transparent");
             if (!CheckSigmaTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sigmaTxInfo))
                 return false;
         }
 
         if (tx.IsLelantusTransaction()) {
+            if (hasSuperTransparentUTXOs)
+                return state.DoS(100, false, REJECT_INVALID, "bad-super-transparent");
             if (!CheckLelantusTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sigmaTxInfo, lelantusTxInfo))
                 return false;
         }
 
         if (tx.IsSparkTransaction()) {
+            if (hasSuperTransparentUTXOs)
+                return state.DoS(100, false, REJECT_INVALID, "bad-super-transparent");
             if (!CheckSparkTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sparkTxInfo))
                 return false;
         }

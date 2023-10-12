@@ -156,6 +156,8 @@ const char* GetOpName(opcodetype opcode)
     case OP_SPARKMINT   : return "OP_SPARKMINT";
     case OP_SPARKSMINT  : return "OP_SPARKSMINT";
     case OP_SPARKSPEND  : return "OP_SPARKSPEND";
+    // Super transparent txout script prefix
+    case OP_SUPERTRANSPARENT    : return "OP_SUPERTRANSPARENT";
 
     // Note:
     //  The template matching params OP_SMALLINTEGER/etc are defined in opcodetype enum
