@@ -137,7 +137,3 @@ firo.files
 firo.includes
 
 /guix-build-*
-
-/diagrams
-.clang-uml
-compile_commands.json

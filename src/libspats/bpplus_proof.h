@@ -31,14 +31,12 @@ public:
         READWRITE(r1);
         READWRITE(s1);
         READWRITE(d1);
-        READWRITE(d2);
-        READWRITE(d3);
         READWRITE(L);
         READWRITE(R);
     }
 
     GroupElement A, A1, B;
-    Scalar r1, s1, d1, d2, d3;
+    Scalar r1, s1, d1;
     std::vector<GroupElement> L, R;
 };
 }

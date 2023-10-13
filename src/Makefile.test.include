@@ -195,47 +195,7 @@ BITCOIN_TESTS = \
   test/evo_deterministicmns_tests.cpp \
   test/evo_simplifiedmns_tests.cpp \
   test/progpow_tests.cpp \
-  test/bls_tests.cpp \
-  libspats/aead.cpp \
-  libspats/aead.h \
-  libspats/bech32.cpp \
-  libspats/bech32.h \
-  libspats/bpplus.cpp \
-  libspats/bpplus.h \
-  libspats/bpplus_proof.h \
-  libspats/chaum.cpp \
-  libspats/chaum.h \
-  libspats/chaum_proof.h \
-  libspats/coin.cpp \
-  libspats/coin.h \
-  libspats/f4grumble.cpp \
-  libspats/f4grumble.h \
-  libspats/grootle.cpp \
-  libspats/grootle.h \
-  libspats/grootle_proof.h \
-  libspats/hash.cpp \
-  libspats/hash.h \
-  libspats/kdf.cpp \
-  libspats/kdf.h \
-  libspats/keys.cpp \
-  libspats/keys.h \
-  libspats/mint_transaction.cpp \
-  libspats/mint_transaction.h \
-  libspats/params.cpp \
-  libspats/params.h \
-  libspats/schnorr.cpp \
-  libspats/schnorr.h \
-  libspats/schnorr_proof.h \
-  libspats/spend_transaction.cpp \
-  libspats/spend_transaction.h \
-  libspats/transcript.cpp \
-  libspats/transcript.h \
-  libspats/util.cpp \
-  libspats/util.h \
-  libspats/test/instance_1.cpp \
-  libspats/test/bpplus_test.cpp \
-  libspark/bpplus.cpp
-
+  test/bls_tests.cpp
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \
