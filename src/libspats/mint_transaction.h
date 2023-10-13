@@ -12,6 +12,8 @@ using namespace secp_primitives;
 struct MintedCoinData {
 	Address address;
 	uint64_t v;
+	Scalar a;
+	Scalar i;
 	std::string memo;
 };
 
