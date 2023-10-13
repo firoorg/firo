@@ -8,6 +8,9 @@ SpendTransaction::SpendTransaction(
     this->params = params;
 }
 
+Scalar asset_type = Scalar(uint64_t(0)); // new value
+Scalar identifier = Scalar(uint64_t(0)); // new value
+
 SpendTransaction::SpendTransaction(
 	const Params* params,
 	const FullViewKey& full_view_key,
@@ -142,6 +145,8 @@ SpendTransaction::SpendTransaction(
 
 	// Generate range proof
 	BPPlus range(
+		this->params->get_E(), 
+		this->params->get_F(),
 		this->params->get_G(),
 		this->params->get_H(),
 		this->params->get_G_range(),
@@ -149,6 +154,8 @@ SpendTransaction::SpendTransaction(
 		64
 	);
 	range.prove(
+		asset_type, // new value
+		identifier, // new value
 		range_v,
 		range_r,
 		range_C,
@@ -336,6 +343,8 @@ bool SpendTransaction::verify(
 
 	// Verify all range proofs in a batch
 	BPPlus range(
+		params->get_E(),
+		params->get_F(),
 		params->get_G(),
 		params->get_H(),
 		params->get_G_range(),
