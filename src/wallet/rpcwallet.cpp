@@ -209,6 +209,35 @@ UniValue getnewaddress(const JSONRPCRequest& request)
     return CBitcoinAddress(keyID).ToString();
 }
 
+UniValue getnewsupertransparentaddress(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() > 0)
+        throw std::runtime_error("");
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    if (!pwallet->IsLocked()) {
+        pwallet->TopUpKeyPool();
+    }
+
+    // Generate a new key that is added to wallet
+    CPubKey newKey;
+    if (!pwallet->GetKeyFromPool(newKey)) {
+        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
+    }
+    CKeyID keyID = newKey.GetID();
+
+    pwallet->SetAddressBook(keyID, "", "receive");
+    CBitcoinAddress newAddress;
+    newAddress.SetSuperTransparent(keyID);
+
+    return newAddress.ToString();
+}
 
 CBitcoinAddress GetAccountAddress(CWallet * const pwallet, std::string strAccount, bool bForceNew=false)
 {
@@ -5535,6 +5564,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "getprivatebalance",        &getprivatebalance,        false,  {} },
     { "wallet",             "gettotalbalance",          &gettotalbalance,          false,  {} },
     { "wallet",             "getnewaddress",            &getnewaddress,            true,   {"account"} },
+    { "wallet",             "getnewsupertransparentaddress", &getnewsupertransparentaddress, true, {} },
     { "wallet",             "getrawchangeaddress",      &getrawchangeaddress,      true,   {} },
     { "wallet",             "getreceivedbyaccount",     &getreceivedbyaccount,     false,  {"account","minconf","addlocked"} },
     { "wallet",             "getreceivedbyaddress",     &getreceivedbyaddress,     false,  {"address","minconf","addlocked"} },

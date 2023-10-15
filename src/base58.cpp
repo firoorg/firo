@@ -234,6 +234,12 @@ bool CBitcoinAddress::Set(const CKeyID& id)
     return true;
 }
 
+bool CBitcoinAddress::SetSuperTransparent(const CKeyID& id)
+{
+    SetData(Params().Base58Prefix(CChainParams::SUPERTRANSPARENT_PUBKEY_ADDRESS), &id, 20);
+    return true;
+}
+
 bool CBitcoinAddress::Set(const CScriptID& id)
 {
     SetData(Params().Base58Prefix(CChainParams::SCRIPT_ADDRESS), &id, 20);
