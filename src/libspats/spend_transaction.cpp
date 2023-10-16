@@ -131,6 +131,8 @@ SpendTransaction::SpendTransaction(
 			this->params,
 			COIN_TYPE_SPEND,
 			k.back(),
+			asset_type, // new value
+			identifier, // new value
 			outputs[j].address,
 			outputs[j].v,
 			outputs[j].memo,
