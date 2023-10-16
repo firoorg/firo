@@ -1005,7 +1005,9 @@ void CSparkState::AddMintsToStateAndBlockIndex(
         LogPrintf("AddMintsToStateAndBlockIndex: Spark mint added id=%d\n", latestCoinId);
         index->sparkMintedCoins[latestCoinId].push_back(mint);
         if (GetBoolArg("-mobile", false)) {
-            index->sparkTxHash[mint.S] = GetTxHashFromCoin(mint);
+            COutPoint outPoint;
+            GetOutPointFromBlock(outPoint, mint, *pblock);
+            index->sparkTxHash[mint.S] = outPoint.hash;
         }
     }
 }

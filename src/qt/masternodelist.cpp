@@ -10,7 +10,9 @@
 #include "netbase.h"
 #include "sync.h"
 #include "validation.h"
+#ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
+#endif // ENABLE_WALLET
 #include "walletmodel.h"
 
 #include <univalue.h>

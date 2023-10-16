@@ -17,7 +17,9 @@
 #include "script/ismine.h"
 #include "script/sign.h"
 #include "wallet/crypter.h"
+#ifdef ENABLE_WALLET
 #include "wallet/walletdb.h"
+#endif // ENABLE_WALLET
 #include "wallet/rpcwallet.h"
 #include "wallet/mnemoniccontainer.h"
 #include "../spark/sparkwallet.h"
@@ -644,6 +646,11 @@ private:
 };
 
 class LelantusJoinSplitBuilder;
+
+
+/**Open unlock wallet window**/
+//static boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
+extern boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
 
 /**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,

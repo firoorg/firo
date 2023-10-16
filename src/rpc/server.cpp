@@ -545,7 +545,7 @@ UniValue CRPCTable::execute(const JSONRPCRequest &request) const
     // Return immediately if in warmup
     {
         LOCK(cs_rpcWarmup);
-        if (fRPCInWarmup)
+        if (fRPCInWarmup && request.strMethod != "walletpassphrase") // TODO this is temp check and will be removed after spark transition
             throw JSONRPCError(RPC_IN_WARMUP, rpcWarmupStatus);
     }
 
