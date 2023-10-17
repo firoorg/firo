@@ -43,7 +43,7 @@ bool Balance::verify(const GroupElement& C, const BalanceProof& proof) {
     const Scalar c = challenge(C, proof.A);
     const GroupElement check2 = proof.A + C*c;
 
-    return check1==check2;
+    return check1 == check2;
 }
 
 
