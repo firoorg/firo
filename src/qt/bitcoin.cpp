@@ -40,6 +40,8 @@
 #endif
 
 #include <stdint.h>
+#include <ostream>
+#include <fstream>
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/thread.hpp>
@@ -629,7 +631,8 @@ void BitcoinApplication::migrateToFiro()
     }
     else if (doNotShowAgain) {
         // create file to block migration in the future
-        boost::filesystem::ofstream(dontMigrateFilePath).flush();
+       std::ofstream dontMigrateFile(dontMigrateFilePath.string());
+       dontMigrateFile.flush();
     }
 }
 
@@ -639,7 +642,7 @@ int main(int argc, char *argv[])
 #ifdef ENABLE_CRASH_HOOKS
     RegisterPrettyTerminateHander();
     RegisterPrettySignalHandlers();
-#endif    
+#endif
     SetupEnvironment();
 
     /// 1. Parse command-line options. These take precedence over anything else.
