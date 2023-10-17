@@ -2,7 +2,6 @@
 #define FIRO_LIBSPATS_BALANCE_PROOF_H
 
 #include "params.h"
-#include <cstddef>
 
 namespace spats{
 
