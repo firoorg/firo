@@ -8,8 +8,8 @@ SpendTransaction::SpendTransaction(
     this->params = params;
 }
 
-Scalar asset_type = Scalar(uint64_t(0)); // new value
-Scalar identifier = Scalar(uint64_t(0)); // new value
+uint64_t asset_type = 0; // new value
+uint64_t identifier = 0; // new value
 
 SpendTransaction::SpendTransaction(
 	const Params* params,
@@ -156,8 +156,8 @@ SpendTransaction::SpendTransaction(
 		64
 	);
 	range.prove(
-		asset_type, // new value
-		identifier, // new value
+		Scalar(asset_type), // new value
+		Scalar(identifier), // new value
 		range_v,
 		range_r,
 		range_C,
