@@ -23,6 +23,7 @@
 #include "evo/specialtx.h"
 #include "evo/providertx.h"
 #include "evo/simplifiedmns.h"
+#include "evo/deterministicmns.h"
 #include "masternode-sync.h"
 #include "evo/spork.h"
 
