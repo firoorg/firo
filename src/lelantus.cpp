@@ -433,8 +433,13 @@ bool CheckLelantusJoinSplitTransaction(
 
     for (const CTxOut &txout : tx.vout) {
         if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsLelantusJMint()) {
-            if (!CheckLelantusJMintTransaction(txout, state, hashTx, fStatefulSigmaCheck, Cout, lelantusTxInfo))
-                return false;
+            try {
+                if (!CheckLelantusJMintTransaction(txout, state, hashTx, fStatefulSigmaCheck, Cout, lelantusTxInfo))
+                    return false;
+            }
+            catch (const std::exception &x) {
+                return state.Error(x.what());
+            }
         } else if(txout.scriptPubKey.IsLelantusMint()) {
             return false; //putting regular mints at JoinSplit transactions is not allowed
         } else {
