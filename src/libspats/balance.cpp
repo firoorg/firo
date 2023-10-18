@@ -21,6 +21,11 @@ Scalar Balance::challenge(
 }
 
 void Balance::prove(const GroupElement& C, const Scalar& w, const Scalar& x, const Scalar& z, BalanceProof& proof) {
+
+    if (E*w+F*x+H*z != C){
+        throw std::invalid_argument("Bad Balance statement!");
+    }
+
     Scalar rw;
     Scalar rx;
     Scalar rz;
