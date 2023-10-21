@@ -57,37 +57,26 @@ BOOST_AUTO_TEST_CASE(generate_verify_identifier_zero)
 
     uint64_t iota = 0;
 
+    std::vector<uint64_t> vec_a = { 0,0,random_uint(1,10000),random_uint(1,10000)};
+    std::vector<uint64_t> vec_v = { 1,random_uint(2,10000),1,random_uint(2,10000)};
+
     // a == 0, v == 1
-    uint64_t a = 0;
-    uint64_t v = 1;
+    // a == 0, v != 1
+    // a != 0, v == 1
+    // a != 0, v != 1
 
     // Generate addresses and coins
     for (std::size_t j = 0; j < t; j++) {
         MintedCoinData output;
         output.address = Address(incoming_view_key, 12345 + j);
-        output.a = a;
+        output.a = vec_a[j];
         output.iota = iota;
-        output.v = v;
+        output.v = vec_v[j];
         output.memo = "Spam and eggs";
 
         outputs.emplace_back(output);
     }
 
-    // a == 0, v != 1
-    outputs[1].a = 0;
-    outputs[1].v = random_uint(2,10000);
-
-    // a != 0, v == 1
-    outputs[2].a = random_uint(1,10000);
-    outputs[2].v = 1;
-
-    // a != 0, v != 1
-    outputs[3].a = random_uint(1,10000);
-    outputs[3].v = random_uint(2,10000);
-
-    for (std::size_t j = 0; j < t; j++) {
-        std::cout<<"a: "<<outputs[j].a<<", "<<"v: "<<outputs[j].v<<std::endl;
-    }
     // Generate mint transaction
     MintTransaction mint(
         params,
@@ -137,6 +126,7 @@ BOOST_AUTO_TEST_CASE(generate_verify_identifier_not_zero)
         // Generate mint transaction ()
         try {
             MintTransaction mint(params, outputs[j], random_char_vector());
+            BOOST_CHECK(mint.verify());
             if(outputs[j][0].a == 0 || outputs[j][0].v != 1){
                 BOOST_FAIL("Expected an exception but none was thrown");
             }
