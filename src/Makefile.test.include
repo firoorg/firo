@@ -195,7 +195,7 @@ BITCOIN_TESTS = \
   test/evo_deterministicmns_tests.cpp \
   test/evo_simplifiedmns_tests.cpp \
   test/progpow_tests.cpp \
-  test/bls_tests.cpp \ 
+  test/bls_tests.cpp \
   libspats/aead.cpp \
   libspats/aead.h \
   libspats/bech32.cpp \
@@ -231,7 +231,8 @@ BITCOIN_TESTS = \
   libspats/transcript.cpp \
   libspats/transcript.h \
   libspats/util.cpp \
-  libspats/util.h
+  libspats/util.h \
+  libspats/test/bpplus_test.cpp
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \
