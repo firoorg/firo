@@ -1,15 +1,16 @@
 #ifndef FIRO_SPATS_UTIL_H
 #define FIRO_SPATS_UTIL_H
-#include "../secp256k1/include/Scalar.h"
-#include "../secp256k1/include/GroupElement.h"
 #include "../crypto/aes.h"
+#include "../secp256k1/include/GroupElement.h"
+#include "../secp256k1/include/Scalar.h"
 #include "../streams.h"
-#include "../version.h"
 #include "../util.h"
-#include "kdf.h"
+#include "../version.h"
 #include "hash.h"
+#include "kdf.h"
 
-namespace spats {
+namespace spats
+{
 
 using namespace secp_primitives;
 
@@ -20,16 +21,19 @@ const std::size_t SCALAR_ENCODING = 32;
 const std::string LABEL_PROTOCOL = "SPATS";
 
 // All hash operations have a mode flag to separate their use cases
-const unsigned char HASH_MODE_TRANSCRIPT = 0; // a Fiat-Shamir transcript
+const unsigned char HASH_MODE_TRANSCRIPT = 0;      // a Fiat-Shamir transcript
 const unsigned char HASH_MODE_GROUP_GENERATOR = 1; // a prime-order group generator derived from a label
-const unsigned char HASH_MODE_FUNCTION = 2; // a hash function derived from a label
-const unsigned char HASH_MODE_KDF = 3; // a key derivation function derived from a label
+const unsigned char HASH_MODE_FUNCTION = 2;        // a hash function derived from a label
+const unsigned char HASH_MODE_KDF = 3;             // a key derivation function derived from a label
 
 // Transcript labels
 const std::string LABEL_TRANSCRIPT_BPPLUS = "BULLETPROOF_PLUS_V1";
 const std::string LABEL_TRANSCRIPT_CHAUM = "CHAUM_V1";
 const std::string LABEL_TRANSCRIPT_GROOTLE = "GROOTLE_V1";
 const std::string LABEL_TRANSCRIPT_SCHNORR = "SCHNORR_V1";
+const std::string LABEL_TRANSCRIPT_BASE = "BASE_ASSET_V1";
+const std::string LABEL_TRANSCRIPT_TYPE = "TYPEEQUALITY_V!";
+const std::string LABEL_TRANSCRIPT_BALANCE = "BALANCE_V1";
 
 // Generator labels
 const std::string LABEL_GENERATOR_E = "E";
@@ -64,9 +68,9 @@ const std::string LABEL_KDF_AEAD = "AEAD";
 const std::string LABEL_COMMIT_AEAD = "COMMIT_AEAD";
 
 // AEAD constants
-const int AEAD_IV_SIZE = 12; // byte length of the IV
-const int AEAD_KEY_SIZE = 32; // byte length of the key
-const int AEAD_TAG_SIZE = 16; // byte length of the tag
+const int AEAD_IV_SIZE = 12;     // byte length of the IV
+const int AEAD_KEY_SIZE = 32;    // byte length of the key
+const int AEAD_TAG_SIZE = 16;    // byte length of the tag
 const int AEAD_COMMIT_SIZE = 32; // byte length of the key commitment
 
 // Address encoding prefix
@@ -77,9 +81,10 @@ const unsigned char ADDRESS_ENCODING_PREFIX = 's';
 const unsigned char ADDRESS_NETWORK_MAINNET = 'm';
 const unsigned char ADDRESS_NETWORK_TESTNET = 't';
 const unsigned char ADDRESS_NETWORK_REGTEST = 'r';
-const unsigned char ADDRESS_NETWORK_DEVNET =  'd';
+const unsigned char ADDRESS_NETWORK_DEVNET = 'd';
 
-class SpatsUtils {
+class SpatsUtils
+{
 public:
     // Protocol-level hash functions
     static GroupElement hash_generator(const std::string label);
@@ -103,6 +108,6 @@ public:
     static uint64_t diversifier_decrypt(const std::vector<unsigned char>& key, const std::vector<unsigned char>& d);
 };
 
-}
+} // namespace spats
 
 #endif

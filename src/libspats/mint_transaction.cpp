@@ -24,7 +24,7 @@ MintTransaction::MintTransaction(
 	for (std::size_t j = 0; j < outputs.size(); j++) {
         if (generate) {
             MintedCoinData output = outputs[j];
-
+            
             if (output.iota == 0 && output.v != 1){
                 throw std::invalid_argument("mint: identifier not equal to 0 and value not equal to 1");
             }
@@ -49,6 +49,7 @@ MintTransaction::MintTransaction(
 
             // Prepare the value proof
             value_statement.emplace_back(this->coins[j].C + this->params->get_E().inverse()*Scalar(this->coins[j].a) + this->params->get_F().inverse()*Scalar(this->coins[j].iota) + this->params->get_G().inverse()*Scalar(this->coins[j].v));
+
             value_witness.emplace_back(SpatsUtils::hash_val(k));
         } else {
             Coin coin;
@@ -74,7 +75,7 @@ bool MintTransaction::verify() {
 	std::vector<GroupElement> value_statement;
 
 	for (std::size_t j = 0; j < this->coins.size(); j++) {
-		value_statement.emplace_back(this->coins[j].C + this->params->get_G().inverse()*Scalar(this->coins[j].v));
+		value_statement.emplace_back(this->coins[j].C + this->params->get_E().inverse()*this->coins[j].a + this->params->get_F().inverse()*this->coins[j].i + this->params->get_G().inverse()*Scalar(this->coins[j].v));
 	}
 
 	return schnorr.verify(value_statement, this->value_proof);
