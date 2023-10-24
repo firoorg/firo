@@ -1122,7 +1122,7 @@ void CLelantusState::Containers::RemoveMint(lelantus::PublicCoin const & pubCoin
 }
 
 void CLelantusState::Containers::AddSpend(Scalar const & serial, int coinGroupId) {
-    if (!mintMetaInfo.count(coinGroupId)) {
+    if (mintMetaInfo.count(coinGroupId) > 0) {
         usedCoinSerials[serial] = coinGroupId;
         spendMetaInfo[coinGroupId] += 1;
         CheckSurgeCondition();
