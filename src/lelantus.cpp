@@ -1143,13 +1143,11 @@ void CLelantusState::Containers::RemoveMint(lelantus::PublicCoin const & pubCoin
 }
 
 void CLelantusState::Containers::AddSpend(Scalar const & serial, int coinGroupId) {
-    if (!mintMetaInfo.count(coinGroupId)) {
-        throw std::invalid_argument("group id doesn't exist");
+    if (mintMetaInfo.count(coinGroupId) > 0) {
+        usedCoinSerials[serial] = coinGroupId;
+        spendMetaInfo[coinGroupId] += 1;
+        CheckSurgeCondition();
     }
-
-    usedCoinSerials[serial] = coinGroupId;
-    spendMetaInfo[coinGroupId] += 1;
-    CheckSurgeCondition();
 }
 
 void CLelantusState::Containers::RemoveSpend(Scalar const & serial) {
