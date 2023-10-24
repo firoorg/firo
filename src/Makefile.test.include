@@ -233,6 +233,9 @@ BITCOIN_TESTS = \
   libspats/util.cpp \
   libspats/util.h \
   libspats/test/bpplus_test.cpp \
+  libspats/test/coin_test.cpp
+
+  libspats/test/bpplus_test.cpp \
   libspats/test/spend_transaction_test.cpp
 
 if ENABLE_WALLET

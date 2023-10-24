@@ -17,15 +17,15 @@ Coin::Coin(
     const Params* params,
     const char type,
     const Scalar& k,
-    const Scalar& a,
-    const Scalar& i,
+    const uint64_t& a,
+    const uint64_t& iota,
     const Address& address,
     const uint64_t& v,
     const std::string& memo,
     const std::vector<unsigned char>& serial_context)
 {
     this->a = a;
-    this->i = i;
+    this->iota = iota;
     this->params = params;
     this->serial_context = serial_context;
 
@@ -47,7 +47,7 @@ Coin::Coin(
     this->S = this->params->get_F() * SpatsUtils::hash_ser(k, serial_context) + address.get_Q2();
 
     // // Construct the value commitment
-    this->C = this->params->get_E() * a + this->params->get_F() * i + this->params->get_G() * Scalar(v) + this->params->get_H() * SpatsUtils::hash_val(k);
+    this->C = this->params->get_E() * Scalar(a) + this->params->get_F() * Scalar(iota) + this->params->get_G() * Scalar(v) + this->params->get_H() * SpatsUtils::hash_val(k);
 
     // Check the memo validity, and pad if needed
     if (memo.size() > this->params->get_memo_bytes()) {
@@ -76,7 +76,7 @@ Coin::Coin(
         // Encrypt recipient data
         SpendCoinRecipientData r;
         r.a = a;
-        r.i = i;
+        r.iota = iota;
         r.v = v;
         r.d = address.get_d();
         r.k = k;
@@ -99,7 +99,8 @@ bool Coin::validate(
     }
 
     // Check value commitment
-    if (this->params->get_G() * Scalar(data.v) + this->params->get_H() * SpatsUtils::hash_val(data.k) != this->C) {
+    if (this->params->get_E() * data.a + this->params->get_F() * data.iota + this->params->get_G() * Scalar(data.v) + this->params->get_H() * SpatsUtils::hash_val(data.k) != this->C) {
+        std::cout << "value false\n";
         return false;
     }
 
@@ -141,6 +142,8 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key)
         }
 
         data.d = r.d;
+        data.a = this->a;
+        data.iota = this->iota;
         data.v = this->v;
         data.k = r.k;
         data.memo = r.memo;
@@ -154,7 +157,9 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key)
         } catch (...) {
             throw std::runtime_error("Unable to identify coin");
         }
-
+        
+        data.a = r.a;
+        data.iota = r.iota;
         data.d = r.d;
         data.v = r.v;
         data.k = r.k;
