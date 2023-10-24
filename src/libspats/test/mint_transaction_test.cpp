@@ -8,16 +8,6 @@ namespace spats {
 
 using namespace secp_primitives;
 
-void hexDump(const std::string& data) {
-    for (size_t i = 0; i < data.length(); i++) {
-        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(data[i]) << " ";
-        if ((i + 1) % 16 == 0) {
-            std::cout << std::endl;
-        }
-    }
-    std::cout << std::dec << std::endl;  // Restore output format to decimal
-}
-
 // Generate a random char vector from a random scalar
 static std::vector<unsigned char> random_char_vector() {
     Scalar temp;
