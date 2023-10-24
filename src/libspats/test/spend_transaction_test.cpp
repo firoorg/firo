@@ -3,7 +3,7 @@
 #include "../../test/test_bitcoin.h"
 #include <boost/test/unit_test.hpp>
 
-namespace spark
+namespace spats
 {
 
 using namespace secp_primitives;
@@ -20,11 +20,13 @@ static std::vector<unsigned char> random_char_vector()
     return result;
 }
 
-BOOST_FIXTURE_TEST_SUITE(spark_spend_transaction_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(spats_spend_transaction_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(generate_verify)
 {
     // Parameters
+
+    std::cout << "ssd";
 
     // Scalar scalar;
     // scalar.randomize();
@@ -38,7 +40,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
 
     // std::cout << group * scalar << "\n";
 
-
+    ///////
     const Params* params;
     params = Params::get_test();
 
@@ -62,17 +64,26 @@ BOOST_AUTO_TEST_CASE(generate_verify)
 
         uint64_t v = 123 + i; // arbitrary value
 
-        Scalar identifer;
-        identifer.randomize();
+        Scalar a;
+        a.randomize();
+
+        Scalar identifier;
+        identifier.randomize();
+
+        std::cout << identifier << "\n";
 
         in_coins.emplace_back(Coin(
             params,
             COIN_TYPE_MINT,
             k,
+            a,
+            identifier,
             address,
             v,
             memo,
             random_char_vector()));
+
+        // std::cout << in_coins;
     }
 
 
@@ -151,4 +162,4 @@ BOOST_AUTO_TEST_CASE(generate_verify)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-} // namespace spark
+} // namespace spats
