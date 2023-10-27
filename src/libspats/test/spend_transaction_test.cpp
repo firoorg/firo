@@ -25,22 +25,6 @@ BOOST_FIXTURE_TEST_SUITE(spats_spend_transaction_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(generate_verify)
 {
     // Parameters
-
-    std::cout << "ssd";
-
-    // Scalar scalar;
-    // scalar.randomize();
-
-    // std::cout << scalar << "\n";
-
-    // GroupElement group;
-    // group.randomize();
-
-    // std::cout << group << "\n";
-
-    // std::cout << group * scalar << "\n";
-
-    ///////
     const Params* params;
     params = Params::get_test();
 
@@ -57,41 +41,64 @@ BOOST_AUTO_TEST_CASE(generate_verify)
 
     // Mint some coins to the address
     std::size_t N = (std::size_t)pow(params->get_n_grootle(), params->get_m_grootle());
+
+    std::cout << N / 2 << "\n";
+
     std::vector<Coin> in_coins;
-    for (std::size_t i = 0; i < N; i++) {
+    for (std::size_t i = 0; i < N / 2; i++) {
         Scalar k;
         k.randomize();
 
         uint64_t v = 123 + i; // arbitrary value
 
-        Scalar a;
-        a.randomize();
 
-        Scalar identifier;
-        identifier.randomize();
+        const uint64_t asset_type = 0; // new value
+        const uint64_t identifier = 0; // new value
 
-        std::cout << identifier << "\n";
 
         in_coins.emplace_back(Coin(
             params,
             COIN_TYPE_MINT,
             k,
-            a,
+            asset_type,
             identifier,
             address,
             v,
             memo,
             random_char_vector()));
-
-        // std::cout << in_coins;
     }
 
+    for (std::size_t i = N / 2; i < N; i++) {
+        Scalar k;
+        k.randomize();
+
+        uint64_t v = 123 + i; // arbitrary value
+
+
+        const uint64_t asset_type = 1; // new value
+        const uint64_t identifier = 0; // new value
+
+
+        in_coins.emplace_back(Coin(
+            params,
+            COIN_TYPE_MINT,
+            k,
+            asset_type,
+            identifier,
+            address,
+            v,
+            memo,
+            random_char_vector()));
+    }
+
+    std::cout << in_coins[0].v << "\n";
 
     // Track values so we can set the fee to make the transaction balance
     uint64_t f = 0;
 
     // Choose coins to spend, recover them, and prepare them for spending
     std::vector<std::size_t> spend_indices = {1, 3, 5};
+
     std::vector<InputCoinData> spend_coin_data;
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
     const std::size_t w = spend_indices.size();
@@ -112,8 +119,39 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         spend_coin_data.back().s = recovered_coin_data.s;
         spend_coin_data.back().T = recovered_coin_data.T;
         spend_coin_data.back().v = identified_coin_data.v;
+        spend_coin_data.back().a = identified_coin_data.a;
+        spend_coin_data.back().iota = identified_coin_data.iota;
+
 
         f += identified_coin_data.v;
+    }
+
+    std::vector<std::size_t> spend_indices_generic = {9, 11};
+
+    const std::size_t w_generic = spend_indices_generic.size();
+
+    for (std::size_t u = 0; u < w_generic; u++) {
+        IdentifiedCoinData identified_coin_data = in_coins[spend_indices_generic[u]].identify(incoming_view_key);
+        RecoveredCoinData recovered_coin_data = in_coins[spend_indices_generic[u]].recover(full_view_key, identified_coin_data);
+
+        spend_coin_data.emplace_back();
+        uint64_t cover_set_id = 31415;
+        spend_coin_data.back().cover_set_id = cover_set_id;
+
+        CoverSetData setData;
+        setData.cover_set = in_coins;
+        setData.cover_set_representation = random_char_vector();
+        cover_set_data[cover_set_id] = setData;
+        spend_coin_data.back().index = spend_indices_generic[u];
+        spend_coin_data.back().k = identified_coin_data.k;
+        spend_coin_data.back().s = recovered_coin_data.s;
+        spend_coin_data.back().T = recovered_coin_data.T;
+        spend_coin_data.back().v = identified_coin_data.v;
+        spend_coin_data.back().a = identified_coin_data.a;
+        spend_coin_data.back().iota = identified_coin_data.iota;
+
+        std::cout << "In value: " << identified_coin_data.v << "\n";
+        // f += identified_coin_data.v;
     }
 
     // Generate new output coins and compute the fee
@@ -124,9 +162,26 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         out_coin_data.back().address = address;
         out_coin_data.back().v = 12 + j; // arbitrary value
         out_coin_data.back().memo = memo;
+        out_coin_data.back().a = 0;    // asset type
+        out_coin_data.back().iota = 0; // identifier
 
         f -= out_coin_data.back().v;
     }
+
+    const std::size_t t_generic = 2;
+    for (std::size_t j = 0; j < t_generic; j++) {
+        out_coin_data.emplace_back();
+        out_coin_data.back().address = address;
+        out_coin_data.back().v = 123 + spend_indices_generic[j]; // arbitrary value
+        out_coin_data.back().memo = memo;
+        out_coin_data.back().a = 1;    // asset type
+        out_coin_data.back().iota = 0; // identifier
+
+
+        std::cout << "Out value: " << out_coin_data.back().v << "\n";
+        // f -= out_coin_data.back().v;
+    }
+
 
     // Assert the fee is correct
     uint64_t fee_test = f;
@@ -137,9 +192,14 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         fee_test -= spend_coin_data[u].v;
     }
 
+
     if (fee_test != 0) {
         throw std::runtime_error("Bad fee assertion");
     }
+
+    std::cout << "YAY"
+              << "\n";
+
 
     // Generate spend transaction
     SpendTransaction transaction(
@@ -151,6 +211,9 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         f,
         0,
         out_coin_data);
+
+    std::cout << "YAY2"
+              << "\n";
 
     // Verify
     transaction.setCoverSets(cover_set_data);

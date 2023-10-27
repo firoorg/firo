@@ -1,15 +1,17 @@
 #include "base_asset.h"
 #include "transcript.h"
 
-namespace spats {
+namespace spats
+{
 
-BaseAsset::BaseAsset(const GroupElement& G_,const GroupElement& H_):
-    G(G_),H(H_) {
+BaseAsset::BaseAsset(const GroupElement& G_, const GroupElement& H_) : G(G_), H(H_)
+{
 }
 
 Scalar BaseAsset::challenge(
-        const std::vector<GroupElement>& C,
-        const GroupElement& A) {
+    const std::vector<GroupElement>& C,
+    const GroupElement& A)
+{
     Transcript transcript(LABEL_TRANSCRIPT_BASE);
     transcript.add("G", G);
     transcript.add("H", H);
@@ -19,25 +21,28 @@ Scalar BaseAsset::challenge(
     return transcript.challenge("c");
 }
 
-void BaseAsset::prove(const Scalar& y,const Scalar& z, const GroupElement& C, BaseAssetProof& proof) {
-    const std::vector<Scalar> y_vector = { y };
-    const std::vector<Scalar> z_vector = { z };
+void BaseAsset::prove(const Scalar& y, const Scalar& z, const GroupElement& C, BaseAssetProof& proof)
+{
+    const std::vector<Scalar> y_vector = {y};
+    const std::vector<Scalar> z_vector = {z};
 
-    const std::vector<GroupElement> C_vector = { C };
-    prove(y_vector,z_vector, C_vector, proof);
+    const std::vector<GroupElement> C_vector = {C};
+    prove(y_vector, z_vector, C_vector, proof);
 }
 
-void BaseAsset::prove(const std::vector<Scalar>& y,const std::vector<Scalar>& z, const std::vector<GroupElement>& C, BaseAssetProof& proof) {
+void BaseAsset::prove(const std::vector<Scalar>& y, const std::vector<Scalar>& z, const std::vector<GroupElement>& C, BaseAssetProof& proof)
+{
     const std::size_t n = y.size();
 
     // Check statement validity
     if (y.size() != z.size() && y.size() != C.size()) {
-        throw std::invalid_argument("Bad BaseAsset statement!");
+        throw std::invalid_argument("Bad BaseAsset statement!1");
     }
 
+
     for (std::size_t i = 0; i < n; i++) {
-        if (G*y[i]+H*z[i] != C[i]) {
-            throw std::invalid_argument("Bad BaseAsset statement!");
+        if (G * y[i] + H * z[i] != C[i]) {
+            throw std::invalid_argument("Bad BaseAsset statement!2");
         }
     }
 
@@ -45,7 +50,7 @@ void BaseAsset::prove(const std::vector<Scalar>& y,const std::vector<Scalar>& z,
     Scalar rz;
     ry.randomize();
     rz.randomize();
-    proof.A = G*ry+H*rz;
+    proof.A = G * ry + H * rz;
 
     const Scalar c = challenge(C, proof.A);
     Scalar c_power(c);
@@ -53,18 +58,20 @@ void BaseAsset::prove(const std::vector<Scalar>& y,const std::vector<Scalar>& z,
     proof.ty = ry;
     proof.tz = rz;
     for (std::size_t i = 0; i < n; i++) {
-        proof.ty += y[i].negate()*c_power;
-        proof.tz += z[i].negate()*c_power;
+        proof.ty += y[i].negate() * c_power;
+        proof.tz += z[i].negate() * c_power;
         c_power *= c;
     }
 }
 
-bool BaseAsset::verify(const GroupElement& C, const BaseAssetProof& proof) {
-    const std::vector<GroupElement> C_vector = { C };
+bool BaseAsset::verify(const GroupElement& C, const BaseAssetProof& proof)
+{
+    const std::vector<GroupElement> C_vector = {C};
     return verify(C_vector, proof);
 }
 
-bool BaseAsset::verify(const std::vector<GroupElement>& C, const BaseAssetProof& proof) {
+bool BaseAsset::verify(const std::vector<GroupElement>& C, const BaseAssetProof& proof)
+{
     const std::size_t n = C.size();
 
     std::vector<GroupElement> points;
@@ -78,7 +85,7 @@ bool BaseAsset::verify(const std::vector<GroupElement>& C, const BaseAssetProof&
     scalars.emplace_back(proof.tz);
     points.emplace_back(proof.A);
     scalars.emplace_back(Scalar(uint64_t(1)).negate());
-    
+
     const Scalar c = challenge(C, proof.A);
     Scalar c_power(c);
     for (std::size_t i = 0; i < n; i++) {
@@ -91,4 +98,4 @@ bool BaseAsset::verify(const std::vector<GroupElement>& C, const BaseAssetProof&
     return result.get_multiple().isInfinity();
 }
 
-}
+} // namespace spats

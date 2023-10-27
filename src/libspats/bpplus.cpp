@@ -1,28 +1,23 @@
 #include "bpplus.h"
 #include "transcript.h"
 
-namespace spats {
+namespace spats
+{
 
 // Useful scalar constants
-const Scalar ZERO = Scalar((uint64_t) 0);
-const Scalar ONE = Scalar((uint64_t) 1);
-const Scalar TWO = Scalar((uint64_t) 2);
-    
+const Scalar ZERO = Scalar((uint64_t)0);
+const Scalar ONE = Scalar((uint64_t)1);
+const Scalar TWO = Scalar((uint64_t)2);
+
 BPPlus::BPPlus(
-        const GroupElement& E_,
-        const GroupElement& F_,
-        const GroupElement& G_,
-        const GroupElement& H_,
-        const std::vector<GroupElement>& Gi_,
-        const std::vector<GroupElement>& Hi_,
-        const std::size_t N_)
-        : E (E_)
-        , F (F_)
-        , G (G_)
-        , H (H_)
-        , Gi (Gi_)
-        , Hi (Hi_)
-        , N (N_)
+    const GroupElement& E_,
+    const GroupElement& F_,
+    const GroupElement& G_,
+    const GroupElement& H_,
+    const std::vector<GroupElement>& Gi_,
+    const std::vector<GroupElement>& Hi_,
+    const std::size_t N_)
+    : E(E_), F(F_), G(G_), H(H_), Gi(Gi_), Hi(Hi_), N(N_)
 {
     if (Gi.size() != Hi.size()) {
         throw std::invalid_argument("Bad BPPlus generator sizes!");
@@ -42,27 +37,30 @@ BPPlus::BPPlus(
 }
 
 // The floor function of log2
-std::size_t log2(std::size_t n) {
+std::size_t log2(std::size_t n)
+{
     std::size_t l = 0;
     while ((n >>= 1) != 0) {
         l++;
     }
-    
+
     return l;
 }
 
 // Is this value a nonzero power of 2?
-bool is_nonzero_power_of_2(std::size_t n) {
+bool is_nonzero_power_of_2(std::size_t n)
+{
     return n > 0 && (n & (n - 1)) == 0;
 }
 
 void BPPlus::prove(
-        const Scalar& asset_type,
-        const Scalar& identifier,
-        const std::vector<Scalar>& unpadded_v,
-        const std::vector<Scalar>& unpadded_r,
-        const std::vector<GroupElement>& unpadded_C,  
-        BPPlusProof& proof) {
+    const Scalar& asset_type,
+    const Scalar& identifier,
+    const std::vector<Scalar>& unpadded_v,
+    const std::vector<Scalar>& unpadded_r,
+    const std::vector<GroupElement>& unpadded_C,
+    BPPlusProof& proof)
+{
     // Bulletproofs+ are only defined when the input set size is a nonzero power of two
     // To get around this, we can trivially pad the input set with zero commitments
     // We make sure this is done canonically in a way that's transparent to the caller
@@ -106,8 +104,8 @@ void BPPlus::prove(
     if (!is_nonzero_power_of_2(M)) {
         throw std::invalid_argument("Unexpected bad padding!3");
     }
-    if (N*M > Gi.size()) {
-        throw std::invalid_argument("Bad BPPlus statement!4");   
+    if (N * M > Gi.size()) {
+        throw std::invalid_argument("Bad BPPlus statement!4");
     }
     if (!(v.size() == M && r.size() == M)) {
         throw std::invalid_argument("Bad BPPlus statement!5");
@@ -124,8 +122,9 @@ void BPPlus::prove(
             asset_type_ = Scalar(uint64_t(0));
             identifier_ = Scalar(uint64_t(0));
         }
-        
-        if (!(E*asset_type_ + F*identifier_ + G*v[j] + H*r[j] == C[j])) {
+
+
+        if (!(E * asset_type_ + F * identifier_ + G * v[j] + H * r[j] == C[j])) {
             throw std::invalid_argument("Bad BPPlus statement!6");
         }
         // if (!(G*v[j] + H*r[j] == C[j])) {
@@ -134,7 +133,7 @@ void BPPlus::prove(
     }
 
     // Decompose bits
-    std::vector<std::vector<bool>> bits;
+    std::vector<std::vector<bool> > bits;
     bits.resize(M);
     for (std::size_t j = 0; j < M; j++) {
         v[j].get_bits(bits[j]);
@@ -142,12 +141,10 @@ void BPPlus::prove(
 
     // Compute aL, aR
     std::vector<Scalar> aL, aR;
-    aL.reserve(N*M);
-    aR.reserve(N*M);
-    for (std::size_t j = 0; j < M; ++j)
-    {
-        for (std::size_t i = 1; i <= N; ++i)
-        {
+    aL.reserve(N * M);
+    aR.reserve(N * M);
+    for (std::size_t j = 0; j < M; ++j) {
+        for (std::size_t i = 1; i <= N; ++i) {
             aL.emplace_back(uint64_t(bits[j][bits[j].size() - i]));
             aR.emplace_back(Scalar(uint64_t(bits[j][bits[j].size() - i])) - ONE);
         }
@@ -161,8 +158,8 @@ void BPPlus::prove(
 
     std::vector<GroupElement> A_points;
     std::vector<Scalar> A_scalars;
-    A_points.reserve(2*N*M + 1 + 2);
-    A_scalars.reserve(2*N*M + 1 + 2);
+    A_points.reserve(2 * N * M + 1 + 2);
+    A_scalars.reserve(2 * N * M + 1 + 2);
 
     A_points.emplace_back(H);
     A_scalars.emplace_back(alpha);
@@ -170,7 +167,7 @@ void BPPlus::prove(
     A_scalars.emplace_back(alpha_2);
     A_points.emplace_back(F);
     A_scalars.emplace_back(alpha_3);
-    for (std::size_t i = 0; i < N*M; i++) {
+    for (std::size_t i = 0; i < N * M; i++) {
         A_points.emplace_back(Gi[i]);
         A_scalars.emplace_back(aL[i]);
         A_points.emplace_back(Hi[i]);
@@ -187,31 +184,31 @@ void BPPlus::prove(
 
     // Challenge powers
     std::vector<Scalar> y_powers;
-    y_powers.resize(M*N + 2);
+    y_powers.resize(M * N + 2);
     y_powers[0] = ZERO;
     y_powers[1] = y;
-    for (std::size_t i = 2; i < M*N + 2; i++) {
-        y_powers[i] = y_powers[i-1]*y;
+    for (std::size_t i = 2; i < M * N + 2; i++) {
+        y_powers[i] = y_powers[i - 1] * y;
     }
 
     // Compute d
     std::vector<Scalar> d;
-    d.resize(M*N);
+    d.resize(M * N);
     d[0] = z_square;
     for (std::size_t i = 1; i < N; i++) {
-        d[i] = TWO*d[i-1];
+        d[i] = TWO * d[i - 1];
     }
     for (std::size_t j = 1; j < M; j++) {
         for (std::size_t i = 0; i < N; i++) {
-            d[j*N+i] = d[(j-1)*N+i]*z_square;
+            d[j * N + i] = d[(j - 1) * N + i] * z_square;
         }
     }
 
     // Compute aL1, aR1
     std::vector<Scalar> aL1, aR1;
-    for (std::size_t i = 0; i < N*M; i++) {
+    for (std::size_t i = 0; i < N * M; i++) {
         aL1.emplace_back(aL[i] - z);
-        aR1.emplace_back(aR[i] + d[i]*y_powers[N*M - i] + z);
+        aR1.emplace_back(aR[i] + d[i] * y_powers[N * M - i] + z);
     }
 
     // Compute alpha1
@@ -219,7 +216,7 @@ void BPPlus::prove(
     Scalar z_even_powers = 1;
     for (std::size_t j = 0; j < M; j++) {
         z_even_powers *= z_square;
-        alpha1 += z_even_powers*r[j]*y_powers[N*M+1];
+        alpha1 += z_even_powers * r[j] * y_powers[N * M + 1];
     }
     // Compute alpha2, alpha3
     Scalar alpha2 = alpha_2;
@@ -233,8 +230,8 @@ void BPPlus::prove(
             asset_type_ = Scalar(uint64_t(0));
             identifier_ = Scalar(uint64_t(0));
         }
-        alpha2 += z_even_powers*asset_type_*y_powers[N*M+1];
-        alpha3 += z_even_powers*identifier_*y_powers[N*M+1];
+        alpha2 += z_even_powers * asset_type_ * y_powers[N * M + 1];
+        alpha3 += z_even_powers * identifier_ * y_powers[N * M + 1];
     }
 
     // Run the inner product rounds
@@ -242,7 +239,7 @@ void BPPlus::prove(
     std::vector<GroupElement> Hi1(Hi);
     std::vector<Scalar> a1(aL1);
     std::vector<Scalar> b1(aR1);
-    std::size_t N1 = N*M;
+    std::size_t N1 = N * M;
 
     while (N1 > 1) {
         N1 /= 2;
@@ -262,28 +259,28 @@ void BPPlus::prove(
         // Compute cL, cR
         Scalar cL, cR;
         for (std::size_t i = 0; i < N1; i++) {
-            cL += a1[i]*y_powers[i+1]*b1[i+N1];
-            cR += a1[i+N1]*y_powers[N1]*y_powers[i+1]*b1[i];
+            cL += a1[i] * y_powers[i + 1] * b1[i + N1];
+            cR += a1[i + N1] * y_powers[N1] * y_powers[i + 1] * b1[i];
         }
 
         // Compute L, R
         GroupElement L_, R_;
         std::vector<GroupElement> L_points, R_points;
         std::vector<Scalar> L_scalars, R_scalars;
-        L_points.reserve(2*N1 + 2 + 2);
-        R_points.reserve(2*N1 + 2 + 2);
-        L_scalars.reserve(2*N1 + 2 + 2);
-        R_scalars.reserve(2*N1 + 2 + 2);
+        L_points.reserve(2 * N1 + 2 + 2);
+        R_points.reserve(2 * N1 + 2 + 2);
+        L_scalars.reserve(2 * N1 + 2 + 2);
+        R_scalars.reserve(2 * N1 + 2 + 2);
         Scalar y_N1_inverse = y_powers[N1].inverse();
         for (std::size_t i = 0; i < N1; i++) {
-            L_points.emplace_back(Gi1[i+N1]);
-            L_scalars.emplace_back(a1[i]*y_N1_inverse);
+            L_points.emplace_back(Gi1[i + N1]);
+            L_scalars.emplace_back(a1[i] * y_N1_inverse);
             L_points.emplace_back(Hi1[i]);
-            L_scalars.emplace_back(b1[i+N1]);
+            L_scalars.emplace_back(b1[i + N1]);
 
             R_points.emplace_back(Gi1[i]);
-            R_scalars.emplace_back(a1[i+N1]*y_powers[N1]);
-            R_points.emplace_back(Hi1[i+N1]);
+            R_scalars.emplace_back(a1[i + N1] * y_powers[N1]);
+            R_points.emplace_back(Hi1[i + N1]);
             R_scalars.emplace_back(b1[i]);
         }
         L_points.emplace_back(G);
@@ -317,10 +314,10 @@ void BPPlus::prove(
 
         // Compress round elements
         for (std::size_t i = 0; i < N1; i++) {
-            Gi1[i] = Gi1[i]*e_inverse + Gi1[i+N1]*(e*y_N1_inverse);
-            Hi1[i] = Hi1[i]*e + Hi1[i+N1]*e_inverse;
-            a1[i] = a1[i]*e + a1[i+N1]*y_powers[N1]*e_inverse;
-            b1[i] = b1[i]*e_inverse + b1[i+N1]*e;
+            Gi1[i] = Gi1[i] * e_inverse + Gi1[i + N1] * (e * y_N1_inverse);
+            Hi1[i] = Hi1[i] * e + Hi1[i + N1] * e_inverse;
+            a1[i] = a1[i] * e + a1[i + N1] * y_powers[N1] * e_inverse;
+            b1[i] = b1[i] * e_inverse + b1[i + N1] * e;
         }
         Gi1.resize(N1);
         Hi1.resize(N1);
@@ -328,12 +325,12 @@ void BPPlus::prove(
         b1.resize(N1);
 
         // Update alpha1
-        alpha1 = dL*e.square() + alpha1 + dR*e_inverse.square();
-        
+        alpha1 = dL * e.square() + alpha1 + dR * e_inverse.square();
+
         // Update alpha2
-        alpha2 = dL_2*e.square() + alpha2 + dR_2*e_inverse.square();
+        alpha2 = dL_2 * e.square() + alpha2 + dR_2 * e_inverse.square();
         // Update alpha2
-        alpha3 = dL_3*e.square() + alpha3 + dR_3*e_inverse.square();
+        alpha3 = dL_3 * e.square() + alpha3 + dR_3 * e_inverse.square();
     }
 
     // Final proof elements
@@ -351,28 +348,30 @@ void BPPlus::prove(
 
     // proof.A1 = Gi1[0]*r_ + Hi1[0]*s_ + G*(r_*y*b1[0] + s_*y*a1[0]) + H*d_;
     // proof.B = G*(r_*y*s_) + H*eta_;
-    proof.A1 = Gi1[0]*r_ + Hi1[0]*s_ + G*(r_*y*b1[0] + s_*y*a1[0]) + H*d_ + E*d_2 + F*d_3;
-    proof.B = G*(r_*y*s_) + H*eta_ + E*eta_2 + F*eta_3;
+    proof.A1 = Gi1[0] * r_ + Hi1[0] * s_ + G * (r_ * y * b1[0] + s_ * y * a1[0]) + H * d_ + E * d_2 + F * d_3;
+    proof.B = G * (r_ * y * s_) + H * eta_ + E * eta_2 + F * eta_3;
 
     transcript.add("A1", proof.A1);
     transcript.add("B", proof.B);
     Scalar e1 = transcript.challenge("e1");
 
-    proof.r1 = r_ + a1[0]*e1;
-    proof.s1 = s_ + b1[0]*e1;
-    proof.d1 = eta_ + d_*e1 + alpha1*e1.square();
-    proof.d2 = eta_2 + d_2*e1 + alpha2*e1.square();
-    proof.d3 = eta_3 + d_3*e1 + alpha3*e1.square();
+    proof.r1 = r_ + a1[0] * e1;
+    proof.s1 = s_ + b1[0] * e1;
+    proof.d1 = eta_ + d_ * e1 + alpha1 * e1.square();
+    proof.d2 = eta_2 + d_2 * e1 + alpha2 * e1.square();
+    proof.d3 = eta_3 + d_3 * e1 + alpha3 * e1.square();
 }
 
-bool BPPlus::verify(const std::vector<GroupElement>& unpadded_C, const BPPlusProof& proof) {
-    std::vector<std::vector<GroupElement>> unpadded_C_batch = {unpadded_C};
+bool BPPlus::verify(const std::vector<GroupElement>& unpadded_C, const BPPlusProof& proof)
+{
+    std::vector<std::vector<GroupElement> > unpadded_C_batch = {unpadded_C};
     std::vector<BPPlusProof> proof_batch = {proof};
 
     return verify(unpadded_C_batch, proof_batch);
 }
 
-bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, const std::vector<BPPlusProof>& proofs) {
+bool BPPlus::verify(const std::vector<std::vector<GroupElement> >& unpadded_C, const std::vector<BPPlusProof>& proofs)
+{
     // Preprocess all proofs
     if (!(unpadded_C.size() == proofs.size())) {
         return false;
@@ -403,13 +402,13 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
         if (proofs[k].R.size() != rounds) {
             return false;
         }
-        if (log2(N*M) != rounds) {
+        if (log2(N * M) != rounds) {
             return false;
         }
     }
 
     // Check the bounds on the batch
-    if (max_M*N > Gi.size() || max_M*N > Hi.size()) {
+    if (max_M * N > Gi.size() || max_M * N > Hi.size()) {
         return false;
     }
 
@@ -420,7 +419,7 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
     Scalar E_scalar, F_scalar;
 
     // Interleave the Gi and Hi scalars
-    for (std::size_t i = 0; i < max_M*N; i++) {
+    for (std::size_t i = 0; i < max_M * N; i++) {
         points.emplace_back(Gi[i]);
         scalars.emplace_back(ZERO);
         points.emplace_back(Hi[i]);
@@ -471,7 +470,7 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
         for (std::size_t i = 0; i < rounds; i++) {
             y_NM = y_NM.square();
         }
-        Scalar y_NM_1 = y_NM*y;
+        Scalar y_NM_1 = y_NM * y;
 
         Scalar z = transcript.challenge("z");
         if (z == ZERO) {
@@ -501,7 +500,7 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
         Scalar e1_square = e1.square();
 
         // C_j: -e1**2 * z**(2*(j + 1)) * y**(N*M + 1) * w
-        Scalar C_scalar = e1_square.negate()*z_square*y_NM_1*w;
+        Scalar C_scalar = e1_square.negate() * z_square * y_NM_1 * w;
         for (std::size_t j = 0; j < M; j++) {
             points.emplace_back(C[j]);
             scalars.emplace_back(C_scalar);
@@ -515,40 +514,40 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
 
         // A1: -w*e1
         points.emplace_back(proof.A1);
-        scalars.emplace_back(w.negate()*e1);
+        scalars.emplace_back(w.negate() * e1);
 
         // A: -w*e1**2
         points.emplace_back(proof.A);
-        scalars.emplace_back(w.negate()*e1_square);
+        scalars.emplace_back(w.negate() * e1_square);
 
         // H: w*d1
-        H_scalar += w*proof.d1;
+        H_scalar += w * proof.d1;
 
         // E: w*d2
-        E_scalar += w*proof.d2;
+        E_scalar += w * proof.d2;
 
         // F: w*d3
-        F_scalar += w*proof.d3;
+        F_scalar += w * proof.d3;
 
         // Compute d
         std::vector<Scalar> d;
-        d.resize(N*M);
+        d.resize(N * M);
         d[0] = z_square;
         for (std::size_t i = 1; i < N; i++) {
-            d[i] = d[i-1] + d[i-1];
+            d[i] = d[i - 1] + d[i - 1];
         }
         for (std::size_t j = 1; j < M; j++) {
             for (std::size_t i = 0; i < N; i++) {
-                d[j*N + i] = d[(j - 1)*N + i]*z_square;
+                d[j * N + i] = d[(j - 1) * N + i] * z_square;
             }
         }
 
         // Sum the elements of d
         Scalar sum_d = z_square;
         Scalar temp_z = sum_d;
-        std::size_t temp_2M = 2*M;
+        std::size_t temp_2M = 2 * M;
         while (temp_2M > 2) {
-            sum_d += sum_d*temp_z;
+            sum_d += sum_d * temp_z;
             temp_z = temp_z.square();
             temp_2M /= 2;
         }
@@ -557,37 +556,37 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
         // Sum the powers of y
         Scalar sum_y;
         Scalar track = y;
-        for (std::size_t i = 0; i < N*M; i++) {
+        for (std::size_t i = 0; i < N * M; i++) {
             sum_y += track;
             track *= y;
         }
 
         // G: w*(r1*y*s1 + e1**2*(y**(N*M + 1)*z*sum_d + (z**2-z)*sum_y))
-        G_scalar += w*(proof.r1*y*proof.s1 + e1_square*(y_NM_1*z*sum_d + (z_square - z)*sum_y));
+        G_scalar += w * (proof.r1 * y * proof.s1 + e1_square * (y_NM_1 * z * sum_d + (z_square - z) * sum_y));
 
         // Track some iterated exponential terms
         Scalar iter_y_inv = ONE; // y.inverse()**i
         Scalar iter_y_NM = y_NM; // y**(N*M - i)
 
         // Gi, Hi
-        for (std::size_t i = 0; i < N*M; i++) {
-            Scalar g = proof.r1*e1*iter_y_inv;
-            Scalar h = proof.s1*e1;
+        for (std::size_t i = 0; i < N * M; i++) {
+            Scalar g = proof.r1 * e1 * iter_y_inv;
+            Scalar h = proof.s1 * e1;
             for (std::size_t j = 0; j < rounds; j++) {
                 if ((i >> j) & 1) {
-                    g *= e[rounds-j-1];
-                    h *= e_inverse[rounds-j-1];
+                    g *= e[rounds - j - 1];
+                    h *= e_inverse[rounds - j - 1];
                 } else {
-                    h *= e[rounds-j-1];
-                    g *= e_inverse[rounds-j-1];
+                    h *= e[rounds - j - 1];
+                    g *= e_inverse[rounds - j - 1];
                 }
             }
 
             // Gi
-            scalars[2*i] += w*(g + e1_square*z);
-            
+            scalars[2 * i] += w * (g + e1_square * z);
+
             // Hi
-            scalars[2*i+1] += w*(h - e1_square*(d[i]*iter_y_NM+z));
+            scalars[2 * i + 1] += w * (h - e1_square * (d[i] * iter_y_NM + z));
 
             // Update the iterated values
             iter_y_inv *= y_inverse;
@@ -597,9 +596,9 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
         // L, R
         for (std::size_t j = 0; j < rounds; j++) {
             points.emplace_back(proof.L[j]);
-            scalars.emplace_back(w*(e1_square.negate()*e[j].square()));
+            scalars.emplace_back(w * (e1_square.negate() * e[j].square()));
             points.emplace_back(proof.R[j]);
-            scalars.emplace_back(w*(e1_square.negate()*e_inverse[j].square()));
+            scalars.emplace_back(w * (e1_square.negate() * e_inverse[j].square()));
         }
     }
 
@@ -618,4 +617,4 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
     return multiexp.get_multiple().isInfinity();
 }
 
-}
+} // namespace spats

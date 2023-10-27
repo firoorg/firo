@@ -1,15 +1,17 @@
 #include "schnorr.h"
 #include "transcript.h"
 
-namespace spats {
+namespace spats
+{
 
-Schnorr::Schnorr(const GroupElement& G_):
-    G(G_) {
+Schnorr::Schnorr(const GroupElement& G_) : G(G_)
+{
 }
 
 Scalar Schnorr::challenge(
-        const std::vector<GroupElement>& Y,
-        const GroupElement& A) {
+    const std::vector<GroupElement>& Y,
+    const GroupElement& A)
+{
     Transcript transcript(LABEL_TRANSCRIPT_SCHNORR);
     transcript.add("G", G);
     transcript.add("Y", Y);
@@ -18,46 +20,50 @@ Scalar Schnorr::challenge(
     return transcript.challenge("c");
 }
 
-void Schnorr::prove(const Scalar& y, const GroupElement& Y, SchnorrProof& proof) {
-    const std::vector<Scalar> y_vector = { y };
-    const std::vector<GroupElement> Y_vector = { Y };
+void Schnorr::prove(const Scalar& y, const GroupElement& Y, SchnorrProof& proof)
+{
+    const std::vector<Scalar> y_vector = {y};
+    const std::vector<GroupElement> Y_vector = {Y};
     prove(y_vector, Y_vector, proof);
 }
 
-void Schnorr::prove(const std::vector<Scalar>& y, const std::vector<GroupElement>& Y, SchnorrProof& proof) {
+void Schnorr::prove(const std::vector<Scalar>& y, const std::vector<GroupElement>& Y, SchnorrProof& proof)
+{
     const std::size_t n = y.size();
 
     // Check statement validity
     if (y.size() != Y.size()) {
-        throw std::invalid_argument("Bad Schnorr statement!");
+        throw std::invalid_argument("Bad Schnorr statement!1");
     }
 
     for (std::size_t i = 0; i < n; i++) {
-        if (G*y[i] != Y[i]) {
-            throw std::invalid_argument("Bad Schnorr statement!");
+        if (G * y[i] != Y[i]) {
+            throw std::invalid_argument("Bad Schnorr statement!2");
         }
     }
 
     Scalar r;
     r.randomize();
-    proof.A = G*r;
+    proof.A = G * r;
 
     const Scalar c = challenge(Y, proof.A);
     Scalar c_power(c);
 
     proof.t = r;
     for (std::size_t i = 0; i < n; i++) {
-        proof.t += y[i].negate()*c_power;
+        proof.t += y[i].negate() * c_power;
         c_power *= c;
     }
 }
 
-bool Schnorr::verify(const GroupElement& Y, const SchnorrProof& proof) {
-    const std::vector<GroupElement> Y_vector = { Y };
+bool Schnorr::verify(const GroupElement& Y, const SchnorrProof& proof)
+{
+    const std::vector<GroupElement> Y_vector = {Y};
     return verify(Y_vector, proof);
 }
 
-bool Schnorr::verify(const std::vector<GroupElement>& Y, const SchnorrProof& proof) {
+bool Schnorr::verify(const std::vector<GroupElement>& Y, const SchnorrProof& proof)
+{
     const std::size_t n = Y.size();
 
     std::vector<GroupElement> points;
@@ -69,7 +75,7 @@ bool Schnorr::verify(const std::vector<GroupElement>& Y, const SchnorrProof& pro
     scalars.emplace_back(proof.t);
     points.emplace_back(proof.A);
     scalars.emplace_back(Scalar(uint64_t(1)).negate());
-    
+
     const Scalar c = challenge(Y, proof.A);
     Scalar c_power(c);
     for (std::size_t i = 0; i < n; i++) {
@@ -82,4 +88,4 @@ bool Schnorr::verify(const std::vector<GroupElement>& Y, const SchnorrProof& pro
     return result.get_multiple().isInfinity();
 }
 
-}
+} // namespace spats
