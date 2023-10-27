@@ -28,7 +28,7 @@ secp_primitives::GroupElement FuzzedSecp256k1Object::GetMemberGroupElement() {
 std::vector<secp_primitives::GroupElement> FuzzedSecp256k1Object::GetMemberGroupElements(size_t len) {
     std::vector<secp_primitives::GroupElement> ge_vec;
     ge_vec.resize(len);
-    for (size_t i = 0; i <= len; i++) {
+    for (size_t i = 0; i < len; i++) {
         ge_vec[i] = (GetMemberGroupElement());
     }
     return ge_vec;
@@ -46,7 +46,7 @@ std::vector<secp_primitives::GroupElement> FuzzedSecp256k1Object::GetRandomGroup
 std::vector<secp_primitives::GroupElement> FuzzedSecp256k1Object::GetGroupElements(int len) {
     std::vector<secp_primitives::GroupElement> ge_vec;
     ge_vec.resize(len);
-    for (int i = 0; i <= len; i++) {
+    for (int i = 0; i < len; i++) {
         ge_vec.push_back(GetGroupElement());
     }
 
@@ -56,7 +56,7 @@ std::vector<secp_primitives::GroupElement> FuzzedSecp256k1Object::GetGroupElemen
 std::vector<secp_primitives::Scalar> FuzzedSecp256k1Object::GetScalars(size_t len) {
     std::vector<secp_primitives::Scalar> scalar_vec;
     scalar_vec.resize(len);
-    for (int i = 0; i <= len; i++) {
+    for (int i = 0; i < len; i++) {
         scalar_vec.push_back(GetScalar());
     }
 
@@ -66,7 +66,7 @@ std::vector<secp_primitives::Scalar> FuzzedSecp256k1Object::GetScalars(size_t le
 std::vector<secp_primitives::Scalar> FuzzedSecp256k1Object::GetScalarsVector(size_t len) {
     std::vector<secp_primitives::Scalar> scalar_vec;
     scalar_vec.resize(len);
-    for (int i = 0; i <= len; i++) {
+    for (int i = 0; i < len; i++) {
         scalar_vec.push_back(GetScalar());
     }
 
@@ -81,7 +81,7 @@ secp_primitives::Scalar FuzzedSecp256k1Object::GetScalar_modified() {
 std::vector<secp_primitives::Scalar> FuzzedSecp256k1Object::GetScalars_modified(int len) {
     std::vector<secp_primitives::Scalar> scalar_vec;
     scalar_vec.resize(len);
-    for (int i = 0; i <= len; i++) {
+    for (int i = 0; i < len; i++) {
         scalar_vec.push_back(GetScalar_modified());
     }
 

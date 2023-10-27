@@ -1,7 +1,7 @@
 # Fuzzing libspark
 
 ## Quickstart Guide
-* Dependencies
+### Dependencies
 1. Install honggfuzz (https://github.com/google/honggfuzz)
 ```
 sudo apt-get install binutils-dev libunwind-dev libblocksruntime-dev clang
@@ -11,10 +11,12 @@ make
 sudo make install
 ```
 
-2. Build firo
+2. Build firo: 
+
 Follow the instructions from https://github.com/firoorg/firo/tree/spark#readme
 
-* In order to fuzz `firo/src/libpark` using LLVM LibFuzzer:
+### Fuzzing using honggfuzz
+* In order to fuzz `firo/src/libpark` using Honggfuzz:
 
 ```
 git clone -b spark_fuzz_blog https://github.com/hashcloak/firo.git
@@ -69,7 +71,7 @@ To debug or to do the rootcause analysis, gdb debugger can be used. to debug usi
 
 1. First compile the harness using gdb flags `-g -O0 -ggdb`. To compile using gdb debugger, inside `src/fuzz` run:
 ```
-make <filename_debug>
+make <filename>_debug
 ```
 Example: 
 ```
