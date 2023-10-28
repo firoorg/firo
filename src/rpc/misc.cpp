@@ -491,7 +491,7 @@ UniValue verifyprivatetxown(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 3)
         throw std::runtime_error(
-                "verifyrivatetxown \"txid\" \"signature\" \"message\"\n"
+                "verifyprivatetxown \"txid\" \"signature\" \"message\"\n"
                 "\nVerify a lelantus tx ownership\n"
                 "\nArguments:\n"
                 "1. \"txid\"        (string, required) Txid, in which we spend lelantus coins.\n"
