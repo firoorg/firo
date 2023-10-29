@@ -3363,7 +3363,7 @@ std::vector<unsigned char> CWallet::ProvePrivateTxOwn(const uint256& txid, const
             return result;
         }
         const auto& serials = joinsplit->getCoinSerialNumbers();
-        size_t count = 0;
+        uint32_t count = 0;
         result.resize(serials.size() * 64);
 
         for (const auto& serial : serials) {

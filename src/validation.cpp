@@ -357,7 +357,7 @@ bool VerifyPrivateTxOwn(const uint256& txid, const std::vector<unsigned char>& v
             return false;
         }
 
-        size_t count = 0;
+        uint32_t count = 0;
 
         for (const auto& pub : pubKeys) {
             ss << count;
