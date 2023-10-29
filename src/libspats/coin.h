@@ -110,12 +110,12 @@ protected:
 
 public:
     const Params* params;
-    char type;            // type flag
-    GroupElement S, K, C; // serial commitment, recovery key, value commitment
-    AEADEncryptedData r_; // encrypted recipient data
-    uint64_t v;           // value
-    uint64_t a;           // asset type
-    uint64_t iota;        // identifier
+    char type;                                 // type flag
+    GroupElement S, K, C;                      // serial commitment, recovery key, value commitment
+    AEADEncryptedData r_;                      // encrypted recipient data
+    uint64_t v;                                // value
+    uint64_t a;                                // asset type
+    uint64_t iota;                             // identifier
     std::vector<unsigned char> serial_context; // context to which the serial commitment should be bound (not serialized, but inferred)
 
     // Serialization depends on the coin type
@@ -131,6 +131,8 @@ public:
 
         if (type == COIN_TYPE_MINT) {
             READWRITE(v);
+            READWRITE(iota);
+            READWRITE(a);
         }
     }
 };
