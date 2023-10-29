@@ -38,11 +38,13 @@ void TypeEquality::prove(const std::vector<GroupElement>& C, const Scalar& w, co
 
     // Check statement validity
     if (y.size() != z.size()) {
-        throw std::invalid_argument("Bad Type statement!");
+        throw std::invalid_argument("Bad Type statement!1");
     }
+
+
     for (std::size_t i = 0; i < n; i++) {
-        if (E * w + F * x + G * y[i] + H * z[i] != C[i]) {
-            throw std::invalid_argument("Bad Type statement!");
+               if (E * w + F * x + G * y[i] + H * z[i] != C[i]) {
+            throw std::invalid_argument("Bad Type statement!2");
         }
     }
     Scalar rw;

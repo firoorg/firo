@@ -219,6 +219,15 @@ BITCOIN_TESTS = \
   libspats/kdf.h \
   libspats/keys.cpp \
   libspats/keys.h \
+  libspats/base_asset.h \ 
+  libspats/base_asset.cpp \
+  libspats/base_asset_proof.h \  
+  libspats/type_proof.h \ 
+  libspats/type.cpp \ 
+  libspats/type.h \  
+  libspats/balance.h \  
+  libspats/balance.cpp \  
+  libspats/balance_proof.h \  
   libspats/mint_transaction.cpp \
   libspats/mint_transaction.h \
   libspats/params.cpp \
@@ -233,8 +242,10 @@ BITCOIN_TESTS = \
   libspats/util.cpp \
   libspats/util.h \
   libspats/test/bpplus_test.cpp \
-  libspats/test/coin_test.cpp
-
+  libspats/test/coin_test.cpp \
+  libspats/test/type_test.cpp \
+  libspats/test/base_asset_test.cpp \
+  libspats/test/spend_transaction_test.cpp
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \
