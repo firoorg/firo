@@ -100,7 +100,6 @@ bool Coin::validate(
 
     // Check value commitment
     if (this->params->get_E() * data.a + this->params->get_F() * data.iota + this->params->get_G() * Scalar(data.v) + this->params->get_H() * SpatsUtils::hash_val(data.k) != this->C) {
-        std::cout << "value false\n";
         return false;
     }
 
@@ -157,7 +156,7 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key)
         } catch (...) {
             throw std::runtime_error("Unable to identify coin");
         }
-        
+
         data.a = r.a;
         data.iota = r.iota;
         data.d = r.d;

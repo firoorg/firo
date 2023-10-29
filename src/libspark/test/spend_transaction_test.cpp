@@ -26,19 +26,6 @@ BOOST_AUTO_TEST_CASE(generate_verify)
 {
     // Parameters
 
-    // Scalar scalar;
-    // scalar.randomize();
-
-    // std::cout << scalar << "\n";
-
-    // GroupElement group;
-    // group.randomize();
-
-    // std::cout << group << "\n";
-
-    // std::cout << group * scalar << "\n";
-
-
     const Params* params;
     params = Params::get_test();
 

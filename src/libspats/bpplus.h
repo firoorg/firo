@@ -22,7 +22,13 @@ public:
         const std::vector<GroupElement>& Hi,
         const std::size_t N);
 
-    void prove(const Scalar& asset_type, const Scalar& identifier, const std::vector<Scalar>& unpadded_v, const std::vector<Scalar>& unpadded_r, const std::vector<GroupElement>& unpadded_C, BPPlusProof& proof);
+    void prove(
+        const std::vector<Scalar>& unpadded_a,
+        const std::vector<Scalar>& unpadded_iota,
+        const std::vector<Scalar>& unpadded_v,
+        const std::vector<Scalar>& unpadded_r,
+        const std::vector<GroupElement>& unpadded_C,
+        BPPlusProof& proof);
     bool verify(const std::vector<GroupElement>& unpadded_C, const BPPlusProof& proof);                             // single proof
     bool verify(const std::vector<std::vector<GroupElement> >& unpadded_C, const std::vector<BPPlusProof>& proofs); // batch of proofs
 

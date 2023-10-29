@@ -42,8 +42,6 @@ BOOST_AUTO_TEST_CASE(generate_verify)
     // Mint some coins to the address
     std::size_t N = (std::size_t)pow(params->get_n_grootle(), params->get_m_grootle());
 
-    std::cout << N / 2 << "\n";
-
     std::vector<Coin> in_coins;
     for (std::size_t i = 0; i < N / 2; i++) {
         Scalar k;
@@ -91,7 +89,6 @@ BOOST_AUTO_TEST_CASE(generate_verify)
             random_char_vector()));
     }
 
-    std::cout << in_coins[0].v << "\n";
 
     // Track values so we can set the fee to make the transaction balance
     uint64_t f = 0;
@@ -149,9 +146,6 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         spend_coin_data.back().v = identified_coin_data.v;
         spend_coin_data.back().a = identified_coin_data.a;
         spend_coin_data.back().iota = identified_coin_data.iota;
-
-        std::cout << "In value: " << identified_coin_data.v << "\n";
-        // f += identified_coin_data.v;
     }
 
     // Generate new output coins and compute the fee
@@ -176,10 +170,6 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         out_coin_data.back().memo = memo;
         out_coin_data.back().a = 1;    // asset type
         out_coin_data.back().iota = 0; // identifier
-
-
-        std::cout << "Out value: " << out_coin_data.back().v << "\n";
-        // f -= out_coin_data.back().v;
     }
 
 
@@ -197,9 +187,6 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         throw std::runtime_error("Bad fee assertion");
     }
 
-    std::cout << "YAY"
-              << "\n";
-
 
     // Generate spend transaction
     SpendTransaction transaction(
@@ -212,8 +199,6 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         0,
         out_coin_data);
 
-    std::cout << "YAY2"
-              << "\n";
 
     // Verify
     transaction.setCoverSets(cover_set_data);

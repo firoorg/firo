@@ -54,8 +54,8 @@ bool is_nonzero_power_of_2(std::size_t n)
 }
 
 void BPPlus::prove(
-    const Scalar& asset_type,
-    const Scalar& identifier,
+    const std::vector<Scalar>& unpadded_a,
+    const std::vector<Scalar>& unpadded_iota,
     const std::vector<Scalar>& unpadded_v,
     const std::vector<Scalar>& unpadded_r,
     const std::vector<GroupElement>& unpadded_C,
@@ -88,13 +88,17 @@ void BPPlus::prove(
     transcript.add("C", unpadded_C);
 
     // Now pad the input set to produce a valid statement
+    std::vector<Scalar> a(unpadded_a);
+    std::vector<Scalar> iota(unpadded_iota);
     std::vector<Scalar> v(unpadded_v);
     std::vector<Scalar> r(unpadded_r);
     std::vector<GroupElement> C(unpadded_C);
     for (std::size_t i = unpadded_M; i < M; i++) {
-        v.emplace_back(); // zero scalar
-        r.emplace_back(); // zero scalar
-        C.emplace_back(); // identity group element, a valid commitment using the corresponding scalars
+        a.emplace_back();    // zero scalar
+        iota.emplace_back(); // zero scalar
+        v.emplace_back();    // zero scalar
+        r.emplace_back();    // zero scalar
+        C.emplace_back();    // identity group element, a valid commitment using the corresponding scalars
     }
 
     // Check statement validity
@@ -111,25 +115,11 @@ void BPPlus::prove(
         throw std::invalid_argument("Bad BPPlus statement!5");
     }
 
-    Scalar asset_type_ = asset_type;
-    Scalar identifier_ = identifier;
+
     for (std::size_t j = 0; j < M; j++) {
-        // if (!(G*v[j] + H*r[j] == C[j])) {
-        //     throw std::invalid_argument("Bad BPPlus statement!6");
-        // }
-        // std::cout << j << std::endl;
-        if (j >= unpadded_M) {
-            asset_type_ = Scalar(uint64_t(0));
-            identifier_ = Scalar(uint64_t(0));
-        }
-
-
-        if (!(E * asset_type_ + F * identifier_ + G * v[j] + H * r[j] == C[j])) {
+        if (!(E * a[j] + F * iota[j] + G * v[j] + H * r[j] == C[j])) {
             throw std::invalid_argument("Bad BPPlus statement!6");
         }
-        // if (!(G*v[j] + H*r[j] == C[j])) {
-        //     throw std::invalid_argument("Bad BPPlus statement!6");
-        // }
     }
 
     // Decompose bits
@@ -222,16 +212,16 @@ void BPPlus::prove(
     Scalar alpha2 = alpha_2;
     Scalar alpha3 = alpha_3;
     z_even_powers = 1;
-    asset_type_ = asset_type;
-    identifier_ = identifier;
+    // asset_type_ = asset_type;
+    // identifier_ = identifier;
     for (std::size_t j = 0; j < M; j++) {
         z_even_powers *= z_square;
-        if (j >= unpadded_M) {
-            asset_type_ = Scalar(uint64_t(0));
-            identifier_ = Scalar(uint64_t(0));
-        }
-        alpha2 += z_even_powers * asset_type_ * y_powers[N * M + 1];
-        alpha3 += z_even_powers * identifier_ * y_powers[N * M + 1];
+        // if (j >= unpadded_M) {
+        //     asset_type_ = Scalar(uint64_t(0));
+        //     identifier_ = Scalar(uint64_t(0));
+        // }
+        alpha2 += z_even_powers * a[j] * y_powers[N * M + 1];
+        alpha3 += z_even_powers * iota[j] * y_powers[N * M + 1];
     }
 
     // Run the inner product rounds

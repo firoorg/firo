@@ -22,19 +22,17 @@ SpendTransaction::SpendTransaction(
     const std::vector<OutputCoinData>& outputs)
 {
     this->params = params;
+    this->inputs = inputs;
+    this->outputs = outputs;
 
     uint64_t asset_type;
     uint64_t identifier;
+
 
     // Size parameters
     const std::size_t w = inputs.size();                                                           // number of consumed coins
     const std::size_t t = outputs.size();                                                          // number of generated coins
     const std::size_t N = (std::size_t)std::pow(params->get_n_grootle(), params->get_m_grootle()); // size of cover sets
-
-    // std::size_t w_base_coin = 0;
-    // std::size_t w_generic_coin = 0;
-
-    std::cout << w << " " << t << "\n";
 
 
     // Prepare input-related vectors
@@ -53,7 +51,9 @@ SpendTransaction::SpendTransaction(
 
     // Prepare output vector
     this->out_coins.reserve(t); // coins
-    std::vector<Scalar> k;      // nonces
+
+
+    std::vector<Scalar> k; // nonces
 
     // Prepare inputs
     Grootle grootle(
@@ -116,13 +116,12 @@ SpendTransaction::SpendTransaction(
     }
 
     // Generate output coins and prepare range proof vectors
+    std::vector<Scalar> range_a;
+    std::vector<Scalar> range_iota;
     std::vector<Scalar> range_v;
     std::vector<Scalar> range_r;
     std::vector<GroupElement> range_C;
 
-    std::vector<Scalar> range_v_generic;
-    std::vector<Scalar> range_r_generic;
-    std::vector<GroupElement> range_C_generic;
 
     // Serial context for all outputs is the set of linking tags for this transaction, which must always be in a fixed order
     CDataStream serial_context(SER_NETWORK, PROTOCOL_VERSION);
@@ -151,17 +150,13 @@ SpendTransaction::SpendTransaction(
 
         // Range data
 
+        range_a.emplace_back(outputs[j].a);
+        range_iota.emplace_back(outputs[j].iota);
+        range_v.emplace_back(outputs[j].v);
+        range_r.emplace_back(SpatsUtils::hash_val(k.back()));
+        range_C.emplace_back(this->out_coins.back().C);
 
-        if (outputs[j].a == 0) {
-            range_v.emplace_back(outputs[j].v);
-            range_r.emplace_back(SpatsUtils::hash_val(k.back()));
-            range_C.emplace_back(this->out_coins.back().C);
-
-
-        } else {
-            range_v_generic.emplace_back(outputs[j].v);
-            range_r_generic.emplace_back(SpatsUtils::hash_val(k.back()));
-            range_C_generic.emplace_back(this->out_coins.back().C);
+        if (outputs[j].a != 0) {
             iota_out_generic = outputs[j].iota;
             asset_type_out_generic = outputs[j].a;
         }
@@ -177,29 +172,11 @@ SpendTransaction::SpendTransaction(
         this->params->get_H_range(),
         64);
     range.prove(
-        Scalar(uint64_t(0)), // new value
-        Scalar(uint64_t(0)), // new value
+        range_a,    // new value
+        range_iota, // new value
         range_v,
         range_r,
         range_C,
-        this->range_proof);
-
-
-    // Generate range proof for generic coin
-    BPPlus range_generic(
-        this->params->get_E(),
-        this->params->get_F(),
-        this->params->get_G(),
-        this->params->get_H(),
-        this->params->get_G_range(),
-        this->params->get_H_range(),
-        64);
-    range_generic.prove(
-        asset_type_out_generic, // new value
-        iota_out_generic,
-        range_v_generic,
-        range_r_generic,
-        range_C_generic,
         this->range_proof);
 
     // store value of y,z for base prove and type prove
@@ -375,6 +352,7 @@ bool SpendTransaction::verify(
     // - We try to verify in order of likely computational complexity, to fail early
 
     // Track range proofs to batch
+
     std::vector<std::vector<GroupElement> > range_proofs_C; // commitments for all range proofs
     std::vector<BPPlusProof> range_proofs;                  // all range proofs
 
@@ -389,6 +367,7 @@ bool SpendTransaction::verify(
         if (params != tx.params) {
             return false;
         }
+
 
         // Size parameters for this transaction
         const std::size_t w = tx.cover_set_ids.size();                                                 // number of consumed coins
@@ -417,6 +396,7 @@ bool SpendTransaction::verify(
             range_proofs_C.back().emplace_back(tx.out_coins[j].C);
         }
         range_proofs.emplace_back(tx.range_proof);
+
 
         // Sort all Grootle proofs into buckets for batching based on common input sets
         for (std::size_t u = 0; u < w; u++) {
@@ -447,23 +427,69 @@ bool SpendTransaction::verify(
             return false;
         }
 
+        TypeEquality type(tx.params->get_E(), tx.params->get_F(), tx.params->get_G(), tx.params->get_H());
+        BaseAsset base(tx.params->get_G(), tx.params->get_H());
+
+        std::vector<GroupElement> type_c;
+        std::vector<GroupElement> base_c;
+        for (std::size_t u = 0; u < w; u++) {
+            if (tx.inputs[u].a != 0) {
+                type_c.emplace_back(tx.C1[u]);
+            } else {
+                base_c.emplace_back(tx.C1[u]);
+            }
+        }
+
+        for (std::size_t j = 0; j < t; j++) {
+            if (tx.inputs[j].a != 0) {
+                type_c.emplace_back(tx.out_coins[j].C);
+            } else {
+                base_c.emplace_back(tx.out_coins[j].C);
+            }
+        }
+
+        if (!(type.verify(type_c, tx.type_proof))) {
+            return false;
+        }
+        if (!(base.verify(base_c, tx.base_proof))) {
+            return false;
+        }
+
+
         // Verify the balance proof
         Schnorr schnorr(tx.params->get_H());
+        GroupElement rep_statement;
         GroupElement balance_statement;
         for (std::size_t u = 0; u < w; u++) {
-            balance_statement += tx.C1[u];
+            if (tx.inputs[u].a == 0) {
+                rep_statement += tx.C1[u];
+            } else {
+                balance_statement += tx.C1[u];
+            }
         }
         for (std::size_t j = 0; j < t; j++) {
-            balance_statement += tx.out_coins[j].C.inverse();
+            if (tx.outputs[j].a == 0) {
+                rep_statement += tx.out_coins[j].C.inverse();
+            } else {
+                balance_statement += tx.out_coins[j].C.inverse();
+            }
         }
-        balance_statement += (tx.params->get_G() * Scalar(tx.f + tx.vout)).inverse();
+        rep_statement += (tx.params->get_G() * Scalar(tx.f + tx.vout)).inverse();
 
         if (!schnorr.verify(
-                balance_statement,
+                rep_statement,
                 tx.rep_proof)) {
             return false;
         }
+
+
+        Balance balance(tx.params->get_E(), tx.params->get_F(), tx.params->get_H());
+
+        if (!balance.verify(balance_statement, tx.balance_proof)) {
+            return false;
+        }
     }
+
 
     // Verify all range proofs in a batch
     BPPlus range(
@@ -477,6 +503,7 @@ bool SpendTransaction::verify(
     if (!range.verify(range_proofs_C, range_proofs)) {
         return false;
     }
+
 
     // Verify all Grootle proofs in batches (based on cover set)
     // TODO: Finish this
@@ -523,7 +550,6 @@ bool SpendTransaction::verify(
             proofs.emplace_back(tx.grootle_proofs[proof_index.second]);
         }
 
-
         // Verify the batch
         if (!grootle.verify(S, S1, V, V1, cover_set_representations, sizes, proofs)) {
             return false;
@@ -541,8 +567,7 @@ std::vector<unsigned char> SpendTransaction::hash_bind_inner(
     const std::unordered_map<uint64_t, std::vector<unsigned char> >& cover_set_representations,
     const std::vector<GroupElement>& C1,
     const std::vector<GrootleProof>& grootle_proofs
-    // const SchnorrProof& balance_proof,
-    // const BPPlusProof& range_proof
+
 )
 {
     Hash hash(LABEL_HASH_BIND_INNER);
@@ -552,8 +577,6 @@ std::vector<unsigned char> SpendTransaction::hash_bind_inner(
     stream << C1;
     stream << T;
     stream << grootle_proofs;
-    // stream << balance_proof;
-    // stream << range_proof;
     hash.include(stream);
 
     return hash.finalize();

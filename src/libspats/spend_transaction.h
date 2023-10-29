@@ -133,6 +133,8 @@ private:
     std::vector<Coin> out_coins;
 
     // All this data we need to serialize
+    std::vector<InputCoinData> inputs;
+    std::vector<OutputCoinData> outputs;
     std::map<uint64_t, uint256> set_id_blockHash;
     std::vector<uint64_t> cover_set_ids;
     uint64_t f;
