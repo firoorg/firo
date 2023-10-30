@@ -4802,9 +4802,9 @@ UniValue removetxmempool(const JSONRPCRequest& request) {
         LOCK(mempool.cs);
         if (mempool.exists(hash)) {
             LogPrintf("[Ooops], Uncomplete function\n");
-//            CTransaction tx;
-//            tx = mempool.lookup(hash);
-//            mempool.remove(tx);
+            CTransactionRef tx;
+            tx = txpools.get(hash);
+            txpools.removeRecursive(*tx);
             return NullUniValue;
         }
     }
