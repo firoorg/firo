@@ -40,7 +40,6 @@ void GetStrongRandBytes(unsigned char* buf, int num);
 class FastRandomContext {
 private:
     bool requires_seed;
-    ChaCha20 rng;
 
     unsigned char bytebuf[64];
     int bytebuf_size;
@@ -50,8 +49,13 @@ private:
 
     void RandomSeed();
 
-    void FillByteBuffer()
+    void FillBitBuffer()
     {
+        bitbuf = rand64();
+        bitbuf_size = 64;
+    }
+
+    void FillByteBuffer() {
         if (requires_seed) {
             RandomSeed();
         }
@@ -59,13 +63,9 @@ private:
         bytebuf_size = sizeof(bytebuf);
     }
 
-    void FillBitBuffer()
-    {
-        bitbuf = rand64();
-        bitbuf_size = 64;
-    }
-
 public:
+    ChaCha20 rng;
+
     explicit FastRandomContext(bool fDeterministic = false);
 
     /** Initialize with explicit seed (only for testing) */
