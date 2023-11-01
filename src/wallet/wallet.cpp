@@ -89,6 +89,10 @@ bool CTransparentTxout::IsTransparentTxout(const CTxOut& txout) {
     return txout.scriptPubKey.IsPayToPublicKey() || txout.scriptPubKey.IsPayToPublicKeyHash() || txout.scriptPubKey.IsPayToScriptHash();
 }
 
+uint256 CTransparentTxout::GetHash() const {
+    return outpoint.hash;
+}
+
 COutPoint CTransparentTxout::GetOutpoint() const {
     return outpoint;
 }
@@ -102,7 +106,7 @@ CScript CTransparentTxout::GetScriptPubkey() const {
     return txout.scriptPubKey;
 }
 
-size_t CTransparentTxout::GetMarginalSpendSize() const {
+size_t CTransparentTxout::GetMarginalSpendSize(std::vector<CTransparentTxout>& previousInputs) const {
     assert(!txout.IsNull());
 
     txnouttype outType;
@@ -138,18 +142,13 @@ size_t CTransparentTxout::GetMarginalSpendSize() const {
     }
 
     return
-            32 + // txid
-            4 + // vout
-            GetSizeOfCompactSize(sigDataSize) +
-            sigDataSize +
-            4; // sequence
-}
-
-CAmount CTransparentTxout::GetMarginalFee(const CCoinControl* coinControl) const {
-    if (coinControl && coinControl->fOverrideFeeRate)
-        return coinControl->nFeeRate.GetFee(GetMarginalSpendSize());
-    else
-        return payTxFee.GetFee(GetMarginalSpendSize());
+        GetSizeOfCompactSize(previousInputs.size() + 1) -
+        GetSizeOfCompactSize(previousInputs.size()) +
+        32 + // txid
+        4 + // vout
+        GetSizeOfCompactSize(sigDataSize) +
+        sigDataSize +
+        4; // sequence
 }
 
 bool CTransparentTxout::IsMine(const CCoinControl* coinControl) const {
@@ -170,9 +169,9 @@ bool CTransparentTxout::IsMine(const CCoinControl* coinControl) const {
     return false;
 }
 
-bool CTransparentTxout::IsSpent() const {
+bool CTransparentTxout::IsSpendable() const {
     if (_isMockup)
-        return _mockupIsSpent;
+        return !_mockupIsSpent;
 
     assert(wallet);
     AssertLockHeld(wallet->cs_wallet);
@@ -183,11 +182,11 @@ bool CTransparentTxout::IsSpent() const {
         if (walletIt != wallet->mapWallet.end()) {
             int depth = walletIt->second.GetDepthInMainChain();
             if (depth > 0 || (depth == 0 && !walletIt->second.isAbandoned()))
-                return true;
+                return false;
         }
     }
 
-    return false;
+    return true;
 }
 
 bool CTransparentTxout::IsLocked() const {
@@ -207,7 +206,7 @@ bool CTransparentTxout::IsAbandoned() const {
     assert(wallet);
     AssertLockHeld(wallet->cs_wallet);
 
-    return wallet->mapWallet.at(outpoint.hash).isAbandoned();
+    return wallet->mapWallet.at(GetHash()).isAbandoned();
 }
 
 bool CTransparentTxout::IsCoinTypeCompatible(const CCoinControl* coinControl) const {
@@ -215,6 +214,8 @@ bool CTransparentTxout::IsCoinTypeCompatible(const CCoinControl* coinControl) co
 
     if (!coinControl)
         return GetValue() != 1000 * COIN;
+    else if (coinControl->nCoinType == CoinType::ONLY_MINTS)
+        return false;
     else if (coinControl->nCoinType == CoinType::ONLY_NONDENOMINATED_NOT1000IFMN)
         return !fMasternodeMode || GetValue() != 1000 * COIN;
     else if (coinControl->nCoinType == CoinType::ONLY_NOT1000IFMN)
@@ -235,7 +236,7 @@ bool CTransparentTxout::IsLLMQInstantSendLocked() const {
     AssertLockHeld(wallet->cs_wallet);
     AssertLockHeld(llmq::quorumInstantSendManager->cs);
 
-    return llmq::quorumInstantSendManager->db.GetInstantSendLockByTxid(outpoint.hash) != nullptr;
+    return llmq::quorumInstantSendManager->db.GetInstantSendLockByTxid(GetHash()) != nullptr;
 }
 
 bool CTransparentTxout::IsCoinBase() const {
@@ -245,7 +246,7 @@ bool CTransparentTxout::IsCoinBase() const {
     assert(wallet);
     AssertLockHeld(wallet->cs_wallet);
 
-    return wallet->mapWallet.at(outpoint.hash).IsCoinBase();
+    return wallet->mapWallet.at(GetHash()).IsCoinBase();
 }
 
 unsigned int CTransparentTxout::GetDepthInMainChain() const {
@@ -255,7 +256,7 @@ unsigned int CTransparentTxout::GetDepthInMainChain() const {
     assert(wallet);
     AssertLockHeld(wallet->cs_wallet);
 
-    return wallet->mapWallet.at(outpoint.hash).GetDepthInMainChain();
+    return wallet->mapWallet.at(GetHash()).GetDepthInMainChain();
 }
 
 const uint256 CMerkleTx::ABANDON_HASH(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));
@@ -4397,9 +4398,24 @@ bool CWallet::ConvertList(std::vector <CTxIn> vecTxIn, std::vector <CAmount> &ve
 }
 
 CAmount CWallet::GetFee(const CCoinControl* coinControl, size_t txSize) {
-    CAmount fee = coinControl && coinControl->fOverrideFeeRate ? coinControl->nFeeRate.GetFee(txSize) : payTxFee.GetFee(txSize);
-    if (GetRequiredFee(txSize) > fee) fee = GetRequiredFee(txSize);
-    if (coinControl && coinControl->nMinimumTotalFee > fee) fee = coinControl->nMinimumTotalFee;
+    AssertLockHeld(cs_main);
+
+    unsigned int nConfirmTarget = DEFAULT_TX_CONFIRM_TARGET;
+    if (coinControl && coinControl->nConfirmTarget)
+        nConfirmTarget = coinControl->nConfirmTarget;
+
+    CAmount fee = 0;
+    if (coinControl && coinControl->fOverrideFeeRate)
+        fee = coinControl->nFeeRate.GetFee(txSize);
+    else
+        fee = GetMinimumFee(txSize, nConfirmTarget, mempool);
+
+    if (GetRequiredFee(txSize) > fee)
+        fee = GetRequiredFee(txSize);
+
+    if (coinControl && coinControl->nMinimumTotalFee > fee)
+        fee = coinControl->nMinimumTotalFee;
+
     return fee;
 }
 
@@ -4488,7 +4504,7 @@ void CWallet::CheckTransparentTransactionSanity(CMutableTransaction& tx,
     // event the transaction is not signed, the actual size will be lower than what we used to calculate the fee.
     size_t maxSize = txSize + tx.vin.size() * 3;
     // If there is no change output, our fee may have been calculated based on dust being offered to miners.
-    if (!fHasChange) maxSize += P2SH_OUTPUT_SIZE;
+    if (!fHasChange) maxSize += 34;
     if (fSign && nFee > GetFee(coinControl, maxSize))
         throw std::runtime_error("Calculated fee too high. This is probably a bug.");
 
@@ -5842,6 +5858,9 @@ CWalletTx CWallet::CreateSparkSpendTransaction(
 {
     // sanity check
     EnsureMintWalletAvailable();
+
+    LOCK2(cs_main, cs_wallet);
+    LOCK(sparkWallet->cs_spark_wallet);
 
     if (IsLocked()) {
         throw std::runtime_error(_("Wallet locked"));

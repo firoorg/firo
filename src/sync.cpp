@@ -8,7 +8,7 @@
 #include "utilstrencodings.h"
 
 #include <stdio.h>
-
+#include <set>
 #include <boost/foreach.hpp>
 #include <boost/thread.hpp>
 
@@ -57,7 +57,7 @@ private:
 
 typedef std::vector<std::pair<void*, CLockLocation> > LockStack;
 typedef std::map<std::pair<void*, void*>, LockStack> LockOrders;
-typedef std::set<std::pair<void*, void*> > InvLockOrders;
+typedef std::set<std::pair<void*, void*>> InvLockOrders;
 
 struct LockData {
     // Very ugly hack: as the global constructs and destructors run single
@@ -164,7 +164,7 @@ void AssertLockNotHeldInternal(const char* pszName, const char* pszFile, int nLi
         if (i.first == cs) {
             fprintf(stderr, "Assertion failed: lock %s held in %s:%i; locks held:\n%s", pszName, pszFile, nLine, LocksHeld().c_str());
             abort();
-        }
+       }
     }
 }
 

@@ -107,7 +107,7 @@ bool Coin::validate(
 }
 
 // Recover a coin
-RecoveredCoinData Coin::recover(const FullViewKey& full_view_key, const IdentifiedCoinData& data) {
+RecoveredCoinData Coin::recover(const FullViewKey& full_view_key, const IdentifiedCoinData& data) const {
 	RecoveredCoinData recovered_data;
 	recovered_data.s = SparkUtils::hash_ser(data.k, this->serial_context) + SparkUtils::hash_Q2(full_view_key.get_s1(), data.i) + full_view_key.get_s2();
 	recovered_data.T = (this->params->get_U() + full_view_key.get_D().inverse())*recovered_data.s.inverse();

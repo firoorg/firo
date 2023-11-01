@@ -81,7 +81,7 @@ public:
 	IdentifiedCoinData identify(const IncomingViewKey& incoming_view_key);
 
 	// Given a full view key, extract the coin's serial number and tag
-	RecoveredCoinData recover(const FullViewKey& full_view_key, const IdentifiedCoinData& data);
+	RecoveredCoinData recover(const FullViewKey& full_view_key, const IdentifiedCoinData& data) const;
 
     static std::size_t memoryRequired();
 

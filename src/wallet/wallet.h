@@ -644,11 +644,6 @@ private:
 
 class LelantusJoinSplitBuilder;
 
-
-/**Open unlock wallet window**/
-//static boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
-extern boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
-
 class CTransparentTxout;
 enum AbstractTxoutType {
     Transparent
@@ -661,14 +656,14 @@ public:
     CTransparentTxout() = default;
     CTransparentTxout(COutPoint outpoint, CTxOut txout): outpoint(outpoint), txout(txout), _isMockup(true) {}
     CTransparentTxout(const CWallet* wallet, COutPoint outpoint, CTxOut txout): wallet(wallet), outpoint(outpoint), txout(txout) {};
-    AbstractTxoutType GetType() const { return AbstractTxoutType::Transparent; };
+
+    uint256 GetHash() const;
     COutPoint GetOutpoint() const;
     CAmount GetValue() const;
     CScript GetScriptPubkey() const;
-    size_t GetMarginalSpendSize() const;
-    CAmount GetMarginalFee(const CCoinControl* coinControl) const;
+    size_t GetMarginalSpendSize(std::vector<CTransparentTxout>& previousInputs) const;
     bool IsMine(const CCoinControl* coinControl) const;
-    bool IsSpent() const;
+    bool IsSpendable() const;
     bool IsLocked() const;
     bool IsAbandoned() const;
     bool IsCoinTypeCompatible(const CCoinControl* coinControl) const;
@@ -692,6 +687,10 @@ public:
     bool _mockupIsCoinBase = false;
     unsigned int _mockupDepthInMainChain = 0;
 };
+
+/**Open unlock wallet window**/
+//static boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
+extern boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
 
 /**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
@@ -726,8 +725,6 @@ private:
     CAmount GetFee(const CCoinControl* coinControl, size_t txSize);
     std::vector<CTransparentTxout> GetTransparentTxouts() const;
 
-    size_t P2SH_OUTPUT_SIZE = 34;
-
     // Get all the vRelevantTransactions that can be used. Inputs specifically selected in coinControl are put into
     // vCoinControlInputs, and all other inputs compatible with coinControl and available for use are put into
     // vAvailableInputs.
@@ -737,7 +734,6 @@ private:
                             std::vector<AbstractTxout>& vCoinControlInputs,
                             const CCoinControl* coinControl,
                             bool fUseInstantSend) const {
-        AssertLockHeld(llmq::quorumInstantSendManager->cs);
         AssertLockHeld(cs_wallet);
         vAvailableInputs.clear();
         vCoinControlInputs.clear();
@@ -748,23 +744,18 @@ private:
         if (coinControl && coinControl->nCoinType == CoinType::WITH_MINTS)
             throw std::runtime_error("CoinType::WITH_MINTS is not supported for any transactions.");
 
-        if (coinControl && coinControl->nCoinType == CoinType::ONLY_MINTS)
-            throw std::runtime_error("CoinType::ONLY_MINTS may not be used for public transactions.");
-
-
         for (const AbstractTxout& tx: vRelevantTransactions) {
-            bool isSelected = coinControl && coinControl->IsSelected(tx.GetOutpoint());
+            bool isSelected = coinControl && coinControl->HasSelected() && coinControl->IsSelected(tx.GetOutpoint());
 
             if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs && !isSelected)
                 continue;
-            if (tx.IsSpent()) continue;
+            if (!tx.IsSpendable()) continue;
             if (!tx.IsCoinTypeCompatible(coinControl)) continue;
             if (tx.IsAbandoned()) continue;
             if (!tx.GetDepthInMainChain() && (!fUseInstantSend || !tx.IsLLMQInstantSendLocked())) continue;
             if (coinControl && coinControl->nConfirmTarget && tx.GetDepthInMainChain() < coinControl->nConfirmTarget)
                 continue;
             if (tx.IsCoinBase() && tx.GetDepthInMainChain() < COINBASE_MATURITY) continue;
-            if (!isSelected && tx.GetValue() <= tx.GetMarginalFee(coinControl)) continue;
             if (!tx.IsMine(coinControl)) continue;
 
             if (isSelected) vCoinControlInputs.push_back(tx);
@@ -785,8 +776,8 @@ private:
             std::sort(v->begin(), v->end(), [](const AbstractTxout& a, const AbstractTxout& b) {
                 if (a.GetValue() != b.GetValue())
                     return a.GetValue() > b.GetValue();
-                if (a.GetOutpoint().hash != b.GetOutpoint().hash)
-                    return a.GetOutpoint().hash.Compare(b.GetOutpoint().hash) == -1;
+                if (a.GetHash() != b.GetHash())
+                    return a.GetHash().Compare(b.GetHash()) == -1;
                 return a.GetOutpoint().n < b.GetOutpoint().n;
             });
         }
@@ -806,7 +797,7 @@ private:
     bool GetInputsForTx(const std::vector<AbstractTxout>& vRelevantTransactions, std::vector<AbstractTxout>& vInputs,
                         CAmount& nFeeRet, CAmount& nCollectedRet, CAmount nRequired, size_t nConstantSize,
                         const CCoinControl* coinControl, bool fUseInstantSend, bool fSubtractFeeFromAmount,
-                        bool fAllowPartial=false) {
+                        bool fAllowPartial=false, size_t nChangeSize=34) {
         AssertLockHeld(cs_wallet);
         vInputs.clear();
         nFeeRet = 0;
@@ -857,14 +848,14 @@ private:
 
                     assert(!vInputs.empty());
                     AbstractTxout oldTxout = vInputs.back();
-                    size_t inputSize = oldTxout.GetMarginalSpendSize();
+                    vInputs.pop_back();
+
+                    size_t inputSize = oldTxout.GetMarginalSpendSize(vInputs);
                     // If inputSize here is 0, nCollectedRet and txSize will have never been mutated.
                     if (inputSize) {
                         nCollectedRet -= oldTxout.GetValue();
                         txSize -= inputSize;
                     }
-
-                    vInputs.pop_back();
 
                     iFront -= 1;
                 } else {
@@ -916,11 +907,15 @@ private:
                 vSmallInputs.pop_back();
 
                 AbstractTxout oldTxout = vInputs.at(iToReplace);
-                nCollectedRet -= oldTxout.GetValue();
-                txSize -= oldTxout.GetMarginalSpendSize();
-                // varintSizeDifference will be 0 because the same number of inputs are used.
+                vInputs.erase(vInputs.begin() + iToReplace);
 
-                vInputs[iToReplace] = vAvailable.at(iFront++);
+                nCollectedRet -= oldTxout.GetValue();
+                txSize -= oldTxout.GetMarginalSpendSize(vInputs);
+
+                AbstractTxout newTxout = vAvailable.at(iFront++);
+                txSize += newTxout.GetMarginalSpendSize(vInputs);
+
+                vInputs.insert(vInputs.begin() + iToReplace, newTxout);
                 hasReplacedTxout = true;
                 txout = vInputs.at(iToReplace);
             } else if (iFront + iBack == vAvailable.size()) {
@@ -937,7 +932,7 @@ private:
 
             uint64_t inputSize = 0;
             try {
-                inputSize = txout.GetMarginalSpendSize();
+                inputSize = txout.GetMarginalSpendSize(vInputs);
             } catch (std::runtime_error& e) {
                 LogPrintf("%s(): Unexpectedly failed to determine spend size for %s-%d\n", __func__,
                           txout.GetOutpoint().hash.GetHex(), txout.GetOutpoint().n);
@@ -954,20 +949,13 @@ private:
                 continue;
             }
 
-            // The number of inputs is encoded as a varint, so if there are more than 0xfd inputs we need to add 2
-            // bytes. If we're replacing inputs with fTrySkipFront logic, GetSizeOfCompactSize will return 1 for both
-            // values, so no special logic to handle that case is required.
-            size_t varintSizeDifference = hasReplacedTxout ? 0 :
-                                          GetSizeOfCompactSize(vInputs.size() + 1) -
-                                          GetSizeOfCompactSize(vInputs.size());
-
             // If this transaction will bring us over nMaxSize, don't add it and start transaction replacement logic
             // above. It is technically possible for our transaction finding logic to fail to find a possible solution
             // in the event that a lower value transaction has a smaller spend script, and the difference in fees
             // between the two exceeds the difference in value, and this is true for every transaction larger than the
             // transaction with the smaller spend script, and the difference is over what we need to get to nRequired,
             // but this case should be extremely unlikely.
-            if (txSize + inputSize + varintSizeDifference > nMaxSize) {
+            if (txSize + inputSize > nMaxSize) {
                 // If we start replacement logic, we want to keep this transaction available as an option.
                 if (!fReplace)
                     // fTakeFromFront is true if we last took from the BACK of vAvailable.
@@ -982,12 +970,12 @@ private:
                 if (fTakeFromFront)
                     vSmallInputs.emplace_back(vInputs.size());
 
+
+                txSize += txout.GetMarginalSpendSize(vInputs);
                 vInputs.emplace_back(txout);
             }
 
             nCollectedRet += txout.GetValue();
-            txSize += txout.GetMarginalSpendSize();
-            txSize += varintSizeDifference;
 
             nFeeRet = GetFee(coinControl, txSize);
 
@@ -1005,7 +993,7 @@ private:
             if (nCollectedRet == nRequired + extraFee) return true;
             if (
                 nCollectedRet >= nRequired + extraFee &&
-                nCollectedRet <= nRequired + GetFee(coinControl, txSize + P2SH_OUTPUT_SIZE)
+                nCollectedRet <= nRequired + GetFee(coinControl, txSize + nChangeSize)
             ) {
                 nFeeRet = nCollectedRet - nRequired;
                 return true;
@@ -1013,7 +1001,7 @@ private:
 
             // In this case, we have a change output too.
 
-            if (txSize + P2SH_OUTPUT_SIZE > nMaxSize) {
+            if (txSize + nChangeSize > nMaxSize) {
                 // fTakeFromFront is true if we last took from the BACK of vAvailable.
                 if (!fReplace) {
                     if (fTakeFromFront) {
@@ -1026,15 +1014,14 @@ private:
                     vInputs.pop_back();
 
                     nCollectedRet -= txout.GetValue();
-                    txSize -= txout.GetMarginalSpendSize();
-                    txSize -= varintSizeDifference;
+                    txSize -= txout.GetMarginalSpendSize(vInputs);
                 }
 
                 fReplace = true;
                 continue;
             }
 
-            nFeeRet = GetFee(coinControl, txSize + P2SH_OUTPUT_SIZE);
+            nFeeRet = GetFee(coinControl, txSize + nChangeSize);
             extraFee = fSubtractFeeFromAmount ? 0 : nFeeRet;
             if (fSubtractFeeFromAmount && nFeeRet > nCollectedRet) continue;
             if (nCollectedRet >= extraFee + nRequired) return true;

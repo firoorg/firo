@@ -21,6 +21,33 @@ extern CChain chainActive;
 const uint32_t BIP44_SPARK_INDEX = 0x6;
 const uint32_t SPARK_CHANGE_D = 0x270F;
 
+class CSparkTxout {
+public:
+    CSparkTxout() = default;
+    CSparkTxout(CWallet* pwallet, CSparkMintMeta meta): pwallet(pwallet), meta(meta) {};
+
+    uint256 GetHash() const;
+    COutPoint GetOutpoint() const;
+    CAmount GetValue() const;
+    CScript GetScriptPubkey() const;
+    size_t GetMarginalSpendSize(std::vector<CSparkTxout>& _previousInputs) const;
+    bool IsMine(const CCoinControl* coinControl) const;
+    bool IsSpendable() const;
+    bool IsLocked() const;
+    bool IsAbandoned() const;
+    bool IsCoinTypeCompatible(const CCoinControl* coinControl) const;
+    bool IsLLMQInstantSendLocked() const;
+    bool IsCoinBase() const;
+    unsigned int GetDepthInMainChain() const;
+
+    uint64_t GetCoverSetId() const;
+    spark::InputCoinData GetInputCoinData(spark::FullViewKey& fullViewKey, spark::CoverSetData& coverSetData) const;
+
+private:
+    CWallet* pwallet = nullptr;
+    std::optional<CSparkMintMeta> meta;
+};
+
 class CSparkWallet  {
 public:
     CSparkWallet(const std::string& strWalletFile);
@@ -46,6 +73,8 @@ public:
     spark::Address getAddress(const int32_t& i);
     bool isAddressMine(const std::string& encodedAddr);
     bool isChangeAddress(const uint64_t& i) const;
+
+    std::vector<CSparkTxout> GetSparkTxouts() const;
 
     // list spark mint, mint metadata in memory and in db should be the same at this moment, so get from memory
     std::vector<CSparkMintMeta> ListSparkMints(bool fUnusedOnly = false, bool fMatureOnly = false) const;
@@ -140,11 +169,18 @@ public:
         const std::vector<CTransparentTxout>& vInputTxs,
         const CCoinControl* coinControl);
 
+    void GetCoverSetData(spark::CoverSetData& coverSetData, uint256& blockHash, uint256 txHash,
+                         uint64_t coverSetId) const;
+    void CheckSparkTransactionSanity(
+        const CTransaction& tx,
+        const std::unordered_map<uint64_t, spark::CoverSetData>& coverSetData,
+        std::map<uint64_t, uint256>& idAndBlockHashes,
+        CAmount nFee) const;
     CWalletTx CreateSparkSpendTransaction(
-            const std::vector<CRecipient>& recipients,
-            const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
-            CAmount &fee,
-            const CCoinControl *coinControl = NULL);
+        const std::vector<CRecipient>& recipients,
+        const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
+        CAmount &fee,
+        const CCoinControl *coinControl = NULL);
 
     std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoins(
             CAmount required,
@@ -161,15 +197,15 @@ public:
     // to protect coinMeta
     mutable CCriticalSection cs_spark_wallet;
 
-private:
-    std::string strWalletFile;
-    // this is latest used diversifier
-    int32_t lastDiversifier;
-
     // this is full view key, which is saved into db
     spark::FullViewKey fullViewKey;
     // this is incoming view key
     spark::IncomingViewKey viewKey;
+
+private:
+    std::string strWalletFile;
+    // this is latest used diversifier
+    int32_t lastDiversifier;
 
     // map diversifier to address.
     std::unordered_map<int32_t, spark::Address> addresses;

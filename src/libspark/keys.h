@@ -64,7 +64,7 @@ public:
 	uint64_t get_diversifier(const std::vector<unsigned char>& d) const;
 
 private:
-	const Params* params;
+	const Params* params = nullptr;
 	Scalar s1;
 	GroupElement P2;
 };

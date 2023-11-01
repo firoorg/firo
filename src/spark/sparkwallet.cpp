@@ -8,11 +8,206 @@
 #include "../policy/policy.h"
 #include "../script/sign.h"
 #include "state.h"
-#include "../llmq/quorums_instantsend.h"
 
+#include <optional>
 #include <boost/format.hpp>
 
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
+
+uint256 CSparkTxout::GetHash() const {
+    assert(meta.has_value());
+
+    return meta->txid;
+}
+
+COutPoint CSparkTxout::GetOutpoint() const {
+    assert(meta.has_value());
+    assert(pwallet);
+    assert(pwallet->sparkWallet);
+    AssertLockHeld(pwallet->cs_wallet);
+
+    CWalletTx wtx = pwallet->mapWallet.at(GetHash());
+    std::vector<uint8_t> serialContext = spark::getSerialContext(*wtx.tx);
+    uint32_t i = 0;
+    for (const CTxOut& txout: wtx.tx->vout) {
+        spark::Coin mintedCoinData(spark::Params::get_default());
+
+        spark::IdentifiedCoinData identifiedCoinData;
+        try {
+            spark::ParseSparkMintCoin(txout.scriptPubKey, mintedCoinData);
+            mintedCoinData.setSerialContext(serialContext);
+            identifiedCoinData = mintedCoinData.identify(pwallet->sparkWallet->viewKey);
+        } catch (const std::exception& e) {
+            continue;
+        }
+
+        if (identifiedCoinData.k == meta->k) {
+            return COutPoint(wtx.GetHash(), i);
+        }
+
+        i++;
+    }
+
+    // meta data is incorrect; this should never happen.
+    assert(false);
+}
+
+CAmount CSparkTxout::GetValue() const {
+    assert(pwallet);
+    assert(meta.has_value());
+
+    return meta->v;
+}
+
+CScript CSparkTxout::GetScriptPubkey() const {
+    assert(pwallet);
+    assert(meta.has_value());
+    AssertLockHeld(pwallet->cs_wallet);
+
+    COutPoint outpoint = GetOutpoint();
+    CWalletTx wtx = pwallet->mapWallet.at(outpoint.hash);
+    return wtx.tx->vout[outpoint.n].scriptPubKey;
+}
+
+size_t CSparkTxout::GetMarginalSpendSize(std::vector<CSparkTxout>& previousInputs) const {
+    assert(meta.has_value());
+
+    return 10000; // FIXME
+}
+
+bool CSparkTxout::IsMine(const CCoinControl* coinControl) const {
+    assert(meta.has_value());
+
+    // We'll only have meta information for our own mints.
+    return true;
+}
+
+bool CSparkTxout::IsSpendable() const {
+    assert(meta.has_value());
+    assert(pwallet);
+    assert(pwallet->sparkWallet);
+    AssertLockHeld(pwallet->sparkWallet->cs_spark_wallet);
+
+    if (meta.value().isUsed)
+        return false;
+
+    const std::unordered_map<int, spark::CSparkState::SparkCoinGroupInfo>& coinGroups =
+        spark::CSparkState::GetState()->GetCoinGroups();
+    return coinGroups.count(GetCoverSetId()) && coinGroups.at(GetCoverSetId()).nCoins > 1;
+}
+
+bool CSparkTxout::IsLocked() const {
+    assert(pwallet);
+    AssertLockHeld(pwallet->cs_wallet);
+
+    // This is done because it's somewhat expensive to determine what output index we are.
+    bool hasLocked = false;
+    for (size_t i = 0; i < pwallet->mapWallet.at(GetHash()).tx->vout.size(); i++) {
+        if (pwallet->IsLockedCoin(GetHash(), i)) {
+            hasLocked = true;
+            break;
+        }
+    }
+    if (!hasLocked)
+        return false;
+
+    COutPoint outpoint = GetOutpoint();
+    return pwallet->IsLockedCoin(outpoint.hash, outpoint.n);
+}
+
+bool CSparkTxout::IsAbandoned() const {
+    assert(pwallet);
+    AssertLockHeld(pwallet->cs_wallet);
+
+    return pwallet->mapWallet.at(GetHash()).isAbandoned();
+}
+
+bool CSparkTxout::IsCoinTypeCompatible(const CCoinControl* coinControl) const {
+    assert(meta.has_value());
+
+    if (!coinControl)
+        return true;
+    else if (coinControl->nCoinType == CoinType::ALL_COINS)
+        return true;
+    else if (coinControl->nCoinType == CoinType::ONLY_DENOMINATED)
+        assert(false); // This type is unused.
+    else if (coinControl->nCoinType == CoinType::ONLY_NOT1000IFMN)
+        return true;
+    else if (coinControl->nCoinType == CoinType::ONLY_NONDENOMINATED_NOT1000IFMN)
+        return true;
+    else if (coinControl->nCoinType == CoinType::ONLY_1000)
+        return false; // Mints are not eligible for masternode collateral.
+    else if (coinControl->nCoinType == CoinType::ONLY_PRIVATESEND_COLLATERAL)
+        assert(false); // This type is unused.
+    else if (coinControl->nCoinType == CoinType::ONLY_MINTS)
+        return true;
+    else if (coinControl->nCoinType == CoinType::WITH_MINTS)
+        return true;
+    else if (coinControl->nCoinType == CoinType::WITH_1000)
+        return true;
+    else
+        assert(false);
+}
+
+bool CSparkTxout::IsLLMQInstantSendLocked() const {
+    // We can't spend LLMQ instant send locked coins, so the caller shouldn't ask this question.
+    assert(false);
+}
+
+bool CSparkTxout::IsCoinBase() const {
+    assert(pwallet);
+    assert(meta.has_value());
+    AssertLockHeld(pwallet->cs_wallet);
+
+    return pwallet->mapWallet.at(GetHash()).IsCoinBase();
+}
+
+unsigned int CSparkTxout::GetDepthInMainChain() const {
+    assert(pwallet);
+    assert(meta.has_value());
+    AssertLockHeld(pwallet->cs_wallet);
+
+    return pwallet->mapWallet.at(GetHash()).GetDepthInMainChain();
+}
+
+uint64_t CSparkTxout::GetCoverSetId() const {
+    assert(meta.has_value());
+
+    return meta->nId;
+}
+
+spark::InputCoinData CSparkTxout::GetInputCoinData(spark::FullViewKey& fullViewKey,
+                                                   spark::CoverSetData& coverSetData) const {
+    assert(pwallet);
+    assert(meta.has_value());
+    AssertLockHeld(pwallet->cs_wallet);
+
+    spark::IdentifiedCoinData identifiedCoinData;
+    identifiedCoinData.i = meta.value().i;
+    identifiedCoinData.d = meta.value().d;
+    identifiedCoinData.v = meta.value().v;
+    identifiedCoinData.k = meta.value().k;
+    identifiedCoinData.memo = meta.value().memo;
+
+    spark::InputCoinData inputCoinData;
+    inputCoinData.cover_set_id = GetCoverSetId();
+    inputCoinData.v = meta.value().v;
+    inputCoinData.k = meta.value().k;
+
+    spark::RecoveredCoinData recoveredCoinData = meta.value().coin.recover(fullViewKey, identifiedCoinData);
+    inputCoinData.T = recoveredCoinData.T;
+    inputCoinData.s = recoveredCoinData.s;
+
+    inputCoinData.index = 0;
+    for (const spark::Coin& coin: coverSetData.cover_set) {
+        if (coin == meta.value().coin)
+            break;
+
+        inputCoinData.index++;
+    }
+
+    return inputCoinData;
+}
 
 CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 
@@ -995,354 +1190,259 @@ bool getIndex(const spark::Coin& coin, const std::vector<spark::Coin>& anonymity
     return false;
 }
 
+std::vector<CSparkTxout> CSparkWallet::GetSparkTxouts() const {
+    AssertLockHeld(cs_spark_wallet);
+
+    std::vector<CSparkTxout> txouts;
+    for (std::pair<uint256, CSparkMintMeta> meta: coinMeta)
+        txouts.emplace_back(pwalletMain, meta.second);
+
+    return txouts;
+}
+
+void CSparkWallet::GetCoverSetData(spark::CoverSetData& coverSetData, uint256& blockHash, uint256 txHash,
+                                   uint64_t coverSetId) const {
+    AssertLockHeld(cs_main);
+    AssertLockHeld(cs_spark_wallet);
+
+    coverSetData.cover_set.clear();
+    coverSetData.cover_set_representation.clear();
+    blockHash.SetNull();
+
+    spark::CSparkState *sparkState = spark::CSparkState::GetState();
+
+    std::vector<spark::Coin> set;
+    std::vector<unsigned char> setHash;
+    if (sparkState->GetCoinSetForSpend(&chainActive, chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), coverSetId,
+                                       blockHash, set, setHash) < 2)
+        throw std::runtime_error("Cover set must have at least 2 coins to be spendable.");
+
+    coverSetData.cover_set = set;
+    coverSetData.cover_set_representation = setHash;
+    coverSetData.cover_set_representation.insert(coverSetData.cover_set_representation.end(), txHash.begin(),
+                                                 txHash.end());
+}
+
+void CSparkWallet::CheckSparkTransactionSanity(
+    const CTransaction& tx,
+    const std::unordered_map<uint64_t, spark::CoverSetData>& coverSetData,
+    std::map<uint64_t, uint256>& idAndBlockHashes,
+    CAmount nFee
+) const {
+    CAmount vout = 0;
+    std::vector<spark::Coin> outCoins;
+    for (const CTxOut& txout: tx.vout) {
+        vout += txout.nValue;
+
+        if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+            spark::Coin coin;
+            spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
+            outCoins.emplace_back(coin);
+        }
+    }
+
+    spark::SpendTransaction spendTx = spark::ParseSparkSpend(tx);
+    spendTx.setBlockHashes(idAndBlockHashes);
+    spendTx.setCoverSets(coverSetData);
+    spendTx.setOutCoins(outCoins);
+    spendTx.setVout(vout);
+
+    std::unordered_map<uint64_t, std::vector<spark::Coin>> coverSetCoins;
+    for (const auto& it: coverSetData)
+        coverSetCoins[it.first] = it.second.cover_set;
+
+    if (!spendTx.verify(spendTx, coverSetCoins))
+        throw std::runtime_error("created invalid spark tx");
+
+    if (spendTx.getFee() != nFee)
+        throw std::runtime_error("created spark tx with unexpected fee");
+
+    int64_t txSize = GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
+
+    if (txSize * WITNESS_SCALE_FACTOR >= MAX_NEW_TX_WEIGHT)
+        throw std::runtime_error("Transaction too large");
+
+    if (nFee < minRelayTxFee.GetFee(txSize))
+        throw std::runtime_error("Created spark tx with less than minimum relay fee");
+
+    if (nFee > maxTxFee)
+        throw std::runtime_error("Created spark tx with more than maximum fee");
+}
+
 CWalletTx CSparkWallet::CreateSparkSpendTransaction(
-        const std::vector<CRecipient>& recipients,
-        const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
-        CAmount &fee,
-        const CCoinControl *coinControl) {
+    const std::vector<CRecipient>& recipients,
+    const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
+    CAmount &fee,
+    const CCoinControl *coinControl)
+{
+    size_t SPARK_FIRST_MINT_SIZE = 311;
+    size_t SPARK_SUBSEQUENT_MINT_SIZE = 301;
+    const Consensus::Params& params = Params().GetConsensus();
+    const spark::Params* sparkParams = spark::Params::get_default();
 
-    if (recipients.empty() && privateRecipients.empty()) {
-        throw std::runtime_error(_("Either recipients or newMints has to be nonempty."));
+    AssertLockHeld(cs_main);
+    AssertLockHeld(cs_spark_wallet);
+    AssertLockHeld(pwalletMain->cs_wallet);
+
+    if (pwalletMain->IsLocked())
+        throw std::runtime_error("Wallet is locked.");
+
+    if (recipients.empty() && privateRecipients.empty())
+        throw std::runtime_error("Either recipients or newMints has to be non-empty.");
+
+    if (privateRecipients.size() >= params.nMaxSparkOutLimitPerTx - 1)
+        throw std::runtime_error("Spark shielded output limit exceeded.");
+
+    size_t nConstantSize = 4 + // version
+        GetSizeOfCompactSize(recipients.size() + privateRecipients.size()) + // This is a varint representing the
+                                                                             // number of outputs. In the event that
+                                                                             // there are 0xfc outputs and a change
+                                                                             // output is not required we will pay the
+                                                                             // fee for one extra byte.
+        4; // locktime
+
+    if (!privateRecipients.empty())
+        nConstantSize += 8 + GetSizeOfCompactSize(SPARK_FIRST_MINT_SIZE) + SPARK_FIRST_MINT_SIZE;
+    if (privateRecipients.size() > 1)
+        nConstantSize +=
+            (8 + GetSizeOfCompactSize(SPARK_SUBSEQUENT_MINT_SIZE) + SPARK_SUBSEQUENT_MINT_SIZE) *
+            (privateRecipients.size() - 1);
+
+    size_t nRecipientsToSubtractFee = 0;
+    CAmount nRequired = 0;
+
+    for (const CRecipient& recipient: recipients) {
+        nRequired += recipient.nAmount;
+        nConstantSize += 8 + GetSizeOfCompactSize(recipient.scriptPubKey.size()) + recipient.scriptPubKey.size();
+
+        if (recipient.fSubtractFeeFromAmount)
+            nRecipientsToSubtractFee++;
     }
 
-    const auto &consensusParams = Params().GetConsensus();
-    if (privateRecipients.size() >= (consensusParams.nMaxSparkOutLimitPerTx - 1))
-        throw std::runtime_error(_("Spark shielded output limit exceeded."));
+    for (const std::pair<spark::OutputCoinData, bool>& privateRecipient: privateRecipients) {
+        nRequired += privateRecipient.first.v;
 
-    // calculate total value to spend
-    CAmount vOut = 0;
-    CAmount mintVOut = 0;
-    unsigned recipientsToSubtractFee = 0;
+        if (privateRecipient.second)
+            nRecipientsToSubtractFee++;
+    }
 
-    for (size_t i = 0; i < recipients.size(); i++) {
-        auto& recipient = recipients[i];
+    std::vector<CSparkTxout> selectedTxos;
+    CAmount nCollectedRet = 0;
+    pwalletMain->GetInputsForTx(GetSparkTxouts(), selectedTxos, fee, nCollectedRet, nRequired, nConstantSize,
+                                coinControl, false, nRecipientsToSubtractFee > 0, false, SPARK_SUBSEQUENT_MINT_SIZE);
 
-        if (!MoneyRange(recipient.nAmount)) {
-            throw std::runtime_error(boost::str(boost::format(_("Recipient has invalid amount")) % i));
+    // Input coins must be sorted by group id in ascending order in spark::SpendTransaction's constructor.
+    std::sort(selectedTxos.begin(), selectedTxos.end(), [](const CSparkTxout& a, const CSparkTxout& b) -> bool {
+        return a.GetCoverSetId() < b.GetCoverSetId();
+    });
+
+    CMutableTransaction txNew;
+    // Because we use Dandelion, we want to delay nLockTime for all transactions, not just 10% of them. Fee sniping is
+    // not an issue due to chain locks.
+    if (chainActive[101]) txNew.nLockTime = chainActive.Height() - GetRandInt(100);
+    else txNew.nLockTime = 0;
+
+    CScript inScript;
+    inScript << OP_SPARKSPEND;
+    txNew.vin.emplace_back(CTxIn(COutPoint(), inScript, CTxIn::SEQUENCE_FINAL));
+
+    txNew.nVersion = 3;
+    txNew.nType = TRANSACTION_SPARK;
+
+    std::vector<spark::OutputCoinData> sparkOutputs;
+    for (const std::pair<spark::OutputCoinData, bool>& privateRecipient: privateRecipients) {
+        spark::OutputCoinData sparkOutput = privateRecipient.first;
+
+        if (privateRecipient.second) {
+            CAmount toSubtract = fee / nRecipientsToSubtractFee;
+            if (sparkOutputs.empty())
+                toSubtract += fee % nRecipientsToSubtractFee;
+
+            if (toSubtract >= sparkOutput.v)
+                throw std::runtime_error("Recipient amount is too small to subtract fee from.");
+
+            sparkOutput.v -= toSubtract;
         }
 
-        vOut += recipient.nAmount;
+        sparkOutputs.emplace_back(sparkOutput);
+    }
 
+    CAmount nTransparentOut = 0;
+    for (const CRecipient& recipient: recipients) {
+        CAmount nOut = recipient.nAmount;
         if (recipient.fSubtractFeeFromAmount) {
-            recipientsToSubtractFee++;
+            CAmount toSubtract = fee / nRecipientsToSubtractFee;
+            if (toSubtract > nOut)
+                throw std::runtime_error("Recipient amount is too small to subtract fee from.");
+
+            nOut -= toSubtract;
         }
+
+        txNew.vout.emplace_back(nOut, recipient.scriptPubKey);
+        nTransparentOut += nOut;
     }
 
-    for (const auto& privRecipient : privateRecipients) {
-        mintVOut += privRecipient.first.v;
-        if (privRecipient.second) {
-            recipientsToSubtractFee++;
+    std::vector<spark::InputCoinData> sparkInputData;
+    std::map<uint64_t, uint256> idAndBlockHashes;
+    std::unordered_map<uint64_t, spark::CoverSetData> coverSetData;
+    for (const CSparkTxout& txout: selectedTxos) {
+        uint64_t coverSetId = txout.GetCoverSetId();
+
+        if (!coverSetData.count(coverSetId)) {
+            uint256 blockHash;
+            spark::CoverSetData coverSet;
+            GetCoverSetData(coverSet, blockHash, txNew.GetHash(), coverSetId);
+
+            coverSetData[coverSetId] = coverSet;
+            idAndBlockHashes[coverSetId] = blockHash;
         }
+
+        sparkInputData.emplace_back(txout.GetInputCoinData(fullViewKey, coverSetData[coverSetId]));
     }
 
-    if (vOut > consensusParams.nMaxValueSparkSpendPerTransaction)
-        throw std::runtime_error(_("Spend to transparent address limit exceeded (10,000 Firo per transaction)."));
+    CAmount nChange = nCollectedRet - nRequired - (nRecipientsToSubtractFee > 0 ? 0 : fee);
+    if (nChange > 0) {
+        spark::OutputCoinData changeCoin;
+        changeCoin.address = getChangeAddress();
+        changeCoin.v = nChange;
+        sparkOutputs.emplace_back(changeCoin);
+    }
 
-    std::vector<CWalletTx> result;
-    std::vector<CMutableTransaction> txs;
+    spark::SpendTransaction spendTransaction(sparkParams, fullViewKey, generateSpendKey(sparkParams), sparkInputData,
+                                             coverSetData, fee, nTransparentOut, sparkOutputs);
+    spendTransaction.setBlockHashes(idAndBlockHashes);
+
+
+    std::unordered_map<uint64_t, std::vector<spark::Coin>> coverSetCoins;
+    for (const auto& it: coverSetData)
+        coverSetCoins[it.first] = it.second.cover_set;
+
+    assert(spendTransaction.verify(spendTransaction, coverSetCoins));
+
+    CDataStream extraPayloadSerialized(SER_NETWORK, PROTOCOL_VERSION);
+    extraPayloadSerialized << spendTransaction;
+    txNew.vExtraPayload.assign(extraPayloadSerialized.begin(), extraPayloadSerialized.end());
+
+    for (const spark::Coin& outCoin: spendTransaction.getOutCoins()) {
+        CDataStream coinSerialized(SER_NETWORK, PROTOCOL_VERSION);
+        coinSerialized << outCoin;
+
+        CScript script;
+        script << OP_SPARKSMINT;
+        script.insert(script.end(), coinSerialized.begin(), coinSerialized.end());
+
+        txNew.vout.emplace_back(0, script);
+    }
+
     CWalletTx wtxNew;
-    CMutableTransaction tx;
-    wtxNew.fTimeReceivedIsTxTime = true;
     wtxNew.BindWallet(pwalletMain);
+    wtxNew.SetTx(MakeTransactionRef(std::move(txNew)));
+    wtxNew.fFromMe = true;
+    wtxNew.fTimeReceivedIsTxTime = true;
+    if (nChange > 0)
+        wtxNew.changes.emplace(wtxNew.tx->vout.size() - 1);
 
-
-    // Discourage fee sniping.
-    //
-    // For a large miner the value of the transactions in the best block and
-    // the mempool can exceed the cost of deliberately attempting to mine two
-    // blocks to orphan the current best block. By setting nLockTime such that
-    // only the next block can include the transaction, we discourage this
-    // practice as the height restricted and limited blocksize gives miners
-    // considering fee sniping fewer options for pulling off this attack.
-    //
-    // A simple way to think about this is from the wallet's point of view we
-    // always want the blockchain to move forward. By setting nLockTime this
-    // way we're basically making the statement that we only want this
-    // transaction to appear in the next block; we don't want to potentially
-    // encourage reorgs by allowing transactions to appear at lower heights
-    // than the next block in forks of the best chain.
-    //
-    // Of course, the subsidy is high enough, and transaction volume low
-    // enough, that fee sniping isn't a problem yet, but by implementing a fix
-    // now we ensure code won't be written that makes assumptions about
-    // nLockTime that preclude a fix later.
-    tx.nLockTime = chainActive.Height();
-
-    // Secondly occasionally randomly pick a nLockTime even further back, so
-    // that transactions that are delayed after signing for whatever reason,
-    // e.g. high-latency mix networks and some CoinJoin implementations, have
-    // better privacy.
-    if (GetRandInt(10) == 0) {
-        tx.nLockTime = std::max(0, static_cast<int>(tx.nLockTime) - GetRandInt(100));
-    }
-
-    assert(tx.nLockTime <= static_cast<unsigned>(chainActive.Height()));
-    assert(tx.nLockTime < LOCKTIME_THRESHOLD);
-    std::list<CSparkMintMeta> coins = GetAvailableSparkCoins(coinControl);
-
-    std::pair<CAmount, std::vector<CSparkMintMeta>> estimated =
-            SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size(), recipients.size(), coinControl);
-
-    std::vector<CRecipient> recipients_ = recipients;
-    std::vector<std::pair<spark::OutputCoinData, bool>> privateRecipients_ = privateRecipients;
-    {
-        bool remainderSubtracted = false;
-        fee = estimated.first;
-        for (size_t i = 0; i < recipients_.size(); i++) {
-            auto &recipient = recipients_[i];
-
-            if (recipient.fSubtractFeeFromAmount) {
-                // Subtract fee equally from each selected recipient.
-                recipient.nAmount -= fee / recipientsToSubtractFee;
-
-                if (!remainderSubtracted) {
-                    // First receiver pays the remainder not divisible by output count.
-                    recipient.nAmount -= fee % recipientsToSubtractFee;
-                    remainderSubtracted = true;
-                }
-            }
-        }
-
-        for (size_t i = 0; i < privateRecipients_.size(); i++) {
-            auto &privateRecipient = privateRecipients_[i];
-
-            if (privateRecipient.second) {
-                // Subtract fee equally from each selected recipient.
-                privateRecipient.first.v -= fee / recipientsToSubtractFee;
-
-                if (!remainderSubtracted) {
-                    // First receiver pays the remainder not divisible by output count.
-                    privateRecipient.first.v -= fee % recipientsToSubtractFee;
-                    remainderSubtracted = true;
-                }
-            }
-        }
-
-    }
-
-    {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
-        {
-            const spark::Params* params = spark::Params::get_default();
-            spark::CSparkState *sparkState = spark::CSparkState::GetState();
-            spark::SpendKey spendKey(params);
-            try {
-                spendKey = std::move(generateSpendKey(params));
-            } catch (std::exception& e) {
-                throw std::runtime_error(_("Unable to generate spend key."));
-            }
-
-            if (spendKey == spark::SpendKey(params))
-                throw std::runtime_error(_("Unable to generate spend key, looks wallet locked."));
-
-
-            tx.vin.clear();
-            tx.vout.clear();
-            wtxNew.fFromMe = true;
-            wtxNew.changes.clear();
-
-            CAmount spendInCurrentTx = 0;
-            for (auto& spendCoin : estimated.second)
-                spendInCurrentTx += spendCoin.v;
-            spendInCurrentTx -= fee;
-
-            uint64_t transparentOut = 0;
-            // fill outputs
-            for (size_t i = 0; i < recipients_.size(); i++) {
-                auto& recipient = recipients_[i];
-                if (recipient.nAmount == 0)
-                    continue;
-
-                CTxOut vout(recipient.nAmount, recipient.scriptPubKey);
-
-                if (vout.IsDust(minRelayTxFee)) {
-                    std::string err;
-
-                    if (recipient.fSubtractFeeFromAmount && fee > 0) {
-                        if (vout.nValue < 0) {
-                            err = boost::str(boost::format(_("Amount for recipient %1% is too small to pay the fee")) % i);
-                        } else {
-                            err = boost::str(boost::format(_("Amount for recipient %1% is too small to send after the fee has been deducted")) % i);
-                        }
-                    } else {
-                        err = boost::str(boost::format(_("Amount for recipient %1% is too small")) % i);
-                    }
-
-                    throw std::runtime_error(err);
-                }
-
-                transparentOut += vout.nValue;
-                tx.vout.push_back(vout);
-            }
-
-            spendInCurrentTx -= transparentOut;
-            std::vector<spark::OutputCoinData> privOutputs;
-            // fill outputs
-            for (size_t i = 0; i < privateRecipients_.size(); i++) {
-                auto& recipient = privateRecipients_[i];
-                if (recipient.first.v == 0)
-                    continue;
-
-                CAmount recipientAmount = recipient.first.v;
-                spendInCurrentTx -= recipientAmount;
-                spark::OutputCoinData output = recipient.first;
-                output.v = recipientAmount;
-                privOutputs.push_back(output);
-            }
-
-            if (spendInCurrentTx < 0)
-                throw std::invalid_argument(_("Unable to create spend transaction."));
-
-            if (!privOutputs.size() || spendInCurrentTx > 0) {
-                spark::OutputCoinData output;
-                output.address = getChangeAddress();
-                output.memo = "";
-                if (spendInCurrentTx > 0)
-                    output.v = spendInCurrentTx;
-                else
-                    output.v = 0;
-                wtxNew.changes.insert(static_cast<uint32_t>(tx.vout.size() + privOutputs.size()));
-                privOutputs.push_back(output);
-            }
-
-
-            // fill inputs
-            uint32_t sequence = CTxIn::SEQUENCE_FINAL;
-            CScript script;
-            script << OP_SPARKSPEND;
-            tx.vin.emplace_back(COutPoint(), script, sequence);
-
-            // clear vExtraPayload to calculate metadata hash correctly
-            tx.vExtraPayload.clear();
-
-            // set correct type of transaction (this affects metadata hash)
-            tx.nVersion = 3;
-            tx.nType = TRANSACTION_SPARK;
-
-            // now every field is populated then we can sign transaction
-            // We will write this into cover set representation, with anonymity set hash
-            uint256 sig = tx.GetHash();
-
-            std::vector<spark::InputCoinData> inputs;
-            std::map<uint64_t, uint256> idAndBlockHashes;
-            std::unordered_map<uint64_t, spark::CoverSetData> cover_set_data;
-            for (auto& coin : estimated.second) {
-                spark::CSparkState::SparkCoinGroupInfo nextCoinGroupInfo;
-                uint64_t groupId = coin.nId;
-                if (sparkState->GetLatestCoinID() > groupId && sparkState->GetCoinGroupInfo(groupId + 1, nextCoinGroupInfo)) {
-                    if (nextCoinGroupInfo.firstBlock->nHeight <= coin.nHeight)
-                        groupId += 1;
-                }
-
-                if (cover_set_data.count(groupId) == 0) {
-                    std::vector<spark::Coin> set;
-                    uint256 blockHash;
-                    std::vector<unsigned char> setHash;
-                    if (sparkState->GetCoinSetForSpend(
-                            &chainActive,
-                            chainActive.Height() -
-                            (ZC_MINT_CONFIRMATIONS - 1), // required 1 confirmation for mint to spend
-                            groupId,
-                            blockHash,
-                            set,
-                            setHash) < 2)
-                        throw std::runtime_error(
-                                _("Has to have at least two mint coins with at least 1 confirmation in order to spend a coin"));
-
-                    spark::CoverSetData coverSetData;
-                    coverSetData.cover_set = set;
-                    coverSetData.cover_set_representation = setHash;
-                    coverSetData.cover_set_representation.insert(coverSetData.cover_set_representation.end(), sig.begin(), sig.end());
-                    cover_set_data[groupId] = coverSetData;
-                    idAndBlockHashes[groupId] = blockHash;
-                }
-
-
-                spark::InputCoinData inputCoinData;
-                inputCoinData.cover_set_id = groupId;
-                std::size_t index = 0;
-                if (!getIndex(coin.coin, cover_set_data[groupId].cover_set, index))
-                    throw std::runtime_error(
-                            _("No such coin in set"));
-                inputCoinData.index = index;
-                inputCoinData.v = coin.v;
-                inputCoinData.k = coin.k;
-
-                spark::IdentifiedCoinData identifiedCoinData;
-                identifiedCoinData.i = coin.i;
-                identifiedCoinData.d = coin.d;
-                identifiedCoinData.v = coin.v;
-                identifiedCoinData.k = coin.k;
-                identifiedCoinData.memo = coin.memo;
-                spark::RecoveredCoinData recoveredCoinData = coin.coin.recover(fullViewKey, identifiedCoinData);
-
-                inputCoinData.T = recoveredCoinData.T;
-                inputCoinData.s = recoveredCoinData.s;
-                inputs.push_back(inputCoinData);
-
-            }
-
-            spark::SpendTransaction spendTransaction(params, fullViewKey, spendKey, inputs, cover_set_data, fee, transparentOut, privOutputs);
-            spendTransaction.setBlockHashes(idAndBlockHashes);
-            CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
-            serialized << spendTransaction;
-            tx.vExtraPayload.assign(serialized.begin(), serialized.end());
-
-
-            const std::vector<spark::Coin>& outCoins = spendTransaction.getOutCoins();
-            for (auto& outCoin : outCoins) {
-                // construct spend script
-                CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
-                serialized << outCoin;
-                CScript script;
-                script << OP_SPARKSMINT;
-                script.insert(script.end(), serialized.begin(), serialized.end());
-                tx.vout.push_back(CTxOut(0, script));
-            }
-
-            // check fee
-            wtxNew.SetTx(MakeTransactionRef(std::move(tx)));
-
-            if (GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT) {
-                throw std::runtime_error(_("Transaction too large"));
-            }
-
-            // check fee
-            unsigned size = GetVirtualTransactionSize(tx);
-            CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
-
-            // If we made it here and we aren't even able to meet the relay fee on the next pass, give up
-            // because we must be at the maximum allowed fee.
-            if (feeNeeded < minRelayTxFee.GetFee(size)) {
-                throw std::invalid_argument(_("Transaction too large for fee policy"));
-            }
-
-            if (fee < feeNeeded) {
-                throw std::invalid_argument(_("Not enough fee estimated"));
-            }
-
-                result.push_back(wtxNew);
-        }
-    }
-
-    if (GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS)) {
-        // Lastly, ensure this tx will pass the mempool's chain limits
-        size_t nLimitAncestors = GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
-        size_t nLimitAncestorSize = GetArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT) * 1000;
-        size_t nLimitDescendants = GetArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT);
-        size_t nLimitDescendantSize = GetArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT) * 1000;
-        std::string errString;
-
-        for (auto &tx_: txs) {
-            LockPoints lp;
-            CTxMemPoolEntry entry(MakeTransactionRef(tx_), 0, 0, 0, 0, false, 0, lp);
-            CTxMemPool::setEntries setAncestors;
-            if (!mempool.CalculateMemPoolAncestors(entry, setAncestors, nLimitAncestors, nLimitAncestorSize,
-                                                   nLimitDescendants, nLimitDescendantSize, errString)) {
-                throw std::runtime_error(_("Transaction has too long of a mempool chain"));
-            }
-        }
-    }
+    CheckSparkTransactionSanity(*wtxNew.tx, coverSetData, idAndBlockHashes, fee);
 
     return wtxNew;
 }
