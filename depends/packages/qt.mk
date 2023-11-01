@@ -11,7 +11,7 @@ $(package)_linguist_tools = lrelease lupdate lconvert
 $(package)_patches = qt.pro qttools_src.pro
 $(package)_patches += fix_qt_pkgconfig.patch mac-qmake.conf fix_no_printer.patch no-xlib.patch
 $(package)_patches += support_new_android_ndks.patch fix_android_jni_static.patch dont_hardcode_pwd.patch
-$(package)_patches += dont_hardcode_x86_64.patch no_sdk_version_check.patch
+$(package)_patches += dont_hardcode_x86_64.patch no_sdk_version_check.patch fix_sonoma_qmake.patch
 $(package)_patches+= fix_lib_paths.patch fix_android_pch.patch
 $(package)_patches+= qtbase-moc-ignore-gcc-macro.patch fix_limits_header.patch
 $(package)_patches+= fix_montery_include.patch
@@ -233,6 +233,7 @@ define $(package)_preprocess_cmds
   patch -p1 -i $($(package)_patch_dir)/qtbase-moc-ignore-gcc-macro.patch && \
   patch -p1 -i $($(package)_patch_dir)/fix_limits_header.patch && \
   patch -p1 -i $($(package)_patch_dir)/fix_montery_include.patch && \
+  patch -p1 -i $($(package)_patch_dir)/fix_sonoma_qmake.patch && \
   mkdir -p qtbase/mkspecs/macx-clang-linux &&\
   cp -f qtbase/mkspecs/macx-clang/qplatformdefs.h qtbase/mkspecs/macx-clang-linux/ &&\
   cp -f $($(package)_patch_dir)/mac-qmake.conf qtbase/mkspecs/macx-clang-linux/qmake.conf && \
