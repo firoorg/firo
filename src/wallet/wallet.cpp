@@ -70,6 +70,7 @@ bool fSendFreeTransactions = DEFAULT_SEND_FREE_TRANSACTIONS;
 bool fWalletRbf = DEFAULT_WALLET_RBF;
 
 const char * DEFAULT_WALLET_DAT = "wallet.dat";
+boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
 
 /**
  * Fees smaller than this (in satoshi) are considered zero fee (for transaction creation)
@@ -510,6 +511,9 @@ void CWallet::RequestUnlock() {
         return;
 
     LogPrintf("Requesting wallet unlock\n");
+    UnlockWallet(this);
+    printf("Please unlock the wallet with your passphrase to allow spark wallet be created\nYou need to do this only one time.\n");
+
     fUnlockRequested.store(true);
 }
 
@@ -5788,6 +5792,8 @@ CWalletTx CWallet::SpendAndStoreSpark(
 
 bool CWallet::LelantusToSpark(std::string& strFailReason) {
     std::list<CLelantusEntry> coins = GetAvailableLelantusCoins();
+    std::list<CSigmaEntry> sigmaCoins = GetAvailableCoins();
+
     CScript scriptChange;
     {
         // Reserve a new key pair from key pool
@@ -5803,21 +5809,29 @@ bool CWallet::LelantusToSpark(std::string& strFailReason) {
         scriptChange = GetScriptForDestination(vchPubKey.GetID());
     }
 
-    while (coins.size() > 0) {
+    while (coins.size() > 0 || sigmaCoins.size() > 0) {
         bool addMoreCoins = true;
         std::size_t selectedNum = 0;
         CCoinControl coinControl;
         CAmount spendValue = 0;
         while (true) {
-            auto coin = coins.begin();
             COutPoint outPoint;
-            lelantus::GetOutPoint(outPoint, coin->value);
-            coinControl.Select(outPoint);
-            spendValue += coin->amount;
-            selectedNum ++;
-            coins.erase(coin);
-             if (!coins.size())
-                 break;
+            if (sigmaCoins.size() > 0) {
+                auto coin = sigmaCoins.begin();
+                sigma::GetOutPoint(outPoint, coin->value);
+                coinControl.Select(outPoint);
+                spendValue += coin->get_denomination_value();
+                selectedNum++;
+                sigmaCoins.erase(coin);
+            } else if (coins.size() > 0) {
+                auto coin = coins.begin();
+                lelantus::GetOutPoint(outPoint, coin->value);
+                coinControl.Select(outPoint);
+                spendValue += coin->amount;
+                selectedNum++;
+                coins.erase(coin);
+            } else
+                break;
 
              if ((spendValue + coins.begin()->amount) > Params().GetConsensus().nMaxValueLelantusSpendPerTransaction)
                  break;
