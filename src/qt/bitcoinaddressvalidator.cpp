@@ -110,7 +110,7 @@ bool BitcoinAddressCheckValidator::validateSparkAddress(const std::string& addre
     spark::Address addr(params);
     try {
         coinNetwork = addr.decode(address);
-    } catch (...) {
+    } catch (const std::invalid_argument &) {
         return false;
     }
     return network == coinNetwork;
