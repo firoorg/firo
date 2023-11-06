@@ -1,8 +1,19 @@
 # Fuzzing libspark
 
 ## Quickstart Guide
-### Dependencies
-1. Install honggfuzz (https://github.com/google/honggfuzz)
+To quickly get started fuzzing libspark using honggfuzz:
+
+### Build firo
+- clone this repo:
+```
+git clone -b spark https://github.com/firoorg/firo.git
+```
+- Build firo: Follow instruction from https://github.com/firoorg/firo/tree/spark#readme
+
+Once the build is successful, we have to install honggfuzz and required dependencies.
+
+### Installing fuzzer and Dependencies
+- Install honggfuzz (https://github.com/google/honggfuzz)
 ```
 sudo apt-get install binutils-dev libunwind-dev libblocksruntime-dev clang
 git clone https://github.com/google/honggfuzz.git
@@ -10,61 +21,73 @@ cd honggfuzz
 make
 sudo make install
 ```
+For more information you can look at https://github.com/google/honggfuzz/blob/master/docs/USAGE.md
 
-2. Build firo: 
+You might also need to install the following boost and ssl dependencies in order to compile the fuzzing harness:
 
-Follow the instructions from https://github.com/firoorg/firo/tree/spark#readme
+```
+sudo apt install libboost-dev
+sudo apt install libssl-dev
+sudo apt install libstdc++-12-dev
+sudo apt install libboost-filesystem-dev
+sudo apt install libboost-thread-dev
+sudo apt install libboost-program-options-dev
+sudo apt install libboost-chrono-dev
+```
 
 ### Fuzzing using honggfuzz
 * In order to fuzz `firo/src/libpark` using Honggfuzz:
 
 ```
-git clone -b spark_fuzz_blog https://github.com/hashcloak/firo.git
 cd firo/src/fuzz/
 export CC=hfuzz-clang
 export CXX=hfuzz-clang++
 ```
 
-To compile with `hfuzz-clang++`:
+To compile with `hfuzz-clang++`, inside src/fuzz run:
 
 ```
-cd src/fuzz/
 make <filename>
 ```
 
 For example(for bpplus):
 ```
-cd src/fuzz/
 make bpplus
 ```
 The above command will generate an instrumented binary with name `<filename>_hfuzz` (eg: bpplus_hfuzz) inside src/fuzz/libspark.
+
 The fuzzing harness of the following spark files is availabe: aead, bech32, bpplus, chaum, coin, f4grumble, grootle, mint_transaction, schnorr and spend_transaction.
 
 * To start fuzzing:
 
-1. create a directory to save all the crahses.
-2. Inside the directory run:
+1. create directories for input corpora and for saving all the crashes
 ```
-hongfuzz -i <path_of_input_corpora>/<filename_inputs> -- ./<filename_hfuzz> ___FILE___
+mkdir input crashes
+```
+2. Inside the crashes directory run:
+```
+honggfuzz -i input -- ./libspark/<filename>_hfuzz ___FILE___
 ```
 
 example: 
-1. `mkdir src/fuzz/bpplus_results && cd src/fuzz/bpplus_results`
-2. `hongfuzz -i ../../inputs/bpplus_inputs -- ./../../libspark/bpplus_hfuzz ___FILE___`
+1. `mkdir input crashes`
+2. `cd crashes`
+2. `honggfuzz -i ../input -- ./../libspark/bpplus_hfuzz ___FILE___`
 3. To stop press `ctrl+c`
 
-If there is no input corpora, empty corpora can be provided.
+Here we are providing an empty corpora. In case of an already available corpora, we can provide the availabe corpora.
+The flag `-i` is for the input folder which we are providing `./../<filename>_hfuzz>` is the target binary which we want to fuzz.
 
 ### Analyzing the crashes
 
-If there is a crash, the reason for the crash can be found simply by running 
+If there is a crash, the reason for the crash can be found in HONGGFUZZ.REPORT.TXT or simply by running 
 ```
-./<binary_file> <input_file>
+./libspark/<binary_file> <input_file>
 ```
 
 Example:
 ```
-./bpplus_hfuzz SIGABRT.PC.7ffff7a8400b.STACK.1b5b5f0067.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax
+./libspark/bpplus_hfuzz SIGABRT.PC.7ffff7a8400b.STACK.1b5b5f0067.CODE.-6.ADDR.0.INSTR.mov____0x108(%rsp),%rax
 ```
 
 To debug or to do the rootcause analysis, gdb debugger can be used. to debug using gdb debugger:
