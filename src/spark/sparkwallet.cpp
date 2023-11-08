@@ -72,7 +72,60 @@ CScript CSparkTxout::GetScriptPubkey() const {
 size_t CSparkTxout::GetMarginalSpendSize(std::vector<CSparkTxout>& previousInputs) const {
     assert(meta.has_value());
 
-    return 10000; // FIXME
+    std::map<uint64_t, size_t> nCoverSetsMap;
+    nCoverSetsMap[GetCoverSetId()] = 1;
+    for (const CSparkTxout& input: previousInputs) {
+        if (nCoverSetsMap.count(input.GetCoverSetId()))
+            nCoverSetsMap[input.GetCoverSetId()]++;
+        else
+            nCoverSetsMap[input.GetCoverSetId()] = 1;
+    }
+    bool fNewCoverSetId = nCoverSetsMap[GetCoverSetId()] == 1;
+
+    size_t fixedSize =
+        8 + // f
+        66 + // balance_proof
+        608 + // range_proof
+        34 + // chaum_proof: A1
+        32 * 2; // chaum_proof: t2, t3
+
+    size_t marginalSize =
+        34 + // chaum_proof: A2
+        32 + // chaum_proof: t1
+        8 + // cover_set_id
+        34 + // S1
+        34 + // C1
+        34 + // T
+        1627; // grootle_proof
+
+    // sizes of cover_set_ids, S1, C1, T, grootle_proofs, chaum_proof.A2, chaum_proof.t1
+    size_t oldVarIntSizeA = GetSizeOfVarInt(previousInputs.size());
+    size_t newVarIntSizeA = GetSizeOfVarInt(previousInputs.size() + 1);
+
+    // size of set_id_blockhash
+    size_t oldVarIntSizeB = GetSizeOfVarInt(nCoverSetsMap.size() - (int)fNewCoverSetId);
+    size_t newVarIntSizeB = GetSizeOfVarInt(nCoverSetsMap.size());
+
+    size_t oldCoverSetSize = oldVarIntSizeB + (nCoverSetsMap.size() - (int)fNewCoverSetId) * 40;
+    size_t newCoverSetSize = newVarIntSizeB + nCoverSetsMap.size() * 40;
+
+    size_t oldSerializeSize = (int)!previousInputs.empty() * (
+        fixedSize +
+        previousInputs.size() * marginalSize +
+        oldVarIntSizeA * 7 +
+        oldCoverSetSize
+    );
+    if (oldSerializeSize)
+        oldSerializeSize += GetSizeOfVarInt(oldSerializeSize);
+
+    size_t newSerializeSize =
+        fixedSize +
+        (previousInputs.size() + 1) * marginalSize +
+        newVarIntSizeA * 7 +
+        newCoverSetSize;
+    newSerializeSize += GetSizeOfVarInt(newSerializeSize);
+
+    return newSerializeSize - oldSerializeSize;
 }
 
 bool CSparkTxout::IsMine(const CCoinControl* coinControl) const {
@@ -1227,8 +1280,22 @@ void CSparkWallet::CheckSparkTransactionSanity(
     const CTransaction& tx,
     const std::unordered_map<uint64_t, spark::CoverSetData>& coverSetData,
     std::map<uint64_t, uint256>& idAndBlockHashes,
+    const CCoinControl* coinControl,
     CAmount nFee
 ) const {
+    size_t txSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
+
+    if (txSize * WITNESS_SCALE_FACTOR > MAX_STANDARD_TX_WEIGHT)
+        throw std::runtime_error("Transaction too large");
+
+    if (coinControl && coinControl->nMaxSize && txSize > coinControl->nMaxSize)
+        throw std::runtime_error("We made a transaction exceeding coinControl->nMaxSize. This is a bug.");
+
+    CAmount calculatedFee = pwalletMain->GetFee(coinControl, txSize);
+
+    if (nFee != calculatedFee)
+        throw std::runtime_error("We incorrectly calculated the fee for a spark spend. This is a bug.");
+
     CAmount vout = 0;
     std::vector<spark::Coin> outCoins;
     for (const CTxOut& txout: tx.vout) {
@@ -1257,16 +1324,8 @@ void CSparkWallet::CheckSparkTransactionSanity(
     if (spendTx.getFee() != nFee)
         throw std::runtime_error("created spark tx with unexpected fee");
 
-    int64_t txSize = GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
-
-    if (txSize * WITNESS_SCALE_FACTOR >= MAX_NEW_TX_WEIGHT)
-        throw std::runtime_error("Transaction too large");
-
-    if (nFee < minRelayTxFee.GetFee(txSize))
-        throw std::runtime_error("Created spark tx with less than minimum relay fee");
-
-    if (nFee > maxTxFee)
-        throw std::runtime_error("Created spark tx with more than maximum fee");
+    if (coinControl && coinControl->nMaxInputs && spendTx.getUsedLTags().size() > coinControl->nMaxInputs)
+        throw std::runtime_error("We made a transaction exceeding coinControl->nMaxInputs. This is a bug.");
 }
 
 CWalletTx CSparkWallet::CreateSparkSpendTransaction(
@@ -1275,8 +1334,9 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     CAmount &fee,
     const CCoinControl *coinControl)
 {
-    size_t SPARK_FIRST_MINT_SIZE = 311;
-    size_t SPARK_SUBSEQUENT_MINT_SIZE = 301;
+    size_t SPARK_MINT_SCRIPT_SIZE = 245;
+    size_t SPARK_MINT_SIZE = 8 + GetSizeOfCompactSize(SPARK_MINT_SCRIPT_SIZE) + SPARK_MINT_SCRIPT_SIZE;
+
     const Consensus::Params& params = Params().GetConsensus();
     const spark::Params* sparkParams = spark::Params::get_default();
 
@@ -1288,25 +1348,21 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         throw std::runtime_error("Wallet is locked.");
 
     if (recipients.empty() && privateRecipients.empty())
-        throw std::runtime_error("Either recipients or newMints has to be non-empty.");
+        throw std::runtime_error("Either recipients or privateRecipients has to be non-empty.");
 
     if (privateRecipients.size() >= params.nMaxSparkOutLimitPerTx - 1)
         throw std::runtime_error("Spark shielded output limit exceeded.");
 
     size_t nConstantSize = 4 + // version
-        GetSizeOfCompactSize(recipients.size() + privateRecipients.size()) + // This is a varint representing the
-                                                                             // number of outputs. In the event that
-                                                                             // there are 0xfc outputs and a change
-                                                                             // output is not required we will pay the
-                                                                             // fee for one extra byte.
-        4; // locktime
-
-    if (!privateRecipients.empty())
-        nConstantSize += 8 + GetSizeOfCompactSize(SPARK_FIRST_MINT_SIZE) + SPARK_FIRST_MINT_SIZE;
-    if (privateRecipients.size() > 1)
-        nConstantSize +=
-            (8 + GetSizeOfCompactSize(SPARK_SUBSEQUENT_MINT_SIZE) + SPARK_SUBSEQUENT_MINT_SIZE) *
-            (privateRecipients.size() - 1);
+        GetSizeOfCompactSize(recipients.size() + privateRecipients.size() + 1) + // vout size
+        4 + // locktime
+        GetSizeOfCompactSize(1) + // vin size
+        32 + // spark input txid
+        4 + // spark input vout
+        GetSizeOfCompactSize(1) + // spark input script size
+        1 + // spark input script
+        4 + // spark input sequence
+        privateRecipients.size() * SPARK_MINT_SIZE;
 
     size_t nRecipientsToSubtractFee = 0;
     CAmount nRequired = 0;
@@ -1329,7 +1385,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     std::vector<CSparkTxout> selectedTxos;
     CAmount nCollectedRet = 0;
     pwalletMain->GetInputsForTx(GetSparkTxouts(), selectedTxos, fee, nCollectedRet, nRequired, nConstantSize,
-                                coinControl, false, nRecipientsToSubtractFee > 0, false, SPARK_SUBSEQUENT_MINT_SIZE);
+                                coinControl, false, nRecipientsToSubtractFee > 0, false, SPARK_MINT_SIZE);
 
     // Input coins must be sorted by group id in ascending order in spark::SpendTransaction's constructor.
     std::sort(selectedTxos.begin(), selectedTxos.end(), [](const CSparkTxout& a, const CSparkTxout& b) -> bool {
@@ -1412,7 +1468,6 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                                              coverSetData, fee, nTransparentOut, sparkOutputs);
     spendTransaction.setBlockHashes(idAndBlockHashes);
 
-
     std::unordered_map<uint64_t, std::vector<spark::Coin>> coverSetCoins;
     for (const auto& it: coverSetData)
         coverSetCoins[it.first] = it.second.cover_set;
@@ -1442,7 +1497,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     if (nChange > 0)
         wtxNew.changes.emplace(wtxNew.tx->vout.size() - 1);
 
-    CheckSparkTransactionSanity(*wtxNew.tx, coverSetData, idAndBlockHashes, fee);
+    CheckSparkTransactionSanity(*wtxNew.tx, coverSetData, idAndBlockHashes, coinControl, fee);
 
     return wtxNew;
 }

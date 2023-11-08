@@ -59,7 +59,7 @@ public:
 
 	static bool verify(const Params* params, const std::vector<SpendTransaction>& transactions, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
 	static bool verify(const SpendTransaction& transaction, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
-    
+
 	std::vector<unsigned char> hash_bind_inner(
 		const std::unordered_map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
         const std::vector<GroupElement>& C1,
@@ -107,7 +107,7 @@ public:
     void setBlockHashes(const std::map<uint64_t, uint256>& idAndHashes);
 
     const std::map<uint64_t, uint256>& getBlockHashes();
-private:
+public:
 	const Params* params;
     // We need to construct and pass this data before running verification
 	std::unordered_map<uint64_t, std::size_t> cover_set_sizes;

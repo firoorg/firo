@@ -175,6 +175,7 @@ public:
         const CTransaction& tx,
         const std::unordered_map<uint64_t, spark::CoverSetData>& coverSetData,
         std::map<uint64_t, uint256>& idAndBlockHashes,
+        const CCoinControl* coinControl,
         CAmount nFee) const;
     CWalletTx CreateSparkSpendTransaction(
         const std::vector<CRecipient>& recipients,

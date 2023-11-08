@@ -930,7 +930,7 @@ private:
                 fTakeFromFront = true;
             }
 
-            uint64_t inputSize = 0;
+            size_t inputSize = 0;
             try {
                 inputSize = txout.GetMarginalSpendSize(vInputs);
             } catch (std::runtime_error& e) {
@@ -971,7 +971,7 @@ private:
                     vSmallInputs.emplace_back(vInputs.size());
 
 
-                txSize += txout.GetMarginalSpendSize(vInputs);
+                txSize += inputSize;
                 vInputs.emplace_back(txout);
             }
 
@@ -1014,7 +1014,7 @@ private:
                     vInputs.pop_back();
 
                     nCollectedRet -= txout.GetValue();
-                    txSize -= txout.GetMarginalSpendSize(vInputs);
+                    txSize -= inputSize;
                 }
 
                 fReplace = true;

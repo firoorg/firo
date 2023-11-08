@@ -4400,18 +4400,12 @@ bool CWallet::ConvertList(std::vector <CTxIn> vecTxIn, std::vector <CAmount> &ve
 CAmount CWallet::GetFee(const CCoinControl* coinControl, size_t txSize) {
     AssertLockHeld(cs_main);
 
-    unsigned int nConfirmTarget = DEFAULT_TX_CONFIRM_TARGET;
-    if (coinControl && coinControl->nConfirmTarget)
-        nConfirmTarget = coinControl->nConfirmTarget;
-
-    CAmount fee = 0;
-    if (coinControl && coinControl->fOverrideFeeRate)
-        fee = coinControl->nFeeRate.GetFee(txSize);
-    else
-        fee = GetMinimumFee(txSize, nConfirmTarget, mempool);
-
-    if (GetRequiredFee(txSize) > fee)
-        fee = GetRequiredFee(txSize);
+    CAmount fee = GetRequiredFee(txSize);
+    if (coinControl && coinControl->fOverrideFeeRate) {
+        CAmount override = coinControl->nFeeRate.GetFee(txSize);
+        if (override < fee)
+            throw std::runtime_error("nFeeRate is set too low; it will lead to creation of an unrelayable tx");
+    }
 
     if (coinControl && coinControl->nMinimumTotalFee > fee)
         fee = coinControl->nMinimumTotalFee;
