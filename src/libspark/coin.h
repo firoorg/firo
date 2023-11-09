@@ -102,7 +102,6 @@ public:
 	GroupElement S, K, C; // serial commitment, recovery key, value commitment
 	AEADEncryptedData r_; // encrypted recipient data
 	uint64_t v; // value
-	Address address;
 	std::vector<unsigned char> serial_context; // context to which the serial commitment should be bound (not serialized, but inferred)
 
 	// Serialization depends on the coin type

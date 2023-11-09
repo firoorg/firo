@@ -1502,6 +1502,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             tx.vExtraPayload.assign(serialized.begin(), serialized.end());
 
 
+            size_t i = 0;
             const std::vector<spark::Coin>& outCoins = spendTransaction.getOutCoins();
             unsigned char network = spark::GetNetworkType();
             for (auto& outCoin : outCoins) {
@@ -1513,10 +1514,11 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 script.insert(script.end(), serialized.begin(), serialized.end());
                 CWalletDB walletdb(strWalletFile);
                 CSparkOutputTx output;
-                output.address =  outCoin.address.encode(network);
-                output.amount = outCoin.v;
+                output.address =  privOutputs[i].address.encode(network);
+                output.amount = privOutputs[i].v;
                 walletdb.WriteSparkOutputTx(script, output);
                 tx.vout.push_back(CTxOut(0, script));
+                i++;
             }
 
             // check fee
