@@ -209,7 +209,7 @@ enum opcodetype
     OP_SPARKSPEND = 0xd3,
 
     // basically NOP but identifies that sunsequent txout script contains super transparent address
-    OP_SUPERTRANSPARENT = 0xe0
+    OP_EXCHANGEADDR = 0xe0
 };
 
 const char* GetOpName(opcodetype opcode);

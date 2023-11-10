@@ -343,7 +343,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 // Control
                 //
                 case OP_NOP:
-                case OP_SUPERTRANSPARENT:
+                case OP_EXCHANGEADDR:
                     break;
 
                 case OP_CHECKLOCKTIMEVERIFY:

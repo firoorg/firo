@@ -234,9 +234,9 @@ bool CBitcoinAddress::Set(const CKeyID& id)
     return true;
 }
 
-bool CBitcoinAddress::SetSuperTransparent(const CKeyID& id)
+bool CBitcoinAddress::SetExchange(const CKeyID& id)
 {
-    SetData(Params().Base58Prefix(CChainParams::SUPERTRANSPARENT_PUBKEY_ADDRESS), &id, 20);
+    SetData(Params().Base58Prefix(CChainParams::EXCHANGE_PUBKEY_ADDRESS), &id, 20);
     return true;
 }
 

@@ -334,7 +334,7 @@ struct Params {
     int nZerocoinToSigmaRemintWindowSize;
 
     // Number of block that introduces ability to specify super-transparent addresses
-    int nSuperTransparentAddressStartBlock;
+    int nExchangeAddressStartBlock;
 
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;

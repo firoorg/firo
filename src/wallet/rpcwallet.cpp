@@ -209,7 +209,7 @@ UniValue getnewaddress(const JSONRPCRequest& request)
     return CBitcoinAddress(keyID).ToString();
 }
 
-UniValue getnewsupertransparentaddress(const JSONRPCRequest& request)
+UniValue getnewexchangeaddress(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -234,7 +234,7 @@ UniValue getnewsupertransparentaddress(const JSONRPCRequest& request)
 
     pwallet->SetAddressBook(keyID, "", "receive");
     CBitcoinAddress newAddress;
-    newAddress.SetSuperTransparent(keyID);
+    newAddress.SetExchange(keyID);
 
     return newAddress.ToString();
 }
@@ -5564,7 +5564,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "getprivatebalance",        &getprivatebalance,        false,  {} },
     { "wallet",             "gettotalbalance",          &gettotalbalance,          false,  {} },
     { "wallet",             "getnewaddress",            &getnewaddress,            true,   {"account"} },
-    { "wallet",             "getnewsupertransparentaddress", &getnewsupertransparentaddress, true, {} },
+    { "wallet",             "getnewexchangeaddress",    &getnewexchangeaddress,    true, {} },
     { "wallet",             "getrawchangeaddress",      &getrawchangeaddress,      true,   {} },
     { "wallet",             "getreceivedbyaccount",     &getreceivedbyaccount,     false,  {"account","minconf","addlocked"} },
     { "wallet",             "getreceivedbyaddress",     &getreceivedbyaddress,     false,  {"address","minconf","addlocked"} },
