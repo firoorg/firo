@@ -56,9 +56,9 @@ Coin::Coin(
 	// Type-specific elements
 	//
 
-	if (this->type == COIN_TYPE_MINT) {
-		this->v = v;
 
+	if (this->type == COIN_TYPE_MINT) {
+        this->v = v;
 		// Encrypt recipient data
 		MintCoinRecipientData r;
 		r.d = address.get_d();

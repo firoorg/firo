@@ -3323,6 +3323,9 @@ UniValue getnewsparkaddress(const JSONRPCRequest& request) {
 
     spark::Address address = pwallet->sparkWallet->generateNewAddress();
     unsigned char network = spark::GetNetworkType();
+
+    pwallet->SetSparkAddressBook(address.encode(network), "", "receive");
+
     UniValue result(UniValue::VARR);
     result.push_back(address.encode(network));
     return result;

@@ -31,7 +31,8 @@ public:
 
     enum ColumnIndex {
         Label = 0,   /**< User specified label */
-        Address = 1  /**< Bitcoin address */
+        Address = 1,  /**< Bitcoin address */
+        AddressType = 2
     };
 
     enum RoleIndex {
@@ -47,12 +48,16 @@ public:
         WALLET_UNLOCK_FAILURE,  /**< Wallet could not be unlocked to create new receiving address */
         KEY_GENERATION_FAILURE,  /**< Generating a new public key for a receiving address failed */
         PCODE_VALIDATION_FAILURE,/**< Failed to validate the payment code */
-        PCODE_CANNOT_BE_LABELED  /**< Receiving pcodes cannot be relabeled*/
+        PCODE_CANNOT_BE_LABELED,  /**< Receiving pcodes cannot be relabeled*/
+        INVALID_SPARK_ADDRESS
     };
 
     static const QString Send;      /**< Specifies send address */
     static const QString Receive;   /**< Specifies receive address */
     static const QString Zerocoin;   /**< Specifies stealth address */
+    static const QString Transparent;
+    static const QString Spark;
+    static const QString RAP;
 
     /** @name Methods overridden from QAbstractTableModel
         @{*/
@@ -69,7 +74,7 @@ public:
     /* Add an address to the model.
        Returns the added address on success, and an empty string otherwise.
      */
-    virtual QString addRow(const QString &type, const QString &label, const QString &address);
+    virtual QString addRow(const QString &type, const QString &label, const QString &address, const QString &addressType);
 
     /* Look up label for address in address book, if not found return empty string.
      */
@@ -128,7 +133,7 @@ public:
     Qt::ItemFlags flags(const QModelIndex &index) const;
     /*@}*/
 
-    QString addRow(const QString &type, const QString &label, const QString &address) override;
+    QString addRow(const QString &type, const QString &label, const QString &address, const QString &addressType) override;
 
     AddressTableModel::EditStatus getEditStatus() const { return editStatus; }
 

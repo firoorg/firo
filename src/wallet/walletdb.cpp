@@ -581,13 +581,27 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         {
             std::string strAddress;
             ssKey >> strAddress;
-            ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].name;
+            CBitcoinAddress addressParsed(strAddress);
+            if(addressParsed.IsValid()){
+                ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].name;
+            } else if (bip47::CPaymentCode::validate(strAddress)) {
+                ssValue >> pwallet->mapRAPAddressBook[strAddress].name;
+            } else {
+                ssValue >> pwallet->mapSparkAddressBook[strAddress].name;
+            }
         }
         else if (strType == "purpose")
         {
             std::string strAddress;
             ssKey >> strAddress;
-            ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].purpose;
+            CBitcoinAddress addressParsed(strAddress);
+            if(addressParsed.IsValid()){
+                ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].purpose;
+            } else if (bip47::CPaymentCode::validate(strAddress)) {
+                ssValue >> pwallet->mapRAPAddressBook[strAddress].purpose;
+            } else {
+                ssValue >> pwallet->mapSparkAddressBook[strAddress].purpose;
+            }
         }
         else if (strType == "tx")
         {
@@ -813,7 +827,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             ssKey >> strAddress;
             ssKey >> strKey;
             ssValue >> strValue;
-            if (!pwallet->LoadDestData(CBitcoinAddress(strAddress).Get(), strKey, strValue))
+            if (!pwallet->LoadDestData(strAddress, strKey, strValue))
             {
                 strErr = "Error reading wallet database: LoadDestData failed";
                 return false;
@@ -1760,6 +1774,16 @@ std::unordered_map<uint256, CSparkMintMeta> CWalletDB::ListSparkMints()
 
     pcursor->close();
     return listMints;
+}
+
+bool CWalletDB::WriteSparkOutputTx(const CScript& scriptPubKey, const CSparkOutputTx& output)
+{
+    return Write(std::make_pair(std::string("sparkOutputTx"), scriptPubKey), output);
+}
+
+bool CWalletDB::ReadSparkOutputTx(const CScript& scriptPubKey, CSparkOutputTx& output)
+{
+    return Read(std::make_pair(std::string("sparkOutputTx"), scriptPubKey), output);
 }
 
 bool CWalletDB::WriteSparkMint(const uint256& lTagHash, const CSparkMintMeta& mint)

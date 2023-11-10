@@ -14,6 +14,7 @@
 #include "guiutil.h"
 #include "lelantusdialog.h"
 #include "lelantusmodel.h"
+#include "sparkmodel.h"
 #include "metadexcanceldialog.h"
 #include "metadexdialog.h"
 #include "optionsmodel.h"
@@ -75,7 +76,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
     createPcodePage = new CreatePcodeDialog(platformStyle);
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
-    usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
+    usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this, false);
     lelantusPage = new QWidget(this);
 
     sendCoinsPage = new QWidget(this);
@@ -86,6 +87,9 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
 
     automintNotification = new AutomintNotification(this);
     automintNotification->setWindowModality(Qt::NonModal);
+
+    automintSparkNotification = new AutomintSparkNotification(this);
+    automintSparkNotification->setWindowModality(Qt::NonModal);
 
     setupTransactionPage();
     setupSendCoinPage();
@@ -316,6 +320,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     masternodeListPage->setWalletModel(_walletModel);
     sendFiroView->setModel(_walletModel);
     automintNotification->setModel(_walletModel);
+    automintSparkNotification->setModel(_walletModel);
 #ifdef ENABLE_ELYSIUM
     elyAssetsPage->setWalletModel(walletModel);
 
@@ -355,11 +360,19 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
         auto lelantusModel = _walletModel->getLelantusModel();
         if (lelantusModel) {
             connect(lelantusModel, &LelantusModel::askMintAll, this, &WalletView::askMintAll);
-
             auto autoMintModel = lelantusModel->getAutoMintModel();
             connect(autoMintModel, &AutoMintModel::message, this, &WalletView::message);
             connect(autoMintModel, &AutoMintModel::requireShowAutomintNotification, this, &WalletView::showAutomintNotification);
             connect(autoMintModel, &AutoMintModel::closeAutomintNotification, this, &WalletView::closeAutomintNotification);
+        }
+
+        auto sparkModel = _walletModel->getSparkModel();
+        if (sparkModel) {
+            connect(sparkModel, &SparkModel::askMintSparkAll, this, &WalletView::askMintSparkAll);
+            auto autoMintSparkModel = sparkModel->getAutoMintSparkModel();
+            connect(autoMintSparkModel, &AutoMintSparkModel::message, this, &WalletView::message);
+            connect(autoMintSparkModel, &AutoMintSparkModel::requireShowAutomintSparkNotification, this, &WalletView::showAutomintSparkNotification);
+            connect(autoMintSparkModel, &AutoMintSparkModel::closeAutomintSparkNotification, this, &WalletView::closeAutomintSparkNotification);
         }
     }
 }
@@ -666,6 +679,51 @@ void WalletView::repositionAutomintNotification()
     }
 }
 
+void WalletView::showAutomintSparkNotification()
+{
+    auto sparkModel = walletModel->getSparkModel();
+    if (!sparkModel) {
+        return;
+    }
+
+    if (!isActiveWindow() || !underMouse()) {
+        sparkModel->sendAckMintSparkAll(AutoMintSparkAck::WaitUserToActive);
+        return;
+    }
+
+    automintSparkNotification->setWindowFlags(automintSparkNotification->windowFlags() | Qt::Popup | Qt::FramelessWindowHint);
+
+    QRect rect(this->mapToGlobal(QPoint(0, 0)), this->size());
+    auto pos = QStyle::alignedRect(
+        Qt::LeftToRight,
+        Qt::AlignRight | Qt::AlignBottom,
+        automintSparkNotification->size(),
+        rect).topLeft();
+
+    pos.setX(pos.x());
+    pos.setY(pos.y());
+    automintSparkNotification->move(pos);
+
+    automintSparkNotification->show();
+    automintSparkNotification->raise();
+}
+
+void WalletView::repositionAutomintSparkNotification()
+{
+    if (automintSparkNotification->isVisible()) {
+        QRect rect(this->mapToGlobal(QPoint(0, 0)), this->size());
+        auto pos = QStyle::alignedRect(
+            Qt::LeftToRight,
+            Qt::AlignRight | Qt::AlignBottom,
+            automintSparkNotification->size(),
+            rect).topLeft();
+
+        pos.setX(pos.x());
+        pos.setY(pos.y());
+        automintSparkNotification->move(pos);
+    }
+}
+
 void WalletView::checkMintableAmount(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance)
 {
     if (automintNotification->isVisible() && anonymizableBalance == 0) {
@@ -674,9 +732,22 @@ void WalletView::checkMintableAmount(CAmount, CAmount, CAmount, CAmount, CAmount
     }
 }
 
+void WalletView::checkMintableSparkAmount(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance)
+{
+    if (automintSparkNotification->isVisible() && anonymizableBalance == 0) {
+        // hide if notification is showing but there no any fund to anonymize
+        closeAutomintSparkNotification();
+    }
+}
+
 void WalletView::closeAutomintNotification()
 {
     automintNotification->close();
+}
+
+void WalletView::closeAutomintSparkNotification()
+{
+    automintSparkNotification->close();
 }
 
 void WalletView::askMintAll(AutoMintMode mode)
@@ -688,6 +759,19 @@ void WalletView::askMintAll(AutoMintMode mode)
     }
 
     AutoMintDialog dlg(mode, this);
+    dlg.setModel(walletModel);
+    dlg.exec();
+}
+
+void WalletView::askMintSparkAll(AutoMintSparkMode mode)
+{
+    automintSparkNotification->setVisible(false);
+
+    if (!walletModel) {
+        return;
+    }
+
+    AutoMintSparkDialog dlg(mode, this);
     dlg.setModel(walletModel);
     dlg.exec();
 }

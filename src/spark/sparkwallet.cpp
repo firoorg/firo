@@ -420,6 +420,19 @@ CSparkMintMeta CSparkWallet::getMintMeta(const secp_primitives::Scalar& nonce) {
     return CSparkMintMeta();
 }
 
+bool CSparkWallet::getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta) {
+    spark::IdentifiedCoinData identifiedCoinData;
+    try {
+        identifiedCoinData = coin.identify(this->viewKey);
+    } catch (...) {
+        return false;
+    }
+    mintMeta = getMintMeta(identifiedCoinData.k);
+    if(mintMeta == CSparkMintMeta())
+        return false;
+    return true;
+}
+
 bool CSparkWallet::getMintAmount(spark::Coin coin, CAmount& amount) {
     spark::IdentifiedCoinData identifiedCoinData;
     try {
@@ -535,6 +548,17 @@ bool CSparkWallet::getMyCoinIsChange(spark::Coin coin) const {
     } catch (const std::runtime_error& e) {
         return false;
     }
+}
+
+spark::Address CSparkWallet::getMyCoinAddress(spark::Coin coin) {
+    spark::Address address;
+    try {
+        spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
+        address = getAddress(int32_t(identifiedCoinData.i));
+    } catch (const std::runtime_error& e) {
+        // do nothing
+    }
+    return address;
 }
 
 CAmount CSparkWallet::getMySpendAmount(const std::vector<GroupElement>& lTags) const {
@@ -716,7 +740,9 @@ std::vector<CRecipient> CSparkWallet::CreateSparkMintRecipients(
         // opcode is inserted as 1 byte according to file script/script.h
         script << OP_SPARKMINT;
         script.insert(script.end(), serializedCoins[i].begin(), serializedCoins[i].end());
-        CRecipient recipient = {script, CAmount(outputs[i].v), false};
+        unsigned char network = spark::GetNetworkType();
+        std::string addr = outputs[i].address.encode(network);
+        CRecipient recipient = {script, CAmount(outputs[i].v), false, addr};
         results.emplace_back(recipient);
     }
 
@@ -1063,6 +1089,11 @@ bool CSparkWallet::CreateSparkMintTransactions(
                             while (i < tx.vout.size()) {
                                 if (tx.vout[i].scriptPubKey.IsSparkMint()) {
                                     tx.vout[i] = txout;
+                                    CWalletDB walletdb(strWalletFile);
+                                    CSparkOutputTx output;
+                                    output.address = recipient.address;
+                                    output.amount = recipient.nAmount;
+                                    walletdb.WriteSparkOutputTx(recipient.scriptPubKey, output);
                                     break;
                                 }
                                 ++i;
@@ -1471,7 +1502,9 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             tx.vExtraPayload.assign(serialized.begin(), serialized.end());
 
 
+            size_t i = 0;
             const std::vector<spark::Coin>& outCoins = spendTransaction.getOutCoins();
+            unsigned char network = spark::GetNetworkType();
             for (auto& outCoin : outCoins) {
                 // construct spend script
                 CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
@@ -1479,7 +1512,13 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 CScript script;
                 script << OP_SPARKSMINT;
                 script.insert(script.end(), serialized.begin(), serialized.end());
+                CWalletDB walletdb(strWalletFile);
+                CSparkOutputTx output;
+                output.address =  privOutputs[i].address.encode(network);
+                output.amount = privOutputs[i].v;
+                walletdb.WriteSparkOutputTx(script, output);
                 tx.vout.push_back(CTxOut(0, script));
+                i++;
             }
 
             // check fee
@@ -1503,7 +1542,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 throw std::invalid_argument(_("Not enough fee estimated"));
             }
 
-                result.push_back(wtxNew);
+            result.push_back(wtxNew);
         }
     }
 

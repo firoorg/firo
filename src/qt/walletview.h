@@ -120,6 +120,7 @@ private:
     const PlatformStyle *platformStyle;
 
     AutomintNotification *automintNotification;
+    AutomintSparkNotification *automintSparkNotification;
 
 public Q_SLOTS:
     /** Switch to overview (home) page */
@@ -186,18 +187,29 @@ public Q_SLOTS:
     /** Show automint notification */
     void showAutomintNotification();
 
+    void showAutomintSparkNotification();
+
     /** Re-position automint notification */
     void repositionAutomintNotification();
+
+    void repositionAutomintSparkNotification();
 
     /** Check mintable amount to close automint notification */
     void checkMintableAmount(
         CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance);
 
+    void checkMintableSparkAmount(
+        CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance);
+
     /** Close automint notification */
     void closeAutomintNotification();
 
+    void closeAutomintSparkNotification();
+
     /** Ask user to do auto mint */
     void askMintAll(AutoMintMode mode);
+
+    void askMintSparkAll(AutoMintSparkMode mode);
 
 Q_SIGNALS:
     /** Signal that we want to show the main window */

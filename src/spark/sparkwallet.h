@@ -79,6 +79,7 @@ public:
     CSparkMintMeta getMintMeta(const uint256& hash);
     // get mint tag from nonce
     CSparkMintMeta getMintMeta(const secp_primitives::Scalar& nonce);
+    bool getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta);
 
     bool getMintAmount(spark::Coin coin, CAmount& amount);
 
@@ -88,6 +89,7 @@ public:
     CAmount getMyCoinV(spark::Coin coin) const;
     CAmount getMySpendAmount(const std::vector<GroupElement>& lTags) const;
     bool getMyCoinIsChange(spark::Coin coin) const;
+    spark::Address getMyCoinAddress(spark::Coin coin);
 
     void UpdateSpendState(const GroupElement& lTag, const uint256& lTagHash, const uint256& txHash, bool fUpdateMint = true);
     void UpdateSpendState(const GroupElement& lTag, const uint256& txHash, bool fUpdateMint = true);

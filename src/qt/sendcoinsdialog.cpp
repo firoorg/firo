@@ -26,6 +26,7 @@
 #include "wallet/wallet.h"
 #include "sendtopcodedialog.h"
 #include "pcodemodel.h"
+#include "overviewpage.h"
 
 #include <QFontMetrics>
 #include <QMessageBox>
@@ -96,7 +97,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->frameFee->setAutoFillBackground(true);
 
     {
-        auto allowed = lelantus::IsLelantusAllowed();
+        auto allowed = lelantus::IsLelantusAllowed() || spark::IsSparkAllowed();
         setAnonymizeMode(allowed);
 
         if (!allowed) {
@@ -158,6 +159,8 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         }
 
         auto privateBalance = _model->getLelantusModel()->getPrivateBalance();
+        std::pair<CAmount, CAmount> sparkBalance = _model->getSparkBalance();
+        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
 
         setBalance(
             _model->getBalance(), _model->getUnconfirmedBalance(), _model->getImmatureBalance(),
@@ -281,7 +284,10 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     // prepare transaction for getting txFee earlier
     WalletModelTransaction currentTransaction(recipients);
+    std::vector<WalletModelTransaction> transactions;
     WalletModel::SendCoinsReturn prepareStatus;
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
+    std::list<CReserveKey> reservekeys;
 
     // Always use a CCoinControl instance, use the CoinControlDialog instance if CoinControl has been enabled
     CCoinControl ctrl;
@@ -294,10 +300,43 @@ void SendCoinsDialog::on_sendButton_clicked()
     else
         ctrl.nConfirmTarget = 0;
 
-    if (fAnonymousMode) {
+    int sparkAddressCount = 0;
+    for(int i = 0; i < recipients.size(); ++i){
+        bool check = model->validateSparkAddress(recipients[i].address);
+        if(check) {
+            sparkAddressCount++;
+        }
+    }
+
+    CAmount mintSparkAmount = 0;
+    CAmount txFee = 0;
+    CAmount totalAmount = 0;
+    if (model->getLelantusModel()->getPrivateBalance().first > 0 && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod) {
+        MigrateLelantusToSparkDialog migrateLelantusToSpark(model);
+        bool clickedButton = migrateLelantusToSpark.getClickedButton();
+        if(clickedButton) {
+            fNewRecipientAllowed = true;
+            return;
+        }
+    }
+    if ((fAnonymousMode == true) && !spark::IsSparkAllowed()) {
         prepareStatus = model->prepareJoinSplitTransaction(currentTransaction, &ctrl);
-    } else {
+    } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
+        prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, &ctrl);
+    } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) {
+        prepareStatus = model->prepareMintSparkTransaction(transactions, recipients, wtxAndFees, reservekeys, &ctrl);
+    } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)){
+        SendGoPrivateDialog goPrivateDialog;
+        bool clickedButton = goPrivateDialog.getClickedButton();
+        if(clickedButton) {
+            setAnonymizeMode(true);
+            fNewRecipientAllowed = true;
+            return;
+        }
         prepareStatus = model->prepareTransaction(currentTransaction, &ctrl);
+    } else {
+        fNewRecipientAllowed = true;
+        return;
     }
 
     // process prepareStatus and on error generate message shown to user
@@ -309,47 +348,140 @@ void SendCoinsDialog::on_sendButton_clicked()
         return;
     }
 
-    CAmount txFee = currentTransaction.getTransactionFee();
-
     // Format confirmation message
     QStringList formatted;
-    Q_FOREACH(const SendCoinsRecipient &rcp, currentTransaction.getRecipients())
+    if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
-        // generate bold amount string
-        QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
-        amount.append("</b>");
-        // generate monospace address string
-        QString address = "<span style='font-family: monospace;'>" + rcp.address;
-        address.append("</span>");
+        for(int i = 0; i < recipients.size(); i++) {
+            recipients[i].amount = 0;
+        }
 
-        QString recipientElement;
-
-        if (!rcp.paymentRequest.IsInitialized()) // normal payment
+        for (auto &transaction : transactions)
         {
-            if(rcp.label.length() > 0) // label with address
+            for (auto &rcp : transaction.getRecipients()) 
             {
-                recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
-                recipientElement.append(QString(" (%1)").arg(address));
+                for(int i = 0; i < recipients.size(); i++) {
+                    if( recipients[i].address == rcp.address) {
+                        recipients[i].amount += rcp.amount;
+                    }
+                }
             }
-            else // just address
+        }    
+
+        for (auto &rcp : recipients) 
+        {
+            // generate bold amount string
+            QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
+            amount.append("</b>");
+            // generate monospace address string
+            QString address = "<span style='font-family: monospace;'>" + rcp.address;
+            address.append("</span>");
+            QString recipientElement;
+            if (!rcp.paymentRequest.IsInitialized()) // normal payment
+            {
+                if(rcp.label.length() > 0) // label with address
+                {
+                    recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
+                    recipientElement.append(QString(" (%1)").arg(address));
+                }
+                else // just address
+                {
+                    recipientElement = tr("%1 to %2").arg(amount, address);
+                }
+            }
+            else if(!rcp.authenticatedMerchant.isEmpty()) // authenticated payment request
+            {
+                recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.authenticatedMerchant));
+            }
+            else // unauthenticated payment request
             {
                 recipientElement = tr("%1 to %2").arg(amount, address);
             }
+            formatted.append(recipientElement);
         }
-        else if(!rcp.authenticatedMerchant.isEmpty()) // authenticated payment request
+    } else if ((fAnonymousMode == true) && (recipients.size() == 1) && spark::IsSparkAllowed()) {
+        for (auto &rcp : recipients)
         {
-            recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.authenticatedMerchant));
+            // generate bold amount string
+            CAmount namount = rcp.amount;
+            if(rcp.fSubtractFeeFromAmount) {
+                namount = rcp.amount - currentTransaction.getTransactionFee();
+            }
+            QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), namount);
+            amount.append("</b>");
+            // generate monospace address string
+            QString address = "<span style='font-family: monospace;'>" + rcp.address;
+            address.append("</span>");
+            QString recipientElement;
+            if (!rcp.paymentRequest.IsInitialized()) // normal payment
+            {
+                if(rcp.label.length() > 0) // label with address
+                {
+                    recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
+                    recipientElement.append(QString(" (%1)").arg(address));
+                }
+                else // just address
+                {
+                    recipientElement = tr("%1 to %2").arg(amount, address);
+                }
+            }
+            else if(!rcp.authenticatedMerchant.isEmpty()) // authenticated payment request
+            {
+                recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.authenticatedMerchant));
+            }
+            else // unauthenticated payment request
+            {
+                recipientElement = tr("%1 to %2").arg(amount, address);
+            }
+            formatted.append(recipientElement);
         }
-        else // unauthenticated payment request
+    } else {
+        Q_FOREACH(const SendCoinsRecipient &rcp, currentTransaction.getRecipients())
         {
-            recipientElement = tr("%1 to %2").arg(amount, address);
-        }
+            // generate bold amount string
+            QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
+            amount.append("</b>");
+            // generate monospace address string
+            QString address = "<span style='font-family: monospace;'>" + rcp.address;
+            address.append("</span>");
 
-        formatted.append(recipientElement);
+            QString recipientElement;
+
+            if (!rcp.paymentRequest.IsInitialized()) // normal payment
+            {
+                if(rcp.label.length() > 0) // label with address
+                {
+                    recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
+                    recipientElement.append(QString(" (%1)").arg(address));
+                }
+                else // just address
+                {
+                    recipientElement = tr("%1 to %2").arg(amount, address);
+                }
+            }
+            else if(!rcp.authenticatedMerchant.isEmpty()) // authenticated payment request
+            {
+                recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.authenticatedMerchant));
+            }
+            else // unauthenticated payment request
+            {
+                recipientElement = tr("%1 to %2").arg(amount, address);
+            }
+
+            formatted.append(recipientElement);
+        }
     }
-
     QString questionString = tr("Are you sure you want to send?");
     questionString.append("<br /><br />%1");
+    if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
+    {
+        for (auto &transaction : transactions) {
+            txFee += transaction.getTransactionFee();
+            mintSparkAmount += transaction.getTotalTransactionAmount();
+        }
+    } else {
+        txFee= currentTransaction.getTransactionFee();
+    }
 
     if(txFee > 0)
     {
@@ -365,7 +497,19 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     // add total amount in all subdivision units
     questionString.append("<hr />");
-    CAmount totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
+    if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
+    {
+        totalAmount = mintSparkAmount + txFee;
+    } else if ((fAnonymousMode == true) && (recipients.size() == 1) && spark::IsSparkAllowed()) {
+        if(recipients[0].fSubtractFeeFromAmount) {
+            totalAmount = recipients[0].amount;
+        } else {
+            totalAmount = recipients[0].amount + currentTransaction.getTransactionFee();
+        }
+    } else {
+        totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
+    }
+
     QStringList alternativeUnits;
     Q_FOREACH(BitcoinUnits::Unit u, BitcoinUnits::availableUnits())
     {
@@ -391,11 +535,18 @@ void SendCoinsDialog::on_sendButton_clicked()
     // now send the prepared transaction
     WalletModel::SendCoinsReturn sendStatus;
 
-    if (fAnonymousMode) {
+    if ((fAnonymousMode == true) && !spark::IsSparkAllowed()) {
         sendStatus = model->sendPrivateCoins(currentTransaction);
-    } else {
+    } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
+        sendStatus = model->spendSparkCoins(currentTransaction);
+    } else if ((fAnonymousMode == false) && (sparkAddressCount == recipients.size()) && spark::IsSparkAllowed()) {
+        sendStatus = model->mintSparkCoins(transactions, wtxAndFees, reservekeys);
+    } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
         sendStatus = model->sendCoins(currentTransaction);
+    } else {
+        return;
     }
+
     // process sendStatus and on error generate message shown to user
     processSendCoinsReturn(sendStatus);
 
@@ -421,6 +572,8 @@ void SendCoinsDialog::on_switchFundButton_clicked()
 {
     setAnonymizeMode(!fAnonymousMode);
     coinControlUpdateLabels();
+
+    entry->setWarning(fAnonymousMode);
 }
 
 void SendCoinsDialog::clear()
@@ -447,8 +600,9 @@ void SendCoinsDialog::accept()
 
 SendCoinsEntry *SendCoinsDialog::addEntry()
 {
-    SendCoinsEntry *entry = new SendCoinsEntry(platformStyle, this);
+    entry = new SendCoinsEntry(platformStyle, this);
     entry->setModel(model);
+    entry->setWarning(fAnonymousMode);
     ui->entries->addWidget(entry);
     connect(entry, &SendCoinsEntry::removeEntry, this, &SendCoinsDialog::removeEntry);
     connect(entry, &SendCoinsEntry::payAmountChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
@@ -474,7 +628,7 @@ void SendCoinsDialog::updateBlocks(int count, const QDateTime& blockDate, double
         return;
     }
 
-    auto allowed = lelantus::IsLelantusAllowed(count);
+    auto allowed = lelantus::IsLelantusAllowed() || spark::IsSparkAllowed();
 
     if (allowed && !ui->switchFundButton->isEnabled())
     {
@@ -603,7 +757,10 @@ void SendCoinsDialog::setBalance(
 
 void SendCoinsDialog::updateDisplayUnit()
 {
-    setBalance(model->getBalance(), 0, 0, 0, 0, 0, model->getLelantusModel()->getPrivateBalance().first, 0, 0);
+    auto privateBalance = model->getLelantusModel()->getPrivateBalance();
+    std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
+    privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
+    setBalance(model->getBalance(), 0, 0, 0, 0, 0, privateBalance.first, 0, 0);
     ui->customFee->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
     updateMinFeeLabel();
     updateSmartFeeLabel();
@@ -762,7 +919,10 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
     }
 
     if (model) {
-        setBalance(model->getBalance(), 0, 0, 0, 0, 0, model->getLelantusModel()->getPrivateBalance().first, 0, 0);
+        auto privateBalance = model->getLelantusModel()->getPrivateBalance();
+        std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
+        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
+        setBalance(model->getBalance(), 0, 0, 0, 0, 0, privateBalance.first, 0, 0);
     }
 }
 
@@ -1059,4 +1219,70 @@ void SendConfirmationDialog::updateYesButton()
         yesButton->setEnabled(true);
         yesButton->setText(tr("Yes"));
     }
+}
+
+SendGoPrivateDialog::SendGoPrivateDialog():QMessageBox()
+{
+    QDialog::setWindowTitle("Make this a private transaction");
+    QDialog::setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint);
+    
+    QLabel *ic = new QLabel();
+    QIcon icon_;
+    icon_.addFile(QString::fromUtf8(":/icons/ic_info"), QSize(), QIcon::Normal, QIcon::On);
+    ic->setPixmap(icon_.pixmap(18, 18));
+    ic->setFixedWidth(50);
+    ic->setAlignment(Qt::AlignRight);
+    ic->setStyleSheet("color:#92400E");
+    QLabel *text = new QLabel();
+    text->setText(tr("You are using a transparent transaction, please go private. If this is a masternode transaction, you do not have to go private"));
+    text->setAlignment(Qt::AlignLeft);
+    text->setWordWrap(true);
+    text->setStyleSheet("color:#92400E;");
+    
+    QPushButton *ignore = new QPushButton(this);
+    ignore->setText("Ignore");
+    ignore->setStyleSheet("color:#9b1c2e;background-color:none;margin-top:30px;margin-bottom:60px;margin-left:50px;margin-right:20px;border:1px solid #9b1c2e;");
+    QPushButton *goPrivate = new QPushButton(this);
+    goPrivate->setText("Go Private");
+    goPrivate->setStyleSheet("margin-top:30px;margin-bottom:60px;margin-left:20px;margin-right:50px;");
+    QHBoxLayout *groupButton = new QHBoxLayout(this);
+    groupButton->addWidget(ignore);
+    groupButton->addWidget(goPrivate);
+    
+    QHBoxLayout *hlayout = new QHBoxLayout(this);
+    hlayout->addWidget(ic);
+    hlayout->addWidget(text);
+    
+    QWidget *layout_ = new QWidget();
+    layout_->setLayout(hlayout);
+    layout_->setStyleSheet("background-color:#FEF3C7;");
+    
+    QVBoxLayout *vlayout = new QVBoxLayout(this);
+    vlayout->addWidget(layout_);
+    vlayout->addLayout(groupButton);
+    vlayout->setContentsMargins(0,0,0,0);
+    QWidget *wbody = new QWidget();
+    wbody->setLayout(vlayout);
+    layout()->addWidget(wbody);
+    setContentsMargins(0, 0, 0, 0);
+    setStyleSheet("margin-right:-30px;");
+    setStandardButtons(0);    
+    connect(ignore, &QPushButton::clicked, this, &SendGoPrivateDialog::onIgnoreClicked);
+    connect(goPrivate, &QPushButton::clicked, this, &SendGoPrivateDialog::onGoPrivateClicked);
+    exec();
+}
+void SendGoPrivateDialog::onIgnoreClicked()
+{
+    setVisible(false);
+    clickedButton = false;
+}
+void SendGoPrivateDialog::onGoPrivateClicked()
+{
+    setVisible(false);
+    clickedButton = true;
+}
+
+bool SendGoPrivateDialog::getClickedButton()
+{
+    return clickedButton;
 }

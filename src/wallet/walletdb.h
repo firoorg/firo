@@ -305,6 +305,8 @@ public:
     std::vector<std::pair<uint256, MintPoolEntry>> ListMintPool();
 
     std::unordered_map<uint256, CSparkMintMeta> ListSparkMints();
+    bool WriteSparkOutputTx(const CScript& scriptPubKey, const CSparkOutputTx& output);
+    bool ReadSparkOutputTx(const CScript& scriptPubKey, CSparkOutputTx& output);
     bool WriteSparkMint(const uint256& lTagHash, const CSparkMintMeta& mint);
     bool ReadSparkMint(const uint256& lTagHash, CSparkMintMeta& mint);
     bool EraseSparkMint(const uint256& lTagHash);
