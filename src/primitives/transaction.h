@@ -170,7 +170,7 @@ class CTxOut
 public:
     CAmount nValue;
     CScript scriptPubKey;
-    int nRounds;
+    int nRounds = -10;
 
     CTxOut()
     {

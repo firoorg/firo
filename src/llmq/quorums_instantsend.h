@@ -75,9 +75,6 @@ public:
 class CInstantSendManager : public CRecoveredSigsListener
 {
 private:
-    CCriticalSection cs;
-    CInstantSendDb db;
-
     std::thread workThread;
     CThreadInterrupt workInterrupt;
 
@@ -113,6 +110,9 @@ private:
     std::atomic_bool isNewInstantSendEnabled{false};
 
 public:
+    CCriticalSection cs;
+    CInstantSendDb db;
+
     CInstantSendManager(CDBWrapper& _llmqDb);
     ~CInstantSendManager();
 

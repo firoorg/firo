@@ -16,13 +16,16 @@ enum class CoinType
     ONLY_1000 = 5, // find znode outputs including locked ones (use with caution)
     ONLY_PRIVATESEND_COLLATERAL = 6,
     ONLY_MINTS = 7,
-    WITH_MINTS = 8
+    WITH_MINTS = 8,
+    WITH_1000 = 9
 };
 
 /** Coin Control Features. */
 class CCoinControl
 {
 public:
+    std::set<COutPoint> setSelected;
+
     CTxDestination destChange;
     //! If false, allows unselected inputs, but requires all selected inputs be used
     bool fAllowOtherInputs;
@@ -40,6 +43,10 @@ public:
     int nConfirmTarget;
     //! Controls which types of coins are allowed to be used (default: ALL_COINS)
     CoinType nCoinType;
+    //! No more than this number of inputs may be used.
+    size_t nMaxInputs;
+    // The generated transaction may not be over this size.
+    size_t nMaxSize;
 
     CCoinControl()
     {
@@ -58,6 +65,8 @@ public:
         fOverrideFeeRate = false;
         nConfirmTarget = 0;
         nCoinType = CoinType::ALL_COINS;
+        nMaxInputs = 0;
+        nMaxSize = 0;
     }
 
     bool HasSelected() const
@@ -89,9 +98,6 @@ public:
     {
         vOutpoints.assign(setSelected.begin(), setSelected.end());
     }
-
-private:
-    std::set<COutPoint> setSelected;
 };
 
 #endif // BITCOIN_WALLET_COINCONTROL_H

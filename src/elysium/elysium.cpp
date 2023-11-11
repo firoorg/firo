@@ -2291,7 +2291,7 @@ int elysium::WalletTxBuilder(
     switch (inputMode) {
     case InputMode::NORMAL:
         // Ask the wallet to create the transaction (note mining fee determined by Bitcoin Core params)
-        if (!pwalletMain->CreateTransaction(vecRecipients, wtxNew, reserveKey, nFeeRet, nChangePosInOut, strFailReason, &coinControl)) {
+        if (!pwalletMain->CreateTransaction(vecRecipients, wtxNew, &reserveKey, nFeeRet, nChangePosInOut, strFailReason, &coinControl)) {
             PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, strFailReason);
             return MP_ERR_CREATE_TX;
         }

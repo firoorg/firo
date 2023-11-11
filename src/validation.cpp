@@ -1035,6 +1035,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                     if (pfMissingInputs) {
                         *pfMissingInputs = true;
                     }
+                    LogPrintf("%s(): Couldn't find input %s-%d for tx %s\n", __func__, txin.prevout.hash.GetHex(), txin.prevout.n, tx.GetHash().GetHex());
                     return false; // fMissingInputs and !state.IsInvalid() is used to detect this condition, don't set state.Invalid()
                 }
             }

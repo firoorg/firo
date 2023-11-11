@@ -114,8 +114,8 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
 
         // Init HD mint
 
-        // Create new keyUser and set as default key
-        // generate a new master key
+        pwalletMain->GenerateNewMnemonic();
+
         CPubKey masterPubKey = pwalletMain->GenerateNewHDMasterKey();
         pwalletMain->SetHDMasterKey(masterPubKey);
         CPubKey newDefaultKey;
