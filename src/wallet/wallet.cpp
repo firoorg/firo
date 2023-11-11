@@ -117,6 +117,10 @@ size_t CTransparentTxout::GetMarginalSpendSize(std::vector<CTransparentTxout>& p
     // This is the size of scriptPubKey for the input.
     size_t sigDataSize = 0;
     switch (outType) {
+        case TX_MULTISIG:
+            sigDataSize = 1 + 73 * vSolutions.at(0).at(0);
+            break;
+
         case TX_PUBKEY:
             sigDataSize = 101;
             break;
@@ -125,9 +129,6 @@ size_t CTransparentTxout::GetMarginalSpendSize(std::vector<CTransparentTxout>& p
         case TX_PUBKEYHASH:
             sigDataSize = 107;
             break;
-
-        case TX_MULTISIG:
-            throw std::runtime_error("TODO");
 
         case TX_NONSTANDARD:
         case TX_NULL_DATA:

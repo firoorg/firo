@@ -51,6 +51,29 @@ CScript GetRandomWalletAddress() {
     return GetScriptForDestination(key.GetID());
 }
 
+CScript GetRandomMultisigAddress(size_t nOurs, size_t n, size_t m) {
+    AssertLockHeld(pwalletMain->cs_wallet);
+    assert(nOurs <= m);
+    assert(m >= n);
+    assert(n);
+
+    std::vector<CPubKey> keys;
+
+    for (size_t i = 0; i < nOurs; i++) {
+        CPubKey key;
+        pwalletMain->GetKeyFromPool(key);
+        keys.emplace_back(key);
+    }
+
+    for (size_t i = nOurs; i < m; i++) {
+        CKey key;
+        key.MakeNewKey(true);
+        keys.emplace_back(key.GetPubKey());
+    }
+
+    return GetScriptForMultisig(n, keys);
+}
+
 CTransparentTxout GetFakeTransparentTxout(CAmount value, bool isMine=true) {
     if (isMine)
         return GetFakeTransparentTxout(GetRandomWalletAddress(), value, isMine);
@@ -1139,6 +1162,43 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             ASSERT_VOUT_ADDR_VALUE(0, 0, 1);
             ASSERT_VOUT_VALUE(1, (1 << 17) - nFeeRet - 1);
             ASSERT_HAS_KEY(1);
+        }
+    }
+
+    BOOST_AUTO_TEST_CASE(multisig) {
+        ACQUIRE_LOCKS();
+
+        std::vector<CRecipient> vRecipients = GetFakeRecipients({CENT});
+
+        for (size_t n = 1; n < 5; n++) {
+            for (size_t m = n; m <= 5; m++) {
+                for (size_t nOurs = 0; nOurs <= m; nOurs++) {
+                    std::vector<CTransparentTxout> vTxouts =
+                        {GetFakeTransparentTxout(GetRandomMultisigAddress(nOurs, n, m), COIN, true)};
+
+                    CCoinControl coinControl;
+                    CWalletTx wtx;
+                    CAmount nFeeRet = 0;
+                    int nChangePosInOut = -1;
+                    std::string strFailReason;
+
+                    CReserveKey reservekey(pwalletMain);
+                    pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut,
+                                                   strFailReason, &coinControl, true, 0, true, vTxouts);
+
+                    if (nOurs >= n) {
+                        ASSERT_SUCCESS();
+                        ASSERT_VIN_SIZE(1);
+                        ASSERT_VIN_VALUE(0, COIN);
+                        ASSERT_VOUT_SIZE(2);
+                        ASSERT_VOUT_ADDR_VALUE(0, 0, CENT);
+                        ASSERT_VOUT_VALUE(1, COIN - CENT - nFeeRet);
+                        ASSERT_HAS_KEY(1);
+                    } else {
+                        ASSERT_FAILURE("Signing transaction failed");
+                    }
+                }
+            }
         }
     }
 BOOST_AUTO_TEST_SUITE_END()
