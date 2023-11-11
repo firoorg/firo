@@ -44,7 +44,7 @@ pipeline {
                 }
             }
         }
-        stage('Archive artifcats') {
+        stage('Archive artifacts') {
             steps {
                 archiveArtifacts artifacts: 'dist/src/test-suite.log',
                 allowEmptyArchive: true
