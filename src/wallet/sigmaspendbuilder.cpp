@@ -18,7 +18,7 @@
 #include <stdexcept>
 #include <tuple>
 
-class SigmaSpendSigner : public InputSigner
+class SigmaSpendSigner : public SigmaTxBuilderInputSigner
 {
 public:
     const sigma::PrivateCoin coin;
@@ -108,7 +108,7 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
 }
 
 SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet, CHDMintWallet& mintWallet, const CCoinControl *coinControl) :
-    TxBuilder(wallet),
+    SigmaTxBuilderSuperclass(wallet),
     mintWallet(mintWallet)
 {
     cs_main.lock();
@@ -129,7 +129,7 @@ SigmaSpendBuilder::~SigmaSpendBuilder()
     cs_main.unlock();
 }
 
-CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required)
+CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<SigmaTxBuilderInputSigner>>& signers, CAmount required)
 {
     // get coins to spend
 

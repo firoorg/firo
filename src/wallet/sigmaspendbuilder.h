@@ -7,7 +7,7 @@
 
 #include <vector>
 
-class SigmaSpendBuilder : public TxBuilder
+class SigmaSpendBuilder : public SigmaTxBuilderSuperclass
 {
 public:
     std::vector<CSigmaEntry> selected;
@@ -19,7 +19,7 @@ public:
     ~SigmaSpendBuilder() override;
 
 protected:
-    CAmount GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required) override;
+    CAmount GetInputs(std::vector<std::unique_ptr<SigmaTxBuilderInputSigner>>& signers, CAmount required) override;
     // remint change
     CAmount GetChanges(std::vector<CTxOut>& outputs, CAmount amount, CWalletDB& walletdb) override;
 

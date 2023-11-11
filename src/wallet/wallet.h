@@ -9,6 +9,7 @@
 #include "amount.h"
 #include "../sigma/coin.h"
 #include "../liblelantus/coin.h"
+#include "primitives/transaction.h"
 #include "streams.h"
 #include "tinyformat.h"
 #include "ui_interface.h"
@@ -26,14 +27,13 @@
 #include "../base58.h"
 #include "firo_params.h"
 #include "univalue.h"
-
+#include "coincontrol.h"
+#include "policy/policy.h"
 #include "hdmint/tracker.h"
 #include "hdmint/wallet.h"
-
 #include "primitives/mint_spend.h"
-
 #include "bip47/paymentcode.h"
-
+#include "../llmq/quorums_instantsend.h"
 
 #include <algorithm>
 #include <atomic>
@@ -647,12 +647,64 @@ class LelantusJoinSplitBuilder;
 //static boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
 extern boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
 
+class CTransparentTxout;
+enum AbstractTxoutType {
+    Transparent
+};
+
+class CTransparentTxout {
+public:
+    static bool IsTransparentTxout(const CTxOut& txout);
+
+    CTransparentTxout() = default;
+    CTransparentTxout(COutPoint outpoint, CTxOut txout): outpoint(outpoint), txout(txout), _isMockup(true) {}
+    CTransparentTxout(const CWallet* wallet, COutPoint outpoint, CTxOut txout): wallet(wallet), outpoint(outpoint), txout(txout) {};
+
+    uint256 GetHash() const;
+    COutPoint GetOutpoint() const;
+    CAmount GetValue() const;
+    CScript GetScriptPubkey() const;
+    size_t GetMarginalSpendSize(std::vector<CTransparentTxout>& previousInputs) const;
+    bool IsMine(const CCoinControl* coinControl) const;
+    bool IsSpendable() const;
+    bool IsLocked() const;
+    bool IsAbandoned() const;
+    bool IsCoinTypeCompatible(const CCoinControl* coinControl) const;
+    bool IsLLMQInstantSendLocked() const;
+    bool IsCoinBase() const;
+    unsigned int GetDepthInMainChain() const;
+
+private:
+    const CWallet* wallet = nullptr;
+    COutPoint outpoint;
+    CTxOut txout;
+    bool _isMockup = false;
+
+public:
+    bool _mockupIsMine = false;
+    bool _mockupIsMineWatchOnly = false;
+    bool _mockupIsSpent = false;
+    bool _mockupIsAbandoned = false;
+    bool _mockupIsLocked = false;
+    bool _mockupIsLLMQInstantSendLocked = false;
+    bool _mockupIsCoinBase = false;
+    unsigned int _mockupDepthInMainChain = 0;
+};
+
 /**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
  */
 class CWallet : public CCryptoKeyStore, public CValidationInterface
 {
+public:
+    /**
+     * Used to keep track of spent outpoints, and
+     * detect and report conflicts (double-spends or
+     * mutated transactions where the mutant gets mined).
+     */
+    typedef std::multimap<COutPoint, uint256> TxSpends;
+
 private:
     friend class CSparkWallet;
 
@@ -664,6 +716,334 @@ private:
      * if they are not ours
      */
     bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL, bool fForUseInInstantSend = true) const;
+
+    void AddToSpends(const COutPoint &outpoint, const uint256 &wtxid);
+
+    void AddToSpends(const uint256 &wtxid);
+
+    CAmount GetFee(const CCoinControl* coinControl, size_t txSize);
+    std::vector<CTransparentTxout> GetTransparentTxouts() const;
+
+    // Get all the vRelevantTransactions that can be used. Inputs specifically selected in coinControl are put into
+    // vCoinControlInputs, and all other inputs compatible with coinControl and available for use are put into
+    // vAvailableInputs.
+    template<typename AbstractTxout>
+    void GetAvailableInputs(const std::vector<AbstractTxout>& vRelevantTransactions,
+                            std::vector<AbstractTxout>& vAvailableInputs,
+                            std::vector<AbstractTxout>& vCoinControlInputs,
+                            const CCoinControl* coinControl,
+                            bool fUseInstantSend) const {
+        AssertLockHeld(cs_wallet);
+        vAvailableInputs.clear();
+        vCoinControlInputs.clear();
+
+        if (coinControl && coinControl->nCoinType == CoinType::ONLY_NONDENOMINATED_NOT1000IFMN && !fMasternodeMode)
+            throw std::runtime_error("fMasternode must be enabled to use CoinType::ONLY_NONDENOMINATED_NOT1000IFMN");
+
+        if (coinControl && coinControl->nCoinType == CoinType::WITH_MINTS)
+            throw std::runtime_error("CoinType::WITH_MINTS is not supported for any transactions.");
+
+        for (const AbstractTxout& tx: vRelevantTransactions) {
+            bool isSelected = coinControl && coinControl->HasSelected() && coinControl->IsSelected(tx.GetOutpoint());
+
+            if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs && !isSelected)
+                continue;
+            if (!tx.IsSpendable()) continue;
+            if (!tx.IsCoinTypeCompatible(coinControl)) continue;
+            if (tx.IsAbandoned()) continue;
+            if (!tx.GetDepthInMainChain() && (!fUseInstantSend || !tx.IsLLMQInstantSendLocked())) continue;
+            if (coinControl && coinControl->nConfirmTarget && tx.GetDepthInMainChain() < coinControl->nConfirmTarget)
+                continue;
+            if (tx.IsCoinBase() && tx.GetDepthInMainChain() < COINBASE_MATURITY) continue;
+            if (!tx.IsMine(coinControl)) continue;
+
+            if (isSelected) vCoinControlInputs.push_back(tx);
+            else vAvailableInputs.push_back(tx);
+        }
+
+        if (coinControl) {
+            if (vCoinControlInputs.size() != coinControl->setSelected.size())
+                throw std::runtime_error("Some coin control inputs could not be selected.");
+            if (coinControl->fRequireAllInputs && coinControl->nMaxInputs &&
+                vCoinControlInputs.size() > coinControl->nMaxInputs)
+                throw std::runtime_error("The number of selected inputs exceeds the maximum number of inputs.");
+        }
+
+        // Sort vAvailable and vCoinControlInputs by largest first. Additionally, order it so that transaction selection
+        // will be deterministic; this property is not otherwise required.
+        for (std::vector<AbstractTxout>* v: {&vAvailableInputs, &vCoinControlInputs}) {
+            std::sort(v->begin(), v->end(), [](const AbstractTxout& a, const AbstractTxout& b) {
+                if (a.GetValue() != b.GetValue())
+                    return a.GetValue() > b.GetValue();
+                if (a.GetHash() != b.GetHash())
+                    return a.GetHash().Compare(b.GetHash()) == -1;
+                return a.GetOutpoint().n < b.GetOutpoint().n;
+            });
+        }
+    }
+
+    // This populates vInputs with AbstractTxouts from vRelevantTransactions required to produce a transaction to the
+    // given specification. nRequired is the total amount of value we need to produce (either including or excluding fee
+    // depending on the value of fSubtractFeeFromAmount); nConstantSize must be the size of the transaction minus the
+    // inputs, input count, and P2SH_OUTPUT_SIZE in the event that input and output amounts aren't exactly equal. If
+    // fUseInstantSend is not set, we will ignore UTXOs without a confirmation; if it is set, we will ignore only
+    // un-is-locked UTXOs. Fees will be automatically determined if not set in coinControl. If fAllowPartial is set, we
+    // will collect as many inputs as we can and return even if we don't have enough to fulfill nRequired. We return
+    // true if we were able to collect enough inputs to fulfill nRequired, and false otherwise. If fAllowPartial is set,
+    // vInputs may be returned with a 0-length; this will occur if there vRelevantTransactions is empty or if no
+    // transactions could cover the required fees.
+    template<typename AbstractTxout>
+    bool GetInputsForTx(const std::vector<AbstractTxout>& vRelevantTransactions, std::vector<AbstractTxout>& vInputs,
+                        CAmount& nFeeRet, CAmount& nCollectedRet, CAmount nRequired, size_t nConstantSize,
+                        const CCoinControl* coinControl, bool fUseInstantSend, bool fSubtractFeeFromAmount,
+                        bool fAllowPartial=false, size_t nChangeSize=34) {
+        AssertLockHeld(cs_wallet);
+        vInputs.clear();
+        nFeeRet = 0;
+        nCollectedRet = 0;
+
+        size_t nMaxSize = coinControl && coinControl->nMaxSize ? coinControl->nMaxSize : (MAX_STANDARD_TX_WEIGHT / 4);
+
+        if (nRequired < 0)
+            throw std::runtime_error("Transaction amounts must be positive");
+
+        if (coinControl && coinControl->nMinimumTotalFee < 0)
+            throw std::runtime_error("Minimum total fee must be positive");
+
+        if (coinControl && coinControl->nConfirmTarget && coinControl->nConfirmTarget < 0)
+            throw std::runtime_error("nConfirmTarget must be positive if set.");
+
+        std::vector<AbstractTxout> vCoinControlInputs;
+        // vAvailable contains the available inputs that are not in vCoinControlInputs.
+        std::vector<AbstractTxout> vAvailable;
+        GetAvailableInputs(vRelevantTransactions, vAvailable, vCoinControlInputs, coinControl, fUseInstantSend);
+
+        // This algorithm will first pick all the transactions selected in coinControl. If
+        // coinControl->fRequireAllInputs is not set, it will stop when it has enough to provide for our outputs
+        // otherwise it will consume all the inputs. After that, it will select the smallest UTXO in our wallet, and end
+        // if enough value is found. Then, if there is a UTXO which combined with the smallest that can provide for our
+        // entire output value, that UTXO. If there is not, it will then pick the largest UTXO, and then the next
+        // smallest, and so on and so forth until we can fulfill our output requirements, or until we reach nMaxSize or
+        // coinControl->nMaxInputs limits. Once we reach those, we will start replacing the largest small inputs we have
+        // chosen with the largest inputs we haven't selected yet. If that fails, it is the case that the transactions
+        // in our wallet are not sufficient to provide for the outputs requested within the coinControl and nMaxSize
+        // constraints, so we will therefore fail.
+        size_t txSize = nConstantSize + 1;
+        size_t iFront = 0;
+        size_t iBack = 0;
+        size_t iCoinControl = 0;
+        bool fTakeFromFront = false;
+        bool fTrySkipFront = true;
+        bool fReplace = false;
+        std::vector<size_t> vSmallInputs;
+        while (true) {
+            // The idea here is to front-side inputs which are larger than the smallest front-side input that can
+            // fulfill our output value requirements.
+            if (fTrySkipFront && iCoinControl == vCoinControlInputs.size()) {
+                if (iFront) {
+                    // If iFront is already set and we're here at another iteration of this loop, the input we last
+                    // identified was too small to fulfill our requirements. We're therefore going to undo adding it and
+                    // try again with the next larger input.
+
+                    assert(!vInputs.empty());
+                    AbstractTxout oldTxout = vInputs.back();
+                    vInputs.pop_back();
+
+                    size_t inputSize = oldTxout.GetMarginalSpendSize(vInputs);
+                    // If inputSize here is 0, nCollectedRet and txSize will have never been mutated.
+                    if (inputSize) {
+                        nCollectedRet -= oldTxout.GetValue();
+                        txSize -= inputSize;
+                    }
+
+                    iFront -= 1;
+                } else {
+                    // If we're at the first iteration, we'll identify the smallest input that's larger than nRequired
+                    // and start looking for inputs from that.
+                    for (const AbstractTxout& txo: vAvailable) {
+                        if (txo.GetValue() > nRequired) iFront++;
+                        else break;
+                    }
+                    if (iFront) iFront--;
+
+                    // If we got to the last element of vAvailable, which we have already added as an input element
+                    // previously, we don't have any UTXOs which will fulfill our requirements. Therefore, we'll stop
+                    // using the fTrySkipFront logic and pick the largest UTXOs we have.
+                    if (iFront + 1 == vAvailable.size()) iFront = 0;
+                }
+
+                // If iFront here is at 0, we've reached the end and want to try our normal logic.
+                if (!iFront) fTrySkipFront = false;
+
+                // If we've done an iteration of fTrySkipFront logic before, fTakeFromFront will be false, but we need
+                // it to be true as this is a do-over.
+                fTakeFromFront = true;
+            }
+
+            if (coinControl && coinControl->nMaxInputs && coinControl->nMaxInputs == vInputs.size())
+                fReplace = true;
+
+            AbstractTxout txout;
+            bool hasReplacedTxout = false;
+            // If hasReplacedTxout is false, the value of iToReplace is meaningless.
+            size_t iToReplace = 0;
+            if (iCoinControl != vCoinControlInputs.size()) {
+                // Select coin control inputs before dealing with other inputs.
+
+                txout = vCoinControlInputs.at(iCoinControl++);
+            } else if (fReplace) {
+                // If this code is reached, the value of iBack and fTakeFromFront no longer carries any significance.
+                iBack = SIZE_MAX;
+                fTakeFromFront = false;
+
+                // If we have reached the nMaxInputs or nMaxSize limit, we will replace the largest input that we've
+                // selected from the back of vAvailable with an input from the front of vAvailable.
+
+                if (vSmallInputs.empty()) break;
+                if (iFront == vAvailable.size()) break;
+
+                iToReplace = vSmallInputs.back();
+                vSmallInputs.pop_back();
+
+                AbstractTxout oldTxout = vInputs.at(iToReplace);
+                vInputs.erase(vInputs.begin() + iToReplace);
+
+                nCollectedRet -= oldTxout.GetValue();
+                txSize -= oldTxout.GetMarginalSpendSize(vInputs);
+
+                AbstractTxout newTxout = vAvailable.at(iFront++);
+                txSize += newTxout.GetMarginalSpendSize(vInputs);
+
+                vInputs.insert(vInputs.begin() + iToReplace, newTxout);
+                hasReplacedTxout = true;
+                txout = vInputs.at(iToReplace);
+            } else if (iFront + iBack == vAvailable.size()) {
+                // We've selected all possible inputs and still can't come up with the required amount. Fail.
+
+                break;
+            } else if (fTakeFromFront) {
+                txout = vAvailable.at(iFront++);
+                fTakeFromFront = false;
+            } else {
+                txout = vAvailable.at(vAvailable.size() - ++iBack);
+                fTakeFromFront = true;
+            }
+
+            size_t inputSize = 0;
+            try {
+                inputSize = txout.GetMarginalSpendSize(vInputs);
+            } catch (std::runtime_error& e) {
+                LogPrintf("%s(): Unexpectedly failed to determine spend size for %s-%d\n", __func__,
+                          txout.GetOutpoint().hash.GetHex(), txout.GetOutpoint().n);
+
+                if (coinControl && coinControl->IsSelected(txout.GetOutpoint()))
+                    throw std::runtime_error("The spend size of a coin control input could not be determined.");
+
+                // If we push this to the back of vSmallInputs, it will be replaced in the next iteration as the
+                // condition of the first if statement at the beginning of this loop will be fulfilled. nCollectedRet
+                // has been mutated above so that the undo in the first if block will be valid, and txSize will not be
+                // modified in the event we can't get the input size for this txo.
+                if (hasReplacedTxout) vSmallInputs.emplace_back(iToReplace);
+
+                continue;
+            }
+
+            // If this transaction will bring us over nMaxSize, don't add it and start transaction replacement logic
+            // above. It is technically possible for our transaction finding logic to fail to find a possible solution
+            // in the event that a lower value transaction has a smaller spend script, and the difference in fees
+            // between the two exceeds the difference in value, and this is true for every transaction larger than the
+            // transaction with the smaller spend script, and the difference is over what we need to get to nRequired,
+            // but this case should be extremely unlikely.
+            if (txSize + inputSize > nMaxSize) {
+                // If we start replacement logic, we want to keep this transaction available as an option.
+                if (!fReplace)
+                    // fTakeFromFront is true if we last took from the BACK of vAvailable.
+                    fTakeFromFront ? iBack-- : iFront--;
+
+                fReplace = true;
+                continue;
+            }
+
+            if (!hasReplacedTxout) {
+                // fTakeFromFront is true if we last took from the BACK of vAvailable.
+                if (fTakeFromFront)
+                    vSmallInputs.emplace_back(vInputs.size());
+
+
+                txSize += inputSize;
+                vInputs.emplace_back(txout);
+            }
+
+            nCollectedRet += txout.GetValue();
+
+            nFeeRet = GetFee(coinControl, txSize);
+
+            // If coin control is enabled, we want to select all inputs, so we will only check whether we have enough
+            // after exhausting vAvailable.
+            if (coinControl && coinControl->fRequireAllInputs && iCoinControl != vCoinControlInputs.size()) continue;
+
+            // This is here so we will not return in the event that we want to subtract the fee from the amount and the
+            // amount collected would be sufficient to cover nRequired, but not sufficient to cover the fee. Note that
+            // this will allow outputs (or even entire transactions) with 0 output value.
+            if (fSubtractFeeFromAmount && nFeeRet > nCollectedRet) continue;
+
+            CAmount extraFee = fSubtractFeeFromAmount ? 0 : nFeeRet;
+            // In this case, we don't need to make a change output, so we don't have to add the cost of a change output.
+            if (nCollectedRet == nRequired + extraFee) return true;
+            if (
+                nCollectedRet >= nRequired + extraFee &&
+                nCollectedRet <= nRequired + GetFee(coinControl, txSize + nChangeSize)
+            ) {
+                nFeeRet = nCollectedRet - nRequired;
+                return true;
+            }
+
+            // In this case, we have a change output too.
+
+            if (txSize + nChangeSize > nMaxSize) {
+                // fTakeFromFront is true if we last took from the BACK of vAvailable.
+                if (!fReplace) {
+                    if (fTakeFromFront) {
+                        vSmallInputs.pop_back();
+                        iBack--;
+                    } else {
+                        iFront--;
+                    }
+
+                    vInputs.pop_back();
+
+                    nCollectedRet -= txout.GetValue();
+                    txSize -= inputSize;
+                }
+
+                fReplace = true;
+                continue;
+            }
+
+            nFeeRet = GetFee(coinControl, txSize + nChangeSize);
+            extraFee = fSubtractFeeFromAmount ? 0 : nFeeRet;
+            if (fSubtractFeeFromAmount && nFeeRet > nCollectedRet) continue;
+            if (nCollectedRet >= extraFee + nRequired) return true;
+        }
+
+        if (fAllowPartial) {
+            if (nFeeRet > nCollectedRet) {
+                vInputs.clear();
+                nFeeRet = 0;
+                nCollectedRet = 0;
+            } else if (nCollectedRet + (fSubtractFeeFromAmount ? 0 : nFeeRet) >= nRequired) {
+                nFeeRet = GetFee(coinControl, txSize);
+            }
+
+            return false;
+        }
+
+        // If we've gotten this far, we don't have the funds to make the transaction.
+        vInputs.clear();
+        nFeeRet = 0;
+        nCollectedRet = 0;
+        throw std::runtime_error("Insufficient funds");
+    }
 
     CWalletDB *pwalletdbEncryption;
 
@@ -681,16 +1061,6 @@ private:
     mutable std::vector<CompactTallyItem> vecAnonymizableTallyCached;
     mutable bool fAnonymizableTallyCachedNonDenom;
     mutable std::vector<CompactTallyItem> vecAnonymizableTallyCachedNonDenom;
-
-    /**
-     * Used to keep track of spent outpoints, and
-     * detect and report conflicts (double-spends or
-     * mutated transactions where the mutant gets mined).
-     */
-    typedef std::multimap<COutPoint, uint256> TxSpends;
-    TxSpends mapTxSpends;
-    void AddToSpends(const COutPoint& outpoint, const uint256& wtxid);
-    void AddToSpends(const uint256& wtxid);
 
     std::set<COutPoint> setWalletUTXO;
 
@@ -802,6 +1172,7 @@ public:
         bip47wallet.reset();
     }
 
+    TxSpends mapTxSpends;
     std::map<uint256, CWalletTx> mapWallet;
     std::list<CAccountingEntry> laccentries;
     bool EraseFromWallet(uint256 hash);
@@ -1011,13 +1382,19 @@ public:
      */
     bool FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool overrideEstimatedFeeRate, const CFeeRate& specificFeeRate, int& nChangePosInOut, std::string& strFailReason, bool includeWatching, bool lockUnspents, const std::set<int>& setSubtractFeeFromOutputs, bool keepReserveKey = true, const CTxDestination& destChange = CNoDestination());
 
-    /**
-     * Create a new transaction paying the recipients with a set of coins
-     * selected by SelectCoins(); Also create the change output, when needed
-     * @note passing nChangePosInOut as -1 will result in setting a random position
-     */
-    bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
-                           std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, int nExtraPayloadSize = 0, bool fUseInstantSend=false);
+    void SignTransparentInputs(CMutableTransaction& tx, const std::vector<CTransparentTxout>& vInputTxs, bool fSign);
+    void CheckTransparentTransactionSanity(CMutableTransaction& tx, const std::vector<CTransparentTxout>& vInputTxs,
+                                           const CCoinControl* coinControl, CAmount nFee, bool fSign);
+
+    bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey* reservekey,
+                           CAmount& nFeeRet, int& nChangePosInOut, std::string& strFailReason,
+                           const CCoinControl* coinControl, bool sign, int nExtraPayloadSize,
+                           bool fUseInstantSend, const std::vector<CTransparentTxout>& vTransparentTxouts);
+
+    bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey* reservekey,
+                           CAmount& nFeeRet, int& nChangePosInOut, std::string& strFailReason,
+                           const CCoinControl* coinControl = NULL, bool sign = true, int nExtraPayloadSize = 0,
+                           bool fUseInstantSend = false);
 
     /**
      * Add Mint and Spend functions
@@ -1273,7 +1650,7 @@ public:
             &address, const std::string &label, bool isMine,
             const std::string &purpose,
             ChangeType status)> NotifyRAPAddressBookChanged;
-            
+
     /**
      * Wallet transaction added, removed or updated.
      * @note called with lock cs_wallet held.

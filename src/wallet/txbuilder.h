@@ -13,34 +13,35 @@
 
 #include <inttypes.h>
 
-class InputSigner
+class SigmaTxBuilderInputSigner
 {
 public:
     COutPoint output;
     uint32_t sequence;
 
 public:
-    InputSigner();
-    explicit InputSigner(const COutPoint& output, uint32_t seq = CTxIn::SEQUENCE_FINAL);
-    virtual ~InputSigner();
+    SigmaTxBuilderInputSigner();
+    explicit SigmaTxBuilderInputSigner(const COutPoint& output, uint32_t seq = CTxIn::SEQUENCE_FINAL);
+    virtual ~SigmaTxBuilderInputSigner();
 
     virtual CScript Sign(const CMutableTransaction& tx, const uint256& sig) = 0;
 };
 
-class TxBuilder
+// This is only used for legacy Sigma code. Don't bother editing anything in it.
+class SigmaTxBuilderSuperclass
 {
 public:
     CWallet& wallet;
     const CCoinControl *coinControl;
 
 public:
-    explicit TxBuilder(CWallet& wallet) noexcept;
-    virtual ~TxBuilder();
+    explicit SigmaTxBuilderSuperclass(CWallet& wallet) noexcept;
+    virtual ~SigmaTxBuilderSuperclass();
 
     CWalletTx Build(const std::vector<CRecipient>& recipients, CAmount& fee,  bool& fChangeAddedToFee, CWalletDB& walletdb);
 
 protected:
-    virtual CAmount GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required) = 0;
+    virtual CAmount GetInputs(std::vector<std::unique_ptr<SigmaTxBuilderInputSigner>>& signers, CAmount required) = 0;
     virtual CAmount GetChanges(std::vector<CTxOut>& outputs, CAmount amount, CWalletDB& walletdb) = 0;
     virtual CAmount AdjustFee(CAmount needed, unsigned txSize);
 };
