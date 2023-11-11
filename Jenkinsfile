@@ -44,5 +44,11 @@ pipeline {
                 }
             }
         }
+        stage('Archive artifcats') {
+            steps {
+                archiveArtifacts artifacts: 'dist/src/test-suite.log',
+                allowEmptyArchive: true
+                }
+        }
     }
 }
