@@ -32,8 +32,10 @@ pipeline {
         }
         stage('Test') {
             steps {
-                dir('dist') {
-                    sh 'make check'
+                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE'){
+                    dir('dist') {
+                        sh 'make check'
+                    }
                 }
             }
         }
