@@ -39,18 +39,18 @@ pipeline {
                 }
             }
         }
+        stage('Archive unit tests logs') {
+            steps {
+                archiveArtifacts artifacts: 'dist/src/test-suite.log',
+                allowEmptyArchive: true
+                }
+        }
         stage('RPC Tests') {
             steps {
                 dir('dist') {
                     sh 'qa/pull-tester/rpc-tests.py -extended'
                 }
             }
-        }
-        stage('Archive artifacts') {
-            steps {
-                archiveArtifacts artifacts: 'dist/src/test-suite.log',
-                allowEmptyArchive: true
-                }
         }
     }
 }
