@@ -343,6 +343,8 @@ RES_ICONS = \
   qt/res/icons/hd_disabled.png \
   qt/res/icons/hd_enabled.png \
   qt/res/icons/history.png \
+  qt/res/icons/ic_info.png \
+  qt/res/icons/ic_warning.png \
   qt/res/icons/info.png \
   qt/res/icons/key.png \
   qt/res/icons/lock_closed.png \
@@ -363,8 +365,10 @@ RES_ICONS = \
   qt/res/icons/overview.png \
   qt/res/icons/quit.png \
   qt/res/icons/receive.png \
+  qt/res/icons/refresh.png \
   qt/res/icons/remove.png \
   qt/res/icons/send.png \
+  qt/res/icons/spark.png \
   qt/res/icons/synced.png \
   qt/res/icons/tools.png \
   qt/res/icons/transaction0.png \
