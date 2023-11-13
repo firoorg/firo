@@ -1331,6 +1331,11 @@ public:
         return false;
     }
 
+    bool operator()(const CExchangeKeyID &/*keyID*/) {
+        // can't witnessify this
+        return false;
+    }
+
     bool operator()(const CScriptID &scriptID) {
         CScript subscript;
         if (pwallet && pwallet->GetCScript(scriptID, subscript)) {

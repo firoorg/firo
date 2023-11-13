@@ -338,6 +338,12 @@ public:
         return true;
     }
 
+    bool operator()(const CExchangeKeyID &keyID) const {
+        script->clear();
+        *script << OP_EXCHANGEADDR << OP_HASH160 << ToByteVector(keyID) << OP_EQUALVERIFY << OP_CHECKSIG;
+        return true;
+    }
+
     bool operator()(const CScriptID &scriptID) const {
         script->clear();
         *script << OP_HASH160 << ToByteVector(scriptID) << OP_EQUAL;

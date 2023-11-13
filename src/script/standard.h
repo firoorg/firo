@@ -72,9 +72,10 @@ public:
  *  * CNoDestination: no destination set
  *  * CKeyID: TX_PUBKEYHASH destination
  *  * CScriptID: TX_SCRIPTHASH destination
+ *  * CExchangeKeyID: CKeyID for exchange key
  *  A CTxDestination is the internal data type encoded in a CBitcoinAddress
  */
-typedef boost::variant<CNoDestination, CKeyID, CScriptID> CTxDestination;
+typedef boost::variant<CNoDestination, CKeyID, CScriptID, CExchangeKeyID> CTxDestination;
 
 const char* GetTxnOutputType(txnouttype t);
 
