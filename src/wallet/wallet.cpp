@@ -7166,13 +7166,13 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
 
         // if it is first run, we need to generate the full key set for spark, if not we are loading spark wallet from db
         walletInstance->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
-    }
 
-    spark::Address address = walletInstance->sparkWallet->getDefaultAddress();
-    unsigned char network = spark::GetNetworkType();
-    if (!walletInstance->SetSparkAddressBook(address.encode(network), "", "receive")) {
-        InitError(_("Cannot write default spark address") += "\n");
-        return NULL;
+        spark::Address address = walletInstance->sparkWallet->getDefaultAddress();
+        unsigned char network = spark::GetNetworkType();
+        if (!walletInstance->SetSparkAddressBook(address.encode(network), "", "receive")) {
+            InitError(_("Cannot write default spark address") += "\n");
+            return NULL;
+        }
     }
 
     walletInstance->bip47wallet = std::make_shared<bip47::CWallet>(walletInstance->vchDefaultKey.GetHash());
@@ -7826,7 +7826,7 @@ notifTxExit:
 }
 
 void CWallet::HandleSparkTransaction(CWalletTx const & wtx) {
-    if (!wtx.tx->IsSparkTransaction())
+    if (!wtx.tx->IsSparkTransaction() || !sparkWallet)
         return;
 
     uint256 txHash = wtx.GetHash();
@@ -8119,6 +8119,11 @@ bool CWallet::CreateSparkMintTransactions(
 std::pair<CAmount, CAmount> CWallet::GetSparkBalance()
 {
     std::pair<CAmount, CAmount> balance = {0, 0};
+    auto sparkWallet = pwalletMain->sparkWallet.get();
+
+    if(!sparkWallet)
+        return balance;
+
     balance.first = sparkWallet->getAvailableBalance();
     balance.second = sparkWallet->getUnconfirmedBalance();
     return balance;
@@ -8130,6 +8135,9 @@ bool CWallet::IsSparkAddressMine(const std::string& address) {
 
 bool CWallet::SetSparkAddressBook(const std::string& address, const std::string& strName, const std::string& strPurpose)
 {
+    if (!sparkWallet)
+        return false;
+
     bool fUpdated = false;
     {
         LOCK(cs_wallet); // mapAddressBook

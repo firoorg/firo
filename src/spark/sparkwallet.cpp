@@ -1089,7 +1089,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                             while (i < tx.vout.size()) {
                                 if (tx.vout[i].scriptPubKey.IsSparkMint()) {
                                     tx.vout[i] = txout;
-                                    CWalletDB walletdb(strWalletFile);
+                                    CWalletDB walletdb(pwalletMain->strWalletFile);
                                     CSparkOutputTx output;
                                     output.address = recipient.address;
                                     output.amount = recipient.nAmount;

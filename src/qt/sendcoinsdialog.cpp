@@ -162,6 +162,15 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         std::pair<CAmount, CAmount> sparkBalance = _model->getSparkBalance();
         privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
 
+        if (model->getWallet()) {
+            auto allowed = lelantus::IsLelantusAllowed() || (spark::IsSparkAllowed() && model->getWallet()->sparkWallet);
+            setAnonymizeMode(allowed);
+
+            if (!allowed) {
+                ui->switchFundButton->setEnabled(false);
+            }
+        }
+
         setBalance(
             _model->getBalance(), _model->getUnconfirmedBalance(), _model->getImmatureBalance(),
             _model->getWatchBalance(), _model->getWatchUnconfirmedBalance(), _model->getWatchImmatureBalance(),
@@ -628,7 +637,8 @@ void SendCoinsDialog::updateBlocks(int count, const QDateTime& blockDate, double
         return;
     }
 
-    auto allowed = lelantus::IsLelantusAllowed() || spark::IsSparkAllowed();
+    auto allowed = lelantus::IsLelantusAllowed() || (spark::IsSparkAllowed() && model->getWallet() && model->getWallet()->sparkWallet);
+
 
     if (allowed && !ui->switchFundButton->isEnabled())
     {

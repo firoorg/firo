@@ -1399,10 +1399,13 @@ std::pair<CAmount, CAmount> WalletModel::getSparkBalance()
 
 bool WalletModel::getAvailableLelantusCoins()
 {
+    if (!pwalletMain->zwallet)
+        return false;
+
     std::list<CLelantusEntry> coins = wallet->GetAvailableLelantusCoins();
-    if(coins.size() > 0) {
+    if (coins.size() > 0) {
         return true;
-    }else{
+    } else {
         return false;
     }
 } 
@@ -1411,7 +1414,7 @@ bool WalletModel::migrateLelantusToSpark()
 {
     std::string strFailReason;
     bool res = wallet->LelantusToSpark(strFailReason);
-    if(!res) {
+    if (!res) {
         Q_EMIT message(tr("Lelantus To Spark"), QString::fromStdString(strFailReason),
             CClientUIInterface::MSG_ERROR);
     }
