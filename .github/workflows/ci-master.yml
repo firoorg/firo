@@ -141,7 +141,7 @@ jobs:
       working-directory: ${{ env.SOURCE_ARTIFACT }}
     - name: Build Firo
       run: |
-        ./configure --disable-jni --enable-elysium --prefix=$(realpath depends/x86_64-w64-mingw32)
+        ./configure --without-libs --disable-jni --enable-elysium --prefix=$(realpath depends/x86_64-w64-mingw32)
         make -j$(nproc)
       working-directory: ${{ env.SOURCE_ARTIFACT }}
     - name: Prepare Files for Artifact
