@@ -135,7 +135,7 @@ jobs:
       working-directory: ${{ env.SOURCE_ARTIFACT }}
     - name: Build Firo
       run: |
-        ./configure --disable-jni --enable-elysium --prefix=$(realpath depends/x86_64-w64-mingw32)
+        ./configure --without-libs --disable-jni --enable-elysium --prefix=$(realpath depends/x86_64-w64-mingw32)
         make -j$(nproc)
       working-directory: ${{ env.SOURCE_ARTIFACT }}
     - name: Prepare Files for Artifact
@@ -167,6 +167,9 @@ jobs:
       run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
     - name: Install Required Packages
       run: brew install automake coreutils pkg-config
+      # Workaround for macOS: https://github.com/actions/runner/issues/2958
+    - name: Install setuptools
+      run: sudo -H pip install setuptools
     - name: Build Dependencies
       run: make -C depends -j$(sysctl -n hw.activecpu)
       working-directory: ${{ env.SOURCE_ARTIFACT }}
