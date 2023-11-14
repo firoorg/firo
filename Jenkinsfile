@@ -32,10 +32,18 @@ pipeline {
         }
         stage('Test') {
             steps {
-                dir('dist') {
-                    sh 'make check'
+                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE'){
+                    dir('dist') {
+                        sh 'make check'
+                    }
                 }
             }
+        }
+        stage('Archive unit tests logs') {
+            steps {
+                archiveArtifacts artifacts: 'dist/src/test-suite.log',
+                allowEmptyArchive: true
+                }
         }
         stage('RPC Tests') {
             steps {
