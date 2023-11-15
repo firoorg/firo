@@ -129,7 +129,49 @@
       </item>
      </layout>
     </item>
-    <item row="1" column="0">
+    <item row="1" column="1">
+     <layout class="QHBoxLayout" name="horizontalLayoutWarning" stretch="0,1">
+      <property name="spacing">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="iconWarning">
+        <property name="toolTip">
+         <string></string>
+        </property>
+        <property name="text">
+         <string></string>
+        </property>
+        <property name="minimumWidth">
+          5
+        </property>
+        <property name="minimumHeight">
+          5
+        </property>
+        <property name="fixedWidth">
+          10
+        </property>
+        <property name="fixedHeight">
+          10
+        </property>
+        <property name="styleSheet">
+          <string>margin-left:-30px;margin-right:-10px;margin-top:2px;</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+        <widget class="QLabel" name="textWarning">
+          <property name="text">
+          <string> You are using a transparent transaction, please go private. If this is a masternode transaction, you do not have to go private</string>
+          </property>
+          <property name="styleSheet">
+            <string>color: #FFA800; margin-left:-10px;</string>
+          </property>
+        </widget>
+      </item>
+     </layout>
+    </item>
+    <item row="2" column="0">
      <widget class="QLabel" name="labellLabel">
       <property name="text">
        <string>&amp;Label:</string>
@@ -142,14 +184,14 @@
       </property>
      </widget>
     </item>
-    <item row="1" column="1">
+    <item row="2" column="1">
      <widget class="QLineEdit" name="addAsLabel">
       <property name="toolTip">
        <string>Enter a label for this address to add it to the list of used addresses</string>
       </property>
      </widget>
     </item>
-    <item row="2" column="0">
+    <item row="3" column="0">
      <widget class="QLabel" name="amountLabel">
       <property name="text">
        <string>A&amp;mount:</string>
@@ -162,7 +204,7 @@
       </property>
      </widget>
     </item>
-    <item row="2" column="1">
+    <item row="3" column="1">
      <layout class="QHBoxLayout" name="horizontalLayoutAmount" stretch="0,1">
       <item>
        <widget class="BitcoinAmountField" name="payAmount"/>
@@ -179,7 +221,7 @@
       </item>
      </layout>
     </item>
-    <item row="3" column="0">
+    <item row="4" column="0">
      <widget class="QLabel" name="messageLabel">
       <property name="text">
        <string>Message:</string>
@@ -189,7 +231,7 @@
       </property>
      </widget>
     </item>
-    <item row="3" column="1">
+    <item row="4" column="1">
      <widget class="QLabel" name="messageTextLabel">
       <property name="toolTip">
        <string>A message that was attached to the firo: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Firo network.</string>
@@ -199,7 +241,7 @@
       </property>
      </widget>
     </item>
-    <item row="4" column="0" colspan="2">
+    <item row="5" column="0" colspan="2">
      <widget class="Line" name="line">
       <property name="orientation">
        <enum>Qt::Horizontal</enum>

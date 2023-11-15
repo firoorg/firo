@@ -7,6 +7,7 @@
 
 #include "../hdmint/hdmint.h"
 #include "../primitives/mint_spend.h"
+#include "spark/state.h"
 
 #include "walletmodel.h"
 

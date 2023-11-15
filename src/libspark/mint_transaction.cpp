@@ -44,7 +44,7 @@ MintTransaction::MintTransaction(
         } else {
             Coin coin;
             coin.type = 0;
-            coin.r_.ciphertext.resize(32);
+            coin.r_.ciphertext.resize(82); // max possible size
             coin.r_.key_commitment.resize(64);
             coin.r_.tag.resize(16);
             coin.v = 0;

@@ -67,8 +67,7 @@ QValidator::State BitcoinAddressEntryValidator::validate(QString &input, int &po
 
         if (((ch >= '0' && ch<='9') ||
             (ch >= 'a' && ch<='z') ||
-            (ch >= 'A' && ch<='Z')) &&
-            ch != 'l' && ch != 'I' && ch != '0' && ch != 'O')
+            (ch >= 'A' && ch<='Z')))
         {
             // Alphanumeric and not a 'forbidden' character
         }
@@ -97,5 +96,22 @@ QValidator::State BitcoinAddressCheckValidator::validate(QString &input, int &po
     if (bip47::CPaymentCode::validate(input.toStdString()))
         return QValidator::Acceptable;
 
+    if (validateSparkAddress(input.toStdString()))
+        return QValidator::Acceptable;
+
     return QValidator::Invalid;
+}
+
+bool BitcoinAddressCheckValidator::validateSparkAddress(const std::string& address) const
+{
+    const spark::Params* params = spark::Params::get_default();
+    unsigned char network = spark::GetNetworkType();
+    unsigned char coinNetwork;
+    spark::Address addr(params);
+    try {
+        coinNetwork = addr.decode(address);
+    } catch (const std::invalid_argument &) {
+        return false;
+    }
+    return network == coinNetwork;
 }

@@ -986,14 +986,14 @@ UniValue editaddressbook(Type type, const UniValue& data, const UniValue& auth, 
 UniValue getAvailableSparkBalance(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     UniValue retval(UniValue::VOBJ);
-    retval.push_back(Pair("amount", pwalletMain->GetAvailableSparkBalance()));
+    retval.push_back(Pair("amount", pwalletMain->sparkWallet->getAvailableBalance()));
     return retval;
 }
 
 UniValue getUnconfirmedSparkBalance(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     UniValue retval(UniValue::VOBJ);
-    retval.push_back(Pair("amount", pwalletMain->GetUnconfirmedSparkBalance()));
+    retval.push_back(Pair("amount", pwalletMain->sparkWallet->getUnconfirmedBalance()));
     return retval;
 }
 

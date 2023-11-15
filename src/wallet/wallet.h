@@ -192,6 +192,7 @@ struct CRecipient
     CScript scriptPubKey;
     CAmount nAmount;
     bool fSubtractFeeFromAmount;
+    std::string address;
 };
 
 typedef std::map<std::string, std::string> mapValue_t;
@@ -728,10 +729,11 @@ private:
      * nTimeFirstKey more intelligently for more efficient rescans.
      */
     bool AddWatchOnly(const CScript& dest) override;
-    bool validateAddress(const std::string& address);
-    bool validateSparkAddress(const std::string& address);
 
 public:
+    bool validateSparkAddress(const std::string& address) const;
+    bool validateAddress(const std::string& address);
+
     /*
      * Main wallet lock.
      * This lock protects all the fields added by CWallet
@@ -825,6 +827,7 @@ public:
 
     std::map<CTxDestination, CAddressBookData> mapAddressBook;
     std::map<std::string, CAddressBookData> mapSparkAddressBook;
+    std::map<std::string, CAddressBookData> mapRAPAddressBook;
     std::multimap<std::string, std::string> mapCustomKeyValues;
 
     CPubKey vchDefaultKey;
@@ -897,8 +900,10 @@ public:
 
     //! Adds a destination data tuple to the store, and saves it to disk
     bool AddDestData(const CTxDestination &dest, const std::string &key, const std::string &value);
+    bool AddDestData(const std::string &dest, const std::string &key, const std::string &value);
     //! Erases a destination data tuple in the store and on disk
     bool EraseDestData(const CTxDestination &dest, const std::string &key);
+    bool EraseDestData(const std::string &dest, const std::string &key);
     //! Adds a destination data tuple to the store, without saving it to disk
     bool LoadDestData(const CTxDestination &dest, const std::string &key, const std::string &value);
     bool LoadDestData(const std::string &dest, const std::string &key, const std::string &value);
@@ -1043,7 +1048,19 @@ public:
                                         std::list<CReserveKey>& reservekeys, int& nChangePosInOut,
                                         std::string& strFailReason, const CCoinControl *coinControl, bool autoMintAll = false, bool sign = true);
 
+    std::pair<CAmount, CAmount> GetSparkBalance();
+    bool IsSparkAddressMine(const std::string& address);
 
+    bool CreateSparkMintTransactions(
+        const std::vector<spark::MintedCoinData>& outputs,
+        std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
+        CAmount& nAllFeeRet,
+        std::list<CReserveKey>& reservekeys,
+        int& nChangePosInOut,
+        bool subtractFeeFromAmount,
+        std::string& strFailReason,
+        const CCoinControl *coinControl,
+        bool autoMintAll = false);
 
     CWalletTx CreateSigmaSpendTransaction(
         const std::vector<CRecipient>& recipients,
@@ -1199,7 +1216,7 @@ public:
 
     bool SetAddressBook(const CTxDestination& address, const std::string& strName, const std::string& purpose);
     bool SetSparkAddressBook(const std::string& address, const std::string& strName, const std::string& purpose);
-
+    bool SetRAPAddressBook(const std::string& address, const std::string& strName, const std::string& purpose);
     bool DelAddressBook(const CTxDestination& address);
     bool DelAddressBook(const std::string& address);
 
@@ -1265,6 +1282,11 @@ public:
             &address, const std::string &label, bool isMine,
             const std::string &purpose,
             ChangeType status)> NotifySparkAddressBookChanged;
+
+    boost::signals2::signal<void (CWallet *wallet, const std::string
+            &address, const std::string &label, bool isMine,
+            const std::string &purpose,
+            ChangeType status)> NotifyRAPAddressBookChanged;
 
     /**
      * Wallet transaction added, removed or updated.
@@ -1404,23 +1426,11 @@ public:
     void NotifyTransactionLock(const CTransaction &tx) override;
     void NotifyChainLock(const CBlockIndex* pindexChainLock) override;
 
-    bool IsSparkAddressMine(const std::string& address);
-    CAmount GetAvailableSparkBalance();
-    CAmount GetUnconfirmedSparkBalance();
-    bool CreateSparkMintTransactions(
-        const std::vector<spark::MintedCoinData>& outputs,
-        std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
-        CAmount& nAllFeeRet,
-        std::list<CReserveKey>& reservekeys,
-        int& nChangePosInOut,
-        bool subtractFeeFromAmount,
-        std::string& strFailReason,
-        const CCoinControl *coinControl,
-        bool autoMintAll);
-
 #ifdef ENABLE_ELYSIUM
     void LoadTxOrigin(uint256, std::string& destination);
 #endif
+
+    bool GetSparkOutputTx(const CScript& scriptPubKey, CSparkOutputTx& output) const;
 };
 
 /** A key allocated from the key pool. */

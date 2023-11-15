@@ -140,7 +140,7 @@ void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent)
     // and this is the only place, where this address is supplied.
     widget->setPlaceholderText(QObject::tr("Enter a Firo address (e.g. %1)").arg(
         QString::fromStdString(DummyAddress(Params()))) +
-        QObject::tr(" or a payment code"));
+        QObject::tr(" or a payment code") + QObject::tr(" or a Firo spark address (e.g. pr1cjgedy25xhr4fmzx8cm5gf940v5j2482m94uaa0yguxxw2yrel0f0hyjesg77px7at47f4s3jy8hthmyr6ajhvn025yp28fyuwzvar0gcc7p27rvttn2tyl9ejwthjpaavlmy3cm3sysz)"));
 #endif
     widget->setValidator(new BitcoinAddressEntryValidator(parent));
     widget->setCheckValidator(new BitcoinAddressCheckValidator(parent));
