@@ -609,10 +609,10 @@ bool CheckSparkSpendTransaction(
                 id = idAndHash.first - 1;
             }
             if (id) {
-                if (index->sparkMintedCoins.count(idAndHash.first) > 0) {
+                if (index->sparkMintedCoins.count(id) > 0) {
                     BOOST_FOREACH(
                     const auto& coin,
-                    index->sparkMintedCoins[idAndHash.first]) {
+                    index->sparkMintedCoins[id]) {
                         cover_set.push_back(coin);
                     }
                 }
