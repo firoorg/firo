@@ -1247,7 +1247,7 @@ void CSparkState::GetCoinsForRecovery(
         int coinGroupID,
         std::string start_block_hash,
         uint256& blockHash_out,
-        std::vector<std::pair<spark::Coin, uint256>> coins,
+        std::vector<std::pair<spark::Coin, uint256>>& coins,
         std::vector<unsigned char>& setHash_out) {
     coins.clear();
     if (coinGroups.count(coinGroupID) == 0) {
