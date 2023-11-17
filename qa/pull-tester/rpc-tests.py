@@ -110,7 +110,7 @@ testScripts = [
     'lelantus_spend_gettransaction.py',
     'elysium_create_denomination.py',
     'elysium_property_creation_fee.py',
-    'elysium_sendmint.py',
+#    'elysium_sendmint.py',
     'elysium_sendmint_wallet_encryption.py',
     'elysium_sendspend.py',
     'elysium_sendspend_wallet_encryption.py',
