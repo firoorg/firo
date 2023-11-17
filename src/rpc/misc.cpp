@@ -1169,8 +1169,8 @@ UniValue getsparkanonymityset(const JSONRPCRequest& request)
                 "  \"setHash\"   (string) Anonymity set hash\n"
                 "  \"mints\" (Pair<string, string>) Serialized Spark coin paired with txhash\n"
                 "}\n"
-                + HelpExampleCli("getsparkanonymityset", "\"1\"" "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
-                + HelpExampleRpc("getsparkanonymityset", "\"1\"" "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
+                + HelpExampleCli("getsparkanonymityset", "\"1\" " "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
+                + HelpExampleRpc("getsparkanonymityset", "\"1\" " "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
         );
 
 
@@ -1246,6 +1246,9 @@ UniValue getsparkmintmetadata(const JSONRPCRequest& request)
                 "{\n"
                 "  \"metadata\"   (Pair<string,int>) nHeight and id for each coin\n"
                 "}\n"
+                + HelpExampleCli("getsparkmintmetadata", "'{\"coinHashes\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}'")
+                + HelpExampleRpc("getsparkmintmetadata", "{\"coinHashes\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}")
+
         );
 
     UniValue coinHashes = find_value(request.params[0].get_obj(), "coinHashes");
