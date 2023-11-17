@@ -47,6 +47,10 @@ void Schnorr::prove(const std::vector<Scalar>& y, const std::vector<GroupElement
 
     proof.t = r;
     for (std::size_t i = 0; i < n; i++) {
+        if (c_power.isZero()) {
+            throw std::invalid_argument("Unexpected challenge!");
+        }
+
         proof.t += y[i].negate()*c_power;
         c_power *= c;
     }
@@ -73,6 +77,10 @@ bool Schnorr::verify(const std::vector<GroupElement>& Y, const SchnorrProof& pro
     const Scalar c = challenge(Y, proof.A);
     Scalar c_power(c);
     for (std::size_t i = 0; i < n; i++) {
+        if (c_power.isZero()) {
+            throw std::invalid_argument("Unexpected challenge!");
+        }
+
         points.emplace_back(Y[i]);
         scalars.emplace_back(c_power);
         c_power *= c;
