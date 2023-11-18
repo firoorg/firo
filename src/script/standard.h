@@ -58,7 +58,8 @@ enum txnouttype
     TX_LELANTUSMINT,
     TX_LELANTUSJMINT,
     TX_SPARKMINT,
-    TX_SPARKSMINT
+    TX_SPARKSMINT,
+    TX_EXCHANGEADDRESS
 };
 
 class CNoDestination {

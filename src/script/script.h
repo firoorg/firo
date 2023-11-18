@@ -663,6 +663,7 @@ public:
     bool IsNormalPaymentScript() const;
 
     bool IsPayToPublicKeyHash() const;
+    bool IsPayToExchangeAddress() const;
 
     bool IsPayToScriptHash() const;
     bool IsPayToWitnessScriptHash() const;

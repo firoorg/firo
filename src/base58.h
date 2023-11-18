@@ -115,7 +115,13 @@ public:
 
     CBitcoinAddress() {}
     CBitcoinAddress(const CTxDestination &dest) { Set(dest); }
-    CBitcoinAddress(const std::string& strAddress) { SetString(strAddress) || SetString(strAddress.c_str(), 4); }
+    CBitcoinAddress(const std::string& strAddress) {
+        SetString(strAddress);
+        if (!IsValid()) {
+            // give the address second chance and try exchange address format with 3 byte prefix
+            SetString(strAddress.c_str(), 3);
+        }
+    }
     CBitcoinAddress(const char* pszAddress) { SetString(pszAddress); }
 
     CTxDestination Get() const;
