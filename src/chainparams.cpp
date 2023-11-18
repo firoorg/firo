@@ -473,6 +473,9 @@ public:
         consensus.nPPSwitchTime = 1635228000;           // Tue Oct 26 2021 06:00:00 GMT+0000
         consensus.nPPBlockNumber = 419264;
         consensus.nInitialPPDifficulty = 0x1b1774cd;    // 40GH/s
+
+        // exchange address
+        consensus.nExchangeAddressStartBlock = consensus.nSparkStartBlock;
     }
     virtual bool SkipUndoForBlock(int nHeight) const
     {
@@ -765,6 +768,9 @@ public:
         consensus.nPPSwitchTime = 1630069200;           // August 27 2021, 13:00 UTC
         consensus.nPPBlockNumber = 37305;
         consensus.nInitialPPDifficulty = 0x1d016e81;    // 10MH/s
+
+        // exchange address
+        consensus.nExchangeAddressStartBlock = 147000;
     }
 };
 
@@ -999,6 +1005,9 @@ public:
         consensus.nPPSwitchTime = 1631261566;           // immediately after network start
         consensus.nPPBlockNumber = 1;
         consensus.nInitialPPDifficulty = 0x2000ffff;
+
+        // exchange address
+        consensus.nExchangeAddressStartBlock = 2500;
     }
 };
 
