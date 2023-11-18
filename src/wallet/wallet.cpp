@@ -4520,10 +4520,15 @@ CAmount CWallet::GetFee(const CCoinControl* coinControl, size_t txSize) {
     AssertLockHeld(cs_main);
 
     CAmount fee = GetRequiredFee(txSize);
+
     if (coinControl && coinControl->fOverrideFeeRate) {
         CAmount override = coinControl->nFeeRate.GetFee(txSize);
         if (override < fee)
             throw std::runtime_error("nFeeRate is set too low; it will lead to creation of an unrelayable tx");
+    } else {
+        CAmount fee_ = payTxFee.GetFee(txSize);
+        if (fee_ > fee)
+            fee = fee_;
     }
 
     if (coinControl && coinControl->nMinimumTotalFee > fee)
