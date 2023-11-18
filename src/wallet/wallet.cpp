@@ -250,6 +250,25 @@ bool CTransparentTxout::IsCoinBase() const {
     return wallet->mapWallet.at(GetHash()).IsCoinBase();
 }
 
+bool CTransparentTxout::IsFromMe() const {
+    if (_isMockup)
+        return true;
+
+    assert(wallet);
+    AssertLockHeld(wallet->cs_wallet);
+
+    for (const CTxIn& txin: wallet->mapWallet.at(GetHash()).tx->vin) {
+        std::map<uint256, CWalletTx>::const_iterator mi = wallet->mapWallet.find(txin.prevout.hash);
+        if (mi == wallet->mapWallet.end())
+            return false;
+
+        if (!(::IsMine(*wallet, mi->second.tx->vout.at(txin.prevout.n).scriptPubKey, SIGVERSION_BASE) & ISMINE_ALL))
+            return false;
+    }
+
+    return true;
+}
+
 unsigned int CTransparentTxout::GetDepthInMainChain() const {
     if (_isMockup)
         return _mockupDepthInMainChain;

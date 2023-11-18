@@ -672,6 +672,7 @@ public:
     bool IsCoinTypeCompatible(const CCoinControl* coinControl) const;
     bool IsLLMQInstantSendLocked() const;
     bool IsCoinBase() const;
+    bool IsFromMe() const;
     unsigned int GetDepthInMainChain() const;
 
 private:
@@ -746,16 +747,20 @@ private:
         for (const AbstractTxout& tx: vRelevantTransactions) {
             bool isSelected = coinControl && coinControl->HasSelected() && coinControl->IsSelected(tx.GetOutpoint());
 
+            if (!tx.IsMine(coinControl)) continue;
             if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs && !isSelected)
                 continue;
             if (!tx.IsSpendable()) continue;
             if (!tx.IsCoinTypeCompatible(coinControl)) continue;
             if (tx.IsAbandoned()) continue;
-            if (!tx.GetDepthInMainChain() && (!fUseInstantSend || !tx.IsLLMQInstantSendLocked())) continue;
             if (coinControl && coinControl->nConfirmTarget && tx.GetDepthInMainChain() < coinControl->nConfirmTarget)
                 continue;
             if (tx.IsCoinBase() && tx.GetDepthInMainChain() < COINBASE_MATURITY) continue;
-            if (!tx.IsMine(coinControl)) continue;
+            if (
+                !tx.GetDepthInMainChain() &&
+                (!fUseInstantSend || !tx.IsLLMQInstantSendLocked()) &&
+                ((coinControl && !coinControl->fAllowUnconfirmed) || !tx.IsFromMe())
+            ) continue;
 
             if (isSelected) vCoinControlInputs.push_back(tx);
             else vAvailableInputs.push_back(tx);
