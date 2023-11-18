@@ -753,6 +753,7 @@ private:
             if (!tx.IsSpendable()) continue;
             if (!tx.IsCoinTypeCompatible(coinControl)) continue;
             if (tx.IsAbandoned()) continue;
+            if (tx.IsLocked()) continue;
             if (coinControl && coinControl->nConfirmTarget && tx.GetDepthInMainChain() < coinControl->nConfirmTarget)
                 continue;
             if (tx.IsCoinBase() && tx.GetDepthInMainChain() < COINBASE_MATURITY) continue;
