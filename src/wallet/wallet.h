@@ -14,6 +14,7 @@
 #include "tinyformat.h"
 #include "ui_interface.h"
 #include "utilstrencodings.h"
+#include "validation.h"
 #include "validationinterface.h"
 #include "script/ismine.h"
 #include "script/sign.h"
@@ -674,6 +675,7 @@ public:
     bool IsCoinBase() const;
     bool IsFromMe() const;
     unsigned int GetDepthInMainChain() const;
+    unsigned int GetDepthInMempool() const;
 
 private:
     const CWallet* wallet = nullptr;
@@ -744,6 +746,9 @@ private:
         if (coinControl && coinControl->nCoinType == CoinType::WITH_MINTS)
             throw std::runtime_error("CoinType::WITH_MINTS is not supported for any transactions.");
 
+        unsigned int nMaxMempoolDepth = GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
+        bool fRejectLongChains = GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS);
+
         for (const AbstractTxout& tx: vRelevantTransactions) {
             bool isSelected = coinControl && coinControl->HasSelected() && coinControl->IsSelected(tx.GetOutpoint());
 
@@ -762,6 +767,7 @@ private:
                 (!fUseInstantSend || !tx.IsLLMQInstantSendLocked()) &&
                 ((coinControl && !coinControl->fAllowUnconfirmed) || !tx.IsFromMe())
             ) continue;
+            if (fRejectLongChains && tx.GetDepthInMempool() + 1 >= nMaxMempoolDepth) continue;
 
             if (isSelected) vCoinControlInputs.push_back(tx);
             else vAvailableInputs.push_back(tx);
@@ -809,6 +815,7 @@ private:
         nCollectedRet = 0;
 
         size_t nMaxSize = coinControl && coinControl->nMaxSize ? coinControl->nMaxSize : (MAX_STANDARD_TX_WEIGHT / 4);
+        size_t nMaxAncestors = GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
 
         if (nRequired < 0)
             throw std::runtime_error("Transaction amounts must be positive");

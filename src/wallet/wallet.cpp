@@ -279,6 +279,22 @@ unsigned int CTransparentTxout::GetDepthInMainChain() const {
     return wallet->mapWallet.at(GetHash()).GetDepthInMainChain();
 }
 
+unsigned int CTransparentTxout::GetDepthInMempool() const {
+    if (_isMockup)
+        return GetDepthInMainChain() ? 0 : 1;
+
+    assert(wallet);
+    AssertLockHeld(wallet->cs_wallet);
+    AssertLockHeld(mempool.cs);
+
+    auto entry = mempool.mapTx.find(GetHash());
+    if (entry == mempool.mapTx.end())
+        return 0;
+
+    uint64_t nAncestors = entry->GetCountWithAncestors();
+    return nAncestors;
+}
+
 const uint256 CMerkleTx::ABANDON_HASH(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));
 
 /** @defgroup mapWallet
@@ -4627,7 +4643,7 @@ void CWallet::CheckTransparentTransactionSanity(CMutableTransaction& tx,
         throw std::runtime_error("txFee > maxTxFee. This is probably a bug.");
 
     bool fHasDataOut = false;
-    for (CTxOut& txout: tx.vout) {
+    for (const CTxOut& txout: tx.vout) {
         txnouttype whichType;
 
         if (!::IsStandard(txout.scriptPubKey, whichType, false))
@@ -4663,6 +4679,18 @@ void CWallet::CheckTransparentTransactionSanity(CMutableTransaction& tx,
     for (CTxOut& txout: tx.vout) totalOutputValue += txout.nValue;
     assert(totalInputValue == totalOutputValue + nFee);
     assert(totalInputValue > 0);
+
+    if (GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS)) {
+        // We should probably not make these transactions in the first place, but throwing this exception instead is the
+        // backwards compatible behaviour.
+        size_t nTotalMempoolAncestors = 0;
+
+        for (const CTransparentTxout& txin: vInputTxs)
+            nTotalMempoolAncestors += txin.GetDepthInMempool();
+
+        if (nTotalMempoolAncestors >= GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT))
+            throw std::runtime_error("mempool chain");
+    }
 }
 
 // Create a transaction to vecSend, placing it in wtxNew. reservekey is the keypool. nFeeRet will be populated with the
@@ -4692,6 +4720,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                                 CAmount& nFeeRet, int& nChangePosInOut, std::string& strFailReason,
                                 const CCoinControl* coinControl, bool sign, int nExtraPayloadSize,
                                 bool fUseInstantSend, const std::vector<CTransparentTxout>& vTransparentTxouts) {
+    LOCK(mempool.cs);
     AssertLockHeld(cs_main);
 
     if (!coinControl || coinControl->destChange.which() == 0)
