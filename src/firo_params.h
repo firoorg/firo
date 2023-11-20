@@ -182,7 +182,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 // Spark
 #define SPARK_START_BLOCK 819300 // Approx Jan 18 2024 8:00 AM UTC
 #define SPARK_TESTNET_START_BLOCK 107000
-#define LELANTUS_GRACEFUL_PERIOD 1119200 // Approx June 30 2025
+#define LELANTUS_GRACEFUL_PERIOD 1223500 // Approx Jan 30 2026
 #define LELANTUS_TESTNET_GRACEFUL_PERIOD 140000
 
 // Versions of zerocoin mint/spend transactions
