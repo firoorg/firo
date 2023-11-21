@@ -1506,7 +1506,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
             try {
                 joinsplit = lelantus::ParseLelantusJoinSplit(*wtx.tx);
             }
-            catch (...) {
+            catch (const std::exception &) {
                 continue;
             }
 
@@ -1532,7 +1532,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
                 spark::SpendTransaction spend = spark::ParseSparkSpend(*wtx.tx);
                 lTags = spend.getUsedLTags();
             }
-            catch (...) {
+            catch (const std::exception &) {
                 continue;
             }
 
@@ -1690,7 +1690,7 @@ isminetype CWallet::IsMine(const CTxIn &txin, const CTransaction& tx) const
         try {
             joinsplit = lelantus::ParseLelantusJoinSplit(tx);
         }
-        catch (...) {
+        catch (const std::exception &) {
             return ISMINE_NO;
         }
 
@@ -1705,7 +1705,7 @@ isminetype CWallet::IsMine(const CTxIn &txin, const CTransaction& tx) const
             spark::SpendTransaction spend = spark::ParseSparkSpend(tx);
             lTags = spend.getUsedLTags();
         }
-        catch (...) {
+        catch (const std::exception &) {
             return ISMINE_NO;
         }
         if (!sparkWallet)
@@ -1763,7 +1763,7 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const CTransaction& tx, const ismin
         try {
             joinsplit = lelantus::ParseLelantusJoinSplit(tx);
         }
-        catch (...) {
+        catch (const std::exception &) {
             goto end;
         }
 
@@ -1785,7 +1785,7 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const CTransaction& tx, const ismin
             spark::SpendTransaction spend = spark::ParseSparkSpend(tx);
             lTags = spend.getUsedLTags();
         }
-        catch (...) {
+        catch (const std::exception &) {
             goto end;
         }
         if (!sparkWallet)
@@ -1947,7 +1947,7 @@ CAmount CWallet::GetChange(const uint256& tx, const CTxOut &txout) const
             try {
                 spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
                 coin.setSerialContext(serial_context);
-            } catch (...) {
+            } catch (const std::exception &) {
                 return 0;
             }
             return sparkWallet->getMyCoinV(coin);
@@ -2375,14 +2375,14 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
             try {
                 nFee = lelantus::ParseLelantusJoinSplit(*tx)->getFee();
             }
-            catch (...) {
+            catch (const std::exception &) {
                 // do nothing
             }
         } else if (tx->IsSparkSpend()) {
             try {
                 nFee = spark::ParseSparkSpend(*tx).getFee();
             }
-            catch (...) {
+            catch (const std::exception &) {
                 // do nothing
             }
         } else {
@@ -2834,7 +2834,7 @@ bool CWalletTx::IsChange(uint32_t out) const {
         try {
             spark::ParseSparkMintCoin(tx->vout[out].scriptPubKey, coin);
             coin.setSerialContext(serial_context);
-        } catch (...) {
+        } catch (const std::exception &) {
             return false;
         }
         return pwallet->sparkWallet->getMyCoinIsChange(coin);
@@ -5781,7 +5781,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
         CValidationState state;
         CReserveKey reserveKey(this);
         CommitTransaction(wtxNew, reserveKey, g_connman.get(), state);
-    } catch (...) {
+    } catch (const std::exception &) {
         auto error = _(
             "Error: The transaction was rejected! This might happen if some of "
             "the coins in your wallet were already spent, such as if you used "
@@ -5933,7 +5933,7 @@ CWalletTx CWallet::SpendAndStoreSpark(
         CValidationState state;
         CReserveKey reserveKey(this);
         CommitTransaction(result, reserveKey, g_connman.get(), state);
-    } catch (...) {
+    } catch (const std::exception &) {
         auto error = _(
                 "Error: The transaction was rejected! This might happen if some of "
                 "the coins in your wallet were already spent, such as if you used "
@@ -6094,7 +6094,7 @@ bool CWallet::CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantus
         CValidationState state;
         CReserveKey reserveKey(this);
         CommitTransaction(wtxNew, reserveKey, g_connman.get(), state);
-    } catch (...) {
+    } catch (const std::exception &) {
         auto error = _(
                 "Error: The transaction was rejected! This might happen if some of "
                 "the coins in your wallet were already spent, such as if you used "

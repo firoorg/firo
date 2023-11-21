@@ -426,7 +426,7 @@ public:
             GroupElement coin;
             try {
                 coin.deserialize(ParseHex(str).data());
-            } catch (...) {
+            } catch (const std::exception &) {
                 continue;
             }
             consensus.lelantusBlacklist.insert(coin);
@@ -436,7 +436,7 @@ public:
             GroupElement coin;
             try {
                 coin.deserialize(ParseHex(str).data());
-            } catch (...) {
+            } catch (const std::exception &) {
                 continue;
             }
             consensus.sigmaBlacklist.insert(coin);
@@ -735,7 +735,7 @@ public:
             GroupElement coin;
             try {
                 coin.deserialize(ParseHex(str).data());
-            } catch (...) {
+            } catch (const std::exception &) {
                 continue;
             }
             consensus.lelantusBlacklist.insert(coin);

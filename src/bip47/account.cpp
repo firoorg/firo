@@ -254,7 +254,7 @@ bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & ma
     std::unique_ptr<lelantus::JoinSplit> jsplit;
     try {
         jsplit = lelantus::ParseLelantusJoinSplit(tx);
-    }catch (...) {
+    }catch (const std::exception &) {
         return false;
     }
     if (!jsplit)

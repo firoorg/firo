@@ -961,7 +961,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             catch (CBadTxIn&) {
                 return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
             }
-            catch (...) {
+            catch (const std::exception &) {
                 return state.Invalid(false, REJECT_CONFLICT, "failed to deserialize joinsplit");
             }
 
@@ -1004,7 +1004,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             try {
                 sparkUsedLTags = spark::GetSparkUsedTags(tx);
             }
-            catch (...) {
+            catch (const std::exception &) {
                 return state.Invalid(false, REJECT_CONFLICT, "failed to deserialize spark spend");
             }
 
@@ -1052,7 +1052,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             try {
                 sparkMintCoins = spark::GetSparkMintCoins(tx);
             }
-            catch (...) {
+            catch (const std::exception &) {
                 return state.Invalid(false, REJECT_CONFLICT, "failed to deserialize spark mint");
             }
 
@@ -1248,7 +1248,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
                 }
-                catch (...) {
+                catch (const std::exception &) {
                     return state.DoS(0, false, REJECT_INVALID, "failed to deserialize joinsplit");
                 }
             } else {
@@ -1258,7 +1258,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
                 }
-                catch (...) {
+                catch (const std::exception &) {
                     return state.DoS(0, false, REJECT_INVALID, "failed to deserialize joinsplit");
                 }
             }
@@ -1692,7 +1692,14 @@ bool AcceptToMemoryPoolWithTime(CTxMemPool& pool, CValidationState &state, const
 {
     LogPrintf("AcceptToMemoryPool(), transaction: %s\n", tx->GetHash().ToString());
     std::vector<COutPoint> coins_to_uncache;
-    bool res = AcceptToMemoryPoolWorker(pool, state, tx, fLimitFree, pfMissingInputs, nAcceptTime, plTxnReplaced, fOverrideMempoolLimit, nAbsurdFee, coins_to_uncache, isCheckWalletTransaction, markFiroSpendTransactionSerial);
+    bool res = false;
+    try {
+        res = AcceptToMemoryPoolWorker(pool, state, tx, fLimitFree, pfMissingInputs, nAcceptTime, plTxnReplaced, fOverrideMempoolLimit, nAbsurdFee, coins_to_uncache, isCheckWalletTransaction, markFiroSpendTransactionSerial);
+    }
+    catch (const std::exception &x) {
+        state.Error(x.what());
+        res = false;
+    }
     if (!res) {
         BOOST_FOREACH(const COutPoint& hashTx, coins_to_uncache)
             pcoinsTip->Uncache(hashTx);
@@ -2184,7 +2191,7 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
             catch (CBadTxIn&) {
                 return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
             }
-            catch (...) {
+            catch (const std::exception &) {
                 return state.DoS(0, false, REJECT_INVALID, "failed to deserialize joinsplit");
             }
         }
@@ -2621,7 +2628,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
             try {
                 nFees += lelantus::ParseLelantusJoinSplit(tx)->getFee();
             }
-            catch (...) {
+            catch (const std::exception &) {
                 // do nothing
             }
         }
@@ -2629,7 +2636,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
             try {
                 nFees = spark::ParseSparkSpend(tx).getFee();
             }
-            catch (...) {
+            catch (const std::exception &) {
                 // do nothing
             }
         }
@@ -3019,7 +3026,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
                 }
-                catch (...) {
+                catch (const std::exception &) {
                     return state.DoS(0, false, REJECT_INVALID, "failed to deserialize joinsplit");
                 }
             }
@@ -3031,7 +3038,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse spark spend");
                 }
-                catch (...) {
+                catch (const std::exception &) {
                     return state.DoS(0, false, REJECT_INVALID, "failed to deserialize spark spend");
                 }
             }
@@ -3600,7 +3607,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
                 try {
                     joinsplit = lelantus::ParseLelantusJoinSplit(*tx);
                 }
-                catch (...) {
+                catch (const std::exception &) {
                     continue;
                 }
 
