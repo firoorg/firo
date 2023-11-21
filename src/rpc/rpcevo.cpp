@@ -12,11 +12,11 @@
 #include "validation.h"
 
 #ifdef ENABLE_WALLET
-#include "wallet/coincontrol.h"
 #include "wallet/wallet.h"
 #include "wallet/rpcwallet.h"
 #endif//ENABLE_WALLET
 
+#include "wallet/coincontrol.h"
 #include "netbase.h"
 
 #include "evo/specialtx.h"
@@ -1297,6 +1297,7 @@ UniValue spork(const JSONRPCRequest& request)
     else if (request.params.size() != 3)
         spork_help();
 
+#ifdef ENABLE_WALLET
     // create spork
     CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
     CKey secretKey = ParsePrivKey(pwallet, request.params[0].get_str(), true);
@@ -1305,12 +1306,12 @@ UniValue spork(const JSONRPCRequest& request)
     if (!CBitcoinAddress(Params().GetConsensus().evoSporkKeyID).GetKeyID(publicKeyID) || secretKey.GetPubKey().GetID() != publicKeyID) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "incorrect spork secret key");
     }
+#endif // ENABLE_WALLET
 
     CBitcoinAddress feeAddress(request.params[1].get_str());
     if (!feeAddress.IsValid()) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", request.params[1].get_str()));
     }
-
     CSporkTx sporkTx;
     UniValue sporkEnableOrDisableObj = request.params[2].get_obj();
     std::vector<std::string> enableOrDisableKeys = sporkEnableOrDisableObj.getKeys();
@@ -1418,12 +1419,13 @@ UniValue spork(const JSONRPCRequest& request)
 
     // make sure fee calculation works correctly
     sporkTx.vchSig.resize(65);
-
+#ifdef ENABLE_WALLET
     FundSpecialTx(pwallet, tx, sporkTx, feeAddress.Get());
     SignSpecialTxPayloadByHash(tx, sporkTx, secretKey);
     SetTxPayload(tx, sporkTx);
 
     return SignAndSendSpecialTx(tx);
+#endif // ENABLE_WALLET
 }
 
 static const CRPCCommand commands[] =

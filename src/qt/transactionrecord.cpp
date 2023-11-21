@@ -65,7 +65,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         if (isAllJoinSplitFromMe && wtx.tx->vin.size() > 0) {
             try {
                 nTxFee = lelantus::ParseLelantusJoinSplit(*wtx.tx)->getFee();
-            } catch (...) {
+            } catch (const std::exception &) {
                 // do nothing
             }
         }
@@ -177,8 +177,24 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     // Received by Bitcoin Address
                     sub.type = TransactionRecord::RecvWithAddress;
                     sub.address = CBitcoinAddress(address).ToString();
-                }
-                else
+                } else if(txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+                    sub.type = TransactionRecord::RecvSpark;
+                    bool ok = true;
+                    spark::Coin coin(spark::Params::get_default());
+                    try {
+                        spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
+                    } catch (std::invalid_argument&) {
+                        ok = false;
+                    }
+                    if (ok) {
+                        coin.setSerialContext(spark::getSerialContext(*wtx.tx));
+                        spark::Address addr = pwalletMain->sparkWallet->getMyCoinAddress(coin);
+                        unsigned char network = spark::GetNetworkType();
+                        sub.address = addr.encode(network);
+                        CAmount amount = pwalletMain->sparkWallet->getMyCoinV(coin);
+                        sub.credit = amount;
+                    }
+                } else
                 {
                     // Received by IP connection (deprecated features), or a multisignature or other non-simple transaction
                     sub.type = TransactionRecord::RecvFromOther;
@@ -229,6 +245,18 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 // Mint to self
                 parts.append(TransactionRecord(hash, nTime, TransactionRecord::Anonymize, "",
                     -(nDebit - nChange), 0));
+            } else if (wtx.tx->IsSparkMint()) {
+                parts.append(TransactionRecord(hash, nTime, TransactionRecord::MintSparkToSelf, "",
+                    -(nDebit - nChange), 0));
+            } else if (wtx.tx->IsSparkSpend()) {
+                CAmount fee;
+                try {
+                    spark::SpendTransaction spend = spark::ParseSparkSpend(*wtx.tx);
+                    fee = spend.getFee();
+                } catch (...) {
+                }
+                parts.append(TransactionRecord(hash, nTime, TransactionRecord::SpendSparkToSelf, "",
+                    -(fee), 0));
             } else {
                 // Payment to self
                 parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToSelf, "",
@@ -243,12 +271,22 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             //
             CAmount nTxFee = nDebit - wtx.tx->GetValueOut();
 
+            if (wtx.tx->IsSparkSpend() && wtx.tx->vin.size() > 0) {
+                try {
+                    nTxFee = spark::ParseSparkSpend(*wtx.tx).getFee();
+                }
+                catch (...) {
+                    //do nothing
+                }
+            }
+
             for (unsigned int nOut = 0; nOut < wtx.tx->vout.size(); nOut++)
             {
                 const CTxOut& txout = wtx.tx->vout[nOut];
                 TransactionRecord sub(hash, nTime);
                 sub.idx = nOut;
                 sub.involvesWatchAddress = involvesWatchAddress;
+                CSparkOutputTx output;
 
                 if(wallet->IsMine(txout))
                 {
@@ -269,10 +307,28 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                         sub.type = TransactionRecord::SendToPcode;
                         sub.pcode = std::get<1>(*pcode).toString();
                     }
+                    if(wtx.tx->IsSparkSpend())
+                    {
+                        sub.type = TransactionRecord::SpendSparkTo;
+                    }
                 }
                 else if(wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint())
                 {
                     sub.type = TransactionRecord::Anonymize;
+                }
+                else if(wtx.tx->IsSparkMint())
+                {
+                    sub.type = TransactionRecord::MintSparkTo;
+                    if(wallet->GetSparkOutputTx(txout.scriptPubKey, output)) {
+                        sub.address = output.address;
+                    }
+                }
+                else if(wtx.tx->IsSparkSpend())
+                {
+                    sub.type = TransactionRecord::SpendSparkTo;
+                    if(wallet->GetSparkOutputTx(txout.scriptPubKey, output)) {
+                        sub.address = output.address;
+                    }
                 }
                 else
                 {
@@ -281,7 +337,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     sub.address = mapValue["to"];
                 }
 
-                CAmount nValue = txout.nValue;
+                CAmount nValue = 0;
+                if(wtx.tx->IsSparkSpend() && wallet->validateSparkAddress(output.address))
+                {
+                    nValue = output.amount;
+                } else {
+                    nValue = txout.nValue;
+                }
                 /* Add fee to first output */
                 if (nTxFee > 0)
                 {
@@ -289,7 +351,6 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     nTxFee = 0;
                 }
                 sub.debit = -nValue;
-
                 parts.append(sub);
             }
         }

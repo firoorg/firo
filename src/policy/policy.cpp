@@ -91,7 +91,7 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason, const bool witnes
             return false;
         }
 
-        if (!txin.scriptSig.IsZerocoinSpend() && !txin.scriptSig.IsSigmaSpend() && !txin.scriptSig.IsLelantusJoinSplit() && !txin.IsZerocoinRemint()) {
+        if (!txin.scriptSig.IsZerocoinSpend() && !txin.scriptSig.IsSigmaSpend() && !txin.scriptSig.IsLelantusJoinSplit() && !txin.scriptSig.IsSparkSpend() && !txin.IsZerocoinRemint()) {
             if (!txin.scriptSig.IsPushOnly()) {
                 reason = "scriptsig-not-pushonly";
                 return false;
@@ -133,7 +133,12 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason, const bool witnes
 
 bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 {
-    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsLelantusJoinSplit())
+    if (tx.IsCoinBase()
+    || tx.IsZerocoinSpend()
+    || tx.IsSigmaSpend()
+    || tx.IsZerocoinRemint()
+    || tx.IsLelantusJoinSplit()
+    || tx.IsSparkSpend())
         return true; // Coinbases don't use vin normally
 
     for (unsigned int i = 0; i < tx.vin.size(); i++)
@@ -167,7 +172,12 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 
 bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 {
-    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint() || tx.IsLelantusJoinSplit())
+    if (tx.IsCoinBase()
+    || tx.IsZerocoinSpend()
+    || tx.IsSigmaSpend()
+    || tx.IsZerocoinRemint()
+    || tx.IsLelantusJoinSplit()
+    || tx.IsSparkSpend())
         return true; // Coinbases are skipped
 
     for (unsigned int i = 0; i < tx.vin.size(); i++)

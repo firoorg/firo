@@ -12,6 +12,7 @@
 #include "guiconstants.h"
 #include "guiutil.h"
 #include "lelantusmodel.h"
+#include "sparkmodel.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "transactionfilterproxy.h"
@@ -166,6 +167,10 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     showOutOfSyncWarning(true);
     connect(ui->labelWalletStatus, &QPushButton::clicked, this, &OverviewPage::handleOutOfSyncWarningClicks);
     connect(ui->labelTransactionsStatus, &QPushButton::clicked, this, &OverviewPage::handleOutOfSyncWarningClicks);
+
+    connect(&countDownTimer, &QTimer::timeout, this, &OverviewPage::countDown);
+    countDownTimer.start(30000);
+    connect(ui->migrateButton, &QPushButton::clicked, this, &OverviewPage::migrateClicked);
 }
 
 void OverviewPage::handleTransactionClicked(const QModelIndex &index)
@@ -204,12 +209,21 @@ void OverviewPage::on_anonymizeButton_clicked()
         return;
     }
 
-    auto lelantusModel = walletModel->getLelantusModel();
-    if (!lelantusModel) {
-        return;
-    }
+    if(lelantus::IsLelantusAllowed()) {
+        auto lelantusModel = walletModel->getLelantusModel();
+        if (!lelantusModel) {
+            return;
+        }
 
-    lelantusModel->mintAll(AutoMintMode::MintAll);
+        lelantusModel->mintAll(AutoMintMode::MintAll);
+    } else if (spark::IsSparkAllowed()) {
+        auto sparkModel = walletModel->getSparkModel();
+        if (!sparkModel) {
+            return;
+        }
+
+        sparkModel->mintSparkAll(AutoMintSparkMode::MintAll);
+    }
 }
 
 void OverviewPage::setBalance(
@@ -239,7 +253,7 @@ void OverviewPage::setBalance(
     ui->labelUnconfirmedPrivate->setText(BitcoinUnits::formatWithUnit(unit, unconfirmedPrivateBalance, false, BitcoinUnits::separatorAlways));
     ui->labelAnonymizable->setText(BitcoinUnits::formatWithUnit(unit, anonymizableBalance, false, BitcoinUnits::separatorAlways));
 
-    ui->anonymizeButton->setEnabled(lelantus::IsLelantusAllowed() && anonymizableBalance > 0);
+    ui->anonymizeButton->setEnabled((lelantus::IsLelantusAllowed() || spark::IsSparkAllowed()) && anonymizableBalance > 0);
 
     // only show immature (newly mined) balance if it's non-zero, so as not to complicate things
     // for the non-mining users
@@ -271,6 +285,7 @@ void OverviewPage::setClientModel(ClientModel *model)
     this->clientModel = model;
     if(model)
     {
+        connect(model, &ClientModel::numBlocksChanged, this, &OverviewPage::onRefreshClicked);
         // Show warning if this is a prerelease version
         connect(model, &ClientModel::alertsChanged, this, &OverviewPage::updateAlerts);
         updateAlerts(model->getStatusBarWarnings());
@@ -280,6 +295,7 @@ void OverviewPage::setClientModel(ClientModel *model)
 void OverviewPage::setWalletModel(WalletModel *model)
 {
     this->walletModel = model;
+    onRefreshClicked();
     if(model && model->getOptionsModel())
     {
         // Set up transaction list
@@ -295,6 +311,8 @@ void OverviewPage::setWalletModel(WalletModel *model)
         ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
 
         auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
+        std::pair<CAmount, CAmount> sparkBalance = walletModel->getSparkBalance();
+        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
 
         // Keep up to date with wallet
         setBalance(
@@ -345,4 +363,116 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
 {
     ui->labelWalletStatus->setVisible(fShow);
     ui->labelTransactionsStatus->setVisible(fShow);
+}
+
+void OverviewPage::countDown()
+{
+    secDelay--;
+    if(secDelay <= 0) {
+        if(walletModel->getAvailableLelantusCoins() && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod){
+            MigrateLelantusToSparkDialog migrate(walletModel);
+        }
+        countDownTimer.stop();
+    }
+}
+
+void OverviewPage::onRefreshClicked()
+{
+    auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
+    auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
+    if(privateBalance.first > 0 && chainActive.Height() < lGracefulPeriod && spark::IsSparkAllowed()) {
+        ui->warningFrame->show();
+        lelantusGracefulPeriod = QString::fromStdString(std::to_string(lGracefulPeriod));
+        currentBlock = QString::fromStdString(std::to_string(chainActive.Height()));
+        migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
+        migrateAmount.append("</b>");
+        ui->textWarning1->setText(tr("Firo is migrating to Spark. Redemption of coins in Lelantus will be disabled at block %1. <i>Current block is %2</i>.").arg(lelantusGracefulPeriod, currentBlock));
+        ui->textWarning2->setText(tr("to migrate %1 from Lelantus.").arg(migrateAmount));
+        QFont qFont = ui->migrateButton->font();
+        qFont.setUnderline(true);
+        ui->migrateButton->setFont(qFont);
+    } else {
+        ui->warningFrame->hide();
+    }
+}
+
+void OverviewPage::migrateClicked()
+{
+    if(walletModel->getAvailableLelantusCoins() && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod){
+        MigrateLelantusToSparkDialog migrate(walletModel);
+    }
+}
+
+MigrateLelantusToSparkDialog::MigrateLelantusToSparkDialog(WalletModel *_model):QMessageBox()
+{
+        this->model = _model;
+        QDialog::setWindowTitle("Migrate funds from Lelantus to Spark");
+        QDialog::setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint);
+        
+        QLabel *ic = new QLabel();
+        QIcon icon_;
+        icon_.addFile(QString::fromUtf8(":/icons/ic_info"), QSize(), QIcon::Normal, QIcon::On);
+        ic->setPixmap(icon_.pixmap(18, 18));
+        ic->setFixedWidth(90);
+        ic->setAlignment(Qt::AlignRight);
+        ic->setStyleSheet("color:#92400E");
+
+        QLabel *text = new QLabel();
+        text->setText(tr("Firo is migrating to Spark. Please migrate your funds."));
+        text->setAlignment(Qt::AlignLeft);
+        text->setWordWrap(true);
+        text->setStyleSheet("color:#92400E;text-align:center;word-wrap: break-word;");
+
+        QPushButton *ignore = new QPushButton(this);
+        ignore->setText("Ignore");
+        ignore->setStyleSheet("color:#9b1c2e;background-color:none;margin-top:30px;margin-bottom:60px;margin-left:50px;margin-right:20px;border:1px solid #9b1c2e;");
+        QPushButton *migrate = new QPushButton(this);
+        migrate->setText("Migrate");
+        migrate->setStyleSheet("margin-top:30px;margin-bottom:60px;margin-left:20px;margin-right:50px;");
+        QHBoxLayout *groupButton = new QHBoxLayout(this);
+        groupButton->addWidget(ignore);
+        groupButton->addWidget(migrate);
+        
+        QHBoxLayout *hlayout = new QHBoxLayout(this);
+        hlayout->addWidget(ic);
+        hlayout->addWidget(text);
+        
+        QWidget *layout_ = new QWidget();
+        layout_->setLayout(hlayout);
+        layout_->setStyleSheet("background-color:#FEF3C7;");
+        
+        QVBoxLayout *vlayout = new QVBoxLayout(this);
+        vlayout->addWidget(layout_);
+        vlayout->addLayout(groupButton);
+        vlayout->setContentsMargins(0,0,0,0);
+
+        QWidget *wbody = new QWidget();
+        wbody->setLayout(vlayout);
+
+        layout()->addWidget(wbody);
+        setContentsMargins(0, 0, 0, 0);
+        setStyleSheet("margin-right:-30px;");
+        setStandardButtons(0);    
+
+        connect(ignore, &QPushButton::clicked, this, &MigrateLelantusToSparkDialog::onIgnoreClicked);
+        connect(migrate, &QPushButton::clicked, this, &MigrateLelantusToSparkDialog::onMigrateClicked);
+        exec();
+}
+
+void MigrateLelantusToSparkDialog::onIgnoreClicked()
+{
+    setVisible(false);
+    clickedButton = false;
+}
+
+void MigrateLelantusToSparkDialog::onMigrateClicked()
+{
+    setVisible(false);
+    clickedButton = true;
+    model->migrateLelantusToSpark();
+}
+
+bool MigrateLelantusToSparkDialog::getClickedButton()
+{
+    return clickedButton;
 }

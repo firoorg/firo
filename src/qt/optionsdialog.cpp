@@ -189,6 +189,9 @@ void OptionsDialog::setMapper()
 
     /* Lelantus */
     mapper->addMapping(ui->autoAnonymize, OptionsModel::AutoAnonymize);
+    if (!lelantus::IsLelantusAllowed()) {
+        ui->lelantusPage->setVisible(false);
+    }
     mapper->addMapping(ui->lelantusPage, OptionsModel::LelantusPage);
 
     /* Network */

@@ -90,6 +90,21 @@ BITCOIN_TESTS = \
   liblelantus/test/schnorr_test.cpp \
   liblelantus/test/serialize_test.cpp \
   liblelantus/test/sigma_extended_test.cpp \
+  libspark/test/transcript_test.cpp \
+  libspark/test/schnorr_test.cpp \
+  libspark/test/chaum_test.cpp \
+  libspark/test/bpplus_test.cpp \
+  libspark/test/grootle_test.cpp \
+  libspark/test/aead_test.cpp \
+  libspark/test/encrypt_test.cpp \
+  libspark/test/coin_test.cpp \
+  libspark/test/mint_transaction_test.cpp \
+  libspark/test/spend_transaction_test.cpp \
+  libspark/test/f4grumble_test.cpp \
+  libspark/test/address_test.cpp \
+  test/spark_tests.cpp \
+  test/spark_state_test.cpp \
+  test/spark_mintspend_test.cpp \
   sigma/test/coin_spend_tests.cpp \
   sigma/test/coin_tests.cpp \
   sigma/test/primitives_tests.cpp \
@@ -190,6 +205,7 @@ BITCOIN_TESTS += \
   wallet/test/wallet_tests.cpp \
   wallet/test/crypto_tests.cpp \
   wallet/test/lelantus_tests.cpp \
+  wallet/test/spark_tests.cpp \
   wallet/test/sigma_tests.cpp \
   wallet/test/mnemonic_tests.cpp \
   wallet/test/txbuilder_tests.cpp
@@ -199,7 +215,7 @@ test_test_bitcoin_LDADD = $(LIBBITCOIN_SERVER) -ltor
 
 test_test_bitcoin_SOURCES = $(BITCOIN_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
 test_test_bitcoin_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -I$(builddir)/test/ $(TESTDEFS) $(EVENT_CFLAGS)
-test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBFIRO_SIGMA) $(LIBLELANTUS) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBLEVELDB_SSE42) $(LIBMEMENV) \
+test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBFIRO_SIGMA) $(LIBLELANTUS) $(LIBSPARK) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBLEVELDB_SSE42) $(LIBMEMENV) \
   $(BACKTRACE_LIB) $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSECP256K1) $(EVENT_PTHREADS_LIBS) $(ZMQ_LIBS) $(ZLIB_LIBS)
 test_test_bitcoin_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 if ENABLE_WALLET
@@ -226,6 +242,7 @@ test_test_bitcoin_fuzzy_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_SERVER) \
   $(LIBLELANTUS) \
+  $(LIBSPARK) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CONSENSUS) \

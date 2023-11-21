@@ -6,8 +6,10 @@
 #include "base58.h"
 #include "definition.h"
 #include "txmempool.h"
+#ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
+#endif // ENABLE_WALLET
 #include "crypto/sha256.h"
 #include "sigma/coinspend.h"
 #include "sigma/coin.h"
@@ -455,8 +457,13 @@ bool CheckSigmaTransaction(
     if (allowSigma) {
         for (const CTxOut &txout : tx.vout) {
             if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsSigmaMint()) {
-                if (!CheckSigmaMintTransaction(txout, state, hashTx, fStatefulSigmaCheck, sigmaTxInfo))
-                    return false;
+                try {
+                    if (!CheckSigmaMintTransaction(txout, state, hashTx, fStatefulSigmaCheck, sigmaTxInfo))
+                        return false;
+                }
+                catch (const std::exception &x) {
+                    return state.Error(x.what());
+                }
             }
         }
     }
@@ -506,10 +513,15 @@ bool CheckSigmaTransaction(
         // Check vOut
         // Only one loop, we checked on the format before entering this case
         if (!isVerifyDB) {
-            if (!CheckSigmaSpendTransaction(
-                tx, denominations, state, hashTx, isVerifyDB, nHeight, realHeight,
-                isCheckWallet, fStatefulSigmaCheck, sigmaTxInfo)) {
-                    return false;
+            try {
+                if (!CheckSigmaSpendTransaction(
+                    tx, denominations, state, hashTx, isVerifyDB, nHeight, realHeight,
+                    isCheckWallet, fStatefulSigmaCheck, sigmaTxInfo)) {
+                        return false;
+                }
+            }
+            catch (const std::exception &x) {
+                return state.Error(x.what());
             }
         }
     }
@@ -663,7 +675,7 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue,
                                                       txout.scriptPubKey.end());
                 try {
                     txPubCoinValue.deserialize(&coin_serialised[0]);
-                } catch (...) {
+                } catch (const std::exception &) {
                     return false;
                 }
                 if(pubCoinValue==txPubCoinValue){

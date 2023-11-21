@@ -50,7 +50,7 @@ ElyAssetsDialog::ElyAssetsDialog(QWidget *parent) :
     ui->balancesTable->setHorizontalHeaderItem(1, new QTableWidgetItem("Property Name"));
     ui->balancesTable->setHorizontalHeaderItem(2, new QTableWidgetItem("Reserved"));
     ui->balancesTable->setHorizontalHeaderItem(3, new QTableWidgetItem("Available"));
-    borrowedColumnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(ui->balancesTable, 100, 100, this);
+
     // note neither resizetocontents or stretch allow user to adjust - go interactive then manually set widths
     #if QT_VERSION < 0x050000
        ui->balancesTable->horizontalHeader()->setResizeMode(0, QHeaderView::Interactive);
@@ -73,7 +73,6 @@ ElyAssetsDialog::ElyAssetsDialog(QWidget *parent) :
     ui->balancesTable->resizeColumnToContents(0);
     ui->balancesTable->resizeColumnToContents(2);
     ui->balancesTable->resizeColumnToContents(3);
-    borrowedColumnResizingFixer->stretchColumnWidth(1);
     ui->balancesTable->verticalHeader()->setVisible(false);
     ui->balancesTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     ui->balancesTable->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -301,12 +300,4 @@ void ElyAssetsDialog::balancesUpdated()
 {
     UpdatePropSelector();
     propSelectorChanged(); // refresh the table with the currently selected property ID
-}
-
-// We override the virtual resizeEvent of the QWidget to adjust tables column
-// sizes as the tables width is proportional to the dialogs width.
-void ElyAssetsDialog::resizeEvent(QResizeEvent* event)
-{
-    QWidget::resizeEvent(event);
-    borrowedColumnResizingFixer->stretchColumnWidth(1);
 }

@@ -7,6 +7,7 @@
 #include "bitcoinunits.h"
 #include "guiconstants.h"
 #include "lelantusmodel.h"
+#include "sparkmodel.h"
 #include "optionsmodel.h"
 
 #include <boost/bind/bind.hpp>
@@ -341,6 +342,188 @@ void AutoMintModel::processAutoMintAck(AutoMintAck ack, CAmount minted, QString 
         msgParams.second = CClientUIInterface::MSG_ERROR;
         break;
     case AutoMintAck::FailToUnlock:
+        msgParams.first = tr("Fail to unlock wallet");
+        msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
+    default:
+        return;
+    };
+
+    Q_EMIT message(tr("Auto Anonymize"), msgParams.first, msgParams.second);
+}
+
+AutoMintSparkModel::AutoMintSparkModel(
+    SparkModel *_sparkModel,
+    OptionsModel *_optionsModel,
+    CWallet *_wallet,
+    QObject *parent) :
+    QObject(parent),
+    sparkModel(_sparkModel),
+    optionsModel(_optionsModel),
+    wallet(_wallet),
+    autoMintSparkState(AutoMintSparkState::Disabled),
+    autoMintSparkCheckTimer(0),
+    notifier(0)
+{
+    autoMintSparkCheckTimer = new QTimer(this);
+    autoMintSparkCheckTimer->setSingleShot(false);
+
+    connect(autoMintSparkCheckTimer, &QTimer::timeout, [this]{ checkAutoMintSpark(); });
+
+    notifier = new IncomingFundNotifier(wallet, this);
+
+    connect(notifier, &IncomingFundNotifier::matureFund, this, &AutoMintSparkModel::startAutoMintSpark);
+
+    connect(optionsModel, &OptionsModel::autoAnonymizeChanged, this, &AutoMintSparkModel::updateAutoMintSparkOption);
+}
+
+AutoMintSparkModel::~AutoMintSparkModel()
+{
+    delete autoMintSparkCheckTimer;
+
+    autoMintSparkCheckTimer = nullptr;
+}
+
+bool AutoMintSparkModel::isSparkAnonymizing() const
+{
+    return autoMintSparkState == AutoMintSparkState::Anonymizing;
+}
+
+void AutoMintSparkModel::ackMintSparkAll(AutoMintSparkAck ack, CAmount minted, QString error)
+{
+    bool mint = false;
+    {
+        LOCK(sparkModel->cs);
+        if (autoMintSparkState == AutoMintSparkState::Disabled) {
+            // Do nothing
+            return;
+        } else if (ack == AutoMintSparkAck::WaitUserToActive) {
+            autoMintSparkState = AutoMintSparkState::WaitingUserToActivate;
+        } else if (ack == AutoMintSparkAck::AskToMint) {
+            autoMintSparkState = AutoMintSparkState::Anonymizing;
+            autoMintSparkCheckTimer->stop();
+            mint = true;
+        } else {
+            autoMintSparkState = AutoMintSparkState::WaitingIncomingFund;
+            autoMintSparkCheckTimer->stop();
+        }
+
+        processAutoMintSparkAck(ack, minted, error);
+    }
+
+    if (mint) {
+        sparkModel->mintSparkAll(AutoMintSparkMode::AutoMintAll);
+    }
+}
+
+void AutoMintSparkModel::checkAutoMintSpark(bool force)
+{
+    if (!force) {
+        if (!masternodeSync.IsBlockchainSynced()) {
+            return;
+        }
+
+        bool allowed = spark::IsSparkAllowed();
+        if (!allowed) {
+            return;
+        }
+    }
+
+    {
+        LOCK(sparkModel->cs);
+
+        if (fReindex) {
+            return;
+        }
+
+        switch (autoMintSparkState) {
+        case AutoMintSparkState::Disabled:
+        case AutoMintSparkState::WaitingIncomingFund:
+            if (force) {
+                break;
+            }
+            autoMintSparkCheckTimer->stop();
+            return;
+        case AutoMintSparkState::WaitingUserToActivate:
+            break;
+        case AutoMintSparkState::Anonymizing:
+            return;
+        default:
+            throw std::runtime_error("Unknown auto mint state");
+        }
+
+        autoMintSparkState = AutoMintSparkState::Anonymizing;
+    }
+
+    Q_EMIT requireShowAutomintSparkNotification();
+}
+
+void AutoMintSparkModel::startAutoMintSpark()
+{
+    if (autoMintSparkCheckTimer->isActive()) {
+        return;
+    }
+
+    if (!optionsModel->getAutoAnonymize()) {
+        return;
+    }
+
+    CAmount mintable = 0;
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+        mintable = sparkModel->getMintableSparkAmount();
+    }
+
+    if (mintable > 0) {
+        autoMintSparkState = AutoMintSparkState::WaitingUserToActivate;
+
+        autoMintSparkCheckTimer->start(MODEL_UPDATE_DELAY);
+    } else {
+        autoMintSparkState = AutoMintSparkState::WaitingIncomingFund;
+    }
+}
+
+void AutoMintSparkModel::updateAutoMintSparkOption(bool enabled)
+{
+    LOCK2(cs_main, wallet->cs_wallet);
+    LOCK(sparkModel->cs);
+
+    if (enabled) {
+        if (autoMintSparkState == AutoMintSparkState::Disabled) {
+            startAutoMintSpark();
+        }
+    } else {
+        if (autoMintSparkCheckTimer->isActive()) {
+            autoMintSparkCheckTimer->stop();
+        }
+
+        // stop mint
+        autoMintSparkState = AutoMintSparkState::Disabled;
+
+        Q_EMIT closeAutomintSparkNotification();
+    }
+}
+
+void AutoMintSparkModel::processAutoMintSparkAck(AutoMintSparkAck ack, CAmount minted, QString error)
+{
+    QPair<QString, CClientUIInterface::MessageBoxFlags> msgParams;
+    msgParams.second = CClientUIInterface::MSG_WARNING;
+
+    switch (ack)
+    {
+    case AutoMintSparkAck::Success:
+        msgParams.first = tr("Successfully anonymized %1")
+            .arg(BitcoinUnits::formatWithUnit(optionsModel->getDisplayUnit(), minted));
+        msgParams.second = CClientUIInterface::MSG_INFORMATION;
+        break;
+    case AutoMintSparkAck::WaitUserToActive:
+    case AutoMintSparkAck::NotEnoughFund:
+        return;
+    case AutoMintSparkAck::FailToMint:
+        msgParams.first = tr("Fail to mint, %1").arg(error);
+        msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
+    case AutoMintSparkAck::FailToUnlock:
         msgParams.first = tr("Fail to unlock wallet");
         msgParams.second = CClientUIInterface::MSG_ERROR;
         break;

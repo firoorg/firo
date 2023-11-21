@@ -21,13 +21,16 @@
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QTextDocument>
+#include <QComboBox>
+#include <QPushButton>
+#include <QButtonGroup>
 
 ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::ReceiveCoinsDialog),
-    columnResizingFixer(0),
     model(0),
-    platformStyle(_platformStyle)
+    platformStyle(_platformStyle),
+    recentRequestsProxyModel(0)
 {
     ui->setupUi(this);
 
@@ -42,6 +45,19 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
         ui->showRequestButton->setIcon(_platformStyle->SingleColorIcon(":/icons/edit"));
         ui->removeRequestButton->setIcon(_platformStyle->SingleColorIcon(":/icons/remove"));
     }
+
+    ui->addressTypeCombobox->addItem(tr("Spark"), Spark);
+    ui->addressTypeCombobox->addItem(tr("Transparent"), Transparent);
+
+    if(ui->addressTypeCombobox->currentText() == "Spark"){
+        ui->reuseAddress->hide();
+    } else {
+        ui->reuseAddress->show();
+    }
+
+    ui->addressTypeHistoryCombobox->addItem(tr("All"), All);
+    ui->addressTypeHistoryCombobox->addItem(tr("Spark"), Spark);
+    ui->addressTypeHistoryCombobox->addItem(tr("Transparent"), Transparent);
 
     // context menu actions
     QAction *copyURIAction = new QAction(tr("Copy URI"), this);
@@ -64,6 +80,8 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     connect(copyAmountAction, &QAction::triggered, this, &ReceiveCoinsDialog::copyAmount);
 
     connect(ui->clearButton, &QPushButton::clicked, this, &ReceiveCoinsDialog::clear);
+    connect(ui->addressTypeHistoryCombobox, qOverload<int>(&QComboBox::activated), this, &ReceiveCoinsDialog::chooseType);
+    connect(ui->addressTypeCombobox, qOverload<int>(&QComboBox::activated), this, &ReceiveCoinsDialog::displayCheckBox);
 }
 
 void ReceiveCoinsDialog::setModel(WalletModel *_model)
@@ -72,6 +90,13 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
 
     if(_model && _model->getOptionsModel())
     {
+        recentRequestsProxyModel = new RecentRequestsFilterProxy(this);
+        recentRequestsProxyModel->setSourceModel(_model->getRecentRequestsTableModel());
+        recentRequestsProxyModel->setDynamicSortFilter(true);
+        recentRequestsProxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
+        recentRequestsProxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
+        chooseType(0);
+
         _model->getRecentRequestsTableModel()->sort(RecentRequestsTableModel::Date, Qt::DescendingOrder);
         connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &ReceiveCoinsDialog::updateDisplayUnit);
         updateDisplayUnit();
@@ -80,18 +105,19 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
 
         tableView->verticalHeader()->hide();
         tableView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        tableView->setModel(_model->getRecentRequestsTableModel());
+        tableView->setModel(recentRequestsProxyModel);
         tableView->setAlternatingRowColors(true);
         tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
         tableView->setSelectionMode(QAbstractItemView::ContiguousSelection);
         tableView->setColumnWidth(RecentRequestsTableModel::Date, DATE_COLUMN_WIDTH);
         tableView->setColumnWidth(RecentRequestsTableModel::Label, LABEL_COLUMN_WIDTH);
+        tableView->setColumnWidth(RecentRequestsTableModel::AddressType, ADDRESSTYPE_COLUMN_WIDTH);
         tableView->setColumnWidth(RecentRequestsTableModel::Amount, AMOUNT_MINIMUM_COLUMN_WIDTH);
+        tableView->horizontalHeader()->setMinimumSectionSize(23);
+        tableView->horizontalHeader()->setStretchLastSection(true);
 
         connect(tableView->selectionModel(), &QItemSelectionModel::selectionChanged,
                 this, &ReceiveCoinsDialog::recentRequestsView_selectionChanged);
-        // Last 2 columns are set by the columnResizingFixer, when the table geometry is ready.
-        columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, AMOUNT_MINIMUM_COLUMN_WIDTH, DATE_COLUMN_WIDTH, this);
     }
 }
 
@@ -134,7 +160,8 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
 
     QString address;
     QString label = ui->reqLabel->text();
-    if(ui->reuseAddress->isChecked())
+    QString addressType = ui->addressTypeCombobox->currentText();
+    if(ui->reuseAddress->isChecked() && ui->addressTypeCombobox->currentText() == AddressTableModel::Transparent)
     {
         /* Choose existing receiving address */
         AddressBookPage dlg(platformStyle, AddressBookPage::ForSelection, AddressBookPage::ReceivingTab, this);
@@ -151,9 +178,13 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
         }
     } else {
         /* Generate new receiving address */
-        address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "");
+        if(ui->addressTypeCombobox->currentText() == AddressTableModel::Transparent) {
+            address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Transparent);
+        } else if(ui->addressTypeCombobox->currentText() == AddressTableModel::Spark) {
+            address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Spark);
+        }
     }
-    SendCoinsRecipient info(address, label,
+    SendCoinsRecipient info(address, addressType, label,
         ui->reqAmount->value(), ui->reqMessage->text());
     ReceiveRequestDialog *dialog = new ReceiveRequestDialog(this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
@@ -168,10 +199,11 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
 
 void ReceiveCoinsDialog::on_recentRequestsView_doubleClicked(const QModelIndex &index)
 {
+    QModelIndex targetIdx = recentRequestsProxyModel->mapToSource(index);
     const RecentRequestsTableModel *submodel = model->getRecentRequestsTableModel();
     ReceiveRequestDialog *dialog = new ReceiveRequestDialog(this);
     dialog->setModel(model->getOptionsModel());
-    dialog->setInfo(submodel->entry(index.row()).recipient);
+    dialog->setInfo(submodel->entry(targetIdx.row()).recipient);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->show();
 }
@@ -203,16 +235,9 @@ void ReceiveCoinsDialog::on_removeRequestButton_clicked()
     if(selection.empty())
         return;
     // correct for selection mode ContiguousSelection
-    QModelIndex firstIndex = selection.at(0);
+    QModelIndex index = selection.at(0);
+    QModelIndex firstIndex = recentRequestsProxyModel->mapToSource(index);
     model->getRecentRequestsTableModel()->removeRows(firstIndex.row(), selection.length(), firstIndex.parent());
-}
-
-// We override the virtual resizeEvent of the QWidget to adjust tables column
-// sizes as the tables width is proportional to the dialogs width.
-void ReceiveCoinsDialog::resizeEvent(QResizeEvent *event)
-{
-    QWidget::resizeEvent(event);
-    columnResizingFixer->stretchColumnWidth(RecentRequestsTableModel::Message);
 }
 
 void ReceiveCoinsDialog::keyPressEvent(QKeyEvent *event)
@@ -291,4 +316,48 @@ void ReceiveCoinsDialog::copyMessage()
 void ReceiveCoinsDialog::copyAmount()
 {
     copyColumnToClipboard(RecentRequestsTableModel::Amount);
+}
+
+void ReceiveCoinsDialog::displayCheckBox(int idx)
+{
+    if(idx==0){
+        ui->reuseAddress->hide();
+    } else {
+        ui->reuseAddress->show();
+    }
+}
+
+void ReceiveCoinsDialog::chooseType(int idx)
+{
+    if(!recentRequestsProxyModel)
+        return;
+    recentRequestsProxyModel->setTypeFilter(
+        ui->addressTypeHistoryCombobox->itemData(idx).toInt());
+}
+
+RecentRequestsFilterProxy::RecentRequestsFilterProxy(QObject *parent) :
+    QSortFilterProxyModel(parent),
+    typeFilter(ALL_TYPES)
+{
+}
+
+bool RecentRequestsFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
+{
+    QModelIndex index = sourceModel()->index(sourceRow, 2, sourceParent);
+    bool res0 = sourceModel()->data(index).toString().contains("spark");
+    bool res1 = sourceModel()->data(index).toString().contains("transparent");
+    if(res0 && typeFilter == 0)
+        return true;
+    if(res1 && typeFilter == 1)
+        return true;
+    if(typeFilter == 2)
+        return true;
+
+    return false;
+}
+
+void RecentRequestsFilterProxy::setTypeFilter(quint32 modes)
+{
+    this->typeFilter = modes;
+    invalidateFilter();
 }
