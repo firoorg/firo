@@ -155,7 +155,7 @@ void LelantusProver::generate_sigma_proofs(
                 parallelTasks.emplace_back(threadPool.PostTask([&]() {
                     try {
                         prover.sigma_commit(commits, index, rA_i, rB_i, rC_i, rD_i, a_i, Tk_i, Pk_i, Yk_i, sigma_i, proof);
-                    } catch (...) {
+                    } catch (const std::exception &) {
                         return false;
                     }
                     return true;

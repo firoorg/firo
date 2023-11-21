@@ -65,7 +65,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         if (isAllJoinSplitFromMe && wtx.tx->vin.size() > 0) {
             try {
                 nTxFee = lelantus::ParseLelantusJoinSplit(*wtx.tx)->getFee();
-            } catch (...) {
+            } catch (const std::exception &) {
                 // do nothing
             }
         }
