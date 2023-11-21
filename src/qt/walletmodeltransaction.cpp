@@ -64,25 +64,7 @@ void WalletModelTransaction::reassignAmounts(int nChangePosRet)
                 if (out.amount() <= 0) continue;
                 if (i == nChangePosRet)
                     i++;
-                if (walletTransaction->tx->vout[i].scriptPubKey.IsSparkSMint()) {
-                    bool ok = true;
-                    spark::Coin coin(spark::Params::get_default());
-                    try {
-                        spark::ParseSparkMintCoin(walletTransaction->tx->vout[i].scriptPubKey, coin);
-                    } catch (std::invalid_argument&) {
-                        ok = false;
-                    }
-
-                    if (ok) {
-                        CSparkMintMeta mintMeta;
-                        coin.setSerialContext(spark::getSerialContext(* walletTransaction->tx));
-                        if (pwalletMain->sparkWallet->getMintMeta(coin, mintMeta)) {
-                            rcp.amount = mintMeta.v;
-                        }
-                    }
-                } else {
-                    rcp.amount = walletTransaction->tx->vout[i].nValue;
-                }
+                subtotal += walletTransaction->tx->vout[i].nValue;
                 i++;
             }
             rcp.amount = subtotal;
@@ -91,25 +73,7 @@ void WalletModelTransaction::reassignAmounts(int nChangePosRet)
         {
             if (i == nChangePosRet)
                 i++;
-            if (walletTransaction->tx->vout[i].scriptPubKey.IsSparkSMint()) {
-                bool ok = true;
-                spark::Coin coin(spark::Params::get_default());
-                try {
-                    spark::ParseSparkMintCoin(walletTransaction->tx->vout[i].scriptPubKey, coin);
-                } catch (std::invalid_argument&) {
-                    ok = false;
-                }
-
-                if (ok) {
-                    CSparkMintMeta mintMeta;
-                    coin.setSerialContext(spark::getSerialContext(* walletTransaction->tx));
-                    if (pwalletMain->sparkWallet->getMintMeta(coin, mintMeta)) {
-                        rcp.amount = mintMeta.v;
-                    }
-                }
-            } else {
-                rcp.amount = walletTransaction->tx->vout[i].nValue;
-            }
+            rcp.amount = walletTransaction->tx->vout[i].nValue;
             i++;
         }
     }

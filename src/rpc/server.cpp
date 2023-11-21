@@ -332,18 +332,10 @@ static const CRPCCommand vRPCCommands[] =
     { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
         /* Mobile related */
-    { "mobile",             "getanonymityset",        &getanonymityset,        false  },
+    { "mobile",             "getanonymityset",        &getanonymityset,        true  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
-    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     false  },
-    { "mobile",             "getfeerate",             &getfeerate,             true  },
-    { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
-
-        /* Mobile Spark */
-    { "mobile",             "getsparkanonymityset",   &getsparkanonymityset, false },
-    { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true  },
-    { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
-    { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true  },
-
+    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     true  },
+    { "mobile",             "getlatestcoinids",       &getlatestcoinids,       true  },
 };
 
 CRPCTable::CRPCTable()
@@ -539,7 +531,7 @@ UniValue CRPCTable::execute(const JSONRPCRequest &request) const
     // Return immediately if in warmup
     {
         LOCK(cs_rpcWarmup);
-        if (fRPCInWarmup && request.strMethod != "walletpassphrase") // TODO this is temp check and will be removed after spark transition
+        if (fRPCInWarmup)
             throw JSONRPCError(RPC_IN_WARMUP, rpcWarmupStatus);
     }
 

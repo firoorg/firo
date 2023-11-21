@@ -5,9 +5,7 @@
 
 #include "util.h"
 
-#ifdef ENABLE_WALLET
 #include "../wallet/wallet.h"
-#endif // ENABLE_WALLET
 #include "../wallet/bip39.h"
 #include "support/allocators/secure.h"
 
@@ -81,7 +79,6 @@ void Recover::on_usePassphrase_clicked()
 
 bool Recover::askRecover(bool& newWallet)
 {
-#ifdef ENABLE_WALLET
     namespace fs = boost::filesystem;
     fs::path walletFile = GetDataDir(true) / GetArg("-wallet", DEFAULT_WALLET_DAT);
 
@@ -170,6 +167,5 @@ bool Recover::askRecover(bool& newWallet)
             }
         }
     }
-#endif // ENABLE_WALLET
     return true;
 }

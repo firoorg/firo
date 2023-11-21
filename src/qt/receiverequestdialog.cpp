@@ -130,7 +130,6 @@ void ReceiveRequestDialog::update()
 {
     if(!model)
         return;
-    resize(width(), 600);
     QString target = info.label;
     if(target.isEmpty())
         target = info.address;
@@ -148,14 +147,6 @@ void ReceiveRequestDialog::update()
         html += "<b>"+tr("Amount")+"</b>: " + BitcoinUnits::formatHtmlWithUnit(model->getDisplayUnit(), info.amount) + "<br>";
     if(!info.label.isEmpty())
         html += "<b>"+tr("Label")+"</b>: " + GUIUtil::HtmlEscape(info.label) + "<br>";
-    if(walletModel->validateAddress(info.address))
-    {
-        html += "<b>"+tr("Address Type")+"</b>: " + tr("transparent") + "<br>";
-    }
-    else if(walletModel->validateSparkAddress(info.address))
-    {
-        html += "<b>"+tr("Address Type")+"</b>: " + tr("spark") + "<br>";
-    }
     if(!info.message.isEmpty())
         html += "<b>"+tr("Message")+"</b>: " + GUIUtil::HtmlEscape(info.message) + "<br>";
     ui->outUri->setText(html);
@@ -197,11 +188,7 @@ void ReceiveRequestDialog::update()
             painter.setFont(font);
             QRect paddedRect = qrAddrImage.rect();
             paddedRect.setHeight(QR_IMAGE_SIZE+12);
-            if (info.address.length() > 34) {
-                painter.drawText(paddedRect, Qt::AlignBottom|Qt::AlignCenter, info.address.left(16) + "..." + info.address.right(16));
-            } else {
-                painter.drawText(paddedRect, Qt::AlignBottom|Qt::AlignCenter, info.address);
-            }
+            painter.drawText(paddedRect, Qt::AlignBottom|Qt::AlignCenter, info.address);
             painter.end();
 
             ui->lblQRCode->setPixmap(QPixmap::fromImage(qrAddrImage));

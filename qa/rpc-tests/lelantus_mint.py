@@ -13,7 +13,7 @@ class LelantusMintTest(BitcoinTestFramework):
 
         assert_raises_message(
             JSONRPCException,
-            "Lelantus is not active",
+            "Lelantus is not activated yet",
             self.nodes[0].mintlelantus, 1)
 
         self.nodes[0].generate(activation_block - self.nodes[0].getblockcount())

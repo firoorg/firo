@@ -31,11 +31,7 @@ public:
         EditReceivingAddress,
         EditSendingAddress,
         NewPcode,
-        EditPcode,
-        NewSparkSendingAddress,
-        EditSparkSendingAddress,
-        NewSparkReceivingAddress,
-        EditSparkReceivingAddress
+        EditPcode
     };
 
     explicit EditAddressDialog(Mode mode, QWidget *parent);

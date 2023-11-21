@@ -27,18 +27,18 @@ EditAddressDialog::EditAddressDialog(Mode _mode, QWidget *parent) :
     switch(mode)
     {
     case NewReceivingAddress:
-        setWindowTitle(tr("New transparent receiving address"));
+        setWindowTitle(tr("New receiving address"));
         ui->addressEdit->setEnabled(false);
         break;
     case NewSendingAddress:
-        setWindowTitle(tr("New transparent sending address"));
+        setWindowTitle(tr("New sending address"));
         break;
     case EditReceivingAddress:
-        setWindowTitle(tr("Edit transparent receiving address"));
+        setWindowTitle(tr("Edit receiving address"));
         ui->addressEdit->setEnabled(false);
         break;
     case EditSendingAddress:
-        setWindowTitle(tr("Edit transparent sending address"));
+        setWindowTitle(tr("Edit sending address"));
         break;
     case NewPcode:
         setWindowTitle(tr("New RAP payment code"));
@@ -47,22 +47,6 @@ EditAddressDialog::EditAddressDialog(Mode _mode, QWidget *parent) :
     case EditPcode:
         setWindowTitle(tr("Edit RAP payment code"));
         ui->label_2->setText(tr("RAP address"));
-        break;
-    case NewSparkSendingAddress:
-        setWindowTitle(tr("New spark sending address"));
-        ui->label_2->setText(tr("Spark address"));
-        break;
-    case EditSparkSendingAddress:
-        setWindowTitle(tr("Edit spark sending address"));
-        ui->label_2->setText(tr("Spark address"));
-        break;
-    case NewSparkReceivingAddress:
-        setWindowTitle(tr("New spark receiving address"));
-        ui->addressEdit->setEnabled(false);
-        break;
-    case EditSparkReceivingAddress:
-        setWindowTitle(tr("Edit spark receiving address"));
-        ui->addressEdit->setEnabled(false);
         break;
     }
 
@@ -103,8 +87,7 @@ bool EditAddressDialog::saveCurrentRow()
         address = model->addRow(
                 mode == NewSendingAddress ? AddressTableModel::Send : AddressTableModel::Receive,
                 ui->labelEdit->text(),
-                ui->addressEdit->text(),
-                AddressTableModel::Transparent);
+                ui->addressEdit->text());
         break;
     case EditReceivingAddress:
     case EditSendingAddress:
@@ -115,22 +98,7 @@ bool EditAddressDialog::saveCurrentRow()
         break;
     case NewPcode:
     case EditPcode:
-        address = model->addRow(AddressTableModel::Send, ui->labelEdit->text(), ui->addressEdit->text(), AddressTableModel::RAP);
-        break;
-    case NewSparkReceivingAddress:
-    case NewSparkSendingAddress:
-        address = model->addRow(
-                mode == NewSparkSendingAddress ? AddressTableModel::Send : AddressTableModel::Receive,
-                ui->labelEdit->text(),
-                ui->addressEdit->text(),
-                AddressTableModel::Spark);
-        break;
-    case EditSparkReceivingAddress:
-    case EditSparkSendingAddress:
-        if(mapper->submit())
-        {
-            address = ui->addressEdit->text();
-        }
+        address = model->getPcodeAddressTableModel()->addRow("", ui->labelEdit->text(), ui->addressEdit->text());
         break;
     }
     return !address.isEmpty();
@@ -154,11 +122,6 @@ void EditAddressDialog::accept()
         case AddressTableModel::INVALID_ADDRESS:
             QMessageBox::warning(this, windowTitle(),
                 tr("The entered address \"%1\" is not a valid Firo address.").arg(ui->addressEdit->text()),
-                QMessageBox::Ok, QMessageBox::Ok);
-            break;
-        case AddressTableModel::INVALID_SPARK_ADDRESS:
-            QMessageBox::warning(this, windowTitle(),
-                tr("The entered address \"%1\" is not a valid spark Firo address.").arg(ui->addressEdit->text()),
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
         case AddressTableModel::DUPLICATE_ADDRESS:

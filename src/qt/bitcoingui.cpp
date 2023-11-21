@@ -284,10 +284,9 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
 
     // Install event filter to be able to catch status tip events (QEvent::StatusTip)
     this->installEventFilter(this);
-#ifdef ENABLE_WALLET
+
     // Initially wallet actions should be disabled
     setWalletActionsEnabled(false);
-#endif // ENABLE_WALLET
 
     // Subscribe to notifications from core
     subscribeToCoreSignals();
@@ -457,11 +456,10 @@ void BitcoinGUI::createActions()
     optionsAction->setEnabled(false);
     toggleHideAction = new QAction(tr("&Show / Hide"), this);
     toggleHideAction->setStatusTip(tr("Show or hide the main Window"));
-#ifdef ENABLE_WALLET
+
     encryptWalletAction = new QAction(tr("&Encrypt Wallet..."), this);
     encryptWalletAction->setStatusTip(tr("Encrypt the private keys that belong to your wallet"));
     encryptWalletAction->setCheckable(true);
-#endif // ENABLE_WALLET
     backupWalletAction = new QAction(tr("&Backup Wallet..."), this);
     backupWalletAction->setStatusTip(tr("Backup wallet to another location"));
     changePassphraseAction = new QAction(tr("&Change Passphrase..."), this);
@@ -657,9 +655,10 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
             setTrayIconVisible(optionsModel->getHideTrayIcon());
         }
         {
-#ifdef ENABLE_WALLET
             auto blocks = clientModel->getNumBlocks();
             checkZnodeVisibility(blocks);
+
+#ifdef ENABLE_WALLET
             checkLelantusVisibility(blocks);
 #endif // ENABLE_WALLET
         }
@@ -1086,8 +1085,9 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 
 #ifdef ENABLE_WALLET
     checkLelantusVisibility(count);
-    checkZnodeVisibility(count);
 #endif // ENABLE_WALLET
+
+    checkZnodeVisibility(count);
 }
 
 
@@ -1452,9 +1452,7 @@ void BitcoinGUI::updateLelantusPage()
 
 void BitcoinGUI::setRapAddressesVisible(bool checked)
 {
-#ifdef ENABLE_WALLET
     gotoOverviewPage();
-#endif // ENABLE_WALLET
     createPcodeAction->setVisible(checked);
 }
 
@@ -1511,9 +1509,7 @@ void BitcoinGUI::checkLelantusVisibility(int numBlocks)
 
     if (allowLelantusPage != lelantusAction->isVisible()) {
         if (!allowLelantusPage && lelantusAction->isChecked()) {
-#ifdef ENABLE_WALLET
             gotoOverviewPage();
-#endif // ENABLE_WALLET
         }
         lelantusAction->setVisible(allowLelantusPage);
     }

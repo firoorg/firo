@@ -35,8 +35,7 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_ZEROCOINMINTV3: return "zerocoinmintv3";
     case TX_LELANTUSMINT: return "lelantusmint";
     case TX_LELANTUSJMINT: return "lelantusmint";
-    case TX_SPARKMINT: return "sparkmint";
-    case TX_SPARKSMINT: return "sparksmint";
+
     }
     return NULL;
 }
@@ -113,23 +112,6 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::v
     {
         typeRet = TX_LELANTUSJMINT;
         if (scriptPubKey.size() != 83) return false;
-        vSolutionsRet.emplace_back(scriptPubKey.begin() + 1, scriptPubKey.end());
-        return true;
-    }
-
-    // Spark
-    if (scriptPubKey.IsSparkMint())
-    {
-        typeRet = TX_SPARKMINT;
-        if (scriptPubKey.size() < 213) return false;
-        vSolutionsRet.emplace_back(scriptPubKey.begin() + 1, scriptPubKey.end());
-        return true;
-    }
-
-    if (scriptPubKey.IsSparkSMint())
-    {
-        typeRet = TX_SPARKSMINT;
-        if (scriptPubKey.size() < 213) return false;
         vSolutionsRet.emplace_back(scriptPubKey.begin() + 1, scriptPubKey.end());
         return true;
     }
