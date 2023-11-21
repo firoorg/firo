@@ -24,6 +24,10 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
 {
     ui->setupUi(this);
 
+    QIcon icon_;
+    icon_.addFile(QString::fromUtf8(":/icons/ic_warning"), QSize(), QIcon::Normal, QIcon::On);
+    ui->iconWarning->setPixmap(icon_.pixmap(18, 18));
+
     ui->addressBookButton->setIcon(platformStyle->SingleColorIcon(":/icons/address-book"));
     ui->pasteButton->setIcon(platformStyle->SingleColorIcon(":/icons/editpaste"));
     ui->deleteButton->setIcon(platformStyle->SingleColorIcon(":/icons/remove"));
@@ -118,6 +122,17 @@ void SendCoinsEntry::deleteClicked()
     Q_EMIT removeEntry(this);
 }
 
+void SendCoinsEntry::setWarning(bool fAnonymousMode)
+{
+    if(fAnonymousMode) {
+        ui->textWarning->hide();
+        ui->iconWarning->hide();
+    } else {
+        ui->textWarning->show();
+        ui->iconWarning->show();
+    }
+}
+
 bool SendCoinsEntry::validate()
 {
     if (!model)
@@ -131,7 +146,7 @@ bool SendCoinsEntry::validate()
         return retval;
 
     isPcodeEntry = bip47::CPaymentCode::validate(ui->payTo->text().toStdString());
-    if (!(model->validateAddress(ui->payTo->text()) || isPcodeEntry))
+    if (!(model->validateAddress(ui->payTo->text()) || model->validateSparkAddress(ui->payTo->text()) || isPcodeEntry))
     {
         ui->payTo->setValid(false);
         retval = false;

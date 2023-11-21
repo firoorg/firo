@@ -98,6 +98,10 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 #define ZC_LELANTUS_MAX_MINT_NUM    65000
 #define ZC_LELANTUS_SET_START_SIZE  16000
 
+// limit of coins number per id in Spark
+#define ZC_SPARK_MAX_MINT_NUM    32000
+#define ZC_SPARK_SET_START_SIZE  8000
+
 // Version of index that introduced storing accumulators and coin serials
 #define ZC_ADVANCED_INDEX_VERSION           130500
 // Version of wallet.db entry that introduced storing extra information for mints
@@ -143,6 +147,15 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 // Amount of lelantus spends allowed per transaction
 #define ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION            50
 
+// Bumner of shielded spark outputs pet tx
+#define SPARK_OUT_LIMIT_PER_TX         16
+
+// Value of spark spends allowed per transaction
+#define SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION     (10000 * COIN)
+
+// Value of spark spends allowed per block
+#define SPARK_VALUE_SPEND_LIMIT_PER_BLOCK  (20000 * COIN)
+
 // Maximum amount of lelantus mint
 #define ZC_LELANTUS_MAX_MINT            (5001 * COIN)
 
@@ -165,6 +178,12 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 
 /** Probability (percentage) that a Dandelion transaction enters fluff phase */
 #define DANDELION_FLUFF 10
+
+// Spark
+#define SPARK_START_BLOCK 819300 // Approx Jan 18 2024 8:00 AM UTC
+#define SPARK_TESTNET_START_BLOCK 107000
+#define LELANTUS_GRACEFUL_PERIOD 1223500 // Approx Jan 30 2026
+#define LELANTUS_TESTNET_GRACEFUL_PERIOD 140000
 
 // Versions of zerocoin mint/spend transactions
 #define ZEROCOIN_TX_VERSION_3               30

@@ -18,6 +18,8 @@
 #include "hdmint/mintpool.h"
 #include "../secp256k1/include/GroupElement.h"
 #include "../secp256k1/include/Scalar.h"
+#include "../libspark/keys.h"
+#include "../spark/primitives.h"
 
 #include <list>
 #include <stdint.h>
@@ -263,6 +265,7 @@ public:
     DBErrors ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
     DBErrors ZapSigmaMints(CWallet* pwallet);
     DBErrors ZapLelantusMints(CWallet *pwallet);
+    DBErrors ZapSparkMints(CWallet *pwallet);
     static bool Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKeys);
     static bool Recover(CDBEnv& dbenv, const std::string& filename);
 
@@ -271,6 +274,12 @@ public:
 
     bool ReadMintSeedCount(int32_t& nCount);
     bool WriteMintSeedCount(const int32_t& nCount);
+
+    bool readDiversifier(int32_t& nCount);
+    bool writeDiversifier(const int32_t& nCount);
+
+    bool readFullViewKey(spark::FullViewKey& viewKey);
+    bool writeFullViewKey(const spark::FullViewKey& viewKey);
 
     bool ArchiveDeterministicOrphan(const CHDMint& dMint);
     bool UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& sigma);
@@ -294,6 +303,18 @@ public:
     bool WriteMintPoolPair(const uint256& hashPubcoin, const std::tuple<uint160, CKeyID, int32_t>& hashSeedMintPool);
     bool ReadMintPoolPair(const uint256& hashPubcoin, uint160& hashSeedMaster, CKeyID& seedId, int32_t& nCount);
     std::vector<std::pair<uint256, MintPoolEntry>> ListMintPool();
+
+    std::unordered_map<uint256, CSparkMintMeta> ListSparkMints();
+    bool WriteSparkOutputTx(const CScript& scriptPubKey, const CSparkOutputTx& output);
+    bool ReadSparkOutputTx(const CScript& scriptPubKey, CSparkOutputTx& output);
+    bool WriteSparkMint(const uint256& lTagHash, const CSparkMintMeta& mint);
+    bool ReadSparkMint(const uint256& lTagHash, CSparkMintMeta& mint);
+    bool EraseSparkMint(const uint256& lTagHash);
+    void ListSparkSpends(std::list<CSparkSpendEntry>& listSparkSpends);
+    bool WriteSparkSpendEntry(const CSparkSpendEntry& sparkSpend);
+    bool ReadSparkSpendEntry(const secp_primitives::GroupElement& lTag, CSparkSpendEntry& sparkSpend);
+    bool HasSparkSpendEntry(const secp_primitives::GroupElement& lTag);
+    bool EraseSparkSpendEntry(const secp_primitives::GroupElement& lTag);
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);

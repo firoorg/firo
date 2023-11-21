@@ -14,10 +14,12 @@
 #include <QMenu>
 #include <QPoint>
 #include <QVariant>
+#include <QSortFilterProxyModel>
 
 class OptionsModel;
 class PlatformStyle;
 class WalletModel;
+class RecentRequestsFilterProxy;
 
 namespace Ui {
     class ReceiveCoinsDialog;
@@ -25,6 +27,9 @@ namespace Ui {
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
+class QComboBox;
+class QHBoxLayout;
+class QSortFilterProxyModel;
 QT_END_NAMESPACE
 
 /** Dialog for requesting payment of bitcoins */
@@ -33,10 +38,18 @@ class ReceiveCoinsDialog : public QDialog
     Q_OBJECT
 
 public:
+    enum AddressTypeEnum
+    {
+        Spark,
+        Transparent,
+        All
+    };
+
     enum ColumnWidths {
         DATE_COLUMN_WIDTH = 130,
         LABEL_COLUMN_WIDTH = 120,
         AMOUNT_MINIMUM_COLUMN_WIDTH = 180,
+        ADDRESSTYPE_COLUMN_WIDTH = 130,
         MINIMUM_COLUMN_WIDTH = 130
     };
 
@@ -49,20 +62,21 @@ public Q_SLOTS:
     void clear();
     void reject();
     void accept();
+    void chooseType(int idx);
+    void displayCheckBox(int idx);
 
 protected:
     virtual void keyPressEvent(QKeyEvent *event);
 
 private:
     Ui::ReceiveCoinsDialog *ui;
-    GUIUtil::TableViewLastColumnResizingFixer *columnResizingFixer;
     WalletModel *model;
     QMenu *contextMenu;
     const PlatformStyle *platformStyle;
 
     QModelIndex selectedRow();
     void copyColumnToClipboard(int column);
-    virtual void resizeEvent(QResizeEvent *event);
+    RecentRequestsFilterProxy *recentRequestsProxyModel;
 
 private Q_SLOTS:
     void on_receiveButton_clicked();
@@ -76,6 +90,26 @@ private Q_SLOTS:
     void copyLabel();
     void copyMessage();
     void copyAmount();
+};
+
+class RecentRequestsFilterProxy : public QSortFilterProxyModel
+{
+    Q_OBJECT
+
+public:
+    explicit RecentRequestsFilterProxy(QObject *parent = 0);
+
+    static const quint32 ALL_TYPES = 0xFFFFFFFF;
+
+    static quint32 TYPE(int type) { return 1<<type; }
+
+    void setTypeFilter(quint32 modes);
+
+protected:
+    bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const;
+    
+private:
+    quint32 typeFilter;
 };
 
 #endif // BITCOIN_QT_RECEIVECOINSDIALOG_H

@@ -174,6 +174,10 @@ private:
     CAmount nLelantusSpendAmount;
     size_t nLelantusSpendInputs;
 
+    // lelantus spend limits
+    CAmount nSparkSpendAmount;
+    size_t nSparkSpendInputs;
+
     // transactions we cannot include in this block
     CTxMemPool::setEntries txBlackList;
 

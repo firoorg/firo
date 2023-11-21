@@ -9,6 +9,7 @@
 #include "guiconstants.h"
 #include "guiutil.h"
 #include "lelantusmodel.h"
+#include "sparkmodel.h"
 #include "paymentserver.h"
 #include "recentrequeststablemodel.h"
 #include "transactiontablemodel.h"
@@ -44,6 +45,7 @@
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, OptionsModel *_optionsModel, QObject *parent) :
     QObject(parent), wallet(_wallet), optionsModel(_optionsModel), addressTableModel(0), pcodeAddressTableModel(0),
     lelantusModel(0),
+    sparkModel(0),
     transactionTableModel(0),
     recentRequestsTableModel(0),
     pcodeModel(0),
@@ -58,6 +60,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     addressTableModel = new AddressTableModel(wallet, this);
     pcodeAddressTableModel = new PcodeAddressTableModel(wallet, this);
     lelantusModel = new LelantusModel(platformStyle, wallet, _optionsModel, this);
+    sparkModel = new SparkModel(platformStyle, wallet, _optionsModel, this);
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
     pcodeModel = new PcodeModel(wallet, this);
@@ -94,7 +97,13 @@ CAmount WalletModel::getBalance(const CCoinControl *coinControl, bool fExcludeLo
 
 CAmount WalletModel::getAnonymizableBalance() const
 {
-    return lelantus::IsLelantusAllowed() ? lelantusModel->getMintableAmount() : 0;
+    CAmount amount = 0;
+    if(lelantus::IsLelantusAllowed()) {
+        amount = lelantusModel->getMintableAmount();
+    } else if (spark::IsSparkAllowed()){
+        amount = sparkModel->getMintableSparkAmount();
+    }
+    return amount;
 }
 
 CAmount WalletModel::getUnconfirmedBalance() const
@@ -174,6 +183,10 @@ void WalletModel::checkBalanceChanged()
     CAmount newPrivateBalance, newUnconfirmedPrivateBalance;
     std::tie(newPrivateBalance, newUnconfirmedPrivateBalance) =
         lelantusModel->getPrivateBalance();
+
+    std::pair<CAmount, CAmount> sparkBalance = getSparkBalance();
+    newPrivateBalance = spark::IsSparkAllowed() ? sparkBalance.first : newPrivateBalance;
+    newUnconfirmedPrivateBalance = spark::IsSparkAllowed() ? sparkBalance.second : newUnconfirmedPrivateBalance;
 
     if (haveWatchOnly())
     {
@@ -777,6 +790,11 @@ LelantusModel *WalletModel::getLelantusModel()
     return lelantusModel;
 }
 
+SparkModel *WalletModel::getSparkModel()
+{
+    return sparkModel;
+}
+
 TransactionTableModel *WalletModel::getTransactionTableModel()
 {
     return transactionTableModel;
@@ -886,6 +904,36 @@ static void NotifyAddressBookChanged(WalletModel *walletmodel, CWallet *wallet,
                               Q_ARG(int, status));
 }
 
+static void NotifySparkAddressBookChanged(WalletModel* walletmodel, CWallet* wallet, const std::string& address, const std::string& label, bool isMine, const std::string& purpose, ChangeType status)
+{
+    QString strAddress = QString::fromStdString(address);
+    QString strLabel = QString::fromStdString(label);
+    QString strPurpose = QString::fromStdString(purpose);
+
+    qDebug() << "NotifySparkAddressBookChanged: " + strAddress + " " + strLabel + " isMine=" + QString::number(isMine) + " purpose=" + strPurpose + " status=" + QString::number(status);
+    QMetaObject::invokeMethod(walletmodel, "updateAddressBook", Qt::QueuedConnection,
+        Q_ARG(QString, strAddress),
+        Q_ARG(QString, strLabel),
+        Q_ARG(bool, isMine),
+        Q_ARG(QString, strPurpose),
+        Q_ARG(int, status));
+}
+
+static void NotifyRAPAddressBookChanged(WalletModel* walletmodel, CWallet* wallet, const std::string& address, const std::string& label, bool isMine, const std::string& purpose, ChangeType status)
+{
+    QString strAddress = QString::fromStdString(address);
+    QString strLabel = QString::fromStdString(label);
+    QString strPurpose = QString::fromStdString(purpose);
+
+    qDebug() << "NotifyRAPAddressBookChanged: " + strAddress + " " + strLabel + " isMine=" + QString::number(isMine) + " purpose=" + strPurpose + " status=" + QString::number(status);
+    QMetaObject::invokeMethod(walletmodel, "updateAddressBook", Qt::QueuedConnection,
+        Q_ARG(QString, strAddress),
+        Q_ARG(QString, strLabel),
+        Q_ARG(bool, isMine),
+        Q_ARG(QString, strPurpose),
+        Q_ARG(int, status));
+}
+
 static void NotifyZerocoinChanged(WalletModel *walletmodel, CWallet *wallet, const std::string &pubCoin, const std::string &isUsed, ChangeType status)
 {
     qDebug() << "NotifyZerocoinChanged:" + QString::fromStdString(pubCoin) + " " + QString::fromStdString(isUsed) + " status=" + QString::number(status);
@@ -941,6 +989,8 @@ void WalletModel::subscribeToCoreSignals()
     // Connect signals to wallet
     wallet->NotifyStatusChanged.connect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
     wallet->NotifyAddressBookChanged.connect(boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
+    wallet->NotifySparkAddressBookChanged.connect(boost::bind(NotifySparkAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
+    wallet->NotifyRAPAddressBookChanged.connect(boost::bind(NotifyRAPAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
     wallet->NotifyTransactionChanged.connect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
     wallet->NotifyISLockReceived.connect(boost::bind(NotifyISLockReceived, this));
     wallet->NotifyChainLockReceived.connect(boost::bind(NotifyChainLockReceived, this, _1));
@@ -956,6 +1006,8 @@ void WalletModel::unsubscribeFromCoreSignals()
     // Disconnect signals from wallet
     wallet->NotifyStatusChanged.disconnect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
     wallet->NotifyAddressBookChanged.disconnect(boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
+    wallet->NotifySparkAddressBookChanged.disconnect(boost::bind(NotifySparkAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
+    wallet->NotifyRAPAddressBookChanged.disconnect(boost::bind(NotifyRAPAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
     wallet->NotifyTransactionChanged.disconnect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
     wallet->NotifyISLockReceived.disconnect(boost::bind(NotifyISLockReceived, this));
     wallet->NotifyChainLockReceived.disconnect(boost::bind(NotifyChainLockReceived, this, _1));
@@ -1121,7 +1173,6 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, 
         CTxDestination address;
         auto const &vout = cout.tx->tx->vout[cout.i];
         if (vout.scriptPubKey.IsMint()) {
-
             mapCoins[QString::fromStdString("(mint)")].push_back(out);
             continue;
         }
@@ -1178,21 +1229,24 @@ void WalletModel::loadReceiveRequests(std::vector<std::string>& vReceiveRequests
         BOOST_FOREACH(const PAIRTYPE(std::string, std::string)& item2, item.second.destdata)
             if (item2.first.size() > 2 && item2.first.substr(0,2) == "rr") // receive request
                 vReceiveRequests.push_back(item2.second);
+
+    BOOST_FOREACH (const PAIRTYPE(std::string, CAddressBookData) & item, wallet->mapSparkAddressBook)
+        BOOST_FOREACH (const PAIRTYPE(std::string, std::string) & item2, item.second.destdata)
+            if (item2.first.size() > 2 && item2.first.substr(0, 2) == "rr") // receive request
+                vReceiveRequests.push_back(item2.second);
 }
 
 bool WalletModel::saveReceiveRequest(const std::string &sAddress, const int64_t nId, const std::string &sRequest)
 {
-    CTxDestination dest = CBitcoinAddress(sAddress).Get();
-
     std::stringstream ss;
     ss << nId;
     std::string key = "rr" + ss.str(); // "rr" prefix = "receive request" in destdata
 
     LOCK(wallet->cs_wallet);
     if (sRequest.empty())
-        return wallet->EraseDestData(dest, key);
+        return wallet->EraseDestData(sAddress, key);
     else
-        return wallet->AddDestData(dest, key, sRequest);
+        return wallet->AddDestData(sAddress, key, sRequest);
 }
 
 bool WalletModel::transactionCanBeAbandoned(uint256 hash) const
@@ -1322,4 +1376,416 @@ void WalletModel::handleBip47Keys(int receiverAccountNum, void * pBlockIndex_)
             wallet->ScanForWalletTransactions(pBlockIndex, false, false);
         }
     }
+}
+
+bool WalletModel::validateSparkAddress(const QString& address)
+{
+    const spark::Params* params = spark::Params::get_default();
+    unsigned char network = spark::GetNetworkType();
+    unsigned char coinNetwork;
+    spark::Address addr(params);
+    try {
+        coinNetwork = addr.decode(address.toStdString());
+    } catch (...) {
+        return false;
+    }
+    return network == coinNetwork;
+}
+
+std::pair<CAmount, CAmount> WalletModel::getSparkBalance()
+{
+    return wallet->GetSparkBalance();
+}
+
+bool WalletModel::getAvailableLelantusCoins()
+{
+    if (!pwalletMain->zwallet)
+        return false;
+
+    std::list<CLelantusEntry> coins = wallet->GetAvailableLelantusCoins();
+    if (coins.size() > 0) {
+        return true;
+    } else {
+        return false;
+    }
+} 
+
+bool WalletModel::migrateLelantusToSpark()
+{
+    std::string strFailReason;
+    bool res = wallet->LelantusToSpark(strFailReason);
+    if (!res) {
+        Q_EMIT message(tr("Lelantus To Spark"), QString::fromStdString(strFailReason),
+            CClientUIInterface::MSG_ERROR);
+    }
+    return res;
+}
+
+WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vector<WalletModelTransaction> &transactions, QList<SendCoinsRecipient> recipients, std::vector<std::pair<CWalletTx, CAmount> >& wtxAndFees, std::list<CReserveKey>& reservekeys, const CCoinControl* coinControl)
+{
+    CAmount total = 0;
+    bool fSubtractFeeFromAmount = false;
+
+    if (recipients.empty()) {
+        return OK;
+    }
+
+    QSet<QString> setAddress; // Used to detect duplicates
+    int nAddresses = 0;
+    std::vector<spark::MintedCoinData> outputs;
+    const spark::Params* params = spark::Params::get_default();
+    // Pre-check input data for validity
+    Q_FOREACH (const SendCoinsRecipient& rcp, recipients) {
+        if (rcp.fSubtractFeeFromAmount)
+            fSubtractFeeFromAmount = true;
+
+        if (rcp.paymentRequest.IsInitialized()) { // PaymentRequest...
+            CAmount subtotal = 0;
+            const payments::PaymentDetails& details = rcp.paymentRequest.getDetails();
+            for (int i = 0; i < details.outputs_size(); i++) {
+                spark::Address address(params);
+                address.decode(rcp.address.toStdString());
+                const payments::Output& out = details.outputs(i);
+                if (out.amount() <= 0) continue;
+                subtotal += out.amount();
+                CAmount nAmount = out.amount();
+                spark::MintedCoinData data;
+                data.address = address;
+                data.memo = "";
+                data.v = nAmount;
+                outputs.push_back(data);
+            }
+            if (subtotal <= 0) {
+                return InvalidAmount;
+            }
+            total += subtotal;
+        } else { // User-entered Firo address / amount:
+            if (!validateSparkAddress(rcp.address)) {
+                return InvalidAddress;
+            }
+            if (rcp.amount <= 0) {
+                return InvalidAmount;
+            }
+            setAddress.insert(rcp.address);
+            ++nAddresses;
+
+            spark::Address address(params);
+            address.decode(rcp.address.toStdString());
+            spark::MintedCoinData data;
+            data.address = address;
+            data.memo = "";
+            data.v = rcp.amount;
+            outputs.push_back(data);
+            total += rcp.amount;
+        }
+    }
+    if (setAddress.size() != nAddresses) {
+        return DuplicateAddress;
+    }
+
+    CAmount nBalance = getBalance(coinControl);
+
+    if (total > nBalance) {
+        return AmountExceedsBalance;
+    }
+
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+
+        CAmount nFeeRequired = 0;
+        int nChangePosRet = -1;
+
+        std::string strFailReason;
+        bool fCreated = wallet->CreateSparkMintTransactions(outputs, wtxAndFees, nFeeRequired, reservekeys, nChangePosRet, fSubtractFeeFromAmount, strFailReason, coinControl, false);
+        transactions.clear();
+        transactions.reserve(wtxAndFees.size());
+        for (auto &wtxAndFee : wtxAndFees) {
+            auto &wtx = wtxAndFee.first;
+            auto fee = wtxAndFee.second;
+
+            int changePos = -1;
+            for (size_t i = 0; i != wtx.tx->vout.size(); i++) {
+                if (!wtx.tx->vout[i].scriptPubKey.IsMint()) changePos = i;
+            }
+
+            transactions.emplace_back(recipients);
+            auto &tx = transactions.back();
+
+            *tx.getTransaction() = wtx;
+            tx.setTransactionFee(fee);
+            tx.reassignAmounts(changePos);
+        }
+        
+        if (!fCreated) {
+            Q_EMIT message(tr("Mint Spark"), QString::fromStdString(strFailReason),
+                CClientUIInterface::MSG_ERROR);
+            return TransactionCreationFailed;
+        }
+
+        if (!fSubtractFeeFromAmount && (total + nFeeRequired) > nBalance) {
+            return SendCoinsReturn(AmountWithFeeExceedsBalance);
+        }
+        
+        if (nFeeRequired > maxTxFee) {
+            return AbsurdFee;
+        }
+    }
+    return SendCoinsReturn(OK);
+}
+
+WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(WalletModelTransaction &transaction, const CCoinControl* coinControl)
+{
+    CAmount total = 0;
+    CAmount nFeeRequired = 0;
+    bool fSubtractFeeFromAmount = false;
+    QList<SendCoinsRecipient> recipients = transaction.getRecipients();
+    std::vector<CRecipient> vecSend;
+
+    if (recipients.empty()) {
+        return OK;
+    }
+    
+    QSet<QString> setAddress; // Used to detect duplicates
+    int nAddresses = 0;
+    std::vector<std::pair<spark::OutputCoinData, bool> > privateRecipients;
+    const spark::Params* params = spark::Params::get_default();
+    // Pre-check input data for validity
+    Q_FOREACH (const SendCoinsRecipient& rcp, recipients) {
+        if (rcp.fSubtractFeeFromAmount)
+            fSubtractFeeFromAmount = true;
+
+        if (rcp.paymentRequest.IsInitialized()) { // PaymentRequest...
+            CAmount subtotal = 0;
+            const payments::PaymentDetails& details = rcp.paymentRequest.getDetails();
+            for (int i = 0; i < details.outputs_size(); i++) {
+                const payments::Output& out = details.outputs(i);
+                if (out.amount() <= 0) continue;
+                subtotal += out.amount();
+                if(validateAddress(rcp.address)) {
+                    const unsigned char* scriptStr = (const unsigned char*)out.script().data();
+                    CScript scriptPubKey(scriptStr, scriptStr + out.script().size());
+                    CAmount nAmount = out.amount();
+                    CRecipient recipient = {scriptPubKey, nAmount, rcp.fSubtractFeeFromAmount};
+                    vecSend.push_back(recipient);
+                } else if (validateSparkAddress(rcp.address)) {
+                    spark::Address address(params);
+                    address.decode(rcp.address.toStdString());
+                    spark::OutputCoinData data;
+                    data.address = address;
+                    data.memo = "";
+                    data.v = out.amount();
+                    privateRecipients.push_back(std::make_pair(data, rcp.fSubtractFeeFromAmount));
+                } else {
+                    return InvalidAddress;
+                }
+            }
+            if (subtotal <= 0) {
+                return InvalidAmount;
+            }
+            total += subtotal;
+        } else { // User-entered Firo address / amount:
+            if (rcp.amount <= 0) {
+                return InvalidAmount;
+            }
+            setAddress.insert(rcp.address);
+            ++nAddresses;
+
+            if (validateAddress(rcp.address)) {
+                CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
+                CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
+                vecSend.push_back(recipient);
+            } else if (validateSparkAddress(rcp.address)) {
+                spark::Address address(params);
+                address.decode(rcp.address.toStdString());
+                spark::OutputCoinData data;
+                data.address = address;
+                data.memo = "";
+                data.v = rcp.amount;
+                privateRecipients.push_back(std::make_pair(data, rcp.fSubtractFeeFromAmount));
+            } else {
+                return InvalidAddress;
+            }
+            total += rcp.amount;
+        }
+    }
+
+    if (setAddress.size() != nAddresses) {
+        return DuplicateAddress;
+    }
+
+    CAmount nBalance;
+    std::tie(nBalance, std::ignore) = getSparkBalance();
+
+    if (total > nBalance) {
+        return AmountExceedsBalance;
+    }
+
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+
+        CWalletTx *newTx = transaction.getTransaction();
+        try {
+            *newTx = wallet->CreateSparkSpendTransaction(vecSend, privateRecipients, nFeeRequired, coinControl);
+        } catch (InsufficientFunds const&) {
+            transaction.setTransactionFee(nFeeRequired);
+            if (!fSubtractFeeFromAmount && (total + nFeeRequired) > nBalance) {
+                return SendCoinsReturn(AmountWithFeeExceedsBalance);
+            }
+            return SendCoinsReturn(AmountExceedsBalance);
+        } catch (std::runtime_error const& e) {
+            Q_EMIT message(
+                tr("Spend Spark"),
+                QString::fromStdString(e.what()),
+                CClientUIInterface::MSG_ERROR);
+
+            return TransactionCreationFailed;
+        } catch (std::invalid_argument const& e) {
+            Q_EMIT message(
+                tr("Spend Spark"),
+                QString::fromStdString(e.what()),
+                CClientUIInterface::MSG_ERROR);
+
+            return TransactionCreationFailed;
+        }
+        if (nFeeRequired > maxTxFee) {
+            return AbsurdFee;
+        }
+
+        int changePos = -1;
+        for (size_t i = 0; i != newTx->tx->vout.size(); i++) {
+            if (!newTx->tx->vout[i].scriptPubKey.IsSparkSMint()) changePos = i;
+        }
+
+        transaction.setTransactionFee(nFeeRequired);
+        transaction.reassignAmounts(changePos);
+    }
+    return SendCoinsReturn(OK);
+}
+
+WalletModel::SendCoinsReturn WalletModel::mintSparkCoins(std::vector<WalletModelTransaction> &transactions, std::vector<std::pair<CWalletTx, CAmount> >& wtxAndFee, std::list<CReserveKey>& reserveKeys)
+{
+    QByteArray transaction_array; /* store serialized transaction */
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+        CValidationState state;
+        auto reservekey = reserveKeys.begin();
+
+        for (size_t i = 0; i != wtxAndFee.size(); i++) {
+            Q_FOREACH(const SendCoinsRecipient &rcp, transactions[i].getRecipients())
+            {
+                // CWalletTx* newTx = transactions[i].getTransaction();
+                if (rcp.paymentRequest.IsInitialized()) {
+                    // Make sure any payment requests involved are still valid.
+                    if (PaymentServer::verifyExpired(rcp.paymentRequest.getDetails())) {
+                        return PaymentRequestExpired;
+                    }
+
+                    // Store PaymentRequests in wtx.vOrderForm in wallet.
+                    std::string key("PaymentRequest");
+                    std::string value;
+                    rcp.paymentRequest.SerializeToString(&value);
+                    wtxAndFee[i].first.vOrderForm.push_back(make_pair(key, value));
+                } else if (!rcp.message.isEmpty()) // Message from normal firo:URI (firo:123...?message=example)
+                    wtxAndFee[i].first.vOrderForm.push_back(make_pair("Message", rcp.message.toStdString()));
+                if (!wallet->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state))
+                    return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString(state.GetRejectReason()));
+                
+                CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+                ssTx << *wtxAndFee[i].first.tx;
+                transaction_array.append(&(ssTx[0]), ssTx.size());
+    
+                if (!rcp.paymentRequest.IsInitialized()) {
+                    std::string strAddress = rcp.address.toStdString();
+                    std::string strLabel = rcp.label.toStdString();
+                    {
+                        LOCK(wallet->cs_wallet);
+
+                        std::map<std::string, CAddressBookData>::iterator mi = wallet->mapSparkAddressBook.find(strAddress);
+
+                        // Check if we have a new address or an updated label
+                        if (mi == wallet->mapSparkAddressBook.end()) {
+                            wallet->SetSparkAddressBook(strAddress, strLabel, "send");
+                        } else if (mi->second.name != strLabel) {
+                            wallet->SetSparkAddressBook(strAddress, strLabel, ""); // "" means don't change purpose
+                        }
+                    }
+                }
+                Q_EMIT coinsSent(wallet, rcp, transaction_array);
+            }
+
+        }
+    }
+
+    checkBalanceChanged(); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
+    
+    return SendCoinsReturn(OK);
+}
+
+WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(WalletModelTransaction &transaction)
+{
+    QByteArray transaction_array; /* store serialized transaction */
+
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+        CValidationState state;
+        CReserveKey reserveKey(wallet);
+        CWalletTx* newTx = transaction.getTransaction();
+        Q_FOREACH(const SendCoinsRecipient &rcp, transaction.getRecipients())
+        {
+            if (rcp.paymentRequest.IsInitialized()) {
+                // Make sure any payment requests involved are still valid.
+                if (PaymentServer::verifyExpired(rcp.paymentRequest.getDetails())) {
+                    return PaymentRequestExpired;
+                }
+
+                // Store PaymentRequests in wtx.vOrderForm in wallet.
+                std::string key("PaymentRequest");
+                std::string value;
+                rcp.paymentRequest.SerializeToString(&value);
+                newTx->vOrderForm.push_back(make_pair(key, value));
+            } else if (!rcp.message.isEmpty()) // Message from normal firo:URI (firo:123...?message=example)
+                newTx->vOrderForm.push_back(make_pair("Message", rcp.message.toStdString()));
+        
+            if (!wallet->CommitTransaction(*newTx, reserveKey, g_connman.get(), state))
+                return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString(state.GetRejectReason()));
+            CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+            ssTx << *newTx->tx;
+            transaction_array.append(&(ssTx[0]), ssTx.size());
+        
+            if (!rcp.paymentRequest.IsInitialized()) {
+            std::string strAddress = rcp.address.toStdString();
+            CTxDestination dest = CBitcoinAddress(strAddress).Get();
+            std::string strLabel = rcp.label.toStdString();
+            {
+                LOCK(wallet->cs_wallet);
+
+                if(validateAddress(rcp.address)) {
+                    std::map<CTxDestination, CAddressBookData>::iterator mi = wallet->mapAddressBook.find(dest);
+                    // Check if we have a new address or an updated label
+                    if (mi == wallet->mapAddressBook.end()) {
+                        wallet->SetAddressBook(dest, strLabel, "send");
+                    } else if (mi->second.name != strLabel) {
+                        wallet->SetAddressBook(dest, strLabel, ""); // "" means don't change purpose
+                    }
+                } else if (validateSparkAddress(rcp.address)) {                
+                    std::map<std::string, CAddressBookData>::iterator mi = wallet->mapSparkAddressBook.find(strAddress);
+
+                    // Check if we have a new address or an updated label
+                    if (mi == wallet->mapSparkAddressBook.end()) {
+                        wallet->SetSparkAddressBook(strAddress, strLabel, "send");
+                    } else if (mi->second.name != strLabel) {
+                        wallet->SetSparkAddressBook(strAddress, strLabel, ""); // "" means don't change purpose
+                    }
+                } else {
+                    return InvalidAddress;
+                }
+            }
+        }
+        Q_EMIT coinsSent(wallet, rcp, transaction_array);
+        }
+    }
+
+    checkBalanceChanged(); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
+
+    return SendCoinsReturn(OK);
 }

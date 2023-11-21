@@ -15,6 +15,77 @@
   </property>
   <layout class="QVBoxLayout" name="topLayout">
    <item>
+     <widget class="QFrame" name="warningFrame">
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+       <property name="styleSheet">
+         <string>font-size: 14px; color: #92400E; background-color:#FEF3C7;</string>
+       </property>
+      <layout class="QHBoxLayout" name="warningLayout">
+       <item>
+        <spacer name="horizontalSpacer_warning1">
+          <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+          <size>
+          <width>20</width>
+          <height>20</height>
+          </size>
+          </property>
+        </spacer>
+       </item>
+       <item>
+         <widget class="QLabel" name="textWarning1">
+           <property name="text">
+           <string> </string>
+           </property>
+           <property name="alignment">
+             <set>Qt::AlignCenter</set>
+           </property>
+         </widget>
+       </item>
+       <item>
+       <widget class="QPushButton" name="migrateButton">
+         <property name="text">
+         <string> Click here </string>
+         </property>
+         <property name="styleSheet">
+          <string>padding-left: -60px; padding-right: -60px; font-weight: bold</string>
+         </property>
+       </widget>
+       </item>
+       <item>
+         <widget class="QLabel" name="textWarning2">
+           <property name="text">
+           <string> </string>
+           </property>
+           <property name="alignment">
+             <set>Qt::AlignCenter</set>
+           </property>
+         </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_warning2">
+          <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+          <size>
+          <width>40</width>
+          <height>20</height>
+          </size>
+          </property>
+        </spacer>
+       </item>
+      </layout>
+      </widget>
+   </item>
+   <item>
     <widget class="QLabel" name="labelAlerts">
      <property name="visible">
       <bool>false</bool>
@@ -648,7 +719,7 @@
          </layout>
         </widget>
        </item>
-       <item>
+        <item>
         <spacer name="verticalSpacer_2">
          <property name="orientation">
           <enum>Qt::Vertical</enum>

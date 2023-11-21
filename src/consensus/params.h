@@ -251,6 +251,10 @@ struct Params {
 
     int nLelantusFixesStartBlock;
 
+    int nSparkStartBlock;
+
+    int nLelantusGracefulPeriod;
+
     // Lelantus Blacklist
     std::unordered_set<secp_primitives::GroupElement> lelantusBlacklist;
 
@@ -317,6 +321,14 @@ struct Params {
 
     // Value of maximum lelantus mint.
     int64_t nMaxValueLelantusMint;
+
+    // Value of maximum spark spend per transaction
+    int64_t nMaxValueSparkSpendPerTransaction;
+
+    // Value of maximum spark spend per block.
+    int64_t nMaxValueSparkSpendPerBlock;
+
+    unsigned nMaxSparkOutLimitPerTx;
 
     // Number of blocks with allowed zerocoin to sigma remint transaction (after nSigmaStartBlock)
     int nZerocoinToSigmaRemintWindowSize;

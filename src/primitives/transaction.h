@@ -35,7 +35,8 @@ enum {
     TRANSACTION_COINBASE = 5,
     TRANSACTION_QUORUM_COMMITMENT = 6,
     TRANSACTION_SPORK = 7,
-    TRANSACTION_LELANTUS = 8
+    TRANSACTION_LELANTUS = 8,
+    TRANSACTION_SPARK = 9
 };
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
@@ -453,7 +454,12 @@ public:
 
     bool IsZerocoinRemint() const;
 
+    bool IsSparkTransaction() const;
+    bool IsSparkSpend() const;
+    bool IsSparkMint() const;
+
     bool HasNoRegularInputs() const;
+    bool HasPrivateInputs() const;
 
     /**
      * Get the total transaction size in bytes, including witness data.
@@ -468,7 +474,8 @@ public:
             || (vin[0].scriptSig[0] != OP_ZEROCOINSPEND
             && vin[0].scriptSig[0] != OP_ZEROCOINTOSIGMAREMINT
             && vin[0].scriptSig[0] != OP_LELANTUSJOINSPLIT
-            && vin[0].scriptSig[0] != OP_LELANTUSJOINSPLITPAYLOAD)));
+            && vin[0].scriptSig[0] != OP_LELANTUSJOINSPLITPAYLOAD
+            && vin[0].scriptSig[0] != OP_SPARKSPEND)));
     }
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)

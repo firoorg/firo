@@ -13,6 +13,7 @@
 #include <QTimer>
 
 class LelantusModel;
+class SparkModel;
 class OptionsModel;
 class CWallet;
 
@@ -107,6 +108,69 @@ private:
     AutoMintState autoMintState;
 
     QTimer *autoMintCheckTimer;
+
+    IncomingFundNotifier *notifier;
+};
+
+enum class AutoMintSparkState : uint8_t {
+    Disabled,
+    WaitingIncomingFund,
+    WaitingUserToActivate,
+    Anonymizing
+};
+
+enum class AutoMintSparkAck : uint8_t {
+    AskToMint,
+    Success,
+    WaitUserToActive,
+    FailToMint,
+    NotEnoughFund,
+    UserReject,
+    FailToUnlock,
+    Close
+};
+
+class AutoMintSparkModel : public QObject
+{
+    Q_OBJECT;
+
+public:
+    explicit AutoMintSparkModel(
+        SparkModel *sparkModel,
+        OptionsModel *optionsModel,
+        CWallet *wallet,
+        QObject *parent = 0);
+
+    ~AutoMintSparkModel();
+
+public:
+    bool isSparkAnonymizing() const;
+
+public Q_SLOTS:
+    void ackMintSparkAll(AutoMintSparkAck ack, CAmount minted, QString error);
+    void checkAutoMintSpark(bool force = false);
+
+    void startAutoMintSpark();
+
+    void updateAutoMintSparkOption(bool);
+
+Q_SIGNALS:
+    void message(const QString &title, const QString &message, unsigned int style);
+
+    void requireShowAutomintSparkNotification();
+    void closeAutomintSparkNotification();
+
+private:
+    void processAutoMintSparkAck(AutoMintSparkAck ack, CAmount minted, QString error);
+
+private:
+    SparkModel *sparkModel;
+    OptionsModel *optionsModel;
+    CWallet *wallet;
+
+    AutoMintSparkState autoMintSparkState;
+
+    QTimer *autoMintSparkCheckTimer;
 
     IncomingFundNotifier *notifier;
 };

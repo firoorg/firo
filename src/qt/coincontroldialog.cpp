@@ -465,7 +465,9 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
                         || script.IsSigmaMint()
                         || script.IsZerocoinRemint()
                         || script.IsLelantusMint()
-                        || script.IsLelantusJMint();
+                        || script.IsLelantusJMint()
+                        || script.IsSparkMint()
+                        || script.IsSparkSMint();
 
             if (isMint != anonymousMode) {
                 continue;
@@ -486,7 +488,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
         nQuantity++;
 
         // Amount
-        if(out.tx->tx->vout[out.i].scriptPubKey.IsLelantusJMint()) {
+        if(out.tx->tx->vout[out.i].scriptPubKey.IsLelantusJMint() || out.tx->tx->vout[out.i].scriptPubKey.IsSparkSMint()) {
             nAmount += model->GetJMintCredit(out.tx->tx->vout[out.i]);
         } else {
             nAmount += out.tx->tx->vout[out.i].nValue;
@@ -524,9 +526,15 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
     if (nQuantity > 0)
     {
         if (anonymousMode) {
-            // 1054 is constant part, mainly Schnorr and Range proofs, 2560 is for each sigma/aux data
-            // 83 assuming 1 jmint, 34 is the size of each normal vout,  10 is the size of empty transaction, 52 other constant parts
-            nBytes = 1054 + 2560 * vOutputs.size() + 83 + CoinControlDialog::payAmounts.size()  * 34  + 10 + 52;
+            if(spark::IsSparkAllowed()) {
+                // 924 is constant part, mainly Schnorr and Range proofs, 2535 is for each grootle proof/aux data
+                // 213 for each private output, 144 other parts of tx,
+                nBytes = 924 + 2535 * (vOutputs.size()) + 213 * CoinControlDialog::payAmounts.size() + 144;
+            } else {
+                // 1054 is constant part, mainly Schnorr and Range proofs, 2560 is for each sigma/aux data
+                // 83 assuming 1 jmint, 34 is the size of each normal vout,  10 is the size of empty transaction, 52 other constant parts
+                nBytes = 1054 + 2560 * vOutputs.size() + 83 + CoinControlDialog::payAmounts.size()  * 34  + 10 + 52;
+            }
             nPayFee = CWallet::GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
             if (nPayAmount > 0) {
                 nChange = nAmount - nPayAmount;
@@ -704,12 +712,13 @@ void CoinControlDialog::updateView()
         int nChildren = 0;
         BOOST_FOREACH(const COutput& out, coins.second) {
             CAmount amount;
-            if(out.tx->tx->vout[out.i].scriptPubKey.IsLelantusJMint()) {
+            if(out.tx->tx->vout[out.i].scriptPubKey.IsLelantusJMint() || out.tx->tx->vout[out.i].scriptPubKey.IsSparkSMint()) {
                 amount = model->GetJMintCredit(out.tx->tx->vout[out.i]);
             } else {
                 amount = out.tx->tx->vout[out.i].nValue;
             }
 
+            if(amount == 0) continue;
             nSum += amount;
             nChildren++;
 
@@ -729,6 +738,12 @@ void CoinControlDialog::updateView()
                 // if listMode or change => show Firo address. In tree mode, address is not shown again for direct wallet address outputs
                 if (!treeMode || (!(sAddress == sWalletAddress)))
                     itemOutput->setText(COLUMN_ADDRESS, sAddress);
+            } else if (out.tx->tx->IsSparkMint() || out.tx->tx->IsSparkSpend()) {
+                sAddress = "spark";
+
+                // if listMode or change => show Firo address. In tree mode, address is not shown again for direct wallet address outputs
+                if (!treeMode || (!(sAddress == sWalletAddress)))
+                    itemOutput->setText(COLUMN_ADDRESS, sAddress);
             }
 
             // label
@@ -738,7 +753,7 @@ void CoinControlDialog::updateView()
                 itemOutput->setToolTip(COLUMN_LABEL, tr("change from %1 (%2)").arg(sWalletLabel).arg(sWalletAddress));
                 if(out.tx->tx->IsSigmaMint()) {
                     itemOutput->setText(COLUMN_LABEL, tr("(sigma mint)"));
-                } else if(out.tx->tx->IsLelantusMint()) {
+                } else if(out.tx->tx->IsLelantusMint() || out.tx->tx->IsSparkMint()) {
                     itemOutput->setText(COLUMN_LABEL, tr("(mint)"));
                 } else {
                     itemOutput->setText(COLUMN_LABEL, tr("(change)"));

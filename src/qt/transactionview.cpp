@@ -43,7 +43,7 @@ char const * CopyRapText{"Copy RAP address/label"};
 
 TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *parent) :
     QWidget(parent), model(0), transactionProxyModel(0),
-    transactionView(0), abandonAction(0), columnResizingFixer(0)
+    transactionView(0), abandonAction(0)
 {
     // Build filter row
     setContentsMargins(0,0,0,0);
@@ -67,7 +67,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     headerLayout->addWidget(watchOnlyWidget);
 
     instantsendWidget = new QComboBox(this);
-    instantsendWidget->setFixedWidth(24);
+    instantsendWidget->setFixedWidth(150);
     instantsendWidget->addItem(tr("All"), TransactionFilterProxy::InstantSendFilter_All);
     instantsendWidget->addItem(tr("Locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_Yes);
     instantsendWidget->addItem(tr("Not locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_No);
@@ -108,6 +108,11 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     typeWidget->addItem(tr("Anonymize"), TransactionFilterProxy::TYPE(TransactionRecord::Anonymize));
     typeWidget->addItem(tr("Sent to RAP address"), TransactionFilterProxy::TYPE(TransactionRecord::SendToPcode));
     typeWidget->addItem(tr("Received with RAP address"), TransactionFilterProxy::TYPE(TransactionRecord::RecvWithPcode));
+    typeWidget->addItem(tr("Mint spark to yourself"), TransactionFilterProxy::TYPE(TransactionRecord::MintSparkToSelf));
+    typeWidget->addItem(tr("Spend spark to yourself"), TransactionFilterProxy::TYPE(TransactionRecord::SpendSparkToSelf));
+    typeWidget->addItem(tr("Mint spark to"), TransactionFilterProxy::TYPE(TransactionRecord::MintSparkTo));
+    typeWidget->addItem(tr("Spend spark to"), TransactionFilterProxy::TYPE(TransactionRecord::SpendSparkTo));
+    typeWidget->addItem(tr("Received Spark"), TransactionFilterProxy::TYPE(TransactionRecord::RecvSpark));
 
     headerLayout->addWidget(typeWidget);
 
@@ -224,13 +229,12 @@ void TransactionView::setModel(WalletModel *_model)
 
         transactionProxyModel->setSortRole(Qt::EditRole);
 
-        transactionView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         transactionView->setModel(transactionProxyModel);
         transactionView->setAlternatingRowColors(true);
         transactionView->setSelectionBehavior(QAbstractItemView::SelectRows);
         transactionView->setSelectionMode(QAbstractItemView::ExtendedSelection);
+        transactionView->horizontalHeader()->setSortIndicator(TransactionTableModel::Date, Qt::DescendingOrder);
         transactionView->setSortingEnabled(true);
-        transactionView->sortByColumn(TransactionTableModel::Date, Qt::DescendingOrder);
         transactionView->verticalHeader()->hide();
 
         transactionView->setColumnWidth(TransactionTableModel::Status, STATUS_COLUMN_WIDTH);
@@ -238,9 +242,11 @@ void TransactionView::setModel(WalletModel *_model)
         transactionView->setColumnWidth(TransactionTableModel::InstantSend, INSTANTSEND_COLUMN_WIDTH);
         transactionView->setColumnWidth(TransactionTableModel::Date, DATE_COLUMN_WIDTH);
         transactionView->setColumnWidth(TransactionTableModel::Type, TYPE_COLUMN_WIDTH);
-        transactionView->setColumnWidth(TransactionTableModel::Amount, AMOUNT_MINIMUM_COLUMN_WIDTH);
-
-        columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(transactionView, AMOUNT_MINIMUM_COLUMN_WIDTH, MINIMUM_COLUMN_WIDTH, this);
+        transactionView->setColumnWidth(TransactionTableModel::ToAddress, ADDRESS_COLUMN_WIDTH);
+        transactionView->horizontalHeader()->setSectionResizeMode(TransactionTableModel::Amount, QHeaderView::Fixed);
+        transactionView->horizontalHeader()->setMinimumSectionSize(23);
+        transactionView->horizontalHeader()->setStretchLastSection(true);
+        transactionView->horizontalHeader()->setMaximumSectionSize(300);
 
         if (_model->getOptionsModel())
         {
@@ -432,7 +438,7 @@ void TransactionView::updateHeaderSizes(int logicalIndex, int oldSize, int newSi
         {TransactionTableModel::Amount, amountWidget}
     };
 
-    if(logicalIndex <= TransactionTableModel::ToAddress)
+    if(logicalIndex <= TransactionTableModel::Amount)
         return;
 
     for(std::pair<int, QWidget*> const & p : headerWidgets) {
@@ -546,7 +552,7 @@ void TransactionView::editLabel()
         {
             address = selection.at(0).data(TransactionTableModel::AddressRole).toString();
             addressBook = model->getAddressTableModel();
-            mode = EditAddressDialog::NewSendingAddress;
+            mode = model->validateAddress(address) ? EditAddressDialog::NewSendingAddress : EditAddressDialog::NewSparkSendingAddress;
         }
 
         if(!addressBook || address.isEmpty())
@@ -566,6 +572,12 @@ void TransactionView::editLabel()
                 mode = type == AddressTableModel::Receive
                     ? EditAddressDialog::EditReceivingAddress
                     : EditAddressDialog::EditSendingAddress;
+            }
+            else if(mode == EditAddressDialog::NewSparkSendingAddress)
+            {
+                mode = type == AddressTableModel::Receive
+                    ? EditAddressDialog::EditSparkReceivingAddress
+                    : EditAddressDialog::EditSparkSendingAddress;
             }
             else
                 mode = EditAddressDialog::EditPcode;
@@ -676,19 +688,6 @@ void TransactionView::focusTransaction(const QModelIndex &idx)
     transactionView->scrollTo(targetIdx);
     transactionView->setCurrentIndex(targetIdx);
     transactionView->setFocus();
-}
-
-// We override the virtual resizeEvent of the QWidget to adjust tables column
-// sizes as the tables width is proportional to the dialogs width.
-void TransactionView::resizeEvent(QResizeEvent* event)
-{
-    if(!transactionView || !transactionView->selectionModel())
-        return;
-
-    QWidget::resizeEvent(event);
-    disconnect(transactionView->horizontalHeader(), &QHeaderView::sectionResized, this, &TransactionView::updateHeaderSizes);
-    columnResizingFixer->stretchColumnWidth(TransactionTableModel::ToAddress);
-    connect(transactionView->horizontalHeader(), &QHeaderView::sectionResized, this, &TransactionView::updateHeaderSizes);
 }
 
 // Need to override default Ctrl+C action for amount as default behaviour is just to copy DisplayRole text

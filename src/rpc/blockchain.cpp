@@ -918,6 +918,7 @@ static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
     addresses.push_back(std::make_pair(uint160(), AddressType::lelantusJSplit));
     addresses.push_back(std::make_pair(uint160(), AddressType::sigmaSpend));
     addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinSpend));
+    addresses.push_back(std::make_pair(uint160(), AddressType::sparkSpend));
 
     // Iterate over all types of transactions
     std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;

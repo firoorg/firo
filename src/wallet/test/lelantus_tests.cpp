@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(mint_and_store_lelantus)
     fRequireStandard = true; // to verify mainnet can accept lelantus mint
     pwalletMain->SetBroadcastTransactions(true);
 
-    GenerateBlocks(910);
+    GenerateBlocks(450);
     auto amount = 1 * COIN;
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
@@ -253,7 +253,7 @@ BOOST_AUTO_TEST_CASE(spend)
 {
     fRequireStandard = true; // to verify mainnet can accept lelantus mint
     pwalletMain->SetBroadcastTransactions(true);
-    GenerateBlocks(910);
+    GenerateBlocks(450);
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
     std::vector<CHDMint> mints;
