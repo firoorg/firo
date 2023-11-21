@@ -83,7 +83,7 @@ Scalar Hash::finalize_scalar() {
             EVP_MD_CTX_free(state_finalize);
 
             return candidate;
-        } catch (const std::exception &) {
+        } catch (...) {
             counter++;
         }
     }
@@ -144,7 +144,7 @@ GroupElement Hash::finalize_group() {
             EVP_MD_CTX_free(state_finalize);
 
             return candidate;
-        } catch (const std::exception &) {
+        } catch (...) {
             counter++;
         }
     }

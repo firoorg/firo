@@ -129,7 +129,7 @@ void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransact
     }
     try {
         mintTransaction.setMintTransaction(serializedCoins);
-    } catch (const std::exception &) {
+    } catch (...) {
         throw std::invalid_argument("Unable to deserialize Spark mint transaction");
     }
 }
@@ -152,7 +152,7 @@ void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin)
 
     try {
         stream >> txCoin;
-    } catch (const std::exception &) {
+    } catch (...) {
         throw std::invalid_argument("Unable to deserialize Spark mint");
     }
 }
@@ -184,7 +184,7 @@ std::vector<GroupElement> GetSparkUsedTags(const CTransaction &tx)
     spark::SpendTransaction spendTransaction(params);
     try {
         spendTransaction = ParseSparkSpend(tx);
-    } catch (const std::exception &) {
+    } catch (...) {
         return std::vector<GroupElement>();
     }
 
@@ -205,7 +205,7 @@ std::vector<spark::Coin> GetSparkMintCoins(const CTransaction &tx)
                     ParseSparkMintCoin(script, coin);
                     coin.setSerialContext(serial_context);
                     result.push_back(coin);
-                } catch (const std::exception &) {
+                } catch (...) {
                     //Continue
                 }
             }
@@ -332,7 +332,7 @@ void RemoveSpendReferencingBlock(CTxMemPool& pool, CBlockIndex* blockIndex) {
                     try {
                         sparkSpend = std::make_unique<spark::SpendTransaction>(ParseSparkSpend(tx));
                     }
-                    catch (const std::exception &) {
+                    catch (...) {
                         txn_to_remove.push_back(tx);
                         break;
                     }
@@ -470,7 +470,7 @@ bool CheckSparkSMintTransaction(
                 spark::Coin coin(Params::get_default());
                 ParseSparkMintCoin(script, coin);
                 out_coins.push_back(coin);
-            } catch (const std::exception &) {
+            } catch (...) {
                 return state.DoS(100,
                          false,
                          REJECT_INVALID,
@@ -529,7 +529,7 @@ bool CheckSparkSpendTransaction(
                          REJECT_MALFORMED,
                          "CheckSparkSpendTransaction: invalid spend transaction");
     }
-    catch (const std::exception &) {
+    catch (...) {
         return state.DoS(100,
                          false,
                          REJECT_MALFORMED,
@@ -653,7 +653,7 @@ bool CheckSparkSpendTransaction(
     } else {
         try {
             passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
-        } catch (const std::exception &) {
+        } catch (...) {
             passVerify = false;
         }
     }
@@ -730,14 +730,9 @@ bool CheckSparkTransaction(
             }
         }
         if (!txOuts.empty()) {
-            try {
-                if (!CheckSparkMintTransaction(txOuts, state, hashTx, fStatefulSigmaCheck, sparkTxInfo)) {
-                    LogPrintf("CheckSparkTransaction::Mint verification failed.\n");
-                    return false;
-                }
-            }
-            catch (const std::exception &x) {
-                return state.Error(x.what());
+            if (!CheckSparkMintTransaction(txOuts, state, hashTx, fStatefulSigmaCheck, sparkTxInfo)) {
+                LogPrintf("CheckSparkTransaction::Mint verification failed.\n");
+                return false;
             }
         } else {
             return state.DoS(100, false,
@@ -755,15 +750,10 @@ bool CheckSparkTransaction(
         }
 
         if (!isVerifyDB) {
-            try {
-                if (!CheckSparkSpendTransaction(
-                        tx, state, hashTx, isVerifyDB, nHeight,
-                        isCheckWallet, fStatefulSigmaCheck, sparkTxInfo)) {
-                    return false;
-                }
-            }
-            catch (const std::exception &x) {
-                return state.Error(x.what());
+            if (!CheckSparkSpendTransaction(
+                    tx, state, hashTx, isVerifyDB, nHeight,
+                    isCheckWallet, fStatefulSigmaCheck, sparkTxInfo)) {
+                return false;
             }
         }
     }
@@ -820,7 +810,7 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
                 try {
                     ParseSparkMintCoin(txout.scriptPubKey, txCoin);
                 }
-                catch (const std::exception &) {
+                catch (...) {
                     continue;
                 }
                 if (coin == txCoin) {
@@ -840,7 +830,7 @@ std::vector<unsigned char> getSerialContext(const CTransaction &tx) {
         try {
             spark::SpendTransaction spend = ParseSparkSpend(tx);
             serialContextStream << spend.getUsedLTags();
-        } catch (const std::exception &) {
+        } catch (...) {
             return std::vector<unsigned char>();
         }
     } else {

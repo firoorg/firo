@@ -2329,7 +2329,7 @@ int elysium::WalletTxBuilder(
         case InputMode::SIGMA:
             try {
                 if (!pwalletMain->CommitSigmaTransaction(wtxNew, sigmaSelected, sigmaChanges)) return MP_ERR_COMMIT_TX;
-            } catch (const std::exception &) {
+            } catch (...) {
                 return MP_ERR_COMMIT_TX;
             }
             break;
