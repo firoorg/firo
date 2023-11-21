@@ -6,7 +6,7 @@
 #define PCODEMODEL_H
 
 #include "walletmodel.h"
-
+#include "../bip47/paymentcode.h"
 #include <QAbstractTableModel>
 #include <QStringList>
 #include <QDateTime>

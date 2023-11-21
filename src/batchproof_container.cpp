@@ -6,6 +6,7 @@
 #include "sigma.h"
 #include "lelantus.h"
 #include "ui_interface.h"
+#include "spark/state.h"
 
 std::unique_ptr<BatchProofContainer> BatchProofContainer::instance;
 
@@ -22,6 +23,7 @@ void BatchProofContainer::init() {
     tempSigmaProofs.clear();
     tempLelantusSigmaProofs.clear();
     tempRangeProofs.clear();
+    tempSparkTransactions.clear();
 }
 
 void BatchProofContainer::finalize() {
@@ -37,6 +39,8 @@ void BatchProofContainer::finalize() {
         for (const auto& itr : tempRangeProofs) {
             rangeProofs[itr.first].insert(rangeProofs[itr.first].begin(), itr.second.begin(), itr.second.end());
         }
+
+        sparkTransactions.insert(sparkTransactions.end(), tempSparkTransactions.begin(), tempSparkTransactions.end());
     }
     fCollectProofs = false;
 }
@@ -46,6 +50,7 @@ void BatchProofContainer::verify() {
         batch_sigma();
         batch_lelantus();
         batch_rangeProofs();
+        batch_spark();
     }
     fCollectProofs = false;
 }
@@ -208,7 +213,7 @@ void BatchProofContainer::batch_sigma() {
                     try {
                         if (!sigmaVerifier.batch_verify(anonymity_set, serials, fPadding, setSizes, proofs))
                             return false;
-                    } catch (...) {
+                    } catch (const std::exception &) {
                         return false;
                     }
                     return true;
@@ -311,7 +316,7 @@ void BatchProofContainer::batch_lelantus() {
                     try {
                         if (!sigmaVerifier.batchverify(anonymity_set, challenges, serials, setSizes, proofs))
                             return false;
-                    } catch (...) {
+                    } catch (const std::exception &) {
                         return false;
                     }
                     return true;
@@ -386,4 +391,56 @@ void BatchProofContainer::batch_rangeProofs() {
         LogPrintf("RangeProof batch verification finished successfully.\n");
 
     rangeProofs.clear();
+}
+
+void BatchProofContainer::add(const spark::SpendTransaction& tx) {
+    tempSparkTransactions.push_back(tx);
+}
+
+void BatchProofContainer::remove(const spark::SpendTransaction& tx) {
+    sparkTransactions.erase(std::remove_if(sparkTransactions.begin(),
+                                           sparkTransactions.end(),
+                                  [tx](spark::SpendTransaction& transaction){return transaction.getUsedLTags() == tx.getUsedLTags();}),
+                            sparkTransactions.end());
+}
+
+void BatchProofContainer::batch_spark() {
+    if (!sparkTransactions.empty()){
+        LogPrintf("Spark batch verification started.\n");
+        uiInterface.UpdateProgressBarLabel("Batch verifying Spark Proofs...");
+    } else {
+        return;
+    }
+
+    std::unordered_map<uint64_t, std::vector<spark::Coin>> cover_sets;
+    spark::CSparkState* sparkState = spark::CSparkState::GetState();
+
+    for (auto& itr : sparkTransactions) {
+        auto& idAndBlockHashes = itr.getBlockHashes();
+        for (const auto& idAndHash : idAndBlockHashes) {
+            int cover_set_id = idAndHash.first;
+            if (!cover_sets.count(cover_set_id)) {
+                std::vector<spark::Coin> cover_set;
+                sparkState->GetCoinSet(cover_set_id, cover_set);
+                cover_sets[cover_set_id] = cover_set;
+            }
+        }
+    }
+    auto* params = spark::Params::get_default();
+
+    bool passed;
+    try {
+        passed = spark::SpendTransaction::verify(params, sparkTransactions, cover_sets);
+    } catch (const std::exception &) {
+        passed = false;
+    }
+
+    if (!passed) {
+        LogPrintf("Spark batch verification failed.");
+        throw std::invalid_argument("Spark batch verification failed, please run Firo with -reindex -batching=0");
+    }
+
+    if (!sparkTransactions.empty())
+        LogPrintf("Spark batch verification finished successfully.\n");
+    sparkTransactions.clear();
 }

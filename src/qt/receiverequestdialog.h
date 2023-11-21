@@ -65,6 +65,7 @@ private Q_SLOTS:
 private:
     Ui::ReceiveRequestDialog *ui;
     OptionsModel *model;
+    WalletModel *walletModel;
     SendCoinsRecipient info;
 };
 

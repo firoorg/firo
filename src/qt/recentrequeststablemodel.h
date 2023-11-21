@@ -66,11 +66,15 @@ public:
     enum ColumnIndex {
         Date = 0,
         Label = 1,
-        Message = 2,
-        Amount = 3,
+        AddressType = 2,
+        Message = 3,
+        Amount = 4,
         NUMBER_OF_COLUMNS
     };
 
+    static const QString Transparent;
+    static const QString Spark;
+    
     /** @name Methods overridden from QAbstractTableModel
         @{*/
     int rowCount(const QModelIndex &parent) const;

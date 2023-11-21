@@ -45,6 +45,8 @@ public:
     void setAddress(const QString &address);
     void pasteEntry(const SendCoinsRecipient &rv);
     bool handlePaymentRequest(const SendCoinsRecipient &recipient);
+    
+    SendCoinsEntry *entry;
 
 public Q_SLOTS:
     void clear();
@@ -123,6 +125,20 @@ private:
     QAbstractButton *yesButton;
     QTimer countDownTimer;
     int secDelay;
+};
+
+class SendGoPrivateDialog : public QMessageBox
+{
+    Q_OBJECT
+private:
+    bool clickedButton;
+public:
+    SendGoPrivateDialog();
+    bool getClickedButton();
+
+private Q_SLOTS:
+    void onIgnoreClicked();
+    void onGoPrivateClicked();
 };
 
 #endif // BITCOIN_QT_SENDCOINSDIALOG_H

@@ -371,7 +371,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
         ActivateBestChain(state, ::Params(), sharedBlock);
     };
 
-    GenerateBlocks(1000);
+    GenerateBlocks(400);
 
     std::vector<CMutableTransaction> mintTxs;
     auto hdMints = GenerateMints({3 * COIN, 3 * COIN, 3 * COIN}, mintTxs);

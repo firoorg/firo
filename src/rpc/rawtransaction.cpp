@@ -127,7 +127,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             try {
                 jsplit = lelantus::ParseLelantusJoinSplit(tx);
             }
-            catch (...) {
+            catch (const std::exception &) {
                 continue;
             }
             in.push_back(Pair("nFees", ValueFromAmount(jsplit->getFee())));
@@ -136,6 +136,22 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 serials.push_back(serial.GetHex());
             }
             in.push_back(Pair("serials", serials));
+        } else if (tx.IsSparkSpend()) {
+            in.push_back("sparkSpend");
+            fillStdFields(in, txin);
+            std::unique_ptr<spark::SpendTransaction> sparkSpend;
+            try {
+                sparkSpend = std::make_unique<spark::SpendTransaction>(spark::ParseSparkSpend(tx));
+            }
+            catch (const std::exception &) {
+                continue;
+            }
+            in.push_back(Pair("nFees", ValueFromAmount(sparkSpend->getFee())));
+            UniValue lTags(UniValue::VARR);
+            for (GroupElement const & lTag : sparkSpend->getUsedLTags()) {
+                lTags.push_back(lTag.GetHex());
+            }
+            in.push_back(Pair("lTags", lTags));
         } else {
             in.push_back(Pair("txid", txin.prevout.hash.GetHex()));
             in.push_back(Pair("vout", (int64_t)txin.prevout.n));
@@ -170,7 +186,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
         const CTxOut& txout = tx.vout[i];
         UniValue out(UniValue::VOBJ);
-        if (txout.scriptPubKey.IsLelantusJMint()) {
+        if (txout.scriptPubKey.IsLelantusJMint() || txout.scriptPubKey.IsSparkSMint()) {
             out.push_back(Pair("value", 0));
         } else {
             out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
@@ -239,6 +255,9 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 break;
             case TRANSACTION_LELANTUS:
                 entry.push_back(Pair("lelantusData", HexStr(tx.vExtraPayload)));
+                break;
+            case TRANSACTION_SPARK:
+                entry.push_back(Pair("sparkData", HexStr(tx.vExtraPayload)));
                 break;
             default:
                 break;

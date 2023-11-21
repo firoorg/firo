@@ -197,7 +197,7 @@ SigmaPrivateKey Wallet::GetKey(const SigmaMint &mint)
     // Try all mint wallets
     try {
         return mintWalletV1.GeneratePrivateKey(mint.seedId);
-    } catch (...) {
+    } catch (const std::exception &) {
         return mintWalletV0.GeneratePrivateKey(mint.seedId);
     }
 }

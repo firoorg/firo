@@ -72,9 +72,7 @@ TXHistoryDialog::TXHistoryDialog(QWidget *parent) :
     ui->txHistoryTable->setHorizontalHeaderItem(4, new QTableWidgetItem("Type"));
     ui->txHistoryTable->setHorizontalHeaderItem(5, new QTableWidgetItem("Address"));
     ui->txHistoryTable->setHorizontalHeaderItem(6, new QTableWidgetItem("Amount"));
-    // borrow ColumnResizingFixer again
-    borrowedColumnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(ui->txHistoryTable, 100, 100, this);
-    // allow user to adjust - go interactive then manually set widths
+
     #if QT_VERSION < 0x050000
        ui->txHistoryTable->horizontalHeader()->setResizeMode(2, QHeaderView::Fixed);
        ui->txHistoryTable->horizontalHeader()->setResizeMode(3, QHeaderView::Interactive);
@@ -127,7 +125,6 @@ TXHistoryDialog::TXHistoryDialog(QWidget *parent) :
     ui->txHistoryTable->resizeColumnToContents(6);
     ui->txHistoryTable->setColumnHidden(0, true); // hidden txid for displaying transaction details
     ui->txHistoryTable->setColumnHidden(1, true); // hideen sort key
-    borrowedColumnResizingFixer->stretchColumnWidth(5);
     ui->txHistoryTable->setSortingEnabled(true);
     ui->txHistoryTable->horizontalHeader()->setSortIndicator(1, Qt::DescendingOrder); // sort by hidden sort key
 }
@@ -519,12 +516,6 @@ void TXHistoryDialog::showDetails()
     if (!strTXText.empty()) {
         PopulateSimpleDialog(strTXText, "Transaction Information", "Transaction Information");
     }
-}
-
-void TXHistoryDialog::resizeEvent(QResizeEvent* event)
-{
-    QWidget::resizeEvent(event);
-    borrowedColumnResizingFixer->stretchColumnWidth(5);
 }
 
 std::string TXHistoryDialog::shrinkTxType(int txType, bool *fundsMoved)

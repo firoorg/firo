@@ -152,6 +152,10 @@ const char* GetOpName(opcodetype opcode)
     case OP_LELANTUSJMINT      : return "OP_LELANTUSJMINT";
     case OP_LELANTUSJOINSPLIT  : return "OP_LELANTUSJOINSPLIT";
     case OP_LELANTUSJOINSPLITPAYLOAD: return "OP_LELANTUSJOINSPLITPAYLOAD";
+    // Spark
+    case OP_SPARKMINT   : return "OP_SPARKMINT";
+    case OP_SPARKSMINT  : return "OP_SPARKSMINT";
+    case OP_SPARKSPEND  : return "OP_SPARKSPEND";
 
     // Note:
     //  The template matching params OP_SMALLINTEGER/etc are defined in opcodetype enum
@@ -326,8 +330,23 @@ bool CScript::IsLelantusJoinSplit() const {
             ((*this)[0] == OP_LELANTUSJOINSPLIT || (*this)[0] == OP_LELANTUSJOINSPLITPAYLOAD));
 }
 
+bool CScript::IsSparkMint() const {
+    return (this->size() > 0 &&
+            (*this)[0] == OP_SPARKMINT);
+}
+
+bool CScript::IsSparkSMint() const {
+    return (this->size() > 0 &&
+            (*this)[0] == OP_SPARKSMINT);
+}
+
+bool CScript::IsSparkSpend() const {
+    return (this->size() > 0 &&
+            (*this)[0] == OP_SPARKSPEND);
+}
+
 bool CScript::IsMint() const {
-    return IsZerocoinMint() || IsSigmaMint() || IsZerocoinRemint() || IsLelantusMint() || IsLelantusJMint();
+    return IsZerocoinMint() || IsSigmaMint() || IsZerocoinRemint() || IsLelantusMint() || IsLelantusJMint() || IsSparkMint() || IsSparkSMint();
 }
 
 bool CScript::HasCanonicalPushes() const

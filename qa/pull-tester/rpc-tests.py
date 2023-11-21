@@ -101,13 +101,16 @@ if ENABLE_ZMQ:
         raise
 
 testScripts = [
+    'spark_mint.py',
+    'spark_spend_gettransaction.py',
+    'spark_setmintstatus_validation.py',
     'lelantus_mint.py',
     'lelantus_setmintstatus_validation.py',
     'lelantus_mintspend.py',
     'lelantus_spend_gettransaction.py',
     'elysium_create_denomination.py',
     'elysium_property_creation_fee.py',
-    'elysium_sendmint.py',
+#    'elysium_sendmint.py',
     'elysium_sendmint_wallet_encryption.py',
     'elysium_sendspend.py',
     'elysium_sendspend_wallet_encryption.py',

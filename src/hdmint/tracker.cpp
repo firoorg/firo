@@ -546,7 +546,7 @@ bool CHDMintTracker::IsMempoolSpendOurs(const std::set<uint256>& setMempool, con
                 uint32_t pubcoinId;
                 try {
                     std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
-                } catch (...) {
+                } catch (const std::exception &) {
                     return false;
                 }
 
@@ -560,7 +560,7 @@ bool CHDMintTracker::IsMempoolSpendOurs(const std::set<uint256>& setMempool, con
                 std::unique_ptr<lelantus::JoinSplit> joinsplit;
                 try {
                     joinsplit = lelantus::ParseLelantusJoinSplit(tx);
-                } catch (...) {
+                } catch (const std::exception &) {
                     return false;
                 }
 

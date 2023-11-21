@@ -210,6 +210,27 @@ bool CTransaction::IsLelantusMint() const
     return false;
 }
 
+bool CTransaction::IsSparkTransaction() const
+{
+    return IsSparkMint() || IsSparkSpend();
+}
+
+bool CTransaction::IsSparkSpend() const
+{
+    if (nVersion >= 3 && nType == TRANSACTION_SPARK)
+        return true;
+    return false;
+}
+
+bool CTransaction::IsSparkMint() const
+{
+    for (const CTxOut &txout: vout) {
+        if (txout.scriptPubKey.IsSparkMint())
+            return true;
+    }
+    return false;
+}
+
 bool CTransaction::IsZerocoinTransaction() const
 {
     return IsZerocoinSpend() || IsZerocoinMint();
@@ -235,7 +256,11 @@ bool CTransaction::IsZerocoinRemint() const
 }
 
 bool CTransaction::HasNoRegularInputs() const {
-    return IsZerocoinSpend() || IsSigmaSpend() || IsZerocoinRemint() || IsLelantusJoinSplit();
+    return IsZerocoinSpend() || IsSigmaSpend() || IsZerocoinRemint() || IsLelantusJoinSplit() || IsSparkSpend();
+}
+
+bool CTransaction::HasPrivateInputs() const {
+    return IsSigmaSpend() || IsLelantusJoinSplit() || IsSparkSpend();
 }
 
 unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const

@@ -200,7 +200,8 @@ QT_MOC_CPP = \
   qt/moc_lelantuscoincontroldialog.cpp \
   qt/moc_automintmodel.cpp \
   qt/moc_automintnotification.cpp \
-  qt/moc_pcodemodel.cpp
+  qt/moc_pcodemodel.cpp \
+  qt/moc_sparkmodel.cpp
 
 BITCOIN_MM = \
   qt/macdockiconhandler.mm \
@@ -298,7 +299,8 @@ BITCOIN_QT_H = \
   qt/lelantusmodel.h \
   qt/lelantusdialog.h \
   qt/lelantuscoincontroldialog.h \
-  qt/automintmodel.h
+  qt/automintmodel.h \
+  qt/sparkmodel.h
 
 RES_ICONS = \
   qt/res/icons/add.png \
@@ -341,6 +343,8 @@ RES_ICONS = \
   qt/res/icons/hd_disabled.png \
   qt/res/icons/hd_enabled.png \
   qt/res/icons/history.png \
+  qt/res/icons/ic_info.png \
+  qt/res/icons/ic_warning.png \
   qt/res/icons/info.png \
   qt/res/icons/key.png \
   qt/res/icons/lock_closed.png \
@@ -361,8 +365,10 @@ RES_ICONS = \
   qt/res/icons/overview.png \
   qt/res/icons/quit.png \
   qt/res/icons/receive.png \
+  qt/res/icons/refresh.png \
   qt/res/icons/remove.png \
   qt/res/icons/send.png \
+  qt/res/icons/spark.png \
   qt/res/icons/synced.png \
   qt/res/icons/tools.png \
   qt/res/icons/transaction0.png \
@@ -491,7 +497,8 @@ BITCOIN_QT_WALLET_CPP = \
   qt/lelantusmodel.cpp \
   qt/lelantusdialog.cpp \
   qt/lelantuscoincontroldialog.cpp \
-  qt/automintmodel.cpp
+  qt/automintmodel.cpp \
+  qt/sparkmodel.cpp
 
 FIRO_QT_ELYSIUM_CPP = \
   qt/elyassetsdialog.cpp \
@@ -573,7 +580,7 @@ endif
 qt_firo_qt_LDADD += -ltor
 
 qt_firo_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) \
-  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBFIRO_SIGMA) $(LIBLELANTUS) \
+  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBFIRO_SIGMA) $(LIBLELANTUS) $(LIBSPARK)\
   $(LIBUNIVALUE) $(LIBLEVELDB)  $(LIBLEVELDB_SSE42) $(LIBMEMENV) $(BACKTRACE_LIB) $(BOOST_LIBS) $(QT_LIBS) \
   $(QT_DBUS_LIBS) $(QR_LIBS) $(PROTOBUF_LIBS) $(BDB_LIBS) $(SSL_LIBS) \
   $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(LIBSECP256K1) $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS) \
