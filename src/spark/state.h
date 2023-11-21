@@ -208,7 +208,7 @@ public:
             int coinGroupID,
             std::string start_block_hash,
             uint256& blockHash_out,
-            std::vector<std::pair<spark::Coin, uint256>> coins,
+            std::vector<std::pair<spark::Coin, uint256>>& coins,
             std::vector<unsigned char>& setHash_out);
 
     std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & GetMints() const;
