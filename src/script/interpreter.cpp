@@ -351,7 +351,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     if (!fFirstOpCode)
                         return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
                     // otherwise NOOP
-                    printf("OP_EXCHANGEADDR\n");
                     break;
 
                 case OP_CHECKLOCKTIMEVERIFY:
