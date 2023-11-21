@@ -189,6 +189,7 @@ extern uint64_t nLastBlockTx;
 extern uint64_t nLastBlockSize;
 extern uint64_t nLastBlockWeight;
 extern const std::string strMessageMagic;
+extern const std::string strLelantusMessageMagic;
 extern CWaitableCriticalSection csBestBlock;
 extern CConditionVariable cvBlockChange;
 extern std::atomic_bool fImporting;
@@ -455,6 +456,9 @@ bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime);
  * See consensus/consensus.h for flag definitions.
  */
 bool CheckFinalTx(const CTransaction &tx, int flags = -1);
+
+
+bool VerifyPrivateTxOwn(const uint256& txid, const std::vector<unsigned char>& vchSig, const std::string& message);
 
 /**
  * Test whether the LockPoints height and time are still valid on the current chain
