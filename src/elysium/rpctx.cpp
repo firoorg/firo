@@ -1689,7 +1689,7 @@ UniValue elysium_sendmint(const JSONRPCRequest& request)
         if (result != 0) {
             throw JSONRPCError(result, error_str(result));
         }
-    } catch (const std::exception &) {
+    } catch (...) {
         for (auto& id : ids) {
             wallet->DeleteUnconfirmedSigmaMint(id);
         }
