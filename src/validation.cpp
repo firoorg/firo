@@ -139,6 +139,7 @@ static void CheckBlockIndex(const Consensus::Params& consensusParams);
 CScript COINBASE_FLAGS;
 
 const std::string strMessageMagic = "Zcoin Signed Message:\n";
+const std::string strLelantusMessageMagic = "Lelantus signed Message:\n";
 
 // Internal stuff
 namespace {
@@ -329,6 +330,74 @@ bool CheckFinalTx(const CTransaction &tx, int flags)
 
 
     return IsFinalTx(tx, nBlockHeight, nBlockTime);
+}
+
+bool VerifyPrivateTxOwn(const uint256& txid, const std::vector<unsigned char>& vchSig, const std::string& message)
+{
+    CTransactionRef tx;
+    uint256 hashBlock;
+    if(!GetTransaction(txid, tx, Params().GetConsensus(), hashBlock, true))
+        return false;
+
+    if (tx->IsLelantusJoinSplit()) {
+        CHashWriter ss(SER_GETHASH, 0);
+        ss << strLelantusMessageMagic;
+        ss << message;
+
+        std::unique_ptr<lelantus::JoinSplit> joinsplit;
+        try {
+            joinsplit = lelantus::ParseLelantusJoinSplit(*tx);
+        } catch (const std::exception&) {
+            return false;
+        }
+        const auto& pubKeys = joinsplit->GetEcdsaPubkeys();
+
+        if((pubKeys.size() *64) != vchSig.size()) {
+            LogPrintf("Verification to serialNumbers and ecdsaSignatures/ecdsaPubkeys number mismatch.");
+            return false;
+        }
+
+        uint32_t count = 0;
+
+        for (const auto& pub : pubKeys) {
+            ss << count;
+            uint256 metahash = ss.GetHash();
+
+            // Check sizes
+            if (pub.size() != 33 ) {
+                LogPrintf("Verification failed due to incorrect size of ecdsaSignature.");
+                return false;
+            }
+
+            // Verify signature
+            secp256k1_pubkey pubkey;
+            secp256k1_ecdsa_signature signature;
+
+            if (!secp256k1_ec_pubkey_parse(OpenSSLContext::get_context(), &pubkey, pub.data(), 33)) {
+                LogPrintf("Verification failed due to unable to parse ecdsaPubkey.");
+                return false;
+            }
+
+            if (1 != secp256k1_ecdsa_signature_parse_compact(OpenSSLContext::get_context(), &signature, &vchSig[count * 64]) ) {
+                LogPrintf("Verification failed due to signature cannot be parsed.");
+                return false;
+            }
+
+            if (!secp256k1_ecdsa_verify(
+                    OpenSSLContext::get_context(), &signature, metahash.begin(), &pubkey)) {
+                LogPrintf("Verification failed due to signature cannot be verified.");
+                return false;
+            }
+
+            count++;
+        }
+    } else if (tx->IsCoinBase()) {
+        throw std::runtime_error("This is a coinbase transaction and not a private transaction");
+    } else {
+        throw std::runtime_error("Currently this is allowed only for Lelantus transactions");
+    }
+
+    return true;
 }
 
 /**

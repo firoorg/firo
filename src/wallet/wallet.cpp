@@ -3344,6 +3344,67 @@ bool CWallet::GetCoinsToJoinSplit(
     return true;
 }
 
+std::vector<unsigned char> CWallet::ProvePrivateTxOwn(const uint256& txid, const std::string& message) const {
+    std::vector<unsigned char> result;
+    if (!mapWallet.count(txid))
+        return result;
+
+    const CWalletTx& wtx = mapWallet.at(txid);
+
+    if (wtx.tx->IsLelantusJoinSplit()) {
+        CHashWriter ss(SER_GETHASH, 0);
+        ss << strLelantusMessageMagic;
+        ss << message;
+
+        std::unique_ptr<lelantus::JoinSplit> joinsplit;
+        try {
+            joinsplit = lelantus::ParseLelantusJoinSplit(*wtx.tx);
+        } catch (const std::exception&) {
+            return result;
+        }
+        const auto& serials = joinsplit->getCoinSerialNumbers();
+        uint32_t count = 0;
+        result.resize(serials.size() * 64);
+
+        for (const auto& serial : serials) {
+            CLelantusEntry mint;
+            uint256 hashSerial = primitives::GetSerialHash(serial);
+            std::vector<unsigned char> ecdsaSecretKey;
+            if (!GetMint(hashSerial, mint, false)) {
+                CSigmaEntry sigmaMint;
+                if (!GetMint(hashSerial, mint, false)) {
+                    return std::vector<unsigned char>();
+                }
+                ecdsaSecretKey = sigmaMint.ecdsaSecretKey;
+            } else {
+                ecdsaSecretKey = mint.ecdsaSecretKey;
+
+            }
+
+            ss << count;
+            uint256 metahash = ss.GetHash();
+            secp256k1_ecdsa_signature sig;
+            if (1 != secp256k1_ecdsa_sign(
+                    OpenSSLContext::get_context(), &sig,
+                    metahash.begin(), &ecdsaSecretKey[0], NULL, NULL)) {
+                return std::vector<unsigned char>();
+            }
+            if (1 != secp256k1_ecdsa_signature_serialize_compact(
+                    OpenSSLContext::get_context(), &result[count * 64], &sig)) {
+                return std::vector<unsigned char>();
+            }
+
+            count++;
+        }
+    } else if (wtx.tx->IsCoinBase()) {
+        throw std::runtime_error("This is a coinbase transaction and not a private transaction");
+    } else {
+        throw std::runtime_error("Currently this operation is allowed only for Lelantus transactions");
+    }
+
+    return result;
+}
+
 CAmount CWallet::GetUnconfirmedBalance() const {
     CAmount nTotal = 0;
     {
