@@ -6,12 +6,10 @@
 #define BITCOIN_QT_ADDRESSBOOKPAGE_H
 
 #include <QDialog>
-#include <QSortFilterProxyModel>
 
 class AddressTableModel;
 class OptionsModel;
 class PlatformStyle;
-class AddressBookFilterProxy;
 
 namespace Ui {
     class AddressBookPage;
@@ -42,14 +40,7 @@ public:
         ForEditing  /**< Open address book for editing */
     };
 
-    enum AddressTypeEnum
-    {
-        Spark,
-        Transparent,
-        RAP
-    };
-
-    explicit AddressBookPage(const PlatformStyle *platformStyle, Mode mode, Tabs tab, QWidget *parent, bool isReused = true);
+    explicit AddressBookPage(const PlatformStyle *platformStyle, Mode mode, Tabs tab, QWidget *parent);
     ~AddressBookPage();
 
     void setModel(AddressTableModel *model);
@@ -64,8 +55,7 @@ private:
     Mode mode;
     Tabs tab;
     QString returnValue;
-    QSortFilterProxyModel *proxyModel;
-    AddressBookFilterProxy *fproxyModel;
+    QSortFilterProxyModel *proxyModel, *proxyModelPcode;
     QMenu *contextMenu;
     QAction *copyAddressAction;
     QAction *deleteAction; // to be able to explicitly disable it
@@ -92,31 +82,8 @@ private Q_SLOTS:
     /** New entry/entries were added to address table */
     void selectNewAddress(const QModelIndex &parent, int begin, int /*end*/);
 
-    void chooseAddressType(int idx);
-
 Q_SIGNALS:
     void sendCoins(QString addr);
-};
-
-class AddressBookFilterProxy : public QSortFilterProxyModel
-{
-    Q_OBJECT
-
-public:
-    explicit AddressBookFilterProxy(QObject *parent = 0);
-
-    // static const quint32 RECEIVE_TYPE = 0xFFFFFFFF;
-    static const quint32 RECEIVE_TYPE = 8;
-
-    static quint32 TYPE(int type) { return 1<<type; }
-
-    void setTypeFilter(quint32 modes);
-
-protected:
-    bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const;
-    
-private:
-    quint32 typeFilter;
 };
 
 #endif // BITCOIN_QT_ADDRESSBOOKPAGE_H

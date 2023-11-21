@@ -9,10 +9,9 @@
 #include "walletmodeltransaction.h"
 
 #include "support/allocators/secure.h"
-#ifdef ENABLE_WALLET
+
 #include "wallet/walletdb.h"
 #include "wallet/wallet.h"
-#endif // ENABLE_WALLET
 #include "wallet/coincontrol.h"
 
 #include <map>
@@ -23,7 +22,6 @@
 class AddressTableModel;
 class PcodeAddressTableModel;
 class LelantusModel;
-class SparkModel;
 class OptionsModel;
 class PlatformStyle;
 class RecentRequestsTableModel;
@@ -47,7 +45,7 @@ class SendCoinsRecipient
 {
 public:
     explicit SendCoinsRecipient() : amount(0), fSubtractFeeFromAmount(false), nVersion(SendCoinsRecipient::CURRENT_VERSION) { }
-    explicit SendCoinsRecipient(const QString &addr, const QString &addrType, const QString &_label, const CAmount& _amount, const QString &_message):
+    explicit SendCoinsRecipient(const QString &addr, const QString &_label, const CAmount& _amount, const QString &_message):
         address(addr), label(_label), amount(_amount), message(_message), fSubtractFeeFromAmount(false), nVersion(SendCoinsRecipient::CURRENT_VERSION) {}
 
     // If from an unauthenticated payment request, this is used for storing
@@ -139,7 +137,6 @@ public:
     AddressTableModel *getAddressTableModel();
     PcodeAddressTableModel *getPcodeAddressTableModel();
     LelantusModel *getLelantusModel();
-    SparkModel *getSparkModel();
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
     PcodeModel *getPcodeModel();
@@ -159,8 +156,6 @@ public:
 
     // Check address for validity
     bool validateAddress(const QString &address);
-    bool validateSparkAddress(const QString &address);
-    std::pair<CAmount, CAmount> getSparkBalance();
 
     // Return status record for SendCoins, contains error id + information
     struct SendCoinsReturn
@@ -187,30 +182,6 @@ public:
         std::list<CReserveKey> &reserveKeys,
         std::vector<CHDMint> &mints,
         const CCoinControl *coinControl);
-
-    SendCoinsReturn prepareMintSparkTransaction(
-        std::vector<WalletModelTransaction> &transactions,
-        QList<SendCoinsRecipient> recipients,
-        std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFees,
-        std::list<CReserveKey> &reserveKeys,
-        const CCoinControl *coinControl);
-
-    SendCoinsReturn prepareSpendSparkTransaction(
-        WalletModelTransaction &transaction,
-        const CCoinControl *coinControl);
-
-    SendCoinsReturn spendSparkCoins(
-        WalletModelTransaction &transaction);
-        
-    SendCoinsReturn mintSparkCoins(
-        std::vector<WalletModelTransaction> &transactions,
-        std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
-        std::list<CReserveKey> &reserveKeys
-        );
-    
-    bool migrateLelantusToSpark();
-    
-    bool getAvailableLelantusCoins();
 
     // Send coins to a list of recipients
     SendCoinsReturn sendCoins(WalletModelTransaction &transaction);
@@ -306,7 +277,6 @@ private:
     AddressTableModel *addressTableModel;
     PcodeAddressTableModel *pcodeAddressTableModel;
     LelantusModel *lelantusModel;
-    SparkModel *sparkModel;
     TransactionTableModel *transactionTableModel;
     RecentRequestsTableModel *recentRequestsTableModel;
     PcodeModel *pcodeModel;

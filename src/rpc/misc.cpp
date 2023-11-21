@@ -19,7 +19,6 @@
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif
-#include "sigma.h"
 #include "txdb.h"
 
 #include "masternode-sync.h"
@@ -630,17 +629,6 @@ void handleSingleAddress(const UniValue& uniAddress, std::vector<std::pair<uint1
         addresses.push_back(std::make_pair(uint160(), AddressType::lelantusJMint));
         addresses.push_back(std::make_pair(uint160(), AddressType::lelantusJSplit));
 
-    } else if(zerocoin::utils::isSparkMint(addr)) {
-        addresses.push_back(std::make_pair(uint160(), AddressType::sparkMint));
-    } else if(zerocoin::utils::isSparkSMint(addr)) {
-        addresses.push_back(std::make_pair(uint160(), AddressType::sparksMint));
-    } else if(zerocoin::utils::isSparkSpend(addr)) {
-        addresses.push_back(std::make_pair(uint160(), AddressType::sparkSpend));
-    } else if(zerocoin::utils::isSpark(addr)) {
-        addresses.push_back(std::make_pair(uint160(), AddressType::sparkMint));
-        addresses.push_back(std::make_pair(uint160(), AddressType::sparksMint));
-        addresses.push_back(std::make_pair(uint160(), AddressType::sparkSpend));
-
     } else if(zerocoin::utils::isZerocoinRemint(addr)) {
         addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinRemint));
     } else {
@@ -977,75 +965,55 @@ UniValue getanonymityset(const JSONRPCRequest& request)
                         "\nReturns the anonymity set and latest block hash.\n"
                         "\nArguments:\n"
                         "{\n"
+                        "      \"denomination\"  (int64_t) int denomination\n"
                         "      \"coinGroupId\"  (int)\n"
-                        "      \"startBlockHash\"    (string)\n" // if this is empty it returns the full set
                         "}\n"
                         "\nResult:\n"
                         "{\n"
                         "  \"blockHash\"   (string) Latest block hash for anonymity set\n"
-                        "  \"setHash\"   (string) Anonymity set hash\n"
-                        "  \"mints\" (Pair<string,Pair<string,Pair<<string, uint64_t>>) Serialized GroupElements paired with txhash which is paired with mint tag and mint value\n"
+                        "  \"anonymityset\"(std::string[]) array of Serialized GroupElements\n"
                         "}\n"
-                + HelpExampleCli("getanonymityset", "\"1\"" "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
-                + HelpExampleRpc("getanonymityset", "\"1\"" "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
+                + HelpExampleCli("getanonymityset", "100000000 1")
+                + HelpExampleRpc("getanonymityset", "\"100000000\", \"1\"")
         );
 
 
+    int64_t intDenom;
     int coinGroupId;
-    std::string startBlockHash;
     try {
-        coinGroupId = std::stol(request.params[0].get_str());
-        startBlockHash = request.params[1].get_str();
+        intDenom = std::stol(request.params[0].get_str());
+        coinGroupId = std::stol(request.params[1].get_str());
     } catch (std::logic_error const & e) {
         throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
     }
 
-    if(!GetBoolArg("-mobile", false)){
-        throw std::runtime_error(std::string("Please rerun Firo with -mobile "));
-    }
+    sigma::CoinDenomination denomination;
+    sigma::IntegerToDenomination(intDenom, denomination);
 
     uint256 blockHash;
-    std::vector<std::pair <lelantus::PublicCoin,std::pair<lelantus::MintValueData, uint256>>> coins;
-    std::vector<unsigned char> setHash;
+    std::vector<sigma::PublicCoin> coins;
 
     {
         LOCK(cs_main);
-        lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-        lelantusState->GetCoinsForRecovery(
+        sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+        sigmaState->GetCoinSetForSpend(
                 &chainActive,
                 chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+                denomination,
                 coinGroupId,
-                startBlockHash,
                 blockHash,
-                coins,
-                setHash);
+                coins);
+    }
+
+    UniValue serializedCoins(UniValue::VARR);
+    for(sigma::PublicCoin const & coin : coins) {
+        std::vector<unsigned char> vch = coin.getValue().getvch();
+        serializedCoins.push_back(HexStr(vch.begin(), vch.end()));
     }
 
     UniValue ret(UniValue::VOBJ);
-    UniValue mints(UniValue::VARR);
-
-    int i = 0;
-    for (const auto& coin : coins) {
-        std::vector<unsigned char> vch = coin.first.getValue().getvch();
-        std::vector<UniValue> data;
-        data.push_back(EncodeBase64(vch.data(), size_t(34)));
-        data.push_back(EncodeBase64(coin.second.second.begin(), coin.second.second.size()));
-        if (coin.second.first.isJMint) {
-            data.push_back(EncodeBase64(coin.second.first.encryptedValue.data(), coin.second.first.encryptedValue.size()));
-        } else {
-            data.push_back(coin.second.first.amount);
-        }
-        data.push_back(EncodeBase64(coin.second.first.txHash.begin(), coin.second.first.txHash.size()));
-
-        UniValue entity(UniValue::VARR);
-        entity.push_backV(data);
-        mints.push_back(entity);
-        i++;
-    }
-
-    ret.push_back(Pair("blockHash", EncodeBase64(blockHash.begin(), blockHash.size())));
-    ret.push_back(Pair("setHash", UniValue(EncodeBase64(setHash.data(), setHash.size()))));
-    ret.push_back(Pair("coins", mints));
+    ret.push_back(Pair("blockHash", blockHash.GetHex()));
+    ret.push_back(Pair("serializedCoins", serializedCoins));
 
     return ret;
 }
@@ -1060,6 +1028,7 @@ UniValue getmintmetadata(const JSONRPCRequest& request)
                         "  \"mints\"\n"
                         "    [\n"
                         "      {\n"
+                        "        \"denom\"   (int) The mint denomination\n"
                         "        \"pubcoin\" (string) The PubCoin value\n"
                         "      }\n"
                         "      ,...\n"
@@ -1076,7 +1045,7 @@ UniValue getmintmetadata(const JSONRPCRequest& request)
     if (!mintValues.isArray()) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "mints is expected to be an array");
     }
-    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
     UniValue ret(UniValue::VARR);
     for(UniValue const & mintData : mintValues.getValues()){
         std::vector<unsigned char> serializedCoin = ParseHex(find_value(mintData, "pubcoin").get_str().c_str());
@@ -1084,10 +1053,14 @@ UniValue getmintmetadata(const JSONRPCRequest& request)
         secp_primitives::GroupElement pubCoin;
         pubCoin.deserialize(serializedCoin.data());
 
+        int64_t intDenom = find_value(mintData, "denom").get_int64();
+        sigma::CoinDenomination denomination;
+        sigma::IntegerToDenomination(intDenom, denomination);
+
         std::pair<int, int> coinHeightAndId;
         {
             LOCK(cs_main);
-            coinHeightAndId = lelantusState->GetMintedCoinHeightAndId(lelantus::PublicCoin(pubCoin));
+            coinHeightAndId = sigmaState->GetMintedCoinHeightAndId(sigma::PublicCoin(pubCoin, denomination));
         }
         UniValue metaData(UniValue::VOBJ);
         metaData.pushKV(std::to_string(coinHeightAndId.first), coinHeightAndId.second);
@@ -1098,44 +1071,26 @@ UniValue getmintmetadata(const JSONRPCRequest& request)
 
 UniValue getusedcoinserials(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 1)
+    if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
                 "getusedcoinserials\n"
                 "\nReturns the set of used coin serial.\n"
-                "\nArguments:\n"
-                "{\n"
-                "      \"startNumber \"  (int) Number of elements already existing on user side\n"
-                "}\n"
                 "\nResult:\n"
                 "{\n"
                 "  \"serials\" (std::string[]) array of Serialized Scalars\n"
                 "}\n"
         );
 
-    int startNumber;
-    try {
-        startNumber = std::stol(request.params[0].get_str());
-    } catch (std::logic_error const & e) {
-        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
-    }
-
-    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-    std::unordered_map<Scalar, int>  serials;
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+    sigma::spend_info_container serials;
     {
         LOCK(cs_main);
-        serials = lelantusState->GetSpends();
+        serials = sigmaState->GetSpends();
     }
 
     UniValue serializedSerials(UniValue::VARR);
-    int i = 0;
-    for ( auto it = serials.begin(); it != serials.end(); ++it, ++i) {
-        if ((serials.size() - i - 1) < startNumber)
-            continue;
-        std::vector<unsigned char> serialized;
-        serialized.resize(32);
-        it->first.serialize(serialized.data());
-        serializedSerials.push_back(EncodeBase64(serialized.data(), 32));
-    }
+    for ( auto it = serials.begin(); it != serials.end(); ++it )
+        serializedSerials.push_back(it->first.GetHex());
 
     UniValue ret(UniValue::VOBJ);
     ret.push_back(Pair("serials", serializedSerials));
@@ -1143,34 +1098,17 @@ UniValue getusedcoinserials(const JSONRPCRequest& request)
     return ret;
 }
 
-UniValue getfeerate(const JSONRPCRequest& request)
+UniValue getlatestcoinids(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
-                "getfeerate\n"
-                "\nReturns the fee rate.\n"
-                "\nResult:\n"
-                "{\n"
-                "  \"rate\" (int) Fee rate\n"
-                "}\n"
-        );
-
-    UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("rate", ::minRelayTxFee.GetFeePerK()));
-
-    return ret;
-}
-
-UniValue getlatestcoinid(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 0)
-        throw std::runtime_error(
-                "getlatestcoinid\n"
+                "getlatestcoinids\n"
                 "\nReturns the set of used coin serial.\n"
                 "\nResult:\n"
                 "{\n"
                 "  [\n"
                 "      {\n"
+                "        \"denom\"       (int64_t) The mint denomination\n"
                 "        \"coinGroupId\" (int) The latest group id\n"
                 "      }\n"
                 "      ,...\n"
@@ -1178,214 +1116,26 @@ UniValue getlatestcoinid(const JSONRPCRequest& request)
                 "}\n"
         );
 
-    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-    int latestCoinId;
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
+    std::unordered_map<sigma::CoinDenomination, int> latestCoinIds;
     {
         LOCK(cs_main);
-        latestCoinId = lelantusState->GetLatestCoinID();
+        latestCoinIds = sigmaState->GetLatestCoinIds();
     }
-
-    return UniValue(latestCoinId);
-}
-
-UniValue getsparkanonymityset(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 2)
-        throw std::runtime_error(
-                "getsparkanonymityset\n"
-                "\nReturns the anonymity set and latest block hash.\n"
-                "\nArguments:\n"
-                "{\n"
-                "      \"coinGroupId\"  (int)\n"
-                "      \"startBlockHash\"    (string)\n" // if this is empty it returns the full set
-                "}\n"
-                "\nResult:\n"
-                "{\n"
-                "  \"blockHash\"   (string) Latest block hash for anonymity set\n"
-                "  \"setHash\"   (string) Anonymity set hash\n"
-                "  \"mints\" (Pair<string, string>) Serialized Spark coin paired with txhash\n"
-                "}\n"
-                + HelpExampleCli("getsparkanonymityset", "\"1\" " "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
-                + HelpExampleRpc("getsparkanonymityset", "\"1\" " "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
-        );
-
-
-    int coinGroupId;
-    std::string startBlockHash;
-    try {
-        coinGroupId = std::stol(request.params[0].get_str());
-        startBlockHash = request.params[1].get_str();
-    } catch (std::logic_error const & e) {
-        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
-    }
-
-    if(!GetBoolArg("-mobile", false)){
-        throw std::runtime_error(std::string("Please rerun Firo with -mobile "));
-    }
-
-    uint256 blockHash;
-    std::vector<std::pair<spark::Coin, uint256>> coins;
-    std::vector<unsigned char> setHash;
-
-    {
-        LOCK(cs_main);
-        spark::CSparkState* sparkState = spark::CSparkState::GetState();
-        sparkState->GetCoinsForRecovery(
-                &chainActive,
-                chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
-                coinGroupId,
-                startBlockHash,
-                blockHash,
-                coins,
-                setHash);
-    }
-
-    UniValue ret(UniValue::VOBJ);
-    UniValue mints(UniValue::VARR);
-
-    for (const auto& coin : coins) {
-        CDataStream serializedCoin(SER_NETWORK, PROTOCOL_VERSION);
-        serializedCoin << coin;
-        std::vector<unsigned char> vch(serializedCoin.begin(), serializedCoin.end());
-
-        std::vector<UniValue> data;
-        data.push_back(EncodeBase64(vch.data(), size_t(vch.size()))); // coin
-        data.push_back(EncodeBase64(coin.second.begin(), coin.second.size())); // tx hash
-
-        UniValue entity(UniValue::VARR);
-        entity.push_backV(data);
-        mints.push_back(entity);
-    }
-
-    ret.push_back(Pair("blockHash", EncodeBase64(blockHash.begin(), blockHash.size())));
-    ret.push_back(Pair("setHash", UniValue(EncodeBase64(setHash.data(), setHash.size()))));
-    ret.push_back(Pair("coins", mints));
-
-    return ret;
-}
-
-UniValue getsparkmintmetadata(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 1)
-        throw std::runtime_error(
-                "getmintmetadata\n"
-                "\nReturns the anonymity set id and nHeight of mint.\n"
-                "\nArguments:\n"
-                "  \"coinHashes\"\n"
-                "    [\n"
-                "      {\n"
-                "        \"coinHash\" (string) The hash of the spark mint\n"
-                "      }\n"
-                "      ,...\n"
-                "    ]\n"
-                "\nResult:\n"
-                "{\n"
-                "  \"metadata\"   (Pair<string,int>) nHeight and id for each coin\n"
-                "}\n"
-                + HelpExampleCli("getsparkmintmetadata", "'{\"coinHashes\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}'")
-                + HelpExampleRpc("getsparkmintmetadata", "{\"coinHashes\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}")
-
-        );
-
-    UniValue coinHashes = find_value(request.params[0].get_obj(), "coinHashes");
-    if (!coinHashes.isArray()) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "mints is expected to be an array");
-    }
-
-    spark::CSparkState* sparkState =  spark::CSparkState::GetState();
 
     UniValue ret(UniValue::VARR);
-    for(UniValue const & element : coinHashes.getValues()) {
-        uint256 coinHash;
-        coinHash.SetHex(element.get_str());
-        spark::Coin coin(spark::Params::get_default());
-        if(!sparkState->HasCoinHash(coin, coinHash))
-            continue;
+    for (const auto& it : latestCoinIds ) {
+        int64_t denom;
+        sigma::DenominationToInteger(it.first, denom);
 
-        std::pair<int, int> coinHeightAndId;
-        {
-            LOCK(cs_main);
-            coinHeightAndId = sparkState->GetMintedCoinHeightAndId(coin);
-        }
-        UniValue metaData(UniValue::VOBJ);
-        metaData.pushKV(std::to_string(coinHeightAndId.first), coinHeightAndId.second);
-        ret.push_back(metaData);
+        UniValue denomandid(UniValue::VOBJ);
+        denomandid.push_back(Pair("denom", denom));
+        denomandid.push_back(Pair("id", it.second));
+
+        ret.push_back(denomandid);
     }
 
     return ret;
-}
-
-UniValue getusedcoinstags(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 1)
-        throw std::runtime_error(
-                "getusedcoinstags\n"
-                "\nReturns the set of used coin tags.\n"
-                "\nArguments:\n"
-                "{\n"
-                "      \"startNumber \"  (int) Number of elements already existing on user side\n"
-                "}\n"
-                "\nResult:\n"
-                "{\n"
-                "  \"tags\" (std::string[]) array of Serialized GroupElements\n"
-                "}\n"
-        );
-
-    int startNumber;
-    try {
-        startNumber = std::stol(request.params[0].get_str());
-    } catch (std::logic_error const & e) {
-        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
-    }
-
-    spark::CSparkState* sparkState =  spark::CSparkState::GetState();
-    std::unordered_map<GroupElement, int, spark::CLTagHash>  tags;
-    {
-        LOCK(cs_main);
-        tags = sparkState->GetSpends();
-    }
-    UniValue serializedTags(UniValue::VARR);
-    int i = 0;
-    for ( auto it = tags.begin(); it != tags.end(); ++it, ++i) {
-        if ((tags.size() - i - 1) < startNumber)
-            continue;
-        std::vector<unsigned char> serialized;
-        serialized.resize(34);
-        it->first.serialize(serialized.data());
-        serializedTags.push_back(EncodeBase64(serialized.data(), 34));
-    }
-
-    UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("tags", serializedTags));
-
-    return ret;
-}
-
-UniValue getsparklatestcoinid(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 0)
-        throw std::runtime_error(
-                "getlatestcoinid\n"
-                "\nReturns the last coin group ID for Spark.\n"
-                "\nResult:\n"
-                "{\n"
-                "  [\n"
-                "      {\n"
-                "        \"coinGroupId\" (int) The latest group id\n"
-                "      }\n"
-                "      ,...\n"
-                "    ]\n"
-                "}\n"
-        );
-
-    spark::CSparkState* sparkState =  spark::CSparkState::GetState();
-    int latestCoinId;
-    {
-        LOCK(cs_main);
-        latestCoinId = sparkState->GetLatestCoinID();
-    }
-
-    return UniValue(latestCoinId);
 }
 
 UniValue getaddresstxids(const JSONRPCRequest& request)
@@ -1673,18 +1423,10 @@ static const CRPCCommand commands[] =
     { "addressindex",       "gettotalsupply",         &gettotalsupply,         false },
 
         /* Mobile related */
-    { "mobile",             "getanonymityset",        &getanonymityset,        false  },
+    { "mobile",             "getanonymityset",        &getanonymityset,        true  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
-    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     false  },
-    { "mobile",             "getfeerate",             &getfeerate,             true  },
-    { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
-
-        /* Mobile Spark */
-    { "mobile",             "getsparkanonymityset",   &getsparkanonymityset, false },
-    { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true  },
-    { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
-    { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true  },
-
+    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     true  },
+    { "mobile",             "getlatestcoinids",       &getlatestcoinids,       true  },
 
     { "hidden",             "setmocktime",            &setmocktime,            true,  {"timestamp"}},
     { "hidden",             "echo",                   &echo,                   true,  {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"}},

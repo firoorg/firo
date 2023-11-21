@@ -24,7 +24,6 @@
 #include "netaddress.h"
 #include "bls/bls.h"
 #include "lelantus.h"
-#include "spark/state.h"
 
 #include "evo/spork.h"
 
@@ -522,7 +521,6 @@ public:
     const setEntries & GetMemPoolChildren(txiter entry) const;
 
     lelantus::CLelantusMempoolState lelantusState;
-    spark::CSparkMempoolState sparkState;
 private:
     typedef std::map<txiter, setEntries, CompareIteratorByHash> cacheMap;
 

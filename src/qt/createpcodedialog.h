@@ -57,6 +57,7 @@ protected:
 
 private:
     Ui::CreatePcodeDialog *ui;
+    GUIUtil::TableViewLastColumnResizingFixer *columnResizingFixer;
     WalletModel *model;
     QMenu *contextMenu;
     const PlatformStyle *platformStyle;
@@ -64,6 +65,7 @@ private:
 
     QModelIndex selectedRow();
     void copyColumnToClipboard(int column);
+    virtual void resizeEvent(QResizeEvent *event);
 
 private Q_SLOTS:
     void on_createPcodeButton_clicked();

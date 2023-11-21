@@ -48,8 +48,7 @@ public:
     QWidget *setupTabChain(QWidget *prev);
 
     void setFocus();
-    void setWarning(bool fAnonymousMode);
-    
+
 public Q_SLOTS:
     void clear();
 

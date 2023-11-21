@@ -112,8 +112,7 @@ std::string ScriptToAsmStr(const CScript& script, const bool fAttemptSighashDeco
         }
 
         if (opcode == opcodetype::OP_SIGMASPEND || opcode == opcodetype::OP_SIGMAMINT ||
-            opcode == opcodetype::OP_LELANTUSMINT || opcode == opcodetype::OP_LELANTUSJOINSPLIT ||
-            opcode == opcodetype::OP_SPARKMINT || opcode == opcodetype::OP_SPARKSPEND) {
+            opcode == opcodetype::OP_LELANTUSMINT || opcode == opcodetype::OP_LELANTUSJOINSPLIT) {
             str += " ";
             str += HexStr(vch);
             break;
