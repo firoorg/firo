@@ -209,6 +209,59 @@ UniValue getnewaddress(const JSONRPCRequest& request)
     return CBitcoinAddress(keyID).ToString();
 }
 
+UniValue getnewexchangeaddress(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() > 1)
+        throw std::runtime_error("");
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    if (!pwallet->IsLocked()) {
+        pwallet->TopUpKeyPool();
+    }
+
+    // Generate a new key or use existing one and convert it to exchange address format
+    CKeyID keyID;
+    if (request.params.size() == 0) {
+        CPubKey newKey;
+        if (!pwallet->GetKeyFromPool(newKey)) {
+            throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
+        }
+        keyID = newKey.GetID();
+        pwallet->SetAddressBook(keyID, "", "receive");
+    }
+    else {
+        // out of four tx destinations types only CKeyID (P2PKH) is supported here
+        class CTxDestinationVisitor : public boost::static_visitor<CKeyID> {
+        public:
+            CTxDestinationVisitor() {}
+            CKeyID operator() (const CNoDestination&) const {return CKeyID();}
+            CKeyID operator() (const CKeyID& keyID) const {return keyID;}
+            CKeyID operator() (const CExchangeKeyID&) const {return CKeyID();}
+            CKeyID operator() (const CScriptID&) const {return CKeyID();}
+        };
+
+        CBitcoinAddress existingKey(request.params[0].get_str());
+        if (!existingKey.IsValid()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address");
+        }
+
+        keyID = boost::apply_visitor(CTxDestinationVisitor(), existingKey.Get());
+        if (keyID.IsNull()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Must be P2PKH address");
+        }
+    }
+
+    CBitcoinAddress newAddress;
+    newAddress.SetExchange(keyID);
+
+    return newAddress.ToString();
+}
 
 CBitcoinAddress GetAccountAddress(CWallet * const pwallet, std::string strAccount, bool bForceNew=false)
 {
@@ -1299,6 +1352,11 @@ public:
             result = CScriptID(witscript);
             return true;
         }
+        return false;
+    }
+
+    bool operator()(const CExchangeKeyID &/*keyID*/) {
+        // can't witnessify this
         return false;
     }
 
@@ -5535,6 +5593,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "getprivatebalance",        &getprivatebalance,        false,  {} },
     { "wallet",             "gettotalbalance",          &gettotalbalance,          false,  {} },
     { "wallet",             "getnewaddress",            &getnewaddress,            true,   {"account"} },
+    { "hidden",             "getnewexchangeaddress",    &getnewexchangeaddress,    true, {} },
     { "wallet",             "getrawchangeaddress",      &getrawchangeaddress,      true,   {} },
     { "wallet",             "getreceivedbyaccount",     &getreceivedbyaccount,     false,  {"account","minconf","addlocked"} },
     { "wallet",             "getreceivedbyaddress",     &getreceivedbyaddress,     false,  {"address","minconf","addlocked"} },

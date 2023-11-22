@@ -704,6 +704,28 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         }
     }
 
+    // input scripts cannot have OP_EXCHANGEADDR at all
+    for (const auto &vin: tx.vin) {
+        if (vin.scriptSig.size() >= 1 && vin.scriptSig[0] == OP_EXCHANGEADDR) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
+        }
+    }
+
+    bool hasExchangeUTXOs = false;
+    for (const auto &vout : tx.vout) {
+        if (vout.scriptPubKey.size() >= 1 && vout.scriptPubKey[0] == OP_EXCHANGEADDR) {
+            hasExchangeUTXOs = true;
+            break;
+        }
+    }
+    int nTxHeight = nHeight;
+    if (nTxHeight == INT_MAX) {
+        LOCK(cs_main);
+        nTxHeight = chainActive.Height();
+    }
+    if (hasExchangeUTXOs && !isCheckWallet && !isVerifyDB && nTxHeight < ::Params().GetConsensus().nExchangeAddressStartBlock)
+        return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
+
     if (tx.IsCoinBase())
     {
         size_t minCbSize = 2;
@@ -713,6 +735,8 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         }
         if (tx.vin[0].scriptSig.size() < minCbSize || tx.vin[0].scriptSig.size() > 100)
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
+        if (hasExchangeUTXOs)
+            return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
     }
     else
     {
@@ -724,16 +748,22 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
                 return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 
         if (tx.IsZerocoinV3SigmaTransaction()) {
+            if (hasExchangeUTXOs)
+                return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
             if (!CheckSigmaTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sigmaTxInfo))
                 return false;
         }
 
         if (tx.IsLelantusTransaction()) {
+            if (hasExchangeUTXOs)
+                return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
             if (!CheckLelantusTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sigmaTxInfo, lelantusTxInfo))
                 return false;
         }
 
         if (tx.IsSparkTransaction()) {
+            if (hasExchangeUTXOs)
+                return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
             if (!CheckSparkTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sparkTxInfo))
                 return false;
         }

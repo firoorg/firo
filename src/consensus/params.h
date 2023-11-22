@@ -333,6 +333,9 @@ struct Params {
     // Number of blocks with allowed zerocoin to sigma remint transaction (after nSigmaStartBlock)
     int nZerocoinToSigmaRemintWindowSize;
 
+    // Number of block that introduces ability to specify super-transparent addresses
+    int nExchangeAddressStartBlock;
+
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;
     /** number of block when MTP switch occurs or 0 if not clear yet */

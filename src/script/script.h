@@ -207,6 +207,9 @@ enum opcodetype
     OP_SPARKMINT = 0xd1,
     OP_SPARKSMINT = 0xd2,
     OP_SPARKSPEND = 0xd3,
+
+    // basically NOP but identifies that sunsequent txout script contains super transparent address
+    OP_EXCHANGEADDR = 0xe0
 };
 
 const char* GetOpName(opcodetype opcode);
@@ -660,6 +663,7 @@ public:
     bool IsNormalPaymentScript() const;
 
     bool IsPayToPublicKeyHash() const;
+    bool IsPayToExchangeAddress() const;
 
     bool IsPayToScriptHash() const;
     bool IsPayToWitnessScriptHash() const;

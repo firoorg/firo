@@ -1230,6 +1230,10 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     for (size_t i = 0; i < recipients.size(); i++) {
         auto& recipient = recipients[i];
 
+        if (recipient.scriptPubKey.IsPayToExchangeAddress()) {
+            throw std::runtime_error("Cannot create private transaction with exchange address as a destination");
+        }
+
         if (!MoneyRange(recipient.nAmount)) {
             throw std::runtime_error(boost::str(boost::format(_("Recipient has invalid amount")) % i));
         }
