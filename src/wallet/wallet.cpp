@@ -4728,7 +4728,10 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
 
     nFeeRet = -1;
     strFailReason = "";
+
+    std::string strFromAccount = wtxNew.strFromAccount;
     wtxNew = CWalletTx();
+    wtxNew.strFromAccount = strFromAccount;
 
     CAmount nRequired = 0;
     size_t nConstantSize = 4 + // version
