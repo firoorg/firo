@@ -320,7 +320,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     CAmount mintSparkAmount = 0;
     CAmount txFee = 0;
     CAmount totalAmount = 0;
-    if (model->getLelantusModel()->getPrivateBalance().first > 0 && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod) {
+    if (model->getLelantusModel()->getPrivateBalance().first > 0 && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod) {
         MigrateLelantusToSparkDialog migrateLelantusToSpark(model);
         bool clickedButton = migrateLelantusToSpark.getClickedButton();
         if(clickedButton) {
@@ -332,15 +332,22 @@ void SendCoinsDialog::on_sendButton_clicked()
         prepareStatus = model->prepareJoinSplitTransaction(currentTransaction, &ctrl);
     } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
         prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, &ctrl);
-    } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) {
-        prepareStatus = model->prepareMintSparkTransaction(transactions, recipients, wtxAndFees, reservekeys, &ctrl);
-    } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)){
-        SendGoPrivateDialog goPrivateDialog;
-        bool clickedButton = goPrivateDialog.getClickedButton();
-        if(clickedButton) {
-            setAnonymizeMode(true);
-            fNewRecipientAllowed = true;
+    } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount)) {
+        if (spark::IsSparkAllowed())
+            prepareStatus = model->prepareMintSparkTransaction(transactions, recipients, wtxAndFees, reservekeys, &ctrl);
+        else {
+            processSendCoinsReturn(WalletModel::InvalidAddress);
             return;
+        }
+    } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
+        if (spark::IsSparkAllowed()) {
+            SendGoPrivateDialog goPrivateDialog;
+            bool clickedButton = goPrivateDialog.getClickedButton();
+            if (clickedButton) {
+                setAnonymizeMode(true);
+                fNewRecipientAllowed = true;
+                return;
+            }
         }
         prepareStatus = model->prepareTransaction(currentTransaction, &ctrl);
     } else {
