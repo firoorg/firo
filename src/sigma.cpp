@@ -643,15 +643,17 @@ bool ConnectBlockSigma(
                     )) {
                 return false;
             }
+        }
 
-            if (!fJustCheck) {
+        if (!fJustCheck) {
+            BOOST_FOREACH(auto& serial, pblock->sigmaTxInfo->spentSerials) {
                 pindexNew->sigmaSpentSerials.insert(serial);
                 sigmaState.AddSpend(serial.first, serial.second.denomination, serial.second.coinGroupId);
             }
         }
-
-        if (fJustCheck)
+        else {
             return true;
+        }
 
         sigmaState.AddMintsToStateAndBlockIndex(pindexNew, pblock);
     }
