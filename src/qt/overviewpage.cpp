@@ -462,13 +462,13 @@ MigrateLelantusToSparkDialog::MigrateLelantusToSparkDialog(WalletModel *_model):
 void MigrateLelantusToSparkDialog::onIgnoreClicked()
 {
     setVisible(false);
-    clickedButton = false;
+    clickedButton = true;
 }
 
 void MigrateLelantusToSparkDialog::onMigrateClicked()
 {
     setVisible(false);
-    clickedButton = true;
+    clickedButton = false;
     model->migrateLelantusToSpark();
 }
 

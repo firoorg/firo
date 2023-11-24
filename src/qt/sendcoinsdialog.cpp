@@ -323,7 +323,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     if (model->getLelantusModel()->getPrivateBalance().first > 0 && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod) {
         MigrateLelantusToSparkDialog migrateLelantusToSpark(model);
         bool clickedButton = migrateLelantusToSpark.getClickedButton();
-        if(clickedButton) {
+        if(!clickedButton) {
             fNewRecipientAllowed = true;
             return;
         }
@@ -343,7 +343,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         if (spark::IsSparkAllowed()) {
             SendGoPrivateDialog goPrivateDialog;
             bool clickedButton = goPrivateDialog.getClickedButton();
-            if (clickedButton) {
+            if (!clickedButton) {
                 setAnonymizeMode(true);
                 fNewRecipientAllowed = true;
                 return;
