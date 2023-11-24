@@ -259,3 +259,10 @@ void WalletFrame::outOfSyncWarningClicked()
 {
     Q_EMIT requestedSyncWarningInfo();
 }
+
+void WalletFrame::updateAddressbook() {
+    WalletView *walletView = currentWalletView();
+
+    if (walletView)
+        walletView->updateAddressbook();
+}

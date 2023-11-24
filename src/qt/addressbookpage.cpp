@@ -31,18 +31,7 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode,
     tab(_tab)
 {
     ui->setupUi(this);
-
-    if (tab == SendingTab) {
-        ui->addressType->addItem(tr("Spark"), Spark);
-        ui->addressType->addItem(tr("Transparent"), Transparent);
-    } else if(tab == ReceivingTab && !isReused) {
-        ui->addressType->addItem(tr("Spark"), Spark);
-        ui->addressType->addItem(tr("Transparent"), Transparent);
-    } else {
-        ui->addressType->addItem(tr(""), Transparent);
-        ui->addressType->addItem(tr("Transparent"), Transparent);
-        ui->addressType->hide();
-    }
+    this->isReused = isReused;
 
     if (!platformStyle->getImagesOnButtons()) {
         ui->newAddress->setIcon(QIcon());
@@ -126,6 +115,23 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     this->model = _model;
     if(!_model)
         return;
+    bool spark = this->model->IsSparkAllowed();
+
+    if (tab == SendingTab) {
+        if (spark) {
+            ui->addressType->addItem(tr("Spark"), Spark);
+        }
+        ui->addressType->addItem(tr("Transparent"), Transparent);
+    } else if(tab == ReceivingTab && !this->isReused) {
+        if (spark) {
+            ui->addressType->addItem(tr("Spark"), Spark);
+        }
+        ui->addressType->addItem(tr("Transparent"), Transparent);
+    } else {
+        ui->addressType->addItem(tr(""), Transparent);
+        ui->addressType->addItem(tr("Transparent"), Transparent);
+        ui->addressType->hide();
+    }
 
     proxyModel = new QSortFilterProxyModel(this);
     fproxyModel = new AddressBookFilterProxy(this);
@@ -171,6 +177,23 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     selectionChanged();
     chooseAddressType(0);
     connect(ui->addressType, qOverload<int>(&QComboBox::activated), this, &AddressBookPage::chooseAddressType);
+}
+
+void AddressBookPage::updateSpark() {
+    ui->addressType->clear();
+    if (tab == SendingTab) {
+        ui->addressType->addItem(tr("Spark"), Spark);
+        ui->addressType->addItem(tr("Transparent"), Transparent);
+    } else if(tab == ReceivingTab && !this->isReused) {
+        ui->addressType->addItem(tr("Spark"), Spark);
+        ui->addressType->addItem(tr("Transparent"), Transparent);
+    } else {
+        ui->addressType->addItem(tr(""), Transparent);
+        ui->addressType->addItem(tr("Transparent"), Transparent);
+        ui->addressType->hide();
+    }
+
+    chooseAddressType(0);
 }
 
 void AddressBookPage::on_copyAddress_clicked()

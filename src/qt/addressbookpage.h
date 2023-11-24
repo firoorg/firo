@@ -45,8 +45,7 @@ public:
     enum AddressTypeEnum
     {
         Spark,
-        Transparent,
-        RAP
+        Transparent
     };
 
     explicit AddressBookPage(const PlatformStyle *platformStyle, Mode mode, Tabs tab, QWidget *parent, bool isReused = true);
@@ -54,6 +53,8 @@ public:
 
     void setModel(AddressTableModel *model);
     const QString &getReturnValue() const { return returnValue; }
+
+    void updateSpark();
 
 public Q_SLOTS:
     void done(int retval);
@@ -70,6 +71,7 @@ private:
     QAction *copyAddressAction;
     QAction *deleteAction; // to be able to explicitly disable it
     QString newAddressToSelect;
+    bool isReused;
 
 private Q_SLOTS:
     /** Delete currently selected address entry */
