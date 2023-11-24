@@ -723,7 +723,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         LOCK(cs_main);
         nTxHeight = chainActive.Height();
     }
-    if (hasExchangeUTXOs && !isCheckWallet && !isVerifyDB && nTxHeight < ::Params().GetConsensus().nExchangeAddressStartBlock)
+    if (hasExchangeUTXOs && !isVerifyDB && nTxHeight < ::Params().GetConsensus().nExchangeAddressStartBlock)
         return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
 
     if (tx.IsCoinBase())
