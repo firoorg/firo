@@ -173,16 +173,6 @@
             </property>
            </widget>
           </item>
-          <item>
-            <widget class="QCheckBox" name="enableRapAddresses">
-             <property name="toolTip">
-                <string>Whether to show RAP addresses or not.</string>
-             </property>
-             <property name="text">
-                <string>Display RAP addresses</string>
-             </property>
-            </widget>
-          </item>
          </layout>
         </widget>
        </item>

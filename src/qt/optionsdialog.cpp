@@ -185,7 +185,6 @@ void OptionsDialog::setMapper()
     mapper->addMapping(ui->spendZeroConfChange, OptionsModel::SpendZeroConfChange);
     mapper->addMapping(ui->reindexLelantus, OptionsModel::ReindexLelantus);
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
-    mapper->addMapping(ui->enableRapAddresses, OptionsModel::enableRapAddresses);
 
     /* Lelantus */
     mapper->addMapping(ui->autoAnonymize, OptionsModel::AutoAnonymize);

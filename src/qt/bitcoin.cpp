@@ -398,7 +398,7 @@ void BitcoinApplication::unlockWallet_(void * wallet)
 {
     CWallet * wallet_ = reinterpret_cast<CWallet *>(wallet);
 
-    QString info = tr("You need to unlock to allow spark wallet be created.");
+    QString info = tr("You need to unlock to allow Spark wallet be created.");
 
     walletModel = new WalletModel(platformStyle, wallet_, optionsModel);
 
