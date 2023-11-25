@@ -43,6 +43,7 @@
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/thread.hpp>
+#include <fstream>
 
 #include <QApplication>
 #include <QDebug>
@@ -580,7 +581,7 @@ bool BitcoinApplication::migrateSettings(const QString &oldOrganizationName, con
     QSettings oldSettings(oldOrganizationName, oldApplicationName);
     QList<QString> keys = oldSettings.allKeys();
     if (!keys.empty()) {
-        Q_FOREACH(const QString &key, keys) {
+        for (const QString &key : keys) {
             newSettings.setValue(key, oldSettings.value(key));
         }
         newSettings.sync();
@@ -657,7 +658,7 @@ void BitcoinApplication::migrateToFiro()
     }
     else if (doNotShowAgain) {
         // create file to block migration in the future
-        boost::filesystem::ofstream(dontMigrateFilePath).flush();
+        std::ofstream(dontMigrateFilePath.string()).flush();
     }
 }
 
