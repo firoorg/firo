@@ -761,7 +761,7 @@ private:
             if (tx.IsLocked()) continue;
             if (coinControl && coinControl->nConfirmTarget && tx.GetDepthInMainChain() < coinControl->nConfirmTarget)
                 continue;
-            if (tx.IsCoinBase() && tx.GetDepthInMainChain() < COINBASE_MATURITY) continue;
+            if (tx.IsCoinBase() && tx.GetDepthInMainChain() <= COINBASE_MATURITY) continue;
             if (
                 !tx.GetDepthInMainChain() &&
                 (!fUseInstantSend || !tx.IsLLMQInstantSendLocked()) &&
