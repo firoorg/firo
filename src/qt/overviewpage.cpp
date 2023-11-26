@@ -425,10 +425,10 @@ MigrateLelantusToSparkDialog::MigrateLelantusToSparkDialog(WalletModel *_model):
 
         QPushButton *ignore = new QPushButton(this);
         ignore->setText("Ignore");
-        ignore->setStyleSheet("color:#9b1c2e;background-color:none;margin-top:30px;margin-bottom:60px;margin-left:50px;margin-right:20px;border:1px solid #9b1c2e;");
+        ignore->setStyleSheet("margin-top:30px;margin-bottom:60px;margin-left:20px;margin-right:50px;");
         QPushButton *migrate = new QPushButton(this);
         migrate->setText("Migrate");
-        migrate->setStyleSheet("margin-top:30px;margin-bottom:60px;margin-left:20px;margin-right:50px;");
+        migrate->setStyleSheet("color:#9b1c2e;background-color:none;margin-top:30px;margin-bottom:60px;margin-left:50px;margin-right:20px;border:1px solid #9b1c2e;");
         QHBoxLayout *groupButton = new QHBoxLayout(this);
         groupButton->addWidget(ignore);
         groupButton->addWidget(migrate);
@@ -462,13 +462,13 @@ MigrateLelantusToSparkDialog::MigrateLelantusToSparkDialog(WalletModel *_model):
 void MigrateLelantusToSparkDialog::onIgnoreClicked()
 {
     setVisible(false);
-    clickedButton = false;
+    clickedButton = true;
 }
 
 void MigrateLelantusToSparkDialog::onMigrateClicked()
 {
     setVisible(false);
-    clickedButton = true;
+    clickedButton = false;
     model->migrateLelantusToSpark();
 }
 

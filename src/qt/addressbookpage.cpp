@@ -31,19 +31,7 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode,
     tab(_tab)
 {
     ui->setupUi(this);
-
-    if (tab == SendingTab) {
-        ui->addressType->addItem(tr("Spark"), Spark);
-        ui->addressType->addItem(tr("Transparent"), Transparent);
-        ui->addressType->addItem(tr("RAP"), RAP);
-    } else if(tab == ReceivingTab && !isReused) {
-        ui->addressType->addItem(tr("Spark"), Spark);
-        ui->addressType->addItem(tr("Transparent"), Transparent);
-    } else {
-        ui->addressType->addItem(tr(""), Transparent);
-        ui->addressType->addItem(tr("Transparent"), Transparent);
-        ui->addressType->hide();
-    }
+    this->isReused = isReused;
 
     if (!platformStyle->getImagesOnButtons()) {
         ui->newAddress->setIcon(QIcon());
@@ -127,6 +115,23 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     this->model = _model;
     if(!_model)
         return;
+    bool spark = this->model->IsSparkAllowed();
+
+    if (tab == SendingTab) {
+        if (spark) {
+            ui->addressType->addItem(tr("Spark"), Spark);
+        }
+        ui->addressType->addItem(tr("Transparent"), Transparent);
+    } else if(tab == ReceivingTab && !this->isReused) {
+        if (spark) {
+            ui->addressType->addItem(tr("Spark"), Spark);
+        }
+        ui->addressType->addItem(tr("Transparent"), Transparent);
+    } else {
+        ui->addressType->addItem(tr(""), Transparent);
+        ui->addressType->addItem(tr("Transparent"), Transparent);
+        ui->addressType->hide();
+    }
 
     proxyModel = new QSortFilterProxyModel(this);
     fproxyModel = new AddressBookFilterProxy(this);
@@ -174,6 +179,23 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     connect(ui->addressType, qOverload<int>(&QComboBox::activated), this, &AddressBookPage::chooseAddressType);
 }
 
+void AddressBookPage::updateSpark() {
+    ui->addressType->clear();
+    if (tab == SendingTab) {
+        ui->addressType->addItem(tr("Spark"), Spark);
+        ui->addressType->addItem(tr("Transparent"), Transparent);
+    } else if(tab == ReceivingTab && !this->isReused) {
+        ui->addressType->addItem(tr("Spark"), Spark);
+        ui->addressType->addItem(tr("Transparent"), Transparent);
+    } else {
+        ui->addressType->addItem(tr(""), Transparent);
+        ui->addressType->addItem(tr("Transparent"), Transparent);
+        ui->addressType->hide();
+    }
+
+    chooseAddressType(0);
+}
+
 void AddressBookPage::on_copyAddress_clicked()
 {
     GUIUtil::copyEntryData(ui->tableView, AddressTableModel::Address);
@@ -191,9 +213,7 @@ void AddressBookPage::onEditAction()
     EditAddressDialog::Mode mode;
     AddressTableModel * pmodel;
     pmodel = model;
-    if (ui->addressType->currentText() == AddressTableModel::RAP) {
-        mode = EditAddressDialog::EditPcode;
-    } else if (ui->addressType->currentText() == AddressTableModel::Transparent) {
+    if (ui->addressType->currentText() == AddressTableModel::Transparent) {
         mode = tab == SendingTab ? EditAddressDialog::EditSendingAddress : EditAddressDialog::EditReceivingAddress;
     } else {
         mode = tab == SendingTab ? EditAddressDialog::EditSparkSendingAddress : EditAddressDialog::EditSparkReceivingAddress;
@@ -224,8 +244,6 @@ void AddressBookPage::on_newAddress_clicked()
     pmodel = model;
     if (ui->addressType->currentText() == AddressTableModel::Spark) {
         mode = tab == SendingTab ? EditAddressDialog::NewSparkSendingAddress : EditAddressDialog::NewSparkReceivingAddress;
-    } else if (ui->addressType->currentText() == AddressTableModel::RAP) {
-        mode = EditAddressDialog::NewPcode;
     } else {
         mode = tab == SendingTab ? EditAddressDialog::NewSendingAddress : EditAddressDialog::NewReceivingAddress;
     }
@@ -333,10 +351,6 @@ void AddressBookPage::on_exportButton_clicked()
         writer.addColumn("Label", AddressTableModel::Label, Qt::EditRole);
         writer.addColumn("Transparent Address", AddressTableModel::Address, Qt::EditRole);
         writer.addColumn("Address Type", AddressTableModel::AddressType, Qt::EditRole);
-    } else if (ui->addressType->currentText() == AddressTableModel::RAP) {
-        writer.addColumn("Label", AddressTableModel::Label, Qt::EditRole);
-        writer.addColumn("PaymentCode", AddressTableModel::Address, Qt::EditRole);
-        writer.addColumn("Address Type", AddressTableModel::AddressType, Qt::EditRole);
     } else {
         writer.addColumn("Label", AddressTableModel::Label, Qt::EditRole);
         writer.addColumn("Spark Address", AddressTableModel::Address, Qt::EditRole);
@@ -356,8 +370,6 @@ void AddressBookPage::contextualMenu(const QPoint &point)
 
     if (ui->addressType->currentText() == "Spark") {
         copyAddressAction->setText(tr("&Copy Spark Address"));
-    } else if (ui->addressType->currentText() == "RAP") {
-        copyAddressAction->setText(tr("&Copy RAP address"));
     } else {
         copyAddressAction->setText(tr("&Copy Transparent Address"));
     }
@@ -397,14 +409,12 @@ bool AddressBookFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &
     QModelIndex index = sourceModel()->index(sourceRow, 2, sourceParent);
     bool res0 = sourceModel()->data(index).toString().contains("spark");
     bool res1 = sourceModel()->data(index).toString().contains("transparent");
-    bool res2 = sourceModel()->data(index).toString().contains("RAP");
 
     if(res0 && typeFilter == 0)
         return true;
     if(res1 && typeFilter == 1)
         return true;
-    if(res2 && typeFilter == 2)
-        return true;
+
     return false;
 }
 

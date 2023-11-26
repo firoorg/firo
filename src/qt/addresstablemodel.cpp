@@ -684,6 +684,11 @@ PcodeAddressTableModel * AddressTableModel::getPcodeAddressTableModel()
     return walletModel->getPcodeAddressTableModel();
 }
 
+bool AddressTableModel::IsSparkAllowed(){
+    return spark::IsSparkAllowed();
+}
+
+
 // RAP pcodes
 
 static void NotifyPcodeLabeled(PcodeAddressTableModel *walletmodel, std::string pcode, std::string label, bool removed)

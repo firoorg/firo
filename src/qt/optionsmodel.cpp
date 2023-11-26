@@ -81,10 +81,6 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("fCoinControlFeatures", false);
     fCoinControlFeatures = settings.value("fCoinControlFeatures", false).toBool();
 
-    if (!settings.contains("fenableRapAddresses"))
-        settings.setValue("fenableRapAddresses", false);
-    fenableRapAddresses = settings.value("fenableRapAddresses", false).toBool();
-
     if (!settings.contains("fAutoAnonymize"))
         settings.setValue("fAutoAnonymize", false);
     fAutoAnonymize = settings.value("fAutoAnonymize", false).toBool();
@@ -281,8 +277,6 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return settings.value("language");
         case CoinControlFeatures:
             return fCoinControlFeatures;
-        case enableRapAddresses:
-            return fenableRapAddresses;
         case AutoAnonymize:
             return fAutoAnonymize;
         case LelantusPage:
@@ -429,11 +423,6 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             fCoinControlFeatures = value.toBool();
             settings.setValue("fCoinControlFeatures", fCoinControlFeatures);
             Q_EMIT coinControlFeaturesChanged(fCoinControlFeatures);
-            break;
-        case enableRapAddresses:
-            fenableRapAddresses = value.toBool();
-            settings.setValue("fenableRapAddresses", fenableRapAddresses);
-            Q_EMIT enableRapAddressesChanged(fenableRapAddresses);
             break;
         case AutoAnonymize:
             fAutoAnonymize = value.toBool();
