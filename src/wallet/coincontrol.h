@@ -40,7 +40,7 @@ public:
     //! Override estimated feerate
     bool fOverrideFeeRate;
     // Allow inputs from ourself that haven't been confirmed yet.
-    bool fAllowUnconfirmed = true;
+    std::optional<bool> fAllowUnconfirmed;
     //! Feerate to use if overrideFeeRate is true
     CFeeRate nFeeRate;
     //! Override the default confirmation target, 0 = use default

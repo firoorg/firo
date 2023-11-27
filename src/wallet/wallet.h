@@ -748,6 +748,8 @@ private:
 
         unsigned int nMaxMempoolDepth = GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
         bool fRejectLongChains = GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS);
+        bool fAllowUnconfirmed = (coinControl && coinControl->fAllowUnconfirmed.has_value()) ?
+            *coinControl->fAllowUnconfirmed : bSpendZeroConfChange;
 
         for (const AbstractTxout& tx: vRelevantTransactions) {
             bool isSelected = coinControl && coinControl->HasSelected() && coinControl->IsSelected(tx.GetOutpoint());
@@ -765,7 +767,7 @@ private:
             if (
                 !tx.GetDepthInMainChain() &&
                 (!fUseInstantSend || !tx.IsLLMQInstantSendLocked()) &&
-                ((coinControl && !coinControl->fAllowUnconfirmed) || !tx.IsFromMe())
+                (!fAllowUnconfirmed || !tx.IsFromMe())
             ) continue;
             if (fRejectLongChains && tx.GetDepthInMempool() + 1 >= nMaxMempoolDepth) continue;
 
