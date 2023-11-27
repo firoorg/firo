@@ -88,6 +88,8 @@ public:
     EditStatus getEditStatus() const { return editStatus; }
 
     PcodeAddressTableModel * getPcodeAddressTableModel();
+
+    bool IsSparkAllowed();
 protected:
     WalletModel *walletModel;
     CWallet *wallet;

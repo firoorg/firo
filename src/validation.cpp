@@ -145,6 +145,7 @@ static void CheckBlockIndex(const Consensus::Params& consensusParams);
 CScript COINBASE_FLAGS;
 
 const std::string strMessageMagic = "Zcoin Signed Message:\n";
+const std::string strLelantusMessageMagic = "Lelantus signed Message:\n";
 
 // Internal stuff
 namespace {
@@ -335,6 +336,74 @@ bool CheckFinalTx(const CTransaction &tx, int flags)
 
 
     return IsFinalTx(tx, nBlockHeight, nBlockTime);
+}
+
+bool VerifyPrivateTxOwn(const uint256& txid, const std::vector<unsigned char>& vchSig, const std::string& message)
+{
+    CTransactionRef tx;
+    uint256 hashBlock;
+    if(!GetTransaction(txid, tx, Params().GetConsensus(), hashBlock, true))
+        return false;
+
+    if (tx->IsLelantusJoinSplit()) {
+        CHashWriter ss(SER_GETHASH, 0);
+        ss << strLelantusMessageMagic;
+        ss << message;
+
+        std::unique_ptr<lelantus::JoinSplit> joinsplit;
+        try {
+            joinsplit = lelantus::ParseLelantusJoinSplit(*tx);
+        } catch (const std::exception&) {
+            return false;
+        }
+        const auto& pubKeys = joinsplit->GetEcdsaPubkeys();
+
+        if((pubKeys.size() *64) != vchSig.size()) {
+            LogPrintf("Verification to serialNumbers and ecdsaSignatures/ecdsaPubkeys number mismatch.");
+            return false;
+        }
+
+        uint32_t count = 0;
+
+        for (const auto& pub : pubKeys) {
+            ss << count;
+            uint256 metahash = ss.GetHash();
+
+            // Check sizes
+            if (pub.size() != 33 ) {
+                LogPrintf("Verification failed due to incorrect size of ecdsaSignature.");
+                return false;
+            }
+
+            // Verify signature
+            secp256k1_pubkey pubkey;
+            secp256k1_ecdsa_signature signature;
+
+            if (!secp256k1_ec_pubkey_parse(OpenSSLContext::get_context(), &pubkey, pub.data(), 33)) {
+                LogPrintf("Verification failed due to unable to parse ecdsaPubkey.");
+                return false;
+            }
+
+            if (1 != secp256k1_ecdsa_signature_parse_compact(OpenSSLContext::get_context(), &signature, &vchSig[count * 64]) ) {
+                LogPrintf("Verification failed due to signature cannot be parsed.");
+                return false;
+            }
+
+            if (!secp256k1_ecdsa_verify(
+                    OpenSSLContext::get_context(), &signature, metahash.begin(), &pubkey)) {
+                LogPrintf("Verification failed due to signature cannot be verified.");
+                return false;
+            }
+
+            count++;
+        }
+    } else if (tx->IsCoinBase()) {
+        throw std::runtime_error("This is a coinbase transaction and not a private transaction");
+    } else {
+        throw std::runtime_error("Currently this is allowed only for Lelantus transactions");
+    }
+
+    return true;
 }
 
 /**
@@ -639,6 +708,28 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         }
     }
 
+    // input scripts cannot have OP_EXCHANGEADDR at all
+    for (const auto &vin: tx.vin) {
+        if (vin.scriptSig.size() >= 1 && vin.scriptSig[0] == OP_EXCHANGEADDR) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
+        }
+    }
+
+    bool hasExchangeUTXOs = false;
+    for (const auto &vout : tx.vout) {
+        if (vout.scriptPubKey.size() >= 1 && vout.scriptPubKey[0] == OP_EXCHANGEADDR) {
+            hasExchangeUTXOs = true;
+            break;
+        }
+    }
+    int nTxHeight = nHeight;
+    if (nTxHeight == INT_MAX) {
+        LOCK(cs_main);
+        nTxHeight = chainActive.Height();
+    }
+    if (hasExchangeUTXOs && !isVerifyDB && nTxHeight < ::Params().GetConsensus().nExchangeAddressStartBlock)
+        return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
+
     if (tx.IsCoinBase())
     {
         size_t minCbSize = 2;
@@ -648,6 +739,8 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         }
         if (tx.vin[0].scriptSig.size() < minCbSize || tx.vin[0].scriptSig.size() > 100)
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
+        if (hasExchangeUTXOs)
+            return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
     }
     else
     {
@@ -659,16 +752,22 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
                 return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 
         if (tx.IsZerocoinV3SigmaTransaction()) {
+            if (hasExchangeUTXOs)
+                return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
             if (!CheckSigmaTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sigmaTxInfo))
                 return false;
         }
 
         if (tx.IsLelantusTransaction()) {
+            if (hasExchangeUTXOs)
+                return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
             if (!CheckLelantusTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sigmaTxInfo, lelantusTxInfo))
                 return false;
         }
 
         if (tx.IsSparkTransaction()) {
+            if (hasExchangeUTXOs)
+                return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
             if (!CheckSparkTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sparkTxInfo))
                 return false;
         }

@@ -187,6 +187,9 @@ public Q_SLOTS:
 
     /** Show used sending addresses */
     void usedSendingAddresses();
+
+    void updateAddressbook();
+
     /** Show used receiving addresses */
     void usedReceivingAddresses();
 

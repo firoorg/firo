@@ -139,6 +139,17 @@ public:
         return obj;
     }
 
+    UniValue operator()(const CExchangeKeyID &keyID) const {
+        UniValue obj(UniValue::VOBJ);
+        CPubKey vchPubKey;
+        obj.push_back(Pair("isscript", false));
+        if (pwallet && pwallet->GetPubKey(keyID, vchPubKey)) {
+            obj.push_back(Pair("exchangepubkey", HexStr(vchPubKey)));
+            obj.push_back(Pair("iscompressed", vchPubKey.IsCompressed()));
+        }
+        return obj;
+    }
+
     UniValue operator()(const CScriptID &scriptID) const {
         UniValue obj(UniValue::VOBJ);
         CScript subscript;
@@ -489,6 +500,42 @@ UniValue signmessagewithprivkey(const JSONRPCRequest& request)
 
     return EncodeBase64(&vchSig[0], vchSig.size());
 }
+
+UniValue verifyprivatetxown(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 3)
+        throw std::runtime_error(
+                "verifyprivatetxown \"txid\" \"signature\" \"message\"\n"
+                "\nVerify a lelantus tx ownership\n"
+                "\nArguments:\n"
+                "1. \"txid\"        (string, required) Txid, in which we spend lelantus coins.\n"
+                "2. \"proof\"       (string, required) The signatures of the message encoded in base 64\n"
+                "3. \"message\"     (string, required) The message that was signed.\n"
+                "\nResult:\n"
+                "true|false   (boolean) If the signature is verified or not.\n"
+                "\nExamples:\n"
+                "\nVerify the signature\n"
+                + HelpExampleCli("verifyprivatetxown", "\"34df0ec7bcc8a2bda2c0df41ac560172d974c56ffc9adc0e2377d0fc54b4e8f9\" \"signature\" \"my message\"") +
+                "\nAs json rpc\n"
+                + HelpExampleRpc("verifyprivatetxown", "\"34df0ec7bcc8a2bda2c0df41ac560172d974c56ffc9adc0e2377d0fc54b4e8f9\", \"signature\", \"my message\"")
+        );
+
+    LOCK(cs_main);
+
+    std::string strTxId  = request.params[0].get_str();
+    std::string strProof = request.params[1].get_str();
+    std::string strMessage  = request.params[2].get_str();
+
+    uint256 txid = uint256S(strTxId);
+    bool fInvalid = false;
+    std::vector<unsigned char> vchSig = DecodeBase64(strProof.c_str(), &fInvalid);
+
+    if (fInvalid)
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Malformed base64 encoding");
+
+    return VerifyPrivateTxOwn(txid, vchSig, strMessage);
+}
+
 
 UniValue setmocktime(const JSONRPCRequest& request)
 {
@@ -1631,6 +1678,8 @@ static const CRPCCommand commands[] =
     /* Znode features */
     { "firo",              "znsync",                 &mnsync,                 true,  {} },
     { "firo",              "evoznsync",              &mnsync,                 true,  {} },
+
+    { "firo",              "verifyprivatetxown",      &verifyprivatetxown,      true,  {} },
 
     /* Not shown in help */
     { "hidden",             "getinfoex",              &getinfoex,              false },

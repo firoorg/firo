@@ -108,6 +108,8 @@ public Q_SLOTS:
     void usedReceivingAddresses();
     /** Pass on signal over requested out-of-sync-warning information */
     void outOfSyncWarningClicked();
+
+    void updateAddressbook();
 };
 
 #endif // BITCOIN_QT_WALLETFRAME_H

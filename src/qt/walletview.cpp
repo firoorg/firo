@@ -602,6 +602,12 @@ void WalletView::usedSendingAddresses()
     usedSendingAddressesPage->activateWindow();
 }
 
+void WalletView::updateAddressbook()
+{
+    usedReceivingAddressesPage->updateSpark();
+    usedSendingAddressesPage->updateSpark();
+}
+
 void WalletView::usedReceivingAddresses()
 {
     if(!walletModel)

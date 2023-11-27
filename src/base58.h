@@ -106,14 +106,22 @@ public:
 class CBitcoinAddress : public CBase58Data {
 public:
     bool Set(const CKeyID &id);
+    bool Set(const CExchangeKeyID &id);
     bool Set(const CScriptID &id);
     bool Set(const CTxDestination &dest);
+    bool SetExchange(const CKeyID &id);
     bool IsValid() const;
     bool IsValid(const CChainParams &params) const;
 
     CBitcoinAddress() {}
     CBitcoinAddress(const CTxDestination &dest) { Set(dest); }
-    CBitcoinAddress(const std::string& strAddress) { SetString(strAddress); }
+    CBitcoinAddress(const std::string& strAddress) {
+        SetString(strAddress);
+        if (vchData.size() != 20) {
+            // give the address second chance and try exchange address format with 3 byte prefix
+            SetString(strAddress.c_str(), 3);
+        }
+    }
     CBitcoinAddress(const char* pszAddress) { SetString(pszAddress); }
 
     CTxDestination Get() const;

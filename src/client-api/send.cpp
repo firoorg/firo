@@ -55,7 +55,7 @@ bool getPaymentRequest(UniValue &paymentRequestUni, UniValue &paymentRequestData
     if(!paymentRequestUni["data"].isNull()){
         paymentRequestData = paymentRequestUni["data"];
     }
-    
+
     return true;
 }
 
@@ -114,15 +114,9 @@ UniValue paymentrequestaddress(Type type, const UniValue& data, const UniValue& 
     CWalletDB walletdb(pwalletMain->strWalletFile);
 
     if(addressType == "Spark") {
-        if(!walletdb.ReadPaymentRequestSparkAddress(address)){
-            address = getNewSparkAddress().get_str();
-            walletdb.WritePaymentRequestSparkAddress(address);
-        }
+        address = getNewSparkAddress().get_str();
     } else if (addressType == "Transparent") {
-        if(!walletdb.ReadPaymentRequestAddress(address)){
-            address = getNewAddress().get_str();
-            walletdb.WritePaymentRequestAddress(address);
-        }
+        address = getNewAddress().get_str();
     } else {
         throw JSONAPIError(API_INVALID_PARAMETER, "Invalid addressType");
     }
@@ -131,7 +125,7 @@ UniValue paymentrequestaddress(Type type, const UniValue& data, const UniValue& 
 }
 
 UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
-{   
+{
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     CCoinControl cc;
@@ -156,7 +150,7 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
             std::vector<std::string> keys = sendTo.getKeys();
             BOOST_FOREACH(const std::string& name_, keys)
             {
-                
+
                 UniValue entry(UniValue::VOBJ);
                 try{
                     entry = find_value(sendTo, name_).get_obj();
@@ -184,7 +178,7 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
                 CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
                 vecSend.push_back(recipient);
             }
-            
+
             // Send
             CReserveKey keyChange(pwalletMain);
             CAmount nFeeRequired = 0;
@@ -211,7 +205,7 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
 }
 
 UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
-    // first set the tx fee per kb, then return the total fee with addresses.   
+    // first set the tx fee per kb, then return the total fee with addresses.
     if (!EnsureWalletIsAvailable(pwalletMain, fHelp))
         return NullUniValue;
 
@@ -274,154 +268,16 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
     std::string strFailReason;
     bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason, hasCoinControl ? &coinControl : NULL, false);
     if (!fCreated)
-        throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);  
-    
+        throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);
+
     ret.push_back(Pair("fee", nFeeRequired));
     return ret;
-}
-
-UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
-{
-    if (!EnsureWalletIsAvailable(pwalletMain, false))
-        return NullUniValue;
-
-    UniValue paymentRequestUni(UniValue::VOBJ);
-    UniValue paymentRequestData(UniValue::VOBJ);
-
-    getPaymentRequest(paymentRequestUni, paymentRequestData);
-
-    bool returnEntry = false;
-    UniValue entry(UniValue::VOBJ);
-
-    switch(type){
-        case Initial: {
-            return paymentRequestData;
-            break;
-        }
-        case Create: {     
-
-            milliseconds secs = duration_cast< milliseconds >(
-                 system_clock::now().time_since_epoch()
-            );
-            UniValue createdAt = secs.count();
-
-            std::string paymentRequestAddress;
-            entry.push_back(Pair("createdAt", createdAt.get_int64()));
-            entry.push_back(Pair("state", "active"));
-
-            try{
-                paymentRequestAddress = find_value(data, "address").get_str();
-                entry.push_back(Pair("amount", find_value(data, "amount")));
-                entry.push_back(Pair("address", paymentRequestAddress));
-                entry.push_back(Pair("message", find_value(data, "message").get_str()));
-                entry.push_back(Pair("label", find_value(data, "label").get_str()));
-            }catch (const std::exception& e){
-                throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
-            }
-            
-            CWalletDB walletdb(pwalletMain->strWalletFile);
-            std::string nextPaymentRequestAddress;
-            if(!walletdb.ReadPaymentRequestAddress(nextPaymentRequestAddress))
-                throw std::runtime_error("Could not retrieve wallet payment address.");
-
-            if(nextPaymentRequestAddress != paymentRequestAddress)
-                throw std::runtime_error("Payment request address passed does not match wallet.");
-
-            if(!paymentRequestUni.replace("data", paymentRequestData)){
-                throw std::runtime_error("Could not replace key/value pair.");
-            }
-            returnEntry = true;
-
-            // remove payment request address
-            if(!walletdb.ErasePaymentRequestAddress())
-                throw std::runtime_error("Could not reset payment request address.");
-                    
-            break;
-        }
-        case Delete: {
-            std::string id = find_value(data, "id").get_str();
-            
-            const UniValue addressObj = find_value(paymentRequestData, id);
-            if(addressObj.isNull()){
-                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, id does not exist");
-            }
-
-            const UniValue addressStr = find_value(addressObj, "address");
-            if(addressStr.isNull()){
-                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, address not found");
-            }
-
-            paymentRequestData.erase(addressStr);
-
-            if(!paymentRequestUni.replace("data", paymentRequestData)){
-                throw std::runtime_error("Could not replace key/value pair.");
-            }
-            return true;
-            break;      
-        }
-        /*
-          "Update" can be used to either:
-            - Update an existing address and metadata associated with a payment request
-            - Create a new entry for address and metadata that was NOT created through a payment request (eg. created with the Qt application).
-        */
-        case Update: {
-            std::string id;
-            std::vector<std::string> dataKeys;
-            try{
-                id = find_value(data, "id").get_str();
-                dataKeys = data.getKeys();
-            }catch (const std::exception& e){
-                throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
-            }
-
-            entry = find_value(paymentRequestData, id);
-
-            // If null, declare the object again.
-             if(entry.isNull()){
-                 entry.setObject();
-                 entry.push_back(Pair("address", id));
-             }
-
-            for (std::vector<std::string>::iterator it = dataKeys.begin(); it != dataKeys.end(); it++){
-                std::string key = (*it);
-                UniValue value = find_value(data, key);
-                if(!(key=="id")){
-                    if(key=="state"){
-                        // Only update state should it be a valid value
-                        if(!(value.getType()==UniValue::VSTR) && !nStates.count(value.get_str()))
-                          throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
-                    }
-                    entry.replace(key, value); //todo might have to specify type
-                }
-            }
-
-            paymentRequestData.replace(id, entry);
-
-            if(!paymentRequestUni.replace("data", paymentRequestData)){
-                throw std::runtime_error("Could not replace key/value pair.");
-            }
-            returnEntry = true;
-            break;
-        }
-        default: {
-
-        }
-    }
-
-    setPaymentRequest(paymentRequestUni);
-
-    if(returnEntry){
-        return entry;
-    }
-
-    return true;
 }
 
 
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
-    { "send",            "paymentRequest",         &paymentrequest,         true,      false,           false  },
     { "send",            "paymentRequestAddress",  &paymentrequestaddress,  true,      false,           false  },
     { "send",            "txFee",                  &txfee,                  true,      false,           false  },
     { "send",            "sendZcoin",              &sendzcoin,              true,      true,            false  }

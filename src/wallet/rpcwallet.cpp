@@ -208,6 +208,59 @@ UniValue getnewaddress(const JSONRPCRequest& request)
     return CBitcoinAddress(keyID).ToString();
 }
 
+UniValue getnewexchangeaddress(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() > 1)
+        throw std::runtime_error("");
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    if (!pwallet->IsLocked()) {
+        pwallet->TopUpKeyPool();
+    }
+
+    // Generate a new key or use existing one and convert it to exchange address format
+    CKeyID keyID;
+    if (request.params.size() == 0) {
+        CPubKey newKey;
+        if (!pwallet->GetKeyFromPool(newKey)) {
+            throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
+        }
+        keyID = newKey.GetID();
+        pwallet->SetAddressBook(keyID, "", "receive");
+    }
+    else {
+        // out of four tx destinations types only CKeyID (P2PKH) is supported here
+        class CTxDestinationVisitor : public boost::static_visitor<CKeyID> {
+        public:
+            CTxDestinationVisitor() {}
+            CKeyID operator() (const CNoDestination&) const {return CKeyID();}
+            CKeyID operator() (const CKeyID& keyID) const {return keyID;}
+            CKeyID operator() (const CExchangeKeyID&) const {return CKeyID();}
+            CKeyID operator() (const CScriptID&) const {return CKeyID();}
+        };
+
+        CBitcoinAddress existingKey(request.params[0].get_str());
+        if (!existingKey.IsValid()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address");
+        }
+
+        keyID = boost::apply_visitor(CTxDestinationVisitor(), existingKey.Get());
+        if (keyID.IsNull()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Must be P2PKH address");
+        }
+    }
+
+    CBitcoinAddress newAddress;
+    newAddress.SetExchange(keyID);
+
+    return newAddress.ToString();
+}
 
 CBitcoinAddress GetAccountAddress(CWallet * const pwallet, std::string strAccount, bool bForceNew)
 {
@@ -692,6 +745,52 @@ UniValue signmessage(const JSONRPCRequest& request)
 
     return EncodeBase64(&vchSig[0], vchSig.size());
 }
+
+UniValue proveprivatetxown(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 2)
+        throw std::runtime_error(
+                "proveprivatetxown \"txid\" \"message\"\n"
+                "\nCreated a proof by signing the message with private key of each spent coin."
+                + HelpRequiringPassphrase(pwallet) + "\n"
+                                                     "\nArguments:\n"
+                                                     "1. \"strTxId\"  (string, required) Txid, in which we spend lelantus coins.\n"
+                                                     "2. \"message\"         (string, required) The message to create a signature of.\n"
+                                                     "\nResult:\n"
+                                                     "\"proof\"          (string) The signatures of the message encoded in base 64\n"
+                                                     "\nExamples:\n"
+                                                     "\nUnlock the wallet for 30 seconds\n"
+                + HelpExampleCli("walletpassphrase", "\"mypassphrase\" 30") +
+                "\nCreate the signature\n"
+                + HelpExampleCli("proveprivatetxown", "\"34df0ec7bcc8a2bda2c0df41ac560172d974c56ffc9adc0e2377d0fc54b4e8f9 \" \"my message\"") +
+                "\nVerify the signature\n"
+                + HelpExampleCli("verifyprivatetxown", "\"34df0ec7bcc8a2bda2c0df41ac560172d974c56ffc9adc0e2377d0fc54b4e8f9 \" \"proof\" \"my message\"") +
+                "\nAs json rpc\n"
+                + HelpExampleRpc("proveprivatetxown", "\"34df0ec7bcc8a2bda2c0df41ac560172d974c56ffc9adc0e2377d0fc54b4e8f9 \", \"my message\"")
+        );
+
+    EnsureLelantusWalletIsAvailable();
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+    EnsureWalletIsUnlocked(pwallet);
+
+    std::string strTxId = request.params[0].get_str();
+    std::string strMessage = request.params[1].get_str();
+
+    uint256 txid = uint256S(strTxId);
+    std::vector<unsigned char> vchSig = pwallet->ProvePrivateTxOwn(txid, strMessage);
+
+    if (vchSig.empty())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Something went wrong, may be you are not the owner of provided tx");
+
+    return EncodeBase64(&vchSig[0], vchSig.size());
+}
+
 
 UniValue getreceivedbyaddress(const JSONRPCRequest& request)
 {
@@ -1266,6 +1365,11 @@ public:
             result = CScriptID(witscript);
             return true;
         }
+        return false;
+    }
+
+    bool operator()(const CExchangeKeyID &/*keyID*/) {
+        // can't witnessify this
         return false;
     }
 
@@ -5502,6 +5606,7 @@ static const CRPCCommand rpcCommands[] =
     { "wallet",             "getprivatebalance",        &getprivatebalance,        false,  {} },
     { "wallet",             "gettotalbalance",          &gettotalbalance,          false,  {} },
     { "wallet",             "getnewaddress",            &getnewaddress,            true,   {"account"} },
+    { "hidden",             "getnewexchangeaddress",    &getnewexchangeaddress,    true, {} },
     { "wallet",             "getrawchangeaddress",      &getrawchangeaddress,      true,   {} },
     { "wallet",             "getreceivedbyaccount",     &getreceivedbyaccount,     false,  {"account","minconf","addlocked"} },
     { "wallet",             "getreceivedbyaddress",     &getreceivedbyaddress,     false,  {"address","minconf","addlocked"} },
@@ -5532,6 +5637,7 @@ static const CRPCCommand rpcCommands[] =
     { "wallet",             "setaccount",               &setaccount,               true,   {"address","account"} },
     { "wallet",             "settxfee",                 &settxfee,                 true,   {"amount"} },
     { "wallet",             "signmessage",              &signmessage,              true,   {"address","message"} },
+    { "wallet",             "proveprivatetxown",        &proveprivatetxown,        true,   {"txid","message"} },
     { "wallet",             "walletlock",               &walletlock,               true,   {} },
     { "wallet",             "walletpassphrasechange",   &walletpassphrasechange,   true,   {"oldpassphrase","newpassphrase"} },
     { "wallet",             "walletpassphrase",         &walletpassphrase,         true,   {"passphrase","timeout"} },
