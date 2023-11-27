@@ -64,9 +64,6 @@ extern bool fLogIPs;
 extern std::atomic<bool> fReopenDebugLog;
 extern CTranslationInterface translationInterface;
 
-/** Flag to indicate, whether the Elysium log file should be reopened. */
-extern std::atomic<bool> fReopenElysiumLog;
-
 extern const char * const BITCOIN_CONF_FILENAME;
 extern const char * const BITCOIN_PID_FILENAME;
 

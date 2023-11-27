@@ -33,11 +33,6 @@
 #include "wallet/db.h"
 #include "wallet/wallet.h"
 #include <memory>
-
-#ifdef ENABLE_ELYSIUM
-#include "../elysium/elysium.h"
-#endif
-
 #include <boost/filesystem.hpp>
 #include <boost/test/unit_test.hpp>
 #include <boost/test/unit_test_monitor.hpp>
@@ -139,9 +134,7 @@ TestingSetup::~TestingSetup()
     UnregisterNodeSignals(GetNodeSignals());
     llmq::InterruptLLMQSystem();
     llmq::DestroyLLMQSystem();
-#ifdef ENABLE_ELYSIUM
-    elysium_shutdown();
-#endif
+
     threadGroup.interrupt_all();
     threadGroup.join_all();
     UnloadBlockIndex();

@@ -285,62 +285,6 @@ class ComparisonTestFramework(BitcoinTestFramework):
             binary=[self.options.testbinary] +
             [self.options.refbinary]*(self.num_nodes-1))
 
-class ElysiumTestFramework(BitcoinTestFramework):
-    def __init__(self):
-        super().__init__()
-        self.addrs = []
-
-    def run_test(self):
-        for rpc in self.nodes:
-            addr = rpc.getnewaddress()
-            id = rpc.sendtoaddress(addr, 500)
-            self.nodes[0].sendrawtransaction(rpc.getrawtransaction(id))
-            self.addrs.append(addr)
-
-        self.nodes[0].generate(10)
-
-        if len(self.nodes[0].getrawmempool()) > 0:
-            raise Exception("Fail to send funds for all initial addresses")
-        self.sync_all()
-
-    def setup_nodes(self):
-        return start_nodes(self.num_nodes, self.options.tmpdir, [['-elysium'] for _ in range(self.num_nodes)])
-
-    def assert_property_summary(self, prop, id, divisible, cat, subcat, name, url, data):
-        assert_equal(prop['propertyid'], id)
-        assert_equal(prop['name'], name)
-        assert_equal(prop['category'], cat)
-        assert_equal(prop['subcategory'], subcat)
-        assert_equal(prop['data'], data)
-        assert_equal(prop['url'], url)
-        assert_equal(prop['divisible'], divisible)
-
-    def assert_property_info(self, prop, id, fixed, issuer, divisible, cat, subcat, name, url, data, tokens, sigma, createtx, denoms):
-        assert_equal(prop['propertyid'], id)
-        assert_equal(prop['name'], name)
-        assert_equal(prop['category'], cat)
-        assert_equal(prop['subcategory'], subcat)
-        assert_equal(prop['data'], data)
-        assert_equal(prop['url'], url)
-        assert_equal(prop['divisible'], divisible)
-        assert_equal(prop['issuer'], issuer)
-        assert_equal(prop['creationtxid'], createtx)
-        assert_equal(prop['fixedissuance'], fixed)
-        assert_equal(prop['managedissuance'], not fixed)
-        assert_equal(prop['totaltokens'], tokens)
-        assert_equal(prop['sigmastatus'], sigma)
-        assert_equal(len(prop['denominations']), len(denoms))
-
-        for i in range(len(denoms)):
-            assert_equal(prop['denominations'][i]['id'], denoms[i]['id'])
-            assert_equal(prop['denominations'][i]['value'], denoms[i]['value'])
-
-    def compare_mints(self, expected, actual):
-        mint_key_extractor = lambda m : (m['propertyid'], m['denomination'], m['value'])
-        expected.sort(key = mint_key_extractor)
-        actual.sort(key = mint_key_extractor)
-
-        assert_equal(expected, actual)
 
 #
 # Znode tests support
@@ -986,20 +930,3 @@ class EvoZnodeTestFramework(BitcoinTestFramework):
             return []
 
         return node.generate(required_block - current_block)
-
-    def create_default_property(self, name, num_node, address, sigma = True, amount = None):
-        node = self.nodes[num_node]
-
-        sigma_status = 1 if sigma else 0
-
-        if amount is None:
-            node.elysium_sendissuancemanaged(address, 1, 1, 0, '', '', name, '', '', sigma_status)
-        else:
-            node.elysium_sendissuancefixed(address, 1, 1, 0, '', '', name, '', '', amount, sigma_status)
-
-        node.generate(1)
-        self.sync_all()
-
-        # get lastest id
-        properties = node.elysium_listproperties()
-        return max(map(lambda p: p["propertyid"], properties))

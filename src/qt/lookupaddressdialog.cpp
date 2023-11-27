@@ -6,11 +6,6 @@
 #include "ui_lookupaddressdialog.h"
 
 #include "guiutil.h"
-
-#include "elysium/elysium.h"
-#include "elysium/sp.h"
-#include "elysium/wallettxs.h"
-
 #include "base58.h"
 
 #include <stdint.h>
@@ -42,8 +37,6 @@
 
 using std::ostringstream;
 using std::string;
-
-using namespace elysium;
 
 MPQRImageWidget::MPQRImageWidget(QWidget *parent):
     QLabel(parent), contextMenu(0)
@@ -154,7 +147,6 @@ void LookupAddressDialog::searchAddress()
         if ((searchText.substr(0,1) == "1") || (searchText.substr(0,1) == "m") || (searchText.substr(0,1) == "n")) ui->addressTypeLabel->setText("Public Key Hash");
         if ((searchText.substr(0,1) == "2") || (searchText.substr(0,1) == "3")) ui->addressTypeLabel->setText("Pay to Script Hash");
         if (IsMyAddress(searchText)) { ui->isMineLabel->setText("Yes"); } else { ui->isMineLabel->setText("No"); }
-        ui->balanceLabel->setText(QString::fromStdString(FormatDivisibleMP(getUserAvailableMPbalance(searchText, 1)) + " Elysium"));
         // QR
         #ifdef USE_QRCODE
         ui->QRCode->setText("");
@@ -245,7 +237,6 @@ void LookupAddressDialog::searchAddress()
                 balances[pItem-1]->setVisible(true);
                 labels[pItem-1]->setText(pName[pItem].c_str());
                 string tokenLabel = " SPT";
-                if (pName[pItem]=="Test Elysium (#2)") { tokenLabel = " TELYSIUM"; }
                 if (pDivisible[pItem])
                 {
                     balances[pItem-1]->setText(QString::fromStdString(FormatDivisibleMP(pBal[pItem]) + tokenLabel));

@@ -289,7 +289,6 @@ mkdir -p "$DISTSRC"
                     --disable-ccache \
                     --disable-maintainer-mode \
                     --disable-dependency-tracking \
-		    --enable-elysium \
 		    --enable-crash-hooks \
 		    --without-libs \
                     ${CONFIGFLAGS} \

@@ -61,10 +61,6 @@
 #include "evo/deterministicmns.h"
 #include "llmq/quorums_init.h"
 
-#ifdef ENABLE_ELYSIUM
-#include "elysium/elysium.h"
-#endif
-
 #include <stdint.h>
 #include <stdio.h>
 #include <memory>
@@ -304,12 +300,6 @@ void Shutdown()
         evoDb = NULL;
     }
 
-#ifdef ENABLE_ELYSIUM
-    if (isElysiumEnabled()) {
-        elysium_shutdown();
-    }
-#endif
-
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(true);
@@ -365,7 +355,6 @@ static void HandleSIGTERM(int)
 void HandleSIGHUP(int)
 {
     fReopenDebugLog = true;
-    fReopenElysiumLog = true;
 }
 #else
 static BOOL WINAPI consoleCtrlHandler(DWORD dwCtrlType)
@@ -597,23 +586,6 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-rpcservertimeout=<n>", strprintf("Timeout during HTTP requests (default: %d)", DEFAULT_HTTP_SERVER_TIMEOUT));
         strUsage += HelpMessageOpt("-rpcforceutf8", strprintf("Replace invalid UTF-8 encoded characters with question marks in RPC response (default: %d)", 1));
     }
-
-#ifdef ENABLE_ELYSIUM
-    strUsage += HelpMessageGroup("Elysium options:");
-    strUsage += HelpMessageOpt("-elysium", "Enable Elysium");
-    strUsage += HelpMessageOpt("-startclean", "Clear all persistence files on startup; triggers reparsing of Elysium transactions");
-    strUsage += HelpMessageOpt("-elysiumtxcache=<num>", "The maximum number of transactions in the input transaction cache (default: 500000)");
-    strUsage += HelpMessageOpt("-elysiumprogressfrequency=<seconds>", "Time in seconds after which the initial scanning progress is reported (default: 30)");
-    strUsage += HelpMessageOpt("-elysiumdebug=<category>", "Enable or disable log categories, can be \"all\" or \"none\"");
-    strUsage += HelpMessageOpt("-autocommit=<flag>", "Enable or disable broadcasting of transactions, when creating transactions (default: 1)");
-    strUsage += HelpMessageOpt("-overrideforcedshutdown=<flag>", "Disable force shutdown when error (default: 0)");
-    strUsage += HelpMessageOpt("-elysiumalertallowsender=<addr>", "Whitelist senders of alerts, can be \"any\")");
-    strUsage += HelpMessageOpt("-elysiumalertignoresender=<addr>", "Ignore senders of alerts");
-    strUsage += HelpMessageOpt("-elysiumactivationignoresender=<addr>", "Ignore senders of activations");
-    strUsage += HelpMessageOpt("-elysiumactivationallowsender=<addr>", "Whitelist senders of activations");
-    strUsage += HelpMessageOpt("-elysiumuiwalletscope=<number>", "Max. transactions to show in trade and transaction history (default: 65535)");
-    strUsage += HelpMessageOpt("-elysiumshowblockconsensushash=<number>", "Calculate and log the consensus hash for the specified block");
-#endif
 
     strUsage += HelpMessageOpt("-skipmnpayoutcheck", _("Do not check for masternode payout when handling listtransactions, listsinceblock and gettransaction calls (improves performance)"));
 
@@ -1954,53 +1926,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 #else // ENABLE_WALLET
     LogPrintf("No wallet support compiled in!\n");
 #endif // !ENABLE_WALLET
-
-    // ********************************************************* Step 8.5: load elysium
-
-#ifdef ENABLE_ELYSIUM
-    if (isElysiumEnabled()) {
-        if (!fTxIndex) {
-            // ask the user if they would like us to modify their config file for them
-            std::string msg = _("Disabled transaction index detected.\n\n"
-                                "Elysium requires an enabled transaction index. To enable "
-                                "transaction indexing, please use the \"-txindex\" option as "
-                                "command line argument or add \"txindex=1\" to your client "
-                                "configuration file within your data directory.\n\n"
-                                "Configuration file"); // allow translation of main text body while still allowing differing config file string
-            msg += ": " + GetConfigFile("").string() + "\n\n";
-            msg += _("Would you like Elysium to attempt to update your configuration file accordingly?");
-            bool fRet = uiInterface.ThreadSafeMessageBox(msg, "", CClientUIInterface::MSG_INFORMATION | CClientUIInterface::BTN_OK | CClientUIInterface::MODAL | CClientUIInterface::BTN_ABORT);
-            if (fRet) {
-                // add txindex=1 to config file in GetConfigFile()
-                boost::filesystem::path configPathInfo = GetConfigFile("");
-                FILE *fp = fopen(configPathInfo.string().c_str(), "at");
-                if (!fp) {
-                    std::string failMsg = _("Unable to update configuration file at");
-                    failMsg += ":\n" + GetConfigFile("").string() + "\n\n";
-                    failMsg += _("The file may be write protected or you may not have the required permissions to edit it.\n");
-                    failMsg += _("Please add txindex=1 to your configuration file manually.\n\nElysium will now shutdown.");
-                    return InitError(failMsg);
-                }
-                fprintf(fp, "\ntxindex=1\n");
-                fflush(fp);
-                fclose(fp);
-                std::string strUpdated = _(
-                        "Your configuration file has been updated.\n\n"
-                        "Elysium will now shutdown - please restart the client for your new configuration to take effect.");
-                uiInterface.ThreadSafeMessageBox(strUpdated, "", CClientUIInterface::MSG_INFORMATION | CClientUIInterface::BTN_OK | CClientUIInterface::MODAL);
-                return false;
-            } else {
-                return InitError(_("Please add txindex=1 to your configuration file manually.\n\nOmni Core will now shutdown."));
-            }
-        }
-
-        uiInterface.InitMessage(_("Parsing Elysium transactions..."));
-        elysium_init();
-
-        // Elysium code should be initialized and wallet should now be loaded, perform an initial populate
-        CheckWalletUpdate();
-    }
-#endif
 
     // ********************************************************* Step 9: data directory maintenance
     LogPrintf("Step 9: data directory maintenance **********************\n");
