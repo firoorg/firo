@@ -1246,13 +1246,6 @@ QDialog#LelantusDialog QRadioButton#radioCustomFee {
     margin-top: 7px;
 }
 
-/* LookupAddressDialog */
-
-QWidget#LookupAddressDialog QLabel#addressInfo,
-QWidget#LookupAddressDialog QLabel#balanceInfo {
-    font-weight: bold;
-}
-
 /* ManualMintDialog */
 
 QDialog#ManualMintDialog QLabel#availableAmount,

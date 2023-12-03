@@ -24,11 +24,8 @@ class PlatformStyle;
 class ReceiveCoinsDialog;
 class CreatePcodeDialog;
 class SendCoinsDialog;
-class LookupTXDialog;
-class LookupAddressDialog;
 class SendCoinsRecipient;
 class TransactionView;
-class TXHistoryDialog;
 class WalletModel;
 class AddressBookPage;
 
