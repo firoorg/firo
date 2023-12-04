@@ -108,11 +108,28 @@ public:
 	ADD_SERIALIZE_METHODS;
 	template <typename Stream, typename Operation>
 	inline void SerializationOp(Stream& s, Operation ser_action) {
+		// The type must be valid
 		READWRITE(type);
+		if (type != COIN_TYPE_MINT && type != COIN_TYPE_SPEND) {
+			throw std::invalid_argument("Cannot deserialize coin due to bad type");
+		}
 		READWRITE(S);
 		READWRITE(K);
 		READWRITE(C);
+
+		// Encrypted coin data is always of a fixed size that depends on coin type
+		// Its tag and key commitment sizes are enforced during its deserialization
+		// For mint coins: encrypted diversifier (with size), encoded nonce, padded memo (with size)
+		// For spend coins: encoded value, encrypted diversifier (with size), encoded nonce, padded memo (with size)
 		READWRITE(r_);
+		if (type == COIN_TYPE_MINT && r_.ciphertext.size() != (1 + AES_BLOCKSIZE) + SCALAR_ENCODING + (1 + params->get_memo_bytes())) {
+			std::cout << "Data size " << r_.ciphertext.size() << " but expected " << (AES_BLOCKSIZE + SCALAR_ENCODING + params->get_memo_bytes()) << std::endl;
+			throw std::invalid_argument("Cannot deserialize mint coin due to bad encrypted data");
+		}
+		if (type == COIN_TYPE_SPEND && r_.ciphertext.size() != 8 + (1 + AES_BLOCKSIZE) + SCALAR_ENCODING + (1 + params->get_memo_bytes())) {
+			std::cout << "Data size " << r_.ciphertext.size() << " but expected " << (8 + AES_BLOCKSIZE + SCALAR_ENCODING + params->get_memo_bytes()) << std::endl;
+			throw std::invalid_argument("Cannot deserialize spend coin due to bad encrypted data");
+		}
 
 		if (type == COIN_TYPE_MINT) {
 			READWRITE(v);
