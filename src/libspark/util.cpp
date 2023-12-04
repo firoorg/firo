@@ -36,6 +36,9 @@ uint64_t SparkUtils::diversifier_decrypt(const std::vector<unsigned char>& key, 
     if (key.size() != AES256_KEYSIZE) {
         throw std::invalid_argument("Bad diversifier decryption key size");
     }
+    if (d.size() != AES_BLOCKSIZE) {
+        throw std::invalid_argument("Bad diversifier ciphertext size");
+    }
 
     std::vector<unsigned char> iv;
     iv.resize(AES_BLOCKSIZE);
