@@ -319,6 +319,10 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
 
         vTxouts.at(0)._mockupDepthInMainChain = 0;
 
+        CCoinControl coinControl;
+        coinControl.fAllowUnconfirmedIsSet = true;
+        coinControl.fAllowUnconfirmed = false;
+
         {
             CWalletTx wtx;
             CAmount nFeeRet = 0;
@@ -327,7 +331,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
 
             CReserveKey reservekey(pwalletMain);
             pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
-                                           nullptr, true, 0, true, vTxouts);
+                                           &coinControl, true, 0, true, vTxouts);
 
             ASSERT_FAILURE("Insufficient funds");
         }
@@ -342,7 +346,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
 
             CReserveKey reservekey(pwalletMain);
             pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
-                                           nullptr, true, 0, true, vTxouts);
+                                           &coinControl, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
             ASSERT_VIN_SIZE(2);
@@ -423,8 +427,11 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
 
         vTxouts.at(0)._mockupDepthInMainChain = 0;
 
+        CCoinControl coinControl;
+        coinControl.fAllowUnconfirmedIsSet = true;
+        coinControl.fAllowUnconfirmed = false;
+
         {
-            CCoinControl coinControl;
             CWalletTx wtx;
             CAmount nFeeRet = 0;
             int nChangePosInOut = -1;
@@ -432,7 +439,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
 
             CReserveKey reservekey(pwalletMain);
             pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
-                                           nullptr, true, 0, true, vTxouts);
+                                           &coinControl, true, 0, true, vTxouts);
 
             ASSERT_FAILURE("Insufficient funds");
         }
@@ -447,7 +454,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
 
             CReserveKey reservekey(pwalletMain);
             pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
-                                           nullptr, true, 0, true, vTxouts);
+                                           &coinControl, true, 0, true, vTxouts);
 
 
             ASSERT_SUCCESS();
@@ -468,7 +475,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
 
             CReserveKey reservekey(pwalletMain);
             pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
-                                           nullptr, true, 0, false, vTxouts);
+                                           &coinControl, true, 0, false, vTxouts);
 
             ASSERT_FAILURE("Insufficient funds");
         }
@@ -477,7 +484,8 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     BOOST_AUTO_TEST_CASE(change_position) {
         ACQUIRE_LOCKS();
 
-        std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 17, 1 << 16, 1 << 15, 1 << 14, 1 << 13});
+        std::vector<CTransparentTxout> vTxouts = GetFakeTransparentTxouts({1 << 17, 1 << 16, 1 << 15, 1 << 14,
+                                                                           1 << 13});
         std::vector<CRecipient> vRecipients = GetFakeRecipients({1 << 17, 1 << 13, 1 << 16});
 
         {
