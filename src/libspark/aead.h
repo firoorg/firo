@@ -25,7 +25,7 @@ struct AEADEncryptedData {
 
 		// Key commitment must be the correct size, which also includes an encoded size
 		READWRITE(key_commitment);
-		if (key_commitment.size() != 1 + AEAD_COMMIT_SIZE) {
+		if (key_commitment.size() != AEAD_COMMIT_SIZE) {
 			std::cout << "Bad keycom size " << key_commitment.size() << std::endl;
 			throw std::invalid_argument("Cannot deserialize AEAD data due to bad key commitment size");
 		}
