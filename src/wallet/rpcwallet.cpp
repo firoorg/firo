@@ -260,6 +260,8 @@ UniValue getnewexchangeaddress(const JSONRPCRequest& request)
     CBitcoinAddress newAddress;
     newAddress.SetExchange(keyID);
 
+    pwallet->SetAddressBook(newAddress.Get(), "", "receive");
+
     return newAddress.ToString();
 }
 
