@@ -255,7 +255,7 @@ public:
     //! Map id to <hash of the set>
     std::map<int, std::vector<unsigned char>> sparkSetHash;
     //! map spark coin S to tx hash, this is used when you run with -mobile
-    std::unordered_map<GroupElement, uint256> sparkTxHash;
+    std::unordered_map<GroupElement, std::pair<uint256, std::vector<unsigned char>>> sparkTxHashContext;
 
     //! Values of coin serials spent in this block
     sigma::spend_info_container sigmaSpentSerials;
@@ -303,7 +303,7 @@ public:
         sparkMintedCoins.clear();
         sparkSetHash.clear();
         spentLTags.clear();
-        sparkTxHash.clear();
+        sparkTxHashContext.clear();
         sigmaSpentSerials.clear();
         lelantusSpentSerials.clear();
         activeDisablingSporks.clear();
@@ -562,7 +562,7 @@ public:
             READWRITE(spentLTags);
 
             if (GetBoolArg("-mobile", false)) {
-                READWRITE(sparkTxHash);
+                READWRITE(sparkTxHashContext);
             }
         }
 
