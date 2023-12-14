@@ -212,6 +212,7 @@ std::string ScriptType(const CScript &script) {
     else if (script.IsSparkMint()) return "spark-mint";
     else if (script.IsSparkSMint()) return "spark-smint";
     else if (script.IsSparkSpend()) return "spark-spend";
+    else if (script.IsPayToExchangeAddress()) return "pay-to-exchange-address";
     else return "unknown";
 }
 
@@ -302,8 +303,8 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
     for (const CTxOut &txout: wtx.tx->vout) {
         n += 1;
 
-        // IsChange incorrectly reports mining outputs as change.
-        bool fIsChange = !fIsMining && wtx.IsChange(n);
+        // IsChange incorrectly reports mining outputs and exchange address payments as change.
+        bool fIsChange = !fIsMining && wtx.IsChange(n) && !txout.scriptPubKey.IsPayToExchangeAddress();
         bool fIsToMe = false;
         bool fHasSparkSpend = false;
         std::optional<std::string> sparkMemo;

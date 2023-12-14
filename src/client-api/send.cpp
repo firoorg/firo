@@ -192,6 +192,8 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
             if (!pwalletMain->CommitTransaction(wtx, keyChange, g_connman.get(), state))
                 throw JSONAPIError(API_WALLET_ERROR, "Transaction commit failed");
 
+            GetMainSignals().WalletTransaction(wtx);
+
             UniValue retval(UniValue::VOBJ);
             retval.push_back(Pair("txid",  wtx.GetHash().GetHex()));
             return retval;
