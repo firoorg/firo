@@ -1291,12 +1291,12 @@ SendGoPrivateDialog::SendGoPrivateDialog():QMessageBox()
 void SendGoPrivateDialog::onIgnoreClicked()
 {
     setVisible(false);
-    clickedButton = false;
+    clickedButton = true;
 }
 void SendGoPrivateDialog::onGoPrivateClicked()
 {
     setVisible(false);
-    clickedButton = true;
+    clickedButton = false;
 }
 
 bool SendGoPrivateDialog::getClickedButton()
