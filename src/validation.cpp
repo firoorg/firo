@@ -3360,7 +3360,9 @@ void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block)
 
             if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
                 try {
-                    spark::Coin txCoin;
+                    const spark::Params* params = spark::Params::get_default();
+
+                    spark::Coin txCoin(params);
                     spark::ParseSparkMintCoin(txout.scriptPubKey, txCoin);
                     sparkState->RemoveMintFromMempool(txCoin);
                 } catch (std::invalid_argument&) {
