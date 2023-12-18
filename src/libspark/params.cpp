@@ -17,7 +17,7 @@ Params const* Params::get_default() {
             return instance.get();
         }
 
-        std::size_t memo_bytes = 32;
+        std::size_t memo_bytes = 31; // 32 bytes after length prepending!
         std::size_t max_M_range = 16;
         std::size_t n_grootle = 8;
         std::size_t m_grootle = 5;
@@ -37,7 +37,7 @@ Params const* Params::get_test() {
             return instance.get();
         }
 
-        std::size_t memo_bytes = 32;
+        std::size_t memo_bytes = 31; // 32 bytes after length prepending!
         std::size_t max_M_range = 16;
         std::size_t n_grootle = 2;
         std::size_t m_grootle = 4;

@@ -28,7 +28,8 @@ BOOST_AUTO_TEST_CASE(mint_identify_recover)
     
     const uint64_t i = 12345;
     const uint64_t v = 86;
-    const std::string memo = "Spam and eggs";
+    const std::string memo = "Spam and eggs are a tasty dish!"; // maximum length
+    BOOST_CHECK_EQUAL(memo.size(), params->get_memo_bytes());
 
     // Generate keys
     SpendKey spend_key(params);
@@ -57,8 +58,8 @@ BOOST_AUTO_TEST_CASE(mint_identify_recover)
     BOOST_CHECK_EQUAL_COLLECTIONS(i_data.d.begin(), i_data.d.end(), address.get_d().begin(), address.get_d().end());
     BOOST_CHECK_EQUAL(i_data.v, v);
     BOOST_CHECK_EQUAL(i_data.k, k);
-    BOOST_CHECK_EQUAL(strcmp(memo.c_str(), i_data.memo.c_str()), 0); // compare strings in a lexicographical manner, as we pad the memo in the coin
-    BOOST_CHECK_EQUAL(i_data.memo.size(), params->get_memo_bytes()); // check that it is padded
+    BOOST_CHECK_EQUAL(i_data.memo, memo);
+
     // Recover coin
     RecoveredCoinData r_data = coin.recover(full_view_key, i_data);
     BOOST_CHECK_EQUAL(
@@ -105,8 +106,7 @@ BOOST_AUTO_TEST_CASE(spend_identify_recover)
     BOOST_CHECK_EQUAL_COLLECTIONS(i_data.d.begin(), i_data.d.end(), address.get_d().begin(), address.get_d().end());
     BOOST_CHECK_EQUAL(i_data.v, v);
     BOOST_CHECK_EQUAL(i_data.k, k);
-    BOOST_CHECK_EQUAL(strcmp(memo.c_str(), i_data.memo.c_str()), 0); // compare strings in a lexicographical manner, as we pad the memo in the coin
-    BOOST_CHECK_EQUAL(i_data.memo.size(), params->get_memo_bytes()); // check that it is padded
+    BOOST_CHECK_EQUAL(i_data.memo, memo);
 
     // Recover coin
     RecoveredCoinData r_data = coin.recover(full_view_key, i_data);
