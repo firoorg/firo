@@ -797,7 +797,7 @@ bool CHDMintWallet::CreateMintSeed(CWalletDB& walletdb, uint512& mintSeed, const
 
     if(seedId.IsNull()){
         CPubKey pubKey;
-        int32_t chainIndex = pwalletMain->GetHDChain().nExternalChainCounters[BIP44_MINT_INDEX];
+        int32_t chainIndex = pwalletMain->GetHDChain().nExternalChainCounters.at(BIP44_MINT_INDEX);
         if(nCount==chainIndex){
             // If chainIndex is the same as n (ie. we are generating next available key), generate a new key.
             pubKey = pwalletMain->GenerateNewKey(BIP44_MINT_INDEX, fWriteChain);
