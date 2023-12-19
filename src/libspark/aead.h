@@ -15,8 +15,20 @@ struct AEADEncryptedData {
 	template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(ciphertext);
+
+		// Tag must be the correct size
 		READWRITE(tag);
+		if (tag.size() != AEAD_TAG_SIZE) {
+			std::cout << "Bad tag size " << tag.size() << std::endl;
+			throw std::invalid_argument("Cannot deserialize AEAD data due to bad tag");
+		}
+
+		// Key commitment must be the correct size, which also includes an encoded size
 		READWRITE(key_commitment);
+		if (key_commitment.size() != AEAD_COMMIT_SIZE) {
+			std::cout << "Bad keycom size " << key_commitment.size() << std::endl;
+			throw std::invalid_argument("Cannot deserialize AEAD data due to bad key commitment size");
+		}
     }
 };
 
