@@ -43,15 +43,18 @@ uint64_t SparkUtils::diversifier_decrypt(const std::vector<unsigned char>& key, 
     std::vector<unsigned char> iv;
     iv.resize(AES_BLOCKSIZE);
 
+    // Decrypt using padded AES-256 (CBC) using a zero IV, ensuring that the decrypted data is the expected length
     AES256CBCDecrypt aes(key.data(), iv.data(), true);
     std::vector<unsigned char> plaintext;
     plaintext.resize(AES_BLOCKSIZE);
-    aes.Decrypt(d.data(), d.size(), plaintext.data());
+    int length = aes.Decrypt(d.data(), d.size(), plaintext.data());
+    if (length != sizeof(uint64_t)) {
+        throw std::runtime_error("Invalid diversifier length");
+    }
 
-    // Decrypt using padded AES-256 (CBC) using a zero IV
+    // Deserialize the diversifier
     CDataStream i_stream(SER_NETWORK, PROTOCOL_VERSION);
     i_stream.write((const char *)plaintext.data(), sizeof(uint64_t));
-    // Deserialize the diversifier
     uint64_t i;
     i_stream >> i;
 
