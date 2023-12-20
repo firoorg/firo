@@ -75,7 +75,12 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
     GenerateBlocks(1100);
 
     std::vector<CMutableTransaction> txs;
-    auto mints = GenerateMints({1 * COIN, 2 * COIN, 1 * CENT}, txs);
+    auto mints = GenerateMints({1 * COIN, 2 * COIN, 3 * COIN}, txs);
+
+    sort(mints.begin(), mints.end(),
+    [](const CSparkMintMeta& a, const CSparkMintMeta& b)->bool {
+        return a.v < b.v;
+    });
 
     mempool.clear();
     auto blockIdx1 = GenerateBlock({txs[0]});

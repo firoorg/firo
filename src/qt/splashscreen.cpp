@@ -20,9 +20,6 @@
 #include "wallet/wallet.h"
 #endif
 
-#include "elysium/version.h"
-#include "elysium/utilsbitcoin.h"
-
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDesktopWidget>

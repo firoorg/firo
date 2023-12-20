@@ -478,39 +478,6 @@ BOOST_AUTO_TEST_CASE(valid_ascii)
             SanitizeInvalidUTF8("`abcdefghijklmnopqrstuvwxyz{|}~"));
 }
 
-BOOST_AUTO_TEST_CASE(elysium_getproperty_2147483662)
-{
-    BOOST_CHECK_EQUAL(
-            "{"
-            "    \"propertyid\" : 2147483662,"
-            "    \"name\" : \"Test?\","
-            "    \"category\" : \"Test?\","
-            "    \"subcategory\" : \"Test?\","
-            "    \"data\" : \"n/a\","
-            "    \"url\" : \"n/a\","
-            "    \"divisible\" : false,"
-            "    \"issuer\" : \"1EHdm4svRkVHf9vu7EvJ6aWjwhw7sHUchN\","
-            "    \"creationtxid\" : \"9e8ffcbdc021ffef16f7f694220a3fb18e037e7ecc53ce6039f9841dfa410cbd\","
-            "    \"fixedissuance\" : false,"
-            "    \"totaltokens\" : \"63\""
-            "}",
-        SanitizeInvalidUTF8(
-            "{"
-            "    \"propertyid\" : 2147483662,"
-            "    \"name\" : \"Test\x8b\","
-            "    \"category\" : \"Test\x8b\","
-            "    \"subcategory\" : \"Test\x8b\","
-            "    \"data\" : \"n/a\","
-            "    \"url\" : \"n/a\","
-            "    \"divisible\" : false,"
-            "    \"issuer\" : \"1EHdm4svRkVHf9vu7EvJ6aWjwhw7sHUchN\","
-            "    \"creationtxid\" : \"9e8ffcbdc021ffef16f7f694220a3fb18e037e7ecc53ce6039f9841dfa410cbd\","
-            "    \"fixedissuance\" : false,"
-            "    \"totaltokens\" : \"63\""
-            "}"
-    ));
-}
-
 BOOST_AUTO_TEST_CASE(various_valid_strings)
 {
     BOOST_CHECK_EQUAL("a€b€c€d@",

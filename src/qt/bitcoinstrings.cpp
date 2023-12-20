@@ -57,14 +57,6 @@ QT_TRANSLATE_NOOP("firo-core", ""
 "Delete all wallet transactions and only recover those parts of the "
 "blockchain through -rescan on startup"),
 QT_TRANSLATE_NOOP("firo-core", ""
-"Disabled transaction index detected.\n"
-"\n"
-"Exodus requires an enabled transaction index. To enable transaction "
-"indexing, please use the \"-txindex\" option as command line argument or add "
-"\"txindex=1\" to your client configuration file within your data directory.\n"
-"\n"
-"Configuration file"),
-QT_TRANSLATE_NOOP("firo-core", ""
 "Discover own IP addresses (default: 1 when listening and no -externalip or -"
 "proxy)"),
 QT_TRANSLATE_NOOP("firo-core", ""
@@ -159,10 +151,6 @@ QT_TRANSLATE_NOOP("firo-core", ""
 "Output debugging information (default: %u, supplying <category> is optional)"),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Output only the hex-encoded transaction id of the resultant transaction."),
-QT_TRANSLATE_NOOP("firo-core", ""
-"Please add txindex=1 to your configuration file manually.\n"
-"\n"
-"Exodus will now shutdown."),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Please add txindex=1 to your configuration file manually.\n"
 "\n"
@@ -305,9 +293,6 @@ QT_TRANSLATE_NOOP("firo-core", ""
 "Whitelisted peers cannot be DoS banned and their transactions are always "
 "relayed, even if they are already in the mempool, useful e.g. for a gateway"),
 QT_TRANSLATE_NOOP("firo-core", ""
-"Would you like Exodus to attempt to update your configuration file "
-"accordingly?"),
-QT_TRANSLATE_NOOP("firo-core", ""
 "You must specify a znodeprivkey in the configuration. Please see "
 "documentation for help."),
 QT_TRANSLATE_NOOP("firo-core", ""
@@ -315,11 +300,6 @@ QT_TRANSLATE_NOOP("firo-core", ""
 "mode.  This will redownload the entire blockchain"),
 QT_TRANSLATE_NOOP("firo-core", ""
 "You need to rebuild the database using -reindex-chainstate to change -txindex"),
-QT_TRANSLATE_NOOP("firo-core", ""
-"Your configuration file has been updated.\n"
-"\n"
-"Exodus will now shutdown - please restart the client for your new "
-"configuration to take effect."),
 QT_TRANSLATE_NOOP("firo-core", ""
 "it has to have at least two mint coins with at least 2 confirmation in order "
 "to spend a coin"),
@@ -483,7 +463,6 @@ QT_TRANSLATE_NOOP("firo-core", "One of minted coin does not found in the chain")
 QT_TRANSLATE_NOOP("firo-core", "One of the minted coin is invalid"),
 QT_TRANSLATE_NOOP("firo-core", "Only connect to nodes in network <net> (ipv4, ipv6 or onion)"),
 QT_TRANSLATE_NOOP("firo-core", "Options:"),
-QT_TRANSLATE_NOOP("firo-core", "Parsing Exodus transactions..."),
 QT_TRANSLATE_NOOP("firo-core", "Pass named instead of positional arguments (default: %s)"),
 QT_TRANSLATE_NOOP("firo-core", "Password for JSON-RPC connections"),
 QT_TRANSLATE_NOOP("firo-core", "Port: %d"),

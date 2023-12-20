@@ -119,15 +119,6 @@ QT_FORMS_UI = \
   qt/forms/sendtopcodedialog.ui \
   qt/forms/signverifymessagedialog.ui \
   qt/forms/transactiondescdialog.ui \
-  qt/forms/sendmpdialog.ui \
-  qt/forms/lookupaddressdialog.ui \
-  qt/forms/lookupspdialog.ui \
-  qt/forms/lookuptxdialog.ui \
-  qt/forms/txhistorydialog.ui \
-  qt/forms/metadexcanceldialog.ui \
-  qt/forms/metadexdialog.ui \
-  qt/forms/tradehistorydialog.ui \
-  qt/forms/elyassetsdialog.ui \
   qt/forms/lelantusdialog.ui \
   qt/forms/createpcodedialog.ui
 
@@ -186,15 +177,6 @@ QT_MOC_CPP = \
   qt/moc_walletframe.cpp \
   qt/moc_walletmodel.cpp \
   qt/moc_walletview.cpp \
-  qt/moc_sendmpdialog.cpp \
-  qt/moc_lookupaddressdialog.cpp \
-  qt/moc_lookupspdialog.cpp \
-  qt/moc_lookuptxdialog.cpp \
-  qt/moc_txhistorydialog.cpp \
-  qt/moc_elyassetsdialog.cpp \
-  qt/moc_metadexdialog.cpp \
-  qt/moc_metadexcanceldialog.cpp \
-  qt/moc_tradehistorydialog.cpp \
   qt/moc_lelantusmodel.cpp \
   qt/moc_lelantusdialog.cpp \
   qt/moc_lelantuscoincontroldialog.cpp \
@@ -286,16 +268,6 @@ BITCOIN_QT_H = \
   qt/walletmodeltransaction.h \
   qt/walletview.h \
   qt/winshutdownmonitor.h \
-  qt/lookupaddressdialog.h \
-  qt/lookupspdialog.h \
-  qt/lookuptxdialog.h \
-  qt/txhistorydialog.h \
-  qt/elyassetsdialog.h \
-  qt/metadexdialog.h \
-  qt/metadexcanceldialog.h \
-  qt/tradehistorydialog.h \
-  qt/sendmpdialog.h \
-  qt/elysium_qtutils.h \
   qt/lelantusmodel.h \
   qt/lelantusdialog.h \
   qt/lelantuscoincontroldialog.h \
@@ -355,11 +327,6 @@ RES_ICONS = \
   qt/res/icons/meta_partcancelled.png \
   qt/res/icons/meta_partfilled.png \
   qt/res/icons/meta_pending.png \
-  qt/res/icons/elysium_in.png \
-  qt/res/icons/elysium_inout.png \
-  qt/res/icons/elysium_invalid.png \
-  qt/res/icons/elysium_out.png \
-  qt/res/icons/elysium_hourglass.png \
   qt/res/icons/network_disabled.png \
   qt/res/icons/open.png \
   qt/res/icons/overview.png \
@@ -455,8 +422,7 @@ BITCOIN_QT_BASE_CPP = \
   qt/rpcconsole.cpp \
   qt/splashscreen.cpp \
   qt/trafficgraphwidget.cpp \
-  qt/utilitydialog.cpp \
-  qt/elysium_qtutils.cpp
+  qt/utilitydialog.cpp
 
 BITCOIN_QT_WINDOWS_CPP = qt/winshutdownmonitor.cpp
 
@@ -500,26 +466,12 @@ BITCOIN_QT_WALLET_CPP = \
   qt/automintmodel.cpp \
   qt/sparkmodel.cpp
 
-FIRO_QT_ELYSIUM_CPP = \
-  qt/elyassetsdialog.cpp \
-  qt/lookupaddressdialog.cpp \
-  qt/lookupspdialog.cpp \
-  qt/lookuptxdialog.cpp \
-  qt/metadexcanceldialog.cpp \
-  qt/metadexdialog.cpp \
-  qt/sendmpdialog.cpp \
-  qt/tradehistorydialog.cpp \
-  qt/txhistorydialog.cpp
-
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)
 if TARGET_WINDOWS
 BITCOIN_QT_CPP += $(BITCOIN_QT_WINDOWS_CPP)
 endif
 if ENABLE_WALLET
 BITCOIN_QT_CPP += $(BITCOIN_QT_WALLET_CPP)
-endif
-if ENABLE_ELYSIUM
-BITCOIN_QT_CPP += $(FIRO_QT_ELYSIUM_CPP)
 endif
 
 RES_IMAGES = \

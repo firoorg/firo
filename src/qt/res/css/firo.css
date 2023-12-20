@@ -1246,33 +1246,10 @@ QDialog#LelantusDialog QRadioButton#radioCustomFee {
     margin-top: 7px;
 }
 
-/* LookupAddressDialog */
-
-QWidget#LookupAddressDialog QLabel#addressInfo,
-QWidget#LookupAddressDialog QLabel#balanceInfo {
-    font-weight: bold;
-}
-
-/* LookupSPDialog */
-
-QWidget#LookupSPDialog QLabel#spInfo,
-QWidget#LookupSPDialog QLabel#tokenInfo,
-QWidget#LookupSPDialog QLabel#crowdInfo {
-    font-weight: bold;
-}
-
 /* ManualMintDialog */
 
 QDialog#ManualMintDialog QLabel#availableAmount,
 QDialog#ManualMintDialog QLabel#totalAmount {
-    font-weight: bold;
-}
-
-/* MetaDExCancelDialog */
-
-QWidget#MetaDExCancelDialog QLabel#label_3,
-QWidget#MetaDExCancelDialog QLabel#label_2,
-QWidget#MetaDExCancelDialog QLabel#label {
     font-weight: bold;
 }
 

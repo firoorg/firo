@@ -104,12 +104,6 @@ AC_ARG_WITH([bdb],
     [use_bdb=$withval],
     [use_bdb=auto])
 
-
-AC_ARG_ENABLE([elysium],
-  [AS_HELP_STRING([--enable-elysium],[enable elysium (disabled by default)])],
-  [enable_elysium=$enableval],
-  [enable_elysium=no])
-
 AC_ARG_WITH([miniupnpc],
   [AS_HELP_STRING([--with-miniupnpc],
   [enable UPNP (default is yes if libminiupnpc is found)])],
@@ -1053,15 +1047,6 @@ else
   AC_MSG_RESULT(no)
 fi
 
-dnl enable elysium
-AC_MSG_CHECKING([if elysium should be enabled])
-if test x$enable_elysium != xno; then
-  AC_MSG_RESULT(yes)
-  AC_DEFINE_UNQUOTED([ENABLE_ELYSIUM],[1],[Define if elysium should be compiled in])
-else
-  AC_MSG_RESULT(no)
-fi
-
 dnl enable upnp support
 AC_MSG_CHECKING([whether to build with support for UPnP])
 if test x$have_miniupnpc = xno; then
@@ -1171,7 +1156,6 @@ AM_CONDITIONAL([TARGET_DARWIN], [test x$TARGET_OS = xdarwin])
 AM_CONDITIONAL([BUILD_DARWIN], [test x$BUILD_OS = xdarwin])
 AM_CONDITIONAL([TARGET_WINDOWS], [test x$TARGET_OS = xwindows])
 AM_CONDITIONAL([ENABLE_WALLET],[test x$enable_wallet = xyes])
-AM_CONDITIONAL([ENABLE_ELYSIUM],[test x$enable_elysium = xyes])
 AM_CONDITIONAL([ENABLE_TESTS],[test x$BUILD_TEST = xyes])
 AM_CONDITIONAL([ENABLE_QT],[test x$bitcoin_enable_qt = xyes])
 AM_CONDITIONAL([ENABLE_QT_TESTS],[test x$BUILD_TEST_QT = xyes])
@@ -1328,4 +1312,4 @@ echo "  CPPFLAGS      = $CPPFLAGS"
 echo "  CXX           = $CXX"
 echo "  CXXFLAGS      = $CXXFLAGS"
 echo "  LDFLAGS       = $LDFLAGS"
-echo 
+echo

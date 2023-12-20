@@ -18,7 +18,6 @@ FORMS += \
     ../src/qt/forms/signverifymessagedialog.ui \
     ../src/qt/forms/transactiondescdialog.ui \
     ../src/qt/forms/zerocoinpage.ui \
-    ../src/qt/forms/sendmpdialog.ui \
     ../src/qt/forms/sendcoinsdialog.ui \
 
 RESOURCES += \

@@ -130,9 +130,6 @@ bool fSkipMnpayoutCheck = false;
 std::atomic<bool> fReopenDebugLog(false);
 CTranslationInterface translationInterface;
 
-/** Flag to indicate, whether the Elysium log file should be reopened. */
-std::atomic<bool> fReopenElysiumLog(false);
-
 /** Init OpenSSL library multithreading support */
 static CCriticalSection** ppmutexOpenSSL;
 void locking_callback(int mode, int i, const char* file, int line) NO_THREAD_SAFETY_ANALYSIS

@@ -25,7 +25,7 @@ pipeline {
                 sh 'mkdir -p dist'
                 sh 'tar -C dist --strip-components=1 -xzf firo-*.tar.gz'
                 dir('dist') {
-                    sh './configure --prefix=`pwd`/../depends/x86_64-linux-gnu --enable-elysium --enable-tests --enable-crash-hooks'
+                    sh './configure --prefix=`pwd`/../depends/x86_64-linux-gnu --enable-tests --enable-crash-hooks'
                     sh 'make -j`nproc`'
                 }
             }

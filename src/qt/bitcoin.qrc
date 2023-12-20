@@ -59,17 +59,6 @@
         <file alias="tools">res/icons/tools.png</file>
         <file alias="exchange">res/icons/exchange.png</file>
         <file alias="balances">res/icons/balances.png</file>
-        <file alias="elysium_in">res/icons/elysium_in.png</file>
-        <file alias="elysium_inout">res/icons/elysium_inout.png</file>
-        <file alias="elysium_invalid">res/icons/elysium_invalid.png</file>
-        <file alias="elysium_out">res/icons/elysium_out.png</file>
-        <file alias="elysium_meta_cancelled">res/icons/meta_cancelled.png</file>
-        <file alias="elysium_meta_filled">res/icons/meta_filled.png</file>
-        <file alias="elysium_meta_open">res/icons/meta_open.png</file>
-        <file alias="elysium_meta_partcancelled">res/icons/meta_partcancelled.png</file>
-        <file alias="elysium_meta_partfilled">res/icons/meta_partfilled.png</file>
-        <file alias="elysium_meta_pending">res/icons/meta_pending.png</file>
-        <file alias="elysium_hourglass">res/icons/elysium_hourglass.png</file>
         <file alias="lelantus">res/icons/lelantus.png</file>
         <file alias="paymentcode">res/icons/paymentcode.png</file>
         <file alias="ext_add">res/icons/ext_add.png</file>

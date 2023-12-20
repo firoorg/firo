@@ -60,18 +60,11 @@ public Q_SLOTS:
         const CAmount& privateBalance,
         const CAmount& unconfirmedPrivateBalance,
         const CAmount& anonymizableBalance);
-    //void updateElysium();
-    //void reinitElysium();
 
 Q_SIGNALS:
     void transactionClicked(const QModelIndex &index);
     void enabledTorChanged();
     void outOfSyncWarningClicked();
-
-#ifdef ENABLE_ELYSIUM
-    void elysiumTransactionClicked(const uint256& txid);
-#endif
-
 private:
     Ui::OverviewPage *ui;
     ClientModel *clientModel;
