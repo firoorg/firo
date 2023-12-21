@@ -122,12 +122,13 @@ public:
 		// For mint coins: encrypted diversifier (with size), encoded nonce, padded memo (with size), unpadded memo length
 		// For spend coins: encoded value, encrypted diversifier (with size), encoded nonce, padded memo (with size), unpadded memo length
 		READWRITE(r_);
+		if (ser_action.ForRead()) {
+			this->params = spark::Params::get_default();
+		}
 		if (type == COIN_TYPE_MINT && r_.ciphertext.size() != (1 + AES_BLOCKSIZE) + SCALAR_ENCODING + (1 + params->get_memo_bytes() + 1)) {
-			std::cout << "Data size " << r_.ciphertext.size() << " but expected " << (AES_BLOCKSIZE + SCALAR_ENCODING + params->get_memo_bytes()) << std::endl;
 			throw std::invalid_argument("Cannot deserialize mint coin due to bad encrypted data");
 		}
 		if (type == COIN_TYPE_SPEND && r_.ciphertext.size() != 8 + (1 + AES_BLOCKSIZE) + SCALAR_ENCODING + (1 + params->get_memo_bytes() + 1)) {
-			std::cout << "Data size " << r_.ciphertext.size() << " but expected " << (8 + AES_BLOCKSIZE + SCALAR_ENCODING + params->get_memo_bytes()) << std::endl;
 			throw std::invalid_argument("Cannot deserialize spend coin due to bad encrypted data");
 		}
 
