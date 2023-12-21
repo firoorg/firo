@@ -804,6 +804,19 @@ UniValue dumpwallet(const JSONRPCRequest& request)
         }
     }
 
+    if (pwallet->sparkWallet) {
+        file << "\n";
+        CKey key;
+        uint32_t nCount;
+        {
+            LOCK(pwalletMain->cs_wallet);
+            nCount = GetArg("-sparkncount", 1);
+            pwalletMain->GetKeyFromKeypath(BIP44_SPARK_INDEX, nCount, key);
+        }
+
+        file << strprintf("# Spark key secret %s\n", CBitcoinSecret(key).ToString());
+    }
+
     file << "\n";
     file << "# End of dump\n";
     file.close();
