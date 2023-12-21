@@ -1017,7 +1017,12 @@ void CSparkState::AddMintsToStateAndBlockIndex(
         if (GetBoolArg("-mobile", false)) {
             COutPoint outPoint;
             GetOutPointFromBlock(outPoint, mint, *pblock);
-            index->sparkTxHash[mint.S] = outPoint.hash;
+            CTransactionRef tx;
+            for (CTransactionRef itr : pblock->vtx) {
+                if (outPoint.hash == itr->GetHash())
+                    tx = itr;
+            }
+            index->sparkTxHashContext[mint.S] = {outPoint.hash, getSerialContext(*tx)};
         }
     }
 }
@@ -1257,7 +1262,7 @@ void CSparkState::GetCoinsForRecovery(
         int coinGroupID,
         std::string start_block_hash,
         uint256& blockHash_out,
-        std::vector<std::pair<spark::Coin, uint256>>& coins,
+        std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins,
         std::vector<unsigned char>& setHash_out) {
     coins.clear();
     if (coinGroups.count(coinGroupID) == 0) {
@@ -1290,10 +1295,10 @@ void CSparkState::GetCoinsForRecovery(
             numberOfCoins += block->sparkMintedCoins[id].size();
             if (block->sparkMintedCoins.count(id) > 0) {
                 for (const auto &coin : block->sparkMintedCoins[id]) {
-                    uint256 txHash;
-                    if (block->sparkTxHash.count(coin.S))
-                        txHash = block->sparkTxHash[coin.S];
-                    coins.push_back({coin, txHash});
+                    std::pair<uint256, std::vector<unsigned char>> txHashContext;
+                    if (block->sparkTxHashContext.count(coin.S))
+                        txHashContext = block->sparkTxHashContext[coin.S];
+                    coins.push_back({coin, txHashContext});
                 }
             }
         }

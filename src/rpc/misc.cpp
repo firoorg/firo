@@ -1235,7 +1235,7 @@ UniValue getsparkanonymityset(const JSONRPCRequest& request)
     }
 
     uint256 blockHash;
-    std::vector<std::pair<spark::Coin, uint256>> coins;
+    std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>> coins;
     std::vector<unsigned char> setHash;
 
     {
@@ -1261,7 +1261,8 @@ UniValue getsparkanonymityset(const JSONRPCRequest& request)
 
         std::vector<UniValue> data;
         data.push_back(EncodeBase64(vch.data(), size_t(vch.size()))); // coin
-        data.push_back(EncodeBase64(coin.second.begin(), coin.second.size())); // tx hash
+        data.push_back(EncodeBase64(coin.second.first.begin(), coin.second.first.size())); // tx hash
+        data.push_back(EncodeBase64(coin.second.second.data(), coin.second.second.size())); // spark serial context
 
         UniValue entity(UniValue::VARR);
         entity.push_backV(data);
