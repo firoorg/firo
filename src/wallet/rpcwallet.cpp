@@ -3360,8 +3360,18 @@ UniValue listsparkmints(const JSONRPCRequest& request) {
     UniValue results(UniValue::VARR);;
     assert(pwallet != NULL);
 
-    std::unordered_map<uint256, CSparkMintMeta> coins = pwallet->sparkWallet->getMintMap();
-    LogPrintf("coins.size()=%s\n", coins.size());
+    std::unordered_map<uint256, CSparkMintMeta> coins_ = pwallet->sparkWallet->getMintMap();
+
+    // sort the result so you can easily compare when testing
+    std::vector<std::pair<uint256, CSparkMintMeta> > coins(coins_.begin(), coins_.end());
+    sort(coins.begin(), coins.end(),
+         [](decltype(coins)::const_reference m1, decltype(coins)::const_reference m2)->bool {
+             CDataStream ds1(SER_DISK, CLIENT_VERSION), ds2(SER_DISK, CLIENT_VERSION);
+             ds1 << m1;
+             ds2 << m2;
+             return ds1.str() < ds2.str();
+         });
+
     BOOST_FOREACH(const auto& coin, coins)
     {
         UniValue entry(UniValue::VOBJ);
@@ -3370,7 +3380,7 @@ UniValue listsparkmints(const JSONRPCRequest& request) {
         entry.push_back(Pair("nId", coin.second.nId));
         entry.push_back(Pair("isUsed", coin.second.isUsed));
         entry.push_back(Pair("lTagHash", coin.first.GetHex()));
-        entry.push_back(Pair("memo", coin.second.memo));
+        entry.push_back(Pair("memo", SanitizeString(coin.second.memo)));
 
         CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
         serialized << pwallet->sparkWallet->getCoinFromMeta(coin.second);
@@ -3916,6 +3926,46 @@ UniValue lelantustospark(const JSONRPCRequest& request) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus to Spark failed. " + strFailReason);
 
     return NullUniValue;
+}
+
+UniValue identifysparkcoins(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+                "identifysparkcoin \"txHash\"\n"
+                "Identifies coins in transaction, and adds into wallet if yours");
+
+    EnsureSparkWalletIsAvailable();
+
+    uint256 txHash;
+    txHash.SetHex(request.params[0].get_str());
+
+    CTransactionRef tx;
+    uint256 hashBlock;
+    GetTransaction(txHash, tx,  Params().GetConsensus(), hashBlock);
+    CWalletDB walletdb(pwallet->strWalletFile);
+
+    UniValue results(UniValue::VOBJ);
+    results.push_back(Pair("Old availableBalance",pwallet->sparkWallet->getAvailableBalance()));
+    results.push_back(Pair("Old unconfirmedBalance",pwallet->sparkWallet->getUnconfirmedBalance()));
+    results.push_back(Pair("Old fullBalance",pwallet->sparkWallet->getFullBalance()));
+
+    if (tx->IsSparkTransaction()) {
+        auto coins =  spark::GetSparkMintCoins(*tx);
+        uint256 txHash = tx->GetHash();
+        pwallet->sparkWallet->UpdateMintState(coins, txHash, walletdb);
+    }
+
+    results.push_back(Pair("availableBalance",pwallet->sparkWallet->getAvailableBalance()));
+    results.push_back(Pair("unconfirmedBalance",pwallet->sparkWallet->getUnconfirmedBalance()));
+    results.push_back(Pair("fullBalance",pwallet->sparkWallet->getFullBalance()));
+
+    return results;
 }
 
 UniValue mint(const JSONRPCRequest& request)
@@ -5669,6 +5719,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "automintspark",          &automintspark,          false },
     { "wallet",             "spendspark",             &spendspark,             false },
     { "wallet",             "lelantustospark",        &lelantustospark,        false },
+    { "wallet",             "identifysparkcoins",     &identifysparkcoins,     false },
+
 
     //bip47
     { "bip47",              "createrapaddress",         &createrapaddress,         true },
