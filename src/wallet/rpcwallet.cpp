@@ -3380,7 +3380,7 @@ UniValue listsparkmints(const JSONRPCRequest& request) {
         entry.push_back(Pair("nId", coin.second.nId));
         entry.push_back(Pair("isUsed", coin.second.isUsed));
         entry.push_back(Pair("lTagHash", coin.first.GetHex()));
-        entry.push_back(Pair("memo", coin.second.memo));
+        entry.push_back(Pair("memo", SanitizeString(coin.second.memo)));
 
         CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
         serialized << pwallet->sparkWallet->getCoinFromMeta(coin.second);
