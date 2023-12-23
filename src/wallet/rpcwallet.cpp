@@ -3361,7 +3361,6 @@ UniValue listsparkmints(const JSONRPCRequest& request) {
     assert(pwallet != NULL);
 
     std::unordered_map<uint256, CSparkMintMeta> coins_ = pwallet->sparkWallet->getMintMap();
-    LogPrintf("coins.size()=%s\n", coins_.size());
 
     // sort the result so you can easily compare when testing
     std::vector<std::pair<uint256, CSparkMintMeta> > coins(coins_.begin(), coins_.end());
@@ -3961,7 +3960,7 @@ UniValue identifysparkcoins(const JSONRPCRequest& request)
         uint256 txHash = tx->GetHash();
         pwallet->sparkWallet->UpdateMintState(coins, txHash, walletdb);
     }
-    
+
     results.push_back(Pair("availableBalance",pwallet->sparkWallet->getAvailableBalance()));
     results.push_back(Pair("unconfirmedBalance",pwallet->sparkWallet->getUnconfirmedBalance()));
     results.push_back(Pair("fullBalance",pwallet->sparkWallet->getFullBalance()));
