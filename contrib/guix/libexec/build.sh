@@ -290,6 +290,7 @@ mkdir -p "$DISTSRC"
                     --disable-maintainer-mode \
                     --disable-dependency-tracking \
             --enable-clientapi \
+	            --with-gui=no \
 		    --enable-crash-hooks \
 		    --without-libs \
                     ${CONFIGFLAGS} \
