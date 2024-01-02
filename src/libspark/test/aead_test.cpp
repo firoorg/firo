@@ -13,20 +13,28 @@ BOOST_AUTO_TEST_CASE(complete)
     GroupElement prekey;
     prekey.randomize();
 
-    // Serialize
+    // Serialize message
     int message = 12345;
-    CDataStream ser(SER_NETWORK, PROTOCOL_VERSION);
-    ser << message;
+    CDataStream ser_message(SER_NETWORK, PROTOCOL_VERSION);
+    ser_message << message;
 
     // Encrypt
-    AEADEncryptedData data = AEAD::encrypt(prekey, "Associated data", ser);
+    AEADEncryptedData data = AEAD::encrypt(prekey, "Associated data", ser_message);
+
+    // Serialize encrypted data
+    CDataStream ser_data(SER_NETWORK, PROTOCOL_VERSION);
+    ser_data << data;
+
+    // Deserialize encrypted data
+    AEADEncryptedData data_deser;
+    ser_data >> data_deser;
 
     // Decrypt
-    ser = AEAD::decrypt_and_verify(prekey, "Associated data", data);
+    ser_message = AEAD::decrypt_and_verify(prekey, "Associated data", data_deser);
 
     // Deserialize
     int message_;
-    ser >> message_;
+    ser_message >> message_;
 
     BOOST_CHECK_EQUAL(message_, message);
 }

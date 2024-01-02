@@ -630,7 +630,9 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         {
             if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
                 try {
-                    spark::Coin txCoin;
+                    const spark::Params* params = spark::Params::get_default();
+
+                    spark::Coin txCoin(params);
                     spark::ParseSparkMintCoin(txout.scriptPubKey, txCoin);
                     sparkState.RemoveMintFromMempool(txCoin);
                 }

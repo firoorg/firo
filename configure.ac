@@ -3,9 +3,9 @@ AC_PREREQ([2.60])
 define(_CLIENT_VERSION_MAJOR, 0)
 define(_CLIENT_VERSION_MINOR, 14)
 define(_CLIENT_VERSION_REVISION, 13)
-define(_CLIENT_VERSION_BUILD, 0)
+define(_CLIENT_VERSION_BUILD, 1)
 define(_CLIENT_VERSION_IS_RELEASE, true)
-define(_COPYRIGHT_YEAR, 2023)
+define(_COPYRIGHT_YEAR, 2024)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
 define(_COPYRIGHT_HOLDERS_SUBSTITUTION,[[Firo Core]])
 AC_INIT([Firo Core],[_CLIENT_VERSION_MAJOR._CLIENT_VERSION_MINOR._CLIENT_VERSION_REVISION],[https://github.com/firoorg/firo/issues],[firo],[https://firo.org/])
@@ -103,17 +103,6 @@ AC_ARG_WITH([bdb],
     [disable bdb wallet support (default is enabled if wallet is enabled)])],
     [use_bdb=$withval],
     [use_bdb=auto])
-
-
-AC_ARG_ENABLE([clientapi],
-  [AS_HELP_STRING([--enable-clientapi],[enable clientapi (disabled by default)])],
-  [enable_clientapi=$enableval],
-  [enable_clientapi=no])
-
-AC_ARG_ENABLE([elysium],
-  [AS_HELP_STRING([--enable-elysium],[enable elysium (disabled by default)])],
-  [enable_elysium=$enableval],
-  [enable_elysium=no])
 
 AC_ARG_WITH([miniupnpc],
   [AS_HELP_STRING([--with-miniupnpc],
@@ -929,7 +918,7 @@ else
 
     AC_CHECK_HEADER([minizip/zip.h],,AC_MSG_ERROR(zip.h not found))
     AC_CHECK_LIB([minizip],      [main],MINIZIP_LIBS=-lminizip, AC_MSG_ERROR(minizip not found))
-  fi 
+  fi
 
   if test "x$use_zmq" = "xyes"; then
     dnl Assume libzmq was built for static linking
@@ -1200,7 +1189,6 @@ AM_CONDITIONAL([TARGET_DARWIN], [test x$TARGET_OS = xdarwin])
 AM_CONDITIONAL([BUILD_DARWIN], [test x$BUILD_OS = xdarwin])
 AM_CONDITIONAL([TARGET_WINDOWS], [test x$TARGET_OS = xwindows])
 AM_CONDITIONAL([ENABLE_WALLET],[test x$enable_wallet = xyes])
-AM_CONDITIONAL([ENABLE_ELYSIUM],[test x$enable_elysium = xyes])
 AM_CONDITIONAL([ENABLE_TESTS],[test x$BUILD_TEST = xyes])
 AM_CONDITIONAL([ENABLE_QT],[test x$bitcoin_enable_qt = xyes])
 AM_CONDITIONAL([ENABLE_QT_TESTS],[test x$BUILD_TEST_QT = xyes])
@@ -1328,7 +1316,7 @@ case ${OS} in
    ;;
 esac
 
-echo 
+echo
 echo "Options used to compile and link:"
 echo "  with wallet   = $enable_wallet"
 echo "  with gui / qt = $bitcoin_enable_qt"
@@ -1348,7 +1336,7 @@ echo "  with upnp     = $use_upnp"
 echo "  debug enabled = $enable_debug"
 echo "  crash hooks enabled = $enable_crashhooks"
 echo "  werror        = $enable_werror"
-echo 
+echo
 echo "  target os     = $TARGET_OS"
 echo "  build os      = $BUILD_OS"
 echo
@@ -1358,4 +1346,4 @@ echo "  CPPFLAGS      = $CPPFLAGS"
 echo "  CXX           = $CXX"
 echo "  CXXFLAGS      = $CXXFLAGS"
 echo "  LDFLAGS       = $LDFLAGS"
-echo 
+echo

@@ -17,6 +17,16 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const p
 
 } // namespace std
 
+// Generate a random char vector from a random scalar
+static std::vector<unsigned char> random_char_vector() {
+    Scalar temp;
+    temp.randomize();
+    std::vector<unsigned char> result;
+    result.resize(spark::SCALAR_ENCODING);
+    temp.serialize(result.data());
+
+    return result;
+}
 
 class SparkStateTests : public SparkTestingSetup
 {
@@ -65,7 +75,12 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
     GenerateBlocks(1100);
 
     std::vector<CMutableTransaction> txs;
-    auto mints = GenerateMints({1 * COIN, 2 * COIN, 1 * CENT}, txs);
+    auto mints = GenerateMints({1 * COIN, 2 * COIN, 3 * COIN}, txs);
+
+    sort(mints.begin(), mints.end(),
+    [](const CSparkMintMeta& a, const CSparkMintMeta& b)->bool {
+        return a.v < b.v;
+    });
 
     mempool.clear();
     auto blockIdx1 = GenerateBlock({txs[0]});
@@ -173,8 +188,28 @@ BOOST_AUTO_TEST_CASE(mempool)
     // - can not add on-chain coin
     BOOST_CHECK(!sparkState->CanAddMintToMempool(pwalletMain->sparkWallet->getCoinFromMeta(mint)));
 
-    // - can not add duplicated coin
-    spark::Coin randMint;
+    // Generate keys
+    const spark::Params* params = spark::Params::get_default();
+    spark::SpendKey spend_key(params);
+    spark::FullViewKey full_view_key(spend_key);
+    spark::IncomingViewKey incoming_view_key(full_view_key);
+
+    // Generate address
+    spark::Address address(incoming_view_key, 1);
+
+    // Generate coin
+    Scalar k;
+    k.randomize();
+    spark::Coin randMint = spark::Coin(
+            params,
+            spark::COIN_TYPE_MINT,
+            k,
+            address,
+            100,
+            "memo",
+            random_char_vector()
+            );
+
     BOOST_CHECK(sparkState->CanAddMintToMempool(randMint));
     sparkState->AddMintsToMempool({randMint});
     BOOST_CHECK(!sparkState->CanAddMintToMempool(randMint));

@@ -15,14 +15,6 @@
 #include "masternodelist.h"
 #include "lelantusdialog.h"
 
-#ifdef ENABLE_ELYSIUM
-#include "elyassetsdialog.h"
-#include "createtokendialog.h"
-#include "minttokendialog.h"
-#include "managetokendialog.h"
-#include "elysiumprivatesenddialog.h"
-#endif
-
 #include <QStackedWidget>
 
 class BitcoinGUI;
@@ -32,15 +24,8 @@ class PlatformStyle;
 class ReceiveCoinsDialog;
 class CreatePcodeDialog;
 class SendCoinsDialog;
-class TradeHistoryDialog;
-class LookupSPDialog;
-class LookupTXDialog;
-class LookupAddressDialog;
-class MetaDExDialog;
-class MetaDExCancelDialog;
 class SendCoinsRecipient;
 class TransactionView;
-class TXHistoryDialog;
 class WalletModel;
 class AddressBookPage;
 
@@ -91,10 +76,6 @@ public:
 private:
     void setupTransactionPage();
     void setupSendCoinPage();
-#ifdef ENABLE_ELYSIUM
-    void setupToolboxPage();
-    void setupElysiumTokensPage();
-#endif
     void setupLelantusPage();
 
 private:
@@ -102,20 +83,6 @@ private:
     WalletModel *walletModel;
 
     OverviewPage *overviewPage;
-#ifdef ENABLE_ELYSIUM
-    ElyAssetsDialog *elyAssetsPage;
-    QWidget *toolboxPage;
-    TXHistoryDialog *elysiumTransactionsView;
-    QTabWidget *transactionTabs;
-    QTabWidget *sendCoinsTabs;
-
-    QWidget *elysiumTokensPage;
-    CreateTokenDialog *createTokenPage;
-    ElysiumPrivateSendDialog *elysiumPrivateSendPage;
-    MintTokenDialog *mintTokenPage;
-    ManageTokenDialog *manageTokenPage;
-    QTabWidget *elysiumTokensTabs;
-#endif
     QWidget *transactionsPage;
     QWidget *smartPropertyPage;
     ReceiveCoinsDialog *receiveCoinsPage;
@@ -124,9 +91,6 @@ private:
     AddressBookPage *usedReceivingAddressesPage;
     QWidget *sendCoinsPage;
     SendCoinsDialog *sendFiroView;
-    TradeHistoryDialog *tradeHistoryTab;
-    MetaDExDialog *metaDExTab;
-    MetaDExCancelDialog *cancelTab;
     LelantusDialog *lelantusView;
     QWidget *lelantusPage;
     TransactionView *firoTransactionList;
@@ -142,14 +106,6 @@ private:
 public Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
-#ifdef ENABLE_ELYSIUM
-    /** Switch specifically to elysium tx history tab */
-    void gotoElysiumHistoryTab();
-    /** Switch to elysium tx history tab and focus on specific transaction */
-    void focusElysiumTransaction(const uint256& txid);
-    /** Switch to Elysium Tokens Page */
-    void  gotoElysiumTokensPage();
-#endif
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
     /** Switch specifically to bitcoin tx history tab */

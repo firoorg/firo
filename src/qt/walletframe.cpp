@@ -118,30 +118,12 @@ void WalletFrame::gotoOverviewPage()
         i.value()->gotoOverviewPage();
 }
 
-#ifdef ENABLE_ELYSIUM
-void WalletFrame::gotoElysiumTokensPage()
-{
-    QMap<QString, WalletView*>::const_iterator i;
-    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
-        i.value()->gotoElysiumTokensPage();
-}
-#endif
-
 void WalletFrame::gotoHistoryPage()
 {
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
         i.value()->gotoHistoryPage();
 }
-
-#ifdef ENABLE_ELYSIUM
-void WalletFrame::gotoElysiumHistoryTab()
-{
-    QMap<QString, WalletView*>::const_iterator i;
-    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
-        i.value()->gotoElysiumHistoryTab();
-}
-#endif
 
 void WalletFrame::gotoBitcoinHistoryTab()
 {

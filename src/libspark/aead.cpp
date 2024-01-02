@@ -3,6 +3,8 @@
 namespace spark {
 
 // Perform authenticated encryption with ChaCha20-Poly1305 using key commitment
+// NOTE: This uses a fixed zero nonce, which is safe when used in Spark as directed
+// It is NOT safe in general to do this!
 AEADEncryptedData AEAD::encrypt(const GroupElement& prekey, const std::string additional_data, CDataStream& data) {
 	// Set up the result structure
 	AEADEncryptedData result;
@@ -43,15 +45,17 @@ AEADEncryptedData AEAD::encrypt(const GroupElement& prekey, const std::string ad
 }
 
 // Perform authenticated decryption with ChaCha20-Poly1305 using key commitment
+// NOTE: This uses a fixed zero nonce, which is safe when used in Spark as directed
+// It is NOT safe in general to do this!
 CDataStream AEAD::decrypt_and_verify(const GroupElement& prekey, const std::string additional_data, AEADEncryptedData& data) {
-	// Derive the key and commitment
-	std::vector<unsigned char> key = SparkUtils::kdf_aead(prekey);
-	std::vector<unsigned char> key_commitment = SparkUtils::commit_aead(prekey);
-
 	// Assert that the key commitment is valid
+	std::vector<unsigned char> key_commitment = SparkUtils::commit_aead(prekey);
 	if (key_commitment != data.key_commitment) {
 		throw std::runtime_error("Bad AEAD key commitment");
 	}
+
+	// Derive the key
+	std::vector<unsigned char> key = SparkUtils::kdf_aead(prekey);
 
 	// Set up the result
 	CDataStream result(SER_NETWORK, PROTOCOL_VERSION);

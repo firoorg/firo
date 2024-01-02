@@ -34,9 +34,7 @@ ClientModel::ClientModel(OptionsModel *_optionsModel, QObject *parent) :
     optionsModel(_optionsModel),
     peerTableModel(0),
     banTableModel(0),
-    pollTimer(0),
-    lockedElysiumStateChanged(false),
-    lockedElysiumBalanceChanged(false)
+    pollTimer(0)
 {
     cachedBestHeaderHeight = -1;
     cachedBestHeaderTime = -1;
@@ -182,51 +180,6 @@ void ClientModel::updateNumConnections(int numConnections)
     Q_EMIT numConnectionsChanged(numConnections);
 }
 
-
-void ClientModel::invalidateElysiumState()
-{
-    Q_EMIT reinitElysiumState();
-}
-
-void ClientModel::updateElysiumState()
-{
-    lockedElysiumStateChanged = false;
-    Q_EMIT refreshElysiumState();
-}
-
-bool ClientModel::tryLockElysiumStateChanged()
-{
-    // Try to avoid Elysium queuing too many messages for the UI
-    if (lockedElysiumStateChanged) {
-        return false;
-    }
-
-    lockedElysiumStateChanged = true;
-    return true;
-}
-
-void ClientModel::updateElysiumBalance()
-{
-    lockedElysiumBalanceChanged = false;
-    Q_EMIT refreshElysiumBalance();
-}
-
-bool ClientModel::tryLockElysiumBalanceChanged()
-{
-    // Try to avoid Elysium queuing too many messages for the UI
-    if (lockedElysiumBalanceChanged) {
-        return false;
-    }
-
-    lockedElysiumBalanceChanged = true;
-    return true;
-}
-
-void ClientModel::updateElysiumPending(bool pending)
-{
-    Q_EMIT refreshElysiumPending(pending);
-}
-
 void ClientModel::updateNetworkActive(bool networkActive)
 {
     Q_EMIT networkActiveChanged(networkActive);
@@ -317,35 +270,6 @@ QString ClientModel::dataDir() const
 void ClientModel::updateBanlist()
 {
     banTableModel->refresh();
-}
-
-// Handlers for core signals
-static void ElysiumStateInvalidated(ClientModel *clientmodel)
-{
-    // This will be triggered if a reorg invalidates the state
-    QMetaObject::invokeMethod(clientmodel, "invalidateElysiumState", Qt::QueuedConnection);
-}
-
-static void ElysiumStateChanged(ClientModel *clientmodel)
-{
-    // This will be triggered for each block that contains Elysium layer transactions
-    if (clientmodel->tryLockElysiumStateChanged()) {
-        QMetaObject::invokeMethod(clientmodel, "updateElysiumState", Qt::QueuedConnection);
-    }
-}
-
-static void ElysiumBalanceChanged(ClientModel *clientmodel)
-{
-    // Triggered when a balance for a wallet address changes
-    if (clientmodel->tryLockElysiumBalanceChanged()) {
-        QMetaObject::invokeMethod(clientmodel, "updateElysiumBalance", Qt::QueuedConnection);
-    }
-}
-
-static void ElysiumPendingChanged(ClientModel *clientmodel, bool pending)
-{
-    // Triggered when Elysium pending map adds/removes transactions
-    QMetaObject::invokeMethod(clientmodel, "updateElysiumPending", Qt::QueuedConnection, Q_ARG(bool, pending));
 }
 
 static void ShowProgress(ClientModel *clientmodel, const std::string &title, int nProgress)
@@ -440,12 +364,6 @@ void ClientModel::subscribeToCoreSignals()
     uiInterface.NotifyHeaderTip.connect(boost::bind(BlockTipChanged, this, _1, _2, true));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.connect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
     uiInterface.NotifyMasternodeListChanged.connect(boost::bind(NotifyMasternodeListChanged, this, _1));
-
-    // Connect Elysium signals
-    uiInterface.ElysiumStateChanged.connect(boost::bind(ElysiumStateChanged, this));
-    uiInterface.ElysiumPendingChanged.connect(boost::bind(ElysiumPendingChanged, this, _1));
-    uiInterface.ElysiumBalanceChanged.connect(boost::bind(ElysiumBalanceChanged, this));
-    uiInterface.ElysiumStateInvalidated.connect(boost::bind(ElysiumStateInvalidated, this));
 }
 
 void ClientModel::unsubscribeFromCoreSignals()
@@ -461,10 +379,4 @@ void ClientModel::unsubscribeFromCoreSignals()
     uiInterface.NotifyHeaderTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2, true));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.disconnect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
     uiInterface.NotifyMasternodeListChanged.disconnect(boost::bind(NotifyMasternodeListChanged, this, _1));
-
-    // Disconnect Elysium signals
-    uiInterface.ElysiumStateChanged.disconnect(boost::bind(ElysiumStateChanged, this));
-    uiInterface.ElysiumPendingChanged.disconnect(boost::bind(ElysiumPendingChanged, this, _1));
-    uiInterface.ElysiumBalanceChanged.disconnect(boost::bind(ElysiumBalanceChanged, this));
-	uiInterface.ElysiumStateInvalidated.disconnect(boost::bind(ElysiumStateInvalidated, this));
 }

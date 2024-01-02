@@ -60,7 +60,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         auto& recipient = recipients[i];
 
         if (recipient.scriptPubKey.IsPayToExchangeAddress()) {
-            throw std::runtime_error("Cannot create private transaction with exchange address as a destination");
+            throw std::runtime_error("Exchange addresses cannot receive private funds. Please transfer your funds to a transparent address first before sending to an Exchange address");
         }
 
         if (!MoneyRange(recipient.nAmount)) {

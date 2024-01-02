@@ -50,7 +50,7 @@ private:
     GroupElement U;
 
     // Coin parameters
-    std::size_t memo_bytes;
+    std::size_t memo_bytes; // This MUST NOT exceed 256, since the length is encoded to 8 bits
 
     // Range proof parameters
     std::size_t max_M_range;

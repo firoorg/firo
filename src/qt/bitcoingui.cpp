@@ -40,12 +40,6 @@
 #include "evo/deterministicmns.h"
 #include "masternode-sync.h"
 #include "masternodelist.h"
-#include "elysium_qtutils.h"
-
-#ifdef ENABLE_ELYSIUM
-#include "../elysium/elysium.h"
-#endif
-
 #include <iostream>
 
 #include <QAction>
@@ -101,16 +95,11 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     labelWalletHDStatusIcon(0),
     connectionsControl(0),
     labelBlocksIcon(0),
-    labelElysiumPendingIcon(0),
-    labelElysiumPendingText(0),
     progressBarLabel(0),
     progressBar(0),
     progressDialog(0),
     appMenuBar(0),
     overviewAction(0),
-#ifdef ENABLE_ELYSIUM
-    elysiumTokensAction(0),
-#endif
     historyAction(0),
     quitAction(0),
     sendCoinsAction(0),
@@ -251,13 +240,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     framePendingLayout->setContentsMargins(3,0,3,0);
     framePendingLayout->setSpacing(3);
     framePendingLayout->addStretch();
-    labelElysiumPendingIcon = new QLabel();
-    labelElysiumPendingText = new QLabel("You have Elysium transactions awaiting confirmation.");
-    framePendingLayout->addWidget(labelElysiumPendingIcon);
-    framePendingLayout->addWidget(labelElysiumPendingText);
-    framePendingLayout->addStretch();
-    labelElysiumPendingIcon->hide();
-    labelElysiumPendingText->hide();
 
     // Progress bar and label for blocks download
     progressBarLabel = new QLabel();
@@ -383,19 +365,6 @@ void BitcoinGUI::createActions()
     tabGroup->addAction(masternodeAction);
 #endif
 
-#ifdef ENABLE_ELYSIUM
-    bool elysiumEnabled = isElysiumEnabled();
-
-    if (elysiumEnabled) {
-        elysiumTokensAction = new QAction(tr("El&ysium"), this);
-        elysiumTokensAction->setStatusTip(tr("Manage Elysium tokens"));
-        elysiumTokensAction->setToolTip(elysiumTokensAction->statusTip());
-        elysiumTokensAction->setCheckable(true);
-        elysiumTokensAction->setShortcut(QKeySequence(Qt::ALT + key++));
-        tabGroup->addAction(elysiumTokensAction);
-    }
-#endif
-
     createPcodeAction = new QAction(tr("RA&P addresses"), this);
     createPcodeAction->setStatusTip(tr("Create RAP addresses (BIP47 payment codes)"));
     createPcodeAction->setToolTip(createPcodeAction->statusTip());
@@ -421,12 +390,6 @@ void BitcoinGUI::createActions()
 
 	connect(lelantusAction, &QAction::triggered, this, &BitcoinGUI::gotoLelantusPage);
 	connect(createPcodeAction, &QAction::triggered, this, &BitcoinGUI::gotoCreatePcodePage);
-#ifdef ENABLE_ELYSIUM
-    if (elysiumEnabled) {
-        connect(elysiumTokensAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-        connect(elysiumTokensAction, SIGNAL(triggered()), this, SLOT(gotoElysiumTokensPage()));
-    }
-#endif
 #endif // ENABLE_WALLET
 
     quitAction = new QAction(tr("E&xit"), this);
@@ -566,18 +529,12 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(historyAction);
         toolbar->addAction(lelantusAction);
         toolbar->addAction(masternodeAction);
-
-#ifdef ENABLE_ELYSIUM
-        if (isElysiumEnabled()) {
-            toolbar->addAction(elysiumTokensAction);
-        }
-#endif
         toolbar->addAction(createPcodeAction);
-        
+
         QLabel *logoLabel = new QLabel();
         logoLabel->setObjectName("lblToolbarLogo");
         logoLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        
+
         toolbar->addWidget(logoLabel);
 
         overviewAction->setChecked(true);
@@ -618,9 +575,6 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
         rpcConsole->setClientModel(_clientModel);
 
 #ifdef ENABLE_WALLET
-        // Update Elysium pending status
-        connect(_clientModel, &ClientModel::refreshElysiumPending, this, &BitcoinGUI::setElysiumPendingStatus);
-
         if(walletFrame)
         {
             walletFrame->setClientModel(_clientModel);
@@ -715,12 +669,6 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     usedSendingAddressesAction->setEnabled(enabled);
     usedReceivingAddressesAction->setEnabled(enabled);
     openAction->setEnabled(enabled);
-
-#ifdef ENABLE_ELYSIUM
-    if (isElysiumEnabled()) {
-        elysiumTokensAction->setEnabled(enabled);
-    }
-#endif
 }
 
 void BitcoinGUI::createTrayIcon(const NetworkStyle *networkStyle)
@@ -836,27 +784,11 @@ void BitcoinGUI::gotoOverviewPage()
     if (walletFrame) walletFrame->gotoOverviewPage();
 }
 
-#ifdef ENABLE_ELYSIUM
-void BitcoinGUI::gotoElysiumTokensPage()
-{
-    elysiumTokensAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoElysiumTokensPage();
-}
-#endif
-
 void BitcoinGUI::gotoHistoryPage()
 {
     historyAction->setChecked(true);
     if (walletFrame) walletFrame->gotoHistoryPage();
 }
-
-#ifdef ENABLE_ELYSIUM
-void BitcoinGUI::gotoElysiumHistoryTab()
-{
-    historyAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoElysiumHistoryTab();
-}
-#endif
 
 void BitcoinGUI::gotoBitcoinHistoryTab()
 {
@@ -1291,19 +1223,6 @@ bool BitcoinGUI::handlePaymentRequest(const SendCoinsRecipient& recipient)
     return false;
 }
 
-void BitcoinGUI::setElysiumPendingStatus(bool pending)
-{
-    if (!pending) {
-        labelElysiumPendingIcon->hide();
-        labelElysiumPendingText->hide();
-    } else {
-        labelElysiumPendingIcon->show();
-        labelElysiumPendingText->show();
-        labelElysiumPendingIcon->setPixmap(QIcon(":/icons/elysium_hourglass").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
-        labelElysiumPendingIcon->setToolTip(tr("You have Elysium transactions awaiting confirmation."));
-    }
-}
-
 void BitcoinGUI::setHDStatus(int hdEnabled)
 {
     labelWalletHDStatusIcon->setPixmap(QIcon(hdEnabled ? ":/icons/hd_enabled" : ":/icons/hd_disabled").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
@@ -1402,7 +1321,7 @@ void BitcoinGUI::showProgress(const QString &title, int nProgress)
 
 void BitcoinGUI::updateProgressBarLabel(const QString& text)
 {
-    if (progressBarLabel) 
+    if (progressBarLabel)
     {
         progressBarLabel->setVisible(!text.isEmpty());
         progressBarLabel->setText(text);
