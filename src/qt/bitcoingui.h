@@ -121,6 +121,7 @@ private:
     QAction *lelantusAction;
     QAction *masternodeAction;
     QAction *createPcodeAction;
+    QAction *logoAction;
 
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
@@ -259,7 +260,7 @@ public Q_SLOTS:
 
     /** Show progress dialog e.g. for verifychain */
     void showProgress(const QString &title, int nProgress);
-
+    
     /** Update progress bar label text */
     void updateProgressBarLabel(const QString& text);
 

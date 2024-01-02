@@ -16,16 +16,10 @@
 #include "client-api/wallet.h"
 #include "wallet/coincontrol.h"
 #include "univalue.h"
-#include "./elysium.h"
 #include "wallet/bip39.h"
 #include "validation.h"
 #include "consensus/consensus.h"
 #include <boost/algorithm/string.hpp>
-#include "../elysium/wallettxs.h"
-#include "../elysium/tx.h"
-#include "../elysium/lelantusdb.h"
-#include "../elysium/lelantuswallet.h"
-#include "../elysium/wallet.h"
 
 namespace fs = boost::filesystem;
 using namespace boost::chrono;
@@ -208,7 +202,6 @@ std::string ScriptType(const CScript &script) {
     else if (script.IsLelantusMint()) return "lelantus-mint";
     else if (script.IsLelantusJMint()) return "lelantus-jmint";
     else if (script.IsLelantusJoinSplit()) return "lelantus-joinsplit";
-    else if (script.IsElysium()) return "elysium";
     else if (script.IsSparkMint()) return "spark-mint";
     else if (script.IsSparkSMint()) return "spark-smint";
     else if (script.IsSparkSpend()) return "spark-spend";
@@ -219,10 +212,6 @@ std::string ScriptType(const CScript &script) {
 UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
 {
     AssertLockHeld(cs_main);
-    if (isElysiumEnabled()) {
-        assert(elysium::wallet);
-        assert(elysium::wallet->lelantusWallet.database);
-    }
 
     const spark::Params* sparkParams = Params().NetworkIDString() == "main" ? spark::Params::get_default() : spark::Params::get_test();
 
@@ -420,7 +409,6 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         output.pushKV("isChange", fIsChange);
         output.pushKV("isLocked", !!pwalletMain->setLockedCoins.count(outpoint));
         output.pushKV("isToMe", fIsToMe);
-        output.pushKV("isElysiumReferenceOutput", wtx.tx->IsElysiumReferenceOutput(n));
         if (amount > 0) output.pushKV("amount", BigInt(amount));
         if (!destination.empty()) output.pushKV("destination", destination);
         if (!lelantusSerialHash.IsNull()) output.pushKV("lelantusSerialHash", lelantusSerialHash.GetHex());
@@ -441,97 +429,6 @@ UniValue FormatWalletTxForClientAPI(CWalletDB &db, const CWalletTx &wtx)
         if (blockIt != mapBlockIndex.end()) {
             block = blockIt->second;
         }
-    }
-
-    int nHeight = block ? block->nHeight : 0;
-    int nTime = block ? block->nTime : 0;
-    CMPTransaction mp_obj;
-    if (isElysiumEnabled() && ParseTransaction(*wtx.tx, nHeight, 0, mp_obj, nTime) >= 0 && mp_obj.interpret_Transaction()) {
-        UniValue elysiumData = UniValue::VOBJ;
-
-        elysiumData.pushKV("isToMe", (bool)IsMine(*pwalletMain, CBitcoinAddress(mp_obj.getReceiver()).Get()) || pwalletMain->IsSparkAddressMine(mp_obj.getReceiver()));
-        elysiumData.pushKV("sender", mp_obj.getSender());
-        elysiumData.pushKV("receiver", mp_obj.getReceiver());
-        elysiumData.pushKV("type", mp_obj.getTypeString());
-        elysiumData.pushKV("version", mp_obj.getVersion());
-
-        if (nHeight > 0) {
-            bool isValid = elysium::getValidMPTX(wtx.tx->GetHash());
-            elysiumData.pushKV("valid", isValid);
-            if (!isValid)
-                elysiumData.pushKV("invalidReason", elysium::p_ElysiumTXDB->FetchInvalidReason(wtx.tx->GetHash()));
-        } else {
-            elysiumData.pushKV("valid", false);
-        }
-
-        int txType = mp_obj.getType();
-
-        CMPSPInfo::Entry info;
-        UniValue propertyData = UniValue::VNULL;
-        switch (txType) {
-            case ELYSIUM_TYPE_LELANTUS_JOINSPLIT: {
-                boost::optional<elysium::JoinSplitMint> jsm = mp_obj.getLelantusJoinSplitMint();
-                if (jsm) {
-                    elysium::LelantusMint mint;
-                    if (elysium::wallet->lelantusWallet.database->ReadMint(jsm->id, mint, &db)) {
-                        elysiumData.pushKV("joinmintAmount", BigInt(mint.amount));
-                    } else {
-                        LogPrintf("Error retrieving joinmintAmount for Elysium tx %s\n", wtx.GetHash().GetHex());
-                        elysiumData.pushKV("joinmintAmount", BigInt(-1));
-                    }
-                } else {
-                    elysiumData.pushKV("joinmintAmount", BigInt(0));
-                }
-            }
-
-            case ELYSIUM_TYPE_SIMPLE_SEND:
-            case ELYSIUM_TYPE_LELANTUS_MINT:
-            case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS:
-            case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS:
-                try {
-                    propertyData = getPropertyData(mp_obj.getProperty());
-                } catch(UniValue &e) {
-                    PrintToLog("failed to get property data for transaction %s", wtx.tx->GetHash().GetHex());
-                }
-
-                break;
-
-            case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE:
-            case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED:
-            case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL: {
-                try {
-                    propertyData = getPropertyData(wtx.tx->GetHash());
-                } catch(UniValue &e) {
-                    PrintToLog("failed to get property data for transactions %s", wtx.tx->GetHash().GetHex());
-                }
-
-                break;
-            }
-        }
-        elysiumData.pushKV("property", propertyData);
-
-        switch (txType) {
-            case ELYSIUM_TYPE_SIMPLE_SEND:
-            case ELYSIUM_TYPE_LELANTUS_MINT:
-            case ELYSIUM_TYPE_LELANTUS_JOINSPLIT:
-            case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED:
-            case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS:
-            case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS:
-                // If the property is divisible, the actual amount is 1/1e8 of the value here.
-                uint64_t amount;
-                if (txType == ELYSIUM_TYPE_LELANTUS_MINT) amount = mp_obj.getLelantusMintValue();
-                else if (txType == ELYSIUM_TYPE_LELANTUS_JOINSPLIT) amount = mp_obj.getLelantusSpendAmount();
-                else amount = mp_obj.getAmount();
-                elysiumData.pushKV("amount", BigInt(amount));
-                break;
-
-            default:
-                elysiumData.pushKV("amount", UniValue::VNULL);
-        }
-
-        txData.pushKV("elysium", elysiumData);
-    } else {
-        txData.pushKV("elysium", UniValue::VNULL);
     }
 
     if (fIsFromMe.has_value()) txData.pushKV("isFromMe", fIsFromMe.value());

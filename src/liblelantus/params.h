@@ -12,9 +12,6 @@ namespace lelantus {
 
 class Params {
 public:
-#ifdef ENABLE_ELYSIUM
-    static Params const* get_elysium();
-#endif
     static Params const* get_default();
     const GroupElement& get_g() const;
     const GroupElement& get_h0() const;
@@ -35,9 +32,6 @@ private:
 private:
     static CCriticalSection cs_instance;
     static std::unique_ptr<Params> instance;
-#ifdef ENABLE_ELYSIUM
-    static std::unique_ptr<Params> elysium_instance;
-#endif
 
     //sigma params
     GroupElement g;

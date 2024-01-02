@@ -1,7 +1,6 @@
 CLIENTAPI_H = \
   client-api/bigint.h \
   client-api/externs.h \
-  client-api/elysium.h \
   client-api/protocol.h \
   client-api/register.h \
   client-api/send.h \
@@ -18,7 +17,6 @@ CLIENTAPI_H = \
 CLIENTAPI_CPP = \
   client-api/bigint.cpp \
   client-api/externs.cpp \
-  client-api/elysium.cpp \
   client-api/blockchain.cpp \
   client-api/masternode.cpp \
   client-api/misc.cpp \

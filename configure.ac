@@ -1070,15 +1070,6 @@ else
   AC_MSG_RESULT(no)
 fi
 
-dnl enable elysium
-AC_MSG_CHECKING([if elysium should be enabled])
-if test x$enable_elysium != xno; then
-  AC_MSG_RESULT(yes)
-  AC_DEFINE_UNQUOTED([ENABLE_ELYSIUM],[1],[Define if elysium should be compiled in])
-else
-  AC_MSG_RESULT(no)
-fi
-
 dnl enable upnp support
 AC_MSG_CHECKING([whether to build with support for UPnP])
 if test x$have_miniupnpc = xno; then

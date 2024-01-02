@@ -267,7 +267,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
                 try {
                     nTxFee = lelantus::ParseLelantusJoinSplit(*wtx.tx)->getFee();
                 }
-                catch (...) {
+                catch (const std::exception &) {
                     //do nothing
                 }
             }

@@ -32,14 +32,6 @@ public:
                 uint64_t Vout,
                 const uint256& txHash) const;
 
-#ifdef ENABLE_ELYSIUM
-    bool VerifyElysium(const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
-                       const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
-                       const std::vector<PublicCoin>& Cout,
-                       uint64_t Vout,
-                       const uint256& txHash) const;
-#endif
-
     bool Verify(const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
                 const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
                 const std::vector<PublicCoin>& Cout,

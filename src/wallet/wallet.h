@@ -806,10 +806,6 @@ public:
         bip47wallet.reset();
     }
 
-#ifdef ENABLE_ELYSIUM
-    std::map<uint256, std::string> mapTxOrigins;
-#endif
-
     std::map<uint256, CWalletTx> mapWallet;
     std::list<CAccountingEntry> laccentries;
     bool EraseFromWallet(uint256 hash);
@@ -1422,10 +1418,6 @@ public:
 
     void NotifyTransactionLock(const CTransaction &tx) override;
     void NotifyChainLock(const CBlockIndex* pindexChainLock) override;
-
-#ifdef ENABLE_ELYSIUM
-    void LoadTxOrigin(uint256, std::string& destination);
-#endif
 
     bool GetSparkOutputTx(const CScript& scriptPubKey, CSparkOutputTx& output) const;
 };

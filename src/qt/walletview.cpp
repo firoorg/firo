@@ -126,43 +126,6 @@ void WalletView::setupTransactionPage()
     transactionsPage->setLayout(pageLayout);
 }
 
-#ifdef ENABLE_ELYSIUM
-void WalletView::setupElysiumTokensPage()
-{
-    if (!isElysiumEnabled()) {
-        return;
-    }
-
-    elysiumPrivateSendPage = new ElysiumPrivateSendDialog(platformStyle);
-    connect(elysiumPrivateSendPage, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
-    createTokenPage = new CreateTokenDialog();
-    connect(createTokenPage, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
-    mintTokenPage = new MintTokenDialog();
-    connect(mintTokenPage, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
-    manageTokenPage = new ManageTokenDialog();
-    connect(manageTokenPage, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
-
-    elysiumTransactionsView = new TXHistoryDialog();
-    elyAssetsPage = new ElyAssetsDialog();
-
-    toolboxPage = new QWidget(this);
-    setupToolboxPage();
-
-    elysiumTokensTabs = new QTabWidget();
-    elysiumTokensTabs->addTab(elyAssetsPage, tr("Balances"));
-    elysiumTokensTabs->addTab(elysiumPrivateSendPage, tr("Send"));
-    elysiumTokensTabs->addTab(mintTokenPage, tr("Anonymize"));
-    elysiumTokensTabs->addTab(elysiumTransactionsView, tr("Transactions"));
-    elysiumTokensTabs->addTab(createTokenPage, tr("Create"));
-    elysiumTokensTabs->addTab(manageTokenPage, tr("Managed Tokens"));
-    elysiumTokensTabs->addTab(toolboxPage, tr("Toolbox"));
-
-    auto pageLayout = new QVBoxLayout();
-    pageLayout->addWidget(elysiumTokensTabs);
-    elysiumTokensPage->setLayout(pageLayout);
-}
-#endif
-
 void WalletView::setupSendCoinPage()
 {
     sendFiroView = new SendCoinsDialog(platformStyle);

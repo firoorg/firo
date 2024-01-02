@@ -60,12 +60,6 @@
 #include "bip47/paymentcode.h"
 #include "bip47/bip47utils.h"
 
-#ifdef ENABLE_ELYSIUM
-#include "../elysium/rules.h"
-#include "../elysium/packetencoder.h"
-#include "../elysium/elysium.h"
-#endif
-
 #ifdef ENABLE_CLIENTAPI
 #include "client-api/server.h"
 #endif
@@ -3864,11 +3858,9 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
             }
 
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
-                if (pcoin->tx->IsElysiumReferenceOutput(i) && nCoinType != CoinType::APPROPRIATE_FOR_ELYSIUM_MINT) continue;
-
                 bool found = false;
-                if(nCoinType == CoinType::ALL_COINS || nCoinType == CoinType::APPROPRIATE_FOR_ELYSIUM_MINT){
-                    // We are now taking ALL_COINS to mean everything sans mints and Elysium reference outputs
+                if(nCoinType == CoinType::ALL_COINS){
+                    // We are now taking ALL_COINS to mean everything sans mints
                     found = !(pcoin->tx->vout[i].scriptPubKey.IsZerocoinMint()
                             || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint()
                             || pcoin->tx->vout[i].scriptPubKey.IsLelantusMint()
@@ -8196,13 +8188,6 @@ void CWallet::NotifyChainLock(const CBlockIndex* pindexChainLock)
 {
     NotifyChainLockReceived(pindexChainLock->nHeight);
 }
-
-#ifdef ENABLE_ELYSIUM
-void CWallet::LoadTxOrigin(uint256 tx, std::string& origin) {
-    AssertLockHeld(cs_wallet);
-    mapTxOrigins.emplace(tx, origin);
-}
-#endif
 
 
 /******************************************************************************/

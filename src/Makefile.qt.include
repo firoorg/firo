@@ -120,11 +120,7 @@ QT_FORMS_UI = \
   qt/forms/signverifymessagedialog.ui \
   qt/forms/transactiondescdialog.ui \
   qt/forms/lelantusdialog.ui \
-  qt/forms/createpcodedialog.ui \
-  qt/forms/createtokendialog.ui \
-  qt/forms/elysiumprivatesenddialog.ui \
-  qt/forms/minttokendialog.ui \
-  qt/forms/managetokendialog.ui
+  qt/forms/createpcodedialog.ui
 
 QT_MOC_CPP = \
   qt/moc_addressbookpage.cpp \
@@ -187,10 +183,6 @@ QT_MOC_CPP = \
   qt/moc_automintmodel.cpp \
   qt/moc_automintnotification.cpp \
   qt/moc_pcodemodel.cpp \
-  qt/moc_createtokendialog.cpp \
-  qt/moc_elysiumprivatesenddialog.cpp \
-  qt/moc_minttokendialog.cpp \
-  qt/moc_managetokendialog.cpp \
   qt/moc_sparkmodel.cpp
 
 BITCOIN_MM = \
@@ -280,10 +272,6 @@ BITCOIN_QT_H = \
   qt/lelantusdialog.h \
   qt/lelantuscoincontroldialog.h \
   qt/automintmodel.h \
-  qt/createtokendialog.h \
-  qt/elysiumprivatesenddialog.h \
-  qt/minttokendialog.h \
-  qt/managetokendialog.h \
   qt/sparkmodel.h
 
 RES_ICONS = \
@@ -476,10 +464,6 @@ BITCOIN_QT_WALLET_CPP = \
   qt/lelantusdialog.cpp \
   qt/lelantuscoincontroldialog.cpp \
   qt/automintmodel.cpp \
-  qt/createtokendialog.cpp \
-  qt/elysiumprivatesenddialog.cpp \
-  qt/minttokendialog.cpp \
-  qt/managetokendialog.cpp \
   qt/sparkmodel.cpp
 
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)
@@ -545,7 +529,7 @@ if ENABLE_ZMQ
 qt_firo_qt_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 endif
 
-qt_firo_qt_LDADD += -ltor
+qt_firo_qt_LDADD += -ltor -lminizip
 
 qt_firo_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBFIRO_SIGMA) $(LIBLELANTUS) $(LIBSPARK)\
@@ -553,13 +537,6 @@ qt_firo_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) \
   $(QT_DBUS_LIBS) $(QR_LIBS) $(PROTOBUF_LIBS) $(BDB_LIBS) $(SSL_LIBS) \
   $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(LIBSECP256K1) $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS) \
   $(ZLIB_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS)
-
-qt_firo_qt_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(QT_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
-qt_firo_qt_LIBTOOLFLAGS = $(AM_LIBTOOLFLAGS) --tag CXX
-
-if ENABLE_CLIENTAPI
-qt_firo_qt_LDADD += $(MINIZIP_LIBS)
-endif
 
 qt_firo_qt_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(QT_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 qt_firo_qt_LIBTOOLFLAGS = $(AM_LIBTOOLFLAGS) --tag CXX

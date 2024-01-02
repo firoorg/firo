@@ -29,13 +29,6 @@ class TransactionView;
 class WalletModel;
 class AddressBookPage;
 
-#ifdef ENABLE_ELYSIUM
-class CreateTokenDialog;
-class ElysiumPrivateSendDialog;
-class MintTokenDialog;
-class ManageTokenDialog;
-#endif
-
 QT_BEGIN_NAMESPACE
 class QModelIndex;
 class QProgressDialog;

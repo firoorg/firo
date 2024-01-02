@@ -159,8 +159,7 @@ void MasternodeList::updateDIP3List()
     auto mnList = clientModel->getMasternodeList();
     if(mnList.GetAllMNsCount()==0){
         clientModel->refreshMasternodeList();
-        mnList = clientModel->getMasternodeList();
-    }
+        mnList = clientModel->getMasternodeList();    }
     std::map<uint256, CTxDestination> mapCollateralDests;
 
     {

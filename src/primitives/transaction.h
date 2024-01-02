@@ -461,8 +461,6 @@ public:
     bool HasNoRegularInputs() const;
     bool HasPrivateInputs() const;
 
-    bool IsElysiumReferenceOutput(uint32_t i) const;
-
     /**
      * Get the total transaction size in bytes, including witness data.
      * "Total Size" defined in BIP141 and BIP144.

@@ -120,23 +120,6 @@ bool JoinSplit::Verify(
     return Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHash, challenge, fSkipVerification);
 }
 
-#ifdef ENABLE_ELYSIUM
-bool JoinSplit::VerifyElysium(
-        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
-        const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
-        const std::vector<PublicCoin>& Cout,
-        uint64_t Vout,
-        const uint256& txHash) const {
-    if (version != LELANTUS_TX_TPAYLOAD) {
-        LogPrintf("invalid lelantus version for Elysium transaction %s\n", txHash.GetHex());
-    }
-
-    Scalar challenge;
-    bool fSkipVerification = false;
-    return Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHash, challenge, fSkipVerification, INT64_MAX);
-}
-#endif
-
 bool JoinSplit::Verify(
         const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
         const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,

@@ -123,6 +123,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     lelantusAction(0),
     masternodeAction(0),
     createPcodeAction(0),
+    logoAction(0),
     trayIcon(0),
     trayIconMenu(0),
     notificator(0),
@@ -530,11 +531,11 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(lelantusAction);
         toolbar->addAction(masternodeAction);
         toolbar->addAction(createPcodeAction);
-
+        
         QLabel *logoLabel = new QLabel();
         logoLabel->setObjectName("lblToolbarLogo");
         logoLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-
+        
         toolbar->addWidget(logoLabel);
 
         overviewAction->setChecked(true);
@@ -1321,7 +1322,7 @@ void BitcoinGUI::showProgress(const QString &title, int nProgress)
 
 void BitcoinGUI::updateProgressBarLabel(const QString& text)
 {
-    if (progressBarLabel)
+    if (progressBarLabel) 
     {
         progressBarLabel->setVisible(!text.isEmpty());
         progressBarLabel->setText(text);

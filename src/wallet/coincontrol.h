@@ -16,8 +16,7 @@ enum class CoinType
     ONLY_1000 = 5, // find znode outputs including locked ones (use with caution)
     ONLY_PRIVATESEND_COLLATERAL = 6,
     ONLY_MINTS = 7,
-    WITH_MINTS = 8,
-    APPROPRIATE_FOR_ELYSIUM_MINT = 9
+    WITH_MINTS = 8
 };
 
 /** Coin Control Features. */

@@ -30,8 +30,6 @@ void RegisterMasternodeAPICommands(CAPITable &tableAPI);
 /** Register sigma API commands */
 void RegisterSigmaAPICommands(CAPITable &tableAPI);
 
-void RegisterElysiumAPICommands(CAPITable &tableAPI);
-
 static inline void RegisterAllCoreAPICommands(CAPITable &tableAPI)
 {
     RegisterMiscAPICommands(tableAPI);
@@ -41,7 +39,6 @@ static inline void RegisterAllCoreAPICommands(CAPITable &tableAPI)
     RegisterSettingsAPICommands(tableAPI);
     RegisterMasternodeAPICommands(tableAPI);
     RegisterSigmaAPICommands(tableAPI);
-    RegisterElysiumAPICommands(tableAPI);
 }
 
 #endif
