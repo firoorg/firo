@@ -30,7 +30,6 @@
 #include <QLocalSocket>
 #include <QStringList>
 #include <QUrlQuery>
-#endif
 
 const int BITCOIN_IPC_CONNECT_TIMEOUT = 1000; // milliseconds
 const QString BITCOIN_IPC_PREFIX("firo:");
@@ -59,100 +58,6 @@ static QString ipcServerName()
 // to send payment.
 
 static QList<QString> savedPaymentRequests;
-
-static void ReportInvalidCertificate(const QSslCertificate& cert)
-{
-#if QT_VERSION < 0x050000
-    qDebug() << QString("%1: Payment server found an invalid certificate: ").arg(__func__) << cert.serialNumber() << cert.subjectInfo(QSslCertificate::CommonName) << cert.subjectInfo(QSslCertificate::OrganizationalUnitName);
-#else
-    qDebug() << QString("%1: Payment server found an invalid certificate: ").arg(__func__) << cert.serialNumber() << cert.subjectInfo(QSslCertificate::CommonName) << cert.subjectInfo(QSslCertificate::DistinguishedNameQualifier) << cert.subjectInfo(QSslCertificate::OrganizationalUnitName);
-#endif
-}
-
-//
-// Load OpenSSL's list of root certificate authorities
-//
-void PaymentServer::LoadRootCAs(X509_STORE* _store)
-{
-    // Unit tests mostly use this, to pass in fake root CAs:
-    if (_store)
-    {
-        certStore.reset(_store);
-        return;
-    }
-
-    // Normal execution, use either -rootcertificates or system certs:
-    certStore.reset(X509_STORE_new());
-
-    // Note: use "-system-" default here so that users can pass -rootcertificates=""
-    // and get 'I don't like X.509 certificates, don't trust anybody' behavior:
-    QString certFile = QString::fromStdString(GetArg("-rootcertificates", "-system-"));
-
-    // Empty store
-    if (certFile.isEmpty()) {
-        qDebug() << QString("PaymentServer::%1: Payment request authentication via X.509 certificates disabled.").arg(__func__);
-        return;
-    }
-
-    QList<QSslCertificate> certList;
-
-    if (certFile != "-system-") {
-            qDebug() << QString("PaymentServer::%1: Using \"%2\" as trusted root certificate.").arg(__func__).arg(certFile);
-
-        certList = QSslCertificate::fromPath(certFile);
-        // Use those certificates when fetching payment requests, too:
-        QSslSocket::setDefaultCaCertificates(certList);
-    } else
-        certList = QSslSocket::systemCaCertificates();
-
-    int nRootCerts = 0;
-    const QDateTime currentTime = QDateTime::currentDateTime();
-
-    Q_FOREACH (const QSslCertificate& cert, certList) {
-        // Don't log NULL certificates
-        if (cert.isNull())
-            continue;
-
-        // Not yet active/valid, or expired certificate
-        if (currentTime < cert.effectiveDate() || currentTime > cert.expiryDate()) {
-            ReportInvalidCertificate(cert);
-            continue;
-        }
-
-#if QT_VERSION >= 0x050000
-        // Blacklisted certificate
-        if (cert.isBlacklisted()) {
-            ReportInvalidCertificate(cert);
-            continue;
-        }
-#endif
-        QByteArray certData = cert.toDer();
-        const unsigned char *data = (const unsigned char *)certData.data();
-
-        std::unique_ptr<X509, X509Deleter> x509(d2i_X509(0, &data, certData.size()));
-        if (x509 && X509_STORE_add_cert(certStore.get(), x509.get()))
-        {
-            // Note: X509_STORE increases the reference count to the X509 object,
-            // we still have to release our reference to it.
-            ++nRootCerts;
-        }
-        else
-        {
-            ReportInvalidCertificate(cert);
-            continue;
-        }
-    }
-    qWarning() << "PaymentServer::LoadRootCAs: Loaded " << nRootCerts << " root certificates";
-
-    // Project for another day:
-    // Fetch certificate revocation lists, and add them to certStore.
-    // Issues to consider:
-    //   performance (start a thread to fetch in background?)
-    //   privacy (fetch through tor/proxy so IP address isn't revealed)
-    //   would it be easier to just use a compiled-in blacklist?
-    //    or use Qt's blacklist?
-    //   "certificate stapling" with server-side caching is more efficient
-}
 
 //
 // Sending to the server is done synchronously, at startup.
@@ -194,6 +99,38 @@ void PaymentServer::ipcParseCommandLine(int argc, char* argv[])
                 }
             }
         }
+        else
+        {
+            // Printing to debug.log is about the best we can do here, the
+            // GUI hasn't started yet so we can't pop up a message box.
+            qWarning() << "PaymentServer::ipcSendCommandLine: Payment request file does not exist: " << arg;
+        }
+    }
+}
+
+//
+// Sending to the server is done synchronously, at startup.
+// If the server isn't already running, startup continues,
+// and the items in savedPaymentRequest will be handled
+// when uiReady() is called.
+//
+bool PaymentServer::ipcSendCommandLine()
+{
+    bool fResult = false;
+    Q_FOREACH (const QString& r, savedPaymentRequests)
+    {
+        QLocalSocket* socket = new QLocalSocket();
+        socket->connectToServer(ipcServerName(), QIODevice::WriteOnly);
+        if (!socket->waitForConnected(BITCOIN_IPC_CONNECT_TIMEOUT))
+        {
+            delete socket;
+            socket = NULL;
+            return false;
+        }
+
+        QByteArray block;
+        QDataStream out(&block, QIODevice::WriteOnly);
+        out.setVersion(QDataStream::Qt_4_0);
         out << r;
         out.device()->seek(0);
 
@@ -281,9 +218,6 @@ void PaymentServer::handleURIOrFile(const QString& s)
 
     if (s.startsWith(BITCOIN_IPC_PREFIX, Qt::CaseInsensitive)) // firo: URI
     {
-#if QT_VERSION < 0x050000
-        QUrl uri(s);
-#else
         QUrlQuery uri((QUrl(s)));
         // normal URI
         {
