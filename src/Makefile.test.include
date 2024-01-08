@@ -245,7 +245,10 @@ BITCOIN_TESTS = \
   libspats/test/coin_test.cpp \
   libspats/test/type_test.cpp \
   libspats/test/base_asset_test.cpp \
-  libspats/test/spend_transaction_test.cpp
+  libspats/test/mint_transaction_test.cpp \
+  libspats/test/spend_transaction_test.cpp \
+  libspats/test/balance_test.cpp
+
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \
