@@ -6,6 +6,10 @@
 namespace spats
 {
 
+// Useful scalar constants
+const Scalar ZERO = Scalar((uint64_t)0);
+const Scalar ONE = Scalar((uint64_t)1);
+
 using namespace secp_primitives;
 
 // Generate a random char vector from a random scalar
@@ -156,8 +160,8 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         out_coin_data.back().address = address;
         out_coin_data.back().v = 12 + j; // arbitrary value
         out_coin_data.back().memo = memo;
-        out_coin_data.back().a = 0;    // asset type
-        out_coin_data.back().iota = 0; // identifier
+        out_coin_data.back().a = ZERO;    // asset type
+        out_coin_data.back().iota = ZERO; // identifier
 
         f -= out_coin_data.back().v;
     }
@@ -168,8 +172,8 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         out_coin_data.back().address = address;
         out_coin_data.back().v = 123 + spend_indices_generic[j]; // arbitrary value
         out_coin_data.back().memo = memo;
-        out_coin_data.back().a = 1;    // asset type
-        out_coin_data.back().iota = 0; // identifier
+        out_coin_data.back().a = ONE;    // asset type
+        out_coin_data.back().iota = ZERO; // identifier
     }
 
 

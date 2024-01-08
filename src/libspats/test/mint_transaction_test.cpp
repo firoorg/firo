@@ -105,7 +105,7 @@ BOOST_AUTO_TEST_CASE(generate_verify_identifier_not_zero)
     for (std::size_t j = 0; j < t; j++) {
         MintedCoinData output;
         output.address = Address(incoming_view_key, 12345 + j);
-        output.a = vec_a[j];
+        output.a = Scalar(vec_a[j]);
         output.iota = iota;
         output.v = vec_v[j];
         output.memo = "Spam and eggs";
@@ -117,7 +117,7 @@ BOOST_AUTO_TEST_CASE(generate_verify_identifier_not_zero)
         try {
             MintTransaction mint(params, outputs[j], random_char_vector());
             BOOST_CHECK(mint.verify());
-            if(outputs[j][0].a == 0 || outputs[j][0].v != 1){
+            if(outputs[j][0].a == Scalar(uint64_t(0)) || outputs[j][0].v != 1){
                 BOOST_FAIL("Expected an exception but none was thrown");
             }
         } catch (const std::exception& e) {
