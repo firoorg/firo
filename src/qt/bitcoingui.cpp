@@ -1417,8 +1417,10 @@ void BitcoinGUI::checkLelantusVisibility(int numBlocks)
         lelantusAction->setVisible(allowLelantusPage);
     }
 
+#ifdef ENABLE_WALLET
     if (numBlocks == ::Params().GetConsensus().nSparkStartBlock)
         walletFrame->updateAddressbook();
+#endif // ENABLE_WALLET
 }
 
 void BitcoinGUI::toggleNetworkActive()
