@@ -17,8 +17,8 @@ Coin::Coin(
     const Params* params,
     const char type,
     const Scalar& k,
-    const uint64_t& a,
-    const uint64_t& iota,
+    const Scalar& a,
+    const Scalar& iota,
     const Address& address,
     const uint64_t& v,
     const std::string& memo,
@@ -47,7 +47,7 @@ Coin::Coin(
     this->S = this->params->get_F() * SpatsUtils::hash_ser(k, serial_context) + address.get_Q2();
 
     // // Construct the value commitment
-    this->C = this->params->get_E() * Scalar(a) + this->params->get_F() * Scalar(iota) + this->params->get_G() * Scalar(v) + this->params->get_H() * SpatsUtils::hash_val(k);
+    this->C = this->params->get_E() * a + this->params->get_F() * iota + this->params->get_G() * Scalar(v) + this->params->get_H() * SpatsUtils::hash_val(k);
 
     // Check the memo validity, and pad if needed
     if (memo.size() > this->params->get_memo_bytes()) {
