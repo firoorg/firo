@@ -19,7 +19,7 @@ public:
     }
 
     inline std::size_t memoryRequired() const {
-        return 3*GroupElement::memoryRequired() + 3*Scalar::memoryRequired() + L.size()*GroupElement::memoryRequired() + R.size()*GroupElement::memoryRequired();
+        return 3*GroupElement::memoryRequired() + 5*Scalar::memoryRequired() + L.size()*GroupElement::memoryRequired() + R.size()*GroupElement::memoryRequired();
     }
 
     ADD_SERIALIZE_METHODS;
