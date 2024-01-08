@@ -2,6 +2,7 @@
 #define FIRO_LIBSPATS_BALANCE_H
 
 #include "balance_proof.h"
+#include <secp256k1/include/MultiExponent.h>
 
 namespace spats {
 
