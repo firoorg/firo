@@ -879,7 +879,7 @@ if test x$use_pkgconfig = xyes; then
       if test "x$enable_clientapi" = "xyes"; then
         AC_DEFINE([ENABLE_ZMQ],[1],[Define to 1 to enable ZMQ functions])
         PKG_CHECK_MODULES([ZMQ],[libzmq >= 4], [], [AC_MSG_ERROR([libzmq version 4.x or greater not found])])
-        PKG_CHECK_MODULES([MINIZIP], [minizip], [], [AC_MSG_ERROR([minizip not found])])
+
       fi
     ]
   )
@@ -915,9 +915,6 @@ else
   if test "x$enable_clientapi" = "xyes"; then
     AC_CHECK_HEADER([zmq.h],,AC_MSG_ERROR(zmq.h not found))
     AC_CHECK_LIB([zmq],      [zmq_ctx_shutdown],ZMQ_LIBS=-lzmq, AC_MSG_ERROR(libzmq >= 4.0 not found))
-
-    AC_CHECK_HEADER([minizip/zip.h],,AC_MSG_ERROR(zip.h not found))
-    AC_CHECK_LIB([minizip],      [main],MINIZIP_LIBS=-lminizip, AC_MSG_ERROR(minizip not found))
   fi
 
   if test "x$use_zmq" = "xyes"; then
@@ -1241,7 +1238,6 @@ AC_SUBST(SSL_LIBS)
 AC_SUBST(EVENT_LIBS)
 AC_SUBST(EVENT_PTHREADS_LIBS)
 AC_SUBST(ZMQ_LIBS)
-AC_SUBST(MINIZIP_LIBS)
 AC_SUBST(PROTOBUF_LIBS)
 AC_SUBST(QR_LIBS)
 AC_SUBST(DSYMUTIL_FLAT)

@@ -21,7 +21,6 @@
 #include "univalue.h"
 
 #ifdef ENABLE_CLIENTAPI
-#include "minizip/zip.h"
 #include <zlib.h>
 #include <fstream>
 #include "client-api/externs.h"
@@ -792,88 +791,6 @@ void CreatePidFile(const boost::filesystem::path &path, pid_t pid)
         fclose(file);
     }
 }
-
-#ifdef ENABLE_CLIENTAPI
-/*
- * Creates a ZIP file -
-    after specifying an absolute path to a "root" directory, all filepaths derived from this path are stored in the ZIP file,
-    with only files and their paths from the root preserved.
-    eg. root path:                 /a/b/c/d/
-        filepaths(from root path): e/f.txt
-                                   g.dat
-
-    paths to folders (again, from a root) can be provided - in this case the method derives all sub-files and adds to "filePaths".
-    eg. folder path:  h/i
-        derives files: h/i/j.exe
-                       h/i/k.o
-                       h/i/l/m.jpeg
-
-    Breaking up the root and derived paths allows for easy unzipping from the same directory - the layout is preserved.
-*/
-bool CreateZipFile (std::string rootPath, std::vector<std::string> folderPaths, std::vector<std::string> filePaths, std::string destinationPath)
-{
-    zipFile zf = zipOpen(destinationPath.c_str(), APPEND_STATUS_CREATE);
-    if (zf == NULL)
-        return false;
-
-    BOOST_FOREACH(std::string folderPath, folderPaths){
-        boost::filesystem::directory_iterator end_iter;
-        std::string fullFolderPath = rootPath + folderPath;
-        for (boost::filesystem::directory_iterator dir_iter(fullFolderPath);
-        dir_iter != end_iter;
-        ++dir_iter)
-        {
-            std::string fullFolderFilePath = dir_iter->path().string();
-            std::string folderFilePath = fullFolderFilePath.substr(rootPath.length());
-            filePaths.push_back(folderFilePath);
-        }
-    }
-
-    bool failed = false;
-    BOOST_FOREACH(std::string filePath, filePaths)
-    {
-        if(failed){
-            break;
-        }
-        std::string fullPath = rootPath + filePath;
-        std::fstream file(fullPath.c_str(), std::ios::binary | std::ios::in);
-        if (file.is_open())
-        {
-            file.seekg(0, std::ios::end);
-            long size = file.tellg();
-            file.seekg(0, std::ios::beg);
-
-            std::vector<char> buffer(size);
-            if (size == 0 || file.read(&buffer[0], size)){
-                zip_fileinfo zfi = { 0 };
-                if (ZIP_OK == zipOpenNewFileInZip(zf, filePath.c_str(), &zfi, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION))
-                {
-                    if (ZIP_OK != zipWriteInFileInZip(zf, size == 0 ? "" : &buffer[0], size)){
-                        failed = true;
-                    }
-
-                    if (ZIP_OK != zipCloseFileInZip(zf)){
-                        failed = true;
-                    }
-
-                    file.close();
-                    continue;
-                }
-            }
-            file.close();
-        }
-        failed = true;
-    }
-
-    zipClose(zf, NULL);
-
-    if (failed){
-        return false;
-    }
-
-    return true;
-}
-#endif
 
 bool RenameOver(boost::filesystem::path src, boost::filesystem::path dest)
 {

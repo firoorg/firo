@@ -208,28 +208,15 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
 
 UniValue backup(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
-    std::string directory = find_value(data, "directory").get_str();
+    assert(pwalletMain);
 
-    milliseconds secs = duration_cast< milliseconds >(
-        system_clock::now().time_since_epoch()
-    );
-    UniValue firstSeenAt = secs.count();
-    std::string filename = "firo_backup-" + std::to_string(firstSeenAt.get_int64()) + ".zip";
+    int64_t now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    std::string filename = "firo-wallet-backup-" + std::to_string(now) + ".dat";
 
-    fs::path backupPath (directory);
+    fs::path backupPath(data["directory"].get_str());
     backupPath /= filename;
 
-    std::vector<std::string> filePaths;
-    std::vector<std::string> folderPaths;
-
-    filePaths.push_back(DEFAULT_WALLET_DAT);
-    folderPaths.push_back(PERSISTENT_FILENAME);
-
-    if(!CreateZipFile(GetDataDir().string() + "/", folderPaths, filePaths, backupPath.string())){
-        throw JSONAPIError(API_MISC_ERROR, "Failed to create backup");
-    }
-
-    return true;
+    return pwalletMain->BackupWallet(backupPath.string());
 }
 
 UniValue stop(Type type, const UniValue& data, const UniValue& auth, bool fHelp)

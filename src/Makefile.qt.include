@@ -529,7 +529,7 @@ if ENABLE_ZMQ
 qt_firo_qt_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 endif
 
-qt_firo_qt_LDADD += -ltor -lminizip
+qt_firo_qt_LDADD += -ltor
 
 qt_firo_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBFIRO_SIGMA) $(LIBLELANTUS) $(LIBSPARK)\

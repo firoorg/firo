@@ -144,9 +144,6 @@ void CreatePidFile(const boost::filesystem::path &path, pid_t pid);
 boost::filesystem::path CreatePaymentRequestFile(bool fNetSpecific=true);
 boost::filesystem::path CreateSettingsFile(bool fNetSpecific=true);
 boost::filesystem::path GetZnodeConfigFile();
-#ifdef ENABLE_CLIENTAPI
-bool CreateZipFile(std::string rootPath, std::vector<std::string> folderPaths, std::vector<std::string> filePaths, std::string destinationPath);
-#endif
 
 void ReadConfigFile(const std::string& confPath);
 #ifdef WIN32
