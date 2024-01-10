@@ -407,6 +407,7 @@ libbitcoin_server_a_SOURCES = \
   versionbits.cpp \
   sigma.cpp \
   lelantus.cpp \
+  bip47/paymentcode.cpp \
   spark/state.cpp \
   spark/primitives.cpp \
   coin_containers.cpp \
