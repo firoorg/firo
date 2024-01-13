@@ -506,11 +506,6 @@ void BitcoinApplication::initializeResult(int retval)
     {
         // Log this only after AppInit2 finishes, as then logging setup is guaranteed complete
         qWarning() << "Platform customization:" << platformStyle->getName();
-#ifdef ENABLE_WALLET
-        PaymentServer::LoadRootCAs();
-        paymentServer->setOptionsModel(optionsModel);
-#endif
-
         clientModel = new ClientModel(optionsModel);
         window->setClientModel(clientModel);
 
@@ -521,8 +516,6 @@ void BitcoinApplication::initializeResult(int retval)
 
             window->addWallet(BitcoinGUI::DEFAULT_WALLET, walletModel);
             window->setCurrentWallet(BitcoinGUI::DEFAULT_WALLET);
-
-            connect(walletModel, &WalletModel::coinsSent, paymentServer, &PaymentServer::fetchPaymentACK);
 
 #endif
 
