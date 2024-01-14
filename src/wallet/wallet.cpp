@@ -2942,7 +2942,7 @@ CAmount CWallet::GetBalance(bool fExcludeLocked) const
         for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
-            if (pcoin->IsInMainChain())
+            if (pcoin->IsTrusted())
                 nTotal += pcoin->GetAvailableCredit(true, fExcludeLocked);
         }
     }
@@ -3364,7 +3364,7 @@ std::list<CLelantusEntry> CWallet::GetAvailableLelantusCoins(const CCoinControl 
         std::vector<unsigned char> setHash;
         state->GetCoinSetForSpend(
             &chainActive,
-            chainActive.Height(),
+            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 1 confirmation for mint to spend
             coinId,
             hashOut,
             coinOuts,

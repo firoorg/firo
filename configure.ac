@@ -98,6 +98,11 @@ AC_ARG_ENABLE([wallet],
   [enable_wallet=$enableval],
   [enable_wallet=yes])
 
+AC_ARG_ENABLE([clientapi],
+  [AS_HELP_STRING([--enable-clientapi],[enable clientapi (disabled by default)])],
+  [enable_clientapi=$enableval],
+  [enable_clientapi=no])
+
 AC_ARG_WITH([bdb],
     [AS_HELP_STRING([--without-bdb],
     [disable bdb wallet support (default is enabled if wallet is enabled)])],

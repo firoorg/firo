@@ -137,7 +137,11 @@ bool AppInit(int argc, char* argv[])
         }
         // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
         try {
+#ifdef ENABLE_CLIENTAPI
             SelectParams(GetBoolArg("-clientapi", false) ? ChainNameFromCommandLineAPI() : ChainNameFromCommandLine());
+#else
+            SelectParams(ChainNameFromCommandLine());
+#endif
         } catch (const std::exception& e) {
             fprintf(stderr, "Error: %s\n", e.what());
             return false;
