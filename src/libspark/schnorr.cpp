@@ -64,6 +64,12 @@ bool Schnorr::verify(const GroupElement& Y, const SchnorrProof& proof) {
 bool Schnorr::verify(const std::vector<GroupElement>& Y, const SchnorrProof& proof) {
     const std::size_t n = Y.size();
 
+    for (std::size_t i = 0; i < n; i++) {
+        if (Y[i].isInfinity()) {
+            throw std::invalid_argument("Bad Schnorr input key!");
+        }
+    }
+
     std::vector<GroupElement> points;
     points.reserve(n + 2);
     std::vector<Scalar> scalars;
