@@ -93,6 +93,11 @@ bool Chaum::verify(
     if (!(T.size() == n && proof.A2.size() == n && proof.t1.size() == n)) {
         throw std::invalid_argument("Bad Chaum semantics!");
     }
+    for (std::size_t i = 0; i < n; i++) {
+        if (S[i].isInfinity()) {
+            throw std::invalid_argument("Bad Chaum input!");
+        }
+    }
 
     Scalar c = challenge(mu, S, T, proof.A1, proof.A2);
     if (c.isZero()) {
