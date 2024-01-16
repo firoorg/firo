@@ -12,6 +12,8 @@
 //*********** threads waiting for responses ***********//
 void* CZMQOpenReplier::Thread()
 {
+    RenameThread("CZMQOpenReplier");
+
     LogPrintf("ZMQ: IN REQREP_ZMQ_open\n");
     while (KEEPALIVE) {
         /* Create an empty ØMQ message to hold the message part. */
@@ -60,6 +62,8 @@ void* CZMQOpenReplier::Thread()
 }
 
 void* CZMQAuthReplier::Thread(){
+    RenameThread("CZMQAuthReplier");
+
     LogPrintf("ZMQ: IN REQREP_ZMQ_auth\n");
     while (KEEPALIVE) {
         /* Create an empty ØMQ message to hold the message part. */
@@ -205,7 +209,7 @@ void CZMQAbstractReplier::Shutdown()
         pcontext = 0;
     }
 
-    KEEPALIVE = 0; // end infinite loop in thread 
+    KEEPALIVE = 0; // end infinite loop in thread
     worker->interrupt(); // terminate boost thread
 
     boost::this_thread::sleep_for(boost::chrono::milliseconds(100)); // wait allowing thread to finish up

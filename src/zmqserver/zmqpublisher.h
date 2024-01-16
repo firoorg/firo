@@ -26,7 +26,7 @@ public:
 
     virtual void SetMethod() = 0;
     virtual void SetTopic() = 0;
-    
+
 protected:
     std::string method;
     UniValue request;
@@ -40,6 +40,8 @@ class CZMQThreadPublisher : public CZMQAbstractPublisher
 {
 public:
     static void* Thread(){
+        RenameThread("CZMQAbstractPublisher");
+
         LogPrintf("CZMQAbstractPublisher Thread started.\n");
         const int STATUS_TIME_SECS = 1;
         const int MASTERNODE_TIME_SECS = 60;
@@ -56,7 +58,7 @@ public:
     };
 };
 
-/* Event classes. Each one is a specific notifier in ValidationInterface. 
+/* Event classes. Each one is a specific notifier in ValidationInterface.
    virtual to allow multiple inheritence by topic classes */
 class CZMQBlockEvent : virtual public CZMQAbstractPublisher
 {
@@ -102,7 +104,7 @@ public:
 class CZMQSettingsEvent : virtual public CZMQAbstractPublisher
 {
      /* Settings updated
-    */   
+    */
 public:
     bool NotifySettingsUpdate(std::string update);
 };
@@ -123,8 +125,8 @@ public:
     bool NotifyMintStatusUpdate(std::string update);
 };
 
-/* Topics. inheriting from an event class implies publishing on that event. 
-   'method' string is the API method called in client-api/ 
+/* Topics. inheriting from an event class implies publishing on that event.
+   'method' string is the API method called in client-api/
 */
 class CZMQBlockDataTopic : public CZMQBlockEvent
 {
