@@ -7,6 +7,7 @@
 #include "grootle.h"
 #include "bpplus.h"
 #include "chaum.h"
+#include "claim.h"
 
 namespace spark {
 
@@ -60,6 +61,9 @@ public:
 
 	static bool verify(const Params* params, const std::vector<SpendTransaction>& transactions, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
 	static bool verify(const SpendTransaction& transaction, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
+
+    static void proveClaim(const FullViewKey& full_view_key, const SpendKey& spend_key, const SpendTransaction& transaction, const std::vector<InputCoinData>& inputs, const std::vector<unsigned char>& identifier, const std::vector<unsigned char>& message, ChaumProof& claim);
+    static bool verifyClaim(const SpendTransaction& transaction, const std::vector<unsigned char>& identifier, const std::vector<unsigned char>& message, const ChaumProof& claim);
     
 	static std::vector<unsigned char> hash_bind_inner(
 		const std::map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
