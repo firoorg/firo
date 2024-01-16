@@ -97,7 +97,7 @@ public:
         READWRITE(masterKeyID);
         if (this->nVersion >= VERSION_WITH_BIP44) {
             READWRITE(nExternalChainCounters);
-            nExternalChainCounters.assign(N_CHANGES, 0);
+            nExternalChainCounters.resize(N_CHANGES);
         }
     }
 
