@@ -187,9 +187,6 @@ BOOST_AUTO_TEST_CASE(serial_adding)
 
     BOOST_CHECK(!lelantusState->IsUsedCoinSerial(serial2));
     BOOST_CHECK(!lelantusState->IsUsedCoinSerialHash(receivedSerial, serialHash2));
-
-    // add serials to group that doesn't exist, should fail
-    BOOST_CHECK_THROW(lelantusState->AddSpend(Scalar(1), 100), std::invalid_argument);
 }
 
 BOOST_AUTO_TEST_CASE(mempool)

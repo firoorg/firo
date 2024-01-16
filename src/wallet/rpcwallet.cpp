@@ -2201,14 +2201,14 @@ UniValue gettransaction(const JSONRPCRequest& request)
         try {
             nFee = (0 - lelantus::ParseLelantusJoinSplit(*wtx.tx)->getFee());
         }
-        catch (...) {
+        catch (const std::exception &) {
             // do nothing
         }
     } else if (wtx.tx->IsSparkSpend()) {
         try {
             nFee = (0 - spark::ParseSparkSpend(*wtx.tx).getFee());
         }
-        catch (...) {
+        catch (const std::exception &) {
             // do nothing
         }
     }
@@ -3569,7 +3569,7 @@ UniValue getsparkaddressbalance(const JSONRPCRequest& request) {
     unsigned char coinNetwork;
     try {
         coinNetwork = address.decode(strAddress);
-    } catch (...) {
+    } catch (const std::exception &) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Spark address: ")+strAddress);
     }
 
@@ -3691,7 +3691,7 @@ UniValue mintspark(const JSONRPCRequest& request)
         unsigned char coinNetwork;
         try {
             coinNetwork = address.decode(name_);
-        } catch (...) {
+        } catch (const std::exception &) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Spark address: ")+name_);
         }
 
@@ -3826,7 +3826,7 @@ UniValue spendspark(const JSONRPCRequest& request)
             isSparkAddress = true;
             if (coinNetwork != network)
                 throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ")+name_);
-        } catch (...) {
+        } catch (const std::exception &) {
             isSparkAddress = false;
         }
 
@@ -3900,7 +3900,7 @@ UniValue spendspark(const JSONRPCRequest& request)
     CWalletTx wtx;
     try {
         wtx = pwallet->SpendAndStoreSpark(recipients, privateRecipients, fee);
-    } catch (...) {
+    } catch (const std::exception &) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
     }
 
@@ -3932,7 +3932,7 @@ UniValue lelantustospark(const JSONRPCRequest& request) {
     bool passed = false;
     try {
         passed = pwallet->LelantusToSpark(strFailReason);
-    } catch (...) {
+    } catch (const std::exception &) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Lelantus to Spark failed!");
     }
     if (!passed || strFailReason != "")
@@ -4923,7 +4923,7 @@ UniValue listlelantusjoinsplits(const JSONRPCRequest& request) {
         std::unique_ptr<lelantus::JoinSplit> joinsplit;
         try {
             joinsplit = lelantus::ParseLelantusJoinSplit(*pwtx->tx);
-        } catch (...) {
+        } catch (const std::exception &) {
             continue;
         }
 

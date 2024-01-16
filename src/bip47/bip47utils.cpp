@@ -170,7 +170,7 @@ GroupElement GeFromPubkey(CPubKey const & pubKey)
     serializedGe.push_back(0x0);
     try {
         result.deserialize(&serializedGe[0]);
-    } catch (...) {
+    } catch (const std::exception &) {
         result = GroupElement();
     }
     return result;

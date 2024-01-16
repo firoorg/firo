@@ -86,10 +86,7 @@ public:
     std::vector<uint32_t> nExternalChainCounters;
     CKeyID masterKeyID; //!< master key hash160
 
-    CHDChain() {
-        nExternalChainCounters.assign(N_CHANGES, 0);
-    }
-
+    CHDChain() { SetNull(); }
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)
@@ -100,7 +97,7 @@ public:
         READWRITE(masterKeyID);
         if (this->nVersion >= VERSION_WITH_BIP44) {
             READWRITE(nExternalChainCounters);
-            nExternalChainCounters.assign(N_CHANGES, 0);
+            nExternalChainCounters.resize(N_CHANGES);
         }
     }
 

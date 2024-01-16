@@ -130,7 +130,7 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key) {
 			// Decrypt recipient data
 			CDataStream stream = AEAD::decrypt_and_verify(this->K*incoming_view_key.get_s1(), "Mint coin data", this->r_);
 			stream >> r;
-		} catch (...) {
+		} catch (const std::exception &) {
 			throw std::runtime_error("Unable to identify coin");
 		}
 
@@ -151,7 +151,7 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key) {
 			// Decrypt recipient data
 			CDataStream stream = AEAD::decrypt_and_verify(this->K*incoming_view_key.get_s1(), "Spend coin data", this->r_);
 			stream >> r;
-		} catch (...) {
+		} catch (const std::exception &) {
 			throw std::runtime_error("Unable to identify coin");
 		}
 			
