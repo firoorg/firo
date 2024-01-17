@@ -7384,13 +7384,6 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         }
     }
 
-    spark::Address address = walletInstance->sparkWallet->getDefaultAddress();
-    unsigned char network = spark::GetNetworkType();
-    if (!walletInstance->SetSparkAddressBook(address.encode(network), "", "receive")) {
-        InitError(_("Cannot write default spark address") += "\n");
-        return NULL;
-    }
-
     walletInstance->bip47wallet = std::make_shared<bip47::CWallet>(walletInstance->vchDefaultKey.GetHash());
     walletInstance->LoadBip47Wallet();
     if (fFirstRun) {
