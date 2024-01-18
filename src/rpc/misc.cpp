@@ -566,7 +566,7 @@ bool getAddressFromIndex(AddressType const & type, const uint160 &hash, std::str
 {
     if (type == AddressType::payToScriptHash) {
         address = CBitcoinAddress(CScriptID(hash)).ToString();
-    } else if (type == AddressType::payToPubKeyHash) {
+    } else if (type == AddressType::payToPubKeyHash || type == AddressType::payToExchangeAddress) {
         address = CBitcoinAddress(CKeyID(hash)).ToString();
     } else {
         return false;

@@ -504,6 +504,9 @@ std::pair<AddressType, uint160> classifyAddress(txnouttype type, std::vector<std
     } else if(type == TX_PUBKEYHASH) {
         result.first = AddressType::payToPubKeyHash;
         result.second = uint160(std::vector<unsigned char>(addresses.front().begin(), addresses.front().end()));
+    } else if(type == TX_EXCHANGEADDRESS) {
+        result.first = AddressType::payToExchangeAddress;
+        result.second = uint160(std::vector<unsigned char>(addresses.front().begin(), addresses.front().end()));
     }
     return result;
 }

@@ -297,6 +297,10 @@ bool CBitcoinAddress::GetIndexKey(uint160& hashBytes, AddressType & type) const
         memcpy(&hashBytes, &vchData[0], 20);
         type = AddressType::payToPubKeyHash;
         return true;
+    } else if (vchVersion == Params().Base58Prefix(CChainParams::EXCHANGE_PUBKEY_ADDRESS)) {
+        memcpy(&hashBytes, &vchData[0], 20);
+        type = AddressType::payToExchangeAddress;
+        return true;
     } else if (vchVersion == Params().Base58Prefix(CChainParams::SCRIPT_ADDRESS)) {
         memcpy(&hashBytes, &vchData[0], 20);
         type = AddressType::payToScriptHash;
