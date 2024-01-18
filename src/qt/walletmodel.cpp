@@ -1547,18 +1547,19 @@ WalletModel::SendCoinsReturn WalletModel::mintSparkCoins(std::vector<WalletModel
         auto reservekey = reserveKeys.begin();
 
         for (size_t i = 0; i != wtxAndFee.size(); i++) {
+            if (!wallet->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state))
+                return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString(state.GetRejectReason()));
+
             Q_FOREACH(const SendCoinsRecipient &rcp, transactions[i].getRecipients())
             {
                 // CWalletTx* newTx = transactions[i].getTransaction();
                 if (!rcp.message.isEmpty()) // Message from normal firo:URI (firo:123...?message=example)
                     wtxAndFee[i].first.vOrderForm.push_back(make_pair("Message", rcp.message.toStdString()));
-                if (!wallet->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state))
-                    return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString(state.GetRejectReason()));
-                
+
                 CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
                 ssTx << *wtxAndFee[i].first.tx;
                 transaction_array.append(&(ssTx[0]), ssTx.size());
-    
+
                 {
                     std::string strAddress = rcp.address.toStdString();
                     std::string strLabel = rcp.label.toStdString();
