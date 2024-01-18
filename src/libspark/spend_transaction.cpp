@@ -409,6 +409,8 @@ bool SpendTransaction::verify(
 // Hash function H_bind_inner
 // This function pre-hashes auxiliary data that makes things easier for a limited signer who cannot process the data directly
 // Its value is then used as part of the binding hash, which a limited signer can verify as part of the signing process
+// 
+// Note that transparent components of the transaction are bound into `cover_set_representation`, so they don't appear separately.
 std::vector<unsigned char> SpendTransaction::hash_bind_inner(
 	const std::unordered_map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
 	const std::vector<GroupElement>& S1,
