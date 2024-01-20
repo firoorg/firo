@@ -186,10 +186,12 @@ CBlock TestChain100Setup::CreateBlock(const std::vector<CMutableTransaction>& tx
     }
 
     // Replace mempool-selected txns with just coinbase plus passed-in txns:
-    if (!fAllowMempoolTxsInCreateBlock)
+    if (!fAllowMempoolTxsInCreateBlock) {
         block.vtx.resize(1);
-    // Re-add quorum commitments
-    block.vtx.insert(block.vtx.end(), llmqCommitments.begin(), llmqCommitments.end());
+        // Re-add quorum commitments
+        block.vtx.insert(block.vtx.end(), llmqCommitments.begin(), llmqCommitments.end());
+    }
+    
     BOOST_FOREACH(const CMutableTransaction& tx, txns)
         block.vtx.push_back(MakeTransactionRef(tx));
 
