@@ -1525,9 +1525,6 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 i++;
             }
 
-            // check fee
-            wtxNew.SetTx(MakeTransactionRef(std::move(tx)));
-
             if (GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT) {
                 throw std::runtime_error(_("Transaction too large"));
             }
@@ -1546,6 +1543,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 throw std::invalid_argument(_("Not enough fee estimated"));
             }
 
+            wtxNew.SetTx(MakeTransactionRef(std::move(tx)));
+            
             result.push_back(wtxNew);
         }
     }
