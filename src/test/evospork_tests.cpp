@@ -593,13 +593,8 @@ BOOST_AUTO_TEST_CASE(limit)
 
     auto params = spark::Params::get_default();
 
-    // Generate keys
-    const spark::SpendKey spend_key(params);
-    const spark::FullViewKey full_view_key(spend_key);
-    const spark::IncomingViewKey incoming_view_key(full_view_key);
-
-    // Generate address
-    const spark::Address address(incoming_view_key, 12345);
+    BOOST_ASSERT(pwalletMain->sparkWallet);
+    spark::Address address = pwalletMain->sparkWallet->generateNewAddress();
 
     std::vector<CMutableTransaction> sparkMints;
     for (int i=0; i<10; i++) {
