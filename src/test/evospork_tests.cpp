@@ -448,6 +448,7 @@ struct SparkSporkTestingSetup : public SparkTestingSetup
 
     ~SparkSporkTestingSetup() {
         mutableParams = originalParams;
+        spark::CSparkState::GetState()->Reset();
     }
 
 };
