@@ -413,16 +413,6 @@ bool Grootle::verify(
         return false;
     }
 
-    // Check for zero inputs
-    for (std::size_t t = 0; t < S1.size(); t++) {
-        for (std::size_t i = 0; i < S.size(); i++) {
-            if (S[i] == S1[t] || V[i] == V1[t]) {
-                LogPrintf("Invalid offset commitment");
-                return false;
-            }
-        }
-    }
-
     // Check proof semantics
     for (std::size_t t = 0; t < M; t++) {
         GrootleProof proof = proofs[t];
