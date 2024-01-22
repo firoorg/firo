@@ -442,6 +442,8 @@ struct SparkSporkTestingSetup : public SparkTestingSetup
 
     SparkSporkTestingSetup() : SparkTestingSetup(), mutableParams(const_cast<Consensus::Params&>(Params().GetConsensus()))
     {
+        spark::CSparkState::GetState()->Reset();
+        mempool.clear();
         originalParams = mutableParams;
         mutableParams.nEvoSporkStopBlock = 2000;
     }
@@ -449,6 +451,7 @@ struct SparkSporkTestingSetup : public SparkTestingSetup
     ~SparkSporkTestingSetup() {
         mutableParams = originalParams;
         spark::CSparkState::GetState()->Reset();
+        mempool.clear();
     }
 
 };
