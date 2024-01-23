@@ -3998,7 +3998,7 @@ UniValue getsparkcoinaddr(const JSONRPCRequest& request)
     for (const auto& coin : coins)
     {
         if (txHash == coin.second.txid) {
-            spark::Address address = pwallet->sparkWallet->getAddress(coin.second.nId);
+            spark::Address address = pwallet->sparkWallet->getAddress(coin.second.i);
             UniValue entry(UniValue::VOBJ);
             entry.push_back(Pair("address", address.encode(network)));
             entry.push_back(Pair("memo", SanitizeString(coin.second.memo)));
