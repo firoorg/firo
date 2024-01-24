@@ -4,6 +4,16 @@
 
 #include "sync.h"
 
+#include <map>
+#include <mutex>
+#include <set>
+#include <system_error>
+#include <thread>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
 #include "util.h"
 #include "utilstrencodings.h"
 

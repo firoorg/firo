@@ -434,7 +434,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             formatted.append(recipientElement);
         }
     } else {
-        Q_FOREACH(const SendCoinsRecipient &rcp, currentTransaction.getRecipients())
+        for (const SendCoinsRecipient &rcp : currentTransaction.getRecipients())
         {
             // generate bold amount string
             QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
@@ -499,7 +499,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     QStringList alternativeUnits;
-    Q_FOREACH(BitcoinUnits::Unit u, BitcoinUnits::availableUnits())
+    for (BitcoinUnits::Unit u : BitcoinUnits::availableUnits())
     {
         if(u != model->getOptionsModel()->getDisplayUnit())
             alternativeUnits.append(BitcoinUnits::formatHtmlWithUnit(u, totalAmount));
