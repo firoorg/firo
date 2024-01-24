@@ -1948,7 +1948,7 @@ bool CWallet::IsMine(const CTransaction& tx) const
 {
     if (tx.IsSparkTransaction()) {
         if (!sparkWallet)
-            false;
+            return false;
         std::vector<unsigned char> serialContext = spark::getSerialContext(tx);
         for (const auto& txout : tx.vout) {
             if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
