@@ -17,6 +17,8 @@ struct CSporkAction
     static constexpr const char *featureLelantusTransparentLimit = "lelantustransparentlimit";
     static constexpr const char *featureChainlocks = "chainlocks";
     static constexpr const char *featureInstantSend = "instantsend";
+    static constexpr const char *featureSpark = "spark";
+    static constexpr const char *featureSparkTransparentLimit = "sparktransparentlimit";
 
     enum ActionType {
         sporkDisable = 1,

@@ -65,6 +65,18 @@ static bool IsTransactionAllowed(const CTransaction &tx, const ActiveSporkMap &s
             }
         }
     }
+    else if (tx.IsSparkTransaction()) {
+        if (sporkMap.count(CSporkAction::featureSpark) > 0)
+            return state.DoS(100, false, REJECT_CONFLICT, "txn-spark-disabled", false, "Spark transactions are disabled at the moment");
+
+        if (tx.IsSparkSpend()) {
+            const auto &limitSpork = sporkMap.find(CSporkAction::featureSparkTransparentLimit);
+            if (limitSpork != sporkMap.cend()) {
+                if (spark::GetSpendTransparentAmount(tx) > (CAmount)limitSpork->second.second)
+                    return state.DoS(100, false, REJECT_CONFLICT, "txn-spark-disabled", false, "Spark transaction is over the transparent limit");
+            }
+        }
+    }
     return true;
 }
 
@@ -176,8 +188,24 @@ bool CSporkManager::IsBlockAllowed(const CBlock &block, const CBlockIndex *pinde
             totalTransparentOutput += lelantus::GetSpendTransparentAmount(*tx);
         }
 
-        return totalTransparentOutput <= CAmount(limit) ? true :
-                state.DoS(100, false, REJECT_CONFLICT, "txn-lelantus-disabled", false, "Block is over the transparent output limit because of existing spork");
+        if (totalTransparentOutput > CAmount(limit))
+            return state.DoS(100, false, REJECT_CONFLICT, "txn-lelantus-disabled", false, "Block is over the transparent output limit because of existing spork");
+    }
+
+    if (pindex->activeDisablingSporks.count(CSporkAction::featureSparkTransparentLimit) > 0) {
+        // limit total transparent output of lelantus joinsplit
+        int64_t limit = pindex->activeDisablingSporks.at(CSporkAction::featureSparkTransparentLimit).second;
+        CAmount totalTransparentOutput = 0;
+
+        for (const auto &tx: block.vtx) {
+            if (!tx->IsSparkSpend())
+                continue;
+
+            totalTransparentOutput += spark::GetSpendTransparentAmount(*tx);
+        }
+
+        if (totalTransparentOutput > CAmount(limit))
+            return state.DoS(100, false, REJECT_CONFLICT, "txn-spark-disabled", false, "Block is over the transparent output limit because of existing spork");
     }
 
     return true;
