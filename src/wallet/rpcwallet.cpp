@@ -3937,7 +3937,7 @@ UniValue identifysparkcoins(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "identifysparkcoin \"txHash\"\n"
+                "identifysparkcoins \"txHash\"\n"
                 "Identifies coins in transaction, and adds into wallet if yours");
 
     EnsureSparkWalletIsAvailable();
@@ -3964,6 +3964,48 @@ UniValue identifysparkcoins(const JSONRPCRequest& request)
     results.push_back(Pair("availableBalance",pwallet->sparkWallet->getAvailableBalance()));
     results.push_back(Pair("unconfirmedBalance",pwallet->sparkWallet->getUnconfirmedBalance()));
     results.push_back(Pair("fullBalance",pwallet->sparkWallet->getFullBalance()));
+
+    return results;
+}
+
+UniValue getsparkcoinaddr(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+                "getsparkcoinaddr \"txHash\"\n"
+                "Returns all spark outputs to you, address memo and amount for each");
+
+    EnsureSparkWalletIsAvailable();
+
+    uint256 txHash;
+    txHash.SetHex(request.params[0].get_str());
+
+    CTransactionRef tx;
+    uint256 hashBlock;
+    GetTransaction(txHash, tx,  Params().GetConsensus(), hashBlock);
+
+    UniValue results(UniValue::VARR);;
+    assert(pwallet != NULL);
+
+    std::unordered_map<uint256, CSparkMintMeta> coins = pwallet->sparkWallet->getMintMap();
+    unsigned char network = spark::GetNetworkType();
+
+    for (const auto& coin : coins)
+    {
+        if (txHash == coin.second.txid) {
+            spark::Address address = pwallet->sparkWallet->getAddress(coin.second.i);
+            UniValue entry(UniValue::VOBJ);
+            entry.push_back(Pair("address", address.encode(network)));
+            entry.push_back(Pair("memo", SanitizeString(coin.second.memo)));
+            entry.push_back(Pair("amount", ValueFromAmount(coin.second.v)));
+            results.push_back(entry);
+        }
+    }
 
     return results;
 }
@@ -5720,6 +5762,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "spendspark",             &spendspark,             false },
     { "wallet",             "lelantustospark",        &lelantustospark,        false },
     { "wallet",             "identifysparkcoins",     &identifysparkcoins,     false },
+    { "wallet",             "getsparkcoinaddr",       &getsparkcoinaddr,       false },
 
 
     //bip47
