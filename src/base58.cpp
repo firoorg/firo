@@ -320,6 +320,17 @@ bool CBitcoinAddress::GetKeyID(CKeyID& keyID) const
     return true;
 }
 
+bool CBitcoinAddress::GetKeyIDExt(CKeyID& keyID) const
+{
+    if (!IsValid() || !(vchVersion == Params().Base58Prefix(CChainParams::PUBKEY_ADDRESS) ||
+                        vchVersion == Params().Base58Prefix(CChainParams::EXCHANGE_PUBKEY_ADDRESS)))
+        return false;
+    uint160 id;
+    memcpy(&id, &vchData[0], 20);
+    keyID = CKeyID(id);
+    return true;
+}
+
 bool CBitcoinAddress::IsScript() const
 {
     return IsValid() && vchVersion == Params().Base58Prefix(CChainParams::SCRIPT_ADDRESS);
