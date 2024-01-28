@@ -7,6 +7,8 @@
 #include "config/bitcoin-config.h"
 #endif
 
+#include <time.h>
+
 #include "utiltime.h"
 #include "tinyformat.h"
 
@@ -82,15 +84,11 @@ void MilliSleep(int64_t n)
 #endif
 }
 
-std::string DateTimeStrFormat(const char* pszFormat, int64_t nTime)
+std::string DateTimeStrFormat(const char* pszFormat, const time_t nTime)
 {
-    static std::locale classic(std::locale::classic());
-    // std::locale takes ownership of the pointer
-    std::locale loc(classic, new boost::posix_time::time_facet(pszFormat));
-    std::stringstream ss;
-    ss.imbue(loc);
-    ss << boost::posix_time::from_time_t(nTime);
-    return ss.str();
+    char ret[64];
+    strftime(ret, sizeof(ret), pszFormat, gmtime(&nTime));
+    return std::string(std::move(ret));
 }
 
 std::string DurationToDHMS(int64_t nDurationTime)
