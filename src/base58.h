@@ -127,6 +127,7 @@ public:
     CTxDestination Get() const;
     bool GetIndexKey(uint160& hashBytes, AddressType & type) const;
     bool GetKeyID(CKeyID &keyID) const;
+    bool GetKeyIDExt(CKeyID &keyID) const; // same as GetKeyID() but also works in case of exchange address
     bool IsScript() const;
 };
 
