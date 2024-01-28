@@ -1153,6 +1153,14 @@ bool CSparkWallet::CreateSparkMintTransactions(
                     nIn++;
                 }
 
+                {
+                    CValidationState state;
+                    if (!mempool.IsTransactionAllowed(*wtx.tx, state)) {
+                        strFailReason = _("Signing transaction failed");
+                        return false;
+                    }
+                }
+
                 wtx.SetTx(MakeTransactionRef(std::move(tx)));
 
                 wtxAndFee.push_back(std::make_pair(wtx, nFeeRet));
@@ -1548,7 +1556,13 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             result.push_back(wtxNew);
         }
     }
-
+    {
+        CValidationState state;
+        for (CWalletTx& wtx : result) {
+            if (!mempool.IsTransactionAllowed(*wtx.tx, state))
+                throw std::invalid_argument(_("Spark transactions are disabled at the moment"));
+        }
+    }
     if (GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS)) {
         // Lastly, ensure this tx will pass the mempool's chain limits
         size_t nLimitAncestors = GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT);
