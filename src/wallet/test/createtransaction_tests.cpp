@@ -320,7 +320,6 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
         vTxouts.at(0)._mockupDepthInMainChain = 0;
 
         CCoinControl coinControl;
-        coinControl.fAllowUnconfirmedIsSet = true;
         coinControl.fAllowUnconfirmed = false;
 
         {
@@ -428,7 +427,6 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
         vTxouts.at(0)._mockupDepthInMainChain = 0;
 
         CCoinControl coinControl;
-        coinControl.fAllowUnconfirmedIsSet = true;
         coinControl.fAllowUnconfirmed = false;
 
         {
