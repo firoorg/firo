@@ -1,0 +1,9 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Firo
+Comment=Connect to Firo
+Exec=firo-qt %u
+Terminal=false
+Type=Application
+Icon=/app/share/icons/hicolor/scalable/apps/org.firo.firo-qt.svg
+Categories=Office;Finance;
