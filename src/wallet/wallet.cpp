@@ -127,6 +127,7 @@ size_t CTransparentTxout::GetMarginalSpendSize(std::vector<CTransparentTxout>& p
 
         case TX_SCRIPTHASH:
         case TX_PUBKEYHASH:
+        case TX_EXCHANGEADDRESS:
             sigDataSize = 107;
             break;
 
