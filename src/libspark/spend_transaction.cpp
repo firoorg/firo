@@ -412,7 +412,7 @@ bool SpendTransaction::verify(
 // 
 // Note that transparent components of the transaction are bound into `cover_set_representation`, so they don't appear separately.
 std::vector<unsigned char> SpendTransaction::hash_bind_inner(
-	const std::unordered_map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
+	const std::map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
 	const std::vector<GroupElement>& S1,
 	const std::vector<GroupElement>& C1,
 	const std::vector<GroupElement>& T,
