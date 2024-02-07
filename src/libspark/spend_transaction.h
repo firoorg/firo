@@ -61,7 +61,7 @@ public:
 	static bool verify(const SpendTransaction& transaction, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
     
 	static std::vector<unsigned char> hash_bind_inner(
-		const std::unordered_map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
+		const std::map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
         const std::vector<GroupElement>& S1,
         const std::vector<GroupElement>& C1,
         const std::vector<GroupElement>& T,
@@ -113,7 +113,7 @@ private:
 	const Params* params;
     // We need to construct and pass this data before running verification
 	std::unordered_map<uint64_t, std::size_t> cover_set_sizes;
-    std::unordered_map<uint64_t, std::vector<unsigned char>> cover_set_representations;
+    std::map<uint64_t, std::vector<unsigned char>> cover_set_representations;
 	std::vector<Coin> out_coins;
 
     // All this data we need to serialize
