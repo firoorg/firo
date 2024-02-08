@@ -461,14 +461,17 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
     QString questionString = tr("Are you sure you want to send?");
     questionString.append("<br /><br />%1");
+    double txSize;
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
         for (auto &transaction : transactions) {
             txFee += transaction.getTransactionFee();
             mintSparkAmount += transaction.getTotalTransactionAmount();
+            txSize +=  (double)transaction.getTransactionSize();
         }
     } else {
-        txFee= currentTransaction.getTransactionFee();
+        txFee = currentTransaction.getTransactionFee();
+        txSize = (double)currentTransaction.getTransactionSize();
     }
 
     if(txFee > 0)
@@ -480,7 +483,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         questionString.append(tr("added as transaction fee"));
 
         // append transaction size
-        questionString.append(" (" + QString::number((double)currentTransaction.getTransactionSize() / 1000) + " kB)");
+        questionString.append(" (" + QString::number(txSize / 1000) + " kB)");
     }
 
     // add total amount in all subdivision units
