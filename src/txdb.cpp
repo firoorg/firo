@@ -395,8 +395,14 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->sigmaSpentSerials     = diskindex.sigmaSpentSerials;
 
                 pindexNew->lelantusMintedPubCoins   = diskindex.lelantusMintedPubCoins;
+                pindexNew->lelantusMintData         = diskindex.lelantusMintData;
                 pindexNew->lelantusSpentSerials     = diskindex.lelantusSpentSerials;
                 pindexNew->anonymitySetHash         = diskindex.anonymitySetHash;
+
+                pindexNew->sparkMintedCoins   = diskindex.sparkMintedCoins;
+                pindexNew->sparkSetHash       = diskindex.sparkSetHash;
+                pindexNew->spentLTags         = diskindex.spentLTags;
+                pindexNew->sparkTxHash         = diskindex.sparkTxHash;
 
                 pindexNew->activeDisablingSporks = diskindex.activeDisablingSporks;
 
@@ -563,6 +569,8 @@ void handleZerocoinSpend(Iterator const begin, Iterator const end, uint256 const
         addrType = AddressType::zerocoinSpend;
     } else if(tx.IsSigmaSpend()){
         addrType = AddressType::sigmaSpend;
+    }  else if(tx.IsSparkSpend()){
+        addrType = AddressType::sparkSpend;
     }
 
     addressIndex->push_back(std::make_pair(CAddressIndexKey(addrType, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
@@ -585,6 +593,12 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
 
     if(out.scriptPubKey.IsLelantusJMint())
         addressIndex->push_back(std::make_pair(CAddressIndexKey(AddressType::lelantusJMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
+
+    if(out.scriptPubKey.IsSparkMint())
+        addressIndex->push_back(std::make_pair(CAddressIndexKey(AddressType::sparkMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
+
+    if(out.scriptPubKey.IsSparkSMint())
+        addressIndex->push_back(std::make_pair(CAddressIndexKey(AddressType::sparksMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
 
     txnouttype type;
@@ -610,7 +624,7 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
 void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
 {
     size_t no = 0;
-    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit()) {
+    if(!tx.IsCoinBase() && !tx.HasNoRegularInputs()) {
         for (CTxIn const & input : tx.vin) {
             handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);
         }
@@ -628,7 +642,7 @@ void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int
         handleRemint(tx.vin[0], tx.GetHash(), height, txNumber, remintValue, addressIndex, addressUnspentIndex, spentIndex);
     }
 
-    if(tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsLelantusJoinSplit())
+    if(tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsLelantusJoinSplit() || tx.IsSparkSpend())
         handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx);
 
     no = 0;
@@ -665,7 +679,7 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
 
     size_t no = 0;
 
-    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && !tx.IsLelantusJoinSplit())
+    if(!tx.IsCoinBase() && !tx.HasNoRegularInputs())
         for (CTxIn const & input : tx.vin) {
             handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);
         }
@@ -684,7 +698,7 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
 
 void CDbIndexHelper::DisconnectTransactionOutputs(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
 {
-    if(tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsLelantusJoinSplit())
+    if(tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsLelantusJoinSplit() || tx.IsSparkSpend())
         handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx);
 
     size_t no = 0;

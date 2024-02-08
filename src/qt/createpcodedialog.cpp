@@ -26,7 +26,6 @@
 CreatePcodeDialog::CreatePcodeDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::CreatePcodeDialog),
-    columnResizingFixer(0),
     model(0),
     platformStyle(_platformStyle)
 {
@@ -81,12 +80,8 @@ void CreatePcodeDialog::setModel(WalletModel *_model)
         tableView->setColumnWidth(static_cast<int>(PcodeModel::ColumnIndex::Number), static_cast<int>(ColumnWidths::Number));
         tableView->setColumnWidth(static_cast<int>(PcodeModel::ColumnIndex::Pcode), static_cast<int>(ColumnWidths::Pcode));
         tableView->setItemDelegateForColumn(int(PcodeModel::ColumnIndex::Pcode), new GUIUtil::TextElideStyledItemDelegate(tableView));
-
         connect(tableView->selectionModel(), &QItemSelectionModel::selectionChanged, 
                 this, &CreatePcodeDialog::pcodesView_selectionChanged);
-        // Last 2 columns are set by the columnResizingFixer, when the table geometry is ready.
-        columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, 70, 70, this, int(PcodeModel::ColumnIndex::Pcode));
-        columnResizingFixer->stretchColumnWidth(int(PcodeModel::ColumnIndex::Pcode));
 
         ui->createPcodeButton->setEnabled(false);
         ui->statusLabel->setText(tr("The label should not be empty."));
@@ -160,14 +155,6 @@ void CreatePcodeDialog::pcodesView_selectionChanged(QItemSelection const & selec
 {
     bool const enable = !ui->pcodesView->selectionModel()->selectedRows().isEmpty();
     ui->showPcodeButton->setEnabled(enable);
-}
-
-// We override the virtual resizeEvent of the QWidget to adjust tables column
-// sizes as the tables width is proportional to the dialogs width.
-void CreatePcodeDialog::resizeEvent(QResizeEvent *event)
-{
-    QWidget::resizeEvent(event);
-    columnResizingFixer->stretchColumnWidth(int(PcodeModel::ColumnIndex::Pcode));
 }
 
 void CreatePcodeDialog::keyPressEvent(QKeyEvent *event)

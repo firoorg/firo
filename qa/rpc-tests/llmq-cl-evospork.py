@@ -39,7 +39,7 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
         self.nodes[0].sendtoaddress(self.payment_address, 1)
 
         # mine many blocks, wait for chainlock
-        while self.nodes[0].getblockcount() < 1000:
+        while self.nodes[0].getblockcount() < 800:
             self.nodes[0].generate(20)
         self.wait_for_chainlock_tip_all_nodes()
 

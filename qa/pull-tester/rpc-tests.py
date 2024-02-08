@@ -101,6 +101,9 @@ if ENABLE_ZMQ:
         raise
 
 testScripts = [
+    'spark_mint.py',
+    'spark_spend_gettransaction.py',
+    'spark_setmintstatus_validation.py',
     'lelantus_mint.py',
     'lelantus_setmintstatus_validation.py',
     'lelantus_mintspend.py',
