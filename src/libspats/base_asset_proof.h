@@ -8,7 +8,7 @@ namespace spats {
 class BaseAssetProof{
 public:
     inline std::size_t memoryRequired() const {
-        return Scalar::memoryRequired() + GroupElement::memoryRequired();
+        return 2*Scalar::memoryRequired() + GroupElement::memoryRequired();
     }
 
     ADD_SERIALIZE_METHODS;

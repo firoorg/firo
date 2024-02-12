@@ -71,8 +71,6 @@ Params::Params(
     this->G_range.resize(64*max_M_range);
     this->H_range.resize(64*max_M_range);
     for (std::size_t i = 0; i < 64*max_M_range; i++) {
-        this->E_range[i] = SpatsUtils::hash_generator(LABEL_GENERATOR_E_RANGE + " " + std::to_string(i));
-        this->F_range[i] = SpatsUtils::hash_generator(LABEL_GENERATOR_F_RANGE + " " + std::to_string(i));
         this->G_range[i] = SpatsUtils::hash_generator(LABEL_GENERATOR_G_RANGE + " " + std::to_string(i));
         this->H_range[i] = SpatsUtils::hash_generator(LABEL_GENERATOR_H_RANGE + " " + std::to_string(i));
     }

@@ -20,8 +20,8 @@ const char COIN_TYPE_SPEND = 1;
 struct IdentifiedCoinData {
     uint64_t i;                   // diversifier
     std::vector<unsigned char> d; // encrypted diversifier
-    uint64_t a;                   // asset type
-    uint64_t iota;                // identifier
+    Scalar a;                     // asset type
+    Scalar iota;                  // identifier
     uint64_t v;                   // value
     Scalar k;                     // nonce
     std::string memo;             // memo
@@ -54,8 +54,8 @@ struct SpendCoinRecipientData {
     uint64_t v;                   // value
     std::vector<unsigned char> d; // encrypted diversifier
     Scalar k;                     // nonce
-    uint64_t a;                   // asset type
-    uint64_t iota;                // identifier
+    Scalar a;                     // asset type
+    Scalar iota;                  // identifier
     std::string memo;             // memo
 
     ADD_SERIALIZE_METHODS;
@@ -81,8 +81,8 @@ public:
         const Params* params,
         const char type,
         const Scalar& k,
-        const uint64_t& a,
-        const uint64_t& iota,
+        const Scalar& a,
+        const Scalar& iota,
         const Address& address,
         const uint64_t& v,
         const std::string& memo,
@@ -114,8 +114,7 @@ public:
     GroupElement S, K, C;                      // serial commitment, recovery key, value commitment
     AEADEncryptedData r_;                      // encrypted recipient data
     uint64_t v;                                // value
-    uint64_t a;                                // asset type
-    uint64_t iota;                             // identifier
+    Scalar a, iota;                            // asset type, identifier
     std::vector<unsigned char> serial_context; // context to which the serial commitment should be bound (not serialized, but inferred)
 
     // Serialization depends on the coin type

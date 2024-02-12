@@ -12,7 +12,7 @@ class TypeProof
 public:
     inline std::size_t memoryRequired() const
     {
-        return Scalar::memoryRequired() + GroupElement::memoryRequired();
+        return 6*Scalar::memoryRequired() + 2*GroupElement::memoryRequired();
     }
 
     ADD_SERIALIZE_METHODS;
