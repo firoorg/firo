@@ -17,6 +17,7 @@ enum struct AddressType
     , sparkMint = 11
     , sparksMint = 12
     , sparkSpend = 13
+    , payToExchangeAddress = 14
 };
 
 namespace zerocoin { namespace utils {

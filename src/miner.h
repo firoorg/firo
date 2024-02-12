@@ -232,6 +232,11 @@ private:
 
     /** Fill txBlackList set */
     void FillBlackListForBlockTemplate();
+
+    /** Ensure spark/lelantus txs don't exceed specific limit */
+    void BlacklistTxsExceedingLimit(CAmount limit,
+                                    std::function<bool (const CTransaction &)> txTypeFilter,
+                                    std::function<CAmount (const CTransaction &)> txAmount);
 };
 
 /** Modify the extranonce in a block */
