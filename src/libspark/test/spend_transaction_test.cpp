@@ -129,6 +129,50 @@ BOOST_AUTO_TEST_CASE(generate_verify)
     for (const auto set_data : cover_set_data)
         cover_sets[set_data.first] = set_data.second.cover_set;
     BOOST_CHECK(SpendTransaction::verify(transaction, cover_sets));
+
+    // Produe a claim for this spend transaction
+    std::vector<unsigned char> claim_identifier = random_char_vector();
+    std::vector<unsigned char> claim_message = random_char_vector();
+    ChaumProof claim_proof;
+    SpendTransaction::proveClaim(
+        full_view_key,
+        spend_key,
+        transaction,
+        spend_coin_data,
+        claim_identifier,
+        claim_message,
+        claim_proof
+    );
+
+    // Verify the claim against the correct data
+    BOOST_CHECK(
+        SpendTransaction::verifyClaim(
+            transaction,
+            claim_identifier,
+            claim_message,
+            claim_proof
+        )
+    );
+
+    // (Fail to) verify the claim against an evil identifier
+    BOOST_CHECK(
+        !SpendTransaction::verifyClaim(
+            transaction,
+            random_char_vector(),
+            claim_message,
+            claim_proof
+        )
+    );
+
+    // (Fail to) verify the claim against an evil message
+    BOOST_CHECK(
+        !SpendTransaction::verifyClaim(
+            transaction,
+            claim_identifier,
+            random_char_vector(),
+            claim_proof
+        )
+    );
 }
 
 BOOST_AUTO_TEST_SUITE_END()
