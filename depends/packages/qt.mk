@@ -16,7 +16,7 @@ $(package)_patches += no-xlib.patch
 $(package)_patches += fix_android_jni_static.patch
 $(package)_patches += dont_hardcode_pwd.patch
 $(package)_patches += qtbase-moc-ignore-gcc-macro.patch
-$(package)_patches += use_android_ndk23.patch fix_sonoma_qmake.patch
+$(package)_patches += use_android_ndk23.patch
 $(package)_patches += rcc_hardcode_timestamp.patch
 $(package)_patches += duplicate_lcqpafonts.patch
 $(package)_patches += fast_fixed_dtoa_no_optimize.patch
@@ -249,7 +249,6 @@ define $(package)_preprocess_cmds
   patch -p1 -i $($(package)_patch_dir)/fast_fixed_dtoa_no_optimize.patch && \
   patch -p1 -i $($(package)_patch_dir)/guix_cross_lib_path.patch && \
   patch -p1 -i $($(package)_patch_dir)/windows_lto.patch && \
-  patch -p1 -i $($(package)_patch_dir)/fix_sonoma_qmake.patch && \
   mkdir -p qtbase/mkspecs/macx-clang-linux &&\
   cp -f qtbase/mkspecs/macx-clang/qplatformdefs.h qtbase/mkspecs/macx-clang-linux/ &&\
   cp -f $($(package)_patch_dir)/mac-qmake.conf qtbase/mkspecs/macx-clang-linux/qmake.conf && \
@@ -268,6 +267,8 @@ define $(package)_preprocess_cmds
 endef
 
 define $(package)_config_cmds
+  export PKG_CONFIG_SYSROOT_DIR=/ && \
+  export PKG_CONFIG_LIBDIR=$(host_prefix)/lib/pkgconfig && \
   cd qtbase && \
   ./configure -top-level $($(package)_config_opts)
 endef
