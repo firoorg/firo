@@ -1246,8 +1246,8 @@ UniValue getsparkanonymityset(const JSONRPCRequest& request)
                 "  \"setHash\"   (string) Anonymity set hash\n"
                 "  \"mints\" (Pair<string, string>) Serialized Spark coin paired with txhash\n"
                 "}\n"
-                + HelpExampleCli("getsparkanonymityset", "\"1\" " "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
-                + HelpExampleRpc("getsparkanonymityset", "\"1\" " "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
+                + HelpExampleCli("getsparkanonymityset", "\"1\" " "\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"")
+                + HelpExampleRpc("getsparkanonymityset", "\"1\" " "\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"")
         );
 
 
