@@ -1003,34 +1003,49 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
 
     // Now if we have limit on lelantus transparent outputs scan mempool and drop all the transactions exceeding the limit
     if (sporkMap.count(CSporkAction::featureLelantusTransparentLimit) > 0) {
-        CAmount limit = sporkMap[CSporkAction::featureLelantusTransparentLimit].second;
-
-        std::vector<CTxMemPool::txiter> joinSplitTxs;
-        for (CTxMemPool::txiter mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi) {
-            if (txBlackList.count(mi) == 0 && mi->GetTx().IsLelantusJoinSplit())
-                joinSplitTxs.push_back(mi);
-        }
-
-        // sort join splits in order of their transparent outputs so large txs won't block smaller ones
-        // from getting into the mempool
-        std::sort(joinSplitTxs.begin(), joinSplitTxs.end(), 
-            [](CTxMemPool::txiter a, CTxMemPool::txiter b) -> bool {
-                return lelantus::GetSpendTransparentAmount(a->GetTx()) < lelantus::GetSpendTransparentAmount(b->GetTx());
-            });
-
-        CAmount transparentAmount = 0;
-        std::vector<CTxMemPool::txiter>::const_iterator it;
-        for (it = joinSplitTxs.cbegin(); it != joinSplitTxs.cend(); ++it) {
-            CAmount output = lelantus::GetSpendTransparentAmount((*it)->GetTx());
-            if (transparentAmount + output > limit)
-                break;
-            transparentAmount += output;
-        }
-
-        // found all the joinsplit transaction fitting in the limit, blacklist the rest
-        while (it != joinSplitTxs.cend())
-            mempool.CalculateDescendants(*it++, txBlackList);
+        BlacklistTxsExceedingLimit(sporkMap[CSporkAction::featureLelantusTransparentLimit].second,
+            [](const CTransaction &tx)->bool { return tx.IsLelantusJoinSplit(); },
+            [](const CTransaction &tx)->CAmount { return lelantus::GetSpendTransparentAmount(tx); });
     }
+
+    // Same for spark spends
+    if (sporkMap.count(CSporkAction::featureSparkTransparentLimit) > 0) {
+        BlacklistTxsExceedingLimit(sporkMap[CSporkAction::featureSparkTransparentLimit].second,
+            [](const CTransaction &tx)->bool { return tx.IsSparkSpend(); },
+            [](const CTransaction &tx)->CAmount { return spark::GetSpendTransparentAmount(tx); });
+    }
+}
+
+void BlockAssembler::BlacklistTxsExceedingLimit(CAmount limit,
+                                    std::function<bool (const CTransaction &)> txTypeFilter,
+                                    std::function<CAmount (const CTransaction &)> txAmount) {
+
+    std::vector<CTxMemPool::txiter> txList;
+    for (CTxMemPool::txiter mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi) {
+        if (txBlackList.count(mi) == 0 && txTypeFilter(mi->GetTx()))
+            txList.push_back(mi);
+    }
+
+    // sort transactions in order of their transparent outputs so large txs won't block smaller ones
+    // from getting into the mempool
+    std::sort(txList.begin(), txList.end(), 
+        [=](CTxMemPool::txiter a, CTxMemPool::txiter b) -> bool {
+            return txAmount(a->GetTx()) < txAmount(b->GetTx());
+        });
+
+    CAmount transparentAmount = 0;
+    std::vector<CTxMemPool::txiter>::const_iterator it;
+    for (it = txList.cbegin(); it != txList.cend(); ++it) {
+        CAmount output = txAmount((*it)->GetTx());
+        if (transparentAmount + output > limit)
+            break;
+        transparentAmount += output;
+    }
+
+    // found all the private transaction fitting in the limit, blacklist the rest
+    while (it != txList.cend())
+        mempool.CalculateDescendants(*it++, txBlackList);
+
 }
 
 //////////////////////////////////////////////////////////////////////////////

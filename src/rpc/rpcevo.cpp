@@ -1407,7 +1407,9 @@ UniValue spork(const JSONRPCRequest& request)
         CSporkAction::featureLelantus,
         CSporkAction::featureChainlocks,
         CSporkAction::featureInstantSend,
-        CSporkAction::featureLelantusTransparentLimit
+        CSporkAction::featureLelantusTransparentLimit,
+        CSporkAction::featureSpark,
+        CSporkAction::featureSparkTransparentLimit
     };
 
     for (const CSporkAction &action: sporkTx.actions) {

@@ -212,8 +212,26 @@ UniValue validateaddress(const JSONRPCRequest& request)
     CBitcoinAddress address(request.params[0].get_str());
     bool isValid = address.IsValid();
 
+    bool isvalidSpark = false;
+    const spark::Params* params = spark::Params::get_default();
+    unsigned char network = spark::GetNetworkType();
+    spark::Address sAddress(params);
+
+    if (!isValid) {
+        try {
+            unsigned char coinNetwork = sAddress.decode(request.params[0].get_str());
+            isvalidSpark = coinNetwork == network;
+        } catch (const std::exception &) {
+            isvalidSpark = false;
+        }
+    }
+
     UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("isvalid", isValid));
+    if (isvalidSpark)
+        ret.push_back(Pair("isvalidSpark", isvalidSpark));
+    else
+        ret.push_back(Pair("isvalid", isValid));
+
     if (isValid)
     {
         CTxDestination dest = address.Get();
@@ -235,7 +253,7 @@ UniValue validateaddress(const JSONRPCRequest& request)
         CKeyID keyID;
         if (pwallet) {
             const auto& meta = pwallet->mapKeyMetadata;
-            auto it = address.GetKeyID(keyID) ? meta.find(keyID) : meta.end();
+            auto it = address.GetKeyIDExt(keyID) ? meta.find(keyID) : meta.end();
             if (it == meta.end()) {
                 it = meta.find(CScriptID(scriptPubKey));
             }
@@ -247,6 +265,18 @@ UniValue validateaddress(const JSONRPCRequest& request)
                 }
             }
         }
+#endif
+    } else if (isvalidSpark) {
+        std::string currentAddress = sAddress.encode(network);
+        ret.push_back(Pair("address", currentAddress));
+
+#ifdef ENABLE_WALLET
+        bool ismine = false;
+        if (pwallet && pwallet->sparkWallet) {
+            ismine = pwallet->sparkWallet->isAddressMine(currentAddress);
+        }
+
+        ret.push_back(Pair("ismine", ismine));
 #endif
     }
     return ret;
@@ -568,7 +598,7 @@ bool getAddressFromIndex(AddressType const & type, const uint160 &hash, std::str
 {
     if (type == AddressType::payToScriptHash) {
         address = CBitcoinAddress(CScriptID(hash)).ToString();
-    } else if (type == AddressType::payToPubKeyHash) {
+    } else if (type == AddressType::payToPubKeyHash || type == AddressType::payToExchangeAddress) {
         address = CBitcoinAddress(CKeyID(hash)).ToString();
     } else {
         return false;

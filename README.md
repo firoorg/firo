@@ -7,18 +7,13 @@
 [![GitHub commits-per-month](https://img.shields.io/github/commit-activity/m/firoorg/firo)](https://github.com/firoorg/firo/graphs/code-frequency)
 [![GitHub last-commit](https://img.shields.io/github/last-commit/firoorg/firo)](https://github.com/firoorg/firo/commits/master)
 
-[Firo](https://firo.org) formerly known as Zcoin, is a privacy focused cryptocurrency that utilizes zero-knowledge proofs which allows users to destroy coins and then redeem them later for brand new ones with no transaction history.
+[Firo](https://firo.org) formerly known as Zcoin, is a privacy focused cryptocurrency that utilizes the [Lelantus Spark protocol](https://eprint.iacr.org/2021/1173) which supports high anonymity sets without requiring trusted setup and relying on standard cryptographic assumptions.
 
-Our research created the [Lelantus privacy protocol](https://eprint.iacr.org/2019/373) which supports high anonymity sets without requiring trusted setup and relying only on standard cryptographic assumptions. The Lelantus cryptographic library was audited by [Trail of Bits](https://github.com/trailofbits/publications/blob/master/reviews/zcoin-lelantus-summary.pdf) and funded by Firo's CCS. Lelantus' cryptography was also audited by [ABDK Consulting](https://www.abdk.consulting/).
+The Lelantus Spark cryptographic library and implementation was audited by [HashCloak](https://firo.org/about/research/papers/lelantus_spark_code_audit_report.pdf). The Lelantus Spark cryptography paper has undergone two separate audits by [HashCloak](https://firo.org/about/research/papers/Lelantus_Spark_Audit_Report.pdf) and [Daniel (Linfeng) Zhao](https://firo.org/about/research/papers/LinfengSparkAudit.pdf).
 
 Firo also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as Tor/i2P.
 
-Firo uses FiroPoW (a ProgPoW variant) as its Proof-of-Work GPU focused algorithm which is FPGA/ASIC resistant.
-
-# How Firo’s Privacy Technology Compares to the Competition
-
-![A comparison chart of Firo’s solutions with other leading privacy technologies can be found below](https://firo.org/guide/assets/privacy-technology-comparison/comparison-table-firo-updated.png) 
-read more https://firo.org/guide/privacy-technology-comparison.html
+Firo uses a hybrid PoW and LLMQ Chainlocks system combining fair distribution of supply with protection against 51% attacks and quick finality of blocks and transactions. FiroPOW (a ProgPOW variant) is used as its Proof-of-Work algorithm which targets GPUs and is FPGA/ASIC resistant.
 
 # Running with Docker
 
@@ -201,6 +196,8 @@ This project exists thanks to all the people who contribute. Would you like to h
 ## Financial Contributors
 
 Become a financial contributor and help us sustain our community. [[Contribute](https://opencollective.com/firo/contribute)]
+
+You can also donate to the [MAGIC Firo Fund](https://magicgrants.org/funds/firo/) which allows some US entities to claim a charitable deduction.
 
 ## Individuals
 
