@@ -1094,12 +1094,12 @@ public:
     void CheckTransparentTransactionSanity(CMutableTransaction& tx, const std::vector<CTransparentTxout>& vInputTxs,
                                            const CCoinControl* coinControl, CAmount nFee, bool fSign);
 
-    bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey* reservekey,
+    bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey,
                            CAmount& nFeeRet, int& nChangePosInOut, std::string& strFailReason,
                            const CCoinControl* coinControl, bool sign, int nExtraPayloadSize,
                            bool fUseInstantSend, const std::vector<CTransparentTxout>& vTransparentTxouts);
 
-    bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey* reservekey,
+    bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey,
                            CAmount& nFeeRet, int& nChangePosInOut, std::string& strFailReason,
                            const CCoinControl* coinControl = NULL, bool sign = true, int nExtraPayloadSize = 0,
                            bool fUseInstantSend = false);

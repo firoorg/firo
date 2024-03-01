@@ -151,7 +151,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            nullptr, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -177,7 +177,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            nullptr, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -206,7 +206,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            nullptr, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -229,7 +229,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            nullptr, true, 0, true, vTxouts);
 
             BOOST_ASSERT(nChangePosInOut == -1);
@@ -257,7 +257,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            nullptr, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -283,7 +283,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            nullptr, true, 0, true, vTxouts);
 
             ASSERT_FAILURE("Insufficient funds");
@@ -298,7 +298,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            nullptr, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -329,7 +329,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_FAILURE("Insufficient funds");
@@ -344,7 +344,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -371,7 +371,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            nullptr, true, 0, true, vTxouts);
 
 
@@ -403,7 +403,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            nullptr, true, 0, true, vTxouts);
 
 
@@ -436,7 +436,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_FAILURE("Insufficient funds");
@@ -451,7 +451,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
 
@@ -472,7 +472,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, false, vTxouts);
 
             ASSERT_FAILURE("Insufficient funds");
@@ -494,7 +494,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -520,7 +520,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -546,7 +546,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -572,7 +572,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             BOOST_ASSERT(nChangePosInOut == -1);
@@ -587,7 +587,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             BOOST_ASSERT(nChangePosInOut == -1);
@@ -612,7 +612,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             BOOST_ASSERT(strFailReason == "Insufficient funds");
@@ -628,7 +628,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.fAllowWatchOnly = true;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, false, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -650,7 +650,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.fAllowWatchOnly = true;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_FAILURE("Signing transaction failed");
@@ -671,7 +671,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             std::string strFailReason;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            nullptr, true, 0, true, vTxouts);
 
 
@@ -688,7 +688,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.nCoinType = CoinType::ONLY_1000;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
 
@@ -714,7 +714,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             fMasternodeMode = false;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_FAILURE("fMasternode must be enabled to use CoinType::ONLY_NONDENOMINATED_NOT1000IFMN");
@@ -735,7 +735,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             fMasternodeMode = true;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
 
@@ -759,7 +759,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             fMasternodeMode = true;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
 
@@ -786,7 +786,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.nCoinType = CoinType::WITH_1000;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
 
@@ -811,7 +811,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.nCoinType = CoinType::WITH_1000;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_FAILURE("Insufficient funds");
@@ -828,7 +828,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.fAllowOtherInputs = true;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_FAILURE("Some coin control inputs could not be selected.");
@@ -852,7 +852,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.nMaxInputs = 2;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_FAILURE("Insufficient funds");
@@ -869,7 +869,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.nMaxInputs = 3;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
 
@@ -903,7 +903,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.nMaxInputs = 3;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
 
@@ -936,7 +936,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.nMaxSize = n3TxSize - 1;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
 
@@ -964,7 +964,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.nMaxSize = n2TxSize - 1;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_FAILURE("Insufficient funds");
@@ -986,7 +986,8 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
 
             coinControl.destChange = GetRandomDest();
 
-            pwalletMain->CreateTransaction(vRecipients, wtx, nullptr, nFeeRet, nChangePosInOut, strFailReason,
+            CReserveKey reservekey(nullptr);
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -1015,7 +1016,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.nMinimumTotalFee = 1 << 13;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -1037,7 +1038,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.nMinimumTotalFee = 1 << 20;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_FAILURE("Insufficient funds");
@@ -1053,7 +1054,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.nMinimumTotalFee = 100;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -1084,7 +1085,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.nConfirmTarget = 5;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_FAILURE("Insufficient funds");
@@ -1102,7 +1103,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.nConfirmTarget = 5;
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -1133,7 +1134,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.Select(vTxouts.at(1).GetOutpoint());
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -1158,7 +1159,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             coinControl.Select(vTxouts.at(1).GetOutpoint());
 
             CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason,
+            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
                                            &coinControl, true, 0, true, vTxouts);
 
             ASSERT_SUCCESS();
@@ -1189,7 +1190,7 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
                     std::string strFailReason;
 
                     CReserveKey reservekey(pwalletMain);
-                    pwalletMain->CreateTransaction(vRecipients, wtx, &reservekey, nFeeRet, nChangePosInOut,
+                    pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut,
                                                    strFailReason, &coinControl, true, 0, true, vTxouts);
 
                     if (nOurs >= n) {

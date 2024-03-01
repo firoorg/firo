@@ -4487,7 +4487,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
 
     CReserveKey reservekey(this);
     CWalletTx wtx;
-    if (!CreateTransaction(vecSend, wtx, &reservekey, nFeeRet, nChangePosInOut, strFailReason, &coinControl, nExtraPayloadSize))
+    if (!CreateTransaction(vecSend, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason, &coinControl, nExtraPayloadSize))
         return false;
 
     if (nChangePosInOut != -1)
@@ -4706,7 +4706,7 @@ void CWallet::CheckTransparentTransactionSanity(CMutableTransaction& tx,
 // true, the wallet must be unlocked. nExtraPayloadSize should be set to the number of extra bytes in the transaction
 // outside inputs/outputs (ie. LLMQ-related things). If fUseInstantSend is true, we will consider both locked and
 // confirmed UTXOs to be eligible for input; if it is not, only confirmed UTXOs will be used as inputs.
-bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey* reservekey,
+bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey,
                                 CAmount& nFeeRet, int& nChangePosInOut, std::string& strFailReason,
                                 const CCoinControl* coinControl, bool sign, int nExtraPayloadSize,
                                 bool fUseInstantSend) {
@@ -4717,15 +4717,12 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                              nExtraPayloadSize, fUseInstantSend, vTransparentTxouts);
 }
 
-bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey* reservekey,
+bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey,
                                 CAmount& nFeeRet, int& nChangePosInOut, std::string& strFailReason,
                                 const CCoinControl* coinControl, bool sign, int nExtraPayloadSize,
                                 bool fUseInstantSend, const std::vector<CTransparentTxout>& vTransparentTxouts) {
     LOCK(mempool.cs);
     AssertLockHeld(cs_main);
-
-    if (!coinControl || coinControl->destChange.which() == 0)
-        assert(reservekey);
 
     nFeeRet = -1;
     strFailReason = "";
@@ -4810,7 +4807,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
             scriptChange = GetScriptForDestination(coinControl->destChange);
         } else {
             CPubKey changeKey;
-            if (!reservekey->GetReservedKey(changeKey)) {
+            if (!reservekey.GetReservedKey(changeKey)) {
                 strFailReason = _("Keypool ran out, please call keypoolrefill first");
                 nChangePosInOut = -1;
                 nFeeRet = -1;
