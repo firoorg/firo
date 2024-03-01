@@ -26,8 +26,6 @@ enum class CoinType
 class CCoinControl
 {
 public:
-    std::set<COutPoint> setSelected;
-
     CTxDestination destChange;
     //! If true, don't use any change
     bool fNoChange;
@@ -105,6 +103,14 @@ public:
     {
         vOutpoints.assign(setSelected.begin(), setSelected.end());
     }
+
+    size_t GetSelectedSize() const
+    {
+        return setSelected.size();
+    }
+
+private:
+    std::set<COutPoint> setSelected;
 };
 
 #endif // BITCOIN_WALLET_COINCONTROL_H

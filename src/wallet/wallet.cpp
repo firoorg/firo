@@ -405,7 +405,7 @@ CPubKey CWallet::GetKeyFromKeypath(uint32_t nChange, uint32_t nChild, CKey& secr
         MnemonicContainer mContainer = mnemonicContainer;
         DecryptMnemonicContainer(mContainer);
         SecureVector seed = mContainer.GetSeed();
-        masterKey.SetMaster(&seed.at(0), seed.size());
+        masterKey.SetMaster(seed.data(), seed.size());
     } else {
         // try to get the master key
         if (!GetKey(hdChain.masterKeyID, key))
@@ -4915,7 +4915,7 @@ void CWallet::GetAvailableInputs(const std::vector<AbstractTxout>& vRelevantTran
     }
 
     if (coinControl) {
-        if (vCoinControlInputs.size() != coinControl->setSelected.size())
+        if (vCoinControlInputs.size() != coinControl->GetSelectedSize())
             throw std::runtime_error("Some coin control inputs could not be selected.");
         if (coinControl->fRequireAllInputs && coinControl->nMaxInputs &&
             vCoinControlInputs.size() > coinControl->nMaxInputs)
