@@ -1451,6 +1451,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             std::vector<spark::InputCoinData> inputs;
             std::map<uint64_t, uint256> idAndBlockHashes;
             std::unordered_map<uint64_t, spark::CoverSetData> cover_set_data;
+            std::unordered_map<uint64_t, std::vector<spark::Coin>> cover_sets;
             for (auto& coin : estimated.second) {
                 spark::CSparkState::SparkCoinGroupInfo nextCoinGroupInfo;
                 uint64_t groupId = coin.nId;
@@ -1475,10 +1476,11 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                                 _("Has to have at least two mint coins with at least 1 confirmation in order to spend a coin"));
 
                     spark::CoverSetData coverSetData;
-                    coverSetData.cover_set = set;
+                    coverSetData.cover_set_size = set.size();
                     coverSetData.cover_set_representation = setHash;
                     coverSetData.cover_set_representation.insert(coverSetData.cover_set_representation.end(), sig.begin(), sig.end());
                     cover_set_data[groupId] = coverSetData;
+                    cover_sets[groupId] = set;
                     idAndBlockHashes[groupId] = blockHash;
                 }
 
@@ -1486,7 +1488,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 spark::InputCoinData inputCoinData;
                 inputCoinData.cover_set_id = groupId;
                 std::size_t index = 0;
-                if (!getIndex(coin.coin, cover_set_data[groupId].cover_set, index))
+                if (!getIndex(coin.coin, cover_sets[groupId], index))
                     throw std::runtime_error(
                             _("No such coin in set"));
                 inputCoinData.index = index;
@@ -1507,7 +1509,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 
             }
 
-            spark::SpendTransaction spendTransaction(params, fullViewKey, spendKey, inputs, cover_set_data, fee, transparentOut, privOutputs);
+            spark::SpendTransaction spendTransaction(params, fullViewKey, spendKey, inputs, cover_set_data, cover_sets, fee, transparentOut, privOutputs);
             spendTransaction.setBlockHashes(idAndBlockHashes);
             CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
             serialized << spendTransaction;

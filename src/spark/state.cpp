@@ -462,14 +462,13 @@ bool CheckSparkSMintTransaction(
         CSparkTxInfo* sparkTxInfo) {
 
     LogPrintf("CheckSparkSMintTransaction txHash = %s\n", hashTx.ToString());
-    out_coins.clear();
     for (const auto& out : vout) {
         const auto& script = out.scriptPubKey;
-        if (script.IsSparkMint() || script.IsSparkSMint()) {
+        if (script.IsSparkSMint()) {
             try {
                 spark::Coin coin(Params::get_default());
                 ParseSparkMintCoin(script, coin);
-                out_coins.push_back(coin);
+                out_coins.emplace_back(coin);
             } catch (const std::exception &) {
                 return state.DoS(100,
                          false,
@@ -557,11 +556,11 @@ bool CheckSparkSpendTransaction(
     bool passVerify = false;
 
     uint64_t Vout = 0;
-    std::vector<CTxOut> vout;
+    std::size_t private_num = 0;
     for (const CTxOut &txout : tx.vout) {
         const auto& script = txout.scriptPubKey;
         if (!script.empty() && script.IsSparkSMint()) {
-            vout.push_back(txout);
+            private_num++;
         } else if (script.IsSparkMint() ||
                 script.IsLelantusMint() ||
                 script.IsLelantusJMint() ||
@@ -570,19 +569,23 @@ bool CheckSparkSpendTransaction(
         } else {
             Vout += txout.nValue;
         }
-
     }
 
-    if (vout.size() > ::Params().GetConsensus().nMaxSparkOutLimitPerTx)
+    if (private_num > ::Params().GetConsensus().nMaxSparkOutLimitPerTx)
         return false;
 
     std::vector<Coin> out_coins;
-    if (!CheckSparkSMintTransaction(vout, state, hashTx, fStatefulSigmaCheck, out_coins, sparkTxInfo))
+    out_coins.reserve(private_num);
+    if (!CheckSparkSMintTransaction(tx.vout, state, hashTx, fStatefulSigmaCheck, out_coins, sparkTxInfo))
         return false;
     spend->setOutCoins(out_coins);
     std::unordered_map<uint64_t, std::vector<Coin>> cover_sets;
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
     const auto idAndBlockHashes = spend->getBlockHashes();
+
+    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+    bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
+
     for (const auto& idAndHash : idAndBlockHashes) {
         CSparkState::SparkCoinGroupInfo coinGroup;
         if (!sparkState.GetCoinGroupInfo(idAndHash.first, coinGroup))
@@ -598,6 +601,8 @@ bool CheckSparkSpendTransaction(
         std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, idAndHash.first);
 
         std::vector<Coin> cover_set;
+        cover_set.reserve(coinGroup.nCoins);
+        std::size_t set_size = 0;
         // Build a vector with all the public coins with given id before
         // the block on which the spend occurred.
         // This list of public coins is required by function "Verify" of spend.
@@ -613,7 +618,9 @@ bool CheckSparkSpendTransaction(
                     BOOST_FOREACH(
                     const auto& coin,
                     index->sparkMintedCoins[id]) {
-                        cover_set.push_back(coin);
+                        set_size++;
+                        if (!useBatching)
+                            cover_set.push_back(coin);
                     }
                 }
             }
@@ -624,12 +631,12 @@ bool CheckSparkSpendTransaction(
         }
 
         CoverSetData setData;
-        setData.cover_set = cover_set;
+        setData.cover_set_size = set_size;
         if (!set_hash.empty())
             setData.cover_set_representation = set_hash;
         setData.cover_set_representation.insert(setData.cover_set_representation.end(), txHashForMetadata.begin(), txHashForMetadata.end());
 
-        cover_sets[idAndHash.first] = cover_set;
+        cover_sets[idAndHash.first] = std::move(cover_set);
         cover_set_data [idAndHash.first] = setData;
     }
     spend->setCoverSets(cover_set_data);
@@ -641,9 +648,6 @@ bool CheckSparkSpendTransaction(
             return state.DoS(100,
                              error("CheckSparkSpendTransaction: No cover set found."));
     }
-
-    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
     
     // if we are collecting proofs, skip verification and collect proofs
     // add proofs into container
@@ -1216,7 +1220,7 @@ int CSparkState::GetCoinSetForSpend(
     }
 
     SparkCoinGroupInfo &coinGroup = coinGroups[coinGroupID];
-
+    coins_out.reserve(coinGroup.nCoins);
     int numberOfCoins = 0;
     for (CBlockIndex *block = coinGroup.lastBlock;; block = block->pprev) {
 
