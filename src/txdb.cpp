@@ -356,6 +356,16 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
     pcursor->Seek(std::make_pair(DB_BLOCK_INDEX, uint256()));
 
     // Load mapBlockIndex
+
+    // We need to check PoW for the last N blocks. To do so we can't just save a pointer to the last block and go back 
+    // from it because of possible forks. This multimap is used to track the most recent blocks (by height) saved in 
+    // the block index on disk
+    std::multimap<int, CBlockIndex*> lastNBlocks;
+    // lowest height of all the elements in lastNBlocks
+    int firstInLastNBlocksHeight = 0;
+
+    bool fCheckPoWForAllBlocks = GetBoolArg("-fullblockindexcheck", DEFAULT_FULL_BLOCKINDEX_CHECK);
+
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
         std::pair<char, uint256> key;
@@ -406,8 +416,22 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
 
                 pindexNew->activeDisablingSporks = diskindex.activeDisablingSporks;
 
-                if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, consensusParams))
-                    return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
+                if (fCheckPoWForAllBlocks) {
+                    if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, consensusParams))
+                        return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
+                }
+                else {
+                    if (pindexNew->nHeight >= firstInLastNBlocksHeight) {
+                        lastNBlocks.insert(std::pair<int, CBlockIndex*>(pindexNew->nHeight, pindexNew));
+                        if (lastNBlocks.size() > DEFAULT_BLOCKINDEX_NUMBER_OF_BLOCKS_TO_CHECK) {
+                            // pop the first element from the map
+                            auto firstElement = lastNBlocks.begin();
+                            auto elementToPop = firstElement++;
+                            lastNBlocks.erase(elementToPop);
+                            firstInLastNBlocksHeight = firstElement->first;
+                        }
+                    }
+                }
 
                 pcursor->Next();
             } else {
@@ -415,6 +439,14 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
             }
         } else {
             break;
+        }
+    }
+
+    if (!fCheckPoWForAllBlocks) {
+        // delayed check for all the blocks
+        for (const auto &blockIndex: lastNBlocks) {
+            if (!CheckProofOfWork(blockIndex.second->GetBlockPoWHash(), blockIndex.second->nBits, consensusParams))
+                return error("LoadBlockIndex(): CheckProofOfWork failed: %s", blockIndex.second->ToString());
         }
     }
 
