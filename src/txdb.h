@@ -43,6 +43,11 @@ static const int64_t nMaxBlockDBAndTxIndexCache = 1024;
 //! Max memory allocated to coin DB specific cache (MiB)
 static const int64_t nMaxCoinsDBCache = 8;
 
+//! By default don't check block index PoW on client startup
+static const bool DEFAULT_FULL_BLOCKINDEX_CHECK = false;
+//! If not doing full check of block index, check only N of the latest blocks
+static const int DEFAULT_BLOCKINDEX_NUMBER_OF_BLOCKS_TO_CHECK = 10000;
+
 struct CDiskTxPos : public CDiskBlockPos
 {
     unsigned int nTxOffset; // after header
