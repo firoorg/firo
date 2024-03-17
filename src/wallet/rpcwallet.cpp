@@ -3730,7 +3730,8 @@ UniValue automintspark(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
-                "This function automatically mints all unspent transparent funds\n"
+                "automintspark\n"
+                "This function automatically mints all unspent transparent funds to Spark.\n"
         );
 
     EnsureWalletIsUnlocked(pwallet);
@@ -4134,7 +4135,8 @@ UniValue autoMintlelantus(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
-                "This function automatically mints all unspent transparent funds\n"
+                "autoMintlelantus\n"
+                "This function automatically mints all unspent transparent funds to Lelantus.\n"
         );
 
     EnsureWalletIsUnlocked(pwallet);
