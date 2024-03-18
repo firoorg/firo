@@ -344,6 +344,8 @@ static const CRPCCommand vRPCCommands[] =
     { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
     { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true  },
 
+    { "mobile",             "checkifmncollateral",   &checkifmncollateral, false  },
+
 };
 
 CRPCTable::CRPCTable()
