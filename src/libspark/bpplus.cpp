@@ -351,6 +351,18 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
         scalars.emplace_back(ZERO);
     }
 
+    std::vector<std::vector<unsigned char>> serialized_Gi;
+    serialized_Gi.resize(Gi.size());
+    std::vector<std::vector<unsigned char>> serialized_Hi;
+    serialized_Hi.resize(Hi.size());
+    // Serialize and cash Gi and Hi vectors
+    for (std::size_t i = 0; i < Gi.size(); i++) {
+        serialized_Gi[i].resize(GroupElement::serialize_size);
+        Gi[i].serialize(serialized_Gi[i].data());
+        serialized_Hi[i].resize(GroupElement::serialize_size);
+        Hi[i].serialize(serialized_Hi[i].data());
+    }
+
     // Process each proof and add to the batch
     for (std::size_t k_proofs = 0; k_proofs < N_proofs; k_proofs++) {
         const BPPlusProof proof = proofs[k_proofs];
@@ -367,8 +379,8 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
         Transcript transcript(LABEL_TRANSCRIPT_BPPLUS);
         transcript.add("G", G);
         transcript.add("H", H);
-        transcript.add("Gi", Gi);
-        transcript.add("Hi", Hi);
+        transcript.add("Gi", serialized_Gi);
+        transcript.add("Hi", serialized_Hi);
         transcript.add("N", Scalar(N));
         transcript.add("C", unpadded_C[k_proofs]);
         transcript.add("A", proof.A);

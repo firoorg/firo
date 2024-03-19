@@ -14,6 +14,7 @@ SpendTransaction::SpendTransaction(
 	const SpendKey& spend_key,
 	const std::vector<InputCoinData>& inputs,
     const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
+    const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets,
 	const uint64_t f,
     const uint64_t vout,
 	const std::vector<OutputCoinData>& outputs
@@ -55,10 +56,10 @@ SpendTransaction::SpendTransaction(
 		// Parse out cover set data for this spend
         uint64_t set_id = inputs[u].cover_set_id;
 		this->cover_set_ids.emplace_back(set_id);
-        if (cover_set_data.count(set_id) == 0)
+        if (cover_set_data.count(set_id) == 0 || cover_sets.count(set_id) == 0)
             throw std::invalid_argument("Required set is not passed");
 
-        const auto& cover_set = cover_set_data.at(set_id).cover_set;
+        const auto& cover_set = cover_sets.at(set_id);
         std::size_t set_size = cover_set.size();
         if (set_size > N)
             throw std::invalid_argument("Wrong set size");

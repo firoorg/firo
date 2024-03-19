@@ -26,7 +26,7 @@ struct InputCoinData {
 };
 
 struct CoverSetData {
-    std::vector<Coin> cover_set; // set of coins used as a cover set for the spend
+    std::size_t cover_set_size; // set of coins used as a cover set for the spend
     std::vector<unsigned char> cover_set_representation; // a unique representation for the ordered elements of the partial `cover_set` used in the spend
 };
 
@@ -47,6 +47,7 @@ public:
 		const SpendKey& spend_key,
 		const std::vector<InputCoinData>& inputs,
         const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
+        const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets,
 		const uint64_t f,
         const uint64_t vout,
 		const std::vector<OutputCoinData>& outputs
@@ -97,7 +98,7 @@ public:
 
     void setCoverSets(const std::unordered_map<uint64_t, CoverSetData>& cover_set_data) {
         for (const auto& data : cover_set_data) {
-            this->cover_set_sizes[data.first] = data.second.cover_set.size();
+            this->cover_set_sizes[data.first] = data.second.cover_set_size;
             this->cover_set_representations[data.first] = data.second.cover_set_representation;
         }
     }

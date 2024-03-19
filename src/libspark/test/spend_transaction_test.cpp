@@ -65,6 +65,8 @@ BOOST_AUTO_TEST_CASE(generate_verify)
     std::vector<InputCoinData> spend_coin_data;
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
     const std::size_t w = spend_indices.size();
+    std::unordered_map<uint64_t, std::vector<Coin>> cover_sets;
+
     for (std::size_t u = 0; u < w; u++) {
         IdentifiedCoinData identified_coin_data = in_coins[spend_indices[u]].identify(incoming_view_key);
         RecoveredCoinData recovered_coin_data = in_coins[spend_indices[u]].recover(full_view_key, identified_coin_data);
@@ -74,9 +76,10 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         spend_coin_data.back().cover_set_id = cover_set_id;
 
         CoverSetData setData;
-        setData.cover_set = in_coins;
+        setData.cover_set_size = in_coins.size();
         setData.cover_set_representation = random_char_vector();
         cover_set_data[cover_set_id] = setData;
+        cover_sets[cover_set_id] = in_coins;
         spend_coin_data.back().index = spend_indices[u];
         spend_coin_data.back().k = identified_coin_data.k;
         spend_coin_data.back().s = recovered_coin_data.s;
@@ -118,6 +121,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         spend_key,
         spend_coin_data,
         cover_set_data,
+        cover_sets,
         f,
         0,
         out_coin_data
@@ -125,9 +129,6 @@ BOOST_AUTO_TEST_CASE(generate_verify)
 
     // Verify
     transaction.setCoverSets(cover_set_data);
-    std::unordered_map<uint64_t, std::vector<Coin>> cover_sets;
-    for (const auto set_data : cover_set_data)
-        cover_sets[set_data.first] = set_data.second.cover_set;
     BOOST_CHECK(SpendTransaction::verify(transaction, cover_sets));
 }
 
