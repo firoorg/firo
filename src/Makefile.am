@@ -675,7 +675,9 @@ libspark_a_SOURCES = \
   libspark/f4grumble.h \
   libspark/f4grumble.cpp \
   libspark/bech32.h \
-  libspark/bech32.cpp
+  libspark/bech32.cpp \
+  libspark/claim.h \
+  libspark/claim.cpp
 
 liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
