@@ -10,6 +10,8 @@
 
 #include <immer/heap/unsafe_free_list_heap.hpp>
 
+#include <cstddef>
+
 namespace immer {
 namespace detail {
 
@@ -45,11 +47,11 @@ struct thread_local_free_list_storage
  * @tparam Base  Type of the parent heap.
  */
 template <std::size_t Size, std::size_t Limit, typename Base>
-struct thread_local_free_list_heap : detail::unsafe_free_list_heap_impl<
-    detail::thread_local_free_list_storage,
-    Size,
-    Limit,
-    Base>
+struct thread_local_free_list_heap
+    : detail::unsafe_free_list_heap_impl<detail::thread_local_free_list_storage,
+                                         Size,
+                                         Limit,
+                                         Base>
 {};
 
 } // namespace immer

@@ -8,63 +8,68 @@
 
 #pragma once
 
+#include <immer/config.hpp>
 #include <immer/detail/rbts/node.hpp>
-#include <immer/detail/rbts/position.hpp>
 #include <immer/detail/rbts/operations.hpp>
-
+#include <immer/detail/rbts/position.hpp>
 #include <immer/detail/type_traits.hpp>
 
 #include <cassert>
 #include <memory>
 #include <numeric>
+#include <stdexcept>
 
 namespace immer {
 namespace detail {
 namespace rbts {
 
-template <typename T,
-          typename MemoryPolicy,
-          bits_t B,
-          bits_t BL>
+template <typename T, typename MemoryPolicy, bits_t B, bits_t BL>
 struct rbtree
 {
     using node_t  = node<T, MemoryPolicy, B, BL>;
     using edit_t  = typename node_t::edit_t;
     using owner_t = typename MemoryPolicy::transience_t::owner;
 
-    size_t   size;
-    shift_t  shift;
-    node_t*  root;
-    node_t*  tail;
+    size_t size;
+    shift_t shift;
+    node_t* root;
+    node_t* tail;
 
-    static const rbtree& empty()
+    constexpr static size_t max_size()
     {
-        static const rbtree empty_ {
-            0,
-            BL,
-            node_t::make_inner_n(0u),
-            node_t::make_leaf_n(0u)
-        };
-        return empty_;
+        auto S = sizeof(size_t) * 8;
+        return (size_t{1} << BL) * ipow(size_t{1} << B, (S - BL) / B);
+    }
+
+    static node_t* empty_root()
+    {
+        static const auto empty_ = node_t::make_inner_n(0u);
+        return empty_->inc();
+    }
+
+    static node_t* empty_tail()
+    {
+        static const auto empty_ = node_t::make_leaf_n(0u);
+        return empty_->inc();
     }
 
     template <typename U>
     static auto from_initializer_list(std::initializer_list<U> values)
     {
-        auto e = owner_t{};
-        auto result = rbtree{empty()};
+        auto e      = owner_t{};
+        auto result = rbtree{};
         for (auto&& v : values)
             result.push_back_mut(e, v);
         return result;
     }
 
-    template <typename Iter, typename Sent,
-              std::enable_if_t
-              <compatible_sentinel_v<Iter, Sent>, bool> = true>
+    template <typename Iter,
+              typename Sent,
+              std::enable_if_t<compatible_sentinel_v<Iter, Sent>, bool> = true>
     static auto from_range(Iter first, Sent last)
     {
-        auto e = owner_t{};
-        auto result = rbtree{empty()};
+        auto e      = owner_t{};
+        auto result = rbtree{};
         for (; first != last; ++first)
             result.push_back_mut(e, *first);
         return result;
@@ -72,15 +77,27 @@ struct rbtree
 
     static auto from_fill(size_t n, T v)
     {
-        auto e = owner_t{};
-        auto result = rbtree{empty()};
-        while (n --> 0)
+        auto e      = owner_t{};
+        auto result = rbtree{};
+        while (n-- > 0)
             result.push_back_mut(e, v);
         return result;
     }
 
+    rbtree()
+        : size{0}
+        , shift{BL}
+        , root{empty_root()}
+        , tail{empty_tail()}
+    {
+        assert(check_tree());
+    }
+
     rbtree(size_t sz, shift_t sh, node_t* r, node_t* t)
-        : size{sz}, shift{sh}, root{r}, tail{t}
+        : size{sz}
+        , shift{sh}
+        , root{r}
+        , tail{t}
     {
         assert(check_tree());
     }
@@ -92,7 +109,7 @@ struct rbtree
     }
 
     rbtree(rbtree&& other)
-        : rbtree{empty()}
+        : rbtree{}
     {
         swap(*this, other);
     }
@@ -113,16 +130,13 @@ struct rbtree
     friend void swap(rbtree& x, rbtree& y)
     {
         using std::swap;
-        swap(x.size,  y.size);
+        swap(x.size, y.size);
         swap(x.shift, y.shift);
-        swap(x.root,  y.root);
-        swap(x.tail,  y.tail);
+        swap(x.root, y.root);
+        swap(x.tail, y.tail);
     }
 
-    ~rbtree()
-    {
-        dec();
-    }
+    ~rbtree() { dec(); }
 
     void inc() const
     {
@@ -130,20 +144,11 @@ struct rbtree
         tail->inc();
     }
 
-    void dec() const
-    {
-        traverse(dec_visitor());
-    }
+    void dec() const { traverse(dec_visitor()); }
 
-    auto tail_size() const
-    {
-        return size ? ((size - 1) & mask<BL>) + 1 : 0;
-    }
+    auto tail_size() const { return size ? ((size - 1) & mask<BL>) +1 : 0; }
 
-    auto tail_offset() const
-    {
-        return size ? (size - 1) & ~mask<BL> : 0;
-    }
+    auto tail_offset() const { return size ? (size - 1) & ~mask<BL> : 0; }
 
     template <typename Visitor, typename... Args>
     void traverse(Visitor v, Args&&... args) const
@@ -151,8 +156,10 @@ struct rbtree
         auto tail_off  = tail_offset();
         auto tail_size = size - tail_off;
 
-        if (tail_off) make_regular_sub_pos(root, shift, tail_off).visit(v, args...);
-        else make_empty_regular_pos(root).visit(v, args...);
+        if (tail_off)
+            make_regular_sub_pos(root, shift, tail_off).visit(v, args...);
+        else
+            make_empty_regular_pos(root).visit(v, args...);
 
         make_leaf_sub_pos(tail, tail_size).visit(v, args...);
     }
@@ -164,17 +171,14 @@ struct rbtree
         auto tail_size = size - tail_off;
 
         if (first < tail_off)
-            make_regular_sub_pos(root, shift, tail_off).visit(
-                v,
-                first,
-                last < tail_off ? last : tail_off,
-                args...);
+            make_regular_sub_pos(root, shift, tail_off)
+                .visit(v, first, last < tail_off ? last : tail_off, args...);
         if (last > tail_off)
-            make_leaf_sub_pos(tail, tail_size).visit(
-                v,
-                first > tail_off ? first - tail_off : 0,
-                last - tail_off,
-                args...);
+            make_leaf_sub_pos(tail, tail_size)
+                .visit(v,
+                       first > tail_off ? first - tail_off : 0,
+                       last - tail_off,
+                       args...);
     }
 
     template <typename Visitor, typename... Args>
@@ -182,10 +186,10 @@ struct rbtree
     {
         auto tail_off  = tail_offset();
         auto tail_size = size - tail_off;
-        return (tail_off
-                ? make_regular_sub_pos(root, shift, tail_off).visit(v, args...)
-                : make_empty_regular_pos(root).visit(v, args...))
-            && make_leaf_sub_pos(tail, tail_size).visit(v, args...);
+        return (tail_off ? make_regular_sub_pos(root, shift, tail_off)
+                               .visit(v, args...)
+                         : make_empty_regular_pos(root).visit(v, args...)) &&
+               make_leaf_sub_pos(tail, tail_size).visit(v, args...);
     }
 
     template <typename Visitor, typename... Args>
@@ -194,30 +198,27 @@ struct rbtree
         auto tail_off  = tail_offset();
         auto tail_size = size - tail_off;
 
-        return
-            (first < tail_off
-             ? make_regular_sub_pos(root, shift, tail_off).visit(
-                 v,
-                 first,
-                 last < tail_off ? last : tail_off,
-                 args...)
-             : true)
-         && (last > tail_off
-             ? make_leaf_sub_pos(tail, tail_size).visit(
-                 v,
-                 first > tail_off ? first - tail_off : 0,
-                 last - tail_off,
-                 args...)
-             : true);
+        return (first < tail_off ? make_regular_sub_pos(root, shift, tail_off)
+                                       .visit(v,
+                                              first,
+                                              last < tail_off ? last : tail_off,
+                                              args...)
+                                 : true) &&
+               (last > tail_off
+                    ? make_leaf_sub_pos(tail, tail_size)
+                          .visit(v,
+                                 first > tail_off ? first - tail_off : 0,
+                                 last - tail_off,
+                                 args...)
+                    : true);
     }
 
     template <typename Visitor>
     decltype(auto) descend(Visitor v, size_t idx) const
     {
-        auto tail_off  = tail_offset();
-        return idx >= tail_off
-            ? make_leaf_descent_pos(tail).visit(v, idx)
-            : visit_regular_descent(root, shift, v, idx);
+        auto tail_off = tail_offset();
+        return idx >= tail_off ? make_leaf_descent_pos(tail).visit(v, idx)
+                               : visit_regular_descent(root, shift, v, idx);
     }
 
     template <typename Fn>
@@ -241,18 +242,21 @@ struct rbtree
     template <typename Fn>
     bool for_each_chunk_p(size_t first, size_t last, Fn&& fn) const
     {
-        return traverse_p(for_each_chunk_p_i_visitor{}, first, last, std::forward<Fn>(fn));
+        return traverse_p(
+            for_each_chunk_p_i_visitor{}, first, last, std::forward<Fn>(fn));
     }
 
     bool equals(const rbtree& other) const
     {
-        if (size != other.size) return false;
-        if (size == 0) return true;
-        return (size <= branches<BL>
-                || make_regular_sub_pos(root, shift, tail_offset()).visit(
-                    equals_visitor{}, other.root))
-            && make_leaf_sub_pos(tail, tail_size()).visit(
-                equals_visitor{}, other.tail);
+        if (size != other.size)
+            return false;
+        if (size == 0)
+            return true;
+        return (size <= branches<BL> ||
+                make_regular_sub_pos(root, shift, tail_offset())
+                    .visit(equals_visitor{}, other.root)) &&
+               make_leaf_sub_pos(tail, tail_size())
+                   .visit(equals_visitor{}, other.tail);
     }
 
     void ensure_mutable_tail(edit_t e, count_t n)
@@ -267,29 +271,31 @@ struct rbtree
     void push_back_mut(edit_t e, T value)
     {
         auto tail_off = tail_offset();
-        auto ts = size - tail_off;
+        auto ts       = size - tail_off;
         if (ts < branches<BL>) {
             ensure_mutable_tail(e, ts);
             new (&tail->leaf()[ts]) T{std::move(value)};
         } else {
             auto new_tail = node_t::make_leaf_e(e, std::move(value));
-            try {
+            IMMER_TRY {
                 if (tail_off == size_t{branches<B>} << shift) {
                     auto new_root = node_t::make_inner_e(e);
-                    try {
+                    IMMER_TRY {
                         auto path = node_t::make_path_e(e, shift, tail);
-                        new_root->inner() [0] = root;
-                        new_root->inner() [1] = path;
-                        root = new_root;
-                        tail = new_tail;
+                        new_root->inner()[0] = root;
+                        new_root->inner()[1] = path;
+                        root                 = new_root;
+                        tail                 = new_tail;
                         shift += B;
-                    } catch (...) {
+                    }
+                    IMMER_CATCH (...) {
                         node_t::delete_inner_e(new_root);
-                        throw;
+                        IMMER_RETHROW;
                     }
                 } else if (tail_off) {
-                    auto new_root = make_regular_sub_pos(root, shift, tail_off)
-                        .visit(push_tail_mut_visitor<node_t>{}, e, tail);
+                    auto new_root =
+                        make_regular_sub_pos(root, shift, tail_off)
+                            .visit(push_tail_mut_visitor<node_t>{}, e, tail);
                     root = new_root;
                     tail = new_tail;
                 } else {
@@ -299,9 +305,10 @@ struct rbtree
                     root = new_root;
                     tail = new_tail;
                 }
-            } catch (...) {
+            }
+            IMMER_CATCH (...) {
                 node_t::delete_leaf(new_tail, 1);
-                throw;
+                IMMER_RETHROW;
             }
         }
         ++size;
@@ -310,40 +317,43 @@ struct rbtree
     rbtree push_back(T value) const
     {
         auto tail_off = tail_offset();
-        auto ts = size - tail_off;
+        auto ts       = size - tail_off;
         if (ts < branches<BL>) {
-            auto new_tail = node_t::copy_leaf_emplace(tail, ts,
-                                                      std::move(value));
-            return { size + 1, shift, root->inc(), new_tail };
+            auto new_tail =
+                node_t::copy_leaf_emplace(tail, ts, std::move(value));
+            return {size + 1, shift, root->inc(), new_tail};
         } else {
             auto new_tail = node_t::make_leaf_n(1, std::move(value));
-            try {
+            IMMER_TRY {
                 if (tail_off == size_t{branches<B>} << shift) {
                     auto new_root = node_t::make_inner_n(2);
-                    try {
-                        auto path = node_t::make_path(shift, tail);
-                        new_root->inner() [0] = root;
-                        new_root->inner() [1] = path;
+                    IMMER_TRY {
+                        auto path            = node_t::make_path(shift, tail);
+                        new_root->inner()[0] = root;
+                        new_root->inner()[1] = path;
                         root->inc();
                         tail->inc();
-                        return { size + 1, shift + B, new_root, new_tail };
-                    } catch (...) {
+                        return {size + 1, shift + B, new_root, new_tail};
+                    }
+                    IMMER_CATCH (...) {
                         node_t::delete_inner(new_root, 2);
-                        throw;
+                        IMMER_RETHROW;
                     }
                 } else if (tail_off) {
-                    auto new_root = make_regular_sub_pos(root, shift, tail_off)
-                        .visit(push_tail_visitor<node_t>{}, tail);
+                    auto new_root =
+                        make_regular_sub_pos(root, shift, tail_off)
+                            .visit(push_tail_visitor<node_t>{}, tail);
                     tail->inc();
-                    return { size + 1, shift, new_root, new_tail };
+                    return {size + 1, shift, new_root, new_tail};
                 } else {
                     auto new_root = node_t::make_path(shift, tail);
                     tail->inc();
-                    return { size + 1, shift, new_root, new_tail };
+                    return {size + 1, shift, new_root, new_tail};
                 }
-            } catch (...) {
+            }
+            IMMER_CATCH (...) {
                 node_t::delete_leaf(new_tail, 1);
-                throw;
+                IMMER_RETHROW;
             }
         }
     }
@@ -358,7 +368,7 @@ struct rbtree
         auto tail_off = tail_offset();
         if (idx >= tail_off) {
             ensure_mutable_tail(e, size - tail_off);
-            return tail->leaf() [idx & mask<BL>];
+            return tail->leaf()[idx & mask<BL>];
         } else {
             return make_regular_sub_pos(root, shift, tail_off)
                 .visit(get_mut_visitor<node_t>{}, idx, e, &root);
@@ -373,67 +383,58 @@ struct rbtree
     const T& get_check(size_t index) const
     {
         if (index >= size)
-            throw std::out_of_range{"index out of range"};
+            IMMER_THROW(std::out_of_range{"index out of range"});
         return descend(get_visitor<T>(), index);
     }
 
-    const T& front() const
-    {
-        return get(0);
-    }
+    const T& front() const { return get(0); }
 
-    const T& back() const
-    {
-        return tail->leaf()[(size - 1) & mask<BL>];
-    }
+    const T& back() const { return tail->leaf()[(size - 1) & mask<BL>]; }
 
     template <typename FnT>
     void update_mut(edit_t e, size_t idx, FnT&& fn)
     {
         auto& elem = get_mut(e, idx);
-        elem = std::forward<FnT>(fn) (std::move(elem));
+        elem       = std::forward<FnT>(fn)(std::move(elem));
     }
 
     template <typename FnT>
     rbtree update(size_t idx, FnT&& fn) const
     {
-        auto tail_off  = tail_offset();
+        auto tail_off = tail_offset();
         if (idx >= tail_off) {
             auto tail_size = size - tail_off;
-            auto new_tail  = make_leaf_sub_pos(tail, tail_size)
-                .visit(update_visitor<node_t>{}, idx - tail_off, fn);
-            return { size, shift, root->inc(), new_tail };
+            auto new_tail =
+                make_leaf_sub_pos(tail, tail_size)
+                    .visit(update_visitor<node_t>{}, idx - tail_off, fn);
+            return {size, shift, root->inc(), new_tail};
         } else {
-            auto new_root  = make_regular_sub_pos(root, shift, tail_off)
-                .visit(update_visitor<node_t>{}, idx, fn);
-            return { size, shift, new_root, tail->inc() };
+            auto new_root = make_regular_sub_pos(root, shift, tail_off)
+                                .visit(update_visitor<node_t>{}, idx, fn);
+            return {size, shift, new_root, tail->inc()};
         }
     }
 
     void assoc_mut(edit_t e, size_t idx, T value)
     {
-        update_mut(e, idx, [&] (auto&&) {
-                return std::move(value);
-            });
+        update_mut(e, idx, [&](auto&&) { return std::move(value); });
     }
 
     rbtree assoc(size_t idx, T value) const
     {
-        return update(idx, [&] (auto&&) {
-                return std::move(value);
-            });
+        return update(idx, [&](auto&&) { return std::move(value); });
     }
 
     rbtree take(size_t new_size) const
     {
         auto tail_off = tail_offset();
         if (new_size == 0) {
-            return empty();
+            return {};
         } else if (new_size >= size) {
             return *this;
         } else if (new_size > tail_off) {
             auto new_tail = node_t::copy_leaf(tail, new_size - tail_off);
-            return { new_size, shift, root->inc(), new_tail };
+            return {new_size, shift, root->inc(), new_tail};
         } else {
             using std::get;
             auto l = new_size - 1;
@@ -443,11 +444,11 @@ struct rbtree
             auto new_root  = get<1>(r);
             auto new_tail  = get<3>(r);
             if (new_root) {
-                assert(new_root->compute_shift() == get<0>(r));
+                IMMER_ASSERT_TAGGED(new_root->compute_shift() == get<0>(r));
                 assert(new_root->check(new_shift, new_size - get<2>(r)));
-                return { new_size, new_shift, new_root, new_tail };
+                return {new_size, new_shift, new_root, new_tail};
             } else {
-                return { new_size, BL, empty().root->inc(), new_tail };
+                return {new_size, BL, empty_root(), new_tail};
             }
         }
     }
@@ -457,14 +458,14 @@ struct rbtree
         auto tail_off = tail_offset();
         if (new_size == 0) {
             // todo: more efficient?
-            *this = empty();
+            *this = {};
         } else if (new_size >= size) {
             return;
         } else if (new_size > tail_off) {
             auto ts    = size - tail_off;
             auto newts = new_size - tail_off;
             if (tail->can_mutate(e)) {
-                destroy_n(tail->leaf() + newts, ts - newts);
+                detail::destroy_n(tail->leaf() + newts, ts - newts);
             } else {
                 auto new_tail = node_t::copy_leaf_e(e, tail, newts);
                 dec_leaf(tail, ts);
@@ -484,12 +485,12 @@ struct rbtree
                 root  = new_root;
                 shift = new_shift;
             } else {
-                root  = empty().root->inc();
+                root  = empty_root();
                 shift = BL;
             }
             dec_leaf(tail, size - tail_off);
-            size  = new_size;
-            tail  = new_tail;
+            size = new_size;
+            tail = new_tail;
             return;
         }
     }
@@ -509,7 +510,7 @@ struct rbtree
     {
 #if IMMER_DEBUG_DEEP_CHECK
         if (tail_size() > 0)
-            assert(tail->check(0, tail_size()));
+            assert(tail->check(endshift<B, BL>, tail_size()));
 #endif
         return true;
     }
@@ -520,7 +521,7 @@ struct rbtree
         if (tail_offset() > 0)
             assert(root->check(shift, tail_offset()));
         else {
-            assert(root->kind() == node_t::kind_t::inner);
+            IMMER_ASSERT_TAGGED(root->kind() == node_t::kind_t::inner);
             assert(shift == BL);
         }
 #endif
