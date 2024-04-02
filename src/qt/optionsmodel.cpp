@@ -81,6 +81,10 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("fCoinControlFeatures", false);
     fCoinControlFeatures = settings.value("fCoinControlFeatures", false).toBool();
 
+    if (!settings.contains("fDisableGoToPrivate"))
+        settings.setValue("fDisableGoToPrivate", false);
+    fDisableGoToPrivate = settings.value("fDisableGoToPrivate", false).toBool();
+
     if (!settings.contains("fAutoAnonymize"))
         settings.setValue("fAutoAnonymize", false);
     fAutoAnonymize = settings.value("fAutoAnonymize", false).toBool();
@@ -277,6 +281,8 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return settings.value("language");
         case CoinControlFeatures:
             return fCoinControlFeatures;
+        case DisableGoToPrivate:
+            return fDisableGoToPrivate;
         case AutoAnonymize:
             return fAutoAnonymize;
         case LelantusPage:
@@ -423,6 +429,11 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             fCoinControlFeatures = value.toBool();
             settings.setValue("fCoinControlFeatures", fCoinControlFeatures);
             Q_EMIT coinControlFeaturesChanged(fCoinControlFeatures);
+            break;
+        case DisableGoToPrivate:
+            fDisableGoToPrivate = value.toBool();
+            settings.setValue("fDisableGoToPrivate", fDisableGoToPrivate);
+            Q_EMIT disableGoToPrivateChanged(fDisableGoToPrivate);
             break;
         case AutoAnonymize:
             fAutoAnonymize = value.toBool();

@@ -165,6 +165,7 @@ void OptionsDialog::setModel(OptionsModel *_model)
     /* Wallet */
     connect(ui->spendZeroConfChange, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     connect(ui->reindexLelantus, &QCheckBox::clicked, this, &OptionsDialog::handleEnabledZapChanged);
+    connect(ui->disableGoToPrivateWindow, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     /* Network */
     connect(ui->allowIncoming, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     connect(ui->connectSocks, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
@@ -184,6 +185,7 @@ void OptionsDialog::setMapper()
     /* Wallet */
     mapper->addMapping(ui->spendZeroConfChange, OptionsModel::SpendZeroConfChange);
     mapper->addMapping(ui->reindexLelantus, OptionsModel::ReindexLelantus);
+    mapper->addMapping(ui->disableGoToPrivateWindow, OptionsModel::DisableGoToPrivate);
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
 
     /* Lelantus */

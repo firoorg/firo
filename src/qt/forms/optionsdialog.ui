@@ -164,6 +164,20 @@
            </widget>
           </item>
           <item>
+           <widget class="QCheckBox" name="disableGoToPrivateWindow">
+            <property name="toolTip">
+             <string>Disable go to private window.</string>
+            </property>
+            <property name="text">
+             <string>&amp;Disable go to private window</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+          <item>
            <widget class="QCheckBox" name="reindexLelantus">
             <property name="toolTip">
              <string>Restore all Lelantus transactions following a reindex.</string>

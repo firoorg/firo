@@ -46,6 +46,7 @@ public:
         DatabaseCache,          // int
         SpendZeroConfChange,    // bool
         ReindexLelantus,        // bool
+        DisableGoToPrivate,     // bool
         Listen,                 // bool
         TorSetup,               // bool
         AutoAnonymize,          // bool
@@ -73,6 +74,7 @@ public:
     bool getRapAddresses() {    return fenableRapAddresses; }
     const QString& getOverriddenByCommandLine() { return strOverriddenByCommandLine; }
     bool getAutoAnonymize() { return fAutoAnonymize; }
+    bool getGoPrivateWindow() {return fDisableGoToPrivate;}
     bool getLelantusPage() {return fLelantusPage; }
 
     /* Restart flag helper */
@@ -90,6 +92,7 @@ private:
     bool fCoinControlFeatures;
     bool fAutoAnonymize;
     bool fLelantusPage;
+    bool fDisableGoToPrivate;
     bool fenableRapAddresses;
 
     /* settings that were overridden by command-line */
@@ -106,6 +109,7 @@ Q_SIGNALS:
     void enableRapAddressesChanged(bool);
     void autoAnonymizeChanged(bool);
     void lelantusPageChanged(bool);
+    void disableGoToPrivateChanged(bool);
     void hideTrayIconChanged(bool);
 };
 
