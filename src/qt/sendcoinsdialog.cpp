@@ -341,12 +341,25 @@ void SendCoinsDialog::on_sendButton_clicked()
         }
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
         if (spark::IsSparkAllowed()) {
-            SendGoPrivateDialog goPrivateDialog;
-            bool clickedButton = goPrivateDialog.getClickedButton();
-            if (!clickedButton) {
-                setAnonymizeMode(true);
-                fNewRecipientAllowed = true;
-                return;
+            bool openPageTag = true;
+            for(int i = 0; i < recipients.size(); ++i){
+                std::string address = recipients[i].address.toStdString();
+                CBitcoinAddress add(address);
+                CTxDestination dest = add.Get();
+
+                if (boost::get<CExchangeKeyID>(&dest)) {
+                    openPageTag = false;
+                }
+            }
+
+            if (openPageTag) {
+                SendGoPrivateDialog goPrivateDialog;
+                bool clickedButton = goPrivateDialog.getClickedButton();
+                if (!clickedButton) {
+                    setAnonymizeMode(true);
+                    fNewRecipientAllowed = true;
+                    return;
+                }
             }
         }
         prepareStatus = model->prepareTransaction(currentTransaction, &ctrl);
