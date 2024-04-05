@@ -74,7 +74,7 @@ public:
     bool getRapAddresses() {    return fenableRapAddresses; }
     const QString& getOverriddenByCommandLine() { return strOverriddenByCommandLine; }
     bool getAutoAnonymize() { return fAutoAnonymize; }
-    bool getGoPrivateWindow() {return fDisableGoToPrivate;}
+    bool getDisableGoToPrivate() {return fDisableGoToPrivate;}
     bool getLelantusPage() {return fLelantusPage; }
 
     /* Restart flag helper */

@@ -340,7 +340,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             return;
         }
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
-        if (!model->getOptionsModel()->getGoPrivateWindow() && spark::IsSparkAllowed()) {
+        if (!model->getOptionsModel()->getDisableGoToPrivate() && spark::IsSparkAllowed()) {
             bool openPageTag = true;
             for(int i = 0; i < recipients.size(); ++i){
                 std::string address = recipients[i].address.toStdString();
@@ -349,6 +349,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
                 if (boost::get<CExchangeKeyID>(&dest)) {
                     openPageTag = false;
+                    break;
                 }
             }
 
