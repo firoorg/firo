@@ -820,7 +820,10 @@ QTableView::item:selected {
     color: #FFFFFF;
     font: 12pt 'Source Sans Pro';
 }
-
+/* QTreeView */
+QTreeView::item {
+    color: #000000;
+}
 /* QTableWidget */
 
 QTableWidget {
