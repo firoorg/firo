@@ -120,7 +120,6 @@ private:
     QAction *showHelpMessageAction;
     QAction *lelantusAction;
     QAction *masternodeAction;
-    QAction *createPcodeAction;
     QAction *logoAction;
 
     QSystemTrayIcon *trayIcon;
@@ -218,8 +217,6 @@ public Q_SLOTS:
     void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
-    /** Switch to create payment code page */
-    void gotoCreatePcodePage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to lelantus page */
@@ -275,8 +272,6 @@ public Q_SLOTS:
     /** Update Lelantus page visibility */
     void updateLelantusPage();
 
-    /** Update RAP Addresses page visibility */
-    void setRapAddressesVisible(bool);
 };
 
 class UnitDisplayStatusBarControl : public QLabel
