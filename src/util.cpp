@@ -612,7 +612,7 @@ void ClearDatadirCache()
 boost::filesystem::path GetConfigFile(const std::string& confPath)
 {
     boost::filesystem::path pathConfigFile(confPath);
-    if (!pathConfigFile.is_complete()) {
+    if (!pathConfigFile.is_absolute()) {
         boost::filesystem::path dataDir = GetDataDir(false);
 
         // upgrade heuristics: if dataDir ends with either "zcoin" or ".zcoin" and confPath is set
@@ -694,7 +694,7 @@ bool RenameDirectoriesFromZcoinToFiro()
 boost::filesystem::path GetPidFile()
 {
     boost::filesystem::path pathPidFile(GetArg("-pid", BITCOIN_PID_FILENAME));
-    if (!pathPidFile.is_complete()) pathPidFile = GetDataDir() / pathPidFile;
+    if (!pathPidFile.is_absolute()) pathPidFile = GetDataDir() / pathPidFile;
     return pathPidFile;
 }
 
