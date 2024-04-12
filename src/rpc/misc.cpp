@@ -1582,6 +1582,10 @@ UniValue gettotalsupply(const JSONRPCRequest& request)
     if(!pblocktree->ReadTotalSupply(total))
         throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the total supply from the database. This functionality requires -addressindex to be enabled. Enabling -addressindex requires reindexing.");
 
+    total += 44666700000000; // The estimated amount of coins forged during the Zerocoin attacks
+    total += 23750000000000; // The estimated amount of coins forged during the Lelantus attacks.
+    total += 4302972000000; // The remaining amount of forged coins during CVE-2018-17144 attacks, after subtracting burnt Coins sent to unrecoverable address https://explorer.firo.org/tx/0b53178c1b22bae4c04ef943ee6d6d30f2483327fe9beb54952951592e8ce368
+
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("total", total));
 
