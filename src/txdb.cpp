@@ -17,6 +17,10 @@
 
 #include <boost/thread.hpp>
 
+#ifdef __linux__
+#include <sys/sysinfo.h>
+#endif
+
 static const char DB_COIN = 'C';
 static const char DB_COINS = 'c';
 static const char DB_BLOCK_FILES = 'f';
@@ -365,6 +369,14 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
     int firstInLastNBlocksHeight = 0;
 
     bool fCheckPoWForAllBlocks = GetBoolArg("-fullblockindexcheck", DEFAULT_FULL_BLOCKINDEX_CHECK);
+    int64_t nBlocksToCheck = GetArg("-numberofblockstocheckonstartup", DEFAULT_BLOCKINDEX_NUMBER_OF_BLOCKS_TO_CHECK);
+
+#ifdef __linux__
+    struct sysinfo sysInfo;
+
+    if (sysinfo(&sysInfo) == 0 && sysInfo.freeram < 2ul*1024ul*1024ul*1024ul)
+        nBlocksToCheck = DEFAULT_BLOCKINDEX_LOWMEM_NUMBER_OF_BLOCKS_TO_CHECK;
+#endif
 
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
@@ -423,7 +435,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 else {
                     if (pindexNew->nHeight >= firstInLastNBlocksHeight) {
                         lastNBlocks.insert(std::pair<int, CBlockIndex*>(pindexNew->nHeight, pindexNew));
-                        if (lastNBlocks.size() > DEFAULT_BLOCKINDEX_NUMBER_OF_BLOCKS_TO_CHECK) {
+                        if (lastNBlocks.size() > nBlocksToCheck) {
                             // pop the first element from the map
                             auto firstElement = lastNBlocks.begin();
                             auto elementToPop = firstElement++;
