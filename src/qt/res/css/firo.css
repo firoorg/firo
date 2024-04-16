@@ -351,7 +351,7 @@ QComboBox::drop-down {
 }
 
 QComboBox::indicator {
-    background-color: #f4f4f4;
+    background-color: transparent;
     selection-background-color: #3d3939;
     color: #110202;
     selection-color: #FFFFFF;
@@ -373,6 +373,7 @@ QComboBox QAbstractItemView::item {
 QComboBox::item {
     color: #110202;
     font: 12pt 'Source Sans Pro';
+    max-height: 25px;
 }
 
 QComboBox::item:alternate {
@@ -819,7 +820,10 @@ QTableView::item:selected {
     color: #FFFFFF;
     font: 12pt 'Source Sans Pro';
 }
-
+/* QTreeView */
+QTreeView::item {
+    color: #000000;
+}
 /* QTableWidget */
 
 QTableWidget {
