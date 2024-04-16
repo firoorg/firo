@@ -305,6 +305,8 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
     std::size_t N_proofs = proofs.size();
     std::size_t max_M = 0; // maximum number of padded aggregated values across all proofs
 
+    std::size_t final_size = 0; // size of each vector used in final multiscalar multiplication
+
     // Check aggregated input consistency
     for (std::size_t k = 0; k < N_proofs; k++) {
         std::size_t unpadded_M = unpadded_C[k].size();
@@ -331,7 +333,13 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
         if (log2(N*M) != rounds) {
             return false;
         }
+
+        // Update the final vector size: B, A1, A, (C_j), (L), (R)
+        final_size += 3 + M + 2 * rounds;
     }
+
+    // Update the final vector size: G, H, (Gi), (Hi)
+    final_size += 2 + 2 * max_M * N;
 
     // Check the bounds on the batch
     if (max_M*N > Gi.size() || max_M*N > Hi.size()) {
@@ -341,6 +349,8 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
     // Set up final multiscalar multiplication and common scalars
     std::vector<GroupElement> points;
     std::vector<Scalar> scalars;
+    points.reserve(final_size);
+    scalars.reserve(final_size);
     Scalar G_scalar, H_scalar;
 
     // Interleave the Gi and Hi scalars
