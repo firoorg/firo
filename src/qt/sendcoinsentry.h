@@ -48,8 +48,9 @@ public:
     QWidget *setupTabChain(QWidget *prev);
 
     void setFocus();
-    void setWarning(bool fAnonymousMode);
-    
+    void setWarning(const bool fAnonymousMode);
+    void setfAnonymousMode(bool fAnonymousMode);
+
 public Q_SLOTS:
     void clear();
 
@@ -71,6 +72,7 @@ private:
     WalletModel *model;
     const PlatformStyle *platformStyle;
     bool isPcodeEntry;
+    bool fAnonymousMode;
 
     bool updateLabel(const QString &address);
 };

@@ -82,6 +82,7 @@ void SendCoinsEntry::on_addressBookButton_clicked()
 void SendCoinsEntry::on_payTo_textChanged(const QString &address)
 {
     updateLabel(address);
+    setWarning(fAnonymousMode);
 }
 
 void SendCoinsEntry::setModel(WalletModel *_model)
@@ -124,14 +125,33 @@ void SendCoinsEntry::deleteClicked()
 
 void SendCoinsEntry::setWarning(bool fAnonymousMode)
 {
-    if(fAnonymousMode) {
-        ui->textWarning->hide();
-        ui->iconWarning->hide();
+    QString address = ui->payTo->text();
+    QString warningText;
+
+    if (address.startsWith("EX")) {
+        warningText = tr("You are sending Firo to an Exchange Address. Exchange Addresses can only receive funds from a transparent address.");
     } else {
-        ui->textWarning->show();
-        ui->iconWarning->show();
+        if (!fAnonymousMode) {
+            if (model->validateAddress(address)) {
+                warningText = tr("You are sending Firo from a transparent address to another transparent address. To protect your privacy, we recommend using Spark addresses instead.");
+            } else if (model->validateSparkAddress(address)) {
+                warningText = tr("You are sending Firo from a transparent address to a Spark address.");
+            }
+        } else {
+            if (model->validateAddress(address)) {
+                warningText = tr("You are sending Firo from a private Spark pool to a transparent address. Please note that some exchanges do not accept direct Spark deposits.");
+            } else if (model->validateSparkAddress(address)) {
+                warningText = tr("You are sending Firo from a Spark address to another Spark address. This transaction is fully private.");
+            }
+        }
     }
+
+    const bool hasValidAddress = model->validateAddress(address) || model->validateSparkAddress(address);
+    ui->textWarning->setText(warningText);
+    ui->textWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
+    ui->iconWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
 }
+
 
 bool SendCoinsEntry::validate()
 {
@@ -228,6 +248,11 @@ bool SendCoinsEntry::isClear()
 bool SendCoinsEntry::isPayToPcode() const
 {
     return isPcodeEntry;
+}
+
+void SendCoinsEntry::setfAnonymousMode(bool fAnonymousMode)
+{
+    this->fAnonymousMode = fAnonymousMode;
 }
 
 void SendCoinsEntry::setFocus()
