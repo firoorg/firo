@@ -123,9 +123,17 @@ void SendCoinsEntry::deleteClicked()
     Q_EMIT removeEntry(this);
 }
 
-void SendCoinsEntry::setWarning(bool fAnonymousMode)
+void SendCoinsEntry::setWarning(bool fAnonymousMode) {
+    const QString address = ui->payTo->text();
+    const QString warningText = generateWarningText(address, fAnonymousMode);
+    const bool hasValidAddress = model->validateAddress(address) || model->validateSparkAddress(address);
+    ui->textWarning->setText(warningText);
+    ui->textWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
+    ui->iconWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
+}
+
+QString SendCoinsEntry::generateWarningText(const QString& address, const bool fAnonymousMode)
 {
-    QString address = ui->payTo->text();
     QString warningText;
 
     if (address.startsWith("EX")) {
@@ -145,11 +153,7 @@ void SendCoinsEntry::setWarning(bool fAnonymousMode)
             }
         }
     }
-
-    const bool hasValidAddress = model->validateAddress(address) || model->validateSparkAddress(address);
-    ui->textWarning->setText(warningText);
-    ui->textWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
-    ui->iconWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
+    return warningText;
 }
 
 

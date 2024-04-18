@@ -73,7 +73,7 @@ private:
     const PlatformStyle *platformStyle;
     bool isPcodeEntry;
     bool fAnonymousMode;
-
+    QString generateWarningText(const QString& address, const bool fAnonymousMode);
     bool updateLabel(const QString &address);
 };
 
