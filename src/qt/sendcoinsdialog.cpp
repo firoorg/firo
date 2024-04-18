@@ -359,32 +359,10 @@ void SendCoinsDialog::on_sendButton_clicked()
     QStringList formatted;
     QString warningMessage;
 
-    bool IsExchange = false;
-    for(int i = 0; i < recipients.size(); ++i){
-        std::string address = recipients[i].address.toStdString();
-        CBitcoinAddress add(address);
-        CTxDestination dest = add.Get();
-        if (boost::get<CExchangeKeyID>(&dest)) {
-            IsExchange = true;
+    for(int i = 0; i < recipients.size(); ++i) {
+        warningMessage = entry->generateWarningText(recipients[i].address, fAnonymousMode);
+        if ((model->validateSparkAddress(recipients[i].address)) || (recipients[i].address.startsWith("EX"))) {
             break;
-        }
-    }
-
-    if (!fAnonymousMode) {
-        if (model->validateSparkAddress(recipients[0].address)) {
-            warningMessage = tr(" You are sending Firo from a transparent address to a Spark address.");
-        } else if (IsExchange) {
-            warningMessage = tr(" You are sending Firo into an Exchange Address. Exchange Addresses can only receive funds from a transparent address.");
-        } else {
-            warningMessage = tr(" You are sending Firo from a transparent address to another transparent address. To protect your privacy, we recommend using Spark addresses instead.");
-        }
-    } else {
-        for (auto i = 0; i < recipients.size(); ++i) {
-            if (model->validateSparkAddress(recipients[i].address)) {
-                warningMessage = tr(" You are sending Firo from a Spark address to another Spark address. This transaction is fully private.");
-                break;
-            }
-            warningMessage = tr(" You are sending Firo from a private Spark pool to a transparent address. Please note that some exchanges do not accept direct Spark deposits.");
         }
     }
 

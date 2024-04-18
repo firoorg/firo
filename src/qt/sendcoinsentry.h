@@ -50,6 +50,7 @@ public:
     void setFocus();
     void setWarning(const bool fAnonymousMode);
     void setfAnonymousMode(bool fAnonymousMode);
+    QString generateWarningText(const QString& address, const bool fAnonymousMode);
 
 public Q_SLOTS:
     void clear();
@@ -73,7 +74,6 @@ private:
     const PlatformStyle *platformStyle;
     bool isPcodeEntry;
     bool fAnonymousMode;
-    QString generateWarningText(const QString& address, const bool fAnonymousMode);
     bool updateLabel(const QString &address);
 };
 

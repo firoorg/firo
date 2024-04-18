@@ -137,19 +137,19 @@ QString SendCoinsEntry::generateWarningText(const QString& address, const bool f
     QString warningText;
 
     if (address.startsWith("EX")) {
-        warningText = tr("You are sending Firo to an Exchange Address. Exchange Addresses can only receive funds from a transparent address.");
+        warningText = tr(" You are sending Firo to an Exchange Address. Exchange Addresses can only receive funds from a transparent address.");
     } else {
         if (!fAnonymousMode) {
             if (model->validateAddress(address)) {
-                warningText = tr("You are sending Firo from a transparent address to another transparent address. To protect your privacy, we recommend using Spark addresses instead.");
+                warningText = tr(" You are sending Firo from a transparent address to another transparent address. To protect your privacy, we recommend using Spark addresses instead.");
             } else if (model->validateSparkAddress(address)) {
-                warningText = tr("You are sending Firo from a transparent address to a Spark address.");
+                warningText = tr(" You are sending Firo from a transparent address to a Spark address.");
             }
         } else {
-            if (model->validateAddress(address)) {
-                warningText = tr("You are sending Firo from a private Spark pool to a transparent address. Please note that some exchanges do not accept direct Spark deposits.");
-            } else if (model->validateSparkAddress(address)) {
-                warningText = tr("You are sending Firo from a Spark address to another Spark address. This transaction is fully private.");
+            if (model->validateSparkAddress(address)) {
+                warningText = tr(" You are sending Firo from a Spark address to another Spark address. This transaction is fully private.");
+            } else if (model->validateAddress(address)) {
+                warningText = tr(" You are sending Firo from a private Spark pool to a transparent address. Please note that some exchanges do not accept direct Spark deposits.");
             }
         }
     }
