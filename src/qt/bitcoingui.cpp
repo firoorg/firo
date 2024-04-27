@@ -122,7 +122,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     showHelpMessageAction(0),
     lelantusAction(0),
     masternodeAction(0),
-    createPcodeAction(0),
     logoAction(0),
     trayIcon(0),
     trayIconMenu(0),
@@ -366,13 +365,6 @@ void BitcoinGUI::createActions()
     tabGroup->addAction(masternodeAction);
 #endif
 
-    createPcodeAction = new QAction(tr("RA&P addresses"), this);
-    createPcodeAction->setStatusTip(tr("Create RAP addresses (BIP47 payment codes)"));
-    createPcodeAction->setToolTip(createPcodeAction->statusTip());
-    createPcodeAction->setCheckable(true);
-    createPcodeAction->setShortcut(QKeySequence(Qt::ALT + key++));
-    tabGroup->addAction(createPcodeAction);
-
 #ifdef ENABLE_WALLET
     connect(masternodeAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
     connect(masternodeAction, &QAction::triggered, this, &BitcoinGUI::gotoMasternodePage);
@@ -390,7 +382,6 @@ void BitcoinGUI::createActions()
 	connect(historyAction, &QAction::triggered, this, &BitcoinGUI::gotoHistoryPage);
 
 	connect(lelantusAction, &QAction::triggered, this, &BitcoinGUI::gotoLelantusPage);
-	connect(createPcodeAction, &QAction::triggered, this, &BitcoinGUI::gotoCreatePcodePage);
 #endif // ENABLE_WALLET
 
     quitAction = new QAction(tr("E&xit"), this);
@@ -531,8 +522,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(historyAction);
         toolbar->addAction(lelantusAction);
         toolbar->addAction(masternodeAction);
-        toolbar->addAction(createPcodeAction);
-        
+
         QLabel *logoLabel = new QLabel();
         logoLabel->setObjectName("lblToolbarLogo");
         logoLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -592,10 +582,6 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
 
             // update lelantus page if option is changed.
             connect(optionsModel, &OptionsModel::lelantusPageChanged, this, &BitcoinGUI::updateLelantusPage);
-
-            // update RAP Addresses page if option is changed.
-            connect(optionsModel, &OptionsModel::enableRapAddressesChanged, this, &BitcoinGUI::setRapAddressesVisible);
-            createPcodeAction->setVisible(optionsModel->getRapAddresses());
 
             // initialize the disable state of the tray icon with the current value in the model.
             setTrayIconVisible(optionsModel->getHideTrayIcon());
@@ -659,7 +645,6 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     sendCoinsMenuAction->setEnabled(enabled);
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
-    createPcodeAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
     lelantusAction->setEnabled(enabled);
     masternodeAction->setEnabled(enabled);
@@ -809,12 +794,6 @@ void BitcoinGUI::gotoReceiveCoinsPage()
 {
     receiveCoinsAction->setChecked(true);
     if (walletFrame) walletFrame->gotoReceiveCoinsPage();
-}
-
-void BitcoinGUI::gotoCreatePcodePage()
-{
-    createPcodeAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoCreatePcodePage();
 }
 
 void BitcoinGUI::gotoSendCoinsPage(QString addr)
@@ -1348,14 +1327,6 @@ void BitcoinGUI::updateLelantusPage()
 {
     auto blocks = clientModel->getNumBlocks();
     checkLelantusVisibility(blocks);
-}
-
-void BitcoinGUI::setRapAddressesVisible(bool checked)
-{
-#ifdef ENABLE_WALLET
-    gotoOverviewPage();
-#endif // ENABLE_WALLET
-    createPcodeAction->setVisible(checked);
 }
 
 static bool ThreadSafeMessageBox(BitcoinGUI *gui, const std::string& message, const std::string& caption, unsigned int style)
