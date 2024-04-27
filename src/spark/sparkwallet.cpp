@@ -1697,9 +1697,9 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
             throw std::invalid_argument(_("Unable to select cons for spend"));
         }
 
-        // 924 is constant part, mainly Schnorr and Range proofs, 2535 is for each grootle proof/aux data
-        // 213 for each private output, 144 other parts of tx,
-        size = 924 + 2535 * (spendCoins.size()) + 213 * mintNum + 144; //TODO (levon) take in account also utxoNum
+        // 1803 is for first grootle proof/aux data
+        // 213 for each private output, 34 for each utxo,924 constant parts of tx parts of tx,
+        size = 924 + 1803*(spendCoins.size()) + 322*(mintNum+1) + 34*utxoNum;
         CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
 
         if (fee >= feeNeeded) {
