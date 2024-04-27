@@ -47,6 +47,8 @@ static const int64_t nMaxCoinsDBCache = 8;
 static const bool DEFAULT_FULL_BLOCKINDEX_CHECK = false;
 //! If not doing full check of block index, check only N of the latest blocks
 static const int DEFAULT_BLOCKINDEX_NUMBER_OF_BLOCKS_TO_CHECK = 10000;
+//! Check fewer blocks if low on memory
+static const int DEFAULT_BLOCKINDEX_LOWMEM_NUMBER_OF_BLOCKS_TO_CHECK = 50;
 
 struct CDiskTxPos : public CDiskBlockPos
 {
