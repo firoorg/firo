@@ -24,6 +24,7 @@
 #include <QComboBox>
 #include <QPushButton>
 #include <QButtonGroup>
+#include <QScreen>
 
 ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
@@ -360,4 +361,69 @@ void RecentRequestsFilterProxy::setTypeFilter(quint32 modes)
 {
     this->typeFilter = modes;
     invalidateFilter();
+}
+
+// Handles resize events for the ReceiveCoinsDialog widget by adjusting internal component sizes.
+void ReceiveCoinsDialog::resizeEvent(QResizeEvent* event)
+{
+    QDialog::resizeEvent(event); 
+
+    // Get new size from the event
+    int newWidth = event->size().width();
+    int newHeight = event->size().height();
+
+    // Set fixed, minimum, and maximum sizes for ComboBoxes
+    int comboBoxMinHeight = 20;
+    int comboBoxMaxHeight = 40;
+    int comboBoxWidth = newWidth * 0.08; 
+    int comboBoxMinWidth = newWidth * 0.05; 
+    int comboBoxMaxWidth = newWidth * 0.1; 
+
+    ui->addressTypeCombobox->setMinimumWidth(comboBoxMinWidth);
+    ui->addressTypeCombobox->setMaximumWidth(comboBoxMaxWidth);
+    ui->addressTypeCombobox->setMinimumHeight(comboBoxMinHeight);
+    ui->addressTypeCombobox->setMaximumHeight(comboBoxMaxHeight);
+
+    ui->addressTypeHistoryCombobox->setMinimumWidth(comboBoxMinWidth);
+    ui->addressTypeHistoryCombobox->setMaximumWidth(comboBoxMaxWidth);
+    ui->addressTypeHistoryCombobox->setMinimumHeight(comboBoxMinHeight);
+    ui->addressTypeHistoryCombobox->setMaximumHeight(comboBoxMaxHeight);
+
+    // Set sizes for buttons dynamically
+    int buttonMinHeight = 20;
+    int buttonMaxHeight = 35;
+    int buttonWidth = newWidth * 0.15; 
+    int buttonMinWidth = newWidth * 0.1; 
+    int buttonMaxWidth = newWidth * 0.4; 
+
+    ui->clearButton->setMinimumWidth(buttonMinWidth);
+    ui->clearButton->setMaximumWidth(buttonMaxWidth);
+    ui->clearButton->setMinimumHeight(buttonMinHeight);
+    ui->clearButton->setMaximumHeight(buttonMaxHeight);
+
+    ui->receiveButton->setMinimumWidth(buttonMinWidth);
+    ui->receiveButton->setMaximumWidth(buttonMaxWidth);
+    ui->receiveButton->setMinimumHeight(buttonMinHeight);
+    ui->receiveButton->setMaximumHeight(buttonMaxHeight);
+
+    ui->showRequestButton->setMinimumWidth(buttonMinWidth);
+    ui->showRequestButton->setMaximumWidth(buttonMaxWidth);
+    ui->showRequestButton->setMinimumHeight(buttonMinHeight);
+    ui->showRequestButton->setMaximumHeight(buttonMaxHeight);
+
+    ui->removeRequestButton->setMinimumWidth(buttonMinWidth);
+    ui->removeRequestButton->setMaximumWidth(buttonMaxWidth);
+    ui->removeRequestButton->setMinimumHeight(buttonMinHeight);
+    ui->removeRequestButton->setMaximumHeight(buttonMaxHeight);
+
+    // Adjust column widths proportionally
+    int dateColumnWidth = newWidth * 0.25;
+    int labelColumnWidth = newWidth * 0.25;
+    int addressTypeColumnWidth = newWidth * 0.25;
+    int amountColumnWidth = newWidth * 0.25;
+
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Date, dateColumnWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Label, labelColumnWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::AddressType, addressTypeColumnWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Amount, amountColumnWidth);
 }

@@ -16,6 +16,11 @@
 #include <QSettings>
 #include <QMessageBox>
 #include <QTimer>
+#include <QResizeEvent>
+#include <QPainter>
+#include <QStyleOptionViewItem>
+#include <QMetaMethod>
+
 
 class ClientModel;
 class TransactionFilterProxy;
@@ -44,6 +49,7 @@ public:
     void setWalletModel(WalletModel *walletModel);
     void showOutOfSyncWarning(bool fShow);
     void UpdatePropertyBalance(unsigned int propertyId, uint64_t available, uint64_t reserved);
+    void resizeEvent(QResizeEvent* event) override;
 
 public Q_SLOTS:
     void on_anonymizeButton_clicked();

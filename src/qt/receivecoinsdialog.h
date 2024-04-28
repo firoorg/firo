@@ -15,6 +15,8 @@
 #include <QPoint>
 #include <QVariant>
 #include <QSortFilterProxyModel>
+#include <QResizeEvent>
+#include <QScreen>
 
 class OptionsModel;
 class PlatformStyle;
@@ -57,7 +59,8 @@ public:
     ~ReceiveCoinsDialog();
 
     void setModel(WalletModel *model);
-
+   
+    void resizeEvent(QResizeEvent* event) override;
 public Q_SLOTS:
     void clear();
     void reject();

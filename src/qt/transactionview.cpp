@@ -711,3 +711,72 @@ void TransactionView::updateWatchOnlyColumn(bool fHaveWatchOnly)
     watchOnlyWidget->setVisible(fHaveWatchOnly);
     transactionView->setColumnHidden(TransactionTableModel::Watchonly, !fHaveWatchOnly);
 }
+
+// Handles resize events for the TransactionView widget by adjusting internal component sizes.
+void TransactionView::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event); 
+
+    // Retrieve new dimensions from the resize event
+    int newWidth = event->size().width();
+    int newHeight = event->size().height();
+
+    int headerHeight = newHeight * 0.1; 
+    headerLayout->setGeometry(QRect(0, 0, newWidth, headerHeight));
+
+    // Calculate the height of widgets in the header subtracting a small margin
+    int widgetHeight = headerHeight - 5; 
+
+    // Determine widths for specific widgets as percentages of total width
+    int comboBoxesWidgetWidth = newWidth * 0.10; 
+    int addressWidgetWidth = newWidth * 0.25; 
+    const int minWidgetHeight = 20;
+    const int maxWidgetHeight = 35;
+
+    // Configure the dimensions and constraints of each widget
+    watchOnlyWidget->setFixedHeight(widgetHeight);
+    watchOnlyWidget->setMinimumHeight(minWidgetHeight);
+    watchOnlyWidget->setMaximumHeight(maxWidgetHeight);
+
+    instantsendWidget->setFixedHeight(widgetHeight);
+    instantsendWidget->setMinimumHeight(minWidgetHeight);
+    instantsendWidget->setMaximumHeight(maxWidgetHeight);
+
+    dateWidget->setFixedWidth(comboBoxesWidgetWidth);
+    dateWidget->setFixedHeight(widgetHeight);
+    dateWidget->setMinimumHeight(minWidgetHeight);
+    dateWidget->setMaximumHeight(maxWidgetHeight);
+
+    typeWidget->setFixedWidth(comboBoxesWidgetWidth);
+    typeWidget->setFixedHeight(widgetHeight);
+    typeWidget->setMinimumHeight(minWidgetHeight);
+    typeWidget->setMaximumHeight(maxWidgetHeight);
+
+    addressWidget->setFixedHeight(maxWidgetHeight);
+    addressWidget->setMinimumHeight(minWidgetHeight);
+    addressWidget->setMaximumHeight(maxWidgetHeight - 6);  
+
+    amountWidget->setFixedWidth(comboBoxesWidgetWidth);
+    amountWidget->setFixedHeight(widgetHeight);
+    amountWidget->setMinimumHeight(minWidgetHeight);
+    amountWidget->setMaximumHeight(maxWidgetHeight);
+
+    // Set the geometry for the main transaction view area below the header
+    int tableViewHeight = newHeight - headerHeight; 
+    transactionView->setGeometry(QRect(0, headerHeight, newWidth, tableViewHeight));
+
+    // Calculate and set column widths based on new width, keeping proportions
+    int statusColumnWidth = newWidth * 0.05;
+    int watchOnlyColumnWidth = newWidth * 0.05;
+    int instantSendColumnWidth = newWidth * 0.05;
+    int dateColumnWidth = newWidth * 0.08;
+    int typeColumnWidth = newWidth * 0.10;
+    int addressColumnWidth = newWidth * 0.25; 
+
+    transactionView->setColumnWidth(TransactionTableModel::Status, statusColumnWidth);
+    transactionView->setColumnWidth(TransactionTableModel::Watchonly, watchOnlyColumnWidth);
+    transactionView->setColumnWidth(TransactionTableModel::InstantSend, instantSendColumnWidth);
+    transactionView->setColumnWidth(TransactionTableModel::Date, dateColumnWidth);
+    transactionView->setColumnWidth(TransactionTableModel::Type, typeColumnWidth);
+    transactionView->setColumnWidth(TransactionTableModel::ToAddress, addressColumnWidth);
+}
