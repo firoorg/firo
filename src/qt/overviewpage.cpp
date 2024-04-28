@@ -476,3 +476,42 @@ bool MigrateLelantusToSparkDialog::getClickedButton()
 {
     return clickedButton;
 }
+
+// Handles resize events for the OverviewPage widget by adjusting internal component sizes.
+void OverviewPage::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event); 
+
+    // Retrieve new dimensions from the resize event
+    int newWidth = event->size().width();
+    int newHeight = event->size().height();
+
+    // Determine widths for specific widgets as percentages of total width
+    int labelWidth = newWidth * 0.5;  
+    int labelMinWidth = newWidth * 0.15;  
+    int labelMaxWidth = newWidth * 0.35;  
+    const int labelHeight = 20; 
+
+    // Configure the dimensions and constraints of each widget
+    ui->labelBalance->setFixedWidth(labelWidth);
+    ui->labelBalance->setMinimumWidth(labelMinWidth);
+    ui->labelBalance->setMaximumWidth(labelMaxWidth);
+    ui->labelBalance->setFixedHeight(labelHeight);
+
+    ui->labelUnconfirmed->setFixedWidth(labelWidth);
+    ui->labelUnconfirmed->setMinimumWidth(labelMinWidth);
+    ui->labelUnconfirmed->setMaximumWidth(labelMaxWidth);
+    ui->labelUnconfirmed->setFixedHeight(labelHeight);
+
+    int buttonWidth = newWidth * 0.15; 
+    int buttonMinWidth = newWidth * 0.15; 
+    int buttonMaxWidth = newWidth * 0.4; 
+    int buttonHeight = newHeight * 0.05; 
+    int buttonMinHeight = 20; 
+    int buttonMaxHeight = 45; 
+
+    ui->anonymizeButton->setMinimumWidth(buttonMinWidth);
+    ui->anonymizeButton->setMaximumWidth(buttonMaxWidth);
+    ui->anonymizeButton->setMinimumHeight(buttonMinHeight);
+    ui->anonymizeButton->setMaximumHeight(buttonMaxHeight);
+}
