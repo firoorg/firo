@@ -1226,7 +1226,7 @@ SendGoPrivateDialog::SendGoPrivateDialog():QMessageBox()
     ic->setAlignment(Qt::AlignRight);
     ic->setStyleSheet("color:#92400E");
     QLabel *text = new QLabel();
-    text->setText(tr("You are using a transparent transaction, please go private. If this is a masternode transaction, you do not have to go private"));
+    text->setText(tr("You are making a transparent transaction. Unless you are sending to an exchange or making a masternode transaction, consider going private"));
     text->setAlignment(Qt::AlignLeft);
     text->setWordWrap(true);
     text->setStyleSheet("color:#92400E;");
