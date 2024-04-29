@@ -923,6 +923,10 @@ if ENABLE_QT
 include Makefile.qt.include
 endif
 
+if ENABLE_QT_TESTS
+include Makefile.qttest.include
+endif
+
 if ENABLE_TESTS
 include Makefile.test.include
 else
