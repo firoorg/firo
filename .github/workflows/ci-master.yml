@@ -181,7 +181,7 @@ jobs:
       working-directory: ${{ env.SOURCE_ARTIFACT }}
     - name: Build Firo
       run: |
-        ./configure --disable-jni --prefix=$(grealpath depends/x86_64-apple-darwin*)
+        ./configure --prefix=`pwd`/depends/`depends/config.guess`
         make -j$(sysctl -n hw.activecpu)
       working-directory: ${{ env.SOURCE_ARTIFACT }}
     - name: Prepare Files for Artifact
