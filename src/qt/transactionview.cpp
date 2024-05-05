@@ -722,7 +722,6 @@ void TransactionView::resizeEvent(QResizeEvent* event)
     int newHeight = event->size().height();
 
     int headerHeight = newHeight * 0.1; 
-    headerLayout->setGeometry(QRect(0, 0, newWidth, headerHeight));
 
     // Calculate the height of widgets in the header subtracting a small margin
     int widgetHeight = headerHeight - 5; 
@@ -733,38 +732,12 @@ void TransactionView::resizeEvent(QResizeEvent* event)
     const int minWidgetHeight = 20;
     const int maxWidgetHeight = 35;
 
-    // Configure the dimensions and constraints of each widget
-    watchOnlyWidget->setFixedHeight(widgetHeight);
-    watchOnlyWidget->setMinimumHeight(minWidgetHeight);
-    watchOnlyWidget->setMaximumHeight(maxWidgetHeight);
-
-    instantsendWidget->setFixedHeight(widgetHeight);
-    instantsendWidget->setMinimumHeight(minWidgetHeight);
-    instantsendWidget->setMaximumHeight(maxWidgetHeight);
-
     dateWidget->setFixedWidth(comboBoxesWidgetWidth);
-    dateWidget->setFixedHeight(widgetHeight);
-    dateWidget->setMinimumHeight(minWidgetHeight);
-    dateWidget->setMaximumHeight(maxWidgetHeight);
-
     typeWidget->setFixedWidth(comboBoxesWidgetWidth);
-    typeWidget->setFixedHeight(widgetHeight);
-    typeWidget->setMinimumHeight(minWidgetHeight);
-    typeWidget->setMaximumHeight(maxWidgetHeight);
-
-    addressWidget->setFixedHeight(maxWidgetHeight);
-    addressWidget->setMinimumHeight(minWidgetHeight);
-    addressWidget->setMaximumHeight(maxWidgetHeight - 6);  
-
     amountWidget->setFixedWidth(comboBoxesWidgetWidth);
-    amountWidget->setFixedHeight(widgetHeight);
-    amountWidget->setMinimumHeight(minWidgetHeight);
-    amountWidget->setMaximumHeight(maxWidgetHeight);
 
-    // Set the geometry for the main transaction view area below the header
     int tableViewHeight = newHeight - headerHeight; 
-    transactionView->setGeometry(QRect(0, headerHeight, newWidth, tableViewHeight));
-
+    
     // Calculate and set column widths based on new width, keeping proportions
     int statusColumnWidth = newWidth * 0.05;
     int watchOnlyColumnWidth = newWidth * 0.05;
