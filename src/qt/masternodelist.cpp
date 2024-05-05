@@ -367,3 +367,28 @@ void MasternodeList::copyCollateralOutpoint_clicked()
 
     QApplication::clipboard()->setText(QString::fromStdString(dmn->collateralOutpoint.ToStringShort()));
 }
+
+void MasternodeList::resizeEvent(QResizeEvent* event) 
+{
+    QWidget::resizeEvent(event);
+
+    int newWidth = event->size().width();
+
+    // Calculate new column widths based on the new window width
+    int newWidthOwner = static_cast<int>(newWidth * 0.19);  
+    int newWidthMin = static_cast<int>(newWidth * 0.08);
+    int newWidthMid = static_cast<int>(newWidth * 0.12);
+    int newWidthStatus = static_cast<int>(newWidth * 0.11);
+
+    // Apply new column widths
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(0, newWidthStatus);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(1, newWidthMin);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(2, newWidthMin);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(3, newWidthMid);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(4, newWidthMid);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(5, newWidthMid);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(6, newWidthMid);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(7, newWidthMid);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(8, newWidthMid);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(9, newWidthOwner);
+}
