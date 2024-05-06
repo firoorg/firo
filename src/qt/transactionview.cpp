@@ -67,7 +67,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     headerLayout->addWidget(watchOnlyWidget);
 
     instantsendWidget = new QComboBox(this);
-    instantsendWidget->setFixedWidth(150);
     instantsendWidget->addItem(tr("All"), TransactionFilterProxy::InstantSendFilter_All);
     instantsendWidget->addItem(tr("Locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_Yes);
     instantsendWidget->addItem(tr("Not locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_No);
@@ -729,12 +728,11 @@ void TransactionView::resizeEvent(QResizeEvent* event)
     // Determine widths for specific widgets as percentages of total width
     int comboBoxesWidgetWidth = newWidth * 0.10; 
     int addressWidgetWidth = newWidth * 0.25; 
-    const int minWidgetHeight = 20;
-    const int maxWidgetHeight = 35;
 
     dateWidget->setFixedWidth(comboBoxesWidgetWidth);
     typeWidget->setFixedWidth(comboBoxesWidgetWidth);
     amountWidget->setFixedWidth(comboBoxesWidgetWidth);
+    instantsendWidget->setFixedWidth(comboBoxesWidgetWidth);
 
     int tableViewHeight = newHeight - headerHeight; 
     
