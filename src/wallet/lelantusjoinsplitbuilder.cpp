@@ -321,7 +321,7 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         result.SetTx(MakeTransactionRef(tx));
 
         if (GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT) {
-            throw std::runtime_error(_("Transaction too large"));
+            throw std::runtime_error(_("This transaction exceeds the transaction size limit of 100 kB, please select less inputs or consolidate your UTXOs before trying to send again"));
         }
 
         // check fee
