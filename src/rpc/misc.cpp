@@ -1459,17 +1459,12 @@ UniValue checkifmncollateral(const JSONRPCRequest& request)
     CTransactionRef tx;
     uint256 hashBlock;
     if(!GetTransaction(txid, tx, Params().GetConsensus(), hashBlock, true))
-        throw std::runtime_error("Unable to get the transction");
+        throw std::runtime_error("Unknown transaction.");
 
     auto mnList = deterministicMNManager->GetListAtChainTip();
     COutPoint o(txid, index);
-
-    bool mnexists = false;
-    if (deterministicMNManager->IsProTxWithCollateral(tx, index) || mnList.HasMNByCollateral(o)) {
-        mnexists = true;
-    }
-
-    return UniValue(mnexists);
+    bool fMnExists = deterministicMNManager->IsProTxWithCollateral(tx, index) || mnList.HasMNByCollateral(o);
+    return UniValue(fMnExists);
 }
 
 UniValue getaddresstxids(const JSONRPCRequest& request)
