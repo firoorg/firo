@@ -218,6 +218,8 @@ extern UniValue getsparkmintmetadata(const JSONRPCRequest& params);
 extern UniValue getusedcoinstags(const JSONRPCRequest& params);
 extern UniValue getsparklatestcoinid(const JSONRPCRequest& params);
 
+extern UniValue checkifmncollateral(const JSONRPCRequest& params);
+
 extern UniValue znode(const JSONRPCRequest &request);
 extern UniValue znodelist(const JSONRPCRequest &request);
 extern UniValue znodebroadcast(const JSONRPCRequest &request);
