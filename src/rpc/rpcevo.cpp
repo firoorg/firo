@@ -841,6 +841,67 @@ UniValue protx_revoke(const JSONRPCRequest& request)
 
     return SignAndSendSpecialTx(tx);
 }
+
+void protx_deregister_help(CWallet* const pwallet) {
+    throw std::runtime_error(
+            "protx deregister \"proTxHash\" \"feeSourceAddress\"\n"
+            "\nCreates and sends a ProDeregTx to the network. This will initiate deregistration of the masternode.\n"
+            "Use this in case you want to stop providing your service. You will be able to spend your collateral after\n"
+            "a period of approximately one month passed. Until then you will receive your payouts as usual.\n"
+            + HelpRequiringPassphrase(pwallet) + "\n"
+            "\nArguments:\n"
+            + GetHelpString(1, "proTxHash")
+            + GetHelpString(2, "feeSourceAddress") +
+            "\nResult:\n"
+            "\"txid\"                        (string) The transaction id.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("protx", "deregister \"0123456701234567012345670123456701234567012345670123456701234567\"")
+    );
+}
+
+UniValue protx_deregister(const JSONRPCRequest& request) {
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+    if (request.fHelp || request.params.size() != 3) {
+        protx_deregister_help(pwallet);
+    }
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
+        return NullUniValue;
+
+    EnsureWalletIsUnlocked(pwallet);
+
+    CProDeregTx ptx;
+    ptx.nVersion = CProDeregTx::CURRENT_VERSION;
+    ptx.proTxHash = ParseHashV(request.params[1], "proTxHash");
+
+    auto dmn = deterministicMNManager->GetListAtChainTip().GetMN(ptx.proTxHash);
+    if (!dmn) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("masternode %s not found", ptx.proTxHash.ToString()));
+    }
+
+    CKey keyOwner;
+    if (!pwallet->GetKey(dmn->pdmnState->keyIDOwner, keyOwner)) {
+        throw std::runtime_error(strprintf("Private key for owner address %s not found in your wallet", CBitcoinAddress(dmn->pdmnState->keyIDOwner).ToString()));
+    }
+
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_PROVIDER_DEREGISTER;
+
+    // make sure we get anough fees added
+    ptx.vchSig.resize(65);
+
+    CBitcoinAddress feeSourceAddress = CBitcoinAddress(request.params[2].get_str());
+    if (!feeSourceAddress.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Firo address: ") + request.params[5].get_str());
+
+    FundSpecialTx(pwallet, tx, ptx, feeSourceAddress.Get());
+    SignSpecialTxPayloadByHash(tx, ptx, keyOwner);
+    SetTxPayload(tx, ptx);
+
+    return SignAndSendSpecialTx(tx);
+}
+
 #endif//ENABLE_WALLET
 
 void protx_list_help()
@@ -1140,7 +1201,9 @@ UniValue protx(const JSONRPCRequest& request)
         return protx_update_registrar(request);
     } else if (command == "revoke") {
         return protx_revoke(request);
-    } else
+    } else if (command == "deregister") {
+        return protx_deregister(request);
+    }
 #endif
     if (command == "list") {
         return protx_list(request);

@@ -244,6 +244,9 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             case TRANSACTION_PROVIDER_UPDATE_REVOKE:
                 ExtraPayloadToJson<CProUpRevTx>(tx, "proUpRev", entry);
                 break;
+            case TRANSACTION_PROVIDER_DEREGISTER:
+                ExtraPayloadToJson<CProUpRevTx>(tx, "proDereg", entry);
+                break;
             case TRANSACTION_COINBASE:
                 ExtraPayloadToJson<CCbTx>(tx, "cbTx", entry);
                 break;

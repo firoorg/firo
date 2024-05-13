@@ -25,6 +25,7 @@ CMerkleBlock::CMerkleBlock(const CBlock& block, CBloomFilter& filter)
             TRANSACTION_PROVIDER_UPDATE_SERVICE,
             TRANSACTION_PROVIDER_UPDATE_REGISTRAR,
             TRANSACTION_PROVIDER_UPDATE_REVOKE,
+            TRANSACTION_PROVIDER_DEREGISTER,
             TRANSACTION_COINBASE,
     };
 

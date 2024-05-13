@@ -36,9 +36,9 @@ std::string CDeterministicMNState::ToString() const
     }
 
     return strprintf("CDeterministicMNState(nRegisteredHeight=%d, nLastPaidHeight=%d, nPoSePenalty=%d, nPoSeRevivedHeight=%d, nPoSeBanHeight=%d, nRevocationReason=%d, "
-        "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, addr=%s, payoutAddress=%s, operatorPayoutAddress=%s)",
+        "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, addr=%s, payoutAddress=%s, operatorPayoutAddress=%s, nDeregisterHeight=%d)",
         nRegisteredHeight, nLastPaidHeight, nPoSePenalty, nPoSeRevivedHeight, nPoSeBanHeight, nRevocationReason,
-        CBitcoinAddress(keyIDOwner).ToString(), pubKeyOperator.Get().ToString(), CBitcoinAddress(keyIDVoting).ToString(), addr.ToStringIPPort(false), payoutAddress, operatorPayoutAddress);
+        CBitcoinAddress(keyIDOwner).ToString(), pubKeyOperator.Get().ToString(), CBitcoinAddress(keyIDVoting).ToString(), addr.ToStringIPPort(false), payoutAddress, operatorPayoutAddress, nDeregisterHeight);
 }
 
 void CDeterministicMNState::ToJson(UniValue& obj) const
@@ -65,6 +65,8 @@ void CDeterministicMNState::ToJson(UniValue& obj) const
         CBitcoinAddress operatorPayoutAddress(dest);
         obj.push_back(Pair("operatorPayoutAddress", operatorPayoutAddress.ToString()));
     }
+
+    obj.push_back(Pair("deregisterHeight", nDeregisterHeight));
 }
 
 std::string CDeterministicMN::ToString() const
@@ -740,6 +742,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
             newState->addr = proTx.addr;
             newState->scriptOperatorPayout = proTx.scriptOperatorPayout;
+            newState->nDeregisterHeight = -1;
 
             if (newState->nPoSeBanHeight != -1) {
                 // only revive when all keys are set
@@ -784,6 +787,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             newState->pubKeyOperator.Set(proTx.pubKeyOperator);
             newState->keyIDVoting = proTx.keyIDVoting;
             newState->scriptPayout = proTx.scriptPayout;
+            newState->nDeregisterHeight = -1;
 
             newList.UpdateMN(proTx.proTxHash, newState);
 
@@ -810,6 +814,40 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
 
             if (debugLogs) {
                 LogPrintf("CDeterministicMNManager::%s -- MN %s revoked operator key at height %d: %s\n",
+                    __func__, proTx.proTxHash.ToString(), nHeight, proTx.ToString());
+            }
+        } else if (tx.nType == TRANSACTION_PROVIDER_DEREGISTER) {
+            CProDeregTx proTx;
+            if (!GetTxPayload(tx, proTx)) {
+                assert(false); // this should have been handled already
+            }
+
+            if (nHeight < Params().GetConsensus().nCollateralLockStartBlock) {
+                return _state.DoS(100, false, REJECT_INVALID, "bad-protx-height");
+            }
+
+            CDeterministicMNCPtr dmn = newList.GetMN(proTx.proTxHash);
+            if (!dmn) {
+                return _state.DoS(100, false, REJECT_INVALID, "bad-protx-hash");
+            }
+
+            if (dmn->pdmnState->nRegisteredHeight == nHeight) {
+                // ProRegTx can't unregister masternode declared in the same block
+                return _state.DoS(100, false, REJECT_CONFLICT, "protx-unreg-same-block");
+            }
+
+            if (dmn->pdmnState->nDeregisterHeight > 0) {
+                // ProRegTx can't unregister masternode that is already deregistered
+                return _state.DoS(100, false, REJECT_CONFLICT, "protx-unreg-deregistered");
+            }
+
+            auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
+            newState->nDeregisterHeight = nHeight + Params().GetConsensus().nCollateralLockDuration;
+            
+            newList.UpdateMN(proTx.proTxHash, newState);
+
+            if (debugLogs) {
+                LogPrintf("CDeterministicMNManager::%s -- MN %s removed from list at height %d: %s\n",
                     __func__, proTx.proTxHash.ToString(), nHeight, proTx.ToString());
             }
         } else if (tx.nType == TRANSACTION_QUORUM_COMMITMENT) {

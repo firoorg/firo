@@ -400,6 +400,11 @@ struct Params {
     /** Time between blocks for LLMQ random time purposes. Can be less than actual average distance between blocks */
     int nLLMQPowTargetSpacing;
 
+    /** block to start collateral lock */
+    int nCollateralLockStartBlock;
+    /** number of blocks to lock collateral for */
+    int nCollateralLockDuration;
+
     int64_t DifficultyAdjustmentInterval(bool fMTP = false) const { return nPowTargetTimespan / (fMTP ? nPowTargetSpacingMTP : nPowTargetSpacing); }
     uint256 nMinimumChainWork;
     uint256 defaultAssumeValid;

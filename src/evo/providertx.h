@@ -177,10 +177,49 @@ public:
     void ToJson(UniValue& obj) const;
 };
 
+class CProDeregTx
+{
+public:
+    static const uint16_t CURRENT_VERSION = 1;
+
+    // informational only
+    enum {
+        REASON_NOT_SPECIFIED = 0,
+        REASON_COMPROMISED_KEYS = 1,
+        REASON_LAST = REASON_COMPROMISED_KEYS
+    };
+
+public:
+    uint16_t nVersion{CURRENT_VERSION}; // message version
+    uint256 proTxHash;
+    uint16_t nReason{REASON_NOT_SPECIFIED};
+    uint256 inputsHash; // replay protection
+    std::vector<unsigned char> vchSig;
+
+public:
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(nVersion);
+        READWRITE(proTxHash);
+        READWRITE(nReason);
+        READWRITE(inputsHash);
+        if (!(s.GetType() & SER_GETHASH)) {
+            READWRITE(vchSig);
+        }
+    }
+
+public:
+    std::string ToString() const;
+    void ToJson(UniValue& obj) const;
+};
 
 bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
 bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
 bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
 bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
+bool CheckProDeregTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
 
 #endif //DASH_PROVIDERTX_H

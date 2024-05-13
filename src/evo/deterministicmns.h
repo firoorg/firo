@@ -35,6 +35,7 @@ public:
     int nPoSePenalty{0};
     int nPoSeRevivedHeight{-1};
     int nPoSeBanHeight{-1};
+    int nDeregisterHeight{-1};
     uint16_t nRevocationReason{CProUpRevTx::REASON_NOT_SPECIFIED};
 
     // the block hash X blocks after registration, used in quorum calculations
@@ -71,9 +72,28 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
+        // for compatibility reasons we add 1000 to nPoSePenalty in serialized data if
+        // nDeregisterHeight is present in the data
+
+        bool fDeregisterHeightIsPresent = false;
+
         READWRITE(nRegisteredHeight);
         READWRITE(nLastPaidHeight);
-        READWRITE(nPoSePenalty);
+        if (ser_action.ForRead()) {
+            READWRITE(nPoSePenalty);
+            if (nPoSePenalty > 1000) {
+                nPoSePenalty -= 1000;
+                fDeregisterHeightIsPresent = true;
+            }
+        }
+        else {
+            int _nPoSePenalty = nPoSePenalty;
+            if (nDeregisterHeight != -1) {
+                _nPoSePenalty += 1000;
+                fDeregisterHeightIsPresent = true;
+            }
+            READWRITE(_nPoSePenalty);
+        }
         READWRITE(nPoSeRevivedHeight);
         READWRITE(nPoSeBanHeight);
         READWRITE(nRevocationReason);
@@ -85,6 +105,8 @@ public:
         READWRITE(addr);
         READWRITE(scriptPayout);
         READWRITE(scriptOperatorPayout);
+        if (fDeregisterHeightIsPresent)
+            READWRITE(nDeregisterHeight);
     }
 
     void ResetOperatorFields()

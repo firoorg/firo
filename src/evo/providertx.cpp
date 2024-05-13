@@ -383,6 +383,47 @@ bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
     return true;
 }
 
+bool CheckProDeregTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
+{
+    if (tx.nType != TRANSACTION_PROVIDER_DEREGISTER) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-protx-type");
+    }
+
+    if (pindexPrev && pindexPrev->nHeight+1 < Params().GetConsensus().nCollateralLockStartBlock) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-protx-height");
+    }
+
+    CProDeregTx ptx;
+    if (!GetTxPayload(tx, ptx)) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
+    }
+
+    if (ptx.nVersion == 0 || ptx.nVersion > CProDeregTx::CURRENT_VERSION) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-protx-version");
+    }
+
+    if (ptx.nReason > CProDeregTx::REASON_LAST) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-protx-reason");
+    }
+
+    if (pindexPrev) {
+        auto mnList = deterministicMNManager->GetListForBlock(pindexPrev);
+        auto dmn = mnList.GetMN(ptx.proTxHash);
+        if (!dmn) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-protx-hash");
+        }
+
+        if (!CheckInputsHash(tx, ptx, state)) {
+            return false;
+        }
+        if (!CheckHashSig(ptx, dmn->pdmnState->keyIDOwner, state)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 std::string CProRegTx::MakeSignString() const
 {
     std::string s;
@@ -505,6 +546,22 @@ std::string CProUpRevTx::ToString() const
 }
 
 void CProUpRevTx::ToJson(UniValue& obj) const
+{
+    obj.clear();
+    obj.setObject();
+    obj.push_back(Pair("version", nVersion));
+    obj.push_back(Pair("proTxHash", proTxHash.ToString()));
+    obj.push_back(Pair("reason", (int)nReason));
+    obj.push_back(Pair("inputsHash", inputsHash.ToString()));
+}
+
+std::string CProDeregTx::ToString() const
+{
+    return strprintf("CProDeregTx(nVersion=%d, proTxHash=%s, nReason=%d)",
+        nVersion, proTxHash.ToString(), nReason);
+}
+
+void CProDeregTx::ToJson(UniValue& obj) const
 {
     obj.clear();
     obj.setObject();

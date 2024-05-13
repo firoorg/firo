@@ -36,6 +36,8 @@ bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVali
         return CheckProUpRegTx(tx, pindexPrev, state);
     case TRANSACTION_PROVIDER_UPDATE_REVOKE:
         return CheckProUpRevTx(tx, pindexPrev, state);
+    case TRANSACTION_PROVIDER_DEREGISTER:
+        return CheckProDeregTx(tx, pindexPrev, state);
     case TRANSACTION_COINBASE:
         return CheckCbTx(tx, pindexPrev, state);
     case TRANSACTION_QUORUM_COMMITMENT:
