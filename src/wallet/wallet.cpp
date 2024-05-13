@@ -4566,7 +4566,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
 
                 if (GetTransactionWeight(txNew) >= MAX_STANDARD_TX_WEIGHT) {
                     // Do not create oversized transactions (bad-txns-oversize).
-                    strFailReason = _("Transaction too large");
+                    strFailReason = _("Transaction is too large (size limit: 100Kb). Select less inputs or consolidate your UTXOs");
                     return false;
                 }
 
@@ -4991,7 +4991,7 @@ bool CWallet::CreateMintTransaction(const std::vector <CRecipient> &vecSend, CWa
 
                 // Limit size
                 if (GetTransactionWeight(*wtxNew.tx) >= MAX_STANDARD_TX_WEIGHT) {
-                    strFailReason = _("Transaction too large");
+                    strFailReason = _("Transaction is too large (size limit: 100Kb). Select less inputs or consolidate your UTXOs");
                     return false;
                 }
                 dPriority = wtxNew.tx->ComputePriority(dPriority, nBytes);
@@ -5271,7 +5271,7 @@ bool CWallet::CreateLelantusMintTransactions(
                     // Limit size
                     CTransaction txConst(tx);
                     if (GetTransactionWeight(txConst) >= MAX_STANDARD_TX_WEIGHT) {
-                        strFailReason = _("Transaction too large");
+                        strFailReason = _("Transaction is too large (size limit: 100Kb). Select less inputs or consolidate your UTXOs");
                         return false;
                     }
                     dPriority = txConst.ComputePriority(dPriority, nBytes);
