@@ -371,7 +371,7 @@ void ReceiveCoinsDialog::resizeEvent(QResizeEvent* event)
     // Get new size from the event
     int newWidth = event->size().width();
     int newHeight = event->size().height();
-
+    adjustTextSize(newWidth,newHeight);
     // Set fixed, minimum, and maximum sizes for ComboBoxes
     int comboBoxMinHeight = 20;
     int comboBoxMaxHeight = 40;
@@ -426,4 +426,30 @@ void ReceiveCoinsDialog::resizeEvent(QResizeEvent* event)
     ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Label, labelColumnWidth);
     ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::AddressType, addressTypeColumnWidth);
     ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Amount, amountColumnWidth);
+}
+void ReceiveCoinsDialog::adjustTextSize(int width,int height){
+
+    int fontSize = std::max(12, std::min(width, height) / 60); 
+    QFont font = this->font();
+    font.setPointSize(fontSize);
+
+    // Set font size for all labels
+    ui->reuseAddress->setFont(font);
+    ui->label_4->setFont(font);
+    ui->label_3->setFont(font);
+    ui->addressTypeLabel->setFont(font);
+    ui->label_5->setFont(font);
+    ui->label_2->setFont(font);
+    ui->label->setFont(font);
+    ui->label_7->setFont(font);
+    ui->label_6->setFont(font);
+    ui->receiveButton->setFont(font);
+    ui->clearButton->setFont(font);
+    ui->showRequestButton->setFont(font);
+    ui->removeRequestButton->setFont(font);
+    ui->addressTypeCombobox->setFont(font);
+    ui->addressTypeHistoryCombobox->setFont(font);
+    ui->recentRequestsView->setFont(font);
+    ui->recentRequestsView->horizontalHeader()->setFont(font);
+    ui->recentRequestsView->verticalHeader()->setFont(font);
 }
