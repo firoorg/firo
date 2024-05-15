@@ -476,8 +476,6 @@ bool MigrateLelantusToSparkDialog::getClickedButton()
 {
     return clickedButton;
 }
-
-// Handles resize events for the OverviewPage widget by adjusting internal component sizes.
 void OverviewPage::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event); 
@@ -485,12 +483,12 @@ void OverviewPage::resizeEvent(QResizeEvent* event)
     // Retrieve new dimensions from the resize event
     int newWidth = event->size().width();
     int newHeight = event->size().height();
-
+    adjustTextSize(newWidth, newHeight);
     // Determine widths for specific widgets as percentages of total width
-    int labelWidth = newWidth * 0.5;  
-    int labelMinWidth = newWidth * 0.15;  
-    int labelMaxWidth = newWidth * 0.35;  
-    const int labelHeight = 20; 
+    int labelWidth = static_cast<int>(newWidth * 0.5);
+    int labelMinWidth = static_cast<int>(newWidth * 0.15);
+    int labelMaxWidth = static_cast<int>(newWidth * 0.35);
+    const int labelHeight = 20;
 
     // Configure the dimensions and constraints of each widget
     ui->labelBalance->setFixedWidth(labelWidth);
@@ -503,15 +501,57 @@ void OverviewPage::resizeEvent(QResizeEvent* event)
     ui->labelUnconfirmed->setMaximumWidth(labelMaxWidth);
     ui->labelUnconfirmed->setFixedHeight(labelHeight);
 
-    int buttonWidth = newWidth * 0.15; 
-    int buttonMinWidth = newWidth * 0.15; 
-    int buttonMaxWidth = newWidth * 0.4; 
-    int buttonHeight = newHeight * 0.05; 
-    int buttonMinHeight = 20; 
-    int buttonMaxHeight = 45; 
+    int buttonWidth = static_cast<int>(newWidth * 0.15);
+    int buttonHeight = static_cast<int>(newHeight * 0.05);
+    int buttonMinHeight = static_cast<int>(20);
+    int buttonMaxHeight = static_cast<int>(45);
 
-    ui->anonymizeButton->setMinimumWidth(buttonMinWidth);
-    ui->anonymizeButton->setMaximumWidth(buttonMaxWidth);
+    ui->anonymizeButton->setMinimumWidth(buttonWidth);
+    ui->anonymizeButton->setMaximumWidth(buttonWidth * 2);
     ui->anonymizeButton->setMinimumHeight(buttonMinHeight);
     ui->anonymizeButton->setMaximumHeight(buttonMaxHeight);
+}
+void OverviewPage::adjustTextSize(int width, int height){
+
+    int baseFontSize = std::max(12, std::min(width, height) / 60);
+
+    // Font for regular text components 
+    QFont textFont = ui->labelBalance->font();;
+    textFont.setPointSize(baseFontSize);
+
+    // Font for labels, smaller than the text font size
+    QFont labelFont = font();
+    labelFont.setPointSize(int(baseFontSize * 0.9));  
+
+    ui->textWarning1->setFont(labelFont);
+    ui->textWarning2->setFont(labelFont);
+    ui->labelWalletStatus->setFont(labelFont);  
+    ui->anonymizeButton->setFont(labelFont);
+
+    // Apply label font to all label components
+    ui->labelAlerts->setFont(textFont);
+    ui->label_5->setFont(textFont);
+    ui->labelAnonymizableText->setFont(labelFont);
+    ui->label->setFont(textFont);
+    ui->labelAnonymizable->setFont(textFont);
+    ui->labelWatchPending->setFont(textFont);
+    ui->labelBalance->setFont(textFont);
+    ui->labelSpendable->setFont(textFont);
+    ui->labelWatchAvailable->setFont(textFont);
+    ui->labelPendingText->setFont(labelFont);
+    ui->labelUnconfirmedPrivate->setFont(textFont);
+    ui->labelUnconfirmedPrivateText->setFont(labelFont);
+    ui->labelTotalText->setFont(labelFont);
+    ui->labelWatchonly->setFont(textFont);
+    ui->labelBalanceText->setFont(labelFont);
+    ui->labelTotal->setFont(textFont);
+    ui->labelWatchTotal->setFont(textFont);
+    ui->labelUnconfirmed->setFont(textFont);
+    ui->labelImmatureText->setFont(labelFont);
+    ui->labelImmature->setFont(textFont);
+    ui->labelWatchImmature->setFont(textFont);
+    ui->labelPrivateText->setFont(labelFont);
+    ui->labelPrivate->setFont(textFont);
+    ui->label_4->setFont(textFont);
+   
 }

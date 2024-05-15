@@ -80,7 +80,7 @@ private:
     QModelIndex selectedRow();
     void copyColumnToClipboard(int column);
     RecentRequestsFilterProxy *recentRequestsProxyModel;
-
+    void adjustTextSize(int width,int height);
 private Q_SLOTS:
     void on_receiveButton_clicked();
     void on_showRequestButton_clicked();

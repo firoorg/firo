@@ -1492,7 +1492,7 @@ void BitcoinGUI::resizeEvent(QResizeEvent* event) {
     QWidget* masternodeWidget = toolbar->widgetForAction(masternodeAction);
 
     overviewWidget->setMinimumWidth(actionWidth);
-    receiveWidget->setFixedWidth(actionWidth);
+    receiveWidget->setMinimumWidth(actionWidth);
     historyWidget->setMinimumWidth(actionWidth);
     sendCoinsWidget->setMinimumWidth(actionWidth);
     masternodeWidget->setMinimumWidth(actionWidth);

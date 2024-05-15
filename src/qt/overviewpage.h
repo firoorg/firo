@@ -95,7 +95,7 @@ private:
     QString lelantusGracefulPeriod;
     QString currentBlock;
     QString migrateAmount;
-
+    void adjustTextSize(int width,int height);
 private Q_SLOTS:
     void updateDisplayUnit();
     void handleTransactionClicked(const QModelIndex &index);
