@@ -17,9 +17,6 @@
 #include <QMessageBox>
 #include <QTimer>
 #include <QResizeEvent>
-#include <QPainter>
-#include <QStyleOptionViewItem>
-#include <QMetaMethod>
 
 
 class ClientModel;

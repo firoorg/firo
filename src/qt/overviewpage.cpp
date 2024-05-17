@@ -481,8 +481,8 @@ void OverviewPage::resizeEvent(QResizeEvent* event)
     QWidget::resizeEvent(event); 
 
     // Retrieve new dimensions from the resize event
-    int newWidth = event->size().width();
-    int newHeight = event->size().height();
+    const int newWidth = event->size().width();
+    const int newHeight = event->size().height();
     adjustTextSize(newWidth, newHeight);
     // Determine widths for specific widgets as percentages of total width
     int labelWidth = static_cast<int>(newWidth * 0.5);
@@ -516,7 +516,7 @@ void OverviewPage::adjustTextSize(int width, int height){
     int baseFontSize = std::max(12, std::min(width, height) / 60);
 
     // Font for regular text components 
-    QFont textFont = ui->labelBalance->font();;
+    QFont textFont = ui->labelBalance->font();
     textFont.setPointSize(baseFontSize);
 
     // Font for labels, smaller than the text font size

@@ -39,6 +39,8 @@ public:
 
     void setModel(WalletModel *model);
     void resizeEvent(QResizeEvent* event) override;
+    void adjustTextSize(int width, int height);
+
     // Date ranges for filter
     enum DateEnum
     {

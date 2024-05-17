@@ -1408,10 +1408,10 @@ void SendCoinsDialog::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
 
     // Retrieve new dimensions from the resize event
-    int newWidth = event->size().width();
-    int newHeight = event->size().height();
+    const int newWidth = event->size().width();
+    const int newHeight = event->size().height();
 
-    int labelMinWidth = static_cast<int>(newWidth * 0.15);
+    const int labelMinWidth = static_cast<int>(newWidth * 0.15);
 
     // Resize and adjust components
     ui->sendButton->setMinimumWidth(labelMinWidth);

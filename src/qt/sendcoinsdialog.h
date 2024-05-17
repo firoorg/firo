@@ -67,7 +67,7 @@ private:
     bool fFeeMinimized;
     bool fAnonymousMode;
     const PlatformStyle *platformStyle;
-    void resizeEvent(QResizeEvent* event);
+    void resizeEvent(QResizeEvent* event) override;
     void adjustTextSize(int width, int height);
 
     // Process WalletModel::SendCoinsReturn and generate a pair consisting
