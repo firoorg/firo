@@ -372,7 +372,10 @@ void MasternodeList::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
 
-    int newWidth = event->size().width();
+    const int newWidth = event->size().width();
+    const int newHeight = event->size().height();
+
+    adjustTextSize(newWidth ,newHeight);
 
     // Calculate new column widths based on the new window width
     int newWidthOwner = static_cast<int>(newWidth * 0.19);  
@@ -391,4 +394,19 @@ void MasternodeList::resizeEvent(QResizeEvent* event)
     ui->tableWidgetMasternodesDIP3->setColumnWidth(7, newWidthMid);
     ui->tableWidgetMasternodesDIP3->setColumnWidth(8, newWidthMid);
     ui->tableWidgetMasternodesDIP3->setColumnWidth(9, newWidthOwner);
+}
+void MasternodeList::adjustTextSize(int width,int height){
+
+    int fontSize = std::max(12, std::min(width, height) / 60); 
+    QFont font = this->font();
+    font.setPointSize(fontSize);
+
+    // Set font size for all labels
+    ui->label_filter_2->setFont(font);
+    ui->label_count_2->setFont(font);
+    ui->countLabelDIP3->setFont(font);
+    ui->checkBoxMyMasternodesOnly->setFont(font);
+    ui->tableWidgetMasternodesDIP3->setFont(font);
+    ui->tableWidgetMasternodesDIP3->horizontalHeader()->setFont(font);
+    ui->tableWidgetMasternodesDIP3->verticalHeader()->setFont(font);
 }

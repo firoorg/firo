@@ -717,8 +717,10 @@ void TransactionView::resizeEvent(QResizeEvent* event)
     QWidget::resizeEvent(event); 
 
     // Retrieve new dimensions from the resize event
-    int newWidth = event->size().width();
-    int newHeight = event->size().height();
+    const int newWidth = event->size().width();
+    const int newHeight = event->size().height();
+
+    adjustTextSize(newWidth, newHeight);
 
     int headerHeight = newHeight * 0.1; 
 
@@ -750,4 +752,21 @@ void TransactionView::resizeEvent(QResizeEvent* event)
     transactionView->setColumnWidth(TransactionTableModel::Date, dateColumnWidth);
     transactionView->setColumnWidth(TransactionTableModel::Type, typeColumnWidth);
     transactionView->setColumnWidth(TransactionTableModel::ToAddress, addressColumnWidth);
+}
+void TransactionView::adjustTextSize(int width,int height){
+
+    int fontSize = std::max(12, std::min(width, height) / 60); 
+    QFont font = this->font();
+    font.setPointSize(fontSize);
+
+    // Set font size for all labels
+    transactionView->setFont(font);
+    transactionView->horizontalHeader()->setFont(font);
+    transactionView->verticalHeader()->setFont(font);
+    dateWidget->setFont(font);
+    typeWidget->setFont(font);
+    amountWidget->setFont(font);
+    instantsendWidget->setFont(font);
+    addressWidget->setFont(font);
+    amountWidget->setFont(font);
 }

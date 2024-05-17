@@ -16,7 +16,6 @@
 #include <QVariant>
 #include <QSortFilterProxyModel>
 #include <QResizeEvent>
-#include <QScreen>
 
 class OptionsModel;
 class PlatformStyle;

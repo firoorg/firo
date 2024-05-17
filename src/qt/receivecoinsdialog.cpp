@@ -369,8 +369,9 @@ void ReceiveCoinsDialog::resizeEvent(QResizeEvent* event)
     QDialog::resizeEvent(event); 
 
     // Get new size from the event
-    int newWidth = event->size().width();
-    int newHeight = event->size().height();
+    const int newWidth = event->size().width();
+    const int newHeight = event->size().height();
+    
     adjustTextSize(newWidth,newHeight);
     // Set fixed, minimum, and maximum sizes for ComboBoxes
     int comboBoxMinHeight = 20;
