@@ -222,7 +222,7 @@ namespace detail {
 
 
 // lets us do things like "typedef numeric::fixed_from_type<int32_t>::fixed_type fixed";
-// NOTE: that we will use a type of equivalent size, not neccessarily the type
+// NOTE: that we will use a type of equivalent size, not necessarily the type
 // specified. Should make little to no difference to the user
 template <class T>
 struct fixed_from_type {
