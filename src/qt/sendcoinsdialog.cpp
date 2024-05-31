@@ -1301,7 +1301,7 @@ void SendCoinsDialog::resizeEvent(QResizeEvent* event) {
 }
 
 void SendCoinsDialog::adjustTextSize(int width, int height) {
-    int baseFontSize = std::max(12, std::min(width, height) / 60); 
+    int baseFontSize = std::max(12, std::min(width, height) / 70); 
 
     QFont font = this->font();
     font.setPointSize(baseFontSize);

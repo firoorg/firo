@@ -510,10 +510,27 @@ void OverviewPage::resizeEvent(QResizeEvent* event)
     ui->anonymizeButton->setMaximumWidth(buttonWidth * 2);
     ui->anonymizeButton->setMinimumHeight(buttonMinHeight);
     ui->anonymizeButton->setMaximumHeight(buttonMaxHeight);
+
+    // Set the minimum width for all label widgets to ensure they maintain a consistent and readable size regardless of window resizing
+    ui->labelAnonymizable->setMinimumWidth(labelMinWidth);
+    ui->labelAlerts->setMinimumWidth(labelMinWidth);
+    ui->label->setMinimumWidth(labelMinWidth);
+    ui->labelWatchPending->setMinimumWidth(labelMinWidth);
+    ui->labelBalance->setMinimumWidth(labelMinWidth);
+    ui->labelSpendable->setMinimumWidth(labelMinWidth);
+    ui->labelWatchAvailable->setMinimumWidth(labelMinWidth);
+    ui->labelUnconfirmedPrivate->setMinimumWidth(labelMinWidth);
+    ui->labelWatchonly->setMinimumWidth(labelMinWidth);
+    ui->labelTotal->setMinimumWidth(labelMinWidth);
+    ui->labelWatchTotal->setMinimumWidth(labelMinWidth);
+    ui->labelUnconfirmed->setMinimumWidth(labelMinWidth);
+    ui->labelImmature->setMinimumWidth(labelMinWidth);
+    ui->labelPrivate->setMinimumWidth(labelMinWidth);
+    ui->label_4->setMinimumWidth(labelMinWidth);
 }
 void OverviewPage::adjustTextSize(int width, int height){
 
-    int baseFontSize = std::max(12, std::min(width, height) / 60);
+    int baseFontSize = std::max(12, std::min(width, height) / 70);
 
     // Font for regular text components 
     QFont textFont = ui->labelBalance->font();

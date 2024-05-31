@@ -397,7 +397,7 @@ void MasternodeList::resizeEvent(QResizeEvent* event)
 }
 void MasternodeList::adjustTextSize(int width,int height){
 
-    int fontSize = std::max(12, std::min(width, height) / 60); 
+    int fontSize = std::max(12, std::min(width, height) / 70); 
     QFont font = this->font();
     font.setPointSize(fontSize);
 
