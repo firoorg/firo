@@ -755,7 +755,7 @@ void TransactionView::resizeEvent(QResizeEvent* event)
 }
 void TransactionView::adjustTextSize(int width,int height){
 
-    int fontSize = std::max(12, std::min(width, height) / 60); 
+    int fontSize = std::max(12, std::min(width, height) / 70); 
     QFont font = this->font();
     font.setPointSize(fontSize);
 
@@ -768,5 +768,4 @@ void TransactionView::adjustTextSize(int width,int height){
     amountWidget->setFont(font);
     instantsendWidget->setFont(font);
     addressWidget->setFont(font);
-    amountWidget->setFont(font);
 }
