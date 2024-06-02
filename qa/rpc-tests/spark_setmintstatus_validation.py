@@ -17,9 +17,9 @@ class SetSparkMintSatusValidation(BitcoinTestFramework):
         self.nodes[0].generate(801)
         self.sync_all()
 
-        sparkAddress = self.nodes[0].getnewsparkaddress()[0]
+        sparkAddress1 = self.nodes[0].getnewsparkaddress()[0]
         txid = list()
-        txid.append(self.nodes[0].mintspark({sparkAddress: {"amount": 1, "memo":"Test memo"}}))
+        txid.append(self.nodes[0].mintspark({sparkAddress1: {"amount": 1, "memo":"Test memo"}}))
 
         spark_mint = self.nodes[0].listsparkmints()
 
@@ -56,6 +56,11 @@ class SetSparkMintSatusValidation(BitcoinTestFramework):
         assert not mint_info['isUsed'], \
             'This mint with txid: {} should not be Used.'.format(txid)
 
+        sparkAddress2 = self.nodes[0].getnewsparkaddress()[0]
+        self.nodes[0].mintspark({sparkAddress1: {"amount": 1, "subtractFee": False}, sparkAddress2: {"amount": 2, "memo": "Test", "subtractFee": False}})
+        spark_mint = self.nodes[0].listsparkmints()
+
+        assert len(spark_mint) == 3, 'Should be number of mints.'
 
         assert_raises(JSONRPCException, self.nodes[0].setsparkmintstatus, [(mint_info['lTagHash'], "sometext")])
         assert_raises(JSONRPCException, self.nodes[0].setsparkmintstatus, [mint_info['lTagHash']])

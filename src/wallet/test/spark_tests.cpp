@@ -76,7 +76,8 @@ BOOST_AUTO_TEST_CASE(mint_and_store_spark)
     std::vector<spark::MintedCoinData> mintedCoins;
     mintedCoins.push_back(data);
 
-    std::string result = pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee, false);
+    std::vector<CRecipient> vecSend;
+    std::string result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false);
     BOOST_CHECK_EQUAL(result, "");
 
     size_t mintAmount = 0;
@@ -101,6 +102,68 @@ BOOST_AUTO_TEST_CASE(mint_and_store_spark)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(multi_mint_and_store_spark)
+{
+    pwalletMain->SetBroadcastTransactions(true);
+    GenerateBlocks(1001);
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+
+    const uint64_t v = 1;
+    spark::Address sparkAddress = pwalletMain->sparkWallet->getDefaultAddress();
+
+    spark::MintedCoinData data;
+    data.address = sparkAddress;
+    data.v = v;
+    data.memo = "Test memo";
+
+    std::vector<spark::MintedCoinData> mintedCoins;
+    mintedCoins.push_back(data);
+
+    CPubKey newKey;
+    BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
+
+    CBitcoinAddress address = CBitcoinAddress(newKey.GetID()).ToString();
+    std::string strAddress = address.ToString();
+    CScript scriptPubKey = GetScriptForDestination(address.Get());
+
+    const uint64_t val = 1;
+    CRecipient recipient;
+    recipient.address = strAddress;
+    recipient.fSubtractFeeFromAmount = false;
+    recipient.nAmount = val;
+    recipient.scriptPubKey = scriptPubKey;
+
+    std::vector<CRecipient> vecSend;
+    vecSend.push_back(recipient);
+
+    std::string result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false);
+    BOOST_CHECK_EQUAL(result, "");
+
+    size_t mintAmount = 0;
+    size_t sendAmount = 0;
+    for (const auto& wtx : wtxAndFee) {
+        auto tx = wtx.first.tx.get();
+
+        for (const auto& out : tx->vout) {
+            if (out.scriptPubKey.IsSparkMint()) {
+                mintAmount += out.nValue;
+            } else if (out.scriptPubKey == recipient.scriptPubKey) {
+                sendAmount += out.nValue;
+            }
+        }
+
+        CMutableTransaction mtx(*tx);
+        BOOST_CHECK(GenerateBlock({mtx}));
+    }
+
+    BOOST_CHECK_EQUAL(data.v, mintAmount);
+    BOOST_CHECK_EQUAL(recipient.nAmount, sendAmount);
+
+    auto sparkState = spark::CSparkState::GetState();
+    sparkState->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(mint_subtract_fee)
 {
     pwalletMain->SetBroadcastTransactions(true);
@@ -119,7 +182,8 @@ BOOST_AUTO_TEST_CASE(mint_subtract_fee)
     std::vector<spark::MintedCoinData> mintedCoins;
     mintedCoins.push_back(data);
 
-    std::string result = pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee, true);
+    std::vector<CRecipient> vecSend;
+    std::string result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, true);
     BOOST_CHECK_EQUAL(result, "");
 
     size_t mintAmount = 0;
@@ -141,6 +205,68 @@ BOOST_AUTO_TEST_CASE(mint_subtract_fee)
     }
 
     BOOST_CHECK_EQUAL(data.v, mintAmount + fee);
+
+    auto sparkState = spark::CSparkState::GetState();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(multi_mint_subtract_fee)
+{
+    pwalletMain->SetBroadcastTransactions(true);
+    GenerateBlocks(1001);
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+
+    const uint64_t v = 1 * COIN;
+    spark::Address sparkAddress = pwalletMain->sparkWallet->getDefaultAddress();
+
+    spark::MintedCoinData data;
+    data.address = sparkAddress;
+    data.v = v;
+    data.memo = "Test memo";
+
+    std::vector<spark::MintedCoinData> mintedCoins;
+    mintedCoins.push_back(data);
+
+    CPubKey newKey;
+    BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
+
+    CBitcoinAddress address = CBitcoinAddress(newKey.GetID()).ToString();
+    std::string strAddress = address.ToString();
+    CScript scriptPubKey = GetScriptForDestination(address.Get());
+
+    const uint64_t val = 1 * COIN;
+    CRecipient recipient;
+    recipient.address = strAddress;
+    recipient.fSubtractFeeFromAmount = true;
+    recipient.nAmount = val;
+    recipient.scriptPubKey = scriptPubKey;
+
+    std::vector<CRecipient> vecSend;
+    vecSend.push_back(recipient);
+    std::string result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, true);
+    BOOST_CHECK_EQUAL(result, "");
+
+    size_t mintAmount = 0;
+    size_t sendAmount = 0;
+    size_t fee = 0;
+    for (const auto& wtx : wtxAndFee) {
+        auto tx = wtx.first.tx.get();
+
+        for (const auto& out : tx->vout) {
+            if (out.scriptPubKey.IsSparkMint()) {
+                mintAmount += out.nValue;
+            } else if (out.scriptPubKey == recipient.scriptPubKey) {
+                sendAmount += out.nValue;
+            }
+        }
+        CMutableTransaction mtx(*tx);
+        BOOST_CHECK(GenerateBlock({mtx}));
+        fee += wtx.second;
+    }
+
+    BOOST_CHECK_EQUAL(data.v, mintAmount + (fee / 2));
+    BOOST_CHECK_EQUAL(recipient.nAmount, sendAmount + (fee / 2));
 
     auto sparkState = spark::CSparkState::GetState();
     sparkState->Reset();
@@ -189,7 +315,6 @@ BOOST_AUTO_TEST_CASE(list_spark_mints)
     sparkState->Reset();
 }
 
-
 BOOST_AUTO_TEST_CASE(spend)
 {
     pwalletMain->SetBroadcastTransactions(true);
@@ -207,10 +332,11 @@ BOOST_AUTO_TEST_CASE(spend)
     mintedCoins.push_back(data);
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-    std::string result = pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee, false);
+    std::vector<CRecipient> vecSend;
+    std::string result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false);
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee2;
-    pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee2, false);
+    pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee2, false);
 
     BOOST_CHECK_EQUAL("", result);
 
@@ -297,29 +423,86 @@ BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
     GenerateBlocks(100, &externalScript);
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-    const uint64_t v = 10 * COIN;
+    const uint64_t v1 = 10 * COIN;
+    const uint64_t v2 = 10 * COIN;
 
-    spark::Address sparkAddress = pwalletMain->sparkWallet->getDefaultAddress();
+    spark::Address sparkAddress1 = pwalletMain->sparkWallet->getDefaultAddress();
+    spark::Address sparkAddress2 = pwalletMain->sparkWallet->getDefaultAddress();
 
     spark::MintedCoinData data;
-    data.address = sparkAddress;
-    data.v = v;
+    data.address = sparkAddress1;
+    data.v = v1;
     data.memo = "Test memo";
     std::vector<spark::MintedCoinData> mintedCoins;
     mintedCoins.push_back(data);
 
-    auto result = pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee, false);
+    spark::MintedCoinData data2;
+    data2.address = sparkAddress2;
+    data2.v = v2;
+    data2.memo = "Test memo";
+
+    mintedCoins.push_back(data2);
+
+    std::vector<CRecipient> vecSend;
+    auto result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false);
     BOOST_CHECK_EQUAL("", result);
-    BOOST_CHECK_EQUAL(1, wtxAndFee.size());
-    BOOST_CHECK_EQUAL(10 * COIN, countMintsInBalance(wtxAndFee));
+    BOOST_CHECK_EQUAL(1, wtxAndFee.size()); //
+    BOOST_CHECK_EQUAL(20 * COIN, countMintsInBalance(wtxAndFee));
     wtxAndFee.clear();
     mintedCoins.clear();
+
+    CPubKey newKey;
+    BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
+
+    CBitcoinAddress address = CBitcoinAddress(newKey.GetID()).ToString();
+    std::string strAddress = address.ToString();
+    CScript scriptPubKey = GetScriptForDestination(address.Get());
+
+    const uint64_t val = 5 * COIN;
+    CRecipient recipient;
+    recipient.address = strAddress;
+    recipient.fSubtractFeeFromAmount = false;
+    recipient.nAmount = val;
+    recipient.scriptPubKey = scriptPubKey;
+    vecSend.push_back(recipient);
+
+    spark::Address sparkAddress = pwalletMain->sparkWallet->getDefaultAddress();
+    const uint64_t v = 10 * COIN;
+
+    data.address = sparkAddress;
+    data.v = v;
+    data.memo = "Test memo";
+    mintedCoins.push_back(data);
+
+    result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false);
+    BOOST_CHECK_EQUAL("", result);
+    BOOST_CHECK_EQUAL(10 * COIN, countMintsInBalance(wtxAndFee));
+
+    size_t sendAmount = 0;
+    for (const auto& wtx : wtxAndFee) {
+        auto tx = wtx.first.tx.get();
+
+        for (const auto& out : tx->vout) {
+            if (out.scriptPubKey == recipient.scriptPubKey) {
+                sendAmount += out.nValue;
+            }
+        }
+
+        CMutableTransaction mtx(*tx);
+        BOOST_CHECK(GenerateBlock({mtx}));
+    }
+
+    BOOST_CHECK_EQUAL(5 * COIN, sendAmount);
+
+    wtxAndFee.clear();
+    mintedCoins.clear();
+    vecSend.clear();
 
     data.v = 600 * COIN;;
     mintedCoins.clear();
     mintedCoins.push_back(data);
 
-    result = pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee, false);
+    result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false);
     BOOST_CHECK_EQUAL("", result);
     BOOST_CHECK_GT(wtxAndFee.size(), 1);
     BOOST_CHECK_EQUAL(600 * COIN, countMintsInBalance(wtxAndFee));
@@ -330,7 +513,7 @@ BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
     auto balance = getAvailableCoinsForMintBalance();
     BOOST_CHECK_GT(balance, 0);
 
-    result = pwalletMain->MintAndStoreSpark({}, wtxAndFee, false, true);
+    result = pwalletMain->MintAndStoreSpark({}, {}, wtxAndFee, false, true);
     BOOST_CHECK_EQUAL("", result);
     BOOST_CHECK_GT(balance, countMintsInBalance(wtxAndFee));
     BOOST_CHECK_EQUAL(balance, countMintsInBalance(wtxAndFee, true));
@@ -344,7 +527,7 @@ BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
     balance = getAvailableCoinsForMintBalance();
     BOOST_CHECK_GT(balance, 0);
 
-    result = pwalletMain->MintAndStoreSpark({ }, wtxAndFee, false, true);
+    result = pwalletMain->MintAndStoreSpark({}, {}, wtxAndFee, false, true);
     BOOST_CHECK_EQUAL("", result);
     BOOST_CHECK_GT(balance, countMintsInBalance(wtxAndFee));
     BOOST_CHECK_EQUAL(balance, countMintsInBalance(wtxAndFee, true));

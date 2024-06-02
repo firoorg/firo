@@ -4242,7 +4242,6 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
 
     // add preset inputs to the total value selected
     nValueRet += nValueFromPresetInputs;
-
     return res;
 }
 
@@ -5610,6 +5609,7 @@ std::string CWallet::MintAndStoreLelantus(const CAmount& value,
 }
 
 std::string CWallet::MintAndStoreSpark(
+        const std::vector<CRecipient>& vecSend,
         const std::vector<spark::MintedCoinData>& outputs,
         std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
         bool subtractFeeFromAmount,
@@ -5630,6 +5630,10 @@ std::string CWallet::MintAndStoreSpark(
     for (auto& output : outputs)
         value += output.v;
 
+    for (auto& f : vecSend)
+        if (f.fSubtractFeeFromAmount)
+            subtractFeeFromAmount = true;
+
     if ((value + payTxFee.GetFeePerK()) > GetBalance())
         return _("Insufficient funds");
 
@@ -5639,7 +5643,7 @@ std::string CWallet::MintAndStoreSpark(
     int nChangePosRet = -1;
 
     std::list<CReserveKey> reservekeys;
-    if (!sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, subtractFeeFromAmount, strError, coinControl, autoMintAll)) {
+    if (!sparkWallet->CreateSparkMintTransactions(vecSend, outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, subtractFeeFromAmount, strError, coinControl, autoMintAll)) {
         return strError;
     }
 
@@ -5920,7 +5924,7 @@ bool CWallet::LelantusToSpark(std::string& strFailReason) {
         COutPoint outPoint(result.GetHash(), i);
         coinControl.Select(outPoint);
         std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-        MintAndStoreSpark({}, wtxAndFee, true, true, false, &coinControl);
+        MintAndStoreSpark({}, {}, wtxAndFee, true, true, false, &coinControl);
     }
 
     return true;
@@ -8169,6 +8173,7 @@ bool CompSigmaHeight(const CSigmaEntry &a, const CSigmaEntry &b) { return a.nHei
 bool CompSigmaID(const CSigmaEntry &a, const CSigmaEntry &b) { return a.id < b.id; }
 
 bool CWallet::CreateSparkMintTransactions(
+    const std::vector<CRecipient>& vecSend,
     const std::vector<spark::MintedCoinData>& outputs,
     std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
     CAmount& nAllFeeRet,
@@ -8179,7 +8184,7 @@ bool CWallet::CreateSparkMintTransactions(
     const CCoinControl *coinControl,
     bool autoMintAll)
 {
-    return sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nAllFeeRet, reservekeys, nChangePosInOut, subtractFeeFromAmount, strFailReason, coinControl, autoMintAll);
+    return sparkWallet->CreateSparkMintTransactions(vecSend, outputs, wtxAndFee, nAllFeeRet, reservekeys, nChangePosInOut, subtractFeeFromAmount, strFailReason, coinControl, autoMintAll);
 }
 
 std::pair<CAmount, CAmount> CWallet::GetSparkBalance()

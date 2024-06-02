@@ -1355,6 +1355,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vecto
         return OK;
     }
 
+    std::vector<CRecipient> vecSend;
     QSet<QString> setAddress; // Used to detect duplicates
     int nAddresses = 0;
     std::vector<spark::MintedCoinData> outputs;
@@ -1365,22 +1366,28 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vecto
             fSubtractFeeFromAmount = true;
 
         { // User-entered Firo address / amount:
-            if (!validateSparkAddress(rcp.address)) {
-                return InvalidAddress;
-            }
             if (rcp.amount <= 0) {
                 return InvalidAmount;
             }
+
             setAddress.insert(rcp.address);
             ++nAddresses;
 
-            spark::Address address(params);
-            address.decode(rcp.address.toStdString());
-            spark::MintedCoinData data;
-            data.address = address;
-            data.memo = "";
-            data.v = rcp.amount;
-            outputs.push_back(data);
+            if (validateAddress(rcp.address)) {
+                CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
+                CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
+                vecSend.push_back(recipient);
+            } else if (validateSparkAddress(rcp.address)) {
+                spark::Address address(params);
+                address.decode(rcp.address.toStdString());
+                spark::MintedCoinData data;
+                data.address = address;
+                data.memo = "";
+                data.v = rcp.amount;
+                outputs.push_back(data);
+            } else {
+                return InvalidAddress;
+            }
             total += rcp.amount;
         }
     }
@@ -1401,7 +1408,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vecto
         int nChangePosRet = -1;
 
         std::string strFailReason;
-        bool fCreated = wallet->CreateSparkMintTransactions(outputs, wtxAndFees, nFeeRequired, reservekeys, nChangePosRet, fSubtractFeeFromAmount, strFailReason, coinControl, false);
+        bool fCreated = wallet->CreateSparkMintTransactions(vecSend,outputs, wtxAndFees, nFeeRequired, reservekeys, nChangePosRet, fSubtractFeeFromAmount, strFailReason, coinControl, false);
+
         transactions.clear();
         transactions.reserve(wtxAndFees.size());
         for (auto &wtxAndFee : wtxAndFees) {
