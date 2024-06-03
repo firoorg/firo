@@ -292,7 +292,6 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     // prepare transaction for getting txFee earlier
-    WalletModelTransaction currentTransaction(recipients);
     std::vector<WalletModelTransaction> transactions;
     WalletModel::SendCoinsReturn prepareStatus;
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
@@ -310,12 +309,64 @@ void SendCoinsDialog::on_sendButton_clicked()
         ctrl.nConfirmTarget = 0;
 
     int sparkAddressCount = 0;
+    int exchangeAddressCount = 0;
     for(int i = 0; i < recipients.size(); ++i){
-        bool check = model->validateSparkAddress(recipients[i].address);
-        if(check) {
+        if (model->validateSparkAddress(recipients[i].address))
             sparkAddressCount++;
-        }
+        if (model->validateExchangeAddress(recipients[i].address))
+            exchangeAddressCount++;
     }
+
+    bool fGoThroughTransparentAddress = false;
+    __decltype(recipients) exchangeRecipients;
+    CScript intermediateAddressScript;
+
+    if (fAnonymousMode && exchangeAddressCount > 0) {
+        CAmount exchangeAddressAmount = 0;
+        bool fSubtractFeeFromIntermediateAddressAmount = false;
+
+        fGoThroughTransparentAddress = true;
+
+        // remove exchange addresses from recipients array and add them to exchangeRecipients array
+        for(int i = 0; i < recipients.size(); ){
+            if (model->validateExchangeAddress(recipients[i].address)) {
+                exchangeAddressAmount += recipients[i].amount;
+                recipients[i].fSubtractFeeFromAmount = true;
+                exchangeRecipients.push_back(recipients[i]);
+
+                // It's not clear if we should subtract fee from the intermediate address amount if
+                // there are conflicting "fSubractFeeFromAmount" flags in the exchangeRecipients array.
+                // For now, we use the flag from the last exchange recipient.
+                fSubtractFeeFromIntermediateAddressAmount = recipients[i].fSubtractFeeFromAmount;
+
+                recipients.erase(recipients.begin() + i);
+            }
+            else {
+                ++i;
+            }
+        }
+
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        // create a new transparent address and add it to the recipients array
+        if (!pwalletMain->IsLocked()) {
+            pwalletMain->TopUpKeyPool();
+        }
+        CPubKey newKey;
+        if (!pwalletMain->GetKeyFromPool(newKey)) {
+            fNewRecipientAllowed = true;
+            return;
+        }
+        pwalletMain->SetAddressBook(newKey.GetID(), "", "receive");
+        intermediateAddressScript = GetScriptForDestination(newKey.GetID());
+
+        SendCoinsRecipient newRecipient;        
+        newRecipient.address = CBitcoinAddress(newKey.GetID()).ToString().c_str();
+        newRecipient.amount = exchangeAddressAmount;
+        newRecipient.fSubtractFeeFromAmount = fSubtractFeeFromIntermediateAddressAmount;
+        recipients.push_back(newRecipient);
+    }
+
+    WalletModelTransaction currentTransaction(recipients);
 
     CAmount mintSparkAmount = 0;
     CAmount txFee = 0;
@@ -364,6 +415,14 @@ void SendCoinsDialog::on_sendButton_clicked()
         return;
     }
 
+    // If the transaction is performed in two stages through the intermediate address we need to show the real
+    // recipients (for informational purposes), replacing the intermediate transparent address with the exchange address(es)
+    __decltype(recipients) realRecipients = recipients;
+    if (fGoThroughTransparentAddress) {
+        realRecipients.erase(realRecipients.end() - 1);
+        realRecipients.append(exchangeRecipients);
+    }
+
     // Format confirmation message
     QStringList formatted;
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
@@ -407,7 +466,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             formatted.append(recipientElement);
         }
     } else if ((fAnonymousMode == true) && (recipients.size() == 1) && spark::IsSparkAllowed()) {
-        for (auto &rcp : recipients)
+        for (auto &rcp : realRecipients)
         {
             // generate bold amount string
             CAmount namount = rcp.amount;
@@ -434,7 +493,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             formatted.append(recipientElement);
         }
     } else {
-        for (const SendCoinsRecipient &rcp : currentTransaction.getRecipients())
+        for (auto &rcp : realRecipients)
         {
             // generate bold amount string
             QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
@@ -459,6 +518,14 @@ void SendCoinsDialog::on_sendButton_clicked()
             formatted.append(recipientElement);
         }
     }
+
+    if (fGoThroughTransparentAddress) {
+        QString transparentAddress = "<span style='font-family: monospace;'>" + recipients[recipients.size()-1].address + "</span>";
+        formatted.append("<br />");
+        formatted.append(tr("It's impossible to send directly to exchange address."
+            " The transaction will go through a new auto-generated transparent address  %1.").arg(transparentAddress));
+    }
+
     QString questionString = tr("Are you sure you want to send?");
     questionString.append("<br /><br />%1");
     double txSize;
@@ -484,6 +551,10 @@ void SendCoinsDialog::on_sendButton_clicked()
 
         // append transaction size
         questionString.append(" (" + QString::number(txSize / 1000) + " kB)");
+
+        if (fGoThroughTransparentAddress) {
+            questionString.append(tr(". Note: the transaction will go through a transparent address, additional fees may apply."));
+        }
     }
 
     // add total amount in all subdivision units
@@ -556,6 +627,52 @@ void SendCoinsDialog::on_sendButton_clicked()
         CoinControlDialog::coinControl->UnSelectAll();
         coinControlUpdateLabels();
     }
+
+    // Launch the second stage of the transaction if needed
+    if (fGoThroughTransparentAddress) {
+        // prepare the coin control so the transaction will use (by default) only the transparent address
+        // created in the first stage
+        COutPoint outpoint;
+        outpoint.hash = currentTransaction.getTransaction()->GetHash();
+        outpoint.n = UINT_MAX;
+
+        const auto &vout = currentTransaction.getTransaction()->tx->vout;
+        for (size_t i = 0; i < vout.size(); i++) {
+            if (vout[i].scriptPubKey == intermediateAddressScript) {
+                outpoint.n = i;
+                break;
+            }
+        }
+
+        if (outpoint.n == UINT_MAX) {
+            sendStatus.status = WalletModel::InvalidAddress;
+            sendStatus.reasonCommitFailed = "Intermediate address was not found in the transaction";
+            fNewRecipientAllowed = true;
+            return;
+        }
+
+        CCoinControl ctrl;
+        ctrl.fAllowOtherInputs = false;
+        ctrl.Select(outpoint);
+
+        WalletModelTransaction  secondTransaction(exchangeRecipients);
+
+        prepareStatus = model->prepareTransaction(secondTransaction, &ctrl);
+
+        // process prepareStatus and on error generate message shown to user
+        processSendCoinsReturn(prepareStatus,
+            BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
+
+        if(prepareStatus.status != WalletModel::OK) {
+            fNewRecipientAllowed = true;
+            return;
+        }
+
+        sendStatus = model->sendCoins(currentTransaction);
+        // process sendStatus and on error generate message shown to user
+        processSendCoinsReturn(sendStatus);
+    }
+
     fNewRecipientAllowed = true;
 }
 
