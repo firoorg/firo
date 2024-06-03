@@ -3,24 +3,29 @@ macOS Build Instructions and Notes
 The commands in this guide should be executed in a Terminal application.
 The built-in one is located in `/Applications/Utilities/Terminal.app`.
 
-Preparation
------------
-Install the macOS command line tools:
+## Preparation
+1. **Install macOS Command Line Tools** (if not already installed):
+   ```bash
+   xcode-select --install
+   ```
+   When the popup appears, click `Install`.
 
-`xcode-select --install`
 
-When the popup appears, click `Install`.
+2. **Install Homebrew** (if not already installed):
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
 
-Then install [Homebrew](http://brew.sh).
+## Dependencies
+Install the required dependencies using Homebrew:
+```bash
+brew install automake berkeley-db4 libtool boost miniupnpc openssl pkg-config protobuf python qt libevent qrencode python-setuptools m4
+```
 
-Dependencies
-----------------------
-
-    brew install automake berkeley-db4 libtool boost miniupnpc openssl pkg-config protobuf python qt libevent qrencode
 
 In case you want to build the disk image with `make deploy` (.dmg / optional), you need RSVG
 
-      brew install librsvg
+    brew install librsvg
       
 Berkley DB
 ------------------------
@@ -29,8 +34,14 @@ It is recommended to use Berkeley DB 4.8. If you have to build it yourself, you 
 
 from the root of the repository.
 
-Note: You only need Berkeley DB if the wallet is enabled (see Disable-wallet mode).
-      
+*Note*: You only need Berkeley DB if the wallet is enabled (see Disable-wallet mode).
+
+## Download the Source
+Before building, download the Firo source code:
+```bash
+git clone https://github.com/firoorg/firo
+cd firo
+```
       
 Build Firo Core
 ------------------------
@@ -102,4 +113,3 @@ Notes
 * Tested on macOS 10.11 through 10.14 on 64-bit Intel processors only.
 
 * Building with downloaded Qt binaries is not officially supported. See the notes in [#7714](https://github.com/bitcoin/bitcoin/issues/7714)
-
