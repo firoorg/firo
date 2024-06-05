@@ -343,6 +343,9 @@ static const CRPCCommand vRPCCommands[] =
     { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true  },
     { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
     { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true  },
+    { "mobile",             "getmempooltxids",        &getmempooltxids,     true },
+    { "mobile",             "getmempooltxs",          &getmempooltxs,       true  },
+
 
     { "mobile",             "checkifmncollateral",   &checkifmncollateral, false  },
 

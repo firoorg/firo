@@ -1431,6 +1431,100 @@ UniValue getsparklatestcoinid(const JSONRPCRequest& request)
     return UniValue(latestCoinId);
 }
 
+UniValue getmempooltxids(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getmempooltxids\n"
+                "\nReturns all mempool transaction ids.\n"
+        );
+
+    UniValue result(UniValue::VARR);
+    std::vector<TxMempoolInfo> txs = mempool.infoAll();
+    for (auto it = txs.begin(); it != txs.end(); it++) {
+        if (!it->tx->IsSparkTransaction())
+            continue;
+        UniValue txid(UniValue::VOBJ);
+        txid.push_back(EncodeBase64(it->tx->GetHash().begin(), it->tx->GetHash().size()));
+        result.push_back(txid);
+    }
+
+    return result;
+}
+
+UniValue getmempooltxs(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+                "getmempooltxs\n"
+                "\nReturns spark data for each transaction.\n"
+                "\nArguments:\n"
+                "  \"txids\"\n"
+                "    [\n"
+                "      {\n"
+                "        \"txid\" (string) The transaction hash\n"
+                "      }\n"
+                "      ,...\n"
+                "    ]\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"txdata\"   (Pair<string,int>) nHeight and id for each coin\n"
+                "}\n"
+                + HelpExampleCli("getmempooltxs", "'{[\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}'")
+                + HelpExampleRpc("getmempooltxs", "{[\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}")
+
+        );
+
+    UniValue txids = request.params[0].get_obj();
+
+    UniValue result(UniValue::VARR);
+    for(UniValue const & element : txids.getValues()){
+        uint256 txid;
+        txid.SetHex(element.get_str());
+        CTransactionRef tx = mempool.get(txid);
+        if (tx == nullptr || !tx->IsSparkTransaction())
+            continue;
+
+        UniValue data(UniValue::VARR);
+        std::vector<UniValue> lTags_;
+        if (tx->IsSparkSpend())
+        {
+            try {
+                spark::SpendTransaction spend = spark::ParseSparkSpend(*tx);
+                auto lTags = spend.getUsedLTags();
+                for ( auto it = lTags.begin(); it != lTags.end(); ++it) {
+                    std::vector<unsigned char> serialized;
+                    serialized.resize(34);
+                    it->serialize(serialized.data());
+                    lTags_.push_back(EncodeBase64(serialized.data(), 34));
+                }
+            } catch (const std::exception &) {
+                continue;
+            }
+        } else {
+            lTags_.push_back("MintTX");
+        }
+        data.push_backV(lTags_); // Spend lTags for corresponding tx,
+
+        std::vector<unsigned char> serial_context = spark::getSerialContext(*tx);
+        data.push_back(EncodeBase64(serial_context.data(), serial_context.size())); // spark serial context
+
+
+        std::vector<spark::Coin>  coins = spark::GetSparkMintCoins(*tx);
+        std::vector<UniValue> serialized_coins;
+        for (auto& coin: coins) {
+            CDataStream serializedCoin(SER_NETWORK, PROTOCOL_VERSION);
+            serializedCoin << coin;
+            std::vector<unsigned char> vch(serializedCoin.begin(), serializedCoin.end());
+            serialized_coins.push_back(EncodeBase64(vch.data(), size_t(vch.size()))); // coi
+        }
+        data.push_backV(serialized_coins);
+        result.push_back(Pair(EncodeBase64(txid.begin(), txid.size()), data));
+    }
+
+    return result;
+}
+
 UniValue checkifmncollateral(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 2)
@@ -1763,6 +1857,8 @@ static const CRPCCommand commands[] =
     { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true  },
     { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
     { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true  },
+    { "mobile",             "getmempooltxids",        &getmempooltxids,     true },
+    { "mobile",             "getmempooltxs",          &getmempooltxs,       true  },
 
     { "mobile",             "checkifmncollateral",   &checkifmncollateral, false  },
 
