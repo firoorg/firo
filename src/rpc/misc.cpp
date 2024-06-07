@@ -1444,9 +1444,7 @@ UniValue getmempooltxids(const JSONRPCRequest& request)
     for (auto it = txs.begin(); it != txs.end(); it++) {
         if (!it->tx->IsSparkTransaction())
             continue;
-        UniValue txid(UniValue::VOBJ);
-        txid.push_back(EncodeBase64(it->tx->GetHash().begin(), it->tx->GetHash().size()));
-        result.push_back(txid);
+        result.push_back(EncodeBase64(it->tx->GetHash().begin(), it->tx->GetHash().size()));
     }
 
     return result;
