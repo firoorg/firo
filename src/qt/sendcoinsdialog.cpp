@@ -525,8 +525,8 @@ void SendCoinsDialog::on_sendButton_clicked()
     if (fGoThroughTransparentAddress) {
         QString transparentAddress = "<span style='font-family: monospace;'>" + recipients[recipients.size()-1].address + "</span>";
         formatted.append("<br />");
-        formatted.append(tr("It's impossible to send directly to exchange address."
-            " The transaction will go through a new auto-generated transparent address  %1.").arg(transparentAddress));
+        formatted.append(tr("EX-addresses can only receive FIRO from transparent addresses.<br /><br />"
+            "Your FIRO will go from Spark to a newly generated transparent address %1 and then immediately be sent to the EX-address.").arg(transparentAddress));
     }
 
     QString questionString = tr("Are you sure you want to send?");
@@ -556,10 +556,12 @@ void SendCoinsDialog::on_sendButton_clicked()
         questionString.append(" (" + QString::number(txSize / 1000) + " kB)");
 
         if (fGoThroughTransparentAddress) {
-            questionString.append(tr(". Note: the transaction will go through a transparent address, fee for the second transaction is "));
-            questionString.append("<span style='color:#aa0000;'>");
-            questionString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), extraFee));
-            questionString.append("</span>.");
+            QString feeString;
+            feeString.append("<span style='color:#aa0000;'>");
+            feeString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), extraFee));
+            feeString.append("</span>");
+            
+            questionString.append(tr(". An additional transaction fee of %1 will apply to complete the send from the transparent address to the EX-address.").arg(feeString));
         }
     }
 
