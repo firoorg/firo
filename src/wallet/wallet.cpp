@@ -4450,7 +4450,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                 const CAmount nChange = nValueIn - nValueToSelect;
                 CTxOut newTxOut;
 
-                if (nChange > 0)
+                if (nChange > 0 && !(coinControl && coinControl->fNoChange))
                 {
                     // Fill a vout to ourself
                     // TODO: pass in scriptChange instead of reservekey so

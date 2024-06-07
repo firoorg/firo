@@ -320,10 +320,12 @@ void SendCoinsDialog::on_sendButton_clicked()
     bool fGoThroughTransparentAddress = false;
     __decltype(recipients) exchangeRecipients;
     CScript intermediateAddressScript;
+    CAmount extraFee = 0;
 
     if (fAnonymousMode && exchangeAddressCount > 0) {
         CAmount exchangeAddressAmount = 0;
-        bool fSubtractFeeFromIntermediateAddressAmount = false;
+        // if the transaction is performed in two stages through the intermediate address we need to calculate the size of the second transaction
+        uint32_t secondTxSize = 8 /*CTransaction: nVersion, nLockTime*/ + 1 /*vinSize*/ + 148 /*vin[0]*/ + 20 /*safety*/ + 1 /*voutSize*/;
 
         fGoThroughTransparentAddress = true;
 
@@ -331,13 +333,12 @@ void SendCoinsDialog::on_sendButton_clicked()
         for(int i = 0; i < recipients.size(); ){
             if (model->validateExchangeAddress(recipients[i].address)) {
                 exchangeAddressAmount += recipients[i].amount;
-                recipients[i].fSubtractFeeFromAmount = true;
+                // we use different fee calculation system and therefore can't reliably do the calculation
+                // of fee for the second transaction if some of recipients have this flag set
+                recipients[i].fSubtractFeeFromAmount = false;
                 exchangeRecipients.push_back(recipients[i]);
 
-                // It's not clear if we should subtract fee from the intermediate address amount if
-                // there are conflicting "fSubractFeeFromAmount" flags in the exchangeRecipients array.
-                // For now, we use the flag from the last exchange recipient.
-                fSubtractFeeFromIntermediateAddressAmount = recipients[i].fSubtractFeeFromAmount;
+                secondTxSize += 8 /*amount*/ + 1 /*scriptSize*/ + 26 /*scriptPubKey*/;
 
                 recipients.erase(recipients.begin() + i);
             }
@@ -359,10 +360,12 @@ void SendCoinsDialog::on_sendButton_clicked()
         pwalletMain->SetAddressBook(newKey.GetID(), "", "receive");
         intermediateAddressScript = GetScriptForDestination(newKey.GetID());
 
+        extraFee = CWallet::GetMinimumFee(secondTxSize, 0, mempool);
+
         SendCoinsRecipient newRecipient;        
         newRecipient.address = CBitcoinAddress(newKey.GetID()).ToString().c_str();
-        newRecipient.amount = exchangeAddressAmount;
-        newRecipient.fSubtractFeeFromAmount = fSubtractFeeFromIntermediateAddressAmount;
+        newRecipient.amount = exchangeAddressAmount + extraFee;
+        newRecipient.fSubtractFeeFromAmount = false;
         recipients.push_back(newRecipient);
     }
 
@@ -553,7 +556,10 @@ void SendCoinsDialog::on_sendButton_clicked()
         questionString.append(" (" + QString::number(txSize / 1000) + " kB)");
 
         if (fGoThroughTransparentAddress) {
-            questionString.append(tr(". Note: the transaction will go through a transparent address, additional fees may apply."));
+            questionString.append(tr(". Note: the transaction will go through a transparent address, fee for the second transaction is "));
+            questionString.append("<span style='color:#aa0000;'>");
+            questionString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), extraFee));
+            questionString.append("</span>.");
         }
     }
 
@@ -653,6 +659,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
         CCoinControl ctrl;
         ctrl.fAllowOtherInputs = false;
+        ctrl.fNoChange = true;
         ctrl.Select(outpoint);
 
         WalletModelTransaction  secondTransaction(exchangeRecipients);
@@ -668,7 +675,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             return;
         }
 
-        sendStatus = model->sendCoins(currentTransaction);
+        sendStatus = model->sendCoins(secondTransaction);
         // process sendStatus and on error generate message shown to user
         processSendCoinsReturn(sendStatus);
     }
