@@ -22,7 +22,7 @@ jobs:
       ARTIFACT_DIR: source
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     - name: Install Required Packages
       run: |
         sudo apt-get update
@@ -54,7 +54,7 @@ jobs:
       TEST_LOG_ARTIFACT_DIR: test-logs
     steps:
     - name: Getting Source
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v4
       with:
         name: ${{ env.SOURCE_ARTIFACT }}
     - name: Extract Archives
@@ -120,7 +120,7 @@ jobs:
       ARTIFACT_DIR: windows-binaries
     steps:
     - name: Getting Source
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v4
       with:
         name: ${{ env.SOURCE_ARTIFACT }}
     - name: Extract Archives
@@ -161,7 +161,7 @@ jobs:
       ARTIFACT_DIR: mac-binaries
     steps:
     - name: Getting Source
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v4
       with:
         name: ${{ env.SOURCE_ARTIFACT }}
     - name: Extract Archives
