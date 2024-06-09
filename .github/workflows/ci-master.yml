@@ -41,7 +41,7 @@ jobs:
         mkdir -p $ARTIFACT_DIR
         mv depends.tar.gz firo-*.tar.gz $ARTIFACT_DIR
     - name: Upload Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.SOURCE_ARTIFACT }}
         path: ${{ env.ARTIFACT_DIR }}
@@ -87,7 +87,7 @@ jobs:
         mkdir -p $ARTIFACT_DIR
         mv $SOURCE_ARTIFACT/src/{firo-cli,firo-tx,firod,qt/firo-qt} $ARTIFACT_DIR
     - name: Upload Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: linux-binaries
         path: ${{ env.ARTIFACT_DIR }}
@@ -108,7 +108,7 @@ jobs:
         fi
     - name: Upload Test Logs Artifact
       if: failure()
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: test-logs
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
@@ -149,7 +149,7 @@ jobs:
         mkdir -p $ARTIFACT_DIR
         mv $SOURCE_ARTIFACT/src/{firo-cli.exe,firo-tx.exe,firod.exe,qt/firo-qt.exe} $ARTIFACT_DIR
     - name: Upload Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: windows-binaries
         path: ${{ env.ARTIFACT_DIR }}
@@ -189,7 +189,7 @@ jobs:
         mkdir -p $ARTIFACT_DIR
         mv $SOURCE_ARTIFACT/src/{firo-cli,firo-tx,firod,qt/firo-qt} $ARTIFACT_DIR
     - name: Upload Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: mac-binaries
         path: ${{ env.ARTIFACT_DIR }}
