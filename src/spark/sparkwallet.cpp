@@ -1023,7 +1023,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
 
                     // Limit size
                     CTransaction txConst(tx);
-                    if (GetTransactionWeight(txConst) >= MAX_STANDARD_TX_WEIGHT) {
+                    if (GetTransactionWeight(txConst) >= MAX_NEW_TX_WEIGHT) {
                         strFailReason = _("Transaction is too large (size limit: 100Kb). Select less inputs or consolidate your UTXOs");
                         return false;
                     }
