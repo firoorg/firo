@@ -216,6 +216,7 @@ extern UniValue getlatestcoinid(const JSONRPCRequest& params);
 extern UniValue getsparkanonymityset(const JSONRPCRequest& params);
 extern UniValue getsparkmintmetadata(const JSONRPCRequest& params);
 extern UniValue getusedcoinstags(const JSONRPCRequest& params);
+extern UniValue getusedcoinstagstxhashes(const JSONRPCRequest& params);
 extern UniValue getsparklatestcoinid(const JSONRPCRequest& params);
 extern UniValue getmempooltxids(const JSONRPCRequest& params);
 extern UniValue getmempooltxs(const JSONRPCRequest& params);

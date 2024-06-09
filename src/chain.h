@@ -261,6 +261,8 @@ public:
     sigma::spend_info_container sigmaSpentSerials;
     std::unordered_map<Scalar, int> lelantusSpentSerials;
     std::unordered_map<GroupElement, int> spentLTags;
+    // linking tag hash mapped to tx hash
+    std::unordered_map<uint256, uint256> ltagTxhash;
 
     //! list of disabling sporks active at this block height
     //! std::map {feature name} -> {block number when feature is re-enabled again, parameter}
@@ -303,6 +305,7 @@ public:
         sparkMintedCoins.clear();
         sparkSetHash.clear();
         spentLTags.clear();
+        ltagTxhash.clear();
         sparkTxHashContext.clear();
         sigmaSpentSerials.clear();
         lelantusSpentSerials.clear();
@@ -563,6 +566,7 @@ public:
 
             if (GetBoolArg("-mobile", false)) {
                 READWRITE(sparkTxHashContext);
+                READWRITE(ltagTxhash);
             }
         }
 

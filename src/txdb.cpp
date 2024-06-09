@@ -425,6 +425,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->sparkSetHash       = diskindex.sparkSetHash;
                 pindexNew->spentLTags         = diskindex.spentLTags;
                 pindexNew->sparkTxHashContext = diskindex.sparkTxHashContext;
+                pindexNew->ltagTxhash         = diskindex.ltagTxhash;
 
                 pindexNew->activeDisablingSporks = diskindex.activeDisablingSporks;
 

@@ -1404,6 +1404,63 @@ UniValue getusedcoinstags(const JSONRPCRequest& request)
     return ret;
 }
 
+UniValue getusedcoinstagstxhashes(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+                "getusedcoinstagstxhashes\n"
+                "\nReturns the set of used coin tags.\n"
+                "\nArguments:\n"
+                "{\n"
+                "      \"startNumber \"  (int) Number of elements already existing on user side\n"
+                "}\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"tags\" (std::string[]) array of Serialized GroupElements paired with unit256 (tx ids) \n"
+                "}\n"
+        );
+
+    int startNumber;
+    try {
+        startNumber = std::stol(request.params[0].get_str());
+    } catch (std::logic_error const & e) {
+        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
+    spark::CSparkState* sparkState =  spark::CSparkState::GetState();
+    std::unordered_map<GroupElement, int, spark::CLTagHash>  tags;
+    std::unordered_map<uint256, uint256> ltagTxhash;
+    {
+        LOCK(cs_main);
+        tags = sparkState->GetSpends();
+        ltagTxhash = sparkState->GetSpendTxIds();
+    }
+    UniValue serializedTagsTxIds(UniValue::VARR);
+    int i = 0;
+    for ( auto it = tags.begin(); it != tags.end(); ++it, ++i) {
+        if ((tags.size() - i - 1) < startNumber)
+            continue;
+        std::vector<unsigned char> serialized;
+        serialized.resize(34);
+        it->first.serialize(serialized.data());
+        std::vector<UniValue> data;
+        data.push_back(EncodeBase64(serialized.data(), 34));
+        uint256 txid;
+        uint256 ltagHash = primitives::GetLTagHash(it->first);
+        if (ltagTxhash.count(ltagHash) > 0)
+            txid = ltagTxhash[ltagHash];
+        data.push_back(EncodeBase64(txid.begin(), txid.size()));
+        UniValue entity(UniValue::VARR);
+        entity.push_backV(data);
+        serializedTagsTxIds.push_back(entity);
+    }
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("tagsandtxids", serializedTagsTxIds));
+
+    return ret;
+}
+
 UniValue getsparklatestcoinid(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0)
@@ -1854,6 +1911,7 @@ static const CRPCCommand commands[] =
     { "mobile",             "getsparkanonymityset",   &getsparkanonymityset, false },
     { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true  },
     { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
+    { "mobile",             "getusedcoinstagstxhashes", &getusedcoinstagstxhashes, false },
     { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true  },
     { "mobile",             "getmempooltxids",        &getmempooltxids,     true },
     { "mobile",             "getmempooltxs",          &getmempooltxs,       true  },
