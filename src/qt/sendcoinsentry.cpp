@@ -11,6 +11,7 @@
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "walletmodel.h"
+#include "../wallet/wallet.h"
 
 #include <QApplication>
 #include <QClipboard>
@@ -140,22 +141,21 @@ QString SendCoinsEntry::generateWarningText(const QString& address, const bool f
         warningText = tr(" You are sending Firo to an Exchange Address. Exchange Addresses can only receive funds from a transparent address.");
     } else {
         if (!fAnonymousMode) {
-            if (model->validateAddress(address)) {
+            if (pwalletMain->validateAddress(address.toStdString())) {
                 warningText = tr(" You are sending Firo from a transparent address to another transparent address. To protect your privacy, we recommend using Spark addresses instead.");
-            } else if (model->validateSparkAddress(address)) {
+            } else if (pwalletMain->validateSparkAddress(address.toStdString())) {
                 warningText = tr(" You are sending Firo from a transparent address to a Spark address.");
             }
         } else {
-            if (model->validateSparkAddress(address)) {
+            if (pwalletMain->validateSparkAddress(address.toStdString())) {
                 warningText = tr(" You are sending Firo from a Spark address to another Spark address. This transaction is fully private.");
-            } else if (model->validateAddress(address)) {
+            } else if (pwalletMain->validateAddress(address.toStdString())) {
                 warningText = tr(" You are sending Firo from a private Spark pool to a transparent address. Please note that some exchanges do not accept direct Spark deposits.");
             }
         }
     }
     return warningText;
 }
-
 
 bool SendCoinsEntry::validate()
 {
