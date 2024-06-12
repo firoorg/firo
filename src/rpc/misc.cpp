@@ -1525,12 +1525,12 @@ UniValue getmempooltxs(const JSONRPCRequest& request)
                 "{\n"
                 "  \"txdata\"   (Pair<string,int>) nHeight and id for each coin\n"
                 "}\n"
-                + HelpExampleCli("getmempooltxs", "'{[\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}'")
-                + HelpExampleRpc("getmempooltxs", "{[\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}")
+                + HelpExampleCli("getmempooltxs", "'{\"txids\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}'")
+                + HelpExampleRpc("getmempooltxs", "{\"txids\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}")
 
         );
 
-    UniValue txids = request.params[0].get_obj();
+    UniValue txids = find_value(request.params[0].get_obj(), "txids");
 
     UniValue result(UniValue::VARR);
     for(UniValue const & element : txids.getValues()){

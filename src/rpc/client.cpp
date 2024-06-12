@@ -194,6 +194,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getusedcoinserials", 0 },
     { "getlatestcoinids", 0 },
     { "getsparkmintmetadata", 0 },
+    { "getmempooltxs", 0 },
 
     //Lelantus
     { "mintspark", 0 },
