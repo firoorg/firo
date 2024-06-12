@@ -112,6 +112,8 @@ sudo apt-get install git curl python build-essential libtool automake pkg-config
 sudo apt-get install qttools5-dev qttools5-dev-tools libxcb-xkb-dev bison
 ```
 
+If you use a later version of Ubuntu, you may need to replace `python` with `python3`.
+
 - Redhat/Fedora:
 
 ```sh
