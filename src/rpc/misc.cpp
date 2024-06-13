@@ -1532,7 +1532,7 @@ UniValue getmempooltxs(const JSONRPCRequest& request)
 
     UniValue txids = find_value(request.params[0].get_obj(), "txids");
 
-    UniValue result(UniValue::VARR);
+    UniValue result(UniValue::VOBJ);
     for(UniValue const & element : txids.getValues()){
         uint256 txid;
         txid.SetHex(element.get_str());
@@ -1540,8 +1540,9 @@ UniValue getmempooltxs(const JSONRPCRequest& request)
         if (tx == nullptr || !tx->IsSparkTransaction())
             continue;
 
-        UniValue data(UniValue::VARR);
+        UniValue data(UniValue::VOBJ);
         std::vector<UniValue> lTags_;
+        UniValue lTags_json(UniValue::VARR);
         if (tx->IsSparkSpend())
         {
             try {
@@ -1559,21 +1560,27 @@ UniValue getmempooltxs(const JSONRPCRequest& request)
         } else {
             lTags_.push_back("MintTX");
         }
-        data.push_backV(lTags_); // Spend lTags for corresponding tx,
+        lTags_json.push_backV(lTags_);
+
+        data.push_back(Pair("lTags ", lTags_json)); // Spend lTags for corresponding tx,
 
         std::vector<unsigned char> serial_context = spark::getSerialContext(*tx);
-        data.push_back(EncodeBase64(serial_context.data(), serial_context.size())); // spark serial context
-
+        UniValue serial_context_json(UniValue::VARR);
+        serial_context_json.push_back(EncodeBase64(serial_context.data(), serial_context.size()));
+        data.push_back(Pair("Serial_context", serial_context_json)); // spark serial context
 
         std::vector<spark::Coin>  coins = spark::GetSparkMintCoins(*tx);
         std::vector<UniValue> serialized_coins;
+        UniValue serialized_json(UniValue::VARR);
         for (auto& coin: coins) {
             CDataStream serializedCoin(SER_NETWORK, PROTOCOL_VERSION);
             serializedCoin << coin;
             std::vector<unsigned char> vch(serializedCoin.begin(), serializedCoin.end());
             serialized_coins.push_back(EncodeBase64(vch.data(), size_t(vch.size()))); // coi
         }
-        data.push_backV(serialized_coins);
+        serialized_json.push_backV(serialized_coins);
+        data.push_back(Pair("Coins", serialized_json));
+
         result.push_back(Pair(EncodeBase64(txid.begin(), txid.size()), data));
     }
 
