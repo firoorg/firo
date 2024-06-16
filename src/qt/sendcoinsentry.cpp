@@ -277,10 +277,11 @@ void SendCoinsEntry::resizeEvent(QResizeEvent* event) {
 
 
 void SendCoinsEntry::adjustTextSize(int width, int height) {
-    int baseFontSize = std::max(14, width / 120);
-
+   const double fontSizeScalingFactor = 130.0;
+    int baseFontSize = width / fontSizeScalingFactor;
+    int fontSize = std::max(12,baseFontSize);
     QFont font = this->font();
-    font.setPointSize(baseFontSize);
+    font.setPointSize(fontSize);
 
     ui->payToLabel->setFont(font);
     ui->labellLabel->setFont(font);

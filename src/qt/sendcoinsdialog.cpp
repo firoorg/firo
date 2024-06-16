@@ -1420,6 +1420,7 @@ void SendCoinsDialog::resizeEvent(QResizeEvent* event) {
     ui->buttonChooseFee->setMinimumWidth(labelMinWidth);
     ui->buttonMinimizeFee->setMinimumWidth(labelMinWidth);
     ui->switchFundButton->setMinimumWidth(labelMinWidth);
+    ui->pushButtonCoinControl->setMinimumWidth(labelMinWidth);
 
 
     // Dynamically adjust text sizes based on the new dimensions
@@ -1427,17 +1428,22 @@ void SendCoinsDialog::resizeEvent(QResizeEvent* event) {
 }
 
 void SendCoinsDialog::adjustTextSize(int width, int height) {
-    int baseFontSize = std::max(12, std::min(width, height) / 70); 
+    const double fontSizeScalingFactor = 131.3;
+    int baseFontSize = width / fontSizeScalingFactor;
+    int fontSize = std::min(15, std::max(12, baseFontSize));
 
-    QFont font = this->font();
-    font.setPointSize(baseFontSize);
+    QFont font =  ui->labelBalance->font();
+    font.setPointSize(fontSize);
+
+    QFont textFont = font;
+    textFont.setBold(true);
 
     // Set font size for all labels
     ui->labelBalance->setFont(font);
-    ui->labelCoinControlAmount->setFont(font);
+    ui->lineEditCoinControlChange->setFont(font);
     ui->labelFeeEstimation->setFont(font);
     ui->labelFeeHeadline->setFont(font);
-    ui->labelCoinControlFeatures->setFont(font);
+    ui->labelCoinControlFeatures->setFont(textFont);
     ui->labelCoinControlAutomaticallySelected->setFont(font);
     ui->labelCoinControlInsuffFunds->setFont(font);
     ui->labelCoinControlQuantity->setFont(font);
@@ -1472,6 +1478,8 @@ void SendCoinsDialog::adjustTextSize(int width, int height) {
     ui->fallbackFeeWarningLabel->setFont(font);
     ui->checkBoxMinimumFee->setFont(font);
     ui->checkBoxCoinControlChange->setFont(font);
+    ui->confirmationTargetLabel->setFont(font);
+
 
     // Adjust font for all buttons 
     ui->sendButton->setFont(font);

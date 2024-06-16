@@ -484,6 +484,7 @@ void OverviewPage::resizeEvent(QResizeEvent* event)
     const int newWidth = event->size().width();
     const int newHeight = event->size().height();
     adjustTextSize(newWidth, newHeight);
+
     // Determine widths for specific widgets as percentages of total width
     int labelWidth = static_cast<int>(newWidth * 0.5);
     int labelMinWidth = static_cast<int>(newWidth * 0.15);
@@ -530,45 +531,48 @@ void OverviewPage::resizeEvent(QResizeEvent* event)
 }
 void OverviewPage::adjustTextSize(int width, int height){
 
-    int baseFontSize = std::max(12, std::min(width, height) / 70);
-
-    // Font for regular text components 
+    const double fontSizeScalingFactor = 133.0;
+    int baseFontSize = width / fontSizeScalingFactor;
+    int fontSize = std::min(15, std::max(12, baseFontSize));
+    
+    // Font for regular text components(not bold)
     QFont textFont = ui->labelBalance->font();
-    textFont.setPointSize(baseFontSize);
+    textFont.setPointSize(fontSize);
+    textFont.setBold(false);
 
-    // Font for labels, smaller than the text font size
-    QFont labelFont = font();
-    labelFont.setPointSize(int(baseFontSize * 0.9));  
+   // Font for text components that should be bold
+    QFont labelFont = textFont;
+    labelFont.setBold(true);
 
-    ui->textWarning1->setFont(labelFont);
-    ui->textWarning2->setFont(labelFont);
-    ui->labelWalletStatus->setFont(labelFont);  
-    ui->anonymizeButton->setFont(labelFont);
+    ui->textWarning1->setFont(textFont);
+    ui->textWarning2->setFont(textFont);
+    ui->labelWalletStatus->setFont(textFont);
+    ui->anonymizeButton->setFont(textFont);
 
     // Apply label font to all label components
-    ui->labelAlerts->setFont(textFont);
-    ui->label_5->setFont(textFont);
-    ui->labelAnonymizableText->setFont(labelFont);
-    ui->label->setFont(textFont);
-    ui->labelAnonymizable->setFont(textFont);
-    ui->labelWatchPending->setFont(textFont);
-    ui->labelBalance->setFont(textFont);
-    ui->labelSpendable->setFont(textFont);
-    ui->labelWatchAvailable->setFont(textFont);
-    ui->labelPendingText->setFont(labelFont);
-    ui->labelUnconfirmedPrivate->setFont(textFont);
-    ui->labelUnconfirmedPrivateText->setFont(labelFont);
-    ui->labelTotalText->setFont(labelFont);
-    ui->labelWatchonly->setFont(textFont);
-    ui->labelBalanceText->setFont(labelFont);
-    ui->labelTotal->setFont(textFont);
-    ui->labelWatchTotal->setFont(textFont);
-    ui->labelUnconfirmed->setFont(textFont);
-    ui->labelImmatureText->setFont(labelFont);
-    ui->labelImmature->setFont(textFont);
-    ui->labelWatchImmature->setFont(textFont);
-    ui->labelPrivateText->setFont(labelFont);
-    ui->labelPrivate->setFont(textFont);
-    ui->label_4->setFont(textFont);
+    ui->labelAlerts->setFont(labelFont);
+    ui->label_5->setFont(labelFont);
+    ui->labelAnonymizableText->setFont(textFont);
+    ui->label->setFont(labelFont);
+    ui->labelAnonymizable->setFont(labelFont);
+    ui->labelWatchPending->setFont(labelFont);
+    ui->labelBalance->setFont(labelFont);
+    ui->labelSpendable->setFont(labelFont);
+    ui->labelWatchAvailable->setFont(labelFont);
+    ui->labelPendingText->setFont(textFont);
+    ui->labelUnconfirmedPrivate->setFont(labelFont);
+    ui->labelUnconfirmedPrivateText->setFont(textFont);
+    ui->labelTotalText->setFont(textFont);
+    ui->labelWatchonly->setFont(labelFont);
+    ui->labelBalanceText->setFont(textFont);
+    ui->labelTotal->setFont(labelFont);
+    ui->labelWatchTotal->setFont(labelFont);
+    ui->labelUnconfirmed->setFont(labelFont);
+    ui->labelImmatureText->setFont(textFont);
+    ui->labelImmature->setFont(labelFont);
+    ui->labelWatchImmature->setFont(labelFont);
+    ui->labelPrivateText->setFont(textFont);
+    ui->labelPrivate->setFont(labelFont);
+    ui->label_4->setFont(labelFont);
    
 }

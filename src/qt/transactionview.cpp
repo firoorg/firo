@@ -755,7 +755,9 @@ void TransactionView::resizeEvent(QResizeEvent* event)
 }
 void TransactionView::adjustTextSize(int width,int height){
 
-    int fontSize = std::max(12, std::min(width, height) / 70); 
+    const double fontSizeScalingFactor = 65.0;
+    int baseFontSize = std::min(width, height) / fontSizeScalingFactor;
+    int fontSize = std::min(15, std::max(12, baseFontSize));
     QFont font = this->font();
     font.setPointSize(fontSize);
 
