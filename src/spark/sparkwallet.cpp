@@ -1024,7 +1024,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                     // Limit size
                     CTransaction txConst(tx);
                     if (GetTransactionWeight(txConst) >= MAX_NEW_TX_WEIGHT) {
-                        strFailReason = _("Transaction is too large (size limit: 100Kb). Select less inputs or consolidate your UTXOs");
+                        strFailReason = _("Transaction is too large (size limit: 250Kb). Select less inputs or consolidate your UTXOs");
                         return false;
                     }
                     dPriority = txConst.ComputePriority(dPriority, nBytes);
@@ -1536,7 +1536,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             }
 
             if (GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT) {
-                throw std::runtime_error(_("Transaction is too large (size limit: 100Kb). Select less inputs or consolidate your UTXOs"));
+                throw std::runtime_error(_("Transaction is too large (size limit: 250Kb). Select less inputs or consolidate your UTXOs"));
             }
 
             // check fee
