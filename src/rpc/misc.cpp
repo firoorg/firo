@@ -1488,11 +1488,11 @@ UniValue getsparklatestcoinid(const JSONRPCRequest& request)
     return UniValue(latestCoinId);
 }
 
-UniValue getmempooltxids(const JSONRPCRequest& request)
+UniValue getmempoolsparktxids(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
-                "getmempooltxids\n"
+                "getmempoolsparktxids\n"
                 "\nReturns all mempool transaction ids.\n"
         );
 
@@ -1507,11 +1507,11 @@ UniValue getmempooltxids(const JSONRPCRequest& request)
     return result;
 }
 
-UniValue getmempooltxs(const JSONRPCRequest& request)
+UniValue getmempoolsparktxs(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "getmempooltxs\n"
+                "getmempoolsparktxs\n"
                 "\nReturns spark data for each transaction.\n"
                 "\nArguments:\n"
                 "  \"txids\"\n"
@@ -1525,8 +1525,8 @@ UniValue getmempooltxs(const JSONRPCRequest& request)
                 "{\n"
                 "  \"txdata\"   (Pair<string,int>) nHeight and id for each coin\n"
                 "}\n"
-                + HelpExampleCli("getmempooltxs", "'{\"txids\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}'")
-                + HelpExampleRpc("getmempooltxs", "{\"txids\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}")
+                + HelpExampleCli("getmempoolsparktxs", "'{\"txids\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}'")
+                + HelpExampleRpc("getmempoolsparktxs", "{\"txids\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}")
 
         );
 
@@ -1920,8 +1920,8 @@ static const CRPCCommand commands[] =
     { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
     { "mobile",             "getusedcoinstagstxhashes", &getusedcoinstagstxhashes, false },
     { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true  },
-    { "mobile",             "getmempooltxids",        &getmempooltxids,     true },
-    { "mobile",             "getmempooltxs",          &getmempooltxs,       true  },
+    { "mobile",             "getmempoolsparktxids",   &getmempoolsparktxids, true },
+    { "mobile",             "getmempoolsparktxs",     &getmempoolsparktxs,       true  },
 
     { "mobile",             "checkifmncollateral",   &checkifmncollateral, false  },
 
