@@ -4564,9 +4564,9 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                     nBytes += GetSizeOfCompactSize(nExtraPayloadSize) + nExtraPayloadSize;
                 }
 
-                if (GetTransactionWeight(txNew) >= MAX_STANDARD_TX_WEIGHT) {
+                if (GetTransactionWeight(txNew) >= MAX_NEW_TX_WEIGHT) {
                     // Do not create oversized transactions (bad-txns-oversize).
-                    strFailReason = _("Transaction is too large (size limit: 100Kb). Select less inputs or consolidate your UTXOs");
+                    strFailReason = _("Transaction is too large (size limit: 250Kb). Select less inputs or consolidate your UTXOs");
                     return false;
                 }
 
