@@ -23,6 +23,7 @@
 #include "txdb.h"
 
 #include "masternode-sync.h"
+#include "evo/deterministicmns.h"
 
 #include <stdint.h>
 
@@ -1430,6 +1431,42 @@ UniValue getsparklatestcoinid(const JSONRPCRequest& request)
     return UniValue(latestCoinId);
 }
 
+UniValue checkifmncollateral(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 2)
+        throw std::runtime_error(
+                "checkifmncollateral\n"
+                "\nReturns bool value.\n"
+                "\nArguments:\n"
+                "  \"txHash\"\n"
+                "  \"index\"\n"
+                + HelpExampleCli("checkifmncollateral", "\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\""  "\"0\" ")
+                + HelpExampleRpc("checkifmncollateral", "\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"" "\"0\" ")
+        );
+
+    std::string strTxId;
+    int index;
+
+    try {
+        strTxId = request.params[0].get_str();
+        index = std::stol(request.params[1].get_str());
+    } catch (std::logic_error const & e) {
+        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
+    uint256 txid = uint256S(strTxId);
+
+    CTransactionRef tx;
+    uint256 hashBlock;
+    if(!GetTransaction(txid, tx, Params().GetConsensus(), hashBlock, true))
+        throw std::runtime_error("Unknown transaction.");
+
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    COutPoint o(txid, index);
+    bool fMnExists = deterministicMNManager->IsProTxWithCollateral(tx, index) || mnList.HasMNByCollateral(o);
+    return UniValue(fMnExists);
+}
+
 UniValue getaddresstxids(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
@@ -1727,6 +1764,7 @@ static const CRPCCommand commands[] =
     { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
     { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true  },
 
+    { "mobile",             "checkifmncollateral",   &checkifmncollateral, false  },
 
     { "hidden",             "setmocktime",            &setmocktime,            true,  {"timestamp"}},
     { "hidden",             "echo",                   &echo,                   true,  {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"}},

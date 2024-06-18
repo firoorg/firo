@@ -172,7 +172,7 @@ jobs:
     - name: Use Xcode instead of Command Line Tools
       run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
     - name: Install Required Packages
-      run: brew install automake coreutils pkg-config
+      run: brew install automake coreutils pkg-config python-setuptools
       # Workaround for macOS: https://github.com/actions/runner/issues/2958
     - name: Install setuptools
       run: sudo -H pip install setuptools
@@ -181,7 +181,7 @@ jobs:
       working-directory: ${{ env.SOURCE_ARTIFACT }}
     - name: Build Firo
       run: |
-        ./configure --disable-jni --prefix=$(grealpath depends/x86_64-apple-darwin*)
+        ./configure --prefix=`pwd`/depends/`depends/config.guess`
         make -j$(sysctl -n hw.activecpu)
       working-directory: ${{ env.SOURCE_ARTIFACT }}
     - name: Prepare Files for Artifact

@@ -10,7 +10,6 @@
 #include "automintmodel.h"
 #include "bitcoingui.h"
 #include "clientmodel.h"
-#include "createpcodedialog.h"
 #include "guiutil.h"
 #include "lelantusdialog.h"
 #include "lelantusmodel.h"
@@ -52,7 +51,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     overviewPage = new OverviewPage(platformStyle);
     transactionsPage = new QWidget(this);
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
-    createPcodePage = new CreatePcodeDialog(platformStyle);
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this, false);
     lelantusPage = new QWidget(this);
@@ -73,7 +71,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     addWidget(overviewPage);
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
-    addWidget(createPcodePage);
     addWidget(sendCoinsPage);
     addWidget(lelantusPage);
     addWidget(masternodeListPage);
@@ -200,7 +197,6 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     firoTransactionList->setModel(_walletModel);
     overviewPage->setWalletModel(_walletModel);
     receiveCoinsPage->setModel(_walletModel);
-    createPcodePage->setModel(_walletModel);
     // TODO: fix this
     //sendCoinsPage->setModel(_walletModel);
     if (pwalletMain->IsHDSeedAvailable()) {
@@ -306,11 +302,6 @@ void WalletView::gotoMasternodePage()
 void WalletView::gotoReceiveCoinsPage()
 {
     setCurrentWidget(receiveCoinsPage);
-}
-
-void WalletView::gotoCreatePcodePage()
-{
-    setCurrentWidget(createPcodePage);
 }
 
 void WalletView::gotoLelantusPage()
