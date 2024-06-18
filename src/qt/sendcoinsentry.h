@@ -75,6 +75,9 @@ private:
     bool isPcodeEntry;
     bool fAnonymousMode = false;
     bool updateLabel(const QString &address);
+    void resizeEvent(QResizeEvent* event) override;
+    void adjustTextSize(int width, int height);
+    
 };
 
 #endif // BITCOIN_QT_SENDCOINSENTRY_H

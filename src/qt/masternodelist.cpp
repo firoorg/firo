@@ -367,3 +367,48 @@ void MasternodeList::copyCollateralOutpoint_clicked()
 
     QApplication::clipboard()->setText(QString::fromStdString(dmn->collateralOutpoint.ToStringShort()));
 }
+
+void MasternodeList::resizeEvent(QResizeEvent* event) 
+{
+    QWidget::resizeEvent(event);
+
+    const int newWidth = event->size().width();
+    const int newHeight = event->size().height();
+
+    adjustTextSize(newWidth ,newHeight);
+
+    // Calculate new column widths based on the new window width
+    int newWidthOwner = static_cast<int>(newWidth * 0.19);  
+    int newWidthMin = static_cast<int>(newWidth * 0.08);
+    int newWidthMid = static_cast<int>(newWidth * 0.12);
+    int newWidthStatus = static_cast<int>(newWidth * 0.11);
+
+    // Apply new column widths
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(0, newWidthStatus);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(1, newWidthMin);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(2, newWidthMin);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(3, newWidthMid);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(4, newWidthMid);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(5, newWidthMid);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(6, newWidthMid);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(7, newWidthMid);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(8, newWidthMid);
+    ui->tableWidgetMasternodesDIP3->setColumnWidth(9, newWidthOwner);
+}
+void MasternodeList::adjustTextSize(int width,int height){
+
+    const double fontSizeScalingFactor = 70.0;
+    int baseFontSize = std::min(width, height) / fontSizeScalingFactor;
+    int fontSize = std::min(15, std::max(12, baseFontSize));
+    QFont font = this->font();
+    font.setPointSize(fontSize);
+
+    // Set font size for all labels
+    ui->label_filter_2->setFont(font);
+    ui->label_count_2->setFont(font);
+    ui->countLabelDIP3->setFont(font);
+    ui->checkBoxMyMasternodesOnly->setFont(font);
+    ui->tableWidgetMasternodesDIP3->setFont(font);
+    ui->tableWidgetMasternodesDIP3->horizontalHeader()->setFont(font);
+    ui->tableWidgetMasternodesDIP3->verticalHeader()->setFont(font);
+}

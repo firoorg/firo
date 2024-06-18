@@ -67,7 +67,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     headerLayout->addWidget(watchOnlyWidget);
 
     instantsendWidget = new QComboBox(this);
-    instantsendWidget->setFixedWidth(150);
     instantsendWidget->addItem(tr("All"), TransactionFilterProxy::InstantSendFilter_All);
     instantsendWidget->addItem(tr("Locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_Yes);
     instantsendWidget->addItem(tr("Not locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_No);
@@ -710,4 +709,65 @@ void TransactionView::updateWatchOnlyColumn(bool fHaveWatchOnly)
 {
     watchOnlyWidget->setVisible(fHaveWatchOnly);
     transactionView->setColumnHidden(TransactionTableModel::Watchonly, !fHaveWatchOnly);
+}
+
+// Handles resize events for the TransactionView widget by adjusting internal component sizes.
+void TransactionView::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event); 
+
+    // Retrieve new dimensions from the resize event
+    const int newWidth = event->size().width();
+    const int newHeight = event->size().height();
+
+    adjustTextSize(newWidth, newHeight);
+
+    int headerHeight = newHeight * 0.1; 
+
+    // Calculate the height of widgets in the header subtracting a small margin
+    int widgetHeight = headerHeight - 5; 
+
+    // Determine widths for specific widgets as percentages of total width
+    int comboBoxesWidgetWidth = newWidth * 0.10; 
+    int addressWidgetWidth = newWidth * 0.25; 
+
+    dateWidget->setFixedWidth(comboBoxesWidgetWidth);
+    typeWidget->setFixedWidth(comboBoxesWidgetWidth);
+    amountWidget->setFixedWidth(comboBoxesWidgetWidth);
+    instantsendWidget->setFixedWidth(comboBoxesWidgetWidth);
+
+    int tableViewHeight = newHeight - headerHeight; 
+    
+    // Calculate and set column widths based on new width, keeping proportions
+    int statusColumnWidth = newWidth * 0.05;
+    int watchOnlyColumnWidth = newWidth * 0.05;
+    int instantSendColumnWidth = newWidth * 0.05;
+    int dateColumnWidth = newWidth * 0.08;
+    int typeColumnWidth = newWidth * 0.10;
+    int addressColumnWidth = newWidth * 0.25; 
+
+    transactionView->setColumnWidth(TransactionTableModel::Status, statusColumnWidth);
+    transactionView->setColumnWidth(TransactionTableModel::Watchonly, watchOnlyColumnWidth);
+    transactionView->setColumnWidth(TransactionTableModel::InstantSend, instantSendColumnWidth);
+    transactionView->setColumnWidth(TransactionTableModel::Date, dateColumnWidth);
+    transactionView->setColumnWidth(TransactionTableModel::Type, typeColumnWidth);
+    transactionView->setColumnWidth(TransactionTableModel::ToAddress, addressColumnWidth);
+}
+void TransactionView::adjustTextSize(int width,int height){
+
+    const double fontSizeScalingFactor = 65.0;
+    int baseFontSize = std::min(width, height) / fontSizeScalingFactor;
+    int fontSize = std::min(15, std::max(12, baseFontSize));
+    QFont font = this->font();
+    font.setPointSize(fontSize);
+
+    // Set font size for all labels
+    transactionView->setFont(font);
+    transactionView->horizontalHeader()->setFont(font);
+    transactionView->verticalHeader()->setFont(font);
+    dateWidget->setFont(font);
+    typeWidget->setFont(font);
+    amountWidget->setFont(font);
+    instantsendWidget->setFont(font);
+    addressWidget->setFont(font);
 }
