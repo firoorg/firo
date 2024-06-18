@@ -14,6 +14,7 @@
 
 #include <QApplication>
 #include <QClipboard>
+#include<QResizeEvent>
 
 SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *parent) :
     QStackedWidget(parent),
@@ -264,4 +265,42 @@ bool SendCoinsEntry::updateLabel(const QString &address)
 
     ui->addAsLabel->setText(associatedLabel);
     return true;
+}
+void SendCoinsEntry::resizeEvent(QResizeEvent* event) {
+    QStackedWidget::resizeEvent(event);
+
+    const int newWidth = event->size().width();
+    const int newHeight = event->size().height();
+
+    adjustTextSize(newWidth, newHeight);
+}
+
+
+void SendCoinsEntry::adjustTextSize(int width, int height) {
+   const double fontSizeScalingFactor = 130.0;
+    int baseFontSize = width / fontSizeScalingFactor;
+    int fontSize = std::max(12,baseFontSize);
+    QFont font = this->font();
+    font.setPointSize(fontSize);
+
+    ui->payToLabel->setFont(font);
+    ui->labellLabel->setFont(font);
+    ui->addAsLabel->setFont(font);
+    ui->amountLabel->setFont(font);
+    ui->messageLabel->setFont(font);
+    ui->messageTextLabel->setFont(font);
+    ui->payTo->setFont(font);
+    ui->payTo_is->setFont(font);
+    ui->memoLabel_is->setFont(font);
+    ui->memoTextLabel_is->setFont(font);
+    ui->amountLabel_is->setFont(font);
+    ui->payToLabel_s->setFont(font);
+    ui->payTo_s->setFont(font);
+    ui->memoLabel_s->setFont(font);
+    ui->memoTextLabel_s->setFont(font);
+    ui->amountLabel_s->setFont(font);
+    ui->checkboxSubtractFeeFromAmount->setFont(font);
+    ui->deleteButton->setFont(font);
+    ui->pasteButton->setFont(font);
+    ui->addressBookButton->setFont(font);
 }

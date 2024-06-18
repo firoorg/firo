@@ -1404,3 +1404,87 @@ bool SendGoPrivateDialog::getClickedButton()
 {
     return clickedButton;
 }
+void SendCoinsDialog::resizeEvent(QResizeEvent* event) {
+    QWidget::resizeEvent(event);
+
+    // Retrieve new dimensions from the resize event
+    const int newWidth = event->size().width();
+    const int newHeight = event->size().height();
+
+    const int labelMinWidth = static_cast<int>(newWidth * 0.15);
+
+    // Resize and adjust components
+    ui->sendButton->setMinimumWidth(labelMinWidth);
+    ui->clearButton->setMinimumWidth(labelMinWidth);
+    ui->addButton->setMinimumWidth(labelMinWidth);
+    ui->buttonChooseFee->setMinimumWidth(labelMinWidth);
+    ui->buttonMinimizeFee->setMinimumWidth(labelMinWidth);
+    ui->switchFundButton->setMinimumWidth(labelMinWidth);
+    ui->pushButtonCoinControl->setMinimumWidth(labelMinWidth);
+
+
+    // Dynamically adjust text sizes based on the new dimensions
+    adjustTextSize(newWidth, newHeight);
+}
+
+void SendCoinsDialog::adjustTextSize(int width, int height) {
+    const double fontSizeScalingFactor = 131.3;
+    int baseFontSize = width / fontSizeScalingFactor;
+    int fontSize = std::min(15, std::max(12, baseFontSize));
+
+    QFont font =  ui->labelBalance->font();
+    font.setPointSize(fontSize);
+
+    QFont textFont = font;
+    textFont.setBold(true);
+
+    // Set font size for all labels
+    ui->labelBalance->setFont(font);
+    ui->lineEditCoinControlChange->setFont(font);
+    ui->labelFeeEstimation->setFont(font);
+    ui->labelFeeHeadline->setFont(font);
+    ui->labelCoinControlFeatures->setFont(textFont);
+    ui->labelCoinControlAutomaticallySelected->setFont(font);
+    ui->labelCoinControlInsuffFunds->setFont(font);
+    ui->labelCoinControlQuantity->setFont(font);
+    ui->labelCoinControlBytes->setFont(font);
+    ui->labelCoinControlAmount->setFont(font);
+    ui->labelCoinControlLowOutput->setFont(font);
+    ui->labelCoinControlFee->setFont(font);
+    ui->labelCoinControlAfterFee->setFont(font);
+    ui->labelCoinControlChange->setFont(font);
+    ui->labelFeeMinimized->setFont(font);
+    ui->labelBalance->setFont(font);
+    ui->radioSmartFee->setFont(font);
+    ui->radioCustomPerKilobyte->setFont(font);
+    ui->radioCustomFee->setFont(font);
+    ui->radioCustomAtLeast->setFont(font);
+    ui->labelBalanceText->setFont(font);
+    ui->labelFeeEstimation->setFont(font);
+    ui->labelSmartFee->setFont(font);
+    ui->labelSmartFee2->setFont(font);
+    ui->labelSmartFee3->setFont(font);
+    ui->labelSmartFeeNormal->setFont(font);
+    ui->labelSmartFeeFast->setFont(font);
+    ui->labelCoinControlQuantityText->setFont(font);
+    ui->labelCoinControlBytesText->setFont(font);
+    ui->labelCoinControlAmountText->setFont(font);
+    ui->labelCoinControlLowOutputText->setFont(font);
+    ui->labelCoinControlFeeText->setFont(font);
+    ui->labelCoinControlAfterFeeText->setFont(font);
+    ui->labelCoinControlChangeText->setFont(font);
+    ui->labelCoinControlChangeLabel->setFont(font);
+    ui->labelMinFeeWarning->setFont(font);
+    ui->fallbackFeeWarningLabel->setFont(font);
+    ui->checkBoxMinimumFee->setFont(font);
+    ui->checkBoxCoinControlChange->setFont(font);
+    ui->confirmationTargetLabel->setFont(font);
+
+
+    // Adjust font for all buttons 
+    ui->sendButton->setFont(font);
+    ui->clearButton->setFont(font);
+    ui->addButton->setFont(font);
+    ui->pushButtonCoinControl->setFont(font);
+    ui->customFee->setFont(font);
+}

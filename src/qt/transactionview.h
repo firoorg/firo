@@ -9,6 +9,7 @@
 
 #include <QWidget>
 #include <QKeyEvent>
+#include <QResizeEvent>
 
 class PlatformStyle;
 class TransactionFilterProxy;
@@ -37,6 +38,8 @@ public:
     explicit TransactionView(const PlatformStyle *platformStyle, QWidget *parent = 0);
 
     void setModel(WalletModel *model);
+    void resizeEvent(QResizeEvent* event) override;
+    void adjustTextSize(int width, int height);
 
     // Date ranges for filter
     enum DateEnum

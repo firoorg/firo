@@ -16,6 +16,8 @@
 #include <QSettings>
 #include <QMessageBox>
 #include <QTimer>
+#include <QResizeEvent>
+
 
 class ClientModel;
 class TransactionFilterProxy;
@@ -44,6 +46,7 @@ public:
     void setWalletModel(WalletModel *walletModel);
     void showOutOfSyncWarning(bool fShow);
     void UpdatePropertyBalance(unsigned int propertyId, uint64_t available, uint64_t reserved);
+    void resizeEvent(QResizeEvent* event) override;
 
 public Q_SLOTS:
     void on_anonymizeButton_clicked();
@@ -89,7 +92,7 @@ private:
     QString migrationWindowClosesIn;
     QString blocksRemaining;
     QString migrateAmount;
-
+    void adjustTextSize(int width,int height);
 private Q_SLOTS:
     void updateDisplayUnit();
     void handleTransactionClicked(const QModelIndex &index);

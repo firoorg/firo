@@ -510,7 +510,7 @@ void BitcoinGUI::createToolBars()
 {
     if(walletFrame)
     {
-        QToolBar *toolbar = addToolBar(tr("Tabs toolbar"));
+        toolbar = addToolBar(tr("Tabs toolbar"));
         toolbar->setContextMenuPolicy(Qt::PreventContextMenu);
         toolbar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         toolbar->setToolButtonStyle(Qt::ToolButtonTextOnly);
@@ -523,7 +523,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(lelantusAction);
         toolbar->addAction(masternodeAction);
 
-        QLabel *logoLabel = new QLabel();
+        logoLabel = new QLabel();
         logoLabel->setObjectName("lblToolbarLogo");
         logoLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         
@@ -1473,4 +1473,27 @@ void UnitDisplayStatusBarControl::onMenuSelection(QAction* action)
     {
         optionsModel->setDisplayUnit(action->data());
     }
+}
+
+// Handles resize events for the BitcoinGUI widget by adjusting internal component sizes.
+void BitcoinGUI::resizeEvent(QResizeEvent* event) {
+    QMainWindow::resizeEvent(event);  
+
+    // Retrieve new dimensions from the resize event
+    int newWidth = event->size().width();
+    int newHeight = event->size().height();
+    int actionWidth = newWidth / 6;
+
+    // Set widths for each action dynamically
+    QWidget* overviewWidget = toolbar->widgetForAction(overviewAction);
+    QWidget* receiveWidget = toolbar->widgetForAction(receiveCoinsAction);
+    QWidget* historyWidget = toolbar->widgetForAction(historyAction);
+    QWidget* sendCoinsWidget = toolbar->widgetForAction(sendCoinsAction);
+    QWidget* masternodeWidget = toolbar->widgetForAction(masternodeAction);
+
+    overviewWidget->setMinimumWidth(actionWidth);
+    receiveWidget->setMinimumWidth(actionWidth);
+    historyWidget->setMinimumWidth(actionWidth);
+    sendCoinsWidget->setMinimumWidth(actionWidth);
+    masternodeWidget->setMinimumWidth(actionWidth);
 }

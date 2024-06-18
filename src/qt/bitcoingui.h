@@ -17,6 +17,8 @@
 #include <QMenu>
 #include <QPoint>
 #include <QSystemTrayIcon>
+#include <QPushButton>
+#include <QWidget>
 
 class ClientModel;
 class NetworkStyle;
@@ -121,7 +123,8 @@ private:
     QAction *lelantusAction;
     QAction *masternodeAction;
     QAction *logoAction;
-
+    QToolBar *toolbar;
+    QLabel *logoLabel;
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
     Notificator *notificator;
@@ -141,6 +144,7 @@ private:
     void createMenuBar();
     /** Create the toolbars */
     void createToolBars();
+    void resizeEvent(QResizeEvent*);
     /** Create system tray icon and notification */
     void createTrayIcon(const NetworkStyle *networkStyle);
     /** Create system tray menu (or setup the dock menu) */

@@ -498,3 +498,103 @@ bool MigrateLelantusToSparkDialog::getClickedButton()
 {
     return clickedButton;
 }
+void OverviewPage::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event); 
+
+    // Retrieve new dimensions from the resize event
+    const int newWidth = event->size().width();
+    const int newHeight = event->size().height();
+    adjustTextSize(newWidth, newHeight);
+
+    // Determine widths for specific widgets as percentages of total width
+    int labelWidth = static_cast<int>(newWidth * 0.5);
+    int labelMinWidth = static_cast<int>(newWidth * 0.15);
+    int labelMaxWidth = static_cast<int>(newWidth * 0.35);
+    const int labelHeight = 20;
+
+    // Configure the dimensions and constraints of each widget
+    ui->labelBalance->setFixedWidth(labelWidth);
+    ui->labelBalance->setMinimumWidth(labelMinWidth);
+    ui->labelBalance->setMaximumWidth(labelMaxWidth);
+    ui->labelBalance->setFixedHeight(labelHeight);
+
+    ui->labelUnconfirmed->setFixedWidth(labelWidth);
+    ui->labelUnconfirmed->setMinimumWidth(labelMinWidth);
+    ui->labelUnconfirmed->setMaximumWidth(labelMaxWidth);
+    ui->labelUnconfirmed->setFixedHeight(labelHeight);
+
+    int buttonWidth = static_cast<int>(newWidth * 0.15);
+    int buttonHeight = static_cast<int>(newHeight * 0.05);
+    int buttonMinHeight = static_cast<int>(20);
+    int buttonMaxHeight = static_cast<int>(45);
+
+    ui->anonymizeButton->setMinimumWidth(buttonWidth);
+    ui->anonymizeButton->setMaximumWidth(buttonWidth * 2);
+    ui->anonymizeButton->setMinimumHeight(buttonMinHeight);
+    ui->anonymizeButton->setMaximumHeight(buttonMaxHeight);
+
+    // Set the minimum width for all label widgets to ensure they maintain a consistent and readable size regardless of window resizing
+    ui->labelAnonymizable->setMinimumWidth(labelMinWidth);
+    ui->labelAlerts->setMinimumWidth(labelMinWidth);
+    ui->label->setMinimumWidth(labelMinWidth);
+    ui->labelWatchPending->setMinimumWidth(labelMinWidth);
+    ui->labelBalance->setMinimumWidth(labelMinWidth);
+    ui->labelSpendable->setMinimumWidth(labelMinWidth);
+    ui->labelWatchAvailable->setMinimumWidth(labelMinWidth);
+    ui->labelUnconfirmedPrivate->setMinimumWidth(labelMinWidth);
+    ui->labelWatchonly->setMinimumWidth(labelMinWidth);
+    ui->labelTotal->setMinimumWidth(labelMinWidth);
+    ui->labelWatchTotal->setMinimumWidth(labelMinWidth);
+    ui->labelUnconfirmed->setMinimumWidth(labelMinWidth);
+    ui->labelImmature->setMinimumWidth(labelMinWidth);
+    ui->labelPrivate->setMinimumWidth(labelMinWidth);
+    ui->label_4->setMinimumWidth(labelMinWidth);
+}
+void OverviewPage::adjustTextSize(int width, int height){
+
+    const double fontSizeScalingFactor = 133.0;
+    int baseFontSize = width / fontSizeScalingFactor;
+    int fontSize = std::min(15, std::max(12, baseFontSize));
+    
+    // Font for regular text components(not bold)
+    QFont textFont = ui->labelBalance->font();
+    textFont.setPointSize(fontSize);
+    textFont.setBold(false);
+
+   // Font for text components that should be bold
+    QFont labelFont = textFont;
+    labelFont.setBold(true);
+
+    ui->textWarning1->setFont(textFont);
+    ui->textWarning2->setFont(textFont);
+    ui->labelWalletStatus->setFont(textFont);
+    ui->anonymizeButton->setFont(textFont);
+
+    // Apply label font to all label components
+    ui->labelAlerts->setFont(labelFont);
+    ui->label_5->setFont(labelFont);
+    ui->labelAnonymizableText->setFont(textFont);
+    ui->label->setFont(labelFont);
+    ui->labelAnonymizable->setFont(labelFont);
+    ui->labelWatchPending->setFont(labelFont);
+    ui->labelBalance->setFont(labelFont);
+    ui->labelSpendable->setFont(labelFont);
+    ui->labelWatchAvailable->setFont(labelFont);
+    ui->labelPendingText->setFont(textFont);
+    ui->labelUnconfirmedPrivate->setFont(labelFont);
+    ui->labelUnconfirmedPrivateText->setFont(textFont);
+    ui->labelTotalText->setFont(textFont);
+    ui->labelWatchonly->setFont(labelFont);
+    ui->labelBalanceText->setFont(textFont);
+    ui->labelTotal->setFont(labelFont);
+    ui->labelWatchTotal->setFont(labelFont);
+    ui->labelUnconfirmed->setFont(labelFont);
+    ui->labelImmatureText->setFont(textFont);
+    ui->labelImmature->setFont(labelFont);
+    ui->labelWatchImmature->setFont(labelFont);
+    ui->labelPrivateText->setFont(textFont);
+    ui->labelPrivate->setFont(labelFont);
+    ui->label_4->setFont(labelFont);
+   
+}
