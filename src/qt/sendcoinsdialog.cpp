@@ -394,15 +394,6 @@ void SendCoinsDialog::on_sendButton_clicked()
             return;
         }
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
-        if (spark::IsSparkAllowed()) {
-            SendGoPrivateDialog goPrivateDialog;
-            bool clickedButton = goPrivateDialog.getClickedButton();
-            if (!clickedButton) {
-                setAnonymizeMode(true);
-                fNewRecipientAllowed = true;
-                return;
-            }
-        }
         prepareStatus = model->prepareTransaction(currentTransaction, &ctrl);
     } else {
         fNewRecipientAllowed = true;
@@ -428,6 +419,15 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     // Format confirmation message
     QStringList formatted;
+    QString warningMessage;
+
+    for(int i = 0; i < recipients.size(); ++i) {
+        warningMessage = entry->generateWarningText(recipients[i].address, fAnonymousMode);
+        if ((model->validateSparkAddress(recipients[i].address)) || (recipients[i].address.startsWith("EX"))) {
+            break;
+        }
+    }
+
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
         for(int i = 0; i < recipients.size(); i++) {
@@ -530,6 +530,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     QString questionString = tr("Are you sure you want to send?");
+    questionString.append(warningMessage);
     questionString.append("<br /><br />%1");
     double txSize;
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
@@ -688,9 +689,9 @@ void SendCoinsDialog::on_sendButton_clicked()
 void SendCoinsDialog::on_switchFundButton_clicked()
 {
     setAnonymizeMode(!fAnonymousMode);
-    coinControlUpdateLabels();
-
+    entry->setfAnonymousMode(fAnonymousMode);
     entry->setWarning(fAnonymousMode);
+    coinControlUpdateLabels();
 }
 
 void SendCoinsDialog::clear()
@@ -719,7 +720,9 @@ SendCoinsEntry *SendCoinsDialog::addEntry()
 {
     entry = new SendCoinsEntry(platformStyle, this);
     entry->setModel(model);
+    entry->setfAnonymousMode(fAnonymousMode);
     entry->setWarning(fAnonymousMode);
+
     ui->entries->addWidget(entry);
     connect(entry, &SendCoinsEntry::removeEntry, this, &SendCoinsDialog::removeEntry);
     connect(entry, &SendCoinsEntry::payAmountChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
@@ -811,7 +814,6 @@ void SendCoinsDialog::setAddress(const QString &address)
     {
         entry = addEntry();
     }
-
     entry->setAddress(address);
 }
 
@@ -1339,71 +1341,6 @@ void SendConfirmationDialog::updateYesButton()
     }
 }
 
-SendGoPrivateDialog::SendGoPrivateDialog():QMessageBox()
-{
-    QDialog::setWindowTitle("Make this a private transaction");
-    QDialog::setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint);
-    
-    QLabel *ic = new QLabel();
-    QIcon icon_;
-    icon_.addFile(QString::fromUtf8(":/icons/ic_info"), QSize(), QIcon::Normal, QIcon::On);
-    ic->setPixmap(icon_.pixmap(18, 18));
-    ic->setFixedWidth(50);
-    ic->setAlignment(Qt::AlignRight);
-    ic->setStyleSheet("color:#92400E");
-    QLabel *text = new QLabel();
-    text->setText(tr("You are using a transparent transaction, please go private. If this is a masternode transaction, you do not have to go private"));
-    text->setAlignment(Qt::AlignLeft);
-    text->setWordWrap(true);
-    text->setStyleSheet("color:#92400E;");
-    
-    QPushButton *ignore = new QPushButton(this);
-    ignore->setText("Ignore");
-    ignore->setStyleSheet("color:#9b1c2e;background-color:none;margin-top:30px;margin-bottom:60px;margin-left:50px;margin-right:20px;border:1px solid #9b1c2e;");
-    QPushButton *goPrivate = new QPushButton(this);
-    goPrivate->setText("Go Private");
-    goPrivate->setStyleSheet("margin-top:30px;margin-bottom:60px;margin-left:20px;margin-right:50px;");
-    QHBoxLayout *groupButton = new QHBoxLayout(this);
-    groupButton->addWidget(ignore);
-    groupButton->addWidget(goPrivate);
-    
-    QHBoxLayout *hlayout = new QHBoxLayout(this);
-    hlayout->addWidget(ic);
-    hlayout->addWidget(text);
-    
-    QWidget *layout_ = new QWidget();
-    layout_->setLayout(hlayout);
-    layout_->setStyleSheet("background-color:#FEF3C7;");
-    
-    QVBoxLayout *vlayout = new QVBoxLayout(this);
-    vlayout->addWidget(layout_);
-    vlayout->addLayout(groupButton);
-    vlayout->setContentsMargins(0,0,0,0);
-    QWidget *wbody = new QWidget();
-    wbody->setLayout(vlayout);
-    layout()->addWidget(wbody);
-    setContentsMargins(0, 0, 0, 0);
-    setStyleSheet("margin-right:-30px;");
-    setStandardButtons(0);    
-    connect(ignore, &QPushButton::clicked, this, &SendGoPrivateDialog::onIgnoreClicked);
-    connect(goPrivate, &QPushButton::clicked, this, &SendGoPrivateDialog::onGoPrivateClicked);
-    exec();
-}
-void SendGoPrivateDialog::onIgnoreClicked()
-{
-    setVisible(false);
-    clickedButton = true;
-}
-void SendGoPrivateDialog::onGoPrivateClicked()
-{
-    setVisible(false);
-    clickedButton = false;
-}
-
-bool SendGoPrivateDialog::getClickedButton()
-{
-    return clickedButton;
-}
 void SendCoinsDialog::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
 

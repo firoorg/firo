@@ -130,18 +130,4 @@ private:
     
 };
 
-class SendGoPrivateDialog : public QMessageBox
-{
-    Q_OBJECT
-private:
-    bool clickedButton;
-public:
-    SendGoPrivateDialog();
-    bool getClickedButton();
-
-private Q_SLOTS:
-    void onIgnoreClicked();
-    void onGoPrivateClicked();
-};
-
 #endif // BITCOIN_QT_SENDCOINSDIALOG_H

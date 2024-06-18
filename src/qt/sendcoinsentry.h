@@ -49,7 +49,9 @@ public:
 
     void setFocus();
     void setWarning(bool fAnonymousMode);
-    
+    void setfAnonymousMode(bool fAnonymousMode);
+    static QString generateWarningText(const QString& address, const bool fAnonymousMode);
+
 public Q_SLOTS:
     void clear();
 
@@ -71,7 +73,7 @@ private:
     WalletModel *model;
     const PlatformStyle *platformStyle;
     bool isPcodeEntry;
-
+    bool fAnonymousMode = false;
     bool updateLabel(const QString &address);
     void resizeEvent(QResizeEvent* event) override;
     void adjustTextSize(int width, int height);
