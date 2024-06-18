@@ -86,8 +86,8 @@ private:
 
     QTimer countDownTimer;
     int secDelay;
-    QString lelantusGracefulPeriod;
-    QString currentBlock;
+    QString migrationWindowClosesIn;
+    QString blocksRemaining;
     QString migrateAmount;
 
 private Q_SLOTS:

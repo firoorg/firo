@@ -19,6 +19,8 @@
 #include "transactiontablemodel.h"
 #include "walletmodel.h"
 #include "validation.h"
+#include "askpassphrasedialog.h"
+
 
 #ifdef WIN32
 #include <string.h>
@@ -380,14 +382,18 @@ void OverviewPage::onRefreshClicked()
 {
     auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
     auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
+    int heightDifference = lGracefulPeriod - chainActive.Height();
+    const int approxBlocksPerDay = 570;
+    int daysUntilMigrationCloses = heightDifference / approxBlocksPerDay;
+
     if(privateBalance.first > 0 && chainActive.Height() < lGracefulPeriod && spark::IsSparkAllowed()) {
         ui->warningFrame->show();
-        lelantusGracefulPeriod = QString::fromStdString(std::to_string(lGracefulPeriod));
-        currentBlock = QString::fromStdString(std::to_string(chainActive.Height()));
+        migrationWindowClosesIn = QString::fromStdString(std::to_string(daysUntilMigrationCloses));
+        blocksRemaining = QString::fromStdString(std::to_string(heightDifference));
         migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
         migrateAmount.append("</b>");
-        ui->textWarning1->setText(tr("Firo is migrating to Spark. Redemption of coins in Lelantus will be disabled at block %1. <i>Current block is %2</i>.").arg(lelantusGracefulPeriod, currentBlock));
-        ui->textWarning2->setText(tr("to migrate %1 from Lelantus.").arg(migrateAmount));
+        ui->textWarning1->setText(tr("We have detected Lelantus coins that have not been migrated to Spark. Migration window will close in %1 blocks (~ %2 days).").arg(blocksRemaining , migrationWindowClosesIn));
+        ui->textWarning2->setText(tr("to migrate %1 ").arg(migrateAmount));
         QFont qFont = ui->migrateButton->font();
         qFont.setUnderline(true);
         ui->migrateButton->setFont(qFont);
@@ -398,11 +404,27 @@ void OverviewPage::onRefreshClicked()
 
 void OverviewPage::migrateClicked()
 {
-    if(walletModel->getAvailableLelantusCoins() && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod){
-        MigrateLelantusToSparkDialog migrate(walletModel);
+    auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
+    auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
+    migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
+    migrateAmount.append("</b>");
+    QString info = tr("Your wallet needs to be unlocked to migrate your funds to Spark.");
+
+    if(walletModel->getEncryptionStatus() == WalletModel::Locked) {
+
+        AskPassphraseDialog dlg(AskPassphraseDialog::Unlock, this, info);
+        dlg.setModel(walletModel);
+        dlg.exec();
+    }
+    if (walletModel->getEncryptionStatus() == WalletModel::Unlocked){
+        if(walletModel->getAvailableLelantusCoins() && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod){
+            MigrateLelantusToSparkDialog migrate(walletModel);
+            if(!migrate.getClickedButton()){
+                ui->warningFrame->hide();
+            }
+        }
     }
 }
-
 MigrateLelantusToSparkDialog::MigrateLelantusToSparkDialog(WalletModel *_model):QMessageBox()
 {
         this->model = _model;
