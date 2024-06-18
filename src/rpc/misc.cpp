@@ -1409,7 +1409,7 @@ UniValue getusedcoinstagstxhashes(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
                 "getusedcoinstagstxhashes\n"
-                "\nReturns the set of used coin tags.\n"
+                "\nReturns the set of used coin tags paired with tx ids in which it was spent, this rpc required -mobile argument, \n"
                 "\nArguments:\n"
                 "{\n"
                 "      \"startNumber \"  (int) Number of elements already existing on user side\n"
@@ -1493,7 +1493,7 @@ UniValue getmempoolsparktxids(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
                 "getmempoolsparktxids\n"
-                "\nReturns all mempool transaction ids.\n"
+                "\nReturns spark transaction ids existing in the mempool.\n"
         );
 
     UniValue result(UniValue::VARR);
@@ -1512,7 +1512,7 @@ UniValue getmempoolsparktxs(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
                 "getmempoolsparktxs\n"
-                "\nReturns spark data for each transaction.\n"
+                "\nReturns spark metadata for each transaction id, in case tx already was removed from mempool, nothing will be returned for specific id.\n"
                 "\nArguments:\n"
                 "  \"txids\"\n"
                 "    [\n"
@@ -1522,8 +1522,10 @@ UniValue getmempoolsparktxs(const JSONRPCRequest& request)
                 "      ,...\n"
                 "    ]\n"
                 "\nResult:\n"
-                "{\n"
-                "  \"txdata\"   (Pair<string,int>) nHeight and id for each coin\n"
+                "txid , {\n"
+                "  \"lTags\"   Array of GroupElements, or a string 'MintTX' in case it is mint tx\n"
+                "  \"serial_context\"   byte array which is used to identify the output spark coins, it is unique for each ix\n"
+                "  \"coins\" Array of serialized spar::Coin elements, the output coins of the tx\n"
                 "}\n"
                 + HelpExampleCli("getmempoolsparktxs", "'{\"txids\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}'")
                 + HelpExampleRpc("getmempoolsparktxs", "{\"txids\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}")
@@ -1567,7 +1569,7 @@ UniValue getmempoolsparktxs(const JSONRPCRequest& request)
         std::vector<unsigned char> serial_context = spark::getSerialContext(*tx);
         UniValue serial_context_json(UniValue::VARR);
         serial_context_json.push_back(EncodeBase64(serial_context.data(), serial_context.size()));
-        data.push_back(Pair("Serial_context", serial_context_json)); // spark serial context
+        data.push_back(Pair("serial_context", serial_context_json)); // spark serial context
 
         std::vector<spark::Coin>  coins = spark::GetSparkMintCoins(*tx);
         std::vector<UniValue> serialized_coins;
@@ -1579,7 +1581,7 @@ UniValue getmempoolsparktxs(const JSONRPCRequest& request)
             serialized_coins.push_back(EncodeBase64(vch.data(), size_t(vch.size()))); // coi
         }
         serialized_json.push_backV(serialized_coins);
-        data.push_back(Pair("Coins", serialized_json));
+        data.push_back(Pair("coins", serialized_json));
 
         result.push_back(Pair(EncodeBase64(txid.begin(), txid.size()), data));
     }
