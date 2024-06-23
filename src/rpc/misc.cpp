@@ -1629,6 +1629,49 @@ UniValue getzerocoinpoolbalance(const JSONRPCRequest& request)
     return  UniValue(nTotalAmount);
 }
 
+UniValue getCVE17144amount(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getCVE17144amount\n"
+                "\nReturns the total amount of forged coins during CVE-2018-17144 attacks.\n"
+                "\nArguments: none\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"total\"  (string) The total balance\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getCVE17144amount", "")
+                + HelpExampleRpc("getCVE17144amount", "")
+        );
+    // as the attack happened at block 293526,
+    // get the block
+    CBlockIndex *mintBlock = chainActive[293526];
+    CBlock block;
+    if (!ReadBlockFromDisk(block, mintBlock, ::Params().GetConsensus())) {
+        throw std::runtime_error(std::string("can't read block from disk, "));
+    }
+    CAmount amount = 0;
+    for (CTransactionRef tx : block.vtx) {
+        std::set<COutPoint> vInOutPoints;
+        if (!tx->IsCoinBase() && !tx->HasNoRegularInputs()) {
+            std::set<COutPoint> vInOutPoints;
+            for (const auto& txin : tx->vin)
+            {
+                if (!vInOutPoints.insert(txin.prevout).second) {
+                    CTransactionRef tx;
+                    uint256 hashBlock;
+                    if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock, true)) {
+                        continue;
+                    }
+                    amount += tx->vout[txin.prevout.n].nValue;
+                }
+            }
+        }
+    }
+    return amount;
+}
+
 UniValue getinfoex(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0)
@@ -1754,7 +1797,8 @@ static const CRPCCommand commands[] =
     /* Not shown in help */
     { "hidden",             "getinfoex",              &getinfoex,              false },
     { "addressindex",       "gettotalsupply",         &gettotalsupply,         false },
-    { "addressindex",       "getzerocoinpoolbalance", &getzerocoinpoolbalance,         false },
+    { "addressindex",       "getzerocoinpoolbalance", &getzerocoinpoolbalance, false },
+    { "addressindex",       "getCVE17144amount",      &getCVE17144amount,      false },
         /* Mobile related */
     { "mobile",             "getanonymityset",        &getanonymityset,        false  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
