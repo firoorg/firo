@@ -555,7 +555,7 @@ void OverviewPage::adjustTextSize(int width, int height){
 
     const double fontSizeScalingFactor = 133.0;
     int baseFontSize = width / fontSizeScalingFactor;
-    int fontSize = std::min(15, std::max(12, baseFontSize));
+    int fontSize = std::min(13, std::max(10, baseFontSize));
     
     // Font for regular text components(not bold)
     QFont textFont = ui->labelBalance->font();
