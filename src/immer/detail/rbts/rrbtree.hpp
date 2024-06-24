@@ -10,68 +10,80 @@
 
 #include <immer/config.hpp>
 #include <immer/detail/rbts/node.hpp>
-#include <immer/detail/rbts/position.hpp>
 #include <immer/detail/rbts/operations.hpp>
+#include <immer/detail/rbts/position.hpp>
 
 #include <immer/detail/type_traits.hpp>
 
 #include <cassert>
+#include <limits>
 #include <memory>
 #include <numeric>
+#include <stdexcept>
 
 namespace immer {
 namespace detail {
 namespace rbts {
 
-template <typename T,
-          typename MemoryPolicy,
-          bits_t   B,
-          bits_t   BL>
+template <typename T, typename MemoryPolicy, bits_t B, bits_t BL>
 struct rrbtree_iterator;
 
-template <typename T,
-          typename MemoryPolicy,
-          bits_t   B,
-          bits_t   BL>
+template <typename T, typename MemoryPolicy, bits_t B, bits_t BL>
 struct rrbtree
 {
     using node_t  = node<T, MemoryPolicy, B, BL>;
     using edit_t  = typename node_t::edit_t;
     using owner_t = typename MemoryPolicy::transience_t::owner;
 
-    size_t  size;
+    size_t size;
     shift_t shift;
     node_t* root;
     node_t* tail;
 
-    static const rrbtree& empty()
+    constexpr static size_t max_size()
     {
-        static const rrbtree empty_ {
-            0,
-            BL,
-            node_t::make_inner_n(0u),
-            node_t::make_leaf_n(0u)
-        };
-        return empty_;
+        auto S = sizeof(size_t) * 8;
+        return ((size_t{1} << BL) - std::min(size_t{BL}, size_t{2})) *
+               ipow((size_t{1} << B) - 2, (S - BL) / B);
+    }
+
+    static node_t* empty_root()
+    {
+        static const auto empty_ = []{
+            constexpr auto size = node_t::sizeof_inner_n(0);
+            static std::aligned_storage_t<size, alignof(std::max_align_t)> storage;
+            return node_t::make_inner_n_into(&storage, size, 0u);
+        }();
+        return empty_->inc();
+    }
+
+    static node_t* empty_tail()
+    {
+        static const auto empty_ = []{
+            constexpr auto size = node_t::sizeof_leaf_n(0);
+            static std::aligned_storage_t<size, alignof(std::max_align_t)> storage;
+            return node_t::make_leaf_n_into(&storage, size, 0u);
+        }();
+        return empty_->inc();
     }
 
     template <typename U>
     static auto from_initializer_list(std::initializer_list<U> values)
     {
-        auto e = owner_t{};
-        auto result = rrbtree{empty()};
+        auto e      = owner_t{};
+        auto result = rrbtree{};
         for (auto&& v : values)
             result.push_back_mut(e, v);
         return result;
     }
 
-    template <typename Iter, typename Sent,
-              std::enable_if_t
-              <compatible_sentinel_v<Iter, Sent>, bool> = true>
+    template <typename Iter,
+              typename Sent,
+              std::enable_if_t<compatible_sentinel_v<Iter, Sent>, bool> = true>
     static auto from_range(Iter first, Sent last)
     {
-        auto e = owner_t{};
-        auto result = rrbtree{empty()};
+        auto e      = owner_t{};
+        auto result = rrbtree{};
         for (; first != last; ++first)
             result.push_back_mut(e, *first);
         return result;
@@ -79,27 +91,39 @@ struct rrbtree
 
     static auto from_fill(size_t n, T v)
     {
-        auto e = owner_t{};
-        auto result = rrbtree{empty()};
-        while (n --> 0)
+        auto e      = owner_t{};
+        auto result = rrbtree{};
+        while (n-- > 0)
             result.push_back_mut(e, v);
         return result;
     }
 
-    rrbtree(size_t sz, shift_t sh, node_t* r, node_t* t)
-        : size{sz}, shift{sh}, root{r}, tail{t}
+    rrbtree() noexcept
+        : size{0}
+        , shift{BL}
+        , root{empty_root()}
+        , tail{empty_tail()}
     {
         assert(check_tree());
     }
 
-    rrbtree(const rrbtree& other)
+    rrbtree(size_t sz, shift_t sh, node_t* r, node_t* t) noexcept
+        : size{sz}
+        , shift{sh}
+        , root{r}
+        , tail{t}
+    {
+        assert(check_tree());
+    }
+
+    rrbtree(const rrbtree& other) noexcept
         : rrbtree{other.size, other.shift, other.root, other.tail}
     {
         inc();
     }
 
-    rrbtree(rrbtree&& other)
-        : rrbtree{empty()}
+    rrbtree(rrbtree&& other) noexcept
+        : rrbtree{}
     {
         swap(*this, other);
     }
@@ -111,25 +135,22 @@ struct rrbtree
         return *this;
     }
 
-    rrbtree& operator=(rrbtree&& other)
+    rrbtree& operator=(rrbtree&& other) noexcept
     {
         swap(*this, other);
         return *this;
     }
 
-    friend void swap(rrbtree& x, rrbtree& y)
+    friend void swap(rrbtree& x, rrbtree& y) noexcept
     {
         using std::swap;
-        swap(x.size,  y.size);
+        swap(x.size, y.size);
         swap(x.shift, y.shift);
-        swap(x.root,  y.root);
-        swap(x.tail,  y.tail);
+        swap(x.root, y.root);
+        swap(x.tail, y.tail);
     }
 
-    ~rrbtree()
-    {
-        dec();
-    }
+    ~rrbtree() { dec(); }
 
     void inc() const
     {
@@ -137,24 +158,18 @@ struct rrbtree
         tail->inc();
     }
 
-    void dec() const
-    {
-        traverse(dec_visitor());
-    }
+    void dec() const { traverse(dec_visitor()); }
 
-    auto tail_size() const
-    {
-        return size - tail_offset();
-    }
+    auto tail_size() const { return size - tail_offset(); }
 
     auto tail_offset() const
     {
         auto r = root->relaxed();
         assert(r == nullptr || r->d.count);
-        return
-            r               ? r->d.sizes[r->d.count - 1] :
-            size            ? (size - 1) & ~mask<BL>
-            /* otherwise */ : 0;
+        return r      ? r->d.sizes[r->d.count - 1]
+               : size ? (size - 1) & ~mask<BL>
+                      /* otherwise */
+                      : 0;
     }
 
     template <typename Visitor, typename... Args>
@@ -163,11 +178,15 @@ struct rrbtree
         auto tail_off  = tail_offset();
         auto tail_size = size - tail_off;
 
-        if (tail_off) visit_maybe_relaxed_sub(root, shift, tail_off, v, args...);
-        else make_empty_regular_pos(root).visit(v, args...);
+        if (tail_off)
+            visit_maybe_relaxed_sub(root, shift, tail_off, v, args...);
+        else
+            make_empty_regular_pos(root).visit(v, args...);
 
-        if (tail_size) make_leaf_sub_pos(tail, tail_size).visit(v, args...);
-        else make_empty_leaf_pos(tail).visit(v, args...);
+        if (tail_size)
+            make_leaf_sub_pos(tail, tail_size).visit(v, args...);
+        else
+            make_empty_leaf_pos(tail).visit(v, args...);
     }
 
     template <typename Visitor, typename... Args>
@@ -177,16 +196,19 @@ struct rrbtree
         auto tail_size = size - tail_off;
 
         if (first < tail_off)
-            visit_maybe_relaxed_sub(root, shift, tail_off, v,
+            visit_maybe_relaxed_sub(root,
+                                    shift,
+                                    tail_off,
+                                    v,
                                     first,
                                     last < tail_off ? last : tail_off,
                                     args...);
         if (last > tail_off)
-            make_leaf_sub_pos(tail, tail_size).visit(
-                v,
-                first > tail_off ? first - tail_off : 0,
-                last - tail_off,
-                args...);
+            make_leaf_sub_pos(tail, tail_size)
+                .visit(v,
+                       first > tail_off ? first - tail_off : 0,
+                       last - tail_off,
+                       args...);
     }
 
     template <typename Visitor, typename... Args>
@@ -195,11 +217,10 @@ struct rrbtree
         auto tail_off  = tail_offset();
         auto tail_size = size - tail_off;
         return (tail_off
-                ? visit_maybe_relaxed_sub(root, shift, tail_off, v, args...)
-                : make_empty_regular_pos(root).visit(v, args...))
-            && (tail_size
-                ? make_leaf_sub_pos(tail, tail_size).visit(v, args...)
-                : make_empty_leaf_pos(tail).visit(v, args...));
+                    ? visit_maybe_relaxed_sub(root, shift, tail_off, v, args...)
+                    : make_empty_regular_pos(root).visit(v, args...)) &&
+               (tail_size ? make_leaf_sub_pos(tail, tail_size).visit(v, args...)
+                          : make_empty_leaf_pos(tail).visit(v, args...));
     }
 
     template <typename Visitor, typename... Args>
@@ -207,29 +228,31 @@ struct rrbtree
     {
         auto tail_off  = tail_offset();
         auto tail_size = size - tail_off;
-        return
-            (first < tail_off
-             ? visit_maybe_relaxed_sub(root, shift, tail_off, v,
-                                       first,
-                                       last < tail_off ? last : tail_off,
-                                       args...)
-             : true)
-         && (last > tail_off
-             ? make_leaf_sub_pos(tail, tail_size).visit(
-                 v,
-                 first > tail_off ? first - tail_off : 0,
-                 last - tail_off,
-                 args...)
-             : true);
+        return (first < tail_off
+                    ? visit_maybe_relaxed_sub(root,
+                                              shift,
+                                              tail_off,
+                                              v,
+                                              first,
+                                              last < tail_off ? last : tail_off,
+                                              args...)
+                    : true) &&
+               (last > tail_off
+                    ? make_leaf_sub_pos(tail, tail_size)
+                          .visit(v,
+                                 first > tail_off ? first - tail_off : 0,
+                                 last - tail_off,
+                                 args...)
+                    : true);
     }
 
     template <typename Visitor>
     decltype(auto) descend(Visitor v, size_t idx) const
     {
-        auto tail_off  = tail_offset();
+        auto tail_off = tail_offset();
         return idx >= tail_off
-            ? make_leaf_descent_pos(tail).visit(v, idx - tail_off)
-            : visit_maybe_relaxed_descent(root, shift, v, idx);
+                   ? make_leaf_descent_pos(tail).visit(v, idx - tail_off)
+                   : visit_maybe_relaxed_descent(root, shift, v, idx);
     }
 
     template <typename Fn>
@@ -253,15 +276,18 @@ struct rrbtree
     template <typename Fn>
     bool for_each_chunk_p(size_t first, size_t last, Fn&& fn) const
     {
-        return traverse_p(for_each_chunk_p_i_visitor{}, first, last, std::forward<Fn>(fn));
+        return traverse_p(
+            for_each_chunk_p_i_visitor{}, first, last, std::forward<Fn>(fn));
     }
 
     bool equals(const rrbtree& other) const
     {
         using iter_t = rrbtree_iterator<T, MemoryPolicy, B, BL>;
-        if (size != other.size) return false;
-        if (size == 0) return true;
-        auto tail_off = tail_offset();
+        if (size != other.size)
+            return false;
+        if (size == 0)
+            return true;
+        auto tail_off       = tail_offset();
         auto tail_off_other = other.tail_offset();
         // compare trees
         if (tail_off > 0 && tail_off_other > 0) {
@@ -269,114 +295,137 @@ struct rrbtree
             // relaxed trees that sadly we haven't managed to exercise
             // in tests yet...
             if (other.shift >= shift) {
-                if (!visit_maybe_relaxed_sub(
-                        other.root, other.shift, tail_off_other,
-                        equals_visitor::rrb{}, iter_t{other},
-                        root, shift, tail_off))
+                if (!visit_maybe_relaxed_sub(other.root,
+                                             other.shift,
+                                             tail_off_other,
+                                             equals_visitor::rrb{},
+                                             iter_t{other},
+                                             root,
+                                             shift,
+                                             tail_off))
                     return false;
             } else {
-                if (!visit_maybe_relaxed_sub(
-                        root, shift, tail_off,
-                        equals_visitor::rrb{}, iter_t{*this},
-                        other.root, other.shift, tail_off_other))
+                if (!visit_maybe_relaxed_sub(root,
+                                             shift,
+                                             tail_off,
+                                             equals_visitor::rrb{},
+                                             iter_t{*this},
+                                             other.root,
+                                             other.shift,
+                                             tail_off_other))
                     return false;
             }
         }
-        return
-            tail_off == tail_off_other ? make_leaf_sub_pos(
-                tail, tail_size()).visit(
-                    equals_visitor{}, other.tail) :
-            tail_off > tail_off_other  ? std::equal(
-                tail->leaf(), tail->leaf() + (size - tail_off),
-                other.tail->leaf() + (tail_off - tail_off_other))
-            /* otherwise */            : std::equal(
-                tail->leaf(), tail->leaf() + (size - tail_off),
-                iter_t{other} + tail_off);
+        return tail_off == tail_off_other
+                   ? make_leaf_sub_pos(tail, tail_size())
+                         .visit(equals_visitor{}, other.tail)
+               : tail_off > tail_off_other
+                   ? std::equal(tail->leaf(),
+                                tail->leaf() + (size - tail_off),
+                                other.tail->leaf() +
+                                    (tail_off - tail_off_other))
+                   /* otherwise */
+                   : std::equal(tail->leaf(),
+                                tail->leaf() + (size - tail_off),
+                                iter_t{other} + tail_off);
     }
 
-    std::tuple<shift_t, node_t*>
-    push_tail(node_t* root, shift_t shift, size_t size,
-              node_t* tail, count_t tail_size) const
+    std::tuple<shift_t, node_t*> push_tail(node_t* root,
+                                           shift_t shift,
+                                           size_t size,
+                                           node_t* tail,
+                                           count_t tail_size) const
     {
         if (auto r = root->relaxed()) {
-            auto new_root = make_relaxed_pos(root, shift, r)
-                .visit(push_tail_visitor<node_t>{}, tail, tail_size);
+            auto new_root =
+                make_relaxed_pos(root, shift, r)
+                    .visit(push_tail_visitor<node_t>{}, tail, tail_size);
             if (new_root)
-                return { shift, new_root };
+                return std::make_tuple(shift, new_root);
             else {
                 auto new_root = node_t::make_inner_r_n(2);
-                try {
-                    auto new_path = node_t::make_path(shift, tail);
-                    new_root->inner() [0] = root->inc();
-                    new_root->inner() [1] = new_path;
-                    new_root->relaxed()->d.sizes [0] = size;
-                    new_root->relaxed()->d.sizes [1] = size + tail_size;
+                IMMER_TRY {
+                    auto new_path        = node_t::make_path(shift, tail);
+                    new_root->inner()[0] = root->inc();
+                    new_root->inner()[1] = new_path;
+                    new_root->relaxed()->d.sizes[0] = size;
+                    new_root->relaxed()->d.sizes[1] = size + tail_size;
+                    assert(size);
+                    assert(tail_size);
                     new_root->relaxed()->d.count = 2u;
-                } catch (...) {
-                    node_t::delete_inner_r(new_root, 2);
-                    throw;
                 }
-                return { shift + B, new_root };
+                IMMER_CATCH (...) {
+                    node_t::delete_inner_r(new_root, 2);
+                    IMMER_RETHROW;
+                }
+                return std::make_tuple(shift + B, new_root);
             }
         } else if (size == size_t{branches<B>} << shift) {
             auto new_root = node_t::make_inner_n(2);
-            try {
-                auto new_path = node_t::make_path(shift, tail);
-                new_root->inner() [0] = root->inc();
-                new_root->inner() [1] = new_path;
-            } catch (...) {
-                node_t::delete_inner(new_root, 2);
-                throw;
+            IMMER_TRY {
+                auto new_path        = node_t::make_path(shift, tail);
+                new_root->inner()[0] = root->inc();
+                new_root->inner()[1] = new_path;
             }
-            return { shift + B, new_root };
+            IMMER_CATCH (...) {
+                node_t::delete_inner(new_root, 2);
+                IMMER_RETHROW;
+            }
+            return std::make_tuple(shift + B, new_root);
         } else if (size) {
             auto new_root = make_regular_sub_pos(root, shift, size)
-                .visit(push_tail_visitor<node_t>{}, tail);
-            return { shift, new_root };
+                                .visit(push_tail_visitor<node_t>{}, tail);
+            return std::make_tuple(shift, new_root);
         } else {
-            return { shift, node_t::make_path(shift, tail) };
+            return std::make_tuple(shift, node_t::make_path(shift, tail));
         }
     }
 
-    void push_tail_mut(edit_t e, size_t tail_off,
-                       node_t* tail, count_t tail_size)
+    void
+    push_tail_mut(edit_t e, size_t tail_off, node_t* tail, count_t tail_size)
     {
         if (auto r = root->relaxed()) {
-            auto new_root = make_relaxed_pos(root, shift, r)
-                .visit(push_tail_mut_visitor<node_t>{}, e, tail, tail_size);
+            auto new_root =
+                make_relaxed_pos(root, shift, r)
+                    .visit(push_tail_mut_visitor<node_t>{}, e, tail, tail_size);
             if (new_root) {
                 root = new_root;
             } else {
                 auto new_root = node_t::make_inner_r_e(e);
-                try {
-                    auto new_path = node_t::make_path_e(e, shift, tail);
-                    new_root->inner() [0] = root;
-                    new_root->inner() [1] = new_path;
-                    new_root->relaxed()->d.sizes [0] = tail_off;
-                    new_root->relaxed()->d.sizes [1] = tail_off + tail_size;
+                IMMER_TRY {
+                    auto new_path        = node_t::make_path_e(e, shift, tail);
+                    new_root->inner()[0] = root;
+                    new_root->inner()[1] = new_path;
+                    new_root->relaxed()->d.sizes[0] = tail_off;
+                    new_root->relaxed()->d.sizes[1] = tail_off + tail_size;
+                    assert(tail_off);
+                    assert(tail_size);
                     new_root->relaxed()->d.count = 2u;
-                    root = new_root;
+                    root                         = new_root;
                     shift += B;
-                } catch (...) {
+                }
+                IMMER_CATCH (...) {
                     node_t::delete_inner_r_e(new_root);
-                    throw;
+                    IMMER_RETHROW;
                 }
             }
         } else if (tail_off == size_t{branches<B>} << shift) {
             auto new_root = node_t::make_inner_e(e);
-            try {
-                auto new_path = node_t::make_path_e(e, shift, tail);
-                new_root->inner() [0] = root;
-                new_root->inner() [1] = new_path;
-                root = new_root;
+            IMMER_TRY {
+                auto new_path        = node_t::make_path_e(e, shift, tail);
+                new_root->inner()[0] = root;
+                new_root->inner()[1] = new_path;
+                root                 = new_root;
                 shift += B;
-            } catch (...) {
+            }
+            IMMER_CATCH (...) {
                 node_t::delete_inner_e(new_root);
-                throw;
+                IMMER_RETHROW;
             }
         } else if (tail_off) {
-            auto new_root = make_regular_sub_pos(root, shift, tail_off)
-                .visit(push_tail_mut_visitor<node_t>{}, e, tail);
+            auto new_root =
+                make_regular_sub_pos(root, shift, tail_off)
+                    .visit(push_tail_mut_visitor<node_t>{}, e, tail);
             root = new_root;
         } else {
             auto new_root = node_t::make_path_e(e, shift, tail);
@@ -404,12 +453,13 @@ struct rrbtree
             using std::get;
             auto new_tail = node_t::make_leaf_e(e, std::move(value));
             auto tail_off = tail_offset();
-            try {
+            IMMER_TRY {
                 push_tail_mut(e, tail_off, tail, ts);
                 tail = new_tail;
-            } catch (...) {
+            }
+            IMMER_CATCH (...) {
                 node_t::delete_leaf(new_tail, 1u);
-                throw;
+                IMMER_RETHROW;
             }
         }
         ++size;
@@ -419,39 +469,38 @@ struct rrbtree
     {
         auto ts = tail_size();
         if (ts < branches<BL>) {
-            auto new_tail = node_t::copy_leaf_emplace(tail, ts,
-                                                      std::move(value));
-            return { size + 1, shift, root->inc(), new_tail };
+            auto new_tail =
+                node_t::copy_leaf_emplace(tail, ts, std::move(value));
+            return {size + 1, shift, root->inc(), new_tail};
         } else {
             using std::get;
             auto new_tail = node_t::make_leaf_n(1u, std::move(value));
             auto tail_off = tail_offset();
-            try {
-                auto new_root = push_tail(root, shift, tail_off,
-                                          tail, size - tail_off);
+            IMMER_TRY {
+                auto new_root =
+                    push_tail(root, shift, tail_off, tail, size - tail_off);
                 tail->inc();
-                return { size + 1, get<0>(new_root), get<1>(new_root), new_tail };
-            } catch (...) {
+                return {size + 1, get<0>(new_root), get<1>(new_root), new_tail};
+            }
+            IMMER_CATCH (...) {
                 node_t::delete_leaf(new_tail, 1u);
-                throw;
+                IMMER_RETHROW;
             }
         }
     }
 
-    std::tuple<const T*, size_t, size_t>
-    region_for(size_t idx) const
+    std::tuple<const T*, size_t, size_t> region_for(size_t idx) const
     {
         using std::get;
         auto tail_off = tail_offset();
         if (idx >= tail_off) {
-            return { tail->leaf(), tail_off, size };
+            return std::make_tuple(tail->leaf(), tail_off, size);
         } else {
             auto subs = visit_maybe_relaxed_sub(
-                root, shift, tail_off,
-                region_for_visitor<T>(), idx);
+                root, shift, tail_off, region_for_visitor<T>(), idx);
             auto first = idx - get<1>(subs);
             auto end   = first + get<2>(subs);
-            return { get<0>(subs), first, end };
+            return std::make_tuple(get<0>(subs), first, end);
         }
     }
 
@@ -460,11 +509,15 @@ struct rrbtree
         auto tail_off = tail_offset();
         if (idx >= tail_off) {
             ensure_mutable_tail(e, size - tail_off);
-            return tail->leaf() [(idx - tail_off) & mask<BL>];
+            return tail->leaf()[(idx - tail_off) & mask<BL>];
         } else {
-            return visit_maybe_relaxed_sub(
-                root, shift, tail_off,
-                get_mut_visitor<node_t>{}, idx, e, &root);
+            return visit_maybe_relaxed_sub(root,
+                                           shift,
+                                           tail_off,
+                                           get_mut_visitor<node_t>{},
+                                           idx,
+                                           e,
+                                           &root);
         }
     }
 
@@ -476,70 +529,60 @@ struct rrbtree
     const T& get_check(size_t index) const
     {
         if (index >= size)
-            throw std::out_of_range{"out of range"};
+            IMMER_THROW(std::out_of_range{"out of range"});
         return descend(get_visitor<T>(), index);
     }
 
-    const T& front() const
-    {
-        return get(0);
-    }
+    const T& front() const { return get(0); }
 
-    const T& back() const
-    {
-        return get(size - 1);
-    }
+    const T& back() const { return get(size - 1); }
 
     template <typename FnT>
     void update_mut(edit_t e, size_t idx, FnT&& fn)
     {
         auto& elem = get_mut(e, idx);
-        elem = std::forward<FnT>(fn) (std::move(elem));
+        elem       = std::forward<FnT>(fn)(std::move(elem));
     }
 
     template <typename FnT>
     rrbtree update(size_t idx, FnT&& fn) const
     {
-        auto tail_off  = tail_offset();
+        auto tail_off = tail_offset();
         if (idx >= tail_off) {
             auto tail_size = size - tail_off;
-            auto new_tail  = make_leaf_sub_pos(tail, tail_size)
-                .visit(update_visitor<node_t>{}, idx - tail_off, fn);
-            return { size, shift, root->inc(), new_tail };
+            auto new_tail =
+                make_leaf_sub_pos(tail, tail_size)
+                    .visit(update_visitor<node_t>{}, idx - tail_off, fn);
+            return {size, shift, root->inc(), new_tail};
         } else {
-            auto new_root  = visit_maybe_relaxed_sub(
-                root, shift, tail_off,
-                update_visitor<node_t>{}, idx, fn);
-            return { size, shift, new_root, tail->inc() };
+            auto new_root = visit_maybe_relaxed_sub(
+                root, shift, tail_off, update_visitor<node_t>{}, idx, fn);
+            return {size, shift, new_root, tail->inc()};
         }
     }
 
     void assoc_mut(edit_t e, size_t idx, T value)
     {
-        update_mut(e, idx, [&] (auto&&) {
-                return std::move(value);
-            });
+        update_mut(e, idx, [&](auto&&) { return std::move(value); });
     }
 
     rrbtree assoc(size_t idx, T value) const
     {
-        return update(idx, [&] (auto&&) {
-                return std::move(value);
-            });
+        return update(idx, [&](auto&&) { return std::move(value); });
     }
 
     void take_mut(edit_t e, size_t new_size)
     {
         auto tail_off = tail_offset();
         if (new_size == 0) {
-            *this = empty();
+            *this = {};
         } else if (new_size >= size) {
             return;
         } else if (new_size > tail_off) {
             auto ts    = size - tail_off;
             auto newts = new_size - tail_off;
             if (tail->can_mutate(e)) {
-                destroy_n(tail->leaf() + newts, ts - newts);
+                detail::destroy_n(tail->leaf() + newts, ts - newts);
             } else {
                 auto new_tail = node_t::copy_leaf_e(e, tail, newts);
                 dec_leaf(tail, ts);
@@ -559,12 +602,12 @@ struct rrbtree
                 root  = new_root;
                 shift = new_shift;
             } else {
-                root  = empty().root->inc();
+                root  = empty_root();
                 shift = BL;
             }
             dec_leaf(tail, size - tail_off);
-            size  = new_size;
-            tail  = new_tail;
+            size = new_size;
+            tail = new_tail;
             return;
         }
     }
@@ -573,12 +616,12 @@ struct rrbtree
     {
         auto tail_off = tail_offset();
         if (new_size == 0) {
-            return empty();
+            return {};
         } else if (new_size >= size) {
             return *this;
         } else if (new_size > tail_off) {
             auto new_tail = node_t::copy_leaf(tail, new_size - tail_off);
-            return { new_size, shift, root->inc(), new_tail };
+            return {new_size, shift, root->inc(), new_tail};
         } else {
             using std::get;
             auto l = new_size - 1;
@@ -588,11 +631,11 @@ struct rrbtree
             auto new_root  = get<1>(r);
             auto new_tail  = get<3>(r);
             if (new_root) {
-                assert(new_root->compute_shift() == get<0>(r));
+                IMMER_ASSERT_TAGGED(new_root->compute_shift() == get<0>(r));
                 assert(new_root->check(new_shift, new_size - get<2>(r)));
-                return { new_size, new_shift, new_root, new_tail };
+                return {new_size, new_shift, new_root, new_tail};
             } else {
-                return { new_size, BL, empty().root->inc(), new_tail };
+                return {new_size, BL, empty_root(), new_tail};
             }
         }
     }
@@ -604,27 +647,28 @@ struct rrbtree
         if (elems == 0) {
             return;
         } else if (elems >= size) {
-            *this = empty();
+            *this = {};
         } else if (elems == tail_off) {
             dec_inner(root, shift, tail_off);
             shift = BL;
-            root  = empty().root->inc();
+            root  = empty_root();
             size -= elems;
             return;
         } else if (elems > tail_off) {
             auto v = slice_left_mut_visitor<node_t>();
-            tail = get<1>(make_leaf_sub_pos(tail, size - tail_off).visit(
-                              v, elems - tail_off, e));
-            if (root != empty().root) {
+            tail   = get<1>(make_leaf_sub_pos(tail, size - tail_off)
+                              .visit(v, elems - tail_off, e));
+            if (tail_off) {
                 dec_inner(root, shift, tail_off);
                 shift = BL;
-                root  = empty().root->inc();
+                root  = empty_root();
             }
             size -= elems;
             return;
         } else {
             auto v = slice_left_mut_visitor<node_t>();
-            auto r = visit_maybe_relaxed_sub(root, shift, tail_off, v, elems, e);
+            auto r =
+                visit_maybe_relaxed_sub(root, shift, tail_off, v, elems, e);
             shift = get<0>(r);
             root  = get<1>(r);
             size -= elems;
@@ -637,28 +681,28 @@ struct rrbtree
         if (elems == 0) {
             return *this;
         } else if (elems >= size) {
-            return empty();
+            return {};
         } else if (elems == tail_offset()) {
-            return { size - elems, BL, empty().root->inc(), tail->inc() };
+            return {size - elems, BL, empty_root(), tail->inc()};
         } else if (elems > tail_offset()) {
             auto tail_off = tail_offset();
-            auto new_tail = node_t::copy_leaf(tail, elems - tail_off,
-                                              size - tail_off);
-            return { size - elems, BL, empty().root->inc(), new_tail };
+            auto new_tail =
+                node_t::copy_leaf(tail, elems - tail_off, size - tail_off);
+            return {size - elems, BL, empty_root(), new_tail};
         } else {
             using std::get;
             auto v = slice_left_visitor<node_t>();
-            auto r = visit_maybe_relaxed_sub(root, shift, tail_offset(), v, elems);
+            auto r =
+                visit_maybe_relaxed_sub(root, shift, tail_offset(), v, elems);
             auto new_root  = get<1>(r);
             auto new_shift = get<0>(r);
-            return { size - elems, new_shift, new_root, tail->inc() };
+            return {size - elems, new_shift, new_root, tail->inc()};
         }
-        return *this;
     }
 
     rrbtree concat(const rrbtree& r) const
     {
-        assert(r.size < (std::numeric_limits<size_t>::max() - size));
+        assert(r.size + size <= max_size());
         using std::get;
         if (size == 0)
             return r;
@@ -669,57 +713,68 @@ struct rrbtree
             auto tail_offst = tail_offset();
             auto tail_size  = size - tail_offst;
             if (tail_size == branches<BL>) {
-                auto new_root = push_tail(root, shift, tail_offst,
-                                          tail, tail_size);
+                auto new_root =
+                    push_tail(root, shift, tail_offst, tail, tail_size);
                 tail->inc();
-                return { size + r.size, get<0>(new_root), get<1>(new_root),
-                         r.tail->inc() };
+                return {size + r.size,
+                        get<0>(new_root),
+                        get<1>(new_root),
+                        r.tail->inc()};
             } else if (tail_size + r.size <= branches<BL>) {
-                auto new_tail = node_t::copy_leaf(tail, tail_size,
-                                                  r.tail, r.size);
-                return { size + r.size, shift, root->inc(), new_tail };
+                auto new_tail =
+                    node_t::copy_leaf(tail, tail_size, r.tail, r.size);
+                return {size + r.size, shift, root->inc(), new_tail};
             } else {
                 auto remaining = branches<BL> - tail_size;
-                auto add_tail  = node_t::copy_leaf(tail, tail_size,
-                                                   r.tail, remaining);
-                try {
-                    auto new_tail = node_t::copy_leaf(r.tail, remaining, r.size);
-                    try {
-                        auto new_root  = push_tail(root, shift, tail_offst,
-                                                   add_tail, branches<BL>);
-                        return { size + r.size,
-                                 get<0>(new_root), get<1>(new_root),
-                                 new_tail };
-                    } catch (...) {
-                        node_t::delete_leaf(new_tail, r.size - remaining);
-                        throw;
+                auto add_tail =
+                    node_t::copy_leaf(tail, tail_size, r.tail, remaining);
+                IMMER_TRY {
+                    auto new_tail =
+                        node_t::copy_leaf(r.tail, remaining, r.size);
+                    IMMER_TRY {
+                        auto new_root = push_tail(
+                            root, shift, tail_offst, add_tail, branches<BL>);
+                        return {size + r.size,
+                                get<0>(new_root),
+                                get<1>(new_root),
+                                new_tail};
                     }
-                } catch (...) {
+                    IMMER_CATCH (...) {
+                        node_t::delete_leaf(new_tail, r.size - remaining);
+                        IMMER_RETHROW;
+                    }
+                }
+                IMMER_CATCH (...) {
                     node_t::delete_leaf(add_tail, branches<BL>);
-                    throw;
+                    IMMER_RETHROW;
                 }
             }
         } else if (tail_offset() == 0) {
             auto tail_offst = tail_offset();
             auto tail_size  = size - tail_offst;
-            auto concated   = concat_trees(tail, tail_size,
-                                           r.root, r.shift, r.tail_offset());
-            auto new_shift  = concated.shift();
-            auto new_root   = concated.node();
-            assert(new_shift == new_root->compute_shift());
+            auto concated =
+                concat_trees(tail, tail_size, r.root, r.shift, r.tail_offset());
+            auto new_shift = concated.shift();
+            auto new_root  = concated.node();
+            IMMER_ASSERT_TAGGED(new_shift == new_root->compute_shift());
             assert(new_root->check(new_shift, size + r.tail_offset()));
-            return { size + r.size, new_shift, new_root, r.tail->inc() };
+            return {size + r.size, new_shift, new_root, r.tail->inc()};
         } else {
             auto tail_offst = tail_offset();
             auto tail_size  = size - tail_offst;
-            auto concated   = concat_trees(root, shift, tail_offst,
-                                           tail, tail_size,
-                                           r.root, r.shift, r.tail_offset());
+            auto concated   = concat_trees(root,
+                                         shift,
+                                         tail_offst,
+                                         tail,
+                                         tail_size,
+                                         r.root,
+                                         r.shift,
+                                         r.tail_offset());
             auto new_shift  = concated.shift();
             auto new_root   = concated.node();
-            assert(new_shift == new_root->compute_shift());
+            IMMER_ASSERT_TAGGED(new_shift == new_root->compute_shift());
             assert(new_root->check(new_shift, size + r.tail_offset()));
-            return { size + r.size, new_shift, new_root, r.tail->inc() };
+            return {size + r.size, new_shift, new_root, r.tail->inc()};
         }
     }
 
@@ -746,80 +801,108 @@ struct rrbtree
                 return;
             } else if (tail_size + r.size <= branches<BL>) {
                 l.ensure_mutable_tail(el, tail_size);
-                std::uninitialized_copy(r.tail->leaf(),
-                                        r.tail->leaf() + r.size,
-                                        l.tail->leaf() + tail_size);
+                detail::uninitialized_copy(r.tail->leaf(),
+                                           r.tail->leaf() + r.size,
+                                           l.tail->leaf() + tail_size);
                 l.size += r.size;
                 return;
             } else {
                 auto remaining = branches<BL> - tail_size;
                 l.ensure_mutable_tail(el, tail_size);
-                std::uninitialized_copy(r.tail->leaf(),
-                                        r.tail->leaf() + remaining,
-                                        l.tail->leaf() + tail_size);
-                try {
-                    auto new_tail = node_t::copy_leaf_e(el, r.tail, remaining, r.size);
-                    try {
+                detail::uninitialized_copy(r.tail->leaf(),
+                                           r.tail->leaf() + remaining,
+                                           l.tail->leaf() + tail_size);
+                IMMER_TRY {
+                    auto new_tail =
+                        node_t::copy_leaf_e(el, r.tail, remaining, r.size);
+                    IMMER_TRY {
                         l.push_tail_mut(el, tail_offst, l.tail, branches<BL>);
                         l.tail = new_tail;
                         l.size += r.size;
                         return;
-                    } catch (...) {
-                        node_t::delete_leaf(new_tail, r.size - remaining);
-                        throw;
                     }
-                } catch (...) {
-                    destroy_n(r.tail->leaf() + tail_size, remaining);
-                    throw;
+                    IMMER_CATCH (...) {
+                        node_t::delete_leaf(new_tail, r.size - remaining);
+                        IMMER_RETHROW;
+                    }
+                }
+                IMMER_CATCH (...) {
+                    detail::destroy_n(r.tail->leaf() + tail_size, remaining);
+                    IMMER_RETHROW;
                 }
             }
         } else if (l.tail_offset() == 0) {
             if (supports_transient_concat) {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees_mut(
-                    el,
-                    el, l.tail, tail_size,
-                    MemoryPolicy::transience_t::noone,
-                    r.root, r.shift, r.tail_offset());
-                assert(concated.shift() == concated.node()->compute_shift());
-                assert(concated.node()->check(concated.shift(), l.size + r.tail_offset()));
+                auto concated =
+                    concat_trees_mut(el,
+                                     el,
+                                     l.tail,
+                                     tail_size,
+                                     MemoryPolicy::transience_t::noone,
+                                     r.root,
+                                     r.shift,
+                                     r.tail_offset());
+                IMMER_ASSERT_TAGGED(concated.shift() ==
+                                    concated.node()->compute_shift());
                 l.size += r.size;
                 l.shift = concated.shift();
                 l.root  = concated.node();
                 l.tail  = r.tail;
+                assert(l.check_tree());
             } else {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees(l.tail, tail_size,
-                                               r.root, r.shift, r.tail_offset());
-                l = { l.size + r.size, concated.shift(),
-                      concated.node(), r.tail->inc() };
+                auto concated   = concat_trees(
+                    l.tail, tail_size, r.root, r.shift, r.tail_offset());
+                l = {l.size + r.size,
+                     concated.shift(),
+                     concated.node(),
+                     r.tail->inc()};
+                assert(l.check_tree());
                 return;
             }
         } else {
             if (supports_transient_concat) {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees_mut(
-                    el,
-                    el, l.root, l.shift, tail_offst, l.tail, tail_size,
-                    MemoryPolicy::transience_t::noone,
-                    r.root, r.shift, r.tail_offset());
-                assert(concated.shift() == concated.node()->compute_shift());
-                assert(concated.node()->check(concated.shift(), l.size + r.tail_offset()));
+                assert(l.check_tree());
+                assert(r.check_tree());
+                auto concated =
+                    concat_trees_mut(el,
+                                     el,
+                                     l.root,
+                                     l.shift,
+                                     tail_offst,
+                                     l.tail,
+                                     tail_size,
+                                     MemoryPolicy::transience_t::noone,
+                                     r.root,
+                                     r.shift,
+                                     r.tail_offset());
+                IMMER_ASSERT_TAGGED(concated.shift() ==
+                                    concated.node()->compute_shift());
                 l.size += r.size;
                 l.shift = concated.shift();
                 l.root  = concated.node();
                 l.tail  = r.tail;
+                assert(l.check_tree());
             } else {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees(l.root, l.shift, tail_offst,
-                                               l.tail, tail_size,
-                                               r.root, r.shift, r.tail_offset());
-                l = { l.size + r.size, concated.shift(),
-                      concated.node(), r.tail->inc() };
+                auto concated   = concat_trees(l.root,
+                                             l.shift,
+                                             tail_offst,
+                                             l.tail,
+                                             tail_size,
+                                             r.root,
+                                             r.shift,
+                                             r.tail_offset());
+                l               = {l.size + r.size,
+                     concated.shift(),
+                     concated.node(),
+                     r.tail->inc()};
             }
         }
     }
@@ -841,13 +924,12 @@ struct rrbtree
                 // this could be improved by making sure that the
                 // newly created nodes as part of the `push_tail()`
                 // are tagged with `er`
-                auto res = l.push_tail(l.root, l.shift, tail_offst,
-                                       l.tail, tail_size);
+                auto res =
+                    l.push_tail(l.root, l.shift, tail_offst, l.tail, tail_size);
                 l.tail->inc(); // note: leak if mutably concatenated
                                // with itself, but this is forbidden
                                // by the interface
-                r = { l.size + r.size, get<0>(res), get<1>(res),
-                      r.tail->inc() };
+                r = {l.size + r.size, get<0>(res), get<1>(res), r.tail->inc()};
                 return;
             } else if (tail_size + r.size <= branches<BL>) {
                 // doing this in a exception way mutating way is very
@@ -857,83 +939,111 @@ struct rrbtree
                 //
                 // we could however improve this by at least moving the
                 // elements of the right tail...
-                auto new_tail = node_t::copy_leaf(l.tail, tail_size,
-                                                  r.tail, r.size);
-                r = { l.size + r.size, l.shift, l.root->inc(), new_tail };
+                auto new_tail =
+                    node_t::copy_leaf(l.tail, tail_size, r.tail, r.size);
+                r = {l.size + r.size, l.shift, l.root->inc(), new_tail};
                 return;
             } else {
                 // like the immutable version
                 auto remaining = branches<BL> - tail_size;
-                auto add_tail  = node_t::copy_leaf_e(er,
-                                                     l.tail, tail_size,
-                                                     r.tail, remaining);
-                try {
-                    auto new_tail = node_t::copy_leaf_e(er, r.tail, remaining, r.size);
-                    try {
+                auto add_tail  = node_t::copy_leaf_e(
+                    er, l.tail, tail_size, r.tail, remaining);
+                IMMER_TRY {
+                    auto new_tail =
+                        node_t::copy_leaf_e(er, r.tail, remaining, r.size);
+                    IMMER_TRY {
                         // this could be improved by making sure that the
                         // newly created nodes as part of the `push_tail()`
                         // are tagged with `er`
-                        auto new_root = l.push_tail(l.root, l.shift, tail_offst,
-                                                    add_tail, branches<BL>);
-                        r = { l.size + r.size,
-                              get<0>(new_root), get<1>(new_root),
-                              new_tail };
+                        auto new_root = l.push_tail(l.root,
+                                                    l.shift,
+                                                    tail_offst,
+                                                    add_tail,
+                                                    branches<BL>);
+                        r             = {l.size + r.size,
+                             get<0>(new_root),
+                             get<1>(new_root),
+                             new_tail};
                         return;
-                    } catch (...) {
-                        node_t::delete_leaf(new_tail, r.size - remaining);
-                        throw;
                     }
-                } catch (...) {
-                    node_t::delete_leaf(add_tail, branches<BL>);
-                    throw;
+                    IMMER_CATCH (...) {
+                        node_t::delete_leaf(new_tail, r.size - remaining);
+                        IMMER_RETHROW;
+                    }
                 }
-                return;
+                IMMER_CATCH (...) {
+                    node_t::delete_leaf(add_tail, branches<BL>);
+                    IMMER_RETHROW;
+                }
             }
         } else if (l.tail_offset() == 0) {
             if (supports_transient_concat) {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees_mut(
-                    er,
-                    MemoryPolicy::transience_t::noone, l.tail, tail_size,
-                    er,r.root, r.shift, r.tail_offset());
-                assert(concated.shift() == concated.node()->compute_shift());
-                assert(concated.node()->check(concated.shift(), l.size + r.tail_offset()));
+                auto concated =
+                    concat_trees_mut(er,
+                                     MemoryPolicy::transience_t::noone,
+                                     l.tail,
+                                     tail_size,
+                                     er,
+                                     r.root,
+                                     r.shift,
+                                     r.tail_offset());
+                IMMER_ASSERT_TAGGED(concated.shift() ==
+                                    concated.node()->compute_shift());
                 r.size += l.size;
                 r.shift = concated.shift();
                 r.root  = concated.node();
+                assert(r.check_tree());
             } else {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees(l.tail, tail_size,
-                                               r.root, r.shift, r.tail_offset());
-                r = { l.size + r.size, concated.shift(),
-                      concated.node(), r.tail->inc() };
+                auto concated   = concat_trees(
+                    l.tail, tail_size, r.root, r.shift, r.tail_offset());
+                r = {l.size + r.size,
+                     concated.shift(),
+                     concated.node(),
+                     r.tail->inc()};
                 return;
             }
         } else {
             if (supports_transient_concat) {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees_mut(
-                    er,
-                    MemoryPolicy::transience_t::noone,
-                    l.root, l.shift, tail_offst, l.tail, tail_size,
-                    er, r.root, r.shift, r.tail_offset());
-                assert(concated.shift() == concated.node()->compute_shift());
-                assert(concated.node()->check(concated.shift(), l.size + r.tail_offset()));
+                auto concated =
+                    concat_trees_mut(er,
+                                     MemoryPolicy::transience_t::noone,
+                                     l.root,
+                                     l.shift,
+                                     tail_offst,
+                                     l.tail,
+                                     tail_size,
+                                     er,
+                                     r.root,
+                                     r.shift,
+                                     r.tail_offset());
+                IMMER_ASSERT_TAGGED(concated.shift() ==
+                                    concated.node()->compute_shift());
                 r.size += l.size;
                 r.shift = concated.shift();
                 r.root  = concated.node();
+                assert(r.check_tree());
                 return;
             } else {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees(l.root, l.shift, tail_offst,
-                                               l.tail, tail_size,
-                                               r.root, r.shift, r.tail_offset());
-                r = { l.size + r.size, concated.shift(),
-                      concated.node(), r.tail->inc() };
+                auto concated   = concat_trees(l.root,
+                                             l.shift,
+                                             tail_offst,
+                                             l.tail,
+                                             tail_size,
+                                             r.root,
+                                             r.shift,
+                                             r.tail_offset());
+                r               = {l.size + r.size,
+                     concated.shift(),
+                     concated.node(),
+                     r.tail->inc()};
                 return;
             }
         }
@@ -961,12 +1071,12 @@ struct rrbtree
                 l.ensure_mutable_tail(el, tail_size);
                 if (r.tail->can_mutate(er))
                     detail::uninitialized_move(r.tail->leaf(),
-                                              r.tail->leaf() + r.size,
-                                              l.tail->leaf() + tail_size);
+                                               r.tail->leaf() + r.size,
+                                               l.tail->leaf() + tail_size);
                 else
-                    std::uninitialized_copy(r.tail->leaf(),
-                                            r.tail->leaf() + r.size,
-                                            l.tail->leaf() + tail_size);
+                    detail::uninitialized_copy(r.tail->leaf(),
+                                               r.tail->leaf() + r.size,
+                                               l.tail->leaf() + tail_size);
                 l.size += r.size;
                 return;
             } else {
@@ -974,75 +1084,103 @@ struct rrbtree
                 l.ensure_mutable_tail(el, tail_size);
                 if (r.tail->can_mutate(er))
                     detail::uninitialized_move(r.tail->leaf(),
-                                              r.tail->leaf() + remaining,
-                                              l.tail->leaf() + tail_size);
+                                               r.tail->leaf() + remaining,
+                                               l.tail->leaf() + tail_size);
                 else
-                    std::uninitialized_copy(r.tail->leaf(),
-                                            r.tail->leaf() + remaining,
-                                            l.tail->leaf() + tail_size);
-                try {
-                    auto new_tail = node_t::copy_leaf_e(el, r.tail, remaining, r.size);
-                    try {
+                    detail::uninitialized_copy(r.tail->leaf(),
+                                               r.tail->leaf() + remaining,
+                                               l.tail->leaf() + tail_size);
+                IMMER_TRY {
+                    auto new_tail =
+                        node_t::copy_leaf_e(el, r.tail, remaining, r.size);
+                    IMMER_TRY {
                         l.push_tail_mut(el, tail_offst, l.tail, branches<BL>);
                         l.tail = new_tail;
                         l.size += r.size;
                         return;
-                    } catch (...) {
-                        node_t::delete_leaf(new_tail, r.size - remaining);
-                        throw;
                     }
-                } catch (...) {
-                    destroy_n(r.tail->leaf() + tail_size, remaining);
-                    throw;
+                    IMMER_CATCH (...) {
+                        node_t::delete_leaf(new_tail, r.size - remaining);
+                        IMMER_RETHROW;
+                    }
+                }
+                IMMER_CATCH (...) {
+                    detail::destroy_n(r.tail->leaf() + tail_size, remaining);
+                    IMMER_RETHROW;
                 }
             }
         } else if (l.tail_offset() == 0) {
             if (supports_transient_concat) {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees_mut(
-                    el,
-                    el, l.tail, tail_size,
-                    er, r.root, r.shift, r.tail_offset());
-                assert(concated.shift() == concated.node()->compute_shift());
-                assert(concated.node()->check(concated.shift(), l.size + r.tail_offset()));
+                auto concated   = concat_trees_mut(el,
+                                                 el,
+                                                 l.tail,
+                                                 tail_size,
+                                                 er,
+                                                 r.root,
+                                                 r.shift,
+                                                 r.tail_offset());
+                IMMER_ASSERT_TAGGED(concated.shift() ==
+                                    concated.node()->compute_shift());
                 l.size += r.size;
                 l.shift = concated.shift();
                 l.root  = concated.node();
                 l.tail  = r.tail;
+                assert(l.check_tree());
                 r.hard_reset();
+                return;
             } else {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees(l.tail, tail_size,
-                                               r.root, r.shift, r.tail_offset());
-                l = { l.size + r.size, concated.shift(),
-                      concated.node(), r.tail->inc() };
+                auto concated   = concat_trees(
+                    l.tail, tail_size, r.root, r.shift, r.tail_offset());
+                l = {l.size + r.size,
+                     concated.shift(),
+                     concated.node(),
+                     r.tail->inc()};
                 return;
             }
         } else {
             if (supports_transient_concat) {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees_mut(
-                    el,
-                    el, l.root, l.shift, tail_offst, l.tail, tail_size,
-                    er, r.root, r.shift, r.tail_offset());
-                assert(concated.shift() == concated.node()->compute_shift());
-                assert(concated.node()->check(concated.shift(), l.size + r.tail_offset()));
+                auto concated   = concat_trees_mut(el,
+                                                 el,
+                                                 l.root,
+                                                 l.shift,
+                                                 tail_offst,
+                                                 l.tail,
+                                                 tail_size,
+                                                 er,
+                                                 r.root,
+                                                 r.shift,
+                                                 r.tail_offset());
+                IMMER_ASSERT_TAGGED(concated.shift() ==
+                                    concated.node()->compute_shift());
                 l.size += r.size;
                 l.shift = concated.shift();
                 l.root  = concated.node();
                 l.tail  = r.tail;
+                assert(l.check_tree());
                 r.hard_reset();
+                return;
             } else {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees(l.root, l.shift, tail_offst,
-                                               l.tail, tail_size,
-                                               r.root, r.shift, r.tail_offset());
-                l = { l.size + r.size, concated.shift(),
-                      concated.node(), r.tail->inc() };
+                auto concated   = concat_trees(l.root,
+                                             l.shift,
+                                             tail_offst,
+                                             l.tail,
+                                             tail_size,
+                                             r.root,
+                                             r.shift,
+                                             r.tail_offset());
+                l               = {l.size + r.size,
+                     concated.shift(),
+                     concated.node(),
+                     r.tail->inc()};
+                return;
             }
         }
     }
@@ -1064,10 +1202,9 @@ struct rrbtree
                 // this could be improved by making sure that the
                 // newly created nodes as part of the `push_tail()`
                 // are tagged with `er`
-                auto res = l.push_tail(l.root, l.shift, tail_offst,
-                                       l.tail, tail_size);
-                r = { l.size + r.size, get<0>(res), get<1>(res),
-                      r.tail->inc() };
+                auto res =
+                    l.push_tail(l.root, l.shift, tail_offst, l.tail, tail_size);
+                r = {l.size + r.size, get<0>(res), get<1>(res), r.tail->inc()};
                 return;
             } else if (tail_size + r.size <= branches<BL>) {
                 // doing this in a exception way mutating way is very
@@ -1077,85 +1214,116 @@ struct rrbtree
                 //
                 // we could however improve this by at least moving the
                 // elements of the mutable tails...
-                auto new_tail = node_t::copy_leaf(l.tail, tail_size,
-                                                  r.tail, r.size);
-                r = { l.size + r.size, l.shift, l.root->inc(), new_tail };
+                auto new_tail =
+                    node_t::copy_leaf(l.tail, tail_size, r.tail, r.size);
+                r = {l.size + r.size, l.shift, l.root->inc(), new_tail};
                 return;
             } else {
                 // like the immutable version.
                 // we could improve this also by moving elements
                 // instead of just copying them
                 auto remaining = branches<BL> - tail_size;
-                auto add_tail  = node_t::copy_leaf_e(er,
-                                                     l.tail, tail_size,
-                                                     r.tail, remaining);
-                try {
-                    auto new_tail = node_t::copy_leaf_e(er, r.tail, remaining, r.size);
-                    try {
+                auto add_tail  = node_t::copy_leaf_e(
+                    er, l.tail, tail_size, r.tail, remaining);
+                IMMER_TRY {
+                    auto new_tail =
+                        node_t::copy_leaf_e(er, r.tail, remaining, r.size);
+                    IMMER_TRY {
                         // this could be improved by making sure that the
                         // newly created nodes as part of the `push_tail()`
                         // are tagged with `er`
-                        auto new_root = l.push_tail(l.root, l.shift, tail_offst,
-                                                    add_tail, branches<BL>);
-                        r = { l.size + r.size,
-                              get<0>(new_root), get<1>(new_root),
-                              new_tail };
+                        auto new_root = l.push_tail(l.root,
+                                                    l.shift,
+                                                    tail_offst,
+                                                    add_tail,
+                                                    branches<BL>);
+                        r             = {l.size + r.size,
+                             get<0>(new_root),
+                             get<1>(new_root),
+                             new_tail};
                         return;
-                    } catch (...) {
-                        node_t::delete_leaf(new_tail, r.size - remaining);
-                        throw;
                     }
-                } catch (...) {
-                    node_t::delete_leaf(add_tail, branches<BL>);
-                    throw;
+                    IMMER_CATCH (...) {
+                        node_t::delete_leaf(new_tail, r.size - remaining);
+                        IMMER_RETHROW;
+                    }
                 }
-                return;
+                IMMER_CATCH (...) {
+                    node_t::delete_leaf(add_tail, branches<BL>);
+                    IMMER_RETHROW;
+                }
             }
         } else if (l.tail_offset() == 0) {
             if (supports_transient_concat) {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees_mut(
-                    er,
-                    el, l.tail, tail_size,
-                    er,r.root, r.shift, r.tail_offset());
-                assert(concated.shift() == concated.node()->compute_shift());
-                assert(concated.node()->check(concated.shift(), l.size + r.tail_offset()));
+                auto concated   = concat_trees_mut(er,
+                                                 el,
+                                                 l.tail,
+                                                 tail_size,
+                                                 er,
+                                                 r.root,
+                                                 r.shift,
+                                                 r.tail_offset());
+                IMMER_ASSERT_TAGGED(concated.shift() ==
+                                    concated.node()->compute_shift());
+                assert(concated.node()->check(concated.shift(),
+                                              l.size + r.tail_offset()));
                 r.size += l.size;
                 r.shift = concated.shift();
                 r.root  = concated.node();
+                assert(r.check_tree());
                 l.hard_reset();
             } else {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees(l.tail, tail_size,
-                                               r.root, r.shift, r.tail_offset());
-                r = { l.size + r.size, concated.shift(),
-                      concated.node(), r.tail->inc() };
+                auto concated   = concat_trees(
+                    l.tail, tail_size, r.root, r.shift, r.tail_offset());
+                r = {l.size + r.size,
+                     concated.shift(),
+                     concated.node(),
+                     r.tail->inc()};
                 return;
             }
         } else {
             if (supports_transient_concat) {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees_mut(
-                    er,
-                    el, l.root, l.shift, tail_offst, l.tail, tail_size,
-                    er, r.root, r.shift, r.tail_offset());
-                assert(concated.shift() == concated.node()->compute_shift());
-                assert(concated.node()->check(concated.shift(), l.size + r.tail_offset()));
+                auto concated   = concat_trees_mut(er,
+                                                 el,
+                                                 l.root,
+                                                 l.shift,
+                                                 tail_offst,
+                                                 l.tail,
+                                                 tail_size,
+                                                 er,
+                                                 r.root,
+                                                 r.shift,
+                                                 r.tail_offset());
+                IMMER_ASSERT_TAGGED(concated.shift() ==
+                                    concated.node()->compute_shift());
+                assert(concated.node()->check(concated.shift(),
+                                              l.size + r.tail_offset()));
                 r.size += l.size;
                 r.shift = concated.shift();
                 r.root  = concated.node();
+                assert(r.check_tree());
                 l.hard_reset();
             } else {
                 auto tail_offst = l.tail_offset();
                 auto tail_size  = l.size - tail_offst;
-                auto concated   = concat_trees(l.root, l.shift, tail_offst,
-                                               l.tail, tail_size,
-                                               r.root, r.shift, r.tail_offset());
-                r = { l.size + r.size, concated.shift(),
-                      concated.node(), r.tail->inc() };
+                auto concated   = concat_trees(l.root,
+                                             l.shift,
+                                             tail_offst,
+                                             l.tail,
+                                             tail_size,
+                                             r.root,
+                                             r.shift,
+                                             r.tail_offset());
+                r               = {l.size + r.size,
+                     concated.shift(),
+                     concated.node(),
+                     r.tail->inc()};
             }
         }
     }
@@ -1163,11 +1331,10 @@ struct rrbtree
     void hard_reset()
     {
         assert(supports_transient_concat);
-        auto&& empty_ = empty();
-        size = empty_.size;
-        shift = empty_.shift;
-        root = empty_.root;
-        tail = empty_.tail;
+        size  = 0;
+        shift = BL;
+        root  = empty_root();
+        tail  = empty_tail();
     }
 
     bool check_tree() const
@@ -1198,7 +1365,7 @@ struct rrbtree
         if (tail_offset() > 0)
             assert(root->check(shift, tail_offset()));
         else {
-            assert(root->kind() == node_t::kind_t::inner);
+            IMMER_ASSERT_TAGGED(root->kind() == node_t::kind_t::inner);
             assert(shift == BL);
         }
 #endif
@@ -1208,8 +1375,7 @@ struct rrbtree
 #if IMMER_DEBUG_PRINT
     void debug_print(std::ostream& out) const
     {
-        out
-            << "--" << std::endl
+        out << "--" << std::endl
             << "{" << std::endl
             << "  size  = " << size << std::endl
             << "  shift = " << shift << std::endl
@@ -1222,7 +1388,7 @@ struct rrbtree
 
     void debug_print_indent(std::ostream& out, unsigned indent) const
     {
-        while (indent --> 0)
+        while (indent-- > 0)
             out << ' ';
     }
 
@@ -1237,14 +1403,12 @@ struct rrbtree
         if (shift == endshift<B, BL>) {
             debug_print_indent(out, indent);
             out << "- {" << size << "} "
-                << pretty_print_array(node->leaf(), size)
-                << std::endl;
+                << pretty_print_array(node->leaf(), size) << std::endl;
         } else if (auto r = node->relaxed()) {
             auto count = r->d.count;
             debug_print_indent(out, indent);
             out << "# {" << size << "} "
-                << pretty_print_array(r->d.sizes, r->d.count)
-                << std::endl;
+                << pretty_print_array(r->d.sizes, r->d.count) << std::endl;
             auto last_size = size_t{};
             for (auto i = count_t{}; i < count; ++i) {
                 debug_print_node(out,
@@ -1257,8 +1421,8 @@ struct rrbtree
         } else {
             debug_print_indent(out, indent);
             out << "+ {" << size << "}" << std::endl;
-            auto count = (size >> shift)
-                + (size - ((size >> shift) << shift) > 0);
+            auto count =
+                (size >> shift) + (size - ((size >> shift) << shift) > 0);
             if (count) {
                 for (auto i = count_t{}; i < count - 1; ++i)
                     debug_print_node(out,

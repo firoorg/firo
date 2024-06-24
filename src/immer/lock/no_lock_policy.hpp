@@ -10,21 +10,16 @@
 
 namespace immer {
 
-struct disowned
-{};
-
-/*!
- * Disables reference counting, to be used with an alternative garbage
- * collection strategy like a `gc_heap`.
- */
-struct no_refcount_policy
+struct no_lock_policy
 {
-    no_refcount_policy(){};
-    no_refcount_policy(disowned) {}
+    bool try_lock() { return true; }
+    void lock() {}
+    void unlock() {}
 
-    void inc() {}
-    bool dec() { return false; }
-    bool unique() { return false; }
+    struct scoped_lock
+    {
+        scoped_lock(no_lock_policy&) {}
+    };
 };
 
 } // namespace immer

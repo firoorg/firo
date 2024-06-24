@@ -10,8 +10,10 @@
 
 #include <immer/config.hpp>
 
-#include <memory>
+#include <cassert>
 #include <cstdlib>
+#include <exception>
+#include <memory>
 
 namespace immer {
 
@@ -29,7 +31,7 @@ struct malloc_heap
     {
         auto p = std::malloc(size);
         if (IMMER_UNLIKELY(!p))
-            throw std::bad_alloc{};
+            IMMER_THROW(std::bad_alloc{});
         return p;
     }
 
@@ -38,10 +40,7 @@ struct malloc_heap
      * `allocate`.  One must not use nor deallocate again a memory
      * region that once it has been deallocated.
      */
-    static void deallocate(std::size_t, void* data)
-    {
-        std::free(data);
-    }
+    static void deallocate(std::size_t, void* data) { std::free(data); }
 };
 
 } // namespace immer
