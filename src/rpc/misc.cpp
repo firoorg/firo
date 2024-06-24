@@ -1777,10 +1777,94 @@ UniValue gettotalsupply(const JSONRPCRequest& request)
     if(!pblocktree->ReadTotalSupply(total))
         throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the total supply from the database. This functionality requires -addressindex to be enabled. Enabling -addressindex requires reindexing.");
 
+    total += 49839700000000; // The actual amount of coins forged during the Zerocoin attacks (the negative balance after the pool closed), you can verify the number by calling  getzerocoinpoolbalance rpc
+    total += 3131972000000; // The remaining amount of forged coins during CVE-2018-17144 attacks, after subtracting locked coins and burnt Coins sent to unrecoverable address https://explorer.firo.org/tx/0b53178c1b22bae4c04ef943ee6d6d30f2483327fe9beb54952951592e8ce368
+
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("total", total));
 
     return result;
+}
+
+UniValue getzerocoinpoolbalance(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getzerocoinpoolbalance\n"
+                "\nReturns the total coin amount, which remains after zerocoin pool closed.\n"
+                "\nArguments: none\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"total\"  (string) The total balance\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getzerocoinpoolbalance", "")
+                + HelpExampleRpc("getzerocoinpoolbalance", "")
+        );
+
+    CAmount nTotalAmount = 0;
+
+    // Iterate over all  mints
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    if (GetAddressIndex(uint160(), AddressType::zerocoinMint, addressIndex)) {
+        for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
+            nTotalAmount += it->second;
+        }
+    }
+    addressIndex.clear();
+
+    // Iterate over all  spends
+    if (GetAddressIndex(uint160(), AddressType::zerocoinSpend, addressIndex)) {
+        for (std::vector < std::pair < CAddressIndexKey, CAmount > > ::const_iterator it = addressIndex.begin();
+             it != addressIndex.end(); it++) {
+            nTotalAmount += it->second;
+        }
+    }
+
+    return  UniValue(nTotalAmount);
+}
+
+UniValue getCVE17144amount(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getCVE17144amount\n"
+                "\nReturns the total amount of forged coins during CVE-2018-17144 attacks.\n"
+                "\nArguments: none\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"total\"  (string) The total balance\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getCVE17144amount", "")
+                + HelpExampleRpc("getCVE17144amount", "")
+        );
+    // as the attack happened at block 293526,
+    // get the block
+    CBlockIndex *mintBlock = chainActive[293526];
+    CBlock block;
+    if (!ReadBlockFromDisk(block, mintBlock, ::Params().GetConsensus())) {
+        throw std::runtime_error(std::string("can't read block from disk, "));
+    }
+    CAmount amount = 0;
+    for (CTransactionRef tx : block.vtx) {
+        std::set<COutPoint> vInOutPoints;
+        if (!tx->IsCoinBase() && !tx->HasNoRegularInputs()) {
+            std::set<COutPoint> vInOutPoints;
+            for (const auto& txin : tx->vin)
+            {
+                if (!vInOutPoints.insert(txin.prevout).second) {
+                    CTransactionRef tx;
+                    uint256 hashBlock;
+                    if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock, true)) {
+                        continue;
+                    }
+                    amount += tx->vout[txin.prevout.n].nValue;
+                }
+            }
+        }
+    }
+    return amount;
 }
 
 UniValue getinfoex(const JSONRPCRequest& request)
@@ -1908,7 +1992,8 @@ static const CRPCCommand commands[] =
     /* Not shown in help */
     { "hidden",             "getinfoex",              &getinfoex,              false },
     { "addressindex",       "gettotalsupply",         &gettotalsupply,         false },
-
+    { "addressindex",       "getzerocoinpoolbalance", &getzerocoinpoolbalance, false },
+    { "addressindex",       "getCVE17144amount",      &getCVE17144amount,      false },
         /* Mobile related */
     { "mobile",             "getanonymityset",        &getanonymityset,        false  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
