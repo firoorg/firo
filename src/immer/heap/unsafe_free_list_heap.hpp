@@ -10,7 +10,9 @@
 
 #include <immer/config.hpp>
 #include <immer/heap/free_list_node.hpp>
+
 #include <cassert>
+#include <cstddef>
 
 namespace immer {
 namespace detail {
@@ -26,12 +28,12 @@ struct unsafe_free_list_storage
 
     static head_t& head()
     {
-        static head_t head_ {nullptr, 0};
+        static head_t head_{nullptr, 0};
         return head_;
     }
 };
 
-template <template<class>class Storage,
+template <template <class> class Storage,
           std::size_t Size,
           std::size_t Limit,
           typename Base>
@@ -67,8 +69,8 @@ public:
         if (storage::head().count >= Limit)
             base_t::deallocate(Size + sizeof(free_list_node), data);
         else {
-            auto n = static_cast<free_list_node*>(data);
-            n->next = storage::head().data;
+            auto n               = static_cast<free_list_node*>(data);
+            n->next              = storage::head().data;
             storage::head().data = n;
             ++storage::head().count;
         }
@@ -78,7 +80,8 @@ public:
     {
         while (storage::head().data) {
             auto n = storage::head().data->next;
-            base_t::deallocate(Size + sizeof(free_list_node), storage::head().data);
+            base_t::deallocate(Size + sizeof(free_list_node),
+                               storage::head().data);
             storage::head().data = n;
             --storage::head().count;
         }
@@ -98,11 +101,11 @@ public:
  * @tparam Base  Type of the parent heap.
  */
 template <std::size_t Size, std::size_t Limit, typename Base>
-struct unsafe_free_list_heap : detail::unsafe_free_list_heap_impl<
-    detail::unsafe_free_list_storage,
-    Size,
-    Limit,
-    Base>
+struct unsafe_free_list_heap
+    : detail::unsafe_free_list_heap_impl<detail::unsafe_free_list_storage,
+                                         Size,
+                                         Limit,
+                                         Base>
 {};
 
 } // namespace immer

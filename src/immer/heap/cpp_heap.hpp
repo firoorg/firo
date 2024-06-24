@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
 
 namespace immer {
@@ -32,7 +33,7 @@ struct cpp_heap
      * `allocate`.  One must not use nor deallocate again a memory
      * region that once it has been deallocated.
      */
-    static void deallocate(std::size_t size, void* data)
+    static void deallocate(std::size_t, void* data)
     {
         ::operator delete(data);
     }
