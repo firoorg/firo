@@ -3,24 +3,29 @@ macOS Build Instructions and Notes
 The commands in this guide should be executed in a Terminal application.
 The built-in one is located in `/Applications/Utilities/Terminal.app`.
 
-Preparation
------------
-Install the macOS command line tools:
+## Preparation
+1. **Install macOS Command Line Tools** (if not already installed):
+   ```bash
+   xcode-select --install
+   ```
+   When the popup appears, click `Install`.
 
-`xcode-select --install`
 
-When the popup appears, click `Install`.
+2. **Install Homebrew** (if not already installed):
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
 
-Then install [Homebrew](http://brew.sh).
+## Dependencies
+Install the required dependencies using Homebrew:
+```bash
+brew install automake berkeley-db4 libtool boost miniupnpc openssl pkg-config protobuf python qt libevent qrencode python-setuptools m4
+```
 
-Dependencies
-----------------------
-
-    brew install automake berkeley-db4 libtool boost miniupnpc openssl pkg-config protobuf python qt libevent qrencode
 
 In case you want to build the disk image with `make deploy` (.dmg / optional), you need RSVG
 
-      brew install librsvg
+    brew install librsvg
       
 Berkley DB
 ------------------------
@@ -29,30 +34,40 @@ It is recommended to use Berkeley DB 4.8. If you have to build it yourself, you 
 
 from the root of the repository.
 
-Note: You only need Berkeley DB if the wallet is enabled (see Disable-wallet mode).
-      
-      
-Build Firo Core
-------------------------
-1.  Build Firo-core:
+*Note*: You only need Berkeley DB if the wallet is enabled (see Disable-wallet mode).
 
-    Configure and build the headless Firo binaries as well as the GUI (if Qt is found).
-    
-    In case you want to build the disk image with `make deploy` (.dmg / optional), by passing `--with-gui` to configure.
-    
-    You can disable the GUI build by passing `--without-gui` to configure.
+#### Download the Source
+Before building, download the Firo source code:
+```bash
+git clone https://github.com/firoorg/firo
+cd firo
+```
+
+#### Build Firo Core
+1. **Prepare the build environment**:
+   ```bash
+   cd depends
+   make
+   cd ..
+   ```
+
+2. **Configure and build Firo-core**:
+   ```bash
+   ./autogen.sh
+   ./configure --prefix=`pwd`/depends/`depends/config.guess`
+   make
+   ```
+
+3. (optional) **It is recommended to build and run the unit tests**:
+
+   ```bash
+   ./configure --prefix=`pwd`/depends/`depends/config.guess` --enable-tests
+   make check
+   ```
         
-        ./autogen.sh
-        ./configure
-        make
+4. (optional)**You can also create a .dmg that contains the .app bundle (optional)**:
 
-2.  It is recommended to build and run the unit tests:
-
-       ` make check`
-        
-3.   You can also create a .dmg that contains the .app bundle (optional):
-
-       ` make deploy`
+        make deploy
 
 
 Running
@@ -86,7 +101,7 @@ Download and install the community edition of [Qt Creator](https://www.qt.io/dow
 Uncheck everything except Qt Creator during the installation process.
 
 1. Make sure you installed everything through Homebrew mentioned above
-2. Do a proper `./configure --enable-debug`
+2. Do a proper  ``` ./configure --prefix=`pwd`/depends/`depends/config.guess` --enable-debug   ```
 3. In Qt Creator do "New Project" -> Import Project -> Import Existing Project
 4. Enter "bitcoin-qt" as project name, enter `src/qt` as location
 5. Leave the file selection as it is
@@ -99,7 +114,6 @@ Uncheck everything except Qt Creator during the installation process.
 Notes
 -----
 
-* Tested on macOS 10.11 through 10.14 on 64-bit Intel processors only.
+* Tested on macOS 10.11 through 10.14 on 64-bit Intel processors, and on macOS 14.5 on an M2 chip.
 
 * Building with downloaded Qt binaries is not officially supported. See the notes in [#7714](https://github.com/bitcoin/bitcoin/issues/7714)
-
