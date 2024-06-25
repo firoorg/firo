@@ -4,14 +4,14 @@ The commands in this guide should be executed in a Terminal application.
 The built-in one is located in `/Applications/Utilities/Terminal.app`.
 
 ## Preparation
-1. **Install macOS Command Line Tools** (if not already installed):
+1. Install macOS Command Line Tools (if not already installed):
    ```bash
    xcode-select --install
    ```
    When the popup appears, click `Install`.
 
 
-2. **Install Homebrew** (if not already installed):
+2. Install Homebrew (if not already installed):
    ```bash
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    ```
@@ -101,7 +101,10 @@ Download and install the community edition of [Qt Creator](https://www.qt.io/dow
 Uncheck everything except Qt Creator during the installation process.
 
 1. Make sure you installed everything through Homebrew mentioned above
-2. Do a proper  ``` ./configure --prefix=`pwd`/depends/`depends/config.guess` --enable-debug   ```
+2. Properly configure the build environment:
+   ```bash
+   ./configure --prefix=`pwd`/depends/`depends/config.guess` --enable-debug
+   ```
 3. In Qt Creator do "New Project" -> Import Project -> Import Existing Project
 4. Enter "bitcoin-qt" as project name, enter `src/qt` as location
 5. Leave the file selection as it is
