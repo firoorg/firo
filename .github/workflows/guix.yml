@@ -1,0 +1,23 @@
+name: Build with guix (manual trigger)
+
+on: workflow_dispatch
+
+jobs:
+  build:
+    name: "build"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install required packages
+        run: |
+          sudo apt install guix
+          sudo apt install cmake
+      - name: Download macOSO Xcode
+        run: |
+          mkdir depends/SDKs
+          wget https://bitcoincore.org/depends-sources/sdks/Xcode-12.2-12B45b-extracted-SDK-with-libcxx-headers.tar.gz
+          tar -xaf Xcode-12.2-12B45b-extracted-SDK-with-libcxx-headers.tar.gz -C depends/SDKs/
+      - name: Build with guix
+        run: |
+          HOSTS=x86_64-linux-gnu ./contrib/guix/guix-build
