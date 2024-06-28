@@ -360,7 +360,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         pwalletMain->SetAddressBook(newKey.GetID(), "", "receive");
         intermediateAddressScript = GetScriptForDestination(newKey.GetID());
 
-        extraFee = CWallet::GetMinimumFee(secondTxSize, 0, mempool);
+        extraFee = CWallet::GetMinimumFee(secondTxSize, nTxConfirmTarget, mempool);
 
         SendCoinsRecipient newRecipient;        
         newRecipient.address = CBitcoinAddress(newKey.GetID()).ToString().c_str();
