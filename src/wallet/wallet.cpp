@@ -6820,12 +6820,19 @@ bool CWallet::UpdatedTransaction(const uint256 &hashTx)
 void CWallet::GetScriptForMining(boost::shared_ptr<CReserveScript> &script)
 {
     boost::shared_ptr<CReserveKey> rKey(new CReserveKey(this));
-    CPubKey pubkey;
-    if (!rKey->GetReservedKey(pubkey))
-        return;
+    if (!GetBoolArg("-sparkreward", DEFAULT_SPARK_REWARD)) { //TODO levon add HF block number
+        CPubKey pubkey;
+        if (!rKey->GetReservedKey(pubkey))
+            return;
 
-    script = rKey;
-    script->reserveScript = CScript() << ToByteVector(pubkey) << OP_CHECKSIG;
+        script = rKey;
+        script->reserveScript = CScript() << ToByteVector(pubkey) << OP_CHECKSIG;
+    } else {
+        spark::Address address = sparkWallet->getDefaultAddress();
+        unsigned char network = spark::GetNetworkType();
+        script = rKey;
+        script->reserveScript = CScript() << address.toByteVector(network) << OP_SPARKMINT;
+    }
 }
 
 void CWallet::LockCoin(const COutPoint& output)
@@ -7076,6 +7083,7 @@ std::string CWallet::GetWalletHelpString(bool showDebug)
     strUsage += HelpMessageOpt("-zapwalletmints", _("Delete all Sigma mints and only recover those parts of the blockchain through -reindex on startup"));
     strUsage += HelpMessageOpt("-zapwallettxes=<mode>", _("Delete all wallet transactions and only recover those parts of the blockchain through -rescan on startup") +
                                " " + _("(1 = keep tx meta data e.g. account owner and payment request information, 2 = drop tx meta data)"));
+    strUsage += HelpMessageOpt("-sparkreward", strprintf(_("Send block reward to spark address (default: %u)"), DEFAULT_SPARK_REWARD));
 
     if (showDebug)
     {

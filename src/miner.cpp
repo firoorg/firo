@@ -289,6 +289,36 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     std::vector<CTxOut> sbPayments;
     FillBlockPayments(coinbaseTx, nHeight, pblock->nTime, nBlockSubsidy, pblocktemplate->voutMasternodePayments, sbPayments);
 
+    std::vector<spark::MintedCoinData> spark_outputs;
+    std::vector<size_t> indexes;
+    for (size_t i = 0; i < coinbaseTx.vout.size(); ++i) {
+        auto& out = coinbaseTx.vout[i];
+
+        if (out.scriptPubKey[out.scriptPubKey.size()-1] == OP_SPARKMINT) {
+           spark::MintedCoinData mintedCoinData;
+           mintedCoinData.v = out.nValue;
+           std::vector<unsigned char> vch(out.scriptPubKey.begin() + 2, out.scriptPubKey.end() - 1);
+           mintedCoinData.address.fromByteVector(vch);
+           mintedCoinData.memo = "MiningReward";
+           spark_outputs.push_back(mintedCoinData);
+           indexes.push_back(i);
+       }
+    }
+
+    if (!spark_outputs.empty()) {
+        CDataStream serialContextStream(SER_NETWORK, PROTOCOL_VERSION);
+        serialContextStream << 1;
+//        serialContextStream << pblock->GetHash();
+        std::vector<CRecipient> recipients = CSparkWallet::CreateSparkMintRecipients(spark_outputs, std::vector<unsigned char>(serialContextStream.begin(), serialContextStream.end()), true);
+
+        size_t i = 0;
+        for (size_t i = 0; i < recipients.size(); ++i) {
+            auto& recipient = recipients[i];
+            CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
+            coinbaseTx.vout[i] = txout;
+        }
+    }
+
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vTxFees[0] = -nFees;
 
@@ -1234,7 +1264,9 @@ void static FiroMiner(const CChainParams &chainparams) {
                         LogPrintf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", powTarget.ToString(), hashTarget.ToString());
                         ProcessBlockFound(pblock, chainparams);
                         SetThreadPriority(THREAD_PRIORITY_LOWEST);
-                        coinbaseScript->KeepScript();
+                        if (!GetBoolArg("-sparkreward", DEFAULT_SPARK_REWARD)) {
+                            coinbaseScript->KeepScript();
+                        }
                         // In regression test mode, stop mining after a block is found.
                         if (chainparams.MineBlocksOnDemand())
                             throw boost::thread_interrupted();

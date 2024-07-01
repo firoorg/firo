@@ -847,6 +847,8 @@ std::vector<unsigned char> getSerialContext(const CTransaction &tx) {
         } catch (const std::exception &) {
             return std::vector<unsigned char>();
         }
+    } else if (tx.IsCoinBase()) {
+        serialContextStream << 1; //TODO levon
     } else {
         for (auto input: tx.vin) {
             input.scriptSig.clear();
