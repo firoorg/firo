@@ -16,25 +16,28 @@ The built-in one is located in `/Applications/Utilities/Terminal.app`.
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    ```
 
+
 ## Dependencies
 Install the required dependencies using Homebrew:
 ```bash
 brew install automake berkeley-db4 libtool boost miniupnpc openssl pkg-config protobuf python qt libevent qrencode python-setuptools m4
 ```
 
+In case you want to build the disk image with `make deploy` (.dmg / optional), you need RSVG:
+```bash
+brew install librsvg
+```
 
-In case you want to build the disk image with `make deploy` (.dmg / optional), you need RSVG
-
-    brew install librsvg
-      
-Berkley DB
-------------------------
+#### Berkeley DB
 It is recommended to use Berkeley DB 4.8. If you have to build it yourself, you can use [the installation script included in contrib/](https://github.com/bitcoin/bitcoin/blob/master/contrib/install_db4.sh) like so:
-    ./contrib/install_db4.sh .
-
+```bash
+./contrib/install_db4.sh .
+```
 from the root of the repository.
 
 *Note*: You only need Berkeley DB if the wallet is enabled (see Disable-wallet mode).
+
+## Build Instructions
 
 #### Download the Source
 Before building, download the Firo source code:
@@ -59,15 +62,15 @@ cd firo
    ```
 
 3. (optional) **It is recommended to build and run the unit tests**:
-
    ```bash
    ./configure --prefix=`pwd`/depends/`depends/config.guess` --enable-tests
    make check
    ```
         
-4. (optional)**You can also create a .dmg that contains the .app bundle (optional)**:
-
-        make deploy
+4. (optional) **You can also create a .dmg that contains the .app bundle**:
+    ```bash
+    make deploy
+    ```
 
 
 Running
