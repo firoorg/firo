@@ -22,7 +22,7 @@ jobs:
       ARTIFACT_DIR: source
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     - name: Install Required Packages
       run: |
         sudo apt-get update
@@ -41,7 +41,7 @@ jobs:
         mkdir -p $ARTIFACT_DIR
         mv depends.tar.gz firo-*.tar.gz $ARTIFACT_DIR
     - name: Upload Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.SOURCE_ARTIFACT }}
         path: ${{ env.ARTIFACT_DIR }}
@@ -54,9 +54,16 @@ jobs:
       TEST_LOG_ARTIFACT_DIR: test-logs
     steps:
     - name: Getting Source
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v4
       with:
-        name: ${{ env.SOURCE_ARTIFACT }}
+        pattern: source-*  
+        merge-multiple: false  
+        run-id: ${{ github.run_id }} 
+
+    - name: List downloaded files and directories
+      run: ls -la
+      working-directory: ${{ github.workspace }}
+
     - name: Extract Archives
       run: |
         tar -xzf depends.tar.gz
@@ -87,7 +94,7 @@ jobs:
         mkdir -p $ARTIFACT_DIR
         mv $SOURCE_ARTIFACT/src/{firo-cli,firo-tx,firod,qt/firo-qt} $ARTIFACT_DIR
     - name: Upload Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: linux-binaries
         path: ${{ env.ARTIFACT_DIR }}
@@ -108,7 +115,7 @@ jobs:
         fi
     - name: Upload Test Logs Artifact
       if: failure()
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: test-logs
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
@@ -120,7 +127,7 @@ jobs:
       ARTIFACT_DIR: windows-binaries
     steps:
     - name: Getting Source
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v4
       with:
         name: ${{ env.SOURCE_ARTIFACT }}
     - name: Extract Archives
@@ -149,7 +156,7 @@ jobs:
         mkdir -p $ARTIFACT_DIR
         mv $SOURCE_ARTIFACT/src/{firo-cli.exe,firo-tx.exe,firod.exe,qt/firo-qt.exe} $ARTIFACT_DIR
     - name: Upload Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: windows-binaries
         path: ${{ env.ARTIFACT_DIR }}
@@ -161,7 +168,7 @@ jobs:
       ARTIFACT_DIR: mac-binaries
     steps:
     - name: Getting Source
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v4
       with:
         name: ${{ env.SOURCE_ARTIFACT }}
     - name: Extract Archives
@@ -189,7 +196,7 @@ jobs:
         mkdir -p $ARTIFACT_DIR
         mv $SOURCE_ARTIFACT/src/{firo-cli,firo-tx,firod,qt/firo-qt} $ARTIFACT_DIR
     - name: Upload Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: mac-binaries
         path: ${{ env.ARTIFACT_DIR }}
