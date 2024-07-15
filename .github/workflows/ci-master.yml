@@ -57,6 +57,11 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: ${{ env.SOURCE_ARTIFACT }}
+        path: ${{ github.workspace }}/source  
+
+  - name: List files in the source directory
+    run: ls -la ${{ github.workspace }}/source/
+    
     - name: Extract Archives
       run: |
         tar -xzf depends.tar.gz
