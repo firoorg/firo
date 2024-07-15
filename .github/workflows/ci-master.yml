@@ -43,7 +43,7 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ env.SOURCE_ARTIFACT }}
+        name: ${{ env.SOURCE_ARTIFACT }}-${{ github.run_id }}
         path: ${{ env.ARTIFACT_DIR }}
   build-linux:
     name: Build for Linux
@@ -56,52 +56,46 @@ jobs:
     - name: Getting Source
       uses: actions/download-artifact@v4
       with:
-        name: ${{ env.SOURCE_ARTIFACT }}
-        path: ${{ github.workspace }}/source  
-
-  - name: List files in the source directory
-    run: ls -la ${{ github.workspace }}/source/
-    
+        name: ${{ env.SOURCE_ARTIFACT }}-${{ github.run_id }}
     - name: Extract Archives
       run: |
         tar -xzf depends.tar.gz
         tar -xzf firo-*.tar.gz --strip-components=1
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
+      working-directory: ${{ github.workspace }}/${{ env.SOURCE_ARTIFACT }}
     - name: Install Required Packages
       run: |
         sudo apt-get update
         sudo apt-get install -y python3-zmq
     - name: Build Dependencies
       run: make -C depends -j$(nproc)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
+      working-directory: ${{ github.workspace }}/${{ env.SOURCE_ARTIFACT }}
     - name: Build Firo
       run: |
         ./configure --disable-jni --enable-tests --with-comparison-tool=no --prefix=$(realpath depends/x86_64-pc-linux-gnu)
         make -j$(nproc)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
+      working-directory: ${{ github.workspace }}/${{ env.SOURCE_ARTIFACT }}
     - name: Run Unit Tests
       run: make check
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
+      working-directory: ${{ github.workspace }}/${{ env.SOURCE_ARTIFACT }}
     - name: Run RPC Tests
       env:
         TIMEOUT: 600
       run: qa/pull-tester/rpc-tests.py -extended
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
+      working-directory: ${{ github.workspace }}/${{ env.SOURCE_ARTIFACT }}
     - name: Prepare Files for Artifact
       run: |
         mkdir -p $ARTIFACT_DIR
-        mv $SOURCE_ARTIFACT/src/{firo-cli,firo-tx,firod,qt/firo-qt} $ARTIFACT_DIR
+        mv src/{firo-cli,firo-tx,firod,qt/firo-qt} $ARTIFACT_DIR
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: linux-binaries
+        name: linux-binaries-${{ github.run_id }}
         path: ${{ env.ARTIFACT_DIR }}
     - name: Prepare Test Logs for Artifact
       if: failure()
       run: |
-        tor_log=$SOURCE_ARTIFACT/src/tor/test-suite.log
-        firo_log=$SOURCE_ARTIFACT/src/test-suite.log
-
+        tor_log=src/tor/test-suite.log
+        firo_log=src/test-suite.log
         mkdir -p $TEST_LOG_ARTIFACT_DIR
 
         if test -f $tor_log; then
