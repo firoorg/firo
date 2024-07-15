@@ -38,12 +38,12 @@ jobs:
     - name: Prepare Files for Artifact
       run: |
         mkdir -p $SOURCE_ARTIFACT_DIR
-        mv depends.tar.gz firo-*.tar.gz $OURCE_ARTIFACT_DIR
+        mv depends.tar.gz firo-*.tar.gz $SOURCE_ARTIFACT_DIR
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.SOURCE_ARTIFACT }}
-        path: ${{ env.sOURCE_ARTIFACT_DIR }}
+        path: ${{ env.SOURCE_ARTIFACT_DIR }}
   build-linux:
     name: Build for Linux
     needs: create-source-distribution
