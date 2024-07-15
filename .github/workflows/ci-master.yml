@@ -56,14 +56,7 @@ jobs:
     - name: Getting Source
       uses: actions/download-artifact@v4
       with:
-        pattern: source-*  
-        merge-multiple: false  
-        run-id: ${{ github.run_id }} 
-
-    - name: List downloaded files and directories
-      run: ls -la
-      working-directory: ${{ github.workspace }}
-
+        name: ${{ env.SOURCE_ARTIFACT }}
     - name: Extract Archives
       run: |
         tar -xzf depends.tar.gz
