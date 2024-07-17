@@ -43,13 +43,33 @@ class LLMQ_IS_Lelantus(EvoZnodeTestFramework):
                 break;
         val = Decimal((val - 10000) / 1e+8).quantize(Decimal('1e-7'))
 
+        address = self.nodes[0].getnewaddress()[0]
+        for i in range(0, 3):
+            multiTxids = self.nodes[0].mintspark({address: {"amount": 1, "subtractFee": False}, sparkaddress: {"amount": 2, "memo": "Test", "subtractFee": False}})
+
+        for multiTxid in multiTxids:
+            sendTx = self.nodes[0].getrawtransaction(multiTxid, 1)
+            valToSend = 0
+            for vi in sendTx['vin']:
+                valToSend += vi['valueSat']
+            if valToSend > 30000:
+                break;
+        valToSend = Decimal((valToSend - 30000) / 1e+8).quantize(Decimal('1e-7'))
+
         assert(self.wait_for_instantlock(mintTxid, self.nodes[0]))
+        assert(self.wait_for_instantlock(multiTxid, self.nodes[0]))
 
         mintDspend = self.nodes[0].createrawtransaction(mintTx['vin'], {self.nodes[0].getnewaddress(): str(val)})
         assert_raises_jsonrpc(-26, 'tx-txlock-conflict', self.nodes[0].sendrawtransaction, mintDspend)
 
         self.nodes[0].generate(3)
         assert (self.nodes[0].getrawtransaction(mintTxid, True)['confirmations'] > 0)
+
+        sendDspend = self.nodes[0].createrawtransaction(sendTx['vin'], {self.nodes[0].getnewaddress(): str(valToSend)})
+        assert_raises_jsonrpc(-26, 'tx-txlock-conflict', self.nodes[0].sendrawtransaction, sendDspend)
+
+        self.nodes[0].generate(3)
+        assert (self.nodes[0].getrawtransaction(multiTxid, True)['confirmations'] > 0)
 
         spendTxid = self.nodes[0].spendspark({self.sporkAddress: {"amount": 0.1, "subtractFee": False}})
         assert(self.wait_for_instantlock(spendTxid, self.nodes[0]))

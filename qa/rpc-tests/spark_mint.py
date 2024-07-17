@@ -17,10 +17,11 @@ class SparkMintTest(BitcoinTestFramework):
         self.nodes[0].generate(1001)
 
         # generate coins
-        amounts = [1, 1.1, 2, 10]
+        amounts = [1, 1.1, 2, 10, 3, 4]
 
         # 10 confirmations
         address = self.nodes[0].getnewsparkaddress()[0]
+        nAddress = self.nodes[0].getnewsparkaddress()[0]
         self.nodes[0].mintspark({address: {"amount": amounts[0], "memo":"Test memo"}})
         self.nodes[0].mintspark({address: {"amount": amounts[1], "memo": "Test memo"}})
         self.nodes[0].generate(5)
@@ -28,12 +29,16 @@ class SparkMintTest(BitcoinTestFramework):
         # 5 confirmations
         self.nodes[0].mintspark({address: {"amount": amounts[2], "memo": "Test memo"}})
         self.nodes[0].mintspark({address: {"amount": amounts[3], "memo": "Test memo"}})
+
+        nAddress = self.nodes[0].getnewsparkaddress()[0]
+        self.nodes[0].mintspark({address: {"amount": amounts[4], "subtractFee": False}, nAddress: {"amount": amounts[5], "memo": "Test", "subtractFee": False}})
+
         self.nodes[0].generate(5)
 
         # get all mints and utxos
         mints = self.verify_listsparkmints(amounts)
         self.verify_listunspentsparkmints(amounts)
-        assert_equal([False, False, False, False], list(map(lambda m : m["isUsed"], mints)))
+        assert_equal([False, False, False, False, False, False], list(map(lambda m : m["isUsed"], mints)))
 
         # state modification test
         # mark two coins as used
@@ -41,23 +46,25 @@ class SparkMintTest(BitcoinTestFramework):
         self.nodes[0].setsparkmintstatus(mints[3]["lTagHash"], True)
 
         mints = self.verify_listsparkmints(amounts)
-        self.verify_listunspentsparkmints([1, 1.1])
-        assert_equal([False, False, True, True], list(map(lambda m : m["isUsed"], mints)))
+        self.verify_listunspentsparkmints([1, 1.1, 4, 10])
+        assert_equal([False, False, True, True, False, False], list(map(lambda m : m["isUsed"], mints)))
 
         # set a coin as unused
         self.nodes[0].setsparkmintstatus(mints[3]["lTagHash"], False)
         mints = self.verify_listsparkmints(amounts)
-        self.verify_listunspentsparkmints([1, 1.1, 10])
-        assert_equal([False, False, True, False], list(map(lambda m : m["isUsed"], mints)))
+        self.verify_listunspentsparkmints([1, 1.1, 3, 4, 10])
+        assert_equal([False, False, True, False, False, False], list(map(lambda m : m["isUsed"], mints)))
 
         self.nodes[0].setsparkmintstatus(mints[0]["lTagHash"], False)
         self.nodes[0].setsparkmintstatus(mints[1]["lTagHash"], False)
         self.nodes[0].setsparkmintstatus(mints[2]["lTagHash"], False)
         self.nodes[0].setsparkmintstatus(mints[3]["lTagHash"], False)
+        self.nodes[0].setsparkmintstatus(mints[4]["lTagHash"], False)
+        self.nodes[0].setsparkmintstatus(mints[5]["lTagHash"], False)
 
         mints = self.verify_listsparkmints(amounts)
         self.verify_listunspentsparkmints(amounts)
-        assert_equal([False, False, False, False], list(map(lambda m : m["isUsed"], mints)))
+        assert_equal([False, False, False, False, False, False], list(map(lambda m : m["isUsed"], mints)))
 
     def verify_listsparkmints(self, expected_amounts):
         mints = self.nodes[0].listsparkmints()
