@@ -129,7 +129,7 @@ QModelIndex PcodeModel::index(int row, int column, const QModelIndex &parent) co
 Qt::ItemFlags PcodeModel::flags(const QModelIndex & index) const
 {
     if(!index.isValid())
-        return 0;
+        return Qt::ItemFlags();
     Qt::ItemFlags retval = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
     if(index.column() == int(ColumnIndex::Label))
     {
@@ -245,7 +245,7 @@ void PcodeModel::sort(int column, Qt::SortOrder order)
                 return std::get<2>(cmp1) < std::get<2>(cmp2);
         }
     };
-    qSort(items.begin(), items.end(), sortPred);
+    std::sort(items.begin(), items.end(), sortPred);
     Q_EMIT dataChanged(index(0, 0, QModelIndex()), index(items.size() - 1, int(ColumnIndex::NumberOfColumns) - 1, QModelIndex()));
 }
 

@@ -8,6 +8,7 @@
 #define _SECP256K1_SCRATCH_IMPL_H_
 
 #include "scratch.h"
+#include <string.h>
 
 /* Using 16 bytes alignment because common architectures never have alignment
  * requirements above 8 for any of the types we care about. In addition we

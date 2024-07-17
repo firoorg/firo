@@ -474,7 +474,7 @@ MigrateLelantusToSparkDialog::MigrateLelantusToSparkDialog(WalletModel *_model):
         layout()->addWidget(wbody);
         setContentsMargins(0, 0, 0, 0);
         setStyleSheet("margin-right:-30px;");
-        setStandardButtons(0);    
+        setStandardButtons(StandardButtons());    
 
         connect(ignore, &QPushButton::clicked, this, &MigrateLelantusToSparkDialog::onIgnoreClicked);
         connect(migrate, &QPushButton::clicked, this, &MigrateLelantusToSparkDialog::onMigrateClicked);

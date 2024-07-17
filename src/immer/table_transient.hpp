@@ -1,30 +1,21 @@
-//
-// immer: immutable data structures for C++
-// Copyright (C) 2016, 2017, 2018 Juan Pedro Bolivar Puente
-//
-// This software is distributed under the Boost Software License, Version 1.0.
-// See accompanying file LICENSE or copy at http://boost.org/LICENSE_1_0.txt
-//
-
 #pragma once
 
 #include <immer/detail/hamts/champ.hpp>
 #include <immer/memory_policy.hpp>
-
-#include <functional>
+#include <type_traits>
 
 namespace immer {
 
-template <typename K,
-          typename T,
+template <typename T,
+          typename KeyFn,
           typename Hash,
           typename Equal,
           typename MemoryPolicy,
           detail::hamts::bits_t B>
-class map;
+class table;
 
 /*!
- * Mutable version of `immer::map`.
+ * Mutable version of `immer::table`.
  *
  * @rst
  *
@@ -33,23 +24,23 @@ class map;
  *
  * @endrst
  */
-template <typename K,
-          typename T,
-          typename Hash           = std::hash<K>,
-          typename Equal          = std::equal_to<K>,
-          typename MemoryPolicy   = default_memory_policy,
-          detail::hamts::bits_t B = default_bits>
-class map_transient : MemoryPolicy::transience_t::owner
+template <typename T,
+          typename KeyFn,
+          typename Hash,
+          typename Equal,
+          typename MemoryPolicy,
+          detail::hamts::bits_t B>
+class table_transient : MemoryPolicy::transience_t::owner
 {
+    using K       = std::decay_t<decltype(KeyFn{}(std::declval<T>()))>;
     using base_t  = typename MemoryPolicy::transience_t::owner;
     using owner_t = base_t;
 
 public:
-    using persistent_type = map<K, T, Hash, Equal, MemoryPolicy, B>;
-
+    using persistent_type = table<T, KeyFn, Hash, Equal, MemoryPolicy, B>;
     using key_type        = K;
     using mapped_type     = T;
-    using value_type      = std::pair<K, T>;
+    using value_type      = T;
     using size_type       = detail::hamts::size_t;
     using diference_type  = std::ptrdiff_t;
     using hasher          = Hash;
@@ -61,10 +52,10 @@ public:
     using const_iterator = iterator;
 
     /*!
-     * Default constructor.  It creates a map of `size() == 0`.  It
+     * Default constructor.  It creates a table of `size() == 0`. It
      * does not allocate memory and its complexity is @f$ O(1) @f$.
      */
-    map_transient() = default;
+    table_transient() = default;
 
     /*!
      * Returns an iterator pointing at the first element of the
@@ -95,7 +86,7 @@ public:
     IMMER_NODISCARD bool empty() const { return impl_.size == 0; }
 
     /*!
-     * Returns `1` when the key `k` is contained in the map or `0`
+     * Returns `1` when the key `k` is contained in the table or `0`
      * otherwise. It won't allocate memory and its complexity is
      * *effectively* @f$ O(1) @f$.
      *
@@ -112,7 +103,7 @@ public:
     }
 
     /*!
-     * Returns `1` when the key `k` is contained in the map or `0`
+     * Returns `1` when the key `k` is contained in the table or `0`
      * otherwise. It won't allocate memory and its complexity is
      * *effectively* @f$ O(1) @f$.
      */
@@ -124,7 +115,7 @@ public:
 
     /*!
      * Returns a `const` reference to the values associated to the key
-     * `k`.  If the key is not contained in the map, it returns a
+     * `k`.  If there is no entry with such a key in the table, it returns a
      * default constructed value.  It does not allocate memory and its
      * complexity is *effectively* @f$ O(1) @f$.
      *
@@ -142,7 +133,7 @@ public:
 
     /*!
      * Returns a `const` reference to the values associated to the key
-     * `k`.  If the key is not contained in the map, it returns a
+     * `k`.  If there is no entry with such a key in the table, it returns a
      * default constructed value.  It does not allocate memory and its
      * complexity is *effectively* @f$ O(1) @f$.
      */
@@ -154,9 +145,12 @@ public:
 
     /*!
      * Returns a `const` reference to the values associated to the key
-     * `k`.  If the key is not contained in the map, throws an
+     * `k`. If there is no entry with such a key in the table, throws an
      * `std::out_of_range` error.  It does not allocate memory and its
      * complexity is *effectively* @f$ O(1) @f$.
+     *
+     * This overload participates in overload resolution only if
+     * `Hash::is_transparent` is valid and denotes a type.
      */
     template <typename Key,
               typename U = Hash,
@@ -169,12 +163,9 @@ public:
 
     /*!
      * Returns a `const` reference to the values associated to the key
-     * `k`.  If the key is not contained in the map, throws an
+     * `k`. If there is no entry with such a key in the table, throws an
      * `std::out_of_range` error.  It does not allocate memory and its
      * complexity is *effectively* @f$ O(1) @f$.
-     *
-     * This overload participates in overload resolution only if
-     * `Hash::is_transparent` is valid and denotes a type.
      */
     const T& at(const K& k) const
     {
@@ -183,33 +174,10 @@ public:
     }
 
     /*!
-     * Returns a pointer to the value associated with the key `k`.  If
-     * the key is not contained in the map, a `nullptr` is returned.
-     * It does not allocate memory and its complexity is *effectively*
-     * @f$ O(1) @f$.
-     *
-     * @rst
-     *
-     * .. admonition:: Why doesn't this function return an iterator?
-     *
-     *   Associative containers from the C++ standard library provide a
-     *   ``find`` method that returns an iterator pointing to the
-     *   element in the container or ``end()`` when the key is missing.
-     *   In the case of an unordered container, the only meaningful
-     *   thing one may do with it is to compare it with the end, to
-     *   test if the find was succesfull, and dereference it.  This
-     *   comparison is cumbersome compared to testing for a non-empty
-     *   optional value.  Furthermore, for an immutable container,
-     *   returning an iterator would have some additional performance
-     *   cost, with no benefits otherwise.
-     *
-     *   In our opinion, this function should return a
-     *   ``std::optional<const T&>`` but this construction is not valid
-     *   in any current standard.  As a compromise we return a
-     *   pointer, which has similar syntactic properties yet it is
-     *   unfortunately unnecessarily unrestricted.
-     *
-     * @endrst
+     * Returns a pointer to the value associated with the key `k`.
+     * If there is no entry with such a key in the table,
+     * a `nullptr` is returned. It does not allocate memory and
+     * its complexity is *effectively* @f$ O(1) @f$.
      */
     IMMER_NODISCARD const T* find(const K& k) const
     {
@@ -218,10 +186,10 @@ public:
     }
 
     /*!
-     * Returns a pointer to the value associated with the key `k`.  If
-     * the key is not contained in the map, a `nullptr` is returned.
-     * It does not allocate memory and its complexity is *effectively*
-     * @f$ O(1) @f$.
+     * Returns a pointer to the value associated with the key `k`.
+     * If there is no entry with such a key in the table,
+     * a `nullptr` is returned. It does not allocate memory and
+     * its complexity is *effectively* @f$ O(1) @f$.
      *
      * This overload participates in overload resolution only if
      * `Hash::is_transparent` is valid and denotes a type.
@@ -236,27 +204,18 @@ public:
     }
 
     /*!
-     * Inserts the association `value`.  If the key is already in the map, it
-     * replaces its association in the map.  It may allocate memory and its
-     * complexity is *effectively* @f$ O(1) @f$.
+     * Inserts `value` to the table.
+     * If there is an entry with its key is already,
+     * it replaces this entry by `value`.
+     * It may allocate memory and its complexity is *effectively* @f$
+     * O(1) @f$.
      */
     void insert(value_type value) { impl_.add_mut(*this, std::move(value)); }
 
     /*!
-     * Inserts the association `(k, v)`.  If the key is already in the map, it
-     * replaces its association in the map.  It may allocate memory and its
-     * complexity is *effectively* @f$ O(1) @f$.
-     */
-    void set(key_type k, mapped_type v)
-    {
-        impl_.add_mut(*this, {std::move(k), std::move(v)});
-    }
-
-    /*!
-     * Replaces the association `(k, v)` by the association new association `(k,
-     * fn(v))`, where `v` is the currently associated value for `k` in the map
-     * or a default constructed value otherwise. It may allocate memory and its
-     * complexity is *effectively* @f$ O(1) @f$.
+     * Returns `this->insert(fn((*this)[k]))`. In particular, `fn` maps `T` to
+     * `T`. The key `k` will be set into the value returned bu `fn`.  It may
+     * allocate memory and its complexity is *effectively* @f$ O(1) @f$.
      */
     template <typename Fn>
     void update(key_type k, Fn&& fn)
@@ -268,10 +227,10 @@ public:
     }
 
     /*!
-     * Replaces the association `(k, v)` by the association new association `(k,
-     * fn(v))`, where `v` is the currently associated value for `k` in the map
-     * or does nothing if `k` is not present in the map. It may allocate memory
-     * and its complexity is *effectively* @f$ O(1) @f$.
+     * Returns `this->insert(fn((*this)[k]))` when `this->count(k) > 0`. In
+     * particular, `fn` maps `T` to `T`. The key `k` will be replaced into the
+     * value returned by `fn`.  It may allocate memory and its complexity is
+     * *effectively* @f$ O(1) @f$.
      */
     template <typename Fn>
     void update_if_exists(key_type k, Fn&& fn)
@@ -283,28 +242,32 @@ public:
     }
 
     /*!
-     * Removes the key `k` from the k.  Does nothing if the key is not
-     * associated in the map.  It may allocate memory and its complexity is
-     * *effectively* @f$ O(1) @f$.
+     * Removes table entry by given key `k` if there is any. It may allocate
+     * memory and its complexity is *effectively* @f$ O(1) @f$.
      */
     void erase(const K& k) { impl_.sub_mut(*this, k); }
 
     /*!
      * Returns an @a immutable form of this container, an
-     * `immer::map`.
+     * `immer::table`.
      */
     IMMER_NODISCARD persistent_type persistent() &
     {
         this->owner_t::operator=(owner_t{});
         return impl_;
     }
+
+    /*!
+     * Returns an @a immutable form of this container, an
+     * `immer::table`.
+     */
     IMMER_NODISCARD persistent_type persistent() && { return std::move(impl_); }
 
 private:
     friend persistent_type;
     using impl_t = typename persistent_type::impl_t;
 
-    map_transient(impl_t impl)
+    table_transient(impl_t impl)
         : impl_(std::move(impl))
     {}
 
