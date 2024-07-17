@@ -342,15 +342,14 @@ public:
         consensus.hashGenesisBlock = genesis.GetHash();
         assert(consensus.hashGenesisBlock == uint256S("0x4381deb85b1b2c9843c222944b616d997516dcbd6a964e1eaf0def0830695233"));
         assert(genesis.hashMerkleRoot == uint256S("0x365d2aa75d061370c9aefdabac3985716b1e3b4bb7c4af4ed54f25e5aaa42783"));
-        vSeeds.push_back(CDNSSeedData("amsterdam.firo.org", "amsterdam.firo.org", false));
-        vSeeds.push_back(CDNSSeedData("australia.firo.org", "australia.firo.org", false));
-        vSeeds.push_back(CDNSSeedData("chicago.firo.org", "chicago.firo.org", false));
-        vSeeds.push_back(CDNSSeedData("london.firo.org", "london.firo.org", false));
-        vSeeds.push_back(CDNSSeedData("frankfurt.firo.org", "frankfurt.firo.org", false));
-        vSeeds.push_back(CDNSSeedData("newjersey.firo.org", "newjersey.firo.org", false));
-        vSeeds.push_back(CDNSSeedData("sanfrancisco.firo.org", "sanfrancisco.firo.org", false));
-        vSeeds.push_back(CDNSSeedData("tokyo.firo.org", "tokyo.firo.org", false));
-        vSeeds.push_back(CDNSSeedData("singapore.firo.org", "singapore.firo.org", false));
+        vSeeds.push_back(CDNSSeedData("95.179.153.189", "95.179.153.189", false));
+        vSeeds.push_back(CDNSSeedData("45.32.246.155", "45.32.246.155", false));
+        vSeeds.push_back(CDNSSeedData("144.202.51.219", "144.202.51.219", false));
+        vSeeds.push_back(CDNSSeedData("45.76.135.161", "45.76.135.161", false));
+        vSeeds.push_back(CDNSSeedData("209.250.233.60", "209.250.233.60", false));
+        vSeeds.push_back(CDNSSeedData("149.28.230.167", "149.28.230.167", false));
+        vSeeds.push_back(CDNSSeedData("149.28.206.207", "149.28.206.207", false));
+        vSeeds.push_back(CDNSSeedData("45.77.241.114", "45.77.241.114", false));
         // Note that of those with the service bits flag, most only support a subset of possible options
         base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 82);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char > (1, 7);
