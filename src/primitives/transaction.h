@@ -171,7 +171,6 @@ class CTxOut
 public:
     CAmount nValue;
     CScript scriptPubKey;
-    int nRounds = -10;
 
     CTxOut()
     {
@@ -186,15 +185,12 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(nValue);
         READWRITE(*(CScriptBase*)(&scriptPubKey));
-        if (ser_action.ForRead())
-            nRounds = -10;
     }
 
     void SetNull()
     {
         nValue = -1;
         scriptPubKey.clear();
-        nRounds = -10; // an initial value, should be no way to get this by calculations
     }
 
     bool IsNull() const
