@@ -4620,8 +4620,8 @@ void CWallet::CheckTransparentTransactionSanity(CMutableTransaction& tx,
                                                 const CCoinControl* coinControl, CAmount nFee, bool fSign) {
     size_t txSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
 
-    if (txSize * WITNESS_SCALE_FACTOR > MAX_STANDARD_TX_WEIGHT)
-        throw std::runtime_error("Transaction too large");
+    if (txSize * WITNESS_SCALE_FACTOR > MAX_NEW_TX_WEIGHT)
+        throw std::runtime_error("Transaction is too large (size limit: 250Kb). Select less inputs or consolidate your UTXOs");
 
     if (coinControl && coinControl->nMaxSize && txSize > coinControl->nMaxSize)
         throw std::runtime_error("We made a transaction exceeding coinControl->nMaxSize. This is a bug.");
@@ -4800,7 +4800,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
 
     CAmount nChangeAmount = nCollected - nRequired - (nRecipientsToSplitFee ? 0 : nFeeRet);
     // If the collected amount is exactly what is required, we don't need to make a change output.
-    if (nChangeAmount || (coinControl && coinControl->fNoChange)) {
+    if (nChangeAmount && !(coinControl && coinControl->fNoChange)) {
         CScript scriptChange;
         if (coinControl && coinControl->destChange.which() != 0) {
             scriptChange = GetScriptForDestination(coinControl->destChange);
