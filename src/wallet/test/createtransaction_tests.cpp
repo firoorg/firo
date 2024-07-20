@@ -134,8 +134,7 @@ void AssertHasKey(CReserveKey& reservekey, const CWalletTx& wtx, uint32_t voutN)
 #define ASSERT_HAS_KEY(voutN) AssertHasKey(reservekey, wtx, voutN)
 #define ASSERT_SUCCESS() if (!strFailReason.empty()) BOOST_FAIL(strFailReason)
 #define ASSERT_FAILURE(reason) BOOST_ASSERT(strFailReason == reason)
-#define ACQUIRE_LOCKS() LOCK2(cs_main, pwalletMain->cs_wallet);\
-    LOCK(llmq::quorumInstantSendManager->cs);
+#define ACQUIRE_LOCKS() LOCK2(cs_main, pwalletMain->cs_wallet)
 
 BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
     BOOST_AUTO_TEST_CASE(sends_money) {

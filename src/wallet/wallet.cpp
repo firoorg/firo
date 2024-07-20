@@ -236,9 +236,8 @@ bool CTransparentTxout::IsLLMQInstantSendLocked() const {
 
     assert(wallet);
     AssertLockHeld(wallet->cs_wallet);
-    AssertLockHeld(llmq::quorumInstantSendManager->cs);
 
-    return llmq::quorumInstantSendManager->db.GetInstantSendLockByTxid(GetHash()) != nullptr;
+    return llmq::quorumInstantSendManager->IsLocked(GetHash());
 }
 
 bool CTransparentTxout::IsCoinBase() const {

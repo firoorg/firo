@@ -109,10 +109,10 @@ private:
     std::unordered_set<uint256, StaticSaltedHasher> pendingRetryTxs;
     std::atomic_bool isNewInstantSendEnabled{false};
 
-public:
     CCriticalSection cs;
     CInstantSendDb db;
 
+public:
     CInstantSendManager(CDBWrapper& _llmqDb);
     ~CInstantSendManager();
 
