@@ -31,6 +31,8 @@ Recover::Recover(QWidget *parent) :
 
     connect(this, &Recover::stopThread, thread, &QThread::quit);
     thread->start();
+
+    connect(ui->enableDateSelection, &QCheckBox::toggled, this, &Recover::updateDateInputState);
 }
 
 Recover::~Recover()
@@ -47,12 +49,22 @@ void Recover::setCreateNew()
     ui->textLabel2->setEnabled(false);
     ui->mnemonicWords->setEnabled(false);
     ui->mnemonicWords->clear();
+    ui->dateInput->setEnabled(false);
+    ui->dateInput->clear();
+    ui->enableDateSelection->setEnabled(false);
     ui->use24->setChecked(true);
     ui->usePassphrase->setChecked(false);
     ui->textLabel3->setEnabled(false);
     ui->textLabel4->setEnabled(false);
     ui->mnemonicPassPhrase->setEnabled(false);
     ui->mnemonicPassPhrase2->setEnabled(false);
+}
+
+void Recover::updateDateInputState(bool checked) {
+    ui->dateInput->setEnabled(checked);
+    if (checked) {
+        ui->dateInput->setMinimumDate(QDate(2020, 3, 23));
+    }
 }
 
 void Recover::on_createNew_clicked()
@@ -64,6 +76,9 @@ void Recover::on_recoverExisting_clicked()
 {
     ui->textLabel2->setEnabled(true);
     ui->mnemonicWords->setEnabled(true);
+    ui->dateInput->setEnabled(true);
+    ui->dateInput->setEnabled(ui->enableDateSelection->isChecked());
+    ui->enableDateSelection->setEnabled(true);
 }
 
 void Recover::on_usePassphrase_clicked()
@@ -106,6 +121,11 @@ bool Recover::askRecover(bool& newWallet)
                 if(recover.ui->recoverExisting->isChecked()) {
                     newWallet = false;
                     std::string mnemonic = recover.ui->mnemonicWords->text().toStdString();
+                    if (recover.ui->enableDateSelection->isChecked()) {
+                        SoftSetArg("-wcdate", recover.ui->dateInput->text().toStdString());
+                    } else {
+                        SoftSetArg("-wcdate", "");
+                    }
                     const char* str = mnemonic.c_str();
                     bool space = true;
                     int n = 0;

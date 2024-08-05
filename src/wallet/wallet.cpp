@@ -2364,6 +2364,28 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
 
 }
 
+static std::time_t parseDate(const std::string& dateStr) {
+    std::tm tm = {};
+    std::istringstream ss(dateStr);
+    ss >> std::get_time(&tm, "%d-%m-%Y");
+    return std::mktime(&tm);
+}
+
+int CWallet::GetBlockHeightByDate(CBlockIndex* pindexStart, const std::string& dateStr) {
+    std::time_t targetTimestamp = parseDate(dateStr);
+
+    CBlockIndex* pindex = pindexStart;
+
+    while (pindex) {
+        if (pindex->GetBlockTime() > targetTimestamp) {
+            return pindex->nHeight - 200;
+        }
+        pindex = chainActive.Next(pindex);
+    }
+
+    return chainActive.Tip()->nHeight;
+}
+
 /**
  * Scan the block chain (starting in pindexStart) for transactions
  * from or to us. If fUpdate is true, found transactions that already
@@ -2387,9 +2409,17 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
         // our wallet birthday (as adjusted for block time variability)
         // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Firo
         if (fRecoverMnemonic) {
-            pindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
-            if (pindex == NULL)
-                pindex = chainActive.Tip();
+            std::string wcdate = GetArg("-wcdate", "");
+            CBlockIndex* mnemonicStartBlock = chainActive[chainParams.GetConsensus().nMnemonicBlock];
+            if (!wcdate.empty()) {
+                int targetHeight = GetBlockHeightByDate(mnemonicStartBlock, wcdate);
+                if (targetHeight <= 0) {
+                    targetHeight = chainParams.GetConsensus().nMnemonicBlock;
+                }
+                pindex = chainActive[targetHeight];
+            } else {
+                pindex = mnemonicStartBlock;
+            }
         } else
             while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
                 pindex = chainActive.Next(pindex);

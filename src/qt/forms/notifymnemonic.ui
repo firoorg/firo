@@ -109,10 +109,20 @@
                         </property>
                     </spacer>
                 </item>
+                 <item>
+                    <widget class="QLabel" name="walletBirthDate">
+                        <property name="text">
+                            <string></string>
+                        </property>
+                        <property name="wordWrap">
+                            <bool>true</bool>
+                        </property>
+                    </widget>
+                </item>
                 <item>
                     <widget class="QLabel" name="textLabel2">
                         <property name="text">
-                            <string>Please write down these recovery seed phrase and keep them in a secure location.</string>
+                            <string>Please write down these recovery seed phrase and wallet birth date and keep them in a secure location. Specifying the wallet's birth date when restoring your wallet speeds up and optimizes the scanning of your wallet.</string>
                         </property>
                         <property name="wordWrap">
                             <bool>true</bool>

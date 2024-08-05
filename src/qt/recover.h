@@ -22,6 +22,7 @@ Q_SIGNALS:
     void stopThread();
 
 private Q_SLOTS:
+    void updateDateInputState(bool checked);
     void on_createNew_clicked();
     void on_recoverExisting_clicked();
     void on_usePassphrase_clicked();
