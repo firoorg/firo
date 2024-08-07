@@ -2408,11 +2408,12 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
         // no need to read and scan block, if block was created before
         // our wallet birthday (as adjusted for block time variability)
         // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Firo
+        int targetHeight = 0;
         if (fRecoverMnemonic) {
             std::string wcdate = GetArg("-wcdate", "");
             CBlockIndex* mnemonicStartBlock = chainActive[chainParams.GetConsensus().nMnemonicBlock];
+            targetHeight = GetBlockHeightByDate(mnemonicStartBlock, wcdate);
             if (!wcdate.empty()) {
-                int targetHeight = GetBlockHeightByDate(mnemonicStartBlock, wcdate);
                 if (targetHeight <= 0) {
                     targetHeight = chainParams.GetConsensus().nMnemonicBlock;
                 }
@@ -2423,7 +2424,7 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
         } else
             while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
                 pindex = chainActive.Next(pindex);
-
+        LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height(), targetHeight);
         ShowProgress(_("Rescanning..."), 0); // show rescan progress in GUI as dialog or on splashscreen, if -rescan on startup
         double dProgressStart = GuessVerificationProgress(chainParams.TxData(), pindex);
         double dProgressTip = GuessVerificationProgress(chainParams.TxData(), chainActive.Tip());
@@ -7314,7 +7315,6 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         }
 
         uiInterface.InitMessage(_("Rescanning..."));
-        LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height() - pindexRescan->nHeight, pindexRescan->nHeight);
         nStart = GetTimeMillis();
         walletInstance->ScanForWalletTransactions(pindexRescan, true, fRecoverMnemonic);
         LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);

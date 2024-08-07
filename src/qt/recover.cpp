@@ -33,6 +33,8 @@ Recover::Recover(QWidget *parent) :
     thread->start();
 
     connect(ui->enableDateSelection, &QCheckBox::toggled, this, &Recover::updateDateInputState);
+    ui->dateInput->setDisplayFormat("dd-MM-yyyy");
+    ui->dateInput->setMinimumDate(QDate(2020, 3, 23));
 }
 
 Recover::~Recover()
@@ -62,14 +64,14 @@ void Recover::setCreateNew()
 
 void Recover::updateDateInputState(bool checked) {
     ui->dateInput->setEnabled(checked);
-    if (checked) {
-        ui->dateInput->setMinimumDate(QDate(2020, 3, 23));
-    }
+    ui->dateInput->setMinimumDate(QDate(2020, 3, 23));
 }
 
 void Recover::on_createNew_clicked()
 {
     setCreateNew();
+    ui->dateInput->setDisplayFormat("dd-MM-yyyy");
+    ui->dateInput->setDate(QDate(2020, 3, 23));
 }
 
 void Recover::on_recoverExisting_clicked()
@@ -79,6 +81,8 @@ void Recover::on_recoverExisting_clicked()
     ui->dateInput->setEnabled(true);
     ui->dateInput->setEnabled(ui->enableDateSelection->isChecked());
     ui->enableDateSelection->setEnabled(true);
+    ui->dateInput->setDisplayFormat("dd-MM-yyyy");
+    ui->dateInput->setDate(ui->dateInput->minimumDate());
 }
 
 void Recover::on_usePassphrase_clicked()
@@ -122,6 +126,9 @@ bool Recover::askRecover(bool& newWallet)
                     newWallet = false;
                     std::string mnemonic = recover.ui->mnemonicWords->text().toStdString();
                     if (recover.ui->enableDateSelection->isChecked()) {
+                        QDate date = recover.ui->dateInput->date();
+                        QDate newDate = date.addDays(-1);
+                        recover.ui->dateInput->setDate(newDate);
                         SoftSetArg("-wcdate", recover.ui->dateInput->text().toStdString());
                     } else {
                         SoftSetArg("-wcdate", "");
