@@ -34,7 +34,7 @@ Recover::Recover(QWidget *parent) :
 
     connect(ui->enableDateSelection, &QCheckBox::toggled, this, &Recover::updateDateInputState);
     ui->dateInput->setDisplayFormat("dd-MM-yyyy");
-    ui->dateInput->setMinimumDate(QDate(2020, 3, 23));
+    ui->dateInput->setMinimumDate(QDate(2019, 12, 11));
 }
 
 Recover::~Recover()
@@ -64,14 +64,14 @@ void Recover::setCreateNew()
 
 void Recover::updateDateInputState(bool checked) {
     ui->dateInput->setEnabled(checked);
-    ui->dateInput->setMinimumDate(QDate(2020, 3, 23));
+    ui->dateInput->setMinimumDate(QDate(2019, 12, 11));
 }
 
 void Recover::on_createNew_clicked()
 {
     setCreateNew();
     ui->dateInput->setDisplayFormat("dd-MM-yyyy");
-    ui->dateInput->setDate(QDate(2020, 3, 23));
+    ui->dateInput->setDate(QDate(2019, 12, 11));
 }
 
 void Recover::on_recoverExisting_clicked()

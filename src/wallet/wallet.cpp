@@ -2414,7 +2414,7 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
             CBlockIndex* mnemonicStartBlock = chainActive[chainParams.GetConsensus().nMnemonicBlock];
             targetHeight = GetBlockHeightByDate(mnemonicStartBlock, wcdate);
             if (!wcdate.empty()) {
-                if (targetHeight <= 0) {
+                if (targetHeight < chainParams.GetConsensus().nMnemonicBlock) {
                     targetHeight = chainParams.GetConsensus().nMnemonicBlock;
                 }
                 pindex = chainActive[targetHeight];
