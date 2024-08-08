@@ -32,7 +32,6 @@ Recover::Recover(QWidget *parent) :
     connect(this, &Recover::stopThread, thread, &QThread::quit);
     thread->start();
 
-    connect(ui->enableDateSelection, &QCheckBox::toggled, this, &Recover::updateDateInputState);
     ui->dateInput->setDisplayFormat("dd-MM-yyyy");
     ui->dateInput->setMinimumDate(QDate(2019, 12, 11));
 }
@@ -53,18 +52,12 @@ void Recover::setCreateNew()
     ui->mnemonicWords->clear();
     ui->dateInput->setEnabled(false);
     ui->dateInput->clear();
-    ui->enableDateSelection->setEnabled(false);
     ui->use24->setChecked(true);
     ui->usePassphrase->setChecked(false);
     ui->textLabel3->setEnabled(false);
     ui->textLabel4->setEnabled(false);
     ui->mnemonicPassPhrase->setEnabled(false);
     ui->mnemonicPassPhrase2->setEnabled(false);
-}
-
-void Recover::updateDateInputState(bool checked) {
-    ui->dateInput->setEnabled(checked);
-    ui->dateInput->setMinimumDate(QDate(2019, 12, 11));
 }
 
 void Recover::on_createNew_clicked()
@@ -79,8 +72,7 @@ void Recover::on_recoverExisting_clicked()
     ui->textLabel2->setEnabled(true);
     ui->mnemonicWords->setEnabled(true);
     ui->dateInput->setEnabled(true);
-    ui->dateInput->setEnabled(ui->enableDateSelection->isChecked());
-    ui->enableDateSelection->setEnabled(true);
+    ui->dateInput->setEnabled(true);
     ui->dateInput->setDisplayFormat("dd-MM-yyyy");
     ui->dateInput->setDate(ui->dateInput->minimumDate());
 }
@@ -125,14 +117,10 @@ bool Recover::askRecover(bool& newWallet)
                 if(recover.ui->recoverExisting->isChecked()) {
                     newWallet = false;
                     std::string mnemonic = recover.ui->mnemonicWords->text().toStdString();
-                    if (recover.ui->enableDateSelection->isChecked()) {
-                        QDate date = recover.ui->dateInput->date();
-                        QDate newDate = date.addDays(-1);
-                        recover.ui->dateInput->setDate(newDate);
-                        SoftSetArg("-wcdate", recover.ui->dateInput->text().toStdString());
-                    } else {
-                        SoftSetArg("-wcdate", "");
-                    }
+                    QDate date = recover.ui->dateInput->date();
+                    QDate newDate = date.addDays(-1);
+                    recover.ui->dateInput->setDate(newDate);
+                    SoftSetArg("-wcdate", recover.ui->dateInput->text().toStdString());
                     const char* str = mnemonic.c_str();
                     bool space = true;
                     int n = 0;

@@ -166,13 +166,6 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
                   </widget>
             </item>
             <item>
-                  <widget class="QCheckBox" name="enableDateSelection">
-                    <property name="text">
-                      <string>Enable Date Selection</string>
-                    </property>
-                  </widget>
-            </item>
-            <item>
                   <widget class="QDateEdit" name="dateInput">
                   <property name="calendarPopup">
                         <bool>true</bool>

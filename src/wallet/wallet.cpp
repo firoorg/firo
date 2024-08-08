@@ -2371,19 +2371,18 @@ static std::time_t parseDate(const std::string& dateStr) {
     return std::mktime(&tm);
 }
 
-int CWallet::GetBlockHeightByDate(CBlockIndex* pindexStart, const std::string& dateStr) {
+CBlockIndex* CWallet::GetBlockByDate(CBlockIndex* pindexStart, const std::string& dateStr) {
     std::time_t targetTimestamp = parseDate(dateStr);
 
     CBlockIndex* pindex = pindexStart;
 
     while (pindex) {
         if (pindex->GetBlockTime() > targetTimestamp) {
-            return pindex->nHeight - 200;
+            return chainActive[pindex->nHeight - 200];
         }
         pindex = chainActive.Next(pindex);
     }
-
-    return chainActive.Tip()->nHeight;
+    return chainActive[chainActive.Tip()->nHeight];
 }
 
 /**
@@ -2404,27 +2403,36 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
     CBlockIndex* pindex = pindexStart;
     {
         LOCK2(cs_main, cs_wallet);
+        // No need to read and scan block if block was created before our wallet birthday (as adjusted for block time variability).
+        // If you are recovering wallet with mnemonics, start rescan from the block when mnemonics were implemented in Firo.
+        // If the user provides a date, start scanning from the block that corresponds to that date.
+        // If no date is provided, start scanning from the mnemonic start block.
 
-        // no need to read and scan block, if block was created before
-        // our wallet birthday (as adjusted for block time variability)
-        // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Firo
-        int targetHeight = 0;
-        if (fRecoverMnemonic) {
-            std::string wcdate = GetArg("-wcdate", "");
-            CBlockIndex* mnemonicStartBlock = chainActive[chainParams.GetConsensus().nMnemonicBlock];
-            targetHeight = GetBlockHeightByDate(mnemonicStartBlock, wcdate);
-            if (!wcdate.empty()) {
-                if (targetHeight < chainParams.GetConsensus().nMnemonicBlock) {
-                    targetHeight = chainParams.GetConsensus().nMnemonicBlock;
-                }
-                pindex = chainActive[targetHeight];
-            } else {
-                pindex = mnemonicStartBlock;
+        std::string wcdate = GetArg("-wcdate", "");
+        CBlockIndex* mnemonicStartBlock = chainActive[chainParams.GetConsensus().nMnemonicBlock];
+        CBlockIndex* dateBlockPindex = pindexStart;
+        if (!wcdate.empty()) {
+            dateBlockPindex = GetBlockByDate(mnemonicStartBlock, wcdate);
+            if (dateBlockPindex->nHeight < chainParams.GetConsensus().nMnemonicBlock) {
+                dateBlockPindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
             }
-        } else
-            while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
-                pindex = chainActive.Next(pindex);
-        LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height(), targetHeight);
+        } else {
+            dateBlockPindex = mnemonicStartBlock;
+        }
+        pindex = dateBlockPindex;
+        if (fRecoverMnemonic) {
+            if (pindex == nullptr)
+                pindex = chainActive.Tip();
+        } else {
+            if (!wcdate.empty()) {
+                pindex = dateBlockPindex;
+            } else {
+                while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
+                    pindex = chainActive.Next(pindex);
+            }
+        }
+
+        LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height(), pindex->nHeight);
         ShowProgress(_("Rescanning..."), 0); // show rescan progress in GUI as dialog or on splashscreen, if -rescan on startup
         double dProgressStart = GuessVerificationProgress(chainParams.TxData(), pindex);
         double dProgressTip = GuessVerificationProgress(chainParams.TxData(), chainActive.Tip());
