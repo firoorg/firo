@@ -41,6 +41,7 @@ You can also choose to further encrypt your recovery seed phrase with an additio
 You will need to save this passphrase as well with the recovery seed phrase. Failing to save the passphrase will lead to your funds being irrecoverable.
 
 If you have an existing recovery seed phrase, please select "Recover existing wallet". If you have secured your recovery seed phrase with an additional passphrase, enter it too.
+Also you can choose wallet birth date for more faster and optimised wallet scan.
       </string>
      </property>
      <property name="wordWrap">
@@ -134,20 +135,51 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     </spacer>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout2">
+    <layout class="QVBoxLayout" name="verticalLayout2">
      <item>
-      <widget class="QLabel" name="textLabel2">
-       <property name="text">
-        <string>Input recovery seed phrase here:</string>
-       </property>
-       <property name="wordWrap">
-        <bool>true</bool>
-       </property>
-      </widget>
+      <layout class="QHBoxLayout" name="horizontalLayout2">
+       <item>
+        <widget class="QLabel" name="textLabel2">
+         <property name="text">
+          <string>Input recovery seed phrase here:</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="mnemonicWords"/>
+       </item>
+      </layout>
      </item>
      <item>
-      <widget class="QLineEdit" name="mnemonicWords"/>
-     </item>
+      <layout class="QHBoxLayout" name="horizontalLayoutDate">
+            <item>
+                  <widget class="QLabel" name="textLabelDate">
+                  <property name="text">
+                        <string>Choose the wallet creation date:</string>
+                  </property>
+                  <property name="wordWrap">
+                        <bool>true</bool>
+                  </property>
+                  </widget>
+            </item>
+            <item>
+                  <widget class="QDateEdit" name="dateInput">
+                  <property name="calendarPopup">
+                        <bool>true</bool>
+                  </property>
+                  <property name="displayFormat">
+                        <string>dd-MM-yyyy</string>
+                  </property>
+                  <property name="date">
+                  </property>
+                  </widget>
+            </item>
+      </layout>
+    </item>
+
     </layout>
    </item>
    <item>
@@ -234,12 +266,6 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
    </item>
    <item>
     <widget class="QLabel" name="errorMessage">
-     <property name="text">
-      <string/>
-     </property>
-     <property name="styleSheet">
-      <string notr="true">color:red;</string>
-     </property>
      <property name="text">
       <string/>
      </property>

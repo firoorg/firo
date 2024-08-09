@@ -13,6 +13,7 @@
 #include <QSettings>
 #include <QMessageBox>
 #include <QAbstractButton>
+#include <QDate>
 
 NotifyMnemonic::NotifyMnemonic(QWidget *parent) :
         QWizard(parent),
@@ -36,6 +37,10 @@ void NotifyMnemonic::cancelEvent()
     }
 }
 
+QString getCurrentDate() {
+    return QDate::currentDate().toString("dd-MM-yyyy");
+}
+
 void NotifyMnemonic::notify()
 {
 #ifdef ENABLE_WALLET
@@ -44,6 +49,7 @@ void NotifyMnemonic::notify()
     NotifyMnemonic notify;
     notify.setWindowIcon(QIcon(":icons/firo"));
     notify.show();
+    notify.ui->walletBirthDate->setText("Wallet creation date:  " + getCurrentDate());
     notify.ui->mnemonic->setText(mnemonic.c_str());
     notify.restart();
     while(true)
