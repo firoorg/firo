@@ -2416,11 +2416,16 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
                 pindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
             }
         } else {
-            if (nTimeFirstKey < mnemonicStartBlock->GetBlockTime())
-                pindex = chainActive.Genesis();
-            else {
-                pindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
+            bool fRescan = GetBoolArg("-rescan", false);
+            if (fRescan) {
+                if (nTimeFirstKey < mnemonicStartBlock->GetBlockTime())
+                    pindex = chainActive.Genesis();
+                else
+                    pindex = mnemonicStartBlock;
             }
+            else
+                while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
+                    pindex = chainActive.Next(pindex);
         }
 
         LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height(), pindex->nHeight);
