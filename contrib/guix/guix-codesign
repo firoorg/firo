@@ -28,7 +28,7 @@ cmd_usage() {
     cat <<EOF
 Synopsis:
 
-    env DETACHED_SIGS_REPO=<path/to/bitcoin-detached-sigs> \\
+    env DETACHED_SIGS_REPO=<path/to/firo-detached-sigs> \\
       ./contrib/guix/guix-codesign
 
 EOF
