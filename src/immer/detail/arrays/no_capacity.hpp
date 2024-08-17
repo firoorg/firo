@@ -9,7 +9,12 @@
 #pragma once
 
 #include <immer/algorithm.hpp>
+#include <immer/config.hpp>
 #include <immer/detail/arrays/node.hpp>
+
+#include <cassert>
+#include <cstddef>
+#include <stdexcept>
 
 namespace immer {
 namespace detail {
@@ -18,16 +23,16 @@ namespace arrays {
 template <typename T, typename MemoryPolicy>
 struct no_capacity
 {
-    using node_t      = node<T, MemoryPolicy>;
-    using edit_t      = typename MemoryPolicy::transience_t::edit;
-    using size_t      = std::size_t;
+    using node_t = node<T, MemoryPolicy>;
+    using edit_t = typename MemoryPolicy::transience_t::edit;
+    using size_t = std::size_t;
 
     node_t* ptr;
-    size_t  size;
+    size_t size;
 
     static const no_capacity& empty()
     {
-        static const no_capacity empty_ {
+        static const no_capacity empty_{
             node_t::make_n(0),
             0,
         };
@@ -35,7 +40,8 @@ struct no_capacity
     }
 
     no_capacity(node_t* p, size_t s)
-        : ptr{p}, size{s}
+        : ptr{p}
+        , size{s}
     {}
 
     no_capacity(const no_capacity& other)
@@ -70,10 +76,7 @@ struct no_capacity
         swap(x.size, y.size);
     }
 
-    ~no_capacity()
-    {
-        dec();
-    }
+    ~no_capacity() { dec(); }
 
     void inc()
     {
@@ -91,22 +94,33 @@ struct no_capacity
     T* data() { return ptr->data(); }
     const T* data() const { return ptr->data(); }
 
-    template <typename Iter, typename Sent,
-              std::enable_if_t
-              <is_forward_iterator_v<Iter> 
-	       && compatible_sentinel_v<Iter, Sent>, bool> = true>
+    T* data_mut(edit_t e)
+    {
+        if (!ptr->can_mutate(e))
+            ptr = node_t::copy_e(e, size, ptr, size);
+        return data();
+    }
+
+    template <typename Iter,
+              typename Sent,
+              std::enable_if_t<is_forward_iterator_v<Iter> &&
+                                   compatible_sentinel_v<Iter, Sent>,
+                               bool> = true>
     static no_capacity from_range(Iter first, Sent last)
     {
         auto count = static_cast<size_t>(distance(first, last));
-        return {
-            node_t::copy_n(count, first, last),
-            count,
-        };
+        if (count == 0)
+            return empty();
+        else
+            return {
+                node_t::copy_n(count, first, last),
+                count,
+            };
     }
 
     static no_capacity from_fill(size_t n, T v)
     {
-        return { node_t::fill_n(n, v), n };
+        return {node_t::fill_n(n, v), n};
     }
 
     template <typename U>
@@ -128,46 +142,45 @@ struct no_capacity
         return std::forward<Fn>(fn)(data(), data() + size);
     }
 
-    const T& get(std::size_t index) const
-    {
-        return data()[index];
-    }
+    const T& get(std::size_t index) const { return data()[index]; }
 
     const T& get_check(std::size_t index) const
     {
         if (index >= size)
-            throw std::out_of_range{"out of range"};
+            IMMER_THROW(std::out_of_range{"out of range"});
         return data()[index];
     }
 
     bool equals(const no_capacity& other) const
     {
         return ptr == other.ptr ||
-            (size == other.size &&
-             std::equal(data(), data() + size, other.data()));
+               (size == other.size &&
+                std::equal(data(), data() + size, other.data()));
     }
 
     no_capacity push_back(T value) const
     {
         auto p = node_t::copy_n(size + 1, ptr, size);
-        try {
+        IMMER_TRY {
             new (p->data() + size) T{std::move(value)};
-            return { p, size + 1 };
-        } catch (...) {
+            return {p, size + 1};
+        }
+        IMMER_CATCH (...) {
             node_t::delete_n(p, size, size + 1);
-            throw;
+            IMMER_RETHROW;
         }
     }
 
     no_capacity assoc(std::size_t idx, T value) const
     {
         auto p = node_t::copy_n(size, ptr, size);
-        try {
+        IMMER_TRY {
             p->data()[idx] = std::move(value);
-            return { p, size };
-        } catch (...) {
+            return {p, size};
+        }
+        IMMER_CATCH (...) {
             node_t::delete_n(p, size, size);
-            throw;
+            IMMER_RETHROW;
         }
     }
 
@@ -175,20 +188,21 @@ struct no_capacity
     no_capacity update(std::size_t idx, Fn&& op) const
     {
         auto p = node_t::copy_n(size, ptr, size);
-        try {
+        IMMER_TRY {
             auto& elem = p->data()[idx];
-            elem = std::forward<Fn>(op)(std::move(elem));
-            return { p, size };
-        } catch (...) {
+            elem       = std::forward<Fn>(op)(std::move(elem));
+            return {p, size};
+        }
+        IMMER_CATCH (...) {
             node_t::delete_n(p, size, size);
-            throw;
+            IMMER_RETHROW;
         }
     }
 
     no_capacity take(std::size_t sz) const
     {
         auto p = node_t::copy_n(sz, ptr, sz);
-        return { p, sz };
+        return {p, sz};
     }
 };
 

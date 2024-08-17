@@ -267,63 +267,77 @@ BITCOIN_CORE_H = \
   llmq/quorums_chainlocks.h\
   llmq/quorums_init.h \
   llmq/quorums_signing_shares.h \
-  immer/atom.hpp \
-  immer/set.hpp \
-  immer/box.hpp \
-  immer/flex_vector_transient.hpp \
-  immer/transience/no_transience_policy.hpp \
-  immer/transience/gc_transience_policy.hpp \
+  immer/array_transient.hpp \
   immer/map_transient.hpp \
-  immer/set_transient.hpp \
-  immer/flex_vector.hpp \
-  immer/refcount/enable_intrusive_ptr.hpp \
-  immer/refcount/no_refcount_policy.hpp \
-  immer/refcount/unsafe_refcount_policy.hpp \
-  immer/refcount/refcount_policy.hpp \
-  immer/memory_policy.hpp \
+  immer/map.hpp \
+  immer/lock \
+  immer/lock/no_lock_policy.hpp \
+  immer/lock/spinlock_policy.hpp \
+  immer/heap \
+  immer/heap/heap_policy.hpp \
+  immer/heap/thread_local_free_list_heap.hpp \
+  immer/heap/tags.hpp \
+  immer/heap/split_heap.hpp \
+  immer/heap/with_data.hpp \
+  immer/heap/unsafe_free_list_heap.hpp \
+  immer/heap/cpp_heap.hpp \
+  immer/heap/malloc_heap.hpp \
+  immer/heap/gc_heap.hpp \
+  immer/heap/debug_size_heap.hpp \
+  immer/heap/free_list_heap.hpp \
+  immer/heap/identity_heap.hpp \
+  immer/heap/free_list_node.hpp \
+  immer/set.hpp \
+  immer/vector_transient.hpp \
+  immer/atom.hpp \
   immer/config.hpp \
-  immer/array.hpp \
+  immer/experimental \
+  immer/experimental/dvektor.hpp \
+  immer/experimental/detail \
+  immer/experimental/detail/dvektor_impl.hpp \
+  immer/algorithm.hpp \
+  immer/table.hpp \
+  immer/memory_policy.hpp \
+  immer/refcount \
+  immer/refcount/unsafe_refcount_policy.hpp \
+  immer/refcount/no_refcount_policy.hpp \
+  immer/refcount/enable_intrusive_ptr.hpp \
+  immer/refcount/refcount_policy.hpp \
+  immer/transience \
+  immer/transience/gc_transience_policy.hpp \
+  immer/transience/no_transience_policy.hpp \
+  immer/flex_vector.hpp \
+  immer/box.hpp \
   immer/vector.hpp \
-  immer/detail/arrays/no_capacity.hpp \
-  immer/detail/arrays/node.hpp \
-  immer/detail/arrays/with_capacity.hpp \
-  immer/detail/type_traits.hpp \
-  immer/detail/rbts/rbtree_iterator.hpp \
+  immer/array.hpp \
+  immer/set_transient.hpp \
+  immer/detail \
+  immer/detail/rbts \
+  immer/detail/rbts/operations.hpp \
   immer/detail/rbts/rbtree.hpp \
-  immer/detail/rbts/rrbtree.hpp \
+  immer/detail/rbts/rbtree_iterator.hpp \
   immer/detail/rbts/visitor.hpp \
+  immer/detail/rbts/rrbtree_iterator.hpp \
+  immer/detail/rbts/rrbtree.hpp \
+  immer/detail/rbts/node.hpp \
   immer/detail/rbts/position.hpp \
   immer/detail/rbts/bits.hpp \
-  immer/detail/rbts/node.hpp \
-  immer/detail/rbts/operations.hpp \
-  immer/detail/rbts/rrbtree_iterator.hpp \
-  immer/detail/combine_standard_layout.hpp \
   immer/detail/ref_count_base.hpp \
-  immer/detail/hamts/champ_iterator.hpp \
-  immer/detail/hamts/champ.hpp \
-  immer/detail/hamts/bits.hpp \
-  immer/detail/hamts/node.hpp \
+  immer/detail/arrays \
+  immer/detail/arrays/with_capacity.hpp \
+  immer/detail/arrays/node.hpp \
+  immer/detail/arrays/no_capacity.hpp \
   immer/detail/util.hpp \
+  immer/detail/hamts \
+  immer/detail/hamts/champ.hpp \
+  immer/detail/hamts/champ_iterator.hpp \
+  immer/detail/hamts/node.hpp \
+  immer/detail/hamts/bits.hpp \
+  immer/detail/type_traits.hpp \
   immer/detail/iterator_facade.hpp \
-  immer/vector_transient.hpp \
-  immer/experimental/dvektor.hpp \
-  immer/experimental/detail/dvektor_impl.hpp \
-  immer/heap/free_list_heap.hpp \
-  immer/heap/tags.hpp \
-  immer/heap/debug_size_heap.hpp \
-  immer/heap/heap_policy.hpp \
-  immer/heap/gc_heap.hpp \
-  immer/heap/unsafe_free_list_heap.hpp \
-  immer/heap/split_heap.hpp \
-  immer/heap/identity_heap.hpp \
-  immer/heap/thread_local_free_list_heap.hpp \
-  immer/heap/malloc_heap.hpp \
-  immer/heap/cpp_heap.hpp \
-  immer/heap/free_list_node.hpp \
-  immer/heap/with_data.hpp \
-  immer/algorithm.hpp \
-  immer/array_transient.hpp \
-  immer/map.hpp
+  immer/detail/combine_standard_layout.hpp \
+  immer/flex_vector_transient.hpp \
+  immer/table_transient.hpp
 
 obj/build.h: FORCE
 	@$(MKDIR_P) $(builddir)/obj
