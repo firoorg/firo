@@ -215,7 +215,7 @@ bool CTransparentTxout::IsCoinTypeCompatible(const CCoinControl* coinControl) co
     assert(!txout.IsNull());
 
     if (!coinControl)
-        return GetValue() != 1000 * COIN;
+        return true;
     else if (coinControl->nCoinType == CoinType::ONLY_MINTS)
         return false;
     else if (coinControl->nCoinType == CoinType::ONLY_NONDENOMINATED_NOT1000IFMN)
@@ -224,10 +224,8 @@ bool CTransparentTxout::IsCoinTypeCompatible(const CCoinControl* coinControl) co
         return !fMasternodeMode || GetValue() != 1000 * COIN;
     else if (coinControl->nCoinType == CoinType::ONLY_1000)
         return GetValue() == 1000 * COIN;
-    else if (coinControl->nCoinType == CoinType::WITH_1000)
-        return true;
     else
-        return GetValue() != 1000 * COIN;
+        return true;
 }
 
 bool CTransparentTxout::IsLLMQInstantSendLocked() const {
