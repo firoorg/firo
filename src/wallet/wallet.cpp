@@ -255,16 +255,7 @@ bool CTransparentTxout::IsFromMe() const {
     assert(wallet);
     AssertLockHeld(wallet->cs_wallet);
 
-    for (const CTxIn& txin: wallet->mapWallet.at(GetHash()).tx->vin) {
-        std::map<uint256, CWalletTx>::const_iterator mi = wallet->mapWallet.find(txin.prevout.hash);
-        if (mi == wallet->mapWallet.end())
-            return false;
-
-        if (!(::IsMine(*wallet, mi->second.tx->vout.at(txin.prevout.n).scriptPubKey, SIGVERSION_BASE) & ISMINE_ALL))
-            return false;
-    }
-
-    return true;
+    return wallet->GetDebit(*wallet->mapWallet.at(GetHash()).tx, ISMINE_ALL) > 0;
 }
 
 unsigned int CTransparentTxout::GetDepthInMainChain() const {
