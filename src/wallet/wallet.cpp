@@ -2416,21 +2416,22 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
         if (!wcdate.empty()) {
             pindex = GetBlockByDate(mnemonicStartBlock, wcdate);
             if (pindex->nHeight < chainParams.GetConsensus().nMnemonicBlock) {
-                pindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
+                pindex = mnemonicStartBlock;
             }
         } else {
             bool fRescan = GetBoolArg("-rescan", false);
-            if (fRescan) {
+            if (fRescan || fRecoverMnemonic) {
                 if (nTimeFirstKey < mnemonicStartBlock->GetBlockTime())
-                    pindex = chainActive.Genesis();
+                    pindex = chainActive.FindEarliestAtLeast(nTimeFirstKey);
                 else
                     pindex = mnemonicStartBlock;
+                    if (pindex == NULL)
+                        pindex = chainActive.Tip();
             }
             else
                 while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
                     pindex = chainActive.Next(pindex);
         }
-
         LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height(), pindex->nHeight);
         ShowProgress(_("Rescanning..."), 0); // show rescan progress in GUI as dialog or on splashscreen, if -rescan on startup
         double dProgressStart = GuessVerificationProgress(chainParams.TxData(), pindex);
