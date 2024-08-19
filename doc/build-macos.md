@@ -27,6 +27,23 @@ In case you want to build the disk image with `make deploy` (.dmg / optional), y
 ```bash
 brew install librsvg
 ```
+### Ensure `m4` is Found
+After installing `m4`, ensure that it is correctly linked and available in your PATH:
+```bash
+brew link m4
+```
+
+You can verify that `m4` is properly installed by running:
+```bash
+which m4
+```
+This should output the path to the `m4` binary, typically `/opt/homebrew/bin/m4` on Apple Silicon Macs.
+
+### Troubleshooting `m4` Issues
+If `m4` is not found even after installation, and running `brew link m4` does not resolve the issue, you may need to install Xcode to ensure that `m4` is recognized:
+
+1. Install Xcode from the Mac App Store.
+2. Once installed, open Xcode at least once to complete the setup.
 
 #### Berkeley DB
 It is recommended to use Berkeley DB 4.8. If you have to build it yourself, you can use [the installation script included in contrib/](https://github.com/bitcoin/bitcoin/blob/master/contrib/install_db4.sh) like so:
