@@ -2368,6 +2368,9 @@ static std::time_t parseDate(const std::string& dateStr) {
     std::tm tm = {};
     std::istringstream ss(dateStr);
     ss >> std::get_time(&tm, "%d-%m-%Y");
+    if (ss.fail()) {
+        throw std::invalid_argument("Invalid date format: " + dateStr);
+    }
     return std::mktime(&tm);
 }
 
