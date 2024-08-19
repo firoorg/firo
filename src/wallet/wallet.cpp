@@ -2413,6 +2413,9 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
 
         std::string wcdate = GetArg("-wcdate", "");
         CBlockIndex* mnemonicStartBlock = chainActive[chainParams.GetConsensus().nMnemonicBlock];
+        if (mnemonicStartBlock == NULL)
+            mnemonicStartBlock = chainActive.Tip();
+
         if (!wcdate.empty()) {
             pindex = GetBlockByDate(mnemonicStartBlock, wcdate);
             if (pindex->nHeight < chainParams.GetConsensus().nMnemonicBlock) {
@@ -2425,8 +2428,6 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
                     pindex = chainActive.FindEarliestAtLeast(nTimeFirstKey);
                 else
                     pindex = mnemonicStartBlock;
-                    if (pindex == NULL)
-                        pindex = chainActive.Tip();
             }
             else
                 while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
