@@ -3081,6 +3081,8 @@ UniValue fundrawtransaction(const JSONRPCRequest& request)
         setSubtractFeeFromOutputs.insert(pos);
     }
 
+    LOCK2(cs_main, pwallet->cs_wallet);
+
     CAmount nFeeOut;
     std::string strFailReason;
 
