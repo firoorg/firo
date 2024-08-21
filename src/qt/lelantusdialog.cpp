@@ -145,11 +145,11 @@ void LelantusDialog::setWalletModel(WalletModel *_walletModel)
         connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &LelantusDialog::updateSmartFeeLabel);
         connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &LelantusDialog::updateGlobalFeeVariables);
         connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &LelantusDialog::coinControlUpdateLabels);
-        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &LelantusDialog::updateFeeSectionControls);
-        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &LelantusDialog::updateGlobalFeeVariables);
-        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &LelantusDialog::coinControlUpdateLabels);
-        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &LelantusDialog::updateGlobalFeeVariables);
-        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &LelantusDialog::coinControlUpdateLabels);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::idClicked), this, &LelantusDialog::updateFeeSectionControls);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::idClicked), this, &LelantusDialog::updateGlobalFeeVariables);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::idClicked), this, &LelantusDialog::coinControlUpdateLabels);
+        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::idClicked), this, &LelantusDialog::updateGlobalFeeVariables);
+        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::idClicked), this, &LelantusDialog::coinControlUpdateLabels);
         connect(ui->customFee, &BitcoinAmountField::valueChanged, this, &LelantusDialog::updateGlobalFeeVariables);
         connect(ui->customFee, &BitcoinAmountField::valueChanged, this, &LelantusDialog::coinControlUpdateLabels);
         connect(ui->checkBoxMinimumFee, &QCheckBox::stateChanged, this, &LelantusDialog::setMinimumFee);
@@ -563,7 +563,7 @@ void LelantusDialog::updateSmartFeeLabel()
         int lightness = ui->fallbackFeeWarningLabel->palette().color(QPalette::WindowText).lightness();
         QColor warning_colour(255 - (lightness / 5), 176 - (lightness / 3), 48 - (lightness / 14));
         ui->fallbackFeeWarningLabel->setStyleSheet("QLabel { color: " + warning_colour.name() + "; }");
-        ui->fallbackFeeWarningLabel->setIndent(QFontMetrics(ui->fallbackFeeWarningLabel->font()).width("x"));
+        ui->fallbackFeeWarningLabel->setIndent(GUIUtil::TextWidth(QFontMetrics(ui->fallbackFeeWarningLabel->font()), "x"));
     }
     else
     {
