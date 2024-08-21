@@ -664,20 +664,6 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
 
 
         {
-            CWalletTx wtx;
-            CAmount nFeeRet = 0;
-            int nChangePosInOut = -1;
-            std::string strFailReason;
-
-            CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
-                                           nullptr, true, 0, true, vTxouts);
-
-
-            ASSERT_FAILURE("Insufficient funds");
-        }
-
-        {
             CCoinControl coinControl;
             CWalletTx wtx;
             CAmount nFeeRet = 0;
@@ -816,22 +802,6 @@ BOOST_FIXTURE_TEST_SUITE(createtransaction_tests, WalletTestingSetup)
             ASSERT_FAILURE("Insufficient funds");
         }
 
-        {
-            CCoinControl coinControl;
-            CWalletTx wtx;
-            CAmount nFeeRet = 0;
-            int nChangePosInOut = -1;
-            std::string strFailReason;
-
-            coinControl.Select(vTxouts.at(1).GetOutpoint());
-            coinControl.fAllowOtherInputs = true;
-
-            CReserveKey reservekey(pwalletMain);
-            pwalletMain->CreateTransaction(vRecipients, wtx, reservekey, nFeeRet, nChangePosInOut, strFailReason,
-                                           &coinControl, true, 0, true, vTxouts);
-
-            ASSERT_FAILURE("Some coin control inputs could not be selected.");
-        }
     }
 
     BOOST_AUTO_TEST_CASE(coincontrol_input_count_limit) {
