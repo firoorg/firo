@@ -2424,8 +2424,8 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
         } else {
             bool fRescan = GetBoolArg("-rescan", false);
             if (fRescan || fRecoverMnemonic) {
-                if (nTimeFirstKey < mnemonicStartBlock->GetBlockTime())
-                    pindex = chainActive.FindEarliestAtLeast(nTimeFirstKey);
+                if (mnemonicContainer.IsNull())
+                    pindex = chainActive.Genesis();
                 else
                     pindex = mnemonicStartBlock;
             }
