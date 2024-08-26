@@ -107,12 +107,12 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
     if (ptx.keyIDOwner.IsNull() || !ptx.pubKeyOperator.IsValid() || ptx.keyIDVoting.IsNull()) {
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-key-null");
     }
-    if (!ptx.scriptPayout.IsPayToPublicKeyHash() && !ptx.scriptPayout.IsPayToScriptHash()) {
+    if (!ptx.scriptPayout.IsPayToPublicKeyHash() && !ptx.scriptPayout.IsPayToScriptHash()) { //TODO levon
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-payee");
     }
 
     CTxDestination payoutDest;
-    if (!ExtractDestination(ptx.scriptPayout, payoutDest)) {
+    if (!ExtractDestination(ptx.scriptPayout, payoutDest)) { //TODO levon
         // should not happen as we checked script types before
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-payee-dest");
     }
@@ -248,7 +248,7 @@ bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVa
                 // don't allow to set operator reward payee in case no operatorReward was set
                 return state.DoS(10, false, REJECT_INVALID, "bad-protx-operator-payee");
             }
-            if (!ptx.scriptOperatorPayout.IsPayToPublicKeyHash() && !ptx.scriptOperatorPayout.IsPayToScriptHash()) {
+            if (!ptx.scriptOperatorPayout.IsPayToPublicKeyHash() && !ptx.scriptOperatorPayout.IsPayToScriptHash()) {  //TODO levon
                 return state.DoS(10, false, REJECT_INVALID, "bad-protx-operator-payee");
             }
         }
@@ -286,12 +286,12 @@ bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
     if (!ptx.pubKeyOperator.IsValid() || ptx.keyIDVoting.IsNull()) {
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-key-null");
     }
-    if (!ptx.scriptPayout.IsPayToPublicKeyHash() && !ptx.scriptPayout.IsPayToScriptHash()) {
+    if (!ptx.scriptPayout.IsPayToPublicKeyHash() && !ptx.scriptPayout.IsPayToScriptHash()) { //TODO levon
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-payee");
     }
 
     CTxDestination payoutDest;
-    if (!ExtractDestination(ptx.scriptPayout, payoutDest)) {
+    if (!ExtractDestination(ptx.scriptPayout, payoutDest)) { //TODO levon
         // should not happen as we checked script types before
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-payee-dest");
     }
@@ -392,7 +392,7 @@ std::string CProRegTx::MakeSignString() const
     CTxDestination destPayout;
     CBitcoinAddress addrPayout;
     std::string strPayout;
-    if (ExtractDestination(scriptPayout, destPayout) && addrPayout.Set(destPayout)) {
+    if (ExtractDestination(scriptPayout, destPayout) && addrPayout.Set(destPayout)) { //TODO levon
         strPayout = addrPayout.ToString();
     } else {
         strPayout = HexStr(scriptPayout.begin(), scriptPayout.end());
@@ -415,6 +415,10 @@ std::string CProRegTx::ToString() const
     std::string payee = "unknown";
     if (ExtractDestination(scriptPayout, dest)) {
         payee = CBitcoinAddress(dest).ToString();
+    } else {
+        std::string strScriptPayout = ToStringSparkAddress(scriptPayout);
+        if (!strScriptPayout.empty())
+            payee = strScriptPayout;
     }
 
     return strprintf("CProRegTx(nVersion=%d, collateralOutpoint=%s, addr=%s, nOperatorReward=%f, ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, scriptPayout=%s)",
@@ -436,7 +440,13 @@ void CProRegTx::ToJson(UniValue& obj) const
     if (ExtractDestination(scriptPayout, dest)) {
         CBitcoinAddress bitcoinAddress(dest);
         obj.push_back(Pair("payoutAddress", bitcoinAddress.ToString()));
+    } else {
+        std::string strScriptPayout = ToStringSparkAddress(scriptPayout);
+        if (!strScriptPayout.empty())
+            obj.push_back(Pair("payoutAddress", strScriptPayout));
     }
+
+
     obj.push_back(Pair("pubKeyOperator", pubKeyOperator.ToString()));
     obj.push_back(Pair("operatorReward", (double)nOperatorReward / 100));
 
@@ -449,6 +459,10 @@ std::string CProUpServTx::ToString() const
     std::string payee = "unknown";
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         payee = CBitcoinAddress(dest).ToString();
+    } else {
+        std::string strScriptPayout = ToStringSparkAddress(scriptOperatorPayout);
+        if (!strScriptPayout.empty())
+            payee = strScriptPayout;
     }
 
     return strprintf("CProUpServTx(nVersion=%d, proTxHash=%s, addr=%s, operatorPayoutAddress=%s)",
@@ -466,6 +480,10 @@ void CProUpServTx::ToJson(UniValue& obj) const
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         CBitcoinAddress bitcoinAddress(dest);
         obj.push_back(Pair("operatorPayoutAddress", bitcoinAddress.ToString()));
+    }  else {
+        std::string strScriptPayout = ToStringSparkAddress(scriptOperatorPayout);
+        if (!strScriptPayout.empty())
+            obj.push_back(Pair("operatorPayoutAddress", strScriptPayout));
     }
     obj.push_back(Pair("inputsHash", inputsHash.ToString()));
 }
@@ -476,6 +494,10 @@ std::string CProUpRegTx::ToString() const
     std::string payee = "unknown";
     if (ExtractDestination(scriptPayout, dest)) {
         payee = CBitcoinAddress(dest).ToString();
+    }  else {
+        std::string strScriptPayout = ToStringSparkAddress(scriptPayout);
+        if (!strScriptPayout.empty())
+            payee = strScriptPayout;
     }
 
     return strprintf("CProUpRegTx(nVersion=%d, proTxHash=%s, pubKeyOperator=%s, votingAddress=%s, payoutAddress=%s)",
@@ -493,6 +515,10 @@ void CProUpRegTx::ToJson(UniValue& obj) const
     if (ExtractDestination(scriptPayout, dest)) {
         CBitcoinAddress bitcoinAddress(dest);
         obj.push_back(Pair("payoutAddress", bitcoinAddress.ToString()));
+    } else {
+        std::string strScriptPayout = ToStringSparkAddress(scriptPayout);
+        if (!strScriptPayout.empty())
+            obj.push_back(Pair("payoutAddress", strScriptPayout));
     }
     obj.push_back(Pair("pubKeyOperator", pubKeyOperator.ToString()));
     obj.push_back(Pair("inputsHash", inputsHash.ToString()));

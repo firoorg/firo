@@ -835,7 +835,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     for (const auto& txout : pblocktemplate->voutMasternodePayments) {
         CTxDestination address1;
         ExtractDestination(txout.scriptPubKey, address1);
-        CBitcoinAddress address2(address1);
+        CBitcoinAddress address2(address1); //TODO levon check spark case
 
         UniValue obj(UniValue::VOBJ);
         obj.push_back(Pair("payee", address2.ToString().c_str()));

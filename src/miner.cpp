@@ -298,8 +298,12 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
            spark::MintedCoinData mintedCoinData;
            mintedCoinData.v = out.nValue;
            std::vector<unsigned char> vch(out.scriptPubKey.begin() + 2, out.scriptPubKey.end() - 1);
-           mintedCoinData.address.fromByteVector(vch);
-           mintedCoinData.memo = "MiningReward";
+           try {
+               mintedCoinData.address.fromByteVector(vch);
+           } catch (const std::exception &) {
+               throw std::runtime_error(strprintf("Invalid Spark address"));
+           }
+           mintedCoinData.memo = "BlockReward";
            spark_outputs.push_back(mintedCoinData);
            indexes.push_back(i);
        }
@@ -307,15 +311,14 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     if (!spark_outputs.empty()) {
         CDataStream serialContextStream(SER_NETWORK, PROTOCOL_VERSION);
-        serialContextStream << 1;
-//        serialContextStream << pblock->GetHash();
+        serialContextStream << pindexPrev->GetBlockHash();
         std::vector<CRecipient> recipients = CSparkWallet::CreateSparkMintRecipients(spark_outputs, std::vector<unsigned char>(serialContextStream.begin(), serialContextStream.end()), true);
 
         size_t i = 0;
         for (size_t i = 0; i < recipients.size(); ++i) {
             auto& recipient = recipients[i];
             CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
-            coinbaseTx.vout[i] = txout;
+            coinbaseTx.vout[indexes[i]] = txout;
         }
     }
 

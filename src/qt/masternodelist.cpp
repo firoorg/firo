@@ -206,8 +206,8 @@ void MasternodeList::updateDIP3List()
         if (walletModel && ui->checkBoxMyMasternodesOnly->isChecked()) {
             bool fMyMasternode = setOutpts.count(dmn->collateralOutpoint) ||
                 walletModel->IsSpendable(dmn->pdmnState->keyIDOwner) ||
-                walletModel->IsSpendable(dmn->pdmnState->scriptPayout) ||
-                walletModel->IsSpendable(dmn->pdmnState->scriptOperatorPayout);
+                walletModel->IsSpendable(dmn->pdmnState->scriptPayout) || //TODO levon
+                walletModel->IsSpendable(dmn->pdmnState->scriptOperatorPayout); //TODO levon
             if (!fMyMasternode) return;
         }
         // populate list
@@ -221,7 +221,7 @@ void MasternodeList::updateDIP3List()
 
         CTxDestination payeeDest;
         QString payeeStr = tr("UNKNOWN");
-        if (ExtractDestination(dmn->pdmnState->scriptPayout, payeeDest)) {
+        if (ExtractDestination(dmn->pdmnState->scriptPayout, payeeDest)) { //TODO levon
             payeeStr = QString::fromStdString(CBitcoinAddress(payeeDest).ToString());
         }
         QTableWidgetItem* payeeItem = new QTableWidgetItem(payeeStr);
@@ -232,7 +232,7 @@ void MasternodeList::updateDIP3List()
 
             if (dmn->pdmnState->scriptOperatorPayout != CScript()) {
                 CTxDestination operatorDest;
-                if (ExtractDestination(dmn->pdmnState->scriptOperatorPayout, operatorDest)) {
+                if (ExtractDestination(dmn->pdmnState->scriptOperatorPayout, operatorDest)) { //TODO levon
                     operatorRewardStr += tr("to %1").arg(QString::fromStdString(CBitcoinAddress(operatorDest).ToString()));
                 } else {
                     operatorRewardStr += tr("to UNKNOWN");

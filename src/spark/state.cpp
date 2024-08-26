@@ -848,7 +848,14 @@ std::vector<unsigned char> getSerialContext(const CTransaction &tx) {
             return std::vector<unsigned char>();
         }
     } else if (tx.IsCoinBase()) {
-        serialContextStream << 1; //TODO levon
+        std::vector<spark::Coin> coins = GetSparkMintCoins(tx);
+        if (coins.empty())
+            return std::vector<unsigned char>();
+
+        int height = sparkState.GetMintedCoinHeightAndId(coins[0]).first;
+        // get the previous block
+        CBlockIndex *mintBlock = chainActive[height - 1];
+        serialContextStream << *mintBlock->phashBlock;
     } else {
         for (auto input: tx.vin) {
             input.scriptSig.clear();

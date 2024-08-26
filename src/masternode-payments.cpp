@@ -137,9 +137,15 @@ std::string GetRequiredPaymentsString(int nBlockHeight, const CDeterministicMNCP
     std::string strPayee = "Unknown";
     if (payee) {
         CTxDestination dest;
-        if (!ExtractDestination(payee->pdmnState->scriptPayout, dest))
+        if (!ExtractDestination(payee->pdmnState->scriptPayout, dest)) {
+            std::string strScriptPayout = ToStringSparkAddress(payee->pdmnState->scriptPayout);
+            if (!strScriptPayout.empty())
+                strPayee = strScriptPayout;
             assert(false);
-        strPayee = CBitcoinAddress(dest).ToString();
+        } else {
+            strPayee = CBitcoinAddress(dest).ToString();
+        }
+
     }
     /*
     if (CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
@@ -200,10 +206,16 @@ bool CMasternodePayments::GetMasternodeTxOuts(int nBlockHeight, int nTime, CAmou
 
     for (const auto& txout : voutMasternodePaymentsRet) {
         CTxDestination address1;
-        ExtractDestination(txout.scriptPubKey, address1);
-        CBitcoinAddress address2(address1);
-
-        LogPrintf("CMasternodePayments::%s -- Znode payment %lld to %s\n", __func__, txout.nValue, address2.ToString());
+        std::string strAddr;
+        if (ExtractDestination(txout.scriptPubKey, address1)) {
+            CBitcoinAddress address2(address1);
+            strAddr = address2.ToString();
+        } else {
+            std::string strScriptPayout = ToStringSparkAddress(txout.scriptPubKey);
+            if (!strScriptPayout.empty())
+                strAddr = strScriptPayout;
+        }
+        LogPrintf("CMasternodePayments::%s -- Znode payment %lld to %s\n", __func__, txout.nValue, strAddr);
     }
 
     return true;
@@ -275,7 +287,7 @@ bool CMasternodePayments::IsTransactionValid(const CTransaction& txNew, int nBlo
 
     for (const auto& txout : voutMasternodePayments) {
         bool found = false;
-        for (const auto& txout2 : txNew.vout) {
+        for (const auto& txout2 : txNew.vout) { //TODO levon cover spark case
             if (txout == txout2) {
                 found = true;
                 break;

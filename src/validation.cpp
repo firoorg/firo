@@ -733,6 +733,13 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
         if (hasExchangeUTXOs)
             return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
+
+        if (tx.IsSparkTransaction()) {
+            if (nTxHeight < ::Params().GetConsensus().nSparkCoinbase)
+                return state.DoS(100, false, REJECT_INVALID, "bad-spark-coinbase");
+            if (!CheckSparkTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sparkTxInfo))
+                return false;
+        }
     }
     else
     {
@@ -757,6 +764,13 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
                 return false;
         }
 
+        if (tx.IsSparkTransaction()) {
+            if (hasExchangeUTXOs)
+                return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
+            if (!CheckSparkTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sparkTxInfo))
+                return false;
+        }
+
         const auto &params = ::Params().GetConsensus();
         if (tx.IsZerocoinSpend() || tx.IsZerocoinMint()) {
             if (!isVerifyDB && nHeight >= params.nDisableZerocoinStartBlock)
@@ -768,14 +782,6 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
                 // we allow transactions of remint type only during specific window
                 return false;
         }
-    }
-
-
-    if (tx.IsSparkTransaction()) { //TODO levon
-        if (hasExchangeUTXOs)
-            return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
-        if (!CheckSparkTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sparkTxInfo))
-            return false;
     }
 
     bool isInWhitelist = Params().GetConsensus().txidWhitelist.count(tx.GetHash()) > 0;

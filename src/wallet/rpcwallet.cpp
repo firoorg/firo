@@ -1733,7 +1733,7 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
                         for(CTxOut const & out : voutMasternodePaymentsRet) {
                             CTxDestination payeeDest;
                             ExtractDestination(out.scriptPubKey, payeeDest);
-                            CBitcoinAddress payeeAddr(payeeDest);
+                            CBitcoinAddress payeeAddr(payeeDest); //TODO levon check spark case
 
                             if(addr.ToString() == payeeAddr.ToString()) {
                                 its_znode_payment = true;

@@ -6820,18 +6820,23 @@ bool CWallet::UpdatedTransaction(const uint256 &hashTx)
 void CWallet::GetScriptForMining(boost::shared_ptr<CReserveScript> &script)
 {
     boost::shared_ptr<CReserveKey> rKey(new CReserveKey(this));
-    if (!GetBoolArg("-sparkreward", DEFAULT_SPARK_REWARD)) { //TODO levon add HF block number
+    int nTxHeight;
+    {
+        LOCK(cs_main);
+        nTxHeight = chainActive.Height();
+    }
+    if (GetBoolArg("-sparkreward", DEFAULT_SPARK_REWARD) && nTxHeight > ::Params().GetConsensus().nSparkCoinbase) {
+        spark::Address address = sparkWallet->getDefaultAddress();
+        unsigned char network = spark::GetNetworkType();
+        script = rKey;
+        script->reserveScript = CScript() << address.toByteVector(network) << OP_SPARKMINT;
+    } else{
         CPubKey pubkey;
         if (!rKey->GetReservedKey(pubkey))
             return;
 
         script = rKey;
         script->reserveScript = CScript() << ToByteVector(pubkey) << OP_CHECKSIG;
-    } else {
-        spark::Address address = sparkWallet->getDefaultAddress();
-        unsigned char network = spark::GetNetworkType();
-        script = rKey;
-        script->reserveScript = CScript() << address.toByteVector(network) << OP_SPARKMINT;
     }
 }
 
