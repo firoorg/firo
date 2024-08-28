@@ -268,6 +268,11 @@ public:
     //! std::map {feature name} -> {block number when feature is re-enabled again, parameter}
     ActiveSporkMap activeDisablingSporks;
 
+    //! List of spark names that were created or extended in this block. Map of spark name to <address, expiration block height>
+    std::map<std::string, std::pair<spark::Address, uint32_t>> addedSparkNames;
+    //! List of spark names that were removed in this block
+    std::map<std::string, std::pair<spark::Address, uint32_t>> removedSparkNames;
+
     void SetNull()
     {
         phashBlock = NULL;
