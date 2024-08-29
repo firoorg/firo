@@ -163,6 +163,17 @@ struct Params {
     /** percentage of block subsidy going to masternode */
     int stage3MasternodeShare;
 
+    /** parameters for coinbase payment distribution after stage three (aka stage 4) */
+    /** percentage of block subsidy going to developer fund */
+    int stage4DevelopmentFundShare;
+    /** percentage of block subsidy going to community fund */
+    int stage4CommunityFundShare;
+    /** percentage of block subsidy going to masternode */
+    int stage4MasternodeShare;
+
+    /**  tail emission (after stage 4) */
+    int tailEmissionBlockSubsidy;
+
     int nStartDuplicationCheck;
     int nStartBlacklist;
 

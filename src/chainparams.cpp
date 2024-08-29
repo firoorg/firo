@@ -528,6 +528,11 @@ public:
         consensus.stage3DevelopmentFundAddress = "TWDxLLKsFp6qcV1LL4U2uNmW4HwMcapmMU";
         consensus.stage3CommunityFundAddress = "TCkC4uoErEyCB4MK3d6ouyJELoXnuyqe9L";
 
+        consensus.stage4CommunityFundShare = 10;
+        consensus.stage4DevelopmentFundShare = 15;
+        consensus.stage4MasternodeShare = 70;
+        consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
+
         consensus.nStartBlacklist = 0;
         consensus.nStartDuplicationCheck = 0;
         consensus.nMajorityEnforceBlockUpgrade = 51;
