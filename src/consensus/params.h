@@ -136,8 +136,6 @@ struct Params {
     int nSubsidyHalvingSecond;
     /** Subsequent subsidy halving intervals */
     int nSubsidyHalvingInterval;
-    /** Stop subsidy at this block number */
-    int nSubsidyHalvingStopBlock;
 
     /** parameters for coinbase payment distribution between first halving and stage 3 (aka stage 2) */
     /** P2PKH or P2SH address for developer funds */

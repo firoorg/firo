@@ -192,7 +192,6 @@ public:
         consensus.nSubsidyHalvingFirst = 302438;
         consensus.nSubsidyHalvingSecond = AdjustEndingBlockNumberAfterSubsidyHalving(302438, 420000, 486221); // =958655
         consensus.nSubsidyHalvingInterval = 420000*2;
-        consensus.nSubsidyHalvingStopBlock = AdjustEndingBlockNumberAfterSubsidyHalving(0, 3646849, 486221);  // =6807477
 
         consensus.stage2DevelopmentFundShare = 15;
         consensus.stage2ZnodeShare = 35;
@@ -520,7 +519,6 @@ public:
         consensus.nSubsidyHalvingFirst = 12000;
         consensus.nSubsidyHalvingSecond = 150000;
         consensus.nSubsidyHalvingInterval = 150000;
-        consensus.nSubsidyHalvingStopBlock = 1000000;
 
         consensus.stage2DevelopmentFundShare = 15;
         consensus.stage2ZnodeShare = 35;
@@ -803,7 +801,6 @@ public:
         consensus.nSubsidyHalvingFirst = 1;
         consensus.nSubsidyHalvingSecond = 3500;
         consensus.nSubsidyHalvingInterval = 100000;
-        consensus.nSubsidyHalvingStopBlock = 1000000;
 
         consensus.stage2DevelopmentFundShare = 15;
         consensus.stage2ZnodeShare = 35;
@@ -1049,7 +1046,6 @@ public:
         consensus.nSubsidyHalvingFirst = 1500;
         consensus.nSubsidyHalvingSecond = 2500;
         consensus.nSubsidyHalvingInterval = 1000;
-        consensus.nSubsidyHalvingStopBlock = 10000;
 
         consensus.nStartBlacklist = 0;
         consensus.nStartDuplicationCheck = 0;

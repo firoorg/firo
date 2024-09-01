@@ -1918,11 +1918,6 @@ CAmount GetBlockSubsidyWithMTPFlag(int nHeight, const Consensus::Params &consens
     if (nHeight == 0)
         return 0;
 
-    // Subsidy is cut in half after nSubsidyHalvingFirst block, then after nSubsidyHalvingSecond, then every nSubsidyHalvingInterval blocks.
-    // After block nSubsidyHalvingStopBlock there will be no subsidy at all
-    if (nHeight >= consensusParams.nSubsidyHalvingStopBlock)
-        return 0;
-
     CAmount nSubsidy;
 
     if (nHeight < consensusParams.nSubsidyHalvingFirst)
