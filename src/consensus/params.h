@@ -164,6 +164,8 @@ struct Params {
     int stage3MasternodeShare;
 
     /** parameters for coinbase payment distribution after stage three (aka stage 4) */
+    /** start time of stage 4 (usually the same as nSubsidyHalvingSecond)*/
+    int stage4StartBlock;
     /** percentage of block subsidy going to developer fund */
     int stage4DevelopmentFundShare;
     /** percentage of block subsidy going to community fund */

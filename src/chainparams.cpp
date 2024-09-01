@@ -206,6 +206,12 @@ public:
         consensus.stage3DevelopmentFundAddress = "aLgRaYSFk6iVw2FqY1oei8Tdn2aTsGPVmP";
         consensus.stage3CommunityFundAddress = "aFA2TbqG9cnhhzX5Yny2pBJRK5EaEqLCH7";
 
+        consensus.stage4StartBlock = consensus.nSubsidyHalvingSecond;
+        consensus.stage4CommunityFundShare = 10;
+        consensus.stage4DevelopmentFundShare = 15;
+        consensus.stage4MasternodeShare = 70;
+        consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
+
         consensus.nStartBlacklist = 293990;
         consensus.nStartDuplicationCheck = 293526;
 
@@ -528,6 +534,7 @@ public:
         consensus.stage3DevelopmentFundAddress = "TWDxLLKsFp6qcV1LL4U2uNmW4HwMcapmMU";
         consensus.stage3CommunityFundAddress = "TCkC4uoErEyCB4MK3d6ouyJELoXnuyqe9L";
 
+        consensus.stage4StartBlock = 168500;
         consensus.stage4CommunityFundShare = 10;
         consensus.stage4DevelopmentFundShare = 15;
         consensus.stage4MasternodeShare = 70;
@@ -794,7 +801,7 @@ public:
         consensus.chainType = Consensus::chainDevnet;
 
         consensus.nSubsidyHalvingFirst = 1;
-        consensus.nSubsidyHalvingSecond = 100000;
+        consensus.nSubsidyHalvingSecond = 3500;
         consensus.nSubsidyHalvingInterval = 100000;
         consensus.nSubsidyHalvingStopBlock = 1000000;
 
@@ -809,6 +816,12 @@ public:
         consensus.stage3MasternodeShare = 50;
         consensus.stage3DevelopmentFundAddress = "TfvbHyGTo8hexoKBBS8fz9Gq7g9VZQQpcg";
         consensus.stage3CommunityFundAddress = "TgoL9nh8vDTz7UB5WkBbknBksBdUaD9qbT";
+
+        consensus.stage4StartBlock = consensus.nSubsidyHalvingSecond;
+        consensus.stage4CommunityFundShare = 10;
+        consensus.stage4DevelopmentFundShare = 15;
+        consensus.stage4MasternodeShare = 70;
+        consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
 
         consensus.nStartBlacklist = 0;
         consensus.nStartDuplicationCheck = 0;
@@ -1044,12 +1057,18 @@ public:
         consensus.stage2ZnodeShare = 35;
 
         consensus.stage3StartTime = INT_MAX;
-        consensus.stage3StartBlock = 0;
+        consensus.stage3StartBlock = 2000;
         consensus.stage3DevelopmentFundShare = 15;
         consensus.stage3CommunityFundShare = 10;
         consensus.stage3MasternodeShare = 50;
         consensus.stage3DevelopmentFundAddress = "TGEGf26GwyUBE2P2o2beBAfE9Y438dCp5t";  // private key cMrz8Df36VR9TvZjtvSqLPhUQR7pcpkXRXaLNYUxfkKsRuCzHpAN
         consensus.stage3CommunityFundAddress = "TJmPzeJF4DECrBwUftc265U7rTPxKmpa4F";  // private key cTyPWqTMM1CgT5qy3K3LSgC1H6Q2RHvnXZHvjWtKB4vq9qXqKmMu
+
+        consensus.stage4StartBlock = consensus.nSubsidyHalvingSecond;
+        consensus.stage4CommunityFundShare = 15;
+        consensus.stage4DevelopmentFundShare = 25;
+        consensus.stage4MasternodeShare = 50;
+        consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
 
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
