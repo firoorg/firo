@@ -1943,17 +1943,17 @@ CAmount GetBlockSubsidyWithMTPFlag(int nHeight, const Consensus::Params &consens
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, int nTime) {
     return GetBlockSubsidyWithMTPFlag(nHeight, consensusParams,
             nTime >= (int)consensusParams.nMTPSwitchTime,
-            nHeight >= (int)consensusParams.stage3StartBlock);
+            nTime >= (int)consensusParams.stage3StartTime);
 }
 
 CAmount GetMasternodePayment(int nHeight, int nTime, CAmount blockValue)
 {
     const Consensus::Params &params = Params().GetConsensus();
-    if (nHeight >= params.stage4MasternodeShare)
+    if (nHeight >= params.stage4StartBlock)
         return blockValue*params.stage4MasternodeShare/100;
     else if (nHeight >= params.nSubsidyHalvingSecond)
         return blockValue/2;
-    else if (nHeight >= params.stage3StartBlock)
+    else if (nTime >= params.stage3StartTime)
         return blockValue*params.stage3MasternodeShare/100;
     else if (nHeight >= params.nSubsidyHalvingFirst)
         return blockValue*params.stage2ZnodeShare/100;
@@ -4832,7 +4832,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
     }
 
     if (nHeight >= consensusParams.nSubsidyHalvingFirst) {
-        if (nHeight >= consensusParams.stage3StartBlock) {
+        if (block.nTime >= consensusParams.stage3StartTime) {
             bool fStage4 = nHeight >= consensusParams.nSubsidyHalvingSecond;
             int  devPayoutShare = fStage4 ? consensusParams.stage4DevelopmentFundShare : consensusParams.stage3DevelopmentFundShare;
             int  communityPayoutShare = fStage4 ? consensusParams.stage4CommunityFundShare : consensusParams.stage3CommunityFundShare;

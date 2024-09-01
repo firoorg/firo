@@ -807,7 +807,7 @@ public:
         consensus.stage2DevelopmentFundAddress = "Tq99tes2sRbQ1yNUJPJ7BforYnKcitgwWq";
 
         consensus.stage3StartTime = 1653382800;
-        consensus.stage3StartBlock = 1514;
+        consensus.stage3StartBlock = 1514;  // this is incorrect value but we have to leave it for now
         consensus.stage3DevelopmentFundShare = 15;
         consensus.stage3CommunityFundShare = 10;
         consensus.stage3MasternodeShare = 50;
