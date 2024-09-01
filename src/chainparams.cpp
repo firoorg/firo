@@ -799,8 +799,8 @@ public:
         consensus.chainType = Consensus::chainDevnet;
 
         consensus.nSubsidyHalvingFirst = 1;
-        consensus.nSubsidyHalvingSecond = 3500;
-        consensus.nSubsidyHalvingInterval = 100000;
+        consensus.nSubsidyHalvingSecond = 3000;
+        consensus.nSubsidyHalvingInterval = 10000;
 
         consensus.stage2DevelopmentFundShare = 15;
         consensus.stage2ZnodeShare = 35;
