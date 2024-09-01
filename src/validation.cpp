@@ -4833,24 +4833,29 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 
     if (nHeight >= consensusParams.nSubsidyHalvingFirst) {
         if (block.nTime >= consensusParams.stage3StartTime) {
-            bool fStage4 = nHeight >= consensusParams.nSubsidyHalvingSecond;
-            int  devPayoutShare = fStage4 ? consensusParams.stage4DevelopmentFundShare : consensusParams.stage3DevelopmentFundShare;
-            int  communityPayoutShare = fStage4 ? consensusParams.stage4CommunityFundShare : consensusParams.stage3CommunityFundShare;
-            
+            bool fStage3 = nHeight < consensusParams.nSubsidyHalvingSecond;
+            bool fStage4 = nHeight >= consensusParams.stage4StartBlock;
+            CAmount devPayoutValue = 0, communityPayoutValue = 0;
             CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get());
-            CAmount devPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * devPayoutShare) / 100;
             CScript communityPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3CommunityFundAddress).Get());
-            CAmount communityPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * communityPayoutShare) / 100;
 
-            bool devFound = false, communityFound = false;
-            for (const CTxOut &txout: block.vtx[0]->vout) {
-                if (txout.scriptPubKey == devPayoutScript && txout.nValue == devPayoutValue)
-                    devFound = true;
-                else if (txout.scriptPubKey == communityPayoutScript && txout.nValue == communityPayoutValue)
-                    communityFound = true;
+            // There is no dev/community payout for testnet for some time
+            if (fStage3 || fStage4) {
+                int devShare = fStage3 ? consensusParams.stage3DevelopmentFundShare : consensusParams.stage4DevelopmentFundShare;
+                int communityShare = fStage3 ? consensusParams.stage3CommunityFundShare : consensusParams.stage4CommunityFundShare;
+                devPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * devShare) / 100;
+                communityPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * communityShare) / 100;
+
+                bool devFound = false, communityFound = false;
+                for (const CTxOut &txout: block.vtx[0]->vout) {
+                    if (txout.scriptPubKey == devPayoutScript && txout.nValue == devPayoutValue)
+                        devFound = true;
+                    else if (txout.scriptPubKey == communityPayoutScript && txout.nValue == communityPayoutValue)
+                        communityFound = true;
+                }
+                if (!devFound || !communityFound)
+                    return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Stage 3 developer/community reward check failed");
             }
-            if (!devFound || !communityFound)
-                return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Stage 3 developer/community reward check failed");
         }
         else {
             // "stage 2" interval between first and second halvings
