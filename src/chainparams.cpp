@@ -532,7 +532,7 @@ public:
         consensus.stage3DevelopmentFundAddress = "TWDxLLKsFp6qcV1LL4U2uNmW4HwMcapmMU";
         consensus.stage3CommunityFundAddress = "TCkC4uoErEyCB4MK3d6ouyJELoXnuyqe9L";
 
-        consensus.stage4StartBlock = 168500;
+        consensus.stage4StartBlock = 167500;
         consensus.stage4CommunityFundShare = 10;
         consensus.stage4DevelopmentFundShare = 15;
         consensus.stage4MasternodeShare = 70;
