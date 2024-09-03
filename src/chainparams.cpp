@@ -1052,8 +1052,8 @@ public:
         consensus.stage2DevelopmentFundShare = 15;
         consensus.stage2ZnodeShare = 35;
 
-        consensus.stage3StartTime = INT_MAX;
-        consensus.stage3StartBlock = 2000;
+        consensus.stage3StartTime = INT_MAX;        // tests should set this value individually
+        consensus.stage3StartBlock = INT_MAX;       // same as above
         consensus.stage3DevelopmentFundShare = 15;
         consensus.stage3CommunityFundShare = 10;
         consensus.stage3MasternodeShare = 50;

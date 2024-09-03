@@ -42,8 +42,17 @@ CScript scriptPubKeyMtpHalving;
 
 
 struct MtpHalvingTestingSetup : public TestingSetup {
-    MtpHalvingTestingSetup() : TestingSetup(CBaseChainParams::REGTEST)
+    Consensus::Params &mutableParams;
+    Consensus::Params oldParams;
+
+    MtpHalvingTestingSetup() : TestingSetup(CBaseChainParams::REGTEST), mutableParams(const_cast<Consensus::Params&>(Params().GetConsensus()))
     {
+        oldParams = mutableParams;
+
+        // disable stage 3 stuff for now
+        mutableParams.stage3StartTime = INT_MAX;
+        mutableParams.stage3StartBlock = INT_MAX;
+
         CPubKey newKey;
         BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
 
@@ -64,6 +73,10 @@ struct MtpHalvingTestingSetup : public TestingSetup {
                 pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], chainActive.Tip(), 0, true);
             }   
         }
+    }
+
+    ~MtpHalvingTestingSetup() {
+        mutableParams = oldParams;
     }
 
     CBlock CreateBlock(const CScript& scriptPubKeyMtpHalving, bool mtp = false) {
