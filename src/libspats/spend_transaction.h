@@ -29,8 +29,8 @@ struct InputCoinData {
     GroupElement T;        // tag
     uint64_t v;            // value
     Scalar k;              // nonce
-    uint64_t a;            // asset type
-    uint64_t iota;         // identifier
+    Scalar a;            // asset type
+    Scalar iota;         // identifier
 };
 
 struct CoverSetData {
@@ -42,8 +42,8 @@ struct OutputCoinData {
     Address address;
     uint64_t v;
     std::string memo;
-    uint64_t a;    // asset type
-    uint64_t iota; // identifier
+    Scalar a;    // asset type
+    Scalar iota; // identifier
 };
 
 class SpendTransaction

@@ -13,7 +13,7 @@ BOOST_FIXTURE_TEST_SUITE(okay_of_this, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(generate_verify)
 {
     int result = 1 + 2;
-    std::cout << "=========this is result========" << std::endl;
+    std::cout << "========= this is result ========" << std::endl;
     std::string filename = "abc.txt";
 
     // Create an ofstream (output file stream) object and open the file

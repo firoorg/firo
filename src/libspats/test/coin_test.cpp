@@ -25,8 +25,8 @@ namespace spats {
         const Params* params;
         params = Params::get_default();
 
-        const uint64_t asset_type = 1; // new value
-        const uint64_t identifier = 1; // new value
+        const Scalar asset_type = Scalar(uint64_t(1)); // new value
+        const Scalar identifier = Scalar(uint64_t(1)); // new value
         const uint64_t i = 12345;
         const uint64_t v = 86;
         const std::string memo = "Ha Ha Ha";
@@ -58,6 +58,8 @@ namespace spats {
         IdentifiedCoinData i_data = coin.identify(incoming_view_key);
         BOOST_CHECK_EQUAL(i_data.i, i);
         BOOST_CHECK_EQUAL_COLLECTIONS(i_data.d.begin(), i_data.d.end(), address.get_d().begin(), address.get_d().end());
+        BOOST_CHECK_EQUAL(i_data.a, asset_type);
+        BOOST_CHECK_EQUAL(i_data.iota, identifier);
         BOOST_CHECK_EQUAL(i_data.v, v);
         BOOST_CHECK_EQUAL(i_data.k, k);
         BOOST_CHECK_EQUAL(strcmp(memo.c_str(), i_data.memo.c_str()), 0); // compare strings in a lexicographical manner, as we pad the memo in the coin
@@ -77,8 +79,8 @@ namespace spats {
         const Params* params;
         params = Params::get_default();
 
-        const uint64_t asset_type = 0; // new value
-        const uint64_t identifier = 0; // new value
+        const Scalar asset_type = Scalar(uint64_t(0)); // new value
+        const Scalar identifier = Scalar(uint64_t(0)); // new value
         const uint64_t i = 12345;
         const uint64_t v = 86;
         const std::string memo = "Ha Ha Ha";
@@ -110,6 +112,8 @@ namespace spats {
         IdentifiedCoinData i_data = coin.identify(incoming_view_key);
         BOOST_CHECK_EQUAL(i_data.i, i);
         BOOST_CHECK_EQUAL_COLLECTIONS(i_data.d.begin(), i_data.d.end(), address.get_d().begin(), address.get_d().end());
+        BOOST_CHECK_EQUAL(i_data.a, asset_type);
+        BOOST_CHECK_EQUAL(i_data.iota, identifier);
         BOOST_CHECK_EQUAL(i_data.v, v);
         BOOST_CHECK_EQUAL(i_data.k, k);
         BOOST_CHECK_EQUAL(strcmp(memo.c_str(), i_data.memo.c_str()), 0); // compare strings in a lexicographical manner, as we pad the memo in the coin

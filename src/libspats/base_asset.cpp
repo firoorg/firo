@@ -35,14 +35,14 @@ void BaseAsset::prove(const std::vector<Scalar>& y, const std::vector<Scalar>& z
     const std::size_t n = y.size();
 
     // Check statement validity
-    if (y.size() != z.size() && y.size() != C.size()) {
-        throw std::invalid_argument("Bad BaseAsset statement!1");
+    if (y.size() != z.size() || y.size() != C.size()) {
+        throw std::invalid_argument("Bad base asset statement!1");
     }
 
 
     for (std::size_t i = 0; i < n; i++) {
         if (G * y[i] + H * z[i] != C[i]) {
-            throw std::invalid_argument("Bad BaseAsset statement!2");
+            throw std::invalid_argument("Bad base asset statement!2");
         }
     }
 
@@ -58,6 +58,10 @@ void BaseAsset::prove(const std::vector<Scalar>& y, const std::vector<Scalar>& z
     proof.ty = ry;
     proof.tz = rz;
     for (std::size_t i = 0; i < n; i++) {
+        // c_power must be nonzero
+        if (c_power.isZero()) {
+            throw std::invalid_argument("Unexpected challenge!");
+        }
         proof.ty += y[i].negate() * c_power;
         proof.tz += z[i].negate() * c_power;
         c_power *= c;
@@ -89,6 +93,10 @@ bool BaseAsset::verify(const std::vector<GroupElement>& C, const BaseAssetProof&
     const Scalar c = challenge(C, proof.A);
     Scalar c_power(c);
     for (std::size_t i = 0; i < n; i++) {
+        // c_power must be nonzero
+        if (c_power.isZero()) {
+            throw std::invalid_argument("Unexpected challenge!");
+        }
         points.emplace_back(C[i]);
         scalars.emplace_back(c_power);
         c_power *= c;

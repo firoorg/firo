@@ -3,6 +3,9 @@
 namespace spats
 {
 
+// Useful scalar constants
+const Scalar ZERO = Scalar((uint64_t)0);
+
 // Generate a spend transaction that consumes existing coins and generates new ones
 SpendTransaction::SpendTransaction(
     const Params* params)
@@ -25,8 +28,8 @@ SpendTransaction::SpendTransaction(
     this->inputs = inputs;
     this->outputs = outputs;
 
-    uint64_t asset_type;
-    uint64_t identifier;
+    Scalar asset_type;
+    Scalar identifier;
 
 
     // Size parameters
@@ -89,7 +92,7 @@ SpendTransaction::SpendTransaction(
 
         // Value commitment offset
         this->C1.emplace_back(
-            (this->params->get_E() * inputs[u].a) + (this->params->get_F() * inputs[u].iota) + (this->params->get_G() * inputs[u].v) + (this->params->get_H() * SpatsUtils::hash_val1(inputs[u].s, full_view_key.get_D())));
+            (this->params->get_E() * inputs[u].a) + (this->params->get_F() * inputs[u].iota) + (this->params->get_G() * Scalar(inputs[u].v)) + (this->params->get_H() * SpatsUtils::hash_val1(inputs[u].s, full_view_key.get_D())));
 
 
         // Tags
@@ -156,7 +159,7 @@ SpendTransaction::SpendTransaction(
         range_r.emplace_back(SpatsUtils::hash_val(k.back()));
         range_C.emplace_back(this->out_coins.back().C);
 
-        if (outputs[j].a != 0) {
+        if (outputs[j].a != ZERO) {
             iota_out_generic = outputs[j].iota;
             asset_type_out_generic = outputs[j].a;
         }
@@ -190,7 +193,7 @@ SpendTransaction::SpendTransaction(
     std::vector<Scalar> type_z;
 
     for (std::size_t u = 0; u < w; u++) {
-        if (inputs[u].a == 0) {
+        if (inputs[u].a == ZERO) {
             base_c.emplace_back(C1[u]);
             base_y.emplace_back(inputs[u].v);
             base_z.emplace_back(SpatsUtils::hash_val1(inputs[u].s, full_view_key.get_D()));
@@ -204,7 +207,7 @@ SpendTransaction::SpendTransaction(
     }
 
     for (std::size_t j = 0; j < t; j++) {
-        if (outputs[j].a == 0) {
+        if (outputs[j].a == ZERO) {
             base_c.emplace_back(out_coins[j].C);
             base_y.emplace_back(outputs[j].v);
             base_z.emplace_back(SpatsUtils::hash_val(k[j]));
@@ -242,7 +245,7 @@ SpendTransaction::SpendTransaction(
     uint64_t t_generic = 0;
 
     for (std::size_t u = 0; u < w; u++) {
-        if (inputs[u].a == 0) {
+        if (inputs[u].a == ZERO) {
             rep_statement += C1[u];
             rep_witness += SpatsUtils::hash_val1(inputs[u].s, full_view_key.get_D());
         } else {
@@ -252,7 +255,7 @@ SpendTransaction::SpendTransaction(
         }
     }
     for (std::size_t j = 0; j < t; j++) {
-        if (outputs[j].a == 0) {
+        if (outputs[j].a == ZERO) {
             rep_statement += out_coins[j].C.inverse();
             rep_witness -= SpatsUtils::hash_val(k[j]);
         } else {
@@ -275,7 +278,7 @@ SpendTransaction::SpendTransaction(
     Balance balance(this->params->get_E(), this->params->get_F(), this->params->get_H());
 
 
-    balance.prove(balance_statement, (w_generic - t_generic) * asset_type, (w_generic - t_generic) * identifier, balance_witness, balance_proof);
+    balance.prove(balance_statement, Scalar(uint64_t(w_generic - t_generic)) * asset_type, Scalar(uint64_t(w_generic - t_generic)) * identifier, balance_witness, balance_proof);
 
 
     // Compute the binding hash
@@ -433,7 +436,7 @@ bool SpendTransaction::verify(
         std::vector<GroupElement> type_c;
         std::vector<GroupElement> base_c;
         for (std::size_t u = 0; u < w; u++) {
-            if (tx.inputs[u].a != 0) {
+            if (tx.inputs[u].a != ZERO) {
                 type_c.emplace_back(tx.C1[u]);
             } else {
                 base_c.emplace_back(tx.C1[u]);
@@ -441,7 +444,7 @@ bool SpendTransaction::verify(
         }
 
         for (std::size_t j = 0; j < t; j++) {
-            if (tx.inputs[j].a != 0) {
+            if (tx.inputs[j].a != ZERO) {
                 type_c.emplace_back(tx.out_coins[j].C);
             } else {
                 base_c.emplace_back(tx.out_coins[j].C);
@@ -461,14 +464,14 @@ bool SpendTransaction::verify(
         GroupElement rep_statement;
         GroupElement balance_statement;
         for (std::size_t u = 0; u < w; u++) {
-            if (tx.inputs[u].a == 0) {
+            if (tx.inputs[u].a == ZERO) {
                 rep_statement += tx.C1[u];
             } else {
                 balance_statement += tx.C1[u];
             }
         }
         for (std::size_t j = 0; j < t; j++) {
-            if (tx.outputs[j].a == 0) {
+            if (tx.outputs[j].a == ZERO) {
                 rep_statement += tx.out_coins[j].C.inverse();
             } else {
                 balance_statement += tx.out_coins[j].C.inverse();
