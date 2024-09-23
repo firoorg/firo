@@ -19,27 +19,28 @@
 #include <assert.h>
 #include <stddef.h>
 
-InputSigner::InputSigner() : InputSigner(COutPoint())
+SigmaTxBuilderInputSigner::SigmaTxBuilderInputSigner() : SigmaTxBuilderInputSigner(COutPoint())
 {
 }
 
-InputSigner::InputSigner(const COutPoint& output, uint32_t seq) : output(output), sequence(seq)
+SigmaTxBuilderInputSigner::SigmaTxBuilderInputSigner(const COutPoint& output, uint32_t seq) : output(output), sequence(seq)
 {
 }
 
-InputSigner::~InputSigner()
+SigmaTxBuilderInputSigner::~SigmaTxBuilderInputSigner()
 {
 }
 
-TxBuilder::TxBuilder(CWallet& wallet) noexcept : wallet(wallet)
+SigmaTxBuilderSuperclass::SigmaTxBuilderSuperclass(CWallet& wallet) noexcept : wallet(wallet)
 {
 }
 
-TxBuilder::~TxBuilder()
+SigmaTxBuilderSuperclass::~SigmaTxBuilderSuperclass()
 {
 }
 
-CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& fee,  bool& fChangeAddedToFee, CWalletDB& walletdb)
+// This is NOT what is used for spending. It's only used in legacy Sigma code.
+CWalletTx SigmaTxBuilderSuperclass::Build(const std::vector<CRecipient>& recipients, CAmount& fee,  bool& fChangeAddedToFee, CWalletDB& walletdb)
 {
     if (recipients.empty()) {
         throw std::invalid_argument(_("No recipients"));
@@ -163,7 +164,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
         }
 
         // get inputs
-        std::vector<std::unique_ptr<InputSigner>> signers;
+        std::vector<std::unique_ptr<SigmaTxBuilderInputSigner>> signers;
         CAmount total = GetInputs(signers, required);
 
         // add changes
@@ -264,7 +265,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
     return result;
 }
 
-CAmount TxBuilder::AdjustFee(CAmount needed, unsigned txSize)
+CAmount SigmaTxBuilderSuperclass::AdjustFee(CAmount needed, unsigned txSize)
 {
     return needed;
 }
