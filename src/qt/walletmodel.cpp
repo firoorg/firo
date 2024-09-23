@@ -272,6 +272,12 @@ bool WalletModel::validateAddress(const QString &address)
     return addressParsed.IsValid();
 }
 
+bool WalletModel::validateExchangeAddress(const QString &address)
+{
+    CBitcoinAddress addressParsed(address.toStdString());
+    return addressParsed.IsValid() && addressParsed.Get().type() == typeid(CExchangeKeyID);
+}
+
 WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl)
 {
     CAmount total = 0;

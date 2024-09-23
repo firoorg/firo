@@ -190,11 +190,11 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &SendCoinsDialog::updateSmartFeeLabel);
         connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &SendCoinsDialog::updateGlobalFeeVariables);
         connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
-        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::updateFeeSectionControls);
-        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::updateGlobalFeeVariables);
-        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::coinControlUpdateLabels);
-        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::updateGlobalFeeVariables);
-        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::coinControlUpdateLabels);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::idClicked), this, &SendCoinsDialog::updateFeeSectionControls);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::idClicked), this, &SendCoinsDialog::updateGlobalFeeVariables);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::idClicked), this, &SendCoinsDialog::coinControlUpdateLabels);
+        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::idClicked), this, &SendCoinsDialog::updateGlobalFeeVariables);
+        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::idClicked), this, &SendCoinsDialog::coinControlUpdateLabels);
         connect(ui->customFee, &BitcoinAmountField::valueChanged, this, &SendCoinsDialog::updateGlobalFeeVariables);
         connect(ui->customFee, &BitcoinAmountField::valueChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
         connect(ui->checkBoxMinimumFee, &QCheckBox::stateChanged, this, &SendCoinsDialog::setMinimumFee);
@@ -292,7 +292,6 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     // prepare transaction for getting txFee earlier
-    WalletModelTransaction currentTransaction(recipients);
     std::vector<WalletModelTransaction> transactions;
     WalletModel::SendCoinsReturn prepareStatus;
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
@@ -310,12 +309,67 @@ void SendCoinsDialog::on_sendButton_clicked()
         ctrl.nConfirmTarget = 0;
 
     int sparkAddressCount = 0;
+    int exchangeAddressCount = 0;
     for(int i = 0; i < recipients.size(); ++i){
-        bool check = model->validateSparkAddress(recipients[i].address);
-        if(check) {
+        if (model->validateSparkAddress(recipients[i].address))
             sparkAddressCount++;
-        }
+        if (model->validateExchangeAddress(recipients[i].address))
+            exchangeAddressCount++;
     }
+
+    bool fGoThroughTransparentAddress = false;
+    __decltype(recipients) exchangeRecipients;
+    CScript intermediateAddressScript;
+    CAmount extraFee = 0;
+
+    if (fAnonymousMode && exchangeAddressCount > 0) {
+        CAmount exchangeAddressAmount = 0;
+        // if the transaction is performed in two stages through the intermediate address we need to calculate the size of the second transaction
+        uint32_t secondTxSize = 8 /*CTransaction: nVersion, nLockTime*/ + 1 /*vinSize*/ + 148 /*vin[0]*/ + 20 /*safety*/ + 1 /*voutSize*/;
+
+        fGoThroughTransparentAddress = true;
+
+        // remove exchange addresses from recipients array and add them to exchangeRecipients array
+        for(int i = 0; i < recipients.size(); ){
+            if (model->validateExchangeAddress(recipients[i].address)) {
+                exchangeAddressAmount += recipients[i].amount;
+                // we use different fee calculation system and therefore can't reliably do the calculation
+                // of fee for the second transaction if some of recipients have this flag set
+                recipients[i].fSubtractFeeFromAmount = false;
+                exchangeRecipients.push_back(recipients[i]);
+
+                secondTxSize += 8 /*amount*/ + 1 /*scriptSize*/ + 26 /*scriptPubKey*/;
+
+                recipients.erase(recipients.begin() + i);
+            }
+            else {
+                ++i;
+            }
+        }
+
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        // create a new transparent address and add it to the recipients array
+        if (!pwalletMain->IsLocked()) {
+            pwalletMain->TopUpKeyPool();
+        }
+        CPubKey newKey;
+        if (!pwalletMain->GetKeyFromPool(newKey)) {
+            fNewRecipientAllowed = true;
+            return;
+        }
+        pwalletMain->SetAddressBook(newKey.GetID(), "", "receive");
+        intermediateAddressScript = GetScriptForDestination(newKey.GetID());
+
+        extraFee = CWallet::GetMinimumFee(secondTxSize, nTxConfirmTarget, mempool);
+
+        SendCoinsRecipient newRecipient;        
+        newRecipient.address = CBitcoinAddress(newKey.GetID()).ToString().c_str();
+        newRecipient.amount = exchangeAddressAmount + extraFee;
+        newRecipient.fSubtractFeeFromAmount = false;
+        recipients.push_back(newRecipient);
+    }
+
+    WalletModelTransaction currentTransaction(recipients);
 
     CAmount mintSparkAmount = 0;
     CAmount txFee = 0;
@@ -340,15 +394,6 @@ void SendCoinsDialog::on_sendButton_clicked()
             return;
         }
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
-        if (spark::IsSparkAllowed()) {
-            SendGoPrivateDialog goPrivateDialog;
-            bool clickedButton = goPrivateDialog.getClickedButton();
-            if (!clickedButton) {
-                setAnonymizeMode(true);
-                fNewRecipientAllowed = true;
-                return;
-            }
-        }
         prepareStatus = model->prepareTransaction(currentTransaction, &ctrl);
     } else {
         fNewRecipientAllowed = true;
@@ -364,8 +409,25 @@ void SendCoinsDialog::on_sendButton_clicked()
         return;
     }
 
+    // If the transaction is performed in two stages through the intermediate address we need to show the real
+    // recipients (for informational purposes), replacing the intermediate transparent address with the exchange address(es)
+    __decltype(recipients) realRecipients = recipients;
+    if (fGoThroughTransparentAddress) {
+        realRecipients.erase(realRecipients.end() - 1);
+        realRecipients.append(exchangeRecipients);
+    }
+
     // Format confirmation message
     QStringList formatted;
+    QString warningMessage;
+
+    for(int i = 0; i < recipients.size(); ++i) {
+        warningMessage = entry->generateWarningText(recipients[i].address, fAnonymousMode);
+        if ((model->validateSparkAddress(recipients[i].address)) || (recipients[i].address.startsWith("EX"))) {
+            break;
+        }
+    }
+
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
         for(int i = 0; i < recipients.size(); i++) {
@@ -407,7 +469,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             formatted.append(recipientElement);
         }
     } else if ((fAnonymousMode == true) && (recipients.size() == 1) && spark::IsSparkAllowed()) {
-        for (auto &rcp : recipients)
+        for (auto &rcp : realRecipients)
         {
             // generate bold amount string
             CAmount namount = rcp.amount;
@@ -434,7 +496,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             formatted.append(recipientElement);
         }
     } else {
-        for (const SendCoinsRecipient &rcp : currentTransaction.getRecipients())
+        for (auto &rcp : realRecipients)
         {
             // generate bold amount string
             QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
@@ -459,7 +521,16 @@ void SendCoinsDialog::on_sendButton_clicked()
             formatted.append(recipientElement);
         }
     }
+
+    if (fGoThroughTransparentAddress) {
+        QString transparentAddress = "<span style='font-family: monospace;'>" + recipients[recipients.size()-1].address + "</span>";
+        formatted.append("<br />");
+        formatted.append(tr("EX-addresses can only receive FIRO from transparent addresses.<br /><br />"
+            "Your FIRO will go from Spark to a newly generated transparent address %1 and then immediately be sent to the EX-address.").arg(transparentAddress));
+    }
+
     QString questionString = tr("Are you sure you want to send?");
+    questionString.append(warningMessage);
     questionString.append("<br /><br />%1");
     double txSize;
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
@@ -484,6 +555,15 @@ void SendCoinsDialog::on_sendButton_clicked()
 
         // append transaction size
         questionString.append(" (" + QString::number(txSize / 1000) + " kB)");
+
+        if (fGoThroughTransparentAddress) {
+            QString feeString;
+            feeString.append("<span style='color:#aa0000;'>");
+            feeString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), extraFee));
+            feeString.append("</span>");
+            
+            questionString.append(tr(". An additional transaction fee of %1 will apply to complete the send from the transparent address to the EX-address.").arg(feeString));
+        }
     }
 
     // add total amount in all subdivision units
@@ -556,15 +636,62 @@ void SendCoinsDialog::on_sendButton_clicked()
         CoinControlDialog::coinControl->UnSelectAll();
         coinControlUpdateLabels();
     }
+
+    // Launch the second stage of the transaction if needed
+    if (fGoThroughTransparentAddress) {
+        // prepare the coin control so the transaction will use (by default) only the transparent address
+        // created in the first stage
+        COutPoint outpoint;
+        outpoint.hash = currentTransaction.getTransaction()->GetHash();
+        outpoint.n = UINT_MAX;
+
+        const auto &vout = currentTransaction.getTransaction()->tx->vout;
+        for (size_t i = 0; i < vout.size(); i++) {
+            if (vout[i].scriptPubKey == intermediateAddressScript) {
+                outpoint.n = i;
+                break;
+            }
+        }
+
+        if (outpoint.n == UINT_MAX) {
+            sendStatus.status = WalletModel::InvalidAddress;
+            sendStatus.reasonCommitFailed = "Intermediate address was not found in the transaction";
+            fNewRecipientAllowed = true;
+            return;
+        }
+
+        CCoinControl ctrl;
+        ctrl.fAllowOtherInputs = false;
+        ctrl.fNoChange = true;
+        ctrl.Select(outpoint);
+
+        WalletModelTransaction  secondTransaction(exchangeRecipients);
+
+        prepareStatus = model->prepareTransaction(secondTransaction, &ctrl);
+
+        // process prepareStatus and on error generate message shown to user
+        processSendCoinsReturn(prepareStatus,
+            BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
+
+        if(prepareStatus.status != WalletModel::OK) {
+            fNewRecipientAllowed = true;
+            return;
+        }
+
+        sendStatus = model->sendCoins(secondTransaction);
+        // process sendStatus and on error generate message shown to user
+        processSendCoinsReturn(sendStatus);
+    }
+
     fNewRecipientAllowed = true;
 }
 
 void SendCoinsDialog::on_switchFundButton_clicked()
 {
     setAnonymizeMode(!fAnonymousMode);
-    coinControlUpdateLabels();
-
+    entry->setfAnonymousMode(fAnonymousMode);
     entry->setWarning(fAnonymousMode);
+    coinControlUpdateLabels();
 }
 
 void SendCoinsDialog::clear()
@@ -593,7 +720,9 @@ SendCoinsEntry *SendCoinsDialog::addEntry()
 {
     entry = new SendCoinsEntry(platformStyle, this);
     entry->setModel(model);
+    entry->setfAnonymousMode(fAnonymousMode);
     entry->setWarning(fAnonymousMode);
+
     ui->entries->addWidget(entry);
     connect(entry, &SendCoinsEntry::removeEntry, this, &SendCoinsDialog::removeEntry);
     connect(entry, &SendCoinsEntry::payAmountChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
@@ -685,7 +814,6 @@ void SendCoinsDialog::setAddress(const QString &address)
     {
         entry = addEntry();
     }
-
     entry->setAddress(address);
 }
 
@@ -965,7 +1093,7 @@ void SendCoinsDialog::updateSmartFeeLabel()
         int lightness = ui->fallbackFeeWarningLabel->palette().color(QPalette::WindowText).lightness();
         QColor warning_colour(255 - (lightness / 5), 176 - (lightness / 3), 48 - (lightness / 14));
         ui->fallbackFeeWarningLabel->setStyleSheet("QLabel { color: " + warning_colour.name() + "; }");
-        ui->fallbackFeeWarningLabel->setIndent(QFontMetrics(ui->fallbackFeeWarningLabel->font()).width("x"));
+        ui->fallbackFeeWarningLabel->setIndent(GUIUtil::TextWidth(QFontMetrics(ui->fallbackFeeWarningLabel->font()), "x"));
     }
     else
     {
@@ -1213,68 +1341,87 @@ void SendConfirmationDialog::updateYesButton()
     }
 }
 
-SendGoPrivateDialog::SendGoPrivateDialog():QMessageBox()
-{
-    QDialog::setWindowTitle("Make this a private transaction");
-    QDialog::setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint);
-    
-    QLabel *ic = new QLabel();
-    QIcon icon_;
-    icon_.addFile(QString::fromUtf8(":/icons/ic_info"), QSize(), QIcon::Normal, QIcon::On);
-    ic->setPixmap(icon_.pixmap(18, 18));
-    ic->setFixedWidth(50);
-    ic->setAlignment(Qt::AlignRight);
-    ic->setStyleSheet("color:#92400E");
-    QLabel *text = new QLabel();
-    text->setText(tr("You are using a transparent transaction, please go private. If this is a masternode transaction, you do not have to go private"));
-    text->setAlignment(Qt::AlignLeft);
-    text->setWordWrap(true);
-    text->setStyleSheet("color:#92400E;");
-    
-    QPushButton *ignore = new QPushButton(this);
-    ignore->setText("Ignore");
-    ignore->setStyleSheet("color:#9b1c2e;background-color:none;margin-top:30px;margin-bottom:60px;margin-left:50px;margin-right:20px;border:1px solid #9b1c2e;");
-    QPushButton *goPrivate = new QPushButton(this);
-    goPrivate->setText("Go Private");
-    goPrivate->setStyleSheet("margin-top:30px;margin-bottom:60px;margin-left:20px;margin-right:50px;");
-    QHBoxLayout *groupButton = new QHBoxLayout(this);
-    groupButton->addWidget(ignore);
-    groupButton->addWidget(goPrivate);
-    
-    QHBoxLayout *hlayout = new QHBoxLayout(this);
-    hlayout->addWidget(ic);
-    hlayout->addWidget(text);
-    
-    QWidget *layout_ = new QWidget();
-    layout_->setLayout(hlayout);
-    layout_->setStyleSheet("background-color:#FEF3C7;");
-    
-    QVBoxLayout *vlayout = new QVBoxLayout(this);
-    vlayout->addWidget(layout_);
-    vlayout->addLayout(groupButton);
-    vlayout->setContentsMargins(0,0,0,0);
-    QWidget *wbody = new QWidget();
-    wbody->setLayout(vlayout);
-    layout()->addWidget(wbody);
-    setContentsMargins(0, 0, 0, 0);
-    setStyleSheet("margin-right:-30px;");
-    setStandardButtons(0);    
-    connect(ignore, &QPushButton::clicked, this, &SendGoPrivateDialog::onIgnoreClicked);
-    connect(goPrivate, &QPushButton::clicked, this, &SendGoPrivateDialog::onGoPrivateClicked);
-    exec();
-}
-void SendGoPrivateDialog::onIgnoreClicked()
-{
-    setVisible(false);
-    clickedButton = true;
-}
-void SendGoPrivateDialog::onGoPrivateClicked()
-{
-    setVisible(false);
-    clickedButton = false;
+void SendCoinsDialog::resizeEvent(QResizeEvent* event) {
+    QWidget::resizeEvent(event);
+
+    // Retrieve new dimensions from the resize event
+    const int newWidth = event->size().width();
+    const int newHeight = event->size().height();
+
+    const int labelMinWidth = static_cast<int>(newWidth * 0.15);
+
+    // Resize and adjust components
+    ui->sendButton->setMinimumWidth(labelMinWidth);
+    ui->clearButton->setMinimumWidth(labelMinWidth);
+    ui->addButton->setMinimumWidth(labelMinWidth);
+    ui->buttonChooseFee->setMinimumWidth(labelMinWidth);
+    ui->buttonMinimizeFee->setMinimumWidth(labelMinWidth);
+    ui->switchFundButton->setMinimumWidth(labelMinWidth);
+    ui->pushButtonCoinControl->setMinimumWidth(labelMinWidth);
+
+
+    // Dynamically adjust text sizes based on the new dimensions
+    adjustTextSize(newWidth, newHeight);
 }
 
-bool SendGoPrivateDialog::getClickedButton()
-{
-    return clickedButton;
+void SendCoinsDialog::adjustTextSize(int width, int height) {
+    const double fontSizeScalingFactor = 131.3;
+    int baseFontSize = width / fontSizeScalingFactor;
+    int fontSize = std::min(15, std::max(12, baseFontSize));
+
+    QFont font =  ui->labelBalance->font();
+    font.setPointSize(fontSize);
+
+    QFont textFont = font;
+    textFont.setBold(true);
+
+    // Set font size for all labels
+    ui->labelBalance->setFont(font);
+    ui->lineEditCoinControlChange->setFont(font);
+    ui->labelFeeEstimation->setFont(font);
+    ui->labelFeeHeadline->setFont(font);
+    ui->labelCoinControlFeatures->setFont(textFont);
+    ui->labelCoinControlAutomaticallySelected->setFont(font);
+    ui->labelCoinControlInsuffFunds->setFont(font);
+    ui->labelCoinControlQuantity->setFont(font);
+    ui->labelCoinControlBytes->setFont(font);
+    ui->labelCoinControlAmount->setFont(font);
+    ui->labelCoinControlLowOutput->setFont(font);
+    ui->labelCoinControlFee->setFont(font);
+    ui->labelCoinControlAfterFee->setFont(font);
+    ui->labelCoinControlChange->setFont(font);
+    ui->labelFeeMinimized->setFont(font);
+    ui->labelBalance->setFont(font);
+    ui->radioSmartFee->setFont(font);
+    ui->radioCustomPerKilobyte->setFont(font);
+    ui->radioCustomFee->setFont(font);
+    ui->radioCustomAtLeast->setFont(font);
+    ui->labelBalanceText->setFont(font);
+    ui->labelFeeEstimation->setFont(font);
+    ui->labelSmartFee->setFont(font);
+    ui->labelSmartFee2->setFont(font);
+    ui->labelSmartFee3->setFont(font);
+    ui->labelSmartFeeNormal->setFont(font);
+    ui->labelSmartFeeFast->setFont(font);
+    ui->labelCoinControlQuantityText->setFont(font);
+    ui->labelCoinControlBytesText->setFont(font);
+    ui->labelCoinControlAmountText->setFont(font);
+    ui->labelCoinControlLowOutputText->setFont(font);
+    ui->labelCoinControlFeeText->setFont(font);
+    ui->labelCoinControlAfterFeeText->setFont(font);
+    ui->labelCoinControlChangeText->setFont(font);
+    ui->labelCoinControlChangeLabel->setFont(font);
+    ui->labelMinFeeWarning->setFont(font);
+    ui->fallbackFeeWarningLabel->setFont(font);
+    ui->checkBoxMinimumFee->setFont(font);
+    ui->checkBoxCoinControlChange->setFont(font);
+    ui->confirmationTargetLabel->setFont(font);
+
+
+    // Adjust font for all buttons 
+    ui->sendButton->setFont(font);
+    ui->clearButton->setFont(font);
+    ui->addButton->setFont(font);
+    ui->pushButtonCoinControl->setFont(font);
+    ui->customFee->setFont(font);
 }

@@ -301,9 +301,15 @@ bool ConnectBlockSpark(
         }
 
         if (!fJustCheck) {
-            BOOST_FOREACH(auto& lTag, pblock->sparkTxInfo->spentLTags) {
+            BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->spentLTags) {
                 pindexNew->spentLTags.insert(lTag);
                 sparkState.AddSpend(lTag.first, lTag.second);
+            }
+            if (GetBoolArg("-mobile", false)) {
+                BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->ltagTxhash) {
+                    pindexNew->ltagTxhash.insert(lTag);
+                    sparkState.AddLTagTxHash(lTag.first, lTag.second);
+                }
             }
         }
         else {
@@ -729,6 +735,9 @@ bool CheckSparkSpendTransaction(
             if (sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
                 for (size_t i = 0; i < lTags.size(); i++) {
                     sparkTxInfo->spentLTags.insert(std::make_pair(lTags[i], ids[i]));
+                    if (GetBoolArg("-mobile", false)) {
+                        sparkTxInfo->ltagTxhash.insert(std::make_pair(primitives::GetLTagHash(lTags[i]), hashTx));
+                    }
                 }
             }
         }
@@ -1083,6 +1092,10 @@ void CSparkState::AddSpend(const GroupElement& lTag, int coinGroupId) {
     }
 }
 
+void CSparkState::AddLTagTxHash(const uint256& lTagHash, const uint256& txHash) {
+    ltagTxhash[lTagHash] = txHash;
+}
+
 void CSparkState::RemoveSpend(const GroupElement& lTag) {
     auto iter = usedLTags.find(lTag);
     if (iter != usedLTags.end()) {
@@ -1118,6 +1131,11 @@ void CSparkState::AddBlock(CBlockIndex *index) {
 
     for (auto const &lTags : index->spentLTags) {
         AddSpend(lTags.first, lTags.second);
+    }
+    if (GetBoolArg("-mobile", false)) {
+        for (auto const &elem : index->ltagTxhash) {
+            AddLTagTxHash(elem.first, elem.second);
+        }
     }
 }
 
@@ -1363,6 +1381,10 @@ std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & CSpark
 }
 std::unordered_map<GroupElement, int, spark::CLTagHash> const & CSparkState::GetSpends() const {
     return usedLTags;
+}
+
+std::unordered_map<uint256, uint256> const& CSparkState::GetSpendTxIds() const {
+    return ltagTxhash;
 }
 
 std::unordered_map<int, CSparkState::SparkCoinGroupInfo> const& CSparkState::GetCoinGroups() const {
