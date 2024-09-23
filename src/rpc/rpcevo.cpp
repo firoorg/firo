@@ -667,16 +667,31 @@ UniValue protx_update_service(const JSONRPCRequest& request)
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
 
+    bool isSparkAddress = false;
     // param operatorPayoutAddress
     if (request.params.size() >= 5) {
         if (request.params[4].get_str().empty()) {
             ptx.scriptOperatorPayout = dmn->pdmnState->scriptOperatorPayout;
         } else {
+            bool isSparkAddress = false;
+            const spark::Params* params = spark::Params::get_default();
+            spark::Address sPayoutAddress(params);
+            try {
+                 parseSparkAddress(request.params[4].get_str());
+                 isSparkAddress = true;
+            } catch (const std::invalid_argument &) {
+                //contiune
+            }
             CBitcoinAddress payoutAddress(request.params[4].get_str());
-            if (!payoutAddress.IsValid()) {
+            if (!isSparkAddress && !payoutAddress.IsValid()) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid operator payout address: %s", request.params[4].get_str()));
             }
-            ptx.scriptOperatorPayout = GetScriptForDestination(payoutAddress.Get()); //TODO levon
+            if (isSparkAddress) {
+                unsigned char network = spark::GetNetworkType();
+                ptx.scriptOperatorPayout = CScript() << sPayoutAddress.toByteVector(network) << OP_SPARKMINT;
+            } else {
+                ptx.scriptOperatorPayout = GetScriptForDestination(payoutAddress.Get());
+            }
         }
     } else {
         ptx.scriptOperatorPayout = dmn->pdmnState->scriptOperatorPayout;
@@ -693,10 +708,12 @@ UniValue protx_update_service(const JSONRPCRequest& request)
     } else {
         if (ptx.scriptOperatorPayout != CScript()) {
             // use operator reward address as default source for fees
-            ExtractDestination(ptx.scriptOperatorPayout, feeSource); //TODO levon
+            if (!ExtractDestination(ptx.scriptOperatorPayout, feeSource))
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Please add separate fee address, in case your Operator payout address is spark"));
         } else {
             // use payout address as default source for fees
-            ExtractDestination(dmn->pdmnState->scriptPayout, feeSource); //TODO levon
+            if (!ExtractDestination(dmn->pdmnState->scriptPayout, feeSource))
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Please add separate fee address, in case your payout address is spark"));
         }
     }
 
@@ -760,11 +777,27 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
         ptx.keyIDVoting = ParsePubKeyIDFromAddress(request.params[3].get_str(), "voting address");
     }
 
+    bool isSparkAddress = false;
+    const spark::Params* params = spark::Params::get_default();
+    spark::Address sPayoutAddress(params);
+    try {
+         parseSparkAddress(request.params[4].get_str());
+         isSparkAddress = true;
+    } catch (const std::invalid_argument &) {
+        //contiune
+    }
+
     CBitcoinAddress payoutAddress(request.params[4].get_str());
-    if (!payoutAddress.IsValid()) {
+    if (!isSparkAddress && !payoutAddress.IsValid()) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", request.params[4].get_str()));
     }
-    ptx.scriptPayout = GetScriptForDestination(payoutAddress.Get()); //TODO levon
+
+    if (isSparkAddress) {
+        unsigned char network = spark::GetNetworkType();
+        ptx.scriptPayout = CScript() << sPayoutAddress.toByteVector(network) << OP_SPARKMINT;
+    } else {
+        ptx.scriptPayout = GetScriptForDestination(payoutAddress.Get());
+    }
 
     CKey keyOwner;
     if (!pwallet->GetKey(dmn->pdmnState->keyIDOwner, keyOwner)) {
@@ -852,6 +885,10 @@ UniValue protx_revoke(const JSONRPCRequest& request)
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_REVOKE;
 
+    if (request.params.size() <= 4 && !spark::IsPayToSparkAddress(dmn->pdmnState->scriptOperatorPayout) && !spark::IsPayToSparkAddress(dmn->pdmnState->scriptPayout)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("You need to provide fee source address, payout and operator payout addresses are spark."));
+    }
+
     if (request.params.size() > 4) {
         CBitcoinAddress feeSourceAddress = CBitcoinAddress(request.params[4].get_str());
         if (!feeSourceAddress.IsValid())
@@ -860,12 +897,11 @@ UniValue protx_revoke(const JSONRPCRequest& request)
     } else if (dmn->pdmnState->scriptOperatorPayout != CScript()) {
         // Using funds from previousely specified operator payout address
         CTxDestination txDest;
-        ExtractDestination(dmn->pdmnState->scriptOperatorPayout, txDest); //TODO levon
-        FundSpecialTx(pwallet, tx, ptx, txDest);
+        ExtractDestination(dmn->pdmnState->scriptOperatorPayout, txDest);
     } else if (dmn->pdmnState->scriptPayout != CScript()) {
         // Using funds from previousely specified znode payout address
         CTxDestination txDest;
-        ExtractDestination(dmn->pdmnState->scriptPayout, txDest); //TODO levon
+        ExtractDestination(dmn->pdmnState->scriptPayout, txDest);
         FundSpecialTx(pwallet, tx, ptx, txDest);
     } else {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "No payout or fee source addresses found, can't revoke");

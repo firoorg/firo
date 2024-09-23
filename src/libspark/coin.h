@@ -15,6 +15,7 @@ using namespace secp_primitives;
 // Flags for coin types: those generated from mints, and those generated from spends
 const char COIN_TYPE_MINT = 0;
 const char COIN_TYPE_SPEND = 1;
+const char COIN_TYPE_COINBASE = 2;
 
 struct IdentifiedCoinData {
 	uint64_t i; // diversifier
@@ -93,6 +94,10 @@ public:
 
     void setParams(const Params* params);
     void setSerialContext(const std::vector<unsigned char>& serial_context_);
+
+    // this is used ONLY to check masternode payout address validity,
+    bool isValidMNPayment(const spark::Address& addr, const std::vector<unsigned char>& serialContext) const;
+
 protected:
 	bool validate(const IncomingViewKey& incoming_view_key, IdentifiedCoinData& data);
 
@@ -102,6 +107,7 @@ public:
 	GroupElement S, K, C; // serial commitment, recovery key, value commitment
 	AEADEncryptedData r_; // encrypted recipient data
 	uint64_t v; // value
+    Scalar k; // nonce, is serialized only for coinbase o
 	std::vector<unsigned char> serial_context; // context to which the serial commitment should be bound (not serialized, but inferred)
 
 	// Serialization depends on the coin type
@@ -110,7 +116,7 @@ public:
 	inline void SerializationOp(Stream& s, Operation ser_action) {
 		// The type must be valid
 		READWRITE(type);
-		if (type != COIN_TYPE_MINT && type != COIN_TYPE_SPEND) {
+		if (type != COIN_TYPE_MINT && type != COIN_TYPE_SPEND && type != COIN_TYPE_COINBASE) {
 			throw std::invalid_argument("Cannot deserialize coin due to bad type");
 		}
 		READWRITE(S);
@@ -125,7 +131,7 @@ public:
 		if (ser_action.ForRead()) {
 			this->params = spark::Params::get_default();
 		}
-		if (type == COIN_TYPE_MINT && r_.ciphertext.size() != (1 + AES_BLOCKSIZE) + SCALAR_ENCODING + (1 + params->get_memo_bytes() + 1)) {
+		if ((type == COIN_TYPE_MINT || COIN_TYPE_COINBASE) && r_.ciphertext.size() != (1 + AES_BLOCKSIZE) + SCALAR_ENCODING + (1 + params->get_memo_bytes() + 1)) {
 			throw std::invalid_argument("Cannot deserialize mint coin due to bad encrypted data");
 		}
 		if (type == COIN_TYPE_SPEND && r_.ciphertext.size() != 8 + (1 + AES_BLOCKSIZE) + SCALAR_ENCODING + (1 + params->get_memo_bytes() + 1)) {
@@ -135,6 +141,11 @@ public:
 		if (type == COIN_TYPE_MINT) {
 			READWRITE(v);
 		}
+
+        if (type == COIN_TYPE_COINBASE) {
+            READWRITE(v);
+            READWRITE(k);
+        }
 	}
 };
 

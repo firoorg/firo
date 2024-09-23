@@ -206,8 +206,8 @@ void MasternodeList::updateDIP3List()
         if (walletModel && ui->checkBoxMyMasternodesOnly->isChecked()) {
             bool fMyMasternode = setOutpts.count(dmn->collateralOutpoint) ||
                 walletModel->IsSpendable(dmn->pdmnState->keyIDOwner) ||
-                walletModel->IsSpendable(dmn->pdmnState->scriptPayout) || //TODO levon
-                walletModel->IsSpendable(dmn->pdmnState->scriptOperatorPayout); //TODO levon
+                walletModel->IsSpendable(dmn->pdmnState->scriptPayout) ||
+                walletModel->IsSpendable(dmn->pdmnState->scriptOperatorPayout);
             if (!fMyMasternode) return;
         }
         // populate list
@@ -219,10 +219,16 @@ void MasternodeList::updateDIP3List()
         QTableWidgetItem* lastPaidItem = new QTableWidgetItem((dmn->pdmnState->nLastPaidHeight < params.DIP0003EnforcementHeight) ? tr("NONE") : QString::number(dmn->pdmnState->nLastPaidHeight));
         QTableWidgetItem* nextPaymentItem = new QTableWidgetItem(nextPayments.count(dmn->proTxHash) ? QString::number(nextPayments[dmn->proTxHash]) : tr("UNKNOWN"));
 
+        const spark::Params* params = spark::Params::get_default();
+        unsigned char network = spark::GetNetworkType();
+
         CTxDestination payeeDest;
+        spark::Address addr(params);
         QString payeeStr = tr("UNKNOWN");
-        if (ExtractDestination(dmn->pdmnState->scriptPayout, payeeDest)) { //TODO levon
+        if (ExtractDestination(dmn->pdmnState->scriptPayout, payeeDest)) {
             payeeStr = QString::fromStdString(CBitcoinAddress(payeeDest).ToString());
+        } else if (spark::IsPayToSparkAddress(dmn->pdmnState->scriptPayout, addr)) {
+            payeeStr = QString::fromStdString(addr.encode(network));
         }
         QTableWidgetItem* payeeItem = new QTableWidgetItem(payeeStr);
 
@@ -232,8 +238,12 @@ void MasternodeList::updateDIP3List()
 
             if (dmn->pdmnState->scriptOperatorPayout != CScript()) {
                 CTxDestination operatorDest;
-                if (ExtractDestination(dmn->pdmnState->scriptOperatorPayout, operatorDest)) { //TODO levon
+                spark::Address operatorAddr(params);
+                std::string strScriptPayout = spark::ToStringSparkAddress(dmn->pdmnState->scriptOperatorPayout);
+                if (ExtractDestination(dmn->pdmnState->scriptOperatorPayout, operatorDest)) {
                     operatorRewardStr += tr("to %1").arg(QString::fromStdString(CBitcoinAddress(operatorDest).ToString()));
+                } else if (spark::IsPayToSparkAddress(dmn->pdmnState->scriptOperatorPayout, operatorAddr)) {
+                    operatorRewardStr += tr("to %1").arg(QString::fromStdString(operatorAddr.encode(network)));
                 } else {
                     operatorRewardStr += tr("to UNKNOWN");
                 }

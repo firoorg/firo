@@ -27,8 +27,6 @@ namespace llmq
     class CFinalCommitment;
 }
 
-std::string ToStringSparkAddress(const CScript script);
-
 class CDeterministicMNState
 {
 public:

@@ -78,6 +78,42 @@ unsigned char GetNetworkType() {
         return ADDRESS_NETWORK_REGTEST;
 }
 
+bool IsPayToSparkAddress(const CScript& script)
+{
+    const spark::Params* params = spark::Params::get_default();
+    spark::Address addr(params);
+    return IsPayToSparkAddress(script, addr);
+}
+
+bool IsPayToSparkAddress(const CScript& script, spark::Address& addr)
+{   if (script[script.size()-1] != OP_SPARKMINT)
+        return false;
+    unsigned char network = spark::GetNetworkType();
+    unsigned char coinNetwork;
+
+    std::vector<unsigned char> vch(script.begin() + 2, script.end() - 1);
+
+    try {
+        coinNetwork = addr.fromByteVector(vch);
+    } catch (...) {
+        return false;
+    }
+    return network == coinNetwork;
+}
+
+std::string ToStringSparkAddress(const CScript script) {
+    std::vector<unsigned char> vch(script.begin() + 2, script.end() - 1);
+    try {
+        const spark::Params* params = spark::Params::get_default();
+        spark::Address sPayoutAddress(params);
+        sPayoutAddress.fromByteVector(vch);
+        // if we passed this point, this means it is spark address, just make it string,
+        return std::string(vch.begin(), vch.end());
+    } catch (const std::exception &) {
+    }
+    return std::string();
+}
+
 /*
  * Util funtions
  */

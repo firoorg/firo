@@ -23,19 +23,6 @@ static const std::string DB_LIST_DIFF = "dmn_D";
 
 CDeterministicMNManager* deterministicMNManager;
 
-std::string ToStringSparkAddress(const CScript script) {
-    std::vector<unsigned char> vch(script.begin() + 2, script.end() - 1);
-    try {
-        const spark::Params* params = spark::Params::get_default();
-        spark::Address sPayoutAddress(params);
-        sPayoutAddress.fromByteVector(vch);
-        // if we passed this point, this means it is spark address, just make it string,
-        return std::string(vch.begin(), vch.end());
-    } catch (const std::exception &) {
-    }
-    return std::string();
-}
-
 std::string CDeterministicMNState::ToString() const
 {
     CTxDestination dest;
@@ -44,7 +31,7 @@ std::string CDeterministicMNState::ToString() const
     if (ExtractDestination(scriptPayout, dest)) {
         payoutAddress = CBitcoinAddress(dest).ToString();
     } else {
-        std::string strScriptPayout = ToStringSparkAddress(scriptPayout);
+        std::string strScriptPayout = spark::ToStringSparkAddress(scriptPayout);
         if (!strScriptPayout.empty())
             payoutAddress = strScriptPayout;
     }
@@ -52,7 +39,7 @@ std::string CDeterministicMNState::ToString() const
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         operatorPayoutAddress = CBitcoinAddress(dest).ToString();
     } else {
-        std::string strScriptPayout = ToStringSparkAddress(scriptOperatorPayout);
+        std::string strScriptPayout = spark::ToStringSparkAddress(scriptOperatorPayout);
         if (!strScriptPayout.empty())
             operatorPayoutAddress = strScriptPayout;
     }
@@ -82,7 +69,7 @@ void CDeterministicMNState::ToJson(UniValue& obj) const
         CBitcoinAddress payoutAddress(dest);
         obj.push_back(Pair("payoutAddress", payoutAddress.ToString()));
     } else {
-        std::string strScriptPayout = ToStringSparkAddress(scriptPayout);
+        std::string strScriptPayout = spark::ToStringSparkAddress(scriptPayout);
         if (!strScriptPayout.empty())
             obj.push_back(Pair("payoutAddress", strScriptPayout));
     }
@@ -92,7 +79,7 @@ void CDeterministicMNState::ToJson(UniValue& obj) const
         CBitcoinAddress operatorPayoutAddress(dest);
         obj.push_back(Pair("operatorPayoutAddress", operatorPayoutAddress.ToString()));
     } else {
-        std::string strScriptPayout = ToStringSparkAddress(scriptOperatorPayout);
+        std::string strScriptPayout = spark::ToStringSparkAddress(scriptOperatorPayout);
         if (!strScriptPayout.empty())
             obj.push_back(Pair("operatorPayoutAddress", strScriptPayout));
     }

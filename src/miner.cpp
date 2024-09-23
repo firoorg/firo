@@ -294,7 +294,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     for (size_t i = 0; i < coinbaseTx.vout.size(); ++i) {
         auto& out = coinbaseTx.vout[i];
 
-        if (out.scriptPubKey[out.scriptPubKey.size()-1] == OP_SPARKMINT) {
+        if (spark::IsPayToSparkAddress(out.scriptPubKey)) {
            spark::MintedCoinData mintedCoinData;
            mintedCoinData.v = out.nValue;
            std::vector<unsigned char> vch(out.scriptPubKey.begin() + 2, out.scriptPubKey.end() - 1);

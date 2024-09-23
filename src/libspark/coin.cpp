@@ -25,7 +25,7 @@ Coin::Coin(
 	this->serial_context = serial_context;
 
 	// Validate the type
-	if (type != COIN_TYPE_MINT && type != COIN_TYPE_SPEND) {
+	if (type != COIN_TYPE_MINT && type != COIN_TYPE_SPEND  && type != COIN_TYPE_COINBASE) {
 		throw std::invalid_argument("Bad coin type");
 	}
 	this->type = type;
@@ -60,7 +60,7 @@ Coin::Coin(
 	//
 
 
-	if (this->type == COIN_TYPE_MINT) {
+	if (this->type == COIN_TYPE_MINT || this->type == COIN_TYPE_COINBASE) {
         this->v = v;
 		// Encrypt recipient data
 		MintCoinRecipientData r;
@@ -81,6 +81,9 @@ Coin::Coin(
 		r_stream << r;
 		this->r_ = AEAD::encrypt(address.get_Q1()*SparkUtils::hash_k(k), "Spend coin data", r_stream);
 	}
+
+    if (this->type == COIN_TYPE_COINBASE)
+        this->k = k;
 }
 
 // Validate a coin for identification
@@ -154,7 +157,7 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key) {
 		} catch (const std::exception &) {
 			throw std::runtime_error("Unable to identify coin");
 		}
-			
+
 		// Check that the memo length is valid
 		unsigned char memo_length = r.padded_memo[0];
 		if (memo_length > this->params->get_memo_bytes()) {
@@ -219,6 +222,11 @@ void Coin::setSerialContext(const std::vector<unsigned char>& serial_context_) {
 
 void Coin::setParams(const Params* params) {
     this->params = params;
+}
+
+bool Coin::isValidMNPayment(const spark::Address& addr, const std::vector<unsigned char>& serialContext) const {
+    Coin c(this->params, COIN_TYPE_MINT, k, addr, v, "BlockReward", serial_context);
+    return this->getHash() == c.getHash();
 }
 
 }

@@ -831,14 +831,25 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     std::vector<CTxOut> voutMasternodePayments;
     mnpayments.GetBlockTxOuts(chainActive.Height() + 1, pblock->nTime, 0, voutMasternodePayments);
 
+    const spark::Params* params = spark::Params::get_default();
+    unsigned char network = spark::GetNetworkType();
+
     UniValue masternodeObj(UniValue::VARR);
     for (const auto& txout : pblocktemplate->voutMasternodePayments) {
+        std::string strAddr;
         CTxDestination address1;
-        ExtractDestination(txout.scriptPubKey, address1);
-        CBitcoinAddress address2(address1); //TODO levon check spark case
+        spark::Address sparkAddr(params);
+
+        if (spark::IsPayToSparkAddress(txout.scriptPubKey, sparkAddr)) {
+            strAddr = sparkAddr.encode(network);
+        } else {
+            ExtractDestination(txout.scriptPubKey, address1);
+            CBitcoinAddress address2(address1);
+            strAddr = address2.ToString();
+        }
 
         UniValue obj(UniValue::VOBJ);
-        obj.push_back(Pair("payee", address2.ToString().c_str()));
+        obj.push_back(Pair("payee", strAddr.c_str()));
         obj.push_back(Pair("script", HexStr(txout.scriptPubKey)));
         obj.push_back(Pair("amount", txout.nValue));
         masternodeObj.push_back(obj);

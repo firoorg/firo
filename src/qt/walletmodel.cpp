@@ -1002,6 +1002,9 @@ bool WalletModel::IsSpendable(const CTxDestination& dest) const
 
 bool WalletModel::IsSpendable(const CScript& script) const
 {
+    std::string sparkAddr = spark::ToStringSparkAddress(script);
+    if (wallet->sparkWallet && wallet->sparkWallet->isAddressMine(sparkAddr))
+        return true;
     return IsMine(*wallet, script) & ISMINE_SPENDABLE;
 }
 
