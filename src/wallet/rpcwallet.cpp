@@ -1682,6 +1682,17 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
             }
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination, addr);
+
+            CSparkOutputTx output;
+            if (wtx.tx->IsSparkTransaction()) {
+                const CTxOut& txout = wtx.tx->vout[s.vout];
+                if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+                    if(pwallet->GetSparkOutputTx(txout.scriptPubKey, output)) {
+                        entry.push_back(Pair("address", output.address));
+                    }
+                }
+            }
+
             if (wtx.tx->HasNoRegularInputs()) {
                 entry.push_back(Pair("category", "spend"));
             }
@@ -1691,7 +1702,12 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
             else {
                 entry.push_back(Pair("category", "send"));
             }
-            entry.push_back(Pair("amount", ValueFromAmount(-s.amount)));
+
+            if (!output.address.empty())
+                entry.push_back(Pair("amount", ValueFromAmount(-output.amount)));
+            else
+                entry.push_back(Pair("amount", ValueFromAmount(-s.amount)));
+
             if (pwallet->mapAddressBook.count(s.destination)) {
                 entry.push_back(Pair("label", pwallet->mapAddressBook[s.destination].name));
             }
