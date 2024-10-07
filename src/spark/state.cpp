@@ -86,7 +86,7 @@ bool IsPayToSparkAddress(const CScript& script)
 }
 
 bool IsPayToSparkAddress(const CScript& script, spark::Address& addr)
-{   if (script[script.size()-1] != OP_SPARKMINT)
+{   if (script.empty() || script[script.size()-1] != OP_SPARKMINT)
         return false;
     unsigned char network = spark::GetNetworkType();
     unsigned char coinNetwork;
@@ -102,6 +102,9 @@ bool IsPayToSparkAddress(const CScript& script, spark::Address& addr)
 }
 
 std::string ToStringSparkAddress(const CScript script) {
+    if (script.empty())
+        return "";
+
     std::vector<unsigned char> vch(script.begin() + 2, script.end() - 1);
     try {
         const spark::Params* params = spark::Params::get_default();
@@ -893,7 +896,21 @@ std::vector<unsigned char> getSerialContext(const CTransaction &tx) {
             return std::vector<unsigned char>();
         }
     } else if (tx.IsCoinBase()) {
-        std::vector<spark::Coin> coins = GetSparkMintCoins(tx);
+        std::vector<spark::Coin> coins;
+
+        for (const auto& vout : tx.vout) {
+            const auto& script = vout.scriptPubKey;
+            if (script.IsSparkMint()) {
+                try {
+                    spark::Coin coin(Params::get_default());
+                    ParseSparkMintCoin(script, coin);
+                    coins.push_back(coin);
+                } catch (const std::exception &) {
+                    //Continue
+                }
+            }
+        }
+
         if (coins.empty())
             return std::vector<unsigned char>();
 

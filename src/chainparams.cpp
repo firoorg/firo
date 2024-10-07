@@ -1222,7 +1222,7 @@ public:
         consensus.nLelantusStartBlock = 400;
         consensus.nLelantusFixesStartBlock = 400;
         consensus.nSparkStartBlock = 1000;
-        consensus.nSparkCoinbase = 1300;
+        consensus.nSparkCoinbase = consensus.nSparkStartBlock;
         consensus.nExchangeAddressStartBlock = 1000;
         consensus.nLelantusGracefulPeriod = 1500;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = 1;

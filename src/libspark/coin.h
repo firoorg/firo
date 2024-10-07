@@ -131,7 +131,7 @@ public:
 		if (ser_action.ForRead()) {
 			this->params = spark::Params::get_default();
 		}
-		if ((type == COIN_TYPE_MINT || COIN_TYPE_COINBASE) && r_.ciphertext.size() != (1 + AES_BLOCKSIZE) + SCALAR_ENCODING + (1 + params->get_memo_bytes() + 1)) {
+		if ((type == COIN_TYPE_MINT || type == COIN_TYPE_COINBASE) && r_.ciphertext.size() != (1 + AES_BLOCKSIZE) + SCALAR_ENCODING + (1 + params->get_memo_bytes() + 1)) {
 			throw std::invalid_argument("Cannot deserialize mint coin due to bad encrypted data");
 		}
 		if (type == COIN_TYPE_SPEND && r_.ciphertext.size() != 8 + (1 + AES_BLOCKSIZE) + SCALAR_ENCODING + (1 + params->get_memo_bytes() + 1)) {
