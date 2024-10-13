@@ -1,5 +1,8 @@
 #include "chain.h"
 #include "libspark/spend_transaction.h"
+#include "libspark/ownership_proof.h"
+#include "libspark/keys.h"
+#include "spark/state.h"
 #include "script/standard.h"
 #include "base58.h"
 #include "sparkname.h"
@@ -63,12 +66,14 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     serializedSpark.write((const char *)tx.vExtraPayload.data(), tx.vExtraPayload.size());
     const spark::Params *params = spark::Params::get_default();
     spark::SpendTransaction spendTransaction(params);
+    size_t sparkNameDataPos;
     try {
         serializedSpark >> spendTransaction;
         if (serializedSpark.size() == 0)
             // silently ignore
             return true;
 
+        sparkNameDataPos = tx.vExtraPayload.size() - serializedSpark.size();
         serializedSpark >> sparkNameData;
     }
     catch (const std::exception &) {
@@ -103,8 +108,52 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     if (!payoutFound)
         return state.DoS(100, error("CheckSparkNameTx: name fee is either missing or insufficient"));
 
-    if (sparkNames.count(sparkNameData.name) > 0 && sparkNames[sparkNameData.name].first.encode() != sparkNameData.sparkAddress.encode())
+    unsigned char sparkNetworkType = spark::GetNetworkType();
+    if (sparkNames.count(sparkNameData.name) > 0 &&
+                sparkNames[sparkNameData.name].first.encode(sparkNetworkType) != sparkNameData.sparkAddress)
         return state.DoS(100, error("CheckSparkNameTx: name already exists"));
+
+    // calculate the hash of the all the transaction except the spark ownership proof
+    CMutableTransaction txMutable(tx);
+    CSparkNameTxData sparkNameDataCopy = sparkNameData;
+    
+    txMutable.vExtraPayload.erase(txMutable.vExtraPayload.begin() + sparkNameDataPos, txMutable.vExtraPayload.end());
+    sparkNameDataCopy.addressOwnershipProof.clear();
+    CDataStream serializedSparkNameData(SER_NETWORK, PROTOCOL_VERSION);
+    serializedSparkNameData << sparkNameDataCopy;
+    txMutable.vExtraPayload.insert(txMutable.vExtraPayload.end(), serializedSparkNameData.begin(), serializedSparkNameData.end());
+
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    ss << txMutable;
+    spark::OwnershipProof ownershipProof;
+
+    try {
+        CDataStream ownershipProofStream(SER_NETWORK, PROTOCOL_VERSION);
+        ownershipProofStream.write((const char *)sparkNameData.addressOwnershipProof.data(), sparkNameData.addressOwnershipProof.size());
+        ownershipProofStream >> ownershipProof;
+    }
+    catch (const std::exception &) {
+        return state.DoS(100, error("CheckSparkNameTx: failed to deserialize ownership proof"));
+    }
+
+    spark::Scalar m;
+    try {
+        m.SetHex(ss.GetHash().ToString());
+    }
+    catch (const std::exception &) {
+        return state.DoS(100, error("CheckSparkNameTx: hash is out of range"));
+    }
+
+    spark::Address sparkAddress;
+    try {
+        sparkAddress.decode(sparkNameData.sparkAddress);
+    }
+    catch (const std::exception &) {
+        return state.DoS(100, error("CheckSparkNameTx: cannot decode spark address"));
+    }
+
+    if (!sparkAddress.verify_own(m, ownershipProof))
+        return state.DoS(100, error("CheckSparkNameTx: ownership proof is invalid"));
 
     return true;
 }

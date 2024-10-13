@@ -25,11 +25,13 @@ public:
     // 1-20 symbols, only alphanumeric characters and hyphens
     std::string name;
     // destination address for the alias
-    spark::Address sparkAddress;
+    std::string sparkAddress;
     // proof of ownership of the spark address
     std::vector<unsigned char> addressOwnershipProof;
     // number of blocks the spark name is valid for
     uint32_t sparkNameValidityBlocks{0};
+    // failsafe if the hash of the transaction data is can't be converted to a scalar for proof creation/verification
+    uint32_t hashFailsafe{0};
 
     ADD_SERIALIZE_METHODS;
 
@@ -42,6 +44,7 @@ public:
         READWRITE(sparkAddress);
         READWRITE(addressOwnershipProof);
         READWRITE(sparkNameValidityBlocks);
+        READWRITE(hashFailsafe);
     }
 };
 
