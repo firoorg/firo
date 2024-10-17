@@ -82,7 +82,12 @@ public:
         qDebug() << "TransactionTablePriv::refreshWallet";
         cachedWallet.clear();
         {
-            LOCK2(cs_main, wallet->cs_wallet);
+            TRY_LOCK(cs_main,lock_main);
+            if (!lock_main)
+                return;
+            TRY_LOCK(wallet->cs_wallet,lock_wallet);
+            if (!lock_wallet)
+                return;
             for(std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin(); it != wallet->mapWallet.end(); ++it)
             {
                 if(TransactionRecord::showTransaction(it->second))
@@ -131,7 +136,12 @@ public:
             }
             if(showTransaction)
             {
-                LOCK2(cs_main, wallet->cs_wallet);
+                TRY_LOCK(cs_main,lock_main);
+                if (!lock_main)
+                    return;
+                TRY_LOCK(wallet->cs_wallet,lock_wallet);
+                if (!lock_wallet)
+                    return;
                 // Find transaction in wallet
                 std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(hash);
                 if(mi == wallet->mapWallet.end())
@@ -213,9 +223,14 @@ public:
     QString describe(TransactionRecord *rec, int unit)
     {
         {
-            LOCK2(cs_main, wallet->cs_wallet);
+            TRY_LOCK(cs_main,lock_main);
+            if (!lock_main)
+                return QString();;
+            TRY_LOCK(wallet->cs_wallet,lock_wallet);
+            if (!lock_wallet)
+                return QString();
             std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
-            if(mi != wallet->mapWallet.end())
+            if (mi != wallet->mapWallet.end())
             {
                 return TransactionDesc::toHTML(wallet, mi->second, rec, unit);
             }
@@ -225,9 +240,14 @@ public:
 
     QString getTxHex(TransactionRecord *rec)
     {
-        LOCK2(cs_main, wallet->cs_wallet);
+        TRY_LOCK(cs_main,lock_main);
+        if (!lock_main)
+            return QString();
+        TRY_LOCK(wallet->cs_wallet,lock_wallet);
+        if (!lock_wallet)
+            return QString();
         std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
-        if(mi != wallet->mapWallet.end())
+        if (mi != wallet->mapWallet.end())
         {
             std::string strHex = EncodeHexTx(static_cast<CTransaction>(mi->second));
             return QString::fromStdString(strHex);

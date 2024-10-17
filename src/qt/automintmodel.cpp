@@ -34,7 +34,9 @@ IncomingFundNotifier::~IncomingFundNotifier()
 
 void IncomingFundNotifier::newBlock()
 {
-    LOCK(cs);
+    TRY_LOCK(cs, lock);
+    if(!lock)
+        return;
 
     if (!txs.empty()) {
         resetTimer();
@@ -43,7 +45,9 @@ void IncomingFundNotifier::newBlock()
 
 void IncomingFundNotifier::pushTransaction(uint256 const &id)
 {
-    LOCK(cs);
+    TRY_LOCK(cs, lock);
+    if(!lock)
+        return;
 
     txs.push_back(id);
     resetTimer();
@@ -51,7 +55,9 @@ void IncomingFundNotifier::pushTransaction(uint256 const &id)
 
 void IncomingFundNotifier::check()
 {
-    LOCK(cs);
+    TRY_LOCK(cs, lock);
+    if(!lock)
+        return;
 
     // update only if there are transaction and last update was done more than 2 minutes ago, and in case it is first time
     if (txs.empty() || (lastUpdateTime!= 0 && (GetSystemTimeInSeconds() - lastUpdateTime <= 120))) {
@@ -64,7 +70,12 @@ void IncomingFundNotifier::check()
     std::vector<uint256> immatures;
 
     {
-        LOCK2(cs_main, wallet->cs_wallet);
+        TRY_LOCK(cs_main,lock_main);
+        if (!lock_main)
+            return;
+        TRY_LOCK(wallet->cs_wallet,lock_wallet);
+        if (!lock_wallet)
+            return;
         CCoinControl coinControl;
         coinControl.nCoinType = CoinType::ONLY_NOT1000IFMN;
         while (!txs.empty()) {
@@ -104,8 +115,16 @@ void IncomingFundNotifier::check()
 
 void IncomingFundNotifier::importTransactions()
 {
-    LOCK(cs);
-    LOCK2(cs_main, wallet->cs_wallet);
+    TRY_LOCK(cs, lock);
+    if(!lock)
+        return;
+
+    TRY_LOCK(cs_main,lock_main);
+    if (!lock_main)
+        return;
+    TRY_LOCK(wallet->cs_wallet,lock_wallet);
+    if (!lock_wallet)
+        return;
 
     for (auto const &tx : wallet->mapWallet) {
         if (tx.second.GetAvailableCredit() > 0 || tx.second.GetImmatureCredit() > 0) {
@@ -207,7 +226,9 @@ void AutoMintSparkModel::ackMintSparkAll(AutoMintSparkAck ack, CAmount minted, Q
 {
     bool mint = false;
     {
-        LOCK(sparkModel->cs);
+        TRY_LOCK(sparkModel->cs, lock);
+        if(!lock)
+            return;
         if (autoMintSparkState == AutoMintSparkState::Disabled) {
             // Do nothing
             return;
@@ -244,7 +265,9 @@ void AutoMintSparkModel::checkAutoMintSpark(bool force)
     }
 
     {
-        LOCK(sparkModel->cs);
+        TRY_LOCK(sparkModel->cs, lock);
+        if(!lock)
+            return;
 
         if (fReindex) {
             return;
@@ -284,7 +307,12 @@ void AutoMintSparkModel::startAutoMintSpark()
 
     CAmount mintable = 0;
     {
-        LOCK2(cs_main, wallet->cs_wallet);
+        TRY_LOCK(cs_main,lock_main);
+        if (!lock_main)
+            return;
+        TRY_LOCK(wallet->cs_wallet,lock_wallet);
+        if (!lock_wallet)
+            return;
         mintable = sparkModel->getMintableSparkAmount();
     }
 
@@ -299,8 +327,15 @@ void AutoMintSparkModel::startAutoMintSpark()
 
 void AutoMintSparkModel::updateAutoMintSparkOption(bool enabled)
 {
-    LOCK2(cs_main, wallet->cs_wallet);
-    LOCK(sparkModel->cs);
+    TRY_LOCK(cs_main,lock_main);
+    if (!lock_main)
+        return;
+    TRY_LOCK(wallet->cs_wallet,lock_wallet);
+    if (!lock_wallet)
+        return;
+    TRY_LOCK(sparkModel->cs, lock);
+    if (!lock)
+        return;
 
     if (enabled) {
         if (autoMintSparkState == AutoMintSparkState::Disabled) {

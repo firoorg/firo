@@ -71,6 +71,9 @@ int ClientModel::getNumConnections(unsigned int flags) const
 void ClientModel::setMasternodeList(const CDeterministicMNList& mnList)
 {
     TRY_LOCK(cs_mnlinst,lock);
+    if (!lock)
+        return;
+
     if (mnListCached.GetBlockHash() == mnList.GetBlockHash()) {
         return;
     }
@@ -81,6 +84,9 @@ void ClientModel::setMasternodeList(const CDeterministicMNList& mnList)
 CDeterministicMNList ClientModel::getMasternodeList() const
 {
     TRY_LOCK(cs_mnlinst,lock);
+    if (!lock)
+        return CDeterministicMNList();
+
     return mnListCached;
 }
 
