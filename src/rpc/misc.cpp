@@ -24,7 +24,7 @@
 
 #include "masternode-sync.h"
 #include "evo/deterministicmns.h"
-
+#include "llmq/quorums_instantsend.h"
 #include <stdint.h>
 
 #include <boost/assign/list_of.hpp>
@@ -1582,6 +1582,9 @@ UniValue getmempoolsparktxs(const JSONRPCRequest& request)
         }
         serialized_json.push_backV(serialized_coins);
         data.push_back(Pair("coins", serialized_json));
+
+        bool fLLMQLocked = llmq::quorumInstantSendManager->IsLocked(txid);
+        data.push_back(Pair("isLocked", fLLMQLocked));
 
         result.push_back(Pair(EncodeBase64(txid.begin(), txid.size()), data));
     }
