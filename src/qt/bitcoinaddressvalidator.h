@@ -6,7 +6,11 @@
 #define BITCOIN_QT_BITCOINADDRESSVALIDATOR_H
 
 #include <QValidator>
+
+#ifdef ENABLE_WALLET
 #include "../spark/sparkwallet.h"
+#endif
+
 #include "../spark/state.h"
 
 /** Base58 entry widget validator, checks for valid characters and
