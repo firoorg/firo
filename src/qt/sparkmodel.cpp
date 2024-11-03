@@ -39,10 +39,10 @@ CAmount SparkModel::getMintableSparkAmount()
     {
         TRY_LOCK(cs_main,lock_main);
         if (!lock_main)
-            return 0;
+            return cachedMintableSparkAmount;
         TRY_LOCK(wallet->cs_wallet,lock_wallet);
         if (!lock_wallet)
-            return 0;
+            return cachedMintableSparkAmount;
         pwalletMain->AvailableCoinsForLMint(valueAndUTXO, nullptr);
     }
 
@@ -51,6 +51,7 @@ CAmount SparkModel::getMintableSparkAmount()
         s += val.first;
     }
 
+    cachedMintableSparkAmount = s;
     return s;
 }
 

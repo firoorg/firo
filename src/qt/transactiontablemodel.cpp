@@ -16,7 +16,6 @@
 #include "core_io.h"
 #include "validation.h"
 #include "sync.h"
-#include "uint256.h"
 #include "util.h"
 #include "wallet/wallet.h"
 
@@ -74,6 +73,7 @@ public:
      * this is sorted by sha256.
      */
     QList<TransactionRecord> cachedWallet;
+    std::vector<std::pair<uint256, std::pair<int, bool>>> cachedUpdatedTx;
 
     /* Query entire wallet anew from core.
      */
@@ -137,11 +137,15 @@ public:
             if(showTransaction)
             {
                 TRY_LOCK(cs_main,lock_main);
-                if (!lock_main)
+                if (!lock_main) {
+                    cachedUpdatedTx.push_back(std::make_pair(hash, std::make_pair(status, showTransaction)));
                     return;
+                }
                 TRY_LOCK(wallet->cs_wallet,lock_wallet);
-                if (!lock_wallet)
+                if (!lock_wallet) {
+                    cachedUpdatedTx.push_back(std::make_pair(hash, std::make_pair(status, showTransaction)));
                     return;
+                }
                 // Find transaction in wallet
                 std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(hash);
                 if(mi == wallet->mapWallet.end())
@@ -289,8 +293,19 @@ void TransactionTableModel::updateTransaction(const QString &hash, int status, b
 {
     uint256 updated;
     updated.SetHex(hash.toStdString());
-
-    priv->updateWallet(updated, status, showTransaction);
+    priv->cachedUpdatedTx.push_back(std::make_pair(updated, std::make_pair(status, showTransaction)));
+    size_t currentSize = priv->cachedUpdatedTx.size();
+    for (auto itr = priv->cachedUpdatedTx.rbegin(); itr!= priv->cachedUpdatedTx.rend();)
+    {
+        std::pair<uint256, std::pair<int, bool>> current = *itr;
+        priv->cachedUpdatedTx.erase(--priv->cachedUpdatedTx.end());
+        itr++;
+        priv->updateWallet(current.first, current.second.first, current.second.second);
+        // this thread was not able to perform the update, stop and do it next time
+        if (currentSize == priv->cachedUpdatedTx.size())
+            break;
+        currentSize = priv->cachedUpdatedTx.size();
+    }
 }
 
 void TransactionTableModel::updateConfirmations()

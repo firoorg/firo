@@ -6,7 +6,7 @@
 #define BITCOIN_QT_TRANSACTIONTABLEMODEL_H
 
 #include "bitcoinunits.h"
-
+#include "uint256.h"
 #include <QAbstractTableModel>
 #include <QStringList>
 

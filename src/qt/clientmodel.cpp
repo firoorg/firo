@@ -38,6 +38,8 @@ ClientModel::ClientModel(OptionsModel *_optionsModel, QObject *parent) :
 {
     cachedBestHeaderHeight = -1;
     cachedBestHeaderTime = -1;
+    cachedNumBlocks = 0;
+    cachedLastBlockDate = QDateTime();
     peerTableModel = new PeerTableModel(this);
     banTableModel = new BanTableModel(this);
     pollTimer = new QTimer(this);
@@ -102,10 +104,10 @@ void ClientModel::refreshMasternodeList()
 int ClientModel::getNumBlocks() const
 {
     TRY_LOCK(cs_main,lock);
-    if (!lock) {
-        return -1;
+    if (lock) {
+        cachedNumBlocks = chainActive.Height();
     }
-    return chainActive.Height();
+    return cachedNumBlocks;
 }
 
 int ClientModel::getHeaderTipHeight() const
@@ -158,8 +160,13 @@ QDateTime ClientModel::getLastBlockDate() const
 {
     TRY_LOCK(cs_main,lock);
 
-    if (chainActive.Tip())
-        return QDateTime::fromTime_t(chainActive.Tip()->GetBlockTime());
+    if (!lock)
+        cachedLastBlockDate;
+
+    if (chainActive.Tip()) {
+        cachedLastBlockDate = QDateTime::fromTime_t(chainActive.Tip()->GetBlockTime());
+        return cachedLastBlockDate;
+    }
 
     return QDateTime::fromTime_t(Params().GenesisBlock().GetBlockTime()); // Genesis block's time of current network
 }
@@ -180,6 +187,8 @@ double ClientModel::getVerificationProgress(const CBlockIndex *tipIn) const
     if (!tip)
     {
         TRY_LOCK(cs_main,lock);
+        if (!lock)
+            return 0;
         tip = chainActive.Tip();
     }
     return GuessVerificationProgress(Params().TxData(), tip);
