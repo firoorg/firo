@@ -311,10 +311,14 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     strHTML += "<b>" + tr("Transaction total size") + ":</b> " + QString::number(wtx.tx->GetTotalSize()) + " bytes<br>";
     strHTML += "<b>" + tr("Output index") + ":</b> " + QString::number(rec->getOutputIndex()) + "<br>";
 
-    // Message from normal firo:URI (firo:123...?message=example)
-    for (const PAIRTYPE(std::string, std::string)& r : wtx.vOrderForm)
-        if (r.first == "Message")
-            strHTML += "<br><b>" + tr("Message") + ":</b><br>" + GUIUtil::HtmlEscape(r.second, true) + "<br>";
+    uint256 selectedTxID = rec->hash;
+    std::unordered_map<uint256, CSparkMintMeta> coins = wallet->sparkWallet->getMintMap();
+
+    for (const auto& [id, meta] : coins) {
+        if (meta.txid == selectedTxID && !meta.memo.empty()) {
+            strHTML += "<b>" + tr("Message") + ":</b> " + GUIUtil::HtmlEscape(meta.memo, true) + "<br>\n";
+        }
+    }
 
     if (wtx.IsCoinBase())
     {

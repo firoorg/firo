@@ -55,6 +55,9 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     connect(ui->deleteButton, &QToolButton::clicked, this, &SendCoinsEntry::deleteClicked);
     connect(ui->deleteButton_is, &QToolButton::clicked, this, &SendCoinsEntry::deleteClicked);
     connect(ui->deleteButton_s, &QToolButton::clicked, this, &SendCoinsEntry::deleteClicked);
+
+    ui->messageLabel->setVisible(false);
+    ui->messageTextLabel->setVisible(false);
 }
 
 SendCoinsEntry::~SendCoinsEntry()
@@ -85,6 +88,10 @@ void SendCoinsEntry::on_payTo_textChanged(const QString &address)
 {
     updateLabel(address);
     setWarning(fAnonymousMode);
+
+    bool isSparkAddress = model && model->validateSparkAddress(address);
+    ui->messageLabel->setVisible(isSparkAddress);
+    ui->messageTextLabel->setVisible(isSparkAddress);
 }
 
 void SendCoinsEntry::setModel(WalletModel *_model)
