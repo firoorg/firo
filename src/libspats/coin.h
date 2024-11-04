@@ -1,7 +1,7 @@
 #ifndef FIRO_SPATS_COIN_H
 #define FIRO_SPATS_COIN_H
 #include "../uint256.h"
-#include "aead.h"
+#include "../libspark/aead.h"
 #include "bpplus.h"
 #include "keys.h"
 #include "params.h"
@@ -112,7 +112,7 @@ public:
     const Params* params;
     char type;                                 // type flag
     GroupElement S, K, C;                      // serial commitment, recovery key, value commitment
-    AEADEncryptedData r_;                      // encrypted recipient data
+    spark::AEADEncryptedData r_;               // encrypted recipient data
     uint64_t v;                                // value
     Scalar a, iota;                            // asset type, identifier
     std::vector<unsigned char> serial_context; // context to which the serial commitment should be bound (not serialized, but inferred)

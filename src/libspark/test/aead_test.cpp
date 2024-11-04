@@ -19,7 +19,7 @@ BOOST_AUTO_TEST_CASE(complete)
     ser_message << message;
 
     // Encrypt
-    AEADEncryptedData data = AEAD::encrypt(prekey, "Associated data", ser_message);
+    AEADEncryptedData data = AEAD::encrypt(prekey, "Associated data", ser_message, LABEL_PROTOCOL);
 
     // Serialize encrypted data
     CDataStream ser_data(SER_NETWORK, PROTOCOL_VERSION);
@@ -30,7 +30,7 @@ BOOST_AUTO_TEST_CASE(complete)
     ser_data >> data_deser;
 
     // Decrypt
-    ser_message = AEAD::decrypt_and_verify(prekey, "Associated data", data_deser);
+    ser_message = AEAD::decrypt_and_verify(prekey, "Associated data", data_deser, LABEL_PROTOCOL);
 
     // Deserialize
     int message_;
@@ -49,19 +49,19 @@ BOOST_AUTO_TEST_CASE(bad_tag)
     int message = 12345;
     CDataStream ser(SER_NETWORK, PROTOCOL_VERSION);
     ser << message;
-    AEADEncryptedData data = AEAD::encrypt(prekey, "Associated data", ser);
+    AEADEncryptedData data = AEAD::encrypt(prekey, "Associated data", ser, LABEL_PROTOCOL);
 
     // Serialize and encrypt an evil message
     ser.clear();
     int evil_message = 666;
     ser << evil_message;
-    AEADEncryptedData evil_data = AEAD::encrypt(prekey, "Associated data", ser);
+    AEADEncryptedData evil_data = AEAD::encrypt(prekey, "Associated data", ser, LABEL_PROTOCOL);
 
     // Replace tag
     data.tag = evil_data.tag;
 
     // Decrypt; this should fail
-    BOOST_CHECK_THROW(ser = AEAD::decrypt_and_verify(prekey, "Associated data", data), std::runtime_error);
+    BOOST_CHECK_THROW(ser = AEAD::decrypt_and_verify(prekey, "Associated data", data, LABEL_PROTOCOL), std::runtime_error);
 }
 
 BOOST_AUTO_TEST_CASE(bad_ciphertext)
@@ -74,19 +74,19 @@ BOOST_AUTO_TEST_CASE(bad_ciphertext)
     int message = 12345;
     CDataStream ser(SER_NETWORK, PROTOCOL_VERSION);
     ser << message;
-    AEADEncryptedData data = AEAD::encrypt(prekey, "Associated data", ser);
+    AEADEncryptedData data = AEAD::encrypt(prekey, "Associated data", ser, LABEL_PROTOCOL);
 
     // Serialize and encrypt an evil message
     ser.clear();
     int evil_message = 666;
     ser << evil_message;
-    AEADEncryptedData evil_data = AEAD::encrypt(prekey, "Associated data", ser);
+    AEADEncryptedData evil_data = AEAD::encrypt(prekey, "Associated data", ser, LABEL_PROTOCOL);
 
     // Replace ciphertext
     data.ciphertext = evil_data.ciphertext;
 
     // Decrypt; this should fail
-    BOOST_CHECK_THROW(ser = AEAD::decrypt_and_verify(prekey, "Associated data", data), std::runtime_error);
+    BOOST_CHECK_THROW(ser = AEAD::decrypt_and_verify(prekey, "Associated data", data, LABEL_PROTOCOL), std::runtime_error);
 }
 
 BOOST_AUTO_TEST_CASE(bad_associated_data)
@@ -99,10 +99,10 @@ BOOST_AUTO_TEST_CASE(bad_associated_data)
     int message = 12345;
     CDataStream ser(SER_NETWORK, PROTOCOL_VERSION);
     ser << message;
-    AEADEncryptedData data = AEAD::encrypt(prekey, "Associated data", ser);
+    AEADEncryptedData data = AEAD::encrypt(prekey, "Associated data", ser, LABEL_PROTOCOL);
 
     // Decrypt; this should fail
-    BOOST_CHECK_THROW(ser = AEAD::decrypt_and_verify(prekey, "Evil associated data", data), std::runtime_error);
+    BOOST_CHECK_THROW(ser = AEAD::decrypt_and_verify(prekey, "Evil associated data", data, LABEL_PROTOCOL), std::runtime_error);
 }
 
 BOOST_AUTO_TEST_CASE(bad_key)
@@ -119,10 +119,10 @@ BOOST_AUTO_TEST_CASE(bad_key)
     int message = 12345;
     CDataStream ser(SER_NETWORK, PROTOCOL_VERSION);
     ser << message;
-    AEADEncryptedData data = AEAD::encrypt(prekey, "Associated data", ser);
+    AEADEncryptedData data = AEAD::encrypt(prekey, "Associated data", ser, LABEL_PROTOCOL);
 
     // Decrypt; this should fail
-    BOOST_CHECK_THROW(ser = AEAD::decrypt_and_verify(evil_prekey, "Associated data", data), std::runtime_error);
+    BOOST_CHECK_THROW(ser = AEAD::decrypt_and_verify(evil_prekey, "Associated data", data, LABEL_PROTOCOL), std::runtime_error);
 }
 
 BOOST_AUTO_TEST_CASE(bad_key_commitment)
@@ -134,19 +134,19 @@ BOOST_AUTO_TEST_CASE(bad_key_commitment)
     // Evil key and key commitment
     GroupElement evil_prekey;
     evil_prekey.randomize();
-    std::vector<unsigned char> evil_key_commitment = SparkUtils::commit_aead(evil_prekey);
+    std::vector<unsigned char> evil_key_commitment = SparkUtils::commit_aead(evil_prekey, LABEL_PROTOCOL);
 
     // Serialize and encrypt a message
     int message = 12345;
     CDataStream ser(SER_NETWORK, PROTOCOL_VERSION);
     ser << message;
-    AEADEncryptedData data = AEAD::encrypt(prekey, "Associated data", ser);
+    AEADEncryptedData data = AEAD::encrypt(prekey, "Associated data", ser, LABEL_PROTOCOL);
 
     // Replace key commitment
     data.key_commitment = evil_key_commitment;
 
     // Decrypt; this should fail
-    BOOST_CHECK_THROW(ser = AEAD::decrypt_and_verify(prekey, "Associated data", data), std::runtime_error);
+    BOOST_CHECK_THROW(ser = AEAD::decrypt_and_verify(prekey, "Associated data", data, LABEL_PROTOCOL), std::runtime_error);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

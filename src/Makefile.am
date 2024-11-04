@@ -56,6 +56,7 @@ LIBBITCOIN_CLI=libbitcoin_cli.a
 LIBBITCOIN_UTIL=libbitcoin_util.a
 LIBLELANTUS=liblelantus.a
 LIBSPARK=libspark.a
+LIBSPATS=libspats.a
 LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
 LIBBITCOINQT=qt/libfiroqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
@@ -88,7 +89,8 @@ EXTRA_LIBRARIES += \
   $(LIBBITCOIN_ZMQ) \
   $(LIBFIRO_SIGMA) \
   $(LIBLELANTUS) \
-  $(LIBSPARK)
+  $(LIBSPARK) \
+  $(LIBSPATS)
 
 lib_LTLIBRARIES = $(LIBBITCOINCONSENSUS)
 
@@ -691,6 +693,33 @@ libspark_a_SOURCES = \
   libspark/bech32.h \
   libspark/bech32.cpp
 
+libspats_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libspats_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libspats_a_SOURCES = \
+  libspats/bpplus.cpp \
+  libspats/bpplus.h \
+  libspats/bpplus_proof.h \
+  libspats/coin.cpp \
+  libspats/coin.h \
+  libspats/keys.cpp \
+  libspats/keys.h \
+  libspats/base_asset.h \
+  libspats/base_asset.cpp \
+  libspats/base_asset_proof.h \
+  libspats/type_proof.h \
+  libspats/type.cpp \
+  libspats/type.h \
+  libspats/balance.h \
+  libspats/balance.cpp \
+  libspats/balance_proof.h \
+  libspats/mint_transaction.cpp \
+  libspats/mint_transaction.h \
+  libspats/params.cpp \
+  libspats/params.h \
+  libspats/spend_transaction.cpp \
+  libspats/spend_transaction.h \
+  libspats/util.h
+
 liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 liblelantus_a_SOURCES = \
@@ -797,6 +826,7 @@ firod_LDADD = \
   $(LIBFIRO_SIGMA) \
   $(LIBLELANTUS) \
   $(LIBSPARK) \
+  $(LIBSPATS) \
   $(LIBBITCOIN_ZMQ) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \

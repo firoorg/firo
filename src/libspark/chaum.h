@@ -8,7 +8,7 @@ namespace spark {
 
 class Chaum {
 public:
-    Chaum(const GroupElement& F, const GroupElement& G, const GroupElement& H, const GroupElement& U);
+    Chaum(const GroupElement& F, const GroupElement& G, const GroupElement& H, const GroupElement& U, const std::string& protocol);
 
     void prove(
         const Scalar& mu,
@@ -38,6 +38,7 @@ private:
     const GroupElement& G;
     const GroupElement& H;
     const GroupElement& U;
+    const std::string& protocol;
 };
 
 }

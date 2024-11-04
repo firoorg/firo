@@ -3,11 +3,11 @@
 #include "balance.h"
 #include "base_asset.h"
 #include "bpplus.h"
-#include "chaum.h"
+#include "../libspark/chaum.h"
 #include "coin.h"
-#include "grootle.h"
+#include "../libspark/grootle.h"
 #include "keys.h"
-#include "schnorr.h"
+#include "../libspark/schnorr.h"
 #include "type.h"
 #include "util.h"
 #include <algorithm>
@@ -73,7 +73,7 @@ public:
     std::vector<unsigned char> hash_bind_inner(
         const std::unordered_map<uint64_t, std::vector<unsigned char> >& cover_set_representations,
         const std::vector<GroupElement>& C1,
-        const std::vector<GrootleProof>& grootle_proofs
+        const std::vector<spark::GrootleProof>& grootle_proofs
         // const SchnorrProof& balance_proof,
         // const BPPlusProof& range_proof
     );
@@ -81,7 +81,7 @@ public:
         const std::vector<unsigned char> hash_bind_inner,
         const std::vector<Coin>& out_coins,
         const uint64_t f_,
-        const SchnorrProof& rep_proof,
+        const spark::SchnorrProof& rep_proof,
         const BPPlusProof& range_proof,
         const BaseAssetProof& base_proof,
         const TypeProof& type_proof,
@@ -133,16 +133,14 @@ private:
     std::vector<Coin> out_coins;
 
     // All this data we need to serialize
-    std::vector<InputCoinData> inputs;
-    std::vector<OutputCoinData> outputs;
     std::map<uint64_t, uint256> set_id_blockHash;
     std::vector<uint64_t> cover_set_ids;
     uint64_t f;
     uint64_t vout;
     std::vector<GroupElement> S1, C1, T;
-    std::vector<GrootleProof> grootle_proofs;
-    ChaumProof chaum_proof;
-    SchnorrProof rep_proof;
+    std::vector<spark::GrootleProof> grootle_proofs;
+    spark::ChaumProof chaum_proof;
+    spark::SchnorrProof rep_proof;
     BPPlusProof range_proof;
     BaseAssetProof base_proof;
     TypeProof type_proof;

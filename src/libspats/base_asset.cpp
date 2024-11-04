@@ -1,5 +1,6 @@
 #include "base_asset.h"
-#include "transcript.h"
+#include "../libspark/transcript.h"
+#include "util.h"
 
 namespace spats
 {
@@ -12,7 +13,7 @@ Scalar BaseAsset::challenge(
     const std::vector<GroupElement>& C,
     const GroupElement& A)
 {
-    Transcript transcript(LABEL_TRANSCRIPT_BASE);
+    spark::Transcript transcript(LABEL_TRANSCRIPT_BASE, LABEL_PROTOCOL);
     transcript.add("G", G);
     transcript.add("H", H);
     transcript.add("C", C);

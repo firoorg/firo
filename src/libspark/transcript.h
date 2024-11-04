@@ -9,7 +9,7 @@ using namespace secp_primitives;
 
 class Transcript {
 public:
-    Transcript(const std::string);
+    Transcript(const std::string, const std::string);
     Transcript& operator=(const Transcript&);
     ~Transcript();
     void add(const std::string, const Scalar&);

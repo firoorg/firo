@@ -2,7 +2,7 @@
 #define FIRO_SPATS_MINT_TRANSACTION_H
 #include "coin.h"
 #include "keys.h"
-#include "schnorr.h"
+#include "../libspark/schnorr.h"
 #include "util.h"
 
 namespace spats
@@ -40,7 +40,7 @@ public:
 private:
     const Params* params;
     std::vector<Coin> coins;
-    SchnorrProof value_proof;
+    spark::SchnorrProof value_proof;
 };
 
 } // namespace spats

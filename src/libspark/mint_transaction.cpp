@@ -16,7 +16,7 @@ MintTransaction::MintTransaction(
 	// Important note: For pool transition transactions, the serial context should contain unique references to all base-layer spent assets, in order to ensure the resulting serial commitment is bound to this transaction
 
 	this->params = params;
-	Schnorr schnorr(this->params->get_H());
+	Schnorr schnorr(this->params->get_H(), LABEL_PROTOCOL);
 
 	std::vector<GroupElement> value_statement;
 	std::vector<Scalar> value_witness;
@@ -40,7 +40,7 @@ MintTransaction::MintTransaction(
 
             // Prepare the value proof
             value_statement.emplace_back(this->coins[j].C + this->params->get_G().inverse()*Scalar(this->coins[j].v));
-            value_witness.emplace_back(SparkUtils::hash_val(k));
+            value_witness.emplace_back(SparkUtils::hash_val(k, LABEL_PROTOCOL));
         } else {
             Coin coin(params);
             coin.type = 0;
@@ -61,7 +61,7 @@ MintTransaction::MintTransaction(
 
 bool MintTransaction::verify() {
 	// Verify the value proof
-	Schnorr schnorr(this->params->get_H());
+	Schnorr schnorr(this->params->get_H(), LABEL_PROTOCOL);
 	std::vector<GroupElement> value_statement;
 
 	for (std::size_t j = 0; j < this->coins.size(); j++) {

@@ -3,14 +3,14 @@
 
 namespace spark {
 
-Schnorr::Schnorr(const GroupElement& G_):
-    G(G_) {
+Schnorr::Schnorr(const GroupElement& G_, const std::string& protocol_):
+    G(G_), protocol(protocol_){
 }
 
 Scalar Schnorr::challenge(
         const std::vector<GroupElement>& Y,
         const GroupElement& A) {
-    Transcript transcript(LABEL_TRANSCRIPT_SCHNORR);
+    Transcript transcript(LABEL_TRANSCRIPT_SCHNORR, protocol);
     transcript.add("G", G);
     transcript.add("Y", Y);
     transcript.add("A", A);

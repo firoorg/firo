@@ -1,5 +1,6 @@
 #include "type.h"
-#include "transcript.h"
+#include "../libspark/transcript.h"
+#include "util.h"
 
 namespace spats
 {
@@ -12,7 +13,7 @@ Scalar TypeEquality::challenge(
     const GroupElement& A,
     const GroupElement& B)
 {
-    Transcript transcript(LABEL_TRANSCRIPT_TYPE);
+    spark::Transcript transcript(LABEL_TRANSCRIPT_TYPE, LABEL_PROTOCOL);
     transcript.add("E", E);
     transcript.add("F", F);
     transcript.add("G", G);

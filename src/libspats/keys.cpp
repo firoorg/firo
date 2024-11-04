@@ -133,8 +133,8 @@ uint64_t IncomingViewKey::get_diversifier(const std::vector<unsigned char>& d) c
 	}
 
 	// Decrypt the diversifier; this is NOT AUTHENTICATED and MUST be externally checked for validity against a claimed address
-	std::vector<unsigned char> key = SpatsUtils::kdf_diversifier(this->s1);
-	uint64_t i = SpatsUtils::diversifier_decrypt(key, d);
+	std::vector<unsigned char> key = spark::SparkUtils::kdf_diversifier(this->s1, LABEL_PROTOCOL);
+	uint64_t i = spark::SparkUtils::diversifier_decrypt(key, d);
 
 	return i;
 }
@@ -147,11 +147,11 @@ Address::Address(const Params* params) {
 
 Address::Address(const IncomingViewKey& incoming_view_key, const uint64_t i) {
 	// Encrypt the diversifier
-	std::vector<unsigned char> key = SpatsUtils::kdf_diversifier(incoming_view_key.get_s1());
+	std::vector<unsigned char> key = spark::SparkUtils::kdf_diversifier(incoming_view_key.get_s1(), LABEL_PROTOCOL);
 	this->params = incoming_view_key.get_params();
-	this->d = SpatsUtils::diversifier_encrypt(key, i);
-	this->Q1 = SpatsUtils::hash_div(this->d)*incoming_view_key.get_s1();
-	this->Q2 = this->params->get_F()*SpatsUtils::hash_Q2(incoming_view_key.get_s1(), i) + incoming_view_key.get_P2();
+	this->d = spark::SparkUtils::diversifier_encrypt(key, i);
+	this->Q1 = spark::SparkUtils::hash_div(this->d, LABEL_PROTOCOL)*incoming_view_key.get_s1();
+	this->Q2 = this->params->get_F()*spark::SparkUtils::hash_Q2(incoming_view_key.get_s1(), i, LABEL_PROTOCOL) + incoming_view_key.get_P2();
 }
 
 const Params* Address::get_params() const {
@@ -188,11 +188,11 @@ std::string Address::encode(const unsigned char network) const {
 	raw.insert(raw.end(), component.begin(), component.end());
 
 	// Apply the scramble encoding and prepend the network byte
-	std::vector<unsigned char> scrambled = F4Grumble(network, raw.size()).encode(raw);
+	std::vector<unsigned char> scrambled = spark::F4Grumble(network, raw.size()).encode(raw);
 
 	// Encode using `bech32m`
 	std::string hrp;
-	hrp.push_back(ADDRESS_ENCODING_PREFIX);
+	hrp.push_back(spark::ADDRESS_ENCODING_PREFIX);
 	hrp.push_back(network);
 
 	std::vector<uint8_t> bit_converted;
@@ -212,7 +212,7 @@ unsigned char Address::decode(const std::string& str) {
 	}
 
 	// Check the encoding prefix
-	if (decoded.hrp[0] != ADDRESS_ENCODING_PREFIX) {
+	if (decoded.hrp[0] != spark::ADDRESS_ENCODING_PREFIX) {
 		throw std::invalid_argument("Bad address prefix");
 	}
 
@@ -229,7 +229,7 @@ unsigned char Address::decode(const std::string& str) {
 	}
 
 	// Apply the scramble decoding
-	std::vector<unsigned char> raw = F4Grumble(network, scrambled.size()).decode(scrambled);
+	std::vector<unsigned char> raw = spark::F4Grumble(network, scrambled.size()).decode(scrambled);
 
 	// Deserialize the adddress components
 	this->d = std::vector<unsigned char>(raw.begin(), raw.begin() + AES_BLOCKSIZE);

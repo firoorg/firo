@@ -8,7 +8,7 @@ namespace spark {
 
 class Schnorr {
 public:
-    Schnorr(const GroupElement& G);
+    Schnorr(const GroupElement& G, const std::string& protocol_);
 
     void prove(const Scalar& y, const GroupElement& Y, SchnorrProof& proof);
     void prove(const std::vector<Scalar>& y, const std::vector<GroupElement>& Y, SchnorrProof& proof);
@@ -18,6 +18,7 @@ public:
 private:
     Scalar challenge(const std::vector<GroupElement>& Y, const GroupElement& A);
     const GroupElement& G;
+    const std::string& protocol;
 };
 
 }

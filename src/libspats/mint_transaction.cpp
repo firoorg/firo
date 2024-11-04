@@ -18,7 +18,7 @@ MintTransaction::MintTransaction(
     // Important note: For pool transition transactions, the serial context should contain unique references to all base-layer spent assets, in order to ensure the resulting serial commitment is bound to this transaction
 
     this->params = params;
-    Schnorr schnorr(this->params->get_H());
+    spark::Schnorr schnorr(this->params->get_H(), LABEL_PROTOCOL);
 
     std::vector<GroupElement> value_statement;
     std::vector<Scalar> value_witness;
@@ -27,10 +27,10 @@ MintTransaction::MintTransaction(
         if (generate) {
             MintedCoinData output = outputs[j];
 
-            if (Scalar(output.iota) != Scalar(uint64_t(0)) && output.v != 1) {
+            if (output.iota != Scalar(uint64_t(0)) && output.v != 1) {
                 throw std::invalid_argument("mint: identifier not equal to 0 and value not equal to 1");
             }
-            if (Scalar(output.a) == Scalar(uint64_t(0)) && Scalar(output.iota) != Scalar(uint64_t(0))) {
+            if (output.a == Scalar(uint64_t(0)) && output.iota != Scalar(uint64_t(0))) {
                 throw std::invalid_argument("mint: asset type equal to 0 and identifier not equal to 0");
             }
 
@@ -51,7 +51,7 @@ MintTransaction::MintTransaction(
             // Prepare the value proof
             value_statement.emplace_back(this->coins[j].C + this->params->get_E().inverse() * this->coins[j].a + this->params->get_F().inverse() * this->coins[j].iota + this->params->get_G().inverse() * Scalar(this->coins[j].v));
 
-            value_witness.emplace_back(SpatsUtils::hash_val(k));
+            value_witness.emplace_back(spark::SparkUtils::hash_val(k, LABEL_PROTOCOL));
         } else {
             Coin coin;
             coin.type = 0;
@@ -67,13 +67,13 @@ MintTransaction::MintTransaction(
     if (generate)
         schnorr.prove(value_witness, value_statement, this->value_proof);
     else
-        value_proof = SchnorrProof();
+        value_proof = spark::SchnorrProof();
 }
 
 bool MintTransaction::verify()
 {
     // Verify the value proof
-    Schnorr schnorr(this->params->get_H());
+    spark::Schnorr schnorr(this->params->get_H(), LABEL_PROTOCOL);
     std::vector<GroupElement> value_statement;
 
     for (std::size_t j = 0; j < this->coins.size(); j++) {

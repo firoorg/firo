@@ -5,12 +5,12 @@ namespace spark {
 using namespace secp_primitives;
 
 // Set up a labeled hash function
-Hash::Hash(const std::string label) {
+Hash::Hash(const std::string label, const std::string strprotocol) {
 	this->ctx = EVP_MD_CTX_new();
 	EVP_DigestInit_ex(this->ctx, EVP_sha512(), NULL);
 
 	// Write the protocol and mode information
-	std::vector<unsigned char> protocol(LABEL_PROTOCOL.begin(), LABEL_PROTOCOL.end());
+	std::vector<unsigned char> protocol(strprotocol.begin(), strprotocol.end());
 	EVP_DigestUpdate(this->ctx, protocol.data(), protocol.size());
 	EVP_DigestUpdate(this->ctx, &HASH_MODE_FUNCTION, sizeof(HASH_MODE_FUNCTION));
 

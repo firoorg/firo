@@ -77,21 +77,21 @@ const unsigned char ADDRESS_NETWORK_DEVNET =  'd';
 class SparkUtils {
 public:
     // Protocol-level hash functions
-    static GroupElement hash_generator(const std::string label);
+    static GroupElement hash_generator(const std::string label, const std::string& str_protocol);
 
     // Hash functions
-    static GroupElement hash_div(const std::vector<unsigned char>& d);
-    static Scalar hash_Q2(const Scalar& s1, const Scalar& i);
-    static Scalar hash_k(const Scalar& k);
-    static Scalar hash_ser(const Scalar& k, const std::vector<unsigned char>& serial_context);
-    static Scalar hash_val(const Scalar& k);
-    static Scalar hash_ser1(const Scalar& s, const GroupElement& D);
-    static Scalar hash_val1(const Scalar& s, const GroupElement& D);
+    static GroupElement hash_div(const std::vector<unsigned char>& d, const std::string& str_protocol);
+    static Scalar hash_Q2(const Scalar& s1, const Scalar& i, const std::string& protocol);
+    static Scalar hash_k(const Scalar& k, const std::string& protocol);
+    static Scalar hash_ser(const Scalar& k, const std::vector<unsigned char>& serial_context, const std::string& protocol);
+    static Scalar hash_val(const Scalar& k, const std::string& protocol);
+    static Scalar hash_ser1(const Scalar& s, const GroupElement& D, const std::string& protocol);
+    static Scalar hash_val1(const Scalar& s, const GroupElement& D, const std::string& protocol);
 
     // Key derivation functions
-    static std::vector<unsigned char> kdf_diversifier(const Scalar& s1);
-    static std::vector<unsigned char> kdf_aead(const GroupElement& K_der);
-    static std::vector<unsigned char> commit_aead(const GroupElement& K_der);
+    static std::vector<unsigned char> kdf_diversifier(const Scalar& s1,const std::string& protocol);
+    static std::vector<unsigned char> kdf_aead(const GroupElement& K_der, const std::string& protocol);
+    static std::vector<unsigned char> commit_aead(const GroupElement& K_der, const std::string& protocol);
 
     // Diversifier encryption/decryption
     static std::vector<unsigned char> diversifier_encrypt(const std::vector<unsigned char>& key, const uint64_t i);

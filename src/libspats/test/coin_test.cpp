@@ -67,7 +67,7 @@ namespace spats {
         // Recover coin
         RecoveredCoinData r_data = coin.recover(full_view_key, i_data);
         BOOST_CHECK_EQUAL(
-            params->get_F()*(SpatsUtils::hash_ser(k, coin.serial_context) + SpatsUtils::hash_Q2(incoming_view_key.get_s1(), i) + full_view_key.get_s2()) + full_view_key.get_D(),
+            params->get_F()*(spark::SparkUtils::hash_ser(k, coin.serial_context, LABEL_PROTOCOL) + spark::SparkUtils::hash_Q2(incoming_view_key.get_s1(), i, LABEL_PROTOCOL) + full_view_key.get_s2()) + full_view_key.get_D(),
             params->get_F()*r_data.s + full_view_key.get_D()
         );
         BOOST_CHECK_EQUAL(r_data.T*r_data.s + full_view_key.get_D(), params->get_U());
@@ -122,7 +122,7 @@ namespace spats {
         // Recover coin
         RecoveredCoinData r_data = coin.recover(full_view_key, i_data);
         BOOST_CHECK_EQUAL(
-            params->get_F()*(SpatsUtils::hash_ser(k, coin.serial_context) + SpatsUtils::hash_Q2(incoming_view_key.get_s1(), i) + full_view_key.get_s2()) + full_view_key.get_D(),
+            params->get_F()*(spark::SparkUtils::hash_ser(k, coin.serial_context, LABEL_PROTOCOL) + spark::SparkUtils::hash_Q2(incoming_view_key.get_s1(), i, LABEL_PROTOCOL) + full_view_key.get_s2()) + full_view_key.get_D(),
             params->get_F()*r_data.s + full_view_key.get_D()
         );
         BOOST_CHECK_EQUAL(r_data.T*r_data.s + full_view_key.get_D(), params->get_U());

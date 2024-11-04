@@ -25,8 +25,6 @@ SpendTransaction::SpendTransaction(
     const std::vector<OutputCoinData>& outputs)
 {
     this->params = params;
-    this->inputs = inputs;
-    this->outputs = outputs;
 
     Scalar asset_type;
     Scalar identifier;
@@ -59,12 +57,13 @@ SpendTransaction::SpendTransaction(
     std::vector<Scalar> k; // nonces
 
     // Prepare inputs
-    Grootle grootle(
+    spark::Grootle grootle(
         this->params->get_H(),
         this->params->get_G_grootle(),
         this->params->get_H_grootle(),
         this->params->get_n_grootle(),
-        this->params->get_m_grootle());
+        this->params->get_m_grootle(),
+        LABEL_PROTOCOL);
     for (std::size_t u = 0; u < w; u++) {
         // Parse out cover set data for this spend
         uint64_t set_id = inputs[u].cover_set_id;
@@ -87,12 +86,12 @@ SpendTransaction::SpendTransaction(
 
         // Serial commitment offset
         this->S1.emplace_back(
-            this->params->get_F() * inputs[u].s + this->params->get_H().inverse() * SpatsUtils::hash_ser1(inputs[u].s, full_view_key.get_D()) + full_view_key.get_D());
+            this->params->get_F() * inputs[u].s + this->params->get_H().inverse() * spark::SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D(), LABEL_PROTOCOL) + full_view_key.get_D());
 
 
         // Value commitment offset
         this->C1.emplace_back(
-            (this->params->get_E() * inputs[u].a) + (this->params->get_F() * inputs[u].iota) + (this->params->get_G() * Scalar(inputs[u].v)) + (this->params->get_H() * SpatsUtils::hash_val1(inputs[u].s, full_view_key.get_D())));
+            (this->params->get_E() * inputs[u].a) + (this->params->get_F() * inputs[u].iota) + (this->params->get_G() * Scalar(inputs[u].v)) + (this->params->get_H() * spark::SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D(), LABEL_PROTOCOL)));
 
 
         // Tags
@@ -103,10 +102,10 @@ SpendTransaction::SpendTransaction(
         std::size_t l = inputs[u].index;
         grootle.prove(
             l,
-            SpatsUtils::hash_ser1(inputs[u].s, full_view_key.get_D()),
+            spark::SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D(), LABEL_PROTOCOL),
             S,
             this->S1.back(),
-            SpatsUtils::hash_val(inputs[u].k) - SpatsUtils::hash_val1(inputs[u].s, full_view_key.get_D()),
+            spark::SparkUtils::hash_val(inputs[u].k, LABEL_PROTOCOL) - spark::SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D(), LABEL_PROTOCOL),
             C,
             this->C1.back(),
             this->cover_set_representations[set_id],
@@ -115,7 +114,7 @@ SpendTransaction::SpendTransaction(
         // Chaum data
         chaum_x.emplace_back(inputs[u].s);
         chaum_y.emplace_back(spend_key.get_r());
-        chaum_z.emplace_back(SpatsUtils::hash_ser1(inputs[u].s, full_view_key.get_D()).negate());
+        chaum_z.emplace_back(spark::SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D(), LABEL_PROTOCOL).negate());
     }
 
     // Generate output coins and prepare range proof vectors
@@ -156,7 +155,7 @@ SpendTransaction::SpendTransaction(
         range_a.emplace_back(outputs[j].a);
         range_iota.emplace_back(outputs[j].iota);
         range_v.emplace_back(outputs[j].v);
-        range_r.emplace_back(SpatsUtils::hash_val(k.back()));
+        range_r.emplace_back(spark::SparkUtils::hash_val(k.back(), LABEL_PROTOCOL));
         range_C.emplace_back(this->out_coins.back().C);
 
         if (outputs[j].a != ZERO) {
@@ -196,11 +195,11 @@ SpendTransaction::SpendTransaction(
         if (inputs[u].a == ZERO) {
             base_c.emplace_back(C1[u]);
             base_y.emplace_back(inputs[u].v);
-            base_z.emplace_back(SpatsUtils::hash_val1(inputs[u].s, full_view_key.get_D()));
+            base_z.emplace_back(spark::SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D(), LABEL_PROTOCOL));
         } else {
             type_c.emplace_back(C1[u]);
             type_y.emplace_back(inputs[u].v);
-            type_z.emplace_back(SpatsUtils::hash_val1(inputs[u].s, full_view_key.get_D()));
+            type_z.emplace_back(spark::SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D(), LABEL_PROTOCOL));
             asset_type = inputs[u].a;
             identifier = inputs[u].iota;
         }
@@ -210,11 +209,11 @@ SpendTransaction::SpendTransaction(
         if (outputs[j].a == ZERO) {
             base_c.emplace_back(out_coins[j].C);
             base_y.emplace_back(outputs[j].v);
-            base_z.emplace_back(SpatsUtils::hash_val(k[j]));
+            base_z.emplace_back(spark::SparkUtils::hash_val(k[j], LABEL_PROTOCOL));
         } else {
             type_c.emplace_back(out_coins[j].C);
             type_y.emplace_back(outputs[j].v);
-            type_z.emplace_back(SpatsUtils::hash_val(k[j]));
+            type_z.emplace_back(spark::SparkUtils::hash_val(k[j], LABEL_PROTOCOL));
         }
     }
     // Generate a proof that all base-type assets
@@ -233,7 +232,7 @@ SpendTransaction::SpendTransaction(
 
 
     // Generate the Rep proof
-    Schnorr schnorr(this->params->get_H());
+    spark::Schnorr schnorr(this->params->get_H(), LABEL_PROTOCOL);
     GroupElement rep_statement;
     Scalar rep_witness;
 
@@ -247,20 +246,20 @@ SpendTransaction::SpendTransaction(
     for (std::size_t u = 0; u < w; u++) {
         if (inputs[u].a == ZERO) {
             rep_statement += C1[u];
-            rep_witness += SpatsUtils::hash_val1(inputs[u].s, full_view_key.get_D());
+            rep_witness += spark::SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D(), LABEL_PROTOCOL);
         } else {
             balance_statement += C1[u];
-            balance_witness += SpatsUtils::hash_val1(inputs[u].s, full_view_key.get_D());
+            balance_witness += spark::SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D(), LABEL_PROTOCOL);
             w_generic++;
         }
     }
     for (std::size_t j = 0; j < t; j++) {
         if (outputs[j].a == ZERO) {
             rep_statement += out_coins[j].C.inverse();
-            rep_witness -= SpatsUtils::hash_val(k[j]);
+            rep_witness -= spark::SparkUtils::hash_val(k[j], LABEL_PROTOCOL);
         } else {
             balance_statement += out_coins[j].C.inverse();
-            balance_witness -= SpatsUtils::hash_val(k[j]);
+            balance_witness -= spark::SparkUtils::hash_val(k[j], LABEL_PROTOCOL);
             t_generic++;
         }
     }
@@ -296,11 +295,12 @@ SpendTransaction::SpendTransaction(
         this->balance_proof);
 
     // Compute the authorizing Chaum proof
-    Chaum chaum(
+    spark::Chaum chaum(
         this->params->get_F(),
         this->params->get_G(),
         this->params->get_H(),
-        this->params->get_U());
+        this->params->get_U(),
+        LABEL_PROTOCOL);
     chaum.prove(
         mu,
         chaum_x,
@@ -421,11 +421,12 @@ bool SpendTransaction::verify(
             tx.balance_proof);
 
         // Verify the authorizing Chaum-Pedersen proof
-        Chaum chaum(
+        spark::Chaum chaum(
             tx.params->get_F(),
             tx.params->get_G(),
             tx.params->get_H(),
-            tx.params->get_U());
+            tx.params->get_U(),
+            LABEL_PROTOCOL);
         if (!chaum.verify(mu, tx.S1, tx.T, tx.chaum_proof)) {
             return false;
         }
@@ -435,21 +436,22 @@ bool SpendTransaction::verify(
 
         std::vector<GroupElement> type_c;
         std::vector<GroupElement> base_c;
-        for (std::size_t u = 0; u < w; u++) {
-            if (tx.inputs[u].a != ZERO) {
-                type_c.emplace_back(tx.C1[u]);
-            } else {
-                base_c.emplace_back(tx.C1[u]);
-            }
-        }
-
-        for (std::size_t j = 0; j < t; j++) {
-            if (tx.inputs[j].a != ZERO) {
-                type_c.emplace_back(tx.out_coins[j].C);
-            } else {
-                base_c.emplace_back(tx.out_coins[j].C);
-            }
-        }
+        //TODO levon, fix the error, verifier should not know input coin data
+//        for (std::size_t u = 0; u < w; u++) {
+//            if (tx.inputs[u].a != ZERO) {
+//                type_c.emplace_back(tx.C1[u]);
+//            } else {
+//                base_c.emplace_back(tx.C1[u]);
+//            }
+//        }
+//
+//        for (std::size_t j = 0; j < t; j++) {
+//            if (tx.inputs[j].a != ZERO) {
+//                type_c.emplace_back(tx.out_coins[j].C);
+//            } else {
+//                base_c.emplace_back(tx.out_coins[j].C);
+//            }
+//        }
 
         if (!(type.verify(type_c, tx.type_proof))) {
             return false;
@@ -460,23 +462,24 @@ bool SpendTransaction::verify(
 
 
         // Verify the balance proof
-        Schnorr schnorr(tx.params->get_H());
+        spark::Schnorr schnorr(tx.params->get_H(), LABEL_PROTOCOL);
         GroupElement rep_statement;
         GroupElement balance_statement;
-        for (std::size_t u = 0; u < w; u++) {
-            if (tx.inputs[u].a == ZERO) {
-                rep_statement += tx.C1[u];
-            } else {
-                balance_statement += tx.C1[u];
-            }
-        }
-        for (std::size_t j = 0; j < t; j++) {
-            if (tx.outputs[j].a == ZERO) {
-                rep_statement += tx.out_coins[j].C.inverse();
-            } else {
-                balance_statement += tx.out_coins[j].C.inverse();
-            }
-        }
+        //TODO levon, fix the error, verifier should not know input coin data
+//        for (std::size_t u = 0; u < w; u++) {
+//            if (tx.inputs[u].a == ZERO) {
+//                rep_statement += tx.C1[u];
+//            } else {
+//                balance_statement += tx.C1[u];
+//            }
+//        }
+//        for (std::size_t j = 0; j < t; j++) {
+//            if (tx.outputs[j].a == ZERO) {
+//                rep_statement += tx.out_coins[j].C.inverse();
+//            } else {
+//                balance_statement += tx.out_coins[j].C.inverse();
+//            }
+//        }
         rep_statement += (tx.params->get_G() * Scalar(tx.f + tx.vout)).inverse();
 
         if (!schnorr.verify(
@@ -510,12 +513,13 @@ bool SpendTransaction::verify(
 
     // Verify all Grootle proofs in batches (based on cover set)
     // TODO: Finish this
-    Grootle grootle(
+    spark::Grootle grootle(
         params->get_H(),
         params->get_G_grootle(),
         params->get_H_grootle(),
         params->get_n_grootle(),
-        params->get_m_grootle());
+        params->get_m_grootle(),
+        LABEL_PROTOCOL);
     for (auto grootle_bucket : grootle_buckets) {
         std::size_t cover_set_id = grootle_bucket.first;
         std::vector<std::pair<std::size_t, std::size_t> > proof_indexes = grootle_bucket.second;
@@ -524,7 +528,7 @@ bool SpendTransaction::verify(
         std::vector<GroupElement> S, S1, V, V1;
         std::vector<std::vector<unsigned char> > cover_set_representations;
         std::vector<std::size_t> sizes;
-        std::vector<GrootleProof> proofs;
+        std::vector<spark::GrootleProof> proofs;
 
         std::size_t full_cover_set_size = cover_sets.at(cover_set_id).size();
         for (std::size_t i = 0; i < full_cover_set_size; i++) {
@@ -569,11 +573,11 @@ bool SpendTransaction::verify(
 std::vector<unsigned char> SpendTransaction::hash_bind_inner(
     const std::unordered_map<uint64_t, std::vector<unsigned char> >& cover_set_representations,
     const std::vector<GroupElement>& C1,
-    const std::vector<GrootleProof>& grootle_proofs
+    const std::vector<spark::GrootleProof>& grootle_proofs
 
 )
 {
-    Hash hash(LABEL_HASH_BIND_INNER);
+    spark::Hash hash(spark::LABEL_HASH_BIND_INNER, LABEL_PROTOCOL);
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
     stream << cover_set_representations;
     stream << S1;
@@ -591,13 +595,13 @@ Scalar SpendTransaction::hash_bind(
     const std::vector<unsigned char> hash_bind_inner,
     const std::vector<Coin>& out_coins,
     const uint64_t f_,
-    const SchnorrProof& rep_proof,
+    const spark::SchnorrProof& rep_proof,
     const BPPlusProof& range_proof,
     const BaseAssetProof& base_proof,
     const TypeProof& type_proof,
     const BalanceProof& balance_proof)
 {
-    Hash hash(LABEL_HASH_BIND);
+    spark::Hash hash(spark::LABEL_HASH_BIND, LABEL_PROTOCOL);
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
     stream << hash_bind_inner;
     stream << out_coins;
