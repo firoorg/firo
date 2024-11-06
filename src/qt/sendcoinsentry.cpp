@@ -29,6 +29,7 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     QIcon icon_;
     icon_.addFile(QString::fromUtf8(":/icons/ic_warning"), QSize(), QIcon::Normal, QIcon::On);
     ui->iconWarning->setPixmap(icon_.pixmap(18, 18));
+    ui->iconMessageWarning->setPixmap(icon_.pixmap(18, 18));
 
     ui->addressBookButton->setIcon(platformStyle->SingleColorIcon(":/icons/address-book"));
     ui->pasteButton->setIcon(platformStyle->SingleColorIcon(":/icons/editpaste"));
@@ -55,14 +56,34 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     connect(ui->deleteButton, &QToolButton::clicked, this, &SendCoinsEntry::deleteClicked);
     connect(ui->deleteButton_is, &QToolButton::clicked, this, &SendCoinsEntry::deleteClicked);
     connect(ui->deleteButton_s, &QToolButton::clicked, this, &SendCoinsEntry::deleteClicked);
+    connect(ui->messageTextLabel, &QLineEdit::textChanged, this, &SendCoinsEntry::on_MemoTextChanged);
 
     ui->messageLabel->setVisible(false);
     ui->messageTextLabel->setVisible(false);
+    ui->iconMessageWarning->setVisible(false);
 }
 
 SendCoinsEntry::~SendCoinsEntry()
 {
     delete ui;
+}
+
+void SendCoinsEntry::on_MemoTextChanged(const QString &text)
+{
+    int maxLength = 256;
+    bool isOverLimit = text.length() > maxLength;
+
+    if (isOverLimit) {
+        ui->messageWarning->setText("Message exceeds character 256 character limit");
+        ui->messageWarning->setVisible(true);
+        ui->messageTextLabel->setStyleSheet("border: 1px solid red;");
+        ui->iconMessageWarning->setVisible(true);
+    } else {
+        ui->messageWarning->clear();
+        ui->messageWarning->setVisible(false);
+        ui->messageTextLabel->setStyleSheet("");
+        ui->iconMessageWarning->setVisible(false);
+    }
 }
 
 void SendCoinsEntry::on_pasteButton_clicked()
@@ -89,7 +110,10 @@ void SendCoinsEntry::on_payTo_textChanged(const QString &address)
     updateLabel(address);
     setWarning(fAnonymousMode);
 
-    bool isSparkAddress = model && model->validateSparkAddress(address);
+    bool isSparkAddress = false;
+    if (model) {
+        isSparkAddress = model->validateSparkAddress(address);
+    }
     ui->messageLabel->setVisible(isSparkAddress);
     ui->messageTextLabel->setVisible(isSparkAddress);
 }

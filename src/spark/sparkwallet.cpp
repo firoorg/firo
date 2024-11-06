@@ -742,7 +742,8 @@ std::vector<CRecipient> CSparkWallet::CreateSparkMintRecipients(
         script.insert(script.end(), serializedCoins[i].begin(), serializedCoins[i].end());
         unsigned char network = spark::GetNetworkType();
         std::string addr = outputs[i].address.encode(network);
-        CRecipient recipient = {script, CAmount(outputs[i].v), false, addr};
+        std::string memo = outputs[i].memo;
+        CRecipient recipient = {script, CAmount(outputs[i].v), false, addr, memo};
         results.emplace_back(recipient);
     }
 
@@ -1093,6 +1094,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                                     CSparkOutputTx output;
                                     output.address = recipient.address;
                                     output.amount = recipient.nAmount;
+                                    output.memo = recipient.memo;
                                     walletdb.WriteSparkOutputTx(recipient.scriptPubKey, output);
                                     break;
                                 }
@@ -1530,6 +1532,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 CSparkOutputTx output;
                 output.address =  privOutputs[i].address.encode(network);
                 output.amount = privOutputs[i].v;
+                output.memo = privOutputs[i].memo;
                 walletdb.WriteSparkOutputTx(script, output);
                 tx.vout.push_back(CTxOut(0, script));
                 i++;
