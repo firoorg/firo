@@ -493,7 +493,11 @@ BOOST_AUTO_TEST_CASE(checktransaction)
             txs[0], state, tx.GetHash(), false, chainActive.Height(), true, true, &info));
 
     std::vector<spark::Coin> expectedCoins = spark::GetSparkMintCoins(tx);
-    BOOST_CHECK(expectedCoins == info.mints);
+    std::vector<spark::Coin> resultedCoins;
+    resultedCoins.reserve(info.mints.size());
+    for (auto& mint : info.mints)
+        resultedCoins.emplace_back(mint.first);
+    BOOST_CHECK(expectedCoins == resultedCoins);
 
     // spend
     txs.clear();

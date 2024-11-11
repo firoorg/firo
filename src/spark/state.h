@@ -21,8 +21,8 @@ public:
     // all the spark transactions encountered so far
     std::set<uint256> spTransactions;
 
-    // Vector of all mints
-    std::vector<spark::Coin> mints;
+    // Vector of all mints, paired with bool,indicating if it is coinbase or not
+    std::vector<std::pair<spark::Coin, bool>> mints;
 
     // linking tag for every spend (map from lTag to coin group id)
     std::unordered_map<GroupElement, int> spentLTags;

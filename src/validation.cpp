@@ -3855,11 +3855,14 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
             LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
             pwalletMain->zwallet->GetTracker().UpdateMintStateFromBlock(blockConnecting.lelantusTxInfo->mints);
         }
+    }
+
+    if (!GetBoolArg("-disablewallet", false) && pwalletMain->sparkWallet && blockConnecting.sparkTxInfo) {
 
         if (blockConnecting.sparkTxInfo->spentLTags.size() > 0) {
             LogPrintf("SparkWallet: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
-            pwalletMain->sparkWallet->UpdateSpendStateFromBlock(blockConnecting);
         }
+        pwalletMain->sparkWallet->UpdateSpendStateFromBlock(blockConnecting);
 
         if (blockConnecting.sparkTxInfo->mints.size() > 0) {
             LogPrintf("SparkWallet: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());

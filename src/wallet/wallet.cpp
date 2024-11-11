@@ -2615,7 +2615,7 @@ CAmount CWalletTx::GetCredit(const isminefilter& filter) const
 
 CAmount CWalletTx::GetImmatureCredit(bool fUseCache) const
 {
-    if (IsCoinBase() && GetBlocksToMaturity() > 0 && IsInMainChain())
+    if (IsCoinBase() && !this->tx->IsSparkMint() && GetBlocksToMaturity() > 0 && IsInMainChain())
     {
         if (fUseCache && fImmatureCreditCached)
             return nImmatureCreditCached;
@@ -7283,9 +7283,13 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     LogPrintf(" wallet      %15dms\n", GetTimeMillis() - nStart);
     if (pwalletMain->IsHDSeedAvailable()) {
         walletInstance->zwallet = std::make_unique<CHDMintWallet>(pwalletMain->strWalletFile);
-
+        int nTxHeight;
+        {
+            LOCK(cs_main);
+            nTxHeight = chainActive.Height();
+        }
         // if it is first run, we need to generate the full key set for spark, if not we are loading spark wallet from db
-        walletInstance->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
+        walletInstance->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile, nTxHeight);
 
         spark::Address address = walletInstance->sparkWallet->getDefaultAddress();
         unsigned char network = spark::GetNetworkType();

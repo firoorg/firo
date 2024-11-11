@@ -251,7 +251,7 @@ public:
     //! Map id to <hash of the set>
     std::map<int, std::vector<unsigned char>> anonymitySetHash;
     //! Map id to spark coin
-    std::map<int, std::vector<spark::Coin>> sparkMintedCoins;
+    std::map<int, std::vector<std::pair<spark::Coin, bool>>> sparkMintedCoins;
     //! Map id to <hash of the set>
     std::map<int, std::vector<unsigned char>> sparkSetHash;
     //! map spark coin S to tx hash, this is used when you run with -mobile
@@ -560,7 +560,17 @@ public:
 
         if (!(s.GetType() & SER_GETHASH)
             && nHeight >= params.nSparkStartBlock) {
-            READWRITE(sparkMintedCoins);
+            if (nHeight >=params.nSparkCoinbase) {
+                READWRITE(sparkMintedCoins);
+            } else {
+                std::map<int, std::vector<spark::Coin>> sparkCoins;
+                READWRITE(sparkCoins);
+                for (auto& itr : sparkCoins) {
+                    sparkMintedCoins[itr.first].reserve(itr.second.size());
+                    for (auto& mint : itr.second)
+                        sparkMintedCoins[itr.first].emplace_back(std::make_pair(mint, false));
+                }
+            }
             READWRITE(sparkSetHash);
             READWRITE(spentLTags);
 

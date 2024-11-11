@@ -13,6 +13,7 @@ struct MintedCoinData {
 	Address address;
 	uint64_t v;
 	std::string memo;
+    char type;
 };
 
 class MintTransaction {

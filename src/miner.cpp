@@ -297,6 +297,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         if (spark::IsPayToSparkAddress(out.scriptPubKey)) {
            spark::MintedCoinData mintedCoinData;
            mintedCoinData.v = out.nValue;
+           mintedCoinData.type = spark::COIN_TYPE_COINBASE;
            std::vector<unsigned char> vch(out.scriptPubKey.begin() + 2, out.scriptPubKey.end() - 1);
            try {
                mintedCoinData.address.fromByteVector(vch);

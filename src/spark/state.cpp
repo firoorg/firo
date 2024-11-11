@@ -1,6 +1,7 @@
 #include "state.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
+#include "../consensus/consensus.h"
 
 namespace spark {
 
@@ -438,7 +439,8 @@ bool CheckSparkMintTransaction(
         CValidationState &state,
         uint256 hashTx,
         bool fStatefulSigmaCheck,
-        CSparkTxInfo* sparkTxInfo) {
+        CSparkTxInfo* sparkTxInfo,
+        bool isCoinbase) {
 
     LogPrintf("CheckSparkMintTransaction txHash = %s\n", hashTx.GetHex());
     const spark::Params* params = spark::Params::get_default();
@@ -490,7 +492,7 @@ bool CheckSparkMintTransaction(
 
         if (sparkTxInfo != NULL && !sparkTxInfo->fInfoIsComplete) {
             // Update coin list in the info
-            sparkTxInfo->mints.push_back(coin);
+            sparkTxInfo->mints.push_back(std::make_pair(coin, isCoinbase));
             sparkTxInfo->spTransactions.insert(hashTx);
         }
     }
@@ -526,7 +528,7 @@ bool CheckSparkSMintTransaction(
     for (auto& coin : out_coins) {
         if (sparkTxInfo != NULL && !sparkTxInfo->fInfoIsComplete) {
             // Update coin list in the info
-            sparkTxInfo->mints.push_back(coin);
+            sparkTxInfo->mints.push_back(std::make_pair(coin, false));
         }
     }
 
@@ -641,6 +643,7 @@ bool CheckSparkSpendTransaction(
         // find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
         while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
             index = index->pprev;
+        CBlockIndex *lastBlock = index;
 
         // take the hash from last block of anonymity set
         std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, idAndHash.first);
@@ -664,8 +667,11 @@ bool CheckSparkSpendTransaction(
                     const auto& coin,
                     index->sparkMintedCoins[id]) {
                         set_size++;
-                        if (!useBatching)
-                            cover_set.push_back(coin);
+                        if (!useBatching) {
+                            if ((coin.second && lastBlock->nHeight > COINBASE_MATURITY) || !coin.second) {
+                                cover_set.push_back(coin.first);
+                            }
+                        }
                     }
                 }
             }
@@ -783,7 +789,7 @@ bool CheckSparkTransaction(
         }
         if (!txOuts.empty()) {
             try {
-                if (!CheckSparkMintTransaction(txOuts, state, hashTx, fStatefulSigmaCheck, sparkTxInfo)) {
+                if (!CheckSparkMintTransaction(txOuts, state, hashTx, fStatefulSigmaCheck, sparkTxInfo, tx.IsCoinBase())) {
                     LogPrintf("CheckSparkTransaction::Mint verification failed.\n");
                     return false;
                 }
@@ -1055,7 +1061,7 @@ void CSparkState::AddMintsToStateAndBlockIndex(
         CBlockIndex *index,
         const CBlock* pblock) {
 
-    std::vector<spark::Coin> blockMints = pblock->sparkTxInfo->mints;
+    std::vector<std::pair<spark::Coin, bool>> blockMints = pblock->sparkTxInfo->mints;
 
     latestCoinId = std::max(1, latestCoinId);
     auto &coinGroup = coinGroups[latestCoinId];
@@ -1086,18 +1092,18 @@ void CSparkState::AddMintsToStateAndBlockIndex(
     }
 
     for (const auto& mint : blockMints) {
-        AddMint(mint, CMintedCoinInfo::make(latestCoinId, index->nHeight));
+        AddMint(mint.first, CMintedCoinInfo::make(latestCoinId, index->nHeight));
         LogPrintf("AddMintsToStateAndBlockIndex: Spark mint added id=%d\n", latestCoinId);
         index->sparkMintedCoins[latestCoinId].push_back(mint);
         if (GetBoolArg("-mobile", false)) {
             COutPoint outPoint;
-            GetOutPointFromBlock(outPoint, mint, *pblock);
+            GetOutPointFromBlock(outPoint, mint.first, *pblock);
             CTransactionRef tx;
             for (CTransactionRef itr : pblock->vtx) {
                 if (outPoint.hash == itr->GetHash())
                     tx = itr;
             }
-            index->sparkTxHashContext[mint.S] = {outPoint.hash, getSerialContext(*tx)};
+            index->sparkTxHashContext[mint.first.S] = {outPoint.hash, getSerialContext(*tx)};
         }
     }
 }
@@ -1142,7 +1148,7 @@ void CSparkState::AddBlock(CBlockIndex *index) {
 
         latestCoinId = coins.first;
         for (auto const &coin : coins.second) {
-            AddMint(coin, CMintedCoinInfo::make(coins.first, index->nHeight));
+            AddMint(coin.first, CMintedCoinInfo::make(coins.first, index->nHeight));
         }
     }
 
@@ -1208,7 +1214,7 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
     // roll back mints
     for (auto const&coins : index->sparkMintedCoins) {
         for (auto const& coin : coins.second) {
-            auto mintCoins = GetMints().equal_range(coin);
+            auto mintCoins = GetMints().equal_range(coin.first);
             auto coinIt = find_if(
                     mintCoins.first, mintCoins.second,
                     [&coins](const std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash>::value_type& v) {
@@ -1327,7 +1333,9 @@ int CSparkState::GetCoinSetForSpend(
             numberOfCoins += block->sparkMintedCoins[id].size();
             if (block->sparkMintedCoins.count(id) > 0) {
                 for (const auto &coin : block->sparkMintedCoins[id]) {
-                    coins_out.push_back(coin);
+                    if ((coin.second && coinGroup.lastBlock->nHeight > COINBASE_MATURITY) || !coin.second) {
+                        coins_out.push_back(coin.first);
+                    }
                 }
             }
         }
@@ -1379,10 +1387,12 @@ void CSparkState::GetCoinsForRecovery(
             numberOfCoins += block->sparkMintedCoins[id].size();
             if (block->sparkMintedCoins.count(id) > 0) {
                 for (const auto &coin : block->sparkMintedCoins[id]) {
-                    std::pair<uint256, std::vector<unsigned char>> txHashContext;
-                    if (block->sparkTxHashContext.count(coin.S))
-                        txHashContext = block->sparkTxHashContext[coin.S];
-                    coins.push_back({coin, txHashContext});
+                    if ((coin.second && coinGroup.lastBlock->nHeight > COINBASE_MATURITY) || !coin.second) {
+                        std::pair<uint256, std::vector<unsigned char>> txHashContext;
+                        if (block->sparkTxHashContext.count(coin.first.S))
+                            txHashContext = block->sparkTxHashContext[coin.first.S];
+                        coins.push_back({coin.first, txHashContext});
+                    }
                 }
             }
         }

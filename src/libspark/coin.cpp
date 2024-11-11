@@ -126,7 +126,7 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key) {
 	IdentifiedCoinData data;
 
 	// Deserialization means this process depends on the coin type
-	if (this->type == COIN_TYPE_MINT) {
+	if (this->type == COIN_TYPE_MINT || this->type == COIN_TYPE_COINBASE) {
 		MintCoinRecipientData r;
 
 		try {
@@ -225,7 +225,7 @@ void Coin::setParams(const Params* params) {
 }
 
 bool Coin::isValidMNPayment(const spark::Address& addr, const std::vector<unsigned char>& serialContext) const {
-    Coin c(this->params, COIN_TYPE_MINT, k, addr, v, "BlockReward", serial_context);
+    Coin c(this->params, COIN_TYPE_COINBASE, k, addr, v, "BlockReward", serial_context);
     return this->getHash() == c.getHash();
 }
 
