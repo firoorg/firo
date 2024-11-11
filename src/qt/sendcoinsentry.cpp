@@ -11,6 +11,7 @@
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "walletmodel.h"
+#include "../spark/sparkwallet.h"
 #include "../wallet/wallet.h"
 
 #include <QApplication>
@@ -70,15 +71,22 @@ SendCoinsEntry::~SendCoinsEntry()
 
 void SendCoinsEntry::on_MemoTextChanged(const QString &text)
 {
-    int maxLength = 256;
+    const spark::Params* params = spark::Params::get_default();
+    int maxLength = params->get_memo_bytes();
     bool isOverLimit = text.length() > maxLength;
 
     if (isOverLimit) {
-        ui->messageWarning->setText("Message exceeds character 256 character limit");
+        ui->messageWarning->setText(QString("Message exceeds %1 bytes limit").arg(maxLength));
         ui->messageWarning->setVisible(true);
         ui->messageTextLabel->setStyleSheet("border: 1px solid red;");
         ui->iconMessageWarning->setVisible(true);
     } else {
+        QString sanitized = text;
+        sanitized.remove(QRegExp("[\\x00-\\x1F\\x7F]"));
+        if (sanitized != text) {
+            ui->messageTextLabel->setText(sanitized);
+            return;
+        }
         ui->messageWarning->clear();
         ui->messageWarning->setVisible(false);
         ui->messageTextLabel->setStyleSheet("");

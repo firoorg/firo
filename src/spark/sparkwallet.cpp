@@ -743,6 +743,10 @@ std::vector<CRecipient> CSparkWallet::CreateSparkMintRecipients(
         unsigned char network = spark::GetNetworkType();
         std::string addr = outputs[i].address.encode(network);
         std::string memo = outputs[i].memo;
+        const std::size_t max_memo_size = outputs[i].address.get_params()->get_memo_bytes();
+        if (memo.length() > max_memo_size) {
+            throw std::runtime_error(strprintf("Memo exceeds maximum length of %d bytes", max_memo_size));
+        }
         CRecipient recipient = {script, CAmount(outputs[i].v), false, addr, memo};
         results.emplace_back(recipient);
     }

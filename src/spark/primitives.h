@@ -107,7 +107,15 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(address);
         READWRITE(amount);
-        READWRITE(memo);
+        if (ser_action.ForRead()) {
+            if (!s.empty()) {
+                READWRITE(memo);
+            } else {
+                memo = "";
+            }
+        } else {
+            READWRITE(memo);
+        }
     }
 };
 
