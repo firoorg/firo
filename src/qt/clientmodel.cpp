@@ -161,7 +161,7 @@ QDateTime ClientModel::getLastBlockDate() const
     TRY_LOCK(cs_main,lock);
 
     if (!lock)
-        cachedLastBlockDate;
+        return cachedLastBlockDate;
 
     if (chainActive.Tip()) {
         cachedLastBlockDate = QDateTime::fromTime_t(chainActive.Tip()->GetBlockTime());

@@ -295,11 +295,10 @@ void TransactionTableModel::updateTransaction(const QString &hash, int status, b
     updated.SetHex(hash.toStdString());
     priv->cachedUpdatedTx.push_back(std::make_pair(updated, std::make_pair(status, showTransaction)));
     size_t currentSize = priv->cachedUpdatedTx.size();
-    for (auto itr = priv->cachedUpdatedTx.rbegin(); itr!= priv->cachedUpdatedTx.rend();)
+    while (!priv->cachedUpdatedTx.empty())
     {
-        std::pair<uint256, std::pair<int, bool>> current = *itr;
-        priv->cachedUpdatedTx.erase(--priv->cachedUpdatedTx.end());
-        itr++;
+        std::pair<uint256, std::pair<int, bool>> current = priv->cachedUpdatedTx.back();
+        priv->cachedUpdatedTx.pop_back();
         priv->updateWallet(current.first, current.second.first, current.second.second);
         // this thread was not able to perform the update, stop and do it next time
         if (currentSize == priv->cachedUpdatedTx.size())
