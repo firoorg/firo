@@ -13,6 +13,7 @@
 #include "automintnotification.h"
 #include "amount.h"
 #include "masternodelist.h"
+#include "myownspats.h"
 #include "lelantusdialog.h"
 
 #include <QStackedWidget>
@@ -87,6 +88,7 @@ private:
     TransactionView *firoTransactionList;
     QWidget *firoTransactionsView;
     MasternodeList *masternodeListPage;
+    MyOwnSpats *myOwnSpatsPage;
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
@@ -105,6 +107,8 @@ public Q_SLOTS:
     void focusBitcoinHistoryTab(const QModelIndex &idx);
     /** Switch to masternode page */
     void gotoMasternodePage();
+    /** Switch to myownspats page */
+    void gotoMyOwnSpatsPage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */

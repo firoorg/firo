@@ -57,6 +57,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
 
     sendCoinsPage = new QWidget(this);
     masternodeListPage = new MasternodeList(platformStyle);
+    myOwnSpatsPage = new MyOwnSpats(platformStyle);
 
     automintNotification = new AutomintNotification(this);
     automintNotification->setWindowModality(Qt::NonModal);
@@ -74,6 +75,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     addWidget(sendCoinsPage);
     addWidget(lelantusPage);
     addWidget(masternodeListPage);
+    addWidget(myOwnSpatsPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
     connect(overviewPage, &OverviewPage::transactionClicked, this, &WalletView::focusBitcoinHistoryTab);
@@ -183,6 +185,7 @@ void WalletView::setClientModel(ClientModel *_clientModel)
     overviewPage->setClientModel(clientModel);
     sendFiroView->setClientModel(clientModel);
     masternodeListPage->setClientModel(clientModel);
+    myOwnSpatsPage->setClientModel(clientModel);
 
     if (pwalletMain->IsHDSeedAvailable()) {
         lelantusView->setClientModel(clientModel);
@@ -205,6 +208,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(_walletModel->getAddressTableModel());
     masternodeListPage->setWalletModel(_walletModel);
+    myOwnSpatsPage->setWalletModel(_walletModel);
     sendFiroView->setModel(_walletModel);
     automintNotification->setModel(_walletModel);
     automintSparkNotification->setModel(_walletModel);
@@ -297,6 +301,11 @@ void WalletView::focusBitcoinHistoryTab(const QModelIndex &idx)
 void WalletView::gotoMasternodePage()
 {
     setCurrentWidget(masternodeListPage);
+}
+
+void WalletView::gotoMyOwnSpatsPage()
+{
+    setCurrentWidget(myOwnSpatsPage);
 }
 
 void WalletView::gotoReceiveCoinsPage()

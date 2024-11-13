@@ -40,6 +40,7 @@
 #include "evo/deterministicmns.h"
 #include "masternode-sync.h"
 #include "masternodelist.h"
+#include "myownspats.h"
 #include <iostream>
 
 #include <QAction>
@@ -122,6 +123,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     showHelpMessageAction(0),
     lelantusAction(0),
     masternodeAction(0),
+    myownspatsAction(nullptr),
     logoAction(0),
     trayIcon(0),
     trayIconMenu(0),
@@ -365,9 +367,19 @@ void BitcoinGUI::createActions()
     tabGroup->addAction(masternodeAction);
 #endif
 
+    myownspatsAction = new QAction(tr("M&y Own Spats"), this);
+    myownspatsAction->setStatusTip(tr("Browse My Own Spats"));
+    myownspatsAction->setToolTip(myownspatsAction->statusTip());
+    myownspatsAction->setCheckable(true);
+    myownspatsAction->setShortcut(QKeySequence(Qt::ALT +  key++));
+    tabGroup->addAction(myownspatsAction);
+#endif
+
 #ifdef ENABLE_WALLET
     connect(masternodeAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
     connect(masternodeAction, &QAction::triggered, this, &BitcoinGUI::gotoMasternodePage);
+    connect(myownspatsAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
+    connect(myownspatsAction, &QAction::triggered, this, &BitcoinGUI::gotoMyOwnSpatsPage);
 	connect(overviewAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
     connect(overviewAction, &QAction::triggered, this, &BitcoinGUI::gotoOverviewPage);
 	connect(sendCoinsAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
@@ -522,6 +534,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(historyAction);
         toolbar->addAction(lelantusAction);
         toolbar->addAction(masternodeAction);
+        toolbar->addAction(myownspatsAction);
 
         logoLabel = new QLabel();
         logoLabel->setObjectName("lblToolbarLogo");
@@ -647,7 +660,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
     lelantusAction->setEnabled(enabled);
-    masternodeAction->setEnabled(enabled);
+    myownspatsAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
@@ -788,6 +801,13 @@ void BitcoinGUI::gotoMasternodePage()
     QSettings settings;
     masternodeAction->setChecked(true);
     if (walletFrame) walletFrame->gotoMasternodePage();
+}
+
+void BitcoinGUI::gotoMyOwnSpatsPage()
+{
+    QSettings settings;
+    myownspatsAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoMyOwnSpatsPage();
 }
 
 void BitcoinGUI::gotoReceiveCoinsPage()
@@ -1490,10 +1510,11 @@ void BitcoinGUI::resizeEvent(QResizeEvent* event) {
     QWidget* historyWidget = toolbar->widgetForAction(historyAction);
     QWidget* sendCoinsWidget = toolbar->widgetForAction(sendCoinsAction);
     QWidget* masternodeWidget = toolbar->widgetForAction(masternodeAction);
+    QWidget* myownspatsWidget = toolbar->widgetForAction(myownspatsAction);
 
     overviewWidget->setMinimumWidth(actionWidth);
     receiveWidget->setMinimumWidth(actionWidth);
     historyWidget->setMinimumWidth(actionWidth);
     sendCoinsWidget->setMinimumWidth(actionWidth);
-    masternodeWidget->setMinimumWidth(actionWidth);
+    myownspatsWidget->setMinimumWidth(actionWidth);
 }
