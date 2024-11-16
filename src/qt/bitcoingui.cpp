@@ -659,6 +659,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
     lelantusAction->setEnabled(enabled);
+    masternodeAction->setEnabled(enabled);
     myownspatsAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
@@ -1515,5 +1516,6 @@ void BitcoinGUI::resizeEvent(QResizeEvent* event) {
     receiveWidget->setMinimumWidth(actionWidth);
     historyWidget->setMinimumWidth(actionWidth);
     sendCoinsWidget->setMinimumWidth(actionWidth);
+    masternodeWidget->setMinimumWidth(actionWidth);
     myownspatsWidget->setMinimumWidth(actionWidth);
 }
