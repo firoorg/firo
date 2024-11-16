@@ -1,9 +1,9 @@
 #include "myownspats.h"
-#include "ui_masternodelist.h"
+#include "ui_myownspats.h"
 
 MyOwnSpats::MyOwnSpats(const PlatformStyle* platformStyle, QWidget* parent) :
     QWidget(parent),
-    ui(std::make_unique<Ui::MyOwnSpats>()),
+    ui(std::make_unique<Ui::MyOwnSpats>())
 {
     ui->setupUi(this);
 }

@@ -373,7 +373,6 @@ void BitcoinGUI::createActions()
     myownspatsAction->setCheckable(true);
     myownspatsAction->setShortcut(QKeySequence(Qt::ALT +  key++));
     tabGroup->addAction(myownspatsAction);
-#endif
 
 #ifdef ENABLE_WALLET
     connect(masternodeAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
