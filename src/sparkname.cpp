@@ -53,6 +53,27 @@ bool CSparkNameManager::GetSparkAddress(const std::string &name, int nHeight, sp
     }
 }
 
+bool CSparkNameManager::ParseSparkNameTxData(const CTransaction &tx, spark::SpendTransaction &sparkTx, CSparkNameTxData &sparkNameData, size_t &sparkNameDataPos)
+{
+    CDataStream serializedSpark(SER_NETWORK, PROTOCOL_VERSION);
+    serializedSpark.write((const char *)tx.vExtraPayload.data(), tx.vExtraPayload.size());
+    try {
+        serializedSpark >> sparkTx;
+        if (serializedSpark.size() == 0) {
+            // silently ignore, it's not a critical error to not have a spark name tx part
+            return false;
+        }
+
+        sparkNameDataPos = tx.vExtraPayload.size() - serializedSpark.size();
+        serializedSpark >> sparkNameData;
+    }
+    catch (const std::exception &) {
+        return false;
+    }
+
+    return true;
+}
+
 bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CValidationState &state)
 {
     const Consensus::Params &consensusParams = Params().GetConsensus();
@@ -61,24 +82,12 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         return state.Error("CheckSparkNameTx: not a spark name tx");
 
     CSparkNameTxData sparkNameData;
-    
-    CDataStream serializedSpark(SER_NETWORK, PROTOCOL_VERSION);
-    serializedSpark.write((const char *)tx.vExtraPayload.data(), tx.vExtraPayload.size());
     const spark::Params *params = spark::Params::get_default();
     spark::SpendTransaction spendTransaction(params);
     size_t sparkNameDataPos;
-    try {
-        serializedSpark >> spendTransaction;
-        if (serializedSpark.size() == 0)
-            // silently ignore
-            return true;
 
-        sparkNameDataPos = tx.vExtraPayload.size() - serializedSpark.size();
-        serializedSpark >> sparkNameData;
-    }
-    catch (const std::exception &) {
-        return state.DoS(100, error("CheckSparkNameTx: failed to deserialize spend"));
-    }
+    if (!ParseSparkNameTxData(tx, spendTransaction, sparkNameData, sparkNameDataPos))
+        return state.DoS(100, error("CheckSparkNameTx: failed to parse spark name tx"));
 
     if (nHeight < consensusParams.nSparkNamesStartBlock)
         return state.DoS(100, error("CheckSparkNameTx: spark names are not allowed before block %d", consensusParams.nSparkStartBlock));

@@ -58,6 +58,10 @@ private:
 public:
     CSparkNameManager() {}
 
+    // Parse spark name transaction data from the transaction. Sets fCriticalError to false if there is no name data found
+    // but the transaction is otherwise valid. Returns true if the transaction is a valid spark name transaction.
+    static bool ParseSparkNameTxData(const CTransaction &tx, spark::SpendTransaction &sparkTx, CSparkNameTxData &sparkNameData, size_t &sparkNameDataPos);
+
     // update the state with contents of spark name transactions containted in block
     bool BlockConnected(CBlockIndex *pindex);
     bool BlockDisconnected(CBlockIndex *pindex);

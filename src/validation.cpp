@@ -1011,6 +1011,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                     return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                 }
             }
+            
         }
 
         BOOST_FOREACH(const CTxOut &txout, tx.vout)

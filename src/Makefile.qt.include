@@ -119,7 +119,8 @@ QT_FORMS_UI = \
   qt/forms/sendtopcodedialog.ui \
   qt/forms/signverifymessagedialog.ui \
   qt/forms/transactiondescdialog.ui \
-  qt/forms/lelantusdialog.ui
+  qt/forms/lelantusdialog.ui \
+  qt/forms/createsparkname.ui
 
 QT_MOC_CPP = \
   qt/moc_addressbookpage.cpp \
@@ -181,7 +182,8 @@ QT_MOC_CPP = \
   qt/moc_automintmodel.cpp \
   qt/moc_automintnotification.cpp \
   qt/moc_pcodemodel.cpp \
-  qt/moc_sparkmodel.cpp
+  qt/moc_sparkmodel.cpp \
+  qt/moc_createsparkname.cpp
 
 BITCOIN_MM = \
   qt/macdockiconhandler.mm \
@@ -264,7 +266,8 @@ BITCOIN_QT_H = \
   qt/lelantusdialog.h \
   qt/lelantuscoincontroldialog.h \
   qt/automintmodel.h \
-  qt/sparkmodel.h
+  qt/sparkmodel.h \
+  qt/createsparkname.h
 
 RES_ICONS = \
   qt/res/icons/add.png \
@@ -454,7 +457,8 @@ BITCOIN_QT_WALLET_CPP = \
   qt/lelantusdialog.cpp \
   qt/lelantuscoincontroldialog.cpp \
   qt/automintmodel.cpp \
-  qt/sparkmodel.cpp
+  qt/sparkmodel.cpp \
+  qt/createsparkname.cpp
 
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)
 if TARGET_WINDOWS
