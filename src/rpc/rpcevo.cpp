@@ -898,6 +898,7 @@ UniValue protx_revoke(const JSONRPCRequest& request)
         // Using funds from previousely specified operator payout address
         CTxDestination txDest;
         ExtractDestination(dmn->pdmnState->scriptOperatorPayout, txDest);
+        FundSpecialTx(pwallet, tx, ptx, txDest);
     } else if (dmn->pdmnState->scriptPayout != CScript()) {
         // Using funds from previousely specified znode payout address
         CTxDestination txDest;
