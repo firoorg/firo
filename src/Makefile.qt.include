@@ -104,6 +104,7 @@ QT_FORMS_UI = \
   qt/forms/editaddressdialog.ui \
   qt/forms/helpmessagedialog.ui \
   qt/forms/masternodelist.ui \
+  qt/forms/myownspats.ui \
   qt/forms/intro.ui \
   qt/forms/modaloverlay.ui \
   qt/forms/recover.ui \
@@ -146,6 +147,7 @@ QT_MOC_CPP = \
   qt/moc_macdockiconhandler.cpp \
   qt/moc_macnotificationhandler.cpp \
   qt/moc_masternodelist.cpp \
+  qt/moc_myownspats.cpp \
   qt/moc_modaloverlay.cpp \
   qt/moc_notificator.cpp \
   qt/moc_openuridialog.cpp \
@@ -225,6 +227,7 @@ BITCOIN_QT_H = \
   qt/macdockiconhandler.h \
   qt/macnotificationhandler.h \
   qt/masternodelist.h \
+  qt/myownspats.h \
   qt/modaloverlay.h \
   qt/networkstyle.h \
   qt/notificator.h \
@@ -403,6 +406,7 @@ BITCOIN_QT_BASE_CPP = \
   qt/recover.cpp \
   qt/notifymnemonic.cpp \
   qt/masternodelist.cpp \
+  qt/myownspats.cpp \
   qt/networkstyle.cpp \
   qt/notificator.cpp \
   qt/optionsdialog.cpp \
@@ -449,6 +453,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/walletmodel.cpp \
   qt/walletmodeltransaction.cpp \
   qt/masternodelist.cpp \
+  qt/myownspats.cpp \
   qt/walletview.cpp \
   qt/lelantusmodel.cpp \
   qt/lelantusdialog.cpp \
