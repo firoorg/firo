@@ -1502,7 +1502,7 @@ void BitcoinGUI::resizeEvent(QResizeEvent* event) {
     // Retrieve new dimensions from the resize event
     int newWidth = event->size().width();
     int newHeight = event->size().height();
-    int actionWidth = newWidth / 6;
+    int actionWidth = newWidth / 7;
 
     // Set widths for each action dynamically
     QWidget* overviewWidget = toolbar->widgetForAction(overviewAction);
