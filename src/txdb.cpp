@@ -323,20 +323,24 @@ size_t CBlockTreeDB::findAddressNumWBalance() {
         if (pcursor->GetKey(key) && key.first == DB_ADDRESSINDEX && (key.second.type == AddressType::payToPubKeyHash || key.second.type == AddressType::payToExchangeAddress)) {
             CAmount nValue;
             if (pcursor->GetValue(nValue)) {
-                auto it = addrMap.find(key.second.hashBytes);
-                if (it != addrMap.end()) {
-                    it->second += nValue;
-                    if (it->second <= 0)
-                        addrMap.erase(it);
-                } else {
-                    if (nValue != 0)
-                        addrMap[key.second.hashBytes] = nValue;
+                CAmount nValue;
+                // Retrieve the associated value
+                if (pcursor->GetValue(nValue) && nValue != 0) { // Only process non-zero values
+                    addrMap[key.second.hashBytes] += nValue; // Accumulate balance for the address
                 }
             }
         }
         pcursor->Next();
     }
-    return addrMap.size();
+
+    size_t counter = 0;
+    for (auto& itr : addrMap) {
+        if (itr.second > 0) {
+            ++counter;
+        }
+    }
+
+    return counter;
 }
 
 bool CBlockTreeDB::WriteTimestampIndex(const CTimestampIndexKey &timestampIndex) {
