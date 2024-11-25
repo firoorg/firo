@@ -20,7 +20,7 @@ The built-in one is located in `/Applications/Utilities/Terminal.app`.
 ## Dependencies
 Install the required dependencies using Homebrew:
 ```bash
-brew install automake berkeley-db4 libtool boost miniupnpc openssl pkg-config protobuf python qt libevent qrencode python-setuptools m4
+brew install automake berkeley-db4 libtool boost miniupnpc openssl protobuf python qt libevent qrencode python-setuptools m4
 ```
 
 In case you want to build the disk image with `make deploy` (.dmg / optional), you need RSVG:
