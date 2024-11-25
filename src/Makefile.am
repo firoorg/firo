@@ -701,8 +701,6 @@ libspats_a_SOURCES = \
   libspats/bpplus_proof.h \
   libspats/coin.cpp \
   libspats/coin.h \
-  libspats/keys.cpp \
-  libspats/keys.h \
   libspats/base_asset.h \
   libspats/base_asset.cpp \
   libspats/base_asset_proof.h \
@@ -714,8 +712,6 @@ libspats_a_SOURCES = \
   libspats/balance_proof.h \
   libspats/mint_transaction.cpp \
   libspats/mint_transaction.h \
-  libspats/params.cpp \
-  libspats/params.h \
   libspats/spend_transaction.cpp \
   libspats/spend_transaction.h \
   libspats/util.h

@@ -8,16 +8,16 @@ const Scalar ZERO = Scalar((uint64_t)0);
 
 // Generate a spend transaction that consumes existing coins and generates new ones
 SpendTransaction::SpendTransaction(
-    const Params* params)
+    const spark::Params* params)
 {
     this->params = params;
 }
 
 
 SpendTransaction::SpendTransaction(
-    const Params* params,
-    const FullViewKey& full_view_key,
-    const SpendKey& spend_key,
+    const spark::Params* params,
+    const spark::FullViewKey& full_view_key,
+    const spark::SpendKey& spend_key,
     const std::vector<InputCoinData>& inputs,
     const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
     const uint64_t f,
@@ -344,7 +344,7 @@ bool SpendTransaction::verify(
 // NOTE: This assumes that the relationship between a `cover_set_id` and the provided `cover_set` is already valid and canonical!
 // NOTE: This assumes that validity criteria relating to chain context have been externally checked!
 bool SpendTransaction::verify(
-    const Params* params,
+    const spark::Params* params,
     const std::vector<SpendTransaction>& transactions,
     const std::unordered_map<uint64_t, std::vector<Coin> >& cover_sets)
 {

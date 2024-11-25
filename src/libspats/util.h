@@ -23,14 +23,6 @@ const std::string LABEL_TRANSCRIPT_BPPLUS = "BULLETPROOF_PLUS_V2";
 const std::string LABEL_TRANSCRIPT_BASE = "BASE_ASSET_V1";
 const std::string LABEL_TRANSCRIPT_TYPE = "TYPEEQUALITY_V1";
 const std::string LABEL_TRANSCRIPT_BALANCE = "BALANCE_V1";
-
-// Generator labels
-const std::string LABEL_GENERATOR_E = "E";
-const std::string LABEL_GENERATOR_E_RANGE = "E_RANGE";
-const std::string LABEL_GENERATOR_F_RANGE = "F_RANGE";
-const std::string LABEL_GENERATOR_E_GROOTLE = "E_GROOTLE";
-const std::string LABEL_GENERATOR_F_GROOTLE = "F_GROOTLE";
-
 } // namespace spats
 
 #endif

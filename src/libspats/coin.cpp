@@ -8,18 +8,18 @@ using namespace secp_primitives;
 
 Coin::Coin() {}
 
-Coin::Coin(const Params* params)
+Coin::Coin(const spark::Params* params)
 {
     this->params = params;
 }
 
 Coin::Coin(
-    const Params* params,
+    const spark::Params* params,
     const char type,
     const Scalar& k,
     const Scalar& a,
     const Scalar& iota,
-    const Address& address,
+    const spark::Address& address,
     const uint64_t& v,
     const std::string& memo,
     const std::vector<unsigned char>& serial_context)
@@ -90,7 +90,7 @@ Coin::Coin(
 // Validate a coin for identification
 // NOTE: This assumes the coin has a valid associated range proof, which MUST be separately checked as part of the valid transaction that produced it
 bool Coin::validate(
-    const IncomingViewKey& incoming_view_key,
+    const spark::IncomingViewKey& incoming_view_key,
     IdentifiedCoinData& data)
 {
     // Check recovery key
@@ -114,7 +114,7 @@ bool Coin::validate(
 }
 
 // Recover a coin
-RecoveredCoinData Coin::recover(const FullViewKey& full_view_key, const IdentifiedCoinData& data)
+RecoveredCoinData Coin::recover(const spark::FullViewKey& full_view_key, const IdentifiedCoinData& data)
 {
     RecoveredCoinData recovered_data;
     recovered_data.s = spark::SparkUtils::hash_ser(data.k, this->serial_context, LABEL_PROTOCOL) + spark::SparkUtils::hash_Q2(full_view_key.get_s1(), data.i, LABEL_PROTOCOL) + full_view_key.get_s2();
@@ -124,7 +124,7 @@ RecoveredCoinData Coin::recover(const FullViewKey& full_view_key, const Identifi
 }
 
 // Identify a coin
-IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key)
+IdentifiedCoinData Coin::identify(const spark::IncomingViewKey& incoming_view_key)
 {
     IdentifiedCoinData data;
 
@@ -220,7 +220,7 @@ void Coin::setSerialContext(const std::vector<unsigned char>& serial_context_)
     serial_context = serial_context_;
 }
 
-void Coin::setParams(const Params* params)
+void Coin::setParams(const spark::Params* params)
 {
     this->params = params;
 }

@@ -40,6 +40,13 @@ const std::string LABEL_GENERATOR_H_RANGE = "H_RANGE";
 const std::string LABEL_GENERATOR_G_GROOTLE = "G_GROOTLE";
 const std::string LABEL_GENERATOR_H_GROOTLE = "H_GROOTLE";
 
+// Spark assets Generator labels
+const std::string LABEL_GENERATOR_E = "E";
+const std::string LABEL_GENERATOR_E_RANGE = "E_RANGE";
+const std::string LABEL_GENERATOR_F_RANGE = "F_RANGE";
+const std::string LABEL_GENERATOR_E_GROOTLE = "E_GROOTLE";
+const std::string LABEL_GENERATOR_F_GROOTLE = "F_GROOTLE";
+
 // Hash function labels
 const std::string LABEL_HASH_DIV = "DIV";
 const std::string LABEL_HASH_Q2 = "Q2";

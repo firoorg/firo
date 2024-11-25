@@ -1,7 +1,7 @@
 #ifndef FIRO_SPATS_MINT_TRANSACTION_H
 #define FIRO_SPATS_MINT_TRANSACTION_H
 #include "coin.h"
-#include "keys.h"
+#include "../libspark/keys.h"
 #include "../libspark/schnorr.h"
 #include "util.h"
 
@@ -11,7 +11,7 @@ namespace spats
 using namespace secp_primitives;
 
 struct MintedCoinData {
-    Address address;
+    spark::Address address;
     uint64_t v;
     Scalar a;
     Scalar iota;
@@ -21,9 +21,9 @@ struct MintedCoinData {
 class MintTransaction
 {
 public:
-    MintTransaction(const Params* params);
+    MintTransaction(const spark::Params* params);
     MintTransaction(
-        const Params* params,
+        const spark::Params* params,
         const std::vector<MintedCoinData>& outputs,
         const std::vector<unsigned char>& serial_context,
         bool generate = true);
@@ -38,7 +38,7 @@ public:
     void getCoins(std::vector<Coin>& coins_);
 
 private:
-    const Params* params;
+    const spark::Params* params;
     std::vector<Coin> coins;
     spark::SchnorrProof value_proof;
 };

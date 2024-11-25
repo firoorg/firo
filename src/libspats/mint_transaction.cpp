@@ -3,13 +3,13 @@
 namespace spats
 {
 
-MintTransaction::MintTransaction(const Params* params)
+MintTransaction::MintTransaction(const spark::Params* params)
 {
     this->params = params;
 }
 
 MintTransaction::MintTransaction(
-    const Params* params,
+    const spark::Params* params,
     const std::vector<MintedCoinData>& outputs,
     const std::vector<unsigned char>& serial_context,
     bool generate)

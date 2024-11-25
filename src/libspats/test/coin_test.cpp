@@ -22,8 +22,8 @@ namespace spats {
     BOOST_AUTO_TEST_CASE(mint_identify_recover)
     {
         // Parameters
-        const Params* params;
-        params = Params::get_default();
+        const spark::Params* params;
+        params = spark::Params::get_default();
 
         const Scalar asset_type = Scalar(uint64_t(1)); // new value
         const Scalar identifier = Scalar(uint64_t(1)); // new value
@@ -32,12 +32,12 @@ namespace spats {
         const std::string memo = "Ha Ha Ha";
 
         // Generate keys
-        SpendKey spend_key(params);
-        FullViewKey full_view_key(spend_key);
-        IncomingViewKey incoming_view_key(full_view_key);
+        spark::SpendKey spend_key(params);
+        spark::FullViewKey full_view_key(spend_key);
+        spark::IncomingViewKey incoming_view_key(full_view_key);
 
         // Generate address
-        Address address(incoming_view_key, i);
+        spark::Address address(incoming_view_key, i);
 
         // Generate coin
         Scalar k;
@@ -76,8 +76,8 @@ namespace spats {
     BOOST_AUTO_TEST_CASE(spend_identify_recover)
     {
         // Parameters
-        const Params* params;
-        params = Params::get_default();
+        const spark::Params* params;
+        params = spark::Params::get_default();
 
         const Scalar asset_type = Scalar(uint64_t(0)); // new value
         const Scalar identifier = Scalar(uint64_t(0)); // new value
@@ -86,12 +86,12 @@ namespace spats {
         const std::string memo = "Ha Ha Ha";
 
         // Generate keys
-        SpendKey spend_key(params);
-        FullViewKey full_view_key(spend_key);
-        IncomingViewKey incoming_view_key(full_view_key);
+        spark::SpendKey spend_key(params);
+        spark::FullViewKey full_view_key(spend_key);
+        spark::IncomingViewKey incoming_view_key(full_view_key);
 
         // Generate address
-        Address address(incoming_view_key, i);
+        spark::Address address(incoming_view_key, i);
 
         // Generate coin
         Scalar k;

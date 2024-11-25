@@ -3,8 +3,8 @@
 #include "../uint256.h"
 #include "../libspark/aead.h"
 #include "bpplus.h"
-#include "keys.h"
-#include "params.h"
+#include "../libspark/keys.h"
+#include "../libspark/params.h"
 #include "util.h"
 #include <math.h>
 
@@ -76,23 +76,23 @@ class Coin
 {
 public:
     Coin();
-    Coin(const Params* params);
+    Coin(const spark::Params* params);
     Coin(
-        const Params* params,
+        const spark::Params* params,
         const char type,
         const Scalar& k,
         const Scalar& a,
         const Scalar& iota,
-        const Address& address,
+        const spark::Address& address,
         const uint64_t& v,
         const std::string& memo,
         const std::vector<unsigned char>& serial_context);
 
     // Given an incoming view key, extract the coin's nonce, diversifier, value, and memo
-    IdentifiedCoinData identify(const IncomingViewKey& incoming_view_key);
+    IdentifiedCoinData identify(const spark::IncomingViewKey& incoming_view_key);
 
     // Given a full view key, extract the coin's serial number and tag
-    RecoveredCoinData recover(const FullViewKey& full_view_key, const IdentifiedCoinData& data);
+    RecoveredCoinData recover(const spark::FullViewKey& full_view_key, const IdentifiedCoinData& data);
 
     static std::size_t memoryRequired();
 
@@ -102,14 +102,14 @@ public:
     // type and v are not included in hash
     uint256 getHash() const;
 
-    void setParams(const Params* params);
+    void setParams(const spark::Params* params);
     void setSerialContext(const std::vector<unsigned char>& serial_context_);
 
 protected:
-    bool validate(const IncomingViewKey& incoming_view_key, IdentifiedCoinData& data);
+    bool validate(const spark::IncomingViewKey& incoming_view_key, IdentifiedCoinData& data);
 
 public:
-    const Params* params;
+    const spark::Params* params;
     char type;                                 // type flag
     GroupElement S, K, C;                      // serial commitment, recovery key, value commitment
     spark::AEADEncryptedData r_;               // encrypted recipient data
