@@ -315,7 +315,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         serialContextStream << pindexPrev->GetBlockHash();
         std::vector<CRecipient> recipients = CSparkWallet::CreateSparkMintRecipients(spark_outputs, std::vector<unsigned char>(serialContextStream.begin(), serialContextStream.end()), true);
 
-        size_t i = 0;
         for (size_t i = 0; i < recipients.size(); ++i) {
             auto& recipient = recipients[i];
             CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
