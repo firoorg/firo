@@ -43,7 +43,7 @@ bool IsSparkAllowed(int height);
 unsigned char GetNetworkType();
 bool IsPayToSparkAddress(const CScript& script);
 bool IsPayToSparkAddress(const CScript& script, spark::Address& addr);
-std::string ToStringSparkAddress(const CScript script);
+std::string ToStringSparkAddress(const CScript& script);
 
 
 // Pass Scripts form mint transaction and get spark MintTransaction object

@@ -243,7 +243,7 @@ unsigned char Address::decode(const std::string& str) {
 	return network;
 }
 
-std::vector<unsigned char> Address::toByteVector(const unsigned char network) const {
+std::vector<unsigned char> Address::toByteVector(unsigned char network) const {
     std::string strAddr = encode(network);
     return std::vector<unsigned char>(strAddr.begin(), strAddr.end());
 }

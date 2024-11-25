@@ -103,6 +103,7 @@ BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
     mintedCoin.address = address;
     mintedCoin.v = v;
     mintedCoin.memo = memo;
+    mintedCoin.type = 0;
 
     std::vector<MintedCoinData> outputs;
     outputs.push_back(mintedCoin);

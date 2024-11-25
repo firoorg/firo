@@ -87,7 +87,7 @@ bool IsPayToSparkAddress(const CScript& script)
 }
 
 bool IsPayToSparkAddress(const CScript& script, spark::Address& addr)
-{   if (script.empty() || script[script.size()-1] != OP_SPARKMINT)
+{   if (script.empty() || script.back() != OP_SPARKMINT || script.size() < 3)
         return false;
     unsigned char network = spark::GetNetworkType();
     unsigned char coinNetwork;
@@ -102,7 +102,7 @@ bool IsPayToSparkAddress(const CScript& script, spark::Address& addr)
     return network == coinNetwork;
 }
 
-std::string ToStringSparkAddress(const CScript script) {
+std::string ToStringSparkAddress(const CScript& script) {
     if (script.empty())
         return "";
 
@@ -921,8 +921,10 @@ std::vector<unsigned char> getSerialContext(const CTransaction &tx) {
             return std::vector<unsigned char>();
 
         int height = sparkState.GetMintedCoinHeightAndId(coins[0]).first;
+        if (height <= 0)
+            return std::vector<unsigned char>();
         // get the previous block
-        CBlockIndex *mintBlock = chainActive[height - 1];
+        const CBlockIndex *mintBlock = chainActive[height - 1];
         serialContextStream << *mintBlock->phashBlock;
     } else {
         for (auto input: tx.vin) {

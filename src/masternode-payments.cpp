@@ -141,7 +141,8 @@ std::string GetRequiredPaymentsString(int nBlockHeight, const CDeterministicMNCP
             std::string strScriptPayout = spark::ToStringSparkAddress(payee->pdmnState->scriptPayout);
             if (!strScriptPayout.empty())
                 strPayee = strScriptPayout;
-            assert(false);
+            else
+                assert(false);
         } else {
             strPayee = CBitcoinAddress(dest).ToString();
         }

@@ -302,7 +302,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
            try {
                mintedCoinData.address.fromByteVector(vch);
            } catch (const std::exception &) {
-               throw std::runtime_error(strprintf("Invalid Spark address"));
+               throw std::runtime_error("Invalid Spark address");
            }
            mintedCoinData.memo = "BlockReward";
            spark_outputs.push_back(mintedCoinData);

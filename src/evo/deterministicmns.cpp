@@ -33,7 +33,7 @@ std::string CDeterministicMNState::ToString() const
     } else {
         std::string strScriptPayout = spark::ToStringSparkAddress(scriptPayout);
         if (!strScriptPayout.empty())
-            payoutAddress = strScriptPayout;
+            payoutAddress = std::move(strScriptPayout);
     }
 
     if (ExtractDestination(scriptOperatorPayout, dest)) {
@@ -41,7 +41,7 @@ std::string CDeterministicMNState::ToString() const
     } else {
         std::string strScriptPayout = spark::ToStringSparkAddress(scriptOperatorPayout);
         if (!strScriptPayout.empty())
-            operatorPayoutAddress = strScriptPayout;
+            operatorPayoutAddress = std::move(strScriptPayout);
     }
 
     return strprintf("CDeterministicMNState(nRegisteredHeight=%d, nLastPaidHeight=%d, nPoSePenalty=%d, nPoSeRevivedHeight=%d, nPoSeBanHeight=%d, nRevocationReason=%d, "

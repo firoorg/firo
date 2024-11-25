@@ -563,12 +563,24 @@ public:
             if (nHeight >=params.nSparkCoinbase) {
                 READWRITE(sparkMintedCoins);
             } else {
-                std::map<int, std::vector<spark::Coin>> sparkCoins;
-                READWRITE(sparkCoins);
-                for (auto& itr : sparkCoins) {
-                    sparkMintedCoins[itr.first].reserve(itr.second.size());
-                    for (auto& mint : itr.second)
-                        sparkMintedCoins[itr.first].emplace_back(std::make_pair(mint, false));
+
+                if (ser_action.ForRead())
+                {
+                    std::map<int, std::vector<spark::Coin>> sparkCoins;
+                    READWRITE(sparkCoins);
+                    for (auto& itr : sparkCoins) {
+                        sparkMintedCoins[itr.first].reserve(itr.second.size());
+                        for (auto& mint : itr.second)
+                            sparkMintedCoins[itr.first].emplace_back(std::make_pair(mint, false));
+                    }
+                } else {
+                    std::map<int, std::vector<spark::Coin>> sparkCoins;
+                    for (auto& itr : sparkMintedCoins) {
+                        sparkCoins[itr.first].reserve(itr.second.size());
+                        for (auto& mint : itr.second)
+                            sparkCoins[itr.first].emplace_back(mint.first);
+                    }
+                    READWRITE(sparkCoins);
                 }
             }
             READWRITE(sparkSetHash);

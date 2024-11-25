@@ -843,9 +843,13 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         if (spark::IsPayToSparkAddress(txout.scriptPubKey, sparkAddr)) {
             strAddr = sparkAddr.encode(network);
         } else {
-            ExtractDestination(txout.scriptPubKey, address1);
-            CBitcoinAddress address2(address1);
-            strAddr = address2.ToString();
+           if (ExtractDestination(txout.scriptPubKey, address1)) {
+               CBitcoinAddress address2(address1);
+               strAddr = address2.ToString();
+            } else {
+                // Handle the error case appropriately
+               strAddr = "Unknown";
+           }
         }
 
         UniValue obj(UniValue::VOBJ);

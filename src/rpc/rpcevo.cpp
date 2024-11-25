@@ -171,7 +171,7 @@ spark::Address parseSparkAddress(const std::string strAddr) {
         LOCK(cs_main);
         nTxHeight = chainActive.Height();
     }
-    if (nTxHeight > ::Params().GetConsensus().nSparkCoinbase)
+    if (nTxHeight < ::Params().GetConsensus().nSparkCoinbase)
         throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Spark Coinbase is not active"));
 
     return sPayoutAddress;
@@ -495,7 +495,7 @@ UniValue protx_register(const JSONRPCRequest& request)
          parseSparkAddress(request.params[paramIdx + 5].get_str());
          isSparkAddress = true;
     } catch (const std::invalid_argument &) {
-        //contiune
+        //continue
     }
     CBitcoinAddress payoutAddress(request.params[paramIdx + 5].get_str());
     if (!isSparkAddress && !payoutAddress.IsValid()) {
@@ -673,14 +673,13 @@ UniValue protx_update_service(const JSONRPCRequest& request)
         if (request.params[4].get_str().empty()) {
             ptx.scriptOperatorPayout = dmn->pdmnState->scriptOperatorPayout;
         } else {
-            bool isSparkAddress = false;
             const spark::Params* params = spark::Params::get_default();
             spark::Address sPayoutAddress(params);
             try {
                  parseSparkAddress(request.params[4].get_str());
                  isSparkAddress = true;
             } catch (const std::invalid_argument &) {
-                //contiune
+                //continue
             }
             CBitcoinAddress payoutAddress(request.params[4].get_str());
             if (!isSparkAddress && !payoutAddress.IsValid()) {
@@ -784,7 +783,7 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
          parseSparkAddress(request.params[4].get_str());
          isSparkAddress = true;
     } catch (const std::invalid_argument &) {
-        //contiune
+        //continue
     }
 
     CBitcoinAddress payoutAddress(request.params[4].get_str());
@@ -886,7 +885,7 @@ UniValue protx_revoke(const JSONRPCRequest& request)
     tx.nType = TRANSACTION_PROVIDER_UPDATE_REVOKE;
 
     if (request.params.size() <= 4 && !spark::IsPayToSparkAddress(dmn->pdmnState->scriptOperatorPayout) && !spark::IsPayToSparkAddress(dmn->pdmnState->scriptPayout)) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("You need to provide fee source address, payout and operator payout addresses are spark."));
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("You need to provide fee source address,in case payout and operator payout addresses are spark."));
     }
 
     if (request.params.size() > 4) {
@@ -963,7 +962,12 @@ static bool CheckWalletOwnsScript(CWallet* pwallet, const CScript& script) {
     if (!pwallet->sparkWallet) {
         return false;
     }
-    if (pwallet->sparkWallet->isAddressMine(std::string(script.begin() + 2, script.end() - 1)))
+    const spark::Params* params = spark::Params::get_default();
+    spark::Address addr(params);
+    if (!spark::IsPayToSparkAddress(script, addr))
+        return false;
+
+    if (pwallet->sparkWallet->isAddressMine(addr))
         return true;
     return false;
 #endif

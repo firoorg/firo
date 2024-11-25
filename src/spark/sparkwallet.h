@@ -22,7 +22,7 @@ const uint32_t SPARK_CHANGE_D = 0x270F;
 
 class CSparkWallet  {
 public:
-    CSparkWallet(const std::string& strWalletFile, const uint32_t& height);
+    CSparkWallet(const std::string& strWalletFile, uint32_t height);
     ~CSparkWallet();
     // increment diversifier and generate address for that
     spark::Address generateNextAddress();
@@ -44,6 +44,7 @@ public:
     // get address for a diversifier
     spark::Address getAddress(const int32_t& i);
     bool isAddressMine(const std::string& encodedAddr);
+    bool isAddressMine(const spark::Address& address);
     bool isChangeAddress(const uint64_t& i) const;
 
     // list spark mint, mint metadata in memory and in db should be the same at this moment, so get from memory

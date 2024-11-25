@@ -82,7 +82,7 @@ public:
 	std::string encode(const unsigned char network) const;
 	unsigned char decode(const std::string& str);
 
-    std::vector<unsigned char> toByteVector(const unsigned char network) const;
+    std::vector<unsigned char> toByteVector(unsigned char network) const;
     unsigned char fromByteVector(const std::vector<unsigned char>& vch);
 
 private:

@@ -13,7 +13,7 @@
 
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
 
-CSparkWallet::CSparkWallet(const std::string& strWalletFile, const uint32_t& height) {
+CSparkWallet::CSparkWallet(const std::string& strWalletFile, uint32_t height) {
 
     CWalletDB walletdb(strWalletFile);
     this->strWalletFile = strWalletFile;
@@ -278,6 +278,12 @@ bool CSparkWallet::isAddressMine(const std::string& encodedAddr) {
         return false;
     }
 
+
+
+    return isAddressMine(address);
+}
+
+bool CSparkWallet::isAddressMine(const spark::Address& address) {
     for (const auto& itr : addresses) {
         if (itr.second.get_Q1() == address.get_Q1() && itr.second.get_Q2() == address.get_Q2())
             return true;

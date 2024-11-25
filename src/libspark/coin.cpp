@@ -225,6 +225,10 @@ void Coin::setParams(const Params* params) {
 }
 
 bool Coin::isValidMNPayment(const spark::Address& addr, const std::vector<unsigned char>& serialContext) const {
+    if (this->type != COIN_TYPE_COINBASE) {
+        return false;
+    }
+
     Coin c(this->params, COIN_TYPE_COINBASE, k, addr, v, "BlockReward", serial_context);
     return this->getHash() == c.getHash();
 }
