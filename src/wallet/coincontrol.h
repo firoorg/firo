@@ -6,6 +6,7 @@
 #define BITCOIN_WALLET_COINCONTROL_H
 
 #include "primitives/transaction.h"
+#include "base58.h"
 
 enum class CoinType
 {
