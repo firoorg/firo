@@ -193,6 +193,9 @@ CWalletTx LelantusJoinSplitBuilder::Build(
 
         std::vector<sigma::CoinDenomination> denomChanges;
         try {
+            if (chainActive.Height() >= Params().GetConsensus().stage4StartBlock)
+                throw std::runtime_error(_("Sigma pool already closed."));
+
             CAmount availableBalance(0);
             for (auto coin : sigmaCoins) {
                 availableBalance += coin.get_denomination_value();
