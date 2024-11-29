@@ -322,12 +322,9 @@ size_t CBlockTreeDB::findAddressNumWBalance() {
         std::pair<char,CAddressIndexKey> key;
         if (pcursor->GetKey(key) && key.first == DB_ADDRESSINDEX && (key.second.type == AddressType::payToPubKeyHash || key.second.type == AddressType::payToExchangeAddress)) {
             CAmount nValue;
-            if (pcursor->GetValue(nValue)) {
-                CAmount nValue;
-                // Retrieve the associated value
-                if (pcursor->GetValue(nValue) && nValue != 0) { // Only process non-zero values
-                    addrMap[key.second.hashBytes] += nValue; // Accumulate balance for the address
-                }
+            // Retrieve the associated value
+            if (pcursor->GetValue(nValue) && nValue != 0) { // Only process non-zero values
+                addrMap[key.second.hashBytes] += nValue; // Accumulate balance for the address
             }
         }
         pcursor->Next();
