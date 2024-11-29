@@ -38,6 +38,8 @@ ClientModel::ClientModel(OptionsModel *_optionsModel, QObject *parent) :
 {
     cachedBestHeaderHeight = -1;
     cachedBestHeaderTime = -1;
+    cachedNumBlocks = 0;
+    cachedLastBlockDate = QDateTime();
     peerTableModel = new PeerTableModel(this);
     banTableModel = new BanTableModel(this);
     pollTimer = new QTimer(this);
@@ -70,7 +72,10 @@ int ClientModel::getNumConnections(unsigned int flags) const
 
 void ClientModel::setMasternodeList(const CDeterministicMNList& mnList)
 {
-    LOCK(cs_mnlinst);
+    TRY_LOCK(cs_mnlinst,lock);
+    if (!lock)
+        return;
+
     if (mnListCached.GetBlockHash() == mnList.GetBlockHash()) {
         return;
     }
@@ -80,20 +85,29 @@ void ClientModel::setMasternodeList(const CDeterministicMNList& mnList)
 
 CDeterministicMNList ClientModel::getMasternodeList() const
 {
-    LOCK(cs_mnlinst);
+    TRY_LOCK(cs_mnlinst,lock);
+    if (!lock)
+        return CDeterministicMNList();
+
     return mnListCached;
 }
 
 void ClientModel::refreshMasternodeList()
 {
-    LOCK(cs_mnlinst);
+    TRY_LOCK(cs_mnlinst,lock);
+    if(!lock){
+        return;
+    }
     setMasternodeList(deterministicMNManager->GetListAtChainTip());
 }
 
 int ClientModel::getNumBlocks() const
 {
-    LOCK(cs_main);
-    return chainActive.Height();
+    TRY_LOCK(cs_main,lock);
+    if (lock) {
+        cachedNumBlocks = chainActive.Height();
+    }
+    return cachedNumBlocks;
 }
 
 int ClientModel::getHeaderTipHeight() const
@@ -101,7 +115,10 @@ int ClientModel::getHeaderTipHeight() const
     if (cachedBestHeaderHeight == -1) {
         // make sure we initially populate the cache via a cs_main lock
         // otherwise we need to wait for a tip update
-        LOCK(cs_main);
+        TRY_LOCK(cs_main,lock);
+        if (!lock) {
+            return cachedBestHeaderHeight;
+        }
         if (pindexBestHeader) {
             cachedBestHeaderHeight = pindexBestHeader->nHeight;
             cachedBestHeaderTime = pindexBestHeader->GetBlockTime();
@@ -113,7 +130,10 @@ int ClientModel::getHeaderTipHeight() const
 int64_t ClientModel::getHeaderTipTime() const
 {
     if (cachedBestHeaderTime == -1) {
-        LOCK(cs_main);
+        TRY_LOCK(cs_main,lock);
+        if (!lock) {
+            return cachedBestHeaderTime;
+        }
         if (pindexBestHeader) {
             cachedBestHeaderHeight = pindexBestHeader->nHeight;
             cachedBestHeaderTime = pindexBestHeader->GetBlockTime();
@@ -138,10 +158,15 @@ quint64 ClientModel::getTotalBytesSent() const
 
 QDateTime ClientModel::getLastBlockDate() const
 {
-    LOCK(cs_main);
+    TRY_LOCK(cs_main,lock);
 
-    if (chainActive.Tip())
-        return QDateTime::fromTime_t(chainActive.Tip()->GetBlockTime());
+    if (!lock)
+        return cachedLastBlockDate;
+
+    if (chainActive.Tip()) {
+        cachedLastBlockDate = QDateTime::fromTime_t(chainActive.Tip()->GetBlockTime());
+        return cachedLastBlockDate;
+    }
 
     return QDateTime::fromTime_t(Params().GenesisBlock().GetBlockTime()); // Genesis block's time of current network
 }
@@ -161,7 +186,9 @@ double ClientModel::getVerificationProgress(const CBlockIndex *tipIn) const
     CBlockIndex *tip = const_cast<CBlockIndex *>(tipIn);
     if (!tip)
     {
-        LOCK(cs_main);
+        TRY_LOCK(cs_main,lock);
+        if (!lock)
+            return 0;
         tip = chainActive.Tip();
     }
     return GuessVerificationProgress(Params().TxData(), tip);

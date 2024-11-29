@@ -160,8 +160,7 @@ private:
 
     /** Updates Znode visibility */
     void checkZnodeVisibility(int numBlocks);
-    /** Updates Lelantus visibility */
-    void checkLelantusVisibility(int numBlocks);
+
     /** Update UI with latest network info from model. */
     void updateNetworkState();
 
@@ -223,8 +222,6 @@ public Q_SLOTS:
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-    /** Switch to lelantus page */
-    void gotoLelantusPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
@@ -272,9 +269,6 @@ public Q_SLOTS:
     void toggleNetworkActive();
 
     void showModalOverlay();
-
-    /** Update Lelantus page visibility */
-    void updateLelantusPage();
 
 };
 
