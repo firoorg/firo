@@ -1011,6 +1011,20 @@ UniValue getaddressbalance(const JSONRPCRequest& request)
 
 }
 
+UniValue getAddressNumWBalance(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() > 0)
+        throw std::runtime_error(
+                "getAddressNumWBalance\n"
+                "Gives the number of addresses which has positive balance."
+        );
+    if (!GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX))
+        throw std::runtime_error(
+        "You have to reindex with -addressindex flag to get an accurate result.");
+
+    return uint64_t(pblocktree->findAddressNumWBalance());
+}
+
 UniValue getanonymityset(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 2)

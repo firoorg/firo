@@ -313,6 +313,32 @@ bool CBlockTreeDB::ReadAddressIndex(uint160 addressHash, AddressType type,
     return true;
 }
 
+size_t CBlockTreeDB::findAddressNumWBalance() {
+    boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
+    pcursor->SeekToFirst();
+    std::unordered_map<uint160, CAmount> addrMap;
+    while (pcursor->Valid()) {
+        boost::this_thread::interruption_point();
+        std::pair<char,CAddressIndexKey> key;
+        if (pcursor->GetKey(key) && key.first == DB_ADDRESSINDEX && (key.second.type == AddressType::payToPubKeyHash || key.second.type == AddressType::payToExchangeAddress)) {
+            CAmount nValue;
+            // Retrieve the associated value
+            if (pcursor->GetValue(nValue) && nValue != 0) { // Only process non-zero values
+                addrMap[key.second.hashBytes] += nValue; // Accumulate balance for the address
+            }
+        }
+        pcursor->Next();
+    }
+
+    size_t counter = 0;
+    for (auto& itr : addrMap) {
+        if (itr.second > 0) {
+            ++counter;
+        }
+    }
+
+    return counter;
+}
 
 bool CBlockTreeDB::WriteTimestampIndex(const CTimestampIndexKey &timestampIndex) {
     CDBBatch batch(*this);
