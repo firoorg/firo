@@ -63,6 +63,7 @@ Q_SIGNALS:
 private Q_SLOTS:
     void deleteClicked();
     void on_payTo_textChanged(const QString &address);
+    void on_MemoTextChanged(const QString &text);
     void on_addressBookButton_clicked();
     void on_pasteButton_clicked();
     void updateDisplayUnit();

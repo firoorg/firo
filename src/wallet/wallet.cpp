@@ -2382,7 +2382,11 @@ CBlockIndex* CWallet::GetBlockByDate(CBlockIndex* pindexStart, const std::string
 
     while (pindex) {
         if (pindex->GetBlockTime() > targetTimestamp) {
-            return chainActive[pindex->nHeight - 200];
+            if (pindex->nHeight >= 200) {
+                return chainActive[pindex->nHeight - 200];
+            } else {
+                return chainActive[0];
+            }
         }
         pindex = chainActive.Next(pindex);
     }
@@ -2411,7 +2415,6 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
         // If you are recovering wallet with mnemonics, start rescan from the block when mnemonics were implemented in Firo.
         // If the user provides a date, start scanning from the block that corresponds to that date.
         // If no date is provided, start scanning from the mnemonic start block.
-
         std::string wcdate = GetArg("-wcdate", "");
         CBlockIndex* mnemonicStartBlock = chainActive[chainParams.GetConsensus().nMnemonicBlock];
         if (mnemonicStartBlock == NULL)
