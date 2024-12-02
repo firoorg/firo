@@ -67,6 +67,8 @@ private:
     bool fFeeMinimized;
     bool fAnonymousMode;
     const PlatformStyle *platformStyle;
+    void resizeEvent(QResizeEvent* event) override;
+    void adjustTextSize(int width, int height);
 
     // Process WalletModel::SendCoinsReturn and generate a pair consisting
     // of a message and message flags for use in Q_EMIT message().
@@ -125,20 +127,7 @@ private:
     QAbstractButton *yesButton;
     QTimer countDownTimer;
     int secDelay;
-};
-
-class SendGoPrivateDialog : public QMessageBox
-{
-    Q_OBJECT
-private:
-    bool clickedButton;
-public:
-    SendGoPrivateDialog();
-    bool getClickedButton();
-
-private Q_SLOTS:
-    void onIgnoreClicked();
-    void onGoPrivateClicked();
+    
 };
 
 #endif // BITCOIN_QT_SENDCOINSDIALOG_H

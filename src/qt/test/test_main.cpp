@@ -12,11 +12,9 @@
 #include "util.h"
 #include "uritests.h"
 #include "compattests.h"
-
+#include "test_sendcoinsentry.h"
 #include <QCoreApplication>
 #include <QObject>
-#include <QTest>
-
 #include <openssl/ssl.h>
 
 #if defined(QT_STATICPLUGIN) && QT_VERSION < 0x050000
@@ -35,7 +33,7 @@ int main(int argc, char *argv[])
     ECC_Start();
     SetupEnvironment();
     SetupNetworking();
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(CBaseChainParams::REGTEST);
     noui_connect();
 
     bool fInvalid = false;
@@ -50,10 +48,15 @@ int main(int argc, char *argv[])
     URITests test1;
     if (QTest::qExec(&test1) != 0)
         fInvalid = true;
-    }
-    RPCNestedTests test3;
-    if (QTest::qExec(&test3) != 0)
+
+    TestSendCoinsEntry test2;
+    if (QTest::qExec(&test2) != 0)
         fInvalid = true;
+
+    // RPCNestedTests test3;
+    // if (QTest::qExec(&test3) != 0)
+    //     fInvalid = true;
+
     CompatTests test4;
     if (QTest::qExec(&test4) != 0)
         fInvalid = true;

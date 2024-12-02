@@ -527,9 +527,9 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
     {
         if (anonymousMode) {
             if(spark::IsSparkAllowed()) {
-                // 924 is constant part, mainly Schnorr and Range proofs, 2535 is for each grootle proof/aux data
-                // 213 for each private output, 144 other parts of tx,
-                nBytes = 924 + 2535 * (vOutputs.size()) + 213 * CoinControlDialog::payAmounts.size() + 144;
+                // 924 is constant part, mainly Schnorr and Range proofs, 1803 is for each grootle proof/aux data
+                // 213 for each private output,
+                nBytes = 924 + 1803 * (vOutputs.size()) + 322 * CoinControlDialog::payAmounts.size();
             } else {
                 // 1054 is constant part, mainly Schnorr and Range proofs, 2560 is for each sigma/aux data
                 // 83 assuming 1 jmint, 34 is the size of each normal vout,  10 is the size of empty transaction, 52 other constant parts

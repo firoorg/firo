@@ -136,8 +136,6 @@ struct Params {
     int nSubsidyHalvingSecond;
     /** Subsequent subsidy halving intervals */
     int nSubsidyHalvingInterval;
-    /** Stop subsidy at this block number */
-    int nSubsidyHalvingStopBlock;
 
     /** parameters for coinbase payment distribution between first halving and stage 3 (aka stage 2) */
     /** P2PKH or P2SH address for developer funds */
@@ -162,6 +160,19 @@ struct Params {
     int stage3CommunityFundShare;
     /** percentage of block subsidy going to masternode */
     int stage3MasternodeShare;
+
+    /** parameters for coinbase payment distribution after stage three (aka stage 4) */
+    /** start time of stage 4 (usually the same as nSubsidyHalvingSecond)*/
+    int stage4StartBlock;
+    /** percentage of block subsidy going to developer fund */
+    int stage4DevelopmentFundShare;
+    /** percentage of block subsidy going to community fund */
+    int stage4CommunityFundShare;
+    /** percentage of block subsidy going to masternode */
+    int stage4MasternodeShare;
+
+    /**  tail emission (after stage 4) */
+    int tailEmissionBlockSubsidy;
 
     int nStartDuplicationCheck;
     int nStartBlacklist;

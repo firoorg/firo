@@ -15,6 +15,7 @@
 #include <QPoint>
 #include <QVariant>
 #include <QSortFilterProxyModel>
+#include <QResizeEvent>
 
 class OptionsModel;
 class PlatformStyle;
@@ -57,7 +58,8 @@ public:
     ~ReceiveCoinsDialog();
 
     void setModel(WalletModel *model);
-
+   
+    void resizeEvent(QResizeEvent* event) override;
 public Q_SLOTS:
     void clear();
     void reject();
@@ -77,7 +79,7 @@ private:
     QModelIndex selectedRow();
     void copyColumnToClipboard(int column);
     RecentRequestsFilterProxy *recentRequestsProxyModel;
-
+    void adjustTextSize(int width,int height);
 private Q_SLOTS:
     void on_receiveButton_clicked();
     void on_showRequestButton_clicked();

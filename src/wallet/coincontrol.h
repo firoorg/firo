@@ -6,6 +6,7 @@
 #define BITCOIN_WALLET_COINCONTROL_H
 
 #include "primitives/transaction.h"
+#include "base58.h"
 
 enum class CoinType
 {
@@ -24,6 +25,8 @@ class CCoinControl
 {
 public:
     CTxDestination destChange;
+    //! If true, don't use any change
+    bool fNoChange;
     //! If false, allows unselected inputs, but requires all selected inputs be used
     bool fAllowOtherInputs;
     //! Includes watch only addresses which match the ISMINE_WATCH_SOLVABLE criteria
@@ -49,6 +52,7 @@ public:
     void SetNull()
     {
         destChange = CNoDestination();
+        fNoChange = false;
         fAllowOtherInputs = false;
         fRequireAllInputs = true;
         fAllowWatchOnly = false;

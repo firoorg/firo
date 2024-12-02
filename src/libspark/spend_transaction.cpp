@@ -270,7 +270,7 @@ bool SpendTransaction::verify(
 		if (tx.S1.size() != w ||
 			tx.C1.size() != w ||
 			tx.T.size() != w ||
-			tx.grootle_proofs.size() != w,
+			tx.grootle_proofs.size() != w ||
 			tx.cover_set_sizes.size() != tx.cover_set_representations.size()) {
 			throw std::invalid_argument("Bad spend transaction semantics");
 		}

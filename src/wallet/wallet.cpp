@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "wallet.h"
+#include "boost/filesystem/operations.hpp"
 #include "walletexcept.h"
 #include "sigmaspendbuilder.h"
 #include "lelantusjoinsplitbuilder.h"
@@ -671,7 +672,7 @@ bool CWallet::Verify()
     uiInterface.InitMessage(_("Verifying wallet..."));
 
     // Wallet file must be a plain filename without a directory
-    if (walletFile != boost::filesystem::basename(walletFile) + boost::filesystem::extension(walletFile))
+    if (walletFile != boost::filesystem::path(walletFile).stem().string() + boost::filesystem::path(walletFile).extension().string())
         return InitError(strprintf(_("Wallet %s resides outside data directory %s"), walletFile, GetDataDir().string()));
 
     if (!bitdb.Open(GetDataDir()))
@@ -2364,6 +2365,34 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
 
 }
 
+static std::time_t parseDate(const std::string& dateStr) {
+    std::tm tm = {};
+    std::istringstream ss(dateStr);
+    ss >> std::get_time(&tm, "%d-%m-%Y");
+    if (ss.fail()) {
+        throw std::invalid_argument("Invalid date format: " + dateStr);
+    }
+    return std::mktime(&tm);
+}
+
+CBlockIndex* CWallet::GetBlockByDate(CBlockIndex* pindexStart, const std::string& dateStr) {
+    std::time_t targetTimestamp = parseDate(dateStr);
+
+    CBlockIndex* pindex = pindexStart;
+
+    while (pindex) {
+        if (pindex->GetBlockTime() > targetTimestamp) {
+            if (pindex->nHeight >= 200) {
+                return chainActive[pindex->nHeight - 200];
+            } else {
+                return chainActive[0];
+            }
+        }
+        pindex = chainActive.Next(pindex);
+    }
+    return chainActive[chainActive.Tip()->nHeight];
+}
+
 /**
  * Scan the block chain (starting in pindexStart) for transactions
  * from or to us. If fUpdate is true, found transactions that already
@@ -2382,18 +2411,33 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
     CBlockIndex* pindex = pindexStart;
     {
         LOCK2(cs_main, cs_wallet);
+        // No need to read and scan block if block was created before our wallet birthday (as adjusted for block time variability).
+        // If you are recovering wallet with mnemonics, start rescan from the block when mnemonics were implemented in Firo.
+        // If the user provides a date, start scanning from the block that corresponds to that date.
+        // If no date is provided, start scanning from the mnemonic start block.
+        std::string wcdate = GetArg("-wcdate", "");
+        CBlockIndex* mnemonicStartBlock = chainActive[chainParams.GetConsensus().nMnemonicBlock];
+        if (mnemonicStartBlock == NULL)
+            mnemonicStartBlock = chainActive.Tip();
 
-        // no need to read and scan block, if block was created before
-        // our wallet birthday (as adjusted for block time variability)
-        // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Firo
-        if (fRecoverMnemonic) {
-            pindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
-            if (pindex == NULL)
-                pindex = chainActive.Tip();
-        } else
-            while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
-                pindex = chainActive.Next(pindex);
-
+        if (!wcdate.empty()) {
+            pindex = GetBlockByDate(mnemonicStartBlock, wcdate);
+            if (pindex->nHeight < chainParams.GetConsensus().nMnemonicBlock) {
+                pindex = mnemonicStartBlock;
+            }
+        } else {
+            bool fRescan = GetBoolArg("-rescan", false);
+            if (fRescan || fRecoverMnemonic) {
+                if (mnemonicContainer.IsNull())
+                    pindex = chainActive.Genesis();
+                else
+                    pindex = mnemonicStartBlock;
+            }
+            else
+                while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
+                    pindex = chainActive.Next(pindex);
+        }
+        LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height(), pindex->nHeight);
         ShowProgress(_("Rescanning..."), 0); // show rescan progress in GUI as dialog or on splashscreen, if -rescan on startup
         double dProgressStart = GuessVerificationProgress(chainParams.TxData(), pindex);
         double dProgressTip = GuessVerificationProgress(chainParams.TxData(), chainActive.Tip());
@@ -4450,7 +4494,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                 const CAmount nChange = nValueIn - nValueToSelect;
                 CTxOut newTxOut;
 
-                if (nChange > 0)
+                if (nChange > 0 && !(coinControl && coinControl->fNoChange))
                 {
                     // Fill a vout to ourself
                     // TODO: pass in scriptChange instead of reservekey so
@@ -4564,9 +4608,9 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                     nBytes += GetSizeOfCompactSize(nExtraPayloadSize) + nExtraPayloadSize;
                 }
 
-                if (GetTransactionWeight(txNew) >= MAX_STANDARD_TX_WEIGHT) {
+                if (GetTransactionWeight(txNew) >= MAX_NEW_TX_WEIGHT) {
                     // Do not create oversized transactions (bad-txns-oversize).
-                    strFailReason = _("Transaction too large");
+                    strFailReason = _("Transaction is too large (size limit: 250Kb). Select less inputs or consolidate your UTXOs");
                     return false;
                 }
 
@@ -4991,7 +5035,7 @@ bool CWallet::CreateMintTransaction(const std::vector <CRecipient> &vecSend, CWa
 
                 // Limit size
                 if (GetTransactionWeight(*wtxNew.tx) >= MAX_STANDARD_TX_WEIGHT) {
-                    strFailReason = _("Transaction too large");
+                    strFailReason = _("Transaction is too large (size limit: 100Kb). Select less inputs or consolidate your UTXOs");
                     return false;
                 }
                 dPriority = wtxNew.tx->ComputePriority(dPriority, nBytes);
@@ -5271,7 +5315,7 @@ bool CWallet::CreateLelantusMintTransactions(
                     // Limit size
                     CTransaction txConst(tx);
                     if (GetTransactionWeight(txConst) >= MAX_STANDARD_TX_WEIGHT) {
-                        strFailReason = _("Transaction too large");
+                        strFailReason = _("Transaction is too large (size limit: 100Kb). Select less inputs or consolidate your UTXOs");
                         return false;
                     }
                     dPriority = txConst.ComputePriority(dPriority, nBytes);
@@ -7284,7 +7328,6 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         }
 
         uiInterface.InitMessage(_("Rescanning..."));
-        LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height() - pindexRescan->nHeight, pindexRescan->nHeight);
         nStart = GetTimeMillis();
         walletInstance->ScanForWalletTransactions(pindexRescan, true, fRecoverMnemonic);
         LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);
@@ -7514,7 +7557,8 @@ bool CWallet::BackupWallet(const std::string& strDest)
 
                 try {
 #if BOOST_VERSION >= 104000
-                    boost::filesystem::copy_file(pathSrc, pathDest, boost::filesystem::copy_option::overwrite_if_exists);
+                    const auto copyOptions = boost::filesystem::copy_options::overwrite_existing;
+                    boost::filesystem::copy(pathSrc, pathDest, copyOptions);
 #else
                     boost::filesystem::copy_file(pathSrc, pathDest);
 #endif

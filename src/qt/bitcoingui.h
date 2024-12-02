@@ -17,6 +17,8 @@
 #include <QMenu>
 #include <QPoint>
 #include <QSystemTrayIcon>
+#include <QPushButton>
+#include <QWidget>
 
 class ClientModel;
 class NetworkStyle;
@@ -120,9 +122,9 @@ private:
     QAction *showHelpMessageAction;
     QAction *lelantusAction;
     QAction *masternodeAction;
-    QAction *createPcodeAction;
     QAction *logoAction;
-
+    QToolBar *toolbar;
+    QLabel *logoLabel;
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
     Notificator *notificator;
@@ -142,6 +144,7 @@ private:
     void createMenuBar();
     /** Create the toolbars */
     void createToolBars();
+    void resizeEvent(QResizeEvent*);
     /** Create system tray icon and notification */
     void createTrayIcon(const NetworkStyle *networkStyle);
     /** Create system tray menu (or setup the dock menu) */
@@ -218,8 +221,6 @@ public Q_SLOTS:
     void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
-    /** Switch to create payment code page */
-    void gotoCreatePcodePage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to lelantus page */
@@ -275,8 +276,6 @@ public Q_SLOTS:
     /** Update Lelantus page visibility */
     void updateLelantusPage();
 
-    /** Update RAP Addresses page visibility */
-    void setRapAddressesVisible(bool);
 };
 
 class UnitDisplayStatusBarControl : public QLabel
