@@ -1759,52 +1759,8 @@ UniValue getspentinfo(const JSONRPCRequest& request)
     return obj;
 }
 
-UniValue gettotalsupply(const JSONRPCRequest& request)
+CAmount getzerocoinpoolbalance()
 {
-    if (request.fHelp || request.params.size() != 0)
-        throw std::runtime_error(
-                "gettotalsupply\n"
-                        "\nReturns the total coin amount produced in the coinbase transactions up until the latest block.\n"
-                        "\nArguments: none\n"
-                        "\nResult:\n"
-                        "{\n"
-                        "  \"total\"  (string) The total supply in duffs\n"
-                        "}\n"
-                        "\nExamples:\n"
-                + HelpExampleCli("gettotalsupply", "")
-                + HelpExampleRpc("gettotalsupply", "")
-        );
-
-    CAmount total = 0;
-
-    if(!pblocktree->ReadTotalSupply(total))
-        throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the total supply from the database. This functionality requires -addressindex to be enabled. Enabling -addressindex requires reindexing.");
-
-    total += 49839700000000; // The actual amount of coins forged during the Zerocoin attacks (the negative balance after the pool closed), you can verify the number by calling  getzerocoinpoolbalance rpc
-    total += 3131972000000; // The remaining amount of forged coins during CVE-2018-17144 attacks, after subtracting locked coins and burnt Coins sent to unrecoverable address https://explorer.firo.org/tx/0b53178c1b22bae4c04ef943ee6d6d30f2483327fe9beb54952951592e8ce368
-
-    UniValue result(UniValue::VOBJ);
-    result.push_back(Pair("total", total));
-
-    return result;
-}
-
-UniValue getzerocoinpoolbalance(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 0)
-        throw std::runtime_error(
-                "getzerocoinpoolbalance\n"
-                "\nReturns the total coin amount, which remains after zerocoin pool closed.\n"
-                "\nArguments: none\n"
-                "\nResult:\n"
-                "{\n"
-                "  \"total\"  (string) The total balance\n"
-                "}\n"
-                "\nExamples:\n"
-                + HelpExampleCli("getzerocoinpoolbalance", "")
-                + HelpExampleRpc("getzerocoinpoolbalance", "")
-        );
-
     CAmount nTotalAmount = 0;
 
     // Iterate over all  mints
@@ -1824,24 +1780,11 @@ UniValue getzerocoinpoolbalance(const JSONRPCRequest& request)
         }
     }
 
-    return  UniValue(nTotalAmount);
+    return  nTotalAmount;
 }
 
-UniValue getCVE17144amount(const JSONRPCRequest& request)
+CAmount getCVE17144amount()
 {
-    if (request.fHelp || request.params.size() != 0)
-        throw std::runtime_error(
-                "getCVE17144amount\n"
-                "\nReturns the total amount of forged coins during CVE-2018-17144 attacks.\n"
-                "\nArguments: none\n"
-                "\nResult:\n"
-                "{\n"
-                "  \"total\"  (string) The total balance\n"
-                "}\n"
-                "\nExamples:\n"
-                + HelpExampleCli("getCVE17144amount", "")
-                + HelpExampleRpc("getCVE17144amount", "")
-        );
     // as the attack happened at block 293526,
     // get the block
     CBlockIndex *mintBlock = chainActive[293526];
@@ -1868,6 +1811,74 @@ UniValue getCVE17144amount(const JSONRPCRequest& request)
         }
     }
     return amount;
+}
+
+UniValue gettotalsupply(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "gettotalsupply\n"
+                        "\nReturns the total coin amount produced in the coinbase transactions up until the latest block.\n"
+                        "\nArguments: none\n"
+                        "\nResult:\n"
+                        "{\n"
+                        "  \"total\"  (string) The total supply in duffs\n"
+                        "}\n"
+                        "\nExamples:\n"
+                + HelpExampleCli("gettotalsupply", "")
+                + HelpExampleRpc("gettotalsupply", "")
+        );
+
+    CAmount total = 0;
+
+    if(!pblocktree->ReadTotalSupply(total))
+        throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the total supply from the database. This functionality requires -addressindex to be enabled. Enabling -addressindex requires reindexing.");
+
+    total -= getzerocoinpoolbalance(); //498,397.00000000 The actual amount of coins forged during the Zerocoin attacks (the negative balance after the pool closed),
+    total += getCVE17144amount(); //320,841.99803185 The cmount of forged coins during CVE-2018-17144 attacks,
+    total -= 16810168037465;// burnt Coins sent to unrecoverable address https://explorer.firo.org/tx/0b53178c1b22bae4c04ef943ee6d6d30f2483327fe9beb54952951592e8ce368
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("total", total));
+
+    return result;
+}
+
+UniValue getzerocoinpoolbalance(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getzerocoinpoolbalance\n"
+                "\nReturns the total coin amount, which remains after zerocoin pool closed.\n"
+                "\nArguments: none\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"total\"  (string) The total balance\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getzerocoinpoolbalance", "")
+                + HelpExampleRpc("getzerocoinpoolbalance", "")
+        );
+
+    return  getzerocoinpoolbalance();
+}
+
+UniValue getCVE17144amount(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getCVE17144amount\n"
+                "\nReturns the total amount of forged coins during CVE-2018-17144 attacks.\n"
+                "\nArguments: none\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"total\"  (string) The total balance\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getCVE17144amount", "")
+                + HelpExampleRpc("getCVE17144amount", "")
+        );
+
+    return getCVE17144amount();
 }
 
 UniValue getinfoex(const JSONRPCRequest& request)
