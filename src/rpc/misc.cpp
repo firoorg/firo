@@ -1784,25 +1784,25 @@ CAmount getzerocoinpoolbalance()
 
 CAmount getCVE17144amount()
 {
-    // as the attack happened at block 293526,
-    // get the block
+    // CVE-2018-17144 was a critical bug that allowed double-spending of inputs
+    // in the same transaction. This function calculates the total amount of coins
+    // that were created due to this vulnerability at block 293526.
     LOCK(cs_main);
     if (chainActive.Height() < 293526) {
         throw std::runtime_error("Chain height is less than 293,526.");
     }
 
     if (!Params().GetConsensus().IsMain()) {
-        throw std::runtime_error("It is not on right chain, atack happened on mainnet");
+        throw std::runtime_error("Attack only occurred on mainnet");
     }
 
     CBlockIndex *atackedBlock = chainActive[293526];
     CBlock block;
     if (!ReadBlockFromDisk(block, atackedBlock, ::Params().GetConsensus())) {
-        throw std::runtime_error(std::string("can't read block from disk, "));
+        throw std::runtime_error("Failed to read block 293526 from disk");
     }
     CAmount amount = 0;
     for (CTransactionRef tx : block.vtx) {
-        std::set<COutPoint> vInOutPoints;
         if (!tx->IsCoinBase() && !tx->HasNoRegularInputs()) {
             std::set<COutPoint> vInOutPoints;
             for (const auto& txin : tx->vin)
@@ -1812,6 +1812,9 @@ CAmount getCVE17144amount()
                     uint256 hashBlock;
                     if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock, true)) {
                         continue;
+                    }
+                    if (txin.prevout.n >= tx->vout.size()) {
+                        continue;  // Skip if output index is out of bounds
                     }
                     amount += tx->vout[txin.prevout.n].nValue;
                 }
