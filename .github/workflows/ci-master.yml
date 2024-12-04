@@ -18,7 +18,7 @@ env:
 jobs:
   create-source-distribution:
     name: Create Source Distribution
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -47,7 +47,7 @@ jobs:
   build-linux:
     name: Build for Linux
     needs: create-source-distribution
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       ARTIFACT_DIR: linux-binaries
       TEST_LOG_ARTIFACT_DIR: test-logs
