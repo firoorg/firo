@@ -1766,17 +1766,16 @@ CAmount getzerocoinpoolbalance()
     // Iterate over all  mints
     std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
     if (GetAddressIndex(uint160(), AddressType::zerocoinMint, addressIndex)) {
-        for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
-            nTotalAmount += it->second;
+        for (auto& it : addressIndex) {
+            nTotalAmount += it.second;
         }
     }
     addressIndex.clear();
 
     // Iterate over all  spends
     if (GetAddressIndex(uint160(), AddressType::zerocoinSpend, addressIndex)) {
-        for (std::vector < std::pair < CAddressIndexKey, CAmount > > ::const_iterator it = addressIndex.begin();
-             it != addressIndex.end(); it++) {
-            nTotalAmount += it->second;
+        for (auto& it : addressIndex) {
+            nTotalAmount += it.second;
         }
     }
 
@@ -1787,9 +1786,18 @@ CAmount getCVE17144amount()
 {
     // as the attack happened at block 293526,
     // get the block
-    CBlockIndex *mintBlock = chainActive[293526];
+    LOCK(cs_main);
+    if (chainActive.Height() < 293526) {
+        throw std::runtime_error("Chain height is less than 293,526.");
+    }
+
+    if (!Params().GetConsensus().IsMain()) {
+        throw std::runtime_error("It is not on right chain, atack happened on mainnet");
+    }
+
+    CBlockIndex *atackedBlock = chainActive[293526];
     CBlock block;
-    if (!ReadBlockFromDisk(block, mintBlock, ::Params().GetConsensus())) {
+    if (!ReadBlockFromDisk(block, atackedBlock, ::Params().GetConsensus())) {
         throw std::runtime_error(std::string("can't read block from disk, "));
     }
     CAmount amount = 0;
