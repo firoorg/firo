@@ -977,6 +977,8 @@ m4_define([_AX_CXX_COMPILE_STDCXX_testbody_new_in_20], [[
 
 #include <concepts>
 #include <compare>
+#include <vector>
+#include <algorithm>
 
 namespace cxx20
 {
@@ -989,8 +991,8 @@ namespace cxx20
 
    namespace test_ranges {
       void f() {
-         std::vector<int> v = {1, 2, 3, 4, 5};
-         auto sum = std::ranges::accumulate(v, 0);
+         std::vector<int> v = {5, 2, 4, 3, 1};
+         std::ranges::sort(v);
       }
    }
 
