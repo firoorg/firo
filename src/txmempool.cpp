@@ -23,7 +23,6 @@
 #include "evo/deterministicmns.h"
 #include "llmq/quorums_instantsend.h"
 
-static_assert( __cplusplus / 100 == 2020 );	// TODO remove
 CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFee,
                                  int64_t _nTime, unsigned int _entryHeight,
                                  CAmount _inChainInputValue,
