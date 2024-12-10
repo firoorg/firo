@@ -6,6 +6,8 @@
 #include "config/bitcoin-config.h"
 #endif
 
+#include "boost_function_epilogue.hpp"
+
 #include "bitcoingui.h"
 
 #include "chainparams.h"

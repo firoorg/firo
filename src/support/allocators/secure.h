@@ -20,20 +20,21 @@ template <typename T>
 struct secure_allocator : public std::allocator<T> {
     // MSVC8 default copy constructor is broken
     typedef std::allocator<T> base;
+    using base_traits = std::allocator_traits<base>;
     typedef typename base::size_type size_type;
     typedef typename base::difference_type difference_type;
-    typedef typename base::pointer pointer;
-    typedef typename base::const_pointer const_pointer;
-    typedef typename base::reference reference;
-    typedef typename base::const_reference const_reference;
-    typedef typename base::value_type value_type;
-    secure_allocator() throw() {}
-    secure_allocator(const secure_allocator& a) throw() : base(a) {}
+    typedef typename base_traits::pointer pointer;
+    typedef typename base_traits::const_pointer const_pointer;
+    using reference = T&;
+    using const_reference = const T&;
+    typedef typename base_traits::value_type value_type;
+    secure_allocator() noexcept {}
+    secure_allocator(const secure_allocator& a) noexcept : base(a) {}
     template <typename U>
-    secure_allocator(const secure_allocator<U>& a) throw() : base(a)
+    secure_allocator(const secure_allocator<U>& a) noexcept : base(a)
     {
     }
-    ~secure_allocator() throw() {}
+    ~secure_allocator() noexcept {}
     template <typename _Other>
     struct rebind {
         typedef secure_allocator<_Other> other;

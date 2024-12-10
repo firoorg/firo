@@ -1,3 +1,5 @@
+#include "boost_function_epilogue.hpp"
+
 #include "../lelantus.h"
 #include "../masternode-sync.h"
 #include "../validation.h"
