@@ -406,7 +406,6 @@ BITCOIN_QT_BASE_CPP = \
   qt/recover.cpp \
   qt/notifymnemonic.cpp \
   qt/masternodelist.cpp \
-  qt/myownspats.cpp \
   qt/networkstyle.cpp \
   qt/notificator.cpp \
   qt/optionsdialog.cpp \

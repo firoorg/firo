@@ -3,26 +3,39 @@
 
 MyOwnSpats::MyOwnSpats(const PlatformStyle* platformStyle, QWidget* parent) :
     QWidget(parent),
-    ui(std::make_unique<Ui::MyOwnSpats>())
+    ui_(std::make_unique<Ui::MyOwnSpats>())
 {
-    ui->setupUi(this);
+    ui_->setupUi(this);
 }
 
 MyOwnSpats::~MyOwnSpats() {}
 
 void MyOwnSpats::setClientModel(ClientModel* model)
 {
-    this->clientModel = model;
+    if (client_model_) {
+        // Disconnect signals from old model, if any
+    }
+    client_model_ = model;
+    if (model) {
+        // Connect necessary signals for UI updates, if any
+    }
 }
 
 void MyOwnSpats::setWalletModel(WalletModel* model)
 {
-    this->walletModel = model;
+    if (wallet_model_) {
+        // Disconnect signals from old model, if any
+    }
+    wallet_model_ = model;
+    if (model) {
+        // Connect necessary signals for UI updates, if any
+    }
 }
 
 void MyOwnSpats::resizeEvent(QResizeEvent* event) 
 {
     QWidget::resizeEvent(event);
+    adjustTextSize(width(), height());
 }
 
 void MyOwnSpats::adjustTextSize(int width,int height){
@@ -34,10 +47,10 @@ void MyOwnSpats::adjustTextSize(int width,int height){
     font.setPointSize(fontSize);
 
     // Set font size for all labels
-    ui->label_filter_2->setFont(font);
-    ui->label_count_2->setFont(font);
-    ui->countLabel->setFont(font);
-    ui->tableWidgetMyOwnSpats->setFont(font);
-    ui->tableWidgetMyOwnSpats->horizontalHeader()->setFont(font);
-    ui->tableWidgetMyOwnSpats->verticalHeader()->setFont(font);
+    ui_->label_filter_2->setFont(font);
+    ui_->label_count_2->setFont(font);
+    ui_->countLabel->setFont(font);
+    ui_->tableWidgetMyOwnSpats->setFont(font);
+    ui_->tableWidgetMyOwnSpats->horizontalHeader()->setFont(font);
+    ui_->tableWidgetMyOwnSpats->verticalHeader()->setFont(font);
 }

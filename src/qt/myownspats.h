@@ -21,18 +21,23 @@ class MyOwnSpats : public QWidget
 
 public:
     explicit MyOwnSpats(const PlatformStyle* platformStyle, QWidget* parent = 0);
-    ~MyOwnSpats();
+    ~MyOwnSpats() override;
 
+    // Set the client model for this page
     void setClientModel(ClientModel* clientModel);
+
+    // Set the wallet model for this page
     void setWalletModel(WalletModel* walletModel);
-    void resizeEvent(QResizeEvent*) override;
     void adjustTextSize(int width, int height);
 
+protected:
+    void resizeEvent(QResizeEvent*) override;
+
 private:
-    QTimer* timer;
-    const std::unique_ptr< Ui::MyOwnSpats > ui;
-    ClientModel* clientModel;
-    WalletModel* walletModel;
+    QTimer* timer_;
+    const std::unique_ptr< Ui::MyOwnSpats > ui_;
+    ClientModel* client_model_{};
+    WalletModel* wallet_model_{};
 };
 
 #endif // MYOWNSPATS_H_INCLUDED
