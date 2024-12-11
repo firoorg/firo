@@ -6,7 +6,7 @@
 #include "config/bitcoin-config.h"
 #endif
 
-#include "boost_function_epilogue.hpp"
+#include "boost_function_epilogue.hpp" // TODO remove sometime after Boost upgrade
 
 #include "bitcoingui.h"
 
@@ -388,7 +388,7 @@ void BitcoinGUI::createActions()
 
     quitAction = new QAction(tr("E&xit"), this);
     quitAction->setStatusTip(tr("Quit application"));
-    quitAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Q));
+    quitAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Q));  // still gives compile warning, but that will be gone after Qt upgrade
     quitAction->setMenuRole(QAction::QuitRole);
     aboutAction = new QAction(tr("&About %1").arg(tr(PACKAGE_NAME)), this);
     aboutAction->setStatusTip(tr("Show information about %1").arg(tr(PACKAGE_NAME)));
