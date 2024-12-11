@@ -50,6 +50,7 @@ AC_DEFUN([AX_CXX_COMPILE_STDCXX], [dnl
   m4_if([$1], [11], [ax_cxx_compile_alternatives="11 0x"],
         [$1], [14], [ax_cxx_compile_alternatives="14 1y"],
         [$1], [17], [ax_cxx_compile_alternatives="17 1z"],
+        [$1], [20], [ax_cxx_compile_alternatives="20 2a"],
         [m4_fatal([invalid first argument `$1' to AX_CXX_COMPILE_STDCXX])])dnl
   m4_if([$2], [], [],
         [$2], [ext], [],
@@ -152,6 +153,13 @@ m4_define([_AX_CXX_COMPILE_STDCXX_testbody_17],
   _AX_CXX_COMPILE_STDCXX_testbody_new_in_11
   _AX_CXX_COMPILE_STDCXX_testbody_new_in_14
   _AX_CXX_COMPILE_STDCXX_testbody_new_in_17
+)
+
+m4_define([_AX_CXX_COMPILE_STDCXX_testbody_20],
+  _AX_CXX_COMPILE_STDCXX_testbody_new_in_11
+  _AX_CXX_COMPILE_STDCXX_testbody_new_in_14
+  _AX_CXX_COMPILE_STDCXX_testbody_new_in_17
+  _AX_CXX_COMPILE_STDCXX_testbody_new_in_20
 )
 
 dnl  Tests for new features in C++11
@@ -947,5 +955,61 @@ namespace cxx17
 }  // namespace cxx17
 
 #endif  // __cplusplus < 201703L
+
+]])
+
+dnl  Tests for new features in C++20
+
+m4_define([_AX_CXX_COMPILE_STDCXX_testbody_new_in_20], [[
+
+// If the compiler admits that it is not ready for C++20, why torture it?
+// Hopefully, this will speed up the test.
+
+#ifndef __cplusplus
+
+#error "This is not a C++ compiler"
+
+#elif __cplusplus < 202002L
+
+#error "This is not a C++20 compiler"
+
+#else
+
+#include <concepts>
+#include <compare>
+#include <vector>
+#include <algorithm>
+
+namespace cxx20
+{
+
+   namespace test_concepts {
+      template<typename T>
+      concept Integral = std::is_integral<T>::value;
+      static_assert(Integral<int>, "int should be integral");
+   }
+
+   namespace test_ranges {
+      void f() {
+         std::vector<int> v = {5, 2, 4, 3, 1};
+         std::ranges::sort(v);
+      }
+   }
+
+   namespace test_spaceship {
+      struct A {
+         int value;
+         auto operator<=>(const A&) const = default;
+      };
+
+      int f() {
+         A a{1}, b{2};
+         return (a <=> b) == std::strong_ordering::less ? 0 : 1;
+      }
+   }
+
+}  // namespace cxx20
+
+#endif  // __cplusplus < 202002L
 
 ]])
