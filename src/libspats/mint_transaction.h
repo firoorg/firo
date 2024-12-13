@@ -29,7 +29,7 @@ public:
         bool generate = true);
     bool verify();
 
-    // returns the vector of serialized coins, with first one it puts also the chnorr proof;
+    // returns the vector of serialized coins, with first one it puts also the Schnorr proof;
     std::vector<CDataStream> getMintedCoinsSerialized();
 
     // deserialize from the vector of CDataStreams
