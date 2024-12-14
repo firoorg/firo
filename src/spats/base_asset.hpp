@@ -24,7 +24,7 @@ constexpr auto asset_symbol = "FIRO"sv;
 // TODO confirm the exact description text
 constexpr auto asset_description = "Digital currency that aims to spark a privacy revolution with its innovative features and research - base asset/currency of spats"sv;
 
-const asset_naming naming{ std::string( asset_name ), std::string( asset_symbol ), std::string( asset_description ) };
+const AssetNaming naming{ std::string( asset_name ), std::string( asset_symbol ), std::string( asset_description ) };
 
 const auto metadata = ""sv;
 
