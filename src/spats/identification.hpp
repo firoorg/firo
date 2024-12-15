@@ -36,6 +36,8 @@ constexpr identifier_t &operator++( identifier_t &i ) noexcept
 constexpr asset_type_t max_allowed_asset_type_value{ std::numeric_limits< asset_type_underlying_type >::max() - 10 };   // leaving some breathing room...
 constexpr identifier_t max_allowed_identifier_value{ std::numeric_limits< identifier_underlying_type >::max() - 10 };   // leaving some breathing room...
 
+using nft_id_t = std::pair< asset_type_t, identifier_t >;
+
 }   // namespace spats
 
 #endif   // SPATS_IDENTIFICATION_HPP_INCLUDED
