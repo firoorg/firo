@@ -13,7 +13,9 @@
 
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
 
-CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
+CSparkWallet::CSparkWallet(const std::string& strWalletFile)
+   : spats_wallet_( *this )
+{
 
     CWalletDB walletdb(strWalletFile);
     this->strWalletFile = strWalletFile;
@@ -476,7 +478,7 @@ void CSparkWallet::UpdateSpendState(const GroupElement& lTag, const uint256& txH
 }
 
 void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint) {
-    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=]() {
+    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() {
         LOCK(cs_spark_wallet);
         for (const auto& lTag : lTags) {
             uint256 lTagHash = primitives::GetLTagHash(lTag);
@@ -489,7 +491,7 @@ void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& 
 
 void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
     const auto& transactions = block.vtx;
-    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=]() {
+    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() {
         LOCK(cs_spark_wallet);
         for (const auto& tx : transactions) {
             if (tx->IsSparkSpend()) {
@@ -624,7 +626,7 @@ void CSparkWallet::UpdateMintState(const std::vector<spark::Coin>& coins, const 
 }
 
 void CSparkWallet::UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins, const uint256& txHash) {
-    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=]() mutable {
+    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() mutable {
         LOCK(cs_spark_wallet);
         CWalletDB walletdb(strWalletFile);
         UpdateMintState(coins, txHash, walletdb);
@@ -634,7 +636,7 @@ void CSparkWallet::UpdateMintStateFromMempool(const std::vector<spark::Coin>& co
 void CSparkWallet::UpdateMintStateFromBlock(const CBlock& block) {
     const auto& transactions = block.vtx;
 
-    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=] () mutable {
+    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this] () mutable {
         LOCK(cs_spark_wallet);
         CWalletDB walletdb(strWalletFile);
         for (const auto& tx : transactions) {

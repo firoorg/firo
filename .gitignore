@@ -2,6 +2,8 @@
 .project
 .cproject
 .vscode
+*.swp
+*.swo
 
 *.tar.gz
 
@@ -141,3 +143,7 @@ firo.includes
 /diagrams
 .clang-uml
 compile_commands.json
+
+#spats stuff
+src/spats/.idea
+src/spats/cmake-build-debug
