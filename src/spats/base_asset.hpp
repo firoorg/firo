@@ -7,6 +7,8 @@
 
 #include <string_view>
 
+#include "../amount.h"
+
 #include "spark_asset.hpp"
 
 namespace spats {
@@ -28,11 +30,13 @@ const AssetNaming naming{ std::string( asset_name ), std::string( asset_symbol )
 
 const auto metadata = ""sv;
 
-// For the two below, 'initial' meaning at the time of the first public release/deployment of spats-enabled Firo tools
+// 'initial' meaning at the time of the first public release/deployment of spats-enabled Firo tools
 constexpr auto initial_admin_public_address = "<TODO find out>"sv;
-constexpr supply_amount_t initial_supply{ 100000000000 /*TODO find out the real number, of course*/, 8 };
 
-constexpr bool resuppliable = true;
+constexpr supply_amount_t initial_supply{ MAX_MONEY, 8 };
+static_assert( initial_supply.unpack() == std::pair< std::uint64_t, std::uint64_t >( 21'000'000, 0 ) );
+
+constexpr bool resuppliable = false;
 
 }   // namespace base
 }   // namespace spats

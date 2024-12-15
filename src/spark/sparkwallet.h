@@ -11,6 +11,7 @@
 #include "../libspark/spend_transaction.h"
 #include "../wallet/walletdb.h"
 #include "../sync.h"
+#include "../spats/wallet.hpp"
 
 class CRecipient;
 class CReserveKey;
@@ -22,7 +23,7 @@ const uint32_t SPARK_CHANGE_D = 0x270F;
 
 class CSparkWallet  {
 public:
-    CSparkWallet(const std::string& strWalletFile);
+    explicit CSparkWallet(const std::string& strWalletFile);
     ~CSparkWallet();
     // increment diversifier and generate address for that
     spark::Address generateNextAddress();
@@ -129,7 +130,7 @@ public:
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
-            const CCoinControl *coinControl = NULL);
+            const CCoinControl *coinControl = nullptr);
 
     std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoins(
             CAmount required,
@@ -140,7 +141,7 @@ public:
             const CCoinControl *coinControl);
 
     // Returns the list of pairs of coins and metadata for that coin,
-    std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
+    std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = nullptr) const;
 
 public:
     // to protect coinMeta
@@ -163,7 +164,8 @@ private:
     std::unordered_map<uint256, CSparkMintMeta> coinMeta;
 
     void* threadPool;
-};
 
+    spats::Wallet spats_wallet_;
+};
 
 #endif //FIRO_SPARK_WALLET_H

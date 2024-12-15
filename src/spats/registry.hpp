@@ -42,8 +42,6 @@ public:
    std::vector< FungibleSparkAsset > get_fungible_assets_administered_by( const public_address_t &public_address ) const;
    std::vector< Nft > get_nfts_administered_by( const public_address_t &public_address ) const;
 
-   // TODO s11n
-
 private:
    // TODO Performance: a more efficient storage type for both, using contiguous memory to the extent possible
    std::unordered_map< asset_type_t, FungibleSparkAsset > fungible_assets_;
