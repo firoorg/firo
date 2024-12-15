@@ -7,6 +7,7 @@
 
 #include <map>
 #include <string>
+#include <limits>
 
 #include <boost/function.hpp>
 #include <boost/preprocessor/cat.hpp>
