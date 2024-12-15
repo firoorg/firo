@@ -30,6 +30,8 @@ public:
     std::vector<unsigned char> addressOwnershipProof;
     // number of blocks the spark name is valid for
     uint32_t sparkNameValidityBlocks{0};
+    // additional information, string, up to 1024 symbols. Can be used for future extensions (e.g. for storing a web link)
+    std::string additionalInfo;
     // failsafe if the hash of the transaction data is can't be converted to a scalar for proof creation/verification
     uint32_t hashFailsafe{0};
 
@@ -44,6 +46,7 @@ public:
         READWRITE(sparkAddress);
         READWRITE(addressOwnershipProof);
         READWRITE(sparkNameValidityBlocks);
+        READWRITE(additionalInfo);
         READWRITE(hashFailsafe);
     }
 };

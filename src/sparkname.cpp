@@ -117,6 +117,9 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     if (!payoutFound)
         return state.DoS(100, error("CheckSparkNameTx: name fee is either missing or insufficient"));
 
+    if (sparkNameData.additionalInfo.size() > 1024)
+        return state.DoS(100, error("CheckSparkNameTx: additional info is too long"));
+
     unsigned char sparkNetworkType = spark::GetNetworkType();
     if (sparkNames.count(sparkNameData.name) > 0 &&
                 sparkNames[sparkNameData.name].first.encode(sparkNetworkType) != sparkNameData.sparkAddress)

@@ -183,7 +183,7 @@ QT_MOC_CPP = \
   qt/moc_automintnotification.cpp \
   qt/moc_pcodemodel.cpp \
   qt/moc_sparkmodel.cpp \
-  qt/moc_createsparkname.cpp
+  qt/moc_createsparknamepage.cpp
 
 BITCOIN_MM = \
   qt/macdockiconhandler.mm \
@@ -267,7 +267,7 @@ BITCOIN_QT_H = \
   qt/lelantuscoincontroldialog.h \
   qt/automintmodel.h \
   qt/sparkmodel.h \
-  qt/createsparkname.h
+  qt/createsparknamepage.h
 
 RES_ICONS = \
   qt/res/icons/add.png \
@@ -458,7 +458,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/lelantuscoincontroldialog.cpp \
   qt/automintmodel.cpp \
   qt/sparkmodel.cpp \
-  qt/createsparkname.cpp
+  qt/createsparknamepage.cpp
 
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)
 if TARGET_WINDOWS

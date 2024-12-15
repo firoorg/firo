@@ -61,6 +61,7 @@ public Q_SLOTS:
 
 private:
     Ui::AddressBookPage *ui;
+    const PlatformStyle *platformStyle;
     AddressTableModel *model;
     Mode mode;
     Tabs tab;

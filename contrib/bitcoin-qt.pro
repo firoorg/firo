@@ -19,6 +19,7 @@ FORMS += \
     ../src/qt/forms/transactiondescdialog.ui \
     ../src/qt/forms/zerocoinpage.ui \
     ../src/qt/forms/sendcoinsdialog.ui \
+    ../src/qt/forms/createsparkname.ui
 
 RESOURCES += \
     ../src/qt/bitcoin.qrc
