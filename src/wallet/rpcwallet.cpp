@@ -3726,7 +3726,7 @@ UniValue mintspark(const JSONRPCRequest& request)
     if (request.params.size() > 1)
         subtractFeeFromAmount = request.params[1].get_bool();
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-    std::string strError = pwallet->MintAndStoreSpark(outputs, wtxAndFee, subtractFeeFromAmount);
+    std::string strError = pwallet->MintAndStoreSpark(outputs, wtxAndFee, subtractFeeFromAmount, false);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
@@ -3761,7 +3761,7 @@ UniValue automintspark(const JSONRPCRequest& request) {
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
     std::vector<spark::MintedCoinData> outputs;
-    std::string strError = pwallet->MintAndStoreSpark(outputs, wtxAndFee, true, true);
+    std::string strError = pwallet->MintAndStoreSpark(outputs, wtxAndFee, true, true, true);
 
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
