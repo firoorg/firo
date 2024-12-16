@@ -1371,7 +1371,7 @@ UniValue getsparkanonymitysetsector(const JSONRPCRequest& request)
                 "\nArguments:\n"
                 "{\n"
                 "      \"coinGroupId\"  (int)\n"
-                "      \"latestBlock\"    (string)\n"
+                "      \"latestBlock\"    (string) it should be encoded in base64 format\n"
                 "      \"startIndex\"  (int)\n"
                 "      \"endIndex\"    (int)\n"
                 "}\n"
@@ -1379,8 +1379,8 @@ UniValue getsparkanonymitysetsector(const JSONRPCRequest& request)
                 "{\n"
                 "  \"mints\" (Pair<string, string>) Serialized Spark coin paired with txhash\n"
                 "}\n"
-                + HelpExampleCli("getsparkanonymitysetsector", "\"1\" " "\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"" "\"0\" " "\"1000\" ")
-                + HelpExampleRpc("getsparkanonymitysetsector", "\"1\" " "\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"" "\"0\" " "\"1000\" ")
+                + HelpExampleCli("getsparkanonymitysetsector", "\"1\" " "\"Gy3sLu3zrVdJwaK6ZzM/1zdJy7hji9xT6l4FSrWgFUM=\" " "\"0\" " "\"1000\" ")
+                + HelpExampleRpc("getsparkanonymitysetsector", "\"1\" " "\"Gy3sLu3zrVdJwaK6ZzM/1zdJy7hji9xT6l4FSrWgFUM=\" " "\"0\" " "\"1000\" ")
         );
 
 
@@ -1403,16 +1403,26 @@ UniValue getsparkanonymitysetsector(const JSONRPCRequest& request)
         throw std::runtime_error(std::string("Please rerun Firo with -mobile "));
     }
     std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>> coins;
-    uint256 blockHash = uint256S(latestBlock);
+
+    std::string  strHash = DecodeBase64(latestBlock);
+    std::vector<unsigned char> vec(strHash.begin(), strHash.end());
+    if (vec.size() != 32)
+        throw std::runtime_error(std::string("Provided blockHash data is not correct."));
+
+    uint256 blockHash(vec);
     {
         LOCK(cs_main);
         spark::CSparkState* sparkState = spark::CSparkState::GetState();
-        sparkState->GetCoinsForRecovery(
-                &chainActive,
-                chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
-                coinGroupId,
-                blockHash,
-                coins);
+        try {
+            sparkState->GetCoinsForRecovery(
+                    &chainActive,
+                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+                    coinGroupId,
+                    blockHash,
+                    coins);
+        } catch (std::exception & e) {
+            throw std::runtime_error(std::string("Unable to get anonymity set by provided parameters: ") + e.what());
+        }
     }
 
     UniValue ret(UniValue::VOBJ);

@@ -1373,13 +1373,17 @@ void CSparkState::GetCoinsForRecovery(
         std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins) {
     coins.clear();
     if (coinGroups.count(coinGroupID) == 0) {
-        return;
+        throw std::runtime_error(std::string("There is no anonymity set with this id: " + coinGroupID));
     }
     SparkCoinGroupInfo &coinGroup = coinGroups[coinGroupID];
     CBlockIndex *index = coinGroup.lastBlock;
     // find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
     while (index != coinGroup.firstBlock && index->GetBlockHash() != blockHash)
         index = index->pprev;
+
+    if (index == coinGroup.firstBlock && coinGroup.firstBlock != coinGroup.lastBlock)
+        throw std::runtime_error(std::string("Incorrect blockHash provided: " + blockHash.GetHex()));
+
 
     for (CBlockIndex *block = index;; block = block->pprev) {
         // ignore block heigher than max height
