@@ -1307,6 +1307,150 @@ UniValue getsparkanonymityset(const JSONRPCRequest& request)
     return ret;
 }
 
+UniValue getsparkanonymitysetmeta(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+                "getsparkanonymitysetmeta\n"
+                "\nReturns the anonymity set and latest block hash.\n"
+                "\nArguments:\n"
+                "{\n"
+                "      \"coinGroupId\"  (int)\n"
+                "}\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"blockHash\"   (string) Latest block hash for anonymity set\n"
+                "  \"setHash\"   (string) Anonymity set hash\n"
+                "  \"size\" (int) set size\n"
+                "}\n"
+                + HelpExampleCli("getsparkanonymitysetmeta", "\"1\" ")
+                + HelpExampleRpc("getsparkanonymitysetmeta", "\"1\" ")
+        );
+
+
+    int coinGroupId;
+    try {
+        coinGroupId = std::stol(request.params[0].get_str());
+    } catch (std::logic_error const & e) {
+        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
+    if(!GetBoolArg("-mobile", false)){
+        throw std::runtime_error(std::string("Please rerun Firo with -mobile "));
+    }
+
+    uint256 blockHash;
+    std::vector<unsigned char> setHash;
+    int size;
+    {
+        LOCK(cs_main);
+        spark::CSparkState* sparkState = spark::CSparkState::GetState();
+        sparkState->GetAnonSetMetaData(
+                &chainActive,
+                chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+                coinGroupId,
+                blockHash,
+                setHash,
+                size);
+    }
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("blockHash", EncodeBase64(blockHash.begin(), blockHash.size())));
+    ret.push_back(Pair("setHash", UniValue(EncodeBase64(setHash.data(), setHash.size()))));
+    ret.push_back(Pair("size", size));
+
+    return ret;
+}
+
+UniValue getsparkanonymitysetsector(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 4)
+        throw std::runtime_error(
+                "getsparkanonymitysetsector\n"
+                "\nReturns the anonymity sector based on provided data.\n"
+                "\nArguments:\n"
+                "{\n"
+                "      \"coinGroupId\"  (int)\n"
+                "      \"latestBlock\"    (string) it should be encoded in base64 format\n"
+                "      \"startIndex\"  (int)\n"
+                "      \"endIndex\"    (int)\n"
+                "}\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"mints\" (Pair<string, string>) Serialized Spark coin paired with txhash\n"
+                "}\n"
+                + HelpExampleCli("getsparkanonymitysetsector", "\"1\" " "\"Gy3sLu3zrVdJwaK6ZzM/1zdJy7hji9xT6l4FSrWgFUM=\" " "\"0\" " "\"1000\" ")
+                + HelpExampleRpc("getsparkanonymitysetsector", "\"1\" " "\"Gy3sLu3zrVdJwaK6ZzM/1zdJy7hji9xT6l4FSrWgFUM=\" " "\"0\" " "\"1000\" ")
+        );
+
+
+    int coinGroupId;
+    std::string latestBlock;
+    int startIndex;
+    int endIndex;
+
+    try {
+        coinGroupId = std::stol(request.params[0].get_str());
+        latestBlock = request.params[1].get_str();
+        startIndex = std::stol(request.params[2].get_str());
+        endIndex = std::stol(request.params[3].get_str());
+
+    } catch (std::logic_error const & e) {
+        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
+    if(!GetBoolArg("-mobile", false)) {
+        throw std::runtime_error(std::string("Please rerun Firo with -mobile "));
+    }
+    std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>> coins;
+
+    std::string  strHash = DecodeBase64(latestBlock);
+    std::vector<unsigned char> vec(strHash.begin(), strHash.end());
+    if (vec.size() != 32)
+        throw std::runtime_error(std::string("Provided blockHash data is not correct."));
+
+    uint256 blockHash(vec);
+    {
+        LOCK(cs_main);
+        spark::CSparkState* sparkState = spark::CSparkState::GetState();
+        try {
+            sparkState->GetCoinsForRecovery(
+                    &chainActive,
+                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+                    coinGroupId,
+                    startIndex,
+                    endIndex,
+                    blockHash,
+                    coins);
+        } catch (std::exception & e) {
+            throw std::runtime_error(std::string("Unable to get anonymity set by provided parameters: ") + e.what());
+        }
+    }
+
+    UniValue ret(UniValue::VOBJ);
+    UniValue mints(UniValue::VARR);
+
+
+    for (const auto& coin : coins) {
+        CDataStream serializedCoin(SER_NETWORK, PROTOCOL_VERSION);
+        serializedCoin << coin;
+        std::vector<unsigned char> vch(serializedCoin.begin(), serializedCoin.end());
+
+        std::vector<UniValue> data;
+        data.push_back(EncodeBase64(vch.data(), size_t(vch.size()))); // coin
+        data.push_back(EncodeBase64(coin.second.first.begin(), coin.second.first.size())); // tx hash
+        data.push_back(EncodeBase64(coin.second.second.data(), coin.second.second.size())); // spark serial context
+
+        UniValue entity(UniValue::VARR);
+        entity.push_backV(data);
+        mints.push_back(entity);
+    }
+
+    ret.push_back(Pair("coins", mints));
+
+    return ret;
+}
+
 UniValue getsparkmintmetadata(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
@@ -1921,6 +2065,8 @@ static const CRPCCommand commands[] =
 
         /* Mobile Spark */
     { "mobile",             "getsparkanonymityset",   &getsparkanonymityset, false },
+    { "mobile",             "getsparkanonymitysetmeta",   &getsparkanonymitysetmeta, false },
+    { "mobile",             "getsparkanonymitysetsector",   &getsparkanonymitysetsector, false },
     { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true  },
     { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
     { "mobile",             "getusedcoinstagstxhashes", &getusedcoinstagstxhashes, false },
