@@ -225,6 +225,8 @@ public:
             CChain *chain,
             int maxHeight,
             int coinGroupID,
+            int startIndex,
+            int endIndex,
             uint256& blockHash,
             std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins);
 

@@ -1418,6 +1418,8 @@ UniValue getsparkanonymitysetsector(const JSONRPCRequest& request)
                     &chainActive,
                     chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
                     coinGroupId,
+                    startIndex,
+                    endIndex,
                     blockHash,
                     coins);
         } catch (std::exception & e) {
@@ -1428,15 +1430,8 @@ UniValue getsparkanonymitysetsector(const JSONRPCRequest& request)
     UniValue ret(UniValue::VOBJ);
     UniValue mints(UniValue::VARR);
 
-    std::size_t counter = 0;
+
     for (const auto& coin : coins) {
-        if (counter < startIndex) {
-            ++counter;
-            continue;
-        }
-        if (counter >= endIndex) {
-            break;
-        }
         CDataStream serializedCoin(SER_NETWORK, PROTOCOL_VERSION);
         serializedCoin << coin;
         std::vector<unsigned char> vch(serializedCoin.begin(), serializedCoin.end());
@@ -1449,8 +1444,6 @@ UniValue getsparkanonymitysetsector(const JSONRPCRequest& request)
         UniValue entity(UniValue::VARR);
         entity.push_backV(data);
         mints.push_back(entity);
-
-        ++counter;
     }
 
     ret.push_back(Pair("coins", mints));

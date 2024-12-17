@@ -1369,6 +1369,8 @@ void CSparkState::GetCoinsForRecovery(
         CChain *chain,
         int maxHeight,
         int coinGroupID,
+        int startIndex,
+        int endIndex,
         uint256& blockHash,
         std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins) {
     coins.clear();
@@ -1384,7 +1386,7 @@ void CSparkState::GetCoinsForRecovery(
     if (index == coinGroup.firstBlock && coinGroup.firstBlock != coinGroup.lastBlock)
         throw std::runtime_error(std::string("Incorrect blockHash provided: " + blockHash.GetHex()));
 
-
+    std::size_t counter = 0;
     for (CBlockIndex *block = index;; block = block->pprev) {
         // ignore block heigher than max height
         if (block->nHeight > maxHeight) {
@@ -1401,14 +1403,22 @@ void CSparkState::GetCoinsForRecovery(
         if (id) {
             if (block->sparkMintedCoins.count(id) > 0) {
                 for (const auto &coin : block->sparkMintedCoins[id]) {
+                    if (counter < startIndex) {
+                        ++counter;
+                        continue;
+                    }
+                    if (counter >= endIndex) {
+                        break;
+                    }
                     std::pair<uint256, std::vector<unsigned char>> txHashContext;
                     if (block->sparkTxHashContext.count(coin.S))
                         txHashContext = block->sparkTxHashContext[coin.S];
                     coins.push_back({coin, txHashContext});
+                    ++counter;
                 }
             }
         }
-        if (block == coinGroup.firstBlock) {
+        if (block == coinGroup.firstBlock || counter >= endIndex) {
             break ;
         }
     }
