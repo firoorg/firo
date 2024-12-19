@@ -9,6 +9,7 @@
 #include "chain.h"
 #include "../libspark/mint_transaction.h"
 #include "../libspark/spend_transaction.h"
+#include "../spats/registry.hpp"
 #include "primitives.h"
 
 namespace spark_mintspend { class spark_mintspend_test; }
@@ -263,6 +264,8 @@ private:
 
     typedef std::map<int, size_t> metainfo_container_t;
     metainfo_container_t extendedMintMetaInfo, mintMetaInfo, spendMetaInfo;
+
+    spats::Registry registry_;
 
     friend class spark_mintspend::spark_mintspend_test;
 };

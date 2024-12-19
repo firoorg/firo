@@ -2,20 +2,13 @@
 // Created by Gevorg Voskanyan
 //
 
-#ifndef SPATS_UTIL_HPP_INCLUDED
-#define SPATS_UTIL_HPP_INCLUDED
+#ifndef FIRO_SPATS_UTIL_HPP_INCLUDED
+#define FIRO_SPATS_UTIL_HPP_INCLUDED
 
 #include <type_traits>
 #include <concepts>
 
 namespace spats {
-
-// TODO C++23: remove and replace usages with std::to_underlying()
-template < typename E >
-constexpr std::underlying_type_t< E > to_underlying( E e ) noexcept
-{
-   return static_cast< std::underlying_type_t< E > >( e );
-}
 
 template < typename T, std::unsigned_integral P >
 constexpr auto integral_power( T t, P p ) -> decltype( t * t )
@@ -35,4 +28,4 @@ constexpr auto integral_power( T t, P p ) -> decltype( t * t )
 
 }   // namespace spats
 
-#endif   // SPATS_UTIL_HPP_INCLUDED
+#endif   // FIRO_SPATS_UTIL_HPP_INCLUDED

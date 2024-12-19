@@ -404,6 +404,9 @@ struct Params {
 
     int nEvoZnodeMinimumConfirmations;
 
+    // The block number introducing spats (spark assets)
+    int nSpatsStartBlock;
+
     std::map<LLMQType, LLMQParams> llmqs;
     LLMQType llmqChainLocks;
     LLMQType llmqForInstantSend{LLMQ_NONE};

@@ -2,8 +2,8 @@
 // Created by Gevorg Voskanyan
 //
 
-#ifndef SPATS_CONSTRAINED_VALUE_HPP_INCLUDED
-#define SPATS_CONSTRAINED_VALUE_HPP_INCLUDED
+#ifndef FIRO_SPATS_CONSTRAINED_VALUE_HPP_INCLUDED
+#define FIRO_SPATS_CONSTRAINED_VALUE_HPP_INCLUDED
 
 #include <concepts>
 #include <stdexcept>
@@ -40,7 +40,7 @@ public:
 
    constrained_value &operator=( T &&value )
    {
-      ensure_validity( value );
+      base_type::ensure_validity( value );
       value_ = std::move( value );
       return *this;
    }
@@ -58,4 +58,4 @@ private:
 
 }   // namespace spats
 
-#endif   // SPATS_CONSTRAINED_VALUE_HPP_INCLUDED
+#endif   // FIRO_SPATS_CONSTRAINED_VALUE_HPP_INCLUDED

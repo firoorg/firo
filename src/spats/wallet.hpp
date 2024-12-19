@@ -2,8 +2,8 @@
 // Created by Gevorg Voskanyan
 //
 
-#ifndef SPATS_WALLET_HPP_INCLUDED
-#define SPATS_WALLET_HPP_INCLUDED
+#ifndef FIRO_SPATS_WALLET_HPP_INCLUDED
+#define FIRO_SPATS_WALLET_HPP_INCLUDED
 
 #include <unordered_map>
 
@@ -35,4 +35,4 @@ private:
 
 }   // namespace spats
 
-#endif   // SPATS_WALLET_HPP_INCLUDED
+#endif   // FIRO_SPATS_WALLET_HPP_INCLUDED

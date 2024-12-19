@@ -2,8 +2,8 @@
 // Created by Gevorg Voskanyan
 //
 
-#ifndef SPATS_SCALED_AMOUNT_HPP_INCLUDED
-#define SPATS_SCALED_AMOUNT_HPP_INCLUDED
+#ifndef FIRO_SPATS_SCALED_AMOUNT_HPP_INCLUDED
+#define FIRO_SPATS_SCALED_AMOUNT_HPP_INCLUDED
 
 #include "util.hpp"
 
@@ -82,4 +82,4 @@ private:
 
 }   // namespace spats
 
-#endif   // SPATS_SCALED_AMOUNT_HPP_INCLUDED
+#endif   // FIRO_SPATS_SCALED_AMOUNT_HPP_INCLUDED

@@ -2,13 +2,14 @@
 // Created by Gevorg Voskanyan
 //
 
-#ifndef SPATS_IDENTIFICATION_HPP_INCLUDED
-#define SPATS_IDENTIFICATION_HPP_INCLUDED
+#ifndef FIRO_SPATS_IDENTIFICATION_HPP_INCLUDED
+#define FIRO_SPATS_IDENTIFICATION_HPP_INCLUDED
 
 #include <cstdint>
 #include <limits>
+#include <utility>
 
-#include "util.hpp"
+#include "utils/enum.hpp"
 
 namespace spats {
 
@@ -40,4 +41,4 @@ using nft_id_t = std::pair< asset_type_t, identifier_t >;
 
 }   // namespace spats
 
-#endif   // SPATS_IDENTIFICATION_HPP_INCLUDED
+#endif   // FIRO_SPATS_IDENTIFICATION_HPP_INCLUDED

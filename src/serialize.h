@@ -14,6 +14,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <stdint.h>
 #include <string>
@@ -21,13 +22,15 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <utility>
+#include <variant>
 #include <vector>
 #include <deque>
 #include "prevector.h"
-#include <memory>
 #include "definition.h"
+
 #include <boost/optional.hpp>
 
+#include "utils/enum.hpp"
 
 static const unsigned int MAX_SIZE = 0x02000000;
 
@@ -250,6 +253,20 @@ template<typename Stream> inline void Unserialize(Stream& s, bool& a) { char f=s
 
 template <typename T> size_t GetSerializeSize(const T& t, int nType, int nVersion = 0);
 template <typename S, typename T> size_t GetSerializeSize(const S& s, const T& t);
+
+/**
+ * Enums
+ */
+
+void Serialize(auto& s, Enum auto e) { Serialize(s, to_underlying(e)); }
+
+template <typename Stream, Enum E>
+void Unserialize(Stream& s, E& e)
+{
+    std::underlying_type_t<E> u;
+    Unserialize(s, u);
+    e = static_cast<E>(u);
+}
 
 /**
  * Please note that Firo drops support for big-endian architectures and thus these functions are simple read/writes
@@ -780,20 +797,30 @@ void Unserialize(Stream& is, std::tuple<Elements...>& item)
  * shared_ptr
  */
 template<typename Stream, typename T> void Serialize(Stream& os, const std::shared_ptr<const T>& p);
-template<typename Stream, typename T> void Unserialize(Stream& os, std::shared_ptr<const T>& p);
+template<typename Stream, typename T> void Unserialize(Stream& is, std::shared_ptr<const T>& p);
 
 /**
  * unique_ptr
  */
 template<typename Stream, typename T> void Serialize(Stream& os, const std::unique_ptr<const T>& p);
-template<typename Stream, typename T> void Unserialize(Stream& os, std::unique_ptr<const T>& p);
+template<typename Stream, typename T> void Unserialize(Stream& is, std::unique_ptr<const T>& p);
 
 /**
  * optional
  */
 template<typename Stream, typename T> void Serialize(Stream& os, const boost::optional<T>& p);
-template<typename Stream, typename T> void Unserialize(Stream& os, boost::optional<T>& p);
+template<typename Stream, typename T> void Unserialize(Stream& is, boost::optional<T>& p);
+template<typename Stream, typename T> void Serialize(Stream& os, const std::optional<T>& p);
+template<typename Stream, typename T> void Unserialize(Stream& is, std::optional<T>& p);
 
+/**
+ * variant
+ */
+template<typename Stream, typename ... T> void Serialize(Stream& os, const std::variant<T...>& v);
+template<typename Stream, typename ... T> void Unserialize(Stream& is, std::variant<T...>& v);
+
+template<typename Stream> void Serialize(Stream& os, std::monostate) {} // no-op, by definition
+template<typename Stream> void Unserialize(Stream& is, std::monostate) {} // no-op, by definition
 
 /**
  * If none of the specialized versions above matched, default to calling member function.
@@ -1108,8 +1135,8 @@ void Unserialize(Stream& is, std::unique_ptr<const T>& p)
 /**
  * shared_ptr
  */
-template<typename Stream, typename T> void
-Serialize(Stream& os, const std::shared_ptr<const T>& p)
+template<typename Stream, typename T>
+void Serialize(Stream& os, const std::shared_ptr<const T>& p)
 {
     Serialize(os, *p);
 }
@@ -1143,6 +1170,69 @@ void Unserialize(Stream& is, boost::optional<T>& p)
         p.emplace(deserialize, is);
 }
 
+template<typename Stream, typename T> void
+Serialize(Stream& os, const std::optional<T>& p)
+{
+    bool exists(p);
+    Serialize(os, exists);
+    if (exists)
+        Serialize(os, *p);
+}
+
+template<typename Stream, typename T>
+void Unserialize(Stream& is, std::optional<T>& p)
+{
+    bool exists;
+    Unserialize(is, exists);
+    if (exists)
+        if constexpr (std::is_default_constructible_v<T>) {
+            T t;
+            Unserialize(is, t);
+            p = std::move(t);
+        }
+        else
+            p.emplace(deserialize, is);
+}
+
+/**
+ * variant
+ */
+template<typename Stream, typename ... T>
+void Serialize(Stream& os, const std::variant<T...>& v)
+{
+    WriteCompactSize(os, v.index());
+    std::visit([&os](const auto& t) { Serialize(os, t); }, v);
+}
+
+template<typename ... T, typename Stream>
+std::variant<T...> UnserializeVariantOf(Stream& is)
+{
+    const auto index = ReadCompactSize(is);
+    using optvar_t = std::optional< std::variant<T...> >;
+    const auto f = [index, &is] < typename U, std::size_t I > (optvar_t& x) {
+       if ( I == index ) {
+           assert(!x);
+           if constexpr (std::is_default_constructible_v<U>) {
+               U u;
+               Unserialize(is, u);
+               x = u;
+           }
+           else
+               x = U(deserialize, is);
+       }
+    };
+    optvar_t v;
+    const auto deserializer = [&] < std::size_t ... I >( const std::index_sequence<I...> ) { ( f.template operator()<T, I>(v), ... ); };
+    deserializer(std::index_sequence_for<T...>());
+    assert(v);
+    return std::move(*v);
+}
+
+template<typename Stream, typename ... T>
+void Unserialize(Stream& is, std::variant<T...>& v)
+{
+    v = UnserializeVariantOf<T...>(is);
+}
 
 
 /**

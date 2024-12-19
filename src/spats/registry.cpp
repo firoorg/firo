@@ -14,6 +14,21 @@ Registry::Registry()
    add_the_base_asset();
 }
 
+void Registry::validate( const Action &a ) const
+{
+   // TODO
+}
+
+void Registry::validate( const ActionSequence &actions ) const
+{
+   // TODO
+}
+
+void Registry::process( Action &&a )
+{
+   // TODO
+}
+
 void Registry::add_the_base_asset()
 {
    internal_add( FungibleSparkAsset{
@@ -25,6 +40,50 @@ bool Registry::has_nonfungible_asset( asset_type_t asset_type, identifier_t iden
    assert( !is_fungible_asset_type( asset_type ) );
    const auto it = nft_lines_.find( asset_type );
    return it != nft_lines_.end() && it->second.contains( identifier );
+}
+
+void Registry::validate_unregister( const UnregisterAssetParameters &p )
+{
+   if ( p.asset_type == base::asset_type )
+      throw std::domain_error( "The base asset cannot be unregistered!" );
+
+   const public_address_t *admin_public_address;
+   if ( is_fungible_asset_type( p.asset_type ) ) {
+      if ( p.identifier && *p.identifier != identifier_t{ 0 } )
+         throw std::invalid_argument( "No 'identifier' should be provided for identifying a fungible asset" );
+      const auto it = fungible_assets_.find( p.asset_type );
+      if ( it == fungible_assets_.end() )
+         throw std::invalid_argument( "No such asset found to unregister" );
+      admin_public_address = &it->second.admin_public_address();
+   }
+   else {
+      const auto it = nft_lines_.find( p.asset_type );
+      if ( it == nft_lines_.end() || it->second.empty() || p.identifier && !it->second.contains( *p.identifier ) )
+         throw std::invalid_argument( "No such asset found to unregister" );
+      admin_public_address = &it->second.begin()->second.admin_public_address();
+      assert( !p.identifier || admin_public_address == &it->second.find( *p.identifier )->second.admin_public_address() );
+   }
+
+   if ( *admin_public_address != p.initiator_public_address )
+      throw std::domain_error( "No permission to unregister the given asset" );
+}
+
+void Registry::unregister( const UnregisterAssetParameters &p )
+{
+   validate_unregister( p );
+
+   if ( is_fungible_asset_type( p.asset_type ) )
+      fungible_assets_.erase( p.asset_type );
+   else {
+      const auto it = nft_lines_.find( p.asset_type );
+      if ( p.identifier ) {
+         it->second.erase( *p.identifier );
+         if ( it->second.empty() )
+            nft_lines_.erase( it );
+      }
+      else
+         nft_lines_.erase( it );
+   }
 }
 
 std::optional< asset_type_t > Registry::get_lowest_available_asset_type_for_new_fungible_asset() const noexcept
@@ -102,6 +161,11 @@ std::vector< Nft > Registry::get_nfts_administered_by( const public_address_t &p
             assets.emplace_back( a );
          }
    return assets;
+}
+
+void Registry::clear()
+{
+   *this = {};
 }
 
 void Registry::validate_addition( const FungibleSparkAsset &a )
