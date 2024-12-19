@@ -258,7 +258,9 @@ template <typename S, typename T> size_t GetSerializeSize(const S& s, const T& t
  * Enums
  */
 
-void Serialize(auto& s, Enum auto e) { Serialize(s, to_underlying(e)); }
+using utils::Enum;
+
+void Serialize(auto& s, Enum auto e) { Serialize(s, utils::to_underlying(e)); }
 
 template <typename Stream, Enum E>
 void Unserialize(Stream& s, E& e)
@@ -1152,8 +1154,8 @@ void Unserialize(Stream& is, std::shared_ptr<const T>& p)
 /**
  * optional
  */
-template<typename Stream, typename T> void
-Serialize(Stream& os, const boost::optional<T>& p)
+template<typename Stream, typename T>
+void Serialize(Stream& os, const boost::optional<T>& p)
 {
     bool exists(p);
     Serialize(os, exists);
@@ -1170,8 +1172,8 @@ void Unserialize(Stream& is, boost::optional<T>& p)
         p.emplace(deserialize, is);
 }
 
-template<typename Stream, typename T> void
-Serialize(Stream& os, const std::optional<T>& p)
+template<typename Stream, typename T>
+void Serialize(Stream& os, const std::optional<T>& p)
 {
     bool exists(p);
     Serialize(os, exists);

@@ -2,10 +2,8 @@
 // Created by Gevorg Voskanyan
 //
 
-#ifndef FIRO_SPATS_SCALED_AMOUNT_HPP_INCLUDED
-#define FIRO_SPATS_SCALED_AMOUNT_HPP_INCLUDED
-
-#include "util.hpp"
+#ifndef FIRO_UTILS_SCALED_AMOUNT_HPP_INCLUDED
+#define FIRO_UTILS_SCALED_AMOUNT_HPP_INCLUDED
 
 #include <cstdint>
 #include <cmath>
@@ -13,7 +11,9 @@
 #include <stdexcept>
 #include <type_traits>
 
-namespace spats {
+#include "../utils/math.hpp"
+
+namespace utils {
 
 // If RawAmountType is unsigned, then scaled_amount< RawAmountType > will denote a non-negative number. Any operation that would mathematically yield a negative number
 // would be blocked (exception will be thrown), rather than using modulo arithmetic that would happen with a naked unsigned type. So wraparounds/overflows are not
@@ -74,12 +74,12 @@ private:
       precision_ = precision;
    }
 
-   constexpr auto decimal_factor() const noexcept { return integral_power( std::uintmax_t( 10 ), precision() ); }
+   constexpr auto decimal_factor() const noexcept { return math::integral_power( std::uintmax_t( 10 ), precision() ); }
 };
 
 // TODO comparison operators
 // TODO output
 
-}   // namespace spats
+}   // namespace utils
 
-#endif   // FIRO_SPATS_SCALED_AMOUNT_HPP_INCLUDED
+#endif   // FIRO_UTILS_SCALED_AMOUNT_HPP_INCLUDED
