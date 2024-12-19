@@ -12,9 +12,6 @@ add_definitions(-DHAVE_DECL_HTOBE16=1 -DHAVE_DECL_HTOLE16=1 -DHAVE_DECL_BE16TOH=
 
 add_library(spats STATIC
         spark_asset.hpp
-        constrained_value.hpp
-        util.hpp
-        scaled_amount.hpp
         registry.cpp
         registry.hpp
         base_asset.hpp
@@ -22,4 +19,7 @@ add_library(spats STATIC
         wallet.cpp
         wallet.hpp
         actions.hpp
-        ../utils/enum.hpp)
+        ../utils/constrained_value.hpp
+        ../utils/enum.hpp
+        ../utils/math.hpp
+        ../utils/scaled_amount.hpp)

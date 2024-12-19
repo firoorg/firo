@@ -10,8 +10,9 @@
 #include <variant>
 #include <algorithm>
 
-#include "constrained_value.hpp"
-#include "scaled_amount.hpp"
+#include "../utils/constrained_value.hpp"
+#include "../utils/scaled_amount.hpp"
+
 #include "identification.hpp"
 
 namespace spats {
@@ -29,8 +30,8 @@ inline bool is_nonempty_and_all_uppercase( const std::string_view s ) noexcept
    return !s.empty() && std::ranges::all_of( s, []( char c ) { return std::isupper( c, std::locale::classic() ); } );
 }
 
-using nonempty_trimmed_string = constrained_value< std::string, is_nonempty_and_trimmed >;
-using nonempty_trimmed_uppercase_string = constrained_value< std::string, is_nonempty_and_all_uppercase >;
+using nonempty_trimmed_string = utils::constrained_value< std::string, is_nonempty_and_trimmed >;
+using nonempty_trimmed_uppercase_string = utils::constrained_value< std::string, is_nonempty_and_all_uppercase >;
 using public_address_t = std::string;   // TODO a constrained_value instead?
 
 struct AssetNaming {
@@ -56,7 +57,7 @@ struct AssetNaming {
    }
 };
 
-using supply_amount_t = scaled_amount<>;
+using supply_amount_t = utils::scaled_amount<>;
 
 class SparkAssetBase {
 public:

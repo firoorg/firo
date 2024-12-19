@@ -2,13 +2,13 @@
 // Created by Gevorg Voskanyan
 //
 
-#ifndef FIRO_SPATS_CONSTRAINED_VALUE_HPP_INCLUDED
-#define FIRO_SPATS_CONSTRAINED_VALUE_HPP_INCLUDED
+#ifndef FIRO_UTILS_CONSTRAINED_VALUE_HPP_INCLUDED
+#define FIRO_UTILS_CONSTRAINED_VALUE_HPP_INCLUDED
 
 #include <concepts>
 #include <stdexcept>
 
-namespace spats {   // TODO promote to a more general namespace & directory? Do we have an existing proper place for these kind of things?
+namespace utils {
 
 namespace detail {
 
@@ -56,6 +56,6 @@ private:
 
 // TODO operators like == if and when it is supported by T
 
-}   // namespace spats
+}   // namespace utils
 
-#endif   // FIRO_SPATS_CONSTRAINED_VALUE_HPP_INCLUDED
+#endif   // FIRO_UTILS_CONSTRAINED_VALUE_HPP_INCLUDED

@@ -7,8 +7,9 @@
 
 #include <unordered_map>
 
+#include "../utils/scaled_amount.hpp"
+
 #include "identification.hpp"
-#include "scaled_amount.hpp"
 
 class CSparkWallet;
 
@@ -16,7 +17,7 @@ namespace spats {
 
 class Wallet {
    // using signed integer in wallet because the blocks on disk are traversed over in the reverse direction
-   using amount_type = scaled_amount< std::int64_t >;
+   using amount_type = utils::scaled_amount< std::int64_t >;
 
 public:
    explicit Wallet( CSparkWallet &wallet ) noexcept
