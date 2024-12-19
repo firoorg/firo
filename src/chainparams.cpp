@@ -481,6 +481,8 @@ public:
 
         // exchange address
         consensus.nExchangeAddressStartBlock = consensus.nSparkStartBlock;
+
+        consensus.nSpatsStartBlock = INT_MAX;   // TODO
     }
     virtual bool SkipUndoForBlock(int nHeight) const
     {
@@ -783,6 +785,8 @@ public:
 
         // exchange address
         consensus.nExchangeAddressStartBlock = 147000;
+
+        consensus.nSpatsStartBlock = INT_MAX;   // TODO
     }
 };
 
@@ -1027,6 +1031,8 @@ public:
 
         // exchange address
         consensus.nExchangeAddressStartBlock = 2500;
+
+        consensus.nSpatsStartBlock = INT_MAX;   // TODO
     }
 };
 
@@ -1267,6 +1273,8 @@ public:
         consensus.nPPSwitchTime = INT_MAX;
         consensus.nPPBlockNumber = INT_MAX;
         consensus.nInitialPPDifficulty = 0x2000ffff;
+
+        consensus.nSpatsStartBlock = 1;   // TODO is this correct?
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)

@@ -2,8 +2,8 @@
 // Created by Gevorg Voskanyan
 //
 
-#ifndef SPATS_SPARK_ASSET_HPP_INCLUDED
-#define SPATS_SPARK_ASSET_HPP_INCLUDED
+#ifndef FIRO_SPATS_SPARK_ASSET_HPP_INCLUDED
+#define FIRO_SPATS_SPARK_ASSET_HPP_INCLUDED
 
 #include <locale>
 #include <string>
@@ -15,6 +15,8 @@
 #include "identification.hpp"
 
 namespace spats {
+
+using namespace std::literals;
 
 inline bool is_nonempty_and_trimmed( const std::string_view s ) noexcept
 {
@@ -35,6 +37,23 @@ struct AssetNaming {
    nonempty_trimmed_string name;
    nonempty_trimmed_uppercase_string symbol;
    std::string description;
+
+   template < typename Stream >
+   void Serialize( Stream &os ) const
+   {
+      os << name.get() << symbol.get() << description;
+   }
+
+   template < typename Stream >
+   void Unserialize( Stream &is )
+   {
+      std::string s;
+      is >> s;
+      name = std::move( s );
+      is >> s;
+      symbol = std::move( s );
+      is >> description;
+   }
 };
 
 using supply_amount_t = scaled_amount<>;
@@ -58,7 +77,20 @@ protected:
          throw std::invalid_argument( "asset_type value unsupported: too big" );
    }
 
+   template < typename Stream >
+   SparkAssetBase( deserialize_type, Stream &is )
+      : asset_naming_( "x"s, "X"s, "desc"s )   // dummy values that will soon get overwritten
+   {
+      is >> asset_type_ >> asset_naming_ >> metadata_ >> admin_public_address_;
+   }
+
    ~SparkAssetBase() = default;
+
+   template < typename Stream >
+   void Serialize( Stream &os ) const
+   {
+      os << asset_type_ << asset_naming_ << metadata_ << admin_public_address_;
+   }
 
 private:
    asset_type_t asset_type_;   // TODO constrained, together with identifier
@@ -84,6 +116,23 @@ public:
          throw std::runtime_error( "Invalid asset_type value specified for a fungible asset" );
    }
 
+   template < typename Stream >
+   BasicSparkAsset( deserialize_type, Stream &is )
+      : SparkAssetBase( deserialize, is )
+   {
+      supply_amount_t::raw_amount_type total_supply_raw;
+      is >> total_supply_raw;
+      total_supply_ = total_supply_raw;
+      is >> resupplyable_;
+   }
+
+   template < typename Stream >
+   void Serialize( Stream &os ) const
+   {
+      SparkAssetBase::Serialize( os );
+      os << total_supply_.raw() << resupplyable_;
+   }
+
    [[nodiscard]] supply_amount_t total_supply() const noexcept { return total_supply_; }
    [[nodiscard]] bool resupplyable() const noexcept { return resupplyable_; }
 
@@ -105,6 +154,20 @@ public:
          throw std::runtime_error( "Invalid asset_type value specified for a non-fungible asset" );
    }
 
+   template < typename Stream >
+   BasicSparkAsset( deserialize_type, Stream &is )
+      : SparkAssetBase( deserialize, is )
+   {
+      is >> identifier_;
+   }
+
+   template < typename Stream >
+   void Serialize( Stream &os ) const
+   {
+      SparkAssetBase::Serialize( os );
+      os << identifier_;
+   }
+
    [[nodiscard]] identifier_t identifier() const noexcept { return identifier_; }
 
 private:
@@ -119,4 +182,4 @@ using SparkAsset = std::variant< FungibleSparkAsset, NonfungibleSparkAsset >;
 
 }   // namespace spats
 
-#endif   // SPATS_SPARK_ASSET_HPP_INCLUDED
+#endif   // FIRO_SPATS_SPARK_ASSET_HPP_INCLUDED

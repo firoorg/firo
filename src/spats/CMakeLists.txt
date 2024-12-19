@@ -20,4 +20,6 @@ add_library(spats STATIC
         base_asset.hpp
         identification.hpp
         wallet.cpp
-        wallet.hpp)
+        wallet.hpp
+        actions.hpp
+        ../utils/enum.hpp)

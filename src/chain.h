@@ -24,7 +24,8 @@
 #include "streams.h"
 
 #include <vector>
-#include <unordered_set>
+
+#include "spats/actions.hpp"
 
 class CBlockFileInfo
 {
@@ -32,9 +33,9 @@ public:
     unsigned int nBlocks;      //!< number of blocks stored in file
     unsigned int nSize;        //!< number of used bytes of block file
     unsigned int nUndoSize;    //!< number of used bytes in the undo file
-    unsigned int nHeightFirst; //!< lowest height of block in file
-    unsigned int nHeightLast;  //!< highest height of block in file
-    uint64_t nTimeFirst;       //!< earliest time of block in file
+    unsigned int nHeightFirst; //!< the lowest height of block in file
+    unsigned int nHeightLast;  //!< the highest height of block in file
+    uint64_t nTimeFirst;       //!< the earliest time of block in file
     uint64_t nTimeLast;        //!< latest time of block in file
 
     ADD_SERIALIZE_METHODS;
@@ -268,6 +269,8 @@ public:
     //! std::map {feature name} -> {block number when feature is re-enabled again, parameter}
     ActiveSporkMap activeDisablingSporks;
 
+    spats::ActionSequence spats_action_sequence_;
+
     void SetNull()
     {
         phashBlock = NULL;
@@ -310,6 +313,7 @@ public:
         sigmaSpentSerials.clear();
         lelantusSpentSerials.clear();
         activeDisablingSporks.clear();
+        spats_action_sequence_.clear();
     }
 
     CBlockIndex()
@@ -583,6 +587,12 @@ public:
 
                 READWRITE(activeDisablingSporks);
         }
+
+        // TODO Not sure about this SER_GETHASH type. Should Spats actions really be ignored in that case, or processed somehow?
+        if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nSpatsStartBlock) {
+            READWRITE(spats_action_sequence_);
+        }
+
         nDiskBlockVersion = nVersion;
     }
 

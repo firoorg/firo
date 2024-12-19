@@ -2,8 +2,7 @@
 .project
 .cproject
 .vscode
-*.swp
-*.swo
+*.sw?
 
 *.tar.gz
 

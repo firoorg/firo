@@ -2,8 +2,8 @@
 // Created by Gevorg Voskanyan
 //
 
-#ifndef SPATS_BASE_ASSET_HPP_INCLUDED
-#define SPATS_BASE_ASSET_HPP_INCLUDED
+#ifndef FIRO_SPATS_BASE_ASSET_HPP_INCLUDED
+#define FIRO_SPATS_BASE_ASSET_HPP_INCLUDED
 
 #include <string_view>
 
@@ -12,9 +12,6 @@
 #include "spark_asset.hpp"
 
 namespace spats {
-
-using namespace std::literals;
-
 namespace base {
 
 constexpr asset_type_t asset_type{ 0 };
@@ -41,4 +38,4 @@ constexpr bool resuppliable = false;
 }   // namespace base
 }   // namespace spats
 
-#endif   // SPATS_BASE_ASSET_HPP_INCLUDED
+#endif   // FIRO_SPATS_BASE_ASSET_HPP_INCLUDED

@@ -910,6 +910,7 @@ void CSparkState::Reset() {
     usedLTags.clear();
     mintMetaInfo.clear();
     spendMetaInfo.clear();
+    registry_.clear();
 }
 
 std::pair<int, int> CSparkState::GetMintedCoinHeightAndId(const spark::Coin& coin) {
