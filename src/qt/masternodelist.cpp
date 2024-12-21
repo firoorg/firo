@@ -214,7 +214,8 @@ void MasternodeList::updateDIP3List()
         // Address, Protocol, Status, Active Seconds, Last Seen, Pub Key
         QTableWidgetItem* addressItem = new QTableWidgetItem(QString::fromStdString(dmn->pdmnState->addr.ToString()));
         QTableWidgetItem* statusItem = new QTableWidgetItem(mnList.IsMNValid(dmn) ? tr("ENABLED") : (mnList.IsMNPoSeBanned(dmn) ? tr("POSE_BANNED") : tr("UNKNOWN")));
-        QTableWidgetItem* PoSeScoreItem = new QTableWidgetItem(QString::number(dmn->pdmnState->nPoSePenalty));
+        QTableWidgetItem* PoSeScoreItem = new QTableWidgetItem();
+        PoSeScoreItem->setData(Qt::EditRole, dmn->pdmnState->nPoSePenalty);
         QTableWidgetItem* registeredItem = new QTableWidgetItem(QString::number(dmn->pdmnState->nRegisteredHeight));
         QTableWidgetItem* lastPaidItem = new QTableWidgetItem((dmn->pdmnState->nLastPaidHeight < params.DIP0003EnforcementHeight) ? tr("NONE") : QString::number(dmn->pdmnState->nLastPaidHeight));
         QTableWidgetItem* nextPaymentItem = new QTableWidgetItem(nextPayments.count(dmn->proTxHash) ? QString::number(nextPayments[dmn->proTxHash]) : tr("UNKNOWN"));

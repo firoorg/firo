@@ -30,6 +30,7 @@ const std::string LABEL_TRANSCRIPT_BPPLUS = "BULLETPROOF_PLUS_V1";
 const std::string LABEL_TRANSCRIPT_CHAUM = "CHAUM_V1";
 const std::string LABEL_TRANSCRIPT_GROOTLE = "GROOTLE_V1";
 const std::string LABEL_TRANSCRIPT_SCHNORR = "SCHNORR_V1";
+const std::string LABEL_TRANSCRIPT_OWNERSHIP = "OWNERSHIP_V1";
 
 // Generator labels
 const std::string LABEL_GENERATOR_F = "F";

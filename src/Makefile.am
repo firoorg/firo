@@ -684,6 +684,7 @@ libspark_a_SOURCES = \
   libspark/hash.cpp \
   libspark/mint_transaction.h \
   libspark/mint_transaction.cpp \
+  libspark/ownership_proof.h \
   libspark/spend_transaction.h \
   libspark/spend_transaction.cpp \
   libspark/f4grumble.h \
