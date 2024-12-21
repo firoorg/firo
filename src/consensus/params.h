@@ -265,7 +265,7 @@ struct Params {
     int nSparkStartBlock;
 
     int nSparkNamesStartBlock;
-    int nSparkNamesFee[21];
+    std::array<int,21> nSparkNamesFee;
 
     int nLelantusGracefulPeriod;
 
