@@ -51,6 +51,7 @@
 #include "definition.h"
 #include "utiltime.h"
 #include "mtpstate.h"
+#include "sparkname.h"
 
 #include "coins.h"
 
@@ -1011,7 +1012,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                     return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                 }
             }
-            
+
+            CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+            if (!sparkNameManager->CheckSparkNameTx(tx, chainActive.Height(), state))
+                return false;
         }
 
         BOOST_FOREACH(const CTxOut &txout, tx.vout)

@@ -7,7 +7,7 @@
 #include "base58.h"
 #include "sparkname.h"
 
-CSparkNameManager *CSparkNameManager::sharedAliasManager = new CSparkNameManager();
+CSparkNameManager *CSparkNameManager::sharedSparkNameManager = new CSparkNameManager();
 
 bool CSparkNameManager::BlockConnected(CBlockIndex *pindex)
 {

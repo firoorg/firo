@@ -54,7 +54,7 @@ public:
 class CSparkNameManager
 {
 private:
-    static CSparkNameManager *sharedAliasManager;
+    static CSparkNameManager *sharedSparkNameManager;
 
     std::map<std::string, std::pair<spark::Address, uint32_t>> sparkNames;
 
@@ -80,7 +80,7 @@ public:
     // return the address associated with the spark name
     bool GetSparkAddress(const std::string &name, int nHeight, spark::Address &address);
 
-    static CSparkNameManager *GetAliasManager() { return sharedAliasManager; };
+    static CSparkNameManager *GetInstance() { return sharedSparkNameManager; };
 };
 
 #endif // FIRO_SPARKNAME_H
