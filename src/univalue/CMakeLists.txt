@@ -4,7 +4,6 @@
 
 add_library(univalue STATIC EXCLUDE_FROM_ALL
   lib/univalue.cpp
-  lib/univalue_get.cpp
   lib/univalue_read.cpp
   lib/univalue_write.cpp
 )
