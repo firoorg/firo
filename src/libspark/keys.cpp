@@ -1,5 +1,6 @@
 #include "keys.h"
 #include "../hash.h"
+#include "transcript.h"
 
 namespace spark {
 
@@ -241,6 +242,71 @@ unsigned char Address::decode(const std::string& str) {
 	this->Q2.deserialize(component.data());
 
 	return network;
+}
+
+Scalar Address::challenge(const Scalar& m, const GroupElement& A, const GroupElement& H) const {
+    Transcript transcript(LABEL_TRANSCRIPT_OWNERSHIP);
+    transcript.add("G", this->params->get_G());
+    transcript.add("F", this->params->get_F());
+    transcript.add("H", H);
+    transcript.add("A", A);
+    transcript.add("m", m);
+    transcript.add("d", this->d);
+    transcript.add("Q1", this->Q1);
+    transcript.add("Q2", this->Q2);
+
+    return transcript.challenge("c");
+}
+
+
+void Address::prove_own(const Scalar& m,
+                        const SpendKey& spend_key,
+                        const IncomingViewKey& incomingViewKey,
+                        OwnershipProof& proof) const {
+    Scalar a, b, c;
+    a.randomize();
+    b.randomize();
+    c.randomize();
+
+    GroupElement H = SparkUtils::hash_div(this->d);
+    proof.A = H * a + this->params->get_G() * b + this->params->get_F() * c;
+
+    if (proof.A.isInfinity()) {
+        throw std::invalid_argument("Bad Proof construction!");
+    }
+
+    Scalar x = challenge(m, proof.A, H);
+
+    if (x.isZero()) {
+        throw std::invalid_argument("Unexpected challenge!");
+    }
+
+    Scalar x_sqr = x.square();
+
+    uint64_t i = incomingViewKey.get_diversifier(this->d);
+    proof.t1 = a + x * spend_key.get_s1();
+    proof.t2 = b + x_sqr * spend_key.get_r();
+    proof.t3 = c + x_sqr * (SparkUtils::hash_Q2(spend_key.get_s1(), i) + spend_key.get_s2());
+}
+
+bool Address::verify_own(const Scalar& m,
+                        OwnershipProof& proof) const {
+    if (proof.A.isInfinity()) {
+        throw std::invalid_argument("Bad Ownership Proof!");
+    }
+
+    GroupElement H = SparkUtils::hash_div(this->d);
+    Scalar x = challenge(m, proof.A, H);
+    if (x.isZero()) {
+        throw std::invalid_argument("Unexpected challenge!");
+    }
+
+    Scalar x_sqr = x.square();
+
+    GroupElement left = proof.A + this->Q1 * x + this->Q2 * x_sqr;
+    GroupElement right = H * proof.t1 + this->params->get_G() * proof.t2 + this->params->get_F() * proof.t3;
+
+    return left == right;
 }
 
 }

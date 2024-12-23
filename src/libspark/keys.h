@@ -4,6 +4,8 @@
 #include "f4grumble.h"
 #include "params.h"
 #include "util.h"
+#include "../uint256.h"
+#include "ownership_proof.h"
 
 namespace spark {
 
@@ -81,6 +83,15 @@ public:
 
 	std::string encode(const unsigned char network) const;
 	unsigned char decode(const std::string& str);
+
+    Scalar challenge(const Scalar& m, const GroupElement& A, const GroupElement& H) const;
+    void prove_own(const Scalar& m,
+                   const SpendKey& spend_key,
+                   const IncomingViewKey& incomingViewKey,
+                   OwnershipProof& proof) const;
+
+    bool verify_own(const Scalar& m,
+                    OwnershipProof& proof) const;
 
 private:
 	const Params* params;
