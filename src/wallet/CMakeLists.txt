@@ -29,5 +29,4 @@ target_link_libraries(bitcoin_wallet
 )
 
 # Firo only supports BDB for wallet storage.
-target_sources(bitcoin_wallet PRIVATE bdb.cpp salvage.cpp)
 target_link_libraries(bitcoin_wallet PUBLIC BerkeleyDB::BerkeleyDB)
