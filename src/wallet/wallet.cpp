@@ -7279,7 +7279,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         walletInstance->zwallet = std::make_unique<CHDMintWallet>(pwalletMain->strWalletFile);
 
         // if it is first run, we need to generate the full key set for spark, if not we are loading spark wallet from db
-        walletInstance->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
+        walletInstance->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile, *walletInstance);
 
         spark::Address address = walletInstance->sparkWallet->getDefaultAddress();
         unsigned char network = spark::GetNetworkType();
