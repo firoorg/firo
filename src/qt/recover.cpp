@@ -156,6 +156,9 @@ bool Recover::askRecover(bool& newWallet)
                     }
 
                     SoftSetArg("-mnemonic", mnemonic);
+                } else {
+                    newWallet = true;
+                    SoftSetBoolArg("-newwallet", newWallet);
                 }
 
                 if(recover.ui->usePassphrase->isChecked()) {
