@@ -13,8 +13,9 @@
 
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
 
-CSparkWallet::CSparkWallet(const std::string& strWalletFile)
-   : spats_wallet_( *this )
+CSparkWallet::CSparkWallet(const std::string& strWalletFile, CWallet& wallet)
+   : main_wallet_(wallet)
+   , spats_wallet_(*this)
 {
 
     CWalletDB walletdb(strWalletFile);

@@ -436,6 +436,7 @@ libbitcoin_server_a_SOURCES = \
   spark/primitives.cpp \
   coin_containers.cpp \
   mtpstate.cpp \
+  spats/manager.cpp \
   spats/registry.cpp \
   $(BITCOIN_CORE_H)
 
@@ -485,6 +486,7 @@ libbitcoin_wallet_a_SOURCES = \
   bip47/paymentcode.cpp \
   bip47/secretpoint.cpp \
   primitives/mint_spend.cpp \
+  spats/manager.cpp \
   spats/registry.cpp \
   spats/wallet.cpp \
   $(BITCOIN_CORE_H)

@@ -6,6 +6,7 @@
 #define FIRO_SPATS_WALLET_HPP_INCLUDED
 
 #include <unordered_map>
+#include <functional>
 
 #include "../utils/scaled_amount.hpp"
 
@@ -27,6 +28,9 @@ public:
    struct AssetAmount {
       amount_type available{}, pending{};
    };
+
+   void create_new_spark_asset( const SparkAsset &a,
+                                const std::function< bool( const SparkAsset &a, CAmount standard_fee, CAmount asset_creation_fee ) > &user_confirmation_callback = {} );
 
    // TODO s11n?
 private:

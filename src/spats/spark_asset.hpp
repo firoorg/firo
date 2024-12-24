@@ -181,6 +181,12 @@ using Nft = NonfungibleSparkAsset;   // just another alias, for convenience
 
 using SparkAsset = std::variant< FungibleSparkAsset, NonfungibleSparkAsset >;
 
+// Function that returns the base of a SparkAsset
+inline const SparkAssetBase &get_base( const SparkAsset &asset ) noexcept
+{
+   return std::visit( []( const auto &a ) -> const SparkAssetBase & { return a; }, asset );
+}
+
 }   // namespace spats
 
 #endif   // FIRO_SPATS_SPARK_ASSET_HPP_INCLUDED

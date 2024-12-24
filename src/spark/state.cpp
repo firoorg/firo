@@ -910,7 +910,7 @@ void CSparkState::Reset() {
     usedLTags.clear();
     mintMetaInfo.clear();
     spendMetaInfo.clear();
-    registry_.clear();
+    spats_manager_.reset();
 }
 
 std::pair<int, int> CSparkState::GetMintedCoinHeightAndId(const spark::Coin& coin) {
@@ -1093,6 +1093,8 @@ void CSparkState::AddBlock(CBlockIndex *index) {
             AddLTagTxHash(elem.first, elem.second);
         }
     }
+
+    spats_manager_.add_block(*index);
 }
 
 void CSparkState::RemoveBlock(CBlockIndex *index) {
@@ -1162,6 +1164,8 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
     for (auto const& lTag : index->spentLTags) {
         RemoveSpend(lTag.first);
     }
+
+    spats_manager_.remove_block(*index);
 }
 
 bool CSparkState::AddSpendToMempool(const std::vector<GroupElement>& lTags, uint256 txHash) {
