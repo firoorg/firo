@@ -2406,7 +2406,7 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
 {
     CBlockIndex* ret = nullptr;
     if (GetBoolArg("-newwallet", false)) {
-        LogPrintf("Created new wallet, not need to scan\n");
+        LogPrintf("Created new wallet, no need to scan\n");
         return ret;
     }
     int64_t nNow = GetTime();
