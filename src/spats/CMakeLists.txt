@@ -24,9 +24,12 @@ add_library(spats STATIC
         wallet.cpp
         wallet.hpp
         actions.hpp
+        manager.cpp
+        manager.hpp
         ../utils/constrained_value.hpp
         ../utils/enum.hpp
         ../utils/math.hpp
         ../utils/scaled_amount.hpp
-        manager.cpp
-        manager.hpp)
+        ../utils/lock_proof.hpp
+        ../utils/overloaded.hpp
+        ../utils/traits.hpp)

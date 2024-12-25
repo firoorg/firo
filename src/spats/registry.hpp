@@ -5,13 +5,15 @@
 #ifndef FIRO_SPATS_REGISTRY_HPP_INCLUDED
 #define FIRO_SPATS_REGISTRY_HPP_INCLUDED
 
-#include "actions.hpp"
-
 #include <unordered_map>
 #include <optional>
 #include <vector>
+#include <shared_mutex>
+
+#include "../utils/lock_proof.hpp"
 
 #include "spark_asset.hpp"
+#include "actions.hpp"
 
 namespace spats {
 
@@ -21,8 +23,8 @@ public:
 
    void validate( const Action &a ) const;
    void validate( const ActionSequence &actions ) const;
-   void process( Action &&a );
-   //void process( ActionSequence &&actions );
+   void process( const Action &a );
+   void unprocess( const Action &a );
 
    std::optional< asset_type_t > get_lowest_available_asset_type_for_new_fungible_asset() const noexcept;
    std::optional< asset_type_t > get_lowest_available_asset_type_for_new_nft_line() const noexcept;
@@ -35,45 +37,50 @@ public:
    void clear();
 
 private:
-   // TODO MT safety
+   mutable std::shared_mutex mutex_;
    // TODO Performance: a more efficient storage type for both, using contiguous memory to the extent possible
    std::unordered_map< asset_type_t, FungibleSparkAsset > fungible_assets_;
    std::unordered_map< asset_type_t, std::unordered_map< identifier_t, NonfungibleSparkAsset > > nft_lines_;
 
-   Registry( const Registry & ) = default;
-   Registry( Registry && ) = default;
-   Registry &operator=( const Registry & ) = default;
-   Registry &operator=( Registry && ) = default;
+   using read_lock_proof = utils::read_lock_proof< &Registry::mutex_ >;
+   using write_lock_proof = utils::write_lock_proof< &Registry::mutex_ >;
 
-   void validate_addition( const FungibleSparkAsset &a );
-   void validate_addition( const NonfungibleSparkAsset &a );
-   void validate_addition( const SparkAssetBase &a );
+   // ATTENTION: The callers of these copy/move operations must provide the proper locking themselves!
+   Registry( const Registry & );
+   Registry( Registry && );
+   Registry &operator=( const Registry & );
+   Registry &operator=( Registry &&rhs ) ;
 
-   void add( FungibleSparkAsset &&a )
+   // validating addition (creation)
+   void internal_validate( const FungibleSparkAsset &a, read_lock_proof ) const;
+   void internal_validate( const NonfungibleSparkAsset &a, read_lock_proof ) const;
+   static void internal_validate( const SparkAssetBase &a );
+   void validate( const SparkAsset &a, read_lock_proof rlp ) const;
+
+   void add( const FungibleSparkAsset &a, write_lock_proof wlp )
    {
-      validate_addition( a );
-      internal_add( std::move( a ) );
+      internal_validate( a, wlp );
+      internal_add( a, wlp );
    }
 
-   void add( NonfungibleSparkAsset &&a )
+   void add( const NonfungibleSparkAsset &a, write_lock_proof wlp )
    {
-      validate_addition( a );
-      internal_add( std::move( a ) );
+      internal_validate( a, wlp );
+      internal_add( a, wlp );
    }
 
-   void add( SparkAsset &&a )
-   {
-      std::visit( [ this ]( auto &&x ) { add( std::move( x ) ); }, a );
-   }
+   // addition (creation)
+   void process( const SparkAsset &a, write_lock_proof wlp );
 
-   void validate_unregister( const UnregisterAssetParameters &p );
+   void validate( const UnregisterAssetParameters &p, read_lock_proof ) const;
 
-   void unregister( const UnregisterAssetParameters &p );
+   void process( const UnregisterAssetParameters &p, write_lock_proof );
 
-   void internal_add( FungibleSparkAsset &&a );
-   void internal_add( NonfungibleSparkAsset &&a );
-   void add_the_base_asset();
-   bool has_nonfungible_asset( asset_type_t asset_type, identifier_t identifier ) const noexcept;
+   void internal_add( const FungibleSparkAsset &a, write_lock_proof );
+   void internal_add( const NonfungibleSparkAsset &a, write_lock_proof );
+
+   void add_the_base_asset( write_lock_proof );
+   bool has_nonfungible_asset( asset_type_t asset_type, identifier_t identifier, read_lock_proof ) const noexcept;
 };
 
 }   // namespace spats

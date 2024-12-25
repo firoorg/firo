@@ -2,6 +2,8 @@
 // Created by Gevorg Voskanyan
 //
 
+#include <mutex>
+
 #include <boost/algorithm/string/predicate.hpp>
 
 #include "base_asset.hpp"
@@ -11,38 +13,70 @@ namespace spats {
 
 Registry::Registry()
 {
-   add_the_base_asset();
+   // Technically, locking isn't needed here because we are in the constructor, but we need to supply write_lock_proof regardless...
+   // The cost isn't a big deal here, so this is fine.
+   std::unique_lock lock( mutex_ );
+   add_the_base_asset( { *this, lock } );
 }
 
 void Registry::validate( const Action &a ) const
 {
-   // TODO
+   std::shared_lock lock( mutex_ );
+   std::visit( [ & ]( const auto &x ) { validate( x.get(), { *this, lock } ); }, a );
 }
 
 void Registry::validate( const ActionSequence &actions ) const
 {
-   // TODO
+   if ( actions.empty() )
+      return;
+   if ( actions.size() == 1 )
+      return validate( actions.front() );
+
+   // We have multiple actions to validate. In general, we cannot just validate the actions against the registry in isolation, because a prior action in a sequence may
+   // affect the validity of a subsequent action in the sequence. So we need to validate the actions against the registry in the context of the entire sequence, by making
+   // a copy of the registry and processing the actions on the copy, in sequence. All process() functions validate the action as their first item of business, so that
+   // would take care of this correctly, though likely not with the best efficiency in terms of performance.
+   std::shared_lock lock( mutex_ );
+   auto copy = *this;
+   for ( const auto &a : actions )
+      copy.process( a );
 }
 
-void Registry::process( Action &&a )
+void Registry::process( const Action &a )
+{
+   std::unique_lock lock( mutex_ );
+   std::visit( [ & ]( const auto &x ) { process( x.get(), { *this, lock } ); }, a );
+}
+
+void Registry::unprocess( const Action &a )
 {
    // TODO
 }
 
-void Registry::add_the_base_asset()
+void Registry::add_the_base_asset( write_lock_proof wlp )
 {
-   internal_add( FungibleSparkAsset{
-     base::asset_type, base::naming, std::string( base::metadata ), std::string( base::initial_admin_public_address ), base::initial_supply, base::resuppliable } );
+   internal_add( FungibleSparkAsset{ base::asset_type,
+                                     base::naming,
+                                     std::string( base::metadata ),
+                                     std::string( base::initial_admin_public_address ),
+                                     base::initial_supply,
+                                     base::resuppliable },
+                 wlp );
 }
 
-bool Registry::has_nonfungible_asset( asset_type_t asset_type, identifier_t identifier ) const noexcept
+bool Registry::has_nonfungible_asset( asset_type_t asset_type, identifier_t identifier, read_lock_proof ) const noexcept
 {
    assert( !is_fungible_asset_type( asset_type ) );
    const auto it = nft_lines_.find( asset_type );
    return it != nft_lines_.end() && it->second.contains( identifier );
 }
 
-void Registry::validate_unregister( const UnregisterAssetParameters &p )
+void Registry::process( const SparkAsset &a, write_lock_proof wlp )
+{
+   std::visit( [ this, wlp ]( auto &&x ) { add( x, wlp ); }, a );
+}
+
+void Registry::validate( const UnregisterAssetParameters &p, read_lock_proof ) const
 {
    if ( p.asset_type == base::asset_type )
       throw std::domain_error( "The base asset cannot be unregistered!" );
@@ -68,9 +102,9 @@ void Registry::validate_unregister( const UnregisterAssetParameters &p )
       throw std::domain_error( "No permission to unregister the given asset" );
 }
 
-void Registry::unregister( const UnregisterAssetParameters &p )
+void Registry::process( const UnregisterAssetParameters &p, write_lock_proof wlp )
 {
-   validate_unregister( p );
+   validate( p, wlp );
 
    if ( is_fungible_asset_type( p.asset_type ) )
       fungible_assets_.erase( p.asset_type );
@@ -165,23 +199,48 @@ std::vector< Nft > Registry::get_nfts_administered_by( const public_address_t &p
 
 void Registry::clear()
 {
+   std::shared_lock lock( mutex_ );
    *this = {};
 }
 
-void Registry::validate_addition( const FungibleSparkAsset &a )
+Registry::Registry( const Registry &other )
+   : fungible_assets_( other.fungible_assets_ )
+   , nft_lines_( other.nft_lines_ )
+{}
+
+Registry::Registry( Registry &&other )
+   : fungible_assets_( std::move( other.fungible_assets_ ) )
+   , nft_lines_( std::move( other.nft_lines_ ) )
+{}
+
+Registry &Registry::operator=( const Registry &rhs )
+{
+   fungible_assets_ = rhs.fungible_assets_;
+   nft_lines_ = rhs.nft_lines_;
+   return *this;
+}
+
+Registry &Registry::operator=( Registry &&rhs )
+{
+   fungible_assets_ = std::move( rhs.fungible_assets_ );
+   nft_lines_ = std::move( rhs.nft_lines_ );
+   return *this;
+}
+
+void Registry::internal_validate( const FungibleSparkAsset &a, read_lock_proof ) const
 {
    const SparkAssetBase &b = a;
-   validate_addition( b );
+   internal_validate( b );
    assert( is_fungible_asset_type( a.asset_type() ) );
    if ( fungible_assets_.contains( a.asset_type() ) )
       throw std::domain_error( "Fungible asset with given asset type already exists." );   // TODO format context info into all throw statements wherever needed
 }
 
-void Registry::validate_addition( const NonfungibleSparkAsset &a )
+void Registry::internal_validate( const NonfungibleSparkAsset &a, read_lock_proof rlp ) const
 {
    const SparkAssetBase &b = a;
-   validate_addition( b );
-   if ( has_nonfungible_asset( a.asset_type(), a.identifier() ) )
+   internal_validate( b );
+   if ( has_nonfungible_asset( a.asset_type(), a.identifier(), rlp ) )
       throw std::domain_error( "NFT with given asset type and identifier already exists." );
    if ( const auto it = nft_lines_.find( a.asset_type() ); it != nft_lines_.end() && !it->second.empty() ) {
       // the addition is to an already existing and extant NFT line
@@ -192,7 +251,7 @@ void Registry::validate_addition( const NonfungibleSparkAsset &a )
    }
 }
 
-void Registry::validate_addition( const SparkAssetBase &a )
+void Registry::internal_validate( const SparkAssetBase &a )
 {
    const auto &n = a.naming();
    if ( n.symbol.get() == base::asset_symbol )
@@ -201,7 +260,12 @@ void Registry::validate_addition( const SparkAssetBase &a )
       throw std::invalid_argument( "Not allowed to create a spark asset with a reserved name" );
 }
 
-void Registry::internal_add( FungibleSparkAsset &&a )
+void Registry::validate( const SparkAsset &a, read_lock_proof rlp ) const
+{
+   std::visit( [ & ]( const auto &x ) { internal_validate( x, rlp ); }, a );
+}
+
+void Registry::internal_add( const FungibleSparkAsset &a, write_lock_proof )
 {
    const auto asset_type = a.asset_type();
    assert( !fungible_assets_.contains( asset_type ) );
@@ -209,13 +273,13 @@ void Registry::internal_add( FungibleSparkAsset &&a )
    assert( fungible_assets_.contains( asset_type ) );
 }
 
-void Registry::internal_add( NonfungibleSparkAsset &&a )
+void Registry::internal_add( const NonfungibleSparkAsset &a, write_lock_proof wlp )
 {
    const auto asset_type = a.asset_type();
    const auto identifier = a.identifier();
-   assert( !has_nonfungible_asset( asset_type, identifier ) );
+   assert( !has_nonfungible_asset( asset_type, identifier, wlp ) );
    nft_lines_[ asset_type ].emplace( identifier, std::move( a ) );
-   assert( has_nonfungible_asset( asset_type, identifier ) );
+   assert( has_nonfungible_asset( asset_type, identifier, wlp ) );
 }
 
 }   // namespace spats

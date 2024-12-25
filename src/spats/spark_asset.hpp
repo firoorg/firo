@@ -10,6 +10,7 @@
 #include <variant>
 #include <algorithm>
 
+#include "../serialize.h"
 #include "../utils/constrained_value.hpp"
 #include "../utils/scaled_amount.hpp"
 
