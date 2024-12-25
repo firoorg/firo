@@ -1,7 +1,7 @@
 pipeline {
     agent {
         docker {
-            image 'firoorg/firo-builder-depends:latest'
+            image 'firoorg/firo-builder-depends24:latest'
             alwaysPull true
         }
     }
