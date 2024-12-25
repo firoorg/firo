@@ -91,7 +91,7 @@ private:
    static constexpr std::uint8_t serialization_version = 1;
 };
 
-using Action = std::variant< std::monostate, CreateAssetAction, UnregisterAssetAction >;   // TODO more
+using Action = std::variant< CreateAssetAction, UnregisterAssetAction >;   // TODO more
 
 using ActionSequence = std::vector< Action >;
 
