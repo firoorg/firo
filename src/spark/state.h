@@ -241,6 +241,8 @@ public:
 
     std::size_t GetTotalCoins() const { return mintedCoins.size(); }
 
+    spats::Manager& GetSpatsManager() noexcept { return spats_manager_; }
+
 private:
     size_t CountLastNCoins(int groupId, size_t required, CBlockIndex* &first);
 

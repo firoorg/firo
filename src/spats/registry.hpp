@@ -21,10 +21,10 @@ class Registry {
 public:
    Registry();
 
-   void validate( const Action &a ) const;
-   void validate( const ActionSequence &actions ) const;
-   void process( const Action &a );
-   void unprocess( const Action &a );
+   void validate( const Action &a, int block_height ) const;
+   void validate( const ActionSequence &actions, int block_height ) const;
+   void process( const Action &a, int block_height );
+   void unprocess( const Action &a, int block_height );
 
    std::optional< asset_type_t > get_lowest_available_asset_type_for_new_fungible_asset() const noexcept;
    std::optional< asset_type_t > get_lowest_available_asset_type_for_new_nft_line() const noexcept;

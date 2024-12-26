@@ -6,9 +6,15 @@
 
 namespace spats {
 
-void Manager::add_block( const CBlockIndex &block ) {}
+void Manager::add_block( const CBlockIndex &block )
+{
+   // TODO
+}
 
-void Manager::remove_block( const CBlockIndex &block ) {}
+void Manager::remove_block( const CBlockIndex &block )
+{
+   // TODO
+}
 
 void Manager::reset()
 {

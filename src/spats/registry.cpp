@@ -19,18 +19,18 @@ Registry::Registry()
    add_the_base_asset( { *this, lock } );
 }
 
-void Registry::validate( const Action &a ) const
+void Registry::validate( const Action &a, int block_height ) const
 {
    std::shared_lock lock( mutex_ );
    std::visit( [ & ]( const auto &x ) { validate( x.get(), { *this, lock } ); }, a );
 }
 
-void Registry::validate( const ActionSequence &actions ) const
+void Registry::validate( const ActionSequence &actions, int block_height ) const
 {
    if ( actions.empty() )
       return;
    if ( actions.size() == 1 )
-      return validate( actions.front() );
+      return validate( actions.front(), block_height );
 
    // We have multiple actions to validate. In general, we cannot just validate the actions against the registry in isolation, because a prior action in a sequence may
    // affect the validity of a subsequent action in the sequence. So we need to validate the actions against the registry in the context of the entire sequence, by making
@@ -38,17 +38,18 @@ void Registry::validate( const ActionSequence &actions ) const
    // would take care of this correctly, though likely not with the best efficiency in terms of performance.
    std::shared_lock lock( mutex_ );
    auto copy = *this;
+   lock.unlock();
    for ( const auto &a : actions )
-      copy.process( a );
+      copy.process( a, block_height );
 }
 
-void Registry::process( const Action &a )
+void Registry::process( const Action &a, int block_height )
 {
    std::unique_lock lock( mutex_ );
    std::visit( [ & ]( const auto &x ) { process( x.get(), { *this, lock } ); }, a );
 }
 
-void Registry::unprocess( const Action &a )
+void Registry::unprocess( const Action &a, int block_height )
 {
    // TODO
 }

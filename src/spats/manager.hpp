@@ -17,6 +17,9 @@ public:
    void remove_block( const CBlockIndex &block );
    void reset();
 
+   Registry &registry() noexcept { return registry_; }
+   const Registry &registry() const noexcept { return registry_; }
+
 private:
    Registry registry_;
 };

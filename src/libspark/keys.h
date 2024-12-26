@@ -1,5 +1,6 @@
 #ifndef FIRO_SPARK_KEYS_H
 #define FIRO_SPARK_KEYS_H
+
 #include "bech32.h"
 #include "f4grumble.h"
 #include "params.h"
@@ -42,7 +43,7 @@ public:
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(s1);
         READWRITE(s2);
         READWRITE(D);
@@ -75,13 +76,13 @@ class Address {
 public:
     Address();
 	Address(const Params* params);
-	Address(const IncomingViewKey& incoming_view_key, const uint64_t i);
+	Address(const IncomingViewKey& incoming_view_key, uint64_t i);
 	const Params* get_params() const;
 	const std::vector<unsigned char>& get_d() const;
 	const GroupElement& get_Q1() const;
 	const GroupElement& get_Q2() const;
 
-	std::string encode(const unsigned char network) const;
+	std::string encode(unsigned char network) const;
 	unsigned char decode(const std::string& str);
 
     Scalar challenge(const Scalar& m, const GroupElement& A, const GroupElement& H) const;
@@ -98,7 +99,7 @@ private:
 	std::vector<unsigned char> d;
 	GroupElement Q1, Q2;
 
-	static std::string get_checksum(const std::string data);
+	static std::string get_checksum(const std::string data); // TODO GV #Review: Not defined. Should be removed?
 };
 
 }

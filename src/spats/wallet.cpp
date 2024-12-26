@@ -6,7 +6,9 @@
 #include "../validation.h"
 #include "../wallet/wallet.h"
 #include "../spark/sparkwallet.h"
+#include "../spark/state.h"
 
+#include "registry.hpp"
 #include "wallet.hpp"
 
 namespace spats {
@@ -34,31 +36,46 @@ static CAmount compute_new_spark_asset_fee( const std::string_view asset_symbol 
    }
 }
 
+Wallet::Wallet( CSparkWallet &spark_wallet ) noexcept
+   : spark_wallet_( spark_wallet )
+   , my_public_address_as_admin_( spark_wallet.getDefaultAddress().encode( spark::GetNetworkType() ) )
+   , registry_( spark::CSparkState::GetState()->GetSpatsManager().registry() )
+{}
+
 void Wallet::create_new_spark_asset( const SparkAsset &a,
                                      const std::function< bool( const SparkAsset &a, CAmount standard_fee, CAmount asset_creation_fee ) > &user_confirmation_callback )
 {
    const auto &b = get_base( a );
-   CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
-   serialized << a;
+   assert( b.admin_public_address() == my_public_address_as_admin() );
    CScript script;
    script << OP_SPARKNEWASSET;
+   CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
+   serialized << a;
+   spark::OwnershipProof proof;
+   spark::SpendKey spend_key( spark::Params::get_default() );
+   spark::FullViewKey full_view_key( spend_key );
+   spark::IncomingViewKey incoming_view_key( full_view_key );
+   spark_wallet_.getDefaultAddress().prove_own( std::hash< std::string >()( serialized.str() ), spend_key, incoming_view_key, proof );
+   CDataStream proof_serialized( SER_NETWORK, PROTOCOL_VERSION );
+   proof_serialized << proof;
+   script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
    script.insert( script.end(), serialized.begin(), serialized.end() );
    CAmount standard_fee;
    const auto new_asset_fee = compute_new_spark_asset_fee( b.naming().symbol.get() );
    const auto burn_address = "aFiroBurningAddressDoNotSendrPtjYA"s;
    CScript burn_script = GetScriptForDestination( CBitcoinAddress( burn_address ).Get() );
    CRecipient burn_recipient = { std::move( burn_script ), new_asset_fee, false, "" };   // TODO should .address stay empty or set to burn_address too?
-   CWalletTx tx = wallet_.CreateSparkSpendTransaction( { CRecipient( std::move( script ), {}, false, b.admin_public_address() ), burn_recipient },
-                                                       {},
-                                                       standard_fee,
-                                                       nullptr );   // may throw
+   CWalletTx tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient( std::move( script ), {}, false, b.admin_public_address() ), burn_recipient },
+                                                             {},
+                                                             standard_fee,
+                                                             nullptr );   // may throw
 
    if ( user_confirmation_callback && !user_confirmation_callback( a, standard_fee, new_asset_fee ) ) {
       // TODO log cancellation by user
       return;
    }
 
-   auto &main_wallet = wallet_.getMainWallet();
+   auto &main_wallet = spark_wallet_.getMainWallet();
    CReserveKey reserve_key( &main_wallet );   // TODO what is this for?
    CValidationState state;
    if ( !main_wallet.CommitTransaction( tx, reserve_key, g_connman.get(), state ) )
