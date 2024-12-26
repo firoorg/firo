@@ -5657,8 +5657,8 @@ std::string CWallet::MintAndStoreSpark(
         const std::vector<spark::MintedCoinData>& outputs,
         std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
         bool subtractFeeFromAmount,
-        bool autoMintAll,
         bool fSplit,
+        bool autoMintAll,
         bool fAskFee,
         const CCoinControl *coinControl) {
     std::string strError;
