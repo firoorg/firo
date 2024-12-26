@@ -223,7 +223,7 @@ public:
 
     std::string str() const
     {
-        return (std::string(begin(), end()));
+        return std::string(begin(), end());
     }
 
 

@@ -70,12 +70,11 @@ bool IsSparkAllowed(int height)
 unsigned char GetNetworkType() {
     if (::Params().GetConsensus().IsMain())
         return ADDRESS_NETWORK_MAINNET;
-    else if (::Params().GetConsensus().IsTestnet())
+    if (::Params().GetConsensus().IsTestnet())
         return ADDRESS_NETWORK_TESTNET;
-    else if (::Params().GetConsensus().IsDevnet())
+    if (::Params().GetConsensus().IsDevnet())
         return ADDRESS_NETWORK_DEVNET;
-    else
-        return ADDRESS_NETWORK_REGTEST;
+    return ADDRESS_NETWORK_REGTEST;
 }
 
 /*
