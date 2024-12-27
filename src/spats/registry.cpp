@@ -43,15 +43,17 @@ void Registry::validate( const ActionSequence &actions, int block_height ) const
       copy.process( a, block_height );
 }
 
-void Registry::process( const Action &a, int block_height )
+bool Registry::process( const Action &a, int block_height )
 {
    std::unique_lock lock( mutex_ );
-   std::visit( [ & ]( const auto &x ) { process( x.get(), { *this, lock } ); }, a );
+   return std::visit( [ & ]( const auto &x ) { return process( x.get(), { *this, lock } ); }, a );
+   // TODO clean up processing-undo-artifacts older than block_height-2000
 }
 
-void Registry::unprocess( const Action &a, int block_height )
+bool Registry::unprocess( const Action &a, int block_height )
 {
    // TODO
+   return false;
 }
 
 void Registry::add_the_base_asset( write_lock_proof wlp )
@@ -72,9 +74,10 @@ bool Registry::has_nonfungible_asset( asset_type_t asset_type, identifier_t iden
    return it != nft_lines_.end() && it->second.contains( identifier );
 }
 
-void Registry::process( const SparkAsset &a, write_lock_proof wlp )
+bool Registry::process( const SparkAsset &a, write_lock_proof wlp )
 {
    std::visit( [ this, wlp ]( auto &&x ) { add( x, wlp ); }, a );
+   return true;
 }
 
 void Registry::validate( const UnregisterAssetParameters &p, read_lock_proof ) const
@@ -103,22 +106,25 @@ void Registry::validate( const UnregisterAssetParameters &p, read_lock_proof ) c
       throw std::domain_error( "No permission to unregister the given asset" );
 }
 
-void Registry::process( const UnregisterAssetParameters &p, write_lock_proof wlp )
+bool Registry::process( const UnregisterAssetParameters &p, write_lock_proof wlp )
 {
    validate( p, wlp );
 
    if ( is_fungible_asset_type( p.asset_type ) )
-      fungible_assets_.erase( p.asset_type );
-   else {
-      const auto it = nft_lines_.find( p.asset_type );
-      if ( p.identifier ) {
-         it->second.erase( *p.identifier );
-         if ( it->second.empty() )
-            nft_lines_.erase( it );
-      }
-      else
+      return fungible_assets_.erase( p.asset_type );
+   const auto it = nft_lines_.find( p.asset_type );
+   if ( it == nft_lines_.end() )
+      return false;
+   if ( p.identifier ) {
+      bool ret = it->second.erase( *p.identifier );
+      if ( it->second.empty() ) {
          nft_lines_.erase( it );
+         ret = true;
+      }
+      return ret;
    }
+   nft_lines_.erase( it );
+   return true;
 }
 
 std::optional< asset_type_t > Registry::get_lowest_available_asset_type_for_new_fungible_asset() const noexcept

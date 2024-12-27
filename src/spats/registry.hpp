@@ -23,8 +23,12 @@ public:
 
    void validate( const Action &a, int block_height ) const;
    void validate( const ActionSequence &actions, int block_height ) const;
-   void process( const Action &a, int block_height );
-   void unprocess( const Action &a, int block_height );
+
+   // returns true if the registry state has been updated as a result of processing the given action
+   bool process( const Action &a, int block_height );
+
+   // returns true if the registry state has been updated as a result of unprocessing the given action
+   bool unprocess( const Action &a, int block_height );
 
    std::optional< asset_type_t > get_lowest_available_asset_type_for_new_fungible_asset() const noexcept;
    std::optional< asset_type_t > get_lowest_available_asset_type_for_new_nft_line() const noexcept;
@@ -70,11 +74,11 @@ private:
    }
 
    // addition (creation)
-   void process( const SparkAsset &a, write_lock_proof wlp );
+   bool process( const SparkAsset &a, write_lock_proof wlp );
 
    void validate( const UnregisterAssetParameters &p, read_lock_proof ) const;
 
-   void process( const UnregisterAssetParameters &p, write_lock_proof );
+   bool process( const UnregisterAssetParameters &p, write_lock_proof );
 
    void internal_add( const FungibleSparkAsset &a, write_lock_proof );
    void internal_add( const NonfungibleSparkAsset &a, write_lock_proof );

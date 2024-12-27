@@ -17,7 +17,7 @@ namespace spats {
 // The shorter the symbol, the more expensive the fee.
 // Right now mimicking the fee structure for Spark Names to get at concrete numbers.
 // They don't necessarily have to match though, so these numbers here may change before going live...
-static CAmount compute_new_spark_asset_fee( const std::string_view asset_symbol ) noexcept
+CAmount Wallet::compute_new_spark_asset_fee( const std::string_view asset_symbol ) noexcept
 {
    const auto length = asset_symbol.length();
    assert( length > 0 );
@@ -42,6 +42,11 @@ Wallet::Wallet( CSparkWallet &spark_wallet ) noexcept
    , registry_( spark::CSparkState::GetState()->GetSpatsManager().registry() )
 {}
 
+std::string_view Wallet::burn_address() noexcept
+{
+   return "aFiroBurningAddressDoNotSendrPtjYA"sv;
+}
+
 void Wallet::create_new_spark_asset( const SparkAsset &a,
                                      const std::function< bool( const SparkAsset &a, CAmount standard_fee, CAmount asset_creation_fee ) > &user_confirmation_callback )
 {
@@ -62,8 +67,7 @@ void Wallet::create_new_spark_asset( const SparkAsset &a,
    script.insert( script.end(), serialized.begin(), serialized.end() );
    CAmount standard_fee;
    const auto new_asset_fee = compute_new_spark_asset_fee( b.naming().symbol.get() );
-   const auto burn_address = "aFiroBurningAddressDoNotSendrPtjYA"s;
-   CScript burn_script = GetScriptForDestination( CBitcoinAddress( burn_address ).Get() );
+   CScript burn_script = GetScriptForDestination( CBitcoinAddress( std::string( burn_address() ) ).Get() );
    CRecipient burn_recipient = { std::move( burn_script ), new_asset_fee, false, "" };   // TODO should .address stay empty or set to burn_address too?
    CWalletTx tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient( std::move( script ), {}, false, b.admin_public_address() ), burn_recipient },
                                                              {},
@@ -80,6 +84,11 @@ void Wallet::create_new_spark_asset( const SparkAsset &a,
    CValidationState state;
    if ( !main_wallet.CommitTransaction( tx, reserve_key, g_connman.get(), state ) )
       throw std::runtime_error( "Failed to commit new spark asset transaction" );
+}
+
+void Wallet::notify_registry_changed()
+{
+   // TODO
 }
 
 }   // namespace spats

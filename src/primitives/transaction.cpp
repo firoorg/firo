@@ -212,7 +212,20 @@ bool CTransaction::IsLelantusMint() const
 
 bool CTransaction::IsSparkTransaction() const
 {
-    return IsSparkMint() || IsSparkSpend();
+    return IsSparkMint() || IsSparkSpend() || IsSpatsTransaction();
+}
+
+bool CTransaction::IsSparkNewAsset() const
+{
+    for (const CTxOut &txout: vout)
+        if (txout.scriptPubKey.IsSparkNewAsset())
+            return true;
+    return false;
+}
+
+bool CTransaction::IsSpatsTransaction() const
+{
+    return IsSparkNewAsset();    // TODO more
 }
 
 bool CTransaction::IsSparkSpend() const
