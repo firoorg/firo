@@ -29,10 +29,12 @@ public:
     std::unordered_map<GroupElement, int> spentLTags;
     std::unordered_map<uint256, uint256> ltagTxhash;
 
-    // information about transactions in the block is complete
-    bool fInfoIsComplete;
+    spats::ActionSequence spats_action_sequence;
 
-    CSparkTxInfo(): fInfoIsComplete(false) {}
+    // information about transactions in the block is complete
+    bool fInfoIsComplete = false;
+
+    CSparkTxInfo() = default;
 
     // finalize everything
     void Complete();

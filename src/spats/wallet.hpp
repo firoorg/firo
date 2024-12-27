@@ -29,10 +29,15 @@ public:
       amount_type available{}, pending{};
    };
 
+   static std::string_view burn_address() noexcept;
+   static CAmount compute_new_spark_asset_fee( std::string_view asset_symbol ) noexcept;
+
    const std::string &my_public_address_as_admin() const noexcept { return my_public_address_as_admin_; }
 
    void create_new_spark_asset( const SparkAsset &a,
                                 const std::function< bool( const SparkAsset &a, CAmount standard_fee, CAmount asset_creation_fee ) > &user_confirmation_callback = {} );
+
+   void notify_registry_changed();
 
    // TODO s11n?
 private:

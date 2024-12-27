@@ -34,6 +34,10 @@ struct UnregisterAssetParameters {
 
 class CreateAssetAction {
 public:
+   explicit CreateAssetAction( SparkAsset asset )
+      : asset_( std::move( asset ) )
+   {}
+
    template < typename Stream >
    CreateAssetAction( deserialize_type, Stream &is );
 

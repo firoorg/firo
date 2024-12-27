@@ -1,6 +1,7 @@
 #include "state.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
+#include "../spats/wallet.hpp"
 
 namespace spark {
 
@@ -175,6 +176,38 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
     return std::move(spendTransaction);
 }
 
+spats::Action ParseSpatsTransaction(const CTransaction &tx)
+{
+    if (tx.IsSparkNewAsset()) {
+        if (tx.vout.size() != 2)
+            throw CBadTxIn();
+        const CScript& creation_script = tx.vout.front().scriptPubKey;
+        if (!creation_script.IsSparkNewAsset())
+            throw CBadTxIn();
+
+        std::vector<unsigned char> serialized(creation_script.begin() + 1, creation_script.end());
+        CDataStream stream( std::move(serialized), SER_NETWORK, PROTOCOL_VERSION );
+        try{
+            spark::OwnershipProof proof;
+            stream >> proof;
+            auto action = ::UnserializeVariant<spats::SparkAsset>(stream);
+            const auto& b = get_base(action);
+            const auto& admin_public_address = b.admin_public_address();
+            // TODO how to validate ownership proof?
+            const auto& burntx = tx.vout[1];
+            // If somehow the creation fee is greater than required, i.e. the originator wants to burn more of his money than required, then it's fine with us I think.
+            // But less than required is not allowed, of course.
+            if (burntx.nValue < spats::Wallet::compute_new_spark_asset_fee(b.naming().symbol.get()))
+                throw CBadTxIn();
+            // TODO get the destination address from burntx and compare it with spats::Wallet::burn_address()
+            return spats::CreateAssetAction(std::move(action));
+        }
+        catch (...) {
+            throw CBadTxIn();
+        }
+    }
+    // TODO more
+}
 
 std::vector<GroupElement> GetSparkUsedTags(const CTransaction &tx)
 {
@@ -245,6 +278,7 @@ bool ConnectBlockSpark(
             pindexNew->sparkMintedCoins.clear();
             pindexNew->spentLTags.clear();
             pindexNew->sparkSetHash.clear();
+            pindexNew->spats_action_sequence.clear();
         }
 
         if (!CheckSparkBlock(state, *pblock)) {
@@ -263,11 +297,21 @@ bool ConnectBlockSpark(
             }
         }
 
+        try {
+            sparkState.GetSpatsManager().registry().validate(pblock->sparkTxInfo->spats_action_sequence,pindexNew->nHeight);
+        } catch (...) {
+            return false;
+        }
+
         if (!fJustCheck) {
             BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->spentLTags) {
                 pindexNew->spentLTags.insert(lTag);
                 sparkState.AddSpend(lTag.first, lTag.second);
             }
+
+            pindexNew->spats_action_sequence.insert(pindexNew->spats_action_sequence.end(),
+                pblock->sparkTxInfo->spats_action_sequence.begin(), pblock->sparkTxInfo->spats_action_sequence.end());
+
             if (GetBoolArg("-mobile", false)) {
                 BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->ltagTxhash) {
                     pindexNew->ltagTxhash.insert(lTag);
@@ -719,6 +763,216 @@ bool CheckSparkSpendTransaction(
     return true;
 }
 
+bool CheckSpatsTransaction(
+    // TODO do I need all of these params? If not, clean up.
+        const CTransaction &tx,
+        CValidationState &state,
+        uint256 hashTx,
+        bool isVerifyDB,
+        int nHeight,
+        bool isCheckWallet,
+        bool fStatefulSigmaCheck,
+        CSparkTxInfo* sparkTxInfo)
+{
+    Consensus::Params const & params = ::Params().GetConsensus();
+    int height = nHeight == INT_MAX ? chainActive.Height()+1 : nHeight;
+
+    std::optional<spats::Action> action;
+
+    try {
+        action = ParseSpatsTransaction(tx);
+    }
+    catch (CBadTxIn&) {
+        return state.DoS(100,
+                         false,
+                         REJECT_MALFORMED,
+                         "CheckSpatsTransaction: invalid spats transaction");
+    }
+    catch (const std::exception &) {
+        return state.DoS(100,
+                         false,
+                         REJECT_MALFORMED,
+                         "CheckSpatsTransaction: failed to deserialize spats tx");
+    }
+
+#if 0    // TODO do I need any of these?
+    uint256 txHashForMetadata;
+    // Obtain the hash of the transaction sans the Spark part
+    CMutableTransaction txTemp = tx;
+    txTemp.vExtraPayload.clear();
+    for (auto itr = txTemp.vout.begin(); itr < txTemp.vout.end(); ++itr) {
+        if (itr->scriptPubKey.IsSparkSMint()) {
+            txTemp.vout.erase(itr);
+            --itr;
+        }
+    }
+    txHashForMetadata = txTemp.GetHash();
+
+    LogPrintf("CheckSparkSpendTransaction: tx metadata hash=%s\n", txHashForMetadata.ToString());
+
+    bool passVerify = false;
+
+    uint64_t Vout = 0;
+    std::size_t private_num = 0;
+    for (const CTxOut &txout : tx.vout) {
+        const auto& script = txout.scriptPubKey;
+        if (!script.empty() && script.IsSparkSMint()) {
+            private_num++;
+        } else if (script.IsSparkMint() ||
+                script.IsLelantusMint() ||
+                script.IsLelantusJMint() ||
+                script.IsSigmaMint()) {
+            return false;
+        } else {
+            Vout += txout.nValue;
+        }
+    }
+
+    if (private_num > ::Params().GetConsensus().nMaxSparkOutLimitPerTx)
+        return false;
+
+    std::vector<Coin> out_coins;
+    out_coins.reserve(private_num);
+    if (!CheckSparkSMintTransaction(tx.vout, state, hashTx, fStatefulSigmaCheck, out_coins, sparkTxInfo))
+        return false;
+    spend->setOutCoins(out_coins);
+    std::unordered_map<uint64_t, std::vector<Coin>> cover_sets;
+    std::unordered_map<uint64_t, CoverSetData> cover_set_data;
+    const auto idAndBlockHashes = spend->getBlockHashes();
+
+    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+    bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
+
+    for (const auto& idAndHash : idAndBlockHashes) {
+        CSparkState::SparkCoinGroupInfo coinGroup;
+        if (!sparkState.GetCoinGroupInfo(idAndHash.first, coinGroup))
+                return state.DoS(100, false, NO_MINT_ZEROCOIN,
+                                 "CheckSparkSpendTransaction: Error: no coins were minted with such parameters");
+
+        CBlockIndex *index = coinGroup.lastBlock;
+        // find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
+        while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
+            index = index->pprev;
+
+        // take the hash from last block of anonymity set
+        std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, idAndHash.first);
+
+        std::vector<Coin> cover_set;
+        cover_set.reserve(coinGroup.nCoins);
+        std::size_t set_size = 0;
+        // Build a vector with all the public coins with given id before
+        // the block on which the spend occurred.
+        // This list of public coins is required by function "Verify" of spend.
+        while (true) {
+            int id = 0;
+            if (CountCoinInBlock(index, idAndHash.first)) {
+                id = idAndHash.first;
+            } else if (CountCoinInBlock(index, idAndHash.first - 1)) {
+                id = idAndHash.first - 1;
+            }
+            if (id) {
+                if (index->sparkMintedCoins.count(id) > 0) {
+                    BOOST_FOREACH(
+                    const auto& coin,
+                    index->sparkMintedCoins[id]) {
+                        set_size++;
+                        if (!useBatching)
+                            cover_set.push_back(coin);
+                    }
+                }
+            }
+
+            if (index == coinGroup.firstBlock)
+                break;
+            index = index->pprev;
+        }
+
+        CoverSetData setData;
+        setData.cover_set_size = set_size;
+        if (!set_hash.empty())
+            setData.cover_set_representation = set_hash;
+        setData.cover_set_representation.insert(setData.cover_set_representation.end(), txHashForMetadata.begin(), txHashForMetadata.end());
+
+        cover_sets[idAndHash.first] = std::move(cover_set);
+        cover_set_data [idAndHash.first] = setData;
+    }
+    spend->setCoverSets(cover_set_data);
+    spend->setVout(Vout);
+
+    const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
+    for (const auto& id : ids) {
+        if (!cover_sets.count(id) || !cover_set_data.count(id))
+            return state.DoS(100,
+                             error("CheckSparkSpendTransaction: No cover set found."));
+    }
+
+    // if we are collecting proofs, skip verification and collect proofs
+    // add proofs into container
+    if (useBatching) {
+        passVerify = true;
+        batchProofContainer->add(*spend);
+    } else {
+        try {
+            passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
+        } catch (const std::exception &) {
+            passVerify = false;
+        }
+    }
+
+    if (passVerify) {
+        const std::vector<GroupElement>& lTags = spend->getUsedLTags();
+
+        if (lTags.size() != ids.size()) {
+            return state.DoS(100,
+                             error("CheckSparkSpendTransaction: size of lTags and group ids don't match."));
+        }
+
+        // do not check for duplicates in case we've seen exact copy of this tx in this block before
+        if (!(sparkTxInfo && sparkTxInfo->spTransactions.count(hashTx) > 0)) {
+            for (size_t i = 0; i < lTags.size(); ++i) {
+                    if (!CheckLTag(state, sparkTxInfo, lTags[i], nHeight, false)) {
+                        LogPrintf("CheckSparkSpendTransaction: lTAg check failed, ltag=%s\n", lTags[i]);
+                        return false;
+                    }
+            }
+        }
+
+        // check duplicated linking tags in same transaction.
+        for (const auto &lTag : lTags) {
+            if (!txLTags.insert(lTag).second) {
+                return state.DoS(100,
+                                 error("CheckSparkSpendTransaction: two or more spends with same linking tag in the same transaction"));
+            }
+        }
+
+        if (!isVerifyDB && !isCheckWallet) {
+            // add spend information to the index
+            if (sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
+                for (size_t i = 0; i < lTags.size(); i++) {
+                    sparkTxInfo->spentLTags.insert(std::make_pair(lTags[i], ids[i]));
+                    if (GetBoolArg("-mobile", false)) {
+                        sparkTxInfo->ltagTxhash.insert(std::make_pair(primitives::GetLTagHash(lTags[i]), hashTx));
+                    }
+                }
+            }
+        }
+    }
+    else {
+        LogPrintf("CheckSparkSpendTransaction: verification failed at block %d\n", nHeight);
+        return false;
+    }
+#endif
+
+    if (!isVerifyDB && !isCheckWallet) {
+        if (sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
+            sparkTxInfo->spats_action_sequence.push_back(std::move(*action));
+            sparkTxInfo->spTransactions.insert(hashTx);
+        }
+    }
+
+    return true;
+}
+
 bool CheckSparkTransaction(
         const CTransaction &tx,
         CValidationState &state,
@@ -769,6 +1023,22 @@ bool CheckSparkTransaction(
         if (!isVerifyDB) {
             try {
                 if (!CheckSparkSpendTransaction(
+                        tx, state, hashTx, isVerifyDB, nHeight,
+                        isCheckWallet, fStatefulSigmaCheck, sparkTxInfo)) {
+                    return false;
+                }
+            }
+            catch (const std::exception &x) {
+                return state.Error(x.what());
+            }
+        }
+    }
+
+    // Check Spats
+    if (tx.IsSpatsTransaction()) {
+         if (!isVerifyDB) {    // TODO what is this, do I need to keep this check?
+            try {
+                if (!CheckSpatsTransaction(
                         tx, state, hashTx, isVerifyDB, nHeight,
                         isCheckWallet, fStatefulSigmaCheck, sparkTxInfo)) {
                     return false;

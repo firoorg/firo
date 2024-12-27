@@ -269,7 +269,7 @@ public:
     //! std::map {feature name} -> {block number when feature is re-enabled again, parameter}
     ActiveSporkMap activeDisablingSporks;
 
-    spats::ActionSequence spats_action_sequence_;
+    spats::ActionSequence spats_action_sequence;
 
     void SetNull()
     {
@@ -313,7 +313,7 @@ public:
         sigmaSpentSerials.clear();
         lelantusSpentSerials.clear();
         activeDisablingSporks.clear();
-        spats_action_sequence_.clear();
+        spats_action_sequence.clear();
     }
 
     CBlockIndex()
@@ -590,7 +590,7 @@ public:
 
         // TODO Not sure about this SER_GETHASH type. Should Spats actions really be ignored in that case, or processed somehow?
         if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nSpatsStartBlock) {
-            READWRITE(spats_action_sequence_);
+            READWRITE(spats_action_sequence);
         }
 
         nDiskBlockVersion = nVersion;
