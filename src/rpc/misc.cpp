@@ -1824,6 +1824,89 @@ CAmount getCVE17144amount()
     return amount;
 }
 
+// another way to calculate the forged amount
+CAmount getCVE17144amountNew()
+{
+    // CVE-2018-17144 was a critical bug that allowed double-spending of inputs
+    // in the same transaction. This function calculates the total amount of coins
+    // that were created due to this vulnerability at block 293526.
+    LOCK(cs_main);
+    if (chainActive.Height() < 293526) {
+        throw std::runtime_error("Chain height is less than 293,526.");
+    }
+
+    if (!Params().GetConsensus().IsMain()) {
+        throw std::runtime_error("Attack only occurred on mainnet");
+    }
+
+    CBlockIndex *atackedBlock = chainActive[293526];
+    CBlock block;
+    if (!ReadBlockFromDisk(block, atackedBlock, ::Params().GetConsensus())) {
+        throw std::runtime_error("Failed to read block 293526 from disk");
+    }
+
+    std::unordered_map<uint160, AddressType> addresses;
+    for (CTransactionRef tx : block.vtx) {
+        if (!tx->IsCoinBase() && !tx->HasNoRegularInputs()) {
+            for (const auto& txout : tx->vout)
+            {
+                CTxDestination addr;
+                if (!ExtractDestination(txout.scriptPubKey, addr))
+                    continue;
+                CBitcoinAddress address(addr);
+                uint160 hashBytes;
+                AddressType type = AddressType::unknown;
+                if (!address.GetIndexKey(hashBytes, type)) {
+                    continue;
+                }
+                addresses.insert({hashBytes, type});
+            }
+
+            for (const auto& txin : tx->vin)
+            {
+                CTransactionRef tx;
+                uint256 hashBlock;
+                if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock, true)) {
+                    continue;
+                }
+                if (txin.prevout.n >= tx->vout.size()) {
+                    continue;  // Skip if output index is out of bounds
+                }
+
+                CTxDestination addr;
+                if (!ExtractDestination(tx->vout[txin.prevout.n].scriptPubKey, addr))
+                    continue;
+                CBitcoinAddress address(addr);
+                uint160 hashBytes;
+                AddressType type = AddressType::unknown;
+                if (!address.GetIndexKey(hashBytes, type)) {
+                    continue;
+                }
+                addresses.insert({hashBytes, type});
+            }
+        }
+    }
+
+    CAmount result = 0;
+    for (const auto& it : addresses) {
+        std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+        if (!GetAddressIndex(it.first, it.second, addressIndex)) {
+            continue;
+        }
+        CAmount amount = 0;
+        for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
+            amount += it->second;
+        }
+
+        if (amount < 0)
+            result += amount;
+    }
+
+
+
+    return result;
+}
+
 UniValue gettotalsupply(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0)
@@ -1888,8 +1971,10 @@ UniValue getCVE17144amount(const JSONRPCRequest& request)
                 + HelpExampleCli("getCVE17144amount", "")
                 + HelpExampleRpc("getCVE17144amount", "")
         );
-
-    return getCVE17144amount();
+    UniValue results(UniValue::VOBJ);
+    results.push_back(Pair("firstWay",getCVE17144amount()));
+    results.push_back(Pair("secondWay",getCVE17144amountNew()));
+    return results;
 }
 
 UniValue getinfoex(const JSONRPCRequest& request)
