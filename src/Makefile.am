@@ -117,6 +117,7 @@ BITCOIN_CORE_H = \
   batchedlogger.h \
   bloom.h \
   blockencodings.h \
+  boost_function_epilogue.hpp \
   chain.h \
   chainparams.h \
   chainparamsbase.h \
