@@ -11,13 +11,13 @@ const unsigned char FLAG_VECTOR = 2;
 const unsigned char FLAG_CHALLENGE = 3;
 
 // Initialize a transcript with a domain separator
-Transcript::Transcript(const std::string domain, const std::string strprotocol) {
+Transcript::Transcript(const std::string domain) {
     // Prepare the state
     this->ctx = EVP_MD_CTX_new();
     EVP_DigestInit_ex(this->ctx, EVP_sha512(), NULL);
 
     // Write the protocol and mode information
-    std::vector<unsigned char> protocol(strprotocol.begin(), strprotocol.end());
+    std::vector<unsigned char> protocol(LABEL_PROTOCOL.begin(), LABEL_PROTOCOL.end());
     EVP_DigestUpdate(this->ctx, protocol.data(), protocol.size());
     EVP_DigestUpdate(this->ctx, &HASH_MODE_TRANSCRIPT, sizeof(HASH_MODE_TRANSCRIPT));
 

@@ -50,8 +50,7 @@ SpendTransaction::SpendTransaction(
 		this->params->get_G_grootle(),
 		this->params->get_H_grootle(),
 		this->params->get_n_grootle(),
-		this->params->get_m_grootle(),
-        LABEL_PROTOCOL
+		this->params->get_m_grootle()
 	);
 	for (std::size_t u = 0; u < w; u++) {
 		// Parse out cover set data for this spend
@@ -76,14 +75,14 @@ SpendTransaction::SpendTransaction(
 		// Serial commitment offset
 		this->S1.emplace_back(
 			this->params->get_F()*inputs[u].s
-			+ this->params->get_H().inverse()*SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D(), LABEL_PROTOCOL)
+			+ this->params->get_H().inverse()*SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D())
 			+ full_view_key.get_D()
 		);
 
 		// Value commitment offset
 		this->C1.emplace_back(
 			this->params->get_G()*Scalar(inputs[u].v)
-			+ this->params->get_H()*SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D(), LABEL_PROTOCOL)
+			+ this->params->get_H()*SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D())
 		);
 
 		// Tags
@@ -94,10 +93,10 @@ SpendTransaction::SpendTransaction(
 		std::size_t l = inputs[u].index;
 		grootle.prove(
 			l,
-			SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D(), LABEL_PROTOCOL),
+			SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D()),
 			S,
 			this->S1.back(),
-			SparkUtils::hash_val(inputs[u].k, LABEL_PROTOCOL) - SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D(), LABEL_PROTOCOL),
+			SparkUtils::hash_val(inputs[u].k) - SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D()),
 			C,
 			this->C1.back(),
 			this->cover_set_representations[set_id],
@@ -107,7 +106,7 @@ SpendTransaction::SpendTransaction(
 		// Chaum data
 		chaum_x.emplace_back(inputs[u].s);
 		chaum_y.emplace_back(spend_key.get_r());
-		chaum_z.emplace_back(SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D(), LABEL_PROTOCOL).negate());
+		chaum_z.emplace_back(SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D()).negate());
 	}
 
 	// Generate output coins and prepare range proof vectors
@@ -138,7 +137,7 @@ SpendTransaction::SpendTransaction(
 
 		// Range data
 		range_v.emplace_back(outputs[j].v);
-		range_r.emplace_back(SparkUtils::hash_val(k.back(), LABEL_PROTOCOL));
+		range_r.emplace_back(SparkUtils::hash_val(k.back()));
 		range_C.emplace_back(this->out_coins.back().C);
 	}
 
@@ -158,16 +157,16 @@ SpendTransaction::SpendTransaction(
 	);
 
 	// Generate the balance proof
-	Schnorr schnorr(this->params->get_H(), LABEL_PROTOCOL);
+	Schnorr schnorr(this->params->get_H());
 	GroupElement balance_statement;
 	Scalar balance_witness;
 	for (std::size_t u = 0; u < w; u++) {
 		balance_statement += this->C1[u];
-		balance_witness += SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D(), LABEL_PROTOCOL);
+		balance_witness += SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D());
 	}
 	for (std::size_t j = 0; j < t; j++) {
 		balance_statement += this->out_coins[j].C.inverse();
-		balance_witness -= SparkUtils::hash_val(k[j], LABEL_PROTOCOL);
+		balance_witness -= SparkUtils::hash_val(k[j]);
 	}
 	balance_statement += (this->params->get_G()*Scalar(f + vout)).inverse();
 	schnorr.prove(
@@ -196,8 +195,7 @@ SpendTransaction::SpendTransaction(
 		this->params->get_F(),
 		this->params->get_G(),
 		this->params->get_H(),
-		this->params->get_U(),
-        LABEL_PROTOCOL
+		this->params->get_U()
 	);
 	chaum.prove(
 		mu,
@@ -316,15 +314,14 @@ bool SpendTransaction::verify(
 			tx.params->get_F(),
 			tx.params->get_G(),
 			tx.params->get_H(),
-			tx.params->get_U(),
-            LABEL_PROTOCOL
+			tx.params->get_U()
 		);
 		if (!chaum.verify(mu, tx.S1, tx.T, tx.chaum_proof)) {
 			return false;
 		}
 
 		// Verify the balance proof
-		Schnorr schnorr(tx.params->get_H(), LABEL_PROTOCOL);
+		Schnorr schnorr(tx.params->get_H());
 		GroupElement balance_statement;
 		for (std::size_t u = 0; u < w; u++) {
 			balance_statement += tx.C1[u];
@@ -361,9 +358,8 @@ bool SpendTransaction::verify(
 		params->get_G_grootle(),
 		params->get_H_grootle(),
 		params->get_n_grootle(),
-		params->get_m_grootle(),
-        LABEL_PROTOCOL
-	);
+		params->get_m_grootle()
+        );
 	for (auto grootle_bucket : grootle_buckets) {
 		std::size_t cover_set_id = grootle_bucket.first;
 		std::vector<std::pair<std::size_t, std::size_t>> proof_indexes = grootle_bucket.second;
@@ -425,7 +421,7 @@ std::vector<unsigned char> SpendTransaction::hash_bind_inner(
 	const SchnorrProof& balance_proof,
 	const BPPlusProof& range_proof
 ) {
-    Hash hash(LABEL_HASH_BIND_INNER, LABEL_PROTOCOL);
+    Hash hash(LABEL_HASH_BIND_INNER);
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
 	stream << cover_set_representations;
     stream << S1;
@@ -446,7 +442,7 @@ Scalar SpendTransaction::hash_bind(
     const std::vector<Coin>& out_coins,
     const uint64_t f_
 ) {
-	Hash hash(LABEL_HASH_BIND, LABEL_PROTOCOL);
+	Hash hash(LABEL_HASH_BIND);
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
 	stream << hash_bind_inner,
 	stream << out_coins;

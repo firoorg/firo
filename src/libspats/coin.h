@@ -36,7 +36,7 @@ struct RecoveredCoinData {
 struct MintCoinRecipientData {
     std::vector<unsigned char> d; // encrypted diversifier
     Scalar k;                     // nonce
-    std::string memo;             // memo
+    std::string padded_memo; // padded memo with prepended one-byte length
 
     ADD_SERIALIZE_METHODS;
 
@@ -45,7 +45,7 @@ struct MintCoinRecipientData {
     {
         READWRITE(d);
         READWRITE(k);
-        READWRITE(memo);
+        READWRITE(padded_memo);
     }
 };
 
@@ -56,7 +56,7 @@ struct SpendCoinRecipientData {
     Scalar k;                     // nonce
     Scalar a;                     // asset type
     Scalar iota;                  // identifier
-    std::string memo;             // memo
+    std::string padded_memo;      // padded memo with prepended one-byte length
 
     ADD_SERIALIZE_METHODS;
 
@@ -68,7 +68,7 @@ struct SpendCoinRecipientData {
         READWRITE(v);
         READWRITE(d);
         READWRITE(k);
-        READWRITE(memo);
+        READWRITE(padded_memo);
     }
 };
 

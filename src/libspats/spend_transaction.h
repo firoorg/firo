@@ -56,11 +56,11 @@ public:
         const spark::Params* params,
         const spark::FullViewKey& full_view_key,
         const spark::SpendKey& spend_key,
-        const std::vector<InputCoinData>& inputs,
+        const std::vector<InputCoinData>& inputs,//should be sorted, base coins at the beginning, otherwise you will get a failure
         const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
         const uint64_t f,
         const uint64_t vout,
-        const std::vector<OutputCoinData>& outputs);
+        const std::vector<OutputCoinData>& outputs); //should be sorted, base coins at the beginning, otherwise you will get a failure
 
     uint64_t getFee();
     const std::vector<GroupElement>& getUsedLTags() const;
@@ -101,6 +101,11 @@ public:
         READWRITE(chaum_proof);
         READWRITE(balance_proof);
         READWRITE(range_proof);
+        READWRITE(rep_proof);
+        READWRITE(base_proof);
+        READWRITE(type_proof);
+        READWRITE(inputBase);
+        READWRITE(outBase);
     }
 
     void setOutCoins(const std::vector<Coin>& out_coins_)
@@ -131,12 +136,14 @@ private:
     std::unordered_map<uint64_t, std::size_t> cover_set_sizes;
     std::unordered_map<uint64_t, std::vector<unsigned char> > cover_set_representations;
     std::vector<Coin> out_coins;
+    uint64_t vout;
 
     // All this data we need to serialize
     std::map<uint64_t, uint256> set_id_blockHash;
+    uint32_t inputBase;
+    uint32_t outBase;
     std::vector<uint64_t> cover_set_ids;
     uint64_t f;
-    uint64_t vout;
     std::vector<GroupElement> S1, C1, T;
     std::vector<spark::GrootleProof> grootle_proofs;
     spark::ChaumProof chaum_proof;

@@ -10,20 +10,20 @@ BOOST_FIXTURE_TEST_SUITE(spark_transcript_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(init)
 {
     // Identical domain separators
-    Transcript transcript_1("Spam", "Protocol");
-    Transcript transcript_2("Spam", "Protocol");
+    Transcript transcript_1("Spam");
+    Transcript transcript_2("Spam");
     BOOST_CHECK_EQUAL(transcript_1.challenge("x"), transcript_2.challenge("x"));
 
     // Distinct domain separators
-    transcript_1 = Transcript("Spam", "Protocol");
-    transcript_2 = Transcript("Eggs", "Protocol");
+    transcript_1 = Transcript("Spam");
+    transcript_2 = Transcript("Eggs");
     BOOST_CHECK_NE(transcript_1.challenge("x"), transcript_2.challenge("x"));
 }
 
 BOOST_AUTO_TEST_CASE(challenge_labels)
 {
-    Transcript transcript_1("Spam", "Protocol");
-    Transcript transcript_2("Spam", "Protocol");
+    Transcript transcript_1("Spam");
+    Transcript transcript_2("Spam");
 
     // Identical challenge labels
     BOOST_CHECK_EQUAL(transcript_1.challenge("x"), transcript_2.challenge("x"));
@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(add_types)
 {
     // Add all fixed types and assert distinct challenges
     const std::string domain = "Spam";
-    Transcript transcript(domain, "Protocol");
+    Transcript transcript(domain);
 
     Scalar scalar;
     scalar.randomize();
@@ -75,7 +75,7 @@ BOOST_AUTO_TEST_CASE(add_types)
 BOOST_AUTO_TEST_CASE(repeated_challenge)
 {
     // Repeated challenges must be distinct, even with the same label
-    Transcript transcript("Eggs", "Protocol");
+    Transcript transcript("Eggs");
 
     Scalar ch_1 = transcript.challenge("x");
     Scalar ch_2 = transcript.challenge("x");
@@ -86,8 +86,8 @@ BOOST_AUTO_TEST_CASE(repeated_challenge)
 BOOST_AUTO_TEST_CASE(repeated_challenge_ordering)
 {
     // Repeated challenges must respect ordering
-    Transcript prover("Spam", "Protocol");
-    Transcript verifier("Spam", "Protocol");
+    Transcript prover("Spam");
+    Transcript verifier("Spam");
 
     Scalar prover_x = prover.challenge("x");
     Scalar prover_y = prover.challenge("y");
@@ -103,8 +103,8 @@ BOOST_AUTO_TEST_CASE(repeated_challenge_ordering)
 BOOST_AUTO_TEST_CASE(identical_transcripts)
 {
     // Ensure that identical transcripts yield identical challenges
-    Transcript prover("Beer", "Protocol");
-    Transcript verifier("Beer", "Protocol");
+    Transcript prover("Beer");
+    Transcript verifier("Beer");
 
     Scalar scalar;
     scalar.randomize();
@@ -122,8 +122,8 @@ BOOST_AUTO_TEST_CASE(identical_transcripts)
 BOOST_AUTO_TEST_CASE(distinct_values)
 {
     // Ensure that distinct transcript values yield distinct challenges
-    Transcript prover("Soda", "Protocol");
-    Transcript verifier("Soda", "Protocol");
+    Transcript prover("Soda");
+    Transcript verifier("Soda");
 
     Scalar prover_scalar;
     prover_scalar.randomize();
@@ -139,8 +139,8 @@ BOOST_AUTO_TEST_CASE(distinct_values)
 BOOST_AUTO_TEST_CASE(distinct_labels)
 {
     // Ensure that distinct transcript labels yield distinct challenges
-    Transcript prover("Soda", "Protocol");
-    Transcript verifier("Soda", "Protocol");
+    Transcript prover("Soda");
+    Transcript verifier("Soda");
 
     Scalar scalar;
     scalar.randomize();
@@ -154,8 +154,8 @@ BOOST_AUTO_TEST_CASE(distinct_labels)
 BOOST_AUTO_TEST_CASE(converging)
 {
     // Transcripts with distinct initial states but common post-challenge elements
-    Transcript transcript_1("Spam", "Protocol");
-    Transcript transcript_2("Eggs", "Protocol");
+    Transcript transcript_1("Spam");
+    Transcript transcript_2("Eggs");
 
     Scalar ch_1 = transcript_1.challenge("x");
     Scalar ch_2 = transcript_1.challenge("x");

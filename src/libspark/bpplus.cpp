@@ -73,7 +73,7 @@ void BPPlus::prove(
 
     // Set up transcript, using the unpadded values
     // This is fine since the verifier canonically generates the same transcript
-    Transcript transcript(LABEL_TRANSCRIPT_BPPLUS, LABEL_PROTOCOL);
+    Transcript transcript(LABEL_TRANSCRIPT_BPPLUS);
     transcript.add("G", G);
     transcript.add("H", H);
     transcript.add("Gi", Gi);
@@ -386,7 +386,7 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
         }
 
         // Set up transcript
-        Transcript transcript(LABEL_TRANSCRIPT_BPPLUS, LABEL_PROTOCOL);
+        Transcript transcript(LABEL_TRANSCRIPT_BPPLUS);
         transcript.add("G", G);
         transcript.add("H", H);
         transcript.add("Gi", serialized_Gi);

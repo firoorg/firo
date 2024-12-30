@@ -39,7 +39,7 @@ BOOST_AUTO_TEST_CASE(serialization)
 
     ChaumProof proof;
 
-    Chaum chaum(F, G, H, U, "Protocol");
+    Chaum chaum(F, G, H, U);
     chaum.prove(mu, x, y, z, S, T, proof);
 
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(completeness)
 
     ChaumProof proof;
 
-    Chaum chaum(F, G, H, U, "Protocol");
+    Chaum chaum(F, G, H, U);
     chaum.prove(mu, x, y, z, S, T, proof);
 
     BOOST_CHECK(chaum.verify(mu, S, T, proof));
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(bad_proofs)
 
     ChaumProof proof;
 
-    Chaum chaum(F, G, H, U, "Protocol");
+    Chaum chaum(F, G, H, U);
     chaum.prove(mu, x, y, z, S, T, proof);
 
     // Bad mu

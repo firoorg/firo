@@ -9,7 +9,7 @@ using namespace secp_primitives;
 
 class Hash {
 public:
-	Hash(const std::string label, const std::string strprotocol);
+	Hash(const std::string label);
 	~Hash();
 	void include(CDataStream& data);
 	std::vector<unsigned char> finalize();

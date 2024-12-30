@@ -3,12 +3,12 @@
 namespace spark {
 
 // Set up a labeled KDF
-KDF::KDF(const std::string label, std::size_t derived_key_size, const std::string& protocol_) {
+KDF::KDF(const std::string label, std::size_t derived_key_size) {
 	this->ctx = EVP_MD_CTX_new();
 	EVP_DigestInit_ex(this->ctx, EVP_sha512(), NULL);
 
 	// Write the protocol and mode information
-	std::vector<unsigned char> protocol(protocol_.begin(), protocol_.end());
+	std::vector<unsigned char> protocol(LABEL_PROTOCOL.begin(), LABEL_PROTOCOL.end());
 	EVP_DigestUpdate(this->ctx, protocol.data(), protocol.size());
 	EVP_DigestUpdate(this->ctx, &HASH_MODE_KDF, sizeof(HASH_MODE_KDF));
 

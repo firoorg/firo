@@ -18,7 +18,6 @@ using namespace secp_primitives;
 const std::size_t SCALAR_ENCODING = 32;
 
 // Base protocol separator
-const std::string LABEL_PROTOCOL= "SPATS";
 const std::string LABEL_TRANSCRIPT_BPPLUS = "BULLETPROOF_PLUS_V2";
 const std::string LABEL_TRANSCRIPT_BASE = "BASE_ASSET_V1";
 const std::string LABEL_TRANSCRIPT_TYPE = "TYPEEQUALITY_V1";

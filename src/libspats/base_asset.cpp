@@ -13,7 +13,7 @@ Scalar BaseAsset::challenge(
     const std::vector<GroupElement>& C,
     const GroupElement& A)
 {
-    spark::Transcript transcript(LABEL_TRANSCRIPT_BASE, LABEL_PROTOCOL);
+    spark::Transcript transcript(LABEL_TRANSCRIPT_BASE);
     transcript.add("G", G);
     transcript.add("H", H);
     transcript.add("C", C);

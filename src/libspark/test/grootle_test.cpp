@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE(batch)
     }
 
     // Prepare proving system
-    Grootle grootle(H, Gi, Hi, n, m, "Protocol");
+    Grootle grootle(H, Gi, Hi, n, m);
     std::vector<GrootleProof> proofs;
 
     for (std::size_t i = 0; i < indexes.size(); i++) {
@@ -136,7 +136,7 @@ BOOST_AUTO_TEST_CASE(invalid_batch)
     }
 
     // Prepare proving system
-    Grootle grootle(H, Gi, Hi, n, m, "Protocol");
+    Grootle grootle(H, Gi, Hi, n, m);
     std::vector<GrootleProof> proofs;
 
     for (std::size_t i = 0; i < indexes.size(); i++) {

@@ -13,14 +13,12 @@ Grootle::Grootle(
         const std::vector<GroupElement>& Gi_,
         const std::vector<GroupElement>& Hi_,
         const std::size_t n_,
-        const std::size_t m_,
-        const std::string& protocol_)
+        const std::size_t m_)
         : H (H_)
         , Gi (Gi_)
         , Hi (Hi_)
         , n (n_)
         , m (m_)
-        , protocol (protocol_)
 {
     if (!(n > 1 && m > 1)) {
         throw std::invalid_argument("Bad Grootle size parameters!");
@@ -173,7 +171,7 @@ void Grootle::prove(
     }
 
     // Set up transcript
-    Transcript transcript(LABEL_TRANSCRIPT_GROOTLE, protocol);
+    Transcript transcript(LABEL_TRANSCRIPT_GROOTLE);
     transcript.add("H", H);
     transcript.add("Gi", Gi);
     transcript.add("Hi", Hi);
@@ -476,7 +474,7 @@ bool Grootle::verify(
         GrootleProof proof = proofs[t];
 
         // Reconstruct the challenge
-        Transcript transcript(LABEL_TRANSCRIPT_GROOTLE, protocol);
+        Transcript transcript(LABEL_TRANSCRIPT_GROOTLE);
         transcript.add("H", H);
         transcript.add("Gi", Gi);
         transcript.add("Hi", Hi);

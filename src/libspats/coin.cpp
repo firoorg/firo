@@ -41,13 +41,13 @@ Coin::Coin(
     //
 
     // Construct the recovery key
-    this->K = spark::SparkUtils::hash_div(address.get_d(), LABEL_PROTOCOL) * spark::SparkUtils::hash_k(k, LABEL_PROTOCOL);
+    this->K = spark::SparkUtils::hash_div(address.get_d()) * spark::SparkUtils::hash_k(k);
 
     // Construct the serial commitment
-    this->S = this->params->get_F() * spark::SparkUtils::hash_ser(k, serial_context, LABEL_PROTOCOL) + address.get_Q2();
+    this->S = this->params->get_F() * spark::SparkUtils::hash_ser(k, serial_context) + address.get_Q2();
 
     // // Construct the value commitment
-    this->C = this->params->get_E() * a + this->params->get_F() * iota + this->params->get_G() * Scalar(v) + this->params->get_H() * spark::SparkUtils::hash_val(k, LABEL_PROTOCOL);
+    this->C = this->params->get_E() * a + this->params->get_F() * iota + this->params->get_G() * Scalar(v) + this->params->get_H() * spark::SparkUtils::hash_val(k);
 
     // Check the memo validity, and pad if needed
     if (memo.size() > this->params->get_memo_bytes()) {
@@ -56,6 +56,9 @@ Coin::Coin(
     std::vector<unsigned char> memo_bytes(memo.begin(), memo.end());
     std::vector<unsigned char> padded_memo(memo_bytes);
     padded_memo.resize(this->params->get_memo_bytes());
+
+	// Prepend the unpadded memo length
+	padded_memo.insert(padded_memo.begin(), (unsigned char) memo.size());
 
     //
     // Type-specific elements
@@ -68,10 +71,10 @@ Coin::Coin(
         MintCoinRecipientData r;
         r.d = address.get_d();
         r.k = k;
-        r.memo = std::string(padded_memo.begin(), padded_memo.end());
+        r.padded_memo = std::string(padded_memo.begin(), padded_memo.end());
         CDataStream r_stream(SER_NETWORK, PROTOCOL_VERSION);
         r_stream << r;
-        this->r_ = spark::AEAD::encrypt(address.get_Q1() * spark::SparkUtils::hash_k(k, LABEL_PROTOCOL), "Mint coin data", r_stream, LABEL_PROTOCOL);
+        this->r_ = spark::AEAD::encrypt(address.get_Q1() * spark::SparkUtils::hash_k(k), "Mint coin data", r_stream);
     } else {
         // Encrypt recipient data
         SpendCoinRecipientData r;
@@ -80,10 +83,10 @@ Coin::Coin(
         r.v = v;
         r.d = address.get_d();
         r.k = k;
-        r.memo = std::string(padded_memo.begin(), padded_memo.end());
+        r.padded_memo = std::string(padded_memo.begin(), padded_memo.end());
         CDataStream r_stream(SER_NETWORK, PROTOCOL_VERSION);
         r_stream << r;
-        this->r_ = spark::AEAD::encrypt(address.get_Q1() * spark::SparkUtils::hash_k(k, LABEL_PROTOCOL), "Spend coin data", r_stream, LABEL_PROTOCOL);
+        this->r_ = spark::AEAD::encrypt(address.get_Q1() * spark::SparkUtils::hash_k(k), "Spend coin data", r_stream);
     }
 }
 
@@ -94,19 +97,19 @@ bool Coin::validate(
     IdentifiedCoinData& data)
 {
     // Check recovery key
-    if (spark::SparkUtils::hash_div(data.d, LABEL_PROTOCOL) * spark::SparkUtils::hash_k(data.k, LABEL_PROTOCOL) != this->K) {
+    if (spark::SparkUtils::hash_div(data.d) * spark::SparkUtils::hash_k(data.k) != this->K) {
         return false;
     }
 
     // Check value commitment
-    if (this->params->get_E() * data.a + this->params->get_F() * data.iota + this->params->get_G() * Scalar(data.v) + this->params->get_H() * spark::SparkUtils::hash_val(data.k, LABEL_PROTOCOL) != this->C) {
+    if (this->params->get_E() * data.a + this->params->get_F() * data.iota + this->params->get_G() * Scalar(data.v) + this->params->get_H() * spark::SparkUtils::hash_val(data.k) != this->C) {
         return false;
     }
 
     // Check serial commitment
     data.i = incoming_view_key.get_diversifier(data.d);
 
-    if (this->params->get_F() * (spark::SparkUtils::hash_ser(data.k, this->serial_context, LABEL_PROTOCOL) + spark::SparkUtils::hash_Q2(incoming_view_key.get_s1(), data.i, LABEL_PROTOCOL)) + incoming_view_key.get_P2() != this->S) {
+    if (this->params->get_F() * (spark::SparkUtils::hash_ser(data.k, this->serial_context) + spark::SparkUtils::hash_Q2(incoming_view_key.get_s1(), data.i)) + incoming_view_key.get_P2() != this->S) {
         return false;
     }
 
@@ -117,7 +120,7 @@ bool Coin::validate(
 RecoveredCoinData Coin::recover(const spark::FullViewKey& full_view_key, const IdentifiedCoinData& data)
 {
     RecoveredCoinData recovered_data;
-    recovered_data.s = spark::SparkUtils::hash_ser(data.k, this->serial_context, LABEL_PROTOCOL) + spark::SparkUtils::hash_Q2(full_view_key.get_s1(), data.i, LABEL_PROTOCOL) + full_view_key.get_s2();
+    recovered_data.s = spark::SparkUtils::hash_ser(data.k, this->serial_context) + spark::SparkUtils::hash_Q2(full_view_key.get_s1(), data.i) + full_view_key.get_s2();
     recovered_data.T = (this->params->get_U() + full_view_key.get_D().inverse()) * recovered_data.s.inverse();
 
     return recovered_data;
@@ -134,35 +137,50 @@ IdentifiedCoinData Coin::identify(const spark::IncomingViewKey& incoming_view_ke
 
         try {
             // Decrypt recipient data
-            CDataStream stream = spark::AEAD::decrypt_and_verify(this->K * incoming_view_key.get_s1(), "Mint coin data", this->r_, LABEL_PROTOCOL);
+            CDataStream stream = spark::AEAD::decrypt_and_verify(this->K * incoming_view_key.get_s1(), "Mint coin data", this->r_);
             stream >> r;
         } catch (...) {
+            std::cout<<"failed1"<<std::endl;
             throw std::runtime_error("Unable to identify coin");
         }
+
+        // Check that the memo length is valid
+		unsigned char memo_length = r.padded_memo[0];
+		if (memo_length > this->params->get_memo_bytes()) {
+			throw std::runtime_error("Unable to identify coin");
+		}
 
         data.d = r.d;
         data.a = this->a;
         data.iota = this->iota;
         data.v = this->v;
         data.k = r.k;
-        data.memo = r.memo;
+        data.memo = std::string(r.padded_memo.begin() + 1, r.padded_memo.begin() + 1 + memo_length); // remove the encoded length and padding
     } else {
         SpendCoinRecipientData r;
 
         try {
             // Decrypt recipient data
-            CDataStream stream = spark::AEAD::decrypt_and_verify(this->K * incoming_view_key.get_s1(), "Spend coin data", this->r_, LABEL_PROTOCOL);
+            CDataStream stream = spark::AEAD::decrypt_and_verify(this->K * incoming_view_key.get_s1(), "Spend coin data", this->r_);
             stream >> r;
         } catch (...) {
+                        std::cout<<"failed2"<<std::endl;
+
             throw std::runtime_error("Unable to identify coin");
         }
+
+        // Check that the memo length is valid
+		unsigned char memo_length = r.padded_memo[0];
+		if (memo_length > this->params->get_memo_bytes()) {
+			throw std::runtime_error("Unable to identify coin");
+		}
 
         data.a = r.a;
         data.iota = r.iota;
         data.d = r.d;
         data.v = r.v;
         data.k = r.k;
-        data.memo = r.memo;
+        data.memo = std::string(r.padded_memo.begin() + 1, r.padded_memo.begin() + 1 + memo_length); // remove the encoded length and padding
     }
 
     // Validate the coin

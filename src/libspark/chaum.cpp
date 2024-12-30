@@ -3,8 +3,8 @@
 
 namespace spark {
 
-Chaum::Chaum(const GroupElement& F_, const GroupElement& G_, const GroupElement& H_, const GroupElement& U_, const std::string& protocol_):
-    F(F_), G(G_), H(H_), U(U_), protocol(protocol_) {
+Chaum::Chaum(const GroupElement& F_, const GroupElement& G_, const GroupElement& H_, const GroupElement& U_):
+    F(F_), G(G_), H(H_), U(U_) {
 }
 
 Scalar Chaum::challenge(
@@ -14,7 +14,7 @@ Scalar Chaum::challenge(
     const GroupElement& A1,
     const std::vector<GroupElement>& A2
 ) {
-    Transcript transcript(LABEL_TRANSCRIPT_CHAUM, protocol);
+    Transcript transcript(LABEL_TRANSCRIPT_CHAUM);
     transcript.add("F", F);
     transcript.add("G", G);
     transcript.add("H", H);

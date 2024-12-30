@@ -78,7 +78,7 @@ void BPPlus::prove(
 
     // Set up transcript, using the unpadded values
     // This is fine since the verifier canonically generates the same transcript
-    spark::Transcript transcript(LABEL_TRANSCRIPT_BPPLUS, LABEL_PROTOCOL);
+    spark::Transcript transcript(LABEL_TRANSCRIPT_BPPLUS);
     transcript.add("G", G);
     transcript.add("H", H);
     transcript.add("E", E);
@@ -444,7 +444,7 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement> >& unpadded_C, c
         }
 
         // Set up transcript
-        spark::Transcript transcript(LABEL_TRANSCRIPT_BPPLUS, LABEL_PROTOCOL);
+        spark::Transcript transcript(LABEL_TRANSCRIPT_BPPLUS);
         transcript.add("G", G);
         transcript.add("H", H);
         transcript.add("E", E);

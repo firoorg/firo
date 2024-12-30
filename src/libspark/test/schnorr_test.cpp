@@ -20,7 +20,7 @@ BOOST_AUTO_TEST_CASE(serialization)
 
     SchnorrProof proof;
 
-    Schnorr schnorr(G, "Protocol");
+    Schnorr schnorr(G);
     schnorr.prove(y, Y, proof);
 
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(completeness)
 
     SchnorrProof proof;
 
-    Schnorr schnorr(G, "Protocol");
+    Schnorr schnorr(G);
     schnorr.prove(y, Y, proof);
 
     BOOST_CHECK(schnorr.verify(Y, proof));
@@ -69,7 +69,7 @@ BOOST_AUTO_TEST_CASE(completeness_aggregate)
 
     SchnorrProof proof;
 
-    Schnorr schnorr(G, "Protocol");
+    Schnorr schnorr(G);
     schnorr.prove(y, Y, proof);
 
     BOOST_CHECK(schnorr.verify(Y, proof));
@@ -86,7 +86,7 @@ BOOST_AUTO_TEST_CASE(bad_proofs)
 
     SchnorrProof proof;
 
-    Schnorr schnorr(G, "Protocol");
+    Schnorr schnorr(G);
     schnorr.prove(y, Y, proof);
 
     // Bad Y

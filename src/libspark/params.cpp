@@ -55,11 +55,11 @@ Params::Params(
 )
 {
     // Global generators
-    this->E = SparkUtils::hash_generator(LABEL_GENERATOR_E, LABEL_PROTOCOL);
-    this->F = SparkUtils::hash_generator(LABEL_GENERATOR_F, LABEL_PROTOCOL);
+    this->E = SparkUtils::hash_generator(LABEL_GENERATOR_E);
+    this->F = SparkUtils::hash_generator(LABEL_GENERATOR_F);
     this->G.set_base_g();
-    this->H = SparkUtils::hash_generator(LABEL_GENERATOR_H, LABEL_PROTOCOL);
-    this->U = SparkUtils::hash_generator(LABEL_GENERATOR_U, LABEL_PROTOCOL);
+    this->H = SparkUtils::hash_generator(LABEL_GENERATOR_H);
+    this->U = SparkUtils::hash_generator(LABEL_GENERATOR_U);
 
     // Coin parameters
     this->memo_bytes = memo_bytes;
@@ -71,10 +71,10 @@ Params::Params(
     this->G_range.resize(64*max_M_range);
     this->H_range.resize(64*max_M_range);
     for (std::size_t i = 0; i < 64*max_M_range; i++) {
-        this->E_range[i] = SparkUtils::hash_generator(LABEL_GENERATOR_E_RANGE + " " + std::to_string(i), LABEL_PROTOCOL);
-        this->F_range[i] = SparkUtils::hash_generator(LABEL_GENERATOR_F_RANGE + " " + std::to_string(i), LABEL_PROTOCOL);
-        this->G_range[i] = SparkUtils::hash_generator(LABEL_GENERATOR_G_RANGE + " " + std::to_string(i), LABEL_PROTOCOL);
-        this->H_range[i] = SparkUtils::hash_generator(LABEL_GENERATOR_H_RANGE + " " + std::to_string(i), LABEL_PROTOCOL);
+        this->E_range[i] = SparkUtils::hash_generator(LABEL_GENERATOR_E_RANGE + " " + std::to_string(i));
+        this->F_range[i] = SparkUtils::hash_generator(LABEL_GENERATOR_F_RANGE + " " + std::to_string(i));
+        this->G_range[i] = SparkUtils::hash_generator(LABEL_GENERATOR_G_RANGE + " " + std::to_string(i));
+        this->H_range[i] = SparkUtils::hash_generator(LABEL_GENERATOR_H_RANGE + " " + std::to_string(i));
     }
 
     // One-of-many parameters
@@ -88,10 +88,10 @@ Params::Params(
     this->G_grootle.resize(n_grootle * m_grootle);
     this->H_grootle.resize(n_grootle * m_grootle);
     for (std::size_t i = 0; i < n_grootle * m_grootle; i++) {
-        this->E_grootle[i] = SparkUtils::hash_generator(LABEL_GENERATOR_E_GROOTLE + " " + std::to_string(i), LABEL_PROTOCOL);
-        this->F_grootle[i] = SparkUtils::hash_generator(LABEL_GENERATOR_F_GROOTLE + " " + std::to_string(i), LABEL_PROTOCOL);
-        this->G_grootle[i] = SparkUtils::hash_generator(LABEL_GENERATOR_G_GROOTLE + " " + std::to_string(i), LABEL_PROTOCOL);
-        this->H_grootle[i] = SparkUtils::hash_generator(LABEL_GENERATOR_H_GROOTLE + " " + std::to_string(i), LABEL_PROTOCOL);
+        this->E_grootle[i] = SparkUtils::hash_generator(LABEL_GENERATOR_E_GROOTLE + " " + std::to_string(i));
+        this->F_grootle[i] = SparkUtils::hash_generator(LABEL_GENERATOR_F_GROOTLE + " " + std::to_string(i));
+        this->G_grootle[i] = SparkUtils::hash_generator(LABEL_GENERATOR_G_GROOTLE + " " + std::to_string(i));
+        this->H_grootle[i] = SparkUtils::hash_generator(LABEL_GENERATOR_H_GROOTLE + " " + std::to_string(i));
     }
 }
 
