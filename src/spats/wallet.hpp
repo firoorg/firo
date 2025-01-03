@@ -29,8 +29,9 @@ public:
       amount_type available{}, pending{};
    };
 
-   static std::string_view burn_address() noexcept;
    static CAmount compute_new_spark_asset_fee( std::string_view asset_symbol ) noexcept;
+
+   static Scalar compute_new_spark_asset_serialization_scalar( const SparkAssetBase &b, std::span< const unsigned char > asset_serialization_bytes );
 
    const std::string &my_public_address_as_admin() const noexcept { return my_public_address_as_admin_; }
 

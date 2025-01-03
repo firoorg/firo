@@ -36,16 +36,18 @@ CAmount Wallet::compute_new_spark_asset_fee( const std::string_view asset_symbol
    }
 }
 
+Scalar Wallet::compute_new_spark_asset_serialization_scalar( const SparkAssetBase &b, std::span< const unsigned char > asset_serialization_bytes )
+{
+   spark::Hash hash( std::format( "spatsnew_{}_from_{}", utils::to_underlying( b.asset_type() ), b.admin_public_address() ) );
+   hash.include( asset_serialization_bytes );
+   return hash.finalize_scalar();
+}
+
 Wallet::Wallet( CSparkWallet &spark_wallet ) noexcept
    : spark_wallet_( spark_wallet )
    , my_public_address_as_admin_( spark_wallet.getDefaultAddress().encode( spark::GetNetworkType() ) )
    , registry_( spark::CSparkState::GetState()->GetSpatsManager().registry() )
 {}
-
-std::string_view Wallet::burn_address() noexcept
-{
-   return "aFiroBurningAddressDoNotSendrPtjYA"sv;
-}
 
 void Wallet::create_new_spark_asset( const SparkAsset &a,
                                      const std::function< bool( const SparkAsset &a, CAmount standard_fee, CAmount asset_creation_fee ) > &user_confirmation_callback )
@@ -53,22 +55,25 @@ void Wallet::create_new_spark_asset( const SparkAsset &a,
    const auto &b = get_base( a );
    assert( b.admin_public_address() == my_public_address_as_admin() );
    CScript script;
-   script << OP_SPARKNEWASSET;
+   script << OP_SPATSCREATE;
    CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
    serialized << a;
+   // TODO instead of how it is being done now, put ownership proof into script default-constructed first, then compute ownership proof from the whole tx, and overwrite
+   //      the ownership proof in the script then
    spark::OwnershipProof proof;
    spark::SpendKey spend_key( spark::Params::get_default() );
    spark::FullViewKey full_view_key( spend_key );
    spark::IncomingViewKey incoming_view_key( full_view_key );
-   spark_wallet_.getDefaultAddress().prove_own( std::hash< std::string >()( serialized.str() ), spend_key, incoming_view_key, proof );
+   const auto scalar_of_proof = compute_new_spark_asset_serialization_scalar( b, serialized.as_bytes_span() );
+   spark_wallet_.getDefaultAddress().prove_own( scalar_of_proof, spend_key, incoming_view_key, proof );
    CDataStream proof_serialized( SER_NETWORK, PROTOCOL_VERSION );
    proof_serialized << proof;
-   script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
    script.insert( script.end(), serialized.begin(), serialized.end() );
-   CAmount standard_fee;
+   script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
    const auto new_asset_fee = compute_new_spark_asset_fee( b.naming().symbol.get() );
-   CScript burn_script = GetScriptForDestination( CBitcoinAddress( std::string( burn_address() ) ).Get() );
-   CRecipient burn_recipient = { std::move( burn_script ), new_asset_fee, false, "" };   // TODO should .address stay empty or set to burn_address too?
+   CScript burn_script = GetScriptForDestination( CBitcoinAddress( std::string( firo_burn_address ) ).Get() );
+   CRecipient burn_recipient = { std::move( burn_script ), new_asset_fee, false, "" };   // TODO should .address stay empty or set to firo_burn_address too?
+   CAmount standard_fee;
    CWalletTx tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient( std::move( script ), {}, false, b.admin_public_address() ), burn_recipient },
                                                              {},
                                                              standard_fee,

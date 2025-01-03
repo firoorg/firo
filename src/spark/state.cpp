@@ -1,6 +1,7 @@
 #include "state.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
+#include "../base58.h"	// for CBitcoinAddress
 #include "../spats/wallet.hpp"
 
 namespace spark {
@@ -178,28 +179,38 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
 
 spats::Action ParseSpatsTransaction(const CTransaction &tx)
 {
-    if (tx.IsSparkNewAsset()) {
+    if (tx.IsSpatsCreate()) {
         if (tx.vout.size() != 2)
             throw CBadTxIn();
         const CScript& creation_script = tx.vout.front().scriptPubKey;
-        if (!creation_script.IsSparkNewAsset())
+        if (!creation_script.IsSpatsCreate())
             throw CBadTxIn();
 
-        std::vector<unsigned char> serialized(creation_script.begin() + 1, creation_script.end());
-        CDataStream stream( std::move(serialized), SER_NETWORK, PROTOCOL_VERSION );
         try{
+            std::vector<unsigned char> serialized(creation_script.begin() + 1, creation_script.end());
+            auto asset_serialization_size = serialized.size();
+            const void* const asset_serialization_start_address = serialized.data();
+            CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
+            assert(stream.size() == asset_serialization_size);
+            auto action = ::UnserializeVariant<spats::SparkAsset>(stream);
+            asset_serialization_size -= stream.size();
             spark::OwnershipProof proof;
             stream >> proof;
-            auto action = ::UnserializeVariant<spats::SparkAsset>(stream);
             const auto& b = get_base(action);
             const auto& admin_public_address = b.admin_public_address();
-            // TODO how to validate ownership proof?
+            Address a;
+            a.decode(admin_public_address);
+            const auto scalar_of_proof = spats::Wallet::compute_new_spark_asset_serialization_scalar(
+                b, {static_cast<const unsigned char*>(asset_serialization_start_address), asset_serialization_size});
+            if (!a.verify_own(scalar_of_proof, proof))
+                throw CBadTxIn();
             const auto& burntx = tx.vout[1];
             // If somehow the creation fee is greater than required, i.e. the originator wants to burn more of his money than required, then it's fine with us I think.
             // But less than required is not allowed, of course.
             if (burntx.nValue < spats::Wallet::compute_new_spark_asset_fee(b.naming().symbol.get()))
                 throw CBadTxIn();
-            // TODO get the destination address from burntx and compare it with spats::Wallet::burn_address()
+            if (GetScriptForDestination(CBitcoinAddress(std::string(firo_burn_address)).Get()) != burntx.scriptPubKey)
+                throw CBadTxIn();
             return spats::CreateAssetAction(std::move(action));
         }
         catch (...) {
@@ -207,6 +218,7 @@ spats::Action ParseSpatsTransaction(const CTransaction &tx)
         }
     }
     // TODO more
+    throw CBadTxIn();
 }
 
 std::vector<GroupElement> GetSparkUsedTags(const CTransaction &tx)

@@ -207,7 +207,7 @@ enum opcodetype
     OP_SPARKMINT = 0xd1,
     OP_SPARKSMINT = 0xd2,
     OP_SPARKSPEND = 0xd3,
-    OP_SPARKNEWASSET = 0xd4,
+    OP_SPATSCREATE = 0xd4,
 
     // basically NOP but identifies that subsequent txout script contains super transparent address
     OP_EXCHANGEADDR = 0xe0
@@ -690,7 +690,7 @@ public:
 
     bool IsSparkSpend() const;
 
-    bool IsSparkNewAsset() const;
+    bool IsSpatsCreate() const;
 
     bool IsZerocoinRemint() const;
 
