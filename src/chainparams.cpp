@@ -1274,7 +1274,7 @@ public:
         consensus.nPPBlockNumber = INT_MAX;
         consensus.nInitialPPDifficulty = 0x2000ffff;
 
-        consensus.nSpatsStartBlock = 1;   // TODO is this correct?
+        consensus.nSpatsStartBlock = 1200;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)

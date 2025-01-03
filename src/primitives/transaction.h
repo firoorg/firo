@@ -458,7 +458,7 @@ public:
     bool IsSparkMint() const;
 
     bool IsSpatsTransaction() const;
-    bool IsSparkNewAsset() const;
+    bool IsSpatsCreate() const;
 
     bool HasNoRegularInputs() const;
     bool HasPrivateInputs() const;

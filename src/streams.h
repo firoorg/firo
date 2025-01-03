@@ -15,6 +15,7 @@
 #include <limits>
 #include <map>
 #include <set>
+#include <span>
 #include <stdint.h>
 #include <stdio.h>
 #include <string>
@@ -245,6 +246,12 @@ public:
     void insert(iterator it, size_type n, const char& x) { vch.insert(it, n, x); }
     value_type* data()                               { return vch.data() + nReadPos; }
     const value_type* data() const                   { return vch.data() + nReadPos; }
+
+    std::span<const unsigned char> as_bytes_span() const
+    {
+        const void* const p = data();
+        return {static_cast<const unsigned char*>(p), size()};
+    }
 
     void insert(iterator it, std::vector<char>::const_iterator first, std::vector<char>::const_iterator last)
     {

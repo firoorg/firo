@@ -5,7 +5,7 @@ namespace spark {
 using namespace secp_primitives;
 
 // Set up a labeled hash function
-Hash::Hash(const std::string label) {
+Hash::Hash(const std::string& label) {
 	this->ctx = EVP_MD_CTX_new();
 	EVP_DigestInit_ex(this->ctx, EVP_sha512(), NULL);
 
@@ -16,8 +16,7 @@ Hash::Hash(const std::string label) {
 
 	// Include the label with size
 	include_size(label.size());
-	std::vector<unsigned char> label_bytes(label.begin(), label.end());
-	EVP_DigestUpdate(this->ctx, label_bytes.data(), label_bytes.size());
+	EVP_DigestUpdate(this->ctx, label.data(), label.size());
 }
 
 // Clean up
@@ -26,9 +25,15 @@ Hash::~Hash() {
 }
 
 // Include serialized data in the hash function
-void Hash::include(CDataStream& data) {
+void Hash::include(const CDataStream& data) {
+        const void* const p = data.data();
+        include(std::span<const unsigned char>(static_cast<const unsigned char*>(p), data.size()));
+}
+
+void Hash::include(const std::span<const unsigned char> data)
+{
 	include_size(data.size());
-	EVP_DigestUpdate(this->ctx, reinterpret_cast<unsigned char *>(data.data()), data.size());
+	EVP_DigestUpdate(this->ctx, data.data(), data.size());
 }
 
 // Finalize the hash function to a byte array

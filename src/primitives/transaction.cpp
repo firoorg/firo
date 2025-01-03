@@ -215,17 +215,17 @@ bool CTransaction::IsSparkTransaction() const
     return IsSparkMint() || IsSparkSpend() || IsSpatsTransaction();
 }
 
-bool CTransaction::IsSparkNewAsset() const
+bool CTransaction::IsSpatsCreate() const
 {
     for (const CTxOut &txout: vout)
-        if (txout.scriptPubKey.IsSparkNewAsset())
+        if (txout.scriptPubKey.IsSpatsCreate())
             return true;
     return false;
 }
 
 bool CTransaction::IsSpatsTransaction() const
 {
-    return IsSparkNewAsset();    // TODO more
+    return IsSpatsCreate();    // TODO more
 }
 
 bool CTransaction::IsSparkSpend() const
