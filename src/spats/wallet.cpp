@@ -59,12 +59,8 @@ CWalletTx Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmou
    serialized << a;
    // TODO instead of how it is being done now, put ownership proof into script default-constructed first, then compute ownership proof from the whole tx, and overwrite
    //      the ownership proof in the script then
-   spark::OwnershipProof proof;
-   spark::SpendKey spend_key( spark::Params::get_default() );
-   spark::FullViewKey full_view_key( spend_key );
-   spark::IncomingViewKey incoming_view_key( full_view_key );
    const auto scalar_of_proof = compute_new_spark_asset_serialization_scalar( b, serialized.as_bytes_span() );
-   spark_wallet_.getDefaultAddress().prove_own( scalar_of_proof, spend_key, incoming_view_key, proof );
+   const spark::OwnershipProof proof = spark_wallet_.makeDefaultAddressOwnershipProof( scalar_of_proof );
    CDataStream proof_serialized( SER_NETWORK, PROTOCOL_VERSION );
    proof_serialized << proof;
    script.insert( script.end(), serialized.begin(), serialized.end() );

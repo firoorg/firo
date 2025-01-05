@@ -208,6 +208,17 @@ spark::Address CSparkWallet::getChangeAddress() {
     return spark::Address(viewKey, SPARK_CHANGE_D);
 }
 
+spark::OwnershipProof CSparkWallet::makeDefaultAddressOwnershipProof(const secp_primitives::Scalar& m)
+{
+   spark::SpendKey spend_key(spark::Params::get_default());
+   spark::FullViewKey full_view_key(spend_key);
+   spark::IncomingViewKey incoming_view_key(full_view_key);
+   spark::OwnershipProof proof;
+   getDefaultAddress().prove_own(m, spend_key, incoming_view_key, proof);
+   // TODO Performance: add move operations to GroupElement and Scalar classes
+   return proof;
+}
+
 spark::SpendKey CSparkWallet::generateSpendKey(const spark::Params* params) {
     if (pwalletMain->IsLocked()) {
         LogPrintf("Spark spend key generation FAILED, wallet is locked\n");

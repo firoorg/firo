@@ -21,7 +21,7 @@ extern CChain chainActive;
 const uint32_t BIP44_SPARK_INDEX = 0x6;
 const uint32_t SPARK_CHANGE_D = 0x270F;
 
-class CSparkWallet  {
+class CSparkWallet {
 public:
     explicit CSparkWallet(const std::string& strWalletFile);
     ~CSparkWallet();
@@ -33,6 +33,9 @@ public:
     spark::Address generateNewAddress();
     spark::Address getDefaultAddress();
     spark::Address getChangeAddress();
+
+    spark::OwnershipProof makeDefaultAddressOwnershipProof(const secp_primitives::Scalar& m);
+
     // assign diversifier to the value from db
     void resetDiversifierFromDB(CWalletDB& walletdb);
     // assign diversifier in to to current value
@@ -70,13 +73,13 @@ public:
 
     // function to be used for zap wallet
     void clearAllMints(CWalletDB& walletdb);
-    // erase mint meta data from memory and from db
+    // erase mint metadata from memory and from db
     void eraseMint(const uint256& hash, CWalletDB& walletdb);
-    // add mint meta data to memory and to db
+    // add mint metadata to memory and to db
     void addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb);
     void updateMint(const CSparkMintMeta& mint, CWalletDB& walletdb);
 
-    void setCoinUnused(const  GroupElement& lTag);
+    void setCoinUnused(const GroupElement& lTag);
 
     void updateMintInMemory(const CSparkMintMeta& mint);
     // get mint meta from linking tag hash
