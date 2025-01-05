@@ -311,7 +311,7 @@ bool ConnectBlockSpark(
         }
 
         try {
-            sparkState.GetSpatsManager().registry().validate(pblock->sparkTxInfo->spats_action_sequence,pindexNew->nHeight);
+            sparkState.GetSpatsManager().registry().validate(pblock->sparkTxInfo->spats_action_sequence, pindexNew->nHeight);
         } catch (...) {
             return false;
         }

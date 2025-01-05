@@ -23,20 +23,20 @@ const uint32_t SPARK_CHANGE_D = 0x270F;
 
 class CSparkWallet  {
 public:
-    explicit CSparkWallet(const std::string& strWalletFile, CWallet& wallet);
+    explicit CSparkWallet(const std::string& strWalletFile);
     ~CSparkWallet();
 
-    CWallet& getMainWallet() noexcept { return main_wallet_; }
+    spats::Wallet& getSpatsWallet() noexcept { return spats_wallet_; }
 
     // increment diversifier and generate address for that
     spark::Address generateNextAddress();
     spark::Address generateNewAddress();
     spark::Address getDefaultAddress();
     spark::Address getChangeAddress();
-    // assign difersifier to the value from db
+    // assign diversifier to the value from db
     void resetDiversifierFromDB(CWalletDB& walletdb);
     // assign diversifier in to to current value
-    void updatetDiversifierInDB(CWalletDB& walletdb);
+    void updateDiversifierInDB(CWalletDB& walletdb);
 
     // functions for key set generation
     spark::SpendKey generateSpendKey(const spark::Params* params);
@@ -168,7 +168,6 @@ private:
 
     void* threadPool;
 
-    CWallet& main_wallet_;
     spats::Wallet spats_wallet_;
 };
 

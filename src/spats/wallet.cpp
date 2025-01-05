@@ -49,8 +49,7 @@ Wallet::Wallet( CSparkWallet &spark_wallet ) noexcept
    , registry_( spark::CSparkState::GetState()->GetSpatsManager().registry() )
 {}
 
-void Wallet::create_new_spark_asset( const SparkAsset &a,
-                                     const std::function< bool( const SparkAsset &a, CAmount standard_fee, CAmount asset_creation_fee ) > &user_confirmation_callback )
+CWalletTx Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standard_fee, CAmount &new_asset_fee ) const
 {
    const auto &b = get_base( a );
    assert( b.admin_public_address() == my_public_address_as_admin() );
@@ -70,25 +69,13 @@ void Wallet::create_new_spark_asset( const SparkAsset &a,
    proof_serialized << proof;
    script.insert( script.end(), serialized.begin(), serialized.end() );
    script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
-   const auto new_asset_fee = compute_new_spark_asset_fee( b.naming().symbol.get() );
+   new_asset_fee = compute_new_spark_asset_fee( b.naming().symbol.get() );
    CScript burn_script = GetScriptForDestination( CBitcoinAddress( std::string( firo_burn_address ) ).Get() );
    CRecipient burn_recipient = { std::move( burn_script ), new_asset_fee, false, "" };   // TODO should .address stay empty or set to firo_burn_address too?
-   CAmount standard_fee;
-   CWalletTx tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient( std::move( script ), {}, false, b.admin_public_address() ), burn_recipient },
-                                                             {},
-                                                             standard_fee,
-                                                             nullptr );   // may throw
-
-   if ( user_confirmation_callback && !user_confirmation_callback( a, standard_fee, new_asset_fee ) ) {
-      // TODO log cancellation by user
-      return;
-   }
-
-   auto &main_wallet = spark_wallet_.getMainWallet();
-   CReserveKey reserve_key( &main_wallet );   // TODO what is this for?
-   CValidationState state;
-   if ( !main_wallet.CommitTransaction( tx, reserve_key, g_connman.get(), state ) )
-      throw std::runtime_error( "Failed to commit new spark asset transaction" );
+   return spark_wallet_.CreateSparkSpendTransaction( { CRecipient( std::move( script ), {}, false, b.admin_public_address() ), burn_recipient },
+                                                     {},
+                                                     standard_fee,
+                                                     nullptr );   // may throw
 }
 
 void Wallet::notify_registry_changed()

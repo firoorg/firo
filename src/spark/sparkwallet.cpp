@@ -13,9 +13,8 @@
 
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
 
-CSparkWallet::CSparkWallet(const std::string& strWalletFile, CWallet& wallet)
-   : main_wallet_(wallet)
-   , spats_wallet_(*this)
+CSparkWallet::CSparkWallet(const std::string& strWalletFile)
+   : spats_wallet_(*this)
 {
 
     CWalletDB walletdb(strWalletFile);
@@ -90,7 +89,7 @@ void CSparkWallet::resetDiversifierFromDB(CWalletDB& walletdb) {
     walletdb.readDiversifier(lastDiversifier);
 }
 
-void CSparkWallet::updatetDiversifierInDB(CWalletDB& walletdb) {
+void CSparkWallet::updateDiversifierInDB(CWalletDB& walletdb) {
     walletdb.writeDiversifier(lastDiversifier);
 }
 
@@ -194,7 +193,7 @@ spark::Address CSparkWallet::generateNewAddress() {
 
     addresses[lastDiversifier] = address;
     CWalletDB walletdb(strWalletFile);
-    updatetDiversifierInDB(walletdb);
+    updateDiversifierInDB(walletdb);
     return  address;
 }
 
