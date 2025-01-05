@@ -6,13 +6,13 @@
 #define FIRO_SPATS_WALLET_HPP_INCLUDED
 
 #include <unordered_map>
-#include <functional>
 
 #include "../utils/scaled_amount.hpp"
 
 #include "identification.hpp"
 
 class CSparkWallet;
+class CWalletTx;
 
 namespace spats {
 
@@ -35,8 +35,7 @@ public:
 
    const std::string &my_public_address_as_admin() const noexcept { return my_public_address_as_admin_; }
 
-   void create_new_spark_asset( const SparkAsset &a,
-                                const std::function< bool( const SparkAsset &a, CAmount standard_fee, CAmount asset_creation_fee ) > &user_confirmation_callback = {} );
+   CWalletTx create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standard_fee, CAmount &new_asset_fee ) const;
 
    void notify_registry_changed();
 

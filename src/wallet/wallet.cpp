@@ -5904,6 +5904,39 @@ CWalletTx CWallet::SpendAndStoreSpark(
     return result;
 }
 
+std::optional<CWalletTx> CWallet::CreateNewSparkAsset(const spats::SparkAsset& a,
+    const std::function<bool(const spats::SparkAsset& a, CAmount standard_fee, CAmount asset_creation_fee)>& user_confirmation_callback)
+{
+    // create transaction
+    CAmount standard_fee, new_asset_fee;
+    auto wtx = sparkWallet->getSpatsWallet().create_new_spark_asset_transaction(a, standard_fee, new_asset_fee);
+
+    // give the user a chance to confirm/cancel
+    if (user_confirmation_callback && !user_confirmation_callback(a, standard_fee, new_asset_fee)) {
+       // TODO log cancellation by user
+       return {};
+    }
+
+    // commit
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(this);
+        if (!CommitTransaction(wtx, reserveKey, g_connman.get(), state))
+            throw std::runtime_error("Failed to commit new spark asset transaction");
+    } catch (const std::exception &) {
+        auto error = _(
+                "Error: The NewSparkAsset transaction was rejected! This might happen e.g. if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
+
+        std::throw_with_nested(std::runtime_error(error));
+    }
+
+    return wtx;
+}
+
 bool CWallet::LelantusToSpark(std::string& strFailReason) {
     std::list<CLelantusEntry> coins = GetAvailableLelantusCoins();
     std::list<CSigmaEntry> sigmaCoins = GetAvailableCoins();
@@ -7279,7 +7312,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         walletInstance->zwallet = std::make_unique<CHDMintWallet>(pwalletMain->strWalletFile);
 
         // if it is first run, we need to generate the full key set for spark, if not we are loading spark wallet from db
-        walletInstance->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile, *walletInstance);
+        walletInstance->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
 
         spark::Address address = walletInstance->sparkWallet->getDefaultAddress();
         unsigned char network = spark::GetNetworkType();

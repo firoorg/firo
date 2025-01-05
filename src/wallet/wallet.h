@@ -6,6 +6,7 @@
 #ifndef BITCOIN_WALLET_WALLET_H
 #define BITCOIN_WALLET_WALLET_H
 
+#include <functional>
 #include "amount.h"
 #include "../sigma/coin.h"
 #include "../liblelantus/coin.h"
@@ -352,7 +353,7 @@ public:
 
     CWalletTx()
     {
-        Init(NULL);
+        Init(nullptr);
     }
 
     CWalletTx(const CWallet* pwalletIn, CTransactionRef arg) : CMerkleTx(std::move(arg))
@@ -399,7 +400,7 @@ public:
         constexpr uint32_t FLAG_WITH_CHANGES = 0x00000001;
 
         if (ser_action.ForRead())
-            Init(NULL);
+            Init(nullptr);
 
         char fSpent = false;
         uint32_t flags = 0;
@@ -664,7 +665,7 @@ private:
      * all coins from coinControl are selected; Never select unconfirmed coins
      * if they are not ours
      */
-    bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL, bool fForUseInInstantSend = true) const;
+    bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = nullptr, bool fForUseInInstantSend = true) const;
 
     CWalletDB *pwalletdbEncryption;
 
@@ -780,7 +781,7 @@ public:
     ~CWallet()
     {
         delete pwalletdbEncryption;
-        pwalletdbEncryption = NULL;
+        pwalletdbEncryption = nullptr;
     }
 
     void SetNull()
@@ -789,7 +790,7 @@ public:
         nWalletMaxVersion = FEATURE_BASE;
         fFileBacked = false;
         nMasterKeyMaxID = 0;
-        pwalletdbEncryption = NULL;
+        pwalletdbEncryption = nullptr;
         nOrderPosNext = 0;
         nNextResend = 0;
         nLastResend = 0;
@@ -799,7 +800,7 @@ public:
         fAnonymizableTallyCachedNonDenom = false;
         vecAnonymizableTallyCached.clear();
         vecAnonymizableTallyCachedNonDenom.clear();
-        zwallet = NULL;
+        zwallet = nullptr;
         bip47wallet.reset();
     }
 
@@ -830,7 +831,7 @@ public:
     /**
      * populate vCoins with vector of available COutputs.
      */
-    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, bool fForUseInInstantSend = false) const;
+    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = nullptr, bool fIncludeZeroValue=false, bool fForUseInInstantSend = false) const;
 
     void AvailableCoinsForLMint(std::vector<std::pair<CAmount, std::vector<COutput>>>& valueAndUTXO, const CCoinControl *coinControl) const;
 
@@ -919,7 +920,7 @@ public:
      * Increment the next transaction order id
      * @return next transaction order id
      */
-    int64_t IncOrderPosNext(CWalletDB *pwalletdb = NULL);
+    int64_t IncOrderPosNext(CWalletDB *pwalletdb = nullptr);
     DBErrors ReorderTransactions();
     bool AccountMove(std::string strFrom, std::string strTo, CAmount nAmount, std::string strComment = "");
     bool GetAccountPubkey(CPubKey &pubKey, std::string strAccount, bool bForceNew = false);
@@ -969,12 +970,12 @@ public:
 
     // Returns a list of unspent and verified coins, I.E. coins which are ready
     // to be spent.
-    std::list<CSigmaEntry> GetAvailableCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false, bool forEstimation = false) const;
+    std::list<CSigmaEntry> GetAvailableCoins(const CCoinControl *coinControl = nullptr, bool includeUnsafe = false, bool forEstimation = false) const;
 
-    std::list<CLelantusEntry> GetAvailableLelantusCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false, bool forEstimation = false) const;
+    std::list<CLelantusEntry> GetAvailableLelantusCoins(const CCoinControl *coinControl = nullptr, bool includeUnsafe = false, bool forEstimation = false) const;
 
     // Returns the list of pairs of coins and meta data for that coin,
-    std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
+    std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = nullptr) const;
 
     std::vector<unsigned char> EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pubcoin) const;
 
@@ -994,7 +995,7 @@ public:
         std::list<CSigmaEntry>& coins,
         const size_t coinsLimit = SIZE_MAX,
         const CAmount amountLimit = MAX_MONEY,
-        const CCoinControl *coinControl = NULL) const;
+        const CCoinControl *coinControl = nullptr) const;
 
     bool GetCoinsToJoinSplit(
             CAmount required,
@@ -1003,7 +1004,7 @@ public:
             std::list<CLelantusEntry> coins,
             const size_t coinsToSpendLimit = SIZE_MAX,
             const CAmount amountToSpendLimit = MAX_MONEY,
-            const CCoinControl *coinControl = NULL) const;
+            const CCoinControl *coinControl = nullptr) const;
 
     std::vector<unsigned char> ProvePrivateTxOwn(const uint256& txid, const std::string& message) const;
 
@@ -1019,7 +1020,7 @@ public:
      * @note passing nChangePosInOut as -1 will result in setting a random position
      */
     bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
-                           std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, int nExtraPayloadSize = 0, bool fUseInstantSend=false);
+                           std::string& strFailReason, const CCoinControl *coinControl = nullptr, bool sign = true, int nExtraPayloadSize = 0, bool fUseInstantSend=false);
 
     /**
      * Add Mint and Spend functions
@@ -1028,9 +1029,9 @@ public:
     void ListAvailableLelantusMintCoins(std::vector<COutput> &vCoins, bool fOnlyConfirmed) const;
 
     bool CreateMintTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
-                           std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true);
+                           std::string& strFailReason, const CCoinControl *coinControl = nullptr, bool sign = true);
     bool CreateMintTransaction(CScript pubCoin, int64_t nValue,
-                                       CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, const CCoinControl *coinControl=NULL);
+                                       CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, const CCoinControl *coinControl = nullptr);
     bool CreateLelantusMintTransactions(CAmount valueToMint, std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
                                         CAmount& nAllFeeRet, std::vector<CHDMint>& dMints,
                                         std::list<CReserveKey>& reservekeys, int& nChangePosInOut,
@@ -1056,7 +1057,7 @@ public:
         std::vector<CSigmaEntry>& selected,
         std::vector<CHDMint>& changes,
         bool& fChangeAddedToFee,
-        const CCoinControl *coinControl = NULL);
+        const CCoinControl *coinControl = nullptr);
 
     CWalletTx CreateLelantusJoinSplitTransaction(
         const std::vector<CRecipient>& recipients,
@@ -1065,7 +1066,7 @@ public:
         std::vector<CLelantusEntry>& spendCoins,
         std::vector<CSigmaEntry>& sigmaSpendCoins,
         std::vector<CHDMint>& mintCoins,
-        const CCoinControl *coinControl = NULL,
+        const CCoinControl *coinControl = nullptr,
         std::function<void(CTxOut & , LelantusJoinSplitBuilder const &)> modifier = nullptr);
 
     bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>& selectedCoins, std::vector<CHDMint>& changes);
@@ -1079,7 +1080,7 @@ public:
         std::vector<CHDMint> vDMints,
         CWalletTx &wtxNew,
         bool fAskFee=false,
-        const CCoinControl *coinControl = NULL);
+        const CCoinControl *coinControl = nullptr);
 
     std::string MintAndStoreLelantus(
             const CAmount& value,
@@ -1087,7 +1088,7 @@ public:
             std::vector<CHDMint>& mints,
             bool autoMintAll = false,
             bool fAskFee = false,
-            const CCoinControl *coinControl = NULL);
+            const CCoinControl *coinControl = nullptr);
 
     std::string MintAndStoreSpark(
             const std::vector<spark::MintedCoinData>& outputs,
@@ -1095,26 +1096,30 @@ public:
             bool subtractFeeFromAmount,
             bool autoMintAll = false,
             bool fAskFee = false,
-            const CCoinControl *coinControl = NULL);
+            const CCoinControl *coinControl = nullptr);
 
     CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
-            const CCoinControl *coinControl = NULL);
+            const CCoinControl *coinControl = nullptr);
 
     CWalletTx SpendAndStoreSpark(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
-            const CCoinControl *coinControl = NULL);
+            const CCoinControl *coinControl = nullptr);
+
+    // nullopt return means the tx was aborted due to user_confirmation_callback() returning false
+    std::optional<CWalletTx> CreateNewSparkAsset(const spats::SparkAsset& a,
+        const std::function<bool(const spats::SparkAsset& a, CAmount standard_fee, CAmount asset_creation_fee)>& user_confirmation_callback = {});
 
     bool LelantusToSpark(std::string& strFailReason);
 
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result);
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 
-    std::vector<CLelantusEntry> JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result,  const CCoinControl *coinControl = NULL);
+    std::vector<CLelantusEntry> JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result,  const CCoinControl *coinControl = nullptr);
 
     std::pair<CAmount, unsigned int> EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, std::list<CSigmaEntry> sigmaCoins, std::list<CLelantusEntry> coins, const CCoinControl *coinControl);
 
@@ -1237,7 +1242,7 @@ public:
     bool SetDefaultKey(const CPubKey &vchPubKey);
 
     //! signify that a particular wallet feature is now used. this may change nWalletVersion and nWalletMaxVersion if those are lower
-    bool SetMinVersion(enum WalletFeature, CWalletDB* pwalletdbIn = NULL, bool fExplicit = false);
+    bool SetMinVersion(enum WalletFeature, CWalletDB* pwalletdbIn = nullptr, bool fExplicit = false);
 
     //! change which version we're allowed to upgrade to (note that this does not immediately imply upgrading to that format)
     bool SetMaxVersion(int nVersion);
