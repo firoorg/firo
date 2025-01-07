@@ -13,6 +13,7 @@
 #include "../serialize.h"
 #include "../utils/constrained_value.hpp"
 #include "../utils/scaled_amount.hpp"
+#include "../utils/overloaded.hpp"
 
 #include "identification.hpp"
 
@@ -186,6 +187,13 @@ using SparkAsset = std::variant< FungibleSparkAsset, NonfungibleSparkAsset >;
 inline const SparkAssetBase &get_base( const SparkAsset &asset ) noexcept
 {
    return std::visit( []( const auto &a ) -> const SparkAssetBase & { return a; }, asset );
+}
+
+inline std::optional< identifier_t > get_identifier( const SparkAsset &asset ) noexcept
+{
+   return std::visit( utils::overloaded{ []( const FungibleSparkAsset & ) -> std::optional< identifier_t > { return std::nullopt; },
+                                         []( const NonfungibleSparkAsset &a ) -> std::optional< identifier_t > { return a.identifier(); } },
+                      asset );
 }
 
 }   // namespace spats

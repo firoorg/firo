@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <optional>
 #include <vector>
+#include <list>
 #include <shared_mutex>
 
 #include "../utils/lock_proof.hpp"
@@ -41,10 +42,18 @@ public:
    void clear();
 
 private:
+   struct UnregisterAsset {
+      int block_height_unregistered_at;
+      SparkAsset asset;
+   };
+
    mutable std::shared_mutex mutex_;
    // TODO Performance: a more efficient storage type for both, using contiguous memory to the extent possible
+   // All below data members are protected by mutex_
    std::unordered_map< asset_type_t, FungibleSparkAsset > fungible_assets_;
    std::unordered_map< asset_type_t, std::unordered_map< identifier_t, NonfungibleSparkAsset > > nft_lines_;
+   std::list< UnregisterAsset > unregistered_assets_;
+   int last_block_height_processed_ = -1;
 
    using read_lock_proof = utils::read_lock_proof< &Registry::mutex_ >;
    using write_lock_proof = utils::write_lock_proof< &Registry::mutex_ >;
@@ -53,7 +62,7 @@ private:
    Registry( const Registry & );
    Registry( Registry && );
    Registry &operator=( const Registry & );
-   Registry &operator=( Registry &&rhs ) ;
+   Registry &operator=( Registry &&rhs );
 
    // validating addition (creation)
    void internal_validate( const FungibleSparkAsset &a, read_lock_proof ) const;
@@ -74,17 +83,22 @@ private:
    }
 
    // addition (creation)
-   bool process( const SparkAsset &a, write_lock_proof wlp );
+   bool process( const SparkAsset &a, int block_height, write_lock_proof wlp );
 
    void validate( const UnregisterAssetParameters &p, read_lock_proof ) const;
 
-   bool process( const UnregisterAssetParameters &p, write_lock_proof );
+   bool process( const UnregisterAssetParameters &p, int block_height, write_lock_proof );
+
+   bool unprocess( const SparkAsset &a, int block_height, write_lock_proof wlp );
+   bool unprocess( const UnregisterAssetParameters &p, int block_height, write_lock_proof );
 
    void internal_add( const FungibleSparkAsset &a, write_lock_proof );
    void internal_add( const NonfungibleSparkAsset &a, write_lock_proof );
 
    void add_the_base_asset( write_lock_proof );
    bool has_nonfungible_asset( asset_type_t asset_type, identifier_t identifier, read_lock_proof ) const noexcept;
+
+   void cleanup_old_blocks_bookkeeping( int block_height, write_lock_proof );
 };
 
 }   // namespace spats

@@ -46,14 +46,21 @@ void Registry::validate( const ActionSequence &actions, int block_height ) const
 bool Registry::process( const Action &a, int block_height )
 {
    std::unique_lock lock( mutex_ );
-   return std::visit( [ & ]( const auto &x ) { return process( x.get(), { *this, lock } ); }, a );
-   // TODO clean up processing-undo-artifacts older than block_height-2000
+   write_lock_proof wlp{ *this, lock };
+   const bool ret = std::visit( [ & ]( const auto &x ) { return process( x.get(), block_height, wlp ); }, a );
+
+   if ( last_block_height_processed_ != block_height ) {
+      last_block_height_processed_ = block_height;
+      cleanup_old_blocks_bookkeeping( block_height, wlp );
+   }
+
+   return ret;
 }
 
 bool Registry::unprocess( const Action &a, int block_height )
 {
-   // TODO
-   return false;
+   std::unique_lock lock( mutex_ );
+   return std::visit( [ & ]( const auto &x ) { return unprocess( x.get(), block_height, { *this, lock } ); }, a );
 }
 
 void Registry::add_the_base_asset( write_lock_proof wlp )
@@ -74,7 +81,7 @@ bool Registry::has_nonfungible_asset( asset_type_t asset_type, identifier_t iden
    return it != nft_lines_.end() && it->second.contains( identifier );
 }
 
-bool Registry::process( const SparkAsset &a, write_lock_proof wlp )
+bool Registry::process( const SparkAsset &a, [[maybe_unused]] int block_height, write_lock_proof wlp )
 {
    std::visit( [ this, wlp ]( auto &&x ) { add( x, wlp ); }, a );
    return true;
@@ -106,25 +113,60 @@ void Registry::validate( const UnregisterAssetParameters &p, read_lock_proof ) c
       throw std::domain_error( "No permission to unregister the given asset" );
 }
 
-bool Registry::process( const UnregisterAssetParameters &p, write_lock_proof wlp )
+bool Registry::process( const UnregisterAssetParameters &p, int block_height, write_lock_proof wlp )
 {
    validate( p, wlp );
 
-   if ( is_fungible_asset_type( p.asset_type ) )
-      return fungible_assets_.erase( p.asset_type );
+   if ( is_fungible_asset_type( p.asset_type ) ) {
+      const auto it = fungible_assets_.find( p.asset_type );
+      if ( it != fungible_assets_.end() ) {
+         if ( block_height >= 0 )
+            unregistered_assets_.push_back( { block_height, std::move( it->second ) } );
+         fungible_assets_.erase( it );
+         return true;
+      }
+      return false;
+   }
+
    const auto it = nft_lines_.find( p.asset_type );
    if ( it == nft_lines_.end() )
       return false;
    if ( p.identifier ) {
-      bool ret = it->second.erase( *p.identifier );
-      if ( it->second.empty() ) {
+      const auto nft_it = it->second.find( *p.identifier );
+      if ( nft_it == it->second.end() )
+         return false;
+      if ( block_height >= 0 )
+         unregistered_assets_.push_back( { block_height, std::move( nft_it->second ) } );
+      it->second.erase( nft_it );
+      if ( it->second.empty() )
          nft_lines_.erase( it );
-         ret = true;
-      }
-      return ret;
+      return true;
    }
+
+   if ( block_height >= 0 )
+      for ( auto &[ t, a ] : it->second )
+         unregistered_assets_.push_back( { block_height, std::move( a ) } );
    nft_lines_.erase( it );
    return true;
+}
+
+bool Registry::unprocess( const SparkAsset &a, [[maybe_unused]] int block_height, write_lock_proof wlp )
+{
+   const auto &b = get_base( a );
+   return process( UnregisterAssetParameters{ b.asset_type(), get_identifier( a ), b.admin_public_address() }, -1, wlp );
+}
+
+bool Registry::unprocess( const UnregisterAssetParameters &p, int block_height, write_lock_proof wlp )
+{
+   const auto it = std::ranges::find_if( unregistered_assets_, [ & ]( const auto &x ) {
+      return x.block_height_unregistered_at == block_height && get_base( x.asset ).asset_type() == p.asset_type && get_identifier( x.asset ) == p.identifier;
+   } );
+   if ( it != unregistered_assets_.end() ) {
+      process( it->asset, -1, wlp );
+      unregistered_assets_.erase( it );
+      return true;
+   }
+   return false;
 }
 
 std::optional< asset_type_t > Registry::get_lowest_available_asset_type_for_new_fungible_asset() const noexcept
@@ -287,6 +329,15 @@ void Registry::internal_add( const NonfungibleSparkAsset &a, write_lock_proof wl
    assert( !has_nonfungible_asset( asset_type, identifier, wlp ) );
    nft_lines_[ asset_type ].emplace( identifier, std::move( a ) );
    assert( has_nonfungible_asset( asset_type, identifier, wlp ) );
+}
+
+void Registry::cleanup_old_blocks_bookkeeping( int block_height, write_lock_proof )
+{
+   const int cleanup_threshold = 2000;
+   if ( block_height >= cleanup_threshold ) {
+      const int remove_earlier_than_block_number = block_height - cleanup_threshold;
+      std::erase_if( unregistered_assets_, [ = ]( const auto &u ) { return u.block_height_unregistered_at < remove_earlier_than_block_number; } );
+   }
 }
 
 }   // namespace spats
