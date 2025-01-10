@@ -3772,6 +3772,93 @@ struct ConnectTrace {
  * pblock) - if that is not intended, care must be taken to remove the last entry in
  * blocksConnected in case of failure.
  */
+struct CCoinsStat
+{
+    int nHeight;
+    uint256 hashBlock;
+    uint64_t nTransactions;
+    uint64_t nTransactionOutputs;
+    uint256 hashSerialized;
+    uint64_t nDiskSize;
+    CAmount nTotalAmount;
+
+    CCoinsStat() : nHeight(0), nTransactions(0), nTransactionOutputs(0), nTotalAmount(0) {}
+};
+static void ApplyStats(CCoinsStat &stats, CHashWriter& ss, const uint256& hash, const std::map<uint32_t, Coin>& outputs)
+{
+    assert(!outputs.empty());
+    ss << hash;
+    ss << VARINT(outputs.begin()->second.nHeight * 2 + outputs.begin()->second.fCoinBase);
+    stats.nTransactions++;
+    for (const auto output : outputs) {
+        ss << VARINT(output.first + 1);
+        ss << *(const CScriptBase*)(&output.second.out.scriptPubKey);
+        ss << VARINT(output.second.out.nValue);
+        stats.nTransactionOutputs++;
+        stats.nTotalAmount += output.second.out.nValue;
+    }
+    ss << VARINT(0);
+}
+
+bool GetUTXOStat(CCoinsView *view, CCoinsStat &stats)
+{
+    std::unique_ptr<CCoinsViewCursor> pcursor(view->Cursor());
+
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    stats.hashBlock = pcursor->GetBestBlock();
+    {
+        LOCK(cs_main);
+        stats.nHeight = mapBlockIndex.find(stats.hashBlock)->second->nHeight;
+    }
+    ss << stats.hashBlock;
+    uint256 prevkey;
+    std::map<uint32_t, Coin> outputs;
+    while (pcursor->Valid()) {
+        boost::this_thread::interruption_point();
+        COutPoint key;
+        Coin coin;
+        if (pcursor->GetKey(key) && pcursor->GetValue(coin)) {
+            if (!outputs.empty() && key.hash != prevkey) {
+                ApplyStats(stats, ss, prevkey, outputs);
+                outputs.clear();
+            }
+            prevkey = key.hash;
+            outputs[key.n] = std::move(coin);
+        } else {
+            return error("%s: unable to read value", __func__);
+        }
+        pcursor->Next();
+    }
+    if (!outputs.empty()) {
+        ApplyStats(stats, ss, prevkey, outputs);
+    }
+
+    // We need to remove amount of private spends from nTotalAmount;
+    // There are 3 type of private spend transactions
+    std::vector<std::pair<uint160, AddressType> > addresses;
+    addresses.push_back(std::make_pair(uint160(), AddressType::lelantusJSplit));
+    addresses.push_back(std::make_pair(uint160(), AddressType::sigmaSpend));
+    addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinSpend));
+    addresses.push_back(std::make_pair(uint160(), AddressType::sparkSpend));
+
+    // Iterate over all types of transactions
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    for (std::vector<std::pair<uint160, AddressType> >::iterator itr = addresses.begin(); itr != addresses.end(); itr++) {
+        // Get address index for each transaction type
+        if (GetAddressIndex((*itr).first, (*itr).second, addressIndex)) {
+            for (std::vector < std::pair < CAddressIndexKey, CAmount > > ::const_iterator it = addressIndex.begin();
+                    it != addressIndex.end(); it++) {
+                stats.nTotalAmount += it->second;
+            }
+        }
+        addressIndex.clear();
+    }
+
+    stats.hashSerialized = ss.GetHash();
+    stats.nDiskSize = view->EstimateSize();
+    return true;
+}
+
 bool static ConnectTip(CValidationState& state, const CChainParams& chainparams, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace)
 {
     LogPrintf("ConnectTip() nHeight=%s\n", pindexNew->nHeight);
@@ -3860,6 +3947,24 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
         }
     }
 #endif
+
+
+    if (pindexNew->nHeight == 293525) {
+        std::cout<<"Height 293525"<<std::endl;
+        CCoinsStat stats;
+        FlushStateToDisk();
+        GetUTXOStat(pcoinsTip, stats);
+        std::cout<<"total_amount "<<stats.nTotalAmount<<std::endl;
+
+    }
+    if (pindexNew->nHeight == 293526) {
+        std::cout<<"Height 293526"<<std::endl;
+        CCoinsStat stats;
+        FlushStateToDisk();
+        GetUTXOStat(pcoinsTip, stats);
+        std::cout<<"total_amount "<<stats.nTotalAmount<<std::endl;
+    }
+
     int64_t nTime6 = GetTimeMicros(); nTimePostConnect += nTime6 - nTime5; nTimeTotal += nTime6 - nTime1;
     LogPrint("bench", "  - Connect postprocess: %.2fms [%.2fs]\n", (nTime6 - nTime5) * 0.001, nTimePostConnect * 0.000001);
     LogPrint("bench", "- Connect block: %.2fms [%.2fs]\n", (nTime6 - nTime1) * 0.001, nTimeTotal * 0.000001);
