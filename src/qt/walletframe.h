@@ -74,6 +74,8 @@ public Q_SLOTS:
     void gotoBitcoinHistoryTab();
     /** Switch to masternode page */
     void gotoMasternodePage();
+    /** Switch to myownspats page */
+    void gotoMyOwnSpatsPage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
