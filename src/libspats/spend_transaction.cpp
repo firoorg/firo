@@ -36,10 +36,12 @@ SpendTransaction::SpendTransaction(
     const std::size_t N = (std::size_t)std::pow(params->get_n_grootle(), params->get_m_grootle()); // size of cover sets
 
     bool nonBase = false;
+    this->inputBase = w;
     for (std::size_t i = 0; i < w; ++i) {
         if (inputs[i].a != ZERO) {
             nonBase = true;
             this->inputBase = i;
+            break;
         } else {
             if (nonBase) {
                 throw std::invalid_argument("inputs not sorted, base coins must be at the beginning");
@@ -48,9 +50,11 @@ SpendTransaction::SpendTransaction(
     }
 
     nonBase = false;
+    this->outBase = t;
     for (std::size_t i = 0; i < t; ++i) {
         if (outputs[i].a != ZERO) {
             this->outBase = i;
+            break;
         } else {
             if (nonBase) {
                 throw std::invalid_argument("outputs not sorted, base coins must be at the beginning");
@@ -212,7 +216,7 @@ SpendTransaction::SpendTransaction(
             type_c.emplace_back(C1[u]);
             type_y.emplace_back(inputs[u].v);
             type_z.emplace_back(spark::SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D()));
-            asset_type = inputs[u].a; //TODO levon
+            asset_type = inputs[u].a;
             identifier = inputs[u].iota;
         }
     }

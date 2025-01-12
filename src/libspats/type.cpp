@@ -98,28 +98,12 @@ bool TypeEquality::verify(const std::vector<GroupElement>& C, const TypeProof& p
 {
     // GroupElement tempC2;
     const std::size_t n = C.size();
-    
-    // std::vector<GroupElement> points;
-    // points.reserve(n + 2);
-    // std::vector<Scalar> scalars;
-    // scalars.reserve(n + 2);
 
     const Scalar c = challenge(C, proof.A, proof.B);
     // c must be nonzero
     if (c.isZero()) {
         throw std::invalid_argument("Unexpected challenge!");
     }
-    // Scalar c_power(c);
-    const GroupElement check1 = (proof.A + C[0] * c) + (E * proof.tw + F * proof.tx + G * proof.ty + H * proof.tz).inverse();
-    // for (std::size_t i = 1; i < n; i++) {
-    //     // c_power must be nonzero
-    //     if (c_power.isZero()) {
-    //         throw std::invalid_argument("Unexpected challenge!");
-    //     }
-    //     tempC2 += (C[i] + C[0].inverse()) * c_power;
-    //     c_power *= c;
-    // }
-    // const GroupElement check2 = (proof.B + tempC2) + (G * proof.uy + H * proof.uz).inverse();
 
     // equation 1
     // tw * E + tx * F + ty * G + tz * H = A + c * C0
@@ -158,26 +142,19 @@ bool TypeEquality::verify(const std::vector<GroupElement>& C, const TypeProof& p
         scalars_eq_2.emplace_back(c_power);
         points_eq_2.emplace_back(C[i] + C[0].inverse());
         
-        // tempC2 += (C[i] + C[0].inverse()) * c_power;
         c_power *= c;
     }
 
     scalars_eq_2.emplace_back(1);
     scalars_eq_2.emplace_back(proof.uy);
     scalars_eq_2.emplace_back(proof.uz);
-    
     points_eq_2.emplace_back(proof.B);
     points_eq_2.emplace_back(G.inverse());
     points_eq_2.emplace_back(H.inverse());
 
-    // const GroupElement check2 = (proof.B + tempC2) + (G * proof.uy + H * proof.uz).inverse();
-
     MultiExponent result_eq_1(points_eq_1, scalars_eq_1);
     MultiExponent result_eq_2(points_eq_2, scalars_eq_2);
-    // return result.get_multiple().isInfinity();
-
     return result_eq_1.get_multiple().isInfinity() && result_eq_2.get_multiple().isInfinity();
-    // return check1.isInfinity() && check2.isInfinity();
 }
 
 

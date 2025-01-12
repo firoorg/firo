@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         f += identified_coin_data.v;
     }
 
-    std::vector<std::size_t> spend_indices_generic = {9, 11};
+    std::vector<std::size_t> spend_indices_generic = {N / 2 + 2, N / 2 + 3};
 
     const std::size_t w_generic = spend_indices_generic.size();
 
