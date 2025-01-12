@@ -29,19 +29,19 @@ BOOST_FIXTURE_TEST_SUITE(spats_spend_transaction_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(generate_verify)
 {
     // Parameters
-    const Params* params;
-    params = Params::get_test();
+    const spark::Params* params;
+    params = spark::Params::get_test();
 
     const std::string memo = "Spam and eggs"; // arbitrary memo
 
     // Generate keys
-    SpendKey spend_key(params);
-    FullViewKey full_view_key(spend_key);
-    IncomingViewKey incoming_view_key(full_view_key);
+    spark::SpendKey spend_key(params);
+    spark::FullViewKey full_view_key(spend_key);
+    spark::IncomingViewKey incoming_view_key(full_view_key);
 
     // Generate address
     const uint64_t i = 12345;
-    Address address(incoming_view_key, i);
+    spark::Address address(incoming_view_key, i);
 
     // Mint some coins to the address
     std::size_t N = (std::size_t)pow(params->get_n_grootle(), params->get_m_grootle());
@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         f += identified_coin_data.v;
     }
 
-    std::vector<std::size_t> spend_indices_generic = {9, 11};
+    std::vector<std::size_t> spend_indices_generic = {N / 2 + 2, N / 2 + 3};
 
     const std::size_t w_generic = spend_indices_generic.size();
 

@@ -34,14 +34,14 @@ BOOST_FIXTURE_TEST_SUITE(spats_mint_transaction_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(generate_verify_identifier_zero)
 {
     // Parameters
-    const Params* params;
-    params = Params::get_default();
+    const spark::Params* params;
+    params = spark::Params::get_default();
     const std::size_t t = 4; // number of coins to generate
     
     // Generate keys
-    SpendKey spend_key(params);
-    FullViewKey full_view_key(spend_key);
-    IncomingViewKey incoming_view_key(full_view_key);
+    spark::SpendKey spend_key(params);
+    spark::FullViewKey full_view_key(spend_key);
+    spark::IncomingViewKey incoming_view_key(full_view_key);
 
     std::vector<MintedCoinData> outputs;
 
@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(generate_verify_identifier_zero)
     // Generate addresses and coins
     for (std::size_t j = 0; j < t; j++) {
         MintedCoinData output;
-        output.address = Address(incoming_view_key, 12345 + j);
+        output.address = spark::Address(incoming_view_key, 12345 + j);
         output.a = vec_a[j];
         output.iota = iota;
         output.v = vec_v[j];
@@ -80,14 +80,14 @@ BOOST_AUTO_TEST_CASE(generate_verify_identifier_zero)
 BOOST_AUTO_TEST_CASE(generate_verify_identifier_not_zero)
 {
     // Parameters
-    const Params* params;
-    params = Params::get_default();
+    const spark::Params* params;
+    params = spark::Params::get_default();
     const std::size_t t = 4; // number of coins to generate
     
     // Generate keys
-    SpendKey spend_key(params);
-    FullViewKey full_view_key(spend_key);
-    IncomingViewKey incoming_view_key(full_view_key);
+    spark::SpendKey spend_key(params);
+    spark::FullViewKey full_view_key(spend_key);
+    spark::IncomingViewKey incoming_view_key(full_view_key);
 
     std::vector<std::vector<MintedCoinData>> outputs;
 
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(generate_verify_identifier_not_zero)
     // Generate addresses and coins
     for (std::size_t j = 0; j < t; j++) {
         MintedCoinData output;
-        output.address = Address(incoming_view_key, 12345 + j);
+        output.address = spark::Address(incoming_view_key, 12345 + j);
         output.a = Scalar(vec_a[j]);
         output.iota = iota;
         output.v = vec_v[j];
