@@ -69,7 +69,7 @@ public:
     bool BlockConnected(CBlockIndex *pindex);
     bool BlockDisconnected(CBlockIndex *pindex);
 
-    bool CheckSparkNameTx(const CTransaction &tx, int nHeight, CValidationState &state);
+    bool CheckSparkNameTx(const CTransaction &tx, int nHeight, CValidationState &state, CSparkNameTxData *outSparkNameData = nullptr);
 
     // test if the spark name tx is valid
     bool IsSparkNameValid(const CTransaction &tx, CValidationState &state);
@@ -79,6 +79,14 @@ public:
 
     // return the address associated with the spark name
     bool GetSparkAddress(const std::string &name, int nHeight, spark::Address &address);
+
+    // resolution of conflicts (e.g. for mempool)
+    // TxSet is a set of transactions that might be in conflict with the txData. Should implement contains() method
+    template <class TxSet>
+    static bool IsInConflict(CSparkNameTxData &txData, const TxSet &txSet)
+    {
+        return txSet.find(txData.name) != txSet.cend();
+    }
 
     static CSparkNameManager *GetInstance() { return sharedSparkNameManager; };
 };

@@ -74,7 +74,7 @@ bool CSparkNameManager::ParseSparkNameTxData(const CTransaction &tx, spark::Spen
     return true;
 }
 
-bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CValidationState &state)
+bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CValidationState &state, CSparkNameTxData *outSparkNameData)
 {
     const Consensus::Params &consensusParams = Params().GetConsensus();
 
@@ -88,6 +88,9 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
 
     if (!ParseSparkNameTxData(tx, spendTransaction, sparkNameData, sparkNameDataPos))
         return state.DoS(100, error("CheckSparkNameTx: failed to parse spark name tx"));
+
+    if (outSparkNameData)
+        *outSparkNameData = sparkNameData;
 
     if (nHeight < consensusParams.nSparkNamesStartBlock)
         return state.DoS(100, error("CheckSparkNameTx: spark names are not allowed before block %d", consensusParams.nSparkStartBlock));

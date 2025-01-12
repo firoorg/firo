@@ -524,7 +524,7 @@ public:
     lelantus::CLelantusMempoolState lelantusState;
     spark::CSparkMempoolState sparkState;
 
-    std::set<std::string> sparkNames;       // used to rule out duplicate names
+    std::map<std::string, uint256> sparkNames;       // used to rule out duplicate names
     
 private:
     typedef std::map<txiter, setEntries, CompareIteratorByHash> cacheMap;

@@ -929,6 +929,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     std::vector<spark::Coin> sparkMintCoins;
     std::vector<GroupElement> sparkUsedLTags;
 
+    CSparkNameTxData sparkNameData;
+
     {
         LOCK(pool.cs);
         if (tx.IsSigmaSpend()) {
@@ -1014,8 +1016,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
 
             CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-            if (!sparkNameManager->CheckSparkNameTx(tx, chainActive.Height(), state))
+            if (!sparkNameManager->CheckSparkNameTx(tx, chainActive.Height(), state, &sparkNameData))
                 return false;
+
+            if (CSparkNameManager::IsInConflict(sparkNameData, pool.sparkNames)) {
+                return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+            }
         }
 
         BOOST_FOREACH(const CTxOut &txout, tx.vout)
@@ -1624,6 +1630,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             for (const auto &usedLTag: sparkUsedLTags)
                 pool.sparkState.AddSpendToMempool(usedLTag, hash);
         }
+
+        if (!sparkNameData.name.empty())
+            pool.sparkNames[sparkNameData.name] = hash;
 
 #ifdef ENABLE_WALLET
         if (!GetBoolArg("-disablewallet", false) && pwalletMain->sparkWallet) {
