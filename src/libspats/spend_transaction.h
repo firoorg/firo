@@ -3,11 +3,11 @@
 #include "balance.h"
 #include "base_asset.h"
 #include "bpplus.h"
-#include "chaum.h"
+#include "../libspark/chaum.h"
 #include "coin.h"
-#include "grootle.h"
-#include "keys.h"
-#include "schnorr.h"
+#include "../libspark/grootle.h"
+#include "../libspark/keys.h"
+#include "../libspark/schnorr.h"
 #include "type.h"
 #include "util.h"
 #include <algorithm>
@@ -39,7 +39,7 @@ struct CoverSetData {
 };
 
 struct OutputCoinData {
-    Address address;
+    spark::Address address;
     uint64_t v;
     std::string memo;
     Scalar a;    // asset type
@@ -50,30 +50,30 @@ class SpendTransaction
 {
 public:
     SpendTransaction(
-        const Params* params);
+        const spark::Params* params);
 
     SpendTransaction(
-        const Params* params,
-        const FullViewKey& full_view_key,
-        const SpendKey& spend_key,
-        const std::vector<InputCoinData>& inputs,
+        const spark::Params* params,
+        const spark::FullViewKey& full_view_key,
+        const spark::SpendKey& spend_key,
+        const std::vector<InputCoinData>& inputs,//should be sorted, base coins at the beginning, otherwise you will get a failure
         const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
         const uint64_t f,
         const uint64_t vout,
-        const std::vector<OutputCoinData>& outputs);
+        const std::vector<OutputCoinData>& outputs); //should be sorted, base coins at the beginning, otherwise you will get a failure
 
     uint64_t getFee();
     const std::vector<GroupElement>& getUsedLTags() const;
     const std::vector<Coin>& getOutCoins();
     const std::vector<uint64_t>& getCoinGroupIds();
 
-    static bool verify(const Params* params, const std::vector<SpendTransaction>& transactions, const std::unordered_map<uint64_t, std::vector<Coin> >& cover_sets);
+    static bool verify(const spark::Params* params, const std::vector<SpendTransaction>& transactions, const std::unordered_map<uint64_t, std::vector<Coin> >& cover_sets);
     static bool verify(const SpendTransaction& transaction, const std::unordered_map<uint64_t, std::vector<Coin> >& cover_sets);
 
     std::vector<unsigned char> hash_bind_inner(
         const std::unordered_map<uint64_t, std::vector<unsigned char> >& cover_set_representations,
         const std::vector<GroupElement>& C1,
-        const std::vector<GrootleProof>& grootle_proofs
+        const std::vector<spark::GrootleProof>& grootle_proofs
         // const SchnorrProof& balance_proof,
         // const BPPlusProof& range_proof
     );
@@ -81,7 +81,7 @@ public:
         const std::vector<unsigned char> hash_bind_inner,
         const std::vector<Coin>& out_coins,
         const uint64_t f_,
-        const SchnorrProof& rep_proof,
+        const spark::SchnorrProof& rep_proof,
         const BPPlusProof& range_proof,
         const BaseAssetProof& base_proof,
         const TypeProof& type_proof,
@@ -101,6 +101,11 @@ public:
         READWRITE(chaum_proof);
         READWRITE(balance_proof);
         READWRITE(range_proof);
+        READWRITE(rep_proof);
+        READWRITE(base_proof);
+        READWRITE(type_proof);
+        READWRITE(inputBase);
+        READWRITE(outBase);
     }
 
     void setOutCoins(const std::vector<Coin>& out_coins_)
@@ -126,23 +131,23 @@ public:
     const std::map<uint64_t, uint256>& getBlockHashes();
 
 private:
-    const Params* params;
+    const spark::Params* params;
     // We need to construct and pass this data before running verification
     std::unordered_map<uint64_t, std::size_t> cover_set_sizes;
     std::unordered_map<uint64_t, std::vector<unsigned char> > cover_set_representations;
     std::vector<Coin> out_coins;
+    uint64_t vout;
 
     // All this data we need to serialize
-    std::vector<InputCoinData> inputs;
-    std::vector<OutputCoinData> outputs;
     std::map<uint64_t, uint256> set_id_blockHash;
+    uint32_t inputBase;
+    uint32_t outBase;
     std::vector<uint64_t> cover_set_ids;
     uint64_t f;
-    uint64_t vout;
     std::vector<GroupElement> S1, C1, T;
-    std::vector<GrootleProof> grootle_proofs;
-    ChaumProof chaum_proof;
-    SchnorrProof rep_proof;
+    std::vector<spark::GrootleProof> grootle_proofs;
+    spark::ChaumProof chaum_proof;
+    spark::SchnorrProof rep_proof;
     BPPlusProof range_proof;
     BaseAssetProof base_proof;
     TypeProof type_proof;

@@ -1,5 +1,6 @@
 #include "bpplus.h"
-#include "transcript.h"
+#include "../libspark/transcript.h"
+#include "util.h"
 
 namespace spats
 {
@@ -77,7 +78,7 @@ void BPPlus::prove(
 
     // Set up transcript, using the unpadded values
     // This is fine since the verifier canonically generates the same transcript
-    Transcript transcript(LABEL_TRANSCRIPT_BPPLUS);
+    spark::Transcript transcript(LABEL_TRANSCRIPT_BPPLUS);
     transcript.add("G", G);
     transcript.add("H", H);
     transcript.add("E", E);
@@ -196,30 +197,21 @@ void BPPlus::prove(
 
     // Compute aL1, aR1
     std::vector<Scalar> aL1, aR1;
+    aL1.reserve(N * M);
+    aR1.reserve(N * M);
     for (std::size_t i = 0; i < N * M; i++) {
         aL1.emplace_back(aL[i] - z);
         aR1.emplace_back(aR[i] + d[i] * y_powers[N * M - i] + z);
     }
 
-    // Compute alpha1
+    // Compute alpha1, alpha2, alpha3
     Scalar alpha1 = alpha;
+    Scalar alpha2 = alpha_2;
+    Scalar alpha3 = alpha_3;
     Scalar z_even_powers = 1;
     for (std::size_t j = 0; j < M; j++) {
         z_even_powers *= z_square;
         alpha1 += z_even_powers * r[j] * y_powers[N * M + 1];
-    }
-    // Compute alpha2, alpha3
-    Scalar alpha2 = alpha_2;
-    Scalar alpha3 = alpha_3;
-    z_even_powers = 1;
-    // asset_type_ = asset_type;
-    // identifier_ = identifier;
-    for (std::size_t j = 0; j < M; j++) {
-        z_even_powers *= z_square;
-        // if (j >= unpadded_M) {
-        //     asset_type_ = Scalar(uint64_t(0));
-        //     identifier_ = Scalar(uint64_t(0));
-        // }
         alpha2 += z_even_powers * a[j] * y_powers[N * M + 1];
         alpha3 += z_even_powers * iota[j] * y_powers[N * M + 1];
     }
@@ -369,6 +361,8 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement> >& unpadded_C, c
     std::size_t N_proofs = proofs.size();
     std::size_t max_M = 0; // maximum number of padded aggregated values across all proofs
 
+    std::size_t final_size = 0; // size of each vector used in final multiscalar multiplication
+
     // Check aggregated input consistency
     for (std::size_t k = 0; k < N_proofs; k++) {
         std::size_t unpadded_M = unpadded_C[k].size();
@@ -395,7 +389,13 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement> >& unpadded_C, c
         if (log2(N * M) != rounds) {
             return false;
         }
+
+        // Update the final vector size: B, A1, A, (C_j), (L), (R)
+        final_size += 3 + M + 2 * rounds;
     }
+
+    // Update the final vector size: G, H, (Gi), (Hi)
+    final_size += 4 + 2 * max_M * N;
 
     // Check the bounds on the batch
     if (max_M * N > Gi.size() || max_M * N > Hi.size()) {
@@ -405,6 +405,8 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement> >& unpadded_C, c
     // Set up final multiscalar multiplication and common scalars
     std::vector<GroupElement> points;
     std::vector<Scalar> scalars;
+    points.reserve(final_size);
+    scalars.reserve(final_size);
     Scalar G_scalar, H_scalar;
     Scalar E_scalar, F_scalar;
 
@@ -415,6 +417,19 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement> >& unpadded_C, c
         points.emplace_back(Hi[i]);
         scalars.emplace_back(ZERO);
     }
+
+    std::vector<std::vector<unsigned char>> serialized_Gi;
+    serialized_Gi.resize(Gi.size());
+    std::vector<std::vector<unsigned char>> serialized_Hi;
+    serialized_Hi.resize(Hi.size());
+    // Serialize and cash Gi and Hi vectors
+    for (std::size_t i = 0; i < Gi.size(); i++) {
+        serialized_Gi[i].resize(GroupElement::serialize_size);
+        Gi[i].serialize(serialized_Gi[i].data());
+        serialized_Hi[i].resize(GroupElement::serialize_size);
+        Hi[i].serialize(serialized_Hi[i].data());
+    }
+
 
     // Process each proof and add to the batch
     for (std::size_t k_proofs = 0; k_proofs < N_proofs; k_proofs++) {
@@ -429,13 +444,13 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement> >& unpadded_C, c
         }
 
         // Set up transcript
-        Transcript transcript(LABEL_TRANSCRIPT_BPPLUS);
+        spark::Transcript transcript(LABEL_TRANSCRIPT_BPPLUS);
         transcript.add("G", G);
         transcript.add("H", H);
         transcript.add("E", E);
         transcript.add("F", F);
-        transcript.add("Gi", Gi);
-        transcript.add("Hi", Hi);
+        transcript.add("Gi", serialized_Gi);
+        transcript.add("Hi", serialized_Hi);
         transcript.add("N", Scalar(N));
         transcript.add("C", unpadded_C[k_proofs]);
         transcript.add("A", proof.A);

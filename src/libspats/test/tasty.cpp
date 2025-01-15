@@ -27,7 +27,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
     
 
     // Parameters
-    const Params* params;
+    const spark::Params* params;
     params = Params::get_default();
 
     outputFile << "Hello, World!\n";
