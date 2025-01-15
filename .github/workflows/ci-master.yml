@@ -52,6 +52,10 @@ jobs:
       ARTIFACT_DIR: linux-binaries
       TEST_LOG_ARTIFACT_DIR: test-logs
     steps:
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
     - name: Getting Source
       uses: actions/download-artifact@v4
       with:
@@ -65,10 +69,7 @@ jobs:
     - name: Install Required Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3.10 python3.10-venv python3-zmq
-    - name: Set Python 3.10 as Default
-      run: |
-        sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
+        sudo apt-get install -y python3-zmq
     - name: Build Dependencies
       run: make -C depends -j$(nproc)
       working-directory: ${{ env.SOURCE_ARTIFACT }}
