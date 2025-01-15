@@ -11,7 +11,17 @@ class CBlockIndex;
 
 namespace spats {
 
-class Wallet;
+class UpdatesObserver {
+public:
+   void notify_registry_changed() { process_registry_changed(); }
+   // TODO more
+
+protected:
+   ~UpdatesObserver() = default;
+
+private:
+   virtual void process_registry_changed() = 0;
+};
 
 class Manager {
 public:
@@ -22,11 +32,11 @@ public:
    Registry &registry() noexcept { return registry_; }
    const Registry &registry() const noexcept { return registry_; }
 
-   void set_observer_wallet( Wallet &w ) noexcept { observer_wallet_ = &w; }
+   void set_updates_observer( UpdatesObserver *o = nullptr ) noexcept { updates_observer_ = o; }
 
 private:
    Registry registry_;
-   Wallet *observer_wallet_ = nullptr;
+   std::atomic< UpdatesObserver * > updates_observer_{};
 };
 
 }   // namespace spats

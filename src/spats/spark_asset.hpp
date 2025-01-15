@@ -17,6 +17,8 @@
 
 #include "identification.hpp"
 
+#include <boost/lexical_cast.hpp>
+
 namespace spats {
 
 using namespace std::literals;
@@ -103,6 +105,8 @@ private:
    // TODO? bool admin_control_transferable_;
 };
 
+struct SparkAssetDisplayAttributes;
+
 template < bool Fungible >
 class BasicSparkAsset : public SparkAssetBase {
    // fungible asset (currency)
@@ -139,6 +143,8 @@ public:
    [[nodiscard]] supply_amount_t total_supply() const noexcept { return total_supply_; }
    [[nodiscard]] bool resupplyable() const noexcept { return resupplyable_; }
 
+   explicit operator SparkAssetDisplayAttributes() const;
+
 private:
    supply_amount_t total_supply_;   // Precision of the asset is included within this too
    bool resupplyable_ = true;
@@ -173,6 +179,8 @@ public:
 
    [[nodiscard]] identifier_t identifier() const noexcept { return identifier_; }
 
+   explicit operator SparkAssetDisplayAttributes() const;
+
 private:
    identifier_t identifier_;
 };
@@ -194,6 +202,55 @@ inline std::optional< identifier_t > get_identifier( const SparkAsset &asset ) n
    return std::visit( utils::overloaded{ []( const FungibleSparkAsset & ) -> std::optional< identifier_t > { return std::nullopt; },
                                          []( const NonfungibleSparkAsset &a ) -> std::optional< identifier_t > { return a.identifier(); } },
                       asset );
+}
+
+struct SparkAssetDisplayAttributes {
+   asset_type_underlying_type asset_type;
+   identifier_underlying_type identifier = 0;
+   std::string name;
+   std::string symbol;
+   std::string description;
+   std::string metadata;
+   std::string admin_public_address;
+   std::string total_supply = "1";
+   unsigned precision = 0;
+   bool resupplyable = false;
+   bool fungible = false;
+
+   SparkAssetDisplayAttributes( const SparkAssetBase &b )
+      : asset_type( utils::to_underlying( b.asset_type() ) )
+      , name( b.naming().name )
+      , symbol( b.naming().symbol )
+      , description( b.naming().description )
+      , metadata( b.metadata() )
+      , admin_public_address( b.admin_public_address() )
+   {}
+
+   SparkAssetDisplayAttributes( const SparkAsset &asset )
+   {
+      *this = std::visit( []( const auto &a ) { return SparkAssetDisplayAttributes( a ); }, asset );
+   }
+};
+
+template < bool Fungible >
+BasicSparkAsset< Fungible >::operator SparkAssetDisplayAttributes() const
+{
+   static_assert( Fungible );
+   const SparkAssetBase &b = *this;
+   SparkAssetDisplayAttributes ret( b );
+   ret.fungible = true;
+   ret.total_supply = boost::lexical_cast< std::string >( total_supply() );
+   ret.precision = total_supply().precision();
+   ret.resupplyable = resupplyable();
+   return ret;
+}
+
+inline BasicSparkAsset< false >::operator SparkAssetDisplayAttributes() const
+{
+   const SparkAssetBase &b = *this;
+   SparkAssetDisplayAttributes ret( b );
+   ret.identifier = utils::to_underlying( identifier() );
+   return ret;
 }
 
 }   // namespace spats

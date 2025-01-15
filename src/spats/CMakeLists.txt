@@ -4,8 +4,12 @@ project(spats)
 set(CMAKE_CXX_STANDARD 20)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../depends/x86_64-pc-linux-gnu/include
+${CMAKE_CURRENT_SOURCE_DIR}/../../depends/x86_64-pc-linux-gnu/include/QtCore
+${CMAKE_CURRENT_SOURCE_DIR}/../../depends/x86_64-pc-linux-gnu/include/QtGui
+${CMAKE_CURRENT_SOURCE_DIR}/../../depends/x86_64-pc-linux-gnu/include/QtWidgets
 ${CMAKE_CURRENT_SOURCE_DIR}/.
 ${CMAKE_CURRENT_SOURCE_DIR}/..
+${CMAKE_CURRENT_SOURCE_DIR}/../qt/forms
 ${CMAKE_CURRENT_SOURCE_DIR}/../univalue/include
 ${CMAKE_CURRENT_SOURCE_DIR}/../leveldb/include
 ${CMAKE_CURRENT_SOURCE_DIR}/../secp256k1/include)
