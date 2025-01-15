@@ -10,6 +10,9 @@
 #include <concepts>
 #include <stdexcept>
 #include <type_traits>
+#include <iomanip>
+
+#include <boost/io/ios_state.hpp>
 
 #include "../utils/math.hpp"
 
@@ -38,7 +41,10 @@ public:
       return *this;
    }
 
-   void operator=( std::floating_point auto F ) = delete;   // no assignment from floating-point types directly
+   // No construction/assignment from floating-point types directly.
+   // Instead, have the caller be responsible for handling the necessary precision for dealing with fp values, as appropriate for it.
+   scaled_amount( std::floating_point auto F ) = delete;
+   void operator=( std::floating_point auto F ) = delete;
 
    // TODO @= overloads, with checks against overflow/underflow/wraparound
 
@@ -78,7 +84,15 @@ private:
 };
 
 // TODO comparison operators
-// TODO output
+
+template < typename CharT, typename Traits, typename RawAmountType >
+std::basic_ostream< CharT, Traits > &operator<<( std::basic_ostream< CharT, Traits > &os, const scaled_amount< RawAmountType > &amount )
+{
+   const auto [ before, after ] = amount.unpack();
+   boost::io::ios_fill_saver ifs( os );
+   os << before << "." << std::setfill( '0' ) << std::setw( amount.precision() ) << after;
+   return os;
+}
 
 }   // namespace utils
 
