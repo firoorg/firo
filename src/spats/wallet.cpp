@@ -45,14 +45,27 @@ Scalar Wallet::compute_new_spark_asset_serialization_scalar( const SparkAssetBas
 
 Wallet::Wallet( CSparkWallet &spark_wallet ) noexcept
    : spark_wallet_( spark_wallet )
-   , my_public_address_as_admin_( spark_wallet.getDefaultAddress().encode( spark::GetNetworkType() ) )
    , registry_( spark::CSparkState::GetState()->GetSpatsManager().registry() )
 {}
+
+const std::string &Wallet::my_public_address_as_admin() const
+{
+   if ( my_public_address_as_admin_.empty() ) {
+      // Doing lazy initialization, as in the constructor, spark_wallet isn't fully initialized yet!
+      my_public_address_as_admin_ = spark_wallet_.getDefaultAddress().encode( spark::GetNetworkType() );
+      assert( !my_public_address_as_admin_.empty() );
+      LogPrintf( "my_public_address_as_admin: %s\n", my_public_address_as_admin_ );
+   }
+   return my_public_address_as_admin_;
+}
 
 CWalletTx Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standard_fee, CAmount &new_asset_fee ) const
 {
    const auto &b = get_base( a );
-   assert( b.admin_public_address() == my_public_address_as_admin() );
+   if ( b.admin_public_address() != my_public_address_as_admin() ) {
+      assert( !"Only allowed to use own public address as admin's address when creating a new spark asset" );
+      throw std::domain_error( "Only allowed to use own public address as admin's address when creating a new spark asset" );
+   }
    CScript script;
    script << OP_SPATSCREATE;
    CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );

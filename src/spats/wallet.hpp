@@ -33,7 +33,7 @@ public:
 
    static Scalar compute_new_spark_asset_serialization_scalar( const SparkAssetBase &b, std::span< const unsigned char > asset_serialization_bytes );
 
-   const std::string &my_public_address_as_admin() const noexcept { return my_public_address_as_admin_; }
+   const std::string &my_public_address_as_admin() const;
 
    CWalletTx create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standard_fee, CAmount &new_asset_fee ) const;
 
@@ -42,7 +42,7 @@ public:
    // TODO s11n?
 private:
    CSparkWallet &spark_wallet_;
-   const std::string my_public_address_as_admin_;
+   mutable std::string my_public_address_as_admin_;
    Registry &registry_;
    std::unordered_map< asset_type_t, AssetAmount > asset_balances_;
 };
