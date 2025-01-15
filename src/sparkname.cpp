@@ -172,3 +172,40 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
 
     return true;
 }
+
+void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey)
+{
+    for (uint32_t n=0; ; n++) {
+        sparkNameData.addressOwnershipProof.clear();
+        sparkNameData.hashFailsafe = n;
+
+        CMutableTransaction txCopy(txSparkSpend);
+        CDataStream serializedSparkNameData(SER_NETWORK, PROTOCOL_VERSION);
+        serializedSparkNameData << sparkNameData;
+        txCopy.vExtraPayload.insert(txCopy.vExtraPayload.end(), serializedSparkNameData.begin(), serializedSparkNameData.end());
+
+        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+        ss << txCopy;
+
+        spark::Scalar m;
+        try {
+            m.SetHex(ss.GetHash().ToString());
+        }
+        catch (const std::exception &) {
+            continue;   // increase hashFailSafe and try again
+        }
+
+        spark::Address sparkAddress;
+        spark::OwnershipProof ownershipProof;
+
+        sparkAddress.decode(sparkNameData.sparkAddress);
+        sparkAddress.prove_own(m, spendKey, incomingViewKey, ownershipProof);
+
+        CDataStream ownershipProofStream(SER_NETWORK, PROTOCOL_VERSION);
+        ownershipProofStream << ownershipProof;
+
+        txSparkSpend.vExtraPayload.insert(txSparkSpend.vExtraPayload.end(), ownershipProofStream.begin(), ownershipProofStream.end());
+
+        break;
+    }
+}
