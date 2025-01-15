@@ -11,6 +11,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <endian.h>
 
 #include "compat/endian.h"
 
