@@ -210,7 +210,7 @@ spark::Address CSparkWallet::getChangeAddress() {
 
 spark::OwnershipProof CSparkWallet::makeDefaultAddressOwnershipProof(const secp_primitives::Scalar& m)
 {
-   spark::SpendKey spend_key(spark::Params::get_default());
+   spark::SpendKey spend_key = generateSpendKey(spark::Params::get_default());
    spark::FullViewKey full_view_key(spend_key);
    spark::IncomingViewKey incoming_view_key(full_view_key);
    spark::OwnershipProof proof;
