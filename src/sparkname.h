@@ -89,6 +89,10 @@ public:
     }
 
     static CSparkNameManager *GetInstance() { return sharedSparkNameManager; };
+
+    uint64_t GetSparkNameBlockHeight(const std::string &name) const;
+
+    std::string GetSparkNameTxID(const std::string &name) const;
 };
 
 #endif // FIRO_SPARKNAME_H
