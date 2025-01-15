@@ -214,6 +214,7 @@ if(BUILD_FOR_FUZZING)
 endif()
 
 include(ProcessConfigurations)
+include(CheckFunctionExists)
 
 include(TryAppendCXXFlags)
 include(TryAppendLinkerFlag)
