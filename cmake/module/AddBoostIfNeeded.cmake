@@ -25,8 +25,35 @@ function(add_boost_if_needed)
   if(POLICY CMP0167)
     cmake_policy(SET CMP0167 OLD)
   endif()
-  set(Boost_NO_BOOST_CMAKE ON)
-  find_package(Boost 1.73.0 REQUIRED)
+  set(Boost_NO_BOOST_CMAKE OFF)
+  find_package(Boost 1.81.0 REQUIRED COMPONENTS atomic chrono filesystem program_options system thread)   
+
+  include(CheckCXXSourceCompiles)
+  set(CMAKE_REQUIRED_INCLUDES ${Boost_INCLUDE_DIRS})
+  set(CMAKE_REQUIRED_LIBRARIES ${Boost_LIBRARIES})
+  # Test source code
+  set(SLEEPTEST_SOURCE_CODE "
+  #include <boost/thread/thread.hpp>
+  #include <boost/version.hpp>
+
+  int main() {
+  #if BOOST_VERSION >= 105000 && (!defined(BOOST_HAS_NANOSLEEP) || BOOST_VERSION >= 105200)
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(0));
+      return 0;
+  #else
+      choke me
+  #endif
+  }
+  ")
+
+  # Check if the test source code compiles
+  check_cxx_source_compiles("${SLEEPTEST_SOURCE_CODE}" HAVE_WORKING_BOOST_SLEEP_FOR)
+
+  # Define the macro if the test passed
+  if(HAVE_WORKING_BOOST_SLEEP_FOR)
+      add_compile_definitions(HAVE_WORKING_BOOST_SLEEP_FOR=1)
+  endif()
+
   mark_as_advanced(Boost_INCLUDE_DIR)
   set_target_properties(Boost::headers PROPERTIES IMPORTED_GLOBAL TRUE)
   target_compile_definitions(Boost::headers INTERFACE
