@@ -47,6 +47,12 @@ project(FiroCore
   LANGUAGES NONE
 )
 
+set(FIRO_DAEMON_NAME firod)
+set(FIRO_GUI_NAME firo-qt)
+set(FIRO_CLI_NAME firo-cli)
+set(FIRO_TX_NAME firo-tx)
+set(FIRO_UTIL_NAME firo-util)
+
 set(CLIENT_VERSION_STRING ${PROJECT_VERSION})
 if(CLIENT_VERSION_RC GREATER 0)
   string(APPEND CLIENT_VERSION_STRING "rc${CLIENT_VERSION_RC}")
@@ -65,9 +71,14 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_HOST_APPLE)
   set(CMAKE_PLATFORM_HAS_INSTALLNAME FALSE)
 endif()
 enable_language(CXX)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+enable_language(C)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS ON)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/module)
 
@@ -76,13 +87,13 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/module)
 #=============================
 include(CMakeDependentOption)
 # When adding a new option, end the <help_text> with a full stop for consistency.
-option(BUILD_DAEMON "Build firod executable." ON)
-option(BUILD_GUI "Build firo-qt executable." OFF)
-option(BUILD_CLI "Build firo-cli executable." ON)
+option(BUILD_DAEMON "Build ${FIRO_DAEMON_NAME} executable." ON)
+option(BUILD_GUI "Build ${FIRO_GUI_NAME} executable." OFF)
+option(BUILD_CLI "Build ${FIRO_CLI_NAME} executable." ON)
 
 option(BUILD_TESTS "Build test_firo executable." ON)
-option(BUILD_TX "Build firo-tx executable." ${BUILD_TESTS})
-option(BUILD_UTIL "Build firo-util executable." ${BUILD_TESTS})
+option(BUILD_TX "Build ${FIRO_TX_NAME} executable." ${BUILD_TESTS})
+option(BUILD_UTIL "Build ${FIRO_UTIL_NAME} executable and library." ${BUILD_TESTS})
 
 option(BUILD_UTIL_CHAINSTATE "Build experimental firo-chainstate executable." OFF)
 option(BUILD_KERNEL_LIB "Build experimental firokernel library." ${BUILD_UTIL_CHAINSTATE})
@@ -190,6 +201,9 @@ target_link_libraries(core_interface INTERFACE
   $<$<CONFIG:RelWithDebInfo>:core_interface_relwithdebinfo>
   $<$<CONFIG:Debug>:core_interface_debug>
 )
+target_compile_definitions(core_interface 
+  INTERFACE 
+  HAVE_CONFIG_H=1)
 
 if(BUILD_FOR_FUZZING)
   message(WARNING "BUILD_FOR_FUZZING=ON will disable all other targets and force BUILD_FUZZ_BINARY=ON.")
@@ -362,6 +376,98 @@ if(BUILD_DAEMON OR BUILD_GUI OR BUILD_CLI OR BUILD_TESTS OR BUILD_BENCH OR BUILD
 endif()
 
 include(cmake/introspection.cmake)
+####################
+# Check functions and define
+include(CheckIncludeFile)
+include(CheckSymbolExists)
+
+# Check for headers
+CHECK_INCLUDE_FILE(endian.h HAVE_ENDIAN_H)
+CHECK_INCLUDE_FILE(sys/endian.h HAVE_SYS_ENDIAN_H)
+
+# Setup test code header section
+if(HAVE_ENDIAN_H)
+  set(ENDIAN_HEADER "endian.h")
+  add_compile_definitions(HAVE_ENDIAN_H=1)
+elseif(HAVE_SYS_ENDIAN_H)
+  set(ENDIAN_HEADER "sys/endian.h")
+  add_compile_definitions(HAVE_SYS_ENDIAN_H=1)
+endif(HAVE_ENDIAN_H)
+
+# Functions to check
+set(ENDIAN_FUNCTIONS
+    le16toh le32toh le64toh
+    htole16 htole32 htole64
+    be16toh be32toh be64toh
+    htobe16 htobe32 htobe64
+)
+
+# Check each function
+foreach(func ${ENDIAN_FUNCTIONS})
+    string(TOUPPER "HAVE_DECL_${func}" var_name)
+    check_symbol_exists(${func} "${ENDIAN_HEADER}" ${var_name})
+    if(${var_name})
+        add_compile_definitions(${var_name}=1)
+    else()
+        add_compile_definitions(${var_name}=0)
+    endif()
+endforeach()
+
+# Check for byteswap.h header
+CHECK_INCLUDE_FILE(byteswap.h HAVE_BYTESWAP_H)
+
+# Setup test code header section
+if(HAVE_BYTESWAP_H)
+  set(BYTESWAP_HEADER "byteswap.h")
+  add_compile_definitions(HAVE_BYTESWAP_H=1)
+endif(HAVE_BYTESWAP_H)
+
+# Functions to check
+set(BSWAP_FUNCTIONS
+    bswap_16 bswap_32 bswap_64
+)
+
+# Check each function
+foreach(func ${BSWAP_FUNCTIONS})
+    string(TOUPPER "HAVE_DECL_${func}" var_name)
+    check_symbol_exists(${func} "${BYTESWAP_HEADER}" ${var_name})
+    if(${var_name})
+        add_compile_definitions(${var_name}=1)
+    else()
+        add_compile_definitions(${var_name}=0)
+    endif()
+endforeach()
+
+# strnlen
+CHECK_INCLUDE_FILE(string.h HAVE_STRING_H)
+if(HAVE_STRING_H)
+  check_function_exists_and_define(strnlen "string.h" HAVE_DECL_STRNLEN)
+endif(HAVE_STRING_H)
+
+# Functions to check
+set(BUILTIN_FUNCTIONS
+    __builtin_clz
+    __builtin_clzl
+    __builtin_clzll
+)
+
+# Check each function
+foreach(func ${BUILTIN_FUNCTIONS})
+    string(TOUPPER "HAVE_DECL_${func}" var_name)
+    set(TEST_SOURCE_CODE "
+    int main() {
+        int x = 0;
+        (void)${func}(x);
+        return 0;
+    }
+    ")
+    check_cxx_source_compiles("${TEST_SOURCE_CODE}" ${var_name})
+    if(${var_name})
+        add_compile_definitions(${var_name}=1)
+    else()
+        add_compile_definitions(${var_name}=0)
+    endif()
+endforeach()
 
 include(cmake/ccache.cmake)
 
