@@ -46,6 +46,8 @@ target_link_libraries(bitcoin_util
     core_interface
     bitcoin_clientversion
     bitcoin_crypto
+    secp256k1
+    leveldb
     $<$<PLATFORM_ID:Windows>:ws2_32>
     $<$<PLATFORM_ID:Windows>:iphlpapi>
 )
@@ -120,8 +122,10 @@ add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
 target_link_libraries(bitcoin_consensus
   PRIVATE
     core_interface
-    bitcoin_crypto
     secp256k1
+    leveldb
+  PUBLIC
+    bitcoin_crypto
 )
 
 if(WITH_ZMQ)
@@ -153,17 +157,17 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   script/sign.cpp
 )
 target_link_libraries(bitcoin_common
-  PRIVATE
+  PUBLIC
     core_interface
     bitcoin_consensus
     bitcoin_util
     univalue
     secp256k1
     Boost::headers
+    leveldb
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
     $<$<PLATFORM_ID:Windows>:ws2_32>
 )
-
 
 set(installable_targets)
 if(ENABLE_WALLET)
@@ -226,16 +230,17 @@ target_link_libraries(bitcoin_node
     core_interface
     bitcoin_common
     bitcoin_util
+    secp256k1
     $<TARGET_NAME_IF_EXISTS:bitcoin_zmq>
     leveldb
     univalue
     Boost::headers
+    Boost::thread
     $<TARGET_NAME_IF_EXISTS:libevent::core>
     $<TARGET_NAME_IF_EXISTS:libevent::extra>
     $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
 )
-
 
 # Bitcoin Core bitcoind.
 if(BUILD_DAEMON)
@@ -246,6 +251,8 @@ if(BUILD_DAEMON)
   target_link_libraries(bitcoind
     core_interface
     bitcoin_node
+    univalue
+    Boost::thread
     $<TARGET_NAME_IF_EXISTS:bitcoin_wallet>
   )
   list(APPEND installable_targets bitcoind)
@@ -283,13 +290,20 @@ endif()
 
 add_library(bitcoin_cli STATIC EXCLUDE_FROM_ALL
   rpc/client.cpp
+  rpc/protocol.cpp
+  util.cpp
 )
 target_link_libraries(bitcoin_cli
   PUBLIC
     core_interface
     univalue
+    Boost::filesystem
+    Boost::thread
+    Boost::program_options
 )
-
+target_include_directories(bitcoin_cli
+  PUBLIC
+)
 
 # Bitcoin Core RPC client
 if(BUILD_CLI)
@@ -300,10 +314,11 @@ if(BUILD_CLI)
     bitcoin_cli
     bitcoin_common
     bitcoin_util
-    libevent::core
     libevent::extra
+    libevent::core
   )
   list(APPEND installable_targets bitcoin-cli)
+  set_target_properties(bitcoin-cli PROPERTIES OUTPUT_NAME ${FIRO_CLI_NAME})
 endif()
 
 
