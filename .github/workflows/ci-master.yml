@@ -70,6 +70,10 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y python3-zmq
+    - name: Verify ZMQ Installation
+      run: |
+        python3 -m pip install --upgrade pip
+        python3 -m pip install pyzmq
     - name: Build Dependencies
       run: make -C depends -j$(nproc)
       working-directory: ${{ env.SOURCE_ARTIFACT }}
