@@ -255,17 +255,23 @@ void Registry::clear()
 Registry::Registry( const Registry &other )
    : fungible_assets_( other.fungible_assets_ )
    , nft_lines_( other.nft_lines_ )
+   , unregistered_assets_( other.unregistered_assets_ )
+   , last_block_height_processed_( other.last_block_height_processed_ )
 {}
 
 Registry::Registry( Registry &&other )
    : fungible_assets_( std::move( other.fungible_assets_ ) )
    , nft_lines_( std::move( other.nft_lines_ ) )
+   , unregistered_assets_( std::move( other.unregistered_assets_ ) )
+   , last_block_height_processed_( other.last_block_height_processed_ )
 {}
 
 Registry &Registry::operator=( const Registry &rhs )
 {
    fungible_assets_ = rhs.fungible_assets_;
    nft_lines_ = rhs.nft_lines_;
+   unregistered_assets_ = rhs.unregistered_assets_;
+   last_block_height_processed_ = rhs.last_block_height_processed_;
    return *this;
 }
 
@@ -273,6 +279,8 @@ Registry &Registry::operator=( Registry &&rhs )
 {
    fungible_assets_ = std::move( rhs.fungible_assets_ );
    nft_lines_ = std::move( rhs.nft_lines_ );
+   unregistered_assets_ = std::move( rhs.unregistered_assets_ );
+   last_block_height_processed_ = rhs.last_block_height_processed_;
    return *this;
 }
 

@@ -796,7 +796,8 @@ bool CheckSparkSpendTransaction(
 
     if (!isVerifyDB && !isCheckWallet) {
         if (sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
-            sparkTxInfo->spats_action_sequence.push_back(std::move(*action));
+            if (action)
+                sparkTxInfo->spats_action_sequence.push_back(std::move(*action));
             sparkTxInfo->spTransactions.insert(hashTx);
         }
     }

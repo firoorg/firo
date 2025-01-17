@@ -2,7 +2,8 @@
 // Created by Gevorg Voskanyan
 //
 
-#include "net.h"   // for g_connman
+#include <format>
+
 #include "../validation.h"
 #include "../wallet/wallet.h"
 #include "../spark/sparkwallet.h"
@@ -31,7 +32,7 @@ CAmount Wallet::compute_new_spark_asset_fee( const std::string_view asset_symbol
       case 5:
          return 10 * COIN;
       default:
-         assert( length > 6 );
+         assert( length >= 6 );
          return COIN;   // 1 coin of the base asset, i.e. FIRO
    }
 }
