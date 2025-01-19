@@ -1,4 +1,5 @@
 #include "state.h"
+#include "sparkname.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
 
@@ -774,6 +775,18 @@ bool CheckSparkTransaction(
                         isCheckWallet, fStatefulSigmaCheck, sparkTxInfo)) {
                     return false;
                 }
+
+                CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+                CSparkNameTxData sparkTxData;
+                if (sparkNameManager->CheckSparkNameTx(tx, nHeight, state, &sparkTxData)) {
+                    if (!sparkTxData.name.empty() && sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
+                        sparkTxInfo->sparkNames[sparkTxData.name] = sparkTxData;
+                    }
+                }
+                else {
+                    return false;
+                }
+
             }
             catch (const std::exception &x) {
                 return state.Error(x.what());
