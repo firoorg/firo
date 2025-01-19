@@ -8,6 +8,7 @@
 #include "../policy/policy.h"
 #include "../script/sign.h"
 #include "state.h"
+#include "sparkname.h"
 
 #include <boost/format.hpp>
 
@@ -1585,6 +1586,33 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     }
 
     return wtxNew;
+}
+
+CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, CAmount fee, const CCoinControl *coinConrol) {
+    CRecipient devPayout;
+    devPayout.nAmount = fee;
+    devPayout.scriptPubKey = GetScriptForDestination(CBitcoinAddress(Params().GetConsensus().stage3DevelopmentFundAddress).Get());
+    devPayout.fSubtractFeeFromAmount = false;
+
+    CAmount txFee;
+    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({devPayout}, {}, txFee, coinConrol);
+
+    const spark::Params* params = spark::Params::get_default();
+    spark::SpendKey spendKey(params);
+    try {
+        spendKey = std::move(generateSpendKey(params));
+    } catch (std::exception& e) {
+        throw std::runtime_error(_("Unable to generate spend key."));
+    }
+
+    if (spendKey == spark::SpendKey(params))
+        throw std::runtime_error(_("Unable to generate spend key, looks the wallet is locked."));
+
+    CMutableTransaction tx = CMutableTransaction(*wtxSparkSpend.tx);
+    CSparkNameManager::GetInstance()->AppendSparkNameTxData(tx, nameData, spendKey, fullViewKey);
+
+    wtxSparkSpend.tx = MakeTransactionRef(std::move(tx));
+    return wtxSparkSpend;
 }
 
 template<typename Iterator>

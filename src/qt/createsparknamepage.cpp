@@ -21,3 +21,4 @@ CreateSparkNamePage::~CreateSparkNamePage()
 {
     delete ui;
 }
+

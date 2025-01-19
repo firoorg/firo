@@ -11,6 +11,7 @@
 #include "../libspark/spend_transaction.h"
 #include "../wallet/walletdb.h"
 #include "../sync.h"
+#include "../sparkname.h"
 
 class CRecipient;
 class CReserveKey;
@@ -138,6 +139,11 @@ public:
             std::size_t mintNum,
             std::size_t utxoNum,
             const CCoinControl *coinControl);
+
+    CWalletTx CreateSparkNameTransaction(
+            CSparkNameTxData &nameData,
+            CAmount fee,
+            const CCoinControl *coinControl = NULL);
 
     // Returns the list of pairs of coins and metadata for that coin,
     std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
