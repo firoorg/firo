@@ -34,8 +34,18 @@ class SpendGettransactionTest(BitcoinTestFramework):
         self.nodes[0].generate(1)
         self.sync_all()
 
-        balance = self.nodes[0].getsparkbalance()
-        assert balance['availableBalance'] / 1e8 == 10
+        sparkBalance = self.nodes[0].getsparkbalance()
+        assert sparkBalance['availableBalance'] / 1e8 == 10
+
+        address = self.nodes[0].getnewaddress()
+        for _ in range(10):
+            self.nodes[0].mintspark({address: {"amount": 1, "subtractFee": False}, sparkAddress: {"amount": 2, "memo": "Test", "subtractFee": False}})
+
+        self.nodes[0].generate(1)
+        self.sync_all()
+
+        sparkBalance = self.nodes[0].getsparkbalance()
+        assert sparkBalance['availableBalance'] / 1e8 == 30
 
         # case 1: Spend many with watchonly address
         spendto_wo_id = self.nodes[0].spendspark({watchonly_address: {"amount": 1, "subtractFee": False}})
