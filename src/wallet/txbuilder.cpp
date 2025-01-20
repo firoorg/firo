@@ -224,7 +224,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
         result.SetTx(MakeTransactionRef(tx));
 
         if (GetTransactionWeight(tx) >= MAX_STANDARD_TX_WEIGHT) {
-            throw std::runtime_error(_("Transaction too large"));
+            throw std::runtime_error(_("Transaction is too large (size limit: 100Kb). Select less inputs or consolidate your UTXOs"));
         }
 
         // check fee

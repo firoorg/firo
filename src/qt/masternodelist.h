@@ -11,6 +11,7 @@
 #include <QMenu>
 #include <QTimer>
 #include <QWidget>
+#include <QResizeEvent>
 
 #define MASTERNODELIST_UPDATE_SECONDS 3
 #define MASTERNODELIST_FILTER_COOLDOWN_SECONDS 3
@@ -38,7 +39,8 @@ public:
 
     void setClientModel(ClientModel* clientModel);
     void setWalletModel(WalletModel* walletModel);
-
+    void resizeEvent(QResizeEvent*) override;
+    void adjustTextSize(int width,int height);
 private:
     QMenu* contextMenuDIP3;
     int64_t nTimeFilterUpdatedDIP3;

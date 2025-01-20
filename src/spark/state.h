@@ -26,6 +26,7 @@ public:
 
     // linking tag for every spend (map from lTag to coin group id)
     std::unordered_map<GroupElement, int> spentLTags;
+    std::unordered_map<uint256, uint256> ltagTxhash;
 
     // information about transactions in the block is complete
     bool fInfoIsComplete;
@@ -168,6 +169,7 @@ public:
     void AddMintsToStateAndBlockIndex(CBlockIndex *index, const CBlock* pblock);
 
     void AddSpend(const GroupElement& lTag, int coinGroupId);
+    void AddLTagTxHash(const uint256& lTagHash, const uint256& txHash);
     void RemoveSpend(const GroupElement& lTag);
     // Add everything from the block to the state
     void AddBlock(CBlockIndex *index);
@@ -213,6 +215,7 @@ public:
 
     std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & GetMints() const;
     std::unordered_map<GroupElement, int, spark::CLTagHash> const & GetSpends() const;
+    std::unordered_map<uint256, uint256> const& GetSpendTxIds() const;
     std::unordered_map<int, SparkCoinGroupInfo> const & GetCoinGroups() const;
     std::unordered_map<GroupElement, uint256, spark::CLTagHash> const & GetMempoolLTags() const;
 
@@ -238,6 +241,8 @@ private:
     std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> mintedCoins;
     // Set of all used coin linking tags.
     std::unordered_map<GroupElement, int, spark::CLTagHash> usedLTags;
+    // linking tag hash mapped to tx hash
+    std::unordered_map<uint256, uint256> ltagTxhash;
 
     typedef std::map<int, size_t> metainfo_container_t;
     metainfo_container_t extendedMintMetaInfo, mintMetaInfo, spendMetaInfo;

@@ -788,7 +788,7 @@ CKeyID CHDMintWallet::GetMintSeedID(CWalletDB& walletdb, int32_t nCount){
  * @param mintSeed
  * @param nCount (optional) count in the HD Chain of the key to use for mint generation.
  * @param seedId (optional) seedId of the key to use for mint generation.
- * @return sucess
+ * @return success
  */
 bool CHDMintWallet::CreateMintSeed(CWalletDB& walletdb, uint512& mintSeed, const int32_t& nCount, CKeyID& seedId, bool fWriteChain)
 {

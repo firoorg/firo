@@ -192,7 +192,6 @@ public:
         consensus.nSubsidyHalvingFirst = 302438;
         consensus.nSubsidyHalvingSecond = AdjustEndingBlockNumberAfterSubsidyHalving(302438, 420000, 486221); // =958655
         consensus.nSubsidyHalvingInterval = 420000*2;
-        consensus.nSubsidyHalvingStopBlock = AdjustEndingBlockNumberAfterSubsidyHalving(0, 3646849, 486221);  // =6807477
 
         consensus.stage2DevelopmentFundShare = 15;
         consensus.stage2ZnodeShare = 35;
@@ -205,6 +204,12 @@ public:
         consensus.stage3MasternodeShare = 50;
         consensus.stage3DevelopmentFundAddress = "aLgRaYSFk6iVw2FqY1oei8Tdn2aTsGPVmP";
         consensus.stage3CommunityFundAddress = "aFA2TbqG9cnhhzX5Yny2pBJRK5EaEqLCH7";
+
+        consensus.stage4StartBlock = consensus.nSubsidyHalvingSecond;
+        consensus.stage4CommunityFundShare = 10;
+        consensus.stage4DevelopmentFundShare = 15;
+        consensus.stage4MasternodeShare = 70;
+        consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
 
         consensus.nStartBlacklist = 293990;
         consensus.nStartDuplicationCheck = 293526;
@@ -514,7 +519,6 @@ public:
         consensus.nSubsidyHalvingFirst = 12000;
         consensus.nSubsidyHalvingSecond = 150000;
         consensus.nSubsidyHalvingInterval = 150000;
-        consensus.nSubsidyHalvingStopBlock = 1000000;
 
         consensus.stage2DevelopmentFundShare = 15;
         consensus.stage2ZnodeShare = 35;
@@ -527,6 +531,12 @@ public:
         consensus.stage3MasternodeShare = 50;
         consensus.stage3DevelopmentFundAddress = "TWDxLLKsFp6qcV1LL4U2uNmW4HwMcapmMU";
         consensus.stage3CommunityFundAddress = "TCkC4uoErEyCB4MK3d6ouyJELoXnuyqe9L";
+
+        consensus.stage4StartBlock = 167500;
+        consensus.stage4CommunityFundShare = 10;
+        consensus.stage4DevelopmentFundShare = 15;
+        consensus.stage4MasternodeShare = 70;
+        consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
 
         consensus.nStartBlacklist = 0;
         consensus.nStartDuplicationCheck = 0;
@@ -789,21 +799,26 @@ public:
         consensus.chainType = Consensus::chainDevnet;
 
         consensus.nSubsidyHalvingFirst = 1;
-        consensus.nSubsidyHalvingSecond = 100000;
-        consensus.nSubsidyHalvingInterval = 100000;
-        consensus.nSubsidyHalvingStopBlock = 1000000;
+        consensus.nSubsidyHalvingSecond = 3000;
+        consensus.nSubsidyHalvingInterval = 10000;
 
         consensus.stage2DevelopmentFundShare = 15;
         consensus.stage2ZnodeShare = 35;
         consensus.stage2DevelopmentFundAddress = "Tq99tes2sRbQ1yNUJPJ7BforYnKcitgwWq";
 
         consensus.stage3StartTime = 1653382800;
-        consensus.stage3StartBlock = 1514;
+        consensus.stage3StartBlock = 1514;  // this is incorrect value but we have to leave it for now
         consensus.stage3DevelopmentFundShare = 15;
         consensus.stage3CommunityFundShare = 10;
         consensus.stage3MasternodeShare = 50;
         consensus.stage3DevelopmentFundAddress = "TfvbHyGTo8hexoKBBS8fz9Gq7g9VZQQpcg";
         consensus.stage3CommunityFundAddress = "TgoL9nh8vDTz7UB5WkBbknBksBdUaD9qbT";
+
+        consensus.stage4StartBlock = consensus.nSubsidyHalvingSecond;
+        consensus.stage4CommunityFundShare = 10;
+        consensus.stage4DevelopmentFundShare = 15;
+        consensus.stage4MasternodeShare = 70;
+        consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
 
         consensus.nStartBlacklist = 0;
         consensus.nStartDuplicationCheck = 0;
@@ -1031,20 +1046,25 @@ public:
         consensus.nSubsidyHalvingFirst = 1500;
         consensus.nSubsidyHalvingSecond = 2500;
         consensus.nSubsidyHalvingInterval = 1000;
-        consensus.nSubsidyHalvingStopBlock = 10000;
 
         consensus.nStartBlacklist = 0;
         consensus.nStartDuplicationCheck = 0;
         consensus.stage2DevelopmentFundShare = 15;
         consensus.stage2ZnodeShare = 35;
 
-        consensus.stage3StartTime = INT_MAX;
-        consensus.stage3StartBlock = 0;
+        consensus.stage3StartTime = INT_MAX;        // tests should set this value individually
+        consensus.stage3StartBlock = INT_MAX;       // same as above
         consensus.stage3DevelopmentFundShare = 15;
         consensus.stage3CommunityFundShare = 10;
         consensus.stage3MasternodeShare = 50;
         consensus.stage3DevelopmentFundAddress = "TGEGf26GwyUBE2P2o2beBAfE9Y438dCp5t";  // private key cMrz8Df36VR9TvZjtvSqLPhUQR7pcpkXRXaLNYUxfkKsRuCzHpAN
         consensus.stage3CommunityFundAddress = "TJmPzeJF4DECrBwUftc265U7rTPxKmpa4F";  // private key cTyPWqTMM1CgT5qy3K3LSgC1H6Q2RHvnXZHvjWtKB4vq9qXqKmMu
+
+        consensus.stage4StartBlock = consensus.nSubsidyHalvingSecond;
+        consensus.stage4CommunityFundShare = 15;
+        consensus.stage4DevelopmentFundShare = 25;
+        consensus.stage4MasternodeShare = 50;
+        consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
 
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;

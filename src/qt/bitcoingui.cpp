@@ -510,7 +510,7 @@ void BitcoinGUI::createToolBars()
 {
     if(walletFrame)
     {
-        QToolBar *toolbar = addToolBar(tr("Tabs toolbar"));
+        toolbar = addToolBar(tr("Tabs toolbar"));
         toolbar->setContextMenuPolicy(Qt::PreventContextMenu);
         toolbar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         toolbar->setToolButtonStyle(Qt::ToolButtonTextOnly);
@@ -523,7 +523,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(lelantusAction);
         toolbar->addAction(masternodeAction);
 
-        QLabel *logoLabel = new QLabel();
+        logoLabel = new QLabel();
         logoLabel->setObjectName("lblToolbarLogo");
         logoLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         
@@ -1413,7 +1413,7 @@ UnitDisplayStatusBarControl::UnitDisplayStatusBarControl(const PlatformStyle *pl
     const QFontMetrics fm(font());
     for (const BitcoinUnits::Unit unit : units)
     {
-        max_width = qMax(max_width, fm.width(BitcoinUnits::name(unit)));
+        max_width = qMax(max_width, GUIUtil::TextWidth(fm, BitcoinUnits::name(unit)));
     }
     setMinimumSize(max_width, 0);
     setAlignment(Qt::AlignRight | Qt::AlignVCenter);
@@ -1472,5 +1472,29 @@ void UnitDisplayStatusBarControl::onMenuSelection(QAction* action)
     if (action)
     {
         optionsModel->setDisplayUnit(action->data());
+    }
+}
+
+// Handles resize events for the BitcoinGUI widget by adjusting internal component sizes.
+void BitcoinGUI::resizeEvent(QResizeEvent* event) {
+    QMainWindow::resizeEvent(event);  
+
+    // Retrieve new dimensions from the resize event
+    int newWidth = event->size().width();
+    int actionWidth = newWidth / 6;
+
+    if (toolbar) {
+        // Set widths for each action dynamically
+        QWidget* overviewWidget = overviewAction ? toolbar->widgetForAction(overviewAction) : nullptr;
+        QWidget* receiveWidget = receiveCoinsAction ? toolbar->widgetForAction(receiveCoinsAction) : nullptr;
+        QWidget* historyWidget = historyAction ? toolbar->widgetForAction(historyAction) : nullptr;
+        QWidget* sendCoinsWidget = sendCoinsAction ? toolbar->widgetForAction(sendCoinsAction) : nullptr;
+        QWidget* masternodeWidget = masternodeAction ? toolbar->widgetForAction(masternodeAction) : nullptr;
+
+        if (overviewWidget) overviewWidget->setMinimumWidth(actionWidth);
+        if (receiveWidget) receiveWidget->setMinimumWidth(actionWidth);
+        if (historyWidget) historyWidget->setMinimumWidth(actionWidth);
+        if (sendCoinsWidget) sendCoinsWidget->setMinimumWidth(actionWidth);
+        if (masternodeWidget) masternodeWidget->setMinimumWidth(actionWidth);
     }
 }

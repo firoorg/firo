@@ -11,9 +11,12 @@
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "walletmodel.h"
+#include "../spark/sparkwallet.h"
+#include "../wallet/wallet.h"
 
 #include <QApplication>
 #include <QClipboard>
+#include<QResizeEvent>
 
 SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *parent) :
     QStackedWidget(parent),
@@ -27,6 +30,7 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     QIcon icon_;
     icon_.addFile(QString::fromUtf8(":/icons/ic_warning"), QSize(), QIcon::Normal, QIcon::On);
     ui->iconWarning->setPixmap(icon_.pixmap(18, 18));
+    ui->iconMessageWarning->setPixmap(icon_.pixmap(18, 18));
 
     ui->addressBookButton->setIcon(platformStyle->SingleColorIcon(":/icons/address-book"));
     ui->pasteButton->setIcon(platformStyle->SingleColorIcon(":/icons/editpaste"));
@@ -53,11 +57,41 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     connect(ui->deleteButton, &QToolButton::clicked, this, &SendCoinsEntry::deleteClicked);
     connect(ui->deleteButton_is, &QToolButton::clicked, this, &SendCoinsEntry::deleteClicked);
     connect(ui->deleteButton_s, &QToolButton::clicked, this, &SendCoinsEntry::deleteClicked);
+    connect(ui->messageTextLabel, &QLineEdit::textChanged, this, &SendCoinsEntry::on_MemoTextChanged);
+
+    ui->messageLabel->setVisible(false);
+    ui->messageTextLabel->setVisible(false);
+    ui->iconMessageWarning->setVisible(false);
 }
 
 SendCoinsEntry::~SendCoinsEntry()
 {
     delete ui;
+}
+
+void SendCoinsEntry::on_MemoTextChanged(const QString &text)
+{
+    const spark::Params* params = spark::Params::get_default();
+    int maxLength = params->get_memo_bytes();
+    bool isOverLimit = text.length() > maxLength;
+
+    if (isOverLimit) {
+        ui->messageWarning->setText(QString("Message exceeds %1 bytes limit").arg(maxLength));
+        ui->messageWarning->setVisible(true);
+        ui->messageTextLabel->setStyleSheet("border: 1px solid red;");
+        ui->iconMessageWarning->setVisible(true);
+    } else {
+        QString sanitized = text;
+        sanitized.remove(QRegExp("[\\x00-\\x1F\\x7F]"));
+        if (sanitized != text) {
+            ui->messageTextLabel->setText(sanitized);
+            return;
+        }
+        ui->messageWarning->clear();
+        ui->messageWarning->setVisible(false);
+        ui->messageTextLabel->setStyleSheet("");
+        ui->iconMessageWarning->setVisible(false);
+    }
 }
 
 void SendCoinsEntry::on_pasteButton_clicked()
@@ -82,6 +116,14 @@ void SendCoinsEntry::on_addressBookButton_clicked()
 void SendCoinsEntry::on_payTo_textChanged(const QString &address)
 {
     updateLabel(address);
+    setWarning(fAnonymousMode);
+
+    bool isSparkAddress = false;
+    if (model) {
+        isSparkAddress = model->validateSparkAddress(address);
+    }
+    ui->messageLabel->setVisible(isSparkAddress);
+    ui->messageTextLabel->setVisible(isSparkAddress);
 }
 
 void SendCoinsEntry::setModel(WalletModel *_model)
@@ -122,15 +164,37 @@ void SendCoinsEntry::deleteClicked()
     Q_EMIT removeEntry(this);
 }
 
-void SendCoinsEntry::setWarning(bool fAnonymousMode)
+void SendCoinsEntry::setWarning(bool fAnonymousMode) {
+    const QString address = ui->payTo->text();
+    const QString warningText = generateWarningText(address, fAnonymousMode);
+    const bool hasValidAddress = model->validateAddress(address) || model->validateSparkAddress(address);
+    ui->textWarning->setText(warningText);
+    ui->textWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
+    ui->iconWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
+}
+
+QString SendCoinsEntry::generateWarningText(const QString& address, const bool fAnonymousMode)
 {
-    if(fAnonymousMode) {
-        ui->textWarning->hide();
-        ui->iconWarning->hide();
+    QString warningText;
+
+    if (address.startsWith("EX")) {
+        warningText = tr(" You are sending Firo to an Exchange Address. Exchange Addresses can only receive funds from a transparent address.");
     } else {
-        ui->textWarning->show();
-        ui->iconWarning->show();
+        if (!fAnonymousMode) {
+            if (pwalletMain->validateAddress(address.toStdString())) {
+                warningText = tr(" You are sending Firo from a transparent address to another transparent address. To protect your privacy, we recommend using Spark addresses instead.");
+            } else if (pwalletMain->validateSparkAddress(address.toStdString())) {
+                warningText = tr(" You are sending Firo from a transparent address to a Spark address.");
+            }
+        } else {
+            if (pwalletMain->validateSparkAddress(address.toStdString())) {
+                warningText = tr(" You are sending Firo from a Spark address to another Spark address. This transaction is fully private.");
+            } else if (pwalletMain->validateAddress(address.toStdString())) {
+                warningText = tr(" You are sending Firo from a private Spark pool to a transparent address. Please note that some exchanges do not accept direct Spark deposits.");
+            }
+        }
     }
+    return warningText;
 }
 
 bool SendCoinsEntry::validate()
@@ -230,6 +294,11 @@ bool SendCoinsEntry::isPayToPcode() const
     return isPcodeEntry;
 }
 
+void SendCoinsEntry::setfAnonymousMode(bool fAnonymousMode)
+{
+    this->fAnonymousMode = fAnonymousMode;
+}
+
 void SendCoinsEntry::setFocus()
 {
     ui->payTo->setFocus();
@@ -264,4 +333,42 @@ bool SendCoinsEntry::updateLabel(const QString &address)
 
     ui->addAsLabel->setText(associatedLabel);
     return true;
+}
+void SendCoinsEntry::resizeEvent(QResizeEvent* event) {
+    QStackedWidget::resizeEvent(event);
+
+    const int newWidth = event->size().width();
+    const int newHeight = event->size().height();
+
+    adjustTextSize(newWidth, newHeight);
+}
+
+
+void SendCoinsEntry::adjustTextSize(int width, int height) {
+   const double fontSizeScalingFactor = 130.0;
+    int baseFontSize = width / fontSizeScalingFactor;
+    int fontSize = std::max(12,baseFontSize);
+    QFont font = this->font();
+    font.setPointSize(fontSize);
+
+    ui->payToLabel->setFont(font);
+    ui->labellLabel->setFont(font);
+    ui->addAsLabel->setFont(font);
+    ui->amountLabel->setFont(font);
+    ui->messageLabel->setFont(font);
+    ui->messageTextLabel->setFont(font);
+    ui->payTo->setFont(font);
+    ui->payTo_is->setFont(font);
+    ui->memoLabel_is->setFont(font);
+    ui->memoTextLabel_is->setFont(font);
+    ui->amountLabel_is->setFont(font);
+    ui->payToLabel_s->setFont(font);
+    ui->payTo_s->setFont(font);
+    ui->memoLabel_s->setFont(font);
+    ui->memoTextLabel_s->setFont(font);
+    ui->amountLabel_s->setFont(font);
+    ui->checkboxSubtractFeeFromAmount->setFont(font);
+    ui->deleteButton->setFont(font);
+    ui->pasteButton->setFont(font);
+    ui->addressBookButton->setFont(font);
 }

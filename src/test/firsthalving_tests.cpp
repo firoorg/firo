@@ -154,9 +154,8 @@ BOOST_FIXTURE_TEST_CASE(devpayout, TestChainDIP3BeforeActivationSetup)
 
     consensusParams.nSubsidyHalvingFirst = 600;
     consensusParams.stage3StartTime = INT_MAX;
-    consensusParams.nSubsidyHalvingSecond = 620;
+    consensusParams.nSubsidyHalvingSecond = consensusParams.stage4StartBlock = 620;
     consensusParams.nSubsidyHalvingInterval = 10;
-    consensusParams.nSubsidyHalvingStopBlock = 1000;
 
     CScript devPayoutScript = GenerateRandomAddress();
     CTxDestination devPayoutDest{CScriptID(devPayoutScript)};
@@ -226,6 +225,8 @@ BOOST_FIXTURE_TEST_CASE(devpayout, TestChainDIP3BeforeActivationSetup)
 
     // initiate stage3
     consensusParams.stage3StartTime = GetTime();
+    consensusParams.stage3StartBlock = chainActive.Height();
+
     // for stage3 there is dev payout and community payout
     for (int i=610; i<620; i++) {
         CBlock block = CreateAndProcessBlock({}, coinbaseKey);
@@ -260,39 +261,39 @@ BOOST_FIXTURE_TEST_CASE(devpayout, TestChainDIP3BeforeActivationSetup)
         CAmount nValue;
         auto dmnPayout = FindPayoutDmn(block, nValue);
 
-        BOOST_ASSERT(dmnPayout != nullptr && nValue == 3125*COIN/1000);   // 3.125 (6.25*0.5)
+        // stage 4: no real halving here
+        BOOST_ASSERT(dmnPayout != nullptr && nValue == 625*COIN/100);   // 6.25
 
         // there should be no more payment to devs fund
         for (const CTxOut &txout: block.vtx[0]->vout) {
             BOOST_ASSERT(txout.scriptPubKey != GetScriptForDestination(CBitcoinAddress(consensusParams.stage2DevelopmentFundAddress).Get()));
         }
 
-        // miner's reward should be 6.25-3.125 = 3.125
-        BOOST_ASSERT(block.vtx[0]->vout[0].nValue == 3125*COIN/1000);
-        // should be only 2 vouts in coinbase
-        BOOST_ASSERT(block.vtx[0]->vout.size() == 2);
+        // miner's reward should be 1.25 (10%)
+        BOOST_ASSERT(block.vtx[0]->vout[0].nValue == 125*COIN/100);
+
+        bool paymentToDevFound = false, paymentToCommunityFound = false;
+        for (const CTxOut &txout: block.vtx[0]->vout) {
+            if (txout.scriptPubKey == GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get())) {
+                BOOST_ASSERT(txout.nValue == 3125*COIN/1000); // 25/2*0.25
+                paymentToDevFound = true;
+            }
+            if (txout.scriptPubKey == GetScriptForDestination(CBitcoinAddress(consensusParams.stage3CommunityFundAddress).Get())) {
+                BOOST_ASSERT(txout.nValue == 1875*COIN/1000); // 25/2*0.15
+                paymentToCommunityFound = true;
+            }
+        }
+        BOOST_ASSERT(paymentToDevFound && paymentToCommunityFound);    
     }
 
-    // the third halving should occur at block 630
+    // tail emission should occur at block 630
     CBlock block = CreateAndProcessBlock({}, coinbaseKey);
     deterministicMNManager->UpdatedBlockTip(chainActive.Tip());
 
     CAmount nValue;
     auto dmnPayout = FindPayoutDmn(block, nValue);
 
-    BOOST_ASSERT(dmnPayout != nullptr && nValue == 3125*COIN/1000/2);   // 3.125/2 (3.125*0.5)
-
-    // there should be no more payment to devs/community funds fund
-    for (const CTxOut &txout: block.vtx[0]->vout) {
-        BOOST_ASSERT(txout.scriptPubKey != GetScriptForDestination(CBitcoinAddress(consensusParams.stage2DevelopmentFundAddress).Get()) &&
-                        txout.scriptPubKey != GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get()) &&
-                        txout.scriptPubKey != GetScriptForDestination(CBitcoinAddress(consensusParams.stage3CommunityFundAddress).Get()));
-    }
-
-    // miner's reward should be 3.125/2
-    BOOST_ASSERT(block.vtx[0]->vout[0].nValue == 3125*COIN/1000/2);
-    // should be only 2 vouts in coinbase
-    BOOST_ASSERT(block.vtx[0]->vout.size() == 2);
+    BOOST_ASSERT(dmnPayout != nullptr && nValue == COIN);
 
     consensusParams = consensusParamsBackup;
 }
@@ -304,8 +305,8 @@ BOOST_FIXTURE_TEST_CASE(devpayoutverification, TestChainDIP3BeforeActivationSetu
 
     consensusParams.nSubsidyHalvingFirst = 600;
     consensusParams.nSubsidyHalvingSecond = 610;
+    consensusParams.stage3StartTime = INT_MAX;    
     consensusParams.nSubsidyHalvingInterval = 10;
-    consensusParams.nSubsidyHalvingStopBlock = 1000;
 
     // skip to block 600
     for (int i=498; i<600; i++)

@@ -742,7 +742,12 @@ std::vector<CRecipient> CSparkWallet::CreateSparkMintRecipients(
         script.insert(script.end(), serializedCoins[i].begin(), serializedCoins[i].end());
         unsigned char network = spark::GetNetworkType();
         std::string addr = outputs[i].address.encode(network);
-        CRecipient recipient = {script, CAmount(outputs[i].v), false, addr};
+        std::string memo = outputs[i].memo;
+        const std::size_t max_memo_size = outputs[i].address.get_params()->get_memo_bytes();
+        if (memo.length() > max_memo_size) {
+            throw std::runtime_error(strprintf("Memo exceeds maximum length of %d bytes", max_memo_size));
+        }
+        CRecipient recipient = {script, CAmount(outputs[i].v), false, addr, memo};
         results.emplace_back(recipient);
     }
 
@@ -1095,8 +1100,8 @@ bool CSparkWallet::CreateSparkMintTransactions(
 
                     // Limit size
                     CTransaction txConst(tx);
-                    if (GetTransactionWeight(txConst) >= MAX_STANDARD_TX_WEIGHT) {
-                        strFailReason = _("Transaction too large");
+                    if (GetTransactionWeight(txConst) >= MAX_NEW_TX_WEIGHT) {
+                        strFailReason = _("Transaction is too large (size limit: 250Kb). Select less inputs or consolidate your UTXOs");
                         return false;
                     }
                     dPriority = txConst.ComputePriority(dPriority, nBytes);
@@ -1165,6 +1170,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                                     CSparkOutputTx output;
                                     output.address = recipient.address;
                                     output.amount = recipient.nAmount;
+                                    output.memo = recipient.memo;
                                     walletdb.WriteSparkOutputTx(recipient.scriptPubKey, output);
                                     break;
                                 }
@@ -1604,13 +1610,14 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 CSparkOutputTx output;
                 output.address =  privOutputs[i].address.encode(network);
                 output.amount = privOutputs[i].v;
+                output.memo = privOutputs[i].memo;
                 walletdb.WriteSparkOutputTx(script, output);
                 tx.vout.push_back(CTxOut(0, script));
                 i++;
             }
 
             if (GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT) {
-                throw std::runtime_error(_("Transaction too large"));
+                throw std::runtime_error(_("Transaction is too large (size limit: 250Kb). Select less inputs or consolidate your UTXOs"));
             }
 
             // check fee

@@ -192,7 +192,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     pblock->nTime = GetAdjustedTime();
     bool fMTP = (pblock->nTime >= params.nMTPSwitchTime);
-    bool fShorterBlockDistance = (pblock->nTime >= params.stage3StartTime);
+    bool fShorterBlockDistance = nHeight >= params.stage3StartBlock;
     const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
 
     pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus()) | (fMTP ? 0x1000 : 0);
@@ -835,19 +835,31 @@ void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fM
     if (fShorterBlockDistance)
         coin /= 2;
 
-    if (nHeight >= params.nSubsidyHalvingFirst && nHeight < params.nSubsidyHalvingSecond) {
+    if ((nHeight >= params.nSubsidyHalvingFirst && nHeight < params.nSubsidyHalvingSecond) || nHeight >= params.stage4StartBlock) {
         if (fShorterBlockDistance) {
-            // Stage 3
+            bool fStage3 = nHeight < params.nSubsidyHalvingSecond;
+            bool fStage4 = nHeight >= params.stage4StartBlock;
+            CAmount devPayoutValue = 0, communityPayoutValue = 0;
             CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(params.stage3DevelopmentFundAddress).Get());
-            CAmount devPayoutValue = (GetBlockSubsidyWithMTPFlag(nHeight, params, fMTP, true) * params.stage3DevelopmentFundShare) / 100;
             CScript communityPayoutScript = GetScriptForDestination(CBitcoinAddress(params.stage3CommunityFundAddress).Get());
-            CAmount communityPayoutValue = (GetBlockSubsidyWithMTPFlag(nHeight, params, fMTP, true) * params.stage3CommunityFundShare) / 100;
 
-            coinbaseTx.vout[0].nValue -= devPayoutValue;
-            coinbaseTx.vout.push_back(CTxOut(devPayoutValue, devPayoutScript));
+            // There is no dev/community payout for testnet for some time
+            if (fStage3 || fStage4) {
+                int devShare = fStage3 ? params.stage3DevelopmentFundShare : params.stage4DevelopmentFundShare;
+                int communityShare = fStage3 ? params.stage3CommunityFundShare : params.stage4CommunityFundShare;
+                devPayoutValue = (GetBlockSubsidyWithMTPFlag(nHeight, params, fMTP, true) * devShare) / 100;
+                communityPayoutValue = (GetBlockSubsidyWithMTPFlag(nHeight, params, fMTP, true) * communityShare) / 100;
+            }
 
-            coinbaseTx.vout[0].nValue -= communityPayoutValue;
-            coinbaseTx.vout.push_back(CTxOut(communityPayoutValue, communityPayoutScript));
+            if (devPayoutValue != 0) {
+                coinbaseTx.vout[0].nValue -= devPayoutValue;
+                coinbaseTx.vout.push_back(CTxOut(devPayoutValue, devPayoutScript));
+            }
+
+            if (communityPayoutValue != 0) {
+                coinbaseTx.vout[0].nValue -= communityPayoutValue;
+                coinbaseTx.vout.push_back(CTxOut(communityPayoutValue, communityPayoutScript));
+            }
         }
         else {
             // Stage 2

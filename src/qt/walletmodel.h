@@ -153,6 +153,7 @@ public:
 
     // Check address for validity
     bool validateAddress(const QString &address);
+    bool validateExchangeAddress(const QString &address);
     bool validateSparkAddress(const QString &address);
     std::pair<CAmount, CAmount> getSparkBalance();
 

@@ -5,7 +5,7 @@ on:
     - 'doc/**'
     - '**/README.md'
     branches:
-    - master
+    - '**'
   pull_request:
     paths-ignore:
     - 'doc/**'
@@ -14,15 +14,14 @@ on:
     - master
 env:
   SOURCE_ARTIFACT: source
+  SOURCE_ARTIFACT_DIR: source
 jobs:
   create-source-distribution:
     name: Create Source Distribution
     runs-on: ubuntu-latest
-    env:
-      ARTIFACT_DIR: source
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     - name: Install Required Packages
       run: |
         sudo apt-get update
@@ -38,13 +37,13 @@ jobs:
       run: tar -czf depends.tar.gz depends
     - name: Prepare Files for Artifact
       run: |
-        mkdir -p $ARTIFACT_DIR
-        mv depends.tar.gz firo-*.tar.gz $ARTIFACT_DIR
+        mkdir -p $SOURCE_ARTIFACT_DIR
+        mv depends.tar.gz firo-*.tar.gz $SOURCE_ARTIFACT_DIR
     - name: Upload Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.SOURCE_ARTIFACT }}
-        path: ${{ env.ARTIFACT_DIR }}
+        path: ${{ env.SOURCE_ARTIFACT_DIR }}
   build-linux:
     name: Build for Linux
     needs: create-source-distribution
@@ -53,10 +52,15 @@ jobs:
       ARTIFACT_DIR: linux-binaries
       TEST_LOG_ARTIFACT_DIR: test-logs
     steps:
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
     - name: Getting Source
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v4
       with:
         name: ${{ env.SOURCE_ARTIFACT }}
+        path: ${{ env.SOURCE_ARTIFACT_DIR }}
     - name: Extract Archives
       run: |
         tar -xzf depends.tar.gz
@@ -66,6 +70,10 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y python3-zmq
+    - name: Verify ZMQ Installation
+      run: |
+        python3 -m pip install --upgrade pip
+        python3 -m pip install pyzmq
     - name: Build Dependencies
       run: make -C depends -j$(nproc)
       working-directory: ${{ env.SOURCE_ARTIFACT }}
@@ -87,7 +95,7 @@ jobs:
         mkdir -p $ARTIFACT_DIR
         mv $SOURCE_ARTIFACT/src/{firo-cli,firo-tx,firod,qt/firo-qt} $ARTIFACT_DIR
     - name: Upload Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: linux-binaries
         path: ${{ env.ARTIFACT_DIR }}
@@ -108,7 +116,7 @@ jobs:
         fi
     - name: Upload Test Logs Artifact
       if: failure()
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: test-logs
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
@@ -120,9 +128,10 @@ jobs:
       ARTIFACT_DIR: windows-binaries
     steps:
     - name: Getting Source
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v4
       with:
         name: ${{ env.SOURCE_ARTIFACT }}
+        path: ${{ env.SOURCE_ARTIFACT_DIR }}
     - name: Extract Archives
       run: |
         tar -xzf depends.tar.gz
@@ -149,7 +158,7 @@ jobs:
         mkdir -p $ARTIFACT_DIR
         mv $SOURCE_ARTIFACT/src/{firo-cli.exe,firo-tx.exe,firod.exe,qt/firo-qt.exe} $ARTIFACT_DIR
     - name: Upload Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: windows-binaries
         path: ${{ env.ARTIFACT_DIR }}
@@ -161,9 +170,10 @@ jobs:
       ARTIFACT_DIR: mac-binaries
     steps:
     - name: Getting Source
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v4
       with:
         name: ${{ env.SOURCE_ARTIFACT }}
+        path: ${{ env.SOURCE_ARTIFACT_DIR }}
     - name: Extract Archives
       run: |
         tar -xzf depends.tar.gz
@@ -172,7 +182,14 @@ jobs:
     - name: Use Xcode instead of Command Line Tools
       run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
     - name: Install Required Packages
-      run: brew install automake coreutils pkg-config python-setuptools
+      run: |
+        if ! command -v pkg-config &> /dev/null; then
+          echo "pkg-config not found, installing..."
+          brew install pkg-config
+        else
+          echo "pkg-config is already installed"
+        fi
+        brew install automake coreutils python-setuptools
       # Workaround for macOS: https://github.com/actions/runner/issues/2958
     - name: Install setuptools
       run: sudo -H pip install setuptools
@@ -189,7 +206,7 @@ jobs:
         mkdir -p $ARTIFACT_DIR
         mv $SOURCE_ARTIFACT/src/{firo-cli,firo-tx,firod,qt/firo-qt} $ARTIFACT_DIR
     - name: Upload Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: mac-binaries
         path: ${{ env.ARTIFACT_DIR }}
