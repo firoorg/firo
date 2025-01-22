@@ -194,7 +194,7 @@ bool CMasternodePayments::GetMasternodeTxOuts(int nBlockHeight, int nTime, CAmou
     voutMasternodePaymentsRet.clear();
 
     if(!GetBlockTxOuts(nBlockHeight, nTime, blockReward, voutMasternodePaymentsRet)) {
-        LogPrintf("CMasternodePayments::%s -- no payee (deterministic znode list empty)\n", __func__);
+        LogPrintf("CMasternodePayments::%s -- no payee for block at height %d (deterministic znode list empty)\n", __func__, nBlockHeight);
         return false;
     }
 
