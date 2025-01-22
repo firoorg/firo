@@ -1,6 +1,8 @@
 #ifndef FIRO_LIBSPARK_OWNERSHIP_PROOF_H
 #define FIRO_LIBSPARK_OWNERSHIP_PROOF_H
 
+#include <ostream>
+
 #include "params.h"
 
 namespace spark {
@@ -26,6 +28,12 @@ public:
     Scalar t2;
     Scalar t3;
 };
+
+inline std::ostream& operator<<(std::ostream& os, const OwnershipProof& proof)
+{
+    return os << "ownership proof: " << proof.A << " " << proof.t1 << " " << proof.t2 << " " << proof.t3;
+}
+
 }
 
 #endif

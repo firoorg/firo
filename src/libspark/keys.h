@@ -74,7 +74,7 @@ private:
 
 class Address {
 public:
-    Address();
+    Address(); // TODO GV #Review: why have this constructor at all, which leaves params uninitialized?
 	Address(const Params* params);
 	Address(const IncomingViewKey& incoming_view_key, uint64_t i);
 	const Params* get_params() const;

@@ -366,6 +366,11 @@ bool CScript::IsSpatsCreate() const
             (*this)[0] == OP_SPATSCREATE);
 }
 
+bool CScript::IsSpats() const
+{
+    return IsSpatsCreate();    // TODO more
+}
+
 bool CScript::IsMint() const {
     return IsZerocoinMint() || IsSigmaMint() || IsZerocoinRemint() || IsLelantusMint() || IsLelantusJMint() || IsSparkMint() || IsSparkSMint();
 }

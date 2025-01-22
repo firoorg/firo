@@ -144,7 +144,8 @@ public:
             std::list< CSparkMintMeta> coins,
             std::size_t mintNum,
             std::size_t utxoNum,
-            const CCoinControl *coinControl);
+            const CCoinControl *coinControl,
+            std::size_t spats_script_sizes_total = 0);
 
     // Returns the list of pairs of coins and metadata for that coin,
     std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = nullptr) const;

@@ -66,7 +66,7 @@ bool Registry::unprocess( const Action &a, int block_height )
 void Registry::add_the_base_asset( write_lock_proof wlp )
 {
    internal_add( FungibleSparkAsset{ base::asset_type,
-                                     base::naming,
+                                     base::naming(),
                                      std::string( base::metadata ),
                                      std::string( base::initial_admin_public_address ),
                                      base::initial_supply,
@@ -326,7 +326,7 @@ void Registry::internal_add( const FungibleSparkAsset &a, write_lock_proof )
 {
    const auto asset_type = a.asset_type();
    assert( !fungible_assets_.contains( asset_type ) );
-   fungible_assets_.emplace( asset_type, std::move( a ) );
+   fungible_assets_.emplace( asset_type, a );
    assert( fungible_assets_.contains( asset_type ) );
 }
 
@@ -335,7 +335,7 @@ void Registry::internal_add( const NonfungibleSparkAsset &a, write_lock_proof wl
    const auto asset_type = a.asset_type();
    const auto identifier = a.identifier();
    assert( !has_nonfungible_asset( asset_type, identifier, wlp ) );
-   nft_lines_[ asset_type ].emplace( identifier, std::move( a ) );
+   nft_lines_[ asset_type ].emplace( identifier, a );
    assert( has_nonfungible_asset( asset_type, identifier, wlp ) );
 }
 

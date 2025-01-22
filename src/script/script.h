@@ -693,6 +693,8 @@ public:
 
     bool IsSpatsCreate() const;
 
+    bool IsSpats() const;
+
     bool IsZerocoinRemint() const;
 
     bool IsMint() const;

@@ -80,7 +80,7 @@ std::string CTxIn::ToString() const
 CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn)
 {
     nValue = nValueIn;
-    scriptPubKey = scriptPubKeyIn;
+    scriptPubKey = std::move(scriptPubKeyIn);
 }
 
 std::string CTxOut::ToString() const
