@@ -148,6 +148,7 @@ void SelectParams(const std::string& chain);
  */
 void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout);
 
+// TODO is this the same regardless of network?
 constexpr auto firo_burn_address = "aFiroBurningAddressDoNotSendrPtjYA"sv;
 
 #endif // BITCOIN_CHAINPARAMS_H

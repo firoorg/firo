@@ -60,6 +60,8 @@ void MyOwnSpats::display_my_own_spats()
          ui_->tableWidgetMyOwnSpats->item( row, col )->setFlags( ui_->tableWidgetMyOwnSpats->item( row, col )->flags() & ~Qt::ItemIsEditable );
       ++row;
    }
+
+   ui_->countLabel->setText( QString::number( my_own_assets.size() ) );
 }
 
 MyOwnSpats::~MyOwnSpats() {}

@@ -1253,16 +1253,17 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     CAmount vOut = 0;
     CAmount mintVOut = 0;
     unsigned recipientsToSubtractFee = 0;
+    std::size_t spats_script_sizes_total = 0;
 
     for (size_t i = 0; i < recipients.size(); i++) {
-        auto& recipient = recipients[i];
+        const auto& recipient = recipients[i];
 
         if (recipient.scriptPubKey.IsPayToExchangeAddress()) {
             throw std::runtime_error("Exchange addresses cannot receive private funds. Please transfer your funds to a transparent address first before sending to an Exchange address");
         }
 
         if (!MoneyRange(recipient.nAmount)) {
-            throw std::runtime_error(boost::str(boost::format(_("Recipient has invalid amount")) % i));
+            throw std::runtime_error(boost::str(boost::format(_("Recipient %1% has invalid amount")) % i));
         }
 
         vOut += recipient.nAmount;
@@ -1270,6 +1271,9 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         if (recipient.fSubtractFeeFromAmount) {
             recipientsToSubtractFee++;
         }
+
+        if (recipient.scriptPubKey.IsSpats())
+            spats_script_sizes_total += recipient.scriptPubKey.size();
     }
 
     for (const auto& privRecipient : privateRecipients) {
@@ -1325,7 +1329,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     std::list<CSparkMintMeta> coins = GetAvailableSparkCoins(coinControl);
 
     std::pair<CAmount, std::vector<CSparkMintMeta>> estimated =
-            SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size(), recipients.size(), coinControl);
+            SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size(), recipients.size(), coinControl, spats_script_sizes_total);
 
     std::vector<CRecipient> recipients_ = recipients;
     std::vector<std::pair<spark::OutputCoinData, bool>> privateRecipients_ = privateRecipients;
@@ -1394,12 +1398,13 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             // fill outputs
             for (size_t i = 0; i < recipients_.size(); i++) {
                 auto& recipient = recipients_[i];
-                if (recipient.nAmount == 0)
+                const bool is_spats = recipient.scriptPubKey.IsSpats();
+                if (recipient.nAmount == 0 && !is_spats)
                     continue;
 
                 CTxOut vout(recipient.nAmount, recipient.scriptPubKey);
 
-                if (vout.IsDust(minRelayTxFee)) {
+                if (!is_spats && vout.IsDust(minRelayTxFee)) {
                     std::string err;
 
                     if (recipient.fSubtractFeeFromAmount && fee > 0) {
@@ -1700,8 +1705,9 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
         std::list<CSparkMintMeta> coins,
         std::size_t mintNum,
         std::size_t utxoNum,
-        const CCoinControl *coinControl) {
-
+        const CCoinControl *coinControl,
+        const std::size_t spats_script_sizes_total)
+{
     CAmount fee;
     unsigned size;
     int64_t changeToMint = 0; // this value can be negative, that means we need to spend remaining part of required value with another transaction (nMaxInputPerTransaction exceeded)
@@ -1714,13 +1720,13 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
             currentRequired += fee;
         spendCoins.clear();
         if (!GetCoinsToSpend(currentRequired, spendCoins, coins, changeToMint, coinControl)) {
-            throw std::invalid_argument(_("Unable to select cons for spend"));
+            throw std::invalid_argument(_("Unable to select coins for spend"));
         }
 
-        // 1803 is for first grootle proof/aux data
-        // 213 for each private output, 34 for each utxo,924 constant parts of tx parts of tx,
-        size = 924 + 1803*(spendCoins.size()) + 322*(mintNum+1) + 34*utxoNum;
-        CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
+        // 1803 is for the first grootle proof/aux data
+        // 322 for each private output, 34 for each utxo, 924 for constant parts of tx
+        size = 924 + 1803*(spendCoins.size()) + 322*(mintNum+1) + 34*utxoNum + spats_script_sizes_total;
+        const CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
 
         if (fee >= feeNeeded) {
             break;
@@ -1733,7 +1739,7 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
     }
 
     if (changeToMint < 0)
-        throw std::invalid_argument(_("Unable to select cons for spend"));
+        throw std::invalid_argument(_("Unable to select coins for spend"));
 
     return std::make_pair(fee, spendCoins);
 }

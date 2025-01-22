@@ -25,6 +25,7 @@ private:
 
 class Manager {
 public:
+   void add_spats_action_sequence( const ActionSequence &action_sequence, int block_height );
    void add_block( const CBlockIndex &block );
    void remove_block( const CBlockIndex &block );
    void reset();

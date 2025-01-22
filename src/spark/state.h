@@ -245,6 +245,8 @@ public:
 
     spats::Manager& GetSpatsManager() noexcept { return spats_manager_; }
 
+    void AddSpatsActionSequence(const spats::ActionSequence& action_sequence, int block_height);
+
 private:
     size_t CountLastNCoins(int groupId, size_t required, CBlockIndex* &first);
 

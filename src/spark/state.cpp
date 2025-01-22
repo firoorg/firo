@@ -1,4 +1,7 @@
 #include <format>
+
+#include <boost/exception/diagnostic_information.hpp>
+
 #include "state.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
@@ -175,13 +178,13 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
     const spark::Params* params = spark::Params::get_default();
     spark::SpendTransaction spendTransaction(params);
     serialized >> spendTransaction;
-    return std::move(spendTransaction);
+    return spendTransaction;
 }
 
 spats::Action ParseSpatsTransaction(const CTransaction &tx)
 {
     if (tx.IsSpatsCreate()) {
-        if (tx.vout.size() != 2)
+        if (tx.vout.size() < 2)
             throw CBadTxIn();
         const CScript& creation_script = tx.vout.front().scriptPubKey;
         if (!creation_script.IsSpatsCreate())
@@ -197,12 +200,14 @@ spats::Action ParseSpatsTransaction(const CTransaction &tx)
             asset_serialization_size -= stream.size();
             spark::OwnershipProof proof;
             stream >> proof;
+            LogPrintf("ParseSpatsTransaction address ownership proof: %s\n", proof);
             const auto& b = get_base(action);
             const auto& admin_public_address = b.admin_public_address();
-            Address a;
+            Address a(spark::Params::get_default());
             a.decode(admin_public_address);
             const auto scalar_of_proof = spats::Wallet::compute_new_spark_asset_serialization_scalar(
                 b, {static_cast<const unsigned char*>(asset_serialization_start_address), asset_serialization_size});
+            LogPrintf("ParseSpatsTransaction scalar_of_proof: %s\n", scalar_of_proof);
             if (!a.verify_own(scalar_of_proof, proof))
                 throw CBadTxIn();
             const auto& burntx = tx.vout[1];
@@ -313,6 +318,8 @@ bool ConnectBlockSpark(
         try {
             sparkState.GetSpatsManager().registry().validate(pblock->sparkTxInfo->spats_action_sequence, pindexNew->nHeight);
         } catch (...) {
+            LogPrintf("Spats validation at block height %d failed: %s\n",
+              pindexNew->nHeight, boost::current_exception_diagnostic_information().c_str());
             return false;
         }
 
@@ -322,8 +329,11 @@ bool ConnectBlockSpark(
                 sparkState.AddSpend(lTag.first, lTag.second);
             }
 
-            pindexNew->spats_action_sequence.insert(pindexNew->spats_action_sequence.end(),
-                pblock->sparkTxInfo->spats_action_sequence.begin(), pblock->sparkTxInfo->spats_action_sequence.end());
+            if (!pblock->sparkTxInfo->spats_action_sequence.empty()) {
+                pindexNew->spats_action_sequence.insert(pindexNew->spats_action_sequence.end(),
+                    pblock->sparkTxInfo->spats_action_sequence.begin(), pblock->sparkTxInfo->spats_action_sequence.end());
+                sparkState.AddSpatsActionSequence(pblock->sparkTxInfo->spats_action_sequence, pindexNew->nHeight);
+            }
 
             if (GetBoolArg("-mobile", false)) {
                 BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->ltagTxhash) {
@@ -1590,6 +1600,11 @@ uint256 CSparkMempoolState::GetMempoolConflictingTxHash(const GroupElement& lTag
         return uint256();
 
     return mempoolLTags[lTag];
+}
+
+void CSparkState::AddSpatsActionSequence(const spats::ActionSequence& action_sequence, int block_height)
+{
+    GetSpatsManager().add_spats_action_sequence(action_sequence, block_height);
 }
 
 void CSparkMempoolState::Reset() {

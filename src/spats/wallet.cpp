@@ -41,7 +41,9 @@ Scalar Wallet::compute_new_spark_asset_serialization_scalar( const SparkAssetBas
 {
    spark::Hash hash( std::format( "spatsnew_{}_from_{}", utils::to_underlying( b.asset_type() ), b.admin_public_address() ) );
    hash.include( asset_serialization_bytes );
-   return hash.finalize_scalar();
+   auto ret = hash.finalize_scalar();
+   LogPrintf( "New spark asset serialization scalar (hex): %s\n", ret.GetHex() );
+   return ret;
 }
 
 Wallet::Wallet( CSparkWallet &spark_wallet ) noexcept
@@ -69,23 +71,30 @@ CWalletTx Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmou
    }
    CScript script;
    script << OP_SPATSCREATE;
+   assert( script.IsSpatsCreate() );
    CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
    serialized << a;
    // TODO instead of how it is being done now, put ownership proof into script default-constructed first, then compute ownership proof from the whole tx, and overwrite
    //      the ownership proof in the script then
    const auto scalar_of_proof = compute_new_spark_asset_serialization_scalar( b, serialized.as_bytes_span() );
    const spark::OwnershipProof proof = spark_wallet_.makeDefaultAddressOwnershipProof( scalar_of_proof );
+   LogPrintf( "Ownership proof for new spark asset (hex): %s\n", proof );
    CDataStream proof_serialized( SER_NETWORK, PROTOCOL_VERSION );
    proof_serialized << proof;
    script.insert( script.end(), serialized.begin(), serialized.end() );
+   assert( script.IsSpatsCreate() );
    script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
+   assert( script.IsSpatsCreate() );
    new_asset_fee = compute_new_spark_asset_fee( b.naming().symbol.get() );
-   CScript burn_script = GetScriptForDestination( CBitcoinAddress( std::string( firo_burn_address ) ).Get() );
-   CRecipient burn_recipient = { std::move( burn_script ), new_asset_fee, false, "" };   // TODO should .address stay empty or set to firo_burn_address too?
-   return spark_wallet_.CreateSparkSpendTransaction( { CRecipient( std::move( script ), {}, false, b.admin_public_address() ), burn_recipient },
+   std::string burn_address( firo_burn_address );
+   CScript burn_script = GetScriptForDestination( CBitcoinAddress( burn_address ).Get() );
+   CRecipient burn_recipient = { std::move( burn_script ), new_asset_fee, false, std::move( burn_address ) };   // TODO should .address be empty or set to burn_address too?
+   auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient( std::move( script ), {}, false, b.admin_public_address() ), burn_recipient },
                                                      {},
                                                      standard_fee,
                                                      nullptr );   // may throw
+   assert( tx.tx->IsSpatsCreate() );   // TODO is this the right way to do the check?
+   return tx;
 }
 
 void Wallet::notify_registry_changed()
