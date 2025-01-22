@@ -142,7 +142,8 @@ public:
 
     CWalletTx CreateSparkNameTransaction(
             CSparkNameTxData &nameData,
-            CAmount fee,
+            CAmount sparkNamefee,
+            CAmount &txFee,
             const CCoinControl *coinControl = NULL);
 
     // Returns the list of pairs of coins and metadata for that coin,

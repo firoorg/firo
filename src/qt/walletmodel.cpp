@@ -1544,6 +1544,62 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(WalletMod
     return SendCoinsReturn(OK);
 }
 
+WalletModel::SendCoinsReturn WalletModel::prepareSparkNameTransaction(WalletModelTransaction &transaction, CSparkNameTxData &sparkNameData, CAmount sparkNameFee, const CCoinControl* coinControl)
+{
+    CAmount nBalance;
+    std::tie(nBalance, std::ignore) = getSparkBalance();
+
+    if (sparkNameFee > nBalance) {
+        return AmountExceedsBalance;
+    }
+
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+
+        CAmount nFeeRequired = 0;
+        CWalletTx *newTx = transaction.getTransaction();
+        try {
+            *newTx = wallet->CreateSparkNameTransaction(sparkNameData, sparkNameFee, nFeeRequired, coinControl);
+        }
+        catch (InsufficientFunds const&) {
+            transaction.setTransactionFee(nFeeRequired);
+            if (sparkNameFee + nFeeRequired > nBalance) {
+                return SendCoinsReturn(AmountWithFeeExceedsBalance);
+            }
+            return SendCoinsReturn(AmountExceedsBalance);
+        }
+        catch (std::runtime_error const& e) {
+            Q_EMIT message(
+                tr("Spend Spark"),
+                QString::fromStdString(e.what()),
+                CClientUIInterface::MSG_ERROR);
+
+            return TransactionCreationFailed;
+        }
+        catch (std::invalid_argument const& e) {
+            Q_EMIT message(
+                tr("Spend Spark"),
+                QString::fromStdString(e.what()),
+                CClientUIInterface::MSG_ERROR);
+
+            return TransactionCreationFailed;
+        }
+        if (nFeeRequired > maxTxFee) {
+            return AbsurdFee;
+        }
+
+        int changePos = -1;
+        for (size_t i = 0; i != newTx->tx->vout.size(); i++) {
+            if (!newTx->tx->vout[i].scriptPubKey.IsSparkSMint()) changePos = i;
+        }
+
+        transaction.setTransactionFee(nFeeRequired);
+        transaction.reassignAmounts(changePos);
+    }
+    
+    return SendCoinsReturn(OK);
+}
+
 WalletModel::SendCoinsReturn WalletModel::mintSparkCoins(std::vector<WalletModelTransaction> &transactions, std::vector<std::pair<CWalletTx, CAmount> >& wtxAndFee, std::list<CReserveKey>& reserveKeys)
 {
     QByteArray transaction_array; /* store serialized transaction */

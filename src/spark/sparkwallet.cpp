@@ -1588,13 +1588,12 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     return wtxNew;
 }
 
-CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, CAmount fee, const CCoinControl *coinConrol) {
+CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, CAmount sparkNameFee, CAmount &txFee, const CCoinControl *coinConrol) {
     CRecipient devPayout;
-    devPayout.nAmount = fee;
+    devPayout.nAmount = sparkNameFee;
     devPayout.scriptPubKey = GetScriptForDestination(CBitcoinAddress(Params().GetConsensus().stage3DevelopmentFundAddress).Get());
     devPayout.fSubtractFeeFromAmount = false;
 
-    CAmount txFee;
     CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({devPayout}, {}, txFee, coinConrol);
 
     const spark::Params* params = spark::Params::get_default();
