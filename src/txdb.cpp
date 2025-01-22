@@ -428,6 +428,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->ltagTxhash         = diskindex.ltagTxhash;
 
                 pindexNew->activeDisablingSporks = diskindex.activeDisablingSporks;
+                pindexNew->spats_action_sequence = std::move(diskindex.spats_action_sequence);    // TODO Performance: move() everything else above where that would boost efficiency
 
                 if (fCheckPoWForAllBlocks) {
                     if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, consensusParams))
