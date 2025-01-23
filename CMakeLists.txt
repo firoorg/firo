@@ -19,6 +19,7 @@ endif()
 set(CLIENT_NAME "Firo Core")
 set(CLIENT_VERSION_MAJOR 0)
 set(CLIENT_VERSION_MINOR 14)
+set(CLIENT_VERSION_REVISION 14)
 set(CLIENT_VERSION_BUILD 0)
 set(CLIENT_VERSION_RC 0)
 set(CLIENT_VERSION_IS_RELEASE "false")
@@ -41,7 +42,7 @@ set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
 )
 
 project(FiroCore
-  VERSION ${CLIENT_VERSION_MAJOR}.${CLIENT_VERSION_MINOR}.${CLIENT_VERSION_BUILD}
+  VERSION ${CLIENT_VERSION_MAJOR}.${CLIENT_VERSION_MINOR}.${CLIENT_VERSION_REVISION}
   DESCRIPTION "Firo client software"
   HOMEPAGE_URL "https://firo.org/"
   LANGUAGES NONE
@@ -135,9 +136,14 @@ option(REDUCE_EXPORTS "Attempt to reduce exported symbols in the resulting execu
 option(WERROR "Treat compiler warnings as errors." OFF)
 option(WITH_CCACHE "Attempt to use ccache for compiling." ON)
 
-option(WITH_ZMQ "Enable ZMQ notifications." OFF)
+option(WITH_ZMQ "Enable ZMQ notifications." ON)
 if(WITH_ZMQ)
+  message(STATUS "ZMQ notifications enabled.")
+  add_compile_definitions(ENABLE_ZMQ=1)
   find_package(ZeroMQ 4.0.0 MODULE REQUIRED)
+else()
+  message(STATUS "ZMQ notifications disabled.")
+  add_compile_definitions(ENABLE_ZMQ=0)
 endif()
 
 option(WITH_USDT "Enable tracepoints for Userspace, Statically Defined Tracing." OFF)
@@ -386,6 +392,45 @@ add_boost_if_needed()
 
 if(BUILD_DAEMON OR BUILD_GUI OR BUILD_CLI OR BUILD_TESTS OR BUILD_BENCH OR BUILD_FUZZ_BINARY)
   find_package(Libevent 2.1.8 MODULE REQUIRED)
+endif()
+
+# Find bls-dash library
+find_library(BLS_DASH_LIBRARY
+  NAMES bls-dash
+  REQUIRED
+)
+
+if(${BLS_DASH_LIBRARY} STREQUAL "BLS_DASH_LIBRARY-NOTFOUND")
+  message(FATAL_ERROR "bls-dash library not found")
+else()
+  message(STATUS "Found bls-dash library: ${BLS_DASH_LIBRARY}")
+endif()
+
+# Find tor library
+find_library(TOR_LIBRARY
+  NAMES tor
+  REQUIRED
+)
+
+# Find OpenSSL library
+find_package(OpenSSL 1.1.1 REQUIRED)
+
+# Find MiniUPNP library
+find_library(MINIUPNP_LIBRARY
+  NAMES miniupnpc
+  REQUIRED
+)
+
+# Find zlib library
+find_library(ZLIB_LIBRARY
+  NAMES z
+  REQUIRED
+)
+
+if(${TOR_LIBRARY} STREQUAL "TOR_LIBRARY-NOTFOUND")
+  message(FATAL_ERROR "tor library not found")
+else()
+  message(STATUS "Found tor library: ${TOR_LIBRARY}")
 endif()
 
 include(cmake/introspection.cmake)

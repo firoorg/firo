@@ -16,4 +16,6 @@ target_link_libraries(firo_zmq
     core_interface
     univalue
     zeromq
+    secp256k1
+    leveldb
 )
