@@ -75,16 +75,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 option(SECP256K1_ENABLE_MODULE_ECDH "Enable ECDH module." ON)
 option(SECP256K1_ENABLE_MODULE_RECOVERY "Enable ECDSA pubkey recovery module." ON)
 
-# Processing must be done in a topological sorting of the dependency graph
-# (dependent module first).
-if(SECP256K1_ENABLE_MODULE_RECOVERY)
-  add_compile_definitions(ENABLE_MODULE_RECOVERY=1)
-endif()
-
-if(SECP256K1_ENABLE_MODULE_ECDH)
-  add_compile_definitions(ENABLE_MODULE_ECDH=1)
-endif()
-
 set(SECP256K1_ECMULT_WINDOW_SIZE 15 CACHE STRING "Window size for ecmult precomputation for verification, specified as integer in range [2..24]. The default value is a reasonable setting for desktop machines (currently 15). [default=15]")
 set_property(CACHE SECP256K1_ECMULT_WINDOW_SIZE PROPERTY STRINGS 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24)
 include(CheckStringOptionValue)
@@ -162,9 +152,9 @@ if(SECP256K1_VALGRIND)
   endif()
 endif()
 
-option(SECP256K1_BUILD_BENCHMARK "Build benchmarks." ON)
-option(SECP256K1_BUILD_TESTS "Build tests." ON)
-option(SECP256K1_BUILD_EXHAUSTIVE_TESTS "Build exhaustive tests." ON)
+option(SECP256K1_BUILD_BENCHMARK "Build benchmarks." OFF)
+option(SECP256K1_BUILD_TESTS "Build tests." OFF)
+option(SECP256K1_BUILD_EXHAUSTIVE_TESTS "Build exhaustive tests." OFF)
 
 # Redefine configuration flags.
 # We leave assertions on, because they are only used in the examples, and we want them always on there.
