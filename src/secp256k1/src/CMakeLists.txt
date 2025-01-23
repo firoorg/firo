@@ -5,15 +5,7 @@ include(GNUInstallDirs)
 # from being exported.
 add_library(secp256k1 OBJECT secp256k1.c)
 
-target_link_libraries(secp256k1 PUBLIC gmp)
-
 set_property(TARGET secp256k1 PROPERTY POSITION_INDEPENDENT_CODE ON)
-
-add_library(secp256k1pp
-  cpp/GroupElement.cpp
-  cpp/MultiExponent.cpp
-  cpp/Scalar.cpp
-)
 
 target_link_libraries(secp256k1
   PUBLIC
@@ -22,8 +14,28 @@ target_link_libraries(secp256k1
     OpenSSL::Crypto
 )
 
+#=============================
+# secp256k1 Configuration
+#=============================
+# Define this symbol if libgmp is installed
+add_compile_definitions(secp256k1 PUBLIC -DHAVE_LIBGMP=1)
+# Define this symbol to use the gmp implementation for num
+add_compile_definitions(secp256k1 PUBLIC -DUSE_NUM_GMP=1)
+# Define this symbol to use the num-based field inverse implementation  
+add_compile_definitions(secp256k1 PUBLIC -DUSE_FIELD_INV_NUM=1)
+# Define this symbol to use the num-based scalar inverse implementation    
+add_compile_definitions(secp256k1 PUBLIC -DUSE_SCALAR_INV_NUM=1)
+
+add_library(secp256k1pp
+  cpp/GroupElement.cpp
+  cpp/MultiExponent.cpp
+  cpp/Scalar.cpp
+)
+
+set_property(TARGET secp256k1pp PROPERTY POSITION_INDEPENDENT_CODE ON)
+
 target_link_libraries(secp256k1pp
-  PUBLIC secp256k1
+  PUBLIC secp256k1 gmp
 )
 
 add_library(secp256k1_asm INTERFACE)

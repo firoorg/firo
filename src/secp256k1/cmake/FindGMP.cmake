@@ -24,15 +24,6 @@ find_library(GMP_LIBRARIES
   /usr/local/lib
 )
 
-# Define this symbol if libgmp is installed
-add_compile_definitions(HAVE_LIBGMP=1)
-# Define this symbol to use the gmp implementation for num
-add_compile_definitions(USE_NUM_GMP=1)
-# Define this symbol to use the num-based field inverse implementation  
-add_compile_definitions(USE_FIELD_INV_NUM=1)
-# Define this symbol to use the num-based scalar inverse implementation    
-add_compile_definitions(USE_SCALAR_INV_NUM=1)
-
 if(GMP_INCLUDES)
   file(STRINGS "${GMP_INCLUDES}/gmp.h" gmp_version_str REGEX "^#define[\t ]+__GNU_MP_VERSION[\t ]+[0-9]+")
   string(REGEX REPLACE "^#define[\t ]+__GNU_MP_VERSION[\t ]+([0-9]+).*" "\\1" GMP_VERSION_MAJOR "${gmp_version_str}")
