@@ -3,7 +3,7 @@
 # file COPYING or https://opensource.org/license/mit/.
 
 # Wallet functionality used by bitcoind and bitcoin-wallet executables.
-add_library(bitcoin_wallet STATIC EXCLUDE_FROM_ALL
+add_library(firo_wallet STATIC EXCLUDE_FROM_ALL
     authhelper.cpp
     bip39.cpp
     crypter.cpp
@@ -19,7 +19,7 @@ add_library(bitcoin_wallet STATIC EXCLUDE_FROM_ALL
     walletexcept.cpp
 )
 
-target_link_libraries(bitcoin_wallet
+target_link_libraries(firo_wallet
   PRIVATE
     core_interface
     bitcoin_common
@@ -31,4 +31,4 @@ target_link_libraries(bitcoin_wallet
 )
 
 # Firo only supports BDB for wallet storage.
-target_link_libraries(bitcoin_wallet PUBLIC BerkeleyDB::BerkeleyDB)
+target_link_libraries(firo_wallet PUBLIC BerkeleyDB::BerkeleyDB)
