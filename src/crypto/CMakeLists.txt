@@ -15,6 +15,15 @@ add_library(bitcoin_crypto STATIC EXCLUDE_FROM_ALL
   sha256.cpp
   sha512.cpp
   scrypt.cpp
+  MerkleTreeProof/arith_uint256.cpp
+  MerkleTreeProof/blake2
+  MerkleTreeProof/core.c
+  MerkleTreeProof/merkle-tree.cpp
+  MerkleTreeProof/mtp.cpp
+  MerkleTreeProof/ref.c
+  MerkleTreeProof/thread.c
+  MerkleTreeProof/blake2/blake2b.c
+  MerkleTreeProof/crypto/sha256.cpp
   Lyra2Z/Lyra2.c
   Lyra2Z/Lyra2Z.c
   Lyra2Z/Sponge.c
