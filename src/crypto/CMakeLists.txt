@@ -2,6 +2,8 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or https://opensource.org/license/mit/.
 
+add_subdirectory(progpow)
+
 add_library(bitcoin_crypto STATIC EXCLUDE_FROM_ALL
   aes.cpp
   chacha20.cpp
@@ -12,6 +14,11 @@ add_library(bitcoin_crypto STATIC EXCLUDE_FROM_ALL
   sha1.cpp
   sha256.cpp
   sha512.cpp
+  scrypt.cpp
+  Lyra2Z/Lyra2.c
+  Lyra2Z/Lyra2Z.c
+  Lyra2Z/Sponge.c
+  Lyra2Z/blake.c
   ../support/cleanse.cpp
 )
 
@@ -19,6 +26,9 @@ target_link_libraries(bitcoin_crypto
   PRIVATE
     core_interface
     ${Boost_LIBRARIES}
+  PUBLIC 
+    ethash
+    keccak
 )
 
 target_include_directories(bitcoin_crypto
