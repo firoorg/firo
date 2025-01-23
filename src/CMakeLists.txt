@@ -5,7 +5,7 @@
 include(GNUInstallDirs)
 include(AddWindowsResources)
 
-configure_file(${PROJECT_SOURCE_DIR}/cmake/bitcoin-build-config.h.in bitcoin-build-config.h USE_SOURCE_PERMISSIONS @ONLY)
+configure_file(${PROJECT_SOURCE_DIR}/cmake/bitcoin-build-config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/config/bitcoin-config.h USE_SOURCE_PERMISSIONS @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_custom_target(generate_build_info
@@ -39,6 +39,30 @@ add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
   random.cpp
   sync.cpp
   support/lockedpool.cpp
+  bls/bls_batchverifier.h
+  bls/bls_ies.cpp
+  bls/bls_ies.h
+  bls/bls_worker.cpp
+  bls/bls_worker.h
+  support/lockedpool.cpp
+  chainparamsbase.cpp
+  clientversion.cpp
+  compat/glibc_sanity.cpp
+  compat/glibcxx_sanity.cpp
+  compat/strnlen.cpp
+  mbstring.cpp
+  fs.cpp
+  random.cpp
+  rpc/protocol.cpp
+  support/cleanse.cpp
+  sync.cpp
+  threadinterrupt.cpp
+  util.cpp
+  utilmoneystr.cpp
+  utilstrencodings.cpp
+  utiltime.cpp
+  crypto/scrypt.cpp
+  primitives/block.cpp
 )
 
 target_link_libraries(bitcoin_util
@@ -48,6 +72,7 @@ target_link_libraries(bitcoin_util
     bitcoin_crypto
     secp256k1
     leveldb
+    univalue
     $<$<PLATFORM_ID:Windows>:ws2_32>
     $<$<PLATFORM_ID:Windows>:iphlpapi>
 )
@@ -64,7 +89,7 @@ endif()
 message("")
 message("Configuring secp256k1 subtree...")
 set(SECP256K1_DISABLE_SHARED ON CACHE BOOL "" FORCE)
-set(SECP256K1_ENABLE_MODULE_ECDH OFF CACHE BOOL "" FORCE)
+set(SECP256K1_ENABLE_MODULE_ECDH ON CACHE BOOL "" FORCE)
 set(SECP256K1_ENABLE_MODULE_RECOVERY ON CACHE BOOL "" FORCE)
 set(SECP256K1_ENABLE_MODULE_MUSIG OFF CACHE BOOL "" FORCE)
 set(SECP256K1_BUILD_BENCHMARK OFF CACHE BOOL "" FORCE)
@@ -118,13 +143,49 @@ add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
   script/script.cpp
   script/script_error.cpp
   uint256.cpp
+  amount.h
+  arith_uint256.cpp
+  arith_uint256.h
+  bls/bls.cpp
+  bls/bls.h
+  consensus/merkle.cpp
+  consensus/merkle.h
+  consensus/params.h
+  consensus/validation.h
+  hash.cpp
+  flat-database.h
+  hash.h
+  prevector.h
+  crypto/scrypt.h
+  primitives/block.h
+  primitives/precomputed_hash.h
+  primitives/transaction.cpp
+  primitives/transaction.h
+  pubkey.cpp
+  pubkey.h
+  script/bitcoinconsensus.cpp
+  script/interpreter.cpp
+  script/interpreter.h
+  script/script.cpp
+  script/script.h
+  script/script_error.cpp
+  script/script_error.h
+  serialize.h
+  tinyformat.h
+  uint256.cpp
+  uint256.h
+  utilstrencodings.cpp
+  utilstrencodings.h
+  version.h
 )
 target_link_libraries(bitcoin_consensus
   PRIVATE
     core_interface
     secp256k1
     leveldb
+    ${BLS_DASH_LIBRARY}
   PUBLIC
+    OpenSSL::Crypto
     bitcoin_crypto
 )
 
@@ -155,6 +216,24 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   rpc/rawtransaction.cpp
   scheduler.cpp
   script/sign.cpp
+  amount.cpp
+  base58.cpp
+  chainparams.cpp
+  coins.cpp
+  compressor.cpp
+  core_read.cpp
+  core_write.cpp
+  hdmint/hdmint.cpp
+  key.cpp
+  keystore.cpp
+  netaddress.cpp
+  netbase.cpp
+  protocol.cpp
+  saltedhasher.cpp
+  scheduler.cpp
+  script/sign.cpp
+  script/standard.cpp
+  warnings.cpp
 )
 target_link_libraries(bitcoin_common
   PUBLIC
@@ -165,8 +244,52 @@ target_link_libraries(bitcoin_common
     secp256k1
     Boost::headers
     leveldb
+    $<$<BOOL:${WITH_ZMQ}>:firo_zmq>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
     $<$<PLATFORM_ID:Windows>:ws2_32>
+)
+
+add_library(bitcoin_wallet STATIC EXCLUDE_FROM_ALL
+  activemasternode.cpp
+  hdmint/hdmint.cpp
+  masternode-sync.cpp
+  hdmint/mintpool.cpp
+  hdmint/wallet.cpp
+  sigma.cpp
+  lelantus.cpp
+  spark/state.cpp
+  wallet/crypter.cpp
+  wallet/bip39.cpp
+  wallet/mnemoniccontainer.cpp
+  wallet/db.cpp
+  wallet/rpcdump.cpp
+  wallet/rpcwallet.cpp
+  wallet/sigmaspendbuilder.cpp
+  wallet/txbuilder.cpp
+  wallet/lelantusjoinsplitbuilder.cpp
+  wallet/walletexcept.cpp
+  wallet/wallet.cpp
+  spark/sparkwallet.cpp
+  spark/primitives.cpp
+  wallet/walletdb.cpp
+  wallet/authhelper.cpp
+  hdmint/tracker.cpp
+  policy/rbf.cpp
+  bip47/account.cpp
+  bip47/paymentchannel.cpp
+  bip47/bip47utils.cpp
+  bip47/paymentcode.cpp
+  bip47/secretpoint.cpp
+  primitives/mint_spend.cpp 
+)
+target_link_libraries(bitcoin_wallet
+  PUBLIC
+    core_interface
+    bitcoin_util
+    univalue
+    secp256k1
+    Boost::headers
+    leveldb
 )
 
 set(installable_targets)
@@ -174,26 +297,27 @@ if(ENABLE_WALLET)
   add_subdirectory(wallet)
 
   if(BUILD_WALLET_TOOL)
-    add_executable(bitcoin-wallet
+    add_executable(firo-wallet
       bitcoin-wallet.cpp
       init/bitcoin-wallet.cpp
       wallet/wallettool.cpp
     )
-    add_windows_resources(bitcoin-wallet bitcoin-wallet-res.rc)
-    target_link_libraries(bitcoin-wallet
+    add_windows_resources(firo-wallet bitcoin-wallet-res.rc)
+    target_link_libraries(firo-wallet
       core_interface
       firo_wallet
       bitcoin_common
       bitcoin_util
+      bitcoin_wallet
       Boost::headers
     )
-    list(APPEND installable_targets bitcoin-wallet)
+    list(APPEND installable_targets firo-wallet)
   endif()
 endif()
 
 
 # P2P and RPC server functionality used by `bitcoind` and `bitcoin-qt` executables.
-add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
+add_library(firo_node STATIC EXCLUDE_FROM_ALL
   addrdb.cpp
   addrman.cpp
   blockencodings.cpp
@@ -224,38 +348,164 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   validation.cpp
   validationinterface.cpp
   versionbits.cpp
+  ui_interface.cpp
+  compat/glibc_sanity.cpp
+  compat/glibcxx_sanity.cpp
+  activemasternode.cpp
+  addrman.cpp
+  addrdb.cpp
+  batchedlogger.cpp
+  bloom.cpp
+  blockencodings.cpp
+  chain.cpp
+  checkpoints.cpp
+  dsnotificationinterface.cpp
+  evo/cbtx.cpp
+  evo/deterministicmns.cpp
+  evo/evodb.cpp
+  evo/mnauth.cpp
+  evo/providertx.cpp
+  evo/simplifiedmns.cpp
+  evo/specialtx.cpp
+  evo/spork.cpp
+  llmq/quorums.cpp
+  llmq/quorums_blockprocessor.cpp
+  llmq/quorums_commitment.cpp
+  llmq/quorums_chainlocks.cpp
+  llmq/quorums_debug.cpp
+  llmq/quorums_dkgsessionhandler.cpp
+  llmq/quorums_dkgsessionmgr.cpp
+  llmq/quorums_dkgsession.cpp
+  llmq/quorums_init.cpp
+  llmq/quorums_instantsend.cpp
+  llmq/quorums_signing.cpp
+  llmq/quorums_signing_shares.cpp
+  llmq/quorums_utils.cpp
+  masternode-payments.cpp
+  masternode-sync.cpp
+  masternode-utils.cpp
+  httprpc.cpp
+  httpserver.cpp
+  init.cpp
+  dbwrapper.cpp
+  threadinterrupt.cpp
+  merkleblock.cpp
+  miner.cpp
+  messagesigner.cpp
+  net.cpp
+  netfulfilledman.cpp
+  net_processing.cpp
+  noui.cpp
+  policy/fees.cpp
+  policy/policy.cpp
+  primitives/mint_spend.cpp
+  pow.cpp
+  rest.cpp
+  rpc/blockchain.cpp
+  rpc/masternode.cpp
+  rpc/mining.cpp
+  rpc/misc.cpp
+  rpc/net.cpp
+  rpc/rawtransaction.cpp
+  rpc/server.cpp
+  rpc/rpcevo.cpp
+  rpc/rpcquorums.cpp
+  script/sigcache.cpp
+  script/ismine.cpp
+  timedata.cpp
+  torcontrol.cpp
+  txdb.cpp
+  txmempool.cpp
+  ui_interface.cpp
+  batchproof_container.cpp
+  validation.cpp
+  validationinterface.cpp
+  versionbits.cpp
+  sigma.cpp
+  lelantus.cpp
+  bip47/paymentcode.cpp
+  spark/state.cpp
+  spark/primitives.cpp
+  coin_containers.cpp
+  mtpstate.cpp
+  sigma/coin.cpp
+  sigma/coinspend.cpp
+  sigma/spend_metadata.cpp
+  sigma/params.cpp
+  liblelantus/lelantus_primitives.cpp
+  liblelantus/lelantus_prover.cpp
+  liblelantus/lelantus_verifier.cpp
+  liblelantus/sigmaextended_prover.cpp
+  liblelantus/sigmaextended_verifier.cpp
+  liblelantus/schnorr_prover.cpp
+  liblelantus/schnorr_verifier.cpp
+  liblelantus/innerproduct_proof_verifier.cpp
+  liblelantus/innerproduct_proof_generator.cpp
+  liblelantus/range_prover.cpp
+  liblelantus/range_verifier.cpp
+  liblelantus/coin.cpp
+  liblelantus/joinsplit.cpp
+  liblelantus/spend_metadata.cpp
+  liblelantus/params.cpp
+  libspark/transcript.cpp
+  libspark/params.cpp
+  libspark/schnorr.cpp
+  libspark/chaum.cpp
+  libspark/coin.cpp
+  libspark/bpplus.cpp
+  libspark/grootle.cpp
+  libspark/keys.cpp
+  libspark/util.cpp
+  libspark/aead.cpp
+  libspark/kdf.cpp
+  libspark/hash.cpp
+  libspark/mint_transaction.cpp
+  libspark/spend_transaction.cpp
+  libspark/f4grumble.cpp
+  libspark/bech32.cpp
 )
-target_link_libraries(bitcoin_node
+
+target_link_libraries(firo_node
   PRIVATE
     core_interface
     bitcoin_common
     bitcoin_util
     secp256k1
-    $<TARGET_NAME_IF_EXISTS:bitcoin_zmq>
+    $<$<BOOL:${WITH_ZMQ}>:firo_zmq>
     leveldb
     univalue
     Boost::headers
     Boost::thread
+    OpenSSL::Crypto
+    ${TOR_LIBRARY}
+    OpenSSL::SSL
+    ${MINIUPNP_LIBRARY}
+    ${ZLIB_LIBRARY}
     $<TARGET_NAME_IF_EXISTS:libevent::core>
     $<TARGET_NAME_IF_EXISTS:libevent::extra>
     $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
 )
 
-# Bitcoin Core bitcoind.
+# Bitcoin Core firod.
 if(BUILD_DAEMON)
-  add_executable(bitcoind
+  add_executable(firod
     bitcoind.cpp
   )
-  add_windows_resources(bitcoind bitcoind-res.rc)
-  target_link_libraries(bitcoind
+  add_windows_resources(firod bitcoind-res.rc)
+  target_link_libraries(firod
     core_interface
-    bitcoin_node
     univalue
     Boost::thread
+    firo_node
+    $<$<BOOL:${WITH_ZMQ}>:firo_zmq>
+    firo_cli
+    secp256k1
+    secp256k1pp
+    bitcoin_wallet
     $<TARGET_NAME_IF_EXISTS:firo_wallet>
   )
-  list(APPEND installable_targets bitcoind)
+  list(APPEND installable_targets firod)
 endif()
 if(WITH_MULTIPROCESS)
   add_executable(bitcoin-node
@@ -264,7 +514,7 @@ if(WITH_MULTIPROCESS)
   )
   target_link_libraries(bitcoin-node
     core_interface
-    bitcoin_node
+    firo_node
     bitcoin_ipc
     $<TARGET_NAME_IF_EXISTS:firo_wallet>
   )
