@@ -18,13 +18,29 @@ target_link_libraries(secp256k1
 # secp256k1 Configuration
 #=============================
 # Define this symbol if libgmp is installed
-add_compile_definitions(secp256k1 PUBLIC -DHAVE_LIBGMP=1)
+add_compile_definitions(HAVE_LIBGMP=1)
 # Define this symbol to use the gmp implementation for num
-add_compile_definitions(secp256k1 PUBLIC -DUSE_NUM_GMP=1)
+add_compile_definitions(USE_NUM_GMP=1)
 # Define this symbol to use the num-based field inverse implementation  
-add_compile_definitions(secp256k1 PUBLIC -DUSE_FIELD_INV_NUM=1)
+add_compile_definitions(USE_FIELD_INV_NUM=1)
 # Define this symbol to use the num-based scalar inverse implementation    
-add_compile_definitions(secp256k1 PUBLIC -DUSE_SCALAR_INV_NUM=1)
+add_compile_definitions(USE_SCALAR_INV_NUM=1)
+
+# Processing must be done in a topological sorting of the dependency graph
+# (dependent module first).
+if(SECP256K1_ENABLE_MODULE_RECOVERY)
+  add_compile_definitions(ENABLE_MODULE_RECOVERY=1)
+  message(STATUS "secp256k1: Recovery module enabled")
+else()
+  message(STATUS "secp256k1: Recovery module disabled")
+endif()
+
+if(SECP256K1_ENABLE_MODULE_ECDH)
+  add_compile_definitions(ENABLE_MODULE_ECDH=1)
+  message(STATUS "secp256k1: ECDH module enabled")
+else()
+  message(STATUS "secp256k1: ECDH module disabled")
+endif()
 
 add_library(secp256k1pp
   cpp/GroupElement.cpp
