@@ -182,7 +182,7 @@ if(ENABLE_WALLET)
     add_windows_resources(bitcoin-wallet bitcoin-wallet-res.rc)
     target_link_libraries(bitcoin-wallet
       core_interface
-      bitcoin_wallet
+      firo_wallet
       bitcoin_common
       bitcoin_util
       Boost::headers
@@ -253,7 +253,7 @@ if(BUILD_DAEMON)
     bitcoin_node
     univalue
     Boost::thread
-    $<TARGET_NAME_IF_EXISTS:bitcoin_wallet>
+    $<TARGET_NAME_IF_EXISTS:firo_wallet>
   )
   list(APPEND installable_targets bitcoind)
 endif()
@@ -266,7 +266,7 @@ if(WITH_MULTIPROCESS)
     core_interface
     bitcoin_node
     bitcoin_ipc
-    $<TARGET_NAME_IF_EXISTS:bitcoin_wallet>
+    $<TARGET_NAME_IF_EXISTS:firo_wallet>
   )
   list(APPEND installable_targets bitcoin-node)
 
@@ -288,12 +288,12 @@ if(WITH_MULTIPROCESS)
 endif()
 
 
-add_library(bitcoin_cli STATIC EXCLUDE_FROM_ALL
+add_library(firo_cli STATIC EXCLUDE_FROM_ALL
   rpc/client.cpp
   rpc/protocol.cpp
   util.cpp
 )
-target_link_libraries(bitcoin_cli
+target_link_libraries(firo_cli
   PUBLIC
     core_interface
     univalue
@@ -301,37 +301,44 @@ target_link_libraries(bitcoin_cli
     Boost::thread
     Boost::program_options
 )
-target_include_directories(bitcoin_cli
+target_include_directories(firo_cli
   PUBLIC
 )
 
 # Bitcoin Core RPC client
 if(BUILD_CLI)
-  add_executable(bitcoin-cli bitcoin-cli.cpp)
-  add_windows_resources(bitcoin-cli bitcoin-cli-res.rc)
-  target_link_libraries(bitcoin-cli
+  add_executable(firo-cli bitcoin-cli.cpp)
+  add_windows_resources(firo-cli bitcoin-cli-res.rc)
+  target_link_libraries(firo-cli
     core_interface
-    bitcoin_cli
+    firo_cli
     bitcoin_common
     bitcoin_util
     libevent::extra
     libevent::core
   )
-  list(APPEND installable_targets bitcoin-cli)
-  set_target_properties(bitcoin-cli PROPERTIES OUTPUT_NAME ${FIRO_CLI_NAME})
+  list(APPEND installable_targets firo-cli)
+  set_target_properties(firo-cli PROPERTIES OUTPUT_NAME ${FIRO_CLI_NAME})
 endif()
 
 
 if(BUILD_TX)
-  add_executable(bitcoin-tx bitcoin-tx.cpp)
-  add_windows_resources(bitcoin-tx bitcoin-tx-res.rc)
-  target_link_libraries(bitcoin-tx
+  add_executable(firo-tx bitcoin-tx.cpp 
+    keystore.cpp
+    script/standard.cpp
+  )
+  add_windows_resources(firo-tx bitcoin-tx-res.rc)
+  target_link_libraries(firo-tx
     core_interface
+    bitcoin_crypto    
+    firo_cli
     bitcoin_common
     bitcoin_util
     univalue
+    secp256k1pp
+    secp256k1
   )
-  list(APPEND installable_targets bitcoin-tx)
+  list(APPEND installable_targets firo-tx)
 endif()
 
 
