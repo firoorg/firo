@@ -62,13 +62,18 @@ const std::string &Wallet::my_public_address_as_admin() const
    return my_public_address_as_admin_;
 }
 
-CWalletTx Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standard_fee, CAmount &new_asset_fee ) const
+CWalletTx
+Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standard_fee, CAmount &new_asset_fee, const public_address_t &destination_public_address ) const
 {
    const auto &b = get_base( a );
    if ( b.admin_public_address() != my_public_address_as_admin() ) {
       assert( !"Only allowed to use own public address as admin's address when creating a new spark asset" );
       throw std::domain_error( "Only allowed to use own public address as admin's address when creating a new spark asset" );
    }
+   const auto initial_supply = get_total_supply( a );
+   if ( !initial_supply && !destination_public_address.empty() )
+      throw std::domain_error( "Destination public address supplied, yet there is no initial supply of the new spark asset to credit it to" );
+
    CScript script;
    script << OP_SPATSCREATE;
    assert( script.IsSpatsCreate() );
@@ -88,11 +93,22 @@ CWalletTx Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmou
    new_asset_fee = compute_new_spark_asset_fee( b.naming().symbol.get() );
    std::string burn_address( firo_burn_address );
    CScript burn_script = GetScriptForDestination( CBitcoinAddress( burn_address ).Get() );
-   CRecipient burn_recipient = { std::move( burn_script ), new_asset_fee, false, std::move( burn_address ) };   // TODO should .address be empty or set to burn_address too?
+   CRecipient burn_recipient = {
+      std::move( burn_script ), new_asset_fee, false, std::move( burn_address )
+   };   // TODO should .address be empty or set to burn_address too?
+   if ( initial_supply ) {
+      const auto initial_supply_raw = boost::numeric_cast< CAmount >( initial_supply.raw() );
+      CRecipient initial_supply_recipient = { GetScriptForDestination(  // TODO or use mint, and thus a structure more appropriate for that?
+                                                CBitcoinAddress( destination_public_address.empty() ? b.admin_public_address() : destination_public_address ).Get() ),
+                                              initial_supply_raw,
+                                              false,
+                                              {} };   // TODO include the asset's asset_type and identifier as new fields?
+      // TODO include initial_supply_recipient into the tx being created (as a private recipient perhaps?), once spats sends/mints are implemented
+   }
    auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient( std::move( script ), {}, false, b.admin_public_address() ), burn_recipient },
-                                                     {},
-                                                     standard_fee,
-                                                     nullptr );   // may throw
+                                                        {},
+                                                        standard_fee,
+                                                        nullptr );   // may throw
    assert( tx.tx->IsSpatsCreate() );   // TODO is this the right way to do the check?
    return tx;
 }

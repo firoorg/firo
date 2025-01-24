@@ -35,7 +35,10 @@ public:
 
    const std::string &my_public_address_as_admin() const;
 
-   CWalletTx create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standard_fee, CAmount &new_asset_fee ) const;
+   CWalletTx create_new_spark_asset_transaction( const SparkAsset &a,
+                                                 CAmount &standard_fee,
+                                                 CAmount &new_asset_fee,
+                                                 const public_address_t &destination_public_address = {} ) const;
 
    void notify_registry_changed();
 
