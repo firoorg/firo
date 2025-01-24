@@ -1111,7 +1111,7 @@ public:
             const CCoinControl *coinControl = nullptr);
 
     // nullopt return means the tx was aborted due to user_confirmation_callback() returning false
-    std::optional<CWalletTx> CreateNewSparkAsset(const spats::SparkAsset& a,
+    std::optional<CWalletTx> CreateNewSparkAsset(const spats::SparkAsset& a, const spats::public_address_t& destination_public_address = {},
         const std::function<bool(const spats::SparkAsset& a, CAmount standard_fee, CAmount asset_creation_fee)>& user_confirmation_callback = {});
 
     bool LelantusToSpark(std::string& strFailReason);
@@ -1280,7 +1280,7 @@ public:
             &address, const std::string &label, bool isMine,
             const std::string &purpose,
             ChangeType status)> NotifyRAPAddressBookChanged;
-            
+
     /**
      * Wallet transaction added, removed or updated.
      * @note called with lock cs_wallet held.

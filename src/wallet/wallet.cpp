@@ -5904,12 +5904,12 @@ CWalletTx CWallet::SpendAndStoreSpark(
     return result;
 }
 
-std::optional<CWalletTx> CWallet::CreateNewSparkAsset(const spats::SparkAsset& a,
-    const std::function<bool(const spats::SparkAsset& a, CAmount standard_fee, CAmount asset_creation_fee)>& user_confirmation_callback)
+std::optional<CWalletTx> CWallet::CreateNewSparkAsset(const spats::SparkAsset& a, const spats::public_address_t& destination_public_address,
+    const std::function<bool(const spats::SparkAsset& a, CAmount standard_fee, CAmount asset_creation_fee)>& user_confirmation_callback )
 {
     // create transaction
     CAmount standard_fee, new_asset_fee;
-    auto wtx = sparkWallet->getSpatsWallet().create_new_spark_asset_transaction(a, standard_fee, new_asset_fee);
+    auto wtx = sparkWallet->getSpatsWallet().create_new_spark_asset_transaction(a, standard_fee, new_asset_fee, destination_public_address);
 
     // give the user a chance to confirm/cancel
     if (user_confirmation_callback && !user_confirmation_callback(a, standard_fee, new_asset_fee)) {

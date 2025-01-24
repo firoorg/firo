@@ -204,6 +204,13 @@ inline std::optional< identifier_t > get_identifier( const SparkAsset &asset ) n
                       asset );
 }
 
+inline supply_amount_t get_total_supply( const SparkAsset &a ) noexcept
+{
+   return std::visit( utils::overloaded{ []( const FungibleSparkAsset &x ) { return x.total_supply(); },
+                                         []( const NonfungibleSparkAsset & ) { return supply_amount_t( 1, 0 ); } },
+                      a );
+}
+
 struct SparkAssetDisplayAttributes {
    asset_type_underlying_type asset_type;
    identifier_underlying_type identifier = 0;
