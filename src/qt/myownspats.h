@@ -41,11 +41,12 @@ protected:
 private Q_SLOTS:
    void onCreateButtonClicked();
    void handleDisplayMyOwnSpatsSignal() { display_my_own_spats(); }
+   void updateButtonStates();
 
 private:
    const PlatformStyle *platform_style_;
    const std::unique_ptr< Ui::MyOwnSpats > ui_;
-   ClientModel *client_model_{};	// TODO consider if needed at all?
+   ClientModel *client_model_{};   // TODO consider if needed at all?
    WalletModel *wallet_model_{};
    std::map< spats::universal_asset_id_t, spats::SparkAsset > my_own_assets_map_;
 
@@ -58,6 +59,8 @@ private:
    void display_my_own_spats();
 
    NewSparkAssetCreationContext make_new_asset_creation_context() const;
+
+   std::optional< int > get_the_selected_row() const;
 };
 
 #endif   // MYOWNSPATS_H_INCLUDED

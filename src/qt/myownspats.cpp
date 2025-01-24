@@ -19,9 +19,13 @@ MyOwnSpats::MyOwnSpats( const PlatformStyle *platform_style, QWidget *parent )
    , ui_( std::make_unique< Ui::MyOwnSpats >() )
 {
    ui_->setupUi( this );
+   ui_->tableWidgetMyOwnSpats->setSelectionBehavior( QAbstractItemView::SelectRows );
+   ui_->tableWidgetMyOwnSpats->setSelectionMode( QAbstractItemView::SingleSelection );
    connect( ui_->create_spark_asset, &QPushButton::clicked, this, &MyOwnSpats::onCreateButtonClicked );
    connect( this, &MyOwnSpats::displayMyOwnSpatsSignal, this, &MyOwnSpats::handleDisplayMyOwnSpatsSignal );
+   connect( ui_->tableWidgetMyOwnSpats->selectionModel(), &QItemSelectionModel::selectionChanged, this, &MyOwnSpats::updateButtonStates );
    display_my_own_spats();
+   updateButtonStates();
 }
 
 void MyOwnSpats::display_my_own_spats()
@@ -138,4 +142,18 @@ void MyOwnSpats::onCreateButtonClicked()
    catch ( const std::exception &e ) {
       QMessageBox::critical( this, tr( "Error" ), tr( "An error occurred: %1" ).arg( e.what() ) );
    }
+}
+
+void MyOwnSpats::updateButtonStates()
+{
+   // Enable or disable buttons based on whether an item is selected in the table
+   const bool row_selected = get_the_selected_row().has_value();
+   for ( auto *const button : { ui_->mint_spark_asset, ui_->modify_spark_asset, ui_->unregister_spark_asset } )
+      button->setEnabled( row_selected );
+}
+
+std::optional< int > MyOwnSpats::get_the_selected_row() const
+{
+   const auto selection = ui_->tableWidgetMyOwnSpats->selectionModel()->selectedRows();
+   return selection.size() == 1 ? selection.front().row() : std::optional< int >{};
 }
