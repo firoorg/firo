@@ -18,8 +18,8 @@
 
 namespace utils {
 
-// If RawAmountType is unsigned, then scaled_amount< RawAmountType > will denote a non-negative number. Any operation that would mathematically yield a negative number
-// would be blocked (exception will be thrown), rather than using modulo arithmetic that would happen with a naked unsigned type. So wraparounds/overflows are not
+// If RawAmountType is an unsigned type, then scaled_amount< RawAmountType > will denote a non-negative number. Any operation that would mathematically yield a negative
+// number would be blocked (exception will be thrown), rather than using modulo arithmetic that would happen with a naked unsigned type. So wraparounds/overflows are not
 // allowed, and that is regardless if the type is signed or unsigned - any such attempts would result in an exception and the held value won't change. Thus, an operation
 // would succeed if and only if the mathematical result is representable in the scaled_amount specialization at hand.
 template < typename RawAmountType = std::uint64_t >
@@ -27,29 +27,43 @@ template < typename RawAmountType = std::uint64_t >
 class scaled_amount {
 public:
    using raw_amount_type = RawAmountType;
+   using precision_type = unsigned;
 
-   constexpr scaled_amount( raw_amount_type raw = {}, unsigned precision = 8 )
+   constexpr scaled_amount( raw_amount_type raw, precision_type precision )
       : raw_amount_( raw )
       , precision_( precision )
    {
       set_precision( precision );   // IMPORTANT: not redundant, done in order to check the limits of precision, may throw
+      assert( this->raw() == raw && this->precision() == precision );
    }
 
-   constexpr scaled_amount &operator=( raw_amount_type raw ) noexcept
+   constexpr scaled_amount() noexcept
+      : scaled_amount( {}, {} )
    {
-      raw_amount_ = raw;
-      return *this;
+      assert( !raw_amount_ && !precision_ );
+      assert( !*this && "default-constructed scaled_amount should result in the value 0" );
    }
+
+   // Choosing not to support single argument construction from raw_amount_type because both 0 and 8 could be reasonable expected defaults for precision for different
+   // people, among the target audience of bitcoin and derivatives developers, especially with NFTs being added onto the scene. Thus, the safe thing to do is to force the
+   // user of this class be explicit about the required precision when constructing objects.
+   scaled_amount( std::integral auto ) = delete;
 
    // No construction/assignment from floating-point types directly.
    // Instead, have the caller be responsible for handling the necessary precision for dealing with fp values, as appropriate for it.
-   scaled_amount( std::floating_point auto F ) = delete;
-   void operator=( std::floating_point auto F ) = delete;
+   scaled_amount( std::floating_point auto ) = delete;
+   void operator=( std::floating_point auto ) = delete;
+
+   // No direct assignment from integers either, too error-prone potentially
+   void operator=( std::integral auto ) = delete;
 
    // TODO @= overloads, with checks against overflow/underflow/wraparound
 
    [[nodiscard]] constexpr raw_amount_type raw() const noexcept { return raw_amount_; }
-   [[nodiscard]] constexpr unsigned precision() const noexcept { return precision_; }
+   [[nodiscard]] constexpr precision_type precision() const noexcept { return precision_; }
+
+   // ATTENTION: only use if you are absolutely sure that .precision() already has the value you want for it!
+   constexpr void set_raw( raw_amount_type raw ) noexcept { raw_amount_ = raw; }
 
    [[nodiscard]] constexpr std::pair< RawAmountType, RawAmountType > unpack() const noexcept
    {
@@ -68,11 +82,11 @@ public:
 private:
    // the true mathematical amount is raw_amount_ / 10^precision_
    raw_amount_type raw_amount_{};
-   unsigned precision_{};
+   precision_type precision_{};
 
    // For now, not allowing precision to change after construction, hence this is private.
    // If we ever do, then need to readjust the raw value such that as_double() would return the same value before & after.
-   constexpr void set_precision( unsigned const precision )
+   constexpr void set_precision( precision_type const precision )
    {
       // though theoretically possible, choosing not to support here precisions which would equal or exceed the number of digits of the max raw value
       if ( precision >= std::numeric_limits< raw_amount_type >::digits10 )
