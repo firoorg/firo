@@ -127,9 +127,10 @@ public:
    BasicSparkAsset( deserialize_type, Stream &is )
       : SparkAssetBase( deserialize, is )
    {
+      supply_amount_t::precision_type precision;
       supply_amount_t::raw_amount_type total_supply_raw;
-      is >> total_supply_raw;
-      total_supply_ = total_supply_raw;
+      is >> precision >> total_supply_raw;
+      total_supply_ = { total_supply_raw, precision };
       is >> resupplyable_;
    }
 
@@ -137,7 +138,7 @@ public:
    void Serialize( Stream &os ) const
    {
       SparkAssetBase::Serialize( os );
-      os << total_supply_.raw() << resupplyable_;
+      os << total_supply_.precision() << total_supply_.raw() << resupplyable_;
    }
 
    [[nodiscard]] supply_amount_t total_supply() const noexcept { return total_supply_; }
