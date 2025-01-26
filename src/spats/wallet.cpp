@@ -93,12 +93,10 @@ Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standa
    new_asset_fee = compute_new_spark_asset_fee( b.naming().symbol.get() );
    std::string burn_address( firo_burn_address );
    CScript burn_script = GetScriptForDestination( CBitcoinAddress( burn_address ).Get() );
-   CRecipient burn_recipient = {
-      std::move( burn_script ), new_asset_fee, false, std::move( burn_address )
-   };   // TODO should .address be empty or set to burn_address too?
+   CRecipient burn_recipient = { std::move( burn_script ), new_asset_fee, false, {} };
    if ( initial_supply ) {
       const auto initial_supply_raw = boost::numeric_cast< CAmount >( initial_supply.raw() );
-      CRecipient initial_supply_recipient = { GetScriptForDestination(  // TODO or use mint, and thus a structure more appropriate for that?
+      CRecipient initial_supply_recipient = { GetScriptForDestination(   // TODO or use mint, and thus a structure more appropriate for that?
                                                 CBitcoinAddress( destination_public_address.empty() ? b.admin_public_address() : destination_public_address ).Get() ),
                                               initial_supply_raw,
                                               false,
