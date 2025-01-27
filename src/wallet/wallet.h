@@ -1102,6 +1102,12 @@ public:
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
+    CWalletTx CreateSparkNameTransaction(
+            CSparkNameTxData &sparkNameData,
+            CAmount sparkNameFee,
+            CAmount &txFee,
+            const CCoinControl *coinControl = NULL);
+
     CWalletTx SpendAndStoreSpark(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,

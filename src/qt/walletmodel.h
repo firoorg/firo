@@ -196,6 +196,12 @@ public:
 
     SendCoinsReturn spendSparkCoins(
         WalletModelTransaction &transaction);
+
+    SendCoinsReturn prepareSparkNameTransaction(
+        WalletModelTransaction &transaction,
+        CSparkNameTxData &sparkNameData,
+        CAmount sparkNameFee,
+        const CCoinControl *coinControl);
         
     SendCoinsReturn mintSparkCoins(
         std::vector<WalletModelTransaction> &transactions,

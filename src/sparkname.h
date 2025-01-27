@@ -88,6 +88,9 @@ public:
         return txSet.find(txData.name) != txSet.cend();
     }
 
+    // fill missing CSparkNameTxData fields and append spark name tx data to the transaction
+    void AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey);
+
     static CSparkNameManager *GetInstance() { return sharedSparkNameManager; };
 
     uint64_t GetSparkNameBlockHeight(const std::string &name) const;

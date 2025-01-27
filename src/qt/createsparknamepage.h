@@ -3,6 +3,9 @@
 
 #include <QDialog>
 
+#include "libspark/keys.h"
+#include "primitives/transaction.h"
+
 namespace Ui {
     class CreateSparkNamePage;
 }
@@ -20,6 +23,7 @@ public:
 private:
     Ui::CreateSparkNamePage *ui;
 
+    CTransactionRef CreateSparkNameTransaction(const std::string &name, const spark::Address &address, const std::string &additionalInfo);
 };
 
 #endif // _QT_CREATESPARKNAMEPAGE_H
