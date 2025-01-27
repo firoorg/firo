@@ -199,6 +199,10 @@ UniValue getsparknames(const JSONRPCRequest &request)
 
     LOCK(cs_main);
 
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
     const Consensus::Params &consensusParams = Params().GetConsensus();
     int nHeight = consensusParams.nSparkNamesStartBlock;
     if (request.params.size() == 1) {
@@ -240,6 +244,10 @@ UniValue getsparknamedata(const JSONRPCRequest& request)
 
     LOCK(cs_main);
 
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
     std::string sparkName = request.params[0].get_str();
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
 
@@ -259,7 +267,6 @@ UniValue getsparknamedata(const JSONRPCRequest& request)
     result.push_back(sparkNameTxId);
 
     return result;
-
 }
 
 UniValue getbestblockhash(const JSONRPCRequest& request)
