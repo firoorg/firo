@@ -46,6 +46,20 @@ Scalar Wallet::compute_new_spark_asset_serialization_scalar( const SparkAssetBas
    return ret;
 }
 
+Scalar Wallet::compute_unregister_spark_asset_serialization_scalar( const UnregisterAssetParameters &p, std::span< const unsigned char > unreg_asset_serialization_bytes )
+{
+   auto identifier_absense_sentinel = max_allowed_identifier_value;
+   ++identifier_absense_sentinel;
+   spark::Hash hash( std::format( "spatsunreg_{}_{}_from_{}",
+                                  utils::to_underlying( p.asset_type() ),
+                                  utils::to_underlying( p.identifier().value_or( identifier_absense_sentinel ) ),
+                                  p.initiator_public_address() ) );
+   hash.include( unreg_asset_serialization_bytes );
+   auto ret = hash.finalize_scalar();
+   LogPrintf( "Unregister spark asset serialization scalar (hex): %s\n", ret.GetHex() );
+   return ret;
+}
+
 Wallet::Wallet( CSparkWallet &spark_wallet ) noexcept
    : spark_wallet_( spark_wallet )
    , registry_( spark::CSparkState::GetState()->GetSpatsManager().registry() )
@@ -78,7 +92,7 @@ Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standa
    script << OP_SPATSCREATE;
    assert( script.IsSpatsCreate() );
    CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
-   serialized << a;
+   serialized << CreateAssetAction( a );
    // TODO instead of how it is being done now, put ownership proof into script default-constructed first, then compute ownership proof from the whole tx, and overwrite
    //      the ownership proof in the script then
    const auto scalar_of_proof = compute_new_spark_asset_serialization_scalar( b, serialized.as_bytes_span() );
@@ -107,7 +121,35 @@ Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standa
                                                         {},
                                                         standard_fee,
                                                         nullptr );   // may throw
-   assert( tx.tx->IsSpatsCreate() );   // TODO is this the right way to do the check?
+   assert( tx.tx->IsSpatsCreate() );
+   return tx;
+}
+
+CWalletTx Wallet::create_unregister_spark_asset_transaction( asset_type_t asset_type, std::optional< identifier_t > identifier, CAmount &standard_fee ) const
+{
+   const auto &admin_public_address = my_public_address_as_admin();
+   const UnregisterAssetParameters action_params( asset_type, identifier, admin_public_address );
+   CScript script;
+   script << OP_SPATSUNREGISTER;
+   assert( script.IsSpatsUnregister() );
+   CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
+   serialized << UnregisterAssetAction( action_params );
+   // TODO instead of how it is being done now, put ownership proof into script default-constructed first, then compute ownership proof from the whole tx, and overwrite
+   //      the ownership proof in the script then
+   const auto scalar_of_proof = compute_unregister_spark_asset_serialization_scalar( action_params, serialized.as_bytes_span() );
+   const spark::OwnershipProof proof = spark_wallet_.makeDefaultAddressOwnershipProof( scalar_of_proof );
+   LogPrintf( "Ownership proof for unregister spark asset (hex): %s\n", proof );
+   CDataStream proof_serialized( SER_NETWORK, PROTOCOL_VERSION );
+   proof_serialized << proof;
+   script.insert( script.end(), serialized.begin(), serialized.end() );
+   assert( script.IsSpatsUnregister() );
+   script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
+   assert( script.IsSpatsUnregister() );
+   auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient( std::move( script ), {}, false, admin_public_address ) },
+                                                        {},
+                                                        standard_fee,
+                                                        nullptr );   // may throw
+   assert( tx.tx->IsSpatsUnregister() );
    return tx;
 }
 

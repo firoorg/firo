@@ -1265,8 +1265,11 @@ std::variant<T...> UnserializeVariantOf(Stream& is)
 template<utils::concepts::variant V, typename Stream>
 V UnserializeVariant(Stream& is)
 {
+#if 0 // TODO consider removing
     const auto f = [&]<typename... T> { return UnserializeVariantOf<T...>(is); };
     return utils::variant_types_unpacker<V>()(f);
+#endif
+   return [&is]< typename... T >( std::type_identity< std::variant< T... > > ) { return UnserializeVariantOf< T... >( is ); }( std::type_identity< V >() );
 }
 
 template<typename Stream, typename ... T>

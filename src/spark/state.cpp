@@ -6,6 +6,7 @@
 #include "../validation.h"
 #include "../batchproof_container.h"
 #include "../base58.h"	// for CBitcoinAddress
+#include "../spats/actions.hpp"
 #include "../spats/wallet.hpp"
 
 namespace spark {
@@ -181,48 +182,92 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
     return spendTransaction;
 }
 
-spats::Action ParseSpatsTransaction(const CTransaction &tx)
+static spats::CreateAssetAction ParseSpatsCreateTransaction(const CTransaction &tx)
 {
-    if (tx.IsSpatsCreate()) {
-        if (tx.vout.size() < 2)
-            throw CBadTxIn();
-        const CScript& creation_script = tx.vout.front().scriptPubKey;
-        if (!creation_script.IsSpatsCreate())
-            throw CBadTxIn();
+    assert(tx.IsSpatsCreate());
+    if (tx.vout.size() < 2)
+        throw CBadTxIn();
+    const CScript& creation_script = tx.vout.front().scriptPubKey;
+    if (!creation_script.IsSpatsCreate())
+        throw CBadTxIn();
 
-        try{
-            std::vector<unsigned char> serialized(creation_script.begin() + 1, creation_script.end());
-            auto asset_serialization_size = serialized.size();
-            const void* const asset_serialization_start_address = serialized.data();
-            CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
-            assert(stream.size() == asset_serialization_size);
-            auto action = ::UnserializeVariant<spats::SparkAsset>(stream);
-            asset_serialization_size -= stream.size();
-            spark::OwnershipProof proof;
-            stream >> proof;
-            LogPrintf("ParseSpatsTransaction address ownership proof: %s\n", proof);
-            const auto& b = get_base(action);
-            const auto& admin_public_address = b.admin_public_address();
-            Address a(spark::Params::get_default());
-            a.decode(admin_public_address);
-            const auto scalar_of_proof = spats::Wallet::compute_new_spark_asset_serialization_scalar(
-                b, {static_cast<const unsigned char*>(asset_serialization_start_address), asset_serialization_size});
-            LogPrintf("ParseSpatsTransaction scalar_of_proof: %s\n", scalar_of_proof);
-            if (!a.verify_own(scalar_of_proof, proof))
-                throw CBadTxIn();
-            const auto& burntx = tx.vout[1];
-            // If somehow the creation fee is greater than required, i.e. the originator wants to burn more of his money than required, then it's fine with us I think.
-            // But less than required is not allowed, of course.
-            if (burntx.nValue < spats::Wallet::compute_new_spark_asset_fee(b.naming().symbol.get()))
-                throw CBadTxIn();
-            if (GetScriptForDestination(CBitcoinAddress(std::string(firo_burn_address)).Get()) != burntx.scriptPubKey)
-                throw CBadTxIn();
-            return spats::CreateAssetAction(std::move(action));
-        }
-        catch (...) {
+    try{
+        std::vector<unsigned char> serialized(creation_script.begin() + 1, creation_script.end());
+        auto asset_serialization_size = serialized.size();
+        const void* const asset_serialization_start_address = serialized.data();
+        CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
+        assert(stream.size() == asset_serialization_size);
+        spats::CreateAssetAction action(deserialize, stream);
+        const auto &new_asset = action.get();
+        asset_serialization_size -= stream.size();
+        spark::OwnershipProof proof;
+        stream >> proof;
+        LogPrintf("ParseSpatsCreateTransaction address ownership proof: %s\n", proof);
+        const auto& b = get_base(new_asset);
+        const auto& admin_public_address = b.admin_public_address();
+        Address a(spark::Params::get_default());
+        a.decode(admin_public_address);
+        const auto scalar_of_proof = spats::Wallet::compute_new_spark_asset_serialization_scalar(
+            b, {static_cast<const unsigned char*>(asset_serialization_start_address), asset_serialization_size});
+        LogPrintf("ParseSpatsCreateTransaction scalar_of_proof: %s\n", scalar_of_proof);
+        if (!a.verify_own(scalar_of_proof, proof))
             throw CBadTxIn();
-        }
+        const auto& burntx = tx.vout[1];
+        // If somehow the creation fee is greater than required, i.e. the originator wants to burn more of his money than required, then it's fine with us I think.
+        // But less than required is not allowed, of course.
+        if (burntx.nValue < spats::Wallet::compute_new_spark_asset_fee(b.naming().symbol.get()))
+            throw CBadTxIn();
+        if (GetScriptForDestination(CBitcoinAddress(std::string(firo_burn_address)).Get()) != burntx.scriptPubKey)
+            throw CBadTxIn();
+        return action;
     }
+    catch (...) {
+        throw CBadTxIn();
+    }
+}
+
+static spats::UnregisterAssetAction ParseSpatsUnregisterTransaction(const CTransaction &tx)
+{
+    assert(tx.IsSpatsUnregister());
+    if (tx.vout.size() < 1)
+        throw CBadTxIn();
+    const CScript& unregistration_script = tx.vout.front().scriptPubKey;
+    if (!unregistration_script.IsSpatsUnregister())
+        throw CBadTxIn();
+
+    try{
+        std::vector<unsigned char> serialized(unregistration_script.begin() + 1, unregistration_script.end());
+        auto action_serialization_size = serialized.size();
+        const void* const action_serialization_start_address = serialized.data();
+        CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
+        assert(stream.size() == action_serialization_size);
+        spats::UnregisterAssetAction action(deserialize, stream);
+        const auto &unreg_params = action.get();
+        action_serialization_size -= stream.size();
+        spark::OwnershipProof proof;
+        stream >> proof;
+        LogPrintf("ParseSpatsUnregisterTransaction address ownership proof: %s\n", proof);
+        Address a(spark::Params::get_default());
+        a.decode(unreg_params.initiator_public_address());
+        const auto scalar_of_proof = spats::Wallet::compute_unregister_spark_asset_serialization_scalar(
+            unreg_params, {static_cast<const unsigned char*>(action_serialization_start_address), action_serialization_size});
+        LogPrintf("ParseSpatsUnregisterTransaction scalar_of_proof: %s\n", scalar_of_proof);
+        if (!a.verify_own(scalar_of_proof, proof))
+            throw CBadTxIn();
+        return action;
+    }
+    catch (...) {
+        throw CBadTxIn();
+    }
+}
+
+static spats::Action ParseSpatsTransaction(const CTransaction &tx)
+{
+    assert(tx.IsSpatsTransaction());
+    if (tx.IsSpatsCreate())
+        return ParseSpatsCreateTransaction(tx);
+    if (tx.IsSpatsUnregister())
+        return ParseSpatsUnregisterTransaction(tx);
     // TODO more
     throw CBadTxIn();
 }

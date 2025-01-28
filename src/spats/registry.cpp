@@ -89,27 +89,22 @@ bool Registry::process( const SparkAsset &a, [[maybe_unused]] int block_height, 
 
 void Registry::validate( const UnregisterAssetParameters &p, read_lock_proof ) const
 {
-   if ( p.asset_type == base::asset_type )
-      throw std::domain_error( "The base asset cannot be unregistered!" );
-
    const public_address_t *admin_public_address;
-   if ( is_fungible_asset_type( p.asset_type ) ) {
-      if ( p.identifier && *p.identifier != identifier_t{ 0 } )
-         throw std::invalid_argument( "No 'identifier' should be provided for identifying a fungible asset" );
-      const auto it = fungible_assets_.find( p.asset_type );
+   if ( is_fungible_asset_type( p.asset_type() ) ) {
+      const auto it = fungible_assets_.find( p.asset_type() );
       if ( it == fungible_assets_.end() )
          throw std::invalid_argument( "No such asset found to unregister" );
       admin_public_address = &it->second.admin_public_address();
    }
    else {
-      const auto it = nft_lines_.find( p.asset_type );
-      if ( it == nft_lines_.end() || it->second.empty() || p.identifier && !it->second.contains( *p.identifier ) )
+      const auto it = nft_lines_.find( p.asset_type() );
+      if ( it == nft_lines_.end() || it->second.empty() || p.identifier() && !it->second.contains( *p.identifier() ) )
          throw std::invalid_argument( "No such asset found to unregister" );
       admin_public_address = &it->second.begin()->second.admin_public_address();
-      assert( !p.identifier || admin_public_address == &it->second.find( *p.identifier )->second.admin_public_address() );
+      assert( !p.identifier() || admin_public_address == &it->second.find( *p.identifier() )->second.admin_public_address() );
    }
 
-   if ( *admin_public_address != p.initiator_public_address )
+   if ( *admin_public_address != p.initiator_public_address() )
       throw std::domain_error( "No permission to unregister the given asset" );
 }
 
@@ -117,8 +112,8 @@ bool Registry::process( const UnregisterAssetParameters &p, int block_height, wr
 {
    validate( p, wlp );
 
-   if ( is_fungible_asset_type( p.asset_type ) ) {
-      const auto it = fungible_assets_.find( p.asset_type );
+   if ( is_fungible_asset_type( p.asset_type() ) ) {
+      const auto it = fungible_assets_.find( p.asset_type() );
       if ( it != fungible_assets_.end() ) {
          if ( block_height >= 0 )
             unregistered_assets_.push_back( { block_height, std::move( it->second ) } );
@@ -128,11 +123,11 @@ bool Registry::process( const UnregisterAssetParameters &p, int block_height, wr
       return false;
    }
 
-   const auto it = nft_lines_.find( p.asset_type );
+   const auto it = nft_lines_.find( p.asset_type() );
    if ( it == nft_lines_.end() )
       return false;
-   if ( p.identifier ) {
-      const auto nft_it = it->second.find( *p.identifier );
+   if ( p.identifier() ) {
+      const auto nft_it = it->second.find( *p.identifier() );
       if ( nft_it == it->second.end() )
          return false;
       if ( block_height >= 0 )
@@ -158,15 +153,25 @@ bool Registry::unprocess( const SparkAsset &a, [[maybe_unused]] int block_height
 
 bool Registry::unprocess( const UnregisterAssetParameters &p, int block_height, write_lock_proof wlp )
 {
-   const auto it = std::ranges::find_if( unregistered_assets_, [ & ]( const auto &x ) {
-      return x.block_height_unregistered_at == block_height && get_base( x.asset ).asset_type() == p.asset_type && get_identifier( x.asset ) == p.identifier;
-   } );
-   if ( it != unregistered_assets_.end() ) {
+   const auto unregistered_identifier_match = []( const std::optional< identifier_t > asset_identifier,
+                                                  const std::optional< identifier_t > unregister_action_identifier ) {
+      return asset_identifier == unregister_action_identifier || !unregister_action_identifier;
+   };
+
+   bool any_changes = false;
+   auto it = unregistered_assets_.begin();
+   while ( it = std::find_if( it,
+                              unregistered_assets_.end(),
+                              [ & ]( const auto &x ) {
+                                 return x.block_height_unregistered_at == block_height && get_base( x.asset ).asset_type() == p.asset_type() &&
+                                        unregistered_identifier_match( get_identifier( x.asset ), p.identifier() );
+                              } ),
+           it != unregistered_assets_.end() ) {
       process( it->asset, -1, wlp );
-      unregistered_assets_.erase( it );
-      return true;
+      it = unregistered_assets_.erase( it );
+      any_changes = true;
    }
-   return false;
+   return any_changes;
 }
 
 std::optional< asset_type_t > Registry::get_lowest_available_asset_type_for_new_fungible_asset() const noexcept
