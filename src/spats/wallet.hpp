@@ -5,7 +5,10 @@
 #ifndef FIRO_SPATS_WALLET_HPP_INCLUDED
 #define FIRO_SPATS_WALLET_HPP_INCLUDED
 
+#include <string>
 #include <unordered_map>
+#include <optional>
+#include <span>
 
 #include "../utils/scaled_amount.hpp"
 
@@ -16,6 +19,8 @@ class CWalletTx;
 
 namespace spats {
 
+class SparkAssetBase;
+class UnregisterAssetParameters;
 class Registry;
 
 class Wallet {
@@ -32,6 +37,8 @@ public:
    static CAmount compute_new_spark_asset_fee( std::string_view asset_symbol ) noexcept;
 
    static Scalar compute_new_spark_asset_serialization_scalar( const SparkAssetBase &b, std::span< const unsigned char > asset_serialization_bytes );
+   static Scalar compute_unregister_spark_asset_serialization_scalar( const UnregisterAssetParameters &p,
+                                                                      std::span< const unsigned char > unreg_asset_serialization_bytes );
 
    const std::string &my_public_address_as_admin() const;
 
@@ -39,6 +46,7 @@ public:
                                                  CAmount &standard_fee,
                                                  CAmount &new_asset_fee,
                                                  const public_address_t &destination_public_address = {} ) const;
+   CWalletTx create_unregister_spark_asset_transaction( asset_type_t asset_type, std::optional< identifier_t > identifier, CAmount &standard_fee ) const;
 
    void notify_registry_changed();
 

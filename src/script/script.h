@@ -208,12 +208,20 @@ enum opcodetype
     OP_SPARKSMINT = 0xd2,
     OP_SPARKSPEND = 0xd3,
     OP_SPATSCREATE = 0xd4,
+    OP_SPATSUNREGISTER = 0xd5,
+    // TODO when adding a new spats opcode, update this below, and keep all spats ops values consecutive if possible, otherwise change IsSpatsOp() implementation
+    OP_SPATSLAST = OP_SPATSUNREGISTER,
 
     // basically NOP but identifies that subsequent txout script contains super transparent address
     OP_EXCHANGEADDR = 0xe0
 };
 
 const char* GetOpName(opcodetype opcode);
+
+constexpr bool IsSpatsOp(opcodetype opcode) noexcept
+{
+    return opcode >= OP_SPATSCREATE && opcode <= OP_SPATSLAST;
+}
 
 class scriptnum_error : public std::runtime_error
 {
@@ -585,8 +593,7 @@ public:
 
         if (opcodeRet == opcodetype::OP_SIGMASPEND || opcodeRet == opcodetype::OP_SIGMAMINT ||
             opcodeRet == opcodetype::OP_LELANTUSMINT || opcodeRet == opcodetype::OP_LELANTUSJMINT || opcodeRet == opcodetype::OP_LELANTUSJOINSPLIT ||
-            opcodeRet == opcodetype::OP_SPARKMINT || opcodeRet == opcodetype::OP_SPARKSMINT || opcodeRet == opcodetype::OP_SPARKSPEND ||
-            opcodeRet == opcodetype::OP_SPATSCREATE) {
+            opcodeRet == opcodetype::OP_SPARKMINT || opcodeRet == opcodetype::OP_SPARKSMINT || opcodeRet == opcodetype::OP_SPARKSPEND || IsSpatsOp(opcodeRet)) {
             if (pvchRet) {
                 pvchRet->assign(pc, end());
             }
@@ -692,6 +699,8 @@ public:
     bool IsSparkSpend() const;
 
     bool IsSpatsCreate() const;
+
+    bool IsSpatsUnregister() const;
 
     bool IsSpats() const;
 

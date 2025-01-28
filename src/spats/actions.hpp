@@ -12,23 +12,66 @@
 #include "../serialize.h"
 
 #include "identification.hpp"
+#include "base_asset.hpp"
 #include "spark_asset.hpp"
 
 namespace spats {
 
-struct UnregisterAssetParameters {
-   asset_type_t asset_type;
-   std::optional< identifier_t > identifier;
-   public_address_t initiator_public_address;
-
-   ADD_SERIALIZE_METHODS;
-
-   template < typename Stream, typename Operation >
-   void SerializationOp( Stream &s, Operation ser_action )
+class UnregisterAssetParameters {
+public:
+   UnregisterAssetParameters( asset_type_t assettype, std::optional< identifier_t > ident, public_address_t initiator_pubaddress )
+      : asset_type_( assettype )
+      , identifier_( ident )
+      , initiator_public_address_( std::move( initiator_pubaddress ) )
    {
-      READWRITE( asset_type );
-      READWRITE( identifier );
-      READWRITE( initiator_public_address );
+      validate();
+   }
+
+   template < typename Stream >
+   UnregisterAssetParameters( deserialize_type, Stream &is )
+   {
+      is >> asset_type_ >> identifier_ >> initiator_public_address_;
+      validate();
+   }
+
+   template < typename Stream >
+   void Serialize( Stream &os ) const
+   {
+      os << asset_type_ << identifier_ << initiator_public_address_;
+   }
+
+   asset_type_t asset_type() const noexcept
+   {
+      assert( asset_type_ != base::asset_type );
+      return asset_type_;
+   }
+
+   std::optional< identifier_t > identifier() const noexcept
+   {
+      assert( !identifier_ || !is_fungible_asset_type( asset_type_ ) );
+      return identifier_;
+   }
+
+   const public_address_t &initiator_public_address() const noexcept { return initiator_public_address_; }
+
+private:
+   asset_type_t asset_type_;
+   std::optional< identifier_t > identifier_;
+   public_address_t initiator_public_address_;
+
+   void validate()
+   {
+      if ( asset_type_ == base::asset_type )
+         throw std::domain_error( "The base asset cannot be unregistered!" );
+
+      if ( is_fungible_asset_type( asset_type_ ) ) {
+         if ( identifier_ )
+            if ( *identifier_ == identifier_t{ 0 } )
+               identifier_ = std::nullopt;
+            else
+               throw std::invalid_argument( "No 'identifier' should be provided for identifying a fungible asset" );
+         assert( !identifier_ );
+      }
    }
 };
 
@@ -72,19 +115,25 @@ SparkAsset CreateAssetAction::Unserialize( Stream &is )
 {
    std::uint8_t version;
    is >> version;
-   return [ & ]< typename... T >( std::type_identity< std::variant< T... > > ) { return UnserializeVariantOf< T... >( is ); }( std::type_identity< SparkAsset >() );
+   return UnserializeVariant< SparkAsset >( is );
 }
 
 class UnregisterAssetAction {
 public:
-   ADD_SERIALIZE_METHODS;
+   explicit UnregisterAssetAction( UnregisterAssetParameters parameters )
+      : parameters_( std::move( parameters ) )
+   {}
 
-   template < typename Stream, typename Operation >
-   void SerializationOp( Stream &s, Operation ser_action )
+   template < typename Stream >
+   UnregisterAssetAction( deserialize_type, Stream &is )
+      : parameters_( Unserialize( is ) )
+   {}
+
+   template < typename Stream >
+   void Serialize( Stream &os ) const
    {
-      auto version = serialization_version;
-      READWRITE( version );
-      READWRITE( parameters_ );
+      os << serialization_version;
+      os << parameters_;
    }
 
    const UnregisterAssetParameters &get() const & noexcept { return parameters_; }
@@ -93,6 +142,14 @@ public:
 private:
    UnregisterAssetParameters parameters_;
    static constexpr std::uint8_t serialization_version = 1;
+
+   template < typename Stream >
+   static UnregisterAssetParameters Unserialize( Stream &is )
+   {
+      std::uint8_t version;
+      is >> version;
+      return UnregisterAssetParameters( deserialize, is );
+   }
 };
 
 using Action = std::variant< CreateAssetAction, UnregisterAssetAction >;   // TODO more

@@ -5905,14 +5905,14 @@ CWalletTx CWallet::SpendAndStoreSpark(
 }
 
 std::optional<CWalletTx> CWallet::CreateNewSparkAsset(const spats::SparkAsset& a, const spats::public_address_t& destination_public_address,
-    const std::function<bool(const spats::SparkAsset& a, CAmount standard_fee, CAmount asset_creation_fee)>& user_confirmation_callback )
+    const std::function<bool(CAmount standard_fee, CAmount asset_creation_fee)>& user_confirmation_callback )
 {
     // create transaction
     CAmount standard_fee, new_asset_fee;
     auto wtx = sparkWallet->getSpatsWallet().create_new_spark_asset_transaction(a, standard_fee, new_asset_fee, destination_public_address);
 
     // give the user a chance to confirm/cancel
-    if (user_confirmation_callback && !user_confirmation_callback(a, standard_fee, new_asset_fee)) {
+    if (user_confirmation_callback && !user_confirmation_callback(standard_fee, new_asset_fee)) {
        // TODO log cancellation by user
        return {};
     }
@@ -5926,6 +5926,39 @@ std::optional<CWalletTx> CWallet::CreateNewSparkAsset(const spats::SparkAsset& a
     } catch (const std::exception &) {
         auto error = _(
                 "Error: The NewSparkAsset transaction was rejected! This might happen e.g. if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
+
+        std::throw_with_nested(std::runtime_error(error));
+    }
+
+    return wtx;
+}
+
+std::optional<CWalletTx> CWallet::UnregisterSparkAsset(spats::asset_type_t asset_type, std::optional<spats::identifier_t> identifier,
+    const std::function<bool(CAmount standard_fee)>& user_confirmation_callback)
+{
+    // create transaction
+    CAmount standard_fee;
+    auto wtx = sparkWallet->getSpatsWallet().create_unregister_spark_asset_transaction(asset_type, identifier, standard_fee);
+
+    // give the user a chance to confirm/cancel
+    if (user_confirmation_callback && !user_confirmation_callback(standard_fee)) {
+       // TODO log cancellation by user
+       return {};
+    }
+
+    // commit
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(this);
+        if (!CommitTransaction(wtx, reserveKey, g_connman.get(), state))
+            throw std::runtime_error("Failed to commit unregister spark asset transaction");
+    } catch (const std::exception &) {
+        auto error = _(
+                "Error: The UnregisterSparkAsset transaction was rejected! This might happen e.g. if some of "
                 "the coins in your wallet were already spent, such as if you used "
                 "a copy of wallet.dat and coins were spent in the copy but not "
                 "marked as spent here."

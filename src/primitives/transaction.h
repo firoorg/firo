@@ -459,6 +459,7 @@ public:
 
     bool IsSpatsTransaction() const;
     bool IsSpatsCreate() const;
+    bool IsSpatsUnregister() const;
 
     bool HasNoRegularInputs() const;
     bool HasPrivateInputs() const;

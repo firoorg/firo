@@ -40,6 +40,7 @@ protected:
 
 private Q_SLOTS:
    void onCreateButtonClicked();
+   void onUnregisterButtonClicked();
    void handleDisplayMyOwnSpatsSignal() { display_my_own_spats(); }
    void updateButtonStates();
 
