@@ -84,6 +84,7 @@ BOOST_AUTO_TEST_CASE(payment_channel_sender)
 
 BOOST_AUTO_TEST_CASE(account_receiver)
 {
+    namespace utils = bip47::utils;
     CExtKey privkey_alice; privkey_alice.SetMaster(alice::bip32seed.data(), alice::bip32seed.size());
     std::srand(std::time(nullptr));
     CAccountReceiver receiver(privkey_alice, std::rand(), "Label");
