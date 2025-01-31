@@ -209,3 +209,32 @@ void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend,
         break;
     }
 }
+
+std::string CSparkNameManager::ToUpper(const std::string &str)
+{
+    std::string result = str;
+    std::transform(result.begin(), result.end(), result.begin(), ::toupper);
+    return result;
+}
+
+bool CSparkNameManager::AddSparkName(const std::string &name, const spark::Address &address, uint32_t validityBlocks)
+{
+    std::string upperName = ToUpper(name);
+
+    if (sparkNames.count(upperName) > 0)
+        return false;
+
+    sparkNames[upperName] = std::make_pair(address, validityBlocks);
+    return true;
+}
+
+bool CSparkNameManager::RemoveSparkName(const std::string &name)
+{
+    std::string upperName = ToUpper(name);
+
+    if (sparkNames.count(upperName) == 0)
+        return false;
+
+    sparkNames.erase(upperName);
+    return true;
+}

@@ -85,13 +85,20 @@ public:
     template <class TxSet>
     static bool IsInConflict(CSparkNameTxData &txData, const TxSet &txSet)
     {
-        return txSet.find(txData.name) != txSet.cend();
+        std::string upperName = ToUpper(txData.name);
+        return txSet.find(upperName) != txSet.cend();
     }
 
     // fill missing CSparkNameTxData fields and append spark name tx data to the transaction
     void AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey);
 
+    // add and remove spark name
+    bool AddSparkName(const std::string &name, const spark::Address &address, uint32_t validityBlocks);
+    bool RemoveSparkName(const std::string &name);
+
     static CSparkNameManager *GetInstance() { return sharedSparkNameManager; };
+
+    static std::string ToUpper(const std::string &sparkName);
 };
 
 #endif // FIRO_SPARKNAME_H

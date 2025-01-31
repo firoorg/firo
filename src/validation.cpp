@@ -1632,7 +1632,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         }
 
         if (!sparkNameData.name.empty())
-            pool.sparkNames[sparkNameData.name] = hash;
+            pool.sparkNames[CSparkNameManager::ToUpper(sparkNameData.name)] = hash;
 
 #ifdef ENABLE_WALLET
         if (!GetBoolArg("-disablewallet", false) && pwalletMain->sparkWallet) {
