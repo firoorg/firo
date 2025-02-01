@@ -6,6 +6,7 @@
 #include "script/standard.h"
 #include "base58.h"
 #include "sparkname.h"
+#include "validation.h"
 
 CSparkNameManager *CSparkNameManager::sharedSparkNameManager = new CSparkNameManager();
 
@@ -51,6 +52,47 @@ bool CSparkNameManager::GetSparkAddress(const std::string &name, int nHeight, sp
     else {
         return false;
     }
+}
+
+uint64_t CSparkNameManager::GetSparkNameBlockHeight(const std::string &name) const
+{
+    auto it = sparkNames.find(ToUpper(name));
+    if (it == sparkNames.end())
+       throw std::runtime_error("Spark name not found: " + name);
+
+    size_t height = it->second.second;
+    return height;
+}
+
+std::string CSparkNameManager::GetSparkNameTxID(const std::string &name) const
+{
+    auto it = sparkNames.find(ToUpper(name));
+    if (it == sparkNames.end())
+        throw std::runtime_error("Spark name not found: " + name);
+
+    uint32_t blockHeight = it->second.second;
+
+    CBlockIndex* pBlockIndex = chainActive[blockHeight];
+    if (!pBlockIndex)
+        throw std::runtime_error("Block not found at height: " + std::to_string(blockHeight));
+
+    CBlock block;
+    if (!ReadBlockFromDisk(block, pBlockIndex, Params().GetConsensus()))
+        throw std::runtime_error("Failed to read block from disk.");
+
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    for (const CTransactionRef& tx : block.vtx)
+    {
+        CSparkNameTxData sparkNameData;
+        CValidationState state;
+
+        if (sparkNameManager->CheckSparkNameTx(*tx, blockHeight, state, &sparkNameData))
+        {
+            return (*tx).GetHash().ToString();
+        }
+    }
+
+    throw std::runtime_error("Spark name transaction not found for: " + name);
 }
 
 bool CSparkNameManager::ParseSparkNameTxData(const CTransaction &tx, spark::SpendTransaction &sparkTx, CSparkNameTxData &sparkNameData, size_t &sparkNameDataPos)

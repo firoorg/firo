@@ -98,6 +98,10 @@ public:
 
     static CSparkNameManager *GetInstance() { return sharedSparkNameManager; };
 
+    uint64_t GetSparkNameBlockHeight(const std::string &name) const;
+
+    std::string GetSparkNameTxID(const std::string &name) const;
+    
     static std::string ToUpper(const std::string &sparkName);
 };
 

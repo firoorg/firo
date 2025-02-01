@@ -25,6 +25,7 @@
 #include "evo/providertx.h"
 #include "evo/deterministicmns.h"
 #include "evo/cbtx.h"
+#include "../sparkname.h"
 
 #include "llmq/quorums_chainlocks.h"
 #include "llmq/quorums_instantsend.h"
@@ -174,6 +175,98 @@ UniValue getblockcount(const JSONRPCRequest& request)
 
     LOCK(cs_main);
     return chainActive.Height();
+}
+
+UniValue getsparknames(const JSONRPCRequest &request)
+{
+    if (request.fHelp || request.params.size() > 1) {
+        throw std::runtime_error(
+            "getsparknames ( height )\n"
+            "\nReturns a list of all Spark names.\n"
+            "\nArguments:\n"
+            "1. height (numeric, optional) The block height to filter Spark names (default is the spark names start block height).\n"
+            "\nResult:\n"
+            "[\n"
+            "  \"name1\",   (string) The Spark name and address\n"
+            "  \"name2\",   (string) Another Spark name and address\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknames", "1000")
+            + HelpExampleRpc("getsparknames", "1000")
+        );
+    }
+
+    LOCK(cs_main);
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    const Consensus::Params &consensusParams = Params().GetConsensus();
+    int nHeight = consensusParams.nSparkNamesStartBlock;
+    if (request.params.size() == 1) {
+        nHeight = request.params[0].get_int();
+    }
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    std::set<std::string> sparkNames = sparkNameManager->GetSparkNames(nHeight);
+    UniValue result(UniValue::VARR);
+    for (const auto &name : sparkNames) {
+        result.push_back(name);
+        unsigned char network = spark::GetNetworkType();
+        spark::Address SparkAddr;
+        sparkNameManager->GetSparkAddress(name, chainActive.Tip()->nHeight, SparkAddr);
+        std::string strAddress = SparkAddr.encode(network);
+        result.push_back(strAddress);
+    }
+    return result;
+}
+
+UniValue getsparknamedata(const JSONRPCRequest& request)
+{
+     if (request.fHelp || request.params.size() > 1) {
+        throw std::runtime_error(
+            "getsparknamedata ( sparkname )\n"
+            "\nReturns info about spark name.\n"
+            "\nArguments:\n"
+            "Spark name (string)\n"
+            "\nResult:\n"
+            "[\n"
+            "1. Address (string)\n"
+            "2. Block Height (string)\n"
+            "3. TxId (string)\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknamedata", "sparkname")
+            + HelpExampleRpc("getsparknamedata", "sparkname")
+        );
+    }
+
+    LOCK(cs_main);
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    std::string sparkName = request.params[0].get_str();
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+
+    spark::Address SparkAddr;
+    sparkNameManager->GetSparkAddress(sparkName, chainActive.Tip()->nHeight, SparkAddr);
+
+    UniValue result(UniValue::VARR);
+    unsigned char network = spark::GetNetworkType();
+
+    std::string strAddress = SparkAddr.encode(network);
+    result.push_back(strAddress);
+
+    uint64_t nameBlockHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName);
+    result.push_back(nameBlockHeight);
+
+    std::string sparkNameTxId = sparkNameManager->GetSparkNameTxID(sparkName);
+    result.push_back(sparkNameTxId);
+
+    return result;
 }
 
 UniValue getbestblockhash(const JSONRPCRequest& request)
@@ -1658,6 +1751,8 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getblockchaininfo",      &getblockchaininfo,      true,  {} },
     { "blockchain",         "getbestblockhash",       &getbestblockhash,       true,  {} },
     { "blockchain",         "getblockcount",          &getblockcount,          true,  {} },
+    { "blockchain",         "getsparknames",          &getsparknames,          true,  {} },
+    { "blockchain",         "getsparknamedata",       &getsparknamedata,       true,  {} },
     { "blockchain",         "getblock",               &getblock,               true,  {"blockhash","verbose"} },
     { "blockchain",         "getblockhash",           &getblockhash,           true,  {"height"} },
     { "blockchain",         "getblockhashes",         &getblockhashes,         true,  {"high", "low"} },
