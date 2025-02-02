@@ -147,10 +147,10 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     constexpr int nBlockPerYear = 365*24*24; // 24 blocks per hour
     int nYears = (sparkNameData.sparkNameValidityBlocks + nBlockPerYear-1) / nBlockPerYear;
 
-    if (sparkNameData.sparkNameValidityBlocks > nBlockPerYear * 5)
-        return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 5 years"));
+    if (sparkNameData.sparkNameValidityBlocks > nBlockPerYear * 10)
+        return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 10 years"));
 
-    CAmount nameFee = consensusParams.nSparkNamesFee[sparkNameData.name.size()] * nYears;
+    CAmount nameFee = consensusParams.nSparkNamesFee[sparkNameData.name.size()] * COIN * nYears;
     CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get());
     bool payoutFound = false;
     for (const CTxOut &txout: tx.vout)
@@ -201,7 +201,7 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         return state.DoS(100, error("CheckSparkNameTx: hash is out of range"));
     }
 
-    spark::Address sparkAddress;
+    spark::Address sparkAddress(spark::Params::get_default());
     try {
         sparkAddress.decode(sparkNameData.sparkAddress);
     }
@@ -237,7 +237,7 @@ void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend,
             continue;   // increase hashFailSafe and try again
         }
 
-        spark::Address sparkAddress;
+        spark::Address sparkAddress(spark::Params::get_default());
         spark::OwnershipProof ownershipProof;
 
         sparkAddress.decode(sparkNameData.sparkAddress);
@@ -246,7 +246,12 @@ void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend,
         CDataStream ownershipProofStream(SER_NETWORK, PROTOCOL_VERSION);
         ownershipProofStream << ownershipProof;
 
-        txSparkSpend.vExtraPayload.insert(txSparkSpend.vExtraPayload.end(), ownershipProofStream.begin(), ownershipProofStream.end());
+        sparkNameData.addressOwnershipProof.assign(ownershipProofStream.begin(), ownershipProofStream.end());
+
+        CDataStream sparkNameDataStream(SER_NETWORK, PROTOCOL_VERSION);
+        sparkNameDataStream << sparkNameData;
+
+        txSparkSpend.vExtraPayload.insert(txSparkSpend.vExtraPayload.end(), sparkNameDataStream.begin(), sparkNameDataStream.end());
 
         break;
     }

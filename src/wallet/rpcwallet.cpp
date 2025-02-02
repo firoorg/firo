@@ -3901,9 +3901,9 @@ UniValue registersparkname(const JSONRPCRequest& request) {
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() > 0) {
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 4) {
         throw std::runtime_error(
-                "registersparkname \"name\" \"sparkaddress\" [\"additionalData\"]\n");
+                "registersparkname \"name\" \"sparkaddress\" years [\"additionalData\"]\n");
     }
 
     EnsureWalletIsUnlocked(pwallet);
@@ -3917,15 +3917,19 @@ UniValue registersparkname(const JSONRPCRequest& request) {
 
     const auto &consensusParams = Params().GetConsensus();
 
-    if (request.params.size() < 2 || request.params.size() > 3)
+    if (request.params.size() < 3 || request.params.size() > 4)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameters");
 
     std::string sparkName = request.params[0].get_str();
     std::string sparkAddress = request.params[1].get_str();
     std::string additionalData;
 
-    if (request.params.size() >= 3)
-        additionalData = request.params[2].get_str();
+    int numberOfYears = request.params[2].get_int();
+    if (numberOfYears < 1 || numberOfYears > 10)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid number of years");
+
+    if (request.params.size() >= 4)
+        additionalData = request.params[3].get_str();
 
     if (sparkName.empty() || sparkName.size() > 20)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid spark name");
@@ -3934,8 +3938,9 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     sparkNameData.name = sparkName;
     sparkNameData.sparkAddress = sparkAddress;
     sparkNameData.additionalInfo = additionalData;
+    sparkNameData.sparkNameValidityBlocks = numberOfYears * 365*24*24;
 
-    CAmount sparkNameFee = consensusParams.nSparkNamesFee[sparkName.size()];
+    CAmount sparkNameFee = consensusParams.nSparkNamesFee[sparkName.size()]*COIN;
     CAmount fee;
     CWalletTx wtx;
     try {
