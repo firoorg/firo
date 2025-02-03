@@ -57,6 +57,7 @@ private:
     static CSparkNameManager *sharedSparkNameManager;
 
     std::map<std::string, std::pair<spark::Address, uint32_t>> sparkNames;
+    std::map<spark::Address, std::string> sparkNameAddresses;
 
 public:
     CSparkNameManager() {}
@@ -94,14 +95,14 @@ public:
 
     // add and remove spark name
     bool AddSparkName(const std::string &name, const spark::Address &address, uint32_t validityBlocks);
-    bool RemoveSparkName(const std::string &name);
+    bool RemoveSparkName(const std::string &name, const spark::Address &address);
 
     static CSparkNameManager *GetInstance() { return sharedSparkNameManager; };
 
     uint64_t GetSparkNameBlockHeight(const std::string &name) const;
 
     std::string GetSparkNameTxID(const std::string &name) const;
-    
+
     static std::string ToUpper(const std::string &sparkName);
 };
 

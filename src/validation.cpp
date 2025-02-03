@@ -1019,7 +1019,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             if (!sparkNameManager->CheckSparkNameTx(tx, chainActive.Height(), state, &sparkNameData))
                 return false;
 
-            if (CSparkNameManager::IsInConflict(sparkNameData, pool.sparkNames)) {
+            if (!sparkNameData.name.empty() && CSparkNameManager::IsInConflict(sparkNameData, pool.sparkNames)) {
                 return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
             }
         }

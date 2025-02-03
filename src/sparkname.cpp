@@ -97,12 +97,15 @@ std::string CSparkNameManager::GetSparkNameTxID(const std::string &name) const
 
 bool CSparkNameManager::ParseSparkNameTxData(const CTransaction &tx, spark::SpendTransaction &sparkTx, CSparkNameTxData &sparkNameData, size_t &sparkNameDataPos)
 {
+    sparkNameDataPos = 0;
     CDataStream serializedSpark(SER_NETWORK, PROTOCOL_VERSION);
     serializedSpark.write((const char *)tx.vExtraPayload.data(), tx.vExtraPayload.size());
     try {
         serializedSpark >> sparkTx;
         if (serializedSpark.size() == 0) {
             // silently ignore, it's not a critical error to not have a spark name tx part
+            // sparkNameDataPos pointing to the end of the tx payload means there is no spark name tx data
+            sparkNameDataPos = tx.vExtraPayload.size();
             return false;
         }
 
@@ -120,6 +123,9 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
 {
     const Consensus::Params &consensusParams = Params().GetConsensus();
 
+    if (outSparkNameData)
+        outSparkNameData->name.clear();
+
     if (!tx.IsSparkSpend())
         return state.Error("CheckSparkNameTx: not a spark name tx");
 
@@ -128,8 +134,14 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     spark::SpendTransaction spendTransaction(params);
     size_t sparkNameDataPos;
 
-    if (!ParseSparkNameTxData(tx, spendTransaction, sparkNameData, sparkNameDataPos))
-        return state.DoS(100, error("CheckSparkNameTx: failed to parse spark name tx"));
+    if (!ParseSparkNameTxData(tx, spendTransaction, sparkNameData, sparkNameDataPos)) {
+        if (sparkNameDataPos == tx.vExtraPayload.size()) {
+            return true;    // no payload, not an error at all
+        }
+        else {
+            return state.DoS(100, error("CheckSparkNameTx: failed to parse spark name tx"));
+        }
+    }
 
     if (outSparkNameData)
         *outSparkNameData = sparkNameData;
@@ -268,20 +280,24 @@ bool CSparkNameManager::AddSparkName(const std::string &name, const spark::Addre
 {
     std::string upperName = ToUpper(name);
 
-    if (sparkNames.count(upperName) > 0)
+    if (sparkNames.count(upperName) > 0 || sparkNameAddresses.count(address) > 0)
         return false;
 
     sparkNames[upperName] = std::make_pair(address, validityBlocks);
+    sparkNameAddresses[address] = name;
+
     return true;
 }
 
-bool CSparkNameManager::RemoveSparkName(const std::string &name)
+bool CSparkNameManager::RemoveSparkName(const std::string &name, const spark::Address &address)
 {
     std::string upperName = ToUpper(name);
 
-    if (sparkNames.count(upperName) == 0)
+    if (sparkNames.count(upperName) == 0 || sparkNameAddresses.count(address) == 0)
         return false;
 
     sparkNames.erase(upperName);
+    sparkNameAddresses.erase(address);
+    
     return true;
 }

@@ -93,6 +93,10 @@ public:
     bool verify_own(const Scalar& m,
                     OwnershipProof& proof) const;
 
+	bool operator < (const Address &other) const {
+		return encode(0) < other.encode(0);
+	}
+
 private:
 	const Params* params;
 	std::vector<unsigned char> d;
