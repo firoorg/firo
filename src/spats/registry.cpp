@@ -40,14 +40,14 @@ void Registry::validate( const ActionSequence &actions, int block_height ) const
    auto copy = *this;
    lock.unlock();
    for ( const auto &a : actions )
-      copy.process( a, block_height );
+      copy.process( a, block_height, {} );   // block hash isn't needed for validation, only actual storage
 }
 
-bool Registry::process( const Action &a, int block_height )
+bool Registry::process( const Action &a, int block_height, const std::optional< block_hash_t > &block_hash )
 {
    std::unique_lock lock( mutex_ );
    write_lock_proof wlp{ *this, lock };
-   const bool ret = std::visit( [ & ]( const auto &x ) { return process( x.get(), block_height, wlp ); }, a );
+   const bool ret = std::visit( [ & ]( const auto &x ) { return process( x.get(), block_height, block_hash, wlp ); }, a );
 
    if ( last_block_height_processed_ != block_height ) {
       last_block_height_processed_ = block_height;
@@ -71,6 +71,7 @@ void Registry::add_the_base_asset( write_lock_proof wlp )
                                      std::string( base::initial_admin_public_address ),
                                      base::initial_supply,
                                      base::resuppliable },
+                 {},   // TODO or should this be the genesis block's hash?
                  wlp );
 }
 
@@ -81,9 +82,9 @@ bool Registry::has_nonfungible_asset( asset_type_t asset_type, identifier_t iden
    return it != nft_lines_.end() && it->second.contains( identifier );
 }
 
-bool Registry::process( const SparkAsset &a, [[maybe_unused]] int block_height, write_lock_proof wlp )
+bool Registry::process( const SparkAsset &a, [[maybe_unused]] int block_height, const std::optional< block_hash_t > &block_hash, write_lock_proof wlp )
 {
-   std::visit( [ this, wlp ]( auto &&x ) { add( x, wlp ); }, a );
+   std::visit( [ this, &block_hash, wlp ]( auto &&x ) { add( x, block_hash, wlp ); }, a );
    return true;
 }
 
@@ -108,7 +109,7 @@ void Registry::validate( const UnregisterAssetParameters &p, read_lock_proof ) c
       throw std::domain_error( "No permission to unregister the given asset" );
 }
 
-bool Registry::process( const UnregisterAssetParameters &p, int block_height, write_lock_proof wlp )
+bool Registry::process( const UnregisterAssetParameters &p, int block_height, const std::optional< block_hash_t > &block_hash, write_lock_proof wlp )
 {
    validate( p, wlp );
 
@@ -148,7 +149,7 @@ bool Registry::process( const UnregisterAssetParameters &p, int block_height, wr
 bool Registry::unprocess( const SparkAsset &a, [[maybe_unused]] int block_height, write_lock_proof wlp )
 {
    const auto &b = get_base( a );
-   return process( UnregisterAssetParameters{ b.asset_type(), get_identifier( a ), b.admin_public_address() }, -1, wlp );
+   return process( UnregisterAssetParameters{ b.asset_type(), get_identifier( a ), b.admin_public_address() }, -1, {}, wlp );
 }
 
 bool Registry::unprocess( const UnregisterAssetParameters &p, int block_height, write_lock_proof wlp )
@@ -167,7 +168,7 @@ bool Registry::unprocess( const UnregisterAssetParameters &p, int block_height, 
                                         unregistered_identifier_match( get_identifier( x.asset ), p.identifier() );
                               } ),
            it != unregistered_assets_.end() ) {
-      process( it->asset, -1, wlp );
+      process( it->asset, -1, {}, wlp );
       it = unregistered_assets_.erase( it );
       any_changes = true;
    }
@@ -327,20 +328,20 @@ void Registry::validate( const SparkAsset &a, read_lock_proof rlp ) const
    std::visit( [ & ]( const auto &x ) { internal_validate( x, rlp ); }, a );
 }
 
-void Registry::internal_add( const FungibleSparkAsset &a, write_lock_proof )
+void Registry::internal_add( const FungibleSparkAsset &a, std::optional< block_hash_t > block_hash, write_lock_proof )
 {
    const auto asset_type = a.asset_type();
    assert( !fungible_assets_.contains( asset_type ) );
-   fungible_assets_.emplace( asset_type, a );
+   fungible_assets_.emplace( asset_type, BlockAnnotated( a, std::move( block_hash ) ) );
    assert( fungible_assets_.contains( asset_type ) );
 }
 
-void Registry::internal_add( const NonfungibleSparkAsset &a, write_lock_proof wlp )
+void Registry::internal_add( const NonfungibleSparkAsset &a, std::optional< block_hash_t > block_hash, write_lock_proof wlp )
 {
    const auto asset_type = a.asset_type();
    const auto identifier = a.identifier();
    assert( !has_nonfungible_asset( asset_type, identifier, wlp ) );
-   nft_lines_[ asset_type ].emplace( identifier, a );
+   nft_lines_[ asset_type ].emplace( identifier, BlockAnnotated( a, std::move( block_hash ) ) );
    assert( has_nonfungible_asset( asset_type, identifier, wlp ) );
 }
 

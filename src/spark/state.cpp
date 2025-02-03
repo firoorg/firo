@@ -377,7 +377,8 @@ bool ConnectBlockSpark(
             if (!pblock->sparkTxInfo->spats_action_sequence.empty()) {
                 pindexNew->spats_action_sequence.insert(pindexNew->spats_action_sequence.end(),
                     pblock->sparkTxInfo->spats_action_sequence.begin(), pblock->sparkTxInfo->spats_action_sequence.end());
-                sparkState.AddSpatsActionSequence(pblock->sparkTxInfo->spats_action_sequence, pindexNew->nHeight);
+                sparkState.AddSpatsActionSequence(pblock->sparkTxInfo->spats_action_sequence, pindexNew->nHeight,
+                                                  pindexNew->phashBlock ? std::optional(*pindexNew->phashBlock) : std::nullopt);
             }
 
             if (GetBoolArg("-mobile", false)) {
@@ -1647,9 +1648,9 @@ uint256 CSparkMempoolState::GetMempoolConflictingTxHash(const GroupElement& lTag
     return mempoolLTags[lTag];
 }
 
-void CSparkState::AddSpatsActionSequence(const spats::ActionSequence& action_sequence, int block_height)
+void CSparkState::AddSpatsActionSequence(const spats::ActionSequence& action_sequence, int block_height, const std::optional<uint256>& block_hash)
 {
-    GetSpatsManager().add_spats_action_sequence(action_sequence, block_height);
+    GetSpatsManager().add_spats_action_sequence(action_sequence, block_height, block_hash);
 }
 
 void CSparkMempoolState::Reset() {
