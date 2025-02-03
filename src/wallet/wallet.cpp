@@ -2566,6 +2566,34 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
 
 }
 
+static std::time_t parseDate(const std::string& dateStr) {
+    std::tm tm = {};
+    std::istringstream ss(dateStr);
+    ss >> std::get_time(&tm, "%d-%m-%Y");
+    if (ss.fail()) {
+        throw std::invalid_argument("Invalid date format: " + dateStr);
+    }
+    return std::mktime(&tm);
+}
+
+CBlockIndex* CWallet::GetBlockByDate(CBlockIndex* pindexStart, const std::string& dateStr) {
+    std::time_t targetTimestamp = parseDate(dateStr);
+
+    CBlockIndex* pindex = pindexStart;
+
+    while (pindex) {
+        if (pindex->GetBlockTime() > targetTimestamp) {
+            if (pindex->nHeight >= 200) {
+                return chainActive[pindex->nHeight - 200];
+            } else {
+                return chainActive[0];
+            }
+        }
+        pindex = chainActive.Next(pindex);
+    }
+    return chainActive[chainActive.Tip()->nHeight];
+}
+
 /**
  * Scan the block chain (starting in pindexStart) for transactions
  * from or to us. If fUpdate is true, found transactions that already
@@ -2578,24 +2606,43 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
 CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate, bool fRecoverMnemonic)
 {
     CBlockIndex* ret = nullptr;
+    if (GetBoolArg("-newwallet", false)) {
+        LogPrintf("Created new wallet, no need to scan\n");
+        return ret;
+    }
     int64_t nNow = GetTime();
     const CChainParams& chainParams = Params();
 
     CBlockIndex* pindex = pindexStart;
     {
         LOCK2(cs_main, cs_wallet);
+        // No need to read and scan block if block was created before our wallet birthday (as adjusted for block time variability).
+        // If you are recovering wallet with mnemonics, start rescan from the block when mnemonics were implemented in Firo.
+        // If the user provides a date, start scanning from the block that corresponds to that date.
+        // If no date is provided, start scanning from the mnemonic start block.
+        std::string wcdate = GetArg("-wcdate", "");
+        CBlockIndex* mnemonicStartBlock = chainActive[chainParams.GetConsensus().nMnemonicBlock];
+        if (mnemonicStartBlock == NULL)
+            mnemonicStartBlock = chainActive.Tip();
 
-        // no need to read and scan block, if block was created before
-        // our wallet birthday (as adjusted for block time variability)
-        // if you are recovering wallet with mnemonics start rescan from block when mnemonics implemented in Firo
-        if (fRecoverMnemonic) {
-            pindex = chainActive[chainParams.GetConsensus().nMnemonicBlock];
-            if (pindex == NULL)
-                pindex = chainActive.Tip();
-        } else
-            while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
-                pindex = chainActive.Next(pindex);
-
+        if (!wcdate.empty()) {
+            pindex = GetBlockByDate(mnemonicStartBlock, wcdate);
+            if (pindex->nHeight < chainParams.GetConsensus().nMnemonicBlock) {
+                pindex = mnemonicStartBlock;
+            }
+        } else {
+            bool fRescan = GetBoolArg("-rescan", false);
+            if (fRescan || fRecoverMnemonic) {
+                if (mnemonicContainer.IsNull())
+                    pindex = chainActive.Genesis();
+                else
+                    pindex = mnemonicStartBlock;
+            }
+            else
+                while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
+                    pindex = chainActive.Next(pindex);
+        }
+        LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height(), pindex->nHeight);
         ShowProgress(_("Rescanning..."), 0); // show rescan progress in GUI as dialog or on splashscreen, if -rescan on startup
         double dProgressStart = GuessVerificationProgress(chainParams.TxData(), pindex);
         double dProgressTip = GuessVerificationProgress(chainParams.TxData(), chainActive.Tip());
@@ -7783,11 +7830,10 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
             }
         }
 
-        uiInterface.InitMessage(_("Rescanning..."));
-        LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height() - pindexRescan->nHeight, pindexRescan->nHeight);
+        if (!(GetBoolArg("-newwallet", false))) {uiInterface.InitMessage(_("Rescanning..."));}
         nStart = GetTimeMillis();
         walletInstance->ScanForWalletTransactions(pindexRescan, true, fRecoverMnemonic);
-        LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);
+        if (!(GetBoolArg("-newwallet", false))) {LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);}
         walletInstance->SetBestChain(chainActive.GetLocator());
         CWalletDB::IncrementUpdateCounter();
 

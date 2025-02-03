@@ -191,6 +191,7 @@ struct CRecipient
     CAmount nAmount;
     bool fSubtractFeeFromAmount;
     std::string address;
+    std::string memo;
 };
 
 typedef std::map<std::string, std::string> mapValue_t;
@@ -1008,6 +1009,7 @@ public:
     void SyncTransaction(const CTransaction& tx, const CBlockIndex *pindex, int posInBlock) override;
     bool AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex* pIndex, int posInBlock, bool fUpdate);
     CBlockIndex* ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate = false, bool fRecoverMnemonic = false);
+    CBlockIndex* GetBlockByDate(CBlockIndex* pindexStart, const std::string& dateStr);
     void ReacceptWalletTransactions();
     void ResendWalletTransactions(int64_t nBestBlockTime, CConnman* connman) override;
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime, CConnman* connman);

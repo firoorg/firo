@@ -8,6 +8,7 @@
 #include "primitives/transaction.h"
 #include "script/standard.h"
 #include <optional>
+#include "base58.h"
 
 enum class CoinType
 {
