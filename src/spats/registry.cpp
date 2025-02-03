@@ -111,7 +111,7 @@ void Registry::validate( const UnregisterAssetParameters &p, read_lock_proof ) c
 
 bool Registry::process( const UnregisterAssetParameters &p, int block_height, const std::optional< block_hash_t > &block_hash, write_lock_proof wlp )
 {
-   validate( p, wlp );
+   validate( p, wlp );   // will throw if invalid
 
    if ( is_fungible_asset_type( p.asset_type() ) ) {
       const auto it = fungible_assets_.find( p.asset_type() );
@@ -180,6 +180,7 @@ std::optional< asset_type_t > Registry::get_lowest_available_asset_type_for_new_
    // TODO Performance: retrieve from an interval_set maintained along
    for ( asset_type_t a{ 0 }; a <= max_allowed_asset_type_value; a = next_in_kind( a ) ) {
       assert( is_fungible_asset_type( a ) );
+      std::shared_lock lock( mutex_ );
       if ( !fungible_assets_.contains( a ) ) {
          assert( a != base::asset_type && "The base asset type value should always be unavailable for a new asset to be added" );
          return a;
@@ -193,6 +194,7 @@ std::optional< asset_type_t > Registry::get_lowest_available_asset_type_for_new_
    // TODO Performance: retrieve from an interval_set maintained along
    for ( asset_type_t a{ 1 }; a <= max_allowed_asset_type_value; a = next_in_kind( a ) ) {
       assert( !is_fungible_asset_type( a ) );
+      std::shared_lock lock( mutex_ );
       if ( !nft_lines_.contains( a ) )
          return a;
    }
@@ -207,6 +209,7 @@ std::optional< identifier_t > Registry::get_lowest_available_identifier_for_nft_
    if ( nft_line_asset_type > max_allowed_asset_type_value )
       return {};
 
+   std::shared_lock lock( mutex_ );
    if ( const auto it = nft_lines_.find( nft_line_asset_type ); it != nft_lines_.end() ) {
       for ( identifier_t i{ 0 }; i <= max_allowed_identifier_value; ++i )
          if ( !it->second.contains( i ) )
@@ -217,17 +220,23 @@ std::optional< identifier_t > Registry::get_lowest_available_identifier_for_nft_
    return identifier_t{ 0 };   // That NFT line doesn't exist yet, so the identifier can start from 0, which is available of course
 }
 
-std::vector< SparkAsset > Registry::get_assets_administered_by( const public_address_t &public_address ) const
+std::vector< SparkAsset > Registry::get_assets_administered_by( const public_address_t &public_address, read_lock_proof rlp ) const
 {
    // TODO Performance: maintain a map of public addresses to asset_type values it administers
    // TODO Performance: perhaps also maintain a cache map of the final results, given that this function is expected to be called with the same public_address repeatedly
    std::vector< SparkAsset > assets;
-   std::ranges::move( get_fungible_assets_administered_by( public_address ), std::back_inserter( assets ) );
-   std::ranges::move( get_nfts_administered_by( public_address ), std::back_inserter( assets ) );
+   std::ranges::move( get_fungible_assets_administered_by( public_address, rlp ), std::back_inserter( assets ) );
+   std::ranges::move( get_nfts_administered_by( public_address, rlp ), std::back_inserter( assets ) );
    return assets;
 }
 
-std::vector< FungibleSparkAsset > Registry::get_fungible_assets_administered_by( const public_address_t &public_address ) const
+std::vector< SparkAsset > Registry::get_assets_administered_by( const public_address_t &public_address ) const
+{
+   std::shared_lock lock( mutex_ );
+   return get_assets_administered_by( public_address, read_lock_proof{ *this, lock } );
+}
+
+std::vector< FungibleSparkAsset > Registry::get_fungible_assets_administered_by( const public_address_t &public_address, read_lock_proof ) const
 {
    // TODO Performance: maintain a map of public addresses to asset_type values it administers
    // TODO Performance: perhaps also maintain a cache map of the final results, given that this function is expected to be called with the same public_address repeatedly
@@ -238,7 +247,13 @@ std::vector< FungibleSparkAsset > Registry::get_fungible_assets_administered_by(
    return assets;
 }
 
-std::vector< Nft > Registry::get_nfts_administered_by( const public_address_t &public_address ) const
+std::vector< FungibleSparkAsset > Registry::get_fungible_assets_administered_by( const public_address_t &public_address ) const
+{
+   std::shared_lock lock( mutex_ );
+   return get_fungible_assets_administered_by( public_address, read_lock_proof{ *this, lock } );
+}
+
+std::vector< Nft > Registry::get_nfts_administered_by( const public_address_t &public_address, read_lock_proof ) const
 {
    // TODO Performance: maintain a map of public addresses to asset_type values it administers
    // TODO Performance: perhaps also maintain a cache map of the final results, given that this function is expected to be called with the same public_address repeatedly
@@ -250,6 +265,12 @@ std::vector< Nft > Registry::get_nfts_administered_by( const public_address_t &p
             assets.emplace_back( a );
          }
    return assets;
+}
+
+std::vector< Nft > Registry::get_nfts_administered_by( const public_address_t &public_address ) const
+{
+   std::shared_lock lock( mutex_ );
+   return get_nfts_administered_by( public_address, read_lock_proof{ *this, lock } );
 }
 
 void Registry::clear()
