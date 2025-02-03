@@ -88,13 +88,13 @@ private:
 
    void add( const FungibleSparkAsset &a, std::optional< block_hash_t > block_hash, write_lock_proof wlp )
    {
-      internal_validate( a, wlp );
+      internal_validate( a, wlp );   // will throw if invalid
       internal_add( a, std::move( block_hash ), wlp );
    }
 
    void add( const NonfungibleSparkAsset &a, std::optional< block_hash_t > block_hash, write_lock_proof wlp )
    {
-      internal_validate( a, wlp );
+      internal_validate( a, wlp );   // will throw if invalid
       internal_add( a, std::move( block_hash ), wlp );
    }
 
@@ -113,6 +113,10 @@ private:
 
    void add_the_base_asset( write_lock_proof );
    bool has_nonfungible_asset( asset_type_t asset_type, identifier_t identifier, read_lock_proof ) const noexcept;
+
+   std::vector< SparkAsset > get_assets_administered_by( const public_address_t &public_address, read_lock_proof ) const;
+   std::vector< FungibleSparkAsset > get_fungible_assets_administered_by( const public_address_t &public_address, read_lock_proof ) const;
+   std::vector< Nft > get_nfts_administered_by( const public_address_t &public_address, read_lock_proof ) const;
 
    void cleanup_old_blocks_bookkeeping( int block_height, write_lock_proof );
 };
