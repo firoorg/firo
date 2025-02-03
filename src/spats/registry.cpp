@@ -233,7 +233,7 @@ std::vector< SparkAsset > Registry::get_assets_administered_by( const public_add
 std::vector< SparkAsset > Registry::get_assets_administered_by( const public_address_t &public_address ) const
 {
    std::shared_lock lock( mutex_ );
-   return get_assets_administered_by( public_address, read_lock_proof{ *this, lock } );
+   return get_assets_administered_by( public_address, { *this, lock } );
 }
 
 std::vector< FungibleSparkAsset > Registry::get_fungible_assets_administered_by( const public_address_t &public_address, read_lock_proof ) const
@@ -250,7 +250,7 @@ std::vector< FungibleSparkAsset > Registry::get_fungible_assets_administered_by(
 std::vector< FungibleSparkAsset > Registry::get_fungible_assets_administered_by( const public_address_t &public_address ) const
 {
    std::shared_lock lock( mutex_ );
-   return get_fungible_assets_administered_by( public_address, read_lock_proof{ *this, lock } );
+   return get_fungible_assets_administered_by( public_address, { *this, lock } );
 }
 
 std::vector< Nft > Registry::get_nfts_administered_by( const public_address_t &public_address, read_lock_proof ) const
@@ -267,10 +267,42 @@ std::vector< Nft > Registry::get_nfts_administered_by( const public_address_t &p
    return assets;
 }
 
+std::optional< Registry::LocatedAsset > Registry::get_asset( asset_type_t asset_type, std::optional< identifier_t > identifier, read_lock_proof ) const
+{
+   if ( is_fungible_asset_type( asset_type ) ) {
+      if ( identifier.value_or( identifier_t{} ) != identifier_t{} ) {
+         assert( !"Identifier cannot be present for a fungible asset" );
+         return {};
+      }
+      const auto it = fungible_assets_.find( asset_type );
+      if ( it == fungible_assets_.end() )
+         return {};
+      return LocatedAsset{ it->second.block_hash, it->second };
+   }
+
+   if ( !identifier ) {
+      assert( !"Identifier cannot be absent for an NFT" );
+      return {};
+   }
+   const auto it = nft_lines_.find( asset_type );
+   if ( it == nft_lines_.end() )
+      return {};
+   const auto nft_it = it->second.find( *identifier );
+   if ( nft_it == it->second.end() )
+      return {};
+   return LocatedAsset{ nft_it->second.block_hash, nft_it->second };
+}
+
 std::vector< Nft > Registry::get_nfts_administered_by( const public_address_t &public_address ) const
 {
    std::shared_lock lock( mutex_ );
-   return get_nfts_administered_by( public_address, read_lock_proof{ *this, lock } );
+   return get_nfts_administered_by( public_address, { *this, lock } );
+}
+
+std::optional< Registry::LocatedAsset > Registry::get_asset( asset_type_t asset_type, std::optional< identifier_t > identifier ) const
+{
+   std::shared_lock lock( mutex_ );
+   return get_asset( asset_type, identifier, { *this, lock } );
 }
 
 void Registry::clear()

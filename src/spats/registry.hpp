@@ -42,6 +42,13 @@ public:
    std::vector< FungibleSparkAsset > get_fungible_assets_administered_by( const public_address_t &public_address ) const;
    std::vector< Nft > get_nfts_administered_by( const public_address_t &public_address ) const;
 
+   struct LocatedAsset {
+      std::optional< block_hash_t > block_hash;
+      SparkAsset asset;
+   };
+
+   std::optional< LocatedAsset > get_asset( asset_type_t asset_type, std::optional< identifier_t > identifier ) const;
+
    void clear();
 
 private:
@@ -117,6 +124,8 @@ private:
    std::vector< SparkAsset > get_assets_administered_by( const public_address_t &public_address, read_lock_proof ) const;
    std::vector< FungibleSparkAsset > get_fungible_assets_administered_by( const public_address_t &public_address, read_lock_proof ) const;
    std::vector< Nft > get_nfts_administered_by( const public_address_t &public_address, read_lock_proof ) const;
+
+   std::optional< LocatedAsset > get_asset( asset_type_t asset_type, std::optional< identifier_t > identifier, read_lock_proof ) const;
 
    void cleanup_old_blocks_bookkeeping( int block_height, write_lock_proof );
 };
