@@ -142,6 +142,7 @@ public:
     bool ReadAddressIndex(uint160 addressHash, AddressType type,
                           std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex,
                           int start = 0, int end = 0);
+    size_t findAddressNumWBalance();
 
     bool WriteTimestampIndex(const CTimestampIndexKey &timestampIndex);
     bool ReadTimestampIndex(const unsigned int &high, const unsigned int &low, std::vector<uint256> &vect);
