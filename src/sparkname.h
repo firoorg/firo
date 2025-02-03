@@ -7,6 +7,10 @@
 #include "evo/evodb.h"
 #include "libspark/keys.h"
 
+namespace spark {
+    unsigned char GetNetworkType();
+}
+
 /*
  * Spark alias transaction data. This is to be stored in the transaction's extra data field
  * right after Spark data. The transaction is considered a Spark alias transaction if it spends
@@ -88,6 +92,22 @@ public:
     {
         std::string upperName = ToUpper(txData.name);
         return txSet.find(upperName) != txSet.cend();
+    }
+
+    template <class TxSet>
+    static bool IsInConflict(CSparkNameTxData &txData, const TxSet &txSet, std::function<std::string(typename TxSet::const_iterator)> getAddress)
+    {
+        std::string upperName = ToUpper(txData.name);
+        if (txSet.find(upperName) != txSet.cend())
+            return true;
+
+        for (typename TxSet::const_iterator it = txSet.cbegin(); it != txSet.cend(); ++it)
+        {
+            if (getAddress(it) == txData.sparkAddress)
+                return true;
+        }
+
+        return false;
     }
 
     // fill missing CSparkNameTxData fields and append spark name tx data to the transaction
