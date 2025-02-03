@@ -280,7 +280,9 @@ bool CSparkNameManager::AddSparkName(const std::string &name, const spark::Addre
 {
     std::string upperName = ToUpper(name);
 
-    if (sparkNames.count(upperName) > 0 || sparkNameAddresses.count(address) > 0)
+    if (sparkNames.count(upperName) > 0 && address.encode(0) != sparkNames[upperName].first.encode(0))
+        return false;
+    else if (sparkNameAddresses.count(address) > 0)
         return false;
 
     sparkNames[upperName] = std::make_pair(address, validityBlocks);
