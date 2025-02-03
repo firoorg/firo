@@ -340,6 +340,8 @@ static const CRPCCommand vRPCCommands[] =
 
         /* Mobile Spark */
     { "mobile",             "getsparkanonymityset",   &getsparkanonymityset, false },
+    { "mobile",             "getsparkanonymitysetmeta",   &getsparkanonymitysetmeta, false },
+    { "mobile",             "getsparkanonymitysetsector",   &getsparkanonymitysetsector, false },
     { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true  },
     { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
     { "mobile",             "getusedcoinstagstxhashes", &getusedcoinstagstxhashes, false },
