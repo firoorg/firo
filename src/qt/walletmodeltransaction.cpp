@@ -50,17 +50,19 @@ void WalletModelTransaction::setTransactionFee(const CAmount& newFee)
 void WalletModelTransaction::reassignAmounts(int nChangePosRet)
 {
     int i = 0;
-    for (QList<SendCoinsRecipient>::iterator it = recipients.begin(); it != recipients.end(); ++it)
+    QList<SendCoinsRecipient>::iterator rec = recipients.begin();
+    for (auto it = walletTransaction->tx->vout.begin(); it != walletTransaction->tx->vout.end(); ++it)
     {
-        SendCoinsRecipient& rcp = (*it);
+        SendCoinsRecipient& rcp = (*rec);
         {
             if (i == nChangePosRet)
-                i++;
-            if (walletTransaction->tx->vout[i].scriptPubKey.IsSparkSMint()) {
+                continue;
+
+            if (it->scriptPubKey.IsSparkSMint()) {
                 bool ok = true;
                 spark::Coin coin(spark::Params::get_default());
                 try {
-                    spark::ParseSparkMintCoin(walletTransaction->tx->vout[i].scriptPubKey, coin);
+                    spark::ParseSparkMintCoin(it->scriptPubKey, coin);
                 } catch (std::invalid_argument&) {
                     ok = false;
                 }
@@ -73,9 +75,10 @@ void WalletModelTransaction::reassignAmounts(int nChangePosRet)
                     }
                 }
             } else {
-                rcp.amount = walletTransaction->tx->vout[i].nValue;
+                rcp.amount = it->nValue;
             }
             i++;
+            ++rec;
         }
     }
 }
