@@ -138,7 +138,7 @@ void MyOwnSpats::onCreateButtonClicked()
    try {
       SparkAssetDialog dialog( platform_style_, make_new_asset_creation_context(), this );
       if ( dialog.exec() == QDialog::Accepted )
-         wallet_model_->getWallet()->CreateNewSparkAsset( *dialog.getResultAsset() );   // TODO user confirm callback
+         wallet_model_->getWallet()->CreateNewSparkAsset( *dialog.getResultAsset(), dialog.getResultDestinationPublicAddress() );   // TODO user confirm callback
    }
    catch ( const std::exception &e ) {
       QMessageBox::critical( this, tr( "Error" ), tr( "An error occurred: %1" ).arg( e.what() ) );
