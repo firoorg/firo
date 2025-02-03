@@ -190,6 +190,13 @@
            </widget>
           </item>
           <item>
+           <widget class="QCheckBox" name="fSplit">
+            <property name="text">
+             <string>Enable &amp;splitting when minting</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QCheckBox" name="lelantusPage">
             <property name="text">
              <string>Enable &amp;lelantus manual-anonymize page</string>

@@ -49,6 +49,7 @@ public:
         Listen,                 // bool
         TorSetup,               // bool
         AutoAnonymize,          // bool
+        Split,                  // bool
         LelantusPage,           // bool
         enableRapAddresses,     // bool
         OptionIDRowCount,
@@ -73,6 +74,7 @@ public:
     bool getRapAddresses() {    return fenableRapAddresses; }
     const QString& getOverriddenByCommandLine() { return strOverriddenByCommandLine; }
     bool getAutoAnonymize() { return fAutoAnonymize; }
+    bool getfSplit() { return fSplit; }
     bool getLelantusPage() {return fLelantusPage; }
 
     /* Restart flag helper */
@@ -89,6 +91,7 @@ private:
     QString strThirdPartyTxUrls;
     bool fCoinControlFeatures;
     bool fAutoAnonymize;
+    bool fSplit;
     bool fLelantusPage;
     bool fenableRapAddresses;
 

@@ -188,6 +188,7 @@ void OptionsDialog::setMapper()
 
     /* Lelantus */
     mapper->addMapping(ui->autoAnonymize, OptionsModel::AutoAnonymize);
+    mapper->addMapping(ui->fSplit, OptionsModel::Split);
     if (!lelantus::IsLelantusAllowed()) {
         ui->lelantusPage->setVisible(false);
     }

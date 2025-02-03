@@ -604,7 +604,7 @@ BOOST_AUTO_TEST_CASE(limit)
     for (int i=0; i<10; i++) {
         std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
         std::vector<spark::MintedCoinData> mints{{address, 50*COIN, ""}};
-        std::string error = pwalletMain->MintAndStoreSpark(mints, wtxAndFee, false);
+        std::string error = pwalletMain->MintAndStoreSpark(mints, wtxAndFee, false, true);
         BOOST_ASSERT(error.empty());
         for (auto &w: wtxAndFee)
             sparkMints.emplace_back(*w.first.tx);
