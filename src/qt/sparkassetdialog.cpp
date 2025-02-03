@@ -11,6 +11,7 @@
 #include "../utils/math.hpp"
 #include "../spark/state.h"
 
+#include "quint64spinbox.h"   // must come before ui_sparkassetdialog.h
 #include "ui_sparkassetdialog.h"
 #include "sparkassetdialog.h"
 
@@ -32,9 +33,13 @@ SparkAssetDialog::SparkAssetDialog( const PlatformStyle *platform_style, dialog_
    ui_->setupUi( this );
 
    ui_->assetTypeSpinBox->setMinimum( 1 );   // Set minimum asset type value
+   ui_->assetTypeSpinBox->setMaximum( utils::to_underlying( spats::max_allowed_asset_type_value ) );   // Set maximum asset type value
    ui_->assetTypeSpinBox->setValue( 0 );   // Default value
    ui_->assetTypeSpinBox->setSingleStep( 2 );   // Step size for asset type adjustment, always keeping it within the same fungibility territory
    // TODO disable going further down if value <= 2
+
+   ui_->identifierSpinBox->setMinimum( 0 );   // Set minimum identifier value
+   ui_->identifierSpinBox->setMaximum( utils::to_underlying( spats::max_allowed_identifier_value ) );   // Set maximum identifier value
 
    // Set up the totalSupplySpin (QDoubleSpinBox) to handle double values
    ui_->totalSupplySpin->setDecimals( 8 );   // Allow up to 2 decimal places by default // TODO control this and below one by precisionSpinBox
@@ -54,7 +59,7 @@ SparkAssetDialog::SparkAssetDialog( const PlatformStyle *platform_style, dialog_
 
    // Connect UI elements to actions
    connect( ui_->fungibilityCheckBox, &QCheckBox::stateChanged, this, &SparkAssetDialog::onFungibilityChanged );
-   connect( ui_->assetTypeSpinBox, QOverload< int >::of( &QSpinBox::valueChanged ), this, &SparkAssetDialog::onAssetTypeChanged );
+   connect( ui_->assetTypeSpinBox, &QUInt64SpinBox::valueChanged, this, &SparkAssetDialog::onAssetTypeChanged );
    connect( ui_->saveButton, &QPushButton::clicked, this, &SparkAssetDialog::onSave );
    connect( ui_->cancelButton, &QPushButton::clicked, this, &QDialog::reject );
 
@@ -69,7 +74,8 @@ SparkAssetDialog::~SparkAssetDialog() {}
 void SparkAssetDialog::onSave()
 {
    try {
-      const spats::asset_type_t asset_type{ boost::numeric_cast< spats::identifier_underlying_type >( ui_->assetTypeSpinBox->value() ) };
+      static_assert( std::is_same_v< decltype( ui_->assetTypeSpinBox->value() ), spats::asset_type_underlying_type > );
+      const spats::asset_type_t asset_type{ ui_->assetTypeSpinBox->value() };
       spats::AssetNaming asset_naming( spats::nonempty_trimmed_string( ui_->assetNameEdit->text().toStdString() ),
                                        spats::nonempty_trimmed_uppercase_string( ui_->assetSymbolEdit->text().toStdString() ),
                                        ui_->assetDescriptionEdit->text().toStdString() );
@@ -89,9 +95,13 @@ void SparkAssetDialog::onSave()
            spats::FungibleSparkAsset( asset_type, std::move( asset_naming ), std::move( metadata ), std::move( admin_public_address ), total_supply, resupplyable );
       }
       else {   // Non-Fungible Asset
-         const spats::identifier_t identifier{ boost::numeric_cast< spats::identifier_underlying_type >( ui_->identifierSpinBox->value() ) };
+         static_assert( std::is_same_v< decltype( ui_->identifierSpinBox->value() ), spats::identifier_underlying_type > );
+         const spats::identifier_t identifier{ ui_->identifierSpinBox->value() };
          result_asset_ = spats::NonfungibleSparkAsset( asset_type, identifier, std::move( asset_naming ), std::move( metadata ), std::move( admin_public_address ) );
       }
+
+      if ( ui_->destinationPublicAddressEdit->isVisible() )
+         result_destination_public_address_ = ui_->destinationPublicAddressEdit->text().toStdString();
 
       accept();   // Close the dialog with an accepted state
    }
@@ -163,7 +173,7 @@ void SparkAssetDialog::set_fields( const spats::SparkAsset &existing_asset )
 {
    const auto &base = spats::get_base( existing_asset );
 
-   ui_->assetTypeSpinBox->setValue( static_cast< int >( base.asset_type() ) );   // TODO what about bigger numbers than int can hold?
+   ui_->assetTypeSpinBox->setValue( utils::to_underlying( base.asset_type() ) );
    ui_->assetNameEdit->setText( QString::fromStdString( base.naming().name.get() ) );
    ui_->assetSymbolEdit->setText( QString::fromStdString( base.naming().symbol.get() ) );
    ui_->assetDescriptionEdit->setText( QString::fromStdString( base.naming().description ) );
@@ -177,7 +187,7 @@ void SparkAssetDialog::set_fields( const spats::SparkAsset &existing_asset )
                                  },
                                   [ & ]( const spats::NonfungibleSparkAsset &nft ) {
                                      ui_->fungibilityCheckBox->setChecked( false );
-                                     ui_->identifierSpinBox->setValue( static_cast< int >( nft.identifier() ) );
+                                     ui_->identifierSpinBox->setValue( utils::to_underlying( nft.identifier() ) );
                                   } },
                existing_asset );
 
@@ -189,6 +199,8 @@ void SparkAssetDialog::set_fields( const spats::SparkAsset &existing_asset )
    ui_->totalSupplySpin->setEnabled( false );
    ui_->precisionSpinBox->setEnabled( false );
    ui_->resupplyableCheckBox->setEnabled( false );
+   ui_->labelDestinationPublicAddress->hide();
+   ui_->destinationPublicAddressEdit->hide();
 }
 
 const spats::public_address_t &SparkAssetDialog::get_admin_public_address() const

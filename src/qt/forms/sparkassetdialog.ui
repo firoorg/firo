@@ -39,7 +39,7 @@
       </widget>
      </item>
      <item row="1" column="1">
-      <widget class="QSpinBox" name="assetTypeSpinBox"/>
+      <widget class="QUInt64SpinBox" name="assetTypeSpinBox"/>
      </item>
 
      <item row="2" column="0">
@@ -50,7 +50,7 @@
       </widget>
      </item>
      <item row="2" column="1">
-      <widget class="QSpinBox" name="identifierSpinBox"/>
+      <widget class="QUInt64SpinBox" name="identifierSpinBox"/>
      </item>
 
      <item row="3" column="0">
@@ -138,6 +138,17 @@
       </widget>
      </item>
 
+     <item row="10" column="0">
+      <widget class="QLabel" name="labelDestinationPublicAddress">
+       <property name="text">
+        <string>Destination public address:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="10" column="1">
+      <widget class="QLineEdit" name="destinationPublicAddressEdit"/>
+     </item>
+
     </layout>
    </item>
    
@@ -177,6 +188,12 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+   <customwidget>
+     <class>QUInt64SpinBox</class>
+     <propertyspecifications/>
+   </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
