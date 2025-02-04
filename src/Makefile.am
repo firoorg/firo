@@ -261,14 +261,18 @@ BITCOIN_CORE_H = \
   unordered_lru_cache.h \
   spats/actions.hpp \
   spats/base_asset.hpp \
-  spats/constrained_value.hpp \
   spats/identification.hpp \
+  spats/manager.hpp \
   spats/registry.hpp \
-  spats/scaled_amount.hpp \
   spats/spark_asset.hpp \
-  spats/util.hpp \
   spats/wallet.hpp \
+  utils/constrained_value.hpp \
   utils/enum.hpp \
+  utils/lock_proof.hpp \
+  utils/math.hpp \
+  utils/overloaded.hpp \
+  utils/scaled_amount.hpp \
+  utils/traits.hpp \
   llmq/quorums.h \
   llmq/quorums_blockprocessor.h \
   llmq/quorums_dkgsessionmgr.h \
