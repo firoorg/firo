@@ -309,6 +309,15 @@ bool ConnectBlockSpark(
             }
         }
 
+        if (!pblock->sparkTxInfo->sparkNames.empty()) {
+            CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+            for (const auto &sparkName : pblock->sparkTxInfo->sparkNames) {
+                spark::Address address(spark::Params::get_default());
+                address.decode(sparkName.second.sparkAddress);
+                sparkNameManager->AddSparkName(sparkName.first, address, pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks);
+            }
+        }
+
         // generate hash if we need it
         if (updateHash) {
             unsigned char hash_result[CSHA256::OUTPUT_SIZE];
