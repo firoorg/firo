@@ -102,7 +102,7 @@ void Registry::validate( const UnregisterAssetParameters &p, read_lock_proof ) c
       if ( it == nft_lines_.end() || it->second.empty() || p.identifier() && !it->second.contains( *p.identifier() ) )
          throw std::invalid_argument( "No such asset found to unregister" );
       admin_public_address = &it->second.begin()->second.admin_public_address();
-      assert( !p.identifier() || admin_public_address == &it->second.find( *p.identifier() )->second.admin_public_address() );
+      assert( !p.identifier() || *admin_public_address == it->second.find( *p.identifier() )->second.admin_public_address() );
    }
 
    if ( *admin_public_address != p.initiator_public_address() )
