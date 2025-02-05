@@ -152,8 +152,27 @@ void MyOwnSpats::onUnregisterButtonClicked()
       try {
          const spats::asset_type_t asset_type{ ui_->tableWidgetMyOwnSpats->item( *row, 0 )->text().toULongLong() };
          std::optional< spats::identifier_t > identifier;
-         if ( !is_fungible_asset_type( asset_type ) )
+         if ( !is_fungible_asset_type( asset_type ) ) {
             identifier = spats::identifier_t{ ui_->tableWidgetMyOwnSpats->item( *row, 1 )->text().toULongLong() };
+            if ( any_other_nfts_within_same_line( asset_type, *identifier ) ) {
+               const QMessageBox::StandardButton reply = QMessageBox::question( this,
+                                                                                tr( "Unregister NFT" ),
+                                                                                tr( "Would you like to unregister the whole NFT line or just this specific NFT?" ),
+                                                                                QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel,
+                                                                                QMessageBox::Cancel );
+               switch ( reply ) {
+                  case QMessageBox::Yes:   // The Whole Line
+                     identifier.reset();
+                     break;
+                  case QMessageBox::No:   // Just This One
+                     // Leave identifier as is, unregister only this specific NFT
+                     break;
+                  case QMessageBox::Cancel:   // Cancel
+                  default:
+                     return;   // Exit the function without performing unregistration
+               }
+            }
+         }
          wallet_model_->getWallet()->UnregisterSparkAsset( asset_type, identifier );   // TODO user confirm callback
       }
       catch ( const std::exception &e ) {
@@ -176,4 +195,11 @@ std::optional< int > MyOwnSpats::get_the_selected_row() const
 {
    const auto selection = ui_->tableWidgetMyOwnSpats->selectionModel()->selectedRows();
    return selection.size() == 1 ? selection.front().row() : std::optional< int >{};
+}
+
+bool MyOwnSpats::any_other_nfts_within_same_line( spats::asset_type_t asset_type, spats::identifier_t identifier ) const
+{
+   assert( !is_fungible_asset_type( asset_type ) );
+   assert( asset_type <= spats::max_allowed_asset_type_value );
+   return std::ranges::any_of( my_own_assets_map_, [ & ]( const auto &kv ) { return kv.first.first == asset_type && kv.first.second != identifier; } );
 }
