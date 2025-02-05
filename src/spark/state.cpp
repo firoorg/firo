@@ -33,6 +33,7 @@ bool BuildSparkStateFromIndex(CChain *chain) {
     for (CBlockIndex *blockIndex = chain->Genesis(); blockIndex; blockIndex=chain->Next(blockIndex))
     {
         sparkState.AddBlock(blockIndex);
+        CSparkNameManager::GetInstance()->AddBlock(blockIndex);
     }
     // DEBUG
     LogPrintf(
@@ -312,9 +313,7 @@ bool ConnectBlockSpark(
         if (!pblock->sparkTxInfo->sparkNames.empty()) {
             CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
             for (const auto &sparkName : pblock->sparkTxInfo->sparkNames) {
-                spark::Address address(spark::Params::get_default());
-                address.decode(sparkName.second.sparkAddress);
-                sparkNameManager->AddSparkName(sparkName.first, address, pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks);
+                pindexNew->addedSparkNames[sparkName.first] = {sparkName.second.sparkAddress, pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks};
             }
         }
 
@@ -330,6 +329,11 @@ bool ConnectBlockSpark(
     else if (!fJustCheck) {
         sparkState.AddBlock(pindexNew);
     }
+
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    pindexNew->removedSparkNames = sparkNameManager->RemoveSparkNamesLosingValidity(pindexNew->nHeight);
+    sparkNameManager->AddBlock(pindexNew);
+
     return true;
 }
 
@@ -373,6 +377,9 @@ void RemoveSpendReferencingBlock(CTxMemPool& pool, CBlockIndex* blockIndex) {
 }
 
 void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    sparkNameManager->RemoveBlock(pindexDelete);
+
     sparkState.RemoveBlock(pindexDelete);
 
     // Also remove from mempool spends that reference given block hash.

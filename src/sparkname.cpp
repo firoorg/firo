@@ -10,10 +10,13 @@
 
 CSparkNameManager *CSparkNameManager::sharedSparkNameManager = new CSparkNameManager();
 
-bool CSparkNameManager::BlockConnected(CBlockIndex *pindex)
+bool CSparkNameManager::AddBlock(CBlockIndex *pindex)
 {
-    for (const auto &entry : pindex->addedSparkNames)
-        sparkNames[entry.first] = entry.second;
+    for (const auto &entry : pindex->addedSparkNames) {
+        spark::Address address;
+        address.decode(entry.second.first);
+        sparkNames[entry.first] = {address, entry.second.second};
+    }
 
     for (const auto &entry : pindex->removedSparkNames)
         sparkNames.erase(entry.first);
@@ -21,13 +24,16 @@ bool CSparkNameManager::BlockConnected(CBlockIndex *pindex)
     return true;
 }
 
-bool CSparkNameManager::BlockDisconnected(CBlockIndex *pindex)
+bool CSparkNameManager::RemoveBlock(CBlockIndex *pindex)
 {
     for (const auto &entry : pindex->addedSparkNames)
         sparkNames.erase(entry.first);
 
-    for (const auto &entry : pindex->removedSparkNames)
-        sparkNames[entry.first] = entry.second;
+    for (const auto &entry : pindex->removedSparkNames) {
+        spark::Address address;
+        address.decode(entry.second.first);
+        sparkNames[entry.first] = {address, entry.second.second};
+    }
 
     return true;
 }
@@ -302,4 +308,21 @@ bool CSparkNameManager::RemoveSparkName(const std::string &name, const spark::Ad
     sparkNameAddresses.erase(address);
     
     return true;
+}
+
+std::map<std::string, std::pair<std::string, uint32_t>> CSparkNameManager::RemoveSparkNamesLosingValidity(int nHeight)
+{
+    std::map<std::string, std::pair<std::string, uint32_t>> result;
+
+    for (auto it = sparkNames.begin(); it != sparkNames.end();)
+        if (it->second.second >= nHeight) {
+            std::string sparkAddressStr = it->second.first.encode(spark::GetNetworkType());
+            result[it->first] = {sparkAddressStr, it->second.second};
+            sparkNameAddresses.erase(it->second.first);
+            it = sparkNames.erase(it);
+        }
+        else
+            ++it;
+
+    return result;
 }

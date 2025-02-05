@@ -70,10 +70,6 @@ public:
     // but the transaction is otherwise valid. Returns true if the transaction is a valid spark name transaction.
     static bool ParseSparkNameTxData(const CTransaction &tx, spark::SpendTransaction &sparkTx, CSparkNameTxData &sparkNameData, size_t &sparkNameDataPos);
 
-    // update the state with contents of spark name transactions containted in block
-    bool BlockConnected(CBlockIndex *pindex);
-    bool BlockDisconnected(CBlockIndex *pindex);
-
     bool CheckSparkNameTx(const CTransaction &tx, int nHeight, CValidationState &state, CSparkNameTxData *outSparkNameData = nullptr);
 
     // test if the spark name tx is valid
@@ -122,6 +118,11 @@ public:
     uint64_t GetSparkNameBlockHeight(const std::string &name) const;
 
     std::string GetSparkNameTxID(const std::string &name) const;
+
+    std::map<std::string, std::pair<std::string, uint32_t>> RemoveSparkNamesLosingValidity(int nHeight);
+
+    bool AddBlock(CBlockIndex *pindex);
+    bool RemoveBlock(CBlockIndex *pindex);
 
     static std::string ToUpper(const std::string &sparkName);
 };

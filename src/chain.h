@@ -269,9 +269,9 @@ public:
     ActiveSporkMap activeDisablingSporks;
 
     //! List of spark names that were created or extended in this block. Map of spark name to <address, expiration block height>
-    std::map<std::string, std::pair<spark::Address, uint32_t>> addedSparkNames;
-    //! List of spark names that were removed in this block
-    std::map<std::string, std::pair<spark::Address, uint32_t>> removedSparkNames;
+    std::map<std::string, std::pair<std::string, uint32_t>> addedSparkNames;
+    //! List of spark names that were removed in this block because of expiration
+    std::map<std::string, std::pair<std::string, uint32_t>> removedSparkNames;
 
     void SetNull()
     {
@@ -315,6 +315,8 @@ public:
         sigmaSpentSerials.clear();
         lelantusSpentSerials.clear();
         activeDisablingSporks.clear();
+        addedSparkNames.clear();
+        removedSparkNames.clear();
     }
 
     CBlockIndex()
@@ -589,6 +591,11 @@ public:
                 READWRITE(activeDisablingSporks);
         }
         nDiskBlockVersion = nVersion;
+
+        if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nSparkNamesStartBlock) {
+            READWRITE(addedSparkNames);
+            READWRITE(removedSparkNames);
+        }
     }
 
     uint256 GetBlockHash() const
