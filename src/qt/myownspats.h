@@ -62,6 +62,8 @@ private:
    NewSparkAssetCreationContext make_new_asset_creation_context() const;
 
    std::optional< int > get_the_selected_row() const;
+
+   bool any_other_nfts_within_same_line( spats::asset_type_t asset_type, spats::identifier_t identifier ) const;
 };
 
 #endif   // MYOWNSPATS_H_INCLUDED
