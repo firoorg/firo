@@ -9,7 +9,7 @@ set_property(TARGET secp256k1 PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_link_libraries(secp256k1
   PUBLIC
-    gmp
+    ${GMP_LIBRARIES}
   PRIVATE
     OpenSSL::Crypto
 )
@@ -51,7 +51,11 @@ add_library(secp256k1pp
 set_property(TARGET secp256k1pp PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_link_libraries(secp256k1pp
-  PUBLIC secp256k1 gmp
+  PUBLIC secp256k1 ${GMP_LIBRARIES}
+)
+
+target_include_directories(secp256k1pp
+  PUBLIC ${GMP_INCLUDES}
 )
 
 add_library(secp256k1_asm INTERFACE)
@@ -128,18 +132,18 @@ if(SECP256K1_BUILD_BENCHMARK)
   add_executable(bench_verify bench_verify.c)
   target_link_libraries(bench_verify PUBLIC secp256k1)
   add_executable(bench_internal bench_internal.c)
-  target_link_libraries(bench_internal PUBLIC secp256k1_asm gmp)
+  target_link_libraries(bench_internal PUBLIC secp256k1_asm ${GMP_LIBRARIES})
 endif()
 
 if(SECP256K1_BUILD_TESTS)
   add_executable(noverify_tests tests.c)
   target_compile_definitions(noverify_tests PRIVATE VERIFY)
-  target_link_libraries(noverify_tests secp256k1_asm gmp)
+  target_link_libraries(noverify_tests secp256k1_asm ${GMP_LIBRARIES})
   add_test(NAME secp256k1_noverify_tests COMMAND noverify_tests)
   if(NOT CMAKE_BUILD_TYPE STREQUAL "Coverage")
     add_executable(tests tests.c)
     target_compile_definitions(tests PRIVATE VERIFY)
-    target_link_libraries(tests secp256k1_asm gmp)
+    target_link_libraries(tests secp256k1_asm ${GMP_LIBRARIES})
     add_test(NAME secp256k1_tests COMMAND tests)
   endif()
 endif()
@@ -147,7 +151,7 @@ endif()
 if(SECP256K1_BUILD_EXHAUSTIVE_TESTS)
   # Note: do not include secp256k1_precomputed in exhaustive_tests (it uses runtime-generated tables).
   add_executable(exhaustive_tests tests_exhaustive.c)
-  target_link_libraries(exhaustive_tests secp256k1_asm gmp)
+  target_link_libraries(exhaustive_tests secp256k1_asm ${GMP_LIBRARIES})
   target_compile_definitions(exhaustive_tests PRIVATE $<$<NOT:$<CONFIG:Coverage>>:VERIFY>)
   add_test(NAME secp256k1_exhaustive_tests COMMAND exhaustive_tests)
 endif()
