@@ -1,7 +1,9 @@
-find_package(PkgConfig QUIET)
-if(PKG_CONFIG_FOUND)
-  pkg_check_modules(PC_GMP QUIET gmp)
-endif()
+# Try to find the GNU Multiple Precision Arithmetic Library (GMP)
+# See http://gmplib.org/
+
+if (GMP_INCLUDES AND GMP_LIBRARIES)
+  set(GMP_FIND_QUIETLY TRUE)
+endif (GMP_INCLUDES AND GMP_LIBRARIES)
 
 find_path(GMP_INCLUDES
   NAMES
@@ -9,9 +11,10 @@ find_path(GMP_INCLUDES
   HINTS
   $ENV{GMPDIR}
   ${INCLUDE_INSTALL_DIR}
-  ${PC_GMP_INCLUDE_DIRS}
-  /usr/include
-  /usr/local/include
+  ${LIB_INSTALL_DIR}
+  ${PC_GMP_LIBRARY_DIRS}
+  /usr/lib
+  /usr/local/lib
 )
 
 find_library(GMP_LIBRARIES
@@ -24,7 +27,10 @@ find_library(GMP_LIBRARIES
   /usr/local/lib
 )
 
-if(GMP_INCLUDES)
+
+if(GMP_LIBRARIES AND GMP_INCLUDES)
+  message(STATUS "Found GMP: ${GMP_LIBRARIES}")
+  message(STATUS "GMP includes: ${GMP_INCLUDES}")
   file(STRINGS "${GMP_INCLUDES}/gmp.h" gmp_version_str REGEX "^#define[\t ]+__GNU_MP_VERSION[\t ]+[0-9]+")
   string(REGEX REPLACE "^#define[\t ]+__GNU_MP_VERSION[\t ]+([0-9]+).*" "\\1" GMP_VERSION_MAJOR "${gmp_version_str}")
   
@@ -34,4 +40,11 @@ if(GMP_INCLUDES)
   set(GMP_VERSION "${GMP_VERSION_MAJOR}.${GMP_VERSION_MINOR}")
   message(STATUS "GMP_VERSION_MAJOR : ${GMP_VERSION_MAJOR}")
   message(STATUS "GMP_VERSION_MINOR : ${GMP_VERSION_MINOR}")
+else()
+  message(FATAL_ERROR "Could not find GMP")
 endif()
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(GMP DEFAULT_MSG
+                                  GMP_INCLUDES GMP_LIBRARIES)
+mark_as_advanced(GMP_INCLUDES GMP_LIBRARIES)

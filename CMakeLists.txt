@@ -112,7 +112,7 @@ option(BUILD_UTIL "Build ${FIRO_UTIL_NAME} executable and library." ${BUILD_TEST
 option(BUILD_UTIL_CHAINSTATE "Build experimental firo-chainstate executable." OFF)
 option(BUILD_KERNEL_LIB "Build experimental firokernel library." ${BUILD_UTIL_CHAINSTATE})
 
-option(ENABLE_WALLET "Enable wallet." ON)
+option(ENABLE_WALLET "Enable wallet." OFF)
 option(WITH_BDB "Enable Berkeley DB (BDB) wallet support." OFF)
 cmake_dependent_option(WARN_INCOMPATIBLE_BDB "Warn when using a Berkeley DB (BDB) version other than 4.8." ON "WITH_BDB" OFF)
 if(WITH_BDB)
@@ -420,6 +420,9 @@ find_library(MINIUPNP_LIBRARY
   NAMES miniupnpc
   REQUIRED
 )
+
+# Find GMP library
+find_package(GMP 6.2.1 REQUIRED)
 
 # Find zlib library
 find_library(ZLIB_LIBRARY
