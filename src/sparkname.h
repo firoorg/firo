@@ -64,6 +64,8 @@ private:
     std::map<spark::Address, std::string> sparkNameAddresses;
 
 public:
+    static const unsigned maximumSparkNameLength = 20;
+
     CSparkNameManager() {}
 
     // Parse spark name transaction data from the transaction. Sets fCriticalError to false if there is no name data found
@@ -72,8 +74,8 @@ public:
 
     bool CheckSparkNameTx(const CTransaction &tx, int nHeight, CValidationState &state, CSparkNameTxData *outSparkNameData = nullptr);
 
-    // test if the spark name tx is valid
-    bool IsSparkNameValid(const CTransaction &tx, CValidationState &state);
+    // test if the spark name is valid
+    static bool IsSparkNameValid(const std::string &name);
 
     // return all valid names
     std::set<std::string> GetSparkNames(int nHeight);

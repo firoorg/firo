@@ -155,12 +155,8 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     if (nHeight < consensusParams.nSparkNamesStartBlock)
         return state.DoS(100, error("CheckSparkNameTx: spark names are not allowed before block %d", consensusParams.nSparkStartBlock));
 
-    if (sparkNameData.name.size() < 1 || sparkNameData.name.size() > 20)
-        return state.DoS(100, error("CheckSparkNameTx: invalid name length"));
-
-    for (char c: sparkNameData.name)
-        if (!isalnum(c) && c != '-')
-            return state.DoS(100, error("CheckSparkNameTx: invalid name"));
+    if (!IsSparkNameValid(sparkNameData.name))
+        return state.DoS(100, error("CheckSparkNameTx: invalid name"));
 
     constexpr int nBlockPerYear = 365*24*24; // 24 blocks per hour
     int nYears = (sparkNameData.sparkNameValidityBlocks + nBlockPerYear-1) / nBlockPerYear;
@@ -325,4 +321,16 @@ std::map<std::string, std::pair<std::string, uint32_t>> CSparkNameManager::Remov
             ++it;
 
     return result;
+}
+
+bool CSparkNameManager::IsSparkNameValid(const std::string &name)
+{
+    if (name.size() < 1 || name.size() > maximumSparkNameLength)
+        return false;
+
+    for (char c: name)
+        if (!isalnum(c) && c != '-' && c != '.')
+            return false;
+
+    return true;
 }
