@@ -265,6 +265,7 @@ void SendCoinsDialog::on_sendButton_clicked()
                     }
                     ctx = dialog->getUnlockContext();
                 }
+                recipient.message = entry->getValue().message;
                 recipients.append(recipient);
             }
             else
@@ -532,6 +533,18 @@ void SendCoinsDialog::on_sendButton_clicked()
     QString questionString = tr("Are you sure you want to send?");
     questionString.append(warningMessage);
     questionString.append("<br /><br />%1");
+    bool firstMessage = true;
+    for (const auto& rec : recipients) {
+        if (!rec.message.isEmpty()) {
+            if (firstMessage) {
+                questionString.append("<hr><b>" + tr("Messages") + ":</b><br>");
+                firstMessage = false;
+            }
+            QString sanitizedMsg = GUIUtil::HtmlEscape(rec.message, true);
+            questionString.append("• " + sanitizedMsg + "<br>");
+        }
+    }
+
     double txSize;
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {

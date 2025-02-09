@@ -945,6 +945,9 @@ void InitParameterInteraction()
     }
 
 #ifdef ENABLE_WALLET
+    // Set arg "-newwallet" false by default for wallet scaning.
+    SoftSetBoolArg("-newwallet", false);
+
     // Forcing all mnemonic settings off if -usehd is off.
     if (!GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET)) {
         if (SoftSetBoolArg("-usemnemonic", false) && SoftSetArg("-mnemonic", "") && SoftSetArg("-mnemonicpassphrase", "") && SoftSetArg("-hdseed", "not hex"))
