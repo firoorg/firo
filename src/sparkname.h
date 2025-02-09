@@ -6,6 +6,7 @@
 #include "primitives/transaction.h"
 #include "evo/evodb.h"
 #include "libspark/keys.h"
+#include "libspark/spend_transaction.h"
 
 namespace spark {
     unsigned char GetNetworkType();
@@ -55,13 +56,44 @@ public:
     }
 };
 
+/*
+ * Spark name record as it appears in the block index data. This is used to keep track of the added/removed
+ * spark names in a block.
+ */
+
+struct CSparkNameBlockIndexData {
+    // 1-20 symbols, only alphanumeric characters and hyphens
+    std::string name;
+    // destination address for the alias
+    std::string sparkAddress;
+    // spark name is valid until this block height
+    uint32_t sparkNameValidityHeight{0};
+    // additional information
+    std::string additionalInfo;
+
+    CSparkNameBlockIndexData() {}
+    CSparkNameBlockIndexData(const std::string _name, const std::string _sparkAddress, uint32_t _sparkNameValidityHeight, const std::string _additionalInfo)
+        : name(_name), sparkAddress(_sparkAddress), sparkNameValidityHeight(_sparkNameValidityHeight), additionalInfo(_additionalInfo) {}
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    void SerializationOp(Stream &s, Operation ser_action)
+    {
+        READWRITE(name);
+        READWRITE(sparkAddress);
+        READWRITE(sparkNameValidityHeight);
+        READWRITE(additionalInfo);
+    }
+};
+
 class CSparkNameManager
 {
 private:
     static CSparkNameManager *sharedSparkNameManager;
 
-    std::map<std::string, std::pair<spark::Address, uint32_t>> sparkNames;
-    std::map<spark::Address, std::string> sparkNameAddresses;
+    std::map<std::string, CSparkNameBlockIndexData> sparkNames;
+    std::map<std::string, std::string> sparkNameAddresses;
 
 public:
     static const unsigned maximumSparkNameLength = 20;
@@ -81,7 +113,7 @@ public:
     std::set<std::string> GetSparkNames(int nHeight);
 
     // return the address associated with the spark name
-    bool GetSparkAddress(const std::string &name, int nHeight, spark::Address &address);
+    bool GetSparkAddress(const std::string &name, int nHeight, std::string &address);
 
     // resolution of conflicts (e.g. for mempool)
     // TxSet is a set of transactions that might be in conflict with the txData. Should implement contains() method
@@ -112,18 +144,18 @@ public:
     void AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey);
 
     // add and remove spark name
-    bool AddSparkName(const std::string &name, const spark::Address &address, uint32_t validityBlocks);
-    bool RemoveSparkName(const std::string &name, const spark::Address &address);
+    bool AddSparkName(const std::string &name, const std::string &address, uint32_t validityBlocks, const std::string &additionalInfo);
+    bool RemoveSparkName(const std::string &name, const std::string &address);
 
     static CSparkNameManager *GetInstance() { return sharedSparkNameManager; };
 
     uint64_t GetSparkNameBlockHeight(const std::string &name) const;
 
-    std::string GetSparkNameTxID(const std::string &name) const;
+    std::string GetSparkNameAdditionalData(const std::string &name) const;
 
-    std::map<std::string, std::pair<std::string, uint32_t>> RemoveSparkNamesLosingValidity(int nHeight);
+    std::map<std::string, CSparkNameBlockIndexData> RemoveSparkNamesLosingValidity(int nHeight);
 
-    bool AddBlock(CBlockIndex *pindex);
+    bool AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntries = false);
     bool RemoveBlock(CBlockIndex *pindex);
 
     static std::string ToUpper(const std::string &sparkName);

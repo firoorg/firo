@@ -3940,6 +3940,13 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     sparkNameData.additionalInfo = additionalData;
     sparkNameData.sparkNameValidityBlocks = numberOfYears * 365*24*24;
 
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    std::string address;
+    if (sparkNameManager->GetSparkAddress(sparkName, chainActive.Height(), address)) {
+        if (sparkAddress != address)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Spark name already registered");
+    }
+
     CAmount sparkNameFee = consensusParams.nSparkNamesFee[sparkName.size()]*COIN;
     CAmount fee;
     CWalletTx wtx;
@@ -3953,7 +3960,8 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     try {
         CValidationState state;
         CReserveKey reserveKey(pwallet);
-        pwallet->CommitTransaction(wtx, reserveKey, g_connman.get(), state);
+        if (!pwallet->CommitTransaction(wtx, reserveKey, g_connman.get(), state))
+            throw JSONRPCError(RPC_WALLET_ERROR, "CommitTransaction failed: " + FormatStateMessage(state));
     }
     catch (const std::exception &) {
         auto error = _(

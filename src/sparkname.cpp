@@ -10,16 +10,17 @@
 
 CSparkNameManager *CSparkNameManager::sharedSparkNameManager = new CSparkNameManager();
 
-bool CSparkNameManager::AddBlock(CBlockIndex *pindex)
+bool CSparkNameManager::AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntries)
 {
-    for (const auto &entry : pindex->addedSparkNames) {
-        spark::Address address;
-        address.decode(entry.second.first);
-        sparkNames[entry.first] = {address, entry.second.second};
-    }
-
     for (const auto &entry : pindex->removedSparkNames)
-        sparkNames.erase(entry.first);
+        sparkNames.erase(ToUpper(entry.first));
+
+    for (const auto &entry : pindex->addedSparkNames) {
+        std::string upperName = ToUpper(entry.first);
+        if (sparkNames.count(upperName) > 0 && fBackupRewrittenEntries)
+            pindex->removedSparkNames[upperName] = sparkNames[upperName];
+        sparkNames[upperName] = entry.second;
+    }
 
     return true;
 }
@@ -27,12 +28,10 @@ bool CSparkNameManager::AddBlock(CBlockIndex *pindex)
 bool CSparkNameManager::RemoveBlock(CBlockIndex *pindex)
 {
     for (const auto &entry : pindex->addedSparkNames)
-        sparkNames.erase(entry.first);
+        sparkNames.erase(ToUpper(entry.first));
 
     for (const auto &entry : pindex->removedSparkNames) {
-        spark::Address address;
-        address.decode(entry.second.first);
-        sparkNames[entry.first] = {address, entry.second.second};
+        sparkNames[ToUpper(entry.first)] = entry.second;
     }
 
     return true;
@@ -42,17 +41,17 @@ std::set<std::string> CSparkNameManager::GetSparkNames(int nHeight)
 {
     std::set<std::string> result;
     for (const auto &entry : sparkNames)
-        if (entry.second.second >= nHeight)
-            result.insert(entry.first);
+        if (entry.second.sparkNameValidityHeight > nHeight)
+            result.insert(entry.second.name);
 
     return result;
 }
 
-bool CSparkNameManager::GetSparkAddress(const std::string &name, int nHeight, spark::Address &address)
+bool CSparkNameManager::GetSparkAddress(const std::string &name, int nHeight, std::string &address)
 {
-    auto it = sparkNames.find(name);
-    if (it == sparkNames.end() || it->second.second < nHeight) {
-        address = it->second.first;
+    auto it = sparkNames.find(ToUpper(name));
+    if (it != sparkNames.end() || it->second.sparkNameValidityHeight > nHeight) {
+        address = it->second.sparkAddress;
         return true;
     }
     else {
@@ -66,39 +65,17 @@ uint64_t CSparkNameManager::GetSparkNameBlockHeight(const std::string &name) con
     if (it == sparkNames.end())
        throw std::runtime_error("Spark name not found: " + name);
 
-    size_t height = it->second.second;
+    size_t height = it->second.sparkNameValidityHeight;
     return height;
 }
 
-std::string CSparkNameManager::GetSparkNameTxID(const std::string &name) const
+std::string CSparkNameManager::GetSparkNameAdditionalData(const std::string &name) const
 {
     auto it = sparkNames.find(ToUpper(name));
     if (it == sparkNames.end())
         throw std::runtime_error("Spark name not found: " + name);
 
-    uint32_t blockHeight = it->second.second;
-
-    CBlockIndex* pBlockIndex = chainActive[blockHeight];
-    if (!pBlockIndex)
-        throw std::runtime_error("Block not found at height: " + std::to_string(blockHeight));
-
-    CBlock block;
-    if (!ReadBlockFromDisk(block, pBlockIndex, Params().GetConsensus()))
-        throw std::runtime_error("Failed to read block from disk.");
-
-    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-    for (const CTransactionRef& tx : block.vtx)
-    {
-        CSparkNameTxData sparkNameData;
-        CValidationState state;
-
-        if (sparkNameManager->CheckSparkNameTx(*tx, blockHeight, state, &sparkNameData))
-        {
-            return (*tx).GetHash().ToString();
-        }
-    }
-
-    throw std::runtime_error("Spark name transaction not found for: " + name);
+    return it->second.additionalInfo;
 }
 
 bool CSparkNameManager::ParseSparkNameTxData(const CTransaction &tx, spark::SpendTransaction &sparkTx, CSparkNameTxData &sparkNameData, size_t &sparkNameDataPos)
@@ -180,8 +157,8 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         return state.DoS(100, error("CheckSparkNameTx: additional info is too long"));
 
     unsigned char sparkNetworkType = spark::GetNetworkType();
-    if (sparkNames.count(sparkNameData.name) > 0 &&
-                sparkNames[sparkNameData.name].first.encode(sparkNetworkType) != sparkNameData.sparkAddress)
+    if (sparkNames.count(ToUpper(sparkNameData.name)) > 0 &&
+                sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress)
         return state.DoS(100, error("CheckSparkNameTx: name already exists"));
 
     // calculate the hash of the all the transaction except the spark ownership proof
@@ -278,22 +255,22 @@ std::string CSparkNameManager::ToUpper(const std::string &str)
     return result;
 }
 
-bool CSparkNameManager::AddSparkName(const std::string &name, const spark::Address &address, uint32_t validityBlocks)
+bool CSparkNameManager::AddSparkName(const std::string &name, const std::string &address, uint32_t validityBlocks, const std::string &additionalInfo)
 {
     std::string upperName = ToUpper(name);
 
-    if (sparkNames.count(upperName) > 0 && address.encode(0) != sparkNames[upperName].first.encode(0))
+    if (sparkNames.count(upperName) > 0 && address != sparkNames[upperName].sparkAddress)
         return false;
     else if (sparkNameAddresses.count(address) > 0)
         return false;
 
-    sparkNames[upperName] = std::make_pair(address, validityBlocks);
-    sparkNameAddresses[address] = name;
+    sparkNames[upperName] = CSparkNameBlockIndexData(name, address, validityBlocks, additionalInfo);
+    sparkNameAddresses[address] = upperName;
 
     return true;
 }
 
-bool CSparkNameManager::RemoveSparkName(const std::string &name, const spark::Address &address)
+bool CSparkNameManager::RemoveSparkName(const std::string &name, const std::string &address)
 {
     std::string upperName = ToUpper(name);
 
@@ -306,15 +283,15 @@ bool CSparkNameManager::RemoveSparkName(const std::string &name, const spark::Ad
     return true;
 }
 
-std::map<std::string, std::pair<std::string, uint32_t>> CSparkNameManager::RemoveSparkNamesLosingValidity(int nHeight)
+std::map<std::string, CSparkNameBlockIndexData> CSparkNameManager::RemoveSparkNamesLosingValidity(int nHeight)
 {
-    std::map<std::string, std::pair<std::string, uint32_t>> result;
+    std::map<std::string, CSparkNameBlockIndexData> result;
 
     for (auto it = sparkNames.begin(); it != sparkNames.end();)
-        if (it->second.second >= nHeight) {
-            std::string sparkAddressStr = it->second.first.encode(spark::GetNetworkType());
-            result[it->first] = {sparkAddressStr, it->second.second};
-            sparkNameAddresses.erase(it->second.first);
+        if (nHeight >= it->second.sparkNameValidityHeight) {
+            std::string sparkAddressStr = it->second.sparkAddress;
+            sparkNameAddresses.erase(sparkAddressStr);
+            result[it->first] = it->second;
             it = sparkNames.erase(it);
         }
         else

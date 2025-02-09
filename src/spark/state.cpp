@@ -242,6 +242,9 @@ bool ConnectBlockSpark(
         CBlockIndex *pindexNew,
         const CBlock *pblock,
         bool fJustCheck) {
+
+    bool fBackupRewrittenSparkNames = false;
+    
     // Add spark transaction information to index
     if (pblock && pblock->sparkTxInfo) {
         if (!fJustCheck) {
@@ -313,8 +316,15 @@ bool ConnectBlockSpark(
         if (!pblock->sparkTxInfo->sparkNames.empty()) {
             CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
             for (const auto &sparkName : pblock->sparkTxInfo->sparkNames) {
-                pindexNew->addedSparkNames[sparkName.first] = {sparkName.second.sparkAddress, pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks};
+                pindexNew->addedSparkNames[sparkName.first] =
+                        CSparkNameBlockIndexData(sparkName.second.name,
+                            sparkName.second.sparkAddress,
+                            pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
+                            sparkName.second.additionalInfo);
             }
+
+            // names were added, backup rewritten names if necessary
+            fBackupRewrittenSparkNames = true;
         }
 
         // generate hash if we need it
@@ -332,7 +342,7 @@ bool ConnectBlockSpark(
 
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
     pindexNew->removedSparkNames = sparkNameManager->RemoveSparkNamesLosingValidity(pindexNew->nHeight);
-    sparkNameManager->AddBlock(pindexNew);
+    sparkNameManager->AddBlock(pindexNew, fBackupRewrittenSparkNames);
 
     return true;
 }
@@ -803,7 +813,7 @@ bool CheckSparkTransaction(
                                 }))
                             return false;
 
-                        sparkTxInfo->sparkNames[sparkTxData.name] = sparkTxData;
+                        sparkTxInfo->sparkNames[CSparkNameManager::ToUpper(sparkTxData.name)] = sparkTxData;
                     }
                 }
                 else {

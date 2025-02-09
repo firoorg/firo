@@ -624,6 +624,15 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
             }
             catch (CBadTxIn&) {
             }
+
+            // remove all the spark name transactions referencing this tx
+            for (auto it = sparkNames.begin(); it!=sparkNames.end();) {
+                if (it->second.second == tx.GetHash()) {
+                    it = sparkNames.erase(it);
+                } else {
+                    ++it;
+                }
+            }
         }
 
         BOOST_FOREACH(const CTxOut &txout, tx.vout)
