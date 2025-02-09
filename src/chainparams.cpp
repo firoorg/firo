@@ -796,7 +796,7 @@ public:
         consensus.nExchangeAddressStartBlock = 147000;
 
         // spark names
-        consensus.nSparkNamesStartBlock = INT_MAX;
+        consensus.nSparkNamesStartBlock = 174000;
         consensus.nSparkNamesFee = standardSparkNamesFee;
     }
 };
