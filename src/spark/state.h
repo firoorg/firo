@@ -213,6 +213,23 @@ public:
             std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins,
             std::vector<unsigned char>& setHash_out);
 
+    void GetAnonSetMetaData(
+            CChain *chain,
+            int maxHeight,
+            int coinGroupID,
+            uint256& blockHash_out,
+            std::vector<unsigned char>& setHash_out,
+            int& size);
+
+    void GetCoinsForRecovery(
+            CChain *chain,
+            int maxHeight,
+            int coinGroupID,
+            int startIndex,
+            int endIndex,
+            uint256& blockHash,
+            std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins);
+
     std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & GetMints() const;
     std::unordered_map<GroupElement, int, spark::CLTagHash> const & GetSpends() const;
     std::unordered_map<uint256, uint256> const& GetSpendTxIds() const;

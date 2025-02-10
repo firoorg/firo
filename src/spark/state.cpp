@@ -1330,6 +1330,99 @@ void CSparkState::GetCoinsForRecovery(
     }
 }
 
+void CSparkState::GetAnonSetMetaData(
+        CChain *chain,
+        int maxHeight,
+        int coinGroupID,
+        uint256& blockHash_out,
+        std::vector<unsigned char>& setHash_out,
+        int& size) {
+    if (coinGroups.count(coinGroupID) == 0) {
+        return;
+    }
+    SparkCoinGroupInfo &coinGroup = coinGroups[coinGroupID];
+    size = 0;
+    for (CBlockIndex *block = coinGroup.lastBlock;; block = block->pprev) {
+        // check coins in group coinGroupID - 1 in the case that using coins from prev group.
+        int id = 0;
+        if (CountCoinInBlock(block, coinGroupID)) {
+            id = coinGroupID;
+        } else if (CountCoinInBlock(block, coinGroupID - 1)) {
+            id = coinGroupID - 1;
+        }
+        if (id) {
+            if (size == 0) {
+                // latest block satisfying given conditions
+                // remember block hash and set hash
+                blockHash_out = block->GetBlockHash();
+                setHash_out =  GetAnonymitySetHash(block, id);
+            }
+            size += block->sparkMintedCoins[id].size();
+        }
+        if (block == coinGroup.firstBlock) {
+            break ;
+        }
+    }
+}
+
+void CSparkState::GetCoinsForRecovery(
+        CChain *chain,
+        int maxHeight,
+        int coinGroupID,
+        int startIndex,
+        int endIndex,
+        uint256& blockHash,
+        std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins) {
+    coins.clear();
+    if (coinGroups.count(coinGroupID) == 0) {
+        throw std::runtime_error(std::string("There is no anonymity set with this id: " + coinGroupID));
+    }
+    SparkCoinGroupInfo &coinGroup = coinGroups[coinGroupID];
+    CBlockIndex *index = coinGroup.lastBlock;
+    // find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
+    while (index != coinGroup.firstBlock && index->GetBlockHash() != blockHash)
+        index = index->pprev;
+
+    if (index == coinGroup.firstBlock && coinGroup.firstBlock != coinGroup.lastBlock)
+        throw std::runtime_error(std::string("Incorrect blockHash provided: " + blockHash.GetHex()));
+
+    std::size_t counter = 0;
+    for (CBlockIndex *block = index;; block = block->pprev) {
+        // ignore block heigher than max height
+        if (block->nHeight > maxHeight) {
+            continue;
+        }
+
+        // check coins in group coinGroupID - 1 in the case that using coins from prev group.
+        int id = 0;
+        if (CountCoinInBlock(block, coinGroupID)) {
+            id = coinGroupID;
+        } else if (CountCoinInBlock(block, coinGroupID - 1)) {
+            id = coinGroupID - 1;
+        }
+        if (id) {
+            if (block->sparkMintedCoins.count(id) > 0) {
+                for (const auto &coin : block->sparkMintedCoins[id]) {
+                    if (counter < startIndex) {
+                        ++counter;
+                        continue;
+                    }
+                    if (counter >= endIndex) {
+                        break;
+                    }
+                    std::pair<uint256, std::vector<unsigned char>> txHashContext;
+                    if (block->sparkTxHashContext.count(coin.S))
+                        txHashContext = block->sparkTxHashContext[coin.S];
+                    coins.push_back({coin, txHashContext});
+                    ++counter;
+                }
+            }
+        }
+        if (block == coinGroup.firstBlock || counter >= endIndex) {
+            break ;
+        }
+    }
+}
 
 std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & CSparkState::GetMints() const {
     return mintedCoins;

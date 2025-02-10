@@ -214,6 +214,8 @@ extern UniValue getfeerate(const JSONRPCRequest& params);
 extern UniValue getlatestcoinid(const JSONRPCRequest& params);
 
 extern UniValue getsparkanonymityset(const JSONRPCRequest& params);
+extern UniValue getsparkanonymitysetmeta(const JSONRPCRequest& params);
+extern UniValue getsparkanonymitysetsector(const JSONRPCRequest& params);
 extern UniValue getsparkmintmetadata(const JSONRPCRequest& params);
 extern UniValue getusedcoinstags(const JSONRPCRequest& params);
 extern UniValue getusedcoinstagstxhashes(const JSONRPCRequest& params);

@@ -2405,6 +2405,10 @@ CBlockIndex* CWallet::GetBlockByDate(CBlockIndex* pindexStart, const std::string
 CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate, bool fRecoverMnemonic)
 {
     CBlockIndex* ret = nullptr;
+    if (GetBoolArg("-newwallet", false)) {
+        LogPrintf("Created new wallet, no need to scan\n");
+        return ret;
+    }
     int64_t nNow = GetTime();
     const CChainParams& chainParams = Params();
 
@@ -7327,10 +7331,10 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
             }
         }
 
-        uiInterface.InitMessage(_("Rescanning..."));
+        if (!(GetBoolArg("-newwallet", false))) {uiInterface.InitMessage(_("Rescanning..."));}
         nStart = GetTimeMillis();
         walletInstance->ScanForWalletTransactions(pindexRescan, true, fRecoverMnemonic);
-        LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);
+        if (!(GetBoolArg("-newwallet", false))) {LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);}
         walletInstance->SetBestChain(chainActive.GetLocator());
         CWalletDB::IncrementUpdateCounter();
 
