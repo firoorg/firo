@@ -21,14 +21,12 @@
 
 class AddressTableModel;
 class PcodeAddressTableModel;
-class LelantusModel;
 class SparkModel;
 class OptionsModel;
 class PlatformStyle;
 class RecentRequestsTableModel;
 class TransactionTableModel;
 class WalletModelTransaction;
-class PcodeModel;
 
 class CCoinControl;
 class CKeyID;
@@ -132,11 +130,9 @@ public:
     OptionsModel *getOptionsModel();
     AddressTableModel *getAddressTableModel();
     PcodeAddressTableModel *getPcodeAddressTableModel();
-    LelantusModel *getLelantusModel();
     SparkModel *getSparkModel();
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
-    PcodeModel *getPcodeModel();
 
     CWallet *getWallet() const { return wallet; }
 
@@ -172,17 +168,6 @@ public:
     // prepare transaction for getting txfee before sending coins
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
 
-    // prepare transaction for getting txfee before sending coins in anonymous mode
-    SendCoinsReturn prepareJoinSplitTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
-
-    // prepare transaction for getting txfee before anonymizing coins
-    SendCoinsReturn prepareMintTransactions(
-        CAmount amount,
-        std::vector<WalletModelTransaction> &transactions,
-        std::list<CReserveKey> &reserveKeys,
-        std::vector<CHDMint> &mints,
-        const CCoinControl *coinControl);
-
     SendCoinsReturn prepareMintSparkTransaction(
         std::vector<WalletModelTransaction> &transactions,
         QList<SendCoinsRecipient> recipients,
@@ -204,21 +189,11 @@ public:
         );
     
     bool migrateLelantusToSpark();
-    
+
     bool getAvailableLelantusCoins();
 
     // Send coins to a list of recipients
     SendCoinsReturn sendCoins(WalletModelTransaction &transaction);
-
-    // Send private coins to a list of recipients
-    SendCoinsReturn sendPrivateCoins(WalletModelTransaction &transaction);
-
-    // Anonymize coins.
-    SendCoinsReturn sendAnonymizingCoins(
-        std::vector<WalletModelTransaction> &transactions,
-        std::list<CReserveKey> &reservekeys,
-        std::vector<CHDMint> &mints);
-
     // Wallet encryption
     bool setWalletEncrypted(bool encrypted, const SecureString &passphrase);
     // Passphrase only needed when unlocking
@@ -300,11 +275,9 @@ private:
 
     AddressTableModel *addressTableModel;
     PcodeAddressTableModel *pcodeAddressTableModel;
-    LelantusModel *lelantusModel;
     SparkModel *sparkModel;
     TransactionTableModel *transactionTableModel;
     RecentRequestsTableModel *recentRequestsTableModel;
-    PcodeModel *pcodeModel;
 
     // Cache some values to be able to detect changes
     CAmount cachedBalance;
