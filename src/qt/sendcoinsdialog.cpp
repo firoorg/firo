@@ -355,7 +355,10 @@ void SendCoinsDialog::on_sendButton_clicked()
     CAmount txFee = 0;
     CAmount totalAmount = 0;
     size_t confirmed, unconfirmed;
-    if (model->getWallet()->GetPrivateBalance(confirmed, unconfirmed).first > 0 && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod) {
+    if (model->getWallet() &&
+        model->getWallet()->GetPrivateBalance(confirmed, unconfirmed).first > 0 &&
+        spark::IsSparkAllowed() &&
+        chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod) {
         MigrateLelantusToSparkDialog migrateLelantusToSpark(model);
         bool clickedButton = migrateLelantusToSpark.getClickedButton();
         if(!clickedButton) {

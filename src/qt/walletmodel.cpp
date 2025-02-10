@@ -92,7 +92,7 @@ CAmount WalletModel::getBalance(const CCoinControl *coinControl, bool fExcludeLo
 CAmount WalletModel::getAnonymizableBalance() const
 {
     CAmount amount = 0;
-    if (spark::IsSparkAllowed()){
+    if (sparkModel && spark::IsSparkAllowed()){
         amount = sparkModel->getMintableSparkAmount();
     }
     return amount;
@@ -1082,9 +1082,9 @@ bool WalletModel::getAvailableLelantusCoins()
     std::list<CLelantusEntry> coins = wallet->GetAvailableLelantusCoins();
     if (coins.size() > 0) {
         return true;
-    } else {
-        return false;
     }
+
+    return false;
 }
 
 bool WalletModel::migrateLelantusToSpark()
