@@ -206,6 +206,36 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     return true;
 }
 
+bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameData, std::string &errorDescription)
+{
+    errorDescription.clear();
+
+    if (!IsSparkNameValid(sparkNameData.name))
+        errorDescription = "invalid spark name";
+
+    else if (sparkNameData.additionalInfo.size() > 1024)
+        errorDescription = "additional info is too long";
+
+    else if (sparkNameData.sparkNameValidityBlocks > 365*24*24*10)
+        errorDescription = "transaction can't be valid for more than 10 years";
+
+    else if (sparkNames.count(ToUpper(sparkNameData.name)) > 0 &&
+                sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress)
+        errorDescription = "name already exists with another spark address as a destination";
+
+    else if (sparkNameAddresses.count(sparkNameData.sparkAddress) > 0 &&
+                sparkNameAddresses[sparkNameData.sparkAddress] != ToUpper(sparkNameData.name))
+        errorDescription = "spark address is already used for another name";
+
+    else {
+        LOCK(mempool.cs);
+        if (mempool.sparkNames.count(ToUpper(sparkNameData.name)) > 0)
+            errorDescription = "spark name transaction with that name is already in the mempool";
+    }
+
+    return errorDescription.empty();
+}
+
 void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey)
 {
     for (uint32_t n=0; ; n++) {

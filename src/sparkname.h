@@ -140,6 +140,9 @@ public:
         return false;
     }
 
+    // check the possibility to register a new spark name, return true if it's possible
+    bool ValidateSparkNameData(const CSparkNameTxData &sparkNameData, std::string &errorDescription);
+
     // fill missing CSparkNameTxData fields and append spark name tx data to the transaction
     void AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey);
 

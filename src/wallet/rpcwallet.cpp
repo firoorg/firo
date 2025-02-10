@@ -3941,11 +3941,9 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     sparkNameData.sparkNameValidityBlocks = numberOfYears * 365*24*24;
 
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-    std::string address;
-    if (sparkNameManager->GetSparkAddress(sparkName, chainActive.Height(), address)) {
-        if (sparkAddress != address)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Spark name already registered");
-    }
+    std::string errorDescription;
+    if (!sparkNameManager->ValidateSparkNameData(sparkNameData, errorDescription))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Error creating spark name: "+ errorDescription);
 
     CAmount sparkNameFee = consensusParams.nSparkNamesFee[sparkName.size()]*COIN;
     CAmount fee;
