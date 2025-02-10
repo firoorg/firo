@@ -885,6 +885,10 @@ bool CSparkWallet::CreateSparkMintTransactions(
                             if (singleTxOutputs[i].v <= singleFee) {
                                 singleTxOutputs.erase(singleTxOutputs.begin() + i);
                                 reminder += singleTxOutputs[i].v - singleFee;
+                                if (!singleTxOutputs.size()) {
+                                    strFailReason = _("Transaction amount too small");
+                                    return false;
+                                }
                                 --i;
                             }
                             singleTxOutputs[i].v -= singleFee;
