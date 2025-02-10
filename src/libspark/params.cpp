@@ -55,6 +55,7 @@ Params::Params(
 )
 {
     // Global generators
+    this->E = SparkUtils::hash_generator(LABEL_GENERATOR_E);
     this->F = SparkUtils::hash_generator(LABEL_GENERATOR_F);
     this->G.set_base_g();
     this->H = SparkUtils::hash_generator(LABEL_GENERATOR_H);
@@ -65,9 +66,13 @@ Params::Params(
 
     // Range proof parameters
     this->max_M_range = max_M_range;
+    this->E_range.resize(64*max_M_range);
+    this->F_range.resize(64*max_M_range);
     this->G_range.resize(64*max_M_range);
     this->H_range.resize(64*max_M_range);
     for (std::size_t i = 0; i < 64*max_M_range; i++) {
+        this->E_range[i] = SparkUtils::hash_generator(LABEL_GENERATOR_E_RANGE + " " + std::to_string(i));
+        this->F_range[i] = SparkUtils::hash_generator(LABEL_GENERATOR_F_RANGE + " " + std::to_string(i));
         this->G_range[i] = SparkUtils::hash_generator(LABEL_GENERATOR_G_RANGE + " " + std::to_string(i));
         this->H_range[i] = SparkUtils::hash_generator(LABEL_GENERATOR_H_RANGE + " " + std::to_string(i));
     }
@@ -78,9 +83,13 @@ Params::Params(
     }
     this->n_grootle = n_grootle;
     this->m_grootle = m_grootle;
+    this->E_grootle.resize(n_grootle * m_grootle);
+    this->F_grootle.resize(n_grootle * m_grootle);
     this->G_grootle.resize(n_grootle * m_grootle);
     this->H_grootle.resize(n_grootle * m_grootle);
     for (std::size_t i = 0; i < n_grootle * m_grootle; i++) {
+        this->E_grootle[i] = SparkUtils::hash_generator(LABEL_GENERATOR_E_GROOTLE + " " + std::to_string(i));
+        this->F_grootle[i] = SparkUtils::hash_generator(LABEL_GENERATOR_F_GROOTLE + " " + std::to_string(i));
         this->G_grootle[i] = SparkUtils::hash_generator(LABEL_GENERATOR_G_GROOTLE + " " + std::to_string(i));
         this->H_grootle[i] = SparkUtils::hash_generator(LABEL_GENERATOR_H_GROOTLE + " " + std::to_string(i));
     }
@@ -102,8 +111,20 @@ const GroupElement& Params::get_U() const {
     return this->U;
 }
 
+const GroupElement& Params::get_E() const {
+    return this->E;
+}
+
 const std::size_t Params::get_memo_bytes() const {
     return this->memo_bytes;
+}
+
+const std::vector<GroupElement>& Params::get_E_range() const {
+    return this->E_range;
+}
+
+const std::vector<GroupElement>& Params::get_F_range() const {
+    return this->F_range;
 }
 
 const std::vector<GroupElement>& Params::get_G_range() const {
@@ -114,8 +135,17 @@ const std::vector<GroupElement>& Params::get_H_range() const {
     return this->H_range;
 }
 
+const std::vector<GroupElement>& Params::get_E_grootle() const {
+    return this->E_grootle;
+}
+
 const std::vector<GroupElement>& Params::get_G_grootle() const {
     return this->G_grootle;
+}
+
+
+const std::vector<GroupElement>& Params::get_F_grootle() const {
+    return this->F_grootle;
 }
 
 const std::vector<GroupElement>& Params::get_H_grootle() const {

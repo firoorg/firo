@@ -18,16 +18,17 @@ template <typename T>
 struct mt_pooled_secure_allocator : public std::allocator<T> {
     // MSVC8 default copy constructor is broken
     typedef std::allocator<T> base;
+    using base_traits = std::allocator_traits<base>;
     typedef typename base::size_type size_type;
     typedef typename base::difference_type difference_type;
-    typedef typename base::pointer pointer;
-    typedef typename base::const_pointer const_pointer;
-    typedef typename base::reference reference;
-    typedef typename base::const_reference const_reference;
-    typedef typename base::value_type value_type;
+    typedef typename base_traits::pointer pointer;
+    typedef typename base_traits::const_pointer const_pointer;
+    using reference = T&;
+    using const_reference = const T&;
+    typedef typename base_traits::value_type value_type;
     mt_pooled_secure_allocator(size_type nrequested_size = 32,
                                size_type nnext_size = 32,
-                               size_type nmax_size = 0) throw()
+                               size_type nmax_size = 0) noexcept
     {
         // we add enough bytes to the requested size so that we can store the bucket as well
         nrequested_size += sizeof(size_t);
@@ -38,9 +39,9 @@ struct mt_pooled_secure_allocator : public std::allocator<T> {
             pools[i] = std::make_unique<internal_pool>(nrequested_size, nnext_size, nmax_size);
         }
     }
-    ~mt_pooled_secure_allocator() throw() {}
+    ~mt_pooled_secure_allocator() noexcept {}
 
-    T* allocate(std::size_t n, const void* hint = 0)
+    T* allocate(std::size_t n, const void* hint = nullptr)
     {
         size_t bucket = get_bucket();
         std::lock_guard<std::mutex> lock(pools[bucket]->mutex);

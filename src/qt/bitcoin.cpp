@@ -6,6 +6,8 @@
 #include "config/bitcoin-config.h"
 #endif
 
+#include "../boost_function_epilogue.hpp" // TODO remove sometime after Boost upgrade
+
 #include "bitcoingui.h"
 
 #include "chainparams.h"

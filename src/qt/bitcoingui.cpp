@@ -6,6 +6,8 @@
 #include "config/bitcoin-config.h"
 #endif
 
+#include "../boost_function_epilogue.hpp" // TODO remove sometime after Boost upgrade
+
 #include "bitcoingui.h"
 
 #include "bitcoinunits.h"
@@ -40,6 +42,7 @@
 #include "evo/deterministicmns.h"
 #include "masternode-sync.h"
 #include "masternodelist.h"
+#include "myownspats.h"
 #include <iostream>
 
 #include <QAction>
@@ -122,6 +125,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     showHelpMessageAction(0),
     lelantusAction(0),
     masternodeAction(0),
+    myownspatsAction(nullptr),
     logoAction(0),
     trayIcon(0),
     trayIconMenu(0),
@@ -365,9 +369,18 @@ void BitcoinGUI::createActions()
     tabGroup->addAction(masternodeAction);
 #endif
 
+    myownspatsAction = new QAction(tr("M&y Own Spats"), this);
+    myownspatsAction->setStatusTip(tr("Browse My Own Spats"));
+    myownspatsAction->setToolTip(myownspatsAction->statusTip());
+    myownspatsAction->setCheckable(true);
+    myownspatsAction->setShortcut(QKeySequence(Qt::ALT +  key++));
+    tabGroup->addAction(myownspatsAction);
+
 #ifdef ENABLE_WALLET
     connect(masternodeAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
     connect(masternodeAction, &QAction::triggered, this, &BitcoinGUI::gotoMasternodePage);
+    connect(myownspatsAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
+    connect(myownspatsAction, &QAction::triggered, this, &BitcoinGUI::gotoMyOwnSpatsPage);
 	connect(overviewAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
     connect(overviewAction, &QAction::triggered, this, &BitcoinGUI::gotoOverviewPage);
 	connect(sendCoinsAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
@@ -386,7 +399,7 @@ void BitcoinGUI::createActions()
 
     quitAction = new QAction(tr("E&xit"), this);
     quitAction->setStatusTip(tr("Quit application"));
-    quitAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q));
+    quitAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Q));  // still gives compile warning, but that will be gone after Qt upgrade
     quitAction->setMenuRole(QAction::QuitRole);
     aboutAction = new QAction(tr("&About %1").arg(tr(PACKAGE_NAME)), this);
     aboutAction->setStatusTip(tr("Show information about %1").arg(tr(PACKAGE_NAME)));
@@ -522,6 +535,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(historyAction);
         toolbar->addAction(lelantusAction);
         toolbar->addAction(masternodeAction);
+        toolbar->addAction(myownspatsAction);
 
         logoLabel = new QLabel();
         logoLabel->setObjectName("lblToolbarLogo");
@@ -648,6 +662,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     historyAction->setEnabled(enabled);
     lelantusAction->setEnabled(enabled);
     masternodeAction->setEnabled(enabled);
+    myownspatsAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
@@ -788,6 +803,13 @@ void BitcoinGUI::gotoMasternodePage()
     QSettings settings;
     masternodeAction->setChecked(true);
     if (walletFrame) walletFrame->gotoMasternodePage();
+}
+
+void BitcoinGUI::gotoMyOwnSpatsPage()
+{
+    QSettings settings;
+    myownspatsAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoMyOwnSpatsPage();
 }
 
 void BitcoinGUI::gotoReceiveCoinsPage()
@@ -1481,7 +1503,7 @@ void BitcoinGUI::resizeEvent(QResizeEvent* event) {
 
     // Retrieve new dimensions from the resize event
     int newWidth = event->size().width();
-    int actionWidth = newWidth / 6;
+    int actionWidth = newWidth / 7;
 
     if (toolbar) {
         // Set widths for each action dynamically
@@ -1490,11 +1512,13 @@ void BitcoinGUI::resizeEvent(QResizeEvent* event) {
         QWidget* historyWidget = historyAction ? toolbar->widgetForAction(historyAction) : nullptr;
         QWidget* sendCoinsWidget = sendCoinsAction ? toolbar->widgetForAction(sendCoinsAction) : nullptr;
         QWidget* masternodeWidget = masternodeAction ? toolbar->widgetForAction(masternodeAction) : nullptr;
+        QWidget* myownspatsWidget = myownspatsWidget ? toolbar->widgetForAction(myownspatsAction) : nullptr;
 
         if (overviewWidget) overviewWidget->setMinimumWidth(actionWidth);
         if (receiveWidget) receiveWidget->setMinimumWidth(actionWidth);
         if (historyWidget) historyWidget->setMinimumWidth(actionWidth);
         if (sendCoinsWidget) sendCoinsWidget->setMinimumWidth(actionWidth);
         if (masternodeWidget) masternodeWidget->setMinimumWidth(actionWidth);
+        if (myownspatsWidget) myownspatsWidget->setMinimumWidth(actionWidth);
     }
 }

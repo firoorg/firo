@@ -17,7 +17,7 @@ public:
         const std::vector<GroupElement>& Hi,
         const std::size_t n,
         const std::size_t m
-    );
+        );
 
     void prove(const std::size_t l,
         const Scalar& s,

@@ -3,12 +3,14 @@
 #include "../../test/test_bitcoin.h"
 #include <boost/test/unit_test.hpp>
 
-namespace spark {
+namespace spark
+{
 
 using namespace secp_primitives;
 
 // Generate a random char vector from a random scalar
-static std::vector<unsigned char> random_char_vector() {
+static std::vector<unsigned char> random_char_vector()
+{
     Scalar temp;
     temp.randomize();
     std::vector<unsigned char> result;
@@ -23,6 +25,7 @@ BOOST_FIXTURE_TEST_SUITE(spark_spend_transaction_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(generate_verify)
 {
     // Parameters
+
     const Params* params;
     params = Params::get_test();
 
@@ -38,13 +41,16 @@ BOOST_AUTO_TEST_CASE(generate_verify)
     Address address(incoming_view_key, i);
 
     // Mint some coins to the address
-    std::size_t N = (std::size_t) pow(params->get_n_grootle(), params->get_m_grootle());
+    std::size_t N = (std::size_t)pow(params->get_n_grootle(), params->get_m_grootle());
     std::vector<Coin> in_coins;
     for (std::size_t i = 0; i < N; i++) {
         Scalar k;
         k.randomize();
 
         uint64_t v = 123 + i; // arbitrary value
+
+        Scalar identifer;
+        identifer.randomize();
 
         in_coins.emplace_back(Coin(
             params,
@@ -53,15 +59,15 @@ BOOST_AUTO_TEST_CASE(generate_verify)
             address,
             v,
             memo,
-            random_char_vector()
-        ));
+            random_char_vector()));
     }
+
 
     // Track values so we can set the fee to make the transaction balance
     uint64_t f = 0;
 
     // Choose coins to spend, recover them, and prepare them for spending
-    std::vector<std::size_t> spend_indices = { 1, 3, 5 };
+    std::vector<std::size_t> spend_indices = {1, 3, 5};
     std::vector<InputCoinData> spend_coin_data;
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
     const std::size_t w = spend_indices.size();
@@ -124,8 +130,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         cover_sets,
         f,
         0,
-        out_coin_data
-    );
+        out_coin_data);
 
     // Verify
     transaction.setCoverSets(cover_set_data);
@@ -134,4 +139,4 @@ BOOST_AUTO_TEST_CASE(generate_verify)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}
+} // namespace spark

@@ -19,15 +19,20 @@ public:
     const GroupElement& get_G() const;
     const GroupElement& get_H() const;
     const GroupElement& get_U() const;
+    const GroupElement& get_E() const;
 
     const std::size_t get_memo_bytes() const;
 
     std::size_t get_max_M_range() const;
+    const std::vector<GroupElement>& get_E_range() const;
+    const std::vector<GroupElement>& get_F_range() const;
     const std::vector<GroupElement>& get_G_range() const;
     const std::vector<GroupElement>& get_H_range() const;
 
     std::size_t get_n_grootle() const;
     std::size_t get_m_grootle() const;
+    const std::vector<GroupElement>& get_E_grootle() const;
+    const std::vector<GroupElement>& get_F_grootle() const;
     const std::vector<GroupElement>& get_G_grootle() const;
     const std::vector<GroupElement>& get_H_grootle() const;
 
@@ -44,6 +49,7 @@ private:
     static std::unique_ptr<Params> instance;
 
     // Global generators
+    GroupElement E;
     GroupElement F;
     GroupElement G;
     GroupElement H;
@@ -54,12 +60,14 @@ private:
 
     // Range proof parameters
     std::size_t max_M_range;
-    std::vector<GroupElement> G_range, H_range;
+    std::vector<GroupElement> G_range, H_range, E_range, F_range;
 
     // One-of-many parameters
     std::size_t n_grootle, m_grootle;
     std::vector<GroupElement> G_grootle;
     std::vector<GroupElement> H_grootle;
+    std::vector<GroupElement> E_grootle;
+    std::vector<GroupElement> F_grootle;
 };
 
 }
