@@ -45,6 +45,7 @@ public:
     // get address for a diversifier
     spark::Address getAddress(const int32_t& i);
     bool isAddressMine(const std::string& encodedAddr);
+    bool isAddressMine(const spark::Address& address);
     bool isChangeAddress(const uint64_t& i) const;
 
     // list spark mint, mint metadata in memory and in db should be the same at this moment, so get from memory
