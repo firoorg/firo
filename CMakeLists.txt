@@ -778,3 +778,9 @@ endif()
 
 # We want all build properties to be encapsulated properly.
 include(WarnAboutGlobalProperties)
+
+# Generate archive files
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Firo client software")
+set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
+set(CPACK_VERBATIM_VARIABLES YES)
+include(CPack)
