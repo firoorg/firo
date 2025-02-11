@@ -1611,6 +1611,16 @@ CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, C
     if (spendKey == spark::SpendKey(params))
         throw std::runtime_error(_("Unable to generate spend key, looks the wallet is locked."));
 
+    spark::Address  address(spark::Params::get_default());
+    try {
+        address.decode(nameData.sparkAddress);
+    } catch (std::exception& e) {
+        throw std::runtime_error(_("Invalid spark address"));
+    }
+
+    if (!isAddressMine(address))
+        throw std::runtime_error(_("Spark address doesn't belong to the wallet"));
+
     CMutableTransaction tx = CMutableTransaction(*wtxSparkSpend.tx);
     CSparkNameManager::GetInstance()->AppendSparkNameTxData(tx, nameData, spendKey, fullViewKey);
 
