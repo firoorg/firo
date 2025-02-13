@@ -1602,35 +1602,26 @@ void CSparkWallet::AppendSpatsMintTxData(CMutableTransaction& tx,
     const spark::SpendKey& spendKey) {
 
     CDataStream serialContextStream(SER_NETWORK, PROTOCOL_VERSION);
-	serialContextStream << tx;
+    serialContextStream << tx;
 
     const spark::Params* params = spark::Params::get_default();
     spark::MintTransaction spatskMint(params, {spatsRecipient.first}, std::vector<unsigned char>(serialContextStream.begin(), serialContextStream.end()), true);
     CDataStream serializedMint = spatskMint.getMintedCoinsSerialized()[0];
 
+    CScript script;
+    // opcode is inserted as 1 byte according to file script/script.h
+    script << OP_SPATSMINT;
+    script.insert(script.end(), serializedMint.begin(), serializedMint.end());
+    tx.vout.push_back(CTxOut(spatsRecipient.first.v, script));
 
-//        serializedSparkNameData << sparkNameData;
-//        txCopy.vExtraPayload.insert(txCopy.vExtraPayload.end(), serializedSparkNameData.begin(), serializedSparkNameData.end());
-//
-//        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-//        ss << txCopy;
-//
-    Scalar m;
-
+    Scalar m = spark::GetSpatsMintM(tx);
     spark::OwnershipProof ownershipProof;
-    spatsRecipient.second.prove_own(m, spendKey, incomingViewKey, ownershipProof);
+    spatsRecipient.second.prove_own(m, spendKey, viewKey, ownershipProof);
+    CDataStream serializedOwn(SER_NETWORK, PROTOCOL_VERSION);
+    serializedOwn << ownershipProof;
 
-    CDataStream ownershipProofStream(SER_NETWORK, PROTOCOL_VERSION);
-    ownershipProofStream << ownershipProof;
-
-//        sparkNameData.addressOwnershipProof.assign(ownershipProofStream.begin(), ownershipProofStream.end());
-//
-//        CDataStream sparkNameDataStream(SER_NETWORK, PROTOCOL_VERSION);
-//        sparkNameDataStream << sparkNameData;
-//
-//        txSparkSpend.vExtraPayload.insert(txSparkSpend.vExtraPayload.end(), sparkNameDataStream.begin(), sparkNameDataStream.end());
-
-
+	auto& scriptRef = tx.vout.back().scriptPubKey;
+    scriptRef.insert(scriptRef.end(), serializedOwn.begin(), serializedOwn.end());
 }
 
 CWalletTx CSparkWallet::CreateSpatsMintTransaction(

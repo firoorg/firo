@@ -116,7 +116,7 @@ std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id,
     }
     return out_hash;
 }
-
+//TODO levon
 void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransaction& mintTransaction)
 {
     std::vector<CDataStream> serializedCoins;
@@ -187,6 +187,14 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
     return std::move(spendTransaction);
 }
 
+Scalar GetSpatsMintM(const CTransaction& tx) {
+    spark::Hash hash(LABEL_TRANSCRIPT_SPATS_MINT);
+    CDataStream serializedTx(SER_NETWORK, PROTOCOL_VERSION);
+    serializedTx << tx;
+
+    hash.include(serializedTx);
+    return hash.finalize_scalar();
+}
 
 std::vector<GroupElement> GetSparkUsedTags(const CTransaction &tx)
 {

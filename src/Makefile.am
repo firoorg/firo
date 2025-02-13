@@ -713,8 +713,7 @@ libspats_a_SOURCES = \
   libspats/balance.cpp \
   libspats/balance_proof.h \
   libspats/spend_transaction.cpp \
-  libspats/spend_transaction.h \
-  libspats/util.h
+  libspats/spend_transaction.h
 
 liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)

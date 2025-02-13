@@ -13,7 +13,7 @@ Scalar Balance::challenge(
     const GroupElement& C,
     const GroupElement& A)
 {
-    spark::Transcript transcript(LABEL_TRANSCRIPT_BALANCE);
+    spark::Transcript transcript(spark::LABEL_TRANSCRIPT_BALANCE);
     transcript.add("E", E);
     transcript.add("F", F);
     transcript.add("H", H);
