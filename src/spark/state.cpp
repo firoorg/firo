@@ -67,6 +67,17 @@ bool IsSparkAllowed(int height)
     return height >= ::Params().GetConsensus().nSparkStartBlock;
 }
 
+bool SpatsStarted()
+{
+    LOCK(cs_main);
+    return SpatsStarted(chainActive.Height());
+}
+
+bool SpatsStarted(int height)
+{
+    return height >= ::Params().GetConsensus().nSpatsStartBlock;
+}
+
 unsigned char GetNetworkType() {
     if (::Params().GetConsensus().IsMain())
         return ADDRESS_NETWORK_MAINNET;
@@ -83,7 +94,7 @@ unsigned char GetNetworkType() {
  */
 size_t CountCoinInBlock(CBlockIndex *index, int id) {
     return index->sparkMintedCoins.count(id) > 0
-           ? index->sparkMintedCoins[id].size() : 0;
+    ? index->sparkMintedCoins[id].size() : 0;
 }
 
 std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id, bool generation = false) {

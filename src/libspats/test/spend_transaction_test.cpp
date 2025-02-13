@@ -11,6 +11,7 @@ const Scalar ZERO = Scalar((uint64_t)0);
 const Scalar ONE = Scalar((uint64_t)1);
 
 using namespace secp_primitives;
+using namespace spark;
 
 // Generate a random char vector from a random scalar
 static std::vector<unsigned char> random_char_vector()
@@ -46,7 +47,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
     // Mint some coins to the address
     std::size_t N = (std::size_t)pow(params->get_n_grootle(), params->get_m_grootle());
 
-    std::vector<Coin> in_coins;
+    std::vector<spark::Coin> in_coins;
     for (std::size_t i = 0; i < N / 2; i++) {
         Scalar k;
         k.randomize();
@@ -58,16 +59,17 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         const uint64_t identifier = 0; // new value
 
 
-        in_coins.emplace_back(Coin(
+        in_coins.emplace_back(spark::Coin(
             params,
-            COIN_TYPE_MINT,
+            COIN_TYPE_MINT_V2,
             k,
-            asset_type,
-            identifier,
+
             address,
             v,
             memo,
-            random_char_vector()));
+            random_char_vector(),
+            asset_type,
+            identifier));
     }
 
     for (std::size_t i = N / 2; i < N; i++) {
@@ -81,16 +83,16 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         const uint64_t identifier = 0; // new value
 
 
-        in_coins.emplace_back(Coin(
+        in_coins.emplace_back(spark::Coin(
             params,
-            COIN_TYPE_MINT,
+            COIN_TYPE_MINT_V2,
             k,
-            asset_type,
-            identifier,
             address,
             v,
             memo,
-            random_char_vector()));
+            random_char_vector(),
+            asset_type,
+            identifier));
     }
 
 
@@ -206,7 +208,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
 
     // Verify
     transaction.setCoverSets(cover_set_data);
-    std::unordered_map<uint64_t, std::vector<Coin> > cover_sets;
+    std::unordered_map<uint64_t, std::vector<spark::Coin> > cover_sets;
     for (const auto set_data : cover_set_data)
         cover_sets[set_data.first] = set_data.second.cover_set;
     BOOST_CHECK(SpendTransaction::verify(transaction, cover_sets));

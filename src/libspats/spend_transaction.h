@@ -4,10 +4,10 @@
 #include "base_asset.h"
 #include "bpplus.h"
 #include "../libspark/chaum.h"
-#include "coin.h"
 #include "../libspark/grootle.h"
 #include "../libspark/keys.h"
 #include "../libspark/schnorr.h"
+#include "../libspark/coin.h"
 #include "type.h"
 #include "util.h"
 #include <algorithm>
@@ -34,7 +34,7 @@ struct InputCoinData {
 };
 
 struct CoverSetData {
-    std::vector<Coin> cover_set;                         // set of coins used as a cover set for the spend
+    std::vector<spark::Coin> cover_set;                         // set of coins used as a cover set for the spend
     std::vector<unsigned char> cover_set_representation; // a unique representation for the ordered elements of the partial `cover_set` used in the spend
 };
 
@@ -64,11 +64,11 @@ public:
 
     uint64_t getFee();
     const std::vector<GroupElement>& getUsedLTags() const;
-    const std::vector<Coin>& getOutCoins();
+    const std::vector<spark::Coin>& getOutCoins();
     const std::vector<uint64_t>& getCoinGroupIds();
 
-    static bool verify(const spark::Params* params, const std::vector<SpendTransaction>& transactions, const std::unordered_map<uint64_t, std::vector<Coin> >& cover_sets);
-    static bool verify(const SpendTransaction& transaction, const std::unordered_map<uint64_t, std::vector<Coin> >& cover_sets);
+    static bool verify(const spark::Params* params, const std::vector<SpendTransaction>& transactions, const std::unordered_map<uint64_t, std::vector<spark::Coin> >& cover_sets);
+    static bool verify(const SpendTransaction& transaction, const std::unordered_map<uint64_t, std::vector<spark::Coin> >& cover_sets);
 
     std::vector<unsigned char> hash_bind_inner(
         const std::unordered_map<uint64_t, std::vector<unsigned char> >& cover_set_representations,
@@ -79,7 +79,7 @@ public:
     );
     static Scalar hash_bind(
         const std::vector<unsigned char> hash_bind_inner,
-        const std::vector<Coin>& out_coins,
+        const std::vector<spark::Coin>& out_coins,
         const uint64_t f_,
         const spark::SchnorrProof& rep_proof,
         const BPPlusProof& range_proof,
@@ -108,7 +108,7 @@ public:
         READWRITE(outBase);
     }
 
-    void setOutCoins(const std::vector<Coin>& out_coins_)
+    void setOutCoins(const std::vector<spark::Coin>& out_coins_)
     {
         this->out_coins = out_coins_;
     }
@@ -135,7 +135,7 @@ private:
     // We need to construct and pass this data before running verification
     std::unordered_map<uint64_t, std::size_t> cover_set_sizes;
     std::unordered_map<uint64_t, std::vector<unsigned char> > cover_set_representations;
-    std::vector<Coin> out_coins;
+    std::vector<spark::Coin> out_coins;
     uint64_t vout;
 
     // All this data we need to serialize
