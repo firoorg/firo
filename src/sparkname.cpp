@@ -236,7 +236,7 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
     return errorDescription.empty();
 }
 
-void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey)
+void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey, size_t &additionalSize)
 {
     for (uint32_t n=0; ; n++) {
         sparkNameData.addressOwnershipProof.clear();
@@ -272,6 +272,7 @@ void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend,
         CDataStream sparkNameDataStream(SER_NETWORK, PROTOCOL_VERSION);
         sparkNameDataStream << sparkNameData;
 
+        additionalSize = sparkNameDataStream.size();
         txSparkSpend.vExtraPayload.insert(txSparkSpend.vExtraPayload.end(), sparkNameDataStream.begin(), sparkNameDataStream.end());
 
         break;

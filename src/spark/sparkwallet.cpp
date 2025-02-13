@@ -1622,7 +1622,10 @@ CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, C
         throw std::runtime_error(_("Spark address doesn't belong to the wallet"));
 
     CMutableTransaction tx = CMutableTransaction(*wtxSparkSpend.tx);
-    CSparkNameManager::GetInstance()->AppendSparkNameTxData(tx, nameData, spendKey, fullViewKey);
+    size_t additionalSize = 0;
+    CSparkNameManager::GetInstance()->AppendSparkNameTxData(tx, nameData, spendKey, fullViewKey, additionalSize);
+
+    txFee += CWallet::GetMinimumFee(additionalSize, nTxConfirmTarget, mempool);
 
     wtxSparkSpend.tx = MakeTransactionRef(std::move(tx));
     return wtxSparkSpend;

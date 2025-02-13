@@ -144,7 +144,7 @@ public:
     bool ValidateSparkNameData(const CSparkNameTxData &sparkNameData, std::string &errorDescription);
 
     // fill missing CSparkNameTxData fields and append spark name tx data to the transaction
-    void AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey);
+    void AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey, size_t &additionalSize);
 
     // add and remove spark name
     bool AddSparkName(const std::string &name, const std::string &address, uint32_t validityBlocks, const std::string &additionalInfo);
