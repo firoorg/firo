@@ -123,7 +123,7 @@ jobs:
   build-windows:
     name: Build for Windows
     needs: create-source-distribution
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env:
       ARTIFACT_DIR: windows-binaries
     steps:
