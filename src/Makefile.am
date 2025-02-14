@@ -263,10 +263,12 @@ BITCOIN_CORE_H = \
   spats/base_asset.hpp \
   spats/identification.hpp \
   spats/manager.hpp \
+  spats/modification.hpp \
   spats/registry.hpp \
   spats/spark_asset.hpp \
   spats/wallet.hpp \
   utils/constrained_value.hpp \
+  utils/empty_class.hpp \
   utils/enum.hpp \
   utils/lock_proof.hpp \
   utils/math.hpp \

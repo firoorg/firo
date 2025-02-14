@@ -13,7 +13,6 @@
 #include <deque>
 
 #include "../uint256.h"
-#include "../utils/empty_class.hpp"
 #include "../utils/lock_proof.hpp"
 
 #include "spark_asset.hpp"
