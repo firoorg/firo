@@ -261,6 +261,42 @@ static spats::UnregisterAssetAction ParseSpatsUnregisterTransaction(const CTrans
     }
 }
 
+static spats::ModifyAssetAction ParseSpatsModifyTransaction(const CTransaction &tx)
+{
+    assert(tx.IsSpatsModify());
+    if (tx.vout.size() < 1)
+        throw CBadTxIn();
+    const CScript& modification_script = tx.vout.front().scriptPubKey;
+    if (!modification_script.IsSpatsModify())
+        throw CBadTxIn();
+
+    try{
+        std::vector<unsigned char> serialized(modification_script.begin() + 1, modification_script.end());
+        auto action_serialization_size = serialized.size();
+        const void* const action_serialization_start_address = serialized.data();
+        CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
+        assert(stream.size() == action_serialization_size);
+        spats::ModifyAssetAction action(deserialize, stream);
+        const auto &asset_modification = action.get();
+        action_serialization_size -= stream.size();
+        spark::OwnershipProof proof;
+        stream >> proof;
+        LogPrintf("ParseSpatsModifyTransaction address ownership proof: %s\n", proof);
+        const auto& b = get_base(asset_modification);
+        Address a(spark::Params::get_default());
+        a.decode(b.initiator_public_address());
+        const auto scalar_of_proof = spats::Wallet::compute_modify_spark_asset_serialization_scalar(
+            b, {static_cast<const unsigned char*>(action_serialization_start_address), action_serialization_size});
+        LogPrintf("ParseSpatsModifyTransaction scalar_of_proof: %s\n", scalar_of_proof);
+        if (!a.verify_own(scalar_of_proof, proof))
+            throw CBadTxIn();
+        return action;
+    }
+    catch (...) {
+        throw CBadTxIn();
+    }
+}
+
 static spats::Action ParseSpatsTransaction(const CTransaction &tx)
 {
     assert(tx.IsSpatsTransaction());
@@ -268,6 +304,8 @@ static spats::Action ParseSpatsTransaction(const CTransaction &tx)
         return ParseSpatsCreateTransaction(tx);
     if (tx.IsSpatsUnregister())
         return ParseSpatsUnregisterTransaction(tx);
+    if (tx.IsSpatsModify())
+        return ParseSpatsModifyTransaction(tx);
     // TODO more
     throw CBadTxIn();
 }

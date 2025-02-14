@@ -5970,6 +5970,39 @@ std::optional<CWalletTx> CWallet::UnregisterSparkAsset(spats::asset_type_t asset
     return wtx;
 }
 
+std::optional<CWalletTx> CWallet::ModifySparkAsset(const spats::SparkAsset& old_asset, const spats::SparkAsset& new_asset,
+    const std::function<bool(CAmount standard_fee)>& user_confirmation_callback)
+{
+    // create transaction
+    CAmount standard_fee;
+    auto wtx = sparkWallet->getSpatsWallet().create_modify_spark_asset_transaction(old_asset, new_asset, standard_fee);
+
+    // give the user a chance to confirm/cancel
+    if (user_confirmation_callback && !user_confirmation_callback(standard_fee)) {
+       // TODO log cancellation by user
+       return {};
+    }
+
+    // commit
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(this);
+        if (!CommitTransaction(wtx, reserveKey, g_connman.get(), state))
+            throw std::runtime_error("Failed to commit modify spark asset transaction");
+    } catch (const std::exception &) {
+        auto error = _(
+                "Error: The ModifySparkAsset transaction was rejected! This might happen e.g. if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
+
+        std::throw_with_nested(std::runtime_error(error));
+    }
+
+    return wtx;
+}
+
 bool CWallet::LelantusToSpark(std::string& strFailReason) {
     std::list<CLelantusEntry> coins = GetAvailableLelantusCoins();
     std::list<CSigmaEntry> sigmaCoins = GetAvailableCoins();

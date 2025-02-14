@@ -43,32 +43,44 @@ struct AssetNaming {
    nonempty_trimmed_uppercase_string symbol;
    std::string description;
 
+   AssetNaming( nonempty_trimmed_string n, nonempty_trimmed_uppercase_string s, std::string desc ) noexcept
+      : name( std::move( n ) )
+      , symbol( std::move( s ) )
+      , description( std::move( desc ) )
+   {}
+
    template < typename Stream >
-   void Serialize( Stream &os ) const
+   AssetNaming( deserialize_type d, Stream &is )
+      : name( d, is )
+      , symbol( d, is )
    {
-      os << name.get() << symbol.get() << description;
+      is >> description;
    }
 
    template < typename Stream >
-   void Unserialize( Stream &is )
+   void Serialize( Stream &os ) const
    {
-      std::string s;
-      is >> s;
-      name = std::move( s );
-      is >> s;
-      symbol = std::move( s );
-      is >> description;
+      os << name << symbol << description;
    }
+
+   bool operator==( const AssetNaming &rhs ) const noexcept = default;
 };
 
 using supply_amount_t = utils::scaled_amount<>;
 
 class SparkAssetBase {
 public:
+   // getters
    [[nodiscard]] asset_type_t asset_type() const noexcept { return asset_type_; }
    [[nodiscard]] const AssetNaming &naming() const noexcept { return asset_naming_; }
    [[nodiscard]] const std::string &metadata() const noexcept { return metadata_; }
    [[nodiscard]] const public_address_t &admin_public_address() const noexcept { return admin_public_address_; }
+
+   // setters
+   void naming( AssetNaming naming ) { asset_naming_ = std::move( naming ); }
+   void metadata( std::string metadata ) { metadata_ = std::move( metadata ); }
+
+   bool operator==( const SparkAssetBase &rhs ) const noexcept = default;
 
 protected:
    // not meant to be constructed/destroyed by itself - only objects of derived classes are meant to be created
@@ -83,10 +95,10 @@ protected:
    }
 
    template < typename Stream >
-   SparkAssetBase( deserialize_type, Stream &is )
-      : asset_naming_( "x"s, "X"s, "desc"s )   // dummy values that will soon get overwritten
+   SparkAssetBase( deserialize_type d, Stream &is )
+      : asset_naming_( d, is )
    {
-      is >> asset_type_ >> asset_naming_ >> metadata_ >> admin_public_address_;
+      is >> asset_type_ >> metadata_ >> admin_public_address_;
    }
 
    ~SparkAssetBase() = default;
@@ -94,7 +106,7 @@ protected:
    template < typename Stream >
    void Serialize( Stream &os ) const
    {
-      os << asset_type_ << asset_naming_ << metadata_ << admin_public_address_;
+      os << asset_naming_ << asset_type_ << metadata_ << admin_public_address_;
    }
 
 private:
@@ -144,7 +156,10 @@ public:
    [[nodiscard]] supply_amount_t total_supply() const noexcept { return total_supply_; }
    [[nodiscard]] bool resupplyable() const noexcept { return resupplyable_; }
 
+   bool operator==( const BasicSparkAsset &rhs ) const noexcept = default;
+
    explicit operator SparkAssetDisplayAttributes() const;
+   explicit operator universal_asset_id_t() const noexcept { return { asset_type(), identifier_t{} }; }
 
 private:
    supply_amount_t total_supply_;   // Precision of the asset is included within this too
@@ -180,7 +195,10 @@ public:
 
    [[nodiscard]] identifier_t identifier() const noexcept { return identifier_; }
 
+   bool operator==( const BasicSparkAsset &rhs ) const noexcept = default;
+
    explicit operator SparkAssetDisplayAttributes() const;
+   explicit operator universal_asset_id_t() const noexcept { return { asset_type(), identifier() }; }
 
 private:
    identifier_t identifier_;

@@ -22,6 +22,7 @@ MyOwnSpats::MyOwnSpats( const PlatformStyle *platform_style, QWidget *parent )
    ui_->tableWidgetMyOwnSpats->setSelectionBehavior( QAbstractItemView::SelectRows );
    ui_->tableWidgetMyOwnSpats->setSelectionMode( QAbstractItemView::SingleSelection );
    connect( ui_->create_spark_asset, &QPushButton::clicked, this, &MyOwnSpats::onCreateButtonClicked );
+   connect( ui_->modify_spark_asset, &QPushButton::clicked, this, &MyOwnSpats::onModifyButtonClicked );
    connect( ui_->unregister_spark_asset, &QPushButton::clicked, this, &MyOwnSpats::onUnregisterButtonClicked );
    connect( this, &MyOwnSpats::displayMyOwnSpatsSignal, this, &MyOwnSpats::handleDisplayMyOwnSpatsSignal );
    connect( ui_->tableWidgetMyOwnSpats->selectionModel(), &QItemSelectionModel::selectionChanged, this, &MyOwnSpats::updateButtonStates );
@@ -143,6 +144,28 @@ void MyOwnSpats::onCreateButtonClicked()
    catch ( const std::exception &e ) {
       QMessageBox::critical( this, tr( "Error" ), tr( "An error occurred: %1" ).arg( e.what() ) );
    }
+}
+
+void MyOwnSpats::onModifyButtonClicked()
+{
+   assert( wallet_model_ );
+   if ( const auto row = get_the_selected_row() ) {
+      try {
+         const spats::asset_type_t asset_type{ ui_->tableWidgetMyOwnSpats->item( *row, 0 )->text().toULongLong() };
+         spats::identifier_t identifier{ 0 };
+         if ( !is_fungible_asset_type( asset_type ) )
+            identifier = spats::identifier_t{ ui_->tableWidgetMyOwnSpats->item( *row, 1 )->text().toULongLong() };
+         const auto &existing_asset = my_own_assets_map_.at( spats::universal_asset_id_t{ asset_type, identifier } );
+         SparkAssetDialog dialog( platform_style_, existing_asset, this );
+         if ( dialog.exec() == QDialog::Accepted )
+            wallet_model_->getWallet()->ModifySparkAsset( existing_asset, *dialog.getResultAsset() );   // TODO user confirm callback
+      }
+      catch ( const std::exception &e ) {
+         QMessageBox::critical( this, tr( "Error" ), tr( "An error occurred: %1" ).arg( e.what() ) );
+      }
+   }
+   else
+      QMessageBox::critical( this, tr( "Error" ), tr( "Please select an asset to modify." ) );
 }
 
 void MyOwnSpats::onUnregisterButtonClicked()

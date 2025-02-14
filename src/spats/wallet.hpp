@@ -39,6 +39,7 @@ public:
    static Scalar compute_new_spark_asset_serialization_scalar( const SparkAssetBase &b, std::span< const unsigned char > asset_serialization_bytes );
    static Scalar compute_unregister_spark_asset_serialization_scalar( const UnregisterAssetParameters &p,
                                                                       std::span< const unsigned char > unreg_asset_serialization_bytes );
+   static Scalar compute_modify_spark_asset_serialization_scalar( const AssetModificationBase &b, std::span< const unsigned char > modification_serialization_bytes );
 
    const std::string &my_public_address_as_admin() const;
 
@@ -47,6 +48,7 @@ public:
                                                  CAmount &new_asset_fee,
                                                  const public_address_t &destination_public_address = {} ) const;
    CWalletTx create_unregister_spark_asset_transaction( asset_type_t asset_type, std::optional< identifier_t > identifier, CAmount &standard_fee ) const;
+   CWalletTx create_modify_spark_asset_transaction( const SparkAsset &old_asset, const SparkAsset &new_asset, CAmount &standard_fee ) const;
 
    void notify_registry_changed();
 

@@ -231,9 +231,17 @@ bool CTransaction::IsSpatsUnregister() const
     return false;
 }
 
+bool CTransaction::IsSpatsModify() const
+{
+    for (const CTxOut &txout: vout)
+        if (txout.scriptPubKey.IsSpatsModify())
+            return true;
+    return false;
+}
+
 bool CTransaction::IsSpatsTransaction() const
 {
-    return IsSpatsCreate() || IsSpatsUnregister();    // TODO more
+    return IsSpatsCreate() || IsSpatsUnregister() || IsSpatsModify();    // TODO more
 }
 
 bool CTransaction::IsSparkSpend() const

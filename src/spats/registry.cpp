@@ -82,7 +82,7 @@ bool Registry::has_nonfungible_asset( asset_type_t asset_type, identifier_t iden
    return it != nft_lines_.end() && it->second.contains( identifier );
 }
 
-bool Registry::process( const SparkAsset &a, [[maybe_unused]] int block_height, const std::optional< block_hash_t > &block_hash, write_lock_proof wlp )
+bool Registry::process( const SparkAsset &a, int /*block_height*/, const std::optional< block_hash_t > &block_hash, write_lock_proof wlp )
 {
    std::visit( [ this, &block_hash, wlp ]( auto &&x ) { add( x, block_hash, wlp ); }, a );
    return true;
@@ -146,6 +146,50 @@ bool Registry::process( const UnregisterAssetParameters &p, int block_height, co
    return true;
 }
 
+void Registry::validate( const AssetModification &m, read_lock_proof rlp ) const
+{
+   std::visit( [ & ]( const auto &x ) { internal_validate( x, rlp ); }, m );
+}
+
+void Registry::internal_validate( const FungibleAssetModification &m, read_lock_proof ) const
+{
+   const auto &existing_asset = m.old_asset();
+   const auto asset_type = existing_asset.asset_type();
+   assert( is_fungible_asset_type( asset_type ) );
+   const auto it = fungible_assets_.find( asset_type );
+   if ( it == fungible_assets_.end() )
+      throw std::invalid_argument( "Asset to modify not found" );
+   if ( it->second != existing_asset )
+      throw std::domain_error( "Asset to modify has different data than what was expected" );
+   if ( it->second.admin_public_address() != m.initiator_public_address() )
+      throw std::domain_error( "No permission to modify the given asset" );
+}
+
+void Registry::internal_validate( const NonfungibleAssetModification &m, read_lock_proof ) const
+{
+   const auto &existing_asset = m.old_asset();
+   const auto asset_type = existing_asset.asset_type();
+   assert( !is_fungible_asset_type( asset_type ) );
+   const auto it = nft_lines_.find( asset_type );
+   if ( it != nft_lines_.end() ) {
+      const auto nft_it = it->second.find( existing_asset.identifier() );
+      if ( nft_it != it->second.end() ) {
+         if ( nft_it->second != existing_asset )
+            throw std::domain_error( "NFT to modify has different data than what was expected" );
+         if ( nft_it->second.admin_public_address() != m.initiator_public_address() )
+            throw std::domain_error( "No permission to modify the given NFT" );
+         return;   // all ok with the modification if it reaches here
+      }
+   }
+   throw std::invalid_argument( "No such NFT found to unregister" );
+}
+
+bool Registry::process(
+  const AssetModification &m, int block_height, const std::optional< block_hash_t > &block_hash, write_lock_proof wlp, BlockAnnotation **out_block_annotation_ptr )
+{
+   return std::visit( [ &, wlp ]( const auto &x ) { return modify( x, block_height, block_hash, wlp, out_block_annotation_ptr ); }, m );
+}
+
 bool Registry::unprocess( const SparkAsset &a, [[maybe_unused]] int block_height, write_lock_proof wlp )
 {
    const auto &b = get_base( a );
@@ -173,6 +217,26 @@ bool Registry::unprocess( const UnregisterAssetParameters &p, int block_height, 
       any_changes = true;
    }
    return any_changes;
+}
+
+bool Registry::unprocess( const AssetModification &m, int block_height, write_lock_proof wlp )
+{
+   if ( !has_any_modifications( m ) )
+      return false;
+   assert( block_height >= 0 );
+   const auto &b = get_base( m );
+   BlockAnnotation *block_annotation = nullptr;
+   // just applying the modification in reverse
+   [[maybe_unused]] const bool modified_back =
+     process( make_asset_modification( get_new_asset( m ), get_old_asset( m ), b.initiator_public_address() ), -1, {}, wlp, &block_annotation );
+   assert( modified_back );
+   assert( block_annotation );
+   // and restoring the block hash
+   restore_block_annotation_before_modification( { b.asset_type(), get_identifier( get_old_asset( m ) ).value_or( identifier_t{} ) },
+                                                 *block_annotation,
+                                                 block_height,
+                                                 wlp );
+   return true;
 }
 
 std::optional< asset_type_t > Registry::get_lowest_available_asset_type_for_new_fungible_asset() const noexcept
@@ -293,6 +357,24 @@ std::optional< Registry::LocatedAsset > Registry::get_asset( asset_type_t asset_
    return LocatedAsset{ nft_it->second.block_hash, nft_it->second };
 }
 
+void Registry::restore_block_annotation_before_modification( const universal_asset_id_t modified_asset_id,
+                                                             BlockAnnotation &block_annotation,
+                                                             const int block_height_modified_at,
+                                                             write_lock_proof )
+{
+   assert( block_height_modified_at >= 0 );
+   const auto it = modification_history_blocks_by_asset_.find( modified_asset_id );
+   assert( it != modification_history_blocks_by_asset_.end() );
+   auto &bookkeepings = it->second;
+   assert( !bookkeepings.empty() );
+   auto &bk = bookkeepings.back();
+   assert( bk.block_height_modification_applied_at == block_height_modified_at );
+   block_annotation.block_hash = std::move( bk.block_hash_before_modification );
+   bookkeepings.pop_back();
+   if ( bookkeepings.empty() )
+      modification_history_blocks_by_asset_.erase( it );
+}
+
 std::vector< Nft > Registry::get_nfts_administered_by( const public_address_t &public_address ) const
 {
    std::shared_lock lock( mutex_ );
@@ -398,12 +480,82 @@ void Registry::internal_add( const NonfungibleSparkAsset &a, std::optional< bloc
    assert( has_nonfungible_asset( asset_type, identifier, wlp ) );
 }
 
+bool Registry::internal_modify(
+  const FungibleAssetModification &m, int block_height, std::optional< block_hash_t > block_hash, write_lock_proof, BlockAnnotation **out_block_annotation_ptr )
+{
+   assert( !out_block_annotation_ptr || !block_hash && block_height == -1 );
+   if ( !m )
+      return false;
+   const auto asset_type = m.old_asset().asset_type();
+   const auto it = fungible_assets_.find( asset_type );
+   assert( it != fungible_assets_.end() );
+   auto &a = it->second;
+   assert( a == m.old_asset() );
+   assert( a.admin_public_address() == m.initiator_public_address() );
+   m.apply_on( a );
+   assert( a == m.new_asset() );
+   assert( a.admin_public_address() == m.initiator_public_address() );
+   if ( block_hash ) {
+      auto &effective_block_hash = it->second.block_hash;
+      if ( block_height >= 0 )
+         modification_history_blocks_by_asset_[ { asset_type, identifier_t{} } ].emplace_back( std::move( effective_block_hash ), block_height );
+      effective_block_hash = std::move( block_hash );
+   }
+   else if ( out_block_annotation_ptr ) {
+      assert( block_height == -1 );
+      *out_block_annotation_ptr = &a;
+   }
+   return true;
+}
+
+bool Registry::internal_modify(
+  const NonfungibleAssetModification &m, int block_height, std::optional< block_hash_t > block_hash, write_lock_proof, BlockAnnotation **out_block_annotation_ptr )
+{
+   assert( !out_block_annotation_ptr || !block_hash && block_height == -1 );
+   if ( !m )
+      return false;
+   const auto asset_type = m.old_asset().asset_type();
+   const auto it = nft_lines_.find( asset_type );
+   assert( it != nft_lines_.end() );
+   assert( it->second.contains( m.old_asset().identifier() ) );
+   assert( it->second.begin()->second.admin_public_address() == m.initiator_public_address() );
+   const auto identifier = m.old_asset().identifier();
+   auto &a = it->second.at( identifier );
+   assert( a == m.old_asset() );
+   assert( a.admin_public_address() == m.initiator_public_address() );
+   m.apply_on( a );
+   assert( a == m.new_asset() );
+   assert( a.admin_public_address() == m.initiator_public_address() );
+   if ( block_hash ) {
+      auto &effective_block_hash = a.block_hash;
+      if ( block_height >= 0 )
+         modification_history_blocks_by_asset_[ { asset_type, identifier } ].emplace_back( std::move( effective_block_hash ), block_height );
+      effective_block_hash = std::move( block_hash );
+   }
+   else if ( out_block_annotation_ptr ) {
+      assert( block_height == -1 );
+      *out_block_annotation_ptr = &a;
+   }
+   return true;
+}
+
 void Registry::cleanup_old_blocks_bookkeeping( int block_height, write_lock_proof )
 {
    const int cleanup_threshold = 2000;
    if ( block_height >= cleanup_threshold ) {
       const int remove_earlier_than_block_number = block_height - cleanup_threshold;
+
       std::erase_if( unregistered_assets_, [ = ]( const auto &u ) { return u.block_height_unregistered_at < remove_earlier_than_block_number; } );
+
+      for ( auto it = modification_history_blocks_by_asset_.begin(); it != modification_history_blocks_by_asset_.end(); ) {
+         auto &bookkeepings = it->second;
+         while ( !bookkeepings.empty() && bookkeepings.front().block_height_modification_applied_at < remove_earlier_than_block_number )
+            bookkeepings.pop_front();
+         if ( bookkeepings.empty() )
+            modification_history_blocks_by_asset_.erase( it++ );
+         else
+            ++it;
+      }
    }
 }
 

@@ -13,6 +13,7 @@
 
 #include "identification.hpp"
 #include "base_asset.hpp"
+#include "modification.hpp"
 #include "spark_asset.hpp"
 
 namespace spats {
@@ -82,7 +83,9 @@ public:
    {}
 
    template < typename Stream >
-   CreateAssetAction( deserialize_type, Stream &is );
+   CreateAssetAction( deserialize_type, Stream &is )
+      : asset_( Unserialize( is ) )
+   {}
 
    template < typename Stream >
    void Serialize( Stream &os ) const;
@@ -97,11 +100,6 @@ private:
    template < typename Stream >
    static SparkAsset Unserialize( Stream &is );
 };
-
-template < typename Stream >
-CreateAssetAction::CreateAssetAction( deserialize_type, Stream &is )
-   : asset_( Unserialize( is ) )
-{}
 
 template < typename Stream >
 void CreateAssetAction::Serialize( Stream &os ) const
@@ -152,7 +150,47 @@ private:
    }
 };
 
-using Action = std::variant< CreateAssetAction, UnregisterAssetAction >;   // TODO more
+class ModifyAssetAction {
+public:
+   explicit ModifyAssetAction( AssetModification asset_modification )
+      : asset_modification_( std::move( asset_modification ) )
+   {}
+
+   template < typename Stream >
+   ModifyAssetAction( deserialize_type, Stream &is )
+      : asset_modification_( Unserialize( is ) )
+   {}
+
+   template < typename Stream >
+   void Serialize( Stream &os ) const;
+
+   const AssetModification &get() const & noexcept { return asset_modification_; }
+   AssetModification &&get() && noexcept { return std::move( asset_modification_ ); }
+
+private:
+   AssetModification asset_modification_;
+   static constexpr std::uint8_t serialization_version = 1;
+
+   template < typename Stream >
+   static AssetModification Unserialize( Stream &is );
+};
+
+template < typename Stream >
+void ModifyAssetAction::Serialize( Stream &os ) const
+{
+   os << serialization_version;
+   ::Serialize( os, asset_modification_ );
+}
+
+template < typename Stream >
+AssetModification ModifyAssetAction::Unserialize( Stream &is )
+{
+   std::uint8_t version;
+   is >> version;
+   return UnserializeVariant< AssetModification >( is );
+}
+
+using Action = std::variant< CreateAssetAction, UnregisterAssetAction, ModifyAssetAction >;   // TODO more
 
 using ActionSequence = std::vector< Action >;
 

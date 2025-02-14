@@ -209,12 +209,16 @@ enum opcodetype
     OP_SPARKSPEND = 0xd3,
     OP_SPATSCREATE = 0xd4,
     OP_SPATSUNREGISTER = 0xd5,
+    OP_SPATSMODIFY = 0xd6,
     // TODO when adding a new spats opcode, update this below, and keep all spats ops values consecutive if possible, otherwise change IsSpatsOp() implementation
-    OP_SPATSLAST = OP_SPATSUNREGISTER,
+    OP_SPATSLAST = OP_SPATSMODIFY,
 
     // basically NOP but identifies that subsequent txout script contains super transparent address
     OP_EXCHANGEADDR = 0xe0
 };
+// ATTENTION: When adding a new enumerator to the above, make sure to update the src/test/data/script_tests.json file accordingly, e.g. by deleting the corresponding
+//      ["0", "IF 0xNN ELSE 1 ENDIF", "P2SH,STRICTENC", "OK"],
+// line...
 
 const char* GetOpName(opcodetype opcode);
 
@@ -701,6 +705,8 @@ public:
     bool IsSpatsCreate() const;
 
     bool IsSpatsUnregister() const;
+
+    bool IsSpatsModify() const;
 
     bool IsSpats() const;
 

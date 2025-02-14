@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <type_traits>
 #include <iomanip>
+#include <iostream>   // TODO remove
 
 #include <boost/io/ios_state.hpp>
 
@@ -79,25 +80,48 @@ public:
 
    explicit constexpr operator bool() const noexcept { return !!raw_amount_; }
 
+   bool operator==( scaled_amount const &rhs ) const noexcept
+   {
+      if ( precision() == rhs.precision() )
+         return raw() == rhs.raw();
+      try {
+         auto lhs = *this;
+         lhs.set_precision( rhs.precision() );
+         return lhs.raw() == rhs.raw();
+      }
+      catch ( ... ) {
+         return false;
+      }
+   }
+
 private:
    // the true mathematical amount is raw_amount_ / 10^precision_
    raw_amount_type raw_amount_{};
    precision_type precision_{};
 
-   // For now, not allowing precision to change after construction, hence this is private.
-   // If we ever do, then need to readjust the raw value such that as_double() would return the same value before & after.
    constexpr void set_precision( precision_type const precision )
    {
       // though theoretically possible, choosing not to support here precisions which would equal or exceed the number of digits of the max raw value
       if ( precision >= std::numeric_limits< raw_amount_type >::digits10 )
          throw std::invalid_argument( "precision is too high, not supported" );   // TODO add details
+      if ( precision_ == precision )
+         return;
+      // TODO remove cout stuff
+      std::cout << "set_precision() raw_ = " << raw_amount_ << " precision_ " << precision_ << " precision " << precision << "\n";
+      std::cout << "as_double() before = " << as_double() << "\n";
+      // TODO overflow/underflow checks
+      if ( precision_ > precision )
+         raw_amount_ *= math::integral_power( std::uintmax_t( 10 ), precision_ - precision );
+      else
+         raw_amount_ /= math::integral_power( std::uintmax_t( 10 ), precision - precision_ );
       precision_ = precision;
+      std::cout << "as_double() after = " << as_double() << "\n";
    }
 
    constexpr auto decimal_factor() const noexcept { return math::integral_power( std::uintmax_t( 10 ), precision() ); }
 };
 
-// TODO comparison operators
+// TODO more comparison operators
 
 template < typename CharT, typename Traits, typename RawAmountType >
 std::basic_ostream< CharT, Traits > &operator<<( std::basic_ostream< CharT, Traits > &os, const scaled_amount< RawAmountType > &amount )

@@ -1115,6 +1115,8 @@ public:
         const std::function<bool(CAmount standard_fee, CAmount asset_creation_fee)>& user_confirmation_callback = {});
     std::optional<CWalletTx> UnregisterSparkAsset(spats::asset_type_t asset_type, std::optional<spats::identifier_t> identifier,
         const std::function<bool(CAmount standard_fee)>& user_confirmation_callback = {});
+    std::optional<CWalletTx> ModifySparkAsset(const spats::SparkAsset& old_asset, const spats::SparkAsset& new_asset,
+        const std::function<bool(CAmount standard_fee)>& user_confirmation_callback = {});
 
     bool LelantusToSpark(std::string& strFailReason);
 

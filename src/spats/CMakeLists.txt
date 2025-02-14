@@ -30,7 +30,9 @@ add_library(spats STATIC
         actions.hpp
         manager.cpp
         manager.hpp
+        modification.hpp
         ../utils/constrained_value.hpp
+        ../utils/empty_class.hpp
         ../utils/enum.hpp
         ../utils/math.hpp
         ../utils/scaled_amount.hpp

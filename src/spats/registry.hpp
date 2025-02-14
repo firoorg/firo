@@ -10,8 +10,10 @@
 #include <vector>
 #include <list>
 #include <shared_mutex>
+#include <deque>
 
 #include "../uint256.h"
+#include "../utils/empty_class.hpp"
 #include "../utils/lock_proof.hpp"
 
 #include "spark_asset.hpp"
@@ -52,30 +54,45 @@ public:
    void clear();
 
 private:
+   struct BlockAnnotation {
+      std::optional< block_hash_t > block_hash;
+#if 0   // not sure yet whether this will be needed here or not
+      // if ever added, then add a block_height_before_modification to AssetModificationBlockBookkeeping too
+      // as well as to BlockAnnotated constructor too, of course
+      int block_height;
+#endif
+   };
+
    struct UnregisteredAsset {
       int block_height_unregistered_at;
       SparkAsset asset;
+      // BlockAnnotation block_annotation;//TODO
    };
 
    template < typename T >
-   struct BlockAnnotated : T {
-      std::optional< block_hash_t > block_hash;
-#if 0   // not sure yet whether this will be needed here or not
-      int block_height;
-#endif
-
-      BlockAnnotated( T t, std::optional< block_hash_t > block_hash )
+   struct BlockAnnotated : T, BlockAnnotation {
+      BlockAnnotated( T t, std::optional< block_hash_t > blockhash )
          : T( std::move( t ) )
-         , block_hash( std::move( block_hash ) )
+         , BlockAnnotation{ std::move( blockhash ) }
       {}
    };
 
    mutable std::shared_mutex mutex_;
    // TODO Performance: a more efficient storage type for both, using contiguous memory to the extent possible
-   // All below data members are protected by mutex_
+   // All below data members, till the end of this class, are protected by mutex_
    std::unordered_map< asset_type_t, BlockAnnotated< FungibleSparkAsset > > fungible_assets_;
    std::unordered_map< asset_type_t, std::unordered_map< identifier_t, BlockAnnotated< NonfungibleSparkAsset > > > nft_lines_;
    std::list< UnregisteredAsset > unregistered_assets_;
+
+   struct AssetModificationBlockBookkeeping {
+      std::optional< block_hash_t > block_hash_before_modification;
+      int block_height_modification_applied_at;
+   };
+
+   // The deque here is intended to be used like a stack, except during the very old blocks history cleanup, where elements may be removed from its front
+   using asset_modification_blocks_history_t = std::deque< AssetModificationBlockBookkeeping >;
+   std::map< universal_asset_id_t, asset_modification_blocks_history_t > modification_history_blocks_by_asset_;
+
    int last_block_height_processed_ = -1;
 
    using read_lock_proof = utils::read_lock_proof< &Registry::mutex_ >;
@@ -108,15 +125,56 @@ private:
    // addition (creation)
    bool process( const SparkAsset &a, int block_height, const std::optional< block_hash_t > &block_hash, write_lock_proof wlp );
 
+   // unregistration
    void validate( const UnregisterAssetParameters &p, read_lock_proof ) const;
-
    bool process( const UnregisterAssetParameters &p, int block_height, const std::optional< block_hash_t > &block_hash, write_lock_proof );
+
+   // modification
+   void internal_validate( const FungibleAssetModification &m, read_lock_proof ) const;
+   void internal_validate( const NonfungibleAssetModification &m, read_lock_proof ) const;
+   void validate( const AssetModification &m, read_lock_proof ) const;
+   bool process( const AssetModification &m,
+                 int block_height,
+                 const std::optional< block_hash_t > &block_hash,
+                 write_lock_proof,
+                 BlockAnnotation **out_block_annotation_ptr = nullptr );
+
+   bool modify( const FungibleAssetModification &m,
+                int block_height,
+                std::optional< block_hash_t > block_hash,
+                write_lock_proof wlp,
+                BlockAnnotation **out_block_annotation_ptr = nullptr )
+   {
+      internal_validate( m, wlp );   // will throw if invalid
+      return internal_modify( m, block_height, std::move( block_hash ), wlp, out_block_annotation_ptr );
+   }
+
+   bool modify( const NonfungibleAssetModification &m,
+                int block_height,
+                std::optional< block_hash_t > block_hash,
+                write_lock_proof wlp,
+                BlockAnnotation **out_block_annotation_ptr = nullptr )
+   {
+      internal_validate( m, wlp );   // will throw if invalid
+      return internal_modify( m, block_height, std::move( block_hash ), wlp, out_block_annotation_ptr );
+   }
 
    bool unprocess( const SparkAsset &a, int block_height, write_lock_proof wlp );
    bool unprocess( const UnregisterAssetParameters &p, int block_height, write_lock_proof );
+   bool unprocess( const AssetModification &m, int block_height, write_lock_proof );
 
    void internal_add( const FungibleSparkAsset &a, std::optional< block_hash_t > block_hash, write_lock_proof );
    void internal_add( const NonfungibleSparkAsset &a, std::optional< block_hash_t > block_hash, write_lock_proof );
+   bool internal_modify( const FungibleAssetModification &m,
+                         int block_height,
+                         std::optional< block_hash_t > block_hash,
+                         write_lock_proof,
+                         BlockAnnotation **out_block_annotation_ptr = nullptr );
+   bool internal_modify( const NonfungibleAssetModification &m,
+                         int block_height,
+                         std::optional< block_hash_t > block_hash,
+                         write_lock_proof,
+                         BlockAnnotation **out_block_annotation_ptr = nullptr );
 
    void add_the_base_asset( write_lock_proof );
    bool has_nonfungible_asset( asset_type_t asset_type, identifier_t identifier, read_lock_proof ) const noexcept;
@@ -127,6 +185,10 @@ private:
 
    std::optional< LocatedAsset > get_asset( asset_type_t asset_type, std::optional< identifier_t > identifier, read_lock_proof ) const;
 
+   void restore_block_annotation_before_modification( universal_asset_id_t modified_asset_id,
+                                                      BlockAnnotation &block_annotation,
+                                                      int block_height_modified_at,
+                                                      write_lock_proof wlp );
    void cleanup_old_blocks_bookkeeping( int block_height, write_lock_proof );
 };
 

@@ -60,6 +60,15 @@ Scalar Wallet::compute_unregister_spark_asset_serialization_scalar( const Unregi
    return ret;
 }
 
+Scalar Wallet::compute_modify_spark_asset_serialization_scalar( const AssetModificationBase &b, std::span< const unsigned char > modification_serialization_bytes )
+{
+   spark::Hash hash( std::format( "spatsmodify_{}_from_{}", utils::to_underlying( b.asset_type() ), b.initiator_public_address() ) );
+   hash.include( modification_serialization_bytes );
+   auto ret = hash.finalize_scalar();
+   LogPrintf( "Modify spark asset serialization scalar (hex): %s\n", ret.GetHex() );
+   return ret;
+}
+
 Wallet::Wallet( CSparkWallet &spark_wallet ) noexcept
    : spark_wallet_( spark_wallet )
    , registry_( spark::CSparkState::GetState()->GetSpatsManager().registry() )
@@ -150,6 +159,35 @@ CWalletTx Wallet::create_unregister_spark_asset_transaction( asset_type_t asset_
                                                         standard_fee,
                                                         nullptr );   // may throw
    assert( tx.tx->IsSpatsUnregister() );
+   return tx;
+}
+
+CWalletTx Wallet::create_modify_spark_asset_transaction( const SparkAsset &old_asset, const SparkAsset &new_asset, CAmount &standard_fee ) const
+{
+   const auto &admin_public_address = my_public_address_as_admin();
+   const auto m = make_asset_modification( old_asset, new_asset, admin_public_address );
+   const auto &b = get_base( m );
+   CScript script;
+   script << OP_SPATSMODIFY;
+   assert( script.IsSpatsModify() );
+   CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
+   serialized << ModifyAssetAction( m );
+   // TODO instead of how it is being done now, put ownership proof into script default-constructed first, then compute ownership proof from the whole tx, and overwrite
+   //      the ownership proof in the script then
+   const auto scalar_of_proof = compute_modify_spark_asset_serialization_scalar( b, serialized.as_bytes_span() );
+   const spark::OwnershipProof proof = spark_wallet_.makeDefaultAddressOwnershipProof( scalar_of_proof );
+   LogPrintf( "Ownership proof for modify spark asset (hex): %s\n", proof );
+   CDataStream proof_serialized( SER_NETWORK, PROTOCOL_VERSION );
+   proof_serialized << proof;
+   script.insert( script.end(), serialized.begin(), serialized.end() );
+   assert( script.IsSpatsModify() );
+   script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
+   assert( script.IsSpatsModify() );
+   auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient( std::move( script ), {}, false, admin_public_address ) },
+                                                        {},
+                                                        standard_fee,
+                                                        nullptr );   // may throw
+   assert( tx.tx->IsSpatsModify() );
    return tx;
 }
 

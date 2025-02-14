@@ -57,16 +57,13 @@ SparkAssetDialog::SparkAssetDialog( const PlatformStyle *platform_style, dialog_
       // Example: Apply styles (if applicable to your PlatformStyle)
    }
 
+   std::visit( [ this ]( auto &&arg ) { set_fields( arg ); }, context_ );
+
    // Connect UI elements to actions
    connect( ui_->fungibilityCheckBox, &QCheckBox::stateChanged, this, &SparkAssetDialog::onFungibilityChanged );
    connect( ui_->assetTypeSpinBox, &QUInt64SpinBox::valueChanged, this, &SparkAssetDialog::onAssetTypeChanged );
    connect( ui_->saveButton, &QPushButton::clicked, this, &SparkAssetDialog::onSave );
    connect( ui_->cancelButton, &QPushButton::clicked, this, &QDialog::reject );
-
-   std::visit( [ this ]( auto &&arg ) { set_fields( arg ); }, context_ );
-
-   // Update field visibility/state based on fungibility checkbox state
-   onFungibilityChanged( ui_->fungibilityCheckBox->isChecked() ? Qt::Checked : Qt::Unchecked );
 }
 
 SparkAssetDialog::~SparkAssetDialog() {}
@@ -113,17 +110,17 @@ void SparkAssetDialog::onSave()
 
 void SparkAssetDialog::onFungibilityChanged( int state )
 {
-   const bool is_fungible = ( state == Qt::Checked );
-
-   // Enable or disable fungible-related fields
-   ui_->totalSupplySpin->setEnabled( is_fungible );
-   ui_->resupplyableCheckBox->setEnabled( is_fungible );
-   ui_->precisionSpinBox->setEnabled( is_fungible );
-
-   // Non-Fungible-specific fields
-   ui_->identifierSpinBox->setEnabled( !is_fungible );
-
    if ( const auto *const context = std::get_if< NewSparkAssetCreationContext >( &context_ ) ) {
+      const bool is_fungible = ( state == Qt::Checked );
+
+      // Enable or disable fungible-related fields
+      ui_->totalSupplySpin->setEnabled( is_fungible );
+      ui_->resupplyableCheckBox->setEnabled( is_fungible );
+      ui_->precisionSpinBox->setEnabled( is_fungible );
+
+      // Non-Fungible-specific fields
+      ui_->identifierSpinBox->setEnabled( !is_fungible );
+
       if ( is_fungible ) {
          ui_->assetTypeSpinBox->setValue( context->lowest_available_asset_type_for_new_fungible_asset );
       }
@@ -132,6 +129,8 @@ void SparkAssetDialog::onFungibilityChanged( int state )
       }
       onAssetTypeChanged( ui_->assetTypeSpinBox->value() );
    }
+   else
+      assert( !"Not allowed to modify the fungibility of an existing asset" );
 }
 
 void SparkAssetDialog::onAssetTypeChanged( int asset_type_value )
@@ -190,8 +189,6 @@ void SparkAssetDialog::set_fields( const spats::SparkAsset &existing_asset )
                                      ui_->identifierSpinBox->setValue( utils::to_underlying( nft.identifier() ) );
                                   } },
                existing_asset );
-
-   onFungibilityChanged( ui_->fungibilityCheckBox->checkState() );
 
    ui_->fungibilityCheckBox->setEnabled( false );
    ui_->assetTypeSpinBox->setEnabled( false );

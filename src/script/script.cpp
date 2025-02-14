@@ -158,6 +158,7 @@ const char* GetOpName(opcodetype opcode)
     case OP_SPARKSPEND  : return "OP_SPARKSPEND";
     case OP_SPATSCREATE  : return "OP_SPATSCREATE";
     case OP_SPATSUNREGISTER  : return "OP_SPATSUNREGISTER";
+    case OP_SPATSMODIFY  : return "OP_SPATSMODIFY";
     // Super transparent txout script prefix
     case OP_EXCHANGEADDR    : return "OP_EXCHANGEADDR";
 
@@ -369,6 +370,11 @@ bool CScript::IsSpatsCreate() const
 bool CScript::IsSpatsUnregister() const
 {
     return this->size() > 0 && (*this)[0] == OP_SPATSUNREGISTER;
+}
+
+bool CScript::IsSpatsModify() const
+{
+    return this->size() > 0 && (*this)[0] == OP_SPATSMODIFY;
 }
 
 bool CScript::IsSpats() const
