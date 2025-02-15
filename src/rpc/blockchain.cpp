@@ -179,21 +179,19 @@ UniValue getblockcount(const JSONRPCRequest& request)
 
 UniValue getsparknames(const JSONRPCRequest &request)
 {
-    if (request.fHelp || request.params.size() > 1) {
+    if (request.fHelp || request.params.size() != 0) {
         throw std::runtime_error(
-            "getsparknames ( height )\n"
+            "getsparknames\n"
             "\nReturns a list of all Spark names.\n"
-            "\nArguments:\n"
-            "1. height (numeric, optional) The block height to filter Spark names (default is the spark names start block height).\n"
             "\nResult:\n"
             "[\n"
-            "  \"name1\",   (string) The Spark name and address\n"
-            "  \"name2\",   (string) Another Spark name and address\n"
+            "  \"Name (string)\n"
+            "  \"Address (string)\"\n"
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("getsparknames", "1000")
-            + HelpExampleRpc("getsparknames", "1000")
+            + HelpExampleCli("getsparknames", "")
+            + HelpExampleRpc("getsparknames", "")
         );
     }
 
@@ -205,9 +203,6 @@ UniValue getsparknames(const JSONRPCRequest &request)
 
     const Consensus::Params &consensusParams = Params().GetConsensus();
     int nHeight = chainActive.Height();
-    if (request.params.size() == 1) {
-        nHeight = request.params[0].get_int();
-    }
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
     std::set<std::string> sparkNames = sparkNameManager->GetSparkNames(nHeight);
     UniValue result(UniValue::VARR);
@@ -231,8 +226,8 @@ UniValue getsparknamedata(const JSONRPCRequest& request)
             "\nResult:\n"
             "[\n"
             "1. Address (string)\n"
-            "2. Block Height (string)\n"
-            "3. TxId (string)\n"
+            "2. Block Height (int)\n"
+            "3. Additional info (string)\n"
             "]\n"
             "\nExamples:\n"
             + HelpExampleCli("getsparknamedata", "sparkname")
