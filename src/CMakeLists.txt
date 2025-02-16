@@ -124,12 +124,10 @@ endforeach()
 if(DEFINED ENV{CFLAGS})
   deduplicate_flags(CMAKE_C_FLAGS)
 endif()
-set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 add_subdirectory(secp256k1)
 set_target_properties(secp256k1 PROPERTIES
   EXCLUDE_FROM_ALL TRUE
 )
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 string(APPEND CMAKE_C_COMPILE_OBJECT " ${APPEND_CPPFLAGS} ${APPEND_CFLAGS}")
 
 add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
@@ -249,70 +247,9 @@ target_link_libraries(bitcoin_common
     $<$<PLATFORM_ID:Windows>:ws2_32>
 )
 
-add_library(bitcoin_wallet STATIC EXCLUDE_FROM_ALL
-  activemasternode.cpp
-  hdmint/hdmint.cpp
-  masternode-sync.cpp
-  hdmint/mintpool.cpp
-  hdmint/wallet.cpp
-  sigma.cpp
-  lelantus.cpp
-  spark/state.cpp
-  wallet/crypter.cpp
-  wallet/bip39.cpp
-  wallet/mnemoniccontainer.cpp
-  wallet/db.cpp
-  wallet/rpcdump.cpp
-  wallet/rpcwallet.cpp
-  wallet/sigmaspendbuilder.cpp
-  wallet/txbuilder.cpp
-  wallet/lelantusjoinsplitbuilder.cpp
-  wallet/walletexcept.cpp
-  wallet/wallet.cpp
-  spark/sparkwallet.cpp
-  spark/primitives.cpp
-  wallet/walletdb.cpp
-  wallet/authhelper.cpp
-  hdmint/tracker.cpp
-  policy/rbf.cpp
-  bip47/account.cpp
-  bip47/paymentchannel.cpp
-  bip47/bip47utils.cpp
-  bip47/paymentcode.cpp
-  bip47/secretpoint.cpp
-  primitives/mint_spend.cpp 
-)
-target_link_libraries(bitcoin_wallet
-  PUBLIC
-    core_interface
-    bitcoin_util
-    univalue
-    secp256k1
-    Boost::headers
-    leveldb
-)
-
 set(installable_targets)
 if(ENABLE_WALLET)
   add_subdirectory(wallet)
-
-  if(BUILD_WALLET_TOOL)
-    add_executable(firo-wallet
-      bitcoin-wallet.cpp
-      init/bitcoin-wallet.cpp
-      wallet/wallettool.cpp
-    )
-    add_windows_resources(firo-wallet bitcoin-wallet-res.rc)
-    target_link_libraries(firo-wallet
-      core_interface
-      firo_wallet
-      bitcoin_common
-      bitcoin_util
-      bitcoin_wallet
-      Boost::headers
-    )
-    list(APPEND installable_targets firo-wallet)
-  endif()
 endif()
 
 
@@ -322,7 +259,6 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   addrman.cpp
   blockencodings.cpp
   chain.cpp
-  consensus/tx_verify.cpp
   dbwrapper.cpp
   httprpc.cpp
   httpserver.cpp
@@ -502,7 +438,6 @@ if(BUILD_DAEMON)
     firo_cli
     secp256k1
     secp256k1pp
-    bitcoin_wallet
     $<TARGET_NAME_IF_EXISTS:firo_wallet>
   )
   list(APPEND installable_targets firod)
@@ -591,17 +526,6 @@ if(BUILD_TX)
   list(APPEND installable_targets firo-tx)
 endif()
 
-
-if(BUILD_UTIL)
-  add_executable(bitcoin-util bitcoin-util.cpp)
-  add_windows_resources(bitcoin-util bitcoin-util-res.rc)
-  target_link_libraries(bitcoin-util
-    core_interface
-    bitcoin_common
-    bitcoin_util
-  )
-  list(APPEND installable_targets bitcoin-util)
-endif()
 
 
 if(BUILD_GUI)
