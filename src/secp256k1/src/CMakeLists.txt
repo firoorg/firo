@@ -14,6 +14,11 @@ target_link_libraries(secp256k1
     OpenSSL::Crypto
 )
 
+target_include_directories(secp256k1
+  PUBLIC
+    ${GMP_INCLUDES}
+)
+
 #=============================
 # secp256k1 Configuration
 #=============================
@@ -54,11 +59,8 @@ target_link_libraries(secp256k1pp
   PUBLIC secp256k1 ${GMP_LIBRARIES}
 )
 
-target_include_directories(secp256k1pp
-  PUBLIC ${GMP_INCLUDES}
-)
-
 add_library(secp256k1_asm INTERFACE)
+target_link_libraries(secp256k1_asm INTERFACE ${GMP_LIBRARIES})
 if(SECP256K1_ASM STREQUAL "arm32")
   add_library(secp256k1_asm_arm OBJECT EXCLUDE_FROM_ALL)
   target_sources(secp256k1_asm_arm PUBLIC
@@ -133,17 +135,20 @@ if(SECP256K1_BUILD_BENCHMARK)
   target_link_libraries(bench_verify PUBLIC secp256k1)
   add_executable(bench_internal bench_internal.c)
   target_link_libraries(bench_internal PUBLIC secp256k1_asm ${GMP_LIBRARIES})
+  target_include_directories(bench_internal PUBLIC ${GMP_INCLUDES})
 endif()
 
 if(SECP256K1_BUILD_TESTS)
   add_executable(noverify_tests tests.c)
   target_compile_definitions(noverify_tests PRIVATE VERIFY)
   target_link_libraries(noverify_tests secp256k1_asm ${GMP_LIBRARIES})
+  target_include_directories(noverify_tests PUBLIC ${GMP_INCLUDES})
   add_test(NAME secp256k1_noverify_tests COMMAND noverify_tests)
   if(NOT CMAKE_BUILD_TYPE STREQUAL "Coverage")
     add_executable(tests tests.c)
     target_compile_definitions(tests PRIVATE VERIFY)
     target_link_libraries(tests secp256k1_asm ${GMP_LIBRARIES})
+    target_include_directories(tests PUBLIC ${GMP_INCLUDES})
     add_test(NAME secp256k1_tests COMMAND tests)
   endif()
 endif()
@@ -151,7 +156,8 @@ endif()
 if(SECP256K1_BUILD_EXHAUSTIVE_TESTS)
   # Note: do not include secp256k1_precomputed in exhaustive_tests (it uses runtime-generated tables).
   add_executable(exhaustive_tests tests_exhaustive.c)
-  target_link_libraries(exhaustive_tests secp256k1_asm ${GMP_LIBRARIES})
+  target_link_libraries(exhaustive_tests PRIVATE secp256k1_asm ${GMP_LIBRARIES})
+  target_include_directories(exhaustive_tests PUBLIC ${GMP_INCLUDES})
   target_compile_definitions(exhaustive_tests PRIVATE $<$<NOT:$<CONFIG:Coverage>>:VERIFY>)
   add_test(NAME secp256k1_exhaustive_tests COMMAND exhaustive_tests)
 endif()
