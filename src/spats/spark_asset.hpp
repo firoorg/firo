@@ -99,6 +99,8 @@ protected:
       : asset_naming_( d, is )
    {
       is >> asset_type_ >> metadata_ >> admin_public_address_;
+      if ( asset_type_ > max_allowed_asset_type_value )
+         throw std::invalid_argument( "Serialized asset_type value unsupported: too big" );
    }
 
    ~SparkAssetBase() = default;
@@ -139,6 +141,8 @@ public:
    BasicSparkAsset( deserialize_type, Stream &is )
       : SparkAssetBase( deserialize, is )
    {
+      if ( !is_fungible_asset_type( asset_type() ) )
+         throw std::runtime_error( "Invalid asset_type value serialized for a fungible asset" );
       supply_amount_t::precision_type precision;
       supply_amount_t::raw_amount_type total_supply_raw;
       is >> precision >> total_supply_raw;
@@ -183,6 +187,8 @@ public:
    BasicSparkAsset( deserialize_type, Stream &is )
       : SparkAssetBase( deserialize, is )
    {
+      if ( is_fungible_asset_type( asset_type() ) )
+         throw std::runtime_error( "Invalid asset_type value serialized for a non-fungible asset" );
       is >> identifier_;
    }
 

@@ -37,6 +37,7 @@ public:
    AttributeModification( deserialize_type, Stream &is )
    {
       is >> old_ >> new_;
+      verify_modification_validity( old_, new_ );   // may throw
    }
 
    template < typename Stream >
@@ -44,7 +45,9 @@ public:
    AttributeModification( deserialize_type d, Stream &is )
       : old_( d, is )
       , new_( d, is )
-   {}
+   {
+      verify_modification_validity( old_, new_ );   // may throw
+   }
 
    template < typename Stream >
    void Serialize( Stream &os ) const
@@ -69,11 +72,14 @@ protected:
       , asset_naming_change_( old_asset_base.naming(), new_asset_base.naming() )
       , metadata_change_( old_asset_base.metadata(), new_asset_base.metadata() )
    {
+      // TODO: should modifications to the base asset (FIRO) be forbidden? Allowing those for now...
       if ( old_asset_base.asset_type() != new_asset_base.asset_type() )
          throw std::domain_error( "Spats asset type cannot be modified" );
       if ( old_asset_base.admin_public_address() != new_asset_base.admin_public_address() )
          throw std::domain_error(
            "Spark asset's admin public address cannot be modified via a regular modification operation - use Admin Control Transfer operation instead" );   // TODO
+      if ( initiator_public_address_.empty() )
+         throw std::domain_error( "Initiator public address is required for a spark asset modification" );
    }
 
    template < typename Stream >
@@ -82,6 +88,8 @@ protected:
       , metadata_change_( d, is )
    {
       is >> asset_type_ >> initiator_public_address_;
+      if ( initiator_public_address_.empty() )
+         throw std::domain_error( "Empty initiator public address serialized for a spark asset modification" );
    }
 
    ~AssetModificationBase() = default;

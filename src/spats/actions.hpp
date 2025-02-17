@@ -73,6 +73,9 @@ private:
                throw std::invalid_argument( "No 'identifier' should be provided for identifying a fungible asset" );
          assert( !identifier_ );
       }
+
+      if ( initiator_public_address_.empty() )
+         throw std::domain_error( "Initiator public address is required for a spark asset unregistration" );
    }
 };
 

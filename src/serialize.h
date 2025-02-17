@@ -1242,6 +1242,8 @@ template<typename ... T, typename Stream>
 std::variant<T...> UnserializeVariantOf(Stream& is)
 {
     const auto index = ReadCompactSize(is);
+    if (index >= sizeof...(T))
+        throw std::ios_base::failure("out of bounds index while deserializing variant");    // TODO details
     using optvar_t = std::optional< std::variant<T...> >;
     const auto f = [index, &is] < typename U, std::size_t I > (optvar_t& x) {
        if ( I == index ) {
