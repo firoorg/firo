@@ -62,17 +62,36 @@ private:
 #endif
    };
 
-   struct UnregisteredAsset {
-      int block_height_unregistered_at;
-      SparkAsset asset;
-      // BlockAnnotation block_annotation;//TODO
-   };
-
    template < typename T >
    struct BlockAnnotated : T, BlockAnnotation {
       BlockAnnotated( T t, std::optional< block_hash_t > blockhash )
          : T( std::move( t ) )
          , BlockAnnotation{ std::move( blockhash ) }
+      {}
+
+      T &asset() noexcept { return *this; }
+      const T &asset() const noexcept { return *this; }
+
+      BlockAnnotation &annotation() noexcept { return *this; }
+      const BlockAnnotation &annotation() const noexcept { return *this; }
+   };
+
+   struct UnregisteredAsset {
+      int block_height_unregistered_at;
+      SparkAsset asset;
+      BlockAnnotation block_annotation;
+
+      UnregisteredAsset( int block_height, SparkAsset asset, BlockAnnotation block_annotation )
+         : block_height_unregistered_at( block_height )
+         , asset( std::move( asset ) )
+         , block_annotation( std::move( block_annotation ) )
+      {}
+
+      template < typename T >
+      UnregisteredAsset( int block_height, BlockAnnotated< T > &&asset )
+         : block_height_unregistered_at( block_height )
+         , asset( std::move( asset.asset() ) )
+         , block_annotation( std::move( asset.annotation() ) )
       {}
    };
 

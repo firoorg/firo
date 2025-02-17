@@ -117,7 +117,7 @@ bool Registry::process( const UnregisterAssetParameters &p, int block_height, co
       const auto it = fungible_assets_.find( p.asset_type() );
       if ( it != fungible_assets_.end() ) {
          if ( block_height >= 0 )
-            unregistered_assets_.push_back( { block_height, std::move( it->second ) } );
+            unregistered_assets_.emplace_back( block_height, std::move( it->second ) );
          fungible_assets_.erase( it );
          return true;
       }
@@ -132,7 +132,7 @@ bool Registry::process( const UnregisterAssetParameters &p, int block_height, co
       if ( nft_it == it->second.end() )
          return false;
       if ( block_height >= 0 )
-         unregistered_assets_.push_back( { block_height, std::move( nft_it->second ) } );
+         unregistered_assets_.emplace_back( block_height, std::move( nft_it->second ) );
       it->second.erase( nft_it );
       if ( it->second.empty() )
          nft_lines_.erase( it );
@@ -141,7 +141,7 @@ bool Registry::process( const UnregisterAssetParameters &p, int block_height, co
 
    if ( block_height >= 0 )
       for ( auto &[ t, a ] : it->second )
-         unregistered_assets_.push_back( { block_height, std::move( a ) } );
+         unregistered_assets_.emplace_back( block_height, std::move( a ) );
    nft_lines_.erase( it );
    return true;
 }
@@ -212,7 +212,7 @@ bool Registry::unprocess( const UnregisterAssetParameters &p, int block_height, 
                                         unregistered_identifier_match( get_identifier( x.asset ), p.identifier() );
                               } ),
            it != unregistered_assets_.end() ) {
-      process( it->asset, -1, {}, wlp );
+      process( it->asset, -1, it->block_annotation.block_hash, wlp );
       it = unregistered_assets_.erase( it );
       any_changes = true;
    }
