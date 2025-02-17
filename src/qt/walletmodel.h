@@ -200,6 +200,8 @@ public:
     SendCoinsReturn spendSparkCoins(
         WalletModelTransaction &transaction);
 
+    bool validateSparkNameData(const QString &name, const QString &sparkAddress, const QString &additionalData, QString &strError);
+
     SendCoinsReturn prepareSparkNameTransaction(
         WalletModelTransaction &transaction,
         CSparkNameTxData &sparkNameData,

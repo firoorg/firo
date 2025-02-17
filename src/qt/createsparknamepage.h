@@ -28,6 +28,8 @@ public:
 
     void setModel(WalletModel *model);
 
+    void accept();
+
 private:
     Ui::CreateSparkNamePage *ui;
     WalletModel *model;

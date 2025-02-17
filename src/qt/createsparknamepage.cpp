@@ -18,6 +18,8 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
     ui->setupUi(this);
 
     feeText = ui->feeTextLabel->text();
+    ui->numberOfYearsEdit->setValue(1);
+    ui->numberOfYearsEdit->setRange(1, 10);
     updateFee();
 }
 
@@ -45,6 +47,22 @@ void CreateSparkNamePage::on_sparkNameEdit_textChanged(const QString &text)
 void CreateSparkNamePage::on_numberOfYearsEdit_valueChanged(int value)
 {
     updateFee();
+}
+
+void CreateSparkNamePage::accept()
+{
+    QString sparkName = ui->sparkNameEdit->text();
+    QString sparkAddress = ui->sparkAddressEdit->text();
+    int numberOfYears = ui->numberOfYearsEdit->value();
+    QString additionalInfo = ui->additionalInfoEdit->toPlainText();
+    QString strError;
+
+    if (!model->validateSparkAddress(sparkAddress))
+        QMessageBox::critical(this, tr("Error"), tr("Invalid spark address"));
+    else if (!model->validateSparkNameData(sparkName, sparkAddress, additionalInfo, strError))
+        QMessageBox::critical(this, tr("Error"), tr("Error details: ") + strError);
+    else
+        QDialog::accept();
 }
 
 void CreateSparkNamePage::updateFee() {
