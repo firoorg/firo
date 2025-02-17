@@ -17,9 +17,9 @@ void verify_modification_validity( const T & /*old_value*/, const T & /*new_valu
 
 inline void verify_modification_validity( const AssetNaming &old_value, const AssetNaming &new_value )
 {
-   // TODO allow symbol length changes where the fee doesn't actually change
-   if ( old_value.symbol.get().length() != new_value.symbol.get().length() )
-      throw std::domain_error( "Spark asset's symbol length cannot be modified" );   // because the creation fee depended on that!
+   if ( compute_new_spark_asset_fee( old_value.symbol.get() ) != compute_new_spark_asset_fee( new_value.symbol.get() ) )
+      throw std::domain_error( "Spark asset's symbol cannot be modified in such a way that the new symbol would be associated with a creation fee tier different from "
+                               "the one of the original symbol" );
 }
 
 template < typename T >

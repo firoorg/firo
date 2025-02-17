@@ -14,29 +14,6 @@
 
 namespace spats {
 
-// Compute the fee specifically for creating a new spark asset, based on the length of the asset's symbol.
-// The shorter the symbol, the more expensive the fee.
-// Right now mimicking the fee structure for Spark Names to get at concrete numbers.
-// They don't necessarily have to match though, so these numbers here may change before going live...
-CAmount Wallet::compute_new_spark_asset_fee( const std::string_view asset_symbol ) noexcept
-{
-   const auto length = asset_symbol.length();
-   assert( length > 0 );
-   switch ( length ) {
-      case 1:
-         return 1000 * COIN;
-      case 2:
-         return 100 * COIN;
-      case 3:
-      case 4:
-      case 5:
-         return 10 * COIN;
-      default:
-         assert( length >= 6 );
-         return COIN;   // 1 coin of the base asset, i.e. FIRO
-   }
-}
-
 Scalar Wallet::compute_new_spark_asset_serialization_scalar( const SparkAssetBase &b, std::span< const unsigned char > asset_serialization_bytes )
 {
    spark::Hash hash( std::format( "spatsnew_{}_from_{}", utils::to_underlying( b.asset_type() ), b.admin_public_address() ) );

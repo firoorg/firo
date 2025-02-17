@@ -34,8 +34,6 @@ public:
       amount_type available{}, pending{};
    };
 
-   static CAmount compute_new_spark_asset_fee( std::string_view asset_symbol ) noexcept;
-
    static Scalar compute_new_spark_asset_serialization_scalar( const SparkAssetBase &b, std::span< const unsigned char > asset_serialization_bytes );
    static Scalar compute_unregister_spark_asset_serialization_scalar( const UnregisterAssetParameters &p,
                                                                       std::span< const unsigned char > unreg_asset_serialization_bytes );

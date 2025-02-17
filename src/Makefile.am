@@ -449,6 +449,7 @@ libbitcoin_server_a_SOURCES = \
   mtpstate.cpp \
   spats/manager.cpp \
   spats/registry.cpp \
+  spats/spark_asset.cpp \
   $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
@@ -499,6 +500,7 @@ libbitcoin_wallet_a_SOURCES = \
   primitives/mint_spend.cpp \
   spats/manager.cpp \
   spats/registry.cpp \
+  spats/spark_asset.cpp \
   spats/wallet.cpp \
   $(BITCOIN_CORE_H)
 

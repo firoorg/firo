@@ -215,7 +215,7 @@ static spats::CreateAssetAction ParseSpatsCreateTransaction(const CTransaction &
         const auto& burntx = tx.vout[1];
         // If somehow the creation fee is greater than required, i.e. the originator wants to burn more of his money than required, then it's fine with us I think.
         // But less than required is not allowed, of course.
-        if (burntx.nValue < spats::Wallet::compute_new_spark_asset_fee(b.naming().symbol.get()))
+        if (burntx.nValue < spats::compute_new_spark_asset_fee(b.naming().symbol.get()))
             throw CBadTxIn();
         if (GetScriptForDestination(CBitcoinAddress(std::string(firo_burn_address)).Get()) != burntx.scriptPubKey)
             throw CBadTxIn();

@@ -5,10 +5,13 @@
 #ifndef FIRO_SPATS_SPARK_ASSET_HPP_INCLUDED
 #define FIRO_SPATS_SPARK_ASSET_HPP_INCLUDED
 
+#include <cstdint>
 #include <locale>
 #include <string>
 #include <variant>
 #include <algorithm>
+
+#include <boost/lexical_cast.hpp>
 
 #include "../serialize.h"
 #include "../utils/constrained_value.hpp"
@@ -16,8 +19,6 @@
 #include "../utils/overloaded.hpp"
 
 #include "identification.hpp"
-
-#include <boost/lexical_cast.hpp>
 
 namespace spats {
 
@@ -284,6 +285,13 @@ inline BasicSparkAsset< false >::operator SparkAssetDisplayAttributes() const
    ret.identifier = utils::to_underlying( identifier() );
    return ret;
 }
+
+// Compute the fee specifically for creating a new spark asset, based on the length of the asset's symbol.
+// The shorter the symbol, the more expensive the fee.
+// Right now mimicking the fee structure for Spark Names to get at concrete numbers.
+// They don't necessarily have to match though, so these numbers here may change before going live...
+// Returns the value as CAmount.
+std::int64_t compute_new_spark_asset_fee( std::string_view asset_symbol ) noexcept;
 
 }   // namespace spats
 

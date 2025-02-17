@@ -20,6 +20,7 @@ add_definitions(-DHAVE_DECL_HTOBE16=1 -DHAVE_DECL_HTOLE16=1 -DHAVE_DECL_BE16TOH=
 )
 
 add_library(spats STATIC
+        spark_asset.cpp
         spark_asset.hpp
         registry.cpp
         registry.hpp
