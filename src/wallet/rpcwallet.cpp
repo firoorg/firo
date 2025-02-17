@@ -3809,8 +3809,21 @@ UniValue spendspark(const JSONRPCRequest& request)
         spark::Address sAddress(params);
         unsigned char coinNetwork;
         bool isSparkAddress;
+        std::string sparkAddressStr;
+
+        if (!name_.empty() && name_[0] == '@') {
+            LOCK(cs_main);
+
+            CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+            if (!sparkNameManager->GetSparkAddress(name_.substr(1), chainActive.Height(), sparkAddressStr))
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Spark name not found: ")+name_);
+        }
+        else {
+            sparkAddressStr = name_;
+        }
+
         try {
-            unsigned char coinNetwork = sAddress.decode(name_);
+            unsigned char coinNetwork = sAddress.decode(sparkAddressStr);
             isSparkAddress = true;
             if (coinNetwork != network)
                 throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ")+name_);

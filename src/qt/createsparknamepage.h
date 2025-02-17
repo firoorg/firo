@@ -5,6 +5,7 @@
 
 #include "libspark/keys.h"
 #include "primitives/transaction.h"
+#include "wallet/wallet.h"
 
 namespace Ui {
     class CreateSparkNamePage;
@@ -23,7 +24,7 @@ public:
 private:
     Ui::CreateSparkNamePage *ui;
 
-    CTransactionRef CreateSparkNameTransaction(const std::string &name, const spark::Address &address, const std::string &additionalInfo);
+    CWalletTx CreateSparkNameTransaction(const std::string &name, const std::string &address, int numberOfYears, const std::string &additionalInfo);
 };
 
 #endif // _QT_CREATESPARKNAMEPAGE_H
