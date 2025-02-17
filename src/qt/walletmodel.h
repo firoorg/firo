@@ -157,6 +157,9 @@ public:
     bool validateSparkAddress(const QString &address);
     std::pair<CAmount, CAmount> getSparkBalance();
 
+    // Generate spark address
+    QString generateSparkAddress();
+
     // Return status record for SendCoins, contains error id + information
     struct SendCoinsReturn
     {

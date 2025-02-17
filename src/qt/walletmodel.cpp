@@ -1323,6 +1323,21 @@ bool WalletModel::validateSparkAddress(const QString& address)
     return network == coinNetwork;
 }
 
+QString WalletModel::generateSparkAddress()
+{
+    const spark::Params* params = spark::Params::get_default();
+    spark::Address addr(params);
+
+    {
+        LOCK(wallet->cs_wallet);
+        spark::Address address = wallet->sparkWallet->generateNewAddress();
+        unsigned char network = spark::GetNetworkType();
+    
+        wallet->SetSparkAddressBook(address.encode(network), "", "receive");
+        return QString::fromStdString(addr.encode(network));
+    }
+}
+
 std::pair<CAmount, CAmount> WalletModel::getSparkBalance()
 {
     return wallet->GetSparkBalance();

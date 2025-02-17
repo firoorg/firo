@@ -102,7 +102,7 @@
         </layout>
        </item>
        <item>
-        <widget class="QLineEdit" name="lineEdit"/>
+        <widget class="QLineEdit" name="sparkAddressEdit"/>
        </item>
       </layout>
      </item>
@@ -125,7 +125,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton">
+        <widget class="QPushButton" name="generateButton">
          <property name="text">
           <string>Generate new</string>
          </property>
@@ -168,7 +168,7 @@
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
-          <widget class="QLineEdit" name="lineEdit_2"/>
+          <widget class="QLineEdit" name="sparkNameEdit"/>
          </item>
          <item>
           <widget class="QLabel" name="label_3">
@@ -229,7 +229,7 @@
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_10">
          <item>
-          <widget class="QSpinBox" name="spinBox"/>
+          <widget class="QSpinBox" name="numberOfYearsEdit"/>
          </item>
          <item>
           <spacer name="horizontalSpacer_6">
@@ -254,9 +254,9 @@
         <number>20</number>
        </property>
        <item>
-        <widget class="QLabel" name="label_4">
+        <widget class="QLabel" name="feeTextLabel">
          <property name="text">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To get this spark name you must pay a fee of &lt;span style=&quot; font-weight:600;&quot;&gt;1 FIRO&lt;/span&gt;. Fee depends on spark name lengths, shorter names are more expensive. Fee can be paid only with private funds.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To get this spark name you must pay a fee of &lt;span style=&quot; font-weight:600;&quot;&gt;%1 FIRO(s)&lt;/span&gt;. Fee depends on spark name lengths, shorter names are more expensive. Fee can be paid only with private funds.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
          <property name="wordWrap">
           <bool>true</bool>
