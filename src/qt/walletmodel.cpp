@@ -1407,7 +1407,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vecto
         int nChangePosRet = -1;
 
         std::string strFailReason;
-        bool fCreated = wallet->CreateSparkMintTransactions(outputs, wtxAndFees, nFeeRequired, reservekeys, nChangePosRet, fSubtractFeeFromAmount, strFailReason, coinControl, false);
+        bool fCreated = wallet->CreateSparkMintTransactions(outputs, wtxAndFees, nFeeRequired, reservekeys, nChangePosRet, fSubtractFeeFromAmount, strFailReason, optionsModel->getfSplit(), coinControl, false);
         transactions.clear();
         transactions.reserve(wtxAndFees.size());
         for (auto &wtxAndFee : wtxAndFees) {

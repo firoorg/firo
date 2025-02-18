@@ -199,6 +199,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
 
     //Lelantus
     { "mintspark", 0 },
+    { "mintspark", 1 },
+    { "mintspark", 2 },
     { "spendspark", 0 },
     { "spendspark", 1 },
 

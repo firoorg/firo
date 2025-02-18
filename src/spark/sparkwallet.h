@@ -122,6 +122,7 @@ public:
             int& nChangePosInOut,
             bool subtractFeeFromAmount,
             std::string& strFailReason,
+            bool fSplit,
             const CCoinControl *coinControl,
             bool autoMintAll = false);
 
