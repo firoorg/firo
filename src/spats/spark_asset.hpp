@@ -136,6 +136,8 @@ public:
    {
       if ( !is_fungible_asset_type( asset_type ) )
          throw std::runtime_error( "Invalid asset_type value specified for a fungible asset" );
+      if ( !resupplyable && !total_supply )
+         throw std::runtime_error( "Not allowing to create a non-resuppliable asset with 0 supply" );   // to avoid user frustration with pointless loss of money
    }
 
    template < typename Stream >
@@ -149,6 +151,8 @@ public:
       is >> precision >> total_supply_raw;
       total_supply_ = { total_supply_raw, precision };
       is >> resupplyable_;
+      if ( !resupplyable_ && !total_supply_ )
+         throw std::runtime_error( "Rejecting a serialized non-resuppliable asset with 0 supply" );   // to avoid user frustration with pointless loss of money
    }
 
    template < typename Stream >
