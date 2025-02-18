@@ -12,7 +12,7 @@
 static const CBitcoinAddress randomAddr1("aHEog3QYDGa8wH4Go9igKLDFkpaMsi3btq");
 static const CBitcoinAddress randomAddr2("aLTSv7QbTZbkgorYEhbNx2gH4hGYNLsoGv");
 
-class TestInputSigner : public InputSigner
+class TestInputSigner : public SigmaTxBuilderInputSigner
 {
 public:
     CScript signature;
@@ -23,7 +23,7 @@ public:
     }
 
     explicit TestInputSigner(const CScript& sig, const COutPoint& output = COutPoint(), uint32_t seq = CTxIn::SEQUENCE_FINAL) :
-        InputSigner(output, seq),
+        SigmaTxBuilderInputSigner(output, seq),
         signature(sig)
     {
     }
@@ -34,24 +34,24 @@ public:
     }
 };
 
-class TestTxBuilder : public TxBuilder
+class TestTxBuilder : public SigmaTxBuilderSuperclass
 {
 public:
     std::vector<CAmount> amountsRequested;
     std::vector<CAmount> changesRequested;
     std::vector<std::pair<CAmount, unsigned>> adjustFeeRequested;
 
-    std::function<CAmount(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required)> getInputs;
+    std::function<CAmount(std::vector<std::unique_ptr<SigmaTxBuilderInputSigner>>& signers, CAmount required)> getInputs;
     std::function<CAmount(std::vector<CTxOut>& outputs, CAmount amount, CWalletDB& walletdb)> getChanges;
     std::function<CAmount(CAmount needed, unsigned txSize)> adjustFee;
 
 public:
-    explicit TestTxBuilder(CWallet& wallet) : TxBuilder(wallet)
+    explicit TestTxBuilder(CWallet& wallet) : SigmaTxBuilderSuperclass(wallet)
     {
     }
 
 protected:
-    CAmount GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required) override
+    CAmount GetInputs(std::vector<std::unique_ptr<SigmaTxBuilderInputSigner>>& signers, CAmount required) override
     {
         amountsRequested.push_back(required);
 
@@ -69,7 +69,7 @@ protected:
     {
         adjustFeeRequested.push_back(std::make_pair(needed, txSize));
 
-        return adjustFee ? adjustFee(needed, txSize) : TxBuilder::AdjustFee(needed, txSize);
+        return adjustFee ? adjustFee(needed, txSize) : SigmaTxBuilderSuperclass::AdjustFee(needed, txSize);
     }
 };
 
@@ -184,9 +184,9 @@ BOOST_AUTO_TEST_CASE(build_with_changes)
     in1 << std::vector<unsigned char>({ 0x21, 0xe3, 0xad, 0x9a, 0xec, 0x5b, 0x70, 0xcb, 0x4c, 0xc1, 0xd8, 0xe2, 0x95, 0x27, 0xe3, 0x7c });
     in2 << std::vector<unsigned char>({ 0xac, 0xd9, 0x86, 0x7d, 0xd7, 0x6e, 0xc1, 0xb7, 0x9d, 0xde, 0xdc, 0xbd, 0x91, 0xc1, 0x8e, 0xed });
 
-    builder.getInputs = [&in1, &in2, &out1, &out2](std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required) {
-        signers.push_back(std::unique_ptr<InputSigner>(new TestInputSigner(in1, out1, 1)));
-        signers.push_back(std::unique_ptr<InputSigner>(new TestInputSigner(in2, out2, 2)));
+    builder.getInputs = [&in1, &in2, &out1, &out2](std::vector<std::unique_ptr<SigmaTxBuilderInputSigner>>& signers, CAmount required) {
+        signers.push_back(std::unique_ptr<SigmaTxBuilderInputSigner>(new TestInputSigner(in1, out1, 1)));
+        signers.push_back(std::unique_ptr<SigmaTxBuilderInputSigner>(new TestInputSigner(in2, out2, 2)));
         return required + 5;
     };
 
