@@ -331,7 +331,7 @@ std::vector< Nft > Registry::get_nfts_administered_by( const public_address_t &p
    return assets;
 }
 
-std::optional< Registry::LocatedAsset > Registry::get_asset( asset_type_t asset_type, std::optional< identifier_t > identifier, read_lock_proof ) const
+std::optional< Registry::LocatedAsset > Registry::get_asset( asset_type_t asset_type, std::optional< identifier_t > identifier, read_lock_proof rlp ) const
 {
    if ( is_fungible_asset_type( asset_type ) ) {
       if ( identifier.value_or( identifier_t{} ) != identifier_t{} ) {
@@ -341,7 +341,7 @@ std::optional< Registry::LocatedAsset > Registry::get_asset( asset_type_t asset_
       const auto it = fungible_assets_.find( asset_type );
       if ( it == fungible_assets_.end() )
          return {};
-      return LocatedAsset{ it->second.block_hash, it->second };
+      return LocatedAsset{ it->second.block_hash, get_block_hash_before_last_modification( { asset_type, identifier_t{} }, rlp ), it->second };
    }
 
    if ( !identifier ) {
@@ -354,7 +354,20 @@ std::optional< Registry::LocatedAsset > Registry::get_asset( asset_type_t asset_
    const auto nft_it = it->second.find( *identifier );
    if ( nft_it == it->second.end() )
       return {};
-   return LocatedAsset{ nft_it->second.block_hash, nft_it->second };
+   return LocatedAsset{ nft_it->second.block_hash, get_block_hash_before_last_modification( { asset_type, *identifier }, rlp ), nft_it->second };
+}
+
+std::optional< Registry::block_hash_t > Registry::get_block_hash_before_last_modification( universal_asset_id_t asset_id, read_lock_proof ) const
+{
+   const auto it = modification_history_blocks_by_asset_.find( asset_id );
+   if ( it == modification_history_blocks_by_asset_.end() )
+      return {};
+   const auto &bk = it->second;
+   if ( bk.empty() ) [[unlikely]] {
+      // a degenerate case, can only happen if .emplace_back() in internal_modify() failed with an exception
+      return {};
+   }
+   return bk.back().block_hash_before_modification;
 }
 
 void Registry::restore_block_annotation_before_modification( const universal_asset_id_t modified_asset_id,
@@ -366,7 +379,10 @@ void Registry::restore_block_annotation_before_modification( const universal_ass
    const auto it = modification_history_blocks_by_asset_.find( modified_asset_id );
    assert( it != modification_history_blocks_by_asset_.end() );
    auto &bookkeepings = it->second;
-   assert( !bookkeepings.empty() );
+   if ( bookkeepings.empty() ) [[unlikely]] {   // a degenerate case, can only happen if .emplace_back() in internal_modify() failed with an exception
+      block_annotation.block_hash.reset();
+      return;
+   }
    auto &bk = bookkeepings.back();
    assert( bk.block_height_modification_applied_at == block_height_modified_at );
    block_annotation.block_hash = std::move( bk.block_hash_before_modification );
@@ -547,15 +563,20 @@ void Registry::cleanup_old_blocks_bookkeeping( int block_height, write_lock_proo
 
       std::erase_if( unregistered_assets_, [ = ]( const auto &u ) { return u.block_height_unregistered_at < remove_earlier_than_block_number; } );
 
-      for ( auto it = modification_history_blocks_by_asset_.begin(); it != modification_history_blocks_by_asset_.end(); ) {
-         auto &bookkeepings = it->second;
-         while ( !bookkeepings.empty() && bookkeepings.front().block_height_modification_applied_at < remove_earlier_than_block_number )
+      std::vector< universal_asset_id_t > degenerate_empty_bookkeepings;
+      // spare the last one in an asset's modification bookkeepings, keep in perpetuity, for get_block_hash_before_last_modification()
+      for ( auto &[ asset_id, bookkeepings ] : modification_history_blocks_by_asset_ ) {
+         if ( bookkeepings.empty() ) [[unlikely]] {
+            degenerate_empty_bookkeepings.push_back( asset_id );
+            continue;
+         }
+         while ( bookkeepings.size() > 1 && bookkeepings.front().block_height_modification_applied_at < remove_earlier_than_block_number )
             bookkeepings.pop_front();
-         if ( bookkeepings.empty() )
-            modification_history_blocks_by_asset_.erase( it++ );
-         else
-            ++it;
+         assert( !bookkeepings.empty() );
       }
+      // very unlikely for degenerate_empty_bookkeepings to ever be non-empty, but just in case ...
+      for ( const auto asset_id : degenerate_empty_bookkeepings )
+         modification_history_blocks_by_asset_.erase( asset_id );
    }
 }
 

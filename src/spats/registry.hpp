@@ -45,6 +45,7 @@ public:
 
    struct LocatedAsset {
       std::optional< block_hash_t > block_hash;
+      std::optional< block_hash_t > block_hash_before_last_modification;
       SparkAsset asset;
    };
 
@@ -54,7 +55,7 @@ public:
 
 private:
    struct BlockAnnotation {
-      std::optional< block_hash_t > block_hash;
+      std::optional< block_hash_t > block_hash;   // the latest effective one, i.e. the one of the last modification (if any, otherwise the one of the creation)
 #if 0   // not sure yet whether this will be needed here or not
       // if ever added, then add a block_height_before_modification to AssetModificationBlockBookkeeping too
       // as well as to BlockAnnotated constructor too, of course
@@ -229,6 +230,7 @@ private:
    std::vector< Nft > get_nfts_administered_by( const public_address_t &public_address, read_lock_proof ) const;
 
    std::optional< LocatedAsset > get_asset( asset_type_t asset_type, std::optional< identifier_t > identifier, read_lock_proof ) const;
+   std::optional< block_hash_t > get_block_hash_before_last_modification( universal_asset_id_t asset_id, read_lock_proof ) const;
 
    void restore_block_annotation_before_modification( universal_asset_id_t modified_asset_id,
                                                       BlockAnnotation &block_annotation,
