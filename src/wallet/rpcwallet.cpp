@@ -3815,7 +3815,7 @@ UniValue spendspark(const JSONRPCRequest& request)
             LOCK(cs_main);
 
             CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-            if (!sparkNameManager->GetSparkAddress(name_.substr(1), chainActive.Height(), sparkAddressStr))
+            if (!sparkNameManager->GetSparkAddress(name_.substr(1), sparkAddressStr))
                 throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Spark name not found: ")+name_);
         }
         else {

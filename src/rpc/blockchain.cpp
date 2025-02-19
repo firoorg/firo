@@ -202,14 +202,13 @@ UniValue getsparknames(const JSONRPCRequest &request)
     }
 
     const Consensus::Params &consensusParams = Params().GetConsensus();
-    int nHeight = chainActive.Height();
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-    std::set<std::string> sparkNames = sparkNameManager->GetSparkNames(nHeight);
+    std::set<std::string> sparkNames = sparkNameManager->GetSparkNames();
     UniValue result(UniValue::VARR);
     for (const auto &name : sparkNames) {
         result.push_back(name);
         std::string SparkAddr;
-        if (sparkNameManager->GetSparkAddress(name, nHeight, SparkAddr))
+        if (sparkNameManager->GetSparkAddress(name, SparkAddr))
             result.push_back(SparkAddr);
     }
     return result;
@@ -245,7 +244,7 @@ UniValue getsparknamedata(const JSONRPCRequest& request)
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
 
     std::string SparkAddr;
-    sparkNameManager->GetSparkAddress(sparkName, chainActive.Tip()->nHeight, SparkAddr);
+    sparkNameManager->GetSparkAddress(sparkName, SparkAddr);
 
     UniValue result(UniValue::VARR);
     unsigned char network = spark::GetNetworkType();

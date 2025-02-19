@@ -37,20 +37,19 @@ bool CSparkNameManager::RemoveBlock(CBlockIndex *pindex)
     return true;
 }
 
-std::set<std::string> CSparkNameManager::GetSparkNames(int nHeight)
+std::set<std::string> CSparkNameManager::GetSparkNames()
 {
     std::set<std::string> result;
     for (const auto &entry : sparkNames)
-        if (entry.second.sparkNameValidityHeight > nHeight)
-            result.insert(entry.second.name);
+        result.insert(entry.second.name);
 
     return result;
 }
 
-bool CSparkNameManager::GetSparkAddress(const std::string &name, int nHeight, std::string &address)
+bool CSparkNameManager::GetSparkAddress(const std::string &name, std::string &address)
 {
     auto it = sparkNames.find(ToUpper(name));
-    if (it != sparkNames.end() || it->second.sparkNameValidityHeight > nHeight) {
+    if (it != sparkNames.end()) {
         address = it->second.sparkAddress;
         return true;
     }

@@ -110,10 +110,10 @@ public:
     static bool IsSparkNameValid(const std::string &name);
 
     // return all valid names
-    std::set<std::string> GetSparkNames(int nHeight);
+    std::set<std::string> GetSparkNames();
 
     // return the address associated with the spark name
-    bool GetSparkAddress(const std::string &name, int nHeight, std::string &address);
+    bool GetSparkAddress(const std::string &name, std::string &address);
 
     // resolution of conflicts (e.g. for mempool)
     // TxSet is a set of transactions that might be in conflict with the txData. Should implement contains() method
