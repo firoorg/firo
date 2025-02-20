@@ -3958,7 +3958,7 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     if (!sparkNameManager->ValidateSparkNameData(sparkNameData, errorDescription))
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Error creating spark name: "+ errorDescription);
 
-    CAmount sparkNameFee = consensusParams.nSparkNamesFee[sparkName.size()]*COIN;
+    CAmount sparkNameFee = consensusParams.nSparkNamesFee[sparkName.size()]*COIN*numberOfYears;
     CAmount fee;
     CWalletTx wtx;
     try {
