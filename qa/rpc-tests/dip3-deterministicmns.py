@@ -61,6 +61,7 @@ class DIP3Test(BitcoinTestFramework):
         self.log.info("creating collateral for mn-before-dip3")
         before_dip3_mn = prepare_mn(self.nodes[0], 1, 'mn-before-dip3')
         create_mn_collateral(self.nodes[0], before_dip3_mn)
+        lock_mn_collateral(self.nodes[0], before_dip3_mn)
         mns.append(before_dip3_mn)
 
         # block 550 starts enforcing DIP3 MN payments
@@ -96,6 +97,7 @@ class DIP3Test(BitcoinTestFramework):
             else:
                 self.log.info("create_collateral %s" % mn.alias)
                 create_mn_collateral(self.nodes[0], mn)
+                lock_mn_collateral(self.nodes[0], mn)
                 self.log.info("register %s" % mn.alias)
                 register_mn(self.nodes[0], mn)
 
@@ -191,6 +193,7 @@ class DIP3Test(BitcoinTestFramework):
         # self.test_instantsend(10, 3, timeout=20)
 
     def spend_mn_collateral(self, mn, with_dummy_input_output=False):
+        unlock_mn_collateral(self.nodes[0], mn)
         return self.spend_input(mn.collateral_txid, mn.collateral_vout, 1000, with_dummy_input_output)
 
     def update_mn_payee(self, mn, payee):
