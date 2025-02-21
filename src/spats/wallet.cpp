@@ -2,8 +2,6 @@
 // Created by Gevorg Voskanyan
 //
 
-#include <format>
-
 #include "../validation.h"
 #include "../wallet/wallet.h"
 #include "../spark/sparkwallet.h"
@@ -16,7 +14,7 @@ namespace spats {
 
 Scalar Wallet::compute_new_spark_asset_serialization_scalar( const SparkAssetBase &b, std::span< const unsigned char > asset_serialization_bytes )
 {
-   spark::Hash hash( std::format( "spatsnew_{}_from_{}", utils::to_underlying( b.asset_type() ), b.admin_public_address() ) );
+   spark::Hash hash( tfm::format( "spatsnew_%u_from_%s", utils::to_underlying( b.asset_type() ), b.admin_public_address() ) );
    hash.include( asset_serialization_bytes );
    auto ret = hash.finalize_scalar();
    LogPrintf( "New spark asset serialization scalar (hex): %s\n", ret.GetHex() );
@@ -27,7 +25,7 @@ Scalar Wallet::compute_unregister_spark_asset_serialization_scalar( const Unregi
 {
    auto identifier_absense_sentinel = max_allowed_identifier_value;
    ++identifier_absense_sentinel;
-   spark::Hash hash( std::format( "spatsunreg_{}_{}_from_{}",
+   spark::Hash hash( tfm::format( "spatsunreg_%u_%u_from_%s",
                                   utils::to_underlying( p.asset_type() ),
                                   utils::to_underlying( p.identifier().value_or( identifier_absense_sentinel ) ),
                                   p.initiator_public_address() ) );
@@ -39,7 +37,7 @@ Scalar Wallet::compute_unregister_spark_asset_serialization_scalar( const Unregi
 
 Scalar Wallet::compute_modify_spark_asset_serialization_scalar( const AssetModificationBase &b, std::span< const unsigned char > modification_serialization_bytes )
 {
-   spark::Hash hash( std::format( "spatsmodify_{}_from_{}", utils::to_underlying( b.asset_type() ), b.initiator_public_address() ) );
+   spark::Hash hash( tfm::format( "spatsmodify_%u_from_%s", utils::to_underlying( b.asset_type() ), b.initiator_public_address() ) );
    hash.include( modification_serialization_bytes );
    auto ret = hash.finalize_scalar();
    LogPrintf( "Modify spark asset serialization scalar (hex): %s\n", ret.GetHex() );

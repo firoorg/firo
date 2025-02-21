@@ -1,5 +1,3 @@
-#include <format>
-
 #include <boost/exception/diagnostic_information.hpp>
 
 #include "state.h"
@@ -883,7 +881,7 @@ bool CheckSparkSpendTransaction(
                   return state.DoS(100,
                                    false,
                                    REJECT_MALFORMED,
-                                   std::format("CheckSparkSpendTransaction: failed to deserialize spats tx: {}", e.what()));
+                                   "CheckSparkSpendTransaction: failed to deserialize spats tx: "s + e.what());
               }
         }
     }
