@@ -202,6 +202,8 @@ public:
 
     bool validateSparkNameData(const QString &name, const QString &sparkAddress, const QString &additionalData, QString &strError);
 
+    WalletModelTransaction initSparkNameTransaction(CAmount sparkNameFee);
+
     SendCoinsReturn prepareSparkNameTransaction(
         WalletModelTransaction &transaction,
         CSparkNameTxData &sparkNameData,

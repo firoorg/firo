@@ -1576,6 +1576,16 @@ bool WalletModel::validateSparkNameData(const QString &name, const QString &spar
     }
 }
 
+WalletModelTransaction WalletModel::initSparkNameTransaction(CAmount sparkNameFee) {
+    const auto &consensusParams = Params().GetConsensus();
+    SendCoinsRecipient recipient;
+
+    recipient.address = QString::fromStdString(consensusParams.stage3DevelopmentFundAddress);
+    recipient.amount = sparkNameFee;
+    recipient.fSubtractFeeFromAmount = false;
+
+    return WalletModelTransaction({recipient});
+}
 
 WalletModel::SendCoinsReturn WalletModel::prepareSparkNameTransaction(WalletModelTransaction &transaction, CSparkNameTxData &sparkNameData, CAmount sparkNameFee, const CCoinControl* coinControl)
 {

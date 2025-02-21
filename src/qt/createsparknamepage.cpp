@@ -4,12 +4,15 @@
 
 #include "createsparknamepage.h"
 #include "ui_createsparkname.h"
+#include "sendcoinsdialog.h"
 
 #include "platformstyle.h"
 #include "validation.h"
 
 #include <QStyle>
 #include <QMessageBox>
+
+#define SEND_CONFIRM_DELAY   3
 
 CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWidget *parent) :
     QDialog(parent),
@@ -61,8 +64,10 @@ void CreateSparkNamePage::accept()
         QMessageBox::critical(this, tr("Error"), tr("Invalid spark address"));
     else if (!model->validateSparkNameData(sparkName, sparkAddress, additionalInfo, strError))
         QMessageBox::critical(this, tr("Error"), tr("Error details: ") + strError);
-    else
-        QDialog::accept();
+    else {
+        if (CreateSparkNameTransaction(sparkName.toStdString(), sparkAddress.toStdString(), numberOfYears, additionalInfo.toStdString()))
+            QDialog::accept();
+    }
 }
 
 void CreateSparkNamePage::updateFee() {
@@ -75,10 +80,8 @@ void CreateSparkNamePage::updateFee() {
         ui->feeTextLabel->setText(feeText.arg(QString::number(Params().GetConsensus().nSparkNamesFee[sparkName.length()]*numberOfYears)));
 }
 
-WalletModelTransaction CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, const std::string &address, int numberOfYears, const std::string &additionalInfo)
+bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, const std::string &address, int numberOfYears, const std::string &additionalInfo)
 {
-    WalletModelTransaction tx({});
-
     try {
         LOCK(cs_main);
         LOCK(pwalletMain->cs_wallet);
@@ -95,23 +98,47 @@ WalletModelTransaction CreateSparkNamePage::CreateSparkNameTransaction(const std
 
         if (!sparkNameManager->ValidateSparkNameData(sparkNameData, strError)) {
             QMessageBox::critical(this, tr("Error validating spark name paramaeter"), strError.c_str());
-            return tx;
+            return false;
         }
 
         assert(!name.empty() && name.length() <= CSparkNameManager::maximumSparkNameLength);
 
-        CAmount sparkNameFee = consensusParams.nSparkNamesFee[name.length()]*COIN;
+        CAmount sparkNameFee = consensusParams.nSparkNamesFee[name.length()]*COIN*numberOfYears;
         CAmount txFee;
+
+        WalletModelTransaction tx = model->initSparkNameTransaction(sparkNameFee);
 
         WalletModel::SendCoinsReturn prepareStatus = model->prepareSparkNameTransaction(tx, sparkNameData, sparkNameFee, nullptr);
         if (prepareStatus.status != WalletModel::StatusCode::OK) {
             QMessageBox::critical(this, tr("Error"), tr("Failed to prepare spark name transaction"));
+            return false;
+        }
+
+        QString formatted;
+        QString questionString = tr("Are you sure you want to register spark name?");
+        questionString.append(tr("  You are sending Firo from a Spark address to development fund transparent address."));
+
+        SendConfirmationDialog confirmationDialog(tr("Confirm send coins for registering spark name"),
+            questionString, SEND_CONFIRM_DELAY, this);
+        confirmationDialog.exec();
+
+        QMessageBox::StandardButton retval = (QMessageBox::StandardButton)confirmationDialog.result();
+
+        if (retval != QMessageBox::Yes) {
+            return false;
+        }
+
+        WalletModel::SendCoinsReturn sendStatus = model->spendSparkCoins(tx);
+        if (sendStatus.status != WalletModel::StatusCode::OK) {
+            QMessageBox::critical(this, tr("Error"), tr("Failed to send spark name transaction"));
+            return false;
         }
     }
     catch (const std::exception &) {
         QMessageBox::critical(this, tr("Error"), tr("Failed to create spark name transaction"));
+        return false;
     }
 
-    return tx;
+    return true;
 }
 
