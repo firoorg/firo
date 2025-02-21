@@ -91,17 +91,18 @@ Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standa
    new_asset_fee = compute_new_spark_asset_fee( b.naming().symbol.get() );
    std::string burn_address( firo_burn_address );
    CScript burn_script = GetScriptForDestination( CBitcoinAddress( burn_address ).Get() );
-   CRecipient burn_recipient = { std::move( burn_script ), new_asset_fee, false, {} };
+   CRecipient burn_recipient{ std::move( burn_script ), new_asset_fee, false, {}, "burning new asset fee" };
    if ( initial_supply ) {
       const auto initial_supply_raw = boost::numeric_cast< CAmount >( initial_supply.raw() );
-      CRecipient initial_supply_recipient = { GetScriptForDestination(   // TODO or use mint, and thus a structure more appropriate for that?
-                                                CBitcoinAddress( destination_public_address.empty() ? b.admin_public_address() : destination_public_address ).Get() ),
-                                              initial_supply_raw,
-                                              false,
-                                              {} };   // TODO include the asset's asset_type and identifier as new fields?
+      CRecipient initial_supply_recipient{ GetScriptForDestination(   // TODO or use mint, and thus a structure more appropriate for that?
+                                             CBitcoinAddress( destination_public_address.empty() ? b.admin_public_address() : destination_public_address ).Get() ),
+                                           initial_supply_raw,
+                                           false,
+                                           {},
+                                           "crediting new asset's initial supply" };   // TODO include the asset's asset_type and identifier as new fields?
       // TODO include initial_supply_recipient into the tx being created (as a private recipient perhaps?), once spats sends/mints are implemented
    }
-   auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient( std::move( script ), {}, false, b.admin_public_address() ), burn_recipient },
+   auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, b.admin_public_address(), "new asset" }, burn_recipient },
                                                         {},
                                                         standard_fee,
                                                         nullptr );   // may throw
@@ -129,7 +130,7 @@ CWalletTx Wallet::create_unregister_spark_asset_transaction( asset_type_t asset_
    assert( script.IsSpatsUnregister() );
    script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
    assert( script.IsSpatsUnregister() );
-   auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient( std::move( script ), {}, false, admin_public_address ) },
+   auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, admin_public_address, "spats unregister" } },
                                                         {},
                                                         standard_fee,
                                                         nullptr );   // may throw
@@ -158,7 +159,7 @@ CWalletTx Wallet::create_modify_spark_asset_transaction( const SparkAsset &old_a
    assert( script.IsSpatsModify() );
    script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
    assert( script.IsSpatsModify() );
-   auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient( std::move( script ), {}, false, admin_public_address ) },
+   auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, admin_public_address, "spats modify" } },
                                                         {},
                                                         standard_fee,
                                                         nullptr );   // may throw
