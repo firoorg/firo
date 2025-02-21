@@ -105,6 +105,33 @@ private:
    struct AssetModificationBlockBookkeeping {
       std::optional< block_hash_t > block_hash_before_modification;
       int block_height_modification_applied_at;
+
+      // This constructor is added solely for the sake of old (15 or earlier) clang used in our github CI under OSX, which gives error on [].emplace_back()
+      // otherwise:
+      /* /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__memory/allocator_traits.h:304:9: error: no
+        matching function for call to 'construct_at' _VSTD::construct_at(__p, _VSTD::forward<_Args>(__args)...);
+                ^~~~~~~~~~~~~~~~~~~
+        /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__config:897:17: note: expanded from macro '_VSTD'
+        #  define _VSTD std
+                        ^
+        /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/deque:1778:21: note: in instantiation of function
+        template specialization
+        'std::allocator_traits<std::allocator<spats::Registry::AssetModificationBlockBookkeeping>>::construct<spats::Registry::AssetModificationBlockBookkeeping,
+        std::optional<uint256>, int &, void, void>' requested here
+            __alloc_traits::construct(__a, _VSTD::addressof(*end()),
+                            ^
+        spats/registry.cpp:501:82: note: in instantiation of function template specialization
+        'std::deque<spats::Registry::AssetModificationBlockBookkeeping>::emplace_back<std::optional<uint256>, int &>' requested here modification_history_blocks_by_asset_[ {
+        asset_type, identifier_t{} } ].emplace_back( std::move( effective_block_hash ), block_height );
+                                                                                         ^
+        /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__memory/construct_at.h:39:38: note: candidate template
+        ignored: substitution failure [with _Tp = spats::Registry::AssetModificationBlockBookkeeping, _Args = <std::optional<uint256>, int &>]: no matching constructor for
+        initialization of 'spats::Registry::AssetModificationBlockBookkeeping' _LIBCPP_HIDE_FROM_ABI constexpr _Tp* construct_at(_Tp* __location, _Args&&... __args) {*/
+      // TODO consider removing once any used clang is of version 16 or newer
+      AssetModificationBlockBookkeeping( std::optional< block_hash_t > blockhash_before_modification, int modification_block_height ) noexcept
+         : block_hash_before_modification( blockhash_before_modification )
+         , block_height_modification_applied_at( modification_block_height )
+      {}
    };
 
    // The deque here is intended to be used like a stack, except during the very old blocks history cleanup, where elements may be removed from its front
