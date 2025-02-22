@@ -2,7 +2,6 @@
 #define FIRO_QT_AUTOMINTMODEL_H
 
 #include "../amount.h"
-#include "../ui_interface.h"
 #include "../uint256.h"
 #include "../validation.h"
 
