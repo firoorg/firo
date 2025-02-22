@@ -247,13 +247,14 @@ target_link_libraries(bitcoin_common
     $<$<PLATFORM_ID:Windows>:ws2_32>
 )
 
+include(InstallBinaryComponent)
 set(installable_targets)
 if(ENABLE_WALLET)
   add_subdirectory(wallet)
 endif()
 
 
-# P2P and RPC server functionality used by `bitcoind` and `bitcoin-qt` executables.
+# P2P and RPC server functionality used by `bitcoind` and `firo-qt` executables.
 add_library(firo_node STATIC EXCLUDE_FROM_ALL
   addrdb.cpp
   addrman.cpp
