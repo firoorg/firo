@@ -484,7 +484,7 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     QString watchAddress;
     if (tooltip) {
         // Mark transactions involving watch-only addresses by adding " (watch-only)"
-        watchAddress = wtx->involvesWatchAddress ? QString(" (") + tr("watch-only") + QString(")") : "";
+        watchAddress = wtx->involvesWatchAddress ? QString(" (") + tr("watch-only") + QString(")") : QString("");
     }
 
     switch(wtx->type)
