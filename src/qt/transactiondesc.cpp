@@ -43,13 +43,13 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
         else if (nDepth == 0) {
             if (wtx.InMempool()) {
                 strTxStatus = "0/unconfirmed, in memory pool" +
-                    (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
+                    (wtx.isAbandoned() ? ", "+tr("abandoned") : QString(""));
             } else if (wtx.InStempool()) {
                 strTxStatus = "0/unconfirmed, in dandelion stem pool"+
-                    (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
+                    (wtx.isAbandoned() ? ", "+tr("abandoned") : QString(""));
             } else {
                 strTxStatus = "0/unconfirmed, not in memory pool" +
-                    (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
+                    (wtx.isAbandoned() ? ", "+tr("abandoned") : QString(""));
             }
         }
         else if (nDepth < TransactionRecord::RecommendedNumConfirmations)
