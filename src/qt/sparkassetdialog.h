@@ -77,6 +77,7 @@ private Q_SLOTS:
    void onFungibilityChanged( int state );
 
    void onAssetTypeChanged( int asset_type_value );
+   void onPrecisionChanged( int precision_value );
 
 private:
    const dialog_context_t context_;

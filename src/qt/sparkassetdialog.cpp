@@ -42,16 +42,13 @@ SparkAssetDialog::SparkAssetDialog( const PlatformStyle *platform_style, dialog_
    ui_->identifierSpinBox->setMinimum( 0 );   // Set minimum identifier value
    ui_->identifierSpinBox->setMaximum( utils::to_underlying( spats::max_allowed_identifier_value ) );   // Set maximum identifier value
 
-   // Set up the totalSupplySpin (QDoubleSpinBox) to handle double values
-   ui_->totalSupplySpin->setDecimals( 8 );   // Allow up to 2 decimal places by default // TODO control this and below one by precisionSpinBox
-   ui_->totalSupplySpin->setSingleStep( 0.00000001 );   // Step size for precision adjustment
    ui_->totalSupplySpin->setMinimum( 0.0 );   // Minimum value
-   ui_->totalSupplySpin->setMaximum( 1000000000.0 );   // Maximum value
 
    // Set up the precisionSpinBox to control precision
+   connect( ui_->precisionSpinBox, static_cast< void ( QSpinBox::* )( int ) >( &QSpinBox::valueChanged ), this, &SparkAssetDialog::onPrecisionChanged );
    ui_->precisionSpinBox->setMinimum( 0 );   // Allow 0 precision (integer values)
    ui_->precisionSpinBox->setMaximum( std::numeric_limits< std::uint64_t >::digits10 - 1 );
-   ui_->precisionSpinBox->setValue( 8 );
+   ui_->precisionSpinBox->setValue( 8 );   // will trigger onPrecisionChanged(), which is what we want
 
    // Apply the PlatformStyle if needed
    if ( platform_style ) {
@@ -118,6 +115,7 @@ void SparkAssetDialog::onFungibilityChanged( int state )
       ui_->totalSupplySpin->setEnabled( is_fungible );
       ui_->resupplyableCheckBox->setEnabled( is_fungible );
       ui_->precisionSpinBox->setEnabled( is_fungible );
+      ui_->precisionSpinBox->setValue( is_fungible ? 8 : 0 );   // will trigger onPrecisionChanged(), which is what we want
 
       // Non-Fungible-specific fields
       ui_->identifierSpinBox->setEnabled( !is_fungible );
@@ -127,6 +125,7 @@ void SparkAssetDialog::onFungibilityChanged( int state )
       }
       else {
          ui_->assetTypeSpinBox->setValue( context->lowest_available_asset_type_for_new_nft_line );
+         ui_->totalSupplySpin->setValue( 1. );
       }
       onAssetTypeChanged( ui_->assetTypeSpinBox->value() );
    }
@@ -145,6 +144,19 @@ void SparkAssetDialog::onAssetTypeChanged( int asset_type_value )
          ui_->identifierSpinBox->setValue( 0 );
       else
          ui_->identifierSpinBox->setValue( get_lowest_available_identifier_for_nft_line( asset_type ) );
+   }
+   catch ( const std::exception &e ) {
+      ui_->errorLabel->setText( e.what() );
+      ui_->errorLabel->setVisible( true );
+   }
+}
+
+void SparkAssetDialog::onPrecisionChanged( int precision_value )
+{
+   try {
+      ui_->totalSupplySpin->setDecimals( precision_value );
+      ui_->totalSupplySpin->setSingleStep( std::pow( 10, -precision_value ) );
+      ui_->totalSupplySpin->setMaximum( spats::supply_amount_t( 0, precision_value ).max_value().as_double() );
    }
    catch ( const std::exception &e ) {
       ui_->errorLabel->setText( e.what() );
@@ -189,6 +201,10 @@ void SparkAssetDialog::set_fields( const spats::SparkAsset &existing_asset )
                                   [ & ]( const spats::NonfungibleSparkAsset &nft ) {
                                      ui_->fungibilityCheckBox->setChecked( false );
                                      ui_->identifierSpinBox->setValue( utils::to_underlying( nft.identifier() ) );
+                                     ui_->totalSupplySpin->setDecimals( 0 );
+                                     ui_->totalSupplySpin->setValue( 1. );
+                                     ui_->precisionSpinBox->setValue( 0 );
+                                     ui_->resupplyableCheckBox->setChecked( false );
                                   } },
                existing_asset );
 

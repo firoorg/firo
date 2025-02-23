@@ -127,7 +127,7 @@ void MyOwnSpats::adjustTextSize( int width, int height )
    font.setPointSize( font_size );
 
    // Set font size for all labels
-   ui_->label_filter_2->setFont( font );    // TODO implement the filtering
+   ui_->label_filter_2->setFont( font );   // TODO implement the filtering
    ui_->label_count_2->setFont( font );
    ui_->countLabel->setFont( font );
    ui_->tableWidgetMyOwnSpats->setFont( font );
