@@ -58,10 +58,50 @@ public:
    // No direct assignment from integers either, too error-prone potentially
    void operator=( std::integral auto ) = delete;
 
-   // TODO @= overloads, with checks against overflow/underflow/wraparound
+   scaled_amount &operator+=( scaled_amount const &rhs )
+   {
+      if ( precision() != rhs.precision() ) {
+         assert( "scaled_amount op+= requires precisions to match" );
+         throw std::invalid_argument( "scaled_amount op+= requires precisions to match" );
+      }
+      const auto result = raw() + rhs.raw();
+      if ( rhs.raw() > 0 && result < raw() )
+         throw std::overflow_error( "scaled_amount op+= would result in overflow, thus rejected" );
+      if ( rhs.raw() < 0 && result > raw() )
+         throw std::underflow_error( "scaled_amount op+= would result in underflow, thus rejected" );
+      raw_amount_ = result;
+      return *this;
+   }
+
+   scaled_amount &operator-=( scaled_amount const &rhs )
+   {
+      if ( precision() != rhs.precision() ) {
+         assert( "scaled_amount op-= requires precisions to match" );
+         throw std::invalid_argument( "scaled_amount op-= requires precisions to match" );
+      }
+      if constexpr ( std::is_unsigned_v< RawAmountType > )
+         if ( rhs.raw() > raw() )   // checking against unsigned wraparound (technically not an underflow, but here we treat it as such anyway)
+            throw std::underflow_error( "scaled_amount op-= would result in underflow, thus rejected" );
+      const auto result = raw() - rhs.raw();
+      if ( rhs.raw() > 0 && result > raw() )
+         throw std::underflow_error( "scaled_amount op-= would result in underflow, thus rejected" );
+      if ( rhs.raw() < 0 && result < raw() )
+         throw std::overflow_error( "scaled_amount op-= would result in overflow, thus rejected" );
+      raw_amount_ = result;
+      return *this;
+   }
+
+   // TODO more @= overloads, with checks against overflow/underflow/wraparound
 
    [[nodiscard]] constexpr raw_amount_type raw() const noexcept { return raw_amount_; }
    [[nodiscard]] constexpr precision_type precision() const noexcept { return precision_; }
+
+   constexpr auto decimal_factor() const noexcept { return math::integral_power( std::uintmax_t( 10 ), precision() ); }
+
+   // The maximum supported value with the current .precision()
+   constexpr scaled_amount max_value() const noexcept { return { std::numeric_limits< raw_amount_type >::max(), precision() }; }
+   // The minimum supported value with the current .precision()
+   constexpr scaled_amount min_value() const noexcept { return { std::numeric_limits< raw_amount_type >::min(), precision() }; }
 
    // ATTENTION: only use if you are absolutely sure that .precision() already has the value you want for it!
    constexpr void set_raw( raw_amount_type raw ) noexcept { raw_amount_ = raw; }
@@ -75,7 +115,7 @@ public:
       return { before, after };
    }
 
-   [[nodiscard]] constexpr double as_double() const noexcept { return raw() / decimal_factor(); }
+   [[nodiscard]] constexpr double as_double() const noexcept { return raw() / static_cast< double >( decimal_factor() ); }
    explicit constexpr operator double() const noexcept { return as_double(); }
 
    explicit constexpr operator bool() const noexcept { return !!raw_amount_; }
@@ -90,8 +130,27 @@ public:
          return lhs.raw() == rhs.raw();
       }
       catch ( ... ) {
-         return false;
+         // falling back to the slower but more robust check:
+         return operator<=>( rhs ) == std::strong_ordering::equal;
       }
+   }
+
+   // Yes, strong_ordering, because if it compares equal with <=> then it will definitely compare equal with == too here
+   std::strong_ordering operator<=>( scaled_amount const &rhs ) const noexcept
+   {
+      if ( precision() == rhs.precision() )
+         return raw() <=> rhs.raw();
+      // comparing a.x with b.y
+      const auto [ a, x ] = unpack();
+      const auto [ b, y ] = rhs.unpack();
+      if ( a < b )
+         return std::strong_ordering::less;
+      if ( a > b )
+         return std::strong_ordering::greater;
+      const auto dfx = decimal_factor();
+      const auto dfy = rhs.decimal_factor();
+      const auto maxdf = std::max( dfx, dfy );
+      return x * ( maxdf / dfx ) <=> y * ( maxdf / dfy );
    }
 
 private:
@@ -117,11 +176,21 @@ private:
       precision_ = precision;
       std::cout << "as_double() after = " << as_double() << "\n";
    }
-
-   constexpr auto decimal_factor() const noexcept { return math::integral_power( std::uintmax_t( 10 ), precision() ); }
 };
 
-// TODO more comparison operators
+template < typename RawAmountType >
+scaled_amount< RawAmountType > operator+( scaled_amount< RawAmountType > lhs, const scaled_amount< RawAmountType > &rhs )
+{
+   lhs += rhs;
+   return lhs;
+}
+
+template < typename RawAmountType >
+scaled_amount< RawAmountType > operator-( scaled_amount< RawAmountType > lhs, const scaled_amount< RawAmountType > &rhs )
+{
+   lhs -= rhs;
+   return lhs;
+}
 
 template < typename CharT, typename Traits, typename RawAmountType >
 std::basic_ostream< CharT, Traits > &operator<<( std::basic_ostream< CharT, Traits > &os, const scaled_amount< RawAmountType > &amount )
