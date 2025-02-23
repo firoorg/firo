@@ -204,6 +204,8 @@ public:
 
     WalletModelTransaction initSparkNameTransaction(CAmount sparkNameFee);
 
+    QString getSparkNameAddress(const QString &sparkName);
+
     SendCoinsReturn prepareSparkNameTransaction(
         WalletModelTransaction &transaction,
         CSparkNameTxData &sparkNameData,

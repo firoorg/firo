@@ -308,6 +308,19 @@ void SendCoinsDialog::on_sendButton_clicked()
     else
         ctrl.nConfirmTarget = 0;
 
+    // resolve spark names in recipients list
+    for (auto &recipient : recipients) {
+        if (recipient.address.startsWith("@")) {
+            QString sparkName = recipient.address.mid(1);
+            QString address = model->getSparkNameAddress(sparkName);
+            if (address.isEmpty()) {
+                QMessageBox::critical(this, tr("Error"), tr("Spark name %1 not found").arg(sparkName));
+                return;
+            }
+            recipient.address = address;
+        }
+    }
+
     int sparkAddressCount = 0;
     int exchangeAddressCount = 0;
     for(int i = 0; i < recipients.size(); ++i){

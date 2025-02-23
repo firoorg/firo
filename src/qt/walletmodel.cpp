@@ -1587,6 +1587,18 @@ WalletModelTransaction WalletModel::initSparkNameTransaction(CAmount sparkNameFe
     return WalletModelTransaction({recipient});
 }
 
+QString WalletModel::getSparkNameAddress(const QString &sparkName) {
+    LOCK(cs_main);
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    std::string sparkAddress;
+    if (sparkNameManager->GetSparkAddress(sparkName.toStdString(), sparkAddress)) {
+        return QString::fromStdString(sparkAddress);
+    }
+    else {
+        return "";
+    }
+}
+
 WalletModel::SendCoinsReturn WalletModel::prepareSparkNameTransaction(WalletModelTransaction &transaction, CSparkNameTxData &sparkNameData, CAmount sparkNameFee, const CCoinControl* coinControl)
 {
     CAmount nBalance;
