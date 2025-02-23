@@ -461,6 +461,7 @@ public:
     bool IsSpatsCreate() const;
     bool IsSpatsUnregister() const;
     bool IsSpatsModify() const;
+    bool IsSpatsMint() const;
 
     bool HasNoRegularInputs() const;
     bool HasPrivateInputs() const;

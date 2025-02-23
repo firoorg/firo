@@ -10,8 +10,23 @@
 
 #include "walletmodel.h"
 #include "sparkassetdialog.h"
+#include "spatsmintdialog.h"
 #include "myownspats.h"
 #include "ui_myownspats.h"
+
+enum MyOwnSpatsColumns {
+   ColumnAssetType = 0,
+   ColumnIdentifier,
+   ColumnSymbol,
+   ColumnName,
+   ColumnDescription,
+   ColumnTotalSupply,
+   ColumnFungible,
+   ColumnResupplyable,
+   ColumnPrecision,
+   ColumnMetadata,
+   ColumnCount   // This keeps the count of total columns, always keep last!
+};
 
 MyOwnSpats::MyOwnSpats( const PlatformStyle *platform_style, QWidget *parent )
    : QWidget( parent )
@@ -22,6 +37,7 @@ MyOwnSpats::MyOwnSpats( const PlatformStyle *platform_style, QWidget *parent )
    ui_->tableWidgetMyOwnSpats->setSelectionBehavior( QAbstractItemView::SelectRows );
    ui_->tableWidgetMyOwnSpats->setSelectionMode( QAbstractItemView::SingleSelection );
    connect( ui_->create_spark_asset, &QPushButton::clicked, this, &MyOwnSpats::onCreateButtonClicked );
+   connect( ui_->mint_spark_asset, &QPushButton::clicked, this, &MyOwnSpats::onMintButtonClicked );
    connect( ui_->modify_spark_asset, &QPushButton::clicked, this, &MyOwnSpats::onModifyButtonClicked );
    connect( ui_->unregister_spark_asset, &QPushButton::clicked, this, &MyOwnSpats::onUnregisterButtonClicked );
    connect( this, &MyOwnSpats::displayMyOwnSpatsSignal, this, &MyOwnSpats::handleDisplayMyOwnSpatsSignal );
@@ -50,19 +66,19 @@ void MyOwnSpats::display_my_own_spats()
       QTableWidgetItem *item;
 
       // Fill the table with all attributes to be displayed
-      ui_->tableWidgetMyOwnSpats->setItem( row, 0, new QTableWidgetItem( QString::number( a.asset_type ) ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, 1, new QTableWidgetItem( QString::number( a.identifier ) ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, 2, new QTableWidgetItem( QString::fromStdString( a.symbol ) ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, 3, new QTableWidgetItem( QString::fromStdString( a.name ) ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, 4, new QTableWidgetItem( QString::fromStdString( a.description ) ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, 5, new QTableWidgetItem( QString::fromStdString( a.total_supply ) ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, 6, new QTableWidgetItem( a.fungible ? "Yes" : "No" ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, 7, new QTableWidgetItem( a.resupplyable ? "Yes" : "No" ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, 8, new QTableWidgetItem( QString::number( a.precision ) ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, 9, new QTableWidgetItem( QString::fromStdString( a.metadata ) ) );
+      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnAssetType, new QTableWidgetItem( QString::number( a.asset_type ) ) );
+      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnIdentifier, new QTableWidgetItem( QString::number( a.identifier ) ) );
+      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnSymbol, new QTableWidgetItem( QString::fromStdString( a.symbol ) ) );
+      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnName, new QTableWidgetItem( QString::fromStdString( a.name ) ) );
+      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnDescription, new QTableWidgetItem( QString::fromStdString( a.description ) ) );
+      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnTotalSupply, new QTableWidgetItem( QString::fromStdString( a.total_supply ) ) );
+      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnFungible, new QTableWidgetItem( a.fungible ? "Yes" : "No" ) );
+      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnResupplyable, new QTableWidgetItem( a.resupplyable ? "Yes" : "No" ) );
+      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnPrecision, new QTableWidgetItem( QString::number( a.precision ) ) );
+      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnMetadata, new QTableWidgetItem( QString::fromStdString( a.metadata ) ) );
 
       // Make the table items read-only to prevent user editing
-      for ( int col = 0; col < 10; ++col )
+      for ( int col = ColumnAssetType; col < ColumnCount; ++col )
          ui_->tableWidgetMyOwnSpats->item( row, col )->setFlags( ui_->tableWidgetMyOwnSpats->item( row, col )->flags() & ~Qt::ItemIsEditable );
       ++row;
    }
@@ -111,7 +127,7 @@ void MyOwnSpats::adjustTextSize( int width, int height )
    font.setPointSize( font_size );
 
    // Set font size for all labels
-   ui_->label_filter_2->setFont( font );
+   ui_->label_filter_2->setFont( font );    // TODO implement the filtering
    ui_->label_count_2->setFont( font );
    ui_->countLabel->setFont( font );
    ui_->tableWidgetMyOwnSpats->setFont( font );
@@ -146,15 +162,40 @@ void MyOwnSpats::onCreateButtonClicked()
    }
 }
 
+void MyOwnSpats::onMintButtonClicked()
+{
+   assert( wallet_model_ );
+   if ( const auto row = get_the_selected_row() ) {
+      try {
+         const bool resuppliable = ui_->tableWidgetMyOwnSpats->item( *row, ColumnResupplyable )->text() == "Yes";
+         if ( !resuppliable )
+            throw std::domain_error( "Cannot mint for a non-resuppliable asset!" );
+         const spats::asset_type_t asset_type{ ui_->tableWidgetMyOwnSpats->item( *row, ColumnAssetType )->text().toULongLong() };
+         assert( is_fungible_asset_type( asset_type ) );
+         const auto &asset = my_own_assets_map_.at( spats::universal_asset_id_t{ asset_type, {} } );
+         const auto &fungible_asset = std::get< spats::FungibleSparkAsset >( asset );
+         assert( fungible_asset.resupplyable() );
+         SpatsMintDialog dialog( platform_style_, fungible_asset, this );
+         if ( dialog.exec() == QDialog::Accepted )
+            wallet_model_->getWallet()->MintSparkAssetSupply( asset_type, dialog.getNewSupply(), dialog.getRecipient() );   // TODO user confirm callback
+      }
+      catch ( const std::exception &e ) {
+         QMessageBox::critical( this, tr( "Error" ), tr( "An error occurred: %1" ).arg( e.what() ) );
+      }
+   }
+   else
+      QMessageBox::critical( this, tr( "Error" ), tr( "Please select an asset to mint for." ) );
+}
+
 void MyOwnSpats::onModifyButtonClicked()
 {
    assert( wallet_model_ );
    if ( const auto row = get_the_selected_row() ) {
       try {
-         const spats::asset_type_t asset_type{ ui_->tableWidgetMyOwnSpats->item( *row, 0 )->text().toULongLong() };
+         const spats::asset_type_t asset_type{ ui_->tableWidgetMyOwnSpats->item( *row, ColumnAssetType )->text().toULongLong() };
          spats::identifier_t identifier{ 0 };
          if ( !is_fungible_asset_type( asset_type ) )
-            identifier = spats::identifier_t{ ui_->tableWidgetMyOwnSpats->item( *row, 1 )->text().toULongLong() };
+            identifier = spats::identifier_t{ ui_->tableWidgetMyOwnSpats->item( *row, ColumnIdentifier )->text().toULongLong() };
          const auto &existing_asset = my_own_assets_map_.at( spats::universal_asset_id_t{ asset_type, identifier } );
          SparkAssetDialog dialog( platform_style_, existing_asset, this );
          if ( dialog.exec() == QDialog::Accepted )
@@ -173,10 +214,10 @@ void MyOwnSpats::onUnregisterButtonClicked()
    assert( wallet_model_ );
    if ( const auto row = get_the_selected_row() ) {
       try {
-         const spats::asset_type_t asset_type{ ui_->tableWidgetMyOwnSpats->item( *row, 0 )->text().toULongLong() };
+         const spats::asset_type_t asset_type{ ui_->tableWidgetMyOwnSpats->item( *row, ColumnAssetType )->text().toULongLong() };
          std::optional< spats::identifier_t > identifier;
          if ( !is_fungible_asset_type( asset_type ) ) {
-            identifier = spats::identifier_t{ ui_->tableWidgetMyOwnSpats->item( *row, 1 )->text().toULongLong() };
+            identifier = spats::identifier_t{ ui_->tableWidgetMyOwnSpats->item( *row, ColumnIdentifier )->text().toULongLong() };
             if ( any_other_nfts_within_same_line( asset_type, *identifier ) ) {
                const QMessageBox::StandardButton reply = QMessageBox::question( this,
                                                                                 tr( "Unregister NFT" ),
@@ -209,9 +250,11 @@ void MyOwnSpats::onUnregisterButtonClicked()
 void MyOwnSpats::updateButtonStates()
 {
    // Enable or disable buttons based on whether an item is selected in the table
-   const bool row_selected = get_the_selected_row().has_value();
-   for ( auto *const button : { ui_->mint_spark_asset, ui_->modify_spark_asset, ui_->unregister_spark_asset } )
+   const auto the_selected_row = get_the_selected_row();
+   const bool row_selected = the_selected_row.has_value();
+   for ( auto *const button : { ui_->modify_spark_asset, ui_->unregister_spark_asset } )
       button->setEnabled( row_selected );
+   ui_->mint_spark_asset->setEnabled( row_selected && ui_->tableWidgetMyOwnSpats->item( *the_selected_row, ColumnResupplyable )->text() == "Yes" );
 }
 
 std::optional< int > MyOwnSpats::get_the_selected_row() const

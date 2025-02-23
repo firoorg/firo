@@ -65,6 +65,9 @@ private:
       if ( asset_type_ == base::asset_type )
          throw std::domain_error( "The base asset cannot be unregistered!" );
 
+      if ( asset_type_ > max_allowed_asset_type_value )
+         throw std::invalid_argument( "asset_type value for unregistration unsupported: too big" );
+
       if ( is_fungible_asset_type( asset_type_ ) ) {
          if ( identifier_ )
             if ( *identifier_ == identifier_t{ 0 } )
@@ -73,6 +76,8 @@ private:
                throw std::invalid_argument( "No 'identifier' should be provided for identifying a fungible asset" );
          assert( !identifier_ );
       }
+      else if ( identifier_ && *identifier_ > max_allowed_identifier_value )
+         throw std::invalid_argument( "identifier value for unregistration unsupported: too big" );
 
       if ( initiator_public_address_.empty() )
          throw std::domain_error( "Initiator public address is required for a spark asset unregistration" );
@@ -98,6 +103,7 @@ public:
 
 private:
    SparkAsset asset_;
+   // TODO flag for asset_type adjustability, for avoiding failure due to the asset_type getting taken away by someone else under one's feet
    static constexpr std::uint8_t serialization_version = 1;
 
    template < typename Stream >
@@ -121,7 +127,7 @@ SparkAsset CreateAssetAction::Unserialize( Stream &is )
 
 class UnregisterAssetAction {
 public:
-   explicit UnregisterAssetAction( UnregisterAssetParameters parameters )
+   explicit UnregisterAssetAction( UnregisterAssetParameters parameters ) noexcept
       : parameters_( std::move( parameters ) )
    {}
 
@@ -193,7 +199,106 @@ AssetModification ModifyAssetAction::Unserialize( Stream &is )
    return UnserializeVariant< AssetModification >( is );
 }
 
-using Action = std::variant< CreateAssetAction, UnregisterAssetAction, ModifyAssetAction >;   // TODO more
+class MintParameters {
+public:
+   MintParameters( asset_type_t asset_type, supply_amount_t new_supply, public_address_t receiver_pubaddress, public_address_t initiator_pubaddress )
+      : asset_type_( asset_type )
+      , new_supply_( new_supply )
+      , receiver_public_address_( std::move( receiver_pubaddress ) )
+      , initiator_public_address_( std::move( initiator_pubaddress ) )
+   {
+      validate();
+   }
+
+   template < typename Stream >
+   MintParameters( deserialize_type, Stream &is )
+   {
+      supply_amount_t::precision_type precision;
+      supply_amount_t::raw_amount_type new_supply_raw;
+      is >> asset_type_ >> precision >> new_supply_raw >> receiver_public_address_ >> initiator_public_address_;
+      new_supply_ = { new_supply_raw, precision };
+      validate();
+   }
+
+   template < typename Stream >
+   void Serialize( Stream &os ) const
+   {
+      os << asset_type_ << new_supply_.precision() << new_supply_.raw() << receiver_public_address_ << initiator_public_address_;
+   }
+
+   asset_type_t asset_type() const noexcept
+   {
+      assert( asset_type_ != base::asset_type );
+      assert( is_fungible_asset_type( asset_type_ ) );
+      return asset_type_;
+   }
+
+   supply_amount_t new_supply() const noexcept { return new_supply_; }
+
+   const public_address_t &initiator_public_address() const noexcept { return initiator_public_address_; }
+   const public_address_t &receiver_public_address() const noexcept { return receiver_public_address_.empty() ? initiator_public_address_ : receiver_public_address_; }
+
+private:
+   asset_type_t asset_type_;
+   supply_amount_t new_supply_;
+   public_address_t receiver_public_address_;
+   public_address_t initiator_public_address_;
+
+   void validate() const
+   {
+      if ( asset_type_ > max_allowed_asset_type_value )
+         throw std::invalid_argument( "asset_type value for mint unsupported: too big" );
+
+      if ( !is_fungible_asset_type( asset_type_ ) )
+         throw std::invalid_argument( "NFTs can never have their total supply changed by any means, including minting" );
+
+      if ( !new_supply_ )
+         throw std::invalid_argument( "Non-zero new supply is required for spats mint" );
+      assert( new_supply_ > supply_amount_t{} );
+
+      if ( asset_type_ == base::asset_type )
+         throw std::domain_error( "Spats mint cannot make new supply for the base asset" );
+
+      if ( initiator_public_address_.empty() )
+         throw std::domain_error( "Initiator public address is required for spats mint" );
+   }
+};
+
+class MintAction {
+public:
+   explicit MintAction( MintParameters parameters ) noexcept
+      : parameters_( std::move( parameters ) )
+   {}
+
+   template < typename Stream >
+   MintAction( deserialize_type, Stream &is )
+      : parameters_( Unserialize( is ) )
+   {}
+
+   template < typename Stream >
+   void Serialize( Stream &os ) const
+   {
+      os << serialization_version;
+      os << parameters_;
+   }
+
+   const MintParameters &get() const & noexcept { return parameters_; }
+   MintParameters &&get() && noexcept { return std::move( parameters_ ); }
+
+private:
+   MintParameters parameters_;
+   static constexpr std::uint8_t serialization_version = 1;
+
+   template < typename Stream >
+   static MintParameters Unserialize( Stream &is )
+   {
+      std::uint8_t version;
+      is >> version;
+      return MintParameters( deserialize, is );
+   }
+};
+
+using Action = std::variant< CreateAssetAction, UnregisterAssetAction, ModifyAssetAction, MintAction >;   // TODO more
 
 using ActionSequence = std::vector< Action >;
 

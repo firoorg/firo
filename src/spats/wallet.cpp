@@ -44,6 +44,19 @@ Scalar Wallet::compute_modify_spark_asset_serialization_scalar( const AssetModif
    return ret;
 }
 
+Scalar Wallet::compute_mint_asset_supply_serialization_scalar( const MintParameters &p, std::span< const unsigned char > mint_serialization_bytes )
+{
+   spark::Hash hash( tfm::format( "spatsmint_%u_for_%u_to_%s_from_%s",
+                                  p.new_supply(),
+                                  utils::to_underlying( p.asset_type() ),
+                                  p.receiver_public_address(),
+                                  p.initiator_public_address() ) );
+   hash.include( mint_serialization_bytes );
+   auto ret = hash.finalize_scalar();
+   LogPrintf( "Spats mint serialization scalar (hex): %s\n", ret.GetHex() );
+   return ret;
+}
+
 Wallet::Wallet( CSparkWallet &spark_wallet ) noexcept
    : spark_wallet_( spark_wallet )
    , registry_( spark::CSparkState::GetState()->GetSpatsManager().registry() )
@@ -164,6 +177,39 @@ CWalletTx Wallet::create_modify_spark_asset_transaction( const SparkAsset &old_a
                                                         standard_fee,
                                                         nullptr );   // may throw
    assert( tx.tx->IsSpatsModify() );
+   return tx;
+}
+
+CWalletTx Wallet::create_mint_asset_supply_transaction( asset_type_t asset_type,
+                                                        supply_amount_t new_supply,
+                                                        const public_address_t &receiver_pubaddress,
+                                                        CAmount &standard_fee ) const
+{
+   const auto &admin_public_address = my_public_address_as_admin();
+   const MintParameters action_params( asset_type, new_supply, receiver_pubaddress, admin_public_address );
+   CScript script;
+   script << OP_SPATSMINT;
+   assert( script.IsSpatsMint() );
+   CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
+   serialized << MintAction( action_params );
+   // TODO instead of how it is being done now, put ownership proof into script default-constructed first, then compute ownership proof from the whole tx, and overwrite
+   //      the ownership proof in the script then
+   const auto scalar_of_proof = compute_mint_asset_supply_serialization_scalar( action_params, serialized.as_bytes_span() );
+   const spark::OwnershipProof proof = spark_wallet_.makeDefaultAddressOwnershipProof( scalar_of_proof );
+   LogPrintf( "Ownership proof for mint asset supply (hex): %s\n", proof );
+   CDataStream proof_serialized( SER_NETWORK, PROTOCOL_VERSION );
+   proof_serialized << proof;
+   script.insert( script.end(), serialized.begin(), serialized.end() );
+   assert( script.IsSpatsMint() );
+   script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
+   assert( script.IsSpatsMint() );
+   // TODO add a recipient to action_params.receiver_public_address(), for `new_supply` of `asset_type`. It has to be done in such a way that the actual crediting of
+   //      `new_supply` will NOT be actually performed if the action validation by the registry fails.
+   auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, admin_public_address, "spats mint" } },
+                                                        {},
+                                                        standard_fee,
+                                                        nullptr );   // may throw
+   assert( tx.tx->IsSpatsMint() );
    return tx;
 }
 

@@ -15,7 +15,8 @@
 #include "ui_sparkassetdialog.h"
 #include "sparkassetdialog.h"
 
-static spats::supply_amount_t convert_to_supply_amount( double value, unsigned precision )
+// TODO move to a common location, with a header usable by spatsmintdialog too
+spats::supply_amount_t convert_to_supply_amount( double value, unsigned precision )
 {
    const double scaled_value = value * utils::math::integral_power( std::uintmax_t( 10 ), precision );
    const spats::supply_amount_t a{ boost::numeric_cast< std::uint64_t >( std::round( scaled_value ) ), precision };
@@ -180,8 +181,9 @@ void SparkAssetDialog::set_fields( const spats::SparkAsset &existing_asset )
 
    std::visit( utils::overloaded{ [ & ]( const spats::FungibleSparkAsset &fungible ) {
                                     ui_->fungibilityCheckBox->setChecked( true );
-                                    ui_->totalSupplySpin->setValue( fungible.total_supply().raw() / std::pow( 10.0, ui_->precisionSpinBox->value() ) );
-                                    ui_->precisionSpinBox->setValue( fungible.total_supply().precision() );
+                                    ui_->totalSupplySpin->setDecimals( fungible.precision() );
+                                    ui_->totalSupplySpin->setValue( fungible.total_supply().as_double() );
+                                    ui_->precisionSpinBox->setValue( fungible.precision() );
                                     ui_->resupplyableCheckBox->setChecked( fungible.resupplyable() );
                                  },
                                   [ & ]( const spats::NonfungibleSparkAsset &nft ) {

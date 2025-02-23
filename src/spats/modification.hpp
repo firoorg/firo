@@ -73,6 +73,7 @@ protected:
       , metadata_change_( old_asset_base.metadata(), new_asset_base.metadata() )
    {
       // TODO: should modifications to the base asset (FIRO) be forbidden? Allowing those for now...
+      assert( asset_type_ <= max_allowed_asset_type_value );
       if ( old_asset_base.asset_type() != new_asset_base.asset_type() )
          throw std::domain_error( "Spats asset type cannot be modified" );
       if ( old_asset_base.admin_public_address() != new_asset_base.admin_public_address() )
@@ -88,6 +89,8 @@ protected:
       , metadata_change_( d, is )
    {
       is >> asset_type_ >> initiator_public_address_;
+      if ( asset_type_ > max_allowed_asset_type_value )
+         throw std::invalid_argument( "Serialized asset_type value for asset modification unsupported: too big" );
       if ( initiator_public_address_.empty() )
          throw std::domain_error( "Empty initiator public address serialized for a spark asset modification" );
    }
@@ -132,7 +135,7 @@ public:
       : AssetModificationBase( old_asset, new_asset, std::move( initiator_public_address ) )
       , old_asset_( old_asset )
    {
-      if ( old_asset.total_supply().precision() != new_asset.total_supply().precision() )
+      if ( old_asset.precision() != new_asset.precision() )
          throw std::domain_error( "Spark asset's precision cannot be modified" );
       if ( old_asset.total_supply() != new_asset.total_supply() )
          throw std::domain_error( "Spark asset's total supply cannot be modified via a regular modification operation - use Mint or Burn operations instead" );

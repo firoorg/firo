@@ -190,6 +190,34 @@ bool Registry::process(
    return std::visit( [ &, wlp ]( const auto &x ) { return modify( x, block_height, block_hash, wlp, out_block_annotation_ptr ); }, m );
 }
 
+void Registry::validate( const MintParameters &p, read_lock_proof ) const
+{
+   assert( p.asset_type() <= max_allowed_asset_type_value );
+   assert( p.asset_type() != base::asset_type );
+   assert( is_fungible_asset_type( p.asset_type() ) );
+   assert( p.new_supply() );
+   const auto it = fungible_assets_.find( p.asset_type() );
+   if ( it == fungible_assets_.end() )
+      throw std::invalid_argument( "No such asset found to mint for" );
+   const FungibleSparkAsset &a = it->second;
+   if ( !a.resupplyable() )
+      throw std::domain_error( "Cannot mint new supply for a non-resupplyable asset" );
+   if ( p.new_supply().precision() != a.precision() )
+      throw std::domain_error( "Cannot mint new supply with a different precision than the asset's" );
+   if ( a.admin_public_address() != p.initiator_public_address() )
+      throw std::domain_error( "No permission to mint for the given asset" );
+   a.total_supply() + p.new_supply();   // may throw due to overflow
+}
+
+bool Registry::process( const MintParameters &p, int /*block_height*/, const std::optional< block_hash_t > & /*block_hash*/, write_lock_proof wlp )
+{
+   validate( p, wlp );   // will throw if invalid
+   const auto it = fungible_assets_.find( p.asset_type() );
+   assert( it != fungible_assets_.end() );
+   it->second.asset().add_new_supply( p.new_supply() );
+   return true;
+}
+
 bool Registry::unprocess( const SparkAsset &a, [[maybe_unused]] int block_height, write_lock_proof wlp )
 {
    const auto &b = get_base( a );
@@ -236,6 +264,14 @@ bool Registry::unprocess( const AssetModification &m, int block_height, write_lo
                                                  *block_annotation,
                                                  block_height,
                                                  wlp );
+   return true;
+}
+
+bool Registry::unprocess( const MintParameters &p, int /*block_height*/, write_lock_proof )
+{
+   const auto it = fungible_assets_.find( p.asset_type() );
+   assert( it != fungible_assets_.end() );
+   it->second.asset().remove_supply( p.new_supply() );
    return true;
 }
 

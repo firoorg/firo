@@ -205,9 +205,14 @@ private:
       return internal_modify( m, block_height, std::move( block_hash ), wlp, out_block_annotation_ptr );
    }
 
+   // minting
+   void validate( const MintParameters &p, read_lock_proof ) const;
+   bool process( const MintParameters &p, int block_height, const std::optional< block_hash_t > &block_hash, write_lock_proof );
+
    bool unprocess( const SparkAsset &a, int block_height, write_lock_proof wlp );
    bool unprocess( const UnregisterAssetParameters &p, int block_height, write_lock_proof );
    bool unprocess( const AssetModification &m, int block_height, write_lock_proof );
+   bool unprocess( const MintParameters &p, int block_height, write_lock_proof );
 
    void internal_add( const FungibleSparkAsset &a, std::optional< block_hash_t > block_hash, write_lock_proof );
    void internal_add( const NonfungibleSparkAsset &a, std::optional< block_hash_t > block_hash, write_lock_proof );

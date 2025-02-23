@@ -165,10 +165,27 @@ public:
    [[nodiscard]] supply_amount_t total_supply() const noexcept { return total_supply_; }
    [[nodiscard]] bool resupplyable() const noexcept { return resupplyable_; }
 
+   [[nodiscard]] supply_amount_t::precision_type precision() const noexcept { return total_supply_.precision(); }
+
    bool operator==( const BasicSparkAsset &rhs ) const noexcept = default;
 
    explicit operator SparkAssetDisplayAttributes() const;
    explicit operator universal_asset_id_t() const noexcept { return { asset_type(), identifier_t{} }; }
+
+   void add_new_supply( supply_amount_t new_supply )
+   {
+      assert( resupplyable_ );
+      assert( new_supply.precision() == total_supply_.precision() );
+      total_supply_ += new_supply;   // may throw due to overflow
+   }
+
+   void remove_supply( supply_amount_t new_supply )
+   {
+      assert( resupplyable_ );
+      assert( new_supply.precision() == total_supply_.precision() );
+      assert( new_supply <= total_supply_ );
+      total_supply_ -= new_supply;   // may throw due to underflow, iff the assert above would fail but is eliminated due to NDEBUG
+   }
 
 private:
    supply_amount_t total_supply_;   // Precision of the asset is included within this too
@@ -277,7 +294,7 @@ BasicSparkAsset< Fungible >::operator SparkAssetDisplayAttributes() const
    SparkAssetDisplayAttributes ret( b );
    ret.fungible = true;
    ret.total_supply = boost::lexical_cast< std::string >( total_supply() );
-   ret.precision = total_supply().precision();
+   ret.precision = precision();
    ret.resupplyable = resupplyable();
    return ret;
 }

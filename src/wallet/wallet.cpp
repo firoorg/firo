@@ -6003,6 +6003,39 @@ std::optional<CWalletTx> CWallet::ModifySparkAsset(const spats::SparkAsset& old_
     return wtx;
 }
 
+std::optional<CWalletTx> CWallet::MintSparkAssetSupply(spats::asset_type_t asset_type, spats::supply_amount_t new_supply, const spats::public_address_t &receiver_pubaddress,
+    const std::function<bool(CAmount standard_fee)>& user_confirmation_callback)
+{
+    // create transaction
+    CAmount standard_fee;
+    auto wtx = sparkWallet->getSpatsWallet().create_mint_asset_supply_transaction(asset_type, new_supply, receiver_pubaddress, standard_fee);
+
+    // give the user a chance to confirm/cancel
+    if (user_confirmation_callback && !user_confirmation_callback(standard_fee)) {
+       // TODO log cancellation by user
+       return {};
+    }
+
+    // commit
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(this);
+        if (!CommitTransaction(wtx, reserveKey, g_connman.get(), state))
+            throw std::runtime_error("Failed to commit mint spark asset supply transaction");
+    } catch (const std::exception &) {
+        auto error = _(
+                "Error: The MintSparkAssetSupply transaction was rejected! This might happen e.g. if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
+
+        std::throw_with_nested(std::runtime_error(error));
+    }
+
+    return wtx;
+}
+
 bool CWallet::LelantusToSpark(std::string& strFailReason) {
     std::list<CLelantusEntry> coins = GetAvailableLelantusCoins();
     std::list<CSigmaEntry> sigmaCoins = GetAvailableCoins();
