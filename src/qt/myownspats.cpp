@@ -167,9 +167,9 @@ void MyOwnSpats::onMintButtonClicked()
    assert( wallet_model_ );
    if ( const auto row = get_the_selected_row() ) {
       try {
-         const bool resuppliable = ui_->tableWidgetMyOwnSpats->item( *row, ColumnResupplyable )->text() == "Yes";
-         if ( !resuppliable )
-            throw std::domain_error( "Cannot mint for a non-resuppliable asset!" );
+         const bool resupplyable = ui_->tableWidgetMyOwnSpats->item( *row, ColumnResupplyable )->text() == "Yes";
+         if ( !resupplyable )
+            throw std::domain_error( "Cannot mint for a non-resupplyable asset!" );
          const spats::asset_type_t asset_type{ ui_->tableWidgetMyOwnSpats->item( *row, ColumnAssetType )->text().toULongLong() };
          assert( is_fungible_asset_type( asset_type ) );
          const auto &asset = my_own_assets_map_.at( spats::universal_asset_id_t{ asset_type, {} } );

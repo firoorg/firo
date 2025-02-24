@@ -106,7 +106,7 @@
          </column>
          <column>
           <property name="text">
-           <string>Resuppliable</string>
+           <string>Resupplyable</string>
           </property>
          </column>
          <column>

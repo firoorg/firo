@@ -140,7 +140,7 @@ public:
       if ( old_asset.total_supply() != new_asset.total_supply() )
          throw std::domain_error( "Spark asset's total supply cannot be modified via a regular modification operation - use Mint or Burn operations instead" );
       if ( old_asset.resupplyable() != new_asset.resupplyable() )
-         throw std::domain_error( "Spark asset's resuppliability cannot be modified" );
+         throw std::domain_error( "Spark asset's resupplyability cannot be modified" );
       assert( apply_on( FungibleSparkAsset( old_asset ) ) == new_asset );
       assert( this->new_asset() == new_asset );
    }

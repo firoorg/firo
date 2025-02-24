@@ -37,7 +37,7 @@ constexpr auto initial_admin_public_address = "<TODO find out>"sv;
 constexpr supply_amount_t initial_supply{ MAX_MONEY, 8 };
 static_assert( initial_supply.unpack() == std::pair< std::uint64_t, std::uint64_t >( 21'000'000, 0 ) );
 
-constexpr bool resuppliable = false;
+constexpr bool resupplyable = false;
 
 }   // namespace base
 }   // namespace spats

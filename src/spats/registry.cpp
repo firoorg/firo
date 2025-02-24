@@ -70,7 +70,7 @@ void Registry::add_the_base_asset( write_lock_proof wlp )
                                      std::string( base::metadata ),
                                      std::string( base::initial_admin_public_address ),
                                      base::initial_supply,
-                                     base::resuppliable },
+                                     base::resupplyable },
                  {},   // TODO or should this be the genesis block's hash?
                  wlp );
 }
