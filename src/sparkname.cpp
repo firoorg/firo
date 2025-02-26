@@ -7,19 +7,25 @@
 #include "base58.h"
 #include "sparkname.h"
 #include "validation.h"
+#include "ui_interface.h"
 
 CSparkNameManager *CSparkNameManager::sharedSparkNameManager = new CSparkNameManager();
 
 bool CSparkNameManager::AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntries)
 {
-    for (const auto &entry : pindex->removedSparkNames)
+    for (const auto &entry : pindex->removedSparkNames) {
+        sparkNameAddresses.erase(entry.second.sparkAddress);
         sparkNames.erase(ToUpper(entry.first));
+        uiInterface.NotifySparkNameRemoved(entry.second);
+    }
 
     for (const auto &entry : pindex->addedSparkNames) {
         std::string upperName = ToUpper(entry.first);
         if (sparkNames.count(upperName) > 0 && fBackupRewrittenEntries)
             pindex->removedSparkNames[upperName] = sparkNames[upperName];
         sparkNames[upperName] = entry.second;
+        sparkNameAddresses[entry.second.sparkAddress] = upperName;
+        uiInterface.NotifySparkNameAdded(entry.second);
     }
 
     return true;
@@ -27,11 +33,16 @@ bool CSparkNameManager::AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntri
 
 bool CSparkNameManager::RemoveBlock(CBlockIndex *pindex)
 {
-    for (const auto &entry : pindex->addedSparkNames)
+    for (const auto &entry : pindex->addedSparkNames) {
         sparkNames.erase(ToUpper(entry.first));
+        sparkNameAddresses.erase(entry.second.sparkAddress);
+        uiInterface.NotifySparkNameRemoved(entry.second);
+    }
 
     for (const auto &entry : pindex->removedSparkNames) {
         sparkNames[ToUpper(entry.first)] = entry.second;
+        sparkNameAddresses[entry.second.sparkAddress] = ToUpper(entry.first);
+        uiInterface.NotifySparkNameAdded(entry.second);
     }
 
     return true;
@@ -42,6 +53,16 @@ std::set<std::string> CSparkNameManager::GetSparkNames()
     std::set<std::string> result;
     for (const auto &entry : sparkNames)
         result.insert(entry.second.name);
+
+    return result;
+}
+
+std::vector<CSparkNameBlockIndexData> CSparkNameManager::DumpSparkNameData()
+{
+    std::vector<CSparkNameBlockIndexData> result;
+    result.reserve(sparkNames.size());
+    for (const auto &entry : sparkNames)
+        result.push_back(entry.second);
 
     return result;
 }
@@ -296,6 +317,7 @@ bool CSparkNameManager::AddSparkName(const std::string &name, const std::string 
 
     sparkNames[upperName] = CSparkNameBlockIndexData(name, address, validityBlocks, additionalInfo);
     sparkNameAddresses[address] = upperName;
+    uiInterface.NotifySparkNameAdded(sparkNames[upperName]);
 
     return true;
 }
@@ -307,8 +329,10 @@ bool CSparkNameManager::RemoveSparkName(const std::string &name, const std::stri
     if (sparkNames.count(upperName) == 0 || sparkNameAddresses.count(address) == 0)
         return false;
 
+    CSparkNameBlockIndexData sparkNameData = sparkNames[upperName];
     sparkNames.erase(upperName);
     sparkNameAddresses.erase(address);
+    uiInterface.NotifySparkNameRemoved(sparkNameData);
     
     return true;
 }

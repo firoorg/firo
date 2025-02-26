@@ -24,6 +24,7 @@ const QString AddressTableModel::Zerocoin = "X";
 const QString AddressTableModel::Transparent = "Transparent";
 const QString AddressTableModel::Spark = "Spark";
 const QString AddressTableModel::RAP = "RAP";
+const QString AddressTableModel::SparkName = "Spark names";
 
 struct AddressTableEntry
 {
@@ -34,11 +35,12 @@ struct AddressTableEntry
         Hidden /* QSortFilterProxyModel will filter these out */
     };
 
-    enum AddressType {
+/*    enum AddressType {
         Spark,
         Transparent,
-        RAP
-    };
+        RAP,
+        SparkName
+    };*/
 
     Type type;
     QString label;
@@ -91,14 +93,62 @@ public:
     QList<AddressTableEntry> cachedAddressTable;
     AddressTableModel *parent;
 
+    struct PendingSparkNameChange {
+        int changeType;
+        CSparkNameBlockIndexData sparkNameData;
+    };
+    QList<PendingSparkNameChange> pendingSparkNameChanges;
+
+    CCriticalSection cs_pendingSparkNameChanges;
+
+private:
+    void sparkNameAdded(const CSparkNameBlockIndexData &sparkNameData) {
+        LOCK(cs_pendingSparkNameChanges);
+        pendingSparkNameChanges.append(PendingSparkNameChange{CT_NEW, sparkNameData});
+    }
+
+    void sparkNameRemoved(const CSparkNameBlockIndexData &sparkNameData) {
+        LOCK(cs_pendingSparkNameChanges);
+        pendingSparkNameChanges.append(PendingSparkNameChange{CT_DELETED, sparkNameData});
+    }
+
+public:
     AddressTablePriv(CWallet *_wallet, AddressTableModel *_parent):
-        wallet(_wallet), parent(_parent) {}
+        wallet(_wallet), parent(_parent) {
+
+        uiInterface.NotifySparkNameAdded.connect(boost::bind(&AddressTablePriv::sparkNameAdded, this, _1));
+        uiInterface.NotifySparkNameRemoved.connect(boost::bind(&AddressTablePriv::sparkNameRemoved, this, _1));
+    }
+
+    ~AddressTablePriv() {
+        uiInterface.NotifySparkNameAdded.disconnect(boost::bind(&AddressTablePriv::sparkNameAdded, this, _1));
+        uiInterface.NotifySparkNameRemoved.disconnect(boost::bind(&AddressTablePriv::sparkNameRemoved, this, _1));
+    }
+
+    void refreshSparkNames()
+    {
+        CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+        std::vector<CSparkNameBlockIndexData> sparkNames = sparkNameManager->DumpSparkNameData();
+
+        for (const auto &entry : sparkNames) {
+            const std::string &sparkAddress = entry.sparkAddress;
+            const std::string &strName = std::string("@") + entry.name;
+            bool fMine = wallet->IsSparkAddressMine(sparkAddress);
+            AddressTableEntry::Type addressType = translateTransactionType("send", fMine);
+            cachedAddressTable.append(AddressTableEntry(addressType,
+                        QString::fromStdString(strName),
+                        QString::fromStdString(sparkAddress),
+                        AddressTableModel::SparkName));
+        }
+    }
 
     void refreshAddressTable()
     {
         cachedAddressTable.clear();
         {
+            LOCK(cs_main);      // for CSparkNameManager
             LOCK(wallet->cs_wallet);
+
             BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& item, wallet->mapAddressBook)
             {
                 const CBitcoinAddress& address = item.first;
@@ -141,6 +191,8 @@ public:
                     }
                 }
             }
+
+            refreshSparkNames();
         }
         // qLowerBound() and qUpperBound() require our cachedAddressTable list to be sorted in asc order
         // Even though the map is already sorted this re-sorting step is needed because the originating map
@@ -175,7 +227,8 @@ public:
             } else if (bip47::CPaymentCode::validate(address.toStdString())){
                 cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, AddressTableModel::RAP));
             } else {
-                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, AddressTableModel::Spark));
+                QString addressType = label.startsWith("@") ? AddressTableModel::SparkName : AddressTableModel::Spark;
+                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, addressType));
             }
             parent->endInsertRows();
             break;
@@ -187,6 +240,8 @@ public:
             }
             lower->type = newEntryType;
             lower->label = label;
+            if (label.startsWith("@"))
+                lower->addressType = AddressTableModel::SparkName;
             parent->emitDataChanged(lowerIndex);
             break;
         case CT_DELETED:
@@ -253,6 +308,33 @@ public:
             return 0;
         }
     }
+
+    void processPendingSparkNameChanges() {
+        QList<PendingSparkNameChange> pendingChanges;
+        {
+            LOCK(cs_pendingSparkNameChanges);
+            pendingChanges = pendingSparkNameChanges;
+            pendingSparkNameChanges.clear();
+        }
+
+        LOCK(wallet->cs_wallet);
+        for (const PendingSparkNameChange &change : pendingChanges) {
+            int changeType = change.changeType;
+            if (changeType == CT_NEW) {
+                QString address = QString::fromStdString(change.sparkNameData.sparkAddress);
+                // Check if the address is already in the model
+                if (std::lower_bound(cachedAddressTable.begin(), cachedAddressTable.end(), address, AddressTableEntryLessThan()) !=
+                        std::upper_bound(cachedAddressTable.begin(), cachedAddressTable.end(), address, AddressTableEntryLessThan()))
+                    changeType = CT_UPDATED;
+            }
+
+            updateEntry(QString::fromStdString(change.sparkNameData.sparkAddress),
+                    QString("@") + QString::fromStdString(change.sparkNameData.name),
+                    wallet->IsSparkAddressMine(change.sparkNameData.sparkAddress),
+                    "send",
+                    changeType);
+        }
+    }
 };
 
 AddressTableModel::AddressTableModel(CWallet *_wallet, WalletModel *parent) :
@@ -305,14 +387,19 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
         case AddressType:
             if(rec->addressType == AddressTableModel::Transparent)
             {
-                return tr("transparent");
+                return "transparent";
             }
             else if(rec->addressType == AddressTableModel::Spark)
             {
-                return tr("spark");
-            } else if(rec->addressType == AddressTableModel::RAP)
+                return "spark";
+            }
+            else if (rec->addressType == AddressTableModel::SparkName)
             {
-                return tr("RAP");
+                return "spark name";
+            }
+            else if(rec->addressType == AddressTableModel::RAP)
+            {
+                return "RAP";
             }
         }
     }
@@ -686,6 +773,11 @@ PcodeAddressTableModel * AddressTableModel::getPcodeAddressTableModel()
 
 bool AddressTableModel::IsSparkAllowed(){
     return spark::IsSparkAllowed();
+}
+
+void AddressTableModel::ProcessPendingSparkNameChanges()
+{
+    priv->processPendingSparkNameChanges();
 }
 
 

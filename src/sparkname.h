@@ -112,6 +112,9 @@ public:
     // return all valid names
     std::set<std::string> GetSparkNames();
 
+    // dump all the spark names along with data
+    std::vector<CSparkNameBlockIndexData> DumpSparkNameData();
+
     // return the address associated with the spark name
     bool GetSparkAddress(const std::string &name, std::string &address);
 

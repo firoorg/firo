@@ -13,6 +13,7 @@
 #include "bitcoingui.h"
 #include "csvmodelwriter.h"
 #include "editaddressdialog.h"
+#include "createsparknamepage.h"
 #include "guiutil.h"
 #include "platformstyle.h"
 #include "bip47/paymentcode.h"
@@ -118,10 +119,11 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     bool spark = this->model->IsSparkAllowed();
 
     if (tab == SendingTab) {
-        if (spark) {
+        if (spark)
             ui->addressType->addItem(tr("Spark"), Spark);
-        }
         ui->addressType->addItem(tr("Transparent"), Transparent);
+        if (spark)
+            ui->addressType->addItem(tr("Spark names"), SparkName);
     } else if(tab == ReceivingTab && !this->isReused) {
         if (spark) {
             ui->addressType->addItem(tr("Spark"), Spark);
@@ -210,6 +212,9 @@ void AddressBookPage::onEditAction()
 {
     QModelIndexList indexes;
 
+    if (ui->addressType->currentText() == AddressTableModel::SparkName)
+        return;
+
     EditAddressDialog::Mode mode;
     AddressTableModel * pmodel;
     pmodel = model;
@@ -239,6 +244,14 @@ void AddressBookPage::on_newAddress_clicked()
     if(!model)
         return;
 
+    if (ui->addressType->currentText() == AddressTableModel::SparkName) {
+        CreateSparkNamePage *dialog = new CreateSparkNamePage(platformStyle, this);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->setModel(model->getWalletModel());
+        dialog->show();
+        return;
+    }
+
     AddressTableModel *pmodel;
     EditAddressDialog::Mode mode;
     pmodel = model;
@@ -261,7 +274,7 @@ void AddressBookPage::on_deleteAddress_clicked()
     QTableView *table;
     table = ui->tableView;
 
-    if(!table->selectionModel())
+    if(!table->selectionModel() || ui->addressType->currentText() == AddressTableModel::SparkName)
         return;
 
     QModelIndexList indexes = table->selectionModel()->selectedRows();
@@ -289,7 +302,7 @@ void AddressBookPage::selectionChanged()
             // In sending tab, allow deletion of selection
             ui->deleteAddress->setEnabled(true);
             ui->deleteAddress->setVisible(true);
-            deleteAction->setEnabled(true);
+            deleteAction->setEnabled(ui->addressType->currentText() != AddressTableModel::SparkName);
             break;
         case ReceivingTab:
             // Deleting receiving addresses, however, is not allowed
@@ -368,7 +381,7 @@ void AddressBookPage::contextualMenu(const QPoint &point)
     QModelIndex index;
     index = ui->tableView->indexAt(point);
 
-    if (ui->addressType->currentText() == "Spark") {
+    if (ui->addressType->currentText() == "Spark" || ui->addressType->currentText() == "Spark names") {
         copyAddressAction->setText(tr("&Copy Spark Address"));
     } else {
         copyAddressAction->setText(tr("&Copy Transparent Address"));
@@ -395,6 +408,15 @@ void AddressBookPage::chooseAddressType(int idx)
 {
     if(!proxyModel)
         return;
+
+    if (idx == 2) {
+        model->ProcessPendingSparkNameChanges();
+        deleteAction->setEnabled(false);
+    }
+    else {
+        selectionChanged();
+    }
+    
     fproxyModel->setTypeFilter(
         ui->addressType->itemData(idx).toInt());
 }
@@ -407,13 +429,14 @@ AddressBookFilterProxy::AddressBookFilterProxy(QObject *parent) :
 bool AddressBookFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
 {
     QModelIndex index = sourceModel()->index(sourceRow, 2, sourceParent);
-    bool res0 = sourceModel()->data(index).toString().contains("spark");
-    bool res1 = sourceModel()->data(index).toString().contains("transparent");
+    QString dataStr = sourceModel()->data(index).toString();
 
-    if(res0 && typeFilter == 0)
-        return true;
-    if(res1 && typeFilter == 1)
-        return true;
+    if (dataStr.contains("spark name"))
+        return typeFilter == 2;
+    else if (dataStr.contains("spark"))
+        return typeFilter == 0;
+    else if (dataStr.contains("transparent"))
+        return typeFilter == 1;
 
     return false;
 }
