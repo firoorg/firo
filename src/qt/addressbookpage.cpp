@@ -296,13 +296,14 @@ void AddressBookPage::selectionChanged()
 
     if(table->selectionModel()->hasSelection())
     {
+        bool fSparkNames = ui->addressType->currentText() == AddressTableModel::SparkName;
         switch(tab)
         {
         case SendingTab:
             // In sending tab, allow deletion of selection
             ui->deleteAddress->setEnabled(true);
-            ui->deleteAddress->setVisible(true);
-            deleteAction->setEnabled(ui->addressType->currentText() != AddressTableModel::SparkName);
+            ui->deleteAddress->setVisible(!fSparkNames);
+            deleteAction->setEnabled(!fSparkNames);
             break;
         case ReceivingTab:
             // Deleting receiving addresses, however, is not allowed
@@ -411,6 +412,7 @@ void AddressBookPage::chooseAddressType(int idx)
 
     if (idx == 2) {
         model->ProcessPendingSparkNameChanges();
+        ui->deleteAddress->setEnabled(false);
         deleteAction->setEnabled(false);
     }
     else {

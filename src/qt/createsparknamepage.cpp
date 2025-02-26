@@ -93,6 +93,7 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
         sparkNameData.name = name;
         sparkNameData.sparkAddress = address;
         sparkNameData.additionalInfo = additionalInfo;
+        sparkNameData.sparkNameValidityBlocks = numberOfYears*365*24*24;
 
         std::string strError;
 
