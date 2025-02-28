@@ -234,6 +234,23 @@ target_link_libraries(firo-qt
     Qt5::Dependencies
     )
 
+# Add macOS-specific frameworks
+if(APPLE)
+    target_link_libraries(firo-qt PRIVATE
+        "-framework CoreVideo"
+        "-framework IOKit"
+        "-framework IOSurface"
+        "-framework ApplicationServices"
+        "-framework QuartzCore"
+        "-framework Security"
+        "-framework SystemConfiguration"
+        "-framework Metal"
+        "-framework Foundation"
+        "-framework AppKit"
+        "-framework Carbon"
+    )
+endif()    
+
 import_plugins(firo-qt)
 install_binary_component(firo-qt HAS_MANPAGE)
 if(WIN32)
@@ -310,7 +327,7 @@ elseif(NOT SED_EXECUTABLE)
     COMMAND ${CMAKE_COMMAND} -E echo "Error: GNU sed not found"
   )
 else()
-  set(translatable_sources_directories src src/qt src/util)
+  set(translatable_sources_directories src src/qt)
   if(ENABLE_WALLET)
     list(APPEND translatable_sources_directories src/wallet)
   endif()

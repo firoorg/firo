@@ -65,28 +65,22 @@ foreach(component IN LISTS Qt_FIND_COMPONENTS ITEMS "")
   mark_as_advanced(Qt${Qt_FIND_VERSION_MAJOR}${component}_DIR)
 endforeach()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  # Prioritize finding static libraries
-  set(_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
-  set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${_CMAKE_FIND_LIBRARY_SUFFIXES})
+# Prioritize finding static libraries
+set(_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${_CMAKE_FIND_LIBRARY_SUFFIXES})
 
-  find_library(LIB_QTLIBPNG NAMES qtlibpng REQUIRED)
-  message(STATUS "Found Qt5 dependency: qtlibpng : ${LIB_QTLIBPNG}")
-  
+find_library(LIB_QTLIBPNG NAMES qtlibpng REQUIRED)
+message(STATUS "Found Qt5 dependency: qtlibpng : ${LIB_QTLIBPNG}")
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   find_library(LIB_FONTCONFIG NAMES fontconfig REQUIRED)
   message(STATUS "Found Qt5 dependency: fontconfig : ${LIB_FONTCONFIG}")
-  
+
   find_library(LIB_EXPAT NAMES expat REQUIRED)
   message(STATUS "Found Qt5 dependency: expat : ${LIB_EXPAT}")
   
   find_library(LIB_FREETYPE NAMES freetype REQUIRED)
   message(STATUS "Found Qt5 dependency: freetype : ${LIB_FREETYPE}")
-  
-  find_library(LIB_QTHARFBUZZ NAMES qtharfbuzz REQUIRED)
-  message(STATUS "Found Qt5 dependency: qtharfbuzz : ${LIB_QTHARFBUZZ}")
-  
-  find_library(LIB_QTPCR2 NAMES qtpcre2 REQUIRED)
-  message(STATUS "Found Qt5 dependency: qtpcre2 : ${LIB_QTPCR2}")
   
   find_library(LIB_XCB_EWMH NAMES xcb-ewmh REQUIRED)
   message(STATUS "Found Qt5 dependency: xcb-ewmh : ${LIB_XCB_EWMH}")
@@ -132,7 +126,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   
   find_library(LIB_XCB NAMES xcb REQUIRED)
   message(STATUS "Found Qt5 dependency: xcb : ${LIB_XCB}")
-  
+
   find_library(LIB_XKBCOMMON_X11 NAMES xkbcommon-x11 REQUIRED)
   message(STATUS "Found Qt5 dependency: xkbcommon-x11 : ${LIB_XKBCOMMON_X11}")
   
@@ -142,44 +136,51 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   find_library(LIB_XAU NAMES Xau REQUIRED)
   message(STATUS "Found Qt5 dependency: Xau : ${LIB_XAU}")
 
-  find_library(LIB_Z NAMES z REQUIRED)
-  message(STATUS "Found Qt5 dependency: z : ${LIB_Z}")
-
-  # Qt5 dependencies libraries, order is important, should be last
-  add_library(Qt5_Dependencies
-    INTERFACE
-  )
-  target_link_libraries(Qt5_Dependencies
-    INTERFACE
-    ${LIB_QTLIBPNG}
-    ${LIB_FONTCONFIG}
-    ${LIB_EXPAT}
-    ${LIB_FREETYPE}
-    ${LIB_QTHARFBUZZ}
-    ${LIB_QTPCR2}
-    ${LIB_XCB_EWMH}
-    ${LIB_XCB_ICCCM}
-    ${LIB_XCB_IMAGE}
-    ${LIB_XCB_KEYSYMS}
-    ${LIB_XCB_RANDR}
-    ${LIB_XCB_RENDER_UTIL}
-    ${LIB_XCB_RENDER}
-    ${LIB_XCB_SHAPE}
-    ${LIB_XCB_SHM}
-    ${LIB_XCB_SYNC}
-    ${LIB_XCB_UTIL}
-    ${LIB_XCB_XFIXES}
-    ${LIB_XCB_XINERAMA}
-    ${LIB_XCB_XKB}
-    ${LIB_XCB}
-    ${LIB_XKBCOMMON_X11}
-    ${LIB_XKBCOMMON}
-    ${LIB_XAU}
-    ${LIB_Z}
-  )
-
-  add_library(Qt5::Dependencies ALIAS Qt5_Dependencies)
-
-  # Restore CMAKE_FIND_LIBRARY_SUFFIXES state.
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ${_CMAKE_FIND_LIBRARY_SUFFIXES})
 endif()
+  
+find_library(LIB_QTHARFBUZZ NAMES qtharfbuzz REQUIRED)
+message(STATUS "Found Qt5 dependency: qtharfbuzz : ${LIB_QTHARFBUZZ}")
+
+find_library(LIB_QTPCR2 NAMES qtpcre2 REQUIRED)
+message(STATUS "Found Qt5 dependency: qtpcre2 : ${LIB_QTPCR2}")
+
+find_library(LIB_Z NAMES z REQUIRED)
+message(STATUS "Found Qt5 dependency: z : ${LIB_Z}")
+
+# Qt5 dependencies libraries, order is important, should be last
+add_library(Qt5_Dependencies
+  INTERFACE
+)
+target_link_libraries(Qt5_Dependencies
+  INTERFACE
+  ${LIB_QTLIBPNG}
+  ${LIB_QTHARFBUZZ}
+  ${LIB_QTPCR2}
+  $<$<PLATFORM_ID:Linux>:${LIB_FONTCONFIG}>
+  $<$<PLATFORM_ID:Linux>:${LIB_FREETYPE}>
+  $<$<PLATFORM_ID:Linux>:${LIB_EXPAT}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XCB_EWMH}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XCB_ICCCM}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XCB_IMAGE}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XCB_KEYSYMS}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XCB_RANDR}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XCB_RENDER_UTIL}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XCB_RENDER}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XCB_SHAPE}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XCB_SHM}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XCB_SYNC}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XCB_UTIL}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XCB_XFIXES}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XCB_XINERAMA}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XCB_XKB}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XCB}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XKBCOMMON_X11}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XKBCOMMON}>
+  $<$<PLATFORM_ID:Linux>:${LIB_XAU}>
+  ${LIB_Z}
+)
+
+add_library(Qt5::Dependencies ALIAS Qt5_Dependencies)
+
+# Restore CMAKE_FIND_LIBRARY_SUFFIXES state.
+set(CMAKE_FIND_LIBRARY_SUFFIXES ${_CMAKE_FIND_LIBRARY_SUFFIXES})
