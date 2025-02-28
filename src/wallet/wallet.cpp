@@ -8253,7 +8253,7 @@ std::pair<CAmount, CAmount> CWallet::GetSparkBalance()
 }
 
 bool CWallet::IsSparkAddressMine(const std::string& address) {
-    return sparkWallet->isAddressMine(address);
+    return sparkWallet && sparkWallet->isAddressMine(address);
 }
 
 bool CWallet::SetSparkAddressBook(const std::string& address, const std::string& strName, const std::string& strPurpose)
