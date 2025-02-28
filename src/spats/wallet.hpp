@@ -39,6 +39,7 @@ public:
                                                                       std::span< const unsigned char > unreg_asset_serialization_bytes );
    static Scalar compute_modify_spark_asset_serialization_scalar( const AssetModificationBase &b, std::span< const unsigned char > modification_serialization_bytes );
    static Scalar compute_mint_asset_supply_serialization_scalar( const MintParameters &p, std::span< const unsigned char > mint_serialization_bytes );
+   static Scalar compute_burn_asset_supply_serialization_scalar( const BurnParameters &p, std::span< const unsigned char > burn_serialization_bytes );
 
    const std::string &my_public_address_as_admin() const;
 
@@ -50,6 +51,8 @@ public:
    CWalletTx create_modify_spark_asset_transaction( const SparkAsset &old_asset, const SparkAsset &new_asset, CAmount &standard_fee ) const;
    CWalletTx
    create_mint_asset_supply_transaction( asset_type_t asset_type, supply_amount_t new_supply, const public_address_t &receiver_pubaddress, CAmount &standard_fee ) const;
+   CWalletTx
+   create_burn_asset_supply_transaction( asset_type_t asset_type, supply_amount_t burn_amount, CAmount &standard_fee ) const;
 
    void notify_registry_changed();
 

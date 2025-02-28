@@ -175,16 +175,28 @@ public:
    void add_new_supply( supply_amount_t new_supply )
    {
       assert( resupplyable_ );
+      add_supply( new_supply );  // may throw due to overflow
+   }
+
+   void remove_new_supply( supply_amount_t new_supply )
+   {
+      assert( resupplyable_ );
+      remove_supply( new_supply );   // may throw due to underflow
+   }
+
+   void add_supply( supply_amount_t new_supply )
+   {
+      // No assert( resupplyable_ ) because this can be called from burn unprocess too
       assert( new_supply.precision() == total_supply_.precision() );
       total_supply_ += new_supply;   // may throw due to overflow
    }
 
-   void remove_supply( supply_amount_t new_supply )
+   void remove_supply( supply_amount_t supply_to_remove )
    {
-      assert( resupplyable_ );
-      assert( new_supply.precision() == total_supply_.precision() );
-      assert( new_supply <= total_supply_ );
-      total_supply_ -= new_supply;   // may throw due to underflow, iff the assert above would fail but is eliminated due to NDEBUG
+      // No assert( resupplyable_ ) because this can be called from burn too
+      assert( supply_to_remove.precision() == total_supply_.precision() );
+      assert( supply_to_remove <= total_supply_ );
+      total_supply_ -= supply_to_remove;   // may throw due to underflow, iff the assert above would fail but is eliminated due to NDEBUG
    }
 
 private:

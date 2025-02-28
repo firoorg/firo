@@ -247,9 +247,17 @@ bool CTransaction::IsSpatsMint() const
     return false;
 }
 
+bool CTransaction::IsSpatsBurn() const
+{
+    for (const CTxOut &txout: vout)
+        if (txout.scriptPubKey.IsSpatsBurn())
+            return true;
+    return false;
+}
+
 bool CTransaction::IsSpatsTransaction() const
 {
-    return IsSpatsCreate() || IsSpatsUnregister() || IsSpatsModify() || IsSpatsMint();    // TODO more
+    return IsSpatsCreate() || IsSpatsUnregister() || IsSpatsModify() || IsSpatsMint() || IsSpatsBurn();    // TODO more
 }
 
 bool CTransaction::IsSparkSpend() const

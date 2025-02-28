@@ -57,6 +57,18 @@ Scalar Wallet::compute_mint_asset_supply_serialization_scalar( const MintParamet
    return ret;
 }
 
+Scalar Wallet::compute_burn_asset_supply_serialization_scalar( const BurnParameters &p, std::span< const unsigned char > burn_serialization_bytes )
+{
+   spark::Hash hash( tfm::format( "spatsburn_%u_for_%u_from_%s",
+                                  p.burn_amount(),
+                                  utils::to_underlying( p.asset_type() ),
+                                  p.initiator_public_address() ) );
+   hash.include( burn_serialization_bytes );
+   auto ret = hash.finalize_scalar();
+   LogPrintf( "Spats burn serialization scalar (hex): %s\n", ret.GetHex() );
+   return ret;
+}
+
 Wallet::Wallet( CSparkWallet &spark_wallet ) noexcept
    : spark_wallet_( spark_wallet )
    , registry_( spark::CSparkState::GetState()->GetSpatsManager().registry() )
@@ -210,6 +222,36 @@ CWalletTx Wallet::create_mint_asset_supply_transaction( asset_type_t asset_type,
                                                         standard_fee,
                                                         nullptr );   // may throw
    assert( tx.tx->IsSpatsMint() );
+   return tx;
+}
+
+CWalletTx Wallet::create_burn_asset_supply_transaction( asset_type_t asset_type, supply_amount_t burn_amount, CAmount &standard_fee ) const
+{
+   const auto &admin_public_address = my_public_address_as_admin();
+   const BurnParameters action_params( asset_type, burn_amount, admin_public_address );
+   CScript script;
+   script << OP_SPATSBURN;
+   assert( script.IsSpatsBurn() );
+   CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
+   serialized << BurnAction( action_params );
+   // TODO instead of how it is being done now, put ownership proof into script default-constructed first, then compute ownership proof from the whole tx, and overwrite
+   //      the ownership proof in the script then
+   const auto scalar_of_proof = compute_burn_asset_supply_serialization_scalar( action_params, serialized.as_bytes_span() );
+   const spark::OwnershipProof proof = spark_wallet_.makeDefaultAddressOwnershipProof( scalar_of_proof );
+   LogPrintf( "Ownership proof for burn asset supply (hex): %s\n", proof );
+   CDataStream proof_serialized( SER_NETWORK, PROTOCOL_VERSION );
+   proof_serialized << proof;
+   script.insert( script.end(), serialized.begin(), serialized.end() );
+   assert( script.IsSpatsBurn() );
+   script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
+   assert( script.IsSpatsBurn() );
+   // TODO add a recipient to firo_burn_address, for `burn_amount` of `asset_type`. It has to be done in such a way that the actual burning from the registry
+   //      will NOT be actually performed if the sending to firo_burn_address fails (due to insufficient funds in this wallet).
+   auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, admin_public_address, "spats burn" } },
+                                                        {},
+                                                        standard_fee,
+                                                        nullptr );   // may throw
+   assert( tx.tx->IsSpatsBurn() );
    return tx;
 }
 

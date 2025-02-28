@@ -330,6 +330,41 @@ static spats::MintAction ParseSpatsMintTransaction(const CTransaction &tx)
     }
 }
 
+static spats::BurnAction ParseSpatsBurnTransaction(const CTransaction &tx)
+{
+    assert(tx.IsSpatsBurn());
+    if (tx.vout.size() < 1)
+        throw CBadTxIn();
+    const CScript& burn_script = tx.vout.front().scriptPubKey;
+    if (!burn_script.IsSpatsBurn())
+        throw CBadTxIn();
+
+    try{
+        std::vector<unsigned char> serialized(burn_script.begin() + 1, burn_script.end());
+        auto action_serialization_size = serialized.size();
+        const void* const action_serialization_start_address = serialized.data();
+        CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
+        assert(stream.size() == action_serialization_size);
+        spats::BurnAction action(deserialize, stream);
+        const auto &burn_params = action.get();
+        action_serialization_size -= stream.size();
+        spark::OwnershipProof proof;
+        stream >> proof;
+        LogPrintf("ParseSpatsBurnTransaction address ownership proof: %s\n", proof);
+        Address a(spark::Params::get_default());
+        a.decode(burn_params.initiator_public_address());
+        const auto scalar_of_proof = spats::Wallet::compute_burn_asset_supply_serialization_scalar(
+            burn_params, {static_cast<const unsigned char*>(action_serialization_start_address), action_serialization_size});
+        LogPrintf("ParseSpatsBurnTransaction scalar_of_proof: %s\n", scalar_of_proof);
+        if (!a.verify_own(scalar_of_proof, proof))
+            throw CBadTxIn();
+        return action;
+    }
+    catch (...) {
+        throw CBadTxIn();
+    }
+}
+
 static spats::Action ParseSpatsTransaction(const CTransaction &tx)
 {
     assert(tx.IsSpatsTransaction());
@@ -341,6 +376,8 @@ static spats::Action ParseSpatsTransaction(const CTransaction &tx)
         return ParseSpatsModifyTransaction(tx);
     if (tx.IsSpatsMint())
         return ParseSpatsMintTransaction(tx);
+    if (tx.IsSpatsBurn())
+        return ParseSpatsBurnTransaction(tx);
     // TODO more
     throw CBadTxIn();
 }

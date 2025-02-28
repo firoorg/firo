@@ -254,6 +254,7 @@ private:
 
       if ( !new_supply_ )
          throw std::invalid_argument( "Non-zero new supply is required for spats mint" );
+      static_assert( std::is_unsigned_v< supply_amount_t::raw_amount_type > );
       assert( new_supply_ > supply_amount_t{} );
 
       if ( asset_type_ == base::asset_type )
@@ -298,7 +299,105 @@ private:
    }
 };
 
-using Action = std::variant< CreateAssetAction, UnregisterAssetAction, ModifyAssetAction, MintAction >;   // TODO more
+class BurnParameters {
+public:
+   BurnParameters( asset_type_t asset_type, supply_amount_t burn_amount, public_address_t initiator_pubaddress )
+      : asset_type_( asset_type )
+      , burn_amount_( burn_amount )
+      , initiator_public_address_( std::move( initiator_pubaddress ) )
+   {
+      validate();
+   }
+
+   template < typename Stream >
+   BurnParameters( deserialize_type, Stream &is )
+   {
+      supply_amount_t::precision_type precision;
+      supply_amount_t::raw_amount_type burn_amount_raw;
+      is >> asset_type_ >> precision >> burn_amount_raw >> initiator_public_address_;
+      burn_amount_ = { burn_amount_raw, precision };
+      validate();
+   }
+
+   template < typename Stream >
+   void Serialize( Stream &os ) const
+   {
+      os << asset_type_ << burn_amount_.precision() << burn_amount_.raw() << initiator_public_address_;
+   }
+
+   asset_type_t asset_type() const noexcept
+   {
+      assert( asset_type_ != base::asset_type );
+      assert( is_fungible_asset_type( asset_type_ ) );
+      return asset_type_;
+   }
+
+   supply_amount_t burn_amount() const noexcept { return burn_amount_; }
+
+   const public_address_t &initiator_public_address() const noexcept { return initiator_public_address_; }
+
+private:
+   asset_type_t asset_type_;
+   supply_amount_t burn_amount_;
+   public_address_t initiator_public_address_;
+
+   void validate() const
+   {
+      if ( asset_type_ > max_allowed_asset_type_value )
+         throw std::invalid_argument( "asset_type value for burn unsupported: too big" );
+
+      if ( !is_fungible_asset_type( asset_type_ ) )
+         throw std::invalid_argument( "Burning NFTs is not supported" );
+
+      if ( !burn_amount_ )
+         throw std::invalid_argument( "Non-zero burn amount is required" );
+
+      static_assert( std::is_unsigned_v< supply_amount_t::raw_amount_type > );
+      assert( burn_amount_ > supply_amount_t{} );
+
+      if ( asset_type_ == base::asset_type )
+         throw std::domain_error( "Base asset supply burns are not supported by spats Burn action. Just use a simple spark spend to firo burn address tx instead." );
+
+      if ( initiator_public_address_.empty() )
+         throw std::domain_error( "Initiator public address is required for spats burn" );
+   }
+};
+
+class BurnAction {
+public:
+   explicit BurnAction( BurnParameters parameters ) noexcept
+      : parameters_( std::move( parameters ) )
+   {}
+
+   template < typename Stream >
+   BurnAction( deserialize_type, Stream &is )
+      : parameters_( Unserialize( is ) )
+   {}
+
+   template < typename Stream >
+   void Serialize( Stream &os ) const
+   {
+      os << serialization_version;
+      os << parameters_;
+   }
+
+   const BurnParameters &get() const & noexcept { return parameters_; }
+   BurnParameters &&get() && noexcept { return std::move( parameters_ ); }
+
+private:
+   BurnParameters parameters_;
+   static constexpr std::uint8_t serialization_version = 1;
+
+   template < typename Stream >
+   static BurnParameters Unserialize( Stream &is )
+   {
+      std::uint8_t version;
+      is >> version;
+      return BurnParameters( deserialize, is );
+   }
+};
+
+using Action = std::variant< CreateAssetAction, UnregisterAssetAction, ModifyAssetAction, MintAction, BurnAction >;   // TODO more
 
 using ActionSequence = std::vector< Action >;
 

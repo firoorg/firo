@@ -1119,6 +1119,8 @@ public:
         const std::function<bool(CAmount standard_fee)>& user_confirmation_callback = {});
     std::optional<CWalletTx> MintSparkAssetSupply(spats::asset_type_t asset_type, spats::supply_amount_t new_supply, const spats::public_address_t &receiver_pubaddress,
         const std::function<bool(CAmount standard_fee)>& user_confirmation_callback = {});
+    std::optional<CWalletTx> BurnSparkAssetSupply(spats::asset_type_t asset_type, spats::supply_amount_t burn_amount,
+        const std::function<bool(CAmount standard_fee)>& user_confirmation_callback = {});
 
     bool LelantusToSpark(std::string& strFailReason);
 
