@@ -30,6 +30,23 @@ target_link_libraries(test_firo-qt
   Qt5::Dependencies
 )
 
+# Add macOS-specific frameworks
+if(APPLE)
+    target_link_libraries(test_firo-qt PRIVATE
+        "-framework CoreVideo"
+        "-framework IOKit"
+        "-framework IOSurface"
+        "-framework ApplicationServices"
+        "-framework QuartzCore"
+        "-framework Security"
+        "-framework SystemConfiguration"
+        "-framework Metal"
+        "-framework Foundation"
+        "-framework AppKit"
+        "-framework Carbon"
+    )
+endif()
+
 import_plugins(test_firo-qt)
 
 if(ENABLE_WALLET)
