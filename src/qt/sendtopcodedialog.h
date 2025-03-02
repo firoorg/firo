@@ -83,7 +83,8 @@ private Q_SLOTS:
     void showEvent(QShowEvent* event);
     void onTransactionChanged(uint256 txHash);
     void onWindowShown();
-    void onBalanceChanged(CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &);
+    void onBalanceChanged(CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &,
+                          spats::Wallet::asset_balances_t const &, CAmount const &);
 };
 
 #endif /* SENDTOPCODEDIALOG_H */

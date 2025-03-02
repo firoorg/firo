@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <limits>
 #include <utility>
+#include <ostream>
 
 #include "utils/enum.hpp"
 
@@ -44,6 +45,16 @@ constexpr bool is_proper_asset_identifier( universal_asset_id_t id ) noexcept
 {
    return id.first <= max_allowed_asset_type_value && id.second <= max_allowed_identifier_value &&
           ( !is_fungible_asset_type( id.first ) || id.second == identifier_t{ 0 } );
+}
+
+inline std::ostream &operator<<( std::ostream &os, asset_type_t a )
+{
+   return os << utils::to_underlying( a );
+}
+
+inline std::ostream &operator<<( std::ostream &os, identifier_t i )
+{
+   return os << utils::to_underlying( i );
 }
 
 }   // namespace spats

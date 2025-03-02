@@ -6,7 +6,7 @@
 #define FIRO_SPATS_WALLET_HPP_INCLUDED
 
 #include <string>
-#include <unordered_map>
+#include <map>
 #include <optional>
 #include <span>
 
@@ -32,7 +32,21 @@ public:
 
    struct AssetAmount {
       amount_type available{}, pending{};
+
+      AssetAmount() = default;
+
+      // intentionally implicit
+      AssetAmount( std::pair< CAmount, CAmount > base_asset_amounts ) noexcept
+         : available( base_asset_amounts.first, 8 )
+         , pending( base_asset_amounts.second, 8 )
+      {}
+
+      bool operator==( const AssetAmount &other ) const noexcept = default;
    };
+
+   using asset_balances_t = std::map< universal_asset_id_t, AssetAmount >;
+
+   asset_balances_t get_asset_balances() const;
 
    static Scalar compute_new_spark_asset_serialization_scalar( const SparkAssetBase &b, std::span< const unsigned char > asset_serialization_bytes );
    static Scalar compute_unregister_spark_asset_serialization_scalar( const UnregisterAssetParameters &p,
@@ -51,17 +65,15 @@ public:
    CWalletTx create_modify_spark_asset_transaction( const SparkAsset &old_asset, const SparkAsset &new_asset, CAmount &standard_fee ) const;
    CWalletTx
    create_mint_asset_supply_transaction( asset_type_t asset_type, supply_amount_t new_supply, const public_address_t &receiver_pubaddress, CAmount &standard_fee ) const;
-   CWalletTx
-   create_burn_asset_supply_transaction( asset_type_t asset_type, supply_amount_t burn_amount, CAmount &standard_fee ) const;
+   CWalletTx create_burn_asset_supply_transaction( asset_type_t asset_type, supply_amount_t burn_amount, CAmount &standard_fee ) const;
 
    void notify_registry_changed();
 
-   // TODO s11n?
 private:
    CSparkWallet &spark_wallet_;
    mutable std::string my_public_address_as_admin_;
    Registry &registry_;
-   std::unordered_map< asset_type_t, AssetAmount > asset_balances_;
+   asset_balances_t asset_balances_;
 };
 
 }   // namespace spats

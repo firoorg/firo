@@ -180,15 +180,7 @@ void WalletModel::checkBalanceChanged()
     CAmount newWatchUnconfBalance = 0;
     CAmount newWatchImmatureBalance = 0;
     CAmount newAnonymizableBalance = getAnonymizableBalance();
-
-
-    CAmount newPrivateBalance, newUnconfirmedPrivateBalance;
-    std::tie(newPrivateBalance, newUnconfirmedPrivateBalance) =
-        lelantusModel->getPrivateBalance();
-
-    std::pair<CAmount, CAmount> sparkBalance = getSparkBalance();
-    newPrivateBalance = spark::IsSparkAllowed() ? sparkBalance.first : newPrivateBalance;
-    newUnconfirmedPrivateBalance = spark::IsSparkAllowed() ? sparkBalance.second : newUnconfirmedPrivateBalance;
+    auto newSpatsBalances = getSpatsBalances();
 
     if (haveWatchOnly())
     {
@@ -203,8 +195,7 @@ void WalletModel::checkBalanceChanged()
         || cachedWatchOnlyBalance != newWatchOnlyBalance
         || cachedWatchUnconfBalance != newWatchUnconfBalance
         || cachedWatchImmatureBalance != newWatchImmatureBalance
-        || cachedPrivateBalance != newPrivateBalance
-        || cachedUnconfirmedPrivateBalance != newUnconfirmedPrivateBalance
+        || cachedSpatsBalances_ != newSpatsBalances
         || cachedAnonymizableBalance != newAnonymizableBalance)
     {
         cachedBalance = newBalance;
@@ -213,8 +204,7 @@ void WalletModel::checkBalanceChanged()
         cachedWatchOnlyBalance = newWatchOnlyBalance;
         cachedWatchUnconfBalance = newWatchUnconfBalance;
         cachedWatchImmatureBalance = newWatchImmatureBalance;
-        cachedPrivateBalance = newPrivateBalance;
-        cachedUnconfirmedPrivateBalance = newUnconfirmedPrivateBalance;
+        cachedSpatsBalances_ = std::move(newSpatsBalances);
         cachedAnonymizableBalance = newAnonymizableBalance;
         Q_EMIT balanceChanged(
             newBalance,
@@ -223,8 +213,7 @@ void WalletModel::checkBalanceChanged()
             newWatchOnlyBalance,
             newWatchUnconfBalance,
             newWatchImmatureBalance,
-            newPrivateBalance,
-            newUnconfirmedPrivateBalance,
+            cachedSpatsBalances_,
             newAnonymizableBalance);
     }
 }
@@ -1328,6 +1317,14 @@ bool WalletModel::validateSparkAddress(const QString& address)
 std::pair<CAmount, CAmount> WalletModel::getSparkBalance()
 {
     return wallet->GetSparkBalance();
+}
+
+spats::Wallet::asset_balances_t WalletModel::getSpatsBalances()
+{
+    auto ret = wallet->GetSpatsBalances();
+    if (!spark::IsSparkAllowed())
+        ret[spats::base::universal_id] = getLelantusModel()->getPrivateBalance();
+    return ret;
 }
 
 bool WalletModel::getAvailableLelantusCoins()

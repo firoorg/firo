@@ -64,12 +64,14 @@ public:
 
     // functions to get spark balance
     CAmount getFullBalance();
-    CAmount getAvailableBalance();
-    CAmount getUnconfirmedBalance();
+    CAmount getAvailableBalance() const;
+    CAmount getUnconfirmedBalance() const;
 
     CAmount getAddressFullBalance(const spark::Address& address);
     CAmount getAddressAvailableBalance(const spark::Address& address);
     CAmount getAddressUnconfirmedBalance(const spark::Address& address);
+
+    spats::Wallet::asset_balances_t getAssetBalances() const;
 
     // function to be used for zap wallet
     void clearAllMints(CWalletDB& walletdb);

@@ -158,10 +158,6 @@ void SendCoinsDialog::setModel(WalletModel *_model)
             }
         }
 
-        auto privateBalance = _model->getLelantusModel()->getPrivateBalance();
-        std::pair<CAmount, CAmount> sparkBalance = _model->getSparkBalance();
-        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
-
         if (model->getWallet()) {
             auto allowed = lelantus::IsLelantusAllowed() || (spark::IsSparkAllowed() && model->getWallet()->sparkWallet);
             setAnonymizeMode(allowed);
@@ -174,7 +170,7 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         setBalance(
             _model->getBalance(), _model->getUnconfirmedBalance(), _model->getImmatureBalance(),
             _model->getWatchBalance(), _model->getWatchUnconfirmedBalance(), _model->getWatchImmatureBalance(),
-            privateBalance.first, privateBalance.second, _model->getAnonymizableBalance());
+            _model->getSpatsBalances(), _model->getAnonymizableBalance());
 
         connect(_model, &WalletModel::balanceChanged, this, &SendCoinsDialog::setBalance);
         connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &SendCoinsDialog::updateDisplayUnit);
@@ -869,8 +865,7 @@ void SendCoinsDialog::setBalance(
     const CAmount& watchBalance,
     const CAmount& watchUnconfirmedBalance,
     const CAmount& watchImmatureBalance,
-    const CAmount& privateBalance,
-    const CAmount& unconfirmedPrivateBalance,
+    const spats::Wallet::asset_balances_t& spats_balances,
     const CAmount& anonymizableBalance)
 {
     Q_UNUSED(unconfirmedBalance);
@@ -878,22 +873,18 @@ void SendCoinsDialog::setBalance(
     Q_UNUSED(watchBalance);
     Q_UNUSED(watchUnconfirmedBalance);
     Q_UNUSED(watchImmatureBalance);
-    Q_UNUSED(unconfirmedPrivateBalance);
     Q_UNUSED(anonymizableBalance);
 
     if(model && model->getOptionsModel())
     {
         ui->labelBalance->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(),
-            fAnonymousMode ? privateBalance : balance));
+            fAnonymousMode ? spats_balances.at(spats::base::universal_id).available.raw() : balance));
     }
 }
 
 void SendCoinsDialog::updateDisplayUnit()
 {
-    auto privateBalance = model->getLelantusModel()->getPrivateBalance();
-    std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
-    privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
-    setBalance(model->getBalance(), 0, 0, 0, 0, 0, privateBalance.first, 0, 0);
+    setBalance(model->getBalance(), 0, 0, 0, 0, 0, model->getSpatsBalances(), 0);
     ui->customFee->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
     updateMinFeeLabel();
     updateSmartFeeLabel();
@@ -1052,10 +1043,7 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
     }
 
     if (model) {
-        auto privateBalance = model->getLelantusModel()->getPrivateBalance();
-        std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
-        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
-        setBalance(model->getBalance(), 0, 0, 0, 0, 0, privateBalance.first, 0, 0);
+        setBalance(model->getBalance(), 0, 0, 0, 0, 0, model->getSpatsBalances(), 0);
     }
 }
 

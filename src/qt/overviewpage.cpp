@@ -35,6 +35,23 @@
 #define DECORATION_SIZE 54
 #define NUM_ITEMS 5
 
+namespace {
+
+enum SparkAssetColumns {
+   ColumnAssetType = 0,
+   ColumnIdentifier,
+   ColumnName,
+   ColumnSymbol,
+   ColumnAvailableBalance,
+   ColumnPendingBalance,
+   ColumnFungible,
+   ColumnMetadata,
+   ColumnDescription,
+   ColumnCount   // This keeps the count of total columns, always keep last!
+};
+
+}
+
 class TxViewDelegate : public QAbstractItemDelegate
 {
     Q_OBJECT
@@ -231,7 +248,7 @@ void OverviewPage::on_anonymizeButton_clicked()
 void OverviewPage::setBalance(
     const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
     const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance,
-    const CAmount& privateBalance, const CAmount& unconfirmedPrivateBalance, const CAmount& anonymizableBalance)
+    const spats::Wallet::asset_balances_t& spats_balances, const CAmount& anonymizableBalance)
 {
     int unit = walletModel->getOptionsModel()->getDisplayUnit();
     currentBalance = balance;
@@ -240,20 +257,20 @@ void OverviewPage::setBalance(
     currentWatchOnlyBalance = watchOnlyBalance;
     currentWatchUnconfBalance = watchUnconfBalance;
     currentWatchImmatureBalance = watchImmatureBalance;
-    currentPrivateBalance = privateBalance;
-    currentUnconfirmedPrivateBalance = unconfirmedPrivateBalance;
+    if (currentSpatsBalances_ != spats_balances) // optimization, probably
+        currentSpatsBalances_ = std::move(spats_balances);
     currentAnonymizableBalance = anonymizableBalance;
+    const auto [privateBalance, unconfirmedPrivateBalance] = currentSpatsBalances_[spats::base::universal_id];
     ui->labelBalance->setText(BitcoinUnits::formatWithUnit(unit, balance, false, BitcoinUnits::separatorAlways));
     ui->labelUnconfirmed->setText(BitcoinUnits::formatWithUnit(unit, unconfirmedBalance, false, BitcoinUnits::separatorAlways));
     ui->labelImmature->setText(BitcoinUnits::formatWithUnit(unit, immatureBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelTotal->setText(BitcoinUnits::formatWithUnit(unit, balance + unconfirmedBalance + immatureBalance + currentPrivateBalance + currentUnconfirmedPrivateBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelTotal->setText(BitcoinUnits::formatWithUnit(unit, balance + unconfirmedBalance + immatureBalance + privateBalance.raw() + unconfirmedPrivateBalance.raw(), false, BitcoinUnits::separatorAlways));
     ui->labelWatchAvailable->setText(BitcoinUnits::formatWithUnit(unit, watchOnlyBalance, false, BitcoinUnits::separatorAlways));
     ui->labelWatchPending->setText(BitcoinUnits::formatWithUnit(unit, watchUnconfBalance, false, BitcoinUnits::separatorAlways));
     ui->labelWatchImmature->setText(BitcoinUnits::formatWithUnit(unit, watchImmatureBalance, false, BitcoinUnits::separatorAlways));
     ui->labelWatchTotal->setText(BitcoinUnits::formatWithUnit(unit, watchOnlyBalance + watchUnconfBalance + watchImmatureBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelPrivate->setText(BitcoinUnits::formatWithUnit(unit, privateBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelUnconfirmedPrivate->setText(BitcoinUnits::formatWithUnit(unit, unconfirmedPrivateBalance, false, BitcoinUnits::separatorAlways));
     ui->labelAnonymizable->setText(BitcoinUnits::formatWithUnit(unit, anonymizableBalance, false, BitcoinUnits::separatorAlways));
+    displaySpatsBalances();
 
     ui->anonymizeButton->setEnabled((lelantus::IsLelantusAllowed() || spark::IsSparkAllowed()) && anonymizableBalance > 0);
 
@@ -266,6 +283,48 @@ void OverviewPage::setBalance(
     ui->labelImmature->setVisible(showImmature || showWatchOnlyImmature);
     ui->labelImmatureText->setVisible(showImmature || showWatchOnlyImmature);
     ui->labelWatchImmature->setVisible(showWatchOnlyImmature); // show watch-only immature balance
+}
+
+void OverviewPage::displaySpatsBalances()
+{
+    auto& table_widget = *ui->tableWidgetSparkBalances;
+    table_widget.clearContents();
+    table_widget.setRowCount( currentSpatsBalances_.size() );
+    int row = 0;
+    for ( const auto& [asset_id, balance] : currentSpatsBalances_ ) {
+      // Fill the table with all attributes to be displayed, to the extent possible
+      table_widget.setItem( row, ColumnAssetType, new QTableWidgetItem( QString::number( utils::to_underlying( asset_id.first ) ) ) );
+      table_widget.setItem( row, ColumnIdentifier, new QTableWidgetItem( QString::number( utils::to_underlying( asset_id.second ) ) ) );
+      table_widget.setItem( row, ColumnAvailableBalance, new QTableWidgetItem( QString::fromStdString( boost::lexical_cast< std::string >( balance.available ) ) ) );
+      table_widget.setItem( row, ColumnPendingBalance, new QTableWidgetItem( QString::fromStdString( boost::lexical_cast< std::string >( balance.pending ) ) ) );
+      if ( const spats::SparkAssetDisplayAttributes* const a = getSpatsDisplayAttributes( asset_id ) ) {
+          table_widget.setItem( row, ColumnName, new QTableWidgetItem( QString::fromStdString( a->name ) ) );
+          table_widget.setItem( row, ColumnSymbol, new QTableWidgetItem( QString::fromStdString( a->symbol ) ) );
+          table_widget.setItem( row, ColumnFungible, new QTableWidgetItem( a->fungible ? "Yes" : "No" ) );
+          table_widget.setItem( row, ColumnMetadata, new QTableWidgetItem( QString::fromStdString( a->metadata ) ) );
+          table_widget.setItem( row, ColumnDescription, new QTableWidgetItem( QString::fromStdString( a->description ) ) );
+      }
+
+      // Make the table items read-only to prevent user editing
+      for ( int col = ColumnAssetType; col < ColumnCount; ++col )
+         if ( auto * const item = table_widget.item( row, col ) )
+            item->setFlags( item->flags() & ~Qt::ItemIsEditable );
+      ++row;
+    }
+}
+
+const spats::SparkAssetDisplayAttributes* OverviewPage::getSpatsDisplayAttributes( spats::universal_asset_id_t asset_id )
+{
+    auto it = spats_display_attributes_cache_.find( asset_id );
+    if ( it == spats_display_attributes_cache_.end() ) {
+        if ( const auto located_asset = spark::CSparkState::GetState()->GetSpatsManager().registry().get_asset( asset_id.first, asset_id.second ) )
+            it = spats_display_attributes_cache_.emplace( asset_id, spats::SparkAssetDisplayAttributes( located_asset->asset ) ).first;
+        else {
+            LogPrintf( "Failed to find asset {%u, %u} in spats registry!\n", asset_id.first, asset_id.second );
+            return nullptr;
+        }
+    }
+    return &it->second;
 }
 
 // show/hide watch-only labels
@@ -312,10 +371,6 @@ void OverviewPage::setWalletModel(WalletModel *model)
         ui->listTransactions->setModel(filter.get());
         ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
 
-        auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
-        std::pair<CAmount, CAmount> sparkBalance = walletModel->getSparkBalance();
-        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
-
         // Keep up to date with wallet
         setBalance(
                     model->getBalance(),
@@ -324,8 +379,7 @@ void OverviewPage::setWalletModel(WalletModel *model)
                     model->getWatchBalance(),
                     model->getWatchUnconfirmedBalance(),
                     model->getWatchImmatureBalance(),
-                    privateBalance.first,
-                    privateBalance.second,
+                    walletModel->getSpatsBalances(),
                     model->getAnonymizableBalance());
         connect(model, &WalletModel::balanceChanged, this, &OverviewPage::setBalance);
 
@@ -346,7 +400,7 @@ void OverviewPage::updateDisplayUnit()
         if(currentBalance != -1)
             setBalance(currentBalance, currentUnconfirmedBalance, currentImmatureBalance,
                        currentWatchOnlyBalance, currentWatchUnconfBalance, currentWatchImmatureBalance,
-                       currentPrivateBalance, currentUnconfirmedPrivateBalance, currentAnonymizableBalance);
+                       currentSpatsBalances_, currentAnonymizableBalance);
 
         // Update txdelegate->unit with the current unit
         txdelegate->unit = walletModel->getOptionsModel()->getDisplayUnit();
@@ -498,6 +552,7 @@ bool MigrateLelantusToSparkDialog::getClickedButton()
 {
     return clickedButton;
 }
+
 void OverviewPage::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event); 
@@ -542,15 +597,14 @@ void OverviewPage::resizeEvent(QResizeEvent* event)
     ui->labelBalance->setMinimumWidth(labelMinWidth);
     ui->labelSpendable->setMinimumWidth(labelMinWidth);
     ui->labelWatchAvailable->setMinimumWidth(labelMinWidth);
-    ui->labelUnconfirmedPrivate->setMinimumWidth(labelMinWidth);
     ui->labelWatchonly->setMinimumWidth(labelMinWidth);
     ui->labelTotal->setMinimumWidth(labelMinWidth);
     ui->labelWatchTotal->setMinimumWidth(labelMinWidth);
     ui->labelUnconfirmed->setMinimumWidth(labelMinWidth);
     ui->labelImmature->setMinimumWidth(labelMinWidth);
-    ui->labelPrivate->setMinimumWidth(labelMinWidth);
     ui->label_4->setMinimumWidth(labelMinWidth);
 }
+
 void OverviewPage::adjustTextSize(int width, int height){
 
     const double fontSizeScalingFactor = 133.0;
@@ -582,8 +636,9 @@ void OverviewPage::adjustTextSize(int width, int height){
     ui->labelSpendable->setFont(labelFont);
     ui->labelWatchAvailable->setFont(labelFont);
     ui->labelPendingText->setFont(textFont);
-    ui->labelUnconfirmedPrivate->setFont(labelFont);
-    ui->labelUnconfirmedPrivateText->setFont(textFont);
+    ui->tableWidgetSparkBalances->setFont(textFont);
+    ui->tableWidgetSparkBalances->horizontalHeader()->setFont(labelFont);
+    ui->tableWidgetSparkBalances->verticalHeader()->setFont(labelFont);
     ui->labelTotalText->setFont(textFont);
     ui->labelWatchonly->setFont(labelFont);
     ui->labelBalanceText->setFont(textFont);
@@ -593,8 +648,5 @@ void OverviewPage::adjustTextSize(int width, int height){
     ui->labelImmatureText->setFont(textFont);
     ui->labelImmature->setFont(labelFont);
     ui->labelWatchImmature->setFont(labelFont);
-    ui->labelPrivateText->setFont(textFont);
-    ui->labelPrivate->setFont(labelFont);
     ui->label_4->setFont(labelFont);
-   
 }

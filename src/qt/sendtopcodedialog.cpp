@@ -323,9 +323,9 @@ void SendtoPcodeDialog::onBalanceChanged(
     const CAmount& watchOnlyBalance,
     const CAmount& watchUnconfBalance,
     const CAmount& watchImmatureBalance,
-    const CAmount& privateBalance,
-    const CAmount& unconfirmedPrivateBalance,
+    const spats::Wallet::asset_balances_t& spats_balances,
     const CAmount& anonymizableBalance)
 {
-    setLelantusBalance(privateBalance, unconfirmedPrivateBalance);
+    const auto& [privateBalance, unconfirmedPrivateBalance] = spats_balances.at(spats::base::universal_id);
+    setLelantusBalance(privateBalance.raw(), unconfirmedPrivateBalance.raw());
 }

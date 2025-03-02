@@ -1038,6 +1038,7 @@ public:
                                         std::string& strFailReason, const CCoinControl *coinControl, bool autoMintAll = false, bool sign = true);
 
     std::pair<CAmount, CAmount> GetSparkBalance();
+    spats::Wallet::asset_balances_t GetSpatsBalances() const;
     bool IsSparkAddressMine(const std::string& address);
 
     bool CreateSparkMintTransactions(

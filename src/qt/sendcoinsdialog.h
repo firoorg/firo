@@ -57,7 +57,7 @@ public Q_SLOTS:
     void updateTabsAndLabels();
     void setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
                     const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance,
-                    const CAmount& privateBalance, const CAmount& unconfirmedPrivateBalance, const CAmount& anonymizableBalance);
+                    const spats::Wallet::asset_balances_t& spats_balances, const CAmount& anonymizableBalance);
 
 private:
     Ui::SendCoinsDialog *ui;

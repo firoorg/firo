@@ -59,10 +59,7 @@ Scalar Wallet::compute_mint_asset_supply_serialization_scalar( const MintParamet
 
 Scalar Wallet::compute_burn_asset_supply_serialization_scalar( const BurnParameters &p, std::span< const unsigned char > burn_serialization_bytes )
 {
-   spark::Hash hash( tfm::format( "spatsburn_%u_for_%u_from_%s",
-                                  p.burn_amount(),
-                                  utils::to_underlying( p.asset_type() ),
-                                  p.initiator_public_address() ) );
+   spark::Hash hash( tfm::format( "spatsburn_%u_for_%u_from_%s", p.burn_amount(), utils::to_underlying( p.asset_type() ), p.initiator_public_address() ) );
    hash.include( burn_serialization_bytes );
    auto ret = hash.finalize_scalar();
    LogPrintf( "Spats burn serialization scalar (hex): %s\n", ret.GetHex() );
@@ -258,6 +255,12 @@ CWalletTx Wallet::create_burn_asset_supply_transaction( asset_type_t asset_type,
 void Wallet::notify_registry_changed()
 {
    // TODO
+}
+
+Wallet::asset_balances_t Wallet::get_asset_balances() const
+{
+   // TODO either fill this somehow (with locking), or compute on the fly in CSparkWallet and don't store here
+   return asset_balances_;
 }
 
 }   // namespace spats

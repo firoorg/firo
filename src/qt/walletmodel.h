@@ -5,6 +5,11 @@
 #ifndef BITCOIN_QT_WALLETMODEL_H
 #define BITCOIN_QT_WALLETMODEL_H
 
+#include <map>
+#include <vector>
+
+#include <QObject>
+
 #include "walletmodeltransaction.h"
 
 #include "support/allocators/secure.h"
@@ -13,11 +18,7 @@
 #include "wallet/wallet.h"
 #endif // ENABLE_WALLET
 #include "wallet/coincontrol.h"
-
-#include <map>
-#include <vector>
-
-#include <QObject>
+#include "spats/wallet.hpp"
 
 class AddressTableModel;
 class PcodeAddressTableModel;
@@ -156,6 +157,7 @@ public:
     bool validateExchangeAddress(const QString &address);
     bool validateSparkAddress(const QString &address);
     std::pair<CAmount, CAmount> getSparkBalance();
+    spats::Wallet::asset_balances_t getSpatsBalances();
 
     // Return status record for SendCoins, contains error id + information
     struct SendCoinsReturn
@@ -314,8 +316,7 @@ private:
     CAmount cachedWatchUnconfBalance;
     CAmount cachedWatchImmatureBalance;
     CAmount cachedAnonymizableBalance;
-    CAmount cachedPrivateBalance;
-    CAmount cachedUnconfirmedPrivateBalance;
+    spats::Wallet::asset_balances_t cachedSpatsBalances_;
     EncryptionStatus cachedEncryptionStatus;
     int cachedNumBlocks;
 
@@ -333,7 +334,7 @@ Q_SIGNALS:
     // Signal that balance in wallet changed
     void balanceChanged(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
                         const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance,
-                        const CAmount& privateBalance, const CAmount& unconfirmedPrivateBalance,
+                        const spats::Wallet::asset_balances_t& spats_balances,
                         const CAmount& anonymizableBalance);
 
     void updateMintable();

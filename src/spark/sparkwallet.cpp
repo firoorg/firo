@@ -97,7 +97,8 @@ CAmount CSparkWallet::getFullBalance() {
     return getAvailableBalance() + getUnconfirmedBalance();
 }
 
-CAmount CSparkWallet::getAvailableBalance() {
+CAmount CSparkWallet::getAvailableBalance() const
+{
     CAmount result = 0;
     LOCK(cs_spark_wallet);
     for (auto& it : coinMeta) {
@@ -116,7 +117,8 @@ CAmount CSparkWallet::getAvailableBalance() {
     return result;
 }
 
-CAmount CSparkWallet::getUnconfirmedBalance() {
+CAmount CSparkWallet::getUnconfirmedBalance() const
+{
     CAmount result = 0;
     LOCK(cs_spark_wallet);
     for (auto& it : coinMeta) {
@@ -180,6 +182,14 @@ CAmount CSparkWallet::getAddressUnconfirmedBalance(const spark::Address& address
     }
 
     return result;
+}
+
+spats::Wallet::asset_balances_t CSparkWallet::getAssetBalances() const
+{
+    auto ret = spats_wallet_.get_asset_balances();
+    if (spark::IsSparkAllowed())
+        ret[spats::base::universal_id] = std::pair(getAvailableBalance(), getUnconfirmedBalance());
+    return ret;
 }
 
 spark::Address CSparkWallet::generateNextAddress() {

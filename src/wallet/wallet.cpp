@@ -8398,6 +8398,7 @@ bool CWallet::CreateSparkMintTransactions(
 std::pair<CAmount, CAmount> CWallet::GetSparkBalance()
 {
     std::pair<CAmount, CAmount> balance = {0, 0};
+    // TODO GV #Review: why pwalletMain and not this?
     auto sparkWallet = pwalletMain->sparkWallet.get();
 
     if(!sparkWallet)
@@ -8406,6 +8407,13 @@ std::pair<CAmount, CAmount> CWallet::GetSparkBalance()
     balance.first = sparkWallet->getAvailableBalance();
     balance.second = sparkWallet->getUnconfirmedBalance();
     return balance;
+}
+
+spats::Wallet::asset_balances_t CWallet::GetSpatsBalances() const
+{
+    if (!spark::IsSparkAllowed() || !sparkWallet)
+        return { { spats::base::universal_id, {} } };
+    return sparkWallet->getAssetBalances();
 }
 
 bool CWallet::IsSparkAddressMine(const std::string& address) {

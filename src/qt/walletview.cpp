@@ -560,7 +560,7 @@ void WalletView::repositionAutomintSparkNotification()
     }
 }
 
-void WalletView::checkMintableAmount(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance)
+void WalletView::checkMintableAmount(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, const spats::Wallet::asset_balances_t &, CAmount anonymizableBalance)
 {
     if (automintNotification->isVisible() && anonymizableBalance == 0) {
         // hide if notification is showing but there no any fund to anonymize

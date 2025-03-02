@@ -14,6 +14,8 @@
 #include "myownspats.h"
 #include "ui_myownspats.h"
 
+namespace {
+
 enum MyOwnSpatsColumns {
    ColumnAssetType = 0,
    ColumnIdentifier,
@@ -27,6 +29,8 @@ enum MyOwnSpatsColumns {
    ColumnMetadata,
    ColumnCount   // This keeps the count of total columns, always keep last!
 };
+
+}
 
 MyOwnSpats::MyOwnSpats( const PlatformStyle *platform_style, QWidget *parent )
    : QWidget( parent )
@@ -53,8 +57,9 @@ void MyOwnSpats::display_my_own_spats()
    const auto &my_public_address = wallet_model_->getWallet()->sparkWallet->getSpatsWallet().my_public_address_as_admin();
    const auto my_own_assets = spark::CSparkState::GetState()->GetSpatsManager().registry().get_assets_administered_by( my_public_address );
    my_own_assets_map_.clear();
-   ui_->tableWidgetMyOwnSpats->clearContents();
-   ui_->tableWidgetMyOwnSpats->setRowCount( my_own_assets.size() );
+   auto &table_widget = *ui_->tableWidgetMyOwnSpats;
+   table_widget.clearContents();
+   table_widget.setRowCount( my_own_assets.size() );
 
    int row = 0;
    for ( const auto &asset : my_own_assets ) {
@@ -63,23 +68,21 @@ void MyOwnSpats::display_my_own_spats()
       // Store the asset in a map for easy lookup later, e.g. when the user wants to modify it
       my_own_assets_map_.emplace( spats::universal_asset_id_t{ spats::asset_type_t{ a.asset_type }, spats::identifier_t{ a.identifier } }, asset );
 
-      QTableWidgetItem *item;
-
       // Fill the table with all attributes to be displayed
-      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnAssetType, new QTableWidgetItem( QString::number( a.asset_type ) ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnIdentifier, new QTableWidgetItem( QString::number( a.identifier ) ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnSymbol, new QTableWidgetItem( QString::fromStdString( a.symbol ) ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnName, new QTableWidgetItem( QString::fromStdString( a.name ) ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnDescription, new QTableWidgetItem( QString::fromStdString( a.description ) ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnTotalSupply, new QTableWidgetItem( QString::fromStdString( a.total_supply ) ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnFungible, new QTableWidgetItem( a.fungible ? "Yes" : "No" ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnResupplyable, new QTableWidgetItem( a.resupplyable ? "Yes" : "No" ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnPrecision, new QTableWidgetItem( QString::number( a.precision ) ) );
-      ui_->tableWidgetMyOwnSpats->setItem( row, ColumnMetadata, new QTableWidgetItem( QString::fromStdString( a.metadata ) ) );
+      table_widget.setItem( row, ColumnAssetType, new QTableWidgetItem( QString::number( a.asset_type ) ) );
+      table_widget.setItem( row, ColumnIdentifier, new QTableWidgetItem( QString::number( a.identifier ) ) );
+      table_widget.setItem( row, ColumnSymbol, new QTableWidgetItem( QString::fromStdString( a.symbol ) ) );
+      table_widget.setItem( row, ColumnName, new QTableWidgetItem( QString::fromStdString( a.name ) ) );
+      table_widget.setItem( row, ColumnDescription, new QTableWidgetItem( QString::fromStdString( a.description ) ) );
+      table_widget.setItem( row, ColumnTotalSupply, new QTableWidgetItem( QString::fromStdString( a.total_supply ) ) );
+      table_widget.setItem( row, ColumnFungible, new QTableWidgetItem( a.fungible ? "Yes" : "No" ) );
+      table_widget.setItem( row, ColumnResupplyable, new QTableWidgetItem( a.resupplyable ? "Yes" : "No" ) );
+      table_widget.setItem( row, ColumnPrecision, new QTableWidgetItem( QString::number( a.precision ) ) );
+      table_widget.setItem( row, ColumnMetadata, new QTableWidgetItem( QString::fromStdString( a.metadata ) ) );
 
       // Make the table items read-only to prevent user editing
       for ( int col = ColumnAssetType; col < ColumnCount; ++col )
-         ui_->tableWidgetMyOwnSpats->item( row, col )->setFlags( ui_->tableWidgetMyOwnSpats->item( row, col )->flags() & ~Qt::ItemIsEditable );
+         table_widget.item( row, col )->setFlags( table_widget.item( row, col )->flags() & ~Qt::ItemIsEditable );
       ++row;
    }
 

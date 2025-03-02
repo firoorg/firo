@@ -16,6 +16,8 @@ namespace base {
 
 constexpr asset_type_t asset_type{ 0 };
 
+constexpr universal_asset_id_t universal_id{ asset_type, identifier_t{ 0 } };
+
 static_assert( is_fungible_asset_type( asset_type ) );
 
 constexpr auto asset_name = "Firo"sv;

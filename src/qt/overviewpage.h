@@ -60,8 +60,7 @@ public Q_SLOTS:
         const CAmount& watchOnlyBalance,
         const CAmount& watchUnconfBalance,
         const CAmount& watchImmatureBalance,
-        const CAmount& privateBalance,
-        const CAmount& unconfirmedPrivateBalance,
+        const spats::Wallet::asset_balances_t& spats_balances,
         const CAmount& anonymizableBalance);
 
 Q_SIGNALS:
@@ -78,8 +77,7 @@ private:
     CAmount currentWatchOnlyBalance;
     CAmount currentWatchUnconfBalance;
     CAmount currentWatchImmatureBalance;
-    CAmount currentPrivateBalance;
-    CAmount currentUnconfirmedPrivateBalance;
+    spats::Wallet::asset_balances_t currentSpatsBalances_;
     CAmount currentAnonymizableBalance;
 
     QSettings settings;
@@ -92,6 +90,10 @@ private:
     QString migrationWindowClosesIn;
     QString blocksRemaining;
     QString migrateAmount;
+    std::map<spats::universal_asset_id_t, spats::SparkAssetDisplayAttributes> spats_display_attributes_cache_;
+
+    void displaySpatsBalances();
+    const spats::SparkAssetDisplayAttributes* getSpatsDisplayAttributes(spats::universal_asset_id_t asset_id);
     void adjustTextSize(int width,int height);
 private Q_SLOTS:
     void updateDisplayUnit();
