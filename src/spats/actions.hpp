@@ -399,7 +399,10 @@ private:
 
 using Action = std::variant< CreateAssetAction, UnregisterAssetAction, ModifyAssetAction, MintAction, BurnAction >;   // TODO more
 
-using ActionSequence = std::vector< Action >;
+// Even though this is a vector, it's not really a sequence in the sense that one action comes before the other. Transaction memory pool isn't a queue, and actions can
+// come from different nodes at the same time, so the ordering at hand is just coincidental, with no deep meaning behind it...
+// Hence, not (any longer) having 'sequence' in this type alias' name.
+using Actions = std::vector< Action >;
 
 }   // namespace spats
 

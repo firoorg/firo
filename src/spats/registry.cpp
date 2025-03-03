@@ -25,7 +25,7 @@ void Registry::validate( const Action &a, int block_height ) const
    std::visit( [ & ]( const auto &x ) { validate( x.get(), { *this, lock } ); }, a );
 }
 
-static bool validations_in_isolation_are_sufficient( const ActionSequence &actions ) noexcept
+static bool validations_in_isolation_are_sufficient( const Actions &actions ) noexcept
 {
    if ( actions.size() <= 1 )
       return true;
@@ -33,7 +33,7 @@ static bool validations_in_isolation_are_sufficient( const ActionSequence &actio
    return false;
 }
 
-void Registry::validate( const ActionSequence &actions, int block_height ) const
+void Registry::validate( const Actions &actions, int block_height ) const
 {
    // we need to validate every action in isolation in any case, because the sequence in `actions` isn't that meaningfully rooted in the first place
    for ( const auto &a : actions )

@@ -27,7 +27,7 @@ public:
    Registry();
 
    void validate( const Action &a, int block_height ) const;
-   void validate( const ActionSequence &actions, int block_height ) const;
+   void validate( const Actions &actions, int block_height ) const;
 
    // returns true if the registry state has been updated as a result of processing the given action
    bool process( const Action &a, int block_height, const std::optional< block_hash_t > &block_hash );

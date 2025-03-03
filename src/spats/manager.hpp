@@ -27,7 +27,7 @@ class Manager {
 public:
    using block_hash_t = Registry::block_hash_t;
 
-   void add_spats_action_sequence( const ActionSequence &action_sequence, int block_height, const std::optional< block_hash_t > &block_hash );
+   void add_spats_actions( const Actions &actions, int block_height, const std::optional< block_hash_t > &block_hash );
    void add_block( const CBlockIndex &block );
    void remove_block( const CBlockIndex &block );
    void reset();

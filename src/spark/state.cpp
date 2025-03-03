@@ -451,7 +451,7 @@ bool ConnectBlockSpark(
             pindexNew->sparkMintedCoins.clear();
             pindexNew->spentLTags.clear();
             pindexNew->sparkSetHash.clear();
-            pindexNew->spats_action_sequence.clear();
+            pindexNew->spats_actions.clear();
         }
 
         if (!CheckSparkBlock(state, *pblock)) {
@@ -471,7 +471,7 @@ bool ConnectBlockSpark(
         }
 
         try {
-            sparkState.GetSpatsManager().registry().validate(pblock->sparkTxInfo->spats_action_sequence, pindexNew->nHeight);
+            sparkState.GetSpatsManager().registry().validate(pblock->sparkTxInfo->spats_actions, pindexNew->nHeight);
         } catch (...) {
             LogPrintf("Spats validation at block height %d failed: %s\n",
               pindexNew->nHeight, boost::current_exception_diagnostic_information().c_str());
@@ -484,11 +484,11 @@ bool ConnectBlockSpark(
                 sparkState.AddSpend(lTag.first, lTag.second);
             }
 
-            if (!pblock->sparkTxInfo->spats_action_sequence.empty()) {
-                pindexNew->spats_action_sequence.insert(pindexNew->spats_action_sequence.end(),
-                    pblock->sparkTxInfo->spats_action_sequence.begin(), pblock->sparkTxInfo->spats_action_sequence.end());
-                sparkState.AddSpatsActionSequence(pblock->sparkTxInfo->spats_action_sequence, pindexNew->nHeight,
-                                                  pindexNew->phashBlock ? std::optional(*pindexNew->phashBlock) : std::nullopt);
+            if (!pblock->sparkTxInfo->spats_actions.empty()) {
+                pindexNew->spats_actions.insert(pindexNew->spats_actions.end(),
+                    pblock->sparkTxInfo->spats_actions.begin(), pblock->sparkTxInfo->spats_actions.end());
+                sparkState.AddSpatsActions(pblock->sparkTxInfo->spats_actions, pindexNew->nHeight,
+                                           pindexNew->phashBlock ? std::optional(*pindexNew->phashBlock) : std::nullopt);
             }
 
             if (GetBoolArg("-mobile", false)) {
@@ -973,7 +973,7 @@ bool CheckSparkSpendTransaction(
     if (!isVerifyDB && !isCheckWallet) {
         if (sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
             if (action)
-                sparkTxInfo->spats_action_sequence.push_back(std::move(*action));
+                sparkTxInfo->spats_actions.push_back(std::move(*action));
             sparkTxInfo->spTransactions.insert(hashTx);
         }
     }
@@ -1768,9 +1768,9 @@ uint256 CSparkMempoolState::GetMempoolConflictingTxHash(const GroupElement& lTag
     return mempoolLTags[lTag];
 }
 
-void CSparkState::AddSpatsActionSequence(const spats::ActionSequence& action_sequence, int block_height, const std::optional<uint256>& block_hash)
+void CSparkState::AddSpatsActions(const spats::Actions& actions, int block_height, const std::optional<uint256>& block_hash)
 {
-    GetSpatsManager().add_spats_action_sequence(action_sequence, block_height, block_hash);
+    GetSpatsManager().add_spats_actions(actions, block_height, block_hash);
 }
 
 void CSparkMempoolState::Reset() {

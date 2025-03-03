@@ -29,7 +29,7 @@ public:
     std::unordered_map<GroupElement, int> spentLTags;
     std::unordered_map<uint256, uint256> ltagTxhash;
 
-    spats::ActionSequence spats_action_sequence;
+    spats::Actions spats_actions;
 
     // information about transactions in the block is complete
     bool fInfoIsComplete = false;
@@ -94,6 +94,8 @@ private:
 
     // linking tags of spends currently in the mempool mapped to tx hashes
     std::unordered_map<GroupElement, uint256, spark::CLTagHash> mempoolLTags;
+
+  // TODO collect all spats actions here and validate that the new ones doesn't conflict with already existing ones
 
 public:
     // Check if there is a conflicting tx in the blockchain or mempool
@@ -245,7 +247,7 @@ public:
 
     spats::Manager& GetSpatsManager() noexcept { return spats_manager_; }
 
-    void AddSpatsActionSequence(const spats::ActionSequence& action_sequence, int block_height, const std::optional<uint256>& block_hash);
+    void AddSpatsActions(const spats::Actions& actions, int block_height, const std::optional<uint256>& block_hash);
 
 private:
     size_t CountLastNCoins(int groupId, size_t required, CBlockIndex* &first);
