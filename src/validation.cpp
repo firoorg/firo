@@ -3353,7 +3353,7 @@ void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block)
                 lelantusState->RemoveMintFromMempool(pubCoinValue);
             }
 
-            if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+            if (txout.scriptPubKey.IsSparkMintType()) {
                 try {
                     const spark::Params* params = spark::Params::get_default();
 

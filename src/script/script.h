@@ -697,6 +697,8 @@ public:
 
     bool IsSpatsMint() const;
 
+    bool IsSparkMintType() const;
+
     // Called by IsStandardTx.
     bool HasCanonicalPushes() const;
 

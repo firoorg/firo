@@ -365,8 +365,12 @@ bool CScript::IsSpatsMint() const {
             (*this)[0] == OP_SPATSMINT);
 }
 
+bool CScript::IsSparkMintType() const {
+    return IsSparkMint() || IsSparkSMint() || IsSpatsMint();
+}
+
 bool CScript::IsMint() const {
-    return IsZerocoinMint() || IsSigmaMint() || IsZerocoinRemint() || IsLelantusMint() || IsLelantusJMint() || IsSparkMint() || IsSparkSMint();
+    return IsZerocoinMint() || IsSigmaMint() || IsZerocoinRemint() || IsLelantusMint() || IsLelantusJMint() || IsSparkMintType();
 }
 
 bool CScript::HasCanonicalPushes() const
