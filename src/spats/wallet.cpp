@@ -82,6 +82,11 @@ const std::string &Wallet::my_public_address_as_admin() const
    return my_public_address_as_admin_;
 }
 
+// TODO find out if we need to show the modifications on the GUI even before it has gone on a block that is now connected. I.e. right after being accepted to mempool,
+// show it as an action is progress somehow... Ask Reuben if we need this.
+
+// TODO for Levon to find out why no more than 1 spats action are picked to be placed on a block
+
 CWalletTx
 Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standard_fee, CAmount &new_asset_fee, const public_address_t &destination_public_address ) const
 {
@@ -111,7 +116,7 @@ Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standa
    script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
    assert( script.IsSpatsCreate() );
    new_asset_fee = compute_new_spark_asset_fee( b.naming().symbol.get() );
-   std::string burn_address( firo_burn_address );
+   const std::string burn_address( firo_burn_address );   // TODO the network-specific address from params, once Levon adds that
    CScript burn_script = GetScriptForDestination( CBitcoinAddress( burn_address ).Get() );
    CRecipient burn_recipient{ std::move( burn_script ), new_asset_fee, false, {}, "burning new asset fee" };
    if ( initial_supply ) {
@@ -222,8 +227,16 @@ CWalletTx Wallet::create_mint_asset_supply_transaction( asset_type_t asset_type,
    return tx;
 }
 
-CWalletTx Wallet::create_burn_asset_supply_transaction( asset_type_t asset_type, supply_amount_t burn_amount, CAmount &standard_fee ) const
+CWalletTx Wallet::create_burn_asset_supply_transaction( asset_type_t const asset_type, supply_amount_t const burn_amount, CAmount &standard_fee ) const
 {
+   if ( asset_type == base::asset_type ) {
+      const std::string burn_address( firo_burn_address );   // TODO the network-specific address from params, once Levon adds that
+      CScript burn_script = GetScriptForDestination( CBitcoinAddress( burn_address ).Get() );
+      CRecipient burn_recipient{ std::move( burn_script ), boost::numeric_cast< CAmount >( burn_amount.raw() ), false, {}, "burning a base asset amount" };
+      return spark_wallet_.CreateSparkSpendTransaction( { burn_recipient }, {}, standard_fee,
+                                                        nullptr );   // may throw
+   }
+
    const auto &admin_public_address = my_public_address_as_admin();
    const BurnParameters action_params( asset_type, burn_amount, admin_public_address );
    CScript script;
