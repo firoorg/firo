@@ -25,7 +25,7 @@ SpatsMintDialog::SpatsMintDialog( const PlatformStyle *platform_style, const spa
 
    // Display asset info in dialog title
    const auto &asset_symbol = asset_.naming().symbol.get();
-   setWindowTitle( QString( "Mint for Asset %1 (%2)" ).arg( utils::to_underlying( asset_.asset_type() ) ).arg( QString::fromStdString( asset_symbol ) ) );
+   setWindowTitle( QString( "Mint for Asset Type %1 (%2)" ).arg( utils::to_underlying( asset_.asset_type() ) ).arg( QString::fromStdString( asset_symbol ) ) );
 
    ui_->errorLabel->setVisible( false );
 
@@ -60,7 +60,7 @@ void SpatsMintDialog::onSave()
    }
 }
 
-void SpatsMintDialog::validateInputs()
+void SpatsMintDialog::validateInputs() const
 {
    // Validate that a positive supply is entered
    if ( ui_->newSupplySpinBox->value() <= 0.0 )

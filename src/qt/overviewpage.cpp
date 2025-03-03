@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "../lelantus.h"
+#include "../wallet/wallet.h"
 
 #include "overviewpage.h"
 #include "ui_overviewpage.h"
@@ -20,6 +21,7 @@
 #include "walletmodel.h"
 #include "validation.h"
 #include "askpassphrasedialog.h"
+#include "spatsburndialog.h"
 
 
 #ifdef WIN32
@@ -31,6 +33,7 @@
 
 #include <QAbstractItemDelegate>
 #include <QPainter>
+#include <QMenu>
 
 #define DECORATION_SIZE 54
 #define NUM_ITEMS 5
@@ -190,6 +193,9 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     connect(&countDownTimer, &QTimer::timeout, this, &OverviewPage::countDown);
     countDownTimer.start(30000);
     connect(ui->migrateButton, &QPushButton::clicked, this, &OverviewPage::migrateClicked);
+
+    ui->tableWidgetSparkBalances->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(ui->tableWidgetSparkBalances, &QTableWidget::customContextMenuRequested, this, &OverviewPage::on_tableWidgetSparkBalances_contextMenuRequested);
 }
 
 void OverviewPage::handleTransactionClicked(const QModelIndex &index)
@@ -325,6 +331,52 @@ const spats::SparkAssetDisplayAttributes* OverviewPage::getSpatsDisplayAttribute
         }
     }
     return &it->second;
+}
+
+void OverviewPage::on_tableWidgetSparkBalances_contextMenuRequested( const QPoint &pos )
+{
+    // Get the selected row
+    QModelIndex index = ui->tableWidgetSparkBalances->indexAt( pos );
+    if ( !index.isValid() ) {
+        return;
+    }
+
+    const int row = index.row();
+    const spats::asset_type_t asset_type{ ui->tableWidgetSparkBalances->item( row, ColumnAssetType )->text().toULongLong() };
+    if ( !is_fungible_asset_type( asset_type ) )
+        return;    // No burning for NFTs
+
+    using balance_type = spats::Wallet::amount_type;
+    balance_type balance ;
+    try {
+        balance = balance_type::from_string( ui->tableWidgetSparkBalances->item( row, ColumnAvailableBalance )->text().toStdString() );
+    }
+    catch ( ... ) {
+        return;
+    }
+    if ( balance <= balance_type{} )
+        return;    // No burning unless the balance is positive
+
+    // Create context menu
+    QMenu context_menu( this );
+    QAction *burn_action = context_menu.addAction( tr("Burn") );
+
+    // Connect the action to open the burn dialog
+    connect( burn_action, &QAction::triggered, this, [this, row, asset_type, balance] {
+        try {
+            // Show the burn dialog
+            SpatsBurnDialog dialog( txdelegate->platformStyle, asset_type, ui->tableWidgetSparkBalances->item( row, ColumnSymbol )->text().toStdString(),
+                                    spats::supply_amount_t( balance.raw() , balance.precision() ), this );
+            if ( dialog.exec() == QDialog::Accepted )
+                walletModel->getWallet()->BurnSparkAssetSupply( asset_type, dialog.getBurnAmount() );   // TODO user confirm callback
+        }
+        catch ( const std::exception &e ) {
+           QMessageBox::critical( this, tr( "Error" ), tr( "An error occurred: %1" ).arg( e.what() ) );
+        }
+    } );
+
+    // Show the context menu
+    context_menu.exec( ui->tableWidgetSparkBalances->viewport()->mapToGlobal( pos ) );
 }
 
 // show/hide watch-only labels

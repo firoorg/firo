@@ -106,6 +106,7 @@ QT_FORMS_UI = \
   qt/forms/masternodelist.ui \
   qt/forms/myownspats.ui \
   qt/forms/sparkassetdialog.ui \
+  qt/forms/spatsburndialog.ui \
   qt/forms/spatsmintdialog.ui \
   qt/forms/intro.ui \
   qt/forms/modaloverlay.ui \
@@ -151,6 +152,7 @@ QT_MOC_CPP = \
   qt/moc_masternodelist.cpp \
   qt/moc_myownspats.cpp \
   qt/moc_sparkassetdialog.cpp \
+  qt/moc_spatsburndialog.cpp \
   qt/moc_spatsmintdialog.cpp \
   qt/moc_modaloverlay.cpp \
   qt/moc_notificator.cpp \
@@ -234,6 +236,7 @@ BITCOIN_QT_H = \
   qt/masternodelist.h \
   qt/myownspats.h \
   qt/sparkassetdialog.h \
+  qt/spatsburndialog.h \
   qt/spatsmintdialog.h \
   qt/modaloverlay.h \
   qt/networkstyle.h \
@@ -463,6 +466,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/masternodelist.cpp \
   qt/myownspats.cpp \
   qt/sparkassetdialog.cpp \
+  qt/spatsburndialog.cpp \
   qt/spatsmintdialog.cpp \
   qt/walletview.cpp \
   qt/lelantusmodel.cpp \

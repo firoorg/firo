@@ -68,7 +68,7 @@ private:
    spats::supply_amount_t new_supply_;   ///< The resulting new supply value.
    std::string recipient_;   ///< The resulting recipient address after dialog completion (if any).
 
-   void validateInputs();
+   void validateInputs() const;
 };
 
 #endif   // FIRO_SPATSMINTDIALOG_H_INCLUDED

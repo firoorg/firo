@@ -103,6 +103,8 @@ private Q_SLOTS:
     void updateWatchOnlyLabels(bool showWatchOnly);
     void handleOutOfSyncWarningClicks();
     void countDown();
+    
+    void on_tableWidgetSparkBalances_contextMenuRequested(const QPoint &pos);
 };
 
 class MigrateLelantusToSparkDialog : public QMessageBox
