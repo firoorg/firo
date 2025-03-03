@@ -25,17 +25,27 @@ void Registry::validate( const Action &a, int block_height ) const
    std::visit( [ & ]( const auto &x ) { validate( x.get(), { *this, lock } ); }, a );
 }
 
+static bool validations_in_isolation_are_sufficient( const ActionSequence &actions ) noexcept
+{
+   if ( actions.size() <= 1 )
+      return true;
+   // TODO Performance: more cases where we can return true, the more possible the better
+   return false;
+}
+
 void Registry::validate( const ActionSequence &actions, int block_height ) const
 {
-   if ( actions.empty() )
+   // we need to validate every action in isolation in any case, because the sequence in `actions` isn't that meaningfully rooted in the first place
+   for ( const auto &a : actions )
+      validate( a, block_height );   // may throw
+
+   if ( validations_in_isolation_are_sufficient( actions ) )
       return;
-   if ( actions.size() == 1 )
-      return validate( actions.front(), block_height );
 
    // We have multiple actions to validate. In general, we cannot just validate the actions against the registry in isolation, because a prior action in a sequence may
    // affect the validity of a subsequent action in the sequence. So we need to validate the actions against the registry in the context of the entire sequence, by making
    // a copy of the registry and processing the actions on the copy, in sequence. All process() functions validate the action as their first item of business, so that
-   // would take care of this correctly, though likely not with the best efficiency in terms of performance.
+   // would take care of this correctly, though likely not with the best possible efficiency in terms of performance.
    std::shared_lock lock( mutex_ );
    auto copy = *this;
    lock.unlock();
@@ -375,6 +385,7 @@ std::vector< SparkAsset > Registry::get_assets_administered_by( const public_add
 {
    std::shared_lock lock( mutex_ );
    return get_assets_administered_by( public_address, { *this, lock } );
+   // TODO (outside of the lock) if the base asset is returned, fix its total supply
 }
 
 std::vector< FungibleSparkAsset > Registry::get_fungible_assets_administered_by( const public_address_t &public_address, read_lock_proof ) const

@@ -724,7 +724,8 @@ bool CheckSparkSpendTransaction(
         int nHeight,
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
-        CSparkTxInfo* sparkTxInfo) {
+        CSparkTxInfo* sparkTxInfo)
+{
     std::unordered_set<GroupElement, spark::CLTagHash> txLTags;
 
     if (tx.vin.size() != 1 || !tx.vin[0].scriptSig.IsSparkSpend()) {
@@ -735,7 +736,7 @@ bool CheckSparkSpendTransaction(
     }
 
     Consensus::Params const & params = ::Params().GetConsensus();
-    int height = nHeight == INT_MAX ? chainActive.Height()+1 : nHeight;
+    const int height = nHeight == INT_MAX ? chainActive.Height()+1 : nHeight;
     if (!isVerifyDB) {
             if (height >= params.nSparkStartBlock) {
                 // data should be moved to v3 payload
@@ -956,6 +957,15 @@ bool CheckSparkSpendTransaction(
                                    false,
                                    REJECT_MALFORMED,
                                    "CheckSparkSpendTransaction: failed to deserialize spats tx: "s + e.what());
+              }
+
+              try {
+                  sparkState.GetSpatsManager().registry().validate(*action, height);
+              } catch (...) {
+                  return state.DoS(100,
+                                   false,
+                                   REJECT_INVALID,
+                                   "CheckSparkSpendTransaction: Spats action validation failed: " + boost::current_exception_diagnostic_information());
               }
         }
     }
