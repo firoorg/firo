@@ -153,6 +153,53 @@ public:
       return x * ( maxdf / dfx ) <=> y * ( maxdf / dfy );
    }
 
+   static scaled_amount from_string( std::string_view str )
+   {
+      bool negative = false;
+      if ( str.front() == '+' ) {
+         str.remove_prefix( 1 );
+      }
+      if constexpr ( std::is_signed_v< RawAmountType > ) {
+         if ( str.front() == '-' ) {
+            negative = true;
+            str.remove_prefix( 1 );
+         }
+      }
+
+      if ( str.front() == '.' )
+         throw std::invalid_argument( "Cannot have a dot at the beginning of string representation of a scaled_amount" );
+      // a trailing dot is ok though, provided it's the only dot in str, although op<< won't ever produce a trailing dot, but whatever...
+
+      precision_type precision = 0;
+      raw_amount_type raw = 0;
+      bool after_dot = false;
+      for ( const auto c : str ) {
+         if ( c == '.' ) {
+            if ( after_dot )
+               throw std::invalid_argument( "Cannot have more than one dot in string representation of a scaled_amount" );
+            after_dot = true;
+            continue;
+         }
+
+         if ( c >= '0' && c <= '9' ) {
+            const auto new_raw = raw * 10 + ( c - '0' );
+            static_assert( std::is_same_v< decltype( new_raw ), const raw_amount_type > );
+            if ( new_raw < raw )   // This would reject numeric_limits::min(), not sure if we need/want to support that extreme value here anyway, but TODO test
+               // TODO the actual N
+               negative ? throw std::underflow_error( "Negative number too big for scaled_amount of N bits" )
+                        : throw std::overflow_error( "Number too big for scaled_amount of N bits" );
+            raw = new_raw;
+         }
+         else
+            throw std::invalid_argument( "invalid character in string" );
+
+         if ( after_dot )
+            ++precision;
+      }
+
+      return { negative ? -raw : raw, precision };
+   }
+
 private:
    // the true mathematical amount is raw_amount_ / 10^precision_
    raw_amount_type raw_amount_{};
@@ -196,8 +243,11 @@ template < typename CharT, typename Traits, typename RawAmountType >
 std::basic_ostream< CharT, Traits > &operator<<( std::basic_ostream< CharT, Traits > &os, const scaled_amount< RawAmountType > &amount )
 {
    const auto [ before, after ] = amount.unpack();
-   boost::io::ios_fill_saver ifs( os );
-   os << before << "." << std::setfill( '0' ) << std::setw( amount.precision() ) << after;
+   os << before;
+   if ( amount.precision() > 0 ) {
+      boost::io::ios_fill_saver ifs( os );
+      os << "." << std::setfill( '0' ) << std::setw( amount.precision() ) << after;
+   }
    return os;
 }
 
