@@ -7,7 +7,7 @@ namespace spark {
 
 class OwnershipProof{
 public:
-    inline std::size_t memoryRequired() const {
+    static constexpr std::size_t memoryRequired() {
         return Scalar::memoryRequired() * 3 + GroupElement::memoryRequired();
     }
 

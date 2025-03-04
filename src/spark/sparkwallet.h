@@ -131,7 +131,8 @@ public:
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
-            const CCoinControl *coinControl = NULL);
+            const CCoinControl *coinControl = NULL,
+            CAmount additionalTxSize = 0);
 
     std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoins(
             CAmount required,
@@ -139,7 +140,8 @@ public:
             std::list< CSparkMintMeta> coins,
             std::size_t mintNum,
             std::size_t utxoNum,
-            const CCoinControl *coinControl);
+            const CCoinControl *coinControl,
+            size_t additionalTxSize = 0);
 
     CWalletTx CreateSparkNameTransaction(
             CSparkNameTxData &nameData,

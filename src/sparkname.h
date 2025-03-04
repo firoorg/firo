@@ -146,8 +146,11 @@ public:
     // check the possibility to register a new spark name, return true if it's possible
     bool ValidateSparkNameData(const CSparkNameTxData &sparkNameData, std::string &errorDescription);
 
+    // get the size of the spark name transaction metadata
+    size_t GetSparkNameTxDataSize(const CSparkNameTxData &sparkNameData);
+
     // fill missing CSparkNameTxData fields and append spark name tx data to the transaction
-    void AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey, size_t &additionalSize);
+    void AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey);
 
     // add and remove spark name
     bool AddSparkName(const std::string &name, const std::string &address, uint32_t validityBlocks, const std::string &additionalInfo);

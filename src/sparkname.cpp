@@ -256,7 +256,23 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
     return errorDescription.empty();
 }
 
-void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey, size_t &additionalSize)
+size_t CSparkNameManager::GetSparkNameTxDataSize(const CSparkNameTxData &sparkNameData)
+{
+    CSparkNameTxData sparkNameDataCopy = sparkNameData;
+    spark::OwnershipProof ownershipProof;   // just an empty proof
+
+    CDataStream ownershipProofStream(SER_NETWORK, PROTOCOL_VERSION);
+    ownershipProofStream << ownershipProof;
+
+    sparkNameDataCopy.addressOwnershipProof.assign(ownershipProofStream.begin(), ownershipProofStream.end());
+
+    CDataStream sparkNameDataStream(SER_NETWORK, PROTOCOL_VERSION);
+    sparkNameDataStream << sparkNameDataCopy;
+
+    return sparkNameDataStream.size();
+}
+
+void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey)
 {
     for (uint32_t n=0; ; n++) {
         sparkNameData.addressOwnershipProof.clear();
@@ -292,7 +308,6 @@ void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend,
         CDataStream sparkNameDataStream(SER_NETWORK, PROTOCOL_VERSION);
         sparkNameDataStream << sparkNameData;
 
-        additionalSize = sparkNameDataStream.size();
         txSparkSpend.vExtraPayload.insert(txSparkSpend.vExtraPayload.end(), sparkNameDataStream.begin(), sparkNameDataStream.end());
 
         break;
