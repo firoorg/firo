@@ -109,6 +109,11 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
 
         WalletModelTransaction tx = model->initSparkNameTransaction(sparkNameFee);
 
+        using UnlockContext = WalletModel::UnlockContext;
+        std::unique_ptr<UnlockContext> ctx = std::unique_ptr<UnlockContext>(new UnlockContext(model->requestUnlock()));
+        if (!ctx->isValid())
+            return false;
+
         WalletModel::SendCoinsReturn prepareStatus = model->prepareSparkNameTransaction(tx, sparkNameData, sparkNameFee, nullptr);
         if (prepareStatus.status != WalletModel::StatusCode::OK) {
             QMessageBox::critical(this, tr("Error"), tr("Failed to prepare spark name transaction"));
