@@ -156,7 +156,7 @@ void SparkAssetDialog::onPrecisionChanged( int precision_value )
    try {
       ui_->totalSupplySpin->setDecimals( precision_value );
       ui_->totalSupplySpin->setSingleStep( std::pow( 10, -precision_value ) );
-      ui_->totalSupplySpin->setMaximum( spats::supply_amount_t( 0, precision_value ).max_value().as_double() );
+      ui_->totalSupplySpin->setMaximum( spats::supply_amount_t( 0, precision_value ).max_value_without_signbit().as_double() );
    }
    catch ( const std::exception &e ) {
       ui_->errorLabel->setText( e.what() );

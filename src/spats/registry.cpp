@@ -216,7 +216,8 @@ void Registry::validate( const MintParameters &p, read_lock_proof ) const
       throw std::domain_error( "Cannot mint new supply with a different precision than the asset's" );
    if ( a.admin_public_address() != p.initiator_public_address() )
       throw std::domain_error( "No permission to mint for the given asset" );
-   a.total_supply() + p.new_supply();   // may throw due to overflow
+   if ( a.total_supply() + p.new_supply() > a.total_supply().max_value_without_signbit() )   // may outright throw due to overflow
+      throw std::domain_error( "Adding the new mint amount to the total supply would exceed the max permitted number, rejecting" );
 }
 
 bool Registry::process( const MintParameters &p, int /*block_height*/, const std::optional< block_hash_t > & /*block_hash*/, write_lock_proof wlp )

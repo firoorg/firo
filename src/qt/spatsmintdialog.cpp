@@ -21,7 +21,7 @@ SpatsMintDialog::SpatsMintDialog( const PlatformStyle *platform_style, const spa
    ui_->newSupplySpinBox->setValue( 0.0 );   // Default value
    ui_->newSupplySpinBox->setMinimum( 0.0 );   // No negative values
    ui_->newSupplySpinBox->setSingleStep( 1.0 / total_supply.decimal_factor() );   // Step controlled by precision
-   ui_->newSupplySpinBox->setMaximum( ( total_supply.max_value() - total_supply ).as_double() );   // Maximum value
+   ui_->newSupplySpinBox->setMaximum( ( total_supply.max_value_without_signbit() - total_supply ).as_double() );   // Maximum value
 
    // Display asset info in dialog title
    const auto &asset_symbol = asset_.naming().symbol.get();

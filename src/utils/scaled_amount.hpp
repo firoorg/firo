@@ -98,8 +98,9 @@ public:
 
    constexpr auto decimal_factor() const noexcept { return math::integral_power( std::uintmax_t( 10 ), precision() ); }
 
-   // The maximum supported value with the current .precision()
+   // The maximum supported value(s) with the current .precision()
    constexpr scaled_amount max_value() const noexcept { return { std::numeric_limits< raw_amount_type >::max(), precision() }; }
+   constexpr scaled_amount max_value_without_signbit() const noexcept { return { std::numeric_limits< std::make_signed_t< raw_amount_type > >::max(), precision() }; }
    // The minimum supported value with the current .precision()
    constexpr scaled_amount min_value() const noexcept { return { std::numeric_limits< raw_amount_type >::min(), precision() }; }
 
@@ -250,6 +251,8 @@ std::basic_ostream< CharT, Traits > &operator<<( std::basic_ostream< CharT, Trai
    }
    return os;
 }
+
+// TODO unit tests, for everything reasonably possible under utils/ and spats/
 
 }   // namespace utils
 

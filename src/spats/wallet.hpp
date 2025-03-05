@@ -26,7 +26,6 @@ class Registry;
 class Wallet {
 public:
    // using signed integer in wallet just in case there are out-of-order operations that are affecting the balance, to be on the safe side...
-   // TODO cap the max supply to the signed max scaled_amount
    using amount_type = utils::scaled_amount< std::int64_t >;
 
    explicit Wallet( CSparkWallet &spark_wallet ) noexcept;
