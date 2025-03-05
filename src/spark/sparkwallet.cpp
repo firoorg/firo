@@ -1601,11 +1601,10 @@ void CSparkWallet::AppendSpatsMintTxData(CMutableTransaction& tx,
     const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
     const spark::SpendKey& spendKey) {
 
-    CDataStream serialContextStream(SER_NETWORK, PROTOCOL_VERSION);
-    serialContextStream << tx;
+    std::vector<unsigned char> serialContext = spark::getSerialContext(tx);
 
     const spark::Params* params = spark::Params::get_default();
-    spark::MintTransaction spatskMint(params, {spatsRecipient.first}, std::vector<unsigned char>(serialContextStream.begin(), serialContextStream.end()), true);
+    spark::MintTransaction spatskMint(params, {spatsRecipient.first}, serialContext, true);
     CDataStream serializedMint = spatskMint.getMintedCoinsSerialized()[0];
 
     CScript script;
@@ -1620,7 +1619,7 @@ void CSparkWallet::AppendSpatsMintTxData(CMutableTransaction& tx,
     CDataStream serializedOwn(SER_NETWORK, PROTOCOL_VERSION);
     serializedOwn << ownershipProof;
 
-	auto& scriptRef = tx.vout.back().scriptPubKey;
+    auto& scriptRef = tx.vout.back().scriptPubKey;
     scriptRef.insert(scriptRef.end(), serializedOwn.begin(), serializedOwn.end());
 }
 

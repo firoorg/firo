@@ -1,6 +1,7 @@
 #include "state.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
+#include "../libspark/keys.h"
 
 namespace spark {
 
@@ -145,6 +146,41 @@ void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransact
     }
 }
 
+void ParseSpatsMintTransaction(const CScript& script, MintTransaction& mintTransaction, spark::OwnershipProof& ownershipProof)
+{
+    std::vector<CDataStream> serializedCoins;
+    if (!script.IsSpatsMint())
+        throw std::invalid_argument("Script is not a Spats mint");
+
+    std::vector<unsigned char> serialized(script.begin() + 1, script.end());
+    std::size_t proofsize = ownershipProof.memoryRequired();
+
+    size_t size = spark::Coin::memoryRequired() + proofsize + 8; // 8 is the size of uint64_t
+    if (serialized.size() < size) {
+        throw std::invalid_argument("Script is not a valid Spats mint");
+    }
+
+    CDataStream stream(
+            std::vector<unsigned char>(serialized.begin(), serialized.end() - ownershipProof.memoryRequired()),
+            SER_NETWORK,
+            PROTOCOL_VERSION
+    );
+    serializedCoins.push_back(stream);
+
+    try {
+        mintTransaction.setMintTransaction(serializedCoins);
+    } catch (const std::exception &) {
+        throw std::invalid_argument("Unable to deserialize Spark mint transaction");
+    }
+
+    CDataStream proofstream(
+        std::vector<unsigned char>(serialized.end() - proofsize + 1, serialized.end()),
+        SER_NETWORK,
+        PROTOCOL_VERSION
+        );
+    proofstream >> ownershipProof;
+}
+
 void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin)
 {
     if (!script.IsSparkMintType())
@@ -167,7 +203,7 @@ void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin)
         throw std::invalid_argument("Unable to deserialize Spark mint");
     }
 }
-//TODO levon
+
 spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
 {
     if (tx.vin.size() != 1 || tx.vin[0].scriptSig.size() < 1) {
@@ -487,7 +523,7 @@ bool CheckSparkMintTransaction(
 
 bool CheckSpatsMintTransaction(
         const CTransaction &tx,
-        const std::vector<CTxOut>& txOuts,
+        CTxOut& txOut,
         CValidationState &state,
         uint256 hashTx,
         bool fStatefulSigmaCheck,
@@ -495,14 +531,11 @@ bool CheckSpatsMintTransaction(
 
     LogPrintf("CheckSpatsMintTransaction txHash = %s\n", hashTx.GetHex());
     const spark::Params* params = spark::Params::get_default();
-    std::vector<CScript> scripts;
-    for (const auto& txOut : txOuts) {
-        scripts.push_back(txOut.scriptPubKey);
-    }
 
     MintTransaction mintTransaction(params);
+    spark::OwnershipProof ownershipProof;
     try {
-        ParseSparkMintTransaction(scripts, mintTransaction);
+        ParseSpatsMintTransaction(txOut.scriptPubKey, mintTransaction, ownershipProof);
     } catch (std::invalid_argument&) {
         return state.DoS(100,
                          false,
@@ -520,30 +553,35 @@ bool CheckSpatsMintTransaction(
     std::vector<Coin> coins;
     mintTransaction.getCoins(coins);
 
-    if (coins.size() != txOuts.size())
+    if (coins.size() != 1)
+        return state.DoS(100,
+                     false,
+                     PUBCOIN_NOT_VALIDATE,
+                     "CheckSpatsMintTransaction : More than one spats mint");
+
+    Scalar m = spark::GetSpatsMintM(tx);
+    //TODO levon get address from the registry and verify ownership
+    spark::Address address(params);
+    if (!address.verify_own(m, ownershipProof))
+        return state.DoS(100,
+                             false,
+                             PUBCOIN_NOT_VALIDATE,
+                             "CheckSpatsMintTransaction : Address ownership proof verification failed");
+
+
+    auto& coin = coins[0];
+    if (coin.v != txOut.nValue)
         return state.DoS(100,
                          false,
                          PUBCOIN_NOT_VALIDATE,
-                         "CheckSpatsMintTransaction : mintTransaction parsing failed");
-
-    Scalar m = spark::GetSpatsMintM(tx);
-    //TODO levon parse address own proof and verify it,
-
-    for (size_t i = 0; i < coins.size(); i++) {
-        auto& coin = coins[i];
-        if (coin.v != txOuts[i].nValue)
-            return state.DoS(100,
-                             false,
-                             PUBCOIN_NOT_VALIDATE,
-                             "CheckSpatsMintTransaction : mintTransaction failed, wrong amount");
-        //TODO levon verify against asset regystry and get address
-//        coins[i].a;
-//        coins[i].iota;
-        if (sparkTxInfo != nullptr && !sparkTxInfo->fInfoIsComplete) {
-            // Update coin list in the info
-            sparkTxInfo->mints.push_back(coin);
-            sparkTxInfo->spTransactions.insert(hashTx);
-        }
+                         "CheckSpatsMintTransaction : mintTransaction failed, wrong amount");
+    //TODO levon verify against asset regystry and get address
+    coin.a;
+    coin.iota;
+    if (sparkTxInfo != nullptr && !sparkTxInfo->fInfoIsComplete) {
+        // Update coin list in the info
+        sparkTxInfo->mints.push_back(coin);
+        sparkTxInfo->spTransactions.insert(hashTx);
     }
 
     return true;
@@ -859,11 +897,16 @@ bool CheckSparkTransaction(
                 txOuts.push_back(txout);
             }
         }
+
+        if (txOuts.size() > 1) {
+            LogPrintf("CheckSparkTransaction::More than one spats mint.\n");
+            return false;
+        }
+
         if (!txOuts.empty()) {
             try {
-                //TODO levon get m from tx.
-                if (!CheckSpatsMintTransaction(tx, txOuts, state, hashTx, fStatefulSigmaCheck, sparkTxInfo)) {
-                    LogPrintf("CheckSparkTransaction::Mint verification failed.\n");
+                if (!CheckSpatsMintTransaction(tx, txOuts[0], state, hashTx, fStatefulSigmaCheck, sparkTxInfo)) {
+                    LogPrintf("CheckSparkTransaction::Spats Mint verification failed.\n");
                     return false;
                 }
             }
@@ -966,7 +1009,6 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
 }
 
 std::vector<unsigned char> getSerialContext(const CTransaction &tx) {
-    //TODO levon implement case for spats mint
     CDataStream serialContextStream(SER_NETWORK, PROTOCOL_VERSION);
     if (tx.IsSparkSpend()) {
         try {
