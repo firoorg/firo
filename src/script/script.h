@@ -207,6 +207,7 @@ enum opcodetype
     OP_SPARKMINT = 0xd1,
     OP_SPARKSMINT = 0xd2,
     OP_SPARKSPEND = 0xd3,
+    OP_SPATSMINT = 0xd7,
 
     // basically NOP but identifies that sunsequent txout script contains super transparent address
     OP_EXCHANGEADDR = 0xe0
@@ -584,7 +585,8 @@ public:
 
         if (opcodeRet == opcodetype::OP_SIGMASPEND || opcodeRet == opcodetype::OP_SIGMAMINT ||
             opcodeRet == opcodetype::OP_LELANTUSMINT || opcodeRet == opcodetype::OP_LELANTUSJMINT || opcodeRet == opcodetype::OP_LELANTUSJOINSPLIT ||
-            opcodeRet == opcodetype::OP_SPARKMINT || opcodeRet == opcodetype::OP_SPARKSMINT || opcodeRet == opcodetype::OP_SPARKSPEND) {
+            opcodeRet == opcodetype::OP_SPARKMINT || opcodeRet == opcodetype::OP_SPARKSMINT || opcodeRet == opcodetype::OP_SPARKSPEND ||
+            opcodeRet == opcodetype::OP_SPATSMINT) {
             if (pvchRet) {
                 pvchRet->assign(pc, end());
             }
@@ -692,6 +694,10 @@ public:
     bool IsZerocoinRemint() const;
 
     bool IsMint() const;
+
+    bool IsSpatsMint() const;
+
+    bool IsSparkMintType() const;
 
     // Called by IsStandardTx.
     bool HasCanonicalPushes() const;

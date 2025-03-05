@@ -1,4 +1,4 @@
-#include "../mint_transaction.h"
+#include "../../libspark/mint_transaction.h"
 
 #include "../../test/test_bitcoin.h"
 #include <boost/test/unit_test.hpp>
@@ -7,6 +7,7 @@
 namespace spats {
 
 using namespace secp_primitives;
+using namespace spark;
 
 // Generate a random char vector from a random scalar
 static std::vector<unsigned char> random_char_vector() {

@@ -1,6 +1,7 @@
 #include "state.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
+#include "../libspark/keys.h"
 
 namespace spark {
 
@@ -67,6 +68,17 @@ bool IsSparkAllowed(int height)
     return height >= ::Params().GetConsensus().nSparkStartBlock;
 }
 
+bool SpatsStarted()
+{
+    LOCK(cs_main);
+    return SpatsStarted(chainActive.Height());
+}
+
+bool SpatsStarted(int height)
+{
+    return height >= ::Params().GetConsensus().nSpatsStartBlock;
+}
+
 unsigned char GetNetworkType() {
     if (::Params().GetConsensus().IsMain())
         return ADDRESS_NETWORK_MAINNET;
@@ -83,7 +95,7 @@ unsigned char GetNetworkType() {
  */
 size_t CountCoinInBlock(CBlockIndex *index, int id) {
     return index->sparkMintedCoins.count(id) > 0
-           ? index->sparkMintedCoins[id].size() : 0;
+    ? index->sparkMintedCoins[id].size() : 0;
 }
 
 std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id, bool generation = false) {
@@ -134,9 +146,44 @@ void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransact
     }
 }
 
+void ParseSpatsMintTransaction(const CScript& script, MintTransaction& mintTransaction, spark::OwnershipProof& ownershipProof)
+{
+    std::vector<CDataStream> serializedCoins;
+    if (!script.IsSpatsMint())
+        throw std::invalid_argument("Script is not a Spats mint");
+
+    std::vector<unsigned char> serialized(script.begin() + 1, script.end());
+    std::size_t proofsize = ownershipProof.memoryRequired();
+
+    size_t size = spark::Coin::memoryRequired() + proofsize + 8; // 8 is the size of uint64_t
+    if (serialized.size() < size) {
+        throw std::invalid_argument("Script is not a valid Spats mint");
+    }
+
+    CDataStream stream(
+            std::vector<unsigned char>(serialized.begin(), serialized.end() - ownershipProof.memoryRequired()),
+            SER_NETWORK,
+            PROTOCOL_VERSION
+    );
+    serializedCoins.push_back(stream);
+
+    try {
+        mintTransaction.setMintTransaction(serializedCoins);
+    } catch (const std::exception &) {
+        throw std::invalid_argument("Unable to deserialize Spark mint transaction");
+    }
+
+    CDataStream proofstream(
+        std::vector<unsigned char>(serialized.end() - proofsize + 1, serialized.end()),
+        SER_NETWORK,
+        PROTOCOL_VERSION
+        );
+    proofstream >> ownershipProof;
+}
+
 void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin)
 {
-    if (!script.IsSparkMint() && !script.IsSparkSMint())
+    if (!script.IsSparkMintType())
         throw std::invalid_argument("Script is not a Spark mint");
 
     if (script.size() < 213) {
@@ -176,6 +223,21 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
     return std::move(spendTransaction);
 }
 
+Scalar GetSpatsMintM(const CTransaction& tx) {
+    CMutableTransaction txTemp = tx;
+    for (auto itr = txTemp.vout.begin(); itr < txTemp.vout.end(); ++itr) {
+        if (itr->scriptPubKey.IsSpatsMint()) {
+            txTemp.vout.erase(itr);
+            --itr;
+        }
+    }
+    spark::Hash hash(LABEL_TRANSCRIPT_SPATS_MINT);
+    CDataStream serializedTx(SER_NETWORK, PROTOCOL_VERSION);
+    serializedTx << tx;
+
+    hash.include(serializedTx);
+    return hash.finalize_scalar();
+}
 
 std::vector<GroupElement> GetSparkUsedTags(const CTransaction &tx)
 {
@@ -199,7 +261,7 @@ std::vector<spark::Coin> GetSparkMintCoins(const CTransaction &tx)
         std::vector<unsigned char> serial_context = getSerialContext(tx);
         for (const auto& vout : tx.vout) {
             const auto& script = vout.scriptPubKey;
-            if (script.IsSparkMint() || script.IsSparkSMint()) {
+            if (script.IsSparkMintType()) {
                 try {
                     spark::Coin coin(Params::get_default());
                     ParseSparkMintCoin(script, coin);
@@ -459,6 +521,72 @@ bool CheckSparkMintTransaction(
     return true;
 }
 
+bool CheckSpatsMintTransaction(
+        const CTransaction &tx,
+        CTxOut& txOut,
+        CValidationState &state,
+        uint256 hashTx,
+        bool fStatefulSigmaCheck,
+        CSparkTxInfo* sparkTxInfo) {
+
+    LogPrintf("CheckSpatsMintTransaction txHash = %s\n", hashTx.GetHex());
+    const spark::Params* params = spark::Params::get_default();
+
+    MintTransaction mintTransaction(params);
+    spark::OwnershipProof ownershipProof;
+    try {
+        ParseSpatsMintTransaction(txOut.scriptPubKey, mintTransaction, ownershipProof);
+    } catch (std::invalid_argument&) {
+        return state.DoS(100,
+                         false,
+                         PUBCOIN_NOT_VALIDATE,
+                         "CTransaction::CheckTransaction() : SpatsMint parsing failure.");
+    }
+
+    //checking whether MintTransaction is valid
+    if (!mintTransaction.verify()) {
+        return state.DoS(100,
+                         false,
+                         PUBCOIN_NOT_VALIDATE,
+                         "CheckSpatsMintTransaction : mintTransaction verification failed");
+    }
+    std::vector<Coin> coins;
+    mintTransaction.getCoins(coins);
+
+    if (coins.size() != 1)
+        return state.DoS(100,
+                     false,
+                     PUBCOIN_NOT_VALIDATE,
+                     "CheckSpatsMintTransaction : More than one spats mint");
+
+    Scalar m = spark::GetSpatsMintM(tx);
+    //TODO levon get address from the registry and verify ownership
+    spark::Address address(params);
+    if (!address.verify_own(m, ownershipProof))
+        return state.DoS(100,
+                             false,
+                             PUBCOIN_NOT_VALIDATE,
+                             "CheckSpatsMintTransaction : Address ownership proof verification failed");
+
+
+    auto& coin = coins[0];
+    if (coin.v != txOut.nValue)
+        return state.DoS(100,
+                         false,
+                         PUBCOIN_NOT_VALIDATE,
+                         "CheckSpatsMintTransaction : mintTransaction failed, wrong amount");
+    //TODO levon verify against asset regystry and get address
+    coin.a;
+    coin.iota;
+    if (sparkTxInfo != nullptr && !sparkTxInfo->fInfoIsComplete) {
+        // Update coin list in the info
+        sparkTxInfo->mints.push_back(coin);
+        sparkTxInfo->spTransactions.insert(hashTx);
+    }
+
+    return true;
+}
+
 bool CheckSparkSMintTransaction(
         const std::vector<CTxOut>& vout,
         CValidationState &state,
@@ -546,7 +674,7 @@ bool CheckSparkSpendTransaction(
     CMutableTransaction txTemp = tx;
     txTemp.vExtraPayload.clear();
     for (auto itr = txTemp.vout.begin(); itr < txTemp.vout.end(); ++itr) {
-        if (itr->scriptPubKey.IsSparkSMint()) {
+        if (itr->scriptPubKey.IsSparkSMint() || itr->scriptPubKey.IsSpatsMint()) {
             txTemp.vout.erase(itr);
             --itr;
         }
@@ -572,6 +700,8 @@ bool CheckSparkSpendTransaction(
                 script.IsLelantusJMint() ||
                 script.IsSigmaMint()) {
             return false;
+        } else if (script.IsSpatsMint()) {
+            continue;
         } else {
             Vout += txout.nValue;
         }
@@ -759,6 +889,37 @@ bool CheckSparkTransaction(
         }
     }
 
+    // Check Spats Mint Transaction
+    if (allowSpark && !isVerifyDB && tx.IsSpatsMint()) {
+        std::vector<CTxOut> txOuts;
+        for (const CTxOut &txout : tx.vout) {
+            if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsSpatsMint()) {
+                txOuts.push_back(txout);
+            }
+        }
+
+        if (txOuts.size() > 1) {
+            LogPrintf("CheckSparkTransaction::More than one spats mint.\n");
+            return false;
+        }
+
+        if (!txOuts.empty()) {
+            try {
+                if (!CheckSpatsMintTransaction(tx, txOuts[0], state, hashTx, fStatefulSigmaCheck, sparkTxInfo)) {
+                    LogPrintf("CheckSparkTransaction::Spats Mint verification failed.\n");
+                    return false;
+                }
+            }
+            catch (const std::exception &x) {
+                return state.Error(x.what());
+            }
+        } else {
+            return state.DoS(100, false,
+                             REJECT_INVALID,
+                             "bad-txns-mint-invalid");
+        }
+    }
+
     // Check Spark Spend
     if (tx.IsSparkSpend()) {
         if (GetSpendTransparentAmount(tx) > consensus.nMaxValueSparkSpendPerTransaction) {
@@ -829,7 +990,7 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
     for (CTransactionRef tx : block.vtx){
         uint32_t nIndex = 0;
         for (const CTxOut &txout : tx->vout) {
-            if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+            if (txout.scriptPubKey.IsSparkMintType()) {
                 try {
                     ParseSparkMintCoin(txout.scriptPubKey, txCoin);
                 }

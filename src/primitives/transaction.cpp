@@ -231,6 +231,15 @@ bool CTransaction::IsSparkMint() const
     return false;
 }
 
+bool CTransaction::IsSpatsMint() const
+{
+    for (const CTxOut &txout: vout) {
+        if (txout.scriptPubKey.IsSpatsMint())
+            return true;
+    }
+    return false;
+}
+
 bool CTransaction::IsZerocoinTransaction() const
 {
     return IsZerocoinSpend() || IsZerocoinMint();

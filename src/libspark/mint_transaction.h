@@ -13,6 +13,8 @@ struct MintedCoinData {
 	Address address;
 	uint64_t v;
 	std::string memo;
+	Scalar a = Scalar(uint64_t(0));
+	Scalar iota = Scalar(uint64_t(0));
 };
 
 class MintTransaction {

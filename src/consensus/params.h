@@ -264,6 +264,8 @@ struct Params {
 
     int nSparkStartBlock;
 
+    int nSpatsStartBlock;
+
     int nLelantusGracefulPeriod;
 
     // Lelantus Blacklist

@@ -1686,7 +1686,7 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
             CSparkOutputTx output;
             if (wtx.tx->IsSparkTransaction()) {
                 const CTxOut& txout = wtx.tx->vout[s.vout];
-                if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+                if (txout.scriptPubKey.IsSparkMintType()) {
                     if(pwallet->GetSparkOutputTx(txout.scriptPubKey, output)) {
                         entry.push_back(Pair("address", output.address));
                     }
@@ -1698,6 +1698,9 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
             }
             else if (wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint() || wtx.tx->IsSparkMint()) {
                 entry.push_back(Pair("category", "mint"));
+            }
+            else if (wtx.tx->IsSpatsMint()) {
+                entry.push_back(Pair("category", "spatsmint"));
             }
             else {
                 entry.push_back(Pair("category", "send"));
