@@ -37,6 +37,7 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_LELANTUSJMINT: return "lelantusmint";
     case TX_SPARKMINT: return "sparkmint";
     case TX_SPARKSMINT: return "sparksmint";
+    case TX_SPATSMINT: return "spatsmint";
     case TX_EXCHANGEADDRESS: return "exchangeaddress";
     }
     return NULL;
@@ -141,6 +142,14 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::v
     if (scriptPubKey.IsSparkSMint())
     {
         typeRet = TX_SPARKSMINT;
+        if (scriptPubKey.size() < 213) return false;
+        vSolutionsRet.emplace_back(scriptPubKey.begin() + 1, scriptPubKey.end());
+        return true;
+    }
+
+    if (scriptPubKey.IsSpatsMint())
+    {
+        typeRet = TX_SPATSMINT;
         if (scriptPubKey.size() < 213) return false;
         vSolutionsRet.emplace_back(scriptPubKey.begin() + 1, scriptPubKey.end());
         return true;

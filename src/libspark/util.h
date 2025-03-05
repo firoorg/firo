@@ -31,6 +31,11 @@ const std::string LABEL_TRANSCRIPT_CHAUM = "CHAUM_V1";
 const std::string LABEL_TRANSCRIPT_GROOTLE = "GROOTLE_V1";
 const std::string LABEL_TRANSCRIPT_SCHNORR = "SCHNORR_V1";
 const std::string LABEL_TRANSCRIPT_OWNERSHIP = "OWNERSHIP_V1";
+const std::string LABEL_TRANSCRIPT_BPPLUS_V2 = "BULLETPROOF_PLUS_V2";
+const std::string LABEL_TRANSCRIPT_BASE = "BASE_ASSET_V1";
+const std::string LABEL_TRANSCRIPT_TYPE = "TYPEEQUALITY_V1";
+const std::string LABEL_TRANSCRIPT_BALANCE = "BALANCE_V1";
+const std::string LABEL_TRANSCRIPT_SPATS_MINT = "SPATS_MINT_V1";
 
 // Generator labels
 const std::string LABEL_GENERATOR_F = "F";

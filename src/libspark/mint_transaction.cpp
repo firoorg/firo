@@ -30,12 +30,14 @@ MintTransaction::MintTransaction(
             k.randomize();
             this->coins.emplace_back(Coin(
                 this->params,
-                COIN_TYPE_MINT,
+                COIN_TYPE_MINT_V2,
                 k,
                 output.address,
                 output.v,
                 output.memo,
-                serial_context
+                serial_context,
+                output.a,
+                output.iota
             ));
 
             // Prepare the value proof
@@ -65,7 +67,10 @@ bool MintTransaction::verify() {
 	std::vector<GroupElement> value_statement;
 
 	for (std::size_t j = 0; j < this->coins.size(); j++) {
-		value_statement.emplace_back(this->coins[j].C + this->params->get_G().inverse()*Scalar(this->coins[j].v));
+		value_statement.emplace_back(this->coins[j].C
+                                         + this->params->get_E().inverse() * this->coins[j].a
+                                         + this->params->get_F().inverse() * this->coins[j].iota
+                                         + this->params->get_G().inverse()*Scalar(this->coins[j].v));
 	}
 
 	return schnorr.verify(value_statement, this->value_proof);

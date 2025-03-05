@@ -1,4 +1,4 @@
-#include "../coin.h"
+#include "../../libspark/coin.h"
 
 #include "../../test/test_bitcoin.h"
 #include <boost/test/unit_test.hpp>
@@ -6,6 +6,8 @@
 namespace spats {
     
     using namespace secp_primitives;
+    using namespace spark;
+
 
     // Generate a random char vector from a random scalar
     static std::vector<unsigned char> random_char_vector() {
@@ -43,16 +45,16 @@ namespace spats {
         // Generate coin
         Scalar k;
         k.randomize();
-        Coin coin = Coin(
+        spark::Coin coin = spark::Coin(
             params,
-            COIN_TYPE_MINT,
+            COIN_TYPE_MINT_V2,
             k,
-            asset_type,
-            identifier,
             address,
             v,
             memo,
-            random_char_vector()
+            random_char_vector(),
+            asset_type,
+            identifier
         );
 
         // Identify coin
@@ -96,16 +98,16 @@ namespace spats {
         // Generate coin
         Scalar k;
         k.randomize();
-        Coin coin = Coin(
+        spark::Coin coin = spark::Coin(
             params,
-            COIN_TYPE_MINT,
+            COIN_TYPE_MINT_V2,
             k,
-            asset_type,
-            identifier,
             address,
             v,
             memo,
-            random_char_vector()
+            random_char_vector(),
+            asset_type,
+            identifier
         );
 
         // Identify coin

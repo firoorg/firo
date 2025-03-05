@@ -264,6 +264,9 @@ struct Params {
 
     int nSparkStartBlock;
 
+    // The block number introducing spats (spark assets)
+    int nSpatsStartBlock;
+
     int nLelantusGracefulPeriod;
 
     // Lelantus Blacklist
@@ -403,9 +406,6 @@ struct Params {
     std::set<uint256> txidWhitelist;
 
     int nEvoZnodeMinimumConfirmations;
-
-    // The block number introducing spats (spark assets)
-    int nSpatsStartBlock;
 
     std::map<LLMQType, LLMQParams> llmqs;
     LLMQType llmqChainLocks;

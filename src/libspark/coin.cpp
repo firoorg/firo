@@ -19,17 +19,20 @@ Coin::Coin(
 	const Address& address,
 	const uint64_t& v,
 	const std::string& memo,
-	const std::vector<unsigned char>& serial_context
+	const std::vector<unsigned char>& serial_context,
+	const Scalar& a,
+	const Scalar& iota
 ) {
 	this->params = params;
 	this->serial_context = serial_context;
-
-	// Validate the type
-	if (type != COIN_TYPE_MINT && type != COIN_TYPE_SPEND) {
-		throw std::invalid_argument("Bad coin type");
-	}
+	this->a = a;
+	this->iota = iota;
 	this->type = type;
 
+	// Validate the type
+	if (!isValidType()) {
+		throw std::invalid_argument("Bad coin type");
+	}
 
 	//
 	// Common elements to both coin types
@@ -42,7 +45,10 @@ Coin::Coin(
 	this->S = this->params->get_F()*SparkUtils::hash_ser(k, serial_context) + address.get_Q2();
 
 	// Construct the value commitment
-	this->C = this->params->get_G()*Scalar(v) + this->params->get_H()*SparkUtils::hash_val(k);
+    if (isSpatsType()) {
+        this->C = this->params->get_E() * a + this->params->get_F() * iota + this->params->get_G() * Scalar(v) + this->params->get_H() * spark::SparkUtils::hash_val(k);
+    } else
+		this->C = this->params->get_G()*Scalar(v) + this->params->get_H()*SparkUtils::hash_val(k);
 
 	// Check the memo validity, and pad if needed
 	if (memo.size() > this->params->get_memo_bytes()) {
@@ -58,9 +64,7 @@ Coin::Coin(
 	//
 	// Type-specific elements
 	//
-
-
-	if (this->type == COIN_TYPE_MINT) {
+	if (isMint()) {
         this->v = v;
 		// Encrypt recipient data
 		MintCoinRecipientData r;
@@ -73,6 +77,12 @@ Coin::Coin(
 	} else {
 		// Encrypt recipient data
 		SpendCoinRecipientData r;
+		r.type = this->type;
+
+        if (isSpatsType()) {
+			r.a = a;
+			r.iota = iota;
+        }
 		r.v = v;
 		r.d = address.get_d();
 		r.k = k;
@@ -95,9 +105,15 @@ bool Coin::validate(
 	}
 
 	// Check value commitment
-	if (this->params->get_G()*Scalar(data.v) + this->params->get_H()*SparkUtils::hash_val(data.k) != this->C) {
-        return false;
-	}
+    if (isSpatsType()) {
+        if (this->params->get_E() * data.a + this->params->get_F() * data.iota + this->params->get_G() * Scalar(data.v) + this->params->get_H() * spark::SparkUtils::hash_val(data.k) != this->C) {
+            return false;
+        }
+    } else {
+		if (this->params->get_G()*Scalar(data.v) + this->params->get_H()*SparkUtils::hash_val(data.k) != this->C) {
+	        return false;
+		}
+    }
 
 	// Check serial commitment
 	data.i = incoming_view_key.get_diversifier(data.d);
@@ -123,7 +139,7 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key) {
 	IdentifiedCoinData data;
 
 	// Deserialization means this process depends on the coin type
-	if (this->type == COIN_TYPE_MINT) {
+	if (isMint()) {
 		MintCoinRecipientData r;
 
 		try {
@@ -140,13 +156,17 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key) {
 			throw std::runtime_error("Unable to identify coin");
 		}
 
+		if (isSpatsType()) {
+			data.a = this->a;
+			data.iota = this->iota;
+		}
 		data.d = r.d;
 		data.v = this->v;
 		data.k = r.k;
 		data.memo = std::string(r.padded_memo.begin() + 1, r.padded_memo.begin() + 1 + memo_length); // remove the encoded length and padding
 	} else {
 		SpendCoinRecipientData r;
-
+		r.type = this->type;
 		try {
 			// Decrypt recipient data
 			CDataStream stream = AEAD::decrypt_and_verify(this->K*incoming_view_key.get_s1(), "Spend coin data", this->r_);
@@ -161,6 +181,10 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key) {
 			throw std::runtime_error("Unable to identify coin");
 		}
 
+		if (type == isSpatsType()) {
+			data.a = r.a;
+			data.iota = r.iota;
+		}
 		data.d = r.d;
 		data.v = r.v;
 		data.k = r.k;
@@ -178,6 +202,12 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key) {
 std::size_t Coin::memoryRequired() {
     secp_primitives::GroupElement groupElement;
     return 1 + groupElement.memoryRequired() * 3 + 32 + AEAD_TAG_SIZE;
+}
+
+std::size_t Coin::memoryRequiredSpats() {
+	secp_primitives::GroupElement groupElement;
+	secp_primitives::Scalar scalar;
+	return 1 + groupElement.memoryRequired() * 3 + 32 + AEAD_TAG_SIZE + scalar.memoryRequired() * 2;
 }
 
 bool Coin::operator==(const Coin& other) const {
@@ -199,6 +229,12 @@ bool Coin::operator==(const Coin& other) const {
     if(this->r_.tag != other.r_.tag)
         return false;
 
+	if(this->a != other.a)
+		return false;
+
+	if(this->iota != other.iota)
+		return false;
+
     return true;
 }
 
@@ -211,6 +247,22 @@ uint256 Coin::getHash() const {
     ss << "coin_hash";
     ss << *this;
     return ::Hash(ss.begin(), ss.end());
+}
+
+bool Coin::isMint() const {
+	return type == COIN_TYPE_MINT || type == COIN_TYPE_MINT_V2;
+}
+
+bool Coin::isSpend() const {
+	return type == COIN_TYPE_SPEND || type == COIN_TYPE_SPEND_V2;
+}
+
+bool Coin::isValidType() const {
+	return type == COIN_TYPE_MINT || type == COIN_TYPE_MINT_V2 || type == COIN_TYPE_SPEND || type == COIN_TYPE_SPEND_V2;
+}
+
+bool Coin::isSpatsType() const {
+    return type == COIN_TYPE_MINT_V2 || type == COIN_TYPE_SPEND_V2;
 }
 
 void Coin::setSerialContext(const std::vector<unsigned char>& serial_context_) {

@@ -628,7 +628,7 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
 
         BOOST_FOREACH(const CTxOut &txout, tx.vout)
         {
-            if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+            if (txout.scriptPubKey.IsSparkMintType()) {
                 try {
                     const spark::Params* params = spark::Params::get_default();
 

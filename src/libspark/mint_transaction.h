@@ -13,6 +13,8 @@ struct MintedCoinData {
 	Address address;
 	uint64_t v;
 	std::string memo;
+	Scalar a = Scalar(uint64_t(0));
+	Scalar iota = Scalar(uint64_t(0));
 };
 
 class MintTransaction {
@@ -26,7 +28,7 @@ public:
 	);
 	bool verify();
 
-    // returns the vector of serialized coins, with first one it puts also the chnorr proof;
+    // returns the vector of serialized coins, with first one it puts also the Schnorr proof;
     std::vector<CDataStream> getMintedCoinsSerialized();
 
     // deserialize from the vector of CDataStreams

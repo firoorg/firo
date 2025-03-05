@@ -408,6 +408,7 @@ public:
         consensus.nLelantusStartBlock = ZC_LELANTUS_STARTING_BLOCK;
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_FIXES_START_BLOCK;
         consensus.nSparkStartBlock = SPARK_START_BLOCK;
+        consensus.nSpatsStartBlock = SPATS_START_BLOCK;
         consensus.nLelantusGracefulPeriod = LELANTUS_GRACEFUL_PERIOD;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
@@ -481,8 +482,6 @@ public:
 
         // exchange address
         consensus.nExchangeAddressStartBlock = consensus.nSparkStartBlock;
-
-        consensus.nSpatsStartBlock = INT_MAX;   // TODO
     }
     virtual bool SkipUndoForBlock(int nHeight) const
     {
@@ -723,6 +722,7 @@ public:
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_TESTNET_FIXES_START_BLOCK;
 
         consensus.nSparkStartBlock = SPARK_TESTNET_START_BLOCK;
+        consensus.nSpatsStartBlock = SPATS_TESTNET_START_BLOCK;
         consensus.nLelantusGracefulPeriod = LELANTUS_TESTNET_GRACEFUL_PERIOD;
 
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
@@ -785,8 +785,6 @@ public:
 
         // exchange address
         consensus.nExchangeAddressStartBlock = 147000;
-
-        consensus.nSpatsStartBlock = INT_MAX;   // TODO
     }
 };
 
@@ -984,6 +982,7 @@ public:
         consensus.nLelantusFixesStartBlock = 1;
 
         consensus.nSparkStartBlock = 1500;
+        consensus.nSpatsStartBlock = 2000;
         consensus.nLelantusGracefulPeriod = 6000;
 
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
@@ -1031,8 +1030,6 @@ public:
 
         // exchange address
         consensus.nExchangeAddressStartBlock = 2500;
-
-        consensus.nSpatsStartBlock = INT_MAX;   // TODO
     }
 };
 
@@ -1225,6 +1222,7 @@ public:
         consensus.nLelantusStartBlock = 400;
         consensus.nLelantusFixesStartBlock = 400;
         consensus.nSparkStartBlock = 1000;
+        consensus.nSpatsStartBlock = 2000;
         consensus.nExchangeAddressStartBlock = 1000;
         consensus.nLelantusGracefulPeriod = 1500;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = 1;
@@ -1273,8 +1271,6 @@ public:
         consensus.nPPSwitchTime = INT_MAX;
         consensus.nPPBlockNumber = INT_MAX;
         consensus.nInitialPPDifficulty = 0x2000ffff;
-
-        consensus.nSpatsStartBlock = 1200;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)

@@ -794,7 +794,7 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
                 return false;
             }
             return meta.isUsed;
-        } else if (zwallet && (script.IsSparkMint() || script.IsSparkSMint())) {
+        } else if (zwallet && (script.IsSparkMintType())) {
             std::vector<unsigned char> serialContext;
             for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
                 const CWalletTx *pcoin = &(*it).second;
@@ -1821,7 +1821,7 @@ isminetype CWallet::IsMine(const CTxOut &txout) const
                 }
             }
         return db.HasHDMint(pub) ? ISMINE_SPENDABLE : ISMINE_NO;
-    } else if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+    } else if (txout.scriptPubKey.IsSparkMintType()) {
         std::vector<unsigned char> serialContext;
         for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
             const CWalletTx *pcoin = &(*it).second;
@@ -1952,7 +1952,7 @@ bool CWallet::IsMine(const CTransaction& tx) const
             return false;
         std::vector<unsigned char> serialContext = spark::getSerialContext(tx);
         for (const auto& txout : tx.vout) {
-            if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+            if (txout.scriptPubKey.IsSparkMintType()) {
                 spark::Coin coin(spark::Params::get_default());
                 try {
                     spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
@@ -2333,7 +2333,7 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
 
         if (txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint()
         || txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()
-        || txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint())
+        || txout.scriptPubKey.IsSparkMintType())
         {
             address = CNoDestination();
         }
@@ -2652,7 +2652,7 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache, bool fExcludeLocked) const
     {
         const CTxOut &txout = tx->vout[i];
 
-        bool isPrivate = txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint() || txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint() || txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint();
+        bool isPrivate = txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint() || txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint() || txout.scriptPubKey.IsSparkMintType();
         if (isPrivate) continue;
         if (fExcludeLocked && pwallet->IsLockedCoin(hashTx, i)) continue;
 
@@ -3830,8 +3830,7 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
                             || pcoin->tx->vout[i].scriptPubKey.IsSigmaMint()
                             || pcoin->tx->vout[i].scriptPubKey.IsLelantusMint()
                             || pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint()
-                            || pcoin->tx->vout[i].scriptPubKey.IsSparkMint()
-                            || pcoin->tx->vout[i].scriptPubKey.IsSparkSMint())
+                            || pcoin->tx->vout[i].scriptPubKey.IsSparkMintType())
                             || pcoin->tx->vout[i].scriptPubKey.IsZerocoinRemint();
                 } else if(nCoinType == CoinType::ONLY_MINTS){
                     // Do not consider anything other than mints
@@ -3840,8 +3839,7 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
                             || pcoin->tx->vout[i].scriptPubKey.IsZerocoinRemint()
                             || pcoin->tx->vout[i].scriptPubKey.IsLelantusMint()
                             || pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint()
-                            || pcoin->tx->vout[i].scriptPubKey.IsSparkMint()
-                            || pcoin->tx->vout[i].scriptPubKey.IsSparkSMint());
+                            || pcoin->tx->vout[i].scriptPubKey.IsSparkMintType());
                 } else if (nCoinType == CoinType::ONLY_NOT1000IFMN) {
                     found = !(fMasternodeMode && pcoin->tx->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN);
                 } else if (nCoinType == CoinType::ONLY_NONDENOMINATED_NOT1000IFMN) {

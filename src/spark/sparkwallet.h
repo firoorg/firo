@@ -51,6 +51,7 @@ public:
     // get address for a diversifier
     spark::Address getAddress(const int32_t& i);
     bool isAddressMine(const std::string& encodedAddr);
+    bool isAddressMine(const spark::Address& address);
     bool isChangeAddress(const uint64_t& i) const;
 
     // list spark mint, mint metadata in memory and in db should be the same at this moment, so get from memory
@@ -137,6 +138,14 @@ public:
     CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
+            CAmount &fee,
+            const CCoinControl *coinControl = nullptr);
+	void AppendSpatsMintTxData(CMutableTransaction& tx,
+        const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
+        const spark::SpendKey& spendKey);
+
+    CWalletTx CreateSpatsMintTransaction(
+            const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
             CAmount &fee,
             const CCoinControl *coinControl = nullptr);
 

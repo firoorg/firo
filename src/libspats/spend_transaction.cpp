@@ -161,16 +161,16 @@ SpendTransaction::SpendTransaction(
 
         // Output coin
         this->out_coins.emplace_back();
-        this->out_coins.back() = Coin(
+        this->out_coins.back() = spark::Coin(
             this->params,
-            COIN_TYPE_SPEND,
+            spark::COIN_TYPE_SPEND_V2,
             k.back(),
-            outputs[j].a,
-            outputs[j].iota,
             outputs[j].address,
             outputs[j].v,
             outputs[j].memo,
-            std::vector<unsigned char>(serial_context.begin(), serial_context.end()));
+            std::vector<unsigned char>(serial_context.begin(), serial_context.end()),
+            outputs[j].a,
+            outputs[j].iota);
 
         // Range data
         range_a.emplace_back(outputs[j].a);
@@ -341,7 +341,7 @@ const std::vector<uint64_t>& SpendTransaction::getCoinGroupIds()
     return cover_set_ids;
 }
 
-const std::vector<Coin>& SpendTransaction::getOutCoins()
+const std::vector<spark::Coin>& SpendTransaction::getOutCoins()
 {
     return out_coins;
 }
@@ -349,7 +349,7 @@ const std::vector<Coin>& SpendTransaction::getOutCoins()
 // Convenience wrapper for verifying a single spend transaction
 bool SpendTransaction::verify(
     const SpendTransaction& transaction,
-    const std::unordered_map<uint64_t, std::vector<Coin> >& cover_sets)
+    const std::unordered_map<uint64_t, std::vector<spark::Coin> >& cover_sets)
 {
     std::vector<SpendTransaction> transactions = {transaction};
     return verify(transaction.params, transactions, cover_sets);
@@ -361,7 +361,7 @@ bool SpendTransaction::verify(
 bool SpendTransaction::verify(
     const spark::Params* params,
     const std::vector<SpendTransaction>& transactions,
-    const std::unordered_map<uint64_t, std::vector<Coin> >& cover_sets)
+    const std::unordered_map<uint64_t, std::vector<spark::Coin> >& cover_sets)
 {
     // The idea here is to perform batching as broadly as possible
     // - Grootle proofs can be batched if they share a (partial) cover set
@@ -603,7 +603,7 @@ std::vector<unsigned char> SpendTransaction::hash_bind_inner(
 // This function must accept pre-hashed data from `H_bind_inner` intended to correspond to the signing operation
 Scalar SpendTransaction::hash_bind(
     const std::vector<unsigned char> hash_bind_inner,
-    const std::vector<Coin>& out_coins,
+    const std::vector<spark::Coin>& out_coins,
     const uint64_t f_,
     const spark::SchnorrProof& rep_proof,
     const BPPlusProof& range_proof,

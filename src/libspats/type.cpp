@@ -13,7 +13,7 @@ Scalar TypeEquality::challenge(
     const GroupElement& A,
     const GroupElement& B)
 {
-    spark::Transcript transcript(LABEL_TRANSCRIPT_TYPE);
+    spark::Transcript transcript(spark::LABEL_TRANSCRIPT_TYPE);
     transcript.add("E", E);
     transcript.add("F", F);
     transcript.add("G", G);
