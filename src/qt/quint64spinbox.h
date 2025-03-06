@@ -13,7 +13,7 @@ class QUInt64SpinBox : public QSpinBox {
    Q_OBJECT
 
 public:
-   QUInt64SpinBox( QWidget *parent = nullptr )
+   explicit QUInt64SpinBox( QWidget *parent = nullptr )
       : QSpinBox( parent )
    {
       updateWidth();   // Ensure the width is set initially
@@ -42,7 +42,10 @@ protected:
    void stepBy( int steps ) override
    {
       // Steps can be positive (increment) or negative (decrement)
-      setValue( value_ + steps * step_ );   // Apply the updated value
+      const auto new_value = value_ + steps * step_;
+      if ( steps && !wrapping() && ( new_value > value_ ) != ( steps > 0 ) )
+         return;   // Prevent wrapping if that's not allowed
+      setValue( new_value );   // Apply the updated value otherwise
    }
 
    QString textFromValue( int /*val*/ ) const override
@@ -56,6 +59,16 @@ protected:
 
    // Validates user input for quint64 range
    QValidator::State validate( QString &input, int &pos ) const override;
+
+   QAbstractSpinBox::StepEnabled stepEnabled() const override
+   {
+      QAbstractSpinBox::StepEnabled enabled = QAbstractSpinBox::StepNone;
+      if ( value() > minimum() )
+         enabled |= QAbstractSpinBox::StepDownEnabled;   // Enable Down button
+      if ( value() < maximum() )
+         enabled |= QAbstractSpinBox::StepUpEnabled;   // Enable Up button
+      return enabled;
+   }
 
 Q_SIGNALS:
    void valueChanged( std::uint64_t new_value );

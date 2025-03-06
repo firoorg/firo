@@ -121,9 +121,11 @@ void SparkAssetDialog::onFungibilityChanged( int state )
       ui_->identifierSpinBox->setEnabled( !is_fungible );
 
       if ( is_fungible ) {
+         ui_->assetTypeSpinBox->setMinimum( 2 );
          ui_->assetTypeSpinBox->setValue( context->lowest_available_asset_type_for_new_fungible_asset );
       }
       else {
+         ui_->assetTypeSpinBox->setMinimum( 1 );
          ui_->assetTypeSpinBox->setValue( context->lowest_available_asset_type_for_new_nft_line );
          ui_->totalSupplySpin->setValue( 1. );
       }
