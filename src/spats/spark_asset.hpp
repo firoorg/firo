@@ -35,16 +35,20 @@ inline bool is_nonempty_and_all_uppercase( const std::string_view s ) noexcept
    return !s.empty() && std::ranges::all_of( s, []( char c ) { return std::isupper( c, std::locale::classic() ); } );
 }
 
-using nonempty_trimmed_string = utils::constrained_value< std::string, is_nonempty_and_trimmed >;
-using nonempty_trimmed_uppercase_string = utils::constrained_value< std::string, is_nonempty_and_all_uppercase >;
+using asset_name_t = utils::constrained_value< std::string, is_nonempty_and_trimmed, "Invalid value for spark asset name - should be trimmed and non-empty" >;
+
+using asset_symbol_t = utils::constrained_value< std::string,
+                                                 is_nonempty_and_all_uppercase,
+                                                 "Invalid value for spark asset symbol - should be non-empty and consist of only uppercase letter symbols" >;
+
 using public_address_t = std::string;   // TODO a constrained_value instead?
 
 struct AssetNaming {
-   nonempty_trimmed_string name;
-   nonempty_trimmed_uppercase_string symbol;
+   asset_name_t name;
+   asset_symbol_t symbol;
    std::string description;
 
-   AssetNaming( nonempty_trimmed_string n, nonempty_trimmed_uppercase_string s, std::string desc ) noexcept
+   AssetNaming( asset_name_t n, asset_symbol_t s, std::string desc ) noexcept
       : name( std::move( n ) )
       , symbol( std::move( s ) )
       , description( std::move( desc ) )
@@ -175,7 +179,7 @@ public:
    void add_new_supply( supply_amount_t new_supply )
    {
       assert( resupplyable_ );
-      add_supply( new_supply );  // may throw due to overflow
+      add_supply( new_supply );   // may throw due to overflow
    }
 
    void remove_new_supply( supply_amount_t new_supply )

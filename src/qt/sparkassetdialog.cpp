@@ -71,8 +71,8 @@ void SparkAssetDialog::onSave()
    try {
       static_assert( std::is_same_v< decltype( ui_->assetTypeSpinBox->value() ), spats::asset_type_underlying_type > );
       const spats::asset_type_t asset_type{ ui_->assetTypeSpinBox->value() };
-      spats::AssetNaming asset_naming( spats::nonempty_trimmed_string( ui_->assetNameEdit->text().toStdString() ),
-                                       spats::nonempty_trimmed_uppercase_string( ui_->assetSymbolEdit->text().toStdString() ),
+      spats::AssetNaming asset_naming( spats::asset_name_t( ui_->assetNameEdit->text().toStdString() ),
+                                       spats::asset_symbol_t( ui_->assetSymbolEdit->text().toStdString() ),
                                        ui_->assetDescriptionEdit->text().toStdString() );
 
       std::string metadata = ui_->metadataEdit->text().toStdString();

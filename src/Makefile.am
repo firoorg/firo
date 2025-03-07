@@ -267,6 +267,7 @@ BITCOIN_CORE_H = \
   spats/registry.hpp \
   spats/spark_asset.hpp \
   spats/wallet.hpp \
+  utils/constexpr_string.hpp \
   utils/constrained_value.hpp \
   utils/empty_class.hpp \
   utils/enum.hpp \

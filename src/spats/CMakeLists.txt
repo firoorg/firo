@@ -32,6 +32,7 @@ add_library(spats STATIC
         manager.cpp
         manager.hpp
         modification.hpp
+        ../utils/constexpr_string.hpp
         ../utils/constrained_value.hpp
         ../utils/empty_class.hpp
         ../utils/enum.hpp

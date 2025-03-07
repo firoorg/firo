@@ -7,12 +7,19 @@
 
 #include <concepts>
 #include <stdexcept>
+#include <string>
+
+#include <boost/lexical_cast.hpp>
+
+#include "constexpr_string.hpp"
+
+using namespace std::literals;
 
 namespace utils {
 
 namespace detail {
 
-template < std::semiregular T, auto ValidityPredicate >
+template < std::semiregular T, auto ValidityPredicate, constexpr_string InvalidValueErrorMessage >
    requires std::predicate< decltype( ValidityPredicate ), const T & >
 class validity_ensurer {
 protected:
@@ -21,16 +28,16 @@ protected:
    static void ensure_validity( const T &t )
    {
       if ( !ValidityPredicate( t ) )
-         throw std::invalid_argument( "Invalid value supplied to constrained_value" );
+         throw std::invalid_argument( InvalidValueErrorMessage.get() + ": "s + boost::lexical_cast< std::string >( t ) );
    }
 };
 
 }   // namespace detail
 
-template < std::semiregular T, auto ValidityPredicate >
+template < std::semiregular T, auto ValidityPredicate, constexpr_string InvalidValueErrorMessage >
    requires std::predicate< decltype( ValidityPredicate ), const T & >
-class constrained_value : detail::validity_ensurer< T, ValidityPredicate > {
-   using base_type = detail::validity_ensurer< T, ValidityPredicate >;
+class constrained_value : detail::validity_ensurer< T, ValidityPredicate, InvalidValueErrorMessage > {
+   using base_type = detail::validity_ensurer< T, ValidityPredicate, InvalidValueErrorMessage >;
 
 public:
 #if 0   // TODO contemplate if/how to support this
