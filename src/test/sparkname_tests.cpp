@@ -40,7 +40,7 @@ public:
     void Initialize() {
         std::vector<CMutableTransaction> mintTxs;
         GenerateBlocks(2000-1);
-        GenerateMints({50 * COIN, 60 * COIN, 10*COIN, 10*COIN, 10*COIN}, mintTxs);
+        GenerateMints({50 * COIN, 60 * COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN}, mintTxs);
         GenerateBlock(mintTxs);
         pwalletMain->SetBroadcastTransactions(true);
     }
@@ -97,6 +97,23 @@ public:
         CValidationState state;
         const CChainParams &chainparams = ::Params();
         InvalidateBlock(state, chainparams, pindex);
+    }
+
+    void ModifySparkNameTx(CMutableTransaction &tx, std::function<void(CSparkNameTxData &)> modify) {
+        const spark::Params *params = spark::Params::get_default();
+        spark::SpendTransaction sparkTx(params);
+
+        CSparkNameTxData sparkNameData;
+        size_t sparkNameDataPos;
+        BOOST_CHECK(sparkNameManager->ParseSparkNameTxData(tx, sparkTx, sparkNameData, sparkNameDataPos));
+
+        modify(sparkNameData);
+
+        CDataStream serializedSpark(SER_NETWORK, PROTOCOL_VERSION);
+        serializedSpark << sparkNameData;
+
+        tx.vExtraPayload.erase(tx.vExtraPayload.begin() + sparkNameDataPos, tx.vExtraPayload.end());
+        tx.vExtraPayload.insert(tx.vExtraPayload.end(), serializedSpark.begin(), serializedSpark.end());
     }
 
     CSparkState *sparkState;
@@ -199,6 +216,41 @@ BOOST_AUTO_TEST_CASE(general)
     // tx3 should go ahead now
     GenerateBlock({tx3});
     BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight+1);
+
+    // check insufficient fee
+    CMutableTransaction tx4 = CreateSparkNameTx("tt", GenerateSparkAddress(), 3, "x", true, 1*COIN);
+    BOOST_CHECK(!lastState.IsValid());
+    // check the block is not generated as well
+    oldHeight = chainActive.Height();
+    GenerateBlock({tx4});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);
+
+    // now check the number of years is calculated correctly and yearly fee is checked
+    CMutableTransaction tx5 = CreateSparkNameTx("testname5", GenerateSparkAddress(), 24*24*365*2, "x", true, 2*COIN);
+    BOOST_CHECK(lastState.IsValid());
+
+    CMutableTransaction tx6 = CreateSparkNameTx("testname6", GenerateSparkAddress(), 24*24*365*2, "x", true, 1*COIN);
+    BOOST_CHECK(!lastState.IsValid());
+
+    // check that address ownership proof is checked
+    CMutableTransaction tx7 = CreateSparkNameTx("testname7", GenerateSparkAddress(), 3, "x", false);
+    ModifySparkNameTx(tx7, [](CSparkNameTxData &sparkNameData) {
+        sparkNameData.addressOwnershipProof[50] ^= 0x01;
+    });
+
+    oldHeight = chainActive.Height();
+    GenerateBlock({tx7});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);
+
+    // change back the ownership proof but modify the name, the ownership proof should fail again
+    ModifySparkNameTx(tx7, [](CSparkNameTxData &sparkNameData) {
+        sparkNameData.addressOwnershipProof[50] ^= 0x01;
+        sparkNameData.name = "testname8";
+    });
+
+    oldHeight = chainActive.Height();
+    GenerateBlock({tx7});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
