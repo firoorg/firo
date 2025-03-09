@@ -219,13 +219,13 @@ UniValue getsparknamedata(const JSONRPCRequest& request)
      if (request.fHelp || request.params.size() > 1) {
         throw std::runtime_error(
             "getsparknamedata ( sparkname )\n"
-            "\nReturns info about spark name.\n"
+            "\nReturns information about the Spark Name.\n"
             "\nArguments:\n"
-            "Spark name (string)\n"
+            "sparkname (string)\n"
             "\nResult:\n"
             "[\n"
             "1. Address (string)\n"
-            "2. Block Height (int)\n"
+            "2. Block Height the Spark Name will expire at (int)\n"
             "3. Additional info (string)\n"
             "]\n"
             "\nExamples:\n"
