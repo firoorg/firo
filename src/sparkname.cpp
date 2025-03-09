@@ -176,10 +176,16 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     if (sparkNameData.additionalInfo.size() > 1024)
         return state.DoS(100, error("CheckSparkNameTx: additional info is too long"));
 
-    unsigned char sparkNetworkType = spark::GetNetworkType();
-    if (sparkNames.count(ToUpper(sparkNameData.name)) > 0 &&
-                sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress)
-        return state.DoS(100, error("CheckSparkNameTx: name already exists"));
+    bool fUpdateExistingRecord = false;
+    if (sparkNames.count(ToUpper(sparkNameData.name)) > 0) {
+        if (sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress)
+            return state.DoS(100, error("CheckSparkNameTx: name already exists"));
+
+        fUpdateExistingRecord = true;
+    }
+
+    if (!fUpdateExistingRecord && sparkNameAddresses.count(sparkNameData.sparkAddress) > 0)
+        return state.DoS(100, error("CheckSparkNameTx: spark address is already used for another name"));
 
     // calculate the hash of the all the transaction except the spark ownership proof
     CMutableTransaction txMutable(tx);
