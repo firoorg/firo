@@ -83,6 +83,15 @@ WalletView::~WalletView()
 {
 }
 
+void WalletView::setWindowTitleWithWalletName() {
+    QString walletName = walletModel->getWalletName();
+    QString title = tr("Firo Wallet - %1").arg(walletName);
+    if (title.isEmpty()) {
+        title = tr("Firo Wallet");
+    }
+    this->setWindowTitle(title);
+}
+
 void WalletView::setupTransactionPage()
 {
     // Create Firo transactions list
