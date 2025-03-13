@@ -282,45 +282,42 @@ void WalletView::processNewTransaction(const QModelIndex& parent, int start, int
     Q_EMIT incomingTransaction(date, walletModel->getOptionsModel()->getDisplayUnit(), amount, type, address, label);
 }
 
-void WalletView::gotoOverviewPage()
-{
+void WalletView::gotoOverviewPage() {
     setCurrentWidget(overviewPage);
+    setWindowTitleWithWalletName();
+    Q_EMIT showNormalIfMinimized();
 }
 
-void WalletView::gotoHistoryPage()
-{
+void WalletView::gotoHistoryPage() {
     setCurrentWidget(transactionsPage);
+    setWindowTitleWithWalletName();
+    Q_EMIT showNormalIfMinimized();
 }
 
-void WalletView::gotoBitcoinHistoryTab()
-{
+void WalletView::gotoBitcoinHistoryTab() {
     setCurrentWidget(transactionsPage);
+    setWindowTitleWithWalletName();
+    Q_EMIT showNormalIfMinimized();
 }
 
-void WalletView::focusBitcoinHistoryTab(const QModelIndex &idx)
-{
-    gotoBitcoinHistoryTab();
-    firoTransactionList->focusTransaction(idx);
-}
-
-void WalletView::gotoMasternodePage()
-{
+void WalletView::gotoMasternodePage() {
     setCurrentWidget(masternodeListPage);
+    setWindowTitleWithWalletName();
 }
 
-void WalletView::gotoReceiveCoinsPage()
-{
+void WalletView::gotoReceiveCoinsPage() {
     setCurrentWidget(receiveCoinsPage);
+    setWindowTitleWithWalletName();
 }
 
-void WalletView::gotoLelantusPage()
-{
+void WalletView::gotoLelantusPage() {
     setCurrentWidget(lelantusPage);
+    setWindowTitleWithWalletName();
 }
 
-void WalletView::gotoSendCoinsPage(QString addr)
-{
+void WalletView::gotoSendCoinsPage(QString addr) {
     setCurrentWidget(sendCoinsPage);
+    setWindowTitleWithWalletName();
 
     if (!addr.isEmpty()){
         sendFiroView->setAddress(addr);
