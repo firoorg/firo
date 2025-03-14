@@ -9,6 +9,7 @@ define $(package)_set_vars
 $(package)_config_opts+=--enable-cxx --enable-fat --with-pic --disable-shared
 $(package)_cflags_armv7l_linux+=-march=armv7-a
 $(package)_config_opts_arm_darwin+=--build=$(subst arm,aarch64,$(BUILD)) --host=$(subst arm,aarch64,$(HOST))
+$(package)_config_opts_mingw32+=CC_FOR_BUILD=gcc gmp_cv_prog_exeext_for_build=
 endef
 
 define $(package)_config_cmds
