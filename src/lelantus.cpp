@@ -421,7 +421,7 @@ bool CheckLelantusJoinSplitTransaction(
                          "CTransaction::CheckLelantusJoinSplitTransaction() : Error: incorrect joinsplit transaction verion");
     }
 
-    if (joinsplit->isSigmaToLelantus() && height >= params.stage4StartBlock) {
+    if (joinsplit->isSigmaToLelantus() && height >= params.nSigmaEndBlock) {
         return state.DoS(100,
                          false,
                          NSEQUENCE_INCORRECT,

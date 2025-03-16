@@ -192,31 +192,30 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         CAmount changeToMint = 0;
 
         std::vector<sigma::CoinDenomination> denomChanges;
-        try {
-            if (chainActive.Height() >= Params().GetConsensus().stage4StartBlock)
-                throw std::runtime_error(_("Sigma pool already closed."));
+        if (chainActive.Height() < Params().GetConsensus().nSigmaEndBlock) {
+            try {
+                CAmount availableBalance(0);
+                for (auto coin : sigmaCoins) {
+                    availableBalance += coin.get_denomination_value();
+                }
+                if(availableBalance > 0) {
+                    CAmount inputFromSigma;
+                    if (required > availableBalance)
+                        inputFromSigma = availableBalance;
+                    else
+                        inputFromSigma = required;
 
-            CAmount availableBalance(0);
-            for (auto coin : sigmaCoins) {
-                availableBalance += coin.get_denomination_value();
+                    std::list<CSigmaEntry> sigmaCoinsCp = sigmaCoins;
+                    wallet.GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges, sigmaCoinsCp, //try to spend sigma first
+                                           consensusParams.nMaxLelantusInputPerTransaction,
+                                           consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
+
+                    required -= inputFromSigma;
+
+                    isSigmaToLelantusJoinSplit = true;
+                }
+            } catch (std::runtime_error const &) {
             }
-            if(availableBalance > 0) {
-                CAmount inputFromSigma;
-                if (required > availableBalance)
-                    inputFromSigma = availableBalance;
-                else
-                    inputFromSigma = required;
-
-                std::list<CSigmaEntry> sigmaCoinsCp = sigmaCoins;
-                wallet.GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges, sigmaCoinsCp, //try to spend sigma first
-                                       consensusParams.nMaxLelantusInputPerTransaction,
-                                       consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
-
-                required -= inputFromSigma;
-
-                isSigmaToLelantusJoinSplit = true;
-            }
-        } catch (std::runtime_error const &) {
         }
 
         if(required > 0) {
