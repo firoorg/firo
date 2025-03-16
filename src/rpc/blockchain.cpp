@@ -201,15 +201,16 @@ UniValue getsparknames(const JSONRPCRequest &request)
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
     }
 
-    const Consensus::Params &consensusParams = Params().GetConsensus();
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
     std::set<std::string> sparkNames = sparkNameManager->GetSparkNames();
     UniValue result(UniValue::VARR);
     for (const auto &name : sparkNames) {
-        result.push_back(name);
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("name", name));
         std::string SparkAddr;
         if (sparkNameManager->GetSparkAddress(name, SparkAddr))
-            result.push_back(SparkAddr);
+            entry.push_back(Pair("address", SparkAddr));
+        result.push_back(entry);
     }
     return result;
 }
@@ -225,7 +226,7 @@ UniValue getsparknamedata(const JSONRPCRequest& request)
             "\nResult:\n"
             "[\n"
             "1. Address (string)\n"
-            "2. Block Height (int)\n"
+            "2. Block height until this spark name is valid (int)\n"
             "3. Additional info (string)\n"
             "]\n"
             "\nExamples:\n"
