@@ -429,6 +429,9 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
 
                 pindexNew->activeDisablingSporks = diskindex.activeDisablingSporks;
 
+                pindexNew->addedSparkNames = diskindex.addedSparkNames;
+                pindexNew->removedSparkNames = diskindex.removedSparkNames;
+
                 if (fCheckPoWForAllBlocks) {
                     if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, consensusParams))
                         return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());

@@ -22,6 +22,7 @@
 #include "chainparams.h"
 #include "coin_containers.h"
 #include "streams.h"
+#include "sparkname.h"
 
 #include <vector>
 #include <unordered_set>
@@ -268,6 +269,11 @@ public:
     //! std::map {feature name} -> {block number when feature is re-enabled again, parameter}
     ActiveSporkMap activeDisablingSporks;
 
+    //! List of spark names that were created or extended in this block. Map of spark name to <address, expiration block height, additional info>
+    std::map<std::string, CSparkNameBlockIndexData> addedSparkNames;
+    //! List of spark names that were removed in this block because of expiration
+    std::map<std::string, CSparkNameBlockIndexData> removedSparkNames;
+
     void SetNull()
     {
         phashBlock = NULL;
@@ -310,6 +316,8 @@ public:
         sigmaSpentSerials.clear();
         lelantusSpentSerials.clear();
         activeDisablingSporks.clear();
+        addedSparkNames.clear();
+        removedSparkNames.clear();
     }
 
     CBlockIndex()
@@ -584,6 +592,11 @@ public:
                 READWRITE(activeDisablingSporks);
         }
         nDiskBlockVersion = nVersion;
+
+        if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nSparkNamesStartBlock) {
+            READWRITE(addedSparkNames);
+            READWRITE(removedSparkNames);
+        }
     }
 
     uint256 GetBlockHash() const

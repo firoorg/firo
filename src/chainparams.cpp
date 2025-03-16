@@ -170,6 +170,13 @@ static Consensus::LLMQParams llmq400_85 = {
         .keepOldConnections = 5,
 };
 
+static std::array<int,21> standardSparkNamesFee = {
+    -1,
+    1000,
+    100,
+    10, 10, 10,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+};
 
 /**
  * Main network
@@ -482,6 +489,10 @@ public:
 
         // exchange address
         consensus.nExchangeAddressStartBlock = consensus.nSparkStartBlock;
+
+        // spark names
+        consensus.nSparkNamesStartBlock = INT_MAX;
+        consensus.nSparkNamesFee = standardSparkNamesFee;
     }
     virtual bool SkipUndoForBlock(int nHeight) const
     {
@@ -784,6 +795,10 @@ public:
 
         // exchange address
         consensus.nExchangeAddressStartBlock = 147000;
+
+        // spark names
+        consensus.nSparkNamesStartBlock = 174000;
+        consensus.nSparkNamesFee = standardSparkNamesFee;
     }
 };
 
@@ -1028,6 +1043,10 @@ public:
 
         // exchange address
         consensus.nExchangeAddressStartBlock = 2500;
+
+        // spark names
+        consensus.nSparkNamesStartBlock = 3500;
+        consensus.nSparkNamesFee = standardSparkNamesFee;
     }
 };
 
@@ -1269,6 +1288,10 @@ public:
         consensus.nPPSwitchTime = INT_MAX;
         consensus.nPPBlockNumber = INT_MAX;
         consensus.nInitialPPDifficulty = 0x2000ffff;
+
+        // spark names
+        consensus.nSparkNamesStartBlock = 2000;
+        consensus.nSparkNamesFee = standardSparkNamesFee;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)

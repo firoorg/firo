@@ -244,6 +244,7 @@ BITCOIN_CORE_H = \
   sigma.h \
   lelantus.h \
   spark/state.h \
+  sparkname.h \
   blacklists.h \
   coin_containers.h \
   firo_params.h \
@@ -424,6 +425,7 @@ libbitcoin_server_a_SOURCES = \
   bip47/paymentcode.cpp \
   spark/state.cpp \
   spark/primitives.cpp \
+  sparkname.cpp \
   coin_containers.cpp \
   mtpstate.cpp \
   $(BITCOIN_CORE_H)
@@ -684,6 +686,7 @@ libspark_a_SOURCES = \
   libspark/hash.cpp \
   libspark/mint_transaction.h \
   libspark/mint_transaction.cpp \
+  libspark/ownership_proof.h \
   libspark/spend_transaction.h \
   libspark/spend_transaction.cpp \
   libspark/f4grumble.h \

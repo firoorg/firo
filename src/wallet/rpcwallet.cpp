@@ -3809,8 +3809,21 @@ UniValue spendspark(const JSONRPCRequest& request)
         spark::Address sAddress(params);
         unsigned char coinNetwork;
         bool isSparkAddress;
+        std::string sparkAddressStr;
+
+        if (!name_.empty() && name_[0] == '@') {
+            LOCK(cs_main);
+
+            CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+            if (!sparkNameManager->GetSparkAddress(name_.substr(1), sparkAddressStr))
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Spark name not found: ")+name_);
+        }
+        else {
+            sparkAddressStr = name_;
+        }
+
         try {
-            unsigned char coinNetwork = sAddress.decode(name_);
+            unsigned char coinNetwork = sAddress.decode(sparkAddressStr);
             isSparkAddress = true;
             if (coinNetwork != network)
                 throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ")+name_);
@@ -3890,6 +3903,86 @@ UniValue spendspark(const JSONRPCRequest& request)
         wtx = pwallet->SpendAndStoreSpark(recipients, privateRecipients, fee);
     } catch (const std::exception &) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
+    }
+
+    return wtx.GetHash().GetHex();
+}
+
+UniValue registersparkname(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 4) {
+        throw std::runtime_error(
+                "registersparkname \"name\" \"sparkaddress\" years [\"additionalData\"]\n");
+    }
+
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    // Ensure spark mints is already accepted by network so users will not lost their coins
+    // due to other nodes will treat it as garbage data.
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    const auto &consensusParams = Params().GetConsensus();
+
+    if (request.params.size() < 3 || request.params.size() > 4)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameters");
+
+    std::string sparkName = request.params[0].get_str();
+    std::string sparkAddress = request.params[1].get_str();
+    std::string additionalData;
+
+    int numberOfYears = request.params[2].get_int();
+    if (numberOfYears < 1 || numberOfYears > 10)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid number of years");
+
+    if (request.params.size() >= 4)
+        additionalData = request.params[3].get_str();
+
+    if (sparkName.empty() || sparkName.size() > 20)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid spark name");
+
+    CSparkNameTxData    sparkNameData;
+    sparkNameData.name = sparkName;
+    sparkNameData.sparkAddress = sparkAddress;
+    sparkNameData.additionalInfo = additionalData;
+    sparkNameData.sparkNameValidityBlocks = numberOfYears * 365*24*24;
+
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    std::string errorDescription;
+    if (!sparkNameManager->ValidateSparkNameData(sparkNameData, errorDescription))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Error creating spark name: "+ errorDescription);
+
+    CAmount sparkNameFee = consensusParams.nSparkNamesFee[sparkName.size()]*COIN*numberOfYears;
+    CAmount fee;
+    CWalletTx wtx;
+    try {
+        wtx = pwallet->CreateSparkNameTransaction(sparkNameData, sparkNameFee, fee);
+    } catch (const std::exception &x) {
+        throw JSONRPCError(RPC_WALLET_ERROR, std::string("Spark name registration failed: ") + x.what());
+    }
+
+    // commit
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(pwallet);
+        if (!pwallet->CommitTransaction(wtx, reserveKey, g_connman.get(), state))
+            throw JSONRPCError(RPC_WALLET_ERROR, "CommitTransaction failed: " + FormatStateMessage(state));
+    }
+    catch (const std::exception &) {
+        auto error = _(
+                "Error: The transaction was rejected! This might happen if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
+
+        std::throw_with_nested(std::runtime_error(error));
     }
 
     return wtx.GetHash().GetHex();
@@ -5765,6 +5858,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "lelantustospark",        &lelantustospark,        false },
     { "wallet",             "identifysparkcoins",     &identifysparkcoins,     false },
     { "wallet",             "getsparkcoinaddr",       &getsparkcoinaddr,       false },
+    { "wallet",             "registersparkname",      &registersparkname,      false },
 
 
     //bip47
