@@ -7,21 +7,21 @@ MintTransaction::MintTransaction(const Params* params) {
 }
 
 MintTransaction::MintTransaction(
-	const Params* params,
-	const std::vector<MintedCoinData>& outputs,
-	const std::vector<unsigned char>& serial_context,
+    const Params* params,
+    const std::vector<MintedCoinData>& outputs,
+    const std::vector<unsigned char>& serial_context,
     bool generate
 ) {
 	// Important note: This construction assumes that the public coin values are correct according to higher-level consensus rules!
-	// Important note: For pool transition transactions, the serial context should contain unique references to all base-layer spent assets, in order to ensure the resulting serial commitment is bound to this transaction
+    // Important note: For pool transition transactions, the serial context should contain unique references to all base-layer spent assets, in order to ensure the resulting serial commitment is bound to this transaction
 
-	this->params = params;
-	Schnorr schnorr(this->params->get_H());
+    this->params = params;
+    Schnorr schnorr(this->params->get_H());
 
-	std::vector<GroupElement> value_statement;
-	std::vector<Scalar> value_witness;
+    std::vector<GroupElement> value_statement;
+    std::vector<Scalar> value_witness;
 
-	for (std::size_t j = 0; j < outputs.size(); j++) {
+    for (std::size_t j = 0; j < outputs.size(); j++) {
         if (generate) {
             MintedCoinData output = outputs[j];
 
@@ -41,7 +41,7 @@ MintTransaction::MintTransaction(
             ));
 
             // Prepare the value proof
-            value_statement.emplace_back(this->coins[j].C + this->params->get_G().inverse()*Scalar(this->coins[j].v));
+            value_statement.emplace_back(this->coins[j].C + this->params->get_E().inverse() * this->coins[j].a + this->params->get_F().inverse() * this->coins[j].iota + this->params->get_G().inverse()*Scalar(this->coins[j].v));
             value_witness.emplace_back(SparkUtils::hash_val(k));
         } else {
             Coin coin(params);
@@ -52,28 +52,28 @@ MintTransaction::MintTransaction(
             coin.v = 0;
             this->coins.emplace_back(coin);
         }
-	}
+    }
 
-	// Complete the value proof
+    // Complete the value proof
     if (generate)
-	    schnorr.prove(value_witness, value_statement, this->value_proof);
+	schnorr.prove(value_witness, value_statement, this->value_proof);
     else
         value_proof = SchnorrProof();
 }
 
 bool MintTransaction::verify() {
-	// Verify the value proof
-	Schnorr schnorr(this->params->get_H());
-	std::vector<GroupElement> value_statement;
+    // Verify the value proof
+    Schnorr schnorr(this->params->get_H());
+    std::vector<GroupElement> value_statement;
 
-	for (std::size_t j = 0; j < this->coins.size(); j++) {
-		value_statement.emplace_back(this->coins[j].C
-                                         + this->params->get_E().inverse() * this->coins[j].a
-                                         + this->params->get_F().inverse() * this->coins[j].iota
-                                         + this->params->get_G().inverse()*Scalar(this->coins[j].v));
-	}
+    for (std::size_t j = 0; j < this->coins.size(); j++) {
+        value_statement.emplace_back(this->coins[j].C
+                                     + this->params->get_E().inverse() * this->coins[j].a
+                                     + this->params->get_F().inverse() * this->coins[j].iota
+                                     + this->params->get_G().inverse()*Scalar(this->coins[j].v));
+    }
 
-	return schnorr.verify(value_statement, this->value_proof);
+    return schnorr.verify(value_statement, this->value_proof);
 }
 
 std::vector<CDataStream> MintTransaction::getMintedCoinsSerialized() {
