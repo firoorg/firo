@@ -217,18 +217,18 @@ UniValue getsparknames(const JSONRPCRequest &request)
 
 UniValue getsparknamedata(const JSONRPCRequest& request)
 {
-     if (request.fHelp || request.params.size() > 1) {
+     if (request.fHelp || request.params.size() != 1) {
         throw std::runtime_error(
             "getsparknamedata ( sparkname )\n"
             "\nReturns info about spark name.\n"
             "\nArguments:\n"
             "Spark name (string)\n"
             "\nResult:\n"
-            "[\n"
-            "1. Address (string)\n"
-            "2. Block height until this spark name is valid (int)\n"
-            "3. Additional info (string)\n"
-            "]\n"
+            "{\n"
+            "  \"address\": spark address (string)\n"
+            "  \"validUntil\": block height until this spark name is valid (int)\n"
+            "  \"additionalInfo\": additional info (string)\n"
+            "}\n"
             "\nExamples:\n"
             + HelpExampleCli("getsparknamedata", "sparkname")
             + HelpExampleRpc("getsparknamedata", "sparkname")
@@ -247,16 +247,16 @@ UniValue getsparknamedata(const JSONRPCRequest& request)
     std::string SparkAddr;
     sparkNameManager->GetSparkAddress(sparkName, SparkAddr);
 
-    UniValue result(UniValue::VARR);
+    UniValue result(UniValue::VOBJ);
     unsigned char network = spark::GetNetworkType();
 
-    result.push_back(SparkAddr);
+    result.push_back(Pair("address", SparkAddr));
 
     uint64_t nameBlockHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName);
-    result.push_back(nameBlockHeight);
+    result.push_back(Pair("validUntil", nameBlockHeight));
 
     std::string sparkNameData = sparkNameManager->GetSparkNameAdditionalData(sparkName);
-    result.push_back(sparkNameData);
+    result.push_back(Pair("additionalInfo", sparkNameData));
 
     return result;
 }
