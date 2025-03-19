@@ -2,6 +2,10 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or https://opensource.org/license/mit/.
 
+if(WIN32 OR MINGW)
+  message(FATAL_ERROR "The Qt tests are not supported on Windows")
+endif()
+
 set(CMAKE_AUTOMOC_MOC_OPTIONS "-p${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_executable(test_firo-qt
@@ -24,10 +28,20 @@ target_link_libraries(test_firo-qt
   core_interface
   firoqt
   firo_node
+  ${TOR_LIBRARY}
   Boost::headers
   Boost::unit_test_framework
   Qt5::Test
   Qt5::Dependencies
+  Qt5::Widgets
+  Boost::thread
+  $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
+  $<TARGET_NAME_IF_EXISTS:libevent::extra>
+  $<TARGET_NAME_IF_EXISTS:libevent::core>
+  $<$<BOOL:${WITH_ZMQ}>:firo_zmq>
+  firo_cli
+  $<TARGET_NAME_IF_EXISTS:firo_wallet>
+  $<$<BOOL:${WIN32}>:windows_system>  
 )
 
 # Add macOS-specific frameworks
@@ -68,4 +82,4 @@ if(WIN32 AND VCPKG_TARGET_TRIPLET)
   )
 endif()
 
-install_binary_component(test_firo-qt)
+list(APPEND installable_targets test_firo-qt)

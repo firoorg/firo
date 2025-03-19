@@ -13,7 +13,7 @@ generate_header_from_json(data/tx_valid.json)
 
 # Do not use generator expressions in test sources because the
 # SOURCES property is processed to gather test suite macros.
-add_executable(test_bitcoin
+add_executable(test_firo
   ${CMAKE_CURRENT_BINARY_DIR}/data/base58_encode_decode.json.h
   ${CMAKE_CURRENT_BINARY_DIR}/data/base58_keys_invalid.json.h
   ${CMAKE_CURRENT_BINARY_DIR}/data/base58_keys_valid.json.h
@@ -107,7 +107,7 @@ add_executable(test_bitcoin
   bls_tests.cpp
 )
 
-target_link_libraries(test_bitcoin
+target_link_libraries(test_firo
   core_interface
   firo_cli
   firo_node
@@ -119,9 +119,11 @@ target_link_libraries(test_bitcoin
   univalue
   leveldb
   firo_wallet
+  ${TOR_LIBRARY}
+  Boost::filesystem  
 )
 
-target_include_directories(test_bitcoin 
+target_include_directories(test_firo
   PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -137,11 +139,11 @@ if(WITH_MULTIPROCESS)
       univalue
   )
 
-  target_sources(test_bitcoin
+  target_sources(test_firo
     PRIVATE
       ipc_tests.cpp
   )
-  target_link_libraries(test_bitcoin bitcoin_ipc_test bitcoin_ipc)
+  target_link_libraries(test_firo bitcoin_ipc_test bitcoin_ipc)
 endif()
 
 function(add_boost_test source_file)
@@ -160,7 +162,7 @@ function(add_boost_test source_file)
   )
   if(test_suite_name)
     add_test(NAME ${test_suite_name}
-      COMMAND test_bitcoin --run_test=${test_suite_name} --catch_system_error=no --log_level=test_suite -- DEBUG_LOG_OUT
+      COMMAND test_firo --run_test=${test_suite_name} --catch_system_error=no --log_level=test_suite -- DEBUG_LOG_OUT
     )
     set_property(TEST ${test_suite_name} PROPERTY
       SKIP_REGULAR_EXPRESSION "no test cases matching filter"
@@ -169,8 +171,8 @@ function(add_boost_test source_file)
 endfunction()
 
 function(add_all_test_targets)
-  get_target_property(test_source_dir test_bitcoin SOURCE_DIR)
-  get_target_property(test_sources test_bitcoin SOURCES)
+  get_target_property(test_source_dir test_firo SOURCE_DIR)
+  get_target_property(test_sources test_firo SOURCES)
   foreach(test_source ${test_sources})
     cmake_path(IS_RELATIVE test_source result)
     if(result)
@@ -182,6 +184,4 @@ endfunction()
 
 add_all_test_targets()
 
-install(TARGETS test_bitcoin
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
+list(APPEND installable_targets test_firo)
