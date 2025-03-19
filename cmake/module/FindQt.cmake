@@ -72,7 +72,7 @@ set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${_CMAKE_FIND_LIBRARY_SUFFIXES})
 find_library(LIB_QTLIBPNG NAMES qtlibpng REQUIRED)
 message(STATUS "Found Qt5 dependency: qtlibpng : ${LIB_QTLIBPNG}")
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT MINGW)
   find_library(LIB_FONTCONFIG NAMES fontconfig REQUIRED)
   message(STATUS "Found Qt5 dependency: fontconfig : ${LIB_FONTCONFIG}")
 

@@ -41,7 +41,7 @@ function(check_evhttp_connection_get_peer target)
 endfunction()
 
 set(_libevent_components core extra)
-if(NOT WIN32)
+if(NOT WIN32 AND NOT MINGW)
   list(APPEND _libevent_components pthreads)
 endif()
 
