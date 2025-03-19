@@ -4,6 +4,7 @@
 
 include(GNUInstallDirs)
 include(AddWindowsResources)
+include(WindowsSystemConfiguration)
 
 configure_file(${PROJECT_SOURCE_DIR}/cmake/bitcoin-build-config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/config/bitcoin-config.h USE_SOURCE_PERMISSIONS @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
@@ -70,11 +71,12 @@ target_link_libraries(bitcoin_util
     core_interface
     bitcoin_clientversion
     bitcoin_crypto
+    Boost::thread
+    Boost::chrono
     secp256k1
     leveldb
     univalue
-    $<$<PLATFORM_ID:Windows>:ws2_32>
-    $<$<PLATFORM_ID:Windows>:iphlpapi>
+    $<$<BOOL:${WIN32}>:windows_system>
 )
 
 add_subdirectory(crypto)
@@ -232,6 +234,7 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   script/sign.cpp
   script/standard.cpp
   warnings.cpp
+  # stacktraces.cpp # this should be fixed and improved.
 )
 target_link_libraries(bitcoin_common
   PUBLIC
@@ -241,10 +244,11 @@ target_link_libraries(bitcoin_common
     univalue
     secp256k1
     Boost::headers
+    $<$<BOOL:ENABLE_CRASH_HOOKS>:${BACKTRACE_LIBRARY}>
     leveldb
     $<$<BOOL:${WITH_ZMQ}>:firo_zmq>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
-    $<$<PLATFORM_ID:Windows>:ws2_32>
+    $<$<BOOL:${WIN32}>:windows_system>
 )
 
 include(InstallBinaryComponent)
@@ -422,6 +426,7 @@ target_link_libraries(firo_node
     $<TARGET_NAME_IF_EXISTS:libevent::extra>
     $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
+    $<$<BOOL:${WIN32}>:windows_system>
 )
 
 # Bitcoin Core firod.
@@ -435,12 +440,22 @@ if(BUILD_DAEMON)
     univalue
     Boost::thread
     firo_node
+    $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
+    $<TARGET_NAME_IF_EXISTS:libevent::extra>
+    $<TARGET_NAME_IF_EXISTS:libevent::core>
     $<$<BOOL:${WITH_ZMQ}>:firo_zmq>
     firo_cli
     secp256k1
     secp256k1pp
     $<TARGET_NAME_IF_EXISTS:firo_wallet>
+    ${TOR_LIBRARY}
+    $<$<BOOL:${WIN32}>:windows_system>
   )
+  if(WIN32)
+    set_target_properties(firod PROPERTIES OUTPUT_NAME "${FIRO_DAEMON_NAME}.exe")
+  else()
+    set_target_properties(firod PROPERTIES OUTPUT_NAME "${FIRO_DAEMON_NAME}")
+  endif()
   list(APPEND installable_targets firod)
 endif()
 if(WITH_MULTIPROCESS)
@@ -486,6 +501,14 @@ target_link_libraries(firo_cli
     Boost::filesystem
     Boost::thread
     Boost::program_options
+    firo_node
+    $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
+    $<TARGET_NAME_IF_EXISTS:libevent::extra>
+    $<TARGET_NAME_IF_EXISTS:libevent::core>
+    $<$<BOOL:${WITH_ZMQ}>:firo_zmq>
+    $<TARGET_NAME_IF_EXISTS:firo_wallet>
+    ${TOR_LIBRARY}
+    $<$<BOOL:${WIN32}>:windows_system>
 )
 target_include_directories(firo_cli
   PUBLIC
@@ -497,14 +520,23 @@ if(BUILD_CLI)
   add_windows_resources(firo-cli bitcoin-cli-res.rc)
   target_link_libraries(firo-cli
     core_interface
+    univalue
+    firo_node
+    $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
+    $<TARGET_NAME_IF_EXISTS:libevent::extra>
+    $<TARGET_NAME_IF_EXISTS:libevent::core>
+    $<$<BOOL:${WITH_ZMQ}>:firo_zmq>
     firo_cli
-    bitcoin_common
-    bitcoin_util
-    libevent::extra
-    libevent::core
+    $<TARGET_NAME_IF_EXISTS:firo_wallet>
+    ${TOR_LIBRARY}
+    $<$<BOOL:${WIN32}>:windows_system>
   )
+  if(WIN32)
+    set_target_properties(firo-cli PROPERTIES OUTPUT_NAME "${FIRO_CLI_NAME}.exe")
+  else()
+    set_target_properties(firo-cli PROPERTIES OUTPUT_NAME "${FIRO_CLI_NAME}")
+  endif()
   list(APPEND installable_targets firo-cli)
-  set_target_properties(firo-cli PROPERTIES OUTPUT_NAME ${FIRO_CLI_NAME})
 endif()
 
 
@@ -523,7 +555,14 @@ if(BUILD_TX)
     univalue
     secp256k1pp
     secp256k1
+    $<$<BOOL:${WIN32}>:windows_system>
+    $<$<BOOL:${WIN32}>:OpenSSL::Crypto>
   )
+  if(WIN32)
+    set_target_properties(firo-tx PROPERTIES OUTPUT_NAME "${FIRO_TX_NAME}.exe")
+  else()
+    set_target_properties(firo-tx PROPERTIES OUTPUT_NAME "${FIRO_TX_NAME}")
+  endif()
   list(APPEND installable_targets firo-tx)
 endif()
 

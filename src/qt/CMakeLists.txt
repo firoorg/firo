@@ -155,10 +155,17 @@ target_link_libraries(firoqt
   PRIVATE
     core_interface
     firo_cli
-    Boost::headers
+    firo_node
+    Boost::headers   
     $<TARGET_NAME_IF_EXISTS:QRencode::QRencode>
     $<$<PLATFORM_ID:Darwin>:-framework\ AppKit>
-    $<$<CXX_COMPILER_ID:MSVC>:shlwapi>
+    Boost::thread
+    $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
+    $<TARGET_NAME_IF_EXISTS:libevent::extra>
+    $<TARGET_NAME_IF_EXISTS:libevent::core>
+    ${TOR_LIBRARY}
+    $<$<BOOL:${WITH_ZMQ}>:firo_zmq>
+    $<$<BOOL:${WIN32}>:windows_system>
 )
 
 if(ENABLE_WALLET)
@@ -208,7 +215,7 @@ if(ENABLE_WALLET)
   )
 endif()
 
-if(WITH_DBUS)
+if(WITH_DBUS AND NOT MINGW)
   target_link_libraries(firoqt PRIVATE Qt5::DBus)
 endif()
 
@@ -228,11 +235,23 @@ add_windows_resources(firo-qt res/bitcoin-qt-res.rc)
 target_link_libraries(firo-qt
   PUBLIC
     core_interface
-    Qt5::Widgets
     firoqt
-    firo_node
+    Qt5::Widgets
     Qt5::Dependencies
-    )
+    firo_node
+    firo_cli
+    univalue
+    $<TARGET_NAME_IF_EXISTS:firo_wallet>
+    $<$<BOOL:${WITH_ZMQ}>:firo_zmq>
+    Boost::thread
+    Boost::filesystem
+    Boost::thread
+    Boost::program_options
+    $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
+    $<TARGET_NAME_IF_EXISTS:libevent::extra>
+    $<TARGET_NAME_IF_EXISTS:libevent::core>
+    ${TOR_LIBRARY}
+)
 
 # Add macOS-specific frameworks
 if(APPLE)
@@ -252,7 +271,19 @@ if(APPLE)
 endif()    
 
 import_plugins(firo-qt)
-install_binary_component(firo-qt HAS_MANPAGE)
+if(WIN32)
+  set_target_properties(firo-qt PROPERTIES OUTPUT_NAME "${FIRO_GUI_NAME}.exe")
+else()
+  set_target_properties(firo-qt PROPERTIES OUTPUT_NAME "${FIRO_GUI_NAME}")
+endif()
+list(APPEND installable_targets firo-qt)
+set(installable_targets ${installable_targets} PARENT_SCOPE)
+if(NOT WIN32)
+  install(FILES ${PROJECT_SOURCE_DIR}/doc/man/bitcoin-qt.1
+    DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
+    RENAME firo-qt.1
+  )
+endif()
 if(WIN32)
   set_target_properties(firo-qt PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
@@ -274,10 +305,14 @@ if(WITH_MULTIPROCESS)
   endif()
 endif()
 
-if(BUILD_GUI_TESTS)
+if(BUILD_GUI_TESTS AND NOT WIN32 AND NOT MINGW)
   add_subdirectory(test)
+else()
+  message(STATUS "Skipping GUI tests when cross-compiling for Windows")
+  if(BUILD_GUI_TESTS)
+    message(WARNING "BUILD_GUI_TESTS is enabled, but GUI tests are not supported when cross-compiling for Windows")
+  endif()
 endif()
-
 
 # Gets sources to be parsed to gather translatable strings.
 function(get_translatable_sources var)

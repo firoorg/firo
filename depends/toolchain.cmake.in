@@ -47,6 +47,21 @@ if(NOT DEFINED CMAKE_CXX_COMPILER)
   set(CMAKE_OBJCXX_COMPILER ${CMAKE_CXX_COMPILER})
 endif()
 
+# Detect if we're using the MingW toolchain
+if(CMAKE_CXX_COMPILER MATCHES "mingw")
+  set(WIN32 TRUE CACHE INTERNAL "Building for Win32 platform")
+  set(MINGW TRUE CACHE INTERNAL "Using MingW toolchain")
+  if(CMAKE_CXX_COMPILER MATCHES "i686-w64-mingw32")
+    set(MINGW_ARCH "32" CACHE INTERNAL "Using 32-bit MingW toolchain")
+    message(STATUS "Using 32-bit MingW toolchain.")
+  elseif(CMAKE_CXX_COMPILER MATCHES "x86_64-w64-mingw32")
+    set(MINGW_ARCH "64" CACHE INTERNAL "Using 64-bit MingW toolchain")
+    message(STATUS "Using 64-bit MingW toolchain.")
+  endif()
+else()
+  set(MINGW FALSE CACHE INTERNAL "Not using MingW toolchain")
+endif()
+
 # The DEPENDS_COMPILE_DEFINITIONS* variables are to be treated as lists.
 set(DEPENDS_COMPILE_DEFINITIONS @CPPFLAGS@)
 set(DEPENDS_COMPILE_DEFINITIONS_RELWITHDEBINFO @CPPFLAGS_RELEASE@)

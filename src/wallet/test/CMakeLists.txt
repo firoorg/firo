@@ -5,7 +5,7 @@
 # Do not use generator expressions in test sources because the
 # SOURCES property is processed to gather test suite macros.
 
-target_sources(test_bitcoin
+target_sources(test_firo
   PRIVATE
   accounting_tests.cpp
   crypto_tests.cpp
@@ -17,4 +17,4 @@ target_sources(test_bitcoin
   wallet_test_fixture.cpp
   wallet_tests.cpp
 )
-target_link_libraries(test_bitcoin firo_wallet)
+target_link_libraries(test_firo firo_wallet)

@@ -266,29 +266,51 @@ if(NOT CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
   set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 endif()
 
-# secp256k1 configuration
-include(CheckTypeSize)
-check_type_size("__int128" SIZEOF__int128)
-message(STATUS "Size of __int128 : ${SIZEOF__int128}")
+# If cross-compiling with MinGW, assume __int128 is 16 bytes.
+if(MINGW)
+  set(SIZEOF__int128 16 CACHE INTERNAL "Assumed size of __int128 when cross-compiling for MinGW")
+  message(STATUS "Assuming __int128 is 16 bytes (MinGW cross-compiling)")
+else()
+  include(CheckTypeSize)
+  check_type_size("__int128" SIZEOF__int128)
+  message(STATUS "Size of __int128 : ${SIZEOF__int128}")
+endif()
 
-if(${SIZEOF__int128} EQUAL 16)
+if(NOT SIZEOF__int128)
+  message(FATAL_ERROR "Unable to determine size of __int128")
+endif()
+
+if(SIZEOF__int128 EQUAL 16)
   add_compile_definitions(HAVE___INT128=1)
 else()
   message(FATAL_ERROR "secp256k1 requires __int128 type.")
 endif()
 
 # Select field implementation
-if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-  # 64 bits
-  add_compile_definitions(USE_FIELD_5X52=1) # Define this symbol to use the FIELD_5X52 implementation
-  add_compile_definitions(USE_SCALAR_4X64=1) # Define this symbol to use the 4x64 scalar implementation
-
-elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
-  # 32 bits
-  add_compile_definitions(USE_FIELD_10X26=1) # Define this symbol to use the FIELD_10X26 implementation
-  add_compile_definitions(USE_SCALAR_8X32=1) # Define this symbol to use the 8x32 scalar implementation
-else() 
-  message(FATAL_ERROR "Invalid architecture.")
+if(MINGW)
+  if(MINGW_ARCH STREQUAL "32")
+    # 32 bits
+    add_compile_definitions(USE_FIELD_10X26=1)    # Use FIELD_10X26 implementation
+    add_compile_definitions(USE_SCALAR_8X32=1)      # Use 8x32 scalar implementation
+  elseif(MINGW_ARCH STREQUAL "64")
+    # 64 bits
+    add_compile_definitions(USE_FIELD_5X52=1)   # Use FIELD_5X52 implementation
+    add_compile_definitions(USE_SCALAR_4X64=1)    # Use 4x64 scalar implementation
+  else()
+    message(FATAL_ERROR "Invalid architecture.")
+  endif()
+else()
+  if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    # 64 bits
+    add_compile_definitions(USE_FIELD_5X52=1)   # Use FIELD_5X52 implementation
+    add_compile_definitions(USE_SCALAR_4X64=1)    # Use 4x64 scalar implementation
+  elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+    # 32 bits
+    add_compile_definitions(USE_FIELD_10X26=1)    # Use FIELD_10X26 implementation
+    add_compile_definitions(USE_SCALAR_8X32=1)      # Use 8x32 scalar implementation
+  else()
+    message(FATAL_ERROR "Invalid architecture.")
+  endif()
 endif()
 
 add_subdirectory(src)
