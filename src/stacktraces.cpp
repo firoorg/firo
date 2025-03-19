@@ -10,7 +10,8 @@
 #include "util.h"
 #include "utilstrencodings.h"
 
-#include "bitcoin-config.h"
+#include "config/bitcoin-config.h"
+
 
 #include <mutex>
 #include <map>
