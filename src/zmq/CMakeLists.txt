@@ -10,6 +10,8 @@ add_library(firo_zmq STATIC EXCLUDE_FROM_ALL
 target_compile_definitions(firo_zmq
   INTERFACE
     ENABLE_ZMQ=1
+  PRIVATE
+    $<$<BOOL:${WIN32}>:ZMQ_STATIC>
 )
 target_link_libraries(firo_zmq
   PRIVATE
