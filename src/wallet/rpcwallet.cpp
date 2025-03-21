@@ -3908,6 +3908,101 @@ UniValue spendspark(const JSONRPCRequest& request)
     return wtx.GetHash().GetHex();
 }
 
+UniValue getsparknames(const JSONRPCRequest &request)
+{
+    if (request.fHelp || request.params.size() > 1) {
+        throw std::runtime_error(
+            "getsparknames [<onlyown>]\n"
+            "\nReturns a list of all Spark names.\n"
+            "\nArguments:\n"
+            "1. onlyown       (boolean, optional, default=false) Display only the spark names that belong to this wallet\n"
+            "\nResult:\n"
+            "[\n"
+            "  \"Name (string)\n"
+            "  \"Address (string)\"\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknames", "")
+            + HelpExampleRpc("getsparknames", "")
+        );
+    }
+
+    LOCK(cs_main);
+    CWallet *wallet = GetWalletForJSONRPCRequest(request);
+    LOCK(wallet->cs_wallet);
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    bool fOnlyOwn = request.params.size() > 0 ? request.params[0].get_bool() : false;
+
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    std::set<std::string> sparkNames = sparkNameManager->GetSparkNames();
+    UniValue result(UniValue::VARR);
+    for (const auto &name : sparkNames) {
+        UniValue entry(UniValue::VOBJ);
+
+        std::string sparkAddress;
+        if (sparkNameManager->GetSparkAddress(name, sparkAddress)) {
+            if (fOnlyOwn && !wallet->IsSparkAddressMine(sparkAddress))
+                continue;
+            entry.push_back(Pair("name", name));
+            entry.push_back(Pair("address", sparkAddress));
+
+            result.push_back(entry);
+        }
+    }
+    return result;
+}
+
+UniValue getsparknamedata(const JSONRPCRequest& request)
+{
+     if (request.fHelp || request.params.size() != 1) {
+        throw std::runtime_error(
+            "getsparknamedata ( sparkname )\n"
+            "\nReturns info about spark name.\n"
+            "\nArguments:\n"
+            "Spark name (string)\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"address\": spark address (string)\n"
+            "  \"validUntil\": block height until this spark name is valid (int)\n"
+            "  \"additionalInfo\": additional info (string)\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknamedata", "sparkname")
+            + HelpExampleRpc("getsparknamedata", "sparkname")
+        );
+    }
+
+    LOCK(cs_main);
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    std::string sparkName = request.params[0].get_str();
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+
+    std::string SparkAddr;
+    sparkNameManager->GetSparkAddress(sparkName, SparkAddr);
+
+    UniValue result(UniValue::VOBJ);
+    unsigned char network = spark::GetNetworkType();
+
+    result.push_back(Pair("address", SparkAddr));
+
+    uint64_t nameBlockHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName);
+    result.push_back(Pair("validUntil", nameBlockHeight));
+
+    std::string sparkNameData = sparkNameManager->GetSparkNameAdditionalData(sparkName);
+    result.push_back(Pair("additionalInfo", sparkNameData));
+
+    return result;
+}
+
 UniValue registersparkname(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -5859,7 +5954,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "identifysparkcoins",     &identifysparkcoins,     false },
     { "wallet",             "getsparkcoinaddr",       &getsparkcoinaddr,       false },
     { "wallet",             "registersparkname",      &registersparkname,      false },
-
+    { "wallet",             "getsparknames",          &getsparknames,          true,  {} },
+    { "wallet",             "getsparknamedata",       &getsparknamedata,       true,  {} },
 
     //bip47
     { "bip47",              "createrapaddress",         &createrapaddress,         true },
