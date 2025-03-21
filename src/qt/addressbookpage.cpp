@@ -122,8 +122,10 @@ void AddressBookPage::setModel(AddressTableModel *_model)
         if (spark)
             ui->addressType->addItem(tr("Spark"), Spark);
         ui->addressType->addItem(tr("Transparent"), Transparent);
-        if (spark)
+        if (spark) {
             ui->addressType->addItem(tr("Spark names"), SparkName);
+            ui->addressType->addItem(tr("My own spark names"), SparkNameMine);
+        }
     } else if(tab == ReceivingTab && !this->isReused) {
         if (spark) {
             ui->addressType->addItem(tr("Spark"), Spark);
@@ -382,7 +384,8 @@ void AddressBookPage::contextualMenu(const QPoint &point)
     QModelIndex index;
     index = ui->tableView->indexAt(point);
 
-    if (ui->addressType->currentText() == "Spark" || ui->addressType->currentText() == "Spark names") {
+    int currentType = ui->addressType->currentData().toInt();
+    if (currentType == (int)Spark || currentType == (int)SparkName || currentType == (int)SparkNameMine) {
         copyAddressAction->setText(tr("&Copy Spark Address"));
     } else {
         copyAddressAction->setText(tr("&Copy Transparent Address"));
@@ -433,14 +436,18 @@ bool AddressBookFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &
     QModelIndex index = sourceModel()->index(sourceRow, 2, sourceParent);
     QString dataStr = sourceModel()->data(index).toString();
 
-    if (dataStr.contains("spark name"))
-        return typeFilter == 2;
-    else if (dataStr.contains("spark"))
-        return typeFilter == 0;
-    else if (dataStr.contains("transparent"))
-        return typeFilter == 1;
-
-    return false;
+    switch (typeFilter) {
+    case (int)AddressBookPage::Spark:
+        return dataStr == "spark";
+    case (int)AddressBookPage::Transparent:
+        return dataStr == "transparent";
+    case (int)AddressBookPage::SparkName:
+        return dataStr.contains("spark name");
+    case (int)AddressBookPage::SparkNameMine:
+        return dataStr == "own spark name";
+    default:
+        return false;
+    }
 }
 
 void AddressBookFilterProxy::setTypeFilter(quint32 modes)
