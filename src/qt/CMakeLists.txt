@@ -268,7 +268,11 @@ if(APPLE)
         "-framework AppKit"
         "-framework Carbon"
     )
-endif()    
+endif()
+
+if(ENABLE_CRASH_HOOKS AND CRASH_HOOKS_WRAPPED_CXX_ABI)
+  target_compile_options(firod PRIVATE ${LDFLAGS_WRAP_EXCEPTIONS})
+endif()
 
 import_plugins(firo-qt)
 if(WIN32)
