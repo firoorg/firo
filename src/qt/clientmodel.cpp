@@ -15,7 +15,7 @@
 #include "validation.h"
 #include "net.h"
 #include "txmempool.h"
-#include "ui_interface.h"
+#include "../ui_interface.h"
 #include "util.h"
 
 #include <stdint.h>
