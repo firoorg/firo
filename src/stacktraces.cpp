@@ -534,16 +534,18 @@ static void PrintCrashInfo(const crash_info& ci)
 static std::mutex g_stacktraces_mutex;
 static std::map<void*, std::shared_ptr<std::vector<uint64_t>>> g_stacktraces;
 
-#if CRASH_HOOKS_WRAPPED_CXX_ABI
+#ifdef CRASH_HOOKS_WRAPPED_CXX_ABI
 // These come in through -Wl,-wrap
 // It only works on GCC
 extern "C" void* __real___cxa_allocate_exception(size_t thrown_size);
 extern "C" void __real___cxa_free_exception(void * thrown_exception);
-#if __clang__
+#if __clang__ && defined(WIN32)
 #error not supported on WIN32 (no dlsym support)
 #elif WIN32
 extern "C" void __real__assert(const char *assertion, const char *file, unsigned int line);
 extern "C" void __real__wassert(const wchar_t *assertion, const wchar_t *file, unsigned int line);
+#elif __APPLE__
+extern "C" void __real___assert_rtn(const char *function, const char *file, int line, const char *assertion);
 #else
 extern "C" void __real___assert_fail(const char *assertion, const char *file, unsigned int line, const char *function);
 #endif
@@ -577,7 +579,7 @@ extern "C" void __real___assert_fail(const char *assertion, const char *file, un
 #endif
 #endif
 
-#if CRASH_HOOKS_WRAPPED_CXX_ABI
+#ifdef CRASH_HOOKS_WRAPPED_CXX_ABI
 #define WRAPPED_NAME(x) __wrap_##x
 #else
 #define WRAPPED_NAME(x) x
