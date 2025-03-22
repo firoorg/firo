@@ -132,9 +132,50 @@ option(ENABLE_HARDENING "Attempt to harden the resulting executables." ON)
 option(REDUCE_EXPORTS "Attempt to reduce exported symbols in the resulting executables." OFF)
 option(WERROR "Treat compiler warnings as errors." OFF)
 option(WITH_CCACHE "Attempt to use ccache for compiling." ON)
-option(ENABLE_CRASH_HOOKS "Enable crash hooks. Not supported yet." OFF)
+option(ENABLE_CRASH_HOOKS "Hook into exception/signal/assert handling to gather stack traces (default is off)" OFF)
+
+# Option to enable crash hooks (default is OFF)
+option(ENABLE_CRASH_HOOKS "Hook into exception/signal/assert handling to gather stack traces" OFF)
+
 if(ENABLE_CRASH_HOOKS)
-  message(FATAL_ERROR "Crash hooks are not supported yet.")
+  message(STATUS "Crash hooks enabled")
+  # Define symbol ENABLE_CRASH_HOOKS for the compiler
+  add_compile_definitions(ENABLE_CRASH_HOOKS=1)
+endif()
+
+include(CheckCXXCompilerFlag)
+
+# Check if the linker supports wrapping __cxa_allocate_exception:
+check_cxx_compiler_flag("-Wl,-wrap=__cxa_allocate_exception" LINK_WRAP_SUPPORTED)
+
+if(LINK_WRAP_SUPPORTED)
+  message(STATUS "Linker supports -Wl,-wrap=__cxa_allocate_exception")
+  # Define symbol to use the wrapped C++ ABI for exception stacktraces
+  add_compile_definitions(CRASH_HOOKS_WRAPPED_CXX_ABI=1)
+  set(CRASH_HOOKS_WRAPPED_CXX_ABI ON CACHE BOOL "Use wrapped C++ ABI for exception stacktraces")
+  # Wrap internal C++ ABI's so that we can attach stacktraces to exceptions
+  if(WIN32)
+    set(LDFLAGS_WRAP_EXCEPTIONS -Wl,-wrap,__cxa_allocate_exception -Wl,-wrap,__cxa_free_exception -Wl,-wrap,_assert -Wl,-wrap,_wassert)
+  else()
+    set(LDFLAGS_WRAP_EXCEPTIONS -Wl,-wrap,__cxa_allocate_exception -Wl,-wrap,__cxa_free_exception -Wl,-wrap,__assert_fail)
+  endif()
+  message(STATUS "Linker flags to wrap exceptions: ${LDFLAGS_WRAP_EXCEPTIONS}")
+else()
+  message(STATUS "Linker does not support -Wl,-wrap=__cxa_allocate_exception")
+endif()
+
+if(MINGW)
+  # Check if the compiler supports the -Wa,-mbig-obj flag (needed on some MinGW targets)
+  check_cxx_compiler_flag("-Wa,-mbig-obj" HAS_MBIGO_FLAG)
+  if(HAS_MBIGO_FLAG)
+    message(STATUS "Compiler supports -Wa,-mbig-obj; appending to CXX flags")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wa,-mbig-obj")
+  else()
+    message(STATUS "Compiler does not support -Wa,-mbig-obj")
+  endif()
+
+  # Needed for MinGW targets when debug symbols are enabled as compiled objects get very large
+  AX_CHECK_COMPILE_FLAG([-Wa,-mbig-obj], [CXXFLAGS="$CXXFLAGS -Wa,-mbig-obj"],,,)
 endif()
 
 option(WITH_ZMQ "Enable ZMQ notifications." ON)
@@ -443,15 +484,13 @@ else()
   message(STATUS "Found tor library: ${TOR_LIBRARY}")
 endif()
 
-if(NOT MINGW) 
-  if(ENABLE_CRASH_HOOKS)
-    # Check for the presence of the backtrace library
-    find_library(BACKTRACE_LIBRARY
-      NAMES backtrace
-      REQUIRED
-    )
-    message(STATUS "Found backtrace library: ${BACKTRACE_LIBRARY}")
-  endif()
+if(ENABLE_CRASH_HOOKS)
+# Check for the presence of the backtrace library
+find_library(BACKTRACE_LIBRARY
+  NAMES backtrace
+  REQUIRED
+)
+message(STATUS "Found backtrace library: ${BACKTRACE_LIBRARY}")
 endif()
 
 include(cmake/introspection.cmake)
