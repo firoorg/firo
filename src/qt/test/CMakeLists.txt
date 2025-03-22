@@ -25,6 +25,7 @@ set_source_files_properties(
 )
 
 target_link_libraries(test_firo-qt
+  PRIVATE
   core_interface
   firoqt
   firo_node
