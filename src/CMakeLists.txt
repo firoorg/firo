@@ -234,7 +234,7 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   script/sign.cpp
   script/standard.cpp
   warnings.cpp
-  # stacktraces.cpp # this should be fixed and improved.
+  $<$<BOOL:${ENABLE_CRASH_HOOKS}>:stacktraces.cpp>
 )
 target_link_libraries(bitcoin_common
   PUBLIC
@@ -250,6 +250,10 @@ target_link_libraries(bitcoin_common
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
     $<$<BOOL:${WIN32}>:windows_system>
 )
+
+if(ENABLE_CRASH_HOOKS AND CRASH_HOOKS_WRAPPED_CXX_ABI)
+  target_compile_options(bitcoin_common PRIVATE ${LDFLAGS_WRAP_EXCEPTIONS})
+endif()
 
 include(InstallBinaryComponent)
 set(installable_targets)
@@ -456,6 +460,9 @@ if(BUILD_DAEMON)
   else()
     set_target_properties(firod PROPERTIES OUTPUT_NAME "${FIRO_DAEMON_NAME}")
   endif()
+  if(ENABLE_CRASH_HOOKS AND CRASH_HOOKS_WRAPPED_CXX_ABI)
+    target_compile_options(firod PRIVATE ${LDFLAGS_WRAP_EXCEPTIONS})
+  endif()
   list(APPEND installable_targets firod)
 endif()
 if(WITH_MULTIPROCESS)
@@ -536,6 +543,9 @@ if(BUILD_CLI)
   else()
     set_target_properties(firo-cli PROPERTIES OUTPUT_NAME "${FIRO_CLI_NAME}")
   endif()
+  if(ENABLE_CRASH_HOOKS AND CRASH_HOOKS_WRAPPED_CXX_ABI)
+    target_compile_options(firo-cli PRIVATE ${LDFLAGS_WRAP_EXCEPTIONS})
+  endif()
   list(APPEND installable_targets firo-cli)
 endif()
 
@@ -562,6 +572,9 @@ if(BUILD_TX)
     set_target_properties(firo-tx PROPERTIES OUTPUT_NAME "${FIRO_TX_NAME}.exe")
   else()
     set_target_properties(firo-tx PROPERTIES OUTPUT_NAME "${FIRO_TX_NAME}")
+  endif()
+  if(ENABLE_CRASH_HOOKS AND CRASH_HOOKS_WRAPPED_CXX_ABI)
+    target_compile_options(firo-tx PRIVATE ${LDFLAGS_WRAP_EXCEPTIONS})
   endif()
   list(APPEND installable_targets firo-tx)
 endif()
