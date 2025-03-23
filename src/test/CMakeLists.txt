@@ -128,6 +128,8 @@ target_include_directories(test_firo
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+apply_wrapped_exception_flags(test_firo)
+
 if(ENABLE_WALLET)
   add_subdirectory(${PROJECT_SOURCE_DIR}/src/wallet/test wallet)
 endif()
