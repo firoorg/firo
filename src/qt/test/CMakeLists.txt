@@ -45,6 +45,8 @@ target_link_libraries(test_firo-qt
   $<$<BOOL:${WIN32}>:windows_system>  
 )
 
+apply_wrapped_exception_flags(test_firo-qt)
+
 # Add macOS-specific frameworks
 if(APPLE)
     target_link_libraries(test_firo-qt PRIVATE
