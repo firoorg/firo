@@ -52,12 +52,6 @@ configure_file(bitcoin_locale.qrc bitcoin_locale.qrc USE_SOURCE_PERMISSIONS COPY
 # The firoqt sources have to include headers in
 # order to parse them to collect translatable strings.
 add_library(firoqt STATIC EXCLUDE_FROM_ALL
-  $<$<PLATFORM_ID:Darwin>:macdockiconhandler.h>
-  $<$<PLATFORM_ID:Darwin>:macdockiconhandler.mm>
-  $<$<PLATFORM_ID:Darwin>:macnotificationhandler.h>
-  $<$<PLATFORM_ID:Darwin>:macnotificationhandler.mm>
-  $<$<PLATFORM_ID:Windows>:winshutdownmonitor.cpp>
-  $<$<PLATFORM_ID:Windows>:winshutdownmonitor.h>
   bitcoin.qrc
   ${CMAKE_CURRENT_BINARY_DIR}/bitcoin_locale.qrc
   addressbookpage.cpp
@@ -122,7 +116,12 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   walletmodel.cpp
   walletmodeltransaction.cpp
   walletview.cpp
-  winshutdownmonitor.cpp
+  $<$<PLATFORM_ID:Darwin>:macdockiconhandler.h>
+  $<$<PLATFORM_ID:Darwin>:macdockiconhandler.mm>
+  $<$<PLATFORM_ID:Darwin>:macnotificationhandler.h>
+  $<$<PLATFORM_ID:Darwin>:macnotificationhandler.mm>
+  $<$<BOOL:${WIN32}>:winshutdownmonitor.cpp>
+  $<$<BOOL:${WIN32}>:winshutdownmonitor.h>
 )
 target_compile_definitions(firoqt
   PUBLIC
@@ -270,16 +269,9 @@ if(APPLE)
     )
 endif()
 
-if(ENABLE_CRASH_HOOKS AND CRASH_HOOKS_WRAPPED_CXX_ABI)
-  target_compile_options(firod PRIVATE ${LDFLAGS_WRAP_EXCEPTIONS})
-endif()
-
+apply_wrapped_exception_flags(firo-qt)
 import_plugins(firo-qt)
-if(WIN32)
-  set_target_properties(firo-qt PROPERTIES OUTPUT_NAME "${FIRO_GUI_NAME}.exe")
-else()
-  set_target_properties(firo-qt PROPERTIES OUTPUT_NAME "${FIRO_GUI_NAME}")
-endif()
+set_platform_output_name(firo-qt FIRO_GUI_NAME)
 list(APPEND installable_targets firo-qt)
 set(installable_targets ${installable_targets} PARENT_SCOPE)
 if(NOT WIN32)
