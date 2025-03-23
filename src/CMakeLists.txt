@@ -251,9 +251,7 @@ target_link_libraries(bitcoin_common
     $<$<BOOL:${WIN32}>:windows_system>
 )
 
-if(ENABLE_CRASH_HOOKS AND CRASH_HOOKS_WRAPPED_CXX_ABI)
-  target_compile_options(bitcoin_common PRIVATE ${LDFLAGS_WRAP_EXCEPTIONS})
-endif()
+apply_wrapped_exception_flags(bitcoin_common)
 
 include(InstallBinaryComponent)
 set(installable_targets)
@@ -455,14 +453,8 @@ if(BUILD_DAEMON)
     ${TOR_LIBRARY}
     $<$<BOOL:${WIN32}>:windows_system>
   )
-  if(WIN32)
-    set_target_properties(firod PROPERTIES OUTPUT_NAME "${FIRO_DAEMON_NAME}.exe")
-  else()
-    set_target_properties(firod PROPERTIES OUTPUT_NAME "${FIRO_DAEMON_NAME}")
-  endif()
-  if(ENABLE_CRASH_HOOKS AND CRASH_HOOKS_WRAPPED_CXX_ABI)
-    target_compile_options(firod PRIVATE ${LDFLAGS_WRAP_EXCEPTIONS})
-  endif()
+  set_platform_output_name(firod FIRO_DAEMON_NAME)
+  apply_wrapped_exception_flags(firod)
   list(APPEND installable_targets firod)
 endif()
 if(WITH_MULTIPROCESS)
@@ -538,14 +530,8 @@ if(BUILD_CLI)
     ${TOR_LIBRARY}
     $<$<BOOL:${WIN32}>:windows_system>
   )
-  if(WIN32)
-    set_target_properties(firo-cli PROPERTIES OUTPUT_NAME "${FIRO_CLI_NAME}.exe")
-  else()
-    set_target_properties(firo-cli PROPERTIES OUTPUT_NAME "${FIRO_CLI_NAME}")
-  endif()
-  if(ENABLE_CRASH_HOOKS AND CRASH_HOOKS_WRAPPED_CXX_ABI)
-    target_compile_options(firo-cli PRIVATE ${LDFLAGS_WRAP_EXCEPTIONS})
-  endif()
+  set_platform_output_name(firo-cli FIRO_CLI_NAME)
+  apply_wrapped_exception_flags(firo-cli)
   list(APPEND installable_targets firo-cli)
 endif()
 
@@ -568,14 +554,8 @@ if(BUILD_TX)
     $<$<BOOL:${WIN32}>:windows_system>
     $<$<BOOL:${WIN32}>:OpenSSL::Crypto>
   )
-  if(WIN32)
-    set_target_properties(firo-tx PROPERTIES OUTPUT_NAME "${FIRO_TX_NAME}.exe")
-  else()
-    set_target_properties(firo-tx PROPERTIES OUTPUT_NAME "${FIRO_TX_NAME}")
-  endif()
-  if(ENABLE_CRASH_HOOKS AND CRASH_HOOKS_WRAPPED_CXX_ABI)
-    target_compile_options(firo-tx PRIVATE ${LDFLAGS_WRAP_EXCEPTIONS})
-  endif()
+  set_platform_output_name(firo-tx FIRO_TX_NAME)
+  apply_wrapped_exception_flags(firo-tx)
   list(APPEND installable_targets firo-tx)
 endif()
 
