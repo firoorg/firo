@@ -7,6 +7,7 @@ if(WIN32)
       ws2_32 iphlpapi userenv
       dwmapi uxtheme shlwapi
       wtsapi32 imm32 netapi32
+      $<$<BOOL:${ENABLE_CRASH_HOOKS}>:dbghelp>
       version winmm crypt32 bcrypt
       ole32 oleaut32 uuid
       comdlg32 advapi32

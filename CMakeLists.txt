@@ -96,6 +96,11 @@ set(CMAKE_C_EXTENSIONS ON)
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/module)
 
 #=============================
+# Include utility functions
+#=============================
+include(cmake/utilities.cmake)
+
+#=============================
 # Configurable options
 #=============================
 include(CMakeDependentOption)
@@ -134,9 +139,6 @@ option(WERROR "Treat compiler warnings as errors." OFF)
 option(WITH_CCACHE "Attempt to use ccache for compiling." ON)
 option(ENABLE_CRASH_HOOKS "Hook into exception/signal/assert handling to gather stack traces (default is off)" OFF)
 
-# Option to enable crash hooks (default is OFF)
-option(ENABLE_CRASH_HOOKS "Hook into exception/signal/assert handling to gather stack traces" OFF)
-
 if(ENABLE_CRASH_HOOKS)
   message(STATUS "Crash hooks enabled")
   # Define symbol ENABLE_CRASH_HOOKS for the compiler
@@ -149,7 +151,7 @@ include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag("-Wl,-wrap=__cxa_allocate_exception" LINK_WRAP_SUPPORTED)
 
 if(LINK_WRAP_SUPPORTED)
-  message(STATUS "Linker supports -Wl,-wrap=__cxa_allocate_exception")
+  message(STATUS "Linker supports -Wl,-wrap flag")
   # Define symbol to use the wrapped C++ ABI for exception stacktraces
   add_compile_definitions(CRASH_HOOKS_WRAPPED_CXX_ABI=1)
   set(CRASH_HOOKS_WRAPPED_CXX_ABI ON CACHE BOOL "Use wrapped C++ ABI for exception stacktraces")
@@ -161,7 +163,7 @@ if(LINK_WRAP_SUPPORTED)
   endif()
   message(STATUS "Linker flags to wrap exceptions: ${LDFLAGS_WRAP_EXCEPTIONS}")
 else()
-  message(STATUS "Linker does not support -Wl,-wrap=__cxa_allocate_exception")
+  message(STATUS "Linker does not support -Wl,-wrap flag")
 endif()
 
 if(MINGW)
@@ -173,9 +175,6 @@ if(MINGW)
   else()
     message(STATUS "Compiler does not support -Wa,-mbig-obj")
   endif()
-
-  # Needed for MinGW targets when debug symbols are enabled as compiled objects get very large
-  AX_CHECK_COMPILE_FLAG([-Wa,-mbig-obj], [CXXFLAGS="$CXXFLAGS -Wa,-mbig-obj"],,,)
 endif()
 
 option(WITH_ZMQ "Enable ZMQ notifications." ON)
