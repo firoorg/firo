@@ -18,11 +18,13 @@ SpendTransaction::SpendTransaction(
     const spark::Params* params,
     const spark::FullViewKey& full_view_key,
     const spark::SpendKey& spend_key,
-    const std::vector<InputCoinData>& inputs,
-    const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
+    const std::vector<spark::InputCoinData>& inputs,
+    const std::unordered_map<uint64_t, spark::CoverSetData>& cover_set_data,
+    const std::unordered_map<uint64_t, std::vector<spark::Coin>>& cover_sets,
+
     const uint64_t f,
     const uint64_t vout,
-    const std::vector<OutputCoinData>& outputs)
+    const std::vector<spark::OutputCoinData>& outputs)
 {
     this->params = params;
 
@@ -93,10 +95,10 @@ SpendTransaction::SpendTransaction(
         // Parse out cover set data for this spend
         uint64_t set_id = inputs[u].cover_set_id;
         this->cover_set_ids.emplace_back(set_id);
-        if (cover_set_data.count(set_id) == 0)
+        if (cover_set_data.count(set_id) == 0 || cover_sets.count(set_id) == 0)
             throw std::invalid_argument("Required set is not passed");
 
-        const auto& cover_set = cover_set_data.at(set_id).cover_set;
+        const auto& cover_set = cover_sets.at(set_id);
         std::size_t set_size = cover_set.size();
         if (set_size > N)
             throw std::invalid_argument("Wrong set size");
@@ -300,15 +302,18 @@ SpendTransaction::SpendTransaction(
     Scalar mu = hash_bind(
         hash_bind_inner(
             this->cover_set_representations,
+            this->S1,
             this->C1,
-            this->grootle_proofs),
+            this->T,
+            this->grootle_proofs,
+            this->rep_proof,
+            this->range_proof,
+            this->base_proof,
+            this->type_proof,
+            this->balance_proof),
         this->out_coins,
-        this->f + vout,
-        this->rep_proof,
-        this->range_proof,
-        this->base_proof,
-        this->type_proof,
-        this->balance_proof);
+        this->f + vout
+        );
 
     // Compute the authorizing Chaum proof
     spark::Chaum chaum(
@@ -425,15 +430,18 @@ bool SpendTransaction::verify(
         Scalar mu = hash_bind(
             tx.hash_bind_inner(
                 tx.cover_set_representations,
+                tx.S1,
                 tx.C1,
-                tx.grootle_proofs),
+                tx.T,
+                tx.grootle_proofs,
+                tx.rep_proof,
+                tx.range_proof,
+                tx.base_proof,
+                tx.type_proof,
+                tx.balance_proof),
             tx.out_coins,
-            tx.f + tx.vout,
-            tx.rep_proof,
-            tx.range_proof,
-            tx.base_proof,
-            tx.type_proof,
-            tx.balance_proof);
+            tx.f + tx.vout
+            );
 
         // Verify the authorizing Chaum-Pedersen proof
         spark::Chaum chaum(
@@ -581,10 +589,16 @@ bool SpendTransaction::verify(
 // This function pre-hashes auxiliary data that makes things easier for a limited signer who cannot process the data directly
 // Its value is then used as part of the binding hash, which a limited signer can verify as part of the signing process
 std::vector<unsigned char> SpendTransaction::hash_bind_inner(
-    const std::unordered_map<uint64_t, std::vector<unsigned char> >& cover_set_representations,
+    const std::map<uint64_t, std::vector<unsigned char> >& cover_set_representations,
+    const std::vector<GroupElement>& S1,
     const std::vector<GroupElement>& C1,
-    const std::vector<spark::GrootleProof>& grootle_proofs
-
+    const std::vector<GroupElement>& T,
+    const std::vector<spark::GrootleProof>& grootle_proofs,
+    const spark::SchnorrProof& rep_proof,
+    const BPPlusProof& range_proof,
+    const BaseAssetProof& base_proof,
+    const TypeProof& type_proof,
+    const BalanceProof& balance_proof
 )
 {
     spark::Hash hash(spark::LABEL_HASH_BIND_INNER);
@@ -594,6 +608,12 @@ std::vector<unsigned char> SpendTransaction::hash_bind_inner(
     stream << C1;
     stream << T;
     stream << grootle_proofs;
+    stream << rep_proof;
+    stream << range_proof;
+    stream << base_proof;
+    stream << type_proof;
+    stream << balance_proof;
+
     hash.include(stream);
 
     return hash.finalize();
@@ -604,23 +624,13 @@ std::vector<unsigned char> SpendTransaction::hash_bind_inner(
 Scalar SpendTransaction::hash_bind(
     const std::vector<unsigned char> hash_bind_inner,
     const std::vector<spark::Coin>& out_coins,
-    const uint64_t f_,
-    const spark::SchnorrProof& rep_proof,
-    const BPPlusProof& range_proof,
-    const BaseAssetProof& base_proof,
-    const TypeProof& type_proof,
-    const BalanceProof& balance_proof)
+    const uint64_t f_)
 {
     spark::Hash hash(spark::LABEL_HASH_BIND);
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
     stream << hash_bind_inner;
     stream << out_coins;
     stream << f_;
-    stream << rep_proof;
-    stream << range_proof;
-    stream << base_proof;
-    stream << type_proof;
-    stream << balance_proof;
     hash.include(stream);
 
     return hash.finalize_scalar();

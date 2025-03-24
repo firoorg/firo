@@ -17,12 +17,14 @@ using namespace secp_primitives;
 // If spends share a `cover_set_id`, we assume the corresponding `cover_set` vectors have a subset relationship
 // This relationship _must_ be checked elsewhere, as we simply use the largest `cover_set` for each `cover_set_id`!
 struct InputCoinData {
-	uint64_t cover_set_id; // an identifier for the monotonically-growing set of which `cover_set` is a subset
+    uint64_t cover_set_id; // an identifier for the monotonically-growing set of which `cover_set` is a subset
     std::size_t index; // index of the coin in the cover set
-	Scalar s; // serial number
-	GroupElement T; // tag
-	uint64_t v; // value
-	Scalar k; // nonce
+    Scalar s; // serial number
+    GroupElement T; // tag
+    uint64_t v; // value
+    Scalar k; // nonce
+    Scalar a;            // asset type
+    Scalar iota;         // identifier
 };
 
 struct CoverSetData {
@@ -31,9 +33,11 @@ struct CoverSetData {
 };
 
 struct OutputCoinData {
-	Address address;
-	uint64_t v;
-	std::string memo;
+    Address address;
+    uint64_t v;
+    std::string memo;
+    Scalar a;    // asset type
+    Scalar iota; // identifier
 };
 
 class SpendTransaction {
