@@ -16,7 +16,6 @@
 #include "core_io.h"
 #include "validation.h"
 #include "sync.h"
-#include "uint256.h"
 #include "util.h"
 #include "wallet/wallet.h"
 
@@ -74,6 +73,7 @@ public:
      * this is sorted by sha256.
      */
     QList<TransactionRecord> cachedWallet;
+    std::vector<std::pair<uint256, std::pair<int, bool>>> cachedUpdatedTx;
 
     /* Query entire wallet anew from core.
      */
@@ -82,7 +82,12 @@ public:
         qDebug() << "TransactionTablePriv::refreshWallet";
         cachedWallet.clear();
         {
-            LOCK2(cs_main, wallet->cs_wallet);
+            TRY_LOCK(cs_main,lock_main);
+            if (!lock_main)
+                return;
+            TRY_LOCK(wallet->cs_wallet,lock_wallet);
+            if (!lock_wallet)
+                return;
             for(std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin(); it != wallet->mapWallet.end(); ++it)
             {
                 if(TransactionRecord::showTransaction(it->second))
@@ -131,7 +136,16 @@ public:
             }
             if(showTransaction)
             {
-                LOCK2(cs_main, wallet->cs_wallet);
+                TRY_LOCK(cs_main,lock_main);
+                if (!lock_main) {
+                    cachedUpdatedTx.push_back(std::make_pair(hash, std::make_pair(status, showTransaction)));
+                    return;
+                }
+                TRY_LOCK(wallet->cs_wallet,lock_wallet);
+                if (!lock_wallet) {
+                    cachedUpdatedTx.push_back(std::make_pair(hash, std::make_pair(status, showTransaction)));
+                    return;
+                }
                 // Find transaction in wallet
                 std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(hash);
                 if(mi == wallet->mapWallet.end())
@@ -213,9 +227,14 @@ public:
     QString describe(TransactionRecord *rec, int unit)
     {
         {
-            LOCK2(cs_main, wallet->cs_wallet);
+            TRY_LOCK(cs_main,lock_main);
+            if (!lock_main)
+                return QString();;
+            TRY_LOCK(wallet->cs_wallet,lock_wallet);
+            if (!lock_wallet)
+                return QString();
             std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
-            if(mi != wallet->mapWallet.end())
+            if (mi != wallet->mapWallet.end())
             {
                 return TransactionDesc::toHTML(wallet, mi->second, rec, unit);
             }
@@ -225,9 +244,14 @@ public:
 
     QString getTxHex(TransactionRecord *rec)
     {
-        LOCK2(cs_main, wallet->cs_wallet);
+        TRY_LOCK(cs_main,lock_main);
+        if (!lock_main)
+            return QString();
+        TRY_LOCK(wallet->cs_wallet,lock_wallet);
+        if (!lock_wallet)
+            return QString();
         std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
-        if(mi != wallet->mapWallet.end())
+        if (mi != wallet->mapWallet.end())
         {
             std::string strHex = EncodeHexTx(static_cast<CTransaction>(mi->second));
             return QString::fromStdString(strHex);
@@ -269,8 +293,18 @@ void TransactionTableModel::updateTransaction(const QString &hash, int status, b
 {
     uint256 updated;
     updated.SetHex(hash.toStdString());
-
-    priv->updateWallet(updated, status, showTransaction);
+    priv->cachedUpdatedTx.push_back(std::make_pair(updated, std::make_pair(status, showTransaction)));
+    size_t currentSize = priv->cachedUpdatedTx.size();
+    while (!priv->cachedUpdatedTx.empty())
+    {
+        std::pair<uint256, std::pair<int, bool>> current = priv->cachedUpdatedTx.back();
+        priv->cachedUpdatedTx.pop_back();
+        priv->updateWallet(current.first, current.second.first, current.second.second);
+        // this thread was not able to perform the update, stop and do it next time
+        if (currentSize == priv->cachedUpdatedTx.size())
+            break;
+        currentSize = priv->cachedUpdatedTx.size();
+    }
 }
 
 void TransactionTableModel::updateConfirmations()
@@ -279,7 +313,7 @@ void TransactionTableModel::updateConfirmations()
     // Invalidate status (number of confirmations) and (possibly) description
     //  for all rows. Qt is smart enough to only actually request the data for the
     //  visible rows.
-    int numRows = std::min(1000, priv->size()-1);
+    int numRows = std::min(300, priv->size()-1);
     Q_EMIT dataChanged(index(0, Status), index(numRows, Status));
     Q_EMIT dataChanged(index(0, ToAddress), index(numRows, ToAddress));
 }
