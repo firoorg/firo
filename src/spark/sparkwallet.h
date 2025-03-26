@@ -11,6 +11,7 @@
 #include "../libspark/spend_transaction.h"
 #include "../wallet/walletdb.h"
 #include "../sync.h"
+#include "../sparkname.h"
 
 class CRecipient;
 class CReserveKey;
@@ -44,6 +45,7 @@ public:
     // get address for a diversifier
     spark::Address getAddress(const int32_t& i);
     bool isAddressMine(const std::string& encodedAddr);
+    bool isAddressMine(const spark::Address& address);
     bool isChangeAddress(const uint64_t& i) const;
 
     // list spark mint, mint metadata in memory and in db should be the same at this moment, so get from memory
@@ -130,7 +132,8 @@ public:
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
-            const CCoinControl *coinControl = NULL);
+            const CCoinControl *coinControl = NULL,
+            CAmount additionalTxSize = 0);
 
     std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoins(
             CAmount required,
@@ -138,7 +141,14 @@ public:
             std::list< CSparkMintMeta> coins,
             std::size_t mintNum,
             std::size_t utxoNum,
-            const CCoinControl *coinControl);
+            const CCoinControl *coinControl,
+            size_t additionalTxSize = 0);
+
+    CWalletTx CreateSparkNameTransaction(
+            CSparkNameTxData &nameData,
+            CAmount sparkNamefee,
+            CAmount &txFee,
+            const CCoinControl *coinControl = NULL);
 
     // Returns the list of pairs of coins and metadata for that coin,
     std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
