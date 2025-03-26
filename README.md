@@ -188,6 +188,15 @@ See [doc/build-windows.md](doc/build-windows.md) for instructions on building on
 
 Now that you have your self-built or precompiled binaries, it's time to run Firo! Depending by your skill level and/or setup, you might want to use the command line tool or the graphic user interface. If you have problems or need support, [contact the community](https://firo.org/community/social/).
 
+# Install Firo
+
+After building with `CMake`, generate `.sh` file with `make package`. Once you run `make package` you should have `./FiroCore-VERSION_MAJOR.VERSION_MINOR.VERSION_REVISION-Linux.sh` in your build directory. 
+
+For example, you can install `Firo` on your `/usr/bin` with: 
+```
+./FiroCore-0.14.14-Linux.sh --prefix=/usr/bin --exclude-subdir
+```
+
 # Contributors
 
 ## Code Contributors

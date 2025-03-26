@@ -6,7 +6,7 @@ $(package)_sha256_hash=23238f70353e38ce5ca183ebc9525c0d97ac00ef640ad29cf794782af
 $(package)_dependencies=expat
 
 define $(package)_set_vars
-  $(package)_config_opts=--disable-tests --disable-doxygen-docs --disable-xml-docs --disable-static --without-x
+  $(package)_config_opts=--disable-tests --disable-doxygen-docs --disable-xml-docs --without-x
 endef
 
 define $(package)_config_cmds
