@@ -41,7 +41,7 @@ SecureString Mnemonic::mnemonic_generate(int strength)
 
 SecureString Mnemonic::mnemonic_from_data(const SecureVector& data, int len)
 {
-    if (len % 4 || len < 16 || len > 32) {
+    if (len % 4) {
         return SecureString();
     }
 
