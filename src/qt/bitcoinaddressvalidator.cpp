@@ -67,7 +67,10 @@ QValidator::State BitcoinAddressEntryValidator::validate(QString &input, int &po
 
         if (((ch >= '0' && ch<='9') ||
             (ch >= 'a' && ch<='z') ||
-            (ch >= 'A' && ch<='Z')))
+            (ch >= 'A' && ch<='Z')) ||
+            // allow spark name notation
+            (ch == '@' && idx == 0) ||
+            (input.at(0).unicode() == '@' && (ch == '.' || ch == '-' || ch == '_')))
         {
             // Alphanumeric and not a 'forbidden' character
         }
@@ -104,6 +107,10 @@ QValidator::State BitcoinAddressCheckValidator::validate(QString &input, int &po
 
 bool BitcoinAddressCheckValidator::validateSparkAddress(const std::string& address) const
 {
+    // check for spark name
+    if (address[0] == '@' && address.size() <= CSparkNameManager::maximumSparkNameLength + 1)
+        return true;
+
     const spark::Params* params = spark::Params::get_default();
     unsigned char network = spark::GetNetworkType();
     unsigned char coinNetwork;
