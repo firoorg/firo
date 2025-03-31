@@ -30,40 +30,31 @@ add_dependencies(bitcoin_clientversion generate_build_info)
 #=============================
 
 add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
-  fs.cpp
-  utilmoneystr.cpp
-  policy/rbf.cpp
-  utilstrencodings.cpp
-  mbstring.cpp
-  threadinterrupt.cpp
-  utiltime.cpp
-  random.cpp
-  sync.cpp
-  support/lockedpool.cpp
   bls/bls_batchverifier.h
   bls/bls_ies.cpp
   bls/bls_ies.h
   bls/bls_worker.cpp
   bls/bls_worker.h
-  support/lockedpool.cpp
   chainparamsbase.cpp
   clientversion.cpp
   compat/glibc_sanity.cpp
   compat/glibcxx_sanity.cpp
   compat/strnlen.cpp
-  mbstring.cpp
+  crypto/scrypt.cpp
   fs.cpp
+  mbstring.cpp
+  policy/rbf.cpp
+  primitives/block.cpp
   random.cpp
   rpc/protocol.cpp
   support/cleanse.cpp
+  support/lockedpool.cpp
   sync.cpp
   threadinterrupt.cpp
   util.cpp
   utilmoneystr.cpp
   utilstrencodings.cpp
   utiltime.cpp
-  crypto/scrypt.cpp
-  primitives/block.cpp
 )
 
 target_link_libraries(bitcoin_util
@@ -133,16 +124,6 @@ set_target_properties(secp256k1 PROPERTIES
 string(APPEND CMAKE_C_COMPILE_OBJECT " ${APPEND_CPPFLAGS} ${APPEND_CFLAGS}")
 
 add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
-  arith_uint256.cpp
-  consensus/merkle.cpp
-  hash.cpp
-  primitives/block.cpp
-  primitives/transaction.cpp
-  pubkey.cpp
-  script/interpreter.cpp
-  script/script.cpp
-  script/script_error.cpp
-  uint256.cpp
   amount.h
   arith_uint256.cpp
   arith_uint256.h
@@ -152,11 +133,12 @@ add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
   consensus/merkle.h
   consensus/params.h
   consensus/validation.h
-  hash.cpp
+  crypto/scrypt.h
   flat-database.h
+  hash.cpp
   hash.h
   prevector.h
-  crypto/scrypt.h
+  primitives/block.cpp
   primitives/block.h
   primitives/precomputed_hash.h
   primitives/transaction.cpp
@@ -196,39 +178,26 @@ endif()
 # Home for common functionality shared by different executables and libraries.
 # Similar to `bitcoin_util` library, but higher-level.
 add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
+  amount.cpp
   base58.cpp
-  libspark/bech32.cpp
+  bloom.cpp
   chainparams.cpp
   chainparamsbase.cpp
   coins.cpp
-  bloom.cpp
-  init.cpp
   compressor.cpp
   core_read.cpp
   core_write.cpp
-  chainparams.cpp
+  hdmint/hdmint.cpp
+  init.cpp
   key.cpp
+  keystore.cpp
+  libspark/bech32.cpp
   merkleblock.cpp
   netaddress.cpp
   netbase.cpp
   policy/policy.cpp
   protocol.cpp
   rpc/rawtransaction.cpp
-  scheduler.cpp
-  script/sign.cpp
-  amount.cpp
-  base58.cpp
-  chainparams.cpp
-  coins.cpp
-  compressor.cpp
-  core_read.cpp
-  core_write.cpp
-  hdmint/hdmint.cpp
-  key.cpp
-  keystore.cpp
-  netaddress.cpp
-  netbase.cpp
-  protocol.cpp
   saltedhasher.cpp
   scheduler.cpp
   script/sign.cpp
@@ -262,46 +231,20 @@ endif()
 
 # P2P and RPC server functionality used by `bitcoind` and `firo-qt` executables.
 add_library(firo_node STATIC EXCLUDE_FROM_ALL
-  addrdb.cpp
-  addrman.cpp
-  blockencodings.cpp
-  chain.cpp
-  dbwrapper.cpp
-  httprpc.cpp
-  httpserver.cpp
-  init.cpp
-  chain.cpp
-  net.cpp
-  net_processing.cpp
-  miner.cpp
-  warnings.cpp
-  noui.cpp
-  policy/fees.cpp
-  policy/rbf.cpp
-  pow.cpp
-  rest.cpp
-  rpc/blockchain.cpp
-  rpc/mining.cpp
-  rpc/net.cpp
-  rpc/server.cpp
-  script/sigcache.cpp
-  torcontrol.cpp
-  txdb.cpp
-  txmempool.cpp
-  validation.cpp
-  validationinterface.cpp
-  versionbits.cpp
-  ui_interface.cpp
-  compat/glibc_sanity.cpp
-  compat/glibcxx_sanity.cpp
   activemasternode.cpp
-  addrman.cpp
   addrdb.cpp
+  addrman.cpp
   batchedlogger.cpp
-  bloom.cpp
+  batchproof_container.cpp
+  bip47/paymentcode.cpp
   blockencodings.cpp
+  bloom.cpp
   chain.cpp
   checkpoints.cpp
+  coin_containers.cpp
+  compat/glibc_sanity.cpp
+  compat/glibcxx_sanity.cpp
+  dbwrapper.cpp
   dsnotificationinterface.cpp
   evo/cbtx.cpp
   evo/deterministicmns.cpp
@@ -311,14 +254,49 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   evo/simplifiedmns.cpp
   evo/specialtx.cpp
   evo/spork.cpp
+  httprpc.cpp
+  httpserver.cpp
+  init.cpp
+  lelantus.cpp
+  liblelantus/coin.cpp
+  liblelantus/innerproduct_proof_generator.cpp
+  liblelantus/innerproduct_proof_verifier.cpp
+  liblelantus/joinsplit.cpp
+  liblelantus/lelantus_primitives.cpp
+  liblelantus/lelantus_prover.cpp
+  liblelantus/lelantus_verifier.cpp
+  liblelantus/params.cpp
+  liblelantus/range_prover.cpp
+  liblelantus/range_verifier.cpp
+  liblelantus/schnorr_prover.cpp
+  liblelantus/schnorr_verifier.cpp
+  liblelantus/sigmaextended_prover.cpp
+  liblelantus/sigmaextended_verifier.cpp
+  liblelantus/spend_metadata.cpp
+  libspark/aead.cpp
+  libspark/bech32.cpp
+  libspark/bpplus.cpp
+  libspark/chaum.cpp
+  libspark/coin.cpp
+  libspark/f4grumble.cpp
+  libspark/grootle.cpp
+  libspark/hash.cpp
+  libspark/kdf.cpp
+  libspark/keys.cpp
+  libspark/mint_transaction.cpp
+  libspark/params.cpp
+  libspark/schnorr.cpp
+  libspark/spend_transaction.cpp
+  libspark/transcript.cpp
+  libspark/util.cpp
   llmq/quorums.cpp
   llmq/quorums_blockprocessor.cpp
-  llmq/quorums_commitment.cpp
   llmq/quorums_chainlocks.cpp
+  llmq/quorums_commitment.cpp
   llmq/quorums_debug.cpp
+  llmq/quorums_dkgsession.cpp
   llmq/quorums_dkgsessionhandler.cpp
   llmq/quorums_dkgsessionmgr.cpp
-  llmq/quorums_dkgsession.cpp
   llmq/quorums_init.cpp
   llmq/quorums_instantsend.cpp
   llmq/quorums_signing.cpp
@@ -327,22 +305,19 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   masternode-payments.cpp
   masternode-sync.cpp
   masternode-utils.cpp
-  httprpc.cpp
-  httpserver.cpp
-  init.cpp
-  dbwrapper.cpp
-  threadinterrupt.cpp
   merkleblock.cpp
-  miner.cpp
   messagesigner.cpp
+  miner.cpp
+  mtpstate.cpp
   net.cpp
-  netfulfilledman.cpp
   net_processing.cpp
+  netfulfilledman.cpp
   noui.cpp
   policy/fees.cpp
   policy/policy.cpp
-  primitives/mint_spend.cpp
+  policy/rbf.cpp
   pow.cpp
+  primitives/mint_spend.cpp
   rest.cpp
   rpc/blockchain.cpp
   rpc/masternode.cpp
@@ -350,62 +325,28 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   rpc/misc.cpp
   rpc/net.cpp
   rpc/rawtransaction.cpp
-  rpc/server.cpp
   rpc/rpcevo.cpp
   rpc/rpcquorums.cpp
-  script/sigcache.cpp
+  rpc/server.cpp
   script/ismine.cpp
+  script/sigcache.cpp
+  sigma.cpp
+  sigma/coin.cpp
+  sigma/coinspend.cpp
+  sigma/params.cpp
+  sigma/spend_metadata.cpp
+  spark/primitives.cpp
+  spark/state.cpp
+  threadinterrupt.cpp
   timedata.cpp
   torcontrol.cpp
   txdb.cpp
   txmempool.cpp
   ui_interface.cpp
-  batchproof_container.cpp
   validation.cpp
   validationinterface.cpp
   versionbits.cpp
-  sigma.cpp
-  lelantus.cpp
-  bip47/paymentcode.cpp
-  spark/state.cpp
-  spark/primitives.cpp
-  coin_containers.cpp
-  mtpstate.cpp
-  sigma/coin.cpp
-  sigma/coinspend.cpp
-  sigma/spend_metadata.cpp
-  sigma/params.cpp
-  liblelantus/lelantus_primitives.cpp
-  liblelantus/lelantus_prover.cpp
-  liblelantus/lelantus_verifier.cpp
-  liblelantus/sigmaextended_prover.cpp
-  liblelantus/sigmaextended_verifier.cpp
-  liblelantus/schnorr_prover.cpp
-  liblelantus/schnorr_verifier.cpp
-  liblelantus/innerproduct_proof_verifier.cpp
-  liblelantus/innerproduct_proof_generator.cpp
-  liblelantus/range_prover.cpp
-  liblelantus/range_verifier.cpp
-  liblelantus/coin.cpp
-  liblelantus/joinsplit.cpp
-  liblelantus/spend_metadata.cpp
-  liblelantus/params.cpp
-  libspark/transcript.cpp
-  libspark/params.cpp
-  libspark/schnorr.cpp
-  libspark/chaum.cpp
-  libspark/coin.cpp
-  libspark/bpplus.cpp
-  libspark/grootle.cpp
-  libspark/keys.cpp
-  libspark/util.cpp
-  libspark/aead.cpp
-  libspark/kdf.cpp
-  libspark/hash.cpp
-  libspark/mint_transaction.cpp
-  libspark/spend_transaction.cpp
-  libspark/f4grumble.cpp
-  libspark/bech32.cpp
+  warnings.cpp
 )
 
 target_link_libraries(firo_node
