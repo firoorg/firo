@@ -2,6 +2,8 @@
 // Created by Gevorg Voskanyan
 //
 
+#include "policy/policy.h"   // for GetVirtualTransactionSize
+
 #include "../validation.h"
 #include "../wallet/wallet.h"
 #include "../spark/sparkwallet.h"
@@ -87,8 +89,12 @@ const std::string &Wallet::my_public_address_as_admin() const
 
 // TODO for Levon to find out why no more than 1 spats action are picked to be placed on a block
 
-CWalletTx
-Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standard_fee, CAmount &new_asset_fee, const public_address_t &destination_public_address ) const
+std::optional< CWalletTx > Wallet::create_new_spark_asset_transaction(
+  const SparkAsset &a,
+  CAmount &standard_fee,
+  CAmount &new_asset_fee,
+  const public_address_t &destination_public_address,
+  const std::function< bool( const CreateAssetAction &action, CAmount standard_fee, std::int64_t txsize ) > &user_confirmation_callback ) const
 {
    const auto &b = get_base( a );
    if ( b.admin_public_address() != my_public_address_as_admin() ) {
@@ -103,7 +109,8 @@ Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standa
    script << OP_SPATSCREATE;
    assert( script.IsSpatsCreate() );
    CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
-   serialized << CreateAssetAction( a );
+   const CreateAssetAction action( a );
+   serialized << action;
    // TODO instead of how it is being done now, put ownership proof into script default-constructed first, then compute ownership proof from the whole tx, and overwrite
    //      the ownership proof in the script then
    const auto scalar_of_proof = compute_new_spark_asset_serialization_scalar( b, serialized.as_bytes_span() );
@@ -134,10 +141,25 @@ Wallet::create_new_spark_asset_transaction( const SparkAsset &a, CAmount &standa
                                                         standard_fee,
                                                         nullptr );   // may throw
    assert( tx.tx->IsSpatsCreate() );
+
+   if ( user_confirmation_callback )   // give the user a chance to confirm/cancel, if there are means to do so
+      if ( const auto tx_size = ::GetVirtualTransactionSize( tx ); !user_confirmation_callback( action, standard_fee, tx_size ) ) {
+         LogPrintf( "User cancelled %s, which would require creation fee = %d, standard fee = %d and txsize=%d\n",
+                    action.summary(),
+                    new_asset_fee,
+                    standard_fee,
+                    tx_size );
+         return {};
+      }
+
    return tx;
 }
 
-CWalletTx Wallet::create_unregister_spark_asset_transaction( asset_type_t asset_type, std::optional< identifier_t > identifier, CAmount &standard_fee ) const
+std::optional< CWalletTx > Wallet::create_unregister_spark_asset_transaction(
+  asset_type_t asset_type,
+  std::optional< identifier_t > identifier,
+  CAmount &standard_fee,
+  const std::function< bool( const UnregisterAssetAction &action, CAmount standard_fee, std::int64_t txsize ) > &user_confirmation_callback ) const
 {
    const auto &admin_public_address = my_public_address_as_admin();
    const UnregisterAssetParameters action_params( asset_type, identifier, admin_public_address );
@@ -145,7 +167,8 @@ CWalletTx Wallet::create_unregister_spark_asset_transaction( asset_type_t asset_
    script << OP_SPATSUNREGISTER;
    assert( script.IsSpatsUnregister() );
    CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
-   serialized << UnregisterAssetAction( action_params );
+   const UnregisterAssetAction action( action_params );
+   serialized << action;
    // TODO instead of how it is being done now, put ownership proof into script default-constructed first, then compute ownership proof from the whole tx, and overwrite
    //      the ownership proof in the script then
    const auto scalar_of_proof = compute_unregister_spark_asset_serialization_scalar( action_params, serialized.as_bytes_span() );
@@ -162,10 +185,21 @@ CWalletTx Wallet::create_unregister_spark_asset_transaction( asset_type_t asset_
                                                         standard_fee,
                                                         nullptr );   // may throw
    assert( tx.tx->IsSpatsUnregister() );
+
+   if ( user_confirmation_callback )   // give the user a chance to confirm/cancel, if there are means to do so
+      if ( const auto tx_size = ::GetVirtualTransactionSize( tx ); !user_confirmation_callback( action, standard_fee, tx_size ) ) {
+         LogPrintf( "User cancelled %s, which would require fee=%d and txsize=%d\n", action.summary(), standard_fee, tx_size );
+         return {};
+      }
+
    return tx;
 }
 
-CWalletTx Wallet::create_modify_spark_asset_transaction( const SparkAsset &old_asset, const SparkAsset &new_asset, CAmount &standard_fee ) const
+std::optional< CWalletTx > Wallet::create_modify_spark_asset_transaction(
+  const SparkAsset &old_asset,
+  const SparkAsset &new_asset,
+  CAmount &standard_fee,
+  const std::function< bool( const ModifyAssetAction &action, CAmount standard_fee, std::int64_t txsize ) > &user_confirmation_callback ) const
 {
    const auto &admin_public_address = my_public_address_as_admin();
    const auto m = make_asset_modification( old_asset, new_asset, admin_public_address );
@@ -174,7 +208,8 @@ CWalletTx Wallet::create_modify_spark_asset_transaction( const SparkAsset &old_a
    script << OP_SPATSMODIFY;
    assert( script.IsSpatsModify() );
    CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
-   serialized << ModifyAssetAction( m );
+   const ModifyAssetAction action( m );
+   serialized << action;
    // TODO instead of how it is being done now, put ownership proof into script default-constructed first, then compute ownership proof from the whole tx, and overwrite
    //      the ownership proof in the script then
    const auto scalar_of_proof = compute_modify_spark_asset_serialization_scalar( b, serialized.as_bytes_span() );
@@ -191,13 +226,22 @@ CWalletTx Wallet::create_modify_spark_asset_transaction( const SparkAsset &old_a
                                                         standard_fee,
                                                         nullptr );   // may throw
    assert( tx.tx->IsSpatsModify() );
+
+   if ( user_confirmation_callback )   // give the user a chance to confirm/cancel, if there are means to do so
+      if ( const auto tx_size = ::GetVirtualTransactionSize( tx ); !user_confirmation_callback( action, standard_fee, tx_size ) ) {
+         LogPrintf( "User cancelled %s, which would require fee=%d and txsize=%d\n", action.summary(), standard_fee, tx_size );
+         return {};
+      }
+
    return tx;
 }
 
-CWalletTx Wallet::create_mint_asset_supply_transaction( asset_type_t asset_type,
-                                                        supply_amount_t new_supply,
-                                                        const public_address_t &receiver_pubaddress,
-                                                        CAmount &standard_fee ) const
+std::optional< CWalletTx > Wallet::create_mint_asset_supply_transaction(
+  asset_type_t asset_type,
+  supply_amount_t new_supply,
+  const public_address_t &receiver_pubaddress,
+  CAmount &standard_fee,
+  const std::function< bool( const MintAction &action, CAmount standard_fee, std::int64_t txsize ) > &user_confirmation_callback ) const
 {
    const auto &admin_public_address = my_public_address_as_admin();
    const MintParameters action_params( asset_type, new_supply, receiver_pubaddress, admin_public_address );
@@ -205,7 +249,8 @@ CWalletTx Wallet::create_mint_asset_supply_transaction( asset_type_t asset_type,
    script << OP_SPATSMINT;
    assert( script.IsSpatsMint() );
    CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
-   serialized << MintAction( action_params );
+   const MintAction action( action_params );
+   serialized << action;
    // TODO instead of how it is being done now, put ownership proof into script default-constructed first, then compute ownership proof from the whole tx, and overwrite
    //      the ownership proof in the script then
    const auto scalar_of_proof = compute_mint_asset_supply_serialization_scalar( action_params, serialized.as_bytes_span() );
@@ -224,26 +269,49 @@ CWalletTx Wallet::create_mint_asset_supply_transaction( asset_type_t asset_type,
                                                         standard_fee,
                                                         nullptr );   // may throw
    assert( tx.tx->IsSpatsMint() );
+
+   if ( user_confirmation_callback )   // give the user a chance to confirm/cancel, if there are means to do so
+      if ( const auto tx_size = ::GetVirtualTransactionSize( tx ); !user_confirmation_callback( action, standard_fee, tx_size ) ) {
+         LogPrintf( "User cancelled %s, which would require fee=%d and txsize=%d\n", action.summary(), standard_fee, tx_size );
+         return {};
+      }
+
    return tx;
 }
 
-CWalletTx Wallet::create_burn_asset_supply_transaction( asset_type_t const asset_type, supply_amount_t const burn_amount, CAmount &standard_fee ) const
+std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_type_t const asset_type,
+                                                                         const asset_symbol_t &asset_symbol,
+                                                                         supply_amount_t const burn_amount,
+                                                                         CAmount &standard_fee,
+                                                                         const BurnActionUserConfirmationCallback &user_confirmation_callback ) const
 {
+   const auto &admin_public_address = my_public_address_as_admin();
+
    if ( asset_type == base::asset_type ) {
       const std::string burn_address( firo_burn_address );   // TODO the network-specific address from params, once Levon adds that
       CScript burn_script = GetScriptForDestination( CBitcoinAddress( burn_address ).Get() );
       CRecipient burn_recipient{ std::move( burn_script ), boost::numeric_cast< CAmount >( burn_amount.raw() ), false, {}, "burning a base asset amount" };
-      return spark_wallet_.CreateSparkSpendTransaction( { burn_recipient }, {}, standard_fee,
-                                                        nullptr );   // may throw
+      auto tx = spark_wallet_.CreateSparkSpendTransaction( { burn_recipient }, {}, standard_fee, nullptr );   // may throw
+
+      if ( user_confirmation_callback ) {   // give the user a chance to confirm/cancel, if there are means to do so
+         const BaseAssetBurnParameters action_params( burn_amount, admin_public_address );
+         const BurnAction action( action_params );
+         if ( const auto tx_size = ::GetVirtualTransactionSize( tx ); !user_confirmation_callback( action, standard_fee, tx_size ) ) {
+            LogPrintf( "User cancelled %s, which would require fee=%d and txsize=%d\n", action.summary(), standard_fee, tx_size );
+            return {};
+         }
+      }
+
+      return tx;
    }
 
-   const auto &admin_public_address = my_public_address_as_admin();
-   const BurnParameters action_params( asset_type, burn_amount, admin_public_address );
+   const BurnParameters action_params( asset_type, burn_amount, admin_public_address, asset_symbol );
    CScript script;
    script << OP_SPATSBURN;
    assert( script.IsSpatsBurn() );
    CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
-   serialized << BurnAction( action_params );
+   const BurnAction action( action_params );
+   serialized << action;
    // TODO instead of how it is being done now, put ownership proof into script default-constructed first, then compute ownership proof from the whole tx, and overwrite
    //      the ownership proof in the script then
    const auto scalar_of_proof = compute_burn_asset_supply_serialization_scalar( action_params, serialized.as_bytes_span() );
@@ -262,6 +330,13 @@ CWalletTx Wallet::create_burn_asset_supply_transaction( asset_type_t const asset
                                                         standard_fee,
                                                         nullptr );   // may throw
    assert( tx.tx->IsSpatsBurn() );
+
+   if ( user_confirmation_callback )   // give the user a chance to confirm/cancel, if there are means to do so
+      if ( const auto tx_size = ::GetVirtualTransactionSize( tx ); !user_confirmation_callback( action, standard_fee, tx_size ) ) {
+         LogPrintf( "User cancelled %s, which would require fee=%d and txsize=%d\n", action.summary(), standard_fee, tx_size );
+         return {};
+      }
+
    return tx;
 }
 

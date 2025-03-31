@@ -109,6 +109,7 @@ private:
 
       // This constructor is added solely for the sake of old (15 or earlier) clang used in our github CI under OSX, which gives error on [].emplace_back()
       // otherwise:
+      // clang-format off
       /* /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__memory/allocator_traits.h:304:9: error: no
         matching function for call to 'construct_at' _VSTD::construct_at(__p, _VSTD::forward<_Args>(__args)...);
                 ^~~~~~~~~~~~~~~~~~~
@@ -128,6 +129,7 @@ private:
         /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__memory/construct_at.h:39:38: note: candidate template
         ignored: substitution failure [with _Tp = spats::Registry::AssetModificationBlockBookkeeping, _Args = <std::optional<uint256>, int &>]: no matching constructor for
         initialization of 'spats::Registry::AssetModificationBlockBookkeeping' _LIBCPP_HIDE_FROM_ABI constexpr _Tp* construct_at(_Tp* __location, _Args&&... __args) {*/
+      // clang-format on
       // TODO consider removing once any used clang is of version 16 or newer
       AssetModificationBlockBookkeeping( std::optional< block_hash_t > blockhash_before_modification, int modification_block_height ) noexcept
          : block_hash_before_modification( blockhash_before_modification )

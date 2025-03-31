@@ -5,6 +5,13 @@
 #ifndef FIRO_SPATS_MODIFICATION_HPP_INCLUDED
 #define FIRO_SPATS_MODIFICATION_HPP_INCLUDED
 
+#include <iosfwd>
+#include <variant>
+#include <string>
+#include <utility>
+#include <stdexcept>
+#include <type_traits>
+
 #include "spark_asset.hpp"
 
 namespace spats {
@@ -64,6 +71,22 @@ private:
    T old_, new_;
 };
 
+template < typename T >
+void print_change_old_to_new( std::ostream &os, const T &old_value, const T &new_value )
+{
+   os << '"' << old_value << "\" -> \"" << new_value << '"';
+}
+
+template < typename T >
+std::ostream &operator<<( std::ostream &os, const AttributeModification< T > &m )
+{
+   print_change_old_to_new( os, m.old_value(), m.new_value() );
+   return os;
+}
+
+// special overload for asset naming modification printing
+std::ostream &operator<<( std::ostream &os, const AttributeModification< AssetNaming > &m );
+
 class AssetModificationBase {
 protected:
    AssetModificationBase( const SparkAssetBase &old_asset_base, const SparkAssetBase &new_asset_base, public_address_t initiator_public_address )
@@ -119,6 +142,8 @@ protected:
       b.naming( asset_naming_change_.new_value() );
       b.metadata( metadata_change_.new_value() );
    }
+
+   friend std::ostream &operator<<( std::ostream &os, const AssetModificationBase &m );
 
 private:
    asset_type_t asset_type_;
@@ -187,6 +212,12 @@ public:
    explicit operator bool() const noexcept
    {
       return AssetModificationBase::any_changes();   // TODO or any (Fungible-ity specific) data members in *this, if any ever
+   }
+
+   [[nodiscard]] identifier_t identifier() const noexcept
+      requires( !Fungible )
+   {
+      return old_asset_.identifier();
    }
 
 private:

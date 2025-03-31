@@ -13,6 +13,7 @@
 #include "../utils/scaled_amount.hpp"
 
 #include "identification.hpp"
+#include "user_confirmation.hpp"
 
 class CSparkWallet;
 class CWalletTx;
@@ -57,15 +58,34 @@ public:
 
    const std::string &my_public_address_as_admin() const;
 
-   CWalletTx create_new_spark_asset_transaction( const SparkAsset &a,
-                                                 CAmount &standard_fee,
-                                                 CAmount &new_asset_fee,
-                                                 const public_address_t &destination_public_address = {} ) const;
-   CWalletTx create_unregister_spark_asset_transaction( asset_type_t asset_type, std::optional< identifier_t > identifier, CAmount &standard_fee ) const;
-   CWalletTx create_modify_spark_asset_transaction( const SparkAsset &old_asset, const SparkAsset &new_asset, CAmount &standard_fee ) const;
-   CWalletTx
-   create_mint_asset_supply_transaction( asset_type_t asset_type, supply_amount_t new_supply, const public_address_t &receiver_pubaddress, CAmount &standard_fee ) const;
-   CWalletTx create_burn_asset_supply_transaction( asset_type_t asset_type, supply_amount_t burn_amount, CAmount &standard_fee ) const;
+   std::optional< CWalletTx > create_new_spark_asset_transaction(
+     const SparkAsset &a,
+     CAmount &standard_fee,
+     CAmount &new_asset_fee,
+     const public_address_t &destination_public_address = {},
+     const std::function< bool( const CreateAssetAction &action, CAmount standard_fee, std::int64_t txsize ) > &user_confirmation_callback = {} ) const;
+   std::optional< CWalletTx > create_unregister_spark_asset_transaction(
+     asset_type_t asset_type,
+     std::optional< identifier_t > identifier,
+     CAmount &standard_fee,
+     const std::function< bool( const UnregisterAssetAction &action, CAmount standard_fee, std::int64_t txsize ) > &user_confirmation_callback = {} ) const;
+   std::optional< CWalletTx > create_modify_spark_asset_transaction(
+     const SparkAsset &old_asset,
+     const SparkAsset &new_asset,
+     CAmount &standard_fee,
+     const std::function< bool( const ModifyAssetAction &action, CAmount standard_fee, std::int64_t txsize ) > &user_confirmation_callback = {} ) const;
+   std::optional< CWalletTx > create_mint_asset_supply_transaction(
+     asset_type_t asset_type,
+     supply_amount_t new_supply,
+     const public_address_t &receiver_pubaddress,
+     CAmount &standard_fee,
+     const std::function< bool( const MintAction &action, CAmount standard_fee, std::int64_t txsize ) > &user_confirmation_callback = {} ) const;
+   std::optional< CWalletTx > create_burn_asset_supply_transaction(
+     asset_type_t asset_type,
+     const asset_symbol_t &asset_symbol,
+     supply_amount_t burn_amount,
+     CAmount &standard_fee,
+     const BurnActionUserConfirmationCallback &user_confirmation_callback = {} ) const;
 
    void notify_registry_changed();
 

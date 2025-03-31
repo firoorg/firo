@@ -67,7 +67,7 @@ public:
     bool getHideTrayIcon() { return fHideTrayIcon; }
     bool getMinimizeToTray() { return fMinimizeToTray; }
     bool getMinimizeOnClose() { return fMinimizeOnClose; }
-    int getDisplayUnit() { return nDisplayUnit; }
+    int getDisplayUnit() const noexcept { return nDisplayUnit; }
     QString getThirdPartyTxUrls() { return strThirdPartyTxUrls; }
     bool getCoinControlFeatures() { return fCoinControlFeatures; }
     bool getRapAddresses() {    return fenableRapAddresses; }

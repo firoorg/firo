@@ -201,6 +201,13 @@ public:
       return { negative ? -raw : raw, precision };
    }
 
+   std::string to_string() const
+   {
+      std::ostringstream ss;
+      ss << *this;
+      return ss.str();
+   }
+
 private:
    // the true mathematical amount is raw_amount_ / 10^precision_
    raw_amount_type raw_amount_{};

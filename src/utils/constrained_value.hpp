@@ -98,6 +98,12 @@ private:
    }
 };
 
+template < std::semiregular T, auto ValidityPredicate, constexpr_string InvalidValueErrorMessage >
+std::ostream &operator<<( std::ostream &os, const constrained_value< T, ValidityPredicate, InvalidValueErrorMessage > &v )
+{
+   return os << v.get();
+}
+
 }   // namespace utils
 
 #endif   // FIRO_UTILS_CONSTRAINED_VALUE_HPP_INCLUDED

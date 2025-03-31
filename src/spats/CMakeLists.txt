@@ -32,12 +32,16 @@ add_library(spats STATIC
         manager.cpp
         manager.hpp
         modification.hpp
+        modification.cpp
+        user_confirmation.hpp
         ../utils/constexpr_string.hpp
         ../utils/constrained_value.hpp
         ../utils/empty_class.hpp
         ../utils/enum.hpp
-        ../utils/math.hpp
-        ../utils/scaled_amount.hpp
         ../utils/lock_proof.hpp
+        ../utils/math.hpp
         ../utils/overloaded.hpp
+        ../utils/scaled_amount.hpp
+        ../utils/string.hpp
+        ../utils/string.cpp
         ../utils/traits.hpp)

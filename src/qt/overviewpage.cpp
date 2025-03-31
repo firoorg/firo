@@ -22,6 +22,7 @@
 #include "validation.h"
 #include "askpassphrasedialog.h"
 #include "spatsburndialog.h"
+#include "spatsuserconfirmationdialog.h"
 
 
 #ifdef WIN32
@@ -347,7 +348,7 @@ void OverviewPage::on_tableWidgetSparkBalances_contextMenuRequested( const QPoin
         return;    // No burning for NFTs
 
     using balance_type = spats::Wallet::amount_type;
-    balance_type balance ;
+    balance_type balance;
     try {
         balance = balance_type::from_string( ui->tableWidgetSparkBalances->item( row, ColumnAvailableBalance )->text().toStdString() );
     }
@@ -357,18 +358,21 @@ void OverviewPage::on_tableWidgetSparkBalances_contextMenuRequested( const QPoin
     if ( balance <= balance_type{} )
         return;    // No burning unless the balance is positive
 
+    const spats::asset_symbol_t asset_symbol{ ui->tableWidgetSparkBalances->item( row, ColumnSymbol )->text().toStdString() };
+
     // Create context menu
     QMenu context_menu( this );
     QAction *burn_action = context_menu.addAction( tr("Burn") );
 
     // Connect the action to open the burn dialog
-    connect( burn_action, &QAction::triggered, this, [this, row, asset_type, balance] {
+    connect( burn_action, &QAction::triggered, this, [this, row, asset_type, asset_symbol, balance] {
         try {
             // Show the burn dialog
             SpatsBurnDialog dialog( txdelegate->platformStyle, asset_type, ui->tableWidgetSparkBalances->item( row, ColumnSymbol )->text().toStdString(),
                                     spats::supply_amount_t( balance.raw() , balance.precision() ), this );
             if ( dialog.exec() == QDialog::Accepted )
-                walletModel->getWallet()->BurnSparkAssetSupply( asset_type, dialog.getBurnAmount() );   // TODO user confirm callback
+                walletModel->getWallet()->BurnSparkAssetSupply( asset_type, asset_symbol, dialog.getBurnAmount(),
+                                                                MakeSpatsUserConfirmationCallback( *walletModel, this ) );
         }
         catch ( const std::exception &e ) {
            QMessageBox::critical( this, tr( "Error" ), tr( "An error occurred: %1" ).arg( e.what() ) );

@@ -377,7 +377,7 @@ static spats::MintAction ParseSpatsMintTransaction(const CTransaction &tx)
     }
 }
 
-static spats::BurnAction ParseSpatsBurnTransaction(const CTransaction &tx)
+static spats::BurnAction<> ParseSpatsBurnTransaction(const CTransaction &tx)
 {
     assert(tx.IsSpatsBurn());
     if (tx.vout.size() < 1)
@@ -392,7 +392,7 @@ static spats::BurnAction ParseSpatsBurnTransaction(const CTransaction &tx)
         const void* const action_serialization_start_address = serialized.data();
         CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
         assert(stream.size() == action_serialization_size);
-        spats::BurnAction action(deserialize, stream);
+        spats::BurnAction<> action(deserialize, stream);
         const auto &burn_params = action.get();
         action_serialization_size -= stream.size();
         spark::OwnershipProof proof;

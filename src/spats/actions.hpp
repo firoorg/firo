@@ -9,7 +9,13 @@
 #include <variant>
 #include <vector>
 
+#include <boost/format.hpp>
+
 #include "../serialize.h"
+#include "../util.h"
+#include "../streams.h"
+
+#include "../utils/string.hpp"
 
 #include "identification.hpp"
 #include "base_asset.hpp"
@@ -17,6 +23,19 @@
 #include "spark_asset.hpp"
 
 namespace spats {
+
+namespace concepts {
+
+template < class A >
+concept Action = requires( A a ) {
+   A( deserialize, std::declval< CDataStream & >() );
+   a.Serialize( std::declval< CDataStream & >() );
+   a.get();
+   { a.name() } -> std::same_as< std::string >;
+   { a.summary() } -> std::same_as< std::string >;
+};
+
+}   // namespace concepts
 
 class UnregisterAssetParameters {
 public:
@@ -101,6 +120,15 @@ public:
    const SparkAsset &get() const & noexcept { return asset_; }
    SparkAsset &&get() && noexcept { return std::move( asset_ ); }
 
+   static std::string name() { return _( "Spark Asset Create" ); }
+
+   std::string summary() const
+   {
+      const SparkAssetDisplayAttributes a( get() );
+      return str( boost::format( _( "Create %1% spark asset with type = %2%, identifier = %3%, symbol = %4% and name = %5%" ) ) %
+                  ( a.fungible ? _( "fungible" ) : _( "non-fungible" ) ) % a.asset_type % a.identifier % a.symbol % a.name );
+   }
+
 private:
    SparkAsset asset_;
    // TODO flag for asset_type adjustability, for avoiding failure due to the asset_type getting taken away by someone else under one's feet
@@ -109,6 +137,8 @@ private:
    template < typename Stream >
    static SparkAsset Unserialize( Stream &is );
 };
+
+static_assert( concepts::Action< CreateAssetAction > );
 
 template < typename Stream >
 void CreateAssetAction::Serialize( Stream &os ) const
@@ -146,6 +176,17 @@ public:
    const UnregisterAssetParameters &get() const & noexcept { return parameters_; }
    UnregisterAssetParameters &&get() && noexcept { return std::move( parameters_ ); }
 
+   static std::string name() { return _( "Spark Asset Unregister" ); }
+
+   std::string summary() const
+   {
+      std::ostringstream os;
+      os << _( "unregister of spark asset type = " ) << parameters_.asset_type();
+      if ( const auto p = parameters_.identifier() )
+         os << _( " and identifier = " ) << *p;
+      return os.str();
+   }
+
 private:
    UnregisterAssetParameters parameters_;
    static constexpr std::uint8_t serialization_version = 1;
@@ -158,6 +199,8 @@ private:
       return UnregisterAssetParameters( deserialize, is );
    }
 };
+
+static_assert( concepts::Action< UnregisterAssetAction > );
 
 class ModifyAssetAction {
 public:
@@ -176,6 +219,20 @@ public:
    const AssetModification &get() const & noexcept { return asset_modification_; }
    AssetModification &&get() && noexcept { return std::move( asset_modification_ ); }
 
+   static std::string name() { return _( "Spark Asset Modify" ); }
+
+   std::string summary() const
+   {
+      std::ostringstream os;
+      std::visit( utils::overloaded{
+                    [ & ]( const FungibleAssetModification &m ) { os << _( "Modify of fungible spark asset with type = " ) << m.asset_type() << ": " << m; },
+                    [ & ]( const NonfungibleAssetModification &m ) {
+                       os << _( "Modify of non-fungible spark asset with type = " ) << m.asset_type() << _( " and identifier = " ) << m.identifier() << ": " << m;
+                    } },
+                  asset_modification_ );
+      return os.str();
+   }
+
 private:
    AssetModification asset_modification_;
    static constexpr std::uint8_t serialization_version = 1;
@@ -183,6 +240,8 @@ private:
    template < typename Stream >
    static AssetModification Unserialize( Stream &is );
 };
+
+static_assert( concepts::Action< ModifyAssetAction > );
 
 template < typename Stream >
 void ModifyAssetAction::Serialize( Stream &os ) const
@@ -286,6 +345,14 @@ public:
    const MintParameters &get() const & noexcept { return parameters_; }
    MintParameters &&get() && noexcept { return std::move( parameters_ ); }
 
+   static std::string name() { return _( "Spats Mint" ); }
+
+   std::string summary() const
+   {
+      return str( boost::format( _( "Minting new %1% supply for spark asset type = %2% and crediting it to %3%" ) ) % get().new_supply() % get().asset_type() %
+                  utils::abbreviate_for_display( get().receiver_public_address() ) );
+   }
+
 private:
    MintParameters parameters_;
    static constexpr std::uint8_t serialization_version = 1;
@@ -299,18 +366,22 @@ private:
    }
 };
 
+static_assert( concepts::Action< MintAction > );
+
 class BurnParameters {
 public:
-   BurnParameters( asset_type_t asset_type, supply_amount_t burn_amount, public_address_t initiator_pubaddress )
+   BurnParameters( asset_type_t asset_type, supply_amount_t burn_amount, public_address_t initiator_pubaddress, asset_symbol_t symbol )
       : asset_type_( asset_type )
       , burn_amount_( burn_amount )
       , initiator_public_address_( std::move( initiator_pubaddress ) )
+      , asset_symbol_( std::move( symbol ) )
    {
       validate();
    }
 
    template < typename Stream >
-   BurnParameters( deserialize_type, Stream &is )
+   BurnParameters( deserialize_type d, Stream &is )
+      : asset_symbol_( d, is )
    {
       supply_amount_t::precision_type precision;
       supply_amount_t::raw_amount_type burn_amount_raw;
@@ -322,7 +393,7 @@ public:
    template < typename Stream >
    void Serialize( Stream &os ) const
    {
-      os << asset_type_ << burn_amount_.precision() << burn_amount_.raw() << initiator_public_address_;
+      os << asset_symbol_ << asset_type_ << burn_amount_.precision() << burn_amount_.raw() << initiator_public_address_;
    }
 
    asset_type_t asset_type() const noexcept
@@ -336,10 +407,13 @@ public:
 
    const public_address_t &initiator_public_address() const noexcept { return initiator_public_address_; }
 
+   const asset_symbol_t &asset_symbol() const noexcept { return asset_symbol_; }
+
 private:
    asset_type_t asset_type_;
    supply_amount_t burn_amount_;
    public_address_t initiator_public_address_;
+   asset_symbol_t asset_symbol_;   // just for display purposes
 
    void validate() const
    {
@@ -363,9 +437,63 @@ private:
    }
 };
 
+class BaseAssetBurnParameters {
+public:
+   explicit BaseAssetBurnParameters( supply_amount_t burn_amount, public_address_t initiator_pubaddress )
+      : burn_amount_( burn_amount )
+      , initiator_public_address_( std::move( initiator_pubaddress ) )
+   {
+      validate();
+   }
+
+   template < typename Stream >
+   BaseAssetBurnParameters( deserialize_type, Stream &is )
+   {
+      supply_amount_t::precision_type precision;
+      supply_amount_t::raw_amount_type burn_amount_raw;
+      is >> precision >> burn_amount_raw >> initiator_public_address_;
+      burn_amount_ = { burn_amount_raw, precision };
+      validate();
+   }
+
+   template < typename Stream >
+   void Serialize( Stream &os ) const
+   {
+      os << burn_amount_.precision() << burn_amount_.raw() << initiator_public_address_;
+   }
+
+   static asset_type_t asset_type() noexcept { return base::asset_type; }
+
+   supply_amount_t burn_amount() const noexcept { return burn_amount_; }
+
+   const public_address_t &initiator_public_address() const noexcept { return initiator_public_address_; }
+
+   static const asset_symbol_t &asset_symbol() noexcept { return base::naming().symbol; }
+
+private:
+   supply_amount_t burn_amount_;
+   public_address_t initiator_public_address_;
+
+   void validate() const
+   {
+      if ( !burn_amount_ )
+         throw std::invalid_argument( "Non-zero burn amount is required" );
+
+      static_assert( std::is_unsigned_v< supply_amount_t::raw_amount_type > );
+      assert( burn_amount_ > supply_amount_t{} );
+
+      if ( initiator_public_address_.empty() )
+         throw std::domain_error( "Initiator public address is required for burn" );
+   }
+};
+
+template < class Params = BurnParameters >
+   requires( std::is_same_v< Params, BurnParameters > || std::is_same_v< Params, BaseAssetBurnParameters > )
 class BurnAction {
 public:
-   explicit BurnAction( BurnParameters parameters ) noexcept
+   using parameters_type = Params;
+
+   explicit BurnAction( parameters_type parameters ) noexcept
       : parameters_( std::move( parameters ) )
    {}
 
@@ -381,23 +509,46 @@ public:
       os << parameters_;
    }
 
-   const BurnParameters &get() const & noexcept { return parameters_; }
-   BurnParameters &&get() && noexcept { return std::move( parameters_ ); }
+   const parameters_type &get() const & noexcept { return parameters_; }
+   parameters_type &&get() && noexcept { return std::move( parameters_ ); }
+
+   static std::string name()
+   {
+      if constexpr ( std::is_same_v< parameters_type, BaseAssetBurnParameters > )
+         return BaseAssetBurnParameters::asset_symbol().get() + ' ' + _( "Burn" );
+      else
+         return _( "Spats Burn" );
+   }
+
+   std::string summary() const
+   {
+      if constexpr ( std::is_same_v< parameters_type, BaseAssetBurnParameters > )
+         return str( boost::format( _( "Burning %1% %2%" ) ) % get().burn_amount() % BaseAssetBurnParameters::asset_symbol().get() );
+      else
+         return str( boost::format( _( "Burning supply amounting to %1% for spark asset type = %2%" ) ) % get().burn_amount() % get().asset_type() );
+   }
 
 private:
-   BurnParameters parameters_;
+   parameters_type parameters_;
    static constexpr std::uint8_t serialization_version = 1;
 
    template < typename Stream >
-   static BurnParameters Unserialize( Stream &is )
+   static parameters_type Unserialize( Stream &is )
    {
       std::uint8_t version;
       is >> version;
-      return BurnParameters( deserialize, is );
+      return parameters_type( deserialize, is );
    }
 };
 
-using Action = std::variant< CreateAssetAction, UnregisterAssetAction, ModifyAssetAction, MintAction, BurnAction >;   // TODO more
+static_assert( concepts::Action< BurnAction< BurnParameters > > );
+static_assert( concepts::Action< BurnAction< BaseAssetBurnParameters > > );
+
+using Action = std::variant< CreateAssetAction, UnregisterAssetAction, ModifyAssetAction, MintAction, BurnAction<> >;   // TODO more
+// no need to have BurnAction< BaseAssetBurnParameters > in `Action`. The former is needed just for user confirmation dialog purposes...
+
+// ensuring that all types in Action satisfy concepts::Action indeed
+static_assert( []< typename... Ts >( std::type_identity< std::variant< Ts... > > ) { return ( concepts::Action< Ts > && ... ); }( std::type_identity< Action >() ) );
 
 // Even though this is a vector, it's not really a sequence in the sense that one action comes before the other. Transaction memory pool isn't a queue, and actions can
 // come from different nodes at the same time, so the ordering at hand is just coincidental, with no deep meaning behind it...

@@ -1113,15 +1113,15 @@ public:
 
     // nullopt return means the tx was aborted due to user_confirmation_callback() returning false
     std::optional<CWalletTx> CreateNewSparkAsset(const spats::SparkAsset& a, const spats::public_address_t& destination_public_address = {},
-        const std::function<bool(CAmount standard_fee, CAmount asset_creation_fee)>& user_confirmation_callback = {});
+        const std::function<bool(const spats::CreateAssetAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback = {});
     std::optional<CWalletTx> UnregisterSparkAsset(spats::asset_type_t asset_type, std::optional<spats::identifier_t> identifier,
-        const std::function<bool(CAmount standard_fee)>& user_confirmation_callback = {});
+        const std::function<bool(const spats::UnregisterAssetAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback = {});
     std::optional<CWalletTx> ModifySparkAsset(const spats::SparkAsset& old_asset, const spats::SparkAsset& new_asset,
-        const std::function<bool(CAmount standard_fee)>& user_confirmation_callback = {});
+        const std::function<bool(const spats::ModifyAssetAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback = {});
     std::optional<CWalletTx> MintSparkAssetSupply(spats::asset_type_t asset_type, spats::supply_amount_t new_supply, const spats::public_address_t &receiver_pubaddress,
-        const std::function<bool(CAmount standard_fee)>& user_confirmation_callback = {});
-    std::optional<CWalletTx> BurnSparkAssetSupply(spats::asset_type_t asset_type, spats::supply_amount_t burn_amount,
-        const std::function<bool(CAmount standard_fee)>& user_confirmation_callback = {});
+        const std::function<bool(const spats::MintAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback = {});
+    std::optional<CWalletTx> BurnSparkAssetSupply(spats::asset_type_t asset_type, const spats::asset_symbol_t &asset_symbol, spats::supply_amount_t burn_amount,
+        const spats::BurnActionUserConfirmationCallback& user_confirmation_callback = {});
 
     bool LelantusToSpark(std::string& strFailReason);
 

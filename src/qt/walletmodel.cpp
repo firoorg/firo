@@ -697,6 +697,11 @@ OptionsModel *WalletModel::getOptionsModel()
     return optionsModel;
 }
 
+const OptionsModel *WalletModel::getOptionsModel() const noexcept
+{
+    return optionsModel;
+}
+
 AddressTableModel *WalletModel::getAddressTableModel()
 {
     return addressTableModel;

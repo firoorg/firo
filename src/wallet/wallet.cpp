@@ -5903,23 +5903,19 @@ CWalletTx CWallet::SpendAndStoreSpark(
 }
 
 std::optional<CWalletTx> CWallet::CreateNewSparkAsset(const spats::SparkAsset& a, const spats::public_address_t& destination_public_address,
-    const std::function<bool(CAmount standard_fee, CAmount asset_creation_fee)>& user_confirmation_callback )
+    const std::function<bool(const spats::CreateAssetAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback )
 {
     // create transaction
     CAmount standard_fee, new_asset_fee;
-    auto wtx = sparkWallet->getSpatsWallet().create_new_spark_asset_transaction(a, standard_fee, new_asset_fee, destination_public_address);
-
-    // give the user a chance to confirm/cancel
-    if (user_confirmation_callback && !user_confirmation_callback(standard_fee, new_asset_fee)) {
-       // TODO log cancellation by user
-       return {};
-    }
+    auto wtx = sparkWallet->getSpatsWallet().create_new_spark_asset_transaction(a, standard_fee, new_asset_fee, destination_public_address, user_confirmation_callback);
+    if (!wtx)
+        return wtx;
 
     // commit
     try {
         CValidationState state;
         CReserveKey reserveKey(this);
-        if (!CommitTransaction(wtx, reserveKey, g_connman.get(), state))
+        if (!CommitTransaction(*wtx, reserveKey, g_connman.get(), state))
             throw std::runtime_error("Failed to commit new spark asset transaction");
     } catch (const std::exception &) {
         auto error = _(
@@ -5936,23 +5932,19 @@ std::optional<CWalletTx> CWallet::CreateNewSparkAsset(const spats::SparkAsset& a
 }
 
 std::optional<CWalletTx> CWallet::UnregisterSparkAsset(spats::asset_type_t asset_type, std::optional<spats::identifier_t> identifier,
-    const std::function<bool(CAmount standard_fee)>& user_confirmation_callback)
+    const std::function<bool(const spats::UnregisterAssetAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback)
 {
     // create transaction
     CAmount standard_fee;
-    auto wtx = sparkWallet->getSpatsWallet().create_unregister_spark_asset_transaction(asset_type, identifier, standard_fee);
-
-    // give the user a chance to confirm/cancel
-    if (user_confirmation_callback && !user_confirmation_callback(standard_fee)) {
-       // TODO log cancellation by user
-       return {};
-    }
+    auto wtx = sparkWallet->getSpatsWallet().create_unregister_spark_asset_transaction(asset_type, identifier, standard_fee, user_confirmation_callback);
+    if (!wtx)
+        return wtx;
 
     // commit
     try {
         CValidationState state;
         CReserveKey reserveKey(this);
-        if (!CommitTransaction(wtx, reserveKey, g_connman.get(), state))
+        if (!CommitTransaction(*wtx, reserveKey, g_connman.get(), state))
             throw std::runtime_error("Failed to commit unregister spark asset transaction");
     } catch (const std::exception &) {
         auto error = _(
@@ -5969,23 +5961,19 @@ std::optional<CWalletTx> CWallet::UnregisterSparkAsset(spats::asset_type_t asset
 }
 
 std::optional<CWalletTx> CWallet::ModifySparkAsset(const spats::SparkAsset& old_asset, const spats::SparkAsset& new_asset,
-    const std::function<bool(CAmount standard_fee)>& user_confirmation_callback)
+    const std::function<bool(const spats::ModifyAssetAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback)
 {
     // create transaction
     CAmount standard_fee;
-    auto wtx = sparkWallet->getSpatsWallet().create_modify_spark_asset_transaction(old_asset, new_asset, standard_fee);
-
-    // give the user a chance to confirm/cancel
-    if (user_confirmation_callback && !user_confirmation_callback(standard_fee)) {
-       // TODO log cancellation by user
-       return {};
-    }
+    auto wtx = sparkWallet->getSpatsWallet().create_modify_spark_asset_transaction(old_asset, new_asset, standard_fee, user_confirmation_callback);
+    if (!wtx)
+        return wtx;
 
     // commit
     try {
         CValidationState state;
         CReserveKey reserveKey(this);
-        if (!CommitTransaction(wtx, reserveKey, g_connman.get(), state))
+        if (!CommitTransaction(*wtx, reserveKey, g_connman.get(), state))
             throw std::runtime_error("Failed to commit modify spark asset transaction");
     } catch (const std::exception &) {
         auto error = _(
@@ -6002,23 +5990,19 @@ std::optional<CWalletTx> CWallet::ModifySparkAsset(const spats::SparkAsset& old_
 }
 
 std::optional<CWalletTx> CWallet::MintSparkAssetSupply(spats::asset_type_t asset_type, spats::supply_amount_t new_supply, const spats::public_address_t &receiver_pubaddress,
-    const std::function<bool(CAmount standard_fee)>& user_confirmation_callback)
+    const std::function<bool(const spats::MintAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback)
 {
     // create transaction
     CAmount standard_fee;
-    auto wtx = sparkWallet->getSpatsWallet().create_mint_asset_supply_transaction(asset_type, new_supply, receiver_pubaddress, standard_fee);
-
-    // give the user a chance to confirm/cancel
-    if (user_confirmation_callback && !user_confirmation_callback(standard_fee)) {
-       // TODO log cancellation by user
-       return {};
-    }
+    auto wtx = sparkWallet->getSpatsWallet().create_mint_asset_supply_transaction(asset_type, new_supply, receiver_pubaddress, standard_fee, user_confirmation_callback);
+    if (!wtx)
+        return wtx;
 
     // commit
     try {
         CValidationState state;
         CReserveKey reserveKey(this);
-        if (!CommitTransaction(wtx, reserveKey, g_connman.get(), state))
+        if (!CommitTransaction(*wtx, reserveKey, g_connman.get(), state))
             throw std::runtime_error("Failed to commit mint spark asset supply transaction");
     } catch (const std::exception &) {
         auto error = _(
@@ -6034,24 +6018,20 @@ std::optional<CWalletTx> CWallet::MintSparkAssetSupply(spats::asset_type_t asset
     return wtx;
 }
 
-std::optional<CWalletTx> CWallet::BurnSparkAssetSupply(spats::asset_type_t asset_type, spats::supply_amount_t burn_amount,
-    const std::function<bool(CAmount standard_fee)>& user_confirmation_callback)
+std::optional<CWalletTx> CWallet::BurnSparkAssetSupply(spats::asset_type_t asset_type, const spats::asset_symbol_t &asset_symbol, spats::supply_amount_t burn_amount,
+    const spats::BurnActionUserConfirmationCallback& user_confirmation_callback)
 {
     // create transaction
     CAmount standard_fee;
-    auto wtx = sparkWallet->getSpatsWallet().create_burn_asset_supply_transaction(asset_type, burn_amount, standard_fee);
-
-    // give the user a chance to confirm/cancel
-    if (user_confirmation_callback && !user_confirmation_callback(standard_fee)) {
-       // TODO log cancellation by user
-       return {};
-    }
+    auto wtx = sparkWallet->getSpatsWallet().create_burn_asset_supply_transaction(asset_type, asset_symbol, burn_amount, standard_fee, user_confirmation_callback);
+    if (!wtx)
+        return wtx;
 
     // commit
     try {
         CValidationState state;
         CReserveKey reserveKey(this);
-        if (!CommitTransaction(wtx, reserveKey, g_connman.get(), state))
+        if (!CommitTransaction(*wtx, reserveKey, g_connman.get(), state))
             throw std::runtime_error("Failed to commit burn spark asset supply transaction");
     } catch (const std::exception &) {
         auto error = _(

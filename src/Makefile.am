@@ -266,6 +266,7 @@ BITCOIN_CORE_H = \
   spats/modification.hpp \
   spats/registry.hpp \
   spats/spark_asset.hpp \
+  spats/user_confirmation.hpp \
   spats/wallet.hpp \
   utils/constexpr_string.hpp \
   utils/constrained_value.hpp \
@@ -275,6 +276,7 @@ BITCOIN_CORE_H = \
   utils/math.hpp \
   utils/overloaded.hpp \
   utils/scaled_amount.hpp \
+  utils/string.hpp \
   utils/traits.hpp \
   llmq/quorums.h \
   llmq/quorums_blockprocessor.h \
@@ -449,8 +451,10 @@ libbitcoin_server_a_SOURCES = \
   coin_containers.cpp \
   mtpstate.cpp \
   spats/manager.cpp \
+  spats/modification.cpp \
   spats/registry.cpp \
   spats/spark_asset.cpp \
+  utils/string.cpp \
   $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
@@ -500,9 +504,11 @@ libbitcoin_wallet_a_SOURCES = \
   bip47/secretpoint.cpp \
   primitives/mint_spend.cpp \
   spats/manager.cpp \
+  spats/modification.cpp \
   spats/registry.cpp \
   spats/spark_asset.cpp \
   spats/wallet.cpp \
+  utils/string.cpp \
   $(BITCOIN_CORE_H)
 
 # crypto primitives library

@@ -131,6 +131,7 @@ public:
     };
 
     OptionsModel *getOptionsModel();
+    const OptionsModel *getOptionsModel() const noexcept;
     AddressTableModel *getAddressTableModel();
     PcodeAddressTableModel *getPcodeAddressTableModel();
     LelantusModel *getLelantusModel();

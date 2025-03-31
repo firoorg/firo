@@ -12,6 +12,7 @@
 #include "lelantusmodel.h"
 #include "sendcoinsdialog.h"
 #include "walletmodel.h"
+#include "sendconfirmationdialog.h"
 
 #include <QSettings>
 

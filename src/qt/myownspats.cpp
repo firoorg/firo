@@ -11,6 +11,7 @@
 #include "walletmodel.h"
 #include "sparkassetdialog.h"
 #include "spatsmintdialog.h"
+#include "spatsuserconfirmationdialog.h"
 #include "myownspats.h"
 #include "ui_myownspats.h"
 
@@ -158,7 +159,9 @@ void MyOwnSpats::onCreateButtonClicked()
    try {
       SparkAssetDialog dialog( platform_style_, make_new_asset_creation_context(), this );
       if ( dialog.exec() == QDialog::Accepted )
-         wallet_model_->getWallet()->CreateNewSparkAsset( *dialog.getResultAsset(), dialog.getResultDestinationPublicAddress() );   // TODO user confirm callback
+         wallet_model_->getWallet()->CreateNewSparkAsset( *dialog.getResultAsset(),
+                                                          dialog.getResultDestinationPublicAddress(),
+                                                          MakeSpatsUserConfirmationCallback( *wallet_model_, this ) );
    }
    catch ( const std::exception &e ) {
       QMessageBox::critical( this, tr( "Error" ), tr( "An error occurred: %1" ).arg( e.what() ) );
@@ -180,7 +183,10 @@ void MyOwnSpats::onMintButtonClicked()
          assert( fungible_asset.resupplyable() );
          SpatsMintDialog dialog( platform_style_, fungible_asset, this );
          if ( dialog.exec() == QDialog::Accepted )
-            wallet_model_->getWallet()->MintSparkAssetSupply( asset_type, dialog.getNewSupply(), dialog.getRecipient() );   // TODO user confirm callback
+            wallet_model_->getWallet()->MintSparkAssetSupply( asset_type,
+                                                              dialog.getNewSupply(),
+                                                              dialog.getRecipient(),
+                                                              MakeSpatsUserConfirmationCallback( *wallet_model_, this ) );
       }
       catch ( const std::exception &e ) {
          QMessageBox::critical( this, tr( "Error" ), tr( "An error occurred: %1" ).arg( e.what() ) );
@@ -202,7 +208,7 @@ void MyOwnSpats::onModifyButtonClicked()
          const auto &existing_asset = my_own_assets_map_.at( spats::universal_asset_id_t{ asset_type, identifier } );
          SparkAssetDialog dialog( platform_style_, existing_asset, this );
          if ( dialog.exec() == QDialog::Accepted )
-            wallet_model_->getWallet()->ModifySparkAsset( existing_asset, *dialog.getResultAsset() );   // TODO user confirm callback
+            wallet_model_->getWallet()->ModifySparkAsset( existing_asset, *dialog.getResultAsset(), MakeSpatsUserConfirmationCallback( *wallet_model_, this ) );
       }
       catch ( const std::exception &e ) {
          QMessageBox::critical( this, tr( "Error" ), tr( "An error occurred: %1" ).arg( e.what() ) );
@@ -240,7 +246,7 @@ void MyOwnSpats::onUnregisterButtonClicked()
                }
             }
          }
-         wallet_model_->getWallet()->UnregisterSparkAsset( asset_type, identifier );   // TODO user confirm callback
+         wallet_model_->getWallet()->UnregisterSparkAsset( asset_type, identifier, MakeSpatsUserConfirmationCallback( *wallet_model_, this ) );
       }
       catch ( const std::exception &e ) {
          QMessageBox::critical( this, tr( "Error" ), tr( "An error occurred: %1" ).arg( e.what() ) );

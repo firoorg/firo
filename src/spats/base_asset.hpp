@@ -26,9 +26,10 @@ constexpr auto asset_symbol = "FIRO"sv;
 constexpr auto asset_description = "Digital currency that aims to spark a privacy revolution with its innovative features and research - base asset/currency of spats"sv;
 
 // Function instead of variable, to avoid static initialization order issues
-inline AssetNaming naming()
+inline const AssetNaming &naming()
 {
-   return { std::string( asset_name ), std::string( asset_symbol ), std::string( asset_description ) };
+   static const AssetNaming n{ std::string( asset_name ), std::string( asset_symbol ), std::string( asset_description ) };
+   return n;
 }
 
 const auto metadata = ""sv;
@@ -36,7 +37,8 @@ const auto metadata = ""sv;
 // 'initial' meaning at the time of the first public release/deployment of spats-enabled Firo tools
 constexpr auto initial_admin_public_address = "<TODO find out>"sv;
 
-constexpr supply_amount_t initial_supply{ MAX_MONEY, 8 };
+constexpr unsigned precision = 8;
+constexpr supply_amount_t initial_supply{ MAX_MONEY, precision };
 static_assert( initial_supply.unpack() == std::pair< std::uint64_t, std::uint64_t >( 21'000'000, 0 ) );
 
 constexpr bool resupplyable = false;
