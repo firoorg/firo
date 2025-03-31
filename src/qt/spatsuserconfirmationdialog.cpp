@@ -38,6 +38,4 @@ void adjust_dialog_size( SpatsUserConfirmationDialog &dlg, const QString &text )
       QGridLayout &layout = boost::polymorphic_downcast< QGridLayout & >( *dlg.layout() );
       layout.addItem( horizontal_spacer, layout.rowCount(), 0, 1, layout.columnCount() );
    }
-   // TODO remove
-   std::cout << "text_width: " << text_width << " dlgminwidth: " << dlg.minimumWidth() << " dlgwidth: " << dlg.width() << std::endl;
 }
