@@ -42,7 +42,7 @@ target_link_libraries(test_firo-qt
   $<$<BOOL:${WITH_ZMQ}>:firo_zmq>
   firo_cli
   $<TARGET_NAME_IF_EXISTS:firo_wallet>
-  $<$<BOOL:${WIN32}>:windows_system>  
+  $<$<BOOL:${WIN32}>:windows_system>
 )
 
 apply_wrapped_exception_flags(test_firo-qt)

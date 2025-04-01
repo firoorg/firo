@@ -52,6 +52,7 @@ $(package)_config_opts += -no-evdev
 $(package)_config_opts += -no-gif
 $(package)_config_opts += -no-glib
 $(package)_config_opts += -no-icu
+$(package)_config_opts += -no-zstd
 $(package)_config_opts += -no-ico
 $(package)_config_opts += -no-iconv
 $(package)_config_opts += -no-kms
