@@ -115,7 +115,7 @@ option(BUILD_KERNEL_LIB "Build experimental firokernel library." ${BUILD_UTIL_CH
 
 option(ENABLE_WALLET "Enable wallet." OFF)
 cmake_dependent_option(BUILD_TESTS "Build tests." OFF "ENABLE_WALLET" OFF)
-option(BUILD_TX "Build ${FIRO_TX_NAME} executable." ${BUILD_TESTS})
+option(BUILD_TX "Build ${FIRO_TX_NAME} executable." ${BUILD_CLI})
 option(WITH_BDB "Enable Berkeley DB (BDB) wallet support." OFF)
 cmake_dependent_option(WARN_INCOMPATIBLE_BDB "Warn when using a Berkeley DB (BDB) version other than 4.8." ON "WITH_BDB" OFF)
 if(WITH_BDB)
@@ -769,6 +769,60 @@ endif()
 # - https://github.com/firo/firo/pull/30312#issuecomment-2191235833
 set(CMAKE_SKIP_BUILD_RPATH TRUE)
 set(CMAKE_SKIP_INSTALL_RPATH TRUE)
+
+if(BUILD_TESTS)
+  # Create test configuration file
+  # This file is used by the test framework to configure the tests.
+  # It is generated in the build directory and copied to the source directory
+  # so that it can be used by the test framework.
+  # The test framework will use the configuration file to determine which
+  # features are enabled and which tests should be run.
+  # used by the test framework to determine which features are enabled
+  function(create_test_config)
+    set(abs_top_srcdir ${PROJECT_SOURCE_DIR})
+    set(abs_top_builddir ${PROJECT_BINARY_DIR})
+    set(EXEEXT ${CMAKE_EXECUTABLE_SUFFIX})
+    message(WARNING "CMAKE_EXECUTABLE_SUFFIX : ${CMAKE_EXECUTABLE_SUFFIX}")
+    message(WARNING "WITH_ZMQ : ${WITH_ZMQ}")
+
+    macro(set_configure_variable var conf_var)
+      if(${var})
+        set(${conf_var}_TRUE "")
+      else()
+        set(${conf_var}_TRUE "#")
+      endif()
+    endmacro()
+
+    # Core binaries
+    set_configure_variable(BUILD_DAEMON ENABLE_BITCOIND)
+    set_configure_variable(BUILD_CLI BUILD_BITCOIN_UTIL)
+
+    # Wallet support
+    set_configure_variable(ENABLE_WALLET ENABLE_WALLET)
+
+    # Features
+    set_configure_variable(WITH_ZMQ ENABLE_ZMQ)
+
+    configure_file(${PROJECT_SOURCE_DIR}/qa/pull-tester/tests_config.py.in ${PROJECT_SOURCE_DIR}/qa/pull-tester/tests_config.py USE_SOURCE_PERMISSIONS @ONLY)
+  endfunction()
+
+  create_test_config()
+
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/functional)
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/fuzz)
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/util)
+
+  file(GLOB_RECURSE functional_tests RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} functional/*)
+  foreach(script ${functional_tests} fuzz/test_runner.py util/rpcauth-test.py util/test_runner.py)
+    if(CMAKE_HOST_WIN32)
+      set(symlink)
+    else()
+      set(symlink SYMBOLIC)
+    endif()
+    file(CREATE_LINK ${CMAKE_CURRENT_SOURCE_DIR}/${script} ${CMAKE_CURRENT_BINARY_DIR}/${script} COPY_ON_ERROR ${symlink})
+  endforeach()
+  unset(functional_tests)
+endif(BUILD_TESTS)
 add_subdirectory(doc)
 
 include(cmake/crc32c.cmake)

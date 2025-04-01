@@ -313,6 +313,21 @@ else()
   endif()
 endif()
 
+message(STATUS "Checking for __builtin_expect")
+include(CheckCSourceCompiles)
+
+check_c_source_compiles("
+void myfunc() { __builtin_expect(0, 0); }
+int main() { myfunc(); return 0; }
+" HAVE_BUILTIN_EXPECT)
+
+if(HAVE_BUILTIN_EXPECT)
+  message(STATUS "yes")
+  add_compile_definitions(HAVE_BUILTIN_EXPECT=1)
+else()
+  message(STATUS "no")
+endif()
+
 add_subdirectory(src)
 
 message("\n")
