@@ -25,7 +25,7 @@ jobs:
     - name: Install Required Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y libboost-all-dev libdb-dev libdb++-dev libevent-dev bison
+        sudo apt-get install -y libboost-all-dev libdb-dev libdb++-dev libevent-dev bison cmake
     - name: Create Distribution Tarball
       run: |
         ./autogen.sh
@@ -44,12 +44,82 @@ jobs:
       with:
         name: ${{ env.SOURCE_ARTIFACT }}
         path: ${{ env.SOURCE_ARTIFACT_DIR }}
-  build-linux:
-    name: Build for Linux
+  build-linux-cmake:
+    name: Build for Linux (CMake)
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_DIR: linux-cmake-binaries
+      TEST_LOG_ARTIFACT_DIR: test-logs
+    steps:
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Install Required Packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-zmq cmake build-essential
+    - name: Verify ZMQ Installation
+      run: |
+        python3 -m pip install --upgrade pip
+        python3 -m pip install pyzmq
+    - name: Download Dependencies
+      run: make -C depends download
+    - name: Build Dependencies
+      run: make -C depends -j$(nproc)
+    - name: Build Firo
+      run: |
+        mkdir build
+        export HOST_TRIPLET=$(depends/config.guess)
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) -DBUILD_CLI=ON -DBUILD_TESTS=ON -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
+        cd build && make -j$(nproc)
+    - name: Run Unit Tests
+      run: |
+        cd build && make test
+    - name: Run RPC Tests
+      env:
+        TIMEOUT: 600
+      run: |
+        cp -rf build/bin/* build/src/
+        qa/pull-tester/rpc-tests.py -extended
+    - name: Prepare Files for Artifact
+      run: |
+        mkdir -p $ARTIFACT_DIR
+        mv build/bin/{firo-cli,firo-tx,firod,firo-qt} $ARTIFACT_DIR
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-cmake-binaries
+        path: ${{ env.ARTIFACT_DIR }}
+    - name: Prepare Test Logs for Artifact
+      if: failure()
+      run: |
+        tor_log=$(find . -path '*/tor/test-suite.log' -type f || true)
+        firo_log=$(find . -path '*/src/test-suite.log' -type f || true)
+
+        mkdir -p $TEST_LOG_ARTIFACT_DIR
+
+        if test -f $tor_log; then
+          mv $tor_log $TEST_LOG_ARTIFACT_DIR/tor.log
+        fi
+
+        if test -f $firo_log; then
+          mv $firo_log $TEST_LOG_ARTIFACT_DIR/firo.log
+        fi
+    - name: Upload Test Logs Artifact
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-cmake-logs
+        path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
+  build-linux-autotools:
+    name: Build for Linux (Autotools)
     needs: create-source-distribution
     runs-on: ubuntu-latest
     env:
-      ARTIFACT_DIR: linux-binaries
+      ARTIFACT_DIR: linux-autotools-binaries
       TEST_LOG_ARTIFACT_DIR: test-logs
     steps:
     - name: Set up Python 3.8
@@ -97,7 +167,7 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: linux-binaries
+        name: linux-autotools-binaries
         path: ${{ env.ARTIFACT_DIR }}
     - name: Prepare Test Logs for Artifact
       if: failure()
@@ -118,14 +188,14 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test-logs
+        name: test-autotools-logs
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
-  build-windows:
-    name: Build for Windows
+  build-windows-autotools:
+    name: Build for Windows (Autotools)
     needs: create-source-distribution
     runs-on: ubuntu-20.04
     env:
-      ARTIFACT_DIR: windows-binaries
+      ARTIFACT_DIR: windows-autotools-binaries
     steps:
     - name: Getting Source
       uses: actions/download-artifact@v4
@@ -160,14 +230,98 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: windows-binaries
+        name: windows-autotools-binaries
         path: ${{ env.ARTIFACT_DIR }}
-  build-mac:
-    name: Build for macOS
+  build-windows-cmake:
+    name: Build for Windows (CMake)
+    runs-on: ubuntu-20.04
+    env:
+      ARTIFACT_DIR: windows-cmake-binaries
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Install Required Packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 cmake
+    - name: Switch MinGW GCC and G++ to POSIX Threading
+      run: |
+        sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+        sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+    - name: Download Dependencies
+      run: make -C depends download
+    - name: Build Dependencies
+      run: make -C depends -j$(nproc) HOST=x86_64-w64-mingw32
+    - name: Build Firo
+      run: |
+        mkdir build
+        export HOST_TRIPLET=$(x86_64-w64-mingw32-gcc -dumpmachine)
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
+        cd build && make -j$(nproc)
+    - name: Prepare Files for Artifact
+      run: |
+        mkdir -p $ARTIFACT_DIR
+        mv build/bin/{firo-cli.exe,firo-tx.exe,firod.exe,firo-qt.exe} $ARTIFACT_DIR
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-cmake-binaries
+        path: ${{ env.ARTIFACT_DIR }}
+  build-mac-cmake:
+    name: Build for macOS (CMake)
+    runs-on: macos-latest
+    env:
+      ARTIFACT_DIR: mac-cmake-binaries
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Use Xcode instead of Command Line Tools
+      run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+    - name: Set NJOBS variable
+      run: |
+        NCPU=$(sysctl -n hw.ncpu)
+        JOBS=$((NCPU / 2 > 1 ? NCPU / 2 : 1)) # Use half, but at least 1
+        echo "NJOBS=$JOBS" >> $GITHUB_ENV  # Persist NJOBS across steps
+        echo "Using $JOBS jobs for parallel builds."
+      # -j$(sysctl -n hw.activecpu) fails. due to high load on macOS, and crappy github runners.
+    - name: Install Required Packages
+      run: |
+        if ! command -v pkg-config &> /dev/null; then
+          echo "pkg-config not found, installing..."
+          brew install pkg-config
+        else
+          echo "pkg-config is already installed"
+        fi
+        brew install automake coreutils python-setuptools cmake make
+      # Workaround for macOS: https://github.com/actions/runner/issues/2958
+    - name: Install setuptools
+      run: sudo -H pip install setuptools
+    - name: Download Dependencies
+      run: make -C depends download
+    - name: Build Dependencies
+      run: |
+        make -C depends -j$NJOBS
+    - name: Build Firo
+      run: |
+        mkdir build
+        export HOST_TRIPLET=$(depends/config.guess)
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -S$(pwd) -B$(pwd)/build
+        cd build && make -j$NJOBS
+    - name: Prepare Files for Artifact
+      run: |
+        mkdir -p $ARTIFACT_DIR
+        mv build/bin/{firo-cli,firo-tx,firod,firo-qt} $ARTIFACT_DIR
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: mac-cmake-binaries
+        path: ${{ env.ARTIFACT_DIR }}
+  build-mac-autotools:
+    name: Build for macOS (Autotools)
     needs: create-source-distribution
     runs-on: macos-latest
     env:
-      ARTIFACT_DIR: mac-binaries
+      ARTIFACT_DIR: mac-autotools-binaries
     steps:
     - name: Getting Source
       uses: actions/download-artifact@v4
@@ -208,5 +362,5 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: mac-binaries
+        name: mac-autotools-binaries
         path: ${{ env.ARTIFACT_DIR }}

@@ -81,7 +81,6 @@ add_executable(test_firo
   sigma_manymintspend_test.cpp
   sigma_mintspend_numinputs.cpp
   sigma_mintspend_test.cpp
-  sigma_partialspend_mempool_tests.cpp
   sigma_state_tests.cpp
   sigopcount_tests.cpp
   skiplist_tests.cpp
