@@ -83,7 +83,7 @@ CAmount SparkModel::mintSparkAll()
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
     std::vector<spark::MintedCoinData> outputs;
-    std::string strError = wallet->MintAndStoreSpark(outputs, wtxAndFee, true, true);
+    std::string strError = wallet->MintAndStoreSpark(outputs, wtxAndFee, true, true, true);
     if (strError != "") {
         throw std::runtime_error("Fail to mint all public balance, " + strError);
     }
