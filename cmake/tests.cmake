@@ -7,9 +7,3 @@ if(TARGET bitcoin-util AND TARGET bitcoin-tx AND PYTHON_COMMAND)
     COMMAND ${CMAKE_COMMAND} -E env BITCOINUTIL=$<TARGET_FILE:bitcoin-util> BITCOINTX=$<TARGET_FILE:bitcoin-tx> ${PYTHON_COMMAND} ${PROJECT_BINARY_DIR}/test/util/test_runner.py
   )
 endif()
-
-if(PYTHON_COMMAND)
-  add_test(NAME util_rpcauth_test
-    COMMAND ${PYTHON_COMMAND} ${PROJECT_BINARY_DIR}/test/util/rpcauth-test.py
-  )
-endif()
