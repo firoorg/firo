@@ -31,6 +31,7 @@
 #include "lelantusjoinsplitbuilder.h"
 #include "bip47/paymentchannel.h"
 #include "bip47/account.h"
+#include "wallet/coincontrol.h"
 
 #include <stdint.h>
 
@@ -3653,7 +3654,7 @@ UniValue mintspark(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() == 0 || request.params.size() > 2)
+    if (request.fHelp || request.params.size() == 0 || request.params.size() > 3)
         throw std::runtime_error(
            "mintspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
@@ -3767,8 +3768,31 @@ UniValue mintspark(const JSONRPCRequest& request)
     bool subtractFeeFromAmount = false;
     if (request.params.size() > 1)
         subtractFeeFromAmount = request.params[1].get_bool();
+
+    CCoinControl coinControl;
+    if (request.params.size() > 2) {
+        UniValue sendFrom = request.params[2].get_array();
+        std::vector<COutput> vAvailableCoins;
+        pwalletMain->AvailableCoins(vAvailableCoins, true);
+        for (unsigned int idx = 0; idx < sendFrom.size(); idx++)
+        {
+            std::string name_ =sendFrom[idx].get_str();
+            CBitcoinAddress address(name_);
+            if (!address.IsValid())
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Firo address: ") + name_);
+            CScript scriptPubKey = GetScriptForDestination(address.Get());
+            for (const auto& itr : vAvailableCoins) {
+                if (itr.tx->tx->vout[itr.i].scriptPubKey != scriptPubKey) {
+                    continue;
+                }
+                coinControl.Select(COutPoint(itr.tx->GetHash(), itr.i));
+            }
+        }
+
+    }
+
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-    std::string strError = pwallet->MintAndStoreSpark(recipients, outputs, wtxAndFee, subtractFeeFromAmount);
+    std::string strError = pwallet->MintAndStoreSpark(recipients, outputs, wtxAndFee, subtractFeeFromAmount, false, false, false, &coinControl);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
@@ -3804,7 +3828,7 @@ UniValue automintspark(const JSONRPCRequest& request) {
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
     std::vector<spark::MintedCoinData> outputs;
     std::vector<CRecipient> recipients;
-    std::string strError = pwallet->MintAndStoreSpark(recipients, outputs, wtxAndFee, true, true);
+    std::string strError = pwallet->MintAndStoreSpark(recipients, outputs, wtxAndFee, true, true, true);
 
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
@@ -5818,7 +5842,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "getsparkaddressbalance", &getsparkaddressbalance, false },
     { "wallet",             "resetsparkmints",        &resetsparkmints,        false },
     { "wallet",             "setsparkmintstatus",     &setsparkmintstatus,     false },
-    { "wallet",             "mintspark",              &mintspark,              false },
+    { "wallet",             "mintspark",              &mintspark,              true },
     { "wallet",             "automintspark",          &automintspark,          false },
     { "wallet",             "spendspark",             &spendspark,             false },
     { "wallet",             "lelantustospark",        &lelantustospark,        false },

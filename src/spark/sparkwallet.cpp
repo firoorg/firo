@@ -763,6 +763,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
         int& nChangePosInOut,
         bool subtractFeeFromAmount,
         std::string& strFailReason,
+        bool fSplit,
         const CCoinControl *coinControl,
         bool autoMintAll)
 {
@@ -803,10 +804,17 @@ bool CSparkWallet::CreateSparkMintTransactions(
             std::list<CWalletTx> cacheWtxs;
             // vector pairs<available amount, outputs> for each transparent address
             std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXO;
-            pwalletMain->AvailableCoinsForLMint(valueAndUTXO, coinControl);
-
-            Shuffle(valueAndUTXO.begin(), valueAndUTXO.end(), FastRandomContext());
-
+            if (fSplit) {
+                pwalletMain->AvailableCoinsForLMint(valueAndUTXO, coinControl);
+                Shuffle(valueAndUTXO.begin(), valueAndUTXO.end(), FastRandomContext());
+            } else {
+                std::vector<COutput> vAvailableCoins;
+                pwalletMain->AvailableCoins(vAvailableCoins, true, coinControl);
+                CAmount balance = 0;
+                for (auto& coin : vAvailableCoins)
+                    balance += coin.tx->tx->vout[coin.i].nValue;
+                valueAndUTXO.emplace_back(std::make_pair(balance, vAvailableCoins));
+            }
             while (!valueAndUTXO.empty()) {
 
                 // initialize
@@ -921,6 +929,11 @@ bool CSparkWallet::CreateSparkMintTransactions(
                             if (singleTxOutputs[i].v <= singleFee) {
                                 remainder += singleTxOutputs[i].v - singleFee;
                                 singleTxOutputs.erase(singleTxOutputs.begin() + i);
+                                remainder += singleTxOutputs[i].v - singleFee;
+                                if (!singleTxOutputs.size()) {
+                                    strFailReason = _("Transaction amount too small");
+                                    return false;
+                                }
                                 --i;
                             } else {
                                 singleTxOutputs[i].v -= singleFee;

@@ -1011,6 +1011,20 @@ UniValue getaddressbalance(const JSONRPCRequest& request)
 
 }
 
+UniValue getAddressNumWBalance(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() > 0)
+        throw std::runtime_error(
+                "getAddressNumWBalance\n"
+                "Gives the number of addresses which has positive balance."
+        );
+    if (!GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX))
+        throw std::runtime_error(
+        "You have to reindex with -addressindex flag to get an accurate result.");
+
+    return uint64_t(pblocktree->findAddressNumWBalance());
+}
+
 UniValue getanonymityset(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 2)
@@ -1302,6 +1316,150 @@ UniValue getsparkanonymityset(const JSONRPCRequest& request)
 
     ret.push_back(Pair("blockHash", EncodeBase64(blockHash.begin(), blockHash.size())));
     ret.push_back(Pair("setHash", UniValue(EncodeBase64(setHash.data(), setHash.size()))));
+    ret.push_back(Pair("coins", mints));
+
+    return ret;
+}
+
+UniValue getsparkanonymitysetmeta(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+                "getsparkanonymitysetmeta\n"
+                "\nReturns the anonymity set and latest block hash.\n"
+                "\nArguments:\n"
+                "{\n"
+                "      \"coinGroupId\"  (int)\n"
+                "}\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"blockHash\"   (string) Latest block hash for anonymity set\n"
+                "  \"setHash\"   (string) Anonymity set hash\n"
+                "  \"size\" (int) set size\n"
+                "}\n"
+                + HelpExampleCli("getsparkanonymitysetmeta", "\"1\" ")
+                + HelpExampleRpc("getsparkanonymitysetmeta", "\"1\" ")
+        );
+
+
+    int coinGroupId;
+    try {
+        coinGroupId = std::stol(request.params[0].get_str());
+    } catch (std::logic_error const & e) {
+        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
+    if(!GetBoolArg("-mobile", false)){
+        throw std::runtime_error(std::string("Please rerun Firo with -mobile "));
+    }
+
+    uint256 blockHash;
+    std::vector<unsigned char> setHash;
+    int size;
+    {
+        LOCK(cs_main);
+        spark::CSparkState* sparkState = spark::CSparkState::GetState();
+        sparkState->GetAnonSetMetaData(
+                &chainActive,
+                chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+                coinGroupId,
+                blockHash,
+                setHash,
+                size);
+    }
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("blockHash", EncodeBase64(blockHash.begin(), blockHash.size())));
+    ret.push_back(Pair("setHash", UniValue(EncodeBase64(setHash.data(), setHash.size()))));
+    ret.push_back(Pair("size", size));
+
+    return ret;
+}
+
+UniValue getsparkanonymitysetsector(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 4)
+        throw std::runtime_error(
+                "getsparkanonymitysetsector\n"
+                "\nReturns the anonymity sector based on provided data.\n"
+                "\nArguments:\n"
+                "{\n"
+                "      \"coinGroupId\"  (int)\n"
+                "      \"latestBlock\"    (string) it should be encoded in base64 format\n"
+                "      \"startIndex\"  (int)\n"
+                "      \"endIndex\"    (int)\n"
+                "}\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"mints\" (Pair<string, string>) Serialized Spark coin paired with txhash\n"
+                "}\n"
+                + HelpExampleCli("getsparkanonymitysetsector", "\"1\" " "\"Gy3sLu3zrVdJwaK6ZzM/1zdJy7hji9xT6l4FSrWgFUM=\" " "\"0\" " "\"1000\" ")
+                + HelpExampleRpc("getsparkanonymitysetsector", "\"1\" " "\"Gy3sLu3zrVdJwaK6ZzM/1zdJy7hji9xT6l4FSrWgFUM=\" " "\"0\" " "\"1000\" ")
+        );
+
+
+    int coinGroupId;
+    std::string latestBlock;
+    int startIndex;
+    int endIndex;
+
+    try {
+        coinGroupId = std::stol(request.params[0].get_str());
+        latestBlock = request.params[1].get_str();
+        startIndex = std::stol(request.params[2].get_str());
+        endIndex = std::stol(request.params[3].get_str());
+
+    } catch (std::logic_error const & e) {
+        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
+    if(!GetBoolArg("-mobile", false)) {
+        throw std::runtime_error(std::string("Please rerun Firo with -mobile "));
+    }
+    std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>> coins;
+
+    std::string  strHash = DecodeBase64(latestBlock);
+    std::vector<unsigned char> vec(strHash.begin(), strHash.end());
+    if (vec.size() != 32)
+        throw std::runtime_error(std::string("Provided blockHash data is not correct."));
+
+    uint256 blockHash(vec);
+    {
+        LOCK(cs_main);
+        spark::CSparkState* sparkState = spark::CSparkState::GetState();
+        try {
+            sparkState->GetCoinsForRecovery(
+                    &chainActive,
+                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+                    coinGroupId,
+                    startIndex,
+                    endIndex,
+                    blockHash,
+                    coins);
+        } catch (std::exception & e) {
+            throw std::runtime_error(std::string("Unable to get anonymity set by provided parameters: ") + e.what());
+        }
+    }
+
+    UniValue ret(UniValue::VOBJ);
+    UniValue mints(UniValue::VARR);
+
+
+    for (const auto& coin : coins) {
+        CDataStream serializedCoin(SER_NETWORK, PROTOCOL_VERSION);
+        serializedCoin << coin;
+        std::vector<unsigned char> vch(serializedCoin.begin(), serializedCoin.end());
+
+        std::vector<UniValue> data;
+        data.push_back(EncodeBase64(vch.data(), size_t(vch.size()))); // coin
+        data.push_back(EncodeBase64(coin.second.first.begin(), coin.second.first.size())); // tx hash
+        data.push_back(EncodeBase64(coin.second.second.data(), coin.second.second.size())); // spark serial context
+
+        UniValue entity(UniValue::VARR);
+        entity.push_backV(data);
+        mints.push_back(entity);
+    }
+
     ret.push_back(Pair("coins", mints));
 
     return ret;
@@ -1759,6 +1917,154 @@ UniValue getspentinfo(const JSONRPCRequest& request)
     return obj;
 }
 
+CAmount getzerocoinpoolbalance()
+{
+    CAmount nTotalAmount = 0;
+
+    // Iterate over all  mints
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    if (GetAddressIndex(uint160(), AddressType::zerocoinMint, addressIndex)) {
+        for (auto& it : addressIndex) {
+            nTotalAmount += it.second;
+        }
+    }
+    addressIndex.clear();
+
+    // Iterate over all  spends
+    if (GetAddressIndex(uint160(), AddressType::zerocoinSpend, addressIndex)) {
+        for (auto& it : addressIndex) {
+            nTotalAmount += it.second;
+        }
+    }
+
+    return  nTotalAmount;
+}
+
+CAmount getCVE17144amount()
+{
+    // CVE-2018-17144 was a critical bug that allowed double-spending of inputs
+    // in the same transaction. This function calculates the total amount of coins
+    // that were created due to this vulnerability at block 293526.
+    LOCK(cs_main);
+    if (chainActive.Height() < 293526) {
+        throw std::runtime_error("Chain height is less than 293,526.");
+    }
+
+    if (!Params().GetConsensus().IsMain()) {
+        throw std::runtime_error("Attack only occurred on mainnet");
+    }
+
+    CBlockIndex *atackedBlock = chainActive[293526];
+    CBlock block;
+    if (!ReadBlockFromDisk(block, atackedBlock, ::Params().GetConsensus())) {
+        throw std::runtime_error("Failed to read block 293526 from disk");
+    }
+    CAmount amount = 0;
+    for (CTransactionRef tx : block.vtx) {
+        if (!tx->IsCoinBase() && !tx->HasNoRegularInputs()) {
+            std::set<COutPoint> vInOutPoints;
+            for (const auto& txin : tx->vin)
+            {
+                if (!vInOutPoints.insert(txin.prevout).second) {
+                    CTransactionRef tx;
+                    uint256 hashBlock;
+                    if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock, true)) {
+                        continue;
+                    }
+                    if (txin.prevout.n >= tx->vout.size()) {
+                        continue;  // Skip if output index is out of bounds
+                    }
+                    amount += tx->vout[txin.prevout.n].nValue;
+                }
+            }
+        }
+    }
+    return amount;
+}
+
+// another way to calculate the forged amount
+CAmount getCVE17144amountNew()
+{
+    // CVE-2018-17144 was a critical bug that allowed double-spending of inputs
+    // in the same transaction. This function calculates the total amount of coins
+    // that were created due to this vulnerability at block 293526.
+    LOCK(cs_main);
+    if (chainActive.Height() < 293526) {
+        throw std::runtime_error("Chain height is less than 293,526.");
+    }
+
+    if (!Params().GetConsensus().IsMain()) {
+        throw std::runtime_error("Attack only occurred on mainnet");
+    }
+
+    CBlockIndex *atackedBlock = chainActive[293526];
+    CBlock block;
+    if (!ReadBlockFromDisk(block, atackedBlock, ::Params().GetConsensus())) {
+        throw std::runtime_error("Failed to read block 293526 from disk");
+    }
+
+    std::unordered_map<uint160, AddressType> addresses;
+    for (CTransactionRef tx : block.vtx) {
+        if (!tx->IsCoinBase() && !tx->HasNoRegularInputs()) {
+            for (const auto& txout : tx->vout)
+            {
+                CTxDestination addr;
+                if (!ExtractDestination(txout.scriptPubKey, addr))
+                    continue;
+                CBitcoinAddress address(addr);
+                uint160 hashBytes;
+                AddressType type = AddressType::unknown;
+                if (!address.GetIndexKey(hashBytes, type)) {
+                    continue;
+                }
+                addresses.insert({hashBytes, type});
+            }
+
+            for (const auto& txin : tx->vin)
+            {
+                CTransactionRef tx;
+                uint256 hashBlock;
+                if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock, true)) {
+                    continue;
+                }
+                if (txin.prevout.n >= tx->vout.size()) {
+                    continue;  // Skip if output index is out of bounds
+                }
+
+                CTxDestination addr;
+                if (!ExtractDestination(tx->vout[txin.prevout.n].scriptPubKey, addr))
+                    continue;
+                CBitcoinAddress address(addr);
+                uint160 hashBytes;
+                AddressType type = AddressType::unknown;
+                if (!address.GetIndexKey(hashBytes, type)) {
+                    continue;
+                }
+                addresses.insert({hashBytes, type});
+            }
+        }
+    }
+
+    CAmount result = 0;
+    for (const auto& it : addresses) {
+        std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+        if (!GetAddressIndex(it.first, it.second, addressIndex)) {
+            continue;
+        }
+        CAmount amount = 0;
+        for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
+            amount += it->second;
+        }
+
+        if (amount < 0)
+            result += amount;
+    }
+
+
+
+    return result;
+}
+
 UniValue gettotalsupply(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0)
@@ -1780,10 +2086,53 @@ UniValue gettotalsupply(const JSONRPCRequest& request)
     if(!pblocktree->ReadTotalSupply(total))
         throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the total supply from the database. This functionality requires -addressindex to be enabled. Enabling -addressindex requires reindexing.");
 
+    total -= getzerocoinpoolbalance(); //498,397.00000000 The actual amount of coins forged during the Zerocoin attacks (the negative balance after the pool closed),
+    total += getCVE17144amount(); //320,841.99803185 The cmount of forged coins during CVE-2018-17144 attacks,
+    total -= 16810168037465;// burnt Coins sent to unrecoverable address https://explorer.firo.org/tx/0b53178c1b22bae4c04ef943ee6d6d30f2483327fe9beb54952951592e8ce368
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("total", total));
 
     return result;
+}
+
+UniValue getzerocoinpoolbalance(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getzerocoinpoolbalance\n"
+                "\nReturns the total coin amount, which remains after zerocoin pool closed.\n"
+                "\nArguments: none\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"total\"  (string) The total balance\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getzerocoinpoolbalance", "")
+                + HelpExampleRpc("getzerocoinpoolbalance", "")
+        );
+
+    return  getzerocoinpoolbalance();
+}
+
+UniValue getCVE17144amount(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getCVE17144amount\n"
+                "\nReturns the total amount of forged coins during CVE-2018-17144 attacks.\n"
+                "\nArguments: none\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"total\"  (string) The total balance\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getCVE17144amount", "")
+                + HelpExampleRpc("getCVE17144amount", "")
+        );
+    UniValue results(UniValue::VOBJ);
+    results.push_back(Pair("firstWay",getCVE17144amount()));
+    results.push_back(Pair("secondWay",getCVE17144amountNew()));
+    return results;
 }
 
 UniValue getinfoex(const JSONRPCRequest& request)
@@ -1911,7 +2260,8 @@ static const CRPCCommand commands[] =
     /* Not shown in help */
     { "hidden",             "getinfoex",              &getinfoex,              false },
     { "addressindex",       "gettotalsupply",         &gettotalsupply,         false },
-
+    { "addressindex",       "getzerocoinpoolbalance", &getzerocoinpoolbalance, false },
+    { "addressindex",       "getCVE17144amount",      &getCVE17144amount,      false },
         /* Mobile related */
     { "mobile",             "getanonymityset",        &getanonymityset,        false  },
     { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
@@ -1921,6 +2271,8 @@ static const CRPCCommand commands[] =
 
         /* Mobile Spark */
     { "mobile",             "getsparkanonymityset",   &getsparkanonymityset, false },
+    { "mobile",             "getsparkanonymitysetmeta",   &getsparkanonymitysetmeta, false },
+    { "mobile",             "getsparkanonymitysetsector",   &getsparkanonymitysetsector, false },
     { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true  },
     { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
     { "mobile",             "getusedcoinstagstxhashes", &getusedcoinstagstxhashes, false },

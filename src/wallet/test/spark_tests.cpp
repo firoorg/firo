@@ -77,7 +77,7 @@ BOOST_AUTO_TEST_CASE(mint_and_store_spark)
     mintedCoins.push_back(data);
 
     std::vector<CRecipient> vecSend;
-    std::string result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false);
+    std::string result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false, true);
     BOOST_CHECK_EQUAL(result, "");
 
     size_t mintAmount = 0;
@@ -137,7 +137,7 @@ BOOST_AUTO_TEST_CASE(multi_mint_and_store_spark)
     std::vector<CRecipient> vecSend;
     vecSend.push_back(recipient);
 
-    std::string result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false);
+    std::string result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false, true);
     BOOST_CHECK_EQUAL(result, "");
 
     size_t mintAmount = 0;
@@ -183,7 +183,8 @@ BOOST_AUTO_TEST_CASE(mint_subtract_fee)
     mintedCoins.push_back(data);
 
     std::vector<CRecipient> vecSend;
-    std::string result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, true);
+    std::string result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, true, true);
+
     BOOST_CHECK_EQUAL(result, "");
 
     size_t mintAmount = 0;
@@ -244,7 +245,7 @@ BOOST_AUTO_TEST_CASE(multi_mint_subtract_fee)
 
     std::vector<CRecipient> vecSend;
     vecSend.push_back(recipient);
-    std::string result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, true);
+    std::string result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, true, true);
     BOOST_CHECK_EQUAL(result, "");
 
     size_t mintAmount = 0;
@@ -333,10 +334,10 @@ BOOST_AUTO_TEST_CASE(spend)
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
     std::vector<CRecipient> vecSend;
-    std::string result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false);
+    std::string result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false, true);
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee2;
-    pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee2, false);
+    pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee2, false, true);
 
     BOOST_CHECK_EQUAL("", result);
 
@@ -444,7 +445,7 @@ BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
     mintedCoins.push_back(data2);
 
     std::vector<CRecipient> vecSend;
-    auto result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false);
+    auto result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false, true);
     BOOST_CHECK_EQUAL("", result);
     BOOST_CHECK_EQUAL(1, wtxAndFee.size()); //
     BOOST_CHECK_EQUAL(20 * COIN, countMintsInBalance(wtxAndFee));
@@ -474,7 +475,7 @@ BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
     data.memo = "Test memo";
     mintedCoins.push_back(data);
 
-    result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false);
+    result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false, true);
     BOOST_CHECK_EQUAL("", result);
     BOOST_CHECK_EQUAL(10 * COIN, countMintsInBalance(wtxAndFee));
 
@@ -502,7 +503,7 @@ BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
     mintedCoins.clear();
     mintedCoins.push_back(data);
 
-    result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false);
+    result = pwalletMain->MintAndStoreSpark(vecSend, mintedCoins, wtxAndFee, false, true);
     BOOST_CHECK_EQUAL("", result);
     BOOST_CHECK_GT(wtxAndFee.size(), 1);
     BOOST_CHECK_EQUAL(600 * COIN, countMintsInBalance(wtxAndFee));
@@ -513,7 +514,7 @@ BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
     auto balance = getAvailableCoinsForMintBalance();
     BOOST_CHECK_GT(balance, 0);
 
-    result = pwalletMain->MintAndStoreSpark({}, {}, wtxAndFee, false, true);
+    result = pwalletMain->MintAndStoreSpark({}, {}, wtxAndFee, false, true, true);
     BOOST_CHECK_EQUAL("", result);
     BOOST_CHECK_GT(balance, countMintsInBalance(wtxAndFee));
     BOOST_CHECK_EQUAL(balance, countMintsInBalance(wtxAndFee, true));
@@ -527,7 +528,7 @@ BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
     balance = getAvailableCoinsForMintBalance();
     BOOST_CHECK_GT(balance, 0);
 
-    result = pwalletMain->MintAndStoreSpark({}, {}, wtxAndFee, false, true);
+    result = pwalletMain->MintAndStoreSpark({}, {}, wtxAndFee, false, true, true);
     BOOST_CHECK_EQUAL("", result);
     BOOST_CHECK_GT(balance, countMintsInBalance(wtxAndFee));
     BOOST_CHECK_EQUAL(balance, countMintsInBalance(wtxAndFee, true));

@@ -1048,6 +1048,7 @@ public:
         int& nChangePosInOut,
         bool subtractFeeFromAmount,
         std::string& strFailReason,
+        bool fSplit,
         const CCoinControl *coinControl,
         bool autoMintAll = false);
 
@@ -1095,6 +1096,7 @@ public:
             const std::vector<spark::MintedCoinData>& outputs,
             std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
             bool subtractFeeFromAmount,
+            bool fSplit,
             bool autoMintAll = false,
             bool fAskFee = false,
             const CCoinControl *coinControl = NULL);

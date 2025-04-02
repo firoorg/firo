@@ -370,7 +370,7 @@ std::vector<CSparkMintMeta> SparkTestingSetup::GenerateMints(
         data.address = address;
         outputs.push_back(data);
 
-        auto result = pwalletMain->MintAndStoreSpark(vecSend, outputs, wtxAndFee, false);
+        auto result = pwalletMain->MintAndStoreSpark(vecSend, outputs, wtxAndFee, false, true);
 
         if (result != "") {
             throw std::runtime_error(_("Fail to generate mints, ") + result);
