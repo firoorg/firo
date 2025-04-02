@@ -6,6 +6,8 @@
 #define BITCOIN_WALLET_COINCONTROL_H
 
 #include "primitives/transaction.h"
+#include "script/standard.h"
+#include <optional>
 #include "base58.h"
 
 enum class CoinType
@@ -17,7 +19,8 @@ enum class CoinType
     ONLY_1000 = 5, // find znode outputs including locked ones (use with caution)
     ONLY_PRIVATESEND_COLLATERAL = 6,
     ONLY_MINTS = 7,
-    WITH_MINTS = 8
+    WITH_MINTS = 8,
+    WITH_1000 = 9
 };
 
 /** Coin Control Features. */
@@ -37,12 +40,18 @@ public:
     CAmount nMinimumTotalFee;
     //! Override estimated feerate
     bool fOverrideFeeRate;
+    // Allow inputs from ourself that haven't been confirmed yet.
+    std::optional<bool> fAllowUnconfirmed;
     //! Feerate to use if overrideFeeRate is true
     CFeeRate nFeeRate;
     //! Override the default confirmation target, 0 = use default
     int nConfirmTarget;
     //! Controls which types of coins are allowed to be used (default: ALL_COINS)
     CoinType nCoinType;
+    //! No more than this number of inputs may be used.
+    size_t nMaxInputs;
+    // The generated transaction may not be over this size.
+    size_t nMaxSize;
 
     CCoinControl()
     {
@@ -62,6 +71,8 @@ public:
         fOverrideFeeRate = false;
         nConfirmTarget = 0;
         nCoinType = CoinType::ALL_COINS;
+        nMaxInputs = 0;
+        nMaxSize = 0;
     }
 
     bool HasSelected() const
@@ -92,6 +103,11 @@ public:
     void ListSelected(std::vector<COutPoint>& vOutpoints) const
     {
         vOutpoints.assign(setSelected.begin(), setSelected.end());
+    }
+
+    size_t GetSelectedSize() const
+    {
+        return setSelected.size();
     }
 
 private:
