@@ -10,6 +10,7 @@
 #include "../libspark/mint_transaction.h"
 #include "../libspark/spend_transaction.h"
 #include "primitives.h"
+#include "sparkname.h"
 
 namespace spark_mintspend { class spark_mintspend_test; }
 
@@ -27,6 +28,9 @@ public:
     // linking tag for every spend (map from lTag to coin group id)
     std::unordered_map<GroupElement, int> spentLTags;
     std::unordered_map<uint256, uint256> ltagTxhash;
+
+    // spark names
+    std::map<std::string, CSparkNameTxData> sparkNames;
 
     // information about transactions in the block is complete
     bool fInfoIsComplete;

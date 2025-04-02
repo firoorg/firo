@@ -264,7 +264,12 @@ struct Params {
 
     int nSparkStartBlock;
 
+    int nSparkNamesStartBlock;
+    std::array<int,21> nSparkNamesFee;
+
     int nLelantusGracefulPeriod;
+
+    int nSigmaEndBlock;
 
     // Lelantus Blacklist
     std::unordered_set<secp_primitives::GroupElement> lelantusBlacklist;
