@@ -1399,7 +1399,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vecto
             address.decode(rcp.address.toStdString());
             spark::MintedCoinData data;
             data.address = address;
-            data.memo = "";
+            data.memo = rcp.message.toStdString();
             data.v = rcp.amount;
             outputs.push_back(data);
             total += rcp.amount;
@@ -1422,7 +1422,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vecto
         int nChangePosRet = -1;
 
         std::string strFailReason;
-        bool fCreated = wallet->CreateSparkMintTransactions(outputs, wtxAndFees, nFeeRequired, reservekeys, nChangePosRet, fSubtractFeeFromAmount, strFailReason, coinControl, false);
+        bool fCreated = wallet->CreateSparkMintTransactions(outputs, wtxAndFees, nFeeRequired, reservekeys, nChangePosRet, fSubtractFeeFromAmount, strFailReason, optionsModel->getfSplit(), coinControl, false);
         transactions.clear();
         transactions.reserve(wtxAndFees.size());
         for (auto &wtxAndFee : wtxAndFees) {
@@ -1496,7 +1496,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(WalletMod
                 address.decode(rcp.address.toStdString());
                 spark::OutputCoinData data;
                 data.address = address;
-                data.memo = "";
+                data.memo = rcp.message.toStdString();
                 data.v = rcp.amount;
                 privateRecipients.push_back(std::make_pair(data, rcp.fSubtractFeeFromAmount));
             } else {

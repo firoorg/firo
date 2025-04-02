@@ -190,6 +190,7 @@ struct CRecipient
     CAmount nAmount;
     bool fSubtractFeeFromAmount;
     std::string address;
+    std::string memo;
 };
 
 typedef std::map<std::string, std::string> mapValue_t;
@@ -1046,6 +1047,7 @@ public:
         int& nChangePosInOut,
         bool subtractFeeFromAmount,
         std::string& strFailReason,
+        bool fSplit,
         const CCoinControl *coinControl,
         bool autoMintAll = false);
 
@@ -1092,6 +1094,7 @@ public:
             const std::vector<spark::MintedCoinData>& outputs,
             std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
             bool subtractFeeFromAmount,
+            bool fSplit,
             bool autoMintAll = false,
             bool fAskFee = false,
             const CCoinControl *coinControl = NULL);

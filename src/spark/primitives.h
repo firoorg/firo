@@ -87,6 +87,7 @@ class CSparkOutputTx
 {
 public:
     std::string address;
+    std::string memo;
     int64_t amount;
 
     CSparkOutputTx()
@@ -97,6 +98,7 @@ public:
     void SetNull()
     {
         address = "";
+        memo = "";
         amount = 0;
     }
 
@@ -105,6 +107,15 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(address);
         READWRITE(amount);
+        if (ser_action.ForRead()) {
+            if (!s.empty()) {
+                READWRITE(memo);
+            } else {
+                memo = "";
+            }
+        } else {
+            READWRITE(memo);
+        }
     }
 };
 

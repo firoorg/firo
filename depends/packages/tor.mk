@@ -1,8 +1,8 @@
 PACKAGE=tor
-$(package)_version=0.4.7.7
+$(package)_version=0.4.8.9
 $(package)_download_path=https://archive.torproject.org/tor-package-archive
 $(package)_file_name=$(package)-$($(package)_version).tar.gz
-$(package)_sha256_hash=3e131158b52b9435d7e43d1c47ef288b96d005342cc44b8c950bb403851a5b44
+$(package)_sha256_hash=59bb7d8890f6131b4ce5344f3dcea5deb2182b7f4f10ff0cb4e4d81f11b2cf65
 $(package)_dependencies=zlib openssl libevent
 $(package)_patches = configure.patch
 $(package)_lib_files = \
