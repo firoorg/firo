@@ -30,7 +30,7 @@ MintTransaction::MintTransaction(
             k.randomize();
             this->coins.emplace_back(Coin(
                 this->params,
-                COIN_TYPE_MINT,
+                output.type,
                 k,
                 output.address,
                 output.v,
