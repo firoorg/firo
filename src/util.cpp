@@ -96,13 +96,6 @@
 // /usr/include/boost/program_options/detail/config_file.hpp:163:17: error: call to function 'to_internal' that is neither visible in the template definition nor found by argument-dependent lookup
 // See also: http://stackoverflow.com/questions/10020179/compilation-fail-in-boost-librairies-program-options
 //           http://clang.debian.net/status.php?version=3.0&key=CANNOT_FIND_FUNCTION
-namespace boost {
-
-    namespace program_options {
-        std::string to_internal(const std::string&);
-    }
-
-} // namespace boost
 
 // znode fZnode
 bool fMasternodeMode = false;
@@ -920,7 +913,7 @@ void RenameThreadPool(ctpl::thread_pool& tp, const char* baseName)
 {
     auto cond = std::make_shared<std::condition_variable>();
     auto mutex = std::make_shared<std::mutex>();
-    std::atomic<int> doneCnt(0);
+    std::atomic<std::size_t> doneCnt(0);
     std::map<int, std::future<void> > futures;
 
     for (int i = 0; i < tp.size(); i++) {
@@ -938,7 +931,7 @@ void RenameThreadPool(ctpl::thread_pool& tp, const char* baseName)
         // `doneCnt` should be at least `futures.size()` if tp size was increased (for whatever reason),
         // or at least `tp.size()` if tp size was decreased and queue was cleared
         // (which can happen on `stop()` if we were not fast enough to get all jobs to their threads).
-    } while (doneCnt < futures.size() && doneCnt < tp.size());
+    } while (doneCnt < futures.size() && static_cast<int>(doneCnt) < tp.size());
 
     cond->notify_all();
 

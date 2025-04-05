@@ -3018,7 +3018,7 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
 
             vDMints.push_back(dMint);
 
-            return {scriptSerializedCoin, v, false};
+            return {scriptSerializedCoin, v, false, {}, {}};
         }
     );
 
@@ -3082,7 +3082,7 @@ CRecipient CWallet::CreateLelantusMintRecipient(
         script.insert(script.end(), serializedHash.begin(), serializedHash.end());
 
         // overall Lelantus mint script size is 1 + 34 + 98 + 32 = 165 byte
-        return {script, CAmount(coin.getV()), false};
+        return {script, CAmount(coin.getV()), false, {}, {}};
     }
 }
 
@@ -3532,12 +3532,13 @@ bool CWallet::GetCoinsToSpend(
             throw std::invalid_argument(
                 _("Can not choose coins within limit."));
     }
-
-    if (SelectMintCoinsForAmount(best_spend_val - roundedRequired * zeros, denominations, coinsToMint_out) != best_spend_val - roundedRequired * zeros) {
+    auto select_mint_coins_amount = SelectMintCoinsForAmount(best_spend_val - roundedRequired * zeros, denominations, coinsToMint_out);
+    if (select_mint_coins_amount < 0 || static_cast<uint64_t>(select_mint_coins_amount) != best_spend_val - roundedRequired * zeros) {
         throw std::invalid_argument(
             _("Problem with coin selection for re-mint while spending."));
     }
-    if (SelectSpendCoinsForAmount(best_spend_val, coins, coinsToSpend_out) != best_spend_val) {
+    select_mint_coins_amount = SelectSpendCoinsForAmount(best_spend_val, coins, coinsToSpend_out);
+    if (select_mint_coins_amount < 0 || static_cast<uint64_t>(select_mint_coins_amount) != best_spend_val) {
         throw std::invalid_argument(
             _("Problem with coin selection for spend."));
     }
@@ -4227,7 +4228,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
 bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl, bool fForUseInInstantSend) const
 {
     std::vector<COutput> vCoins(vAvailableCoins);
-    CoinType nCoinType = coinControl ? coinControl->nCoinType : CoinType::ALL_COINS;
+    [[maybe_unused]] CoinType nCoinType = coinControl ? coinControl->nCoinType : CoinType::ALL_COINS;
 
     // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
     if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs)
@@ -4302,7 +4303,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
     for (size_t idx = 0; idx < tx.vout.size(); idx++)
     {
         const CTxOut& txOut = tx.vout[idx];
-        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, setSubtractFeeFromOutputs.count(idx) == 1};
+        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, setSubtractFeeFromOutputs.count(idx) == 1, {}, {}};
         vecSend.push_back(recipient);
     }
 
@@ -4437,7 +4438,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
         {
             std::vector<COutput> vAvailableCoins;
             AvailableCoins(vAvailableCoins, true, coinControl, false, fUseInstantSend);
-            int nInstantSendConfirmationsRequired = Params().GetConsensus().nInstantSendConfirmationsRequired;
+            [[maybe_unused]] int nInstantSendConfirmationsRequired = Params().GetConsensus().nInstantSendConfirmationsRequired;
 
             nFeeRet = 0;
             if(nFeePay > 0) nFeeRet = nFeePay;
@@ -4797,14 +4798,16 @@ bool CWallet::EraseFromWallet(uint256 hash) {
 }
 
 /**
- * @brief CWallet::CreateMintTransaction
- * @param vecSend
- * @param wtxNew
- * @param reservekey
- * @param nFeeRet
- * @param strFailReason
- * @param coinControl
- * @return
+ * @brief CWallet::CreateMintTransaction Create a new mint transaction (coin generation transaction)
+ * @param vecSend         Vector of recipients containing amounts and scripts to send
+ * @param[out] wtxNew     Reference to store the new wallet transaction
+ * @param reservekey      Key reserve used for change address generation
+ * @param[out] nFeeRet    Reference to store the calculated transaction fee
+ * @param[in,out] nChangePosInOut Requested/calculated position of change output (-1 for random)
+ * @param[out] strFailReason Reference to store failure description if unsuccessful
+ * @param coinControl     Optional coin selection control parameters
+ * @param sign            Whether to sign the transaction immediately
+ * @return true if transaction creation succeeded, false otherwise
  */
 bool CWallet::CreateMintTransaction(const std::vector <CRecipient> &vecSend, CWalletTx &wtxNew,
                                             CReserveKey &reservekey,
@@ -5357,7 +5360,8 @@ bool CWallet::CreateLelantusMintTransactions(
                     if (nFeeRet >= nFeeNeeded) {
                         for (auto &usedCoin : setCoins) {
                             for (auto coin = itr->second.begin(); coin != itr->second.end(); coin++) {
-                                if (usedCoin.first == coin->tx && usedCoin.second == coin->i) {
+                                if (usedCoin.first == coin->tx && 
+                                    (coin->i >= 0 && usedCoin.second == static_cast<unsigned int>(coin->i))) {
                                     itr->first -= coin->tx->tx->vout[coin->i].nValue;
                                     itr->second.erase(coin);
                                     break;
@@ -5486,7 +5490,7 @@ CWallet::CreateMintTransaction(CScript pubCoin, int64_t nValue, CWalletTx &wtxNe
                                        int64_t &nFeeRet, std::string &strFailReason,
                                        const CCoinControl *coinControl) {
     std::vector <CRecipient> vecSend;
-    CRecipient recipient = {pubCoin, nValue, false};
+    CRecipient recipient = {pubCoin, nValue, false, {}, {}};
     vecSend.push_back(recipient);
     int nChangePosRet = -1;
     return CreateMintTransaction(vecSend, wtxNew, reservekey, nFeeRet, nChangePosRet, strFailReason,
@@ -5679,7 +5683,8 @@ std::string CWallet::MintAndStoreSpark(
     for (auto& output : outputs)
         value += output.v;
 
-    if ((value + payTxFee.GetFeePerK()) > GetBalance())
+    const CAmount balance = GetBalance();
+    if (balance < 0 || (value + payTxFee.GetFeePerK()) > static_cast<uint64_t>(balance))
         return _("Insufficient funds");
 
     LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
@@ -5925,7 +5930,7 @@ bool CWallet::LelantusToSpark(std::string& strFailReason) {
     }
 
     while (coins.size() > 0 || sigmaCoins.size() > 0) {
-        bool addMoreCoins = true;
+        [[maybe_unused]] bool addMoreCoins = true;
         std::size_t selectedNum = 0;
         CCoinControl coinControl;
         CAmount spendValue = 0;
@@ -5954,7 +5959,7 @@ bool CWallet::LelantusToSpark(std::string& strFailReason) {
              if (selectedNum == Params().GetConsensus().nMaxLelantusInputPerTransaction)
                  break;
         }
-        CRecipient recipient = {scriptChange, spendValue, true};
+        CRecipient recipient = {scriptChange, spendValue, true, {}, {}};
 
         CWalletTx result;
         JoinSplitLelantus({recipient}, {}, result, &coinControl);
@@ -7620,7 +7625,7 @@ CWalletTx CWallet::PrepareAndSendNotificationTx(bip47::CPaymentCode const & thei
 
     recipients.emplace_back(receiver);
     CScript opReturnScript = CScript() << OP_RETURN << std::vector<unsigned char>(80); // Passing empty array to calc fees
-    recipients.push_back({opReturnScript, 0, false});
+    recipients.push_back({opReturnScript, 0, false, {}, {}});
 
     auto throwSigma =
         [](){throw std::runtime_error(std::string("There are unspent Sigma coins in your wallet. Using Sigma coins for BIP47 is not supported. Please spend your Sigma coins before establishing a BIP47 channel."));};
@@ -8281,7 +8286,7 @@ bool CWallet::DelAddressBook(const std::string& address)
         LOCK(cs_wallet); // mapAddressBook
         const spark::Params* params = spark::Params::get_default();
         unsigned char network = spark::GetNetworkType();
-        unsigned char coinNetwork;
+        unsigned char coinNetwork = {};
         spark::Address addr(params);
 
         try {

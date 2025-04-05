@@ -29,8 +29,8 @@ public Q_SLOTS:
     bool close();
 
 private Q_SLOTS:
-    void accept();
-    void reject();
+    void accept() override;
+    void reject() override;
 
 private:
     Ui::AutomintNotification *ui;
@@ -55,8 +55,8 @@ public Q_SLOTS:
     bool close();
 
 private Q_SLOTS:
-    void accept();
-    void reject();
+    void accept() override;
+    void reject() override;
 
 private:
     Ui::AutomintNotification *ui;

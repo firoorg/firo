@@ -380,7 +380,7 @@ public:
     void Sign(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash);
     void ForceReAnnouncement(const CQuorumCPtr& quorum, Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash);
 
-    void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig);
+    void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override;
 
 private:
     // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages)

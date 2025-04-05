@@ -84,6 +84,7 @@ QVariant RecentRequestsTableModel::data(const QModelIndex &index, int role) cons
             {
                 return tr("spark");
             }
+            [[fallthrough]];
         case Message:
             if(rec->recipient.message.isEmpty() && role == Qt::DisplayRole)
             {

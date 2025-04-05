@@ -426,7 +426,7 @@ std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsUntilB
         }
 
         uint32_t nMinedHeight = std::numeric_limits<uint32_t>::max() - be32toh(std::get<2>(curKey));
-        if (nMinedHeight > pindex->nHeight) {
+        if (pindex->nHeight < 0 || nMinedHeight > static_cast<uint32_t>(pindex->nHeight)) {
             break;
         }
 

@@ -162,7 +162,7 @@ bool AppInit(int argc, char* argv[])
         }
         if (GetBoolArg("-daemon", false))
         {
-#if HAVE_DECL_DAEMON
+#if defined(HAVE_DECL_DAEMON)
             fprintf(stdout, "Firo server starting\n");
 
             // Daemonize

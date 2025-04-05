@@ -52,7 +52,8 @@ bool LelantusVerifier::verify(
     }
 
     // max possible number of output coins is 8,
-    if (Cout.size() > (params->get_bulletproofs_max_m() / 2)) {
+    const int half_bulletproofs_max_m = params->get_bulletproofs_max_m() / 2;
+    if (half_bulletproofs_max_m < 0 || Cout.size() > static_cast<std::size_t>(half_bulletproofs_max_m)) {
         LogPrintf("Number of output coins are more than allowed.");
         return false;
     }

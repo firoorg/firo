@@ -143,7 +143,7 @@ private:
     bool CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash, CAmount* retValue, const Consensus::Params& params);
     bool IsConflicted(const CTransaction& tx);
     
-    virtual void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig);
+    virtual void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override;
     void HandleNewInputLockRecoveredSig(const CRecoveredSig& recoveredSig, const uint256& txid);
     void HandleNewInstantSendLockRecoveredSig(const CRecoveredSig& recoveredSig);
 

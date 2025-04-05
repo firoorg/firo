@@ -306,8 +306,8 @@ int CommandLineRPC(int argc, char *argv[])
                 const UniValue reply = CallRPC(strMethod, params);
 
                 // Parse reply
-                const UniValue& result = find_value(reply, "result");
-                const UniValue& error  = find_value(reply, "error");
+                const UniValue result = find_value(reply, "result");
+                const UniValue error  = find_value(reply, "error");
 
                 if (!error.isNull()) {
                     // Error

@@ -31,13 +31,13 @@ public:
 
     std::vector<bip47::CPaymentCodeDescription> const & getItems() const;
 
-    int rowCount(const QModelIndex &parent) const;
-    int columnCount(const QModelIndex &parent) const;
-    QVariant data(const QModelIndex &index, int role) const;
-    bool setData(const QModelIndex &index, const QVariant &value, int role);
-    QVariant headerData(int section, Qt::Orientation orientation, int role) const;
-    QModelIndex index(int row, int column, const QModelIndex &parent) const;
-    Qt::ItemFlags flags(const QModelIndex &index) const;
+    int rowCount(const QModelIndex &parent) const override;
+    int columnCount(const QModelIndex &parent) const override;
+    QVariant data(const QModelIndex &index, int role) const override;
+    bool setData(const QModelIndex &index, const QVariant &value, int role) override;
+    QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
+    QModelIndex index(int row, int column, const QModelIndex &parent) const override;
+    Qt::ItemFlags flags(const QModelIndex &index) const override;
 
     uint256 sendNotificationTx(bip47::CPaymentCode const & paymentCode);
     bool getNotificationTxid(bip47::CPaymentCode const & paymentCode, uint256 & txid);
@@ -50,7 +50,7 @@ public:
     bool hasSendingPcodes() const;
 
 public Q_SLOTS:
-    void sort(int column, Qt::SortOrder order);
+    void sort(int column, Qt::SortOrder order) override;
     void DisplayCreatedPcode(bip47::CPaymentCodeDescription const & pcodeDescr);
 
 private:
