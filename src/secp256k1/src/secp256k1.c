@@ -4,6 +4,8 @@
  * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
  **********************************************************************/
 
+#define SECP256K1_BUILD
+
 #include "include/secp256k1.h"
 
 #include "util.h"
@@ -550,10 +552,6 @@ int secp256k1_ec_pubkey_combine(const secp256k1_context* ctx, secp256k1_pubkey *
 
 #ifdef ENABLE_MODULE_ECDH
 # include "modules/ecdh/main_impl.h"
-#endif
-
-#ifdef ENABLE_MODULE_SCHNORR
-# include "modules/schnorr/main_impl.h"
 #endif
 
 #ifdef ENABLE_MODULE_RECOVERY

@@ -6,7 +6,7 @@ $(package)_sha256_hash=8f7032f2c1c64352b5423f6b48a8ebdc339cc63064af34d66a6c9aa79
 $(package)_dependencies=xtrans xproto
 
 define $(package)_set_vars
-  $(package)_config_opts=--disable-static --disable-docs --disable-specs --without-xsltproc
+  $(package)_config_opts=--disable-docs --disable-specs --without-xsltproc
   $(package)_config_opts_linux=--with-pic
 endef
 
