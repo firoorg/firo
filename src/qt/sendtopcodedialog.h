@@ -80,7 +80,7 @@ private Q_SLOTS:
     void on_useButton_clicked();
     void on_cancelButton_clicked();
     void on_helpButton_clicked();
-    void showEvent(QShowEvent* event);
+    void showEvent(QShowEvent* event) override;
     void onTransactionChanged(uint256 txHash);
     void onWindowShown();
     void onBalanceChanged(CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &, CAmount const &);

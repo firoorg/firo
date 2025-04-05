@@ -728,7 +728,7 @@ QVariant PcodeAddressTableModel::data(const QModelIndex &index, int role) const
     if(!index.isValid())
         return QVariant();
 
-    int const row = index.row();
+    std::size_t const row = static_cast<std::size_t>(index.row());
     if(row >= pcodeData.size())
         return QVariant();
 
@@ -758,7 +758,7 @@ bool PcodeAddressTableModel::setData(const QModelIndex &index, const QVariant &v
 {
     if(!index.isValid())
         return false;
-    int const row = index.row();
+    std::size_t const row = static_cast<std::size_t>(index.row());
     if(row >= pcodeData.size())
         return false;
 
@@ -812,7 +812,7 @@ QVariant PcodeAddressTableModel::headerData(int section, Qt::Orientation orienta
 
 bool PcodeAddressTableModel::removeRows(int row, int count, const QModelIndex &)
 {
-    if(count != 1 || row >= pcodeData.size())
+    if(count != 1 || (row >= 0 && static_cast<std::size_t>(row) >= pcodeData.size()))
         return false;
 
     wallet->LabelSendingPcode(pcodeData[row].first, "", true);

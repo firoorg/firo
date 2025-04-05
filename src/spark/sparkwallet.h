@@ -12,7 +12,7 @@
 #include "../wallet/walletdb.h"
 #include "../sync.h"
 
-class CRecipient;
+struct CRecipient;
 class CReserveKey;
 class CCoinControl;
 extern CChain chainActive;

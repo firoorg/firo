@@ -278,6 +278,6 @@ static inline bool json_isspace(int ch)
 
 extern const UniValue NullUniValue;
 
-const UniValue& find_value( const UniValue& obj, const std::string& name);
+const UniValue& find_value(const UniValue& obj, const std::string& name);
 
 #endif // __UNIVALUE_H__

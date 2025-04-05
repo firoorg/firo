@@ -84,6 +84,7 @@ QVariant RecentRequestsTableModel::data(const QModelIndex &index, int role) cons
             {
                 return tr("spark");
             }
+            [[fallthrough]];
         case Message:
             if(rec->recipient.message.isEmpty() && role == Qt::DisplayRole)
             {
@@ -137,7 +138,7 @@ void RecentRequestsTableModel::updateAmountColumnTitle()
 /** Gets title for amount column including current display unit if optionsModel reference available. */
 QString RecentRequestsTableModel::getAmountTitle()
 {
-    return (this->walletModel->getOptionsModel() != NULL) ? tr("Requested") + " ("+BitcoinUnits::name(this->walletModel->getOptionsModel()->getDisplayUnit()) + ")" : "";
+    return (this->walletModel->getOptionsModel() != NULL) ? tr("Requested") + " ("+BitcoinUnits::name(this->walletModel->getOptionsModel()->getDisplayUnit()) + ")" : QString("");
 }
 
 QModelIndex RecentRequestsTableModel::index(int row, int column, const QModelIndex &parent) const

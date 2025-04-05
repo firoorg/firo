@@ -18,7 +18,7 @@ KDF::KDF(const std::string label, std::size_t derived_key_size) {
 	EVP_DigestUpdate(this->ctx, label_bytes.data(), label_bytes.size());
 
 	// Embed and set the derived key size
-	if (derived_key_size > EVP_MD_size(EVP_sha512())) {
+	if (EVP_MD_size(EVP_sha512()) < 0 || derived_key_size > static_cast<std::size_t>(EVP_MD_size(EVP_sha512()))) {
 		throw std::invalid_argument("Requested KDF size is too large");
 	}
 	include_size(derived_key_size);

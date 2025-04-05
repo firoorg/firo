@@ -108,7 +108,7 @@ void Transcript::add(const std::string label, const std::vector<std::vector<unsi
 // Produce a challenge
 Scalar Transcript::challenge(const std::string label) {
     // Ensure we can properly populate a scalar
-    if (EVP_MD_size(EVP_sha512()) < SCALAR_ENCODING) {
+    if (EVP_MD_size(EVP_sha512()) < 0 || static_cast<std::size_t>(EVP_MD_size(EVP_sha512())) < SCALAR_ENCODING) {
         throw std::runtime_error("Bad hash size!");
     }
 

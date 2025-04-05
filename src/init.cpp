@@ -1098,7 +1098,7 @@ bool AppInitBasicSetup()
     _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
     _CrtSetReportFile(_CRT_WARN, CreateFileA("NUL", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, 0));
 #endif
-#if _MSC_VER >= 1400
+#if defined(_MSC_VER) && _MSC_VER  >= 1400
     // Disable confusing "helpful" text message on abort, Ctrl-C
     _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
 #endif
@@ -1483,7 +1483,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             return InitError(_("Unable to start HTTP server. See debug log for details."));
     }
 
-    int64_t nStart;
+    int64_t nStart = 0;
 
     // ********************************************************* Step 5: verify wallet database integrity
 #ifdef ENABLE_WALLET

@@ -173,7 +173,7 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
     const spark::Params* params = spark::Params::get_default();
     spark::SpendTransaction spendTransaction(params);
     serialized >> spendTransaction;
-    return std::move(spendTransaction);
+    return spendTransaction;
 }
 
 
@@ -280,7 +280,7 @@ bool ConnectBlockSpark(
             return true;
         }
 
-        const auto& params = ::Params().GetConsensus();
+        [[maybe_unused]] const auto& params = ::Params().GetConsensus();
         CHash256 hash;
         bool updateHash = false;
 
@@ -385,7 +385,8 @@ bool CheckSparkBlock(CValidationState &state, const CBlock& block) {
         blockSpendsValue += txSpendsValue;
     }
 
-    if (blockSpendsValue > consensus.nMaxValueSparkSpendPerBlock) {
+    if (consensus.nMaxValueSparkSpendPerBlock > 0 && 
+        blockSpendsValue > static_cast<size_t>(consensus.nMaxValueSparkSpendPerBlock)) {
         return state.DoS(100, false, REJECT_INVALID,
                          "bad-txns-spark-spend-invalid");
     }
@@ -437,7 +438,7 @@ bool CheckSparkMintTransaction(
 
     for (size_t i = 0; i < coins.size(); i++) {
         auto& coin = coins[i];
-        if (coin.v != txOuts[i].nValue)
+        if (txOuts[i].nValue > 0 && coin.v != static_cast<unsigned long>(txOuts[i].nValue))
             return state.DoS(100,
                              false,
                              PUBCOIN_NOT_VALIDATE,
@@ -867,7 +868,7 @@ std::vector<unsigned char> getSerialContext(const CTransaction &tx) {
     return serial_context;
 }
 
-static bool CheckSparkSpendTAg(
+[[maybe_unused]] static bool CheckSparkSpendTAg(
         CValidationState& state,
         CSparkTxInfo* sparkTxInfo,
         const GroupElement& tag,
@@ -1107,7 +1108,7 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
         if (nMintsToForget == 0)
             continue;
 
-        assert(coinGroup.nCoins >= nMintsToForget);
+        assert(coinGroup.nCoins > 0 && static_cast<unsigned long>(coinGroup.nCoins) >= nMintsToForget);
         auto isExtended = coins.first > 1;
         coinGroup.nCoins -= nMintsToForget;
 
@@ -1210,7 +1211,7 @@ void CSparkState::GetCoinSet(
     uint256 blockHash;
     std::vector<unsigned char> setHash;
     {
-        const auto &params = ::Params().GetConsensus();
+        [[maybe_unused]] const auto &params = ::Params().GetConsensus();
         LOCK(cs_main);
         maxHeight = chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1);
     }
@@ -1375,7 +1376,7 @@ void CSparkState::GetCoinsForRecovery(
         std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins) {
     coins.clear();
     if (coinGroups.count(coinGroupID) == 0) {
-        throw std::runtime_error(std::string("There is no anonymity set with this id: " + coinGroupID));
+        throw std::runtime_error(std::string("There is no anonymity set with this id: " + std::to_string(coinGroupID)));
     }
     SparkCoinGroupInfo &coinGroup = coinGroups[coinGroupID];
     CBlockIndex *index = coinGroup.lastBlock;
@@ -1403,11 +1404,11 @@ void CSparkState::GetCoinsForRecovery(
         if (id) {
             if (block->sparkMintedCoins.count(id) > 0) {
                 for (const auto &coin : block->sparkMintedCoins[id]) {
-                    if (counter < startIndex) {
+                    if (startIndex > 0 && counter < static_cast<size_t>(startIndex)) {
                         ++counter;
                         continue;
                     }
-                    if (counter >= endIndex) {
+                    if (endIndex > 0 && counter >= static_cast<size_t>(endIndex)) {
                         break;
                     }
                     std::pair<uint256, std::vector<unsigned char>> txHashContext;
@@ -1418,7 +1419,7 @@ void CSparkState::GetCoinsForRecovery(
                 }
             }
         }
-        if (block == coinGroup.firstBlock || counter >= endIndex) {
+        if (block == coinGroup.firstBlock || (endIndex < 0 || counter >= static_cast<std::size_t>(endIndex))) {
             break ;
         }
     }

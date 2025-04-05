@@ -85,7 +85,6 @@
 # error "Firo cannot be compiled without assertions."
 #endif
 
-bool AbortNode(const std::string& strMessage, const std::string& userMessage="");
 bool AbortNode(CValidationState &state, const std::string& strMessage, const std::string& userMessage="");
 
 /**
@@ -2750,12 +2749,12 @@ private:
 public:
     WarningBitsConditionChecker(int bitIn) : bit(bitIn) {}
 
-    int64_t BeginTime(const Consensus::Params& params) const { return 0; }
-    int64_t EndTime(const Consensus::Params& params) const { return std::numeric_limits<int64_t>::max(); }
-    int Period(const Consensus::Params& params) const { return params.nMinerConfirmationWindow; }
-    int Threshold(const Consensus::Params& params) const { return params.nRuleChangeActivationThreshold; }
+    int64_t BeginTime(const Consensus::Params& params) const override { return 0; }
+    int64_t EndTime(const Consensus::Params& params) const override { return std::numeric_limits<int64_t>::max(); }
+    int Period(const Consensus::Params& params) const override { return params.nMinerConfirmationWindow; }
+    int Threshold(const Consensus::Params& params) const override { return params.nRuleChangeActivationThreshold; }
 
-    bool Condition(const CBlockIndex* pindex, const Consensus::Params& params) const
+    bool Condition(const CBlockIndex* pindex, const Consensus::Params& params) const override
     {
         return ((pindex->nVersion & VERSIONBITS_TOP_MASK) == VERSIONBITS_TOP_BITS) &&
                ((pindex->nVersion >> bit) & 1) != 0 &&
@@ -3109,6 +3108,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     }
 
     if (!IsBlockPayeeValid(*block.vtx[0], pindex->nHeight, pindex->nTime, blockSubsidy)) {
+        LOCK(cs_main);
         mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
         return state.DoS(0, error("ConnectBlock(EVPZNODES): couldn't find evo znode payments"),
                                 REJECT_INVALID, "bad-cb-payee");
@@ -4796,13 +4796,15 @@ bool IsTransactionInChain(const uint256& txId, int& nHeightTx)
 
 bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
 {
-    const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
+    const uint32_t nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
 
     // once ProgPow always ProgPow
     if (pindexPrev && pindexPrev->nTime >= consensusParams.nPPSwitchTime && block.nTime < consensusParams.nPPSwitchTime)
         return state.Invalid(false, REJECT_INVALID, "bad-blk-progpow-state", "Cannot go back from ProgPOW");
 
-    if (pindexPrev && pindexPrev->nTime >= consensusParams.stage3StartTime && block.nTime < consensusParams.stage3StartTime)
+    if (pindexPrev && 
+        (consensusParams.stage3StartTime < 0 || pindexPrev->nTime >= static_cast<uint32_t>(consensusParams.stage3StartTime)) && 
+        (consensusParams.stage3StartTime > 0 && block.nTime < static_cast<uint32_t>(consensusParams.stage3StartTime)))
         return state.Invalid(false, REJECT_INVALID, "bad-blk-stage3-state", "Cannot go back to 5 minutes between blocks");
 
     if (block.IsProgPow() && block.nHeight != nHeight)
@@ -4818,7 +4820,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
                               ? pindexPrev->GetMedianTimePast()
                               : block.GetBlockTime();
 
-    bool fDIP0003Active_context = nHeight >= consensusParams.DIP0003Height;
+    bool fDIP0003Active_context = (consensusParams.DIP0003Height < 0 || nHeight >= static_cast<uint32_t>(consensusParams.DIP0003Height));
 
     // Check that all transactions are finalized
     for (const auto& tx : block.vtx) {
@@ -4831,10 +4833,10 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
         }
     }
 
-    if (nHeight >= consensusParams.nSubsidyHalvingFirst) {
-        if (block.nTime >= consensusParams.stage3StartTime) {
-            bool fStage3 = nHeight < consensusParams.nSubsidyHalvingSecond;
-            bool fStage4 = nHeight >= consensusParams.stage4StartBlock;
+    if (consensusParams.nSubsidyHalvingFirst < 0 || nHeight >= static_cast<uint32_t>(consensusParams.nSubsidyHalvingFirst)) {
+        if (consensusParams.stage3StartTime < 0 || block.nTime >= static_cast<uint32_t>(consensusParams.stage3StartTime)) {
+            bool fStage3 = consensusParams.nSubsidyHalvingSecond > 0 && nHeight < static_cast<uint32_t>(consensusParams.nSubsidyHalvingSecond);
+            bool fStage4 = consensusParams.stage4StartBlock < 0 || nHeight >= static_cast<uint32_t>(consensusParams.stage4StartBlock);
             CAmount devPayoutValue = 0, communityPayoutValue = 0;
             CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get());
             CScript communityPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3CommunityFundAddress).Get());
