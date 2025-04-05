@@ -104,6 +104,42 @@ add_executable(test_firo
   evo_simplifiedmns_tests.cpp
   progpow_tests.cpp
   bls_tests.cpp
+  ../hdmint/test/hdmint_tests.cpp
+  ../hdmint/test/lelantus_tests.cpp
+  ../liblelantus/test/challenge_generator_tests.cpp
+  ../liblelantus/test/coin_tests.cpp
+  ../liblelantus/test/inner_product_test.cpp
+  ../liblelantus/test/joinsplit_tests.cpp
+  ../liblelantus/test/lelantus_primitives_tests.cpp
+  ../liblelantus/test/lelantus_test.cpp
+  ../liblelantus/test/lelantus_test_fixture.cpp
+  ../liblelantus/test/lelantus_test_fixture.h
+  ../liblelantus/test/range_proof_test.cpp
+  ../liblelantus/test/schnorr_test.cpp
+  ../liblelantus/test/serialize_test.cpp
+  ../liblelantus/test/sigma_extended_test.cpp
+  ../libspark/test/transcript_test.cpp
+  ../libspark/test/schnorr_test.cpp
+  ../libspark/test/chaum_test.cpp
+  ../libspark/test/bpplus_test.cpp
+  ../libspark/test/grootle_test.cpp
+  ../libspark/test/aead_test.cpp
+  ../libspark/test/encrypt_test.cpp
+  ../libspark/test/coin_test.cpp
+  ../libspark/test/mint_transaction_test.cpp
+  ../libspark/test/spend_transaction_test.cpp
+  ../libspark/test/f4grumble_test.cpp
+  ../libspark/test/address_test.cpp
+  ../test/spark_tests.cpp
+  ../test/spark_state_test.cpp
+  ../test/spark_mintspend_test.cpp
+  ../sigma/test/coin_spend_tests.cpp
+  ../sigma/test/coin_tests.cpp
+  ../sigma/test/primitives_tests.cpp
+  ../sigma/test/protocol_tests.cpp
+  ../sigma/test/r1_test.cpp
+  ../sigma/test/serialize_test.cpp
+  ../sigma/test/sigma_primitive_types_test.cpp
 )
 
 target_link_libraries(test_firo
