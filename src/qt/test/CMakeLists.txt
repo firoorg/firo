@@ -71,6 +71,7 @@ if(ENABLE_WALLET)
     PRIVATE
       ../../wallet/test/wallet_tests.cpp
       ../../wallet/test/wallet_test_fixture.cpp
+      ../../wallet/test/wallet_test_fixture.h
   )
 endif()
 
