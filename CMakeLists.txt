@@ -106,7 +106,7 @@ include(cmake/utilities.cmake)
 include(CMakeDependentOption)
 # When adding a new option, end the <help_text> with a full stop for consistency.
 option(BUILD_DAEMON "Build ${FIRO_DAEMON_NAME} executable." ON)
-option(BUILD_GUI "Build ${FIRO_GUI_NAME} executable." OFF)
+option(BUILD_GUI "Build ${FIRO_GUI_NAME} executable." ON)
 option(BUILD_CLI "Build ${FIRO_CLI_NAME} executable." ON)
 
 
