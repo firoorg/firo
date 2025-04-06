@@ -130,7 +130,7 @@ sudo pacman -Sy
 sudo pacman -S git base-devel python cmake
 ```
 
-## Build Firo
+## Build Firo with autotools
 
 1.  Download the source:
 
@@ -171,6 +171,87 @@ make check
 ```
 
 If the build succeeded, two binaries will be generated in `/src`: `firod` and `firo-cli`. If you chose to build the GUI, `firo-qt` will be also generated in the `qt` folder.
+
+## Build Firo with CMake
+
+This document provides instructions for building Firo using the new CMake-based build system.
+
+### Prerequisites (macOS Specific)
+Ensure [Homebrew](https://brew.sh/) is installed as per the [macOS build guide](https://github.com/firoorg/firo/blob/master/doc/build-macos.md).
+
+---
+
+### Build Instructions
+
+#### 1. Build Dependencies
+```bash
+cd depends
+make -j$(nproc)
+cd ..
+```
+#### 2. Configure and Build
+
+```bash
+mkdir build && cd build
+cmake .. \
+  -DCMAKE_TOOLCHAIN_FILE=$(pwd)/../depends/x86_64-pc-linux-gnu/toolchain.cmake \
+  -DBUILD_CLI=ON \
+  -DBUILD_GUI=ON \
+  -DBUILD_TESTS=ON
+make -j$(nproc)
+```
+#### 3. Run GUI Client
+
+```
+./bin/firo-qt
+```
+
+### CMake Options Reference
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `BUILD_DAEMON` | Build `firod` executable | `ON` |
+| `BUILD_GUI` | Build `firo-qt` GUI client | `ON` |
+| `BUILD_CLI` | Build `firo-tx` and other command-line tools | `ON` |
+| `ENABLE_WALLET` | Enable wallet functionality | `OFF` |
+| `BUILD_TESTS` | Build test suite (requires `ENABLE_WALLET=OFF`) | `OFF` |
+| `BUILD_TX` | Build `firo-tx` transaction tool | Subset of `BUILD_CLI` |
+| `ENABLE_CRASH_HOOKS` | Enable crash reporting/stack traces | `OFF` |
+| `WITH_ZMQ` | Enable ZeroMQ notifications | `ON` |
+
+### Supported Cross-Compilation Targets
+
+| Host Target              | Platform                  |
+|--------------------------|---------------------------|
+| `x86_64-w64-mingw32`     | Windows 64-bit            |
+| `aarch64-apple-darwin`   | macOS                     |
+| `arm-linux-gnueabihf`    | Linux ARM 32-bit          |
+| `aarch64-linux-gnu`      | Linux ARM 64-bit          |
+
+#### Usage Example:
+```bash
+# Build dependencies for Windows 64-bit
+cd depends
+make HOST=x86_64-w64-mingw32 -j$(nproc)
+cd ..
+```
+### Cross-Compilation 
+To build for other platforms, specify `HOST` variable. 
+```bash
+
+mkdir build && cd build
+cmake .. \
+  -DCMAKE_TOOLCHAIN_FILE=$(pwd)/../depends/x86_64-w64-mingw32/toolchain.cmake \
+  -DBUILD_CLI=ON \
+  -DBUILD_GUI=ON \
+  -DBUILD_TESTS=ON
+make -j$(nproc)
+
+```
+
+### Notes
+ * The toolchain path in `CMAKE_TOOLCHAIN_FILE`must match your target architecture. 
+ * `BUILD_TX` is automatically enabled if `BUILD_CLI=ON` is enabled. 
 
 ## macOS Build Instructions and Notes
 
