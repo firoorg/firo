@@ -213,8 +213,8 @@ make -j$(nproc)
 | `BUILD_DAEMON` | Build `firod` executable | `ON` |
 | `BUILD_GUI` | Build `firo-qt` GUI client | `ON` |
 | `BUILD_CLI` | Build `firo-tx` and other command-line tools | `ON` |
-| `ENABLE_WALLET` | Enable wallet functionality | `OFF` |
-| `BUILD_TESTS` | Build test suite (requires `ENABLE_WALLET=OFF`) | `OFF` |
+| `ENABLE_WALLET` | Enable wallet functionality | `ON` |
+| `BUILD_TESTS` | Build test suite | `OFF` |
 | `BUILD_TX` | Build `firo-tx` transaction tool | Subset of `BUILD_CLI` |
 | `ENABLE_CRASH_HOOKS` | Enable crash reporting/stack traces | `OFF` |
 | `WITH_ZMQ` | Enable ZeroMQ notifications | `ON` |
