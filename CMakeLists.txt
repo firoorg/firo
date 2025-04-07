@@ -113,7 +113,7 @@ option(BUILD_CLI "Build ${FIRO_CLI_NAME} executable." ON)
 option(BUILD_UTIL_CHAINSTATE "Build experimental firo-chainstate executable." OFF)
 option(BUILD_KERNEL_LIB "Build experimental firokernel library." ${BUILD_UTIL_CHAINSTATE})
 
-option(ENABLE_WALLET "Enable wallet." OFF)
+option(ENABLE_WALLET "Enable wallet." ON)
 cmake_dependent_option(BUILD_TESTS "Build tests." OFF "ENABLE_WALLET" OFF)
 option(BUILD_TX "Build ${FIRO_TX_NAME} executable." ${BUILD_CLI})
 option(WITH_BDB "Enable Berkeley DB (BDB) wallet support." OFF)
