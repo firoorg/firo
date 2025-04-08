@@ -4,6 +4,8 @@
  * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
  **********************************************************************/
 
+#define SECP256K1_BUILD
+
 #include "include/secp256k1.h"
 
 #include "util.h"
@@ -19,10 +21,13 @@
 #include "hash_impl.h"
 
 #define ARG_CHECK(cond) do { \
+    DIAG_PUSH; \
+    DIAG_IGNORE_NONNULL; \
     if (EXPECT(!(cond), 0)) { \
         secp256k1_callback_call(&ctx->illegal_callback, #cond); \
         return 0; \
     } \
+    DIAG_POP; \
 } while(0)
 
 static void default_illegal_callback_fn(const char* str, void* data) {
@@ -550,10 +555,6 @@ int secp256k1_ec_pubkey_combine(const secp256k1_context* ctx, secp256k1_pubkey *
 
 #ifdef ENABLE_MODULE_ECDH
 # include "modules/ecdh/main_impl.h"
-#endif
-
-#ifdef ENABLE_MODULE_SCHNORR
-# include "modules/schnorr/main_impl.h"
 #endif
 
 #ifdef ENABLE_MODULE_RECOVERY

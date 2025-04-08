@@ -148,7 +148,7 @@ isminetype IsMine(const CKeyStore &keystore, const CScript& scriptPubKey, bool& 
             return ISMINE_SPENDABLE;
         break;
     }
-    case TX_SPARKMINT: {}
+    case TX_SPARKMINT: { BOOST_FALLTHROUGH; }
     case TX_SPARKSMINT: {}
     }
 

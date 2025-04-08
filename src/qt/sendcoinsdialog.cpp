@@ -21,7 +21,6 @@
 #include "lelantus.h"
 #include "wallet/coincontrol.h"
 #include "validation.h" // mempool and minRelayTxFee
-#include "ui_interface.h"
 #include "txmempool.h"
 #include "wallet/wallet.h"
 #include "sendtopcodedialog.h"
@@ -545,7 +544,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         }
     }
 
-    double txSize;
+    double txSize = 0.0;
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
         for (auto &transaction : transactions) {

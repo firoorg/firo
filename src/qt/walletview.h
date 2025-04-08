@@ -63,7 +63,7 @@ public:
 
     void showOutOfSyncWarning(bool fShow);
 
-    bool eventFilter(QObject *watched, QEvent *event);
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void setupTransactionPage();

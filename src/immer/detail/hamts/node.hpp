@@ -105,7 +105,7 @@ struct node
     constexpr static std::size_t sizeof_inner_n(count_t count)
     {
         return immer_offsetof(impl_t, d.data.inner.buffer) +
-               sizeof(inner_t::buffer) * count;
+               sizeof(aligned_storage_for<node_t*>) * count;
     }
 
 #if IMMER_TAGGED_NODE
@@ -228,12 +228,23 @@ struct node
         auto m = heap::allocate(sizeof_inner_n(n));
         auto p = new (m) node_t;
         assert(p == (node_t*) m);
+
+#if defined (__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
+
 #if IMMER_TAGGED_NODE
         p->impl.d.kind = node_t::kind_t::inner;
 #endif
         p->impl.d.data.inner.nodemap = 0;
         p->impl.d.data.inner.datamap = 0;
         p->impl.d.data.inner.values  = nullptr;
+
+#if defined (__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+        
         return p;
     }
 
@@ -267,8 +278,18 @@ struct node
     static node_t* make_inner_n(count_t n, count_t idx, node_t* child)
     {
         assert(n >= 1);
-        auto p                       = make_inner_n(n);
+        auto p                      = make_inner_n(n);
+
+#if defined (__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
         p->impl.d.data.inner.nodemap = bitmap_t{1u} << idx;
+
+#if defined (__GNUC__)
+#pragma GCC diagnostic pop
+#endif 
+
         p->children()[0]             = child;
         return p;
     }

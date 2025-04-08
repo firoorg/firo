@@ -606,7 +606,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
         bool hasSerial = false;
         BOOST_CHECK_MESSAGE(hasSerial = (info.spentSerials.count(serials[i]) > 0), "No serial as expected");
         if (hasSerial) {
-            BOOST_CHECK_MESSAGE(ids[i] == info.spentSerials[serials[i]], "Serials group id is invalid");
+            BOOST_CHECK_MESSAGE(info.spentSerials[serials[i]] >= 0 && ids[i] == static_cast<uint32_t>(info.spentSerials[serials[i]]), "Serials group id is invalid");
         }
     }
 

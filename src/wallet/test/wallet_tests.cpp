@@ -40,7 +40,7 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
 static const CWallet wallet;
 static vector<COutput> vCoins;
 
-static void add_coin(const CAmount& nValue, int nAge = 6*24, bool fIsFromMe = false, int nInput=0)
+[[maybe_unused]] static void add_coin(const CAmount& nValue, int nAge = 6*24, bool fIsFromMe = false, int nInput=0)
 {
     static int nextLockTime = 0;
     CMutableTransaction tx;
@@ -63,13 +63,13 @@ static void add_coin(const CAmount& nValue, int nAge = 6*24, bool fIsFromMe = fa
     wtxn.emplace_back(std::move(wtx));
 }
 
-static void empty_wallet(void)
+[[maybe_unused]] static void empty_wallet(void)
 {
     vCoins.clear();
     wtxn.clear();
 }
 
-static bool equal_sets(CoinSet a, CoinSet b)
+[[maybe_unused]] static bool equal_sets(CoinSet a, CoinSet b)
 {
     pair<CoinSet::iterator, CoinSet::iterator> ret = mismatch(a.begin(), a.end(), b.begin());
     return ret.first == a.end() && ret.second == b.end();

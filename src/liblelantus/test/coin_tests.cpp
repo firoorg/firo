@@ -3,13 +3,15 @@
 #include "../../version.h"
 #include "../lelantus_primitives.h"
 
+#include "lelantus_test_fixture.h"
+
 #include "streams.h"
 
 #include <boost/test/unit_test.hpp>
 
 namespace lelantus {
 
-BOOST_AUTO_TEST_SUITE(lelantus_coin_tests)
+BOOST_FIXTURE_TEST_SUITE(lelantus_coin_tests, lelantus::LelantusTestingSetup)
 
 BOOST_AUTO_TEST_CASE(privatecoin)
 {

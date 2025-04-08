@@ -33,7 +33,7 @@ Q_SIGNALS:
 
 public Q_SLOTS:
     void clear();
-    void accept();
+    void accept() override;
 
     void setBalance(
         const CAmount& balance,

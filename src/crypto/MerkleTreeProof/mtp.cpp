@@ -27,9 +27,6 @@ using boost::numeric::bad_numeric_cast;
 using boost::numeric::positive_overflow;
 using boost::numeric::negative_overflow;
 
-extern int validate_inputs(const argon2_context *context);
-extern void clear_internal_memory(void *v, size_t n);
-
 namespace mtp
 {
 
@@ -280,8 +277,7 @@ bool mtp_verify(const char* input, const uint32_t target,
     }
 
     // step 7
-    uint256 y[L + 1];
-    std::memset(&y[0], 0, sizeof(y));
+    uint256 y[L + 1] = {};
 
     blake2b_state state_y0;
     blake2b_init(&state_y0, 32); // 256 bit
@@ -521,8 +517,8 @@ bool mtp_hash1(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
             return false;
         }
 
-        std::memset(&y[0], 0, sizeof(y));
-        std::memset(&blocks[0], 0, sizeof(sizeof(block) * L * 2));
+        std::fill(std::begin(y), std::end(y), uint256());
+        std::fill(std::begin(blocks), std::end(blocks), block());
 
         blake2b_state state;
         blake2b_init(&state, 32); // 256 bit

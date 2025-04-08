@@ -21,8 +21,8 @@ namespace llmq
 class CDKGDebugMemberStatus
 {
 public:
-    union {
-        struct
+    union DebugStatus{
+        struct Status
         {
             // is it locally considered as bad (and thus removed from the validMembers set)
             bool bad : 1;
@@ -34,14 +34,14 @@ public:
             bool receivedComplaint : 1;
             bool receivedJustification : 1;
             bool receivedPrematureCommitment : 1;
-        };
+        } status;
         uint8_t statusBitset;
-    };
+    } debugStatus;
 
     std::set<uint16_t> complaintsFromMembers;
 
 public:
-    CDKGDebugMemberStatus() : statusBitset(0) {}
+    CDKGDebugMemberStatus() { debugStatus.statusBitset = 0; }
 };
 
 class CDKGDebugSessionStatus
@@ -52,8 +52,8 @@ public:
     uint32_t quorumHeight{0};
     uint8_t phase{0};
 
-    union {
-        struct
+    union DebugStatus{
+        struct Status
         {
             // sent messages for DKG phases
             bool sentContributions : 1;
@@ -62,14 +62,14 @@ public:
             bool sentPrematureCommitment : 1;
 
             bool aborted : 1;
-        };
+        } status;
         uint8_t statusBitset;
-    };
+    } debugStatus;
 
     std::vector<CDKGDebugMemberStatus> members;
 
 public:
-    CDKGDebugSessionStatus() : statusBitset(0) {}
+    CDKGDebugSessionStatus() { debugStatus.statusBitset = 0; }
 
     UniValue ToJson(int detailLevel) const;
 };

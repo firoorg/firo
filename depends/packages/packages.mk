@@ -11,6 +11,8 @@ qt_mingw32_packages=qt
 bdb_packages=bdb
 sqlite_packages=sqlite
 
+zmq_packages=zeromq
+
 upnp_packages=miniupnpc
 
 darwin_native_packages = native_ds_store native_mac_alias
