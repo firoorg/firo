@@ -18,6 +18,7 @@ public:
 	const Scalar& get_s2() const;
 	const Scalar& get_r() const;
 
+	SpendKey(const SpendKey&);
     SpendKey& operator=(const SpendKey& other);
     bool operator==(const SpendKey& other) const;
 

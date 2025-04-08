@@ -21,6 +21,7 @@
 
 #include "blake2.h"
 #include "blake2-impl.h"
+#include "../core.h"
 
 static const uint64_t blake2b_IV[8] = {
     UINT64_C(0x6a09e667f3bcc908), UINT64_C(0xbb67ae8584caa73b),

@@ -46,7 +46,7 @@ std::vector<unsigned char> Hash::finalize() {
 // Finalize the hash function to a scalar
 Scalar Hash::finalize_scalar() {
     // Ensure we can properly populate a scalar
-    if (EVP_MD_size(EVP_sha512()) < SCALAR_ENCODING) {
+    if (EVP_MD_size(EVP_sha512()) < 0 || static_cast<std::size_t>(EVP_MD_size(EVP_sha512())) < SCALAR_ENCODING) {
         throw std::runtime_error("Bad hash size!");
     }
 

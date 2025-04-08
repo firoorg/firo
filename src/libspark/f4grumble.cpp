@@ -51,7 +51,7 @@ F4Grumble::F4Grumble(const unsigned char network, const int l_M) {
 // Encode the input data
 std::vector<unsigned char> F4Grumble::encode(const std::vector<unsigned char>& input) {
     // Check the input size
-    if (input.size() != l_M) {
+    if (l_M < 0 || input.size() != static_cast<std::size_t>(l_M)) {
         throw std::invalid_argument("Bad address size");
     }
 
@@ -74,7 +74,7 @@ std::vector<unsigned char> F4Grumble::encode(const std::vector<unsigned char>& i
 // Decode the input data
 std::vector<unsigned char> F4Grumble::decode(const std::vector<unsigned char>& input) {
     // Check the input size
-    if (input.size() != l_M) {
+    if (l_M < 0 || input.size() != static_cast<std::size_t>(l_M)) {
         throw std::invalid_argument("Bad address size");
     }
 

@@ -616,6 +616,8 @@ void UnregisterNodeSignals(CNodeSignals& nodeSignals)
 
 void AddToCompactExtraTransactions(const CTransactionRef& tx)
 {
+    LOCK(cs_main);
+    
     size_t max_extra_txn = GetArg("-blockreconstructionextratxn", DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN);
     if (max_extra_txn <= 0)
         return;
@@ -2059,7 +2061,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         std::deque<COutPoint> vWorkQueue;
         std::vector<uint256> vEraseQueue;
 
-        int nInvType = MSG_TX;
+        [[maybe_unused]] int nInvType = MSG_TX;
         CTransactionRef ptx;
 
         // Read data and assign inv type
@@ -2073,7 +2075,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         LOCK(cs_main);
 
         bool fMissingInputs = false;
-        bool fMissingInputsSigma = false;
+        [[maybe_unused]] bool fMissingInputsSigma = false;
         CValidationState state;
         CValidationState dummyState; // Dummy state for Dandelion stempool
 

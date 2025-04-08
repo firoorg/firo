@@ -30,7 +30,7 @@ extern "C" {
 #ifdef A2_VISCTL
 #define ARGON2_PUBLIC __attribute__((visibility("default")))
 #define ARGON2_LOCAL __attribute__ ((visibility ("hidden")))
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #define ARGON2_PUBLIC __declspec(dllexport)
 #define ARGON2_LOCAL
 #else
@@ -205,7 +205,7 @@ typedef struct Argon2_Context {
     uint32_t adlen; /* associated data length */
 
     uint32_t t_cost;  /* number of passes */
-    uint32_t m_cost;  /* amount of memory requested (KB) */
+    uint64_t m_cost;  /* amount of memory requested (KB) */
     uint32_t lanes;   /* number of lanes */
     uint32_t threads; /* maximum number of threads */
 

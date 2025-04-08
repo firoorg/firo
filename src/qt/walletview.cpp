@@ -609,6 +609,8 @@ bool WalletView::eventFilter(QObject *watched, QEvent *event)
     case QEvent::Type::Move:
         repositionAutomintNotification();
         break;
+    default:
+        break;
     }
 
     return QStackedWidget::eventFilter(watched, event);

@@ -160,6 +160,7 @@ add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
   utilstrencodings.h
   version.h
 )
+
 target_link_libraries(bitcoin_consensus
   PRIVATE
     core_interface
@@ -205,6 +206,14 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   warnings.cpp
   $<$<BOOL:${ENABLE_CRASH_HOOKS}>:stacktraces.cpp>
 )
+
+# Explicitly defining macros with default values (0)
+target_compile_definitions(bitcoin_common PRIVATE
+    IMMER_NO_FREE_LIST=0
+    IMMER_NO_THREAD_SAFETY=0
+    HAVE_DECL_DAEMON=0
+)
+
 target_link_libraries(bitcoin_common
   PUBLIC
     core_interface
@@ -347,6 +356,13 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   validationinterface.cpp
   versionbits.cpp
   warnings.cpp
+)
+
+# Explicitly defining macros with default values (0)
+target_compile_definitions(firo_node PRIVATE
+    IMMER_NO_FREE_LIST=0
+    IMMER_NO_THREAD_SAFETY=0
+    HAVE_DECL_DAEMON=0
 )
 
 target_link_libraries(firo_node

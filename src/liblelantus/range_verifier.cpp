@@ -62,7 +62,7 @@ bool RangeVerifier::verify(const std::vector<std::vector<GroupElement> >& V, con
         if (proofs[k].innerProductProof.R_.size() != log_mn) {
             return false;
         }
-        if (RangeProof::int_log2(m*n) != log_mn) {
+        if (RangeProof::int_log2(m*n) < 0 || static_cast<std::size_t>(RangeProof::int_log2(m*n)) != log_mn) {
             return false;
         }
         

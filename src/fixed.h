@@ -250,8 +250,8 @@ public:
 
 public:
 	static const std::size_t base_size     = base_type_info::size;
-	static const base_type fractional_mask = ~((~base_type(0)) << fractional_bits);
-	static const base_type integer_mask    = ~fractional_mask;
+	static constexpr base_type fractional_mask = ~((~base_type(0)) << fractional_bits);
+	static constexpr base_type integer_mask    = ~fractional_mask;
 
 public:
 	static const base_type one = base_type(1) << fractional_bits;

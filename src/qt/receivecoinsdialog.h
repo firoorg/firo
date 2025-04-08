@@ -62,13 +62,13 @@ public:
     void resizeEvent(QResizeEvent* event) override;
 public Q_SLOTS:
     void clear();
-    void reject();
-    void accept();
+    void reject() override;
+    void accept() override;
     void chooseType(int idx);
     void displayCheckBox(int idx);
 
 protected:
-    virtual void keyPressEvent(QKeyEvent *event);
+    virtual void keyPressEvent(QKeyEvent *event) override;
 
 private:
     Ui::ReceiveCoinsDialog *ui;
@@ -108,7 +108,7 @@ public:
     void setTypeFilter(quint32 modes);
 
 protected:
-    bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const;
+    bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const override;
     
 private:
     quint32 typeFilter;

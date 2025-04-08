@@ -47,7 +47,7 @@ public:
     }
 
     inline void paint(QPainter *painter, const QStyleOptionViewItem &option,
-                      const QModelIndex &index ) const
+                      const QModelIndex &index ) const override
     {
         painter->save();
 
@@ -111,7 +111,7 @@ public:
         painter->restore();
     }
 
-    inline QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const
+    inline QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
         return QSize(DECORATION_SIZE, DECORATION_SIZE);
     }
@@ -405,7 +405,7 @@ void OverviewPage::onRefreshClicked()
 void OverviewPage::migrateClicked()
 {
     auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
-    auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
+    [[maybe_unused]] auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
     migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
     migrateAmount.append("</b>");
     QString info = tr("Your wallet needs to be unlocked to migrate your funds to Spark.");
@@ -525,7 +525,7 @@ void OverviewPage::resizeEvent(QResizeEvent* event)
     ui->labelUnconfirmed->setFixedHeight(labelHeight);
 
     int buttonWidth = static_cast<int>(newWidth * 0.15);
-    int buttonHeight = static_cast<int>(newHeight * 0.05);
+    [[maybe_unused]] int buttonHeight = static_cast<int>(newHeight * 0.05);
     int buttonMinHeight = static_cast<int>(20);
     int buttonMaxHeight = static_cast<int>(45);
 

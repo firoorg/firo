@@ -466,13 +466,13 @@ WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
 
         int changePos = -1;
         if (!mintCoins.empty()) {
-            for (changePos = 0; changePos < newTx->tx->vout.size(); changePos++) {
+            for (changePos = 0; static_cast<std::size_t>(changePos) < newTx->tx->vout.size(); changePos++) {
                 if (newTx->tx->vout[changePos].scriptPubKey.IsLelantusJMint()) {
                     break;
                 }
             }
 
-            changePos = changePos >= newTx->tx->vout.size() ? -1 : changePos;
+            changePos = (changePos >= 0 && static_cast<std::size_t>(changePos) >= newTx->tx->vout.size()) ? -1 : changePos;
         }
 
         transaction.setTransactionFee(feeRequired);
@@ -1569,8 +1569,6 @@ WalletModel::SendCoinsReturn WalletModel::mintSparkCoins(std::vector<WalletModel
                     std::string strAddress = rcp.address.toStdString();
                     std::string strLabel = rcp.label.toStdString();
                     {
-                        LOCK(wallet->cs_wallet);
-
                         std::map<std::string, CAddressBookData>::iterator mi = wallet->mapSparkAddressBook.find(strAddress);
 
                         // Check if we have a new address or an updated label
@@ -1616,8 +1614,6 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(WalletModelTransaction
             CTxDestination dest = CBitcoinAddress(strAddress).Get();
             std::string strLabel = rcp.label.toStdString();
             {
-                LOCK(wallet->cs_wallet);
-
                 if(validateAddress(rcp.address)) {
                     std::map<CTxDestination, CAddressBookData>::iterator mi = wallet->mapAddressBook.find(dest);
                     // Check if we have a new address or an updated label

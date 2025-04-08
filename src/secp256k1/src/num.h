@@ -4,8 +4,8 @@
  * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
  **********************************************************************/
 
-#ifndef _SECP256K1_NUM_
-#define _SECP256K1_NUM_
+#ifndef SECP256K1_NUM_
+#define SECP256K1_NUM_
 
 #ifndef USE_NUM_NONE
 
@@ -68,6 +68,7 @@ int secp256k1_num_is_neg(const secp256k1_num *a);
 
 /** Change a number's sign. */
 void secp256k1_num_negate(secp256k1_num *r);
+
 
 #endif
 

@@ -544,7 +544,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         }
     }
 
-    double txSize;
+    double txSize = 0.0;
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
         for (auto &transaction : transactions) {

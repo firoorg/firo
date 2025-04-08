@@ -1,5 +1,5 @@
-#ifndef _SECP256K1_RECOVERY_
-# define _SECP256K1_RECOVERY_
+#ifndef SECP256K1_RECOVERY_
+# define SECP256K1_RECOVERY_
 
 # include "secp256k1.h"
 

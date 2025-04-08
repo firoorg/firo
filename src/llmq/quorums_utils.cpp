@@ -43,7 +43,7 @@ uint256 CLLMQUtils::BuildSignHash(Consensus::LLMQType llmqType, const uint256& q
 
 std::set<uint256> CLLMQUtils::GetQuorumConnections(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum, const uint256& forMember)
 {
-    auto& params = Params().GetConsensus().llmqs.at(llmqType);
+    [[maybe_unused]] auto& params = Params().GetConsensus().llmqs.at(llmqType);
 
     auto mns = GetAllQuorumMembers(llmqType, pindexQuorum);
     std::set<uint256> result;

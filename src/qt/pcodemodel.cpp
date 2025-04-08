@@ -73,6 +73,8 @@ QVariant PcodeModel::data(const QModelIndex &index, int role) const
                 return std::get<1>(desc).toString().c_str();
             case ColumnIndex::Label:
                 return std::get<2>(desc).c_str();
+            default:
+                break;
         }
     }
     else if (role == Qt::TextAlignmentRole)
@@ -87,7 +89,7 @@ bool PcodeModel::setData(const QModelIndex &index, const QVariant &value, int ro
 {
     if(!index.isValid())
         return false;
-    int const row = index.row();
+    std::size_t const row = static_cast<std::size_t>(index.row());
     if(row >= items.size())
         return false;
     if(ColumnIndex(index.column()) != ColumnIndex::Label)

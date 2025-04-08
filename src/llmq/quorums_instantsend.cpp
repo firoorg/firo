@@ -125,7 +125,7 @@ std::unordered_map<uint256, CInstantSendLockPtr> CInstantSendDb::RemoveConfirmed
             break;
         }
         uint32_t nHeight = std::numeric_limits<uint32_t>::max() - be32toh(std::get<1>(curKey));
-        if (nHeight > nUntilHeight) {
+        if (nUntilHeight < 0 || nHeight > static_cast<uint32_t>(nUntilHeight)) {
             break;
         }
 
@@ -164,7 +164,7 @@ void CInstantSendDb::RemoveArchivedInstantSendLocks(int nUntilHeight)
             break;
         }
         uint32_t nHeight = std::numeric_limits<uint32_t>::max() - be32toh(std::get<1>(curKey));
-        if (nHeight > nUntilHeight) {
+        if (nUntilHeight < 0 || nHeight > static_cast<uint32_t>(nUntilHeight)) {
             break;
         }
 
@@ -511,7 +511,7 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
         return true;
     }
 
-    CAmount nValueIn = 0;
+    [[maybe_unused]] CAmount nValueIn = 0;
     for (const auto& in : tx.vin) {
         CAmount v = 0;
         if (!CheckCanLock(in.prevout, printDebug, tx.GetHash(), &v, params)) {
@@ -587,7 +587,7 @@ void CInstantSendManager::HandleNewRecoveredSig(const CRecoveredSig& recoveredSi
     if (llmqType == Consensus::LLMQ_NONE) {
         return;
     }
-    auto& params = Params().GetConsensus().llmqs.at(llmqType);
+    [[maybe_unused]] auto& params = Params().GetConsensus().llmqs.at(llmqType);
 
     uint256 txid;
     bool isInstantSendLock = false;
@@ -609,7 +609,7 @@ void CInstantSendManager::HandleNewRecoveredSig(const CRecoveredSig& recoveredSi
 
 void CInstantSendManager::HandleNewInputLockRecoveredSig(const CRecoveredSig& recoveredSig, const uint256& txid)
 {
-    auto llmqType = Params().GetConsensus().llmqForInstantSend;
+    [[maybe_unused]] auto llmqType = Params().GetConsensus().llmqForInstantSend;
 
     CTransactionRef tx;
     uint256 hashBlock;

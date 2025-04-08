@@ -21,10 +21,13 @@
 #include "hash_impl.h"
 
 #define ARG_CHECK(cond) do { \
+    DIAG_PUSH; \
+    DIAG_IGNORE_NONNULL; \
     if (EXPECT(!(cond), 0)) { \
         secp256k1_callback_call(&ctx->illegal_callback, #cond); \
         return 0; \
     } \
+    DIAG_POP; \
 } while(0)
 
 static void default_illegal_callback_fn(const char* str, void* data) {

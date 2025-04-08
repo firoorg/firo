@@ -70,17 +70,17 @@ bool CBlockHeader::IsProgPow() const {
 }
 
 bool CBlockHeader::IsShorterBlocksSpacing() const {
-    return (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().GetConsensus().stage3StartTime);
+    return (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= static_cast<uint32_t>(Params().GetConsensus().stage3StartTime));
 }
 
 int CBlockHeader::GetTargetBlocksSpacing() const {
     const Consensus::Params &params = Params().GetConsensus();
     if (nTime <= ZC_GENESIS_BLOCK_TIME)
         return params.nPowTargetSpacing;
-    else if (nTime >= params.stage3StartTime)
+    else if (nTime >= static_cast<uint32_t>(params.stage3StartTime))
         return params.nPowTargetSpacingMTP/2;
     else if ((params.nMTPFiveMinutesStartBlock == 0 && nTime >= params.nMTPSwitchTime) ||
-                    (params.nMTPFiveMinutesStartBlock != 0 && nHeight >= params.nMTPFiveMinutesStartBlock))
+                    (params.nMTPFiveMinutesStartBlock != 0 && nHeight >= static_cast<uint32_t>(params.nMTPFiveMinutesStartBlock)))
         return params.nPowTargetSpacingMTP;
     else
         return params.nPowTargetSpacing;

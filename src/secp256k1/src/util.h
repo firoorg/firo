@@ -4,8 +4,8 @@
  * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
  **********************************************************************/
 
-#ifndef _SECP256K1_UTIL_H_
-#define _SECP256K1_UTIL_H_
+#ifndef SECP256K1_UTIL_H_
+#define SECP256K1_UTIL_H_
 
 #if defined HAVE_CONFIG_H
 #include "libsecp256k1-config.h"
@@ -36,6 +36,25 @@ static SECP256K1_INLINE void secp256k1_callback_call(const secp256k1_callback * 
 } while(0)
 #endif
 
+# if !defined(SECP256K1_GNUC_PREREQ)
+#  if defined(__GNUC__)&&defined(__GNUC_MINOR__)
+#   define SECP256K1_GNUC_PREREQ(_maj,_min) \
+ ((__GNUC__<<16)+__GNUC_MINOR__>=((_maj)<<16)+(_min))
+#  else
+#   define SECP256K1_GNUC_PREREQ(_maj,_min) 0
+#  endif
+# endif
+
+# if !defined(SECP256K1_BUILD) && defined(__GNUC__) && !defined(__clang__) && SECP256K1_GNUC_PREREQ(3, 4)
+  #define DIAG_PUSH _Pragma("GCC diagnostic push")
+  #define DIAG_IGNORE_NONNULL _Pragma("GCC diagnostic ignored \"-Wnonnull-compare\"")
+  #define DIAG_POP _Pragma("GCC diagnostic pop")
+#else
+  #define DIAG_PUSH
+  #define DIAG_POP
+  #define DIAG_IGNORE_NONNULL
+#endif
+
 #ifdef HAVE_BUILTIN_EXPECT
 #define EXPECT(x,c) __builtin_expect((x),(c))
 #else
@@ -44,15 +63,21 @@ static SECP256K1_INLINE void secp256k1_callback_call(const secp256k1_callback * 
 
 #ifdef DETERMINISTIC
 #define CHECK(cond) do { \
+    DIAG_PUSH; \
+    DIAG_IGNORE_NONNULL; \
     if (EXPECT(!(cond), 0)) { \
         TEST_FAILURE("test condition failed"); \
     } \
+    DIAG_POP; \
 } while(0)
 #else
 #define CHECK(cond) do { \
+    DIAG_PUSH; \
+    DIAG_IGNORE_NONNULL; \
     if (EXPECT(!(cond), 0)) { \
         TEST_FAILURE("test condition failed: " #cond); \
     } \
+    DIAG_POP; \
 } while(0)
 #endif
 

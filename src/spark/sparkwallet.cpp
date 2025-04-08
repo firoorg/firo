@@ -364,7 +364,7 @@ void CSparkWallet::eraseMint(const uint256& hash, CWalletDB& walletdb) {
 void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb) {
     LOCK(cs_spark_wallet);
 
-    if (mint.i > lastDiversifier) {
+    if (lastDiversifier > 0 &&  mint.i > static_cast<uint64_t>(lastDiversifier)) {
         lastDiversifier = mint.i;
         walletdb.writeDiversifier(lastDiversifier);
     }
@@ -700,7 +700,7 @@ std::vector<CSparkMintMeta> CSparkWallet::listAddressCoins(const int32_t& i, boo
     std::vector<CSparkMintMeta> listMints;
     LOCK(cs_spark_wallet);
     for (auto& itr : coinMeta) {
-        if (itr.second.i == i) {
+        if (i >= 0 && itr.second.i == static_cast<uint64_t>(i)) {
             if (fUnusedOnly && itr.second.isUsed)
                 continue;
             listMints.push_back(itr.second);
@@ -890,7 +890,8 @@ bool CSparkWallet::CreateSparkMintTransactions(
                         CAmount singleFee = nFeeRet / singleTxOutputs.size();
                         CAmount reminder = nFeeRet % singleTxOutputs.size();
                         for (size_t i = 0; i < singleTxOutputs.size(); ++i) {
-                            if (singleTxOutputs[i].v <= singleFee) {
+                            if (singleFee < 0 || 
+                                singleTxOutputs[i].v <= static_cast<uint64_t>(singleFee)) {
                                 singleTxOutputs.erase(singleTxOutputs.begin() + i);
                                 reminder += singleTxOutputs[i].v - singleFee;
                                 if (!singleTxOutputs.size()) {
@@ -1079,7 +1080,8 @@ bool CSparkWallet::CreateSparkMintTransactions(
                     if (nFeeRet >= nFeeNeeded) {
                         for (auto &usedCoin : setCoins) {
                             for (auto coin = itr->second.begin(); coin != itr->second.end(); coin++) {
-                                if (usedCoin.first == coin->tx && usedCoin.second == coin->i) {
+                                if (usedCoin.first == coin->tx && coin->i > 0 && 
+                                    usedCoin.second == static_cast<unsigned int>(coin->i)) {
                                     itr->first -= coin->tx->tx->vout[coin->i].nValue;
                                     itr->second.erase(coin);
                                     break;
@@ -1473,7 +1475,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             for (auto& coin : estimated.second) {
                 spark::CSparkState::SparkCoinGroupInfo nextCoinGroupInfo;
                 uint64_t groupId = coin.nId;
-                if (sparkState->GetLatestCoinID() > groupId && sparkState->GetCoinGroupInfo(groupId + 1, nextCoinGroupInfo)) {
+                if (sparkState->GetLatestCoinID() > 0 && static_cast<uint64_t>(sparkState->GetLatestCoinID()) > groupId && 
+                    sparkState->GetCoinGroupInfo(groupId + 1, nextCoinGroupInfo)) {
                     if (nextCoinGroupInfo.firstBlock->nHeight <= coin.nHeight)
                         groupId += 1;
                 }
@@ -1660,7 +1663,7 @@ bool GetCoinsToSpend(
             CAmount need = required - spend_val;
 
             auto itr = coins.begin();
-            if (need >= itr->v) {
+            if (need > 0 && static_cast<uint64_t>(need) >= itr->v) {
                 choosen = *itr;
                 coins.erase(itr);
             } else {
@@ -1668,7 +1671,8 @@ bool GetCoinsToSpend(
                     auto nextItr = coinIt;
                     nextItr++;
 
-                    if (coinIt->v >= need && (nextItr == coins.rend() || nextItr->v != coinIt->v)) {
+                    if (need > 0 && coinIt->v >= static_cast<uint64_t>(need) && 
+                        (nextItr == coins.rend() || nextItr->v != coinIt->v)) {
                         choosen = *coinIt;
                         coins.erase(std::next(coinIt).base());
                         break;

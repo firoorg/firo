@@ -31,7 +31,7 @@ BPPlus::BPPlus(
 
     // Compute 2**N-1 for optimized verification
     TWO_N_MINUS_ONE = TWO;
-    for (int i = 0; i < log2(N); i++) {
+    for (std::size_t i = 0; i < log2(N); i++) {
         TWO_N_MINUS_ONE *= TWO_N_MINUS_ONE;
     }
     TWO_N_MINUS_ONE -= ONE;
