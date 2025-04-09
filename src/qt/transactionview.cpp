@@ -18,7 +18,6 @@
 #include "walletmodel.h"
 #include "pcodemodel.h"
 
-#include "ui_interface.h"
 
 #include <QComboBox>
 #include <QDateTimeEdit>
