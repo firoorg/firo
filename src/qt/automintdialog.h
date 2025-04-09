@@ -25,14 +25,14 @@ public:
     ~AutoMintDialog();
 
 public:
-    int exec();
+    int exec() override;
     void setModel(WalletModel *model);
 
     void paintEvent(QPaintEvent *event) Q_DECL_OVERRIDE;
 
 private Q_SLOTS:
-    void accept();
-    void reject();
+    void accept() override;
+    void reject() override;
 
 private:
     enum class AutoMintProgress : uint8_t {
@@ -65,14 +65,14 @@ public:
     ~AutoMintSparkDialog();
 
 public:
-    int exec();
+    int exec() override;
     void setModel(WalletModel *model);
 
     void paintEvent(QPaintEvent *event) Q_DECL_OVERRIDE;
 
 private Q_SLOTS:
-    void accept();
-    void reject();
+    void accept() override;
+    void reject() override;
 
 private:
     enum class AutoMintSparkProgress : uint8_t {
