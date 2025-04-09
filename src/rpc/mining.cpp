@@ -760,7 +760,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
                 // Ensure bit is set in block version
                 pblock->nVersion |= VersionBitsMask(consensusParams, pos);
                 // FALL THROUGH to get vbavailable set...
-            case THRESHOLD_STARTED:
+                            case THRESHOLD_STARTED:
             {
                 const struct BIP9DeploymentInfo& vbinfo = VersionBitsDeploymentInfo[pos];
                 vbavailable.push_back(Pair(gbt_vb_name(pos), consensusParams.vDeployments[pos].bit));
@@ -886,7 +886,7 @@ public:
     submitblock_StateCatcher(const uint256 &hashIn) : hash(hashIn), found(false), state() {}
 
 protected:
-    virtual void BlockChecked(const CBlock& block, const CValidationState& stateIn) {
+    virtual void BlockChecked(const CBlock& block, const CValidationState& stateIn) override {
         if (block.GetHash() != hash)
             return;
         found = true;

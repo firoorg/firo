@@ -27,7 +27,7 @@ struct ProgpowTestingSetup : public TestChain100Setup
         std::string errorCode;
 
     protected:
-        virtual void BlockChecked(const CBlock&, const CValidationState& state) {
+        virtual void BlockChecked(const CBlock&, const CValidationState& state) override {
             errorCode = state.GetRejectReason();
         }
     };

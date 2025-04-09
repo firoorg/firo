@@ -104,9 +104,9 @@ private:
     std::string label;
 
     void updateMyNextAddresses();
-    virtual MyAddrContT const & generateMyUsedAddresses() const;
-    virtual MyAddrContT const & generateMyNextAddresses() const;
-    virtual bool markAddressUsed(CBitcoinAddress const &);
+    virtual MyAddrContT const & generateMyUsedAddresses() const override;
+    virtual MyAddrContT const & generateMyNextAddresses() const override;
+    virtual bool markAddressUsed(CBitcoinAddress const &) override;
 };
 
 /******************************************************************************/
@@ -155,9 +155,9 @@ private:
     MyAddrContT mutable usedAddresses, nextAddresses;
     std::string label;
 
-    virtual MyAddrContT const & generateMyUsedAddresses() const;
-    virtual MyAddrContT const & generateMyNextAddresses() const;
-    virtual bool markAddressUsed(CBitcoinAddress const &);
+    virtual MyAddrContT const & generateMyUsedAddresses() const override;
+    virtual MyAddrContT const & generateMyNextAddresses() const override;
+    virtual bool markAddressUsed(CBitcoinAddress const &) override;
 };
 
 /******************************************************************************/

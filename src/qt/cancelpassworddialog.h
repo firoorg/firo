@@ -11,7 +11,7 @@ class CancelPasswordDialog : public QMessageBox
 
 public:
     CancelPasswordDialog(const QString &title, const QString &text, int secDelay = 0, QWidget *parent = 0);
-    int exec();
+    int exec() override;
 
 private Q_SLOTS:
     void countDown();
