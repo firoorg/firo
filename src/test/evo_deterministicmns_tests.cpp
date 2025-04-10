@@ -27,7 +27,7 @@ typedef std::map<COutPoint, std::pair<int, CAmount>> SimpleUTXOMap;
 static SimpleUTXOMap BuildSimpleUtxoMap(const std::vector<CTransaction>& txs)
 {
     SimpleUTXOMap utxos;
-    __firo_unused CAmount balance = 0;
+    CAmount balance = 0;
     for (size_t i = 0; i < txs.size(); i++) {
         auto& tx = txs[i];
         size_t const znode_output = tx.vout.size() > 6 ? FindZnodeOutput(tx) : 0;
@@ -247,6 +247,7 @@ BOOST_FIXTURE_TEST_CASE(dip3_activation, TestChainDIP3BeforeActivationSetup)
     ProcessNewBlock(Params(), block, true, nullptr);
     deterministicMNManager->UpdatedBlockTip(chainActive.Tip());
 
+    LOCK(cs_main);
     BOOST_ASSERT(chainActive.Height() == nHeight + 2);
     BOOST_ASSERT(block->GetHash() == chainActive.Tip()->GetBlockHash());
     BOOST_ASSERT(deterministicMNManager->GetListAtChainTip().HasMN(tx.GetHash()));

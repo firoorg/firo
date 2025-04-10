@@ -280,7 +280,7 @@ bool ConnectBlockSpark(
             return true;
         }
 
-        __firo_unused const auto& params = ::Params().GetConsensus();
+        const auto& params = ::Params().GetConsensus();
         CHash256 hash;
         bool updateHash = false;
 
@@ -867,7 +867,7 @@ std::vector<unsigned char> getSerialContext(const CTransaction &tx) {
     return serial_context;
 }
 
-__firo_unused static bool CheckSparkSpendTAg(
+static bool CheckSparkSpendTAg(
         CValidationState& state,
         CSparkTxInfo* sparkTxInfo,
         const GroupElement& tag,
@@ -1210,7 +1210,7 @@ void CSparkState::GetCoinSet(
     uint256 blockHash;
     std::vector<unsigned char> setHash;
     {
-        __firo_unused const auto &params = ::Params().GetConsensus();
+        const auto &params = ::Params().GetConsensus();
         LOCK(cs_main);
         maxHeight = chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1);
     }
