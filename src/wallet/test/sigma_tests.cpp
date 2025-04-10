@@ -43,7 +43,7 @@ struct WalletSigmaTestingSetup : WalletTestingSetup
     sigma::CSigmaState *sigmaState;
 };
 
-static void AddSigmaCoin(const sigma::PrivateCoin& coin, const sigma::CoinDenomination denomination)
+__firo_unused static void AddSigmaCoin(const sigma::PrivateCoin& coin, const sigma::CoinDenomination denomination)
 {
     CSigmaEntry zerocoinTx;
 
@@ -107,7 +107,7 @@ static void GenerateEmptyBlocks(int number_of_blocks)
    }
 }
 
-static bool CheckDenominationCoins(
+__firo_unused static bool CheckDenominationCoins(
         const std::vector<std::pair<sigma::CoinDenomination, int>>& expected,
         std::vector<sigma::CoinDenomination> actualDenominations)
 {
