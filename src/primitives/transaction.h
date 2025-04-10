@@ -10,6 +10,7 @@
 #include "script/script.h"
 #include "serialize.h"
 #include "uint256.h"
+#include "../compat_macros.h"
 
 #include <exception>
 

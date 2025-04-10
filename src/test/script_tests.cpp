@@ -456,7 +456,7 @@ public:
         return comment;
     }
 
-    const CScript& GetScriptPubKey()
+    __firo_unused const CScript& GetScriptPubKey()
     {
         return creditTx->vout[0].scriptPubKey;
     }

@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE(deterministic)
 {
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
-    int previousHeight;
+    __firo_unused int previousHeight;
     CBlock b;
     CWalletTx wtx;
 
@@ -162,14 +162,14 @@ BOOST_AUTO_TEST_CASE(wallet_count)
 {
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
-    int previousHeight;
+    __firo_unused int previousHeight;
     CBlock b;
     CWalletTx wtx;
 
     const int TOTAL_MINTS = 5;
     const int INITIAL_MINTS = TOTAL_MINTS-1;
 
-    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+    __firo_unused sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
     pwalletMain->SetBroadcastTransactions(true);
 
@@ -245,7 +245,7 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
 {
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
-    int previousHeight;
+    __firo_unused int previousHeight;
     CBlock b;
     CWalletTx wtx;
 
@@ -331,9 +331,9 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
 
     BOOST_CHECK(vDMints.size() == vDMintsRegenerated.size());
 
-    for(int i=0; i<vDMints.size();i++){
+    for(size_t i=0; i<vDMints.size();i++){
         bool found = false;
-        for(int j=0; (j<vDMintsRegenerated.size())||!found;j++){
+        for(size_t j=0; (j<vDMintsRegenerated.size())||!found;j++){
             if(vDMints[i].GetCount() == vDMintsRegenerated[j].GetCount()){
                 BOOST_CHECK(vDMints[i].GetCount() == vDMintsRegenerated[j].GetCount());
                 BOOST_CHECK(vDMints[i].GetSeedId() == vDMintsRegenerated[j].GetSeedId());
