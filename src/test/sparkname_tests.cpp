@@ -15,16 +15,23 @@ namespace spark {
 
 class SparkNameTests : public SparkTestingSetup
 {
+private:
+    Consensus::Params &mutableConsensus;
+    Consensus::Params oldConsensus;
+
 public:
     SparkNameTests() :
           SparkTestingSetup(),
           sparkState(CSparkState::GetState()),
           consensus(::Params().GetConsensus()),
-          sparkNameManager(CSparkNameManager::GetInstance()) {
+          sparkNameManager(CSparkNameManager::GetInstance()),
+          mutableConsensus(const_cast<Consensus::Params &>(::Params().GetConsensus())) {
+        oldConsensus = mutableConsensus;
     }
 
     ~SparkNameTests() {
        sparkState->Reset();
+       mutableConsensus = oldConsensus;
     }
 
     bool IsSparkNamePresent(std::string const &name) {
@@ -37,9 +44,9 @@ public:
         return sparkNameManager->GetSparkNameAdditionalData(name);
     }
 
-    void Initialize() {
+    void Initialize(int numberOfBlocks = 2000) {
         std::vector<CMutableTransaction> mintTxs;
-        GenerateBlocks(2000-1);
+        GenerateBlocks(numberOfBlocks-1);
         GenerateMints({50 * COIN, 60 * COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN}, mintTxs);
         GenerateBlock(mintTxs);
         pwalletMain->SetBroadcastTransactions(true);
@@ -99,7 +106,7 @@ public:
         InvalidateBlock(state, chainparams, pindex);
     }
 
-    void ModifySparkNameTx(CMutableTransaction &tx, std::function<void(CSparkNameTxData &)> modify) {
+    void ModifySparkNameTx(CMutableTransaction &tx, std::function<void(CSparkNameTxData &)> modify, bool fRecalcOwnershipProof = true) {
         const spark::Params *params = spark::Params::get_default();
         spark::SpendTransaction sparkTx(params);
 
@@ -108,6 +115,45 @@ public:
         BOOST_CHECK(sparkNameManager->ParseSparkNameTxData(tx, sparkTx, sparkNameData, sparkNameDataPos));
 
         modify(sparkNameData);
+
+        if (fRecalcOwnershipProof) {
+            for (uint32_t n=0; ; n++) {
+                sparkNameData.addressOwnershipProof.clear();
+                sparkNameData.hashFailsafe = n;
+        
+                CMutableTransaction txCopy(tx);
+                CDataStream serializedSparkNameData(SER_NETWORK, PROTOCOL_VERSION);
+                serializedSparkNameData << sparkNameData;
+                txCopy.vExtraPayload.erase(txCopy.vExtraPayload.begin() + sparkNameDataPos, txCopy.vExtraPayload.end());
+                txCopy.vExtraPayload.insert(txCopy.vExtraPayload.end(), serializedSparkNameData.begin(), serializedSparkNameData.end());
+        
+                CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+                ss << txCopy;
+        
+                spark::Scalar m;
+                try {
+                    m.SetHex(ss.GetHash().ToString());
+                }
+                catch (const std::exception &) {
+                    continue;   // increase hashFailSafe and try again
+                }
+        
+                spark::Address sparkAddress(spark::Params::get_default());
+                spark::OwnershipProof ownershipProof;
+        
+                spark::SpendKey spendKey = pwalletMain->sparkWallet->generateSpendKey(spark::Params::get_default());
+                spark::IncomingViewKey incomingViewKey(spendKey);
+                sparkAddress.decode(sparkNameData.sparkAddress);
+                sparkAddress.prove_own(m, spendKey, incomingViewKey, ownershipProof);
+        
+                CDataStream ownershipProofStream(SER_NETWORK, PROTOCOL_VERSION);
+                ownershipProofStream << ownershipProof;
+        
+                sparkNameData.addressOwnershipProof.assign(ownershipProofStream.begin(), ownershipProofStream.end());
+        
+                break;
+            }
+        }
 
         CDataStream serializedSpark(SER_NETWORK, PROTOCOL_VERSION);
         serializedSpark << sparkNameData;
@@ -236,7 +282,7 @@ BOOST_AUTO_TEST_CASE(general)
     CMutableTransaction tx7 = CreateSparkNameTx("testname7", GenerateSparkAddress(), 3, "x", false);
     ModifySparkNameTx(tx7, [](CSparkNameTxData &sparkNameData) {
         sparkNameData.addressOwnershipProof[50] ^= 0x01;
-    });
+    }, false);
 
     oldHeight = chainActive.Height();
     GenerateBlock({tx7});
@@ -246,11 +292,53 @@ BOOST_AUTO_TEST_CASE(general)
     ModifySparkNameTx(tx7, [](CSparkNameTxData &sparkNameData) {
         sparkNameData.addressOwnershipProof[50] ^= 0x01;
         sparkNameData.name = "testname8";
-    });
+    }, false);
 
     oldHeight = chainActive.Height();
     GenerateBlock({tx7});
     BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);
+
+    // try increasing version to check that verification fails
+    CMutableTransaction tx8 = CreateSparkNameTx("testname8", GenerateSparkAddress(), 3, "x", false);
+    ModifySparkNameTx(tx8, [](CSparkNameTxData &sparkNameData) {
+        sparkNameData.nVersion++;
+    }, true);
+
+    oldHeight = chainActive.Height();
+    GenerateBlock({tx8});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);
 }
+
+BOOST_AUTO_TEST_CASE(hfblocknumber)
+{
+    Initialize(1000);   // stay below HF block number for a time being
+
+    int oldHeight =  chainActive.Height();
+
+    std::string txaddress = GenerateSparkAddress();
+    CMutableTransaction tx = CreateSparkNameTx("testname", txaddress, 2, "x", true);
+    // should get into the mempool as a normal spend
+    BOOST_CHECK(mempool.size() == 1);
+    GenerateBlock({tx});
+
+    // block should be successfully generated
+    BOOST_CHECK_EQUAL(oldHeight+1, chainActive.Height());
+    // but the spark name shouldn't be registered
+    BOOST_CHECK(!IsSparkNamePresent("testname"));
+
+    GenerateBlocks(1000);
+
+    std::string tx2address = GenerateSparkAddress();
+    CMutableTransaction tx2 = CreateSparkNameTx("testname2", txaddress, 2, "x", true);
+    // should be in the mempool
+    BOOST_CHECK(mempool.size() == 1);
+    oldHeight = chainActive.Height();
+    GenerateBlock({tx2});
+    // block should be successfully generated
+    BOOST_CHECK_EQUAL(oldHeight+1, chainActive.Height());
+    // and the spark name should be registered
+    BOOST_CHECK(IsSparkNamePresent("testname2"));
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
