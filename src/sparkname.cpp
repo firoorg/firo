@@ -132,6 +132,10 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     if (!tx.IsSparkSpend())
         return state.Error("CheckSparkNameTx: not a spark name tx");
 
+    if (nHeight < consensusParams.nSparkNamesStartBlock)
+        // silently return true not to cause HF before the start of spark names
+        return true;
+
     CSparkNameTxData sparkNameData;
     const spark::Params *params = spark::Params::get_default();
     spark::SpendTransaction spendTransaction(params);
@@ -146,11 +150,11 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         }
     }
 
+    if (sparkNameData.nVersion > CSparkNameTxData::CURRENT_VERSION)
+        return state.DoS(100, error("CheckSparkNameTx: invalid version"));
+
     if (outSparkNameData)
         *outSparkNameData = sparkNameData;
-
-    if (nHeight < consensusParams.nSparkNamesStartBlock)
-        return state.DoS(100, error("CheckSparkNameTx: spark names are not allowed before block %d", consensusParams.nSparkStartBlock));
 
     if (!IsSparkNameValid(sparkNameData.name))
         return state.DoS(100, error("CheckSparkNameTx: invalid name"));
