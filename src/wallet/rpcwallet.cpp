@@ -4059,10 +4059,16 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     EnsureWalletIsUnlocked(pwallet);
     EnsureSparkWalletIsAvailable();
 
+    int chainHeight;
+    {
+        LOCK(cs_main);
+        chainHeight = chainActive.Height();
+    }
+
     // Ensure spark mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
-    if (!spark::IsSparkAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    if (!spark::IsSparkAllowed() || chainHeight < Params().GetConsensus().nSparkNamesStartBlock) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark names are not activated yet");
     }
 
     const auto &consensusParams = Params().GetConsensus();

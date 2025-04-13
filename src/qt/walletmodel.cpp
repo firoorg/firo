@@ -1559,6 +1559,16 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(WalletMod
     return SendCoinsReturn(OK);
 }
 
+bool WalletModel::sparkNamesAllowed() const
+{
+    int chainHeight;
+    {
+        LOCK(cs_main);
+        chainHeight = chainActive.Height();
+    }
+    return chainHeight >= Params().GetConsensus().nSparkNamesStartBlock;
+}
+
 bool WalletModel::validateSparkNameData(const QString &name, const QString &sparkAddress, const QString &additionalData, QString &strError) {
     CSparkNameTxData sparkNameData;
 
