@@ -31,6 +31,7 @@ public:
 
     ~SparkNameTests() {
        sparkState->Reset();
+       sparkNameManager->Reset();
        mutableConsensus = oldConsensus;
     }
 

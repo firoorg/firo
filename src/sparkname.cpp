@@ -390,3 +390,9 @@ bool CSparkNameManager::IsSparkNameValid(const std::string &name)
 
     return true;
 }
+
+void CSparkNameManager::Reset()
+{
+    sparkNames.clear();
+    sparkNameAddresses.clear();
+}
