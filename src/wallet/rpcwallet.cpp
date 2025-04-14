@@ -3999,6 +3999,56 @@ UniValue getsparknames(const JSONRPCRequest &request)
     return result;
 }
 
+UniValue getsparknametxdetails(const JSONRPCRequest &request)
+{
+    if (request.fHelp || request.params.size() != 1) {
+        throw std::runtime_error(
+            "getsparknametxdetails (txhash)\n"
+            "\nReturns spark address and spark name associated with tx hash.\n"
+            "\nArguments:\n"
+            "1. txhash\n"
+            "\nResult:\n"
+            "[\n"
+            "  \"Name (string)\n"
+            "  \"Address (string)\"\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknametxdetails", "txhash")
+            + HelpExampleRpc("getsparknametxdetails", "txhash")
+        );
+    }
+    LOCK(cs_main);
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    std::string strTxId = request.params[0].get_str();
+    uint256 txid = uint256S(strTxId);
+
+    CTransactionRef txRef;
+    uint256 hashBlock;
+    if(!GetTransaction(txid, txRef, Params().GetConsensus(), hashBlock, true))
+        throw JSONRPCError(RPC_TRANSACTION_ERROR, "Unknown transaction.");
+
+    CSparkNameTxData sparkNameData;
+    CValidationState state;
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+
+    const CTransaction& tx = *txRef;
+    if (!sparkNameManager->CheckSparkNameTx(tx, chainActive.Height(), state, &sparkNameData))
+        throw JSONRPCError(RPC_TRANSACTION_ERROR, "Invalid spark tx hash");
+
+    if (sparkNameData.name.empty() && sparkNameData.sparkAddress.empty())
+        throw JSONRPCError(RPC_TRANSACTION_ERROR, "Invalid spark name tx hash");
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("name", sparkNameData.name));
+    result.push_back(Pair("address", sparkNameData.sparkAddress));
+    return result;
+}
+
 UniValue getsparknamedata(const JSONRPCRequest& request)
 {
      if (request.fHelp || request.params.size() != 1) {
@@ -6004,6 +6054,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "registersparkname",      &registersparkname,      false },
     { "wallet",             "getsparknames",          &getsparknames,          true,  {} },
     { "wallet",             "getsparknamedata",       &getsparknamedata,       true,  {} },
+    { "wallet",             "getsparknametxdetails",  &getsparknametxdetails,  true,  {} },
 
     //bip47
     { "bip47",              "createrapaddress",         &createrapaddress,         true },
