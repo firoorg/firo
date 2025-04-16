@@ -165,7 +165,9 @@ void MasternodeList::updateDIP3List()
     {
         // Get all UTXOs for each MN collateral in one go so that we can reduce locking overhead for cs_main
         // We also do this outside of the below Qt list update loop to reduce cs_main locking time to a minimum
-        LOCK(cs_main);
+        TRY_LOCK(cs_main,lock_main);
+        if (!lock_main)
+            return;
         mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
             CTxDestination collateralDest;
             Coin coin;

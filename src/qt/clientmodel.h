@@ -93,6 +93,10 @@ public:
     mutable std::atomic<int> cachedBestHeaderHeight;
     mutable std::atomic<int64_t> cachedBestHeaderTime;
 
+    mutable std::atomic<int> cachedNumBlocks;
+    mutable QDateTime cachedLastBlockDate;
+
+
 private:
     OptionsModel *optionsModel;
     PeerTableModel *peerTableModel;
