@@ -140,6 +140,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getspentinfo", 0},
     { "getaddresstxids", 0},
     { "getaddressbalance", 0},
+    { "getAddressNumWBalance", 0},
     { "getaddressdeltas", 0},
     { "getaddressutxos", 0},
     { "getaddressmempool", 0},
@@ -198,11 +199,14 @@ static const CRPCConvertParam vRPCConvertParams[] =
 
     //Lelantus
     { "mintspark", 0 },
+    { "mintspark", 1 },
+    { "mintspark", 2 },
     { "spendspark", 0 },
     { "spendspark", 1 },
 
     // Spark names
     { "registersparkname", 2 },
+    { "getsparknames", 0 },
 
     /* Evo spork */
     { "spork", 2, "features"},

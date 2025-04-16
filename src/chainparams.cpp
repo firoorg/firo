@@ -416,7 +416,7 @@ public:
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_FIXES_START_BLOCK;
         consensus.nSparkStartBlock = SPARK_START_BLOCK;
         consensus.nLelantusGracefulPeriod = LELANTUS_GRACEFUL_PERIOD;
-        consensus.nSigmaEndBlock = ZC_SIGMA_END_BLOCK;
+        consensus.nSigmaEndBlock = 1104500; // MAY 28 2025
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD;
@@ -491,7 +491,7 @@ public:
         consensus.nExchangeAddressStartBlock = consensus.nSparkStartBlock;
 
         // spark names
-        consensus.nSparkNamesStartBlock = INT_MAX;
+        consensus.nSparkNamesStartBlock = 1104500;  // ~ May 28th 2025
         consensus.nSparkNamesFee = standardSparkNamesFee;
     }
     virtual bool SkipUndoForBlock(int nHeight) const

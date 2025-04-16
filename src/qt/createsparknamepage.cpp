@@ -54,6 +54,10 @@ void CreateSparkNamePage::on_numberOfYearsEdit_valueChanged(int value)
 
 void CreateSparkNamePage::accept()
 {
+    if (!model->sparkNamesAllowed()) {
+        QMessageBox::critical(this, tr("Error"), tr("Spark names are not yet allowed"));
+        return;
+    }
     QString sparkName = ui->sparkNameEdit->text();
     QString sparkAddress = ui->sparkAddressEdit->text();
     int numberOfYears = ui->numberOfYearsEdit->value();

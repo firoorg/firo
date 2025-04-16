@@ -168,6 +168,9 @@ public:
     bool RemoveBlock(CBlockIndex *pindex);
 
     static std::string ToUpper(const std::string &sparkName);
+
+    // reset method for test purposes only
+    void Reset();
 };
 
 #endif // FIRO_SPARKNAME_H

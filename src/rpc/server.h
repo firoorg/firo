@@ -206,6 +206,8 @@ extern UniValue getaddressutxos(const JSONRPCRequest &request);
 extern UniValue getaddressdeltas(const JSONRPCRequest &request);
 extern UniValue getaddresstxids(const JSONRPCRequest &request);
 extern UniValue getaddressbalance(const JSONRPCRequest &request);
+extern UniValue getAddressNumWBalance(const JSONRPCRequest &request);
+
 
 extern UniValue getanonymityset(const JSONRPCRequest& params);
 extern UniValue getmintmetadata(const JSONRPCRequest& params);
@@ -214,6 +216,8 @@ extern UniValue getfeerate(const JSONRPCRequest& params);
 extern UniValue getlatestcoinid(const JSONRPCRequest& params);
 
 extern UniValue getsparkanonymityset(const JSONRPCRequest& params);
+extern UniValue getsparkanonymitysetmeta(const JSONRPCRequest& params);
+extern UniValue getsparkanonymitysetsector(const JSONRPCRequest& params);
 extern UniValue getsparkmintmetadata(const JSONRPCRequest& params);
 extern UniValue getusedcoinstags(const JSONRPCRequest& params);
 extern UniValue getusedcoinstagstxhashes(const JSONRPCRequest& params);

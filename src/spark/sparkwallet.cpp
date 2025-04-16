@@ -747,7 +747,12 @@ std::vector<CRecipient> CSparkWallet::CreateSparkMintRecipients(
         script.insert(script.end(), serializedCoins[i].begin(), serializedCoins[i].end());
         unsigned char network = spark::GetNetworkType();
         std::string addr = outputs[i].address.encode(network);
-        CRecipient recipient = {script, CAmount(outputs[i].v), false, addr};
+        std::string memo = outputs[i].memo;
+        const std::size_t max_memo_size = outputs[i].address.get_params()->get_memo_bytes();
+        if (memo.length() > max_memo_size) {
+            throw std::runtime_error(strprintf("Memo exceeds maximum length of %d bytes", max_memo_size));
+        }
+        CRecipient recipient = {script, CAmount(outputs[i].v), false, addr, memo};
         results.emplace_back(recipient);
     }
 
@@ -762,6 +767,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
         int& nChangePosInOut,
         bool subtractFeeFromAmount,
         std::string& strFailReason,
+        bool fSplit,
         const CCoinControl *coinControl,
         bool autoMintAll)
 {
@@ -790,10 +796,17 @@ bool CSparkWallet::CreateSparkMintTransactions(
             std::list<CWalletTx> cacheWtxs;
             // vector pairs<available amount, outputs> for each transparent address
             std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXO;
-            pwalletMain->AvailableCoinsForLMint(valueAndUTXO, coinControl);
-
-            Shuffle(valueAndUTXO.begin(), valueAndUTXO.end(), FastRandomContext());
-
+            if (fSplit) {
+                pwalletMain->AvailableCoinsForLMint(valueAndUTXO, coinControl);
+                Shuffle(valueAndUTXO.begin(), valueAndUTXO.end(), FastRandomContext());
+            } else {
+                std::vector<COutput> vAvailableCoins;
+                pwalletMain->AvailableCoins(vAvailableCoins, true, coinControl);
+                CAmount balance = 0;
+                for (auto& coin : vAvailableCoins)
+                    balance += coin.tx->tx->vout[coin.i].nValue;
+                valueAndUTXO.emplace_back(std::make_pair(balance, vAvailableCoins));
+            }
             while (!valueAndUTXO.empty()) {
 
                 // initialize
@@ -885,6 +898,10 @@ bool CSparkWallet::CreateSparkMintTransactions(
                             if (singleTxOutputs[i].v <= singleFee) {
                                 singleTxOutputs.erase(singleTxOutputs.begin() + i);
                                 reminder += singleTxOutputs[i].v - singleFee;
+                                if (!singleTxOutputs.size()) {
+                                    strFailReason = _("Transaction amount too small");
+                                    return false;
+                                }
                                 --i;
                             }
                             singleTxOutputs[i].v -= singleFee;
@@ -1098,6 +1115,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                                     CSparkOutputTx output;
                                     output.address = recipient.address;
                                     output.amount = recipient.nAmount;
+                                    output.memo = recipient.memo;
                                     walletdb.WriteSparkOutputTx(recipient.scriptPubKey, output);
                                     break;
                                 }
@@ -1536,6 +1554,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 CSparkOutputTx output;
                 output.address =  privOutputs[i].address.encode(network);
                 output.amount = privOutputs[i].v;
+                output.memo = privOutputs[i].memo;
                 walletdb.WriteSparkOutputTx(script, output);
                 tx.vout.push_back(CTxOut(0, script));
                 i++;

@@ -2382,7 +2382,11 @@ CBlockIndex* CWallet::GetBlockByDate(CBlockIndex* pindexStart, const std::string
 
     while (pindex) {
         if (pindex->GetBlockTime() > targetTimestamp) {
-            return chainActive[pindex->nHeight - 200];
+            if (pindex->nHeight >= 200) {
+                return chainActive[pindex->nHeight - 200];
+            } else {
+                return chainActive[0];
+            }
         }
         pindex = chainActive.Next(pindex);
     }
@@ -2401,6 +2405,10 @@ CBlockIndex* CWallet::GetBlockByDate(CBlockIndex* pindexStart, const std::string
 CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate, bool fRecoverMnemonic)
 {
     CBlockIndex* ret = nullptr;
+    if (GetBoolArg("-newwallet", false)) {
+        LogPrintf("Created new wallet, no need to scan\n");
+        return ret;
+    }
     int64_t nNow = GetTime();
     const CChainParams& chainParams = Params();
 
@@ -2411,7 +2419,6 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
         // If you are recovering wallet with mnemonics, start rescan from the block when mnemonics were implemented in Firo.
         // If the user provides a date, start scanning from the block that corresponds to that date.
         // If no date is provided, start scanning from the mnemonic start block.
-
         std::string wcdate = GetArg("-wcdate", "");
         CBlockIndex* mnemonicStartBlock = chainActive[chainParams.GetConsensus().nMnemonicBlock];
         if (mnemonicStartBlock == NULL)
@@ -5654,6 +5661,7 @@ std::string CWallet::MintAndStoreSpark(
         const std::vector<spark::MintedCoinData>& outputs,
         std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
         bool subtractFeeFromAmount,
+        bool fSplit,
         bool autoMintAll,
         bool fAskFee,
         const CCoinControl *coinControl) {
@@ -5680,7 +5688,7 @@ std::string CWallet::MintAndStoreSpark(
     int nChangePosRet = -1;
 
     std::list<CReserveKey> reservekeys;
-    if (!sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, subtractFeeFromAmount, strError, coinControl, autoMintAll)) {
+    if (!sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, subtractFeeFromAmount, strError, fSplit, coinControl, autoMintAll)) {
         return strError;
     }
 
@@ -7340,10 +7348,10 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
             }
         }
 
-        uiInterface.InitMessage(_("Rescanning..."));
+        if (!(GetBoolArg("-newwallet", false))) {uiInterface.InitMessage(_("Rescanning..."));}
         nStart = GetTimeMillis();
         walletInstance->ScanForWalletTransactions(pindexRescan, true, fRecoverMnemonic);
-        LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);
+        if (!(GetBoolArg("-newwallet", false))) {LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);}
         walletInstance->SetBestChain(chainActive.GetLocator());
         CWalletDB::IncrementUpdateCounter();
 
@@ -8233,10 +8241,11 @@ bool CWallet::CreateSparkMintTransactions(
     int& nChangePosInOut,
     bool subtractFeeFromAmount,
     std::string& strFailReason,
+    bool fSplit,
     const CCoinControl *coinControl,
     bool autoMintAll)
 {
-    return sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nAllFeeRet, reservekeys, nChangePosInOut, subtractFeeFromAmount, strFailReason, coinControl, autoMintAll);
+    return sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nAllFeeRet, reservekeys, nChangePosInOut, subtractFeeFromAmount, strFailReason, fSplit, coinControl, autoMintAll);
 }
 
 std::pair<CAmount, CAmount> CWallet::GetSparkBalance()

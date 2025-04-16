@@ -10,7 +10,6 @@
 #include "clientmodel.h"
 #include "coincontroldialog.h"
 #include "guiutil.h"
-#include "lelantusmodel.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "sendcoinsentry.h"
@@ -24,8 +23,6 @@
 #include "ui_interface.h"
 #include "txmempool.h"
 #include "wallet/wallet.h"
-#include "sendtopcodedialog.h"
-#include "pcodemodel.h"
 #include "overviewpage.h"
 
 #include <QFontMetrics>
@@ -97,7 +94,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->frameFee->setAutoFillBackground(true);
 
     {
-        auto allowed = lelantus::IsLelantusAllowed() || spark::IsSparkAllowed();
+        auto allowed = spark::IsSparkAllowed();
         setAnonymizeMode(allowed);
 
         if (!allowed) {
@@ -158,12 +155,10 @@ void SendCoinsDialog::setModel(WalletModel *_model)
             }
         }
 
-        auto privateBalance = _model->getLelantusModel()->getPrivateBalance();
-        std::pair<CAmount, CAmount> sparkBalance = _model->getSparkBalance();
-        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
+        auto privateBalance = _model->getSparkBalance();
 
         if (model->getWallet()) {
-            auto allowed = lelantus::IsLelantusAllowed() || (spark::IsSparkAllowed() && model->getWallet()->sparkWallet);
+            auto allowed = (spark::IsSparkAllowed() && model->getWallet()->sparkWallet);
             setAnonymizeMode(allowed);
 
             if (!allowed) {
@@ -250,21 +245,6 @@ void SendCoinsDialog::on_sendButton_clicked()
             if(entry->validate())
             {
                 SendCoinsRecipient recipient = entry->getValue();
-                if(entry->isPayToPcode()) {
-                    if (!model->getPcodeModel()) return;
-                    std::unique_ptr<SendtoPcodeDialog> dialog(new SendtoPcodeDialog(this, recipient.address.toStdString(), recipient.label.toStdString()));
-                    dialog->setModel(model);
-                    dialog->exec();
-                    std::pair<SendtoPcodeDialog::Result, CBitcoinAddress> const sendResult = dialog->getResult();
-                    switch (sendResult.first) {
-                        case SendtoPcodeDialog::Result::addressSelected:
-                            recipient.address = sendResult.second.ToString().c_str();
-                            break;
-                        default:
-                            return;
-                    }
-                    ctx = dialog->getUnlockContext();
-                }
                 recipients.append(recipient);
             }
             else
@@ -387,7 +367,11 @@ void SendCoinsDialog::on_sendButton_clicked()
     CAmount mintSparkAmount = 0;
     CAmount txFee = 0;
     CAmount totalAmount = 0;
-    if (model->getLelantusModel()->getPrivateBalance().first > 0 && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod) {
+    size_t confirmed, unconfirmed;
+    if (model->getWallet() &&
+        model->getWallet()->GetPrivateBalance(confirmed, unconfirmed).first > 0 &&
+        spark::IsSparkAllowed() &&
+        chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod) {
         MigrateLelantusToSparkDialog migrateLelantusToSpark(model);
         bool clickedButton = migrateLelantusToSpark.getClickedButton();
         if(!clickedButton) {
@@ -395,9 +379,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             return;
         }
     }
-    if ((fAnonymousMode == true) && !spark::IsSparkAllowed()) {
-        prepareStatus = model->prepareJoinSplitTransaction(currentTransaction, &ctrl);
-    } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
+    if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
         prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, &ctrl);
     } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount)) {
         if (spark::IsSparkAllowed())
@@ -545,6 +527,18 @@ void SendCoinsDialog::on_sendButton_clicked()
     QString questionString = tr("Are you sure you want to send?");
     questionString.append(warningMessage);
     questionString.append("<br /><br />%1");
+    bool firstMessage = true;
+    for (const auto& rec : recipients) {
+        if (!rec.message.isEmpty()) {
+            if (firstMessage) {
+                questionString.append("<hr><b>" + tr("Messages") + ":</b><br>");
+                firstMessage = false;
+            }
+            QString sanitizedMsg = GUIUtil::HtmlEscape(rec.message, true);
+            questionString.append("• " + sanitizedMsg + "<br>");
+        }
+    }
+
     double txSize;
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
@@ -619,9 +613,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     // now send the prepared transaction
     WalletModel::SendCoinsReturn sendStatus;
 
-    if ((fAnonymousMode == true) && !spark::IsSparkAllowed()) {
-        sendStatus = model->sendPrivateCoins(currentTransaction);
-    } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
+    if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
         sendStatus = model->spendSparkCoins(currentTransaction);
     } else if ((fAnonymousMode == false) && (sparkAddressCount == recipients.size()) && spark::IsSparkAllowed()) {
         sendStatus = model->mintSparkCoins(transactions, wtxAndFees, reservekeys);
@@ -639,11 +631,6 @@ void SendCoinsDialog::on_sendButton_clicked()
         for(int i = 0; i < ui->entries->count(); ++i)
         {
             SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
-            if(entry && entry->isPayToPcode())
-            {
-                SendCoinsRecipient recipient = entry->getValue();
-                model->getPcodeModel()->generateTheirNextAddress(recipient.address.toStdString());
-            }
         }
         accept();
         CoinControlDialog::coinControl->UnSelectAll();
@@ -761,7 +748,7 @@ void SendCoinsDialog::updateBlocks(int count, const QDateTime& blockDate, double
         return;
     }
 
-    auto allowed = lelantus::IsLelantusAllowed() || (spark::IsSparkAllowed() && model->getWallet() && model->getWallet()->sparkWallet);
+    auto allowed = (spark::IsSparkAllowed() && model->getWallet() && model->getWallet()->sparkWallet);
 
 
     if (allowed && !ui->switchFundButton->isEnabled())
@@ -890,9 +877,7 @@ void SendCoinsDialog::setBalance(
 
 void SendCoinsDialog::updateDisplayUnit()
 {
-    auto privateBalance = model->getLelantusModel()->getPrivateBalance();
-    std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
-    privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
+    auto privateBalance = model->getSparkBalance();
     setBalance(model->getBalance(), 0, 0, 0, 0, 0, privateBalance.first, 0, 0);
     ui->customFee->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
     updateMinFeeLabel();
@@ -1052,9 +1037,7 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
     }
 
     if (model) {
-        auto privateBalance = model->getLelantusModel()->getPrivateBalance();
-        std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
-        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
+        auto privateBalance = model->getSparkBalance();
         setBalance(model->getBalance(), 0, 0, 0, 0, 0, privateBalance.first, 0, 0);
     }
 }

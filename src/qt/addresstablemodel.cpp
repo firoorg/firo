@@ -47,10 +47,11 @@ struct AddressTableEntry
     QString address;
     QString addressType;
     QString pubcoin;
+    bool isMine{false};
 
     AddressTableEntry() {}
-    AddressTableEntry(Type _type, const QString &_label, const QString &_address, const QString &_addressType):
-        type(_type), label(_label), address(_address), addressType(_addressType) {}
+    AddressTableEntry(Type _type, const QString &_label, const QString &_address, const QString &_addressType, bool _isMine):
+        type(_type), label(_label), address(_address), addressType(_addressType), isMine(_isMine) {}
     AddressTableEntry(Type _type, const QString &_pubcoin):
         type(_type), pubcoin(_pubcoin) {}
 };
@@ -138,7 +139,8 @@ public:
             cachedAddressTable.append(AddressTableEntry(addressType,
                         QString::fromStdString(strName),
                         QString::fromStdString(sparkAddress),
-                        AddressTableModel::SparkName));
+                        AddressTableModel::SparkName,
+                        fMine));
         }
     }
 
@@ -159,7 +161,8 @@ public:
                 cachedAddressTable.append(AddressTableEntry(addressType,
                                 QString::fromStdString(strName),
                                 QString::fromStdString(address.ToString()),
-                                AddressTableModel::Transparent));
+                                AddressTableModel::Transparent,
+                                fMine));
             }
 
             BOOST_FOREACH(const PAIRTYPE(std::string, CAddressBookData)& item, wallet->mapSparkAddressBook)
@@ -172,7 +175,8 @@ public:
                 cachedAddressTable.append(AddressTableEntry(addressType,
                                 QString::fromStdString(strName),
                                 QString::fromStdString(address),
-                                AddressTableModel::Spark));
+                                AddressTableModel::Spark,
+                                fMine));
             }
 
             BOOST_FOREACH(const PAIRTYPE(std::string, CAddressBookData)& item, wallet->mapRAPAddressBook)
@@ -187,7 +191,8 @@ public:
                         cachedAddressTable.append(AddressTableEntry(AddressTableEntry::Sending,
                                         QString::fromStdString(strName),
                                         QString::fromStdString(address),
-                                        AddressTableModel::RAP));
+                                        AddressTableModel::RAP,
+                                        false));
                     }
                 }
             }
@@ -223,12 +228,12 @@ public:
             }
             parent->beginInsertRows(QModelIndex(), lowerIndex, lowerIndex);
             if(addressParsed.IsValid()){
-                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, AddressTableModel::Transparent));
+                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, AddressTableModel::Transparent, isMine));
             } else if (bip47::CPaymentCode::validate(address.toStdString())){
-                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, AddressTableModel::RAP));
+                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, AddressTableModel::RAP, isMine));
             } else {
                 QString addressType = label.startsWith("@") ? AddressTableModel::SparkName : AddressTableModel::Spark;
-                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, addressType));
+                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, addressType, isMine));
             }
             parent->endInsertRows();
             break;
@@ -276,7 +281,7 @@ public:
                     qWarning() << "Warning: AddressTablePriv::updateEntry: Got CT_NOW, but entry is already in model";
                 }
                 parent->beginInsertRows(QModelIndex(), lowerIndex, lowerIndex);
-                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, isUsed, pubCoin, ""));
+                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, isUsed, pubCoin, "", false));
                 parent->endInsertRows();
                 break;
             case CT_UPDATED:
@@ -395,7 +400,7 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
             }
             else if (rec->addressType == AddressTableModel::SparkName)
             {
-                return "spark name";
+                return rec->isMine ? "own spark name" : "spark name";
             }
             else if(rec->addressType == AddressTableModel::RAP)
             {

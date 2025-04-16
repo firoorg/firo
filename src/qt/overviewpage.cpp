@@ -11,7 +11,6 @@
 #include "clientmodel.h"
 #include "guiconstants.h"
 #include "guiutil.h"
-#include "lelantusmodel.h"
 #include "sparkmodel.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
@@ -211,14 +210,7 @@ void OverviewPage::on_anonymizeButton_clicked()
         return;
     }
 
-    if(lelantus::IsLelantusAllowed()) {
-        auto lelantusModel = walletModel->getLelantusModel();
-        if (!lelantusModel) {
-            return;
-        }
-
-        lelantusModel->mintAll(AutoMintMode::MintAll);
-    } else if (spark::IsSparkAllowed()) {
+    if (spark::IsSparkAllowed()) {
         auto sparkModel = walletModel->getSparkModel();
         if (!sparkModel) {
             return;
@@ -255,7 +247,7 @@ void OverviewPage::setBalance(
     ui->labelUnconfirmedPrivate->setText(BitcoinUnits::formatWithUnit(unit, unconfirmedPrivateBalance, false, BitcoinUnits::separatorAlways));
     ui->labelAnonymizable->setText(BitcoinUnits::formatWithUnit(unit, anonymizableBalance, false, BitcoinUnits::separatorAlways));
 
-    ui->anonymizeButton->setEnabled((lelantus::IsLelantusAllowed() || spark::IsSparkAllowed()) && anonymizableBalance > 0);
+    ui->anonymizeButton->setEnabled(spark::IsSparkAllowed() && anonymizableBalance > 0);
 
     // only show immature (newly mined) balance if it's non-zero, so as not to complicate things
     // for the non-mining users
@@ -312,9 +304,7 @@ void OverviewPage::setWalletModel(WalletModel *model)
         ui->listTransactions->setModel(filter.get());
         ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
 
-        auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
-        std::pair<CAmount, CAmount> sparkBalance = walletModel->getSparkBalance();
-        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
+        auto privateBalance = walletModel->getSparkBalance();
 
         // Keep up to date with wallet
         setBalance(
@@ -380,7 +370,8 @@ void OverviewPage::countDown()
 
 void OverviewPage::onRefreshClicked()
 {
-    auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
+    size_t confirmed, unconfirmed;
+    auto privateBalance = walletModel->getWallet()->GetPrivateBalance(confirmed, unconfirmed);
     auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
     int heightDifference = lGracefulPeriod - chainActive.Height();
     const int approxBlocksPerDay = 570;
@@ -404,7 +395,8 @@ void OverviewPage::onRefreshClicked()
 
 void OverviewPage::migrateClicked()
 {
-    auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
+    size_t confirmed, unconfirmed;
+    auto privateBalance = walletModel->getWallet()->GetPrivateBalance(confirmed, unconfirmed);
     auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
     migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
     migrateAmount.append("</b>");

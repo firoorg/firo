@@ -44,9 +44,10 @@ public:
 
     enum AddressTypeEnum
     {
-        Spark,
+        Spark = 1,
         Transparent,
-        SparkName
+        SparkName,
+        SparkNameMine
     };
 
     explicit AddressBookPage(const PlatformStyle *platformStyle, Mode mode, Tabs tab, QWidget *parent, bool isReused = true);

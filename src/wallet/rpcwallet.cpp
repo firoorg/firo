@@ -31,6 +31,7 @@
 #include "lelantusjoinsplitbuilder.h"
 #include "bip47/paymentchannel.h"
 #include "bip47/account.h"
+#include "wallet/coincontrol.h"
 
 #include <stdint.h>
 
@@ -1682,6 +1683,17 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
             }
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination, addr);
+
+            CSparkOutputTx output;
+            if (wtx.tx->IsSparkTransaction()) {
+                const CTxOut& txout = wtx.tx->vout[s.vout];
+                if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+                    if(pwallet->GetSparkOutputTx(txout.scriptPubKey, output)) {
+                        entry.push_back(Pair("address", output.address));
+                    }
+                }
+            }
+
             if (wtx.tx->HasNoRegularInputs()) {
                 entry.push_back(Pair("category", "spend"));
             }
@@ -1691,7 +1703,12 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
             else {
                 entry.push_back(Pair("category", "send"));
             }
-            entry.push_back(Pair("amount", ValueFromAmount(-s.amount)));
+
+            if (!output.address.empty())
+                entry.push_back(Pair("amount", ValueFromAmount(-output.amount)));
+            else
+                entry.push_back(Pair("amount", ValueFromAmount(-s.amount)));
+
             if (pwallet->mapAddressBook.count(s.destination)) {
                 entry.push_back(Pair("label", pwallet->mapAddressBook[s.destination].name));
             }
@@ -3637,7 +3654,7 @@ UniValue mintspark(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() == 0 || request.params.size() > 2)
+    if (request.fHelp || request.params.size() == 0 || request.params.size() > 3)
         throw std::runtime_error(
             "mintspark {\"address\":{amount,memo...}}\n"
             + HelpRequiringPassphrase(pwallet) + "\n"
@@ -3653,6 +3670,8 @@ UniValue mintspark(const JSONRPCRequest& request)
                                                 "\nExamples:\n"
                                                 "\nSend two amounts to two different spark addresses:\n"
             + HelpExampleCli("mintspark", "\"{\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\"},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"\\\"}}\"") +
+            "\nSend two amounts to two different spark addresses, setting subtractFeeFromAmount flag and giving fromAddress array:\n"
+            + HelpExampleCli("mintspark", "\"{\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\"},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"\\\"}}\" true [\\\"THhFWpJTDNyo6vL75kpob7UWVfwwp8t6kD\\\"]") +
             "\nSend two amounts to two different spark addresses setting memo:\n"
             + HelpExampleRpc("mintspark", "\"{\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\":{\"amount\":1},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\":{\"amount\":0.01, \"memo\":\"test_memo2\"}}\"")
         );
@@ -3709,8 +3728,31 @@ UniValue mintspark(const JSONRPCRequest& request)
     bool subtractFeeFromAmount = false;
     if (request.params.size() > 1)
         subtractFeeFromAmount = request.params[1].get_bool();
+
+    CCoinControl coinControl;
+    if (request.params.size() > 2) {
+        UniValue sendFrom = request.params[2].get_array();
+        std::vector<COutput> vAvailableCoins;
+        pwalletMain->AvailableCoins(vAvailableCoins, true);
+        for (unsigned int idx = 0; idx < sendFrom.size(); idx++)
+        {
+            std::string name_ =sendFrom[idx].get_str();
+            CBitcoinAddress address(name_);
+            if (!address.IsValid())
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Firo address: ") + name_);
+            CScript scriptPubKey = GetScriptForDestination(address.Get());
+            for (const auto& itr : vAvailableCoins) {
+                if (itr.tx->tx->vout[itr.i].scriptPubKey != scriptPubKey) {
+                    continue;
+                }
+                coinControl.Select(COutPoint(itr.tx->GetHash(), itr.i));
+            }
+        }
+
+    }
+
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-    std::string strError = pwallet->MintAndStoreSpark(outputs, wtxAndFee, subtractFeeFromAmount);
+    std::string strError = pwallet->MintAndStoreSpark(outputs, wtxAndFee, subtractFeeFromAmount, false, false, false, &coinControl);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
@@ -3745,7 +3787,7 @@ UniValue automintspark(const JSONRPCRequest& request) {
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
     std::vector<spark::MintedCoinData> outputs;
-    std::string strError = pwallet->MintAndStoreSpark(outputs, wtxAndFee, true, true);
+    std::string strError = pwallet->MintAndStoreSpark(outputs, wtxAndFee, true, true, true);
 
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
@@ -3907,6 +3949,150 @@ UniValue spendspark(const JSONRPCRequest& request)
 
     return wtx.GetHash().GetHex();
 }
+UniValue getsparknames(const JSONRPCRequest &request)
+{
+    if (request.fHelp || request.params.size() > 1) {
+        throw std::runtime_error(
+            "getsparknames [<onlyown>]\n"
+            "\nReturns a list of all Spark names.\n"
+            "\nArguments:\n"
+            "1. onlyown       (boolean, optional, default=false) Display only the spark names that belong to this wallet\n"
+            "\nResult:\n"
+            "[\n"
+            "  \"Name (string)\n"
+            "  \"Address (string)\"\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknames", "")
+            + HelpExampleRpc("getsparknames", "")
+        );
+    }
+
+    LOCK(cs_main);
+    CWallet *wallet = GetWalletForJSONRPCRequest(request);
+    LOCK(wallet->cs_wallet);
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    bool fOnlyOwn = request.params.size() > 0 ? request.params[0].get_bool() : false;
+
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    std::set<std::string> sparkNames = sparkNameManager->GetSparkNames();
+    UniValue result(UniValue::VARR);
+    for (const auto &name : sparkNames) {
+        UniValue entry(UniValue::VOBJ);
+
+        std::string sparkAddress;
+        if (sparkNameManager->GetSparkAddress(name, sparkAddress)) {
+            if (fOnlyOwn && !wallet->IsSparkAddressMine(sparkAddress))
+                continue;
+            entry.push_back(Pair("name", name));
+            entry.push_back(Pair("address", sparkAddress));
+
+            result.push_back(entry);
+        }
+    }
+    return result;
+}
+
+UniValue getsparknametxdetails(const JSONRPCRequest &request)
+{
+    if (request.fHelp || request.params.size() != 1) {
+        throw std::runtime_error(
+            "getsparknametxdetails (txhash)\n"
+            "\nReturns spark address and spark name associated with tx hash.\n"
+            "\nArguments:\n"
+            "1. txhash\n"
+            "\nResult:\n"
+            "[\n"
+            "  \"Name (string)\n"
+            "  \"Address (string)\"\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknametxdetails", "txhash")
+            + HelpExampleRpc("getsparknametxdetails", "txhash")
+        );
+    }
+    LOCK(cs_main);
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    std::string strTxId = request.params[0].get_str();
+    uint256 txid = uint256S(strTxId);
+
+    CTransactionRef txRef;
+    uint256 hashBlock;
+    if(!GetTransaction(txid, txRef, Params().GetConsensus(), hashBlock, true))
+        throw JSONRPCError(RPC_TRANSACTION_ERROR, "Unknown transaction.");
+
+    CSparkNameTxData sparkNameData;
+    CValidationState state;
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+
+    const CTransaction& tx = *txRef;
+    if (!sparkNameManager->CheckSparkNameTx(tx, chainActive.Height(), state, &sparkNameData))
+        throw JSONRPCError(RPC_TRANSACTION_ERROR, "Invalid spark tx hash");
+
+    if (sparkNameData.name.empty() && sparkNameData.sparkAddress.empty())
+        throw JSONRPCError(RPC_TRANSACTION_ERROR, "Invalid spark name tx hash");
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("name", sparkNameData.name));
+    result.push_back(Pair("address", sparkNameData.sparkAddress));
+    return result;
+}
+
+UniValue getsparknamedata(const JSONRPCRequest& request)
+{
+     if (request.fHelp || request.params.size() != 1) {
+        throw std::runtime_error(
+            "getsparknamedata ( sparkname )\n"
+            "\nReturns info about spark name.\n"
+            "\nArguments:\n"
+            "Spark name (string)\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"address\": spark address (string)\n"
+            "  \"validUntil\": block height until this spark name is valid (int)\n"
+            "  \"additionalInfo\": additional info (string)\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknamedata", "sparkname")
+            + HelpExampleRpc("getsparknamedata", "sparkname")
+        );
+    }
+
+    LOCK(cs_main);
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    std::string sparkName = request.params[0].get_str();
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+
+    std::string SparkAddr;
+    sparkNameManager->GetSparkAddress(sparkName, SparkAddr);
+
+    UniValue result(UniValue::VOBJ);
+    unsigned char network = spark::GetNetworkType();
+
+    result.push_back(Pair("address", SparkAddr));
+
+    uint64_t nameBlockHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName);
+    result.push_back(Pair("validUntil", nameBlockHeight));
+
+    std::string sparkNameData = sparkNameManager->GetSparkNameAdditionalData(sparkName);
+    result.push_back(Pair("additionalInfo", sparkNameData));
+
+    return result;
+}
 
 UniValue registersparkname(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -3922,10 +4108,16 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     EnsureWalletIsUnlocked(pwallet);
     EnsureSparkWalletIsAvailable();
 
+    int chainHeight;
+    {
+        LOCK(cs_main);
+        chainHeight = chainActive.Height();
+    }
+
     // Ensure spark mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
-    if (!spark::IsSparkAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    if (!spark::IsSparkAllowed() || chainHeight < Params().GetConsensus().nSparkNamesStartBlock) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark names are not activated yet");
     }
 
     const auto &consensusParams = Params().GetConsensus();
@@ -5852,14 +6044,16 @@ static const CRPCCommand commands[] =
     { "wallet",             "getsparkaddressbalance", &getsparkaddressbalance, false },
     { "wallet",             "resetsparkmints",        &resetsparkmints,        false },
     { "wallet",             "setsparkmintstatus",     &setsparkmintstatus,     false },
-    { "wallet",             "mintspark",              &mintspark,              false },
+    { "wallet",             "mintspark",              &mintspark,              true },
     { "wallet",             "automintspark",          &automintspark,          false },
     { "wallet",             "spendspark",             &spendspark,             false },
     { "wallet",             "lelantustospark",        &lelantustospark,        false },
     { "wallet",             "identifysparkcoins",     &identifysparkcoins,     false },
     { "wallet",             "getsparkcoinaddr",       &getsparkcoinaddr,       false },
     { "wallet",             "registersparkname",      &registersparkname,      false },
-
+    { "wallet",             "getsparknames",          &getsparknames,          true,  {} },
+    { "wallet",             "getsparknamedata",       &getsparknamedata,       true,  {} },
+    { "wallet",             "getsparknametxdetails",  &getsparknametxdetails,  true,  {} },
 
     //bip47
     { "bip47",              "createrapaddress",         &createrapaddress,         true },
