@@ -153,6 +153,9 @@ public:
     bool validateSparkAddress(const QString &address);
     std::pair<CAmount, CAmount> getSparkBalance();
 
+    // Generate spark address
+    QString generateSparkAddress();
+
     // Return status record for SendCoins, contains error id + information
     struct SendCoinsReturn
     {
@@ -181,6 +184,20 @@ public:
 
     SendCoinsReturn spendSparkCoins(
         WalletModelTransaction &transaction);
+
+    bool sparkNamesAllowed() const;
+    
+    bool validateSparkNameData(const QString &name, const QString &sparkAddress, const QString &additionalData, QString &strError);
+
+    WalletModelTransaction initSparkNameTransaction(CAmount sparkNameFee);
+
+    QString getSparkNameAddress(const QString &sparkName);
+
+    SendCoinsReturn prepareSparkNameTransaction(
+        WalletModelTransaction &transaction,
+        CSparkNameTxData &sparkNameData,
+        CAmount sparkNameFee,
+        const CCoinControl *coinControl);
         
     SendCoinsReturn mintSparkCoins(
         std::vector<WalletModelTransaction> &transactions,

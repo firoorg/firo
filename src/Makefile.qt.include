@@ -117,8 +117,8 @@ QT_FORMS_UI = \
   qt/forms/sendcoinsdialog.ui \
   qt/forms/sendcoinsentry.ui \
   qt/forms/signverifymessagedialog.ui \
-  qt/forms/transactiondescdialog.ui
-
+  qt/forms/transactiondescdialog.ui \
+  qt/forms/createsparkname.ui
 QT_MOC_CPP = \
   qt/moc_addressbookpage.cpp \
   qt/moc_automintdialog.cpp \
@@ -174,7 +174,8 @@ QT_MOC_CPP = \
   qt/moc_walletview.cpp \
   qt/moc_automintmodel.cpp \
   qt/moc_automintnotification.cpp \
-  qt/moc_sparkmodel.cpp
+  qt/moc_sparkmodel.cpp \
+  qt/moc_createsparknamepage.cpp
 
 BITCOIN_MM = \
   qt/macdockiconhandler.mm \
@@ -252,7 +253,8 @@ BITCOIN_QT_H = \
   qt/walletview.h \
   qt/winshutdownmonitor.h \
   qt/automintmodel.h \
-  qt/sparkmodel.h
+  qt/sparkmodel.h \
+  qt/createsparknamepage.h
 
 RES_ICONS = \
   qt/res/icons/add.png \
@@ -437,7 +439,8 @@ BITCOIN_QT_WALLET_CPP = \
   qt/masternodelist.cpp \
   qt/walletview.cpp \
   qt/automintmodel.cpp \
-  qt/sparkmodel.cpp
+  qt/sparkmodel.cpp \
+  qt/createsparknamepage.cpp
 
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)
 if TARGET_WINDOWS

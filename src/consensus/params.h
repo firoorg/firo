@@ -264,6 +264,9 @@ struct Params {
 
     int nSparkStartBlock;
 
+    int nSparkNamesStartBlock;
+    std::array<int,21> nSparkNamesFee;
+
     int nLelantusGracefulPeriod;
 
     // Lelantus Blacklist

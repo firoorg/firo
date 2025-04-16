@@ -8,6 +8,7 @@
 #include "../policy/policy.h"
 #include "../script/sign.h"
 #include "state.h"
+#include "sparkname.h"
 
 #include <boost/format.hpp>
 
@@ -264,6 +265,10 @@ bool CSparkWallet::isAddressMine(const std::string& encodedAddr) {
         return false;
     }
 
+    return isAddressMine(address);
+}
+
+bool CSparkWallet::isAddressMine(const spark::Address& address) {
     for (const auto& itr : addresses) {
         if (itr.second.get_Q1() == address.get_Q1() && itr.second.get_Q2() == address.get_Q2())
             return true;
@@ -1238,7 +1243,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         const std::vector<CRecipient>& recipients,
         const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
         CAmount &fee,
-        const CCoinControl *coinControl) {
+        const CCoinControl *coinControl,
+        CAmount additionalTxSize) {
 
     if (recipients.empty() && privateRecipients.empty()) {
         throw std::runtime_error(_("Either recipients or newMints has to be nonempty."));
@@ -1324,7 +1330,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     std::list<CSparkMintMeta> coins = GetAvailableSparkCoins(coinControl);
 
     std::pair<CAmount, std::vector<CSparkMintMeta>> estimated =
-            SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size(), recipients.size(), coinControl);
+            SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size(), recipients.size(), coinControl, additionalTxSize);
 
     std::vector<CRecipient> recipients_ = recipients;
     std::vector<std::pair<spark::OutputCoinData, bool>> privateRecipients_ = privateRecipients;
@@ -1606,6 +1612,45 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     return wtxNew;
 }
 
+CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, CAmount sparkNameFee, CAmount &txFee, const CCoinControl *coinConrol) {
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+
+    CRecipient devPayout;
+    devPayout.nAmount = sparkNameFee;
+    devPayout.scriptPubKey = GetScriptForDestination(CBitcoinAddress(Params().GetConsensus().stage3DevelopmentFundAddress).Get());
+    devPayout.fSubtractFeeFromAmount = false;
+
+    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({devPayout}, {}, txFee, coinConrol,
+        sparkNameManager->GetSparkNameTxDataSize(nameData) + 20 /* add a little bit to the fee to be on the safe side */);
+
+    const spark::Params* params = spark::Params::get_default();
+    spark::SpendKey spendKey(params);
+    try {
+        spendKey = std::move(generateSpendKey(params));
+    } catch (std::exception& e) {
+        throw std::runtime_error(_("Unable to generate spend key."));
+    }
+
+    if (spendKey == spark::SpendKey(params))
+        throw std::runtime_error(_("Unable to generate spend key, looks the wallet is locked."));
+
+    spark::Address  address(spark::Params::get_default());
+    try {
+        address.decode(nameData.sparkAddress);
+    } catch (std::exception& e) {
+        throw std::runtime_error(_("Invalid spark address"));
+    }
+
+    if (!isAddressMine(address))
+        throw std::runtime_error(_("Spark address doesn't belong to the wallet"));
+
+    CMutableTransaction tx = CMutableTransaction(*wtxSparkSpend.tx);    
+    sparkNameManager->AppendSparkNameTxData(tx, nameData, spendKey, fullViewKey);
+
+    wtxSparkSpend.tx = MakeTransactionRef(std::move(tx));
+    return wtxSparkSpend;
+}
+
 template<typename Iterator>
 static CAmount CalculateBalance(Iterator begin, Iterator end) {
     CAmount balance(0);
@@ -1699,7 +1744,8 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
         std::list<CSparkMintMeta> coins,
         std::size_t mintNum,
         std::size_t utxoNum,
-        const CCoinControl *coinControl) {
+        const CCoinControl *coinControl,
+        size_t additionalTxSize) {
 
     CAmount fee;
     unsigned size;
@@ -1718,7 +1764,7 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
 
         // 1803 is for first grootle proof/aux data
         // 213 for each private output, 34 for each utxo,924 constant parts of tx parts of tx,
-        size = 924 + 1803*(spendCoins.size()) + 322*(mintNum+1) + 34*utxoNum;
+        size = 924 + 1803*(spendCoins.size()) + 322*(mintNum+1) + 34*utxoNum + additionalTxSize;
         CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
 
         if (fee >= feeNeeded) {

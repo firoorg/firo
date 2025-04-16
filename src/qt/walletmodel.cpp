@@ -1069,6 +1069,21 @@ bool WalletModel::validateSparkAddress(const QString& address)
     return network == coinNetwork;
 }
 
+QString WalletModel::generateSparkAddress()
+{
+    const spark::Params* params = spark::Params::get_default();
+    spark::Address address(params);
+
+    {
+        LOCK(wallet->cs_wallet);
+        address = wallet->sparkWallet->generateNewAddress();
+        unsigned char network = spark::GetNetworkType();
+    
+        wallet->SetSparkAddressBook(address.encode(network), "", "receive");
+        return QString::fromStdString(address.encode(network));
+    }
+}
+
 std::pair<CAmount, CAmount> WalletModel::getSparkBalance()
 {
     return wallet->GetSparkBalance();
@@ -1287,6 +1302,112 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(WalletMod
         transaction.setTransactionFee(nFeeRequired);
         transaction.reassignAmounts(changePos);
     }
+    return SendCoinsReturn(OK);
+}
+
+bool WalletModel::sparkNamesAllowed() const
+{
+    int chainHeight;
+    {
+        LOCK(cs_main);
+        chainHeight = chainActive.Height();
+    }
+    return chainHeight >= Params().GetConsensus().nSparkNamesStartBlock;
+}
+
+bool WalletModel::validateSparkNameData(const QString &name, const QString &sparkAddress, const QString &additionalData, QString &strError) {
+    CSparkNameTxData sparkNameData;
+
+    sparkNameData.name = name.toStdString();
+    sparkNameData.sparkAddress = sparkAddress.toStdString();
+    sparkNameData.additionalInfo = additionalData.toStdString();
+    sparkNameData.sparkNameValidityBlocks = 1000;   // doesn't matter
+
+    {
+        LOCK(cs_main);
+        std::string _strError;
+        bool result = CSparkNameManager::GetInstance()->ValidateSparkNameData(sparkNameData, _strError);
+        strError = QString::fromStdString(_strError);
+        return result;
+    }
+}
+
+WalletModelTransaction WalletModel::initSparkNameTransaction(CAmount sparkNameFee) {
+    const auto &consensusParams = Params().GetConsensus();
+    SendCoinsRecipient recipient;
+
+    recipient.address = QString::fromStdString(consensusParams.stage3DevelopmentFundAddress);
+    recipient.amount = sparkNameFee;
+    recipient.fSubtractFeeFromAmount = false;
+
+    return WalletModelTransaction({recipient});
+}
+
+QString WalletModel::getSparkNameAddress(const QString &sparkName) {
+    LOCK(cs_main);
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    std::string sparkAddress;
+    if (sparkNameManager->GetSparkAddress(sparkName.toStdString(), sparkAddress)) {
+        return QString::fromStdString(sparkAddress);
+    }
+    else {
+        return "";
+    }
+}
+
+WalletModel::SendCoinsReturn WalletModel::prepareSparkNameTransaction(WalletModelTransaction &transaction, CSparkNameTxData &sparkNameData, CAmount sparkNameFee, const CCoinControl* coinControl)
+{
+    CAmount nBalance;
+    std::tie(nBalance, std::ignore) = getSparkBalance();
+
+    if (sparkNameFee > nBalance) {
+        return AmountExceedsBalance;
+    }
+
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+
+        CAmount nFeeRequired = 0;
+        CWalletTx *newTx = transaction.getTransaction();
+        try {
+            *newTx = wallet->CreateSparkNameTransaction(sparkNameData, sparkNameFee, nFeeRequired, coinControl);
+        }
+        catch (InsufficientFunds const&) {
+            transaction.setTransactionFee(nFeeRequired);
+            if (sparkNameFee + nFeeRequired > nBalance) {
+                return SendCoinsReturn(AmountWithFeeExceedsBalance);
+            }
+            return SendCoinsReturn(AmountExceedsBalance);
+        }
+        catch (std::runtime_error const& e) {
+            Q_EMIT message(
+                tr("Spend Spark"),
+                QString::fromStdString(e.what()),
+                CClientUIInterface::MSG_ERROR);
+
+            return TransactionCreationFailed;
+        }
+        catch (std::invalid_argument const& e) {
+            Q_EMIT message(
+                tr("Spend Spark"),
+                QString::fromStdString(e.what()),
+                CClientUIInterface::MSG_ERROR);
+
+            return TransactionCreationFailed;
+        }
+        if (nFeeRequired > maxTxFee) {
+            return AbsurdFee;
+        }
+
+        int changePos = -1;
+        for (size_t i = 0; i != newTx->tx->vout.size(); i++) {
+            if (!newTx->tx->vout[i].scriptPubKey.IsSparkSMint()) changePos = i;
+        }
+
+        transaction.setTransactionFee(nFeeRequired);
+        transaction.reassignAmounts(changePos);
+    }
+    
     return SendCoinsReturn(OK);
 }
 

@@ -5877,6 +5877,22 @@ CWalletTx CWallet::CreateSparkSpendTransaction(
     return sparkWallet->CreateSparkSpendTransaction(recipients, privateRecipients, fee, coinControl);
 }
 
+CWalletTx CWallet::CreateSparkNameTransaction(
+        CSparkNameTxData &sparkNameData,
+        CAmount sparkNameFee,
+        CAmount &txFee,
+        const CCoinControl *coinControl)
+{
+    // sanity check
+    EnsureMintWalletAvailable();
+
+    if (IsLocked()) {
+        throw std::runtime_error(_("Wallet locked"));
+    }
+
+    return sparkWallet->CreateSparkNameTransaction(sparkNameData, sparkNameFee, txFee, coinControl);
+}
+
 CWalletTx CWallet::SpendAndStoreSpark(
         const std::vector<CRecipient>& recipients,
         const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
@@ -8246,7 +8262,7 @@ std::pair<CAmount, CAmount> CWallet::GetSparkBalance()
 }
 
 bool CWallet::IsSparkAddressMine(const std::string& address) {
-    return sparkWallet->isAddressMine(address);
+    return sparkWallet && sparkWallet->isAddressMine(address);
 }
 
 bool CWallet::SetSparkAddressBook(const std::string& address, const std::string& strName, const std::string& strPurpose)
