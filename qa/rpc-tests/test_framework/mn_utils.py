@@ -46,6 +46,12 @@ def create_mn_collateral(node, mn):
             break
     assert(mn.collateral_vout != -1)
 
+def lock_mn_collateral(node, mn):
+    node.lockunspent(False, [{'txid': mn.collateral_txid, 'vout': mn.collateral_vout}])
+
+def unlock_mn_collateral(node, mn):
+    node.lockunspent(True, [{'txid': mn.collateral_txid, 'vout': mn.collateral_vout}])
+
 # register a protx MN and also fund it (using collateral inside ProRegTx)
 def register_fund_mn(node, mn):
     node.sendtoaddress(mn.fundsAddr, 1000.001)

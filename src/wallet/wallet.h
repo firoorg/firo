@@ -9,10 +9,12 @@
 #include "amount.h"
 #include "../sigma/coin.h"
 #include "../liblelantus/coin.h"
+#include "primitives/transaction.h"
 #include "streams.h"
 #include "tinyformat.h"
 #include "ui_interface.h"
 #include "utilstrencodings.h"
+#include "validation.h"
 #include "validationinterface.h"
 #include "script/ismine.h"
 #include "script/sign.h"
@@ -26,14 +28,13 @@
 #include "../base58.h"
 #include "firo_params.h"
 #include "univalue.h"
-
+#include "coincontrol.h"
+#include "policy/policy.h"
 #include "hdmint/tracker.h"
 #include "hdmint/wallet.h"
-
 #include "primitives/mint_spend.h"
-
 #include "bip47/paymentcode.h"
-
+#include "../llmq/quorums_instantsend.h"
 
 #include <algorithm>
 #include <atomic>
@@ -648,12 +649,66 @@ class LelantusJoinSplitBuilder;
 //static boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
 extern boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
 
+class CTransparentTxout;
+enum AbstractTxoutType {
+    Transparent
+};
+
+class CTransparentTxout {
+public:
+    static bool IsTransparentTxout(const CTxOut& txout);
+
+    CTransparentTxout() = default;
+    CTransparentTxout(COutPoint outpoint, CTxOut txout): outpoint(outpoint), txout(txout), _isMockup(true) {}
+    CTransparentTxout(const CWallet* wallet, COutPoint outpoint, CTxOut txout): wallet(wallet), outpoint(outpoint), txout(txout) {};
+
+    uint256 GetHash() const;
+    COutPoint GetOutpoint() const;
+    CAmount GetValue() const;
+    CScript GetScriptPubkey() const;
+    size_t GetMarginalSpendSize(std::vector<CTransparentTxout>& previousInputs) const;
+    bool IsMine(const CCoinControl* coinControl) const;
+    bool IsSpendable() const;
+    bool IsLocked() const;
+    bool IsAbandoned() const;
+    bool IsCoinTypeCompatible(const CCoinControl* coinControl) const;
+    bool IsLLMQInstantSendLocked() const;
+    bool IsCoinBase() const;
+    bool IsFromMe() const;
+    unsigned int GetDepthInMainChain() const;
+    unsigned int GetDepthInMempool() const;
+
+private:
+    const CWallet* wallet = nullptr;
+    COutPoint outpoint;
+    CTxOut txout;
+    bool _isMockup = false;
+
+public:
+    bool _mockupIsMine = false;
+    bool _mockupIsMineWatchOnly = false;
+    bool _mockupIsSpent = false;
+    bool _mockupIsAbandoned = false;
+    bool _mockupIsLocked = false;
+    bool _mockupIsLLMQInstantSendLocked = false;
+    bool _mockupIsCoinBase = false;
+    unsigned int _mockupDepthInMainChain = 0;
+};
+
 /**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
  */
 class CWallet : public CCryptoKeyStore, public CValidationInterface
 {
+public:
+    /**
+     * Used to keep track of spent outpoints, and
+     * detect and report conflicts (double-spends or
+     * mutated transactions where the mutant gets mined).
+     */
+    typedef std::multimap<COutPoint, uint256> TxSpends;
+
 private:
     friend class CSparkWallet;
 
@@ -665,6 +720,39 @@ private:
      * if they are not ours
      */
     bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL, bool fForUseInInstantSend = true) const;
+
+    void AddToSpends(const COutPoint &outpoint, const uint256 &wtxid);
+
+    void AddToSpends(const uint256 &wtxid);
+
+    CAmount GetFee(const CCoinControl* coinControl, size_t txSize);
+    std::vector<CTransparentTxout> GetTransparentTxouts() const;
+
+    // Get all the vRelevantTransactions that can be used. Inputs specifically selected in coinControl are put into
+    // vCoinControlInputs, and all other inputs compatible with coinControl and available for use are put into
+    // vAvailableInputs.
+    template<typename AbstractTxout>
+    void GetAvailableInputs(const std::vector<AbstractTxout>& vRelevantTransactions,
+                            std::vector<AbstractTxout>& vAvailableInputs,
+                            std::vector<AbstractTxout>& vCoinControlInputs,
+                            const CCoinControl* coinControl,
+                            bool fUseInstantSend) const;
+
+    // This populates vInputs with AbstractTxouts from vRelevantTransactions required to produce a transaction to the
+    // given specification. nRequired is the total amount of value we need to produce (either including or excluding fee
+    // depending on the value of fSubtractFeeFromAmount); nConstantSize must be the size of the transaction minus the
+    // inputs, input count, and P2SH_OUTPUT_SIZE in the event that input and output amounts aren't exactly equal. If
+    // fUseInstantSend is not set, we will ignore UTXOs without a confirmation; if it is set, we will ignore only
+    // un-is-locked UTXOs. Fees will be automatically determined if not set in coinControl. If fAllowPartial is set, we
+    // will collect as many inputs as we can and return even if we don't have enough to fulfill nRequired. We return
+    // true if we were able to collect enough inputs to fulfill nRequired, and false otherwise. If fAllowPartial is set,
+    // vInputs may be returned with a 0-length; this will occur if there vRelevantTransactions is empty or if no
+    // transactions could cover the required fees.
+    template<typename AbstractTxout>
+    bool GetInputsForTx(const std::vector<AbstractTxout>& vRelevantTransactions, std::vector<AbstractTxout>& vInputs,
+                        CAmount& nFeeRet, CAmount& nCollectedRet, CAmount nRequired, size_t nConstantSize,
+                        const CCoinControl* coinControl, bool fUseInstantSend, bool fSubtractFeeFromAmount,
+                        bool fAllowPartial=false, size_t nChangeSize=34);
 
     CWalletDB *pwalletdbEncryption;
 
@@ -682,16 +770,6 @@ private:
     mutable std::vector<CompactTallyItem> vecAnonymizableTallyCached;
     mutable bool fAnonymizableTallyCachedNonDenom;
     mutable std::vector<CompactTallyItem> vecAnonymizableTallyCachedNonDenom;
-
-    /**
-     * Used to keep track of spent outpoints, and
-     * detect and report conflicts (double-spends or
-     * mutated transactions where the mutant gets mined).
-     */
-    typedef std::multimap<COutPoint, uint256> TxSpends;
-    TxSpends mapTxSpends;
-    void AddToSpends(const COutPoint& outpoint, const uint256& wtxid);
-    void AddToSpends(const uint256& wtxid);
 
     std::set<COutPoint> setWalletUTXO;
 
@@ -803,6 +881,7 @@ public:
         bip47wallet.reset();
     }
 
+    TxSpends mapTxSpends;
     std::map<uint256, CWalletTx> mapWallet;
     std::list<CAccountingEntry> laccentries;
     bool EraseFromWallet(uint256 hash);
@@ -1013,13 +1092,19 @@ public:
      */
     bool FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool overrideEstimatedFeeRate, const CFeeRate& specificFeeRate, int& nChangePosInOut, std::string& strFailReason, bool includeWatching, bool lockUnspents, const std::set<int>& setSubtractFeeFromOutputs, bool keepReserveKey = true, const CTxDestination& destChange = CNoDestination());
 
-    /**
-     * Create a new transaction paying the recipients with a set of coins
-     * selected by SelectCoins(); Also create the change output, when needed
-     * @note passing nChangePosInOut as -1 will result in setting a random position
-     */
-    bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
-                           std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, int nExtraPayloadSize = 0, bool fUseInstantSend=false);
+    void SignTransparentInputs(CMutableTransaction& tx, const std::vector<CTransparentTxout>& vInputTxs, bool fSign);
+    void CheckTransparentTransactionSanity(CMutableTransaction& tx, const std::vector<CTransparentTxout>& vInputTxs,
+                                           const CCoinControl* coinControl, CAmount nFee, bool fSign);
+
+    bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey,
+                           CAmount& nFeeRet, int& nChangePosInOut, std::string& strFailReason,
+                           const CCoinControl* coinControl, bool sign, int nExtraPayloadSize,
+                           bool fUseInstantSend, const std::vector<CTransparentTxout>& vTransparentTxouts);
+
+    bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey,
+                           CAmount& nFeeRet, int& nChangePosInOut, std::string& strFailReason,
+                           const CCoinControl* coinControl = NULL, bool sign = true, int nExtraPayloadSize = 0,
+                           bool fUseInstantSend = false);
 
     /**
      * Add Mint and Spend functions
@@ -1283,7 +1368,7 @@ public:
             &address, const std::string &label, bool isMine,
             const std::string &purpose,
             ChangeType status)> NotifyRAPAddressBookChanged;
-            
+
     /**
      * Wallet transaction added, removed or updated.
      * @note called with lock cs_wallet held.
