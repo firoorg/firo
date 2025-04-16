@@ -177,6 +177,90 @@ UniValue getblockcount(const JSONRPCRequest& request)
     return chainActive.Height();
 }
 
+UniValue getsparknames(const JSONRPCRequest &request)
+{
+    if (request.fHelp || request.params.size() != 0) {
+        throw std::runtime_error(
+            "getsparknames\n"
+            "\nReturns a list of all Spark names.\n"
+            "\nResult:\n"
+            "[\n"
+            "  \"Name (string)\n"
+            "  \"Address (string)\"\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknames", "")
+            + HelpExampleRpc("getsparknames", "")
+        );
+    }
+
+    LOCK(cs_main);
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    std::set<std::string> sparkNames = sparkNameManager->GetSparkNames();
+    UniValue result(UniValue::VARR);
+    for (const auto &name : sparkNames) {
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("name", name));
+        std::string SparkAddr;
+        if (sparkNameManager->GetSparkAddress(name, SparkAddr))
+            entry.push_back(Pair("address", SparkAddr));
+        result.push_back(entry);
+    }
+    return result;
+}
+
+UniValue getsparknamedata(const JSONRPCRequest& request)
+{
+     if (request.fHelp || request.params.size() > 1) {
+        throw std::runtime_error(
+            "getsparknamedata ( sparkname )\n"
+            "\nReturns info about spark name.\n"
+            "\nArguments:\n"
+            "Spark name (string)\n"
+            "\nResult:\n"
+            "[\n"
+            "1. Address (string)\n"
+            "2. Block height until this spark name is valid (int)\n"
+            "3. Additional info (string)\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknamedata", "sparkname")
+            + HelpExampleRpc("getsparknamedata", "sparkname")
+        );
+    }
+
+    LOCK(cs_main);
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    std::string sparkName = request.params[0].get_str();
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+
+    std::string SparkAddr;
+    sparkNameManager->GetSparkAddress(sparkName, SparkAddr);
+
+    UniValue result(UniValue::VARR);
+    unsigned char network = spark::GetNetworkType();
+
+    result.push_back(SparkAddr);
+
+    uint64_t nameBlockHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName);
+    result.push_back(nameBlockHeight);
+
+    std::string sparkNameData = sparkNameManager->GetSparkNameAdditionalData(sparkName);
+    result.push_back(sparkNameData);
+
+    return result;
+}
+
 UniValue getbestblockhash(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0)
@@ -1659,6 +1743,8 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getblockchaininfo",      &getblockchaininfo,      true,  {} },
     { "blockchain",         "getbestblockhash",       &getbestblockhash,       true,  {} },
     { "blockchain",         "getblockcount",          &getblockcount,          true,  {} },
+    { "blockchain",         "getsparknames",          &getsparknames,          true,  {} },
+    { "blockchain",         "getsparknamedata",       &getsparknamedata,       true,  {} },
     { "blockchain",         "getblock",               &getblock,               true,  {"blockhash","verbose"} },
     { "blockchain",         "getblockhash",           &getblockhash,           true,  {"height"} },
     { "blockchain",         "getblockhashes",         &getblockhashes,         true,  {"high", "low"} },

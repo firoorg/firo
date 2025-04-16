@@ -341,5 +341,4 @@ BOOST_AUTO_TEST_CASE(hfblocknumber)
     BOOST_CHECK(IsSparkNamePresent("testname2"));
 }
 
-
 BOOST_AUTO_TEST_SUITE_END()

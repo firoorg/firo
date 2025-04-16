@@ -416,6 +416,7 @@ public:
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_FIXES_START_BLOCK;
         consensus.nSparkStartBlock = SPARK_START_BLOCK;
         consensus.nLelantusGracefulPeriod = LELANTUS_GRACEFUL_PERIOD;
+        consensus.nSigmaEndBlock = 1104500; // MAY 28 2025
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD;
@@ -733,7 +734,7 @@ public:
 
         consensus.nSparkStartBlock = SPARK_TESTNET_START_BLOCK;
         consensus.nLelantusGracefulPeriod = LELANTUS_TESTNET_GRACEFUL_PERIOD;
-
+        consensus.nSigmaEndBlock = ZC_SIGMA_TESTNET_END_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
@@ -996,7 +997,7 @@ public:
 
         consensus.nSparkStartBlock = 1500;
         consensus.nLelantusGracefulPeriod = 6000;
-
+        consensus.nSigmaEndBlock = 3600;
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
         consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
         consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
@@ -1240,6 +1241,7 @@ public:
         consensus.nSparkStartBlock = 1000;
         consensus.nExchangeAddressStartBlock = 1000;
         consensus.nLelantusGracefulPeriod = 1500;
+        consensus.nSigmaEndBlock = 1400;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = 1;
         consensus.nZerocoinV2MintGracefulPeriod = 1;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = 1;

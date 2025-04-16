@@ -3949,7 +3949,6 @@ UniValue spendspark(const JSONRPCRequest& request)
 
     return wtx.GetHash().GetHex();
 }
-
 UniValue getsparknames(const JSONRPCRequest &request)
 {
     if (request.fHelp || request.params.size() > 1) {

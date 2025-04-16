@@ -663,7 +663,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
     // Size limits (this doesn't take the witness into account, as that hasn't been checked for malleability)
     if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) > MAX_BLOCK_BASE_SIZE)
         return state.DoS(100, false, REJECT_INVALID, "bad-txns-oversize");
-    if (tx.vExtraPayload.size() > MAX_TX_EXTRA_PAYLOAD)
+    if ((tx.vExtraPayload.size() > MAX_TX_EXTRA_PAYLOAD && nHeight < ::Params().GetConsensus().nSigmaEndBlock) || tx.vExtraPayload.size() > NEW_MAX_TX_EXTRA_PAYLOAD)
         return state.DoS(100, false, REJECT_INVALID, "bad-txns-payload-oversize");
 
     // Check for negative or overflow output values
@@ -966,6 +966,11 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
             const std::vector<uint32_t> &ids = joinsplit->getCoinGroupIds();
             const std::vector<Scalar>& serials = joinsplit->getCoinSerialNumbers();
+
+            if (joinsplit->isSigmaToLelantus() && chainActive.Height() >= consensus.nSigmaEndBlock) {
+                    return state.DoS(100, error("Sigma pool already closed."),
+                                     REJECT_INVALID, "txn-invalid-lelantus-joinsplit");
+            }
 
             if (serials.size() != ids.size())
                 return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");

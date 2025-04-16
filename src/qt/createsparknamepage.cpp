@@ -58,7 +58,6 @@ void CreateSparkNamePage::accept()
         QMessageBox::critical(this, tr("Error"), tr("Spark names are not yet allowed"));
         return;
     }
-    
     QString sparkName = ui->sparkNameEdit->text();
     QString sparkAddress = ui->sparkAddressEdit->text();
     int numberOfYears = ui->numberOfYearsEdit->value();

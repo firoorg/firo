@@ -269,6 +269,8 @@ struct Params {
 
     int nLelantusGracefulPeriod;
 
+    int nSigmaEndBlock;
+
     // Lelantus Blacklist
     std::unordered_set<secp_primitives::GroupElement> lelantusBlacklist;
 

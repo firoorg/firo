@@ -121,7 +121,7 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     if (tab == SendingTab) {
         if (spark)
             ui->addressType->addItem(tr("Spark"), Spark);
-        ui->addressType->addItem(tr("Transparent"), Transparent);
+        ui->addressType->addItem(tr("Transparent"), Transparent);     
         if (spark) {
             ui->addressType->addItem(tr("Spark names"), SparkName);
             ui->addressType->addItem(tr("My own spark names"), SparkNameMine);
@@ -383,7 +383,6 @@ void AddressBookPage::contextualMenu(const QPoint &point)
 {
     QModelIndex index;
     index = ui->tableView->indexAt(point);
-
     int currentType = ui->addressType->currentData().toInt();
     if (currentType == (int)Spark || currentType == (int)SparkName || currentType == (int)SparkNameMine) {
         copyAddressAction->setText(tr("&Copy Spark Address"));
@@ -435,7 +434,7 @@ bool AddressBookFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &
 {
     QModelIndex index = sourceModel()->index(sourceRow, 2, sourceParent);
     QString dataStr = sourceModel()->data(index).toString();
-
+    
     switch (typeFilter) {
     case (int)AddressBookPage::Spark:
         return dataStr == "spark";

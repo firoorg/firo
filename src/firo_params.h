@@ -50,6 +50,9 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 #define ZC_SIGMA_DISABLE_UNPADDED_BLOCK         219904 //December 2nd 12PM UTC
 #define ZC_SIGMA_TESTNET_DISABLE_UNPADDED_BLOCK 109160
 
+#define ZC_SIGMA_END_BLOCK         1096000;  // ~ May 13th 2025
+#define ZC_SIGMA_TESTNET_END_BLOCK 174000
+
 // The block number after which old sigma clients are banned.
 #define ZC_OLD_SIGMA_BAN_BLOCK          181850 //Approx July 22nd, 2019, 4:00 AM UTC
 
