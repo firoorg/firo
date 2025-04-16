@@ -10,6 +10,7 @@
 #include "automintmodel.h"
 #include "bitcoingui.h"
 #include "clientmodel.h"
+#include "exportviewkeydialog.h"
 #include "guiutil.h"
 #include "sparkmodel.h"
 #include "optionsmodel.h"
@@ -336,6 +337,12 @@ void WalletView::backupWallet()
         Q_EMIT message(tr("Backup Successful"), tr("The wallet data was successfully saved to %1.").arg(filename),
             CClientUIInterface::MSG_INFORMATION);
     }
+}
+
+void WalletView::exportViewKey()
+{
+    ExportViewKeyDialog dlg(this, walletModel->getWallet()->GetSparkViewKeyStr());
+    dlg.exec();
 }
 
 void WalletView::changePassphrase()

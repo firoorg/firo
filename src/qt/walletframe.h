@@ -90,6 +90,8 @@ public Q_SLOTS:
     void backupWallet();
     /** Change encrypted wallet passphrase */
     void changePassphrase();
+    /** Export the Spark View Key */
+    void exportViewKey();
     /** Ask for passphrase to unlock wallet temporarily */
     void unlockWallet();
 

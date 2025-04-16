@@ -95,6 +95,7 @@ QT_TS = \
   qt/locale/bitcoin_zh_TW.ts
 
 QT_FORMS_UI = \
+  qt/forms/exportviewkeydialog.ui \
   qt/forms/addressbookpage.ui \
   qt/forms/askpassphrasedialog.ui \
   qt/forms/automintdialog.ui \
@@ -137,6 +138,7 @@ QT_MOC_CPP = \
   qt/moc_coincontroltreewidget.cpp \
   qt/moc_csvmodelwriter.cpp \
   qt/moc_editaddressdialog.cpp \
+  qt/moc_exportviewkeydialog.cpp \
   qt/moc_guiutil.cpp \
   qt/moc_intro.cpp \
   qt/moc_recover.cpp \
@@ -207,6 +209,7 @@ BITCOIN_QT_H = \
   qt/cancelpassworddialog.h \
   qt/clientmodel.h \
   qt/coincontroldialog.h \
+  qt/exportviewkeydialog.h \
   qt/manualmintdialog.h \
   qt/coincontroltreewidget.h \
   qt/csvmodelwriter.h \
@@ -417,6 +420,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/coincontroldialog.cpp \
   qt/coincontroltreewidget.cpp \
   qt/editaddressdialog.cpp \
+  qt/exportviewkeydialog.cpp \
   qt/manualmintdialog.cpp \
   qt/openuridialog.cpp \
   qt/overviewpage.cpp \

@@ -121,6 +121,8 @@ public Q_SLOTS:
     void backupWallet();
     /** Change encrypted wallet passphrase */
     void changePassphrase();
+    /** Show the Spark view key */
+    void exportViewKey();
     /** Ask for passphrase to unlock wallet temporarily */
     void unlockWallet(const QString & info = "");
 

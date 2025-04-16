@@ -5946,6 +5946,7 @@ UniValue setusednumber(const JSONRPCRequest& request)
 /******************************************************************************/
 
 extern UniValue dumpprivkey(const JSONRPCRequest& request); // in rpcdump.cpp
+extern UniValue dumpsparkviewkey(const JSONRPCRequest& request); // in rpcdump.cpp
 extern UniValue importprivkey(const JSONRPCRequest& request);
 extern UniValue importaddress(const JSONRPCRequest& request);
 extern UniValue importpubkey(const JSONRPCRequest& request);
@@ -5966,6 +5967,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "backupwallet",             &backupwallet,             true,   {"destination"} },
     { "wallet",             "bumpfee",                  &bumpfee,                  true,   {"txid", "options"} },
     { "wallet",             "dumpprivkey",              &dumpprivkey_firo,        true,   {"address"}  },
+    { "wallet",             "dumpsparkviewkey",         &dumpsparkviewkey,        true,   {}  },
     { "wallet",             "dumpwallet",               &dumpwallet_firo,         true,   {"filename"} },
     { "wallet",             "encryptwallet",            &encryptwallet,            true,   {"passphrase"} },
     { "wallet",             "getaccountaddress",        &getaccountaddress,        true,   {"account"} },

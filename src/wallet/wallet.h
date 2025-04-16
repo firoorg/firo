@@ -9,6 +9,7 @@
 #include "amount.h"
 #include "../sigma/coin.h"
 #include "../liblelantus/coin.h"
+#include "libspark/keys.h"
 #include "streams.h"
 #include "tinyformat.h"
 #include "ui_interface.h"
@@ -1172,6 +1173,9 @@ public:
      */
     void MarkReserveKeysAsUsed(int64_t keypool_id);
     const std::map<CKeyID, int64_t>& GetAllReserveKeys() const { return m_pool_key_to_index; }
+
+    spark::FullViewKey GetSparkViewKey();
+    std::string GetSparkViewKeyStr();
 
     std::set< std::set<CTxDestination> > GetAddressGroupings();
     std::map<CTxDestination, CAmount> GetAddressBalances();
