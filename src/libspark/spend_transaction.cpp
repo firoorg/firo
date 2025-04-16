@@ -460,4 +460,129 @@ const std::map<uint64_t, uint256>& SpendTransaction::getBlockHashes() {
     return set_id_blockHash;
 }
 
+// Generate a claim on a given spend transaction.
+//
+// A claim is essentially just a Chaum authorizing proof that is bound to a transaction identifier and a message.
+//
+// To generate the claim, you must provide the same full view and spend keys that were used to generate the spend transaction, as well as the same input coin data.
+// You must also provide an identifier that the verifier can use to uniquely identify the spend transaction when it verifies the claim.
+// You can also provide an arbitrary message to sign, which can be useful to avoid replays or otherwise bind the claim to some particular context.
+void SpendTransaction::proveClaim(
+	const FullViewKey& full_view_key,
+	const SpendKey& spend_key,
+	const SpendTransaction& transaction,
+	const std::vector<InputCoinData>& inputs,
+	const std::vector<unsigned char>& identifier,
+	const std::vector<unsigned char>& message,
+	ChaumProof& claim
+) {
+	// The number of inputs
+	const std::size_t w = inputs.size();
+
+	// Check that the input coin data corresponds to the prover statement data we'll get from the spend transaction
+	// This ensures we don't try to use incorrect data to build the proof!
+	if (transaction.S1.size() != w || transaction.T.size() != w) {
+		throw std::invalid_argument("Bad claim input coin data!");
+	}
+	for (std::size_t u = 0; u < w; u++) {
+		GroupElement S1 = transaction.params->get_F()*inputs[u].s
+			+ transaction.params->get_H().inverse()*SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D())
+			+ full_view_key.get_D();
+		if (S1 != transaction.S1[u]) {
+			throw std::invalid_argument("Bad claim input coin data!");
+		}
+		if (inputs[u].T != transaction.T[u]) {
+			throw std::invalid_argument("Bad claim input coin data!");
+		}
+	}
+
+	// Build the prover witness
+	std::vector<Scalar> claim_x, claim_y, claim_z;
+	for (std::size_t u = 0; u < w; u++) {
+		claim_x.emplace_back(inputs[u].s);
+		claim_y.emplace_back(spend_key.get_r());
+		claim_z.emplace_back(SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D()).negate());
+	}
+	
+	// Compute the binding hash
+	Scalar mu = hash_bind(
+		hash_bind_inner(
+			transaction.cover_set_representations,
+			transaction.S1,
+			transaction.C1,
+			transaction.T,
+			transaction.grootle_proofs,
+			transaction.balance_proof,
+			transaction.range_proof
+		),
+		transaction.out_coins,
+		transaction.f + transaction.vout
+	);
+
+	// Produce the claim, binding in the identifier and message
+	Claim claim_prover(
+		transaction.params->get_F(),
+		transaction.params->get_G(),
+		transaction.params->get_H(),
+		transaction.params->get_U()
+	);
+	claim_prover.prove(
+		mu,
+		identifier,
+		message,
+		claim_x,
+		claim_y,
+		claim_z,
+		transaction.S1,
+		transaction.T,
+		claim
+	);
+}
+
+// Verify a claim on a given spend transaction.
+//
+// The verifier must have used the identifier to determine its own view of the spend transaction.
+// It must not accept a spend transaction from the prover that it has not checked against its own view of the ledger.
+// The spend transaction must also have been previously verified.
+//
+// If verification subsequently succeeds, it means the same spend key was used to produce the claim as was used to produce the spend transaction, and that the provided message was bound to the claim.
+// It does _not_ say anything else about the spend transaction!
+bool SpendTransaction::verifyClaim(
+	const SpendTransaction& transaction,
+	const std::vector<unsigned char>& identifier,
+	const std::vector<unsigned char>& message,
+	const ChaumProof& claim
+) {
+	// Compute the binding hash
+	Scalar mu = hash_bind(
+		hash_bind_inner(
+			transaction.cover_set_representations,
+			transaction.S1,
+			transaction.C1,
+			transaction.T,
+			transaction.grootle_proofs,
+			transaction.balance_proof,
+			transaction.range_proof
+		),
+		transaction.out_coins,
+		transaction.f + transaction.vout
+	);
+
+	// Verify the claim, binding in the identifier and message
+	Claim claim_verifier(
+		transaction.params->get_F(),
+		transaction.params->get_G(),
+		transaction.params->get_H(),
+		transaction.params->get_U()
+	);
+	return claim_verifier.verify(
+		mu,
+		identifier,
+		message,
+		transaction.S1,
+		transaction.T,
+		claim
+	);
+}
+
 }
