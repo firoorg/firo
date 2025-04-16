@@ -381,7 +381,6 @@ void BitcoinGUI::createActions()
 	connect(historyAction, &QAction::triggered, this, [this]{ showNormalIfMinimized(); });
 	connect(historyAction, &QAction::triggered, this, &BitcoinGUI::gotoHistoryPage);
 
-	connect(lelantusAction, &QAction::triggered, this, &BitcoinGUI::gotoLelantusPage);
 #endif // ENABLE_WALLET
 
     quitAction = new QAction(tr("E&xit"), this);
@@ -580,9 +579,6 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
             // be aware of the tray icon disable state change reported by the OptionsModel object.
             connect(optionsModel, &OptionsModel::hideTrayIconChanged, this, &BitcoinGUI::setTrayIconVisible);
 
-            // update lelantus page if option is changed.
-            connect(optionsModel, &OptionsModel::lelantusPageChanged, this, &BitcoinGUI::updateLelantusPage);
-
             // initialize the disable state of the tray icon with the current value in the model.
             setTrayIconVisible(optionsModel->getHideTrayIcon());
         }
@@ -590,7 +586,6 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
 #ifdef ENABLE_WALLET
             auto blocks = clientModel->getNumBlocks();
             checkZnodeVisibility(blocks);
-            checkLelantusVisibility(blocks);
 #endif // ENABLE_WALLET
         }
     } else {
@@ -807,12 +802,6 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
     if (walletFrame) walletFrame->gotoSignMessageTab(addr);
 }
 
-void BitcoinGUI::gotoLelantusPage()
-{
-    lelantusAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoLelantusPage();
-}
-
 void BitcoinGUI::gotoVerifyMessageTab(QString addr)
 {
     if (walletFrame) walletFrame->gotoVerifyMessageTab(addr);
@@ -977,7 +966,6 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     progressBar->setToolTip(tooltip);
 
 #ifdef ENABLE_WALLET
-    checkLelantusVisibility(count);
     checkZnodeVisibility(count);
 #endif // ENABLE_WALLET
 }
@@ -1323,12 +1311,6 @@ void BitcoinGUI::showModalOverlay()
         modalOverlay->toggleVisibility();
 }
 
-void BitcoinGUI::updateLelantusPage()
-{
-    auto blocks = clientModel->getNumBlocks();
-    checkLelantusVisibility(blocks);
-}
-
 static bool ThreadSafeMessageBox(BitcoinGUI *gui, const std::string& message, const std::string& caption, unsigned int style)
 {
     bool modal = (style & CClientUIInterface::MODAL);
@@ -1369,30 +1351,6 @@ void BitcoinGUI::checkZnodeVisibility(int numBlocks) {
     } else {
         masternodeAction->setVisible(true);
     }
-}
-
-void BitcoinGUI::checkLelantusVisibility(int numBlocks)
-{
-    auto allowLelantusPage = false;
-    if (clientModel && clientModel->getOptionsModel()) {
-        allowLelantusPage = clientModel->getOptionsModel()->getLelantusPage();
-    }
-
-    allowLelantusPage &= lelantus::IsLelantusAllowed(numBlocks);
-
-    if (allowLelantusPage != lelantusAction->isVisible()) {
-        if (!allowLelantusPage && lelantusAction->isChecked()) {
-#ifdef ENABLE_WALLET
-            gotoOverviewPage();
-#endif // ENABLE_WALLET
-        }
-        lelantusAction->setVisible(allowLelantusPage);
-    }
-
-#ifdef ENABLE_WALLET
-    if (numBlocks == ::Params().GetConsensus().nSparkStartBlock)
-        walletFrame->updateAddressbook();
-#endif // ENABLE_WALLET
 }
 
 void BitcoinGUI::toggleNetworkActive()

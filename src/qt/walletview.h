@@ -13,7 +13,6 @@
 #include "automintnotification.h"
 #include "amount.h"
 #include "masternodelist.h"
-#include "lelantusdialog.h"
 
 #include <QStackedWidget>
 
@@ -68,7 +67,6 @@ public:
 private:
     void setupTransactionPage();
     void setupSendCoinPage();
-    void setupLelantusPage();
 
 private:
     ClientModel *clientModel;
@@ -82,8 +80,6 @@ private:
     AddressBookPage *usedReceivingAddressesPage;
     QWidget *sendCoinsPage;
     SendCoinsDialog *sendFiroView;
-    LelantusDialog *lelantusView;
-    QWidget *lelantusPage;
     TransactionView *firoTransactionList;
     QWidget *firoTransactionsView;
     MasternodeList *masternodeListPage;
@@ -91,7 +87,6 @@ private:
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
 
-    AutomintNotification *automintNotification;
     AutomintSparkNotification *automintSparkNotification;
 
 public Q_SLOTS:
@@ -109,8 +104,6 @@ public Q_SLOTS:
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-    /** Switch to lelantus page */
-    void gotoLelantusPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
@@ -149,30 +142,19 @@ public Q_SLOTS:
     void requestedSyncWarningInfo();
 
     /** Show automint notification */
-    void showAutomintNotification();
-
     void showAutomintSparkNotification();
 
     /** Re-position automint notification */
-    void repositionAutomintNotification();
-
     void repositionAutomintSparkNotification();
 
     /** Check mintable amount to close automint notification */
-    void checkMintableAmount(
-        CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance);
-
     void checkMintableSparkAmount(
         CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance);
 
     /** Close automint notification */
-    void closeAutomintNotification();
-
     void closeAutomintSparkNotification();
 
     /** Ask user to do auto mint */
-    void askMintAll(AutoMintMode mode);
-
     void askMintSparkAll(AutoMintSparkMode mode);
 
 Q_SIGNALS:

@@ -40,6 +40,8 @@ public:
 public:
     mutable CCriticalSection cs;
 
+    mutable std::atomic<CAmount> cachedMintableSparkAmount;
+
 Q_SIGNALS:
     void askMintSparkAll(AutoMintSparkMode);
     void ackMintSparkAll(AutoMintSparkAck ack, CAmount minted, QString error);
