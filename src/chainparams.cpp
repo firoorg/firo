@@ -490,7 +490,7 @@ public:
         consensus.nExchangeAddressStartBlock = consensus.nSparkStartBlock;
 
         // spark names
-        consensus.nSparkNamesStartBlock = 1103400;  // ~ May 26th 2025
+        consensus.nSparkNamesStartBlock = 1104500;  // ~ May 28th 2025
         consensus.nSparkNamesFee = standardSparkNamesFee;
     }
     virtual bool SkipUndoForBlock(int nHeight) const
