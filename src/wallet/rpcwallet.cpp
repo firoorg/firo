@@ -3949,11 +3949,11 @@ UniValue spendspark(const JSONRPCRequest& request)
 
     return wtx.GetHash().GetHex();
 }
-UniValue getownsparknames(const JSONRPCRequest &request)
+UniValue getsparknames(const JSONRPCRequest &request)
 {
     if (request.fHelp || request.params.size() > 1) {
         throw std::runtime_error(
-            "getownsparknames\n"
+            "getsparknames [fOnlyOwn] \n"
             "\nReturns a list of all Spark names.\n"
             "\nArguments:\n"
             "1. onlyown       (boolean, optional, default=false) Display only the spark names that belong to this wallet\n"
@@ -3964,8 +3964,8 @@ UniValue getownsparknames(const JSONRPCRequest &request)
             "  ...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("getownsparknames", "")
-            + HelpExampleRpc("getownsparknames", "")
+            + HelpExampleCli("getsparknames", "")
+            + HelpExampleRpc("getsparknames", "")
         );
     }
 
@@ -5957,7 +5957,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "identifysparkcoins",     &identifysparkcoins,     false },
     { "wallet",             "getsparkcoinaddr",       &getsparkcoinaddr,       false },
     { "wallet",             "registersparkname",      &registersparkname,      false },
-    { "wallet",             "getownsparknames",       &getownsparknames,       true,  {} },
+    { "wallet",             "getsparknames",          &getsparknames,          true, {} },
 
     //bip47
     { "bip47",              "createrapaddress",         &createrapaddress,         true },

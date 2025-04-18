@@ -177,44 +177,6 @@ UniValue getblockcount(const JSONRPCRequest& request)
     return chainActive.Height();
 }
 
-UniValue getsparknames(const JSONRPCRequest &request)
-{
-    if (request.fHelp || request.params.size() != 0) {
-        throw std::runtime_error(
-            "getsparknames\n"
-            "\nReturns a list of all Spark names.\n"
-            "\nResult:\n"
-            "[\n"
-            "  \"Name (string)\n"
-            "  \"Address (string)\"\n"
-            "  ...\n"
-            "]\n"
-            "\nExamples:\n"
-            + HelpExampleCli("getsparknames", "")
-            + HelpExampleRpc("getsparknames", "")
-        );
-    }
-
-    LOCK(cs_main);
-
-    if (!spark::IsSparkAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
-    }
-
-    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-    std::set<std::string> sparkNames = sparkNameManager->GetSparkNames();
-    UniValue result(UniValue::VARR);
-    for (const auto &name : sparkNames) {
-        UniValue entry(UniValue::VOBJ);
-        entry.push_back(Pair("name", name));
-        std::string SparkAddr;
-        if (sparkNameManager->GetSparkAddress(name, SparkAddr))
-            entry.push_back(Pair("address", SparkAddr));
-        result.push_back(entry);
-    }
-    return result;
-}
-
 UniValue getsparknamedata(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1) {
@@ -1793,7 +1755,6 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getblockchaininfo",      &getblockchaininfo,      true,  {} },
     { "blockchain",         "getbestblockhash",       &getbestblockhash,       true,  {} },
     { "blockchain",         "getblockcount",          &getblockcount,          true,  {} },
-    { "blockchain",         "getsparknames",          &getsparknames,          true,  {} },
     { "blockchain",         "getsparknamedata",       &getsparknamedata,       true,  {"sparkname"} },
     { "blockchain",         "getsparknametxdetails",  &getsparknametxdetails,  true,  {"txhash"} },
     { "blockchain",         "getblock",               &getblock,               true,  {"blockhash","verbose"} },
