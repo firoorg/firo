@@ -232,7 +232,7 @@ unsigned char Address::decode(const std::string& str) {
 	// Apply the scramble decoding
 	std::vector<unsigned char> raw = F4Grumble(network, scrambled.size()).decode(scrambled);
 
-	// Deserialize the adddress components
+	// Deserialize the address components
 	this->d = std::vector<unsigned char>(raw.begin(), raw.begin() + AES_BLOCKSIZE);
 
 	std::vector<unsigned char> component(raw.begin() + AES_BLOCKSIZE, raw.begin() + AES_BLOCKSIZE + GroupElement::serialize_size);
