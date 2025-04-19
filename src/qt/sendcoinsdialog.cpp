@@ -20,7 +20,6 @@
 #include "lelantus.h"
 #include "wallet/coincontrol.h"
 #include "validation.h" // mempool and minRelayTxFee
-#include "ui_interface.h"
 #include "txmempool.h"
 #include "wallet/wallet.h"
 #include "overviewpage.h"

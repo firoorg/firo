@@ -3,6 +3,8 @@
 
 #include "../field.h"
 #include "../field_impl.h"
+#include "../num.h"
+#include "../num_impl.h"
 #include "../group.h"
 #include "../group_impl.h"
 #include "../hash.h"

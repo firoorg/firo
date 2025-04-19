@@ -37,7 +37,7 @@ void ExtractSpend(CTransaction const &tx,
      }
 }
 
-BOOST_FIXTURE_TEST_SUITE(spark_tests, SparkTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(spark_wallet_tests, SparkTestingSetup)
 
 BOOST_AUTO_TEST_CASE(create_mint_recipient)
 {
