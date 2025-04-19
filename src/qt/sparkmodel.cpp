@@ -5,6 +5,7 @@
 #include "guiconstants.h"
 #include "guiutil.h"
 #include "sparkmodel.h"
+#include "../wallet/wallet.h"
 
 #include <QDateTime>
 #include <QTimer>
@@ -89,7 +90,8 @@ CAmount SparkModel::mintSparkAll()
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
     std::vector<spark::MintedCoinData> outputs;
-    std::string strError = wallet->MintAndStoreSpark(outputs, wtxAndFee, true, true, true);
+    std::vector<CRecipient> vecSend;
+    std::string strError = wallet->MintAndStoreSpark(vecSend, outputs, wtxAndFee, true, true, true);
     if (strError != "") {
         throw std::runtime_error("Fail to mint all public balance, " + strError);
     }
