@@ -207,7 +207,7 @@ std::size_t Coin::memoryRequired() {
 std::size_t Coin::memoryRequiredSpats() {
 	secp_primitives::GroupElement groupElement;
 	secp_primitives::Scalar scalar;
-	return 1 + groupElement.memoryRequired() * 3 + 32 + AEAD_TAG_SIZE + scalar.memoryRequired() * 2;
+	return 1 + groupElement.memoryRequired() * 3 + 32 + AEAD_TAG_SIZE + sizeof(v) + scalar.memoryRequired() * 2;
 }
 
 bool Coin::operator==(const Coin& other) const {

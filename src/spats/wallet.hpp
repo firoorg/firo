@@ -17,6 +17,7 @@
 
 class CSparkWallet;
 class CWalletTx;
+class CCoinControl;
 
 namespace spats {
 
@@ -79,13 +80,13 @@ public:
      supply_amount_t new_supply,
      const public_address_t &receiver_pubaddress,
      CAmount &standard_fee,
+     const CCoinControl *coin_control = nullptr,
      const std::function< bool( const MintAction &action, CAmount standard_fee, std::int64_t txsize ) > &user_confirmation_callback = {} ) const;
-   std::optional< CWalletTx > create_burn_asset_supply_transaction(
-     asset_type_t asset_type,
-     const asset_symbol_t &asset_symbol,
-     supply_amount_t burn_amount,
-     CAmount &standard_fee,
-     const BurnActionUserConfirmationCallback &user_confirmation_callback = {} ) const;
+   std::optional< CWalletTx > create_burn_asset_supply_transaction( asset_type_t asset_type,
+                                                                    const asset_symbol_t &asset_symbol,
+                                                                    supply_amount_t burn_amount,
+                                                                    CAmount &standard_fee,
+                                                                    const BurnActionUserConfirmationCallback &user_confirmation_callback = {} ) const;
 
    void notify_registry_changed();
 
@@ -94,6 +95,8 @@ private:
    mutable std::string my_public_address_as_admin_;
    Registry &registry_;
    asset_balances_t asset_balances_;
+
+   static spark::MintedCoinData create_minted_coin_data( const MintParameters &action_params );
 };
 
 }   // namespace spats

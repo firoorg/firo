@@ -236,11 +236,23 @@ std::optional< CWalletTx > Wallet::create_modify_spark_asset_transaction(
    return tx;
 }
 
+spark::MintedCoinData Wallet::create_minted_coin_data( const MintParameters &action_params )
+{
+   spark::MintedCoinData coin;
+   coin.address.decode( action_params.receiver_public_address() );
+   coin.v = action_params.new_supply().raw();
+   coin.memo = "minting new supply";
+   coin.a = utils::to_underlying( action_params.asset_type() );
+   assert( coin.iota.isZero() );
+   return coin;
+}
+
 std::optional< CWalletTx > Wallet::create_mint_asset_supply_transaction(
   asset_type_t asset_type,
   supply_amount_t new_supply,
   const public_address_t &receiver_pubaddress,
   CAmount &standard_fee,
+  const CCoinControl *coin_control,
   const std::function< bool( const MintAction &action, CAmount standard_fee, std::int64_t txsize ) > &user_confirmation_callback ) const
 {
    const auto &admin_public_address = my_public_address_as_admin();
@@ -262,13 +274,15 @@ std::optional< CWalletTx > Wallet::create_mint_asset_supply_transaction(
    assert( script.IsSpatsMint() );
    script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
    assert( script.IsSpatsMint() );
-   // TODO add a recipient to action_params.receiver_public_address(), for `new_supply` of `asset_type`. It has to be done in such a way that the actual crediting of
-   //      `new_supply` will NOT be actually performed if the action validation by the registry fails.
    auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, admin_public_address, "spats mint" } },
                                                         {},
                                                         standard_fee,
-                                                        nullptr );   // may throw
+                                                        coin_control );   // may throw
    assert( tx.tx->IsSpatsMint() );
+
+   CMutableTransaction mtx( *tx.tx );
+   spark_wallet_.AppendSpatsMintTxData( mtx, { create_minted_coin_data( action_params ), spark_wallet_.getDefaultAddress() }, spark_wallet_.ensureSpendKey() );
+   tx.tx = MakeTransactionRef( std::move( mtx ) );
 
    if ( user_confirmation_callback )   // give the user a chance to confirm/cancel, if there are means to do so
       if ( const auto tx_size = ::GetVirtualTransactionSize( tx ); !user_confirmation_callback( action, standard_fee, tx_size ) ) {

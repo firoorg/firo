@@ -5990,11 +5990,11 @@ std::optional<CWalletTx> CWallet::ModifySparkAsset(const spats::SparkAsset& old_
 }
 
 std::optional<CWalletTx> CWallet::MintSparkAssetSupply(spats::asset_type_t asset_type, spats::supply_amount_t new_supply, const spats::public_address_t &receiver_pubaddress,
-    const std::function<bool(const spats::MintAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback)
+    const CCoinControl *coin_control, const std::function<bool(const spats::MintAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback)
 {
     // create transaction
     CAmount standard_fee;
-    auto wtx = sparkWallet->getSpatsWallet().create_mint_asset_supply_transaction(asset_type, new_supply, receiver_pubaddress, standard_fee, user_confirmation_callback);
+    auto wtx = sparkWallet->getSpatsWallet().create_mint_asset_supply_transaction(asset_type, new_supply, receiver_pubaddress, standard_fee, coin_control, user_confirmation_callback);
     if (!wtx)
         return wtx;
 

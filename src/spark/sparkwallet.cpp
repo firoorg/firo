@@ -267,6 +267,21 @@ spark::IncomingViewKey CSparkWallet::generateIncomingViewKey(const spark::FullVi
     return viewKey;
 }
 
+spark::SpendKey CSparkWallet::ensureSpendKey()
+{
+    const spark::Params* params = spark::Params::get_default();
+    spark::SpendKey spendKey(params);
+    try {
+        spendKey = generateSpendKey(params);
+    } catch (std::exception& e) {
+        throw std::runtime_error(_("Unable to generate spend key."));
+    }
+
+    if (spendKey == spark::SpendKey(params))
+        throw std::runtime_error(_("Unable to generate spend key, looks the wallet is locked."));
+    return spendKey;
+}
+
 std::unordered_map<int32_t, spark::Address> CSparkWallet::getAllAddresses() {
     return addresses;
 }
@@ -1633,14 +1648,16 @@ void CSparkWallet::AppendSpatsMintTxData(CMutableTransaction& tx,
 
     const spark::Params* params = spark::Params::get_default();
     spark::MintTransaction spatskMint(params, {spatsRecipient.first}, serialContext, true);
-    CDataStream serializedMint = spatskMint.getMintedCoinsSerialized()[0];
+    CDataStream serializedMint = spatskMint.getMintedCoinsSerialized().front();
 
     CScript script;
     // opcode is inserted as 1 byte according to file script/script.h
-    script << OP_SPATSMINT;
+    script << OP_SPATSMINTCOIN;
     script.insert(script.end(), serializedMint.begin(), serializedMint.end());
     tx.vout.push_back(CTxOut(spatsRecipient.first.v, script));
 
+    assert(isAddressMine(spatsRecipient.second));
+#if 0	// Not sure if we need this here, as the encompassing OP_SPATSMINT tx already has the admin's address ownership proof
     Scalar m = spark::GetSpatsMintM(tx);
     spark::OwnershipProof ownershipProof;
     spatsRecipient.second.prove_own(m, spendKey, viewKey, ownershipProof);
@@ -1649,38 +1666,30 @@ void CSparkWallet::AppendSpatsMintTxData(CMutableTransaction& tx,
 
     auto& scriptRef = tx.vout.back().scriptPubKey;
     scriptRef.insert(scriptRef.end(), serializedOwn.begin(), serializedOwn.end());
+#endif
 }
 
+#if 0	// appears unnecessary, will remove
 CWalletTx CSparkWallet::CreateSpatsMintTransaction(
         const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
         CAmount &fee,
         const CCoinControl *coinControl) {
 
-    if (spatsRecipient.first.a == Scalar(uint64_t(0)) || spatsRecipient.first.iota == Scalar(uint64_t(0)))
-        throw std::runtime_error(_("Invalid assed type and identifier, please use spark mint creation."));
+    if (spatsRecipient.first.a == Scalar(uint64_t(0)) && spatsRecipient.first.iota == Scalar(uint64_t(0)))
+        throw std::runtime_error(_("Invalid asset type and identifier, please use spark mint creation."));
 	// TODO levon also check type and identifier against spark asset registry
     if (!isAddressMine(spatsRecipient.second))
         throw std::runtime_error(_("Spark address doesn't belong to the wallet"));
 
     CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({}, {}, fee, coinControl);
 
-    const spark::Params* params = spark::Params::get_default();
-    spark::SpendKey spendKey(params);
-    try {
-        spendKey = std::move(generateSpendKey(params));
-    } catch (std::exception& e) {
-        throw std::runtime_error(_("Unable to generate spend key."));
-    }
-
-    if (spendKey == spark::SpendKey(params))
-        throw std::runtime_error(_("Unable to generate spend key, looks the wallet is locked."));
-
     CMutableTransaction tx = CMutableTransaction(*wtxSparkSpend.tx);
-    AppendSpatsMintTxData(tx, spatsRecipient, spendKey);
+    AppendSpatsMintTxData(tx, spatsRecipient, ensureSpendKey());
 
     wtxSparkSpend.tx = MakeTransactionRef(std::move(tx));
     return wtxSparkSpend;
 }
+#endif
 
 template<typename Iterator>
 static CAmount CalculateBalance(Iterator begin, Iterator end) {

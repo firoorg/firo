@@ -107,7 +107,8 @@ void MintTransaction::setMintTransaction(std::vector<CDataStream>& serializedCoi
     }
 }
 
-void MintTransaction::getCoins(std::vector<Coin>& coins_) {
+void MintTransaction::getCoins(std::vector<Coin>& coins_) const
+{
     coins_.insert(coins_.end(), coins.begin(), coins.end());
 }
 

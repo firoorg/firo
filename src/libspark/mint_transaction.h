@@ -34,7 +34,8 @@ public:
     // deserialize from the vector of CDataStreams
     void setMintTransaction(std::vector<CDataStream>& serializedCoins);
 
-    void getCoins(std::vector<Coin>& coins_);
+    void getCoins(std::vector<Coin>& coins_) const;
+    const std::vector<Coin>& getCoins() const noexcept { return coins; }
 
 private:
 	const Params* params;

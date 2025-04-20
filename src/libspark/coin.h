@@ -24,7 +24,7 @@ struct IdentifiedCoinData {
 	uint64_t v; // value
 	Scalar k; // nonce
 	std::string memo; // memo
-	Scalar a =Scalar(uint64_t(0));     // asset type
+	Scalar a = Scalar(uint64_t(0));     // asset type
 	Scalar iota = Scalar(uint64_t(0));  // identifier
 };
 

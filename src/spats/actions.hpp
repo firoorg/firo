@@ -17,6 +17,8 @@
 
 #include "../utils/string.hpp"
 
+#include "../libspark/coin.h"
+
 #include "identification.hpp"
 #include "base_asset.hpp"
 #include "modification.hpp"
@@ -353,8 +355,12 @@ public:
                   utils::abbreviate_for_display( get().receiver_public_address() ) );
    }
 
+   const std::optional< spark::Coin > &coin() const noexcept { return coin_; }
+   void set_coin( spark::Coin &&coin ) noexcept { coin_ = std::move( coin ); }
+
 private:
    MintParameters parameters_;
+   std::optional< spark::Coin > coin_;   // the coin to be minted via this action. ATTENTION: not serialized, deliberately, will only be present in spark state processing
    static constexpr std::uint8_t serialization_version = 1;
 
    template < typename Stream >
@@ -554,6 +560,15 @@ static_assert( []< typename... Ts >( std::type_identity< std::variant< Ts... > >
 // come from different nodes at the same time, so the ordering at hand is just coincidental, with no deep meaning behind it...
 // Hence, not (any longer) having 'sequence' in this type alias' name.
 using Actions = std::vector< Action >;
+
+inline std::vector< spark::Coin > get_coins( const Action &action )
+{
+   if ( const auto *const m = std::get_if< MintAction >( &action ) )
+      if ( m->coin() )
+         return { *m->coin() };
+   // TODO more, as needed
+   return {};
+}
 
 }   // namespace spats
 

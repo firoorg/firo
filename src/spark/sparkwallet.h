@@ -46,6 +46,9 @@ public:
     spark::FullViewKey generateFullViewKey(const spark::SpendKey& spend_key);
     spark::IncomingViewKey generateIncomingViewKey(const spark::FullViewKey& full_view_key);
 
+    // generates and returns a valid SpendKey, otherwise throws std::runtime_error
+    spark::SpendKey ensureSpendKey();
+
     // get map diversifier to Address
     std::unordered_map<int32_t, spark::Address> getAllAddresses();
     // get address for a diversifier
@@ -141,13 +144,15 @@ public:
             CAmount &fee,
             const CCoinControl *coinControl = nullptr);
 	void AppendSpatsMintTxData(CMutableTransaction& tx,
-        const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
+        const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient, // .second is the initiator's (i.e. admin's) address
         const spark::SpendKey& spendKey);
 
+#if 0	// appears unnecessary, will remove
     CWalletTx CreateSpatsMintTransaction(
             const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
             CAmount &fee,
             const CCoinControl *coinControl = nullptr);
+#endif
 
     std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoins(
             CAmount required,

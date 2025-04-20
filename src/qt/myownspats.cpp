@@ -186,6 +186,7 @@ void MyOwnSpats::onMintButtonClicked()
             wallet_model_->getWallet()->MintSparkAssetSupply( asset_type,
                                                               dialog.getNewSupply(),
                                                               dialog.getRecipient(),
+                                                              nullptr,	// TODO proper coin_control?
                                                               MakeSpatsUserConfirmationCallback( *wallet_model_, this ) );
       }
       catch ( const std::exception &e ) {
