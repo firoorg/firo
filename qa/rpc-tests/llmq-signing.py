@@ -21,6 +21,11 @@ class LLMQSigningTest(EvoZnodeTestFramework):
 
     def run_test(self):
 
+        """
+        Executes a comprehensive test of LLMQ signing sessions and signature conflict handling.
+        
+        This method mines quorums, simulates signing operations across masternodes, and verifies the correct detection and expiration of recovered signatures and signature conflicts. It manipulates mock time to test signature persistence and expiration, and asserts that quorum states remain consistent throughout various scenarios. Raises AssertionError if expected quorum states are not achieved within specified timeouts.
+        """
         self.mine_quorum()
 
         id = "0000000000000000000000000000000000000000000000000000000000000001"
@@ -67,7 +72,7 @@ class LLMQSigningTest(EvoZnodeTestFramework):
         self.mine_quorum()
         assert_sigs_nochange(True, False, True, 3)
 
-        # Mine 2 more quorums, so that the one used for the the recovered sig should become inactive, nothing should change
+        # Mine 2 more quorums, so that the one used for the recovered sig should become inactive, nothing should change
         self.mine_quorum()
         self.mine_quorum()
         assert_sigs_nochange(True, False, True, 3)
