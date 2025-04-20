@@ -53,60 +53,60 @@ SpendTransaction::SpendTransaction(
 		this->params->get_m_grootle()
 	);
 	for (std::size_t u = 0; u < w; u++) {
-		// Parse out cover set data for this spend
-        uint64_t set_id = inputs[u].cover_set_id;
-		this->cover_set_ids.emplace_back(set_id);
-        if (cover_set_data.count(set_id) == 0 || cover_sets.count(set_id) == 0)
-            throw std::invalid_argument("Required set is not passed");
+	    // Parse out cover set data for this spend
+            uint64_t set_id = inputs[u].cover_set_id;
+	    this->cover_set_ids.emplace_back(set_id);
+            if (cover_set_data.count(set_id) == 0 || cover_sets.count(set_id) == 0)
+                throw std::invalid_argument("Required set is not passed");
 
-        const auto& cover_set = cover_sets.at(set_id);
-        std::size_t set_size = cover_set.size();
-        if (set_size > N)
-            throw std::invalid_argument("Wrong set size");
+            const auto& cover_set = cover_sets.at(set_id);
+            std::size_t set_size = cover_set.size();
+            if (set_size > N)
+                throw std::invalid_argument("Wrong set size");
 
-        std::vector<GroupElement> S, C;
-		S.reserve(set_size);
-		C.reserve(set_size);
-		for (std::size_t i = 0; i < set_size; i++) {
-			S.emplace_back(cover_set[i].S);
-			C.emplace_back(cover_set[i].C);
-		}
+            std::vector<GroupElement> S, C;
+	    S.reserve(set_size);
+	    C.reserve(set_size);
+	    for (std::size_t i = 0; i < set_size; i++) {
+		    S.emplace_back(cover_set[i].S);
+		    C.emplace_back(cover_set[i].C);
+	    }
 
-		// Serial commitment offset
-		this->S1.emplace_back(
-			this->params->get_F()*inputs[u].s
-			+ this->params->get_H().inverse()*SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D())
-			+ full_view_key.get_D()
-		);
+	    // Serial commitment offset
+	    this->S1.emplace_back(
+		    this->params->get_F()*inputs[u].s
+		    + this->params->get_H().inverse()*SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D())
+		    + full_view_key.get_D()
+	    );
 
-		// Value commitment offset
-		this->C1.emplace_back(
-			this->params->get_G()*Scalar(inputs[u].v)
-			+ this->params->get_H()*SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D())
-		);
+	    // Value commitment offset
+	    this->C1.emplace_back(
+		    this->params->get_G()*Scalar(inputs[u].v)
+		    + this->params->get_H()*SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D())
+	    );
 
-		// Tags
-		this->T.emplace_back(inputs[u].T);
+	    // Tags
+	    this->T.emplace_back(inputs[u].T);
 
-		// Grootle proof
-		this->grootle_proofs.emplace_back();
-		std::size_t l = inputs[u].index;
-		grootle.prove(
-			l,
-			SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D()),
-			S,
-			this->S1.back(),
-			SparkUtils::hash_val(inputs[u].k) - SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D()),
-			C,
-			this->C1.back(),
-			this->cover_set_representations[set_id],
-			this->grootle_proofs.back()
-		);
+	    // Grootle proof
+	    this->grootle_proofs.emplace_back();
+	    std::size_t l = inputs[u].index;
+	    grootle.prove(
+		    l,
+		    SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D()),
+		    S,
+		    this->S1.back(),
+		    SparkUtils::hash_val(inputs[u].k) - SparkUtils::hash_val1(inputs[u].s, full_view_key.get_D()),
+		    C,
+		    this->C1.back(),
+		    this->cover_set_representations[set_id],
+		    this->grootle_proofs.back()
+	    );
 
-		// Chaum data
-		chaum_x.emplace_back(inputs[u].s);
-		chaum_y.emplace_back(spend_key.get_r());
-		chaum_z.emplace_back(SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D()).negate());
+	    // Chaum data
+	    chaum_x.emplace_back(inputs[u].s);
+	    chaum_y.emplace_back(spend_key.get_r());
+	    chaum_z.emplace_back(SparkUtils::hash_ser1(inputs[u].s, full_view_key.get_D()).negate());
 	}
 
 	// Generate output coins and prepare range proof vectors
@@ -413,13 +413,13 @@ bool SpendTransaction::verify(
 // 
 // Note that transparent components of the transaction are bound into `cover_set_representation`, so they don't appear separately.
 std::vector<unsigned char> SpendTransaction::hash_bind_inner(
-	const std::map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
-	const std::vector<GroupElement>& S1,
-	const std::vector<GroupElement>& C1,
-	const std::vector<GroupElement>& T,
-	const std::vector<GrootleProof>& grootle_proofs,
-	const SchnorrProof& balance_proof,
-	const BPPlusProof& range_proof
+    const std::map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
+    const std::vector<GroupElement>& S1,
+    const std::vector<GroupElement>& C1,
+    const std::vector<GroupElement>& T,
+    const std::vector<GrootleProof>& grootle_proofs,
+    const SchnorrProof& balance_proof,
+    const BPPlusProof& range_proof
 ) {
     Hash hash(LABEL_HASH_BIND_INNER);
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
@@ -429,7 +429,7 @@ std::vector<unsigned char> SpendTransaction::hash_bind_inner(
     stream << T;
     stream << grootle_proofs;
     stream << balance_proof;
-	stream << range_proof;
+    stream << range_proof;
     hash.include(stream);
 
 	return hash.finalize();
@@ -438,16 +438,16 @@ std::vector<unsigned char> SpendTransaction::hash_bind_inner(
 // Hash-to-scalar function H_bind
 // This function must accept pre-hashed data from `H_bind_inner` intended to correspond to the signing operation
 Scalar SpendTransaction::hash_bind(
-	const std::vector<unsigned char> hash_bind_inner,
+    const std::vector<unsigned char> hash_bind_inner,
     const std::vector<Coin>& out_coins,
     const uint64_t f_
 ) {
-	Hash hash(LABEL_HASH_BIND);
+    Hash hash(LABEL_HASH_BIND);
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-	stream << hash_bind_inner,
-	stream << out_coins;
-	stream << f_;
-	hash.include(stream);
+    stream << hash_bind_inner,
+    stream << out_coins;
+    stream << f_;
+    hash.include(stream);
 
     return hash.finalize_scalar();
 }

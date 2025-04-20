@@ -19,13 +19,13 @@ const char COIN_TYPE_MINT_V2 = 2;
 const char COIN_TYPE_SPEND_V2 = 3;
 
 struct IdentifiedCoinData {
-	uint64_t i; // diversifier
-	std::vector<unsigned char> d; // encrypted diversifier
-	uint64_t v; // value
-	Scalar k; // nonce
-	std::string memo; // memo
-	Scalar a = Scalar(uint64_t(0));     // asset type
-	Scalar iota = Scalar(uint64_t(0));  // identifier
+    uint64_t i; // diversifier
+    std::vector<unsigned char> d; // encrypted diversifier
+    uint64_t v; // value
+    Scalar k; // nonce
+    std::string memo; // memo
+    Scalar a = Scalar(uint64_t(0));     // asset type
+    Scalar iota = Scalar(uint64_t(0));  // identifier
 };
 
 struct RecoveredCoinData {
@@ -97,7 +97,7 @@ public:
 	RecoveredCoinData recover(const FullViewKey& full_view_key, const IdentifiedCoinData& data);
 
     static std::size_t memoryRequired();
-	static std::size_t memoryRequiredSpats();
+    static std::size_t memoryRequiredSpats();
 
     bool operator==(const Coin& other) const;
     bool operator!=(const Coin& other) const;

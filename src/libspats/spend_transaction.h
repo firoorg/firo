@@ -8,6 +8,7 @@
 #include "../libspark/keys.h"
 #include "../libspark/schnorr.h"
 #include "../libspark/coin.h"
+#include "../libspark/spend_transaction.h"
 #include "type.h"
 #include "util.h"
 #include <algorithm>
@@ -22,30 +23,6 @@ using namespace secp_primitives;
 // To support efficient batching, we track which set each spend references
 // If spends share a `cover_set_id`, we assume the corresponding `cover_set` vectors have a subset relationship
 // This relationship _must_ be checked elsewhere, as we simply use the largest `cover_set` for each `cover_set_id`!
-struct InputCoinData {
-    uint64_t cover_set_id; // an identifier for the monotonically-growing set of which `cover_set` is a subset
-    std::size_t index;     // index of the coin in the cover set
-    Scalar s;              // serial number
-    GroupElement T;        // tag
-    uint64_t v;            // value
-    Scalar k;              // nonce
-    Scalar a;            // asset type
-    Scalar iota;         // identifier
-};
-
-struct CoverSetData {
-    std::vector<spark::Coin> cover_set;                         // set of coins used as a cover set for the spend
-    std::vector<unsigned char> cover_set_representation; // a unique representation for the ordered elements of the partial `cover_set` used in the spend
-};
-
-struct OutputCoinData {
-    spark::Address address;
-    uint64_t v;
-    std::string memo;
-    Scalar a;    // asset type
-    Scalar iota; // identifier
-};
-
 class SpendTransaction
 {
 public:
@@ -56,11 +33,12 @@ public:
         const spark::Params* params,
         const spark::FullViewKey& full_view_key,
         const spark::SpendKey& spend_key,
-        const std::vector<InputCoinData>& inputs,//should be sorted, base coins at the beginning, otherwise you will get a failure
-        const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
+        const std::vector<spark::InputCoinData>& inputs,//should be sorted, base coins at the beginning, otherwise you will get a failure
+        const std::unordered_map<uint64_t, spark::CoverSetData>& cover_set_data,
+        const std::unordered_map<uint64_t, std::vector<spark::Coin>>& cover_sets,
         const uint64_t f,
         const uint64_t vout,
-        const std::vector<OutputCoinData>& outputs); //should be sorted, base coins at the beginning, otherwise you will get a failure
+        const std::vector<spark::OutputCoinData>& outputs); //should be sorted, base coins at the beginning, otherwise you will get a failure
 
     uint64_t getFee();
     const std::vector<GroupElement>& getUsedLTags() const;
@@ -70,22 +48,23 @@ public:
     static bool verify(const spark::Params* params, const std::vector<SpendTransaction>& transactions, const std::unordered_map<uint64_t, std::vector<spark::Coin> >& cover_sets);
     static bool verify(const SpendTransaction& transaction, const std::unordered_map<uint64_t, std::vector<spark::Coin> >& cover_sets);
 
-    std::vector<unsigned char> hash_bind_inner(
-        const std::unordered_map<uint64_t, std::vector<unsigned char> >& cover_set_representations,
+    static std::vector<unsigned char> hash_bind_inner(
+        const std::map<uint64_t, std::vector<unsigned char> >& cover_set_representations,
+        const std::vector<GroupElement>& S1,
         const std::vector<GroupElement>& C1,
-        const std::vector<spark::GrootleProof>& grootle_proofs
-        // const SchnorrProof& balance_proof,
-        // const BPPlusProof& range_proof
-    );
-    static Scalar hash_bind(
-        const std::vector<unsigned char> hash_bind_inner,
-        const std::vector<spark::Coin>& out_coins,
-        const uint64_t f_,
+        const std::vector<GroupElement>& T,
+        const std::vector<spark::GrootleProof>& grootle_proofs,
         const spark::SchnorrProof& rep_proof,
         const BPPlusProof& range_proof,
         const BaseAssetProof& base_proof,
         const TypeProof& type_proof,
-        const BalanceProof& balance_proof);
+        const BalanceProof& balance_proof
+    );
+    static Scalar hash_bind(
+        const std::vector<unsigned char> hash_bind_inner,
+        const std::vector<spark::Coin>& out_coins,
+        const uint64_t f_
+        );
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
@@ -113,10 +92,10 @@ public:
         this->out_coins = out_coins_;
     }
 
-    void setCoverSets(const std::unordered_map<uint64_t, CoverSetData>& cover_set_data)
+    void setCoverSets(const std::unordered_map<uint64_t, spark::CoverSetData>& cover_set_data)
     {
         for (const auto& data : cover_set_data) {
-            this->cover_set_sizes[data.first] = data.second.cover_set.size();
+            this->cover_set_sizes[data.first] = data.second.cover_set_size;
             this->cover_set_representations[data.first] = data.second.cover_set_representation;
         }
     }
@@ -134,7 +113,7 @@ private:
     const spark::Params* params;
     // We need to construct and pass this data before running verification
     std::unordered_map<uint64_t, std::size_t> cover_set_sizes;
-    std::unordered_map<uint64_t, std::vector<unsigned char> > cover_set_representations;
+    std::map<uint64_t, std::vector<unsigned char> > cover_set_representations;
     std::vector<spark::Coin> out_coins;
     uint64_t vout;
 
