@@ -283,6 +283,7 @@ std::optional< CWalletTx > Wallet::create_mint_asset_supply_transaction(
    CMutableTransaction mtx( *tx.tx );
    spark_wallet_.AppendSpatsMintTxData( mtx, { create_minted_coin_data( action_params ), spark_wallet_.getDefaultAddress() }, spark_wallet_.ensureSpendKey() );
    tx.tx = MakeTransactionRef( std::move( mtx ) );
+   assert( tx.tx->IsSpatsMint() );
 
    if ( user_confirmation_callback )   // give the user a chance to confirm/cancel, if there are means to do so
       if ( const auto tx_size = ::GetVirtualTransactionSize( tx ); !user_confirmation_callback( action, standard_fee, tx_size ) ) {

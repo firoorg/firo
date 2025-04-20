@@ -345,8 +345,9 @@ static spats::MintAction ParseSpatsMintTransaction(const CTransaction &tx)
     if (tx.vout.size() < 2)
         throw CBadTxIn();
 
-    const CScript& mint_script = tx.vout[0].scriptPubKey;
-    const CScript& coin_script = tx.vout[1].scriptPubKey;
+    const CScript& mint_script = tx.vout.front().scriptPubKey;
+    // there may (always, rather?) be 1 more OP_SPARKSMINT outs in-between these two endpoints
+    const CScript& coin_script = tx.vout.back().scriptPubKey;
     if (!mint_script.IsSpatsMint())
         throw CBadTxIn();
 
@@ -380,7 +381,7 @@ static spats::MintAction ParseSpatsMintTransaction(const CTransaction &tx)
         if (coins.size() != 1)
             throw CBadTxIn();
         auto coin = coins.front();
-        if (coin.v != tx.vout[1].nValue || coin.v != mint_params.new_supply().raw())
+        if (coin.v != tx.vout.back().nValue || coin.v != mint_params.new_supply().raw())
             throw CBadTxIn();
         action.set_coin(std::move(coin));
 
@@ -930,7 +931,7 @@ bool CheckSparkSpendTransaction(
                 script.IsLelantusJMint() ||
                 script.IsSigmaMint()) {
             return false;
-        } else if (script.IsSpatsMint()) {
+        } else if (script.IsSpatsMint() || script.IsSpatsMintCoin()) {
             continue;
         } else {
             Vout += txout.nValue;
@@ -1040,7 +1041,7 @@ bool CheckSparkSpendTransaction(
         if (!(sparkTxInfo && sparkTxInfo->spTransactions.count(hashTx) > 0)) {
             for (size_t i = 0; i < lTags.size(); ++i) {
                     if (!CheckLTag(state, sparkTxInfo, lTags[i], nHeight, false)) {
-                        LogPrintf("CheckSparkSpendTransaction: lTAg check failed, ltag=%s\n", lTags[i]);
+                        LogPrintf("CheckSparkSpendTransaction: lTag check failed, ltag=%s\n", lTags[i]);
                         return false;
                     }
             }
