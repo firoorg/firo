@@ -16,7 +16,6 @@
 #endif
 
 #include "compat.h"
-#include "compat_macros.h"
 #include "tinyformat.h"
 #include "utiltime.h"
 

@@ -3849,7 +3849,7 @@ UniValue spendspark(const JSONRPCRequest& request)
     BOOST_FOREACH(const std::string& name_, keys)
     {
         spark::Address sAddress(params);
-        __firo_unused unsigned char coinNetwork;
+        unsigned char coinNetwork;
         bool isSparkAddress;
         try {
             unsigned char coinNetwork = sAddress.decode(name_);
@@ -4274,7 +4274,7 @@ UniValue spendmany(const JSONRPCRequest& request) {
     std::set<CBitcoinAddress> setAddress;
     std::vector<CRecipient> vecSend;
 
-    __firo_unused CAmount totalAmount = 0;
+    CAmount totalAmount = 0;
     auto keys = sendTo.getKeys();
     if (keys.size() <= 0) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Required at least an address to send");
@@ -4396,7 +4396,7 @@ UniValue joinsplit(const JSONRPCRequest& request) {
     std::vector<CRecipient> vecSend;
     std::vector<CAmount> vMints;
 
-    __firo_unused CAmount totalAmount = 0;
+    CAmount totalAmount = 0;
 
     auto keys = sendTo.getKeys();
     std::vector<UniValue> mints = mintAmounts.empty() ? std::vector<UniValue>() : mintAmounts.getValues();
