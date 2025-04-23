@@ -74,9 +74,6 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   editaddressdialog.cpp
   guiutil.cpp
   intro.cpp
-  lelantuscoincontroldialog.cpp
-  lelantusdialog.cpp
-  lelantusmodel.cpp
   manualmintdialog.cpp
   masternodelist.cpp
   modaloverlay.cpp
@@ -88,7 +85,6 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   optionsmodel.cpp
   overviewpage.cpp
   paymentserver.cpp
-  pcodemodel.cpp
   peertablemodel.cpp
   platformstyle.cpp
   qvalidatedlineedit.cpp
@@ -100,7 +96,6 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   rpcconsole.cpp
   sendcoinsdialog.cpp
   sendcoinsentry.cpp
-  sendtopcodedialog.cpp
   signverifymessagedialog.cpp
   sparkmodel.cpp
   splashscreen.cpp
@@ -178,17 +173,16 @@ if(ENABLE_WALLET)
         coincontroldialog.cpp
         coincontroltreewidget.cpp
         editaddressdialog.cpp
+        exportviewkeydialog.cpp
         manualmintdialog.cpp
         openuridialog.cpp
         overviewpage.cpp
-        pcodemodel.cpp
         paymentserver.cpp
         receivecoinsdialog.cpp
         receiverequestdialog.cpp
         recentrequeststablemodel.cpp
         sendcoinsdialog.cpp
         sendcoinsentry.cpp
-        sendtopcodedialog.cpp
         signverifymessagedialog.cpp
         transactiondesc.cpp
         transactiondescdialog.cpp
@@ -201,11 +195,9 @@ if(ENABLE_WALLET)
         walletmodeltransaction.cpp
         masternodelist.cpp
         walletview.cpp
-        lelantusmodel.cpp
-        lelantusdialog.cpp
-        lelantuscoincontroldialog.cpp
         automintmodel.cpp
         sparkmodel.cpp
+        createsparknamepage.cpp
   )
   target_link_libraries(firoqt
     PRIVATE
