@@ -4802,14 +4802,16 @@ bool CWallet::EraseFromWallet(uint256 hash) {
 }
 
 /**
- * @brief CWallet::CreateMintTransaction
- * @param vecSend
- * @param wtxNew
- * @param reservekey
- * @param nFeeRet
- * @param strFailReason
- * @param coinControl
- * @return
+ * @brief CWallet::CreateMintTransaction Create a new mint transaction (coin generation transaction)
+ * @param vecSend         Vector of recipients containing amounts and scripts to send
+ * @param[out] wtxNew     Reference to store the new wallet transaction
+ * @param reservekey      Key reserve used for change address generation
+ * @param[out] nFeeRet    Reference to store the calculated transaction fee
+ * @param[in,out] nChangePosInOut Requested/calculated position of change output (-1 for random)
+ * @param[out] strFailReason Reference to store failure description if unsuccessful
+ * @param coinControl     Optional coin selection control parameters
+ * @param sign            Whether to sign the transaction immediately
+ * @return true if transaction creation succeeded, false otherwise
  */
 bool CWallet::CreateMintTransaction(const std::vector <CRecipient> &vecSend, CWalletTx &wtxNew,
                                             CReserveKey &reservekey,
