@@ -586,6 +586,38 @@ foreach(func ${BUILTIN_FUNCTIONS})
     endif()
 endforeach()
 
+check_cxx_source_compiles(
+  "#if __cplusplus >= 201703L
+  int main() {
+      [[maybe_unused]] int x = 42;
+      return 0;
+  }
+  #else
+  #error \"Requires C++17\"
+  #endif"
+  HAVE_MAYBE_UNUSED
+)
+if(${HAVE_MAYBE_UNUSED})
+    message(STATUS "Compiler supports maybe_unused" )
+    add_compile_definitions(HAVE_MAYBE_UNUSED=1)
+else()
+    message(WARNING "Compiler does not support maybe_unused")
+    check_cxx_source_compiles(
+      "int main() {
+          __attribute__((unused)) int x = 42;
+          return 0;
+      }"
+      HAVE_ATTRIBUTE_UNUSED
+    )
+    if(${HAVE_ATTRIBUTE_UNUSED})
+        message(STATUS "Compiler supports __attribute__((unused))" )
+        add_compile_definitions(HAVE_ATTRIBUTE_UNUSED=1)
+    else()
+        message(WARNING "Compiler does not support __attribute__((unused))")
+        message(WARNING "Please use a compiler that supports C++17 or __attribute__((unused))")
+    endif()
+endif()
+
 include(cmake/ccache.cmake)
 
 add_library(warn_interface INTERFACE)
@@ -836,6 +868,8 @@ setup_split_debug_script()
 add_maintenance_targets()
 add_windows_deploy_target()
 add_macos_deploy_target()
+
+include_directories(${CMAKE_SOURCE_DIR}/src)
 
 message("\n")
 message("Configure summary")
