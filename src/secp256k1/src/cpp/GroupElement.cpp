@@ -433,13 +433,13 @@ std::string _convertToString(const unsigned char(&buffer) [Len], int base) {
 
     for (int i = 0; i < strLen; i++) {
         unsigned char v = dst[startAt + i];
-        char ch;
+        char ch{};
         switch (base) {
         case 10:
             ch = '0' + v;
             break;
         case 16:
-            if (v >= 0 && v <= 9) {
+            if (v <= 9) {
                 ch = '0' + v;
             } else {
                 ch = 'a' + v - 10;

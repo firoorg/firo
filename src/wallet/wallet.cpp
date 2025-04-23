@@ -3023,7 +3023,7 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
 
             vDMints.push_back(dMint);
 
-            return {scriptSerializedCoin, v, false};
+            return {scriptSerializedCoin, v, false, {}, {}};
         }
     );
 
@@ -3087,7 +3087,7 @@ CRecipient CWallet::CreateLelantusMintRecipient(
         script.insert(script.end(), serializedHash.begin(), serializedHash.end());
 
         // overall Lelantus mint script size is 1 + 34 + 98 + 32 = 165 byte
-        return {script, CAmount(coin.getV()), false};
+        return {script, CAmount(coin.getV()), false, {}, {}};
     }
 }
 
@@ -4307,7 +4307,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
     for (size_t idx = 0; idx < tx.vout.size(); idx++)
     {
         const CTxOut& txOut = tx.vout[idx];
-        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, setSubtractFeeFromOutputs.count(idx) == 1};
+        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, setSubtractFeeFromOutputs.count(idx) == 1, {}, {}};
         vecSend.push_back(recipient);
     }
 
@@ -5493,7 +5493,7 @@ CWallet::CreateMintTransaction(CScript pubCoin, int64_t nValue, CWalletTx &wtxNe
                                        int64_t &nFeeRet, std::string &strFailReason,
                                        const CCoinControl *coinControl) {
     std::vector <CRecipient> vecSend;
-    CRecipient recipient = {pubCoin, nValue, false};
+    CRecipient recipient = {pubCoin, nValue, false, {}, {}};
     vecSend.push_back(recipient);
     int nChangePosRet = -1;
     return CreateMintTransaction(vecSend, wtxNew, reservekey, nFeeRet, nChangePosRet, strFailReason,
@@ -5978,7 +5978,7 @@ bool CWallet::LelantusToSpark(std::string& strFailReason) {
              if (selectedNum == Params().GetConsensus().nMaxLelantusInputPerTransaction)
                  break;
         }
-        CRecipient recipient = {scriptChange, spendValue, true};
+        CRecipient recipient = {scriptChange, spendValue, true, {}, {}};
 
         CWalletTx result;
         JoinSplitLelantus({recipient}, {}, result, &coinControl);
@@ -7671,7 +7671,7 @@ CWalletTx CWallet::PrepareAndSendNotificationTx(bip47::CPaymentCode const & thei
 
     recipients.emplace_back(receiver);
     CScript opReturnScript = CScript() << OP_RETURN << std::vector<unsigned char>(80); // Passing empty array to calc fees
-    recipients.push_back({opReturnScript, 0, false});
+    recipients.push_back({opReturnScript, 0, false, {}, {}});
 
     auto throwSigma =
         [](){throw std::runtime_error(std::string("There are unspent Sigma coins in your wallet. Using Sigma coins for BIP47 is not supported. Please spend your Sigma coins before establishing a BIP47 channel."));};
@@ -8332,7 +8332,7 @@ bool CWallet::DelAddressBook(const std::string& address)
         LOCK(cs_wallet); // mapAddressBook
         const spark::Params* params = spark::Params::get_default();
         unsigned char network = spark::GetNetworkType();
-        unsigned char coinNetwork;
+        unsigned char coinNetwork = {};
         spark::Address addr(params);
 
         try {

@@ -49,11 +49,11 @@ int LYRA2(void *K, uint64_t kLen, const void *pwd, uint64_t pwdlen, const void *
     int64_t row = 2; //index of row to be processed
     int64_t prev = 1; //index of prev (last row ever computed/modified)
     int64_t rowa = 0; //index of row* (a previous row, deterministically picked during Setup and randomly picked while Wandering)
-    int64_t tau; //Time Loop iterator
     int64_t step = 1; //Visitation step (used during Setup and Wandering phases)
     int64_t window = 2; //Visitation window (used to define which rows can be revisited during Setup)
     int64_t gap = 1; //Modifier to the step, assuming the values 1 or -1
-    int64_t i; //auxiliary iteration counter
+    uint64_t tau = 0; //Time Loop iterator
+    uint64_t i = 0; //auxiliary iteration counter
     //==========================================================================/
 
     //========== Initializing the Memory Matrix and pointers to it =============//
@@ -218,11 +218,11 @@ int LYRA2_old(void *K, uint64_t kLen, const void *pwd, uint64_t pwdlen, const vo
     int64_t row = 2; //index of row to be processed
     int64_t prev = 1; //index of prev (last row ever computed/modified)
     int64_t rowa = 0; //index of row* (a previous row, deterministically picked during Setup and randomly picked while Wandering)
-    int64_t tau; //Time Loop iterator
     int64_t step = 1; //Visitation step (used during Setup and Wandering phases)
     int64_t window = 2; //Visitation window (used to define which rows can be revisited during Setup)
     int64_t gap = 1; //Modifier to the step, assuming the values 1 or -1
-    int64_t i; //auxiliary iteration counter
+    uint64_t tau = 0; //Time Loop iterator
+    uint64_t i = 0; //auxiliary iteration counter
     //==========================================================================/
 
     //========== Initializing the Memory Matrix and pointers to it =============//
