@@ -4,8 +4,8 @@
  * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
  **********************************************************************/
 
-#ifndef _SECP256K1_ECMULT_CONST_IMPL_
-#define _SECP256K1_ECMULT_CONST_IMPL_
+#ifndef SECP256K1_ECMULT_CONST_IMPL_
+#define SECP256K1_ECMULT_CONST_IMPL_
 
 #include "scalar.h"
 #include "group.h"
@@ -54,7 +54,7 @@ static int secp256k1_wnaf_const(int *wnaf, secp256k1_scalar s, int w) {
 
     /* 1 2 3 */
     int u_last;
-    int u;
+    int u = 0;;
 
     int flip;
     int bit;
