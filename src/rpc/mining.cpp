@@ -1217,7 +1217,7 @@ static const CRPCCommand commands[] =
     { "mining",             "pprpcsb",                &pprpcsb,                true,  {"header_hash","mix_hash", "nonce"} },
     { "mining",             "submitblock",            &submitblock,            true,  {"hexdata","parameters"} },
 
-    { "generating",         "setgenerate",            &setgenerate,            true  },
+    { "generating",         "setgenerate",            &setgenerate,            true,  {}  },
     { "generating",         "generate",               &generate,               true,  {"nblocks","maxtries"} },
     { "generating",         "generatetoaddress",      &generatetoaddress,      true,  {"nblocks","address","maxtries"} },
 

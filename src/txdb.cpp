@@ -151,7 +151,7 @@ CCoinsViewCursor *CCoinsViewDB::Cursor() const
     return i;
 }
 
-bool CCoinsViewDBCursor::GetKey(COutPoint &key) const
+bool CCoinsViewDBCursor::GetKey(COutPoint &key) const 
 {
     // Return cached key
     if (keyTmp.first == DB_COIN) {
@@ -161,22 +161,22 @@ bool CCoinsViewDBCursor::GetKey(COutPoint &key) const
     return false;
 }
 
-bool CCoinsViewDBCursor::GetValue(Coin &coin) const
+bool CCoinsViewDBCursor::GetValue(Coin &coin) const 
 {
     return pcursor->GetValue(coin);
 }
 
-unsigned int CCoinsViewDBCursor::GetValueSize() const
+unsigned int CCoinsViewDBCursor::GetValueSize() const 
 {
     return pcursor->GetValueSize();
 }
 
-bool CCoinsViewDBCursor::Valid() const
+bool CCoinsViewDBCursor::Valid() const 
 {
     return keyTmp.first == DB_COIN;
 }
 
-void CCoinsViewDBCursor::Next()
+void CCoinsViewDBCursor::Next() 
 {
     pcursor->Next();
     CoinEntry entry(&keyTmp.second);
@@ -833,7 +833,7 @@ public:
     void Unserialize(Stream &s) {
         unsigned int nCode = 0;
         // version
-        int nVersionDummy;
+        int nVersionDummy = 0;
         ::Unserialize(s, VARINT(nVersionDummy));
         // header code
         ::Unserialize(s, VARINT(nCode));
