@@ -833,7 +833,7 @@ typedef int32_t sph_s32;
 typedef uint_fast32_t sph_u32;
 typedef int_fast32_t sph_s32;
 #endif
-#if !SPH_NO_64
+#if !defined(SPH_NO_64)
 #ifdef UINT64_MAX
 typedef uint64_t sph_u64;
 typedef int64_t sph_s64;
@@ -844,7 +844,7 @@ typedef int_fast64_t sph_s64;
 #endif
 
 #define SPH_C32(x)    ((sph_u32)(x))
-#if !SPH_NO_64
+#if !defined(SPH_NO_64)
 #define SPH_C64(x)    ((sph_u64)(x))
 #define SPH_64  1
 #endif
@@ -1166,10 +1166,10 @@ typedef long long sph_s64;
 #define SPH_PPC64_GCC         SPH_DETECT_PPC64_GCC
 #endif
 
-#if SPH_LITTLE_ENDIAN && !defined SPH_LITTLE_FAST
+#if defined SPH_LITTLE_ENDIAN && !defined SPH_LITTLE_FAST
 #define SPH_LITTLE_FAST              1
 #endif
-#if SPH_BIG_ENDIAN && !defined SPH_BIG_FAST
+#if defined SPH_BIG_ENDIAN && !defined SPH_BIG_FAST
 #define SPH_BIG_FAST                 1
 #endif
 
@@ -1177,7 +1177,7 @@ typedef long long sph_s64;
 #error SPH_UPTR defined, but endianness is not known.
 #endif
 
-#if SPH_I386_GCC && !SPH_NO_ASM
+#if defined SPH_I386_GCC && !defined SPH_NO_ASM
 
 /*
  * On x86 32-bit, with gcc, we use the bswapl opcode to byte-swap 32-bit
@@ -1202,7 +1202,7 @@ sph_bswap64(sph_u64 x)
 
 #endif
 
-#elif SPH_AMD64_GCC && !SPH_NO_ASM
+#elif defined(SPH_AMD64_GCC) && !defined(SPH_NO_ASM)
 
 /*
  * On x86 64-bit, with gcc, we use the bswapl opcode to byte-swap 32-bit
@@ -1294,7 +1294,7 @@ sph_bswap64(sph_u64 x)
 
 #endif
 
-#if SPH_SPARCV9_GCC && !SPH_NO_ASM
+#if defined(SPH_SPARCV9_GCC) && !defined(SPH_NO_ASM)
 
 /*
  * On UltraSPARC systems, native ordering is big-endian, but it is
@@ -1485,8 +1485,8 @@ static SPH_INLINE void
 sph_enc32le(void *dst, sph_u32 val)
 {
 #if defined SPH_UPTR
-#if SPH_UNALIGNED
-#if SPH_BIG_ENDIAN
+#if defined SPH_UNALIGNED
+#if defined SPH_BIG_ENDIAN
 	val = sph_bswap32(val);
 #endif
 	*(sph_u32 *)dst = val;
@@ -1543,8 +1543,8 @@ static SPH_INLINE sph_u32
 sph_dec32le(const void *src)
 {
 #if defined SPH_UPTR
-#if SPH_UNALIGNED
-#if SPH_BIG_ENDIAN
+#if defined SPH_UNALIGNED
+#if defined SPH_BIG_ENDIAN
 	return sph_bswap32(*(const sph_u32 *)src);
 #else
 	return *(const sph_u32 *)src;
@@ -1796,8 +1796,8 @@ static SPH_INLINE void
 sph_enc64le(void *dst, sph_u64 val)
 {
 #if defined SPH_UPTR
-#if SPH_UNALIGNED
-#if SPH_BIG_ENDIAN
+#if defined SPH_UNALIGNED
+#if defined SPH_BIG_ENDIAN
 	val = sph_bswap64(val);
 #endif
 	*(sph_u64 *)dst = val;
@@ -1866,8 +1866,8 @@ static SPH_INLINE sph_u64
 sph_dec64le(const void *src)
 {
 #if defined SPH_UPTR
-#if SPH_UNALIGNED
-#if SPH_BIG_ENDIAN
+#if defined SPH_UNALIGNED
+#if defined SPH_BIG_ENDIAN
 	return sph_bswap64(*(const sph_u64 *)src);
 #else
 	return *(const sph_u64 *)src;
