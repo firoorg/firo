@@ -234,7 +234,7 @@ jobs:
         path: ${{ env.ARTIFACT_DIR }}
   build-windows-cmake:
     name: Build for Windows (CMake)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env:
       ARTIFACT_DIR: windows-cmake-binaries
     steps:
