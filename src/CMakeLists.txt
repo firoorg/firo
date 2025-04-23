@@ -336,6 +336,7 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   sigma/params.cpp
   sigma/spend_metadata.cpp
   spark/primitives.cpp
+  sparkname.cpp
   spark/state.cpp
   threadinterrupt.cpp
   timedata.cpp
