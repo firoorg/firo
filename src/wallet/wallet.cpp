@@ -5617,8 +5617,7 @@ std::string CWallet::MintAndStoreLelantus(const CAmount& value,
     }
 
 
-    const CAmount balance = GetBalance();
-    if (balance < 0 || (value + payTxFee.GetFeePerK()) > static_cast<uint64_t>(balance))
+    if ((value + payTxFee.GetFeePerK()) > GetBalance())
         return _("Insufficient funds");
 
     LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
