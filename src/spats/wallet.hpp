@@ -9,6 +9,8 @@
 #include <map>
 #include <optional>
 #include <span>
+#include <atomic>
+#include <shared_mutex>
 
 #include "../utils/scaled_amount.hpp"
 
@@ -30,7 +32,7 @@ public:
    // using signed integer in wallet just in case there are out-of-order operations that are affecting the balance, to be on the safe side...
    using amount_type = utils::scaled_amount< std::int64_t >;
 
-   explicit Wallet( CSparkWallet &spark_wallet ) noexcept;
+   explicit Wallet( CSparkWallet &spark_wallet );
 
    struct AssetAmount {
       amount_type available{}, pending{};
@@ -42,6 +44,8 @@ public:
          : available( base_asset_amounts.first, 8 )
          , pending( base_asset_amounts.second, 8 )
       {}
+
+      static AssetAmount init_with_precision( unsigned precision );
 
       bool operator==( const AssetAmount &other ) const noexcept = default;
    };
@@ -90,13 +94,19 @@ public:
 
    void notify_registry_changed();
 
+   void notify_coins_changed();
+
 private:
    CSparkWallet &spark_wallet_;
    mutable std::string my_public_address_as_admin_;
    Registry &registry_;
-   asset_balances_t asset_balances_;
+   mutable std::shared_mutex asset_balances_mutex_;
+   mutable asset_balances_t asset_balances_;   // protected by asset_balances_mutex_
+   mutable std::atomic_flag all_coin_changes_processed_;
 
    static spark::MintedCoinData create_minted_coin_data( const MintParameters &action_params );
+
+   static void update_balances_given_coin( const CSparkMintMeta &coin_meta, asset_balances_t &asset_balances, const Registry &registry );
 };
 
 }   // namespace spats

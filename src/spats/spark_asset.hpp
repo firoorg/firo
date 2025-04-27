@@ -274,6 +274,11 @@ inline supply_amount_t get_total_supply( const SparkAsset &a ) noexcept
                       a );
 }
 
+inline supply_amount_t::precision_type get_precision( const SparkAsset &a ) noexcept
+{
+   return get_total_supply( a ).precision();
+}
+
 struct SparkAssetDisplayAttributes {
    asset_type_underlying_type asset_type;
    identifier_underlying_type identifier = 0;

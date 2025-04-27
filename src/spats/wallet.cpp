@@ -2,12 +2,17 @@
 // Created by Gevorg Voskanyan
 //
 
+#include <boost/numeric/conversion/cast.hpp>
+#include <boost/format.hpp>
+#include <boost/exception/diagnostic_information.hpp>
+
 #include "policy/policy.h"   // for GetVirtualTransactionSize
 
 #include "../validation.h"
 #include "../wallet/wallet.h"
 #include "../spark/sparkwallet.h"
 #include "../spark/state.h"
+#include "../utils/scope_exit.hpp"
 
 #include "registry.hpp"
 #include "wallet.hpp"
@@ -68,7 +73,7 @@ Scalar Wallet::compute_burn_asset_supply_serialization_scalar( const BurnParamet
    return ret;
 }
 
-Wallet::Wallet( CSparkWallet &spark_wallet ) noexcept
+Wallet::Wallet( CSparkWallet &spark_wallet )
    : spark_wallet_( spark_wallet )
    , registry_( spark::CSparkState::GetState()->GetSpatsManager().registry() )
 {}
@@ -360,10 +365,98 @@ void Wallet::notify_registry_changed()
    // TODO
 }
 
+void Wallet::notify_coins_changed()
+{
+   all_coin_changes_processed_.clear();
+}
+
+Wallet::AssetAmount Wallet::AssetAmount::init_with_precision( unsigned precision )
+{
+   AssetAmount ret;
+   ret.available = ret.pending = { 0, precision };
+   return ret;
+}
+
 Wallet::asset_balances_t Wallet::get_asset_balances() const
 {
-   // TODO either fill this somehow (with locking), or compute on the fly in CSparkWallet and don't store here
-   return asset_balances_;
+   try {
+      if ( all_coin_changes_processed_.test_and_set() ) {
+         // the all_coin_changes_processed_ flag was true already even before
+         std::shared_lock lock( asset_balances_mutex_ );
+         // now under the lock, check the flag again, because we might have seen the prior value as 1 due to the map being filled right at that time by another thread,
+         // but which failed with an exception, resetting the flag as a result
+         if ( all_coin_changes_processed_.test() )
+            return asset_balances_;
+         // otherwise fall back to the more expensive processing (actual calculation) below
+      }
+   }
+   catch ( ... ) {
+      // There was an exception during either lock acquisition or return value copying. In either case, not much we can do except to return an empty map at this time...
+      return {};
+   }
+
+   // The all_coin_changes_processed_ flag was false before this, so we need to regenerate the balances map
+
+   bool flag_already_cleared = false;
+   try {
+      std::unique_lock lock( asset_balances_mutex_ );
+      utils::on_exception_exit clear_flag_on_exception( [ & ] {
+         // Failed to actually process this time, will retry the next time, perhaps more success then...
+         // This is preferably done while holding the mutex lock, so that other threads won't accidentally think processing was successful and returning asset_balances_
+         all_coin_changes_processed_.clear();
+         flag_already_cleared = true;
+         asset_balances_.clear();   // to avoid other threads seeing/using an inconsistent/incomplete balances map in some edge cases
+      } );
+
+      // set all existing balances to zero, while retaining the precisions (which can never change)
+      for ( auto &balance : asset_balances_ ) {
+         auto &b = balance.second;
+         b.available.set_raw( 0 );
+         b.pending.set_raw( 0 );
+      }
+
+      // compute the actual current balances off of spats coins present in spark_wallet_
+      spark_wallet_
+        .VisitUnusedCoinMetasWhere( []( const CSparkMintMeta &meta ) { return meta.IsSpats(); },
+                                    std::bind( &Wallet::update_balances_given_coin, std::placeholders::_1, std::ref( asset_balances_ ), std::cref( registry_ ) ) );
+
+      // Not excluding balances=0,0 entries from the result being returned. Don't see a need for that at this time...
+      return asset_balances_;
+   }
+   catch ( ... ) {
+      if ( !flag_already_cleared ) {
+         // This means the exception was from unique_lock constructor. We still want to clear the flag, even if this wasn't the ideal place to do it, because it was
+         // preferable to do it under the lock, but if the lock acquisition itself failed, then we obviously can't do any better than this...
+         all_coin_changes_processed_.clear();   // Failed to actually process this time, will retry the next time, perhaps more success then...
+         // Not sure whether to clear asset_balances_ here or not. There are arguments both in favor and against that. Very unlikely edge case anyway though...
+      }
+      LogPrintf( "Failed to compute spark asset balances: %s\n", boost::current_exception_diagnostic_information() );
+      return {};
+   }
+}
+
+void Wallet::update_balances_given_coin( const CSparkMintMeta &coin_meta, asset_balances_t &asset_balances, const Registry &registry )
+{
+   assert( coin_meta.IsSpats() );
+   // TODO Performance: consider a faster retrieval of uint64 from Scalar other than via .tostring(). Or even, why is Scalar used for these two in the first place?
+   const auto asset_type = std::stoull( coin_meta.coin.a.tostring() );
+   const auto identifier = std::stoull( coin_meta.coin.iota.tostring() );
+   const universal_asset_id_t uid{ asset_type_t{ asset_type }, identifier_t{ identifier } };
+   auto it = asset_balances.find( uid );
+   if ( it == asset_balances.end() ) {
+      // no entry, so we don't have the precision at hand yet, need to retrieve it from the registry
+      // TODO Performance: don't consult the registry for NFTs - their precision is 0 by definition!
+      const auto located_asset = registry.get_asset( uid.first, uid.second );
+      if ( !located_asset )
+         throw std::runtime_error( str( boost::format( _( "Spark asset %1%,%2% not found in the registry! PANIC!" ) ) % asset_type % identifier ) );
+      const auto precision = get_precision( located_asset->asset );
+      it = asset_balances.emplace( uid, AssetAmount::init_with_precision( precision ) ).first;
+   }
+
+   // the entry already existed or just got inserted here in this function - in either case we have the precision already inside there
+   auto &balances = it->second;
+   auto &b = coin_meta.IsUnconfirmed() ? balances.pending : balances.available;
+   b.set_raw( b.raw() + coin_meta.GetValue() );
 }
 
 }   // namespace spats

@@ -1831,5 +1831,5 @@ void CSparkWallet::notifyCoinMetasChanged(bool potential_spats_coin_change)
     // TODO Performance: clear some atomic flag in this class too, that will be used to update various caches built off of coins,
     //                   to avoid needlessly recalculating those each time they are requested
     if (potential_spats_coin_change)
-        /*TODO spats_wallet_.notify_coins_changed()*/;
+        spats_wallet_.notify_coins_changed();
 }

@@ -42,6 +42,7 @@ add_library(spats STATIC
         ../utils/math.hpp
         ../utils/overloaded.hpp
         ../utils/scaled_amount.hpp
+        ../utils/scope_exit.hpp
         ../utils/string.hpp
         ../utils/string.cpp
         ../utils/traits.hpp)
