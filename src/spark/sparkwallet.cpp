@@ -70,7 +70,6 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile)
             for (auto& coin : coinMeta) {
                 coin.second.coin.setParams(params);
                 coin.second.coin.setSerialContext(coin.second.serial_context);
-
             }
         }
 
@@ -89,98 +88,53 @@ void CSparkWallet::resetDiversifierFromDB(CWalletDB& walletdb) {
     walletdb.readDiversifier(lastDiversifier);
 }
 
-void CSparkWallet::updateDiversifierInDB(CWalletDB& walletdb) {
+void CSparkWallet::updateDiversifierInDB(CWalletDB& walletdb) const
+{
     walletdb.writeDiversifier(lastDiversifier);
 }
 
-CAmount CSparkWallet::getFullBalance() {
+CAmount CSparkWallet::getFullBalance() const
+{
+    // TODO GV #Review: While this implementation is straightforward, it might lead to inaccurate results due to locking twice at different times.
+    //                  Also, this is more inefficient than the correct implementation would be.
     return getAvailableBalance() + getUnconfirmedBalance();
 }
 
 CAmount CSparkWallet::getAvailableBalance() const
 {
     CAmount result = 0;
-    LOCK(cs_spark_wallet);
-    for (auto& it : coinMeta) {
-        CSparkMintMeta mint = it.second;
-
-        if (mint.isUsed)
-            continue;
-
-        // Not confirmed
-        if (mint.nHeight < 1)
-            continue;
-
-        result += mint.v;
-    }
-
+    VisitUnusedCoinMetasWhere([](const CSparkMintMeta& meta) { return meta.IsConfirmed() && !meta.IsSpats(); },
+                              [&result] (const CSparkMintMeta& meta) { assert(meta.coin.iota.isZero()); result += meta.GetValue(); });
     return result;
 }
 
 CAmount CSparkWallet::getUnconfirmedBalance() const
 {
     CAmount result = 0;
-    LOCK(cs_spark_wallet);
-    for (auto& it : coinMeta) {
-        CSparkMintMeta mint = it.second;
-        if (mint.isUsed)
-            continue;
-
-        // Continue if confirmed
-        if (mint.nHeight > 1)
-            continue;
-
-        result += mint.v;
-    }
-
+    VisitUnusedCoinMetasWhere([](const CSparkMintMeta& meta) { return meta.IsUnconfirmed() && !meta.IsSpats(); },
+                              [&result] (const CSparkMintMeta& meta) { assert(meta.coin.iota.isZero()); result += meta.GetValue(); });
     return result;
 }
 
-CAmount CSparkWallet::getAddressFullBalance(const spark::Address& address) {
+CAmount CSparkWallet::getAddressFullBalance(const spark::Address& address) const
+{
+    // TODO GV #Review: same comment as for getFullBalance()
     return getAddressAvailableBalance(address) + getAddressUnconfirmedBalance(address);
 }
 
-CAmount CSparkWallet::getAddressAvailableBalance(const spark::Address& address) {
+CAmount CSparkWallet::getAddressAvailableBalance(const spark::Address& address) const
+{
     CAmount result = 0;
-    LOCK(cs_spark_wallet);
-    for (auto& it : coinMeta) {
-        CSparkMintMeta mint = it.second;
-
-        if (mint.isUsed)
-            continue;
-
-        // Not confirmed
-        if (mint.nHeight < 1)
-            continue;
-
-        if (address.get_d() != mint.d)
-            continue;
-
-        result += mint.v;
-    }
-
+    const auto& d = address.get_d();
+    VisitUnusedCoinMetasWhere([&d](const CSparkMintMeta& meta) { return meta.IsConfirmed() && meta.d == d && !meta.IsSpats(); }, [&result] (const CSparkMintMeta& meta) { result += meta.GetValue(); });
     return result;
 }
 
-CAmount CSparkWallet::getAddressUnconfirmedBalance(const spark::Address& address) {
+CAmount CSparkWallet::getAddressUnconfirmedBalance(const spark::Address& address) const
+{
     CAmount result = 0;
-    LOCK(cs_spark_wallet);
-    for (auto& it : coinMeta) {
-        CSparkMintMeta mint = it.second;
-
-        if (mint.isUsed)
-            continue;
-
-        // Not confirmed
-        if (mint.nHeight > 1)
-            continue;
-
-        if (address.get_d() != mint.d)
-            continue;
-
-        result += mint.v;
-    }
-
+    const auto& d = address.get_d();
+    VisitUnusedCoinMetasWhere([&d](const CSparkMintMeta& meta) { return meta.IsUnconfirmed() && meta.d == d && !meta.IsSpats(); }, [&result] (const CSparkMintMeta& meta) { result += meta.GetValue(); });
     return result;
 }
 
@@ -201,7 +155,7 @@ spark::Address CSparkWallet::generateNewAddress() {
     lastDiversifier++;
     spark::Address address(viewKey, lastDiversifier);
 
-    addresses[lastDiversifier] = address;
+    addresses[lastDiversifier] = address; // TODO GV #Review: shouldn't there be MT protection for `addresses` access?
     CWalletDB walletdb(strWalletFile);
     updateDiversifierInDB(walletdb);
     return  address;
@@ -210,11 +164,12 @@ spark::Address CSparkWallet::generateNewAddress() {
 spark::Address CSparkWallet::getDefaultAddress() {
     if (addresses.count(0))
         return addresses[0];
-    lastDiversifier = 0;
+    lastDiversifier = 0; // TODO GV #Review: why should calling this function change lastDiversifier? Why is this function not const?
     return spark::Address(viewKey, lastDiversifier);
 }
 
-spark::Address CSparkWallet::getChangeAddress() {
+spark::Address CSparkWallet::getChangeAddress() const
+{
     return spark::Address(viewKey, SPARK_CHANGE_D);
 }
 
@@ -258,7 +213,8 @@ spark::SpendKey CSparkWallet::generateSpendKey(const spark::Params* params) {
     return key;
 }
 
-spark::FullViewKey CSparkWallet::generateFullViewKey(const spark::SpendKey& spend_key) {
+spark::FullViewKey CSparkWallet::generateFullViewKey(const spark::SpendKey& spend_key) const
+{
     return spark::FullViewKey(spend_key);
 }
 
@@ -282,18 +238,21 @@ spark::SpendKey CSparkWallet::ensureSpendKey()
     return spendKey;
 }
 
-std::unordered_map<int32_t, spark::Address> CSparkWallet::getAllAddresses() {
+std::unordered_map<int32_t, spark::Address> CSparkWallet::getAllAddresses() const
+{
     return addresses;
 }
 
-spark::Address CSparkWallet::getAddress(const int32_t& i) {
-    if (lastDiversifier < i || addresses.count(i) == 0)
-        return spark::Address(viewKey, lastDiversifier);
-
-    return addresses[i];
+spark::Address CSparkWallet::getAddress(const int32_t i) const
+{
+    if (i <= lastDiversifier)
+        if (const auto it = addresses.find(i); it != addresses.end())
+            return it->second;
+    return spark::Address(viewKey, lastDiversifier);
 }
 
-bool CSparkWallet::isAddressMine(const std::string& encodedAddr) {
+bool CSparkWallet::isAddressMine(const std::string& encodedAddr) const
+{
     const spark::Params* params = spark::Params::get_default();
     spark::Address address(params);
     try {
@@ -304,7 +263,8 @@ bool CSparkWallet::isAddressMine(const std::string& encodedAddr) {
     return isAddressMine(address);
 }
 
-bool CSparkWallet::isAddressMine(const spark::Address& address) {
+bool CSparkWallet::isAddressMine(const spark::Address& address) const
+{
     for (const auto& itr : addresses) {
         if (itr.second.get_Q1() == address.get_Q1() && itr.second.get_Q2() == address.get_Q2())
             return true;
@@ -331,19 +291,8 @@ bool CSparkWallet::isChangeAddress(const uint64_t& i) const {
 
 std::vector<CSparkMintMeta> CSparkWallet::ListSparkMints(bool fUnusedOnly, bool fMatureOnly) const {
     std::vector<CSparkMintMeta> setMints;
-    LOCK(cs_spark_wallet);
-    for (auto& it : coinMeta) {
-        CSparkMintMeta mint = it.second;
-        if (fUnusedOnly && mint.isUsed)
-            continue;
-
-        // Not confirmed
-        if (fMatureOnly && mint.nHeight < 1)
-            continue;
-
-        setMints.push_back(mint);
-    }
-
+    VisitCoinMetasWhere([=] (const CSparkMintMeta& meta) { return !(fUnusedOnly && meta.IsUsed()) && !(fMatureOnly && meta.IsUnconfirmed()) && !meta.IsSpats(); },
+                        [&setMints] (const CSparkMintMeta& meta) { setMints.push_back(meta); });
     return setMints;
 }
 
@@ -371,11 +320,8 @@ spark::Coin CSparkWallet::getCoinFromMeta(const CSparkMintMeta& meta) const {
 
 spark::Coin CSparkWallet::getCoinFromLTagHash(const uint256& lTagHash) const {
     LOCK(cs_spark_wallet);
-    CSparkMintMeta meta;
-    if (coinMeta.count(lTagHash)) {
-        meta = coinMeta.at(lTagHash);
-        return getCoinFromMeta(meta);
-    }
+    if (const auto it = coinMeta.find(lTagHash); it != coinMeta.end())
+        return getCoinFromMeta(it->second);
     return spark::Coin();
 }
 
@@ -392,14 +338,20 @@ void CSparkWallet::clearAllMints(CWalletDB& walletdb) {
     }
 
     coinMeta.clear();
+    notifyCoinMetasChanged();
     lastDiversifier = 0;
     walletdb.writeDiversifier(lastDiversifier);
 }
 
 void CSparkWallet::eraseMint(const uint256& hash, CWalletDB& walletdb) {
     LOCK(cs_spark_wallet);
+    const auto it = coinMeta.find(hash);
+    const bool is_spats = it != coinMeta.end() && it->second.IsSpats();
     walletdb.EraseSparkMint(hash);
-    coinMeta.erase(hash);
+    if (it != coinMeta.end()) {
+        coinMeta.erase(it);
+        notifyCoinMetasChanged(is_spats);
+    }
 }
 
 void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb) {
@@ -409,14 +361,20 @@ void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lT
         lastDiversifier = mint.i;
         walletdb.writeDiversifier(lastDiversifier);
     }
+
+    // just some sanity validation
+    if (const auto it = coinMeta.find(lTagHash); it != coinMeta.end())
+        assert(it->second.IsSpats() == mint.IsSpats());
+
     coinMeta[lTagHash] = mint;
+    notifyCoinMetasChanged(mint.IsSpats());
     walletdb.WriteSparkMint(lTagHash, mint);
 }
 
 void CSparkWallet::updateMint(const CSparkMintMeta& mint, CWalletDB& walletdb) {
     LOCK(cs_spark_wallet);
     for (const auto& coin : coinMeta) {
-        if (mint ==  coin.second) {
+        if (mint == coin.second) {
             addOrUpdateMint(mint, coin.first, walletdb);
         }
     }
@@ -438,20 +396,24 @@ void CSparkWallet::updateMintInMemory(const CSparkMintMeta& mint) {
     LOCK(cs_spark_wallet);
     for (auto& itr : coinMeta) {
         if (itr.second == mint) {
-            coinMeta[itr.first] = mint;
+            assert(itr.second.IsSpats() == mint.IsSpats());
+            itr.second = mint;
+            notifyCoinMetasChanged(mint.IsSpats());
             break;
         }
     }
 }
 
-CSparkMintMeta CSparkWallet::getMintMeta(const uint256& hash) {
+CSparkMintMeta CSparkWallet::getMintMeta(const uint256& hash) const
+{
     LOCK(cs_spark_wallet);
-    if (coinMeta.count(hash))
-        return coinMeta[hash];
+    if (const auto it = coinMeta.find(hash); it != coinMeta.end())
+        return it->second;
     return CSparkMintMeta();
 }
 
-CSparkMintMeta CSparkWallet::getMintMeta(const secp_primitives::Scalar& nonce) {
+CSparkMintMeta CSparkWallet::getMintMeta(const secp_primitives::Scalar& nonce) const
+{
     LOCK(cs_spark_wallet);
     for (const auto& meta : coinMeta) {
         if (meta.second.k == nonce)
@@ -461,7 +423,8 @@ CSparkMintMeta CSparkWallet::getMintMeta(const secp_primitives::Scalar& nonce) {
     return CSparkMintMeta();
 }
 
-bool CSparkWallet::getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta) {
+bool CSparkWallet::getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta) const
+{
     spark::IdentifiedCoinData identifiedCoinData;
     try {
         identifiedCoinData = coin.identify(this->viewKey);
@@ -474,7 +437,8 @@ bool CSparkWallet::getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta) {
     return true;
 }
 
-bool CSparkWallet::getMintAmount(spark::Coin coin, CAmount& amount) {
+bool CSparkWallet::getMintAmount(spark::Coin coin, CAmount& amount) const
+{
     spark::IdentifiedCoinData identifiedCoinData;
     try {
         identifiedCoinData = coin.identify(this->viewKey);
@@ -576,8 +540,8 @@ CAmount CSparkWallet::getMyCoinV(spark::Coin coin) const {
     try {
         spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
         v = identifiedCoinData.v;
-    } catch (const std::runtime_error& e) {
-        //don nothing
+    } catch (const std::runtime_error&) {
+        // do nothing, leaving v 0
     }
     return v;
 }
@@ -591,7 +555,8 @@ bool CSparkWallet::getMyCoinIsChange(spark::Coin coin) const {
     }
 }
 
-spark::Address CSparkWallet::getMyCoinAddress(spark::Coin coin) {
+spark::Address CSparkWallet::getMyCoinAddress(spark::Coin coin) const
+{
     spark::Address address;
     try {
         spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
@@ -737,16 +702,11 @@ void CSparkWallet::AbandonSpends(const std::vector<GroupElement>& spends) {
     }
 }
 
-std::vector<CSparkMintMeta> CSparkWallet::listAddressCoins(const int32_t& i, bool fUnusedOnly) {
+std::vector<CSparkMintMeta> CSparkWallet::listAddressCoins(const int32_t i, bool fUnusedOnly) const
+{
     std::vector<CSparkMintMeta> listMints;
-    LOCK(cs_spark_wallet);
-    for (auto& itr : coinMeta) {
-        if (itr.second.i == i) {
-            if (fUnusedOnly && itr.second.isUsed)
-                continue;
-            listMints.push_back(itr.second);
-        }
-    }
+    VisitCoinMetasWhere([=] (const CSparkMintMeta& meta) { return !(fUnusedOnly && meta.IsUsed()) && meta.i == i; },
+                        [&listMints] (const CSparkMintMeta& meta) { listMints.push_back(meta); });
     return listMints;
 }
 
@@ -1825,10 +1785,12 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
 
 std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const CCoinControl *coinControl) const {
     std::list<CSparkMintMeta> coins;
-    // get all unsued coins from spark wallet
+    // get all unused coins from spark wallet
     std::vector<CSparkMintMeta> vecMints = this->ListSparkMints(true, true);
     for (const auto& mint : vecMints) {
-        if (mint.v == 0) // ignore 0 mints which where created to increase privacy
+        assert(!mint.IsSpats());
+        assert(mint.coin.iota.isZero());
+        if (mint.v == 0) // ignore 0 mints which were created to increase privacy
             continue;
         coins.push_back(mint);
     }
@@ -1862,4 +1824,12 @@ std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const CCoinContro
     });
 
     return coins;
+}
+
+void CSparkWallet::notifyCoinMetasChanged(bool potential_spats_coin_change)
+{
+    // TODO Performance: clear some atomic flag in this class too, that will be used to update various caches built off of coins,
+    //                   to avoid needlessly recalculating those each time they are requested
+    if (potential_spats_coin_change)
+        /*TODO spats_wallet_.notify_coins_changed()*/;
 }

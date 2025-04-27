@@ -23,6 +23,17 @@ struct CSparkMintMeta
 
     uint256 GetNonceHash() const;
 
+    std::uint64_t GetValue() const noexcept { return v; }
+
+    bool IsUsed() const noexcept { return isUsed; }
+
+    // TODO what does 1 fall under - confirmed or unconfirmed or neither?
+    bool IsConfirmed() const noexcept { return nHeight > 1; }
+    bool IsUnconfirmed() const noexcept { return nHeight < 1; }
+
+    // TODO any need to check `type` as well? Perhaps just for better performance?
+    bool IsSpats() const noexcept { return !coin.a.isZero(); }
+
     bool operator==(const CSparkMintMeta& other) const
     {
         return this->k == other.k;

@@ -32,48 +32,51 @@ public:
     spark::Address generateNextAddress();
     spark::Address generateNewAddress();
     spark::Address getDefaultAddress();
-    spark::Address getChangeAddress();
+    spark::Address getChangeAddress() const;
 
     spark::OwnershipProof makeDefaultAddressOwnershipProof(const secp_primitives::Scalar& m);
 
     // assign diversifier to the value from db
     void resetDiversifierFromDB(CWalletDB& walletdb);
     // assign diversifier in to to current value
-    void updateDiversifierInDB(CWalletDB& walletdb);
+    void updateDiversifierInDB(CWalletDB& walletdb) const;
 
     // functions for key set generation
     spark::SpendKey generateSpendKey(const spark::Params* params);
-    spark::FullViewKey generateFullViewKey(const spark::SpendKey& spend_key);
+    spark::FullViewKey generateFullViewKey(const spark::SpendKey& spend_key) const;
     spark::IncomingViewKey generateIncomingViewKey(const spark::FullViewKey& full_view_key);
 
     // generates and returns a valid SpendKey, otherwise throws std::runtime_error
     spark::SpendKey ensureSpendKey();
 
     // get map diversifier to Address
-    std::unordered_map<int32_t, spark::Address> getAllAddresses();
+    std::unordered_map<int32_t, spark::Address> getAllAddresses() const;
     // get address for a diversifier
-    spark::Address getAddress(const int32_t& i);
-    bool isAddressMine(const std::string& encodedAddr);
-    bool isAddressMine(const spark::Address& address);
+    spark::Address getAddress(int32_t i) const;
+    bool isAddressMine(const std::string& encodedAddr) const;
+    bool isAddressMine(const spark::Address& address) const;
     bool isChangeAddress(const uint64_t& i) const;
 
     // list spark mint, mint metadata in memory and in db should be the same at this moment, so get from memory
     std::vector<CSparkMintMeta> ListSparkMints(bool fUnusedOnly = false, bool fMatureOnly = false) const;
     std::list<CSparkSpendEntry> ListSparkSpends() const;
+
+    // ATTENTION: this will return spats coins too, at least for now!
     std::unordered_map<uint256, CSparkMintMeta> getMintMap() const;
+
     // generate spark Coin from meta data
     spark::Coin getCoinFromMeta(const CSparkMintMeta& meta) const;
     spark::Coin getCoinFromLTag(const GroupElement& lTag) const;
     spark::Coin getCoinFromLTagHash(const uint256& lTagHash) const;
 
     // functions to get spark balance
-    CAmount getFullBalance();
+    CAmount getFullBalance() const;
     CAmount getAvailableBalance() const;
     CAmount getUnconfirmedBalance() const;
 
-    CAmount getAddressFullBalance(const spark::Address& address);
-    CAmount getAddressAvailableBalance(const spark::Address& address);
-    CAmount getAddressUnconfirmedBalance(const spark::Address& address);
+    CAmount getAddressFullBalance(const spark::Address& address) const;
+    CAmount getAddressAvailableBalance(const spark::Address& address) const;
+    CAmount getAddressUnconfirmedBalance(const spark::Address& address) const;
 
     spats::Wallet::asset_balances_t getAssetBalances() const;
 
@@ -89,12 +92,12 @@ public:
 
     void updateMintInMemory(const CSparkMintMeta& mint);
     // get mint meta from linking tag hash
-    CSparkMintMeta getMintMeta(const uint256& hash);
+    CSparkMintMeta getMintMeta(const uint256& hash) const;
     // get mint tag from nonce
-    CSparkMintMeta getMintMeta(const secp_primitives::Scalar& nonce);
-    bool getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta);
+    CSparkMintMeta getMintMeta(const secp_primitives::Scalar& nonce) const;
+    bool getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta) const;
 
-    bool getMintAmount(spark::Coin coin, CAmount& amount);
+    bool getMintAmount(spark::Coin coin, CAmount& amount) const;
 
     bool isMine(spark::Coin coin) const;
     bool isMine(const std::vector<GroupElement>& lTags) const;
@@ -102,7 +105,7 @@ public:
     CAmount getMyCoinV(spark::Coin coin) const;
     CAmount getMySpendAmount(const std::vector<GroupElement>& lTags) const;
     bool getMyCoinIsChange(spark::Coin coin) const;
-    spark::Address getMyCoinAddress(spark::Coin coin);
+    spark::Address getMyCoinAddress(spark::Coin coin) const;
 
     void UpdateSpendState(const GroupElement& lTag, const uint256& lTagHash, const uint256& txHash, bool fUpdateMint = true);
     void UpdateSpendState(const GroupElement& lTag, const uint256& txHash, bool fUpdateMint = true);
@@ -117,8 +120,8 @@ public:
     void AbandonSpends(const std::vector<GroupElement>& spends);
 
     // get the vector of mint metadata for a single address
-    std::vector<CSparkMintMeta> listAddressCoins(const int32_t& i, bool fUnusedOnly = false);
-
+    // ATTENTION: this will return spats coins too, at least for now!
+    std::vector<CSparkMintMeta> listAddressCoins(int32_t i, bool fUnusedOnly = false) const;
 
     // generate recipient data for mint transaction,
     static std::vector<CRecipient> CreateSparkMintRecipients(
@@ -166,6 +169,23 @@ public:
     // Returns the list of pairs of coins and metadata for that coin,
     std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = nullptr) const;
 
+    template <typename Pred, typename Visitor>
+    requires std::predicate<Pred, const CSparkMintMeta&> && std::invocable<Visitor, const CSparkMintMeta&>
+    void VisitCoinMetasWhere(Pred pred, Visitor visitor) const
+    {
+        LOCK(cs_spark_wallet);
+        for (const auto& [hash, meta] : coinMeta)
+            if (pred(meta))
+                visitor(meta);
+    }
+
+    template <typename Pred, typename Visitor>
+    requires std::predicate<Pred, const CSparkMintMeta&> && std::invocable<Visitor, const CSparkMintMeta&>
+    void VisitUnusedCoinMetasWhere(Pred pred, Visitor visitor) const
+    {
+        VisitCoinMetasWhere([&pred] (const CSparkMintMeta& meta) { return !meta.isUsed && pred(meta); }, visitor);
+    }
+
 public:
     // to protect coinMeta
     mutable CCriticalSection cs_spark_wallet;
@@ -189,6 +209,8 @@ private:
     void* threadPool;
 
     spats::Wallet spats_wallet_;
+
+    void notifyCoinMetasChanged(bool potential_spats_coin_change = true);
 };
 
 #endif //FIRO_SPARK_WALLET_H
