@@ -19,7 +19,7 @@ struct AEADEncryptedData {
 		// Tag must be the correct size
 		READWRITE(tag);
 		if (tag.size() != AEAD_TAG_SIZE) {
-			std::cout << "Bad tag size " << tag.size() << std::endl;
+			std::cout << "Bad tag size " << tag.size() << std::endl;    // TODO question for Levon: should these remain?
 			throw std::invalid_argument("Cannot deserialize AEAD data due to bad tag");
 		}
 

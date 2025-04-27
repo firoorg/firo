@@ -116,11 +116,11 @@ protected:
 	bool validate(const IncomingViewKey& incoming_view_key, IdentifiedCoinData& data);
 
 public:
-	const Params* params;
-	char type; // type flag
+	const Params* params = nullptr;
+	char type = std::numeric_limits<char>::max(); // type flag
 	GroupElement S, K, C; // serial commitment, recovery key, value commitment
 	AEADEncryptedData r_; // encrypted recipient data
-	uint64_t v; // value
+	uint64_t v = 0; // value
 	std::vector<unsigned char> serial_context; // context to which the serial commitment should be bound (not serialized, but inferred)
 	Scalar a, iota;                            // asset type, identifier
 
