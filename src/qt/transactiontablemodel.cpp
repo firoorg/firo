@@ -289,6 +289,11 @@ void TransactionTableModel::updateAmountColumnTitle()
     Q_EMIT headerDataChanged(Qt::Horizontal,Amount,Amount);
 }
 
+void TransactionTableModel::refreshWallet() const
+{
+    priv->refreshWallet();
+}
+
 void TransactionTableModel::updateTransaction(const QString &hash, int status, bool showTransaction)
 {
     uint256 updated;
@@ -908,8 +913,10 @@ static void NotifyTransactionChanged(TransactionTableModel *ttm, CWallet *wallet
 
 static void ShowProgress(TransactionTableModel *ttm, const std::string &title, int nProgress)
 {
-    if (nProgress == 0)
+    if (nProgress == 0) {
         fQueueNotifications = true;
+        ttm->refreshWallet();
+    }
 
     if (nProgress == 100)
     {
@@ -924,6 +931,7 @@ static void ShowProgress(TransactionTableModel *ttm, const std::string &title, i
             vQueueNotifications[i].invoke(ttm);
         }
         std::vector<TransactionNotification >().swap(vQueueNotifications); // clear
+        ttm->refreshWallet();
     }
 }
 
