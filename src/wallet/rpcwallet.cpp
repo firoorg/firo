@@ -5950,15 +5950,14 @@ static const CRPCCommand commands[] =
     { "wallet",             "lelantustospark",          &lelantustospark,          false,  {} },
     { "wallet",             "identifysparkcoins",       &identifysparkcoins,       false,  {} },
     { "wallet",             "getsparkcoinaddr",         &getsparkcoinaddr,         false,  {} },
-    { "wallet",             "registersparkname",        &registersparkname,        false      },
-    { "wallet",             "getsparknames",            &getsparknames,            true,   {} },
+
 
     //bip47
-    { "bip47",              "createrapaddress",         &createrapaddress,         true,  {} },
-    { "bip47",              "setupchannel",             &setupchannel,             true,  {} },
-    { "bip47",              "sendtorapaddress",         &sendtorapaddress,         true,  {} },
-    { "bip47",              "listrapaddresses",         &listrapaddresses,         true,  {} },
-    { "bip47",              "setusednumber",            &setusednumber,            true,  {} }
+    { "bip47",              "createrapaddress",         &createrapaddress,         true,   {} },
+    { "bip47",              "setupchannel",             &setupchannel,             true,   {} },
+    { "bip47",              "sendtorapaddress",         &sendtorapaddress,         true,   {} },
+    { "bip47",              "listrapaddresses",         &listrapaddresses,         true,   {} },
+    { "bip47",              "setusednumber",            &setusednumber,            true,   {} }
 };
 
 void RegisterWalletRPCCommands(CRPCTable &t)
