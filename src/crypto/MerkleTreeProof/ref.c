@@ -15,14 +15,15 @@
  * software. If not, they may be obtained at the above URLs.
  */
 
-#include <stdint.h>
-#include <string.h>
-#include <stdlib.h>
-#include <inttypes.h>
-
-#include "argon2.h"
-#include "core.h"
-#include "ref.h"
+ #include <stdint.h>
+ #include <string.h>
+ #include <stdlib.h>
+ #include <inttypes.h>
+ 
+ #include "argon2.h"
+ #include "core.h"
+ #include "ref.h"
+ #include "../../compat_macros.h"
 
 #include "blake2/blamka-round-ref.h"
 #include "blake2/blake2-impl.h"
@@ -38,7 +39,7 @@
  * @param with_xor Whether to XOR into the new block (1) or just overwrite (0)
  * @pre all block pointers must be valid
  */
-static void fill_block(const block *prev_block, const block *ref_block,
+__firo_unused static void fill_block(const block *prev_block, const block *ref_block,
                        block *next_block, int with_xor) {
     block blockR, block_tmp;
     unsigned i;
@@ -82,7 +83,7 @@ static void fill_block(const block *prev_block, const block *ref_block,
     xor_block(next_block, &blockR);
 }
 
-static void next_addresses(block *address_block, block *input_block,
+__firo_unused static void next_addresses(block *address_block, block *input_block,
                            const block *zero_block) {
     input_block->v[6]++;
     fill_block(zero_block, input_block, address_block, 0);
@@ -94,7 +95,8 @@ void fill_segment_mtp(const argon2_instance_t *instance,
                   argon2_position_t position) {
 
     block *ref_block = NULL, *curr_block = NULL;
-    block address_block, input_block, zero_block;
+    __firo_unused block address_block;
+    block input_block, zero_block;
     uint64_t pseudo_rand, ref_index, ref_lane;
     uint32_t prev_offset, curr_offset;
     uint32_t starting_index;

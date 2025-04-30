@@ -384,7 +384,7 @@ void ReceiveCoinsDialog::resizeEvent(QResizeEvent* event)
     // Set fixed, minimum, and maximum sizes for ComboBoxes
     int comboBoxMinHeight = 20;
     int comboBoxMaxHeight = 40;
-    int comboBoxWidth = newWidth * 0.08; 
+    __firo_unused int comboBoxWidth = newWidth * 0.08; 
     int comboBoxMinWidth = newWidth * 0.05; 
     int comboBoxMaxWidth = newWidth * 0.1; 
 
@@ -401,7 +401,7 @@ void ReceiveCoinsDialog::resizeEvent(QResizeEvent* event)
     // Set sizes for buttons dynamically
     int buttonMinHeight = 20;
     int buttonMaxHeight = 35;
-    int buttonWidth = newWidth * 0.15; 
+    __firo_unused int buttonWidth = newWidth * 0.15; 
     int buttonMinWidth = newWidth * 0.1; 
     int buttonMaxWidth = newWidth * 0.4; 
 

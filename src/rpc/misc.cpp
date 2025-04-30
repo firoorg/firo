@@ -1080,7 +1080,7 @@ UniValue getanonymityset(const JSONRPCRequest& request)
     UniValue ret(UniValue::VOBJ);
     UniValue mints(UniValue::VARR);
 
-    int i = 0;
+    __firo_unused int i = 0;
     for (const auto& coin : coins) {
         std::vector<unsigned char> vch = coin.first.getValue().getvch();
         std::vector<UniValue> data;

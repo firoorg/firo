@@ -8,6 +8,8 @@
 #include "support/lockedpool.h"
 #include "support/cleanse.h"
 
+#include "../../compat_macros.h"
+
 #include <string>
 #include <vector>
 
