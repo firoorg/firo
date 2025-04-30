@@ -2059,7 +2059,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         std::deque<COutPoint> vWorkQueue;
         std::vector<uint256> vEraseQueue;
 
-        int nInvType = MSG_TX;
+        __firo_unused int nInvType = MSG_TX;
         CTransactionRef ptx;
 
         // Read data and assign inv type
@@ -2073,7 +2073,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         LOCK(cs_main);
 
         bool fMissingInputs = false;
-        bool fMissingInputsSigma = false;
+        __firo_unused bool fMissingInputsSigma = false;
         CValidationState state;
         CValidationState dummyState; // Dummy state for Dandelion stempool
 
