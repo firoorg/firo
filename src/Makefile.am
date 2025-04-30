@@ -8,6 +8,7 @@ AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS) $(HARDENED_LDFLAGS)
 AM_CXXFLAGS = $(HARDENED_CXXFLAGS) $(ERROR_CXXFLAGS)
 AM_CPPFLAGS = $(HARDENED_CPPFLAGS)
 AM_CPPFLAGS += -I$(srcdir)/wallet -I$(srcdir)/../src/wallet
+AM_CPPFLAGS += -I$(srcdir) -I$(srcdir)/../src
 AM_LIBTOOLFLAGS = --preserve-dup-deps
 EXTRA_LIBRARIES =
 
