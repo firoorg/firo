@@ -1158,7 +1158,7 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
     LOCK(cs);
     std::list<const CTxMemPoolEntry*> waitingOnDependants;
     for (indexed_transaction_set::const_iterator it = mapTx.begin(); it != mapTx.end(); it++) {
-        unsigned int i = 0;
+        __firo_unused unsigned int i = 0;
         checkTotal += it->GetTxSize();
         innerUsage += it->DynamicMemoryUsage();
         const CTransaction& tx = it->GetTx();
@@ -1170,8 +1170,8 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
             innerUsage += memusage::DynamicUsage(links.parents);
         bool fDependsWait = false;
         setEntries setParentCheck;
-        int64_t parentSizes = 0;
-        int64_t parentSigOpCost = 0;
+        __firo_unused int64_t parentSizes = 0;
+        __firo_unused int64_t parentSigOpCost = 0;
         if (!tx.HasPrivateInputs()) {
             BOOST_FOREACH(const CTxIn &txin, tx.vin) {
                 // Check that every mempool transaction's inputs refer to available coins, or other mempool tx's.

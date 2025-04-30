@@ -143,7 +143,7 @@ bool CDKGSessionHandler::InitNewQuorum(const CBlockIndex* pindexQuorum)
 {
     //AssertLockHeld(cs_main);
 
-    const auto& consensus = Params().GetConsensus();
+    __firo_unused const auto& consensus = Params().GetConsensus();
 
     curSession = std::make_shared<CDKGSession>(params, blsWorker, dkgManager);
 
@@ -442,7 +442,7 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
 void CDKGSessionHandler::HandleDKGRound()
 {
     uint256 curQuorumHash;
-    int curQuorumHeight;
+    __firo_unused int curQuorumHeight;
 
     WaitForNextPhase(QuorumPhase_None, QuorumPhase_Initialized, uint256(), []{return false;});
 
