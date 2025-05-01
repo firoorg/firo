@@ -86,7 +86,6 @@
 # error "Firo cannot be compiled without assertions."
 #endif
 
-bool AbortNode(const std::string& strMessage, const std::string& userMessage="");
 bool AbortNode(CValidationState &state, const std::string& strMessage, const std::string& userMessage="");
 
 /**

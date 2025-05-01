@@ -27,9 +27,6 @@ using boost::numeric::bad_numeric_cast;
 using boost::numeric::positive_overflow;
 using boost::numeric::negative_overflow;
 
-extern int validate_inputs(const argon2_context *context);
-extern void clear_internal_memory(void *v, size_t n);
-
 namespace mtp
 {
 
