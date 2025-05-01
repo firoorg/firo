@@ -42,11 +42,11 @@ UniValue CDKGDebugSessionStatus::ToJson(int detailLevel) const
     ret.push_back(Pair("quorumHeight", (int)quorumHeight));
     ret.push_back(Pair("phase", (int)phase));
 
-    ret.push_back(Pair("sentContributions", sentContributions));
-    ret.push_back(Pair("sentComplaint", sentComplaint));
-    ret.push_back(Pair("sentJustification", sentJustification));
-    ret.push_back(Pair("sentPrematureCommitment", sentPrematureCommitment));
-    ret.push_back(Pair("aborted", aborted));
+    ret.push_back(Pair("sentContributions", debugStatus.status.sentContributions));
+    ret.push_back(Pair("sentComplaint", debugStatus.status.sentComplaint));
+    ret.push_back(Pair("sentJustification", debugStatus.status.sentJustification));
+    ret.push_back(Pair("sentPrematureCommitment", debugStatus.status.sentPrematureCommitment));
+    ret.push_back(Pair("aborted", debugStatus.status.aborted));
 
     struct ArrOrCount {
         int count{0};
@@ -87,12 +87,12 @@ UniValue CDKGDebugSessionStatus::ToJson(int detailLevel) const
 
     for (size_t i = 0; i < members.size(); i++) {
         const auto& m = members[i];
-        add(badMembers, i, m.bad);
-        add(weComplain, i, m.weComplain);
-        add(receivedContributions, i, m.receivedContribution);
-        add(receivedComplaints, i, m.receivedComplaint);
-        add(receivedJustifications, i, m.receivedJustification);
-        add(receivedPrematureCommitments, i, m.receivedPrematureCommitment);
+        add(badMembers, i, m.debugStatus.status.bad);
+        add(weComplain, i, m.debugStatus.status.weComplain);
+        add(receivedContributions, i, m.debugStatus.status.receivedContribution);
+        add(receivedComplaints, i, m.debugStatus.status.receivedComplaint);
+        add(receivedJustifications, i, m.debugStatus.status.receivedJustification);
+        add(receivedPrematureCommitments, i, m.debugStatus.status.receivedPrematureCommitment);
     }
     push(badMembers, "badMembers");
     push(weComplain, "weComplain");
@@ -171,7 +171,7 @@ void CDKGDebugManager::InitLocalSessionStatus(Consensus::LLMQType llmqType, cons
     session.quorumHash = quorumHash;
     session.quorumHeight = (uint32_t)quorumHeight;
     session.phase = 0;
-    session.statusBitset = 0;
+    session.debugStatus.statusBitset = 0;
     session.members.clear();
     session.members.resize((size_t)params.size);
 }
