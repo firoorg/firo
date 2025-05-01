@@ -12,6 +12,7 @@
 #include "validation.h"
 #include "bip47/defs.h"
 #include "bip47/paymentchannel.h"
+#include "../sparkname.h"
 
 #include <boost/foreach.hpp>
 
