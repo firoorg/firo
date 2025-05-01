@@ -397,7 +397,7 @@ void OverviewPage::migrateClicked()
 {
     size_t confirmed, unconfirmed;
     auto privateBalance = walletModel->getWallet()->GetPrivateBalance(confirmed, unconfirmed);
-    __firo_unused auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
+    FIRO_UNUSED auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
     migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
     migrateAmount.append("</b>");
     QString info = tr("Your wallet needs to be unlocked to migrate your funds to Spark.");
@@ -517,7 +517,7 @@ void OverviewPage::resizeEvent(QResizeEvent* event)
     ui->labelUnconfirmed->setFixedHeight(labelHeight);
 
     int buttonWidth = static_cast<int>(newWidth * 0.15);
-    __firo_unused int buttonHeight = static_cast<int>(newHeight * 0.05);
+    FIRO_UNUSED int buttonHeight = static_cast<int>(newHeight * 0.05);
     int buttonMinHeight = static_cast<int>(20);
     int buttonMaxHeight = static_cast<int>(45);
 

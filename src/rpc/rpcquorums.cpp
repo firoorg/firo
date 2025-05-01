@@ -123,7 +123,7 @@ UniValue quorum_info(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid LLMQ type");
     }
 
-    __firo_unused const auto& llmqParams = Params().GetConsensus().llmqs.at(llmqType);
+    FIRO_UNUSED const auto& llmqParams = Params().GetConsensus().llmqs.at(llmqType);
 
     uint256 quorumHash = ParseHashV(request.params[2], "quorumHash");
     bool includeSkShare = false;

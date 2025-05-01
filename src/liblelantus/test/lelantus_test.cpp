@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(prove_verify)
 
 BOOST_AUTO_TEST_CASE(prove_verify_many_coins)
 {
-    __firo_unused size_t N = 100;
+    FIRO_UNUSED size_t N = 100;
 
     PrivateCoin input1(m_params ,2), input2(m_params, 2), input3(m_params, 1);
     std::vector<std::pair<PrivateCoin, uint32_t>> Cin = {

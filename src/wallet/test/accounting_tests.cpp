@@ -15,7 +15,7 @@ extern CWallet* pwalletMain;
 
 BOOST_FIXTURE_TEST_SUITE(accounting_tests, WalletTestingSetup)
 
-__firo_unused static void
+FIRO_UNUSED static void
 GetResults(std::map<CAmount, CAccountingEntry>& results)
 {
     std::list<CAccountingEntry> aes;

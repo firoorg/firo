@@ -27,7 +27,7 @@ BOOST_FIXTURE_TEST_SUITE(miner_tests, TestingSetup)
 
 static CFeeRate blockMinFeeRate = CFeeRate(DEFAULT_BLOCK_MIN_TX_FEE);
 
-__firo_unused static
+FIRO_UNUSED static
 struct {
     unsigned char extranonce;
     unsigned int nonce;

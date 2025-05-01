@@ -72,7 +72,7 @@ public:
         LOCK(pwalletMain->cs_wallet);
 
         CAmount txFee;
-        __firo_unused size_t additionalSize = sparkNameManager->GetSparkNameTxDataSize(sparkNameData);
+        FIRO_UNUSED size_t additionalSize = sparkNameManager->GetSparkNameTxDataSize(sparkNameData);
 
         if (sparkNameFee == 0) {
             BOOST_ASSERT(sparkNameData.name.length() <= CSparkNameManager::maximumSparkNameLength);

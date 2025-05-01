@@ -17,7 +17,7 @@
 
 BOOST_AUTO_TEST_SUITE(tx_validationcache_tests)
 
-__firo_unused static bool
+FIRO_UNUSED static bool
 ToMemPool(CMutableTransaction& tx)
 {
     LOCK(cs_main);

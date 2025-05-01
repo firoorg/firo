@@ -508,7 +508,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     GenerateBlocks(10);
 
     auto outputAmount = 1 * COIN;
-    __firo_unused auto mintAmount = 2 * CENT - CENT; // a cent as fee
+    FIRO_UNUSED auto mintAmount = 2 * CENT - CENT; // a cent as fee
     CAmount fee;
     CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, fee);
 

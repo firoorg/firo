@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE(deterministic)
 {
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
-    __firo_unused int previousHeight;
+    FIRO_UNUSED int previousHeight;
     CBlock b;
     CWalletTx wtx;
 
@@ -162,14 +162,14 @@ BOOST_AUTO_TEST_CASE(wallet_count)
 {
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
-    __firo_unused int previousHeight;
+    FIRO_UNUSED int previousHeight;
     CBlock b;
     CWalletTx wtx;
 
     const int TOTAL_MINTS = 5;
     const int INITIAL_MINTS = TOTAL_MINTS-1;
 
-    __firo_unused sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+    FIRO_UNUSED sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
     pwalletMain->SetBroadcastTransactions(true);
 
@@ -245,7 +245,7 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
 {
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
-    __firo_unused int previousHeight;
+    FIRO_UNUSED int previousHeight;
     CBlock b;
     CWalletTx wtx;
 
