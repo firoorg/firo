@@ -79,7 +79,9 @@ void CreateSparkNamePage::updateFee() {
     QString sparkName = ui->sparkNameEdit->text();
     int numberOfYears = ui->numberOfYearsEdit->value();
 
-    if (sparkName.isEmpty() || sparkName.length() > CSparkNameManager::maximumSparkNameLength || numberOfYears == 0 || numberOfYears > 10)
+    if (sparkName.isEmpty() || 
+        (sparkName.length() > 0 && static_cast<unsigned int>(sparkName.length()) > CSparkNameManager::maximumSparkNameLength) || 
+        numberOfYears == 0 || numberOfYears > 10)
         ui->feeTextLabel->setText(feeText.arg("?"));
     else
         ui->feeTextLabel->setText(feeText.arg(QString::number(Params().GetConsensus().nSparkNamesFee[sparkName.length()]*numberOfYears)));
@@ -110,8 +112,7 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
         assert(!name.empty() && name.length() <= CSparkNameManager::maximumSparkNameLength);
 
         CAmount sparkNameFee = consensusParams.nSparkNamesFee[name.length()]*COIN*numberOfYears;
-        __firo_unused
-        CAmount txFee;
+        __firo_unused CAmount txFee;
 
         WalletModelTransaction tx = model->initSparkNameTransaction(sparkNameFee);
 

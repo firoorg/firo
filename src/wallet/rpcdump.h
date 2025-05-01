@@ -5,6 +5,8 @@
 
 #include "rpcwallet.h"
 
+UniValue dumpprivkey_firo(const JSONRPCRequest& request);
+UniValue dumpwallet_firo(const JSONRPCRequest& request);
 UniValue dumpprivkey(const JSONRPCRequest& request);
 UniValue dumpsparkviewkey(const JSONRPCRequest& request);
 UniValue importprivkey(const JSONRPCRequest& request);

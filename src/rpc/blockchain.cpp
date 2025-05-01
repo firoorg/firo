@@ -211,8 +211,7 @@ UniValue getsparknamedata(const JSONRPCRequest& request)
     sparkNameManager->GetSparkAddress(sparkName, SparkAddr);
 
     UniValue result(UniValue::VOBJ);
-    __firo_unused
-    unsigned char network = spark::GetNetworkType();
+    __firo_unused unsigned char network = spark::GetNetworkType();
 
     result.push_back(Pair("address", SparkAddr));
 

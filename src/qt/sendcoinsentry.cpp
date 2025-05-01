@@ -207,7 +207,8 @@ bool SendCoinsEntry::validate()
 
     isPcodeEntry = bip47::CPaymentCode::validate(ui->payTo->text().toStdString());
 
-    if (ui->payTo->text().startsWith("@") && ui->payTo->text().size() <= CSparkNameManager::maximumSparkNameLength+1) {
+    if (ui->payTo->text().startsWith("@") && 
+        (ui->payTo->text().size() <= 0 || static_cast<unsigned int>(ui->payTo->text().size()) <= CSparkNameManager::maximumSparkNameLength+1)) {
         ui->payTo->setValid(true);
     }
     else if (!(model->validateAddress(ui->payTo->text()) || model->validateSparkAddress(ui->payTo->text()) || isPcodeEntry))
