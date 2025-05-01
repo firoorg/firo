@@ -8,6 +8,7 @@
 #include "chainparams.h"
 #include "checkpoints.h"
 #include "coins.h"
+#include "compat_macros.h"
 #include "core_io.h"
 #include "consensus/validation.h"
 #include "validation.h"
@@ -210,6 +211,7 @@ UniValue getsparknamedata(const JSONRPCRequest& request)
     sparkNameManager->GetSparkAddress(sparkName, SparkAddr);
 
     UniValue result(UniValue::VOBJ);
+    __firo_unused
     unsigned char network = spark::GetNetworkType();
 
     result.push_back(Pair("address", SparkAddr));

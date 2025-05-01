@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "sendcoinsdialog.h"
+#include "compat_macros.h"
 #include "ui_sendcoinsdialog.h"
 
 #include "addresstablemodel.h"
@@ -629,6 +630,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     {
         for(int i = 0; i < ui->entries->count(); ++i)
         {
+            __firo_unused 
             SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         }
         accept();
