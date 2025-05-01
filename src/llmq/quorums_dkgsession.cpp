@@ -199,7 +199,7 @@ void CDKGSession::SendContributions(CDKGPendingMessages& pendingMessages)
     logger.Flush();
 
     quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
-        status.sentContributions = true;
+        status.debugStatus.status.sentContributions = true;
         return true;
     });
 
@@ -284,7 +284,7 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGContribution& qc
         RelayInvToParticipants(inv);
 
         quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [&](CDKGDebugMemberStatus& status) {
-            status.receivedContribution = true;
+            status.debugStatus.status.receivedContribution = true;
             return true;
         });
 
@@ -330,7 +330,7 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGContribution& qc
     if (complain) {
         member->weComplain = true;
         quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [&](CDKGDebugMemberStatus& status) {
-            status.weComplain = true;
+            status.debugStatus.status.weComplain = true;
             return true;
         });
         return;
@@ -392,7 +392,7 @@ void CDKGSession::VerifyPendingContributions()
             logger.Batch("invalid contribution from %s. will complain later", m->dmn->proTxHash.ToString());
             m->weComplain = true;
             quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, m->idx, [&](CDKGDebugMemberStatus& status) {
-                status.weComplain = true;
+                status.debugStatus.status.weComplain = true;
                 return true;
             });
         } else {
@@ -475,7 +475,7 @@ void CDKGSession::SendComplaint(CDKGPendingMessages& pendingMessages)
     logger.Flush();
 
     quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
-        status.sentComplaint = true;
+        status.debugStatus.status.sentComplaint = true;
         return true;
     });
 
@@ -551,7 +551,7 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGComplaint& qc, b
         RelayInvToParticipants(inv);
 
         quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [&](CDKGDebugMemberStatus& status) {
-            status.receivedComplaint = true;
+            status.debugStatus.status.receivedComplaint = true;
             return true;
         });
 
@@ -673,7 +673,7 @@ void CDKGSession::SendJustification(CDKGPendingMessages& pendingMessages, const 
     logger.Flush();
 
     quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
-        status.sentJustification = true;
+        status.debugStatus.status.sentJustification = true;
         return true;
     });
 
@@ -766,7 +766,7 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGJustification& q
         RelayInvToParticipants(inv);
 
         quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [&](CDKGDebugMemberStatus& status) {
-            status.receivedJustification = true;
+            status.debugStatus.status.receivedJustification = true;
             return true;
         });
 
@@ -993,7 +993,7 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
     logger.Flush();
 
     quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
-        status.sentPrematureCommitment = true;
+        status.debugStatus.status.sentPrematureCommitment = true;
         return true;
     });
 
@@ -1132,7 +1132,7 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGPrematureCommitm
     RelayInvToParticipants(inv);
 
     quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [&](CDKGDebugMemberStatus& status) {
-        status.receivedPrematureCommitment = true;
+        status.debugStatus.status.receivedPrematureCommitment = true;
         return true;
     });
 
@@ -1261,7 +1261,7 @@ void CDKGSession::MarkBadMember(size_t idx)
         return;
     }
     quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, idx, [&](CDKGDebugMemberStatus& status) {
-        status.bad = true;
+        status.debugStatus.status.bad = true;
         return true;
     });
     member->bad = true;
