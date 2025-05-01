@@ -133,8 +133,8 @@ struct Aggregator {
     size_t batchSize{16};
     std::shared_ptr<std::vector<const T*> > inputVec;
 
-    bool parallel;
     ctpl::thread_pool& workerPool;
+    bool parallel;
 
     std::mutex m;
     // items in the queue are all intermediate aggregation results of finished batches.
@@ -336,15 +336,16 @@ struct VectorAggregator {
     typedef std::shared_ptr<VectorType> VectorPtrType;
     typedef std::vector<VectorPtrType> VectorVectorType;
     typedef std::function<void(const VectorPtrType& agg)> DoneCallback;
-    DoneCallback doneCallback;
 
     const VectorVectorType& vecs;
+    bool parallel;
     size_t start;
     size_t count;
-    bool parallel;
     ctpl::thread_pool& workerPool;
 
     std::atomic<size_t> doneCount;
+
+    DoneCallback doneCallback;
 
     VectorPtrType result;
     size_t vecSize;
@@ -761,7 +762,7 @@ std::future<bool> CBLSWorker::AsyncVerifyContributionShare(const CBLSId& forId,
         return std::move(p.second);
     }
 
-    auto f = [this, &forId, &vvec, &skContribution](int threadId) {
+    auto f = [&forId, &vvec, &skContribution](int threadId) {
         CBLSPublicKey pk1;
         if (!pk1.PublicKeyShare(*vvec, forId)) {
             return false;

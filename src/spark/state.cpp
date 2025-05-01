@@ -175,7 +175,7 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
     const spark::Params* params = spark::Params::get_default();
     spark::SpendTransaction spendTransaction(params);
     serialized >> spendTransaction;
-    return std::move(spendTransaction);
+    return spendTransaction;
 }
 
 
