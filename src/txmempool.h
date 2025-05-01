@@ -125,6 +125,7 @@ public:
                     int64_t nSigOpsCost, LockPoints lp);
 
     CTxMemPoolEntry(const CTxMemPoolEntry& other);
+    CTxMemPoolEntry& operator=(const CTxMemPoolEntry& other) = default;
 
     const CTransaction& GetTx() const { return *this->tx; }
     CTransactionRef GetSharedTx() const { return this->tx; }
