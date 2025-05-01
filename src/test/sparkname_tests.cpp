@@ -6,6 +6,7 @@
 #include "../net.h"
 #include "../sparkname.h"
 
+#include "compat_macros.h"
 #include "test_bitcoin.h"
 #include "fixtures.h"
 #include <iostream>
@@ -71,6 +72,7 @@ public:
         LOCK(pwalletMain->cs_wallet);
 
         CAmount txFee;
+        __firo_unused
         size_t additionalSize = sparkNameManager->GetSparkNameTxDataSize(sparkNameData);
 
         if (sparkNameFee == 0) {

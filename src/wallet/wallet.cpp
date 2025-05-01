@@ -6886,7 +6886,7 @@ spark::FullViewKey CWallet::GetSparkViewKey() {
 
 std::string CWallet::GetSparkViewKeyStr() {
   spark::FullViewKey key = GetSparkViewKey();
-  int size = GetSerializeSize(key, SER_NETWORK, PROTOCOL_VERSION);
+  __firo_unused int size = GetSerializeSize(key, SER_NETWORK, PROTOCOL_VERSION);
   std::ostringstream keydata;
   ::Serialize(keydata, key);
 

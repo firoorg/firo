@@ -1,4 +1,5 @@
 #include "state.h"
+#include "compat_macros.h"
 #include "sparkname.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
@@ -314,7 +315,7 @@ bool ConnectBlockSpark(
         }
 
         if (!pblock->sparkTxInfo->sparkNames.empty()) {
-            CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+            __firo_unused CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
             for (const auto &sparkName : pblock->sparkTxInfo->sparkNames) {
                 pindexNew->addedSparkNames[sparkName.first] =
                         CSparkNameBlockIndexData(sparkName.second.name,
