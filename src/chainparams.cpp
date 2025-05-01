@@ -494,11 +494,11 @@ public:
         consensus.nSparkNamesStartBlock = 1104500;  // ~ May 28th 2025
         consensus.nSparkNamesFee = standardSparkNamesFee;
     }
-    virtual bool SkipUndoForBlock(int nHeight) const
+    virtual bool SkipUndoForBlock(int nHeight) const override
     {
         return nHeight == 293526;
     }
-    virtual bool ApplyUndoForTxout(int nHeight, uint256 const & txid, int n) const
+    virtual bool ApplyUndoForTxout(int nHeight, uint256 const & txid, int n) const override
     {
         // We only apply first 23 tx inputs UNDOs for the tx 7702 in block 293526
         if (!SkipUndoForBlock(nHeight)) {
