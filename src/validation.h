@@ -20,7 +20,7 @@
 #include "timedata.h"
 #include "chainparams.h"
 #include "spentindex.h"
-
+#include "warnings.h"
 
 #include <algorithm>
 #include <exception>
@@ -349,7 +349,7 @@ void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune);
 /** Create a new block index entry for a given block hash */
 CBlockIndex * InsertBlockIndex(uint256 hash);
 /** Abort with a message */
-bool AbortNode(const std::string &strMessage, const std::string &userMessage);
+bool AbortNode(const std::string &strMessage, const std::string &userMessage="");
 /** Sends out an alert */
 void AlertNotify(const std::string& strMessage);
 /** Flush all state, indexes and buffers to disk. */

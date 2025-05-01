@@ -67,19 +67,6 @@
 #endif
 #endif
 
-
-namespace {
-    const int MAX_OUTBOUND_CONNECTIONS = 8;
-    const int MAX_FEELER_CONNECTIONS = 1;
-
-    struct ListenSocket {
-        SOCKET socket;
-        bool whitelisted;
-
-        ListenSocket(SOCKET socket, bool whitelisted) : socket(socket), whitelisted(whitelisted) {}
-    };
-}
-
 constexpr const CConnman::CFullyConnectedOnly CConnman::FullyConnectedOnly;
 constexpr const CConnman::CAllNodes CConnman::AllNodes;
 
