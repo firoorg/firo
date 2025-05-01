@@ -320,7 +320,7 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(CNode* pfrom, const CSigSesAnn& 
         return true; // let's still try other announcements from the same message
     }
 
-    __firo_unused auto signHash = CLLMQUtils::BuildSignHash(llmqType, ann.quorumHash, ann.id, ann.msgHash);
+    FIRO_UNUSED auto signHash = CLLMQUtils::BuildSignHash(llmqType, ann.quorumHash, ann.id, ann.msgHash);
 
     LOCK(cs);
     auto& nodeState = nodeStates[pfrom->id];
@@ -647,7 +647,7 @@ void CSigSharesManager::ProcessPendingSigSharesFromNode(NodeId nodeId,
         const std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& quorums,
         CConnman& connman)
 {
-    __firo_unused auto& nodeState = nodeStates[nodeId];
+    FIRO_UNUSED auto& nodeState = nodeStates[nodeId];
 
     cxxtimer::Timer t(true);
     for (auto& sigShare : sigShares) {
@@ -722,7 +722,7 @@ void CSigSharesManager::TryRecoverSig(const CQuorumCPtr& quorum, const uint256& 
     {
         LOCK(cs);
 
-        __firo_unused auto k = std::make_pair(quorum->params.type, id);
+        FIRO_UNUSED auto k = std::make_pair(quorum->params.type, id);
 
         auto signHash = CLLMQUtils::BuildSignHash(quorum->params.type, quorum->qc.quorumHash, id, msgHash);
         auto sigShares = this->sigShares.GetAllForSignHash(signHash);

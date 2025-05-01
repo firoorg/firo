@@ -352,7 +352,7 @@ std::vector<CSparkMintMeta> SparkTestingSetup::GenerateMints(
     CWalletDB walletdb(pwalletMain->strWalletFile);
     std::vector<CSparkMintMeta> mints;
     // Parameters
-    __firo_unused const spark::Params* params;
+    FIRO_UNUSED const spark::Params* params;
     params = spark::Params::get_default();
 
     // Generate address

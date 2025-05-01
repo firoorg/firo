@@ -81,7 +81,7 @@ bool IsOldBudgetBlockValueValid(const CBlock& block, int nBlockHeight, CAmount b
 
 bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockReward, std::string& strErrorRet)
 {
-    __firo_unused const Consensus::Params& consensusParams = Params().GetConsensus();
+    FIRO_UNUSED const Consensus::Params& consensusParams = Params().GetConsensus();
     bool isBlockRewardValueMet = (block.vtx[0]->GetValueOut() <= blockReward);
    
     return isBlockRewardValueMet;
@@ -98,7 +98,7 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, int nTime, C
     // we are still using budgets, but we have no data about them anymore,
     // we can only check masternode payments
 
-    __firo_unused const Consensus::Params& consensusParams = Params().GetConsensus();
+    FIRO_UNUSED const Consensus::Params& consensusParams = Params().GetConsensus();
 
     // Check for correct masternode payment
     if(mnpayments.IsTransactionValid(txNew, nBlockHeight, nTime, blockReward)) {

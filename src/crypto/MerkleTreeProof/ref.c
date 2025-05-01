@@ -39,7 +39,7 @@
  * @param with_xor Whether to XOR into the new block (1) or just overwrite (0)
  * @pre all block pointers must be valid
  */
-__firo_unused static void fill_block(const block *prev_block, const block *ref_block,
+FIRO_UNUSED static void fill_block(const block *prev_block, const block *ref_block,
                        block *next_block, int with_xor) {
     block blockR, block_tmp;
     unsigned i;
@@ -83,7 +83,7 @@ __firo_unused static void fill_block(const block *prev_block, const block *ref_b
     xor_block(next_block, &blockR);
 }
 
-__firo_unused static void next_addresses(block *address_block, block *input_block,
+FIRO_UNUSED static void next_addresses(block *address_block, block *input_block,
                            const block *zero_block) {
     input_block->v[6]++;
     fill_block(zero_block, input_block, address_block, 0);
@@ -95,7 +95,7 @@ void fill_segment_mtp(const argon2_instance_t *instance,
                   argon2_position_t position) {
 
     block *ref_block = NULL, *curr_block = NULL;
-    __firo_unused block address_block;
+    FIRO_UNUSED block address_block;
     block input_block, zero_block;
     uint64_t pseudo_rand, ref_index, ref_lane;
     uint32_t prev_offset, curr_offset;

@@ -630,7 +630,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     {
         for(int i = 0; i < ui->entries->count(); ++i)
         {
-            __firo_unused SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+            FIRO_UNUSED SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         }
         accept();
         CoinControlDialog::coinControl->UnSelectAll();

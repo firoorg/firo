@@ -89,7 +89,7 @@ std::vector<CDataStream> MintTransaction::getMintedCoinsSerialized() {
 void MintTransaction::setMintTransaction(std::vector<CDataStream>& serializedCoins) {
     bool first = true;
     coins.reserve(serializedCoins.size());
-    __firo_unused size_t i = 0;
+    FIRO_UNUSED size_t i = 0;
     for (auto& stream : serializedCoins) {
         Coin coin(params);
         stream >> coin;

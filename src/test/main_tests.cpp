@@ -15,7 +15,7 @@ BOOST_FIXTURE_TEST_SUITE(main_tests, TestingSetup)
 
 static void TestBlockSubsidyHalvings(const Consensus::Params& consensusParams)
 {
-    __firo_unused int maxHalvings = 64;
+    FIRO_UNUSED int maxHalvings = 64;
     CAmount nInitialSubsidy = 50 * COIN;
 
     BOOST_CHECK_EQUAL(GetBlockSubsidy(1, consensusParams, consensusParams.nMTPSwitchTime-1000), nInitialSubsidy);

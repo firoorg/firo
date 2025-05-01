@@ -511,7 +511,7 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
         return true;
     }
 
-    __firo_unused CAmount nValueIn = 0;
+    FIRO_UNUSED CAmount nValueIn = 0;
     for (const auto& in : tx.vin) {
         CAmount v = 0;
         if (!CheckCanLock(in.prevout, printDebug, tx.GetHash(), &v, params)) {
@@ -587,7 +587,7 @@ void CInstantSendManager::HandleNewRecoveredSig(const CRecoveredSig& recoveredSi
     if (llmqType == Consensus::LLMQ_NONE) {
         return;
     }
-    __firo_unused auto& params = Params().GetConsensus().llmqs.at(llmqType);
+    FIRO_UNUSED auto& params = Params().GetConsensus().llmqs.at(llmqType);
 
     uint256 txid;
     bool isInstantSendLock = false;
@@ -609,7 +609,7 @@ void CInstantSendManager::HandleNewRecoveredSig(const CRecoveredSig& recoveredSi
 
 void CInstantSendManager::HandleNewInputLockRecoveredSig(const CRecoveredSig& recoveredSig, const uint256& txid)
 {
-    __firo_unused auto llmqType = Params().GetConsensus().llmqForInstantSend;
+    FIRO_UNUSED auto llmqType = Params().GetConsensus().llmqForInstantSend;
 
     CTransactionRef tx;
     uint256 hashBlock;
