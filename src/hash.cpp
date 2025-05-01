@@ -7,6 +7,8 @@
 #include "crypto/hmac_sha512.h"
 #include "pubkey.h"
 
+#include "compat_macros.h"
+
 
 inline uint32_t ROTL32(uint32_t x, int8_t r)
 {
@@ -49,8 +51,10 @@ unsigned int MurmurHash3(unsigned int nHashSeed, const std::vector<unsigned char
         switch (vDataToHash.size() & 3) {
         case 3:
             k1 ^= tail[2] << 16;
+            FIRO_FALLTHROUGH;
         case 2:
             k1 ^= tail[1] << 8;
+            FIRO_FALLTHROUGH;
         case 1:
             k1 ^= tail[0];
             k1 *= c1;

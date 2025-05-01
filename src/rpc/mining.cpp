@@ -26,6 +26,8 @@
 #include "utilstrencodings.h"
 #include "validationinterface.h"
 
+#include "../compat_macros.h"
+
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 
@@ -760,6 +762,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
                 // Ensure bit is set in block version
                 pblock->nVersion |= VersionBitsMask(consensusParams, pos);
                 // FALL THROUGH to get vbavailable set...
+                FIRO_FALLTHROUGH;
             case THRESHOLD_STARTED:
             {
                 const struct BIP9DeploymentInfo& vbinfo = VersionBitsDeploymentInfo[pos];
