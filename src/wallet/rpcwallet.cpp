@@ -32,6 +32,7 @@
 #include "bip47/paymentchannel.h"
 #include "bip47/account.h"
 #include "wallet/coincontrol.h"
+#include "rpcdump.h"
 
 #include <stdint.h>
 
@@ -5849,14 +5850,7 @@ UniValue setusednumber(const JSONRPCRequest& request)
 /******************************************************************************/
 
 extern UniValue dumpprivkey(const JSONRPCRequest& request); // in rpcdump.cpp
-extern UniValue dumpsparkviewkey(const JSONRPCRequest& request); // in rpcdump.cpp
-extern UniValue importprivkey(const JSONRPCRequest& request);
-extern UniValue importaddress(const JSONRPCRequest& request);
-extern UniValue importpubkey(const JSONRPCRequest& request);
 extern UniValue dumpwallet(const JSONRPCRequest& request);
-extern UniValue importwallet(const JSONRPCRequest& request);
-extern UniValue importprunedfunds(const JSONRPCRequest& request);
-extern UniValue removeprunedfunds(const JSONRPCRequest& request);
 extern UniValue importmulti(const JSONRPCRequest& request);
 
 static const CRPCCommand commands[] =
