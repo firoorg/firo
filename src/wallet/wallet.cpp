@@ -8265,6 +8265,14 @@ bool CMerkleTx::AcceptToMemoryPool(const CAmount &nAbsurdFee, CValidationState &
 bool CompSigmaHeight(const CSigmaEntry &a, const CSigmaEntry &b) { return a.nHeight < b.nHeight; }
 bool CompSigmaID(const CSigmaEntry &a, const CSigmaEntry &b) { return a.id < b.id; }
 
+void ShutdownWallet() {
+    if (pwalletMain) {
+        if (pwalletMain->sparkWallet) {
+            pwalletMain->sparkWallet->FinishTasks();
+        }
+    }
+}
+
 bool CWallet::CreateSparkMintTransactions(
     const std::vector<spark::MintedCoinData>& outputs,
     std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,

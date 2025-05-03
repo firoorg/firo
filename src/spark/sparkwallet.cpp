@@ -84,6 +84,10 @@ CSparkWallet::~CSparkWallet() {
     delete (ParallelOpThreadPool<void>*)threadPool;
 }
 
+void CSparkWallet::FinishTasks() {
+    ((ParallelOpThreadPool<void>*)threadPool)->Shutdown();
+}
+
 void CSparkWallet::resetDiversifierFromDB(CWalletDB& walletdb) {
     walletdb.readDiversifier(lastDiversifier);
 }
