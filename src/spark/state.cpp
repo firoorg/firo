@@ -950,6 +950,7 @@ CSparkState::CSparkState(
 }
 
 void CSparkState::Reset() {
+    ShutdownWallet();
     coinGroups.clear();
     latestCoinId = 0;
     mintedCoins.clear();

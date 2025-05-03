@@ -153,6 +153,8 @@ public:
     // Returns the list of pairs of coins and metadata for that coin,
     std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
 
+    void FinishTasks();
+
 public:
     // to protect coinMeta
     mutable CCriticalSection cs_spark_wallet;

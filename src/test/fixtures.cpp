@@ -423,4 +423,5 @@ CTransaction SparkTestingSetup::GenerateSparkSpend(
 
 SparkTestingSetup::~SparkTestingSetup()
 {
+    pwalletMain->sparkWallet->FinishTasks();
 }

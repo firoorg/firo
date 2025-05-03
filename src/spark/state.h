@@ -7,6 +7,7 @@
 
 #include "libspark/coin.h"
 #include "chain.h"
+#include "../wallet/wallet.h"
 #include "../libspark/mint_transaction.h"
 #include "../libspark/spend_transaction.h"
 #include "primitives.h"

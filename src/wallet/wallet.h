@@ -1489,6 +1489,7 @@ public:
 
 bool CompSigmaHeight(const CSigmaEntry& a, const CSigmaEntry& b);
 bool CompSigmaID(const CSigmaEntry& a, const CSigmaEntry& b);
+void ShutdownWallet();
 
 // Helper for producing a bunch of max-sized low-S signatures (eg 72 bytes)
 // ContainerType is meant to hold pair<CWalletTx *, int>, and be iterable
