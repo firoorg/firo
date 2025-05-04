@@ -311,6 +311,8 @@ void OverviewPage::displaySpatsBalances()
           table_widget.setItem( row, ColumnMetadata, new QTableWidgetItem( QString::fromStdString( a->metadata ) ) );
           table_widget.setItem( row, ColumnDescription, new QTableWidgetItem( QString::fromStdString( a->description ) ) );
       }
+      else
+          table_widget.setItem( row, ColumnFungible, new QTableWidgetItem( is_fungible_asset_type( asset_id.first ) ? "Yes" : "No" ) );
 
       // Make the table items read-only to prevent user editing
       for ( int col = ColumnAssetType; col < ColumnCount; ++col )
