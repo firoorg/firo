@@ -261,6 +261,29 @@ static spats::CreateAssetAction ParseSpatsCreateTransaction(const CTransaction &
             throw CBadTxIn();
         if (GetScriptForDestination(CBitcoinAddress(std::string(firo_burn_address)).Get()) != burntx.scriptPubKey)
             throw CBadTxIn();
+
+        const auto& potential_coin_script = tx.vout.back().scriptPubKey;
+        const bool has_coin_script = potential_coin_script.IsSpatsMintCoin();
+        const auto initial_supply = spats::get_total_supply(action.get());
+        if (has_coin_script != !!initial_supply)
+            throw CBadTxIn();   // has initial supply but no spats coin, or doesn't have initial supply but has spats coin
+        if (has_coin_script) {
+            const auto& coin_script = potential_coin_script;
+            const spark::Params* params = spark::Params::get_default();
+            MintTransaction mintTransaction(params);
+            spark::OwnershipProof ownershipProof;
+            ParseSpatsMintCoinTransaction(coin_script, mintTransaction, ownershipProof);	// may throw
+            if (!mintTransaction.verify())
+                throw CBadTxIn();
+            const auto& coins = mintTransaction.getCoins();
+            if (coins.size() != 1)
+                throw CBadTxIn();
+            auto coin = coins.front();
+            if (coin.v != tx.vout.back().nValue || coin.v != initial_supply.raw())
+                throw CBadTxIn();
+            action.set_coin(std::move(coin));
+        }
+
         return action;
     }
     catch (...) {

@@ -104,8 +104,6 @@ private:
    mutable asset_balances_t asset_balances_;   // protected by asset_balances_mutex_
    mutable std::atomic_flag all_coin_changes_processed_;
 
-   static spark::MintedCoinData create_minted_coin_data( const MintParameters &action_params );
-
    static void update_balances_given_coin( const CSparkMintMeta &coin_meta, asset_balances_t &asset_balances, const Registry &registry );
 };
 

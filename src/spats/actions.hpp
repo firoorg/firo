@@ -131,9 +131,13 @@ public:
                   ( a.fungible ? _( "fungible" ) : _( "non-fungible" ) ) % a.asset_type % a.identifier % a.symbol % a.name );
    }
 
+   const std::optional< spark::Coin > &coin() const noexcept { return coin_; }
+   void set_coin( spark::Coin &&coin ) noexcept { coin_ = std::move( coin ); }
+
 private:
    SparkAsset asset_;
    // TODO flag for asset_type adjustability, for avoiding failure due to the asset_type getting taken away by someone else under one's feet
+   std::optional< spark::Coin > coin_;   // the coin to be minted via this action. ATTENTION: not serialized, deliberately, will only be present in spark state processing
    static constexpr std::uint8_t serialization_version = 1;
 
    template < typename Stream >
@@ -566,6 +570,9 @@ inline std::vector< spark::Coin > get_coins( const Action &action )
    if ( const auto *const m = std::get_if< MintAction >( &action ) )
       if ( m->coin() )
          return { *m->coin() };
+   if ( const auto *const c = std::get_if< CreateAssetAction >( &action ) )
+      if ( c->coin() )
+         return { *c->coin() };
    // TODO more, as needed
    return {};
 }

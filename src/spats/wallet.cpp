@@ -94,6 +94,23 @@ const std::string &Wallet::my_public_address_as_admin() const
 
 // TODO for Levon to find out why no more than 1 spats action are picked to be placed on a block
 
+static spark::MintedCoinData create_minted_coin_data( const CreateAssetAction &action, const public_address_t &destination_public_address )
+{
+   const auto &a = action.get();
+   const auto initial_supply = get_total_supply( a );
+   assert( initial_supply > supply_amount_t{} );
+   const auto &b = get_base( a );
+   spark::MintedCoinData coin;
+   coin.address.decode( destination_public_address.empty() ? b.admin_public_address() : destination_public_address );
+   coin.v = boost::numeric_cast< CAmount >( initial_supply.raw() );
+   constexpr std::string_view memo = "new asset's initial supply mint";
+   static_assert( memo.size() < 32 );   // Params::memo_bytes is commonly set to 31
+   coin.memo = memo;
+   coin.a = utils::to_underlying( b.asset_type() );
+   coin.iota = utils::to_underlying( get_identifier( a ).value_or( identifier_t{} ) );
+   return coin;
+}
+
 std::optional< CWalletTx > Wallet::create_new_spark_asset_transaction(
   const SparkAsset &a,
   CAmount &standard_fee,
@@ -131,21 +148,20 @@ std::optional< CWalletTx > Wallet::create_new_spark_asset_transaction(
    const std::string burn_address( firo_burn_address );   // TODO the network-specific address from params, once Levon adds that
    CScript burn_script = GetScriptForDestination( CBitcoinAddress( burn_address ).Get() );
    CRecipient burn_recipient{ std::move( burn_script ), new_asset_fee, false, {}, "burning new asset fee" };
-   if ( initial_supply ) {
-      const auto initial_supply_raw = boost::numeric_cast< CAmount >( initial_supply.raw() );
-      CRecipient initial_supply_recipient{ GetScriptForDestination(   // TODO or use mint, and thus a structure more appropriate for that?
-                                             CBitcoinAddress( destination_public_address.empty() ? b.admin_public_address() : destination_public_address ).Get() ),
-                                           initial_supply_raw,
-                                           false,
-                                           {},
-                                           "crediting new asset's initial supply" };   // TODO include the asset's asset_type and identifier as new fields?
-      // TODO include initial_supply_recipient into the tx being created (as a private recipient perhaps?), once spats sends/mints are implemented
-   }
    auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, b.admin_public_address(), "new asset" }, burn_recipient },
                                                         {},
                                                         standard_fee,
                                                         nullptr );   // may throw
    assert( tx.tx->IsSpatsCreate() );
+
+   if ( initial_supply ) {
+      CMutableTransaction mtx( *tx.tx );
+      spark_wallet_.AppendSpatsMintTxData( mtx,
+                                           { create_minted_coin_data( action, destination_public_address ), spark_wallet_.getDefaultAddress() },
+                                           spark_wallet_.ensureSpendKey() );
+      tx.tx = MakeTransactionRef( std::move( mtx ) );
+      assert( tx.tx->IsSpatsCreate() );
+   }
 
    if ( user_confirmation_callback )   // give the user a chance to confirm/cancel, if there are means to do so
       if ( const auto tx_size = ::GetVirtualTransactionSize( tx ); !user_confirmation_callback( action, standard_fee, tx_size ) ) {
@@ -241,11 +257,12 @@ std::optional< CWalletTx > Wallet::create_modify_spark_asset_transaction(
    return tx;
 }
 
-spark::MintedCoinData Wallet::create_minted_coin_data( const MintParameters &action_params )
+static spark::MintedCoinData create_minted_coin_data( const MintParameters &action_params )
 {
+   assert( action_params.new_supply() > supply_amount_t{} );
    spark::MintedCoinData coin;
    coin.address.decode( action_params.receiver_public_address() );
-   coin.v = action_params.new_supply().raw();
+   coin.v = boost::numeric_cast< CAmount >( action_params.new_supply().raw() );
    coin.memo = "minting new supply";
    coin.a = utils::to_underlying( action_params.asset_type() );
    assert( coin.iota.isZero() );
@@ -435,6 +452,17 @@ Wallet::asset_balances_t Wallet::get_asset_balances() const
    }
 }
 
+static std::optional< supply_amount_t::precision_type > get_asset_precision( asset_type_t a, identifier_t i, const Registry &registry )
+{
+   if ( !is_fungible_asset_type( a ) )   // NFT
+      return 0u;   // for performance, but also because if the asset is very new, it might not be in the registry yet, but here it doesn't matter (f. precision purposes)
+
+   const auto located_asset = registry.get_asset( a, i );
+   if ( located_asset )
+      return get_precision( located_asset->asset );
+   return {};
+}
+
 void Wallet::update_balances_given_coin( const CSparkMintMeta &coin_meta, asset_balances_t &asset_balances, const Registry &registry )
 {
    assert( coin_meta.IsSpats() );
@@ -445,12 +473,19 @@ void Wallet::update_balances_given_coin( const CSparkMintMeta &coin_meta, asset_
    auto it = asset_balances.find( uid );
    if ( it == asset_balances.end() ) {
       // no entry, so we don't have the precision at hand yet, need to retrieve it from the registry
-      // TODO Performance: don't consult the registry for NFTs - their precision is 0 by definition!
-      const auto located_asset = registry.get_asset( uid.first, uid.second );
-      if ( !located_asset )
-         throw std::runtime_error( str( boost::format( _( "Spark asset %1%,%2% not found in the registry! PANIC!" ) ) % asset_type % identifier ) );
-      const auto precision = get_precision( located_asset->asset );
-      it = asset_balances.emplace( uid, AssetAmount::init_with_precision( precision ) ).first;
+      const auto precision = get_asset_precision( uid.first, uid.second, registry );
+      if ( !precision ) {
+         // Because we don't have the asset's precision yet, we will ignore this coin and won't calculate this specific asset's balance yet. However, we shouldn't let
+         // that jeopardize the calculation of any other assets' balances, so we'll just return (effectively ignoring this coin), rather than throwing an exception and
+         // suppressing the calculation/display of other spats balances as a result.
+         LogPrintf( "%s: Spark asset %u,%u not found in the registry! Will omit it from the spats balances map, at least for now, ignoring coin %s\n",
+                    coin_meta.IsUnconfirmed() ? "WARNING" : "ERROR",
+                    asset_type,
+                    identifier,
+                    coin_meta.k );
+         return;
+      }
+      it = asset_balances.emplace( uid, AssetAmount::init_with_precision( *precision ) ).first;
    }
 
    // the entry already existed or just got inserted here in this function - in either case we have the precision already inside there
