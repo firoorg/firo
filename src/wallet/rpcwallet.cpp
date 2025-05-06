@@ -3991,7 +3991,10 @@ UniValue getsparknames(const JSONRPCRequest &request)
                 continue;
             entry.push_back(Pair("name", name));
             entry.push_back(Pair("address", sparkAddress));
-
+            entry.push_back(Pair("validUntil", sparkNameManager->GetSparkNameBlockHeight(name)));
+            std::string addData = sparkNameManager->GetSparkNameAdditionalData(name);
+            if (addData != "")
+                entry.push_back(Pair("additionalInfo", addData));
             result.push_back(entry);
         }
     }

@@ -1,5 +1,6 @@
 #ifndef ADDRESSTYPE_H
 #define ADDRESSTYPE_H
+#include <iostream>
 
 enum struct AddressType
 {
@@ -18,6 +19,7 @@ enum struct AddressType
     , sparksMint = 12
     , sparkSpend = 13
     , payToExchangeAddress = 14
+    , sparkName = 15
 };
 
 namespace zerocoin { namespace utils {
@@ -80,6 +82,10 @@ inline bool isSparkSMint(std::string const & str){
 
 inline bool isSparkSpend(std::string const & str){
     return str == "Sparkspend";
+}
+
+inline bool isSparkName(std::string const & str){
+    return str == "Sparkname";
 }
 
 }}
