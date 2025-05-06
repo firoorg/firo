@@ -616,6 +616,8 @@ void UnregisterNodeSignals(CNodeSignals& nodeSignals)
 
 void AddToCompactExtraTransactions(const CTransactionRef& tx)
 {
+    LOCK(cs_main);
+
     size_t max_extra_txn = GetArg("-blockreconstructionextratxn", DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN);
     if (max_extra_txn <= 0)
         return;
