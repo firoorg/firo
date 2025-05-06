@@ -45,7 +45,6 @@ public:
 // check if spark activation block is passed
 bool IsSparkAllowed();
 bool IsSparkAllowed(int height);
-unsigned char GetNetworkType();
 
 // Pass Scripts form mint transaction and get spark MintTransaction object
 void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransaction& mintTransaction);
