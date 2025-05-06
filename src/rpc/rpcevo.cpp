@@ -946,8 +946,6 @@ UniValue protx_list(const JSONRPCRequest& request)
 
     UniValue ret(UniValue::VARR);
 
-    LOCK(cs_main);
-
     if (type == "wallet") {
         if (!pwallet) {
             throw std::runtime_error("\"protx list wallet\" not supported when wallet is disabled");

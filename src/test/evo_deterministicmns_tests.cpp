@@ -247,7 +247,6 @@ BOOST_FIXTURE_TEST_CASE(dip3_activation, TestChainDIP3BeforeActivationSetup)
     ProcessNewBlock(Params(), block, true, nullptr);
     deterministicMNManager->UpdatedBlockTip(chainActive.Tip());
 
-    LOCK(cs_main);
     BOOST_ASSERT(chainActive.Height() == nHeight + 2);
     BOOST_ASSERT(block->GetHash() == chainActive.Tip()->GetBlockHash());
     BOOST_ASSERT(deterministicMNManager->GetListAtChainTip().HasMN(tx.GetHash()));
