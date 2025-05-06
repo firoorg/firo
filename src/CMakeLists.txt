@@ -169,6 +169,7 @@ target_link_libraries(bitcoin_consensus
     core_interface
     secp256k1
     leveldb
+    univalue
     ${BLS_DASH_LIBRARY}
   PUBLIC
     univalue
