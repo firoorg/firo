@@ -16,7 +16,7 @@ add_custom_target(generate_build_info
   VERBATIM
 )
 add_library(bitcoin_clientversion OBJECT EXCLUDE_FROM_ALL
-  clientversion.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/clientversion.cpp
 )
 target_link_libraries(bitcoin_clientversion
   PRIVATE
@@ -30,31 +30,31 @@ add_dependencies(bitcoin_clientversion generate_build_info)
 #=============================
 
 add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
-  bls/bls_batchverifier.h
-  bls/bls_ies.cpp
-  bls/bls_ies.h
-  bls/bls_worker.cpp
-  bls/bls_worker.h
-  chainparamsbase.cpp
-  clientversion.cpp
-  compat/glibc_sanity.cpp
-  compat/glibcxx_sanity.cpp
-  compat/strnlen.cpp
-  crypto/scrypt.cpp
-  fs.cpp
-  mbstring.cpp
-  policy/rbf.cpp
-  primitives/block.cpp
-  random.cpp
-  rpc/protocol.cpp
-  support/cleanse.cpp
-  support/lockedpool.cpp
-  sync.cpp
-  threadinterrupt.cpp
-  util.cpp
-  utilmoneystr.cpp
-  utilstrencodings.cpp
-  utiltime.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bls/bls_batchverifier.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/bls/bls_ies.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bls/bls_ies.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/bls/bls_worker.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bls/bls_worker.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/chainparamsbase.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/clientversion.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/compat/glibc_sanity.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/compat/glibcxx_sanity.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/compat/strnlen.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/crypto/scrypt.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/fs.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/mbstring.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/policy/rbf.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/primitives/block.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/random.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpc/protocol.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/support/cleanse.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/support/lockedpool.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sync.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/threadinterrupt.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/util.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/utilmoneystr.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/utilstrencodings.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/utiltime.cpp
 )
 
 target_link_libraries(bitcoin_util
@@ -128,41 +128,41 @@ set_target_properties(secp256k1 PROPERTIES
 string(APPEND CMAKE_C_COMPILE_OBJECT " ${APPEND_CPPFLAGS} ${APPEND_CFLAGS}")
 
 add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
-  amount.h
-  arith_uint256.cpp
-  arith_uint256.h
-  bls/bls.cpp
-  bls/bls.h
-  consensus/merkle.cpp
-  consensus/merkle.h
-  consensus/params.h
-  consensus/validation.h
-  crypto/scrypt.h
-  flat-database.h
-  hash.cpp
-  hash.h
-  prevector.h
-  primitives/block.cpp
-  primitives/block.h
-  primitives/precomputed_hash.h
-  primitives/transaction.cpp
-  primitives/transaction.h
-  pubkey.cpp
-  pubkey.h
-  script/bitcoinconsensus.cpp
-  script/interpreter.cpp
-  script/interpreter.h
-  script/script.cpp
-  script/script.h
-  script/script_error.cpp
-  script/script_error.h
-  serialize.h
-  tinyformat.h
-  uint256.cpp
-  uint256.h
-  utilstrencodings.cpp
-  utilstrencodings.h
-  version.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/amount.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/arith_uint256.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/arith_uint256.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/bls/bls.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bls/bls.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/consensus/merkle.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/consensus/merkle.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/consensus/params.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/consensus/validation.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/crypto/scrypt.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/flat-database.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/hash.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/hash.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/prevector.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/primitives/block.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/primitives/block.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/primitives/precomputed_hash.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/primitives/transaction.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/primitives/transaction.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/pubkey.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/pubkey.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/script/bitcoinconsensus.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/script/interpreter.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/script/interpreter.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/script/script.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/script/script.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/script/script_error.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/script/script_error.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/serialize.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/tinyformat.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/uint256.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/uint256.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utilstrencodings.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/utilstrencodings.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/version.h
 )
 target_link_libraries(bitcoin_consensus
   PRIVATE
@@ -183,32 +183,32 @@ endif()
 # Home for common functionality shared by different executables and libraries.
 # Similar to `bitcoin_util` library, but higher-level.
 add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
-  amount.cpp
-  base58.cpp
-  bloom.cpp
-  chainparams.cpp
-  chainparamsbase.cpp
-  coins.cpp
-  compressor.cpp
-  core_read.cpp
-  core_write.cpp
-  hdmint/hdmint.cpp
-  init.cpp
-  key.cpp
-  keystore.cpp
-  libspark/bech32.cpp
-  merkleblock.cpp
-  netaddress.cpp
-  netbase.cpp
-  policy/policy.cpp
-  protocol.cpp
-  rpc/rawtransaction.cpp
-  saltedhasher.cpp
-  scheduler.cpp
-  script/sign.cpp
-  script/standard.cpp
-  warnings.cpp
-  $<$<BOOL:${ENABLE_CRASH_HOOKS}>:stacktraces.cpp>
+  ${CMAKE_CURRENT_SOURCE_DIR}/amount.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/base58.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bloom.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/chainparams.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/chainparamsbase.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/coins.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/compressor.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/core_read.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/core_write.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/hdmint/hdmint.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/init.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/key.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/keystore.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/bech32.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/merkleblock.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/netaddress.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/netbase.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/policy/policy.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/protocol.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpc/rawtransaction.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/saltedhasher.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/scheduler.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/script/sign.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/script/standard.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/warnings.cpp
+  $<$<BOOL:${ENABLE_CRASH_HOOKS}>:${CMAKE_CURRENT_SOURCE_DIR}/stacktraces.cpp>
 )
 target_link_libraries(bitcoin_common
   PUBLIC
@@ -236,123 +236,123 @@ endif()
 
 # P2P and RPC server functionality used by `bitcoind` and `firo-qt` executables.
 add_library(firo_node STATIC EXCLUDE_FROM_ALL
-  activemasternode.cpp
-  addrdb.cpp
-  addrman.cpp
-  batchedlogger.cpp
-  batchproof_container.cpp
-  bip47/paymentcode.cpp
-  blockencodings.cpp
-  bloom.cpp
-  chain.cpp
-  checkpoints.cpp
-  coin_containers.cpp
-  compat/glibc_sanity.cpp
-  compat/glibcxx_sanity.cpp
-  dbwrapper.cpp
-  dsnotificationinterface.cpp
-  evo/cbtx.cpp
-  evo/deterministicmns.cpp
-  evo/evodb.cpp
-  evo/mnauth.cpp
-  evo/providertx.cpp
-  evo/simplifiedmns.cpp
-  evo/specialtx.cpp
-  evo/spork.cpp
-  httprpc.cpp
-  httpserver.cpp
-  init.cpp
-  lelantus.cpp
-  liblelantus/coin.cpp
-  liblelantus/innerproduct_proof_generator.cpp
-  liblelantus/innerproduct_proof_verifier.cpp
-  liblelantus/joinsplit.cpp
-  liblelantus/lelantus_primitives.cpp
-  liblelantus/lelantus_prover.cpp
-  liblelantus/lelantus_verifier.cpp
-  liblelantus/params.cpp
-  liblelantus/range_prover.cpp
-  liblelantus/range_verifier.cpp
-  liblelantus/schnorr_prover.cpp
-  liblelantus/schnorr_verifier.cpp
-  liblelantus/sigmaextended_prover.cpp
-  liblelantus/sigmaextended_verifier.cpp
-  liblelantus/spend_metadata.cpp
-  libspark/aead.cpp
-  libspark/bech32.cpp
-  libspark/bpplus.cpp
-  libspark/chaum.cpp
-  libspark/coin.cpp
-  libspark/f4grumble.cpp
-  libspark/grootle.cpp
-  libspark/hash.cpp
-  libspark/kdf.cpp
-  libspark/keys.cpp
-  libspark/mint_transaction.cpp
-  libspark/params.cpp
-  libspark/schnorr.cpp
-  libspark/spend_transaction.cpp
-  libspark/transcript.cpp
-  libspark/util.cpp
-  llmq/quorums.cpp
-  llmq/quorums_blockprocessor.cpp
-  llmq/quorums_chainlocks.cpp
-  llmq/quorums_commitment.cpp
-  llmq/quorums_debug.cpp
-  llmq/quorums_dkgsession.cpp
-  llmq/quorums_dkgsessionhandler.cpp
-  llmq/quorums_dkgsessionmgr.cpp
-  llmq/quorums_init.cpp
-  llmq/quorums_instantsend.cpp
-  llmq/quorums_signing.cpp
-  llmq/quorums_signing_shares.cpp
-  llmq/quorums_utils.cpp
-  masternode-payments.cpp
-  masternode-sync.cpp
-  masternode-utils.cpp
-  merkleblock.cpp
-  messagesigner.cpp
-  miner.cpp
-  mtpstate.cpp
-  net.cpp
-  net_processing.cpp
-  netfulfilledman.cpp
-  noui.cpp
-  policy/fees.cpp
-  policy/policy.cpp
-  policy/rbf.cpp
-  pow.cpp
-  primitives/mint_spend.cpp
-  rest.cpp
-  rpc/blockchain.cpp
-  rpc/masternode.cpp
-  rpc/mining.cpp
-  rpc/misc.cpp
-  rpc/net.cpp
-  rpc/rawtransaction.cpp
-  rpc/rpcevo.cpp
-  rpc/rpcquorums.cpp
-  rpc/server.cpp
-  script/ismine.cpp
-  script/sigcache.cpp
-  sigma.cpp
-  sigma/coin.cpp
-  sigma/coinspend.cpp
-  sigma/params.cpp
-  sigma/spend_metadata.cpp
-  spark/primitives.cpp
-  sparkname.cpp
-  spark/state.cpp
-  threadinterrupt.cpp
-  timedata.cpp
-  torcontrol.cpp
-  txdb.cpp
-  txmempool.cpp
-  ui_interface.cpp
-  validation.cpp
-  validationinterface.cpp
-  versionbits.cpp
-  warnings.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/activemasternode.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/addrdb.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/addrman.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/batchedlogger.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/batchproof_container.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bip47/paymentcode.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/blockencodings.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bloom.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/chain.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/checkpoints.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/coin_containers.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/compat/glibc_sanity.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/compat/glibcxx_sanity.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/dbwrapper.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/dsnotificationinterface.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/evo/cbtx.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/evo/deterministicmns.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/evo/evodb.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/evo/mnauth.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/evo/providertx.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/evo/simplifiedmns.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/evo/specialtx.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/evo/spork.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/httprpc.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/httpserver.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/init.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/lelantus.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/coin.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/innerproduct_proof_generator.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/innerproduct_proof_verifier.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/joinsplit.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/lelantus_primitives.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/lelantus_prover.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/lelantus_verifier.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/params.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/range_prover.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/range_verifier.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/schnorr_prover.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/schnorr_verifier.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/sigmaextended_prover.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/sigmaextended_verifier.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/spend_metadata.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/aead.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/bech32.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/bpplus.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/chaum.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/coin.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/f4grumble.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/grootle.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/hash.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/kdf.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/keys.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/mint_transaction.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/params.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/schnorr.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/spend_transaction.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/transcript.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/util.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_blockprocessor.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_chainlocks.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_commitment.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_debug.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_dkgsession.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_dkgsessionhandler.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_dkgsessionmgr.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_init.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_instantsend.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_signing.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_signing_shares.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq/quorums_utils.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/masternode-payments.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/masternode-sync.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/masternode-utils.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/merkleblock.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/messagesigner.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/miner.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/mtpstate.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/net.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/net_processing.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/netfulfilledman.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/noui.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/policy/fees.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/policy/policy.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/policy/rbf.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/pow.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/primitives/mint_spend.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rest.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpc/blockchain.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpc/masternode.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpc/mining.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpc/misc.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpc/net.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpc/rawtransaction.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpc/rpcevo.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpc/rpcquorums.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpc/server.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/script/ismine.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/script/sigcache.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sigma.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sigma/coin.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sigma/coinspend.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sigma/params.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sigma/spend_metadata.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/spark/primitives.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sparkname.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/spark/state.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/threadinterrupt.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/timedata.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/torcontrol.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/txdb.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/txmempool.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/ui_interface.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/validation.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/validationinterface.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/versionbits.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/warnings.cpp
 )
 
 target_link_libraries(firo_node
@@ -381,7 +381,7 @@ target_link_libraries(firo_node
 # Bitcoin Core firod.
 if(BUILD_DAEMON)
   add_executable(firod
-    bitcoind.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bitcoind.cpp
   )
   add_windows_resources(firod bitcoind-res.rc)
   target_link_libraries(firod
@@ -406,8 +406,8 @@ if(BUILD_DAEMON)
 endif()
 if(WITH_MULTIPROCESS)
   add_executable(bitcoin-node
-    bitcoind.cpp
-    init/bitcoin-node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bitcoind.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/init/bitcoin-node.cpp
   )
   target_link_libraries(bitcoin-node
     core_interface
@@ -436,9 +436,9 @@ endif()
 
 
 add_library(firo_cli STATIC EXCLUDE_FROM_ALL
-  rpc/client.cpp
-  rpc/protocol.cpp
-  util.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpc/client.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpc/protocol.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/util.cpp
 )
 target_link_libraries(firo_cli
   PUBLIC
@@ -462,7 +462,7 @@ target_include_directories(firo_cli
 
 # Bitcoin Core RPC client
 if(BUILD_CLI)
-  add_executable(firo-cli bitcoin-cli.cpp)
+  add_executable(firo-cli ${CMAKE_CURRENT_SOURCE_DIR}/bitcoin-cli.cpp)
   add_windows_resources(firo-cli bitcoin-cli-res.rc)
   target_link_libraries(firo-cli
     core_interface
@@ -484,9 +484,9 @@ endif()
 
 
 if(BUILD_TX)
-  add_executable(firo-tx bitcoin-tx.cpp 
-    keystore.cpp
-    script/standard.cpp
+  add_executable(firo-tx ${CMAKE_CURRENT_SOURCE_DIR}/bitcoin-tx.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/keystore.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/script/standard.cpp
   )
   add_windows_resources(firo-tx bitcoin-tx-res.rc)
   target_link_libraries(firo-tx
@@ -519,7 +519,7 @@ endif()
 
 if(BUILD_UTIL_CHAINSTATE)
   add_executable(bitcoin-chainstate
-    bitcoin-chainstate.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bitcoin-chainstate.cpp
   )
   # TODO: The `SKIP_BUILD_RPATH` property setting can be deleted
   #       in the future after reordering Guix script commands to
