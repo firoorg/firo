@@ -1,6 +1,5 @@
 #ifndef ADDRESSTYPE_H
 #define ADDRESSTYPE_H
-#include <iostream>
 
 enum struct AddressType
 {
