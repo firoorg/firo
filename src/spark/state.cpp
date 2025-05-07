@@ -413,7 +413,7 @@ bool CheckSparkBlock(CValidationState &state, const CBlock& block) {
         blockSpendsValue += txSpendsValue;
     }
 
-    if (blockSpendsValue > consensus.nMaxValueSparkSpendPerBlock) {
+    if (cmp::greater(blockSpendsValue, consensus.nMaxValueSparkSpendPerBlock)) {
         return state.DoS(100, false, REJECT_INVALID,
                          "bad-txns-spark-spend-invalid");
     }
@@ -465,7 +465,7 @@ bool CheckSparkMintTransaction(
 
     for (size_t i = 0; i < coins.size(); i++) {
         auto& coin = coins[i];
-        if (coin.v != txOuts[i].nValue)
+        if (cmp::not_equal(coin.v, txOuts[i].nValue))
             return state.DoS(100,
                              false,
                              PUBCOIN_NOT_VALIDATE,
@@ -1155,7 +1155,7 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
         if (nMintsToForget == 0)
             continue;
 
-        assert(coinGroup.nCoins >= nMintsToForget);
+        assert(cmp::greater_equal(coinGroup.nCoins, nMintsToForget));
         auto isExtended = coins.first > 1;
         coinGroup.nCoins -= nMintsToForget;
 
@@ -1451,11 +1451,11 @@ void CSparkState::GetCoinsForRecovery(
         if (id) {
             if (block->sparkMintedCoins.count(id) > 0) {
                 for (const auto &coin : block->sparkMintedCoins[id]) {
-                    if (counter < startIndex) {
+                    if (cmp::less(counter, startIndex)) {
                         ++counter;
                         continue;
                     }
-                    if (counter >= endIndex) {
+                    if (cmp::greater_equal(counter, endIndex)) {
                         break;
                     }
                     std::pair<uint256, std::vector<unsigned char>> txHashContext;
@@ -1466,7 +1466,7 @@ void CSparkState::GetCoinsForRecovery(
                 }
             }
         }
-        if (block == coinGroup.firstBlock || counter >= endIndex) {
+        if (block == coinGroup.firstBlock || cmp::greater_equal(counter, endIndex)) {
             break ;
         }
     }

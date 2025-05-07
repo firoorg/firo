@@ -125,7 +125,7 @@ static int _convertBase(
                 resLen++;
             }
 
-            if (resLen > Len) {
+            if (cmp::greater(resLen, Len)) {
                 throw std::overflow_error("GroupElement::GroupElement: invalid count");
             }
 
@@ -135,7 +135,7 @@ static int _convertBase(
         }
     }
 
-    for (int i = 0; i < Len / 2; i++) {
+    for (int i = 0; cmp::less(i, Len / 2); i++) {
         unsigned char tmp = dst[i];
         dst[i] = dst[Len - i - 1];
         dst[Len - i - 1] = tmp;
@@ -191,7 +191,7 @@ static void _convertToFieldElement(secp256k1_fe *r, const char* str, int base) {
     auto strLen = strlen(str);
     std::vector<uint8_t> src(strLen, 0);
 
-    for (int i = 0; i < strLen; i++) {
+    for (int i = 0; cmp::less(i, strLen); i++) {
         char ch = str[i];
 
         switch (base) {

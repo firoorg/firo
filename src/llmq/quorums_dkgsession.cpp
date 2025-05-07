@@ -90,7 +90,7 @@ CDKGMember::CDKGMember(CDeterministicMNCPtr _dmn, size_t _idx) :
 
 bool CDKGSession::Init(const CBlockIndex* _pindexQuorum, const std::vector<CDeterministicMNCPtr>& mns, const uint256& _myProTxHash)
 {
-    if (mns.size() < params.minSize) {
+    if (cmp::less(mns.size(), params.minSize)) {
         return false;
     }
 
@@ -232,7 +232,7 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGContribution& 
         retBan = true;
         return false;
     }
-    if (qc.vvec->size() != params.threshold) {
+    if (cmp::not_equal(qc.vvec->size(), params.threshold)) {
         logger.Batch("invalid verification vector length");
         retBan = true;
         return false;
@@ -606,7 +606,7 @@ void CDKGSession::VerifyAndJustify(CDKGPendingMessages& pendingMessages)
         if (m->bad) {
             continue;
         }
-        if (m->badMemberVotes.size() >= params.dkgBadVotesThreshold) {
+        if (cmp::greater_equal(m->badMemberVotes.size(), params.dkgBadVotesThreshold)) {
             logger.Batch("%s marked as bad as %d other members voted for this", m->dmn->proTxHash.ToString(), m->badMemberVotes.size());
             MarkBadMember(m->idx);
             continue;
@@ -1043,7 +1043,7 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGPrematureCommi
         return false;
     }
 
-    for (size_t i = members.size(); i < params.size; i++) {
+    for (size_t i = members.size(); cmp::less(i, params.size); i++) {
         if (qc.validMembers[i]) {
             retBan = true;
             logger.Batch("invalid validMembers bitset. bit %d should not be set", i);
@@ -1181,7 +1181,7 @@ std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments()
     std::vector<CFinalCommitment> finalCommitments;
     for (const auto& p : commitmentsMap) {
         auto& cvec = p.second;
-        if (cvec.size() < params.minSize) {
+        if (cmp::less(cvec.size(), params.minSize)) {
             // commitment was signed by a minority
             continue;
         }
