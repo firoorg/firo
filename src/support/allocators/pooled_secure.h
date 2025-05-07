@@ -8,7 +8,7 @@
 #include "support/lockedpool.h"
 #include "support/cleanse.h"
 
-#include "../../compat_macros.h"
+#include "../../compat_layer.h"
 
 #include <string>
 #include <vector>

@@ -6,7 +6,7 @@
 #include "../net.h"
 #include "../sparkname.h"
 
-#include "compat_macros.h"
+#include "compat_layer.h"
 #include "test_bitcoin.h"
 #include "fixtures.h"
 #include <iostream>

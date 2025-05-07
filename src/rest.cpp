@@ -16,7 +16,7 @@
 #include "utilstrencodings.h"
 #include "version.h"
 
-#include "compat_macros.h"
+#include "compat_layer.h"
 
 #include <boost/algorithm/string.hpp>
 

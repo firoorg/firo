@@ -1,4 +1,4 @@
-#include "../../../compat_macros.h"
+#include "../../../compat_layer.h"
 
 #include "include/GroupElement.h"
 #include "include/secp256k1.h"

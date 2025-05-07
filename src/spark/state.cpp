@@ -1,5 +1,5 @@
 #include "state.h"
-#include "compat_macros.h"
+#include "compat_layer.h"
 #include "sparkname.h"
 #include "../validation.h"
 #include "../batchproof_container.h"

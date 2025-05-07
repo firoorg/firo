@@ -12,7 +12,7 @@ AM_LIBTOOLFLAGS = --preserve-dup-deps
 EXTRA_LIBRARIES =
 
 AM_CPPFLAGS += -I$(srcdir) -I$(srcdir)/../src
-# Add the directory containing compat_macros.h
+# Add the directory containing compat_layer.h
 AM_CPPFLAGS += -I$(srcdir)/../src
 
 noinst_LTLIBRARIES =
@@ -902,7 +902,7 @@ DISTCLEANFILES = obj/build.h
 
 EXTRA_DIST = $(CTAES_DIST) \
     wallet/rpcdump.h \
-    compat_macros.h
+    compat_layer.h
 
 config/bitcoin-config.h: config/stamp-h1
 	@$(MAKE) -C $(top_builddir) $(subdir)/$(@)

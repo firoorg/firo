@@ -138,7 +138,7 @@ namespace tfm = tinyformat;
 #include <sstream>
 #include <stdexcept>
 
-#include "compat_macros.h"
+#include "compat_layer.h"
 
 #ifndef TINYFORMAT_ERROR
 #   define TINYFORMAT_ERROR(reason) assert(0 && reason)
