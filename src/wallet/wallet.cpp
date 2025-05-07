@@ -3538,11 +3538,15 @@ bool CWallet::GetCoinsToSpend(
                 _("Can not choose coins within limit."));
     }
 
-    if (SelectMintCoinsForAmount(best_spend_val - roundedRequired * zeros, denominations, coinsToMint_out) != best_spend_val - roundedRequired * zeros) {
+    if (cmp::not_equal(
+            SelectMintCoinsForAmount(best_spend_val - roundedRequired * zeros, denominations, coinsToMint_out),
+            best_spend_val - roundedRequired * zeros)) {
         throw std::invalid_argument(
             _("Problem with coin selection for re-mint while spending."));
     }
-    if (SelectSpendCoinsForAmount(best_spend_val, coins, coinsToSpend_out) != best_spend_val) {
+    if (cmp::not_equal(
+            SelectSpendCoinsForAmount(best_spend_val, coins, coinsToSpend_out),
+            best_spend_val)) {
         throw std::invalid_argument(
             _("Problem with coin selection for spend."));
     }
@@ -5361,10 +5365,10 @@ bool CWallet::CreateLelantusMintTransactions(
                         return false;
                     }
 
-                    if (nFeeRet >= nFeeNeeded) {
+                    if (cmp::greater_equal(nFeeRet, nFeeNeeded)) {
                         for (auto &usedCoin : setCoins) {
                             for (auto coin = itr->second.begin(); coin != itr->second.end(); coin++) {
-                                if (usedCoin.first == coin->tx && usedCoin.second == coin->i) {
+                                if (usedCoin.first == coin->tx && cmp::equal(usedCoin.second, coin->i)) {
                                     itr->first -= coin->tx->tx->vout[coin->i].nValue;
                                     itr->second.erase(coin);
                                     break;
@@ -5686,7 +5690,7 @@ std::string CWallet::MintAndStoreSpark(
     for (auto& output : outputs)
         value += output.v;
 
-    if ((value + payTxFee.GetFeePerK()) > GetBalance())
+    if (cmp::greater((value + payTxFee.GetFeePerK()), GetBalance()))
         return _("Insufficient funds");
 
     LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
