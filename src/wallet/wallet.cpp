@@ -5992,7 +5992,7 @@ bool CWallet::LelantusToSpark(std::string& strFailReason) {
         COutPoint outPoint(result.GetHash(), i);
         coinControl.Select(outPoint);
         std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-        MintAndStoreSpark({}, wtxAndFee, true, true, false, &coinControl);
+        MintAndStoreSpark({}, wtxAndFee, true, true, false, false, &coinControl);
     }
 
     return true;

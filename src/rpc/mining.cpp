@@ -26,7 +26,7 @@
 #include "utilstrencodings.h"
 #include "validationinterface.h"
 
-#include "../compat_macros.h"
+#include "../compat_layer.h"
 
 #include "masternode-payments.h"
 #include "masternode-sync.h"

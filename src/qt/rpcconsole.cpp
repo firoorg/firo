@@ -9,7 +9,7 @@
 #include "rpcconsole.h"
 #include "ui_debugwindow.h"
 
-#include "../compat_macros.h"
+#include "../compat_layer.h"
 
 #include "bantablemodel.h"
 #include "clientmodel.h"

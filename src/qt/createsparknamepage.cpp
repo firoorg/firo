@@ -1,4 +1,4 @@
-#include "compat_macros.h"
+#include "compat_layer.h"
 #if defined(HAVE_CONFIG_H)
 #include "config/bitcoin-config.h"
 #endif
