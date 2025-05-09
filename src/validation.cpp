@@ -663,8 +663,20 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
     // Size limits (this doesn't take the witness into account, as that hasn't been checked for malleability)
     if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) > MAX_BLOCK_BASE_SIZE)
         return state.DoS(100, false, REJECT_INVALID, "bad-txns-oversize");
-    if ((tx.vExtraPayload.size() > MAX_TX_EXTRA_PAYLOAD && nHeight < ::Params().GetConsensus().nSigmaEndBlock) || tx.vExtraPayload.size() > NEW_MAX_TX_EXTRA_PAYLOAD)
-        return state.DoS(100, false, REJECT_INVALID, "bad-txns-payload-oversize");
+
+    int nTxHeight = nHeight;
+    if (nTxHeight == INT_MAX) {
+        LOCK(cs_main);
+        nTxHeight = chainActive.Height();
+    }
+
+    if (nTxHeight < ::Params().GetConsensus().nSigmaEndBlock) {
+        if (tx.vExtraPayload.size() > MAX_TX_EXTRA_PAYLOAD)
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-payload-oversize");
+    } else {
+        if (tx.vExtraPayload.size() > NEW_MAX_TX_EXTRA_PAYLOAD)
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-payload-oversize");
+    }
 
     // Check for negative or overflow output values
     CAmount nValueOut = 0;
@@ -715,11 +727,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
             break;
         }
     }
-    int nTxHeight = nHeight;
-    if (nTxHeight == INT_MAX) {
-        LOCK(cs_main);
-        nTxHeight = chainActive.Height();
-    }
+
     if (hasExchangeUTXOs && !isVerifyDB && nTxHeight < ::Params().GetConsensus().nExchangeAddressStartBlock)
         return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
 
