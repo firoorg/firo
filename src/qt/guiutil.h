@@ -194,7 +194,7 @@ namespace GUIUtil
     // QProgressBar uses around 10% CPU even when app is in background
     class ProgressBar : public ClickableProgressBar
     {
-        bool event(QEvent *e) {
+        bool event(QEvent *e) override {
             return (e->type() != QEvent::StyleAnimationUpdate) ? QProgressBar::event(e) : false;
         }
     };
