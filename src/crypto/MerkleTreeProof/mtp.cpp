@@ -493,7 +493,7 @@ bool mtp_hash1(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
 
     // step 2
     MerkleTree::Elements elements;
-    for (long int i = 0; i < instance.memory_blocks; ++i) {
+    for (uint32_t i = 0; i < instance.memory_blocks; ++i) {
         uint8_t digest[MERKLE_TREE_ELEMENT_SIZE_B];
         compute_blake2b(instance.memory[i], digest);
         elements.emplace_back(digest, digest + sizeof(digest));
