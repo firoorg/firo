@@ -1,4 +1,4 @@
-#include "../../crypto/sha256.h"
+#include "../crypto/sha256.h"
 
 namespace sigma {
 

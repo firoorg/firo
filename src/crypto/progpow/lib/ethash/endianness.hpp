@@ -15,7 +15,7 @@
 
 #include <crypto/progpow/include/ethash/ethash.hpp>
 
-#if _WIN32
+#if defined(_WIN32)
 
 #include <stdlib.h>
 
@@ -27,7 +27,7 @@
 #define __BIG_ENDIAN 4321
 #define __BYTE_ORDER __LITTLE_ENDIAN
 
-#elif __APPLE__
+#elif defined(__APPLE__)
 
 #include <machine/endian.h>
 

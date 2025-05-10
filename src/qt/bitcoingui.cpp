@@ -34,7 +34,6 @@
 #include "chainparams.h"
 #include "init.h"
 #include "lelantus.h"
-#include "ui_interface.h"
 #include "util.h"
 
 #include "evo/deterministicmns.h"
@@ -115,8 +114,8 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     toggleHideAction(0),
     encryptWalletAction(0),
     backupWalletAction(0),
-    changePassphraseAction(0),
     exportViewKeyAction(0),
+    changePassphraseAction(0),
     aboutQtAction(0),
     openRPCConsoleAction(0),
     openAction(0),

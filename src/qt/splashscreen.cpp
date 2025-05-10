@@ -13,7 +13,6 @@
 #include "clientversion.h"
 #include "init.h"
 #include "util.h"
-#include "ui_interface.h"
 #include "version.h"
 
 #ifdef ENABLE_WALLET
@@ -29,12 +28,12 @@
 SplashScreen::SplashScreen(const QPixmap &pixmap, Qt::WindowFlags f) : QSplashScreen(pixmap, f)
 {
     // set reference point, paddings
-    int paddingLeftCol2         = 232;
-    int paddingTopCol2          = 200;
-    int line1 = 0;
-    int line2 = 13;
-    int line3 = 26;
-    int line4 = 39;
+    FIRO_UNUSED int paddingLeftCol2         = 232;
+    FIRO_UNUSED int paddingTopCol2          = 200;
+    FIRO_UNUSED int line1 = 0;
+    FIRO_UNUSED int line2 = 13;
+    FIRO_UNUSED int line3 = 26;
+    FIRO_UNUSED int line4 = 39;
 
     float fontFactor            = 1.0;
 

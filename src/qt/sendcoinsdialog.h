@@ -50,8 +50,8 @@ public:
 
 public Q_SLOTS:
     void clear();
-    void reject();
-    void accept();
+    void reject() override;
+    void accept() override;
     SendCoinsEntry *addEntry();
     void updateBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool header);
     void updateTabsAndLabels();
@@ -117,7 +117,7 @@ class SendConfirmationDialog : public QMessageBox
 
 public:
     SendConfirmationDialog(const QString &title, const QString &text, int secDelay = 0, QWidget *parent = 0);
-    int exec();
+    int exec() override;
 
 private Q_SLOTS:
     void countDown();

@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE(deterministic)
 {
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
-    int previousHeight;
+    FIRO_UNUSED int previousHeight;
     CBlock b;
     CWalletTx wtx;
 
@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_CASE(deterministic)
 
     int mempoolCount = 0;
 
-    for(int i = 0; i < denominations.size() - 1; i++)
+    for(int i = 0; cmp::less(i, denominations.size() - 1); i++)
     {
         vDMintsBuilder.clear();
         denominationsForTx.clear();
@@ -91,7 +91,7 @@ BOOST_AUTO_TEST_CASE(deterministic)
         BOOST_CHECK_MESSAGE(stringError == "", "Mint Failed");
 
         // Verify mint tx get added in the mempool
-        BOOST_CHECK_MESSAGE(mempool.size() == ++mempoolCount, "Mint tx was not added to mempool");
+        BOOST_CHECK_MESSAGE(cmp::equal(mempool.size(), ++mempoolCount), "Mint tx was not added to mempool");
 
         // Verify correct mint count
         BOOST_CHECK(mintCount == pwalletMain->zwallet->GetCount());
@@ -111,7 +111,7 @@ BOOST_AUTO_TEST_CASE(deterministic)
     sigmaState->Reset();
     pwalletMain->ZapSigmaMints();
 
-    for(int i = 0; i < denominations.size() - 1; i++)
+    for(int i = 0; cmp::less(i, denominations.size() - 1); i++)
     {
         vDMintsBuilder.clear();
         denominationsForTx.clear();
@@ -145,7 +145,7 @@ BOOST_AUTO_TEST_CASE(deterministic)
 
     BOOST_CHECK(vDMints.size() == vDMintsRegenerated.size());
 
-    for(int i=0; i<vDMints.size();i++){
+    for(int i = 0; cmp::less(i, vDMints.size()); i++){
         BOOST_CHECK(vDMints[i].GetCount() == vDMintsRegenerated[i].GetCount());
         BOOST_CHECK(vDMints[i].GetSeedId() == vDMintsRegenerated[i].GetSeedId());
         BOOST_CHECK(vDMints[i].GetSerialHash() == vDMintsRegenerated[i].GetSerialHash());
@@ -162,14 +162,14 @@ BOOST_AUTO_TEST_CASE(wallet_count)
 {
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
-    int previousHeight;
+    FIRO_UNUSED int previousHeight;
     CBlock b;
     CWalletTx wtx;
 
     const int TOTAL_MINTS = 5;
     const int INITIAL_MINTS = TOTAL_MINTS-1;
 
-    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+    FIRO_UNUSED sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
     pwalletMain->SetBroadcastTransactions(true);
 
@@ -245,7 +245,7 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
 {
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
-    int previousHeight;
+    FIRO_UNUSED int previousHeight;
     CBlock b;
     CWalletTx wtx;
 
@@ -261,7 +261,7 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
     vector<CHDMint> vDMintsBuilder;
     const auto& sigmaParams = sigma::Params::get_default();
 
-    for(int i = 0; i < denominations.size() - 1; i++)
+    for(int i = 0; cmp::less(i, denominations.size() - 1); i++)
     {
         vDMintsBuilder.clear();
         denominationsForTx.clear();
@@ -331,9 +331,9 @@ BOOST_AUTO_TEST_CASE(blockchain_restore)
 
     BOOST_CHECK(vDMints.size() == vDMintsRegenerated.size());
 
-    for(int i=0; i<vDMints.size();i++){
+    for(int i = 0; cmp::less(i, vDMints.size()); i++){
         bool found = false;
-        for(int j=0; (j<vDMintsRegenerated.size())||!found;j++){
+        for(int j=0; (cmp::less(j,vDMintsRegenerated.size()))||!found;j++){
             if(vDMints[i].GetCount() == vDMintsRegenerated[j].GetCount()){
                 BOOST_CHECK(vDMints[i].GetCount() == vDMintsRegenerated[j].GetCount());
                 BOOST_CHECK(vDMints[i].GetSeedId() == vDMintsRegenerated[j].GetSeedId());

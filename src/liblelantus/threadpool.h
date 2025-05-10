@@ -33,8 +33,8 @@ private:
     boost::mutex                                task_queue_mutex;
     boost::condition_variable                   task_queue_condition;
 
-    bool                                      shutdown;
     size_t const                              number_of_threads;
+    bool                                      shutdown;
 
     void ThreadProc() {
         for (;;) {
