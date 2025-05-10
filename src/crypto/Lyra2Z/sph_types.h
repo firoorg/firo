@@ -1060,14 +1060,16 @@ typedef long long sph_s64;
 /*
  * MIPS, little-endian.
  */
-#elif MIPSEL || _MIPSEL || __MIPSEL || __MIPSEL__
+#elif (defined(MIPSEL)   && MIPSEL)   || (defined(_MIPSEL)  && _MIPSEL)  \
+   || (defined(__MIPSEL) && __MIPSEL) || (defined(__MIPSEL__) && __MIPSEL__)
 
 #define SPH_DETECT_LITTLE_ENDIAN     1
 
 /*
  * MIPS, big-endian.
  */
-#elif MIPSEB || _MIPSEB || __MIPSEB || __MIPSEB__
+#elif (defined(MIPSEB)   && MIPSEB)   || (defined(_MIPSEB)  && _MIPSEB)  \
+   || (defined(__MIPSEB) && __MIPSEB) || (defined(__MIPSEB__) && __MIPSEB__)
 
 #define SPH_DETECT_BIG_ENDIAN        1
 
@@ -1403,9 +1405,9 @@ sph_enc32be(void *dst, sph_u32 val)
 static SPH_INLINE void
 sph_enc32be_aligned(void *dst, sph_u32 val)
 {
-#if SPH_LITTLE_ENDIAN
+#if defined(SPH_LITTLE_ENDIAN) && SPH_LITTLE_ENDIAN
 	*(sph_u32 *)dst = sph_bswap32(val);
-#elif SPH_BIG_ENDIAN
+#elif defined(SPH_BIG_ENDIAN) && SPH_BIG_ENDIAN
 	*(sph_u32 *)dst = val;
 #else
 	((unsigned char *)dst)[0] = (val >> 24);
@@ -1463,9 +1465,9 @@ sph_dec32be(const void *src)
 static SPH_INLINE sph_u32
 sph_dec32be_aligned(const void *src)
 {
-#if SPH_LITTLE_ENDIAN
+#if defined(SPH_LITTLE_ENDIAN) && SPH_LITTLE_ENDIAN
 	return sph_bswap32(*(const sph_u32 *)src);
-#elif SPH_BIG_ENDIAN
+#elif defined(SPH_BIG_ENDIAN) && SPH_BIG_ENDIAN
 	return *(const sph_u32 *)src;
 #else
 	return ((sph_u32)(((const unsigned char *)src)[0]) << 24)
@@ -1521,9 +1523,9 @@ sph_enc32le(void *dst, sph_u32 val)
 static SPH_INLINE void
 sph_enc32le_aligned(void *dst, sph_u32 val)
 {
-#if SPH_LITTLE_ENDIAN
+#if defined(SPH_LITTLE_ENDIAN) && SPH_LITTLE_ENDIAN
 	*(sph_u32 *)dst = val;
-#elif SPH_BIG_ENDIAN
+#elif defined(SPH_BIG_ENDIAN) && SPH_BIG_ENDIAN
 	*(sph_u32 *)dst = sph_bswap32(val);
 #else
 	((unsigned char *)dst)[0] = val;
@@ -1614,9 +1616,9 @@ sph_dec32le(const void *src)
 static SPH_INLINE sph_u32
 sph_dec32le_aligned(const void *src)
 {
-#if SPH_LITTLE_ENDIAN
+#if defined(SPH_LITTLE_ENDIAN) && SPH_LITTLE_ENDIAN
 	return *(const sph_u32 *)src;
-#elif SPH_BIG_ENDIAN
+#elif defined(SPH_BIG_ENDIAN) && SPH_BIG_ENDIAN
 #if SPH_SPARCV9_GCC && !SPH_NO_ASM
 	sph_u32 tmp;
 
@@ -1698,9 +1700,9 @@ sph_enc64be(void *dst, sph_u64 val)
 static SPH_INLINE void
 sph_enc64be_aligned(void *dst, sph_u64 val)
 {
-#if SPH_LITTLE_ENDIAN
+#if defined(SPH_LITTLE_ENDIAN) && SPH_LITTLE_ENDIAN
 	*(sph_u64 *)dst = sph_bswap64(val);
-#elif SPH_BIG_ENDIAN
+#elif defined(SPH_BIG_ENDIAN) && SPH_BIG_ENDIAN
 	*(sph_u64 *)dst = val;
 #else
 	((unsigned char *)dst)[0] = (val >> 56);
@@ -1770,9 +1772,9 @@ sph_dec64be(const void *src)
 static SPH_INLINE sph_u64
 sph_dec64be_aligned(const void *src)
 {
-#if SPH_LITTLE_ENDIAN
+#if defined(SPH_LITTLE_ENDIAN) && SPH_LITTLE_ENDIAN
 	return sph_bswap64(*(const sph_u64 *)src);
-#elif SPH_BIG_ENDIAN
+#elif defined(SPH_BIG_ENDIAN) && SPH_BIG_ENDIAN
 	return *(const sph_u64 *)src;
 #else
 	return ((sph_u64)(((const unsigned char *)src)[0]) << 56)
@@ -1840,9 +1842,9 @@ sph_enc64le(void *dst, sph_u64 val)
 static SPH_INLINE void
 sph_enc64le_aligned(void *dst, sph_u64 val)
 {
-#if SPH_LITTLE_ENDIAN
+#if defined(SPH_LITTLE_ENDIAN) && SPH_LITTLE_ENDIAN
 	*(sph_u64 *)dst = val;
-#elif SPH_BIG_ENDIAN
+#elif defined(SPH_BIG_ENDIAN) && SPH_BIG_ENDIAN
 	*(sph_u64 *)dst = sph_bswap64(val);
 #else
 	((unsigned char *)dst)[0] = val;
@@ -1934,9 +1936,9 @@ sph_dec64le(const void *src)
 static SPH_INLINE sph_u64
 sph_dec64le_aligned(const void *src)
 {
-#if SPH_LITTLE_ENDIAN
+#if defined(SPH_LITTLE_ENDIAN) && SPH_LITTLE_ENDIAN
 	return *(const sph_u64 *)src;
-#elif SPH_BIG_ENDIAN
+#elif defined(SPH_BIG_ENDIAN) && SPH_BIG_ENDIAN
 #if SPH_SPARCV9_GCC_64 && !SPH_NO_ASM
 	sph_u64 tmp;
 
