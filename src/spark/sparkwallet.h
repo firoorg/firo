@@ -116,6 +116,7 @@ public:
             bool generate);
 
     bool CreateSparkMintTransactions(
+            const std::vector<CRecipient>& vecSend,
             const std::vector<spark::MintedCoinData>& outputs,
             std::vector<std::pair<CWalletTx,
             CAmount>>& wtxAndFee,
