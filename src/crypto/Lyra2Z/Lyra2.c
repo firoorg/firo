@@ -161,14 +161,14 @@ int LYRA2(void *K, uint64_t kLen, const void *pwd, uint64_t pwdlen, const void *
       gap = -gap; //inverts the modifier to the step
     }
 
-    } while (row < nRows);
+    } while (row < (int64_t)nRows);
     //==========================================================================/
 
     //============================ Wandering Phase =============================//
     row = 0; //Resets the visitation to the first row of the memory matrix
     for (tau = 1; tau <= timeCost; tau++) {
         //Step is approximately half the number of all rows of the memory matrix for an odd tau; otherwise, it is -1
-        step = (tau % 2 == 0) ? -1 : nRows / 2 - 1;
+        step = (tau % 2 == 0) ? (int64_t)-1 : (int64_t)(nRows / 2) - 1;
         do {
         //Selects a pseudorandom index row*
         //------------------------------------------------------------------------------------------
@@ -330,14 +330,14 @@ int LYRA2_old(void *K, uint64_t kLen, const void *pwd, uint64_t pwdlen, const vo
       gap = -gap; //inverts the modifier to the step
     }
 
-    } while (row < nRows);
+    } while (row < (int64_t)nRows);
     //==========================================================================/
 
     //============================ Wandering Phase =============================//
     row = 0; //Resets the visitation to the first row of the memory matrix
     for (tau = 1; tau <= timeCost; tau++) {
         //Step is approximately half the number of all rows of the memory matrix for an odd tau; otherwise, it is -1
-        step = (tau % 2 == 0) ? -1 : nRows / 2 - 1;
+        step = (tau % 2 == 0) ? (int64_t)-1 : (int64_t)(nRows / 2) - 1;
         do {
         //Selects a pseudorandom index row*
         //------------------------------------------------------------------------------------------

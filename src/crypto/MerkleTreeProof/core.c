@@ -455,7 +455,7 @@ int validate_inputs(const argon2_context *context) {
         return ARGON2_MEMORY_TOO_LITTLE;
     }
 
-    if (ARGON2_MAX_MEMORY < context->m_cost) {
+    if ((uint64_t)ARGON2_MAX_MEMORY < (uint64_t)context->m_cost) {
         return ARGON2_MEMORY_TOO_MUCH;
     }
 
