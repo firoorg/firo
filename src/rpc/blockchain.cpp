@@ -235,6 +235,8 @@ UniValue getsparknametxdetails(const JSONRPCRequest &request)
             "[\n"
             "  \"Name (string)\n"
             "  \"Address (string)\"\n"
+            "  \"Validity blocks (int)\n"
+            "  \"Additional Info (string)\n"
             "  ...\n"
             "]\n"
             "\nExamples:\n"
@@ -270,6 +272,11 @@ UniValue getsparknametxdetails(const JSONRPCRequest &request)
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("name", sparkNameData.name));
     result.push_back(Pair("address", sparkNameData.sparkAddress));
+    uint64_t nameBlockHeight = sparkNameManager->GetSparkNameBlockHeight(sparkNameData.name);
+    result.push_back(Pair("validUntil", nameBlockHeight));
+    if (sparkNameData.additionalInfo != "")
+        result.push_back(Pair("additionalInfo", sparkNameData.additionalInfo));
+
     return result;
 }
 
