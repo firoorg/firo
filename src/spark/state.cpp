@@ -1423,7 +1423,7 @@ void CSparkState::GetCoinsForRecovery(
         std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins) {
     coins.clear();
     if (coinGroups.count(coinGroupID) == 0) {
-        throw std::runtime_error(std::string("There is no anonymity set with this id: " + coinGroupID));
+        throw std::runtime_error(std::string("There is no anonymity set with this id: " + std::to_string(coinGroupID)));
     }
     SparkCoinGroupInfo &coinGroup = coinGroups[coinGroupID];
     CBlockIndex *index = coinGroup.lastBlock;
