@@ -1,4 +1,5 @@
 #include "state.h"
+#include "sparkname.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
 #include "../consensus/consensus.h"
@@ -33,6 +34,7 @@ bool BuildSparkStateFromIndex(CChain *chain) {
     for (CBlockIndex *blockIndex = chain->Genesis(); blockIndex; blockIndex=chain->Next(blockIndex))
     {
         sparkState.AddBlock(blockIndex);
+        CSparkNameManager::GetInstance()->AddBlock(blockIndex);
     }
     // DEBUG
     LogPrintf(
@@ -280,6 +282,9 @@ bool ConnectBlockSpark(
         CBlockIndex *pindexNew,
         const CBlock *pblock,
         bool fJustCheck) {
+
+    bool fBackupRewrittenSparkNames = false;
+    
     // Add spark transaction information to index
     if (pblock && pblock->sparkTxInfo) {
         if (!fJustCheck) {
@@ -348,6 +353,20 @@ bool ConnectBlockSpark(
             }
         }
 
+        if (!pblock->sparkTxInfo->sparkNames.empty()) {
+            CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+            for (const auto &sparkName : pblock->sparkTxInfo->sparkNames) {
+                pindexNew->addedSparkNames[sparkName.first] =
+                        CSparkNameBlockIndexData(sparkName.second.name,
+                            sparkName.second.sparkAddress,
+                            pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
+                            sparkName.second.additionalInfo);
+            }
+
+            // names were added, backup rewritten names if necessary
+            fBackupRewrittenSparkNames = true;
+        }
+
         // generate hash if we need it
         if (updateHash) {
             unsigned char hash_result[CSHA256::OUTPUT_SIZE];
@@ -360,6 +379,11 @@ bool ConnectBlockSpark(
     else if (!fJustCheck) {
         sparkState.AddBlock(pindexNew);
     }
+
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    pindexNew->removedSparkNames = sparkNameManager->RemoveSparkNamesLosingValidity(pindexNew->nHeight);
+    sparkNameManager->AddBlock(pindexNew, fBackupRewrittenSparkNames);
+
     return true;
 }
 
@@ -403,6 +427,9 @@ void RemoveSpendReferencingBlock(CTxMemPool& pool, CBlockIndex* blockIndex) {
 }
 
 void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    sparkNameManager->RemoveBlock(pindexDelete);
+
     sparkState.RemoveBlock(pindexDelete);
 
     // Also remove from mempool spends that reference given block hash.
@@ -663,15 +690,20 @@ bool CheckSparkSpendTransaction(
             }
             if (id) {
                 if (index->sparkMintedCoins.count(id) > 0) {
+                    std::size_t c = 0;
                     BOOST_FOREACH(
                     const auto& coin,
                     index->sparkMintedCoins[id]) {
                         set_size++;
                         if (!useBatching) {
-                            if ((coin.second && lastBlock->nHeight > COINBASE_MATURITY) || !coin.second) {
-                                cover_set.push_back(coin.first);
+                            bool fCoinbase = false;
+                            if (index->sparkCoinbase[id].size() > c)
+                                fCoinbase = index->sparkCoinbase[id][c];
+                            if ((fCoinbase && (lastBlock->nHeight - index->nHeight) > COINBASE_MATURITY) || !fCoinbase) {
+                                cover_set.push_back(coin);
                             }
                         }
+                        c++;
                     }
                 }
             }
@@ -819,6 +851,25 @@ bool CheckSparkTransaction(
                         isCheckWallet, fStatefulSigmaCheck, sparkTxInfo)) {
                     return false;
                 }
+
+                CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+                CSparkNameTxData sparkTxData;
+                if (sparkNameManager->CheckSparkNameTx(tx, nHeight, state, &sparkTxData)) {
+                    if (!sparkTxData.name.empty() && sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
+                        // Check if the block already contains conflicting spark name
+                        if (CSparkNameManager::IsInConflict(sparkTxData, sparkTxInfo->sparkNames,
+                                [=](decltype(sparkTxInfo->sparkNames)::const_iterator it)->std::string {
+                                    return it->second.sparkAddress;
+                                }))
+                            return false;
+
+                        sparkTxInfo->sparkNames[CSparkNameManager::ToUpper(sparkTxData.name)] = sparkTxData;
+                    }
+                }
+                else {
+                    return false;
+                }
+
             }
             catch (const std::exception &x) {
                 return state.Error(x.what());
@@ -974,6 +1025,7 @@ CSparkState::CSparkState(
 }
 
 void CSparkState::Reset() {
+    ShutdownWallet();
     coinGroups.clear();
     latestCoinId = 0;
     mintedCoins.clear();
@@ -1096,7 +1148,9 @@ void CSparkState::AddMintsToStateAndBlockIndex(
     for (const auto& mint : blockMints) {
         AddMint(mint.first, CMintedCoinInfo::make(latestCoinId, index->nHeight));
         LogPrintf("AddMintsToStateAndBlockIndex: Spark mint added id=%d\n", latestCoinId);
-        index->sparkMintedCoins[latestCoinId].push_back(mint);
+        index->sparkMintedCoins[latestCoinId].push_back(mint.first);
+        index->sparkCoinbase[latestCoinId].push_back(mint.second);
+
         if (GetBoolArg("-mobile", false)) {
             COutPoint outPoint;
             GetOutPointFromBlock(outPoint, mint.first, *pblock);
@@ -1150,7 +1204,7 @@ void CSparkState::AddBlock(CBlockIndex *index) {
 
         latestCoinId = coins.first;
         for (auto const &coin : coins.second) {
-            AddMint(coin.first, CMintedCoinInfo::make(coins.first, index->nHeight));
+            AddMint(coin, CMintedCoinInfo::make(coins.first, index->nHeight));
         }
     }
 
@@ -1216,7 +1270,7 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
     // roll back mints
     for (auto const&coins : index->sparkMintedCoins) {
         for (auto const& coin : coins.second) {
-            auto mintCoins = GetMints().equal_range(coin.first);
+            auto mintCoins = GetMints().equal_range(coin);
             auto coinIt = find_if(
                     mintCoins.first, mintCoins.second,
                     [&coins](const std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash>::value_type& v) {
@@ -1334,10 +1388,15 @@ int CSparkState::GetCoinSetForSpend(
             }
             numberOfCoins += block->sparkMintedCoins[id].size();
             if (block->sparkMintedCoins.count(id) > 0) {
+                std::size_t c = 0;
                 for (const auto &coin : block->sparkMintedCoins[id]) {
-                    if ((coin.second && coinGroup.lastBlock->nHeight > COINBASE_MATURITY) || !coin.second) {
-                        coins_out.push_back(coin.first);
+                    bool fCoinbase = false;
+                    if (block->sparkCoinbase[id].size() > c)
+                        fCoinbase = block->sparkCoinbase[id][c];
+                    if ((fCoinbase && (coinGroup.lastBlock->nHeight - block->nHeight) > COINBASE_MATURITY) || !fCoinbase) {
+                        coins_out.push_back(coin);
                     }
+                    c++;
                 }
             }
         }
@@ -1388,13 +1447,18 @@ void CSparkState::GetCoinsForRecovery(
             }
             numberOfCoins += block->sparkMintedCoins[id].size();
             if (block->sparkMintedCoins.count(id) > 0) {
+                std::size_t c = 0;
                 for (const auto &coin : block->sparkMintedCoins[id]) {
-                    if ((coin.second && coinGroup.lastBlock->nHeight > COINBASE_MATURITY) || !coin.second) {
+                    bool fCoinbase = false;
+                    if (block->sparkCoinbase[id].size() > c)
+                        fCoinbase = block->sparkCoinbase[id][c];
+                    if ((fCoinbase && (coinGroup.lastBlock->nHeight - block->nHeight) > COINBASE_MATURITY) || !fCoinbase) {
                         std::pair<uint256, std::vector<unsigned char>> txHashContext;
-                        if (block->sparkTxHashContext.count(coin.first.S))
-                            txHashContext = block->sparkTxHashContext[coin.first.S];
-                        coins.push_back({coin.first, txHashContext});
+                        if (block->sparkTxHashContext.count(coin.S))
+                            txHashContext = block->sparkTxHashContext[coin.S];
+                        coins.push_back({coin, txHashContext});
                     }
+                    c++;
                 }
             }
         }
@@ -1404,6 +1468,108 @@ void CSparkState::GetCoinsForRecovery(
     }
 }
 
+void CSparkState::GetAnonSetMetaData(
+        CChain *chain,
+        int maxHeight,
+        int coinGroupID,
+        uint256& blockHash_out,
+        std::vector<unsigned char>& setHash_out,
+        int& size) {
+    if (coinGroups.count(coinGroupID) == 0) {
+        return;
+    }
+    SparkCoinGroupInfo &coinGroup = coinGroups[coinGroupID];
+    size = 0;
+    for (CBlockIndex *block = coinGroup.lastBlock;; block = block->pprev) {
+        // check coins in group coinGroupID - 1 in the case that using coins from prev group.
+        int id = 0;
+        if (CountCoinInBlock(block, coinGroupID)) {
+            id = coinGroupID;
+        } else if (CountCoinInBlock(block, coinGroupID - 1)) {
+            id = coinGroupID - 1;
+        }
+        if (id) {
+            if (size == 0) {
+                // latest block satisfying given conditions
+                // remember block hash and set hash
+                blockHash_out = block->GetBlockHash();
+                setHash_out =  GetAnonymitySetHash(block, id);
+            }
+            size += block->sparkMintedCoins[id].size();
+        }
+        if (block == coinGroup.firstBlock) {
+            break ;
+        }
+    }
+}
+
+void CSparkState::GetCoinsForRecovery(
+        CChain *chain,
+        int maxHeight,
+        int coinGroupID,
+        int startIndex,
+        int endIndex,
+        uint256& blockHash,
+        std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins) {
+    coins.clear();
+    if (coinGroups.count(coinGroupID) == 0) {
+        throw std::runtime_error(std::string("There is no anonymity set with this id: " + coinGroupID));
+    }
+    SparkCoinGroupInfo &coinGroup = coinGroups[coinGroupID];
+    CBlockIndex *index = coinGroup.lastBlock;
+    // find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
+    while (index != coinGroup.firstBlock && index->GetBlockHash() != blockHash)
+        index = index->pprev;
+
+    if (index == coinGroup.firstBlock && coinGroup.firstBlock != coinGroup.lastBlock)
+        throw std::runtime_error(std::string("Incorrect blockHash provided: " + blockHash.GetHex()));
+
+    std::size_t counter = 0;
+    for (CBlockIndex *block = index;; block = block->pprev) {
+        // ignore block heigher than max height
+        if (block->nHeight > maxHeight) {
+            continue;
+        }
+
+        // check coins in group coinGroupID - 1 in the case that using coins from prev group.
+        int id = 0;
+        if (CountCoinInBlock(block, coinGroupID)) {
+            id = coinGroupID;
+        } else if (CountCoinInBlock(block, coinGroupID - 1)) {
+            id = coinGroupID - 1;
+        }
+        if (id) {
+            if (block->sparkMintedCoins.count(id) > 0) {
+                for (const auto &coin : block->sparkMintedCoins[id]) {
+                    if (counter < startIndex) {
+                        ++counter;
+                        continue;
+                    }
+                    if (counter >= endIndex) {
+                        break;
+                    }
+                    std::size_t c = 0;
+                    for (const auto &coin : block->sparkMintedCoins[id]) {
+                        bool fCoinbase = false;
+                        if (block->sparkCoinbase[id].size() > c)
+                            fCoinbase = block->sparkCoinbase[id][c];
+                        if ((fCoinbase && (coinGroup.lastBlock->nHeight - block->nHeight) > COINBASE_MATURITY) || !fCoinbase) {
+                            std::pair<uint256, std::vector<unsigned char>> txHashContext;
+                            if (block->sparkTxHashContext.count(coin.S))
+                                txHashContext = block->sparkTxHashContext[coin.S];
+                            coins.push_back({coin, txHashContext});
+                            ++counter;
+                        }
+                        c++;
+                    }
+                }
+            }
+        }
+        if (block == coinGroup.firstBlock || counter >= endIndex) {
+            break ;
+        }
+    }
+}
 
 std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & CSparkState::GetMints() const {
     return mintedCoins;

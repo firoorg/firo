@@ -25,6 +25,7 @@
 #include "evo/providertx.h"
 #include "evo/deterministicmns.h"
 #include "evo/cbtx.h"
+#include "../sparkname.h"
 
 #include "llmq/quorums_chainlocks.h"
 #include "llmq/quorums_instantsend.h"
@@ -174,6 +175,109 @@ UniValue getblockcount(const JSONRPCRequest& request)
 
     LOCK(cs_main);
     return chainActive.Height();
+}
+
+UniValue getsparknamedata(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1) {
+        throw std::runtime_error(
+            "getsparknamedata ( sparkname )\n"
+            "\nReturns info about spark name.\n"
+            "\nArguments:\n"
+            "Spark name (string)\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"address\": spark address (string)\n"
+            "  \"validUntil\": block height until this spark name is valid (int)\n"
+            "  \"additionalInfo\": additional info (string)\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknamedata", "sparkname")
+            + HelpExampleRpc("getsparknamedata", "sparkname")
+        );
+    }
+
+    LOCK(cs_main);
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    std::string sparkName = request.params[0].get_str();
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+
+    std::string SparkAddr;
+    sparkNameManager->GetSparkAddress(sparkName, SparkAddr);
+
+    UniValue result(UniValue::VOBJ);
+    unsigned char network = spark::GetNetworkType();
+
+    result.push_back(Pair("address", SparkAddr));
+
+    uint64_t nameBlockHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName);
+    result.push_back(Pair("validUntil", nameBlockHeight));
+
+    std::string sparkNameData = sparkNameManager->GetSparkNameAdditionalData(sparkName);
+    result.push_back(Pair("additionalInfo", sparkNameData));
+
+    return result;
+}
+
+UniValue getsparknametxdetails(const JSONRPCRequest &request)
+{
+    if (request.fHelp || request.params.size() != 1) {
+        throw std::runtime_error(
+            "getsparknametxdetails (txhash)\n"
+            "\nReturns spark address and spark name associated with tx hash.\n"
+            "\nArguments:\n"
+            "1. txhash\n"
+            "\nResult:\n"
+            "[\n"
+            "  \"Name (string)\n"
+            "  \"Address (string)\"\n"
+            "  \"Validity blocks (int)\n"
+            "  \"Additional Info (string)\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknametxdetails", "txhash")
+            + HelpExampleRpc("getsparknametxdetails", "txhash")
+        );
+    }
+    LOCK(cs_main);
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    std::string strTxId = request.params[0].get_str();
+    uint256 txid = uint256S(strTxId);
+
+    CTransactionRef txRef;
+    uint256 hashBlock;
+    if(!GetTransaction(txid, txRef, Params().GetConsensus(), hashBlock, true))
+        throw JSONRPCError(RPC_TRANSACTION_ERROR, "Unknown transaction.");
+
+    CSparkNameTxData sparkNameData;
+    CValidationState state;
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+
+    const CTransaction& tx = *txRef;
+    if (!sparkNameManager->CheckSparkNameTx(tx, chainActive.Height(), state, &sparkNameData))
+        throw JSONRPCError(RPC_TRANSACTION_ERROR, "Invalid spark tx hash");
+
+    if (sparkNameData.name.empty() && sparkNameData.sparkAddress.empty())
+        throw JSONRPCError(RPC_TRANSACTION_ERROR, "Invalid spark name tx hash");
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("name", sparkNameData.name));
+    result.push_back(Pair("address", sparkNameData.sparkAddress));
+    uint64_t nameBlockHeight = sparkNameManager->GetSparkNameBlockHeight(sparkNameData.name);
+    result.push_back(Pair("validUntil", nameBlockHeight));
+    if (sparkNameData.additionalInfo != "")
+        result.push_back(Pair("additionalInfo", sparkNameData.additionalInfo));
+
+    return result;
 }
 
 UniValue getbestblockhash(const JSONRPCRequest& request)
@@ -1658,6 +1762,8 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getblockchaininfo",      &getblockchaininfo,      true,  {} },
     { "blockchain",         "getbestblockhash",       &getbestblockhash,       true,  {} },
     { "blockchain",         "getblockcount",          &getblockcount,          true,  {} },
+    { "blockchain",         "getsparknamedata",       &getsparknamedata,       true,  {"sparkname"} },
+    { "blockchain",         "getsparknametxdetails",  &getsparknametxdetails,  true,  {"txhash"} },
     { "blockchain",         "getblock",               &getblock,               true,  {"blockhash","verbose"} },
     { "blockchain",         "getblockhash",           &getblockhash,           true,  {"height"} },
     { "blockchain",         "getblockhashes",         &getblockhashes,         true,  {"high", "low"} },

@@ -10,6 +10,8 @@ AM_CPPFLAGS = $(HARDENED_CPPFLAGS)
 AM_LIBTOOLFLAGS = --preserve-dup-deps
 EXTRA_LIBRARIES =
 
+noinst_LTLIBRARIES =
+
 if ENABLE_CRASH_HOOKS
 if CRASH_HOOKS_WRAPPED_CXX_ABI
 # Wrap internal C++ ABI's so that we can attach stacktraces to exceptions
@@ -244,6 +246,7 @@ BITCOIN_CORE_H = \
   sigma.h \
   lelantus.h \
   spark/state.h \
+  sparkname.h \
   blacklists.h \
   coin_containers.h \
   firo_params.h \
@@ -346,7 +349,7 @@ obj/build.h: FORCE
 libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 
 # server: shared between firod and firo-qt
-libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
+libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS) $(LEVELDB_CPPFLAGS)
 libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
   activemasternode.cpp \
@@ -424,6 +427,7 @@ libbitcoin_server_a_SOURCES = \
   bip47/paymentcode.cpp \
   spark/state.cpp \
   spark/primitives.cpp \
+  sparkname.cpp \
   coin_containers.cpp \
   mtpstate.cpp \
   $(BITCOIN_CORE_H)
@@ -684,6 +688,7 @@ libspark_a_SOURCES = \
   libspark/hash.cpp \
   libspark/mint_transaction.h \
   libspark/mint_transaction.cpp \
+  libspark/ownership_proof.h \
   libspark/spend_transaction.h \
   libspark/spend_transaction.cpp \
   libspark/f4grumble.h \
@@ -801,7 +806,6 @@ firod_LDADD = \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBLEVELDB) \
-  $(LIBLEVELDB_SSE42) \
   $(LIBMEMENV) \
   $(LIBSECP256K1) \
   $(LIBBLSSIG_LIBS)
@@ -822,6 +826,7 @@ firo_cli_LDADD = \
   $(LIBBITCOIN_CLI) \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_UTIL) \
+  $(LIBMEMENV) \
   $(LIBBITCOIN_CRYPTO)
 
 firo_cli_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
@@ -876,6 +881,7 @@ CLEANFILES = $(EXTRA_LIBRARIES)
 CLEANFILES += *.gcda *.gcno
 CLEANFILES += compat/*.gcda compat/*.gcno
 CLEANFILES += consensus/*.gcda consensus/*.gcno
+CLEANFILES += crc32c/src/*.gcda crc32c/src/*.gcno
 CLEANFILES += crypto/*.gcda crypto/*.gcno
 CLEANFILES += policy/*.gcda policy/*.gcno
 CLEANFILES += primitives/*.gcda primitives/*.gcno
@@ -929,9 +935,8 @@ osx_debug: $(bin_PROGRAMS)
 	@test -f $(PROTOC)
 	$(AM_V_GEN) $(PROTOC) --cpp_out=$(@D) --proto_path=$(<D) $<
 
-if EMBEDDED_LEVELDB
+include Makefile.crc32c.include
 include Makefile.leveldb.include
-endif
 
 if ENABLE_QT
 include Makefile.qt.include

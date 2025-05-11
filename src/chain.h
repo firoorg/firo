@@ -22,6 +22,7 @@
 #include "chainparams.h"
 #include "coin_containers.h"
 #include "streams.h"
+#include "sparkname.h"
 
 #include <vector>
 #include <unordered_set>
@@ -251,7 +252,9 @@ public:
     //! Map id to <hash of the set>
     std::map<int, std::vector<unsigned char>> anonymitySetHash;
     //! Map id to spark coin
-    std::map<int, std::vector<std::pair<spark::Coin, bool>>> sparkMintedCoins;
+    std::map<int, std::vector<spark::Coin>> sparkMintedCoins;
+    //! Map id to bool (whether it is coinbase)
+    std::map<int, std::vector<uint8_t>> sparkCoinbase;
     //! Map id to <hash of the set>
     std::map<int, std::vector<unsigned char>> sparkSetHash;
     //! map spark coin S to tx hash, this is used when you run with -mobile
@@ -267,6 +270,11 @@ public:
     //! list of disabling sporks active at this block height
     //! std::map {feature name} -> {block number when feature is re-enabled again, parameter}
     ActiveSporkMap activeDisablingSporks;
+
+    //! List of spark names that were created or extended in this block. Map of spark name to <address, expiration block height, additional info>
+    std::map<std::string, CSparkNameBlockIndexData> addedSparkNames;
+    //! List of spark names that were removed in this block because of expiration
+    std::map<std::string, CSparkNameBlockIndexData> removedSparkNames;
 
     void SetNull()
     {
@@ -303,6 +311,7 @@ public:
         lelantusMintData.clear();
         anonymitySetHash.clear();
         sparkMintedCoins.clear();
+        sparkCoinbase.clear();
         sparkSetHash.clear();
         spentLTags.clear();
         ltagTxhash.clear();
@@ -310,6 +319,8 @@ public:
         sigmaSpentSerials.clear();
         lelantusSpentSerials.clear();
         activeDisablingSporks.clear();
+        addedSparkNames.clear();
+        removedSparkNames.clear();
     }
 
     CBlockIndex()
@@ -560,28 +571,9 @@ public:
 
         if (!(s.GetType() & SER_GETHASH)
             && nHeight >= params.nSparkStartBlock) {
+            READWRITE(sparkMintedCoins);
             if (nHeight >=params.nSparkCoinbase) {
-                READWRITE(sparkMintedCoins);
-            } else {
-
-                if (ser_action.ForRead())
-                {
-                    std::map<int, std::vector<spark::Coin>> sparkCoins;
-                    READWRITE(sparkCoins);
-                    for (auto& itr : sparkCoins) {
-                        sparkMintedCoins[itr.first].reserve(itr.second.size());
-                        for (auto& mint : itr.second)
-                            sparkMintedCoins[itr.first].emplace_back(std::make_pair(mint, false));
-                    }
-                } else {
-                    std::map<int, std::vector<spark::Coin>> sparkCoins;
-                    for (auto& itr : sparkMintedCoins) {
-                        sparkCoins[itr.first].reserve(itr.second.size());
-                        for (auto& mint : itr.second)
-                            sparkCoins[itr.first].emplace_back(mint.first);
-                    }
-                    READWRITE(sparkCoins);
-                }
+                READWRITE(sparkCoinbase);
             }
             READWRITE(sparkSetHash);
             READWRITE(spentLTags);
@@ -606,6 +598,11 @@ public:
                 READWRITE(activeDisablingSporks);
         }
         nDiskBlockVersion = nVersion;
+
+        if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nSparkNamesStartBlock) {
+            READWRITE(addedSparkNames);
+            READWRITE(removedSparkNames);
+        }
     }
 
     uint256 GetBlockHash() const

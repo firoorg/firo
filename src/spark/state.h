@@ -7,9 +7,11 @@
 
 #include "libspark/coin.h"
 #include "chain.h"
+#include "../wallet/wallet.h"
 #include "../libspark/mint_transaction.h"
 #include "../libspark/spend_transaction.h"
 #include "primitives.h"
+#include "sparkname.h"
 
 namespace spark_mintspend { class spark_mintspend_test; }
 
@@ -27,6 +29,9 @@ public:
     // linking tag for every spend (map from lTag to coin group id)
     std::unordered_map<GroupElement, int> spentLTags;
     std::unordered_map<uint256, uint256> ltagTxhash;
+
+    // spark names
+    std::map<std::string, CSparkNameTxData> sparkNames;
 
     // information about transactions in the block is complete
     bool fInfoIsComplete;
@@ -216,6 +221,23 @@ public:
             uint256& blockHash_out,
             std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins,
             std::vector<unsigned char>& setHash_out);
+
+    void GetAnonSetMetaData(
+            CChain *chain,
+            int maxHeight,
+            int coinGroupID,
+            uint256& blockHash_out,
+            std::vector<unsigned char>& setHash_out,
+            int& size);
+
+    void GetCoinsForRecovery(
+            CChain *chain,
+            int maxHeight,
+            int coinGroupID,
+            int startIndex,
+            int endIndex,
+            uint256& blockHash,
+            std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins);
 
     std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & GetMints() const;
     std::unordered_map<GroupElement, int, spark::CLTagHash> const & GetSpends() const;

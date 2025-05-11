@@ -95,6 +95,7 @@ QT_TS = \
   qt/locale/bitcoin_zh_TW.ts
 
 QT_FORMS_UI = \
+  qt/forms/exportviewkeydialog.ui \
   qt/forms/addressbookpage.ui \
   qt/forms/askpassphrasedialog.ui \
   qt/forms/automintdialog.ui \
@@ -116,11 +117,9 @@ QT_FORMS_UI = \
   qt/forms/debugwindow.ui \
   qt/forms/sendcoinsdialog.ui \
   qt/forms/sendcoinsentry.ui \
-  qt/forms/sendtopcodedialog.ui \
   qt/forms/signverifymessagedialog.ui \
   qt/forms/transactiondescdialog.ui \
-  qt/forms/lelantusdialog.ui
-
+  qt/forms/createsparkname.ui
 QT_MOC_CPP = \
   qt/moc_addressbookpage.cpp \
   qt/moc_automintdialog.cpp \
@@ -139,6 +138,7 @@ QT_MOC_CPP = \
   qt/moc_coincontroltreewidget.cpp \
   qt/moc_csvmodelwriter.cpp \
   qt/moc_editaddressdialog.cpp \
+  qt/moc_exportviewkeydialog.cpp \
   qt/moc_guiutil.cpp \
   qt/moc_intro.cpp \
   qt/moc_recover.cpp \
@@ -162,7 +162,6 @@ QT_MOC_CPP = \
   qt/moc_rpcconsole.cpp \
   qt/moc_sendcoinsdialog.cpp \
   qt/moc_sendcoinsentry.cpp \
-  qt/moc_sendtopcodedialog.cpp \
   qt/moc_signverifymessagedialog.cpp \
   qt/moc_splashscreen.cpp \
   qt/moc_trafficgraphwidget.cpp \
@@ -175,13 +174,10 @@ QT_MOC_CPP = \
   qt/moc_walletframe.cpp \
   qt/moc_walletmodel.cpp \
   qt/moc_walletview.cpp \
-  qt/moc_lelantusmodel.cpp \
-  qt/moc_lelantusdialog.cpp \
-  qt/moc_lelantuscoincontroldialog.cpp \
   qt/moc_automintmodel.cpp \
   qt/moc_automintnotification.cpp \
-  qt/moc_pcodemodel.cpp \
-  qt/moc_sparkmodel.cpp
+  qt/moc_sparkmodel.cpp \
+  qt/moc_createsparknamepage.cpp
 
 BITCOIN_MM = \
   qt/macdockiconhandler.mm \
@@ -213,6 +209,7 @@ BITCOIN_QT_H = \
   qt/cancelpassworddialog.h \
   qt/clientmodel.h \
   qt/coincontroldialog.h \
+  qt/exportviewkeydialog.h \
   qt/manualmintdialog.h \
   qt/coincontroltreewidget.h \
   qt/csvmodelwriter.h \
@@ -233,7 +230,6 @@ BITCOIN_QT_H = \
   qt/optionsmodel.h \
   qt/overviewpage.h \
   qt/paymentserver.h \
-  qt/pcodemodel.h \
   qt/peertablemodel.h \
   qt/platformstyle.h \
   qt/qvalidatedlineedit.h \
@@ -244,7 +240,6 @@ BITCOIN_QT_H = \
   qt/rpcconsole.h \
   qt/sendcoinsdialog.h \
   qt/sendcoinsentry.h \
-  qt/sendtopcodedialog.h \
   qt/signverifymessagedialog.h \
   qt/splashscreen.h \
   qt/trafficgraphwidget.h \
@@ -260,11 +255,9 @@ BITCOIN_QT_H = \
   qt/walletmodeltransaction.h \
   qt/walletview.h \
   qt/winshutdownmonitor.h \
-  qt/lelantusmodel.h \
-  qt/lelantusdialog.h \
-  qt/lelantuscoincontroldialog.h \
   qt/automintmodel.h \
-  qt/sparkmodel.h
+  qt/sparkmodel.h \
+  qt/createsparknamepage.h
 
 RES_ICONS = \
   qt/res/icons/add.png \
@@ -427,17 +420,16 @@ BITCOIN_QT_WALLET_CPP = \
   qt/coincontroldialog.cpp \
   qt/coincontroltreewidget.cpp \
   qt/editaddressdialog.cpp \
+  qt/exportviewkeydialog.cpp \
   qt/manualmintdialog.cpp \
   qt/openuridialog.cpp \
   qt/overviewpage.cpp \
-  qt/pcodemodel.cpp \
   qt/paymentserver.cpp \
   qt/receivecoinsdialog.cpp \
   qt/receiverequestdialog.cpp \
   qt/recentrequeststablemodel.cpp \
   qt/sendcoinsdialog.cpp \
   qt/sendcoinsentry.cpp \
-  qt/sendtopcodedialog.cpp \
   qt/signverifymessagedialog.cpp \
   qt/transactiondesc.cpp \
   qt/transactiondescdialog.cpp \
@@ -450,11 +442,9 @@ BITCOIN_QT_WALLET_CPP = \
   qt/walletmodeltransaction.cpp \
   qt/masternodelist.cpp \
   qt/walletview.cpp \
-  qt/lelantusmodel.cpp \
-  qt/lelantusdialog.cpp \
-  qt/lelantuscoincontroldialog.cpp \
   qt/automintmodel.cpp \
-  qt/sparkmodel.cpp
+  qt/sparkmodel.cpp \
+  qt/createsparknamepage.cpp
 
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)
 if TARGET_WINDOWS
@@ -518,7 +508,7 @@ qt_firo_qt_LDADD += -ltor
 
 qt_firo_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBFIRO_SIGMA) $(LIBLELANTUS) $(LIBSPARK) \
-  $(LIBUNIVALUE) $(LIBLEVELDB)  $(LIBLEVELDB_SSE42) $(LIBMEMENV) $(BACKTRACE_LIB) $(BOOST_LIBS) $(QT_LIBS) \
+  $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) $(BACKTRACE_LIB) $(BOOST_LIBS) $(QT_LIBS) \
   $(QT_DBUS_LIBS) $(QR_LIBS) $(BDB_LIBS) $(SSL_LIBS) \
   $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(LIBSECP256K1) $(LIBBLSSIG_LIBS) $(LIBBLSSIG_DEPENDS) \
   $(ZLIB_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS)

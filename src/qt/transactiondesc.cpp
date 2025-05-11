@@ -72,7 +72,12 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 {
     QString strHTML;
 
-    LOCK2(cs_main, wallet->cs_wallet);
+    TRY_LOCK(cs_main,lock_main);
+    if (!lock_main)
+        return strHTML;
+    TRY_LOCK(wallet->cs_wallet,lock_wallet);
+    if (!lock_wallet)
+        return strHTML;
     strHTML.reserve(4000);
     strHTML += "<html><font face='verdana, arial, helvetica, sans-serif'>";
 
@@ -311,10 +316,44 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     strHTML += "<b>" + tr("Transaction total size") + ":</b> " + QString::number(wtx.tx->GetTotalSize()) + " bytes<br>";
     strHTML += "<b>" + tr("Output index") + ":</b> " + QString::number(rec->getOutputIndex()) + "<br>";
 
-    // Message from normal firo:URI (firo:123...?message=example)
-    for (const PAIRTYPE(std::string, std::string)& r : wtx.vOrderForm)
-        if (r.first == "Message")
-            strHTML += "<br><b>" + tr("Message") + ":</b><br>" + GUIUtil::HtmlEscape(r.second, true) + "<br>";
+    isminetype fAllFromMe = ISMINE_SPENDABLE;
+    bool foundSparkOutput = false;
+
+    for (const CTxIn& txin : wtx.tx->vin) {
+        isminetype mine = wallet->IsMine(txin, *wtx.tx);
+        fAllFromMe = std::min(fAllFromMe, mine);
+    }
+
+    bool firstMessage = true;
+    if (fAllFromMe) {
+        for (const CTxOut& txout : wtx.tx->vout) {
+            if (wtx.IsChange(txout)) continue;
+
+            CSparkOutputTx sparkOutput;
+            if (wallet->GetSparkOutputTx(txout.scriptPubKey, sparkOutput)) {
+                if (!sparkOutput.memo.empty()) {
+                    foundSparkOutput = true;
+                    if (firstMessage) {
+                        strHTML += "<hr><b>" + tr("Messages") + ":</b><br>";
+                        firstMessage = false;
+                    }
+                    strHTML += "• " + GUIUtil::HtmlEscape(sparkOutput.memo, true) + "<br>";
+                }
+            }
+        }
+    }
+
+    if (!foundSparkOutput && wallet->sparkWallet) {
+        for (const auto& [id, meta] : wallet->sparkWallet->getMintMap()) {
+            if (meta.txid == rec->hash && !meta.memo.empty()) {
+                if (firstMessage) {
+                    strHTML += "<hr><b>" + tr("Messages") + ":</b><br>";
+                    firstMessage = false;
+                }
+                strHTML += "• " + GUIUtil::HtmlEscape(meta.memo, true) + "<br>";
+            }
+        }
+    }
 
     if (wtx.IsCoinBase())
     {

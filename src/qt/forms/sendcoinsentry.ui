@@ -221,7 +221,7 @@
       </item>
      </layout>
     </item>
-    <item row="4" column="0">
+    <item row="6" column="0">
      <widget class="QLabel" name="messageLabel">
       <property name="text">
        <string>Message:</string>
@@ -231,15 +231,54 @@
       </property>
      </widget>
     </item>
-    <item row="4" column="1">
-     <widget class="QLabel" name="messageTextLabel">
+    <item row="6" column="1">
+    <widget class="QLineEdit" name="messageTextLabel">
       <property name="toolTip">
-       <string>A message that was attached to the firo: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Firo network.</string>
+      <string>Optional message for this transaction</string>
       </property>
-      <property name="textFormat">
-       <enum>Qt::PlainText</enum>
+    </widget>
+    </item>
+   <item row="7" column="1">
+     <layout class="QHBoxLayout" name="horizontalLayoutWarning" stretch="0,1">
+      <property name="spacing">
+       <number>0</number>
       </property>
-     </widget>
+      <item>
+       <widget class="QLabel" name="iconMessageWarning">
+        <property name="toolTip">
+         <string></string>
+        </property>
+        <property name="text">
+         <string></string>
+        </property>
+        <property name="minimumWidth">
+          5
+        </property>
+        <property name="minimumHeight">
+          5
+        </property>
+        <property name="fixedWidth">
+          10
+        </property>
+        <property name="fixedHeight">
+          10
+        </property>
+        <property name="styleSheet">
+          <string>margin-left:-30px;margin-right:-10px;margin-top:2px;</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+        <widget class="QLabel" name="messageWarning">
+          <property name="text">
+          <string></string>
+          </property>
+          <property name="styleSheet">
+            <string>color: #FFA800; margin-left:-10px;</string>
+          </property>
+        </widget>
+      </item>
+     </layout>
     </item>
     <item row="5" column="0" colspan="2">
      <widget class="Line" name="line">

@@ -8,12 +8,10 @@
 #include "consensus/validation.h"
 #include "guiconstants.h"
 #include "guiutil.h"
-#include "lelantusmodel.h"
 #include "sparkmodel.h"
 #include "paymentserver.h"
 #include "recentrequeststablemodel.h"
 #include "transactiontablemodel.h"
-#include "pcodemodel.h"
 
 #include "base58.h"
 #include "keystore.h"
@@ -44,11 +42,9 @@
 
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, OptionsModel *_optionsModel, QObject *parent) :
     QObject(parent), wallet(_wallet), optionsModel(_optionsModel), addressTableModel(0), pcodeAddressTableModel(0),
-    lelantusModel(0),
     sparkModel(0),
     transactionTableModel(0),
     recentRequestsTableModel(0),
-    pcodeModel(0),
     cachedBalance(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0),
     cachedEncryptionStatus(Unencrypted),
     cachedNumBlocks(0),
@@ -59,11 +55,9 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
 
     addressTableModel = new AddressTableModel(wallet, this);
     pcodeAddressTableModel = new PcodeAddressTableModel(wallet, this);
-    lelantusModel = new LelantusModel(platformStyle, wallet, _optionsModel, this);
     sparkModel = new SparkModel(platformStyle, wallet, _optionsModel, this);
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
-    pcodeModel = new PcodeModel(wallet, this);
 
     // This timer will be fired repeatedly to update the balance
     pollTimer = new QTimer(this);
@@ -98,9 +92,7 @@ CAmount WalletModel::getBalance(const CCoinControl *coinControl, bool fExcludeLo
 CAmount WalletModel::getAnonymizableBalance() const
 {
     CAmount amount = 0;
-    if(lelantus::IsLelantusAllowed()) {
-        amount = lelantusModel->getMintableAmount();
-    } else if (spark::IsSparkAllowed()){
+    if (sparkModel && spark::IsSparkAllowed()){
         amount = sparkModel->getMintableSparkAmount();
     }
     return amount;
@@ -182,11 +174,7 @@ void WalletModel::checkBalanceChanged()
 
     CAmount newPrivateBalance, newUnconfirmedPrivateBalance;
     std::tie(newPrivateBalance, newUnconfirmedPrivateBalance) =
-        lelantusModel->getPrivateBalance();
-
-    std::pair<CAmount, CAmount> sparkBalance = getSparkBalance();
-    newPrivateBalance = spark::IsSparkAllowed() ? sparkBalance.first : newPrivateBalance;
-    newUnconfirmedPrivateBalance = spark::IsSparkAllowed() ? sparkBalance.second : newUnconfirmedPrivateBalance;
+            getSparkBalance();
 
     if (haveWatchOnly())
     {
@@ -367,201 +355,6 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     return SendCoinsReturn(OK);
 }
 
-WalletModel::SendCoinsReturn WalletModel::prepareJoinSplitTransaction(
-    WalletModelTransaction &transaction,
-    const CCoinControl *coinControl)
-{
-    CAmount total = 0;
-    bool fSubtractFeeFromAmount = false;
-    QList<SendCoinsRecipient> recipients = transaction.getRecipients();
-    std::vector<CRecipient> vecSend;
-
-    if(recipients.empty())
-    {
-        return OK;
-    }
-
-    QSet<QString> setAddress; // Used to detect duplicates
-    int nAddresses = 0;
-
-    // Pre-check input data for validity
-    for (const SendCoinsRecipient &rcp : recipients)
-    {
-        if (rcp.fSubtractFeeFromAmount)
-            fSubtractFeeFromAmount = true;
-
-        {
-            // User-entered Firo address / amount:
-            if(!validateAddress(rcp.address))
-            {
-                return InvalidAddress;
-            }
-            if(rcp.amount <= 0)
-            {
-                return InvalidAmount;
-            }
-            setAddress.insert(rcp.address);
-            ++nAddresses;
-
-            CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
-            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
-            vecSend.push_back(recipient);
-
-            total += rcp.amount;
-        }
-    }
-    if(setAddress.size() != nAddresses)
-    {
-        return DuplicateAddress;
-    }
-
-    CAmount nBalance;
-    std::tie(nBalance, std::ignore) = lelantusModel->getPrivateBalance();
-
-    if(total > nBalance)
-    {
-        return AmountExceedsBalance;
-    }
-
-    {
-        LOCK2(cs_main, wallet->cs_wallet);
-
-        auto &spendCoins = transaction.getSpendCoins();
-        auto &sigmaSpendCoins = transaction.getSigmaSpendCoins();
-        auto &mintCoins = transaction.getMintCoins();
-
-        CAmount feeRequired = 0;
-        std::string strFailReason;
-
-        CWalletTx *newTx = transaction.getTransaction();
-        try {
-            *newTx = wallet->CreateLelantusJoinSplitTransaction(vecSend, feeRequired, {}, spendCoins, sigmaSpendCoins, mintCoins, coinControl);
-        } catch (InsufficientFunds const&) {
-            transaction.setTransactionFee(feeRequired);
-            if (!fSubtractFeeFromAmount && (total + feeRequired) > nBalance) {
-                return SendCoinsReturn(AmountWithFeeExceedsBalance);
-            }
-            return SendCoinsReturn(AmountExceedsBalance);
-        } catch (std::runtime_error const &e) {
-            Q_EMIT message(
-                tr("Send Coins"),
-                QString::fromStdString(e.what()),
-                CClientUIInterface::MSG_ERROR);
-
-            return TransactionCreationFailed;
-        } catch (std::invalid_argument const &e) {
-            Q_EMIT message(
-                    tr("Send Coins"),
-                    QString::fromStdString(e.what()),
-                    CClientUIInterface::MSG_ERROR);
-
-            return TransactionCreationFailed;
-        }
-
-        // reject absurdly high fee. (This can never happen because the
-        // wallet caps the fee at maxTxFee. This merely serves as a
-        // belt-and-suspenders check)
-        if (feeRequired > maxTxFee) {
-            return AbsurdFee;
-        }
-
-        int changePos = -1;
-        if (!mintCoins.empty()) {
-            for (changePos = 0; changePos < newTx->tx->vout.size(); changePos++) {
-                if (newTx->tx->vout[changePos].scriptPubKey.IsLelantusJMint()) {
-                    break;
-                }
-            }
-
-            changePos = changePos >= newTx->tx->vout.size() ? -1 : changePos;
-        }
-
-        transaction.setTransactionFee(feeRequired);
-        transaction.reassignAmounts(changePos);
-    }
-
-    return SendCoinsReturn(OK);
-}
-
-WalletModel::SendCoinsReturn WalletModel::prepareMintTransactions(
-    CAmount amount,
-    std::vector<WalletModelTransaction> &transactions,
-    std::list<CReserveKey> &reserveKeys,
-    std::vector<CHDMint> &mints,
-    const CCoinControl *coinControl)
-{
-    if (amount <= 0) {
-        return InvalidAmount;
-    }
-
-    auto balance = getBalance(coinControl);
-    if (amount > balance) {
-        return AmountExceedsBalance;
-    }
-
-    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
-    CAmount allFee = 0;
-    int changePos = -1;
-    std::string failReason;
-
-    bool success = false;
-    try {
-        success = wallet->CreateLelantusMintTransactions(
-                amount, wtxAndFees, allFee, mints, reserveKeys, changePos, failReason, coinControl);
-
-    } catch (std::runtime_error const &e) {
-        return SendCoinsReturn(TransactionCreationFailed, e.what());
-    }
-
-
-    transactions.clear();
-    transactions.reserve(wtxAndFees.size());
-    for (auto &wtxAndFee : wtxAndFees) {
-        auto &wtx = wtxAndFee.first;
-        auto fee = wtxAndFee.second;
-
-        QList<SendCoinsRecipient> recipients;
-
-        int changePos = -1;
-        for (size_t i = 0; i != wtx.tx->vout.size(); i++) {
-            if (wtx.tx->vout[i].scriptPubKey.IsMint()) {
-                SendCoinsRecipient r;
-                r.amount = wtx.tx->vout[i].nValue;
-                recipients.push_back(r);
-            } else {
-                changePos = i;
-            }
-        }
-
-        transactions.emplace_back(recipients);
-        auto &tx = transactions.back();
-
-        *tx.getTransaction() = wtx;
-        tx.setTransactionFee(fee);
-
-        tx.reassignAmounts(changePos);
-    }
-
-    if (!success) {
-        if (amount + allFee > balance) {
-            return SendCoinsReturn(AmountWithFeeExceedsBalance);
-        }
-
-        Q_EMIT message(
-            tr("Coin Anonymizing"),
-            QString::fromStdString(failReason),
-            CClientUIInterface::MSG_ERROR);
-
-        return TransactionCommitFailed;
-    }
-
-    if (allFee > maxTxFee) {
-        return WalletModel::AbsurdFee;
-    }
-
-    return SendCoinsReturn(OK);
-}
-
 WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &transaction)
 {
     QByteArray transaction_array; /* store serialized transaction */
@@ -617,90 +410,6 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
     return SendCoinsReturn(OK);
 }
 
-WalletModel::SendCoinsReturn WalletModel::sendPrivateCoins(WalletModelTransaction &transaction)
-{
-    QByteArray transaction_array; /* store serialized transaction */
-
-    {
-        LOCK2(cs_main, wallet->cs_wallet);
-        CWalletTx *newTx = transaction.getTransaction();
-
-        for (const SendCoinsRecipient &rcp : transaction.getRecipients())
-        {
-            if (!rcp.message.isEmpty()) // Message from normal firo:URI (firo:123...?message=example)
-                newTx->vOrderForm.push_back(make_pair("Message", rcp.message.toStdString()));
-        }
-
-        try {
-            if (!wallet->CommitLelantusTransaction(*newTx, transaction.getSpendCoins(), transaction.getSigmaSpendCoins(), transaction.getMintCoins()))
-                return SendCoinsReturn(TransactionCommitFailed);
-        } catch (std::runtime_error const &e) {
-            return SendCoinsReturn(TransactionCommitFailed, e.what());
-        }
-
-        CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-        ssTx << *newTx->tx;
-        transaction_array.append(&(ssTx[0]), ssTx.size());
-    }
-
-    // Add addresses / update labels that we've sent to to the address book,
-    // and emit coinsSent signal for each recipient
-    for (const SendCoinsRecipient &rcp : transaction.getRecipients())
-    {
-        {
-            std::string strAddress = rcp.address.toStdString();
-            CTxDestination dest = CBitcoinAddress(strAddress).Get();
-            std::string strLabel = rcp.label.toStdString();
-            {
-                LOCK(wallet->cs_wallet);
-
-                std::map<CTxDestination, CAddressBookData>::iterator mi = wallet->mapAddressBook.find(dest);
-
-                // Check if we have a new address or an updated label
-                if (mi == wallet->mapAddressBook.end())
-                {
-                    wallet->SetAddressBook(dest, strLabel, "send");
-                }
-                else if (mi->second.name != strLabel)
-                {
-                    wallet->SetAddressBook(dest, strLabel, ""); // "" means don't change purpose
-                }
-            }
-        }
-        Q_EMIT coinsSent(wallet, rcp, transaction_array);
-    }
-    checkBalanceChanged(); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
-
-    return SendCoinsReturn(OK);
-}
-
-WalletModel::SendCoinsReturn WalletModel::sendAnonymizingCoins(
-    std::vector<WalletModelTransaction> &transactions,
-    std::list<CReserveKey> &reservekeys,
-    std::vector<CHDMint> &mints)
-{
-    auto reservekey = reservekeys.begin();
-    CWalletDB db(wallet->strWalletFile);
-
-    for (size_t i = 0; i != transactions.size(); i++) {
-
-        auto tx = transactions[i].getTransaction();
-
-        CValidationState state;
-        if (!wallet->CommitTransaction(*tx, *reservekey++, g_connman.get(), state)) {
-            return TransactionCommitFailed;
-        }
-
-        auto &mintTmp = mints[i];
-        mintTmp.SetTxHash(tx->GetHash());
-        {
-            wallet->zwallet->GetTracker().AddLelantus(db, mintTmp, true);
-        }
-    }
-    wallet->zwallet->UpdateCountDB(db);
-    return SendCoinsReturn(OK);
-}
-
 OptionsModel *WalletModel::getOptionsModel()
 {
     return optionsModel;
@@ -716,11 +425,6 @@ PcodeAddressTableModel *WalletModel::getPcodeAddressTableModel()
     return pcodeAddressTableModel;
 }
 
-LelantusModel *WalletModel::getLelantusModel()
-{
-    return lelantusModel;
-}
-
 SparkModel *WalletModel::getSparkModel()
 {
     return sparkModel;
@@ -734,11 +438,6 @@ TransactionTableModel *WalletModel::getTransactionTableModel()
 RecentRequestsTableModel *WalletModel::getRecentRequestsTableModel()
 {
     return recentRequestsTableModel;
-}
-
-PcodeModel *WalletModel::getPcodeModel()
-{
-    return pcodeModel;
 }
 
 WalletModel::EncryptionStatus WalletModel::getEncryptionStatus() const
@@ -1032,7 +731,13 @@ bool WalletModel::getPrivKey(const CKeyID &address, CKey& vchPrivKeyOut) const
 // returns a list of COutputs from COutPoints
 void WalletModel::getOutputs(const std::vector<COutPoint>& vOutpoints, std::vector<COutput>& vOutputs, boost::optional<bool> fMintTabSelected)
 {
-    LOCK2(cs_main, wallet->cs_wallet);
+    TRY_LOCK(cs_main,lock_main);
+    if (!lock_main)
+        return;
+    TRY_LOCK(wallet->cs_wallet,lock_wallet);
+    if (!lock_wallet)
+        return;
+
     BOOST_FOREACH(const COutPoint& outpoint, vOutpoints)
     {
         if (!wallet->mapWallet.count(outpoint.hash)) continue;
@@ -1055,7 +760,12 @@ void WalletModel::getOutputs(const std::vector<COutPoint>& vOutpoints, std::vect
 
 bool WalletModel::isSpent(const COutPoint& outpoint) const
 {
-    LOCK2(cs_main, wallet->cs_wallet);
+    TRY_LOCK(cs_main,lock_main);
+    if (!lock_main)
+        return false;
+    TRY_LOCK(wallet->cs_wallet,lock_wallet);
+    if (!lock_wallet)
+        return false;
     return wallet->IsSpent(outpoint.hash, outpoint.n);
 }
 
@@ -1067,7 +777,13 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, 
     coinControl.nCoinType = nCoinType;
     wallet->AvailableCoins(vCoins, true, &coinControl, false);
 
-    LOCK2(cs_main, wallet->cs_wallet); // ListLockedCoins, mapWallet
+    TRY_LOCK(cs_main,lock_main); // ListLockedCoins, mapWallet
+    if (!lock_main)
+        return;
+    TRY_LOCK(wallet->cs_wallet,lock_wallet);
+    if (!lock_wallet)
+        return;
+
     std::vector<COutPoint> vLockedCoins;
     wallet->ListLockedCoins(vLockedCoins);
 
@@ -1120,39 +836,69 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, 
 
 bool WalletModel::isLockedCoin(uint256 hash, unsigned int n) const
 {
-    LOCK2(cs_main, wallet->cs_wallet);
+    TRY_LOCK(cs_main,lock_main);
+    if (!lock_main)
+        return false;
+    TRY_LOCK(wallet->cs_wallet,lock_wallet);
+    if (!lock_wallet)
+        return false;
     return wallet->IsLockedCoin(hash, n);
 }
 
 void WalletModel::lockCoin(COutPoint& output)
 {
-    LOCK2(cs_main, wallet->cs_wallet);
+    TRY_LOCK(cs_main,lock_main);
+    if (!lock_main)
+        return;
+    TRY_LOCK(wallet->cs_wallet,lock_wallet);
+    if (!lock_wallet)
+        return;
     wallet->LockCoin(output);
     Q_EMIT updateMintable();
 }
 
 void WalletModel::unlockCoin(COutPoint& output)
 {
-    LOCK2(cs_main, wallet->cs_wallet);
+    TRY_LOCK(cs_main,lock_main);
+    if (!lock_main)
+        return;
+    TRY_LOCK(wallet->cs_wallet,lock_wallet);
+    if (!lock_wallet)
+        return;
     wallet->UnlockCoin(output);
     Q_EMIT updateMintable();
 }
 
 void WalletModel::listLockedCoins(std::vector<COutPoint>& vOutpts)
 {
-    LOCK2(cs_main, wallet->cs_wallet);
+    TRY_LOCK(cs_main,lock_main);
+    if (!lock_main)
+        return;
+    TRY_LOCK(wallet->cs_wallet,lock_wallet);
+    if (!lock_wallet)
+        return;
     wallet->ListLockedCoins(vOutpts);
 }
 
 void WalletModel::listProTxCoins(std::vector<COutPoint>& vOutpts)
 {
-    LOCK2(cs_main, wallet->cs_wallet);
+    TRY_LOCK(cs_main,lock_main);
+    if (!lock_main)
+        return;
+    TRY_LOCK(wallet->cs_wallet,lock_wallet);
+    if (!lock_wallet)
+        return;
     wallet->ListProTxCoins(vOutpts);
 }
 
 bool WalletModel::hasMasternode()
 {
-    LOCK2(cs_main, wallet->cs_wallet);
+    TRY_LOCK(cs_main,lock_main);
+    if (!lock_main)
+        return false;
+    TRY_LOCK(wallet->cs_wallet,lock_wallet);
+    if (!lock_wallet)
+        return false;
     return wallet->HasMasternode();
 }
 
@@ -1326,6 +1072,21 @@ bool WalletModel::validateSparkAddress(const QString& address)
     return network == coinNetwork;
 }
 
+QString WalletModel::generateSparkAddress()
+{
+    const spark::Params* params = spark::Params::get_default();
+    spark::Address address(params);
+
+    {
+        LOCK(wallet->cs_wallet);
+        address = wallet->sparkWallet->generateNewAddress();
+        unsigned char network = spark::GetNetworkType();
+    
+        wallet->SetSparkAddressBook(address.encode(network), "", "receive");
+        return QString::fromStdString(address.encode(network));
+    }
+}
+
 std::pair<CAmount, CAmount> WalletModel::getSparkBalance()
 {
     return wallet->GetSparkBalance();
@@ -1339,10 +1100,10 @@ bool WalletModel::getAvailableLelantusCoins()
     std::list<CLelantusEntry> coins = wallet->GetAvailableLelantusCoins();
     if (coins.size() > 0) {
         return true;
-    } else {
-        return false;
     }
-} 
+
+    return false;
+}
 
 bool WalletModel::migrateLelantusToSpark()
 {
@@ -1387,7 +1148,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vecto
             address.decode(rcp.address.toStdString());
             spark::MintedCoinData data;
             data.address = address;
-            data.memo = "";
+            data.memo = rcp.message.toStdString();
             data.v = rcp.amount;
             outputs.push_back(data);
             total += rcp.amount;
@@ -1410,7 +1171,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vecto
         int nChangePosRet = -1;
 
         std::string strFailReason;
-        bool fCreated = wallet->CreateSparkMintTransactions(outputs, wtxAndFees, nFeeRequired, reservekeys, nChangePosRet, fSubtractFeeFromAmount, strFailReason, coinControl, false);
+        bool fCreated = wallet->CreateSparkMintTransactions(outputs, wtxAndFees, nFeeRequired, reservekeys, nChangePosRet, fSubtractFeeFromAmount, strFailReason, optionsModel->getfSplit(), coinControl, false);
         transactions.clear();
         transactions.reserve(wtxAndFees.size());
         for (auto &wtxAndFee : wtxAndFees) {
@@ -1484,7 +1245,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(WalletMod
                 address.decode(rcp.address.toStdString());
                 spark::OutputCoinData data;
                 data.address = address;
-                data.memo = "";
+                data.memo = rcp.message.toStdString();
                 data.v = rcp.amount;
                 privateRecipients.push_back(std::make_pair(data, rcp.fSubtractFeeFromAmount));
             } else {
@@ -1544,6 +1305,112 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(WalletMod
         transaction.setTransactionFee(nFeeRequired);
         transaction.reassignAmounts(changePos);
     }
+    return SendCoinsReturn(OK);
+}
+
+bool WalletModel::sparkNamesAllowed() const
+{
+    int chainHeight;
+    {
+        LOCK(cs_main);
+        chainHeight = chainActive.Height();
+    }
+    return chainHeight >= Params().GetConsensus().nSparkNamesStartBlock;
+}
+
+bool WalletModel::validateSparkNameData(const QString &name, const QString &sparkAddress, const QString &additionalData, QString &strError) {
+    CSparkNameTxData sparkNameData;
+
+    sparkNameData.name = name.toStdString();
+    sparkNameData.sparkAddress = sparkAddress.toStdString();
+    sparkNameData.additionalInfo = additionalData.toStdString();
+    sparkNameData.sparkNameValidityBlocks = 1000;   // doesn't matter
+
+    {
+        LOCK(cs_main);
+        std::string _strError;
+        bool result = CSparkNameManager::GetInstance()->ValidateSparkNameData(sparkNameData, _strError);
+        strError = QString::fromStdString(_strError);
+        return result;
+    }
+}
+
+WalletModelTransaction WalletModel::initSparkNameTransaction(CAmount sparkNameFee) {
+    const auto &consensusParams = Params().GetConsensus();
+    SendCoinsRecipient recipient;
+
+    recipient.address = QString::fromStdString(consensusParams.stage3DevelopmentFundAddress);
+    recipient.amount = sparkNameFee;
+    recipient.fSubtractFeeFromAmount = false;
+
+    return WalletModelTransaction({recipient});
+}
+
+QString WalletModel::getSparkNameAddress(const QString &sparkName) {
+    LOCK(cs_main);
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    std::string sparkAddress;
+    if (sparkNameManager->GetSparkAddress(sparkName.toStdString(), sparkAddress)) {
+        return QString::fromStdString(sparkAddress);
+    }
+    else {
+        return "";
+    }
+}
+
+WalletModel::SendCoinsReturn WalletModel::prepareSparkNameTransaction(WalletModelTransaction &transaction, CSparkNameTxData &sparkNameData, CAmount sparkNameFee, const CCoinControl* coinControl)
+{
+    CAmount nBalance;
+    std::tie(nBalance, std::ignore) = getSparkBalance();
+
+    if (sparkNameFee > nBalance) {
+        return AmountExceedsBalance;
+    }
+
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+
+        CAmount nFeeRequired = 0;
+        CWalletTx *newTx = transaction.getTransaction();
+        try {
+            *newTx = wallet->CreateSparkNameTransaction(sparkNameData, sparkNameFee, nFeeRequired, coinControl);
+        }
+        catch (InsufficientFunds const&) {
+            transaction.setTransactionFee(nFeeRequired);
+            if (sparkNameFee + nFeeRequired > nBalance) {
+                return SendCoinsReturn(AmountWithFeeExceedsBalance);
+            }
+            return SendCoinsReturn(AmountExceedsBalance);
+        }
+        catch (std::runtime_error const& e) {
+            Q_EMIT message(
+                tr("Spend Spark"),
+                QString::fromStdString(e.what()),
+                CClientUIInterface::MSG_ERROR);
+
+            return TransactionCreationFailed;
+        }
+        catch (std::invalid_argument const& e) {
+            Q_EMIT message(
+                tr("Spend Spark"),
+                QString::fromStdString(e.what()),
+                CClientUIInterface::MSG_ERROR);
+
+            return TransactionCreationFailed;
+        }
+        if (nFeeRequired > maxTxFee) {
+            return AbsurdFee;
+        }
+
+        int changePos = -1;
+        for (size_t i = 0; i != newTx->tx->vout.size(); i++) {
+            if (!newTx->tx->vout[i].scriptPubKey.IsSparkSMint()) changePos = i;
+        }
+
+        transaction.setTransactionFee(nFeeRequired);
+        transaction.reassignAmounts(changePos);
+    }
+    
     return SendCoinsReturn(OK);
 }
 

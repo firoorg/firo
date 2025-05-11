@@ -5,6 +5,10 @@
 
 #include "wallet.h"
 #include "boost/filesystem/operations.hpp"
+#include "libspark/keys.h"
+#include "serialize.h"
+#include "support/allocators/secure.h"
+#include "sync.h"
 #include "walletexcept.h"
 #include "sigmaspendbuilder.h"
 #include "lelantusjoinsplitbuilder.h"
@@ -42,6 +46,7 @@
 #include "init.h"
 #include "hdmint/wallet.h"
 #include "rpc/protocol.h"
+#include "wallet/bip39.h"
 
 #include "crypto/hmac_sha512.h"
 #include "crypto/aes.h"
@@ -2382,7 +2387,11 @@ CBlockIndex* CWallet::GetBlockByDate(CBlockIndex* pindexStart, const std::string
 
     while (pindex) {
         if (pindex->GetBlockTime() > targetTimestamp) {
-            return chainActive[pindex->nHeight - 200];
+            if (pindex->nHeight >= 200) {
+                return chainActive[pindex->nHeight - 200];
+            } else {
+                return chainActive[0];
+            }
         }
         pindex = chainActive.Next(pindex);
     }
@@ -2401,6 +2410,10 @@ CBlockIndex* CWallet::GetBlockByDate(CBlockIndex* pindexStart, const std::string
 CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate, bool fRecoverMnemonic)
 {
     CBlockIndex* ret = nullptr;
+    if (GetBoolArg("-newwallet", false)) {
+        LogPrintf("Created new wallet, no need to scan\n");
+        return ret;
+    }
     int64_t nNow = GetTime();
     const CChainParams& chainParams = Params();
 
@@ -2411,7 +2424,6 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
         // If you are recovering wallet with mnemonics, start rescan from the block when mnemonics were implemented in Firo.
         // If the user provides a date, start scanning from the block that corresponds to that date.
         // If no date is provided, start scanning from the mnemonic start block.
-
         std::string wcdate = GetArg("-wcdate", "");
         CBlockIndex* mnemonicStartBlock = chainActive[chainParams.GetConsensus().nMnemonicBlock];
         if (mnemonicStartBlock == NULL)
@@ -5654,6 +5666,7 @@ std::string CWallet::MintAndStoreSpark(
         const std::vector<spark::MintedCoinData>& outputs,
         std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
         bool subtractFeeFromAmount,
+        bool fSplit,
         bool autoMintAll,
         bool fAskFee,
         const CCoinControl *coinControl) {
@@ -5680,7 +5693,7 @@ std::string CWallet::MintAndStoreSpark(
     int nChangePosRet = -1;
 
     std::list<CReserveKey> reservekeys;
-    if (!sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, subtractFeeFromAmount, strError, coinControl, autoMintAll)) {
+    if (!sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nFeeRequired, reservekeys, nChangePosRet, subtractFeeFromAmount, strError, fSplit, coinControl, autoMintAll)) {
         return strError;
     }
 
@@ -5867,6 +5880,22 @@ CWalletTx CWallet::CreateSparkSpendTransaction(
     }
 
     return sparkWallet->CreateSparkSpendTransaction(recipients, privateRecipients, fee, coinControl);
+}
+
+CWalletTx CWallet::CreateSparkNameTransaction(
+        CSparkNameTxData &sparkNameData,
+        CAmount sparkNameFee,
+        CAmount &txFee,
+        const CCoinControl *coinControl)
+{
+    // sanity check
+    EnsureMintWalletAvailable();
+
+    if (IsLocked()) {
+        throw std::runtime_error(_("Wallet locked"));
+    }
+
+    return sparkWallet->CreateSparkNameTransaction(sparkNameData, sparkNameFee, txFee, coinControl);
 }
 
 CWalletTx CWallet::SpendAndStoreSpark(
@@ -6844,6 +6873,33 @@ void CWallet::MarkReserveKeysAsUsed(int64_t keypool_id)
     }
 }
 
+spark::FullViewKey CWallet::GetSparkViewKey() {
+  LOCK(cs_wallet);
+  CWalletDB walletdb(strWalletFile);
+  spark::FullViewKey key;
+  walletdb.readFullViewKey(key);
+
+  return key;
+}
+
+std::string CWallet::GetSparkViewKeyStr() {
+  spark::FullViewKey key = GetSparkViewKey();
+  int size = GetSerializeSize(key, SER_NETWORK, PROTOCOL_VERSION);
+  std::ostringstream keydata;
+  ::Serialize(keydata, key);
+
+  std::string keydata_s = keydata.str();
+  assert(keydata_s.size() % 4 == 0);
+
+  SecureVector seckeydata(keydata_s.begin(), keydata_s.end());
+
+  SecureString mnemonicsecstr = Mnemonic::mnemonic_from_data(seckeydata, seckeydata.size());
+  std::string mnemonicstr(mnemonicsecstr.begin(), mnemonicsecstr.end());
+  assert(!mnemonicstr.empty());
+
+  return mnemonicstr;
+}
+
 bool CWallet::UpdatedTransaction(const uint256 &hashTx)
 {
     {
@@ -7341,10 +7397,10 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
             }
         }
 
-        uiInterface.InitMessage(_("Rescanning..."));
+        if (!(GetBoolArg("-newwallet", false))) {uiInterface.InitMessage(_("Rescanning..."));}
         nStart = GetTimeMillis();
         walletInstance->ScanForWalletTransactions(pindexRescan, true, fRecoverMnemonic);
-        LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);
+        if (!(GetBoolArg("-newwallet", false))) {LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);}
         walletInstance->SetBestChain(chainActive.GetLocator());
         CWalletDB::IncrementUpdateCounter();
 
@@ -8226,6 +8282,14 @@ bool CMerkleTx::AcceptToMemoryPool(const CAmount &nAbsurdFee, CValidationState &
 bool CompSigmaHeight(const CSigmaEntry &a, const CSigmaEntry &b) { return a.nHeight < b.nHeight; }
 bool CompSigmaID(const CSigmaEntry &a, const CSigmaEntry &b) { return a.id < b.id; }
 
+void ShutdownWallet() {
+    if (pwalletMain) {
+        if (pwalletMain->sparkWallet) {
+            pwalletMain->sparkWallet->FinishTasks();
+        }
+    }
+}
+
 bool CWallet::CreateSparkMintTransactions(
     const std::vector<spark::MintedCoinData>& outputs,
     std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
@@ -8234,10 +8298,11 @@ bool CWallet::CreateSparkMintTransactions(
     int& nChangePosInOut,
     bool subtractFeeFromAmount,
     std::string& strFailReason,
+    bool fSplit,
     const CCoinControl *coinControl,
     bool autoMintAll)
 {
-    return sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nAllFeeRet, reservekeys, nChangePosInOut, subtractFeeFromAmount, strFailReason, coinControl, autoMintAll);
+    return sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nAllFeeRet, reservekeys, nChangePosInOut, subtractFeeFromAmount, strFailReason, fSplit, coinControl, autoMintAll);
 }
 
 std::pair<CAmount, CAmount> CWallet::GetSparkBalance()
@@ -8254,7 +8319,7 @@ std::pair<CAmount, CAmount> CWallet::GetSparkBalance()
 }
 
 bool CWallet::IsSparkAddressMine(const std::string& address) {
-    return sparkWallet->isAddressMine(address);
+    return sparkWallet && sparkWallet->isAddressMine(address);
 }
 
 bool CWallet::SetSparkAddressBook(const std::string& address, const std::string& strName, const std::string& strPurpose)

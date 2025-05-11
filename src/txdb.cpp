@@ -313,6 +313,32 @@ bool CBlockTreeDB::ReadAddressIndex(uint160 addressHash, AddressType type,
     return true;
 }
 
+size_t CBlockTreeDB::findAddressNumWBalance() {
+    boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
+    pcursor->SeekToFirst();
+    std::unordered_map<uint160, CAmount> addrMap;
+    while (pcursor->Valid()) {
+        boost::this_thread::interruption_point();
+        std::pair<char,CAddressIndexKey> key;
+        if (pcursor->GetKey(key) && key.first == DB_ADDRESSINDEX && (key.second.type == AddressType::payToPubKeyHash || key.second.type == AddressType::payToExchangeAddress)) {
+            CAmount nValue;
+            // Retrieve the associated value
+            if (pcursor->GetValue(nValue) && nValue != 0) { // Only process non-zero values
+                addrMap[key.second.hashBytes] += nValue; // Accumulate balance for the address
+            }
+        }
+        pcursor->Next();
+    }
+
+    size_t counter = 0;
+    for (auto& itr : addrMap) {
+        if (itr.second > 0) {
+            ++counter;
+        }
+    }
+
+    return counter;
+}
 
 bool CBlockTreeDB::WriteTimestampIndex(const CTimestampIndexKey &timestampIndex) {
     CDBBatch batch(*this);
@@ -422,12 +448,16 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->anonymitySetHash         = diskindex.anonymitySetHash;
 
                 pindexNew->sparkMintedCoins   = diskindex.sparkMintedCoins;
+                pindexNew->sparkCoinbase   = diskindex.sparkCoinbase;
                 pindexNew->sparkSetHash       = diskindex.sparkSetHash;
                 pindexNew->spentLTags         = diskindex.spentLTags;
                 pindexNew->sparkTxHashContext = diskindex.sparkTxHashContext;
                 pindexNew->ltagTxhash         = diskindex.ltagTxhash;
 
                 pindexNew->activeDisablingSporks = diskindex.activeDisablingSporks;
+
+                pindexNew->addedSparkNames = diskindex.addedSparkNames;
+                pindexNew->removedSparkNames = diskindex.removedSparkNames;
 
                 if (fCheckPoWForAllBlocks) {
                     if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, consensusParams))
@@ -619,6 +649,17 @@ void handleZerocoinSpend(Iterator const begin, Iterator const end, uint256 const
         addrType = AddressType::sigmaSpend;
     }  else if(tx.IsSparkSpend()){
         addrType = AddressType::sparkSpend;
+
+        if (height >= Params().GetConsensus().nSparkNamesStartBlock) {
+            spark::SpendTransaction spendTx(spark::Params::get_default());
+            CSparkNameTxData sparkNameData;
+            size_t pos;
+            CSparkNameManager* sparkNameManager = CSparkNameManager::GetInstance();
+
+            if (sparkNameManager->ParseSparkNameTxData(tx, spendTx, sparkNameData, pos))
+                addressIndex->push_back(std::make_pair(
+                    CAddressIndexKey(AddressType::sparkName, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
+        }
     }
 
     addressIndex->push_back(std::make_pair(CAddressIndexKey(addrType, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
@@ -647,7 +688,6 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
 
     if(out.scriptPubKey.IsSparkSMint())
         addressIndex->push_back(std::make_pair(CAddressIndexKey(AddressType::sparksMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
-
 
     txnouttype type;
     std::vector<std::vector<unsigned char> > addresses;

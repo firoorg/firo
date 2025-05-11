@@ -14,6 +14,7 @@
 #include "receiverequestdialog.h"
 #include "recentrequeststablemodel.h"
 #include "walletmodel.h"
+#include "createsparknamepage.h"
 
 #include <QAction>
 #include <QCursor>
@@ -52,8 +53,10 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
 
     if(ui->addressTypeCombobox->currentText() == "Spark"){
         ui->reuseAddress->hide();
+        ui->createSparkNameButton->setVisible(true);
     } else {
         ui->reuseAddress->show();
+        ui->createSparkNameButton->setVisible(false);
     }
 
     ui->addressTypeHistoryCombobox->addItem(tr("All"), All);
@@ -83,6 +86,8 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     connect(ui->clearButton, &QPushButton::clicked, this, &ReceiveCoinsDialog::clear);
     connect(ui->addressTypeHistoryCombobox, qOverload<int>(&QComboBox::activated), this, &ReceiveCoinsDialog::chooseType);
     connect(ui->addressTypeCombobox, qOverload<int>(&QComboBox::activated), this, &ReceiveCoinsDialog::displayCheckBox);
+
+    connect(ui->createSparkNameButton, &QPushButton::clicked, this, &ReceiveCoinsDialog::createSparkName);
 }
 
 void ReceiveCoinsDialog::setModel(WalletModel *_model)
@@ -133,6 +138,7 @@ void ReceiveCoinsDialog::clear()
     ui->reqLabel->setText("");
     ui->reqMessage->setText("");
     ui->reuseAddress->setChecked(false);
+    ui->createSparkNameButton->setVisible(false);
     updateDisplayUnit();
 }
 
@@ -323,8 +329,10 @@ void ReceiveCoinsDialog::displayCheckBox(int idx)
 {
     if(idx==0){
         ui->reuseAddress->hide();
+        ui->createSparkNameButton->setVisible(true);
     } else {
         ui->reuseAddress->show();
+        ui->createSparkNameButton->setVisible(false);
     }
 }
 
@@ -455,4 +463,11 @@ void ReceiveCoinsDialog::adjustTextSize(int width,int height){
     ui->recentRequestsView->setFont(font);
     ui->recentRequestsView->horizontalHeader()->setFont(font);
     ui->recentRequestsView->verticalHeader()->setFont(font);
+}
+
+void ReceiveCoinsDialog::createSparkName() {
+    CreateSparkNamePage *dialog = new CreateSparkNamePage(platformStyle, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModel(model);
+    dialog->show();
 }

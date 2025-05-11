@@ -170,6 +170,13 @@ static Consensus::LLMQParams llmq400_85 = {
         .keepOldConnections = 5,
 };
 
+static std::array<int,21> standardSparkNamesFee = {
+    -1,
+    1000,
+    100,
+    10, 10, 10,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+};
 
 /**
  * Main network
@@ -408,8 +415,9 @@ public:
         consensus.nLelantusStartBlock = ZC_LELANTUS_STARTING_BLOCK;
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_FIXES_START_BLOCK;
         consensus.nSparkStartBlock = SPARK_START_BLOCK;
-        consensus.nSparkCoinbase = SPARK_START_BLOCK; //TODO levon
+        consensus.nSparkCoinbase = 1100000; //TODO levon
         consensus.nLelantusGracefulPeriod = LELANTUS_GRACEFUL_PERIOD;
+        consensus.nSigmaEndBlock = ZC_SIGMA_END_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD;
@@ -482,6 +490,10 @@ public:
 
         // exchange address
         consensus.nExchangeAddressStartBlock = consensus.nSparkStartBlock;
+
+        // spark names
+        consensus.nSparkNamesStartBlock = 1104500;  // ~ May 28th 2025
+        consensus.nSparkNamesFee = standardSparkNamesFee;
     }
     virtual bool SkipUndoForBlock(int nHeight) const
     {
@@ -722,9 +734,9 @@ public:
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_TESTNET_FIXES_START_BLOCK;
 
         consensus.nSparkStartBlock = SPARK_TESTNET_START_BLOCK;
-        consensus.nSparkCoinbase = SPARK_TESTNET_START_BLOCK; //TODO levon put the real HW block
+        consensus.nSparkCoinbase = 177000;
         consensus.nLelantusGracefulPeriod = LELANTUS_TESTNET_GRACEFUL_PERIOD;
-
+        consensus.nSigmaEndBlock = ZC_SIGMA_TESTNET_END_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
@@ -785,6 +797,10 @@ public:
 
         // exchange address
         consensus.nExchangeAddressStartBlock = 147000;
+
+        // spark names
+        consensus.nSparkNamesStartBlock = 174000;
+        consensus.nSparkNamesFee = standardSparkNamesFee;
     }
 };
 
@@ -984,7 +1000,7 @@ public:
         consensus.nSparkStartBlock = 1500;
         consensus.nSparkCoinbase = 1500; //TODO levon put the real HW block
         consensus.nLelantusGracefulPeriod = 6000;
-
+        consensus.nSigmaEndBlock = 3600;
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
         consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
         consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
@@ -1030,6 +1046,10 @@ public:
 
         // exchange address
         consensus.nExchangeAddressStartBlock = 2500;
+
+        // spark names
+        consensus.nSparkNamesStartBlock = 3500;
+        consensus.nSparkNamesFee = standardSparkNamesFee;
     }
 };
 
@@ -1225,6 +1245,7 @@ public:
         consensus.nSparkCoinbase = consensus.nSparkStartBlock;
         consensus.nExchangeAddressStartBlock = 1000;
         consensus.nLelantusGracefulPeriod = 1500;
+        consensus.nSigmaEndBlock = 1400;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = 1;
         consensus.nZerocoinV2MintGracefulPeriod = 1;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = 1;
@@ -1271,6 +1292,10 @@ public:
         consensus.nPPSwitchTime = INT_MAX;
         consensus.nPPBlockNumber = INT_MAX;
         consensus.nInitialPPDifficulty = 0x2000ffff;
+
+        // spark names
+        consensus.nSparkNamesStartBlock = 2000;
+        consensus.nSparkNamesFee = standardSparkNamesFee;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)
