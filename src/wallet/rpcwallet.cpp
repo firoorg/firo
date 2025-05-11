@@ -3954,7 +3954,7 @@ UniValue getsparknames(const JSONRPCRequest &request)
     if (request.fHelp || request.params.size() > 1) {
         throw std::runtime_error(
             "getsparknames [fOnlyOwn] \n"
-            "\nReturns a list of all Spark names.\n"
+            "\nReturns a list of all Spark names and additional info.\n"
             "\nArguments:\n"
             "1. onlyown       (boolean, optional, default=false) Display only the spark names that belong to this wallet\n"
             "\nResult:\n"
@@ -3991,7 +3991,10 @@ UniValue getsparknames(const JSONRPCRequest &request)
                 continue;
             entry.push_back(Pair("name", name));
             entry.push_back(Pair("address", sparkAddress));
-
+            entry.push_back(Pair("validUntil", sparkNameManager->GetSparkNameBlockHeight(name)));
+            std::string addData = sparkNameManager->GetSparkNameAdditionalData(name);
+            if (addData != "")
+                entry.push_back(Pair("additionalInfo", addData));
             result.push_back(entry);
         }
     }

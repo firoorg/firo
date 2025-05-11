@@ -648,6 +648,17 @@ void handleZerocoinSpend(Iterator const begin, Iterator const end, uint256 const
         addrType = AddressType::sigmaSpend;
     }  else if(tx.IsSparkSpend()){
         addrType = AddressType::sparkSpend;
+
+        if (height >= Params().GetConsensus().nSparkNamesStartBlock) {
+            spark::SpendTransaction spendTx(spark::Params::get_default());
+            CSparkNameTxData sparkNameData;
+            size_t pos;
+            CSparkNameManager* sparkNameManager = CSparkNameManager::GetInstance();
+
+            if (sparkNameManager->ParseSparkNameTxData(tx, spendTx, sparkNameData, pos))
+                addressIndex->push_back(std::make_pair(
+                    CAddressIndexKey(AddressType::sparkName, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
+        }
     }
 
     addressIndex->push_back(std::make_pair(CAddressIndexKey(addrType, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
@@ -676,7 +687,6 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
 
     if(out.scriptPubKey.IsSparkSMint())
         addressIndex->push_back(std::make_pair(CAddressIndexKey(AddressType::sparksMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
-
 
     txnouttype type;
     std::vector<std::vector<unsigned char> > addresses;
