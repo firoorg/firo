@@ -764,6 +764,7 @@ std::vector<CRecipient> CSparkWallet::CreateSparkMintRecipients(
 }
 
 bool CSparkWallet::CreateSparkMintTransactions(
+        const std::vector<CRecipient>& vecSend,
         const std::vector<spark::MintedCoinData>& outputs,
         std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
         CAmount& nAllFeeRet,
@@ -775,8 +776,17 @@ bool CSparkWallet::CreateSparkMintTransactions(
         const CCoinControl *coinControl,
         bool autoMintAll)
 {
-
     int nChangePosRequest = nChangePosInOut;
+    CAmount nValue = 0;
+    for (const auto& recipient : vecSend)
+    {
+        if (nValue < 0 || recipient.nAmount < 0)
+        {
+            strFailReason = _("Transaction amounts must not be negative");
+            return false;
+        }
+        nValue += recipient.nAmount;
+    }
 
     // Create transaction template
     CWalletTx wtxNew;
@@ -789,10 +799,13 @@ bool CSparkWallet::CreateSparkMintTransactions(
     assert(txNew.nLockTime <= (unsigned int) chainActive.Height());
     assert(txNew.nLockTime < LOCKTIME_THRESHOLD);
     std::vector<spark::MintedCoinData> outputs_ = outputs;
+    std::vector<CRecipient> sendOutputs = vecSend;
     CAmount valueToMint = 0;
 
     for (auto& output : outputs_)
         valueToMint += output.v;
+
+    CAmount totalValue = valueToMint + nValue;
 
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -831,31 +844,31 @@ bool CSparkWallet::CreateSparkMintTransactions(
 //                CAmount valueToMintInTx = std::min(
 //                        ::Params().GetConsensus().nMaxValueLelantusMint, itr->first);
 
-                CAmount valueToMintInTx = itr->first;
+                CAmount valueToSendInTx = itr->first;
 
                 if (!autoMintAll) {
-                    valueToMintInTx = std::min(valueToMintInTx, valueToMint);
+                    valueToSendInTx = std::min(valueToSendInTx, totalValue);
                 }
 
-                CAmount nValueToSelect, mintedValue;
+                CAmount nValueToSelect, sendValue;
 
                 std::set<std::pair<const CWalletTx *, unsigned int>> setCoins;
                 bool skipCoin = false;
                 // Start with no fee and loop until there is enough fee
                 while (true) {
-                    mintedValue = valueToMintInTx;
+                    sendValue = valueToSendInTx;
                     if (subtractFeeFromAmount)
-                        nValueToSelect = mintedValue;
+                        nValueToSelect = sendValue;
                     else
-                        nValueToSelect = mintedValue + nFeeRet;
+                       nValueToSelect = sendValue + nFeeRet;
 
                     // if no enough coins in this group then subtract fee from mint
                     if (nValueToSelect > itr->first && !subtractFeeFromAmount) {
-                        nValueToSelect = mintedValue;
-                        mintedValue -= nFeeRet;
+                        nValueToSelect = sendValue;
+                        sendValue -= nFeeRet;
                     }
 
-                    if (!MoneyRange(mintedValue) || mintedValue == 0) {
+                    if (!MoneyRange(sendValue) || sendValue == 0) {
                         valueAndUTXO.erase(itr);
                         skipCoin = true;
                         break;
@@ -867,17 +880,22 @@ bool CSparkWallet::CreateSparkMintTransactions(
                     wtx.fFromMe = true;
                     wtx.changes.clear();
                     setCoins.clear();
+                    std::vector<CRecipient>  remainingSendOutputs = sendOutputs;
                     std::vector<spark::MintedCoinData>  remainingOutputs = outputs_;
                     std::vector<spark::MintedCoinData> singleTxOutputs;
+                    std::vector<CRecipient>  singleTxSendOutputs;
                     if (autoMintAll) {
                         spark::MintedCoinData  mintedCoinData;
-                        mintedCoinData.v = mintedValue;
+                        mintedCoinData.v = sendValue;
                         mintedCoinData.memo = "";
                         mintedCoinData.address = getDefaultAddress();
                         singleTxOutputs.push_back(mintedCoinData);
                     } else {
-                        uint64_t remainingMintValue = mintedValue;
-                        while (remainingMintValue > 0){
+                        uint64_t remainingMintValue = sendValue;
+                        while (!remainingOutputs.empty()) {
+                            if (remainingMintValue <= 0) {
+                                break;
+                            }
                             // Create the mint data and push into vector
                             uint64_t singleMintValue = std::min(remainingMintValue, remainingOutputs.begin()->v);
                             spark::MintedCoinData mintedCoinData;
@@ -893,25 +911,59 @@ bool CSparkWallet::CreateSparkMintTransactions(
                             if (remainingOutputs.begin()->v == 0)
                                 remainingOutputs.erase(remainingOutputs.begin());
                         }
+
+                        while (!remainingSendOutputs.empty() && remainingMintValue > 0) {
+                                CAmount  singleSendValue = std::min(static_cast<CAmount>(remainingMintValue), remainingSendOutputs.begin()->nAmount);
+                                CRecipient sendCoinData;
+                                sendCoinData.nAmount = singleSendValue;
+                                sendCoinData.address = remainingSendOutputs.begin()->address;
+                                sendCoinData.scriptPubKey = remainingSendOutputs.begin()->scriptPubKey;
+                                singleTxSendOutputs.push_back(sendCoinData);
+
+                                // subtract minted amount from remaining value
+                                remainingMintValue -= singleSendValue;
+                                remainingSendOutputs.begin()->nAmount -= singleSendValue;
+
+                                if (remainingSendOutputs.begin()->nAmount == 0)
+                                    remainingSendOutputs.erase(remainingSendOutputs.begin());
+                        }
                     }
 
                     if (subtractFeeFromAmount) {
-                        CAmount singleFee = nFeeRet / singleTxOutputs.size();
-                        CAmount reminder = nFeeRet % singleTxOutputs.size();
+                        size_t totalOutputs = singleTxOutputs.size() + singleTxSendOutputs.size();
+                        CAmount singleFee = nFeeRet / totalOutputs;
+                        CAmount remainder = nFeeRet % totalOutputs;
+
                         for (size_t i = 0; i < singleTxOutputs.size(); ++i) {
                             if (singleTxOutputs[i].v <= singleFee) {
+                                remainder += singleTxOutputs[i].v - singleFee;
                                 singleTxOutputs.erase(singleTxOutputs.begin() + i);
-                                reminder += singleTxOutputs[i].v - singleFee;
+                                remainder += singleTxOutputs[i].v - singleFee;
                                 if (!singleTxOutputs.size()) {
                                     strFailReason = _("Transaction amount too small");
                                     return false;
                                 }
                                 --i;
+                            } else {
+                                singleTxOutputs[i].v -= singleFee;
+                                if (remainder > 0 && singleTxOutputs[i].v > remainder) {
+                                    singleTxOutputs[i].v -= remainder;
+                                    remainder = 0;
+                                }
                             }
-                            singleTxOutputs[i].v -= singleFee;
-                            if (reminder > 0 && singleTxOutputs[i].v > nFeeRet % singleTxOutputs.size()) {// first receiver pays the remainder not divisible by output count
-                                singleTxOutputs[i].v -= reminder;
-                                reminder = 0;
+                        }
+
+                        for (size_t i = 0; i < singleTxSendOutputs.size(); ++i) {
+                            if (singleTxSendOutputs[i].nAmount <= singleFee) {
+                                remainder += singleTxSendOutputs[i].nAmount - singleFee;
+                                singleTxSendOutputs.erase(singleTxSendOutputs.begin() + i);
+                                --i;
+                            } else {
+                                singleTxSendOutputs[i].nAmount -= singleFee;
+                                if (remainder > 0 && singleTxSendOutputs[i].nAmount > remainder) {
+                                    singleTxSendOutputs[i].nAmount -= remainder;
+                                    remainder = 0;
+                                }
                             }
                         }
                     }
@@ -930,6 +982,27 @@ bool CSparkWallet::CreateSparkMintTransactions(
 
                         tx.vout.push_back(txout);
                     }
+
+                    for (const auto& recipient : singleTxSendOutputs)
+                    {
+                        CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
+
+                        if (txout.IsDust(dustRelayFee))
+                        {
+                            if (recipient.fSubtractFeeFromAmount && nFeeRet > 0)
+                            {
+                                if (txout.nValue < 0)
+                                    strFailReason = _("The transaction amount is too small to pay the fee");
+                                else
+                                    strFailReason = _("The transaction amount is too small to send after the fee has been deducted");
+                            }
+                            else
+                                strFailReason = _("Transaction amount too small");
+                            return false;
+                        }
+                        tx.vout.push_back(txout);
+                    }
+
                     // Choose coins to use
                     CAmount nValueIn = 0;
                     if (!pwalletMain->SelectCoins(itr->second, nValueToSelect, setCoins, nValueIn, coinControl)) {
@@ -1130,6 +1203,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
 
                         //remove output from outputs_ vector if it got all requested value
                         outputs_ = remainingOutputs;
+                        sendOutputs = remainingSendOutputs;
 
                         break; // Done, enough fee included.
                     }
@@ -1218,15 +1292,16 @@ bool CSparkWallet::CreateSparkMintTransactions(
 
                 nAllFeeRet += nFeeRet;
                 if (!autoMintAll) {
-                    valueToMint -= mintedValue;
-                    if (valueToMint == 0)
+                    totalValue -= sendValue;
+                    if (totalValue == 0) {
                         break;
+                    }
                 }
             }
         }
     }
 
-    if (!autoMintAll && valueToMint > 0) {
+    if (!autoMintAll && totalValue > 0) {
         return false;
     }
 

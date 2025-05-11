@@ -1041,6 +1041,7 @@ public:
     bool IsSparkAddressMine(const std::string& address);
 
     bool CreateSparkMintTransactions(
+        const std::vector<CRecipient>& vecSend,
         const std::vector<spark::MintedCoinData>& outputs,
         std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
         CAmount& nAllFeeRet,
@@ -1092,6 +1093,7 @@ public:
             const CCoinControl *coinControl = NULL);
 
     std::string MintAndStoreSpark(
+            const std::vector<CRecipient>& vecSend,
             const std::vector<spark::MintedCoinData>& outputs,
             std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
             bool subtractFeeFromAmount,

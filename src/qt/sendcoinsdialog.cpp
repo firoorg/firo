@@ -381,7 +381,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
     if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
         prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, &ctrl);
-    } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount)) {
+    } else if ((fAnonymousMode == false) && (sparkAddressCount > 0)) {
         if (spark::IsSparkAllowed())
             prepareStatus = model->prepareMintSparkTransaction(transactions, recipients, wtxAndFees, reservekeys, &ctrl);
         else {
@@ -540,7 +540,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     double txSize;
-    if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
+    if ((fAnonymousMode == false) && (sparkAddressCount > 0) && spark::IsSparkAllowed())
     {
         for (auto &transaction : transactions) {
             txFee += transaction.getTransactionFee();
@@ -575,7 +575,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     // add total amount in all subdivision units
     questionString.append("<hr />");
-    if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
+    if ((fAnonymousMode == false) && (sparkAddressCount > 0) && spark::IsSparkAllowed())
     {
         totalAmount = mintSparkAmount + txFee;
     } else if ((fAnonymousMode == true) && (recipients.size() == 1) && spark::IsSparkAllowed()) {
@@ -615,7 +615,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
         sendStatus = model->spendSparkCoins(currentTransaction);
-    } else if ((fAnonymousMode == false) && (sparkAddressCount == recipients.size()) && spark::IsSparkAllowed()) {
+    } else if ((fAnonymousMode == false) && (sparkAddressCount > 0) && spark::IsSparkAllowed()) {
         sendStatus = model->mintSparkCoins(transactions, wtxAndFees, reservekeys);
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
         sendStatus = model->sendCoins(currentTransaction);
