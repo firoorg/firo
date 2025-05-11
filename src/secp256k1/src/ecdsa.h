@@ -4,8 +4,8 @@
  * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
  **********************************************************************/
 
-#ifndef _SECP256K1_ECDSA_
-#define _SECP256K1_ECDSA_
+#ifndef SECP256K1_ECDSA_
+#define SECP256K1_ECDSA_
 
 #include <stddef.h>
 

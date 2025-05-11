@@ -23,7 +23,6 @@
 #include "transactionview.h"
 #include "walletmodel.h"
 
-#include "ui_interface.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -496,6 +495,8 @@ bool WalletView::eventFilter(QObject *watched, QEvent *event)
     case QEvent::Type::Resize:
     case QEvent::Type::Move:
         repositionAutomintSparkNotification();
+        break;
+    default:
         break;
     }
 

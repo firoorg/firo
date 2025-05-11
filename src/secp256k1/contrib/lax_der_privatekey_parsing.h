@@ -25,8 +25,8 @@
  * library are sufficient.
  */
 
-#ifndef _SECP256K1_CONTRIB_BER_PRIVATEKEY_H_
-#define _SECP256K1_CONTRIB_BER_PRIVATEKEY_H_
+#ifndef SECP256K1_CONTRIB_BER_PRIVATEKEY_H_
+#define SECP256K1_CONTRIB_BER_PRIVATEKEY_H_
 
 #include <secp256k1.h>
 

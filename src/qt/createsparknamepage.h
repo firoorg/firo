@@ -28,7 +28,7 @@ public:
 
     void setModel(WalletModel *model);
 
-    void accept();
+    void accept() override;
 
 private:
     Ui::CreateSparkNamePage *ui;

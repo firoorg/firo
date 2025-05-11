@@ -84,7 +84,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     uint32_t BlocksTargetSpacing =
         (params.nMTPFiveMinutesStartBlock == 0 && fMTP) || (params.nMTPFiveMinutesStartBlock > 0 && pindexLast->nHeight >= params.nMTPFiveMinutesStartBlock) ?
             params.nPowTargetSpacingMTP : params.nPowTargetSpacing;
-    if (pindexLast->nTime >= params.stage3StartTime)
+    if (cmp::greater_equal(pindexLast->nTime, params.stage3StartTime))
         BlocksTargetSpacing /= 2;
 
     unsigned int TimeDaySeconds = 60 * 60 * 24;
@@ -95,7 +95,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     uint32_t StartingPoWBlock = 0;
 
     if (pblock->IsShorterBlocksSpacing()) {
-        if (pindexLast->nTime < params.stage3StartTime) {
+        if (cmp::less(pindexLast->nTime, params.stage3StartTime)) {
             // first time we see a block with shorter interval
             // Normally we should take difficulty and halve it. But to give some leeway to the miners
             // we divide it by 4
@@ -118,7 +118,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
         else if (pblock->nTime < params.stage3StartTime + BlocksTargetSpacing*PastBlocksMax*3) {
             // transition to stage3 happened recently, look for the last block before the transition
             const CBlockIndex *pindex = pindexLast;
-            while (pindex && pindex->nTime >= params.stage3StartTime)
+            while (pindex && cmp::greater_equal(pindex->nTime, params.stage3StartTime))
                 pindex = pindex->pprev;
 
             if (pindex)
