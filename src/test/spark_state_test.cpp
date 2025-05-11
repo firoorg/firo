@@ -54,7 +54,7 @@ public:
 
     void PopulateSparkTxInfo(
         CBlock& block,
-        std::vector<spark::Coin> const& mints,
+        std::vector<std::pair<spark::Coin, bool>> const& mints,
         std::vector<std::pair<GroupElement, int> > const& lTags)
     {
         block.sparkTxInfo = std::make_shared<spark::CSparkTxInfo>();
@@ -85,13 +85,13 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
     mempool.clear();
     auto blockIdx1 = GenerateBlock({txs[0]});
     auto block1 = GetCBlock(blockIdx1);
-    PopulateSparkTxInfo(block1, {pwalletMain->sparkWallet->getCoinFromMeta(mints[0])}, {});
+    PopulateSparkTxInfo(block1, {{pwalletMain->sparkWallet->getCoinFromMeta(mints[0]), false}}, {});
 
     sparkState->AddMintsToStateAndBlockIndex(blockIdx1, &block1);
 
     auto blockIdx2 = GenerateBlock({txs[1]});
     auto block2 = GetCBlock(blockIdx2);
-    PopulateSparkTxInfo(block2, {pwalletMain->sparkWallet->getCoinFromMeta(mints[1])}, {});
+    PopulateSparkTxInfo(block2, {{pwalletMain->sparkWallet->getCoinFromMeta(mints[1]), false}}, {});
 
     sparkState->AddMintsToStateAndBlockIndex(blockIdx2, &block2);
 
@@ -142,7 +142,7 @@ BOOST_AUTO_TEST_CASE(lTag_adding)
 
     auto blockIdx = chainActive.Tip();
     auto block = GetCBlock(blockIdx);
-    PopulateSparkTxInfo(block, {{pwalletMain->sparkWallet->getCoinFromMeta(mints[0])}}, {});
+    PopulateSparkTxInfo(block, {{pwalletMain->sparkWallet->getCoinFromMeta(mints[0]), false}}, {});
 
     sparkState->AddMintsToStateAndBlockIndex(blockIdx, &block);
 
@@ -176,7 +176,7 @@ BOOST_AUTO_TEST_CASE(mempool)
 
     auto blockIdx = chainActive.Tip();
     auto block = GetCBlock(blockIdx);
-    PopulateSparkTxInfo(block, {{pwalletMain->sparkWallet->getCoinFromMeta(mint)}}, {});
+    PopulateSparkTxInfo(block, {{pwalletMain->sparkWallet->getCoinFromMeta(mint), false}}, {});
 
     sparkState->AddMintsToStateAndBlockIndex(blockIdx, &block);
 
@@ -267,7 +267,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
 
     auto index2 = GenerateBlock({});
     auto block2 = GetCBlock(index2);
-    PopulateSparkTxInfo(block2, {pwalletMain->sparkWallet->getCoinFromMeta(mint1), pwalletMain->sparkWallet->getCoinFromMeta(mint2)}, {});
+    PopulateSparkTxInfo(block2, {{pwalletMain->sparkWallet->getCoinFromMeta(mint1), false}, {pwalletMain->sparkWallet->getCoinFromMeta(mint2), false}}, {});
 
     sparkState->AddMintsToStateAndBlockIndex(index2, &block2);
     sparkState->AddBlock(index2);
@@ -298,7 +298,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
 
     auto index4 = GenerateBlock({});
     auto block4 = GetCBlock(index4);
-    PopulateSparkTxInfo(block4, {pwalletMain->sparkWallet->getCoinFromMeta(mint3)}, {{lTag3, 1}});
+    PopulateSparkTxInfo(block4, {{pwalletMain->sparkWallet->getCoinFromMeta(mint3), false}}, {{lTag3, 1}});
     sparkState->AddMintsToStateAndBlockIndex(index4, &block4);
     index4->spentLTags = block4.sparkTxInfo->spentLTags;
 
@@ -348,8 +348,8 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
         PopulateSparkTxInfo(
              block,
              {
-                pwalletMain->sparkWallet->getCoinFromMeta(mints[i]),
-                pwalletMain->sparkWallet->getCoinFromMeta(mints[i + 1])
+                 {pwalletMain->sparkWallet->getCoinFromMeta(mints[i]), false},
+                 {pwalletMain->sparkWallet->getCoinFromMeta(mints[i + 1]), false}
              },
              {});
 

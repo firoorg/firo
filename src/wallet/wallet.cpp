@@ -2627,7 +2627,7 @@ CAmount CWalletTx::GetCredit(const isminefilter& filter) const
 
 CAmount CWalletTx::GetImmatureCredit(bool fUseCache) const
 {
-    if (IsCoinBase() && GetBlocksToMaturity() > 0 && IsInMainChain())
+    if (IsCoinBase() && !this->tx->IsSparkMint() && GetBlocksToMaturity() > 0 && IsInMainChain())
     {
         if (fUseCache && fImmatureCreditCached)
             return nImmatureCreditCached;
@@ -6917,12 +6917,24 @@ bool CWallet::UpdatedTransaction(const uint256 &hashTx)
 void CWallet::GetScriptForMining(boost::shared_ptr<CReserveScript> &script)
 {
     boost::shared_ptr<CReserveKey> rKey(new CReserveKey(this));
-    CPubKey pubkey;
-    if (!rKey->GetReservedKey(pubkey))
-        return;
+    int nTxHeight;
+    {
+        LOCK(cs_main);
+        nTxHeight = chainActive.Height();
+    }
+    if (GetBoolArg("-sparkreward", DEFAULT_SPARK_REWARD) && nTxHeight > ::Params().GetConsensus().nSparkCoinbase) {
+        spark::Address address = sparkWallet->getDefaultAddress();
+        unsigned char network = spark::GetNetworkType();
+        script = rKey;
+        script->reserveScript = CScript() << address.toByteVector(network) << OP_SPARKMINT;
+    } else{
+        CPubKey pubkey;
+        if (!rKey->GetReservedKey(pubkey))
+            return;
 
-    script = rKey;
-    script->reserveScript = CScript() << ToByteVector(pubkey) << OP_CHECKSIG;
+        script = rKey;
+        script->reserveScript = CScript() << ToByteVector(pubkey) << OP_CHECKSIG;
+    }
 }
 
 void CWallet::LockCoin(const COutPoint& output)
@@ -7173,6 +7185,7 @@ std::string CWallet::GetWalletHelpString(bool showDebug)
     strUsage += HelpMessageOpt("-zapwalletmints", _("Delete all Sigma mints and only recover those parts of the blockchain through -reindex on startup"));
     strUsage += HelpMessageOpt("-zapwallettxes=<mode>", _("Delete all wallet transactions and only recover those parts of the blockchain through -rescan on startup") +
                                " " + _("(1 = keep tx meta data e.g. account owner and payment request information, 2 = drop tx meta data)"));
+    strUsage += HelpMessageOpt("-sparkreward", strprintf(_("Send block reward to spark address (default: %u)"), DEFAULT_SPARK_REWARD));
 
     if (showDebug)
     {
@@ -7326,9 +7339,13 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     LogPrintf(" wallet      %15dms\n", GetTimeMillis() - nStart);
     if (pwalletMain->IsHDSeedAvailable()) {
         walletInstance->zwallet = std::make_unique<CHDMintWallet>(pwalletMain->strWalletFile);
-
+        int nTxHeight;
+        {
+            LOCK(cs_main);
+            nTxHeight = chainActive.Height();
+        }
         // if it is first run, we need to generate the full key set for spark, if not we are loading spark wallet from db
-        walletInstance->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
+        walletInstance->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile, nTxHeight);
 
         spark::Address address = walletInstance->sparkWallet->getDefaultAddress();
         unsigned char network = spark::GetNetworkType();

@@ -23,7 +23,7 @@ const uint32_t SPARK_CHANGE_D = 0x270F;
 
 class CSparkWallet  {
 public:
-    CSparkWallet(const std::string& strWalletFile);
+    CSparkWallet(const std::string& strWalletFile, uint32_t height);
     ~CSparkWallet();
     // increment diversifier and generate address for that
     spark::Address generateNextAddress();
@@ -100,7 +100,7 @@ public:
     void UpdateMintState(const std::vector<spark::Coin>& coins, const uint256& txHash, CWalletDB& walletdb);
     void UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins, const uint256& txHash);
     void UpdateMintStateFromBlock(const CBlock& block);
-    void RemoveSparkMints(const std::vector<spark::Coin>& mints);
+    void RemoveSparkMints(const std::vector<std::pair<spark::Coin, bool>>& mints);
     void RemoveSparkSpends(const std::unordered_map<GroupElement, int>& spends);
     void AbandonSparkMints(const std::vector<spark::Coin>& mints);
     void AbandonSpends(const std::vector<GroupElement>& spends);
@@ -176,6 +176,8 @@ private:
     std::unordered_map<uint256, CSparkMintMeta> coinMeta;
 
     void* threadPool;
+
+    uint32_t height;
 };
 
 

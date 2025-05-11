@@ -96,6 +96,9 @@ static const bool DEFAULT_USE_HD_WALLET = true;
 //! if set, all keys will be derived by using BIP39
 static const bool DEFAULT_USE_MNEMONIC = true;
 
+//! if set, block reward will be sent to your spark address
+static const bool DEFAULT_SPARK_REWARD = false;
+
 extern const char * DEFAULT_WALLET_DAT;
 
 const uint32_t BIP32_HARDENED_KEY_LIMIT = 0x80000000;

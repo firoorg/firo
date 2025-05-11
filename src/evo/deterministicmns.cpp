@@ -30,9 +30,18 @@ std::string CDeterministicMNState::ToString() const
     std::string operatorPayoutAddress = "none";
     if (ExtractDestination(scriptPayout, dest)) {
         payoutAddress = CBitcoinAddress(dest).ToString();
+    } else {
+        std::string strScriptPayout = spark::ToStringSparkAddress(scriptPayout);
+        if (!strScriptPayout.empty())
+            payoutAddress = std::move(strScriptPayout);
     }
+
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         operatorPayoutAddress = CBitcoinAddress(dest).ToString();
+    } else {
+        std::string strScriptPayout = spark::ToStringSparkAddress(scriptOperatorPayout);
+        if (!strScriptPayout.empty())
+            operatorPayoutAddress = std::move(strScriptPayout);
     }
 
     return strprintf("CDeterministicMNState(nRegisteredHeight=%d, nLastPaidHeight=%d, nPoSePenalty=%d, nPoSeRevivedHeight=%d, nPoSeBanHeight=%d, nRevocationReason=%d, "
@@ -59,11 +68,20 @@ void CDeterministicMNState::ToJson(UniValue& obj) const
     if (ExtractDestination(scriptPayout, dest)) {
         CBitcoinAddress payoutAddress(dest);
         obj.push_back(Pair("payoutAddress", payoutAddress.ToString()));
+    } else {
+        std::string strScriptPayout = spark::ToStringSparkAddress(scriptPayout);
+        if (!strScriptPayout.empty())
+            obj.push_back(Pair("payoutAddress", strScriptPayout));
     }
+
     obj.push_back(Pair("pubKeyOperator", pubKeyOperator.Get().ToString()));
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         CBitcoinAddress operatorPayoutAddress(dest);
         obj.push_back(Pair("operatorPayoutAddress", operatorPayoutAddress.ToString()));
+    } else {
+        std::string strScriptPayout = spark::ToStringSparkAddress(scriptOperatorPayout);
+        if (!strScriptPayout.empty())
+            obj.push_back(Pair("operatorPayoutAddress", strScriptPayout));
     }
 }
 

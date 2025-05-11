@@ -14,7 +14,7 @@
 
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
 
-CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
+CSparkWallet::CSparkWallet(const std::string& strWalletFile, uint32_t height) {
 
     CWalletDB walletdb(strWalletFile);
     this->strWalletFile = strWalletFile;
@@ -78,6 +78,8 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 
     if (fWalletJustUnlocked)
         pwalletMain->Lock();
+
+    this->height = height;
 }
 
 CSparkWallet::~CSparkWallet() {
@@ -113,6 +115,9 @@ CAmount CSparkWallet::getAvailableBalance() {
         if (mint.nHeight < 1)
             continue;
 
+        if (mint.type == spark::COIN_TYPE_COINBASE && (height - mint.nHeight) < COINBASE_MATURITY)
+            continue;
+
         result += mint.v;
     }
 
@@ -128,7 +133,10 @@ CAmount CSparkWallet::getUnconfirmedBalance() {
             continue;
 
         // Continue if confirmed
-        if (mint.nHeight > 1)
+        if (mint.nHeight > 1 && mint.type != spark::COIN_TYPE_COINBASE)
+            continue;
+
+        if (mint.type == spark::COIN_TYPE_COINBASE && (height - mint.nHeight) > COINBASE_MATURITY)
             continue;
 
         result += mint.v;
@@ -157,6 +165,9 @@ CAmount CSparkWallet::getAddressAvailableBalance(const spark::Address& address) 
         if (address.get_d() != mint.d)
             continue;
 
+        if (mint.type == spark::COIN_TYPE_COINBASE && (height - mint.nHeight) < COINBASE_MATURITY)
+            continue;
+
         result += mint.v;
     }
 
@@ -180,6 +191,9 @@ CAmount CSparkWallet::getAddressUnconfirmedBalance(const spark::Address& address
             continue;
 
         result += mint.v;
+
+        if (mint.type == spark::COIN_TYPE_COINBASE && (height - mint.nHeight) > COINBASE_MATURITY)
+            continue;
     }
 
     return result;
@@ -306,7 +320,7 @@ std::vector<CSparkMintMeta> CSparkWallet::ListSparkMints(bool fUnusedOnly, bool 
             continue;
 
         // Not confirmed
-        if (fMatureOnly && mint.nHeight < 1)
+        if (fMatureOnly && (mint.nHeight < 1 || (mint.type == spark::COIN_TYPE_COINBASE && (height - mint.nHeight) < COINBASE_MATURITY)))
             continue;
 
         setMints.push_back(mint);
@@ -497,6 +511,7 @@ void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& 
 }
 
 void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
+    height = block.nHeight;
     const auto& transactions = block.vtx;
     ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=]() {
         LOCK(cs_spark_wallet);
@@ -656,11 +671,11 @@ void CSparkWallet::UpdateMintStateFromBlock(const CBlock& block) {
     });
 }
 
-void CSparkWallet::RemoveSparkMints(const std::vector<spark::Coin>& mints) {
+void CSparkWallet::RemoveSparkMints(const std::vector<std::pair<spark::Coin, bool>>& mints) {
     for (auto coin : mints) {
         try {
-            spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
-            spark::RecoveredCoinData recoveredCoinData = coin.recover(this->fullViewKey, identifiedCoinData);
+            spark::IdentifiedCoinData identifiedCoinData = coin.first.identify(this->viewKey);
+            spark::RecoveredCoinData recoveredCoinData = coin.first.recover(this->fullViewKey, identifiedCoinData);
 
             CWalletDB walletdb(strWalletFile);
             uint256 lTagHash = primitives::GetLTagHash(recoveredCoinData.T);
@@ -688,7 +703,11 @@ void CSparkWallet::RemoveSparkSpends(const std::unordered_map<GroupElement, int>
 }
 
 void CSparkWallet::AbandonSparkMints(const std::vector<spark::Coin>& mints) {
-    RemoveSparkMints(mints);
+    std::vector<std::pair<spark::Coin, bool>> mints_;
+    mints_.reserve(mints.size());
+    for (auto& mint : mints)
+        mints_.emplace_back(std::make_pair(mint, false));
+    RemoveSparkMints(mints_);
 }
 
 void CSparkWallet::AbandonSpends(const std::vector<GroupElement>& spends) {
@@ -872,6 +891,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                     if (autoMintAll) {
                         spark::MintedCoinData  mintedCoinData;
                         mintedCoinData.v = mintedValue;
+                        mintedCoinData.type = spark::COIN_TYPE_MINT;
                         mintedCoinData.memo = "";
                         mintedCoinData.address = getDefaultAddress();
                         singleTxOutputs.push_back(mintedCoinData);
@@ -882,6 +902,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                             uint64_t singleMintValue = std::min(remainingMintValue, remainingOutputs.begin()->v);
                             spark::MintedCoinData mintedCoinData;
                             mintedCoinData.v = singleMintValue;
+                            mintedCoinData.type = spark::COIN_TYPE_MINT;
                             mintedCoinData.address = remainingOutputs.begin()->address;
                             mintedCoinData.memo = remainingOutputs.begin()->memo;
                             singleTxOutputs.push_back(mintedCoinData);

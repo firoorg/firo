@@ -244,6 +244,16 @@ unsigned char Address::decode(const std::string& str) {
 	return network;
 }
 
+std::vector<unsigned char> Address::toByteVector(unsigned char network) const {
+    std::string strAddr = encode(network);
+    return std::vector<unsigned char>(strAddr.begin(), strAddr.end());
+}
+
+unsigned char Address::fromByteVector(const std::vector<unsigned char>& vch) {
+    std::string strAddr(vch.begin(), vch.end());
+    return decode(strAddr);
+}
+
 Scalar Address::challenge(const Scalar& m, const GroupElement& A, const GroupElement& H) const {
     Transcript transcript(LABEL_TRANSCRIPT_OWNERSHIP);
     transcript.add("G", this->params->get_G());

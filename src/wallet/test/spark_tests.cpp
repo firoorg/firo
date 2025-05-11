@@ -48,6 +48,7 @@ BOOST_AUTO_TEST_CASE(create_mint_recipient)
     data.address = sparkAddress;
     data.v = v;
     data.memo = "Test memo";
+    data.type = 0;
 
     std::vector<spark::MintedCoinData> mintedCoins;
     mintedCoins.push_back(data);

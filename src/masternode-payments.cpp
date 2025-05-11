@@ -137,9 +137,16 @@ std::string GetRequiredPaymentsString(int nBlockHeight, const CDeterministicMNCP
     std::string strPayee = "Unknown";
     if (payee) {
         CTxDestination dest;
-        if (!ExtractDestination(payee->pdmnState->scriptPayout, dest))
-            assert(false);
-        strPayee = CBitcoinAddress(dest).ToString();
+        if (!ExtractDestination(payee->pdmnState->scriptPayout, dest)) {
+            std::string strScriptPayout = spark::ToStringSparkAddress(payee->pdmnState->scriptPayout);
+            if (!strScriptPayout.empty())
+                strPayee = strScriptPayout;
+            else
+                assert(false);
+        } else {
+            strPayee = CBitcoinAddress(dest).ToString();
+        }
+
     }
     /*
     if (CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
@@ -200,10 +207,16 @@ bool CMasternodePayments::GetMasternodeTxOuts(int nBlockHeight, int nTime, CAmou
 
     for (const auto& txout : voutMasternodePaymentsRet) {
         CTxDestination address1;
-        ExtractDestination(txout.scriptPubKey, address1);
-        CBitcoinAddress address2(address1);
-
-        LogPrintf("CMasternodePayments::%s -- Znode payment %lld to %s\n", __func__, txout.nValue, address2.ToString());
+        std::string strAddr;
+        if (ExtractDestination(txout.scriptPubKey, address1)) {
+            CBitcoinAddress address2(address1);
+            strAddr = address2.ToString();
+        } else {
+            std::string strScriptPayout = spark::ToStringSparkAddress(txout.scriptPubKey);
+            if (!strScriptPayout.empty())
+                strAddr = strScriptPayout;
+        }
+        LogPrintf("CMasternodePayments::%s -- Znode payment %lld to %s\n", __func__, txout.nValue, strAddr);
     }
 
     return true;
@@ -273,12 +286,49 @@ bool CMasternodePayments::IsTransactionValid(const CTransaction& txNew, int nBlo
         return true;
     }
 
+    std::vector<CScript> scripts;
+    for (const auto& txout : txNew.vout) {
+        if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsSparkMint()) {
+            scripts.push_back(txout.scriptPubKey);
+        }
+    }
+    const spark::Params* params = spark::Params::get_default();
+    std::vector<spark::Coin> coins;
+    std::vector<unsigned char> serialContext;
+    if (!scripts.empty()) {
+        spark::MintTransaction mintTransaction(params);
+        try {
+            spark::ParseSparkMintTransaction(scripts, mintTransaction);
+        } catch (std::invalid_argument&) {
+            LogPrintf("CMasternodePayments::%s -- ERROR failed to parse mint outputs in block at height %s\n", __func__, nBlockHeight);
+            return false;
+        }
+
+        //checking whether MintTransaction is valid
+        if (!mintTransaction.verify()) {
+            LogPrintf("CMasternodePayments::%s -- ERROR failed to verify mints in block at height %s\n", __func__, nBlockHeight);
+            return false;
+        }
+        mintTransaction.getCoins(coins);
+        serialContext = spark::getSerialContext(txNew);
+    }
+
     for (const auto& txout : voutMasternodePayments) {
         bool found = false;
-        for (const auto& txout2 : txNew.vout) {
-            if (txout == txout2) {
-                found = true;
-                break;
+        spark::Address addr(params);
+        if (spark::IsPayToSparkAddress(txout.scriptPubKey, addr) && !coins.empty()) {
+            for (const auto  &coin: coins) {
+                if (coin.isValidMNPayment(addr, serialContext)) {
+                    found = true;
+                    break;
+                }
+            }
+        } else {
+            for (const auto &txout2: txNew.vout) {
+                if (txout == txout2) {
+                    found = true;
+                    break;
+                }
             }
         }
         if (!found) {

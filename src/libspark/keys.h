@@ -74,15 +74,18 @@ private:
 class Address {
 public:
     Address();
-	Address(const Params* params);
-	Address(const IncomingViewKey& incoming_view_key, const uint64_t i);
-	const Params* get_params() const;
-	const std::vector<unsigned char>& get_d() const;
-	const GroupElement& get_Q1() const;
-	const GroupElement& get_Q2() const;
+    Address(const Params* params);
+    Address(const IncomingViewKey& incoming_view_key, const uint64_t i);
+    const Params* get_params() const;
+    const std::vector<unsigned char>& get_d() const;
+    const GroupElement& get_Q1() const;
+    const GroupElement& get_Q2() const;
 
-	std::string encode(const unsigned char network) const;
-	unsigned char decode(const std::string& str);
+    std::string encode(const unsigned char network) const;
+    unsigned char decode(const std::string& str);
+
+    std::vector<unsigned char> toByteVector(unsigned char network) const;
+    unsigned char fromByteVector(const std::vector<unsigned char>& vch);
 
     Scalar challenge(const Scalar& m, const GroupElement& A, const GroupElement& H) const;
     void prove_own(const Scalar& m,
@@ -93,9 +96,9 @@ public:
     bool verify_own(const Scalar& m,
                     OwnershipProof& proof) const;
 
-	bool operator < (const Address &other) const {
-		return encode(0) < other.encode(0);
-	}
+    bool operator < (const Address &other) const {
+	    return encode(0) < other.encode(0);
+    }
 
 private:
 	const Params* params;

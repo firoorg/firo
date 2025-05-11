@@ -264,6 +264,8 @@ struct Params {
 
     int nSparkStartBlock;
 
+    int nSparkCoinbase;
+
     int nSparkNamesStartBlock;
     std::array<int,21> nSparkNamesFee;
 

@@ -23,8 +23,8 @@ public:
     // all the spark transactions encountered so far
     std::set<uint256> spTransactions;
 
-    // Vector of all mints
-    std::vector<spark::Coin> mints;
+    // Vector of all mints, paired with bool,indicating if it is coinbase or not
+    std::vector<std::pair<spark::Coin, bool>> mints;
 
     // linking tag for every spend (map from lTag to coin group id)
     std::unordered_map<GroupElement, int> spentLTags;
@@ -46,6 +46,10 @@ public:
 bool IsSparkAllowed();
 bool IsSparkAllowed(int height);
 unsigned char GetNetworkType();
+bool IsPayToSparkAddress(const CScript& script);
+bool IsPayToSparkAddress(const CScript& script, spark::Address& addr);
+std::string ToStringSparkAddress(const CScript& script);
+
 
 // Pass Scripts form mint transaction and get spark MintTransaction object
 void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransaction& mintTransaction);

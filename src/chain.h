@@ -253,6 +253,8 @@ public:
     std::map<int, std::vector<unsigned char>> anonymitySetHash;
     //! Map id to spark coin
     std::map<int, std::vector<spark::Coin>> sparkMintedCoins;
+    //! Map id to bool (whether it is coinbase)
+    std::map<int, std::vector<uint8_t>> sparkCoinbase;
     //! Map id to <hash of the set>
     std::map<int, std::vector<unsigned char>> sparkSetHash;
     //! map spark coin S to tx hash, this is used when you run with -mobile
@@ -309,6 +311,7 @@ public:
         lelantusMintData.clear();
         anonymitySetHash.clear();
         sparkMintedCoins.clear();
+        sparkCoinbase.clear();
         sparkSetHash.clear();
         spentLTags.clear();
         ltagTxhash.clear();
@@ -569,6 +572,9 @@ public:
         if (!(s.GetType() & SER_GETHASH)
             && nHeight >= params.nSparkStartBlock) {
             READWRITE(sparkMintedCoins);
+            if (nHeight >=params.nSparkCoinbase) {
+                READWRITE(sparkCoinbase);
+            }
             READWRITE(sparkSetHash);
             READWRITE(spentLTags);
 

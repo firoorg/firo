@@ -40,6 +40,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         output.address = Address(incoming_view_key, 12345 + j);
         output.v = 678 + j;
         output.memo = "Spam and eggs";
+        output.type = 0;
 
         outputs.emplace_back(output);
     }
