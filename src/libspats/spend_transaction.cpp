@@ -21,7 +21,6 @@ SpendTransaction::SpendTransaction(
     const std::vector<spark::InputCoinData>& inputs,
     const std::unordered_map<uint64_t, spark::CoverSetData>& cover_set_data,
     const std::unordered_map<uint64_t, std::vector<spark::Coin>>& cover_sets,
-
     const uint64_t f,
     const uint64_t vout,
     const std::vector<spark::OutputCoinData>& outputs)

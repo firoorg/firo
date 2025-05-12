@@ -1506,10 +1506,10 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(WalletMod
 
     {
         LOCK2(cs_main, wallet->cs_wallet);
-
+//TODO levon add spats  case
         CWalletTx *newTx = transaction.getTransaction();
         try {
-            *newTx = wallet->CreateSparkSpendTransaction(vecSend, privateRecipients, nFeeRequired, coinControl);
+            *newTx = wallet->CreateSparkSpendTransaction(vecSend, privateRecipients, {}, nFeeRequired, coinControl);
         } catch (InsufficientFunds const&) {
             transaction.setTransactionFee(nFeeRequired);
             if (!fSubtractFeeFromAmount && (total + nFeeRequired) > nBalance) {

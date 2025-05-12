@@ -616,7 +616,7 @@ BOOST_AUTO_TEST_CASE(limit)
         GenerateBlock({});
 
     CAmount fee = 0;
-    CWalletTx spendWalletTx = pwalletMain->SpendAndStoreSpark({{script, 120*COIN, false, ""}}, {}, fee);
+    CWalletTx spendWalletTx = pwalletMain->SpendAndStoreSpark({{script, 120*COIN, false, ""}}, {}, {}, fee);
 
     CMutableTransaction spendTx = *spendWalletTx.tx;
 
@@ -627,8 +627,8 @@ BOOST_AUTO_TEST_CASE(limit)
 
     // generate two smaller spark spend txs
     CWalletTx smallSparkWalletTxs[2] = {
-        pwalletMain->SpendAndStoreSpark({{script, 70*COIN, false, ""}}, {}, fee),
-        pwalletMain->SpendAndStoreSpark({{script, 70*COIN, false, ""}}, {}, fee),
+        pwalletMain->SpendAndStoreSpark({{script, 70*COIN, false, ""}}, {}, {}, fee),
+        pwalletMain->SpendAndStoreSpark({{script, 70*COIN, false, ""}}, {}, {}, fee),
     };
 
     CMutableTransaction smallSparkTxs[2] = {*smallSparkWalletTxs[0].tx, *smallSparkWalletTxs[1].tx};

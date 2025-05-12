@@ -510,7 +510,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     auto outputAmount = 1 * COIN;
     auto mintAmount = 2 * CENT - CENT; // a cent as fee
     CAmount fee;
-    CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, fee);
+    CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, {}, fee);  //TODO levon add spats case
 
     CMutableTransaction spendTx(wtx);
     auto spend = ParseSparkSpend(spendTx);

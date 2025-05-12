@@ -68,13 +68,13 @@ bool IsSparkAllowed(int height)
     return height >= ::Params().GetConsensus().nSparkStartBlock;
 }
 
-bool SpatsStarted()
+bool IsSpatsStarted()
 {
     LOCK(cs_main);
-    return SpatsStarted(chainActive.Height());
+    return IsSpatsStarted(chainActive.Height());
 }
 
-bool SpatsStarted(int height)
+bool IsSpatsStarted(int height)
 {
     return height >= ::Params().GetConsensus().nSpatsStartBlock;
 }
