@@ -215,6 +215,22 @@ bool CTransaction::IsSparkTransaction() const
     return IsSparkMint() || IsSparkSpend() || IsSpatsTransaction();
 }
 
+bool CTransaction::IsSparkSpend() const
+{
+    if (nVersion >= 3 && nType == TRANSACTION_SPARK)
+        return true;
+    return false;
+}
+
+bool CTransaction::IsSparkMint() const
+{
+    for (const CTxOut &txout: vout) {
+        if (txout.scriptPubKey.IsSparkMint())
+            return true;
+    }
+    return false;
+}
+
 bool CTransaction::IsSpatsCreate() const
 {
     for (const CTxOut &txout: vout)
@@ -258,22 +274,6 @@ bool CTransaction::IsSpatsBurn() const
 bool CTransaction::IsSpatsTransaction() const
 {
     return IsSpatsCreate() || IsSpatsUnregister() || IsSpatsModify() || IsSpatsMint() || IsSpatsBurn();    // TODO more
-}
-
-bool CTransaction::IsSparkSpend() const
-{
-    if (nVersion >= 3 && nType == TRANSACTION_SPARK)
-        return true;
-    return false;
-}
-
-bool CTransaction::IsSparkMint() const
-{
-    for (const CTxOut &txout: vout) {
-        if (txout.scriptPubKey.IsSparkMint())
-            return true;
-    }
-    return false;
 }
 
 bool CTransaction::IsZerocoinTransaction() const
