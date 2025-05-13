@@ -36,6 +36,8 @@
 #include <QPainter>
 #include <QMenu>
 
+#include "../spark/state.h"
+
 #define DECORATION_SIZE 54
 #define NUM_ITEMS 5
 
@@ -197,6 +199,8 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
 
     ui->tableWidgetSparkBalances->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(ui->tableWidgetSparkBalances, &QTableWidget::customContextMenuRequested, this, &OverviewPage::on_tableWidgetSparkBalances_contextMenuRequested);
+
+    connect(this, &OverviewPage::spatsRegistryChangedSignal, this, &OverviewPage::handleSpatsRegistryChangedSignal);
 }
 
 void OverviewPage::handleTransactionClicked(const QModelIndex &index)
@@ -224,8 +228,14 @@ void OverviewPage::handleOutOfSyncWarningClicks()
     Q_EMIT outOfSyncWarningClicked();
 }
 
+auto &getSpatsManager()
+{
+    return spark::CSparkState::GetState()->GetSpatsManager();
+}
+
 OverviewPage::~OverviewPage()
 {
+    getSpatsManager().remove_updates_observer( *this );
     delete ui;
 }
 
@@ -326,14 +336,50 @@ const spats::SparkAssetDisplayAttributes* OverviewPage::getSpatsDisplayAttribute
 {
     auto it = spats_display_attributes_cache_.find( asset_id );
     if ( it == spats_display_attributes_cache_.end() ) {
-        if ( const auto located_asset = spark::CSparkState::GetState()->GetSpatsManager().registry().get_asset( asset_id.first, asset_id.second ) )
+        if ( const auto located_asset = getSpatsManager().registry().get_asset( asset_id.first, asset_id.second ) ) {
+            const auto old_size = spats_display_attributes_cache_.size();
             it = spats_display_attributes_cache_.emplace( asset_id, spats::SparkAssetDisplayAttributes( located_asset->asset ) ).first;
+            const auto new_size = spats_display_attributes_cache_.size();
+            if ( old_size == 0 && new_size > 0 )    // first time we put something in the cache
+                getSpatsManager().add_updates_observer( *this );    // so now set up listener for registry changes, so that we can change the cache as necessary
+            // Given how handleSpatsRegistryChangedSignal() is implemented, the above call might actually happen multiple times. It's a no-op after the first, so no big deal.
+        }
         else {
             LogPrintf( "Failed to find asset {%u, %u} in spats registry!\n", asset_id.first, asset_id.second );
             return nullptr;
         }
     }
     return &it->second;
+}
+
+void OverviewPage::process_spats_registry_changed( const admin_addresses_set_t &/*affected_asset_admin_addresses*/, const asset_ids_set_t &affected_asset_ids )
+{
+    // Ideally I'd like to do this: Q_EMIT spatsRegistryChangedSignal( affected_asset_ids );
+    // But apparently it's a problem to pass std::unordered_set through Qt's signal-slot mechanism.
+    // Thus a more complicated alternative below...
+    {
+        std::lock_guard lock( spats_registry_change_affected_asset_ids_mutex_ );
+        // adding on top of what already may be there...
+        spats_registry_change_affected_asset_ids_.insert( affected_asset_ids.begin(), affected_asset_ids.end() );
+    }
+    Q_EMIT spatsRegistryChangedSignal();
+}
+
+void OverviewPage::handleSpatsRegistryChangedSignal()
+{
+    {
+        std::lock_guard lock( spats_registry_change_affected_asset_ids_mutex_ );
+        // removing entries from the cache where they might have been affected by the changes in the registry
+        erase_if( spats_display_attributes_cache_,
+                    [this]( const auto& entry ) {
+                        const auto [asset_type, identifier] = entry.first;
+                        return spats_registry_change_affected_asset_ids_.contains( { asset_type, std::nullopt } ) ||
+                               spats_registry_change_affected_asset_ids_.contains( { asset_type, identifier } );
+        } );
+        spats_registry_change_affected_asset_ids_.clear();
+    }
+    // now update the display, which will fetch the attributes from the registry again for those keys that have just been removed from the cache
+    displaySpatsBalances();
 }
 
 void OverviewPage::on_tableWidgetSparkBalances_contextMenuRequested( const QPoint &pos )

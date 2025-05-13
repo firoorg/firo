@@ -35,6 +35,7 @@ concept Action = requires( A a ) {
    a.get();
    { a.name() } -> std::same_as< std::string >;
    { a.summary() } -> std::same_as< std::string >;
+   { a.asset_id() } -> std::same_as< flexible_asset_id_t >;
 };
 
 }   // namespace concepts
@@ -131,6 +132,8 @@ public:
                   ( a.fungible ? _( "fungible" ) : _( "non-fungible" ) ) % a.asset_type % a.identifier % a.symbol % a.name );
    }
 
+   flexible_asset_id_t asset_id() const noexcept { return { get_base( get() ).asset_type(), get_identifier( get() ) }; }
+
    const std::optional< spark::Coin > &coin() const noexcept { return coin_; }
    void set_coin( spark::Coin &&coin ) noexcept { coin_ = std::move( coin ); }
 
@@ -193,6 +196,8 @@ public:
       return os.str();
    }
 
+   flexible_asset_id_t asset_id() const noexcept { return { get().asset_type(), get().identifier() }; }
+
 private:
    UnregisterAssetParameters parameters_;
    static constexpr std::uint8_t serialization_version = 1;
@@ -238,6 +243,8 @@ public:
                   asset_modification_ );
       return os.str();
    }
+
+   flexible_asset_id_t asset_id() const noexcept { return { get_base( get() ).asset_type(), get_identifier( get() ) }; }
 
 private:
    AssetModification asset_modification_;
@@ -358,6 +365,8 @@ public:
       return str( boost::format( _( "Minting new %1% supply for spark asset type = %2% and crediting it to %3%" ) ) % get().new_supply() % get().asset_type() %
                   utils::abbreviate_for_display( get().receiver_public_address() ) );
    }
+
+   flexible_asset_id_t asset_id() const noexcept { return { get().asset_type(), std::nullopt }; }
 
    const std::optional< spark::Coin > &coin() const noexcept { return coin_; }
    void set_coin( spark::Coin &&coin ) noexcept { coin_ = std::move( coin ); }
@@ -538,6 +547,8 @@ public:
          return str( boost::format( _( "Burning supply amounting to %1% for spark asset type = %2%" ) ) % get().burn_amount() % get().asset_type() );
    }
 
+   flexible_asset_id_t asset_id() const noexcept { return { get().asset_type(), std::nullopt }; }
+
 private:
    parameters_type parameters_;
    static constexpr std::uint8_t serialization_version = 1;
@@ -575,6 +586,45 @@ inline std::vector< spark::Coin > get_coins( const Action &action )
          return { *c->coin() };
    // TODO more, as needed
    return {};
+}
+
+inline const public_address_t &get_admin_public_address( const concepts::Action auto &action )
+{
+   // Any actions (except for Burn) that operate on a previously registered asset are able to be initiated by the admin only, anyone else attempting to do so will fail.
+   // So if this function gets called only after successful processing of an action into the registry, we can be sure that the initiator address that we are returning
+   // here is indeed the admin address.
+   return action.get().initiator_public_address();
+}
+
+inline const public_address_t &get_admin_public_address( const CreateAssetAction &action )
+{
+   return get_base( action.get() ).admin_public_address();
+}
+
+inline const public_address_t &get_admin_public_address( const ModifyAssetAction &action )
+{
+   // This action is able to be initiated by the admin only, anyone else attempting to do so will fail.
+   // So if this function gets called only after successful processing of an action into the registry, we can be sure that the initiator address that we are returning
+   // here is indeed the admin address.
+   return get_base( action.get() ).initiator_public_address();
+}
+
+// In order to return the actual admin address, we would need to consult the registry to obtain the admin address for the asset type that we are burning a supply of.
+// We have the initiator address, but that may not necessarily be the admin address for a Burn action - anyone can burn as long as they have at least that much supply.
+// Not bothering to consult the registry here, at least for now, instead returning empty address - indicating that the actual admin address is unknown for practical
+// purposes, and hence any admin address should be considered as potentially being the admin of this asset, and hence considered as affected by this action for info
+// refresh purposes.
+inline const public_address_t &get_admin_public_address( const BurnAction<> &action )
+{
+   static const public_address_t empty{};
+   return empty;
+   // TODO consider actually consulting the registry here, and returning the actual admin address for the asset type that we are burning a supply of. Only if that doesn't
+   //      work for some odd reason, return empty then.
+}
+
+inline const public_address_t &get_admin_public_address( const Action &action )
+{
+   return std::visit( []( const concepts::Action auto &a ) -> const public_address_t & { return get_admin_public_address( a ); }, action );
 }
 
 }   // namespace spats

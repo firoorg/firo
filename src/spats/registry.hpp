@@ -26,13 +26,20 @@ public:
 
    Registry();
 
+   // Throws a std::exception-derived exception if the action is invalid, otherwise returns normally.
    void validate( const Action &a, int block_height ) const;
+
+   // Throws a std::exception-derived exception on the first encountered invalid action, otherwise (if all are valid) returns normally.
    void validate( const Actions &actions, int block_height ) const;
 
-   // returns true if the registry state has been updated as a result of processing the given action
+   // Returns true if the registry state has been updated as a result of processing the given action, and false otherwise (if it turned out to be a no-op).
+   // Throws a std::exception-derived exception on any invalid action attempt or any execution failure.
    bool process( const Action &a, int block_height, const std::optional< block_hash_t > &block_hash );
 
-   // returns true if the registry state has been updated as a result of unprocessing the given action
+   // Returns true if the registry state has been updated as a result of unprocessing the given action, and false otherwise (if it turned out to be a no-op).
+   // Throws a std::exception-derived exception on any execution failure.
+   // Exceptions from this function would usually be more rare than from process(), because if the action was invalid, the original process() would have thrown an
+   // exception, and thus unprocess() never getting called on such an action ever, in the first place.
    bool unprocess( const Action &a, int block_height );
 
    std::optional< asset_type_t > get_lowest_available_asset_type_for_new_fungible_asset() const noexcept;

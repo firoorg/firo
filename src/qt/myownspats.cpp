@@ -90,7 +90,19 @@ void MyOwnSpats::display_my_own_spats()
    ui_->countLabel->setText( QString::number( my_own_assets.size() ) );
 }
 
-MyOwnSpats::~MyOwnSpats() {}
+MyOwnSpats::~MyOwnSpats()
+{
+  spark::CSparkState::GetState()->GetSpatsManager().remove_updates_observer( *this );
+}
+
+void MyOwnSpats::process_spats_registry_changed( const admin_addresses_set_t &affected_asset_admin_addresses, const asset_ids_set_t &/*affected_asset_ids*/ )
+{
+    if ( !wallet_model_ )
+        return;   // Too soon to be able to display anything
+    const auto &my_public_address = wallet_model_->getWallet()->sparkWallet->getSpatsWallet().my_public_address_as_admin();
+    if ( std::ranges::any_of( affected_asset_admin_addresses, [&my_public_address]( const auto &admin_address ) { return admin_address == my_public_address || admin_address.empty(); } ) )
+        Q_EMIT displayMyOwnSpatsSignal();
+}
 
 void MyOwnSpats::setClientModel( ClientModel *model )
 {
@@ -111,7 +123,7 @@ void MyOwnSpats::setWalletModel( WalletModel *model )
    wallet_model_ = model;
    if ( model ) {
       // Connect necessary signals for UI updates
-      spark::CSparkState::GetState()->GetSpatsManager().set_updates_observer( this );
+      spark::CSparkState::GetState()->GetSpatsManager().add_updates_observer( *this );
       display_my_own_spats();
    }
 }

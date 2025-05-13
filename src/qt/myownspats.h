@@ -57,7 +57,7 @@ Q_SIGNALS:
    void displayMyOwnSpatsSignal();
 
 private:
-   void process_registry_changed() override { Q_EMIT displayMyOwnSpatsSignal(); }
+   void process_spats_registry_changed( const admin_addresses_set_t &affected_asset_admin_addresses, const asset_ids_set_t &affected_asset_ids ) override;
 
    void display_my_own_spats();
 

@@ -12,6 +12,8 @@
 #include <stdexcept>
 #include <type_traits>
 
+#include "../utils/overloaded.hpp"
+
 #include "spark_asset.hpp"
 
 namespace spats {
@@ -240,6 +242,13 @@ using AssetModification = std::variant< FungibleAssetModification, NonfungibleAs
 inline const AssetModificationBase &get_base( const AssetModification &modif ) noexcept
 {
    return std::visit( []( const auto &m ) -> const AssetModificationBase & { return m; }, modif );
+}
+
+inline std::optional< identifier_t > get_identifier( const AssetModification &modif ) noexcept
+{
+   return std::visit( utils::overloaded{ []( const FungibleAssetModification & ) -> std::optional< identifier_t > { return std::nullopt; },
+                                         []( const NonfungibleAssetModification &a ) -> std::optional< identifier_t > { return a.identifier(); } },
+                      modif );
 }
 
 inline AssetModification make_asset_modification( const SparkAsset &old_asset, const SparkAsset &new_asset, public_address_t initiator_public_address )

@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <limits>
 #include <utility>
+#include <optional>
 #include <ostream>
 
 #include "utils/enum.hpp"
@@ -38,7 +39,12 @@ constexpr identifier_t &operator++( identifier_t &i ) noexcept
 constexpr asset_type_t max_allowed_asset_type_value{ std::numeric_limits< asset_type_underlying_type >::max() - 10 };   // leaving some breathing room...
 constexpr identifier_t max_allowed_identifier_value{ std::numeric_limits< identifier_underlying_type >::max() - 10 };   // leaving some breathing room...
 
-using universal_asset_id_t = std::pair< asset_type_t, identifier_t >;   // Can be used to identify both fungible & non-fungible assets
+// Can be used to identify either a single asset (whether fungible or non-fungible) or a whole NFT line
+using flexible_asset_id_t = std::pair< asset_type_t, std::optional< identifier_t > >;
+
+// Can be used to identify a single asset, whether fungible or non-fungible
+using universal_asset_id_t = std::pair< asset_type_t, identifier_t >;
+
 using nft_id_t = universal_asset_id_t;
 
 constexpr bool is_proper_asset_identifier( universal_asset_id_t id ) noexcept
