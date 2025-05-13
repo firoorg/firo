@@ -98,7 +98,8 @@ public:
 
 private:
    CSparkWallet &spark_wallet_;
-   mutable std::string my_public_address_as_admin_;
+   mutable std::shared_mutex my_public_address_as_admin_mutex_;
+   mutable std::string my_public_address_as_admin_;   // protected by my_public_address_as_admin_mutex_
    Registry &registry_;
    mutable std::shared_mutex asset_balances_mutex_;
    mutable asset_balances_t asset_balances_;   // protected by asset_balances_mutex_

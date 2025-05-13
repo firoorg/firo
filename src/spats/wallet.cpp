@@ -80,12 +80,21 @@ Wallet::Wallet( CSparkWallet &spark_wallet )
 
 const std::string &Wallet::my_public_address_as_admin() const
 {
-   if ( my_public_address_as_admin_.empty() ) {
-      // Doing lazy initialization, as in the constructor, spark_wallet isn't fully initialized yet!
-      my_public_address_as_admin_ = spark_wallet_.getDefaultAddress().encode( spark::GetNetworkType() );
-      assert( !my_public_address_as_admin_.empty() );
-      LogPrintf( "my_public_address_as_admin: %s\n", my_public_address_as_admin_ );
+   // Doing (thread-safe) lazy initialization, as in the constructor, spark_wallet isn't fully initialized yet!
+   {
+      std::shared_lock lock( my_public_address_as_admin_mutex_ );
+      if ( !my_public_address_as_admin_.empty() )
+         return my_public_address_as_admin_;
    }
+
+   std::unique_lock lock( my_public_address_as_admin_mutex_ );
+   if ( !my_public_address_as_admin_.empty() )  // some other thread already managed to init and return reference out!
+      return my_public_address_as_admin_; // so very important to not change this any further, ever!
+
+   // init: compute and assign for the first and only time
+   my_public_address_as_admin_ = spark_wallet_.getDefaultAddress().encode( spark::GetNetworkType() );
+   assert( !my_public_address_as_admin_.empty() );
+   LogPrintf( "my_public_address_as_admin: %s\n", my_public_address_as_admin_ );
    return my_public_address_as_admin_;
 }
 
