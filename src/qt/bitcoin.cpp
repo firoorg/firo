@@ -31,7 +31,6 @@
 #include "rpc/server.h"
 #include "scheduler.h"
 #include "stacktraces.h"
-#include "ui_interface.h"
 #include "util.h"
 #include "warnings.h"
 
