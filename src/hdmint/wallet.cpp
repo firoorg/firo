@@ -819,8 +819,8 @@ bool CHDMintWallet::CreateMintSeed(CWalletDB& walletdb, uint512& mintSeed, const
     }
 
     // HMAC-SHA512(SHA256(count),key)
-    unsigned char countHash[CSHA256().OUTPUT_SIZE];
-    std::vector<unsigned char> result(CSHA512().OUTPUT_SIZE);
+    unsigned char countHash[CSHA256::OUTPUT_SIZE];
+    std::vector<unsigned char> result(CSHA512::OUTPUT_SIZE);
 
     std::string nCountStr = std::to_string(nCount);
     CSHA256().Write(reinterpret_cast<const unsigned char*>(nCountStr.c_str()), nCountStr.size()).Finalize(countHash);

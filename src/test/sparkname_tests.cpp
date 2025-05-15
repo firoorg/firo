@@ -22,10 +22,10 @@ private:
 public:
     SparkNameTests() :
           SparkTestingSetup(),
+          mutableConsensus(const_cast<Consensus::Params &>(::Params().GetConsensus())),
           sparkState(CSparkState::GetState()),
           consensus(::Params().GetConsensus()),
-          sparkNameManager(CSparkNameManager::GetInstance()),
-          mutableConsensus(const_cast<Consensus::Params &>(::Params().GetConsensus())) {
+          sparkNameManager(CSparkNameManager::GetInstance()) {
         oldConsensus = mutableConsensus;
     }
 
