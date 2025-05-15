@@ -3930,7 +3930,7 @@ UniValue spendspark(const JSONRPCRequest& request)
             else
                 throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no subtractFee: ") + name_);
 
-            CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
+            CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, {}, {}};
             recipients.push_back(recipient);
 
             continue;
@@ -4572,7 +4572,7 @@ UniValue joinsplit(const JSONRPCRequest& request) {
         bool fSubtractFeeFromAmount =
                 subtractFeeFromAmountSet.find(strAddr) != subtractFeeFromAmountSet.end();
 
-        vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount});
+        vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount, {}, {}});
     }
 
     for(const auto& mint : mints) {
@@ -4771,7 +4771,7 @@ UniValue listsigmapubcoins(const JSONRPCRequest& request) {
 
     EnsureSigmaWalletIsAvailable();
 
-    sigma::CoinDenomination denomination;
+    sigma::CoinDenomination denomination{};
     bool filter_by_denom = false;
     if (request.params.size() > 0) {
         filter_by_denom = true;
@@ -5920,54 +5920,54 @@ static const CRPCCommand commands[] =
     { "wallet",             "walletpassphrase",         &walletpassphrase,         true,   {"passphrase","timeout"} },
     { "wallet",             "removeprunedfunds",        &removeprunedfunds,        true,   {"txid"} },
 
-    { "wallet",             "listunspentsigmamints",    &listunspentsigmamints,    false },
-    { "wallet",             "listunspentlelantusmints", &listunspentlelantusmints, false },
-    { "wallet",             "mint",                     &mint,                     false },
-    { "wallet",             "mintlelantus",             &mintlelantus,             false },
-    { "wallet",             "autoMintlelantus",         &autoMintlelantus,         false },
-    { "wallet",             "spendmany",                &spendmany,                false },
-    { "wallet",             "joinsplit",                &joinsplit,                false },
-    { "wallet",             "resetsigmamint",           &resetsigmamint,           false },
-    { "wallet",             "resetlelantusmint",        &resetlelantusmint,        false },
-    { "wallet",             "setsigmamintstatus",       &setsigmamintstatus,       false },
-    { "wallet",             "setlelantusmintstatus",    &setlelantusmintstatus,    false },
-    { "wallet",             "listsigmamints",           &listsigmamints,           false },
-    { "wallet",             "listsigmapubcoins",        &listsigmapubcoins,        false },
-    { "wallet",             "listlelantusmints",        &listlelantusmints,        false },
+    { "wallet",             "listunspentsigmamints",    &listunspentsigmamints,    false,  {} },
+    { "wallet",             "listunspentlelantusmints", &listunspentlelantusmints, false,  {} },
+    { "wallet",             "mint",                     &mint,                     false,  {} },
+    { "wallet",             "mintlelantus",             &mintlelantus,             false,  {} },
+    { "wallet",             "autoMintlelantus",         &autoMintlelantus,         false,  {} },
+    { "wallet",             "spendmany",                &spendmany,                false,  {} },
+    { "wallet",             "joinsplit",                &joinsplit,                false,  {} },
+    { "wallet",             "resetsigmamint",           &resetsigmamint,           false,  {} },
+    { "wallet",             "resetlelantusmint",        &resetlelantusmint,        false,  {} },
+    { "wallet",             "setsigmamintstatus",       &setsigmamintstatus,       false,  {} },
+    { "wallet",             "setlelantusmintstatus",    &setlelantusmintstatus,    false,  {} },
+    { "wallet",             "listsigmamints",           &listsigmamints,           false,  {} },
+    { "wallet",             "listsigmapubcoins",        &listsigmapubcoins,        false,  {} },
+    { "wallet",             "listlelantusmints",        &listlelantusmints,        false,  {} },
 
-    { "wallet",             "setmininput",              &setmininput,              false },
-    { "wallet",             "regeneratemintpool",       &regeneratemintpool,       false },
-    { "wallet",             "removetxmempool",          &removetxmempool,          false },
-    { "wallet",             "removetxwallet",           &removetxwallet,           false },
-    { "wallet",             "listsigmaspends",          &listsigmaspends,          false },
-    { "wallet",             "listlelantusjoinsplits",   &listlelantusjoinsplits,   false },
+    { "wallet",             "setmininput",              &setmininput,              false,  {} },
+    { "wallet",             "regeneratemintpool",       &regeneratemintpool,       false,  {} },
+    { "wallet",             "removetxmempool",          &removetxmempool,          false,  {} },
+    { "wallet",             "removetxwallet",           &removetxwallet,           false,  {} },
+    { "wallet",             "listsigmaspends",          &listsigmaspends,          false,  {} },
+    { "wallet",             "listlelantusjoinsplits",   &listlelantusjoinsplits,   false,  {} },
 
     //spark
-    { "wallet",             "listunspentsparkmints",  &listunspentsparkmints,  false },
-    { "wallet",             "listsparkmints",         &listsparkmints,         false },
-    { "wallet",             "listsparkspends",        &listsparkspends,        false },
-    { "wallet",             "getsparkdefaultaddress", &getsparkdefaultaddress, false },
-    { "wallet",             "getallsparkaddresses",   &getallsparkaddresses,   false },
-    { "wallet",             "getnewsparkaddress",     &getnewsparkaddress,     false },
-    { "wallet",             "getsparkbalance",        &getsparkbalance,        false },
-    { "wallet",             "getsparkaddressbalance", &getsparkaddressbalance, false },
-    { "wallet",             "resetsparkmints",        &resetsparkmints,        false },
-    { "wallet",             "setsparkmintstatus",     &setsparkmintstatus,     false },
-    { "wallet",             "mintspark",              &mintspark,              true },
-    { "wallet",             "automintspark",          &automintspark,          false },
-    { "wallet",             "spendspark",             &spendspark,             false },
-    { "wallet",             "lelantustospark",        &lelantustospark,        false },
-    { "wallet",             "identifysparkcoins",     &identifysparkcoins,     false },
-    { "wallet",             "getsparkcoinaddr",       &getsparkcoinaddr,       false },
-    { "wallet",             "registersparkname",      &registersparkname,      false },
-    { "wallet",             "getsparknames",          &getsparknames,          true, {} },
+    { "wallet",             "listunspentsparkmints",    &listunspentsparkmints,    false,  {} },
+    { "wallet",             "listsparkmints",           &listsparkmints,           false,  {} },
+    { "wallet",             "listsparkspends",          &listsparkspends,          false,  {} },
+    { "wallet",             "getsparkdefaultaddress",   &getsparkdefaultaddress,   false,  {} },
+    { "wallet",             "getallsparkaddresses",     &getallsparkaddresses,     false,  {} },
+    { "wallet",             "getnewsparkaddress",       &getnewsparkaddress,       false,  {} },
+    { "wallet",             "getsparkbalance",          &getsparkbalance,          false,  {} },
+    { "wallet",             "getsparkaddressbalance",   &getsparkaddressbalance,   false,  {} },
+    { "wallet",             "resetsparkmints",          &resetsparkmints,          false,  {} },
+    { "wallet",             "setsparkmintstatus",       &setsparkmintstatus,       false,  {} },
+    { "wallet",             "mintspark",                &mintspark,                true,   {} },
+    { "wallet",             "automintspark",            &automintspark,            false,  {} },
+    { "wallet",             "spendspark",               &spendspark,               false,  {} },
+    { "wallet",             "lelantustospark",          &lelantustospark,          false,  {} },
+    { "wallet",             "identifysparkcoins",       &identifysparkcoins,       false,  {} },
+    { "wallet",             "getsparkcoinaddr",         &getsparkcoinaddr,         false,  {} },
+    { "wallet",             "registersparkname",        &registersparkname,        false,  {} },
+    { "wallet",             "getsparknames",            &getsparknames,            true,   {} },
 
     //bip47
-    { "bip47",              "createrapaddress",         &createrapaddress,         true },
-    { "bip47",              "setupchannel",             &setupchannel,             true },
-    { "bip47",              "sendtorapaddress",         &sendtorapaddress,         true },
-    { "bip47",              "listrapaddresses",         &listrapaddresses,         true },
-    { "bip47",              "setusednumber",            &setusednumber,            true }
+    { "bip47",              "createrapaddress",         &createrapaddress,         true,   {} },
+    { "bip47",              "setupchannel",             &setupchannel,             true,   {} },
+    { "bip47",              "sendtorapaddress",         &sendtorapaddress,         true,   {} },
+    { "bip47",              "listrapaddresses",         &listrapaddresses,         true,   {} },
+    { "bip47",              "setusednumber",            &setusednumber,            true,   {} }
 };
 
 void RegisterWalletRPCCommands(CRPCTable &t)

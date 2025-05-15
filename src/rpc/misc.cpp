@@ -2237,56 +2237,56 @@ UniValue echo(const JSONRPCRequest& request)
 }
 
 static const CRPCCommand commands[] =
-{ //  category              name                      actor (function)         okSafeMode
-  //  --------------------- ------------------------  -----------------------  ----------
-    { "control",            "getinfo",                &getinfo,                true,  {} }, /* uses wallet if enabled */
-    { "control",            "getmemoryinfo",          &getmemoryinfo,          true,  {} },
-    { "util",               "validateaddress",        &validateaddress,        true,  {"address"} }, /* uses wallet if enabled */
-    { "util",               "createmultisig",         &createmultisig,         true,  {"nrequired","keys"} },
-    { "util",               "verifymessage",          &verifymessage,          true,  {"address","signature","message"} },
-    { "util",               "signmessagewithprivkey", &signmessagewithprivkey, true,  {"privkey","message"} },
+{ //  category              name                      actor (function)         okSafeMode   ArgNames
+  //  --------------------- ------------------------  -----------------------  ----------   ---------
+    { "control",            "getinfo",                &getinfo,                true,        {} }, /* uses wallet if enabled */
+    { "control",            "getmemoryinfo",          &getmemoryinfo,          true,        {} },
+    { "util",               "validateaddress",        &validateaddress,        true,        {"address"} }, /* uses wallet if enabled */
+    { "util",               "createmultisig",         &createmultisig,         true,        {"nrequired","keys"} },
+    { "util",               "verifymessage",          &verifymessage,          true,        {"address","signature","message"} },
+    { "util",               "signmessagewithprivkey", &signmessagewithprivkey, true,        {"privkey","message"} },
 
         /* Address index */
-    { "addressindex",       "getaddressmempool",      &getaddressmempool,      true  },
-    { "addressindex",       "getaddressutxos",        &getaddressutxos,        false },
-    { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false },
-    { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
-    { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
+    { "addressindex",       "getaddressmempool",      &getaddressmempool,      true,         {} },
+    { "addressindex",       "getaddressutxos",        &getaddressutxos,        false,        {} },
+    { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false,        {} },
+    { "addressindex",       "getaddresstxids",        &getaddresstxids,        false,        {} },
+    { "addressindex",       "getaddressbalance",      &getaddressbalance,      false,        {} },
 
     /* Znode features */
-    { "firo",              "znsync",                 &mnsync,                 true,  {} },
-    { "firo",              "evoznsync",              &mnsync,                 true,  {} },
+    { "firo",              "znsync",                 &mnsync,                 true,           {} },
+    { "firo",              "evoznsync",              &mnsync,                 true,           {} },
 
-    { "firo",              "verifyprivatetxown",      &verifyprivatetxown,      true,  {} },
+    { "firo",              "verifyprivatetxown",      &verifyprivatetxown,      true,         {} },
 
     /* Not shown in help */
-    { "hidden",             "getinfoex",              &getinfoex,              false },
-    { "addressindex",       "gettotalsupply",         &gettotalsupply,         false },
-    { "addressindex",       "getzerocoinpoolbalance", &getzerocoinpoolbalance, false },
-    { "addressindex",       "getCVE17144amount",      &getCVE17144amount,      false },
+    { "hidden",             "getinfoex",              &getinfoex,              false,         {} },
+    { "addressindex",       "gettotalsupply",         &gettotalsupply,         false,         {} },
+    { "addressindex",       "getzerocoinpoolbalance", &getzerocoinpoolbalance, false,         {} },
+    { "addressindex",       "getCVE17144amount",      &getCVE17144amount,      false,         {} },
         /* Mobile related */
-    { "mobile",             "getanonymityset",        &getanonymityset,        false  },
-    { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
-    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     false  },
-    { "mobile",             "getfeerate",             &getfeerate,             true  },
-    { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
+    { "mobile",             "getanonymityset",        &getanonymityset,        false,         {} },
+    { "mobile",             "getmintmetadata",        &getmintmetadata,        true,          {} },
+    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     false,         {} },
+    { "mobile",             "getfeerate",             &getfeerate,             true,          {} },
+    { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true,          {} },
 
         /* Mobile Spark */
-    { "mobile",             "getsparkanonymityset",   &getsparkanonymityset, false },
-    { "mobile",             "getsparkanonymitysetmeta",   &getsparkanonymitysetmeta, false },
-    { "mobile",             "getsparkanonymitysetsector",   &getsparkanonymitysetsector, false },
-    { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true  },
-    { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
-    { "mobile",             "getusedcoinstagstxhashes", &getusedcoinstagstxhashes, false },
-    { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true  },
-    { "mobile",             "getmempoolsparktxids",   &getmempoolsparktxids, true },
-    { "mobile",             "getmempoolsparktxs",     &getmempoolsparktxs,       true  },
+    { "mobile",             "getsparkanonymityset",   &getsparkanonymityset, false,            {} },
+    { "mobile",             "getsparkanonymitysetmeta",   &getsparkanonymitysetmeta, false,    {} },
+    { "mobile",             "getsparkanonymitysetsector",   &getsparkanonymitysetsector, false,{} },
+    { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true,             {} },
+    { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false,            {} },
+    { "mobile",             "getusedcoinstagstxhashes", &getusedcoinstagstxhashes, false,      {} },
+    { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true,             {} },
+    { "mobile",             "getmempoolsparktxids",   &getmempoolsparktxids, true,             {} },
+    { "mobile",             "getmempoolsparktxs",     &getmempoolsparktxs,       true,         {} },
 
-    { "mobile",             "checkifmncollateral",   &checkifmncollateral, false  },
+    { "mobile",             "checkifmncollateral",   &checkifmncollateral, false,              {} },
 
-    { "hidden",             "setmocktime",            &setmocktime,            true,  {"timestamp"}},
-    { "hidden",             "echo",                   &echo,                   true,  {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"}},
-    { "hidden",             "echojson",               &echo,                  true,  {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"}},
+    { "hidden",             "setmocktime",            &setmocktime,            true,           {"timestamp"} },
+    { "hidden",             "echo",                   &echo,                   true,           {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"} },
+    { "hidden",             "echojson",               &echo,                  true,            {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"} },
 };
 
 void RegisterMiscRPCCommands(CRPCTable &t)
