@@ -68,7 +68,7 @@ class CAccountSender : public CAccountBase
 {
 public:
     CAccountSender() = default;
-    CAccountSender(CExtKey const & walletKey, uint32_t accountNum, CPaymentCode const & theirPcode);
+    CAccountSender(CExtKey const & walletKey, uint32_t accountNumParam, CPaymentCode const & theirPcode);
 
     CPaymentChannel & getPaymentChannel() const;
     std::vector<unsigned char> getMaskedPayload(COutPoint const & outpoint, CKey const & outpointSecret);
@@ -120,7 +120,7 @@ class CAccountReceiver : public CAccountBase
 {
 public:
     CAccountReceiver() = default;
-    CAccountReceiver(CExtKey const & walletKey, uint32_t accountNum, std::string const & label);
+    CAccountReceiver(CExtKey const & walletKey, uint32_t accountNumParam, std::string const & label);
 
     CBitcoinAddress const & getMyNotificationAddress() const;
 
