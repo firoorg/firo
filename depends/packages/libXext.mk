@@ -1,8 +1,8 @@
 package=libXext
-$(package)_version=1.3.2
+$(package)_version=1.3.6
 $(package)_download_path=http://xorg.freedesktop.org/releases/individual/lib/
-$(package)_file_name=$(package)-$($(package)_version).tar.bz2
-$(package)_sha256_hash=f829075bc646cdc085fa25d98d5885d83b1759ceb355933127c257e8e50432e0
+$(package)_file_name=$(package)-$($(package)_version).tar.xz
+$(package)_sha256_hash=74d0e4dfa3d39ad8939e99bda37f5967aba528211076828464d2777d477fc0fb
 $(package)_dependencies=xproto xextproto libX11 libXau
 
 define $(package)_set_vars
