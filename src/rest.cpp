@@ -16,6 +16,8 @@
 #include "utilstrencodings.h"
 #include "version.h"
 
+#include "compat_macros.h"
+
 #include <boost/algorithm/string.hpp>
 
 #include <univalue.h>
@@ -462,6 +464,7 @@ static bool rest_getutxos(HTTPRequest* req, const std::string& strURIPart)
         // convert hex to bin, continue then with bin part
         std::vector<unsigned char> strRequestV = ParseHex(strRequestMutable);
         strRequestMutable.assign(strRequestV.begin(), strRequestV.end());
+        FIRO_FALLTHROUGH;
     }
 
     case RF_BINARY: {

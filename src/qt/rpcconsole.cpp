@@ -9,6 +9,8 @@
 #include "rpcconsole.h"
 #include "ui_debugwindow.h"
 
+#include "../compat_macros.h"
+
 #include "bantablemodel.h"
 #include "clientmodel.h"
 #include "guiutil.h"
@@ -201,7 +203,7 @@ bool RPCConsole::RPCParseCommandLine(std::string &strResult, const std::string &
         char ch = strCommandTerminated[chpos];
         switch(state)
         {
-            case STATE_COMMAND_EXECUTED_INNER:
+            case STATE_COMMAND_EXECUTED_INNER:     FIRO_FALLTHROUGH;
             case STATE_COMMAND_EXECUTED:
             {
                 bool breakParsing = true;
@@ -264,10 +266,11 @@ bool RPCConsole::RPCParseCommandLine(std::string &strResult, const std::string &
                 }
                 if (breakParsing)
                     break;
+                FIRO_FALLTHROUGH;
             }
-            case STATE_ARGUMENT: // In or after argument
-            case STATE_EATING_SPACES_IN_ARG:
-            case STATE_EATING_SPACES_IN_BRACKETS:
+            case STATE_ARGUMENT:                    FIRO_FALLTHROUGH;// In or after argument
+            case STATE_EATING_SPACES_IN_ARG:        FIRO_FALLTHROUGH;
+            case STATE_EATING_SPACES_IN_BRACKETS:   FIRO_FALLTHROUGH;
             case STATE_EATING_SPACES: // Handle runs of whitespace
                 switch(ch)
             {
@@ -370,7 +373,9 @@ bool RPCConsole::RPCParseCommandLine(std::string &strResult, const std::string &
                 strResult = lastResult.get_str();
             else
                 strResult = lastResult.write(2);
+            FIRO_FALLTHROUGH;
         case STATE_ARGUMENT:
+            FIRO_FALLTHROUGH;
         case STATE_EATING_SPACES:
             return true;
         default: // ERROR to end in one of the other states
