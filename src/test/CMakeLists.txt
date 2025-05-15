@@ -104,6 +104,7 @@ add_executable(test_firo
   evo_simplifiedmns_tests.cpp
   progpow_tests.cpp
   bls_tests.cpp
+  sparkname_tests.cpp
   ../hdmint/test/hdmint_tests.cpp
   ../hdmint/test/lelantus_tests.cpp
   ../liblelantus/test/challenge_generator_tests.cpp
@@ -116,6 +117,7 @@ add_executable(test_firo
   ../liblelantus/test/lelantus_test_fixture.h
   ../liblelantus/test/range_proof_test.cpp
   ../liblelantus/test/schnorr_test.cpp
+  ../libspark/test/ownership_test.cpp
   ../liblelantus/test/serialize_test.cpp
   ../liblelantus/test/sigma_extended_test.cpp
   ../libspark/test/transcript_test.cpp
