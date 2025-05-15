@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "sendcoinsdialog.h"
-#include "compat_macros.h"
+#include "compat_layer.h"
 #include "ui_sendcoinsdialog.h"
 
 #include "addresstablemodel.h"

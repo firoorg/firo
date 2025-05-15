@@ -8,7 +8,7 @@
 #include "chainparams.h"
 #include "checkpoints.h"
 #include "coins.h"
-#include "compat_macros.h"
+#include "compat_layer.h"
 #include "core_io.h"
 #include "consensus/validation.h"
 #include "validation.h"
@@ -973,7 +973,7 @@ static void ApplyStats(CCoinsStats &stats, CHashWriter& ss, const uint256& hash,
     ss << hash;
     ss << VARINT(outputs.begin()->second.nHeight * 2 + outputs.begin()->second.fCoinBase);
     stats.nTransactions++;
-    for (const auto output : outputs) {
+    for (const auto& output : outputs) {
         ss << VARINT(output.first + 1);
         ss << *(const CScriptBase*)(&output.second.out.scriptPubKey);
         ss << VARINT(output.second.out.nValue);

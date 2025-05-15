@@ -1314,7 +1314,7 @@ UniValue spork(const JSONRPCRequest& request)
     UniValue sporkEnableOrDisableObj = request.params[2].get_obj();
     std::vector<std::string> enableOrDisableKeys = sporkEnableOrDisableObj.getKeys();
 
-    for (const std::string enableOrDisable: enableOrDisableKeys) {
+    for (const std::string& enableOrDisable: enableOrDisableKeys) {
 
         if (enableOrDisable == "enable") {
             UniValue featuresToEnable = sporkEnableOrDisableObj["enable"];

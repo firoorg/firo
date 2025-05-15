@@ -11,7 +11,7 @@
 #include "script/standard.h"
 #include "script/sign.h"
 
-#include "../compat_macros.h"
+#include "../compat_layer.h"
 
 #include <boost/foreach.hpp>
 

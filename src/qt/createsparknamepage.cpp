@@ -8,7 +8,7 @@
 
 #include "platformstyle.h"
 #include "validation.h"
-#include "compat_macros.h"
+#include "compat_layer.h"
 
 #include <QStyle>
 #include <QMessageBox>
@@ -79,7 +79,7 @@ void CreateSparkNamePage::updateFee() {
     QString sparkName = ui->sparkNameEdit->text();
     int numberOfYears = ui->numberOfYearsEdit->value();
 
-    if (sparkName.isEmpty() || sparkName.length() > CSparkNameManager::maximumSparkNameLength || numberOfYears == 0 || numberOfYears > 10)
+    if (sparkName.isEmpty() || cmp::greater(sparkName.length(), CSparkNameManager::maximumSparkNameLength) || numberOfYears == 0 || numberOfYears > 10)
         ui->feeTextLabel->setText(feeText.arg("?"));
     else
         ui->feeTextLabel->setText(feeText.arg(QString::number(Params().GetConsensus().nSparkNamesFee[sparkName.length()]*numberOfYears)));

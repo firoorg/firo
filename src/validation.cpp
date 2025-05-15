@@ -4829,10 +4829,14 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
     const uint32_t nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
 
     // once ProgPow always ProgPow
-    if (pindexPrev && pindexPrev->nTime >= consensusParams.nPPSwitchTime && block.nTime < consensusParams.nPPSwitchTime)
+    if (pindexPrev
+        && cmp::greater_equal(pindexPrev->nTime, consensusParams.nPPSwitchTime)
+        && cmp::less(block.nTime, consensusParams.nPPSwitchTime))
         return state.Invalid(false, REJECT_INVALID, "bad-blk-progpow-state", "Cannot go back from ProgPOW");
 
-    if (pindexPrev && pindexPrev->nTime >= consensusParams.stage3StartTime && block.nTime < consensusParams.stage3StartTime)
+    if (pindexPrev
+        && cmp::greater_equal(pindexPrev->nTime, consensusParams.stage3StartTime)
+        && cmp::less(block.nTime, consensusParams.stage3StartTime))
         return state.Invalid(false, REJECT_INVALID, "bad-blk-stage3-state", "Cannot go back to 5 minutes between blocks");
 
     if (block.IsProgPow() && block.nHeight != nHeight)
@@ -4848,7 +4852,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
                               ? pindexPrev->GetMedianTimePast()
                               : block.GetBlockTime();
 
-    bool fDIP0003Active_context = nHeight >= consensusParams.DIP0003Height;
+    bool fDIP0003Active_context = cmp::greater_equal(nHeight, consensusParams.DIP0003Height);
 
     // Check that all transactions are finalized
     for (const auto& tx : block.vtx) {
@@ -4861,10 +4865,10 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
         }
     }
 
-    if (nHeight >= consensusParams.nSubsidyHalvingFirst) {
-        if (block.nTime >= consensusParams.stage3StartTime) {
-            bool fStage3 = nHeight < consensusParams.nSubsidyHalvingSecond;
-            bool fStage4 = nHeight >= consensusParams.stage4StartBlock;
+    if (cmp::greater_equal(nHeight, consensusParams.nSubsidyHalvingFirst)) {
+        if (cmp::greater_equal(block.nTime, consensusParams.stage3StartTime)) {
+            bool fStage3 = cmp::less(nHeight, consensusParams.nSubsidyHalvingSecond);
+            bool fStage4 = cmp::greater_equal(nHeight, consensusParams.stage4StartBlock);
             CAmount devPayoutValue = 0, communityPayoutValue = 0;
             CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get());
             CScript communityPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3CommunityFundAddress).Get());

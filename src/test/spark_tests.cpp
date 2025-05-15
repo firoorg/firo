@@ -530,7 +530,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
         bool hasLTag = false;
         BOOST_CHECK_MESSAGE(hasLTag = (info.spentLTags.count(lTags[i]) > 0), "No linking tag as expected");
         if (hasLTag) {
-            BOOST_CHECK_MESSAGE(ids[i] == info.spentLTags[lTags[i]], "linking tag group id is invalid");
+            BOOST_CHECK_MESSAGE(cmp::equal(ids[i], info.spentLTags[lTags[i]]), "linking tag group id is invalid");
         }
     }
 

@@ -11,7 +11,7 @@
 #include "clientversion.h"
 #include "streams.h"
 
-#include "../compat_macros.h"
+#include "../compat_layer.h"
 
 #include <boost/foreach.hpp>
 
