@@ -15,7 +15,7 @@
 
 #include <crypto/progpow/include/ethash/ethash.hpp>
 
-#if _WIN32
+#if defined(_WIN32)
 
 #include <stdlib.h>
 
@@ -27,12 +27,30 @@
 #define __BIG_ENDIAN 4321
 #define __BYTE_ORDER __LITTLE_ENDIAN
 
-#elif __APPLE__
+#elif defined(__APPLE__)
 
 #include <machine/endian.h>
 
 #define bswap32 __builtin_bswap32
 #define bswap64 __builtin_bswap64
+
+#ifndef __BYTE_ORDER
+#ifdef BYTE_ORDER
+#define __BYTE_ORDER BYTE_ORDER
+#endif
+#endif
+
+#ifndef __LITTLE_ENDIAN
+#ifdef LITTLE_ENDIAN
+#define __LITTLE_ENDIAN LITTLE_ENDIAN
+#endif
+#endif
+
+#ifndef __BIG_ENDIAN
+#ifdef BIG_ENDIAN
+#define __BIG_ENDIAN BIG_ENDIAN
+#endif
+#endif
 
 #else
 
@@ -45,7 +63,7 @@
 
 namespace ethash
 {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if (defined(__BYTE_ORDER) && defined(__LITTLE_ENDIAN)) && (__BYTE_ORDER == __LITTLE_ENDIAN)
 
 struct le
 {
@@ -62,8 +80,7 @@ struct be
     static uint64_t uint64(uint64_t x) noexcept { return bswap64(x); }
 };
 
-
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#elif (defined(__BYTE_ORDER) && defined(__BIG_ENDIAN)) && (__BYTE_ORDER == __BIG_ENDIAN)
 
 struct le
 {
