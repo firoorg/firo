@@ -1,4 +1,5 @@
 #include "state.h"
+#include "compat_macros.h"
 #include "sparkname.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
@@ -285,7 +286,7 @@ bool ConnectBlockSpark(
             return true;
         }
 
-        const auto& params = ::Params().GetConsensus();
+        FIRO_UNUSED const auto& params = ::Params().GetConsensus();
         CHash256 hash;
         bool updateHash = false;
 
@@ -314,7 +315,7 @@ bool ConnectBlockSpark(
         }
 
         if (!pblock->sparkTxInfo->sparkNames.empty()) {
-            CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+            FIRO_UNUSED CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
             for (const auto &sparkName : pblock->sparkTxInfo->sparkNames) {
                 pindexNew->addedSparkNames[sparkName.first] =
                         CSparkNameBlockIndexData(sparkName.second.name,
@@ -913,7 +914,7 @@ std::vector<unsigned char> getSerialContext(const CTransaction &tx) {
     return serial_context;
 }
 
-static bool CheckSparkSpendTAg(
+FIRO_UNUSED static bool CheckSparkSpendTAg(
         CValidationState& state,
         CSparkTxInfo* sparkTxInfo,
         const GroupElement& tag,
@@ -1257,7 +1258,7 @@ void CSparkState::GetCoinSet(
     uint256 blockHash;
     std::vector<unsigned char> setHash;
     {
-        const auto &params = ::Params().GetConsensus();
+        FIRO_UNUSED const auto &params = ::Params().GetConsensus();
         LOCK(cs_main);
         maxHeight = chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1);
     }

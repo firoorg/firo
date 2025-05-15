@@ -1,3 +1,5 @@
+#include "../../../compat_macros.h"
+
 #include "include/GroupElement.h"
 #include "include/secp256k1.h"
 
@@ -356,7 +358,7 @@ GroupElement& GroupElement::generate(unsigned char* seed){
     secp256k1_fe t = SECP256K1_FE_CONST(0, 0, 0, 0, 0, 0, 0, 4);
     secp256k1_ge add;
     secp256k1_gej accum;
-    int overflow;
+    FIRO_UNUSED int overflow;
     secp256k1_sha256_t sha256;
     unsigned char b32[32];
     secp256k1_sha256_initialize(&sha256);

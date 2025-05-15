@@ -390,7 +390,7 @@ bool CheckLelantusJoinSplitTransaction(
                         "CheckLelantusJoinSplitTransaction: network hasn't yet switched over to lelantus payload data");
         }
     }
-    const CTxIn &txin = tx.vin[0];
+    FIRO_UNUSED const CTxIn &txin = tx.vin[0];
     std::unique_ptr<lelantus::JoinSplit> joinsplit;
 
     try {
