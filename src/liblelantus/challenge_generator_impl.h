@@ -21,35 +21,35 @@ public:
         scalar_data.resize(32);
     }
 
-    void add(const GroupElement& group_element) {
+    void add(const GroupElement& group_element) override {
         group_element.serialize(data.data());
         hash.Write(data.data(), data.size());
     }
 
-    void add(const std::vector<GroupElement>& group_elements) {
+    void add(const std::vector<GroupElement>& group_elements) override {
         addSize(group_elements.size());
         for (size_t i = 0; i < group_elements.size(); ++i) {
             add(group_elements[i]);
         }
     }
 
-    void add(const Scalar& scalar) {
+    void add(const Scalar& scalar) override {
         scalar.serialize(scalar_data.data());
         hash.Write(scalar_data.data(), scalar_data.size());
     }
 
-    void add(const std::vector<Scalar>& scalars) {
+    void add(const std::vector<Scalar>& scalars) override {
         addSize(scalars.size());
         for (size_t i = 0; i < scalars.size(); ++i) {
             add(scalars[i]);
         }
     }
 
-    void add(const std::vector<unsigned char>& data_) {
+    void add(const std::vector<unsigned char>& data_) override {
         hash.Write(data_.data(), data_.size());
     }
 
-    void get_challenge(Scalar& result_out) {
+    void get_challenge(Scalar& result_out) override {
         unsigned char result_data[CSHA256::OUTPUT_SIZE];
         do {
             Hasher temp_hash = hash;
