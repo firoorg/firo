@@ -1112,7 +1112,8 @@ bool AppInitBasicSetup()
 #define PROCESS_DEP_ENABLE 0x00000001
 #endif
     typedef BOOL (WINAPI *PSETPROCDEPPOL)(DWORD);
-    PSETPROCDEPPOL setProcDEPPol = (PSETPROCDEPPOL)GetProcAddress(GetModuleHandleA("Kernel32.dll"), "SetProcessDEPPolicy");
+    PSETPROCDEPPOL setProcDEPPol = reinterpret_cast<PSETPROCDEPPOL>(
+        reinterpret_cast<void*>(GetProcAddress(GetModuleHandleA("Kernel32.dll"), "SetProcessDEPPolicy")));
     if (setProcDEPPol != NULL) setProcDEPPol(PROCESS_DEP_ENABLE);
 #endif
 
