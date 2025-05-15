@@ -9,18 +9,18 @@ using namespace secp_primitives;
 
 class Hash {
 public:
-	Hash(const std::string label);
-	~Hash();
-	void include(CDataStream& data);
-	std::vector<unsigned char> finalize();
-	Scalar finalize_scalar();
-	GroupElement finalize_group();
+   Hash( const std::string label );
+   ~Hash();
+   void include( CDataStream &data );
+   std::vector< unsigned char > finalize();
+   Scalar finalize_scalar();
+   GroupElement finalize_group();
 
 private:
-	void include_size(std::size_t size);
-	EVP_MD_CTX* ctx;
+   void include_size( std::size_t size );
+   EVP_MD_CTX *ctx;
 };
 
-}
+}   // namespace spark
 
 #endif
