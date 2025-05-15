@@ -1,8 +1,8 @@
 package=native_cctools
-$(package)_version=2ef2e931cf641547eb8a68cfebde61003587c9fd
+$(package)_version=877.8-ld64-253.9-1
 $(package)_download_path=https://github.com/tpoechtrager/cctools-port/archive
-$(package)_file_name=$($(package)_version).tar.gz
-$(package)_sha256_hash=6b73269efdf5c58a070e7357b66ee760501388549d6a12b423723f45888b074b
+$(package)_file_name=cctools-$($(package)_version).tar.gz
+$(package)_sha256_hash=c88b0631b1d7bb5186dd6466a62f5220dc6191f2b2d9c7c122b327385e734aaf
 $(package)_build_subdir=cctools
 $(package)_dependencies=native_libtapi
 
