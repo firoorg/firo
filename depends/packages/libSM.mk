@@ -1,8 +1,8 @@
 package=libSM
-$(package)_version=1.2.2
+$(package)_version=1.2.6
 $(package)_download_path=http://xorg.freedesktop.org/releases/individual/lib/
-$(package)_file_name=$(package)-$($(package)_version).tar.bz2
-$(package)_sha256_hash=0baca8c9f5d934450a70896c4ad38d06475521255ca63b717a6510fdb6e287bd
+$(package)_file_name=$(package)-$($(package)_version).tar.xz
+$(package)_sha256_hash=be7c0abdb15cbfd29ac62573c1c82e877f9d4047ad15321e7ea97d1e43d835be
 $(package)_dependencies=xtrans xproto libICE
 
 define $(package)_set_vars

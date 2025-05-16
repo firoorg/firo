@@ -1,8 +1,8 @@
 package=libxcb_util_keysyms
-$(package)_version=0.4.0
+$(package)_version=0.4.1
 $(package)_download_path=https://xcb.freedesktop.org/dist
-$(package)_file_name=xcb-util-keysyms-$($(package)_version).tar.bz2
-$(package)_sha256_hash=0ef8490ff1dede52b7de533158547f8b454b241aa3e4dcca369507f66f216dd9
+$(package)_file_name=xcb-util-keysyms-$($(package)_version).tar.xz
+$(package)_sha256_hash=7c260a5294412aed429df1da2f8afd3bd07b7cba3fec772fba15a613a6d5c638
 $(package)_dependencies=libxcb xproto
 
 define $(package)_set_vars
