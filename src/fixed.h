@@ -250,8 +250,8 @@ public:
 
 public:
 	static const std::size_t base_size     = base_type_info::size;
-	static const base_type fractional_mask = ~((~base_type(0)) << fractional_bits);
-	static const base_type integer_mask    = ~fractional_mask;
+	static const base_type fractional_mask;
+	static const base_type integer_mask;
 
 public:
 	static const base_type one = base_type(1) << fractional_bits;
@@ -434,6 +434,14 @@ const std::size_t Fixed<I,F>::integer_bits;
 
 template <std::size_t I, std::size_t F>
 const std::size_t Fixed<I,F>::total_bits;
+
+template <std::size_t I, std::size_t F>
+const typename Fixed<I, F>::base_type Fixed<I, F>::fractional_mask =
+    ~((~typename Fixed<I, F>::base_type()) << Fixed<I, F>::fractional_bits);
+
+template <std::size_t I, std::size_t F>
+const typename Fixed<I, F>::base_type Fixed<I, F>::integer_mask =
+    ~Fixed<I, F>::fractional_mask;
 
 }
 #endif
