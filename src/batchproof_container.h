@@ -6,6 +6,8 @@
 #include "sigma/coinspend.h"
 #include "liblelantus/joinsplit.h"
 #include "libspark/spend_transaction.h"
+#include "libspark/spats/spend_transaction.h"
+
 
 extern CChain chainActive;
 
@@ -74,8 +76,12 @@ public:
     void batch_lelantus();
     void batch_rangeProofs();
 
+    void add(const spark::BaseSpendTransaction& tx);
     void add(const spark::SpendTransaction& tx);
+    void add(const spats::SpendTransaction& tx);
+    void remove(const spark::BaseSpendTransaction& tx);
     void remove(const spark::SpendTransaction& tx);
+    void remove(const spats::SpendTransaction& tx);
     void batch_spark();
 public:
     bool fCollectProofs = 0;

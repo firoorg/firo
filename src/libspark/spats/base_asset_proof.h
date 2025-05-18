@@ -1,7 +1,7 @@
 #ifndef FIRO_LIBSPATS_BASE_PROOF_H
 #define FIRO_LIBSPATS_BASE_PROOF_H
 
-#include "../libspark/params.h"
+#include "../params.h"
 
 namespace spats {
 

@@ -9,6 +9,8 @@
 #include "chain.h"
 #include "../libspark/mint_transaction.h"
 #include "../libspark/spend_transaction.h"
+#include "../libspark/spats/spend_transaction.h"
+
 #include "primitives.h"
 
 namespace spark_mintspend { class spark_mintspend_test; }
@@ -50,6 +52,7 @@ void ParseSpatsMintTransaction(const CScript& script, MintTransaction& mintTrans
 void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin);
 std::vector<unsigned char> getSerialContext(const CTransaction &tx);
 spark::SpendTransaction ParseSparkSpend(const CTransaction &tx);
+spats::SpendTransaction ParseSpatsSpend(const CTransaction &tx);
 
 Scalar GetSpatsMintM(const CTransaction& tx);
 

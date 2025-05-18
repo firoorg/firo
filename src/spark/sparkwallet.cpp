@@ -8,7 +8,7 @@
 #include "../policy/policy.h"
 #include "../script/sign.h"
 #include "state.h"
-#include "../libspats/spend_transaction.h"
+#include "../libspark/spats/spend_transaction.h"
 #include <boost/format.hpp>
 
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
@@ -1494,7 +1494,10 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             // fill inputs
             uint32_t sequence = CTxIn::SEQUENCE_FINAL;
             CScript script;
-            script << OP_SPARKSPEND;
+            if(!spark::IsSpatsStarted()) {
+            	script << OP_SPARKSPEND;
+            } else
+                script << OP_SPATSSPEND;
             tx.vin.emplace_back(COutPoint(), script, sequence);
 
             // clear vExtraPayload to calculate metadata hash correctly

@@ -330,6 +330,9 @@ SpendTransaction::SpendTransaction(
         this->chaum_proof);
 }
 
+SpendTransaction::~SpendTransaction() {}
+
+
 uint64_t SpendTransaction::getFee()
 {
     return f;
