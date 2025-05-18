@@ -91,7 +91,7 @@ public:
         }
 
         state.AddBlock(index);
-        return {index};
+        return index;
     }
 
     void RemoveBlocks(CLelantusState &state, std::vector<CBlockIndex*> indexes) {
