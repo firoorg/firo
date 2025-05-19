@@ -393,8 +393,30 @@ void BatchProofContainer::batch_rangeProofs() {
     rangeProofs.clear();
 }
 
+void BatchProofContainer::add(const spark::BaseSpendTransaction& tx) {
+    if (tx.isSpats()) {
+        auto* spatsTx = dynamic_cast<const spats::SpendTransaction*>(&tx);
+        if (spatsTx) {
+            add(*spatsTx);
+        } else {
+            throw std::runtime_error("Invalid cast to spats::SpendTransaction");
+        }
+    } else {
+        auto* sparkTx = dynamic_cast<const spark::SpendTransaction*>(&tx);
+        if (sparkTx) {
+            add(*sparkTx);
+        } else {
+            throw std::runtime_error("Invalid cast to spark::SpendTransaction");
+        }
+    }
+}
+
 void BatchProofContainer::add(const spark::SpendTransaction& tx) {
     tempSparkTransactions.push_back(tx);
+}
+
+void BatchProofContainer::add(const spats::SpendTransaction& tx) {
+//    tempSparkTransactions.push_back(tx);
 }
 
 void BatchProofContainer::remove(const spark::SpendTransaction& tx) {

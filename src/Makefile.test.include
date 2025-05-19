@@ -197,13 +197,13 @@ BITCOIN_TESTS = \
   test/evo_simplifiedmns_tests.cpp \
   test/progpow_tests.cpp \
   test/bls_tests.cpp \
-  libspats/test/bpplus_test.cpp \
-  libspats/test/coin_test.cpp \
-  libspats/test/type_test.cpp \
-  libspats/test/base_asset_test.cpp \
-  libspats/test/mint_transaction_test.cpp \
-  libspats/test/spend_transaction_test.cpp \
-  libspats/test/balance_test.cpp
+  libspark/spats/test/bpplus_test.cpp \
+  libspark/spats/test/coin_test.cpp \
+  libspark/spats/test/type_test.cpp \
+  libspark/spats/test/base_asset_test.cpp \
+  libspark/spats/test/mint_transaction_test.cpp \
+  libspark/spats/test/spend_transaction_test.cpp \
+  libspark/spats/test/balance_test.cpp
 
 
 if ENABLE_WALLET
@@ -224,7 +224,7 @@ test_test_bitcoin_LDADD = $(LIBBITCOIN_SERVER) -ltor
 
 test_test_bitcoin_SOURCES = $(BITCOIN_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
 test_test_bitcoin_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -I$(builddir)/test/ $(TESTDEFS) $(EVENT_CFLAGS)
-test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBFIRO_SIGMA) $(LIBLELANTUS) $(LIBSPARK) $(LIBSPATS) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) \
+test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBFIRO_SIGMA) $(LIBLELANTUS) $(LIBSPARK) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) \
   $(BACKTRACE_LIB) $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSECP256K1) $(EVENT_PTHREADS_LIBS) $(ZMQ_LIBS) $(ZLIB_LIBS)
 test_test_bitcoin_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 if ENABLE_WALLET
@@ -252,7 +252,6 @@ test_test_bitcoin_fuzzy_LDADD = \
   $(LIBBITCOIN_SERVER) \
   $(LIBLELANTUS) \
   $(LIBSPARK) \
-  $(LIBSPATS) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CONSENSUS) \

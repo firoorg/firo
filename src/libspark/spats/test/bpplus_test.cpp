@@ -1,6 +1,6 @@
 #include "../bpplus.h"
 
-#include "../../test/test_bitcoin.h"
+#include "../../../test/test_bitcoin.h"
 #include <boost/test/unit_test.hpp>
 
 // Generate and verify a single aggregated proof wint no padding

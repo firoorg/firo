@@ -128,9 +128,11 @@ public:
 
     CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
-            const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
+            const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
+            const std::vector<spark::OutputCoinData>& spatsRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
+
 	void AppendSpatsMintTxData(CMutableTransaction& tx,
         const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
         const spark::SpendKey& spendKey);
@@ -148,8 +150,17 @@ public:
             std::size_t utxoNum,
             const CCoinControl *coinControl);
 
+    bool GetCoinsToSpend(
+        CAmount required,
+        std::vector<CSparkMintMeta>& coinsToSpend_out,
+        std::list<CSparkMintMeta> coins,
+        int64_t& changeToMint,
+        const CCoinControl *coinControl,
+        bool fSpats = false);
+
     // Returns the list of pairs of coins and metadata for that coin,
-    std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
+    // Filters coins by identifier, returns all available coins for a specific asset
+    std::list<CSparkMintMeta> GetAvailableSparkCoins(const std::pair<Scalar, Scalar>& identifier, const CCoinControl *coinControl = NULL) const;
 
 public:
     // to protect coinMeta

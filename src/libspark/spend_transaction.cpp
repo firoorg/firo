@@ -208,6 +208,8 @@ SpendTransaction::SpendTransaction(
 	);
 }
 
+SpendTransaction::~SpendTransaction() {}
+
 uint64_t SpendTransaction::getFee() {
     return f;
 }
