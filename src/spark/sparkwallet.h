@@ -152,12 +152,10 @@ public:
         const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient, // .second is the initiator's (i.e. admin's) address
         const spark::SpendKey& spendKey);
 
-#if 0	// appears unnecessary, will remove
     CWalletTx CreateSpatsMintTransaction(
             const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
             CAmount &fee,
             const CCoinControl *coinControl = nullptr);
-#endif
 
     std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoins(
             CAmount required,

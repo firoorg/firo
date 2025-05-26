@@ -88,8 +88,8 @@ const std::string &Wallet::my_public_address_as_admin() const
    }
 
    std::unique_lock lock( my_public_address_as_admin_mutex_ );
-   if ( !my_public_address_as_admin_.empty() )  // some other thread already managed to init and return reference out!
-      return my_public_address_as_admin_; // so very important to not change this any further, ever!
+   if ( !my_public_address_as_admin_.empty() )   // some other thread already managed to init and return reference out!
+      return my_public_address_as_admin_;   // so very important to not change this any further, ever!
 
    // init: compute and assign for the first and only time
    my_public_address_as_admin_ = spark_wallet_.getDefaultAddress().encode( spark::GetNetworkType() );
@@ -159,6 +159,7 @@ std::optional< CWalletTx > Wallet::create_new_spark_asset_transaction(
    CRecipient burn_recipient{ std::move( burn_script ), new_asset_fee, false, {}, "burning new asset fee" };
    auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, b.admin_public_address(), "new asset" }, burn_recipient },
                                                         {},
+                                                        {},
                                                         standard_fee,
                                                         nullptr );   // may throw
    assert( tx.tx->IsSpatsCreate() );
@@ -212,6 +213,7 @@ std::optional< CWalletTx > Wallet::create_unregister_spark_asset_transaction(
    assert( script.IsSpatsUnregister() );
    auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, admin_public_address, "spats unregister" } },
                                                         {},
+                                                        {},
                                                         standard_fee,
                                                         nullptr );   // may throw
    assert( tx.tx->IsSpatsUnregister() );
@@ -252,6 +254,7 @@ std::optional< CWalletTx > Wallet::create_modify_spark_asset_transaction(
    script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
    assert( script.IsSpatsModify() );
    auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, admin_public_address, "spats modify" } },
+                                                        {},
                                                         {},
                                                         standard_fee,
                                                         nullptr );   // may throw
@@ -307,6 +310,7 @@ std::optional< CWalletTx > Wallet::create_mint_asset_supply_transaction(
    assert( script.IsSpatsMint() );
    auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, admin_public_address, "spats mint" } },
                                                         {},
+                                                        {},
                                                         standard_fee,
                                                         coin_control );   // may throw
    assert( tx.tx->IsSpatsMint() );
@@ -337,7 +341,7 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
       const std::string burn_address( firo_burn_address );   // TODO the network-specific address from params, once Levon adds that
       CScript burn_script = GetScriptForDestination( CBitcoinAddress( burn_address ).Get() );
       CRecipient burn_recipient{ std::move( burn_script ), boost::numeric_cast< CAmount >( burn_amount.raw() ), false, {}, "burning a base asset amount" };
-      auto tx = spark_wallet_.CreateSparkSpendTransaction( { burn_recipient }, {}, standard_fee, nullptr );   // may throw
+      auto tx = spark_wallet_.CreateSparkSpendTransaction( { burn_recipient }, {}, {}, standard_fee, nullptr );   // may throw
 
       if ( user_confirmation_callback ) {   // give the user a chance to confirm/cancel, if there are means to do so
          const BaseAssetBurnParameters action_params( burn_amount, admin_public_address );
@@ -372,6 +376,7 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
    // TODO add a recipient to firo_burn_address, for `burn_amount` of `asset_type`. It has to be done in such a way that the actual burning from the registry
    //      will NOT be actually performed if the sending to firo_burn_address fails (due to insufficient funds in this wallet).
    auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, admin_public_address, "spats burn" } },
+                                                        {},
                                                         {},
                                                         standard_fee,
                                                         nullptr );   // may throw
@@ -472,6 +477,11 @@ static std::optional< supply_amount_t::precision_type > get_asset_precision( ass
    return {};
 }
 
+std::optional< supply_amount_t::precision_type > Wallet::get_asset_precision( asset_type_t a, identifier_t i ) const
+{
+   return spats::get_asset_precision( a, i, registry_ );
+}
+
 void Wallet::update_balances_given_coin( const CSparkMintMeta &coin_meta, asset_balances_t &asset_balances, const Registry &registry )
 {
    assert( coin_meta.IsSpats() );
@@ -482,7 +492,7 @@ void Wallet::update_balances_given_coin( const CSparkMintMeta &coin_meta, asset_
    auto it = asset_balances.find( uid );
    if ( it == asset_balances.end() ) {
       // no entry, so we don't have the precision at hand yet, need to retrieve it from the registry
-      const auto precision = get_asset_precision( uid.first, uid.second, registry );
+      const auto precision = spats::get_asset_precision( uid.first, uid.second, registry );
       if ( !precision ) {
          // Because we don't have the asset's precision yet, we will ignore this coin and won't calculate this specific asset's balance yet. However, we shouldn't let
          // that jeopardize the calculation of any other assets' balances, so we'll just return (effectively ignoring this coin), rather than throwing an exception and

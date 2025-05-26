@@ -54,6 +54,8 @@ public:
 
    asset_balances_t get_asset_balances() const;
 
+   std::optional< supply_amount_t::precision_type > get_asset_precision( asset_type_t a, identifier_t i ) const;
+
    static Scalar compute_new_spark_asset_serialization_scalar( const SparkAssetBase &b, std::span< const unsigned char > asset_serialization_bytes );
    static Scalar compute_unregister_spark_asset_serialization_scalar( const UnregisterAssetParameters &p,
                                                                       std::span< const unsigned char > unreg_asset_serialization_bytes );

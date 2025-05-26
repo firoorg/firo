@@ -1698,27 +1698,22 @@ void CSparkWallet::AppendSpatsMintTxData(CMutableTransaction& tx,
 #endif
 }
 
-#if 0	// appears unnecessary, will remove
 CWalletTx CSparkWallet::CreateSpatsMintTransaction(
         const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
         CAmount &fee,
-        const CCoinControl *coinControl) {
-
-    if (spatsRecipient.first.a == Scalar(uint64_t(0)) && spatsRecipient.first.iota == Scalar(uint64_t(0)))
-        throw std::runtime_error(_("Invalid asset type and identifier, please use spark mint creation."));
-	// TODO levon also check type and identifier against spark asset registry
-    if (!isAddressMine(spatsRecipient.second))
-        throw std::runtime_error(_("Spark address doesn't belong to the wallet"));
-
-    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({}, {}, {}, fee, coinControl);
-
-    CMutableTransaction tx = CMutableTransaction(*wtxSparkSpend.tx);
-    AppendSpatsMintTxData(tx, spatsRecipient, ensureSpendKey());
-
-    wtxSparkSpend.tx = MakeTransactionRef(std::move(tx));
-    return wtxSparkSpend;
+        const CCoinControl *coinControl)
+{
+    const spats::asset_type_t a{std::stoull(spatsRecipient.first.a.tostring())};
+    if (!is_fungible_asset_type(a)) [[unlikely]]
+        throw std::invalid_argument(_("NFTs can never have their total supply changed by any means, including minting"));
+    const auto precision = spats_wallet_.get_asset_precision(a, spats::identifier_t{}); // identifier is for sure absent (0) because `a` is fungible
+    if (!precision) [[unlikely]]
+        throw std::domain_error(_("Failed to retrieve asset precision from the registry - cannot mint for it!"));
+    auto wtx = spats_wallet_.create_mint_asset_supply_transaction(a, spats::supply_amount_t(spatsRecipient.first.v, *precision),
+                                                                  spatsRecipient.second.encode(spark::GetNetworkType()), fee, coinControl);
+    assert(wtx && "create_mint_asset_supply_transaction() should never return nullopt except possibly when user confirmation callback is passed. Any errors should have given an exception!");
+    return *wtx;
 }
-#endif
 
 template<typename Iterator>
 static CAmount CalculateBalance(Iterator begin, Iterator end) {
