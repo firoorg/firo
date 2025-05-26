@@ -73,13 +73,13 @@ bool IsSparkAllowed(int height)
     return height >= ::Params().GetConsensus().nSparkStartBlock;
 }
 
-bool SpatsStarted()
+bool IsSpatsStarted()
 {
     LOCK(cs_main);
-    return SpatsStarted(chainActive.Height());
+    return IsSpatsStarted(chainActive.Height());
 }
 
-bool SpatsStarted(int height)
+bool IsSpatsStarted(int height)
 {
     return height >= ::Params().GetConsensus().nSpatsStartBlock;
 }
@@ -467,6 +467,26 @@ static spats::Action ParseSpatsTransaction(const CTransaction &tx)
     throw CBadTxIn();
 }
 
+spats::SpendTransaction ParseSpatsSpend(const CTransaction &tx)
+{
+    if (tx.vin.size() != 1 || tx.vin[0].scriptSig.size() < 1) {
+        throw CBadTxIn();
+    }
+    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+
+    if (tx.vin[0].scriptSig[0] == OP_SPATSSPEND && tx.nVersion >= 3 && tx.nType == TRANSACTION_SPARK) {
+        serialized.write((const char *)tx.vExtraPayload.data(), tx.vExtraPayload.size());
+    }
+    else {
+        throw CBadTxIn();
+    }
+    const spark::Params* params = spark::Params::get_default();
+    spats::SpendTransaction spendTransaction(params);
+    serialized >> spendTransaction;
+    return std::move(spendTransaction);
+}
+
+
 Scalar GetSpatsMintM(const CTransaction& tx) {
     CMutableTransaction txTemp = tx;
     std::erase_if(txTemp.vout, [] (const CTxOut& out) { return out.scriptPubKey.IsSpatsMintCoin(); });
@@ -482,14 +502,40 @@ std::vector<GroupElement> GetSparkUsedTags(const CTransaction &tx)
 {
     const spark::Params* params = spark::Params::get_default();
 
-    spark::SpendTransaction spendTransaction(params);
     try {
+        spark::SpendTransaction spendTransaction(params);
         spendTransaction = ParseSparkSpend(tx);
+        return  spendTransaction.getUsedLTags();
+    } catch (const std::exception &) {
+        // do nothing to jump to next try
+    }
+
+    try {
+        spats::SpendTransaction spendTransaction(params);
+        spendTransaction = ParseSpatsSpend(tx);
+        return  spendTransaction.getUsedLTags();
     } catch (const std::exception &) {
         return std::vector<GroupElement>();
     }
 
-    return  spendTransaction.getUsedLTags();
+    return std::vector<GroupElement>();
+}
+
+std::map<uint64_t, uint256> getBlockHashes(const CTransaction &tx)
+{
+    const spark::Params* params = spark::Params::get_default();
+
+    try {
+        spark::SpendTransaction spendTransaction(params);
+        spendTransaction = ParseSparkSpend(tx);
+        return  spendTransaction.getBlockHashes();
+    } catch (const std::exception &) {
+        // do nothing to jump to next try
+    }
+
+    spats::SpendTransaction spendTransaction(params);
+    spendTransaction = ParseSpatsSpend(tx);
+    return  spendTransaction.getBlockHashes();
 }
 
 std::vector<spark::Coin> GetSparkMintCoins(const CTransaction &tx)
@@ -651,17 +697,16 @@ void RemoveSpendReferencingBlock(CTxMemPool& pool, CBlockIndex* blockIndex) {
             // block removed. If any one is equal, remove txn from mempool.
             for (const CTxIn& txin : tx.vin) {
                 if (txin.scriptSig.IsSparkSpend()) {
-                    std::unique_ptr<spark::SpendTransaction> sparkSpend;
-
+                    std::map<uint64_t, uint256> coinGroupIdAndBlockHash;
                     try {
-                        sparkSpend = std::make_unique<spark::SpendTransaction>(ParseSparkSpend(tx));
+                        coinGroupIdAndBlockHash = getBlockHashes(tx);
                     }
                     catch (const std::exception &) {
                         txn_to_remove.push_back(tx);
                         break;
                     }
 
-                    const std::map<uint64_t, uint256>& coinGroupIdAndBlockHash = sparkSpend->getBlockHashes();
+
                     for(const auto& idAndHash : coinGroupIdAndBlockHash) {
                         if (idAndHash.second == blockIndex->GetBlockHash()) {
                             // Do not remove transaction immediately, that will invalidate iterator mi.
@@ -910,10 +955,15 @@ bool CheckSparkSpendTransaction(
             }
     }
 
-    std::unique_ptr<spark::SpendTransaction> spend;
+    bool spatsStarted = height >= params.nSpatsStartBlock;
+
+    std::unique_ptr<spark::BaseSpendTransaction> spend;
 
     try {
-        spend = std::make_unique<spark::SpendTransaction>(ParseSparkSpend(tx));
+        if (spatsStarted)
+            spend = std::make_unique<spark::SpendTransaction>(ParseSparkSpend(tx));
+        else
+            spend = std::make_unique<spats::SpendTransaction>(ParseSpatsSpend(tx));
     }
     catch (CBadTxIn&) {
         return state.DoS(100,
@@ -1046,7 +1096,13 @@ bool CheckSparkSpendTransaction(
         batchProofContainer->add(*spend);
     } else {
         try {
-            passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
+            if (spatsStarted) {
+                auto* typed = static_cast<spats::SpendTransaction*>(spend.get());
+                passVerify = spats::SpendTransaction::verify(*typed, cover_sets);
+            } else {
+                auto* typed = static_cast<spark::SpendTransaction*>(spend.get());
+                passVerify = spark::SpendTransaction::verify(*typed, cover_sets);
+            }
         } catch (const std::exception &) {
             passVerify = false;
         }
@@ -1308,12 +1364,7 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
 std::vector<unsigned char> getSerialContext(const CTransaction &tx) {
     CDataStream serialContextStream(SER_NETWORK, PROTOCOL_VERSION);
     if (tx.IsSparkSpend()) {
-        try {
-            spark::SpendTransaction spend = ParseSparkSpend(tx);
-            serialContextStream << spend.getUsedLTags();
-        } catch (const std::exception &) {
-            return std::vector<unsigned char>();
-        }
+        serialContextStream << GetSparkUsedTags(tx);
     } else {
         for (auto input: tx.vin) {
             input.scriptSig.clear();

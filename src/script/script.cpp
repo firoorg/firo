@@ -161,6 +161,7 @@ const char* GetOpName(opcodetype opcode)
     case OP_SPATSMODIFY  : return "OP_SPATSMODIFY";
     case OP_SPATSMINT  : return "OP_SPATSMINT";
     case OP_SPATSMINTCOIN  : return "OP_SPATSMINTCOIN";
+    case OP_SPATSSPEND  : return "OP_SPATSSPEND";
     case OP_SPATSBURN  : return "OP_SPATSBURN";
     // Super transparent txout script prefix
     case OP_EXCHANGEADDR    : return "OP_EXCHANGEADDR";
@@ -362,7 +363,7 @@ bool CScript::IsSparkSMint() const {
 
 bool CScript::IsSparkSpend() const {
     return (this->size() > 0 &&
-            (*this)[0] == OP_SPARKSPEND);
+            ((*this)[0] == OP_SPARKSPEND || (*this)[0] == OP_SPATSSPEND));
 }
 
 bool CScript::IsSpatsCreate() const

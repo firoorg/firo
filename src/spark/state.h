@@ -9,7 +9,9 @@
 #include "chain.h"
 #include "../libspark/mint_transaction.h"
 #include "../libspark/spend_transaction.h"
+#include "../libspark/spats/spend_transaction.h"
 #include "../spats/manager.hpp"
+
 #include "primitives.h"
 
 namespace spark_mintspend { class spark_mintspend_test; }
@@ -43,8 +45,8 @@ public:
 // check if spark activation block is passed
 bool IsSparkAllowed();
 bool IsSparkAllowed(int height);
-bool SpatsStarted();
-bool SpatsStarted(int height);
+bool IsSpatsStarted();
+bool IsSpatsStarted(int height);
 unsigned char GetNetworkType();
 
 // Pass Scripts form mint transaction and get spark MintTransaction object
@@ -52,6 +54,7 @@ void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransact
 void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin);
 std::vector<unsigned char> getSerialContext(const CTransaction &tx);
 spark::SpendTransaction ParseSparkSpend(const CTransaction &tx);
+spats::SpendTransaction ParseSpatsSpend(const CTransaction &tx);
 
 Scalar GetSpatsMintM(const CTransaction& tx);
 

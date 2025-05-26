@@ -143,9 +143,11 @@ public:
 
     CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
-            const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
+            const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
+            const std::vector<spark::OutputCoinData>& spatsRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = nullptr);
+
 	void AppendSpatsMintTxData(CMutableTransaction& tx,
         const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient, // .second is the initiator's (i.e. admin's) address
         const spark::SpendKey& spendKey);
@@ -166,8 +168,16 @@ public:
             const CCoinControl *coinControl,
             std::size_t spats_script_sizes_total = 0);
 
-    // Returns the list of pairs of coins and metadata for that coin,
-    std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = nullptr) const;
+    bool GetCoinsToSpend(
+        CAmount required,
+        std::vector<CSparkMintMeta>& coinsToSpend_out,
+        std::list<CSparkMintMeta> coins,
+        int64_t& changeToMint,
+        const CCoinControl *coinControl,
+        bool fSpats = false);
+
+    // Filters coins by identifier, returns all available coins for a specific asset
+    std::list<CSparkMintMeta> GetAvailableSparkCoins(const std::pair<Scalar, Scalar>& identifier, const CCoinControl *coinControl = nullptr) const;
 
     template <typename Pred, typename Visitor>
     requires std::predicate<Pred, const CSparkMintMeta&> && std::invocable<Visitor, const CSparkMintMeta&>

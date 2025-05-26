@@ -974,9 +974,6 @@ public:
 
     std::list<CLelantusEntry> GetAvailableLelantusCoins(const CCoinControl *coinControl = nullptr, bool includeUnsafe = false, bool forEstimation = false) const;
 
-    // Returns the list of pairs of coins and meta data for that coin,
-    std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = nullptr) const;
-
     std::vector<unsigned char> EncryptMintAmount(uint64_t amount, const secp_primitives::GroupElement& pubcoin) const;
 
     bool DecryptMintAmount(const std::vector<unsigned char>& encryptedValue, const secp_primitives::GroupElement& pubcoin, uint64_t& amount) const;
@@ -1099,15 +1096,21 @@ public:
             bool fAskFee = false,
             const CCoinControl *coinControl = nullptr);
 
+    CWalletTx MintAndStoreSpats(
+            const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
+            const CCoinControl *coinControl = NULL);
+
     CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
+            const std::vector<spark::OutputCoinData>& spatsRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = nullptr);
 
     CWalletTx SpendAndStoreSpark(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
+            const std::vector<spark::OutputCoinData>& spatsRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = nullptr);
 

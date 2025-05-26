@@ -1,5 +1,5 @@
 #include "base_asset.h"
-#include "../libspark/transcript.h"
+#include "../transcript.h"
 #include "util.h"
 
 namespace spats

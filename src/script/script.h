@@ -212,7 +212,8 @@ enum opcodetype
     OP_SPATSMODIFY = 0xd6,
     OP_SPATSMINT = 0xd7,
     OP_SPATSMINTCOIN = 0xd8,
-    OP_SPATSBURN = 0xd9,
+    OP_SPATSSPEND = 0xd9,
+    OP_SPATSBURN = 0xda,
     // TODO when adding a new spats opcode, update this below, and keep all spats ops values consecutive if possible, otherwise change IsSpatsOp() implementation
     OP_SPATSLAST = OP_SPATSBURN,
 

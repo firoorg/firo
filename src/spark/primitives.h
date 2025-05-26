@@ -20,6 +20,8 @@ struct CSparkMintMeta
     char type;
     spark::Coin coin;
     mutable boost::optional<uint256> nonceHash;
+    Scalar a;
+    Scalar iota;
 
     uint256 GetNonceHash() const;
 
@@ -61,6 +63,10 @@ struct CSparkMintMeta
         READWRITE(serial_context);
         READWRITE(type);
         READWRITE(coin);
+        if (type > spark::COIN_TYPE_SPEND) {
+            READWRITE(a);
+            READWRITE(iota);
+        }
     };
 };
 

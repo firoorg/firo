@@ -3086,13 +3086,6 @@ CRecipient CWallet::CreateLelantusMintRecipient(
     }
 }
 
-std::list<CSparkMintMeta> CWallet::GetAvailableSparkCoins(const CCoinControl *coinControl) const {
-    EnsureSparkWalletAvailable();
-
-    LOCK2(cs_main, cs_wallet);
-    return sparkWallet->GetAvailableSparkCoins(coinControl);
-}
-
 // coinsIn has to be sorted in descending order.
 int CWallet::GetRequiredCoinCountForAmount(
         const CAmount& required,
@@ -5708,6 +5701,34 @@ std::string CWallet::MintAndStoreSpark(
     return "";
 }
 
+CWalletTx CWallet::MintAndStoreSpats(
+        const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
+        const CCoinControl *coinControl) {
+
+    EnsureSparkWalletAvailable();
+
+    std::list<CReserveKey> reservekeys;
+    CAmount fee;
+    CWalletTx wtx = sparkWallet->CreateSpatsMintTransaction(spatsRecipient, fee, coinControl);
+
+    // commit
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(this);
+        CommitTransaction(wtx, reserveKey, g_connman.get(), state);
+    } catch (const std::exception &) {
+        auto error = _(
+                "Error: The transaction was rejected! This might happen if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
+
+        std::throw_with_nested(std::runtime_error(error));
+    }
+    return wtx;
+}
+
 std::vector<CSigmaEntry> CWallet::SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result)
 {
     CAmount fee;
@@ -5861,6 +5882,7 @@ CWalletTx CWallet::CreateLelantusJoinSplitTransaction(
 CWalletTx CWallet::CreateSparkSpendTransaction(
         const std::vector<CRecipient>& recipients,
         const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
+        const std::vector<spark::OutputCoinData>& spatsRecipients,
         CAmount &fee,
         const CCoinControl *coinControl)
 {
@@ -5871,17 +5893,18 @@ CWalletTx CWallet::CreateSparkSpendTransaction(
         throw std::runtime_error(_("Wallet locked"));
     }
 
-    return sparkWallet->CreateSparkSpendTransaction(recipients, privateRecipients, fee, coinControl);
+    return sparkWallet->CreateSparkSpendTransaction(recipients, privateRecipients, spatsRecipients, fee, coinControl);
 }
 
 CWalletTx CWallet::SpendAndStoreSpark(
         const std::vector<CRecipient>& recipients,
         const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
+        const std::vector<spark::OutputCoinData>& spatsRecipients,
         CAmount &fee,
         const CCoinControl *coinControl)
 {
     // create transaction
-    auto result = CreateSparkSpendTransaction(recipients, privateRecipients, fee, coinControl);
+    auto result = CreateSparkSpendTransaction(recipients, privateRecipients, spatsRecipients, fee, coinControl);
 
     // commit
     try {
