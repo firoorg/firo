@@ -343,18 +343,17 @@ struct Params {
     // Value of maximum spark spend per block.
     int64_t nMaxValueSparkSpendPerBlock;
 
-    // Two values above change after this block number
+    // Two values above increase after this block number
     int nSparkLimitV2StartBlock;
-    // ... to these values:
-    int64_t nMaxValueSparkSpendPerTransactionV2;
-    int64_t nMaxValueSparkSpendPerBlockV2;
+    // ... by this factor
+    int nSparkLimitV2Factor;
 
     // Functions to get the maximum spark spend per transaction and per block
     int64_t GetMaxValueSparkSpendPerTransaction(int nHeight) const {
-        return nHeight >= nSparkLimitV2StartBlock ? nMaxValueSparkSpendPerTransactionV2 : nMaxValueSparkSpendPerTransaction;
+        return nHeight >= nSparkLimitV2StartBlock ? nMaxValueSparkSpendPerTransaction * nSparkLimitV2Factor : nMaxValueSparkSpendPerTransaction;
     }
     int64_t GetMaxValueSparkSpendPerBlock(int nHeight) const {
-        return nHeight >= nSparkLimitV2StartBlock ? nMaxValueSparkSpendPerBlockV2 : nMaxValueSparkSpendPerBlock;
+        return nHeight >= nSparkLimitV2StartBlock ? nMaxValueSparkSpendPerBlock * nSparkLimitV2Factor : nMaxValueSparkSpendPerBlock;
     }
 
     unsigned nMaxSparkOutLimitPerTx;
