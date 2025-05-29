@@ -441,7 +441,7 @@ QString TransactionTableModel::lookupAddress(const TransactionRecord *wtx, bool 
     if(label.isEmpty() || tooltip)
     {
         QString name = "";
-        if (walletModel->IsSparkNameAddress(QString::fromStdString(wtx->address), name))
+        if (walletModel->GetSparkNameByAddress(QString::fromStdString(wtx->address), name))
         {
             description += QString(" @") + name;
         } else {

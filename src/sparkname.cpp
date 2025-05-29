@@ -236,7 +236,7 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     return true;
 }
 
-bool CSparkNameManager::IsSparkNameAddress(const std::string& address, std::string& name)
+bool CSparkNameManager::GetSparkNameByAddress(const std::string& address, std::string& name)
 {
     auto it = sparkNameAddresses.find(address);
     if (it != sparkNameAddresses.end()) {

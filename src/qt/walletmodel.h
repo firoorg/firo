@@ -187,7 +187,7 @@ public:
 
     bool sparkNamesAllowed() const;
 
-    bool IsSparkNameAddress(const QString& sparkAddress, QString& name);
+    bool GetSparkNameByAddress(const QString& sparkAddress, QString& name);
 
     bool validateSparkNameData(const QString &name, const QString &sparkAddress, const QString &additionalData, QString &strError);
 
