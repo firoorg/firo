@@ -1314,6 +1314,15 @@ bool WalletModel::sparkNamesAllowed() const
     return chainHeight >= Params().GetConsensus().nSparkNamesStartBlock;
 }
 
+bool WalletModel::IsSparkNameAddress(const QString& sparkAddress, QString& name)
+{
+    std::string name_ = name.toStdString();
+    bool result = CSparkNameManager::GetInstance()->IsSparkNameAddress(sparkAddress.toStdString(), name_);
+    if (result)
+        name = QString::fromStdString(name_);
+    return result;
+}
+
 bool WalletModel::validateSparkNameData(const QString &name, const QString &sparkAddress, const QString &additionalData, QString &strError) {
     CSparkNameTxData sparkNameData;
 
