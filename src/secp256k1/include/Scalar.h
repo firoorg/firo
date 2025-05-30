@@ -1,5 +1,5 @@
-#ifndef SCALAR_H__
-#define SCALAR_H__
+#ifndef SCALAR_H
+#define SCALAR_H
 
 #include <array>
 #include <functional>
@@ -139,4 +139,4 @@ struct hash<Scalar> {
 
 } // namespace std
 
-#endif // SCALAR_H__
+#endif // SCALAR_H

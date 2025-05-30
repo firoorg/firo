@@ -496,6 +496,8 @@ bool WalletView::eventFilter(QObject *watched, QEvent *event)
     case QEvent::Type::Move:
         repositionAutomintSparkNotification();
         break;
+    default:
+        break;
     }
 
     return QStackedWidget::eventFilter(watched, event);

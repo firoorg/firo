@@ -19,6 +19,7 @@
 #include "authhelper.h"
 
 #include "rpcwallet.h"
+#include "rpcdump.h"
 
 #include <fstream>
 #include <stdint.h>

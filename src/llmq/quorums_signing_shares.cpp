@@ -320,7 +320,7 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(CNode* pfrom, const CSigSesAnn& 
         return true; // let's still try other announcements from the same message
     }
 
-    auto signHash = CLLMQUtils::BuildSignHash(llmqType, ann.quorumHash, ann.id, ann.msgHash);
+    FIRO_UNUSED auto signHash = CLLMQUtils::BuildSignHash(llmqType, ann.quorumHash, ann.id, ann.msgHash);
 
     LOCK(cs);
     auto& nodeState = nodeStates[pfrom->id];
@@ -647,7 +647,7 @@ void CSigSharesManager::ProcessPendingSigSharesFromNode(NodeId nodeId,
         const std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& quorums,
         CConnman& connman)
 {
-    auto& nodeState = nodeStates[nodeId];
+    FIRO_UNUSED auto& nodeState = nodeStates[nodeId];
 
     cxxtimer::Timer t(true);
     for (auto& sigShare : sigShares) {
@@ -701,7 +701,7 @@ void CSigSharesManager::ProcessSigShare(NodeId nodeId, const CSigShare& sigShare
         }
 
         size_t sigShareCount = sigShares.CountForSignHash(sigShare.GetSignHash());
-        if (sigShareCount >= quorum->params.threshold) {
+        if (cmp::greater_equal(sigShareCount, quorum->params.threshold)) {
             canTryRecovery = true;
         }
     }
@@ -722,7 +722,7 @@ void CSigSharesManager::TryRecoverSig(const CQuorumCPtr& quorum, const uint256& 
     {
         LOCK(cs);
 
-        auto k = std::make_pair(quorum->params.type, id);
+        FIRO_UNUSED auto k = std::make_pair(quorum->params.type, id);
 
         auto signHash = CLLMQUtils::BuildSignHash(quorum->params.type, quorum->qc.quorumHash, id, msgHash);
         auto sigShares = this->sigShares.GetAllForSignHash(signHash);
@@ -732,14 +732,14 @@ void CSigSharesManager::TryRecoverSig(const CQuorumCPtr& quorum, const uint256& 
 
         sigSharesForRecovery.reserve((size_t) quorum->params.threshold);
         idsForRecovery.reserve((size_t) quorum->params.threshold);
-        for (auto it = sigShares->begin(); it != sigShares->end() && sigSharesForRecovery.size() < quorum->params.threshold; ++it) {
+        for (auto it = sigShares->begin(); it != sigShares->end() && cmp::less(sigSharesForRecovery.size(), quorum->params.threshold); ++it) {
             auto& sigShare = it->second;
             sigSharesForRecovery.emplace_back(sigShare.sigShare.Get());
             idsForRecovery.emplace_back(quorum->members[sigShare.quorumMember]->proTxHash);
         }
 
         // check if we can recover the final signature
-        if (sigSharesForRecovery.size() < quorum->params.threshold) {
+        if (cmp::less(sigSharesForRecovery.size(), quorum->params.threshold)) {
             return;
         }
     }
