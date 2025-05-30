@@ -120,7 +120,9 @@ void SendCoinsEntry::on_payTo_textChanged(const QString &address)
 
     bool isSparkAddress = false;
     if (model) {
-        isSparkAddress = model->validateSparkAddress(address);
+        const QString payToText = ui->payTo->text();
+        isSparkAddress = model->validateSparkAddress(address) ||
+                        (payToText.startsWith("@") && payToText.size() <= CSparkNameManager::maximumSparkNameLength + 1);
     }
     ui->messageLabel->setVisible(isSparkAddress);
     ui->messageTextLabel->setVisible(isSparkAddress);
