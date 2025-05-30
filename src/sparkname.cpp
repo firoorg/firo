@@ -240,7 +240,7 @@ bool CSparkNameManager::GetSparkNameByAddress(const std::string& address, std::s
 {
     auto it = sparkNameAddresses.find(address);
     if (it != sparkNameAddresses.end()) {
-        name = it->second;
+        name = sparkNames[it->second].name;
         return true;
     }
     return false;
