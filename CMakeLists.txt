@@ -138,11 +138,18 @@ option(REDUCE_EXPORTS "Attempt to reduce exported symbols in the resulting execu
 option(WERROR "Treat compiler warnings as errors." OFF)
 option(WITH_CCACHE "Attempt to use ccache for compiling." ON)
 option(ENABLE_CRASH_HOOKS "Hook into exception/signal/assert handling to gather stack traces (default is off)" OFF)
+option(HAVE_DECL_DAEMON "Enable -daemon" OFF)
 
 if(ENABLE_CRASH_HOOKS)
   message(STATUS "Crash hooks enabled")
   # Define symbol ENABLE_CRASH_HOOKS for the compiler
   add_compile_definitions(ENABLE_CRASH_HOOKS=1)
+endif()
+
+if(HAVE_DECL_DAEMON)
+  message(STATUS "Daemon mode enabled")
+  # Define symbol HAVE_DECL_DAEMON
+  add_compile_definitions(HAVE_DECL_DAEMON=1)
 endif()
 
 include(CheckCXXCompilerFlag)
@@ -876,6 +883,7 @@ message("Attempt to harden executables ......... ${ENABLE_HARDENING}")
 message("Treat compiler warnings as errors ..... ${WERROR}")
 message("Use ccache for compiling .............. ${WITH_CCACHE}")
 message("Enable crash hooks .................... ${ENABLE_CRASH_HOOKS}")
+message("Daemon mode is enabled ................ ${HAVE_DECL_DAEMON}")
 message("\n")
 if(configure_warnings)
     message("  ******\n")
