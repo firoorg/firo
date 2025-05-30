@@ -186,7 +186,9 @@ public:
         WalletModelTransaction &transaction);
 
     bool sparkNamesAllowed() const;
-    
+
+    bool GetSparkNameByAddress(const QString& sparkAddress, QString& name);
+
     bool validateSparkNameData(const QString &name, const QString &sparkAddress, const QString &additionalData, QString &strError);
 
     WalletModelTransaction initSparkNameTransaction(CAmount sparkNameFee);
