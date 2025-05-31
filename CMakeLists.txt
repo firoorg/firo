@@ -462,12 +462,6 @@ find_library(TOR_LIBRARY
 # Find OpenSSL library
 find_package(OpenSSL 1.1.1 REQUIRED)
 
-# Find MiniUPNP library
-find_library(MINIUPNP_LIBRARY
-  NAMES miniupnpc
-  REQUIRED
-)
-
 # Find GMP library
 find_package(GMP 6.2.1 REQUIRED)
 
