@@ -6,14 +6,14 @@ LD64_VERSION=609
 
 OSX_SDK=$(SDK_PATH)/Xcode-$(XCODE_VERSION)-$(XCODE_BUILD_ID)-extracted-SDK-with-libcxx-headers
 
-darwin_native_binutils=native_cctools
+darwin_native_binutils=
 
 ifeq ($(strip $(FORCE_USE_SYSTEM_CLANG)),)
 # FORCE_USE_SYSTEM_CLANG is empty, so we use our depends-managed, pinned clang
 # from llvm.org
 
 # Clang is a dependency of native_cctools when FORCE_USE_SYSTEM_CLANG is empty
-darwin_native_toolchain=native_cctools
+darwin_native_toolchain=
 
 clang_prog=$(build_prefix)/bin/clang
 clangxx_prog=$(clang_prog)++
