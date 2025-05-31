@@ -3,7 +3,7 @@ $(package)_version=1.8.12
 $(package)_download_path=http://xorg.freedesktop.org/releases/individual/lib/
 $(package)_file_name=$(package)-$($(package)_version).tar.xz
 $(package)_sha256_hash=fa026f9bb0124f4d6c808f9aef4057aad65e7b35d8ff43951cef0abe06bb9a9a
-$(package)_dependencies=libxcb xtrans xextproto xproto
+$(package)_dependencies=libxcb xextproto xproto
 
 define $(package)_set_vars
 $(package)_config_opts=--disable-xkb
