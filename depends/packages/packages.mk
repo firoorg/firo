@@ -17,9 +17,3 @@ zmq_packages=zeromq
 darwin_native_packages = native_mac_alias
 
 $(host_arch)_$(host_os)_native_packages += native_b2
-
-ifneq ($(build_os),darwin)
-darwin_native_packages += native_libtapi
-
-endif
-
