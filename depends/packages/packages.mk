@@ -14,7 +14,7 @@ qrencode_packages=qrencode
 
 zmq_packages=zeromq
 
-darwin_native_packages = native_ds_store native_mac_alias
+darwin_native_packages = native_mac_alias
 
 $(host_arch)_$(host_os)_native_packages += native_b2
 
