@@ -718,6 +718,7 @@ public:
     bool IsSpatsBurn() const;
 
     bool IsSpats() const;
+    bool IsSpatsAction() const;
 
     bool IsZerocoinRemint() const;
 

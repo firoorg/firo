@@ -316,7 +316,7 @@ spark::Coin CSparkWallet::getCoinFromMeta(const CSparkMintMeta& meta) const {
         return meta.coin;
 
     spark::Address address(viewKey, meta.i);
-    return spark::Coin(params, meta.type, meta.k, address, meta.v, meta.memo, meta.serial_context);
+    return spark::Coin(params, meta.type, meta.k, address, meta.v, meta.memo, meta.serial_context, meta.a, meta.iota);
 }
 
 spark::Coin CSparkWallet::getCoinFromLTagHash(const uint256& lTagHash) const {
@@ -1263,7 +1263,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             recipientsToSubtractFee++;
         }
 
-        if (recipient.scriptPubKey.IsSpats())
+        if (recipient.scriptPubKey.IsSpatsAction())
             spats_script_sizes_total += recipient.scriptPubKey.size();
     }
 
@@ -1277,16 +1277,17 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     }
 
     std::pair<Scalar, Scalar> identifier;
-    if (spatsRecipients.size() > 0)
+    if (spatsRecipients.size() > 0) {
         if(!spark::IsSpatsStarted())
             throw std::runtime_error(_("Spats not started."));
 
         identifier = std::make_pair(spatsRecipients[0].a, spatsRecipients[0].iota);
-	for (const auto& privRecipient : spatsRecipients) {
+        for (const auto& privRecipient : spatsRecipients) {
             spatsMintVOut += privRecipient.v;
             if (privRecipient.a != identifier.first || privRecipient.iota != identifier.second)
                 throw std::runtime_error(_("Not allowed to mix assets in one spend transaction."));
-	}
+        }
+    }
 
     if (vOut > consensusParams.nMaxValueSparkSpendPerTransaction)
         throw std::runtime_error(_("Spend to transparent address limit exceeded (10,000 Firo per transaction)."));
@@ -1416,13 +1417,13 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             // fill outputs
             for (size_t i = 0; i < recipients_.size(); i++) {
                 auto& recipient = recipients_[i];
-                const bool is_spats = recipient.scriptPubKey.IsSpats();
-                if (recipient.nAmount == 0 && !is_spats)
+                const bool is_spats_action = recipient.scriptPubKey.IsSpatsAction();
+                if (recipient.nAmount == 0 && !is_spats_action)
                     continue;
 
                 CTxOut vout(recipient.nAmount, recipient.scriptPubKey);
 
-                if (!is_spats && vout.IsDust(minRelayTxFee)) {
+                if (!is_spats_action && vout.IsDust(minRelayTxFee)) {
                     std::string err;
 
                     if (recipient.fSubtractFeeFromAmount && fee > 0) {
@@ -1500,7 +1501,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             if(!spark::IsSpatsStarted()) {
             	script << OP_SPARKSPEND;
             } else
-                script << OP_SPATSSPEND;
+                script << OP_SPATSSPEND;    // TODO question for Levon: any benefit of making all spend txs spats, even when spatsRecipients is empty? This way old nodes and tools will have a problem with all spark spends, not just spats
             tx.vin.emplace_back(COutPoint(), script, sequence);
 
             // clear vExtraPayload to calculate metadata hash correctly
@@ -1605,7 +1606,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
                 serialized << outCoin;
                 CScript script;
-                script << OP_SPARKSMINT;
+                script << OP_SPARKSMINT;    // TODO question for Levon: what if outCoin is spats, doesn't the loop body need to change to adapt for that possibility?
                 script.insert(script.end(), serialized.begin(), serialized.end());
                 CWalletDB walletdb(strWalletFile);
                 CSparkOutputTx output;
@@ -1868,18 +1869,17 @@ std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const std::pair<S
 
     // Filter out coins that have not been selected from CoinControl should that be used
     coins.remove_if([lockedCoins, identifier, coinControl](const CSparkMintMeta& coin) {
-        COutPoint outPoint;
-
-        if (coin.a != identifier.first)
+        if (coin.a != identifier.first || coin.iota != identifier.second)
             return true;
 
+        COutPoint outPoint;
         // ignore if the coin is not actually on chain
         if (!spark::GetOutPoint(outPoint, coin.coin)) {
             return true;
         }
 
         // if we are using coincontrol, filter out unselected coins
-        if (coinControl != NULL){
+        if (coinControl) {
             if (coinControl->HasSelected()){
                 if (!coinControl->IsSelected(outPoint)){
                     return true;

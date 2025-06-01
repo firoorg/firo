@@ -3,6 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// Modified by Gevorg Voskanyan, by adding UniValue::get_uint64() member function.
+
 #ifndef __UNIVALUE_H__
 #define __UNIVALUE_H__
 
@@ -148,6 +150,7 @@ public:
     const std::string& get_str() const;
     int get_int() const;
     int64_t get_int64() const;
+    uint64_t get_uint64() const;    // Added by Gevorg Voskanyan
     double get_real() const;
     const UniValue& get_obj() const;
     const UniValue& get_array() const;

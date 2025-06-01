@@ -401,6 +401,14 @@ bool CScript::IsSpats() const
     return this->size() > 0 && IsSpatsOp(static_cast<opcodetype>((*this)[0]));
 }
 
+bool CScript::IsSpatsAction() const
+{
+    if (!IsSpats())
+        return false;
+    const auto op = static_cast<opcodetype>((*this)[0]);
+    return op != OP_SPATSMINTCOIN && op != OP_SPATSSPEND;   // these are not spats actions, as in they by themselves do not affect spats::Registry, and do not indicate any spats::Action
+}
+
 bool CScript::IsSparkMintType() const {
     return IsSparkMint() || IsSparkSMint() || IsSpatsMint() || IsSpatsMintCoin();
 }

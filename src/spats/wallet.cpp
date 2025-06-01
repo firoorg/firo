@@ -76,7 +76,11 @@ Scalar Wallet::compute_burn_asset_supply_serialization_scalar( const BurnParamet
 Wallet::Wallet( CSparkWallet &spark_wallet )
    : spark_wallet_( spark_wallet )
    , registry_( spark::CSparkState::GetState()->GetSpatsManager().registry() )
-{}
+{
+   // verifying a fundamental assumption about Scalar's default constructor, even though this might not be the best place for it, but it works for now...
+   assert( Scalar().isZero() );
+   assert( Scalar() == Scalar( std::uint64_t( 0 ) ) );
+}
 
 const std::string &Wallet::my_public_address_as_admin() const
 {

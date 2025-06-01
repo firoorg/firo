@@ -87,8 +87,8 @@ public:
          const uint64_t &v,
          const std::string &memo,
          const std::vector< unsigned char > &serial_context,
-         const Scalar &a = Scalar( uint64_t( 0 ) ),
-         const Scalar &iota = Scalar( uint64_t( 0 ) ) );
+         const Scalar &a,
+         const Scalar &iota );
 
    // Given an incoming view key, extract the coin's nonce, diversifier, value, and memo
    IdentifiedCoinData identify( const IncomingViewKey &incoming_view_key );
