@@ -3,7 +3,7 @@ $(package)_version=1.3.6
 $(package)_download_path=http://xorg.freedesktop.org/releases/individual/lib/
 $(package)_file_name=$(package)-$($(package)_version).tar.xz
 $(package)_sha256_hash=edb59fa23994e405fdc5b400afdf5820ae6160b94f35e3dc3da4457a16e89753
-$(package)_dependencies=xproto xextproto libX11 libXau
+$(package)_dependencies=xproto xextproto libXau
 
 define $(package)_set_vars
   $(package)_config_opts=
