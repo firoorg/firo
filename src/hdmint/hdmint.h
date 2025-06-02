@@ -13,8 +13,6 @@
  *
  * struct that is safe to store essential mint data, without holding any information that allows for actual spending
  * (ie. serial, randomness, private key)
- *
- * @return CHDMint object
  */
 class CHDMint
 {

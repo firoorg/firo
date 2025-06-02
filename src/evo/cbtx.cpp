@@ -200,12 +200,12 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
             auto qcHash = ::SerializeHash(qc.commitment);
             const auto& params = Params().GetConsensus().llmqs.at((Consensus::LLMQType)qc.commitment.llmqType);
             auto& v = qcHashes[params.type];
-            if (v.size() == params.signingActiveQuorumCount) {
+            if (cmp::equal(v.size(), params.signingActiveQuorumCount)) {
                 v.pop_back();
             }
             v.emplace_back(qcHash);
             hashCount++;
-            assert(v.size() <= params.signingActiveQuorumCount);
+            assert(cmp::less_equal(v.size(), params.signingActiveQuorumCount));
         }
     }
 

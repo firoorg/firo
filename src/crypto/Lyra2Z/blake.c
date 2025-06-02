@@ -40,15 +40,15 @@
 extern "C"{
 #endif
 
-#if SPH_SMALL_FOOTPRINT && !defined SPH_SMALL_FOOTPRINT_BLAKE
+#if defined SPH_SMALL_FOOTPRINT && !defined SPH_SMALL_FOOTPRINT_BLAKE
 #define SPH_SMALL_FOOTPRINT_BLAKE   1
 #endif
 
-#if SPH_SMALL_FOOTPRINT_BLAKE
+#if defined SPH_SMALL_FOOTPRINT_BLAKE
 #define SPH_COMPACT_BLAKE_32   1
 #endif
 
-#if SPH_64 && (SPH_SMALL_FOOTPRINT_BLAKE || !SPH_64_TRUE)
+#if defined SPH_64 && (defined SPH_SMALL_FOOTPRINT_BLAKE || !defined SPH_64_TRUE)
 #define SPH_COMPACT_BLAKE_64   1
 #endif
 
@@ -88,7 +88,7 @@ static const sph_u64 IV512[8] = {
 
 #endif
 
-#if SPH_COMPACT_BLAKE_32 || SPH_COMPACT_BLAKE_64
+#if defined SPH_COMPACT_BLAKE_32 || defined SPH_COMPACT_BLAKE_64
 
 static const unsigned sigma[16][16] = {
 	{  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 },
@@ -318,7 +318,7 @@ static const unsigned sigma[16][16] = {
 #define CSE   SPH_C32(0x3F84D5B5)
 #define CSF   SPH_C32(0xB5470917)
 
-#if SPH_COMPACT_BLAKE_32
+#if defined SPH_COMPACT_BLAKE_32
 
 static const sph_u32 CS[16] = {
 	SPH_C32(0x243F6A88), SPH_C32(0x85A308D3),
@@ -356,7 +356,7 @@ static const sph_u32 CS[16] = {
 #define CBE   SPH_C64(0x0801F2E2858EFC16)
 #define CBF   SPH_C64(0x636920D871574E69)
 
-#if SPH_COMPACT_BLAKE_64
+#if defined SPH_COMPACT_BLAKE_64
 
 static const sph_u64 CB[16] = {
 	SPH_C64(0x243F6A8885A308D3), SPH_C64(0x13198A2E03707344),
@@ -384,7 +384,7 @@ static const sph_u64 CB[16] = {
 		b = SPH_ROTR32(b ^ c, 7); \
 	} while (0)
 
-#if SPH_COMPACT_BLAKE_32
+#if defined SPH_COMPACT_BLAKE_32
 
 #define ROUND_S(r)   do { \
 		GS(M[sigma[r][0x0]], M[sigma[r][0x1]], \
@@ -433,7 +433,7 @@ static const sph_u64 CB[16] = {
 		b = SPH_ROTR64(b ^ c, 11); \
 	} while (0)
 
-#if SPH_COMPACT_BLAKE_64
+#if defined SPH_COMPACT_BLAKE_64
 
 #define ROUND_B(r)   do { \
 		GB(M[sigma[r][0x0]], M[sigma[r][0x1]], \
@@ -509,7 +509,7 @@ static const sph_u64 CB[16] = {
 		(state)->T1 = T1; \
 	} while (0)
 
-#if SPH_COMPACT_BLAKE_32
+#if defined SPH_COMPACT_BLAKE_32
 
 #define COMPRESS32   do { \
 		sph_u32 M[16]; \
@@ -665,7 +665,7 @@ static const sph_u64 CB[16] = {
 		(state)->T1 = T1; \
 	} while (0)
 
-#if SPH_COMPACT_BLAKE_64
+#if defined SPH_COMPACT_BLAKE_64
 
 #define COMPRESS64   do { \
 		sph_u64 M[16]; \

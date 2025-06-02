@@ -13,7 +13,7 @@
 #include "primitives.h"
 #include "sparkname.h"
 
-namespace spark_mintspend { class spark_mintspend_test; }
+namespace spark_mintspend { struct spark_mintspend_test; }
 
 namespace spark {
 
@@ -269,7 +269,7 @@ private:
     typedef std::map<int, size_t> metainfo_container_t;
     metainfo_container_t extendedMintMetaInfo, mintMetaInfo, spendMetaInfo;
 
-    friend class spark_mintspend::spark_mintspend_test;
+    friend struct spark_mintspend::spark_mintspend_test;
 };
 
 } // namespace spark

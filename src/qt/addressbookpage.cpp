@@ -361,7 +361,7 @@ void AddressBookPage::on_exportButton_clicked()
 
     CSVModelWriter writer(filename);
 
-    QTableView *table;
+    FIRO_UNUSED QTableView *table;
     writer.setModel(proxyModel);
     if (ui->addressType->currentText() == AddressTableModel::Transparent) {
         writer.addColumn("Label", AddressTableModel::Label, Qt::EditRole);

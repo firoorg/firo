@@ -25,7 +25,7 @@ typedef std::map<COutPoint, std::pair<int, CAmount>> SimpleUTXOMap;
 static SimpleUTXOMap BuildSimpleUtxoMap(const std::vector<CTransaction>& txs)
 {
     SimpleUTXOMap utxos;
-    CAmount balance = 0;
+    FIRO_UNUSED CAmount balance = 0;
     for (size_t i = 0; i < txs.size(); i++) {
         auto& tx = txs[i];
         size_t const znode_output = tx.vout.size() > 6 ? FindZnodeOutput(tx) : 0;
@@ -595,7 +595,7 @@ BOOST_AUTO_TEST_CASE(limit)
         {CSporkAction::sporkLimit, CSporkAction::featureSparkTransparentLimit, 100*COIN, 1050}
     });
 
-    auto params = spark::Params::get_default();
+    FIRO_UNUSED auto params = spark::Params::get_default();
 
     BOOST_ASSERT(pwalletMain->sparkWallet);
     spark::Address address = pwalletMain->sparkWallet->generateNewAddress();

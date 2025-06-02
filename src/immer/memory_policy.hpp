@@ -111,10 +111,10 @@ struct memory_policy
  * @ref free_list_heap_policy.  If `IMMER_NO_FREE_LIST` is defined to `1`
  * then it just uses the standard heap.
  */
-#if IMMER_NO_FREE_LIST
+#if defined(IMMER_NO_FREE_LIST)
 using default_heap_policy = heap_policy<debug_size_heap<cpp_heap>>;
 #else
-#if IMMER_NO_THREAD_SAFETY
+#if defined(IMMER_NO_THREAD_SAFETY)
 using default_heap_policy     = unsafe_free_list_heap_policy<cpp_heap>;
 #else
 using default_heap_policy = free_list_heap_policy<cpp_heap>;
@@ -124,7 +124,7 @@ using default_heap_policy = free_list_heap_policy<cpp_heap>;
 /*!
  * By default we use thread safe reference counting.
  */
-#if IMMER_NO_THREAD_SAFETY
+#if defined(IMMER_NO_THREAD_SAFETY)
 using default_refcount_policy = unsafe_refcount_policy;
 using default_lock_policy     = no_lock_policy;
 #else

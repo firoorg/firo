@@ -5,30 +5,30 @@
 add_subdirectory(progpow)
 
 add_library(bitcoin_crypto STATIC EXCLUDE_FROM_ALL
-  aes.cpp
-  chacha20.cpp
-  hmac_sha256.cpp
-  hmac_sha512.cpp
-  progpow.cpp
-  ripemd160.cpp
-  sha1.cpp
-  sha256.cpp
-  sha512.cpp
-  scrypt.cpp
-  MerkleTreeProof/arith_uint256.cpp
-  MerkleTreeProof/blake2
-  MerkleTreeProof/core.c
-  MerkleTreeProof/merkle-tree.cpp
-  MerkleTreeProof/mtp.cpp
-  MerkleTreeProof/ref.c
-  MerkleTreeProof/thread.c
-  MerkleTreeProof/blake2/blake2b.c
-  MerkleTreeProof/crypto/sha256.cpp
-  Lyra2Z/Lyra2.c
-  Lyra2Z/Lyra2Z.c
-  Lyra2Z/Sponge.c
-  Lyra2Z/blake.c
-  ../support/cleanse.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/aes.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/chacha20.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/hmac_sha256.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/hmac_sha512.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/progpow.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/ripemd160.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sha1.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sha256.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sha512.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/scrypt.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/MerkleTreeProof/arith_uint256.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/MerkleTreeProof/blake2
+  ${CMAKE_CURRENT_SOURCE_DIR}/MerkleTreeProof/core.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/MerkleTreeProof/merkle-tree.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/MerkleTreeProof/mtp.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/MerkleTreeProof/ref.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/MerkleTreeProof/thread.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/MerkleTreeProof/blake2/blake2b.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/MerkleTreeProof/crypto/sha256.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/Lyra2Z/Lyra2.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/Lyra2Z/Lyra2Z.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/Lyra2Z/Sponge.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/Lyra2Z/blake.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/../support/cleanse.cpp
 )
 
 target_link_libraries(bitcoin_crypto
