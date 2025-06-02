@@ -3310,7 +3310,7 @@ UniValue listunspentsparkmints(const std::pair<Scalar, Scalar>& identifier, cons
     UniValue results(UniValue::VARR);
     std::list<CSparkMintMeta> coins = pwallet->sparkWallet->GetAvailableSparkCoins(identifier);
 
-    LogPrintf("coins.size()=%s\n", coins.size());
+    LogPrintf("coins.size()=%d\n", coins.size());
     BOOST_FOREACH(const auto& coin, coins)
     {
         UniValue entry(UniValue::VOBJ);
@@ -3322,11 +3322,11 @@ UniValue listunspentsparkmints(const std::pair<Scalar, Scalar>& identifier, cons
         serialized << coin.coin;
         CScript script;
         // opcode is inserted as 1 byte according to file script/script.h
-        script << OP_SPARKMINT;
+        script << (coin.a == Scalar(uint64_t(0)) ? OP_SPARKMINT : OP_SPATSMINTCOIN);
         script.insert(script.end(), serialized.begin(), serialized.end());
         entry.push_back(Pair("scriptPubKey", HexStr(script.begin(), script.end())));
         entry.push_back(Pair("amount", ValueFromAmount(coin.v)));
-        entry.push_back(Pair("coin", (coin.coin.getHash().GetHex())));
+        entry.push_back(Pair("coin", coin.coin.getHash().GetHex()));
         results.push_back(entry);
     }
 
@@ -3339,12 +3339,12 @@ UniValue listunspentsparkmints(const JSONRPCRequest& request) {
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() != 2) {
+    if (request.fHelp || request.params.size() > 0) {
         throw std::runtime_error(
                 "listunspentsparkmints \n"
                 "Returns array of unspent mint coins, only spark base assets\n"
                 "Results are an array of Objects, each of which has:\n"
-                "{txid, nHeight, memo, scriptPubKey, amount}");
+                "{txid, nHeight, memo, scriptPubKey, amount, coin}");
     }
 
     if (pwallet->IsLocked()) {
@@ -3367,13 +3367,13 @@ UniValue listunspentspatsmints(const JSONRPCRequest& request) {
 
     if (request.fHelp || request.params.size() != 2) {
         throw std::runtime_error(
-                "listunspentsparkmints \n"
+                "listunspentspatsmints \n"
                 "\nArguments:\n"
                 "1. a       (numeric) .\n"
                 "2. iota    (numeric) .\n"
-                "Returns array of unspent mints coins, all assets by identifier\n"
+                "Returns array of unspent mint coins, of the asset indicated by the given asset type and identifier\n"
                 "Results are an array of Objects, each of which has:\n"
-                "{txid, nHeight, memo, scriptPubKey, amount}");
+                "{txid, nHeight, memo, scriptPubKey, amount, coin}");
     }
 
     if (pwallet->IsLocked()) {
@@ -3383,11 +3383,11 @@ UniValue listunspentspatsmints(const JSONRPCRequest& request) {
 
     EnsureSparkWalletIsAvailable();
 
-    UniValue results(UniValue::VARR);;
-    assert(pwallet != NULL);
+    UniValue results(UniValue::VARR);
+    assert(pwallet);
 
-    Scalar a(uint64_t(request.params[0].get_int()));
-    Scalar iota(uint64_t(request.params[0].get_int()));
+    Scalar a(request.params[0].get_uint64());
+    Scalar iota(request.params[1].get_uint64());
 
     std::pair<Scalar, Scalar> identifier = std::make_pair(a, iota);
     return listunspentsparkmints(identifier, pwallet);
@@ -3446,7 +3446,7 @@ UniValue listsparkmints(const JSONRPCRequest& request) {
         serialized << pwallet->sparkWallet->getCoinFromMeta(coin.second);
         CScript script;
         // opcode is inserted as 1 byte according to file script/script.h
-        script << OP_SPARKMINT;
+        script << (coin.second.a == Scalar(uint64_t(0)) ? OP_SPARKMINT : OP_SPATSMINTCOIN);
         script.insert(script.end(), serialized.begin(), serialized.end());
         entry.push_back(Pair("scriptPubKey", HexStr(script.begin(), script.end())));
         entry.push_back(Pair("amount", ValueFromAmount(coin.second.v)));
@@ -3810,7 +3810,7 @@ UniValue mintspats(const JSONRPCRequest& request)
     EnsureWalletIsUnlocked(pwallet);
     EnsureSparkWalletIsAvailable();
 
-    // Ensure spats mints is already accepted by network so users will not lost their coins
+    // Ensure spats mints is already accepted by network so users will not lose their coins
     // due to other nodes will treat it as garbage data.
     if (!spark::IsSpatsStarted()) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spats is not activated yet");
@@ -3848,12 +3848,12 @@ UniValue mintspats(const JSONRPCRequest& request)
     output.v = nAmount;
 
     if (data.exists("a"))
-        output.a = Scalar(uint64_t(data["memo"].get_int()));
+        output.a = Scalar(data["a"].get_uint64());
     else
         throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("a is not specified"));
 
     if (data.exists("iota"))
-        output.iota = Scalar(uint64_t(data["iota"].get_int()));
+        output.iota = Scalar(data["iota"].get_uint64());
     else
         throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("iota is not specified"));
 
@@ -3984,11 +3984,11 @@ UniValue spendspark(const JSONRPCRequest& request)
             if (amountAndMemo.exists("subtractFee"))
                 subtractFee = amountAndMemo["subtractFee"].get_bool();
             else
-                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no subtractFee: ")+name_);
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no subtractFee: ")+name_);   // TODO is this required in case of spats too?
 
             if (nAmount <= 0)
                 throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
-            LogPrintf("rpcWallet.mintSpark() nAmount = %d \n", nAmount);
+            LogPrintf("rpcWallet.sendSpark() nAmount = %d \n", nAmount);
 
             spark::OutputCoinData data;
             data.address = sAddress;
@@ -3996,10 +3996,10 @@ UniValue spendspark(const JSONRPCRequest& request)
             data.v = nAmount;
 
             if (amountAndMemo.exists("a"))
-                 data.a = Scalar(uint64_t(amountAndMemo["memo"].get_int()));
+                 data.a = Scalar(amountAndMemo["a"].get_uint64());
 
             if (amountAndMemo.exists("iota"))
-                data.iota = Scalar(uint64_t(amountAndMemo["subtractFee"].get_int()));
+                data.iota = Scalar(amountAndMemo["iota"].get_uint64());
             if (data.a != Scalar(uint64_t(0)) || data.iota != Scalar(uint64_t(0)))
                 spatsRecipients.push_back(data);
             else

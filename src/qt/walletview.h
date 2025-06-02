@@ -164,7 +164,7 @@ public Q_SLOTS:
 
     /** Check mintable amount to close automint notification */
     void checkMintableAmount(
-        CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance);
+        CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, const spats::Wallet::asset_balances_t &, CAmount anonymizableBalance);
 
     void checkMintableSparkAmount(
         CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance);

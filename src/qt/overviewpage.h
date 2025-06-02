@@ -11,6 +11,8 @@
 #include <QWidget>
 #include <memory>
 
+#include "../spats/manager.hpp"
+
 #include "walletmodel.h"
 
 #include <QSettings>
@@ -34,7 +36,7 @@ class QModelIndex;
 QT_END_NAMESPACE
 
 /** Overview ("home") page widget */
-class OverviewPage : public QWidget
+class OverviewPage : public QWidget, public spats::UpdatesObserver
 {
     Q_OBJECT
 
@@ -60,14 +62,14 @@ public Q_SLOTS:
         const CAmount& watchOnlyBalance,
         const CAmount& watchUnconfBalance,
         const CAmount& watchImmatureBalance,
-        const CAmount& privateBalance,
-        const CAmount& unconfirmedPrivateBalance,
+        const spats::Wallet::asset_balances_t& spats_balances,
         const CAmount& anonymizableBalance);
 
 Q_SIGNALS:
     void transactionClicked(const QModelIndex &index);
     void enabledTorChanged();
     void outOfSyncWarningClicked();
+    void spatsRegistryChangedSignal();
 private:
     Ui::OverviewPage *ui;
     ClientModel *clientModel;
@@ -78,8 +80,7 @@ private:
     CAmount currentWatchOnlyBalance;
     CAmount currentWatchUnconfBalance;
     CAmount currentWatchImmatureBalance;
-    CAmount currentPrivateBalance;
-    CAmount currentUnconfirmedPrivateBalance;
+    spats::Wallet::asset_balances_t currentSpatsBalances_;
     CAmount currentAnonymizableBalance;
 
     QSettings settings;
@@ -92,7 +93,16 @@ private:
     QString migrationWindowClosesIn;
     QString blocksRemaining;
     QString migrateAmount;
+    std::map<spats::universal_asset_id_t, spats::SparkAssetDisplayAttributes> spats_display_attributes_cache_;
+    std::mutex spats_registry_change_affected_asset_ids_mutex_;
+    asset_ids_set_t spats_registry_change_affected_asset_ids_;  // protected by spats_registry_change_affected_asset_ids_mutex_
+
+    void displaySpatsBalances();
+    const spats::SparkAssetDisplayAttributes* getSpatsDisplayAttributes(spats::universal_asset_id_t asset_id);
     void adjustTextSize(int width,int height);
+
+    void process_spats_registry_changed(const admin_addresses_set_t &affected_asset_admin_addresses, const asset_ids_set_t &affected_asset_ids) override;
+
 private Q_SLOTS:
     void updateDisplayUnit();
     void handleTransactionClicked(const QModelIndex &index);
@@ -101,6 +111,9 @@ private Q_SLOTS:
     void updateWatchOnlyLabels(bool showWatchOnly);
     void handleOutOfSyncWarningClicks();
     void countDown();
+    void handleSpatsRegistryChangedSignal();
+    
+    void on_tableWidgetSparkBalances_contextMenuRequested(const QPoint &pos);
 };
 
 class MigrateLelantusToSparkDialog : public QMessageBox

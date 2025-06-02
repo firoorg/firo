@@ -153,7 +153,7 @@ BOOST_AUTO_TEST_CASE(parse_spark_smint)
     // Generate address
     const Address address(incoming_view_key, i);
 
-    spark::Coin coin(params, 0, (Scalar().randomize()), address, v, memo, random_char_vector());
+    spark::Coin coin(params, 0, (Scalar().randomize()), address, v, memo, random_char_vector(), {}, {});
 
     CScript script(OP_SPARKSMINT);
 
@@ -405,7 +405,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
     mempool.clear();
     auto blockIdx2 = GenerateBlock({sTx1});
-    BOOST_CHECK(blockIdx2);
+    BOOST_REQUIRE(blockIdx2);
 
     auto block2 = GetCBlock(blockIdx2);
 

@@ -147,7 +147,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::v
         return true;
     }
 
-    if (scriptPubKey.IsSpatsMint())
+    if (scriptPubKey.IsSpatsMintCoin())
     {
         typeRet = TX_SPATSMINT;
         if (scriptPubKey.size() < 213) return false;
