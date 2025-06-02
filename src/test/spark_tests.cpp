@@ -153,7 +153,7 @@ BOOST_AUTO_TEST_CASE(parse_spark_smint)
     // Generate address
     const Address address(incoming_view_key, i);
 
-    spark::Coin coin(params, 0, (Scalar().randomize()), address, v, memo, random_char_vector());
+    spark::Coin coin(params, 0, (Scalar().randomize()), address, v, memo, random_char_vector(), {}, {});
 
     CScript script(OP_SPARKSMINT);
 
