@@ -57,6 +57,7 @@ namespace detail {
 		static const bool           is_specialized = true;
 		static const std::size_t    size = 128;
 		typedef __int128            value_type;
+		typedef unsigned __int128   unsigned_type;
 		typedef type_from_size<128> next_size;
 	};
 #endif
@@ -67,6 +68,7 @@ namespace detail {
 		static const bool           is_specialized = true;
 		static const std::size_t    size = 64;
 		typedef int64_t             value_type;
+		typedef uint64_t            unsigned_type;
 		typedef type_from_size<128> next_size;
 	};
 
@@ -75,6 +77,7 @@ namespace detail {
 		static const bool          is_specialized = true;
 		static const std::size_t   size = 32;
 		typedef int32_t            value_type;
+		typedef uint32_t		   unsigned_type;
 		typedef type_from_size<64> next_size;
 	};
 
@@ -83,6 +86,7 @@ namespace detail {
 		static const bool          is_specialized = true;
 		static const std::size_t   size = 16;
 		typedef int16_t            value_type;
+		typedef uint16_t          unsigned_type;
 		typedef type_from_size<32> next_size;
 	};
 
@@ -91,6 +95,7 @@ namespace detail {
 		static const bool          is_specialized = true;
 		static const std::size_t   size = 8;
 		typedef int8_t             value_type;
+		typedef uint8_t            unsigned_type;
 		typedef type_from_size<16> next_size;
 	};
 
@@ -250,7 +255,7 @@ public:
 
 public:
 	static const std::size_t base_size     = base_type_info::size;
-	static const base_type fractional_mask = ~((~base_type(0)) << fractional_bits);
+	static const base_type fractional_mask = ~(static_cast<typename base_type_info::unsigned_type>(~base_type(0)) << fractional_bits);
 	static const base_type integer_mask    = ~fractional_mask;
 
 public:
