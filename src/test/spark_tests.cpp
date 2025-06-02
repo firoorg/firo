@@ -405,7 +405,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
     mempool.clear();
     auto blockIdx2 = GenerateBlock({sTx1});
-    BOOST_CHECK(blockIdx2);
+    BOOST_REQUIRE(blockIdx2);
 
     auto block2 = GetCBlock(blockIdx2);
 
