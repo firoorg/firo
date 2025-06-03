@@ -289,6 +289,5 @@ chain for " target " development."))
            (list clang-toolchain-18
                  lld-18
                  (make-lld-wrapper lld-18 #:lld-as-ld? #t)
-                 python-signapple
                  zip))
           (else '())))))
