@@ -1,0 +1,13 @@
+diff --git a/tools/build/src/tools/darwin.jam b/tools/build/src/tools/darwin.jam
+index 558af6dc8..75f926186 100644
+--- a/tools/build/src/tools/darwin.jam
++++ b/tools/build/src/tools/darwin.jam
+@@ -507,7 +507,7 @@ actions link.dll bind LIBRARIES
+ # TODO: Find a way to use the underlying tools, i.e. lipo, to do this.
+ actions piecemeal archive
+ {
+-    "$(.LIBTOOL)" -static -o "$(<:T)"  $(ARFLAGS)  "$(>:T)"
++    "$(.LIBTOOL)" rcs "$(<:T)"  $(ARFLAGS)  "$(>:T)"
+ }
+ 
+ # This is a temporary solution for doing combined architecture builds on macOS.
