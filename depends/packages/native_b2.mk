@@ -6,7 +6,7 @@ $(package)_sha256_hash=$(boost_sha256_hash)
 $(package)_build_subdir=tools/build/src/engine
 
 define $(package)_build_cmds
-  CXX="$($(package)_cxx)" CXXFLAGS="$($(package)_cxxflags)" ./build.sh
+  ./build.sh --cxx=g++ --cxxflags="-std=c++11 -pthread -lstdc++"
 endef
 
 define $(package)_stage_cmds

@@ -45,7 +45,7 @@ jobs:
         name: ${{ env.SOURCE_ARTIFACT }}
         path: ${{ env.SOURCE_ARTIFACT_DIR }}
   build-linux-cmake:
-    name: Build for Linux (CMake)
+    name: build-linux-cmake
     runs-on: ubuntu-latest
     env:
       ARTIFACT_DIR: linux-cmake-binaries
@@ -115,7 +115,7 @@ jobs:
         name: test-cmake-logs
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
   build-linux-autotools:
-    name: Build for Linux (Autotools)
+    name: build-linux-autotools
     needs: create-source-distribution
     runs-on: ubuntu-latest
     env:
@@ -191,7 +191,7 @@ jobs:
         name: test-autotools-logs
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
   build-windows-autotools:
-    name: Build for Windows (Autotools)
+    name: build-windows-autotools
     needs: create-source-distribution
     runs-on: ubuntu-latest
     env:
@@ -233,7 +233,7 @@ jobs:
         name: windows-autotools-binaries
         path: ${{ env.ARTIFACT_DIR }}
   build-windows-cmake:
-    name: Build for Windows (CMake)
+    name: build-windows-cmake
     runs-on: ubuntu-latest
     env:
       ARTIFACT_DIR: windows-cmake-binaries
@@ -268,7 +268,7 @@ jobs:
         name: windows-cmake-binaries
         path: ${{ env.ARTIFACT_DIR }}
   build-mac-cmake:
-    name: Build for macOS (CMake)
+    name: build-mac-cmake
     runs-on: macos-latest
     env:
       ARTIFACT_DIR: mac-cmake-binaries
@@ -317,7 +317,7 @@ jobs:
         name: mac-cmake-binaries
         path: ${{ env.ARTIFACT_DIR }}
   build-mac-autotools:
-    name: Build for macOS (Autotools)
+    name: build-mac-autotools
     needs: create-source-distribution
     runs-on: macos-latest
     env:
@@ -364,3 +364,194 @@ jobs:
       with:
         name: mac-autotools-binaries
         path: ${{ env.ARTIFACT_DIR }}
+  build-guix-x86_64-linux-gnu:
+    name: build-guix-x86_64-linux-gnu
+    runs-on: ubuntu-22.04
+    env:
+      HOSTS: x86_64-linux-gnu
+      ARTIFACT_DIR: guix-binaries-x86_64-linux-gnu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Install Guix
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y guix
+          guix pull --url=https://codeberg.org/guix/guix-mirror
+      - name: Run Guix Build
+        run: |
+          CORES=$(nproc)
+          env HOSTS="${HOSTS}" \
+            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" \
+            ./contrib/guix/guix-build
+      - name: Prepare Files for Artifact
+        run: |
+          mkdir -p $ARTIFACT_DIR
+          cp -r ./guix-build-*/output/* $ARTIFACT_DIR/ || true
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: guix-binaries-x86_64-linux-gnu
+          path: ${{ env.ARTIFACT_DIR }}
+  build-guix-x86_64-w64-mingw32:
+    name: build-guix-x86_64-w64-mingw32
+    runs-on: ubuntu-22.04
+    env:
+      HOSTS: x86_64-w64-mingw32
+      ARTIFACT_DIR: guix-binaries-x86_64-w64-mingw32
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Install Guix
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y guix
+          guix pull --url=https://codeberg.org/guix/guix-mirror
+      - name: Run Guix Build
+        run: |
+          CORES=$(nproc)
+          env HOSTS="${HOSTS}" \
+            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" \
+            ./contrib/guix/guix-build
+      - name: Prepare Files for Artifact
+        run: |
+          mkdir -p $ARTIFACT_DIR
+          cp -r ./guix-build-*/output/* $ARTIFACT_DIR/ || true
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: guix-binaries-x86_64-w64-mingw32
+          path: ${{ env.ARTIFACT_DIR }}
+  build-guix-x86_64-apple-darwin:
+    name: build-guix-x86_64-apple-darwin
+    runs-on: ubuntu-22.04
+    env:
+      HOSTS: x86_64-apple-darwin
+      ARTIFACT_DIR: guix-binaries-x86_64-apple-darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download macOS SDK
+        run: |
+          mkdir -p depends/SDKs
+          wget -O depends/SDKs/MacOSX15.4.sdk.tar.xz https://github.com/joseluisq/macosx-sdks/releases/download/15.4/MacOSX15.4.sdk.tar.xz
+      - name: Verify macOS SDK SHA256
+        run: |
+          echo "a0b7b66912ac0da0e45b304a332bacdbe58ca172220820d425edb28213962f81  depends/SDKs/MacOSX15.4.sdk.tar.xz" | sha256sum -c -
+      - name: Extract macOS SDK
+        run: |
+          tar -xf depends/SDKs/MacOSX15.4.sdk.tar.xz -C depends/SDKs/
+          mv depends/SDKs/MacOSX15.4.sdk depends/SDKs/MacOSX-15.4
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Install Guix
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y guix
+          guix pull --url=https://codeberg.org/guix/guix-mirror
+      - name: Run Guix Build
+        run: |
+          CORES=$(nproc)
+          export SDK_PATH="$(pwd)/depends/SDKs"
+          env HOSTS="x86_64-apple-darwin" \
+            SDK_PATH="$SDK_PATH" \
+            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" \
+            ./contrib/guix/guix-build
+      - name: Prepare Files for Artifact
+        run: |
+          mkdir -p $ARTIFACT_DIR
+          cp -r ./guix-build-*/output/* $ARTIFACT_DIR/ || true
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: guix-binaries-x86_64-apple-darwin
+          path: ${{ env.ARTIFACT_DIR }}
+  build-guix-aarch64-linux-gnu:
+    name: build-guix-aarch64-linux-gnu
+    runs-on: ubuntu-22.04
+    env:
+      HOSTS: aarch64-linux-gnu
+      ARTIFACT_DIR: guix-binaries-aarch64-linux-gnu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Install Guix
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y guix
+          guix pull --url=https://codeberg.org/guix/guix-mirror
+      - name: Run Guix Build
+        run: |
+          CORES=$(nproc)
+          env HOSTS="${HOSTS}" \
+            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" \
+            ./contrib/guix/guix-build
+      - name: Prepare Files for Artifact
+        run: |
+          mkdir -p $ARTIFACT_DIR
+          cp -r ./guix-build-*/output/* $ARTIFACT_DIR/ || true
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: guix-binaries-aarch64-linux-gnu
+          path: ${{ env.ARTIFACT_DIR }}
+  build-guix-arm64-apple-darwin:
+    name: build-guix-arm64-apple-darwin
+    runs-on: ubuntu-22.04
+    env:
+      HOSTS: arm64-apple-darwin
+      ARTIFACT_DIR: guix-binaries-arm64-apple-darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download macOS SDK
+        run: |
+          mkdir -p depends/SDKs
+          wget -O depends/SDKs/MacOSX15.4.sdk.tar.xz https://github.com/joseluisq/macosx-sdks/releases/download/15.4/MacOSX15.4.sdk.tar.xz
+      - name: Verify macOS SDK SHA256
+        run: |
+          echo "a0b7b66912ac0da0e45b304a332bacdbe58ca172220820d425edb28213962f81  depends/SDKs/MacOSX15.4.sdk.tar.xz" | sha256sum -c -
+      - name: Extract macOS SDK
+        run: |
+          tar -xf depends/SDKs/MacOSX15.4.sdk.tar.xz -C depends/SDKs/
+          mv depends/SDKs/MacOSX15.4.sdk depends/SDKs/MacOSX-15.4
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Install Guix
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y guix
+          guix pull --url=https://codeberg.org/guix/guix-mirror
+      - name: Run Guix Build
+        run: |
+          CORES=$(nproc)
+          export SDK_PATH="$(pwd)/depends/SDKs"
+          env HOSTS="arm64-apple-darwin" \
+            SDK_PATH="$SDK_PATH" \
+            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" \
+            ./contrib/guix/guix-build
+      - name: Prepare Files for Artifact
+        run: |
+          mkdir -p $ARTIFACT_DIR
+          cp -r ./guix-build-*/output/* $ARTIFACT_DIR/ || true
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: guix-binaries-arm64-apple-darwin
+          path: ${{ env.ARTIFACT_DIR }}

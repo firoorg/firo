@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
+# Copyright (c) 2019-2021 The Bitcoin Core developers
+# Copyright (c) 2022-2024 The Firo Project
+# Distributed under the MIT software license, see the accompanying
+# file ../LICENSE.txt or http://www.opensource.org/licenses/mit-license.php.
 export LC_ALL=C
 set -e -o pipefail
 export TZ=UTC
+
+# shellcheck source=contrib/shell/git-utils.bash
+source contrib/shell/git-utils.bash
 
 # Although Guix _does_ set umask when building its own packages (in our case,
 # this is all packages in manifest.scm), it does not set it for `guix
@@ -25,16 +32,21 @@ fi
 cat << EOF
 Required environment variables as seen inside the container:
     DIST_ARCHIVE_BASE: ${DIST_ARCHIVE_BASE:?not set}
-    DISTNAME: ${DISTNAME:?not set}
     HOST: ${HOST:?not set}
-    SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:?not set}
     JOBS: ${JOBS:?not set}
     DISTSRC: ${DISTSRC:?not set}
     OUTDIR: ${OUTDIR:?not set}
+    OPTIONS: ${OPTIONS}
 EOF
 
 ACTUAL_OUTDIR="${OUTDIR}"
 OUTDIR="${DISTSRC}/output"
+DISTNAME="firo-${HOST}-${VERSION}"
+
+# Use a fixed timestamp for depends builds so hashes match across commits that
+# don't make changes to the build system. This timestamp is only used for depends
+# packages. Source archive and binary tarballs use the commit date.
+export SOURCE_DATE_EPOCH=1397818193
 
 #####################
 # Environment Setup #
@@ -49,16 +61,13 @@ BASEPREFIX="${PWD}/depends"
 store_path() {
     grep --extended-regexp "/[^-]{32}-${1}-[^-]+${2:+-${2}}" "${GUIX_ENVIRONMENT}/manifest" \
         | head --lines=1 \
-        | sed --expression='s|^[[:space:]]*"||' \
+        | sed --expression='s|\x29*$||' \
+              --expression='s|^[[:space:]]*"||' \
               --expression='s|"[[:space:]]*$||'
 }
 
-
-# Set environment variables to point the NATIVE toolchain to the right
-# includes/libs
-NATIVE_GCC="$(store_path gcc-toolchain)"
-NATIVE_GCC_STATIC="$(store_path gcc-toolchain static)"
-
+# These environment variables are automatically set by Guix, but don't
+# necessarily point to the correct toolchain paths. This is fixed below.
 unset LIBRARY_PATH
 unset CPATH
 unset C_INCLUDE_PATH
@@ -66,35 +75,37 @@ unset CPLUS_INCLUDE_PATH
 unset OBJC_INCLUDE_PATH
 unset OBJCPLUS_INCLUDE_PATH
 
-export LIBRARY_PATH="${NATIVE_GCC}/lib:${NATIVE_GCC}/lib64:${NATIVE_GCC_STATIC}/lib:${NATIVE_GCC_STATIC}/lib64"
+NATIVE_GCC="$(store_path gcc-toolchain)"
+
 export C_INCLUDE_PATH="${NATIVE_GCC}/include"
 export CPLUS_INCLUDE_PATH="${NATIVE_GCC}/include/c++:${NATIVE_GCC}/include"
 export OBJC_INCLUDE_PATH="${NATIVE_GCC}/include"
 export OBJCPLUS_INCLUDE_PATH="${NATIVE_GCC}/include/c++:${NATIVE_GCC}/include"
 
+case "$HOST" in
+    *darwin*) export LIBRARY_PATH="${NATIVE_GCC}/lib" ;;
+    *mingw*) export LIBRARY_PATH="${NATIVE_GCC}/lib" ;;
+    *)
+        NATIVE_GCC_STATIC="$(store_path gcc-toolchain static)"
+        export LIBRARY_PATH="${NATIVE_GCC}/lib:${NATIVE_GCC_STATIC}/lib"
+        ;;
+esac
+
 prepend_to_search_env_var() {
     export "${1}=${2}${!1:+:}${!1}"
 }
-
-case "$HOST" in
-    *darwin*)
-        # When targeting darwin, zlib is required by native_libdmg-hfsplus.
-        zlib_store_path=$(store_path "zlib")
-        zlib_static_store_path=$(store_path "zlib" static)
-
-        prepend_to_search_env_var LIBRARY_PATH "${zlib_static_store_path}/lib:${zlib_store_path}/lib"
-        prepend_to_search_env_var C_INCLUDE_PATH "${zlib_store_path}/include"
-        prepend_to_search_env_var CPLUS_INCLUDE_PATH "${zlib_store_path}/include"
-        prepend_to_search_env_var OBJC_INCLUDE_PATH "${zlib_store_path}/include"
-        prepend_to_search_env_var OBJCPLUS_INCLUDE_PATH "${zlib_store_path}/include"
-esac
 
 # Set environment variables to point the CROSS toolchain to the right
 # includes/libs for $HOST
 case "$HOST" in
     *mingw*)
         # Determine output paths to use in CROSS_* environment variables
-        CROSS_GLIBC="$(store_path "mingw-w64-x86_64-winpthreads")"
+        case "$HOST" in
+            i686-*)    CROSS_GLIBC="$(store_path "mingw-w64-i686-winpthreads")" ;;
+            x86_64-*)  CROSS_GLIBC="$(store_path "mingw-w64-x86_64-winpthreads")" ;;
+            *)         exit 1 ;;
+        esac
+
         CROSS_GCC="$(store_path "gcc-cross-${HOST}")"
         CROSS_GCC_LIB_STORE="$(store_path "gcc-cross-${HOST}" lib)"
         CROSS_GCC_LIBS=( "${CROSS_GCC_LIB_STORE}/lib/gcc/${HOST}"/* ) # This expands to an array of directories...
@@ -106,13 +117,16 @@ case "$HOST" in
         #    2. kernel-header-related search paths (not applicable to mingw-w64 hosts)
         export CROSS_C_INCLUDE_PATH="${CROSS_GCC_LIB}/include:${CROSS_GCC_LIB}/include-fixed:${CROSS_GLIBC}/include"
         export CROSS_CPLUS_INCLUDE_PATH="${CROSS_GCC}/include/c++:${CROSS_GCC}/include/c++/${HOST}:${CROSS_GCC}/include/c++/backward:${CROSS_C_INCLUDE_PATH}"
-        export CROSS_LIBRARY_PATH="${CROSS_GCC_LIB_STORE}/lib:${CROSS_GCC}/${HOST}/lib:${CROSS_GCC_LIB}:${CROSS_GLIBC}/lib"
+        export CROSS_LIBRARY_PATH="${CROSS_GCC_LIB_STORE}/lib:${CROSS_GCC_LIB}:${CROSS_GLIBC}/lib"
         ;;
     *darwin*)
         # The CROSS toolchain for darwin uses the SDK and ignores environment variables.
         # See depends/hosts/darwin.mk for more details.
         ;;
-    *linux*)
+    *android*)
+        export LD_LIBRARY_PATH="$(find /gnu/store -maxdepth 1 -name "*zlib*" | sort | head -n 1)/lib:$(find /gnu/store -maxdepth 1 -name "*gcc-11*-lib" | sort | head -n 1)/lib"
+        ;;
+    *linux-gnu*)
         CROSS_GLIBC="$(store_path "glibc-cross-${HOST}")"
         CROSS_GLIBC_STATIC="$(store_path "glibc-cross-${HOST}" static)"
         CROSS_KERNEL="$(store_path "linux-libre-headers-cross-${HOST}")"
@@ -123,11 +137,14 @@ case "$HOST" in
 
         export CROSS_C_INCLUDE_PATH="${CROSS_GCC_LIB}/include:${CROSS_GCC_LIB}/include-fixed:${CROSS_GLIBC}/include:${CROSS_KERNEL}/include"
         export CROSS_CPLUS_INCLUDE_PATH="${CROSS_GCC}/include/c++:${CROSS_GCC}/include/c++/${HOST}:${CROSS_GCC}/include/c++/backward:${CROSS_C_INCLUDE_PATH}"
-        export CROSS_LIBRARY_PATH="${CROSS_GCC_LIB_STORE}/lib:${CROSS_GCC}/${HOST}/lib:${CROSS_GCC_LIB}:${CROSS_GLIBC}/lib:${CROSS_GLIBC_STATIC}/lib"
+        export CROSS_LIBRARY_PATH="${CROSS_GCC_LIB_STORE}/lib:${CROSS_GCC_LIB}:${CROSS_GLIBC}/lib:${CROSS_GLIBC_STATIC}/lib"
+        ;;
+    *freebsd*)
         ;;
     *)
         exit 1 ;;
 esac
+
 
 # Sanity check CROSS_*_PATH directories
 IFS=':' read -ra PATHS <<< "${CROSS_C_INCLUDE_PATH}:${CROSS_CPLUS_INCLUDE_PATH}:${CROSS_LIBRARY_PATH}"
@@ -147,7 +164,9 @@ case "$HOST" in
         #
         # After the native packages in depends are built, the ld wrapper should
         # no longer affect our build, as clang would instead reach for
-        # x86_64-apple-darwin19-ld from cctools
+        # x86_64-apple-darwin-ld from cctools
+        ;;
+    *android*)
         ;;
     *) export GUIX_LD_WRAPPER_DISABLE_RPATH=yes ;;
 esac
@@ -155,27 +174,29 @@ esac
 # Make /usr/bin if it doesn't exist
 [ -e /usr/bin ] || mkdir -p /usr/bin
 
-# Symlink file and env to a conventional path
-[ -e /usr/bin/file ] || ln -s --no-dereference "$(command -v file)" /usr/bin/file
+# Symlink env to a conventional path
 [ -e /usr/bin/env ]  || ln -s --no-dereference "$(command -v env)"  /usr/bin/env
 
 # Determine the correct value for -Wl,--dynamic-linker for the current $HOST
+#
+# We need to do this because the dynamic linker does not exist at a standard path
+# in the Guix container. Binaries wouldn't be able to start in other environments.
 case "$HOST" in
-    *linux*)
+    *linux-gnu*)
         glibc_dynamic_linker=$(
             case "$HOST" in
-                i686-linux-gnu)        echo /lib/ld-linux.so.2 ;;
                 x86_64-linux-gnu)      echo /lib64/ld-linux-x86-64.so.2 ;;
                 arm-linux-gnueabihf)   echo /lib/ld-linux-armhf.so.3 ;;
                 aarch64-linux-gnu)     echo /lib/ld-linux-aarch64.so.1 ;;
                 riscv64-linux-gnu)     echo /lib/ld-linux-riscv64-lp64d.so.1 ;;
-                powerpc64-linux-gnu)   echo /lib64/ld64.so.1;;
-                powerpc64le-linux-gnu) echo /lib64/ld64.so.2;;
+                i686-linux-gnu)        echo /lib/ld-linux.so.2 ;;
                 *)                     exit 1 ;;
             esac
         )
         ;;
 esac
+
+export GLIBC_DYNAMIC_LINKER=${glibc_dynamic_linker}
 
 # Environment variables for determinism
 export TAR_OPTIONS="--owner=0 --group=0 --numeric-owner --mtime='@${SOURCE_DATE_EPOCH}' --sort=name"
@@ -195,81 +216,85 @@ esac
 # Depends Building #
 ####################
 
+mkdir -p "${OUTDIR}"
+
+# Log the depends build ids
+make -C depends --no-print-directory HOST="$HOST" print-final_build_id_long | tr ':' '\n' > ${LOGDIR}/depends-hashes.txt
+
 # Build the depends tree, overriding variables that assume multilib gcc
 make -C depends --jobs="$JOBS" HOST="$HOST" \
                                    ${V:+V=1} \
                                    ${SOURCES_PATH+SOURCES_PATH="$SOURCES_PATH"} \
                                    ${BASE_CACHE+BASE_CACHE="$BASE_CACHE"} \
                                    ${SDK_PATH+SDK_PATH="$SDK_PATH"} \
-                                   i686_linux_CC=i686-linux-gnu-gcc \
-                                   i686_linux_CXX=i686-linux-gnu-g++ \
-                                   i686_linux_AR=i686-linux-gnu-ar \
-                                   i686_linux_RANLIB=i686-linux-gnu-ranlib \
-                                   i686_linux_NM=i686-linux-gnu-nm \
-                                   i686_linux_STRIP=i686-linux-gnu-strip \
+                                   OUTDIR="$OUTDIR" \
+                                   LOGDIR="$LOGDIR" \
                                    x86_64_linux_CC=x86_64-linux-gnu-gcc \
                                    x86_64_linux_CXX=x86_64-linux-gnu-g++ \
-                                   x86_64_linux_AR=x86_64-linux-gnu-ar \
-                                   x86_64_linux_RANLIB=x86_64-linux-gnu-ranlib \
-                                   x86_64_linux_NM=x86_64-linux-gnu-nm \
-                                   x86_64_linux_STRIP=x86_64-linux-gnu-strip \
-                                   qt_config_opts_i686_linux='-platform linux-g++ -xplatform bitcoin-linux-g++' \
-                                   qt_config_opts_x86_64_linux='-platform linux-g++ -xplatform bitcoin-linux-g++' \
-                                   FORCE_USE_SYSTEM_CLANG=1
+                                   x86_64_linux_AR=x86_64-linux-gnu-gcc-ar \
+                                   x86_64_linux_RANLIB=x86_64-linux-gnu-gcc-ranlib \
+                                   x86_64_linux_NM=x86_64-linux-gnu-gcc-nm \
+                                   x86_64_linux_STRIP=x86_64-linux-gnu-strip
 
+# Log the depends package hashes
+DEPENDS_PACKAGES="$(make -C depends --no-print-directory HOST="$HOST" print-all_packages)"
+DEPENDS_CACHE="$(make -C depends --no-print-directory ${BASE_CACHE+BASE_CACHE="$BASE_CACHE"} print-BASE_CACHE)"
+
+# Stop here if we're only building depends packages. This is useful when
+# debugging reproducibility issues in depends packages. Skips ahead to the next
+# target, so we don't spend time building Firo binaries.
+if [[ -n "$DEPENDS_ONLY" ]]; then
+    exit 0
+fi
 
 ###########################
 # Source Tarball Building #
 ###########################
 
-GIT_ARCHIVE="${DIST_ARCHIVE_BASE}/${DISTNAME}.tar.gz"
+# Use COMMIT_TIMESTAMP for the source and release binary archives
+export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}
+export TAR_OPTIONS="--owner=0 --group=0 --numeric-owner --mtime='@${SOURCE_DATE_EPOCH}' --sort=name"
+
+GIT_ARCHIVE="${DIST_ARCHIVE_BASE}/firo-source-${VERSION}.tar.gz"
 
 # Create the source tarball if not already there
+# This uses `git ls-files --recurse-submodules` instead of `git archive` to make
+# sure submodules are included in the source archive.
 if [ ! -e "$GIT_ARCHIVE" ]; then
     mkdir -p "$(dirname "$GIT_ARCHIVE")"
-    git archive --prefix="${DISTNAME}/" --output="$GIT_ARCHIVE" HEAD
+    git ls-files --recurse-submodules \
+    | sort \
+    | tar --create --transform "s,^,firo-source-${VERSION}/," --mode='u+rw,go+r-w,a+X' --files-from=- \
+    | gzip -9n > ${GIT_ARCHIVE}
+    sha256sum "$GIT_ARCHIVE"
 fi
-
-mkdir -p "$OUTDIR"
 
 ###########################
 # Binary Tarball Building #
 ###########################
 
-# CONFIGFLAGS
-CONFIGFLAGS="--enable-reduce-exports --disable-bench --disable-gui-tests --disable-fuzz-binary"
-
 # CFLAGS
-HOST_CFLAGS="-O2 -g"
 case "$HOST" in
-    *linux*)  HOST_CFLAGS+=" -ffile-prefix-map=${PWD}=." ;;
-    *mingw*)  HOST_CFLAGS+=" -fno-ident" ;;
-    *darwin*) unset HOST_CFLAGS ;;
+    *linux-gnu*)
+        HOST_CFLAGS=$(find /gnu/store -maxdepth 1 -mindepth 1 -type d -exec echo -n " -ffile-prefix-map={}=/usr" \;)
+        HOST_CFLAGS+=" -ffile-prefix-map=${PWD}=." ;;
 esac
 
 # CXXFLAGS
 HOST_CXXFLAGS="$HOST_CFLAGS"
-
 case "$HOST" in
-    arm-linux-gnueabihf) HOST_CXXFLAGS="${HOST_CXXFLAGS} -Wno-psabi" ;;
+    arm-linux-gnueabihf) HOST_CXXFLAGS+=" -Wno-psabi" ;;
 esac
 
 # LDFLAGS
 case "$HOST" in
-    *linux*)  HOST_LDFLAGS="-Wl,--as-needed -Wl,--dynamic-linker=$glibc_dynamic_linker -static-libstdc++ -Wl,-O2" ;;
+    *linux-gnu*)  HOST_LDFLAGS="-Wl,--as-needed -Wl,--dynamic-linker=$glibc_dynamic_linker -static-libstdc++" ;;
     *mingw*)  HOST_LDFLAGS="-Wl,--no-insert-timestamp" ;;
 esac
 
-# Using --no-tls-get-addr-optimize retains compatibility with glibc 2.18, by
-# avoiding a PowerPC64 optimisation available in glibc 2.22 and later.
-# https://sourceware.org/binutils/docs-2.35/ld/PowerPC64-ELF64.html
-case "$HOST" in
-    *powerpc64*) HOST_LDFLAGS="${HOST_LDFLAGS} -Wl,--no-tls-get-addr-optimize" ;;
-esac
-
-case "$HOST" in
-    powerpc64-linux-*|riscv64-linux-*) HOST_LDFLAGS="${HOST_LDFLAGS} -Wl,-z,noexecstack" ;;
-esac
+export GIT_DISCOVERY_ACROSS_FILESYSTEM=1
+# Force Trezor support for release binaries
+export USE_DEVICE_TREZOR_MANDATORY=1
 
 # Make $HOST-specific native binaries from depends available in $PATH
 export PATH="${BASEPREFIX}/${HOST}/native/bin:${PATH}"
@@ -280,155 +305,69 @@ mkdir -p "$DISTSRC"
     # Extract the source tarball
     tar --strip-components=1 -xf "${GIT_ARCHIVE}"
 
-    ./autogen.sh
+    # Setup the directory where our Firo build for HOST will be
+    # installed. This directory will also later serve as the input for our
+    # binary tarballs.
+    INSTALLPATH="${DISTSRC}/installed/${DISTNAME}"
+    mkdir -p "${INSTALLPATH}"
+
+    # Ensure rpath in the resulting binaries is empty
+    CMAKEFLAGS="-DCMAKE_SKIP_RPATH=ON"
+
+    # We can't check if submodules are checked out because we're building in an
+    # extracted source archive. The guix-build script makes sure submodules are
+    # checked out before starting a build.
+    CMAKEFLAGS+=" -DMANUAL_SUBMODULES=1"
 
     # Configure this DISTSRC for $HOST
     # shellcheck disable=SC2086
-    env CONFIG_SITE="${BASEPREFIX}/${HOST}/share/config.site" \
-        ./configure --prefix=/ \
-                    --disable-ccache \
-                    --disable-maintainer-mode \
-                    --disable-dependency-tracking \
-		    --enable-crash-hooks \
-		    --without-libs \
-                    ${CONFIGFLAGS} \
-                    ${HOST_CFLAGS:+CFLAGS="${HOST_CFLAGS}"} \
-                    ${HOST_CXXFLAGS:+CXXFLAGS="${HOST_CXXFLAGS}"} \
-                    ${HOST_LDFLAGS:+LDFLAGS="${HOST_LDFLAGS}"}
+    env CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}" \
+    cmake --toolchain "${BASEPREFIX}/${HOST}/toolchain.cmake" -S . -B build \
+      -DCMAKE_INSTALL_PREFIX="${INSTALLPATH}" \
+      -DCMAKE_EXE_LINKER_FLAGS="${HOST_LDFLAGS}" \
+      -DCMAKE_SHARED_LINKER_FLAGS="${HOST_LDFLAGS}" \
+      ${CMAKEFLAGS}
 
-    sed -i.old 's/-lstdc++ //g' config.status libtool src/secp256k1/config.status src/secp256k1/libtool src/univalue/config.status src/univalue/libtool
+    make -C build --jobs="$JOBS"
 
-    # Build Bitcoin Core
-    make --jobs="$JOBS" ${V:+V=1}
+    # Copy docs
+    cp README.md "${INSTALLPATH}"
 
-    mkdir -p "$OUTDIR"
+    # Binaries should not contain references to the store path
+    for binary in "build/bin"/*; do
+        if strings "$binary" | grep -q "/gnu/store"; then
+            echo "ERR: ${binary} contains unexpected string: /gnu/store"
+            exit 1
+        fi
+    done
 
-    # Make the os-specific installers
-    case "$HOST" in
-        *mingw*)
-            make deploy ${V:+V=1} BITCOIN_WIN_INSTALLER="${OUTDIR}/${DISTNAME}-win64-setup-unsigned.exe"
-            ;;
-    esac
+    # Copy binaries
+    cp -a build/bin/* "${INSTALLPATH}"
 
-    # Setup the directory where our Bitcoin Core build for HOST will be
-    # installed. This directory will also later serve as the input for our
-    # binary tarballs.
-    INSTALLPATH="${PWD}/installed/${DISTNAME}"
-    mkdir -p "${INSTALLPATH}"
-    # Install built Bitcoin Core to $INSTALLPATH
-    case "$HOST" in
-        *darwin*)
-            make install-strip DESTDIR="${INSTALLPATH}" ${V:+V=1}
-            ;;
-        *)
-            make install DESTDIR="${INSTALLPATH}" ${V:+V=1}
-            ;;
-    esac
-
-    case "$HOST" in
-        *darwin*)
-            make osx_volname ${V:+V=1}
-            make deploydir ${V:+V=1}
-            mkdir -p "unsigned-app-${HOST}"
-            cp  --target-directory="unsigned-app-${HOST}" \
-                osx_volname \
-                contrib/macdeploy/detached-sig-{apply,create}.sh \
-                "${BASEPREFIX}/${HOST}"/native/bin/dmg
-            mv --target-directory="unsigned-app-${HOST}" dist
-            (
-                cd "unsigned-app-${HOST}"
-                find . -print0 \
-                    | sort --zero-terminated \
-                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
-                    | gzip -9n > "${OUTDIR}/${DISTNAME}-osx-unsigned.tar.gz" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-osx-unsigned.tar.gz" && exit 1 )
-            )
-            make deploy ${V:+V=1} OSX_DMG="${OUTDIR}/${DISTNAME}-osx-unsigned.dmg"
-            ;;
-    esac
     (
         cd installed
 
-        # Prune libtool and object archives
-        find . -name "lib*.la" -delete
-        find . -name "lib*.a" -delete
-
-        # Prune pkg-config files
-        rm -rf "${DISTNAME}/lib/pkgconfig"
-
+        # Finally, deterministically produce binary tarballs ready for release
         case "$HOST" in
-            *darwin*) ;;
+            *mingw*)
+                find "${DISTNAME}/" -print0 \
+                    | xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}"
+                find "${DISTNAME}/" \
+                    | sort \
+                    | zip -X@ "${OUTDIR}/${DISTNAME}.zip" \
+                    || ( rm -f "${OUTDIR}/${DISTNAME}.zip" && exit 1 )
+                ;;
             *)
-                # Split binaries and libraries from their debug symbols
-                {
-                    find "${DISTNAME}/bin" -type f -executable -print0
-                } | xargs -0 -n1 -P"$JOBS" -I{} "${DISTSRC}/contrib/devtools/split-debug.sh" {} {} {}.dbg
-                ;;
-        esac
-
-        case "$HOST" in
-            *mingw*)
-                cp "${DISTSRC}/doc/README_windows.txt" "${DISTNAME}/readme.txt"
-                ;;
-            *linux*)
-                cp "${DISTSRC}/README.md" "${DISTNAME}/"
-                ;;
-        esac
-
-        # Finally, deterministically produce {non-,}debug binary tarballs ready
-        # for release
-        case "$HOST" in
-            *mingw*)
-                find "${DISTNAME}" -not -name "*.dbg" -print0 \
+                find "${DISTNAME}/" -print0 \
                     | xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}"
-                find "${DISTNAME}" -not -name "*.dbg" \
+                find "${DISTNAME}/" \
                     | sort \
-                    | zip -X@ "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}.zip" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}.zip" && exit 1 )
-                find "${DISTNAME}" -name "*.dbg" -print0 \
-                    | xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}"
-                find "${DISTNAME}" -name "*.dbg" \
-                    | sort \
-                    | zip -X@ "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}-debug.zip" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}-debug.zip" && exit 1 )
-                ;;
-            *linux*)
-                find "${DISTNAME}" -not -name "*.dbg" -print0 \
-                    | sort --zero-terminated \
-                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
-                    | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST}.tar.gz" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}.tar.gz" && exit 1 )
-                find "${DISTNAME}" -name "*.dbg" -print0 \
-                    | sort --zero-terminated \
-                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
-                    | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST}-debug.tar.gz" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}-debug.tar.gz" && exit 1 )
-                ;;
-            *darwin*)
-                find "${DISTNAME}" -print0 \
-                    | sort --zero-terminated \
-                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
-                    | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST//x86_64-apple-darwin19/osx64}.tar.gz" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST//x86_64-apple-darwin19/osx64}.tar.gz" && exit 1 )
+                    | tar --no-recursion --owner=0 --group=0 -c -T - \
+                    | bzip2 -9 > "${OUTDIR}/${DISTNAME}.tar.bz2" \
+                    || ( rm -f "${OUTDIR}/${DISTNAME}.tar.bz2" && exit 1 )
                 ;;
         esac
-    )  # $DISTSRC/installed
-
-    case "$HOST" in
-        *mingw*)
-            cp -rf --target-directory=. contrib/windeploy
-            (
-                cd ./windeploy
-                mkdir -p unsigned
-                cp --target-directory=unsigned/ "${OUTDIR}/${DISTNAME}-win64-setup-unsigned.exe"
-                find . -print0 \
-                    | sort --zero-terminated \
-                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
-                    | gzip -9n > "${OUTDIR}/${DISTNAME}-win-unsigned.tar.gz" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-win-unsigned.tar.gz" && exit 1 )
-            )
-            ;;
-    esac
+    )
 )  # $DISTSRC
 
 rm -rf "$ACTUAL_OUTDIR"
@@ -441,7 +380,5 @@ mv --no-target-directory "$OUTDIR" "$ACTUAL_OUTDIR" \
         echo "$GIT_ARCHIVE"
         find "$ACTUAL_OUTDIR" -type f
     } | xargs realpath --relative-base="$PWD" \
-      | xargs sha256sum \
-      | sort -k2 \
-      | sponge "$ACTUAL_OUTDIR"/SHA256SUMS.part
+      | xargs sha256sum
 )

@@ -84,7 +84,6 @@ $(package)_config_opts += -nomake tools
 $(package)_config_opts += -opensource
 $(package)_config_opts += -optimized-qmake
 $(package)_config_opts += -pch
-$(package)_config_opts += -pkg-config
 $(package)_config_opts += -prefix $(host_prefix)
 $(package)_config_opts += -qt-libpng
 $(package)_config_opts += -qt-pcre
@@ -131,6 +130,7 @@ $(package)_config_opts_darwin += -no-opengl
 $(package)_config_opts_darwin += -pch
 $(package)_config_opts_darwin += -no-feature-corewlan
 $(package)_config_opts_darwin += -no-freetype
+$(package)_config_opts_darwin += -no-pkg-config
 $(package)_config_opts_darwin += QMAKE_MACOSX_DEPLOYMENT_TARGET=$(OSX_MIN_VERSION)
 
 ifneq ($(build_os),darwin)
@@ -149,6 +149,7 @@ endif
 
 $(package)_config_opts_linux = -xcb
 $(package)_config_opts_linux += -no-xcb-xlib
+$(package)_config_opts_linux += -no-pkg-config
 $(package)_config_opts_linux += -no-feature-xlib
 $(package)_config_opts_linux += -system-freetype
 $(package)_config_opts_linux += -fontconfig
@@ -172,6 +173,7 @@ endif
 $(package)_config_opts_mingw32 = -no-opengl
 $(package)_config_opts_mingw32 += -no-dbus
 $(package)_config_opts_mingw32 += -no-freetype
+$(package)_config_opts_mingw32 += -no-pkg-config
 $(package)_config_opts_mingw32 += -xplatform win32-g++
 $(package)_config_opts_mingw32 += "QMAKE_CFLAGS = '$($(package)_cflags) $($(package)_cppflags)'"
 $(package)_config_opts_mingw32 += "QMAKE_CXX = '$($(package)_cxx)'"
