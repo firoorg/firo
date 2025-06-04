@@ -4,6 +4,7 @@ $(package)_download_path=https://archives.boost.io/release/$($(package)_version)
 $(package)_file_name=boost_$(subst .,_,$($(package)_version)).tar.bz2
 $(package)_sha256_hash=71feeed900fbccca04a3b4f2f84a7c217186f28a940ed8b7ed4725986baf99fa
 $(package)_dependencies=native_b2
+$(package)_patches=fix_boost_jam_cross-compilation.patch
 
 define $(package)_set_vars
 $(package)_config_opts_release=variant=release
@@ -27,19 +28,14 @@ $(package)_cxxflags_darwin+=-ffile-prefix-map=$($(package)_extract_dir)=/usr
 endef
 
 define $(package)_preprocess_cmds
-  echo "using $($(package)_toolset_$(host_os)) : : $($(package)_cxx) : <cflags>\"$($(package)_cflags)\" <cxxflags>\"$($(package)_cxxflags)\" <compileflags>\"$($(package)_cppflags)\" <linkflags>\"$($(package)_ldflags)\" <archiver>\"$($(package)_archiver_$(host_os))\" <striper>\"$(host_STRIP)\"  <ranlib>\"$(host_RANLIB)\" <rc>\"$(host_WINDRES)\" : ;" > user-config.jam && cat user-config.jam
+  echo "using $($(package)_toolset_$(host_os)) : : $($(package)_cxx) : <cflags>\"$($(package)_cflags)\" <cxxflags>\"$($(package)_cxxflags)\" <compileflags>\"$($(package)_cppflags)\" <linkflags>\"$($(package)_ldflags)\" <archiver>\"$($(package)_archiver_$(host_os))\" <striper>\"$(host_STRIP)\"  <ranlib>\"$(host_RANLIB)\" <rc>\"$(host_WINDRES)\" : ;" > user-config.jam && cat user-config.jam && \
+  echo "Patching with fix_boost_jam_cross-compilation.patch" && \
+  cat $($(package)_patch_dir)/fix_boost_jam_cross-compilation.patch && \
+  patch -p1 < $($(package)_patch_dir)/fix_boost_jam_cross-compilation.patch
 endef
 
-# Detect if GUIX_ENVIRONMENT is set AND it is compiling to apple then patch with fix_boost_jam_cross-compilation.patch
 define $(package)_config_cmds
-  ./bootstrap.sh --without-icu --with-toolset=$($(package)_toolset_$(host_os)) --with-bjam=b2 && \
-  if [ -n "$$GUIX_ENVIRONMENT" ] && [ "$(host_os)" = "darwin" ]; then \
-    echo "GUIX_ENVIRONMENT detected and building for Darwin - applying patch"; \
-    echo "Patching with fix_boost_jam_cross-compilation.patch"; \
-    patch -p1 < $($(package)_patch_dir)/fix_boost_jam_cross-compilation.patch; \
-  else \
-    echo "Skipping patch: GUIX_ENVIRONMENT=$$GUIX_ENVIRONMENT, host_os=$(host_os)"; \
-  fi
+  ./bootstrap.sh --without-icu --with-toolset=$($(package)_toolset_$(host_os)) --with-bjam=b2
 endef
 
 define $(package)_build_cmds
