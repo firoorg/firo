@@ -7,6 +7,8 @@ $(package)_sha256_hash=9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03
 define $(package)_set_vars
 $(package)_build_opts= CC="$($(package)_cc)"
 $(package)_build_opts+=CFLAGS="$($(package)_cflags) $($(package)_cppflags) -fPIC"
+$(package)_build_opts+=RANLIB="$($(package)_ranlib)"
+$(package)_build_opts+=AR="$($(package)_ar)"
 endef
 
 define $(package)_config_cmds
