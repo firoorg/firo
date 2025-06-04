@@ -7,7 +7,8 @@ $(package)_dependencies=freetype expat
 
 define $(package)_set_vars
   $(package)_config_opts=--disable-docs --enable-static --disable-libxml2 --disable-iconv
-  $(package)_config_opts += --disable-dependency-tracking --enable-option-checking
+  $(package)_config_opts+=--disable-dependency-tracking --enable-option-checking  --disable-tests
+  $(package)_cflags+=-D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE -D_BSD_SOURCE
 endef
 
 define $(package)_config_cmds
