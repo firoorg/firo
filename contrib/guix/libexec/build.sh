@@ -277,18 +277,35 @@ case "$HOST" in
     *linux-gnu*)
         HOST_CFLAGS=$(find /gnu/store -maxdepth 1 -mindepth 1 -type d -exec echo -n " -ffile-prefix-map={}=/usr" \;)
         HOST_CFLAGS+=" -ffile-prefix-map=${PWD}=." ;;
+    *darwin*)      HOST_CFLAGS="-fuse-ld=lld" ;;
 esac
 
 # CXXFLAGS
 HOST_CXXFLAGS="$HOST_CFLAGS"
 case "$HOST" in
     arm-linux-gnueabihf) HOST_CXXFLAGS+=" -Wno-psabi" ;;
+    *darwin*)      HOST_CXXFLAGS="-fuse-ld=lld" ;;
 esac
+
+# OBJCXXFLAGS
+HOST_OBJCXXFLAGS="$HOST_CXXFLAGS"
 
 # LDFLAGS
 case "$HOST" in
     *linux-gnu*)  HOST_LDFLAGS="-Wl,--as-needed -Wl,--dynamic-linker=$glibc_dynamic_linker -static-libstdc++" ;;
-    *mingw*)  HOST_LDFLAGS="-Wl,--no-insert-timestamp" ;;
+    *mingw*)      HOST_LDFLAGS="-Wl,--no-insert-timestamp" ;;
+    *darwin*)      
+        # Find SDK directly using pattern matching (folder name should have extracted or .sdk in its name)
+        SDK_PATH=$(find "${BASEPREFIX}/SDKs" -type d -name "*extracted*" -o -name "*.sdk" | head -1)
+        if [ -z "$SDK_PATH" ]; then
+            echo "Error: No SDK found in ${BASEPREFIX}/SDKs"
+            exit 1
+        fi
+
+        HOST_LDFLAGS="-Wl,-search_paths_first -Wl,-headerpad_max_install_names -fuse-ld=lld -isysroot ${SDK_PATH}"
+        echo "Using SDK: ${SDK_PATH}"
+        echo "LDFLAGS: ${HOST_LDFLAGS}"
+    ;; 
 esac
 
 export GIT_DISCOVERY_ACROSS_FILESYSTEM=1
@@ -318,9 +335,20 @@ mkdir -p "$DISTSRC"
     # checked out before starting a build.
     CMAKEFLAGS+=" -DMANUAL_SUBMODULES=1"
 
+    # Empty environment variables for x86_64-apple-darwin
+    if [[ "$HOST" == "x86_64-apple-darwin"* ]]; then
+        unset LIBRARY_PATH
+        unset CPATH
+        unset C_INCLUDE_PATH
+        unset CPLUS_INCLUDE_PATH
+        unset OBJC_INCLUDE_PATH
+        unset OBJCPLUS_INCLUDE_PATH
+    fi
+
+
     # Configure this DISTSRC for $HOST
     # shellcheck disable=SC2086
-    env CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}" \
+    env CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}" OBJCXXFLAGS="${HOST_OBJCXXFLAGS}" \
     cmake --toolchain "${BASEPREFIX}/${HOST}/toolchain.cmake" -S . -B build \
       -DCMAKE_INSTALL_PREFIX="${INSTALLPATH}" \
       -DCMAKE_EXE_LINKER_FLAGS="${HOST_LDFLAGS}" \
