@@ -51,7 +51,7 @@ $(package)_lib_files = \
 
 define $(package)_set_vars
   $(package)_config_opts+=--disable-system-torrc --disable-systemd --disable-lzma --disable-asciidoc --disable-libscrypt --disable-gcc-hardening --enable-pic --disable-unittests --disable-tool-name-check
-  $(package)_cflags_darwin=-std=gnu11 -fPIC
+  $(package)_cflags+=-std=gnu11 -fPIC
 endef
 
 define $(package)_preprocess_cmds
