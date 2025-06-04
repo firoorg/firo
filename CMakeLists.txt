@@ -465,14 +465,15 @@ if(MINGW)
   message(STATUS "Patching OpenSSL::Crypto INTERFACE_LINK_LIBRARIES for MinGW")
   # Retrieve the current INTERFACE_LINK_LIBRARIES property (as a list)
   get_target_property(_openssl_libs OpenSSL::Crypto INTERFACE_LINK_LIBRARIES)
-  message(STATUS "Before patch: ${_openssl_libs}")
-  # Remove the 'dl' element from the list
-  list(REMOVE_ITEM _openssl_libs "dl")
-  message(STATUS "After patch: ${_openssl_libs}")
-  # Update the target's INTERFACE_LINK_LIBRARIES property with the new list
-  set_target_properties(OpenSSL::Crypto PROPERTIES
-     INTERFACE_LINK_LIBRARIES "${_openssl_libs}"
-  )
+  if(_openssl_libs)
+    message(STATUS "Before patch: ${_openssl_libs}")
+    # Remove the 'dl' element from the list
+    list(REMOVE_ITEM _openssl_libs "dl")
+    message(STATUS "After patch: ${_openssl_libs}")
+    set_target_properties(OpenSSL::Crypto PROPERTIES
+      INTERFACE_LINK_LIBRARIES "${_openssl_libs}"
+    )
+  endif()
 endif()
 
 # Find GMP library

@@ -5,20 +5,28 @@ $(package)_file_name=$(package)-$($(package)_version).tar.gz
 $(package)_sha256_hash=9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23
 
 define $(package)_set_vars
-$(package)_cflags=-fPIC
-$(package)_cxxflags=-fPIC
+$(package)_build_opts= CC="$($(package)_cc)"
+$(package)_build_opts+=CFLAGS="$($(package)_cflags) $($(package)_cppflags) -fPIC"
+$(package)_build_opts+=RANLIB="$($(package)_ranlib)"
+$(package)_build_opts+=AR="$($(package)_ar)"
+ifdef GUIX_ENVIRONMENT
+$(package)_cflags_darwin += -fuse-ld=lld
+$(package)_cxxflags_darwin += -fuse-ld=lld
+$(package)_build_opts_darwin+=AR="$($(package)_ar)"
+$(package)_build_opts_darwin+=ARFLAGS="rcs"
+else
+$(package)_build_opts_darwin+=ARFLAGS="r"
+endif
 endef
 
 define $(package)_config_cmds
-  echo "Configuring $($(package)_file_name) for $($(package)_staging_dir)" && \
-  cmake -S . -B . -DZLIB_BUILD_TESTING=OFF -DCMAKE_PREFIX_PATH=$($(package)_staging_dir)
+  ./configure --static --prefix=$(host_prefix)
 endef
 
 define $(package)_build_cmds
-  $(MAKE)
+  $(MAKE) $($(package)_build_opts) libz.a
 endef
 
 define $(package)_stage_cmds
-  $(MAKE) DESTDIR=$($(package)_staging_dir) install
+  $(MAKE) $($(package)_build_opts) DESTDIR=$($(package)_staging_dir) install
 endef
-
