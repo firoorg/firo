@@ -1,6 +1,6 @@
 package=gmp
 $(package)_version=6.2.1
-$(package)_download_path=https://gmplib.org/download/gmp
+$(package)_download_path=https://ftp.gnu.org/gnu/gmp/
 $(package)_file_name=gmp-$($(package)_version).tar.bz2
 $(package)_sha256_hash=eae9326beb4158c386e39a356818031bd28f3124cf915f8c5b1dc4c7a36b4d7c
 $(package)_patches=applem1.patch
