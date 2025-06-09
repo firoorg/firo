@@ -91,6 +91,7 @@ public:
     void updateChainLockHeight(int chainLockHeight);
     int getNumISLocks() const;
     int getChainLockHeight() const;
+    void refreshWallet() const;
 
 private:
     CWallet* wallet;
@@ -117,6 +118,7 @@ private:
     QVariant txWatchonlyDecoration(const TransactionRecord *wtx) const;
     QVariant txInstantSendDecoration(const TransactionRecord *wtx) const;
     QVariant txAddressDecoration(const TransactionRecord *wtx) const;
+
 
 public Q_SLOTS:
     /* New transaction, or transaction changed status */
