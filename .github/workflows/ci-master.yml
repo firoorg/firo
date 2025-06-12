@@ -45,7 +45,6 @@ jobs:
         name: ${{ env.SOURCE_ARTIFACT }}
         path: ${{ env.SOURCE_ARTIFACT_DIR }}
   build-linux-cmake:
-    if: false
     name: build-linux-cmake
     runs-on: ubuntu-latest
     env:
@@ -116,7 +115,6 @@ jobs:
         name: test-cmake-logs
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
   build-linux-autotools:
-    if: false
     name: build-linux-autotools
     needs: create-source-distribution
     runs-on: ubuntu-latest
@@ -193,7 +191,6 @@ jobs:
         name: test-autotools-logs
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
   build-windows-autotools:
-    if: false
     name: build-windows-autotools
     needs: create-source-distribution
     runs-on: ubuntu-latest
@@ -236,7 +233,6 @@ jobs:
         name: windows-autotools-binaries
         path: ${{ env.ARTIFACT_DIR }}
   build-windows-cmake:
-    if: false
     name: build-windows-cmake
     runs-on: ubuntu-latest
     env:
@@ -272,7 +268,6 @@ jobs:
         name: windows-cmake-binaries
         path: ${{ env.ARTIFACT_DIR }}
   build-mac-cmake:
-    if: false
     name: build-mac-cmake
     runs-on: macos-latest
     env:
@@ -322,7 +317,6 @@ jobs:
         name: mac-cmake-binaries
         path: ${{ env.ARTIFACT_DIR }}
   build-mac-autotools:
-    if: false
     name: build-mac-autotools
     needs: create-source-distribution
     runs-on: macos-latest
@@ -371,12 +365,12 @@ jobs:
         name: mac-autotools-binaries
         path: ${{ env.ARTIFACT_DIR }}
   build-guix-x86_64-linux-gnu:
-    if: false
     name: build-guix-x86_64-linux-gnu
     runs-on: ubuntu-22.04
     env:
       HOST: x86_64-linux-gnu
       ARTIFACT_DIR: guix-binaries-x86_64-linux-gnu
+      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -388,13 +382,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y guix
-          guix pull --url=https://codeberg.org/guix/guix-mirror
+          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Run Guix Build
         run: |
           CORES=$(nproc)
           env HOSTS="${HOST}" \
-            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES --substitute-urls='https://ci.guix.gnu.org https://bordeaux.guix.gnu.org https://hydra-guix-129.guix.gnu.org'" \
-            ./contrib/guix/guix-build
+            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
       - name: Prepare Files for Artifact
         run: |
           mkdir -p $ARTIFACT_DIR
@@ -405,12 +398,12 @@ jobs:
           name: guix-binaries-x86_64-linux-gnu
           path: ${{ env.ARTIFACT_DIR }}
   build-guix-aarch64-linux-gnu:
-    if: false
     name: build-guix-aarch64-linux-gnu
     runs-on: ubuntu-22.04
     env:
       HOST: aarch64-linux-gnu
       ARTIFACT_DIR: guix-binaries-aarch64-linux-gnu
+      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -422,13 +415,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y guix
-          guix pull --url=https://codeberg.org/guix/guix-mirror
+          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Run Guix Build
         run: |
           CORES=$(nproc)
           env HOSTS="${HOST}" \
-            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES --substitute-urls='https://ci.guix.gnu.org https://bordeaux.guix.gnu.org https://hydra-guix-129.guix.gnu.org'" \
-            ./contrib/guix/guix-build
+            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
       - name: Prepare Files for Artifact
         run: |
           mkdir -p $ARTIFACT_DIR
@@ -439,12 +431,12 @@ jobs:
           name: guix-binaries-aarch64-linux-gnu
           path: ${{ env.ARTIFACT_DIR }}
   build-guix-x86_64-w64-mingw32:
-    if: false
     name: build-guix-x86_64-w64-mingw32
     runs-on: ubuntu-22.04
     env:
       HOST: x86_64-w64-mingw32
       ARTIFACT_DIR: guix-binaries-x86_64-w64-mingw32
+      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -456,13 +448,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y guix
-          guix pull --url=https://codeberg.org/guix/guix-mirror
+          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Run Guix Build
         run: |
           CORES=$(nproc)
           env HOSTS="${HOST}" \
-            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES --substitute-urls='https://ci.guix.gnu.org https://bordeaux.guix.gnu.org https://hydra-guix-129.guix.gnu.org'" \
-            ./contrib/guix/guix-build
+            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
       - name: Prepare Files for Artifact
         run: |
           mkdir -p $ARTIFACT_DIR
@@ -478,6 +469,7 @@ jobs:
     env:
       HOST: arm64-apple-darwin
       ARTIFACT_DIR: guix-binaries-arm64-apple-darwin
+      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -499,7 +491,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y guix
-          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls='https://ci.guix.gnu.org https://bordeaux.guix.gnu.org https://hydra-guix-129.guix.gnu.org'
+          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Download Dependencies
         run: make -C depends download
       - name: Run Guix Build
@@ -508,8 +500,7 @@ jobs:
           export SDK_PATH="$(pwd)/depends/SDKs"
           env HOSTS="${HOST}" \
               SDK_PATH="$SDK_PATH" \
-              ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES --substitute-urls='https://ci.guix.gnu.org https://bordeaux.guix.gnu.org https://hydra-guix-129.guix.gnu.org'" \
-              ./contrib/guix/guix-build
+              ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
       - name: Prepare Files for Artifact
         run: |
           mkdir -p $ARTIFACT_DIR
@@ -525,6 +516,7 @@ jobs:
     env:
       HOST: x86_64-apple-darwin
       ARTIFACT_DIR: guix-binaries-x86_64-apple-darwin
+      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -546,17 +538,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y guix
-          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls='https://ci.guix.gnu.org https://bordeaux.guix.gnu.org https://hydra-guix-129.guix.gnu.org'
+          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Download Dependencies
         run: make -C depends download
       - name: Run Guix Build
         run: |
           CORES=$(nproc)
           export SDK_PATH="$(pwd)/depends/SDKs"
-          env HOSTS="{HOST}" \
+          env HOSTS="${HOST}" \
               SDK_PATH="$SDK_PATH" \
-              ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES --substitute-urls='https://ci.guix.gnu.org https://bordeaux.guix.gnu.org https://hydra-guix-129.guix.gnu.org'" \
-              ./contrib/guix/guix-build
+              ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
       - name: Prepare Files for Artifact
         run: |
           mkdir -p $ARTIFACT_DIR

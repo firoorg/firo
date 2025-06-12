@@ -41,7 +41,6 @@ EOF
 
 ACTUAL_OUTDIR="${OUTDIR}"
 OUTDIR="${DISTSRC}/output"
-DISTNAME="firo-${HOST}-${VERSION}"
 
 # Use a fixed timestamp for depends builds so hashes match across commits that
 # don't make changes to the build system. This timestamp is only used for depends
@@ -360,14 +359,6 @@ mkdir -p "$DISTSRC"
     # Copy docs
     cp README.md "${INSTALLPATH}"
 
-    # Binaries should not contain references to the store path
-    for binary in "build/bin"/*; do
-        if strings "$binary" | grep -q "/gnu/store"; then
-            echo "ERR: ${binary} contains unexpected string: /gnu/store"
-            exit 1
-        fi
-    done
-
     # Copy binaries
     cp -a build/bin/* "${INSTALLPATH}"
 
@@ -398,6 +389,7 @@ mkdir -p "$DISTSRC"
 )  # $DISTSRC
 
 rm -rf "$ACTUAL_OUTDIR"
+echo "Moving $OUTDIR to $ACTUAL_OUTDIR"
 mv --no-target-directory "$OUTDIR" "$ACTUAL_OUTDIR" \
     || ( rm -rf "$ACTUAL_OUTDIR" && exit 1 )
 

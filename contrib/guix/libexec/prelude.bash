@@ -65,7 +65,7 @@ time-machine() {
 # Set common variables
 ################
 
-VERSION="${FORCE_VERSION:-$(git_head_version)}"
+export VERSION="${FORCE_VERSION:-$(git_head_version)}"
 DISTNAME="${DISTNAME:-firo-${VERSION}}"
 
 version_base_prefix="${PWD}/guix-build-"
