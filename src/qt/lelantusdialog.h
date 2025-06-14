@@ -42,8 +42,7 @@ public Q_SLOTS:
         const CAmount& watchOnlyBalance,
         const CAmount& watchUnconfBalance,
         const CAmount& watchImmatureBalance,
-        const CAmount& privateBalance,
-        const CAmount& unconfirmedPrivateBalance,
+        const spats::Wallet::asset_balances_t& spats_balances,
         const CAmount& anonymizableBalance);
 
     void updateDisplayUnit(int unit);

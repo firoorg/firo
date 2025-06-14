@@ -28,13 +28,14 @@ public:
 	);
 	bool verify();
 
-    // returns the vector of serialized coins, with first one it puts also the chnorr proof;
+    // returns the vector of serialized coins, with first one it puts also the Schnorr proof;
     std::vector<CDataStream> getMintedCoinsSerialized();
 
     // deserialize from the vector of CDataStreams
     void setMintTransaction(std::vector<CDataStream>& serializedCoins);
 
-    void getCoins(std::vector<Coin>& coins_);
+    void getCoins(std::vector<Coin>& coins_) const;
+    const std::vector<Coin>& getCoins() const noexcept { return coins; }
 
 private:
 	const Params* params;

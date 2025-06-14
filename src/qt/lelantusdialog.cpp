@@ -12,6 +12,7 @@
 #include "lelantusmodel.h"
 #include "sendcoinsdialog.h"
 #include "walletmodel.h"
+#include "sendconfirmationdialog.h"
 
 #include <QSettings>
 
@@ -124,10 +125,9 @@ void LelantusDialog::setWalletModel(WalletModel *_walletModel)
         connect(_walletModel, &WalletModel::balanceChanged, this, &LelantusDialog::setBalance);
         connect(_walletModel->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &LelantusDialog::updateDisplayUnit);
 
-        auto privateBalance = _walletModel->getLelantusModel()->getPrivateBalance();
+        const auto privateBalance = _walletModel->getLelantusModel()->getPrivateBalance();
         setBalance(0, 0, 0, 0, 0, 0,
-            privateBalance.first,
-            privateBalance.second,
+            { { spats::base::universal_id, privateBalance } },
             _walletModel->getAnonymizableBalance());
 
         // Coin Control
@@ -194,16 +194,16 @@ void LelantusDialog::setBalance(
     const CAmount& watchOnlyBalance,
     const CAmount& watchUnconfBalance,
     const CAmount& watchImmatureBalance,
-    const CAmount& privateBalance,
-    const CAmount& unconfirmedPrivateBalance,
+    const spats::Wallet::asset_balances_t &spats_balances,
     const CAmount& anonymizableBalance)
 {
-    if (cachedPrivateBalance != privateBalance
-        || cachedUnconfirmedPrivateBalance != unconfirmedPrivateBalance
+    const auto [privateBalance, unconfirmedPrivateBalance] = spats_balances.at(spats::base::universal_id);
+    if (cachedPrivateBalance != privateBalance.raw()
+        || cachedUnconfirmedPrivateBalance != unconfirmedPrivateBalance.raw()
         || cachedAnonymizableBalance != anonymizableBalance)
     {
-        cachedPrivateBalance = privateBalance;
-        cachedUnconfirmedPrivateBalance = unconfirmedPrivateBalance;
+        cachedPrivateBalance = privateBalance.raw();
+        cachedUnconfirmedPrivateBalance = unconfirmedPrivateBalance.raw();
         cachedAnonymizableBalance = anonymizableBalance;
 
         updateBalanceDisplay();

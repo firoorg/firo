@@ -428,6 +428,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->ltagTxhash         = diskindex.ltagTxhash;
 
                 pindexNew->activeDisablingSporks = diskindex.activeDisablingSporks;
+                pindexNew->spats_actions = std::move(diskindex.spats_actions);    // TODO Performance: move() everything else above where that would boost efficiency
 
                 if (fCheckPoWForAllBlocks) {
                     if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, consensusParams))
@@ -648,7 +649,7 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
     if(out.scriptPubKey.IsSparkSMint())
         addressIndex->push_back(std::make_pair(CAddressIndexKey(AddressType::sparksMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
-    if(out.scriptPubKey.IsSpatsMint())
+    if(out.scriptPubKey.IsSpatsMintCoin())
         addressIndex->push_back(std::make_pair(CAddressIndexKey(AddressType::spatsMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
 
