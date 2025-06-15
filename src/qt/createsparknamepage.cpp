@@ -145,7 +145,7 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
             return false;
         }
 
-        if (model->getEncryptionStatus() == WalletModel::Locked) {
+        if (model->getEncryptionStatus() != WalletModel::Unencrypted) {
             model->getAddressTableModel()->addRow(
                 AddressTableModel::Send,
                 QString::fromStdString(name),
