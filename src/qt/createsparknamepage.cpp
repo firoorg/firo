@@ -35,9 +35,12 @@ void CreateSparkNamePage::setModel(WalletModel *model)
 {
     this->model = model;
 
-    connect(ui->sparkAddressEdit, &QLineEdit::textChanged, this, &CreateSparkNamePage::checkSparkBalance);
-    connect(ui->sparkNameEdit, &QLineEdit::textChanged, this, &CreateSparkNamePage::checkSparkBalance);
-    connect(ui->numberOfYearsEdit, qOverload<int>(&QSpinBox::valueChanged), this, &CreateSparkNamePage::checkSparkBalance);
+    connect(ui->sparkAddressEdit, &QLineEdit::textChanged,
+            this, &CreateSparkNamePage::checkSparkBalance, Qt::UniqueConnection);
+    connect(ui->sparkNameEdit,    &QLineEdit::textChanged,
+            this, &CreateSparkNamePage::checkSparkBalance, Qt::UniqueConnection);
+    connect(ui->numberOfYearsEdit, qOverload<int>(&QSpinBox::valueChanged),
+            this, &CreateSparkNamePage::checkSparkBalance, Qt::UniqueConnection);
 }
 
 void CreateSparkNamePage::on_generateButton_clicked()
@@ -165,8 +168,13 @@ void CreateSparkNamePage::checkSparkBalance()
     QString sparkAddress = ui->sparkAddressEdit->text();
     int numberOfYears = ui->numberOfYearsEdit->value();
 
-    if (sparkName.isEmpty() || !model->validateSparkAddress(sparkAddress))
+    if (sparkName.isEmpty() ||
+        sparkName.length() > CSparkNameManager::maximumSparkNameLength ||
+        !model->validateSparkAddress(sparkAddress)) {
+        ui->balanceWarningLabel->clear();
+        ui->balanceWarningLabel->setVisible(false);
         return;
+    }
 
     CAmount requiredFee = Params().GetConsensus().nSparkNamesFee[sparkName.length()] * COIN * numberOfYears;
     CAmount available = model->getSparkBalance().first;
