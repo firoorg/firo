@@ -34,6 +34,10 @@ CreateSparkNamePage::~CreateSparkNamePage()
 void CreateSparkNamePage::setModel(WalletModel *model)
 {
     this->model = model;
+
+    connect(ui->sparkAddressEdit, &QLineEdit::textChanged, this, &CreateSparkNamePage::checkSparkBalance);
+    connect(ui->sparkNameEdit, &QLineEdit::textChanged, this, &CreateSparkNamePage::checkSparkBalance);
+    connect(ui->numberOfYearsEdit, qOverload<int>(&QSpinBox::valueChanged), this, &CreateSparkNamePage::checkSparkBalance);
 }
 
 void CreateSparkNamePage::on_generateButton_clicked()
@@ -152,3 +156,28 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
     return true;
 }
 
+void CreateSparkNamePage::checkSparkBalance()
+{
+    if (!model)
+        return;
+
+    QString sparkName = ui->sparkNameEdit->text();
+    QString sparkAddress = ui->sparkAddressEdit->text();
+    int numberOfYears = ui->numberOfYearsEdit->value();
+
+    if (sparkName.isEmpty() || !model->validateSparkAddress(sparkAddress))
+        return;
+
+    CAmount requiredFee = Params().GetConsensus().nSparkNamesFee[sparkName.length()] * COIN * numberOfYears;
+    CAmount available = model->getSparkBalance().first;
+
+    if (available < requiredFee) {
+        ui->balanceWarningLabel->setText(
+            tr("⚠️ Not enough private funds to register this Spark name.")
+        );
+        ui->balanceWarningLabel->setVisible(true);
+    } else {
+        ui->balanceWarningLabel->clear();
+        ui->balanceWarningLabel->setVisible(false);
+    }
+}
