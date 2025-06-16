@@ -915,7 +915,6 @@ static void ShowProgress(TransactionTableModel *ttm, const std::string &title, i
 {
     if (nProgress == 0) {
         fQueueNotifications = true;
-        ttm->refreshWallet();
     }
 
     if (nProgress == 100)
