@@ -42,6 +42,9 @@ void TypeEquality::prove(const std::vector<GroupElement>& C, const Scalar& w, co
         throw std::invalid_argument("Bad Type statement!1");
     }
 
+    //skip proof creatin in case we have no generic coins
+    if (!y.size())
+        return;
 
     for (std::size_t i = 0; i < n; i++) {
                if (E * w + F * x + G * y[i] + H * z[i] != C[i]) {
@@ -96,6 +99,10 @@ bool TypeEquality::verify(const GroupElement& C, const TypeProof& proof)
 
 bool TypeEquality::verify(const std::vector<GroupElement>& C, const TypeProof& proof)
 {
+    // in case we have no generic coins we skip this proof verification
+    if (!C.size())
+        return true;
+
     // GroupElement tempC2;
     const std::size_t n = C.size();
 

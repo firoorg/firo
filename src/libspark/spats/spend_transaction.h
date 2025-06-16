@@ -83,10 +83,11 @@ public:
         READWRITE(balance_proof);
         READWRITE(range_proof);
         READWRITE(rep_proof);
-        READWRITE(base_proof);
-        READWRITE(type_proof);
         READWRITE(inputBase);
         READWRITE(outBase);
+        READWRITE(base_proof);
+        if (inputBase > C1.size())
+            READWRITE(type_proof);
     }
 
     void setOutCoins(const std::vector<spark::Coin>& out_coins_) override {
