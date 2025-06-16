@@ -1251,7 +1251,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 }
             } else {
                 try {
-                    nFees = spark::ParseSparkSpend(tx).getFee();
+                    nFees = spark::GetSparkFee(tx);
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
@@ -2629,7 +2629,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
         }
         else if (tx.IsSparkSpend()) {
             try {
-                nFees = spark::ParseSparkSpend(tx).getFee();
+                nFees += spark::GetSparkFee(tx);
             }
             catch (const std::exception &) {
                 // do nothing
@@ -3028,7 +3028,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
             if(tx.IsSparkSpend()) {
                 try {
-                    nFees += spark::ParseSparkSpend(tx).getFee();
+                    nFees += spark::GetSparkFee(tx);
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse spark spend");
@@ -3625,7 +3625,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
                 }
             } else if (tx->IsSparkSpend()) {
                 try {
-                    spark::SpendTransaction spendTransaction = spark::ParseSparkSpend(*tx);
+                    spark::SpendTransaction spendTransaction = spark::ParseSparkSpend(*tx); //TODO levon
                     sparkTransactionsToRemove.push_back(spendTransaction);
                 }
                 catch (CBadTxIn &) {

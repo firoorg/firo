@@ -77,10 +77,16 @@ BOOST_AUTO_TEST_CASE(schnorr_proof)
 BOOST_AUTO_TEST_CASE(is_spark_allowed)
 {
     auto start = ::Params().GetConsensus().nSparkStartBlock;
+    auto startSpats = ::Params().GetConsensus().nSpatsStartBlock;
+
     BOOST_CHECK(!IsSparkAllowed(0));
     BOOST_CHECK(!IsSparkAllowed(start - 1));
     BOOST_CHECK(IsSparkAllowed(start));
     BOOST_CHECK(IsSparkAllowed(start + 1));
+    BOOST_CHECK(!IsSpatsStarted(0));
+    BOOST_CHECK(!IsSpatsStarted(startSpats - 1));
+    BOOST_CHECK(IsSpatsStarted(startSpats));
+    BOOST_CHECK(IsSpatsStarted(startSpats + 1));
 }
 
 BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
@@ -135,6 +141,45 @@ BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
 
     scripts[0].resize(script.size() - 1);
     BOOST_CHECK_THROW(ParseSparkMintTransaction(scripts, mintTransaction), std::invalid_argument);
+
+    // the same for spats
+    MintedCoinData mintedAssetCoin;
+    mintedAssetCoin.address = address;
+    mintedAssetCoin.v = v;
+    mintedAssetCoin.memo = memo;
+    mintedAssetCoin.a = Scalar(uint64_t(1));
+    mintedAssetCoin.iota = Scalar(uint64_t(1));
+
+    outputs.clear();
+    outputs.push_back(mintedCoin);
+
+    spark::MintTransaction spatsMint(params, outputs, random_char_vector());
+    serializedCoins = spatsMint.getMintedCoinsSerialized();
+
+    CScript spatsScript;
+    spatsScript << OP_SPATSMINT;
+    spatsScript.insert(spatsScript.end(), serializedCoins[0].begin(), serializedCoins[0].end());
+
+    // coin parse test
+    spark::Coin parsedSpatsCoin(params);
+    ParseSparkMintCoin(spatsScript, parsedSpatsCoin);
+
+    coins.clear();
+    spatsMint.getCoins(coins);
+
+    BOOST_CHECK(parsedSpatsCoin == coins[0]);
+
+    // transaction parse test
+    scripts.clear();
+    scripts.push_back(spatsScript);
+
+    MintTransaction spatsMintTransaction(params);
+    ParseSparkMintTransaction(scripts, spatsMintTransaction);
+
+    BOOST_CHECK(spatsMintTransaction.verify());
+
+    scripts[0].resize(script.size() - 1);
+    BOOST_CHECK_THROW(ParseSparkMintTransaction(scripts, spatsMintTransaction), std::invalid_argument);
 }
 
 BOOST_AUTO_TEST_CASE(parse_spark_smint)
@@ -179,6 +224,36 @@ BOOST_AUTO_TEST_CASE(parse_spark_smint)
     // parse invalid
     script.resize(script.size() - 1);
     BOOST_CHECK_THROW(ParseSparkMintCoin(script, coin), std::invalid_argument);
+
+    Scalar a = Scalar(uint64_t(0));
+    Scalar iota = Scalar(uint64_t(0));
+    spark::Coin coin2(params, 2, (Scalar().randomize()), address, v, memo, random_char_vector(), a, iota);
+
+    // spent output mints have the same structure for all types of assets (base and generic)
+    CScript script2(OP_SPARKSMINT);
+
+    CDataStream serialized2(SER_NETWORK, PROTOCOL_VERSION);
+    serialized2 << coin2;
+    script2.insert(script2.end(), serialized2.begin(), serialized2.end());
+
+    spark::Coin parsedCoin3(params);
+    ParseSparkMintCoin(script2, parsedCoin3);
+
+    BOOST_CHECK_NO_THROW(coin2.identify(incoming_view_key));
+
+    BOOST_CHECK(coin2 == parsedCoin3);
+
+    parsedCoin3.S.randomize();
+    BOOST_CHECK_THROW(parsedCoin3.identify(incoming_view_key), std::runtime_error);
+
+    spark::Coin parsedCoin4(params);
+    ParseSparkMintCoin(script2, parsedCoin4);
+
+    BOOST_CHECK(coin2 == parsedCoin4);
+
+    // parse invalid
+    script2.resize(script.size() - 1);
+    BOOST_CHECK_THROW(ParseSparkMintCoin(script2, coin2), std::invalid_argument);
 }
 
 BOOST_AUTO_TEST_CASE(get_outpoint)
@@ -242,6 +317,65 @@ BOOST_AUTO_TEST_CASE(get_outpoint)
     uint256 non_commited_coin_hash = primitives::GetSparkCoinHash(nonCommittedCoin);
     BOOST_CHECK(!GetOutPoint(out, non_commited_coin_hash));
 
+    //check the same after spats started
+    // generate untill spats activation block eached
+    GenerateBlocks(::Params().GetConsensus().nSpatsStartBlock - chainActive.Tip()->nHeight);
+    BOOST_CHECK(IsSpatsStarted());
+
+    txs.clear();
+    mints = GenerateMints(amounts, txs);
+    BOOST_CHECK_EQUAL(mints.size(), amounts.size());
+
+    mint = mints[0];
+    nonCommitted = mints[1];
+    tx = txs[0];
+    mintIdx = 0;
+
+    for (; mintIdx < tx.vout.size(); mintIdx++) {
+        if (tx.vout[mintIdx].scriptPubKey.IsSparkMint()) {
+            break;
+        }
+    }
+
+    prevHeight = chainActive.Tip()->nHeight;
+    mempool.clear();
+    blockIdx = GenerateBlock({txs[0]});
+
+    BOOST_CHECK_EQUAL(prevHeight + 1, chainActive.Tip()->nHeight);
+
+    CBlock block1;
+    BOOST_CHECK(ReadBlockFromDisk(block1, blockIdx, ::Params().GetConsensus()));
+
+    // verify
+    COutPoint expectedOut1(tx.GetHash(), mintIdx);
+
+    coin = pwalletMain->sparkWallet->getCoinFromMeta(mint);
+
+    // GetOutPointFromBlock
+    out = COutPoint();
+    BOOST_CHECK(GetOutPointFromBlock(out, coin, block1));
+    BOOST_CHECK(expectedOut1 == out);
+
+    nonCommittedCoin = pwalletMain->sparkWallet->getCoinFromMeta(nonCommitted);
+
+    BOOST_CHECK(!GetOutPointFromBlock(out, nonCommittedCoin, block1));
+
+    // GetOutPoint
+    //  by coin
+    out = COutPoint();
+    BOOST_CHECK(GetOutPoint(out, coin));
+    BOOST_CHECK(expectedOut1 == out);
+    BOOST_CHECK(!GetOutPoint(out, nonCommittedCoin));
+
+    // by coin hash
+    out = COutPoint();
+    coin_hash = primitives::GetSparkCoinHash(coin);
+    BOOST_CHECK(GetOutPoint(out, coin_hash));
+    BOOST_CHECK(expectedOut1 == out);
+
+    non_commited_coin_hash = primitives::GetSparkCoinHash(nonCommittedCoin);
+    BOOST_CHECK(!GetOutPoint(out, non_commited_coin_hash));
+
     sparkState->Reset();
 }
 
@@ -271,28 +405,39 @@ BOOST_AUTO_TEST_CASE(build_spark_state)
     sparkState->Reset();
 }
 
+//the same after spats start
+BOOST_AUTO_TEST_CASE(build_new_spark_state)
+{
+    pwalletMain->SetBroadcastTransactions(true);
+
+    GenerateBlocks(::Params().GetConsensus().nSpatsStartBlock + 1);
+    // generate mints
+    std::vector<CMutableTransaction> txs;
+    auto mints = GenerateMints({1 * COIN, 2 * COIN, 3 * COIN, 4 * COIN}, txs);
+    mempool.clear();
+    GenerateBlock({txs[0], txs[1]});
+    auto blockIdx1 = chainActive.Tip();
+    auto block1 = GetCBlock(blockIdx1);
+
+    GenerateBlock({txs[2], txs[3]});
+    auto blockIdx2 = chainActive.Tip();
+    auto block2 = GetCBlock(blockIdx2);
+
+    BOOST_CHECK(BuildSparkStateFromIndex(&chainActive));
+    BOOST_CHECK(sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mints[0])));
+    BOOST_CHECK(sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mints[1])));
+    BOOST_CHECK(sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mints[2])));
+    BOOST_CHECK(sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mints[3])));
+
+    sparkState->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 {
-    // util function
-    auto reconnect = [](CBlock const &block) {
-        LOCK(cs_main);
-
-        std::shared_ptr<CBlock const> sharedBlock =
-                std::make_shared<CBlock const>(block);
-
-        CValidationState state;
-        ActivateBestChain(state, ::Params(), sharedBlock);
-    };
-
     pwalletMain->SetBroadcastTransactions(true);
     GenerateBlocks(1100);
 
-    std::vector<CMutableTransaction> mintTxs;
-    auto mints = GenerateMints({3 * COIN, 2 * COIN}, mintTxs);
-    std::vector<CMutableTransaction> mintTxs2;
-    auto mints2 = GenerateMints({3 * COIN }, mintTxs2);
-
-    struct {
+    struct Checker {
         // expected state.
         std::vector<spark::Coin> coins;
         std::vector<GroupElement> lTags;
@@ -331,150 +476,179 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
     checker.state = sparkState;
 
-    // Cache empty checker
-    auto emptyChecker = checker;
+    auto connect_disconnect = [this](Checker& checker) {
+        // util function
+        auto reconnect = [](CBlock const &block) {
+            LOCK(cs_main);
 
-    mempool.clear();
-    // Generate some txs which contain mints
-    auto blockIdx1 = GenerateBlock({mintTxs[0], mintTxs[1]});
-    BOOST_CHECK(blockIdx1);
-    auto block1 = GetCBlock(blockIdx1);
+            std::shared_ptr<CBlock const> sharedBlock =
+                    std::make_shared<CBlock const>(block);
 
-    checker.coins.push_back(pwalletMain->sparkWallet->getCoinFromMeta(mints[0]));
-    checker.coins.push_back(pwalletMain->sparkWallet->getCoinFromMeta(mints[1]));
-    checker.first = blockIdx1;
-    checker.last = blockIdx1;
-    checker.lastId = 1;
-    checker.Verify();
+            CValidationState state;
+            ActivateBestChain(state, ::Params(), sharedBlock);
+        };
 
-    // Generate empty blocks should not affect state
-    GenerateBlocks(10);
-    checker.Verify();
 
-    // Add spend tx
 
-    // Create two txs which contains same serial.
-    CCoinControl coinControl;
+        std::vector<CMutableTransaction> mintTxs;
+        auto mints = GenerateMints({3 * COIN, 2 * COIN}, mintTxs);
+        std::vector<CMutableTransaction> mintTxs2;
+        auto mints2 = GenerateMints({3 * COIN }, mintTxs2);
 
-    {
-        auto tx = mintTxs[0];
-        auto it = std::find_if(tx.vout.begin(), tx.vout.end(), [](CTxOut const &out) -> bool {
-            return out.scriptPubKey.IsSparkMint();
-        });
-        BOOST_CHECK(it != tx.vout.end());
+        // Cache empty checker
+        auto emptyChecker = checker;
 
-        coinControl.Select(COutPoint(tx.GetHash(), std::distance(tx.vout.begin(), it)));
-    }
+        mempool.clear();
+        // Generate some txs which contain mints
+        auto blockIdx1 = GenerateBlock({mintTxs[0], mintTxs[1]});
+        BOOST_CHECK(blockIdx1);
+        auto block1 = GetCBlock(blockIdx1);
 
-    auto sTx1 = GenerateSparkSpend({1 * COIN}, {}, &coinControl);
+        if (checker.coins.empty())
+            checker.first = blockIdx1;
+        checker.coins.push_back(pwalletMain->sparkWallet->getCoinFromMeta(mints[0]));
+        checker.coins.push_back(pwalletMain->sparkWallet->getCoinFromMeta(mints[1]));
 
-    // wait while another thread updates mint status in wallet, and then continue
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        checker.last = blockIdx1;
 
-    // Update isused status
-    {
-        CSparkMintMeta meta = pwalletMain->sparkWallet->getMintMeta(mints[0].k);
+        checker.lastId = 1;
+        checker.Verify();
 
-        BOOST_CHECK(meta != CSparkMintMeta());
-        BOOST_CHECK(meta.isUsed);
+        // Generate empty blocks should not affect state
+        GenerateBlocks(10);
+        checker.Verify();
 
-        meta.isUsed = false;
-        pwalletMain->sparkWallet->updateMintInMemory(meta);
-        meta = CSparkMintMeta();
-        meta = pwalletMain->sparkWallet->getMintMeta(mints[0].k);
-        BOOST_CHECK(!meta.isUsed);
-    }
+        // Add spend tx
 
-    std::size_t old_size = mempool.size();
-    // Create duplicated serial tx and test this at the bottom
-    auto dupTx1 = GenerateSparkSpend({1 * COIN}, {}, &coinControl);
+        // Create two txs which contains same serial.
+        CCoinControl coinControl;
 
-    // check that it is not accepted into mempool
-    BOOST_CHECK(old_size == mempool.size());
+        {
+            auto tx = mintTxs[0];
+            auto it = std::find_if(tx.vout.begin(), tx.vout.end(), [](CTxOut const &out) -> bool {
+                return out.scriptPubKey.IsSparkMint();
+            });
+            BOOST_CHECK(it != tx.vout.end());
 
-    std::vector<spark::Coin> dupNewCoins1;
-    std::vector<GroupElement> dupTags1;
-    ExtractSpend(dupTx1, dupNewCoins1, dupTags1);
+            coinControl.Select(COutPoint(tx.GetHash(), std::distance(tx.vout.begin(), it)));
+        }
 
-    std::vector<spark::Coin> newCoins1;
-    std::vector<GroupElement> tags1;
-    ExtractSpend(sTx1, newCoins1, tags1);
-    BOOST_CHECK_EQUAL(1, newCoins1.size());
-    BOOST_CHECK_EQUAL(1, tags1.size());
-    BOOST_CHECK(dupTags1[0] == tags1[0]);
+        auto sTx1 = GenerateSparkSpend({1 * COIN}, {}, &coinControl);
 
-    mempool.clear();
-    auto blockIdx2 = GenerateBlock({sTx1});
-    BOOST_CHECK(blockIdx2);
+        // wait while another thread updates mint status in wallet, and then continue
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
-    auto block2 = GetCBlock(blockIdx2);
+        // Update isused status
+        {
+            CSparkMintMeta meta = pwalletMain->sparkWallet->getMintMeta(mints[0].k);
 
-    auto cacheChecker = checker;
-    checker.coins.push_back(newCoins1.front());
-    checker.lTags.push_back(tags1.front());
-    checker.last = blockIdx2;
+            BOOST_CHECK(meta != CSparkMintMeta());
+            BOOST_CHECK(meta.isUsed);
 
-    checker.Verify();
+            meta.isUsed = false;
+            pwalletMain->sparkWallet->updateMintInMemory(meta);
+            meta = CSparkMintMeta();
+            meta = pwalletMain->sparkWallet->getMintMeta(mints[0].k);
+            BOOST_CHECK(!meta.isUsed);
+        }
 
-    // state should be rolled back
-    BOOST_CHECK(DisconnectBlocks(1));
-    BOOST_CHECK_EQUAL(chainActive.Tip()->nHeight, blockIdx2->nHeight - 1);
-    cacheChecker.Verify();
+        std::size_t old_size = mempool.size();
+        // Create duplicated serial tx and test this at the bottom
+        auto dupTx1 = GenerateSparkSpend({1 * COIN}, {}, &coinControl);
 
-    // reconnect
-    reconnect(block2);
-    checker.Verify();
+        // check that it is not accepted into mempool
+        BOOST_CHECK(old_size == mempool.size());
 
-    // add more block contain both mint and serial
-    auto sTx2 = GenerateSparkSpend({1 * COIN}, {}, nullptr);
+        std::vector<spark::Coin> dupNewCoins1;
+        std::vector<GroupElement> dupTags1;
+        ExtractSpend(dupTx1, dupNewCoins1, dupTags1);
 
-    std::vector<spark::Coin> newCoins2;
-    std::vector<GroupElement> tags2;
-    ExtractSpend(sTx2, newCoins2, tags2);
-    BOOST_CHECK_EQUAL(1, newCoins2.size());
-    BOOST_CHECK_EQUAL(1, tags2.size());
+        std::vector<spark::Coin> newCoins1;
+        std::vector<GroupElement> tags1;
+        ExtractSpend(sTx1, newCoins1, tags1);
+        BOOST_CHECK_EQUAL(1, newCoins1.size());
+        BOOST_CHECK_EQUAL(1, tags1.size());
+        BOOST_CHECK(dupTags1[0] == tags1[0]);
 
-    BOOST_CHECK(mempool.size() == 1);
-    mempool.clear();
-    std::vector<CMutableTransaction> blockTX;
-    auto blockIdx3 = GenerateBlock({mintTxs2[0], sTx2});
-    BOOST_CHECK(blockIdx3);
-    auto block3 = GetCBlock(blockIdx3);
+        mempool.clear();
 
-    checker.coins.insert(checker.coins.end(), newCoins2.begin(), newCoins2.end());
-    checker.coins.push_back(pwalletMain->sparkWallet->getCoinFromMeta(mints2[0]));
-    checker.lTags.push_back(tags2[0]);
-    checker.last = blockIdx3;
+        auto blockIdx2 = GenerateBlock({sTx1});
+        BOOST_CHECK(blockIdx2);
 
-    checker.Verify();
+        auto block2 = GetCBlock(blockIdx2);
 
-    // Clear state and rebuild
-    sparkState->Reset();
-    emptyChecker.Verify();
+        auto cacheChecker = checker;
+        checker.coins.push_back(newCoins1.front());
+        checker.lTags.push_back(tags1.front());
+        checker.last = blockIdx2;
 
-    BuildSparkStateFromIndex(&chainActive);
-    checker.Verify();
+        checker.Verify();
 
-    // Disconnect all and reconnect
-    std::vector<CBlock> blocks;
-    while (chainActive.Tip() != chainActive.Genesis()) {
-        blocks.push_back(GetCBlock(chainActive.Tip()));
-        DisconnectBlocks(1);
-    }
+        // state should be rolled back
+        BOOST_CHECK(DisconnectBlocks(1));
+        BOOST_CHECK_EQUAL(chainActive.Tip()->nHeight, blockIdx2->nHeight - 1);
+        cacheChecker.Verify();
 
-    emptyChecker.Verify();
+        // reconnect
+        reconnect(block2);
+        checker.Verify();
 
-    for (auto const &block : blocks) {
-        reconnect(block);
-    }
+        // add more block contain both mint and serial
+        auto sTx2 = GenerateSparkSpend({1 * COIN}, {}, nullptr);
 
-    checker.Verify();
+        std::vector<spark::Coin> newCoins2;
+        std::vector<GroupElement> tags2;
+        ExtractSpend(sTx2, newCoins2, tags2);
+        BOOST_CHECK_EQUAL(1, newCoins2.size());
+        BOOST_CHECK_EQUAL(1, tags2.size());
 
-    // double spend
-    auto currentBlock = chainActive.Tip()->nHeight;
-    BOOST_CHECK(!GenerateBlock({dupTx1}));
-    BOOST_CHECK_EQUAL(currentBlock, chainActive.Tip()->nHeight);
-    mempool.clear();
+        BOOST_CHECK(mempool.size() == 1);
+        mempool.clear();
+        std::vector<CMutableTransaction> blockTX;
+        auto blockIdx3 = GenerateBlock({mintTxs2[0], sTx2});
+        BOOST_CHECK(blockIdx3);
+        auto block3 = GetCBlock(blockIdx3);
+
+        checker.coins.insert(checker.coins.end(), newCoins2.begin(), newCoins2.end());
+        checker.coins.push_back(pwalletMain->sparkWallet->getCoinFromMeta(mints2[0]));
+        checker.lTags.push_back(tags2[0]);
+        checker.last = blockIdx3;
+
+        checker.Verify();
+
+        // Clear state and rebuild
+        sparkState->Reset();
+        emptyChecker.Verify();
+
+        BuildSparkStateFromIndex(&chainActive);
+        checker.Verify();
+
+        // Disconnect all and reconnect
+        std::vector<CBlock> blocks;
+        while (chainActive.Tip() != chainActive.Genesis()) {
+            blocks.push_back(GetCBlock(chainActive.Tip()));
+            DisconnectBlocks(1);
+        }
+
+        emptyChecker.Verify();
+
+        for (auto const &block : blocks) {
+            reconnect(block);
+        }
+
+        checker.Verify();
+
+        // double spend
+        auto currentBlock = chainActive.Tip()->nHeight;
+        BOOST_CHECK(!GenerateBlock({dupTx1}));
+        BOOST_CHECK_EQUAL(currentBlock, chainActive.Tip()->nHeight);
+        mempool.clear();
+    };
+
+    connect_disconnect(checker);
+//    GenerateBlocks(910);
+//    connect_disconnect(checker);
+
     sparkState->Reset();
 }
 

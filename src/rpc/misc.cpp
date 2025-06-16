@@ -1694,8 +1694,7 @@ UniValue getmempoolsparktxs(const JSONRPCRequest& request)
         if (tx->IsSparkSpend())
         {
             try {
-                spark::SpendTransaction spend = spark::ParseSparkSpend(*tx);
-                auto lTags = spend.getUsedLTags();
+                auto lTags = spark::GetSparkUsedTags(*tx);
                 for ( auto it = lTags.begin(); it != lTags.end(); ++it) {
                     std::vector<unsigned char> serialized;
                     serialized.resize(34);

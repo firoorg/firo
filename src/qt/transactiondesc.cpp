@@ -273,7 +273,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 
             if (wtx.tx->IsSparkSpend() && wtx.tx->vin.size() > 0) {
                 try {
-                    nTxFee = spark::ParseSparkSpend(*wtx.tx).getFee();
+                    nTxFee = spark::GetSparkFee(*wtx.tx);
                 }
                 catch (...) {
                     //do nothing

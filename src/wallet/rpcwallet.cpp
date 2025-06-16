@@ -2212,7 +2212,7 @@ UniValue gettransaction(const JSONRPCRequest& request)
         }
     } else if (wtx.tx->IsSparkSpend()) {
         try {
-            nFee = (0 - spark::ParseSparkSpend(*wtx.tx).getFee());
+            nFee = (0 - spark::GetSparkFee(*wtx.tx));
         }
         catch (const std::exception &) {
             // do nothing
@@ -3339,7 +3339,7 @@ UniValue listunspentsparkmints(const JSONRPCRequest& request) {
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() != 2) {
+    if (request.fHelp || request.params.size() != 0) {
         throw std::runtime_error(
                 "listunspentsparkmints \n"
                 "Returns array of unspent mint coins, only spark base assets\n"

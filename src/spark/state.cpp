@@ -122,7 +122,7 @@ void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransact
 {
     std::vector<CDataStream> serializedCoins;
     for (const auto& script : scripts) {
-        if (!script.IsSparkMint())
+        if (!script.IsSparkMintType())
             throw std::invalid_argument("Script is not a Spark mint");
 
         std::vector<unsigned char> serialized(script.begin() + 1, script.end());
@@ -263,40 +263,49 @@ std::vector<GroupElement> GetSparkUsedTags(const CTransaction &tx)
 {
     const spark::Params* params = spark::Params::get_default();
 
-    try {
+    if (tx.vin[0].scriptSig[0] == OP_SPARKSPEND) {
         spark::SpendTransaction spendTransaction(params);
         spendTransaction = ParseSparkSpend(tx);
         return  spendTransaction.getUsedLTags();
-    } catch (const std::exception &) {
-        // do nothing to jump to next try
-    }
-
-    try {
+    } else if (tx.vin[0].scriptSig[0] == OP_SPATSSPEND) {
         spats::SpendTransaction spendTransaction(params);
         spendTransaction = ParseSpatsSpend(tx);
         return  spendTransaction.getUsedLTags();
-    } catch (const std::exception &) {
-        return std::vector<GroupElement>();
     }
 
     return std::vector<GroupElement>();
+}
+
+CAmount GetSparkFee(const CTransaction &tx)
+{
+    const spark::Params* params = spark::Params::get_default();
+    if (tx.vin[0].scriptSig[0] == OP_SPARKSPEND) {
+        spark::SpendTransaction spendTransaction(params);
+        spendTransaction = ParseSparkSpend(tx);
+        return  spendTransaction.getFee();
+    } else if (tx.vin[0].scriptSig[0] == OP_SPATSSPEND) {
+        spats::SpendTransaction spendTransaction(params);
+        spendTransaction = ParseSpatsSpend(tx);
+        return  spendTransaction.getFee();
+    }
+    return CAmount();
 }
 
 std::map<uint64_t, uint256> getBlockHashes(const CTransaction &tx)
 {
     const spark::Params* params = spark::Params::get_default();
 
-    try {
+    if (tx.vin[0].scriptSig[0] == OP_SPARKSPEND) {
         spark::SpendTransaction spendTransaction(params);
         spendTransaction = ParseSparkSpend(tx);
         return  spendTransaction.getBlockHashes();
-    } catch (const std::exception &) {
-        // do nothing to jump to next try
     }
-
-    spats::SpendTransaction spendTransaction(params);
-    spendTransaction = ParseSpatsSpend(tx);
-    return  spendTransaction.getBlockHashes();
+    else if (tx.vin[0].scriptSig[0] == OP_SPATSSPEND) {
+        spats::SpendTransaction spendTransaction(params);
+        spendTransaction = ParseSpatsSpend(tx);
+        return  spendTransaction.getBlockHashes();
+    }
+    return std::map<uint64_t, uint256>();
 }
 
 std::vector<spark::Coin> GetSparkMintCoins(const CTransaction &tx)
@@ -702,9 +711,9 @@ bool CheckSparkSpendTransaction(
 
     try {
         if (spatsStarted)
-            spend = std::make_unique<spark::SpendTransaction>(ParseSparkSpend(tx));
-        else
             spend = std::make_unique<spats::SpendTransaction>(ParseSpatsSpend(tx));
+        else
+            spend = std::make_unique<spark::SpendTransaction>(ParseSparkSpend(tx));
     }
     catch (CBadTxIn&) {
         return state.DoS(100,

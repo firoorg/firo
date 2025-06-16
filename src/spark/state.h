@@ -58,6 +58,7 @@ Scalar GetSpatsMintM(const CTransaction& tx);
 
 std::vector<GroupElement>  GetSparkUsedTags(const CTransaction &tx);
 std::vector<spark::Coin>  GetSparkMintCoins(const CTransaction &tx);
+CAmount GetSparkFee(const CTransaction &tx);
 
 size_t GetSpendInputs(const CTransaction &tx);
 CAmount GetSpendTransparentAmount(const CTransaction& tx);
