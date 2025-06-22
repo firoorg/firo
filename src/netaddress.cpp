@@ -44,14 +44,32 @@ void CNetAddr::SetRaw(Network network, const uint8_t *ip_in)
 
 bool CNetAddr::SetSpecial(const std::string &strName)
 {
-    if (strName.size()>6 && strName.substr(strName.size() - 6, 6) == ".onion") {
-        std::vector<unsigned char> vchAddr = DecodeBase32(strName.substr(0, strName.size() - 6).c_str());
-        if (vchAddr.size() != 16-sizeof(pchOnionCat))
-            return false;
-        memcpy(ip, pchOnionCat, sizeof(pchOnionCat));
-        for (unsigned int i=0; i<16-sizeof(pchOnionCat); i++)
-            ip[i + sizeof(pchOnionCat)] = vchAddr[i];
-        return true;
+    if (strName.size() > 6 && strName.substr(strName.size() - 6) == ".onion") {
+        std::string addrPart = strName.substr(0, strName.size() - 6);
+
+        if (addrPart.size() == 16) {
+            // v2 onion
+            std::vector<unsigned char> vchAddr = DecodeBase32(addrPart.c_str());
+
+            if (vchAddr.size() != 16 - sizeof(pchOnionCat))
+                return false;
+
+            memcpy(ip, pchOnionCat, sizeof(pchOnionCat));
+            for (unsigned int i = 0; i < 16 - sizeof(pchOnionCat); i++)
+                ip[i + sizeof(pchOnionCat)] = vchAddr[i];
+
+            isTorV3 = false;
+            onionV3Addr.clear();
+
+            return true;
+
+        } else if (addrPart.size() == 56) {
+            // v3 onion
+            onionV3Addr = strName;
+            isTorV3 = true;
+            memset(ip, 0, sizeof(ip));
+            return true;
+        }
     }
     return false;
 }
@@ -223,7 +241,12 @@ bool CNetAddr::IsValid() const
 
 bool CNetAddr::IsRoutable() const
 {
-    return IsValid() && !(IsRFC1918() || IsRFC2544() || IsRFC3927() || IsRFC4862() || IsRFC6598() || IsRFC5737() || (IsRFC4193() && !IsTor()) || IsRFC4843() || IsLocal());
+    if (IsTor() || isTorV3) {
+        return true;
+    }
+
+    return IsValid() && !(IsRFC1918() || IsRFC2544() || IsRFC3927() || IsRFC4862()
+        || IsRFC6598() || IsRFC5737() || (IsRFC4193() && !IsTor()) || IsRFC4843() || IsLocal());
 }
 
 enum Network CNetAddr::GetNetwork() const
@@ -242,6 +265,10 @@ enum Network CNetAddr::GetNetwork() const
 
 std::string CNetAddr::ToStringIP(bool fUseGetnameinfo) const
 {
+    if (isTorV3 && !onionV3Addr.empty()) {
+        return onionV3Addr;
+    }
+
     if (IsTor())
         return EncodeBase32(&ip[6], 10) + ".onion";
     if (fUseGetnameinfo)
