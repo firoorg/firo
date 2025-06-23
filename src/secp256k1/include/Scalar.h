@@ -6,9 +6,9 @@
 #include <ostream>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 #include <inttypes.h>
-#include <stddef.h>
 
 namespace secp_primitives {
 
@@ -18,7 +18,7 @@ public:
 
     Scalar();
     // Constructor from integer.
-    Scalar(uint64_t value);
+    Scalar(std::uint64_t value);
 
     // Copy constructor
     Scalar(const Scalar& other);
@@ -31,7 +31,7 @@ public:
 
     Scalar& operator=(const Scalar& other);
 
-    Scalar& operator=(unsigned int i);
+    Scalar& operator=(std::uint64_t i);
 
     Scalar& operator=(const unsigned char *bin);
 
@@ -57,7 +57,7 @@ public:
     Scalar square() const;
 
     Scalar exponent(const Scalar& exp) const;
-    Scalar exponent(uint64_t exponent) const;
+    Scalar exponent(std::uint64_t exponent) const;
 
     Scalar& randomize();
 

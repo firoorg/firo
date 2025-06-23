@@ -23,7 +23,7 @@ Scalar::Scalar()
     secp256k1_scalar_clear(reinterpret_cast<secp256k1_scalar *>(value_));
 }
 
-Scalar::Scalar(uint64_t value)
+Scalar::Scalar(std::uint64_t value)
    : value_(new secp256k1_scalar()) {
     unsigned char b32[32];
     for(int i = 0; i < 24; i++)
@@ -62,9 +62,9 @@ Scalar& Scalar::operator=(const Scalar& other) {
     return set(other);
 }
 
-Scalar& Scalar::operator=(unsigned int i) {
-    secp256k1_scalar_set_int(reinterpret_cast<secp256k1_scalar *>(value_), i);
-    return *this;
+Scalar& Scalar::operator=(std::uint64_t i)
+{
+    return set(i);
 }
 
 Scalar& Scalar::operator=(const unsigned char *bin){
@@ -180,7 +180,8 @@ Scalar Scalar::exponent(const Scalar& exp) const {
     return &result;
 }
 
-Scalar Scalar::exponent(uint64_t exp) const {
+Scalar Scalar::exponent(std::uint64_t exp) const
+{
     Scalar exp_(exp);
     return exponent(exp_);
 
