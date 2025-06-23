@@ -622,8 +622,7 @@ BOOST_AUTO_TEST_CASE(limit)
 
     ::mempool.removeRecursive(spendWalletTx);
 
-    auto sparkSpend = spark::ParseSparkSpend(spendTx);
-    std::vector<GroupElement> lTags = sparkSpend.getUsedLTags();
+    std::vector<GroupElement> lTags = spark::GetSparkUsedTags(spendTx);
 
     // generate two smaller spark spend txs
     CWalletTx smallSparkWalletTxs[2] = {

@@ -1520,8 +1520,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
         } else if (wtx.tx->IsSparkSpend()) {
             std::vector<GroupElement> lTags;
             try {
-                spark::SpendTransaction spend = spark::ParseSparkSpend(*wtx.tx);
-                lTags = spend.getUsedLTags();
+                lTags = spark::GetSparkUsedTags(*wtx.tx);
             }
             catch (const std::exception &) {
                 continue;
@@ -1690,8 +1689,7 @@ isminetype CWallet::IsMine(const CTxIn &txin, const CTransaction& tx) const
     }  else if (tx.IsSparkSpend()) {
         std::vector<GroupElement> lTags;
         try {
-            spark::SpendTransaction spend = spark::ParseSparkSpend(tx);
-            lTags = spend.getUsedLTags();
+            lTags = spark::GetSparkUsedTags(tx);
         }
         catch (const std::exception &) {
             return ISMINE_NO;
@@ -1770,8 +1768,7 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const CTransaction& tx, const ismin
         }
         std::vector<GroupElement> lTags;
         try {
-            spark::SpendTransaction spend = spark::ParseSparkSpend(tx);
-            lTags = spend.getUsedLTags();
+            lTags = spark::GetSparkUsedTags(tx);
         }
         catch (const std::exception &) {
             goto end;
@@ -2300,7 +2297,7 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
             }
         } else if (tx->IsSparkSpend()) {
             try {
-                nFee = spark::ParseSparkSpend(*tx).getFee();
+                nFee = spark::GetSparkFee(*tx);
             }
             catch (const std::exception &) {
                 // do nothing

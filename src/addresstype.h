@@ -19,6 +19,7 @@ enum struct AddressType
     , sparkSpend = 13
     , payToExchangeAddress = 14
     , spatsMint = 15
+    , spatsSpend = 16
 };
 
 namespace zerocoin { namespace utils {
@@ -85,6 +86,10 @@ inline bool isSparkSpend(std::string const & str){
 
 inline bool isSpatsMint(std::string const & str){
     return str == "Spatsmint";
+}
+
+inline bool isSpatsSpend(std::string const & str){
+    return str == "SpatsSpend";
 }
 
 }}

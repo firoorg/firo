@@ -1583,16 +1583,17 @@ CTransaction AdaptSparkTx(CTransaction const & tx)
     static size_t const lTagSerialSize = 34;
 
     CTransaction result{tx};
-    std::unique_ptr<spark::SpendTransaction> spend;
+    std::vector<GroupElement>  ltags;
+;
     try {
-        spend = std::make_unique<spark::SpendTransaction>(spark::ParseSparkSpend(tx));
+        ltags = spark::GetSparkUsedTags(tx);
     }
     catch (...) {
         return result;
     }
 
     const_cast<std::vector<CTxIn>*>(&result.vin)->clear();                         //This const_cast was done intentionally as the current design allows for this way only
-    for (GroupElement const & lTag : spend->getUsedLTags()) {
+    for (GroupElement const & lTag : ltags) {
             CTxIn newin;
             newin.scriptSig.resize(lTagSerialSize);
             lTag.serialize(&newin.scriptSig.front());

@@ -141,7 +141,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             fillStdFields(in, txin);
             std::unique_ptr<spark::SpendTransaction> sparkSpend;
             try {
-                sparkSpend = std::make_unique<spark::SpendTransaction>(spark::ParseSparkSpend(tx));
+                sparkSpend = std::make_unique<spark::SpendTransaction>(spark::ParseSparkSpend(tx)); //TODO levon
             }
             catch (const std::exception &) {
                 continue;

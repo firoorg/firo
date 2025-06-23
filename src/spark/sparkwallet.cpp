@@ -500,8 +500,7 @@ void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
         for (const auto& tx : transactions) {
             if (tx->IsSparkSpend()) {
                 try {
-                    spark::SpendTransaction spend = spark::ParseSparkSpend(*tx);
-                    const auto& txLTags = spend.getUsedLTags();
+                    const auto& txLTags = spark::GetSparkUsedTags(*tx);
                     for (const auto& txLTag : txLTags) {
                         uint256 txHash = tx->GetHash();
                         uint256 lTagHash = primitives::GetLTagHash(txLTag);
@@ -1332,19 +1331,13 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 
     assert(tx.nLockTime <= static_cast<unsigned>(chainActive.Height()));
     assert(tx.nLockTime < LOCKTIME_THRESHOLD);
-    // get available coins for base spark asset
-    std::list<CSparkMintMeta> coins = GetAvailableSparkCoins(std::make_pair(ZERO, ZERO), coinControl);
-    std::pair<CAmount, std::vector<CSparkMintMeta>> estimated =
-            SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size() + spatsRecipients.size(), recipients.size(), coinControl, spats_script_sizes_total);
-
-    // get available coins for generic asset
-    std::list<CSparkMintMeta> spatsCoins = GetAvailableSparkCoins(identifier, coinControl);
+    std::pair<CAmount, std::vector<CSparkMintMeta>> estimated;
     std::vector<CSparkMintMeta> spatsSpendCoins;
-    spatsSpendCoins.clear();
-    int64_t changeToMint = 0;
-    if (!GetCoinsToSpend(spatsMintVOut, spatsSpendCoins, spatsCoins, changeToMint, coinControl, true)) {
-        throw std::invalid_argument(_("Unable to select spats coins for spend"));
-    }
+
+    if (spark::IsSpatsStarted()) {
+        estimated = SelectSparkCoinsNew(vOut + mintVOut, spatsMintVOut, identifier, recipientsToSubtractFee, privateRecipients.size() + spatsRecipients.size(), recipients.size(), spatsSpendCoins, coinControl, spats_script_sizes_total);
+    } else
+        estimated = SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, privateRecipients.size(), recipients.size(), coinControl);
 
     std::vector<CRecipient> recipients_ = recipients;
     std::vector<std::pair<spark::OutputCoinData, bool>> privateRecipients_ = privateRecipients;
@@ -1811,12 +1804,13 @@ bool CSparkWallet::GetCoinsToSpend(
 std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
         CAmount required,
         bool subtractFeeFromAmount,
-        std::list<CSparkMintMeta> coins,
         std::size_t mintNum,
         std::size_t utxoNum,
-        const CCoinControl *coinControl,
-        const std::size_t spats_script_sizes_total)
+        const CCoinControl *coinControl)
 {
+    // get available coins for base spark asset
+    std::list<CSparkMintMeta> coins = GetAvailableSparkCoins(std::make_pair(ZERO, ZERO), coinControl);
+
     CAmount fee;
     unsigned size;
     int64_t changeToMint = 0; // this value can be negative, that means we need to spend remaining part of required value with another transaction (nMaxInputPerTransaction exceeded)
@@ -1834,7 +1828,7 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
 
         // 1803 is for the first grootle proof/aux data
         // 322 for each private output, 34 for each utxo, 924 for constant parts of tx
-        size = 924 + 1803*(spendCoins.size()) + 322*(mintNum+1) + 34*utxoNum + spats_script_sizes_total;
+        size = 924 + 1803*(spendCoins.size()) + 322*(mintNum+1) + 34*utxoNum;
         const CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
 
         if (fee >= feeNeeded) {
@@ -1849,6 +1843,63 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
 
     if (changeToMint < 0)
         throw std::invalid_argument(_("Unable to select coins for spend"));
+
+    return std::make_pair(fee, spendCoins);
+}
+
+std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoinsNew(
+        CAmount required,
+        CAmount spatsRequired,
+        const std::pair<Scalar, Scalar>& identifier,
+        bool subtractFeeFromAmount,
+        std::size_t mintNum,
+        std::size_t utxoNum,
+        std::vector<CSparkMintMeta>& spatsSpendCoins,
+        const CCoinControl *coinControl,
+        const std::size_t spats_script_sizes_total)
+{
+    // get available coins for base spark asset
+    std::list<CSparkMintMeta> coins = GetAvailableSparkCoins(std::make_pair(ZERO, ZERO), coinControl);
+    // get spend coins for generic asset
+    int64_t sChangeToMint = 0;
+    if (spatsRequired > 0) {
+        std::list<CSparkMintMeta> spatsCoins = GetAvailableSparkCoins(identifier, coinControl);
+            if (!GetCoinsToSpend(spatsRequired, spatsSpendCoins, spatsCoins, sChangeToMint, coinControl, true)) {
+                throw std::invalid_argument(_("Unable to select spats coins for spend"));
+            }
+    }
+    CAmount fee;
+    unsigned size;
+    int64_t changeToMint = 0; // this value can be negative, that means we need to spend remaining part of required value with another transaction (nMaxInputPerTransaction exceeded)
+
+    std::vector<CSparkMintMeta> spendCoins;
+    for (fee = payTxFee.GetFeePerK();;) {
+        CAmount currentRequired = required;
+
+        if (!subtractFeeFromAmount)
+            currentRequired += fee;
+        spendCoins.clear();
+        if (!GetCoinsToSpend(currentRequired, spendCoins, coins, changeToMint, coinControl)) {
+            throw std::invalid_argument(_("Unable to select coins for spend"));
+        }
+
+        // 1803 is for first grootle proof/aux data
+        // 213 for each private output, 34 for each utxo,940 constant parts of tx parts of tx,
+        size = 1228 + 1803*(spendCoins.size() + spatsSpendCoins.size()) + 322*(mintNum+1) + 34*utxoNum + spats_script_sizes_total;
+        CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
+
+        if (fee >= feeNeeded) {
+            break;
+        }
+
+        fee = feeNeeded;
+
+        if (subtractFeeFromAmount)
+            break;
+    }
+
+    if (changeToMint < 0)
+        throw std::invalid_argument(_("Unable to select cons for spend"));
 
     return std::make_pair(fee, spendCoins);
 }

@@ -148,9 +148,9 @@ public:
             CAmount &fee,
             const CCoinControl *coinControl = nullptr);
 
-	void AppendSpatsMintTxData(CMutableTransaction& tx,
-        const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient, // .second is the initiator's (i.e. admin's) address
-        const spark::SpendKey& spendKey);
+    void AppendSpatsMintTxData(CMutableTransaction& tx,
+    const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient, // .second is the initiator's (i.e. admin's) address
+    const spark::SpendKey& spendKey);
 
     CWalletTx CreateSpatsMintTransaction(
             const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
@@ -158,13 +158,22 @@ public:
             const CCoinControl *coinControl = nullptr);
 
     std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoins(
-            CAmount required,
-            bool subtractFeeFromAmount,
-            std::list< CSparkMintMeta> coins,
-            std::size_t mintNum,
-            std::size_t utxoNum,
-            const CCoinControl *coinControl,
-            std::size_t spats_script_sizes_total = 0);
+        CAmount required,
+        bool subtractFeeFromAmount,
+        std::size_t mintNum,
+        std::size_t utxoNum,
+        const CCoinControl *coinControl);
+
+    std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoinsNew(
+        CAmount required,
+        CAmount spatsRequired,
+        const std::pair<Scalar, Scalar>& identifier,
+        bool subtractFeeFromAmount,
+        std::size_t mintNum,
+        std::size_t utxoNum,
+        std::vector<CSparkMintMeta>& spatsSpendCoins,
+        const CCoinControl *coinControl,
+		  std::size_t spats_script_sizes_total = 0);
 
     bool GetCoinsToSpend(
         CAmount required,
