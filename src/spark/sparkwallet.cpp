@@ -290,6 +290,13 @@ bool CSparkWallet::isChangeAddress(const uint64_t& i) const {
     return i == SPARK_CHANGE_D;
 }
 
+spark::Address CSparkWallet::decodeAddress(const std::string& encoded_address)
+{
+    spark::Address address(spark::Params::get_default());
+    address.decode(encoded_address);    // may throw
+    return address;
+}
+
 std::vector<CSparkMintMeta> CSparkWallet::ListSparkMints(bool fUnusedOnly, bool fMatureOnly) const {
     std::vector<CSparkMintMeta> setMints;
     VisitCoinMetasWhere([=] (const CSparkMintMeta& meta) { return !(fUnusedOnly && meta.IsUsed()) && !(fMatureOnly && meta.IsUnconfirmed()) && !meta.IsSpats(); },
@@ -597,6 +604,8 @@ void CSparkWallet::UpdateMintState(const std::vector<spark::Coin>& coins, const 
             mintMeta.v = identifiedCoinData.v;
             mintMeta.k = identifiedCoinData.k;
             mintMeta.memo = identifiedCoinData.memo;
+            mintMeta.a = identifiedCoinData.a;
+            mintMeta.iota = identifiedCoinData.iota;
             mintMeta.serial_context = coin.serial_context;
             mintMeta.coin = coin;
             mintMeta.type = coin.type;
@@ -1450,6 +1459,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 output.v = recipientAmount;
                 privOutputs.push_back(output);
             }
+            auto base_outputs_count = privOutputs.size();
 
             for (size_t i = 0; i < spatsRecipients.size(); i++) {
                 auto& recipient = spatsRecipients[i];
@@ -1474,8 +1484,10 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                     output.v = spendInCurrentTx;
                 else
                     output.v = 0;
-                wtxNew.changes.insert(static_cast<uint32_t>(tx.vout.size() + privOutputs.size()));
-                privOutputs.push_back(output);
+                // making sure to insert in privOutputs at a position that is before any spats outputs,
+                // to avoid "outputs not sorted, base coins must be at the beginning" error in SpendTransaction constructor
+                wtxNew.changes.insert(static_cast<uint32_t>(tx.vout.size() + base_outputs_count));
+                privOutputs.insert(privOutputs.begin() + base_outputs_count++, output);
             }
             // also add send the change for asset too
             if (spatsSpendAmount > 0) {
@@ -1483,6 +1495,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 output.address = getChangeAddress();
                 output.memo = "";
                 output.v = spatsSpendAmount;
+                output.a = identifier.first;
+                output.iota = identifier.second;
                 wtxNew.changes.insert(static_cast<uint32_t>(tx.vout.size() + privOutputs.size()));
                 privOutputs.push_back(output);
             }
@@ -1513,7 +1527,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             std::unordered_map<uint64_t, spark::CoverSetData> cover_set_data;
             std::unordered_map<uint64_t, std::vector<spark::Coin>> cover_sets;
 
-            // merge two containers of spending cons
+            // merge two containers of spending coins
             std::vector<CSparkMintMeta> coinsToSpend;
             coinsToSpend.insert(coinsToSpend.end(), estimated.second.begin(),  estimated.second.end());
             coinsToSpend.insert(coinsToSpend.end(), spatsSpendCoins.begin(), spatsSpendCoins.end());
@@ -1630,7 +1644,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             }
 
             wtxNew.SetTx(MakeTransactionRef(std::move(tx)));
-            
+
             result.push_back(wtxNew);
         }
     }
@@ -1899,30 +1913,26 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoinsNe
     }
 
     if (changeToMint < 0)
-        throw std::invalid_argument(_("Unable to select cons for spend"));
+        throw std::invalid_argument(_("Unable to select coins for spend"));
 
     return std::make_pair(fee, spendCoins);
 }
 
-std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const std::pair<Scalar, Scalar>& identifier, const CCoinControl *coinControl) const {
+std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const std::pair<Scalar, Scalar>& identifier, const CCoinControl *coinControl) const
+{
     std::list<CSparkMintMeta> coins;
     // get all unused coins from spark wallet
-    std::vector<CSparkMintMeta> vecMints = this->ListSparkMints(true, true);
-    for (const auto& mint : vecMints) {
-        assert(!mint.IsSpats());
-        assert(mint.coin.iota.isZero());
-        if (mint.v == 0) // ignore 0 mints which were created to increase privacy
-            continue;
-        coins.push_back(mint);
-    }
+    VisitUnusedCoinMetasWhere([&] (const CSparkMintMeta& meta) {
+            return meta.IsConfirmed() && meta.a == identifier.first && meta.iota == identifier.second &&
+                   meta.v != 0; // ignore 0 mints which were created to increase privacy
+        },
+        [&coins] (const CSparkMintMeta& meta) { coins.push_back(meta); });
 
-    std::set<COutPoint> lockedCoins = pwalletMain->setLockedCoins;
+    std::set<COutPoint> lockedCoins = pwalletMain->setLockedCoins; // TODO GV #Review: isn't this a potential data race?
 
     // Filter out coins that have not been selected from CoinControl should that be used
-    coins.remove_if([lockedCoins, identifier, coinControl](const CSparkMintMeta& coin) {
-        if (coin.a != identifier.first || coin.iota != identifier.second)
-            return true;
-
+    // TODO GV #Review Performance: move these checks to inside the predicate for VisitCoinMetasWhere, and get rid of this remove_if
+    coins.remove_if([&lockedCoins, coinControl](const CSparkMintMeta& coin) {
         COutPoint outPoint;
         // ignore if the coin is not actually on chain
         if (!spark::GetOutPoint(outPoint, coin.coin)) {
@@ -1938,8 +1948,8 @@ std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const std::pair<S
             }
         }
 
-        // ignore if coin is locked
-        if (lockedCoins.count(outPoint) > 0){
+        // ignore if the coin is locked
+        if (lockedCoins.contains(outPoint)) {
             return true;
         }
 

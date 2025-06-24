@@ -57,6 +57,11 @@ public:
     bool isAddressMine(const spark::Address& address) const;
     bool isChangeAddress(const uint64_t& i) const;
 
+    // Decodes the given `encoded_address` into a spark::Address, using the default spark Params.
+    // Returns: the decoded address.
+    // Throws: a std::exception-derived exception in case of failure, such as an invalid encoded address supplied.
+    static spark::Address decodeAddress(const std::string& encoded_address);
+
     // list spark mint, mint metadata in memory and in db should be the same at this moment, so get from memory
     std::vector<CSparkMintMeta> ListSparkMints(bool fUnusedOnly = false, bool fMatureOnly = false) const;
     std::list<CSparkSpendEntry> ListSparkSpends() const;
