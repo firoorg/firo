@@ -203,18 +203,33 @@ enum opcodetype
     // input for reminting zerocoin to sigma (v3)
     OP_ZEROCOINTOSIGMAREMINT = 0xc8,
 
-    // spark params
+    // spark params and assets
     OP_SPARKMINT = 0xd1,
     OP_SPARKSMINT = 0xd2,
     OP_SPARKSPEND = 0xd3,
+    OP_SPATSCREATE = 0xd4,
+    OP_SPATSUNREGISTER = 0xd5,
+    OP_SPATSMODIFY = 0xd6,
     OP_SPATSMINT = 0xd7,
-    OP_SPATSSPEND = 0xd8,
+    OP_SPATSMINTCOIN = 0xd8,
+    OP_SPATSSPEND = 0xd9,
+    OP_SPATSBURN = 0xda,
+    // TODO when adding a new spats opcode, update this below, and keep all spats ops values consecutive if possible, otherwise change IsSpatsOp() implementation
+    OP_SPATSLAST = OP_SPATSBURN,
 
-    // basically NOP but identifies that sunsequent txout script contains super transparent address
+    // basically NOP but identifies that subsequent txout script contains super transparent address
     OP_EXCHANGEADDR = 0xe0
 };
+// ATTENTION: When adding a new enumerator to the above, make sure to update the src/test/data/script_tests.json file accordingly, e.g. by deleting the corresponding
+//      ["0", "IF 0xNN ELSE 1 ENDIF", "P2SH,STRICTENC", "OK"],
+// line...
 
 const char* GetOpName(opcodetype opcode);
+
+constexpr bool IsSpatsOp(opcodetype opcode) noexcept
+{
+    return opcode >= OP_SPATSCREATE && opcode <= OP_SPATSLAST;
+}
 
 class scriptnum_error : public std::runtime_error
 {
@@ -586,8 +601,7 @@ public:
 
         if (opcodeRet == opcodetype::OP_SIGMASPEND || opcodeRet == opcodetype::OP_SIGMAMINT ||
             opcodeRet == opcodetype::OP_LELANTUSMINT || opcodeRet == opcodetype::OP_LELANTUSJMINT || opcodeRet == opcodetype::OP_LELANTUSJOINSPLIT ||
-            opcodeRet == opcodetype::OP_SPARKMINT || opcodeRet == opcodetype::OP_SPARKSMINT || opcodeRet == opcodetype::OP_SPARKSPEND
-            || opcodeRet == opcodetype::OP_SPATSSPEND || opcodeRet == opcodetype::OP_SPATSMINT) {
+            opcodeRet == opcodetype::OP_SPARKMINT || opcodeRet == opcodetype::OP_SPARKSMINT || opcodeRet == opcodetype::OP_SPARKSPEND || IsSpatsOp(opcodeRet)) {
             if (pvchRet) {
                 pvchRet->assign(pc, end());
             }
@@ -692,11 +706,23 @@ public:
 
     bool IsSparkSpend() const;
 
+    bool IsSpatsCreate() const;
+
+    bool IsSpatsUnregister() const;
+
+    bool IsSpatsModify() const;
+
+    bool IsSpatsMint() const;
+    bool IsSpatsMintCoin() const;
+
+    bool IsSpatsBurn() const;
+
+    bool IsSpats() const;
+    bool IsSpatsAction() const;
+
     bool IsZerocoinRemint() const;
 
     bool IsMint() const;
-
-    bool IsSpatsMint() const;
 
     bool IsSparkMintType() const;
 

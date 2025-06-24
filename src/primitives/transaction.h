@@ -456,7 +456,13 @@ public:
     bool IsSparkTransaction() const;
     bool IsSparkSpend() const;
     bool IsSparkMint() const;
+
+    bool IsSpatsTransaction() const;
+    bool IsSpatsCreate() const;
+    bool IsSpatsUnregister() const;
+    bool IsSpatsModify() const;
     bool IsSpatsMint() const;
+    bool IsSpatsBurn() const;
 
     bool HasNoRegularInputs() const;
     bool HasPrivateInputs() const;

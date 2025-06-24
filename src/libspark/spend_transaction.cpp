@@ -132,7 +132,9 @@ SpendTransaction::SpendTransaction(
 			outputs[j].address,
 			outputs[j].v,
 			outputs[j].memo,
-			std::vector<unsigned char>(serial_context.begin(), serial_context.end())
+			std::vector<unsigned char>(serial_context.begin(), serial_context.end()),
+			{},
+			{}
 		);
 
 		// Range data

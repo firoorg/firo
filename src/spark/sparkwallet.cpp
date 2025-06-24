@@ -14,7 +14,9 @@
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
 const Scalar ZERO = Scalar((uint64_t)0);
 
-CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
+CSparkWallet::CSparkWallet(const std::string& strWalletFile)
+   : spats_wallet_(*this)
+{
 
     CWalletDB walletdb(strWalletFile);
     this->strWalletFile = strWalletFile;
@@ -69,7 +71,6 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
             for (auto& coin : coinMeta) {
                 coin.second.coin.setParams(params);
                 coin.second.coin.setSerialContext(coin.second.serial_context);
-
             }
         }
 
@@ -88,97 +89,62 @@ void CSparkWallet::resetDiversifierFromDB(CWalletDB& walletdb) {
     walletdb.readDiversifier(lastDiversifier);
 }
 
-void CSparkWallet::updatetDiversifierInDB(CWalletDB& walletdb) {
+void CSparkWallet::updateDiversifierInDB(CWalletDB& walletdb) const
+{
     walletdb.writeDiversifier(lastDiversifier);
 }
 
-CAmount CSparkWallet::getFullBalance() {
+CAmount CSparkWallet::getFullBalance() const
+{
+    // TODO GV #Review: While this implementation is straightforward, it might lead to inaccurate results due to locking twice at different times.
+    //                  Also, this is more inefficient than the correct implementation would be.
     return getAvailableBalance() + getUnconfirmedBalance();
 }
 
-CAmount CSparkWallet::getAvailableBalance() {
+CAmount CSparkWallet::getAvailableBalance() const
+{
     CAmount result = 0;
-    LOCK(cs_spark_wallet);
-    for (auto& it : coinMeta) {
-        CSparkMintMeta mint = it.second;
-
-        if (mint.isUsed)
-            continue;
-
-        // Not confirmed
-        if (mint.nHeight < 1)
-            continue;
-
-        result += mint.v;
-    }
-
+    VisitUnusedCoinMetasWhere([](const CSparkMintMeta& meta) { return meta.IsConfirmed() && !meta.IsSpats(); },
+                              [&result] (const CSparkMintMeta& meta) { assert(meta.coin.iota.isZero()); result += meta.GetValue(); });
     return result;
 }
 
-CAmount CSparkWallet::getUnconfirmedBalance() {
+CAmount CSparkWallet::getUnconfirmedBalance() const
+{
     CAmount result = 0;
-    LOCK(cs_spark_wallet);
-    for (auto& it : coinMeta) {
-        CSparkMintMeta mint = it.second;
-        if (mint.isUsed)
-            continue;
-
-        // Continue if confirmed
-        if (mint.nHeight > 1)
-            continue;
-
-        result += mint.v;
-    }
-
+    VisitUnusedCoinMetasWhere([](const CSparkMintMeta& meta) { return meta.IsUnconfirmed() && !meta.IsSpats(); },
+                              [&result] (const CSparkMintMeta& meta) { assert(meta.coin.iota.isZero()); result += meta.GetValue(); });
     return result;
 }
 
-CAmount CSparkWallet::getAddressFullBalance(const spark::Address& address) {
+CAmount CSparkWallet::getAddressFullBalance(const spark::Address& address) const
+{
+    // TODO GV #Review: same comment as for getFullBalance()
     return getAddressAvailableBalance(address) + getAddressUnconfirmedBalance(address);
 }
 
-CAmount CSparkWallet::getAddressAvailableBalance(const spark::Address& address) {
+CAmount CSparkWallet::getAddressAvailableBalance(const spark::Address& address) const
+{
     CAmount result = 0;
-    LOCK(cs_spark_wallet);
-    for (auto& it : coinMeta) {
-        CSparkMintMeta mint = it.second;
-
-        if (mint.isUsed)
-            continue;
-
-        // Not confirmed
-        if (mint.nHeight < 1)
-            continue;
-
-        if (address.get_d() != mint.d)
-            continue;
-
-        result += mint.v;
-    }
-
+    const auto& d = address.get_d();
+    VisitUnusedCoinMetasWhere([&d](const CSparkMintMeta& meta) { return meta.IsConfirmed() && meta.d == d && !meta.IsSpats(); }, [&result] (const CSparkMintMeta& meta) { result += meta.GetValue(); });
     return result;
 }
 
-CAmount CSparkWallet::getAddressUnconfirmedBalance(const spark::Address& address) {
+CAmount CSparkWallet::getAddressUnconfirmedBalance(const spark::Address& address) const
+{
     CAmount result = 0;
-    LOCK(cs_spark_wallet);
-    for (auto& it : coinMeta) {
-        CSparkMintMeta mint = it.second;
-
-        if (mint.isUsed)
-            continue;
-
-        // Not confirmed
-        if (mint.nHeight > 1)
-            continue;
-
-        if (address.get_d() != mint.d)
-            continue;
-
-        result += mint.v;
-    }
-
+    const auto& d = address.get_d();
+    VisitUnusedCoinMetasWhere([&d](const CSparkMintMeta& meta) { return meta.IsUnconfirmed() && meta.d == d && !meta.IsSpats(); }, [&result] (const CSparkMintMeta& meta) { result += meta.GetValue(); });
     return result;
+}
+
+spats::Wallet::asset_balances_t CSparkWallet::getAssetBalances() const
+{
+    auto ret = spats_wallet_.get_asset_balances();
+    if (spark::IsSparkAllowed())
+        ret[spats::base::universal_id] = std::pair(getAvailableBalance(), getUnconfirmedBalance());
+    return ret;
 }
 
 spark::Address CSparkWallet::generateNextAddress() {
@@ -190,21 +156,33 @@ spark::Address CSparkWallet::generateNewAddress() {
     lastDiversifier++;
     spark::Address address(viewKey, lastDiversifier);
 
-    addresses[lastDiversifier] = address;
+    addresses[lastDiversifier] = address; // TODO GV #Review: shouldn't there be MT protection for `addresses` access?
     CWalletDB walletdb(strWalletFile);
-    updatetDiversifierInDB(walletdb);
+    updateDiversifierInDB(walletdb);
     return  address;
 }
 
 spark::Address CSparkWallet::getDefaultAddress() {
     if (addresses.count(0))
         return addresses[0];
-    lastDiversifier = 0;
+    lastDiversifier = 0; // TODO GV #Review: why should calling this function change lastDiversifier? Why is this function not const?
     return spark::Address(viewKey, lastDiversifier);
 }
 
-spark::Address CSparkWallet::getChangeAddress() {
+spark::Address CSparkWallet::getChangeAddress() const
+{
     return spark::Address(viewKey, SPARK_CHANGE_D);
+}
+
+spark::OwnershipProof CSparkWallet::makeDefaultAddressOwnershipProof(const secp_primitives::Scalar& m)
+{
+   spark::SpendKey spend_key = generateSpendKey(spark::Params::get_default());
+   spark::FullViewKey full_view_key(spend_key);
+   spark::IncomingViewKey incoming_view_key(full_view_key);
+   spark::OwnershipProof proof;
+   getDefaultAddress().prove_own(m, spend_key, incoming_view_key, proof);
+   // TODO Performance: add move operations to GroupElement and Scalar classes
+   return proof;
 }
 
 spark::SpendKey CSparkWallet::generateSpendKey(const spark::Params* params) {
@@ -236,7 +214,8 @@ spark::SpendKey CSparkWallet::generateSpendKey(const spark::Params* params) {
     return key;
 }
 
-spark::FullViewKey CSparkWallet::generateFullViewKey(const spark::SpendKey& spend_key) {
+spark::FullViewKey CSparkWallet::generateFullViewKey(const spark::SpendKey& spend_key) const
+{
     return spark::FullViewKey(spend_key);
 }
 
@@ -245,18 +224,36 @@ spark::IncomingViewKey CSparkWallet::generateIncomingViewKey(const spark::FullVi
     return viewKey;
 }
 
-std::unordered_map<int32_t, spark::Address> CSparkWallet::getAllAddresses() {
+spark::SpendKey CSparkWallet::ensureSpendKey()
+{
+    const spark::Params* params = spark::Params::get_default();
+    spark::SpendKey spendKey(params);
+    try {
+        spendKey = generateSpendKey(params);
+    } catch (std::exception& e) {
+        throw std::runtime_error(_("Unable to generate spend key."));
+    }
+
+    if (spendKey == spark::SpendKey(params))
+        throw std::runtime_error(_("Unable to generate spend key, looks the wallet is locked."));
+    return spendKey;
+}
+
+std::unordered_map<int32_t, spark::Address> CSparkWallet::getAllAddresses() const
+{
     return addresses;
 }
 
-spark::Address CSparkWallet::getAddress(const int32_t& i) {
-    if (lastDiversifier < i || addresses.count(i) == 0)
-        return spark::Address(viewKey, lastDiversifier);
-
-    return addresses[i];
+spark::Address CSparkWallet::getAddress(const int32_t i) const
+{
+    if (i <= lastDiversifier)
+        if (const auto it = addresses.find(i); it != addresses.end())
+            return it->second;
+    return spark::Address(viewKey, lastDiversifier);
 }
 
-bool CSparkWallet::isAddressMine(const std::string& encodedAddr) {
+bool CSparkWallet::isAddressMine(const std::string& encodedAddr) const
+{
     const spark::Params* params = spark::Params::get_default();
     spark::Address address(params);
     try {
@@ -267,7 +264,8 @@ bool CSparkWallet::isAddressMine(const std::string& encodedAddr) {
     return isAddressMine(address);
 }
 
-bool CSparkWallet::isAddressMine(const spark::Address& address) {
+bool CSparkWallet::isAddressMine(const spark::Address& address) const
+{
     for (const auto& itr : addresses) {
         if (itr.second.get_Q1() == address.get_Q1() && itr.second.get_Q2() == address.get_Q2())
             return true;
@@ -292,21 +290,17 @@ bool CSparkWallet::isChangeAddress(const uint64_t& i) const {
     return i == SPARK_CHANGE_D;
 }
 
+spark::Address CSparkWallet::decodeAddress(const std::string& encoded_address)
+{
+    spark::Address address(spark::Params::get_default());
+    address.decode(encoded_address);    // may throw
+    return address;
+}
+
 std::vector<CSparkMintMeta> CSparkWallet::ListSparkMints(bool fUnusedOnly, bool fMatureOnly) const {
     std::vector<CSparkMintMeta> setMints;
-    LOCK(cs_spark_wallet);
-    for (auto& it : coinMeta) {
-        CSparkMintMeta mint = it.second;
-        if (fUnusedOnly && mint.isUsed)
-            continue;
-
-        // Not confirmed
-        if (fMatureOnly && mint.nHeight < 1)
-            continue;
-
-        setMints.push_back(mint);
-    }
-
+    VisitCoinMetasWhere([=] (const CSparkMintMeta& meta) { return !(fUnusedOnly && meta.IsUsed()) && !(fMatureOnly && meta.IsUnconfirmed()) && !meta.IsSpats(); },
+                        [&setMints] (const CSparkMintMeta& meta) { setMints.push_back(meta); });
     return setMints;
 }
 
@@ -329,16 +323,13 @@ spark::Coin CSparkWallet::getCoinFromMeta(const CSparkMintMeta& meta) const {
         return meta.coin;
 
     spark::Address address(viewKey, meta.i);
-    return spark::Coin(params, meta.type, meta.k, address, meta.v, meta.memo, meta.serial_context);
+    return spark::Coin(params, meta.type, meta.k, address, meta.v, meta.memo, meta.serial_context, meta.a, meta.iota);
 }
 
 spark::Coin CSparkWallet::getCoinFromLTagHash(const uint256& lTagHash) const {
     LOCK(cs_spark_wallet);
-    CSparkMintMeta meta;
-    if (coinMeta.count(lTagHash)) {
-        meta = coinMeta.at(lTagHash);
-        return getCoinFromMeta(meta);
-    }
+    if (const auto it = coinMeta.find(lTagHash); it != coinMeta.end())
+        return getCoinFromMeta(it->second);
     return spark::Coin();
 }
 
@@ -355,14 +346,20 @@ void CSparkWallet::clearAllMints(CWalletDB& walletdb) {
     }
 
     coinMeta.clear();
+    notifyCoinMetasChanged();
     lastDiversifier = 0;
     walletdb.writeDiversifier(lastDiversifier);
 }
 
 void CSparkWallet::eraseMint(const uint256& hash, CWalletDB& walletdb) {
     LOCK(cs_spark_wallet);
+    const auto it = coinMeta.find(hash);
+    const bool is_spats = it != coinMeta.end() && it->second.IsSpats();
     walletdb.EraseSparkMint(hash);
-    coinMeta.erase(hash);
+    if (it != coinMeta.end()) {
+        coinMeta.erase(it);
+        notifyCoinMetasChanged(is_spats);
+    }
 }
 
 void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb) {
@@ -372,14 +369,20 @@ void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lT
         lastDiversifier = mint.i;
         walletdb.writeDiversifier(lastDiversifier);
     }
+
+    // just some sanity validation
+    if (const auto it = coinMeta.find(lTagHash); it != coinMeta.end())
+        assert(it->second.IsSpats() == mint.IsSpats());
+
     coinMeta[lTagHash] = mint;
+    notifyCoinMetasChanged(mint.IsSpats());
     walletdb.WriteSparkMint(lTagHash, mint);
 }
 
 void CSparkWallet::updateMint(const CSparkMintMeta& mint, CWalletDB& walletdb) {
     LOCK(cs_spark_wallet);
     for (const auto& coin : coinMeta) {
-        if (mint ==  coin.second) {
+        if (mint == coin.second) {
             addOrUpdateMint(mint, coin.first, walletdb);
         }
     }
@@ -401,20 +404,24 @@ void CSparkWallet::updateMintInMemory(const CSparkMintMeta& mint) {
     LOCK(cs_spark_wallet);
     for (auto& itr : coinMeta) {
         if (itr.second == mint) {
-            coinMeta[itr.first] = mint;
+            assert(itr.second.IsSpats() == mint.IsSpats());
+            itr.second = mint;
+            notifyCoinMetasChanged(mint.IsSpats());
             break;
         }
     }
 }
 
-CSparkMintMeta CSparkWallet::getMintMeta(const uint256& hash) {
+CSparkMintMeta CSparkWallet::getMintMeta(const uint256& hash) const
+{
     LOCK(cs_spark_wallet);
-    if (coinMeta.count(hash))
-        return coinMeta[hash];
+    if (const auto it = coinMeta.find(hash); it != coinMeta.end())
+        return it->second;
     return CSparkMintMeta();
 }
 
-CSparkMintMeta CSparkWallet::getMintMeta(const secp_primitives::Scalar& nonce) {
+CSparkMintMeta CSparkWallet::getMintMeta(const secp_primitives::Scalar& nonce) const
+{
     LOCK(cs_spark_wallet);
     for (const auto& meta : coinMeta) {
         if (meta.second.k == nonce)
@@ -424,7 +431,8 @@ CSparkMintMeta CSparkWallet::getMintMeta(const secp_primitives::Scalar& nonce) {
     return CSparkMintMeta();
 }
 
-bool CSparkWallet::getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta) {
+bool CSparkWallet::getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta) const
+{
     spark::IdentifiedCoinData identifiedCoinData;
     try {
         identifiedCoinData = coin.identify(this->viewKey);
@@ -437,7 +445,8 @@ bool CSparkWallet::getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta) {
     return true;
 }
 
-bool CSparkWallet::getMintAmount(spark::Coin coin, CAmount& amount) {
+bool CSparkWallet::getMintAmount(spark::Coin coin, CAmount& amount) const
+{
     spark::IdentifiedCoinData identifiedCoinData;
     try {
         identifiedCoinData = coin.identify(this->viewKey);
@@ -480,7 +489,7 @@ void CSparkWallet::UpdateSpendState(const GroupElement& lTag, const uint256& txH
 }
 
 void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint) {
-    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=]() {
+    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() {
         LOCK(cs_spark_wallet);
         for (const auto& lTag : lTags) {
             uint256 lTagHash = primitives::GetLTagHash(lTag);
@@ -493,7 +502,7 @@ void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& 
 
 void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
     const auto& transactions = block.vtx;
-    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=]() {
+    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() {
         LOCK(cs_spark_wallet);
         for (const auto& tx : transactions) {
             if (tx->IsSparkSpend()) {
@@ -538,8 +547,8 @@ CAmount CSparkWallet::getMyCoinV(spark::Coin coin) const {
     try {
         spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
         v = identifiedCoinData.v;
-    } catch (const std::runtime_error& e) {
-        //don nothing
+    } catch (const std::runtime_error&) {
+        // do nothing, leaving v 0
     }
     return v;
 }
@@ -553,7 +562,8 @@ bool CSparkWallet::getMyCoinIsChange(spark::Coin coin) const {
     }
 }
 
-spark::Address CSparkWallet::getMyCoinAddress(spark::Coin coin) {
+spark::Address CSparkWallet::getMyCoinAddress(spark::Coin coin) const
+{
     spark::Address address;
     try {
         spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
@@ -594,6 +604,8 @@ void CSparkWallet::UpdateMintState(const std::vector<spark::Coin>& coins, const 
             mintMeta.v = identifiedCoinData.v;
             mintMeta.k = identifiedCoinData.k;
             mintMeta.memo = identifiedCoinData.memo;
+            mintMeta.a = identifiedCoinData.a;
+            mintMeta.iota = identifiedCoinData.iota;
             mintMeta.serial_context = coin.serial_context;
             mintMeta.coin = coin;
             mintMeta.type = coin.type;
@@ -627,7 +639,7 @@ void CSparkWallet::UpdateMintState(const std::vector<spark::Coin>& coins, const 
 }
 
 void CSparkWallet::UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins, const uint256& txHash) {
-    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=]() mutable {
+    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() mutable {
         LOCK(cs_spark_wallet);
         CWalletDB walletdb(strWalletFile);
         UpdateMintState(coins, txHash, walletdb);
@@ -637,7 +649,7 @@ void CSparkWallet::UpdateMintStateFromMempool(const std::vector<spark::Coin>& co
 void CSparkWallet::UpdateMintStateFromBlock(const CBlock& block) {
     const auto& transactions = block.vtx;
 
-    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=] () mutable {
+    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this] () mutable {
         LOCK(cs_spark_wallet);
         CWalletDB walletdb(strWalletFile);
         for (const auto& tx : transactions) {
@@ -699,16 +711,11 @@ void CSparkWallet::AbandonSpends(const std::vector<GroupElement>& spends) {
     }
 }
 
-std::vector<CSparkMintMeta> CSparkWallet::listAddressCoins(const int32_t& i, bool fUnusedOnly) {
+std::vector<CSparkMintMeta> CSparkWallet::listAddressCoins(const int32_t i, bool fUnusedOnly) const
+{
     std::vector<CSparkMintMeta> listMints;
-    LOCK(cs_spark_wallet);
-    for (auto& itr : coinMeta) {
-        if (itr.second.i == i) {
-            if (fUnusedOnly && itr.second.isUsed)
-                continue;
-            listMints.push_back(itr.second);
-        }
-    }
+    VisitCoinMetasWhere([=] (const CSparkMintMeta& meta) { return !(fUnusedOnly && meta.IsUsed()) && meta.i == i; },
+                        [&listMints] (const CSparkMintMeta& meta) { listMints.push_back(meta); });
     return listMints;
 }
 
@@ -1245,16 +1252,17 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     CAmount mintVOut = 0;
     CAmount spatsMintVOut = 0;
     unsigned recipientsToSubtractFee = 0;
+    std::size_t spats_script_sizes_total = 0;
 
     for (size_t i = 0; i < recipients.size(); i++) {
-        auto& recipient = recipients[i];
+        const auto& recipient = recipients[i];
 
         if (recipient.scriptPubKey.IsPayToExchangeAddress()) {
             throw std::runtime_error("Exchange addresses cannot receive private funds. Please transfer your funds to a transparent address first before sending to an Exchange address");
         }
 
         if (!MoneyRange(recipient.nAmount)) {
-            throw std::runtime_error(boost::str(boost::format(_("Recipient has invalid amount")) % i));
+            throw std::runtime_error(boost::str(boost::format(_("Recipient %1% has invalid amount")) % i));
         }
 
         vOut += recipient.nAmount;
@@ -1262,6 +1270,9 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         if (recipient.fSubtractFeeFromAmount) {
             recipientsToSubtractFee++;
         }
+
+        if (recipient.scriptPubKey.IsSpatsAction())
+            spats_script_sizes_total += recipient.scriptPubKey.size();
     }
 
     for (const auto& privRecipient : privateRecipients) {
@@ -1279,12 +1290,13 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             throw std::runtime_error(_("Spats not started."));
 
         identifier = std::make_pair(spatsRecipients[0].a, spatsRecipients[0].iota);
-	for (const auto& privRecipient : spatsRecipients) {
+        for (const auto& privRecipient : spatsRecipients) {
             spatsMintVOut += privRecipient.v;
             if (privRecipient.a != identifier.first || privRecipient.iota != identifier.second)
                 throw std::runtime_error(_("Not allowed to mix assets in one spend transaction."));
-	}
+        }
     }
+
     if (vOut > consensusParams.nMaxValueSparkSpendPerTransaction)
         throw std::runtime_error(_("Spend to transparent address limit exceeded (10,000 Firo per transaction)."));
 
@@ -1332,7 +1344,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     std::vector<CSparkMintMeta> spatsSpendCoins;
 
     if (spark::IsSpatsStarted()) {
-        estimated = SelectSparkCoinsNew(vOut + mintVOut, spatsMintVOut, identifier, recipientsToSubtractFee, privateRecipients.size() + spatsRecipients.size(), recipients.size(), spatsSpendCoins, coinControl);
+        estimated = SelectSparkCoinsNew(vOut + mintVOut, spatsMintVOut, identifier, recipientsToSubtractFee, privateRecipients.size() + spatsRecipients.size(), recipients.size(), spatsSpendCoins, coinControl, spats_script_sizes_total);
     } else
         estimated = SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, privateRecipients.size(), recipients.size(), coinControl);
 
@@ -1407,12 +1419,13 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             // fill outputs
             for (size_t i = 0; i < recipients_.size(); i++) {
                 auto& recipient = recipients_[i];
-                if (recipient.nAmount == 0)
+                const bool is_spats_action = recipient.scriptPubKey.IsSpatsAction();
+                if (recipient.nAmount == 0 && !is_spats_action)
                     continue;
 
                 CTxOut vout(recipient.nAmount, recipient.scriptPubKey);
 
-                if (vout.IsDust(minRelayTxFee)) {
+                if (!is_spats_action && vout.IsDust(minRelayTxFee)) {
                     std::string err;
 
                     if (recipient.fSubtractFeeFromAmount && fee > 0) {
@@ -1446,6 +1459,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 output.v = recipientAmount;
                 privOutputs.push_back(output);
             }
+            auto base_outputs_count = privOutputs.size();
 
             for (size_t i = 0; i < spatsRecipients.size(); i++) {
                 auto& recipient = spatsRecipients[i];
@@ -1470,8 +1484,10 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                     output.v = spendInCurrentTx;
                 else
                     output.v = 0;
-                wtxNew.changes.insert(static_cast<uint32_t>(tx.vout.size() + privOutputs.size()));
-                privOutputs.push_back(output);
+                // making sure to insert in privOutputs at a position that is before any spats outputs,
+                // to avoid "outputs not sorted, base coins must be at the beginning" error in SpendTransaction constructor
+                wtxNew.changes.insert(static_cast<uint32_t>(tx.vout.size() + base_outputs_count));
+                privOutputs.insert(privOutputs.begin() + base_outputs_count++, output);
             }
             // also add send the change for asset too
             if (spatsSpendAmount > 0) {
@@ -1479,6 +1495,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 output.address = getChangeAddress();
                 output.memo = "";
                 output.v = spatsSpendAmount;
+                output.a = identifier.first;
+                output.iota = identifier.second;
                 wtxNew.changes.insert(static_cast<uint32_t>(tx.vout.size() + privOutputs.size()));
                 privOutputs.push_back(output);
             }
@@ -1490,7 +1508,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             if(!spark::IsSpatsStarted()) {
             	script << OP_SPARKSPEND;
             } else
-                script << OP_SPATSSPEND;
+                script << OP_SPATSSPEND;    // TODO question for Levon: any benefit of making all spend txs spats, even when spatsRecipients is empty? This way old nodes and tools will have a problem with all spark spends, not just spats
             tx.vin.emplace_back(COutPoint(), script, sequence);
 
             // clear vExtraPayload to calculate metadata hash correctly
@@ -1509,7 +1527,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             std::unordered_map<uint64_t, spark::CoverSetData> cover_set_data;
             std::unordered_map<uint64_t, std::vector<spark::Coin>> cover_sets;
 
-            // merge two containers of spending cons
+            // merge two containers of spending coins
             std::vector<CSparkMintMeta> coinsToSpend;
             coinsToSpend.insert(coinsToSpend.end(), estimated.second.begin(),  estimated.second.end());
             coinsToSpend.insert(coinsToSpend.end(), spatsSpendCoins.begin(), spatsSpendCoins.end());
@@ -1595,7 +1613,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
                 serialized << outCoin;
                 CScript script;
-                script << OP_SPARKSMINT;
+                script << OP_SPARKSMINT;    // TODO question for Levon: what if outCoin is spats, doesn't the loop body need to change to adapt for that possibility?
                 script.insert(script.end(), serialized.begin(), serialized.end());
                 CWalletDB walletdb(strWalletFile);
                 CSparkOutputTx output;
@@ -1626,7 +1644,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             }
 
             wtxNew.SetTx(MakeTransactionRef(std::move(tx)));
-            
+
             result.push_back(wtxNew);
         }
     }
@@ -1667,14 +1685,16 @@ void CSparkWallet::AppendSpatsMintTxData(CMutableTransaction& tx,
 
     const spark::Params* params = spark::Params::get_default();
     spark::MintTransaction spatskMint(params, {spatsRecipient.first}, serialContext, true);
-    CDataStream serializedMint = spatskMint.getMintedCoinsSerialized()[0];
+    CDataStream serializedMint = spatskMint.getMintedCoinsSerialized().front();
 
     CScript script;
     // opcode is inserted as 1 byte according to file script/script.h
-    script << OP_SPATSMINT;
+    script << OP_SPATSMINTCOIN;
     script.insert(script.end(), serializedMint.begin(), serializedMint.end());
     tx.vout.push_back(CTxOut(spatsRecipient.first.v, script));
 
+    assert(isAddressMine(spatsRecipient.second));
+#if 0	// Not sure if we need this here, as the encompassing OP_SPATSMINT tx already has the admin's address ownership proof
     Scalar m = spark::GetSpatsMintM(tx);
     spark::OwnershipProof ownershipProof;
     spatsRecipient.second.prove_own(m, spendKey, viewKey, ownershipProof);
@@ -1683,37 +1703,24 @@ void CSparkWallet::AppendSpatsMintTxData(CMutableTransaction& tx,
 
     auto& scriptRef = tx.vout.back().scriptPubKey;
     scriptRef.insert(scriptRef.end(), serializedOwn.begin(), serializedOwn.end());
+#endif
 }
 
 CWalletTx CSparkWallet::CreateSpatsMintTransaction(
         const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
         CAmount &fee,
-        const CCoinControl *coinControl) {
-
-    if (spatsRecipient.first.a == Scalar(uint64_t(0)) || spatsRecipient.first.iota == Scalar(uint64_t(0)))
-        throw std::runtime_error(_("Invalid assed type and identifier, please use spark mint creation."));
-	// TODO levon also check type and identifier against spark asset registry
-    if (!isAddressMine(spatsRecipient.second))
-        throw std::runtime_error(_("Spark address doesn't belong to the wallet"));
-
-    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({}, {}, {}, fee, coinControl);
-
-    const spark::Params* params = spark::Params::get_default();
-    spark::SpendKey spendKey(params);
-    try {
-        spendKey = std::move(generateSpendKey(params));
-    } catch (std::exception& e) {
-        throw std::runtime_error(_("Unable to generate spend key."));
-    }
-
-    if (spendKey == spark::SpendKey(params))
-        throw std::runtime_error(_("Unable to generate spend key, looks the wallet is locked."));
-
-    CMutableTransaction tx = CMutableTransaction(*wtxSparkSpend.tx);
-    AppendSpatsMintTxData(tx, spatsRecipient, spendKey);
-
-    wtxSparkSpend.tx = MakeTransactionRef(std::move(tx));
-    return wtxSparkSpend;
+        const CCoinControl *coinControl)
+{
+    const spats::asset_type_t a{std::stoull(spatsRecipient.first.a.tostring())};
+    if (!is_fungible_asset_type(a)) [[unlikely]]
+        throw std::invalid_argument(_("NFTs can never have their total supply changed by any means, including minting"));
+    const auto precision = spats_wallet_.get_asset_precision(a, spats::identifier_t{}); // identifier is for sure absent (0) because `a` is fungible
+    if (!precision) [[unlikely]]
+        throw std::domain_error(_("Failed to retrieve asset precision from the registry - cannot mint for it!"));
+    auto wtx = spats_wallet_.create_mint_asset_supply_transaction(a, spats::supply_amount_t(spatsRecipient.first.v, *precision),
+                                                                  spatsRecipient.second.encode(spark::GetNetworkType()), fee, coinControl);
+    assert(wtx && "create_mint_asset_supply_transaction() should never return nullopt except possibly when user confirmation callback is passed. Any errors should have given an exception!");
+    return *wtx;
 }
 
 template<typename Iterator>
@@ -1813,7 +1820,8 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
         bool subtractFeeFromAmount,
         std::size_t mintNum,
         std::size_t utxoNum,
-        const CCoinControl *coinControl) {
+        const CCoinControl *coinControl)
+{
     // get available coins for base spark asset
     std::list<CSparkMintMeta> coins = GetAvailableSparkCoins(std::make_pair(ZERO, ZERO), coinControl);
 
@@ -1832,10 +1840,10 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
             throw std::invalid_argument(_("Unable to select coins for spend"));
         }
 
-        // 1803 is for first grootle proof/aux data
-        // 213 for each private output, 34 for each utxo,924 constant parts of tx parts of tx,
+        // 1803 is for the first grootle proof/aux data
+        // 322 for each private output, 34 for each utxo, 924 for constant parts of tx
         size = 924 + 1803*(spendCoins.size()) + 322*(mintNum+1) + 34*utxoNum;
-        CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
+        const CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
 
         if (fee >= feeNeeded) {
             break;
@@ -1848,7 +1856,7 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
     }
 
     if (changeToMint < 0)
-        throw std::invalid_argument(_("Unable to select cons for spend"));
+        throw std::invalid_argument(_("Unable to select coins for spend"));
 
     return std::make_pair(fee, spendCoins);
 }
@@ -1861,7 +1869,9 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoinsNe
         std::size_t mintNum,
         std::size_t utxoNum,
         std::vector<CSparkMintMeta>& spatsSpendCoins,
-        const CCoinControl *coinControl) {
+        const CCoinControl *coinControl,
+        const std::size_t spats_script_sizes_total)
+{
     // get available coins for base spark asset
     std::list<CSparkMintMeta> coins = GetAvailableSparkCoins(std::make_pair(ZERO, ZERO), coinControl);
     // get spend coins for generic asset
@@ -1889,7 +1899,7 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoinsNe
 
         // 1803 is for first grootle proof/aux data
         // 213 for each private output, 34 for each utxo,940 constant parts of tx parts of tx,
-        size = 1228 + 1803*(spendCoins.size() + spatsSpendCoins.size()) + 322*(mintNum+1) + 34*utxoNum;
+        size = 1228 + 1803*(spendCoins.size() + spatsSpendCoins.size()) + 322*(mintNum+1) + 34*utxoNum + spats_script_sizes_total;
         CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
 
         if (fee >= feeNeeded) {
@@ -1903,37 +1913,34 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoinsNe
     }
 
     if (changeToMint < 0)
-        throw std::invalid_argument(_("Unable to select cons for spend"));
+        throw std::invalid_argument(_("Unable to select coins for spend"));
 
     return std::make_pair(fee, spendCoins);
 }
 
-std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const std::pair<Scalar, Scalar>& identifier, const CCoinControl *coinControl) const {
+std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const std::pair<Scalar, Scalar>& identifier, const CCoinControl *coinControl) const
+{
     std::list<CSparkMintMeta> coins;
-    // get all unsued coins from spark wallet
-    std::vector<CSparkMintMeta> vecMints = this->ListSparkMints(true, true);
-    for (const auto& mint : vecMints) {
-        if (mint.v == 0) // ignore 0 mints which where created to increase privacy
-            continue;
-        coins.push_back(mint);
-    }
+    // get all unused coins from spark wallet
+    VisitUnusedCoinMetasWhere([&] (const CSparkMintMeta& meta) {
+            return meta.IsConfirmed() && meta.a == identifier.first && meta.iota == identifier.second &&
+                   meta.v != 0; // ignore 0 mints which were created to increase privacy
+        },
+        [&coins] (const CSparkMintMeta& meta) { coins.push_back(meta); });
 
-    std::set<COutPoint> lockedCoins = pwalletMain->setLockedCoins;
+    std::set<COutPoint> lockedCoins = pwalletMain->setLockedCoins; // TODO GV #Review: isn't this a potential data race?
 
     // Filter out coins that have not been selected from CoinControl should that be used
-    coins.remove_if([lockedCoins, identifier, coinControl](const CSparkMintMeta& coin) {
+    // TODO GV #Review Performance: move these checks to inside the predicate for VisitCoinMetasWhere, and get rid of this remove_if
+    coins.remove_if([&lockedCoins, coinControl](const CSparkMintMeta& coin) {
         COutPoint outPoint;
-
-        if (coin.a != identifier.first)
-            return true;
-
         // ignore if the coin is not actually on chain
         if (!spark::GetOutPoint(outPoint, coin.coin)) {
             return true;
         }
 
         // if we are using coincontrol, filter out unselected coins
-        if (coinControl != NULL){
+        if (coinControl) {
             if (coinControl->HasSelected()){
                 if (!coinControl->IsSelected(outPoint)){
                     return true;
@@ -1941,8 +1948,8 @@ std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const std::pair<S
             }
         }
 
-        // ignore if coin is locked
-        if (lockedCoins.count(outPoint) > 0){
+        // ignore if the coin is locked
+        if (lockedCoins.contains(outPoint)) {
             return true;
         }
 
@@ -1950,4 +1957,12 @@ std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const std::pair<S
     });
 
     return coins;
+}
+
+void CSparkWallet::notifyCoinMetasChanged(bool potential_spats_coin_change)
+{
+    // TODO Performance: clear some atomic flag in this class too, that will be used to update various caches built off of coins,
+    //                   to avoid needlessly recalculating those each time they are requested
+    if (potential_spats_coin_change)
+        spats_wallet_.notify_coins_changed();
 }
