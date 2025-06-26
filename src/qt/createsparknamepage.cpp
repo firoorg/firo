@@ -5,6 +5,7 @@
 #include "createsparknamepage.h"
 #include "ui_createsparkname.h"
 #include "sendcoinsdialog.h"
+#include "addresstablemodel.h"
 
 #include "platformstyle.h"
 #include "validation.h"
@@ -142,6 +143,15 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
         if (sendStatus.status != WalletModel::StatusCode::OK) {
             QMessageBox::critical(this, tr("Error"), tr("Failed to send spark name transaction"));
             return false;
+        }
+
+        if (model->getEncryptionStatus() != WalletModel::Unencrypted) {
+            model->getAddressTableModel()->addRow(
+                AddressTableModel::Send,
+                QString::fromStdString(name),
+                "",
+                QString::fromStdString(address)
+            );
         }
     }
     catch (const std::exception &) {
