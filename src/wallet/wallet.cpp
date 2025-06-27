@@ -7334,10 +7334,13 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         walletInstance->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
 
         spark::Address address = walletInstance->sparkWallet->getDefaultAddress();
-        unsigned char network = spark::GetNetworkType();
-        if (!walletInstance->SetSparkAddressBook(address.encode(network), "", "receive")) {
-            InitError(_("Cannot write default spark address") += "\n");
-            return NULL;
+        std::string addrStr = address.encode(spark::GetNetworkType());
+
+        if (walletInstance->mapSparkAddressBook.count(addrStr) == 0) {
+            if (!walletInstance->SetSparkAddressBook(addrStr, "", "receive")) {
+                InitError(_("Cannot write default spark address") += "\n");
+                return NULL;
+            }
         }
     }
 
