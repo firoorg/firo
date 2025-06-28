@@ -32,11 +32,12 @@ fi
 cat << EOF
 Required environment variables as seen inside the container:
     DIST_ARCHIVE_BASE: ${DIST_ARCHIVE_BASE:?not set}
+    DISTNAME: ${DISTNAME:?not set}
     HOST: ${HOST:?not set}
+    SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:?not set}
     JOBS: ${JOBS:?not set}
     DISTSRC: ${DISTSRC:?not set}
     OUTDIR: ${OUTDIR:?not set}
-    OPTIONS: ${OPTIONS}
 EOF
 
 ACTUAL_OUTDIR="${OUTDIR}"
@@ -323,7 +324,7 @@ mkdir -p "$DISTSRC"
     # Setup the directory where our Firo build for HOST will be
     # installed. This directory will also later serve as the input for our
     # binary tarballs.
-    INSTALLPATH="${DISTSRC}/installed/${DISTNAME}"
+    INSTALLPATH="${DISTSRC}/installed"
     mkdir -p "${INSTALLPATH}"
 
     # Ensure rpath in the resulting binaries is empty
@@ -352,14 +353,18 @@ mkdir -p "$DISTSRC"
       -DCMAKE_INSTALL_PREFIX="${INSTALLPATH}" \
       -DCMAKE_EXE_LINKER_FLAGS="${HOST_LDFLAGS}" \
       -DCMAKE_SHARED_LINKER_FLAGS="${HOST_LDFLAGS}" \
-      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DENABLE_CRASH_HOOKS=ON \
+      -DBUILD_CLI=ON \
+      -DBUILD_GUI=ON \
+      -DBUILD_TESTS=OFF \
       ${CMAKEFLAGS}
 
-    make -C build --jobs="$JOBS" -j$(nproc)
+    make -C build --jobs="$JOBS"
 
     mkdir -p "$OUTDIR"
 
-    # Packaging for windows (generating installer)
+    # Make the os-specific installers
     case "$HOST" in
         *mingw*)
             make -C build package -j$(nproc)
@@ -376,49 +381,111 @@ mkdir -p "$DISTSRC"
     # Copy docs
     case "$HOST" in
         *mingw*)
-            cp "${DISTSRC}/doc/README_windows.txt" "${INSTALLPATH}/readme.txt"
+            cp "${DISTSRC}/doc/README_windows.txt" "${OUTDIR}/readme.txt"
             ;;
         *)
-            cp "${DISTSRC}/README.md" "${INSTALLPATH}/"
+            cp "${DISTSRC}/README.md" "${OUTDIR}/"
             ;;
     esac
+    # Install without stripping for all platforms
+    make -C build install ${V:+V=1}
 
     (
-        cd installed
+        cd "${INSTALLPATH}"
 
-        # Finally, deterministically produce binary tarballs ready for release
+        # Prune libtool and object archives
+        find . -name "lib*.la" -delete
+        find . -name "lib*.a" -delete
+
+        # Prune pkg-config files
+        rm -rf "./lib/pkgconfig"
+
         case "$HOST" in
-            *mingw*)
-                find "${DISTNAME}/" -print0 \
-                    | xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}"
-                find "${DISTNAME}/" \
-                    | sort \
-                    | zip -X@ "${OUTDIR}/${DISTNAME}.zip" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}.zip" && exit 1 )
-                ;;
+            *darwin*) ;;
             *)
-                find "${DISTNAME}/" -print0 \
-                    | xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}"
-                find "${DISTNAME}/" \
-                    | sort \
-                    | tar --no-recursion --owner=0 --group=0 -c -T - \
-                    | bzip2 -9 > "${OUTDIR}/${DISTNAME}.tar.bz2" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}.tar.bz2" && exit 1 )
+                # Split binaries and libraries from their debug symbols
+                {
+                    find "./bin" -type f -executable -print0
+                } | xargs -0 -P"$JOBS" -I{} "${DISTSRC}/build/split-debug.sh" {} {} {}.dbg
                 ;;
         esac
-    )
+        # Finally, deterministically produce {non-,}debug binary tarballs ready
+        # for release
+        case "$HOST" in
+            *mingw*)
+                find . -not -name "*.dbg" -print0 \
+                    | xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}"
+                find . -not -name "*.dbg" \
+                    | sort \
+                    | zip -X@ "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}.zip" \
+                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}.zip" && exit 1 )
+                find . -name "*.dbg" -print0 \
+                    | xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}"
+                find . -name "*.dbg" \
+                    | sort \
+                    | zip -X@ "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}-debug.zip" \
+                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}-debug.zip" && exit 1 )
+                ;;
+            *linux*)
+                find . -not -name "*.dbg" -print0 \
+                    | sort --zero-terminated \
+                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
+                    | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST}.tar.gz" \
+                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}.tar.gz" && exit 1 )
+                find . -name "*.dbg" -print0 \
+                    | sort --zero-terminated \
+                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
+                    | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST}-debug.tar.gz" \
+                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}-debug.tar.gz" && exit 1 )
+                ;;
+            *darwin*)
+                find . -print0 \
+                    | sort --zero-terminated \
+                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
+                    | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST//x86_64-apple-darwin19/osx64}.tar.gz" \
+                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST//x86_64-apple-darwin19/osx64}.tar.gz" && exit 1 )
+                ;;
+        esac
+    )  # $DISTSRC/installed
+
+    case "$HOST" in
+        *mingw*)
+            cp -rf --target-directory=. contrib/windeploy
+            (
+                cd ./windeploy
+                mkdir -p unsigned
+                cp --target-directory=unsigned/ "${OUTDIR}/${DISTNAME}-win64-setup-unsigned.exe"
+                find . -print0 \
+                    | sort --zero-terminated \
+                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
+                    | gzip -9n > "${OUTDIR}/${DISTNAME}-win-unsigned.tar.gz" \
+                    || ( rm -f "${OUTDIR}/${DISTNAME}-win-unsigned.tar.gz" && exit 1 )
+            )
+            ;;
+    esac
 )  # $DISTSRC
+# Replace the problematic section with this safer version:
+if [ -n "$ACTUAL_OUTDIR" ]; then
+    rm -rf "$ACTUAL_OUTDIR"
+else
+    echo "ERROR: ACTUAL_OUTDIR is empty: '$ACTUAL_OUTDIR'"
+    exit 1
+fi
 
-rm -rf "$ACTUAL_OUTDIR"
-echo "Moving $OUTDIR to $ACTUAL_OUTDIR"
-mv --no-target-directory "$OUTDIR" "$ACTUAL_OUTDIR" \
-    || ( rm -rf "$ACTUAL_OUTDIR" && exit 1 )
-
+if [ -n "$OUTDIR" ]; then
+    mv --no-target-directory "$OUTDIR" "$ACTUAL_OUTDIR" \
+        || ( rm -rf "$ACTUAL_OUTDIR" && exit 1 )
+else
+    echo "ERROR: OUTDIR is invalid: '$OUTDIR'"
+    exit 1
+fi
 (
     cd /outdir-base
     {
         echo "$GIT_ARCHIVE"
         find "$ACTUAL_OUTDIR" -type f
     } | xargs realpath --relative-base="$PWD" \
-      | xargs sha256sum
+      | xargs sha256sum \
+      | sort -k2 \
+      | sponge "$ACTUAL_OUTDIR"/SHA256SUMS.part
 )
