@@ -554,6 +554,7 @@ endif()
 
 install(TARGETS ${installable_targets}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  COMPONENT GUI
 )
 unset(installable_targets)
 
