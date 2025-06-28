@@ -352,15 +352,36 @@ mkdir -p "$DISTSRC"
       -DCMAKE_INSTALL_PREFIX="${INSTALLPATH}" \
       -DCMAKE_EXE_LINKER_FLAGS="${HOST_LDFLAGS}" \
       -DCMAKE_SHARED_LINKER_FLAGS="${HOST_LDFLAGS}" \
+      -DCMAKE_BUILD_TYPE=Release \
       ${CMAKEFLAGS}
 
-    make -C build --jobs="$JOBS"
+    make -C build --jobs="$JOBS" -j$(nproc)
+
+    mkdir -p "$OUTDIR"
+
+    # Packaging for windows (generating installer)
+    case "$HOST" in
+        *mingw*)
+            make -C build package -j$(nproc)
+            # Move NSIS installer if created
+            if compgen -G "build/*.exe" > /dev/null; then
+                mv build/*.exe "${OUTDIR}/${DISTNAME}-win64-setup-unsigned.exe"
+            fi
+            ;;
+        *)
+            cp -a build/bin/* "${OUTDIR}"
+            ;;
+    esac
 
     # Copy docs
-    cp README.md "${INSTALLPATH}"
-
-    # Copy binaries
-    cp -a build/bin/* "${INSTALLPATH}"
+    case "$HOST" in
+        *mingw*)
+            cp "${DISTSRC}/doc/README_windows.txt" "${INSTALLPATH}/readme.txt"
+            ;;
+        *)
+            cp "${DISTSRC}/README.md" "${INSTALLPATH}/"
+            ;;
+    esac
 
     (
         cd installed
