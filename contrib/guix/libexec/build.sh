@@ -390,6 +390,83 @@ mkdir -p "$DISTSRC"
     # Install without stripping for all platforms
     make -C build install ${V:+V=1}
 
+    # Then strip manually only for Darwin to avoid the llvm-strip -u flag issue
+    case "$HOST" in
+        *darwin*)
+            # Try different strip commands until one works
+            if command -v "${HOST}-strip" >/dev/null 2>&1; then
+                find "${INSTALLPATH}" -type f -executable -exec "${HOST}-strip" {} + 2>/dev/null || true
+            elif command -v llvm-strip >/dev/null 2>&1; then
+                find "${INSTALLPATH}" -type f -executable -exec llvm-strip {} + 2>/dev/null || true
+            else
+                echo "No compatible strip command found for Darwin"
+            fi
+            ;;
+        *)
+            ;;
+    esac
+
+    case "$HOST" in
+        *darwin*)
+            make -C build osx_volname ${V:+V=1}
+            make -C build deploydir ${V:+V=1}
+            mkdir -p "unsigned-app-${HOST}"
+            cp  --target-directory="unsigned-app-${HOST}" \
+                build/osx_volname \
+                contrib/macdeploy/detached-sig-{apply,create}.sh
+            
+            # Use dmg from Guix environment instead of depends
+            DMG_BIN=$(which dmg 2>/dev/null || find /gnu/store -name "dmg" -type f -executable | head -1)
+            DMG_FOUND=false
+            # Check for dmg binary in order of preference
+            if [ -f "${BASEPREFIX}/${HOST}/native/bin/dmg" ]; then
+                cp "${BASEPREFIX}/${HOST}/native/bin/dmg" "unsigned-app-${HOST}/"
+                DMG_FOUND=true
+                echo "Using dmg from depends: ${BASEPREFIX}/${HOST}/native/bin/dmg"
+            elif [ -n "$DMG_BIN" ] && [ -f "$DMG_BIN" ]; then
+                cp "$DMG_BIN" "unsigned-app-${HOST}/"
+                DMG_FOUND=true
+                echo "Using dmg from Guix: $DMG_BIN"
+            else
+                # Try to find it elsewhere as last resort
+                LOCAL_DMG=$(find . -name "dmg" -type f -executable | head -1)
+                if [ -n "$LOCAL_DMG" ]; then
+                    cp "$LOCAL_DMG" "unsigned-app-${HOST}/"
+                    DMG_FOUND=true
+                    echo "Found dmg locally: $LOCAL_DMG"
+                else
+                    echo "No dmg binary found anywhere - continuing without it"
+                fi
+            fi
+            
+            mv --target-directory="unsigned-app-${HOST}" build/dist
+            (
+                cd "unsigned-app-${HOST}"
+                find . -print0 \
+                    | sort --zero-terminated \
+                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
+                    | gzip -9n > "${OUTDIR}/${DISTNAME}-osx-unsigned.tar.gz" \
+                    || ( rm -f "${OUTDIR}/${DISTNAME}-osx-unsigned.tar.gz" && exit 1 )
+            )
+
+            # Conditional deploy command based on dmg availability
+            if [ "$DMG_FOUND" = true ]; then
+                echo "Running deploy with DMG support..."
+                make -C build deploy ${V:+V=1} OSX_DMG="${OUTDIR}/${DISTNAME}-osx-unsigned.dmg"
+            else
+                echo "Running deploy without DMG (will create .zip instead)..."
+                make -C build deploy ${V:+V=1}
+            fi
+
+            # Copy any generated files to output
+            find build/dist -name "*.zip" -o -name "*.dmg" 2>/dev/null | while read file; do
+                if [ -f "$file" ]; then
+                    cp "$file" "${OUTDIR}/" && echo "✓ Copied $(basename "$file")"
+                fi
+            done
+                    
+            ;;
+    esac
     (
         cd "${INSTALLPATH}"
 
