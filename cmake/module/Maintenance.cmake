@@ -121,6 +121,12 @@ function(add_macos_deploy_target)
     )
 
     string(REPLACE " " "-" osx_volname ${CLIENT_NAME})
+    
+    add_custom_target(osx_volname
+      COMMAND ${CMAKE_COMMAND} -E echo "${osx_volname}" > osx_volname
+      COMMENT "Creating OSX volume name"
+    )
+    
     if(CMAKE_HOST_APPLE)
       add_custom_command(
         OUTPUT ${PROJECT_BINARY_DIR}/${osx_volname}.zip
