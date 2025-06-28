@@ -557,10 +557,24 @@ install(TARGETS ${installable_targets}
 )
 unset(installable_targets)
 
-if(INSTALL_MAN)
-  # TODO: these stubs are no longer needed. man pages should be generated at install time.
-  install(DIRECTORY ../doc/man/
-    DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
-    FILES_MATCHING PATTERN *.1
-  )
+if(INSTALL_MAN AND NOT WIN32)
+  # Install man pages with correct Firo names
+  if(BUILD_DAEMON)
+    install(FILES ${PROJECT_SOURCE_DIR}/doc/man/bitcoind.1
+      DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
+      RENAME firod.1
+    )
+  endif()
+  if(BUILD_CLI)
+    install(FILES ${PROJECT_SOURCE_DIR}/doc/man/bitcoin-cli.1
+      DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
+      RENAME firo-cli.1
+    )
+  endif()
+  if(BUILD_TX)
+    install(FILES ${PROJECT_SOURCE_DIR}/doc/man/bitcoin-tx.1
+      DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
+      RENAME firo-tx.1
+    )
+  endif()
 endif()
