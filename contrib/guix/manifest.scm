@@ -14,14 +14,16 @@
              ((gnu packages linux) #:select (linux-libre-headers-6.1))
              (gnu packages llvm)
              (gnu packages mingw)
+             (gnu packages moreutils)
              (gnu packages ninja)
              (gnu packages pkg-config)
              ((gnu packages python) #:select (python-minimal))
-             ((gnu packages python-build) #:select (python-tomli python-poetry-core))
+             ((gnu packages python-build) #:select (python-tomli python-poetry-core python-setuptools))
              ((gnu packages python-crypto) #:select (python-asn1crypto))
              ((gnu packages tls) #:select (openssl))
              (gnu packages perl)
              ((gnu packages version-control) #:select (git-minimal))
+             ((gnu packages darwin) #:select (cctools))
              (guix build-system cmake)
              (guix build-system gnu)
              (guix build-system python)
@@ -33,6 +35,69 @@
              ((guix licenses) #:prefix license:)
              (guix packages)
              ((guix utils) #:select (cc-for-target substitute-keyword-arguments)))
+
+
+(define-public python-biplist
+  (package
+    (name "python-biplist")
+    (version "1.0.3")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (pypi-uri "biplist" version))
+        (sha256
+          (base32
+            "1im45a9z7ryrfyp1v6i39qia5qagw6i1mhif0hl0praz9iv4j1ac"))))
+    (build-system python-build-system)
+    (arguments
+     `(#:tests? #f))
+    (home-page "https://github.com/wooster/biplist")
+    (synopsis "Library for reading/writing binary plists")
+    (description "biplist is a Python library for reading and writing
+binary property list files.")
+    (license license:expat)))
+
+(define-public python-mac-alias
+  (package
+    (name "python-mac-alias")
+    (version "2.1.1")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (pypi-uri "mac_alias" version))
+        (sha256
+          (base32
+            "054a0m4980d4l7zbn6k2v0zyjzsg359zg66wlclkk2vwm228qijm"))))
+    (build-system python-build-system)  ; Keep original build system
+    (arguments
+     `(#:tests? #f))
+    (home-page "https://github.com/al45tair/mac_alias")
+    (synopsis "Library for reading Mac OS Alias records")
+    (description "This package provides utilities for reading Mac OS
+alias records from raw bytes.")
+    (license license:expat)))
+
+(define-public python-ds-store
+  (package
+    (name "python-ds-store")
+    (version "1.3.0")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (pypi-uri "ds_store" version))
+        (sha256
+          (base32
+            "095zma3lrh2p3pc4n7d4pjh2ym6qvhfqrh9zyp0h0rk2b3r7h975"))))
+    (build-system python-build-system)
+    (arguments
+     `(#:tests? #f))
+    (propagated-inputs
+     (list python-biplist python-mac-alias))
+    (home-page "https://github.com/al45tair/ds_store")
+    (synopsis "Python library for reading and writing .DS_Store files")
+    (description "This package provides a Python library for reading and 
+writing .DS_Store files.")
+    (license license:expat)))
 
 (define-syntax-rule (search-our-patches file-name ...)
   "Return the list of absolute file names corresponding to each
@@ -250,6 +315,7 @@ chain for " target " development."))
         patch
         gawk
         sed
+        moreutils
         ;; Compression and archiving
         tar
         gzip
@@ -288,6 +354,10 @@ chain for " target " development."))
           ((string-contains target "darwin")
            (list clang-toolchain-18
                  lld-18
+                 python-ds-store
+                 python-mac-alias 
+                 python-biplist
+                 cctools
                  (make-lld-wrapper lld-18 #:lld-as-ld? #t)
                  zip))
           (else '())))))
