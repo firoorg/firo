@@ -73,7 +73,7 @@ jobs:
       run: |
         mkdir build
         export HOST_TRIPLET=$(depends/config.guess)
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) -DBUILD_CLI=ON -DBUILD_TESTS=ON -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) -DBUILD_CLI=ON -DBUILD_TESTS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release -S$(realpath .) -B$(realpath build)
         cd build && make -j$(nproc)
     - name: Run Unit Tests
       run: |
@@ -112,7 +112,7 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test-cmake-logs
+        name: test-linux-cmake-logs
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
   build-linux-autotools:
     name: build-linux-autotools
@@ -188,7 +188,7 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test-autotools-logs
+        name: test-linux-autotools-logs
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
   build-windows-autotools:
     name: build-windows-autotools
@@ -256,7 +256,7 @@ jobs:
       run: |
         mkdir build
         export HOST_TRIPLET=$(x86_64-w64-mingw32-gcc -dumpmachine)
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
         cd build && make -j$(nproc)
     - name: Prepare Files for Artifact
       run: |
@@ -305,7 +305,7 @@ jobs:
       run: |
         mkdir build
         export HOST_TRIPLET=$(depends/config.guess)
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -S$(pwd) -B$(pwd)/build
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release -S$(pwd) -B$(pwd)/build
         cd build && make -j$NJOBS
     - name: Prepare Files for Artifact
       run: |
@@ -378,6 +378,19 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.8'
+      - name: Free Disk Space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /var/cache/*
+          sudo rm -rf /var/log/*
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Install Guix
         run: |
           sudo apt-get update
@@ -392,11 +405,39 @@ jobs:
         run: |
           mkdir -p $ARTIFACT_DIR
           cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
-      - name: Upload Artifact
+          cd $ARTIFACT_DIR
+          mv *-gnu.tar.gz x86_64-linux-guix-release-binaries.tar.gz || true
+          mv *-gnu-debug.tar.gz x86_64-linux-guix-debug-symbols.tar.gz || true
+          mv SHA256SUMS.part x86_64-linux-guix-checksums-sha256 || true
+      - name: Upload Release Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: guix-binaries-x86_64-linux-gnu
-          path: ${{ env.ARTIFACT_DIR }}
+          name: x86_64-linux-guix-release-binaries
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-linux-guix-release-binaries.tar.gz
+          compression-level: 0
+      - name: Upload Debug Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-linux-guix-debug-binaries
+          path: |
+            ${{ env.ARTIFACT_DIR }}/firo-cli
+            ${{ env.ARTIFACT_DIR }}/firo-qt
+            ${{ env.ARTIFACT_DIR }}/firo-tx
+            ${{ env.ARTIFACT_DIR }}/firod
+            ${{ env.ARTIFACT_DIR }}/README.md
+          compression-level: 6
+      - name: Upload Debug Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-linux-guix-debug-symbols
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-linux-guix-debug-symbols.tar.gz
+          compression-level: 0
+      - name: Upload Check Sums
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-linux-guix-checksums
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-linux-guix-checksums-sha256
+          compression-level: 0
   build-guix-aarch64-linux-gnu:
     name: build-guix-aarch64-linux-gnu
     runs-on: ubuntu-22.04
@@ -411,6 +452,19 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.8'
+      - name: Free Disk Space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /var/cache/*
+          sudo rm -rf /var/log/*
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Install Guix
         run: |
           sudo apt-get update
@@ -425,11 +479,38 @@ jobs:
         run: |
           mkdir -p $ARTIFACT_DIR
           cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
-      - name: Upload Artifact
+          cd $ARTIFACT_DIR
+          mv *-gnu.tar.gz aarch64-linux-guix-release-binaries.tar.gz || true
+          mv *-gnu-debug.tar.gz aarch64-linux-guix-debug-symbols.tar.gz || true
+          mv SHA256SUMS.part aarch64-linux-guix-checksums-sha256 || true
+      - name: Upload Release Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: guix-binaries-aarch64-linux-gnu
-          path: ${{ env.ARTIFACT_DIR }}
+          name: aarch64-linux-guix-release-binaries
+          path: ${{ env.ARTIFACT_DIR }}/aarch64-linux-guix-release-binaries.tar.gz
+          compression-level: 0
+      - name: Upload Debug Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: aarch64-linux-guix-debug-binaries
+          path: |
+            ${{ env.ARTIFACT_DIR }}/firo-cli
+            ${{ env.ARTIFACT_DIR }}/firo-qt
+            ${{ env.ARTIFACT_DIR }}/firo-tx
+            ${{ env.ARTIFACT_DIR }}/firod
+            ${{ env.ARTIFACT_DIR }}/README.md
+          compression-level: 6
+      - name: Upload Debug Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: aarch64-linux-guix-debug-symbols
+          path: ${{ env.ARTIFACT_DIR }}/aarch64-linux-guix-debug-symbols.tar.gz
+          compression-level: 0
+      - name: Upload Check Sums
+        uses: actions/upload-artifact@v4
+        with:
+          name: aarch64-linux-guix-checksums
+          path: ${{ env.ARTIFACT_DIR }}/aarch64-linux-guix-checksums-sha256
   build-guix-x86_64-w64-mingw32:
     name: build-guix-x86_64-w64-mingw32
     runs-on: ubuntu-22.04
@@ -444,10 +525,23 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.8'
+      - name: Free Disk Space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /var/cache/*
+          sudo rm -rf /var/log/*
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Install Guix
         run: |
           sudo apt-get update
-          sudo apt-get install -y guix
+          sudo apt-get install -y guix g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64
           guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Run Guix Build
         run: |
@@ -457,12 +551,43 @@ jobs:
       - name: Prepare Files for Artifact
         run: |
           mkdir -p $ARTIFACT_DIR
-          cp -r ./guix-build-*/output/${HOST}* $ARTIFACT_DIR/ || true
-      - name: Upload Artifact
+          cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
+          cd $ARTIFACT_DIR
+          mv *-win-unsigned.tar.gz x86_64-win64-guix-setup-sign-bundle.tar.gz || true
+          mv *-win64-debug.zip x86_64-win64-guix-debug-symbols.zip || true  
+          mv *-win64-setup-unsigned.exe x86_64-win64-guix-installer-unsigned.exe || true
+          mv *-win64.zip x86_64-win64-guix-release-binaries.zip || true
+          mv SHA256SUMS.part x86_64-wind64-guix-checksums-sha256 || true
+      - name: Upload Windows Release Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: guix-binaries-x86_64-w64-mingw32
-          path: ${{ env.ARTIFACT_DIR }}
+          name: x86_64-win64-guix-release-binaries
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-release-binaries.zip
+          compression-level: 0
+      - name: Upload Windows Debug Symbols  
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-win64-guix-debug
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-debug-symbols.zip
+          compression-level: 0
+      - name: Upload Windows Installer (Unsigned)
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-win64-guix-installer
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-installer-unsigned.exe
+          compression-level: 0
+      - name: Upload Windows Setup Sign Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-win64-guix-setup-sign-bundle
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-setup-sign-bundle.tar.gz
+          compression-level: 0
+      - name: Upload Windows Checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-win64-guix-checksums
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-checksums-sha256
+          compression-level: 0
   build-guix-arm64-apple-darwin:
     name: build-guix-arm64-apple-darwin
     runs-on: ubuntu-22.04
@@ -487,6 +612,19 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.8'
+      - name: Free Disk Space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /var/cache/*
+          sudo rm -rf /var/log/*
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Install Guix
         run: |
           sudo apt-get update
@@ -504,12 +642,42 @@ jobs:
       - name: Prepare Files for Artifact
         run: |
           mkdir -p $ARTIFACT_DIR
-          cp -r ./guix-build-*/output/${HOST}* $ARTIFACT_DIR/ || true
-      - name: Upload Artifact
+          cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
+          cd $ARTIFACT_DIR
+          mv *-osx-unsigned.tar.gz arm64-apple-darwin-sign-bundle.tar.gz || true
+          mv Firo-Core.zip arm64-apple-darwin-app-image.zip || true
+          mv SHA256SUMS.part arm64-apple-darwin-checksums-sha256 || true
+          tar xf firo*x86_64-apple-darwin.tar.gz --strip-components=1 || true
+          mv share/man . || true
+      - name: Upload MacOS Release Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: guix-binaries-arm64-apple-darwin
-          path: ${{ env.ARTIFACT_DIR }}
+          name: arm64-apple-darwin-release-binaries
+          path: |
+            ${{ env.ARTIFACT_DIR }}/firo-cli
+            ${{ env.ARTIFACT_DIR }}/firo-qt
+            ${{ env.ARTIFACT_DIR }}/firo-tx
+            ${{ env.ARTIFACT_DIR }}/firod
+            ${{ env.ARTIFACT_DIR }}/README.md
+            ${{ env.ARTIFACT_DIR }}/man
+          compression-level: 6
+      - name: Upload MacOS Sign Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm64-apple-darwin-sign-bundle
+          path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-sign-bundle.tar.gz
+          compression-level: 0
+      - name: Upload MacOS App Image Zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm64-apple-darwin-app-image-zip
+          path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-app-image.zip
+          compression-level: 0
+      - name: Upload Check Sums
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm64-apple-darwin-checksums
+          path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-checksums-sha256
   build-guix-x86_64-apple-darwin:
     name: build-guix-x86_64-apple-darwin
     runs-on: ubuntu-22.04
@@ -534,6 +702,19 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.8'
+      - name: Free Disk Space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /var/cache/*
+          sudo rm -rf /var/log/*
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Install Guix
         run: |
           sudo apt-get update
@@ -551,9 +732,39 @@ jobs:
       - name: Prepare Files for Artifact
         run: |
           mkdir -p $ARTIFACT_DIR
-          cp -r ./guix-build-*/output/${HOST}* $ARTIFACT_DIR/ || true
-      - name: Upload Artifact
+          cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
+          cd $ARTIFACT_DIR
+          mv *-osx-unsigned-tar.gz x86_64-apple-darwin-sign-bundle.tar.gz || true
+          mv Firo-Core.zip x86_64-apple-darwin-app-image.zip || true
+          mv SHA256SUMS.part x86_64-apple-darwin-checksums-sha256 || true
+          tar xf firo*x86_64-apple-darwin.tar.gz --strip-components=1 || true
+          mv share/man . || true
+      - name: Upload MacOS Release Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: guix-binaries-x86_64-apple-darwin
-          path: ${{ env.ARTIFACT_DIR }}
+          name: x86_64-apple-darwin-release-binaries
+          path: |
+            ${{ env.ARTIFACT_DIR }}/firo-cli
+            ${{ env.ARTIFACT_DIR }}/firo-qt
+            ${{ env.ARTIFACT_DIR }}/firo-tx
+            ${{ env.ARTIFACT_DIR }}/firod
+            ${{ env.ARTIFACT_DIR }}/README.md
+            ${{ env.ARTIFACT_DIR }}/man
+          compression-level: 6
+      - name: Upload MacOS Sign Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-apple-darwin-sign-bundle
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-apple-darwin-sign-bundle.tar.gz
+          compression-level: 0
+      - name: Upload MacOS App Image Zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-apple-darwin-app-image-zip
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-apple-darwin-app-image.zip
+          compression-level: 0
+      - name: Upload Check Sums
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-apple-darwin-checksums
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-apple-darwin-checksums-sha256
