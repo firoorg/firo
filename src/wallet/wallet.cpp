@@ -2446,7 +2446,10 @@ CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool f
                 while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
                     pindex = chainActive.Next(pindex);
         }
-        LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height(), pindex->nHeight);
+
+        if (pindex)
+            LogPrintf("Rescanning last %i blocks (from block %i)...\n", chainActive.Height(), pindex->nHeight);
+
         ShowProgress(_("Rescanning..."), 0); // show rescan progress in GUI as dialog or on splashscreen, if -rescan on startup
         double dProgressStart = GuessVerificationProgress(chainParams.TxData(), pindex);
         double dProgressTip = GuessVerificationProgress(chainParams.TxData(), chainActive.Tip());
@@ -7337,10 +7340,13 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         walletInstance->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
 
         spark::Address address = walletInstance->sparkWallet->getDefaultAddress();
-        unsigned char network = spark::GetNetworkType();
-        if (!walletInstance->SetSparkAddressBook(address.encode(network), "", "receive")) {
-            InitError(_("Cannot write default spark address") += "\n");
-            return NULL;
+        std::string addrStr = address.encode(spark::GetNetworkType());
+
+        if (walletInstance->mapSparkAddressBook.count(addrStr) == 0) {
+            if (!walletInstance->SetSparkAddressBook(addrStr, "", "receive")) {
+                InitError(_("Cannot write default spark address") += "\n");
+                return NULL;
+            }
         }
     }
 

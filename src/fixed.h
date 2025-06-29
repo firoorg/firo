@@ -57,6 +57,7 @@ namespace detail {
 		static const bool           is_specialized = true;
 		static const std::size_t    size = 128;
 		typedef __int128            value_type;
+		typedef unsigned __int128   unsigned_type;
 		typedef type_from_size<128> next_size;
 	};
 #endif
@@ -67,6 +68,7 @@ namespace detail {
 		static const bool           is_specialized = true;
 		static const std::size_t    size = 64;
 		typedef int64_t             value_type;
+		typedef uint64_t            unsigned_type;
 		typedef type_from_size<128> next_size;
 	};
 
@@ -75,6 +77,7 @@ namespace detail {
 		static const bool          is_specialized = true;
 		static const std::size_t   size = 32;
 		typedef int32_t            value_type;
+		typedef uint32_t		   unsigned_type;
 		typedef type_from_size<64> next_size;
 	};
 
@@ -83,6 +86,7 @@ namespace detail {
 		static const bool          is_specialized = true;
 		static const std::size_t   size = 16;
 		typedef int16_t            value_type;
+		typedef uint16_t          unsigned_type;
 		typedef type_from_size<32> next_size;
 	};
 
@@ -91,6 +95,7 @@ namespace detail {
 		static const bool          is_specialized = true;
 		static const std::size_t   size = 8;
 		typedef int8_t             value_type;
+		typedef uint8_t            unsigned_type;
 		typedef type_from_size<16> next_size;
 	};
 
@@ -250,8 +255,8 @@ public:
 
 public:
 	static const std::size_t base_size     = base_type_info::size;
-	static const base_type fractional_mask;
-	static const base_type integer_mask;
+	static const base_type fractional_mask = ~(static_cast<typename base_type_info::unsigned_type>(~base_type(0)) << fractional_bits);
+	static const base_type integer_mask    = ~fractional_mask;
 
 public:
 	static const base_type one = base_type(1) << fractional_bits;
@@ -436,10 +441,10 @@ template <std::size_t I, std::size_t F>
 const std::size_t Fixed<I,F>::total_bits;
 
 template <size_t I, size_t F>
-const typename numeric::Fixed<I,F>::base_type numeric::Fixed<I,F>::fractional_mask = ~((~base_type(0)) << fractional_bits);
+const typename numeric::Fixed<I,F>::base_type numeric::Fixed<I,F>::fractional_mask;
 
 template <size_t I, size_t F>
-const typename numeric::Fixed<I,F>::base_type numeric::Fixed<I,F>::integer_mask = ~fractional_mask;
+const typename numeric::Fixed<I,F>::base_type numeric::Fixed<I,F>::integer_mask;
 }
 #endif
 
