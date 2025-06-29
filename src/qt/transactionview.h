@@ -90,7 +90,7 @@ private:
     QWidget *createDateRangeWidget();
     void updateCalendarWidgets();
 
-    bool eventFilter(QObject *obj, QEvent *event);
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
 private Q_SLOTS:
     void contextualMenu(const QPoint &);

@@ -946,8 +946,6 @@ UniValue protx_list(const JSONRPCRequest& request)
 
     UniValue ret(UniValue::VARR);
 
-    LOCK(cs_main);
-
     if (type == "wallet") {
         if (!pwallet) {
             throw std::runtime_error("\"protx list wallet\" not supported when wallet is disabled");
@@ -1316,7 +1314,7 @@ UniValue spork(const JSONRPCRequest& request)
     UniValue sporkEnableOrDisableObj = request.params[2].get_obj();
     std::vector<std::string> enableOrDisableKeys = sporkEnableOrDisableObj.getKeys();
 
-    for (const std::string enableOrDisable: enableOrDisableKeys) {
+    for (const std::string& enableOrDisable: enableOrDisableKeys) {
 
         if (enableOrDisable == "enable") {
             UniValue featuresToEnable = sporkEnableOrDisableObj["enable"];

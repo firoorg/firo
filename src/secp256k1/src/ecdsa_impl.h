@@ -5,8 +5,8 @@
  **********************************************************************/
 
 
-#ifndef _SECP256K1_ECDSA_IMPL_H_
-#define _SECP256K1_ECDSA_IMPL_H_
+#ifndef SECP256K1_ECDSA_IMPL_H_
+#define SECP256K1_ECDSA_IMPL_H_
 
 #include "scalar.h"
 #include "field.h"

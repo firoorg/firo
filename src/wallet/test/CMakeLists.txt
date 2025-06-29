@@ -7,14 +7,14 @@
 
 target_sources(test_firo
   PRIVATE
-  accounting_tests.cpp
-  crypto_tests.cpp
-  lelantus_tests.cpp
-  mnemonic_tests.cpp
-  sigma_tests.cpp
-  spark_wallet_tests.cpp
-  txbuilder_tests.cpp
-  wallet_test_fixture.cpp
-  wallet_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/accounting_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/crypto_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/lelantus_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/mnemonic_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sigma_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/spark_wallet_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/txbuilder_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/wallet_test_fixture.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/wallet_tests.cpp
 )
 target_link_libraries(test_firo firo_wallet)

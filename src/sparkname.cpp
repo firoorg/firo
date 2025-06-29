@@ -377,7 +377,7 @@ std::map<std::string, CSparkNameBlockIndexData> CSparkNameManager::RemoveSparkNa
     std::map<std::string, CSparkNameBlockIndexData> result;
 
     for (auto it = sparkNames.begin(); it != sparkNames.end();)
-        if (nHeight >= it->second.sparkNameValidityHeight) {
+        if (cmp::greater_equal(nHeight, it->second.sparkNameValidityHeight)) {
             std::string sparkAddressStr = it->second.sparkAddress;
             sparkNameAddresses.erase(sparkAddressStr);
             result[it->first] = it->second;

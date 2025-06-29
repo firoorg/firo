@@ -48,9 +48,9 @@ else()
 endif()
 
 add_library(secp256k1pp
-  cpp/GroupElement.cpp
-  cpp/MultiExponent.cpp
-  cpp/Scalar.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/cpp/GroupElement.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/cpp/MultiExponent.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/cpp/Scalar.cpp
 )
 
 set_property(TARGET secp256k1pp PROPERTY POSITION_INDEPENDENT_CODE ON)

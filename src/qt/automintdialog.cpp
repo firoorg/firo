@@ -105,6 +105,8 @@ void AutoMintSparkDialog::reject()
 
 void AutoMintSparkDialog::setModel(WalletModel *model)
 {
+    LOCK(sparkModel->cs);
+
     this->model = model;
     if (!this->model) {
         return;
@@ -115,7 +117,7 @@ void AutoMintSparkDialog::setModel(WalletModel *model)
         return;
     }
 
-    ENTER_CRITICAL_SECTION(sparkModel->cs);
+    CCriticalSectionLocker criticalLocker(sparkModel->cs);
 
     if (this->model->getEncryptionStatus() != WalletModel::Locked) {
         ui->passLabel->setVisible(false);

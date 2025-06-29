@@ -352,7 +352,7 @@ std::vector<CSparkMintMeta> SparkTestingSetup::GenerateMints(
     CWalletDB walletdb(pwalletMain->strWalletFile);
     std::vector<CSparkMintMeta> mints;
     // Parameters
-    const spark::Params* params;
+    FIRO_UNUSED const spark::Params* params;
     params = spark::Params::get_default();
 
     // Generate address
@@ -383,8 +383,8 @@ std::vector<CSparkMintMeta> SparkTestingSetup::GenerateMints(
     }
     std::vector<CSparkMintMeta> walletMints = pwalletMain->sparkWallet->ListSparkMints();
 
-    for (int i = 0; i < walletMints.size(); ++i) {
-        for (int j = 0; j < wtxAndFeeAll.size(); ++j) {
+    for (int i = 0; cmp::less(i, walletMints.size()); ++i) {
+        for (int j = 0; cmp::less(j, wtxAndFeeAll.size()); ++j) {
             if (walletMints[i].txid == wtxAndFeeAll[j].first.GetHash()) {
                 mints.push_back(walletMints[i]);
             }

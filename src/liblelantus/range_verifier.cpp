@@ -1,6 +1,8 @@
 #include "range_verifier.h"
 #include "challenge_generator_impl.h"
 
+#include "../../compat_layer.h"
+
 // This is based on the 1 Jul 2018 revision of the Bulletproofs preprint:
 // https://eprint.iacr.org/2017/1066
 
@@ -62,7 +64,7 @@ bool RangeVerifier::verify(const std::vector<std::vector<GroupElement> >& V, con
         if (proofs[k].innerProductProof.R_.size() != log_mn) {
             return false;
         }
-        if (RangeProof::int_log2(m*n) != log_mn) {
+        if (cmp::not_equal(RangeProof::int_log2(m*n), log_mn)) {
             return false;
         }
         

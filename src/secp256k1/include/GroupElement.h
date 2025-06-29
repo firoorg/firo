@@ -1,5 +1,5 @@
-#ifndef SECP_GROUP_ELEMENT_H__
-#define SECP_GROUP_ELEMENT_H__
+#ifndef SECP_GROUP_ELEMENT_H
+#define SECP_GROUP_ELEMENT_H
 
 #include "Scalar.h"
 
@@ -134,4 +134,4 @@ namespace std {
     };
 } // namespace std
 
-#endif // SECP_GROUP_ELEMENT_H__
+#endif // SECP_GROUP_ELEMENT_H
