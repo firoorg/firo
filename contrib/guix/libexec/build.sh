@@ -558,11 +558,13 @@ else
 fi
 (
     cd /outdir-base
-    {
-        echo "$GIT_ARCHIVE"
-        find "$ACTUAL_OUTDIR" -type f
-    } | xargs realpath --relative-base="$PWD" \
-      | xargs sha256sum \
-      | sort -k2 \
-      | sponge "$ACTUAL_OUTDIR"/SHA256SUMS.part
+    checksums=$(
+        {
+            echo "$GIT_ARCHIVE"
+            find "$ACTUAL_OUTDIR" -type f
+        } | xargs realpath --relative-base="$PWD" \
+          | xargs sha256sum \
+          | sort -k2
+    )
+    echo "$checksums" > "$ACTUAL_OUTDIR"/SHA256SUMS.part
 )
