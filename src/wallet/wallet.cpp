@@ -2399,13 +2399,14 @@ CBlockIndex* CWallet::GetBlockByDate(CBlockIndex* pindexStart, const std::string
 }
 
 /**
- * Scan the block chain (starting in pindexStart) for transactions
- * from or to us. If fUpdate is true, found transactions that already
- * exist in the wallet will be updated.
+ * @brief Scans the blockchain for wallet-related transactions starting from a specified block.
  *
- * Returns pointer to the first block in the last contiguous range that was
- * successfully scanned.
+ * Iterates through the blockchain from the given starting block, identifying and updating transactions that involve the wallet. The scan can be customized to update existing transactions and to support mnemonic recovery or date-based rescans. Progress is reported for user feedback. Returns a pointer to the first block in the last contiguous successfully scanned range, or nullptr if the scan was interrupted or unsuccessful.
  *
+ * @param pindexStart Block index to begin scanning from.
+ * @param fUpdate If true, updates wallet transactions that are already present.
+ * @param fRecoverMnemonic If true, adjusts scan logic for mnemonic recovery scenarios.
+ * @return CBlockIndex* Pointer to the first block in the last successfully scanned range, or nullptr if interrupted.
  */
 CBlockIndex* CWallet::ScanForWalletTransactions(CBlockIndex *pindexStart, bool fUpdate, bool fRecoverMnemonic)
 {
