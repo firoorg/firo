@@ -33,6 +33,10 @@ class CNetAddr
         unsigned char ip[16]; // in network byte order
         uint32_t scopeId; // for scoped/link-local ipv6 addresses
 
+    private:
+        bool isTorV3 = false;
+        std::string onionV3Addr;
+
     public:
         CNetAddr();
         CNetAddr(const struct in_addr& ipv4Addr);
@@ -87,8 +91,23 @@ class CNetAddr
         template <typename Stream, typename Operation>
         inline void SerializationOp(Stream& s, Operation ser_action) {
             READWRITE(FLATDATA(ip));
-        }
 
+            if (ser_action.ForRead()) {
+                bool v3Flag;
+                READWRITE(v3Flag);
+                isTorV3 = v3Flag;
+
+                if (isTorV3)
+                   READWRITE(onionV3Addr);
+                else
+                    onionV3Addr.clear();
+            } else {
+                bool v3Flag = isTorV3;
+                READWRITE(v3Flag);
+                if (v3Flag)
+                    READWRITE(onionV3Addr);
+            }
+        }
         friend class CSubNet;
 };
 
