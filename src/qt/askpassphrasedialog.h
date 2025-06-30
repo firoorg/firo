@@ -30,7 +30,7 @@ public:
     explicit AskPassphraseDialog(Mode mode, QWidget *parent, const QString &info = "");
     ~AskPassphraseDialog();
 
-    void accept();
+    void accept() override;
 
     void setModel(WalletModel *model);
 
@@ -46,8 +46,8 @@ private Q_SLOTS:
     void secureClearPassFields();
 
 protected:
-    bool event(QEvent *event);
-    bool eventFilter(QObject *object, QEvent *event);
+    bool event(QEvent *event) override;
+    bool eventFilter(QObject *object, QEvent *event) override;
 };
 
 #endif // BITCOIN_QT_ASKPASSPHRASEDIALOG_H

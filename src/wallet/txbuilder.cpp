@@ -103,7 +103,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
     assert(tx.nLockTime < LOCKTIME_THRESHOLD);
 
     // Start with no fee and loop until there is enough fee;
-    uint32_t nCountNextUse;
+    uint32_t nCountNextUse = 0;
     if (pwalletMain->zwallet) {
         nCountNextUse = pwalletMain->zwallet->GetCount();
     }

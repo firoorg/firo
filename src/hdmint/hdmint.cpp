@@ -7,8 +7,6 @@
 
 /**
  * CHDMint empty constructor
- *
- * @return CHDMint object
  */
 CHDMint::CHDMint()
 {
@@ -17,8 +15,6 @@ CHDMint::CHDMint()
 
 /**
  * CHDMint constructor from given values
- *
- * @return CHDMint object
  */
 CHDMint::CHDMint(const int32_t& nCount, const CKeyID& seedId, const uint256& hashSerial, const GroupElement& pubCoinValue)
 {
@@ -31,8 +27,6 @@ CHDMint::CHDMint(const int32_t& nCount, const CKeyID& seedId, const uint256& has
 
 /**
  * Set HDMint object null
- *
- * @return CHDMint object
  */
 void CHDMint::SetNull()
 {

@@ -4,8 +4,8 @@
  * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
  **********************************************************************/
 
-#ifndef _SECP256K1_BENCH_H_
-#define _SECP256K1_BENCH_H_
+#ifndef SECP256K1_BENCH_H_
+#define SECP256K1_BENCH_H_
 
 #include <stdio.h>
 #include <math.h>

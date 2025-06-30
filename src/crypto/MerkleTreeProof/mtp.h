@@ -23,7 +23,7 @@ constexpr int8_t MTP_L = 64;
  * into the block
  * 
  * \param blockHeader   [in/out]    Transaction block which header will be used for calculation
- * \param pow_limit     [in]        Network limit (hash must be less than that)
+ * \param powLimit      [in]        Network limit (hash must be less than that)
  */
 uint256 hash(CBlockHeader & blockHeader, uint256 const & powLimit);
 
@@ -34,7 +34,7 @@ uint256 hash(CBlockHeader & blockHeader, uint256 const & powLimit);
  * that is less than `target`.
  * \param nonce         [in] Nonce to verify
  * \param blockHeader   [in]        Transaction block which header will be used for calculation
- * \param pow_limit     [in]        Network limit (hash must be less than that)
+ * \param powLimit      [in]        Network limit (hash must be less than that)
  */
 bool verify(uint32_t nonce, CBlockHeader const & blockHeader, uint256 const & powLimit, uint256 *mtpHashValue=nullptr);
 
