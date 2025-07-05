@@ -487,6 +487,9 @@ mkdir -p "$DISTSRC"
                 ;;
         esac
         
+        # Copy README.md to the installation directory
+        cp "${DISTSRC}/README.md" .
+        
         # Finally, deterministically produce {non-,}debug binary tarballs ready
         # for release
         case "$HOST" in
@@ -541,6 +544,8 @@ mkdir -p "$DISTSRC"
     case "$HOST" in
         *mingw*)
             cp -rf --target-directory=. contrib/windeploy
+            # Copy README.md to windeploy directory too
+            cp README.md ./windeploy/
             (
                 cd ./windeploy
                 mkdir -p unsigned
