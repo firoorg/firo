@@ -5,6 +5,7 @@
 #ifndef BITCOIN_QT_BITCOINGUI_H
 #define BITCOIN_QT_BITCOINGUI_H
 
+#include "exportviewkeydialog.h"
 #if defined(HAVE_CONFIG_H)
 #include "config/bitcoin-config.h"
 #endif
@@ -115,6 +116,7 @@ private:
     QAction *toggleHideAction;
     QAction *encryptWalletAction;
     QAction *backupWalletAction;
+    QAction *exportViewKeyAction;
     QAction *changePassphraseAction;
     QAction *aboutQtAction;
     QAction *openRPCConsoleAction;
@@ -161,8 +163,7 @@ private:
 
     /** Updates Znode visibility */
     void checkZnodeVisibility(int numBlocks);
-    /** Updates Lelantus visibility */
-    void checkLelantusVisibility(int numBlocks);
+
     /** Update UI with latest network info from model. */
     void updateNetworkState();
 
@@ -226,8 +227,6 @@ public Q_SLOTS:
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-    /** Switch to lelantus page */
-    void gotoLelantusPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
@@ -275,9 +274,6 @@ public Q_SLOTS:
     void toggleNetworkActive();
 
     void showModalOverlay();
-
-    /** Update Lelantus page visibility */
-    void updateLelantusPage();
 
 };
 

@@ -16,7 +16,6 @@
 #include "transactionrecord.h"
 #include "transactiontablemodel.h"
 #include "walletmodel.h"
-#include "pcodemodel.h"
 
 #include "ui_interface.h"
 
@@ -162,7 +161,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     // Actions
     abandonAction = new QAction(tr("Abandon transaction"), this);
     resendAction = new QAction(tr("Re-broadcast transaction"), this);
-    reconsiderBip47TxAction = new QAction(tr("Reconsider BIP47 transaction"), this);
 
     QAction *copyAddressAction = new QAction(tr("Copy address"), this);
     copyLabelAction = new QAction(tr(CopyLabelText), this);
@@ -185,8 +183,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     contextMenu->addAction(abandonAction);
     contextMenu->addAction(editLabelAction);
     contextMenu->addAction(resendAction);
-    contextMenu->addAction(reconsiderBip47TxAction);
-
 
     // Connect actions
 
@@ -212,7 +208,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     connect(showDetailsAction, &QAction::triggered, this, &TransactionView::showDetails);
     connect(this, &TransactionView::doubleClicked, this, &TransactionView::showDetails);
     connect(resendAction, &QAction::triggered, this, &TransactionView::rebroadcastTx);
-    connect(reconsiderBip47TxAction, &QAction::triggered, this, &TransactionView::reconsiderBip47Tx);
 }
 
 void TransactionView::setModel(WalletModel *_model)
@@ -418,7 +413,6 @@ void TransactionView::contextualMenu(const QPoint &point)
         copyLabelAction->setText(tr(CopyLabelText));
     abandonAction->setEnabled(model->transactionCanBeAbandoned(hash));
     resendAction->setEnabled(model->transactionCanBeRebroadcast(hash));
-    reconsiderBip47TxAction->setVisible(model->getWallet()->IsCrypted() && model->getPcodeModel()->isBip47Transaction(hash));
 
     if(index.isValid())
     {
@@ -485,20 +479,6 @@ void TransactionView::rebroadcastTx()
 
     // Update the table
     model->getTransactionTableModel()->updateTransaction(hashQStr, CT_UPDATED, true);
-}
-
-void TransactionView::reconsiderBip47Tx()
-{
-    if(!transactionView || !transactionView->selectionModel())
-        return;
-    QModelIndexList selection = transactionView->selectionModel()->selectedRows(0);
-
-    // get the hash from the TxHashRole (QVariant / QString)
-    uint256 hash;
-    QString hashQStr = selection.at(0).data(TransactionTableModel::TxHashRole).toString();
-    hash.SetHex(hashQStr.toStdString());
-
-    model->getPcodeModel()->reconsiderBip47Tx(hash);
 }
 
 void TransactionView::copyAddress()

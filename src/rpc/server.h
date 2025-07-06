@@ -206,6 +206,8 @@ extern UniValue getaddressutxos(const JSONRPCRequest &request);
 extern UniValue getaddressdeltas(const JSONRPCRequest &request);
 extern UniValue getaddresstxids(const JSONRPCRequest &request);
 extern UniValue getaddressbalance(const JSONRPCRequest &request);
+extern UniValue getAddressNumWBalance(const JSONRPCRequest &request);
+
 
 extern UniValue getanonymityset(const JSONRPCRequest& params);
 extern UniValue getmintmetadata(const JSONRPCRequest& params);

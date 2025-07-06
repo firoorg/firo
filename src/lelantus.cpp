@@ -421,6 +421,13 @@ bool CheckLelantusJoinSplitTransaction(
                          "CTransaction::CheckLelantusJoinSplitTransaction() : Error: incorrect joinsplit transaction verion");
     }
 
+    if (joinsplit->isSigmaToLelantus() && height >= params.nSigmaEndBlock) {
+        return state.DoS(100,
+                         false,
+                         NSEQUENCE_INCORRECT,
+                         "CTransaction::CheckLelantusJoinSplitTransaction() : Sigma pool already closed.");
+    }
+
     uint256 txHashForMetadata;
 
     // Obtain the hash of the transaction sans the zerocoin part

@@ -85,6 +85,10 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("fAutoAnonymize", false);
     fAutoAnonymize = settings.value("fAutoAnonymize", false).toBool();
 
+    if (!settings.contains("fSplit"))
+        settings.setValue("fSplit", true);
+    fSplit = settings.value("fSplit", true).toBool();
+
     if (!settings.contains("fLelantusPage"))
         settings.setValue("fLelantusPage", false);
     fLelantusPage = settings.value("fLelantusPage", false).toBool();
@@ -279,6 +283,8 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return fCoinControlFeatures;
         case AutoAnonymize:
             return fAutoAnonymize;
+        case Split:
+            return fSplit;
         case LelantusPage:
             return fLelantusPage;
         case DatabaseCache:
@@ -428,6 +434,10 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             fAutoAnonymize = value.toBool();
             settings.setValue("fAutoAnonymize", fAutoAnonymize);
             Q_EMIT autoAnonymizeChanged(fAutoAnonymize);
+            break;
+        case Split:
+            fSplit = value.toBool();
+            settings.setValue("fSplit", fSplit);
             break;
         case LelantusPage:
             fLelantusPage = value.toBool();

@@ -11,6 +11,7 @@
 #include "../libspark/spend_transaction.h"
 #include "../wallet/walletdb.h"
 #include "../sync.h"
+#include "../sparkname.h"
 
 class CRecipient;
 class CReserveKey;
@@ -123,6 +124,7 @@ public:
             int& nChangePosInOut,
             bool subtractFeeFromAmount,
             std::string& strFailReason,
+            bool fSplit,
             const CCoinControl *coinControl,
             bool autoMintAll = false);
 
@@ -131,7 +133,8 @@ public:
             const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
             const std::vector<spark::OutputCoinData>& spatsRecipients,
             CAmount &fee,
-            const CCoinControl *coinControl = NULL);
+            const CCoinControl *coinControl = NULL,
+        	CAmount additionalTxSize = 0);
 
     void AppendSpatsMintTxData(CMutableTransaction& tx,
     const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
@@ -147,7 +150,8 @@ public:
         bool subtractFeeFromAmount,
         std::size_t mintNum,
         std::size_t utxoNum,
-        const CCoinControl *coinControl);
+        const CCoinControl *coinControl,
+        size_t additionalTxSize = 0);
 
     std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoinsNew(
         CAmount required,
@@ -167,9 +171,17 @@ public:
         const CCoinControl *coinControl,
         bool fSpats = false);
 
+    CWalletTx CreateSparkNameTransaction(
+            CSparkNameTxData &nameData,
+            CAmount sparkNamefee,
+            CAmount &txFee,
+            const CCoinControl *coinControl = NULL);
+
     // Returns the list of pairs of coins and metadata for that coin,
     // Filters coins by identifier, returns all available coins for a specific asset
     std::list<CSparkMintMeta> GetAvailableSparkCoins(const std::pair<Scalar, Scalar>& identifier, const CCoinControl *coinControl = NULL) const;
+
+    void FinishTasks();
 
 public:
     // to protect coinMeta
