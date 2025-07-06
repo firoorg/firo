@@ -100,16 +100,33 @@ function(add_macos_deploy_target)
     file(CONFIGURE OUTPUT ${macos_app}/Contents/Resources/Base.lproj/InfoPlist.strings
       CONTENT "{ CFBundleDisplayName = \"@CLIENT_NAME@\"; CFBundleName = \"@CLIENT_NAME@\"; }"
     )
+    
+    # Find appropriate strip command
+    if(CMAKE_STRIP)
+      set(STRIP_COMMAND ${CMAKE_STRIP})
+    elseif(CMAKE_HOST_APPLE)
+      set(STRIP_COMMAND strip)  # macOS native strip
+    else()
+      find_program(STRIP_COMMAND NAMES llvm-strip strip)
+    endif()
+
 
     add_custom_command(
       OUTPUT ${PROJECT_BINARY_DIR}/${macos_app}/Contents/MacOS/Firo-Qt
-      COMMAND ${CMAKE_COMMAND} --install ${PROJECT_BINARY_DIR} --config $<CONFIG> --component GUI --prefix ${macos_app}/Contents/MacOS --strip
+      COMMAND ${CMAKE_COMMAND} --install ${PROJECT_BINARY_DIR} --config $<CONFIG> --component GUI --prefix ${macos_app}/Contents/MacOS
       COMMAND ${CMAKE_COMMAND} -E rename ${macos_app}/Contents/MacOS/bin/$<TARGET_FILE_NAME:firo-qt> ${macos_app}/Contents/MacOS/Firo-Qt
       COMMAND ${CMAKE_COMMAND} -E rm -rf ${macos_app}/Contents/MacOS/bin
+      COMMAND ${STRIP_COMMAND} ${macos_app}/Contents/MacOS/Firo-Qt || true
       VERBATIM
     )
 
     string(REPLACE " " "-" osx_volname ${CLIENT_NAME})
+    
+    add_custom_target(osx_volname
+      COMMAND ${CMAKE_COMMAND} -E echo "${osx_volname}" > osx_volname
+      COMMENT "Creating OSX volume name"
+    )
+    
     if(CMAKE_HOST_APPLE)
       add_custom_command(
         OUTPUT ${PROJECT_BINARY_DIR}/${osx_volname}.zip

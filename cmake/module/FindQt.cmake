@@ -180,6 +180,13 @@ target_link_libraries(Qt5_Dependencies
   ${LIB_Z}
 )
 
+if(NOT WIN32 AND NOT MINGW)
+  target_link_libraries(Qt5_Dependencies
+    INTERFACE
+    ${CMAKE_DL_LIBS}  # Ensure dynamic loading is available.
+  )
+endif()
+
 add_library(Qt5::Dependencies ALIAS Qt5_Dependencies)
 
 # Restore CMAKE_FIND_LIBRARY_SUFFIXES state.
