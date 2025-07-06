@@ -491,28 +491,48 @@ mkdir -p "$DISTSRC"
         cp "${DISTSRC}/README.md" .
         
         # Finally, deterministically produce {non-,}debug binary tarballs ready
-        # for release
+        # for releasecase "$HOST" in
         case "$HOST" in
             *mingw*)
-                # Create temporary directory structure
-                mkdir -p "${DISTNAME}"
-                find . -not -name "*.dbg" -exec cp --parents {} "${DISTNAME}/" \;
-                find "${DISTNAME}" -not -name "*.dbg" -print0 \
-                    | xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}"
-                find "${DISTNAME}" -not -name "*.dbg" \
-                    | sort \
-                    | zip -X@ "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}.zip" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}.zip" && exit 1 )
+                # Create temporary directory outside current location
+                TEMP_DIR="/tmp/zip_staging"
+                rm -rf "${TEMP_DIR}"
+                mkdir -p "${TEMP_DIR}/${DISTNAME}"
                 
-                # Debug files
-                find . -name "*.dbg" -exec cp --parents {} "${DISTNAME}/" \;
-                find "${DISTNAME}" -name "*.dbg" -print0 \
-                    | xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}"
-                find "${DISTNAME}" -name "*.dbg" \
-                    | sort \
-                    | zip -X@ "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}-debug.zip" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}-debug.zip" && exit 1 )
-                rm -rf "${DISTNAME}"
+                # Copy non-debug files to staging area
+                find . -not -name "*.dbg" -type f | while read -r file; do
+                    target="${file#./}"  # Remove leading ./
+                    mkdir -p "${TEMP_DIR}/${DISTNAME}/$(dirname "$target")"
+                    cp "$file" "${TEMP_DIR}/${DISTNAME}/$target"
+                done
+                
+                # Create main zip from staging area
+                (cd "${TEMP_DIR}" && \
+                find "${DISTNAME}" -not -name "*.dbg" -print0 | \
+                xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}" && \
+                find "${DISTNAME}" -not -name "*.dbg" | sort | \
+                zip -X@ "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}.zip")
+                
+                # Clean and prepare for debug files
+                rm -rf "${TEMP_DIR}/${DISTNAME}"
+                mkdir -p "${TEMP_DIR}/${DISTNAME}"
+                
+                # Copy only debug files to staging area  
+                find . -name "*.dbg" -type f | while read -r file; do
+                    target="${file#./}"  # Remove leading ./
+                    mkdir -p "${TEMP_DIR}/${DISTNAME}/$(dirname "$target")"
+                    cp "$file" "${TEMP_DIR}/${DISTNAME}/$target"
+                done
+                
+                # Create debug zip from staging area
+                (cd "${TEMP_DIR}" && \
+                find "${DISTNAME}" -name "*.dbg" -print0 | \
+                xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}" && \
+                find "${DISTNAME}" -name "*.dbg" | sort | \
+                zip -X@ "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}-debug.zip")
+                
+                # Cleanup
+                rm -rf "${TEMP_DIR}"
                 ;;
             *linux*)
                 # Use tar's --transform option to add parent directory
