@@ -186,7 +186,9 @@ public:
         WalletModelTransaction &transaction);
 
     bool sparkNamesAllowed() const;
-    
+
+    bool GetSparkNameByAddress(const QString& sparkAddress, QString& name);
+
     bool validateSparkNameData(const QString &name, const QString &sparkAddress, const QString &additionalData, QString &strError);
 
     WalletModelTransaction initSparkNameTransaction(CAmount sparkNameFee);
@@ -315,9 +317,6 @@ private:
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
-    void checkBalanceChanged();
-
-
 
 Q_SIGNALS:
     // Signal that balance in wallet changed
@@ -349,6 +348,8 @@ Q_SIGNALS:
     void notifyWatchonlyChanged(bool fHaveWatchonly);
 
 public Q_SLOTS:
+
+    void checkBalanceChanged();
     /* Wallet status might have changed */
     void updateStatus();
     /* New transaction, or transaction changed status */

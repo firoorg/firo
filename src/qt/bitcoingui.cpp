@@ -36,7 +36,6 @@
 #include "chainparams.h"
 #include "init.h"
 #include "lelantus.h"
-#include "ui_interface.h"
 #include "util.h"
 
 #include "evo/deterministicmns.h"
@@ -1171,8 +1170,15 @@ void BitcoinGUI::incomingTransaction(const QString& date, int unit, const CAmoun
         msg += tr("Label: %1\n").arg(label);
     else if (!address.isEmpty())
         msg += tr("Address: %1\n").arg(address);
-    message((amount)<0 ? tr("Sent transaction") : tr("Incoming transaction"),
-             msg, CClientUIInterface::MSG_INFORMATION);
+
+    // Declare before lambda to ensure they're in scope
+    QString title = (amount < 0) ? tr("Sent transaction") : tr("Incoming transaction");
+    QString finalMsg = msg;
+
+    QMetaObject::invokeMethod(this, [this, title, finalMsg]() {
+        message(title, finalMsg, CClientUIInterface::MSG_INFORMATION);
+    }, Qt::QueuedConnection);
+
 }
 #endif // ENABLE_WALLET
 

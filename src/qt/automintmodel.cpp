@@ -21,7 +21,7 @@ IncomingFundNotifier::IncomingFundNotifier(
 
     connect(timer, &QTimer::timeout, this, &IncomingFundNotifier::check, Qt::QueuedConnection);
 
-    importTransactions();
+    QMetaObject::invokeMethod(this, "importTransactions", Qt::QueuedConnection);
     subscribeToCoreSignals();
 }
 
@@ -36,9 +36,7 @@ IncomingFundNotifier::~IncomingFundNotifier()
 
 void IncomingFundNotifier::newBlock()
 {
-    TRY_LOCK(cs, lock);
-    if(!lock)
-        return;
+    LOCK(cs);
 
     if (!txs.empty()) {
         resetTimer();
@@ -47,10 +45,7 @@ void IncomingFundNotifier::newBlock()
 
 void IncomingFundNotifier::pushTransaction(uint256 const &id)
 {
-    TRY_LOCK(cs, lock);
-    if(!lock)
-        return;
-
+    LOCK(cs);
     txs.push_back(id);
     resetTimer();
 }
@@ -117,16 +112,8 @@ void IncomingFundNotifier::check()
 
 void IncomingFundNotifier::importTransactions()
 {
-    TRY_LOCK(cs, lock);
-    if(!lock)
-        return;
-
-    TRY_LOCK(cs_main,lock_main);
-    if (!lock_main)
-        return;
-    TRY_LOCK(wallet->cs_wallet,lock_wallet);
-    if (!lock_wallet)
-        return;
+    LOCK2(cs, cs_main);
+    LOCK(wallet->cs_wallet);
 
     for (auto const &tx : wallet->mapWallet) {
         if (tx.second.GetAvailableCredit() > 0 || tx.second.GetImmatureCredit() > 0) {

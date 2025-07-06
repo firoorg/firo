@@ -146,6 +146,9 @@ public:
     // check the possibility to register a new spark name, return true if it's possible
     bool ValidateSparkNameData(const CSparkNameTxData &sparkNameData, std::string &errorDescription);
 
+    // Checking if an address is occupied with spark name
+    bool GetSparkNameByAddress(const std::string& address, std::string& name);
+
     // get the size of the spark name transaction metadata
     size_t GetSparkNameTxDataSize(const CSparkNameTxData &sparkNameData);
 

@@ -291,6 +291,11 @@ void TransactionTableModel::updateAmountColumnTitle()
     Q_EMIT headerDataChanged(Qt::Horizontal,Amount,Amount);
 }
 
+void TransactionTableModel::refreshWallet() const
+{
+    priv->refreshWallet();
+}
+
 void TransactionTableModel::updateTransaction(const QString &hash, int status, bool showTransaction)
 {
     uint256 updated;
@@ -315,7 +320,7 @@ void TransactionTableModel::updateConfirmations()
     // Invalidate status (number of confirmations) and (possibly) description
     //  for all rows. Qt is smart enough to only actually request the data for the
     //  visible rows.
-    int numRows = std::min(300, priv->size()-1);
+    int numRows = std::min(100, priv->size()-1);
     Q_EMIT dataChanged(index(0, Status), index(numRows, Status));
     Q_EMIT dataChanged(index(0, ToAddress), index(numRows, ToAddress));
 }
@@ -442,7 +447,13 @@ QString TransactionTableModel::lookupAddress(const TransactionRecord *wtx, bool 
     }
     if(label.isEmpty() || tooltip)
     {
-        description += QString(" (") + QString::fromStdString(wtx->address) + QString(")");
+        QString name = "";
+        if (walletModel->GetSparkNameByAddress(QString::fromStdString(wtx->address), name))
+        {
+            description += QString(" @") + name;
+        } else {
+            description += QString(" (") + QString::fromStdString(wtx->address) + QString(")");
+        }
     }
     return description;
 }
@@ -520,7 +531,7 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     QString watchAddress;
     if (tooltip) {
         // Mark transactions involving watch-only addresses by adding " (watch-only)"
-        watchAddress = wtx->involvesWatchAddress ? QString(" (") + tr("watch-only") + QString(")") : "";
+        watchAddress = wtx->involvesWatchAddress ? QString(" (") + tr("watch-only") + QString(")") : QString("");
     }
 
     switch(wtx->type)
@@ -910,8 +921,9 @@ static void NotifyTransactionChanged(TransactionTableModel *ttm, CWallet *wallet
 
 static void ShowProgress(TransactionTableModel *ttm, const std::string &title, int nProgress)
 {
-    if (nProgress == 0)
+    if (nProgress == 0) {
         fQueueNotifications = true;
+    }
 
     if (nProgress == 100)
     {
@@ -926,6 +938,7 @@ static void ShowProgress(TransactionTableModel *ttm, const std::string &title, i
             vQueueNotifications[i].invoke(ttm);
         }
         std::vector<TransactionNotification >().swap(vQueueNotifications); // clear
+        ttm->refreshWallet();
     }
 }
 

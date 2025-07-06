@@ -33,7 +33,6 @@
 #include "rpc/server.h"
 #include "scheduler.h"
 #include "stacktraces.h"
-#include "ui_interface.h"
 #include "util.h"
 #include "warnings.h"
 
@@ -519,7 +518,7 @@ void BitcoinApplication::initializeResult(int retval)
 
             window->addWallet(BitcoinGUI::DEFAULT_WALLET, walletModel);
             window->setCurrentWallet(BitcoinGUI::DEFAULT_WALLET);
-
+        }
 #endif
 
         // If -min option passed, start window minimized.
@@ -534,9 +533,10 @@ void BitcoinApplication::initializeResult(int retval)
         Q_EMIT splashFinished(window);
 
 #ifdef ENABLE_WALLET
-        if(newWallet)
-            NotifyMnemonic::notify();
-        }
+
+        if (pwalletMain)
+            if(newWallet)
+                NotifyMnemonic::notify();
 
         // Now that initialization/startup is done, process any command-line
         // firo: URIs or payment requests:
