@@ -250,21 +250,38 @@ fi
 # Source Tarball Building #
 ###########################
 
+# Extract the hash part from DISTNAME (remove "firo-" prefix)
+SOURCE_HASH="${DISTNAME#firo-}"
+
 # Use COMMIT_TIMESTAMP for the source and release binary archives
 export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}
 export TAR_OPTIONS="--owner=0 --group=0 --numeric-owner --mtime='@${SOURCE_DATE_EPOCH}' --sort=name"
 
-GIT_ARCHIVE="${DIST_ARCHIVE_BASE}/firo-source-${VERSION}.tar.gz"
+GIT_ARCHIVE="${DIST_ARCHIVE_BASE}/firo-source-${SOURCE_HASH}.tar.gz"
 
 # Create the source tarball if not already there
 # This uses `git ls-files --recurse-submodules` instead of `git archive` to make
 # sure submodules are included in the source archive.
 if [ ! -e "$GIT_ARCHIVE" ]; then
     mkdir -p "$(dirname "$GIT_ARCHIVE")"
-    git ls-files --recurse-submodules \
-    | sort \
-    | tar --create --transform "s,^,firo-source-${VERSION}/," --mode='u+rw,go+r-w,a+X' --files-from=- \
-    | gzip -9n > ${GIT_ARCHIVE}
+    
+    # Create temporary directory with the desired name
+    TEMP_SOURCE_DIR="/tmp/firo-source-${SOURCE_HASH}"
+    rm -rf "$TEMP_SOURCE_DIR"
+    mkdir -p "$TEMP_SOURCE_DIR"
+    
+    # Copy files using git ls-files
+    git ls-files --recurse-submodules | while read -r file; do
+        mkdir -p "$TEMP_SOURCE_DIR/$(dirname "$file")"
+        cp "$file" "$TEMP_SOURCE_DIR/$file"
+    done
+    
+    # Create tarball from temp directory
+    (cd /tmp && tar --create --mode='u+rw,go+r-w,a+X' "firo-source-${SOURCE_HASH}" | gzip -9n > "$GIT_ARCHIVE")
+    
+    # Cleanup
+    rm -rf "$TEMP_SOURCE_DIR"
+    
     sha256sum "$GIT_ARCHIVE"
 fi
 
