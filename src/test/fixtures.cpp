@@ -369,7 +369,7 @@ std::vector<CSparkMintMeta> SparkTestingSetup::GenerateMints(
         data.address = address;
         outputs.push_back(data);
 
-        auto result = pwalletMain->MintAndStoreSpark(outputs, wtxAndFee, false, true);
+        auto result = pwalletMain->MintAndStoreSpark(outputs, wtxAndFee, false, false);
 
         if (result != "") {
             throw std::runtime_error(_("Fail to generate mints, ") + result);
@@ -383,14 +383,13 @@ std::vector<CSparkMintMeta> SparkTestingSetup::GenerateMints(
     }
     std::vector<CSparkMintMeta> walletMints = pwalletMain->sparkWallet->ListSparkMints();
 
-    for (int i = 0; i < walletMints.size(); ++i) {
-        for (int j = 0; j < wtxAndFeeAll.size(); ++j) {
+    for (int j = 0; j < wtxAndFeeAll.size(); ++j) {
+        for (int i = 0; i < walletMints.size(); ++i) {
             if (walletMints[i].txid == wtxAndFeeAll[j].first.GetHash()) {
                 mints.push_back(walletMints[i]);
             }
         }
     }
-    reverse(mints.begin(), mints.end());
 
     return mints;
 }

@@ -161,7 +161,8 @@ public:
         std::size_t mintNum,
         std::size_t utxoNum,
         std::vector<CSparkMintMeta>& spatsSpendCoins,
-        const CCoinControl *coinControl);
+        const CCoinControl *coinControl,
+        size_t additionalTxSize = 0);
 
     bool GetCoinsToSpend(
         CAmount required,

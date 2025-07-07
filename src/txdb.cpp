@@ -650,12 +650,11 @@ void handleZerocoinSpend(Iterator const begin, Iterator const end, uint256 const
         addrType = AddressType::sparkSpend;
 
         if (height >= Params().GetConsensus().nSparkNamesStartBlock) {
-            spark::SpendTransaction spendTx(spark::Params::get_default());
             CSparkNameTxData sparkNameData;
             size_t pos;
             CSparkNameManager* sparkNameManager = CSparkNameManager::GetInstance();
 
-            if (sparkNameManager->ParseSparkNameTxData(tx, spendTx, sparkNameData, pos))
+            if (sparkNameManager->ParseSparkNameTxData(tx, sparkNameData, pos))
                 addressIndex->push_back(std::make_pair(
                     CAddressIndexKey(AddressType::sparkName, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
         }

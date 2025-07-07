@@ -176,7 +176,7 @@ void ParseSpatsMintTransaction(const CScript& script, MintTransaction& mintTrans
     }
 
     CDataStream proofstream(
-        std::vector<unsigned char>(serialized.end() - proofsize + 1, serialized.end()),
+        std::vector<unsigned char>(serialized.end() - proofsize, serialized.end()),
         SER_NETWORK,
         PROTOCOL_VERSION
         );
@@ -642,13 +642,12 @@ bool CheckSpatsMintTransaction(
 
     Scalar m = spark::GetSpatsMintM(tx);
     //TODO levon get address from the registry and verify ownership
-    spark::Address address(params);
-    if (!address.verify_own(m, ownershipProof))
-        return state.DoS(100,
-                             false,
-                             PUBCOIN_NOT_VALIDATE,
-                             "CheckSpatsMintTransaction : Address ownership proof verification failed");
-
+//    spark::Address address(params);
+//    if (!address.verify_own(m, ownershipProof))
+//        return state.DoS(100,
+//                             false,
+//                             PUBCOIN_NOT_VALIDATE,
+//                             "CheckSpatsMintTransaction : Address ownership proof verification failed");
 
     auto& coin = coins[0];
     if (coin.v != txOut.nValue)

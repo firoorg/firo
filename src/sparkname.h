@@ -102,7 +102,7 @@ public:
 
     // Parse spark name transaction data from the transaction. Sets fCriticalError to false if there is no name data found
     // but the transaction is otherwise valid. Returns true if the transaction is a valid spark name transaction.
-    static bool ParseSparkNameTxData(const CTransaction &tx, spark::SpendTransaction &sparkTx, CSparkNameTxData &sparkNameData, size_t &sparkNameDataPos);
+    static bool ParseSparkNameTxData(const CTransaction &tx, CSparkNameTxData &sparkNameData, size_t &sparkNameDataPos);
 
     bool CheckSparkNameTx(const CTransaction &tx, int nHeight, CValidationState &state, CSparkNameTxData *outSparkNameData = nullptr);
 

@@ -317,6 +317,9 @@ BOOST_AUTO_TEST_CASE(get_outpoint)
     uint256 non_commited_coin_hash = primitives::GetSparkCoinHash(nonCommittedCoin);
     BOOST_CHECK(!GetOutPoint(out, non_commited_coin_hash));
 
+    prevHeight = chainActive.Tip()->nHeight;
+    GenerateBlock({txs[1]});
+    BOOST_CHECK_EQUAL(prevHeight + 1, chainActive.Tip()->nHeight);
     //check the same after spats started
     // generate untill spats activation block eached
     GenerateBlocks(::Params().GetConsensus().nSpatsStartBlock - chainActive.Tip()->nHeight);
@@ -340,9 +343,7 @@ BOOST_AUTO_TEST_CASE(get_outpoint)
     prevHeight = chainActive.Tip()->nHeight;
     mempool.clear();
     blockIdx = GenerateBlock({txs[0]});
-
     BOOST_CHECK_EQUAL(prevHeight + 1, chainActive.Tip()->nHeight);
-
     CBlock block1;
     BOOST_CHECK(ReadBlockFromDisk(block1, blockIdx, ::Params().GetConsensus()));
 
@@ -475,8 +476,9 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
     } checker;
 
     checker.state = sparkState;
-
-    auto connect_disconnect = [this](Checker& checker) {
+    // Cache empty checker
+    auto emptyChecker = checker;
+    auto connect_disconnect = [this](Checker& checker, Checker& emptyChecker) {
         // util function
         auto reconnect = [](CBlock const &block) {
             LOCK(cs_main);
@@ -494,9 +496,6 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
         auto mints = GenerateMints({3 * COIN, 2 * COIN}, mintTxs);
         std::vector<CMutableTransaction> mintTxs2;
         auto mints2 = GenerateMints({3 * COIN }, mintTxs2);
-
-        // Cache empty checker
-        auto emptyChecker = checker;
 
         mempool.clear();
         // Generate some txs which contain mints
@@ -522,18 +521,19 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
         // Create two txs which contains same serial.
         CCoinControl coinControl;
-
+		CAmount amount;
         {
             auto tx = mintTxs[0];
             auto it = std::find_if(tx.vout.begin(), tx.vout.end(), [](CTxOut const &out) -> bool {
                 return out.scriptPubKey.IsSparkMint();
             });
             BOOST_CHECK(it != tx.vout.end());
-
+			amount = it->nValue;
             coinControl.Select(COutPoint(tx.GetHash(), std::distance(tx.vout.begin(), it)));
         }
 
-        auto sTx1 = GenerateSparkSpend({1 * COIN}, {}, &coinControl);
+		amount /=2;
+        auto sTx1 = GenerateSparkSpend({amount}, {}, &coinControl);
 
         // wait while another thread updates mint status in wallet, and then continue
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -554,7 +554,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
         std::size_t old_size = mempool.size();
         // Create duplicated serial tx and test this at the bottom
-        auto dupTx1 = GenerateSparkSpend({1 * COIN}, {}, &coinControl);
+        auto dupTx1 = GenerateSparkSpend({amount}, {}, &coinControl);
 
         // check that it is not accepted into mempool
         BOOST_CHECK(old_size == mempool.size());
@@ -594,7 +594,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
         checker.Verify();
 
         // add more block contain both mint and serial
-        auto sTx2 = GenerateSparkSpend({1 * COIN}, {}, nullptr);
+        auto sTx2 = GenerateSparkSpend({amount}, {}, nullptr);
 
         std::vector<spark::Coin> newCoins2;
         std::vector<GroupElement> tags2;
@@ -613,7 +613,6 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
         checker.coins.push_back(pwalletMain->sparkWallet->getCoinFromMeta(mints2[0]));
         checker.lTags.push_back(tags2[0]);
         checker.last = blockIdx3;
-
         checker.Verify();
 
         // Clear state and rebuild
@@ -645,9 +644,9 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
         mempool.clear();
     };
 
-    connect_disconnect(checker);
-//    GenerateBlocks(910);
-//    connect_disconnect(checker);
+    connect_disconnect(checker, emptyChecker);
+    GenerateBlocks(910);
+    connect_disconnect(checker, emptyChecker);
 
     sparkState->Reset();
 }
@@ -684,7 +683,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     auto outputAmount = 1 * COIN;
     auto mintAmount = 2 * CENT - CENT; // a cent as fee
     CAmount fee;
-    CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, {}, fee);  //TODO levon add spats case
+    CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, {}, fee);
 
     CMutableTransaction spendTx(wtx);
     auto spend = ParseSparkSpend(spendTx);
@@ -715,6 +714,105 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     info.spTransactions.clear();
     BOOST_CHECK(!CheckSparkTransaction(
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(checktransactionspats)
+{
+    GenerateBlocks(2000);
+
+    // mints
+    std::vector<CMutableTransaction> txs;
+    GenerateMints({110 * COIN}, txs);
+    auto &tx = txs[0];
+
+    CValidationState state;
+    CSparkTxInfo info;
+    BOOST_CHECK(CheckSparkTransaction(
+            txs[0], state, tx.GetHash(), false, chainActive.Height(), true, true, &info));
+
+    std::vector<spark::Coin> expectedCoins = spark::GetSparkMintCoins(tx);
+    BOOST_CHECK(expectedCoins == info.mints);
+
+    // spend
+    txs.clear();
+    pwalletMain->SetBroadcastTransactions(true);
+    auto mints = GenerateMints({10 * COIN, 1 * COIN}, txs);
+    mempool.clear();
+
+    auto currentBlock = chainActive.Tip()->nHeight;
+    GenerateBlock(txs);
+    BOOST_CHECK_EQUAL(currentBlock, chainActive.Tip()->nHeight -1);
+
+    GenerateBlocks(10);
+
+    auto outputAmount = 1 * COIN;
+    auto mintAmount = 2 * CENT - CENT; // a cent as fee
+    CAmount fee;
+    CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, {}, fee);
+
+    CMutableTransaction spendTx(wtx);
+    auto spend = ParseSpatsSpend(spendTx);
+
+    // test get join split amounts
+    BOOST_CHECK_EQUAL(1, GetSpendInputs(spendTx));
+
+    info = CSparkTxInfo();
+
+    BOOST_CHECK(CheckSparkTransaction(
+            spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
+
+    auto &lTags = spend.getUsedLTags();
+    auto &ids = spend.getCoinGroupIds();
+
+    for (size_t i = 0; i != lTags.size(); i++) {
+        bool hasLTag = false;
+        BOOST_CHECK_MESSAGE(hasLTag = (info.spentLTags.count(lTags[i]) > 0), "No linking tag as expected");
+        if (hasLTag) {
+            BOOST_CHECK_MESSAGE(ids[i] == info.spentLTags[lTags[i]], "linking tag group id is invalid");
+        }
+    }
+
+    info = CSparkTxInfo();
+    BOOST_CHECK(CheckSparkTransaction(
+            spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
+
+    info.spTransactions.clear();
+    BOOST_CHECK(!CheckSparkTransaction(
+            spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
+
+    auto address = pwalletMain->sparkWallet->getDefaultAddress();
+    spark::MintedCoinData minted;
+    minted.address = address;
+    minted.v = 100 * COIN;
+    minted.memo = "";
+	minted.a = Scalar(uint64_t(1));
+	minted.iota = Scalar(uint64_t(1));
+    wtx = pwalletMain->MintAndStoreSpats({minted ,address});
+
+    CMutableTransaction mintTx(wtx);
+    BOOST_CHECK(CheckSparkTransaction(
+        mintTx, state, mintTx.GetHash(), false, chainActive.Height(), false, true, &info));
+
+    currentBlock = chainActive.Tip()->nHeight;
+    mempool.clear();
+    GenerateBlock({mintTx});
+    BOOST_CHECK_EQUAL(currentBlock, chainActive.Tip()->nHeight -1);
+
+    spark::OutputCoinData output;
+    output.address = address;
+    output.v = 25 * COIN;
+    output.memo = "";
+	output.a = Scalar(uint64_t(1));
+	output.iota = Scalar(uint64_t(1));
+
+    wtx = pwalletMain->SpendAndStoreSpark({}, {}, {output, output}, fee);
+
+    CMutableTransaction spatsTX(wtx);
+    BOOST_CHECK(CheckSparkTransaction(
+        spatsTX, state, mintTx.GetHash(), false, chainActive.Height(), false, true, &info));
 
     mempool.clear();
     sparkState->Reset();

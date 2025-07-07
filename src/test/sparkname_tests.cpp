@@ -109,11 +109,10 @@ public:
 
     void ModifySparkNameTx(CMutableTransaction &tx, std::function<void(CSparkNameTxData &)> modify, bool fRecalcOwnershipProof = true) {
         const spark::Params *params = spark::Params::get_default();
-        spark::SpendTransaction sparkTx(params);
 
         CSparkNameTxData sparkNameData;
         size_t sparkNameDataPos;
-        BOOST_CHECK(sparkNameManager->ParseSparkNameTxData(tx, sparkTx, sparkNameData, sparkNameDataPos));
+        BOOST_CHECK(sparkNameManager->ParseSparkNameTxData(tx, sparkNameData, sparkNameDataPos));
 
         modify(sparkNameData);
 

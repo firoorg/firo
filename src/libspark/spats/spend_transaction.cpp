@@ -290,11 +290,9 @@ SpendTransaction::SpendTransaction(
 
 
     // Generate Balance proof
-
     Balance balance(this->params->get_E(), this->params->get_F(), this->params->get_H());
-
-
-    balance.prove(balance_statement, Scalar(uint64_t(w_generic - t_generic)) * asset_type, Scalar(uint64_t(w_generic - t_generic)) * identifier, balance_witness, balance_proof);
+    Scalar wl = Scalar(w_generic) - Scalar(t_generic);
+    balance.prove(balance_statement, wl * asset_type, wl * identifier, balance_witness, balance_proof);
 
 
     // Compute the binding hash

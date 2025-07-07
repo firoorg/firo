@@ -98,13 +98,21 @@ std::string CSparkNameManager::GetSparkNameAdditionalData(const std::string &nam
     return it->second.additionalInfo;
 }
 
-bool CSparkNameManager::ParseSparkNameTxData(const CTransaction &tx, spark::SpendTransaction &sparkTx, CSparkNameTxData &sparkNameData, size_t &sparkNameDataPos)
+bool CSparkNameManager::ParseSparkNameTxData(const CTransaction &tx, CSparkNameTxData &sparkNameData, size_t &sparkNameDataPos)
 {
     sparkNameDataPos = 0;
     CDataStream serializedSpark(SER_NETWORK, PROTOCOL_VERSION);
     serializedSpark.write((const char *)tx.vExtraPayload.data(), tx.vExtraPayload.size());
     try {
-        serializedSpark >> sparkTx;
+        const spark::Params *params = spark::Params::get_default();
+
+        if (tx.vin[0].scriptSig[0] == OP_SPATSSPEND) {
+            spats::SpendTransaction sparkTx(params);
+            serializedSpark >> sparkTx;
+        } else {
+            spark::SpendTransaction sparkTx(params);
+            serializedSpark >> sparkTx;
+        }
         if (serializedSpark.size() == 0) {
             // silently ignore, it's not a critical error to not have a spark name tx part
             // sparkNameDataPos pointing to the end of the tx payload means there is no spark name tx data
@@ -131,17 +139,13 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
 
     if (!tx.IsSparkSpend())
         return state.Error("CheckSparkNameTx: not a spark name tx");
-
     if (nHeight < consensusParams.nSparkNamesStartBlock)
         // silently return true not to cause HF before the start of spark names
         return true;
 
     CSparkNameTxData sparkNameData;
-    const spark::Params *params = spark::Params::get_default();
-    spark::SpendTransaction spendTransaction(params);
     size_t sparkNameDataPos;
-
-    if (!ParseSparkNameTxData(tx, spendTransaction, sparkNameData, sparkNameDataPos)) {
+    if (!ParseSparkNameTxData(tx, sparkNameData, sparkNameDataPos)) {
         if (sparkNameDataPos == tx.vExtraPayload.size()) {
             return true;    // no payload, not an error at all
         }
@@ -158,7 +162,6 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
 
     if (!IsSparkNameValid(sparkNameData.name))
         return state.DoS(100, error("CheckSparkNameTx: invalid name"));
-
     constexpr int nBlockPerYear = 365*24*24; // 24 blocks per hour
     int nYears = (sparkNameData.sparkNameValidityBlocks + nBlockPerYear-1) / nBlockPerYear;
 
