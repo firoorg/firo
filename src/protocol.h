@@ -302,6 +302,8 @@ enum ServiceFlags : uint64_t {
     // BIP process.
 };
 
+static const int ADDR_TOR_V3_VERSION = 141401;
+
 /** A CService with information about it as peer */
 class CAddress : public CService
 {
@@ -328,6 +330,23 @@ public:
         READWRITE(nServicesInt);
         nServices = (ServiceFlags)nServicesInt;
         READWRITE(*(CService*)this);
+
+        if (nVersion > ADDR_TOR_V3_VERSION) {
+            if (ser_action.ForRead()) {
+                bool v3Flag;
+                READWRITE(v3Flag);
+                isTorV3 = v3Flag;
+                if (isTorV3)
+                    READWRITE(onionV3Addr);
+                else
+                    onionV3Addr.clear();
+            } else {
+                bool v3Flag = isTorV3;
+                READWRITE(v3Flag);
+                if (v3Flag)
+                    READWRITE(onionV3Addr);
+            }
+        }
     }
 
     // TODO: make private (improves encapsulation)
