@@ -144,13 +144,13 @@ const QDBusArgument &operator>>(const QDBusArgument &a, FreedesktopImage &i)
 
 int FreedesktopImage::metaType()
 {
-    return qDBusRegisterMetaType<FreedesktopImage>();
+    return qDBusRegisterMetaType<FreedesktopImage>().id();
 }
 
 QVariant FreedesktopImage::toVariant(const QImage &img)
 {
     FreedesktopImage fimg(img);
-    return QVariant(FreedesktopImage::metaType(), &fimg);
+    return QVariant::fromValue(fimg);
 }
 
 void Notificator::notifyDBus(Class cls, const QString &title, const QString &text, const QIcon &icon, int millisTimeout)

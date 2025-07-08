@@ -63,7 +63,7 @@ if test -z "$with_gui" && test -n "@no_qt@"; then
 fi
 
 if test -n "@debug@" && test -z "@no_qt@" && test "x$with_gui" != xno; then
-  with_gui=qt5_debug
+  with_gui=qt6_debug
 fi
 
 if test -z "$enable_zmq" && test -n "@no_zmq@"; then
