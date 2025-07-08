@@ -43,9 +43,11 @@ jobs:
       run: make -C depends -j$(nproc)
     - name: Build Firo
       run: |
-        mkdir build
         export HOST_TRIPLET=$(depends/config.guess)
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) -DBUILD_CLI=ON -DBUILD_TESTS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release -DCLIENT_VERSION_IS_RELEASE=true -S$(realpath .) -B$(realpath build)
+        env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
+        -DBUILD_CLI=ON -DBUILD_TESTS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
+        -DCLIENT_VERSION_IS_RELEASE=true -S$(realpath .) -B$(realpath build)
         cd build && make -j$(nproc)
     - name: Run Unit Tests
       run: |
@@ -97,7 +99,7 @@ jobs:
     - name: Install Required Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 cmake
+        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 cmake 
     - name: Switch MinGW GCC and G++ to POSIX Threading
       run: |
         sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
@@ -108,9 +110,11 @@ jobs:
       run: make -C depends -j$(nproc) HOST=x86_64-w64-mingw32
     - name: Build Firo
       run: |
-        mkdir build
         export HOST_TRIPLET=$(x86_64-w64-mingw32-gcc -dumpmachine)
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=ON -DCLIENT_VERSION_IS_RELEASE=true -S$(realpath .) -B$(realpath build)
+        env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
+        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release \
+        -DCLIENT_VERSION_IS_RELEASE=true -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
         cd build && make -j$(nproc)
     - name: Prepare Files for Artifact
       run: |
@@ -152,9 +156,11 @@ jobs:
         make -C depends -j$NJOBS
     - name: Build Firo
       run: |
-        mkdir build
         export HOST_TRIPLET=$(depends/config.guess)
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release -DCLIENT_VERSION_IS_RELEASE=true -S$(pwd) -B$(pwd)/build
+        env PKG_CONFIG_PATH="$(pwd)/depends/$HOST_TRIPLET/lib/pkgconfig:$PKG_CONFIG_PATH" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake \
+        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
+        -DCLIENT_VERSION_IS_RELEASE=true -S$(pwd) -B$(pwd)/build
         cd build && make -j$NJOBS
     - name: Prepare Files for Artifact
       run: |
