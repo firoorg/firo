@@ -365,20 +365,22 @@ mkdir -p "$DISTSRC"
             ;;
     esac
 
-    # Empty environment variables for x86_64-apple-darwin
-    if [[ "$HOST" == "x86_64-apple-darwin"* ]]; then
-        unset LIBRARY_PATH
+    # Empty environment variables for all Darwin builds to prevent GCC header conflicts
+    if [[ "$HOST" == *"darwin"* ]]; then
         unset CPATH
         unset C_INCLUDE_PATH
         unset CPLUS_INCLUDE_PATH
         unset OBJC_INCLUDE_PATH
         unset OBJCPLUS_INCLUDE_PATH
+        unset CC
+        unset CXX
+        unset CPP
     fi
 
 
     # Configure this DISTSRC for $HOST
     # shellcheck disable=SC2086
-    env CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}" OBJCXXFLAGS="${HOST_OBJCXXFLAGS}" \
+    env PKG_CONFIG_PATH="${BASEPREFIX}/${HOST}/lib/pkgconfig:$PKG_CONFIG_PATH" CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}" OBJCXXFLAGS="${HOST_OBJCXXFLAGS}" LDFLAGS="${HOST_LDFLAGS}" \
     cmake --toolchain "${BASEPREFIX}/${HOST}/toolchain.cmake" -S . -B build \
       -DCMAKE_INSTALL_PREFIX="${INSTALLPATH}" \
       -DCMAKE_EXE_LINKER_FLAGS="${HOST_LDFLAGS}" \

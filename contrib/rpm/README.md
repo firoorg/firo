@@ -72,7 +72,7 @@ difficult for a user to recover from backup in the event of a system failure.
 
 ## Graphical User Interface and Qt Version
 
-The RPM spec file will by default build the GUI client linked against the Qt5
+The RPM spec file will by default build the GUI client linked against the Qt6
 libraries. If you wish instead to link against the Qt4 libraries you need to
 pass the switch `-D '_use_qt4 1'` at build time to the `rpmbuild` or `mock`
 command used to build the packages.

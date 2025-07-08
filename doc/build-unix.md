@@ -92,7 +92,7 @@ Optional:
 
 To build with Qt 5 (recommended) you need the following:
 
-    sudo dnf install qt5-qttools-devel qt5-qtbase-devel xz bison
+    sudo dnf install qt6-qttools-devel qt6-qtbase-devel xz bison
 
     sudo ln /usr/bin/bison /usr/bin/yacc
 
