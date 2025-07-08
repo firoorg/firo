@@ -45,7 +45,7 @@ bitcoin (0.13.1-trusty1) trusty; urgency=medium
   * New upstream release.
   * Backport updated bitcoin-qt.desktop from upstream master
   * Add zmq dependency
-  * Switch to Qt5 (breaks precise, but that was already broken by C++11)
+  * Switch to Qt6 (breaks precise, but that was already broken by C++11)
 
  -- Matt Corallo (BlueMatt) <matt@mattcorallo.com>  Thu, 27 Oct 2016 17:32:00 -0400
 
