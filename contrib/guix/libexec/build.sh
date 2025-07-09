@@ -261,7 +261,23 @@ GIT_ARCHIVE="${DIST_ARCHIVE_BASE}/firo-source-${SOURCE_HASH}.tar.gz"
 # Create the source tarball if not already there
 if [ ! -e "$GIT_ARCHIVE" ]; then
     mkdir -p "$(dirname "$GIT_ARCHIVE")"
-    git archive --prefix="firo-source-${SOURCE_HASH}/" --output="$GIT_ARCHIVE" HEAD
+    
+    TEMP_ARCHIVE_DIR="/tmp/firo-archive-${SOURCE_HASH}"
+    rm -rf "$TEMP_ARCHIVE_DIR"
+    mkdir -p "$TEMP_ARCHIVE_DIR"
+    
+    # Archive main repository
+    git archive --prefix="firo-source-${SOURCE_HASH}/" HEAD | tar -C "$TEMP_ARCHIVE_DIR" -xf -
+    
+    # Archive submodules
+    git submodule foreach --recursive --quiet \
+        'git archive --prefix="firo-source-${SOURCE_HASH}/$sm_path/" HEAD | tar -C "'$TEMP_ARCHIVE_DIR'" -xf -'
+    
+    # Create final tarball
+    (cd "$TEMP_ARCHIVE_DIR" && tar --create --mode='u+rw,go+r-w,a+X' "firo-source-${SOURCE_HASH}" | gzip -9n > "$GIT_ARCHIVE")
+    
+    # Cleanup
+    rm -rf "$TEMP_ARCHIVE_DIR"
 fi
 
 ###########################
