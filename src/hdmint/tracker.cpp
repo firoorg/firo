@@ -121,11 +121,6 @@ bool CHDMintTracker::UnArchive(const uint256& hashPubcoin, bool isDeterministic)
         if (!walletdb.UnarchiveHDMint(hashPubcoin, false, dMint))
             return error("%s: failed to unarchive deterministic mint", __func__);
         Add(walletdb, dMint, false);
-    } else {
-        CSigmaEntry sigma;
-        if (!walletdb.UnarchiveSigmaMint(hashPubcoin, sigma))
-            return error("%s: failed to unarchivesigma mint", __func__);
-        Add(walletdb, sigma, false);
     }
 
     LogPrintf("%s: unarchived %s\n", __func__, hashPubcoin.GetHex());
@@ -280,12 +275,7 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
 
         // get coin id & height
         int height, id;
-        if(meta.nHeight<0 || meta.nId <= 0){
-            sigma::CoinDenomination denom;
-            IntegerToDenomination(dMint.GetAmount(), denom);
-            std::tie(height, id) = sigma::CSigmaState::GetState()->GetMintedCoinHeightAndId(sigma::PublicCoin(dMint.GetPubcoinValue(), denom));
-        }
-        else{
+        {
             height = meta.nHeight;
             id = meta.nId;
         }
@@ -304,24 +294,6 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
             pwalletMain,
             dMint.GetPubcoinValue().GetHex(),
             std::string("Update (") + std::to_string((double)dMint.GetAmount() / COIN) + "mint)",
-            CT_UPDATED);
-    } else {
-        CSigmaEntry sigma;
-        if (!walletdb.ReadSigmaEntry(meta.GetPubCoinValue(), sigma))
-            return error("%s: failed to read mint from database", __func__);
-
-        sigma.nHeight = meta.nHeight;
-        sigma.id = meta.nId;
-        sigma.IsUsed = meta.isUsed;
-        sigma.set_denomination(meta.denom);
-
-        if (!walletdb.WriteSigmaEntry(sigma))
-            return error("%s: failed to write mint to database", __func__);
-
-        pwalletMain->NotifyZerocoinChanged(
-            pwalletMain,
-            sigma.value.GetHex(),
-            std::string("Update (") + std::to_string((double)sigma.get_denomination_value() / COIN) + "mint)",
             CT_UPDATED);
     }
 
@@ -391,32 +363,6 @@ bool CHDMintTracker::UpdateState(const CLelantusMintMeta& meta)
  * @param isArchived set to true if this mint is archived, used to set meta object correctly
  * @return success
  */
-void CHDMintTracker::Add(CWalletDB& walletdb, const CHDMint& dMint, bool isNew, bool isArchived)
-{
-    CMintMeta meta;
-    meta.SetPubCoinValue(dMint.GetPubcoinValue());
-    meta.nHeight = dMint.GetHeight();
-    meta.nId = dMint.GetId();
-    meta.txid = dMint.GetTxHash();
-    meta.isUsed = dMint.IsUsed();
-    meta.hashSerial = dMint.GetSerialHash();
-    sigma::CoinDenomination denom;
-    IntegerToDenomination(dMint.GetAmount(), denom);
-    meta.denom = denom;
-    meta.isArchived = isArchived;
-    meta.isDeterministic = true;
-    meta.isSeedCorrect = true;
-    mapSerialHashes[meta.hashSerial] = meta;
-
-    pwalletMain->NotifyZerocoinChanged(
-        pwalletMain,
-        dMint.GetPubcoinValue().GetHex(),
-        std::string("Update (") + std::to_string((double)dMint.GetAmount() / COIN) + "mint)",
-        CT_UPDATED);
-
-    if (isNew)
-        walletdb.WriteHDMint(meta.GetPubCoinValueHash(), dMint, false);
-}
 
 void CHDMintTracker::AddLelantus(CWalletDB& walletdb, const CHDMint& dMint, bool isNew, bool isArchived)
 {
@@ -443,25 +389,6 @@ void CHDMintTracker::AddLelantus(CWalletDB& walletdb, const CHDMint& dMint, bool
         auto pubcoin = dMint.GetPubcoinValue() + lelantus::Params::get_default()->get_h1() * Scalar(meta.amount).negate();
         walletdb.WritePubcoinHashes(meta.GetPubCoinValueHash(), primitives::GetPubCoinValueHash(pubcoin));
     }
-}
-
-void CHDMintTracker::Add(CWalletDB& walletdb, const CSigmaEntry& sigma, bool isNew, bool isArchived)
-{
-    CMintMeta meta;
-    meta.SetPubCoinValue(sigma.value);
-    meta.nHeight = sigma.nHeight;
-    meta.nId = sigma.id;
-    //meta.txid = sigma.GetTxHash();
-    meta.isUsed = sigma.IsUsed;
-    meta.hashSerial = primitives::GetSerialHash(sigma.serialNumber);
-    meta.denom = sigma.get_denomination();
-    meta.isArchived = isArchived;
-    meta.isDeterministic = false;
-    meta.isSeedCorrect = true;
-    mapSerialHashes[meta.hashSerial] = meta;
-
-    if (isNew)
-        walletdb.WriteSigmaEntry(sigma);
 }
 
 /**
@@ -541,21 +468,6 @@ bool CHDMintTracker::IsMempoolSpendOurs(const std::set<uint256>& setMempool, con
 
         const CTransaction &tx = *ptx;
         for (const CTxIn& txin : tx.vin) {
-            if (txin.IsSigmaSpend()) {
-                std::unique_ptr<sigma::CoinSpend> spend;
-                uint32_t pubcoinId;
-                try {
-                    std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
-                } catch (const std::exception &) {
-                    return false;
-                }
-
-                uint256 mempoolHashSerial = primitives::GetSerialHash(spend->getCoinSerialNumber());
-                if(mempoolHashSerial==hashSerial){
-                    return true;
-                }
-            }
-
             if (txin.IsLelantusJoinSplit()) {
                 std::unique_ptr<lelantus::JoinSplit> joinsplit;
                 try {
@@ -586,102 +498,6 @@ bool CHDMintTracker::IsMempoolSpendOurs(const std::set<uint256>& setMempool, con
  * @param fSpend if this mint object is being updated as a result of a spend transaction
  * @return success
  */
-bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMintMeta& mint, bool fSpend)
-{
-    uint256 hashPubcoin = mint.GetPubCoinValueHash();
-    //! Check whether this mint has been spent and is considered 'pending' or 'confirmed'
-    // If there is not a record of the block height, then look it up and assign it
-    COutPoint outPoint;
-    sigma::PublicCoin pubCoin(mint.GetPubCoinValue(), mint.denom);
-    bool isMintInChain = GetOutPoint(outPoint, pubCoin);
-    LogPrintf("UpdateMetaStatus : isMintInChain: %d\n", isMintInChain);
-    const uint256& txidMint = outPoint.hash;
-
-    //See if there is internal record of spending this mint (note this is memory only, would reset on restart - next function checks this)
-    bool isPendingSpend = static_cast<bool>(mapPendingSpends.count(mint.hashSerial));
-
-    // Mempool might hold pending spend
-    if(!isPendingSpend && fSpend)
-        isPendingSpend = IsMempoolSpendOurs(setMempool, mint.hashSerial);
-
-    LogPrintf("UpdateMetaStatus : isPendingSpend: %d\n", isPendingSpend);
-
-    // See if there is a blockchain record of spending this mint
-    CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    Scalar bnSerial;
-    bool isConfirmedSpend = sigmaState->IsUsedCoinSerialHash(bnSerial, mint.hashSerial);
-    LogPrintf("UpdateMetaStatus : isConfirmedSpend: %d\n", isConfirmedSpend);
-
-    bool isUsed = isPendingSpend || isConfirmedSpend;
-
-    if ((mint.nHeight==-1) || (mint.nId==-1) || !isMintInChain || isUsed != mint.isUsed) {
-        CTransactionRef tx;
-        uint256 hashBlock;
-
-        // Txid will be marked 0 if there is no knowledge of the final tx hash yet
-        if (mint.txid.IsNull()) {
-            if (!isMintInChain) {
-                if(mint.nHeight>-1) mint.nHeight = -1;
-                if(mint.nId>-1) mint.nId = -1;
-                // still want to update this mint later if syncing. else ignore
-                if(IsInitialBlockDownload()){
-                    return true;
-                }
-                return false;
-            }
-            mint.txid = txidMint;
-        }
-
-        LogPrintf("UpdateMetaStatus : mint.txid = %d\n", mint.txid.GetHex());
-
-        if (setMempool.count(mint.txid)) {
-            if(mint.nHeight>-1) mint.nHeight = -1;
-            if(mint.nId>-1) mint.nId = -1;
-            return true;
-        }
-
-        // Check the transaction associated with this mint
-        if (!GetTransaction(mint.txid, tx, ::Params().GetConsensus(), hashBlock, true)) {
-            LogPrintf("%s : Failed to find tx for mint txid=%s\n", __func__, mint.txid.GetHex());
-            mint.isArchived = true;
-            Archive(mint);
-            return true;
-        }
-
-        bool isUpdated = false;
-
-        // An orphan tx if hashblock is in mapBlockIndex but not in chain active
-        if (mapBlockIndex.count(hashBlock)){
-            if(!chainActive.Contains(mapBlockIndex.at(hashBlock))) {
-                LogPrintf("%s : Found orphaned mint txid=%s\n", __func__, mint.txid.GetHex());
-                mint.isUsed = false;
-                mint.nHeight = 0;
-
-                return true;
-            }else if((mint.nHeight==-1) || (mint.nId<=0)){ // assign nHeight if not present
-                sigma::PublicCoin pubcoin(mint.GetPubCoinValue(), mint.denom);
-                auto MintedCoinHeightAndId = sigmaState->GetMintedCoinHeightAndId(pubcoin);
-                mint.nHeight = MintedCoinHeightAndId.first;
-                mint.nId = MintedCoinHeightAndId.second;
-                LogPrintf("%s : Set mint %s nHeight to %d\n", __func__, hashPubcoin.GetHex(), mint.nHeight);
-                LogPrintf("%s : Set mint %s nId to %d\n", __func__, hashPubcoin.GetHex(), mint.nId);
-                isUpdated = true;
-            }
-        }
-
-        // Check that the mint has correct used status
-        if (mint.isUsed != isUsed) {
-            LogPrintf("%s : Set mint %s isUsed to %d\n", __func__, hashPubcoin.GetHex(), isUsed);
-            mint.isUsed = isUsed;
-            isUpdated = true;
-        }
-
-        if(isUpdated) return true;
-    }
-
-    return false;
-}
-
 bool CHDMintTracker::UpdateLelantusMetaStatus(const std::set<uint256>& setMempool, CLelantusMintMeta& mint, bool fSpend)
 {
     uint256 hashPubcoin = mint.GetPubCoinValueHash();
@@ -813,34 +629,6 @@ void CHDMintTracker::UpdateFromBlock(const std::list<std::pair<uint256, MintPool
  * @param mints the set of public coin objects to check for.
  * @return void
  */
-void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<sigma::PublicCoin>& mints){
-    CWalletDB walletdb(strWalletFile);
-    std::vector<CMintMeta> updatedMeta;
-    std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
-    uint160 hashSeedMasterEntry;
-    CKeyID seedId;
-    int32_t nCount;
-    std::set<uint256> setMempool = GetMempoolTxids();
-    for (auto& mint : mints) {
-        uint256 hashPubcoin = primitives::GetPubCoinValueHash(mint.getValue());
-        CMintMeta meta;
-        // Check hashPubcoin in db
-        if(walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
-            // If found in db but not in memory - this is likely a resync
-            if(!GetMetaFromPubcoin(hashPubcoin, meta)){
-                MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);
-                mintPoolEntries.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
-                continue;
-            }
-            if(UpdateMetaStatus(setMempool, meta)){
-                updatedMeta.emplace_back(meta);
-            }
-        }
-    }
-
-    UpdateFromBlock(mintPoolEntries, updatedMeta);
-}
-
 void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<std::pair<lelantus::PublicCoin, std::pair<uint64_t, uint256>>>& mints) {
     CWalletDB walletdb(strWalletFile);
     std::vector<CLelantusMintMeta> updatedMeta;
@@ -882,39 +670,6 @@ void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<std::pair<lelant
  * @param spentSerials the set of spent serial objects to check for.
  * @return void
  */
-void CHDMintTracker::UpdateSpendStateFromBlock(const sigma::spend_info_container& spentSerials){
-    CWalletDB walletdb(strWalletFile);
-    std::vector<CMintMeta> updatedMeta;
-    std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
-    uint160 hashSeedMasterEntry;
-    CKeyID seedId;
-    int32_t nCount;
-    std::set<uint256> setMempool = GetMempoolTxids();
-    for(auto& spentSerial : spentSerials){
-        uint256 spentSerialHash = primitives::GetSerialHash(spentSerial.first);
-        CMintMeta meta;
-        GroupElement pubcoin;
-        // Check serialHash in db
-        if(walletdb.ReadPubcoin(spentSerialHash, pubcoin)){
-            // If found in db but not in memory - this is likely a resync
-            if(!GetMetaFromSerial(spentSerialHash, meta)){
-                uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
-                if(!walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
-                    continue;
-                }
-                MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);
-                mintPoolEntries.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
-                continue;
-            }
-            if(UpdateMetaStatus(setMempool, meta, true)){
-                updatedMeta.emplace_back(meta);
-            }
-        }
-    }
-
-    UpdateFromBlock(mintPoolEntries, updatedMeta);
-}
-
 void CHDMintTracker::UpdateSpendStateFromBlock(const std::unordered_map<Scalar, int>& spentSerials){
     CWalletDB walletdb(strWalletFile);
     std::vector<CLelantusMintMeta> updatedMeta;
@@ -1114,19 +869,6 @@ void CHDMintTracker::UpdateJoinSplitStateFromMempool(const std::vector<Scalar>& 
  * @param fMatureOnly convert mature (ie. spendable due to sufficient confirmations) mints only
  * @return list of CSigmaEntry objects
  */
-std::list<CSigmaEntry> CHDMintTracker::MintsAsSigmaEntries(bool fUnusedOnly, bool fMatureOnly){
-    std::list <CSigmaEntry> listPubcoin;
-    CWalletDB walletdb(strWalletFile);
-    std::vector<CMintMeta> vecMists = ListMints(fUnusedOnly, fMatureOnly, false);
-    std::list<CMintMeta> listMints(vecMists.begin(), vecMists.end());
-    for (const CMintMeta& mint : listMints) {
-        CSigmaEntry entry;
-        pwalletMain->GetMint(mint.hashSerial, entry);
-        listPubcoin.push_back(entry);
-    }
-    return listPubcoin;
-}
-
 std::list<CLelantusEntry> CHDMintTracker::MintsAsLelantusEntries(bool fUnusedOnly, bool fMatureOnly){
     std::list <CLelantusEntry> listCoin;
     CWalletDB walletdb(strWalletFile);
@@ -1150,68 +892,6 @@ std::list<CLelantusEntry> CHDMintTracker::MintsAsLelantusEntries(bool fUnusedOnl
  * @param fWrongSeed If mints without correct seed should be added
  * @return vector of CMintMeta objects
  */
-std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fLoad, bool fWrongSeed)
-{
-    std::vector<CMintMeta> setMints;
-    if (fLoad) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
-        CWalletDB walletdb(strWalletFile);
-        std::list<CSigmaEntry> listMintsDB;
-        walletdb.ListSigmaPubCoin(listMintsDB);
-        for (auto& mint : listMintsDB){
-            Add(walletdb, mint);
-        }
-        LogPrint("zero", "%s: added %d sigmamints from DB\n", __func__, listMintsDB.size());
-
-        std::list<CHDMint> listDeterministicDB = walletdb.ListHDMints(false);
-        for (auto& dMint : listDeterministicDB) {
-            Add(walletdb, dMint, false, false);
-        }
-        LogPrint("zero", "%s: added %d hdmint from DB\n", __func__, listDeterministicDB.size());
-    }
-
-    std::vector<CMintMeta> vOverWrite;
-    std::set<uint256> setMempool = GetMempoolTxids();
-    for (auto& it : mapSerialHashes) {
-        CMintMeta mint = it.second;
-
-        //This is only intended for unarchived coins
-        if (mint.isArchived)
-            continue;
-
-        // Update the metadata of the mints if requested
-        if (fUpdateStatus){
-            if(UpdateMetaStatus(setMempool, mint)) {
-                if (mint.isArchived)
-                    continue;
-
-                // Mint was updated, queue for overwrite
-                vOverWrite.emplace_back(mint);
-            }
-        }
-
-        if (fUnusedOnly && mint.isUsed)
-            continue;
-
-        if (fMatureOnly) {
-            // Not confirmed
-            if (!mint.nHeight || !(mint.nHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()))
-                continue;
-        }
-
-        if (!fWrongSeed && !mint.isSeedCorrect)
-            continue;
-
-        setMints.push_back(mint);
-    }
-
-    //overwrite any updates
-    for (CMintMeta& meta : vOverWrite)
-        UpdateState(meta);
-
-    return setMints;
-}
-
 std::vector<CLelantusMintMeta> CHDMintTracker::ListLelantusMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fLoad, bool fWrongSeed)
 {
     std::vector<CLelantusMintMeta> setMints;

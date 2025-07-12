@@ -243,7 +243,6 @@ BITCOIN_CORE_H = \
   bip47/bip47utils.h \
   bip47/paymentcode.h \
   bip47/secretpoint.h \
-  sigma.h \
   lelantus.h \
   spark/state.h \
   sparkname.h \
@@ -422,7 +421,6 @@ libbitcoin_server_a_SOURCES = \
   validation.cpp \
   validationinterface.cpp \
   versionbits.cpp \
-  sigma.cpp \
   lelantus.cpp \
   bip47/paymentcode.cpp \
   spark/state.cpp \
