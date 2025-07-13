@@ -43,13 +43,13 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
         else if (nDepth == 0) {
             if (wtx.InMempool()) {
                 strTxStatus = "0/unconfirmed, in memory pool" +
-                    (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
+                    (wtx.isAbandoned() ? ", "+tr("abandoned") : QString(""));
             } else if (wtx.InStempool()) {
                 strTxStatus = "0/unconfirmed, in dandelion stem pool"+
-                    (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
+                    (wtx.isAbandoned() ? ", "+tr("abandoned") : QString(""));
             } else {
                 strTxStatus = "0/unconfirmed, not in memory pool" +
-                    (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
+                    (wtx.isAbandoned() ? ", "+tr("abandoned") : QString(""));
             }
         }
         else if (nDepth < TransactionRecord::RecommendedNumConfirmations)
@@ -72,7 +72,12 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 {
     QString strHTML;
 
-    LOCK2(cs_main, wallet->cs_wallet);
+    TRY_LOCK(cs_main,lock_main);
+    if (!lock_main)
+        return strHTML;
+    TRY_LOCK(wallet->cs_wallet,lock_wallet);
+    if (!lock_wallet)
+        return strHTML;
     strHTML.reserve(4000);
     strHTML += "<html><font face='verdana, arial, helvetica, sans-serif'>";
 

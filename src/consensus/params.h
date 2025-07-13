@@ -267,7 +267,12 @@ struct Params {
     // The block number introducing spats (spark assets)
     int nSpatsStartBlock;
 
+    int nSparkNamesStartBlock;
+    std::array<int,21> nSparkNamesFee;
+
     int nLelantusGracefulPeriod;
+
+    int nSigmaEndBlock;
 
     // Lelantus Blacklist
     std::unordered_set<secp_primitives::GroupElement> lelantusBlacklist;

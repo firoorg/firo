@@ -24,6 +24,7 @@ $(package)_patches += guix_cross_lib_path.patch
 $(package)_patches += fix-macos-linker.patch
 $(package)_patches += memory_resource.patch
 $(package)_patches += windows_lto.patch
+$(package)_patches += fix-libpng.patch
 
 $(package)_qttranslations_file_name=qttranslations-$($(package)_suffix)
 $(package)_qttranslations_sha256_hash=a31785948c640b7c66d9fe2db4993728ca07f64e41c560b3625ad191b276ff20
@@ -52,6 +53,7 @@ $(package)_config_opts += -no-evdev
 $(package)_config_opts += -no-gif
 $(package)_config_opts += -no-glib
 $(package)_config_opts += -no-icu
+$(package)_config_opts += -no-zstd
 $(package)_config_opts += -no-ico
 $(package)_config_opts += -no-iconv
 $(package)_config_opts += -no-kms
@@ -249,6 +251,7 @@ define $(package)_preprocess_cmds
   patch -p1 -i $($(package)_patch_dir)/fast_fixed_dtoa_no_optimize.patch && \
   patch -p1 -i $($(package)_patch_dir)/guix_cross_lib_path.patch && \
   patch -p1 -i $($(package)_patch_dir)/windows_lto.patch && \
+  patch -p1 -i $($(package)_patch_dir)/fix-libpng.patch && \
   mkdir -p qtbase/mkspecs/macx-clang-linux &&\
   cp -f qtbase/mkspecs/macx-clang/qplatformdefs.h qtbase/mkspecs/macx-clang-linux/ &&\
   cp -f $($(package)_patch_dir)/mac-qmake.conf qtbase/mkspecs/macx-clang-linux/qmake.conf && \
@@ -276,12 +279,11 @@ define $(package)_build_cmds
 endef
 
 define $(package)_stage_cmds
-  $(MAKE) -C qtbase/src INSTALL_ROOT=$($(package)_staging_dir) $(addsuffix -install_subtargets,$(addprefix sub-,$($(package)_qt_libs))) && \
-  $(MAKE) -C qttools/src/linguist INSTALL_ROOT=$($(package)_staging_dir) $(addsuffix -install_subtargets,$(addprefix sub-,$($(package)_linguist_tools))) && \
+  $(MAKE) -C qtbase INSTALL_ROOT=$($(package)_staging_dir) install && \
+  $(MAKE) -C qttools INSTALL_ROOT=$($(package)_staging_dir) install && \
   $(MAKE) -C qttranslations INSTALL_ROOT=$($(package)_staging_dir) install_subtargets
 endef
 
 define $(package)_postprocess_cmds
-  rm -rf native/mkspecs/ native/lib/ lib/cmake/ && \
   rm -f lib/lib*.la
 endef

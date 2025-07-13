@@ -12,7 +12,6 @@
 #include "clientmodel.h"
 #include "guiconstants.h"
 #include "guiutil.h"
-#include "lelantusmodel.h"
 #include "sparkmodel.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
@@ -245,14 +244,7 @@ void OverviewPage::on_anonymizeButton_clicked()
         return;
     }
 
-    if(lelantus::IsLelantusAllowed()) {
-        auto lelantusModel = walletModel->getLelantusModel();
-        if (!lelantusModel) {
-            return;
-        }
-
-        lelantusModel->mintAll(AutoMintMode::MintAll);
-    } else if (spark::IsSparkAllowed()) {
+    if (spark::IsSparkAllowed()) {
         auto sparkModel = walletModel->getSparkModel();
         if (!sparkModel) {
             return;
@@ -289,7 +281,7 @@ void OverviewPage::setBalance(
     ui->labelAnonymizable->setText(BitcoinUnits::formatWithUnit(unit, anonymizableBalance, false, BitcoinUnits::separatorAlways));
     displaySpatsBalances();
 
-    ui->anonymizeButton->setEnabled((lelantus::IsLelantusAllowed() || spark::IsSparkAllowed()) && anonymizableBalance > 0);
+    ui->anonymizeButton->setEnabled(spark::IsSparkAllowed() && anonymizableBalance > 0);
 
     // only show immature (newly mined) balance if it's non-zero, so as not to complicate things
     // for the non-mining users
@@ -538,7 +530,8 @@ void OverviewPage::countDown()
 
 void OverviewPage::onRefreshClicked()
 {
-    auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
+    size_t confirmed, unconfirmed;
+    auto privateBalance = walletModel->getWallet()->GetPrivateBalance(confirmed, unconfirmed);
     auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
     int heightDifference = lGracefulPeriod - chainActive.Height();
     const int approxBlocksPerDay = 570;
@@ -562,7 +555,8 @@ void OverviewPage::onRefreshClicked()
 
 void OverviewPage::migrateClicked()
 {
-    auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
+    size_t confirmed, unconfirmed;
+    auto privateBalance = walletModel->getWallet()->GetPrivateBalance(confirmed, unconfirmed);
     auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
     migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
     migrateAmount.append("</b>");

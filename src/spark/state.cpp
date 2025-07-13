@@ -1,6 +1,7 @@
 #include <boost/exception/diagnostic_information.hpp>
 
 #include "state.h"
+#include "sparkname.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
 #include "../base58.h"	// for CBitcoinAddress
@@ -38,6 +39,7 @@ bool BuildSparkStateFromIndex(CChain *chain) {
     for (CBlockIndex *blockIndex = chain->Genesis(); blockIndex; blockIndex=chain->Next(blockIndex))
     {
         sparkState.AddBlock(blockIndex);
+        CSparkNameManager::GetInstance()->AddBlock(blockIndex);
     }
     // DEBUG
     LogPrintf(
@@ -174,7 +176,7 @@ void ParseSpatsMintCoinTransaction(const CScript& script, MintTransaction& mintT
 
 #if 0	// TODO remove
     CDataStream proofstream(
-        std::vector<unsigned char>(serialized.end() - proofsize + 1, serialized.end()),
+        std::vector<unsigned char>(serialized.end() - proofsize, serialized.end()),
         SER_NETWORK,
         PROTOCOL_VERSION
         );
@@ -596,6 +598,9 @@ bool ConnectBlockSpark(
         CBlockIndex *pindexNew,
         const CBlock *pblock,
         bool fJustCheck) {
+
+    bool fBackupRewrittenSparkNames = false;
+    
     // Add spark transaction information to index
     if (pblock && pblock->sparkTxInfo) {
         if (!fJustCheck) {
@@ -681,6 +686,20 @@ bool ConnectBlockSpark(
             }
         }
 
+        if (!pblock->sparkTxInfo->sparkNames.empty()) {
+            CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+            for (const auto &sparkName : pblock->sparkTxInfo->sparkNames) {
+                pindexNew->addedSparkNames[sparkName.first] =
+                        CSparkNameBlockIndexData(sparkName.second.name,
+                            sparkName.second.sparkAddress,
+                            pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
+                            sparkName.second.additionalInfo);
+            }
+
+            // names were added, backup rewritten names if necessary
+            fBackupRewrittenSparkNames = true;
+        }
+
         // generate hash if we need it
         if (updateHash) {
             unsigned char hash_result[CSHA256::OUTPUT_SIZE];
@@ -693,6 +712,11 @@ bool ConnectBlockSpark(
     else if (!fJustCheck) {
         sparkState.AddBlock(pindexNew);
     }
+
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    pindexNew->removedSparkNames = sparkNameManager->RemoveSparkNamesLosingValidity(pindexNew->nHeight);
+    sparkNameManager->AddBlock(pindexNew, fBackupRewrittenSparkNames);
+
     return true;
 }
 
@@ -735,6 +759,9 @@ void RemoveSpendReferencingBlock(CTxMemPool& pool, CBlockIndex* blockIndex) {
 }
 
 void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    sparkNameManager->RemoveBlock(pindexDelete);
+
     sparkState.RemoveBlock(pindexDelete);
 
     // Also remove from mempool spends that reference given block hash.
@@ -872,13 +899,12 @@ bool CheckSpatsMintTransaction(
 
     Scalar m = spark::GetSpatsMintM(tx);
     //TODO levon get address from the registry and verify ownership
-    spark::Address address(params);
-    if (!address.verify_own(m, ownershipProof))
-        return state.DoS(100,
-                             false,
-                             PUBCOIN_NOT_VALIDATE,
-                             "CheckSpatsMintTransaction : Address ownership proof verification failed");
-
+//    spark::Address address(params);
+//    if (!address.verify_own(m, ownershipProof))
+//        return state.DoS(100,
+//                             false,
+//                             PUBCOIN_NOT_VALIDATE,
+//                             "CheckSpatsMintTransaction : Address ownership proof verification failed");
 
     auto& coin = coins[0];
     if (coin.v != txOut.nValue)
@@ -1297,6 +1323,25 @@ bool CheckSparkTransaction(
                         isCheckWallet, fStatefulSigmaCheck, sparkTxInfo)) {
                     return false;
                 }
+
+                CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+                CSparkNameTxData sparkTxData;
+                if (sparkNameManager->CheckSparkNameTx(tx, nHeight, state, &sparkTxData)) {
+                    if (!sparkTxData.name.empty() && sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
+                        // Check if the block already contains conflicting spark name
+                        if (CSparkNameManager::IsInConflict(sparkTxData, sparkTxInfo->sparkNames,
+                                [=](decltype(sparkTxInfo->sparkNames)::const_iterator it)->std::string {
+                                    return it->second.sparkAddress;
+                                }))
+                            return false;
+
+                        sparkTxInfo->sparkNames[CSparkNameManager::ToUpper(sparkTxData.name)] = sparkTxData;
+                    }
+                }
+                else {
+                    return false;
+                }
+
             }
             catch (const std::exception &x) {
                 return state.Error(x.what());
@@ -1422,6 +1467,7 @@ CSparkState::CSparkState(
 }
 
 void CSparkState::Reset() {
+    ShutdownWallet();
     coinGroups.clear();
     latestCoinId = 0;
     mintedCoins.clear();

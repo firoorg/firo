@@ -16,6 +16,7 @@ class CBasicKeyStore;
 class CWallet;
 class uint256;
 class CBlockIndex;
+class CSparkNameBlockIndexData;
 class CDeterministicMNList;
 
 /** General change type (added, updated, removed). */
@@ -120,6 +121,11 @@ public:
 
     /** Additional data sync progress changed */
     boost::signals2::signal<void (double nSyncProgress)> NotifyAdditionalDataSyncProgressChanged;
+
+    /** Spark name has been added */
+    boost::signals2::signal<void (const CSparkNameBlockIndexData&)> NotifySparkNameAdded;
+    /** Spark name has been removed */
+    boost::signals2::signal<void (const CSparkNameBlockIndexData&)> NotifySparkNameRemoved;
 };
 
 /** Show warning message **/

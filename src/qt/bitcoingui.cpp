@@ -36,7 +36,6 @@
 #include "chainparams.h"
 #include "init.h"
 #include "lelantus.h"
-#include "ui_interface.h"
 #include "util.h"
 
 #include "evo/deterministicmns.h"
@@ -119,6 +118,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     encryptWalletAction(0),
     backupWalletAction(0),
     changePassphraseAction(0),
+    exportViewKeyAction(0),
     aboutQtAction(0),
     openRPCConsoleAction(0),
     openAction(0),
@@ -394,7 +394,6 @@ void BitcoinGUI::createActions()
 	connect(historyAction, &QAction::triggered, this, [this]{ showNormalIfMinimized(); });
 	connect(historyAction, &QAction::triggered, this, &BitcoinGUI::gotoHistoryPage);
 
-	connect(lelantusAction, &QAction::triggered, this, &BitcoinGUI::gotoLelantusPage);
 #endif // ENABLE_WALLET
 
     quitAction = new QAction(tr("E&xit"), this);
@@ -421,6 +420,8 @@ void BitcoinGUI::createActions()
 #endif // ENABLE_WALLET
     backupWalletAction = new QAction(tr("&Backup Wallet..."), this);
     backupWalletAction->setStatusTip(tr("Backup wallet to another location"));
+    exportViewKeyAction = new QAction(tr("&Export View Key..."), this);
+    exportViewKeyAction->setStatusTip(tr("Export Spark view key"));
     changePassphraseAction = new QAction(tr("&Change Passphrase..."), this);
     changePassphraseAction->setStatusTip(tr("Change the passphrase used for wallet encryption"));
     signMessageAction = new QAction(tr("Sign &message..."), this);
@@ -460,6 +461,7 @@ void BitcoinGUI::createActions()
     {
         connect(encryptWalletAction, &QAction::triggered, walletFrame, &WalletFrame::encryptWallet);
         connect(backupWalletAction, &QAction::triggered, walletFrame, &WalletFrame::backupWallet);
+        connect(exportViewKeyAction, &QAction::triggered, walletFrame, &WalletFrame::exportViewKey);
         connect(changePassphraseAction, &QAction::triggered, walletFrame, &WalletFrame::changePassphrase);
         connect(signMessageAction, &QAction::triggered, [this]{ gotoSignMessageTab(); });
         connect(verifyMessageAction, &QAction::triggered, [this]{ gotoVerifyMessageTab(); });
@@ -492,6 +494,7 @@ void BitcoinGUI::createMenuBar()
         file->addAction(backupWalletAction);
         file->addAction(signMessageAction);
         file->addAction(verifyMessageAction);
+        file->addAction(exportViewKeyAction);
         file->addSeparator();
         file->addAction(usedSendingAddressesAction);
         file->addAction(usedReceivingAddressesAction);
@@ -594,9 +597,6 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
             // be aware of the tray icon disable state change reported by the OptionsModel object.
             connect(optionsModel, &OptionsModel::hideTrayIconChanged, this, &BitcoinGUI::setTrayIconVisible);
 
-            // update lelantus page if option is changed.
-            connect(optionsModel, &OptionsModel::lelantusPageChanged, this, &BitcoinGUI::updateLelantusPage);
-
             // initialize the disable state of the tray icon with the current value in the model.
             setTrayIconVisible(optionsModel->getHideTrayIcon());
         }
@@ -604,7 +604,6 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
 #ifdef ENABLE_WALLET
             auto blocks = clientModel->getNumBlocks();
             checkZnodeVisibility(blocks);
-            checkLelantusVisibility(blocks);
 #endif // ENABLE_WALLET
         }
     } else {
@@ -666,6 +665,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
+    exportViewKeyAction->setEnabled(enabled);
     signMessageAction->setEnabled(enabled);
     verifyMessageAction->setEnabled(enabled);
     usedSendingAddressesAction->setEnabled(enabled);
@@ -827,12 +827,6 @@ void BitcoinGUI::gotoSendCoinsPage(QString addr)
 void BitcoinGUI::gotoSignMessageTab(QString addr)
 {
     if (walletFrame) walletFrame->gotoSignMessageTab(addr);
-}
-
-void BitcoinGUI::gotoLelantusPage()
-{
-    lelantusAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoLelantusPage();
 }
 
 void BitcoinGUI::gotoVerifyMessageTab(QString addr)
@@ -999,7 +993,6 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     progressBar->setToolTip(tooltip);
 
 #ifdef ENABLE_WALLET
-    checkLelantusVisibility(count);
     checkZnodeVisibility(count);
 #endif // ENABLE_WALLET
 }
@@ -1177,8 +1170,15 @@ void BitcoinGUI::incomingTransaction(const QString& date, int unit, const CAmoun
         msg += tr("Label: %1\n").arg(label);
     else if (!address.isEmpty())
         msg += tr("Address: %1\n").arg(address);
-    message((amount)<0 ? tr("Sent transaction") : tr("Incoming transaction"),
-             msg, CClientUIInterface::MSG_INFORMATION);
+
+    // Declare before lambda to ensure they're in scope
+    QString title = (amount < 0) ? tr("Sent transaction") : tr("Incoming transaction");
+    QString finalMsg = msg;
+
+    QMetaObject::invokeMethod(this, [this, title, finalMsg]() {
+        message(title, finalMsg, CClientUIInterface::MSG_INFORMATION);
+    }, Qt::QueuedConnection);
+
 }
 #endif // ENABLE_WALLET
 
@@ -1345,12 +1345,6 @@ void BitcoinGUI::showModalOverlay()
         modalOverlay->toggleVisibility();
 }
 
-void BitcoinGUI::updateLelantusPage()
-{
-    auto blocks = clientModel->getNumBlocks();
-    checkLelantusVisibility(blocks);
-}
-
 static bool ThreadSafeMessageBox(BitcoinGUI *gui, const std::string& message, const std::string& caption, unsigned int style)
 {
     bool modal = (style & CClientUIInterface::MODAL);
@@ -1391,30 +1385,6 @@ void BitcoinGUI::checkZnodeVisibility(int numBlocks) {
     } else {
         masternodeAction->setVisible(true);
     }
-}
-
-void BitcoinGUI::checkLelantusVisibility(int numBlocks)
-{
-    auto allowLelantusPage = false;
-    if (clientModel && clientModel->getOptionsModel()) {
-        allowLelantusPage = clientModel->getOptionsModel()->getLelantusPage();
-    }
-
-    allowLelantusPage &= lelantus::IsLelantusAllowed(numBlocks);
-
-    if (allowLelantusPage != lelantusAction->isVisible()) {
-        if (!allowLelantusPage && lelantusAction->isChecked()) {
-#ifdef ENABLE_WALLET
-            gotoOverviewPage();
-#endif // ENABLE_WALLET
-        }
-        lelantusAction->setVisible(allowLelantusPage);
-    }
-
-#ifdef ENABLE_WALLET
-    if (numBlocks == ::Params().GetConsensus().nSparkStartBlock)
-        walletFrame->updateAddressbook();
-#endif // ENABLE_WALLET
 }
 
 void BitcoinGUI::toggleNetworkActive()

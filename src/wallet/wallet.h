@@ -10,6 +10,7 @@
 #include "amount.h"
 #include "../sigma/coin.h"
 #include "../liblelantus/coin.h"
+#include "libspark/keys.h"
 #include "streams.h"
 #include "tinyformat.h"
 #include "ui_interface.h"
@@ -1046,6 +1047,7 @@ public:
         int& nChangePosInOut,
         bool subtractFeeFromAmount,
         std::string& strFailReason,
+        bool fSplit,
         const CCoinControl *coinControl,
         bool autoMintAll = false);
 
@@ -1092,6 +1094,7 @@ public:
             const std::vector<spark::MintedCoinData>& outputs,
             std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
             bool subtractFeeFromAmount,
+            bool fSplit,
             bool autoMintAll = false,
             bool fAskFee = false,
             const CCoinControl *coinControl = nullptr);
@@ -1106,6 +1109,12 @@ public:
             const std::vector<spark::OutputCoinData>& spatsRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = nullptr);
+
+    CWalletTx CreateSparkNameTransaction(
+            CSparkNameTxData &sparkNameData,
+            CAmount sparkNameFee,
+            CAmount &txFee,
+            const CCoinControl *coinControl = NULL);
 
     CWalletTx SpendAndStoreSpark(
             const std::vector<CRecipient>& recipients,
@@ -1182,6 +1191,9 @@ public:
      */
     void MarkReserveKeysAsUsed(int64_t keypool_id);
     const std::map<CKeyID, int64_t>& GetAllReserveKeys() const { return m_pool_key_to_index; }
+
+    spark::FullViewKey GetSparkViewKey();
+    std::string GetSparkViewKeyStr();
 
     std::set< std::set<CTxDestination> > GetAddressGroupings();
     std::map<CTxDestination, CAmount> GetAddressBalances();
@@ -1495,6 +1507,7 @@ public:
 
 bool CompSigmaHeight(const CSigmaEntry& a, const CSigmaEntry& b);
 bool CompSigmaID(const CSigmaEntry& a, const CSigmaEntry& b);
+void ShutdownWallet();
 
 // Helper for producing a bunch of max-sized low-S signatures (eg 72 bytes)
 // ContainerType is meant to hold pair<CWalletTx *, int>, and be iterable

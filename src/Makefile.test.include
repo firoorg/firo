@@ -197,6 +197,7 @@ BITCOIN_TESTS = \
   test/evo_simplifiedmns_tests.cpp \
   test/progpow_tests.cpp \
   test/bls_tests.cpp \
+  test/sparkname_tests.cpp \
   libspark/spats/test/bpplus_test.cpp \
   libspark/spats/test/coin_test.cpp \
   libspark/spats/test/type_test.cpp \
@@ -204,7 +205,6 @@ BITCOIN_TESTS = \
   libspark/spats/test/mint_transaction_test.cpp \
   libspark/spats/test/spend_transaction_test.cpp \
   libspark/spats/test/balance_test.cpp
-
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \
@@ -214,7 +214,7 @@ BITCOIN_TESTS += \
   wallet/test/wallet_tests.cpp \
   wallet/test/crypto_tests.cpp \
   wallet/test/lelantus_tests.cpp \
-  wallet/test/spark_tests.cpp \
+  wallet/test/spark_wallet_tests.cpp \
   wallet/test/sigma_tests.cpp \
   wallet/test/mnemonic_tests.cpp \
   wallet/test/txbuilder_tests.cpp

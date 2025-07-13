@@ -57,6 +57,7 @@ public:
     static const QString Zerocoin;   /**< Specifies stealth address */
     static const QString Transparent;
     static const QString Spark;
+    static const QString SparkName;
     static const QString RAP;
 
     /** @name Methods overridden from QAbstractTableModel
@@ -90,6 +91,9 @@ public:
     PcodeAddressTableModel * getPcodeAddressTableModel();
 
     bool IsSparkAllowed();
+    void ProcessPendingSparkNameChanges();
+
+    WalletModel *getWalletModel() const { return walletModel; }
 protected:
     WalletModel *walletModel;
     CWallet *wallet;

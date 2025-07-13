@@ -11,6 +11,7 @@
 #include "../libspark/spend_transaction.h"
 #include "../wallet/walletdb.h"
 #include "../sync.h"
+#include "../sparkname.h"
 #include "../spats/wallet.hpp"
 
 class CRecipient;
@@ -143,6 +144,7 @@ public:
             int& nChangePosInOut,
             bool subtractFeeFromAmount,
             std::string& strFailReason,
+            bool fSplit,
             const CCoinControl *coinControl,
             bool autoMintAll = false);
 
@@ -151,7 +153,8 @@ public:
             const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
             const std::vector<spark::OutputCoinData>& spatsRecipients,
             CAmount &fee,
-            const CCoinControl *coinControl = nullptr);
+            const CCoinControl *coinControl = nullptr,
+            CAmount additionalTxSize = 0);
 
     void AppendSpatsMintTxData(CMutableTransaction& tx,
     const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient, // .second is the initiator's (i.e. admin's) address
@@ -167,7 +170,8 @@ public:
         bool subtractFeeFromAmount,
         std::size_t mintNum,
         std::size_t utxoNum,
-        const CCoinControl *coinControl);
+        const CCoinControl *coinControl,
+        size_t additionalTxSize = 0);
 
     std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoinsNew(
         CAmount required,
@@ -178,7 +182,7 @@ public:
         std::size_t utxoNum,
         std::vector<CSparkMintMeta>& spatsSpendCoins,
         const CCoinControl *coinControl,
-		  std::size_t spats_script_sizes_total = 0);
+        size_t additionalTxSize = 0);
 
     bool GetCoinsToSpend(
         CAmount required,
@@ -187,6 +191,12 @@ public:
         int64_t& changeToMint,
         const CCoinControl *coinControl,
         bool fSpats = false);
+
+    CWalletTx CreateSparkNameTransaction(
+            CSparkNameTxData &nameData,
+            CAmount sparkNamefee,
+            CAmount &txFee,
+            const CCoinControl *coinControl = nullptr);
 
     // Filters coins by identifier, returns all available coins for a specific asset
     std::list<CSparkMintMeta> GetAvailableSparkCoins(const std::pair<Scalar, Scalar>& identifier, const CCoinControl *coinControl = nullptr) const;
@@ -207,6 +217,8 @@ public:
     {
         VisitCoinMetasWhere([&pred] (const CSparkMintMeta& meta) { return !meta.isUsed && pred(meta); }, visitor);
     }
+
+    void FinishTasks();
 
 public:
     // to protect coinMeta

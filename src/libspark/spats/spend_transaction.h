@@ -86,7 +86,7 @@ public:
         READWRITE(inputBase);
         READWRITE(outBase);
         READWRITE(base_proof);
-        if (inputBase > C1.size())
+        if (inputBase < C1.size())
             READWRITE(type_proof);
     }
 
