@@ -1085,10 +1085,7 @@ std::pair<CAmount, CAmount> WalletModel::getSparkBalance()
 
 spats::Wallet::asset_balances_t WalletModel::getSpatsBalances()
 {
-    auto ret = wallet->GetSpatsBalances();
-    if (!spark::IsSparkAllowed())
-        ret[spats::base::universal_id] = getLelantusModel()->getPrivateBalance();
-    return ret;
+    return wallet->GetSpatsBalances();
 }
 
 bool WalletModel::getAvailableLelantusCoins()
