@@ -397,7 +397,7 @@ mkdir -p "$DISTSRC"
     # Make the os-specific installers
     case "$HOST" in
         *mingw*)
-            make -C build package -j$(nproc)
+            make -C build deploy -j$(nproc)
             # Move NSIS installer if created
             if compgen -G "build/*.exe" > /dev/null; then
                 mv build/*.exe "${OUTDIR}/${DISTNAME}-win64-setup-unsigned.exe"
