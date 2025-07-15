@@ -305,7 +305,7 @@ HOST_OBJCXXFLAGS="$HOST_CXXFLAGS"
 # LDFLAGS
 case "$HOST" in
     *linux-gnu*)  HOST_LDFLAGS="-Wl,--as-needed -Wl,--dynamic-linker=$glibc_dynamic_linker -static-libstdc++" ;;
-    *mingw*)      HOST_LDFLAGS="-Wl,--no-insert-timestamp" ;;
+    *mingw*)      HOST_LDFLAGS="-Wl,--no-insert-timestamp -static -static-libgcc -static-libstdc++" ;;
     *darwin*)      
         # Find SDK directly using pattern matching (folder name should have extracted or .sdk in its name)
         SDK_PATH=$(find "${BASEPREFIX}/SDKs" -type d -name "*extracted*" -o -name "*.sdk" | head -1)
@@ -350,6 +350,20 @@ mkdir -p "$DISTSRC"
     # extracted source archive. The guix-build script makes sure submodules are
     # checked out before starting a build.
     CMAKEFLAGS+=" -DMANUAL_SUBMODULES=1"
+
+    # Add static linking flags for Windows builds
+    case "$HOST" in
+        *mingw*)
+            CMAKEFLAGS+=" -DBUILD_SHARED_LIBS=OFF"
+            CMAKEFLAGS+=" -DCMAKE_FIND_LIBRARY_SUFFIXES=.a"
+            CMAKEFLAGS+=" -DCMAKE_EXE_LINKER_FLAGS_INIT=-static"
+            CMAKEFLAGS+=" -DCMAKE_C_FLAGS=-static"
+            CMAKEFLAGS+=" -DCMAKE_CXX_FLAGS=-static"
+            CMAKEFLAGS+=" -DSTATIC_BUILD=ON"
+            # Combine static flags with HOST_LDFLAGS
+            HOST_LDFLAGS="${HOST_LDFLAGS} -static-libgcc -static-libstdc++ -static"
+            ;;
+    esac
 
     # Empty environment variables for x86_64-apple-darwin
     if [[ "$HOST" == "x86_64-apple-darwin"* ]]; then
@@ -515,8 +529,8 @@ mkdir -p "$DISTSRC"
                 rm -rf "${TEMP_DIR}"
                 mkdir -p "${TEMP_DIR}/${DISTNAME}"
                 
-                # Copy non-debug files to staging area
-                find . -not -name "*.dbg" -type f | while read -r file; do
+                # Copy non-debug files to staging area, excluding DLLs
+                find . -not -name "*.dbg" -not -name "*.dll" -type f | while read -r file; do
                     target="${file#./}"  # Remove leading ./
                     mkdir -p "${TEMP_DIR}/${DISTNAME}/$(dirname "$target")"
                     cp "$file" "${TEMP_DIR}/${DISTNAME}/$target"
@@ -524,9 +538,9 @@ mkdir -p "$DISTSRC"
                 
                 # Create main zip from staging area
                 (cd "${TEMP_DIR}" && \
-                find "${DISTNAME}" -not -name "*.dbg" -print0 | \
+                find "${DISTNAME}" -not -name "*.dbg" -not -name "*.dll" -print0 | \
                 xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}" && \
-                find "${DISTNAME}" -not -name "*.dbg" | sort | \
+                find "${DISTNAME}" -not -name "*.dll" -not -name "*.dbg" | sort | \
                 zip -X@ "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}.zip")
                 
                 # Clean and prepare for debug files

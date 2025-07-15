@@ -935,3 +935,21 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Firo client software")
 set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
 set(CPACK_VERBATIM_VARIABLES YES)
 include(CPack)
+
+# Static linking option for Windows
+if(WIN32 AND MINGW AND STATIC_BUILD)
+    option(STATIC_BUILD "Build with static linking" OFF)
+    
+    if(STATIC_BUILD)
+        set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" ".lib")
+        set(BUILD_SHARED_LIBS OFF)
+        
+        # Force static runtime
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static -static-libgcc")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
+        
+        # Ensure we link against static versions of system libraries
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Bstatic")
+    endif()
+endif()
