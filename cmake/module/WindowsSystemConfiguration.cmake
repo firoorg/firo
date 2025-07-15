@@ -18,7 +18,7 @@ if(WIN32)
   find_library(LIBEVENT_EXTRA event_extra REQUIRED)
   find_library(LIBEVENT_CORE event_core REQUIRED)
 
-  if(MINGW)
+  if(MINGW AND NOT STATIC_BUILD)
     message(STATUS "Configuring extra DLL copy steps for MinGW runtime dependencies (${MINGW_ARCH}-bit).")
 
     # Determine architecture-specific settings
@@ -87,6 +87,6 @@ if(WIN32)
 
     # Install the DLLs to the install package bin folder
     install(FILES ${FOUND_DLLS} DESTINATION bin)
-  endif()
+  endif() # MINGW AND NOT STATIC_BUILD
   
 endif()
