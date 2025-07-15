@@ -1324,6 +1324,9 @@ AC_SUBST(BITCOIN_GUI_NAME)
 AC_SUBST(BITCOIN_CLI_NAME)
 AC_SUBST(BITCOIN_TX_NAME)
 
+dnl For Windows installer: autotools puts executables in release/, cmake in bin/
+AC_SUBST(EXECUTABLE_DIR, "release")
+
 AC_SUBST(RELDFLAGS)
 AC_SUBST(DEBUG_CPPFLAGS)
 AC_SUBST(WARN_CXXFLAGS)

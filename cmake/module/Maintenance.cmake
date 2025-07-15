@@ -66,7 +66,7 @@ function(add_maintenance_targets)
 endfunction()
 
 function(add_windows_deploy_target)
-  if(MINGW AND TARGET firo-qt AND TARGET firod AND TARGET firo-cli AND TARGET firo-tx AND TARGET firo-wallet AND TARGET firo-util AND TARGET test_firo)
+  if(MINGW AND TARGET firo-qt AND TARGET firod AND TARGET firo-cli AND TARGET firo-tx)
     # TODO: Consider replacing this code with the CPack NSIS Generator.
     #       See https://cmake.org/cmake/help/latest/cpack_gen/nsis.html
     include(GenerateSetupNsi)
@@ -78,9 +78,6 @@ function(add_windows_deploy_target)
       COMMAND ${CMAKE_STRIP} $<TARGET_FILE:firod> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:firod>
       COMMAND ${CMAKE_STRIP} $<TARGET_FILE:firo-cli> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:firo-cli>
       COMMAND ${CMAKE_STRIP} $<TARGET_FILE:firo-tx> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:firo-tx>
-      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:firo-wallet> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:firo-wallet>
-      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:firo-util> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:firo-util>
-      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:test_firo> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:test_firo>
       COMMAND makensis -V2 ${PROJECT_BINARY_DIR}/firo-win64-setup.nsi
       VERBATIM
     )
