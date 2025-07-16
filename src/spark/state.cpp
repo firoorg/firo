@@ -490,7 +490,7 @@ spats::SpendTransaction ParseSpatsSpend(const CTransaction &tx)
 
 
 Scalar GetSpatsMintM(const CTransaction& tx) {
-    CMutableTransaction txTemp = tx;
+    CMutableTransaction txTemp = tx; // TODO GV #Review: What is the use of this txTemp?
     std::erase_if(txTemp.vout, [] (const CTxOut& out) { return out.scriptPubKey.IsSpatsMintCoin(); });
     spark::Hash hash(LABEL_TRANSCRIPT_SPATS_MINT);
     CDataStream serializedTx(SER_NETWORK, PROTOCOL_VERSION);
