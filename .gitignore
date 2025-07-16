@@ -2,6 +2,7 @@
 .project
 .cproject
 .vscode
+*.sw?
 
 *.tar.gz
 
@@ -35,6 +36,7 @@ build-aux/test-driver
 config.log
 config.status
 configure
+configure~
 libtool
 src/config/bitcoin-config.h
 src/config/bitcoin-config.h.in
@@ -141,3 +143,7 @@ firo.includes
 /diagrams
 .clang-uml
 compile_commands.json
+
+#spats stuff
+src/spats/.idea
+src/spats/cmake-build-debug

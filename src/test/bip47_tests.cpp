@@ -30,6 +30,7 @@ BOOST_FIXTURE_TEST_SUITE(bip47_basic_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(payment_codes)
 {
+    namespace utils = bip47::utils;
     {   using namespace alice;
         CExtKey key;
         key.SetMaster(bip32seed.data(), bip32seed.size());
@@ -50,6 +51,7 @@ BOOST_AUTO_TEST_CASE(payment_codes)
 
 BOOST_AUTO_TEST_CASE(ecdh_parameters)
 {
+    namespace utils = bip47::utils;
     { using namespace alice;
         CExtKey key;
         key.SetMaster(bip32seed.data(), bip32seed.size());
@@ -111,6 +113,7 @@ BOOST_AUTO_TEST_CASE(shared_secrets)
 
 BOOST_AUTO_TEST_CASE(sending_addresses)
 {
+    namespace utils = bip47::utils;
     ChangeBase58Prefixes _(Params());
 
     {using namespace alice;
@@ -152,6 +155,7 @@ BOOST_AUTO_TEST_CASE(sending_addresses)
 
 BOOST_AUTO_TEST_CASE(masked_paymentcode)
 {
+    namespace utils = bip47::utils;
     ChangeBase58Prefixes _(Params());
 
     {using namespace alice;
@@ -186,6 +190,7 @@ BOOST_AUTO_TEST_CASE(masked_paymentcode)
 
 BOOST_AUTO_TEST_CASE(account_for_sending)
 {
+    namespace utils = bip47::utils;
     ChangeBase58Prefixes _(Params());
 
     {using namespace alice;
@@ -225,6 +230,7 @@ BOOST_AUTO_TEST_CASE(account_for_sending)
 
 BOOST_AUTO_TEST_CASE(account_for_receiving)
 {
+    namespace utils = bip47::utils;
     ChangeBase58Prefixes _(Params());
 
     {using namespace bob;

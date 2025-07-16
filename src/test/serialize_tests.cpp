@@ -35,7 +35,7 @@ public:
         READWRITE(txval);
     }
 
-    bool operator==(const CSerializeMethodsTestSingle& rhs)
+    bool operator==(const CSerializeMethodsTestSingle& rhs) const noexcept
     {
         return  intval == rhs.intval && \
                 boolval == rhs.boolval && \

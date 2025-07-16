@@ -3068,7 +3068,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 }
             }
 
-            // Check transaction against signa/lelantus state
+            // Check transaction against sigma/lelantus state
             if (!CheckTransaction(tx, state, false, txHash, false, pindex->nHeight, false, true, block.sigmaTxInfo.get(), block.lelantusTxInfo.get(), block.sparkTxInfo.get()))
                 return state.DoS(100, error("stateful zerocoin check failed"),
                                  REJECT_INVALID, "bad-txns-zerocoin");
