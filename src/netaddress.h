@@ -32,6 +32,8 @@ class CNetAddr
     protected:
         unsigned char ip[16]; // in network byte order
         uint32_t scopeId; // for scoped/link-local ipv6 addresses
+        bool isTorV3 = false;
+        std::string onionV3Addr;
 
     public:
         CNetAddr();
