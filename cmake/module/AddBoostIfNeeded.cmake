@@ -56,6 +56,28 @@ function(add_boost_if_needed)
   # Define the macro if the test passed
   if(HAVE_WORKING_BOOST_SLEEP_FOR)
       add_compile_definitions(HAVE_WORKING_BOOST_SLEEP_FOR=1)
+  else()
+      # testing for boost::this_thread::sleep(boost::posix_time::milliseconds(n));
+      set(SLEEPTEST_SOURCE_CODE "
+      #include <boost/thread/thread.hpp>
+      #include <boost/version.hpp>
+
+      int main() {
+      #if BOOST_VERSION >= 105000 && (!defined(BOOST_HAS_NANOSLEEP) || BOOST_VERSION >= 105200)
+          boost::this_thread::sleep(boost::chrono::milliseconds(0));
+          return 0;
+      #else
+          choke me
+      #endif
+      }
+      ")
+      # Check if the test source code compiles
+      check_cxx_source_compiles("${SLEEPTEST_SOURCE_CODE}" HAVE_WORKING_BOOST_SLEEP)
+      if(HAVE_WORKING_BOOST_SLEEP)
+          add_compile_definitions(HAVE_WORKING_BOOST_SLEEP=1)
+      else()
+          message(FATAL_ERROR "Couldn't find a working boost sleep_for or sleep function. Please check your Boost.")
+      endif()
   endif()
 
   mark_as_advanced(Boost_INCLUDE_DIR)

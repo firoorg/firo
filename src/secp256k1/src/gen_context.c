@@ -39,8 +39,8 @@ int main(int argc, char **argv) {
         return -1;
     }
     
-    fprintf(fp, "#ifndef _SECP256K1_ECMULT_STATIC_CONTEXT_\n");
-    fprintf(fp, "#define _SECP256K1_ECMULT_STATIC_CONTEXT_\n");
+    fprintf(fp, "#ifndef SECP256K1_ECMULT_STATIC_CONTEXT_\n");
+    fprintf(fp, "#define SECP256K1_ECMULT_STATIC_CONTEXT_\n");
     fprintf(fp, "#include \"group.h\"\n");
     fprintf(fp, "#define SC SECP256K1_GE_STORAGE_CONST\n");
     fprintf(fp, "static const secp256k1_ge_storage secp256k1_ecmult_static_context[64][16] = {\n");
