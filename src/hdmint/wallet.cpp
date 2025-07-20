@@ -7,10 +7,8 @@
 #include "txdb.h"
 #include "init.h"
 #include "hdmint/hdmint.h"
-#include "sigma/openssl_context.h"
 #include "wallet/walletdb.h"
 #include "wallet/wallet.h"
-#include "sigma.h"
 #include "lelantus.h"
 #include "crypto/hmac_sha256.h"
 #include "crypto/hmac_sha512.h"
@@ -107,7 +105,7 @@ std::pair<uint256,uint256> CHDMintWallet::RegenerateMintPoolEntry(CWalletDB& wal
         throw std::runtime_error("Unable to create seed for mint regeneration.");
 
     GroupElement commitmentValue;
-    sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
+    lelantus::PrivateCoin coin(lelantus::Params::get_default(), 0);
     if(!SeedToMint(mintSeed, commitmentValue, coin)) //for lelantus put just part of commit, for checking we will need to reduce h1^v from lelantus mint
         throw std::runtime_error("Unable to create sigmamint from seed in mint regeneration.");
 
@@ -166,7 +164,7 @@ void CHDMintWallet::GenerateMintPool(CWalletDB& walletdb, bool forceGenerate, in
             continue;
 
         GroupElement commitmentValue;
-        sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
+        lelantus::PrivateCoin coin(lelantus::Params::get_default(), 0);
         if(!SeedToMint(mintSeed, commitmentValue, coin)) //for lelantus put just part of commit, for checking we will need to reduce h1^v from lelantus mint
             continue;
 
@@ -391,76 +389,6 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                     UpdateCountDB(walletdb);
                     LogPrint("zero", "%s: updated count to %d\n", __func__, nCountNextUse);
                 }
-            } if (sigma::GetOutPoint(outPoint, pMint.first)) {
-                const uint256& txHash = outPoint.hash;
-                //this mint has already occurred on the chain, increment counter's state to reflect this
-                LogPrintf("%s : Found wallet coin mint=%s count=%d tx=%s\n", __func__, pMint.first.GetHex(), mintCount, txHash.GetHex());
-                found = true;
-
-                uint256 hashBlock;
-                CTransactionRef tx;
-                if (!GetTransaction(txHash, tx, Params().GetConsensus(), hashBlock, true)) {
-                    LogPrintf("%s : failed to get transaction for mint %s!\n", __func__, pMint.first.GetHex());
-                    found = false;
-                    continue;
-                }
-
-                //Find the denomination
-                boost::optional<sigma::CoinDenomination> denomination = boost::none;
-                bool fFoundMint = false;
-                GroupElement bnValue;
-                for (const CTxOut& out : tx->vout) {
-                    if (!out.scriptPubKey.IsSigmaMint())
-                        continue;
-
-                    sigma::PublicCoin pubcoin;
-                    CValidationState state;
-                    if (!TxOutToPublicCoin(out, pubcoin, state)) {
-                        LogPrintf("%s : failed to get mint from txout for %s!\n", __func__, pMint.first.GetHex());
-                        continue;
-                    }
-
-                    // See if this is the mint that we are looking for
-                    uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin.getValue());
-                    if (pMint.first == hashPubcoin) {
-                        denomination = pubcoin.getDenomination();
-                        bnValue = pubcoin.getValue();
-                        fFoundMint = true;
-                        break;
-                    }
-                }
-
-                if (!fFoundMint || denomination == boost::none) {
-                    LogPrintf("%s : failed to get mint %s from tx %s!\n", __func__, pMint.first.GetHex(), tx->GetHash().GetHex());
-                    found = false;
-                    break;
-                }
-
-                CBlockIndex* pindex = nullptr;
-                if (mapBlockIndex.count(hashBlock))
-                    pindex = mapBlockIndex.at(hashBlock);
-
-                if (!setAddedTx.count(txHash)) {
-                    CBlock block;
-                    CWalletTx wtx(pwalletMain, tx);
-                    if (pindex && ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
-                        SetWalletTransactionBlock(wtx, pindex, block);
-
-                    //Fill out wtx so that a transaction record can be created
-                    wtx.nTimeReceived = pindex->GetBlockTime();
-                    pwalletMain->AddToWallet(wtx, false);
-                    setAddedTx.insert(txHash);
-                }
-
-                if(!SetMintSeedSeen(walletdb, pMint, pindex->nHeight, txHash, denomination.get()))
-                    continue;
-
-                // Only update if the current hashSeedMaster matches the mints'
-                if(hashSeedMaster == mintHashSeedMaster && mintCount >= GetCount()){
-                    SetCount(++mintCount);
-                    UpdateCountDB(walletdb);
-                    LogPrint("zero", "%s: updated count to %d\n", __func__, nCountNextUse);
-                }
             }
             if (found)
                 mintsFound++;
@@ -486,83 +414,6 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
  * @param txid mint txid height
  * @param denom mint denomination
  */
-bool CHDMintWallet::SetMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, int nHeight, const uint256& txid, const sigma::CoinDenomination& denom)
-{
-    // Regenerate the mint
-    uint256 hashPubcoin = mintPoolEntryPair.first;
-    CKeyID seedId = std::get<1>(mintPoolEntryPair.second);
-    int32_t mintCount = std::get<2>(mintPoolEntryPair.second);
-
-    GroupElement bnValue;
-    uint256 hashSerial;
-    // Can regenerate if unlocked (cheaper)
-    if(!pwalletMain->IsLocked()){
-        LogPrintf("%s: Wallet not locked, creating mind seed..\n", __func__);
-        uint512 mintSeed;
-        CreateMintSeed(walletdb, mintSeed, mintCount, seedId);
-        sigma::PrivateCoin coin(sigma::Params::get_default(), denom, false);
-        if(!SeedToMint(mintSeed, bnValue, coin))
-            return false;
-        hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
-    }else{
-        LogPrintf("%s: Wallet locked, retrieving mind seed..\n", __func__);
-        // Get serial and pubcoin data from the db
-        std::vector<std::pair<uint256, GroupElement>> serialPubcoinPairs = walletdb.ListSerialPubcoinPairs();
-        bool fFound = false;
-        for(auto serialPubcoinPair : serialPubcoinPairs){
-            GroupElement pubcoin = serialPubcoinPair.second;
-            if(hashPubcoin == primitives::GetPubCoinValueHash(pubcoin)){
-                LogPrintf("%s: Found pubcoin and serial hash\n", __func__);
-                bnValue = pubcoin;
-                hashSerial = serialPubcoinPair.first;
-                fFound = true;
-                break;
-            }
-        }
-        // Not found in DB
-        if(!fFound){
-            LogPrintf("%s: Pubcoin not found in DB. \n", __func__);
-            return false;
-        }
-    }
-
-    LogPrintf("%s: Creating mint object.. \n", __func__);
-
-    int id;
-    std::tie(std::ignore, id) = sigma::CSigmaState::GetState()->GetMintedCoinHeightAndId(sigma::PublicCoin(bnValue, denom));
-
-    // Create mint object
-    CHDMint dMint(mintCount, seedId, hashSerial, bnValue);
-    int64_t amount;
-    DenominationToInteger(denom, amount);
-    dMint.SetAmount(amount);
-    dMint.SetHeight(nHeight);
-    dMint.SetId(id);
-
-    // Check if this is also already spent
-    int nHeightTx;
-    uint256 txidSpend;
-    CTransactionRef txSpend;
-    if (IsSerialInBlockchain(hashSerial, nHeightTx, txidSpend, txSpend)) {
-        //Find transaction details and make a wallettx and add to wallet
-        LogPrintf("%s: Mint object is spent. Setting used..\n", __func__);
-        dMint.SetUsed(true);
-        CWalletTx wtx(pwalletMain, txSpend);
-        CBlockIndex* pindex = chainActive[nHeightTx];
-        CBlock block;
-        if (ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
-            SetWalletTransactionBlock(wtx, pindex, block);
-
-        wtx.nTimeReceived = pindex->nTime;
-        pwalletMain->AddToWallet(wtx, false);
-    }
-
-    LogPrintf("%s: Adding mint to tracker.. \n", __func__);
-    // Add to tracker which also adds to database
-    tracker.Add(walletdb, dMint, true);
-
-    return true;
-}
 
 bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint256,MintPoolEntry> mintPoolEntryPair, int nHeight, const uint256& txid, uint64_t amount)
 {
@@ -670,17 +521,7 @@ bool CHDMintWallet::SetLelantusMintSeedSeen(CWalletDB& walletdb, std::pair<uint2
     return true;
 }
 
-/**
- * Convert a 512-bit mint seed into a mint.
- *
- * See https://github.com/firoorg/firo/pull/392 for specification on mint generation.
- *
- * @param mintSeed uint512 object of seed for mint
- * @param commit reference to public coin. Is set in this function
- * @param coin reference to private coin. Is set in this function
- * @return success
- */
-bool CHDMintWallet::SeedToMint(const uint512& mintSeed, GroupElement& commit, sigma::PrivateCoin& coin)
+bool CHDMintWallet::SeedToMint(const uint512& mintSeed, GroupElement& commit, lelantus::PrivateCoin& coin)
 {
     //convert state seed into a seed for the private key
     uint256 nSeedPrivKey = mintSeed.trim256();
@@ -703,8 +544,7 @@ bool CHDMintWallet::SeedToMint(const uint512& mintSeed, GroupElement& commit, si
     coin.setRandomness(randomness);
 
     // Generate a Pedersen commitment to the serial number
-    commit = sigma::SigmaPrimitives<Scalar, GroupElement>::commit(
-             coin.getParams()->get_g(), coin.getSerialNumber(), coin.getParams()->get_h0(), coin.getRandomness());
+    commit =  coin.getParams()->get_g() * coin.getSerialNumber() + coin.getParams()->get_h0() * coin.getRandomness();
 
     return true;
 }
@@ -892,31 +732,6 @@ void CHDMintWallet::UpdateCountDB(CWalletDB& walletdb)
 /**
  * Gets a CHDMint object from a mintpool entry.
  *
- * @param denom denomination of mint
- * @param coin reference to private coin object
- * @param dMint reference to CHDMint object
- * @param mintPoolEntry mintpool data
- * @return success
- */
-bool CHDMintWallet::GetHDMintFromMintPoolEntry(CWalletDB& walletdb, const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, MintPoolEntry& mintPoolEntry){
-    uint512 mintSeed;
-    CreateMintSeed(walletdb, mintSeed, std::get<2>(mintPoolEntry), std::get<1>(mintPoolEntry));
-
-    GroupElement commitmentValue;
-    if(!SeedToMint(mintSeed, commitmentValue, coin)){
-        return false;
-    }
-
-    coin.setPublicCoin(sigma::PublicCoin(commitmentValue, denom));
-
-    uint256 hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
-    dMint = CHDMint(std::get<2>(mintPoolEntry), std::get<1>(mintPoolEntry), hashSerial, coin.getPublicCoin().getValue());
-    return true;
-}
-
-/**
- * Gets a CHDMint object from a mintpool entry.
- *
  * @param coin reference to private coin object,should keep the value of coin
  * @param dMint reference to CHDMint object
  * @param mintPoolEntry mintpool data
@@ -932,60 +747,6 @@ bool CHDMintWallet::GetLelantusHDMintFromMintPoolEntry(CWalletDB& walletdb, lela
 
     uint256 hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
     dMint = CHDMint(std::get<2>(mintPoolEntry), std::get<1>(mintPoolEntry), hashSerial, coin.getPublicCoin().getValue());
-    return true;
-}
-
-/**
- * Generate a CHDMint object, taking care of surrounding conditions.
- *
- * If the chain is not synced, do not proceed, unless fAllowUnsynced is set.
- * If passed the mintpool entry, we directly call GetHDMintFromMintPoolEntry and return.
- * If not, we assume that this is a new mint being created.
- * Following creation, verify the mint does not already exist, in-memory or on-chain. This is to prevent sync issues with the
- * mint counter between copies of the same wallet. If it does, increment the count and repeat creation. Continue until an available
- * mint is found.
- *
- * @param denom denomination of mint
- * @param coin reference to private coin object
- * @param dMint reference to CHDMint object
- * @param mintPoolEntry mintpool data
- * @param fAllowUnsynced allow mint creation if chain is not synced (for tests)
- * @return success
- */
-bool CHDMintWallet::GenerateMint(CWalletDB& walletdb, const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry, bool fAllowUnsynced)
-{
-    if (!masternodeSync.IsBlockchainSynced() && !fAllowUnsynced && !(Params().NetworkIDString() == CBaseChainParams::REGTEST))
-        throw std::runtime_error("Unable to generate mint: Blockchain not yet synced.");
-
-    if(mintPoolEntry!=boost::none)
-        return GetHDMintFromMintPoolEntry(walletdb, denom, coin, dMint, mintPoolEntry.get());
-
-    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    while(true){
-        if(hashSeedMaster.IsNull())
-            throw std::runtime_error("Unable to generate mint: HashSeedMaster not set");
-        CKeyID seedId = GetMintSeedID(walletdb, nCountNextUse);
-        mintPoolEntry = MintPoolEntry(hashSeedMaster, seedId, nCountNextUse);
-        // Empty mintPoolEntry implies this is a new mint being created, so update nCountNextUse
-        UpdateCountLocal();
-
-        if(!GetHDMintFromMintPoolEntry(walletdb, denom, coin, dMint, mintPoolEntry.get()))
-            return false;
-
-        // New HDMint exists, try new count
-        if(walletdb.HasHDMint(dMint.GetPubcoinValue()) ||
-           sigmaState->HasCoin(coin.getPublicCoin())) {
-            LogPrintf("%s: Coin detected used, trying next. count: %d\n", __func__, std::get<2>(mintPoolEntry.get()));
-        }else{
-            LogPrintf("%s: Found unused coin, count: %d\n", __func__, std::get<2>(mintPoolEntry.get()));
-            break;
-        }
-    }
-
-    int64_t amount;
-    DenominationToInteger(denom, amount);
-    dMint.SetAmount(amount);
-
     return true;
 }
 
@@ -1041,53 +802,6 @@ bool CHDMintWallet::GenerateLelantusMint(CWalletDB& walletdb, lelantus::PrivateC
 }
 
 
-/**
- * Regenerate a CSigmaEntry (ie. mint object with private data)
- *
- * Internally calls GenerateMint with known MintPoolEntry and constructs the CSigmaEntry
- *
- * @param dMint HDMint object
- * @param sigma reference to full mint object
- * @return success
- */
-bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CSigmaEntry& sigma, bool forEstimation)
-{
-    sigma::CoinDenomination denom;
-    IntegerToDenomination(dMint.GetAmount(), denom);
-
-    //Generate the coin
-    sigma::PrivateCoin coin(sigma::Params::get_default(), denom, false);
-    CHDMint dMintDummy;
-    CKeyID seedId = dMint.GetSeedId();
-    int32_t nCount = dMint.GetCount();
-    MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
-    if(!forEstimation)
-        GenerateMint(walletdb, denom, coin, dMintDummy, mintPoolEntry, true);
-
-    //Fill in the sigmamint object's details
-    GroupElement bnValue = coin.getPublicCoin().getValue();
-    if (primitives::GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash() && !forEstimation)
-        return error("%s: failed to correctly generate mint, pubcoin hash mismatch", __func__);
-    if(forEstimation)
-        sigma.value = dMint.GetPubcoinValue();
-    else
-        sigma.value = bnValue;
-
-    Scalar bnSerial = coin.getSerialNumber();
-    if (primitives::GetSerialHash(bnSerial) != dMint.GetSerialHash() && !forEstimation)
-        return error("%s: failed to correctly generate mint, serial hash mismatch", __func__);
-
-    sigma.set_denomination(denom);
-    sigma.randomness = coin.getRandomness();
-    sigma.serialNumber = bnSerial;
-    sigma.IsUsed = dMint.IsUsed();
-    sigma.nHeight = dMint.GetHeight();
-    sigma.id = dMint.GetId();
-    sigma.ecdsaSecretKey = std::vector<unsigned char>(&coin.getEcdsaSeckey()[0],&coin.getEcdsaSeckey()[32]);
-
-    return true;
-}
-
 bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CLelantusEntry& lelantusEntry, bool forEstimation)
 {
     //Generate the coin
@@ -1133,21 +847,6 @@ bool CHDMintWallet::RegenerateMint(CWalletDB& walletdb, const CHDMint& dMint, CL
  * @param tx full transaction object
  * @return success
  */
-bool CHDMintWallet::IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransactionRef & tx)
-{
-    txidSpend.SetNull();
-    CMintMeta mMeta;
-    Scalar bnSerial;
-    if (!sigma::CSigmaState::GetState()->IsUsedCoinSerialHash(bnSerial, hashSerial))
-        return false;
-
-    if(!tracker.GetMetaFromSerial(hashSerial, mMeta))
-        return false;
-
-    txidSpend = mMeta.txid;
-
-    return IsTransactionInChain(txidSpend, nHeightTx, tx);
-}
 
 bool CHDMintWallet::IsLelantusSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransactionRef & tx)
 {
@@ -1164,37 +863,4 @@ bool CHDMintWallet::IsLelantusSerialInBlockchain(const uint256& hashSerial, int&
     txidSpend = mMeta.txid;
 
     return IsTransactionInChain(txidSpend, nHeightTx, tx);
-}
-
-/**
- * Constructs a PublicCoin object from a mint-containing transaction output
- *
- * @param txout mint-containing transaction output
- * @param pubCoin mint public coin
- * @param state validation state object
- * @return success
- */
-bool CHDMintWallet::TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pubCoin, CValidationState& state)
-{
-    // If you wonder why +1, go to file wallet.cpp and read the comments in function
-    // CWallet::CreateSigmaMintModel around "scriptSerializedCoin << OP_SIGMAMINT";
-    std::vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
-                                          txout.scriptPubKey.end());
-    secp_primitives::GroupElement publicSigma;
-    try {
-        publicSigma.deserialize(&coin_serialised[0]);
-    } catch (const std::exception &) {
-        return state.DoS(100, error("TxOutToPublicCoin : deserialize failed"));
-    }
-
-    sigma::CoinDenomination denomination;
-    if(!IntegerToDenomination(txout.nValue, denomination))
-        return state.DoS(100, error("TxOutToPublicCoin : txout.nValue is not correct"));
-
-    LogPrint("zero", "%s ZCPRINT denomination %d pubcoin %s\n", __func__, denomination, publicSigma.GetHex());
-
-    sigma::PublicCoin checkPubCoin(publicSigma, denomination);
-    pubCoin = checkPubCoin;
-
-    return true;
 }

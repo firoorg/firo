@@ -1153,9 +1153,12 @@ void BitcoinGUI::incomingTransaction(const QString& date, int unit, const CAmoun
     QString title = (amount < 0) ? tr("Sent transaction") : tr("Incoming transaction");
     QString finalMsg = msg;
 
-    QMetaObject::invokeMethod(this, [this, title, finalMsg]() {
-        message(title, finalMsg, CClientUIInterface::MSG_INFORMATION);
-    }, Qt::QueuedConnection);
+    // skip tx notifications in case it is not fully sync
+    if (progressBar->isVisible()) {
+        QMetaObject::invokeMethod(this, [this, title, finalMsg]() {
+            message(title, finalMsg, CClientUIInterface::MSG_INFORMATION);
+        }, Qt::QueuedConnection);
+    }
 
 }
 #endif // ENABLE_WALLET

@@ -10,7 +10,6 @@
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif // ENABLE_WALLET
-#include "sigma.h"
 #include "crypto/sha256.h"
 #include "liblelantus/coin.h"
 #include "liblelantus/schnorr_prover.h"
@@ -29,6 +28,8 @@
 #include <boost/scope_exit.hpp>
 
 #include <ios>
+
+int64_t nMinimumInputValue = DUST_HARD_LIMIT;
 
 namespace lelantus {
 
@@ -363,9 +364,8 @@ bool CheckLelantusJoinSplitTransaction(
         int realHeight,
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
-        sigma::CSigmaTxInfo* sigmaTxInfo,
         CLelantusTxInfo* lelantusTxInfo) {
-    std::unordered_set<Scalar, sigma::CScalarHash> txSerials;
+    std::unordered_set<Scalar, lelantus::CScalarHash> txSerials;
 
     Consensus::Params const & params = ::Params().GetConsensus();
 
@@ -444,6 +444,10 @@ bool CheckLelantusJoinSplitTransaction(
         return true;
     }
 
+    if (joinsplit->isSigmaToLelantus()) {
+        return true;
+    }
+
     bool passVerify = false;
     std::map<uint32_t, std::vector<PublicCoin>> anonymity_sets;
     std::vector<PublicCoin> Cout;
@@ -469,45 +473,7 @@ bool CheckLelantusJoinSplitTransaction(
 
     for (auto& idAndHash : joinsplit->getIdAndBlockHashes()) {
         auto& anonymity_set = anonymity_sets[idAndHash.first];
-        int coinGroupId = idAndHash.first % (CENT / 1000);
-        int64_t intDenom = (idAndHash.first - coinGroupId);
-        intDenom *= 1000;
-
-        sigma::CoinDenomination denomination;
-        if (joinsplit->isSigmaToLelantus() && sigma::IntegerToDenomination(intDenom, denomination)) {
-
-            sigma::CSigmaState::SigmaCoinGroupInfo coinGroup;
-            sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-            if (!sigmaState->GetCoinGroupInfo(denomination, coinGroupId, coinGroup))
-                return state.DoS(100, false, NO_MINT_ZEROCOIN,
-                                 "CheckSigmaSpendTransaction: Error: no coins were minted with such parameters");
-
-            CBlockIndex *index = coinGroup.lastBlock;
-
-            // find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
-            while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
-                index = index->pprev;
-
-            std::pair<sigma::CoinDenomination, int> denominationAndId = std::make_pair(denomination, coinGroupId);
-
-            auto lelantusParams = lelantus::Params::get_default();
-            while (true) {
-                if (index->sigmaMintedPubCoins.count(denominationAndId) > 0) {
-                    BOOST_FOREACH(
-                    const sigma::PublicCoin &pubCoinValue,
-                    index->sigmaMintedPubCoins[denominationAndId]) {
-                        if (::Params().GetConsensus().sigmaBlacklist.count(pubCoinValue.getValue()) > 0) {
-                            continue;
-                        }
-                        lelantus::PublicCoin publicCoin(pubCoinValue.getValue() + lelantusParams->get_h1() * intDenom);
-                        anonymity_set.push_back(publicCoin);
-                    }
-                }
-                if (index == coinGroup.firstBlock)
-                    break;
-                index = index->pprev;
-            }
-        } else {
+        {
             CLelantusState::LelantusCoinGroupInfo coinGroup;
             if (!lelantusState.GetCoinGroupInfo(idAndHash.first, coinGroup))
                 return state.DoS(100, false, NO_MINT_ZEROCOIN,
@@ -581,7 +547,6 @@ bool CheckLelantusJoinSplitTransaction(
         for(auto itr : anonymity_sets)
             idAndSizes[itr.first] = itr.second.size();
 
-        batchProofContainer->add(joinsplit.get(), idAndSizes, challenge, nHeight >= params.nLelantusFixesStartBlock);
         batchProofContainer->add(joinsplit.get(), Cout);
     }
 
@@ -595,30 +560,12 @@ bool CheckLelantusJoinSplitTransaction(
         }
 
         // do not check for duplicates in case we've seen exact copy of this tx in this block before
-        if (!(sigmaTxInfo && sigmaTxInfo->zcTransactions.count(hashTx) > 0) && !(lelantusTxInfo && lelantusTxInfo->zcTransactions.count(hashTx) > 0)) {
+        if (!(lelantusTxInfo && lelantusTxInfo->zcTransactions.count(hashTx) > 0)) {
             for (size_t i = 0; i < serials.size(); ++i) {
-                int coinGroupId = ids[i] % (CENT / 1000);
-                int64_t intDenom = (ids[i] - coinGroupId);
-                intDenom *= 1000;
-                sigma::CoinDenomination denomination;
-
-                if (realHeight < params.nLelantusV3PayloadStartBlock || (joinsplit->isSigmaToLelantus() && sigma::IntegerToDenomination(intDenom, denomination))) {
-                    if (!sigma::CheckSigmaSpendSerial(
-                            state, sigmaTxInfo, serials[i], nHeight, false)) {
-                        LogPrintf("CheckSigmaSpendTransaction: serial check failed, serial=%s\n", serials[i]);
-                        return false;
-                    } else if (!CheckLelantusSpendSerial(
-                            state, lelantusTxInfo, serials[i], nHeight, false)) {
-                        LogPrintf("CheckLelantusJoinSplitTransaction: serial check failed, serial=%s\n", serials[i]);
-                        return false;
-
-                    }
-                } else {
-                    if (!CheckLelantusSpendSerial(
-                            state, lelantusTxInfo, serials[i], nHeight, false)) {
-                        LogPrintf("CheckLelantusJoinSplitTransaction: serial check failed, serial=%s\n", serials[i]);
-                        return false;
-                    }
+                if (!CheckLelantusSpendSerial(
+                        state, lelantusTxInfo, serials[i], nHeight, false)) {
+                    LogPrintf("CheckLelantusJoinSplitTransaction: serial check failed, serial=%s\n", serials[i]);
+                    return false;
                 }
             }
         }
@@ -633,25 +580,9 @@ bool CheckLelantusJoinSplitTransaction(
 
         if (!isVerifyDB && !isCheckWallet) {
             // add spend information to the index
-            if (joinsplit->isSigmaToLelantus()) {
-                if (sigmaTxInfo && !sigmaTxInfo->fInfoIsComplete) {
-                    for (size_t i = 0; i < serials.size(); i++) {
-                        int coinGroupId = ids[i] % (CENT / 1000);
-                        int64_t intDenom = (ids[i] - coinGroupId);
-                        intDenom *= 1000;
-                        sigma::CoinDenomination denomination;
-                        if(!sigma::IntegerToDenomination(intDenom, denomination) && lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete)
-                            lelantusTxInfo->spentSerials.insert(std::make_pair(serials[i], ids[i]));
-                        else
-                            sigmaTxInfo->spentSerials.insert(std::make_pair(
-                                    serials[i], sigma::CSpendCoinInfo::make(denomination, coinGroupId)));
-                    }
-                }
-            } else {
-                if (lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete) {
-                    for (size_t i = 0; i < serials.size(); i++) {
-                        lelantusTxInfo->spentSerials.insert(std::make_pair(serials[i], ids[i]));
-                    }
+            if (lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete) {
+                for (size_t i = 0; i < serials.size(); i++) {
+                    lelantusTxInfo->spentSerials.insert(std::make_pair(serials[i], ids[i]));
                 }
             }
         }
@@ -744,7 +675,6 @@ bool CheckLelantusTransaction(
         int nHeight,
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
-        sigma::CSigmaTxInfo* sigmaTxInfo,
         CLelantusTxInfo* lelantusTxInfo)
 {
     Consensus::Params const & consensus = ::Params().GetConsensus();
@@ -816,7 +746,7 @@ bool CheckLelantusTransaction(
             try {
                 if (!CheckLelantusJoinSplitTransaction(
                     tx, state, hashTx, isVerifyDB, nHeight, realHeight,
-                    isCheckWallet, fStatefulSigmaCheck, sigmaTxInfo, lelantusTxInfo)) {
+                    isCheckWallet, fStatefulSigmaCheck, lelantusTxInfo)) {
                         return false;
                 }
             }
@@ -1765,7 +1695,7 @@ std::unordered_map<int, CLelantusState::LelantusCoinGroupInfo> const & CLelantus
     return coinGroups;
 }
 
-std::unordered_map<Scalar, uint256, sigma::CScalarHash> const & CLelantusState::GetMempoolCoinSerials() const {
+std::unordered_map<Scalar, uint256, lelantus::CScalarHash> const & CLelantusState::GetMempoolCoinSerials() const {
     LOCK(mempool.cs);
     return mempool.lelantusState.GetMempoolCoinSerials();
 }

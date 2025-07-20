@@ -69,7 +69,6 @@ bool CheckLelantusTransaction(
 	int nHeight,
 	bool isCheckWallet,
 	bool fStatefulSigmaCheck,
-    sigma::CSigmaTxInfo* sigmaTxInfo,
 	CLelantusTxInfo* lelantusTxInfo);
 
 void DisconnectTipLelantus(CBlock &block, CBlockIndex *pindexDelete);
@@ -108,7 +107,7 @@ size_t CountCoinInBlock(CBlockIndex const *index, int id);
 class CLelantusMempoolState {
 private:
     // serials of spends currently in the mempool mapped to tx hashes
-    std::unordered_map<Scalar, uint256, sigma::CScalarHash> mempoolCoinSerials;
+    std::unordered_map<Scalar, uint256, lelantus::CScalarHash> mempoolCoinSerials;
     // mints in the mempool
     std::unordered_set<GroupElement> mempoolMints;
 
@@ -130,7 +129,7 @@ public:
     // Remove spend from the mempool (usually as the result of adding tx to the block)
     void RemoveSpendFromMempool(const Scalar& coinSerial);
 
-    std::unordered_map<Scalar, uint256, sigma::CScalarHash> const & GetMempoolCoinSerials() const { return mempoolCoinSerials; }
+    std::unordered_map<Scalar, uint256, lelantus::CScalarHash> const & GetMempoolCoinSerials() const { return mempoolCoinSerials; }
 
     void Reset();
 };
@@ -242,7 +241,7 @@ public:
     mint_info_container const & GetMints() const;
     std::unordered_map<Scalar, int> const & GetSpends() const;
     std::unordered_map<int, LelantusCoinGroupInfo> const & GetCoinGroups() const ;
-    std::unordered_map<Scalar, uint256, sigma::CScalarHash> const & GetMempoolCoinSerials() const;
+    std::unordered_map<Scalar, uint256, lelantus::CScalarHash> const & GetMempoolCoinSerials() const;
 
     std::size_t GetTotalCoins() const { return GetMints().size(); }
 

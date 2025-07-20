@@ -4,8 +4,7 @@
 #include "params.h"
 #include "../firo_params.h"
 #include "../uint256.h"
-#include "../sigma/openssl_context.h"
-#include "../uint256.h"
+#include "openssl_context.h"
 
 
 namespace lelantus {

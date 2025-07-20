@@ -11,7 +11,7 @@
 #include "../libspark/spend_transaction.h"
 #include "../wallet/walletdb.h"
 #include "../sync.h"
-#include "../sparkname.h"
+#include "../chain.h"
 
 class CRecipient;
 class CReserveKey;

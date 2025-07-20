@@ -14,7 +14,7 @@
 #include "bitcoin_bignum/bignum.h"
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
-#include "sigma/coin.h"
+#include "liblelantus/coin.h"
 #include "libspark/coin.h"
 #include "evo/spork.h"
 #include "firo_params.h"
@@ -242,8 +242,6 @@ public:
 /////////////////////// Sigma index entries. ////////////////////////////////////////////
 
     //! Public coin values of mints in this block, ordered by serialized value of public coin
-    //! Maps <denomination,id> to vector of public coins
-    std::map<std::pair<sigma::CoinDenomination, int>, std::vector<sigma::PublicCoin>> sigmaMintedPubCoins;
     //! Map id to <public coin, tag>
     std::map<int, std::vector<std::pair<lelantus::PublicCoin, uint256>>>  lelantusMintedPubCoins;
 
@@ -259,7 +257,6 @@ public:
     std::unordered_map<GroupElement, std::pair<uint256, std::vector<unsigned char>>> sparkTxHashContext;
 
     //! Values of coin serials spent in this block
-    sigma::spend_info_container sigmaSpentSerials;
     std::unordered_map<Scalar, int> lelantusSpentSerials;
     std::unordered_map<GroupElement, int> spentLTags;
     // linking tag hash mapped to tx hash
@@ -304,7 +301,6 @@ public:
         nVersionMTP = 0;
         mtpHashValue = reserved[0] = reserved[1] = uint256();
 
-        sigmaMintedPubCoins.clear();
         lelantusMintedPubCoins.clear();
         lelantusMintData.clear();
         anonymitySetHash.clear();
@@ -313,7 +309,6 @@ public:
         spentLTags.clear();
         ltagTxhash.clear();
         sparkTxHashContext.clear();
-        sigmaSpentSerials.clear();
         lelantusSpentSerials.clear();
         activeDisablingSporks.clear();
         addedSparkNames.clear();
@@ -538,8 +533,7 @@ public:
 	    }
 
         if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nSigmaStartBlock) {
-            READWRITE(sigmaMintedPubCoins);
-            READWRITE(sigmaSpentSerials);
+//TODO levon
         }
 
         if (!(s.GetType() & SER_GETHASH)

@@ -24,8 +24,6 @@
 #include "wallet/walletexcept.h"
 #include "txmempool.h"
 #include "consensus/validation.h"
-#include "sigma.h"
-#include "sigma/coin.h"
 #include "lelantus.h"
 #include "bip47/account.h"
 #include "bip47/bip47utils.h"
@@ -137,76 +135,76 @@ void WalletModel::updateStatus()
 
 void WalletModel::pollBalanceChanged()
 {
-    // Get required locks upfront. This avoids the GUI from getting stuck on
-    // periodical polls if the core is holding the locks for a longer time -
-    // for example, during a wallet rescan.
-    LOCK2(cs_main, wallet->cs_wallet);
-
-    if(fForceCheckBalanceChanged || chainActive.Height() != cachedNumBlocks)
-    {
-        fForceCheckBalanceChanged = false;
-
-        // Balance and number of transactions might have changed
-        cachedNumBlocks = chainActive.Height();
-
-        QMetaObject::invokeMethod(this, "checkBalanceChanged", Qt::QueuedConnection);
-        if(transactionTableModel)
-            QMetaObject::invokeMethod(transactionTableModel, "updateConfirmations", Qt::QueuedConnection);
-    }
+//    // Get required locks upfront. This avoids the GUI from getting stuck on
+//    // periodical polls if the core is holding the locks for a longer time -
+//    // for example, during a wallet rescan.
+//    LOCK2(cs_main, wallet->cs_wallet);
+//
+//    if(fForceCheckBalanceChanged || chainActive.Height() != cachedNumBlocks)
+//    {
+//        fForceCheckBalanceChanged = false;
+//
+//        // Balance and number of transactions might have changed
+//        cachedNumBlocks = chainActive.Height();
+//
+//        QMetaObject::invokeMethod(this, "checkBalanceChanged", Qt::QueuedConnection);
+//        if(transactionTableModel)
+//            QMetaObject::invokeMethod(transactionTableModel, "updateConfirmations", Qt::QueuedConnection);
+//    }
 }
 
 void WalletModel::checkBalanceChanged()
 {
-    CAmount newBalance = getBalance();
-    CAmount newUnconfirmedBalance = getUnconfirmedBalance();
-    CAmount newImmatureBalance = getImmatureBalance();
-    CAmount newWatchOnlyBalance = 0;
-    CAmount newWatchUnconfBalance = 0;
-    CAmount newWatchImmatureBalance = 0;
-    CAmount newAnonymizableBalance = getAnonymizableBalance();
-
-
-    CAmount newPrivateBalance, newUnconfirmedPrivateBalance;
-    std::tie(newPrivateBalance, newUnconfirmedPrivateBalance) =
-            getSparkBalance();
-
-    if (haveWatchOnly())
-    {
-        newWatchOnlyBalance = getWatchBalance();
-        newWatchUnconfBalance = getWatchUnconfirmedBalance();
-        newWatchImmatureBalance = getWatchImmatureBalance();
-    }
-
-    if(cachedBalance != newBalance
-        || cachedUnconfirmedBalance != newUnconfirmedBalance
-        || cachedImmatureBalance != newImmatureBalance
-        || cachedWatchOnlyBalance != newWatchOnlyBalance
-        || cachedWatchUnconfBalance != newWatchUnconfBalance
-        || cachedWatchImmatureBalance != newWatchImmatureBalance
-        || cachedPrivateBalance != newPrivateBalance
-        || cachedUnconfirmedPrivateBalance != newUnconfirmedPrivateBalance
-        || cachedAnonymizableBalance != newAnonymizableBalance)
-    {
-        cachedBalance = newBalance;
-        cachedUnconfirmedBalance = newUnconfirmedBalance;
-        cachedImmatureBalance = newImmatureBalance;
-        cachedWatchOnlyBalance = newWatchOnlyBalance;
-        cachedWatchUnconfBalance = newWatchUnconfBalance;
-        cachedWatchImmatureBalance = newWatchImmatureBalance;
-        cachedPrivateBalance = newPrivateBalance;
-        cachedUnconfirmedPrivateBalance = newUnconfirmedPrivateBalance;
-        cachedAnonymizableBalance = newAnonymizableBalance;
-        Q_EMIT balanceChanged(
-            newBalance,
-            newUnconfirmedBalance,
-            newImmatureBalance,
-            newWatchOnlyBalance,
-            newWatchUnconfBalance,
-            newWatchImmatureBalance,
-            newPrivateBalance,
-            newUnconfirmedPrivateBalance,
-            newAnonymizableBalance);
-    }
+//    CAmount newBalance = getBalance();
+//    CAmount newUnconfirmedBalance = getUnconfirmedBalance();
+//    CAmount newImmatureBalance = getImmatureBalance();
+//    CAmount newWatchOnlyBalance = 0;
+//    CAmount newWatchUnconfBalance = 0;
+//    CAmount newWatchImmatureBalance = 0;
+//    CAmount newAnonymizableBalance = getAnonymizableBalance();
+//
+//
+//    CAmount newPrivateBalance, newUnconfirmedPrivateBalance;
+//    std::tie(newPrivateBalance, newUnconfirmedPrivateBalance) =
+//            getSparkBalance();
+//
+//    if (haveWatchOnly())
+//    {
+//        newWatchOnlyBalance = getWatchBalance();
+//        newWatchUnconfBalance = getWatchUnconfirmedBalance();
+//        newWatchImmatureBalance = getWatchImmatureBalance();
+//    }
+//
+//    if(cachedBalance != newBalance
+//        || cachedUnconfirmedBalance != newUnconfirmedBalance
+//        || cachedImmatureBalance != newImmatureBalance
+//        || cachedWatchOnlyBalance != newWatchOnlyBalance
+//        || cachedWatchUnconfBalance != newWatchUnconfBalance
+//        || cachedWatchImmatureBalance != newWatchImmatureBalance
+//        || cachedPrivateBalance != newPrivateBalance
+//        || cachedUnconfirmedPrivateBalance != newUnconfirmedPrivateBalance
+//        || cachedAnonymizableBalance != newAnonymizableBalance)
+//    {
+//        cachedBalance = newBalance;
+//        cachedUnconfirmedBalance = newUnconfirmedBalance;
+//        cachedImmatureBalance = newImmatureBalance;
+//        cachedWatchOnlyBalance = newWatchOnlyBalance;
+//        cachedWatchUnconfBalance = newWatchUnconfBalance;
+//        cachedWatchImmatureBalance = newWatchImmatureBalance;
+//        cachedPrivateBalance = newPrivateBalance;
+//        cachedUnconfirmedPrivateBalance = newUnconfirmedPrivateBalance;
+//        cachedAnonymizableBalance = newAnonymizableBalance;
+//        Q_EMIT balanceChanged(
+//            newBalance,
+//            newUnconfirmedBalance,
+//            newImmatureBalance,
+//            newWatchOnlyBalance,
+//            newWatchUnconfBalance,
+//            newWatchImmatureBalance,
+//            newPrivateBalance,
+//            newUnconfirmedPrivateBalance,
+//            newAnonymizableBalance);
+//    }
 }
 
 void WalletModel::updateTransaction()

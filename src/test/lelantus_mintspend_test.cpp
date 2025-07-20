@@ -73,13 +73,12 @@ BOOST_AUTO_TEST_CASE(lelantus_mintspend_test)
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "JoinSplit is not removed from mempool");
     GenerateBlocks(6);
     std::vector<CLelantusEntry> spendCoins; //spends
-    std::vector<CSigmaEntry> sigmaSpendCoins;
     CWalletTx result;
     {
         std::vector<CHDMint> mintCoins; // new mints
         CAmount fee;
-        result = pwalletMain->CreateLelantusJoinSplitTransaction(recipients, fee, {}, spendCoins, sigmaSpendCoins, mintCoins);
-        pwalletMain->CommitLelantusTransaction(result, spendCoins, sigmaSpendCoins, mintCoins);
+        result = pwalletMain->CreateLelantusJoinSplitTransaction(recipients, fee, {}, spendCoins, mintCoins);
+        pwalletMain->CommitLelantusTransaction(result, spendCoins, mintCoins);
     }
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Joinsplit was not added to mempool");
 
@@ -106,8 +105,8 @@ BOOST_AUTO_TEST_CASE(lelantus_mintspend_test)
     {
         std::vector<CHDMint> mintCoins; // new mints
         CAmount fee;
-        result = pwalletMain->CreateLelantusJoinSplitTransaction(recipients, fee, {}, spendCoins, sigmaSpendCoins, mintCoins);
-        pwalletMain->CommitLelantusTransaction(result, spendCoins, sigmaSpendCoins, mintCoins);
+        result = pwalletMain->CreateLelantusJoinSplitTransaction(recipients, fee, {}, spendCoins, mintCoins);
+        pwalletMain->CommitLelantusTransaction(result, spendCoins, mintCoins);
     }
 
     //Verify spend got into mempool

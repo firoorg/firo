@@ -139,15 +139,14 @@ public:
         }
 
         std::vector<CLelantusEntry>  spendCoins;
-        std::vector<CSigmaEntry> sigmaSpendCoins;
         std::vector<CHDMint> mintCoins;
 
         CAmount fee;
         auto result = pwalletMain->CreateLelantusJoinSplitTransaction(
-            vecs, fee, mints, spendCoins, sigmaSpendCoins, mintCoins, coinControl);
+            vecs, fee, mints, spendCoins, mintCoins, coinControl);
 
         if (!pwalletMain->CommitLelantusTransaction(
-            result, spendCoins, sigmaSpendCoins, mintCoins)) {
+            result, spendCoins, mintCoins)) {
             throw std::runtime_error("Fail to commit transaction");
         }
 
@@ -566,7 +565,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     CValidationState state;
     CLelantusTxInfo info;
     BOOST_CHECK(CheckLelantusTransaction(
-        txs[0], state, tx.GetHash(), false, chainActive.Height(), true, true, NULL, &info));
+        txs[0], state, tx.GetHash(), false, chainActive.Height(), true, true, &info));
 
     std::vector<std::pair<PublicCoin, std::pair<uint64_t, uint256>>> expectedCoins = {{mints[0].GetPubcoinValue(), {1 * CENT, info.mints[0].second.second}}};
 
@@ -597,7 +596,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     info = CLelantusTxInfo();
 
     BOOST_CHECK(CheckLelantusTransaction(
-        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, NULL, &info));
+        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, &info));
 
     auto &serials = joinsplit->getCoinSerialNumbers();
     auto &ids = joinsplit->getCoinGroupIds();
@@ -612,7 +611,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
     info = CLelantusTxInfo();
     BOOST_CHECK(CheckLelantusTransaction(
-        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, NULL, &info));
+        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, &info));
 
     // test surge dection.
     while (!lelantusState->IsSurgeConditionDetected()) {
@@ -623,7 +622,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     }
 
     BOOST_CHECK(!CheckLelantusTransaction(
-        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, NULL, &info));
+        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, &info));
 }
 
 BOOST_AUTO_TEST_CASE(move_to_v3_payload)
