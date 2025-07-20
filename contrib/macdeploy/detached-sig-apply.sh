@@ -7,21 +7,21 @@ export LC_ALL=C
 set -e
 
 UNSIGNED="$1"
-SIGNATURE="$2"
+SIGNED="$2"
 ROOTDIR=dist
 OUTDIR=signed-app
 SIGNAPPLE=signapple
 
 if [ -z "$UNSIGNED" ]; then
-  echo "usage: $0 <unsigned app> <signature>"
+  echo "usage: $0 <unsigned app> <signed app>"
   exit 1
 fi
 
-if [ -z "$SIGNATURE" ]; then
-  echo "usage: $0 <unsigned app> <signature>"
+if [ -z "$SIGNED" ]; then
+  echo "usage: $0 <unsigned app> <signed app>"
   exit 1
 fi
 
-${SIGNAPPLE} apply ${UNSIGNED} ${SIGNATURE}
+${SIGNAPPLE} apply ${UNSIGNED} ${SIGNED}
 mv ${ROOTDIR} ${OUTDIR}
 echo "Signed: ${OUTDIR}"

@@ -9,9 +9,7 @@ set -e
 ROOTDIR=dist
 BUNDLE="${ROOTDIR}/Firo-Qt.app"
 SIGNAPPLE=signapple
-TEMPDIR=sign.temp
-OUT=signature-osx.tar.gz
-OUTROOT=osx/dist
+TEMPDIR=signed-${ROOTDIR}
 
 if [ -z "$1" ]; then
   echo "usage: $0 <signapple args>"
@@ -22,8 +20,6 @@ fi
 rm -rf ${TEMPDIR}
 mkdir -p ${TEMPDIR}
 
-${SIGNAPPLE} sign -f --detach "${TEMPDIR}/${OUTROOT}"  "$@" "${BUNDLE}"
+${SIGNAPPLE} sign -f --detach "${TEMPDIR}"  "$@" "${BUNDLE}"
 
-tar -C "${TEMPDIR}" -czf "${OUT}" .
-rm -rf "${TEMPDIR}"
-echo "Created ${OUT}"
+echo "Created ${TEMPDIR}"
