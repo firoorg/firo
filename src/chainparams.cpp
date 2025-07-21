@@ -218,6 +218,9 @@ public:
         consensus.stage4MasternodeShare = 70;
         consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
 
+        consensus.stage41DevelopmentFundAddress = "a7GJ9bYfbZqvXmEmxzxZyZYtUTQmzckpjG";
+        consensus.stage41StartBlockDevFundAddressChange = INT_MAX;
+
         consensus.nStartBlacklist = 293990;
         consensus.nStartDuplicationCheck = 293526;
 
