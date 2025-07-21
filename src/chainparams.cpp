@@ -432,7 +432,7 @@ public:
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
         consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
-        consensus.nSparkLimitV2StartBlock = INT_MAX;
+        consensus.nSparkLimitV2StartBlock = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK;
         consensus.nSparkLimitV2Factor = 3;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 50000;
@@ -752,7 +752,7 @@ public:
         consensus.nMaxValueLelantusMint = 1001 * COIN;
         consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
-        consensus.nSparkLimitV2StartBlock = INT_MAX;
+        consensus.nSparkLimitV2StartBlock = SPARK_NAME_TRANSFER_TESTNET_START_BLOCK;
         consensus.nSparkLimitV2Factor = 3;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
@@ -1013,7 +1013,7 @@ public:
         consensus.nMaxValueLelantusMint = 1001 * COIN;
         consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
-        consensus.nSparkLimitV2StartBlock = INT_MAX;
+        consensus.nSparkLimitV2StartBlock = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK;
         consensus.nSparkLimitV2Factor = 3;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
