@@ -134,8 +134,7 @@ script: |
     make deploydir
     mkdir -p unsigned-app-${i}
     cp osx_volname unsigned-app-${i}/
-    cp contrib/macdeploy/detached-sig-apply.sh unsigned-app-${i}
-    cp contrib/macdeploy/detached-sig-create.sh unsigned-app-${i}
+    cp contrib/macdeploy/detached-sig.sh unsigned-app-${i}
     cp ${BASEPREFIX}/${i}/native/bin/dmg unsigned-app-${i}
     mv dist unsigned-app-${i}
     pushd unsigned-app-${i}
