@@ -60,7 +60,7 @@ enum txnouttype
     TX_SPARKMINT,
     TX_SPARKSMINT,
     TX_EXCHANGEADDRESS,
-    TX_SPATSMINT
+    TX_SPATSMINT,
 };
 
 class CNoDestination {

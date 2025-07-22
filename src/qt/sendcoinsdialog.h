@@ -8,9 +8,7 @@
 #include "walletmodel.h"
 
 #include <QDialog>
-#include <QMessageBox>
 #include <QString>
-#include <QTimer>
 
 class ClientModel;
 class OptionsModel;
@@ -57,7 +55,7 @@ public Q_SLOTS:
     void updateTabsAndLabels();
     void setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
                     const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance,
-                    const CAmount& privateBalance, const CAmount& unconfirmedPrivateBalance, const CAmount& anonymizableBalance);
+                    const spats::Wallet::asset_balances_t& spats_balances, const CAmount& anonymizableBalance);
 
 private:
     Ui::SendCoinsDialog *ui;
@@ -107,27 +105,6 @@ private Q_SLOTS:
 Q_SIGNALS:
     // Fired when a message should be reported to the user
     void message(const QString &title, const QString &message, unsigned int style);
-};
-
-
-
-class SendConfirmationDialog : public QMessageBox
-{
-    Q_OBJECT
-
-public:
-    SendConfirmationDialog(const QString &title, const QString &text, int secDelay = 0, QWidget *parent = 0);
-    int exec();
-
-private Q_SLOTS:
-    void countDown();
-    void updateYesButton();
-
-private:
-    QAbstractButton *yesButton;
-    QTimer countDownTimer;
-    int secDelay;
-    
 };
 
 #endif // BITCOIN_QT_SENDCOINSDIALOG_H

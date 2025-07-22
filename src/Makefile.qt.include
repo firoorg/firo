@@ -106,6 +106,9 @@ QT_FORMS_UI = \
   qt/forms/helpmessagedialog.ui \
   qt/forms/masternodelist.ui \
   qt/forms/myownspats.ui \
+  qt/forms/sparkassetdialog.ui \
+  qt/forms/spatsburndialog.ui \
+  qt/forms/spatsmintdialog.ui \
   qt/forms/intro.ui \
   qt/forms/modaloverlay.ui \
   qt/forms/recover.ui \
@@ -148,6 +151,9 @@ QT_MOC_CPP = \
   qt/moc_macnotificationhandler.cpp \
   qt/moc_masternodelist.cpp \
   qt/moc_myownspats.cpp \
+  qt/moc_sparkassetdialog.cpp \
+  qt/moc_spatsburndialog.cpp \
+  qt/moc_spatsmintdialog.cpp \
   qt/moc_modaloverlay.cpp \
   qt/moc_notificator.cpp \
   qt/moc_openuridialog.cpp \
@@ -156,6 +162,7 @@ QT_MOC_CPP = \
   qt/moc_overviewpage.cpp \
   qt/moc_peertablemodel.cpp \
   qt/moc_paymentserver.cpp \
+  qt/moc_quint64spinbox.cpp \
   qt/moc_qvalidatedlineedit.cpp \
   qt/moc_qvaluecombobox.cpp \
   qt/moc_receivecoinsdialog.cpp \
@@ -164,6 +171,7 @@ QT_MOC_CPP = \
   qt/moc_rpcconsole.cpp \
   qt/moc_sendcoinsdialog.cpp \
   qt/moc_sendcoinsentry.cpp \
+  qt/moc_sendconfirmationdialog.cpp \
   qt/moc_signverifymessagedialog.cpp \
   qt/moc_splashscreen.cpp \
   qt/moc_trafficgraphwidget.cpp \
@@ -225,6 +233,9 @@ BITCOIN_QT_H = \
   qt/macnotificationhandler.h \
   qt/masternodelist.h \
   qt/myownspats.h \
+  qt/sparkassetdialog.h \
+  qt/spatsburndialog.h \
+  qt/spatsmintdialog.h \
   qt/modaloverlay.h \
   qt/networkstyle.h \
   qt/notificator.h \
@@ -235,6 +246,7 @@ BITCOIN_QT_H = \
   qt/paymentserver.h \
   qt/peertablemodel.h \
   qt/platformstyle.h \
+  qt/quint64spinbox.h \
   qt/qvalidatedlineedit.h \
   qt/qvaluecombobox.h \
   qt/receivecoinsdialog.h \
@@ -243,7 +255,9 @@ BITCOIN_QT_H = \
   qt/rpcconsole.h \
   qt/sendcoinsdialog.h \
   qt/sendcoinsentry.h \
+  qt/sendconfirmationdialog.h \
   qt/signverifymessagedialog.h \
+  qt/spatsuserconfirmationdialog.h \
   qt/splashscreen.h \
   qt/trafficgraphwidget.h \
   qt/transactiondesc.h \
@@ -405,6 +419,7 @@ BITCOIN_QT_BASE_CPP = \
   qt/optionsmodel.cpp \
   qt/peertablemodel.cpp \
   qt/platformstyle.cpp \
+  qt/quint64spinbox.cpp \
   qt/qvalidatedlineedit.cpp \
   qt/qvaluecombobox.cpp \
   qt/rpcconsole.cpp \
@@ -433,6 +448,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/recentrequeststablemodel.cpp \
   qt/sendcoinsdialog.cpp \
   qt/sendcoinsentry.cpp \
+  qt/sendconfirmationdialog.cpp \
   qt/signverifymessagedialog.cpp \
   qt/transactiondesc.cpp \
   qt/transactiondescdialog.cpp \
@@ -445,6 +461,10 @@ BITCOIN_QT_WALLET_CPP = \
   qt/walletmodeltransaction.cpp \
   qt/masternodelist.cpp \
   qt/myownspats.cpp \
+  qt/sparkassetdialog.cpp \
+  qt/spatsburndialog.cpp \
+  qt/spatsmintdialog.cpp \
+  qt/spatsuserconfirmationdialog.cpp \
   qt/walletview.cpp \
   qt/automintmodel.cpp \
   qt/sparkmodel.cpp \

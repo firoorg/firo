@@ -26,6 +26,7 @@
 #include <QDebug>
 #include <QIcon>
 #include <QList>
+#include <QMessageBox>
 
 #include <boost/foreach.hpp>
 
@@ -274,7 +275,7 @@ TransactionTableModel::TransactionTableModel(const PlatformStyle *_platformStyle
     priv->refreshWallet();
 
     connect(walletModel->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &TransactionTableModel::updateDisplayUnit);
-    
+
     subscribeToCoreSignals();
 }
 
@@ -298,19 +299,25 @@ void TransactionTableModel::refreshWallet() const
 
 void TransactionTableModel::updateTransaction(const QString &hash, int status, bool showTransaction)
 {
-    uint256 updated;
-    updated.SetHex(hash.toStdString());
-    priv->cachedUpdatedTx.push_back(std::make_pair(updated, std::make_pair(status, showTransaction)));
-    size_t currentSize = priv->cachedUpdatedTx.size();
-    while (!priv->cachedUpdatedTx.empty())
-    {
-        std::pair<uint256, std::pair<int, bool>> current = priv->cachedUpdatedTx.back();
-        priv->cachedUpdatedTx.pop_back();
-        priv->updateWallet(current.first, current.second.first, current.second.second);
-        // this thread was not able to perform the update, stop and do it next time
-        if (currentSize == priv->cachedUpdatedTx.size())
-            break;
-        currentSize = priv->cachedUpdatedTx.size();
+    try {
+        uint256 updated;
+        updated.SetHex(hash.toStdString());
+        priv->cachedUpdatedTx.push_back(std::make_pair(updated, std::make_pair(status, showTransaction)));
+        size_t currentSize = priv->cachedUpdatedTx.size();
+        while (!priv->cachedUpdatedTx.empty())
+        {
+            std::pair<uint256, std::pair<int, bool>> current = priv->cachedUpdatedTx.back();
+            priv->cachedUpdatedTx.pop_back();
+            priv->updateWallet(current.first, current.second.first, current.second.second);
+            // this thread was not able to perform the update, stop and do it next time
+            if (currentSize == priv->cachedUpdatedTx.size())
+                break;
+            currentSize = priv->cachedUpdatedTx.size();
+        }
+    }
+    catch (const std::exception &e) {
+        qCritical() << "TransactionTableModel::updateTransaction: " << e.what();
+        QMessageBox::critical(nullptr, tr("Error"), tr("Failed to update transaction:\n%1").arg(e.what()));
     }
 }
 

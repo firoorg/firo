@@ -200,15 +200,7 @@ BOOST_AUTO_TEST_CASE(mempool)
     // Generate coin
     Scalar k;
     k.randomize();
-    spark::Coin randMint = spark::Coin(
-            params,
-            spark::COIN_TYPE_MINT,
-            k,
-            address,
-            100,
-            "memo",
-            random_char_vector()
-            );
+    spark::Coin randMint(params, spark::COIN_TYPE_MINT, k, address, 100, "memo", random_char_vector(), {}, {});
 
     BOOST_CHECK(sparkState->CanAddMintToMempool(randMint));
     sparkState->AddMintsToMempool({randMint});
