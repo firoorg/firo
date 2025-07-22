@@ -107,6 +107,18 @@ const std::string &Wallet::my_public_address_as_admin() const
 
 // TODO for Levon to find out why no more than 1 spats action are picked to be placed on a block
 
+spark::MintedCoinData Wallet::create_minted_coin_data( const MintParameters &action_params )
+{
+   assert( action_params.new_supply() > supply_amount_t{} );
+   spark::MintedCoinData coin;
+   coin.address = CSparkWallet::decodeAddress( action_params.receiver_public_address() );
+   coin.v = boost::numeric_cast< CAmount >( action_params.new_supply().raw() );
+   coin.memo = "minting new supply";
+   coin.a = utils::to_underlying( action_params.asset_type() );
+   assert( coin.iota.isZero() );
+   return coin;
+}
+
 static spark::MintedCoinData create_minted_coin_data( const CreateAssetAction &action, const public_address_t &destination_public_address )
 {
    const auto &a = action.get();
@@ -171,8 +183,8 @@ std::optional< CWalletTx > Wallet::create_new_spark_asset_transaction(
    if ( initial_supply ) {
       CMutableTransaction mtx( *tx.tx );
       spark_wallet_.AppendSpatsMintTxData( mtx,
-                                           { create_minted_coin_data( action, destination_public_address ), spark_wallet_.getDefaultAddress() },
-                                           spark_wallet_.ensureSpendKey() );
+                                           { spats::create_minted_coin_data( action, destination_public_address ), spark_wallet_.getDefaultAddress() },
+                                           spark_wallet_.ensureSpendKey(), my_public_address_as_admin(), initial_supply.precision() );
       tx.tx = MakeTransactionRef( std::move( mtx ) );
       assert( tx.tx->IsSpatsCreate() );
    }
@@ -273,18 +285,7 @@ std::optional< CWalletTx > Wallet::create_modify_spark_asset_transaction(
    return tx;
 }
 
-static spark::MintedCoinData create_minted_coin_data( const MintParameters &action_params )
-{
-   assert( action_params.new_supply() > supply_amount_t{} );
-   spark::MintedCoinData coin;
-   coin.address = CSparkWallet::decodeAddress( action_params.receiver_public_address() );
-   coin.v = boost::numeric_cast< CAmount >( action_params.new_supply().raw() );
-   coin.memo = "minting new supply";
-   coin.a = utils::to_underlying( action_params.asset_type() );
-   assert( coin.iota.isZero() );
-   return coin;
-}
-
+#if 0 // TODO remove
 std::optional< CWalletTx > Wallet::create_mint_asset_supply_transaction(
   asset_type_t asset_type,
   supply_amount_t new_supply,
@@ -320,7 +321,8 @@ std::optional< CWalletTx > Wallet::create_mint_asset_supply_transaction(
    assert( tx.tx->IsSpatsMint() );
 
    CMutableTransaction mtx( *tx.tx );
-   spark_wallet_.AppendSpatsMintTxData( mtx, { create_minted_coin_data( action_params ), spark_wallet_.getDefaultAddress() }, spark_wallet_.ensureSpendKey() );
+   spark_wallet_.AppendSpatsMintTxData( mtx, { create_minted_coin_data( action_params ), spark_wallet_.getDefaultAddress() }, spark_wallet_.ensureSpendKey(),
+                                        admin_public_address, new_supply.precision() );
    tx.tx = MakeTransactionRef( std::move( mtx ) );
    assert( tx.tx->IsSpatsMint() );
 
@@ -332,6 +334,7 @@ std::optional< CWalletTx > Wallet::create_mint_asset_supply_transaction(
 
    return tx;
 }
+#endif
 
 std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_type_t const asset_type,
                                                                          const asset_symbol_t &asset_symbol,

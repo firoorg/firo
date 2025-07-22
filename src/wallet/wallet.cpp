@@ -5715,13 +5715,14 @@ CWalletTx CWallet::MintAndStoreSpats(
 
     std::list<CReserveKey> reservekeys;
     CAmount fee;
-    CWalletTx wtx = sparkWallet->CreateSpatsMintTransaction(spatsRecipient, fee, coinControl);
+    auto wtx = sparkWallet->CreateSpatsMintTransaction(spatsRecipient, fee, coinControl);
+    assert(wtx && "CreateSpatsMintTransaction() should never return nullopt except possibly when user confirmation callback is passed. Any errors should have given an exception!");
 
     // commit
     try {
         CValidationState state;
         CReserveKey reserveKey(this);
-        CommitTransaction(wtx, reserveKey, g_connman.get(), state);
+        CommitTransaction(*wtx, reserveKey, g_connman.get(), state);
     } catch (const std::exception &) {
         auto error = _(
                 "Error: The transaction was rejected! This might happen if some of "
@@ -5732,7 +5733,7 @@ CWalletTx CWallet::MintAndStoreSpats(
 
         std::throw_with_nested(std::runtime_error(error));
     }
-    return wtx;
+    return *wtx;
 }
 
 std::vector<CSigmaEntry> CWallet::SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result)
@@ -6039,7 +6040,9 @@ std::optional<CWalletTx> CWallet::MintSparkAssetSupply(spats::asset_type_t asset
 {
     // create transaction
     CAmount standard_fee;
-    auto wtx = sparkWallet->getSpatsWallet().create_mint_asset_supply_transaction(asset_type, new_supply, receiver_pubaddress, standard_fee, coin_control, user_confirmation_callback);
+    const spats::MintParameters action_params(asset_type, new_supply, receiver_pubaddress, sparkWallet->getSpatsWallet().my_public_address_as_admin());
+    auto wtx = sparkWallet->CreateSpatsMintTransaction({spats::Wallet::create_minted_coin_data(action_params), sparkWallet->getDefaultAddress()},
+                                                       standard_fee, coin_control, user_confirmation_callback);
     if (!wtx)
         return wtx;
 

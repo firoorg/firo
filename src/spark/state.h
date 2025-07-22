@@ -291,6 +291,8 @@ private:
     friend class spark_mintspend::spark_mintspend_test;
 };
 
+std::pair<spats::MintAction, spark::Coin> ExtractSpatsMintAction(const CTransaction &tx);
+
 } // namespace spark
 
 #endif //_MAIN_SPARK_STATE_H_

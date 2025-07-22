@@ -310,6 +310,8 @@ public:
    const public_address_t &initiator_public_address() const noexcept { return initiator_public_address_; }
    const public_address_t &receiver_public_address() const noexcept { return receiver_public_address_.empty() ? initiator_public_address_ : receiver_public_address_; }
 
+   bool operator==( const MintParameters & ) const = default;
+
 private:
    asset_type_t asset_type_;
    supply_amount_t new_supply_;
@@ -370,6 +372,8 @@ public:
 
    const std::optional< spark::Coin > &coin() const noexcept { return coin_; }
    void set_coin( spark::Coin &&coin ) noexcept { coin_ = std::move( coin ); }
+
+   bool operator==( const MintAction & ) const = default;
 
 private:
    MintParameters parameters_;

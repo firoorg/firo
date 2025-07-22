@@ -63,6 +63,8 @@ public:
    static Scalar compute_mint_asset_supply_serialization_scalar( const MintParameters &p, std::span< const unsigned char > mint_serialization_bytes );
    static Scalar compute_burn_asset_supply_serialization_scalar( const BurnParameters &p, std::span< const unsigned char > burn_serialization_bytes );
 
+   static spark::MintedCoinData create_minted_coin_data( const MintParameters &action_params );
+
    const std::string &my_public_address_as_admin() const;
 
    std::optional< CWalletTx > create_new_spark_asset_transaction(
@@ -81,6 +83,7 @@ public:
      const SparkAsset &new_asset,
      CAmount &standard_fee,
      const std::function< bool( const ModifyAssetAction &action, CAmount standard_fee, std::int64_t txsize ) > &user_confirmation_callback = {} ) const;
+#if 0 // TODO remove
    std::optional< CWalletTx > create_mint_asset_supply_transaction(
      asset_type_t asset_type,
      supply_amount_t new_supply,
@@ -88,6 +91,7 @@ public:
      CAmount &standard_fee,
      const CCoinControl *coin_control = nullptr,
      const std::function< bool( const MintAction &action, CAmount standard_fee, std::int64_t txsize ) > &user_confirmation_callback = {} ) const;
+#endif
    std::optional< CWalletTx > create_burn_asset_supply_transaction( asset_type_t asset_type,
                                                                     const asset_symbol_t &asset_symbol,
                                                                     supply_amount_t burn_amount,
