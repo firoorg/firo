@@ -4078,11 +4078,11 @@ UniValue spendspark(const JSONRPCRequest& request)
 
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Firo address: ") + name_);
     }
-
+    std::pair<CAmount, std::pair<Scalar, Scalar>>  emptyBurn; //TODO levon include this as an input
     CAmount fee;
     CWalletTx wtx;
     try {
-        wtx = pwallet->SpendAndStoreSpark(recipients, privateRecipients, spatsRecipients, fee);
+        wtx = pwallet->SpendAndStoreSpark(recipients, privateRecipients, spatsRecipients, fee, emptyBurn);
     } catch (const std::exception &) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
     }

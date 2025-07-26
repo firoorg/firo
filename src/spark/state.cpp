@@ -775,6 +775,7 @@ bool CheckSparkSpendTransaction(
     bool passVerify = false;
 
     uint64_t Vout = 0;
+    uint64_t burn = 0;
     std::size_t private_num = 0;
     for (const CTxOut &txout : tx.vout) {
         const auto& script = txout.scriptPubKey;
@@ -787,6 +788,8 @@ bool CheckSparkSpendTransaction(
             return false;
         } else if (script.IsSpatsMint()) {
             continue;
+        } else if (script.IsSpatsBurn()) {
+            burn += txout.nValue;
         } else {
             Vout += txout.nValue;
         }
@@ -862,6 +865,7 @@ bool CheckSparkSpendTransaction(
     }
     spend->setCoverSets(cover_set_data);
     spend->setVout(Vout);
+    spend->setBurn(burn);
 
     const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
     for (const auto& id : ids) {

@@ -133,6 +133,7 @@ public:
             const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
             const std::vector<spark::OutputCoinData>& spatsRecipients,
             CAmount &fee,
+            std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
             const CCoinControl *coinControl = NULL,
         	CAmount additionalTxSize = 0);
 

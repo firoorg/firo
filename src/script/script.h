@@ -209,6 +209,7 @@ enum opcodetype
     OP_SPARKSPEND = 0xd3,
     OP_SPATSMINT = 0xd7,
     OP_SPATSSPEND = 0xd8,
+    OP_SPATSBURN = 0xd9,
 
     // basically NOP but identifies that sunsequent txout script contains super transparent address
     OP_EXCHANGEADDR = 0xe0
@@ -697,6 +698,8 @@ public:
     bool IsMint() const;
 
     bool IsSpatsMint() const;
+
+    bool IsSpatsBurn() const;
 
     bool IsSparkMintType() const;
 
