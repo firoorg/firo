@@ -219,7 +219,7 @@ public:
         consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
 
         consensus.stage41DevelopmentFundAddress = "a7GJ9bYfbZqvXmEmxzxZyZYtUTQmzckpjG";
-        consensus.stage41StartBlockDevFundAddressChange = INT_MAX;
+        consensus.stage41StartBlockDevFundAddressChange = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK;
 
         consensus.nStartBlacklist = 293990;
         consensus.nStartDuplicationCheck = 293526;
@@ -1094,6 +1094,9 @@ public:
         consensus.stage4DevelopmentFundShare = 25;
         consensus.stage4MasternodeShare = 50;
         consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
+
+        consensus.stage41DevelopmentFundAddress = "TEK8Kd2hd344LABNbMDTUTM3q4hH9WRn4q";  // private key cMhmPMuRXVfzM8RRNdJM1BxGEwt1okuKKWNP8FeHhz35avXK5SU5
+        consensus.stage41StartBlockDevFundAddressChange = 2600;
 
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;

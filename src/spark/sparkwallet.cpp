@@ -1625,9 +1625,19 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, CAmount sparkNameFee, CAmount &txFee, const CCoinControl *coinConrol) {
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
 
+    const auto &consensusParams = Params().GetConsensus();
+    int nHeight;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
+    }
+    std::string payoutAddress = nHeight >= consensusParams.stage41StartBlockDevFundAddressChange
+        ? consensusParams.stage3CommunityFundAddress
+        : consensusParams.stage3DevelopmentFundAddress;
+
     CRecipient devPayout;
     devPayout.nAmount = sparkNameFee;
-    devPayout.scriptPubKey = GetScriptForDestination(CBitcoinAddress(Params().GetConsensus().stage3DevelopmentFundAddress).Get());
+    devPayout.scriptPubKey = GetScriptForDestination(CBitcoinAddress(payoutAddress).Get());
     devPayout.fSubtractFeeFromAmount = false;
 
     CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({devPayout}, {}, txFee, coinConrol,

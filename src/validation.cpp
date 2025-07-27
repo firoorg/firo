@@ -4866,7 +4866,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
             bool fStage3 = nHeight < consensusParams.nSubsidyHalvingSecond;
             bool fStage4 = nHeight >= consensusParams.stage4StartBlock;
             CAmount devPayoutValue = 0, communityPayoutValue = 0;
-            CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get());
+            CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.GetStage4DevelopmentFundAddress(nHeight)).Get());
             CScript communityPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3CommunityFundAddress).Get());
 
             // There is no dev/community payout for testnet for some time

@@ -156,6 +156,7 @@ BOOST_FIXTURE_TEST_CASE(devpayout, TestChainDIP3BeforeActivationSetup)
     consensusParams.stage3StartTime = INT_MAX;
     consensusParams.nSubsidyHalvingSecond = consensusParams.stage4StartBlock = 620;
     consensusParams.nSubsidyHalvingInterval = 10;
+    consensusParams.stage41StartBlockDevFundAddressChange = 625;
 
     CScript devPayoutScript = GenerateRandomAddress();
     CTxDestination devPayoutDest{CScriptID(devPayoutScript)};
