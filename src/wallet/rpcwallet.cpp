@@ -3976,6 +3976,7 @@ UniValue spendspark(const JSONRPCRequest& request)
     const spark::Params* params = spark::Params::get_default();
     std::set<CBitcoinAddress> setAddress;
     unsigned char network = spark::GetNetworkType();
+    std::pair<CAmount, std::pair<Scalar, Scalar>>  burn;
 
     BOOST_FOREACH(const std::string& name_, keys)
     {
@@ -3990,8 +3991,16 @@ UniValue spendspark(const JSONRPCRequest& request)
             CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
             if (!sparkNameManager->GetSparkAddress(name_.substr(1), sparkAddressStr))
                 throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Spark name not found: ")+name_);
-        }
-        else {
+        } else if (!name_.empty() && name_ == "burn") {
+            UniValue burn_(UniValue::VARR);
+			burn_ = sendTo[name_].get_array();
+            if (burn_.size() != 3) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("For burn you have to provide amount and asset identifiers!"));
+            }
+            burn.first = burn_[0].get_int();
+            burn.second.first = Scalar(uint64_t(burn_[1].get_int()));
+            burn.second.second = Scalar(uint64_t(burn_[1].get_int()));
+        } else {
             sparkAddressStr = name_;
         }
 
@@ -4078,11 +4087,11 @@ UniValue spendspark(const JSONRPCRequest& request)
 
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Firo address: ") + name_);
     }
-    std::pair<CAmount, std::pair<Scalar, Scalar>>  emptyBurn; //TODO levon include this as an input
+
     CAmount fee;
     CWalletTx wtx;
     try {
-        wtx = pwallet->SpendAndStoreSpark(recipients, privateRecipients, spatsRecipients, fee, emptyBurn);
+        wtx = pwallet->SpendAndStoreSpark(recipients, privateRecipients, spatsRecipients, fee, burn);
     } catch (const std::exception &) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
     }
