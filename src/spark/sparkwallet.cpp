@@ -1739,10 +1739,10 @@ std::optional<CWalletTx> CSparkWallet::CreateSpatsMintTransaction(
         const CCoinControl *coinControl,
         const std::function<bool(const spats::MintAction &action, CAmount standard_fee, std::int64_t txsize)> &user_confirmation_callback)
 {
-    // A limitation of mint functionality, at least currently, is that the recipient address should be that of the initiator, i.e. the asset admin itself.
+    // A limitation of spats mint coin functionality, at least currently, is that the recipient address should be that of the initiator, i.e. the asset admin itself.
     // TODO Therefore it makes sense to remove the 'recipient' field from the GUI.
     if (!isAddressMine(spatsRecipient.second))
-        throw std::runtime_error(_("Spark address doesn't belong to the wallet"));
+        throw std::domain_error(_("Spark address doesn't belong to the wallet"));
     const spats::asset_type_t a{std::stoull(spatsRecipient.first.a.tostring())};
     if (!is_fungible_asset_type(a)) [[unlikely]]
         throw std::invalid_argument(_("NFTs can never have their total supply changed by any means, including minting"));

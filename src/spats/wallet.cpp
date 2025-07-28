@@ -123,7 +123,7 @@ static spark::MintedCoinData create_minted_coin_data( const CreateAssetAction &a
 {
    const auto &a = action.get();
    const auto initial_supply = get_total_supply( a );
-   assert( initial_supply > supply_amount_t{} );
+   assert( initial_supply >= supply_amount_t{} );   // 07/25 change: allowing coins with 0 value
    const auto &b = get_base( a );
    spark::MintedCoinData coin;
    coin.address = CSparkWallet::decodeAddress( destination_public_address.empty() ? b.admin_public_address() : destination_public_address );
@@ -144,13 +144,18 @@ std::optional< CWalletTx > Wallet::create_new_spark_asset_transaction(
   const std::function< bool( const CreateAssetAction &action, CAmount standard_fee, std::int64_t txsize ) > &user_confirmation_callback ) const
 {
    const auto &b = get_base( a );
-   if ( b.admin_public_address() != my_public_address_as_admin() ) {
+   const auto &admin_public_address = my_public_address_as_admin();
+   if ( b.admin_public_address() != admin_public_address ) {
       assert( !"Only allowed to use own public address as admin's address when creating a new spark asset" );
       throw std::domain_error( "Only allowed to use own public address as admin's address when creating a new spark asset" );
    }
    const auto initial_supply = get_total_supply( a );
    if ( !initial_supply && !destination_public_address.empty() )
       throw std::domain_error( "Destination public address supplied, yet there is no initial supply of the new spark asset to credit it to" );
+   // A limitation of spats mint coin functionality, at least currently, is that the recipient address should be that of the initiator, i.e. the asset admin itself.
+   // TODO Therefore it makes sense to remove the 'destination' field from the GUI.
+   if ( !destination_public_address.empty() && !spark_wallet_.isAddressMine( CSparkWallet::decodeAddress( destination_public_address ) ) )
+      throw std::domain_error( _( "Destination public address, if provided, must belong to own wallet (CURRENT LIMITATION)" ) );
 
    CScript script;
    script << OP_SPATSCREATE;
@@ -158,36 +163,44 @@ std::optional< CWalletTx > Wallet::create_new_spark_asset_transaction(
    CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
    const CreateAssetAction action( a );
    serialized << action;
-   // TODO instead of how it is being done now, put ownership proof into script default-constructed first, then compute ownership proof from the whole tx, and overwrite
-   //      the ownership proof in the script then
+#if 0   // TODO remove
    const auto scalar_of_proof = compute_new_spark_asset_serialization_scalar( b, serialized.as_bytes_span() );
    const spark::OwnershipProof proof = spark_wallet_.makeDefaultAddressOwnershipProof( scalar_of_proof );
    LogPrintf( "Ownership proof for new spark asset (hex): %s\n", proof );
    CDataStream proof_serialized( SER_NETWORK, PROTOCOL_VERSION );
    proof_serialized << proof;
+#endif
    script.insert( script.end(), serialized.begin(), serialized.end() );
    assert( script.IsSpatsCreate() );
+#if 0   // TODO remove
    script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
    assert( script.IsSpatsCreate() );
+#endif
    new_asset_fee = compute_new_spark_asset_fee( b.naming().symbol.get() );
    const std::string burn_address( firo_burn_address );   // TODO the network-specific address from params, once Levon adds that
    CScript burn_script = GetScriptForDestination( CBitcoinAddress( burn_address ).Get() );
    CRecipient burn_recipient{ std::move( burn_script ), new_asset_fee, false, {}, "burning new asset fee" };
+   // TODO GV #Review: What is 8 here for? And shouldn't we add SchnorrProof::memoryRequired() too?
+   const auto additional_tx_size = spark::OwnershipProof::memoryRequired() + spark::Coin::memoryRequiredSpats() + 8 + admin_public_address.size() +
+                                   GetSizeOfCompactSize( admin_public_address.size() ) + sizeof( initial_supply.precision() );
    auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, b.admin_public_address(), "new asset" }, burn_recipient },
                                                         {},
                                                         {},
                                                         standard_fee,
-                                                        nullptr );   // may throw
+                                                        nullptr,
+                                                        additional_tx_size );   // may throw
    assert( tx.tx->IsSpatsCreate() );
 
-   if ( initial_supply ) {
-      CMutableTransaction mtx( *tx.tx );
-      spark_wallet_.AppendSpatsMintTxData( mtx,
-                                           { spats::create_minted_coin_data( action, destination_public_address ), spark_wallet_.getDefaultAddress() },
-                                           spark_wallet_.ensureSpendKey(), my_public_address_as_admin(), initial_supply.precision() );
-      tx.tx = MakeTransactionRef( std::move( mtx ) );
-      assert( tx.tx->IsSpatsCreate() );
-   }
+   // if ( initial_supply ) {  // 07/25 change: including spats mint coin even when supply is 0, in order to have ownership proof with it, for simplicity
+   CMutableTransaction mtx( *tx.tx );
+   spark_wallet_.AppendSpatsMintTxData( mtx,
+                                        { spats::create_minted_coin_data( action, destination_public_address ), spark_wallet_.getDefaultAddress() },
+                                        spark_wallet_.ensureSpendKey(),
+                                        admin_public_address,
+                                        initial_supply.precision() );
+   tx.tx = MakeTransactionRef( std::move( mtx ) );
+   assert( tx.tx->IsSpatsCreate() );
+   //}
 
    if ( user_confirmation_callback )   // give the user a chance to confirm/cancel, if there are means to do so
       if ( const auto tx_size = ::GetVirtualTransactionSize( tx ); !user_confirmation_callback( action, standard_fee, tx_size ) ) {
@@ -285,7 +298,7 @@ std::optional< CWalletTx > Wallet::create_modify_spark_asset_transaction(
    return tx;
 }
 
-#if 0 // TODO remove
+#if 0   // TODO remove
 std::optional< CWalletTx > Wallet::create_mint_asset_supply_transaction(
   asset_type_t asset_type,
   supply_amount_t new_supply,
@@ -466,7 +479,7 @@ Wallet::asset_balances_t Wallet::get_asset_balances() const
 
       // compute the actual current balances off of spats coins present in spark_wallet_
       spark_wallet_
-        .VisitUnusedCoinMetasWhere( []( const CSparkMintMeta &meta ) { return meta.IsSpats(); },
+        .VisitUnusedCoinMetasWhere( []( const CSparkMintMeta &meta ) { return meta.IsSpats() && meta.GetValue() != 0; },
                                     std::bind( &Wallet::update_balances_given_coin, std::placeholders::_1, std::ref( asset_balances_ ), std::cref( registry_ ) ) );
 
       // Not excluding balances=0,0 entries from the result being returned. Don't see a need for that at this time...

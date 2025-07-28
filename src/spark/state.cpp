@@ -223,7 +223,7 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
 static spats::CreateAssetAction ParseSpatsCreateTransaction(const CTransaction &tx)
 {
     assert(tx.IsSpatsCreate());
-    if (tx.vout.size() < 2)
+    if (tx.vout.size() < 3)
         throw CBadTxIn();
     const CScript& creation_script = tx.vout.front().scriptPubKey;
     if (!creation_script.IsSpatsCreate())
@@ -238,20 +238,23 @@ static spats::CreateAssetAction ParseSpatsCreateTransaction(const CTransaction &
         spats::CreateAssetAction action(deserialize, stream);
         const auto &new_asset = action.get();
         asset_serialization_size -= stream.size();
+#if 0   // TODO remove
         spark::OwnershipProof proof;
         stream >> proof;
         LogPrintf("ParseSpatsCreateTransaction address ownership proof: %s\n", proof);
+#endif
         const auto& b = get_base(new_asset);
         const auto& admin_public_address = b.admin_public_address();
-        Address a(spark::Params::get_default());
-        a.decode(admin_public_address);
+        const Address a = CSparkWallet::decodeAddress(admin_public_address);
+#if 0   // TODO remove
         const auto scalar_of_proof = spats::Wallet::compute_new_spark_asset_serialization_scalar(
             b, {static_cast<const unsigned char*>(asset_serialization_start_address), asset_serialization_size});
         LogPrintf("ParseSpatsCreateTransaction scalar_of_proof: %s\n", scalar_of_proof);
         if (!a.verify_own(scalar_of_proof, proof))
             throw CBadTxIn();
+#endif
         const auto& burntx = tx.vout[1];
-        // If somehow the creation fee is greater than required, i.e. the originator wants to burn more of his money than required, then it's fine with us I think.
+        // If somehow the creation fee is greater than required, i.e. the originator wants to burn more of his money than required, then it's fine with us, I think.
         // But less than required is not allowed, of course.
         if (burntx.nValue < spats::compute_new_spark_asset_fee(b.naming().symbol.get()))
             throw CBadTxIn();
@@ -260,25 +263,43 @@ static spats::CreateAssetAction ParseSpatsCreateTransaction(const CTransaction &
 
         const auto& potential_coin_script = tx.vout.back().scriptPubKey;
         const bool has_coin_script = potential_coin_script.IsSpatsMintCoin();
+        if (!has_coin_script)   // 07/25 new guarantee
+            throw CBadTxIn();
+        if (std::find_if(tx.vout.begin(), tx.vout.end() - 1, [](const CTxOut& out) { return out.scriptPubKey.IsSpatsMintCoin(); }) != tx.vout.end() - 1)
+            throw CBadTxIn();   // more than 1 spats coin in one tx is not allowed
+
         const auto initial_supply = spats::get_total_supply(action.get());
+#if 0   // TODO remove
         if (has_coin_script != !!initial_supply)
             throw CBadTxIn();   // has initial supply but no spats coin, or doesn't have initial supply but has spats coin
-        if (has_coin_script) {
+#endif
+        if (has_coin_script) {  // TODO remove the condition, as it will always be true here from now on (07/25)
             const auto& coin_script = potential_coin_script;
             const spark::Params* params = spark::Params::get_default();
-            MintTransaction mintTransaction(params);
-            spark::OwnershipProof ownershipProof;
+            MintTransaction mint_transaction(params);
+            spark::OwnershipProof ownership_proof;
             spats::public_address_t initiator_public_address;
             spats::supply_amount_t::precision_type precision;
-            ParseSpatsMintCoinTransaction(coin_script, mintTransaction, ownershipProof, initiator_public_address, precision);	// may throw
-            if (!mintTransaction.verify())
+            ParseSpatsMintCoinTransaction(coin_script, mint_transaction, ownership_proof, initiator_public_address, precision);	// may throw
+            if (!mint_transaction.verify())
                 throw CBadTxIn();
-            const auto& coins = mintTransaction.getCoins();
+            if (!a.verify_own(GetSpatsMintM(tx), ownership_proof))
+                throw CBadTxIn();
+            if (initiator_public_address != admin_public_address)
+                throw CBadTxIn();
+            if (precision != initial_supply.precision())
+                throw CBadTxIn();
+            const auto& coins = mint_transaction.getCoins();
             if (coins.size() != 1)
                 throw CBadTxIn();
             auto coin = coins.front();
             if (coin.v != tx.vout.back().nValue || coin.v != initial_supply.raw())
                 throw CBadTxIn();
+            if (spats::asset_type_t{std::stoull(coin.a.tostring())} != b.asset_type())
+                throw CBadTxIn();
+            if (spats::identifier_t{std::stoull(coin.iota.tostring())} != spats::get_identifier(new_asset).value_or(spats::identifier_t{}))
+                throw CBadTxIn();
+            // TODO should we check that coin.type is COIN_TYPE_MINT_V2?
             action.set_coin(std::move(coin));
         }
 
@@ -491,7 +512,8 @@ spats::SpendTransaction ParseSpatsSpend(const CTransaction &tx)
 }
 
 
-Scalar GetSpatsMintM(const CTransaction& tx) {
+Scalar GetSpatsMintM(const CTransaction& tx)
+{
     CMutableTransaction txTemp = tx;
     for (auto& txout : txTemp.vout)
         if (txout.scriptPubKey.IsSpatsMintCoin()) {
@@ -2108,7 +2130,7 @@ std::pair<spats::MintAction, spark::Coin> ExtractSpatsMintAction(const CTransact
         throw CBadTxIn();
     // ATTENTION: Assuming the receiver address is the same as initiator_public_address!
     //            It is always true in the current design, but if that ever changes, then this code needs to be adjusted accordingly!
-    if (!CSparkWallet::decodeAddress(initiator_public_address).verify_own(spark::GetSpatsMintM(tx),ownershipProof))
+    if (!CSparkWallet::decodeAddress(initiator_public_address).verify_own(spark::GetSpatsMintM(tx), ownershipProof))
         throw CBadTxIn();
     const auto& coins = mintTransaction.getCoins();
     if (coins.size() != 1)
