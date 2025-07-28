@@ -465,7 +465,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 else {
                     if (pindexNew->nHeight >= firstInLastNBlocksHeight) {
                         lastNBlocks.insert(std::pair<int, CBlockIndex*>(pindexNew->nHeight, pindexNew));
-                        if (lastNBlocks.size() > nBlocksToCheck) {
+                        if (cmp::greater(lastNBlocks.size(), nBlocksToCheck)) {
                             // pop the first element from the map
                             auto firstElement = lastNBlocks.begin();
                             auto elementToPop = firstElement++;
@@ -843,7 +843,7 @@ public:
     void Unserialize(Stream &s) {
         unsigned int nCode = 0;
         // version
-        int nVersionDummy;
+        int nVersionDummy = 0;
         ::Unserialize(s, VARINT(nVersionDummy));
         // header code
         ::Unserialize(s, VARINT(nCode));

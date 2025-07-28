@@ -90,10 +90,11 @@ BOOST_AUTO_TEST_CASE(proof_serialize)
 
     prover.proof(commits, index, r, true, initial_proof);
 
-    unsigned char buffer [initial_proof.memoryRequired()];
-    initial_proof.serialize(buffer);
+    auto size = initial_proof.memoryRequired();
+    std::vector<unsigned char> buffer(size);
+    initial_proof.serialize(buffer.data());
     sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> resulted_proof(n, m);
-    resulted_proof.deserialize(buffer);
+    resulted_proof.deserialize(buffer.data());
 
     BOOST_CHECK(initial_proof.B_ == resulted_proof.B_);
     BOOST_CHECK(initial_proof.r1Proof_.A_ == resulted_proof.r1Proof_.A_);

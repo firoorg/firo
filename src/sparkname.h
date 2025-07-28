@@ -8,10 +8,6 @@
 #include "libspark/keys.h"
 #include "libspark/spend_transaction.h"
 
-namespace spark {
-    unsigned char GetNetworkType();
-}
-
 /*
  * Spark alias transaction data. This is to be stored in the transaction's extra data field
  * right after Spark data. The transaction is considered a Spark alias transaction if it spends
@@ -145,6 +141,9 @@ public:
 
     // check the possibility to register a new spark name, return true if it's possible
     bool ValidateSparkNameData(const CSparkNameTxData &sparkNameData, std::string &errorDescription);
+
+    // Checking if an address is occupied with spark name
+    bool GetSparkNameByAddress(const std::string& address, std::string& name);
 
     // get the size of the spark name transaction metadata
     size_t GetSparkNameTxDataSize(const CSparkNameTxData &sparkNameData);

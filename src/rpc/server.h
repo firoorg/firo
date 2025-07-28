@@ -137,11 +137,11 @@ typedef UniValue(*rpcfn_type)(const JSONRPCRequest& jsonRequest);
 class CRPCCommand
 {
 public:
-    std::string category;
-    std::string name;
+    std::string category {};
+    std::string name {};
     rpcfn_type actor;
-    bool okSafeMode;
-    std::vector<std::string> argNames;
+    bool okSafeMode {};
+    std::vector<std::string> argNames {};
 };
 
 /**
@@ -237,9 +237,6 @@ void InterruptRPC();
 void StopRPC();
 std::string JSONRPCExecBatch(const UniValue& vReq);
 void RPCNotifyBlockChange(bool ibd, const CBlockIndex *);
-
-// Retrieves any serialization flags requested in command line argument
-int RPCSerializationFlags();
 
 // Retrieves any serialization flags requested in command line argument
 int RPCSerializationFlags();

@@ -26,7 +26,6 @@
  * Doesn't set encrypted values if the wallet is locked.
  *
  * @param strWalletFile wallet file string
- * @return CHDMintWallet object
  */
 CHDMintWallet::CHDMintWallet(const std::string& strWalletFile, bool resetCount) : strWalletFile(strWalletFile), tracker(strWalletFile)
 {
@@ -785,7 +784,7 @@ CKeyID CHDMintWallet::GetMintSeedID(CWalletDB& walletdb, int32_t nCount){
  * If seedId is passed, use that seedId and ignore key generation section.
  * Following that, get the key, and use it to generate the mint seed according to the specification.
  *
- * @param mintSeed
+ * @param mintSeed mint seed
  * @param nCount (optional) count in the HD Chain of the key to use for mint generation.
  * @param seedId (optional) seedId of the key to use for mint generation.
  * @return success
@@ -820,8 +819,8 @@ bool CHDMintWallet::CreateMintSeed(CWalletDB& walletdb, uint512& mintSeed, const
     }
 
     // HMAC-SHA512(SHA256(count),key)
-    unsigned char countHash[CSHA256().OUTPUT_SIZE];
-    std::vector<unsigned char> result(CSHA512().OUTPUT_SIZE);
+    unsigned char countHash[CSHA256::OUTPUT_SIZE];
+    std::vector<unsigned char> result(CSHA512::OUTPUT_SIZE);
 
     std::string nCountStr = std::to_string(nCount);
     CSHA256().Write(reinterpret_cast<const unsigned char*>(nCountStr.c_str()), nCountStr.size()).Finalize(countHash);
@@ -846,8 +845,6 @@ int32_t CHDMintWallet::GetCount()
 /**
  * Reset in-memory count to that of the database value.
  * Necessary during transaction creation when fee calcuation causes the creation to reset.
- *
- * @return void
  */
 void CHDMintWallet::ResetCount(CWalletDB& walletdb)
 {
@@ -858,7 +855,6 @@ void CHDMintWallet::ResetCount(CWalletDB& walletdb)
  * Set in-memory count to parameter passed
  *
  * @param nCount count to be set
- * @return void
  */
 void CHDMintWallet::SetCount(int32_t nCount)
 {
@@ -867,8 +863,6 @@ void CHDMintWallet::SetCount(int32_t nCount)
 
 /**
  * Increment in-memory count of the next mint to use.
- *
- * @return void
  */
 void CHDMintWallet::UpdateCountLocal()
 {
@@ -879,8 +873,6 @@ void CHDMintWallet::UpdateCountLocal()
 /**
  * Increment database count of the next mint to use.
  * calls GenerateMintPool, which will run if we have exhausted the mintpool.
- *
- * @return void
  */
 void CHDMintWallet::UpdateCountDB(CWalletDB& walletdb)
 {

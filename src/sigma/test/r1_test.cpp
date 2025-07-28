@@ -50,11 +50,12 @@ BOOST_AUTO_TEST_CASE(serialize_deserialize_proof)
     sigma::R1ProofVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> verifier(g,h_,prover.get_B(), n, m);
     BOOST_CHECK(verifier.verify(proof));
 
-    unsigned char buffer [proof.memoryRequired(n, m)];
-    proof.serialize(buffer);
+    auto size = proof.memoryRequired(n, m);
+    std::vector<unsigned char> buffer(size);
+    proof.serialize(buffer.data());
 
     sigma::R1Proof<secp_primitives::Scalar, secp_primitives::GroupElement> resulted;
-    resulted.deserialize(buffer,n, m);
+    resulted.deserialize(buffer.data(), n, m);
 
     BOOST_CHECK(verifier.verify(resulted));
 }

@@ -4,8 +4,8 @@
  * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
  **********************************************************************/
 
-#ifndef _SECP256K1_GROUP_
-#define _SECP256K1_GROUP_
+#ifndef SECP256K1_GROUP_
+#define SECP256K1_GROUP_
 
 #include "num.h"
 #include "field.h"

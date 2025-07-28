@@ -236,6 +236,16 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     return true;
 }
 
+bool CSparkNameManager::GetSparkNameByAddress(const std::string& address, std::string& name)
+{
+    auto it = sparkNameAddresses.find(address);
+    if (it != sparkNameAddresses.end()) {
+        name = sparkNames[it->second].name;
+        return true;
+    }
+    return false;
+}
+
 bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameData, std::string &errorDescription)
 {
     errorDescription.clear();
@@ -367,7 +377,7 @@ std::map<std::string, CSparkNameBlockIndexData> CSparkNameManager::RemoveSparkNa
     std::map<std::string, CSparkNameBlockIndexData> result;
 
     for (auto it = sparkNames.begin(); it != sparkNames.end();)
-        if (nHeight >= it->second.sparkNameValidityHeight) {
+        if (cmp::greater_equal(nHeight, it->second.sparkNameValidityHeight)) {
             std::string sparkAddressStr = it->second.sparkAddress;
             sparkNameAddresses.erase(sparkAddressStr);
             result[it->first] = it->second;
