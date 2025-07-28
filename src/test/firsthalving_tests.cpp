@@ -275,7 +275,11 @@ BOOST_FIXTURE_TEST_CASE(devpayout, TestChainDIP3BeforeActivationSetup)
 
         bool paymentToDevFound = false, paymentToCommunityFound = false;
         for (const CTxOut &txout: block.vtx[0]->vout) {
-            if (txout.scriptPubKey == GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get())) {
+            if (txout.scriptPubKey == GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get()) && i < 625) {
+                BOOST_ASSERT(txout.nValue == 3125*COIN/1000); // 25/2*0.25
+                paymentToDevFound = true;
+            }
+            if (txout.scriptPubKey == GetScriptForDestination(CBitcoinAddress(consensusParams.stage41DevelopmentFundAddress).Get()) && i >= 625) {
                 BOOST_ASSERT(txout.nValue == 3125*COIN/1000); // 25/2*0.25
                 paymentToDevFound = true;
             }
