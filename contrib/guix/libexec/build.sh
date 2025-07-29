@@ -443,8 +443,8 @@ mkdir -p "$DISTSRC"
             mkdir -p "unsigned-app-${HOST}"
             cp  --target-directory="unsigned-app-${HOST}" \
                 build/osx_volname \
-                contrib/macdeploy/detached-sig.sh
-            
+                contrib/macdeploy/detached-sig.sh \
+                contrib/macdeploy/create-dmg.sh
             # Use dmg from Guix environment instead of depends
             DMG_BIN=$(which dmg 2>/dev/null || find /gnu/store -name "dmg" -type f -executable | head -1)
             DMG_FOUND=false
