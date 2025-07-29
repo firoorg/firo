@@ -49,7 +49,7 @@ stty echo
 
 # Sign and detach
 ${SIGNAPPLE} sign -f --hardened-runtime --detach "${OUTROOT}/${BUNDLE_ROOT}" --passphrase "${cs_key_pass}" "$1" "${UNSIGNED_BUNDLE}"
-${SIGNAPPLE} apply --no-verify "${UNSIGNED_BUNDLE}" "${OUTROOT}/${BUNDLE_ROOT}/${BUNDLE_NAME}"
+${SIGNAPPLE} apply "${UNSIGNED_BUNDLE}" "${OUTROOT}/${BUNDLE_ROOT}/${BUNDLE_NAME}"
 
 # Notarize if not skipped
 if [ -z "$WITHOUT_NOTARIZE" ]; then
@@ -70,7 +70,7 @@ do
     bin_dir=$(dirname "${bin}")
     bin_name=$(basename "${bin}")
     ${SIGNAPPLE} sign -f --hardened-runtime --detach "${OUTROOT}/${bin_dir}" --passphrase "${cs_key_pass}" "$1" "${bin}"
-    ${SIGNAPPLE} apply --no-verify "${bin}" "${OUTROOT}/${bin_dir}/${bin_name}.${ARCH}sign"
+    ${SIGNAPPLE} apply "${bin}" "${OUTROOT}/${bin_dir}/${bin_name}.${ARCH}sign"
 done
 
 # Notarize the binaries if not skipped
