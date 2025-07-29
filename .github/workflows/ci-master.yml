@@ -557,7 +557,7 @@ jobs:
           mv *-win64-debug.zip x86_64-win64-guix-debug-symbols.zip || true  
           mv *-win64-setup-unsigned.exe x86_64-win64-guix-installer-unsigned.exe || true
           mv *-win64.zip x86_64-win64-guix-release-binaries.zip || true
-          mv SHA256SUMS.part x86_64-wind64-guix-checksums-sha256 || true
+          mv SHA256SUMS.part x86_64-win64-guix-checksums-sha256 || true
       - name: Upload Windows Release Binaries
         uses: actions/upload-artifact@v4
         with:
