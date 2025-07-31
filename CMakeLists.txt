@@ -22,7 +22,7 @@ set(CLIENT_VERSION_MINOR 14)
 set(CLIENT_VERSION_REVISION 14)
 set(CLIENT_VERSION_BUILD 1)
 set(CLIENT_VERSION_RC 0)
-set(CLIENT_VERSION_IS_RELEASE "false")
+set(CLIENT_VERSION_IS_RELEASE "false" CACHE STRING "Is this a release build?")
 set(COPYRIGHT_YEAR "2024")
 
 # During the enabling of the CXX and CXXOBJ languages, we modify
