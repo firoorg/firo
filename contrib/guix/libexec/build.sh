@@ -388,6 +388,7 @@ mkdir -p "$DISTSRC"
       -DBUILD_CLI=ON \
       -DBUILD_GUI=ON \
       -DBUILD_TESTS=OFF \
+      -DCLIENT_VERSION_IS_RELEASE=true \
       ${CMAKEFLAGS}
 
     make -C build --jobs="$JOBS"
