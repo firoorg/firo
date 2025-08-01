@@ -50,6 +50,7 @@ public:
     virtual bool isSpats() const = 0;
     virtual const std::map<uint64_t, uint256>& getBlockHashes() = 0;
     virtual const std::vector<uint64_t>& getCoinGroupIds() = 0;
+    virtual void setBurn(const uint64_t& burn_) = 0;
 };
 
 class SpendTransaction : public BaseSpendTransaction {
@@ -128,6 +129,8 @@ public:
     void setVout(const uint64_t& vout_) override {
         this->vout = vout_;
     }
+
+    void setBurn(const uint64_t& burn_) override {}
 
     void setBlockHashes(const std::map<uint64_t, uint256>& idAndHashes);
 

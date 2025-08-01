@@ -366,6 +366,11 @@ bool CScript::IsSpatsMint() const {
             (*this)[0] == OP_SPATSMINT);
 }
 
+bool CScript::IsSpatsBurn() const {
+    return (this->size() > 0 &&
+            (*this)[0] == OP_SPATSBURN);
+}
+
 bool CScript::IsSparkMintType() const {
     return IsSparkMint() || IsSparkSMint() || IsSpatsMint();
 }

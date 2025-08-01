@@ -23,6 +23,7 @@ SpendTransaction::SpendTransaction(
     const std::unordered_map<uint64_t, std::vector<spark::Coin>>& cover_sets,
     const uint64_t f,
     const uint64_t vout,
+    const uint64_t burn,
     const std::vector<spark::OutputCoinData>& outputs)
 {
     this->params = params;
@@ -73,6 +74,7 @@ SpendTransaction::SpendTransaction(
 
     this->f = f;       // fee
     this->vout = vout; // transparent output value
+    this->burn = burn; // asset burn value
 
     // Prepare Chaum vectors
     std::vector<Scalar> chaum_x, chaum_y, chaum_z;
@@ -281,7 +283,7 @@ SpendTransaction::SpendTransaction(
         }
     }
 
-
+    balance_statement += (this->params->get_G() * Scalar(burn)).inverse();
     rep_statement += (this->params->get_G() * Scalar(f + vout)).inverse();
     schnorr.prove(
         rep_witness,
@@ -309,7 +311,8 @@ SpendTransaction::SpendTransaction(
             this->type_proof,
             this->balance_proof),
         this->out_coins,
-        this->f + vout
+        this->f + vout,
+        this->burn
         );
 
     // Compute the authorizing Chaum proof
@@ -440,7 +443,8 @@ bool SpendTransaction::verify(
                 tx.type_proof,
                 tx.balance_proof),
             tx.out_coins,
-            tx.f + tx.vout
+            tx.f + tx.vout,
+            tx.burn
             );
 
         // Verify the authorizing Chaum-Pedersen proof
@@ -501,7 +505,7 @@ bool SpendTransaction::verify(
             }
         }
         rep_statement += (tx.params->get_G() * Scalar(tx.f + tx.vout)).inverse();
-
+        balance_statement += (tx.params->get_G() * Scalar(tx.burn)).inverse();
         if (!schnorr.verify(
                 rep_statement,
                 tx.rep_proof)) {
@@ -624,13 +628,15 @@ std::vector<unsigned char> SpendTransaction::hash_bind_inner(
 Scalar SpendTransaction::hash_bind(
     const std::vector<unsigned char> hash_bind_inner,
     const std::vector<spark::Coin>& out_coins,
-    const uint64_t f_)
+    const uint64_t f_,
+    const uint64_t burn)
 {
     spark::Hash hash(spark::LABEL_HASH_BIND);
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
     stream << hash_bind_inner;
     stream << out_coins;
     stream << f_;
+    stream << burn;
     hash.include(stream);
 
     return hash.finalize_scalar();

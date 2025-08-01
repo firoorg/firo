@@ -196,7 +196,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         throw std::runtime_error("Bad fee assertion");
     }
 
-
+    std::pair<CAmount, std::pair<Scalar, Scalar>>  emptyBurn;
     // Generate spend transaction
     SpendTransaction transaction(
         params,
@@ -206,6 +206,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         cover_set_data,
         cover_sets,
         f,
+        0,
         0,
         out_coin_data);
 

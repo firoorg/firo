@@ -5890,6 +5890,7 @@ CWalletTx CWallet::CreateSparkSpendTransaction(
         const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
         const std::vector<spark::OutputCoinData>& spatsRecipients,
         CAmount &fee,
+        std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
         const CCoinControl *coinControl)
 {
     // sanity check
@@ -5899,7 +5900,7 @@ CWalletTx CWallet::CreateSparkSpendTransaction(
         throw std::runtime_error(_("Wallet locked"));
     }
 
-    return sparkWallet->CreateSparkSpendTransaction(recipients, privateRecipients, spatsRecipients, fee, coinControl);
+    return sparkWallet->CreateSparkSpendTransaction(recipients, privateRecipients, spatsRecipients, fee, burnAsset, coinControl);
 }
 
 CWalletTx CWallet::CreateSparkNameTransaction(
@@ -5923,10 +5924,11 @@ CWalletTx CWallet::SpendAndStoreSpark(
         const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
         const std::vector<spark::OutputCoinData>& spatsRecipients,
         CAmount &fee,
+        std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
         const CCoinControl *coinControl)
 {
     // create transaction
-    auto result = CreateSparkSpendTransaction(recipients, privateRecipients, spatsRecipients, fee, coinControl);
+    auto result = CreateSparkSpendTransaction(recipients, privateRecipients, spatsRecipients, fee, burnAsset, coinControl);
 
     // commit
     try {

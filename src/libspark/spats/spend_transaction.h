@@ -38,6 +38,7 @@ public:
         const std::unordered_map<uint64_t, std::vector<spark::Coin>>& cover_sets,
         const uint64_t f,
         const uint64_t vout,
+        const uint64_t burn,
         const std::vector<spark::OutputCoinData>& outputs); //should be sorted, base coins at the beginning, otherwise you will get a failure
 
     ~SpendTransaction();
@@ -65,7 +66,8 @@ public:
     static Scalar hash_bind(
         const std::vector<unsigned char> hash_bind_inner,
         const std::vector<spark::Coin>& out_coins,
-        const uint64_t f_
+        const uint64_t f_,
+        const uint64_t burn
         );
 
     ADD_SERIALIZE_METHODS;
@@ -105,6 +107,10 @@ public:
         this->vout = vout_;
     }
 
+    void setBurn(const uint64_t& burn_) override {
+        this->burn = burn_;
+    }
+
     bool isSpats() const override {
         return true;
     }
@@ -120,6 +126,7 @@ private:
     std::map<uint64_t, std::vector<unsigned char> > cover_set_representations;
     std::vector<spark::Coin> out_coins;
     uint64_t vout;
+    uint64_t burn;
 
     // All this data we need to serialize
     std::map<uint64_t, uint256> set_id_blockHash;
