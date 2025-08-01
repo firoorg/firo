@@ -187,6 +187,7 @@ std::optional< CWalletTx > Wallet::create_new_spark_asset_transaction(
                                                         {},
                                                         {},
                                                         standard_fee,
+                                                        {},
                                                         nullptr,
                                                         additional_tx_size );   // may throw
    assert( tx.tx->IsSpatsCreate() );
@@ -244,6 +245,7 @@ std::optional< CWalletTx > Wallet::create_unregister_spark_asset_transaction(
                                                         {},
                                                         {},
                                                         standard_fee,
+                                                        {},
                                                         nullptr );   // may throw
    assert( tx.tx->IsSpatsUnregister() );
 
@@ -286,6 +288,7 @@ std::optional< CWalletTx > Wallet::create_modify_spark_asset_transaction(
                                                         {},
                                                         {},
                                                         standard_fee,
+                                                        {},
                                                         nullptr );   // may throw
    assert( tx.tx->IsSpatsModify() );
 
@@ -330,6 +333,7 @@ std::optional< CWalletTx > Wallet::create_mint_asset_supply_transaction(
                                                         {},
                                                         {},
                                                         standard_fee,
+                                                        {},
                                                         coin_control );   // may throw
    assert( tx.tx->IsSpatsMint() );
 
@@ -361,7 +365,7 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
       const std::string burn_address( firo_burn_address );   // TODO the network-specific address from params, once Levon adds that
       CScript burn_script = GetScriptForDestination( CBitcoinAddress( burn_address ).Get() );
       CRecipient burn_recipient{ std::move( burn_script ), boost::numeric_cast< CAmount >( burn_amount.raw() ), false, {}, "burning a base asset amount" };
-      auto tx = spark_wallet_.CreateSparkSpendTransaction( { burn_recipient }, {}, {}, standard_fee, nullptr );   // may throw
+      auto tx = spark_wallet_.CreateSparkSpendTransaction( { burn_recipient }, {}, {}, standard_fee, {}, nullptr );   // may throw
 
       if ( user_confirmation_callback ) {   // give the user a chance to confirm/cancel, if there are means to do so
          const BaseAssetBurnParameters action_params( burn_amount, admin_public_address );
@@ -406,10 +410,12 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
                                   utils::to_underlying( asset_type ),
                                   Scalar() );
    assert( spats_recipients.back().iota.isZero() );
+   // TODO use burnAsset, in addition to or instead of `script`
    auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, admin_public_address, "spats burn" } },
                                                         {},
                                                         spats_recipients,
                                                         standard_fee,
+                                                        {},
                                                         nullptr );   // may throw
    assert( tx.tx->IsSpatsBurn() );
 

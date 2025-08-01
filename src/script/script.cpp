@@ -396,6 +396,11 @@ bool CScript::IsSpatsBurn() const
     return this->size() > 0 && (*this)[0] == OP_SPATSBURN;
 }
 
+bool CScript::IsSpatsBurnAmount() const
+{
+    return this->size() > 0 && (*this)[0] == OP_SPATSBURNAMOUNT;
+}
+
 bool CScript::IsSpats() const
 {
     return this->size() > 0 && IsSpatsOp(static_cast<opcodetype>((*this)[0]));
@@ -407,11 +412,6 @@ bool CScript::IsSpatsAction() const
         return false;
     const auto op = static_cast<opcodetype>((*this)[0]);
     return op != OP_SPATSMINTCOIN && op != OP_SPATSSPEND;   // these are not spats actions, as in they by themselves do not affect spats::Registry, and do not indicate any spats::Action
-}
-
-bool CScript::IsSpatsBurn() const {
-    return (this->size() > 0 &&
-            (*this)[0] == OP_SPATSBURN);
 }
 
 bool CScript::IsSparkMintType() const {
