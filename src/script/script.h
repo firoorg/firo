@@ -214,8 +214,9 @@ enum opcodetype
     OP_SPATSMINTCOIN = 0xd8,
     OP_SPATSSPEND = 0xd9,
     OP_SPATSBURN = 0xda,
+    OP_SPATSBURNAMOUNT = 0xdb,
     // TODO when adding a new spats opcode, update this below, and keep all spats ops values consecutive if possible, otherwise change IsSpatsOp() implementation
-    OP_SPATSLAST = OP_SPATSBURN,
+    OP_SPATSLAST = OP_SPATSBURNAMOUNT,
 
     // basically NOP but identifies that subsequent txout script contains super transparent address
     OP_EXCHANGEADDR = 0xe0
@@ -723,6 +724,8 @@ public:
     bool IsZerocoinRemint() const;
 
     bool IsMint() const;
+
+    bool IsSpatsBurnAmount() const;
 
     bool IsSparkMintType() const;
 

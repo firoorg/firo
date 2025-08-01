@@ -409,6 +409,11 @@ bool CScript::IsSpatsAction() const
     return op != OP_SPATSMINTCOIN && op != OP_SPATSSPEND;   // these are not spats actions, as in they by themselves do not affect spats::Registry, and do not indicate any spats::Action
 }
 
+bool CScript::IsSpatsBurn() const {
+    return (this->size() > 0 &&
+            (*this)[0] == OP_SPATSBURN);
+}
+
 bool CScript::IsSparkMintType() const {
     return IsSparkMint() || IsSparkSMint() || IsSpatsMint() || IsSpatsMintCoin();
 }

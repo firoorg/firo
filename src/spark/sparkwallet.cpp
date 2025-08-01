@@ -1254,6 +1254,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
         const std::vector<spark::OutputCoinData>& spatsRecipients,
         CAmount &fee,
+        std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
         const CCoinControl *coinControl,
         CAmount additionalTxSize) {
 
@@ -1309,12 +1310,22 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             throw std::runtime_error(_("Spats not started."));
 
         identifier = std::make_pair(spatsRecipients[0].a, spatsRecipients[0].iota);
-        for (const auto& privRecipient : spatsRecipients) {
+	for (const auto& privRecipient : spatsRecipients) {
             spatsMintVOut += privRecipient.v;
             if (privRecipient.a != identifier.first || privRecipient.iota != identifier.second)
                 throw std::runtime_error(_("Not allowed to mix assets in one spend transaction."));
-        }
+	}
     }
+
+    if (burnAsset.first > 0) {
+        if (spatsMintVOut > 0) {
+            if (burnAsset.second.first != identifier.first || burnAsset.second.second != identifier.second)
+                throw std::runtime_error(_("Not allowed to mix assets in one spend transaction."));
+        }
+        spatsMintVOut += burnAsset.first;
+    }
+
+
 
     if (vOut > consensusParams.nMaxValueSparkSpendPerTransaction)
         throw std::runtime_error(_("Spend to transparent address limit exceeded (10,000 Firo per transaction)."));
@@ -1504,6 +1515,11 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 privOutputs.push_back(output);
             }
 
+            if (burnAsset.first > 0) {
+                spatsSpendAmount -= burnAsset.first;
+
+            }
+
             if (spendInCurrentTx < 0 || spatsSpendAmount < 0)
                 throw std::invalid_argument(_("Unable to create spend transaction."));
 
@@ -1617,7 +1633,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 serialized << spendTransaction;
                 outCoins = spendTransaction.getOutCoins();
             } else {
-                spats::SpendTransaction spendTransaction(params, fullViewKey, spendKey, inputs, cover_set_data, cover_sets, fee, transparentOut, privOutputs);
+                spats::SpendTransaction spendTransaction(params, fullViewKey, spendKey, inputs, cover_set_data, cover_sets, fee, transparentOut, burnAsset.first, privOutputs);
                 spendTransaction.setBlockHashes(idAndBlockHashes);
                 serialized << spendTransaction;
                 outCoins = spendTransaction.getOutCoins();
@@ -1643,6 +1659,18 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 walletdb.WriteSparkOutputTx(script, output);
                 tx.vout.push_back(CTxOut(0, script));
                 i++;
+            }
+
+            if (burnAsset.first > 0) {
+                // construct spend script
+                CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+                CScript script;
+                script << OP_SPATSBURN;
+                CDataStream serializedIdentifier(SER_NETWORK, PROTOCOL_VERSION);
+                serializedIdentifier << burnAsset.second.first;
+                serializedIdentifier << burnAsset.second.second;
+                script.insert(script.end(), serializedIdentifier.begin(), serializedIdentifier.end());
+                tx.vout.push_back(CTxOut(burnAsset.first, script));
             }
 
             if (GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT) {
@@ -1761,10 +1789,11 @@ std::optional<CWalletTx> CSparkWallet::CreateSpatsMintTransaction(
     return *wtx;
 #endif
 
-    // TODO GV #Review: What is 8 here for? And shouldn't we add SchnorrProof::memoryRequired() too?
+    // TODO GV #Review: What is 8 here for? And shouldn't we add SchnorrProof::memoryRequired() too? And for burn?
     const auto additionalTxSize = spark::OwnershipProof::memoryRequired() + spark::Coin::memoryRequiredSpats() + 8 +
         action_params.initiator_public_address().size() + GetSizeOfCompactSize(action_params.initiator_public_address().size()) + sizeof(*precision);
-    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({}, {}, {}, fee, coinControl, additionalTxSize);
+    std::pair<CAmount, std::pair<Scalar, Scalar>>  emptyBurn;
+    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({}, {}, {}, fee, emptyBurn, coinControl, additionalTxSize);
 
     CMutableTransaction tx = CMutableTransaction(*wtxSparkSpend.tx);
     AppendSpatsMintTxData(tx, spatsRecipient, ensureSpendKey(), action_params.initiator_public_address(), *precision);
@@ -1790,8 +1819,8 @@ CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, C
     devPayout.nAmount = sparkNameFee;
     devPayout.scriptPubKey = GetScriptForDestination(CBitcoinAddress(Params().GetConsensus().stage3DevelopmentFundAddress).Get());
     devPayout.fSubtractFeeFromAmount = false;
-
-    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({devPayout}, {}, {}, txFee, coinConrol,
+    std::pair<CAmount, std::pair<Scalar, Scalar>>  emptyBurn;
+    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({devPayout}, {}, {}, txFee, emptyBurn, coinConrol,
         sparkNameManager->GetSparkNameTxDataSize(nameData) + 20 /* add a little bit to the fee to be on the safe side */);
 
     const spark::Params* params = spark::Params::get_default();

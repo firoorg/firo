@@ -413,8 +413,9 @@ CTransaction SparkTestingSetup::GenerateSparkSpend(
     }
 
     CAmount fee;
+    std::pair<CAmount, std::pair<Scalar, Scalar>>  burn;
     auto wtx = pwalletMain->SpendAndStoreSpark(
-            vecs, {}, {}, fee, coinControl);
+            vecs, {}, {}, fee, burn, coinControl);
 
     return *wtx.tx;
 }
