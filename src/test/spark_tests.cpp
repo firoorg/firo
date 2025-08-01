@@ -683,7 +683,8 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     auto outputAmount = 1 * COIN;
     auto mintAmount = 2 * CENT - CENT; // a cent as fee
     CAmount fee;
-    CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, {}, fee);
+    std::pair<CAmount, std::pair<Scalar, Scalar>>  burn;
+    CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, {}, fee, burn);
 
     CMutableTransaction spendTx(wtx);
     auto spend = ParseSparkSpend(spendTx);
@@ -751,7 +752,8 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     auto outputAmount = 1 * COIN;
     auto mintAmount = 2 * CENT - CENT; // a cent as fee
     CAmount fee;
-    CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, {}, fee);
+    std::pair<CAmount, std::pair<Scalar, Scalar>>  burn;
+    CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, {}, fee, burn);
 
     CMutableTransaction spendTx(wtx);
     auto spend = ParseSpatsSpend(spendTx);
@@ -808,7 +810,7 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
 	output.a = Scalar(uint64_t(1));
 	output.iota = Scalar(uint64_t(1));
 
-    wtx = pwalletMain->SpendAndStoreSpark({}, {}, {output, output}, fee);
+    wtx = pwalletMain->SpendAndStoreSpark({}, {}, {output, output}, fee, burn);
 
     CMutableTransaction spatsTX(wtx);
     BOOST_CHECK(CheckSparkTransaction(

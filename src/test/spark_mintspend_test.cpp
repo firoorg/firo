@@ -68,7 +68,8 @@ BOOST_AUTO_TEST_CASE(spark_mintspend_test)
     GenerateBlocks(6);
 
     CAmount fee;
-    auto result = pwalletMain->CreateSparkSpendTransaction(recipients, {}, {}, fee, nullptr); //TODO levon add spats case
+    std::pair<CAmount, std::pair<Scalar, Scalar>>  burn;
+    auto result = pwalletMain->CreateSparkSpendTransaction(recipients, {}, {}, fee, burn, nullptr); //TODO levon add spats case
     CWallet* wallet = pwalletMain;
     CReserveKey reserveKey(wallet);
     CValidationState state;
@@ -102,7 +103,7 @@ BOOST_AUTO_TEST_CASE(spark_mintspend_test)
 
          CAmount fee;
          result.Init(NULL);
-         result = pwalletMain->CreateSparkSpendTransaction(recipients, {}, {}, fee, &coinControl);  //TODO levon add spats case
+         result = pwalletMain->CreateSparkSpendTransaction(recipients, {}, {}, fee, burn, &coinControl);  //TODO levon add spats case
          CReserveKey reserveKey(pwalletMain);
          CValidationState state;
          pwalletMain->CommitTransaction(result, reserveKey, g_connman.get(), state);
