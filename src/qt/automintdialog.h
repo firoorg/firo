@@ -11,6 +11,17 @@ namespace Ui {
     class AutoMintDialog;
 }
 
+class CCriticalSectionLocker {
+public:
+    explicit CCriticalSectionLocker(CCriticalSection& mutex) : m_mutex(mutex) { ENTER_CRITICAL_SECTION(m_mutex); }
+    ~CCriticalSectionLocker()   { LEAVE_CRITICAL_SECTION(m_mutex); }
+    CCriticalSectionLocker(const CCriticalSectionLocker&) = delete;
+    CCriticalSectionLocker& operator=(const CCriticalSectionLocker&) = delete;
+
+private:
+    CCriticalSection& m_mutex;
+};
+
 enum class AutoMintSparkMode : uint8_t {
     MintAll, // come from overview page
     AutoMintAll // come from notification
@@ -25,14 +36,14 @@ public:
     ~AutoMintSparkDialog();
 
 public:
-    int exec();
+    int exec() override;
     void setModel(WalletModel *model);
 
     void paintEvent(QPaintEvent *event) Q_DECL_OVERRIDE;
 
 private Q_SLOTS:
-    void accept();
-    void reject();
+    void accept() override;
+    void reject() override;
 
 private:
     enum class AutoMintSparkProgress : uint8_t {

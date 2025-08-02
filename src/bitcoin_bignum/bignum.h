@@ -121,7 +121,7 @@ public:
     /** Generates a cryptographically secure random number between zero and range exclusive
     * i.e. 0 < returned number < range
     * @param range The upper bound on the number.
-    * @return
+    * @return random BigNum
     */
     static CBigNum  randBignum(const CBigNum& range) {
         CBigNum ret;
@@ -133,7 +133,7 @@ public:
 
     /** Generates a cryptographically secure random k-bit number
     * @param k The bit length of the number.
-    * @return
+    * @return random k-bit BigNum
     */
     static CBigNum RandKBitBigum(const uint32_t k){
         CBigNum ret;
@@ -495,7 +495,7 @@ public:
     /**
         * exponentiation with an int. this^e
         * @param e the exponent as an int
-        * @return
+        * @return BigNum^e
         */
     CBigNum pow(const int e) const {
         return this->pow(CBigNum(e));
@@ -504,7 +504,7 @@ public:
     /**
      * exponentiation this^e
      * @param e the exponent
-     * @return
+     * @return BigNum^e
      */
     CBigNum pow(const CBigNum& e) const {
         CAutoBN_CTX pctx;
@@ -578,10 +578,10 @@ public:
 
     /**
      * Calculates the greatest common divisor (GCD) of two numbers.
-     * @param m the second element
+     * @param b the second element
      * @return the GCD
      */
-    CBigNum gcd( const CBigNum& b) const{
+    CBigNum gcd(const CBigNum& b) const{
         CAutoBN_CTX pctx;
         CBigNum ret;
         if (!BN_gcd(&ret, bn, &b, pctx))
@@ -591,7 +591,7 @@ public:
 
     /**
      * Miller-Rabin primality test on this element
-     * @param checks: optional, the number of Miller-Rabin tests to run
+     * @param checks optional, the number of Miller-Rabin tests to run
      * 			 	default causes error rate of 2^-80.
      * @return true if prime
      */

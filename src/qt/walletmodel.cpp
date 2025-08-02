@@ -140,12 +140,7 @@ void WalletModel::pollBalanceChanged()
     // Get required locks upfront. This avoids the GUI from getting stuck on
     // periodical polls if the core is holding the locks for a longer time -
     // for example, during a wallet rescan.
-    TRY_LOCK(cs_main, lockMain);
-    if(!lockMain)
-        return;
-    TRY_LOCK(wallet->cs_wallet, lockWallet);
-    if(!lockWallet)
-        return;
+    LOCK2(cs_main, wallet->cs_wallet);
 
     if(fForceCheckBalanceChanged || chainActive.Height() != cachedNumBlocks)
     {
@@ -154,9 +149,9 @@ void WalletModel::pollBalanceChanged()
         // Balance and number of transactions might have changed
         cachedNumBlocks = chainActive.Height();
 
-        checkBalanceChanged();
+        QMetaObject::invokeMethod(this, "checkBalanceChanged", Qt::QueuedConnection);
         if(transactionTableModel)
-            transactionTableModel->updateConfirmations();
+            QMetaObject::invokeMethod(transactionTableModel, "updateConfirmations", Qt::QueuedConnection);
     }
 }
 
@@ -1314,6 +1309,16 @@ bool WalletModel::sparkNamesAllowed() const
     return chainHeight >= Params().GetConsensus().nSparkNamesStartBlock;
 }
 
+bool WalletModel::GetSparkNameByAddress(const QString& sparkAddress, QString& name)
+{
+    LOCK(cs_main);
+    std::string name_ = name.toStdString();
+    bool result = CSparkNameManager::GetInstance()->GetSparkNameByAddress(sparkAddress.toStdString(), name_);
+    if (result)
+        name = QString::fromStdString(name_);
+    return result;
+}
+
 bool WalletModel::validateSparkNameData(const QString &name, const QString &sparkAddress, const QString &additionalData, QString &strError) {
     CSparkNameTxData sparkNameData;
 
@@ -1436,8 +1441,6 @@ WalletModel::SendCoinsReturn WalletModel::mintSparkCoins(std::vector<WalletModel
                     std::string strAddress = rcp.address.toStdString();
                     std::string strLabel = rcp.label.toStdString();
                     {
-                        LOCK(wallet->cs_wallet);
-
                         std::map<std::string, CAddressBookData>::iterator mi = wallet->mapSparkAddressBook.find(strAddress);
 
                         // Check if we have a new address or an updated label
@@ -1483,8 +1486,6 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(WalletModelTransaction
             CTxDestination dest = CBitcoinAddress(strAddress).Get();
             std::string strLabel = rcp.label.toStdString();
             {
-                LOCK(wallet->cs_wallet);
-
                 if(validateAddress(rcp.address)) {
                     std::map<CTxDestination, CAddressBookData>::iterator mi = wallet->mapAddressBook.find(dest);
                     // Check if we have a new address or an updated label

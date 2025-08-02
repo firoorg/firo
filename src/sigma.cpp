@@ -484,7 +484,7 @@ bool CheckSigmaTransaction(
         }
 
         std::vector<sigma::CoinDenomination> denominations;
-        uint64_t totalValue = 0;
+        FIRO_UNUSED uint64_t totalValue = 0;
         BOOST_FOREACH(const CTxIn &txin, tx.vin){
             if(!txin.scriptSig.IsSigmaSpend()) {
                 return state.DoS(100, false,

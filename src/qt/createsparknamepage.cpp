@@ -5,9 +5,11 @@
 #include "createsparknamepage.h"
 #include "ui_createsparkname.h"
 #include "sendcoinsdialog.h"
+#include "addresstablemodel.h"
 
 #include "platformstyle.h"
 #include "validation.h"
+#include "compat_layer.h"
 
 #include <QStyle>
 #include <QMessageBox>
@@ -34,6 +36,13 @@ CreateSparkNamePage::~CreateSparkNamePage()
 void CreateSparkNamePage::setModel(WalletModel *model)
 {
     this->model = model;
+
+    connect(ui->sparkAddressEdit, &QLineEdit::textChanged,
+            this, &CreateSparkNamePage::checkSparkBalance, Qt::UniqueConnection);
+    connect(ui->sparkNameEdit,    &QLineEdit::textChanged,
+            this, &CreateSparkNamePage::checkSparkBalance, Qt::UniqueConnection);
+    connect(ui->numberOfYearsEdit, qOverload<int>(&QSpinBox::valueChanged),
+            this, &CreateSparkNamePage::checkSparkBalance, Qt::UniqueConnection);
 }
 
 void CreateSparkNamePage::on_generateButton_clicked()
@@ -78,7 +87,7 @@ void CreateSparkNamePage::updateFee() {
     QString sparkName = ui->sparkNameEdit->text();
     int numberOfYears = ui->numberOfYearsEdit->value();
 
-    if (sparkName.isEmpty() || sparkName.length() > CSparkNameManager::maximumSparkNameLength || numberOfYears == 0 || numberOfYears > 10)
+    if (sparkName.isEmpty() || cmp::greater(sparkName.length(), CSparkNameManager::maximumSparkNameLength) || numberOfYears == 0 || numberOfYears > 10)
         ui->feeTextLabel->setText(feeText.arg("?"));
     else
         ui->feeTextLabel->setText(feeText.arg(QString::number(Params().GetConsensus().nSparkNamesFee[sparkName.length()]*numberOfYears)));
@@ -109,7 +118,7 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
         assert(!name.empty() && name.length() <= CSparkNameManager::maximumSparkNameLength);
 
         CAmount sparkNameFee = consensusParams.nSparkNamesFee[name.length()]*COIN*numberOfYears;
-        CAmount txFee;
+        FIRO_UNUSED CAmount txFee;
 
         WalletModelTransaction tx = model->initSparkNameTransaction(sparkNameFee);
 
@@ -143,6 +152,15 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
             QMessageBox::critical(this, tr("Error"), tr("Failed to send spark name transaction"));
             return false;
         }
+
+        if (model->getEncryptionStatus() != WalletModel::Unencrypted) {
+            model->getAddressTableModel()->addRow(
+                AddressTableModel::Send,
+                QString::fromStdString(name),
+                "",
+                QString::fromStdString(address)
+            );
+        }
     }
     catch (const std::exception &) {
         QMessageBox::critical(this, tr("Error"), tr("Failed to create spark name transaction"));
@@ -152,3 +170,33 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
     return true;
 }
 
+void CreateSparkNamePage::checkSparkBalance()
+{
+    if (!model)
+        return;
+
+    QString sparkName = ui->sparkNameEdit->text();
+    QString sparkAddress = ui->sparkAddressEdit->text();
+    int numberOfYears = ui->numberOfYearsEdit->value();
+
+    if (sparkName.isEmpty() ||
+        sparkName.length() > CSparkNameManager::maximumSparkNameLength ||
+        !model->validateSparkAddress(sparkAddress)) {
+        ui->balanceWarningLabel->clear();
+        ui->balanceWarningLabel->setVisible(false);
+        return;
+    }
+
+    CAmount requiredFee = Params().GetConsensus().nSparkNamesFee[sparkName.length()] * COIN * numberOfYears;
+    CAmount available = model->getSparkBalance().first;
+
+    if (available < requiredFee) {
+        ui->balanceWarningLabel->setText(
+            tr("⚠️ Not enough private funds to register this Spark name.")
+        );
+        ui->balanceWarningLabel->setVisible(true);
+    } else {
+        ui->balanceWarningLabel->clear();
+        ui->balanceWarningLabel->setVisible(false);
+    }
+}
