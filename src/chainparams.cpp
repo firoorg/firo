@@ -432,6 +432,8 @@ public:
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
         consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nSparkLimitV2StartBlock = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK;
+        consensus.nSparkLimitV2Factor = 3;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 50000;
 
@@ -750,6 +752,8 @@ public:
         consensus.nMaxValueLelantusMint = 1001 * COIN;
         consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nSparkLimitV2StartBlock = SPARK_NAME_TRANSFER_TESTNET_START_BLOCK;
+        consensus.nSparkLimitV2Factor = 3;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
@@ -1009,6 +1013,8 @@ public:
         consensus.nMaxValueLelantusMint = 1001 * COIN;
         consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nSparkLimitV2StartBlock = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK;
+        consensus.nSparkLimitV2Factor = 3;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
@@ -1255,8 +1261,10 @@ public:
         consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusSpendPerTransaction = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
-        consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
-        consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxValueSparkSpendPerTransaction = 1000 * COIN; // 1000 FIRO
+        consensus.nMaxValueSparkSpendPerBlock = 1500 * COIN; // 1500 FIRO
+        consensus.nSparkLimitV2StartBlock = 1500;
+        consensus.nSparkLimitV2Factor = 3;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 1000;
 
