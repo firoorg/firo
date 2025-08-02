@@ -59,7 +59,7 @@ public:
     void updateSpark();
 
 public Q_SLOTS:
-    void done(int retval);
+    void done(int retval) override;
 
 private:
     Ui::AddressBookPage *ui;
@@ -118,7 +118,7 @@ public:
     void setTypeFilter(quint32 modes);
 
 protected:
-    bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const;
+    bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const override;
     
 private:
     quint32 typeFilter;

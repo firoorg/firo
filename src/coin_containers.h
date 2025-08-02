@@ -63,7 +63,7 @@ namespace lelantus {
 // Use this version of code in case you need mobile api
 struct MintValueData {
     bool isJMint = false;
-    uint64_t amount;
+    uint64_t amount = 0;
     std::vector<unsigned char> encryptedValue;
     uint256 txHash;
 
