@@ -220,6 +220,7 @@ public:
 
         consensus.stage41DevelopmentFundAddress = "a7GJ9bYfbZqvXmEmxzxZyZYtUTQmzckpjG";
         consensus.stage41StartBlockDevFundAddressChange = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK;
+        consensus.stage41SparkNamesGracefulPeriod = 100; // 100 blocks grace period for spark names
 
         consensus.nStartBlacklist = 293990;
         consensus.nStartDuplicationCheck = 293526;
@@ -1097,6 +1098,7 @@ public:
 
         consensus.stage41DevelopmentFundAddress = "TEK8Kd2hd344LABNbMDTUTM3q4hH9WRn4q";  // private key cMhmPMuRXVfzM8RRNdJM1BxGEwt1okuKKWNP8FeHhz35avXK5SU5
         consensus.stage41StartBlockDevFundAddressChange = 2600;
+        consensus.stage41SparkNamesGracefulPeriod = 100;
 
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;

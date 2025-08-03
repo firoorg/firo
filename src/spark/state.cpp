@@ -811,7 +811,7 @@ bool CheckSparkTransaction(
 
                 CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
                 CSparkNameTxData sparkTxData;
-                if (sparkNameManager->CheckSparkNameTx(tx, nHeight, state, &sparkTxData)) {
+                if (sparkNameManager->CheckSparkNameTx(tx, nRealHeight, state, &sparkTxData)) {
                     if (!sparkTxData.name.empty() && sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
                         // Check if the block already contains conflicting spark name
                         if (CSparkNameManager::IsInConflict(sparkTxData, sparkTxInfo->sparkNames,
