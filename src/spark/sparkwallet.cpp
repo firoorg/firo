@@ -1301,17 +1301,19 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             throw std::runtime_error(_("Spats not started."));
 
         identifier = std::make_pair(spatsRecipients[0].a, spatsRecipients[0].iota);
-	for (const auto& privRecipient : spatsRecipients) {
+	    for (const auto& privRecipient : spatsRecipients) {
             spatsMintVOut += privRecipient.v;
             if (privRecipient.a != identifier.first || privRecipient.iota != identifier.second)
                 throw std::runtime_error(_("Not allowed to mix assets in one spend transaction."));
-	}
+	    }
     }
 
     if (burnAsset.first > 0) {
         if (spatsMintVOut > 0) {
             if (burnAsset.second.first != identifier.first || burnAsset.second.second != identifier.second)
                 throw std::runtime_error(_("Not allowed to mix assets in one spend transaction."));
+        } else {
+            identifier = std::make_pair(burnAsset.second.first, burnAsset.second.second);
         }
         spatsMintVOut += burnAsset.first;
     }
