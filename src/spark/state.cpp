@@ -1041,7 +1041,6 @@ void CSparkState::AddMintsToStateAndBlockIndex(
         const CBlock* pblock) {
 
     std::vector<spark::Coin> blockMints = pblock->sparkTxInfo->mints;
-
     latestCoinId = std::max(1, latestCoinId);
     auto &coinGroup = coinGroups[latestCoinId];
 

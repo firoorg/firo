@@ -14,7 +14,7 @@ class SparkMintSpendTest(BitcoinTestFramework):
     def run_test(self):
         # Decimal formating: 6 digits for balance will be enought 000.000
         getcontext().prec = 6
-        self.nodes[0].generate(801)
+        self.nodes[0].generate(101)
         self.sync_all()
 
         start_bal = self.nodes[0].getbalance()

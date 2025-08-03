@@ -173,7 +173,6 @@ testScripts = [
 
     # Firo-specific tests
     'transactions_verification_after_restart.py',
-    'hdmint_mempool_zap.py',
 
     # Evo Znodes
     'dip3-deterministicmns.py',

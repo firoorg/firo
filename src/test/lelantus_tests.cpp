@@ -344,9 +344,9 @@ BOOST_AUTO_TEST_CASE(build_lelantus_state)
 
     block1.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[0].GetPubcoinValue(), std::make_pair(mints[0].GetAmount(), uint256())));
     block1.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[1].GetPubcoinValue(), std::make_pair(mints[1].GetAmount(), uint256())));
-    block1.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[2].GetPubcoinValue(), std::make_pair(mints[2].GetAmount(), uint256())));
-    block1.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[3].GetPubcoinValue(), std::make_pair(mints[3].GetAmount(), uint256())));
-
+    block2.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[2].GetPubcoinValue(), std::make_pair(mints[2].GetAmount(), uint256())));
+    block2.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[3].GetPubcoinValue(), std::make_pair(mints[3].GetAmount(), uint256())));
+    lelantusState->Reset();
     lelantusState->AddMintsToStateAndBlockIndex(blockIdx1, &block1);
     lelantusState->AddMintsToStateAndBlockIndex(blockIdx2, &block2);
 
@@ -370,7 +370,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
         ActivateBestChain(state, ::Params(), sharedBlock);
     };
 
-    GenerateBlocks(400);
+    GenerateBlocks(110);
 
     std::vector<CMutableTransaction> mintTxs;
     auto hdMints = GenerateMints({3 * COIN, 3 * COIN, 3 * COIN}, mintTxs);
@@ -555,7 +555,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
 BOOST_AUTO_TEST_CASE(checktransaction)
 {
-    GenerateBlocks(400);
+    GenerateBlocks(110);
 
     // mints
     std::vector<CMutableTransaction> txs;
@@ -630,7 +630,7 @@ BOOST_AUTO_TEST_CASE(move_to_v3_payload)
     int prevHeight;
     pwalletMain->SetBroadcastTransactions(true);
 
-    for (int n=chainActive.Height(); n<700; n++)
+    for (int n=chainActive.Height(); n<300; n++)
         GenerateBlock({});
 
     std::vector<CMutableTransaction> lelantusMints;
@@ -820,7 +820,7 @@ BOOST_AUTO_TEST_CASE(parse_joinsplit)
 
 BOOST_AUTO_TEST_CASE(coingroup)
 {
-    GenerateBlocks(400);
+    GenerateBlocks(210);
 
     // util function
     auto reconnect = [](CBlock const &block) {

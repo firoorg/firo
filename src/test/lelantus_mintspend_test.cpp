@@ -26,7 +26,7 @@ BOOST_FIXTURE_TEST_SUITE(lelantus_mintspend, LelantusTestingSetup)
 
 BOOST_AUTO_TEST_CASE(lelantus_mintspend_test)
 {
-    GenerateBlocks(400);
+    GenerateBlocks(110);
 
     lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
 

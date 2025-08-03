@@ -14,7 +14,7 @@ class SetSparkMintSatusValidation(BitcoinTestFramework):
         return start_nodes(self.num_nodes, self.options.tmpdir)
 
     def run_test(self):
-        self.nodes[0].generate(801)
+        self.nodes[0].generate(501)
         self.sync_all()
 
         sparkAddress = self.nodes[0].getnewsparkaddress()[0]

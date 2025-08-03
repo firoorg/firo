@@ -331,11 +331,6 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   rpc/server.cpp
   script/ismine.cpp
   script/sigcache.cpp
-  sigma.cpp
-  sigma/coin.cpp
-  sigma/coinspend.cpp
-  sigma/params.cpp
-  sigma/spend_metadata.cpp
   spark/primitives.cpp
   sparkname.cpp
   spark/state.cpp

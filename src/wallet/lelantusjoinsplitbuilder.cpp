@@ -403,7 +403,9 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
     // after nLelantusFixesStartBlock set new transaction version,
     {
         if (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock)
-            version = SIGMA_TO_LELANTUS_TX_TPAYLOAD;
+            version = LELANTUS_TX_TPAYLOAD;
+        else
+            version = LELANTUS_TX_VERSION_4_5;
     }
 
     std::vector<std::vector<unsigned char>> anonymity_set_hashes;

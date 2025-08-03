@@ -184,7 +184,7 @@ BOOST_AUTO_TEST_CASE(parse_spark_smint)
 BOOST_AUTO_TEST_CASE(get_outpoint)
 {
     pwalletMain->SetBroadcastTransactions(true);
-    GenerateBlocks(1100);
+    GenerateBlocks(500);
 
     std::vector<CAmount> amounts{2, 10};
     std::vector<CMutableTransaction> txs;
@@ -249,7 +249,7 @@ BOOST_AUTO_TEST_CASE(build_spark_state)
 {
     pwalletMain->SetBroadcastTransactions(true);
 
-    GenerateBlocks(1100);
+    GenerateBlocks(500);
     // generate mints
     std::vector<CMutableTransaction> txs;
     auto mints = GenerateMints({1 * COIN, 2 * COIN, 3 * COIN, 4 * COIN}, txs);
@@ -285,7 +285,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
     };
 
     pwalletMain->SetBroadcastTransactions(true);
-    GenerateBlocks(1100);
+    GenerateBlocks(500);
 
     std::vector<CMutableTransaction> mintTxs;
     auto mints = GenerateMints({3 * COIN, 2 * COIN}, mintTxs);
@@ -480,7 +480,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
 BOOST_AUTO_TEST_CASE(checktransaction)
 {
-    GenerateBlocks(1100);
+    GenerateBlocks(500);
 
     // mints
     std::vector<CMutableTransaction> txs;
@@ -548,7 +548,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
 BOOST_AUTO_TEST_CASE(coingroup)
 {
-    GenerateBlocks(1100);
+    GenerateBlocks(500);
 
     // util function
     auto reconnect = [](CBlock const &block) {
