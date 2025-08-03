@@ -397,25 +397,13 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
    assert( script.IsSpatsBurn() );
    script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
    assert( script.IsSpatsBurn() );
-   // TODO add a recipient to firo_burn_address, for `burn_amount` of `asset_type`. It has to be done in such a way that the actual burning from the registry
-   //      will NOT be actually performed if the sending to firo_burn_address fails (due to insufficient funds in this wallet).
-   // TODO well, the below is just a demo code of how that could look like, with a fake 'burn' address. THIS IS NOT INTENDED TO BE FINAL PRODUCTION CODE.
-   //      It will be rewritten before then. Until then, this is here just for demo & testing purposes.
-   std::vector< spark::OutputCoinData > spats_recipients;
-   spats_recipients.emplace_back( CSparkWallet::decodeAddress(
-                                    "sr1yzjc2fmzfhchnve2wu5vqly6akgpntlsze47s6xf7x0m7zjv4dz7z2hr8hy93gj8fkp73p7gn4qf3mkhsress9tjafglspmd4yhj4mscvs52z3q5x2nt9dk4579cal6yp"
-                                    "vax3cczwmund" ),   // just a fake 'burn' address, the burn will be done as a new output type eventually, before merging to master
-                                  boost::numeric_cast< CAmount >( burn_amount.raw() ),
-                                  "burning asset supply",
-                                  utils::to_underlying( asset_type ),
-                                  Scalar() );
-   assert( spats_recipients.back().iota.isZero() );
-   // TODO use burnAsset, in addition to or instead of `script`
+   // Burning is supposed to be done in such a way that the actual burning from the registry will NOT be actually performed if the burning of the amount fails (due to
+   // insufficient funds in this wallet). Should already be the case the way it is implemented, but needs to be TODO tested
    auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, admin_public_address, "spats burn" } },
                                                         {},
-                                                        spats_recipients,
-                                                        standard_fee,
                                                         {},
+                                                        standard_fee,
+                                                        { boost::numeric_cast< CAmount >( burn_amount.raw() ), utils::to_underlying( asset_type ) },
                                                         nullptr );   // may throw
    assert( tx.tx->IsSpatsBurn() );
 

@@ -1267,8 +1267,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(WalletMod
 //TODO levon add spats  case
         CWalletTx *newTx = transaction.getTransaction();
         try {
-            std::pair<CAmount, std::pair<Scalar, Scalar>>  emptyBurn;
-            *newTx = wallet->CreateSparkSpendTransaction(vecSend, privateRecipients, {}, nFeeRequired, emptyBurn, coinControl);
+            *newTx = wallet->CreateSparkSpendTransaction(vecSend, privateRecipients, {}, nFeeRequired, {}, coinControl);
         } catch (InsufficientFunds const&) {
             transaction.setTransactionFee(nFeeRequired);
             if (!fSubtractFeeFromAmount && (total + nFeeRequired) > nBalance) {

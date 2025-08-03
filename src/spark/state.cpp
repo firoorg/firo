@@ -439,10 +439,13 @@ static spats::MintAction ParseSpatsMintTransaction(const CTransaction &tx)
 static spats::BurnAction<> ParseSpatsBurnTransaction(const CTransaction &tx)
 {
     assert(tx.IsSpatsBurn());
-    if (tx.vout.size() < 1)
+    if (tx.vout.size() != 2)
         throw CBadTxIn();
     const CScript& burn_script = tx.vout.front().scriptPubKey;
     if (!burn_script.IsSpatsBurn())
+        throw CBadTxIn();
+    const auto& burn_out = tx.vout.back();
+    if (!burn_out.scriptPubKey.IsSpatsBurnAmount())
         throw CBadTxIn();
 
     try{
@@ -464,6 +467,16 @@ static spats::BurnAction<> ParseSpatsBurnTransaction(const CTransaction &tx)
         LogPrintf("ParseSpatsBurnTransaction scalar_of_proof: %s\n", scalar_of_proof);
         if (!a.verify_own(scalar_of_proof, proof))
             throw CBadTxIn();
+
+        if (burn_out.nValue != burn_params.burn_amount().raw())
+            throw CBadTxIn();
+        serialized.assign(burn_out.scriptPubKey.begin() + 1, burn_out.scriptPubKey.end());
+        CDataStream burn_out_stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
+        Scalar asset_type;
+        stream >> asset_type;
+        if (std::stoull(asset_type.tostring()) != utils::to_underlying(burn_params.asset_type()))
+            throw CBadTxIn();
+
         return action;
     }
     catch (...) {
@@ -1071,7 +1084,7 @@ bool CheckSparkSpendTransaction(
             return false;
         } else if (script.IsSpatsMint() || script.IsSpatsMintCoin()) {
             continue;
-        } else if (script.IsSpatsBurn()) {
+        } else if (script.IsSpatsBurnAmount()) {
             burn += txout.nValue;
         } else {
             Vout += txout.nValue;

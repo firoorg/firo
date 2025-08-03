@@ -157,7 +157,7 @@ BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
     serializedCoins = spatsMint.getMintedCoinsSerialized();
 
     CScript spatsScript;
-    spatsScript << OP_SPATSMINT;
+    spatsScript << OP_SPATSMINTCOIN;
     spatsScript.insert(spatsScript.end(), serializedCoins[0].begin(), serializedCoins[0].end());
 
     // coin parse test
@@ -683,7 +683,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     auto outputAmount = 1 * COIN;
     auto mintAmount = 2 * CENT - CENT; // a cent as fee
     CAmount fee;
-    std::pair<CAmount, std::pair<Scalar, Scalar>>  burn;
+    std::pair<CAmount, Scalar> burn;
     CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, {}, fee, burn);
 
     CMutableTransaction spendTx(wtx);
@@ -752,7 +752,7 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     auto outputAmount = 1 * COIN;
     auto mintAmount = 2 * CENT - CENT; // a cent as fee
     CAmount fee;
-    std::pair<CAmount, std::pair<Scalar, Scalar>>  burn;
+    std::pair<CAmount, Scalar> burn;
     CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, {}, fee, burn);
 
     CMutableTransaction spendTx(wtx);

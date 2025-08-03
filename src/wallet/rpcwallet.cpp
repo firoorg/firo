@@ -1694,13 +1694,15 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
                 }
             }
 
+            // TODO Distinguish all spats actions for "category"
+
             if (wtx.tx->HasNoRegularInputs()) {
                 entry.push_back(Pair("category", "spend"));
             }
             else if (wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint() || wtx.tx->IsSparkMint()) {
                 entry.push_back(Pair("category", "mint"));
             }
-            else if (wtx.tx->IsSpatsMint()) {
+            else if (wtx.tx->HasSpatsMintCoin()) {
                 entry.push_back(Pair("category", "spatsmint"));
             }
             else {
@@ -3976,7 +3978,7 @@ UniValue spendspark(const JSONRPCRequest& request)
     const spark::Params* params = spark::Params::get_default();
     std::set<CBitcoinAddress> setAddress;
     unsigned char network = spark::GetNetworkType();
-    std::pair<CAmount, std::pair<Scalar, Scalar>>  burn;
+    std::pair<CAmount, Scalar> burn;
 
     BOOST_FOREACH(const std::string& name_, keys)
     {
@@ -3994,12 +3996,11 @@ UniValue spendspark(const JSONRPCRequest& request)
         } else if (!name_.empty() && name_ == "burn") {
             UniValue burn_(UniValue::VARR);
 			burn_ = sendTo[name_].get_array();
-            if (burn_.size() != 3) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("For burn you have to provide amount and asset identifiers!"));
+            if (burn_.size() != 2) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "For burn you have to provide amount and asset type!"s);
             }
-            burn.first = burn_[0].get_int();
-            burn.second.first = Scalar(uint64_t(burn_[1].get_int()));
-            burn.second.second = Scalar(uint64_t(burn_[1].get_int()));
+            burn.first = burn_[0].get_int64();
+            burn.second = Scalar(burn_[1].get_uint64());
         } else {
             sparkAddressStr = name_;
         }

@@ -273,7 +273,7 @@ bool CTransaction::IsSpatsBurn() const
 
 bool CTransaction::IsSpatsTransaction() const
 {
-    return IsSpatsCreate() || IsSpatsUnregister() || IsSpatsModify() || IsSpatsMint() || IsSpatsBurn() || HasSpatsMintCoin();    // TODO more
+    return IsSpatsCreate() || IsSpatsUnregister() || IsSpatsModify() || IsSpatsMint() || IsSpatsBurn() || HasSpatsMintCoin();    // TODO more maybe
 }
 
 bool CTransaction::IsZerocoinTransaction() const

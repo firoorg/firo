@@ -717,15 +717,14 @@ public:
     bool IsSpatsMintCoin() const;
 
     bool IsSpatsBurn() const;
+    bool IsSpatsBurnAmount() const;
 
     bool IsSpats() const;
-    bool IsSpatsAction() const;
+    bool HasSerializedSpatsAction() const;
 
     bool IsZerocoinRemint() const;
 
     bool IsMint() const;
-
-    bool IsSpatsBurnAmount() const;
 
     bool IsSparkMintType() const;
 

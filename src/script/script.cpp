@@ -163,6 +163,7 @@ const char* GetOpName(opcodetype opcode)
     case OP_SPATSMINTCOIN  : return "OP_SPATSMINTCOIN";
     case OP_SPATSSPEND  : return "OP_SPATSSPEND";
     case OP_SPATSBURN  : return "OP_SPATSBURN";
+    case OP_SPATSBURNAMOUNT  : return "OP_SPATSBURNAMOUNT";
     // Super transparent txout script prefix
     case OP_EXCHANGEADDR    : return "OP_EXCHANGEADDR";
 
@@ -406,12 +407,9 @@ bool CScript::IsSpats() const
     return this->size() > 0 && IsSpatsOp(static_cast<opcodetype>((*this)[0]));
 }
 
-bool CScript::IsSpatsAction() const
+bool CScript::HasSerializedSpatsAction() const
 {
-    if (!IsSpats())
-        return false;
-    const auto op = static_cast<opcodetype>((*this)[0]);
-    return op != OP_SPATSMINTCOIN && op != OP_SPATSSPEND;   // these are not spats actions, as in they by themselves do not affect spats::Registry, and do not indicate any spats::Action
+    return IsSpatsCreate() || IsSpatsUnregister() || IsSpatsModify() || IsSpatsMint() || IsSpatsBurn(); // TODO more maybe
 }
 
 bool CScript::IsSparkMintType() const {

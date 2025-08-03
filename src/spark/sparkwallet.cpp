@@ -1254,7 +1254,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
         const std::vector<spark::OutputCoinData>& spatsRecipients,
         CAmount &fee,
-        const std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
+        const std::pair<CAmount, Scalar> &burnAsset,
         const CCoinControl *coinControl,
         CAmount additionalTxSize) {
 
@@ -1291,7 +1291,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             recipientsToSubtractFee++;
         }
 
-        if (recipient.scriptPubKey.IsSpatsAction())
+        if (recipient.scriptPubKey.HasSerializedSpatsAction())
             spats_script_sizes_total += recipient.scriptPubKey.size();
     }
 
@@ -1318,8 +1318,10 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     }
 
     if (burnAsset.first > 0) {
+        if (!spats::is_fungible_asset_type(spats::asset_type_t{std::stoull(burnAsset.second.tostring())}))
+            throw std::runtime_error(_("Burning is allowed only for fungible assets."));
         if (spatsMintVOut > 0) {
-            if (burnAsset.second.first != identifier.first || burnAsset.second.second != identifier.second)
+            if (burnAsset.second != identifier.first || !identifier.second.isZero())
                 throw std::runtime_error(_("Not allowed to mix assets in one spend transaction."));
         }
         spatsMintVOut += burnAsset.first;
@@ -1449,7 +1451,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             // fill outputs
             for (size_t i = 0; i < recipients_.size(); i++) {
                 auto& recipient = recipients_[i];
-                const bool is_spats_action = recipient.scriptPubKey.IsSpatsAction();
+                const bool is_spats_action = recipient.scriptPubKey.HasSerializedSpatsAction();
                 if (recipient.nAmount == 0 && !is_spats_action)
                     continue;
 
@@ -1517,7 +1519,6 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 
             if (burnAsset.first > 0) {
                 spatsSpendAmount -= burnAsset.first;
-
             }
 
             if (spendInCurrentTx < 0 || spatsSpendAmount < 0)
@@ -1656,20 +1657,18 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 output.address =  privOutputs[i].address.encode(network);
                 output.amount = privOutputs[i].v;
                 output.memo = privOutputs[i].memo;
-                walletdb.WriteSparkOutputTx(script, output);
+                walletdb.WriteSparkOutputTx(script, output);    // TODO for Levon: this needs to be adapted for spats
                 tx.vout.push_back(CTxOut(0, script));
                 i++;
             }
 
             if (burnAsset.first > 0) {
                 // construct spend script
-                CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
                 CScript script;
-                script << OP_SPATSBURN;
-                CDataStream serializedIdentifier(SER_NETWORK, PROTOCOL_VERSION);
-                serializedIdentifier << burnAsset.second.first;
-                serializedIdentifier << burnAsset.second.second;
-                script.insert(script.end(), serializedIdentifier.begin(), serializedIdentifier.end());
+                script << OP_SPATSBURNAMOUNT;
+                CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+                serialized << burnAsset.second;
+                script.insert(script.end(), serialized.begin(), serialized.end());
                 tx.vout.push_back(CTxOut(burnAsset.first, script));
             }
 
@@ -1789,11 +1788,10 @@ std::optional<CWalletTx> CSparkWallet::CreateSpatsMintTransaction(
     return *wtx;
 #endif
 
-    // TODO GV #Review: What is 8 here for? And shouldn't we add SchnorrProof::memoryRequired() too? And for burn?
+    // TODO GV #Review: What is 8 here for? And shouldn't we add SchnorrProof::memoryRequired() too?
     const auto additionalTxSize = spark::OwnershipProof::memoryRequired() + spark::Coin::memoryRequiredSpats() + 8 +
         action_params.initiator_public_address().size() + GetSizeOfCompactSize(action_params.initiator_public_address().size()) + sizeof(*precision);
-    std::pair<CAmount, std::pair<Scalar, Scalar>>  emptyBurn;
-    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({}, {}, {}, fee, emptyBurn, coinControl, additionalTxSize);
+    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({}, {}, {}, fee, {}, coinControl, additionalTxSize);
 
     CMutableTransaction tx = CMutableTransaction(*wtxSparkSpend.tx);
     AppendSpatsMintTxData(tx, spatsRecipient, ensureSpendKey(), action_params.initiator_public_address(), *precision);
@@ -1819,8 +1817,7 @@ CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, C
     devPayout.nAmount = sparkNameFee;
     devPayout.scriptPubKey = GetScriptForDestination(CBitcoinAddress(Params().GetConsensus().stage3DevelopmentFundAddress).Get());
     devPayout.fSubtractFeeFromAmount = false;
-    std::pair<CAmount, std::pair<Scalar, Scalar>>  emptyBurn;
-    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({devPayout}, {}, {}, txFee, emptyBurn, coinConrol,
+    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({devPayout}, {}, {}, txFee, {}, coinConrol,
         sparkNameManager->GetSparkNameTxDataSize(nameData) + 20 /* add a little bit to the fee to be on the safe side */);
 
     const spark::Params* params = spark::Params::get_default();
@@ -2027,6 +2024,7 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoinsNe
 
         // 1803 is for the first grootle proof/aux data
         // 322 for each private output, 34 for each utxo, 1571 for constant parts of tx
+        // TODO take spats burn into account?
         size = 1571 + 1803*(spendCoins.size() + spatsSpendCoins.size()) + 322*(mintNum + 1 + (sChangeToMint > 0)) + 34*utxoNum + additionalTxSize;
         CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
         if (fee >= feeNeeded) {
