@@ -1310,11 +1310,11 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             throw std::runtime_error(_("Spats not started."));
 
         identifier = std::make_pair(spatsRecipients[0].a, spatsRecipients[0].iota);
-	    for (const auto& privRecipient : spatsRecipients) {
+        for (const auto& privRecipient : spatsRecipients) {
             spatsMintVOut += privRecipient.v;
             if (privRecipient.a != identifier.first || privRecipient.iota != identifier.second)
                 throw std::runtime_error(_("Not allowed to mix assets in one spend transaction."));
-	    }
+        }
     }
 
     if (burnAsset.first > 0) {
@@ -1324,12 +1324,12 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             if (burnAsset.second != identifier.first || !identifier.second.isZero())
                 throw std::runtime_error(_("Not allowed to mix assets in one spend transaction."));
         } else {
-            identifier = std::make_pair(burnAsset.second.first, burnAsset.second.second);
+            assert(identifier.first.isZero());
+            assert(identifier.second.isZero()); // this one is the value we already need
+            identifier.first = burnAsset.second;
         }
         spatsMintVOut += burnAsset.first;
     }
-
-
 
     if (vOut > consensusParams.nMaxValueSparkSpendPerTransaction)
         throw std::runtime_error(_("Spend to transparent address limit exceeded (10,000 Firo per transaction)."));
