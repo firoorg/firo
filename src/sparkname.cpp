@@ -122,6 +122,16 @@ bool CSparkNameManager::ParseSparkNameTxData(const CTransaction &tx, spark::Spen
     return true;
 }
 
+bool CSparkNameManager::CheckPaymentToTransparentAddress(const CTransaction &tx, const std::string &address, CAmount amount) const
+{
+    for (const CTxOut &txout : tx.vout)
+    {
+        if (txout.scriptPubKey == GetScriptForDestination(CBitcoinAddress(address).Get()) && txout.nValue >= amount)
+            return true;
+    }
+    return false;
+}
+
 bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CValidationState &state, CSparkNameTxData *outSparkNameData)
 {
     const Consensus::Params &consensusParams = Params().GetConsensus();
@@ -166,13 +176,14 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 10 years"));
 
     CAmount nameFee = consensusParams.nSparkNamesFee[sparkNameData.name.size()] * COIN * nYears;
-    CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get());
+
     bool payoutFound = false;
-    for (const CTxOut &txout: tx.vout)
-        if (txout.scriptPubKey == devPayoutScript && txout.nValue >= nameFee) {
-            payoutFound = true;
-            break;
-        }
+    // Up until stage 4.1, the fee is paid to the development fund address. Afterwards, it is paid to the community fund address.
+    // Graceful period allows to register spark names with the old address for the payment
+    if (nHeight < consensusParams.stage41StartBlockDevFundAddressChange + consensusParams.stage41SparkNamesGracefulPeriod)
+        payoutFound = CheckPaymentToTransparentAddress(tx, consensusParams.stage3DevelopmentFundAddress, nameFee);
+    if (nHeight >= consensusParams.stage41StartBlockDevFundAddressChange)
+        payoutFound = payoutFound || CheckPaymentToTransparentAddress(tx, consensusParams.stage3CommunityFundAddress, nameFee);
 
     if (!payoutFound)
         return state.DoS(100, error("CheckSparkNameTx: name fee is either missing or insufficient"));

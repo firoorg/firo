@@ -170,6 +170,10 @@ public:
 
     // reset method for test purposes only
     void Reset();
+
+private:
+    // check if at payment of at least "amount" is made to the transparent address
+    bool CheckPaymentToTransparentAddress(const CTransaction &tx, const std::string &address, CAmount amount) const;
 };
 
 #endif // FIRO_SPARKNAME_H

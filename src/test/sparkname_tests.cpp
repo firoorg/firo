@@ -99,13 +99,14 @@ public:
         return CreateSparkNameTx(sparkNameData, fCommit, sparkNameFee);
     }
 
-    void DisconnectAndInvalidate() {
+    CBlockIndex *DisconnectAndInvalidate() {
         LOCK(cs_main);
         CBlockIndex *pindex = chainActive.Tip();
         DisconnectBlocks(1);
         CValidationState state;
         const CChainParams &chainparams = ::Params();
         InvalidateBlock(state, chainparams, pindex);
+        return pindex;
     }
 
     void ModifySparkNameTx(CMutableTransaction &tx, std::function<void(CSparkNameTxData &)> modify, bool fRecalcOwnershipProof = true) {
@@ -340,6 +341,61 @@ BOOST_AUTO_TEST_CASE(hfblocknumber)
     BOOST_CHECK_EQUAL(oldHeight+1, chainActive.Height());
     // and the spark name should be registered
     BOOST_CHECK(IsSparkNamePresent("testname2"));
+
+    // now test transition to new address
+    CMutableTransaction txesOldAddress[3] = {
+        CreateSparkNameTx("old1", GenerateSparkAddress(), 10000, "x", true),
+        CreateSparkNameTx("old2", GenerateSparkAddress(), 10000, "x", true),
+        CreateSparkNameTx("old3", GenerateSparkAddress(), 10000, "x", true)
+    };
+    mempool.clear();
+
+    const auto &params = Params().GetConsensus();
+    GenerateBlocks(consensus.stage41StartBlockDevFundAddressChange - chainActive.Height());
+
+    CMutableTransaction txesNewAddress[2] = {
+        CreateSparkNameTx("new1", GenerateSparkAddress(), 10000, "x", true),
+        CreateSparkNameTx("new2", GenerateSparkAddress(), 10000, "x", true)
+    };
+    mempool.clear();
+
+    // roll back two blocks
+    DisconnectAndInvalidate();
+    DisconnectAndInvalidate();
+
+    oldHeight = chainActive.Height();
+    GenerateBlock({txesNewAddress[0]});
+    // this should fail because of new address used prematurely
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);
+
+    // but the old address should be accepted
+    oldHeight = chainActive.Height();
+    GenerateBlock({txesOldAddress[0]});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight+1);
+
+    // and retry the new address
+    oldHeight = chainActive.Height();
+    GenerateBlock({txesNewAddress[0]});
+    // now this operation should succeed
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight+1);
+
+    // now try to use the old address again
+    oldHeight = chainActive.Height();
+    GenerateBlock({txesOldAddress[1]});
+    // this still should succeed because of graceful period
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight+1);
+
+    // skip to past the graceful period
+    GenerateBlocks(consensus.stage41StartBlockDevFundAddressChange + consensus.stage41SparkNamesGracefulPeriod - chainActive.Height());
+    oldHeight = chainActive.Height();
+    GenerateBlock({txesOldAddress[2]});
+    // should fail now
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);
+
+    // but the new address should work
+    oldHeight = chainActive.Height();
+    GenerateBlock({txesNewAddress[1]});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight+1);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

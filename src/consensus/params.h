@@ -171,6 +171,18 @@ struct Params {
     /** percentage of block subsidy going to masternode */
     int stage4MasternodeShare;
 
+    // after this block number dev fund address changes. Also spark name fee goes into community fund. This is known as stage 4.1.
+    int stage41StartBlockDevFundAddressChange;
+    // new dev fund address
+    std::string stage41DevelopmentFundAddress;
+    // number of "grace period" blocks that allows spark names to be registered with old address
+    int stage41SparkNamesGracefulPeriod;
+
+    std::string GetStage4DevelopmentFundAddress(int nHeight) const {
+        return stage41StartBlockDevFundAddressChange > 0 && nHeight >= stage41StartBlockDevFundAddressChange ?
+                stage41DevelopmentFundAddress : stage3DevelopmentFundAddress;
+    }
+
     /**  tail emission (after stage 4) */
     int tailEmissionBlockSubsidy;
 
