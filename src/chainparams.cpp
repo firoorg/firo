@@ -556,6 +556,10 @@ public:
         consensus.stage4MasternodeShare = 70;
         consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
 
+        consensus.stage41DevelopmentFundAddress = "TEQQi3AraGdo7VHVM7Z8xKYTiiNcy8rydF";
+        consensus.stage41StartBlockDevFundAddressChange = SPARK_NAME_TRANSFER_TESTNET_START_BLOCK;
+        consensus.stage41SparkNamesGracefulPeriod = 100; // 100 blocks grace period for spark names
+
         consensus.nStartBlacklist = 0;
         consensus.nStartDuplicationCheck = 0;
         consensus.nMajorityEnforceBlockUpgrade = 51;
@@ -843,6 +847,10 @@ public:
         consensus.stage4DevelopmentFundShare = 15;
         consensus.stage4MasternodeShare = 70;
         consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
+
+        consensus.stage41DevelopmentFundAddress = "Tv6LBcQB3UVW7c71JyysoEUMoj4NtWGeP8";
+        consensus.stage41StartBlockDevFundAddressChange = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK;
+        consensus.stage41SparkNamesGracefulPeriod = 100; // 100 blocks grace period for spark names
 
         consensus.nStartBlacklist = 0;
         consensus.nStartDuplicationCheck = 0;
