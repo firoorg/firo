@@ -42,6 +42,7 @@
 #include "validation.h"
 #include "mtpstate.h"
 #include "batchproof_container.h"
+#include <crypto/progpow/include/ethash/progpow.hpp>
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -1691,6 +1692,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         mutableParams.nMTPStripDataTime = GetArg("-mtpstripdatatime", INT_MAX);
     else if (IsArgSet("-mtpstripdatatimefromnow"))
         mutableParams.nMTPStripDataTime = GetArg("-mtpstripdatatimefromnow", 0) + (uint32_t)GetTime();
+
+    // set PP memory usage clamp if needed
+    const auto &params = Params().GetConsensus();
+    if (params.nMaxPPEpoch != INT_MAX)
+        ethash::ethash_clamp_memory_usage(params.nMaxPPEpoch, params.nTerminalPPEpoch);
 
     // ********************************************************* Step 7a: check lite mode
 

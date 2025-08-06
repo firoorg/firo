@@ -390,6 +390,10 @@ struct Params {
     /** block height at the moment of PP transition (0 if unknown) */
     int nPPBlockNumber;
 
+    /** Clamp memory usage of ProgPOW (if epoch > nMaxPPEpoch it's set to nTerminalPPEpoch) */
+    int nMaxPPEpoch;
+    int nTerminalPPEpoch;
+
     /** don't adjust difficulty until some block number */
     int nDifficultyAdjustStartBlock;
     /** fixed diffuculty to use before adjustment takes place */

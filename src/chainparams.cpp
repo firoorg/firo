@@ -493,6 +493,10 @@ public:
         consensus.nPPBlockNumber = 419264;
         consensus.nInitialPPDifficulty = 0x1b1774cd;    // 40GH/s
 
+        // limit ProgPoW DAG size to ~7.1GB
+        consensus.nMaxPPEpoch = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK/1300 - 1;
+        consensus.nTerminalPPEpoch = 650;
+
         // exchange address
         consensus.nExchangeAddressStartBlock = consensus.nSparkStartBlock;
 
@@ -805,6 +809,9 @@ public:
         consensus.nPPBlockNumber = 37305;
         consensus.nInitialPPDifficulty = 0x1d016e81;    // 10MH/s
 
+        consensus.nMaxPPEpoch = SPARK_NAME_TRANSFER_TESTNET_START_BLOCK/1300 - 1;
+        consensus.nTerminalPPEpoch = 100;
+
         // exchange address
         consensus.nExchangeAddressStartBlock = 147000;
 
@@ -1059,6 +1066,9 @@ public:
         consensus.nPPBlockNumber = 1;
         consensus.nInitialPPDifficulty = 0x2000ffff;
 
+        consensus.nMaxPPEpoch = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK/1300 - 1;
+        consensus.nTerminalPPEpoch = 1;
+
         // exchange address
         consensus.nExchangeAddressStartBlock = 2500;
 
@@ -1312,6 +1322,9 @@ public:
         consensus.nPPSwitchTime = INT_MAX;
         consensus.nPPBlockNumber = INT_MAX;
         consensus.nInitialPPDifficulty = 0x2000ffff;
+
+        consensus.nMaxPPEpoch = 2;
+        consensus.nTerminalPPEpoch = 1;
 
         // spark names
         consensus.nSparkNamesStartBlock = 2000;
