@@ -491,7 +491,7 @@ public:
 
         // limit ProgPoW DAG size to ~7.1GB
         consensus.nMaxPPEpoch = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK/1300 - 1;
-        consensus.nTerminalPPEpoch = 700;
+        consensus.nTerminalPPEpoch = 650;
 
         // exchange address
         consensus.nExchangeAddressStartBlock = consensus.nSparkStartBlock;
