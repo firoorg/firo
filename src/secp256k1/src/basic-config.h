@@ -4,8 +4,8 @@
  * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
  **********************************************************************/
 
-#ifndef _SECP256K1_BASIC_CONFIG_
-#define _SECP256K1_BASIC_CONFIG_
+#ifndef SECP256K1_BASIC_CONFIG_
+#define SECP256K1_BASIC_CONFIG_
 
 #ifdef USE_BASIC_CONFIG
 
@@ -29,4 +29,4 @@
 #define USE_SCALAR_8X32 1
 
 #endif // USE_BASIC_CONFIG
-#endif // _SECP256K1_BASIC_CONFIG_
+#endif // SECP256K1_BASIC_CONFIG_

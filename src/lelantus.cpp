@@ -390,7 +390,7 @@ bool CheckLelantusJoinSplitTransaction(
                         "CheckLelantusJoinSplitTransaction: network hasn't yet switched over to lelantus payload data");
         }
     }
-    const CTxIn &txin = tx.vin[0];
+    FIRO_UNUSED const CTxIn &txin = tx.vin[0];
     std::unique_ptr<lelantus::JoinSplit> joinsplit;
 
     try {
@@ -1384,7 +1384,7 @@ void CLelantusState::RemoveBlock(CBlockIndex *index) {
         if (nMintsToForget == 0)
             continue;
 
-        assert(coinGroup.nCoins >= nMintsToForget);
+        assert(cmp::greater_equal(coinGroup.nCoins, nMintsToForget));
         auto isExtended = coins.first > 1;
         coinGroup.nCoins -= nMintsToForget;
 

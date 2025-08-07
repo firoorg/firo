@@ -49,7 +49,7 @@ void CDKGSessionManager::StopMessageHandlerPool()
 
 void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDownload)
 {
-    const auto& consensus = Params().GetConsensus();
+    FIRO_UNUSED const auto& consensus = Params().GetConsensus();
 
     CleanupCache();
 

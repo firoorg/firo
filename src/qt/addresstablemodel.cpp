@@ -12,6 +12,7 @@
 #include "validation.h"
 #include "bip47/defs.h"
 #include "bip47/paymentchannel.h"
+#include "../sparkname.h"
 
 #include <boost/foreach.hpp>
 
@@ -826,7 +827,7 @@ QVariant PcodeAddressTableModel::data(const QModelIndex &index, int role) const
         return QVariant();
 
     int const row = index.row();
-    if(row >= pcodeData.size())
+    if(cmp::greater_equal(row, pcodeData.size()))
         return QVariant();
 
     if(role == Qt::DisplayRole || role == Qt::EditRole)
@@ -856,7 +857,7 @@ bool PcodeAddressTableModel::setData(const QModelIndex &index, const QVariant &v
     if(!index.isValid())
         return false;
     int const row = index.row();
-    if(row >= pcodeData.size())
+    if(cmp::greater_equal(row, pcodeData.size()))
         return false;
 
     if(role == Qt::EditRole)
@@ -909,7 +910,7 @@ QVariant PcodeAddressTableModel::headerData(int section, Qt::Orientation orienta
 
 bool PcodeAddressTableModel::removeRows(int row, int count, const QModelIndex &)
 {
-    if(count != 1 || row >= pcodeData.size())
+    if(count != 1 || cmp::greater_equal(row, pcodeData.size()))
         return false;
 
     wallet->LabelSendingPcode(pcodeData[row].first, "", true);

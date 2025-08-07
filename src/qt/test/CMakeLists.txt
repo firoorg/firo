@@ -9,18 +9,18 @@ endif()
 set(CMAKE_AUTOMOC_MOC_OPTIONS "-p${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_executable(test_firo-qt
-  compattests.cpp
-  rpcnestedtests.cpp
-  test_main.cpp
-  uritests.cpp
-  test_sendcoinsentry.cpp
-  ../../test/test_bitcoin.cpp
-  ../../test/testutil.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/compattests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpcnestedtests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_main.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/uritests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_sendcoinsentry.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../test/test_bitcoin.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../test/testutil.cpp
 )
 
 # Add this to skip specific files from UIC processing
 set_source_files_properties(
-    ../../test/test_bitcoin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../test/test_bitcoin.cpp
     PROPERTIES SKIP_AUTOUIC ON 
 )
 
@@ -69,9 +69,9 @@ import_plugins(test_firo-qt)
 if(ENABLE_WALLET)
   target_sources(test_firo-qt
     PRIVATE
-      ../../wallet/test/wallet_tests.cpp
-      ../../wallet/test/wallet_test_fixture.cpp
-      ../../wallet/test/wallet_test_fixture.h
+      ${CMAKE_CURRENT_SOURCE_DIR}/../../wallet/test/wallet_tests.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/../../wallet/test/wallet_test_fixture.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/../../wallet/test/wallet_test_fixture.h
   )
 endif()
 

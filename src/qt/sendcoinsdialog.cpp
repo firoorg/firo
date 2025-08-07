@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "sendcoinsdialog.h"
+#include "compat_layer.h"
 #include "ui_sendcoinsdialog.h"
 
 #include "addresstablemodel.h"
@@ -538,7 +539,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         }
     }
 
-    double txSize;
+    double txSize = 0.0;
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
         for (auto &transaction : transactions) {
@@ -629,7 +630,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     {
         for(int i = 0; i < ui->entries->count(); ++i)
         {
-            SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+            FIRO_UNUSED SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         }
         accept();
         CoinControlDialog::coinControl->UnSelectAll();
