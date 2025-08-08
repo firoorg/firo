@@ -387,6 +387,9 @@ void OverviewPage::on_tableWidgetSparkBalances_contextMenuRequested( const QPoin
     if ( !is_fungible_asset_type( asset_type ) )
         return;    // No burning for NFTs
 
+    if ( asset_type == spats::base::asset_type )
+        return;    // No burning for the base asset (This change was decided at the 2025-08-05 meeting)
+
     using balance_type = spats::Wallet::amount_type;
     balance_type balance;
     try {

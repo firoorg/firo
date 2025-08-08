@@ -362,6 +362,7 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
    const auto &admin_public_address = my_public_address_as_admin();
 
    if ( asset_type == base::asset_type ) {
+#if 0 // TODO remove (This change was decided at the 2025-08-05 meeting)
       const std::string burn_address( firo_burn_address );   // TODO the network-specific address from params, once Levon adds that
       CScript burn_script = GetScriptForDestination( CBitcoinAddress( burn_address ).Get() );
       CRecipient burn_recipient{ std::move( burn_script ), boost::numeric_cast< CAmount >( burn_amount.raw() ), false, {}, "burning a base asset amount" };
@@ -377,6 +378,9 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
       }
 
       return tx;
+#else
+      throw std::domain_error( "Burning of base asset is not supported currently." );
+#endif
    }
 
    const BurnParameters action_params( asset_type, burn_amount, admin_public_address, asset_symbol );
