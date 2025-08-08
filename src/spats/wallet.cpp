@@ -359,7 +359,7 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
                                                                          CAmount &standard_fee,
                                                                          const BurnActionUserConfirmationCallback &user_confirmation_callback ) const
 {
-   const auto &admin_public_address = my_public_address_as_admin();
+   const auto &initiator_public_address = my_public_address_as_admin();
 
    if ( asset_type == base::asset_type ) {
 #if 0 // TODO remove (This change was decided at the 2025-08-05 meeting)
@@ -369,7 +369,7 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
       auto tx = spark_wallet_.CreateSparkSpendTransaction( { burn_recipient }, {}, {}, standard_fee, {}, nullptr );   // may throw
 
       if ( user_confirmation_callback ) {   // give the user a chance to confirm/cancel, if there are means to do so
-         const BaseAssetBurnParameters action_params( burn_amount, admin_public_address );
+         const BaseAssetBurnParameters action_params( burn_amount, initiator_public_address );
          const BurnAction action( action_params );
          if ( const auto tx_size = ::GetVirtualTransactionSize( tx ); !user_confirmation_callback( action, standard_fee, tx_size ) ) {
             LogPrintf( "User cancelled %s, which would require fee=%d and txsize=%d\n", action.summary(), standard_fee, tx_size );
@@ -383,7 +383,7 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
 #endif
    }
 
-   const BurnParameters action_params( asset_type, burn_amount, admin_public_address, asset_symbol );
+   const BurnParameters action_params( asset_type, burn_amount, initiator_public_address, asset_symbol );
    CScript script;
    script << OP_SPATSBURN;
    assert( script.IsSpatsBurn() );
@@ -403,7 +403,7 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
    assert( script.IsSpatsBurn() );
    // Burning is supposed to be done in such a way that the actual burning from the registry will NOT be actually performed if the burning of the amount fails (due to
    // insufficient funds in this wallet). Should already be the case the way it is implemented, but needs to be TODO tested
-   auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, admin_public_address, "spats burn" } },
+   auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, initiator_public_address, "spats burn" } },
                                                         {},
                                                         {},
                                                         standard_fee,
