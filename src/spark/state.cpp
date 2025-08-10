@@ -759,7 +759,7 @@ bool CheckSparkSpendTransaction(
     CMutableTransaction txTemp = tx;
     txTemp.vExtraPayload.clear();
     for (auto itr = txTemp.vout.begin(); itr < txTemp.vout.end(); ++itr) {
-        if (itr->scriptPubKey.IsSparkSMint() || itr->scriptPubKey.IsSpatsMint()) {
+        if (itr->scriptPubKey.IsSparkSMint() || itr->scriptPubKey.IsSpatsMint() || itr->scriptPubKey.IsSpatsBurn()) {
             txTemp.vout.erase(itr);
             --itr;
         }
