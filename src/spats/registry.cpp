@@ -234,19 +234,20 @@ void Registry::validate( const BurnParameters &p, read_lock_proof ) const
    assert( p.asset_type() <= max_allowed_asset_type_value );
    assert( p.asset_type() != base::asset_type );
    assert( is_fungible_asset_type( p.asset_type() ) );
-   assert( p.burn_amount() );
+   assert( p.raw_burn_amount() );
    const auto it = fungible_assets_.find( p.asset_type() );
    if ( it == fungible_assets_.end() )
       throw std::invalid_argument( "No such asset found to burn an amount of" );
    const FungibleSparkAsset &a = it->second;
    // unlike mint, it is (generally) fine to burn an amount of a non-resupplyable asset
-   if ( p.burn_amount().precision() != a.precision() )
+   if ( p.precision() && *p.precision() != a.precision() )
       throw std::domain_error( "Cannot burn an amount with a different precision than the asset's" );
+   const supply_amount_t burn_amount{ p.raw_burn_amount(), a.precision() };
    // unlike mint, it is fine for anyone to burn an amount of an asset, provided they actually own at least that much amount of the asset
-   if ( p.burn_amount() > a.total_supply() )
+   if ( burn_amount > a.total_supply() )
       throw std::domain_error( "Cannot burn an amount of an asset larger than its total supply!" );
    // TODO should we actually allow the below?
-   if ( !a.resupplyable() && p.burn_amount() == a.total_supply() )
+   if ( !a.resupplyable() && burn_amount == a.total_supply() )
       throw std::domain_error( "Cannot burn all of the total supply of a non-resupplyable asset!" );
    static_assert( std::is_unsigned_v< supply_amount_t::raw_amount_type > );
 }
@@ -256,7 +257,7 @@ bool Registry::process( const BurnParameters &p, int /*block_height*/, const std
    validate( p, wlp );   // will throw if invalid
    const auto it = fungible_assets_.find( p.asset_type() );
    assert( it != fungible_assets_.end() );
-   it->second.asset().remove_supply( p.burn_amount() );
+   it->second.asset().remove_supply( { p.raw_burn_amount(), it->second.precision() } );
    return true;
 }
 
@@ -322,8 +323,8 @@ bool Registry::unprocess( const BurnParameters &p, int /*block_height*/, write_l
 {
    const auto it = fungible_assets_.find( p.asset_type() );
    assert( it != fungible_assets_.end() );
-   assert( p.burn_amount() );
-   it->second.asset().add_supply( p.burn_amount() );
+   assert( p.raw_burn_amount() );
+   it->second.asset().add_supply( { p.raw_burn_amount(), it->second.precision() } );
    return true;
 }
 

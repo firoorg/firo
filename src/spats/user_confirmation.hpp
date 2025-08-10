@@ -25,10 +25,18 @@ inline std::optional< std::pair< supply_amount_t, asset_symbol_t > > get_associa
    return std::pair( supply_amount_t( compute_new_spark_asset_fee( get_base( a.get() ).naming().symbol.get() ), base::precision ), base::naming().symbol );
 }
 
-template < class Params >
-inline std::optional< std::pair< supply_amount_t, asset_symbol_t > > get_associated_burn_amount( const BurnAction< Params > &a )
+inline std::optional< std::pair< supply_amount_t, asset_symbol_t > > get_associated_burn_amount( const BurnAction< BaseAssetBurnParameters > &a )
 {
    return std::pair( a.get().burn_amount(), a.get().asset_symbol() );
+}
+
+inline std::optional< std::pair< supply_amount_t, asset_symbol_t > > get_associated_burn_amount( const BurnAction<> &a )
+{
+   assert( a.get().precision() && "Excepted precision to be specified when the action is in the phase of being confirmed by the user" );
+   assert( a.get().asset_symbol() && "Excepted symbol to be specified when the action is in the phase of being confirmed by the user" );
+   if ( a.get().precision() && a.get().asset_symbol() ) [[likely]]
+      return std::pair( supply_amount_t{ a.get().raw_burn_amount(), *a.get().precision() }, *a.get().asset_symbol() );
+   return {};
 }
 
 class BurnActionUserConfirmationCallback {

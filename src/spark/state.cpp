@@ -434,7 +434,6 @@ static spats::MintAction ParseSpatsMintTransaction(const CTransaction &tx)
         throw CBadTxIn();
     }
 }
-#endif
 
 static spats::BurnAction<> ParseSpatsBurnTransaction(const CTransaction &tx)
 {
@@ -483,6 +482,7 @@ static spats::BurnAction<> ParseSpatsBurnTransaction(const CTransaction &tx)
         throw CBadTxIn();
     }
 }
+#endif
 
 static spats::Action ParseSpatsTransaction(const CTransaction &tx)
 {
@@ -499,8 +499,8 @@ static spats::Action ParseSpatsTransaction(const CTransaction &tx)
         action.set_coin(std::move(coin));
         return action;
     }
-    if (tx.IsSpatsBurn())
-        return ParseSpatsBurnTransaction(tx);
+    if (tx.HasSpatsBurnAmount())
+        return ExtractSpatsBurnAction(tx);
     // TODO more
     throw CBadTxIn();
 }
@@ -2164,6 +2164,30 @@ std::pair<spats::MintAction, spark::Coin> ExtractSpatsMintAction(const CTransact
                                  initiator_public_address, initiator_public_address);
     // ATTENTION: Deliberately NOT putting the coin in the action here. If needed, that can be done by the caller itself.
     return {spats::MintAction(std::move(params)), std::move(coin)};
+}
+
+spats::BurnAction<> ExtractSpatsBurnAction(const CTransaction& tx)
+{
+    assert(tx.HasSpatsBurnAmount());
+    if (tx.vout.empty())
+        throw CBadTxIn();
+    const auto &burnamount_out = tx.vout.back();
+    const auto &burnamount_script = burnamount_out.scriptPubKey;
+    if (!burnamount_script.IsSpatsBurnAmount())
+        throw CBadTxIn();
+    if (std::find_if(tx.vout.begin(), tx.vout.end() - 1, [](const CTxOut& out) { return out.scriptPubKey.IsSpatsBurnAmount(); }) != tx.vout.end() - 1)
+        throw CBadTxIn();   // more than 1 burnamount outputs in one tx is not allowed
+
+    const auto burn_amount_raw = burnamount_out.nValue;
+    if (burn_amount_raw <= 0)
+        throw CBadTxIn();
+    std::vector<unsigned char> serialized(burnamount_script.begin() + 1, burnamount_script.end());
+    CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
+    Scalar asset_type_scalar;
+    stream >> asset_type_scalar;
+    const spats::asset_type_t asset_type{std::stoull(asset_type_scalar.tostring())};
+    spats::BurnParameters params(asset_type, burn_amount_raw, std::nullopt, std::nullopt);    // may throw
+    return spats::BurnAction<>(std::move(params));
 }
 
 } // namespace spark

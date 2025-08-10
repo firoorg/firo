@@ -292,6 +292,7 @@ private:
 };
 
 std::pair<spats::MintAction, spark::Coin> ExtractSpatsMintAction(const CTransaction &tx);
+spats::BurnAction<> ExtractSpatsBurnAction(const CTransaction& tx);
 
 } // namespace spark
 

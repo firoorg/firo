@@ -1259,8 +1259,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         CAmount additionalTxSize) {
 
     // if additionalTxSize is not 0 that means we are creating spats mint transaction
-    if (recipients.empty() && privateRecipients.empty() && spatsRecipients.empty() && !additionalTxSize) {
-        throw std::runtime_error(_("Either recipients or newMints has to be nonempty."));
+    if (recipients.empty() && privateRecipients.empty() && spatsRecipients.empty() && !additionalTxSize && burnAsset.first <= 0) {
+        throw std::runtime_error(_("At least one of recipients, privateRecipients, spatsRecipients, additionalTxSize, or spats burn has to be provided."));
     }
 
     const auto &consensusParams = Params().GetConsensus();

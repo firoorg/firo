@@ -468,6 +468,7 @@ public:
     bool HasNoRegularInputs() const;
     bool HasPrivateInputs() const;
     bool HasSpatsMintCoin() const;
+    bool HasSpatsBurnAmount() const;
 
     /**
      * Get the total transaction size in bytes, including witness data.

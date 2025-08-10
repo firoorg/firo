@@ -66,7 +66,7 @@ Scalar Wallet::compute_mint_asset_supply_serialization_scalar( const MintParamet
 
 Scalar Wallet::compute_burn_asset_supply_serialization_scalar( const BurnParameters &p, std::span< const unsigned char > burn_serialization_bytes )
 {
-   spark::Hash hash( tfm::format( "spatsburn_%u_for_%u_from_%s", p.burn_amount(), utils::to_underlying( p.asset_type() ), p.initiator_public_address() ) );
+   spark::Hash hash( tfm::format( "spatsburn_%u_for_%u", p.raw_burn_amount(), utils::to_underlying( p.asset_type() ) ) );
    hash.include( burn_serialization_bytes );
    auto ret = hash.finalize_scalar();
    LogPrintf( "Spats burn serialization scalar (hex): %s\n", ret.GetHex() );
@@ -383,12 +383,13 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
 #endif
    }
 
-   const BurnParameters action_params( asset_type, burn_amount, initiator_public_address, asset_symbol );
+   const BurnParameters action_params( asset_type, burn_amount.raw(), burn_amount.precision(), asset_symbol );
+   const BurnAction action( action_params );
+#if 0 // TODO remove
    CScript script;
    script << OP_SPATSBURN;
    assert( script.IsSpatsBurn() );
    CDataStream serialized( SER_NETWORK, PROTOCOL_VERSION );
-   const BurnAction action( action_params );
    serialized << action;
    // TODO instead of how it is being done now, put ownership proof into script default-constructed first, then compute ownership proof from the whole tx, and overwrite
    //      the ownership proof in the script then
@@ -401,15 +402,17 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
    assert( script.IsSpatsBurn() );
    script.insert( script.end(), proof_serialized.begin(), proof_serialized.end() );
    assert( script.IsSpatsBurn() );
+#endif
+
    // Burning is supposed to be done in such a way that the actual burning from the registry will NOT be actually performed if the burning of the amount fails (due to
    // insufficient funds in this wallet). Should already be the case the way it is implemented, but needs to be TODO tested
-   auto tx = spark_wallet_.CreateSparkSpendTransaction( { CRecipient{ std::move( script ), {}, false, initiator_public_address, "spats burn" } },
+   auto tx = spark_wallet_.CreateSparkSpendTransaction( { /*CRecipient{ std::move( script ), {}, false, initiator_public_address, "spats burn" }*/ },
                                                         {},
                                                         {},
                                                         standard_fee,
                                                         { boost::numeric_cast< CAmount >( burn_amount.raw() ), utils::to_underlying( asset_type ) },
                                                         nullptr );   // may throw
-   assert( tx.tx->IsSpatsBurn() );
+   assert( tx.tx->HasSpatsBurnAmount() );
 
    if ( user_confirmation_callback )   // give the user a chance to confirm/cancel, if there are means to do so
       if ( const auto tx_size = ::GetVirtualTransactionSize( tx ); !user_confirmation_callback( action, standard_fee, tx_size ) ) {

@@ -393,30 +393,32 @@ static_assert( concepts::Action< MintAction > );
 
 class BurnParameters {
 public:
-   BurnParameters( asset_type_t asset_type, supply_amount_t burn_amount, public_address_t initiator_pubaddress, asset_symbol_t symbol )
+   BurnParameters( asset_type_t asset_type,
+                   supply_amount_t::raw_amount_type burn_amount_raw,
+                   std::optional< supply_amount_t::precision_type > precision,
+                   std::optional< asset_symbol_t > asset_symbol )
       : asset_type_( asset_type )
-      , burn_amount_( burn_amount )
-      , initiator_public_address_( std::move( initiator_pubaddress ) )
-      , asset_symbol_( std::move( symbol ) )
+      , burn_amount_raw_( burn_amount_raw )
+      , precision_( precision )
+      , asset_symbol_( std::move( asset_symbol ) )
    {
       validate();
    }
 
+   // not serializing the optional<> fields here, because they won't be present after extracting from tx, so they won't be present in CSparkTxInfo either, where we would
+   // serialize them from
+
    template < typename Stream >
    BurnParameters( deserialize_type d, Stream &is )
-      : asset_symbol_( d, is )
    {
-      supply_amount_t::precision_type precision;
-      supply_amount_t::raw_amount_type burn_amount_raw;
-      is >> asset_type_ >> precision >> burn_amount_raw >> initiator_public_address_;
-      burn_amount_ = { burn_amount_raw, precision };
+      is >> asset_type_ >> burn_amount_raw_;
       validate();
    }
 
    template < typename Stream >
    void Serialize( Stream &os ) const
    {
-      os << asset_symbol_ << asset_type_ << burn_amount_.precision() << burn_amount_.raw() << initiator_public_address_;
+      os << asset_type_ << burn_amount_raw_;
    }
 
    asset_type_t asset_type() const noexcept
@@ -426,17 +428,19 @@ public:
       return asset_type_;
    }
 
-   supply_amount_t burn_amount() const noexcept { return burn_amount_; }
+   supply_amount_t::raw_amount_type raw_burn_amount() const noexcept { return burn_amount_raw_; }
 
-   const public_address_t &initiator_public_address() const noexcept { return initiator_public_address_; }
+   std::optional< supply_amount_t::precision_type > precision() const noexcept { return precision_; }
 
-   const asset_symbol_t &asset_symbol() const noexcept { return asset_symbol_; }
+   const std::optional< asset_symbol_t > &asset_symbol() const noexcept { return asset_symbol_; }
 
 private:
    asset_type_t asset_type_;
-   supply_amount_t burn_amount_;
-   public_address_t initiator_public_address_;
-   asset_symbol_t asset_symbol_;   // just for display purposes
+   supply_amount_t::raw_amount_type burn_amount_raw_;
+
+   // the 2 below are optional because they can't be extracted from an OP_SPATSBURNAMOUNT txout
+   std::optional< supply_amount_t::precision_type > precision_;
+   std::optional< asset_symbol_t > asset_symbol_;   // just for display purposes
 
    void validate() const
    {
@@ -446,21 +450,21 @@ private:
       if ( !is_fungible_asset_type( asset_type_ ) )
          throw std::invalid_argument( "Burning NFTs is not supported" );
 
-      if ( !burn_amount_ )
+      if ( !burn_amount_raw_ )
          throw std::invalid_argument( "Non-zero burn amount is required" );
 
       static_assert( std::is_unsigned_v< supply_amount_t::raw_amount_type > );
-      assert( burn_amount_ > supply_amount_t{} );
+      assert( burn_amount_raw_ > 0 );
 
       if ( asset_type_ == base::asset_type )
          throw std::domain_error( "Base asset supply burns are not supported by spats Burn action. Just use a simple spark spend to firo burn address tx instead." );
 
-      if ( initiator_public_address_.empty() )
-         throw std::domain_error( "Initiator public address is required for spats burn" );
+      if ( precision_ )
+         supply_amount_t{ burn_amount_raw_, *precision_ };   // having the ctor to perform precision-related checks
    }
 };
 
-class BaseAssetBurnParameters {
+class BaseAssetBurnParameters {   // TODO remove
 public:
    explicit BaseAssetBurnParameters( supply_amount_t burn_amount, public_address_t initiator_pubaddress )
       : burn_amount_( burn_amount )
@@ -547,8 +551,11 @@ public:
    {
       if constexpr ( std::is_same_v< parameters_type, BaseAssetBurnParameters > )
          return str( boost::format( _( "Burning %1% %2%" ) ) % get().burn_amount() % BaseAssetBurnParameters::asset_symbol().get() );
-      else
-         return str( boost::format( _( "Burning supply amounting to %1% for spark asset type = %2%" ) ) % get().burn_amount() % get().asset_type() );
+      else {
+         const auto burn_amount_display =
+           get().precision() ? supply_amount_t{ get().raw_burn_amount(), *get().precision() }.to_string() : str( boost::format( "RAW{%1%}" ) % get().raw_burn_amount() );
+         return str( boost::format( _( "Burning supply amounting to %1% for spark asset type = %2%" ) ) % burn_amount_display % get().asset_type() );
+      }
    }
 
    flexible_asset_id_t asset_id() const noexcept { return { get().asset_type(), std::nullopt }; }

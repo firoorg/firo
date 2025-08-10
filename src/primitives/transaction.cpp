@@ -316,6 +316,14 @@ bool CTransaction::HasSpatsMintCoin() const
     return false;
 }
 
+bool CTransaction::HasSpatsBurnAmount() const
+{
+    for (const CTxOut &txout: vout)
+        if (txout.scriptPubKey.IsSpatsBurnAmount())
+            return true;
+    return false;
+}
+
 unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const
 {
     // In order to avoid disincentivizing cleaning up the UTXO set we don't count
