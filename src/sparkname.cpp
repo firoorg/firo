@@ -251,6 +251,11 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
             return state.DoS(100, error("CheckSparkNameTx: cannot decode old spark address"));
         }
 
+        // check if the old spark address is the one currently associated with the spark name
+        if (sparkNameAddresses.count(sparkNameData.oldSparkAddress) == 0 ||
+            sparkNameAddresses[sparkNameData.oldSparkAddress] != ToUpper(sparkNameData.name))
+            return state.DoS(100, error("CheckSparkNameTx: old spark address is not associated with the spark name"));
+
         spark::OwnershipProof transferOwnershipProof;
         try {
             CDataStream transferOwnershipProofStream(SER_NETWORK, PROTOCOL_VERSION);
@@ -305,12 +310,20 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
         errorDescription = "transaction can't be valid for more than 10 years";
 
     else if (sparkNames.count(ToUpper(sparkNameData.name)) > 0 &&
-                sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress)
+                sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress &&
+                (sparkNameData.nVersion < 2 || sparkNameData.operationType == CSparkNameTxData::opRegister))
         errorDescription = "name already exists with another spark address as a destination";
 
     else if (sparkNameAddresses.count(sparkNameData.sparkAddress) > 0 &&
                 sparkNameAddresses[sparkNameData.sparkAddress] != ToUpper(sparkNameData.name))
         errorDescription = "spark address is already used for another name";
+
+    else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opTransfer &&
+                sparkNameData.oldSparkAddress.empty())
+        errorDescription = "old spark address is required for transfer operation";
+
+    else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opUnregister)
+        errorDescription = "unregister operation is not supported yet";
 
     else {
         LOCK(mempool.cs);
@@ -330,6 +343,8 @@ size_t CSparkNameManager::GetSparkNameTxDataSize(const CSparkNameTxData &sparkNa
     ownershipProofStream << ownershipProof;
 
     sparkNameDataCopy.addressOwnershipProof.assign(ownershipProofStream.begin(), ownershipProofStream.end());
+    if (sparkNameDataCopy.operationType == (uint8_t)CSparkNameTxData::opTransfer)
+        sparkNameDataCopy.transferOwnershipProof.assign(ownershipProofStream.begin(), ownershipProofStream.end());
 
     CDataStream sparkNameDataStream(SER_NETWORK, PROTOCOL_VERSION);
     sparkNameDataStream << sparkNameDataCopy;

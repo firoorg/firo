@@ -28,6 +28,7 @@ public:
     {
         opRegister = 0,
         opTransfer,
+        opUnregister,
         opMaximumValue
     };
 
@@ -49,7 +50,7 @@ public:
 
     // v2 fields
 
-    // operation type (register/transfer)
+    // operation type (register/transfer/unregister)
     uint8_t operationType{(uint8_t)opRegister};
     // old spark address
     std::string oldSparkAddress;

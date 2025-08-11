@@ -102,6 +102,7 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
         CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
 
         CSparkNameTxData sparkNameData;
+        sparkNameData.operationType = (uint8_t)CSparkNameTxData::opRegister;
         sparkNameData.name = name;
         sparkNameData.sparkAddress = address;
         sparkNameData.additionalInfo = additionalInfo;
