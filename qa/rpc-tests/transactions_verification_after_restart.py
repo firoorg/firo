@@ -81,10 +81,10 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
 
         #5. 2 Spend in different time
         args = {"THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU": {"amount": 1, "subtractFee": False}}
-        self.nodes[0].spendspark(args, {})
+        self.nodes[0].spendspark(args)
 
         args = {"THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU": {"amount": 1, "subtractFee": False}}
-        self.nodes[0].spendspark(args, {})
+        self.nodes[0].spendspark(args)
 
         #6. Send
         self.nodes[0].sendtoaddress('TNZMs3dtwRddC5BuZ9zQUdvksPUjmJPRfL', 10)

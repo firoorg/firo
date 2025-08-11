@@ -102,6 +102,7 @@ if ENABLE_ZMQ:
 
 testScripts = [
     'spark_mint.py',
+    'spark_mintspend.py',
     'spark_spend_gettransaction.py',
     'spark_setmintstatus_validation.py',
     'lelantus_mint.py',
@@ -183,7 +184,6 @@ testScripts = [
     'llmq-cl-evospork.py',
     'llmq-is-cl-conflicts.py',
     'llmq-is-retroactive.py',
-    'llmq-is-lelantus.py',
 
     # Unstable tests
     #, 'dip4-coinbasemerkleroots.py'

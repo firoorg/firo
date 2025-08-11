@@ -14,7 +14,7 @@ class SparkMintSpendTest(BitcoinTestFramework):
     def run_test(self):
         # Decimal formating: 6 digits for balance will be enought 000.000
         getcontext().prec = 6
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(401)
         self.sync_all()
 
         start_bal = self.nodes[0].getbalance()
@@ -56,7 +56,7 @@ class SparkMintSpendTest(BitcoinTestFramework):
         res = False
         firoAddress = self.nodes[0].getnewaddress()
         try:
-            res = self.nodes[0].spendspark({firoAddress: {"amount": 1, "subtractFee": False}}, {})
+            res = self.nodes[0].spendspark({firoAddress: {"amount": 1, "subtractFee": False}})
         except JSONRPCException as ex:
             assert ex.error['message'] == 'Spark spend creation failed.'
 
@@ -81,7 +81,7 @@ class SparkMintSpendTest(BitcoinTestFramework):
 
         self.sync_all()
 
-        spend_trans.append(self.nodes[0].spendspark({firoAddress: {"amount": 1, "subtractFee": False}}, {}))
+        spend_trans.append(self.nodes[0].spendspark({firoAddress: {"amount": 1, "subtractFee": False}}))
 
         info = self.nodes[0].gettransaction(spend_trans[-1])
         confrms = info['confirmations']
