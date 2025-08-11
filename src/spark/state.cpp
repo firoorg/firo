@@ -1059,7 +1059,7 @@ bool CheckSparkSpendTransaction(
     // Obtain the hash of the transaction sans the Spark part
     CMutableTransaction txTemp = tx;
     txTemp.vExtraPayload.clear();
-    std::erase_if(txTemp.vout, [] (const CTxOut& out) { return out.scriptPubKey.IsSparkSMint() || out.scriptPubKey.IsSpatsMintCoin(); });
+    std::erase_if(txTemp.vout, [] (const CTxOut& out) { return out.scriptPubKey.IsSparkSMint() || out.scriptPubKey.IsSpatsMintCoin() || itr->scriptPubKey.IsSpatsBurnAmount(); });
     txHashForMetadata = txTemp.GetHash();
 
     LogPrintf("CheckSparkSpendTransaction: tx metadata hash=%s\n", txHashForMetadata.ToString());
