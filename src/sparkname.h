@@ -8,10 +8,6 @@
 #include "libspark/keys.h"
 #include "libspark/spend_transaction.h"
 
-namespace spark {
-    unsigned char GetNetworkType();
-}
-
 /*
  * Spark alias transaction data. This is to be stored in the transaction's extra data field
  * right after Spark data. The transaction is considered a Spark alias transaction if it spends

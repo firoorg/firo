@@ -4,6 +4,7 @@
 
 ACLOCAL_AMFLAGS = -I build-aux/m4
 SUBDIRS = src
+AM_CPPFLAGS = -I$(top_srcdir)/src
 .PHONY: deploy FORCE
 .INTERMEDIATE: $(OSX_TEMP_ISO)
 

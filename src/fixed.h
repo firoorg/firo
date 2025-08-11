@@ -440,6 +440,11 @@ const std::size_t Fixed<I,F>::integer_bits;
 template <std::size_t I, std::size_t F>
 const std::size_t Fixed<I,F>::total_bits;
 
+template <size_t I, size_t F>
+const typename numeric::Fixed<I,F>::base_type numeric::Fixed<I,F>::fractional_mask;
+
+template <size_t I, size_t F>
+const typename numeric::Fixed<I,F>::base_type numeric::Fixed<I,F>::integer_mask;
 }
 #endif
 

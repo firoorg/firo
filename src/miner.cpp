@@ -467,10 +467,10 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
         CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
         const auto &params = chainparams.GetConsensus();
 
-        if (spendAmount > params.nMaxValueSparkSpendPerTransaction)
+        if (spendAmount > params.GetMaxValueSparkSpendPerTransaction(nHeight))
             return false;
 
-        if (spendAmount + nSparkSpendAmount > params.nMaxValueSparkSpendPerBlock)
+        if (spendAmount + nSparkSpendAmount > params.GetMaxValueSparkSpendPerBlock(nHeight))
             return false;
     }
 
@@ -510,10 +510,10 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
         CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
         const auto &params = chainparams.GetConsensus();
 
-        if (spendAmount > params.nMaxValueSparkSpendPerTransaction)
+        if (spendAmount > params.GetMaxValueSparkSpendPerTransaction(nHeight))
             return;
 
-        if ((nSparkSpendAmount += spendAmount) > params.nMaxValueSparkSpendPerBlock)
+        if ((nSparkSpendAmount += spendAmount) > params.GetMaxValueSparkSpendPerBlock(nHeight))
             return;
     }
 
@@ -1150,7 +1150,7 @@ void static FiroMiner(const CChainParams &chainparams) {
                     const Consensus::Params &params = chainparams.GetConsensus();
                     {
                         LOCK2(cs_main, mempool.cs);
-                        int nCount = 0;
+                        FIRO_UNUSED int nCount = 0;
                         fHasZnodesWinnerForNextBlock =
                                 params.IsRegtest() ||
                                 chainActive.Height()+1 >= chainparams.GetConsensus().DIP0003EnforcementHeight;

@@ -188,6 +188,11 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 #define LELANTUS_GRACEFUL_PERIOD 1223500 // Approx Jan 30 2026
 #define LELANTUS_TESTNET_GRACEFUL_PERIOD 140000
 
+// Hard fork block numbers for spark name transfer and related features
+#define SPARK_NAME_TRANSFER_MAINNET_START_BLOCK     1170000     // Approx end of September 2025
+#define SPARK_NAME_TRANSFER_TESTNET_START_BLOCK     190000
+#define SPARK_NAME_TRANSFER_DEVNET_START_BLOCK      3700
+
 // Versions of zerocoin mint/spend transactions
 #define ZEROCOIN_TX_VERSION_3               30
 #define ZEROCOIN_TX_VERSION_3_1             31

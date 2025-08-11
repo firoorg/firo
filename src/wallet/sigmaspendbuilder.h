@@ -15,7 +15,7 @@ public:
     std::vector<sigma::CoinDenomination> denomChanges;
 
 public:
-    SigmaSpendBuilder(CWallet& wallet, CHDMintWallet& mintWallet, const CCoinControl *coinControl = nullptr);
+    SigmaSpendBuilder(CWallet& walletParam, CHDMintWallet& mintWallet, const CCoinControl *coinControlParam = nullptr);
     ~SigmaSpendBuilder() override;
 
 protected:

@@ -1,3 +1,5 @@
+#include "../../../compat_layer.h"
+
 #include "include/GroupElement.h"
 #include "include/secp256k1.h"
 
@@ -123,7 +125,7 @@ static int _convertBase(
                 resLen++;
             }
 
-            if (resLen > Len) {
+            if (cmp::greater(resLen, Len)) {
                 throw std::overflow_error("GroupElement::GroupElement: invalid count");
             }
 
@@ -133,7 +135,7 @@ static int _convertBase(
         }
     }
 
-    for (int i = 0; i < Len / 2; i++) {
+    for (int i = 0; cmp::less(i, Len / 2); i++) {
         unsigned char tmp = dst[i];
         dst[i] = dst[Len - i - 1];
         dst[Len - i - 1] = tmp;
@@ -189,7 +191,7 @@ static void _convertToFieldElement(secp256k1_fe *r, const char* str, int base) {
     auto strLen = strlen(str);
     std::vector<uint8_t> src(strLen, 0);
 
-    for (int i = 0; i < strLen; i++) {
+    for (int i = 0; cmp::less(i, strLen); i++) {
         char ch = str[i];
 
         switch (base) {
@@ -356,7 +358,7 @@ GroupElement& GroupElement::generate(unsigned char* seed){
     secp256k1_fe t = SECP256K1_FE_CONST(0, 0, 0, 0, 0, 0, 0, 4);
     secp256k1_ge add;
     secp256k1_gej accum;
-    int overflow;
+    FIRO_UNUSED int overflow;
     secp256k1_sha256_t sha256;
     unsigned char b32[32];
     secp256k1_sha256_initialize(&sha256);
@@ -433,13 +435,13 @@ std::string _convertToString(const unsigned char(&buffer) [Len], int base) {
 
     for (int i = 0; i < strLen; i++) {
         unsigned char v = dst[startAt + i];
-        char ch;
+        char ch{};
         switch (base) {
         case 10:
             ch = '0' + v;
             break;
         case 16:
-            if (v >= 0 && v <= 9) {
+            if (v <= 9) {
                 ch = '0' + v;
             } else {
                 ch = 'a' + v - 10;
