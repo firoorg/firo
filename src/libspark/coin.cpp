@@ -189,7 +189,7 @@ IdentifiedCoinData Coin::identify( const IncomingViewKey &incoming_view_key )
          throw std::runtime_error( "Unable to identify coin" );
       }
 
-      if ( type == isSpatsType() ) {
+      if ( isSpatsType() ) {
          data.a = r.a;
          data.iota = r.iota;
       }

@@ -34,7 +34,11 @@ struct CSparkMintMeta
     bool IsUnconfirmed() const noexcept { return nHeight < 1; }
 
     // TODO any need to check `type` as well? Perhaps just for better performance?
-    bool IsSpats() const noexcept { return !coin.a.isZero(); }
+    bool IsSpats() const noexcept { return !(a.isZero() && coin.a.isZero()); }
+
+   // TODO Performance: consider a faster retrieval of uint64 from Scalar other than via .tostring(). Or even, why is Scalar used for these two in the first place?
+    std::uint64_t GetAssetType() const { return std::stoull((a.isZero() ? coin.a : a).tostring()); }
+    std::uint64_t GetIdentifier() const { return std::stoull((iota.isZero() ? coin.iota : iota).tostring()); }
 
     bool operator==(const CSparkMintMeta& other) const
     {

@@ -518,8 +518,8 @@ void Wallet::update_balances_given_coin( const CSparkMintMeta &coin_meta, asset_
 {
    assert( coin_meta.IsSpats() );
    // TODO Performance: consider a faster retrieval of uint64 from Scalar other than via .tostring(). Or even, why is Scalar used for these two in the first place?
-   const auto asset_type = std::stoull( coin_meta.coin.a.tostring() );
-   const auto identifier = std::stoull( coin_meta.coin.iota.tostring() );
+   const auto asset_type = coin_meta.GetAssetType();
+   const auto identifier = coin_meta.GetIdentifier();
    const universal_asset_id_t uid{ asset_type_t{ asset_type }, identifier_t{ identifier } };
    auto it = asset_balances.find( uid );
    if ( it == asset_balances.end() ) {
