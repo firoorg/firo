@@ -147,8 +147,8 @@ BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
     mintedAssetCoin.address = address;
     mintedAssetCoin.v = v;
     mintedAssetCoin.memo = memo;
-    mintedAssetCoin.a = Scalar(uint64_t(1));
-    mintedAssetCoin.iota = Scalar(uint64_t(1));
+    mintedAssetCoin.a = Scalar(uint64_t(2));
+    mintedAssetCoin.iota = Scalar(uint64_t(0));
 
     outputs.clear();
     outputs.push_back(mintedCoin);
@@ -790,8 +790,8 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     minted.address = address;
     minted.v = 100 * COIN;
     minted.memo = "";
-	minted.a = Scalar(uint64_t(1));
-	minted.iota = Scalar(uint64_t(1));
+	minted.a = Scalar(uint64_t(2));
+	minted.iota = Scalar(uint64_t(0));
     wtx = pwalletMain->MintAndStoreSpats({minted ,address});
 
     CMutableTransaction mintTx(wtx);
@@ -807,8 +807,8 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     output.address = address;
     output.v = 25 * COIN;
     output.memo = "";
-	output.a = Scalar(uint64_t(1));
-	output.iota = Scalar(uint64_t(1));
+	output.a = Scalar(uint64_t(2));
+	output.iota = Scalar(uint64_t(0));
 
     wtx = pwalletMain->SpendAndStoreSpark({}, {}, {output, output}, fee, burn);
 
