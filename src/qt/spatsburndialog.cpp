@@ -22,7 +22,7 @@ SpatsBurnDialog::SpatsBurnDialog( const PlatformStyle *platform_style, spats::as
    ui_->burnAmountSpinBox->setSingleStep( 1.0 / max_allowed_burn_amount.decimal_factor() );   // Step controlled by precision
    ui_->burnAmountSpinBox->setMaximum( max_allowed_burn_amount.as_double() );
 
-   setWindowTitle( QString( "Burn an Amount of Asset Type %1 (%2)" ).arg( utils::to_underlying( asset_type ) ).arg( QString::fromStdString( std::string( asset_symbol ) ) ) );
+   setWindowTitle( QString( "Burn an Amount of Asset ID %1 (%2)" ).arg( utils::to_underlying( asset_type ) ).arg( QString::fromStdString( std::string( asset_symbol ) ) ) );
 
    ui_->errorLabel->setVisible( false );
 

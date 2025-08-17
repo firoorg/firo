@@ -34,7 +34,7 @@
      <item row="1" column="0">
       <widget class="QLabel" name="labelAssetType">
        <property name="text">
-        <string>Asset Type:</string>
+        <string>Asset ID:</string>
        </property>
       </widget>
      </item>
@@ -45,7 +45,7 @@
      <item row="2" column="0">
       <widget class="QLabel" name="labelIdentifier">
        <property name="text">
-        <string>Identifier:</string>
+        <string>NFT ID:</string>
        </property>
       </widget>
      </item>
