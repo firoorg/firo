@@ -205,18 +205,19 @@ void Registry::validate( const MintParameters &p, read_lock_proof ) const
    assert( p.asset_type() <= max_allowed_asset_type_value );
    assert( p.asset_type() != base::asset_type );
    assert( is_fungible_asset_type( p.asset_type() ) );
-   assert( p.new_supply() );
+   assert( p.raw_new_supply() );
    const auto it = fungible_assets_.find( p.asset_type() );
    if ( it == fungible_assets_.end() )
       throw std::invalid_argument( "No such asset found to mint for" );
    const FungibleSparkAsset &a = it->second;
    if ( !a.resupplyable() )
       throw std::domain_error( "Cannot mint new supply for a non-resupplyable asset" );
-   if ( p.new_supply().precision() != a.precision() )
+   if ( p.precision() && *p.precision() != a.precision() )
       throw std::domain_error( "Cannot mint new supply with a different precision than the asset's" );
    if ( a.admin_public_address() != p.initiator_public_address() )
       throw std::domain_error( "No permission to mint for the given asset" );
-   if ( a.total_supply() + p.new_supply() > a.total_supply().max_value_without_signbit() )   // may outright throw due to overflow
+   const supply_amount_t new_supply{ p.raw_new_supply(), a.precision() };
+   if ( a.total_supply() + new_supply > a.total_supply().max_value_without_signbit() )   // may outright throw due to overflow
       throw std::domain_error( "Adding the new mint amount to the total supply would exceed the max permitted number, rejecting" );
 }
 
@@ -225,7 +226,7 @@ bool Registry::process( const MintParameters &p, int /*block_height*/, const std
    validate( p, wlp );   // will throw if invalid
    const auto it = fungible_assets_.find( p.asset_type() );
    assert( it != fungible_assets_.end() );
-   it->second.asset().add_new_supply( p.new_supply() );
+   it->second.asset().add_new_supply( { p.raw_new_supply(), it->second.precision() } );
    return true;
 }
 
@@ -314,8 +315,8 @@ bool Registry::unprocess( const MintParameters &p, int /*block_height*/, write_l
 {
    const auto it = fungible_assets_.find( p.asset_type() );
    assert( it != fungible_assets_.end() );
-   assert( p.new_supply() );
-   it->second.asset().remove_new_supply( p.new_supply() );
+   assert( p.raw_new_supply() );
+   it->second.asset().remove_new_supply( { p.raw_new_supply(), it->second.precision() } );
    return true;
 }
 

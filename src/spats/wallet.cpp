@@ -54,7 +54,7 @@ Scalar Wallet::compute_modify_spark_asset_serialization_scalar( const AssetModif
 Scalar Wallet::compute_mint_asset_supply_serialization_scalar( const MintParameters &p, std::span< const unsigned char > mint_serialization_bytes )
 {
    spark::Hash hash( tfm::format( "spatsmint_%u_for_%u_to_%s_from_%s",
-                                  p.new_supply(),
+                                  p.raw_new_supply(),
                                   utils::to_underlying( p.asset_type() ),
                                   p.receiver_public_address(),
                                   p.initiator_public_address() ) );
@@ -109,10 +109,10 @@ const std::string &Wallet::my_public_address_as_admin() const
 
 spark::MintedCoinData Wallet::create_minted_coin_data( const MintParameters &action_params )
 {
-   assert( action_params.new_supply() > supply_amount_t{} );
+   assert( action_params.raw_new_supply() > 0 );
    spark::MintedCoinData coin;
    coin.address = CSparkWallet::decodeAddress( action_params.receiver_public_address() );
-   coin.v = boost::numeric_cast< CAmount >( action_params.new_supply().raw() );
+   coin.v = boost::numeric_cast< CAmount >( action_params.raw_new_supply() );
    coin.memo = "minting new supply";
    coin.a = utils::to_underlying( action_params.asset_type() );
    assert( coin.iota.isZero() );
@@ -197,8 +197,7 @@ std::optional< CWalletTx > Wallet::create_new_spark_asset_transaction(
    spark_wallet_.AppendSpatsMintTxData( mtx,
                                         { spats::create_minted_coin_data( action, destination_public_address ), spark_wallet_.getDefaultAddress() },
                                         spark_wallet_.ensureSpendKey(),
-                                        admin_public_address,
-                                        initial_supply.precision() );
+                                        admin_public_address );
    tx.tx = MakeTransactionRef( std::move( mtx ) );
    assert( tx.tx->IsSpatsCreate() );
    //}
@@ -362,7 +361,7 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
    const auto &initiator_public_address = my_public_address_as_admin();
 
    if ( asset_type == base::asset_type ) {
-#if 0 // TODO remove (This change was decided at the 2025-08-05 meeting)
+#if 0   // TODO remove (This change was decided at the 2025-08-05 meeting)
       const std::string burn_address( firo_burn_address );   // TODO the network-specific address from params, once Levon adds that
       CScript burn_script = GetScriptForDestination( CBitcoinAddress( burn_address ).Get() );
       CRecipient burn_recipient{ std::move( burn_script ), boost::numeric_cast< CAmount >( burn_amount.raw() ), false, {}, "burning a base asset amount" };
@@ -385,7 +384,7 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
 
    const BurnParameters action_params( asset_type, burn_amount.raw(), burn_amount.precision(), asset_symbol );
    const BurnAction action( action_params );
-#if 0 // TODO remove
+#if 0   // TODO remove
    CScript script;
    script << OP_SPATSBURN;
    assert( script.IsSpatsBurn() );
@@ -413,6 +412,8 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
                                                         { boost::numeric_cast< CAmount >( burn_amount.raw() ), utils::to_underlying( asset_type ) },
                                                         nullptr );   // may throw
    assert( tx.tx->HasSpatsBurnAmount() );
+
+   assert( spark::ExtractSpatsBurnAction( tx ) == action.copy_without_optionals() );
 
    if ( user_confirmation_callback )   // give the user a chance to confirm/cancel, if there are means to do so
       if ( const auto tx_size = ::GetVirtualTransactionSize( tx ); !user_confirmation_callback( action, standard_fee, tx_size ) ) {
@@ -503,8 +504,7 @@ static std::optional< supply_amount_t::precision_type > get_asset_precision( ass
    if ( !is_fungible_asset_type( a ) )   // NFT
       return 0u;   // for performance, but also because if the asset is very new, it might not be in the registry yet, but here it doesn't matter (f. precision purposes)
 
-   const auto located_asset = registry.get_asset( a, i );
-   if ( located_asset )
+   if ( const auto located_asset = registry.get_asset( a, i ) )
       return get_precision( located_asset->asset );
    return {};
 }

@@ -153,7 +153,7 @@ void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransact
 }
 
 void ParseSpatsMintCoinTransaction(const CScript& script, MintTransaction& mintTransaction, spark::OwnershipProof& ownershipProof,
-                                   spats::public_address_t& initiator_public_address, spats::supply_amount_t::precision_type& precision)
+                                   spats::public_address_t& initiator_public_address)
 {
     if (!script.IsSpatsMintCoin())
         throw std::invalid_argument("Script is not a Spats coin mint");
@@ -175,7 +175,7 @@ void ParseSpatsMintCoinTransaction(const CScript& script, MintTransaction& mintT
     }
 
     auto& stream = serializedCoins.front();
-    stream >> initiator_public_address >> precision >> ownershipProof;
+    stream >> initiator_public_address >> ownershipProof;
 }
 
 void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin)
@@ -279,15 +279,12 @@ static spats::CreateAssetAction ParseSpatsCreateTransaction(const CTransaction &
             MintTransaction mint_transaction(params);
             spark::OwnershipProof ownership_proof;
             spats::public_address_t initiator_public_address;
-            spats::supply_amount_t::precision_type precision;
-            ParseSpatsMintCoinTransaction(coin_script, mint_transaction, ownership_proof, initiator_public_address, precision);	// may throw
+            ParseSpatsMintCoinTransaction(coin_script, mint_transaction, ownership_proof, initiator_public_address);	// may throw
             if (!mint_transaction.verify())
                 throw CBadTxIn();
             if (!a.verify_own(GetSpatsMintM(tx), ownership_proof))
                 throw CBadTxIn();
             if (initiator_public_address != admin_public_address)
-                throw CBadTxIn();
-            if (precision != initial_supply.precision())
                 throw CBadTxIn();
             const auto& coins = mint_transaction.getCoins();
             if (coins.size() != 1)
@@ -424,7 +421,7 @@ static spats::MintAction ParseSpatsMintTransaction(const CTransaction &tx)
         if (coins.size() != 1)
             throw CBadTxIn();
         auto coin = coins.front();
-        if (coin.v != tx.vout.back().nValue || coin.v != mint_params.new_supply().raw())
+        if (coin.v != tx.vout.back().nValue || coin.v != mint_params.raw_new_supply())
             throw CBadTxIn();
         action.set_coin(std::move(coin));
 
@@ -1989,8 +1986,8 @@ void CSparkState::GetCoinsForRecovery(
         uint256& blockHash,
         std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins) {
     coins.clear();
-    if (coinGroups.count(coinGroupID) == 0) {
-        throw std::runtime_error(std::string("There is no anonymity set with this id: " + coinGroupID));
+    if (!coinGroups.contains(coinGroupID)) {
+        throw std::runtime_error("There is no anonymity set with this id: " + std::to_string(coinGroupID));
     }
     SparkCoinGroupInfo &coinGroup = coinGroups[coinGroupID];
     CBlockIndex *index = coinGroup.lastBlock;
@@ -2003,7 +2000,7 @@ void CSparkState::GetCoinsForRecovery(
 
     std::size_t counter = 0;
     for (CBlockIndex *block = index;; block = block->pprev) {
-        // ignore block heigher than max height
+        // ignore block higher than max height
         if (block->nHeight > maxHeight) {
             continue;
         }
@@ -2141,8 +2138,7 @@ std::pair<spats::MintAction, spark::Coin> ExtractSpatsMintAction(const CTransact
     MintTransaction mintTransaction(spark::Params::get_default());
     spark::OwnershipProof ownershipProof;
     spats::public_address_t initiator_public_address;
-    spats::supply_amount_t::precision_type precision;
-    ParseSpatsMintCoinTransaction(mintcoin_script, mintTransaction, ownershipProof, initiator_public_address, precision);	// may throw
+    ParseSpatsMintCoinTransaction(mintcoin_script, mintTransaction, ownershipProof, initiator_public_address);	// may throw
     if (!mintTransaction.verify())
         throw CBadTxIn();
     // ATTENTION: Assuming the receiver address is the same as initiator_public_address!
@@ -2160,8 +2156,7 @@ std::pair<spats::MintAction, spark::Coin> ExtractSpatsMintAction(const CTransact
     const auto asset_type = std::stoull(coin.a.tostring());
     // ATTENTION: Assuming the receiver address is the same as initiator_public_address!
     //            It is always true in the current design, but if that ever changes, then this code needs to be adjusted accordingly!
-    spats::MintParameters params(spats::asset_type_t{asset_type}, spats::supply_amount_t{coin.v, precision},
-                                 initiator_public_address, initiator_public_address);
+    spats::MintParameters params(spats::asset_type_t{asset_type}, coin.v, initiator_public_address, initiator_public_address, std::nullopt);
     // ATTENTION: Deliberately NOT putting the coin in the action here. If needed, that can be done by the caller itself.
     return {spats::MintAction(std::move(params)), std::move(coin)};
 }

@@ -6042,9 +6042,9 @@ std::optional<CWalletTx> CWallet::MintSparkAssetSupply(spats::asset_type_t asset
 {
     // create transaction
     CAmount standard_fee;
-    const spats::MintParameters action_params(asset_type, new_supply, receiver_pubaddress, sparkWallet->getSpatsWallet().my_public_address_as_admin());
+    const spats::MintParameters action_params(asset_type, new_supply.raw(), receiver_pubaddress, sparkWallet->getSpatsWallet().my_public_address_as_admin(), new_supply.precision());
     auto wtx = sparkWallet->CreateSpatsMintTransaction({spats::Wallet::create_minted_coin_data(action_params), sparkWallet->getDefaultAddress()},
-                                                       standard_fee, coin_control, user_confirmation_callback);
+                                                       standard_fee, coin_control, new_supply.precision(), user_confirmation_callback);
     if (!wtx)
         return wtx;
 

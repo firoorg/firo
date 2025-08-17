@@ -155,16 +155,17 @@ public:
             CAmount &fee,
             const std::pair<CAmount, Scalar> &burnAsset,
             const CCoinControl *coinControl = nullptr,
-            CAmount additionalTxSize = 0);
+            std::size_t additionalTxSize = 0);
 
     void AppendSpatsMintTxData(CMutableTransaction& tx,
             const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient, // .second is the initiator's (i.e. admin's) address
-            const spark::SpendKey& spendKey, const spats::public_address_t& initiator_public_address, spats::supply_amount_t::precision_type precision);
+            const spark::SpendKey& spendKey, const spats::public_address_t& initiator_public_address);
 
     std::optional<CWalletTx> CreateSpatsMintTransaction(
             const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
             CAmount &fee,
             const CCoinControl *coinControl = nullptr,
+            std::optional<spats::supply_amount_t::precision_type> precision = {},
             const std::function<bool(const spats::MintAction &action, CAmount standard_fee, std::int64_t txsize)> &user_confirmation_callback = {});
 
     std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoins(

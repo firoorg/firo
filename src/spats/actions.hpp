@@ -128,7 +128,7 @@ public:
    std::string summary() const
    {
       const SparkAssetDisplayAttributes a( get() );
-      return str( boost::format( _( "Create %1% spark asset with type = %2%, identifier = %3%, symbol = %4% and name = %5%" ) ) %
+      return str( boost::format( _( "Create %1% spark asset with id = %2%, nft id = %3%, symbol = %4% and name = %5%" ) ) %
                   ( a.fungible ? _( "fungible" ) : _( "non-fungible" ) ) % a.asset_type % a.identifier % a.symbol % a.name );
    }
 
@@ -190,9 +190,9 @@ public:
    std::string summary() const
    {
       std::ostringstream os;
-      os << _( "unregister of spark asset type = " ) << parameters_.asset_type();
+      os << _( "unregister of spark asset id = " ) << parameters_.asset_type();
       if ( const auto p = parameters_.identifier() )
-         os << _( " and identifier = " ) << *p;
+         os << _( " and nft id = " ) << *p;
       return os.str();
    }
 
@@ -236,9 +236,9 @@ public:
    {
       std::ostringstream os;
       std::visit( utils::overloaded{
-                    [ & ]( const FungibleAssetModification &m ) { os << _( "Modify of fungible spark asset with type = " ) << m.asset_type() << ": " << m; },
+                    [ & ]( const FungibleAssetModification &m ) { os << _( "Modify of fungible spark asset with id = " ) << m.asset_type() << ": " << m; },
                     [ & ]( const NonfungibleAssetModification &m ) {
-                       os << _( "Modify of non-fungible spark asset with type = " ) << m.asset_type() << _( " and identifier = " ) << m.identifier() << ": " << m;
+                       os << _( "Modify of non-fungible spark asset with id = " ) << m.asset_type() << _( " and nft id = " ) << m.identifier() << ": " << m;
                     } },
                   asset_modification_ );
       return os.str();
@@ -273,29 +273,34 @@ AssetModification ModifyAssetAction::Unserialize( Stream &is )
 
 class MintParameters {
 public:
-   MintParameters( asset_type_t asset_type, supply_amount_t new_supply, public_address_t receiver_pubaddress, public_address_t initiator_pubaddress )
+   MintParameters( asset_type_t asset_type,
+                   supply_amount_t::raw_amount_type new_supply_raw,
+                   public_address_t receiver_pubaddress,
+                   public_address_t initiator_pubaddress,
+                   std::optional< supply_amount_t::precision_type > precision )
       : asset_type_( asset_type )
-      , new_supply_( new_supply )
+      , new_supply_raw_( new_supply_raw )
       , receiver_public_address_( std::move( receiver_pubaddress ) )
       , initiator_public_address_( std::move( initiator_pubaddress ) )
+      , precision_( precision )
    {
       validate();
    }
 
+   // not serializing precision here, because it won't be present after extracting from tx, so it won't be present in CSparkTxInfo either, where we would serialize them
+   // from
+
    template < typename Stream >
    MintParameters( deserialize_type, Stream &is )
    {
-      supply_amount_t::precision_type precision;
-      supply_amount_t::raw_amount_type new_supply_raw;
-      is >> asset_type_ >> precision >> new_supply_raw >> receiver_public_address_ >> initiator_public_address_;
-      new_supply_ = { new_supply_raw, precision };
+      is >> asset_type_ >> new_supply_raw_ >> receiver_public_address_ >> initiator_public_address_;
       validate();
    }
 
    template < typename Stream >
    void Serialize( Stream &os ) const
    {
-      os << asset_type_ << new_supply_.precision() << new_supply_.raw() << receiver_public_address_ << initiator_public_address_;
+      os << asset_type_ << new_supply_raw_ << receiver_public_address_ << initiator_public_address_;
    }
 
    asset_type_t asset_type() const noexcept
@@ -305,18 +310,25 @@ public:
       return asset_type_;
    }
 
-   supply_amount_t new_supply() const noexcept { return new_supply_; }
+   supply_amount_t::raw_amount_type raw_new_supply() const noexcept { return new_supply_raw_; }
 
    const public_address_t &initiator_public_address() const noexcept { return initiator_public_address_; }
    const public_address_t &receiver_public_address() const noexcept { return receiver_public_address_.empty() ? initiator_public_address_ : receiver_public_address_; }
+
+   std::optional< supply_amount_t::precision_type > precision() const noexcept { return precision_; }
+
+   void reset_optionals() noexcept { precision_.reset(); }
 
    bool operator==( const MintParameters & ) const = default;
 
 private:
    asset_type_t asset_type_;
-   supply_amount_t new_supply_;
+   supply_amount_t::raw_amount_type new_supply_raw_;
    public_address_t receiver_public_address_;
    public_address_t initiator_public_address_;
+
+   // the below is optional because it can't be extracted from an OP_SPATSMINTCOIN txout
+   std::optional< supply_amount_t::precision_type > precision_;
 
    void validate() const
    {
@@ -326,16 +338,19 @@ private:
       if ( !is_fungible_asset_type( asset_type_ ) )
          throw std::invalid_argument( "NFTs can never have their total supply changed by any means, including minting" );
 
-      if ( !new_supply_ )
+      if ( !new_supply_raw_ )
          throw std::invalid_argument( "Non-zero new supply is required for spats mint" );
       static_assert( std::is_unsigned_v< supply_amount_t::raw_amount_type > );
-      assert( new_supply_ > supply_amount_t{} );
+      assert( new_supply_raw_ > 0 );
 
       if ( asset_type_ == base::asset_type )
          throw std::domain_error( "Spats mint cannot make new supply for the base asset" );
 
       if ( initiator_public_address_.empty() )
          throw std::domain_error( "Initiator public address is required for spats mint" );
+
+      if ( precision_ )
+         supply_amount_t{ new_supply_raw_, *precision_ };   // having the ctor to perform precision-related checks
    }
 };
 
@@ -364,7 +379,9 @@ public:
 
    std::string summary() const
    {
-      return str( boost::format( _( "Minting new %1% supply for spark asset type = %2% and crediting it to %3%" ) ) % get().new_supply() % get().asset_type() %
+      const auto new_supply_display =
+        get().precision() ? supply_amount_t{ get().raw_new_supply(), *get().precision() }.to_string() : str( boost::format( "RAW{%1%}" ) % get().raw_new_supply() );
+      return str( boost::format( _( "Minting new %1% supply for spark asset id = %2% and crediting it to %3%" ) ) % new_supply_display % get().asset_type() %
                   utils::abbreviate_for_display( get().receiver_public_address() ) );
    }
 
@@ -374,6 +391,14 @@ public:
    void set_coin( spark::Coin &&coin ) noexcept { coin_ = std::move( coin ); }
 
    bool operator==( const MintAction & ) const = default;
+
+   MintAction copy_without_optionals() const
+   {
+      auto ret = *this;
+      ret.coin_.reset();
+      ret.parameters_.reset_optionals();
+      return ret;
+   }
 
 private:
    MintParameters parameters_;
@@ -433,6 +458,14 @@ public:
    std::optional< supply_amount_t::precision_type > precision() const noexcept { return precision_; }
 
    const std::optional< asset_symbol_t > &asset_symbol() const noexcept { return asset_symbol_; }
+
+   void reset_optionals() noexcept
+   {
+      precision_.reset();
+      asset_symbol_.reset();
+   }
+
+   bool operator==( const BurnParameters & ) const = default;
 
 private:
    asset_type_t asset_type_;
@@ -497,6 +530,10 @@ public:
 
    static const asset_symbol_t &asset_symbol() noexcept { return base::naming().symbol; }
 
+   void reset_optionals() noexcept { /*no-op*/ }
+
+   bool operator==( const BaseAssetBurnParameters & ) const = default;
+
 private:
    supply_amount_t burn_amount_;
    public_address_t initiator_public_address_;
@@ -554,11 +591,20 @@ public:
       else {
          const auto burn_amount_display =
            get().precision() ? supply_amount_t{ get().raw_burn_amount(), *get().precision() }.to_string() : str( boost::format( "RAW{%1%}" ) % get().raw_burn_amount() );
-         return str( boost::format( _( "Burning supply amounting to %1% for spark asset type = %2%" ) ) % burn_amount_display % get().asset_type() );
+         return str( boost::format( _( "Burning supply amounting to %1% for spark asset id = %2%" ) ) % burn_amount_display % get().asset_type() );
       }
    }
 
    flexible_asset_id_t asset_id() const noexcept { return { get().asset_type(), std::nullopt }; }
+
+   bool operator==( const BurnAction & ) const = default;
+
+   BurnAction copy_without_optionals() const
+   {
+      auto ret = *this;
+      ret.parameters_.reset_optionals();
+      return ret;
+   }
 
 private:
    parameters_type parameters_;
