@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
     const IncomingViewKey incoming_view_key(full_view_key);
 
     const uint64_t i = 12345;
-    const uint64_t v = 1;
+    const uint64_t v = 1;   // TODO GV #Review: Shouldn't be 1 * COIN?
     const std::string memo = "test memo";
 
     // Generate address
@@ -192,7 +192,7 @@ BOOST_AUTO_TEST_CASE(parse_spark_smint)
     const IncomingViewKey incoming_view_key(full_view_key);
 
     const uint64_t i = 12345;
-    const uint64_t v = 1;
+    const uint64_t v = 1;   // TODO GV #Review: Shouldn't be 1 * COIN?
     const std::string memo = "test memo";
 
     // Generate address
@@ -740,7 +740,7 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     // spend
     txs.clear();
     pwalletMain->SetBroadcastTransactions(true);
-    auto mints = GenerateMints({10 * COIN, 1 * COIN}, txs);
+    auto mints = GenerateMints({10 * COIN, 2 * COIN, 1 * COIN}, txs);
     mempool.clear();
 
     auto currentBlock = chainActive.Tip()->nHeight;
@@ -785,10 +785,21 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     BOOST_CHECK(!CheckSparkTransaction(
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
 
+    auto new_asset_wtx = pwalletMain->CreateNewSparkAsset(
+        spats::FungibleSparkAsset(spats::asset_type_t{2}, spats::AssetNaming{"abcdef"s, "ABCDEF"s, "whatever"s}, "",
+                                       pwalletMain->sparkWallet->getSpatsWallet().my_public_address_as_admin(),
+                                       {30000, 4}, true));
+    BOOST_REQUIRE(new_asset_wtx);
+    CMutableTransaction createTx(*new_asset_wtx);
+    currentBlock = chainActive.Tip()->nHeight;
+    mempool.clear();
+    GenerateBlock({createTx});
+    BOOST_CHECK_EQUAL(currentBlock, chainActive.Tip()->nHeight -1);
+
     auto address = pwalletMain->sparkWallet->getDefaultAddress();
     spark::MintedCoinData minted;
     minted.address = address;
-    minted.v = 100 * COIN;
+    minted.v = 100 * 10000;
     minted.memo = "";
 	minted.a = Scalar(uint64_t(2));
 	minted.iota = Scalar(uint64_t(0));
@@ -805,7 +816,7 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
 
     spark::OutputCoinData output;
     output.address = address;
-    output.v = 25 * COIN;
+    output.v = 25 * 10000;
     output.memo = "";
 	output.a = Scalar(uint64_t(2));
 	output.iota = Scalar(uint64_t(0));
