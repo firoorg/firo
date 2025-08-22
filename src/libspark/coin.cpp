@@ -146,6 +146,7 @@ IdentifiedCoinData Coin::identify( const IncomingViewKey &incoming_view_key )
    // Deserialization means this process depends on the coin type
    if ( isMint() ) {
       MintCoinRecipientData r;
+
       try {
          // Decrypt recipient data
          CDataStream stream = AEAD::decrypt_and_verify( this->K * incoming_view_key.get_s1(), "Mint coin data", this->r_ );
@@ -188,7 +189,7 @@ IdentifiedCoinData Coin::identify( const IncomingViewKey &incoming_view_key )
          throw std::runtime_error( "Unable to identify coin" );
       }
 
-      if ( type == isSpatsType() ) {
+      if ( isSpatsType() ) {
          data.a = r.a;
          data.iota = r.iota;
       }
@@ -216,7 +217,7 @@ std::size_t Coin::memoryRequiredSpats()
 {
    secp_primitives::GroupElement groupElement;
    secp_primitives::Scalar scalar;
-   return 1 + groupElement.memoryRequired() * 3 + 32 + AEAD_TAG_SIZE + scalar.memoryRequired() * 2;
+   return 1 + groupElement.memoryRequired() * 3 + 32 + AEAD_TAG_SIZE + sizeof( v ) + scalar.memoryRequired() * 2;
 }
 
 bool Coin::operator==( const Coin &other ) const

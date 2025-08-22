@@ -132,7 +132,9 @@ SpendTransaction::SpendTransaction(
 			outputs[j].address,
 			outputs[j].v,
 			outputs[j].memo,
-			std::vector<unsigned char>(serial_context.begin(), serial_context.end())
+			std::vector<unsigned char>(serial_context.begin(), serial_context.end()),
+			{},
+			{}
 		);
 
 		// Range data
@@ -440,7 +442,7 @@ std::vector<unsigned char> SpendTransaction::hash_bind_inner(
 // Hash-to-scalar function H_bind
 // This function must accept pre-hashed data from `H_bind_inner` intended to correspond to the signing operation
 Scalar SpendTransaction::hash_bind(
-    const std::vector<unsigned char> hash_bind_inner,
+    const std::vector<unsigned char>& hash_bind_inner,
     const std::vector<Coin>& out_coins,
     const uint64_t f_
 ) {

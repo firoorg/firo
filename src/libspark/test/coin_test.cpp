@@ -42,15 +42,7 @@ BOOST_AUTO_TEST_CASE(mint_identify_recover)
     // Generate coin
     Scalar k;
     k.randomize();
-    Coin coin = Coin(
-        params,
-        COIN_TYPE_MINT,
-        k,
-        address,
-        v,
-        memo,
-        random_char_vector()
-    );
+    Coin coin(params, COIN_TYPE_MINT, k, address, v, memo, random_char_vector(), {}, {});
 
     // Identify coin
     IdentifiedCoinData i_data = coin.identify(incoming_view_key);
@@ -90,15 +82,7 @@ BOOST_AUTO_TEST_CASE(spend_identify_recover)
     // Generate coin
     Scalar k;
     k.randomize();
-    Coin coin = Coin(
-        params,
-        COIN_TYPE_SPEND,
-        k,
-        address,
-        v,
-        memo,
-        random_char_vector()
-    );
+    Coin coin(params, COIN_TYPE_SPEND, k, address, v, memo, random_char_vector(), {}, {});
 
     // Identify coin
     IdentifiedCoinData i_data = coin.identify(incoming_view_key);

@@ -166,11 +166,7 @@ void WalletModel::checkBalanceChanged()
     CAmount newWatchUnconfBalance = 0;
     CAmount newWatchImmatureBalance = 0;
     CAmount newAnonymizableBalance = getAnonymizableBalance();
-
-
-    CAmount newPrivateBalance, newUnconfirmedPrivateBalance;
-    std::tie(newPrivateBalance, newUnconfirmedPrivateBalance) =
-            getSparkBalance();
+    auto newSpatsBalances = getSpatsBalances();
 
     if (haveWatchOnly())
     {
@@ -185,8 +181,7 @@ void WalletModel::checkBalanceChanged()
         || cachedWatchOnlyBalance != newWatchOnlyBalance
         || cachedWatchUnconfBalance != newWatchUnconfBalance
         || cachedWatchImmatureBalance != newWatchImmatureBalance
-        || cachedPrivateBalance != newPrivateBalance
-        || cachedUnconfirmedPrivateBalance != newUnconfirmedPrivateBalance
+        || cachedSpatsBalances_ != newSpatsBalances
         || cachedAnonymizableBalance != newAnonymizableBalance)
     {
         cachedBalance = newBalance;
@@ -195,8 +190,7 @@ void WalletModel::checkBalanceChanged()
         cachedWatchOnlyBalance = newWatchOnlyBalance;
         cachedWatchUnconfBalance = newWatchUnconfBalance;
         cachedWatchImmatureBalance = newWatchImmatureBalance;
-        cachedPrivateBalance = newPrivateBalance;
-        cachedUnconfirmedPrivateBalance = newUnconfirmedPrivateBalance;
+        cachedSpatsBalances_ = std::move(newSpatsBalances);
         cachedAnonymizableBalance = newAnonymizableBalance;
         Q_EMIT balanceChanged(
             newBalance,
@@ -205,8 +199,7 @@ void WalletModel::checkBalanceChanged()
             newWatchOnlyBalance,
             newWatchUnconfBalance,
             newWatchImmatureBalance,
-            newPrivateBalance,
-            newUnconfirmedPrivateBalance,
+            cachedSpatsBalances_,
             newAnonymizableBalance);
     }
 }
@@ -407,6 +400,11 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
 }
 
 OptionsModel *WalletModel::getOptionsModel()
+{
+    return optionsModel;
+}
+
+const OptionsModel *WalletModel::getOptionsModel() const noexcept
 {
     return optionsModel;
 }
@@ -1085,6 +1083,11 @@ std::pair<CAmount, CAmount> WalletModel::getSparkBalance()
     return wallet->GetSparkBalance();
 }
 
+spats::Wallet::asset_balances_t WalletModel::getSpatsBalances()
+{
+    return wallet->GetSpatsBalances();
+}
+
 bool WalletModel::getAvailableLelantusCoins()
 {
     if (!pwalletMain->zwallet)
@@ -1264,8 +1267,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransaction(WalletMod
 //TODO levon add spats  case
         CWalletTx *newTx = transaction.getTransaction();
         try {
-            std::pair<CAmount, std::pair<Scalar, Scalar>>  emptyBurn;
-            *newTx = wallet->CreateSparkSpendTransaction(vecSend, privateRecipients, {}, nFeeRequired, emptyBurn, coinControl);
+            *newTx = wallet->CreateSparkSpendTransaction(vecSend, privateRecipients, {}, nFeeRequired, {}, coinControl);
         } catch (InsufficientFunds const&) {
             transaction.setTransactionFee(nFeeRequired);
             if (!fSubtractFeeFromAmount && (total + nFeeRequired) > nBalance) {

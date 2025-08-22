@@ -87,8 +87,8 @@ public:
          const uint64_t &v,
          const std::string &memo,
          const std::vector< unsigned char > &serial_context,
-         const Scalar &a = Scalar( uint64_t( 0 ) ),
-         const Scalar &iota = Scalar( uint64_t( 0 ) ) );
+         const Scalar &a,
+         const Scalar &iota );
 
    // Given an incoming view key, extract the coin's nonce, diversifier, value, and memo
    IdentifiedCoinData identify( const IncomingViewKey &incoming_view_key );
@@ -117,11 +117,11 @@ protected:
    bool validate( const IncomingViewKey &incoming_view_key, IdentifiedCoinData &data );
 
 public:
-   const Params *params;
-   char type;   // type flag
+   const Params *params = nullptr;
+   char type = std::numeric_limits< char >::max();   // type flag
    GroupElement S, K, C;   // serial commitment, recovery key, value commitment
    AEADEncryptedData r_;   // encrypted recipient data
-   uint64_t v;   // value
+   uint64_t v = 0;   // value
    std::vector< unsigned char > serial_context;   // context to which the serial commitment should be bound (not serialized, but inferred)
    Scalar a, iota;   // asset type, identifier
 

@@ -258,6 +258,26 @@ BITCOIN_CORE_H = \
   masternode-sync.h \
   saltedhasher.h \
   unordered_lru_cache.h \
+  spats/actions.hpp \
+  spats/base_asset.hpp \
+  spats/identification.hpp \
+  spats/manager.hpp \
+  spats/modification.hpp \
+  spats/registry.hpp \
+  spats/spark_asset.hpp \
+  spats/user_confirmation.hpp \
+  spats/wallet.hpp \
+  utils/constexpr_string.hpp \
+  utils/constrained_value.hpp \
+  utils/empty_class.hpp \
+  utils/enum.hpp \
+  utils/lock_proof.hpp \
+  utils/math.hpp \
+  utils/overloaded.hpp \
+  utils/scaled_amount.hpp \
+  utils/scope_exit.hpp \
+  utils/string.hpp \
+  utils/traits.hpp \
   llmq/quorums.h \
   llmq/quorums_blockprocessor.h \
   llmq/quorums_dkgsessionmgr.h \
@@ -431,6 +451,11 @@ libbitcoin_server_a_SOURCES = \
   sparkname.cpp \
   coin_containers.cpp \
   mtpstate.cpp \
+  spats/manager.cpp \
+  spats/modification.cpp \
+  spats/registry.cpp \
+  spats/spark_asset.cpp \
+  utils/string.cpp \
   $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
@@ -479,6 +504,12 @@ libbitcoin_wallet_a_SOURCES = \
   bip47/paymentcode.cpp \
   bip47/secretpoint.cpp \
   primitives/mint_spend.cpp \
+  spats/manager.cpp \
+  spats/modification.cpp \
+  spats/registry.cpp \
+  spats/spark_asset.cpp \
+  spats/wallet.cpp \
+  utils/string.cpp \
   $(BITCOIN_CORE_H)
 
 # crypto primitives library

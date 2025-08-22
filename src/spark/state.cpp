@@ -1,7 +1,12 @@
+#include <boost/exception/diagnostic_information.hpp>
+
 #include "state.h"
 #include "sparkname.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
+#include "../base58.h"	// for CBitcoinAddress
+#include "../spats/actions.hpp"
+#include "../spats/wallet.hpp"
 #include "../libspark/keys.h"
 
 namespace spark {
@@ -84,12 +89,11 @@ bool IsSpatsStarted(int height)
 unsigned char GetNetworkType() {
     if (::Params().GetConsensus().IsMain())
         return ADDRESS_NETWORK_MAINNET;
-    else if (::Params().GetConsensus().IsTestnet())
+    if (::Params().GetConsensus().IsTestnet())
         return ADDRESS_NETWORK_TESTNET;
-    else if (::Params().GetConsensus().IsDevnet())
+    if (::Params().GetConsensus().IsDevnet())
         return ADDRESS_NETWORK_DEVNET;
-    else
-        return ADDRESS_NETWORK_REGTEST;
+    return ADDRESS_NETWORK_REGTEST;
 }
 
 /*
@@ -148,39 +152,30 @@ void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransact
     }
 }
 
-void ParseSpatsMintTransaction(const CScript& script, MintTransaction& mintTransaction, spark::OwnershipProof& ownershipProof)
+void ParseSpatsMintCoinTransaction(const CScript& script, MintTransaction& mintTransaction, spark::OwnershipProof& ownershipProof,
+                                   spats::public_address_t& initiator_public_address)
 {
-    std::vector<CDataStream> serializedCoins;
-    if (!script.IsSpatsMint())
-        throw std::invalid_argument("Script is not a Spats mint");
+    if (!script.IsSpatsMintCoin())
+        throw std::invalid_argument("Script is not a Spats coin mint");
 
     std::vector<unsigned char> serialized(script.begin() + 1, script.end());
-    std::size_t proofsize = ownershipProof.memoryRequired();
+    const std::size_t proofsize = ownershipProof.memoryRequired();
 
-    size_t size = spark::Coin::memoryRequired() + proofsize + 8; // 8 is the size of uint64_t
+    const size_t size = spark::Coin::memoryRequiredSpats() + proofsize; // TODO match to additionalTxSize in CSparkWallet::CreateSpatsMintTransaction() closer
     if (serialized.size() < size) {
-        throw std::invalid_argument("Script is not a valid Spats mint");
+        throw std::invalid_argument("Script is not a valid Spats coin mint");
     }
 
-    CDataStream stream(
-            std::vector<unsigned char>(serialized.begin(), serialized.end() - ownershipProof.memoryRequired()),
-            SER_NETWORK,
-            PROTOCOL_VERSION
-    );
-    serializedCoins.push_back(stream);
+    std::vector<CDataStream> serializedCoins = { CDataStream( serialized, SER_NETWORK, PROTOCOL_VERSION ) };
 
     try {
         mintTransaction.setMintTransaction(serializedCoins);
     } catch (const std::exception &) {
-        throw std::invalid_argument("Unable to deserialize Spark mint transaction");
+        throw std::invalid_argument("Unable to deserialize Spats coin mint");
     }
 
-    CDataStream proofstream(
-        std::vector<unsigned char>(serialized.end() - proofsize, serialized.end()),
-        SER_NETWORK,
-        PROTOCOL_VERSION
-        );
-    proofstream >> ownershipProof;
+    auto& stream = serializedCoins.front();
+    stream >> initiator_public_address >> ownershipProof;
 }
 
 void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin)
@@ -222,7 +217,289 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
     const spark::Params* params = spark::Params::get_default();
     spark::SpendTransaction spendTransaction(params);
     serialized >> spendTransaction;
-    return std::move(spendTransaction);
+    return spendTransaction;
+}
+
+static spats::CreateAssetAction ParseSpatsCreateTransaction(const CTransaction &tx)
+{
+    assert(tx.IsSpatsCreate());
+    if (tx.vout.size() < 3)
+        throw CBadTxIn();
+    const CScript& creation_script = tx.vout.front().scriptPubKey;
+    if (!creation_script.IsSpatsCreate())
+        throw CBadTxIn();
+
+    try{
+        std::vector<unsigned char> serialized(creation_script.begin() + 1, creation_script.end());
+        auto asset_serialization_size = serialized.size();
+        const void* const asset_serialization_start_address = serialized.data();
+        CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
+        assert(stream.size() == asset_serialization_size);
+        spats::CreateAssetAction action(deserialize, stream);
+        const auto &new_asset = action.get();
+        asset_serialization_size -= stream.size();
+#if 0   // TODO remove
+        spark::OwnershipProof proof;
+        stream >> proof;
+        LogPrintf("ParseSpatsCreateTransaction address ownership proof: %s\n", proof);
+#endif
+        const auto& b = get_base(new_asset);
+        const auto& admin_public_address = b.admin_public_address();
+        const Address a = CSparkWallet::decodeAddress(admin_public_address);
+#if 0   // TODO remove
+        const auto scalar_of_proof = spats::Wallet::compute_new_spark_asset_serialization_scalar(
+            b, {static_cast<const unsigned char*>(asset_serialization_start_address), asset_serialization_size});
+        LogPrintf("ParseSpatsCreateTransaction scalar_of_proof: %s\n", scalar_of_proof);
+        if (!a.verify_own(scalar_of_proof, proof))
+            throw CBadTxIn();
+#endif
+        const auto& burntx = tx.vout[1];
+        // If somehow the creation fee is greater than required, i.e. the originator wants to burn more of his money than required, then it's fine with us, I think.
+        // But less than required is not allowed, of course.
+        if (burntx.nValue < spats::compute_new_spark_asset_fee(b.naming().symbol.get()))
+            throw CBadTxIn();
+        if (GetScriptForDestination(CBitcoinAddress(std::string(firo_burn_address)).Get()) != burntx.scriptPubKey)
+            throw CBadTxIn();
+
+        const auto& potential_coin_script = tx.vout.back().scriptPubKey;
+        const bool has_coin_script = potential_coin_script.IsSpatsMintCoin();
+        if (!has_coin_script)   // 07/25 new guarantee
+            throw CBadTxIn();
+        if (std::find_if(tx.vout.begin(), tx.vout.end() - 1, [](const CTxOut& out) { return out.scriptPubKey.IsSpatsMintCoin(); }) != tx.vout.end() - 1)
+            throw CBadTxIn();   // more than 1 spats coin in one tx is not allowed
+
+        const auto initial_supply = spats::get_total_supply(action.get());
+#if 0   // TODO remove
+        if (has_coin_script != !!initial_supply)
+            throw CBadTxIn();   // has initial supply but no spats coin, or doesn't have initial supply but has spats coin
+#endif
+        if (has_coin_script) {  // TODO remove the condition, as it will always be true here from now on (07/25)
+            const auto& coin_script = potential_coin_script;
+            const spark::Params* params = spark::Params::get_default();
+            MintTransaction mint_transaction(params);
+            spark::OwnershipProof ownership_proof;
+            spats::public_address_t initiator_public_address;
+            ParseSpatsMintCoinTransaction(coin_script, mint_transaction, ownership_proof, initiator_public_address);	// may throw
+            if (!mint_transaction.verify())
+                throw CBadTxIn();
+            if (!a.verify_own(GetSpatsMintM(tx), ownership_proof))
+                throw CBadTxIn();
+            if (initiator_public_address != admin_public_address)
+                throw CBadTxIn();
+            const auto& coins = mint_transaction.getCoins();
+            if (coins.size() != 1)
+                throw CBadTxIn();
+            auto coin = coins.front();
+            if (coin.v != tx.vout.back().nValue || coin.v != initial_supply.raw())
+                throw CBadTxIn();
+            if (spats::asset_type_t{std::stoull(coin.a.tostring())} != b.asset_type())
+                throw CBadTxIn();
+            if (spats::identifier_t{std::stoull(coin.iota.tostring())} != spats::get_identifier(new_asset).value_or(spats::identifier_t{}))
+                throw CBadTxIn();
+            // TODO should we check that coin.type is COIN_TYPE_MINT_V2?
+            action.set_coin(std::move(coin));
+        }
+
+        return action;
+    }
+    catch (...) {
+        throw CBadTxIn();
+    }
+}
+
+static spats::UnregisterAssetAction ParseSpatsUnregisterTransaction(const CTransaction &tx)
+{
+    assert(tx.IsSpatsUnregister());
+    if (tx.vout.size() < 1)
+        throw CBadTxIn();
+    const CScript& unregistration_script = tx.vout.front().scriptPubKey;
+    if (!unregistration_script.IsSpatsUnregister())
+        throw CBadTxIn();
+
+    try{
+        std::vector<unsigned char> serialized(unregistration_script.begin() + 1, unregistration_script.end());
+        auto action_serialization_size = serialized.size();
+        const void* const action_serialization_start_address = serialized.data();
+        CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
+        assert(stream.size() == action_serialization_size);
+        spats::UnregisterAssetAction action(deserialize, stream);
+        const auto &unreg_params = action.get();
+        action_serialization_size -= stream.size();
+        spark::OwnershipProof proof;
+        stream >> proof;
+        LogPrintf("ParseSpatsUnregisterTransaction address ownership proof: %s\n", proof);
+        Address a(spark::Params::get_default());
+        a.decode(unreg_params.initiator_public_address());
+        const auto scalar_of_proof = spats::Wallet::compute_unregister_spark_asset_serialization_scalar(
+            unreg_params, {static_cast<const unsigned char*>(action_serialization_start_address), action_serialization_size});
+        LogPrintf("ParseSpatsUnregisterTransaction scalar_of_proof: %s\n", scalar_of_proof);
+        if (!a.verify_own(scalar_of_proof, proof))
+            throw CBadTxIn();
+        return action;
+    }
+    catch (...) {
+        throw CBadTxIn();
+    }
+}
+
+static spats::ModifyAssetAction ParseSpatsModifyTransaction(const CTransaction &tx)
+{
+    assert(tx.IsSpatsModify());
+    if (tx.vout.size() < 1)
+        throw CBadTxIn();
+    const CScript& modification_script = tx.vout.front().scriptPubKey;
+    if (!modification_script.IsSpatsModify())
+        throw CBadTxIn();
+
+    try{
+        std::vector<unsigned char> serialized(modification_script.begin() + 1, modification_script.end());
+        auto action_serialization_size = serialized.size();
+        const void* const action_serialization_start_address = serialized.data();
+        CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
+        assert(stream.size() == action_serialization_size);
+        spats::ModifyAssetAction action(deserialize, stream);
+        const auto &asset_modification = action.get();
+        action_serialization_size -= stream.size();
+        spark::OwnershipProof proof;
+        stream >> proof;
+        LogPrintf("ParseSpatsModifyTransaction address ownership proof: %s\n", proof);
+        const auto& b = get_base(asset_modification);
+        Address a(spark::Params::get_default());
+        a.decode(b.initiator_public_address());
+        const auto scalar_of_proof = spats::Wallet::compute_modify_spark_asset_serialization_scalar(
+            b, {static_cast<const unsigned char*>(action_serialization_start_address), action_serialization_size});
+        LogPrintf("ParseSpatsModifyTransaction scalar_of_proof: %s\n", scalar_of_proof);
+        if (!a.verify_own(scalar_of_proof, proof))
+            throw CBadTxIn();
+        return action;
+    }
+    catch (...) {
+        throw CBadTxIn();
+    }
+}
+
+#if 0   // TODO remove
+static spats::MintAction ParseSpatsMintTransaction(const CTransaction &tx)
+{
+    assert(tx.IsSpatsMint());
+    if (tx.vout.size() < 2)
+        throw CBadTxIn();
+
+    const CScript& mint_script = tx.vout.front().scriptPubKey;
+    // there may (always, rather?) be 1 more OP_SPARKSMINT outs in-between these two endpoints
+    const CScript& coin_script = tx.vout.back().scriptPubKey;
+    if (!mint_script.IsSpatsMint())
+        throw CBadTxIn();
+
+    try{
+        std::vector<unsigned char> serialized(mint_script.begin() + 1, mint_script.end());
+        auto action_serialization_size = serialized.size();
+        const void* const action_serialization_start_address = serialized.data();
+        CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
+        assert(stream.size() == action_serialization_size);
+        spats::MintAction action(deserialize, stream);
+        const auto &mint_params = action.get();
+        action_serialization_size -= stream.size();
+        spark::OwnershipProof proof;
+        stream >> proof;
+        LogPrintf("ParseSpatsMintTransaction address ownership proof: %s\n", proof);
+        Address a(spark::Params::get_default());
+        a.decode(mint_params.initiator_public_address());
+        const auto scalar_of_proof = spats::Wallet::compute_mint_asset_supply_serialization_scalar(
+            mint_params, {static_cast<const unsigned char*>(action_serialization_start_address), action_serialization_size});
+        LogPrintf("ParseSpatsMintTransaction scalar_of_proof: %s\n", scalar_of_proof);
+        if (!a.verify_own(scalar_of_proof, proof))
+            throw CBadTxIn();
+
+        const spark::Params* params = spark::Params::get_default();
+        MintTransaction mintTransaction(params);
+        spark::OwnershipProof ownershipProof;
+        ParseSpatsMintCoinTransaction(coin_script, mintTransaction, ownershipProof);	// may throw
+        if (!mintTransaction.verify())
+            throw CBadTxIn();
+        const auto& coins = mintTransaction.getCoins();
+        if (coins.size() != 1)
+            throw CBadTxIn();
+        auto coin = coins.front();
+        if (coin.v != tx.vout.back().nValue || coin.v != mint_params.raw_new_supply())
+            throw CBadTxIn();
+        action.set_coin(std::move(coin));
+
+        return action;
+    }
+    catch (...) {
+        throw CBadTxIn();
+    }
+}
+
+static spats::BurnAction<> ParseSpatsBurnTransaction(const CTransaction &tx)
+{
+    assert(tx.IsSpatsBurn());
+    if (tx.vout.size() != 2)
+        throw CBadTxIn();
+    const CScript& burn_script = tx.vout.front().scriptPubKey;
+    if (!burn_script.IsSpatsBurn())
+        throw CBadTxIn();
+    const auto& burn_out = tx.vout.back();
+    if (!burn_out.scriptPubKey.IsSpatsBurnAmount())
+        throw CBadTxIn();
+
+    try{
+        std::vector<unsigned char> serialized(burn_script.begin() + 1, burn_script.end());
+        auto action_serialization_size = serialized.size();
+        const void* const action_serialization_start_address = serialized.data();
+        CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
+        assert(stream.size() == action_serialization_size);
+        spats::BurnAction<> action(deserialize, stream);
+        const auto &burn_params = action.get();
+        action_serialization_size -= stream.size();
+        spark::OwnershipProof proof;
+        stream >> proof;
+        LogPrintf("ParseSpatsBurnTransaction address ownership proof: %s\n", proof);
+        Address a(spark::Params::get_default());
+        a.decode(burn_params.initiator_public_address());
+        const auto scalar_of_proof = spats::Wallet::compute_burn_asset_supply_serialization_scalar(
+            burn_params, {static_cast<const unsigned char*>(action_serialization_start_address), action_serialization_size});
+        LogPrintf("ParseSpatsBurnTransaction scalar_of_proof: %s\n", scalar_of_proof);
+        if (!a.verify_own(scalar_of_proof, proof))
+            throw CBadTxIn();
+
+        if (burn_out.nValue != burn_params.burn_amount().raw())
+            throw CBadTxIn();
+        serialized.assign(burn_out.scriptPubKey.begin() + 1, burn_out.scriptPubKey.end());
+        CDataStream burn_out_stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
+        Scalar asset_type;
+        stream >> asset_type;
+        if (std::stoull(asset_type.tostring()) != utils::to_underlying(burn_params.asset_type()))
+            throw CBadTxIn();
+
+        return action;
+    }
+    catch (...) {
+        throw CBadTxIn();
+    }
+}
+#endif
+
+static spats::Action ParseSpatsTransaction(const CTransaction &tx)
+{
+    assert(tx.IsSpatsTransaction());
+    if (tx.IsSpatsCreate())
+        return ParseSpatsCreateTransaction(tx);
+    if (tx.IsSpatsUnregister())
+        return ParseSpatsUnregisterTransaction(tx);
+    if (tx.IsSpatsModify())
+        return ParseSpatsModifyTransaction(tx);
+    assert(!tx.IsSpatsCreate());    // Important, handled and taken out of the way above.
+    if (tx.HasSpatsMintCoin()) {    // So this for sure is just a mint tx, not a 'create'.
+        auto [action, coin] = ExtractSpatsMintAction(tx);
+        action.set_coin(std::move(coin));
+        return action;
+    }
+    if (tx.HasSpatsBurnAmount())
+        return ExtractSpatsBurnAction(tx);
+    // TODO more
+    throw CBadTxIn();
 }
 
 spats::SpendTransaction ParseSpatsSpend(const CTransaction &tx)
@@ -245,17 +522,18 @@ spats::SpendTransaction ParseSpatsSpend(const CTransaction &tx)
 }
 
 
-Scalar GetSpatsMintM(const CTransaction& tx) {
+Scalar GetSpatsMintM(const CTransaction& tx)
+{
     CMutableTransaction txTemp = tx;
-    for (auto itr = txTemp.vout.begin(); itr < txTemp.vout.end(); ++itr) {
-        if (itr->scriptPubKey.IsSpatsMint()) {
-            txTemp.vout.erase(itr);
-            --itr;
+    for (auto& txout : txTemp.vout)
+        if (txout.scriptPubKey.IsSpatsMintCoin()) {
+            const auto proof_size = spark::OwnershipProof::memoryRequired();
+            assert(txout.scriptPubKey.size() >= proof_size);
+            std::fill_n(txout.scriptPubKey.end() - proof_size, proof_size, 0);
         }
-    }
     spark::Hash hash(LABEL_TRANSCRIPT_SPATS_MINT);
     CDataStream serializedTx(SER_NETWORK, PROTOCOL_VERSION);
-    serializedTx << tx;
+    serializedTx << txTemp;
 
     hash.include(serializedTx);
     return hash.finalize_scalar();
@@ -368,6 +646,7 @@ bool ConnectBlockSpark(
             pindexNew->sparkMintedCoins.clear();
             pindexNew->spentLTags.clear();
             pindexNew->sparkSetHash.clear();
+            pindexNew->spats_actions.clear();
         }
 
         if (!CheckSparkBlock(state, *pblock)) {
@@ -386,11 +665,27 @@ bool ConnectBlockSpark(
             }
         }
 
+        try {
+            sparkState.GetSpatsManager().registry().validate(pblock->sparkTxInfo->spats_actions, pindexNew->nHeight);
+        } catch (...) {
+            LogPrintf("Spats validation at block height %d failed: %s\n",
+              pindexNew->nHeight, boost::current_exception_diagnostic_information().c_str());
+            return false;
+        }
+
         if (!fJustCheck) {
             BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->spentLTags) {
                 pindexNew->spentLTags.insert(lTag);
                 sparkState.AddSpend(lTag.first, lTag.second);
             }
+
+            if (!pblock->sparkTxInfo->spats_actions.empty()) {
+                pindexNew->spats_actions.insert(pindexNew->spats_actions.end(),
+                    pblock->sparkTxInfo->spats_actions.begin(), pblock->sparkTxInfo->spats_actions.end());
+                sparkState.AddSpatsActions(pblock->sparkTxInfo->spats_actions, pindexNew->nHeight,
+                                           pindexNew->phashBlock ? std::optional(*pindexNew->phashBlock) : std::nullopt);
+            }
+
             if (GetBoolArg("-mobile", false)) {
                 BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->ltagTxhash) {
                     pindexNew->ltagTxhash.insert(lTag);
@@ -602,6 +897,7 @@ bool CheckSparkMintTransaction(
     return true;
 }
 
+#if 0	// TODO remove
 bool CheckSpatsMintTransaction(
         const CTransaction &tx,
         CTxOut& txOut,
@@ -666,6 +962,7 @@ bool CheckSpatsMintTransaction(
 
     return true;
 }
+#endif
 
 bool CheckSparkSMintTransaction(
         const std::vector<CTxOut>& vout,
@@ -710,7 +1007,8 @@ bool CheckSparkSpendTransaction(
         int nHeight,
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
-        CSparkTxInfo* sparkTxInfo) {
+        CSparkTxInfo* sparkTxInfo)
+{
     std::unordered_set<GroupElement, spark::CLTagHash> txLTags;
 
     if (tx.vin.size() != 1 || !tx.vin[0].scriptSig.IsSparkSpend()) {
@@ -721,7 +1019,7 @@ bool CheckSparkSpendTransaction(
     }
 
     Consensus::Params const & params = ::Params().GetConsensus();
-    int height = nHeight == INT_MAX ? chainActive.Height()+1 : nHeight;
+    const int height = nHeight == INT_MAX ? chainActive.Height()+1 : nHeight;
     if (!isVerifyDB) {
             if (height >= params.nSparkStartBlock) {
                 // data should be moved to v3 payload
@@ -758,12 +1056,7 @@ bool CheckSparkSpendTransaction(
     // Obtain the hash of the transaction sans the Spark part
     CMutableTransaction txTemp = tx;
     txTemp.vExtraPayload.clear();
-    for (auto itr = txTemp.vout.begin(); itr < txTemp.vout.end(); ++itr) {
-        if (itr->scriptPubKey.IsSparkSMint() || itr->scriptPubKey.IsSpatsMint() || itr->scriptPubKey.IsSpatsBurn()) {
-            txTemp.vout.erase(itr);
-            --itr;
-        }
-    }
+    std::erase_if(txTemp.vout, [] (const CTxOut& out) { return out.scriptPubKey.IsSparkSMint() || out.scriptPubKey.IsSpatsMintCoin() || out.scriptPubKey.IsSpatsBurnAmount(); });
     txHashForMetadata = txTemp.GetHash();
 
     LogPrintf("CheckSparkSpendTransaction: tx metadata hash=%s\n", txHashForMetadata.ToString());
@@ -786,9 +1079,9 @@ bool CheckSparkSpendTransaction(
                 script.IsLelantusJMint() ||
                 script.IsSigmaMint()) {
             return false;
-        } else if (script.IsSpatsMint()) {
+        } else if (script.IsSpatsMint() || script.IsSpatsMintCoin()) {
             continue;
-        } else if (script.IsSpatsBurn()) {
+        } else if (script.IsSpatsBurnAmount()) {
             burn += txout.nValue;
         } else {
             Vout += txout.nValue;
@@ -905,7 +1198,7 @@ bool CheckSparkSpendTransaction(
         if (!(sparkTxInfo && sparkTxInfo->spTransactions.count(hashTx) > 0)) {
             for (size_t i = 0; i < lTags.size(); ++i) {
                     if (!CheckLTag(state, sparkTxInfo, lTags[i], nHeight, false)) {
-                        LogPrintf("CheckSparkSpendTransaction: lTAg check failed, ltag=%s\n", lTags[i]);
+                        LogPrintf("CheckSparkSpendTransaction: lTag check failed, ltag=%s\n", lTags[i]);
                         return false;
                     }
             }
@@ -936,8 +1229,49 @@ bool CheckSparkSpendTransaction(
         return false;
     }
 
+    // Check Spats
+    // It is proper to do it here, because all spats transactions are created as spark spends, due to having to process the regular tx fee at the very least
+    std::optional<spats::Action> action;
+    if (tx.IsSpatsTransaction()) {
+         if (!isVerifyDB) {    // TODO what is this, do I need to keep this check?
+              if (height < params.nSpatsStartBlock) {
+                  // TODO is the check and the error message correct?
+                  return state.DoS(100, false, NSEQUENCE_INCORRECT, "CheckSparkSpendTransaction: block too young for supporting Spats transactions");
+              }
+              try {
+                  action = ParseSpatsTransaction(tx);
+              }
+              catch (CBadTxIn&) {
+                  return state.DoS(100,
+                                   false,
+                                   REJECT_MALFORMED,
+                                   "CheckSparkSpendTransaction: invalid spats transaction");
+              }
+              catch (const std::exception &e) {
+                  return state.DoS(100,
+                                   false,
+                                   REJECT_MALFORMED,
+                                   "CheckSparkSpendTransaction: failed to deserialize spats tx: "s + e.what());
+              }
+
+              try {
+                  sparkState.GetSpatsManager().registry().validate(*action, height);
+              } catch (...) {
+                  return state.DoS(100,
+                                   false,
+                                   REJECT_INVALID,
+                                   "CheckSparkSpendTransaction: Spats action validation failed: " + boost::current_exception_diagnostic_information());
+              }
+        }
+    }
+
     if (!isVerifyDB && !isCheckWallet) {
         if (sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
+            if (action) {
+                for (auto&& coin : get_coins(*action))
+                    sparkTxInfo->mints.push_back(std::move(coin));
+                sparkTxInfo->spats_actions.push_back(std::move(*action));
+            }
             sparkTxInfo->spTransactions.insert(hashTx);
         }
     }
@@ -984,11 +1318,12 @@ bool CheckSparkTransaction(
         }
     }
 
+#if 0
     // Check Spats Mint Transaction
     if (allowSpark && !isVerifyDB && tx.IsSpatsMint()) {
         std::vector<CTxOut> txOuts;
         for (const CTxOut &txout : tx.vout) {
-            if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsSpatsMint()) {
+            if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsSpatsMintCoin()) {
                 txOuts.push_back(txout);
             }
         }
@@ -1014,6 +1349,7 @@ bool CheckSparkTransaction(
                              "bad-txns-mint-invalid");
         }
     }
+#endif
 
     // Check Spark Spend
     if (tx.IsSparkSpend()) {
@@ -1181,6 +1517,7 @@ void CSparkState::Reset() {
     usedLTags.clear();
     mintMetaInfo.clear();
     spendMetaInfo.clear();
+    spats_manager_.reset();
 }
 
 std::pair<int, int> CSparkState::GetMintedCoinHeightAndId(const spark::Coin& coin) {
@@ -1363,6 +1700,8 @@ void CSparkState::AddBlock(CBlockIndex *index) {
             AddLTagTxHash(elem.first, elem.second);
         }
     }
+
+    spats_manager_.add_block(*index);
 }
 
 void CSparkState::RemoveBlock(CBlockIndex *index) {
@@ -1432,6 +1771,8 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
     for (auto const& lTag : index->spentLTags) {
         RemoveSpend(lTag.first);
     }
+
+    spats_manager_.remove_block(*index);
 }
 
 bool CSparkState::AddSpendToMempool(const std::vector<GroupElement>& lTags, uint256 txHash) {
@@ -1645,8 +1986,8 @@ void CSparkState::GetCoinsForRecovery(
         uint256& blockHash,
         std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins) {
     coins.clear();
-    if (coinGroups.count(coinGroupID) == 0) {
-        throw std::runtime_error(std::string("There is no anonymity set with this id: " + coinGroupID));
+    if (!coinGroups.contains(coinGroupID)) {
+        throw std::runtime_error("There is no anonymity set with this id: " + std::to_string(coinGroupID));
     }
     SparkCoinGroupInfo &coinGroup = coinGroups[coinGroupID];
     CBlockIndex *index = coinGroup.lastBlock;
@@ -1659,7 +2000,7 @@ void CSparkState::GetCoinsForRecovery(
 
     std::size_t counter = 0;
     for (CBlockIndex *block = index;; block = block->pprev) {
-        // ignore block heigher than max height
+        // ignore block higher than max height
         if (block->nHeight > maxHeight) {
             continue;
         }
@@ -1740,7 +2081,6 @@ size_t CSparkState::CountLastNCoins(int groupId, size_t required, CBlockIndex* &
     return coins;
 }
 
-
 // CSparkMempoolState
 bool CSparkMempoolState::HasMint(const spark::Coin& coin) {
     return mempoolMints.count(coin) > 0;
@@ -1773,9 +2113,78 @@ uint256 CSparkMempoolState::GetMempoolConflictingTxHash(const GroupElement& lTag
     return mempoolLTags[lTag];
 }
 
+void CSparkState::AddSpatsActions(const spats::Actions& actions, int block_height, const std::optional<uint256>& block_hash)
+{
+    GetSpatsManager().add_spats_actions(actions, block_height, block_hash);
+}
+
 void CSparkMempoolState::Reset() {
     mempoolLTags.clear();
     mempoolMints.clear();
+}
+
+std::pair<spats::MintAction, spark::Coin> ExtractSpatsMintAction(const CTransaction& tx)
+{
+    assert(!tx.IsSpatsCreate());
+    assert(tx.HasSpatsMintCoin());
+    if (tx.vout.empty())
+        throw CBadTxIn();
+    const auto &mintcoin_script = tx.vout.back().scriptPubKey;
+    if (!mintcoin_script.IsSpatsMintCoin())
+        throw CBadTxIn();
+    if (std::find_if(tx.vout.begin(), tx.vout.end() - 1, [](const CTxOut& out) { return out.scriptPubKey.IsSpatsMintCoin(); }) != tx.vout.end() - 1)
+        throw CBadTxIn();   // more than 1 spats coin in one tx is not allowed
+
+    MintTransaction mintTransaction(spark::Params::get_default());
+    spark::OwnershipProof ownershipProof;
+    spats::public_address_t initiator_public_address;
+    ParseSpatsMintCoinTransaction(mintcoin_script, mintTransaction, ownershipProof, initiator_public_address);	// may throw
+    if (!mintTransaction.verify())
+        throw CBadTxIn();
+    // ATTENTION: Assuming the receiver address is the same as initiator_public_address!
+    //            It is always true in the current design, but if that ever changes, then this code needs to be adjusted accordingly!
+    if (!CSparkWallet::decodeAddress(initiator_public_address).verify_own(spark::GetSpatsMintM(tx), ownershipProof))
+        throw CBadTxIn();
+    const auto& coins = mintTransaction.getCoins();
+    if (coins.size() != 1)
+        throw CBadTxIn();
+    auto coin = coins.front();
+    if (coin.v != tx.vout.back().nValue)
+        throw CBadTxIn();
+    if (!coin.iota.isZero())
+        throw CBadTxIn();
+    const auto asset_type = std::stoull(coin.a.tostring());
+    // ATTENTION: Assuming the receiver address is the same as initiator_public_address!
+    //            It is always true in the current design, but if that ever changes, then this code needs to be adjusted accordingly!
+    spats::MintParameters params(spats::asset_type_t{asset_type}, coin.v, initiator_public_address, initiator_public_address, std::nullopt);
+    // ATTENTION: Deliberately NOT putting the coin in the action here. If needed, that can be done by the caller itself.
+    return {spats::MintAction(std::move(params)), std::move(coin)};
+}
+
+spats::BurnAction<> ExtractSpatsBurnAction(const CTransaction& tx)
+{
+    assert(tx.HasSpatsBurnAmount());
+    if (tx.vout.empty())
+        throw CBadTxIn();
+    const auto &burnamount_out = tx.vout.back();
+    const auto &burnamount_script = burnamount_out.scriptPubKey;
+    if (!burnamount_script.IsSpatsBurnAmount())
+        throw CBadTxIn();
+    if (std::find_if(tx.vout.begin(), tx.vout.end() - 1, [](const CTxOut& out) { return out.scriptPubKey.IsSpatsBurnAmount(); }) != tx.vout.end() - 1)
+        throw CBadTxIn();   // more than 1 burnamount outputs in one tx is not allowed
+
+    const auto burn_amount_raw = burnamount_out.nValue;
+    if (burn_amount_raw <= 0)
+        throw CBadTxIn();
+    std::vector<unsigned char> serialized(burnamount_script.begin() + 1, burnamount_script.end());
+    CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
+    std::pair<Scalar, Scalar> asset_id_scalars;
+    stream >> asset_id_scalars;
+    if (!asset_id_scalars.second.isZero())
+        throw CBadTxIn();
+    const spats::asset_type_t asset_type{std::stoull(asset_id_scalars.first.tostring())};
+    spats::BurnParameters params(asset_type, burn_amount_raw, std::nullopt, std::nullopt);    // may throw
+    return spats::BurnAction<>(std::move(params));
 }
 
 } // namespace spark

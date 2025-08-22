@@ -5715,13 +5715,14 @@ CWalletTx CWallet::MintAndStoreSpats(
 
     std::list<CReserveKey> reservekeys;
     CAmount fee;
-    CWalletTx wtx = sparkWallet->CreateSpatsMintTransaction(spatsRecipient, fee, coinControl);
+    auto wtx = sparkWallet->CreateSpatsMintTransaction(spatsRecipient, fee, coinControl);
+    assert(wtx && "CreateSpatsMintTransaction() should never return nullopt except possibly when user confirmation callback is passed. Any errors should have given an exception!");
 
     // commit
     try {
         CValidationState state;
         CReserveKey reserveKey(this);
-        CommitTransaction(wtx, reserveKey, g_connman.get(), state);
+        CommitTransaction(*wtx, reserveKey, g_connman.get(), state);
     } catch (const std::exception &) {
         auto error = _(
                 "Error: The transaction was rejected! This might happen if some of "
@@ -5732,7 +5733,7 @@ CWalletTx CWallet::MintAndStoreSpats(
 
         std::throw_with_nested(std::runtime_error(error));
     }
-    return wtx;
+    return *wtx;
 }
 
 std::vector<CSigmaEntry> CWallet::SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result)
@@ -5890,7 +5891,7 @@ CWalletTx CWallet::CreateSparkSpendTransaction(
         const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
         const std::vector<spark::OutputCoinData>& spatsRecipients,
         CAmount &fee,
-        std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
+        const std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
         const CCoinControl *coinControl)
 {
     // sanity check
@@ -5924,7 +5925,7 @@ CWalletTx CWallet::SpendAndStoreSpark(
         const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
         const std::vector<spark::OutputCoinData>& spatsRecipients,
         CAmount &fee,
-        std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
+        const std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
         const CCoinControl *coinControl)
 {
     // create transaction
@@ -5947,6 +5948,153 @@ CWalletTx CWallet::SpendAndStoreSpark(
     }
 
     return result;
+}
+
+std::optional<CWalletTx> CWallet::CreateNewSparkAsset(const spats::SparkAsset& a, const spats::public_address_t& destination_public_address,
+    const std::function<bool(const spats::CreateAssetAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback )
+{
+    // create transaction
+    CAmount standard_fee, new_asset_fee;
+    auto wtx = sparkWallet->getSpatsWallet().create_new_spark_asset_transaction(a, standard_fee, new_asset_fee, destination_public_address, user_confirmation_callback);
+    if (!wtx)
+        return wtx;
+
+    // commit
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(this);
+        if (!CommitTransaction(*wtx, reserveKey, g_connman.get(), state))
+            throw std::runtime_error("Failed to commit new spark asset transaction");
+    } catch (const std::exception &) {
+        auto error = _(
+                "Error: The NewSparkAsset transaction was rejected! This might happen e.g. if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
+
+        std::throw_with_nested(std::runtime_error(error));
+    }
+
+    return wtx;
+}
+
+std::optional<CWalletTx> CWallet::UnregisterSparkAsset(spats::asset_type_t asset_type, std::optional<spats::identifier_t> identifier,
+    const std::function<bool(const spats::UnregisterAssetAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback)
+{
+    // create transaction
+    CAmount standard_fee;
+    auto wtx = sparkWallet->getSpatsWallet().create_unregister_spark_asset_transaction(asset_type, identifier, standard_fee, user_confirmation_callback);
+    if (!wtx)
+        return wtx;
+
+    // commit
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(this);
+        if (!CommitTransaction(*wtx, reserveKey, g_connman.get(), state))
+            throw std::runtime_error("Failed to commit unregister spark asset transaction");
+    } catch (const std::exception &) {
+        auto error = _(
+                "Error: The UnregisterSparkAsset transaction was rejected! This might happen e.g. if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
+
+        std::throw_with_nested(std::runtime_error(error));
+    }
+
+    return wtx;
+}
+
+std::optional<CWalletTx> CWallet::ModifySparkAsset(const spats::SparkAsset& old_asset, const spats::SparkAsset& new_asset,
+    const std::function<bool(const spats::ModifyAssetAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback)
+{
+    // create transaction
+    CAmount standard_fee;
+    auto wtx = sparkWallet->getSpatsWallet().create_modify_spark_asset_transaction(old_asset, new_asset, standard_fee, user_confirmation_callback);
+    if (!wtx)
+        return wtx;
+
+    // commit
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(this);
+        if (!CommitTransaction(*wtx, reserveKey, g_connman.get(), state))
+            throw std::runtime_error("Failed to commit modify spark asset transaction");
+    } catch (const std::exception &) {
+        auto error = _(
+                "Error: The ModifySparkAsset transaction was rejected! This might happen e.g. if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
+
+        std::throw_with_nested(std::runtime_error(error));
+    }
+
+    return wtx;
+}
+
+std::optional<CWalletTx> CWallet::MintSparkAssetSupply(spats::asset_type_t asset_type, spats::supply_amount_t new_supply, const spats::public_address_t &receiver_pubaddress,
+    const CCoinControl *coin_control, const std::function<bool(const spats::MintAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback)
+{
+    // create transaction
+    CAmount standard_fee;
+    const spats::MintParameters action_params(asset_type, new_supply.raw(), receiver_pubaddress, sparkWallet->getSpatsWallet().my_public_address_as_admin(), new_supply.precision());
+    auto wtx = sparkWallet->CreateSpatsMintTransaction({spats::Wallet::create_minted_coin_data(action_params), sparkWallet->getDefaultAddress()},
+                                                       standard_fee, coin_control, new_supply.precision(), user_confirmation_callback);
+    if (!wtx)
+        return wtx;
+
+    // commit
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(this);
+        if (!CommitTransaction(*wtx, reserveKey, g_connman.get(), state))
+            throw std::runtime_error("Failed to commit mint spark asset supply transaction");
+    } catch (const std::exception &) {
+        auto error = _(
+                "Error: The MintSparkAssetSupply transaction was rejected! This might happen e.g. if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
+
+        std::throw_with_nested(std::runtime_error(error));
+    }
+
+    return wtx;
+}
+
+std::optional<CWalletTx> CWallet::BurnSparkAssetSupply(spats::asset_type_t asset_type, const spats::asset_symbol_t &asset_symbol, spats::supply_amount_t burn_amount,
+    const spats::BurnActionUserConfirmationCallback& user_confirmation_callback)
+{
+    // create transaction
+    CAmount standard_fee;
+    auto wtx = sparkWallet->getSpatsWallet().create_burn_asset_supply_transaction(asset_type, asset_symbol, burn_amount, standard_fee, user_confirmation_callback);
+    if (!wtx)
+        return wtx;
+
+    // commit
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(this);
+        if (!CommitTransaction(*wtx, reserveKey, g_connman.get(), state))
+            throw std::runtime_error("Failed to commit burn spark asset supply transaction");
+    } catch (const std::exception &) {
+        auto error = _(
+                "Error: The BurnSparkAssetSupply transaction was rejected! This might happen e.g. if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
+
+        std::throw_with_nested(std::runtime_error(error));
+    }
+
+    return wtx;
 }
 
 bool CWallet::LelantusToSpark(std::string& strFailReason) {
@@ -8317,6 +8465,7 @@ bool CWallet::CreateSparkMintTransactions(
 std::pair<CAmount, CAmount> CWallet::GetSparkBalance()
 {
     std::pair<CAmount, CAmount> balance = {0, 0};
+    // TODO GV #Review: why pwalletMain and not this?
     auto sparkWallet = pwalletMain->sparkWallet.get();
 
     if(!sparkWallet)
@@ -8325,6 +8474,13 @@ std::pair<CAmount, CAmount> CWallet::GetSparkBalance()
     balance.first = sparkWallet->getAvailableBalance();
     balance.second = sparkWallet->getUnconfirmedBalance();
     return balance;
+}
+
+spats::Wallet::asset_balances_t CWallet::GetSpatsBalances() const
+{
+    if (!spark::IsSparkAllowed() || !sparkWallet)
+        return { { spats::base::universal_id, {} } };
+    return sparkWallet->getAssetBalances();
 }
 
 bool CWallet::IsSparkAddressMine(const std::string& address) {

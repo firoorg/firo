@@ -37,32 +37,20 @@ SpendTransaction::SpendTransaction(
     const std::size_t t = outputs.size();                                                          // number of generated coins
     const std::size_t N = (std::size_t)std::pow(params->get_n_grootle(), params->get_m_grootle()); // size of cover sets
 
-    bool nonBase = false;
-    this->inputBase = w;
-    for (std::size_t i = 0; i < w; ++i) {
-        if (inputs[i].a != ZERO) {
-            nonBase = true;
-            this->inputBase = i;
-            break;
-        } else {
-            if (nonBase) {
-                throw std::invalid_argument("inputs not sorted, base coins must be at the beginning");
-            }
-        }
-    }
+    const auto dissect_after_leading_bases = [] (const std::ranges::range auto &r) {
+        const auto it = std::ranges::find_if(r, [](const auto &x) { return x.a != ZERO; });
+        return std::pair{it - std::begin(r), std::any_of(it, std::end(r), [](const auto &x) { return x.a == ZERO; })};
+    };
 
-    nonBase = false;
-    this->outBase = t;
-    for (std::size_t i = 0; i < t; ++i) {
-        if (outputs[i].a != ZERO) {
-            this->outBase = i;
-            break;
-        } else {
-            if (nonBase) {
-                throw std::invalid_argument("outputs not sorted, base coins must be at the beginning");
-            }
-        }
-    }
+    const auto [leading_input_bases, has_trailing_input_bases] = dissect_after_leading_bases(inputs);
+    if (has_trailing_input_bases) [[unlikely]]
+        throw std::invalid_argument("inputs not sorted, base coins must be at the beginning");
+    this->inputBase = leading_input_bases;
+
+    const auto [leading_output_bases, has_trailing_output_bases] = dissect_after_leading_bases(outputs);
+    if (has_trailing_output_bases) [[unlikely]]
+        throw std::invalid_argument("outputs not sorted, base coins must be at the beginning");
+    this->outBase = leading_output_bases;
 
     // Prepare input-related vectors
     this->cover_set_ids.reserve(w); // cover set data and metadata
@@ -247,6 +235,8 @@ SpendTransaction::SpendTransaction(
         this->params->get_G(),
         this->params->get_H());
 
+    // This call crashes when type_y is empty, due to y[0] access on line 80
+    // TODO for Levon: should there be such a proof at all when type_y is empty?
     type.prove(type_c, asset_type, identifier, type_y, type_z, this->type_proof);
 
 
@@ -404,8 +394,8 @@ bool SpendTransaction::verify(
         if (tx.S1.size() != w ||
                 tx.C1.size() != w ||
                 tx.T.size() != w ||
-                tx.grootle_proofs.size() != w,
-            tx.cover_set_sizes.size() != tx.cover_set_representations.size()) {
+                tx.grootle_proofs.size() != w ||
+                tx.cover_set_sizes.size() != tx.cover_set_representations.size()) {
             throw std::invalid_argument("Bad spend transaction semantics");
         }
 
@@ -626,7 +616,7 @@ std::vector<unsigned char> SpendTransaction::hash_bind_inner(
 // Hash-to-scalar function H_bind
 // This function must accept pre-hashed data from `H_bind_inner` intended to correspond to the signing operation
 Scalar SpendTransaction::hash_bind(
-    const std::vector<unsigned char> hash_bind_inner,
+    const std::vector<unsigned char>& hash_bind_inner,
     const std::vector<spark::Coin>& out_coins,
     const uint64_t f_,
     const uint64_t burn)

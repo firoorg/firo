@@ -58,10 +58,10 @@
           <bool>true</bool>
          </property>
          <property name="selectionMode">
-          <enum>QAbstractItemView::NoSelection</enum>
+          <enum>QAbstractItemView::SingleSelection</enum>
          </property>
          <property name="selectionBehavior">
-          <enum>QAbstractItemView::SelectItems</enum>
+          <enum>QAbstractItemView::SelectRows</enum>
          </property>
          <property name="sortingEnabled">
           <bool>true</bool>
@@ -71,12 +71,12 @@
          </attribute>
          <column>
           <property name="text">
-           <string>Asset Type</string>
+           <string>Asset ID</string>
           </property>
          </column>
          <column>
           <property name="text">
-           <string>Identifier</string>
+           <string>NFT ID</string>
           </property>
          </column>
          <column>
@@ -106,7 +106,7 @@
          </column>
          <column>
           <property name="text">
-           <string>Resuppliable</string>
+           <string>Resupplyable</string>
           </property>
          </column>
          <column>

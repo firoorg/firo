@@ -80,7 +80,7 @@ std::string CTxIn::ToString() const
 CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn)
 {
     nValue = nValueIn;
-    scriptPubKey = scriptPubKeyIn;
+    scriptPubKey = std::move(scriptPubKeyIn);
 }
 
 std::string CTxOut::ToString() const
@@ -212,7 +212,7 @@ bool CTransaction::IsLelantusMint() const
 
 bool CTransaction::IsSparkTransaction() const
 {
-    return IsSparkMint() || IsSparkSpend();
+    return IsSparkMint() || IsSparkSpend() || IsSpatsTransaction();
 }
 
 bool CTransaction::IsSparkSpend() const
@@ -231,13 +231,49 @@ bool CTransaction::IsSparkMint() const
     return false;
 }
 
+bool CTransaction::IsSpatsCreate() const
+{
+    for (const CTxOut &txout: vout)
+        if (txout.scriptPubKey.IsSpatsCreate())
+            return true;
+    return false;
+}
+
+bool CTransaction::IsSpatsUnregister() const
+{
+    for (const CTxOut &txout: vout)
+        if (txout.scriptPubKey.IsSpatsUnregister())
+            return true;
+    return false;
+}
+
+bool CTransaction::IsSpatsModify() const
+{
+    for (const CTxOut &txout: vout)
+        if (txout.scriptPubKey.IsSpatsModify())
+            return true;
+    return false;
+}
+
 bool CTransaction::IsSpatsMint() const
 {
-    for (const CTxOut &txout: vout) {
+    for (const CTxOut &txout: vout)
         if (txout.scriptPubKey.IsSpatsMint())
             return true;
-    }
     return false;
+}
+
+bool CTransaction::IsSpatsBurn() const
+{
+    for (const CTxOut &txout: vout)
+        if (txout.scriptPubKey.IsSpatsBurn())
+            return true;
+    return false;
+}
+
+bool CTransaction::IsSpatsTransaction() const
+{
+    return IsSpatsCreate() || IsSpatsUnregister() || IsSpatsModify() || IsSpatsMint() || IsSpatsBurn() || HasSpatsMintCoin() || HasSpatsBurnAmount();    // TODO more maybe
 }
 
 bool CTransaction::IsZerocoinTransaction() const
@@ -270,6 +306,22 @@ bool CTransaction::HasNoRegularInputs() const {
 
 bool CTransaction::HasPrivateInputs() const {
     return IsSigmaSpend() || IsLelantusJoinSplit() || IsSparkSpend();
+}
+
+bool CTransaction::HasSpatsMintCoin() const
+{
+    for (const CTxOut &txout: vout)
+        if (txout.scriptPubKey.IsSpatsMintCoin())
+            return true;
+    return false;
+}
+
+bool CTransaction::HasSpatsBurnAmount() const
+{
+    for (const CTxOut &txout: vout)
+        if (txout.scriptPubKey.IsSpatsBurnAmount())
+            return true;
+    return false;
 }
 
 unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const

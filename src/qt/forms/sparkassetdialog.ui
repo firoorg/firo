@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SparkAssetDialog</class>
+ <widget class="QDialog" name="SparkAssetDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>500</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Spark Asset Dialog</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <layout class="QFormLayout" name="formLayout">
+     <property name="fieldGrowthPolicy">
+      <enum>QFormLayout::ExpandingFieldsGrow</enum>
+     </property>
+
+     <item row="0" column="0">
+      <widget class="QLabel" name="labelFungibility">
+       <property name="text">
+        <string>Fungible?</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QCheckBox" name="fungibilityCheckBox"/>
+     </item>
+
+     <item row="1" column="0">
+      <widget class="QLabel" name="labelAssetType">
+       <property name="text">
+        <string>Asset ID:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QUInt64SpinBox" name="assetTypeSpinBox"/>
+     </item>
+
+     <item row="2" column="0">
+      <widget class="QLabel" name="labelIdentifier">
+       <property name="text">
+        <string>NFT ID:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QUInt64SpinBox" name="identifierSpinBox"/>
+     </item>
+
+     <item row="3" column="0">
+      <widget class="QLabel" name="labelName">
+       <property name="text">
+        <string>Name:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLineEdit" name="assetNameEdit"/>
+     </item>
+
+     <item row="4" column="0">
+      <widget class="QLabel" name="labelSymbol">
+       <property name="text">
+        <string>Symbol:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QLineEdit" name="assetSymbolEdit"/>
+     </item>
+
+     <item row="5" column="0">
+      <widget class="QLabel" name="labelDescription">
+       <property name="text">
+        <string>Description:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="QLineEdit" name="assetDescriptionEdit"/>
+     </item>
+
+     <item row="6" column="0">
+      <widget class="QLabel" name="labelMetadata">
+       <property name="text">
+        <string>Metadata:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="1">
+      <widget class="QLineEdit" name="metadataEdit"/>
+     </item>
+
+     <item row="7" column="0">
+      <widget class="QLabel" name="labelPrecision">
+       <property name="text">
+        <string>Precision:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="1">
+      <widget class="QSpinBox" name="precisionSpinBox"/>
+     </item>
+
+     <item row="8" column="0">
+      <widget class="QLabel" name="labelTotalSupply">
+       <property name="text">
+        <string>Total Supply:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="1">
+      <widget class="QDoubleSpinBox" name="totalSupplySpin">
+       <property name="maximum">
+        <number>1000000000</number>
+       </property>
+      </widget>
+     </item>
+
+     <item row="9" column="0">
+      <widget class="QLabel" name="labelResupplyable">
+       <property name="text">
+        <string>Resupplyable:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="9" column="1">
+      <widget class="QCheckBox" name="resupplyableCheckBox">
+       <property name="text">
+        <string>Allow resupply</string>
+       </property>
+      </widget>
+     </item>
+
+     <item row="10" column="0">
+      <widget class="QLabel" name="labelDestinationPublicAddress">
+       <property name="text">
+        <string>Destination public address:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="10" column="1">
+      <widget class="QLineEdit" name="destinationPublicAddressEdit"/>
+     </item>
+
+    </layout>
+   </item>
+   
+   <!-- Error Label -->
+   <item>
+    <widget class="QLabel" name="errorLabel">
+     <property name="text">
+      <string>Error: Invalid Input</string>
+     </property>
+     <property name="visible">
+      <bool>false</bool>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QLabel { color: red; }</string>
+     </property>
+    </widget>
+   </item>
+
+   <!-- Buttons -->
+   <item>
+    <layout class="QHBoxLayout" name="buttonLayout">
+     <item>
+      <widget class="QPushButton" name="saveButton">
+       <property name="text">
+        <string>Save</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="cancelButton">
+       <property name="text">
+        <string>Cancel</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+   <customwidget>
+     <class>QUInt64SpinBox</class>
+     <propertyspecifications/>
+   </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

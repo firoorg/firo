@@ -52,14 +52,7 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         Scalar identifer;
         identifer.randomize();
 
-        in_coins.emplace_back(Coin(
-            params,
-            COIN_TYPE_MINT,
-            k,
-            address,
-            v,
-            memo,
-            random_char_vector()));
+        in_coins.emplace_back(params, COIN_TYPE_MINT, k, address, v, memo, random_char_vector(), Scalar{}, Scalar{});
     }
 
 

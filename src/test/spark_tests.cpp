@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
     const IncomingViewKey incoming_view_key(full_view_key);
 
     const uint64_t i = 12345;
-    const uint64_t v = 1;
+    const uint64_t v = 1;   // TODO GV #Review: Shouldn't be 1 * COIN?
     const std::string memo = "test memo";
 
     // Generate address
@@ -147,8 +147,8 @@ BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
     mintedAssetCoin.address = address;
     mintedAssetCoin.v = v;
     mintedAssetCoin.memo = memo;
-    mintedAssetCoin.a = Scalar(uint64_t(1));
-    mintedAssetCoin.iota = Scalar(uint64_t(1));
+    mintedAssetCoin.a = Scalar(uint64_t(2));
+    mintedAssetCoin.iota = Scalar(uint64_t(0));
 
     outputs.clear();
     outputs.push_back(mintedCoin);
@@ -157,7 +157,7 @@ BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
     serializedCoins = spatsMint.getMintedCoinsSerialized();
 
     CScript spatsScript;
-    spatsScript << OP_SPATSMINT;
+    spatsScript << OP_SPATSMINTCOIN;
     spatsScript.insert(spatsScript.end(), serializedCoins[0].begin(), serializedCoins[0].end());
 
     // coin parse test
@@ -192,13 +192,13 @@ BOOST_AUTO_TEST_CASE(parse_spark_smint)
     const IncomingViewKey incoming_view_key(full_view_key);
 
     const uint64_t i = 12345;
-    const uint64_t v = 1;
+    const uint64_t v = 1;   // TODO GV #Review: Shouldn't be 1 * COIN?
     const std::string memo = "test memo";
 
     // Generate address
     const Address address(incoming_view_key, i);
 
-    spark::Coin coin(params, 0, (Scalar().randomize()), address, v, memo, random_char_vector());
+    spark::Coin coin(params, 0, (Scalar().randomize()), address, v, memo, random_char_vector(), {}, {});
 
     CScript script(OP_SPARKSMINT);
 
@@ -573,7 +573,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
         mempool.clear();
 
         auto blockIdx2 = GenerateBlock({sTx1});
-        BOOST_CHECK(blockIdx2);
+        BOOST_REQUIRE(blockIdx2);
 
         auto block2 = GetCBlock(blockIdx2);
 
@@ -683,8 +683,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     auto outputAmount = 1 * COIN;
     auto mintAmount = 2 * CENT - CENT; // a cent as fee
     CAmount fee;
-    std::pair<CAmount, std::pair<Scalar, Scalar>>  burn;
-    CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, {}, fee, burn);
+    CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, {}, fee, {});
 
     CMutableTransaction spendTx(wtx);
     auto spend = ParseSparkSpend(spendTx);
@@ -740,7 +739,7 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     // spend
     txs.clear();
     pwalletMain->SetBroadcastTransactions(true);
-    auto mints = GenerateMints({10 * COIN, 1 * COIN}, txs);
+    auto mints = GenerateMints({10 * COIN, 2 * COIN, 1 * COIN}, txs);
     mempool.clear();
 
     auto currentBlock = chainActive.Tip()->nHeight;
@@ -752,7 +751,7 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     auto outputAmount = 1 * COIN;
     auto mintAmount = 2 * CENT - CENT; // a cent as fee
     CAmount fee;
-    std::pair<CAmount, std::pair<Scalar, Scalar>>  burn;
+    std::pair<CAmount, std::pair<Scalar, Scalar>> burn;
     CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, {}, fee, burn);
 
     CMutableTransaction spendTx(wtx);
@@ -785,13 +784,24 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     BOOST_CHECK(!CheckSparkTransaction(
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
 
+    auto new_asset_wtx = pwalletMain->CreateNewSparkAsset(
+        spats::FungibleSparkAsset(spats::asset_type_t{2}, spats::AssetNaming{"abcdef"s, "ABCDEF"s, "whatever"s}, "",
+                                       pwalletMain->sparkWallet->getSpatsWallet().my_public_address_as_admin(),
+                                       {30000, 4}, true));
+    BOOST_REQUIRE(new_asset_wtx);
+    CMutableTransaction createTx(*new_asset_wtx);
+    currentBlock = chainActive.Tip()->nHeight;
+    mempool.clear();
+    GenerateBlock({createTx});
+    BOOST_CHECK_EQUAL(currentBlock, chainActive.Tip()->nHeight -1);
+
     auto address = pwalletMain->sparkWallet->getDefaultAddress();
     spark::MintedCoinData minted;
     minted.address = address;
-    minted.v = 100 * COIN;
+    minted.v = 100 * 10000;
     minted.memo = "";
-	minted.a = Scalar(uint64_t(1));
-	minted.iota = Scalar(uint64_t(1));
+	minted.a = Scalar(uint64_t(2));
+	minted.iota = Scalar(uint64_t(0));
     wtx = pwalletMain->MintAndStoreSpats({minted ,address});
 
     CMutableTransaction mintTx(wtx);
@@ -805,10 +815,10 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
 
     spark::OutputCoinData output;
     output.address = address;
-    output.v = 25 * COIN;
+    output.v = 25 * 10000;
     output.memo = "";
-	output.a = Scalar(uint64_t(1));
-	output.iota = Scalar(uint64_t(1));
+	output.a = Scalar(uint64_t(2));
+	output.iota = Scalar(uint64_t(0));
 
     wtx = pwalletMain->SpendAndStoreSpark({}, {}, {output, output}, fee, burn);
 

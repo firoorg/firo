@@ -264,6 +264,7 @@ struct Params {
 
     int nSparkStartBlock;
 
+    // The block number introducing spats (spark assets)
     int nSpatsStartBlock;
 
     int nSparkNamesStartBlock;

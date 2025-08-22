@@ -3,6 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// Modified by Gevorg Voskanyan, by adding UniValue::get_uint64() member function.
+
 #include <stdint.h>
 #include <errno.h>
 #include <iomanip>
@@ -56,6 +58,23 @@ bool ParseInt64(const std::string& str, int64_t *out)
     return endp && *endp == 0 && !errno &&
         n >= std::numeric_limits<int64_t>::min() &&
         n <= std::numeric_limits<int64_t>::max();
+}
+
+bool ParseUint64(const std::string& str, uint64_t *out)   // Added by Gevorg Voskanyan
+{
+    if (!ParsePrechecks(str))
+        return false;
+    char *endp = nullptr;
+    errno = 0; // strtoull will not set errno if valid
+    const unsigned long long int n = strtoull(str.c_str(), &endp, 10);
+    static_assert(sizeof(decltype(n)) >= sizeof(uint64_t));
+    if(out)
+        *out = (uint64_t)n;
+    // Note that strtoull returns an *unsigned long long int*, so even if strtoull doesn't report an over/underflow
+    // we still have to check that the returned value is within the range of an *uint64_t*.
+    return endp && *endp == 0 && !errno &&
+        n >= std::numeric_limits<uint64_t>::min() &&
+        n <= std::numeric_limits<uint64_t>::max();
 }
 
 bool ParseDouble(const std::string& str, double *out)
@@ -325,6 +344,16 @@ int64_t UniValue::get_int64() const
         throw std::runtime_error("JSON value is not an integer as expected");
     int64_t retval;
     if (!ParseInt64(getValStr(), &retval))
+        throw std::runtime_error("JSON integer out of range");
+    return retval;
+}
+
+uint64_t UniValue::get_uint64() const   // Added by Gevorg Voskanyan
+{
+    if (typ != VNUM)
+        throw std::runtime_error("JSON value is not an integer as expected");
+    uint64_t retval;
+    if (!ParseUint64(getValStr(), &retval))
         throw std::runtime_error("JSON integer out of range");
     return retval;
 }
