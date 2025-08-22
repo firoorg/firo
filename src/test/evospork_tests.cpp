@@ -616,7 +616,7 @@ BOOST_AUTO_TEST_CASE(limit)
         GenerateBlock({});
 
     CAmount fee = 0;
-    std::pair<CAmount, Scalar> burn;
+    std::pair<CAmount, std::pair<Scalar, Scalar>> burn;
     CWalletTx spendWalletTx = pwalletMain->SpendAndStoreSpark({{script, 120*COIN, false, ""}}, {}, {}, fee, burn);
 
     CMutableTransaction spendTx = *spendWalletTx.tx;

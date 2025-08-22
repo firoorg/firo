@@ -2178,9 +2178,11 @@ spats::BurnAction<> ExtractSpatsBurnAction(const CTransaction& tx)
         throw CBadTxIn();
     std::vector<unsigned char> serialized(burnamount_script.begin() + 1, burnamount_script.end());
     CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION );
-    Scalar asset_type_scalar;
-    stream >> asset_type_scalar;
-    const spats::asset_type_t asset_type{std::stoull(asset_type_scalar.tostring())};
+    std::pair<Scalar, Scalar> asset_id_scalars;
+    stream >> asset_id_scalars;
+    if (!asset_id_scalars.second.isZero())
+        throw CBadTxIn();
+    const spats::asset_type_t asset_type{std::stoull(asset_id_scalars.first.tostring())};
     spats::BurnParameters params(asset_type, burn_amount_raw, std::nullopt, std::nullopt);    // may throw
     return spats::BurnAction<>(std::move(params));
 }

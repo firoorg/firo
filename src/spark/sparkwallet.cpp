@@ -1254,11 +1254,11 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
         const std::vector<spark::OutputCoinData>& spatsRecipients,
         CAmount &fee,
-        const std::pair<CAmount, Scalar> &burnAsset,
+        const std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
         const CCoinControl *coinControl,
         std::size_t additionalTxSize) {
 
-    // if additionalTxSize is not 0 that means we are creating spats mint transaction
+    // if additionalTxSize is not 0 that means we are creating spats mint transaction // TODO GV #Review: not necessarily, it could be a spark name creation too
     if (recipients.empty() && privateRecipients.empty() && spatsRecipients.empty() && !additionalTxSize && burnAsset.first <= 0) {
         throw std::runtime_error(_("At least one of recipients, privateRecipients, spatsRecipients, additionalTxSize, or spats burn has to be provided."));
     }
@@ -1267,7 +1267,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     if ((privateRecipients.size() +  spatsRecipients.size()) >= (consensusParams.nMaxSparkOutLimitPerTx - 1))
         throw std::runtime_error(_("Spark shielded output limit exceeded."));
 
-    // calculate total value to spend
+    // calculate the total value to spend
     CAmount vOut = 0;
     CAmount mintVOut = 0;
     CAmount spatsMintVOut = 0;
@@ -1317,18 +1317,22 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         }
     }
 
+    const auto& burn_asset_type = burnAsset.second.first;
     if (burnAsset.first > 0) {
-        if (!spats::is_fungible_asset_type(spats::asset_type_t{std::stoull(burnAsset.second.tostring())}))
+        if (!spats::is_fungible_asset_type(spats::asset_type_t{std::stoull(burn_asset_type.tostring())}))
             throw std::runtime_error(_("Burning is allowed only for fungible assets."));
+        if (!burnAsset.second.second.isZero())
+            throw std::domain_error("Cannot burn an asset which has an identifier (NFT ID).");
         if (spatsMintVOut > 0) {
-            if (burnAsset.second != identifier.first || !identifier.second.isZero())
+            if (burnAsset.second != identifier)
                 throw std::runtime_error(_("Not allowed to mix assets in one spend transaction."));
         } else {
             assert(identifier.first.isZero());
-            assert(identifier.second.isZero()); // this one is the value we already need
-            identifier.first = burnAsset.second;
+            assert(identifier.second.isZero());
+            identifier = burnAsset.second;
         }
         spatsMintVOut += burnAsset.first;
+        additionalTxSize += 2 * Scalar::memoryRequired();
     }
 
     if (vOut > consensusParams.nMaxValueSparkSpendPerTransaction)
@@ -1669,7 +1673,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 CScript script;
                 script << OP_SPATSBURNAMOUNT;
                 CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
-                serialized << burnAsset.second;
+                serialized << burnAsset.second; // pair of Scalars
                 script.insert(script.end(), serialized.begin(), serialized.end());
                 tx.vout.push_back(CTxOut(burnAsset.first, script));
             }

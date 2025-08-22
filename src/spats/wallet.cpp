@@ -409,7 +409,7 @@ std::optional< CWalletTx > Wallet::create_burn_asset_supply_transaction( asset_t
                                                         {},
                                                         {},
                                                         standard_fee,
-                                                        { boost::numeric_cast< CAmount >( burn_amount.raw() ), utils::to_underlying( asset_type ) },
+                                                        { boost::numeric_cast< CAmount >( burn_amount.raw() ), { utils::to_underlying( asset_type ), {} } },
                                                         nullptr );   // may throw
    assert( tx.tx->HasSpatsBurnAmount() );
 

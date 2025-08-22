@@ -5891,7 +5891,7 @@ CWalletTx CWallet::CreateSparkSpendTransaction(
         const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
         const std::vector<spark::OutputCoinData>& spatsRecipients,
         CAmount &fee,
-        const std::pair<CAmount, Scalar> &burnAsset,
+        const std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
         const CCoinControl *coinControl)
 {
     // sanity check
@@ -5925,7 +5925,7 @@ CWalletTx CWallet::SpendAndStoreSpark(
         const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
         const std::vector<spark::OutputCoinData>& spatsRecipients,
         CAmount &fee,
-        const std::pair<CAmount, Scalar> &burnAsset,
+        const std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
         const CCoinControl *coinControl)
 {
     // create transaction

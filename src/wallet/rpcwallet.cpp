@@ -3978,7 +3978,7 @@ UniValue spendspark(const JSONRPCRequest& request)
     const spark::Params* params = spark::Params::get_default();
     std::set<CBitcoinAddress> setAddress;
     unsigned char network = spark::GetNetworkType();
-    std::pair<CAmount, Scalar> burn;
+    std::pair<CAmount, std::pair<Scalar, Scalar>> burn;
 
     BOOST_FOREACH(const std::string& name_, keys)
     {
@@ -3996,11 +3996,12 @@ UniValue spendspark(const JSONRPCRequest& request)
         } else if (!name_.empty() && name_ == "burn") {
             UniValue burn_(UniValue::VARR);
 			burn_ = sendTo[name_].get_array();
-            if (burn_.size() != 2) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "For burn you have to provide amount and asset type!"s);
+            if (burn_.size() != 3) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "For burn you have to provide amount and asset identifier!"s);
             }
             burn.first = burn_[0].get_int64();
-            burn.second = Scalar(burn_[1].get_uint64());
+            burn.second.first = Scalar(burn_[1].get_uint64());
+            burn.second.second = Scalar(burn_[2].get_uint64());
         } else {
             sparkAddressStr = name_;
         }
@@ -4099,6 +4100,7 @@ UniValue spendspark(const JSONRPCRequest& request)
 
     return wtx.GetHash().GetHex();
 }
+
 UniValue getsparknames(const JSONRPCRequest &request)
 {
     if (request.fHelp || request.params.size() > 1) {
