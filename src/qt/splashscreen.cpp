@@ -25,6 +25,7 @@
 #include <QPainter>
 #include <QRadialGradient>
 #include <QTimer>
+#include <QtMath>
 
 SplashScreen::SplashScreen(const QPixmap &pixmap, Qt::WindowFlags f) : QSplashScreen(pixmap, f)
 {
@@ -273,9 +274,9 @@ void SplashScreen::paintEvent(QPaintEvent *event)
         painter.setBrush(QColor(255, 255, 255, alpha));
         painter.setPen(Qt::NoPen);
 
-        float angle = (rotation + i * 30) * M_PI / 180.0;
-        int dx = x + cos(angle) * circleRadius;
-        int dy = y + sin(angle) * circleRadius;
+       qreal angleRad = qDegreesToRadians(qreal(rotation + i * 30));
+       int dx = int(x + qCos(angleRad) * circleRadius);
+       int dy = int(y + qSin(angleRad) * circleRadius);
 
         painter.drawEllipse(QPoint(dx, dy), radius, radius);
     }
