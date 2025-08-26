@@ -274,9 +274,9 @@ void SplashScreen::paintEvent(QPaintEvent *event)
         painter.setBrush(QColor(255, 255, 255, alpha));
         painter.setPen(Qt::NoPen);
 
-       qreal angleRad = qDegreesToRadians(qreal(rotation + i * 30));
-       int dx = int(x + qCos(angleRad) * circleRadius);
-       int dy = int(y + qSin(angleRad) * circleRadius);
+        qreal angleRad = qDegreesToRadians(qreal(rotation + i * 30));
+        int dx = int(x + qCos(angleRad) * circleRadius);
+        int dy = int(y + qSin(angleRad) * circleRadius);
 
         painter.drawEllipse(QPoint(dx, dy), radius, radius);
     }
@@ -287,5 +287,10 @@ void SplashScreen::paintEvent(QPaintEvent *event)
 void SplashScreen::closeEvent(QCloseEvent *event)
 {
     StartShutdown(); // allows an "emergency" shutdown during startup
+    event->ignore();
+}
+
+void SplashScreen::mousePressEvent(QMouseEvent* event)
+{
     event->ignore();
 }

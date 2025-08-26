@@ -6,6 +6,7 @@
 #define BITCOIN_QT_SPLASHSCREEN_H
 
 #include <QSplashScreen>
+#include <QMouseEvent>
 
 class CWallet;
 class NetworkStyle;
@@ -28,6 +29,7 @@ public:
 protected:
     void paintEvent(QPaintEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
+    void mousePressEvent(QMouseEvent* event) override;
 
 public Q_SLOTS:
     /** Slot to call finish() method as it's not defined as slot */
