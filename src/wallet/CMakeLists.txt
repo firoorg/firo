@@ -16,6 +16,7 @@ add_library(firo_wallet STATIC EXCLUDE_FROM_ALL
   ../spark/state.cpp
   ../spark/sparkwallet.cpp
   ../spark/primitives.cpp
+  ../spats/wallet.cpp
   ../policy/rbf.cpp
   ../bip47/account.cpp
   ../bip47/paymentchannel.cpp

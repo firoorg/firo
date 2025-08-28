@@ -50,10 +50,12 @@ add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
   support/cleanse.cpp
   support/lockedpool.cpp
   sync.cpp
+  spats/modification.cpp
   threadinterrupt.cpp
   util.cpp
   utilmoneystr.cpp
   utilstrencodings.cpp
+  utils/string.cpp
   utiltime.cpp
 )
 
@@ -290,6 +292,11 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   libspark/spend_transaction.cpp
   libspark/transcript.cpp
   libspark/util.cpp
+  libspark/spats/balance.cpp
+  libspark/spats/base_asset.cpp
+  libspark/spats/bpplus.cpp
+  libspark/spats/spend_transaction.cpp
+  libspark/spats/type.cpp
   llmq/quorums.cpp
   llmq/quorums_blockprocessor.cpp
   llmq/quorums_chainlocks.cpp
@@ -339,12 +346,17 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   spark/primitives.cpp
   sparkname.cpp
   spark/state.cpp
+  spats/manager.cpp
+  spats/modification.cpp
+  spats/registry.cpp
+  spats/spark_asset.cpp
   threadinterrupt.cpp
   timedata.cpp
   torcontrol.cpp
   txdb.cpp
   txmempool.cpp
   ui_interface.cpp
+  utils/string.cpp
   validation.cpp
   validationinterface.cpp
   versionbits.cpp
