@@ -77,6 +77,7 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   manualmintdialog.cpp
   masternodelist.cpp
   modaloverlay.cpp
+  myownspats.cpp
   networkstyle.cpp
   notificator.cpp
   notifymnemonic.cpp
@@ -87,6 +88,7 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   paymentserver.cpp
   peertablemodel.cpp
   platformstyle.cpp
+  quint64spinbox.cpp
   qvalidatedlineedit.cpp
   qvaluecombobox.cpp
   receivecoinsdialog.cpp
@@ -96,8 +98,13 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   rpcconsole.cpp
   sendcoinsdialog.cpp
   sendcoinsentry.cpp
+  sendconfirmationdialog.cpp
   signverifymessagedialog.cpp
   sparkmodel.cpp
+  sparkassetdialog.cpp
+  spatsburndialog.cpp
+  spatsmintdialog.cpp
+  spatsuserconfirmationdialog.cpp
   splashscreen.cpp
   trafficgraphwidget.cpp
   transactiondesc.cpp
@@ -175,6 +182,7 @@ if(ENABLE_WALLET)
         editaddressdialog.cpp
         exportviewkeydialog.cpp
         manualmintdialog.cpp
+        myownspats.cpp
         openuridialog.cpp
         overviewpage.cpp
         paymentserver.cpp
@@ -183,7 +191,12 @@ if(ENABLE_WALLET)
         recentrequeststablemodel.cpp
         sendcoinsdialog.cpp
         sendcoinsentry.cpp
+        sendconfirmationdialog.cpp
         signverifymessagedialog.cpp
+        sparkassetdialog.cpp
+        spatsburndialog.cpp
+        spatsmintdialog.cpp
+        spatsuserconfirmationdialog.cpp
         transactiondesc.cpp
         transactiondescdialog.cpp
         transactionfilterproxy.cpp
