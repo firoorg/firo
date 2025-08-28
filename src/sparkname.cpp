@@ -266,10 +266,13 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
             return state.DoS(100, error("CheckSparkNameTx: failed to deserialize transfer ownership proof"));
         }
 
+        CHashWriter sparkNameDataStream(SER_GETHASH, PROTOCOL_VERSION);
+        sparkNameDataStream << sparkNameDataCopy;
+
         CDataStream hashStream(SER_NETWORK, PROTOCOL_VERSION);
         hashStream << "SparkNameTransferProof";
         hashStream << sparkNameData.oldSparkAddress << sparkNameData.sparkAddress;
-        hashStream << ss.GetHash();
+        hashStream << sparkNameDataStream.GetHash();
 
         spark::Scalar mTransfer;
         try {
