@@ -286,13 +286,8 @@ jobs:
       # -j$(sysctl -n hw.activecpu) fails. due to high load on macOS, and crappy github runners.
     - name: Install Required Packages
       run: |
-        if ! command -v pkg-config &> /dev/null; then
-          echo "pkg-config not found, installing..."
-          brew install pkg-config
-        else
-          echo "pkg-config is already installed"
-        fi
-        brew install automake coreutils python-setuptools cmake make
+        brew uninstall --force cmake
+        brew install --force automake coreutils python-setuptools cmake make pkg-config
       # Workaround for macOS: https://github.com/actions/runner/issues/2958
     - name: Install setuptools
       run: sudo -H pip install setuptools
@@ -337,13 +332,7 @@ jobs:
       run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
     - name: Install Required Packages
       run: |
-        if ! command -v pkg-config &> /dev/null; then
-          echo "pkg-config not found, installing..."
-          brew install pkg-config
-        else
-          echo "pkg-config is already installed"
-        fi
-        brew install automake coreutils python-setuptools
+        brew install --force automake coreutils python-setuptools pkg-config
       # Workaround for macOS: https://github.com/actions/runner/issues/2958
     - name: Install setuptools
       run: sudo -H pip install setuptools
@@ -557,7 +546,7 @@ jobs:
           mv *-win64-debug.zip x86_64-win64-guix-debug-symbols.zip || true  
           mv *-win64-setup-unsigned.exe x86_64-win64-guix-installer-unsigned.exe || true
           mv *-win64.zip x86_64-win64-guix-release-binaries.zip || true
-          mv SHA256SUMS.part x86_64-win64-guix-checksums-sha256 || true
+          mv SHA256SUMS.part x86_64-wind64-guix-checksums-sha256 || true
       - name: Upload Windows Release Binaries
         uses: actions/upload-artifact@v4
         with:
