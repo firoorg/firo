@@ -10,9 +10,9 @@ configure_file(${PROJECT_SOURCE_DIR}/cmake/bitcoin-build-config.h.in ${CMAKE_CUR
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_custom_target(generate_build_info
-  BYPRODUCTS ${PROJECT_BINARY_DIR}/src/bitcoin-build-info.h
-  COMMAND ${CMAKE_COMMAND} -DBUILD_INFO_HEADER_PATH=${PROJECT_BINARY_DIR}/src/bitcoin-build-info.h -DSOURCE_DIR=${PROJECT_SOURCE_DIR} -P ${PROJECT_SOURCE_DIR}/cmake/script/GenerateBuildInfo.cmake
-  COMMENT "Generating bitcoin-build-info.h"
+  BYPRODUCTS ${PROJECT_BINARY_DIR}/src/build.h
+  COMMAND ${CMAKE_COMMAND} -DBUILD_INFO_HEADER_PATH=${PROJECT_BINARY_DIR}/src/build.h -DSOURCE_DIR=${PROJECT_SOURCE_DIR} -P ${PROJECT_SOURCE_DIR}/cmake/script/GenerateBuildInfo.cmake
+  COMMENT "Generating build.h"
   VERBATIM
 )
 add_library(bitcoin_clientversion OBJECT EXCLUDE_FROM_ALL
@@ -23,6 +23,7 @@ target_link_libraries(bitcoin_clientversion
     core_interface
 )
 add_dependencies(bitcoin_clientversion generate_build_info)
+target_include_directories(bitcoin_clientversion PRIVATE ${PROJECT_BINARY_DIR}/src)
 
 #=============================
 # util library
@@ -554,13 +555,28 @@ endif()
 
 install(TARGETS ${installable_targets}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  COMPONENT GUI
 )
 unset(installable_targets)
 
-if(INSTALL_MAN)
-  # TODO: these stubs are no longer needed. man pages should be generated at install time.
-  install(DIRECTORY ../doc/man/
-    DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
-    FILES_MATCHING PATTERN *.1
-  )
+if(INSTALL_MAN AND NOT WIN32)
+  # Install man pages with correct Firo names
+  if(BUILD_DAEMON)
+    install(FILES ${PROJECT_SOURCE_DIR}/doc/man/bitcoind.1
+      DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
+      RENAME firod.1
+    )
+  endif()
+  if(BUILD_CLI)
+    install(FILES ${PROJECT_SOURCE_DIR}/doc/man/bitcoin-cli.1
+      DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
+      RENAME firo-cli.1
+    )
+  endif()
+  if(BUILD_TX)
+    install(FILES ${PROJECT_SOURCE_DIR}/doc/man/bitcoin-tx.1
+      DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
+      RENAME firo-tx.1
+    )
+  endif()
 endif()

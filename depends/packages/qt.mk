@@ -25,6 +25,7 @@ $(package)_patches += fix-macos-linker.patch
 $(package)_patches += memory_resource.patch
 $(package)_patches += windows_lto.patch
 $(package)_patches += fix-libpng.patch
+$(package)_patches += guix-arm64-darwin-build.patch
 
 $(package)_qttranslations_file_name=qttranslations-$($(package)_suffix)
 $(package)_qttranslations_sha256_hash=a31785948c640b7c66d9fe2db4993728ca07f64e41c560b3625ad191b276ff20
@@ -38,7 +39,6 @@ $(package)_extra_sources += $($(package)_qttools_file_name)
 define $(package)_set_vars
 $(package)_config_env = QT_MAC_SDK_NO_VERSION_CHECK=1
 $(package)_config_opts_release = -release
-$(package)_config_opts_release += -silent
 $(package)_config_opts_debug = -debug
 $(package)_config_opts_debug += -optimized-tools
 $(package)_config_opts += -bindir $(build_prefix)/bin
@@ -84,7 +84,6 @@ $(package)_config_opts += -nomake tools
 $(package)_config_opts += -opensource
 $(package)_config_opts += -optimized-qmake
 $(package)_config_opts += -pch
-$(package)_config_opts += -pkg-config
 $(package)_config_opts += -prefix $(host_prefix)
 $(package)_config_opts += -qt-libpng
 $(package)_config_opts += -qt-pcre
@@ -131,6 +130,7 @@ $(package)_config_opts_darwin += -no-opengl
 $(package)_config_opts_darwin += -pch
 $(package)_config_opts_darwin += -no-feature-corewlan
 $(package)_config_opts_darwin += -no-freetype
+$(package)_config_opts_darwin += -no-pkg-config
 $(package)_config_opts_darwin += QMAKE_MACOSX_DEPLOYMENT_TARGET=$(OSX_MIN_VERSION)
 
 ifneq ($(build_os),darwin)
@@ -142,6 +142,19 @@ $(package)_config_opts_darwin += -device-option MAC_TARGET=$(host)
 $(package)_config_opts_darwin += -device-option XCODE_VERSION=$(XCODE_VERSION)
 endif
 
+ifdef GUIX_ENVIRONMENT
+export QT_MAC_SDK_NO_VERSION_CHECK=1
+$(package)_cflags_darwin += -fuse-ld=lld
+$(package)_cxxflags_darwin += -fuse-ld=lld
+$(package)_config_opts_darwin += "QMAKE_CFLAGS = '$($(package)_cflags) -fuse-ld=lld -include math.h -I$(SYSROOT)/usr/include'"
+$(package)_config_opts_darwin += "QMAKE_CXX = '$($(package)_cxx)'"
+$(package)_config_opts_darwin += "QMAKE_CXXFLAGS = '$($(package)_cxxflags) $($(package)_cppflags) -fuse-ld=lld -include math.h -I$(SYSROOT)/usr/include'"
+$(package)_config_opts_darwin += "QMAKE_LFLAGS = '$($(package)_ldflags)'"
+$(package)_config_opts_darwin += "QMAKE_LIB = '$($(package)_ar) rc'"
+$(package)_config_opts_darwin += "QMAKE_AR = '$($(package)_ar) rc'"
+$(package)_config_opts_darwin += "QMAKE_RANLIB = '$($(package)_ranlib)'"
+endif
+
 ifneq ($(build_arch),$(host_arch))
 $(package)_config_opts_aarch64_darwin += -device-option QMAKE_APPLE_DEVICE_ARCHS=arm64
 $(package)_config_opts_x86_64_darwin += -device-option QMAKE_APPLE_DEVICE_ARCHS=x86_64
@@ -149,6 +162,7 @@ endif
 
 $(package)_config_opts_linux = -xcb
 $(package)_config_opts_linux += -no-xcb-xlib
+$(package)_config_opts_linux += -no-pkg-config
 $(package)_config_opts_linux += -no-feature-xlib
 $(package)_config_opts_linux += -system-freetype
 $(package)_config_opts_linux += -fontconfig
@@ -172,6 +186,7 @@ endif
 $(package)_config_opts_mingw32 = -no-opengl
 $(package)_config_opts_mingw32 += -no-dbus
 $(package)_config_opts_mingw32 += -no-freetype
+$(package)_config_opts_mingw32 += -no-pkg-config
 $(package)_config_opts_mingw32 += -xplatform win32-g++
 $(package)_config_opts_mingw32 += "QMAKE_CFLAGS = '$($(package)_cflags) $($(package)_cppflags)'"
 $(package)_config_opts_mingw32 += "QMAKE_CXX = '$($(package)_cxx)'"
@@ -236,6 +251,8 @@ endef
 #
 # 5. In clang.conf, swap out clang & clang++, for our compiler + flags. See #17466.
 define $(package)_preprocess_cmds
+  echo "Patching with $($(package)_patches)" && \
+  [ -z "$GUIX_ENVIRONMENT" ] || patch -p1 < $($(package)_patch_dir)/guix-arm64-darwin-build.patch && \
   cp $($(package)_patch_dir)/qt.pro qt.pro && \
   cp $($(package)_patch_dir)/qttools_src.pro qttools/src/src.pro && \
   patch -p1 -i $($(package)_patch_dir)/fix-macos-linker.patch && \

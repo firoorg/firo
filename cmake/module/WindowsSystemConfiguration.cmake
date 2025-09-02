@@ -18,7 +18,7 @@ if(WIN32)
   find_library(LIBEVENT_EXTRA event_extra REQUIRED)
   find_library(LIBEVENT_CORE event_core REQUIRED)
 
-  if(MINGW)
+  if(MINGW AND NOT STATIC_BUILD)
     message(STATUS "Configuring extra DLL copy steps for MinGW runtime dependencies (${MINGW_ARCH}-bit).")
 
     # Determine architecture-specific settings
@@ -44,16 +44,30 @@ if(WIN32)
     # We use CMAKE_C_COMPILER as it should be set to the appropriate MinGW gcc.
     set(FOUND_DLLS "")
     foreach(dll ${NEEDED_DLLS})
+      # Check if this DLL is on the PATH
       execute_process(
-        COMMAND ${CMAKE_C_COMPILER} -print-file-name=${dll}
-        OUTPUT_VARIABLE DLL_PATH
+        COMMAND ${CMAKE_COMMAND} -E which ${dll}
+        OUTPUT_VARIABLE DLL_IN_PATH
+        RESULT_VARIABLE FOUND_IN_PATH
         OUTPUT_STRIP_TRAILING_WHITESPACE
       )
-      if(NOT DLL_PATH OR DLL_PATH STREQUAL "${dll}")
-        message(FATAL_ERROR "Could not determine path for DLL: ${dll} using ${CMAKE_C_COMPILER}")
+      if(FOUND_IN_PATH EQUAL 0 AND EXISTS "${DLL_IN_PATH}")
+        message(STATUS "Found ${dll} in PATH at ${DLL_IN_PATH}")
+        list(APPEND FOUND_DLLS "${DLL_IN_PATH}")
       else()
-        message(STATUS "Found ${dll} at ${DLL_PATH}")
-        list(APPEND FOUND_DLLS ${DLL_PATH})
+        # Fallback to compiler detection
+        message(STATUS "Not found in PATH, checking with -print-file-name for ${dll}")
+        execute_process(
+          COMMAND ${CMAKE_C_COMPILER} -print-file-name=${dll}
+          OUTPUT_VARIABLE DLL_PATH
+          OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        if(NOT DLL_PATH OR DLL_PATH STREQUAL "${dll}")
+          message(WARNING "Could not determine path for DLL: ${dll}, skipping.")
+        else()
+          message(STATUS "Found ${dll} at ${DLL_PATH}")
+          list(APPEND FOUND_DLLS "${DLL_PATH}")
+        endif()
       endif()
     endforeach()
 
@@ -73,6 +87,6 @@ if(WIN32)
 
     # Install the DLLs to the install package bin folder
     install(FILES ${FOUND_DLLS} DESTINATION bin)
-  endif()
+  endif() # MINGW AND NOT STATIC_BUILD
   
 endif()

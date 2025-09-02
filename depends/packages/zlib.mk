@@ -9,8 +9,14 @@ $(package)_build_opts= CC="$($(package)_cc)"
 $(package)_build_opts+=CFLAGS="$($(package)_cflags) $($(package)_cppflags) -fPIC"
 $(package)_build_opts+=RANLIB="$($(package)_ranlib)"
 $(package)_build_opts+=AR="$($(package)_ar)"
-$(package)_build_opts_darwin+=AR="$($(package)_libtool)"
-$(package)_build_opts_darwin+=ARFLAGS="-o"
+ifdef GUIX_ENVIRONMENT
+$(package)_cflags_darwin += -fuse-ld=lld
+$(package)_cxxflags_darwin += -fuse-ld=lld
+$(package)_build_opts_darwin+=AR="$($(package)_ar)"
+$(package)_build_opts_darwin+=ARFLAGS="rcs"
+else
+$(package)_build_opts_darwin+=ARFLAGS="r"
+endif
 endef
 
 define $(package)_config_cmds
@@ -22,6 +28,5 @@ define $(package)_build_cmds
 endef
 
 define $(package)_stage_cmds
-  $(MAKE) DESTDIR=$($(package)_staging_dir) install $($(package)_build_opts)
+  $(MAKE) $($(package)_build_opts) DESTDIR=$($(package)_staging_dir) install
 endef
-
