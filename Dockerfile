@@ -3,11 +3,10 @@ FROM debian:bullseye as build-image
 
 # Install required system packages
 RUN apt-get update && apt-get install -y \
-    automake \
     bsdmainutils \
+    cmake \
     curl \
     g++ \
-    libtool \
     make \
     pkg-config \
     patch 
@@ -20,11 +19,10 @@ WORKDIR /tmp/firo
 RUN cd depends && \
     NO_QT=true make HOST=$(uname -m)-linux-gnu -j$(nproc)
 
-RUN ./autogen.sh && \
-    ./configure --without-gui --enable-tests --prefix=/tmp/firo/depends/$(uname -m)-linux-gnu && \
-    make -j$(nproc) && \
-    make check && \
-    make install
+RUN cmake -B build --toolchain depends/$(uname -m)-linux-gnu/toolchain.cmake -DBUILD_GUI=OFF -DBUILD_TESTS=ON && \
+    cmake --build build -j$(nproc) && \
+    cd build && make test && \
+    cmake --install build --prefix /tmp/firo/depends/$(uname -m)-linux-gnu
 
 # extract shared dependencies of firod and firo-cli
 # copy relevant binaries to /usr/bin, the COPY --from cannot use $(uname -m) variable in argument
