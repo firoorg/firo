@@ -37,35 +37,6 @@ jobs:
           echo "sha=$SHA" >> $GITHUB_OUTPUT
           echo "Short hash determined: $SHA"
 
-  create-source-distribution:
-    name: Create Source Distribution
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install Required Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libboost-all-dev libdb-dev libdb++-dev libevent-dev bison cmake
-    - name: Create Distribution Tarball
-      run: |
-        ./autogen.sh
-        ./configure --with-incompatible-bdb ac_cv_lib_tor_tor_main=yes
-        make dist
-    - name: Download Dependencies
-      run: make -C depends download
-    - name: Create Dependencies Tarball
-      run: tar -czf depends.tar.gz depends
-    - name: Prepare Files for Artifact
-      run: |
-        mkdir -p $SOURCE_ARTIFACT_DIR
-        mv depends.tar.gz firo-*.tar.gz $SOURCE_ARTIFACT_DIR
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.SOURCE_ARTIFACT }}
-        path: ${{ env.SOURCE_ARTIFACT_DIR }}
-
   build-linux-cmake:
     needs: get-commit-hash
     name: build-linux-cmake
@@ -95,9 +66,11 @@ jobs:
       run: make -C depends -j$(nproc)
     - name: Build Firo
       run: |
-        mkdir build
         export HOST_TRIPLET=$(depends/config.guess)
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) -DBUILD_CLI=ON -DBUILD_TESTS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release -DCLIENT_VERSION_IS_RELEASE=true -S$(realpath .) -B$(realpath build)
+        env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
+        -DBUILD_CLI=ON -DBUILD_TESTS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
+        -DCLIENT_VERSION_IS_RELEASE=true -S$(realpath .) -B$(realpath build)
         cd build && make -j$(nproc)
     - name: Run Unit Tests
       run: |
@@ -139,128 +112,6 @@ jobs:
         name: test-linux-cmake-logs-${{ env.COMMIT_HASH }}
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
 
-  build-linux-autotools:
-    needs: [get-commit-hash, create-source-distribution]
-    name: build-linux-autotools
-    runs-on: ubuntu-latest
-    env:
-      ARTIFACT_DIR: linux-autotools-binaries
-      TEST_LOG_ARTIFACT_DIR: test-logs
-      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
-    steps:
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.8'
-    - name: Getting Source
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ env.SOURCE_ARTIFACT }}
-        path: ${{ env.SOURCE_ARTIFACT_DIR }}
-    - name: Extract Archives
-      run: |
-        tar -xzf depends.tar.gz
-        tar -xzf firo-*.tar.gz --strip-components=1
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Install Required Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y python3-zmq
-    - name: Verify ZMQ Installation
-      run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install pyzmq
-    - name: Build Dependencies
-      run: make -C depends -j$(nproc)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Build Firo
-      run: |
-        ./configure --disable-jni --enable-tests --with-comparison-tool=no --prefix=$(realpath depends/x86_64-pc-linux-gnu)
-        make -j$(nproc)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Run Unit Tests
-      run: make check
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Run RPC Tests
-      env:
-        TIMEOUT: 600
-      run: qa/pull-tester/rpc-tests.py -extended
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Prepare Files for Artifact
-      run: |
-        mkdir -p $ARTIFACT_DIR
-        mv $SOURCE_ARTIFACT/src/{firo-cli,firo-tx,firod,qt/firo-qt} $ARTIFACT_DIR
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-autotools-binaries-${{ env.COMMIT_HASH }}
-        path: ${{ env.ARTIFACT_DIR }}
-    - name: Prepare Test Logs for Artifact
-      if: failure()
-      run: |
-        tor_log=$SOURCE_ARTIFACT/src/tor/test-suite.log
-        firo_log=$SOURCE_ARTIFACT/src/test-suite.log
-
-        mkdir -p $TEST_LOG_ARTIFACT_DIR
-
-        if test -f $tor_log; then
-          mv $tor_log $TEST_LOG_ARTIFACT_DIR/tor.log
-        fi
-
-        if test -f $firo_log; then
-          mv $firo_log $TEST_LOG_ARTIFACT_DIR/firo.log
-        fi
-    - name: Upload Test Logs Artifact
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-linux-autotools-logs-${{ env.COMMIT_HASH }}
-        path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
-
-  build-windows-autotools:
-    needs: [get-commit-hash, create-source-distribution]
-    name: build-windows-autotools
-    runs-on: ubuntu-latest
-    env:
-      ARTIFACT_DIR: windows-autotools-binaries
-      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
-    steps:
-    - name: Getting Source
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ env.SOURCE_ARTIFACT }}
-        path: ${{ env.SOURCE_ARTIFACT_DIR }}
-    - name: Extract Archives
-      run: |
-        tar -xzf depends.tar.gz
-        tar -xzf firo-*.tar.gz --strip-components=1
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Install Required Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64
-    - name: Switch MinGW GCC and G++ to POSIX Threading
-      run: |
-        sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
-        sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
-    - name: Build Dependencies
-      run: make -C depends -j$(nproc) HOST=x86_64-w64-mingw32
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Build Firo
-      run: |
-        ./configure --without-libs --disable-jni --prefix=$(realpath depends/x86_64-w64-mingw32)
-        make -j$(nproc)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Prepare Files for Artifact
-      run: |
-        mkdir -p $ARTIFACT_DIR
-        mv $SOURCE_ARTIFACT/src/{firo-cli.exe,firo-tx.exe,firod.exe,qt/firo-qt.exe} $ARTIFACT_DIR
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: windows-autotools-binaries-${{ env.COMMIT_HASH }}
-        path: ${{ env.ARTIFACT_DIR }}
-
   build-windows-cmake:
     needs: get-commit-hash
     name: build-windows-cmake
@@ -274,7 +125,7 @@ jobs:
     - name: Install Required Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 cmake
+        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 cmake 
     - name: Switch MinGW GCC and G++ to POSIX Threading
       run: |
         sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
@@ -285,9 +136,11 @@ jobs:
       run: make -C depends -j$(nproc) HOST=x86_64-w64-mingw32
     - name: Build Firo
       run: |
-        mkdir build
         export HOST_TRIPLET=$(x86_64-w64-mingw32-gcc -dumpmachine)
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=ON -DCLIENT_VERSION_IS_RELEASE=true -S$(realpath .) -B$(realpath build)
+        env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
+        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release \
+        -DCLIENT_VERSION_IS_RELEASE=true -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
         cd build && make -j$(nproc)
     - name: Prepare Files for Artifact
       run: |
@@ -332,9 +185,11 @@ jobs:
         make -C depends -j$NJOBS
     - name: Build Firo
       run: |
-        mkdir build
         export HOST_TRIPLET=$(depends/config.guess)
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release -DCLIENT_VERSION_IS_RELEASE=true -S$(pwd) -B$(pwd)/build
+        env PKG_CONFIG_PATH="$(pwd)/depends/$HOST_TRIPLET/lib/pkgconfig:$PKG_CONFIG_PATH" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake \
+        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
+        -DCLIENT_VERSION_IS_RELEASE=true -S$(pwd) -B$(pwd)/build
         cd build && make -j$NJOBS
     - name: Prepare Files for Artifact
       run: |
@@ -344,50 +199,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: mac-cmake-binaries-${{ env.COMMIT_HASH }}
-        path: ${{ env.ARTIFACT_DIR }}
-
-  build-mac-autotools:
-    needs: [get-commit-hash, create-source-distribution]
-    name: build-mac-autotools
-    runs-on: macos-latest
-    env:
-      ARTIFACT_DIR: mac-autotools-binaries
-      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
-    steps:
-    - name: Getting Source
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ env.SOURCE_ARTIFACT }}
-        path: ${{ env.SOURCE_ARTIFACT_DIR }}
-    - name: Extract Archives
-      run: |
-        tar -xzf depends.tar.gz
-        tar -xzf firo-*.tar.gz --strip-components=1
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Use Xcode instead of Command Line Tools
-      run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-    - name: Install Required Packages
-      run: |
-        brew install --force automake coreutils python-setuptools pkg-config
-      # Workaround for macOS: https://github.com/actions/runner/issues/2958
-    - name: Install setuptools
-      run: sudo -H pip install setuptools
-    - name: Build Dependencies
-      run: make -C depends -j$(sysctl -n hw.activecpu)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Build Firo
-      run: |
-        ./configure --prefix=`pwd`/depends/`depends/config.guess`
-        make -j$(sysctl -n hw.activecpu)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Prepare Files for Artifact
-      run: |
-        mkdir -p $ARTIFACT_DIR
-        mv $SOURCE_ARTIFACT/src/{firo-cli,firo-tx,firod,qt/firo-qt} $ARTIFACT_DIR
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: mac-autotools-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
 
   build-guix-x86_64-linux-gnu:
@@ -637,7 +448,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Download macOS SDK
         run: |
-          wget https://raw.githubusercontent.com/hebasto/artefacts/refs/heads/Xcode/Xcode/Xcode-15.0/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
+          wget https://bitcoincore.org/depends-sources/sdks/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
       - name: Verify macOS SDK SHA256
         run: |
           echo "c0c2e7bb92c1fee0c4e9f3a485e4530786732d6c6dd9e9f418c282aa6892f55d  Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz" | sha256sum -c -
@@ -730,7 +541,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Download macOS SDK
         run: |
-          wget https://raw.githubusercontent.com/hebasto/artefacts/refs/heads/Xcode/Xcode/Xcode-15.0/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
+          wget https://bitcoincore.org/depends-sources/sdks/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
       - name: Verify macOS SDK SHA256
         run: |
           echo "c0c2e7bb92c1fee0c4e9f3a485e4530786732d6c6dd9e9f418c282aa6892f55d  Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz" | sha256sum -c -
