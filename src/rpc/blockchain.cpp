@@ -224,6 +224,71 @@ UniValue getsparknamedata(const JSONRPCRequest& request)
     return result;
 }
 
+UniValue getsparknames(const JSONRPCRequest &request)
+{
+    if (request.fHelp || request.params.size() > 1) {
+        throw std::runtime_error(
+            "getsparknames [fOnlyOwn] \n"
+            "\nReturns a list of all Spark names and additional info.\n"
+            "\nArguments:\n"
+            "1. onlyown       (boolean, optional, default=false) Display only the spark names that belong to this wallet\n"
+            "\nResult:\n"
+            "[\n"
+            "  \"Name (string)\n"
+            "  \"Address (string)\"\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknames", "")
+            + HelpExampleRpc("getsparknames", "")
+        );
+    }
+
+    LOCK(cs_main);
+
+    bool fOnlyOwn = request.params.size() > 0 ? request.params[0].get_bool() : false;
+
+#ifdef ENABLE_WALLET
+    CWallet *wallet = GetWalletForJSONRPCRequest(request);
+    if (fOnlyOwn && !wallet)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet functionality is disabled");
+
+    if (wallet) {
+        LOCK(wallet->cs_wallet);
+    }
+#else
+    if (fOnlyOwn)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet functionality is disabled");
+#endif
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    std::set<std::string> sparkNames = sparkNameManager->GetSparkNames();
+    UniValue result(UniValue::VARR);
+    for (const auto &name : sparkNames) {
+        UniValue entry(UniValue::VOBJ);
+
+        std::string sparkAddress;
+        if (sparkNameManager->GetSparkAddress(name, sparkAddress)) {
+#ifdef ENABLE_WALLET
+            if (fOnlyOwn && wallet && !wallet->IsSparkAddressMine(sparkAddress))
+                continue;
+#endif
+            entry.push_back(Pair("name", name));
+            entry.push_back(Pair("address", sparkAddress));
+            entry.push_back(Pair("validUntil", sparkNameManager->GetSparkNameBlockHeight(name)));
+            std::string addData = sparkNameManager->GetSparkNameAdditionalData(name);
+            if (!addData.empty())
+                entry.push_back(Pair("additionalInfo", addData));
+            result.push_back(entry);
+        }
+    }
+    return result;
+}
+
 UniValue getsparknametxdetails(const JSONRPCRequest &request)
 {
     if (request.fHelp || request.params.size() != 1) {
@@ -1765,6 +1830,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getblockcount",          &getblockcount,          true,  {} },
     { "blockchain",         "getsparknamedata",       &getsparknamedata,       true,  {"sparkname"} },
     { "blockchain",         "getsparknametxdetails",  &getsparknametxdetails,  true,  {"txhash"} },
+    { "blockchain",         "getsparknames",          &getsparknames,          true,  {} },
     { "blockchain",         "getblock",               &getblock,               true,  {"blockhash","verbose"} },
     { "blockchain",         "getblockhash",           &getblockhash,           true,  {"height"} },
     { "blockchain",         "getblockhashes",         &getblockhashes,         true,  {"high", "low"} },
