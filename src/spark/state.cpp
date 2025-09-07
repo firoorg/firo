@@ -315,13 +315,46 @@ bool ConnectBlockSpark(
         }
 
         if (!pblock->sparkTxInfo->sparkNames.empty()) {
-            FIRO_UNUSED CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+            CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+
             for (const auto &sparkName : pblock->sparkTxInfo->sparkNames) {
-                pindexNew->addedSparkNames[sparkName.first] =
-                        CSparkNameBlockIndexData(sparkName.second.name,
-                            sparkName.second.sparkAddress,
-                            pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
-                            sparkName.second.additionalInfo);
+                uint8_t opType = sparkName.second.nVersion >= 2 ?
+                                                 sparkName.second.operationType : CSparkNameTxData::opRegister;
+                switch (opType) {
+                    case CSparkNameTxData::opRegister:
+                        pindexNew->addedSparkNames[sparkName.first] =
+                            CSparkNameBlockIndexData(sparkName.second.name,
+                                sparkName.second.sparkAddress,
+                                pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
+                                sparkName.second.additionalInfo);
+                        break;
+
+                    case CSparkNameTxData::opTransfer:
+                        pindexNew->removedSparkNames[sparkName.first] = 
+                            CSparkNameBlockIndexData(sparkName.second.name,
+                                sparkName.second.oldSparkAddress,
+                                sparkNameManager->GetSparkNameBlockHeight(sparkName.second.name),
+                                sparkNameManager->GetSparkNameAdditionalData(sparkName.second.name));
+
+                        pindexNew->addedSparkNames[sparkName.first] =
+                            CSparkNameBlockIndexData(sparkName.second.name,
+                                sparkName.second.sparkAddress,
+                                pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
+                                sparkName.second.additionalInfo);
+
+                        break;
+
+                    case CSparkNameTxData::opUnregister:
+                        pindexNew->removedSparkNames[sparkName.first] =
+                            CSparkNameBlockIndexData(sparkName.second.name,
+                                sparkName.second.sparkAddress,
+                                sparkNameManager->GetSparkNameBlockHeight(sparkName.second.name),
+                                sparkNameManager->GetSparkNameAdditionalData(sparkName.second.name));
+                        break;
+
+                    default:
+                        return state.DoS(100, error("ConnectBlockSpark: invalid spark name op type"));
+                }
             }
 
             // names were added, backup rewritten names if necessary
