@@ -189,13 +189,13 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     if (sparkNames.count(ToUpper(sparkNameData.name)) > 0) {
         // it's possible to change any metadata of the existing name but if the spark address is being
         // tranferred, new name shouldn't be already registered
-        if (fSparkNameTransfer || sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress)
+        if (!fSparkNameTransfer && sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress)
             return state.DoS(100, error("CheckSparkNameTx: name already exists"));
 
         fUpdateExistingRecord = true;
     }
 
-    if (!fUpdateExistingRecord && sparkNameAddresses.count(sparkNameData.sparkAddress) > 0)
+    if ((fSparkNameTransfer || !fUpdateExistingRecord) && sparkNameAddresses.count(sparkNameData.sparkAddress) > 0)
         return state.DoS(100, error("CheckSparkNameTx: spark address is already used for another name"));
 
     // calculate the hash of the all the transaction except the spark ownership proof
@@ -204,7 +204,6 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     
     txMutable.vExtraPayload.erase(txMutable.vExtraPayload.begin() + sparkNameDataPos, txMutable.vExtraPayload.end());
     sparkNameDataCopy.addressOwnershipProof.clear();
-    sparkNameDataCopy.transferOwnershipProof.clear();
     CDataStream serializedSparkNameData(SER_NETWORK, PROTOCOL_VERSION);
     serializedSparkNameData << sparkNameDataCopy;
     txMutable.vExtraPayload.insert(txMutable.vExtraPayload.end(), serializedSparkNameData.begin(), serializedSparkNameData.end());
@@ -267,16 +266,17 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         }
 
         CHashWriter sparkNameDataStream(SER_GETHASH, PROTOCOL_VERSION);
+        sparkNameDataCopy.transferOwnershipProof.clear();
         sparkNameDataStream << sparkNameDataCopy;
 
-        CDataStream hashStream(SER_NETWORK, PROTOCOL_VERSION);
+        CHashWriter hashStream(SER_NETWORK, PROTOCOL_VERSION);
         hashStream << "SparkNameTransferProof";
         hashStream << sparkNameData.oldSparkAddress << sparkNameData.sparkAddress;
         hashStream << sparkNameDataStream.GetHash();
 
         spark::Scalar mTransfer;
         try {
-            mTransfer.SetHex(hashStream.str().c_str());
+            mTransfer.SetHex(hashStream.GetHash().ToString());
         }
         catch (const std::exception &) {
             return state.DoS(100, error("CheckSparkNameTx: hash is out of range"));

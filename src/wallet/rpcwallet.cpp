@@ -4039,7 +4039,7 @@ UniValue registersparkname(const JSONRPCRequest& request) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark name transfers are not activated yet");
     }
 
-    if (request.params.size() < 3 || request.params.size() > 4)
+    if (!fTransfer && request.params.size() > 4)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameters");
 
     std::string sparkName = request.params[0].get_str();
@@ -4050,14 +4050,16 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     if (numberOfYears < 1 || numberOfYears > 10)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid number of years");
 
-    if (request.params.size() >= 4)
-        additionalData = request.params[3].get_str();
+    int additionalDataIndex = fTransfer ? 5 : 3;
+    if (request.params.size() > additionalDataIndex)
+        additionalData = request.params[additionalDataIndex].get_str();
 
     if (sparkName.empty() || sparkName.size() > 20)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid spark name");
 
     CSparkNameTxData    sparkNameData;
     sparkNameData.nVersion = chainHeight >= consensusParams.nSparkNamesV2StartBlock ? CSparkNameTxData::CURRENT_VERSION : 1;
+    sparkNameData.operationType = fTransfer ? CSparkNameTxData::opTransfer : CSparkNameTxData::opRegister;
     sparkNameData.name = sparkName;
     sparkNameData.sparkAddress = sparkAddress;
     sparkNameData.additionalInfo = additionalData;
@@ -6053,8 +6055,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "identifysparkcoins",       &identifysparkcoins,       false,  {} },
     { "wallet",             "getsparkcoinaddr",         &getsparkcoinaddr,         false,  {} },
     { "wallet",             "registersparkname",        &registersparkname,        false,  {} },
-    { "wallet",             "requestsparknamenametransfer", &requestsparknametransfer, false,  {} },
-    { "wallet",             "tranfersparkname",         &transfersparkname,        false,  {} },
+    { "wallet",             "requestsparknametransfer", &requestsparknametransfer, false,  {} },
+    { "wallet",             "transfersparkname",        &transfersparkname,        false,  {} },
     { "wallet",             "getsparknames",            &getsparknames,            true,   {} },
 
     //bip47

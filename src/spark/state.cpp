@@ -330,6 +330,7 @@ bool ConnectBlockSpark(
                         break;
 
                     case CSparkNameTxData::opTransfer:
+                        // old name data goes to removed list
                         pindexNew->removedSparkNames[sparkName.first] = 
                             CSparkNameBlockIndexData(sparkName.second.name,
                                 sparkName.second.oldSparkAddress,
@@ -375,7 +376,7 @@ bool ConnectBlockSpark(
     }
 
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-    
+
     auto removedNames = sparkNameManager->RemoveSparkNamesLosingValidity(pindexNew->nHeight);
     for (const auto &name: removedNames)
         pindexNew->removedSparkNames[name.first] = name.second;
