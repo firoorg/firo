@@ -333,8 +333,8 @@ bool ConnectBlockSpark(
                         pindexNew->removedSparkNames[sparkName.first] = 
                             CSparkNameBlockIndexData(sparkName.second.name,
                                 sparkName.second.oldSparkAddress,
-                                sparkNameManager->GetSparkNameBlockHeight(sparkName.second.name),
-                                sparkNameManager->GetSparkNameAdditionalData(sparkName.second.name));
+                                sparkNameManager->GetSparkNameBlockHeight(sparkName.first),
+                                sparkNameManager->GetSparkNameAdditionalData(sparkName.first));
 
                         pindexNew->addedSparkNames[sparkName.first] =
                             CSparkNameBlockIndexData(sparkName.second.name,
@@ -348,8 +348,8 @@ bool ConnectBlockSpark(
                         pindexNew->removedSparkNames[sparkName.first] =
                             CSparkNameBlockIndexData(sparkName.second.name,
                                 sparkName.second.sparkAddress,
-                                sparkNameManager->GetSparkNameBlockHeight(sparkName.second.name),
-                                sparkNameManager->GetSparkNameAdditionalData(sparkName.second.name));
+                                sparkNameManager->GetSparkNameBlockHeight(sparkName.first),
+                                sparkNameManager->GetSparkNameAdditionalData(sparkName.first));
                         break;
 
                     default:
@@ -375,7 +375,11 @@ bool ConnectBlockSpark(
     }
 
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-    pindexNew->removedSparkNames = sparkNameManager->RemoveSparkNamesLosingValidity(pindexNew->nHeight);
+    
+    auto removedNames = sparkNameManager->RemoveSparkNamesLosingValidity(pindexNew->nHeight);
+    for (const auto &name: removedNames)
+        pindexNew->removedSparkNames[name.first] = name.second;
+    
     sparkNameManager->AddBlock(pindexNew, fBackupRewrittenSparkNames);
 
     return true;
