@@ -3950,57 +3950,6 @@ UniValue spendspark(const JSONRPCRequest& request)
 
     return wtx.GetHash().GetHex();
 }
-UniValue getsparknames(const JSONRPCRequest &request)
-{
-    if (request.fHelp || request.params.size() > 1) {
-        throw std::runtime_error(
-            "getsparknames [fOnlyOwn] \n"
-            "\nReturns a list of all Spark names and additional info.\n"
-            "\nArguments:\n"
-            "1. onlyown       (boolean, optional, default=false) Display only the spark names that belong to this wallet\n"
-            "\nResult:\n"
-            "[\n"
-            "  \"Name (string)\n"
-            "  \"Address (string)\"\n"
-            "  ...\n"
-            "]\n"
-            "\nExamples:\n"
-            + HelpExampleCli("getsparknames", "")
-            + HelpExampleRpc("getsparknames", "")
-        );
-    }
-
-    LOCK(cs_main);
-    CWallet *wallet = GetWalletForJSONRPCRequest(request);
-    LOCK(wallet->cs_wallet);
-
-    if (!spark::IsSparkAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
-    }
-
-    bool fOnlyOwn = request.params.size() > 0 ? request.params[0].get_bool() : false;
-
-    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-    std::set<std::string> sparkNames = sparkNameManager->GetSparkNames();
-    UniValue result(UniValue::VARR);
-    for (const auto &name : sparkNames) {
-        UniValue entry(UniValue::VOBJ);
-
-        std::string sparkAddress;
-        if (sparkNameManager->GetSparkAddress(name, sparkAddress)) {
-            if (fOnlyOwn && !wallet->IsSparkAddressMine(sparkAddress))
-                continue;
-            entry.push_back(Pair("name", name));
-            entry.push_back(Pair("address", sparkAddress));
-            entry.push_back(Pair("validUntil", sparkNameManager->GetSparkNameBlockHeight(name)));
-            std::string addData = sparkNameManager->GetSparkNameAdditionalData(name);
-            if (addData != "")
-                entry.push_back(Pair("additionalInfo", addData));
-            result.push_back(entry);
-        }
-    }
-    return result;
-}
 
 UniValue registersparkname(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -5923,24 +5872,23 @@ static const CRPCCommand commands[] =
     { "wallet",             "listlelantusjoinsplits",   &listlelantusjoinsplits,   false,  {} },
 
     //spark
-    { "wallet",             "listunspentsparkmints",    &listunspentsparkmints,    false,  {} },
-    { "wallet",             "listsparkmints",           &listsparkmints,           false,  {} },
-    { "wallet",             "listsparkspends",          &listsparkspends,          false,  {} },
-    { "wallet",             "getsparkdefaultaddress",   &getsparkdefaultaddress,   false,  {} },
-    { "wallet",             "getallsparkaddresses",     &getallsparkaddresses,     false,  {} },
-    { "wallet",             "getnewsparkaddress",       &getnewsparkaddress,       false,  {} },
-    { "wallet",             "getsparkbalance",          &getsparkbalance,          false,  {} },
-    { "wallet",             "getsparkaddressbalance",   &getsparkaddressbalance,   false,  {} },
-    { "wallet",             "resetsparkmints",          &resetsparkmints,          false,  {} },
-    { "wallet",             "setsparkmintstatus",       &setsparkmintstatus,       false,  {} },
-    { "wallet",             "mintspark",                &mintspark,                true,   {} },
-    { "wallet",             "automintspark",            &automintspark,            false,  {} },
-    { "wallet",             "spendspark",               &spendspark,               false,  {} },
-    { "wallet",             "lelantustospark",          &lelantustospark,          false,  {} },
-    { "wallet",             "identifysparkcoins",       &identifysparkcoins,       false,  {} },
-    { "wallet",             "getsparkcoinaddr",         &getsparkcoinaddr,         false,  {} },
-    { "wallet",             "registersparkname",        &registersparkname,        false,  {} },
-    { "wallet",             "getsparknames",            &getsparknames,            true,   {} },
+    { "wallet",             "listunspentsparkmints",  &listunspentsparkmints,  false, {} },
+    { "wallet",             "listsparkmints",         &listsparkmints,         false, {} },
+    { "wallet",             "listsparkspends",        &listsparkspends,        false, {} },
+    { "wallet",             "getsparkdefaultaddress", &getsparkdefaultaddress, false, {} },
+    { "wallet",             "getallsparkaddresses",   &getallsparkaddresses,   false, {} },
+    { "wallet",             "getnewsparkaddress",     &getnewsparkaddress,     false, {} },
+    { "wallet",             "getsparkbalance",        &getsparkbalance,        false, {} },
+    { "wallet",             "getsparkaddressbalance", &getsparkaddressbalance, false, {} },
+    { "wallet",             "resetsparkmints",        &resetsparkmints,        false, {} },
+    { "wallet",             "setsparkmintstatus",     &setsparkmintstatus,     false, {} },
+    { "wallet",             "mintspark",              &mintspark,              true,  {} },
+    { "wallet",             "automintspark",          &automintspark,          false, {} },
+    { "wallet",             "spendspark",             &spendspark,             false, {} },
+    { "wallet",             "lelantustospark",        &lelantustospark,        false, {} },
+    { "wallet",             "identifysparkcoins",     &identifysparkcoins,     false, {} },
+    { "wallet",             "getsparkcoinaddr",       &getsparkcoinaddr,       false, {} },
+    { "wallet",             "registersparkname",      &registersparkname,      false, {} },
 
     //bip47
     { "bip47",              "createrapaddress",         &createrapaddress,         true,   {} },
