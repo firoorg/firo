@@ -4067,6 +4067,10 @@ UniValue registersparkname(const JSONRPCRequest& request) {
 
     if (fTransfer) {
         sparkNameData.oldSparkAddress = request.params[3].get_str();
+        std::string transferProofHex = request.params[4].get_str();
+        // sanity check
+        if (transferProofHex.size() > 2048)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid transfer proof");
         sparkNameData.transferOwnershipProof = ParseHex(request.params[4].get_str());
     }
 
@@ -4106,7 +4110,7 @@ UniValue registersparkname(const JSONRPCRequest& request) {
 }
 
 UniValue requestsparknametransfer(const JSONRPCRequest &request) {
-    if (request.fHelp || request.params.size() < 3 || request.params.size() > 6) {
+    if (request.fHelp || request.params.size() < 4 || request.params.size() > 5) {
         throw std::runtime_error(
             "requestsparknametransfer \"name\" \"sparkaddress\" \"oldsparkaddress\" years [\"additionalData\"]\n"
         );
@@ -4114,6 +4118,16 @@ UniValue requestsparknametransfer(const JSONRPCRequest &request) {
 
     if (request.params.size() < 4 || request.params.size() > 5)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameters");
+
+    int chainHeight;
+    {
+        LOCK(cs_main);
+        chainHeight = chainActive.Height();
+    }
+    const auto &consensusParams = Params().GetConsensus();
+    if (chainHeight < consensusParams.nSparkNamesV2StartBlock) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark name transfers are not activated yet");
+    }
 
     std::string sparkName = request.params[0].get_str();
     std::string sparkAddress = request.params[1].get_str();
@@ -4161,6 +4175,9 @@ UniValue transfersparkname(const JSONRPCRequest &request) {
             "transfersparkname \"oldSparkAddress\" \"requestHash\"\n"
         );
     }
+
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
 
     const spark::Params* params = spark::Params::get_default();
     spark::SpendKey spendKey(params);

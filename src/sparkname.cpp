@@ -269,7 +269,7 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         sparkNameDataCopy.transferOwnershipProof.clear();
         sparkNameDataStream << sparkNameDataCopy;
 
-        CHashWriter hashStream(SER_NETWORK, PROTOCOL_VERSION);
+        CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
         hashStream << "SparkNameTransferProof";
         hashStream << sparkNameData.oldSparkAddress << sparkNameData.sparkAddress;
         hashStream << sparkNameDataStream.GetHash();
