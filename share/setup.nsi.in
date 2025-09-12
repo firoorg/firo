@@ -74,13 +74,13 @@ ShowUninstDetails show
 Section -Main SEC0000
     SetOutPath $INSTDIR
     SetOverwrite on
-    File @abs_top_builddir@/@EXECUTABLE_DIR@/@BITCOIN_GUI_NAME@@EXEEXT@
+    File @abs_top_builddir@/release/@BITCOIN_GUI_NAME@@EXEEXT@
     File /oname=COPYING.txt @abs_top_srcdir@/COPYING
     File /oname=readme_firo.txt @abs_top_srcdir@/README.md
     File /oname=readme_windows.txt @abs_top_srcdir@/doc/README_windows.txt
     SetOutPath $INSTDIR\daemon
-    File @abs_top_builddir@/@EXECUTABLE_DIR@/@BITCOIN_DAEMON_NAME@@EXEEXT@
-    File @abs_top_builddir@/@EXECUTABLE_DIR@/@BITCOIN_CLI_NAME@@EXEEXT@
+    File @abs_top_builddir@/release/@BITCOIN_DAEMON_NAME@@EXEEXT@
+    File @abs_top_builddir@/release/@BITCOIN_CLI_NAME@@EXEEXT@
     SetOutPath $INSTDIR\doc
     File /r @abs_top_srcdir@/doc\*.*
     SetOutPath $INSTDIR
