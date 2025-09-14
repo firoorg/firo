@@ -304,19 +304,19 @@ void OverviewPage::setWalletModel(WalletModel *model)
         ui->listTransactions->setModel(filter.get());
         ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
 
-//        auto privateBalance = walletModel->getSparkBalance();
+        auto privateBalance = walletModel->getSparkBalance();
 
         // Keep up to date with wallet
-//        setBalance(
-//                    model->getBalance(),
-//                    model->getUnconfirmedBalance(),
-//                    model->getImmatureBalance(),
-//                    model->getWatchBalance(),
-//                    model->getWatchUnconfirmedBalance(),
-//                    model->getWatchImmatureBalance(),
-//                    privateBalance.first,
-//                    privateBalance.second,
-//                    model->getAnonymizableBalance());
+        setBalance(
+                    model->getBalance(),
+                    model->getUnconfirmedBalance(),
+                    model->getImmatureBalance(),
+                    model->getWatchBalance(),
+                    model->getWatchUnconfirmedBalance(),
+                    model->getWatchImmatureBalance(),
+                    privateBalance.first,
+                    privateBalance.second,
+                    model->getAnonymizableBalance());
         connect(model, &WalletModel::balanceChanged, this, &OverviewPage::setBalance);
 
         connect(model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &OverviewPage::updateDisplayUnit);
@@ -370,27 +370,27 @@ void OverviewPage::countDown()
 
 void OverviewPage::onRefreshClicked()
 {
-//    size_t confirmed, unconfirmed;
-//    auto privateBalance = walletModel->getWallet()->GetPrivateBalance(confirmed, unconfirmed);
-//    auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
-//    int heightDifference = lGracefulPeriod - chainActive.Height();
-//    const int approxBlocksPerDay = 570;
-//    int daysUntilMigrationCloses = heightDifference / approxBlocksPerDay;
-//
-//    if(privateBalance.first > 0 && chainActive.Height() < lGracefulPeriod && spark::IsSparkAllowed()) {
-//        ui->warningFrame->show();
-//        migrationWindowClosesIn = QString::fromStdString(std::to_string(daysUntilMigrationCloses));
-//        blocksRemaining = QString::fromStdString(std::to_string(heightDifference));
-//        migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
-//        migrateAmount.append("</b>");
-//        ui->textWarning1->setText(tr("We have detected Lelantus coins that have not been migrated to Spark. Migration window will close in %1 blocks (~ %2 days).").arg(blocksRemaining , migrationWindowClosesIn));
-//        ui->textWarning2->setText(tr("to migrate %1 ").arg(migrateAmount));
-//        QFont qFont = ui->migrateButton->font();
-//        qFont.setUnderline(true);
-//        ui->migrateButton->setFont(qFont);
-//    } else {
-//        ui->warningFrame->hide();
-//    }
+    size_t confirmed, unconfirmed;
+    auto privateBalance = walletModel->getWallet()->GetPrivateBalance(confirmed, unconfirmed);
+    auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
+    int heightDifference = lGracefulPeriod - chainActive.Height();
+    const int approxBlocksPerDay = 570;
+    int daysUntilMigrationCloses = heightDifference / approxBlocksPerDay;
+
+    if(privateBalance.first > 0 && chainActive.Height() < lGracefulPeriod && spark::IsSparkAllowed()) {
+        ui->warningFrame->show();
+        migrationWindowClosesIn = QString::fromStdString(std::to_string(daysUntilMigrationCloses));
+        blocksRemaining = QString::fromStdString(std::to_string(heightDifference));
+        migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
+        migrateAmount.append("</b>");
+        ui->textWarning1->setText(tr("We have detected Lelantus coins that have not been migrated to Spark. Migration window will close in %1 blocks (~ %2 days).").arg(blocksRemaining , migrationWindowClosesIn));
+        ui->textWarning2->setText(tr("to migrate %1 ").arg(migrateAmount));
+        QFont qFont = ui->migrateButton->font();
+        qFont.setUnderline(true);
+        ui->migrateButton->setFont(qFont);
+    } else {
+        ui->warningFrame->hide();
+    }
 }
 
 void OverviewPage::migrateClicked()

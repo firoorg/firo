@@ -6,6 +6,56 @@
 #include "../uint256.h"
 #include "openssl_context.h"
 
+// keep this just to not break old index
+namespace sigma {
+class PublicCoin {
+public:
+    PublicCoin() {}
+    template<typename Stream>
+    inline void Serialize(Stream& s) const {
+        constexpr int size = GroupElement::memoryRequired();
+        unsigned char buffer[size + sizeof(int32_t)];
+        value.serialize(buffer);
+        std::memcpy(buffer + size, &denomination, sizeof(denomination));
+        char* b = (char*)buffer;
+        s.write(b, size + sizeof(int32_t));
+    }
+
+    template<typename Stream>
+    inline void Unserialize(Stream& s) {
+        constexpr int size = GroupElement::memoryRequired();
+        unsigned char buffer[size + sizeof(int32_t)];
+        char* b = (char*)buffer;
+        s.read(b, size + sizeof(int32_t));
+        value.deserialize(buffer);
+        std::memcpy(&denomination, buffer + size, sizeof(denomination));
+    }
+
+private:
+    GroupElement value;
+    std::uint8_t denomination;
+};
+
+struct CSpendCoinInfo {
+    std::uint8_t denomination;
+    int coinGroupId;
+
+    template<typename Stream>
+    void Serialize(Stream& s) const {
+        int64_t tmp = uint8_t(denomination);
+        s << tmp;
+        tmp = coinGroupId;
+        s << tmp;
+    }
+    template<typename Stream>
+    void Unserialize(Stream& s) {
+        int64_t tmp;
+        s >> tmp; denomination = uint8_t(tmp);
+        s >> tmp; coinGroupId = int(tmp);
+    }
+
+};
+}
 
 namespace lelantus {
 

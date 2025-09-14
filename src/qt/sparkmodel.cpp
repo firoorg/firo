@@ -35,7 +35,7 @@ SparkModel::~SparkModel()
 
 CAmount SparkModel::getMintableSparkAmount()
 {
-    std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXO;
+    CAmount credit = 0;
     {
         TRY_LOCK(cs_main,lock_main);
         if (!lock_main)
@@ -43,16 +43,11 @@ CAmount SparkModel::getMintableSparkAmount()
         TRY_LOCK(wallet->cs_wallet,lock_wallet);
         if (!lock_wallet)
             return cachedMintableSparkAmount;
-        pwalletMain->AvailableCoinsForLMint(valueAndUTXO, nullptr);
+        credit = pwalletMain->GetaAvailableCoinsForLMint();
     }
 
-    CAmount s = 0;
-    for (auto const &val : valueAndUTXO) {
-        s += val.first;
-    }
-
-    cachedMintableSparkAmount = s;
-    return s;
+    cachedMintableSparkAmount = credit;
+    return credit;
 }
 
 AutoMintSparkModel* SparkModel::getAutoMintSparkModel()

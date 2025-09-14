@@ -79,21 +79,21 @@ public:
      */
     void refreshWallet()
     {
-//        qDebug() << "TransactionTablePriv::refreshWallet";
-//        cachedWallet.clear();
-//        {
-//            TRY_LOCK(cs_main,lock_main);
-//            if (!lock_main)
-//                return;
-//            TRY_LOCK(wallet->cs_wallet,lock_wallet);
-//            if (!lock_wallet)
-//                return;
-//            for(std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin(); it != wallet->mapWallet.end(); ++it)
-//            {
-//                if(TransactionRecord::showTransaction(it->second))
-//                    cachedWallet.append(TransactionRecord::decomposeTransaction(wallet, it->second));
-//            }
-//        }
+        qDebug() << "TransactionTablePriv::refreshWallet";
+        cachedWallet.clear();
+        {
+            TRY_LOCK(cs_main,lock_main);
+            if (!lock_main)
+                return;
+            TRY_LOCK(wallet->cs_wallet,lock_wallet);
+            if (!lock_wallet)
+                return;
+            for(std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin(); it != wallet->mapWallet.end(); ++it)
+            {
+                if(TransactionRecord::showTransaction(it->second))
+                    cachedWallet.append(TransactionRecord::decomposeTransaction(wallet, it->second));
+            }
+        }
     }
 
     /* Update our model of the wallet incrementally, to synchronize our model of the wallet
@@ -296,20 +296,20 @@ void TransactionTableModel::refreshWallet() const
 
 void TransactionTableModel::updateTransaction(const QString &hash, int status, bool showTransaction)
 {
-//    uint256 updated;
-//    updated.SetHex(hash.toStdString());
-//    priv->cachedUpdatedTx.push_back(std::make_pair(updated, std::make_pair(status, showTransaction)));
-//    size_t currentSize = priv->cachedUpdatedTx.size();
-//    while (!priv->cachedUpdatedTx.empty())
-//    {
-//        std::pair<uint256, std::pair<int, bool>> current = priv->cachedUpdatedTx.back();
-//        priv->cachedUpdatedTx.pop_back();
-//        priv->updateWallet(current.first, current.second.first, current.second.second);
-//        // this thread was not able to perform the update, stop and do it next time
-//        if (currentSize == priv->cachedUpdatedTx.size())
-//            break;
-//        currentSize = priv->cachedUpdatedTx.size();
-//    }
+    uint256 updated;
+    updated.SetHex(hash.toStdString());
+    priv->cachedUpdatedTx.push_back(std::make_pair(updated, std::make_pair(status, showTransaction)));
+    size_t currentSize = priv->cachedUpdatedTx.size();
+    while (!priv->cachedUpdatedTx.empty())
+    {
+        std::pair<uint256, std::pair<int, bool>> current = priv->cachedUpdatedTx.back();
+        priv->cachedUpdatedTx.pop_back();
+        priv->updateWallet(current.first, current.second.first, current.second.second);
+        // this thread was not able to perform the update, stop and do it next time
+        if (currentSize == priv->cachedUpdatedTx.size())
+            break;
+        currentSize = priv->cachedUpdatedTx.size();
+    }
 }
 
 void TransactionTableModel::updateConfirmations()

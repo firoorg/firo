@@ -1154,7 +1154,7 @@ void BitcoinGUI::incomingTransaction(const QString& date, int unit, const CAmoun
     QString finalMsg = msg;
 
     // skip tx notifications in case it is not fully sync
-    if (progressBar->isVisible()) {
+    if (masternodeSync.IsBlockchainSynced()) {
         QMetaObject::invokeMethod(this, [this, title, finalMsg]() {
             message(title, finalMsg, CClientUIInterface::MSG_INFORMATION);
         }, Qt::QueuedConnection);
