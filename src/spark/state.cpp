@@ -1,10 +1,30 @@
+#include "../liblelantus/threadpool.h"
 #include "state.h"
 #include "compat_layer.h"
 #include "sparkname.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
 
+#include <set>
+
 namespace spark {
+
+struct ProofCheckState {
+    // if this is true, then the proof was already checked, no need to check again
+    bool fChecked;
+
+    // result of the check (if fChecked is true)
+    bool fResult;
+
+    // if this is non-null, then the proof is being checked right now
+    std::shared_ptr<boost::future<bool>> checkInProgress;
+};
+
+// map from transaction hash to the state of checking its proofs
+static std::map<uint256, ProofCheckState> gCheckedSparkSpendTransactions;
+static CCriticalSection cs_checkedSparkSpendTransactions;
+
+static ParallelOpThreadPool<bool> gCheckProofThreadPool(boost::thread::hardware_concurrency());
 
 static CSparkState sparkState;
 
@@ -531,6 +551,40 @@ bool CheckSparkSpendTransaction(
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
         CSparkTxInfo* sparkTxInfo) {
+
+    bool fChecked = false;
+    {
+        LOCK(cs_checkedSparkSpendTransactions);
+        if (gCheckedSparkSpendTransactions.count(hashTx)) {
+            auto& checkState = gCheckedSparkSpendTransactions[hashTx];
+            if (checkState.fChecked) {
+                if (!checkState.fResult)
+                    return state.DoS(100, false, REJECT_INVALID, "CheckSparkSpendTransaction: previously checked and failed");
+                else {
+                    LogPrintf("CheckSparkSpendTransaction: already checked tx %s\n", hashTx.ToString());
+                    fChecked = true;
+                }
+            }
+            // If the check is in progress and we are doing a stateful check, we need to wait
+            else if (checkState.checkInProgress && fStatefulSigmaCheck) {
+                // wait for the check to complete
+                auto future = checkState.checkInProgress;
+                cs_checkedSparkSpendTransactions.unlock();
+                bool result = future->get();
+                cs_checkedSparkSpendTransactions.lock();
+
+                checkState.fChecked = true;
+                checkState.fResult = result;
+                checkState.checkInProgress = nullptr;
+
+                if (!result)
+                    return state.DoS(100, false, REJECT_INVALID, "CheckSparkSpendTransaction: previously checked and failed");
+                else
+                    fChecked = true;
+            }
+        }
+    }
+
     std::unordered_set<GroupElement, spark::CLTagHash> txLTags;
 
     if (tx.vin.size() != 1 || !tx.vin[0].scriptSig.IsSparkSpend()) {
@@ -551,10 +605,10 @@ bool CheckSparkSpendTransaction(
             }
     }
 
-    std::unique_ptr<spark::SpendTransaction> spend;
+    std::shared_ptr<spark::SpendTransaction> spend;
 
     try {
-        spend = std::make_unique<spark::SpendTransaction>(ParseSparkSpend(tx));
+        spend = std::make_shared<spark::SpendTransaction>(ParseSparkSpend(tx));
     }
     catch (CBadTxIn&) {
         return state.DoS(100,
@@ -582,10 +636,6 @@ bool CheckSparkSpendTransaction(
     txHashForMetadata = txTemp.GetHash();
 
     LogPrintf("CheckSparkSpendTransaction: tx metadata hash=%s\n", txHashForMetadata.ToString());
-
-    if (!fStatefulSigmaCheck) {
-        return true;
-    }
 
     bool passVerify = false;
 
@@ -622,14 +672,27 @@ bool CheckSparkSpendTransaction(
 
     for (const auto& idAndHash : idAndBlockHashes) {
         CSparkState::SparkCoinGroupInfo coinGroup;
-        if (!sparkState.GetCoinGroupInfo(idAndHash.first, coinGroup))
+        if (!sparkState.GetCoinGroupInfo(idAndHash.first, coinGroup)) {
+            if (fStatefulSigmaCheck)
                 return state.DoS(100, false, NO_MINT_ZEROCOIN,
                                  "CheckSparkSpendTransaction: Error: no coins were minted with such parameters");
+            else
+                // soft error, will check the proof later
+                return true;
+        }
 
         CBlockIndex *index = coinGroup.lastBlock;
         // find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
         while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
             index = index->pprev;
+
+        if (index->GetBlockHash() != idAndHash.second)
+            // if fStatefulSigmaCheck is false, we are in the mempool acceptance code, it's a soft error
+            // just return true, the proof will be checked later. Else return error
+            return fStatefulSigmaCheck ? state.DoS(100,
+                             false,
+                             NO_MINT_ZEROCOIN,
+                             "CheckSparkSpendTransaction: Error: couldn't find anonymity set block") : true;
 
         // take the hash from last block of anonymity set
         std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, idAndHash.first);
@@ -679,8 +742,8 @@ bool CheckSparkSpendTransaction(
     const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
     for (const auto& id : ids) {
         if (!cover_sets.count(id) || !cover_set_data.count(id))
-            return state.DoS(100,
-                             error("CheckSparkSpendTransaction: No cover set found."));
+            return fStatefulSigmaCheck ? state.DoS(100,
+                             error("CheckSparkSpendTransaction: No cover set found.")) : true;
     }
     
     // if we are collecting proofs, skip verification and collect proofs
@@ -690,11 +753,40 @@ bool CheckSparkSpendTransaction(
         batchProofContainer->add(*spend);
     } else {
         try {
-            passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
+            if (fChecked) {
+                // if we are here, then the proof was already checked and it passed
+                passVerify = true;
+            }
+            else {
+                if (fStatefulSigmaCheck) {
+                    // we need the answer now, so verify and execute
+                    passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
+                }
+                else {
+                    LOCK(cs_checkedSparkSpendTransactions);
+                    // put the proof into the thread pool for verification
+                    auto future = gCheckProofThreadPool.PostTask([spend, cover_sets]() {
+                        try {
+                            return spark::SpendTransaction::verify(*spend, cover_sets);
+                        } catch (const std::exception &) {
+                            return false;
+                        }
+                    });
+                    auto &checkState = gCheckedSparkSpendTransactions[hashTx];
+                    checkState.fChecked = false;
+                    checkState.checkInProgress = std::make_shared<boost::future<bool>>(std::move(future));
+                    // return true for now, the result will be processed later
+                    return true;
+                }
+            }
         } catch (const std::exception &) {
             passVerify = false;
         }
     }
+
+    if (!fStatefulSigmaCheck)
+        // nothing more to do
+        return true;
 
     if (passVerify) {
         const std::vector<GroupElement>& lTags = spend->getUsedLTags();
